@@ -11,14 +11,14 @@ export function applyCombatCrowdControlProfile(unit: Unit): void {
     const isBoss = unit.tags.includes(UnitTag.Boss);
 
     if (def?.ccDurationResistPct) {
-        unit.ccDurationResistPct = { ...def.ccDurationResistPct };
+        unit.ccArmour.durationResistPct = { ...def.ccDurationResistPct };
     }
     if (def?.ccDurationFlatSec) {
-        unit.ccDurationFlatSec = { ...def.ccDurationFlatSec };
+        unit.ccArmour.durationFlatSec = { ...def.ccDurationFlatSec };
     }
 
-    unit.hardCcArmourFloor = def?.hardCcArmourFloor ?? (isBoss ? 1 : 0);
-    unit.ccArmourBreakStunDuration = def?.ccArmourBreakStunDuration ?? 0;
-    unit.chainCcResist = def?.chainCcResist ?? (isBoss ? 1 : 0);
-    unit.chainCcDecayRounds = def?.chainCcDecayRounds ?? 1;
+    unit.ccArmour.hardFloor = def?.hardCcArmourFloor ?? (isBoss ? 1 : 0);
+    unit.ccArmour.breakStunDuration = def?.ccArmourBreakStunDuration ?? 0;
+    unit.ccArmour.chainResist = def?.chainCcResist ?? (isBoss ? 1 : 0);
+    unit.ccArmour.chainDecayRounds = def?.chainCcDecayRounds ?? 1;
 }

@@ -6,6 +6,7 @@ import { EXPOSED_BUFF_TYPE } from '../buffs/ExposedBuff';
 import { createUnitFromSpawnConfig } from '../game/units/index';
 import { UnitTag } from '../game/units/unitTag';
 import { EventBus } from '../game/EventBus';
+import { getEffectiveHardCcThreshold, tickHardCcChainDecayAtRoundEnd } from './ccArmourState';
 
 /** Armour break applies Exposed, not Stun; clear it before the next armour cycle in tests. */
 function clearExposed(u: Unit): void {
@@ -30,15 +31,15 @@ function baseDummyUnit(): Unit {
 describe('resolveCcDuration', () => {
     it('uses STUN-specific resist then ALL', () => {
         const u = baseDummyUnit();
-        u.ccDurationResistPct = { ALL: 0.1, STUN: 0.25 };
+        u.ccArmour.durationResistPct = { ALL: 0.1, STUN: 0.25 };
         expect(resolveCcDuration(u, 'STUN', 1)).toBeCloseTo(0.75);
         expect(resolveCcDuration(u, 'SLOW', 1)).toBeCloseTo(0.9);
     });
 
     it('applies flat after percent using ALL fallback', () => {
         const u = baseDummyUnit();
-        u.ccDurationResistPct = { ALL: 0 };
-        u.ccDurationFlatSec = { ALL: 0.2, STUN: 0.1 };
+        u.ccArmour.durationResistPct = { ALL: 0 };
+        u.ccArmour.durationFlatSec = { ALL: 0.2, STUN: 0.1 };
         expect(resolveCcDuration(u, 'STUN', 1)).toBeCloseTo(0.9);
     });
 });
@@ -46,48 +47,48 @@ describe('resolveCcDuration', () => {
 describe('tryApplyHardCcStun threshold', () => {
     it('absorbs until threshold then applies stun (floor 2 → 3 attempts)', () => {
         const u = baseDummyUnit();
-        u.hardCcArmourFloor = 2;
-        u.bonusHardCcArmour = 0;
-        u.chainCcResist = 0;
+        u.ccArmour.hardFloor = 2;
+        u.ccArmour.bonusHard = 0;
+        u.ccArmour.chainResist = 0;
 
         expect(tryApplyHardCcStun(u, 2, 0, 1).outcome).toBe('absorbed');
-        expect(u.hardCcArmourConsumed).toBe(1);
+        expect(u.ccArmour.hardConsumed).toBe(1);
         expect(tryApplyHardCcStun(u, 2, 0, 1).outcome).toBe('absorbed');
-        expect(u.hardCcArmourConsumed).toBe(2);
+        expect(u.ccArmour.hardConsumed).toBe(2);
         const r = tryApplyHardCcStun(u, 2, 0, 1);
         expect(r.outcome).toBe('applied');
         if (r.outcome !== 'applied') throw new Error('expected applied');
         expect(r.effectiveDuration).toBe(2);
-        expect(u.hardCcArmourConsumed).toBe(0);
+        expect(u.ccArmour.hardConsumed).toBe(0);
         expect(u.hasBuff(EXPOSED_BUFF_TYPE)).toBe(true);
     });
 
     it('ccCharges=2 advances consumed by 2 and breaks armour on second hit (floor 2)', () => {
         const u = baseDummyUnit();
-        u.hardCcArmourFloor = 2;
-        u.bonusHardCcArmour = 0;
-        u.chainCcResist = 0;
+        u.ccArmour.hardFloor = 2;
+        u.ccArmour.bonusHard = 0;
+        u.ccArmour.chainResist = 0;
 
         // First hit: 0+2=2 <= 2 → absorbed, consumed becomes 2
         expect(tryApplyHardCcStun(u, 2, 0, 1, undefined, 2).outcome).toBe('absorbed');
-        expect(u.hardCcArmourConsumed).toBe(2);
+        expect(u.ccArmour.hardConsumed).toBe(2);
 
         // Second hit: 2+2=4 > 2 → breaks armour
         const r = tryApplyHardCcStun(u, 2, 0, 1, undefined, 2);
         expect(r.outcome).toBe('applied');
-        expect(u.hardCcArmourConsumed).toBe(0);
+        expect(u.ccArmour.hardConsumed).toBe(0);
         expect(u.hasBuff(EXPOSED_BUFF_TYPE)).toBe(true);
     });
 
     it('ccCharges=2 breaks armour when consumed=1 (one prior hit + two charges crosses threshold)', () => {
         const u = baseDummyUnit();
-        u.hardCcArmourFloor = 2;
-        u.bonusHardCcArmour = 0;
-        u.chainCcResist = 0;
+        u.ccArmour.hardFloor = 2;
+        u.ccArmour.bonusHard = 0;
+        u.ccArmour.chainResist = 0;
 
         // Prime with 1 regular charge
         expect(tryApplyHardCcStun(u, 2, 0, 1).outcome).toBe('absorbed');
-        expect(u.hardCcArmourConsumed).toBe(1);
+        expect(u.ccArmour.hardConsumed).toBe(1);
 
         // Cone of Light: 1+2=3 > 2 → breaks armour
         const r = tryApplyHardCcStun(u, 2, 0, 1, undefined, 2);
@@ -104,7 +105,7 @@ describe('tryApplyHardCcStun threshold', () => {
 
     it('treats effective duration below potency as no_potency', () => {
         const u = baseDummyUnit();
-        u.ccDurationResistPct = { ALL: 0.9 };
+        u.ccArmour.durationResistPct = { ALL: 0.9 };
         const r = tryApplyHardCcStun(u, 2, 0, 1);
         expect(r.outcome).toBe('no_potency');
         expect(u.buffs.some((b) => b._type === EXPOSED_BUFF_TYPE)).toBe(false);
@@ -114,9 +115,9 @@ describe('tryApplyHardCcStun threshold', () => {
 describe('chain CC golden scenario (stacking + decay)', () => {
     it('matches 3-hit then 4-hit cycles; bonus stacks to effective 5 after two lands', () => {
         const u = baseDummyUnit();
-        u.hardCcArmourFloor = 2;
-        u.chainCcResist = 2;
-        u.chainCcDecayRounds = 1;
+        u.ccArmour.hardFloor = 2;
+        u.ccArmour.chainResist = 2;
+        u.ccArmour.chainDecayRounds = 1;
 
         const hit = () => tryApplyHardCcStun(u, 2, 0, 1);
 
@@ -124,7 +125,7 @@ describe('chain CC golden scenario (stacking + decay)', () => {
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('applied');
-        expect(u.getEffectiveHardCcThreshold()).toBe(3);
+        expect(getEffectiveHardCcThreshold(u)).toBe(3);
         clearExposed(u);
 
         // Cycle 2 — effective 3: absorb ×3, land on 4th
@@ -132,15 +133,15 @@ describe('chain CC golden scenario (stacking + decay)', () => {
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('applied');
-        expect(u.getEffectiveHardCcThreshold()).toBe(5);
+        expect(getEffectiveHardCcThreshold(u)).toBe(5);
         clearExposed(u);
     });
 
     it('from effective 5 (6-hit cycle state), each round decays bonus by one step', () => {
         const u = baseDummyUnit();
-        u.hardCcArmourFloor = 2;
-        u.chainCcResist = 2;
-        u.chainCcDecayRounds = 1;
+        u.ccArmour.hardFloor = 2;
+        u.ccArmour.chainResist = 2;
+        u.ccArmour.chainDecayRounds = 1;
         const hit = () => tryApplyHardCcStun(u, 2, 0, 1);
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('absorbed');
@@ -150,19 +151,19 @@ describe('chain CC golden scenario (stacking + decay)', () => {
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('applied');
-        expect(u.getEffectiveHardCcThreshold()).toBe(5);
+        expect(getEffectiveHardCcThreshold(u)).toBe(5);
         clearExposed(u);
 
-        u.tickHardCcChainDecayAtRoundEnd();
-        expect(u.getEffectiveHardCcThreshold()).toBe(4);
-        u.tickHardCcChainDecayAtRoundEnd();
-        expect(u.getEffectiveHardCcThreshold()).toBe(3);
+        tickHardCcChainDecayAtRoundEnd(u);
+        expect(getEffectiveHardCcThreshold(u)).toBe(4);
+        tickHardCcChainDecayAtRoundEnd(u);
+        expect(getEffectiveHardCcThreshold(u)).toBe(3);
     });
 
     it('at effective 5 the next cycle needs six attempts before a stun lands', () => {
         const u = baseDummyUnit();
-        u.hardCcArmourFloor = 2;
-        u.chainCcResist = 2;
+        u.ccArmour.hardFloor = 2;
+        u.ccArmour.chainResist = 2;
         const hit = () => tryApplyHardCcStun(u, 2, 0, 1);
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('absorbed');
@@ -172,7 +173,7 @@ describe('chain CC golden scenario (stacking + decay)', () => {
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('applied');
-        expect(u.getEffectiveHardCcThreshold()).toBe(5);
+        expect(getEffectiveHardCcThreshold(u)).toBe(5);
         clearExposed(u);
         for (let i = 0; i < 5; i++) expect(hit().outcome).toBe('absorbed');
         expect(hit().outcome).toBe('applied');
@@ -193,8 +194,8 @@ describe('Alpha Wolf ALL resist', () => {
             },
             new EventBus(),
         );
-        wolf.hardCcArmourFloor = 0;
-        wolf.bonusHardCcArmour = 0;
+        wolf.ccArmour.hardFloor = 0;
+        wolf.ccArmour.bonusHard = 0;
 
         const r = tryApplyHardCcStun(wolf, 1, 0, 1);
         expect(r.outcome).toBe('applied');

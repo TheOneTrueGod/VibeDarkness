@@ -64,21 +64,21 @@ function buildGoldenSerializationUnit(eventBus: EventBus): Unit {
     );
     unit.movement!.targetPixel = { x: 130, y: 170 };
 
-    unit.ccDurationResistPct = { ALL: 0.25, STUN: 0.5 };
-    unit.ccDurationFlatSec = { ALL: 0.1 };
-    unit.hardCcArmourFloor = 2;
-    unit.ccArmourBreakStunDuration = 1.5;
-    unit.bonusHardCcArmour = 3;
-    unit.hardCcArmourConsumed = 1;
-    unit.chainCcResist = 2;
-    unit.chainCcDecayRounds = 3;
-    unit.chainCcStackNextIncrement = 4;
-    unit.chainCcDecayRoundCounter = 2;
-    unit.softCcArmourFloor = 1;
-    unit.bonusSoftCcArmour = 2;
-    unit.hardCcArmourEventSerial = 5;
-    unit.lastHardCcEventGameTime = 12.5;
-    unit.lastHardCcEventKind = 'absorbed';
+    unit.ccArmour.durationResistPct = { ALL: 0.25, STUN: 0.5 };
+    unit.ccArmour.durationFlatSec = { ALL: 0.1 };
+    unit.ccArmour.hardFloor = 2;
+    unit.ccArmour.breakStunDuration = 1.5;
+    unit.ccArmour.bonusHard = 3;
+    unit.ccArmour.hardConsumed = 1;
+    unit.ccArmour.chainResist = 2;
+    unit.ccArmour.chainDecayRounds = 3;
+    unit.ccArmour.chainStackNextIncrement = 4;
+    unit.ccArmour.chainDecayRoundCounter = 2;
+    unit.ccArmour.softFloor = 1;
+    unit.ccArmour.bonusSoft = 2;
+    unit.ccArmour.eventSerial = 5;
+    unit.ccArmour.lastEventGameTime = 12.5;
+    unit.ccArmour.lastEventKind = 'absorbed';
 
     unit.knockback = {
         knockbackVector: { x: 50, y: -30 },

@@ -8,13 +8,12 @@
 
 import type { AbilityModifier } from '../../../../researchTrees/types';
 import { GameObject, generateGameObjectId } from '../GameObject';
-import { areEnemies, type TeamId } from '../teams';
+import { type TeamId } from '../teams';
 import type { ActiveAbility } from '../types';
 import type { AbilityNote } from '../AbilityNote';
 import type { Resource } from '../../resources/Resource';
 import type { EventBus } from '../EventBus';
-import { getAbility } from '../../abilities/AbilityRegistry';
-import { AbilityState, refundAbilityCost, spendAbilityCost, type AbilityStatic } from '../../abilities/Ability';
+import { refundAbilityCost, spendAbilityCost, type AbilityStatic } from '../../abilities/Ability';
 import {
     addRecoveryChargeToUnitAbilities,
     applyStaminaSurgeToUnit,
@@ -23,90 +22,48 @@ import {
     ensureAbilityRuntimeState as ensureAbilityRuntimeStateUtil,
     grantRoundChargesToEligibleAbilities,
     syncNestedCardAbilityState,
-    unitAbilityHasTag,
 } from '../../abilities/abilityUses';
-import {
-    AbilityPhase,
-    getCoveringAbilityPhaseAtElapsed,
-    getTotalAbilityDurationForCast,
-    normalizeAbilityTimingsToIntervals,
-    resolveAbilityTimingEntries,
-} from '../../abilities/abilityTimings';
-import {
-    applySlingshotLaunch,
-    computeSlingshotDirection,
-    CONTROLLED_SLINGSHOT_AIR_TIME,
-    CONTROLLED_SLINGSHOT_SLIDE_TIME,
-    findNearestPassableDirection,
-    GENERIC_SLINGSHOT_AIR_TIME,
-    GENERIC_SLINGSHOT_MAGNITUDE,
-    GENERIC_SLINGSHOT_SLIDE_TIME,
-    snapToCardinal,
-} from './slingshotHelpers';
 import type { ResolvedTarget } from '../types';
-import { triggerAbilityEvent } from '../../abilities/events';
-import { AbilityEventType } from '../../abilities/Ability';
-import type { CastBehaviourInterruptContext } from '../../abilities/castBehaviourTypes';
-import { resolveCastBehaviourTarget } from '../../abilities/resolveCastBehaviourTarget';
-import type { AbilityTimingInterval } from '../../abilities/abilityTimings';
-import type { Buff, BuffSerialized } from '../../buffs/Buff';
-import { buffFromJSON } from '../../buffs/buffRegistry';
-import type { TerrainManager } from '../../terrain/TerrainManager';
-import { CELL_SIZE } from '../../terrain/TerrainGrid';
-import type { TerrainGrid } from '../../terrain/TerrainGrid';
-import { computeForcedDisplacement, findNearestPassableCell } from '../forceMove';
+import type { Buff } from '../../buffs/Buff';
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
-import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
-import { PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE } from '../../../../gameConstants';
-import { CONTROLLED_SLINGSHOT, MIN_FOLLOW_RADIUS } from '../gameConstants';
-import { getDefaultHp, getUnitCombatCcDef, getUnitEnrageDef, getUnitMaxPerTile, getUnitShovePriority, PLAYER_CHARACTER_ID } from './unit_defs/unitDef';
+import { getDefaultHp, getUnitCombatCcDef, getUnitEnrageDef } from './unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../../research/researchTrainingEffects';
 import { evaluateSwapTriggers } from '../../abilities/abilitySwap';
-import { UnitTag, parseUnitTagsFromJSON } from './unitTag';
+import { UnitTag } from './unitTag';
 import type { EnrageDef } from './enrageDef';
-import { applyDamageToEarthCoreArmour } from '../../abilities/earthCoreArmour';
-import type { CcResistKey } from '../../crowdControl/ccTypes';
-import type { TerrainLayerManager } from '../TerrainLayerManager';
 import type { EngineContext } from '../EngineContext';
-import type { CellOccupancyManager } from '../managers/CellOccupancyManager';
 import { tickUnitActiveAbilities } from './unitAbilityTick';
-import { initTelegraphCastPayload } from '../../abilities/telegraphTracking';
-import { DarknessLevel } from '../darknessLevels';
-import type { Plan, TacticalPlan, InterruptFlag, SerializedTacticalPlan } from './unitAI/plans/types';
-import { serializeTacticalPlan, deserializeTacticalPlan } from './unitAI/plans/planUtils';
+import type { Plan, TacticalPlan, InterruptFlag } from './unitAI/plans/types';
+import {
+    cancelUnitActiveAbility,
+    executeUnitAbility,
+    interruptAllUnitAbilities,
+    interruptAndRefundUnitAbilities,
+    unitRoundStart,
+} from './unitAbilityLifecycle';
 import type {
     ActiveCastBehaviourRecord,
     AISettings,
     ApplyKnockbackParams,
     DamageModifier,
-    KnockbackSource,
     KnockbackState,
     UnitAbilityRuntimeState,
     UnitCombatSettings,
     UnitConfig,
     UnitMovement,
 } from './unitTypes';
-import { applyPetStateFromJSON, createPetState, petStateToJSON, type UnitPetState } from './unitPetState';
-import {
-    applyLanterniteStateFromJSON,
-    createLanterniteState,
-    lanterniteStateToJSONAfterSwarm,
-    lanterniteStateToJSONBeforeThornling,
-    lanterniteStateToJSONBeforeWall,
-    type UnitLanterniteState,
-} from './unitLanterniteState';
-import {
-    applyThornlingStateFromJSON,
-    createThornlingState,
-    thornlingStateToJSON,
-    type UnitThornlingState,
-} from './unitThornlingState';
-import {
-    applySwarmStateFromJSON,
-    createSwarmState,
-    swarmStateToJSON,
-    type UnitSwarmState,
-} from './unitSwarmState';
+import { createPetState, type UnitPetState } from './unitPetState';
+import { createLanterniteState, type UnitLanterniteState } from './unitLanterniteState';
+import { createThornlingState, type UnitThornlingState } from './unitThornlingState';
+import { createSwarmState, type UnitSwarmState } from './unitSwarmState';
+import { createCcArmourState, tickHardCcChainDecayAtRoundEnd, type UnitCcArmourState } from '../../crowdControl/ccArmourState';
+import { serializeUnit } from './unitToJSON';
+import { applySerializedUnitState, normalizeLegacyUnitIdentity } from './unitFromJSON';
+import { moveUnitToward } from './unitCellSlide';
+import { applyKnockbackToUnit } from './unitKnockback';
+import { getUnitEffectiveSpeed, unitHasIFrames, isUnitInJuggernautWindow, getUnitLungeDistance } from './unitAbilityQueries';
+import { updateUnit, tickUnitMovement, setUnitMovement, clearUnitMovement, invalidateUnitMovementPath } from './unitMovementTick';
+import { applyDamageToUnit, tickUnitDarknessCorruption } from './unitDamage';
 
 export type {
     AISettings,
@@ -119,54 +76,6 @@ export type {
     UnitMovement,
 } from './unitTypes';
 
-/** Chebyshev grid tiles; after min wait time, end wait early if a live enemy is this close (wait+move failsafe). */
-const WAIT_ENEMY_PROXIMITY_FAILSAFE_GRID = 4;
-
-/** 8-directional neighbour offsets for slide-cell search. */
-const SLIDE_DIRS = [
-    { dc: 0, dr: -1 }, { dc: 1, dr: 0 }, { dc: 0, dr: 1 }, { dc: -1, dr: 0 },
-    { dc: 1, dr: -1 }, { dc: 1, dr: 1 }, { dc: -1, dr: 1 }, { dc: -1, dr: -1 },
-];
-
-/**
- * When the next path cell is full, find an adjacent cell to redirect into.
- * Candidates must be neighbours of both the current cell AND the blocked cell,
- * passable, and have capacity. Sorted by angular distance from the unit's jitter angle
- * so different units try different directions.
- */
-function findSlideCell(
-    currentCol: number,
-    currentRow: number,
-    blockedCell: { col: number; row: number },
-    jitter: number,
-    maxPerTile: number,
-    mgr: CellOccupancyManager,
-): { col: number; row: number } | null {
-    const jitterAngle = jitter * Math.PI * 2;
-
-    type Candidate = { col: number; row: number; angularDist: number };
-    const candidates: Candidate[] = [];
-
-    for (const { dc, dr } of SLIDE_DIRS) {
-        const nc = currentCol + dc;
-        const nr = currentRow + dr;
-        // Must be adjacent to the blocked cell too
-        if (Math.abs(nc - blockedCell.col) > 1 || Math.abs(nr - blockedCell.row) > 1) continue;
-        if (!mgr.canEnter(nc, nr, maxPerTile)) continue;
-        const angle = Math.atan2(dr, dc);
-        const angularDist = Math.abs(((angle - jitterAngle + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
-        candidates.push({ col: nc, row: nr, angularDist });
-    }
-
-    if (candidates.length === 0) return null;
-    candidates.sort((a, b) => a.angularDist - b.angularDist);
-    return { col: candidates[0].col, row: candidates[0].row };
-}
-
-/** Old unit.characterId values for player units before unified `player` id. */
-const LEGACY_PLAYER_CHARACTER_IDS = new Set([
-    'warrior', 'mage', 'ranger', 'healer', 'rogue', 'necromancer',
-]);
 
 import type { UnitAIContext } from './unitAI/contextTypes';
 export type { UnitAIContext } from './unitAI/contextTypes';
@@ -233,26 +142,16 @@ export class Unit extends GameObject {
         return getUnitEnrageDef(this.characterId);
     }
 
-    /**
-     * Per-unit timing and directional seed in [0, 1]. Set once at spawn, never changed.
-     * Use as the base for any jitter-like mechanic — timing offsets, phase spreads, angle variation.
-     */
+    /** Per-unit timing/directional seed in [0, 1]. Set once at spawn; use for jitter, timing offsets, phase spreads. */
     moveJitter: number = 0;
 
-    /**
-     * Set when this unit was displaced (shoved) out of a cell. Cleared when the unit reaches a valid cell.
-     * Not serialized — runtime only. Prevents bounce-back when cascading through packed cells.
-     */
+    /** Set when shoved out of a cell; cleared on reaching a valid cell. Runtime only; prevents cascade bounce-back. */
     shoveFromCell: { col: number; row: number } | undefined = undefined;
 
-    /**
-     * Current medium-term AI goal. Serialized as relative ticks. Null means unit should replan on next tactical tick.
-     */
+    /** Current medium-term AI goal; serialized as relative ticks. Null = replan on next tactical tick. */
     tacticalPlan: Plan<TacticalPlan> | null = null;
 
-    /**
-     * Events queued since last AI tick that may invalidate current plans. Cleared at the end of each AI decision. Not serialized.
-     */
+    /** Events queued since last AI tick that may invalidate plans; cleared at end of AI decision. Not serialized. */
     pendingInterrupts: Set<InterruptFlag> = new Set();
 
     /** Seconds remaining in spawn animation (0 = not spawning). Unit is invisible and untargetable while > 0. */
@@ -272,51 +171,15 @@ export class Unit extends GameObject {
     /** Crystal corruption progress 0..1. Set while this unit is actively corrupting a crystal; 0 when not corrupting. */
     crystalCorruptionProgress: number = 0;
 
-    /**
-     * How many darkness damage procs this unit has taken since last full reset.
-     * Next proc deals `5 * (darknessDamageProcCount + 2)` damage (10 on first, +5 each subsequent). Reset when corruption drains to 0 outside full darkness.
-     */
+    /** Darkness damage proc count since last reset. Next proc: `5 * (count + 2)` dmg. Resets when corruption drains outside full darkness. */
     darknessDamageProcCount: number = 0;
 
-    /**
-     * Reduces the effective tier of incoming tier-based knockback (see tryApplyKnockbackByTier).
-     * Sourced from the unit def on demand — no backing field or serialization needed.
-     */
+    /** Reduces effective tier of incoming tier-based knockback (see tryApplyKnockbackByTier). Def-sourced; no backing field. */
     get knockbackResistance(): number {
         return getUnitCombatCcDef(this.characterId)?.knockbackResistance ?? 0;
     }
 
-    /** Per-type CC duration resist; specific entry overrides `ALL`. Values 0–1 (fraction reduced). */
-    ccDurationResistPct: Partial<Record<CcResistKey, number>> = {};
-    /** Flat seconds removed after percent scaling; specific overrides `ALL`. */
-    ccDurationFlatSec: Partial<Record<CcResistKey, number>> = {};
-    /** Baseline hard CC threshold floor (absorbed hits before one lands). Boss default often 2. */
-    hardCcArmourFloor: number = 0;
-    /** When > 0, overrides the incoming hit's duration for the stun applied on CC armour break. */
-    ccArmourBreakStunDuration: number = 0;
-    /** Extra hard CC threshold from chain resist; decays per round toward 0. */
-    bonusHardCcArmour: number = 0;
-    /** Qualifying absorbed hard CC attempts since the last stun that actually applied. */
-    hardCcArmourConsumed: number = 0;
-    /** When > 0, successful hard CCs add stacking bonus per {@link Unit.chainCcStackNextIncrement}. */
-    chainCcResist: number = 0;
-    /** Apply one decay step to {@link Unit.bonusHardCcArmour} every N round ends. */
-    chainCcDecayRounds: number = 1;
-    /**
-     * Next addend when a hard CC successfully lands and {@link Unit.chainCcResist} is active
-     * (successive values 1, 2, 3, ...). Serialized for checkpoint determinism.
-     */
-    chainCcStackNextIncrement: number = 1;
-    /** Counts round ends toward {@link Unit.chainCcDecayRounds} for bonus decay. */
-    chainCcDecayRoundCounter: number = 0;
-    /** Placeholder for future soft CC gate (matches hard CC pattern). */
-    softCcArmourFloor: number = 0;
-    /** Placeholder for future soft CC bonus pool. */
-    bonusSoftCcArmour: number = 0;
-    /** Bumps when a hard CC is absorbed or lands (for boss HUD animation). */
-    hardCcArmourEventSerial: number = 0;
-    lastHardCcEventGameTime: number = -1;
-    lastHardCcEventKind: 'absorbed' | 'landed' | null = null;
+    ccArmour: UnitCcArmourState = createCcArmourState();
 
     /** Active knockback state; unit cannot move while set. */
     knockback: KnockbackState | null = null;
@@ -327,18 +190,10 @@ export class Unit extends GameObject {
     /** Last world position where the unit was in passable terrain. Used for generic slingshot direction. */
     wallEntryPoint: { x: number; y: number } | null = null;
 
-    /**
-     * Cardinal direction for CONTROLLED_SLINGSHOT bouncing. Persists across consecutive bounces;
-     * abilities may set this before the unit enters a wall to control the bounce direction.
-     * Cleared automatically when the unit exits to passable terrain.
-     */
+    /** Cardinal bounce direction for CONTROLLED_SLINGSHOT. Abilities set this before wall entry; cleared on exit to passable terrain. */
     controlledSlingshotDir: { x: number; y: number } | null = null;
 
-    /**
-     * True while the engine is piloting this unit (e.g. CONTROLLED_SLINGSHOT, cinematic effects).
-     * Prevents the player from submitting orders or advancing movement paths.
-     * Does NOT count as CC and does not trigger boss CC armour.
-     */
+    /** True while engine pilots this unit (CONTROLLED_SLINGSHOT, cinematic). No orders/movement; NOT CC; no boss armour. */
     controlled: boolean = false;
     /** Estimated game-time (seconds) at which the current controlled sequence ends. Used by the timeline UI. */
     controlledUntilTime: number | null = null;
@@ -348,9 +203,7 @@ export class Unit extends GameObject {
     /** Per-unit combat tuning values (optional, serialized). */
     combatSettings: UnitCombatSettings | undefined;
 
-    /**
-     * When non-null, unit dies when {@link GameEngine.gameTime} reaches this value (husks, etc.).
-     */
+    /** When non-null, unit dies when GameEngine.gameTime reaches this value (husks, etc.). */
     ephemeralDespawnAtGameTime: number | null = null;
 
     petState: UnitPetState = createPetState();
@@ -361,12 +214,7 @@ export class Unit extends GameObject {
 
     swarmState: UnitSwarmState = createSwarmState();
 
-    /**
-     * Generational invulnerability counter. If > 0, this unit is invulnerable.
-     * Each time this unit creates a child (lanternite or nest), the child receives
-     * max(0, this.invulnerabilityGenerations - 1), making them NOT invulnerable once
-     * the counter reaches 0.
-     */
+    /** Generational invulnerability (>0 = invulnerable). Children get max(0, this - 1), losing invuln when counter hits 0. */
     invulnerabilityGenerations: number | null = null;
 
     /** Active EffectEmitters created from declarative `emitterDef` on AbilityTimingInterval. Keyed by `intervalId`. Runtime-only. */
@@ -453,151 +301,21 @@ export class Unit extends GameObject {
 
     /** Apply damage to this unit. Returns actual damage dealt. */
     takeDamage(amount: number, sourceUnitId: string | null, eventBus: EventBus): number {
-        if (!this.isAlive()) return 0;
-        if (this.isInvincible()) return 0;
-        if (this.isSpawning()) return 0;
-
-        // God mode: prevent HP loss for player-controlled units.
-        if (debugSettingsSnapshot.godModeEnabled && this.isPlayerControlled()) {
-            return 0;
-        }
-        const incomingAmount = this.hasBuff('exposed') ? Math.round(amount * 1.2) : amount;
-        const armourDamage = applyDamageToEarthCoreArmour(this, incomingAmount);
-
-        let remaining = armourDamage.remainingDamage;
-        const prevStackSize = this.stackSize;
-        if (this.stackSize > 1 && remaining >= this.hp) {
-            remaining -= this.hp;
-            const extraDeaths = Math.min(Math.floor(remaining / this.maxHp), this.stackSize - 1);
-            this.stackSize -= (1 + extraDeaths);
-            if (this.stackSize <= 0) {
-                this.hp = 0;
-            } else {
-                remaining -= extraDeaths * this.maxHp;
-                this.hp = this.maxHp - remaining;
-            }
-        } else {
-            this.hp = Math.max(0, this.hp - remaining);
-        }
-        const actual = armourDamage.remainingDamage;
-        const membersKilled = prevStackSize - Math.max(0, this.stackSize);
-        if (membersKilled > 0 && this.hp > 0) {
-            eventBus.emit('stack_members_died', { unitId: this.id, count: membersKilled });
-        } else if (membersKilled >= 2 && this.hp <= 0) {
-            // Emit ghosts for all-but-last member; unit_died handles the final death visually.
-            eventBus.emit('stack_members_died', { unitId: this.id, count: membersKilled - 1 });
-        }
-
-        eventBus.emit('damage_taken', {
-            unitId: this.id,
-            amount: actual,
-            sourceUnitId,
-            incomingDamage: amount,
-            hpDamage: actual,
-            armourRemoved: armourDamage.armourRemoved,
-        });
-
-        if (this.hp <= 0) {
-            if (this.hasBuff('cant_die')) {
-                this.hp = 1;
-                return actual;
-            }
-
-            this.hp = 0;
-            this.active = false;
-
-            eventBus.emit('unit_died', {
-                unitId: this.id,
-                killerUnitId: sourceUnitId,
-            });
-        }
-
-        return actual;
+        return applyDamageToUnit(this, amount, sourceUnitId, eventBus);
     }
 
     /** Set movement state with a grid-cell path. Clears movement if path is empty. Clears pathInvalidated. */
-    setMovement(
-        path: { col: number; row: number }[],
-        targetUnitId: string | undefined,
-        pathfindingTick: number,
-        targetPixel?: { x: number; y: number },
-    ): void {
-        if (path.length === 0) {
-            this.movement = null;
-            return;
-        }
-        this.pathInvalidated = false;
-        this.movement = {
-            path: path.map((p) => ({ ...p })),
-            targetUnitId,
-            targetPixel: targetPixel ? { ...targetPixel } : undefined,
-            pathfindingTick,
-        };
-    }
+    setMovement(path: { col: number; row: number }[], targetUnitId: string | undefined, pathfindingTick: number, targetPixel?: { x: number; y: number }): void { setUnitMovement(this, path, targetUnitId, pathfindingTick, targetPixel); }
 
     /** Clear all movement state. */
-    clearMovement(): void {
-        this.movement = null;
-    }
+    clearMovement(): void { clearUnitMovement(this); }
 
-    /**
-     * Mark the current pathfinding route as invalid (e.g. after knockback or forced movement).
-     * Next normal move will recalculate the path. Clears movement so the unit does not follow the old route.
-     */
-    invalidateMovementPath(): void {
-        this.movement = null;
-        this.pathInvalidated = true;
-    }
-
-    getEffectiveHardCcThreshold(): number {
-        return this.hardCcArmourFloor + this.bonusHardCcArmour;
-    }
-
-    /** After a hard CC actually applies a debuff: stack chain bonus, then caller resets fill. */
-    onSuccessfulHardCcLand(): void {
-        if (this.chainCcResist > 0) {
-            this.bonusHardCcArmour += this.chainCcStackNextIncrement;
-            this.chainCcStackNextIncrement += 1;
-        }
-    }
-
-    recordHardCcArmourEvent(kind: 'absorbed' | 'landed', gameTime: number): void {
-        this.hardCcArmourEventSerial += 1;
-        this.lastHardCcEventKind = kind;
-        this.lastHardCcEventGameTime = gameTime;
-    }
-
-    /**
-     * Decay {@link Unit.bonusHardCcArmour} at round boundaries (host + replicas).
-     * One step per tick when the decay period elapses; effective threshold never below {@link Unit.hardCcArmourFloor}.
-     */
-    tickHardCcChainDecayAtRoundEnd(): void {
-        if (this.chainCcDecayRounds <= 0) return;
-        this.chainCcDecayRoundCounter += 1;
-        if (this.chainCcDecayRoundCounter < this.chainCcDecayRounds) return;
-        this.chainCcDecayRoundCounter = 0;
-        if (this.bonusHardCcArmour > 0) {
-            this.bonusHardCcArmour = Math.max(0, this.bonusHardCcArmour - 1);
-        }
-    }
+    /** Mark pathfinding route invalid; next move recalculates. Clears movement so unit doesn't follow old route. */
+    invalidateMovementPath(): void { invalidateUnitMovementPath(this); }
 
     /** Launch the unit with a knockback impulse. CC resistance is handled upstream by `tryApplyKnockbackByTier`. */
-    applyKnockback(
-        params: ApplyKnockbackParams,
-        _eventBus: EventBus,
-        onApplied?: (unit: Unit) => void,
-    ): boolean {
-        this.knockback = {
-            knockbackVector: { ...params.knockbackVector },
-            knockbackAirTime: params.knockbackAirTime,
-            knockbackSlideTime: params.knockbackSlideTime,
-            knockbackSource: { ...params.knockbackSource },
-            knockbackElapsed: 0,
-            passThroughTerrain: params.passThroughTerrain,
-        };
-        this.invalidateMovementPath();
-        onApplied?.(this);
-        return true;
+    applyKnockback(params: ApplyKnockbackParams, _eventBus: EventBus, onApplied?: (unit: Unit) => void): boolean {
+        return applyKnockbackToUnit(this, params, _eventBus, onApplied);
     }
 
     /** Whether the unit is currently being knocked back (cannot move or act). */
@@ -617,452 +335,16 @@ export class Unit extends GameObject {
      * Returns the actual distance moved.
      */
     moveUnit(towardX: number, towardY: number, maxDistance: number): number {
-        const dx = towardX - this.x;
-        const dy = towardY - this.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist === 0) return 0;
-
-        const step = Math.min(maxDistance, dist);
-        this.x += (dx / dist) * step;
-        this.y += (dy / dist) * step;
-
-        if (this.movement && this.movement.path.length > 0) {
-            const currentCol = Math.floor(this.x / CELL_SIZE);
-            const currentRow = Math.floor(this.y / CELL_SIZE);
-            const first = this.movement.path[0];
-            if (currentCol !== first.col || currentRow !== first.row) {
-                this.movement.path.unshift({ col: currentCol, row: currentRow });
-            }
-        }
-
-        return step;
+        return moveUnitToward(this, towardX, towardY, maxDistance);
     }
 
-    /** During wait+move: true if any live enemy is within Chebyshev distance on the grid from this unit's cell. */
-    private hasEnemyWithinWaitProximityFailsafe(engine: unknown, maxChebyshevGrid: number): boolean {
-        const units = (engine as { units?: readonly Unit[] }).units;
-        if (!units?.length) return false;
-
-        const myCol = Math.floor(this.x / CELL_SIZE);
-        const myRow = Math.floor(this.y / CELL_SIZE);
-
-        for (const other of units) {
-            if (other === this || !other.isAlive()) continue;
-            if (!areEnemies(this.teamId, other.teamId)) continue;
-            const oCol = Math.floor(other.x / CELL_SIZE);
-            const oRow = Math.floor(other.y / CELL_SIZE);
-            if (Math.max(Math.abs(myCol - oCol), Math.abs(myRow - oRow)) <= maxChebyshevGrid) return true;
-        }
-        return false;
-    }
-
-    update(dt: number, engine: unknown): void {
-        const eng = engine as { gameTime: number; roundNumber: number };
-        const gameTime = eng.gameTime;
-        const roundNumber = eng.roundNumber ?? 1;
-
-        // Expire buffs
-        this.buffs = this.buffs.filter((b) => !b.isExpired(gameTime, roundNumber));
-
-        // Wait action: enforce minimum and maximum wait duration, allow early end when movement finishes,
-        // or after min time if an enemy is within grid range (failsafe so long paths do not stall in melee).
-        if (this.waitMinEndTime !== null && this.waitMaxEndTime !== null) {
-            const reachedMovementTarget = !this.movement;
-            const afterMin = gameTime >= this.waitMinEndTime;
-            const afterMax = gameTime >= this.waitMaxEndTime;
-            const enemyProximityFailsafe =
-                afterMin && this.hasEnemyWithinWaitProximityFailsafe(engine, WAIT_ENEMY_PROXIMITY_FAILSAFE_GRID);
-
-            const playerEarlyEnd = this.isPlayerControlled() && PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE && afterMin && reachedMovementTarget;
-            if (afterMax || playerEarlyEnd || enemyProximityFailsafe) {
-                this.waitMinEndTime = null;
-                this.waitMaxEndTime = null;
-                if (this.isPlayerControlled() && !PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE) {
-                    this.movementPaused = true;
-                }
-            }
-        }
-
-        const terrainManager = (engine as { terrainManager?: TerrainManager }).terrainManager ?? null;
-        const grid = terrainManager?.grid ?? null;
-
-        // Knockback: unit cannot move normally; apply push and wall bounce
-        if (this.knockback) {
-            this.updateKnockback(dt, grid, terrainManager);
-            return;
-        }
-
-        // Wall recovery: nudge/snap stuck units out of impassable terrain (runs before stun check so
-        // stunned units can still recover from a wall they were diagonal-clipped into).
-        if (terrainManager && this.isAlive()) {
-            this.tickWallUnstick(dt, engine as EngineContext);
-        }
-
-        // Stunned/exposed/controlled units must not advance along a movement path (canAct already blocks new orders).
-        if (this.hasBuff('stunned') || this.hasBuff('exposed') || this.controlled) {
-            return;
-        }
-
-        // Move along grid path
-        if (!this.isAlive() || !this.movement || this.movement.path.length === 0 || this.movementPaused) return;
-
-        // Pursuit mode: stop when within (myRadius + targetRadius + gap) of the target's actual position.
-        if (this.movement.targetUnitId) {
-            const pursuitTarget = (engine as EngineContext).getUnit(this.movement.targetUnitId);
-            if (pursuitTarget?.isAlive()) {
-                const pdx = pursuitTarget.x - this.x;
-                const pdy = pursuitTarget.y - this.y;
-                const stopDist = this.radius + pursuitTarget.radius + MIN_FOLLOW_RADIUS;
-                if (pdx * pdx + pdy * pdy <= stopDist * stopDist) {
-                    this.movement = null;
-                    return;
-                }
-            } else {
-                this.movement.targetUnitId = undefined;
-            }
-        }
-
-        // Target: jittered position around the center of the next grid cell in the path
-        const nextCell = this.movement.path[0];
-        const centerX = nextCell.col * CELL_SIZE + CELL_SIZE / 2;
-        const centerY = nextCell.row * CELL_SIZE + CELL_SIZE / 2;
-
-        // Movement jitter: deterministic per-unit offset so multiple units in the same tile stand on different pixels.
-        const jitterAngle = (this.moveJitter ?? 0) * Math.PI * 2;
-        const jitterRadius = CELL_SIZE * 0.15;
-        const jitterX = Math.cos(jitterAngle) * jitterRadius;
-        const jitterY = Math.sin(jitterAngle) * jitterRadius;
-
-        // On the last path cell, an exact pixel target overrides the jittered tile centre.
-        const isLastCell = this.movement.path.length === 1;
-        const targetX = isLastCell && this.movement.targetPixel ? this.movement.targetPixel.x : centerX + jitterX;
-        const targetY = isLastCell && this.movement.targetPixel ? this.movement.targetPixel.y : centerY + jitterY;
-
-        // Compute effective speed: base × ability penalties × terrain modifier × ground effects
-        let effectiveSpeed = this.getEffectiveSpeed(gameTime);
-        const terrainLayers = (engine as { terrainLayers?: TerrainLayerManager }).terrainLayers;
-        if (terrainLayers) {
-            effectiveSpeed *= terrainLayers.getGroundMovementMultiplier(this.x, this.y);
-        }
-        if (terrainManager) {
-            effectiveSpeed *= terrainManager.getSpeedMultiplier(this.x, this.y);
-        }
-
-        // Debug: super speed for player-controlled units
-        if (debugSettingsSnapshot.superSpeedEnabled && this.isPlayerControlled()) {
-            effectiveSpeed *= 10;
-        }
-
-        // Move toward the jittered target within the tile
-        const dx = targetX - this.x;
-        const dy = targetY - this.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        const step = effectiveSpeed * dt;
-        if (dist <= step) {
-            this.x = targetX;
-            this.y = targetY;
-        } else if (dist > 0) {
-            this.x += (dx / dist) * step;
-            this.y += (dy / dist) * step;
-        }
-
-        // Only advance the path when we've effectively reached the jittered target position
-        const remainingDx = targetX - this.x;
-        const remainingDy = targetY - this.y;
-        const remainingDistSq = remainingDx * remainingDx + remainingDy * remainingDy;
-        const EPSILON = 1; // 1px tolerance
-        if (remainingDistSq <= EPSILON * EPSILON) {
-            this.movement.path.shift();
-            if (this.movement.path.length === 0) {
-                this.movement = null;
-            } else {
-                // Cell boundary check: can we enter the next cell?
-                this.checkNextCellOccupancy(engine as EngineContext);
-            }
-        }
-    }
-
-    /**
-     * After arriving at a cell, check whether the next path cell has capacity.
-     * If full, try sliding to an adjacent cell. If no slide is possible, unit waits
-     * at the current position and the pathfinding retrigger will replan.
-     */
-    private checkNextCellOccupancy(engine: EngineContext): void {
-        if (!this.movement) return;
-        const maxPerTile = getUnitMaxPerTile(this.characterId);
-        if (maxPerTile === undefined) return;
-        if (getUnitShovePriority(this.characterId) !== undefined) return; // shovers bypass
-
-        const mgr = engine.cellOccupancyManager;
-        if (!mgr) return;
-
-        const nextCell = this.movement.path[0];
-        if (mgr.canEnter(nextCell.col, nextCell.row, maxPerTile)) return;
-
-        // Target cell is full — try to slide to an adjacent cell
-        const currentCol = Math.floor(this.x / CELL_SIZE);
-        const currentRow = Math.floor(this.y / CELL_SIZE);
-        const slide = findSlideCell(currentCol, currentRow, nextCell, this.moveJitter, maxPerTile, mgr);
-        if (slide) {
-            this.movement.path[0] = slide;
-        }
-        // else: unit waits at current position until pathfinding retrigger recomputes
-    }
-
-    /**
-     * Advance knockback state: apply push (full vector during air, half during slide).
-     * If the next position would be out of bounds or unwalkable, knockback is cleared
-     * immediately and no movement is applied.
-     */
-    private updateKnockback(dt: number, grid: TerrainGrid | null, terrainManager?: TerrainManager | null): void {
-        const k = this.knockback!;
-        const airTime = k.knockbackAirTime;
-        const slideTime = k.knockbackSlideTime;
-        const totalTime = airTime + slideTime;
-        const v = k.knockbackVector;
-
-        const displacementAt = (t: number): { x: number; y: number } => {
-            if (t <= 0) return { x: 0, y: 0 };
-            if (t <= airTime) {
-                const f = t / airTime;
-                return { x: v.x * f, y: v.y * f };
-            }
-            const slideT = Math.min(t - airTime, slideTime);
-            return { x: v.x + 0.5 * (slideT / slideTime) * v.x, y: v.y + 0.5 * (slideT / slideTime) * v.y };
-        };
-
-        const prevElapsed = k.knockbackElapsed;
-        k.knockbackElapsed = Math.min(k.knockbackElapsed + dt, totalTime);
-
-        const prevD = displacementAt(prevElapsed);
-        const newD = displacementAt(k.knockbackElapsed);
-        const pushX = newD.x - prevD.x;
-        const pushY = newD.y - prevD.y;
-
-        const newX = this.x + pushX;
-        const newY = this.y + pushY;
-
-        const segmentLength = Math.sqrt(pushX * pushX + pushY * pushY);
-        if (segmentLength > 0 && !k.passThroughTerrain && (terrainManager || grid)) {
-            const { distance } = computeForcedDisplacement(
-                this.x,
-                this.y,
-                newX,
-                newY,
-                segmentLength,
-                terrainManager ? { terrainManager } : { grid: grid! },
-            );
-            if (distance <= 0) {
-                this.knockback = null;
-                return;
-            }
-
-            const scale = distance / segmentLength;
-            this.x += pushX * scale;
-            this.y += pushY * scale;
-        } else {
-            this.x += pushX;
-            this.y += pushY;
-        }
-
-        if (k.knockbackElapsed >= totalTime) {
-            this.knockback = null;
-        }
-    }
-
-    /** Seconds a unit must spend in a wall before being snapped to the nearest passable cell. */
-    private static readonly WALL_SNAP_DELAY = 0.1;
-
-    /**
-     * If the unit is inside an impassable tile, nudge it toward the nearest passable cell each tick.
-     * After WALL_SNAP_DELAY seconds of continuous wall contact, fire a slingshot launch (unless an
-     * Entombed ability is in a non-Cooldown phase, in which case suppression holds).
-     */
-    private tickWallUnstick(dt: number, engine: EngineContext): void {
-        const gameTime = engine.gameTime;
-
-        if (engine.terrainManager!.isPassable(this.x, this.y)) {
-            this.wallEntryPoint = { x: this.x, y: this.y };
-            this.wallStuckTime = 0;
-            this.controlledSlingshotDir = null;
-            this.controlled = false;
-            this.controlledUntilTime = null;
-            return;
-        }
-
-        this.wallStuckTime += dt;
-
-        // Suppress while any Entombed ability is still in an active (non-Cooldown) phase.
-        if (isEntombedProtectionActive(this, engine)) {
-            this.wallStuckTime = 0;
-            this.controlled = false;
-            this.controlledUntilTime = null;
-            return;
-        }
-
-        if (CONTROLLED_SLINGSHOT) {
-            if (!this.controlled) {
-                this.controlled = true;
-                // Interrupt active abilities that are not in a cooldown phase.
-                // Cooldown/CoopCooldown are designed to coexist with the slingshot
-                // (e.g. DiggingClaws waits out the slingshot window during its cooldown).
-                const kept = this.activeAbilities.filter((active) => {
-                    const ability = getAbility(active.abilityId);
-                    if (!ability) return false;
-                    const elapsed = engine.gameTime - active.startTime;
-                    const entries = resolveAbilityTimingEntries(ability, this, engine);
-                    const intervals = normalizeAbilityTimingsToIntervals(entries);
-                    const phase = getCoveringAbilityPhaseAtElapsed(elapsed, intervals);
-                    if (phase === AbilityPhase.Cooldown || phase === AbilityPhase.CoopCooldown) {
-                        return true;
-                    }
-                    refundAbilityCost(this, ability);
-                    return false;
-                });
-                this.activeAbilities = kept;
-                if (this.activeAbilities.length === 0) {
-                    this.clearAbilityNote();
-                }
-            }
-            this.tickControlledSlingshot(engine);
-            return;
-        }
-
-        const col = Math.floor(this.x / CELL_SIZE);
-        const row = Math.floor(this.y / CELL_SIZE);
-        const nearest = findNearestPassableCell(engine.terrainManager!, col, row);
-        if (!nearest) return;
-
-        const targetX = nearest.col * CELL_SIZE + CELL_SIZE / 2;
-        const targetY = nearest.row * CELL_SIZE + CELL_SIZE / 2;
-
-        if (this.wallStuckTime >= Unit.WALL_SNAP_DELAY) {
-            const tm = engine.terrainManager;
-            const dir = tm
-                ? computeSlingshotDirection(this.wallEntryPoint?.x, this.wallEntryPoint?.y, this.x, this.y, tm)
-                : null;
-            if (dir) {
-                this.takeDamage(5, null, engine.eventBus);
-                // Snap to nearest passable cell first; knockback starting inside a wall is immediately
-                // cancelled by computeForcedDisplacement (distance = 0 when first step is also in wall).
-                this.x = targetX;
-                this.y = targetY;
-                applySlingshotLaunch(
-                    this, dir.x, dir.y,
-                    GENERIC_SLINGSHOT_MAGNITUDE, GENERIC_SLINGSHOT_AIR_TIME, GENERIC_SLINGSHOT_SLIDE_TIME,
-                    engine.eventBus, this.id, 'wall_eject',
-                );
-                this.wallStuckTime = 0;
-                this.wallEntryPoint = null;
-            } else {
-                // Last resort: teleport to nearest passable cell when no exit direction is found.
-                this.x = targetX;
-                this.y = targetY;
-                this.wallStuckTime = 0;
-            }
-            return;
-        }
-
-        // Nudge toward the exit at normal movement speed while below the threshold.
-        const dx = targetX - this.x;
-        const dy = targetY - this.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > 0) {
-            const step = this.getEffectiveSpeed(gameTime) * dt;
-            this.x += (dx / dist) * Math.min(step, dist);
-            this.y += (dy / dist) * Math.min(step, dist);
-        }
-    }
-
-    /**
-     * CONTROLLED_SLINGSHOT variant of wall ejection. Called from tickWallUnstick when the flag
-     * is enabled. Bounces the unit one tile per 0.2 s in a cardinal direction, dealing 5 damage
-     * per bounce. Chains automatically through walls; reverses at map edges.
-     */
-    private tickControlledSlingshot(engine: EngineContext): void {
-        const tm = engine.terrainManager!;
-
-        // Suppress while the current bounce arc is still in flight.
-        if (this.knockback !== null) {
-            this.wallStuckTime = 0;
-            return;
-        }
-
-        // First entry into a wall: honour WALL_SNAP_DELAY (lets Entombed abilities suppress).
-        // Subsequent bounces in a chain: fire immediately (controlledSlingshotDir already set).
-        if (this.controlledSlingshotDir === null && this.wallStuckTime < Unit.WALL_SNAP_DELAY) {
-            return;
-        }
-
-        // Compute cardinal direction on first bounce of a new chain.
-        if (!this.controlledSlingshotDir) {
-            const rawDir = computeSlingshotDirection(
-                this.wallEntryPoint?.x, this.wallEntryPoint?.y, this.x, this.y, tm,
-            );
-            if (rawDir) {
-                this.controlledSlingshotDir = snapToCardinal(rawDir.x, rawDir.y);
-            } else {
-                const nearest = findNearestPassableDirection(tm, this.x, this.y);
-                this.controlledSlingshotDir = nearest
-                    ? snapToCardinal(nearest.x, nearest.y)
-                    : { x: 1, y: 0 }; // absolute fallback
-            }
-        }
-
-        let { x: dirX, y: dirY } = this.controlledSlingshotDir;
-
-        // Reverse direction when the next tile would be outside the map bounds.
-        const { width, height, cellSize } = tm.getGridSize();
-        const nextCol = Math.floor((this.x + dirX * cellSize) / cellSize);
-        const nextRow = Math.floor((this.y + dirY * cellSize) / cellSize);
-        if (nextCol < 0 || nextRow < 0 || nextCol >= width || nextRow >= height) {
-            dirX = -dirX;
-            dirY = -dirY;
-            this.controlledSlingshotDir = { x: dirX, y: dirY };
-        }
-
-        this.takeDamage(5, null, engine.eventBus);
-
-        // Arc knockback: exactly one tile, 0.2 s air, terrain-bypassing so the unit travels through walls.
-        this.applyKnockback({
-            knockbackVector: { x: dirX * cellSize, y: dirY * cellSize },
-            knockbackAirTime: CONTROLLED_SLINGSHOT_AIR_TIME,
-            knockbackSlideTime: CONTROLLED_SLINGSHOT_SLIDE_TIME,
-            knockbackSource: { unitId: this.id, abilityId: 'controlled_wall_bounce' },
-            passThroughTerrain: true,
-        }, engine.eventBus);
-
-        this.controlledUntilTime = engine.gameTime + CONTROLLED_SLINGSHOT_AIR_TIME + CONTROLLED_SLINGSHOT_SLIDE_TIME;
-        this.wallStuckTime = 0;
-        this.wallEntryPoint = null;
-    }
+    update(dt: number, engine: unknown): void { updateUnit(this, dt, engine); }
 
     /**
      * Get the unit's effective speed accounting for movement penalties
      * from all active abilities. Takes the lowest penalty multiplier.
      */
-    getEffectiveSpeed(gameTime: number): number {
-        let lowestPenalty = 1;
-
-        for (const active of this.activeAbilities) {
-            const ability = getAbility(active.abilityId);
-            if (!ability) continue;
-
-            const currentTime = gameTime - active.startTime;
-            const states =
-                ability.getAbilityStatesForActive?.(currentTime, active) ??
-                ability.getAbilityStates(currentTime);
-
-            for (const entry of states) {
-                if (entry.state === AbilityState.MOVEMENT_PENALTY) {
-                    lowestPenalty = Math.min(lowestPenalty, entry.data.amount);
-                }
-            }
-        }
-
-        return this.speed * lowestPenalty;
-    }
+    getEffectiveSpeed(gameTime: number): number { return getUnitEffectiveSpeed(this, gameTime); }
 
     /** Maximum movement points. Override via research/item effects. */
     getMaxMovement(): number { return 2; }
@@ -1080,35 +362,13 @@ export class Unit extends GameObject {
      * The same two terrain layers used for movement speed are applied here.
      * Designed to be extended later with per-weapon-class research bonuses.
      */
-    getLungeDistance(engine: unknown, baseLungeDistance: number): number {
-        let modifier = 1;
-        const terrainLayers = (engine as { terrainLayers?: TerrainLayerManager }).terrainLayers;
-        if (terrainLayers) modifier *= terrainLayers.getGroundMovementMultiplier(this.x, this.y);
-        const terrainManager = (engine as { terrainManager?: TerrainManager }).terrainManager ?? null;
-        if (terrainManager) modifier *= terrainManager.getSpeedMultiplier(this.x, this.y);
-        return Math.floor(baseLungeDistance * modifier);
-    }
+    getLungeDistance(engine: unknown, baseLungeDistance: number): number { return getUnitLungeDistance(this, engine, baseLungeDistance); }
 
     /**
      * Whether the unit currently has invincibility frames from any active ability.
      * When true, projectiles should not deal damage to this unit.
      */
-    hasIFrames(gameTime: number): boolean {
-        for (const active of this.activeAbilities) {
-            const ability = getAbility(active.abilityId);
-            if (!ability) continue;
-
-            const currentTime = gameTime - active.startTime;
-            const states =
-                ability.getAbilityStatesForActive?.(currentTime, active) ??
-                ability.getAbilityStates(currentTime);
-
-            for (const entry of states) {
-                if (entry.state === AbilityState.IFRAMES) return true;
-            }
-        }
-        return false;
-    }
+    hasIFrames(gameTime: number): boolean { return unitHasIFrames(this, gameTime); }
 
     /** True while a wait order is active (see `GameEngine` wait handling). */
     isInWaitLockout(): boolean {
@@ -1129,18 +389,7 @@ export class Unit extends GameObject {
     }
 
     /** True while the unit is executing a timing interval tagged 'juggernaut' (immune to CC interruption). */
-    isInJuggernautWindow(gameTime: number): boolean {
-        for (const active of this.activeAbilities) {
-            const ability = getAbility(active.abilityId);
-            if (!ability) continue;
-            const elapsed = gameTime - active.startTime;
-            const intervals = normalizeAbilityTimingsToIntervals(ability.abilityTimings);
-            if (intervals.some((it) => it.start <= elapsed && elapsed < it.end && it.tags?.includes('juggernaut'))) {
-                return true;
-            }
-        }
-        return false;
-    }
+    isInJuggernautWindow(gameTime: number): boolean { return isUnitInJuggernautWindow(this, gameTime); }
 
     /** Fast check: does this unit have a buff of the given type? */
     hasBuff(buffType: string): boolean {
@@ -1156,71 +405,21 @@ export class Unit extends GameObject {
     }
 
     /** Interrupt all active abilities (e.g. when stunned). Refunds resource costs. */
-    interruptAllAbilities(): void {
-        for (const active of this.activeAbilities) {
-            const ability = getAbility(active.abilityId);
-            if (ability) refundAbilityCost(this, ability);
-        }
-        this.activeAbilities = [];
-        this.clearAbilityNote();
-    }
+    interruptAllAbilities(): void { interruptAllUnitAbilities(this); }
 
     tickActiveAbilities(dt: number, engine: EngineContext, onNaturalCompletion: () => void): void {
         tickUnitActiveAbilities(this, dt, engine, onNaturalCompletion);
     }
 
-    onRoundStart(_roundNumber: number, engine: EngineContext): void {
-        if (!this.isAlive()) return;
-        this.applyStaminaSurge(Math.max(0, Math.floor(this.stamina)));
-        this.grantRoundCharges();
-        const movement = this.getResource('movement_points');
-        if (movement) {
-            const recovery = Math.max(0, this.getMovementRecoveryPerRound() - this.getMovementSlowStacks(engine));
-            movement.add(recovery);
-        }
-        for (const resource of this.resources) {
-            resource.onRoundStart?.(this, engine);
-        }
-        for (const abilityId of this.abilities) {
-            getAbility(abilityId)?.onRoundStart?.(this, engine);
-        }
-        this.syncNestedCardState();
-    }
+    onRoundStart(_roundNumber: number, engine: EngineContext): void { unitRoundStart(this, engine); }
 
     onRoundEnd(_roundNumber: number): void {
-        this.tickHardCcChainDecayAtRoundEnd();
+        tickHardCcChainDecayAtRoundEnd(this);
     }
 
-    tickDarknessCorruption(dt: number, engine: EngineContext): void {
-        const light = engine.getLightLevelAt(this.x, this.y);
-        if (light === null) return;
-        const inFullDarkness = light <= DarknessLevel.FULL_DARKNESS;
-        const corruptionRate = 0.45;
-        if (inFullDarkness) {
-            this.corruptionProgress = Math.min(1, this.corruptionProgress + dt * corruptionRate);
-        } else {
-            this.corruptionProgress = Math.max(0, this.corruptionProgress - dt * corruptionRate);
-            if (this.corruptionProgress <= 0) {
-                this.darknessDamageProcCount = 0;
-            }
-        }
-        if (inFullDarkness && this.corruptionProgress >= 1) {
-            this.corruptionProgress = 0;
-            const hitIndex = this.darknessDamageProcCount + 1;
-            const damage = 5 * (hitIndex + 1);
-            this.takeDamage(damage, null, engine.eventBus);
-            this.darknessDamageProcCount += 1;
-        }
-    }
+    tickDarknessCorruption(dt: number, engine: EngineContext): void { tickUnitDarknessCorruption(this, dt, engine); }
 
-    tickMovement(dt: number, engine: EngineContext): void {
-        this.update(dt, engine);
-        if (this.ephemeralDespawnAtGameTime != null && engine.gameTime >= this.ephemeralDespawnAtGameTime) {
-            this.hp = 0;
-            this.active = false;
-            engine.eventBus.emit('unit_died', { unitId: this.id, killerUnitId: null });
-        }
-    }
+    tickMovement(dt: number, engine: EngineContext): void { tickUnitMovement(this, dt, engine); }
 
     // ---- Ability management OOP wrappers ----
 
@@ -1234,143 +433,11 @@ export class Unit extends GameObject {
     spendAbilityCost(ability: AbilityStatic): boolean { return spendAbilityCost(this, ability); }
     refundAbilityCost(ability: AbilityStatic): void { refundAbilityCost(this, ability); }
 
-    // ---- cleanupCastBehaviours: private helper for ability cancel / interrupt ----
+    cancelActiveAbility(abilityId: string, engine: EngineContext): void { cancelUnitActiveAbility(this, abilityId, engine); }
 
-    private cleanupCastBehavioursForAbility(active: ActiveAbility, engine: EngineContext): void {
-        const ability = getAbility(active.abilityId);
-        for (const [key, rec] of this.activeCastBehaviours) {
-            if (rec.active !== active) continue;
-            const intervalForTarget = rec.targetDef
-                ? ({ targetDef: rec.targetDef } as AbilityTimingInterval)
-                : ({} as AbilityTimingInterval);
-            const target = rec.targetDef && ability
-                ? resolveCastBehaviourTarget(rec.entry, intervalForTarget, active, this, ability, engine)
-                : active.targets[rec.entry.targetIndex ?? 0] ??
-                  active.targets[0] ??
-                  ({ type: 'pixel' as const, position: { x: this.x, y: this.y } });
-            const ctx: CastBehaviourInterruptContext = {
-                caster: this,
-                abilityId: active.abilityId,
-                target,
-                allTargets: active.targets,
-                castPayload: active.castPayload,
-                behaviourPayload: active.castBehaviourPayloads?.[key],
-                setBehaviourPayload: (data) => {
-                    if (!active.castBehaviourPayloads) active.castBehaviourPayloads = {};
-                    active.castBehaviourPayloads[key] = data;
-                },
-                engine,
-            };
-            rec.entry.behaviour.onInterrupt?.(ctx);
-            this.activeCastBehaviours.delete(key);
-        }
-    }
+    interruptAndRefundAbilities(engine: EngineContext): void { interruptAndRefundUnitAbilities(this, engine); }
 
-    cancelActiveAbility(abilityId: string, engine: EngineContext): void {
-        const idx = this.activeAbilities.findIndex((a) => a.abilityId === abilityId);
-        if (idx < 0) return;
-        const active = this.activeAbilities[idx];
-        if (!active) return;
-        const ability = getAbility(active.abilityId);
-        if (ability) {
-            const elapsed = Math.max(0, engine.gameTime - active.startTime);
-            triggerAbilityEvent({
-                engine,
-                caster: this,
-                ability,
-                activeAbility: active,
-                targets: active.targets,
-                eventType: AbilityEventType.ON_CAST_END,
-                prevTime: elapsed,
-                currentTime: elapsed,
-            });
-        }
-        this.cleanupCastBehavioursForAbility(active, engine);
-        this.activeAbilities.splice(idx, 1);
-    }
-
-    interruptAndRefundAbilities(engine: EngineContext): void {
-        while (this.activeAbilities.length > 0) {
-            const active = this.activeAbilities[0];
-            if (!active) break;
-            const ability = getAbility(active.abilityId);
-            if (ability) {
-                refundAbilityCost(this, ability);
-                const elapsed = Math.max(0, engine.gameTime - active.startTime);
-                triggerAbilityEvent({
-                    engine,
-                    caster: this,
-                    ability,
-                    activeAbility: active,
-                    targets: active.targets,
-                    eventType: AbilityEventType.ON_CAST_END,
-                    prevTime: elapsed,
-                    currentTime: elapsed,
-                });
-            }
-            this.cleanupCastBehavioursForAbility(active, engine);
-            this.activeAbilities.splice(0, 1);
-        }
-        this.clearAbilityNote();
-    }
-
-    executeAbility(ability: AbilityStatic, targets: ResolvedTarget[], engine: EngineContext): void {
-        ensureAbilityRuntimeStateUtil(this, ability.id);
-        if (!canUseAbilityNow(this, ability)) return;
-        if (!spendAbilityCost(this, ability)) return;
-        if (!consumeAbilityUseUtil(this, ability.id)) return;
-        syncNestedCardAbilityState(this);
-
-        const existing = this.activeAbilities.findIndex((a) => a.abilityId === ability.id);
-        if (existing >= 0) {
-            const existingActive = this.activeAbilities[existing];
-            if (existingActive) {
-                const existingElapsed = Math.max(0, engine.gameTime - existingActive.startTime);
-                triggerAbilityEvent({
-                    engine,
-                    caster: this,
-                    ability,
-                    activeAbility: existingActive,
-                    targets: existingActive.targets,
-                    eventType: AbilityEventType.ON_CAST_END,
-                    prevTime: existingElapsed,
-                    currentTime: existingElapsed,
-                });
-            }
-            this.activeAbilities.splice(existing, 1);
-            this.clearAbilityNote();
-        }
-
-        const active: ActiveAbility = {
-            abilityId: ability.id,
-            startTime: engine.gameTime,
-            targets: targets.map((t) => ({ ...t })),
-            castBehaviourPayloads: {},
-            evadeFired: false,
-        };
-        ability.beginActiveCast?.(engine, this, active.targets, active);
-        // Generic telegraph: capture primary target position when no beginActiveCast set it.
-        if (ability.telegraph && active.castPayload == null) {
-            const telegraphPayload = initTelegraphCastPayload(ability, active.targets, engine);
-            if (telegraphPayload) {
-                active.castPayload = telegraphPayload;
-            }
-        }
-        this.activeAbilities.push(active);
-        triggerAbilityEvent({
-            engine,
-            caster: this,
-            ability,
-            activeAbility: active,
-            targets: active.targets,
-            eventType: AbilityEventType.ON_CAST_START,
-            prevTime: 0,
-            currentTime: 0,
-        });
-
-        engine.trackAbilityUse(this.id, ability.id);
-        engine.eventBus.emit('ability_used', { unitId: this.id, abilityId: ability.id });
-    }
+    executeAbility(ability: AbilityStatic, targets: ResolvedTarget[], engine: EngineContext): void { executeUnitAbility(this, ability, targets, engine); }
 
     /** Set the ability note (overwrites any existing). Used by abilities during execution. */
     setAbilityNote(note: { abilityId: string; abilityNote: unknown } | null): void {
@@ -1383,132 +450,11 @@ export class Unit extends GameObject {
     }
 
     toJSON(currentGameTick: number = 0): Record<string, unknown> {
-        return {
-            _type: 'unit',
-            id: this.id,
-            x: this.x,
-            y: this.y,
-            active: this.active,
-            hp: this.hp,
-            maxHp: this.maxHp,
-            ...(this.stackSize !== 1 ? { stackSize: this.stackSize } : {}),
-            speed: this.speed,
-            teamId: this.teamId,
-            ownerId: this.ownerId,
-            characterId: this.characterId,
-            // Always persist a portrait id for players so JSON checkpoints do not omit it (undefined is stripped by JSON.stringify).
-            portraitId:
-                this.characterId === PLAYER_CHARACTER_ID ? (this.portraitId ?? 'warrior') : this.portraitId,
-            name: this.name,
-            movement: this.movement ? {
-                path: this.movement.path.map((p) => ({ ...p })),
-                targetUnitId: this.movement.targetUnitId,
-                ...(this.movement.targetPixel ? { targetPixel: { ...this.movement.targetPixel } } : {}),
-                pathfindingTick: this.movement.pathfindingTick,
-            } : null,
-            abilities: this.abilities,
-            activeAbilities: this.activeAbilities.map((a) => ({
-                abilityId: a.abilityId,
-                startTime: a.startTime,
-                targets: a.targets.map((t) => ({ ...t })),
-                fired: a.fired,
-                castPayload:
-                    a.castPayload !== undefined
-                        ? JSON.parse(JSON.stringify(a.castPayload)) as unknown
-                        : undefined,
-                ...(a.conditionalCancelPaused ? { conditionalCancelPaused: true } : {}),
-                ...(a.conditionalCancelTagFilter !== undefined
-                    ? { conditionalCancelTagFilter: [...a.conditionalCancelTagFilter] }
-                    : {}),
-                ...(a.movementByLabel !== undefined
-                    ? { movementByLabel: JSON.parse(JSON.stringify(a.movementByLabel)) as typeof a.movementByLabel }
-                    : {}),
-            })),
-            abilityNote: this.abilityNote,
-            radius: this.radius,
-            aiSettings: this.aiSettings,
-            pathfindingRetriggerOffset: this.pathfindingRetriggerOffset,
-            pathInvalidated: this.pathInvalidated,
-            aiContext: this.aiContext,
-            unitAITreeId: this.unitAITreeId,
-            moveJitter: this.moveJitter,
-            spawnTimer: this.spawnTimer,
-            growAnimTimer: this.growAnimTimer,
-            waitMinEndTime: this.waitMinEndTime,
-            waitMaxEndTime: this.waitMaxEndTime,
-            movementPaused: this.movementPaused,
-            corruptionProgress: this.corruptionProgress,
-            crystalCorruptionProgress: this.crystalCorruptionProgress,
-            darknessDamageProcCount: this.darknessDamageProcCount,
-            ccDurationResistPct: { ...this.ccDurationResistPct },
-            ccDurationFlatSec: { ...this.ccDurationFlatSec },
-            hardCcArmourFloor: this.hardCcArmourFloor,
-            ccArmourBreakStunDuration: this.ccArmourBreakStunDuration,
-            bonusHardCcArmour: this.bonusHardCcArmour,
-            hardCcArmourConsumed: this.hardCcArmourConsumed,
-            chainCcResist: this.chainCcResist,
-            chainCcDecayRounds: this.chainCcDecayRounds,
-            chainCcStackNextIncrement: this.chainCcStackNextIncrement,
-            chainCcDecayRoundCounter: this.chainCcDecayRoundCounter,
-            softCcArmourFloor: this.softCcArmourFloor,
-            bonusSoftCcArmour: this.bonusSoftCcArmour,
-            hardCcArmourEventSerial: this.hardCcArmourEventSerial,
-            lastHardCcEventGameTime: this.lastHardCcEventGameTime,
-            lastHardCcEventKind: this.lastHardCcEventKind,
-            wallStuckTime: this.wallStuckTime,
-            knockback: this.knockback ? {
-                knockbackVector: { ...this.knockback.knockbackVector },
-                knockbackAirTime: this.knockback.knockbackAirTime,
-                knockbackSlideTime: this.knockback.knockbackSlideTime,
-                knockbackSource: { ...this.knockback.knockbackSource },
-                knockbackElapsed: this.knockback.knockbackElapsed,
-            } : null,
-            resources: this.resources.map((r) => r.toJSON()),
-            abilityRuntime: Object.fromEntries(
-                Object.entries(this.abilityRuntime).map(([abilityId, runtime]) => [
-                    abilityId,
-                    {
-                        currentUses: runtime.currentUses,
-                        maxUses: runtime.maxUses,
-                        recoveryChargesByType: { ...runtime.recoveryChargesByType },
-                        active: runtime.active,
-                        ...(runtime.replacedAbilityId != null ? { replacedAbilityId: runtime.replacedAbilityId } : {}),
-                    },
-                ]),
-            ),
-            abilityModifiers: this.abilityModifiers,
-            stamina: this.stamina,
-            buffs: this.buffs.map((b) => b.toJSON()),
-            combatSettings: this.combatSettings,
-            ...(this.ephemeralDespawnAtGameTime != null
-                ? { ephemeralDespawnAtGameTime: this.ephemeralDespawnAtGameTime }
-                : {}),
-            ...(this.tags.length > 0 ? { tags: [...this.tags] } : {}),
-            ...lanterniteStateToJSONBeforeWall(this),
-            ...(this.wallEntryPoint != null ? { wallEntryPoint: { ...this.wallEntryPoint } } : {}),
-            ...lanterniteStateToJSONBeforeThornling(this),
-            ...thornlingStateToJSON(this),
-            ...swarmStateToJSON(this),
-            ...lanterniteStateToJSONAfterSwarm(this),
-            ...(this.invulnerabilityGenerations != null ? { invulnerabilityGenerations: this.invulnerabilityGenerations } : {}),
-            ...petStateToJSON(this),
-            tacticalPlan: this.tacticalPlan
-                ? serializeTacticalPlan(this.tacticalPlan, currentGameTick)
-                : null,
-        };
+        return serializeUnit(this, currentGameTick);
     }
 
-    static fromJSON(data: Record<string, unknown>, _eventBus: EventBus, currentGameTick: number = 0): Unit {
-        const ownerId = data.ownerId as string;
-        let characterId = data.characterId as string;
-        let portraitId = data.portraitId as string | undefined;
-        if (LEGACY_PLAYER_CHARACTER_IDS.has(characterId) && ownerId !== 'ai') {
-            portraitId = portraitId ?? characterId;
-            characterId = PLAYER_CHARACTER_ID;
-        }
-        if (characterId === PLAYER_CHARACTER_ID && ownerId !== 'ai' && (portraitId === undefined || portraitId === '')) {
-            portraitId = 'warrior';
-        }
+    static fromJSON(data: Record<string, unknown>, eventBus: EventBus, currentGameTick: number = 0): Unit {
+        const { characterId, portraitId } = normalizeLegacyUnitIdentity(data);
         const unit = new Unit({
             id: data.id as string,
             x: data.x as number,
@@ -1517,7 +463,7 @@ export class Unit extends GameObject {
             maxHp: data.maxHp as number,
             speed: data.speed as number,
             teamId: data.teamId as TeamId,
-            ownerId,
+            ownerId: data.ownerId as string,
             characterId,
             portraitId,
             name: data.name as string,
@@ -1525,142 +471,8 @@ export class Unit extends GameObject {
             stamina: (data.stamina as number | undefined) ?? 1,
             combatSettings: data.combatSettings as UnitCombatSettings | undefined,
         });
-        unit.active = data.active as boolean;
-        unit.stackSize = (data.stackSize as number | undefined) ?? 1;
-        if (data.ephemeralDespawnAtGameTime != null) {
-            unit.ephemeralDespawnAtGameTime = data.ephemeralDespawnAtGameTime as number;
-        }
-        applyLanterniteStateFromJSON(unit, data);
-        applyThornlingStateFromJSON(unit, data);
-        applySwarmStateFromJSON(unit, data);
-        if (typeof data.invulnerabilityGenerations === 'number') {
-            unit.invulnerabilityGenerations = data.invulnerabilityGenerations;
-        }
-        applyPetStateFromJSON(unit, data);
-
-        // Restore movement
-        const movementData = data.movement as {
-            path: { col: number; row: number }[];
-            targetUnitId: string | undefined;
-            targetPixel?: { x: number; y: number };
-            pathfindingTick: number;
-        } | null;
-        if (movementData && movementData.path && movementData.path.length > 0) {
-            unit.movement = {
-                path: movementData.path.map((p) => ({ ...p })),
-                targetUnitId: movementData.targetUnitId,
-                targetPixel: movementData.targetPixel ? { ...movementData.targetPixel } : undefined,
-                pathfindingTick: movementData.pathfindingTick,
-            };
-        }
-
-        unit.radius = (data.radius as number) ?? DEFAULT_UNIT_RADIUS;
-        unit.aiSettings = (data.aiSettings as AISettings | null) ?? null;
-        unit.pathfindingRetriggerOffset = (data.pathfindingRetriggerOffset as number) ?? 0;
-        unit.pathInvalidated = (data.pathInvalidated as boolean) ?? false;
-        const rawCtx = (data.aiContext ?? {}) as Record<string, unknown>;
-        if (rawCtx.unitAINodeId !== undefined) { rawCtx.aiState = rawCtx.unitAINodeId; delete rawCtx.unitAINodeId; }
-        if (rawCtx.aiTargetUnitId !== undefined) { rawCtx.targetUnitId = rawCtx.aiTargetUnitId; delete rawCtx.aiTargetUnitId; }
-        unit.aiContext = rawCtx as UnitAIContext;
-        unit.unitAITreeId = (data.unitAITreeId as string) ?? 'hunt';
-        unit.moveJitter = (data.moveJitter as number) ?? 0;
-        unit.spawnTimer = (data.spawnTimer as number | undefined) ?? 0;
-        unit.growAnimTimer = (data.growAnimTimer as number | undefined) ?? 0;
-        unit.waitMinEndTime = (data.waitMinEndTime as number | null) ?? null;
-        unit.waitMaxEndTime = (data.waitMaxEndTime as number | null) ?? null;
-        unit.movementPaused = (data.movementPaused as boolean | undefined) ?? false;
-        unit.ccDurationResistPct = { ...(data.ccDurationResistPct as Partial<Record<CcResistKey, number>> | undefined) };
-        unit.ccDurationFlatSec = { ...(data.ccDurationFlatSec as Partial<Record<CcResistKey, number>> | undefined) };
-        unit.hardCcArmourFloor = (data.hardCcArmourFloor as number | undefined) ?? 0;
-        unit.ccArmourBreakStunDuration = (data.ccArmourBreakStunDuration as number | undefined) ?? 0;
-        unit.bonusHardCcArmour = (data.bonusHardCcArmour as number | undefined) ?? 0;
-        unit.hardCcArmourConsumed = (data.hardCcArmourConsumed as number | undefined) ?? 0;
-        unit.chainCcResist = (data.chainCcResist as number | undefined) ?? 0;
-        unit.chainCcDecayRounds = (data.chainCcDecayRounds as number | undefined) ?? 1;
-        unit.chainCcStackNextIncrement = (data.chainCcStackNextIncrement as number | undefined) ?? 1;
-        unit.chainCcDecayRoundCounter = (data.chainCcDecayRoundCounter as number | undefined) ?? 0;
-        unit.softCcArmourFloor = (data.softCcArmourFloor as number | undefined) ?? 0;
-        unit.bonusSoftCcArmour = (data.bonusSoftCcArmour as number | undefined) ?? 0;
-        unit.hardCcArmourEventSerial = (data.hardCcArmourEventSerial as number | undefined) ?? 0;
-        unit.lastHardCcEventGameTime = (data.lastHardCcEventGameTime as number | undefined) ?? -1;
-        const ev = data.lastHardCcEventKind;
-        unit.lastHardCcEventKind = ev === 'absorbed' || ev === 'landed' ? ev : null;
-        unit.corruptionProgress = Math.max(0, Math.min(1, (data.corruptionProgress as number) ?? 0));
-        unit.crystalCorruptionProgress = Math.max(0, Math.min(1, (data.crystalCorruptionProgress as number) ?? 0));
-        unit.darknessDamageProcCount = Math.max(0, Math.floor((data.darknessDamageProcCount as number) ?? 0));
-        const kb = data.knockback as KnockbackState | null;
-        if (kb && typeof kb.knockbackElapsed === 'number') {
-            unit.knockback = {
-                knockbackVector: { ...(kb.knockbackVector as { x: number; y: number }) },
-                knockbackAirTime: kb.knockbackAirTime as number,
-                knockbackSlideTime: kb.knockbackSlideTime as number,
-                knockbackSource: { ...(kb.knockbackSource as KnockbackSource) },
-                knockbackElapsed: kb.knockbackElapsed,
-            };
-        }
-        unit.wallStuckTime = typeof data.wallStuckTime === 'number' ? data.wallStuckTime : 0;
-        unit.activeAbilities = (data.activeAbilities as ActiveAbility[]) ?? [];
-        unit.abilityNote = (data.abilityNote as AbilityNote | null) ?? null;
-
-        const buffsData = (data.buffs as BuffSerialized[] | undefined) ?? [];
-        unit.buffs = buffsData.map((b) => buffFromJSON(b));
-        unit.tags = parseUnitTagsFromJSON(data.tags);
-        const runtimeData = (data.abilityRuntime as Record<string, UnitAbilityRuntimeState> | undefined) ?? {};
-        unit.abilityRuntime = Object.fromEntries(
-            Object.entries(runtimeData).map(([abilityId, runtime]) => [
-                abilityId,
-                {
-                    currentUses: runtime.currentUses,
-                    maxUses: runtime.maxUses,
-                    recoveryChargesByType: { ...(runtime.recoveryChargesByType ?? {}) },
-                    active: (runtime as any).active ?? true,          // default true for old snapshots
-                    replacedAbilityId: (runtime as any).replacedAbilityId ?? null,
-                },
-            ]),
-        );
-        unit.abilityModifiers = (data.abilityModifiers as Record<string, AbilityModifier> | undefined) ?? {};
-
-        const wep = data.wallEntryPoint as { x?: number; y?: number } | undefined;
-        if (wep != null && typeof wep.x === 'number' && typeof wep.y === 'number') {
-            unit.wallEntryPoint = { x: wep.x, y: wep.y };
-        }
-
-        if (data.tacticalPlan) {
-            unit.tacticalPlan = deserializeTacticalPlan(
-                data.tacticalPlan as SerializedTacticalPlan,
-                currentGameTick,
-            );
-        }
-
-        // Resources are reattached by the unit subclass factory
+        applySerializedUnitState(unit, data, eventBus, currentGameTick);
         return unit;
     }
 }
 
-/**
- * Returns true if the unit has an active Entombed-tagged ability that is NOT yet in a Cooldown/CoopCooldown phase.
- * Used by tickWallUnstick to suppress the generic wall slingshot while abilities manage their own wall exit.
- */
-function isEntombedProtectionActive(unit: Unit, engine: EngineContext): boolean {
-    for (const active of unit.activeAbilities) {
-        if (!unitAbilityHasTag(unit, active.abilityId, 'Entombed')) continue;
-        const ability = getAbility(active.abilityId);
-        if (!ability) continue;
-        const entries = resolveAbilityTimingEntries(ability, unit, engine);
-        const intervals = normalizeAbilityTimingsToIntervals(entries);
-        const elapsed = engine.gameTime - active.startTime;
-        const totalDuration = getTotalAbilityDurationForCast(ability, unit, engine);
-        if (elapsed >= totalDuration) continue;
-        const phase = getCoveringAbilityPhaseAtElapsed(elapsed, intervals);
-        // Cooldown / coop-cooldown and uncovered elapsed (gaps or post-interval) allow generic wall eject.
-        if (
-            phase === null
-            || phase === AbilityPhase.Cooldown
-            || phase === AbilityPhase.CoopCooldown
-        ) {
-            continue;
-        }
-        return true;
-    }
-    return false;
-}

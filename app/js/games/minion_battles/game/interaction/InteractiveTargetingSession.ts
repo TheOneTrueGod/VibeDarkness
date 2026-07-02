@@ -314,6 +314,12 @@ export class InteractiveTargetingSession {
         if (!active) return;
         if (!active.movementByLabel) active.movementByLabel = {};
         active.movementByLabel[label] = { ...payload };
+
+        // Update unit.movement immediately so PreviewRenderer can draw the path.
+        // The engine tick will overwrite this with the same value when it resumes.
+        if (payload.movePath.length > 0) {
+            caster.setMovement(payload.movePath, payload.moveTargetUnitId, engine.gameTick, payload.moveTargetPixel);
+        }
     }
 
     /**

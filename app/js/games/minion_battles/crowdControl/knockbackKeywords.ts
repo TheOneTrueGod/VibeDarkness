@@ -1,6 +1,7 @@
 import type { Unit, KnockbackSource } from '../game/units/Unit';
 import { ExposedBuff } from '../buffs/ExposedBuff';
 import { getDirectionFromTo } from '../abilities/targetHelpers';
+import { getEffectiveHardCcThreshold, onSuccessfulHardCcLand, recordHardCcArmourEvent } from './ccArmourState';
 
 // ---- Tier table ----
 
@@ -95,26 +96,26 @@ export function tryApplyKnockbackByTier(
         return { outcome: 'applied' };
     }
 
-    const threshold = target.getEffectiveHardCcThreshold();
+    const threshold = getEffectiveHardCcThreshold(target);
 
     if (threshold <= 0) {
         _launchKnockback(target, tierDef, source, casterX, casterY, engine);
         return { outcome: 'applied' };
     }
 
-    if (target.hardCcArmourConsumed < threshold) {
-        target.hardCcArmourConsumed += 1;
-        target.recordHardCcArmourEvent('absorbed', engine.gameTime);
+    if (target.ccArmour.hardConsumed < threshold) {
+        target.ccArmour.hardConsumed += 1;
+        recordHardCcArmourEvent(target, 'absorbed', engine.gameTime);
         return { outcome: 'absorbed' };
     }
 
     // Armour breaks.
-    target.hardCcArmourConsumed = 0;
-    target.onSuccessfulHardCcLand();
-    target.recordHardCcArmourEvent('landed', engine.gameTime);
-    if (target.ccArmourBreakStunDuration > 0) {
+    target.ccArmour.hardConsumed = 0;
+    onSuccessfulHardCcLand(target);
+    recordHardCcArmourEvent(target, 'landed', engine.gameTime);
+    if (target.ccArmour.breakStunDuration > 0) {
         // A fixed break stun is defined — apply it instead of physical knockback.
-        target.addBuff(new ExposedBuff(target.ccArmourBreakStunDuration), engine.gameTime, engine.roundNumber);
+        target.addBuff(new ExposedBuff(target.ccArmour.breakStunDuration), engine.gameTime, engine.roundNumber);
         engine.interruptUnitAndRefundAbilities?.(target);
     } else {
         // No break stun defined — the knockback itself is the CC payoff.

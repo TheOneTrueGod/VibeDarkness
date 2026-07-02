@@ -119,8 +119,8 @@ describe('applyDirectionalKnockback', () => {
     it('displaces the target along the passed direction (tier 2)', () => {
         const target = makeUnit({ id: 'target', teamId: 'enemy', x: 100, y: 100 });
         // No CC armour or resistance.
-        target.hardCcArmourFloor = 0;
-        target.bonusHardCcArmour = 0;
+        target.ccArmour.hardFloor = 0;
+        target.ccArmour.bonusHard = 0;
 
         const engine = makeEngineLike();
 

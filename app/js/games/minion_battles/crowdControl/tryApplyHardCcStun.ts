@@ -4,6 +4,7 @@ import type { Unit } from '../game/units/Unit';
 import type { EventBus } from '../game/EventBus';
 import { CC_MIN_POTENCY_SEC } from './ccConstants';
 import { resolveCcDuration } from './resolveCcDuration';
+import { getEffectiveHardCcThreshold, onSuccessfulHardCcLand, recordHardCcArmourEvent } from './ccArmourState';
 
 export type HardCcStunAttemptOutcome = 'no_potency' | 'absorbed' | 'applied';
 
@@ -42,25 +43,25 @@ export function tryApplyHardCcStun(
         return { outcome: 'no_potency' };
     }
 
-    const threshold = target.getEffectiveHardCcThreshold();
+    const threshold = getEffectiveHardCcThreshold(target);
     if (threshold <= 0) {
         target.addBuff(new StunnedBuff(effectiveDuration), gameTime, roundNumber);
-        target.onSuccessfulHardCcLand();
-        target.recordHardCcArmourEvent('landed', gameTime);
+        onSuccessfulHardCcLand(target);
+        recordHardCcArmourEvent(target, 'landed', gameTime);
         return { outcome: 'applied', effectiveDuration };
     }
 
-    if (target.hardCcArmourConsumed + ccCharges <= threshold) {
-        target.hardCcArmourConsumed += ccCharges;
-        target.recordHardCcArmourEvent('absorbed', gameTime);
+    if (target.ccArmour.hardConsumed + ccCharges <= threshold) {
+        target.ccArmour.hardConsumed += ccCharges;
+        recordHardCcArmourEvent(target, 'absorbed', gameTime);
         return { outcome: 'absorbed' };
     }
 
     // Armour breaks: apply Exposed instead of a plain stun.
-    target.hardCcArmourConsumed = 0;
-    const breakDuration = target.ccArmourBreakStunDuration > 0 ? target.ccArmourBreakStunDuration : effectiveDuration;
+    target.ccArmour.hardConsumed = 0;
+    const breakDuration = target.ccArmour.breakStunDuration > 0 ? target.ccArmour.breakStunDuration : effectiveDuration;
     target.addBuff(new ExposedBuff(breakDuration), gameTime, roundNumber);
-    target.onSuccessfulHardCcLand();
-    target.recordHardCcArmourEvent('landed', gameTime);
+    onSuccessfulHardCcLand(target);
+    recordHardCcArmourEvent(target, 'landed', gameTime);
     return { outcome: 'applied', effectiveDuration: breakDuration };
 }

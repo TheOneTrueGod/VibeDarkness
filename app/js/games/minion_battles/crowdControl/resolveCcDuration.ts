@@ -6,7 +6,7 @@ import type { CcType } from './ccTypes';
  * Lookup: specific CcType, then ALL (same rule as percent).
  */
 export function resolveCcDuration(unit: Unit, ccType: CcType, baseSeconds: number): number {
-    const pct = unit.ccDurationResistPct[ccType] ?? unit.ccDurationResistPct.ALL ?? 0;
-    const flat = unit.ccDurationFlatSec[ccType] ?? unit.ccDurationFlatSec.ALL ?? 0;
+    const pct = unit.ccArmour.durationResistPct[ccType] ?? unit.ccArmour.durationResistPct.ALL ?? 0;
+    const flat = unit.ccArmour.durationFlatSec[ccType] ?? unit.ccArmour.durationFlatSec.ALL ?? 0;
     return Math.max(0, baseSeconds * (1 - pct) - flat);
 }

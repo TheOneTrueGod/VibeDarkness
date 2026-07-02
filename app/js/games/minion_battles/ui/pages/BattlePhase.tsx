@@ -41,6 +41,7 @@ import type { WorldModifierDef } from '../../worldModifiers/types';
 import type { NinjutsuUIState } from '../../game/ninjutsu/NinjutsuManager';
 import { getBossSpecialMoveCharges } from '../components/boss/bossSignatureHud';
 import { UnitTag } from '../../game/units/unitTag';
+import { getEffectiveHardCcThreshold } from '../../crowdControl/ccArmourState';
 import type { MessageEntry } from '../../../../components/Chat';
 import { TeamworkTextEffect } from '../../game/effect_defs/hudEffects';
 import { computeSynchash } from '@/utils/synchash';
@@ -841,10 +842,10 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                 name: b.name,
                 hp: b.hp,
                 maxHp: b.maxHp,
-                effectiveHardCcThreshold: b.getEffectiveHardCcThreshold(),
-                hardCcArmourConsumed: b.hardCcArmourConsumed,
-                hardCcArmourEventSerial: b.hardCcArmourEventSerial,
-                lastHardCcEventKind: b.lastHardCcEventKind,
+                effectiveHardCcThreshold: getEffectiveHardCcThreshold(b),
+                hardCcArmourConsumed: b.ccArmour.hardConsumed,
+                hardCcArmourEventSerial: b.ccArmour.eventSerial,
+                lastHardCcEventKind: b.ccArmour.lastEventKind,
                 specialMoveCharges: getBossSpecialMoveCharges(b),
                 exposedSecondsRemaining,
                 exposedTotalDuration,

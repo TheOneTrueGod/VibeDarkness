@@ -60,7 +60,7 @@ export const bossStunMechanicsScenario: ScenarioDefinition = {
         );
         // Alpha wolf has hardCcArmourFloor=2 (threshold=2) and ccArmourBreakStunDuration=5.
         // Pre-consume 1 hit so the two scenario punches fill and break the armor â†’ exposed for 5 s.
-        wolf.hardCcArmourConsumed = 1;
+        wolf.ccArmour.hardConsumed = 1;
         initializeAbilityRuntimeForUnit(wolf);
         engine.addUnit(wolf, 'initialGameSpawn');
 
@@ -84,7 +84,7 @@ export const bossStunMechanicsScenario: ScenarioDefinition = {
     failureMessage(engine) {
         const wolf = engine.getUnit('alpha_wolf_boss');
         const exposed = wolf?.buffs.find((b) => b._type === EXPOSED_BUFF_TYPE);
-        return `exposed=${wolf?.hasBuff(EXPOSED_BUFF_TYPE)} duration=${exposed?.duration.value ?? 'â€”'} consumed=${wolf?.hardCcArmourConsumed} hp=${wolf?.hp}`;
+        return `exposed=${wolf?.hasBuff(EXPOSED_BUFF_TYPE)} duration=${exposed?.duration.value ?? 'â€”'} consumed=${wolf?.ccArmour.hardConsumed} hp=${wolf?.hp}`;
     },
 };
 
