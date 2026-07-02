@@ -134,6 +134,8 @@ export default function BattlePhase({
     const [nonconfirmedOrder, setNonconfirmedOrder] = useState<BattleOrder | null>(null);
     /** Playahead state while InteractiveTargetingSession is active. */
     const [interactiveTargetingState, setInteractiveTargetingState] = useState<'inactive' | 'playing' | 'paused' | 'done'>('inactive');
+    /** True when every frozen SelectTargetDef label has a collected target (final input received). */
+    const [interactiveAllTargetsCollected, setInteractiveAllTargetsCollected] = useState(false);
     const { ghostPlans, sendGhostPlan } = useContext(GhostPlanContext);
 
     const targetingStateRef = useRef<{
@@ -894,17 +896,21 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
 
     // Poll interactive targeting session state so the pill + buttons stay current.
     const prevItsStateRef = useRef<string>('inactive');
+    const autoCommitItsAttemptedRef = useRef(false);
     useEffect(() => {
         const id = window.setInterval(() => {
-            const its = sessionRef.current?.interactiveTargeting;
+            const session = sessionRef.current;
+            const its = session?.interactiveTargeting;
             if (!its?.isActive) {
+                autoCommitItsAttemptedRef.current = false;
+                setInteractiveAllTargetsCollected(false);
                 setInteractiveTargetingState('inactive');
                 if (prevItsStateRef.current !== 'inactive') {
                     prevItsStateRef.current = 'inactive';
                 }
                 return;
             }
-            const eng = sessionRef.current?.getEngine();
+            const eng = session?.getEngine();
             if (!eng) {
                 setInteractiveTargetingState('playing');
                 return;
@@ -924,6 +930,12 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                 // This ensures Done/Continue does not appear before the last hit lands visually.
                 const allCollected = totalDefs > 0 && collected >= totalDefs;
                 nextState = allCollected && eng.isPaused ? 'done' : 'playing';
+            }
+            setInteractiveAllTargetsCollected(its.allTargetsCollected());
+            if (nextState === 'done' && AUTO_END_TURN && !autoCommitItsAttemptedRef.current && session) {
+                autoCommitItsAttemptedRef.current = true;
+                setOrderSubmitFailed(false);
+                void session.interactiveTargeting.commit(session);
             }
             setInteractiveTargetingState(nextState);
             if (prevItsStateRef.current !== nextState) {
@@ -1220,7 +1232,8 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                                 </button>
                             </div>
                         )}
-                        {interactiveTargetingState !== 'inactive' && (
+                        {interactiveTargetingState !== 'inactive'
+                            && !(AUTO_END_TURN && interactiveAllTargetsCollected) && (
                             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-50">
                                 <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border ${
                                     interactiveTargetingState === 'playing'
@@ -1259,6 +1272,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                                     >
                                         Replay
                                     </button>
+                                    {!AUTO_END_TURN && (
                                     <button
                                         className={`px-3 py-1.5 rounded text-sm border transition-opacity ${
                                             interactiveTargetingState === 'done'
@@ -1274,6 +1288,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                                     >
                                         Continue
                                     </button>
+                                    )}
                                 </div>
                             </div>
                         )}

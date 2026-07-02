@@ -105,7 +105,7 @@ The **targeting cursor** (hitbox preview overlay) is only rendered when the stat
 |---|---|---|
 | **Reset** | Red | Restore engine to the pre-preview snapshot; discard all collected targets; abort the session |
 | **Replay** | Sky-blue | Restore to snapshot, re-queue the ability with all targets collected so far pre-filled, replay animation without pausing (for review) |
-| **Confirm** | Primary | Rollback: restore + submit. In-place: persist without rewind + clear preview flags |
+| **Continue** | Primary | Rollback: restore + submit. In-place: persist without rewind + clear preview flags. **Hidden when `AUTO_END_TURN` is true** — commit runs automatically when the pill reaches Done (all targets collected and final hit played). When `AUTO_END_TURN` is true, the status pill and Reset/Replay are also hidden once every required target has been collected (final hit plays with no overlay). |
 
 ---
 
