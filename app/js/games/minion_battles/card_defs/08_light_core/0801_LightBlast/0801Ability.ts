@@ -20,9 +20,11 @@ import type { Unit } from '../../../game/units/Unit';
 const CARD_ID = `${formatGroupId(AbilityGroupId.Light)}01`;
 const MAX_USES = 3;
 const PREFIRE_TIME = 0.4;
-const MAX_RANGE = 200;
+export const LIGHT_BLAST_MAX_RANGE = 200;
+const MAX_RANGE = LIGHT_BLAST_MAX_RANGE;
 const LIGHT_BLAST_RADIUS = 40;
-const LIGHT_BLAST_DAMAGE = 8;
+export const LIGHT_BLAST_DAMAGE = 12;
+export const LIGHT_BLAST_MAX_TARGETS = 5;
 const LIGHT_BLAST_HEAL = 5;
 const BRIGHT_MAGNITUDE = 3;
 
@@ -87,6 +89,7 @@ export const LightBlastAbility = defineAbility({
                     damage: LIGHT_BLAST_DAMAGE,
                     abilityId: CARD_ID,
                     attackType: 'ranged',
+                    maxTargets: LIGHT_BLAST_MAX_TARGETS,
                 });
 
                 for (const unit of eng.units) {
@@ -119,7 +122,7 @@ export const LightBlastAbility = defineAbility({
 
     getTooltipText(): string[] {
         return [
-            `Create a sudden blast of light, dealing ${LIGHT_BLAST_DAMAGE} damage.`,
+            `Create a sudden blast of light, dealing ${LIGHT_BLAST_DAMAGE} damage to up to ${LIGHT_BLAST_MAX_TARGETS} enemies.`,
             `Heals allies in the blast for ${LIGHT_BLAST_HEAL}.`,
             '{Bright 3}',
         ];

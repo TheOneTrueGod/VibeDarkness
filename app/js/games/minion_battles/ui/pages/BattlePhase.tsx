@@ -53,7 +53,7 @@ import { fetchBattleAssets } from '../../game/fetchBattleAssets';
 import { MISSION_MAP, DARK_AWAKENING } from '../../storylines';
 import { AUTO_END_TURN } from '../../game/gameConstants';
 import { getAbility } from '../../abilities/AbilityRegistry';
-import { resolveClick, getSelectTargetDefsFromTimings, filterSelectTargetCandidates, buildMeleeSelectOrderTargets } from '../../abilities/targeting';
+import { resolveClick, getSelectTargetDefsFromTimings, filterSelectTargetCandidates, buildMeleeSelectOrderTargets, clampResolvedTargetToAbilityRange } from '../../abilities/targeting';
 import { buildPlayerMovePathThroughWaypoints } from '../../terrain/playerMovePath';
 import { Play, Pause, Square } from 'lucide-react';
 
@@ -1022,6 +1022,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                             resolved = { type: 'pixel' as const, position: clickResult.worldPosition };
                         }
                         if (resolved) {
+                            resolved = clampResolvedTargetToAbilityRange(abilityDef, caster, resolved, engine);
                             const numTargets = selectDef.numTargets ?? selectDef.hitbox.numTargets;
                             const lockOnCandidates = candidates.slice(0, numTargets).map((u) => ({ unitId: u.id }));
                             its.resolveTarget(

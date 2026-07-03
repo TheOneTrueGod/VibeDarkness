@@ -194,3 +194,39 @@ export function resolveTargetToPoint(
     }
     return null;
 }
+
+/** Max cast range from `getRange` or `aiSettings.maxRange`. Returns null when uncapped. */
+export function getAbilityMaxRange(ability: AbilityStatic, caster: Unit): number | null {
+    const range = ability.getRange?.(caster);
+    if (range != null) return range.maxRange;
+    const aiMax = ability.aiSettings?.maxRange;
+    if (aiMax != null && aiMax > 0) return aiMax;
+    return null;
+}
+
+/**
+ * Clamp a resolved target to the ability's max range from the caster.
+ * Pixel picks beyond range become a pixel at the range boundary; unit picks beyond
+ * range become a pixel aimed at that unit's direction at max range.
+ */
+export function clampResolvedTargetToAbilityRange(
+    ability: AbilityStatic,
+    caster: Unit,
+    target: ResolvedTarget,
+    engine: { getUnit(id: string): { x: number; y: number } | undefined | null },
+): ResolvedTarget {
+    const maxRange = getAbilityMaxRange(ability, caster);
+    if (maxRange == null || maxRange <= 0) return target;
+
+    const point = resolveTargetToPoint(target, engine);
+    if (!point) return target;
+
+    const dx = point.x - caster.x;
+    const dy = point.y - caster.y;
+    const distSq = dx * dx + dy * dy;
+    if (distSq <= maxRange * maxRange) return target;
+
+    const dist = Math.sqrt(distSq);
+    const scale = maxRange / dist;
+    return { type: 'pixel', position: { x: caster.x + dx * scale, y: caster.y + dy * scale } };
+}

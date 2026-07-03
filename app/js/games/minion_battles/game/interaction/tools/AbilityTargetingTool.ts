@@ -3,6 +3,7 @@ import {
     getSelectTargetDefsFromTimings,
     filterSelectTargetCandidates,
     buildMeleeSelectOrderTargets,
+    clampResolvedTargetToAbilityRange,
 } from '../../../abilities/targeting';
 import type { ResolvedTarget } from '../../types';
 import type { InteractionTool, PlayerInteractionContext, IPlayerInteractionManager } from '../InteractionTool';
@@ -55,6 +56,15 @@ export class AbilityTargetingTool implements InteractionTool {
                 resolved = { type: 'pixel', position: clickResult.worldPosition };
             } else {
                 return true;
+            }
+
+            if (caster) {
+                resolved = clampResolvedTargetToAbilityRange(
+                    this.ability,
+                    caster,
+                    resolved,
+                    engine,
+                );
             }
 
             // `newTargets` tracks one entry per click step so the next targetIndex is correct.

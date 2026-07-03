@@ -36,6 +36,7 @@ const SLINGSHOT_PHASE = 0.3;
 const COOLDOWN_DURATION = 0.8;
 const MAX_DISTANCE = 160;
 const UNIT_DAMAGE = 6;
+export const DIGGING_CLAWS_MAX_TARGETS = 5;
 const ROCK_DAMAGE = 35;
 const KNOCKBACK_TIER = 2;
 const SLINGSHOT_SPEED = 400; // px/s
@@ -133,7 +134,7 @@ export const DiggingClawsAbility: AbilityStatic = {
 
 	getTooltipText(): string[] {
 		return [
-			`Dashing attack that deals {${UNIT_DAMAGE}} damage and knock back enemies you touch`,
+			`Dashing attack that deals {${UNIT_DAMAGE}} damage and knock back up to {${DIGGING_CLAWS_MAX_TARGETS}} enemies you touch`,
 		];
 	},
 
@@ -357,6 +358,7 @@ export const DiggingClawsAbility: AbilityStatic = {
 				damage: UNIT_DAMAGE,
 				attackType: 'melee',
 				alreadyHitIds: note.hitTargetIds,
+				maxTargets: DIGGING_CLAWS_MAX_TARGETS,
 			});
 		}
 	},

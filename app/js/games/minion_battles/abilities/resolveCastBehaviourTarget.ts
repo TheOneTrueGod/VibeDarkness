@@ -1,7 +1,7 @@
 import type { AbilityStatic } from './Ability';
 import type { AbilityTimingInterval } from './abilityTimings';
 import type { CastBehaviourEntry } from './castBehaviourTypes';
-import { getSelectTargetDefsFromTimings } from './targeting';
+import { clampResolvedTargetToAbilityRange, getSelectTargetDefsFromTimings } from './targeting';
 import { isSelectTargetDef, isHitTargetDef } from './timingTargetDef';
 import type { ActiveAbility, ResolvedTarget } from '../game/types';
 import type { Unit } from '../game/units/Unit';
@@ -13,6 +13,8 @@ import type { Unit } from '../game/units/Unit';
  * Falls back to select-target ordinal index → `active.targets[targetIdx]` →
  * `active.targets[0]` → pixel at the caster position.
  */
+type EngineWithGetUnit = { getUnit(id: string): Unit | undefined | null };
+
 export function resolveCastBehaviourTarget(
     entry: CastBehaviourEntry,
     interval: AbilityTimingInterval,
@@ -26,30 +28,39 @@ export function resolveCastBehaviourTarget(
         active.targets[0] ??
         ({ type: 'pixel' as const, position: { x: unit.x, y: unit.y } });
 
+    let result = fallback;
+
     const { targetDef } = interval;
-    if (!targetDef) return fallback;
-
-    if (isSelectTargetDef(targetDef)) {
-        const byLabel = active.targetsByLabel?.[targetDef.label];
-        if (byLabel !== undefined) return byLabel;
-
-        if (ability) {
-            const selectDefs = getSelectTargetDefsFromTimings(ability, unit, engine);
-            const selectIdx = selectDefs.findIndex((d) => d.label === targetDef.label);
-            if (selectIdx >= 0 && active.targets[selectIdx] !== undefined) {
-                return active.targets[selectIdx]!;
+    if (targetDef) {
+        if (isSelectTargetDef(targetDef)) {
+            const byLabel = active.targetsByLabel?.[targetDef.label];
+            if (byLabel !== undefined) {
+                result = byLabel;
+            } else if (ability) {
+                const selectDefs = getSelectTargetDefsFromTimings(ability, unit, engine);
+                const selectIdx = selectDefs.findIndex((d) => d.label === targetDef.label);
+                if (selectIdx >= 0 && active.targets[selectIdx] !== undefined) {
+                    result = active.targets[selectIdx]!;
+                }
+            }
+        } else if (isHitTargetDef(targetDef)) {
+            for (const label of targetDef.labels) {
+                const resolved = active.targetsByLabel?.[label];
+                if (resolved !== undefined) {
+                    result = resolved;
+                    break;
+                }
             }
         }
-        return fallback;
     }
 
-    if (isHitTargetDef(targetDef)) {
-        for (const label of targetDef.labels) {
-            const resolved = active.targetsByLabel?.[label];
-            if (resolved !== undefined) return resolved;
-        }
-        return fallback;
+    if (ability && engine) {
+        return clampResolvedTargetToAbilityRange(
+            ability,
+            unit,
+            result,
+            engine as EngineWithGetUnit,
+        );
     }
-
-    return fallback;
+    return result;
 }

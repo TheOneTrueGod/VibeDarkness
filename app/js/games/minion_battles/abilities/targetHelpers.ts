@@ -100,15 +100,31 @@ export function damageEnemiesInCircle(options: {
     damage: number;
     abilityId: string;
     attackType?: string;
+    /** When set, only the closest `maxTargets` enemies in the circle are damaged. */
+    maxTargets?: number;
     onHit?: (unit: Unit) => void;
 }): void {
-    const { engine: eng, caster, center, radius, damage, abilityId, attackType = 'melee', onHit } = options;
+    const { engine: eng, caster, center, radius, damage, abilityId, attackType = 'melee', maxTargets, onHit } = options;
     const r2 = radius * radius;
+    let candidates: Unit[] = [];
     for (const unit of eng.units) {
         if (!unit.isAlive() || !areEnemies(caster.teamId, unit.teamId)) continue;
         const dx = unit.x - center.x;
         const dy = unit.y - center.y;
         if (dx * dx + dy * dy > r2) continue;
+        candidates.push(unit);
+    }
+    if (maxTargets != null && candidates.length > maxTargets) {
+        candidates = candidates
+            .map((unit) => ({
+                unit,
+                distSq: (unit.x - center.x) ** 2 + (unit.y - center.y) ** 2,
+            }))
+            .sort((a, b) => a.distSq - b.distSq)
+            .slice(0, maxTargets)
+            .map((entry) => entry.unit);
+    }
+    for (const unit of candidates) {
         if (onHit) {
             onHit(unit);
         } else {
@@ -141,8 +157,14 @@ export function damageEnemiesTouchingCaster(options: {
     attackType: TryDamageOrBlockParams['attackType'];
     alreadyHitIds: string[];
     respectIFrames?: boolean;
+    /** Cap on distinct enemies damaged across the cast (`alreadyHitIds` length). */
+    maxTargets?: number;
 }): void {
-    const { engine: eng, caster, abilityId, damage, attackType, alreadyHitIds, respectIFrames = true } = options;
+    const { engine: eng, caster, abilityId, damage, attackType, alreadyHitIds, respectIFrames = true, maxTargets } = options;
+    const slotsRemaining = maxTargets != null ? maxTargets - alreadyHitIds.length : Infinity;
+    if (slotsRemaining <= 0) return;
+
+    const candidates: Unit[] = [];
     for (const unit of eng.units) {
         if (!unit.isAlive() || !areEnemies(caster.teamId, unit.teamId)) continue;
         if (alreadyHitIds.includes(unit.id)) continue;
@@ -151,6 +173,21 @@ export function damageEnemiesTouchingCaster(options: {
         const dy = unit.y - caster.y;
         const touchDist = Math.sqrt(dx * dx + dy * dy);
         if (touchDist > caster.radius + unit.radius) continue;
+        candidates.push(unit);
+    }
+
+    const toHit = maxTargets != null && candidates.length > slotsRemaining
+        ? candidates
+            .map((unit) => ({
+                unit,
+                distSq: (unit.x - caster.x) ** 2 + (unit.y - caster.y) ** 2,
+            }))
+            .sort((a, b) => a.distSq - b.distSq)
+            .slice(0, slotsRemaining)
+            .map((entry) => entry.unit)
+        : candidates;
+
+    for (const unit of toHit) {
         const outcome = tryDamageOrBlock(unit, {
             engine: eng,
             gameTime: eng.gameTime,

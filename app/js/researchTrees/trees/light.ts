@@ -26,7 +26,11 @@ export const lightTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: STICK_SWORD_TREE_ID, nodeIds: [STICK_SWORD_NODE_PIPE_BAT] },
             ],
             cost: {},
-            effects: [{ type: 'replaceEquippedItem', fromItemId: '004', toItemId: '017' }],
+            effects: [
+                { type: 'replaceEquippedItem', fromItemId: '004', toItemId: '017' },
+                { type: 'replaceCard', fromCardId: '0601', toCardId: '0801' },
+            ],
+            modifiesAbility: { from: '0601', to: '0801' },
         },
         {
             id: LIGHT_NODE_IMBUEMENT,

@@ -45,7 +45,7 @@ import { beastClawFrontHitBackMissScenario } from './abilities/beastClawScenario
 import { swingBatHitsThreeTargetsScenario } from './abilities/swingBatScenarios';
 import { swingBatSequentialAimPixelScenario } from './abilities/swingBatSequentialAim';
 import { lightImbuementAndImbuedBatScenario } from './abilities/lightImbuementScenario';
-import { lightBlastCommittedScenario } from './abilities/lightBlastScenario';
+import { lightBlastCommittedScenario, lightBlastRangeCapScenario, lightBlastHitCapScenario } from './abilities/lightBlastScenario';
 import { throwKnifePiercingBleedScenario } from './abilities/throwKnifeScenarios';
 import { clawMovementDistanceScenario } from './abilities/clawScenarios';
 import { pistolHitsDummyScenario } from './abilities/gunScenarios';
@@ -155,6 +155,8 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     swingBatSequentialAimPixelScenario,
     lightImbuementAndImbuedBatScenario,
     lightBlastCommittedScenario,
+    lightBlastRangeCapScenario,
+    lightBlastHitCapScenario,
     throwKnifePiercingBleedScenario,
     clawMovementDistanceScenario,
     pistolHitsDummyScenario,

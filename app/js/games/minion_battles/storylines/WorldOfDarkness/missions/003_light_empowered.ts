@@ -55,25 +55,34 @@ function gridToWorld(col: number, row: number): { x: number; y: number } {
 	};
 }
 
-/** Wolves outside cave (in middle segment, south path area). */
+/** How far north (in tiles) to shift the south-path wolf cluster from the segment POI. */
+const SOUTH_PATH_WOLF_ROW_SHIFT_NORTH = 5;
+
+/** Cave-mouth wolf spawns: 5×5 box centered on this tile (cols 7–11, rows 30–34). */
+const CAVE_MOUTH_WOLF_BOX_CENTER_COL = 9;
+const CAVE_MOUTH_WOLF_BOX_CENTER_ROW = 32;
+
+/** Wolves on the cliff south path, shifted north from the segment POI. */
 const wolvesOutsideCave = [
-	gridToWorld(cliffPathPOI.south_path.col, cliffPathPOI.south_path.row + MIDDLE_OFFSET_ROW),
-	gridToWorld(cliffPathPOI.south_path.col + 1, cliffPathPOI.south_path.row + MIDDLE_OFFSET_ROW),
-	gridToWorld(cliffPathPOI.south_path.col, cliffPathPOI.south_path.row + MIDDLE_OFFSET_ROW + 1),
-	gridToWorld(cliffPathPOI.south_path.col + 1, cliffPathPOI.south_path.row + MIDDLE_OFFSET_ROW + 1),
+	gridToWorld(cliffPathPOI.south_path.col, cliffPathPOI.south_path.row + MIDDLE_OFFSET_ROW - SOUTH_PATH_WOLF_ROW_SHIFT_NORTH),
+	gridToWorld(cliffPathPOI.south_path.col + 1, cliffPathPOI.south_path.row + MIDDLE_OFFSET_ROW - SOUTH_PATH_WOLF_ROW_SHIFT_NORTH),
+	gridToWorld(cliffPathPOI.south_path.col, cliffPathPOI.south_path.row + MIDDLE_OFFSET_ROW - SOUTH_PATH_WOLF_ROW_SHIFT_NORTH + 1),
+	gridToWorld(cliffPathPOI.south_path.col + 1, cliffPathPOI.south_path.row + MIDDLE_OFFSET_ROW - SOUTH_PATH_WOLF_ROW_SHIFT_NORTH + 1),
 ];
 
-/** Wolves in the other group (north path area). */
-const wolvesNorthPath = [
-	gridToWorld(cliffPathPOI.north_path.col, cliffPathPOI.north_path.row + MIDDLE_OFFSET_ROW),
-	gridToWorld(cliffPathPOI.north_path.col + 1, cliffPathPOI.north_path.row + MIDDLE_OFFSET_ROW),
+/** Wolves outside the crystal-cave mouth (bottom segment). */
+const wolvesAtCaveMouth = [
+	gridToWorld(CAVE_MOUTH_WOLF_BOX_CENTER_COL - 1, CAVE_MOUTH_WOLF_BOX_CENTER_ROW - 1),
+	gridToWorld(CAVE_MOUTH_WOLF_BOX_CENTER_COL + 1, CAVE_MOUTH_WOLF_BOX_CENTER_ROW - 1),
+	gridToWorld(CAVE_MOUTH_WOLF_BOX_CENTER_COL - 1, CAVE_MOUTH_WOLF_BOX_CENTER_ROW + 1),
+	gridToWorld(CAVE_MOUTH_WOLF_BOX_CENTER_COL + 1, CAVE_MOUTH_WOLF_BOX_CENTER_ROW + 1),
 ];
 
 const ENEMIES = [
 	{ ...ENEMY_DARK_WOLF, position: wolvesOutsideCave[0]!, unitAITreeId: 'hunt' },
 	{ ...ENEMY_DARK_WOLF, position: wolvesOutsideCave[3]!, unitAITreeId: 'hunt' },
-	{ ...ENEMY_DARK_WOLF, position: wolvesNorthPath[0]!, unitAITreeId: 'hunt' },
-	{ ...ENEMY_DARK_WOLF, position: wolvesNorthPath[1]!, unitAITreeId: 'hunt' },
+	{ ...ENEMY_DARK_WOLF, position: wolvesAtCaveMouth[0]!, unitAITreeId: 'hunt' },
+	{ ...ENEMY_DARK_WOLF, position: wolvesAtCaveMouth[1]!, unitAITreeId: 'hunt' },
 	{
 		...SLIME,
 		name: 'Slime',
