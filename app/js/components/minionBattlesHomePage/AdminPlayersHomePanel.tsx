@@ -43,7 +43,9 @@ function AccountCard({
             <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                     <p className="font-semibold text-white truncate">{account.name}</p>
-                    <p className="text-xs text-muted">{account.role === 'admin' ? 'Admin' : 'Player'}</p>
+                    <p className="text-xs text-muted">
+                        {account.role === 'admin' ? 'Admin' : account.role === 'dm' ? 'DM' : 'Player'}
+                    </p>
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
                     {inEAR && (

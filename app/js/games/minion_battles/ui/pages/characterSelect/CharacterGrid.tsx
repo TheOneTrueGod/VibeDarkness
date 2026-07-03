@@ -1,12 +1,19 @@
 import React, { useMemo } from 'react';
-import type { PlayerState } from '../../../../../types';
+import type { AccountState, PlayerState } from '../../../../../types';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
-import { SPECTATOR_ID, CONTROL_ENEMY_ALPHA_WOLF } from '../../../state';
+import type { PlayerControlDef } from '../../../storylines/types';
+import { SPECTATOR_ID, getControlGroupId, makeControlSelection } from '../../../state';
+import { hasRolePermission, Permissions } from '../../../../../user/permissions';
 import { CampaignCharacterCard } from './CampaignCharacterCard';
 import { RequiredPlayerSlot } from './RequiredPlayerSlot';
 import { SpectatorCard } from './SpectatorCard';
 import { ControlEnemyCard } from './ControlEnemyCard';
 import { CreateCharacterCard } from './CreateCharacterCard';
+
+/** Resolved group id for a PlayerControlDef: id ?? controlGroupId ?? unitTag. */
+function resolveControlGroupId(def: PlayerControlDef): string | null {
+    return def.id ?? def.controlGroupId ?? def.unitTag ?? null;
+}
 
 interface CharacterGridProps {
     charactersLoading: boolean;
@@ -19,8 +26,9 @@ interface CharacterGridProps {
     characterSelections: Record<string, string>;
     players: Record<string, PlayerState>;
     resolvedRequiredPlayers: Array<{ playerName: string; characterId: string; connectedPlayer: PlayerState | null }>;
-    isAdmin: boolean;
-    controlEnemySelectedBy: string | null;
+    playerControl: PlayerControlDef[] | undefined;
+    role: AccountState['role'];
+    controlSelectionsByGroup: Record<string, string>;
     playerId: string;
     onSelect: (characterId: string, portraitId: string, characterDisplayName?: string) => void;
     onDelete: (characterId: string) => void;
@@ -39,8 +47,9 @@ export function CharacterGrid({
     characterSelections,
     players,
     resolvedRequiredPlayers,
-    isAdmin,
-    controlEnemySelectedBy,
+    playerControl,
+    role,
+    controlSelectionsByGroup,
     playerId,
     onSelect,
     onDelete,
@@ -53,6 +62,9 @@ export function CharacterGrid({
         const { [playerId]: _mine, ...rest } = characterSelections;
         return rest;
     }, [characterSelections, playerId]);
+
+    const canControlNpcs = hasRolePermission(Permissions.CONTROL_NPCS, role);
+    const myControlGroupId = getControlGroupId(mySelection);
 
     return (
         <div className="flex-1 overflow-auto px-5 pb-5 pt-4">
@@ -106,13 +118,20 @@ export function CharacterGrid({
                             isMySelection={mySelection === SPECTATOR_ID}
                             onSelect={() => onSelect(SPECTATOR_ID, '')}
                         />
-                        {missionId === 'monster' && isAdmin && (
-                            <ControlEnemyCard
-                                isMySelection={mySelection === CONTROL_ENEMY_ALPHA_WOLF}
-                                isDisabled={controlEnemySelectedBy != null && controlEnemySelectedBy !== playerId}
-                                onSelect={() => onSelect(CONTROL_ENEMY_ALPHA_WOLF, '')}
-                            />
-                        )}
+                        {canControlNpcs && (playerControl ?? []).map((def) => {
+                            const groupId = resolveControlGroupId(def);
+                            if (groupId == null) return null;
+                            const selectedBy = controlSelectionsByGroup[groupId] ?? null;
+                            return (
+                                <ControlEnemyCard
+                                    key={groupId}
+                                    label={def.label}
+                                    isMySelection={myControlGroupId === groupId}
+                                    isDisabled={selectedBy != null && selectedBy !== playerId}
+                                    onSelect={() => onSelect(makeControlSelection(groupId), '')}
+                                />
+                            );
+                        })}
                     </>
                 )}
             </div>

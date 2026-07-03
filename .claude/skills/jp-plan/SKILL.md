@@ -8,7 +8,7 @@ Create a plan file and break the work down into individual changes. Keep changes
 
 ## Agent Instructions section
 
-Include an **Agent Instructions** section that says the plan is executed by `/jp-implement-plan`: an orchestrator spawns one fresh subagent per step automatically, and each subagent implements exactly one step, checks items off with a one-line summary of what actually changed, then stops. Reference `.claude/skills/jp-implement-plan/SKILL.md` rather than restating its workflow, and list the project skills relevant to this plan.
+Include an **Agent Instructions** section that says the plan is executed by `/jp-implement-plan`: the **invoking agent is the sole orchestrator** — it spawns one worker per step **synchronously** (never background), waits for each to finish, then reports plan completion to the user. Each worker implements exactly one step, checks items off with a one-line summary, and **stops without spawning the next agent**. Reference `.claude/skills/jp-implement-plan/SKILL.md` rather than restating its workflow, and list the project skills relevant to this plan.
 
 ## Verification cadence — keep steps cheap
 

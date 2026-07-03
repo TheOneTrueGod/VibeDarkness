@@ -103,6 +103,12 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
     const buffsData = (data.buffs as BuffSerialized[] | undefined) ?? [];
     unit.buffs = buffsData.map((b) => buffFromJSON(b));
     unit.tags = parseUnitTagsFromJSON(data.tags);
+    if (data.controllable === false) {
+        unit.controllable = false;
+    }
+    if (typeof data.controlGroupId === 'string') {
+        unit.controlGroupId = data.controlGroupId;
+    }
     const runtimeData = (data.abilityRuntime as Record<string, UnitAbilityRuntimeState> | undefined) ?? {};
     unit.abilityRuntime = Object.fromEntries(
         Object.entries(runtimeData).map(([abilityId, runtime]) => [

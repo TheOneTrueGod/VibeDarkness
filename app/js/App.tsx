@@ -888,7 +888,8 @@ function AppInner() {
             grantKnowledgeKeys?: string[],
             itemIds?: string[],
             researchRewardIds?: string[],
-            researchRewards?: import('./types').MissionResearchRewardEntry[]
+            researchRewards?: import('./types').MissionResearchRewardEntry[],
+            options?: { controlledNpcs?: boolean }
         ) => {
             const campaignId = currentCampaignId ?? user?.campaignIds?.[0] ?? null;
             if (!campaignId) return;
@@ -903,6 +904,7 @@ function AppInner() {
                         researchRewardIds,
                         ...(researchRewards != null &&
                             researchRewards.length > 0 && { researchRewards }),
+                        ...(options?.controlledNpcs === true && { controlledNpcs: true }),
                     },
                 });
                 if (grantKnowledgeKeys?.length) {

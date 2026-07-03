@@ -68,7 +68,8 @@ class UpdateCampaignHandler
             $itemIds = $mr['itemIds'] ?? null;
             $researchRewardIds = $mr['researchRewardIds'] ?? null;
             $researchRewards = $mr['researchRewards'] ?? null;
-            $campaign->addMissionResult($missionId, $result, $delta, $itemIds, $researchRewardIds, $researchRewards);
+            $controlledNpcs = $mr['controlledNpcs'] ?? null;
+            $campaign->addMissionResult($missionId, $result, $delta, $itemIds, $researchRewardIds, $researchRewards, $controlledNpcs);
 
             $grantKnowledgeKeys = $mr['grantKnowledgeKeys'] ?? null;
             if (is_array($grantKnowledgeKeys) && count($grantKnowledgeKeys) > 0) {

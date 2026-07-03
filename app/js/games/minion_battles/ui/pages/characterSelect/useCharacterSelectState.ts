@@ -4,7 +4,7 @@ import type { MinionBattlesApi } from '../../../api/minionBattlesApi';
 import type { IBaseMissionDef } from '../../../storylines/BaseMissionDef';
 import { fromCampaignCharacterData, type CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import type { CampaignCharacterData } from '../../../character_defs/campaignCharacterTypes';
-import { SPECTATOR_ID, isControlEnemy } from '../../../state';
+import { SPECTATOR_ID, getControlGroupId } from '../../../state';
 
 interface UseCharacterSelectStateParams {
     api: MinionBattlesApi;
@@ -109,8 +109,16 @@ export function useCharacterSelectState({
         const sel = characterSelections[pid];
         return sel != null && sel !== SPECTATOR_ID;
     });
-    const controlEnemySelectedBy =
-        Object.entries(characterSelections).find(([, sel]) => isControlEnemy(sel))?.[0] ?? null;
+    /** groupId → playerId for NPC-control selections (sorted playerIds, first wins). */
+    const controlSelectionsByGroup = useMemo(() => {
+        const map: Record<string, string> = {};
+        for (const pid of Object.keys(characterSelections).sort()) {
+            const groupId = getControlGroupId(characterSelections[pid]);
+            if (groupId == null || map[groupId] != null) continue;
+            map[groupId] = pid;
+        }
+        return map;
+    }, [characterSelections]);
     const amReady = readySet.has(playerId);
     const effectivelyReady = amReady || optimisticAmReady;
 
@@ -163,7 +171,7 @@ export function useCharacterSelectState({
         allRequiredPlayersPresent,
         allReady,
         atLeastOneCharacter,
-        controlEnemySelectedBy,
+        controlSelectionsByGroup,
         amReady,
         effectivelyReady,
         missionTraitFilter,

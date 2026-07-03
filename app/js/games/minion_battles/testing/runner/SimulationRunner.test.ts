@@ -33,6 +33,7 @@ import {
 import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteDefenderAttackScenario } from '../scenarios/general/lanternites';
 import { lanterniteDeathBehaviorsScenario, lanterniteNestOwnedNoRespawnScenario } from '../scenarios/general/lanterniteDeath';
 import { alphaWolfEnrageTriggersScenario, alphaWolfSummonScenario } from '../scenarios/general/enemies';
+import { npcControlScenario } from '../scenarios/general/npcControl';
 import { swarmlingHuntAndBiteScenario } from '../scenarios/general/swarmlings';
 import { petAutoEngageScenario, petHeelScenario, petSicEmPounceScenario } from '../scenarios/general/pets';
 import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from '../scenarios/general/lightingSystem';
@@ -292,6 +293,11 @@ describe('runScenarioHeadless', () => {
 
     it('passes alpha wolf summon scenario (spawned wolves attack and damage player)', () => {
         const r = runScenarioHeadless(alphaWolfSummonScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes NPC control scenario (player-owned wolf scratches team-player dummy)', () => {
+        const r = runScenarioHeadless(npcControlScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

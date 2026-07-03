@@ -148,6 +148,11 @@ export interface SerializedGameState {
     /** Serialized ninjutsu pool configs and runtime state (budget, delay). */
     ninjutsuPools?: import('./ninjutsu/NinjutsuPool').SerializedNinjutsuPool[];
     /**
+     * Player NPC control assignments (groupId → playerId). Defs are runtime-only and
+     * re-registered from the mission after restore; only the assignment map is checkpointed.
+     */
+    npcControlAssignments?: Record<string, string>;
+    /**
      * Carried only by in-memory preview snapshots taken by InteractiveTargetingSession so
      * restore does not reset the runtime fingerprint; server checkpoints pass it out-of-band
      * via opts.

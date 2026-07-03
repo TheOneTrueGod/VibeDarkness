@@ -863,12 +863,13 @@ export class LevelEventManager {
         return false;
     }
 
-    /** If all player units are dead, fire defeat once and pause. */
+    /** If all hero-team player units are dead, fire defeat once and pause. */
     runDefeatCheck(): void {
         if (this.ctx.storyPauseActive) return;
         if (this.defeatFired) return;
+        // teamId === 'player' so a controlled enemy (e.g. wolf) does not block defeat.
         const hasAlivePlayer = this.ctx.units.some(
-            (u) => u.isPlayerControlled() && u.isAlive(),
+            (u) => u.teamId === 'player' && u.isPlayerControlled() && u.isAlive(),
         );
         if (!hasAlivePlayer) {
             this.defeatFired = true;

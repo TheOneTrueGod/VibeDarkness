@@ -9,7 +9,15 @@ namespace App;
 class PlayerAccount
 {
     public const ROLE_USER = 'user';
+    public const ROLE_DM = 'dm';
     public const ROLE_ADMIN = 'admin';
+
+    /** @var list<string> */
+    private const KNOWN_ROLES = [
+        self::ROLE_USER,
+        self::ROLE_DM,
+        self::ROLE_ADMIN,
+    ];
 
     private int $id;
     private string $name;
@@ -53,7 +61,7 @@ class PlayerAccount
         $this->id = $id;
         $this->name = $name;
         $this->passwordHash = $passwordHash;
-        $this->role = $role === self::ROLE_ADMIN ? self::ROLE_ADMIN : self::ROLE_USER;
+        $this->role = in_array($role, self::KNOWN_ROLES, true) ? $role : self::ROLE_USER;
         $this->fire = $fire;
         $this->water = $water;
         $this->earth = $earth;

@@ -25,9 +25,9 @@ import {
     normalizeAbilityTimingsToIntervals,
     resolveAbilityTimingEntries,
 } from '../abilities/abilityTimings';
-import { areAllies, areEnemies } from './teams';
+import { areAllies, areEnemies, type TeamId } from './teams';
 import type { TerrainManager } from '../terrain/TerrainManager';
-import type { BattleObjectiveDef, LevelEvent } from '../storylines/types';
+import type { BattleObjectiveDef, LevelEvent, PlayerControlDef } from '../storylines/types';
 import type { SpecialTile } from './specialTiles/SpecialTile';
 import { isTileDefendPoint } from './specialTiles/SpecialTile';
 import type { AIContext, AILightSource } from './units/unitAI';
@@ -148,6 +148,13 @@ export class GameEngine implements EngineContext {
     private appliedRoundStartRecovery = false;
     private appliedMidRoundRecovery = false;
     private appliedDotTicks = 0;
+
+    /**
+     * Mission playerControl defs (runtime-only; re-registered after checkpoint restore).
+     * Assignments are serialized as {@link SerializedGameState.npcControlAssignments}.
+     */
+    private npcControlDefs: PlayerControlDef[] = [];
+    private npcControlAssignments: Record<string, string> = {};
 
     /** Runtime occupancy tracker — not serialized, rebuilt at the start of each movement phase. */
     readonly cellOccupancyManager = new CellOccupancyManager();
@@ -328,8 +335,93 @@ export class GameEngine implements EngineContext {
         if (spawnSource === 'nestSpawn') {
             unit.growAnimTimer = 0.3;
         }
+        // Assign NPC control before unitManager.addUnit so moveJitter uses the player branch.
+        this.tryAssignNpcControlOnSpawn(unit);
         this.state.unitManager.addUnit(unit);
         this.mixRuntimeFingerprint(FingerprintEvent.SPAWN, this.hashString32(unit.id), Math.floor(unit.x), Math.floor(unit.y));
+    }
+
+    /**
+     * Register mission playerControl defs and group→player assignments.
+     * Defs are runtime-only; assignments are serialized in checkpoints.
+     */
+    registerPlayerControl(defs: PlayerControlDef[], assignmentsByGroup: Record<string, string>): void {
+        this.npcControlDefs = defs.slice();
+        this.npcControlAssignments = { ...assignmentsByGroup };
+    }
+
+    /** Checkpointed groupId → playerId map (empty when no NPC control is active). */
+    getNpcControlAssignments(): Readonly<Record<string, string>> {
+        return this.npcControlAssignments;
+    }
+
+    /**
+     * Team used for local-client rendering (darkness hiding, previews).
+     * First alive unit owned by {@link localPlayerId}, else first owned unit, else `'player'`.
+     */
+    getLocalPlayerTeamId(): TeamId {
+        const owned = this.units.filter((u) => u.ownerId === this.localPlayerId);
+        const alive = owned.find((u) => u.isAlive());
+        if (alive) return alive.teamId;
+        if (owned.length > 0) return owned[0]!.teamId;
+        return 'player';
+    }
+
+    /**
+     * Assign a unit to a player for NPC control. Stamps controlGroupId when provided.
+     */
+    assignControl(unit: Unit, playerId: string, groupId?: string | null): void {
+        unit.ownerId = playerId;
+        if (groupId != null) {
+            unit.controlGroupId = groupId;
+        }
+        this.eventBus.emit('control_assigned', {
+            unitId: unit.id,
+            playerId,
+            groupId: unit.controlGroupId,
+        });
+    }
+
+    /**
+     * Release a unit back to AI control. Facilitates future transfer/release UI.
+     */
+    releaseControl(unit: Unit): void {
+        const previousPlayerId = unit.ownerId === 'ai' ? null : unit.ownerId;
+        const groupId = unit.controlGroupId;
+        unit.ownerId = 'ai';
+        this.eventBus.emit('control_released', {
+            unitId: unit.id,
+            playerId: previousPlayerId,
+            groupId,
+        });
+    }
+
+    /** Resolved group id for a PlayerControlDef: id ?? controlGroupId ?? unitTag. */
+    private static resolvePlayerControlGroupId(def: PlayerControlDef): string | null {
+        return def.id ?? def.controlGroupId ?? def.unitTag ?? null;
+    }
+
+    /**
+     * If the unit is AI-owned, controllable, and matches a registered control group with an
+     * assigned player, hand ownership to that player.
+     */
+    private tryAssignNpcControlOnSpawn(unit: Unit): void {
+        if (unit.ownerId !== 'ai' || unit.controllable === false) return;
+        if (this.npcControlDefs.length === 0) return;
+
+        for (const def of this.npcControlDefs) {
+            const groupId = GameEngine.resolvePlayerControlGroupId(def);
+            if (groupId == null) continue;
+            const playerId = this.npcControlAssignments[groupId];
+            if (playerId == null) continue;
+
+            const matchesGroupId = unit.controlGroupId != null && unit.controlGroupId === groupId;
+            const matchesTag = def.unitTag != null && unit.tags.includes(def.unitTag);
+            if (matchesGroupId || matchesTag) {
+                this.assignControl(unit, playerId, groupId);
+                return;
+            }
+        }
     }
     getUnit(id: string): Unit | undefined { return this.state.unitManager.getUnit(id); }
     getUnits(): Unit[] { return this.state.unitManager.getUnits(); }
@@ -1632,6 +1724,9 @@ export class GameEngine implements EngineContext {
             mapPOIs: this.mapPOIs,
             groups: this.state.groupManager.toJSON(this.gameTick),
             ninjutsuPools: this.state.ninjutsuManager?.toJSON() ?? undefined,
+            ...(Object.keys(this.npcControlAssignments).length > 0
+                ? { npcControlAssignments: { ...this.npcControlAssignments } }
+                : {}),
         };
     }
 
@@ -1787,6 +1882,11 @@ export class GameEngine implements EngineContext {
         if (data.ninjutsuPools && data.ninjutsuPools.length > 0) {
             engine.state.ninjutsuManager = NinjutsuManager.fromJSON(data.ninjutsuPools);
         }
+
+        // Assignments only — defs are re-registered by BattleSession from the mission def.
+        engine.npcControlAssignments = data.npcControlAssignments
+            ? { ...data.npcControlAssignments }
+            : {};
 
         engine.syncObjectIdsFromSnapshot(data);
 

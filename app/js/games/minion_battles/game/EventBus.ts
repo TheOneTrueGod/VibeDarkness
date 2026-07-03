@@ -22,7 +22,9 @@ export type GameEventType =
     | 'recovery_charge_granted'
     | 'stack_members_died'
     | 'boss_exposed_cc_suppressed'
-    | 'ability_bar_changed';
+    | 'ability_bar_changed'
+    | 'control_assigned'
+    | 'control_released';
 
 export interface DamageTakenEvent {
     unitId: string;
@@ -136,6 +138,13 @@ export interface AbilityBarChangedEvent {
     unitId: string;
 }
 
+/** Fired when a unit is assigned to or released from player NPC control. */
+export interface ControlChangedEvent {
+    unitId: string;
+    playerId: string | null;
+    groupId: string | null;
+}
+
 export type GameEventDataMap = {
     damage_taken: DamageTakenEvent;
     round_start: RoundStartEvent;
@@ -152,6 +161,8 @@ export type GameEventDataMap = {
     stack_members_died: StackMembersDiedEvent;
     boss_exposed_cc_suppressed: BossExposedCcSuppressedEvent;
     ability_bar_changed: AbilityBarChangedEvent;
+    control_assigned: ControlChangedEvent;
+    control_released: ControlChangedEvent;
 };
 
 type EventCallback<T extends GameEventType> = (data: GameEventDataMap[T]) => void;

@@ -3,7 +3,7 @@ import { useUserData } from './UserDataProvider';
 export interface CurrentUser {
     id: number;
     name: string;
-    role: 'user' | 'admin';
+    role: 'user' | 'dm' | 'admin';
     isAdmin: boolean;
     resources: { fire: number; water: number; earth: number; air: number };
     campaignIds: string[];

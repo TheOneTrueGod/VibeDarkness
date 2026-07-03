@@ -15,6 +15,7 @@ import {
     exposedDurationExtensionScenario,
     enemyArcherShotScenario,
 } from './general/enemies';
+import { npcControlScenario } from './general/npcControl';
 import {
     punchChargingScenario,
     punchDoubleScenario,
@@ -117,6 +118,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     alphaWolfEnrageTriggersScenario,
     alphaWolfSummonScenario,
     alphaWolfScratchScenario,
+    npcControlScenario,
     exposedDurationExtensionScenario,
     enemyArcherShotScenario,
     swarmlingHuntAndBiteScenario,

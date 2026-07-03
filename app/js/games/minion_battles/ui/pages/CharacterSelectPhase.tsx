@@ -64,7 +64,7 @@ export default function CharacterSelectPhase({
     removeLocalOverride,
     onPhaseChange,
 }: CharacterSelectPhaseProps) {
-    const { isAdmin } = useCurrentUser();
+    const { isAdmin, role } = useCurrentUser();
     const { user } = useUserData();
     const campaignId = campaignIdProp || (missionDef?.campaignId ?? missionId);
 
@@ -87,7 +87,7 @@ export default function CharacterSelectPhase({
         creatorOpen, setCreatorOpen, createCardRef, setCreateCardRef,
         activeTab, setActiveTab, view, setView, campaign,
         charactersLoading, myLockedCharacterId, sortedCharacters, missionTraitFilter,
-        resolvedRequiredPlayers, controlEnemySelectedBy,
+        resolvedRequiredPlayers, controlSelectionsByGroup,
         effectivelyReady, setReadyLoading, allRequiredPlayersPresent, allSelected, allReady, atLeastOneCharacter,
     } = state;
 
@@ -140,8 +140,9 @@ export default function CharacterSelectPhase({
                     characterSelections={characterSelections}
                     players={players}
                     resolvedRequiredPlayers={resolvedRequiredPlayers}
-                    isAdmin={isAdmin}
-                    controlEnemySelectedBy={controlEnemySelectedBy}
+                    playerControl={missionDef?.playerControl}
+                    role={role}
+                    controlSelectionsByGroup={controlSelectionsByGroup}
                     playerId={playerId}
                     onSelect={chars.handleSelectCharacterAndShowOverview}
                     onDelete={chars.handleDeleteCharacter}

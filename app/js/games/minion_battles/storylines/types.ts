@@ -43,6 +43,15 @@ export interface SpawnWaveEntry {
     /** Override unit-def baseline speed when set. */
     speed?: number;
     aiSettings?: AISettings;
+    /**
+     * Optional control group id for player NPC control (matches {@link PlayerControlDef}).
+     * When set, units from this entry can be assigned to a control player.
+     */
+    controlGroupId?: string;
+    /**
+     * When false, this unit is never auto-assigned to a control player (default true).
+     */
+    controllable?: boolean;
     /** Where to spawn this entry's units. Defaults to 'edgeOfMap'. */
     spawnBehaviour?: SpawnBehaviour;
     /**
@@ -320,6 +329,23 @@ export interface LanterniteNestMissionConfig {
     scoutConstructionSec?: number;
 }
 
+/**
+ * Declares an NPC group a permitted player may control instead of spawning a hero.
+ *
+ * Resolved group id = `id ?? controlGroupId ?? unitTag`. At least one of
+ * `unitTag` or `controlGroupId` is required so units can be matched at spawn.
+ */
+export interface PlayerControlDef {
+    /** Explicit group id; when omitted, falls back to controlGroupId then unitTag. */
+    id?: string;
+    /** Match units that include this tag (e.g. UnitTag.Boss). */
+    unitTag?: UnitTag;
+    /** Match units whose spawn def sets this controlGroupId. */
+    controlGroupId?: string;
+    /** Player-facing label on the character-select control card. */
+    label: string;
+}
+
 /** Config for a single enemy spawn. */
 export interface EnemySpawnDef {
     /** Character archetype for visuals and resources. */
@@ -338,6 +364,15 @@ export interface EnemySpawnDef {
     abilities: string[];
     /** AI behavior settings (range preferences, etc.). */
     aiSettings?: AISettings;
+    /**
+     * Optional control group id for player NPC control (matches {@link PlayerControlDef}).
+     * When set, this unit can be assigned to a control player.
+     */
+    controlGroupId?: string;
+    /**
+     * When false, this unit is never auto-assigned to a control player (default true).
+     */
+    controllable?: boolean;
     /** Visual/collision radius. Omitted uses unit default for that character. */
     radius?: number;
     /** AI tree for this enemy (required). */
@@ -490,6 +525,11 @@ export interface MissionBattleConfig {
     };
     /** World modifiers active for this mission (merged with builtins and story sources at load time). */
     worldModifiers?: WorldModifierDef[];
+    /**
+     * Optional NPC groups players with CONTROL_NPCS permission may control instead of a hero.
+     * Character select shows one card per entry; selection is `control_enemy:<groupId>`.
+     */
+    playerControl?: PlayerControlDef[];
 }
 
 /** Storyline flow edge: fromMissionId + result unlocks toMissionId. */

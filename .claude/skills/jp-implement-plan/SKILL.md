@@ -1,72 +1,81 @@
 ---
 name: jp-implement-plan
-description: "Executes a jp-plan plan file automatically: the invoking agent acts as an orchestrator, spawning one fresh subagent per step (via the Agent/Task tool) until every checklist item is done — no manual handoff. Each worker implements exactly one step, verifies with lint then targeted tests, and checks items off with one-line summaries. Use when the user says /jp-implement-plan <path-to-plan>."
+description: "Executes a jp-plan plan file: the invoking agent is the sole orchestrator, spawning one worker per step synchronously until every checklist item is done, then reporting completion to the user. Workers implement exactly one step and never spawn agents. Use when the user says /jp-implement-plan <path-to-plan>."
 ---
 
 # jp-implement-plan
 
-You are executing a plan file. The plan was passed as an argument — treat that value as the path to the plan file.
+You are executing a plan file. The plan path was passed as an argument.
 
-The plan file is the **only shared memory** between agents. Everything the next agent needs to know must be written into it.
+The plan file is the **only shared memory** between agents. Everything the next worker needs must be written into it.
 
 There are two roles. The agent that receives `/jp-implement-plan` is the **Orchestrator**. Agents spawned with "Step N only" in their prompt are **Workers**.
 
 ## What counts as a checklist item
 
-Only **top-level `- [ ]` items directly under a `### Step N` heading** are tracked checklist items. Nested bullets, tables, and code blocks beneath an item are instructions for that item, not separate items.
+Only **top-level `- [ ]` items directly under a `### Step N` heading** are tracked. Nested bullets, tables, and code blocks are instructions for that item, not separate items.
 
 ## Orchestrator role (default)
 
-Do not implement steps yourself — fresh context per step is the point. Coordinate:
+**You own the full chain and the final user-facing report.** Do not implement steps yourself when a Task/subagent tool is available — fresh context per step is the point. Coordinate:
 
-1. **Read the plan file** and parse all steps. If the plan has its own **Agent Instructions** section, it takes precedence over generic habits, but not over the rules below. If no unchecked items remain → go to **Completion**.
+1. **Read the plan file** and parse all steps. If the plan has an **Agent Instructions** section, it takes precedence over generic habits, but not over the rules below. If no unchecked items remain → **Completion**.
 
-2. **Cheap baseline.** Run `npm run lint`, then `npx vitest run --changed`. Note any pre-existing failures to pass to every worker. Do **not** run the full suite here unless the user asks for a full baseline.
+2. **Find the next step:** the **lowest-numbered** step that still has at least one unchecked item (`- [ ]`). Steps run in document order (1, then 2, …). Never pick the highest-numbered incomplete step.
 
-3. **Loop over steps in document order.** For each step that still has unchecked items, spawn a subagent **synchronously** (wait for it to finish before spawning the next) with exactly this prompt:
+3. **Cheap baseline (once, at start).** Run `npm run lint`, then `npx vitest run --changed`. Note pre-existing failures to pass to every worker. Do not run the full suite here unless the user asks.
+
+4. **Loop:** for each incomplete step in order, spawn **one** worker and **wait for it to finish** before spawning the next:
+   - Use the Task tool with `subagent_type: "generalPurpose"`.
+   - **Do not** set `run_in_background: true`. Background spawn + ending your turn drops the chain: notifications only reach the direct parent, and only while that parent is still active.
+   - Prompt exactly:
 
    > Read `.claude/skills/jp-implement-plan/SKILL.md` and follow the **Worker role** for the plan at `<plan path>`. You are handling **Step N only**. After completing Step N and checking off all its items, do NOT hand off or spawn agents — stop and report what you did. Pre-existing test failures you are not responsible for: `<list or "none">`.
 
-4. **Verify between spawns.** After each worker returns, re-read the plan file: confirm the step's items are `[x]` with summaries. If the worker returned a **question**, surface it to the user **verbatim** and stop. If a step looks wrong or incomplete, investigate before continuing; stop and report rather than piling steps onto a broken base.
+5. **Verify between workers.** After each worker returns, re-read the plan: confirm that step's items are `[x]` with one-line summaries. If the worker returned a **question**, surface it to the user **verbatim** and stop. If a step looks wrong or incomplete, investigate before continuing.
 
-5. When all steps are complete → **Completion**.
+6. When all steps are complete → **Completion** (you report to the user; workers never do).
 
-**Fallback:** if no subagent/Task tool is available in your environment, implement the current step yourself following the Worker role, then end your turn and give the user this prompt to paste into a new chat: *"Read `.claude/skills/jp-implement-plan/SKILL.md` and follow it for the plan at `<plan path>`."*
+**Fallback:** if no Task/subagent tool is available, implement the current step yourself (Worker role), then continue the loop in the same turn. Do not ask the user to paste prompts between steps unless you are blocked.
 
 ## Worker role
 
-You handle exactly the step named in your prompt. Never start another step, and never spawn agents.
+You handle **exactly** the step named in your prompt. Never start another step. **Never spawn agents** (no Task/Agent handoff).
 
-1. **Read the plan file** — the Context, Agent Instructions, and your step in full.
+1. **Read the plan file** — Context, Agent Instructions, and your step in full.
 
-2. **Verify the state of the world.** Spot-check that files named in earlier (checked) steps' "Touches"/"Files" lines exist and skim their completion summaries. If something a checked step claims is missing, or verification is already red on arrival beyond the pre-existing failures you were given, **stop and report** instead of building on top of it.
+2. **Spot-check prior steps.** If a checked step's claimed work is missing, or verification is already red beyond the pre-existing failures you were given, **stop and report** instead of building on it.
 
-3. **Implement the unchecked items in order.**
-   - Read the files listed for the step (and any referenced skills) before coding — do not guess at types or signatures.
-   - Apply relevant project skills as needed (e.g. `creating-an-ability`, `missions`, `ability-tests`).
-   - After finishing each item, edit the plan file: change `- [ ]` to `- [x]`, write a **one-line summary of what you actually changed** beneath it, and note any files touched outside the step's file list. Save after every item so progress is never lost.
+3. **Implement unchecked items in order.**
+   - Read every file in the step's "Touches" list before coding.
+   - Apply relevant project skills as needed.
+   - After each item: `- [ ]` → `- [x]`, add a **one-line summary** of what actually changed, save the plan.
 
-4. **Verify once per step, not per item.** After all items: run `npm run lint`, then `npx vitest run --changed` (or the narrower commands the plan's Agent Instructions specify). Fix what you broke; pre-existing failures from your prompt are not yours. Run mid-step verification only when an item explicitly asks for it. Everything (except listed pre-existing failures) must be green before you finish.
+4. **Verify once per step** (unless the plan's Agent Instructions specify narrower commands): `npm run lint`, then the step's listed tests (or `npx vitest run --changed`). Fix what you broke; listed pre-existing failures are not yours. Everything else must be green before you finish.
 
-5. **Pause on ambiguity.** If you hit something the plan did not account for — a naming conflict, a missing file, an unclear instruction, an architectural decision — do not guess. Return the question as your final output so the orchestrator can surface it to the user and stop the chain.
+5. **Pause on ambiguity.** Return the question as your final output so the orchestrator can surface it and stop.
 
-6. **Commit only if asked.** If the user requested per-step commits or the plan's frontmatter sets `commitPerStep: true`, run step verification first (so changes are still visible to `--changed`), then commit using the step title as the message.
+6. **Commit only if asked** (user or plan `commitPerStep: true`).
 
-7. **Stop and report** what you did, including anything surprising you recorded in the plan file.
+7. **Stop and report** to the orchestrator only — do not message the user about plan completion, and do not spawn the next step.
 
-## Completion
+## Completion (orchestrator only)
 
-When no unchecked items remain across all steps (orchestrator):
+When no unchecked items remain:
 
-1. Run the full verification sequence one final time: `npm run lint`, then `npm run test`.
-2. Write a short completion note at the top of the plan file (date + one-paragraph summary, including any follow-ups noted during implementation).
-3. Ask the user whether to archive the plan (e.g. move it to a `done/` folder next to it) — do not delete or move it unprompted.
+1. Run final verification: `npm run lint`, then `npm run test` (or the plan's final-step verify list if it is more specific).
+2. Write a short completion note at the top of the plan (date + one-paragraph summary, including follow-ups).
+3. **Report plan complete to the user** in this chat — automated results, anything still needing a human (e.g. browser checklist), and open questions.
+4. Ask whether to archive the plan (e.g. `done/` next to it) — do not move or delete it unprompted.
 
 ## Rules
 
-- **Never skip a step** — items in document order within a step; steps in document order across the plan. Steps are sequential dependencies.
-- **One step per worker** — fresh context per step; the orchestrator only coordinates.
-- **Never modify checked items** — only unchecked → checked transitions (adding a summary line beneath is fine).
+- **Root orchestrator only spawns** — workers never spawn workers. Nested handoffs break notification delivery.
+- **Synchronous workers** — wait for each worker; never background a plan step and end the turn.
+- **Lowest-numbered incomplete step** — document order; never "highest-numbered."
+- **Never skip a step** — items and steps in document order.
+- **One step per worker** — fresh context; orchestrator only coordinates and reports.
+- **Never modify checked items** — only unchecked → checked (summary line beneath is fine).
 - **Lint before tests** — always `npm run lint` before any Vitest run.
-- **Targeted tests during steps, full suite only at Completion** — per-step verification is `npx vitest run --changed` or narrower; expensive suites (full run, AbilityTest scenarios) run once at the end unless the plan's final step says otherwise.
-- **Always update the plan file** before finishing a step — record anything surprising (workarounds, extra touches, deferred issues) in it, not just in your reply.
+- **Targeted tests per step; full suite at Completion** — unless the plan's final step says otherwise.
+- **Always update the plan file** before a worker finishes — surprises go in the plan, not only in chat.

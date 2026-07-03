@@ -58,7 +58,8 @@ export interface GameComponentProps {
         grantKnowledgeKeys?: string[],
         itemIds?: string[],
         researchRewardIds?: string[],
-        researchRewards?: import('../types').MissionResearchRewardEntry[]
+        researchRewards?: import('../types').MissionResearchRewardEntry[],
+        options?: { controlledNpcs?: boolean }
     ) => Promise<void>;
     /** Called when user leaves (e.g. from defeat modal). */
     onLeave?: () => void;
@@ -107,7 +108,8 @@ interface GameScreenProps {
         grantKnowledgeKeys?: string[],
         itemIds?: string[],
         researchRewardIds?: string[],
-        researchRewards?: import('../types').MissionResearchRewardEntry[]
+        researchRewards?: import('../types').MissionResearchRewardEntry[],
+        options?: { controlledNpcs?: boolean }
     ) => Promise<void>;
     /** Create a new lobby for the given mission and navigate to it (e.g. Try Again after defeat). */
     onTryAgain?: (missionId: string, previousCharacterSelections: Record<string, string>) => Promise<boolean>;

@@ -3,15 +3,47 @@
  */
 export const SPECTATOR_ID = 'spectator';
 
-/** Mission Monster (boss): player controls the Alpha Wolf instead of a hero. Only one player can select. */
+/**
+ * Prefix for NPC-control character selections (`control_enemy:<groupId>`).
+ * Group id is the resolved playerControl id (id ?? controlGroupId ?? unitTag).
+ */
+export const CONTROL_ENEMY_PREFIX = 'control_enemy:';
+
+/**
+ * Legacy selection for Mission Monster (boss): player controls the Alpha Wolf.
+ * Prefer {@link makeControlSelection}(`'boss'`) for new code; kept for old lobby state.
+ */
 export const CONTROL_ENEMY_ALPHA_WOLF = 'control_enemy_alpha_wolf';
+
+/** Group id used when mapping the legacy {@link CONTROL_ENEMY_ALPHA_WOLF} selection. */
+const LEGACY_CONTROL_GROUP_ID = 'boss';
+
+/** Build a character-selection value for controlling an NPC group. */
+export function makeControlSelection(groupId: string): string {
+    return `${CONTROL_ENEMY_PREFIX}${groupId}`;
+}
 
 export function isSpectator(characterId: string | undefined | null): boolean {
     return characterId === SPECTATOR_ID;
 }
 
+/** True when the selection is an NPC-control value (new prefix or legacy constant). */
 export function isControlEnemy(characterId: string | undefined | null): boolean {
-    return characterId === CONTROL_ENEMY_ALPHA_WOLF;
+    if (characterId == null || characterId === '') return false;
+    if (characterId === CONTROL_ENEMY_ALPHA_WOLF) return true;
+    return characterId.startsWith(CONTROL_ENEMY_PREFIX);
+}
+
+/**
+ * Resolved control group id for a selection, or null if not an NPC-control selection.
+ * Legacy {@link CONTROL_ENEMY_ALPHA_WOLF} maps to `'boss'`.
+ */
+export function getControlGroupId(sel: string | undefined | null): string | null {
+    if (sel == null || sel === '') return null;
+    if (sel === CONTROL_ENEMY_ALPHA_WOLF) return LEGACY_CONTROL_GROUP_ID;
+    if (!sel.startsWith(CONTROL_ENEMY_PREFIX)) return null;
+    const groupId = sel.slice(CONTROL_ENEMY_PREFIX.length);
+    return groupId === '' ? null : groupId;
 }
 
 /**

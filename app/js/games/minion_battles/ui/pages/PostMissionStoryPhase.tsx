@@ -22,7 +22,7 @@ import type {
 import { MISSION_MAP } from '../../storylines';
 import { resolveResearchRewardSlots } from '../../storylines/researchRewardSlots';
 import { getItemDef } from '../../character_defs/items';
-import { SPECTATOR_ID } from '../../state';
+import { SPECTATOR_ID, isControlEnemy } from '../../state';
 import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
 import ResearchRewardTinyChip from '../../../../components/ResearchRewardTinyChip';
 import { getResearchNode } from '../../../../researchTrees/list';
@@ -154,6 +154,7 @@ export default function PostMissionStoryPhase({
     const currentPhrase = phrases[phraseIndex];
     const isEnd = phraseIndex >= phrases.length;
     const amSpectator = (characterSelections[playerId] ?? '') === SPECTATOR_ID;
+    const amNpcController = isControlEnemy(characterSelections[playerId]);
 
     const postMissionChoiceOptions = useMemo((): ChoicePhrase['options'] => {
         if (!currentPhrase || currentPhrase.type !== 'choice') return [];
@@ -185,8 +186,8 @@ export default function PostMissionStoryPhase({
     }, [phraseIndex, currentPhrase]);
 
     useEffect(() => {
-        if (!currentPhrase || !isGrantResearchAuto(currentPhrase) || amSpectator) {
-            if (currentPhrase && isGrantResearchAuto(currentPhrase) && amSpectator) {
+        if (!currentPhrase || !isGrantResearchAuto(currentPhrase) || amSpectator || amNpcController) {
+            if (currentPhrase && isGrantResearchAuto(currentPhrase) && (amSpectator || amNpcController)) {
                 advancePhrase();
             }
             return;
@@ -303,8 +304,8 @@ export default function PostMissionStoryPhase({
                 await api.sendMessage(MessageType.STORY_CHOICE, {
                     choiceId,
                     optionId,
-                    ...(itemId !== undefined && { itemId, replaceItemIds }),
-                    ...(resolvedOption?.researchReward && {
+                    ...(!amNpcController && itemId !== undefined && { itemId, replaceItemIds }),
+                    ...(!amNpcController && resolvedOption?.researchReward && {
                         actionType: 'grant_research_to_player' as const,
                         treeId: resolvedOption.researchReward.treeId,
                         nodeId: resolvedOption.researchReward.nodeId,
@@ -317,7 +318,7 @@ export default function PostMissionStoryPhase({
 
             const action = option?.action;
 
-            if (resolvedOption?.researchReward) {
+            if (!amNpcController && resolvedOption?.researchReward) {
                 accumulatedResearchIdsRef.current.push(resolvedOption.researchReward.rewardId);
                 accumulatedResearchEntriesRef.current.push({
                     treeId: resolvedOption.researchReward.treeId,
@@ -325,11 +326,16 @@ export default function PostMissionStoryPhase({
                 });
             }
 
-            if (action?.type === 'equip_item' && action.itemId && firstEquipItemRef.current === undefined) {
+            if (
+                !amNpcController &&
+                action?.type === 'equip_item' &&
+                action.itemId &&
+                firstEquipItemRef.current === undefined
+            ) {
                 firstEquipItemRef.current = action.itemId;
             }
 
-            if (isGrantResources(action) && action) {
+            if (!amNpcController && isGrantResources(action) && action) {
                 const acc = accumulatedResourceDeltaRef.current;
                 if (action.food != null) acc.food = (acc.food ?? 0) + action.food;
                 if (action.metal != null) acc.metal = (acc.metal ?? 0) + action.metal;
@@ -372,7 +378,7 @@ export default function PostMissionStoryPhase({
                         : undefined,
             });
         },
-        [api, phraseIndex, phrases.length, playerId, playerEquipmentByPlayer, onComplete]
+        [api, amNpcController, phraseIndex, phrases.length, playerId, playerEquipmentByPlayer, onComplete]
     );
 
     if (phantomPostChoiceStep) {

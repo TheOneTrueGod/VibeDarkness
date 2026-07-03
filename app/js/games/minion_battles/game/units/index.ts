@@ -101,6 +101,10 @@ export function createUnitFromSpawnConfig(
         combatSettings?: UnitCombatSettings;
         /** Absolute gameTime after which this unit despawns (ephemeral summons). */
         ephemeralDespawnAtGameTime?: number | null;
+        /** Control group for player NPC control (from EnemySpawnDef / SpawnWaveEntry). */
+        controlGroupId?: string;
+        /** When false, never auto-assigned to a control player (default true). */
+        controllable?: boolean;
     },
     _eventBus: EventBus,
     idSource?: Pick<EngineContext, 'allocateObjectId'>,
@@ -132,6 +136,13 @@ export function createUnitFromSpawnConfig(
 
     if (config.unitTags && config.unitTags.length > 0) {
         unit.tags = [...config.unitTags];
+    }
+
+    if (config.controlGroupId !== undefined) {
+        unit.controlGroupId = config.controlGroupId;
+    }
+    if (config.controllable !== undefined) {
+        unit.controllable = config.controllable;
     }
 
     applyCombatCrowdControlProfile(unit);

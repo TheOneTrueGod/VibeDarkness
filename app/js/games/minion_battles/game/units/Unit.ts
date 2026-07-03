@@ -137,6 +137,18 @@ export class Unit extends GameObject {
     /** Optional tags (crystal aura, boss UI, etc.). Serialized for checkpoints when non-empty. */
     tags: UnitTag[] = [];
 
+    /**
+     * When false, this unit is never auto-assigned to a player via npc control (default true).
+     * Serialized only when false.
+     */
+    controllable: boolean = true;
+
+    /**
+     * Control group this unit belongs to (spawn stamp or assignControl). Null when ungrouped.
+     * Serialized only when non-null.
+     */
+    controlGroupId: string | null = null;
+
     /** Enrage trigger sourced from the unit def — no backing field or serialization needed. */
     get enrageDef(): EnrageDef | undefined {
         return getUnitEnrageDef(this.characterId);

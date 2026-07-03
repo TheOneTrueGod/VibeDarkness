@@ -7,7 +7,7 @@ import type { MessageEntry } from '../../../components/Chat';
 import { MessageType } from '../../../MessageTypes';
 import type { MinionBattlesApi } from '../api/minionBattlesApi';
 import { MISSION_MAP, DARK_AWAKENING } from '../storylines';
-import { SPECTATOR_ID } from '../state';
+import { SPECTATOR_ID, isControlEnemy } from '../state';
 import { TerrainManager } from '../terrain/TerrainManager';
 import { getSegment } from '../terrain/segmentRegistry';
 import { debugLog } from '../../../debugLog';
@@ -241,6 +241,15 @@ export class BattleSession implements BattleSessionHandle {
 
     private finalizeEngine(engine: GameEngine): void {
         const mission = MISSION_MAP[this.config.missionId] ?? DARK_AWAKENING;
+        // Defs are runtime-only; re-register after fromJSON so late spawns still assign.
+        // Fresh load already registered in initializeGameState — this is idempotent.
+        engine.registerPlayerControl(
+            mission.playerControl ?? [],
+            { ...engine.getNpcControlAssignments() },
+        );
+        if (this.renderer) {
+            this.renderer.localTeamId = engine.getLocalPlayerTeamId();
+        }
         const { onVictory, onDefeat } = this.config;
         engine.registerBattleObjectives(mission.battleObjectives ?? []);
         engine.state.worldModifierManager.install(
@@ -364,7 +373,7 @@ export class BattleSession implements BattleSessionHandle {
                 | Record<string, string>
                 | undefined;
         const playerUnits = Object.entries(selections)
-            .filter(([, charId]) => charId !== SPECTATOR_ID)
+            .filter(([, charId]) => charId !== SPECTATOR_ID && !isControlEnemy(charId))
             .map(([pid]) => {
                 const dn = displayNamesRaw?.[pid]?.trim();
                 const fallback = players[pid]?.name ?? 'Unknown';

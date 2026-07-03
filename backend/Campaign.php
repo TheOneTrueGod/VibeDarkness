@@ -100,13 +100,17 @@ class Campaign
         ?array $resourceDelta = null,
         ?array $itemIds = null,
         ?array $researchRewardIds = null,
-        ?array $researchRewards = null
+        ?array $researchRewards = null,
+        ?bool $controlledNpcs = null
     ): void {
         $entry = [
             'missionId' => $missionId,
             'result' => $result,
             'timestamp' => microtime(true),
         ];
+        if ($controlledNpcs === true) {
+            $entry['controlledNpcs'] = true;
+        }
         if ($resourceDelta !== null) {
             $entry['resourceDelta'] = array_intersect_key(
                 array_map('intval', $resourceDelta),

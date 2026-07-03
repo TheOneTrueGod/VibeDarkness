@@ -19,7 +19,7 @@ export interface PlayerState {
 export interface AccountState {
     id: number;
     name: string;
-    role: 'user' | 'admin';
+    role: 'user' | 'dm' | 'admin';
     fire: number;
     water: number;
     earth: number;
@@ -64,6 +64,8 @@ export interface MissionResult {
     researchRewards?: MissionResearchRewardEntry[];
     /** Set to true when an admin manually granted this result rather than it being earned in-game. */
     adminGranted?: boolean;
+    /** Player completed this mission controlling NPCs instead of their own character. */
+    controlledNpcs?: boolean;
 }
 
 export interface CampaignResources {

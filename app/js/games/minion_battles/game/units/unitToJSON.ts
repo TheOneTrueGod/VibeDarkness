@@ -99,6 +99,8 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
             ? { ephemeralDespawnAtGameTime: unit.ephemeralDespawnAtGameTime }
             : {}),
         ...(unit.tags.length > 0 ? { tags: [...unit.tags] } : {}),
+        ...(unit.controllable === false ? { controllable: false } : {}),
+        ...(unit.controlGroupId != null ? { controlGroupId: unit.controlGroupId } : {}),
         ...lanterniteStateToJSONBeforeWall(unit),
         ...(unit.wallEntryPoint != null ? { wallEntryPoint: { ...unit.wallEntryPoint } } : {}),
         ...lanterniteStateToJSONBeforeThornling(unit),

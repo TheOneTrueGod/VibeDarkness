@@ -45,7 +45,8 @@ interface MinionBattlesGameProps extends Pick<GameComponentProps, 'minionBattles
         grantKnowledgeKeys?: string[],
         itemIds?: string[],
         researchRewardIds?: string[],
-        researchRewards?: MissionResearchRewardEntry[]
+        researchRewards?: MissionResearchRewardEntry[],
+        options?: { controlledNpcs?: boolean }
     ) => Promise<void>;
     /** Called when user clicks Leave in the defeat modal; receives the character id they were playing (undefined for spectators). */
     onLeave?: (characterId?: string) => void;
@@ -386,8 +387,10 @@ export default function MinionBattlesGame({
                         const grantKnowledgeKeys = missionDef?.completionRewards?.knowledgeKeys;
                         const sel = (effective.characterSelections as Record<string, string>)?.[playerId];
                         const amSpectator = sel === SPECTATOR_ID;
-                        const startingItemIds = amSpectator ? [] : getStartingItemIdsForPlayer(missionId, playerId);
-                        const chosenPostItemId = rewards.itemFromFirstChoice;
+                        const amNpcController = isControlEnemy(sel);
+                        const skipRewards = amSpectator || amNpcController;
+                        const startingItemIds = skipRewards ? [] : getStartingItemIdsForPlayer(missionId, playerId);
+                        const chosenPostItemId = skipRewards ? undefined : rewards.itemFromFirstChoice;
                         const itemIds = Array.from(
                             new Set([
                                 ...startingItemIds,
@@ -397,17 +400,23 @@ export default function MinionBattlesGame({
                         void onRecordMissionResult?.(
                             missionId,
                             'victory',
-                            amSpectator ? undefined : rewards.resourceDelta,
-                            amSpectator ? undefined : grantKnowledgeKeys,
-                            amSpectator ? undefined : itemIds,
-                            amSpectator ? undefined : rewards.researchRewardIds,
-                            amSpectator ? undefined : rewards.researchRewards
+                            skipRewards ? undefined : rewards.resourceDelta,
+                            skipRewards ? undefined : grantKnowledgeKeys,
+                            skipRewards ? undefined : itemIds,
+                            skipRewards ? undefined : rewards.researchRewardIds,
+                            skipRewards ? undefined : rewards.researchRewards,
+                            amNpcController ? { controlledNpcs: true } : undefined
                         );
                         void persistCharacterMissionResult(missionId, 'victory');
-                        setMissionRewards({
-                            ...rewards,
-                            itemFromFirstChoice: rewards.itemFromFirstChoice ?? itemIds[0] ?? undefined,
-                        });
+                        setMissionRewards(
+                            skipRewards
+                                ? null
+                                : {
+                                      ...rewards,
+                                      itemFromFirstChoice:
+                                          rewards.itemFromFirstChoice ?? itemIds[0] ?? undefined,
+                                  }
+                        );
                         setVictoryModalOpen(true);
                     }}
                 />
@@ -475,18 +484,22 @@ export default function MinionBattlesGame({
                             const grantKnowledgeKeys = missionDef?.completionRewards?.knowledgeKeys;
                             const sel = (effective.characterSelections as Record<string, string>)?.[playerId];
                             const amSpectator = sel === SPECTATOR_ID;
-                            const startingItemIds = amSpectator ? [] : getStartingItemIdsForPlayer(missionId, playerId);
+                            const amNpcController = isControlEnemy(sel);
+                            const skipRewards = amSpectator || amNpcController;
+                            const startingItemIds = skipRewards ? [] : getStartingItemIdsForPlayer(missionId, playerId);
                             void onRecordMissionResult?.(
                                 missionId,
                                 missionResult,
                                 undefined,
-                                grantKnowledgeKeys,
-                                amSpectator ? undefined : startingItemIds,
-                                undefined
+                                skipRewards ? undefined : grantKnowledgeKeys,
+                                skipRewards ? undefined : startingItemIds,
+                                undefined,
+                                undefined,
+                                amNpcController ? { controlledNpcs: true } : undefined
                             );
                             void persistCharacterMissionResult(missionId, 'victory');
                             setMissionRewards(
-                                amSpectator
+                                skipRewards
                                     ? null
                                     : {
                                           itemFromFirstChoice: startingItemIds[0] ?? undefined,

@@ -871,6 +871,21 @@ class LobbyManager
     }
 
     /**
+     * True when a character-selection value is not a real character id (spectator, NPC control, or empty).
+     * Matches frontend {@see isControlEnemy} / SPECTATOR_ID encoding.
+     */
+    private function isNonCharacterSelection(?string $sel): bool
+    {
+        if ($sel === null || $sel === '') {
+            return true;
+        }
+        if ($sel === 'spectator' || $sel === 'control_enemy_alpha_wolf') {
+            return true;
+        }
+        return strpos($sel, 'control_enemy:') === 0;
+    }
+
+    /**
      * When leaving character select into an active mission phase, set each selected hero's persisted {@see Character::getLastUsed()} timestamp.
      */
     private function touchLastUsedWhenMissionStarts(array $previousState, array $mergedState): void
@@ -894,7 +909,7 @@ class LobbyManager
         $ts = time();
         $characterManager = CharacterManager::getInstance();
         foreach ($selections as $characterId) {
-            if (!is_string($characterId) || $characterId === '' || $characterId === 'spectator' || $characterId === 'control_enemy_alpha_wolf') {
+            if (!is_string($characterId) || $this->isNonCharacterSelection($characterId)) {
                 continue;
             }
             if ($characterManager->getCharacter($characterId) !== null) {
@@ -968,13 +983,19 @@ class LobbyManager
             return false;
         }
 
-        if ($actionType === 'grant_research_to_player') {
-            $selections = $currentState['characterSelections'] ?? $currentState['character_selections'] ?? [];
-            $characterIdForGrant = is_array($selections) ? ($selections[$playerId] ?? null) : null;
-            if (!is_string($characterIdForGrant) || $characterIdForGrant === '') {
+        $selections = $currentState['characterSelections'] ?? $currentState['character_selections'] ?? [];
+        $characterId = is_array($selections) ? ($selections[$playerId] ?? null) : null;
+        if (!is_string($characterId)) {
+            $characterId = null;
+        }
+        $nonCharacter = $this->isNonCharacterSelection($characterId);
+
+        // Non-character selections (spectator / NPC control): record the choice but never mutate a character.
+        if ($actionType === 'grant_research_to_player' && !$nonCharacter) {
+            if ($characterId === null || $characterId === '') {
                 return false;
             }
-            if (CharacterManager::getInstance()->getCharacter($characterIdForGrant) === null) {
+            if (CharacterManager::getInstance()->getCharacter($characterId) === null) {
                 return false;
             }
         }
@@ -986,10 +1007,13 @@ class LobbyManager
         $choices[$playerId][$choiceId] = $optionId;
         $currentState['playerStoryChoices'] = $choices;
 
+        if ($nonCharacter) {
+            $this->persistGameState($lobbyId, $gameId, $currentState);
+            return true;
+        }
+
         if ($itemId !== null && $itemId !== '') {
-            $selections = $currentState['characterSelections'] ?? $currentState['character_selections'] ?? [];
-            $characterId = is_array($selections) ? ($selections[$playerId] ?? null) : null;
-            if (is_string($characterId) && $characterId !== '') {
+            if ($characterId !== null && $characterId !== '') {
                 CharacterManager::getInstance()->equipItem($characterId, $itemId, $replaceItemIds);
             }
         }

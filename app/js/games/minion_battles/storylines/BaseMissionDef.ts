@@ -15,6 +15,7 @@ import type {
     LevelEvent,
     PlayerSpawnPoint,
     BattleObjectiveDef,
+    PlayerControlDef,
 } from './types';
 import type { WorldModifierDef } from '../worldModifiers/types';
 import type { NinjutsuPoolConfig } from '../game/ninjutsu/ninjutsuConfig';
@@ -54,6 +55,7 @@ import {
     initializeThornlingNestSpawnState,
     THORNLING_NEST_CHARACTER_ID,
 } from '../game/lanternite/thornlingNestTick';
+import { getControlGroupId } from '../state';
 
 const AMMO_ABILITIES = new Set(['0105', '0112', '0203', '0204', '0205']);
 
@@ -80,7 +82,7 @@ function attachAmmoIfNeeded(engine: GameEngine, unit: Unit): void {
 export interface InitializeGameStateParams {
     /** Player units to spawn (from character selections). portraitId is used for appearance only. */
     playerUnits: { playerId: string; name: string; portraitId?: string }[];
-    /** Map of playerId -> characterId (or special IDs like control_enemy_alpha_wolf). */
+    /** Map of playerId -> characterId (or special IDs like control_enemy:<groupId>). */
     characterSelections?: Record<string, string>;
     /** Local player's ID (for camera/turn handling). */
     localPlayerId: string;
@@ -108,6 +110,11 @@ export interface IBaseMissionDef extends MissionBattleConfig {
     description?: string;
     /** Per-pool ninjutsu configuration. Absent = NINJUTSU_DEFAULT for the 'shadow' pool. */
     ninjutsuPools?: Partial<Record<string, NinjutsuPoolConfig>>;
+    /**
+     * Optional NPC groups players with CONTROL_NPCS permission may control instead of a hero.
+     * Registered on the engine during {@link initializeGameState} before enemies spawn.
+     */
+    playerControl?: PlayerControlDef[];
     /** Set up initial game state: player units, enemies, projectiles, effects, cards. */
     initializeGameState(engine: GameEngine, params: InitializeGameStateParams): void;
 }
@@ -132,6 +139,11 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     battleObjectives?: BattleObjectiveDef[];
     /** Optional world modifiers active for this mission (merged with builtins by BattleSession). */
     worldModifiers?: WorldModifierDef[];
+    /**
+     * Optional NPC groups players with CONTROL_NPCS permission may control instead of a hero.
+     * Registered on the engine during {@link initializeGameState} before enemies spawn.
+     */
+    playerControl?: PlayerControlDef[];
     /** Per-pool ninjutsu configuration. Absent = NINJUTSU_DEFAULT for the 'shadow' pool. */
     ninjutsuPools?: Partial<Record<string, NinjutsuPoolConfig>>;
     /** Optional special tiles (Campfire, Crystal, etc.) placed on the map. */
@@ -284,6 +296,26 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
         if (this.levelEvents && this.levelEvents.length > 0) {
             engine.registerLevelEvents(this.levelEvents);
         }
+
+        // NPC control: derive group→player assignments (sorted playerIds, first wins) and
+        // register before enemies so addUnit assigns ownership on initial spawn.
+        const controlDefs = this.playerControl ?? [];
+        const assignmentsByGroup: Record<string, string> = {};
+        if (controlDefs.length > 0) {
+            const declaredGroups = new Set<string>();
+            for (const def of controlDefs) {
+                const groupId = def.id ?? def.controlGroupId ?? def.unitTag;
+                if (groupId != null) declaredGroups.add(groupId);
+            }
+            const selections = params.characterSelections ?? {};
+            for (const playerId of Object.keys(selections).sort()) {
+                const groupId = getControlGroupId(selections[playerId]);
+                if (groupId == null || !declaredGroups.has(groupId)) continue;
+                if (assignmentsByGroup[groupId] != null) continue;
+                assignmentsByGroup[groupId] = playerId;
+            }
+        }
+        engine.registerPlayerControl(controlDefs, assignmentsByGroup);
 
         // Add enemies (health scaled by player count)
         const enemyHealthMult = getEnemyHealthMultiplier(playerCount);

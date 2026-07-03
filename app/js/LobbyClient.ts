@@ -246,6 +246,7 @@ export class LobbyClient {
                 itemIds?: string[];
                 researchRewardIds?: string[];
                 researchRewards?: Array<{ treeId: string; nodeId: string }>;
+                controlledNpcs?: boolean;
             };
         }
     ): Promise<import('./types').CampaignState> {
