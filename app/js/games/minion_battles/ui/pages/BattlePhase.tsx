@@ -140,8 +140,6 @@ export default function BattlePhase({
     const [interactiveTargetingState, setInteractiveTargetingState] = useState<'inactive' | 'playing' | 'paused' | 'done'>('inactive');
     /** True when every frozen SelectTargetDef label has a collected target (final input received). */
     const [interactiveAllTargetsCollected, setInteractiveAllTargetsCollected] = useState(false);
-    /** Mirror of ITS.wouldCommitInPlace — seamless commit vs rewind. */
-    const [itsWouldCommitInPlace, setItsWouldCommitInPlace] = useState(false);
     const { ghostPlans, sendGhostPlan } = useContext(GhostPlanContext);
 
     const targetingStateRef = useRef<{
@@ -966,7 +964,6 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
             if (!its?.isActive) {
                 autoCommitItsAttemptedRef.current = false;
                 setInteractiveAllTargetsCollected(false);
-                setItsWouldCommitInPlace(false);
                 setInteractiveTargetingState('inactive');
                 if (prevItsStateRef.current !== 'inactive') {
                     prevItsStateRef.current = 'inactive';
@@ -995,18 +992,8 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                 nextState = allCollected && eng.isPaused ? 'done' : 'playing';
             }
             setInteractiveAllTargetsCollected(its.allTargetsCollected());
-            // Read-only predicate; late teammate passes can flip this true while sitting at Done.
-            const canInPlace = session ? its.wouldCommitInPlace(session) : false;
-            setItsWouldCommitInPlace(canInPlace);
-            // Auto-commit only when seamless (in-place). Otherwise wait for Continue click
-            // (or a later poll once a pure-pass arrives and canInPlace becomes true).
-            if (
-                nextState === 'done'
-                && AUTO_END_TURN
-                && canInPlace
-                && !autoCommitItsAttemptedRef.current
-                && session
-            ) {
+            // AUTO_END_TURN commits as soon as the preview is done (in-place or rewind).
+            if (nextState === 'done' && AUTO_END_TURN && !autoCommitItsAttemptedRef.current && session) {
                 autoCommitItsAttemptedRef.current = true;
                 setOrderSubmitFailed(false);
                 void session.interactiveTargeting.commit(session);
@@ -1337,7 +1324,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                             </div>
                         )}
                         {interactiveTargetingState !== 'inactive'
-                            && !(AUTO_END_TURN && interactiveAllTargetsCollected && itsWouldCommitInPlace) && (
+                            && !(AUTO_END_TURN && interactiveAllTargetsCollected) && (
                             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-50">
                                 <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border ${
                                     interactiveTargetingState === 'playing'
@@ -1376,7 +1363,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                                     >
                                         Replay
                                     </button>
-                                    {(!AUTO_END_TURN || (interactiveTargetingState === 'done' && !itsWouldCommitInPlace)) && (
+                                    {!AUTO_END_TURN && (
                                     <button
                                         className={`px-3 py-1.5 rounded text-sm border transition-opacity ${
                                             interactiveTargetingState === 'done'
@@ -1391,7 +1378,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                                             if (session) void session.interactiveTargeting.commit(session);
                                         }}
                                     >
-                                        {itsWouldCommitInPlace ? 'Continue' : 'Continue ⏪'}
+                                        Continue
                                     </button>
                                     )}
                                 </div>
