@@ -43,7 +43,7 @@ import { getBossSpecialMoveCharges } from '../components/boss/bossSignatureHud';
 import { UnitTag } from '../../game/units/unitTag';
 import { getEffectiveHardCcThreshold } from '../../crowdControl/ccArmourState';
 import type { MessageEntry } from '../../../../components/Chat';
-import { TeamworkTextEffect } from '../../game/effect_defs/hudEffects';
+import { TeamworkTextEffect, RewindingTextEffect } from '../../game/effect_defs/hudEffects';
 import { computeSynchash } from '@/utils/synchash';
 import { logToLobbyLog } from '../../../../lobbyLog';
 import { useBattleActionRowHost } from '../../../../contexts/BattleActionRowContext';
@@ -654,6 +654,9 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                     cancelAnimationFrame(rewindFadeRafRef.current);
                     rewindFadeRafRef.current = null;
                 }
+                // Label lives on HudEffectCanvas (same layer as Round Start / Teamwork),
+                // over the TurnIndicator — survives game-renderer teardown.
+                hudEffectCanvasRef.current?.addHudEffect(new RewindingTextEffect());
                 setRewindOverlay({ frameUrl, token: Date.now() });
                 setRewindOverlayOpaque(true);
                 // Double-rAF so the opaque overlay paints before the fade starts.
@@ -1331,11 +1334,6 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                                 ) : (
                                     <div className="absolute inset-0 bg-dark-900" />
                                 )}
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="rounded-full bg-dark-900/90 px-4 py-2 text-sm text-gray-200 shadow-lg ring-1 ring-dark-700">
-                                        ⏪ Rewind
-                                    </div>
-                                </div>
                             </div>
                         )}
                         {interactiveTargetingState !== 'inactive'

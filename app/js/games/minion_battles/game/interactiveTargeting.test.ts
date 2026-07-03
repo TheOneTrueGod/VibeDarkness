@@ -19,7 +19,7 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { resetGameObjectIdCounter } from './GameObject';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
-import type { GameEngine } from './GameEngine';
+import { GameEngine } from './GameEngine';
 import type { Unit } from './units/Unit';
 import type { BattleOrder, ResolvedTarget } from './types';
 import {
@@ -27,6 +27,7 @@ import {
     buildPositionalTargetsFromLabels,
     isPurePassOrder,
 } from './interaction/InteractiveTargetingSession';
+import { spawnBrightLight } from '../abilities/brightKeyword';
 import { findPreviewDeferredSelectLabel } from './interaction/selectTargetLookahead';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { SwingBatCard } from '../card_defs/0115_SwingBat/0115Ability';
@@ -1711,6 +1712,56 @@ describe('commit-time in-place decision (Step 1)', () => {
         expect(restoreSpy).toHaveBeenCalledTimes(1);
 
         restoreSpy.mockRestore();
+        session.destroy();
+    });
+
+    /**
+     * Lobby BBA219: Light Blast preview spawned `ls_1`, rollback left a module counter at 1,
+     * committed run used `ls_2` while the peer used `ls_1` → fingerprint mismatch with matching seeds.
+     */
+    it('Light Blast preview rollback reuses the same auto light id as a clean run from the mark', async () => {
+        const fixture = await mountLightBlastSessionFixture();
+        const { session, casterUnitId, remoteUnitId, atTick, blastPixel } = fixture;
+        const engine = session.getEngine()!;
+        const mark = engine.toJSON();
+        const terrain = engine.terrainManager;
+
+        const realOrder: BattleOrder = {
+            unitId: remoteUnitId,
+            abilityId: DOUBLE_PUNCH_ABILITY_ID,
+            targets: [],
+            endTurn: true,
+        };
+        const realKey = hashOrderId('p2', atTick, realOrder);
+
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            submitOrder: vi.fn().mockResolvedValue(undefined),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
+
+        const its = session.interactiveTargeting;
+        its.holdRemoteOrder(atTick, realOrder, realKey);
+        expect(its.wouldCommitInPlace(session)).toBe(false);
+
+        await its.commit(session);
+
+        const afterRollback = session.getEngine()!;
+        expect(afterRollback.lightSources.filter((ls) => ls.id.startsWith('ls_'))).toHaveLength(0);
+
+        const beforeRollbackSpawn = new Set(afterRollback.lightSources.map((ls) => ls.id));
+        spawnBrightLight(afterRollback, blastPixel.x, blastPixel.y, 3);
+        const rollbackPathId = afterRollback.lightSources.find((ls) => !beforeRollbackSpawn.has(ls.id))?.id;
+        expect(rollbackPathId).toMatch(/^ls_\d+$/);
+
+        const clean = GameEngine.fromJSON(mark, 'p1', terrain);
+        const beforeCleanSpawn = new Set(clean.lightSources.map((ls) => ls.id));
+        spawnBrightLight(clean, blastPixel.x, blastPixel.y, 3);
+        const cleanId = clean.lightSources.find((ls) => !beforeCleanSpawn.has(ls.id))?.id;
+
+        expect(rollbackPathId).toBe(cleanId);
+
         session.destroy();
     });
 });

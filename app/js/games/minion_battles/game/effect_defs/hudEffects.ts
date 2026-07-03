@@ -45,6 +45,19 @@ export class TeamworkTextEffect extends HudEffect {
     }
 }
 
+// ─── RewindingText ────────────────────────────────────────────────────────────
+// "Rewinding" banner on HudEffectCanvas (same layer as Round Start / Teamwork),
+// centered over the TurnIndicator. Triggered on sequential-targeting rollback.
+
+/** Seconds — long enough to read during the DOM frame crossfade. */
+export const REWINDING_TEXT_DURATION_SEC = 1.0;
+
+export class RewindingTextEffect extends HudEffect {
+    constructor() {
+        super('RewindingText', REWINDING_TEXT_DURATION_SEC);
+    }
+}
+
 // ─── ResourceFlight ───────────────────────────────────────────────────────────
 // Stream of particles arcing from source to destination (screen coords).
 // Particles clamp to canvas bounds if dest is outside canvas area.

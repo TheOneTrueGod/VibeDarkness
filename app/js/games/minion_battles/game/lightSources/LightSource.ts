@@ -7,11 +7,6 @@
 
 import type { OverlapMethod } from '../LightGrid';
 
-let _lightSourceCounter = 0;
-function generateLightSourceId(): string {
-    return `ls_${++_lightSourceCounter}`;
-}
-
 export interface LightSourceDecay {
     roundCreated: number;
     initialLightAmount: number;
@@ -37,6 +32,11 @@ export class LightSource {
     overlapMethod?: OverlapMethod;
 
     constructor(config: {
+        /**
+         * Stable id. Omit for auto-allocation in {@link GameEngine.addLightSource}
+         * via `allocateObjectId` (serialized `nextObjectId`) — never a module counter,
+         * so ITS rollback / snapshot restore cannot leak ids into fingerprints.
+         */
         id?: string;
         x: number;
         y: number;
@@ -47,7 +47,7 @@ export class LightSource {
         decay: LightSourceDecay;
         overlapMethod?: OverlapMethod;
     }) {
-        this.id = config.id ?? generateLightSourceId();
+        this.id = config.id ?? '';
         this.x = config.x;
         this.y = config.y;
         this.lightAmount = config.lightAmount;

@@ -348,6 +348,12 @@ export class GameEngine implements EngineContext {
     }
 
     addLightSource(ls: LightSource): void {
+        // Explicit ids (lantern torches, nests, tests) are kept. Auto-ids must come from
+        // the engine allocator so preview/rollback cannot leak a process-global counter
+        // into fingerprints (see lobby BBA219 / LightSource.determinism.test.ts).
+        if (!ls.id) {
+            ls.id = this.allocateObjectId('ls');
+        }
         this.state.lightSourceManager.addLightSource(ls);
         this.mixRuntimeFingerprint(FingerprintEvent.SPAWN, this.hashString32(ls.id), Math.floor(ls.x), Math.floor(ls.y));
     }
@@ -931,6 +937,13 @@ export class GameEngine implements EngineContext {
         }
         for (const p of data.projectiles ?? []) {
             const id = (p as { id?: string }).id;
+            if (typeof id === 'string') {
+                const n = parseGameObjectIdNumber(id);
+                if (n !== null && n > maxN) maxN = n;
+            }
+        }
+        for (const ls of data.lightSources ?? []) {
+            const id = (ls as { id?: string }).id;
             if (typeof id === 'string') {
                 const n = parseGameObjectIdNumber(id);
                 if (n !== null && n > maxN) maxN = n;

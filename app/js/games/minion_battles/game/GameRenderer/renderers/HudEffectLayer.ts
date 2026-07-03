@@ -294,6 +294,7 @@ export class HudEffectLayer {
             case 'RoundStartBanner': return this.createRoundStartBanner(effect);
             case 'ScreenFlash': return new Graphics();
             case 'TeamworkText': return this.createTeamworkText();
+            case 'RewindingText': return this.createRewindingText();
             case 'ResourceFlight': return this.createResourceFlight(effect);
             case 'ResourceArrivalPulse': return this.createResourceArrivalPulse(effect);
             case 'ResilientText': return this.createResilientText();
@@ -307,6 +308,7 @@ export class HudEffectLayer {
             case 'RoundStartBanner': return this.updateRoundStartBanner(visual, effect, vw, vh);
             case 'ScreenFlash': return this.updateScreenFlash(visual as Graphics, effect, vw, vh);
             case 'TeamworkText': return this.updateTeamworkText(visual, effect, vw, vh);
+            case 'RewindingText': return this.updateRewindingText(visual, effect, vw, vh);
             case 'ResourceFlight': return this.updateResourceFlight(visual, effect, vw, vh);
             case 'ResourceArrivalPulse': return this.updateResourceArrivalPulse(visual as Graphics, effect);
             case 'ResilientText': return this.updateResilientText(visual, effect);
@@ -472,6 +474,57 @@ export class HudEffectLayer {
 
         visual.scale.set(scale);
         visual.alpha = alpha;
+        visual.y = vh * 0.82 + yOffset;
+    }
+
+    // ─── RewindingText ────────────────────────────────────────────────────────
+    // Same full-viewport HudEffectCanvas layer as Round Start; Y matches Teamwork
+    // (over the TurnIndicator plaque).
+
+    private createRewindingText(): Container {
+        const t = new Text({
+            text: 'Rewinding',
+            style: new TextStyle({
+                fontFamily: 'Arial, Helvetica, sans-serif',
+                fontSize: 36,
+                fontWeight: '800',
+                fill: 0xffffff,
+                stroke: { color: 0xf59e0b, width: 4 },
+                dropShadow: { alpha: 0.7, angle: Math.PI / 2, blur: 10, color: 0x000000, distance: 4 },
+            }),
+        });
+        t.anchor.set(0.5, 0.5);
+        return t;
+    }
+
+    private updateRewindingText(visual: Container, effect: HudEffect, vw: number, vh: number): void {
+        const p = effect.progress;
+
+        let scale: number;
+        let alpha: number;
+        let yOffset: number;
+
+        if (p < 0.2) {
+            const t = p / 0.2;
+            const ease = 1 - Math.pow(1 - t, 3);
+            scale = 0.4 + 0.6 * ease;
+            alpha = ease;
+            yOffset = 0;
+        } else if (p < 0.7) {
+            scale = 1;
+            alpha = 1;
+            yOffset = 0;
+        } else {
+            const t = (p - 0.7) / 0.3;
+            scale = 1;
+            alpha = 1 - t;
+            yOffset = -t * 30;
+        }
+
+        visual.scale.set(scale);
+        visual.alpha = alpha;
+        visual.x = vw / 2;
+        // Same band as TeamworkText — sits over the TurnIndicator plaque.
         visual.y = vh * 0.82 + yOffset;
     }
 
