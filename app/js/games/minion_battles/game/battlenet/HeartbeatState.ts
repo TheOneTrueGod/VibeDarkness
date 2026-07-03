@@ -6,6 +6,10 @@ export class HeartbeatState {
     private latestHeartbeatHostTick = 0;
     /** Latest heartbeat parallel order batch (`orderBatchAtTick` / `pausedAtTick` when paused); not last-completed. */
     private latestHeartbeatPausedAtTick: number | null = null;
+    /** Latest `hostFingerprint` from poll/append (for soft stale-batch recovery). */
+    private latestHostFingerprint: string | null = null;
+    /** Latest `expectingFromPlayerIds` from heartbeat (null = unknown / not paused). */
+    private latestExpectingFromPlayerIds: string[] | null = null;
     /** Epoch ms when `latestHeartbeatHostTick` was last refreshed (poll or append response). */
     private latestHeartbeatObservedAtMs: number | null = null;
     /** Non-host: last `hostTick|hostFingerprint` when fingerprint was non-null (material identity for optimistic playahead). */
@@ -23,6 +27,22 @@ export class HeartbeatState {
 
     setLatestPausedAtTick(value: number | null): void {
         this.latestHeartbeatPausedAtTick = value;
+    }
+
+    getLatestHostFingerprint(): string | null {
+        return this.latestHostFingerprint;
+    }
+
+    setLatestHostFingerprint(value: string | null): void {
+        this.latestHostFingerprint = value;
+    }
+
+    getLatestExpectingFromPlayerIds(): string[] | null {
+        return this.latestExpectingFromPlayerIds;
+    }
+
+    setLatestExpectingFromPlayerIds(value: string[] | null): void {
+        this.latestExpectingFromPlayerIds = value;
     }
 
     getLastObservedAtMs(): number | null {
@@ -77,7 +97,12 @@ export class HeartbeatState {
         this.latestHeartbeatObservedAtMs = Date.now();
     }
 
-    updateHeartbeatFromAppendResponse(res: { hostTick?: number; hostFingerprint?: string | null }): void {
+    updateHeartbeatFromAppendResponse(res: {
+        hostTick?: number;
+        hostFingerprint?: string | null;
+        orderBatchAtTick?: number | null;
+        expectingFromPlayerIds?: string[] | null;
+    }): void {
         if (typeof res.hostTick !== 'number' || Number.isNaN(res.hostTick)) {
             return;
         }
@@ -85,5 +110,14 @@ export class HeartbeatState {
             return;
         }
         this.updateLastSeenHeartbeat(res.hostTick);
+        if (typeof res.hostFingerprint === 'string' && res.hostFingerprint !== '') {
+            this.latestHostFingerprint = res.hostFingerprint;
+        }
+        if (typeof res.orderBatchAtTick === 'number' && !Number.isNaN(res.orderBatchAtTick)) {
+            this.latestHeartbeatPausedAtTick = res.orderBatchAtTick;
+        }
+        if (res.expectingFromPlayerIds !== undefined) {
+            this.latestExpectingFromPlayerIds = res.expectingFromPlayerIds;
+        }
     }
 }

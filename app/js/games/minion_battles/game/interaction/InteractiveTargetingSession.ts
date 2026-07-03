@@ -181,6 +181,18 @@ export class InteractiveTargetingSession {
      * - `tryResumeParallel` is triggered automatically by applyOrder.
      */
     begin(order: BattleOrder, session: BattleSession): boolean {
+        const engineForGate = session.getEngine();
+        const batchForGate = engineForGate?.waitingForOrders;
+        if (
+            batchForGate != null
+            && (
+                !session.isOrderBatchTickSubmittable(batchForGate.atTick)
+                || !session.isLocalPlayerExpectedToAct()
+            )
+        ) {
+            return false;
+        }
+
         const abilityId = order.abilityId;
         const unitId = order.unitId;
         const engine = session.getEngine();
@@ -527,6 +539,17 @@ export class InteractiveTargetingSession {
         if (!casterInSnapshot) return;
 
         await session.refreshRemoteOrdersBeforeInteractiveTargetingAction();
+
+        // Mark batch may be stale if the host advanced during preview (lobby F6E500).
+        if (!session.isOrderBatchTickSubmittable(atTick) || !session.isLocalPlayerExpectedToAct()) {
+            const heldForAbort = [...this.heldRemoteOrders.values()];
+            this.heldRemoteOrders.clear();
+            this._restoreToMark(session, { applyHeldRemoteOrders: false });
+            session.applyHeldRemoteOrders(heldForAbort);
+            this._clearActive();
+            session.emitOrderSubmitFailed(unitId, abilityId);
+            return;
+        }
 
         const collected = { ...this.collectedTargets };
         const selectLabels = [...this._selectLabels];

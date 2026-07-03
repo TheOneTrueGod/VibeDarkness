@@ -999,17 +999,24 @@ describe('BattleNet', () => {
         expect(appendBattleOrder).toHaveBeenCalledTimes(0);
     });
 
-    it('persistOrder tick_in_past triggers resync', async () => {
+    it('persistOrder tick_in_past triggers resync when host-tail fingerprints disagree', async () => {
         const appendBattleOrder = vi.fn(async () => ({
             accepted: false,
             idHash: 'dead',
             rejectedReason: 'tick_in_past' as const,
             minAllowedTick: 40,
+            hostTick: 39,
+            hostFingerprint: 'hostfp_mismatch_',
         }));
         const api = makeApi({ appendBattleOrder });
         const net = new BattleNet({
             api,
-            session: makeSession(),
+            session: makeSession({
+                getFingerprintRange: (from: number, to: number) =>
+                    from <= 39 && to >= 39
+                        ? [{ tick: 39, fp: 'local_different_', paused: true }]
+                        : [],
+            }),
             isHost: true,
             lobbyId: 'l1',
             gameId: 'g1',
@@ -1024,6 +1031,125 @@ describe('BattleNet', () => {
         expect(details.mock.calls.some((c) => typeof c[0] === 'string' && c[0].includes('order tick already passed'))).toBe(
             true,
         );
+    });
+
+    it('submitOrder blocks stale atTick without POST (lobby F6E500)', async () => {
+        const appendBattleOrder = vi.fn(async () => ({ accepted: true, idHash: 'x' }));
+        const getBattleSnapshot = vi.fn(async () => ({
+            tick: 97,
+            state: { gameTick: 97 } as SerializedGameState,
+            synchash: 'hostfp97hostfp97',
+        }));
+        const api = makeApi({
+            appendBattleOrder,
+            getBattleSnapshot,
+            getBattleHeartbeat: vi.fn(async () => ({
+                hostTick: 97,
+                hostFingerprint: 'hostfp97hostfp97',
+                hostPaused: true,
+                ordersTipTick: 97,
+                orderBatchAtTick: 98,
+                pausedAtTick: 98,
+                expectingFromPlayerIds: ['9'],
+                initialFingerprint: '0011223344556677',
+                heartbeatSeq: 1,
+            })),
+        });
+        const loadFromSnapshot = vi.fn();
+        const net = new BattleNet({
+            api,
+            session: makeSession({
+                getEngineTick: () => 96,
+                isPausedForOrderSync: () => true,
+                loadFromSnapshot,
+                getFingerprintRange: (from: number, to: number) =>
+                    from <= 97 && to >= 97
+                        ? [{ tick: 97, fp: 'hostfp97hostfp97', paused: true }]
+                        : [],
+            }),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: '1',
+        });
+        await net.pollOnce();
+        const resync = vi.spyOn(net, 'requestResync');
+        await net.submitOrder(makeOrder('stale'), 97);
+        expect(appendBattleOrder).not.toHaveBeenCalled();
+        expect(resync).not.toHaveBeenCalled();
+        // Soft align bootstraps from latest checkpoint.
+        await vi.waitFor(() => expect(getBattleSnapshot).toHaveBeenCalled());
+        expect(loadFromSnapshot).toHaveBeenCalled();
+    });
+
+    it('submitOrder blocks when local player is not in expectingFromPlayerIds', async () => {
+        const appendBattleOrder = vi.fn(async () => ({ accepted: true, idHash: 'x' }));
+        const api = makeApi({
+            appendBattleOrder,
+            getBattleHeartbeat: vi.fn(async () => ({
+                hostTick: 97,
+                hostFingerprint: 'hostfp97hostfp97',
+                hostPaused: true,
+                ordersTipTick: 97,
+                orderBatchAtTick: 98,
+                pausedAtTick: 98,
+                expectingFromPlayerIds: ['9'],
+                initialFingerprint: '0011223344556677',
+                heartbeatSeq: 1,
+            })),
+        });
+        const net = new BattleNet({
+            api,
+            session: makeSession({ getEngineTick: () => 97, isPausedForOrderSync: () => true }),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: '1',
+        });
+        await net.pollOnce();
+        // atTick 98 is submittable, but we are not an expected waiter.
+        await net.submitOrder(makeOrder('not-expected'), 98);
+        expect(appendBattleOrder).not.toHaveBeenCalled();
+    });
+
+    it('tick_in_past soft-aligns when host-tail fingerprints agree', async () => {
+        // Host path always POSTs (no non-host ahead/stale gates). Server rejects as past while
+        // local ring still matches the reported host fingerprint → soft align, not full resync.
+        const appendBattleOrder = vi.fn(async () => ({
+            accepted: false,
+            idHash: 'deadbeef',
+            rejectedReason: 'tick_in_past' as const,
+            minAllowedTick: 98,
+            hostTick: 97,
+            hostFingerprint: 'agree_fp_97_____',
+        }));
+        const getBattleSnapshot = vi.fn(async () => ({
+            tick: 97,
+            state: { gameTick: 97 } as SerializedGameState,
+            synchash: 'agree_fp_97_____',
+        }));
+        const api = makeApi({ appendBattleOrder, getBattleSnapshot });
+        const loadFromSnapshot = vi.fn();
+        const net = new BattleNet({
+            api,
+            session: makeSession({
+                loadFromSnapshot,
+                getFingerprintRange: (from: number, to: number) =>
+                    from <= 97 && to >= 97
+                        ? [{ tick: 97, fp: 'agree_fp_97_____', paused: true }]
+                        : [],
+            }),
+            isHost: true,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'host',
+        });
+        const resync = vi.spyOn(net, 'requestResync');
+        await net.submitOrder(makeOrder('race'), 5);
+        expect(appendBattleOrder).toHaveBeenCalled();
+        await vi.waitFor(() => expect(getBattleSnapshot).toHaveBeenCalled());
+        expect(resync).not.toHaveBeenCalled();
+        expect(loadFromSnapshot).toHaveBeenCalled();
     });
 
     it('persistOrder not_unit_owner triggers resync with sync-details (doc: optimistic orders rejected)', async () => {

@@ -156,6 +156,22 @@ export class BattleSession implements BattleSessionHandle {
     }
 
     /**
+     * True when `atTick` is still a valid server order batch (not already completed on the host).
+     * Without a net adapter (tests), always true.
+     */
+    isOrderBatchTickSubmittable(atTick: number): boolean {
+        return this.netAdapter?.isOrderBatchTickSubmittable?.(atTick) ?? true;
+    }
+
+    /**
+     * True when the heartbeat expects this player to act (or waiters are unknown).
+     * Without a net adapter (tests), always true.
+     */
+    isLocalPlayerExpectedToAct(): boolean {
+        return this.netAdapter?.isLocalPlayerExpectedToAct?.() ?? true;
+    }
+
+    /**
      * Best-effort fetch of peer orders before ITS reset/replay/commit. No-op without a net adapter.
      */
     async refreshRemoteOrdersBeforeInteractiveTargetingAction(): Promise<void> {
@@ -822,6 +838,11 @@ export class BattleSession implements BattleSessionHandle {
         const batch = engine?.waitingForOrders;
         if (!batch || !opts.canSubmitOrders) return;
         if (!batch.waiters.some((w) => w.unitId === order.unitId)) return;
+        // Stale pause plane (lobby F6E500): do not start ITS or POST on a completed batch.
+        if (!this.isOrderBatchTickSubmittable(batch.atTick) || !this.isLocalPlayerExpectedToAct()) {
+            this.emitOrderSubmitFailed(order.unitId, order.abilityId);
+            return;
+        }
 
         if (USE_SEQUENTIAL_TARGETING) {
             const ability = getAbility(order.abilityId);

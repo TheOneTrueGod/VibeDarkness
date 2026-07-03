@@ -301,6 +301,34 @@ export class BattleNet implements BattleNetContext {
 		return !this.isRecovering && !this.syncStatusController.isAwaitingUserAck();
 	}
 
+	/**
+	 * True when `atTick` is still a valid server order batch (strictly after host last-completed,
+	 * and not behind heartbeat `orderBatchAtTick` when known). Lobby F6E500.
+	 */
+	isOrderBatchTickSubmittable(atTick: number): boolean {
+		const hostTick = this.latestHeartbeatHostTick;
+		if (hostTick >= 0 && atTick <= hostTick) {
+			return false;
+		}
+		const orderBatch = this.latestHeartbeatPausedAtTick;
+		if (orderBatch != null && atTick < orderBatch) {
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * True when heartbeat does not list waiters, or lists this player.
+	 * When the host pause plane only expects other players, local submit/ITS must not start.
+	 */
+	isLocalPlayerExpectedToAct(): boolean {
+		const expecting = this.heartbeatState.getLatestExpectingFromPlayerIds();
+		if (!Array.isArray(expecting) || expecting.length === 0) {
+			return true;
+		}
+		return expecting.includes(this.playerId);
+	}
+
 	private registerSkipLocalApplyDedupe(idHash: string): void {
 		if (this.appliedOrderIdHashes.has(idHash)) {
 			return;
@@ -369,6 +397,50 @@ export class BattleNet implements BattleNetContext {
 			});
 			return;
 		}
+
+		// Stale pause-plane gate (lobby F6E500): never optimistically apply or POST an order
+		// for a batch the host has already completed, or when we are not an expected waiter.
+		if (!this.isHost && !this.isOrderBatchTickSubmittable(atTick)) {
+			logToLobbyLogBattleSync({
+				lobbyClient: this.api as unknown as LobbyClient,
+				lobbyId: this.lobbyId,
+				playerId: this.playerId,
+				tick: atTick,
+				severity: 'warn',
+				logType: 'desync',
+				gameId: this.gameId,
+				message: 'submitOrder blocked: atTick stale vs host pause plane (no local apply / POST)',
+				context: {
+					atTick,
+					lastSeenHeartbeatHostTick: this.latestHeartbeatHostTick,
+					latestHeartbeatPausedAtTick: this.latestHeartbeatPausedAtTick,
+					abilityId: order.abilityId,
+					unitId: order.unitId,
+				},
+			});
+			this.emitRejectedOrderSyncDetail('tick_in_past');
+			void this.softAlignAfterStaleOrderBatch('stale-order-batch');
+			return;
+		}
+		if (!this.isHost && !this.isLocalPlayerExpectedToAct()) {
+			logToLobbyLogBattleSync({
+				lobbyClient: this.api as unknown as LobbyClient,
+				lobbyId: this.lobbyId,
+				playerId: this.playerId,
+				tick: atTick,
+				severity: 'info',
+				gameId: this.gameId,
+				message: 'submitOrder blocked: local player not in heartbeat expectingFromPlayerIds',
+				context: {
+					atTick,
+					expectingFromPlayerIds: this.heartbeatState.getLatestExpectingFromPlayerIds(),
+					abilityId: order.abilityId,
+					unitId: order.unitId,
+				},
+			});
+			return;
+		}
+
 		const idHash = hashOrderId(this.playerId, atTick, order);
 		const skipLocalApply = opts?.skipLocalApply === true;
 		const localEngineTick = this.session.getEngineTick();
@@ -575,6 +647,70 @@ export class BattleNet implements BattleNetContext {
 		void this.runDesyncRecovery(_reason);
 	}
 
+	/**
+	 * Soft recovery for a stale local order batch (lobby F6E500): reload the latest host
+	 * checkpoint and replay orders without the full desync-recovery UI path, when the local
+	 * sim still agrees with the host at `hostTick`. Falls back to {@link requestResync} if
+	 * bootstrap fails or fingerprints still disagree.
+	 */
+	private async softAlignAfterStaleOrderBatch(reason: string): Promise<void> {
+		if (this.isRecovering) {
+			return;
+		}
+		this.recovery.setIsRecovering(true);
+		try {
+			const hostTick = this.latestHeartbeatHostTick;
+			const hostFp = this.heartbeatState.getLatestHostFingerprint();
+			logToLobbyLogBattleSync({
+				lobbyClient: this.api as unknown as LobbyClient,
+				lobbyId: this.lobbyId,
+				playerId: this.playerId,
+				tick: this.session.getEngineTick(),
+				severity: 'info',
+				logType: 'desync',
+				gameId: this.gameId,
+				message: 'softAlignAfterStaleOrderBatch: bootstrap from latest checkpoint',
+				context: {
+					reason,
+					hostTick,
+					hostFingerprintHead: hostFp?.slice(0, 12) ?? null,
+					orderBatchAtTick: this.latestHeartbeatPausedAtTick,
+					expectingFromPlayerIds: this.heartbeatState.getLatestExpectingFromPlayerIds(),
+				},
+			});
+			const ok = await this.tryBootstrapFromLatestCheckpoint();
+			if (!ok) {
+				this.recovery.setIsRecovering(false);
+				this.requestResync(reason);
+				return;
+			}
+			await this.forceCatchupOrderRescan(hostTick, null);
+			const row =
+				hostTick >= 0 ? this.session.getFingerprintRange(hostTick, hostTick)[0] : null;
+			if (hostFp != null && row != null && row.fp !== hostFp) {
+				this.recovery.setIsRecovering(false);
+				this.requestResync(reason);
+				return;
+			}
+			if (this.session.isPausedForOrderSync()) {
+				this.syncStatusController.setStatus(
+					'waiting_for_host',
+					'Local order batch was stale; aligned to host pause plane.',
+				);
+			} else {
+				this.syncStatusController.setStatus('synced');
+			}
+			this.emitHostCatchupWaitState();
+			this.emitBlockingHostPausePlane(false);
+		} catch (err) {
+			console.error('[BattleNet] softAlignAfterStaleOrderBatch failed', err);
+			this.recovery.setIsRecovering(false);
+			this.requestResync(reason);
+			return;
+		}
+		this.recovery.setIsRecovering(false);
+	}
+
 	queueFingerprint(tick: number, fp: string, paused: boolean, adminReason?: string): void {
 		this.fingerprintBatcher.queueFingerprint(tick, fp, paused, adminReason);
 	}
@@ -778,6 +914,8 @@ export class BattleNet implements BattleNetContext {
 			}
 			this.updateLastSeenHeartbeat(hb.hostTick);
 			this.latestHeartbeatPausedAtTick = orderBatchAtTick;
+			this.heartbeatState.setLatestHostFingerprint(hb.hostFingerprint);
+			this.heartbeatState.setLatestExpectingFromPlayerIds(hb.expectingFromPlayerIds);
 			this.emit('heartbeat', hb);
 			if (this.isHost) {
 				this.session.setMultiplayerAwaitHostCatchup(false);
@@ -1305,6 +1443,16 @@ export class BattleNet implements BattleNetContext {
 		if (res.rejectedReason === 'tick_in_past') {
 			this.emitRejectedOrderSyncDetail(res.rejectedReason);
 			this.deferredLocalOrders = this.deferredLocalOrders.filter((item) => item.idHash !== idHash);
+			this.ourOrdersAwaitingServerRange.delete(idHash);
+			const hostTick = typeof res.hostTick === 'number' ? res.hostTick : this.latestHeartbeatHostTick;
+			const hostFp =
+				typeof res.hostFingerprint === 'string' && res.hostFingerprint !== ''
+					? res.hostFingerprint
+					: this.heartbeatState.getLatestHostFingerprint();
+			const localRow =
+				hostTick >= 0 ? this.session.getFingerprintRange(hostTick, hostTick)[0] : null;
+			const fingerprintsAgree =
+				hostFp != null && localRow != null && localRow.fp === hostFp;
 			logToLobbyLog({
 				lobbyClient: this.api as unknown as LobbyClient,
 				lobbyId: this.lobbyId,
@@ -1313,16 +1461,24 @@ export class BattleNet implements BattleNetContext {
 				severity: 'warn',
 				logType: 'desync',
 				gameId: this.gameId,
-				message: 'appendBattleOrder rejected tick_in_past; requesting resync',
+				message: fingerprintsAgree
+					? 'appendBattleOrder rejected tick_in_past; soft-aligning to host pause plane'
+					: 'appendBattleOrder rejected tick_in_past; requesting resync',
 				context: {
 					minAllowedTick: res.minAllowedTick,
 					lastSeenHeartbeatHostTick: this.latestHeartbeatHostTick,
 					lastHeartbeatAgeMs: this.getLastHeartbeatAgeMs(),
 					serverHostTickAtAppend: res.hostTick ?? null,
 					serverHostFingerprintAtAppend: res.hostFingerprint ?? null,
+					fingerprintsAgree,
+					localFingerprintAtHostTail: localRow?.fp?.slice(0, 12) ?? null,
 				},
 			});
-			this.requestResync('tick-in-past');
+			if (fingerprintsAgree) {
+				void this.softAlignAfterStaleOrderBatch('tick-in-past');
+			} else {
+				this.requestResync('tick-in-past');
+			}
 			return false;
 		}
 		if (res.rejectedReason === 'not_unit_owner' || res.rejectedReason === 'unknown_unit') {

@@ -69,7 +69,8 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Jeremy\\\\Documents\\\\Programming\\\\VibeDarkness\\\\app\\\\js\\\\games\\\\minion_battles\\\\game\\\\lanternite\" -ErrorAction SilentlyContinue)",
       "Bash(node scripts/terrain-backup.js 49_52_thorn_path)",
       "Bash(node scripts/terrain-restore.js 49_52_thorn_path)",
-      "Bash(node scripts/terrain-backup.js 48_52_thorn_path_2)"
+      "Bash(node scripts/terrain-backup.js 48_52_thorn_path_2)",
+      "Bash(git -C \"c:/Users/Jeremy/Documents/Programming/VibeDarkness\" show 1b22bf3:app/js/games/minion_battles/phases/BattlePhase.tsx)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Jeremy\\Documents\\Programming\\VibeDarkness"
