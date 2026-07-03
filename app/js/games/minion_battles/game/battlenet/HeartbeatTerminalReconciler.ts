@@ -204,7 +204,10 @@ export class HeartbeatTerminalReconciler {
             return;
         }
 
-        if (localRow != null && localRow.paused !== hb.hostPaused) {
+        // Client ran through hostTick (paused=false) while host is still paused there
+        // (hostPaused=true) is normal optimistic playahead — do not resync.
+        // True anomaly: local ring says we paused at hostTick but host did not.
+        if (localRow != null && localRow.paused === true && hb.hostPaused === false) {
             logToLobbyLogBattleSync({
                 lobbyClient: this.ctx.api as unknown as LobbyClient,
                 lobbyId: this.ctx.lobbyId,

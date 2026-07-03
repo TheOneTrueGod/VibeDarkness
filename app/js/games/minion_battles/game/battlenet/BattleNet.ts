@@ -1704,6 +1704,14 @@ export class BattleNet implements BattleNetContext {
 		}
 		const localRow = this.session.getFingerprintRange(hb.hostTick, hb.hostTick)[0];
 		const localLatest = this.session.getLatestFingerprint();
+		const hostTailFp = hb.hostFingerprint;
+		// Benign optimistic playahead: client submitted the last order and ran to a later
+		// pause while the host is still catching up. Fingerprints at hostTick still match.
+		// Only treat misaligned pauses as true desync when the host-tail hash disagrees
+		// (or we have no local row to compare). Lobby BBA219 false-positived here.
+		if (hostTailFp != null && localRow != null && localRow.fp === hostTailFp) {
+			return;
+		}
 		logToLobbyLogBattleSync({
 			lobbyClient: this.api as unknown as LobbyClient,
 			lobbyId: this.lobbyId,
@@ -1718,7 +1726,7 @@ export class BattleNet implements BattleNetContext {
 				engineTick,
 				hostTick: hb.hostTick,
 				hostPaused: hb.hostPaused,
-				hostFingerprintHead: hb.hostFingerprint?.slice(0, 12) ?? null,
+				hostFingerprintHead: hostTailFp?.slice(0, 12) ?? null,
 				orderBatchAtTick: hb.orderBatchAtTick,
 				expectingFromPlayerIds: hb.expectingFromPlayerIds,
 				localFingerprintAtHostTail: localRow?.fp?.slice(0, 12) ?? null,
