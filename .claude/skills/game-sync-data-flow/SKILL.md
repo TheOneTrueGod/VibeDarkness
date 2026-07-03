@@ -86,6 +86,10 @@ Host **`saveBattleSnapshot`** → **`SaveSnapshotHandler`**: persists snapshot w
 
 [`global_constants.js`](global_constants.js) / **[`global_constants.php`](global_constants.php)**: **`BATTLE_RESYNC_AUTO_RESUME_AFTER_DESYNC`** (paired with **`BattleSyncStatus`** reload affordance).
 
+## Sequential targeting in-place commits
+
+In-place sequential targeting commits can leave any client (host or not) legitimately ahead. Non-host in-place commits ride the optimistic-client-playahead rules: POST via `submitOrder(..., { skipLocalApply: true })` (no local re-apply), and defer under the standard ahead-of-host gates. See `docs/interactive-sequential-targeting.md` and `docs/game-sync-plan.md`.
+
 ## Common pitfalls
 
 - **`merge-applied`** must succeed before authoritative playback lines exist for non-hosts merging **applied** replay; failures trigger host resync.

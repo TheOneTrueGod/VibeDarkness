@@ -21,5 +21,6 @@ export type {
     BattleNetSyncTerminalStatus,
     BattleNetPollOnceOptions,
     BattleNetFactoryArgs,
-    RemoteOrderWireRow,
+	RemoteOrderWireRow,
+	SubmitOrderOptions,
 } from './BattleNet';

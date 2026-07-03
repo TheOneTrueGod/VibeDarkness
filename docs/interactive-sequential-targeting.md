@@ -20,7 +20,7 @@ Player clicks Double Punch card
   → submitOrder(abilityId, []) → BattleSession.submitPlayerOrder()
   → InteractiveTargetingSession.begin()
       • snapshot engine state → mark
-      • choose rollback vs in-place mode (see below)
+      • null onParallelBatchResolved; queue assumed waits for other waiters
       • queue preview order { targetsByLabel: {} } → tryResumeParallel()
   ↓
 Engine plays locally (0–0.2 s windup)
@@ -41,10 +41,11 @@ Engine plays 0.2–0.5 s (punch hits + windup2)
 Lookahead pauses again for "Target 2"
   ↓
 All targets collected → UI: pill shows "Done"
-Player clicks Confirm
+Player commits (auto if seamless, else Continue click)
   → InteractiveTargetingSession.commit()
-      • rollback: restoreFromInMemorySnapshot(mark) → submit via BattleNet (re-applies)
-      • in-place (solo host): keep state → persist order only → clear preview flags → unpause
+      • refresh remote orders, then wouldCommitInPlace()
+      • in-place: keep state → persist (host merge / non-host skipLocalApply) → unpause
+      • rollback: rewind overlay → restoreFromInMemorySnapshot(mark) → apply held → submit
 ```
 
 ---
@@ -90,27 +91,54 @@ Abilities without windup lunge (e.g. Double Punch, Light Blast) keep using pre-t
 
 ---
 
-## Solo in-place commit
+## Commit-time in-place decision
 
-When the host is the **only player in the lobby** (`BattleSession.isSoloHost()`) **and** the parallel batch has exactly one waiter (the casting unit), `begin()` chooses **`inPlace`** mode instead of **`rollback`**.
+`begin()` always uses the rollback-style setup: null `onParallelBatchResolved`, auto-queue assumed waits for other mark-batch waiters (units already confirmed keep their real orders). In-place vs rollback is decided at **`commit()`** via `wouldCommitInPlace(session)`.
 
-| | Rollback (multiplayer / multi-waiter) | In-place (solo single-waiter) |
+**In-place commit is allowed iff ALL hold:**
+
+- Every *other* waiter in the mark batch is accounted for by either:
+  (a) a confirmed order that already existed at `begin()` (it played in the preview naturally —
+  `begin()`'s assumed `wait` for that unit was rejected by the confirmed-order guard), or
+  (b) a held remote order that is a **pure pass** — `abilityId === 'wait'`, `endTurn === true`,
+  no `movePath`/`moveTargetUnitId`/`moveTargetPixel`/`targets` — i.e. byte-for-byte the same
+  effect as the assumed wait the preview queued.
+- No held order is anything other than a pure pass for a mark-batch waiter (a real ability, a
+  movement-carrying wait, or any row for an unexpected unit/tick ⇒ rollback).
+- A persistence path exists: host ⇒ `persistCommittedOrder`; non-host ⇒ submit with
+  `skipLocalApply` (optimistic playahead). Unavailable while recovering / awaiting resync ack.
+- No resync/engine replacement happened mid-preview (ITS is aborted in that case anyway).
+
+| | Rollback | In-place |
 |---|---|---|
-| Auto-wait for other batch units | Yes | No (sole waiter) |
-| `onParallelBatchResolved` | Nulled during preview | Kept (flag-guarded) |
-| `commit()` | Restore mark → submit order (re-applies locally) | Keep preview state → `persistCommittedOrder` only |
-| Visible Continue | Rewinds and replays turn | No rewind — state at preview stop becomes real |
+| When | Predicate false (real ability held, move-carrying wait, no persistence path, …) | Predicate true |
+| `commit()` | Rewind overlay → restore mark → apply held → submit (re-applies locally) | Keep preview state → persist only (no local re-apply) |
+| Host persist | Normal `submitOrder` after restore | `persistCommittedOrder` (append + `mergeAppliedOrdersForBatch`) |
+| Non-host persist | Normal `submitOrder` after restore | `submitOrder(..., { skipLocalApply: true })` — rides optimistic client playahead |
+| UI | Continue ⏪ (player-initiated when `AUTO_END_TURN`) | Seamless auto-commit when `AUTO_END_TURN` |
+
+**Design invariant:** once a waiter has a confirmed (`endTurn: true`) order, `OrderManager.applyOrder` refuses to replace it. So if at commit time every other waiter is confirmed with exactly what the preview simulated, no remote order can arrive later that invalidates the previewed timeline.
+
+**Non-host optimistic path:** an in-place-committed non-host is indistinguishable, to the sync layer, from a client that legitimately ran ahead (`docs/game-sync-plan.md`). Ahead-of-host gates still apply (`submitOrder` deferral, `waiting_for_host` pause-plane). Fingerprint mismatch once the host catches up uses the existing `RecoveryCoordinator` resync (`loadFromSnapshot` aborts any active ITS).
 
 **What persists on in-place commit:**
 
-1. `buildFinalizedSequentialTargetingOrder` builds positional `targets[]` + `movementByLabel` from collected input (same bytes as rollback).
-2. `BattleNet.persistCommittedOrder` appends the row and runs `mergeAppliedOrdersForBatch` **without** `applyLocalSubmitOrderAfterAppend` — the engine already ran the turn.
-3. Preview flags cleared; engine unpaused. The next `collectParallelWaiters` / checkpoint path runs with suppression lifted.
-4. Session dedupe key registered in `appliedRemoteOrderKeys`.
+1. Held pure-pass rows register their dedupe keys in `appliedRemoteOrderKeys` without re-queueing.
+2. Finalized order is built from collected input (same bytes as rollback).
+3. Host: `persistCommittedOrder` appends + merges the whole mark batch. Non-host: POST without local apply; ahead-of-host deferral gates still apply.
+4. `rebindEngineCallbacks()` restores `onParallelBatchResolved`; preview flags cleared; engine unpaused.
 
 **Accepted limitation:** refreshing mid-preview recovers to the **pre-turn** checkpoint (the mark snapshot), not the in-progress preview — same as rollback Reset.
 
 **Victory/defeat during preview:** `LevelEventManager` latches terminal state (`isTerminal`) when checks pass, but `BattleSession` wrappers skip `onVictory`/`onDefeat` while `isSequentialTargetingPreview` is set. In-place `commit()` calls `reemitSuppressedTerminalOutcome` so a one-shot result is not lost.
+
+### Rewind overlay
+
+On every rollback restore (`commit` rollback path, `reset`, `replay`), ITS emits `sequential_targeting_rewind` **before** `_restoreToMark`. `BattlePhase` captures the canvas frame into a DOM overlay (not Pixi — the renderer is torn down), shows "⏪ Rewind", and fades it out (~500 ms) while the engine rebuilds underneath. In-place commit never restores and never emits.
+
+### Reset / Replay / commit pre-restore refresh
+
+`reset()`, `replay()`, and `commit()` call `refreshRemoteOrdersBeforeInteractiveTargetingAction()` first so held rows include orders already on the server but not yet polled. Held orders apply after restore via `applyHeldRemoteOrders`.
 
 ---
 
@@ -132,9 +160,9 @@ The **targeting cursor** (hitbox preview overlay) is only rendered when the stat
 
 | Button | Colour | Action |
 |---|---|---|
-| **Reset** | Red | Restore engine to the pre-preview snapshot; discard all collected targets; abort the session |
-| **Replay** | Sky-blue | Restore to snapshot, re-queue the ability with all targets collected so far pre-filled, replay animation without pausing (for review) |
-| **Continue** | Primary | Rollback: restore + submit. In-place: persist without rewind + clear preview flags. **Hidden when `AUTO_END_TURN` is true** — commit runs automatically when the pill reaches Done (all targets collected and final hit played). When `AUTO_END_TURN` is true, the status pill and Reset/Replay are also hidden once every required target has been collected (final hit plays with no overlay). |
+| **Reset** | Red | Refresh remote orders, restore to mark (rewind overlay), discard collected targets, abort the session |
+| **Replay** | Sky-blue | Refresh remote orders, restore to mark (rewind overlay), re-queue with collected targets pre-filled, replay without pausing |
+| **Continue** | Primary | Commit. Label is **Continue ⏪** when commit will rewind. When `AUTO_END_TURN` is true: auto-commit only if `wouldCommitInPlace()` (seamless); otherwise show Continue so the rewind is player-initiated. A late teammate pure-pass while sitting at Done can flip the predicate and auto-commit. When seamless auto-commit fires, the status pill and buttons are hidden once all targets are collected. |
 
 ---
 
@@ -142,7 +170,7 @@ The **targeting cursor** (hitbox preview overlay) is only rendered when the stat
 
 The preview runs **only on the selecting player's engine**. Other players' engines remain at `waitingForOrders` and are unaffected.
 
-Remote orders that arrive during the preview are **held** in `InteractiveTargetingSession.heldRemoteOrders` (keyed by `unitId`, latest wins). They are applied to the engine **after** the snapshot is restored — on Reset, Replay, or Commit — so the engine stays consistent with remote state once the preview ends.
+Remote orders that arrive during the preview are **held** in `InteractiveTargetingSession.heldRemoteOrders` (keyed by `unitId`, latest wins). On rollback paths they are applied **after** the snapshot is restored. On in-place commit, held pure-pass rows only register dedupe keys (the assumed waits already produced the same effect).
 
 Ghost plan broadcasts are suppressed while the preview is active so other players do not see the local playahead as the selecting player's "plan".
 
@@ -162,10 +190,12 @@ Interactive preview orders set `targetsByLabel: {}` (empty object, not `undefine
 | `game/GameEngine.ts` | `waitingForTargetInput`, lookahead gate, preview stop condition, `isSequentialTargetingPreview` |
 | `game/interaction/selectTargetLookahead.ts` | Pre-tick impending select detection; deferred-first-select helper (`findPreviewDeferredSelectLabel`) |
 | `game/units/unitAbilityTick.ts` | Entered-loop interval fire; `movementByLabel` at select entry; loud missing-label guard |
-| `game/interaction/InteractiveTargetingSession.ts` | Session lifecycle: begin / resolveTarget / reset / replay / commit; mode gate |
-| `game/BattleSession.ts` | `isSoloHost`, `restoreFromInMemorySnapshot`, `persistInPlaceCommittedTargetingOrder` |
-| `game/battlenet/BattleNet.ts` | `persistCommittedOrder` (append + merge, no local re-apply) |
+| `game/interaction/InteractiveTargetingSession.ts` | Session lifecycle: begin / resolveTarget / reset / replay / commit; `wouldCommitInPlace` |
+| `game/BattleSession.ts` | `restoreFromInMemorySnapshot`, `persistInPlaceCommittedTargetingOrder`, held-order hold/apply, pre-action poll |
+| `game/battlenet/BattleNet.ts` | `persistCommittedOrder`; `submitOrder` `skipLocalApply`; `refreshRemoteOrdersForTargetingPreview` |
 | `game/interaction/PlayerInteractionManager.ts` | `activateAbilityTargeting` skips `AbilityTargetingTool` when flag is on |
-| `ui/pages/BattlePhase.tsx` | Targeting cursor gating, status pill, Reset/Replay/Confirm buttons |
-| `game/interactiveTargeting.test.ts` | Engine pause/resume, fingerprint parity, preview stop condition |
-| `abilities/targeting.ts` | `buildMeleeSelectOrderTargets`, `findMeleeAimPixelInTargets` — melee order-target builder and aim-pixel lookup |
+| `ui/pages/BattlePhase.tsx` | Targeting cursor, status pill, Reset/Replay/Continue, rewind overlay, conditional auto-commit |
+| `game/interactiveTargeting.test.ts` | Engine pause/resume, fingerprint parity, commit-time in-place, rewind emit |
+| `game/interaction/AGENTS.md` | Short agent pointer for this folder |
+| `docs/plans/sequential-targeting-rollback-ux.md` | Plan for commit-time in-place, rewind UX, non-host path |
+| `abilities/targeting.ts` | `buildMeleeSelectOrderTargets`, `findMeleeAimPixelInTargets`, `getSelectTargetDefsFromTimings` |

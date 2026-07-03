@@ -69,6 +69,9 @@ declare global {
 
 type BattleInitPhase = 'fetching_assets' | 'loading_battle' | 'submitting' | 'ready';
 
+/** DOM rewind overlay fade duration (rollback restore under a frozen frame). */
+const REWIND_OVERLAY_FADE_MS = 500;
+
 interface BattlePhaseProps {
     api: MinionBattlesApi;
     playerId: string;
@@ -137,6 +140,8 @@ export default function BattlePhase({
     const [interactiveTargetingState, setInteractiveTargetingState] = useState<'inactive' | 'playing' | 'paused' | 'done'>('inactive');
     /** True when every frozen SelectTargetDef label has a collected target (final input received). */
     const [interactiveAllTargetsCollected, setInteractiveAllTargetsCollected] = useState(false);
+    /** Mirror of ITS.wouldCommitInPlace — seamless commit vs rewind. */
+    const [itsWouldCommitInPlace, setItsWouldCommitInPlace] = useState(false);
     const { ghostPlans, sendGhostPlan } = useContext(GhostPlanContext);
 
     const targetingStateRef = useRef<{
@@ -214,6 +219,11 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     const [hasReceivedInitialHeartbeat, setHasReceivedInitialHeartbeat] = useState(isHost);
     /** Set when commit() detects a silent-drop from BattleNet; shown as a dismissible banner. */
     const [orderSubmitFailed, setOrderSubmitFailed] = useState(false);
+    /** Frozen-frame overlay while sequential targeting rolls back (DOM, not Pixi). */
+    const [rewindOverlay, setRewindOverlay] = useState<{ frameUrl: string; token: number } | null>(null);
+    const [rewindOverlayOpaque, setRewindOverlayOpaque] = useState(true);
+    const rewindFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const rewindFadeRafRef = useRef<number | null>(null);
 
     const battleActionRow = useBattleActionRowHost();
 
@@ -618,6 +628,46 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
             if (ev.type === 'order_submit_failed') {
                 setOrderSubmitFailed(true);
             }
+            if (ev.type === 'sequential_targeting_rewind') {
+                // Capture the last painted frame before restore tears down the engine.
+                // Force one render so the WebGL buffer is readable in this turn.
+                const eng = session.getEngine();
+                const cam = session.getCamera();
+                const rend = session.getRenderer();
+                if (eng && cam && rend?.isInitialized()) {
+                    rend.render(eng, cam, null, 0);
+                }
+                const canvas = battleCanvasAreaRef.current?.querySelector('canvas');
+                let frameUrl = '';
+                if (canvas instanceof HTMLCanvasElement) {
+                    try {
+                        frameUrl = canvas.toDataURL('image/png');
+                    } catch {
+                        frameUrl = '';
+                    }
+                }
+                if (rewindFadeTimerRef.current != null) {
+                    clearTimeout(rewindFadeTimerRef.current);
+                    rewindFadeTimerRef.current = null;
+                }
+                if (rewindFadeRafRef.current != null) {
+                    cancelAnimationFrame(rewindFadeRafRef.current);
+                    rewindFadeRafRef.current = null;
+                }
+                setRewindOverlay({ frameUrl, token: Date.now() });
+                setRewindOverlayOpaque(true);
+                // Double-rAF so the opaque overlay paints before the fade starts.
+                rewindFadeRafRef.current = requestAnimationFrame(() => {
+                    rewindFadeRafRef.current = requestAnimationFrame(() => {
+                        rewindFadeRafRef.current = null;
+                        setRewindOverlayOpaque(false);
+                        rewindFadeTimerRef.current = setTimeout(() => {
+                            setRewindOverlay(null);
+                            rewindFadeTimerRef.current = null;
+                        }, REWIND_OVERLAY_FADE_MS);
+                    });
+                });
+            }
         });
 
         const runLoad = async () => {
@@ -811,6 +861,14 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
             effectAlive = false;
             cleanupRef.current();
             unsub();
+            if (rewindFadeTimerRef.current != null) {
+                clearTimeout(rewindFadeTimerRef.current);
+                rewindFadeTimerRef.current = null;
+            }
+            if (rewindFadeRafRef.current != null) {
+                cancelAnimationFrame(rewindFadeRafRef.current);
+                rewindFadeRafRef.current = null;
+            }
             session.destroy();
             sessionRef.current = null;
         };
@@ -905,6 +963,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
             if (!its?.isActive) {
                 autoCommitItsAttemptedRef.current = false;
                 setInteractiveAllTargetsCollected(false);
+                setItsWouldCommitInPlace(false);
                 setInteractiveTargetingState('inactive');
                 if (prevItsStateRef.current !== 'inactive') {
                     prevItsStateRef.current = 'inactive';
@@ -933,7 +992,18 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                 nextState = allCollected && eng.isPaused ? 'done' : 'playing';
             }
             setInteractiveAllTargetsCollected(its.allTargetsCollected());
-            if (nextState === 'done' && AUTO_END_TURN && !autoCommitItsAttemptedRef.current && session) {
+            // Read-only predicate; late teammate passes can flip this true while sitting at Done.
+            const canInPlace = session ? its.wouldCommitInPlace(session) : false;
+            setItsWouldCommitInPlace(canInPlace);
+            // Auto-commit only when seamless (in-place). Otherwise wait for Continue click
+            // (or a later poll once a pure-pass arrives and canInPlace becomes true).
+            if (
+                nextState === 'done'
+                && AUTO_END_TURN
+                && canInPlace
+                && !autoCommitItsAttemptedRef.current
+                && session
+            ) {
                 autoCommitItsAttemptedRef.current = true;
                 setOrderSubmitFailed(false);
                 void session.interactiveTargeting.commit(session);
@@ -1241,8 +1311,35 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                                 </button>
                             </div>
                         )}
+                        {rewindOverlay && (
+                            <div
+                                key={rewindOverlay.token}
+                                className="pointer-events-none absolute inset-0 z-40 transition-opacity ease-out"
+                                style={{
+                                    opacity: rewindOverlayOpaque ? 1 : 0,
+                                    transitionDuration: `${REWIND_OVERLAY_FADE_MS}ms`,
+                                }}
+                                aria-hidden
+                            >
+                                {rewindOverlay.frameUrl ? (
+                                    <img
+                                        src={rewindOverlay.frameUrl}
+                                        alt=""
+                                        className="absolute inset-0 h-full w-full object-fill"
+                                        draggable={false}
+                                    />
+                                ) : (
+                                    <div className="absolute inset-0 bg-dark-900" />
+                                )}
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="rounded-full bg-dark-900/90 px-4 py-2 text-sm text-gray-200 shadow-lg ring-1 ring-dark-700">
+                                        ⏪ Rewind
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                         {interactiveTargetingState !== 'inactive'
-                            && !(AUTO_END_TURN && interactiveAllTargetsCollected) && (
+                            && !(AUTO_END_TURN && interactiveAllTargetsCollected && itsWouldCommitInPlace) && (
                             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-50">
                                 <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border ${
                                     interactiveTargetingState === 'playing'
@@ -1266,7 +1363,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                                         onClick={() => {
                                             setOrderSubmitFailed(false);
                                             const session = sessionRef.current;
-                                            if (session) session.interactiveTargeting.reset(session);
+                                            if (session) void session.interactiveTargeting.reset(session);
                                         }}
                                     >
                                         Reset
@@ -1276,12 +1373,12 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                                         onClick={() => {
                                             setOrderSubmitFailed(false);
                                             const session = sessionRef.current;
-                                            if (session) session.interactiveTargeting.replay(session);
+                                            if (session) void session.interactiveTargeting.replay(session);
                                         }}
                                     >
                                         Replay
                                     </button>
-                                    {!AUTO_END_TURN && (
+                                    {(!AUTO_END_TURN || (interactiveTargetingState === 'done' && !itsWouldCommitInPlace)) && (
                                     <button
                                         className={`px-3 py-1.5 rounded text-sm border transition-opacity ${
                                             interactiveTargetingState === 'done'
@@ -1291,11 +1388,12 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                                         disabled={interactiveTargetingState !== 'done'}
                                         onClick={() => {
                                             setOrderSubmitFailed(false);
+                                            autoCommitItsAttemptedRef.current = true;
                                             const session = sessionRef.current;
                                             if (session) void session.interactiveTargeting.commit(session);
                                         }}
                                     >
-                                        Continue
+                                        {itsWouldCommitInPlace ? 'Continue' : 'Continue ⏪'}
                                     </button>
                                     )}
                                 </div>

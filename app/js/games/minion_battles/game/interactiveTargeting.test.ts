@@ -16,7 +16,7 @@
  * Scenario J: Swing Bat preview with positional target runs windup lunge before hit interval.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { resetGameObjectIdCounter } from './GameObject';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import type { GameEngine } from './GameEngine';
@@ -25,6 +25,7 @@ import type { BattleOrder, ResolvedTarget } from './types';
 import {
     buildFinalizedSequentialTargetingOrder,
     buildPositionalTargetsFromLabels,
+    isPurePassOrder,
 } from './interaction/InteractiveTargetingSession';
 import { findPreviewDeferredSelectLabel } from './interaction/selectTargetLookahead';
 import { getAbility } from '../abilities/AbilityRegistry';
@@ -39,6 +40,11 @@ import {
 import { createTargetDummyAtWorld } from '../testing/fixtures/targetDummies';
 import { initializeAbilityRuntimeForUnit } from '../abilities/abilityUses';
 import { Light } from '../resources/Light';
+import type { MinionBattlesApi } from '../api/minionBattlesApi';
+import type { PlayerState } from '../../../types';
+import { BattleSession } from './BattleSession';
+import { OrderManager } from './managers/OrderManager';
+import { hashOrderId } from './battlenet/helpers/orderHashing';
 
 /** Double Punch ability id — matches `DoublePunchAbility.id` in `0116Ability.ts`. */
 const DOUBLE_PUNCH_ABILITY_ID = '0116';
@@ -53,6 +59,143 @@ const LIGHT_BLAST_ID = '0801';
 const LIGHT_BLAST_PREFIRE = 0.4;
 /** Matches `0801Ability` `resourceCost.amount`. */
 const LIGHT_BLAST_LIGHT_COST = 2;
+/** SelectTargetDef label on Light Blast timings. */
+const LIGHT_BLAST_TARGET_LABEL = 'Target';
+
+beforeAll(() => {
+    if (globalThis.requestAnimationFrame === undefined) {
+        vi.stubGlobal(
+            'requestAnimationFrame',
+            (cb: FrameRequestCallback) => setTimeout(() => cb(performance.now()), 0) as unknown as number,
+        );
+        vi.stubGlobal('cancelAnimationFrame', (id: number) =>
+            clearTimeout(id as unknown as ReturnType<typeof setTimeout>),
+        );
+    }
+});
+
+afterAll(() => {
+    vi.unstubAllGlobals();
+});
+
+function makeApiStub(): MinionBattlesApi {
+    return {
+        setCurrentPlayerId: vi.fn(),
+        sendMessage: vi.fn().mockResolvedValue({ messageId: 1 }),
+    } as unknown as MinionBattlesApi;
+}
+
+function makePurePassOrder(unitId: string): BattleOrder {
+    return {
+        unitId,
+        abilityId: 'wait',
+        targets: [],
+        endTurn: true,
+    };
+}
+
+interface LightBlastSessionFixture {
+    session: BattleSession;
+    engine: GameEngine;
+    casterUnitId: string;
+    remoteUnitId: string;
+    atTick: number;
+    blastPixel: { x: number; y: number };
+}
+
+/** Host session paused at a parallel batch with Light Blast on the local caster. */
+async function mountLightBlastSessionFixture(): Promise<LightBlastSessionFixture> {
+    const session = new BattleSession({
+        api: makeApiStub(),
+        missionId: 'dark_awakening',
+        playerId: 'p1',
+        isHost: true,
+    });
+    const players: Record<string, PlayerState> = {
+        p1: { id: 'p1', name: 'P1', color: '#fff' },
+        p2: { id: 'p2', name: 'P2', color: '#000' },
+    };
+    const characterSelections = { p1: 'warrior', p2: 'ranger' };
+
+    await session.load({
+        players,
+        characterSelections,
+        battleSeed: 1,
+    });
+    const engine = session.getEngine()!;
+    engine.stop();
+
+    for (let i = 0; i < 400; i++) {
+        (engine as unknown as { fixedUpdate(dt: number): void }).fixedUpdate(FIXED_DT);
+        const batch = engine.waitingForOrders;
+        if (batch?.waiters.some((w) => w.ownerId === 'p1') && batch.waiters.length >= 2) {
+            const casterUnitId = engine.state.orderMgr.getActiveOrderWaiterForPlayer('p1')?.unitId;
+            const remoteUnitId = batch.waiters.find((w) => w.ownerId === 'p2')?.unitId;
+            if (casterUnitId && remoteUnitId) {
+                const caster = engine.getUnit(casterUnitId)!;
+                caster.abilities = [LIGHT_BLAST_ID];
+                initializeAbilityRuntimeForUnit(caster);
+                const light = new Light();
+                caster.attachResource(light, engine.eventBus);
+                light.add(LIGHT_BLAST_LIGHT_COST);
+
+                const blastPixel = { x: caster.x + 30, y: caster.y };
+                const enemy = createTargetDummyAtWorld(engine, blastPixel.x, blastPixel.y, {
+                    id: 'enemy_commit_test',
+                    hp: 100,
+                });
+                initializeAbilityRuntimeForUnit(enemy);
+                engine.addUnit(enemy, 'initialGameSpawn');
+
+                return {
+                    session,
+                    engine,
+                    casterUnitId,
+                    remoteUnitId,
+                    atTick: batch.atTick,
+                    blastPixel,
+                };
+            }
+        }
+    }
+    throw new Error('expected parallel pause for p1 and p2');
+}
+
+function runLightBlastPreviewToDone(
+    session: BattleSession,
+    casterUnitId: string,
+    blastPixel: { x: number; y: number },
+): void {
+    const engine = session.getEngine()!;
+    const caster = engine.getUnit(casterUnitId)!;
+    const its = session.interactiveTargeting;
+
+    its.begin(
+        {
+            unitId: casterUnitId,
+            abilityId: LIGHT_BLAST_ID,
+            targets: [],
+            endTurn: true,
+        },
+        session,
+    );
+
+    const paused = stepUntil(engine, () => engine.waitingForTargetInput?.label === LIGHT_BLAST_TARGET_LABEL, 120);
+    expect(paused).toBe(true);
+
+    its.resolveTarget(
+        LIGHT_BLAST_TARGET_LABEL,
+        { type: 'pixel', position: blastPixel },
+        session,
+    );
+
+    const done = stepUntil(
+        engine,
+        () => engine.isPaused && caster.activeAbilities.length === 0 && engine.waitingForOrders == null,
+        300,
+    );
+    expect(done).toBe(true);
+}
 
 /** Swing Bat — matches `SwingBatCard.abilityId` in `0115Ability.ts`. */
 const SWING_BAT_ABILITY_ID = SwingBatCard.abilityId;
@@ -1395,5 +1538,274 @@ describe('interactive sequential targeting fingerprint parity', () => {
 
         committed.destroy();
         interactive.destroy();
+    });
+});
+
+describe('commit-time in-place decision (Step 1)', () => {
+    it('isPurePassOrder accepts endTurn wait with no movement or targets', () => {
+        expect(isPurePassOrder(makePurePassOrder('unit_p2'))).toBe(true);
+    });
+
+    it('isPurePassOrder rejects wait with movePath', () => {
+        expect(
+            isPurePassOrder({
+                unitId: 'unit_p2',
+                abilityId: 'wait',
+                targets: [],
+                endTurn: true,
+                movePath: [{ col: 6, row: 5 }],
+            }),
+        ).toBe(false);
+    });
+
+    it('isPurePassOrder rejects real abilities', () => {
+        expect(
+            isPurePassOrder({
+                unitId: 'unit_p2',
+                abilityId: DOUBLE_PUNCH_ABILITY_ID,
+                targets: [],
+                endTurn: true,
+            }),
+        ).toBe(false);
+    });
+
+    it('(a) other waiter confirmed before begin commits in-place without restore', async () => {
+        const fixture = await mountLightBlastSessionFixture();
+        const { session, casterUnitId, remoteUnitId, blastPixel } = fixture;
+        const engine = session.getEngine()!;
+
+        engine.state.orderMgr.applyOrder(makePurePassOrder(remoteUnitId));
+
+        const engineBefore = session.getEngine();
+        const restoreSpy = vi.spyOn(session, 'restoreFromInMemorySnapshot');
+        const rewindEvents: Array<{ type: string }> = [];
+        const unsubRewind = session.subscribe((ev) => {
+            if (ev.type === 'sequential_targeting_rewind') rewindEvents.push(ev);
+        });
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            persistCommittedOrder: vi.fn().mockResolvedValue(true),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
+
+        const its = session.interactiveTargeting;
+        expect(its.wouldCommitInPlace(session)).toBe(true);
+        expect(its['assumedWaitUnitIds'] as Set<string>).not.toContain(remoteUnitId);
+
+        await its.commit(session);
+
+        expect(restoreSpy).not.toHaveBeenCalled();
+        expect(session.getEngine()).toBe(engineBefore);
+        expect(rewindEvents).toHaveLength(0);
+
+        unsubRewind();
+        restoreSpy.mockRestore();
+        session.destroy();
+    });
+
+    it('(b) pure-pass held order mid-preview commits in-place and registers dedupe key', async () => {
+        const fixture = await mountLightBlastSessionFixture();
+        const { session, casterUnitId, remoteUnitId, atTick, blastPixel } = fixture;
+        const passOrder = makePurePassOrder(remoteUnitId);
+        const passKey = hashOrderId('p2', atTick, passOrder);
+
+        const engineBefore = session.getEngine();
+        const restoreSpy = vi.spyOn(session, 'restoreFromInMemorySnapshot');
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            persistCommittedOrder: vi.fn().mockResolvedValue(true),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
+
+        const its = session.interactiveTargeting;
+        expect(its['assumedWaitUnitIds'] as Set<string>).toContain(remoteUnitId);
+        its.holdRemoteOrder(atTick, passOrder, passKey);
+        expect(its.wouldCommitInPlace(session)).toBe(true);
+
+        const queueSpy = vi.spyOn(OrderManager.prototype, 'queueOrder');
+
+        await its.commit(session);
+
+        expect(restoreSpy).not.toHaveBeenCalled();
+        expect(session.getEngine()).toBe(engineBefore);
+
+        queueSpy.mockClear();
+        session.applyHeldRemoteOrders([{ atTick, order: passOrder, key: passKey }]);
+        expect(queueSpy).not.toHaveBeenCalled();
+
+        queueSpy.mockRestore();
+        restoreSpy.mockRestore();
+        session.destroy();
+    });
+
+    it('(c) held real ability commits via rollback and applies the held order once', async () => {
+        const fixture = await mountLightBlastSessionFixture();
+        const { session, casterUnitId, remoteUnitId, atTick, blastPixel } = fixture;
+        const realOrder: BattleOrder = {
+            unitId: remoteUnitId,
+            abilityId: DOUBLE_PUNCH_ABILITY_ID,
+            targets: [],
+            endTurn: true,
+        };
+        const realKey = hashOrderId('p2', atTick, realOrder);
+
+        const restoreSpy = vi.spyOn(session, 'restoreFromInMemorySnapshot');
+        const rewindEvents: Array<{ type: string }> = [];
+        const unsubRewind = session.subscribe((ev) => {
+            if (ev.type === 'sequential_targeting_rewind') rewindEvents.push(ev);
+        });
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            submitOrder: vi.fn().mockResolvedValue(undefined),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
+
+        const its = session.interactiveTargeting;
+        its.holdRemoteOrder(atTick, realOrder, realKey);
+        expect(its.wouldCommitInPlace(session)).toBe(false);
+
+        const queueSpy = vi.spyOn(OrderManager.prototype, 'queueOrder');
+
+        await its.commit(session);
+
+        expect(restoreSpy).toHaveBeenCalledTimes(1);
+        expect(rewindEvents).toHaveLength(1);
+        expect(queueSpy).toHaveBeenCalledTimes(1);
+        expect(queueSpy).toHaveBeenCalledWith(atTick, realOrder);
+
+        unsubRewind();
+        queueSpy.mockRestore();
+        restoreSpy.mockRestore();
+        session.destroy();
+    });
+
+    it('(d) held wait with movePath commits via rollback', async () => {
+        const fixture = await mountLightBlastSessionFixture();
+        const { session, casterUnitId, remoteUnitId, atTick, blastPixel } = fixture;
+        const moveWait: BattleOrder = {
+            unitId: remoteUnitId,
+            abilityId: 'wait',
+            targets: [],
+            endTurn: true,
+            movePath: [{ col: 6, row: 5 }],
+        };
+        const moveKey = hashOrderId('p2', atTick, moveWait);
+
+        const restoreSpy = vi.spyOn(session, 'restoreFromInMemorySnapshot');
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            submitOrder: vi.fn().mockResolvedValue(undefined),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
+
+        const its = session.interactiveTargeting;
+        its.holdRemoteOrder(atTick, moveWait, moveKey);
+        expect(its.wouldCommitInPlace(session)).toBe(false);
+
+        await its.commit(session);
+
+        expect(restoreSpy).toHaveBeenCalledTimes(1);
+
+        restoreSpy.mockRestore();
+        session.destroy();
+    });
+});
+
+describe('non-host in-place commit (Step 3)', () => {
+    it('wouldCommitInPlace is true for non-host when persistence path and held pure passes align', async () => {
+        const fixture = await mountLightBlastSessionFixture();
+        const { session, casterUnitId, remoteUnitId, atTick } = fixture;
+
+        const nonHostSession = new BattleSession({
+            api: makeApiStub(),
+            missionId: 'dark_awakening',
+            playerId: 'p2',
+            isHost: false,
+        });
+        nonHostSession.updateLobbyContext(
+            {
+                p1: { id: 'p1', name: 'P1', color: '#fff' },
+                p2: { id: 'p2', name: 'P2', color: '#000' },
+            },
+            { p1: 'warrior', p2: 'ranger' },
+        );
+
+        const engine = session.getEngine()!;
+        const mark = engine.toJSON();
+        mark.checkpointRuntimeFingerprintHex = engine.getRuntimeFingerprintHex();
+
+        const its = nonHostSession.interactiveTargeting;
+        its['_isActive'] = true;
+        its['_abilityId'] = LIGHT_BLAST_ID;
+        its['_unitId'] = casterUnitId;
+        its['mark'] = mark;
+        its['originalOrder'] = {
+            unitId: casterUnitId,
+            abilityId: LIGHT_BLAST_ID,
+            targets: [],
+            endTurn: true,
+        };
+        its['assumedWaitUnitIds'] = new Set([remoteUnitId]);
+        const passOrder = makePurePassOrder(remoteUnitId);
+        its.holdRemoteOrder(atTick, passOrder, hashOrderId('p1', atTick, passOrder));
+
+        nonHostSession.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            submitOrder: vi.fn().mockResolvedValue(undefined),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        expect(its.wouldCommitInPlace(nonHostSession)).toBe(true);
+
+        session.destroy();
+        nonHostSession.destroy();
+    });
+});
+
+describe('Reset/Replay pre-restore refresh (Step 2)', () => {
+    it('held order registered before reset() is pending after restore', async () => {
+        const fixture = await mountLightBlastSessionFixture();
+        const { session, casterUnitId, remoteUnitId, atTick } = fixture;
+        const passOrder = makePurePassOrder(remoteUnitId);
+        const passKey = hashOrderId('p2', atTick, passOrder);
+
+        session.setNetAdapter({
+            refreshRemoteOrdersForTargetingPreview: vi.fn().mockResolvedValue(undefined),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        const previewEngine = session.getEngine()!;
+        const its = session.interactiveTargeting;
+
+        its.begin(
+            {
+                unitId: casterUnitId,
+                abilityId: LIGHT_BLAST_ID,
+                targets: [],
+                endTurn: true,
+            },
+            session,
+        );
+
+        const paused = stepUntil(
+            previewEngine,
+            () => previewEngine.waitingForTargetInput?.label === LIGHT_BLAST_TARGET_LABEL,
+            120,
+        );
+        expect(paused).toBe(true);
+
+        its.holdRemoteOrder(atTick, passOrder, passKey);
+
+        await its.reset(session);
+
+        const restoredEngine = session.getEngine()!;
+        expect(its.isActive).toBe(false);
+        expect(
+            restoredEngine.state.orderMgr.hasPendingEndTurnOrderForUnit(remoteUnitId, atTick),
+        ).toBe(true);
+
+        session.destroy();
     });
 });

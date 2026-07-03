@@ -7,9 +7,9 @@
  *                     preview order with targetsByLabel: {}, start the engine. Rollback mode
  *                     also suppresses onParallelBatchResolved; in-place relies on flag guards.
  *   2. resolveTarget() — called by UI when the player clicks a target; unpauses engine.
- *   3. reset()      — restore to mark, discard collected targets.
- *   4. replay()     — restore to mark, re-queue order with all collected targets pre-filled.
- *   5. commit()     — rollback: restore to mark, apply held remote orders, submit via BattleNet;
+ *   3. reset()      — refresh remote orders, restore to mark, discard collected targets.
+ *   4. replay()     — refresh remote orders, restore to mark, re-queue order with all collected targets pre-filled.
+ *   5. commit()     — refresh remote orders; rollback: restore to mark, apply held remote orders, submit via BattleNet;
  *                     in-place (solo host): keep preview state, persist order without re-apply.
  */
 
@@ -42,6 +42,17 @@ export interface HeldRemoteOrder {
     order: BattleOrder;
     /** Dedupe key computed at hold time (mirrors BattleSession.appliedRemoteOrderKeys logic). */
     key: string | null;
+}
+
+/** True when a held remote row is a stand-in pass matching the preview's assumed wait. */
+export function isPurePassOrder(order: BattleOrder): boolean {
+    if (order.abilityId !== 'wait' || order.endTurn !== true) return false;
+    if (order.movePath != null && order.movePath.length > 0) return false;
+    if (order.moveTargetUnitId != null) return false;
+    if (order.moveTargetPixel != null) return false;
+    if (order.targets != null && order.targets.length > 0) return false;
+    if (order.movementByLabel != null && Object.keys(order.movementByLabel).length > 0) return false;
+    return true;
 }
 
 /** Build the committed BattleOrder from frozen labels + collected targets/movement (rollback and in-place). */
@@ -82,12 +93,10 @@ export class InteractiveTargetingSession {
     private _currentLabel: string | null = null;
     /** SelectTargetDef labels frozen at begin() — used for all-collected checks and commit mapping. */
     private _selectLabels: readonly string[] = [];
-    /** Saved onParallelBatchResolved callback, replaced with no-op during preview. */
-    private savedOnParallelBatchResolved: ((batchAtTick: number) => void | Promise<void>) | null = null;
     /** False until the preview order is queued (deferred for t=0 first-select abilities). */
     private _previewOrderQueued = false;
-    /** Rollback restores on commit; in-place keeps preview state (solo single-waiter only). */
-    private _mode: 'rollback' | 'inPlace' = 'rollback';
+    /** Other batch waiters that received an assumed wait at begin() (not already confirmed). */
+    private assumedWaitUnitIds: Set<string> = new Set();
 
     // -------------------------------------------------------------------------
     // Public state
@@ -114,11 +123,6 @@ export class InteractiveTargetingSession {
         return this._selectLabels;
     }
 
-    /** Preview lifetime mode chosen in begin(); in-place is solo host with a single batch waiter. */
-    get mode(): 'rollback' | 'inPlace' {
-        return this._mode;
-    }
-
     /** True when every frozen label has a collected target. */
     allTargetsCollected(): boolean {
         return this._selectLabels.length > 0
@@ -137,10 +141,8 @@ export class InteractiveTargetingSession {
      * Start an interactive targeting preview for the given ability.
      *
      * - Snapshots engine state (the mark).
-     * - Chooses `rollback` vs `inPlace` mode (solo host + sole batch waiter → in-place).
-     * - In rollback mode, replaces `onParallelBatchResolved` with null and auto-queues wait
-     *   for other batch waiters. In-place keeps the real callback (flag-guarded) and skips
-     *   auto-wait because no other local units need stand-in orders.
+     * - Replaces `onParallelBatchResolved` with null and auto-queues assumed waits for other
+     *   batch waiters that are not already confirmed (commit-time logic decides in-place vs rollback).
      * - Queues a preview order with `targetsByLabel: {}` (interactive sentinel).
      *   When the first select is deferred (elapsed 0 or windup lunge), the order is held
      *   until that target is collected so beginActiveCast sees positional targets.
@@ -177,7 +179,7 @@ export class InteractiveTargetingSession {
         this.heldRemoteOrders.clear();
         this._currentLabel = null;
         this._previewOrderQueued = false;
-        this._mode = session.isSoloHost() && batch.waiters.length === 1 ? 'inPlace' : 'rollback';
+        this.assumedWaitUnitIds = new Set();
 
         // Snapshot the pause state (include runtime fingerprint so restore does not reset to fingerprintInitial).
         const markState = engine.toJSON();
@@ -189,22 +191,21 @@ export class InteractiveTargetingSession {
         engine.isSequentialTargetingPreview = true;
         engine.sequentialTargetingPreviewCast = { unitId, abilityId, startRound: engine.roundNumber };
 
-        if (this._mode === 'rollback') {
-            engine.setOnParallelBatchResolved(null);
+        engine.setOnParallelBatchResolved(null);
 
-            // In multiplayer, other players haven't submitted their orders yet.
-            // Queue "wait" for every other waiter so the preview engine can advance
-            // without blocking on remote input.
-            for (const waiter of batch.waiters) {
-                if (waiter.unitId !== unitId) {
-                    engine.state.orderMgr.applyOrder({
-                        unitId: waiter.unitId,
-                        abilityId: 'wait',
-                        targets: [],
-                        endTurn: true,
-                    });
-                }
+        // Other players may not have submitted yet — queue assumed waits so the preview can advance.
+        for (const waiter of batch.waiters) {
+            if (waiter.unitId === unitId) continue;
+            if (engine.state.orderMgr.hasPendingEndTurnOrderForUnit(waiter.unitId, batch.atTick)) {
+                continue;
             }
+            engine.state.orderMgr.applyOrder({
+                unitId: waiter.unitId,
+                abilityId: 'wait',
+                targets: [],
+                endTurn: true,
+            });
+            this.assumedWaitUnitIds.add(waiter.unitId);
         }
 
         const deferredLabel = findPreviewDeferredSelectLabel(ability, caster, engine);
@@ -333,9 +334,38 @@ export class InteractiveTargetingSession {
     }
 
     /**
+     * Read-only commit-time predicate: in-place when every assumed-wait unit has a held pure pass,
+     * no other held rows exist, and a host persistence path is available (non-host in Step 3).
+     */
+    wouldCommitInPlace(session: BattleSession): boolean {
+        if (!this.mark || !this._unitId) return false;
+
+        const batch = this.mark.waitingForOrders;
+        if (!batch) return false;
+
+        const markWaiterIds = new Set(batch.waiters.map((w) => w.unitId));
+
+        if (!session.isInPlaceCommitPersistenceAvailable()) return false;
+
+        for (const [unitId, held] of this.heldRemoteOrders) {
+            if (!markWaiterIds.has(unitId)) return false;
+            if (!this.assumedWaitUnitIds.has(unitId)) return false;
+            if (!isPurePassOrder(held.order)) return false;
+        }
+
+        for (const unitId of this.assumedWaitUnitIds) {
+            const held = this.heldRemoteOrders.get(unitId);
+            if (!held || !isPurePassOrder(held.order)) return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Abort the preview, restore engine to the mark state, and apply held remote orders.
      */
-    reset(session: BattleSession): void {
+    async reset(session: BattleSession): Promise<void> {
+        await session.refreshRemoteOrdersBeforeInteractiveTargetingAction();
         this._restoreToMark(session);
         Object.keys(this.collectedTargets).forEach((k) => delete this.collectedTargets[k]);
         this.collectedMovementByLabel = {};
@@ -360,7 +390,7 @@ export class InteractiveTargetingSession {
      * Restore to mark and re-queue the ability order with all targets collected so far
      * pre-filled in `targetsByLabel`, so the engine runs without pausing again.
      */
-    replay(session: BattleSession): void {
+    async replay(session: BattleSession): Promise<void> {
         if (!this._abilityId || !this._unitId || !this.originalOrder) return;
         const unitId = this._unitId;
         const targets = { ...this.collectedTargets };
@@ -372,6 +402,7 @@ export class InteractiveTargetingSession {
             : undefined;
         const baseOrder = this.originalOrder;
 
+        await session.refreshRemoteOrdersBeforeInteractiveTargetingAction();
         this._restoreToMark(session);
 
         const engine = session.getEngine();
@@ -425,7 +456,6 @@ export class InteractiveTargetingSession {
         const abilityId = this._abilityId;
         const unitId = this._unitId;
         const markSnapshot = this.mark;
-        const commitMode = this._mode;
 
         // atTick must be present in the mark snapshot.
         const atTick = markSnapshot.waitingForOrders?.atTick;
@@ -441,6 +471,8 @@ export class InteractiveTargetingSession {
         );
         if (!casterInSnapshot) return;
 
+        await session.refreshRemoteOrdersBeforeInteractiveTargetingAction();
+
         const collected = { ...this.collectedTargets };
         const selectLabels = [...this._selectLabels];
         const movementByLabel = Object.keys(this.collectedMovementByLabel).length > 0
@@ -450,6 +482,7 @@ export class InteractiveTargetingSession {
             ? [...this._orderPositionalTargets]
             : undefined;
         const baseOrder = this.originalOrder;
+        const inPlace = this.wouldCommitInPlace(session);
         const heldRows = [...this.heldRemoteOrders.values()];
         this.heldRemoteOrders.clear();
 
@@ -461,13 +494,13 @@ export class InteractiveTargetingSession {
             positionalTargetsOverride,
         );
 
-        if (commitMode === 'inPlace') {
+        if (inPlace) {
+            this._registerHeldPurePassDedupeKeys(session, heldRows);
             await this._commitInPlace(session, {
                 realOrder,
                 atTick,
                 unitId,
                 abilityId,
-                heldRows,
             });
             return;
         }
@@ -503,12 +536,9 @@ export class InteractiveTargetingSession {
             atTick: number;
             unitId: string;
             abilityId: string;
-            heldRows: HeldRemoteOrder[];
         },
     ): Promise<void> {
-        const { realOrder, atTick, unitId, abilityId, heldRows } = ctx;
-
-        session.applyHeldRemoteOrders(heldRows);
+        const { realOrder, atTick, unitId, abilityId } = ctx;
 
         const persisted = await session.persistInPlaceCommittedTargetingOrder(realOrder, atTick);
         if (!persisted) {
@@ -524,9 +554,23 @@ export class InteractiveTargetingSession {
         engine.waitingForTargetInput = null;
         engine.isPaused = false;
 
+        session.rebindEngineCallbacks();
+
         this._clearActive();
 
         session.reemitSuppressedTerminalOutcome(engine);
+    }
+
+    /** Register dedupe keys for held pure-pass rows without re-queueing (assumed wait already ran). */
+    private _registerHeldPurePassDedupeKeys(session: BattleSession, heldRows: HeldRemoteOrder[]): void {
+        const keys: string[] = [];
+        for (const { order, key } of heldRows) {
+            if (!isPurePassOrder(order)) continue;
+            if (key != null) keys.push(key);
+        }
+        if (keys.length > 0) {
+            session.seedRemoteOrderDedupeKeys(keys);
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -542,6 +586,8 @@ export class InteractiveTargetingSession {
         opts?: { applyHeldRemoteOrders?: boolean },
     ): void {
         if (!this.mark) return;
+        // Capture-frame signal for the DOM rewind overlay (must fire before engine teardown).
+        session.emitSequentialTargetingRewind();
         session.restoreFromInMemorySnapshot(this.mark);
         const applyHeld = opts?.applyHeldRemoteOrders !== false;
         if (applyHeld) {
@@ -562,6 +608,6 @@ export class InteractiveTargetingSession {
         this.mark = null;
         this.originalOrder = null;
         this._previewOrderQueued = false;
-        this._mode = 'rollback';
+        this.assumedWaitUnitIds = new Set();
     }
 }

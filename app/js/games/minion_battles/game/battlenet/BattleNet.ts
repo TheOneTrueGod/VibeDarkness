@@ -24,6 +24,7 @@ import {
 	BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_GAP,
 	BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_POLLS,
 	BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS,
+	ITS_PRE_ACTION_POLL_TIMEOUT_MS,
 } from './constants';
 import type {
 	ApplyRemoteOrdersResult,
@@ -36,6 +37,7 @@ import type {
 	BattleNetPollOnceOptions,
 	BattleHeartbeatApiResult,
 	BattleNetFactoryArgs,
+	SubmitOrderOptions,
 } from './types';
 
 export {
@@ -60,6 +62,7 @@ export type {
 	BattleNetPollOnceOptions,
 	BattleNetFactoryArgs,
 	RemoteOrderWireRow,
+	SubmitOrderOptions,
 } from './types';
 
 /** Monotonic id for `traceBattleHeartbeatLine` (`heartbeatTraceInstanceId`). */
@@ -290,7 +293,23 @@ export class BattleNet implements BattleNetContext {
 		}
 	}
 
-	async submitOrder(order: BattleOrder, atTick: number): Promise<void> {
+	/**
+	 * True when {@link submitOrder} is not blocked by recovery or post-resync ack gates.
+	 * Shared with interactive targeting in-place commit (`wouldCommitInPlace`).
+	 */
+	isOrderSubmitPathAvailable(): boolean {
+		return !this.isRecovering && !this.syncStatusController.isAwaitingUserAck();
+	}
+
+	private registerSkipLocalApplyDedupe(idHash: string): void {
+		if (this.appliedOrderIdHashes.has(idHash)) {
+			return;
+		}
+		this.appliedOrderIdHashes.add(idHash);
+		this.session.seedRemoteOrderDedupeKeys([idHash]);
+	}
+
+	async submitOrder(order: BattleOrder, atTick: number, opts?: SubmitOrderOptions): Promise<void> {
 		if (this.isRecovering) {
 			const whyImmediateSubmitSkipped =
 				'submitOrder did not reach appendBattleOrder: desync recovery is active';
@@ -351,6 +370,7 @@ export class BattleNet implements BattleNetContext {
 			return;
 		}
 		const idHash = hashOrderId(this.playerId, atTick, order);
+		const skipLocalApply = opts?.skipLocalApply === true;
 		const localEngineTick = this.session.getEngineTick();
 		const localLatestFingerprint = this.session.getLatestFingerprint();
 		const localLatestFingerprintTick = localLatestFingerprint?.tick ?? null;
@@ -364,7 +384,10 @@ export class BattleNet implements BattleNetContext {
 				return;
 			}
 			if (!this.deferredLocalOrders.some((r) => r.idHash === idHash)) {
-				this.deferLocalOrder(idHash, atTick, order, false);
+				if (skipLocalApply) {
+					this.registerSkipLocalApplyDedupe(idHash);
+				}
+				this.deferLocalOrder(idHash, atTick, order, skipLocalApply);
 			}
 			this.syncStatusController.presentWaitingForHostLocalAheadOfHeartbeat();
 			this.emitHostCatchupWaitState();
@@ -393,7 +416,8 @@ export class BattleNet implements BattleNetContext {
 
 		// Non-host: keep optimistic local apply *before* POST deferral gates (deferred submits must still
 		// queue locally). Host defers local apply until after append so merge-applied cannot race pending JSONL.
-		if (!this.appliedOrderIdHashes.has(idHash) && !this.isHost) {
+		// In-place ITS commit passes skipLocalApply — engine already ran the turn during preview.
+		if (!skipLocalApply && !this.appliedOrderIdHashes.has(idHash) && !this.isHost) {
 			const applyResult = this.session.applyRemoteOrders([
 				{ atTick, order, idHash, playerId: this.playerId },
 			]);
@@ -423,6 +447,10 @@ export class BattleNet implements BattleNetContext {
 					queuedDeferredBeforeSubmit: this.deferredLocalOrders.length,
 				},
 			});
+		}
+
+		if (skipLocalApply && !this.isHost) {
+			this.registerSkipLocalApplyDedupe(idHash);
 		}
 
 		// Defer only when more than one tick ahead of the host's last completed tick.
@@ -592,6 +620,38 @@ export class BattleNet implements BattleNetContext {
 	 */
 	async debugLogLocalStateAndSubmitSnapshot(): Promise<void> {
 		return this.snapshotPersistence.debugLogLocalStateAndSubmitSnapshot();
+	}
+
+	/**
+	 * Best-effort pull of remote orders before ITS reset/replay/commit. Reuses {@link pollOnce}
+	 * (rows route to the ITS hold map while a preview is active). Never throws; resolves after
+	 * {@link ITS_PRE_ACTION_POLL_TIMEOUT_MS} even on network failure or concurrent poll.
+	 */
+	async refreshRemoteOrdersForTargetingPreview(): Promise<void> {
+		const deadline = Date.now() + ITS_PRE_ACTION_POLL_TIMEOUT_MS;
+		const pollWaitSliceMs = 25;
+
+		try {
+			while (this.isPolling && Date.now() < deadline) {
+				await new Promise<void>((resolve) => {
+					setTimeout(resolve, pollWaitSliceMs);
+				});
+			}
+
+			if (this.isRecovering || this.isPolling) {
+				return;
+			}
+
+			const remainingMs = Math.max(0, deadline - Date.now());
+			await Promise.race([
+				this.pollOnce({ pollSource: 'its-refresh', forceHttp: true }),
+				new Promise<void>((resolve) => {
+					setTimeout(resolve, remainingMs);
+				}),
+			]);
+		} catch {
+			// Best-effort — Reset/Replay/commit must not hang on network errors.
+		}
 	}
 
 	async pollOnce(opts?: BattleNetPollOnceOptions): Promise<void> {

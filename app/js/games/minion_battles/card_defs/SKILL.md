@@ -143,11 +143,19 @@ Implement the rest of `AbilityStatic` (`getDescription`, `getAbilityStates`, `ta
 | `start`, `end` | Seconds from cast start; **half-open** `[start, end)` (`end` exclusive). |
 | `abilityPhase` | `AbilityPhase` for ring UI and timeline colour. |
 | `timelineLabel` / `timelineDescription` | Optional; battle timeline tooltips default from phase if omitted. |
+| `targetDef` | Optional targeting for this interval (e.g. `SelectTargetDef` with `kind: 'select'`). See **Sequential targeting playahead** below. |
 | `conditionalCancel` | Optional mid-cast decision point (evaluated on **interval exit**). When the condition is true, the engine pauses and the player may pick an eligible ability or `wait` to resume the current cast. See `ConditionalCancelDef` in `abilities/abilityTimings.ts`. |
 
 **Order matters** when intervals overlap: the battle timeline's single merged band uses **first-listed wins** for overlapping time. Total active duration for the engine is **`max(end)`** across intervals (see `getTotalAbilityDuration`).
 
 Legacy `{ duration, abilityPhase }` remains in the type union for adapters/tests; new card defs should use interval rows only.
+
+#### Sequential targeting playahead
+
+A `targetDef: { kind: 'select', ... }` on a timing interval opts the ability into the **interactive sequential targeting** playahead (local preview that pauses for each select). Full flow: `docs/interactive-sequential-targeting.md`.
+
+- **t=0 selects** and **windup-lunge** abilities rely on deferred-first-select handling (`findPreviewDeferredSelectLabel`) — the preview does not queue the cast until the first target is chosen.
+- Select defs must live on **raw** timing entries: `getSelectTargetDefsFromTimings` reads raw entries (before normalisation / coop-tail-split) — see `abilities/targeting.ts` (~line 93). Do not put `targetDef` only on a post-split interval.
 
 #### Entombed / inside-wall conditional cancel (rock tree)
 
@@ -262,6 +270,7 @@ For longer-range or more powerful repositions, use `amount: 2`. Abilities that d
 - [ ] Character's card list includes the new card id if the character should have the card.
 - [ ] If a **new enemy character** was introduced: add it to `BESTIARY_ENTRIES` in `app/js/components/BestiaryPanel.tsx` and ensure its sprite key appears in `SPRITE_ICONS`.
 - [ ] If the ability inflicts knockback: use `targetUnit.applyKnockback` with serializable params.
+- [ ] If the ability has a select `targetDef`, confirm it behaves under sequential targeting (see playahead section).
 
 ### Juice / feel
 

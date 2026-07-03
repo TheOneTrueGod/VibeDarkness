@@ -90,6 +90,10 @@ See **`## Command cards and delegated abilities`** in `card_defs/SKILL.md` and t
 - After edits under `app/js/`: run **`npm run lint`** (ESLint: `eslint .`) **first** and fix reported **errors** before starting Vitest. Then run Vitest **twice**: (1) **`npx vitest run --changed`** — tests tied to uncommitted changes; if the working tree is clean vs `HEAD`, use **`npx vitest run --changed HEAD~1`** for the latest commit — (2) **`npm run test`** for the full suite (`SimulationRunner.test.ts` and ability tests as applicable). Do not run Vitest until ESLint has completed successfully.
 - UI-only tweaks (layout, `cellPx`, playback controls) stay in `AbilityTestPage` / `MiniTerrainView` unless scenario data must change.
 
+## Sequential targeting playahead
+
+Scenario harnesses cover the **committed** order path only (orders applied, then ticks). The interactive playahead pause/inject path is tested in `game/interactiveTargeting.test.ts` (Scenarios A–H plus commit-time in-place / rewind / reset-refresh cases from `docs/plans/sequential-targeting-rollback-ux.md`). When an ability misbehaves only during targeting preview, add coverage there — not a new AbilityTest scenario.
+
 ## Related skills
 
 - **`working-on-minion-battles`** — overall Minion Battles layout.

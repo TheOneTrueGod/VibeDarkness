@@ -59,7 +59,8 @@ export type BattleSessionEvent =
     | { type: 'round_progress'; progress: number }
     | { type: 'pause_state'; paused: boolean; waitingForOrders: WaitingForOrders | null }
     | { type: 'card_state'; engine: GameEngine }
-    | { type: 'order_submit_failed'; unitId: string; abilityId: string };
+    | { type: 'order_submit_failed'; unitId: string; abilityId: string }
+    | { type: 'sequential_targeting_rewind' };
 
 export type BattleSessionListener = (event: BattleSessionEvent) => void;
 
@@ -143,6 +144,30 @@ export class BattleSession implements BattleSessionHandle {
         if (!this.config.isHost) return false;
         const playerIds = Object.keys(this.players);
         return playerIds.length === 1 && playerIds[0] === this.config.playerId;
+    }
+
+    isHost(): boolean {
+        return this.config.isHost;
+    }
+
+    /** True when BattleNet can accept an order POST/defer (not recovering / awaiting resync ack). */
+    isInPlaceCommitPersistenceAvailable(): boolean {
+        return this.netAdapter?.isOrderSubmitPathAvailable() ?? false;
+    }
+
+    /**
+     * Best-effort fetch of peer orders before ITS reset/replay/commit. No-op without a net adapter.
+     */
+    async refreshRemoteOrdersBeforeInteractiveTargetingAction(): Promise<void> {
+        await this.netAdapter?.refreshRemoteOrdersForTargetingPreview?.();
+    }
+
+    /** Re-bind host engine callbacks after an in-place preview commit (begin() nulls batch-resolved). */
+    rebindEngineCallbacks(): void {
+        const engine = this.engine;
+        if (engine) {
+            this.bindEngineCallbacks(engine);
+        }
     }
 
     private applyPlayerPortraitOverrides(engine: GameEngine, portraitIds: Record<string, string> | undefined): void {
@@ -819,16 +844,27 @@ export class BattleSession implements BattleSessionHandle {
 
     /**
      * In-place interactive commit: persist the finalized order without re-applying it locally.
+     * Host: append + merge via {@link BattleNet.persistCommittedOrder}.
+     * Non-host: POST via {@link BattleNet.submitOrder} with `skipLocalApply` (deferral gates unchanged).
      * Registers the wire dedupe key in {@link appliedRemoteOrderKeys} on success.
      */
     async persistInPlaceCommittedTargetingOrder(order: BattleOrder, atTick: number): Promise<boolean> {
-        if (!this.config.isHost || !this.netAdapter) return false;
+        if (!this.netAdapter) return false;
+        if (!this.netAdapter.isOrderSubmitPathAvailable()) return false;
+
         const idHash = hashOrderId(this.config.playerId, atTick, order);
-        const ok = await this.netAdapter.persistCommittedOrder(order, atTick);
-        if (ok) {
-            this.appliedRemoteOrderKeys.add(idHash);
+
+        if (this.config.isHost) {
+            const ok = await this.netAdapter.persistCommittedOrder(order, atTick);
+            if (ok) {
+                this.appliedRemoteOrderKeys.add(idHash);
+            }
+            return ok;
         }
-        return ok;
+
+        await this.netAdapter.submitOrder(order, atTick, { skipLocalApply: true });
+        this.appliedRemoteOrderKeys.add(idHash);
+        return true;
     }
 
     /**
@@ -848,6 +884,11 @@ export class BattleSession implements BattleSessionHandle {
     /** Emit an order_submit_failed event to all session listeners. */
     emitOrderSubmitFailed(unitId: string, abilityId: string): void {
         this.emit({ type: 'order_submit_failed', unitId, abilityId });
+    }
+
+    /** Emit a sequential_targeting_rewind event (UI captures the frame before restore). */
+    emitSequentialTargetingRewind(): void {
+        this.emit({ type: 'sequential_targeting_rewind' });
     }
 
     /** Host: force a wait order and persist checkpoint (skip turn). */

@@ -751,6 +751,97 @@ describe('BattleNet', () => {
         expect((api as unknown as { appendBattleOrder: ReturnType<typeof vi.fn> }).appendBattleOrder).toHaveBeenCalledTimes(1);
     });
 
+    it('submitOrder with skipLocalApply registers dedupe without optimistic local apply', async () => {
+        const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
+        const seedRemoteOrderDedupeKeys = vi.fn();
+        const appendBattleOrder = vi.fn(async (_l: string, _g: string, body: { idHash?: string }) => ({
+            accepted: true,
+            idHash: body.idHash ?? 'idhash',
+        }));
+        const api = makeApi({
+            appendBattleOrder,
+            getBattleHeartbeat: vi.fn(async () => ({
+                hostTick: 20,
+                hostFingerprint: 'aaaaaaaaaaaaaaaa',
+                ordersTipTick: 20,
+                pausedAtTick: null,
+                expectingFromPlayerIds: null,
+                initialFingerprint: '0011223344556677',
+            })),
+        });
+        const session = makeSession({
+            applyRemoteOrders,
+            seedRemoteOrderDedupeKeys,
+            getEngineTick: () => 0,
+        });
+        const net = new BattleNet({
+            api,
+            session,
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const order = makeOrder('inplace');
+
+        await net.submitOrder(order, 1, { skipLocalApply: true });
+
+        expect(applyRemoteOrders).not.toHaveBeenCalled();
+        expect(seedRemoteOrderDedupeKeys).toHaveBeenCalledTimes(1);
+        expect(appendBattleOrder).toHaveBeenCalledTimes(1);
+    });
+
+    it('submitOrder with skipLocalApply defers POST when client is ahead of heartbeat', async () => {
+        const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
+        const seedRemoteOrderDedupeKeys = vi.fn();
+        const appendBattleOrder = vi.fn();
+        const api = makeApi({
+            appendBattleOrder,
+            getBattleHeartbeat: vi.fn(async () => ({
+                hostTick: 20,
+                hostFingerprint: 'aaaaaaaaaaaaaaaa',
+                ordersTipTick: 20,
+                pausedAtTick: null,
+                expectingFromPlayerIds: null,
+                initialFingerprint: '0011223344556677',
+            })),
+        });
+        const session = makeSession({
+            applyRemoteOrders,
+            seedRemoteOrderDedupeKeys,
+            getEngineTick: () => 50,
+        });
+        const net = new BattleNet({
+            api,
+            session,
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const order = makeOrder('ahead-inplace');
+
+        await net.submitOrder(order, 20, { skipLocalApply: true });
+
+        expect(applyRemoteOrders).not.toHaveBeenCalled();
+        expect(seedRemoteOrderDedupeKeys).toHaveBeenCalledTimes(1);
+        expect(appendBattleOrder).not.toHaveBeenCalled();
+    });
+
+    it('isOrderSubmitPathAvailable is false while recovering', () => {
+        const net = new BattleNet({
+            api: makeApi(),
+            session: makeSession(),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        expect(net.isOrderSubmitPathAvailable()).toBe(true);
+        vi.spyOn(net, 'isRecovering', 'get').mockReturnValue(true);
+        expect(net.isOrderSubmitPathAvailable()).toBe(false);
+    });
+
     it('defers non-host order POST until heartbeat hostTick catches up', async () => {
         const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
         let heartbeatCalls = 0;

@@ -8,6 +8,7 @@ See `minion_battles/AGENTS.md` for the overall architecture (tick loop, data flo
 
 - `game/effects/AGENTS.md` — Effect and EffectEmitter system (visual-only effects vs game-tick factories)
 - `game/lighting/AGENTS.md` — Lighting engine: per-tile light grid, source management, decay, darkness corruption
+- `game/interaction/AGENTS.md` — Interactive targeting session (ITS) playahead and commit-time in-place vs rollback
 
 ## Key files at this level
 

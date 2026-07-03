@@ -130,6 +130,12 @@ export type BattleNetEventMap = {
 export type BattleNetListener<K extends keyof BattleNetEventMap> = (payload: BattleNetEventMap[K]) => void;
 export type BattleNetUnsub = () => void;
 
+/** Options for {@link BattleNet.submitOrder}. */
+export type SubmitOrderOptions = {
+    /** Non-host in-place ITS commit: engine already reflects the order; POST/defer only. */
+    skipLocalApply?: boolean;
+};
+
 export interface BattleApi {
     appendBattleOrder(
         lobbyId: string,
@@ -241,8 +247,8 @@ export type BattleNetPollOnceOptions = {
      * minimum spacing between heartbeat GETs (diagnostics only).
      */
     forceHttp?: boolean;
-    /** Who invoked `BattleNet.pollOnce` (poll loop timer vs `visibilitychange`). */
-    pollSource?: 'timer' | 'visibility';
+    /** Who invoked `BattleNet.pollOnce` (poll loop timer vs `visibilitychange` vs ITS pre-action). */
+    pollSource?: 'timer' | 'visibility' | 'its-refresh';
 };
 
 export type BattleHeartbeatApiResult = Awaited<ReturnType<BattleApi['getBattleHeartbeat']>>;

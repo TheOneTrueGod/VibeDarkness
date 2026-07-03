@@ -55,3 +55,6 @@ export const BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_POLLS = 3;
  * unblock us and escalate to `requestResync('stuck-paused-host-ahead')`.
  */
 export const BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS = 2;
+
+/** Max wait for a best-effort ITS reset/replay/commit order refresh (`BattleNet.pollOnce`). */
+export const ITS_PRE_ACTION_POLL_TIMEOUT_MS = 3000;
