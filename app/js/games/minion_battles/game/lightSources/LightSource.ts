@@ -68,6 +68,7 @@ export class LightSource {
             radius: this.radius,
             ...(this.color !== undefined ? { color: this.color } : {}),
             ...(this.followUnitId !== undefined ? { followUnitId: this.followUnitId } : {}),
+            ...(this.overlapMethod !== undefined ? { overlapMethod: this.overlapMethod } : {}),
             decay: { ...this.decay },
         };
     }
@@ -82,6 +83,7 @@ export class LightSource {
             color: data.color as number | undefined,
             followUnitId: data.followUnitId as string | undefined,
             decay: data.decay as LightSourceDecay,
+            overlapMethod: data.overlapMethod as OverlapMethod | undefined,
         });
         ls.active = data.active as boolean;
         return ls;

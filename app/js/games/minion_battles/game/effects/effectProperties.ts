@@ -6,6 +6,8 @@ export interface ExplosionEffectProperties {
     color?: number;
     /** Whether the blast expands outward or collapses inward. Default: 'contract'. */
     direction?: 'expand' | 'contract';
+    /** Visual silhouette. Default 'disc' preserves existing Explosion behavior. */
+    shape?: 'disc' | 'ring';
 }
 
 /** Union of all typed effect property shapes. Extend as new effect types need properties. */

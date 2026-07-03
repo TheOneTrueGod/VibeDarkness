@@ -2,8 +2,8 @@
  * Imbued Bat — a light-infused version of Swing Bat, activated by the swap network
  * when Light Imbuement is cast.
  *
- * Inherits Swing Bat's perpendicular melee swing, then releases a forward cone of
- * light damage starting past the hammer centre (inner cut-off) out to LIGHT_CONE_MAX_RANGE.
+ * Inherits Swing Bat's perpendicular melee swing, then releases a forward arc of
+ * light damage from the caster (hollow near the unit) out to LIGHT_CONE_MAX_RANGE.
  *
  * Timings match Swing Bat:
  *   0.00–0.20  windup
@@ -23,13 +23,12 @@ import { Effect } from '../../../game/effects/Effect';
 import { LIGHT_CONE_BURST_EFFECT_TYPE } from '../../../game/effect_defs/lightConeEffects';
 import { setupWindupLungePayload } from '../../../abilities/WindupLunge';
 import { spawnRadiusScaledChargeUp, createChargeUpConfig } from '../../../abilities/meleeAnimationProfile';
-import { STANDARD_SHIELD_HALF_ARC_RAD } from '../../../abilities/shieldHelpers';
 import { damageEnemiesInTruncatedCone } from '../../../abilities/targetHelpers';
 import type { Unit } from '../../../game/units/Unit';
 import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
 import type { IAbilityPreviewGraphics } from '../../../abilities/Ability';
-import { ThickLineHitbox } from '../../../hitboxes';
-import { renderMeleeTrackingHighlights } from '../../../abilities/targeting';
+import { filterSelectTargetCandidates } from '../../../abilities/targeting';
+import type { GameEngine } from '../../../game/GameEngine';
 
 // ---- Constants ----
 
@@ -43,12 +42,18 @@ const SWING_BAT_ABILITY_ID = '0115';
 
 const PRIMARY_DAMAGE = 10;
 
-/** Forward light cone behind the hammer swing. */
-export const LIGHT_CONE_MAX_RANGE = 200;
+/** Forward light burst from the caster; wide arc opens toward the bat swing. */
+export const LIGHT_CONE_MAX_RANGE = 100;
+export const LIGHT_CONE_HALF_ARC_RAD = Math.PI / 4;
 export const LIGHT_CONE_DAMAGE = 8;
 const LIGHT_CONE_MAX_TARGETS = 5;
-const LIGHT_CONE_HALF_ARC_RAD = STANDARD_SHIELD_HALF_ARC_RAD;
 const LIGHT_CONE_EFFECT_DURATION = 0.35;
+
+/** Targeting preview colors — muted gold arc band. */
+const LIGHT_ARC_PREVIEW_FILL = 0xc9b456;
+const LIGHT_ARC_PREVIEW_STROKE = 0xa89440;
+const LIGHT_ARC_PREVIEW_FILL_ALPHA = 0.18;
+const LIGHT_ARC_PREVIEW_STROKE_ALPHA = 0.48;
 
 const SWING_EFFECT_DURATION = 0.4;
 
@@ -64,7 +69,58 @@ const IMBUED_BAT_LIGHT_CONE = new TruncatedConeHitboxSpec(
         return Math.hypot(ep.centerX - caster.x, ep.centerY - caster.y);
     },
     LIGHT_CONE_MAX_TARGETS,
+    (caster) => ({ x: caster.x, y: caster.y }),
+    (caster, aimX, aimY) => {
+        const ep = IMBUED_BAT_HITBOX.getEndpoints(caster, aimX, aimY);
+        return Math.atan2(ep.centerY - caster.y, ep.centerX - caster.x);
+    },
 );
+
+/** Lunge-adjusted caster/aim for preview parity with {@link PreviewRenderer.renderSelectTargetDef}. */
+function resolveImbuedBatSwingPreviewGeometry(
+    caster: Unit,
+    mouseWorld: { x: number; y: number },
+    engine: GameEngine | undefined,
+): { swingCaster: Unit; aim: { x: number; y: number } } {
+    const lungeMax = engine ? caster.getLungeDistance(engine, DEFAULT_MELEE_LUNGE) : 0;
+    const dx = mouseWorld.x - caster.x;
+    const dy = mouseWorld.y - caster.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 0.5 || lungeMax <= 0) {
+        return { swingCaster: caster, aim: mouseWorld };
+    }
+    const neededLunge = Math.max(0, dist - IMBUED_BAT_HITBOX.maxRange);
+    const actualLunge = Math.min(lungeMax, neededLunge);
+    if (actualLunge <= 0) {
+        return { swingCaster: caster, aim: mouseWorld };
+    }
+    const dirX = dx / dist;
+    const dirY = dy / dist;
+    const virtualX = caster.x + dirX * actualLunge;
+    const virtualY = caster.y + dirY * actualLunge;
+    return {
+        swingCaster: { x: virtualX, y: virtualY, id: caster.id } as Unit,
+        aim: {
+            x: virtualX + dirX * Math.min(IMBUED_BAT_HITBOX.maxRange, dist - actualLunge),
+            y: virtualY + dirY * Math.min(IMBUED_BAT_HITBOX.maxRange, dist - actualLunge),
+        },
+    };
+}
+
+function primarySwingWouldConnect(
+    caster: Unit,
+    mouseWorld: { x: number; y: number },
+    units: Unit[],
+    engine: GameEngine | undefined,
+): boolean {
+    const { swingCaster, aim } = resolveImbuedBatSwingPreviewGeometry(caster, mouseWorld, engine);
+    const hits = filterSelectTargetCandidates(
+        IMBUED_BAT_HITBOX.resolveTargets(swingCaster, aim, units),
+        caster,
+        'enemy',
+    );
+    return hits.length > 0;
+}
 
 // ---- Animation profile ----
 
@@ -113,8 +169,8 @@ const imbuedBatBehaviour = CastBehaviours.MeleeAttack()
 
         const cone = IMBUED_BAT_LIGHT_CONE.getGeometry(ctx.caster, aimX, aimY);
         ctx.engine.addEffect(new Effect({
-            x: ctx.caster.x,
-            y: ctx.caster.y,
+            x: cone.originX,
+            y: cone.originY,
             duration: LIGHT_CONE_EFFECT_DURATION,
             effectType: LIGHT_CONE_BURST_EFFECT_TYPE,
             effectData: {
@@ -128,8 +184,8 @@ const imbuedBatBehaviour = CastBehaviours.MeleeAttack()
         damageEnemiesInTruncatedCone({
             engine: ctx.engine,
             caster: ctx.caster,
-            aimX,
-            aimY,
+            aimX: ep.centerX,
+            aimY: ep.centerY,
             minR: cone.minR,
             maxR: cone.maxR,
             halfAngleRad: cone.halfArcRad,
@@ -137,6 +193,8 @@ const imbuedBatBehaviour = CastBehaviours.MeleeAttack()
             abilityId: CARD_ID,
             attackType: 'ranged',
             maxTargets: LIGHT_CONE_MAX_TARGETS,
+            originX: cone.originX,
+            originY: cone.originY,
         });
     })
     .withDamage(PRIMARY_DAMAGE)
@@ -181,47 +239,30 @@ export const ImbuedBatAbility = defineAbility({
         spawnRadiusScaledChargeUp(engine as { addEffect(effect: Effect): void }, caster, IMBUED_BAT_PROFILE);
     },
 
-    renderTargetingPreview(
+    renderTargetingPreviewSelectedTargets(
         gr: IAbilityPreviewGraphics,
         caster: Unit,
         _currentTargets: ResolvedTarget[],
         mouseWorld: { x: number; y: number },
         units: Unit[],
+        gameState?: unknown,
     ): void {
-        const ep = IMBUED_BAT_HITBOX.getEndpoints(caster, mouseWorld.x, mouseWorld.y);
-        const half = LINE_THICKNESS / 2;
-        const offX = ep.aimDirX * half;
-        const offY = ep.aimDirY * half;
+        const engine = gameState as GameEngine | undefined;
+        if (!primarySwingWouldConnect(caster, mouseWorld, units, engine)) return;
 
-        gr.clear();
-
-        gr.moveTo(ep.leftX + offX, ep.leftY + offY);
-        gr.lineTo(ep.leftX - offX, ep.leftY - offY);
-        gr.lineTo(ep.rightX - offX, ep.rightY - offY);
-        gr.lineTo(ep.rightX + offX, ep.rightY + offY);
-        gr.lineTo(ep.leftX + offX, ep.leftY + offY);
-        gr.fill({ color: 0xffe066, alpha: 0.3 });
-        gr.stroke({ color: 0xffd700, width: 2, alpha: 0.85 });
-
-        IMBUED_BAT_LIGHT_CONE.renderTargetingPreview(gr, caster, mouseWorld, units);
-
-        const ctx = { units, getUnit: (id: string) => units.find((u) => u.id === id) };
-        const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, ep.leftX, ep.leftY, ep.rightX, ep.rightY, LINE_THICKNESS);
-        if (hits.length > 0) {
-            hits.sort((a, b) => {
-                const da = (a.x - mouseWorld.x) ** 2 + (a.y - mouseWorld.y) ** 2;
-                const db = (b.x - mouseWorld.x) ** 2 + (b.y - mouseWorld.y) ** 2;
-                return da - db;
-            });
-            renderMeleeTrackingHighlights(gr, hits.slice(0, MAX_TARGETS));
-        }
+        IMBUED_BAT_LIGHT_CONE.renderTargetingPreview(gr, caster, mouseWorld, units, {
+            fillColor: LIGHT_ARC_PREVIEW_FILL,
+            fillAlpha: LIGHT_ARC_PREVIEW_FILL_ALPHA,
+            strokeColor: LIGHT_ARC_PREVIEW_STROKE,
+            strokeAlpha: LIGHT_ARC_PREVIEW_STROKE_ALPHA,
+        });
     },
 
     getTooltipText(): string[] {
         return [
             `Swing your light-imbued bat dealing {${PRIMARY_DAMAGE}} damage to up to ${MAX_TARGETS} enemies.`,
             `{knockback 3}.`,
-            `Releases a cone of light dealing {${LIGHT_CONE_DAMAGE}} damage to up to ${LIGHT_CONE_MAX_TARGETS} enemies ahead.`,
+            `Releases an arc of light dealing {${LIGHT_CONE_DAMAGE}} damage to up to ${LIGHT_CONE_MAX_TARGETS} enemies ahead.`,
             `Granted for one use by {Light Imbuement}.`,
         ];
     },

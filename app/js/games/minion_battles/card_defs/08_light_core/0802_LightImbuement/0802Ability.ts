@@ -18,10 +18,11 @@ import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Light)}02`;
 const MAX_USES = 1;
-const PREFIRE_TIME = 2.0;
+const PREFIRE_TIME = 1.5;
 const ACTIVE_DURATION = 0.05;
-const COOLDOWN_DURATION = 0.5;
+const COOLDOWN_DURATION = 0.05;
 const LIGHT_COST = 1;
+const LIGHT_IMBUEMENT_MOVEMENT_PENALTY = 0.9;
 
 const LIGHT_IMBUEMENT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -49,12 +50,14 @@ export const LightImbuementAbility = defineAbility({
     recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 }],
     prefireTime: PREFIRE_TIME,
     targets: [],
+		movementLock: { until: LIGHT_IMBUEMENT_MOVEMENT_PENALTY },
     abilityTimings: [
         {
             id: 'windup',
             start: 0,
             end: PREFIRE_TIME,
             abilityPhase: AbilityPhase.Windup,
+						
         },
         {
             id: 'active',

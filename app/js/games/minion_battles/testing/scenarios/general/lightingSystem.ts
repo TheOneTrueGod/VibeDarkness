@@ -289,3 +289,75 @@ function createCampfireDecayScenario(): ScenarioDefinition {
 }
 
 export const campfireDecayScenario = createCampfireDecayScenario();
+
+// ============================================================================
+// Scenario D — lighting_base_overlap_darkens_tile
+// ============================================================================
+
+const BASE_TEST_COL = 8;
+const BASE_TEST_ROW = 6;
+const BASE_TEST_GLOBAL = 3;
+
+export const lightingBaseOverlapScenario: ScenarioDefinition = {
+    id: 'lighting_base_overlap_darkens_tile',
+    title: 'Lighting: base overlap permanently darkens a tile',
+    category: 'general',
+    generalSection: 'Lighting',
+    renderLighting: true,
+
+    buildEngine() {
+        const engine = buildTinyBattleEngine({
+            gridW: GRID_W,
+            gridH: GRID_H,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+        });
+
+        const playerPos = worldCenter(1, 1);
+        spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: playerPos.x,
+            y: playerPos.y,
+            abilities: [],
+        });
+
+        engine.setMissionLightConfig(true, BASE_TEST_GLOBAL);
+
+        const pos = worldCenter(BASE_TEST_COL, BASE_TEST_ROW);
+        engine.addLightSource(new LightSource({
+            x: pos.x,
+            y: pos.y,
+            lightAmount: -1,
+            radius: 0,
+            overlapMethod: { method: 'base' },
+            decay: {
+                roundCreated: 1,
+                initialLightAmount: -1,
+                initialRadius: 0,
+                roundsTotal: 9999,
+                noDecay: true,
+            },
+        }));
+        engine.applyInstantLightingPass();
+
+        return engine;
+    },
+
+    getInitialOrders(engine) {
+        const player = engine.units.find((u) => u.ownerId === TINY_BATTLE_PLAYER_ID);
+        if (!player) return [];
+        const path = buildPlayerZigzag(1, 1, 3);
+        return [{ unitId: player.id, abilityId: MOVE_ONLY_ABILITY_ID, targets: [], movePath: path }];
+    },
+
+    assertPass(engine) {
+        const pos = worldCenter(BASE_TEST_COL, BASE_TEST_ROW);
+        const level = engine.getLightLevelAt(pos.x, pos.y);
+        return level === BASE_TEST_GLOBAL - 1;
+    },
+
+    failureMessage(engine) {
+        const pos = worldCenter(BASE_TEST_COL, BASE_TEST_ROW);
+        const level = engine.getLightLevelAt(pos.x, pos.y);
+        return `Expected tile light ${BASE_TEST_GLOBAL - 1}, got ${level}`;
+    },
+};

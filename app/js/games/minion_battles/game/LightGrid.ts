@@ -13,10 +13,12 @@
  *   by contribution magnitude; each source's effective contribution is `amount * DR^index` where
  *   index is its position in the sorted order and DR is contributionDR (default 1 = no DR).
  *   The best 'max' source is included in this pool if it is more extreme than all 'add' sources.
+ * 'base': Permanent tile offset; summed additively among bases, excluded from max/add pool.
  */
 export type OverlapMethod =
     | { method: 'max' }
-    | { method: 'add'; contributionDR?: number }; // contributionDR defaults to 1 (no DR)
+    | { method: 'add'; contributionDR?: number } // contributionDR defaults to 1 (no DR)
+    | { method: 'base' };
 
 export interface LightSource {
     col: number;
@@ -65,6 +67,7 @@ function combineLightGroup(contribs: TileContrib[], isPositive: boolean): number
     const addContribs: Array<{ amount: number; dr: number }> = [];
 
     for (const c of contribs) {
+        if (c.overlapMethod.method === 'base') continue;
         if (c.overlapMethod.method === 'max') {
             if (bestMax === null || (isPositive ? c.amount > bestMax : c.amount < bestMax)) {
                 bestMax = c.amount;
@@ -103,9 +106,22 @@ function combineLightGroup(contribs: TileContrib[], isPositive: boolean): number
 }
 
 /**
+ * Sum all 'base' overlap contributions in a sign group (additive stacking).
+ */
+function sumBaseContributions(contribs: TileContrib[]): number {
+    let total = 0;
+    for (const c of contribs) {
+        if (c.overlapMethod.method === 'base') {
+            total += c.amount;
+        }
+    }
+    return total;
+}
+
+/**
  * Compute light level for every tile. Returns grid[row][col].
- * tileLevel = globalLightLevel + positiveSum + negativeSum.
- * Positive and negative contributions are combined independently via combineLightGroup.
+ * tileLevel = globalLightLevel + baseSum + positiveSum + negativeSum.
+ * 'base' sources stack additively; max/add sources combine via combineLightGroup.
  */
 export function computeLightGrid(
     globalLightLevel: number,
@@ -136,7 +152,13 @@ export function computeLightGrid(
                     negContribs.push({ amount: contrib, overlapMethod });
                 }
             }
-            r.push(globalLightLevel + combineLightGroup(posContribs, true) + combineLightGroup(negContribs, false));
+            r.push(
+                globalLightLevel
+                + sumBaseContributions(posContribs)
+                + sumBaseContributions(negContribs)
+                + combineLightGroup(posContribs, true)
+                + combineLightGroup(negContribs, false),
+            );
         }
         grid.push(r);
     }

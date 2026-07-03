@@ -46,6 +46,7 @@ import { swingBatHitsThreeTargetsScenario } from './abilities/swingBatScenarios'
 import { swingBatSequentialAimPixelScenario } from './abilities/swingBatSequentialAim';
 import { lightImbuementAndImbuedBatScenario } from './abilities/lightImbuementScenario';
 import { lightBlastCommittedScenario, lightBlastRangeCapScenario, lightBlastHitCapScenario } from './abilities/lightBlastScenario';
+import { gatherLightCommittedScenario } from './abilities/gatherLightScenario';
 import { throwKnifePiercingBleedScenario } from './abilities/throwKnifeScenarios';
 import { clawMovementDistanceScenario } from './abilities/clawScenarios';
 import { pistolHitsDummyScenario } from './abilities/gunScenarios';
@@ -66,7 +67,7 @@ import { aiPlanHoldStabilityScenario } from './ai/ai_plan_hold_stability';
 import { aiTerrainInterruptScenario } from './ai/ai_terrain_interrupt';
 import { aiReplanStaggerScenario } from './ai/ai_replan_stagger';
 import { aiSerializationRoundtripScenario } from './ai/ai_serialization_roundtrip';
-import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from './general/lightingSystem';
+import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario, lightingBaseOverlapScenario } from './general/lightingSystem';
 import { worldModifierDarkSwarmScenario, worldModifierMidBattleAddScenario, worldEffectVisualEffectsFireScenario } from './general/worldModifiers';
 import { deathVfxUnitDefEffectsFireScenario, deathVfxAlphaWolfUnchangedScenario } from './general/deathVfx';
 import { abilityTimingEmitterVisualEffectsFireScenario } from './general/abilityTimingEmitterVfx';
@@ -135,6 +136,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     lightingIlluminatesAreaScenario,
     lightDelayedFadeScenario,
     campfireDecayScenario,
+    lightingBaseOverlapScenario,
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
     earthCoreShatterScenario,
@@ -157,6 +159,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     lightBlastCommittedScenario,
     lightBlastRangeCapScenario,
     lightBlastHitCapScenario,
+    gatherLightCommittedScenario,
     throwKnifePiercingBleedScenario,
     clawMovementDistanceScenario,
     pistolHitsDummyScenario,
@@ -195,7 +198,7 @@ const ABILITY_TREE_GROUPS: AbilityTreeSidebarGroup[] = [
     { treeId: 'stick_sword',   label: 'Stick & Sword',  selectorKey: 'tree:stick_sword',   abilityIds: ['0112', '0105', '0115'] },
     { treeId: 'tech_shield',   label: 'Tech Shield',    selectorKey: 'tree:tech_shield',   abilityIds: ['0104', '0110', '0113'] },
     { treeId: 'earth_core',    label: 'Earth Core',     selectorKey: 'tree:earth_core',    abilityIds: ['earth_core'] },
-    { treeId: 'light',         label: 'Light Core',     selectorKey: 'tree:light',         abilityIds: ['0801', '0802'] },
+    { treeId: 'light',         label: 'Light Core',     selectorKey: 'tree:light',         abilityIds: ['0801', '0802', '0804'] },
 ];
 
 export function getAbilityTreeSidebarGroups(): AbilityTreeSidebarGroup[] {
@@ -258,6 +261,7 @@ export function inferScenarioAbilityId(scenario: ScenarioDefinition): string | n
     const id = scenario.id;
     if (id.startsWith('light_blast_')) return '0801';
     if (id.startsWith('light_imbuement_') || id.startsWith('imbued_bat_')) return '0802';
+    if (id.startsWith('gather_light_')) return '0804';
     if (id.startsWith('throw_torch_')) return '0601';
     if (id === 'punch_research_strong') return '0117';
     if (id === 'punch_research_double' || id === 'double_punch_two_targets' || id === 'double_punch_death_fallback' || id === 'double_punch_movement_replan') return '0116';

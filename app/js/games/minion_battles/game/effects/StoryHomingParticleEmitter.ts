@@ -12,9 +12,12 @@ import { EffectEmitter } from './EffectEmitter';
 import { Effect } from './Effect';
 import type { EngineContext } from '../EngineContext';
 
-const DURATION = 2; // seconds to reach the target
+export const STORY_HOMING_PARTICLE_DEFAULT_DURATION = 2;
 
 export class StoryHomingParticleEmitter extends EffectEmitter {
+    private readonly flightDuration: number;
+    private readonly particleTint: number;
+    private readonly pulseColors: number[];
     private startX: number;
     private startY: number;
     private controlX: number;
@@ -36,11 +39,21 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
         targetUnitId?: string;
         targetX: number;
         targetY: number;
+        /** Flight time in seconds. Default 2 (alpha-wolf story). */
+        duration?: number;
+        /** Particle tint hex. Default purple story color. */
+        tint?: number;
+        /** Pulse colors on arrival. Default purple story palette. */
+        pulseColors?: number[];
         /** Restore elapsed (used by restoreFromJSON). */
         elapsed?: number;
         pulseSpawned?: boolean;
     }) {
-        super({ id: config.id, x: config.x, y: config.y, lifetime: DURATION });
+        const duration = config.duration ?? STORY_HOMING_PARTICLE_DEFAULT_DURATION;
+        super({ id: config.id, x: config.x, y: config.y, lifetime: duration });
+        this.flightDuration = duration;
+        this.particleTint = config.tint ?? 0xa855f7;
+        this.pulseColors = config.pulseColors ?? [0xa855f7, 0x7e22ce, 0x581c87];
         this.startX = config.startX;
         this.startY = config.startY;
         this.controlX = config.controlX;
@@ -62,7 +75,7 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
         this.targetX = tx;
         this.targetY = ty;
 
-        const t = Math.min(1, this.elapsed / DURATION);
+        const t = Math.min(1, this.elapsed / this.flightDuration);
         const bx = (1 - t) * (1 - t) * this.startX + 2 * (1 - t) * t * this.controlX + t * t * tx;
         const by = (1 - t) * (1 - t) * this.startY + 2 * (1 - t) * t * this.controlY + t * t * ty;
         this.x = bx;
@@ -75,9 +88,9 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
             this.currentEffect = new Effect({
                 x: bx,
                 y: by,
-                duration: DURATION,
+                duration: this.flightDuration,
                 effectType: 'StoryHomingParticle',
-                effectData: { imageKey: 'darkBlob' },
+                effectData: { imageKey: 'darkBlob', tint: this.particleTint },
             });
             produced.push(this.currentEffect);
         } else if (this.currentEffect.active) {
@@ -94,7 +107,7 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
                     y: ty,
                     duration: 0.45,
                     effectType: 'Pulse',
-                    effectData: { colors: [0xa855f7, 0x7e22ce, 0x581c87] },
+                    effectData: { colors: this.pulseColors },
                 }),
             );
             this.active = false;
@@ -118,6 +131,9 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
             targetX: this.targetX,
             targetY: this.targetY,
             pulseSpawned: this.pulseSpawned,
+            flightDuration: this.flightDuration,
+            particleTint: this.particleTint,
+            pulseColors: this.pulseColors,
         };
     }
 

@@ -136,6 +136,9 @@ export function damageEnemiesInTruncatedCone(options: {
     abilityId: string;
     attackType?: string;
     maxTargets?: number;
+    /** Cone apex; defaults to caster position. */
+    originX?: number;
+    originY?: number;
 }): void {
     const {
         engine: eng,
@@ -149,19 +152,21 @@ export function damageEnemiesInTruncatedCone(options: {
         abilityId,
         attackType = 'ranged',
         maxTargets,
+        originX = caster.x,
+        originY = caster.y,
     } = options;
-    const { dirX, dirY } = getDirectionFromTo(caster.x, caster.y, aimX, aimY);
+    const { dirX, dirY } = getDirectionFromTo(originX, originY, aimX, aimY);
     let candidates: Unit[] = [];
     for (const unit of eng.units) {
         if (!unit.isAlive() || !areEnemies(caster.teamId, unit.teamId)) continue;
-        if (!pointInConeGeom(caster.x, caster.y, unit.x, unit.y, dirX, dirY, minR, maxR, halfAngleRad)) continue;
+        if (!pointInConeGeom(originX, originY, unit.x, unit.y, dirX, dirY, minR, maxR, halfAngleRad)) continue;
         candidates.push(unit);
     }
     if (maxTargets != null && candidates.length > maxTargets) {
         candidates = candidates
             .map((unit) => ({
                 unit,
-                distSq: (unit.x - caster.x) ** 2 + (unit.y - caster.y) ** 2,
+                distSq: (unit.x - originX) ** 2 + (unit.y - originY) ** 2,
             }))
             .sort((a, b) => a.distSq - b.distSq)
             .slice(0, maxTargets)

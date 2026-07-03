@@ -21,7 +21,7 @@ The code currently lives in `GameEngine.ts` and related files; this folder is th
 
 | File | Owns |
 |------|------|
-| `game/LightGrid.ts` | Stateless math: computes target light levels from sources using Manhattan distance, flat zone + linear falloff, 0.25 quantisation |
+| `game/LightGrid.ts` | Stateless math: computes target light levels from sources using rounded Euclidean distance, flat zone + linear falloff, 0.25 quantisation. Overlap methods: `max`, `add`, and `base` (permanent tile offset, additive among bases, excluded from max/add pool). |
 | `game/lightTileGrid/LightTileGrid.ts` | Persistent per-tile integer grid; serialised in checkpoints |
 | `game/lightSources/LightSource.ts` | Light source instance: position, lightAmount, radius, decay config |
 | `game/lightSources/LightSourceManager.ts` | Owns active sources; follow-unit tracking, interval and round-end decay |

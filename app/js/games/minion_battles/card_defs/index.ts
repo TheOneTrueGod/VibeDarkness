@@ -55,6 +55,7 @@ import { SicEmCard } from './07_command_core/0704_SicEm/0704Ability';
 import { LightBlastCard } from './08_light_core/0801_LightBlast/0801Ability';
 import { LightImbuementCard } from './08_light_core/0802_LightImbuement/0802Card';
 import { ImbuedBatCard } from './08_light_core/0803_ImbuedBat/0803Card';
+import { GatherLightCard } from './08_light_core/0804_GatherLight/0804Card';
 
 const cardDefs: CardDef[] = [
     ThrowKnifeCard,
@@ -112,6 +113,7 @@ const cardDefs: CardDef[] = [
     LightBlastCard,
     LightImbuementCard,
     ImbuedBatCard,
+    GatherLightCard,
 ];
 
 export const CARD_DEF_MAP: Map<string, CardDef> = new Map(cardDefs.map((c) => [c.abilityId, c]));

@@ -90,7 +90,9 @@ export class LightSourceManager {
         if (!grid) return [];
         const inputs: GridLightInput[] = [];
         for (const ls of this.lightSources) {
-            if (!ls.active || ls.lightAmount === 0 || ls.radius <= 0) continue;
+            if (!ls.active || ls.lightAmount === 0) continue;
+            const isBase = ls.overlapMethod?.method === 'base';
+            if (ls.radius <= 0 && !isBase) continue;
             const { col, row } = grid.worldToGrid(ls.x, ls.y);
             inputs.push({ col, row, emission: ls.lightAmount, radius: ls.radius, overlapMethod: ls.overlapMethod });
         }

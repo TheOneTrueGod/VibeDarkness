@@ -66,6 +66,7 @@ import { SicEmAbility } from '../card_defs/07_command_core/0704_SicEm/0704Abilit
 import { LightBlastAbility } from '../card_defs/08_light_core/0801_LightBlast/0801Ability';
 import { LightImbuementAbility } from '../card_defs/08_light_core/0802_LightImbuement/0802Ability';
 import { ImbuedBatAbility } from '../card_defs/08_light_core/0803_ImbuedBat/0803Ability';
+import { GatherLightAbility } from '../card_defs/08_light_core/0804_GatherLight/0804Ability';
 import { WaitAbility } from './WaitAbility';
 
 const ABILITY_MAP: Map<string, AbilityStatic> = new Map();
@@ -142,6 +143,7 @@ register(SicEmAbility);
 register(LightBlastAbility);
 register(LightImbuementAbility);
 register(ImbuedBatAbility);
+register(GatherLightAbility);
 
 setAbilityTagResolver((id) => ABILITY_MAP.get(id)?.tags ?? []);
 
