@@ -14,6 +14,7 @@ import { punchEffectDef, biteEffectDef, slashingSwordEffectDef, coneFlashEffectD
 import { bulletTrailEffectDef, slashTrailEffectDef } from './trailEffects';
 import { afterimageEffectDef, stackGhostEffectDef } from './movementEffects';
 import { explosionEffectDef } from './explosionEffects';
+import { lightConeBurstEffectDef, LIGHT_CONE_BURST_EFFECT_TYPE } from './lightConeEffects';
 import { chargeUpEffectDef } from './chargeEffects';
 import { casterChargeUpEffectDef, CASTER_CHARGE_UP_EFFECT_TYPE } from './casterChargeUpEffect';
 import { pulseEffectDef, howlShockwaveEffectDef, critShockwaveEffectDef, enrageBurstEffectDef } from './aoeEffects';
@@ -68,6 +69,7 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     SlashingSword: slashingSwordEffectDef,
     SlashTrail: slashTrailEffectDef,
     Explosion: explosionEffectDef,
+    [LIGHT_CONE_BURST_EFFECT_TYPE]: lightConeBurstEffectDef,
     DamageNumber: damageNumberEffectDef,
     FloatingText: floatingTextEffectDef,
     LanterniteConstParticle: lanterniteConstParticleEffectDef,

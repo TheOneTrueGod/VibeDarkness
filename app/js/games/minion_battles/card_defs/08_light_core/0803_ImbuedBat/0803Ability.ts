@@ -2,14 +2,12 @@
  * Imbued Bat — a light-infused version of Swing Bat, activated by the swap network
  * when Light Imbuement is cast.
  *
- * Inherits Swing Bat's perpendicular melee swing, then fires a secondary AoE
- * circle of light damage centered behind the primary target (in the direction
- * the attack came from, offset by the hitbox range). The swap network controls
- * whether this ability is visible and usable.
+ * Inherits Swing Bat's perpendicular melee swing, then releases a forward cone of
+ * light damage starting past the hammer centre (inner cut-off) out to LIGHT_CONE_MAX_RANGE.
  *
  * Timings match Swing Bat:
  *   0.00–0.20  windup
- *   0.20–0.30  hit (primary swing + secondary light AoE)
+ *   0.20–0.30  hit (primary swing + secondary light cone)
  *   0.30–1.65  cooldown
  */
 
@@ -17,16 +15,18 @@ import { AbilityPhase } from '../../../abilities/abilityTimings';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { perpendicularSwingHitbox } from '../../../hitboxes';
+import { TruncatedConeHitboxSpec } from '../../../hitboxes/TruncatedConeHitbox';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { DEFAULT_MELEE_LUNGE } from '../../../game/units/unit_defs/unitConstants';
 import { LIGHT_IMBUE_BUFF_TYPE } from '../../../buffs/LightImbueBuff';
-import { damageEnemiesInCircle } from '../../../abilities/targetHelpers';
 import { Effect } from '../../../game/effects/Effect';
+import { LIGHT_CONE_BURST_EFFECT_TYPE } from '../../../game/effect_defs/lightConeEffects';
 import { setupWindupLungePayload } from '../../../abilities/WindupLunge';
 import { spawnRadiusScaledChargeUp, createChargeUpConfig } from '../../../abilities/meleeAnimationProfile';
+import { STANDARD_SHIELD_HALF_ARC_RAD } from '../../../abilities/shieldHelpers';
+import { damageEnemiesInTruncatedCone } from '../../../abilities/targetHelpers';
 import type { Unit } from '../../../game/units/Unit';
 import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
-import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 import type { IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { ThickLineHitbox } from '../../../hitboxes';
 import { renderMeleeTrackingHighlights } from '../../../abilities/targeting';
@@ -43,17 +43,28 @@ const SWING_BAT_ABILITY_ID = '0115';
 
 const PRIMARY_DAMAGE = 10;
 
-/** Light AoE cone behind the primary target. */
-const LIGHT_AoE_RADIUS = 50;
-const LIGHT_AoE_DAMAGE = 8;
-/** Distance behind the target (opposite of attack direction) where the AoE is centered. */
-const LIGHT_AoE_BEHIND_OFFSET = 20;
+/** Forward light cone behind the hammer swing. */
+export const LIGHT_CONE_MAX_RANGE = 200;
+export const LIGHT_CONE_DAMAGE = 8;
+const LIGHT_CONE_MAX_TARGETS = 5;
+const LIGHT_CONE_HALF_ARC_RAD = STANDARD_SHIELD_HALF_ARC_RAD;
+const LIGHT_CONE_EFFECT_DURATION = 0.35;
 
 const SWING_EFFECT_DURATION = 0.4;
 
-// ---- Hitbox (same as Swing Bat) ----
+// ---- Hitboxes ----
 
 const IMBUED_BAT_HITBOX = perpendicularSwingHitbox(BASE_MAX_RANGE, SWING_LENGTH, LINE_THICKNESS, MAX_TARGETS);
+
+const IMBUED_BAT_LIGHT_CONE = new TruncatedConeHitboxSpec(
+    LIGHT_CONE_MAX_RANGE,
+    LIGHT_CONE_HALF_ARC_RAD,
+    (caster, aimX, aimY) => {
+        const ep = IMBUED_BAT_HITBOX.getEndpoints(caster, aimX, aimY);
+        return Math.hypot(ep.centerX - caster.x, ep.centerY - caster.y);
+    },
+    LIGHT_CONE_MAX_TARGETS,
+);
 
 // ---- Animation profile ----
 
@@ -88,7 +99,6 @@ const imbuedBatBehaviour = CastBehaviours.MeleeAttack()
     .withHitbox(IMBUED_BAT_HITBOX)
     .withSlide({ forwardDistance: 18, backwardDistance: 0 })
     .withImpactVFX((ctx, hitUnits, aimX, aimY) => {
-        // Primary swing visual (matches Swing Bat)
         const ep = IMBUED_BAT_HITBOX.getEndpoints(ctx.caster, aimX, aimY);
         ctx.engine.addEffect(new Effect({
             x: ep.rightX,
@@ -99,37 +109,35 @@ const imbuedBatBehaviour = CastBehaviours.MeleeAttack()
             effectType: 'punch',
         }));
 
-        // Secondary light AoE centered behind the primary target
-        const dx = aimX - ctx.caster.x;
-        const dy = aimY - ctx.caster.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const dirX = dist > 0 ? dx / dist : 1;
-        const dirY = dist > 0 ? dy / dist : 0;
+        if (hitUnits.length === 0) return;
 
-        // "Behind" = away from caster, past the aim point
-        const behindX = aimX + dirX * LIGHT_AoE_BEHIND_OFFSET;
-        const behindY = aimY + dirY * LIGHT_AoE_BEHIND_OFFSET;
-
-        // Light burst VFX at the AoE center
+        const cone = IMBUED_BAT_LIGHT_CONE.getGeometry(ctx.caster, aimX, aimY);
         ctx.engine.addEffect(new Effect({
-            x: behindX,
-            y: behindY,
-            duration: 0.35,
-            effectType: 'LightBurst',
+            x: ctx.caster.x,
+            y: ctx.caster.y,
+            duration: LIGHT_CONE_EFFECT_DURATION,
+            effectType: LIGHT_CONE_BURST_EFFECT_TYPE,
+            effectData: {
+                centerAngle: cone.centerAngle,
+                halfArcRad: cone.halfArcRad,
+                innerR: cone.minR,
+                outerR: cone.maxR,
+            },
         }));
 
-        // Apply light damage to enemies in the AoE (includes primary target if in range)
-        if (hitUnits.length > 0) {
-            damageEnemiesInCircle({
-                engine: ctx.engine,
-                caster: ctx.caster,
-                center: { x: behindX, y: behindY },
-                radius: LIGHT_AoE_RADIUS,
-                damage: LIGHT_AoE_DAMAGE,
-                abilityId: CARD_ID,
-                attackType: 'ranged',
-            });
-        }
+        damageEnemiesInTruncatedCone({
+            engine: ctx.engine,
+            caster: ctx.caster,
+            aimX,
+            aimY,
+            minR: cone.minR,
+            maxR: cone.maxR,
+            halfAngleRad: cone.halfArcRad,
+            damage: LIGHT_CONE_DAMAGE,
+            abilityId: CARD_ID,
+            attackType: 'ranged',
+            maxTargets: LIGHT_CONE_MAX_TARGETS,
+        });
     })
     .withDamage(PRIMARY_DAMAGE)
     .withKnockback(3);
@@ -180,45 +188,25 @@ export const ImbuedBatAbility = defineAbility({
         mouseWorld: { x: number; y: number },
         units: Unit[],
     ): void {
-        const dx = mouseWorld.x - caster.x;
-        const dy = mouseWorld.y - caster.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const aimDirX = dist > 0 ? dx / dist : 1;
-        const aimDirY = dist > 0 ? dy / dist : 0;
-        const clampedDist = Math.min(IMBUED_BAT_HITBOX.maxRange, dist || IMBUED_BAT_HITBOX.maxRange);
-        const centerX = caster.x + aimDirX * clampedDist;
-        const centerY = caster.y + aimDirY * clampedDist;
-        const half = SWING_LENGTH / 2;
-        const perpX = -aimDirY * half;
-        const perpY = aimDirX * half;
-        const leftX = centerX - perpX;
-        const leftY = centerY - perpY;
-        const rightX = centerX + perpX;
-        const rightY = centerY + perpY;
-        const halfThick = LINE_THICKNESS / 2;
-        const offX = aimDirX * halfThick;
-        const offY = aimDirY * halfThick;
+        const ep = IMBUED_BAT_HITBOX.getEndpoints(caster, mouseWorld.x, mouseWorld.y);
+        const half = LINE_THICKNESS / 2;
+        const offX = ep.aimDirX * half;
+        const offY = ep.aimDirY * half;
 
         gr.clear();
 
-        // Draw primary swing area (gold tint for imbued feel)
-        gr.moveTo(leftX + offX, leftY + offY);
-        gr.lineTo(leftX - offX, leftY - offY);
-        gr.lineTo(rightX - offX, rightY - offY);
-        gr.lineTo(rightX + offX, rightY + offY);
-        gr.lineTo(leftX + offX, leftY + offY);
+        gr.moveTo(ep.leftX + offX, ep.leftY + offY);
+        gr.lineTo(ep.leftX - offX, ep.leftY - offY);
+        gr.lineTo(ep.rightX - offX, ep.rightY - offY);
+        gr.lineTo(ep.rightX + offX, ep.rightY + offY);
+        gr.lineTo(ep.leftX + offX, ep.leftY + offY);
         gr.fill({ color: 0xffe066, alpha: 0.3 });
         gr.stroke({ color: 0xffd700, width: 2, alpha: 0.85 });
 
-        // Draw secondary AoE circle (behind target)
-        const behindX = centerX + aimDirX * LIGHT_AoE_BEHIND_OFFSET;
-        const behindY = centerY + aimDirY * LIGHT_AoE_BEHIND_OFFSET;
-        gr.circle(behindX, behindY, LIGHT_AoE_RADIUS);
-        gr.fill({ color: 0xffe066, alpha: 0.15 });
-        gr.stroke({ color: 0xffd700, width: 1, alpha: 0.5 });
+        IMBUED_BAT_LIGHT_CONE.renderTargetingPreview(gr, caster, mouseWorld, units);
 
         const ctx = { units, getUnit: (id: string) => units.find((u) => u.id === id) };
-        const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, leftX, leftY, rightX, rightY, LINE_THICKNESS);
+        const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, ep.leftX, ep.leftY, ep.rightX, ep.rightY, LINE_THICKNESS);
         if (hits.length > 0) {
             hits.sort((a, b) => {
                 const da = (a.x - mouseWorld.x) ** 2 + (a.y - mouseWorld.y) ** 2;
@@ -233,7 +221,7 @@ export const ImbuedBatAbility = defineAbility({
         return [
             `Swing your light-imbued bat dealing {${PRIMARY_DAMAGE}} damage to up to ${MAX_TARGETS} enemies.`,
             `{knockback 3}.`,
-            `Releases a burst of light energy behind the target, dealing {${LIGHT_AoE_DAMAGE}} light damage to nearby enemies.`,
+            `Releases a cone of light dealing {${LIGHT_CONE_DAMAGE}} damage to up to ${LIGHT_CONE_MAX_TARGETS} enemies ahead.`,
             `Granted for one use by {Light Imbuement}.`,
         ];
     },

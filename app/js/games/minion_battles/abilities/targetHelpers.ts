@@ -9,6 +9,9 @@ import type { EventBus } from '../game/EventBus';
 import { tryDamageOrBlock } from './blockingHelpers';
 import type { TryDamageOrBlockParams } from './blockingHelpers';
 import { areEnemies } from '../game/teams';
+import { pointInCone as pointInConeGeom } from './coneGeometry';
+
+export { pointInCone } from './coneGeometry';
 
 /** Get pixel target position from resolved targets, or null if missing/invalid. */
 export function getPixelTargetPosition(
@@ -53,32 +56,6 @@ export function getAimPointClampedToMaxRange(
         x: caster.x + dirX * maxR,
         y: caster.y + dirY * maxR,
     };
-}
-
-/**
- * True if point (ux, uy) is inside the cone from (casterX, casterY) toward (dirX, dirY),
- * within [minR, maxR] and within halfAngleRad of the direction.
- */
-export function pointInCone(
-    casterX: number,
-    casterY: number,
-    ux: number,
-    uy: number,
-    dirX: number,
-    dirY: number,
-    minR: number,
-    maxR: number,
-    halfAngleRad: number,
-): boolean {
-    const vx = ux - casterX;
-    const vy = uy - casterY;
-    const dist = Math.sqrt(vx * vx + vy * vy);
-    if (dist < minR || dist > maxR) return false;
-    if (dist === 0) return false;
-    const nx = vx / dist;
-    const ny = vy / dist;
-    const dDot = dirX * nx + dirY * ny;
-    return dDot >= Math.cos(halfAngleRad);
 }
 
 interface AoEEngine {
@@ -140,6 +117,68 @@ export function damageEnemiesInCircle(options: {
                 attackType: attackType as 'melee' | 'charging',
             });
         }
+    }
+}
+
+/**
+ * Damage enemies inside a truncated cone (inner cut-off + max range) aimed from caster toward (aimX, aimY).
+ * When `maxTargets` is set, only the closest enemies are damaged.
+ */
+export function damageEnemiesInTruncatedCone(options: {
+    engine: AoEEngine;
+    caster: Unit;
+    aimX: number;
+    aimY: number;
+    minR: number;
+    maxR: number;
+    halfAngleRad: number;
+    damage: number;
+    abilityId: string;
+    attackType?: string;
+    maxTargets?: number;
+}): void {
+    const {
+        engine: eng,
+        caster,
+        aimX,
+        aimY,
+        minR,
+        maxR,
+        halfAngleRad,
+        damage,
+        abilityId,
+        attackType = 'ranged',
+        maxTargets,
+    } = options;
+    const { dirX, dirY } = getDirectionFromTo(caster.x, caster.y, aimX, aimY);
+    let candidates: Unit[] = [];
+    for (const unit of eng.units) {
+        if (!unit.isAlive() || !areEnemies(caster.teamId, unit.teamId)) continue;
+        if (!pointInConeGeom(caster.x, caster.y, unit.x, unit.y, dirX, dirY, minR, maxR, halfAngleRad)) continue;
+        candidates.push(unit);
+    }
+    if (maxTargets != null && candidates.length > maxTargets) {
+        candidates = candidates
+            .map((unit) => ({
+                unit,
+                distSq: (unit.x - caster.x) ** 2 + (unit.y - caster.y) ** 2,
+            }))
+            .sort((a, b) => a.distSq - b.distSq)
+            .slice(0, maxTargets)
+            .map((entry) => entry.unit);
+    }
+    for (const unit of candidates) {
+        tryDamageOrBlock(unit, {
+            engine: eng,
+            gameTime: eng.gameTime,
+            eventBus: eng.eventBus,
+            attackerX: caster.x,
+            attackerY: caster.y,
+            attackerId: caster.id,
+            abilityId,
+            damage,
+            attackType: attackType as 'melee' | 'charging',
+        });
     }
 }
 

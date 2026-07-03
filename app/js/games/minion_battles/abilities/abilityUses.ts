@@ -132,14 +132,14 @@ export function meetsTagRequirements(unit: Unit, ability: AbilityStatic): boolea
     return true;
 }
 
-export function consumeAbilityUse(unit: Unit, abilityId: string): boolean {
+export function consumeAbilityUse(unit: Unit, abilityId: string, eventBus?: EventBus): boolean {
     if (abilityHasTag(abilityId, 'free')) return true;
     ensureAbilityRuntimeState(unit, abilityId);
     const runtime = unit.abilityRuntime[abilityId];
     if (!runtime || runtime.currentUses <= 0) return false;
     runtime.currentUses -= 1;
     if (runtime.currentUses === 0) {
-        evaluateSwapTriggers(unit, { type: 'abilityExhausted', abilityId });
+        evaluateSwapTriggers(unit, { type: 'abilityExhausted', abilityId }, eventBus);
     }
     syncNestedCardAbilityState(unit);
     return true;

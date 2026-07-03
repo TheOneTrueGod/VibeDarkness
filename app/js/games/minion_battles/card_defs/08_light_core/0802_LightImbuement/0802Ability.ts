@@ -69,6 +69,7 @@ export const LightImbuementAbility = defineAbility({
                             new LightImbueBuff(),
                             ctx.engine.gameTime,
                             ctx.engine.roundNumber ?? 1,
+                            ctx.engine.eventBus,
                         );
                     }),
                 },

@@ -97,7 +97,7 @@ export function executeUnitAbility(unit: Unit, ability: AbilityStatic, targets: 
     ensureAbilityRuntimeState(unit, ability.id);
     if (!canUseAbilityNow(unit, ability)) return;
     if (!spendAbilityCost(unit, ability)) return;
-    if (!consumeAbilityUse(unit, ability.id)) return;
+    if (!consumeAbilityUse(unit, ability.id, engine.eventBus)) return;
     syncNestedCardAbilityState(unit);
 
     const existing = unit.activeAbilities.findIndex((a) => a.abilityId === ability.id);

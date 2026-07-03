@@ -14,6 +14,7 @@ import AbilitySlot from './AbilitySlot';
 import AbilityTooltip from './AbilityTooltip';
 import RoundTrackerCard from './RoundTrackerCard';
 import { getAbilityUseConfig, type RecoveryChargeType } from '../../abilities/abilityUses';
+import { getAbilityBarLayoutKey } from '../../abilities/abilityBarLayout';
 import { DEFAULT_PLAYER_ROUND_STAMINA_SURGE } from '../../game/GameEngine';
 import { UnitResourcePanel } from './resources/UnitResourcePanel';
 
@@ -116,14 +117,18 @@ export default function AbilityBar({
     }, []);
 
     // Prefer live unit.abilities order so swap-network replacements keep the same bar slot.
-    const orderedAbilityIds = playerUnit?.abilities ?? abilityIds;
+    const layoutKey = getAbilityBarLayoutKey(playerUnit, abilityIds);
 
     const visibleAbilityIds = useMemo(
-        () => orderedAbilityIds.filter(id => {
-            const runtime = playerUnit?.abilityRuntime[id];
-            return !runtime || runtime.active !== false;
-        }),
-        [orderedAbilityIds, playerUnit],
+        () => {
+            const ordered = playerUnit?.abilities ?? abilityIds;
+            return ordered.filter(id => {
+                const runtime = playerUnit?.abilityRuntime[id];
+                return !runtime || runtime.active !== false;
+            });
+        },
+        // layoutKey tracks in-place swap-network mutations that keep the same unit reference.
+        [layoutKey],
     );
 
     const handCards = useMemo(() => {

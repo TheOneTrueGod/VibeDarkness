@@ -8,6 +8,7 @@
  */
 
 import type { Unit } from '../game/units/Unit';
+import type { EventBus } from '../game/EventBus';
 import { getAbility } from './AbilityRegistry';
 import { ensureAbilityRuntimeState } from './abilityUses';
 
@@ -28,24 +29,28 @@ export function swapAbilityBarSlots(unit: Unit, abilityIdA: string, abilityIdB: 
     return true;
 }
 
+function notifyAbilityBarChanged(unit: Unit, eventBus?: EventBus): void {
+    eventBus?.emit('ability_bar_changed', { unitId: unit.id });
+}
+
 /**
  * Activate a swap-network ability: hide the ability it replaces and
  * mark itself active with the configured number of uses.
  */
-function activateSwappedAbility(unit: Unit, abilityId: string): void {
+function activateSwappedAbility(unit: Unit, abilityId: string): boolean {
     ensureAbilityRuntimeState(unit, abilityId);
     const runtime = unit.abilityRuntime[abilityId];
-    if (!runtime) return;
+    if (!runtime) return false;
 
     const ability = getAbility(abilityId);
-    if (!ability?.swapConfig) return;
+    if (!ability?.swapConfig) return false;
 
     const { replacesAbilityId, usesOnActivation } = ability.swapConfig;
 
     // Guard: only activate if the ability being replaced is currently active.
     ensureAbilityRuntimeState(unit, replacesAbilityId);
     const replacedRuntime = unit.abilityRuntime[replacesAbilityId];
-    if (!replacedRuntime || replacedRuntime.active === false) return;
+    if (!replacedRuntime || replacedRuntime.active === false) return false;
 
     // Hide the replaced ability.
     replacedRuntime.active = false;
@@ -57,18 +62,19 @@ function activateSwappedAbility(unit: Unit, abilityId: string): void {
 
     // Show the swap ability in the replaced ability's bar slot.
     swapAbilityBarSlots(unit, abilityId, replacesAbilityId);
+    return true;
 }
 
 /**
  * Deactivate a swap-network ability: restore the ability it replaced and
  * clear its own swap state.
  */
-function deactivateSwappedAbility(unit: Unit, abilityId: string): void {
+function deactivateSwappedAbility(unit: Unit, abilityId: string): boolean {
     const runtime = unit.abilityRuntime[abilityId];
-    if (!runtime) return;
+    if (!runtime) return false;
 
     const { replacedAbilityId } = runtime;
-    if (replacedAbilityId === null || replacedAbilityId === undefined) return;
+    if (replacedAbilityId === null || replacedAbilityId === undefined) return false;
 
     // Restore the replaced ability.
     ensureAbilityRuntimeState(unit, replacedAbilityId);
@@ -83,6 +89,7 @@ function deactivateSwappedAbility(unit: Unit, abilityId: string): void {
 
     // Restore original bar order.
     swapAbilityBarSlots(unit, abilityId, replacedAbilityId);
+    return true;
 }
 
 /**
@@ -92,7 +99,9 @@ function deactivateSwappedAbility(unit: Unit, abilityId: string): void {
  * - After `unit.addBuff(...)` with `{ type: 'buffApplied', buffType: buff._type }`.
  * - After `runtime.currentUses` reaches 0 with `{ type: 'abilityExhausted', abilityId }`.
  */
-export function evaluateSwapTriggers(unit: Unit, event: SwapEvent): void {
+export function evaluateSwapTriggers(unit: Unit, event: SwapEvent, eventBus?: EventBus): void {
+    let changed = false;
+
     if (event.type === 'buffApplied') {
         // Scan for inactive abilities whose activateTrigger matches this buff.
         for (const abilityId of unit.abilities) {
@@ -108,20 +117,25 @@ export function evaluateSwapTriggers(unit: Unit, event: SwapEvent): void {
                 activateTrigger.type === 'buffApplied'
                 && activateTrigger.buffType === event.buffType
             ) {
-                activateSwappedAbility(unit, abilityId);
+                if (activateSwappedAbility(unit, abilityId)) {
+                    changed = true;
+                }
             }
         }
-        return;
+    } else if (event.type === 'abilityExhausted') {
+        const ability = getAbility(event.abilityId);
+        if (ability?.swapConfig) {
+            const { deactivateTrigger } = ability.swapConfig;
+            if (deactivateTrigger.type === 'selfExhausted') {
+                if (deactivateSwappedAbility(unit, event.abilityId)) {
+                    changed = true;
+                }
+            }
+            // selfUsed is not handled by exhaustion events — it fires immediately after each use.
+        }
     }
 
-    if (event.type === 'abilityExhausted') {
-        const ability = getAbility(event.abilityId);
-        if (!ability?.swapConfig) return;
-
-        const { deactivateTrigger } = ability.swapConfig;
-        if (deactivateTrigger.type === 'selfExhausted') {
-            deactivateSwappedAbility(unit, event.abilityId);
-        }
-        // selfUsed is not handled by exhaustion events — it fires immediately after each use.
+    if (changed) {
+        notifyAbilityBarChanged(unit, eventBus);
     }
 }

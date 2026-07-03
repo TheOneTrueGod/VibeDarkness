@@ -223,6 +223,10 @@ export class BattleSession implements BattleSessionHandle {
             });
         });
         this.bindEngineCallbacks(engine);
+        engine.eventBus.on('ability_bar_changed', () => {
+            if (engine.isSequentialTargetingPreview) return;
+            this.emit({ type: 'card_state', engine });
+        });
         engine.setOnRoundEnd((rn) => {
             if (engine.isSequentialTargetingPreview) return;
             this.emit({ type: 'round_number', roundNumber: rn + 1 });

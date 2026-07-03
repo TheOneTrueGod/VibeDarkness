@@ -3,4 +3,5 @@ export { Hitbox } from './Hitbox';
 export { ThickLineHitbox } from './ThickLineHitbox';
 export { CircleHitbox } from './CircleHitbox';
 export { HitboxSpec, MeleeLineHitboxSpec, meleeLineHitbox, PerpendicularSwingHitboxSpec, perpendicularSwingHitbox, NullHitboxSpec, nullHitbox } from './HitboxSpec';
+export { TruncatedConeHitboxSpec, type TruncatedConeGeometry, type TruncatedConeMinRadiusResolver } from './TruncatedConeHitbox';
 export { ConvexQuadHitboxSpec, convexQuadHitbox } from './ConvexQuadHitbox';

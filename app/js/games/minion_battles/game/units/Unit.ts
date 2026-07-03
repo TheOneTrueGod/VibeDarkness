@@ -397,11 +397,11 @@ export class Unit extends GameObject {
     }
 
     /** Add a buff to this unit. Caller sets appliedAtTime/appliedAtRound on the buff. */
-    addBuff(buff: Buff, gameTime: number, roundNumber: number): void {
+    addBuff(buff: Buff, gameTime: number, roundNumber: number, eventBus?: import('../../game/EventBus').EventBus): void {
         buff.appliedAtTime = gameTime;
         buff.appliedAtRound = roundNumber;
         this.buffs.push(buff);
-        evaluateSwapTriggers(this, { type: 'buffApplied', buffType: buff._type });
+        evaluateSwapTriggers(this, { type: 'buffApplied', buffType: buff._type }, eventBus);
     }
 
     /** Interrupt all active abilities (e.g. when stunned). Refunds resource costs. */

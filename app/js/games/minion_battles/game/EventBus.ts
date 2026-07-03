@@ -21,7 +21,8 @@ export type GameEventType =
     | 'nearby_stone_damaged'
     | 'recovery_charge_granted'
     | 'stack_members_died'
-    | 'boss_exposed_cc_suppressed';
+    | 'boss_exposed_cc_suppressed'
+    | 'ability_bar_changed';
 
 export interface DamageTakenEvent {
     unitId: string;
@@ -131,6 +132,10 @@ export interface BossExposedCcSuppressedEvent {
     unitId: string;
 }
 
+export interface AbilityBarChangedEvent {
+    unitId: string;
+}
+
 export type GameEventDataMap = {
     damage_taken: DamageTakenEvent;
     round_start: RoundStartEvent;
@@ -146,6 +151,7 @@ export type GameEventDataMap = {
     recovery_charge_granted: RecoveryChargeGrantedEvent;
     stack_members_died: StackMembersDiedEvent;
     boss_exposed_cc_suppressed: BossExposedCcSuppressedEvent;
+    ability_bar_changed: AbilityBarChangedEvent;
 };
 
 type EventCallback<T extends GameEventType> = (data: GameEventDataMap[T]) => void;
