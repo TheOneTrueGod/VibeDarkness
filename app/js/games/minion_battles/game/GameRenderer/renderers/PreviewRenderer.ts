@@ -4,7 +4,13 @@ import { DarknessLevel } from '../../darknessLevels';
 import type { GameEngine } from '../../GameEngine';
 import type { Unit } from '../../units/Unit';
 import { getAbility } from '../../../abilities/AbilityRegistry';
-import { getSelectTargetDefsFromTimings, filterSelectTargetCandidates, renderMeleeTrackingHighlights, resolveTargetToPoint } from '../../../abilities/targeting';
+import {
+    getSelectTargetDefsFromTimings,
+    filterSelectTargetCandidates,
+    renderMeleeTrackingHighlights,
+    resolveTargetToPoint,
+    computeLungeAimState,
+} from '../../../abilities/targeting';
 import { areEnemies } from '../../teams';
 import type { TeamId } from '../../teams';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
@@ -30,25 +36,16 @@ function computeLungePreviewState(
     hitboxMax: number,
     lungeMax: number,
 ): { virtualX: number; virtualY: number; adjustedMouse: { x: number; y: number }; dirX: number; dirY: number } | null {
-    const dx = mouseWorld.x - caster.x;
-    const dy = mouseWorld.y - caster.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < 0.5) return null;
-
-    const neededLunge = Math.max(0, dist - hitboxMax);
-    const actualLunge = Math.min(lungeMax, neededLunge);
-    if (actualLunge <= 0) return null;
-
-    const dirX = dx / dist;
-    const dirY = dy / dist;
-    const virtualX = caster.x + dirX * actualLunge;
-    const virtualY = caster.y + dirY * actualLunge;
-    // Aim point from the virtual caster: same direction, remaining distance clamped to hitboxMax.
-    const adjustedMouse = {
-        x: virtualX + dirX * Math.min(hitboxMax, dist - actualLunge),
-        y: virtualY + dirY * Math.min(hitboxMax, dist - actualLunge),
+    const state = computeLungeAimState(caster, mouseWorld, hitboxMax, lungeMax);
+    if (!state) return null;
+    const dx = state.virtualX - caster.x;
+    const dy = state.virtualY - caster.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    return {
+        ...state,
+        dirX: len > 1e-6 ? dx / len : 0,
+        dirY: len > 1e-6 ? dy / len : 0,
     };
-    return { virtualX, virtualY, adjustedMouse, dirX, dirY };
 }
 
 /** Draws the movement arrow line and ghost unit circle at the lunge destination. */

@@ -55,6 +55,31 @@ export function isPurePassOrder(order: BattleOrder): boolean {
     return true;
 }
 
+function resolvedTargetMatches(a: ResolvedTarget, b: ResolvedTarget): boolean {
+    if (a.type !== b.type) return false;
+    if (a.type === 'unit' && b.type === 'unit') return a.unitId === b.unitId;
+    if (a.type === 'pixel' && b.type === 'pixel') {
+        return a.position?.x === b.position?.x && a.position?.y === b.position?.y;
+    }
+    return false;
+}
+
+/** Map label → entry in `targets` (same reference) so MeleeAttack indexOf works. */
+function buildTargetsByLabelFromPositional(
+    selectLabels: readonly string[],
+    collectedTargets: Record<string, ResolvedTarget>,
+    targets: ResolvedTarget[],
+): Record<string, ResolvedTarget> {
+    const targetsByLabel: Record<string, ResolvedTarget> = {};
+    for (const label of selectLabels) {
+        const collected = collectedTargets[label];
+        if (!collected) continue;
+        const idx = targets.findIndex((t) => resolvedTargetMatches(t, collected));
+        targetsByLabel[label] = idx >= 0 ? targets[idx]! : collected;
+    }
+    return targetsByLabel;
+}
+
 /** Build the committed BattleOrder from frozen labels + collected targets/movement (rollback and in-place). */
 export function buildFinalizedSequentialTargetingOrder(
     selectLabels: readonly string[],
@@ -63,12 +88,19 @@ export function buildFinalizedSequentialTargetingOrder(
     movementByLabel?: Record<string, MovementReInput>,
     positionalTargetsOverride?: ResolvedTarget[],
 ): BattleOrder {
-    const targets = positionalTargetsOverride != null && positionalTargetsOverride.length > 0
+    // Melee multi-lock override is only valid for a single select label. Multi-select
+    // abilities (e.g. Double Punch) must use per-label collected targets.
+    const useMeleeOverride =
+        selectLabels.length === 1
+        && positionalTargetsOverride != null
+        && positionalTargetsOverride.length > 0;
+    const targets = useMeleeOverride
         ? positionalTargetsOverride
         : buildPositionalTargetsFromLabels(selectLabels, collectedTargets);
     return {
         ...baseOrder,
         targets,
+        targetsByLabel: buildTargetsByLabelFromPositional(selectLabels, collectedTargets, targets),
         endTurn: true,
         ...(movementByLabel && Object.keys(movementByLabel).length > 0 ? { movementByLabel } : {}),
     };
@@ -238,13 +270,19 @@ export class InteractiveTargetingSession {
         const movementByLabel = Object.keys(this.collectedMovementByLabel).length > 0
             ? { ...this.collectedMovementByLabel }
             : undefined;
-        const targets = this._orderPositionalTargets.length > 0
+        const useMeleeOverride =
+            this._selectLabels.length === 1 && this._orderPositionalTargets.length > 0;
+        const targets = useMeleeOverride
             ? this._orderPositionalTargets
             : buildPositionalTargetsFromLabels(this._selectLabels, this.collectedTargets);
         return {
             ...this.originalOrder!,
             targets,
-            targetsByLabel: { ...this.collectedTargets },
+            targetsByLabel: buildTargetsByLabelFromPositional(
+                this._selectLabels,
+                this.collectedTargets,
+                targets,
+            ),
             endTurn: true,
             ...(movementByLabel ? { movementByLabel } : {}),
         };
@@ -283,8 +321,22 @@ export class InteractiveTargetingSession {
             if (caster) {
                 const active = caster.activeAbilities.find((a) => a.abilityId === this._abilityId);
                 if (active) {
+                    // Keep active.targets in sync with lock-ons + aim pixel so MeleeAttack.onSetup
+                    // reads the same list the player locked during targeting (not just the label).
+                    if (this._orderPositionalTargets.length > 0) {
+                        active.targets = this._orderPositionalTargets.map((t) => ({ ...t }));
+                    }
                     if (!active.targetsByLabel) active.targetsByLabel = {};
-                    active.targetsByLabel[label] = target;
+                    const primaryIdx = active.targets.findIndex(
+                        (t) => t.type === target.type
+                            && (t.type === 'unit'
+                                ? t.unitId === (target as { unitId?: string }).unitId
+                                : t.position?.x === (target as { position?: { x: number } }).position?.x
+                                    && t.position?.y === (target as { position?: { y: number } }).position?.y),
+                    );
+                    active.targetsByLabel[label] = primaryIdx >= 0
+                        ? active.targets[primaryIdx]!
+                        : target;
                 }
             }
         }
@@ -394,9 +446,10 @@ export class InteractiveTargetingSession {
         if (!this._abilityId || !this._unitId || !this.originalOrder) return;
         const unitId = this._unitId;
         const targets = { ...this.collectedTargets };
-        const positionalTargets = this._orderPositionalTargets.length > 0
-            ? [...this._orderPositionalTargets]
-            : null;
+        const positionalTargets =
+            this._selectLabels.length === 1 && this._orderPositionalTargets.length > 0
+                ? [...this._orderPositionalTargets]
+                : null;
         const movementByLabel = Object.keys(this.collectedMovementByLabel).length > 0
             ? { ...this.collectedMovementByLabel }
             : undefined;
@@ -433,10 +486,12 @@ export class InteractiveTargetingSession {
         // Re-queue with targets pre-filled — no blocking will occur.
         // Spread originalOrder so movement fields (movePath etc.) are preserved.
         // Include movementByLabel so per-label movement fires at interval entry.
+        const replayTargets = positionalTargets
+            ?? buildPositionalTargetsFromLabels(this._selectLabels, targets);
         const replayOrder: BattleOrder = {
             ...baseOrder,
-            targets: positionalTargets ?? buildPositionalTargetsFromLabels(this._selectLabels, targets),
-            targetsByLabel: targets,
+            targets: replayTargets,
+            targetsByLabel: buildTargetsByLabelFromPositional(this._selectLabels, targets, replayTargets),
             endTurn: true,
             ...(movementByLabel ? { movementByLabel } : {}),
         };
@@ -478,9 +533,10 @@ export class InteractiveTargetingSession {
         const movementByLabel = Object.keys(this.collectedMovementByLabel).length > 0
             ? { ...this.collectedMovementByLabel }
             : undefined;
-        const positionalTargetsOverride = this._orderPositionalTargets.length > 0
-            ? [...this._orderPositionalTargets]
-            : undefined;
+        const positionalTargetsOverride =
+            selectLabels.length === 1 && this._orderPositionalTargets.length > 0
+                ? [...this._orderPositionalTargets]
+                : undefined;
         const baseOrder = this.originalOrder;
         const inPlace = this.wouldCommitInPlace(session);
         const heldRows = [...this.heldRemoteOrders.values()];

@@ -138,6 +138,87 @@ export function filterSelectTargetCandidates(
 }
 
 /**
+ * Post-lunge virtual caster + aim point used by melee targeting preview and lock-on resolution.
+ * Returns null when no lunge is needed (already in range / aim on caster).
+ */
+export function computeLungeAimState(
+    caster: { x: number; y: number },
+    mouseWorld: { x: number; y: number },
+    hitboxMax: number,
+    lungeMax: number,
+): { virtualX: number; virtualY: number; adjustedMouse: { x: number; y: number } } | null {
+    const dx = mouseWorld.x - caster.x;
+    const dy = mouseWorld.y - caster.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 0.5) return null;
+
+    const neededLunge = Math.max(0, dist - hitboxMax);
+    const actualLunge = Math.min(lungeMax, neededLunge);
+    if (actualLunge <= 0) return null;
+
+    const dirX = dx / dist;
+    const dirY = dy / dist;
+    const virtualX = caster.x + dirX * actualLunge;
+    const virtualY = caster.y + dirY * actualLunge;
+    return {
+        virtualX,
+        virtualY,
+        adjustedMouse: {
+            x: virtualX + dirX * Math.min(hitboxMax, dist - actualLunge),
+            y: virtualY + dirY * Math.min(hitboxMax, dist - actualLunge),
+        },
+    };
+}
+
+export type SelectLockOnEngine = {
+    units: readonly Unit[];
+};
+
+/**
+ * Resolve lock-on candidates for a SelectTargetDef click — **same geometry as the targeting
+ * preview highlights** (including windup-lunge virtual caster / adjusted aim).
+ *
+ * Callers that resolve from the pre-lunge caster position will lock different units than the
+ * player saw highlighted during sequential targeting playahead.
+ */
+export function resolveSelectTargetLockOnCandidates(
+    ability: AbilityStatic,
+    caster: Unit,
+    selectDef: SelectTargetDef,
+    aimPoint: { x: number; y: number },
+    engine: SelectLockOnEngine,
+): Unit[] {
+    let originX = caster.x;
+    let originY = caster.y;
+    let effectiveAim = aimPoint;
+
+    if (ability.lunge != null) {
+        const lungeMax = caster.getLungeDistance(engine, ability.lunge.distance);
+        const state = computeLungeAimState(caster, aimPoint, selectDef.hitbox.maxRange, lungeMax);
+        if (state) {
+            originX = state.virtualX;
+            originY = state.virtualY;
+            effectiveAim = state.adjustedMouse;
+        }
+    }
+
+    // Shadow caster x/y so hitbox geometry matches the post-lunge preview without mutating live state.
+    const originCaster = Object.create(caster) as Unit;
+    originCaster.x = originX;
+    originCaster.y = originY;
+
+    const raw = selectDef.hitbox.resolveTargets(originCaster, effectiveAim, engine.units as Unit[]);
+    const candidates = filterSelectTargetCandidates(raw, caster, selectDef.filter);
+    candidates.sort((a, b) => {
+        const da = (a.x - effectiveAim.x) ** 2 + (a.y - effectiveAim.y) ** 2;
+        const db = (b.x - effectiveAim.x) ** 2 + (b.y - effectiveAim.y) ** 2;
+        return da - db;
+    });
+    const maxCandidates = selectDef.numTargets ?? selectDef.hitbox.numTargets;
+    return candidates.slice(0, maxCandidates);
+}
+
+/**
  * Find the trailing aim pixel appended by `buildMeleeSelectOrderTargets`.
  * Convention: last `pixel` entry in the array (always appended after lock-on units).
  * Returns `null` when no pixel entry is present.

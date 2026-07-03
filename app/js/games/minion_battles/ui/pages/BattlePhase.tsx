@@ -53,7 +53,13 @@ import { fetchBattleAssets } from '../../game/fetchBattleAssets';
 import { MISSION_MAP, DARK_AWAKENING } from '../../storylines';
 import { AUTO_END_TURN } from '../../game/gameConstants';
 import { getAbility } from '../../abilities/AbilityRegistry';
-import { resolveClick, getSelectTargetDefsFromTimings, filterSelectTargetCandidates, buildMeleeSelectOrderTargets, clampResolvedTargetToAbilityRange } from '../../abilities/targeting';
+import {
+    resolveClick,
+    getSelectTargetDefsFromTimings,
+    buildMeleeSelectOrderTargets,
+    clampResolvedTargetToAbilityRange,
+    resolveSelectTargetLockOnCandidates,
+} from '../../abilities/targeting';
 import { buildPlayerMovePathThroughWaypoints } from '../../terrain/playerMovePath';
 import { Play, Pause, Square } from 'lucide-react';
 
@@ -1066,33 +1072,34 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                     const selectDefs = getSelectTargetDefsFromTimings(abilityDef, caster, engine);
                     // Find the selectDef for this label.
                     const selectDef = selectDefs.find((d) => d.label === label);
-                    if (selectDef) {
-                        const mouseWorld = camera.screenToWorld(screenX, screenY);
-                        const rawCandidates = selectDef.hitbox.resolveTargets(caster, mouseWorld, engine.units);
-                        const candidates = filterSelectTargetCandidates(rawCandidates, caster, selectDef.filter);
-                        candidates.sort((a, b) => {
-                            const da = (a.x - mouseWorld.x) ** 2 + (a.y - mouseWorld.y) ** 2;
-                            const db = (b.x - mouseWorld.x) ** 2 + (b.y - mouseWorld.y) ** 2;
-                            return da - db;
-                        });
-                        let resolved = null;
-                        if (candidates.length > 0) {
-                            resolved = { type: 'unit' as const, unitId: candidates[0]!.id };
-                        } else if (selectDef.allowMiss !== false) {
-                            resolved = { type: 'pixel' as const, position: clickResult.worldPosition };
-                        }
-                        if (resolved) {
-                            resolved = clampResolvedTargetToAbilityRange(abilityDef, caster, resolved, engine);
-                            const numTargets = selectDef.numTargets ?? selectDef.hitbox.numTargets;
-                            const lockOnCandidates = candidates.slice(0, numTargets).map((u) => ({ unitId: u.id }));
-                            its.resolveTarget(
-                                label,
-                                resolved,
-                                session,
-                                buildMeleeSelectOrderTargets(resolved, lockOnCandidates, clickResult.worldPosition, numTargets),
+                        if (selectDef) {
+                            const mouseWorld = camera.screenToWorld(screenX, screenY);
+                            // Must match targeting-preview highlights (post-lunge virtual caster).
+                            const candidates = resolveSelectTargetLockOnCandidates(
+                                abilityDef,
+                                caster,
+                                selectDef,
+                                mouseWorld,
+                                engine,
                             );
+                            let resolved = null;
+                            if (candidates.length > 0) {
+                                resolved = { type: 'unit' as const, unitId: candidates[0]!.id };
+                            } else if (selectDef.allowMiss !== false) {
+                                resolved = { type: 'pixel' as const, position: clickResult.worldPosition };
+                            }
+                            if (resolved) {
+                                resolved = clampResolvedTargetToAbilityRange(abilityDef, caster, resolved, engine);
+                                const numTargets = selectDef.numTargets ?? selectDef.hitbox.numTargets;
+                                const lockOnCandidates = candidates.map((u) => ({ unitId: u.id }));
+                                its.resolveTarget(
+                                    label,
+                                    resolved,
+                                    session,
+                                    buildMeleeSelectOrderTargets(resolved, lockOnCandidates, clickResult.worldPosition, numTargets),
+                                );
+                            }
                         }
-                    }
                 }
             }
             return;

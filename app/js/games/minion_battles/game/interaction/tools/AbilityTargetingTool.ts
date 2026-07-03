@@ -1,9 +1,9 @@
 import {
     resolveClick,
     getSelectTargetDefsFromTimings,
-    filterSelectTargetCandidates,
     buildMeleeSelectOrderTargets,
     clampResolvedTargetToAbilityRange,
+    resolveSelectTargetLockOnCandidates,
 } from '../../../abilities/targeting';
 import type { ResolvedTarget } from '../../types';
 import type { InteractionTool, PlayerInteractionContext, IPlayerInteractionManager } from '../InteractionTool';
@@ -116,18 +116,17 @@ export class AbilityTargetingTool implements InteractionTool {
                     ) > 2;
                 if (cacheStale) {
                     if (caster) {
-                        const rawHitUnits = selectDef.hitbox.resolveTargets(caster, worldPos, engine.units);
-                        const hitUnits = filterSelectTargetCandidates(rawHitUnits, caster, selectDef.filter);
-                        hitUnits.sort((a, b) => {
-                            const da = (a.x - worldPos.x) ** 2 + (a.y - worldPos.y) ** 2;
-                            const db = (b.x - worldPos.x) ** 2 + (b.y - worldPos.y) ** 2;
-                            return da - db;
-                        });
-                        const maxCandidates = selectDef.numTargets ?? selectDef.hitbox.numTargets;
+                        const hitUnits = resolveSelectTargetLockOnCandidates(
+                            this.ability,
+                            caster,
+                            selectDef,
+                            worldPos,
+                            engine,
+                        );
                         this.lockOnCache = {
                             targetIdx: targetIndex,
                             mouseWorldPos: { x: worldPos.x, y: worldPos.y },
-                            allCandidates: hitUnits.slice(0, maxCandidates).map((u) => ({ unitId: u.id })),
+                            allCandidates: hitUnits.map((u) => ({ unitId: u.id })),
                         };
                     } else {
                         this.lockOnCache = null;
