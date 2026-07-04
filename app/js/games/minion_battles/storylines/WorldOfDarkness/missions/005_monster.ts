@@ -11,7 +11,6 @@ import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { LevelEvent, SpecialTilePlacement } from '../../types';
 import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
 import { ENEMY_ALPHA_WOLF } from '../../../constants/enemyConstants';
-import { UnitTag } from '../../../game/units/unitTag';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
@@ -68,6 +67,8 @@ const ENEMIES = [
         ...ENEMY_ALPHA_WOLF,
         name: 'Beast',
         position: WOLF_POSITION,
+        /** Only this unit is player-controllable (not summoned pack wolves). */
+        controlGroupId: 'boss',
     },
 ];
 
@@ -148,7 +149,8 @@ export class MonsterMission extends BaseMissionDef {
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;
     enemies = ENEMIES;
-    playerControl = [{ unitTag: UnitTag.Boss, label: 'Control Alpha Wolf' }];
+    // Match by controlGroupId only — Boss tag alone must not claim summoned pack wolves.
+    playerControl = [{ controlGroupId: 'boss', label: 'Control Alpha Wolf' }];
     levelEvents = LEVEL_EVENTS;
     createTerrain = createTerrain;
     specialTiles = SPECIAL_TILES;

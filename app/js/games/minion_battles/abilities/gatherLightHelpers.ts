@@ -8,8 +8,11 @@ import { StoryHomingParticleEmitter } from '../game/effects/StoryHomingParticleE
 import type { EngineContext } from '../game/EngineContext';
 import type { Unit } from '../game/units/Unit';
 
+/** Ability windup time; owned here (not `0804Ability.ts`) to avoid a circular import — this
+ * file is imported by `0804Ability.ts`, so the dependency can only flow one way. */
+export const GATHER_LIGHT_PREFIRE_TIME = 0.5;
 /** One darkness step applied per Gather Light cast to each affected tile. */
-export const GATHER_LIGHT_DARKNESS_AMOUNT = -1;
+export const GATHER_LIGHT_DARKNESS_AMOUNT = -2;
 /** Homing orb flight time (vs 2s story default). */
 export const GATHER_LIGHT_ORB_DURATION = 0.6;
 /** Yellow orb tint (Light palette). */
@@ -17,7 +20,7 @@ export const GATHER_LIGHT_ORB_TINT = 0xffe066;
 /** Purple windup ring color. */
 export const GATHER_LIGHT_RING_COLOR = 0x9933cc;
 export const GATHER_LIGHT_RING_RADIUS = 25;
-export const GATHER_LIGHT_RING_DURATION = 0.2;
+export const GATHER_LIGHT_RING_DURATION = GATHER_LIGHT_PREFIRE_TIME;
 
 /** Permanent base-darkness sources use a very long round lifetime with noDecay. */
 export const GATHER_LIGHT_DARKNESS_ROUNDS_TOTAL = 9999;
@@ -124,7 +127,7 @@ export function spawnGatherLightWindupRing(
             direction: 'expand',
             shape: 'ring',
             color: GATHER_LIGHT_RING_COLOR,
-            radius: GATHER_LIGHT_RING_RADIUS,
+            radius: GATHER_LIGHT_RING_RADIUS + caster.radius,
         },
     }));
 }
@@ -165,6 +168,10 @@ export function spawnGatherLightOrbs(
             targetY: caster.y,
             duration: GATHER_LIGHT_ORB_DURATION,
             tint: GATHER_LIGHT_ORB_TINT,
+            // 'darkBlob' (the emitter's default) has a saturated purple fill; multiplicative
+            // tint can only darken it, never recolor it to yellow. 'glowOrb' is neutral white
+            // so GATHER_LIGHT_ORB_TINT renders faithfully.
+            imageKey: 'glowOrb',
             pulseColors: [0xffe066, 0xfcd34d, 0xfbbf24],
         }));
     }

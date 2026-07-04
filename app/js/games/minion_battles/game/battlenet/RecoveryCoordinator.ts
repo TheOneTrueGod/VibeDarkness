@@ -356,11 +356,19 @@ export class RecoveryCoordinator {
                 synced = syncReconciler.isFingerprintAlignedWithHeartbeat(heartbeat);
                 // Liveness check: fingerprint alignment is necessary but not sufficient.
                 // If the engine is still paused for order sync as a non-host, replayOrdersSince
-                // returned 0 rows (timing race) and we haven't actually unblocked. Force escalation
-                // to the targeted-snapshot tier so the replay is retried.
+                // may have returned 0 rows (timing race) and we haven't actually unblocked — escalate
+                // to the targeted-snapshot tier. Exception (lobby 39E984): host is paused waiting for
+                // *this* player; that is the healthy "your turn" state after bootstrap.
                 const engineStillPausedAfterBootstrap = !this.ctx.isHost && this.ctx.session.isPausedForOrderSync();
                 if (synced && engineStillPausedAfterBootstrap) {
-                    synced = false;
+                    const expecting = heartbeat.expectingFromPlayerIds;
+                    const hostExpectsLocalPlayer =
+                        heartbeat.hostPaused === true &&
+                        Array.isArray(expecting) &&
+                        expecting.includes(this.ctx.playerId);
+                    if (!hostExpectsLocalPlayer) {
+                        synced = false;
+                    }
                 }
                 logToLobbyLogBattleSync({
                     lobbyClient: this.ctx.api as unknown as LobbyClient,

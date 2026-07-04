@@ -421,6 +421,51 @@ export function createPixelTargetPreview(maxDistance: number): RenderTargetingPr
     };
 }
 
+/** Options for {@link createChargeCapsuleTargetPreview}. */
+export interface ChargeCapsuleTargetPreviewOptions {
+    /** Full dash telegraph length (matches active windup capsule, e.g. radius + baseMaxRange). */
+    getDashLength: (caster: Unit) => number;
+    /** Capsule thickness (matches active preview, e.g. radius * capsuleRadiusMultiplier). */
+    getCapsuleThickness: (caster: Unit) => number;
+    /** Fill/stroke hue; default gray so it reads as aim, not the live telegraph. */
+    color?: number;
+}
+
+/**
+ * Preset: Ground-aim charge. Draws the same capsule as the active charge telegraph at full
+ * dash length in the mouse direction, in gray (no timing expand animation).
+ */
+export function createChargeCapsuleTargetPreview(
+    options: ChargeCapsuleTargetPreviewOptions,
+): RenderTargetingPreviewFn {
+    const color = options.color ?? 0xa0a0a0;
+    return (gr, caster, _currentTargets, mouseWorld, _units) => {
+        gr.clear();
+        const dx = mouseWorld.x - caster.x;
+        const dy = mouseWorld.y - caster.y;
+        const dist = Math.hypot(dx, dy);
+        const dirX = dist > 1e-6 ? dx / dist : 1;
+        const dirY = dist > 1e-6 ? dy / dist : 0;
+        const lineLen = options.getDashLength(caster);
+        if (lineLen <= 1e-6) return;
+        const endX = caster.x + dirX * lineLen;
+        const endY = caster.y + dirY * lineLen;
+        const thickness = options.getCapsuleThickness(caster);
+        // elapsed === prefireTime → fully expanded capsule, same shape as windup telegraph.
+        drawChargeCapsuleTimingTelegraph(
+            gr,
+            caster.x,
+            caster.y,
+            endX,
+            endY,
+            thickness,
+            1,
+            1,
+            color,
+        );
+    };
+}
+
 /**
  * Preset: Terrain-aware pixel-target preview for dash/movement abilities.
  * Uses computeForcedDisplacement to show the actual reachable endpoint after terrain collision,

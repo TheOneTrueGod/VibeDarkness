@@ -107,6 +107,7 @@ function makeCtx(): BattleNetContext & { requestResync: ReturnType<typeof vi.fn>
         snapshotPersistence,
         isRecovering: false,
         requestResync,
+        softAlignToHostPausePlane: vi.fn(),
         notePreviouslySyncedAnchorTick: vi.fn(),
         resetForDesyncRecoveryEntry: vi.fn(),
     };
@@ -174,16 +175,27 @@ describe('OrderQueueController.applyDeferredRowLocallyIfNeeded', () => {
         ctx.events.on('orders-applied', emitSpy);
         const q = new OrderQueueController(ctx);
         const row = { idHash: 'h1', atTick: 5, order: makeOrder('u'), appliedLocally: false };
-        q.applyDeferredRowLocallyIfNeeded(row);
+        expect(q.applyDeferredRowLocallyIfNeeded(row)).toBe(false);
         expect(row.appliedLocally).toBe(true);
         expect(ctx.session.applyRemoteOrders).toHaveBeenCalledWith([
             { atTick: 5, order: row.order, idHash: 'h1', playerId: 'p1' },
         ]);
         expect(emitSpy).toHaveBeenCalledWith({ count: 1, source: 'submit' });
 
-        q.applyDeferredRowLocallyIfNeeded(row);
+        expect(q.applyDeferredRowLocallyIfNeeded(row)).toBe(false);
         expect(ctx.session.applyRemoteOrders).toHaveBeenCalledTimes(1);
         expect(emitSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('skips clamp-apply when atTick is behind local engine tick (lobby 39E984)', () => {
+        const ctx = makeCtx();
+        ctx.session.getEngineTick = () => 119;
+        const q = new OrderQueueController(ctx);
+        const row = { idHash: 'h94', atTick: 94, order: makeOrder('u1'), appliedLocally: false };
+        expect(q.applyDeferredRowLocallyIfNeeded(row)).toBe(true);
+        expect(row.appliedLocally).toBe(true);
+        expect(ctx.session.applyRemoteOrders).not.toHaveBeenCalled();
+        expect(q.getAppliedOrderIdHashes().has('h94')).toBe(true);
     });
 });
 

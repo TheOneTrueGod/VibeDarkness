@@ -36,6 +36,11 @@ export interface BattleNetContext {
     readonly isRecovering: boolean;
     /** Trigger an asynchronous desync recovery (no-op when one is already running). */
     requestResync(reason: string): void;
+    /**
+     * Non-host: reload latest host checkpoint + replay orders without the full desync UI path.
+     * Falls back to {@link requestResync} when bootstrap fails or fingerprints still disagree.
+     */
+    softAlignToHostPausePlane(reason: string): void;
     /** Non-host: record that we aligned through this server-completed tick (host-anchor UX). */
     notePreviouslySyncedAnchorTick(hostAlignedTick: number): void;
     /**

@@ -5,6 +5,7 @@ import {
     clampResolvedTargetToAbilityRange,
     resolveSelectTargetLockOnCandidates,
 } from '../../../abilities/targeting';
+import { getAbilityTargets } from '../../../abilities/Ability';
 import type { ResolvedTarget } from '../../types';
 import type { InteractionTool, PlayerInteractionContext, IPlayerInteractionManager } from '../InteractionTool';
 import type { AbilityStatic } from '../../../abilities/Ability';
@@ -16,7 +17,10 @@ type LockOnCache = {
     allCandidates: Array<{ unitId: string }>;
 };
 
-/** Multi-step click targeting for ability use (new-style SelectTargetDef). */
+/**
+ * Multi-step click targeting for ability use.
+ * Prefers per-timing SelectTargetDef; falls back to classic `ability.targets` (pixel/unit).
+ */
 export class AbilityTargetingTool implements InteractionTool {
     private currentTargets: ResolvedTarget[] = [];
     private targetsByLabel: Record<string, ResolvedTarget> = {};
@@ -87,6 +91,51 @@ export class AbilityTargetingTool implements InteractionTool {
             return true;
         }
 
+        // Classic ability.targets (e.g. charge ground-aim, legacy unit lock-on).
+        const staticTargets = getAbilityTargets(this.ability, caster, engine);
+        if (staticTargets.length === 0) {
+            manager.submitOrder(this.ability.id, []);
+            manager.deactivateTool();
+            return true;
+        }
+
+        const targetDef = staticTargets[targetIndex];
+        if (!targetDef) return true;
+
+        const tType = targetDef.type ?? 'pixel';
+        let resolved: ResolvedTarget | null = null;
+        if (tType === 'pixel') {
+            resolved = { type: 'pixel', position: { ...clickResult.worldPosition } };
+        } else if (tType === 'unit') {
+            if (!clickResult.unit) return true;
+            resolved = { type: 'unit', unitId: clickResult.unit.id };
+        } else if (tType === 'player') {
+            if (!clickResult.unit) return true;
+            resolved = {
+                type: 'player',
+                playerId: clickResult.unit.ownerId,
+                unitId: clickResult.unit.id,
+            };
+        }
+        if (!resolved) return true;
+
+        if (caster) {
+            resolved = clampResolvedTargetToAbilityRange(
+                this.ability,
+                caster,
+                resolved,
+                engine,
+            );
+        }
+
+        const newTargets = [...this.currentTargets, resolved];
+        this.currentTargets = newTargets;
+        manager.setCurrentTargets(newTargets);
+
+        if (newTargets.length >= staticTargets.length) {
+            manager.submitOrder(this.ability.id, newTargets);
+            manager.deactivateTool();
+        }
         return true;
     }
 

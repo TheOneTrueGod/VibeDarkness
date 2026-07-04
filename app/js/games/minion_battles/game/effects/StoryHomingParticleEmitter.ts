@@ -11,12 +11,14 @@
 import { EffectEmitter } from './EffectEmitter';
 import { Effect } from './Effect';
 import type { EngineContext } from '../EngineContext';
+import type { EffectImageKey } from '../effectImages';
 
 export const STORY_HOMING_PARTICLE_DEFAULT_DURATION = 2;
 
 export class StoryHomingParticleEmitter extends EffectEmitter {
     private readonly flightDuration: number;
     private readonly particleTint: number;
+    private readonly particleImageKey: EffectImageKey;
     private readonly pulseColors: number[];
     private startX: number;
     private startY: number;
@@ -43,6 +45,12 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
         duration?: number;
         /** Particle tint hex. Default purple story color. */
         tint?: number;
+        /**
+         * Particle sprite. Default `'darkBlob'` (purple story asset) — its fill is not neutral,
+         * so `tint` can only darken it, never fully recolor it (e.g. yellow stays purple-ish).
+         * Pass `'glowOrb'` (neutral white) when `tint` needs to render faithfully.
+         */
+        imageKey?: EffectImageKey;
         /** Pulse colors on arrival. Default purple story palette. */
         pulseColors?: number[];
         /** Restore elapsed (used by restoreFromJSON). */
@@ -53,6 +61,7 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
         super({ id: config.id, x: config.x, y: config.y, lifetime: duration });
         this.flightDuration = duration;
         this.particleTint = config.tint ?? 0xa855f7;
+        this.particleImageKey = config.imageKey ?? 'darkBlob';
         this.pulseColors = config.pulseColors ?? [0xa855f7, 0x7e22ce, 0x581c87];
         this.startX = config.startX;
         this.startY = config.startY;
@@ -90,7 +99,7 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
                 y: by,
                 duration: this.flightDuration,
                 effectType: 'StoryHomingParticle',
-                effectData: { imageKey: 'darkBlob', tint: this.particleTint },
+                effectData: { imageKey: this.particleImageKey, tint: this.particleTint },
             });
             produced.push(this.currentEffect);
         } else if (this.currentEffect.active) {
@@ -133,6 +142,7 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
             pulseSpawned: this.pulseSpawned,
             flightDuration: this.flightDuration,
             particleTint: this.particleTint,
+            particleImageKey: this.particleImageKey,
             pulseColors: this.pulseColors,
         };
     }

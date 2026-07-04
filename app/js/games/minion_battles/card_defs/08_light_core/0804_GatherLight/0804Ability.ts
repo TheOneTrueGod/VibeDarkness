@@ -14,12 +14,12 @@ import {
     applyGatherLightDarkness,
     spawnGatherLightOrbs,
     spawnGatherLightWindupRing,
+    GATHER_LIGHT_PREFIRE_TIME,
     type EngineWithGatherLight,
 } from '../../../abilities/gatherLightHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Light)}04`;
-const MAX_USES = 1;
-const PREFIRE_TIME = 0.5;
+const MAX_USES = 2;
 const ACTIVE_DURATION = 0.05;
 const COOLDOWN_DURATION = 0.45;
 export const GATHER_LIGHT_AMOUNT = 2;
@@ -41,16 +41,17 @@ export const GatherLightAbility = defineAbility({
     id: CARD_ID,
     name: 'Gather Light',
     image: GATHER_LIGHT_IMAGE,
+    resourceCost: null,
     rechargeTurns: 0,
     maxUses: MAX_USES,
     recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 }],
-    prefireTime: PREFIRE_TIME,
+    prefireTime: GATHER_LIGHT_PREFIRE_TIME,
     targets: [],
     abilityTimings: [
         {
             id: 'windup',
             start: 0,
-            end: PREFIRE_TIME,
+            end: GATHER_LIGHT_PREFIRE_TIME,
             abilityPhase: AbilityPhase.Windup,
             castBehaviours: [
                 {
@@ -63,8 +64,8 @@ export const GatherLightAbility = defineAbility({
         },
         {
             id: 'active',
-            start: PREFIRE_TIME,
-            end: PREFIRE_TIME + ACTIVE_DURATION,
+            start: GATHER_LIGHT_PREFIRE_TIME,
+            end: GATHER_LIGHT_PREFIRE_TIME + ACTIVE_DURATION,
             abilityPhase: AbilityPhase.Active,
             castBehaviours: [
                 {
@@ -84,8 +85,8 @@ export const GatherLightAbility = defineAbility({
         },
         {
             id: 'cooldown',
-            start: PREFIRE_TIME + ACTIVE_DURATION,
-            end: PREFIRE_TIME + ACTIVE_DURATION + COOLDOWN_DURATION,
+            start: GATHER_LIGHT_PREFIRE_TIME + ACTIVE_DURATION,
+            end: GATHER_LIGHT_PREFIRE_TIME + ACTIVE_DURATION + COOLDOWN_DURATION,
             abilityPhase: AbilityPhase.Cooldown,
         },
     ],

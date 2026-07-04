@@ -22,7 +22,7 @@ import { LIGHT_BLAST_DAMAGE, LIGHT_BLAST_MAX_RANGE, LIGHT_BLAST_MAX_TARGETS } fr
 const P = TINY_BATTLE_PLAYER_ID;
 const LIGHT_BLAST_ID = '0801';
 /** Matches `0801Ability` `resourceCost.amount`. */
-const LIGHT_BLAST_LIGHT_COST = 2;
+const LIGHT_BLAST_LIGHT_COST = 1;
 
 export const lightBlastCommittedScenario: ScenarioDefinition = {
     id: 'light_blast_committed_e2e',

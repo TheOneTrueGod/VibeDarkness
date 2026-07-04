@@ -59,7 +59,7 @@ const FIXED_DT = 1 / 60;
 const LIGHT_BLAST_ID = '0801';
 const LIGHT_BLAST_PREFIRE = 0.4;
 /** Matches `0801Ability` `resourceCost.amount`. */
-const LIGHT_BLAST_LIGHT_COST = 2;
+const LIGHT_BLAST_LIGHT_COST = 1;
 /** SelectTargetDef label on Light Blast timings. */
 const LIGHT_BLAST_TARGET_LABEL = 'Target';
 
@@ -1810,6 +1810,60 @@ describe('non-host in-place commit (Step 3)', () => {
         } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
 
         expect(its.wouldCommitInPlace(nonHostSession)).toBe(true);
+
+        session.destroy();
+        nonHostSession.destroy();
+    });
+
+    it('wouldCommitInPlace is false for non-host when engine playahead past mark (lobby 39E984)', async () => {
+        const fixture = await mountLightBlastSessionFixture();
+        const { session, casterUnitId, remoteUnitId, atTick } = fixture;
+
+        const nonHostSession = new BattleSession({
+            api: makeApiStub(),
+            missionId: 'dark_awakening',
+            playerId: 'p2',
+            isHost: false,
+        });
+        nonHostSession.updateLobbyContext(
+            {
+                p1: { id: 'p1', name: 'P1', color: '#fff' },
+                p2: { id: 'p2', name: 'P2', color: '#000' },
+            },
+            { p1: 'warrior', p2: 'ranger' },
+        );
+
+        const engine = session.getEngine()!;
+        const mark = engine.toJSON();
+        mark.checkpointRuntimeFingerprintHex = engine.getRuntimeFingerprintHex();
+        const markTick = mark.gameTick;
+
+        const its = nonHostSession.interactiveTargeting;
+        its['_isActive'] = true;
+        its['_abilityId'] = LIGHT_BLAST_ID;
+        its['_unitId'] = casterUnitId;
+        its['mark'] = mark;
+        its['originalOrder'] = {
+            unitId: casterUnitId,
+            abilityId: LIGHT_BLAST_ID,
+            targets: [],
+            endTurn: true,
+        };
+        its['assumedWaitUnitIds'] = new Set([remoteUnitId]);
+        const passOrder = makePurePassOrder(remoteUnitId);
+        its.holdRemoteOrder(atTick, passOrder, hashOrderId('p1', atTick, passOrder));
+
+        nonHostSession.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            submitOrder: vi.fn().mockResolvedValue(undefined),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        // Simulate ITS playahead: live engine is past the mark tick.
+        vi.spyOn(nonHostSession, 'getEngine').mockReturnValue({
+            gameTick: markTick + 26,
+        } as ReturnType<BattleSession['getEngine']>);
+
+        expect(its.wouldCommitInPlace(nonHostSession)).toBe(false);
 
         session.destroy();
         nonHostSession.destroy();

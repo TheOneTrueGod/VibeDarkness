@@ -93,6 +93,7 @@ function makeCtx(args: { isHost?: boolean; session?: Partial<BattleSessionHandle
         }),
         isRecovering: false,
         requestResync: () => {},
+        softAlignToHostPausePlane: () => {},
         notePreviouslySyncedAnchorTick: vi.fn(),
         resetForDesyncRecoveryEntry: vi.fn(),
     };

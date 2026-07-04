@@ -129,6 +129,7 @@ function makeHarness(opts: {
         }),
         isRecovering: false,
         requestResync: () => {},
+        softAlignToHostPausePlane: () => {},
         notePreviouslySyncedAnchorTick: vi.fn(),
         resetForDesyncRecoveryEntry(): void {
             orderQueueRef.current?.resetLocalOptimisticOrdersOnResync();
@@ -388,6 +389,56 @@ describe('RecoveryCoordinator.runDesyncRecovery', () => {
         ]);
     });
 
+    it('keeps bootstrap success when still paused but host expects local player (lobby 39E984)', async () => {
+        const loadFromSnapshot = vi.fn();
+        const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
+        const getBattleSnapshot = vi.fn(async () => ({
+            tick: 119,
+            state: { gameTick: 119 } as SerializedGameState,
+            synchash: 'fp119',
+        }));
+        const getBattleOrdersRange = vi.fn(async () => ({ orders: [] }));
+        const getBattleFingerprintsRange = vi.fn(async () => ({
+            records: [{ tick: 119, fp: 'fp119' }],
+        }));
+        const getBattleHeartbeat = vi.fn(async () => ({
+            hostTick: 119,
+            hostFingerprint: 'fp119',
+            hostPaused: true,
+            ordersTipTick: 120,
+            ordersRecordCount: 0,
+            orderBatchAtTick: 120,
+            pausedAtTick: 120,
+            expectingFromPlayerIds: ['p1'],
+            initialFingerprint: '0011223344556677',
+            heartbeatSeq: 0,
+        }));
+        const h = makeHarness({
+            apiOverrides: {
+                getBattleSnapshot,
+                getBattleOrdersRange,
+                getBattleFingerprintsRange,
+                getBattleHeartbeat,
+            },
+            sessionOverrides: {
+                getEngineTick: () => 119,
+                isPausedForOrderSync: () => true,
+                getFingerprintRange: () => [{ tick: 119, fp: 'fp119', paused: true }],
+                getLatestFingerprint: () => ({ tick: 119, fp: 'fp119', paused: true }),
+                loadFromSnapshot,
+                applyRemoteOrders,
+            },
+        });
+        await h.coordinator.runDesyncRecovery('waiting-for-host-paused-stall');
+        // Bootstrap only — no targeted atTick snapshot fetch.
+        expect(getBattleSnapshot).toHaveBeenCalledTimes(1);
+        expect(getBattleSnapshot).toHaveBeenCalledWith('l1', 'g1', { playerId: 'p1' });
+        const statuses = h.statusCallback.mock.calls.map((c) => c[0]);
+        expect(statuses).toContain('resyncing');
+        expect(statuses).toContain('synced');
+        expect(h.coordinator.isRecovering).toBe(false);
+    });
+
     it('reloads the page when bootstrap and targeted snapshot both fail', async () => {
         const reload = vi.fn();
         vi.stubGlobal('window', { location: { reload } });
@@ -492,6 +543,7 @@ describe('RecoveryCoordinator.bindSiblings', () => {
             }),
             isRecovering: false,
             requestResync: () => {},
+            softAlignToHostPausePlane: () => {},
             notePreviouslySyncedAnchorTick: vi.fn(),
             resetForDesyncRecoveryEntry: vi.fn(),
         };

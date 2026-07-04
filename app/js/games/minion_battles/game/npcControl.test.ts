@@ -279,6 +279,28 @@ describe('npcControl', () => {
         engine.destroy();
     });
 
+    it('does not assign Boss-tagged units when playerControl matches controlGroupId only', () => {
+        const engine = makeBareEngine();
+        engine.registerPlayerControl(
+            [{ controlGroupId: BOSS_GROUP, label: 'Control Boss' }],
+            { [BOSS_GROUP]: PLAYER_ID },
+        );
+
+        const taggedOnly = makeEnemyUnit({ id: 'pack_wolf', tags: [UnitTag.Boss] });
+        engine.addUnit(taggedOnly, 'initialGameSpawn');
+        expect(taggedOnly.ownerId).toBe('ai');
+
+        const alpha = makeEnemyUnit({
+            id: 'alpha',
+            tags: [UnitTag.Boss],
+            controlGroupId: BOSS_GROUP,
+        });
+        engine.addUnit(alpha, 'initialGameSpawn');
+        expect(alpha.ownerId).toBe(PLAYER_ID);
+
+        engine.destroy();
+    });
+
     it('initializeGameState with control selection spawns no hero for that player and assigns the wolf', () => {
         const HERO_PLAYER = 'p_hero';
         const CONTROL_PLAYER = 'p_control';
@@ -288,11 +310,12 @@ describe('npcControl', () => {
             name = 'Test NPC Control';
             worldWidth = 5 * CELL_SIZE;
             worldHeight = 5 * CELL_SIZE;
-            playerControl = [BOSS_CONTROL_DEF];
+            playerControl = [{ controlGroupId: BOSS_GROUP, label: 'Control Alpha Wolf' }];
             enemies: EnemySpawnDef[] = [
                 {
                     ...ENEMY_ALPHA_WOLF,
                     position: { x: 200, y: 200 },
+                    controlGroupId: BOSS_GROUP,
                 },
             ];
             createTerrain = () =>

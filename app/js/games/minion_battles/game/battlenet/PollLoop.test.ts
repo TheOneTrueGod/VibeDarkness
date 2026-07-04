@@ -111,6 +111,7 @@ function makeHarness(opts: {
         }),
         isRecovering: opts.isRecovering ?? false,
         requestResync: () => {},
+        softAlignToHostPausePlane: () => {},
         notePreviouslySyncedAnchorTick: vi.fn(),
         resetForDesyncRecoveryEntry: vi.fn(),
     };
@@ -175,6 +176,7 @@ describe('PollLoop.bindSiblings', () => {
             }),
             isRecovering: false,
             requestResync: () => {},
+            softAlignToHostPausePlane: () => {},
             notePreviouslySyncedAnchorTick: vi.fn(),
             resetForDesyncRecoveryEntry: vi.fn(),
         };

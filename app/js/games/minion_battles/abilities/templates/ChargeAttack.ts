@@ -13,7 +13,7 @@ import { ThickLineHitbox } from '../../hitboxes/ThickLineHitbox';
 import { Effect } from '../../game/effects/Effect';
 import { tryDamageOrBlock } from '../blockingHelpers';
 import { tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
-import { createUnitTargetPreview, drawChargeCapsuleTimingTelegraph } from '../previewHelpers';
+import { createChargeCapsuleTargetPreview, drawChargeCapsuleTimingTelegraph } from '../previewHelpers';
 import { getDirectionFromTo } from '../targetHelpers';
 
 export interface ChargeNote {
@@ -93,7 +93,7 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 			{ id: 'lunge', start: w, end: w + l, abilityPhase: AbilityPhase.Active },
 			{ id: 'cooldown', start: w + l, end: w + l + cd, abilityPhase: AbilityPhase.Cooldown },
 		];
-		this.targets = [{ type: 'unit', label: 'Target enemy' }] as TargetDef[];
+		this.targets = [{ type: 'pixel', label: 'Charge direction' }] as TargetDef[];
 		this.aiSettings = {
 			minRange: 0,
 			maxRange: config.aiMaxRange,
@@ -104,9 +104,9 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 			lungeDuration: l,
 			windupTime: w,
 		});
-		this.renderTargetingPreview = createUnitTargetPreview({
-			getMinRange: () => 0,
-			getMaxRange: (caster: Unit) => config.baseMaxRange + caster.radius,
+		this.renderTargetingPreview = createChargeCapsuleTargetPreview({
+			getDashLength: (caster: Unit) => config.baseMaxRange + caster.radius,
+			getCapsuleThickness: (caster: Unit) => caster.radius * config.capsuleRadiusMultiplier,
 		});
 		if (config.requiredTags) this.requiredTags = config.requiredTags;
 		if (config.forbiddenTags) this.forbiddenTags = config.forbiddenTags;
@@ -260,30 +260,24 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 		caster: Unit,
 		targets: ResolvedTarget[],
 	): ChargeNote | null {
-		const targetDef = targets[0];
-		if (targetDef?.type === 'unit' && targetDef.unitId) {
-			const targetUnit = eng.getUnit(targetDef.unitId);
-			if (targetUnit?.isAlive()) {
-				const lungeStartX = caster.x;
-				const lungeStartY = caster.y;
-				const targetX = targetUnit.x;
-				const targetY = targetUnit.y;
-				const { dirX: chargeDirX, dirY: chargeDirY } = computeLungeChargeDirection(
-					caster, lungeStartX, lungeStartY, targetX, targetY,
-				);
-				return {
-					targetId: targetDef.unitId,
-					targetX,
-					targetY,
-					lungeStartX,
-					lungeStartY,
-					chargeDirX,
-					chargeDirY,
-					hitTargetIds: [],
-				};
-			}
-		}
-		return null;
+		const aim = resolveChargeAimPoint(eng, targets);
+		if (!aim) return null;
+
+		const lungeStartX = caster.x;
+		const lungeStartY = caster.y;
+		const { dirX: chargeDirX, dirY: chargeDirY } = computeLungeChargeDirection(
+			caster, lungeStartX, lungeStartY, aim.targetX, aim.targetY,
+		);
+		return {
+			targetId: aim.targetId,
+			targetX: aim.targetX,
+			targetY: aim.targetY,
+			lungeStartX,
+			lungeStartY,
+			chargeDirX,
+			chargeDirY,
+			hitTargetIds: [],
+		};
 	}
 
 	private damageEnemiesInPath(
@@ -372,4 +366,30 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 		}
 		return { x: caster.x, y: caster.y };
 	}
+}
+
+/** Resolve ground (pixel) or legacy unit aim for charge templates. */
+export function resolveChargeAimPoint(
+	eng: AbilityEngineContext,
+	targets: ResolvedTarget[],
+): { targetId: string; targetX: number; targetY: number } | null {
+	const targetDef = targets[0];
+	if (targetDef?.type === 'pixel' && targetDef.position) {
+		return {
+			targetId: '',
+			targetX: targetDef.position.x,
+			targetY: targetDef.position.y,
+		};
+	}
+	if (targetDef?.type === 'unit' && targetDef.unitId) {
+		const targetUnit = eng.getUnit(targetDef.unitId);
+		if (targetUnit?.isAlive()) {
+			return {
+				targetId: targetDef.unitId,
+				targetX: targetUnit.x,
+				targetY: targetUnit.y,
+			};
+		}
+	}
+	return null;
 }

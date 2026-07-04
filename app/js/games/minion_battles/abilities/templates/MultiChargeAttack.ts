@@ -16,15 +16,20 @@ import {
 import { ThickLineHitbox } from '../../hitboxes/ThickLineHitbox';
 import { Effect } from '../../game/effects/Effect';
 import { tryDamageOrBlock } from '../blockingHelpers';
-import { createUnitTargetPreview, drawChargeCapsuleTimingTelegraph } from '../previewHelpers';
+import { createChargeCapsuleTargetPreview, drawChargeCapsuleTimingTelegraph } from '../previewHelpers';
 import { getDirectionFromTo } from '../targetHelpers';
+import { resolveChargeAimPoint } from './ChargeAttack';
 
 export interface DashNote extends LungeTarget {
 	hitTargetIds: string[];
 }
 
 export interface MultiChargeNote {
+	/** Unit id when aimed at a unit (AI / legacy); empty for ground aim. */
 	targetId: string;
+	/** Fixed aim point for follow-up dashes when the unit is gone or aim was ground. */
+	aimX: number;
+	aimY: number;
 	dashes: (DashNote | null)[];
 }
 
@@ -150,15 +155,16 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 
 		this.abilityTimings = timings;
 		this.dashPhases = phases;
-		this.targets = [{ type: 'unit', label: 'Target enemy' }] as TargetDef[];
+		this.targets = [{ type: 'pixel', label: 'Charge direction' }] as TargetDef[];
 		this.aiSettings = {
 			minRange: 0,
 			maxRange: config.aiMaxRange,
 			...(config.aiNinjutsu ? { ninjutsu: config.aiNinjutsu } : {}),
 		};
-		this.renderTargetingPreview = createUnitTargetPreview({
-			getMinRange: () => 0,
-			getMaxRange: (caster: Unit) => config.baseMaxRange + caster.radius,
+		// Match active telegraph length (always radius + baseMaxRange), not getRange().
+		this.renderTargetingPreview = createChargeCapsuleTargetPreview({
+			getDashLength: (caster: Unit) => config.baseMaxRange + caster.radius,
+			getCapsuleThickness: (caster: Unit) => caster.radius * config.capsuleRadiusMultiplier,
 		});
 		if (config.requiredTags) this.requiredTags = config.requiredTags;
 		if (config.forbiddenTags) this.forbiddenTags = config.forbiddenTags;
@@ -206,7 +212,7 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 			const phase = this.dashPhases[i];
 
 			if (i > 0 && currentTime >= this.dashPhases[i - 1].dashEnd && note.dashes[i] === null) {
-				note.dashes[i] = this.buildDashNote(eng, caster, note.targetId);
+				note.dashes[i] = this.buildDashNote(eng, caster, note);
 			}
 
 			if (!ids.has(phase.id)) continue;
@@ -291,32 +297,29 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 		caster: Unit,
 		targets: ResolvedTarget[],
 	): MultiChargeNote | null {
-		const targetDef = targets[0];
-		if (targetDef?.type !== 'unit' || !targetDef.unitId) return null;
+		const aim = resolveChargeAimPoint(eng, targets);
+		if (!aim) return null;
 
-		const targetUnit = eng.getUnit(targetDef.unitId);
-		if (!targetUnit?.isAlive()) return null;
-
-		const dash1 = this.buildDashNote(eng, caster, targetDef.unitId, caster.x, caster.y);
-		return {
-			targetId: targetDef.unitId,
-			dashes: [
-				dash1,
-				...Array.from({ length: this.config.dashes - 1 }, () => null),
-			],
+		const note: MultiChargeNote = {
+			targetId: aim.targetId,
+			aimX: aim.targetX,
+			aimY: aim.targetY,
+			dashes: Array.from({ length: this.config.dashes }, () => null),
 		};
+		note.dashes[0] = this.buildDashNote(eng, caster, note, caster.x, caster.y);
+		return note;
 	}
 
 	private buildDashNote(
 		eng: AbilityEngineContext,
 		caster: Unit,
-		targetId: string,
+		note: MultiChargeNote,
 		lungeStartX = caster.x,
 		lungeStartY = caster.y,
 	): DashNote {
-		const target = eng.getUnit(targetId);
-		const targetX = target?.isAlive() ? target.x : caster.x;
-		const targetY = target?.isAlive() ? target.y : caster.y;
+		const target = note.targetId ? eng.getUnit(note.targetId) : undefined;
+		const targetX = target?.isAlive() ? target.x : note.aimX;
+		const targetY = target?.isAlive() ? target.y : note.aimY;
 		const { dirX, dirY } = computeLungeChargeDirection(
 			caster, lungeStartX, lungeStartY, targetX, targetY,
 		);

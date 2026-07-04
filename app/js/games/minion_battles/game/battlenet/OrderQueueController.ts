@@ -136,10 +136,42 @@ export class OrderQueueController {
         this.deferredLocalOrders.push({ idHash, atTick, order, appliedLocally });
     }
 
-    /** Apply a deferred row to the local engine once, before POST (used when ahead-of-host deferred without optimistic apply). */
-    applyDeferredRowLocallyIfNeeded(item: DeferredOrderRow): void {
+    /**
+     * Apply a deferred row to the local engine once, before POST (used when ahead-of-host deferred
+     * without optimistic apply).
+     *
+     * @returns `true` when the row's `atTick` is already in the past relative to the local engine
+     *   (must not clamp-apply — lobby 39E984). Caller should POST then soft-align.
+     */
+    applyDeferredRowLocallyIfNeeded(item: DeferredOrderRow): boolean {
         if (item.appliedLocally) {
-            return;
+            return false;
+        }
+        const engineTick = this.ctx.session.getEngineTick();
+        // Past-batch orders must not be clamp-applied onto the current tick (OrderManager.queueOrder
+        // would rewrite atTick → gameTick and corrupt the pause plane).
+        if (!this.ctx.isHost && item.atTick < engineTick) {
+            logToLobbyLogBattleSync({
+                lobbyClient: this.ctx.api as unknown as LobbyClient,
+                lobbyId: this.ctx.lobbyId,
+                playerId: this.ctx.playerId,
+                tick: engineTick,
+                severity: 'warn',
+                logType: 'desync',
+                gameId: this.ctx.gameId,
+                message: 'applyDeferredRowLocallyIfNeeded: skipped past-batch apply (will POST then soft-align)',
+                context: {
+                    idHash: item.idHash,
+                    atTick: item.atTick,
+                    engineTick,
+                    abilityId: item.order.abilityId,
+                    unitId: item.order.unitId,
+                },
+            });
+            this.appliedOrderIdHashes.add(item.idHash);
+            this.ourOrdersAwaitingServerRange.add(item.idHash);
+            item.appliedLocally = true;
+            return true;
         }
         if (!this.appliedOrderIdHashes.has(item.idHash)) {
             const applyResult = this.ctx.session.applyRemoteOrders([
@@ -161,6 +193,7 @@ export class OrderQueueController {
             this.ourOrdersAwaitingServerRange.add(item.idHash);
         }
         item.appliedLocally = true;
+        return false;
     }
 
     /**

@@ -48,6 +48,15 @@ export function computeLungeChargeDirection(
     const dx = targetX - lungeStartX;
     const dy = targetY - lungeStartY;
     const baseAngle = Math.atan2(dy, dx);
+
+    // Player units never receive moveJitter (see UnitManager.addUnit); default 0 maps to -15°
+    // and would skew ground-aim charges away from the click. AI-only imprecision.
+    if (caster.isPlayerControlled()) {
+        const dist = Math.hypot(dx, dy);
+        if (dist === 0) return { dirX: 1, dirY: 0 };
+        return { dirX: dx / dist, dirY: dy / dist };
+    }
+
     const jitterDegrees = (caster.moveJitter ?? 0) * 30 - 15;
     const jitterRadians = (jitterDegrees * Math.PI) / 180;
     const finalAngle = baseAngle + jitterRadians;

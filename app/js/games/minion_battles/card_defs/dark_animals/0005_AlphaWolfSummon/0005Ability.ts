@@ -150,14 +150,18 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
             const spawnX = caster.x + off.dx;
             const spawnY = caster.y + off.dy;
 
+            // Always AI-owned and non-controllable: do not inherit player control or Boss tag
+            // from a player-controlled alpha wolf.
             const config = {
                 ...ENEMY_DARK_WOLF,
                 x: spawnX,
                 y: spawnY,
                 position: { x: spawnX, y: spawnY },
                 teamId: caster.teamId,
-                ownerId: caster.ownerId,
+                ownerId: 'ai' as const,
                 unitAITreeId: caster.unitAITreeId,
+                controllable: false,
+                unitTags: [],
             };
 
             const wolf = createUnitFromSpawnConfig(config, eng.eventBus, eng);

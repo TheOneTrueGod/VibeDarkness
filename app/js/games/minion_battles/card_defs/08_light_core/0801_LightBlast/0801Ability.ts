@@ -52,7 +52,7 @@ export const LightBlastAbility = defineAbility({
     name: 'Light Blast',
     bright: BRIGHT_MAGNITUDE,
     image: LIGHT_BLAST_IMAGE,
-    resourceCost: { resourceId: 'light', amount: 2 },
+    resourceCost: { resourceId: 'light', amount: 1 },
     rechargeTurns: 1,
     maxUses: MAX_USES,
     recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 }],

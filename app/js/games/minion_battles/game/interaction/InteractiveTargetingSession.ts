@@ -407,6 +407,14 @@ export class InteractiveTargetingSession {
         const batch = this.mark.waitingForOrders;
         if (!batch) return false;
 
+        // Non-host playahead past the mark must rollback (lobby 39E984): in-place commit would
+        // keep a sim that already ran past the host's order batch and deadlock on submit.
+        const engine = session.getEngine();
+        const markTick = typeof this.mark.gameTick === 'number' ? this.mark.gameTick : 0;
+        if (engine != null && !session.isHost() && engine.gameTick > markTick) {
+            return false;
+        }
+
         const markWaiterIds = new Set(batch.waiters.map((w) => w.unitId));
 
         if (!session.isInPlaceCommitPersistenceAvailable()) return false;

@@ -647,6 +647,11 @@ export class BattleNet implements BattleNetContext {
 		void this.runDesyncRecovery(_reason);
 	}
 
+	/** {@link BattleNetContext.softAlignToHostPausePlane} */
+	softAlignToHostPausePlane(reason: string): void {
+		void this.softAlignAfterStaleOrderBatch(reason);
+	}
+
 	/**
 	 * Soft recovery for a stale local order batch (lobby F6E500): reload the latest host
 	 * checkpoint and replay orders without the full desync-recovery UI path, when the local
@@ -990,6 +995,7 @@ export class BattleNet implements BattleNetContext {
 					this.emitBlockingHostPausePlane(false);
 				} else {
 					this.refreshHostAnchorWaitAndBlocking(engineTick, hb);
+					this.maybeImmediateAlignWhenHostExpectsLocalPlayer(engineTick, hb);
 				}
 				const prevPlane = this.syncReconciler.getLastNonHostHbPausePlane();
 				if (
@@ -1208,8 +1214,8 @@ export class BattleNet implements BattleNetContext {
 		atTick: number;
 		order: BattleOrder;
 		appliedLocally: boolean;
-	}): void {
-		this.orderQueue.applyDeferredRowLocallyIfNeeded(item);
+	}): boolean {
+		return this.orderQueue.applyDeferredRowLocallyIfNeeded(item);
 	}
 
 	/** Host-only: queue locally after append so `tryResumeParallel` → merge sees the row on disk first. */
@@ -1655,9 +1661,14 @@ export class BattleNet implements BattleNetContext {
 				}
 				break;
 			}
-			this.applyDeferredRowLocallyIfNeeded(item);
+			const skippedPastBatchApply = this.applyDeferredRowLocallyIfNeeded(item);
 			await this.persistOrder(item.order, item.atTick, item.idHash, true);
 			flushAttempted++;
+			if (skippedPastBatchApply) {
+				// Host has the order; local sim is ahead of that batch — align before more apply/POST.
+				this.softAlignToHostPausePlane('deferred-past-batch-apply');
+				break;
+			}
 		}
 	}
 
@@ -1760,8 +1771,11 @@ export class BattleNet implements BattleNetContext {
 				engineOrderSyncPauseSummary: this.engineOrderSyncPauseSummary(),
 			},
 		});
-		this.applyDeferredRowLocallyIfNeeded(oldestDeferred);
+		const skippedPastBatchApply = this.applyDeferredRowLocallyIfNeeded(oldestDeferred);
 		await this.persistOrder(oldestDeferred.order, oldestDeferred.atTick, oldestDeferred.idHash, false);
+		if (skippedPastBatchApply) {
+			this.softAlignToHostPausePlane('deferred-past-batch-apply');
+		}
 	}
 
 	/**
@@ -1828,6 +1842,57 @@ export class BattleNet implements BattleNetContext {
 
 	private refreshHostAnchorWaitAndBlocking(engineTick: number, hb: BattleNetEventMap['heartbeat']): void {
 		this.hostAnchorWait.refreshHostAnchorWaitAndBlocking(engineTick, hb);
+	}
+
+	/**
+	 * Lobby 39E984: host is paused waiting for *this* player at an earlier batch while the local
+	 * sim is blocked on a later pause plane. Soft-align immediately instead of waiting for the
+	 * 15s waiting_for_host stall watchdog.
+	 */
+	private maybeImmediateAlignWhenHostExpectsLocalPlayer(
+		engineTick: number,
+		hb: BattleNetEventMap['heartbeat'],
+	): void {
+		if (this.isRecovering) {
+			return;
+		}
+		if (!hb.hostPaused) {
+			return;
+		}
+		const expecting = hb.expectingFromPlayerIds;
+		if (!Array.isArray(expecting) || !expecting.includes(this.playerId)) {
+			return;
+		}
+		const hostBatch = hb.orderBatchAtTick ?? hb.pausedAtTick;
+		const localBatch = this.session.getWaitingForOrdersBatch();
+		if (hostBatch == null || localBatch == null) {
+			return;
+		}
+		if (localBatch.atTick <= hostBatch && engineTick <= hb.hostTick) {
+			return;
+		}
+		if (!this.syncReconciler.computeBlockingNonHostPausePlane(engineTick, hb)) {
+			return;
+		}
+		logToLobbyLogBattleSync({
+			lobbyClient: this.api as unknown as LobbyClient,
+			lobbyId: this.lobbyId,
+			playerId: this.playerId,
+			tick: engineTick,
+			severity: 'warn',
+			logType: 'desync',
+			gameId: this.gameId,
+			message:
+				'host expects local player at earlier batch while local pause plane is ahead — soft-aligning',
+			context: {
+				engineTick,
+				hostTick: hb.hostTick,
+				hostBatchAtTick: hostBatch,
+				localBatchAtTick: localBatch.atTick,
+				expectingFromPlayerIds: expecting,
+			},
+		});
+		this.softAlignToHostPausePlane('host-expects-local-player-ahead-batch');
 	}
 
 	private materialKeyForHostTailStall(hb: BattleNetEventMap['heartbeat']): string {

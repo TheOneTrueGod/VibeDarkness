@@ -196,6 +196,7 @@ describe('HostAnchorWaitController.bindSiblings', () => {
             }),
             isRecovering: false,
             requestResync: () => {},
+            softAlignToHostPausePlane: () => {},
             notePreviouslySyncedAnchorTick: vi.fn(),
             resetForDesyncRecoveryEntry: vi.fn(),
         };

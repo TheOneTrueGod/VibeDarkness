@@ -144,6 +144,20 @@ export class GameEngine implements EngineContext {
     private onCheckpoint: ((gameTick: number, state: SerializedGameState, orders: OrderAtTick[]) => void) | null = null;
     private onTickComplete: ((gameTick: number, fingerprintHex: string, paused: boolean, adminReason?: string) => void) | null = null;
     private onParallelBatchResolved: ((batchAtTick: number) => void | Promise<void>) | null = null;
+    /**
+     * Non-host multiplayer: during interactive targeting, freeze at parallel pauses that include the
+     * local player so the sim cannot run past the host's order batch (lobby 39E984). Host/solo keep
+     * legacy ITS playahead. Set by BattleSession from `isHost`.
+     */
+    freezeItsOnLocalPlayerParallelPause = false;
+
+    /**
+     * Interactive targeting preview: whether a would-be parallel pause was dropped (ally-only) or
+     * frozen (local player is a waiter). Wired by BattleSession for lobby-log observability (lobby 39E984).
+     */
+    private onItsParallelPauseDecision:
+        | ((decision: 'drop' | 'freeze', waiters: readonly OrderWaiter[], gameTick: number) => void)
+        | null = null;
     private pendingAdminReason: string | null = null;
     private appliedRoundStartRecovery = false;
     private appliedMidRoundRecovery = false;
@@ -814,6 +828,12 @@ export class GameEngine implements EngineContext {
         this.onWaitingForOrders = cb;
     }
 
+    setOnItsParallelPauseDecision(
+        cb: ((decision: 'drop' | 'freeze', waiters: readonly OrderWaiter[], gameTick: number) => void) | null,
+    ): void {
+        this.onItsParallelPauseDecision = cb;
+    }
+
     setOnRoundEnd(cb: (roundNumber: number) => void): void {
         this.onRoundEnd = cb;
     }
@@ -1153,15 +1173,30 @@ export class GameEngine implements EngineContext {
      *
      * @returns true when a parallel order pause was committed (caller returns from `fixedUpdate` after emitting tick tail).
      */
+    /** True when any parallel-order waiter is owned by {@link localPlayerId}. */
+    private deferredPauseIncludesLocalPlayer(waiters: readonly OrderWaiter[]): boolean {
+        return waiters.some((w) => w.ownerId === this.localPlayerId);
+    }
+
     private commitDeferredOrderPauseAfterCompletedTick(): boolean {
         if (this.deferredOrderPause == null || this.deferredOrderPause.waiters.length === 0) {
             return false;
         }
-        // Interactive targeting preview must keep simulating locally; deferring a parallel-order
-        // pause (e.g. ally became ready mid-preview) would freeze before SelectTargetDef intervals.
+        // Interactive targeting preview: ally-only pauses are always dropped so SelectTargetDef
+        // intervals can run. On non-host (`freezeItsOnLocalPlayerParallelPause`), pauses that include
+        // the local player must freeze (lobby 39E984) — otherwise the sim runs past the host's order
+        // batch and deadlocks on submit. Host/solo keep legacy ITS playahead.
         if (this.isSequentialTargetingPreview) {
-            this.deferredOrderPause = null;
-            return false;
+            const previewWaiters = this.deferredOrderPause.waiters;
+            const freezeLocal =
+                this.freezeItsOnLocalPlayerParallelPause &&
+                this.deferredPauseIncludesLocalPlayer(previewWaiters);
+            if (!freezeLocal) {
+                this.onItsParallelPauseDecision?.('drop', previewWaiters, this.gameTick);
+                this.deferredOrderPause = null;
+                return false;
+            }
+            this.onItsParallelPauseDecision?.('freeze', previewWaiters, this.gameTick);
         }
         const { waiters: initialWaiters, naturalCompletionUnitIds } = this.deferredOrderPause;
         this.deferredOrderPause = null;
@@ -1330,9 +1365,16 @@ export class GameEngine implements EngineContext {
                     this.isPaused = true;
                 }
             }
-            if (this.waitingForOrders == null && !this.isSequentialTargetingPreview) {
+            if (this.waitingForOrders == null) {
                 const waiters = this.state.orderMgr.collectParallelWaiters();
-                if (waiters.length > 0) {
+                // During ITS: host/solo ignore all parallel pauses (legacy playahead). Non-host only
+                // schedules pauses that include the local player (see commitDeferredOrderPause…).
+                const schedulePause =
+                    waiters.length > 0 &&
+                    (!this.isSequentialTargetingPreview ||
+                        (this.freezeItsOnLocalPlayerParallelPause &&
+                            this.deferredPauseIncludesLocalPlayer(waiters)));
+                if (schedulePause) {
                     this.state.levelEventManager.runVictoryChecks();
                     this.deferredOrderPause = {
                         waiters,

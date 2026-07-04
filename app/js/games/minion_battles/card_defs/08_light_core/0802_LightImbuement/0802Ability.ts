@@ -1,9 +1,9 @@
 /**
  * Light Imbuement — 2-second charge that infuses the caster's next Swing Bat with light energy.
  *
- * Self-cast with no targets. After a long windup, applies a LightImbueBuff to the caster.
- * The buff fires the swap-network trigger which replaces Swing Bat (0115) with Imbued Bat (0803)
- * for one use. Spends 20 Light on activation. Recovers once per round.
+ * Self-cast with no targets. After a long windup, applies a LightImbueBuff to the caster and
+ * generates Light. The buff fires the swap-network trigger which replaces Swing Bat (0115) with
+ * Imbued Bat (0803) for one use. Free to cast. Recovers once per round.
  */
 
 import { AbilityPhase } from '../../../abilities/abilityTimings';
@@ -21,7 +21,7 @@ const MAX_USES = 1;
 const PREFIRE_TIME = 1.5;
 const ACTIVE_DURATION = 0.05;
 const COOLDOWN_DURATION = 0.05;
-const LIGHT_COST = 1;
+export const LIGHT_IMBUEMENT_LIGHT_GENERATED = 1;
 const LIGHT_IMBUEMENT_MOVEMENT_PENALTY = 0.9;
 
 const LIGHT_IMBUEMENT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
@@ -44,7 +44,7 @@ export const LightImbuementAbility = defineAbility({
     id: CARD_ID,
     name: 'Light Imbuement',
     image: LIGHT_IMBUEMENT_IMAGE,
-    resourceCost: { resourceId: 'light', amount: LIGHT_COST },
+    resourceCost: null,
     rechargeTurns: 0,
     maxUses: MAX_USES,
     recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 }],
@@ -74,6 +74,7 @@ export const LightImbuementAbility = defineAbility({
                             ctx.engine.roundNumber ?? 1,
                             ctx.engine.eventBus,
                         );
+                        ctx.caster.getResource('light')?.add(LIGHT_IMBUEMENT_LIGHT_GENERATED);
                     }),
                 },
             ],
@@ -98,8 +99,7 @@ export const LightImbuementAbility = defineAbility({
 
     getTooltipText(): string[] {
         return [
-            `Charge for 2 seconds to imbue your next Swing Bat with light energy.`,
-            `Costs ${LIGHT_COST} Light. Grants one use of {Imbued Bat} on activation.`,
+            `Generates {${LIGHT_IMBUEMENT_LIGHT_GENERATED} Light} and imbues your weapon with light.`,
         ];
     },
 

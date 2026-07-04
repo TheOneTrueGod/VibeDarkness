@@ -101,6 +101,7 @@ function makeHarness(opts: {
         }),
         isRecovering: opts.isRecovering ?? false,
         requestResync,
+        softAlignToHostPausePlane: () => {},
         notePreviouslySyncedAnchorTick,
         resetForDesyncRecoveryEntry: vi.fn(),
     };

@@ -73,7 +73,7 @@ Ask for each ability:
   - **`EffectEmitter`** — game-tick-driven, **serialized**, produces `Effect` instances. Use `engine.addEffectEmitter(emitter)` for imperative emitter creation (e.g. in `beginActiveCast` for per-unit visual data like Afterimage).
   - **Time-based visual emission** within an ability should use `abilityTimings[n].emitterDef` (type `AbilityTimingEmitterDef` from `abilities/abilityTimings.ts`). The engine auto-creates and deactivates emitters when timing windows open/close — do not use manual loops or edge-checks in `doCardEffect` for this.
 - **`abilityEvents`** — Primarily **gameplay rule** hooks (`abilities/events/AbilityEffect.ts`). Prefer presets and inline rules; use **`custom`** effects only when needed, with the required comment, consistent with **`abilityEvents` authoring order** below.
-- **Player-facing copy** — Names, descriptions, and tooltip rhythm: **writing-style-abilities** (`.cursor/skills/narrative/writing-style-abilities/SKILL.md`). For `getTooltipText`, mechanical keywords use standalone lines (`'{Bright 3}'`, `'{knockback 1}'`) — see **Keyword lines [Canon]** in that skill's `STYLE.md`.
+- **Player-facing copy** — Names, descriptions, and tooltip rhythm: **writing-style-abilities** (`.cursor/skills/narrative/writing-style-abilities/SKILL.md`). For `getTooltipText`, mechanical keywords use standalone lines (`'{Bright 3}'`, `'{knockback 1}'`) — see **Keyword lines [Canon]** in that skill's `STYLE.md`. **Do not** restate the resource cost in tooltip text (no `"Costs 2 Light"` / `"Free to cast"` lines) — the card UI already shows `resourceCost` as icons in the card's top-right corner; a redundant cost line in the tooltip is noise and drifts out of sync when the cost changes.
 
 ## `abilityEvents` authoring order
 

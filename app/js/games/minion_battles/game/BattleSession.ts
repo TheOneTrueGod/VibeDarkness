@@ -197,6 +197,8 @@ export class BattleSession implements BattleSessionHandle {
 
     private bindEngineCallbacks(engine: GameEngine): void {
         const { api, isHost, onEmittedChatMessage } = this.config;
+        // Non-host: freeze ITS at local-player parallel pauses (lobby 39E984).
+        engine.freezeItsOnLocalPlayerParallelPause = !isHost;
         engine.setOnCheckpoint((gameTick, state) => {
             if (engine.isSequentialTargetingPreview) return;
             if (isHost) {
@@ -236,6 +238,28 @@ export class BattleSession implements BattleSessionHandle {
             } else {
                 api.sendMessage(MessageType.CHAT, { message: text }).then(onSent).catch(() => {});
             }
+        });
+        engine.setOnItsParallelPauseDecision((decision, waiters, gameTick) => {
+            const lobbyClient = typeof api.getLobbyClient === 'function' ? api.getLobbyClient() : null;
+            if (!lobbyClient) return;
+            logToLobbyLogBattleSync({
+                lobbyClient,
+                lobbyId: api.getLobbyId(),
+                playerId: this.config.playerId,
+                tick: gameTick,
+                severity: 'info',
+                gameId: api.getGameId(),
+                message:
+                    decision === 'freeze'
+                        ? 'ITS: freezing at parallel pause (local player is waiter)'
+                        : 'ITS: dropping ally-only parallel pause (preview continues)',
+                context: {
+                    decision,
+                    isHost,
+                    waiterOwnerIds: waiters.map((w) => w.ownerId),
+                    waiterUnitIds: waiters.map((w) => w.unitId),
+                },
+            });
         });
     }
 
@@ -783,6 +807,13 @@ export class BattleSession implements BattleSessionHandle {
                 continue;
             }
             if (this.appliedRemoteOrderKeys.has(key)) {
+                skippedKeys.push(key);
+                continue;
+            }
+            // Non-host: never clamp a past-batch order onto the current tick (lobby 39E984).
+            // Mark as applied for dedupe; BattleNet soft-align / recovery repairs the pause plane.
+            if (!this.config.isHost && atTick < eng.gameTick) {
+                this.appliedRemoteOrderKeys.add(key);
                 skippedKeys.push(key);
                 continue;
             }
