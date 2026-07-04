@@ -343,6 +343,11 @@ function mergeModifierInto(entry: AbilityModifier, modifier: AbilityModifier): v
         }
         entry.addTags = existing;
     }
+    if (modifier.healPenaltyPctOverride !== undefined) {
+        entry.healPenaltyPctOverride = entry.healPenaltyPctOverride !== undefined
+            ? Math.min(entry.healPenaltyPctOverride, modifier.healPenaltyPctOverride)
+            : modifier.healPenaltyPctOverride;
+    }
 }
 
 /**

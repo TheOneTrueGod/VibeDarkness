@@ -17,6 +17,7 @@ import { defineAbility } from '../../../abilities/defineAbility';
 import { type CardDef } from '../../types';
 import type { AbilityRecoveryRule } from '../../../abilities/Ability';
 import { nullHitbox } from '../../../hitboxes';
+import { DEFAULT_HEAL_PENALTY_PCT } from '../../../game/units/unitHeal';
 import petIconUrl from './pet.png';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}03`;
@@ -47,10 +48,12 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
                 behaviour: CastBehaviours.Instant((ctx) => {
                     const eng = ctx.engine;
                     const pets = getPetsOfUnit(ctx.caster, eng.units);
+                    const healPenaltyPct = ctx.caster.abilityModifiers[CARD_ID]?.healPenaltyPctOverride ?? DEFAULT_HEAL_PENALTY_PCT;
                     commandHeel(ctx.caster, pets, eng, {
                         healFraction: HEAL_FRACTION,
                         tetherRange: HEEL_TETHER_RANGE,
                         durationSeconds: HEEL_DURATION,
+                        healPenaltyPct,
                     });
                     ctx.caster.addBuff(new DoubleDamageBuff(SIC_EM_ABILITY_ID), eng.gameTime, 1);
                 }),

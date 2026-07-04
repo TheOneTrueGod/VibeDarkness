@@ -16,6 +16,7 @@ import { damageEnemiesInCircle } from '../../../abilities/targetHelpers';
 import { createMovementPenaltyStates } from '../../../abilities/shieldHelpers';
 import { areEnemies } from '../../../game/teams';
 import type { Unit } from '../../../game/units/Unit';
+import { applyHeal, DEFAULT_HEAL_PENALTY_PCT } from '../../../game/units/unitHeal';
 import { EngineWithGatherLight, spawnGatherLightWindupRing } from '@/games/minion_battles/abilities/gatherLightHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Light)}01`;
@@ -101,13 +102,14 @@ export const LightBlastAbility = defineAbility({
                     maxTargets: LIGHT_BLAST_MAX_TARGETS,
                 });
 
+                const healPenaltyPct = ctx.caster.abilityModifiers[CARD_ID]?.healPenaltyPctOverride ?? DEFAULT_HEAL_PENALTY_PCT;
                 for (const unit of eng.units) {
                     if (!unit.isAlive()) continue;
                     if (areEnemies(unit.teamId, ctx.caster.teamId)) continue;
                     const dx = unit.x - pos.x;
                     const dy = unit.y - pos.y;
                     if (dx * dx + dy * dy > LIGHT_BLAST_RADIUS * LIGHT_BLAST_RADIUS) continue;
-                    unit.hp = Math.min(unit.maxHp, unit.hp + LIGHT_BLAST_HEAL);
+                    applyHeal(unit, LIGHT_BLAST_HEAL, healPenaltyPct);
                 }
 
                 spawnBrightLight(eng, pos.x, pos.y, BRIGHT_MAGNITUDE);

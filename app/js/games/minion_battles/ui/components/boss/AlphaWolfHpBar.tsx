@@ -9,10 +9,11 @@ const THRESHOLD_LEFT = `${ALPHA_WOLF_ENRAGE_THRESHOLD * 100}%`;
  * Alpha Wolf HP bar: same as the base bar, plus a grey threshold line at the enrage
  * HP percent and a Skull icon hanging at the bottom of that line.
  */
-export function AlphaWolfHpBar({ name, hp, maxHp, isEnraged }: BossArcadeHpBarProps) {
+export function AlphaWolfHpBar({ name, hp, maxHp, hpInjury, isEnraged }: BossArcadeHpBarProps) {
     const safeMax = maxHp > 0 ? maxHp : 1;
     const ratio = Math.min(1, Math.max(0, hp / safeMax));
     const fillWidthPct = ratio * 100;
+    const injuryRatio = maxHp > 0 ? Math.max(0, Math.min(1, (hpInjury ?? 0) / maxHp)) : 0;
 
     return (
         <div className="relative">
@@ -26,6 +27,13 @@ export function AlphaWolfHpBar({ name, hp, maxHp, isEnraged }: BossArcadeHpBarPr
                     style={{ width: `${fillWidthPct}%` }}
                     aria-hidden
                 />
+                {injuryRatio > 0 && (
+                    <div
+                        className="absolute inset-y-0 right-0 bg-black"
+                        style={{ width: `${injuryRatio * 100}%` }}
+                        aria-hidden
+                    />
+                )}
                 {/* Enrage threshold line — visible over the fill */}
                 <div
                     className="absolute inset-y-0 z-10 w-px bg-gray-400/60"

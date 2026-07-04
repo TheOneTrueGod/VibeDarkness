@@ -86,6 +86,7 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
     unit.corruptionProgress = Math.max(0, Math.min(1, (data.corruptionProgress as number) ?? 0));
     unit.crystalCorruptionProgress = Math.max(0, Math.min(1, (data.crystalCorruptionProgress as number) ?? 0));
     unit.darknessDamageProcCount = Math.max(0, Math.floor((data.darknessDamageProcCount as number) ?? 0));
+    unit.hpInjury = Math.max(0, (data.hpInjury as number) ?? 0);
     const kb = data.knockback as KnockbackState | null;
     if (kb && typeof kb.knockbackElapsed === 'number') {
         unit.knockback = {

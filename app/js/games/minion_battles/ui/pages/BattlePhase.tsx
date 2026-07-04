@@ -907,6 +907,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                 name: b.name,
                 hp: b.hp,
                 maxHp: b.maxHp,
+                hpInjury: b.hpInjury,
                 effectiveHardCcThreshold: getEffectiveHardCcThreshold(b),
                 hardCcArmourConsumed: b.ccArmour.hardConsumed,
                 hardCcArmourEventSerial: b.ccArmour.eventSerial,
@@ -932,6 +933,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                     prev.name === next.name &&
                     prev.hp === next.hp &&
                     prev.maxHp === next.maxHp &&
+                    prev.hpInjury === next.hpInjury &&
                     prev.effectiveHardCcThreshold === next.effectiveHardCcThreshold &&
                     prev.hardCcArmourConsumed === next.hardCcArmourConsumed &&
                     prev.hardCcArmourEventSerial === next.hardCcArmourEventSerial &&

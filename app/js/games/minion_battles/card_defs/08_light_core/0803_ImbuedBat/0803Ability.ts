@@ -41,12 +41,12 @@ const LINE_THICKNESS = 26;
 const MAX_TARGETS = 3;
 const SWING_BAT_ABILITY_ID = '0115';
 
-const PRIMARY_DAMAGE = 10;
+const PRIMARY_DAMAGE = 18;
 
 /** Forward light burst from the caster; wide arc opens toward the bat swing. */
 export const LIGHT_CONE_MAX_RANGE = 100;
 export const LIGHT_CONE_HALF_ARC_RAD = Math.PI / 4;
-export const LIGHT_CONE_DAMAGE = 8;
+export const LIGHT_CONE_DAMAGE = 12;
 const LIGHT_CONE_MAX_TARGETS = 5;
 const LIGHT_CONE_EFFECT_DURATION = 0.35;
 

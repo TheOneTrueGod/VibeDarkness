@@ -532,6 +532,11 @@ class DefaultUnitDef implements IUnitDef {
         hpFill.visible = hpBarSize !== 'hidden';
         container.addChild(hpFill);
 
+        const hpInjury = new Graphics();
+        hpInjury.label = 'hpInjury';
+        hpInjury.visible = hpBarSize !== 'hidden';
+        container.addChild(hpInjury);
+
         // Stack count badge: shown to the left of the HP bar when stackSize > 1
         if (hpBarSize !== 'hidden') {
             const stackBadge = createBadge('', { radius: 7 });
@@ -680,12 +685,20 @@ export function updateUnitHpBar(visual: Container, unit: Unit): void {
     const barWidth = unit.radius * 2 * ratio;
     const barColor = ratio > 0.5 ? 0x22c55e : ratio > 0.25 ? 0xeab308 : 0xef4444;
     const hpBarSize = getHpBarSize(unit);
-    if (hpBarSize === 'large') {
-        hpFill.rect(-unit.radius, -unit.radius - 14, barWidth, 10);
-    } else {
-        hpFill.rect(-unit.radius, -unit.radius - 8, barWidth, 5);
-    }
+    const barY = hpBarSize === 'large' ? -unit.radius - 14 : -unit.radius - 8;
+    const barHeight = hpBarSize === 'large' ? 10 : 5;
+    hpFill.rect(-unit.radius, barY, barWidth, barHeight);
     hpFill.fill(barColor);
+
+    const hpInjury = visual.children.find((c) => c.label === 'hpInjury') as Graphics | undefined;
+    if (hpInjury) {
+        hpInjury.clear();
+        if (unit.hpInjury > 0 && unit.maxHp > 0) {
+            const injuryWidth = Math.min(unit.radius * 2, unit.radius * 2 * (unit.hpInjury / unit.maxHp));
+            hpInjury.rect(unit.radius - injuryWidth, barY, injuryWidth, barHeight);
+            hpInjury.fill(0x000000);
+        }
+    }
 
     const stackBadge = visual.children.find((c) => c.label === 'stackBadge') as Container | undefined;
     if (stackBadge) {

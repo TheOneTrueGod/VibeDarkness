@@ -74,7 +74,7 @@ export function UnitResourcePanel({ unit }: UnitResourcePanelProps) {
                         <div className="flex items-center gap-1">
                             <Heart size={12} className="shrink-0 text-red-400" />
                             <span className="text-[10px] tabular-nums text-gray-300">
-                                {displayHp}/{unit.maxHp}
+                                {Math.floor(displayHp)}/{Math.floor(unit.getEffectiveMaxHp())}
                             </span>
                         </div>
                         {movementResource && (
@@ -89,7 +89,7 @@ export function UnitResourcePanel({ unit }: UnitResourcePanelProps) {
                             </div>
                         )}
                     </div>
-                    <HealthSegmentBar hp={displayHp} maxHp={unit.maxHp} />
+                    <HealthSegmentBar hp={displayHp} maxHp={unit.maxHp} hpInjury={debugEnabled ? 0 : unit.hpInjury} />
                 </div>
             </div>
 

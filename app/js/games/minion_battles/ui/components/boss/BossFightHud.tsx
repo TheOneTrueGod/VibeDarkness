@@ -18,6 +18,7 @@ export type BossHudSlice = {
     name: string;
     hp: number;
     maxHp: number;
+    hpInjury: number;
     effectiveHardCcThreshold: number;
     hardCcArmourConsumed: number;
     hardCcArmourEventSerial: number;
@@ -58,7 +59,7 @@ export default function BossFightHud({ boss, onRegisterCcStatusTarget }: BossFig
         >
             <div className="px-2 pt-1 pb-4">
                 <div className="relative w-full">
-                    <HpBar name={boss.name} hp={boss.hp} maxHp={boss.maxHp} isEnraged={boss.isEnraged} />
+                    <HpBar name={boss.name} hp={boss.hp} maxHp={boss.maxHp} hpInjury={boss.hpInjury} isEnraged={boss.isEnraged} />
 
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 flex translate-y-[55%] flex-row items-center justify-between gap-2">
                         <div className="flex min-w-0 flex-1 justify-start">

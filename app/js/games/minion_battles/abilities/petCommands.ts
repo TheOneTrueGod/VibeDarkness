@@ -30,6 +30,7 @@ import type { ResolvedTarget } from '../game/types';
 import type { PetAITreeContext } from '../game/units/unitAI/pet/context';
 import { Effect } from '../game/effects/Effect';
 import { grantRecoveryChargeToAbility } from './abilityUses';
+import { applyHeal, DEFAULT_HEAL_PENALTY_PCT } from '../game/units/unitHeal';
 import type { AbilityEngineContext } from './AbilityEngineContext';
 export { resolveAbilitySourceUnits } from './abilitySourceUnits';
 
@@ -45,6 +46,8 @@ export interface HeelOptions {
     tetherRange: number;
     /** Heel duration in game-time seconds. */
     durationSeconds: number;
+    /** Overrides DEFAULT_HEAL_PENALTY_PCT for the top-up heal. Revives never bank injury regardless. */
+    healPenaltyPct?: number;
 }
 
 interface HeelEngineCtx {
@@ -67,7 +70,8 @@ export function commandHeel(
 
         if (!pet.isAlive()) {
             pet.active = true;
-            pet.hp = healAmount;
+            // Revival is a heal, but always at 0% penalty — resurrecting a pet never banks hpInjury.
+            pet.hp = Math.min(healAmount, pet.getEffectiveMaxHp());
             pet.clearMovement();
             pet.clearAbilityNote();
             if (owner.isAlive()) {
@@ -75,7 +79,7 @@ export function commandHeel(
                 pet.y = owner.y;
             }
         } else {
-            pet.hp = Math.min(pet.maxHp, pet.hp + healAmount);
+            applyHeal(pet, healAmount, opts.healPenaltyPct ?? DEFAULT_HEAL_PENALTY_PCT);
         }
 
         // Heel state.

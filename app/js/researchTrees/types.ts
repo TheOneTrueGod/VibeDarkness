@@ -36,6 +36,8 @@ export interface AbilityModifier {
     explosionDamageFlat?: number;
     /** Tags to add to this ability for this unit (e.g. 'Entombed'). String to avoid circular imports — use AbilityTag values. */
     addTags?: readonly string[];
+    /** Overrides DEFAULT_HEAL_PENALTY_PCT for this ability's heals, down to 0 for "no penalty". */
+    healPenaltyPctOverride?: number;
 }
 
 /** Goes on a research node — specifies which ability to target and what to change. */

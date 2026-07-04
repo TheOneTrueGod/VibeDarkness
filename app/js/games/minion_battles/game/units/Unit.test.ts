@@ -53,6 +53,7 @@ function buildGoldenSerializationUnit(eventBus: EventBus): Unit {
     unit.corruptionProgress = 0.35;
     unit.crystalCorruptionProgress = 0.6;
     unit.darknessDamageProcCount = 2;
+    unit.hpInjury = 8;
     unit.wallStuckTime = 1.25;
     unit.ephemeralDespawnAtGameTime = 99.5;
     unit.tags = [UnitTag.Boss, UnitTag.Enraged];
@@ -353,6 +354,7 @@ describe('Unit', () => {
             "hardCcArmourEventSerial": 5,
             "hardCcArmourFloor": 2,
             "hp": 80,
+            "hpInjury": 8,
             "id": "golden_unit",
             "invulnerabilityGenerations": 2,
             "knockback": {

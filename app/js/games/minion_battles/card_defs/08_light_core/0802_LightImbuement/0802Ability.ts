@@ -12,6 +12,7 @@ import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { LightImbueBuff } from '../../../buffs/LightImbueBuff';
 import { spawnCasterChargeUpEffect } from '../../../abilities/casterChargeUpVisual';
+import { spawnGatherLightWindupRing, type EngineWithGatherLight } from '../../../abilities/gatherLightHelpers';
 import { Effect } from '../../../game/effects/Effect';
 import type { Unit } from '../../../game/units/Unit';
 import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
@@ -75,6 +76,7 @@ export const LightImbuementAbility = defineAbility({
                             ctx.engine.eventBus,
                         );
                         ctx.caster.getResource('light')?.add(LIGHT_IMBUEMENT_LIGHT_GENERATED);
+                        spawnGatherLightWindupRing(ctx.engine as EngineWithGatherLight, ctx.caster);
                     }),
                 },
             ],

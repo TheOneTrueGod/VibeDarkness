@@ -64,6 +64,7 @@ import { applyKnockbackToUnit } from './unitKnockback';
 import { getUnitEffectiveSpeed, unitHasIFrames, isUnitInJuggernautWindow, getUnitLungeDistance } from './unitAbilityQueries';
 import { updateUnit, tickUnitMovement, setUnitMovement, clearUnitMovement, invalidateUnitMovementPath } from './unitMovementTick';
 import { applyDamageToUnit, tickUnitDarknessCorruption } from './unitDamage';
+import { MIN_EFFECTIVE_MAX_HP_PCT } from './unitHeal';
 
 export type {
     AISettings,
@@ -83,6 +84,8 @@ export type { UnitAIContext } from './unitAI/contextTypes';
 export class Unit extends GameObject {
     hp: number;
     maxHp: number;
+    /** Cumulative heal-penalty "lost ceiling". Never mutates maxHp — see getEffectiveMaxHp(). */
+    hpInjury: number = 0;
     /** Number of units in this stack. `hp` tracks the frontmost member; damage cascades through the rest. */
     stackSize: number = 1;
     speed: number;
@@ -282,6 +285,11 @@ export class Unit extends GameObject {
     /** Whether this unit is alive. */
     isAlive(): boolean {
         return this.hp > 0 && this.active;
+    }
+
+    /** Max HP after subtracting accumulated heal-penalty injury, floored at MIN_EFFECTIVE_MAX_HP_PCT of maxHp. */
+    getEffectiveMaxHp(): number {
+        return Math.max(this.maxHp * MIN_EFFECTIVE_MAX_HP_PCT, this.maxHp - this.hpInjury);
     }
 
     /** Whether this unit cannot be damaged, targeted, or shown a health bar. */

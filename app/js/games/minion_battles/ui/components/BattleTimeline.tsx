@@ -580,7 +580,9 @@ function renderPlayerUnitTimelineUnified(
     const rowKey = `player:${playerId}:${unit.id}`;
     const alive = unit.isAlive();
     const hpPct = unit.maxHp > 0 ? Math.round((unit.hp / unit.maxHp) * 100) : 0;
+    const hpInjuryPct = unit.maxHp > 0 ? (unit.hpInjury / unit.maxHp) * 100 : 0;
     const barClass = hpBarColorClass(unit.hp, unit.maxHp, alive);
+    const effectiveMaxHp = Math.floor(unit.getEffectiveMaxHp());
 
     const showPreview = !!(
         playerId === localPlayerId &&
@@ -694,7 +696,7 @@ function renderPlayerUnitTimelineUnified(
                         {unit.name}
                     </span>
                     <span className="shrink-0 text-[10px] text-gray-400">
-                        ({unit.hp}/{unit.maxHp})
+                        ({Math.floor(unit.hp)}/{effectiveMaxHp})
                     </span>
                     {toggleRowContractOrExpand != null && (
                         <button
@@ -735,10 +737,13 @@ function renderPlayerUnitTimelineUnified(
             </div>
             <div className="flex min-w-0 items-center gap-2 pl-0">
                 <span className="w-11 shrink-0 text-right text-[10px] text-gray-400">
-                    {unit.hp}/{unit.maxHp}
+                    {Math.floor(unit.hp)}/{effectiveMaxHp}
                 </span>
                 <div className="relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-dark-700">
                     <div className={`absolute left-0 top-0 h-full rounded-full ${barClass}`} style={{ width: `${hpPct}%` }} />
+                    {hpInjuryPct > 0 && (
+                        <div className="absolute right-0 top-0 h-full rounded-full bg-black" style={{ width: `${hpInjuryPct}%` }} />
+                    )}
                 </div>
             </div>
             {track}

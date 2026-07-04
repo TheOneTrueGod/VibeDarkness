@@ -5,16 +5,18 @@ export type BossArcadeHpBarProps = {
     name: string;
     hp: number;
     maxHp: number;
+    hpInjury?: number;
     isEnraged?: boolean;
 };
 
 /**
  * Compact boss HP strip with fill ratio and name centered on the bar.
  */
-export function BossArcadeHpBar({ name, hp, maxHp, isEnraged }: BossArcadeHpBarProps) {
+export function BossArcadeHpBar({ name, hp, maxHp, hpInjury, isEnraged }: BossArcadeHpBarProps) {
     const safeMax = maxHp > 0 ? maxHp : 1;
     const ratio = Math.min(1, Math.max(0, hp / safeMax));
     const fillWidthPct = ratio * 100;
+    const injuryRatio = maxHp > 0 ? Math.max(0, Math.min(1, (hpInjury ?? 0) / maxHp)) : 0;
 
     return (
         <div
@@ -27,6 +29,13 @@ export function BossArcadeHpBar({ name, hp, maxHp, isEnraged }: BossArcadeHpBarP
                 style={{ width: `${fillWidthPct}%` }}
                 aria-hidden
             />
+            {injuryRatio > 0 && (
+                <div
+                    className="absolute inset-y-0 right-0 bg-black"
+                    style={{ width: `${injuryRatio * 100}%` }}
+                    aria-hidden
+                />
+            )}
             <div className="relative z-10 flex h-full items-center justify-center gap-1.5 px-3">
                 {isEnraged && (
                     <Flame className="h-4 w-4 shrink-0 text-orange-400 drop-shadow-[0_0_4px_rgba(251,146,60,0.9)]" aria-hidden />

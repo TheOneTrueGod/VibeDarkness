@@ -29,23 +29,30 @@ function hpBarColor(ratio: number): string {
 
 function TimelineUnitCard({ unit }: { unit: Unit }) {
     const ratio = unit.maxHp > 0 ? Math.max(0, Math.min(1, unit.hp / unit.maxHp)) : 0;
+    const injuryRatio = unit.maxHp > 0 ? Math.max(0, Math.min(1, unit.hpInjury / unit.maxHp)) : 0;
     const description = getUnitUiDescription(unit.characterId);
 
     return (
         <div className="w-[220px] rounded-lg border border-dark-500 bg-dark-800/95 px-3 py-2 shadow-lg ring-1 ring-black/40">
             <div className="text-sm font-semibold text-gray-100">{unit.name}</div>
             <div className="mt-1.5 flex items-center gap-2">
-                <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-dark-900">
+                <div className="relative h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-dark-900">
                     <div
-                        className="h-full rounded-full transition-[width] duration-150"
+                        className="absolute left-0 top-0 h-full rounded-full transition-[width] duration-150"
                         style={{
                             width: `${ratio * 100}%`,
                             backgroundColor: hpBarColor(ratio),
                         }}
                     />
+                    {injuryRatio > 0 && (
+                        <div
+                            className="absolute right-0 top-0 h-full rounded-full bg-black"
+                            style={{ width: `${injuryRatio * 100}%` }}
+                        />
+                    )}
                 </div>
                 <span className="shrink-0 font-mono text-[11px] tabular-nums text-gray-300">
-                    {Math.max(0, Math.floor(unit.hp))}/{unit.maxHp}
+                    {Math.max(0, Math.floor(unit.hp))}/{Math.floor(unit.getEffectiveMaxHp())}
                 </span>
             </div>
             <p className="mt-2 text-[11px] leading-snug text-gray-400">{description}</p>

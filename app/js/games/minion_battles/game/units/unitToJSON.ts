@@ -20,6 +20,7 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
         active: unit.active,
         hp: unit.hp,
         maxHp: unit.maxHp,
+        hpInjury: unit.hpInjury,
         ...(unit.stackSize !== 1 ? { stackSize: unit.stackSize } : {}),
         speed: unit.speed,
         teamId: unit.teamId,

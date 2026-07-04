@@ -156,6 +156,7 @@ describe('commandHeel', () => {
             healFraction: 0.25,
             tetherRange: 30,
             durationSeconds: 10,
+            healPenaltyPct: 0, // isolate the fraction/capping behaviour from the heal-penalty mechanic
         });
         expect(pet.hp).toBe(40);
     });
@@ -167,8 +168,38 @@ describe('commandHeel', () => {
             healFraction: 0.25,
             tetherRange: 30,
             durationSeconds: 10,
+            healPenaltyPct: 0, // isolate the fraction/capping behaviour from the heal-penalty mechanic
         });
         expect(pet.hp).toBe(40);
+    });
+
+    it('banks hpInjury at the default penalty when no override is passed', () => {
+        const pet = makeUnit({ hp: 32, maxHp: 40 }); // heals 10, only 8 actually applied (capped at 40)
+        const engine = makeEngineLike([pet]);
+        commandHeel(makeUnit({ id: 'owner' }), [pet], engine, {
+            healFraction: 0.25,
+            tetherRange: 30,
+            durationSeconds: 10,
+        });
+        expect(pet.hpInjury).toBeCloseTo(8 * 0.3);
+        expect(pet.hp).toBeCloseTo(40 - 8 * 0.3);
+    });
+
+    it('revive banks zero hpInjury even with the default penalty in effect', () => {
+        const owner = makeUnit({ id: 'owner', x: 100, y: 100 });
+        const pet = makeUnit({ hp: 0, maxHp: 40, x: 200, y: 200 });
+        pet.active = false;
+        pet.aiContext = { aiTree: 'pet' } as PetAITreeContext;
+        const engine = makeEngineLike([owner, pet]);
+
+        commandHeel(owner, [pet], engine, {
+            healFraction: 0.30,
+            tetherRange: 30,
+            durationSeconds: 10,
+        });
+
+        expect(pet.hp).toBe(12); // floor(40 * 0.30), unaffected by the penalty
+        expect(pet.hpInjury).toBe(0);
     });
 
     it('sets heelUntilGameTime and heelTetherRange on aiContext', () => {
