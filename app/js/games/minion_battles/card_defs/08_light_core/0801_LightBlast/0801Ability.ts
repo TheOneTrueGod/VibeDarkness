@@ -16,9 +16,10 @@ import { damageEnemiesInCircle } from '../../../abilities/targetHelpers';
 import { createMovementPenaltyStates } from '../../../abilities/shieldHelpers';
 import { areEnemies } from '../../../game/teams';
 import type { Unit } from '../../../game/units/Unit';
+import { EngineWithGatherLight, spawnGatherLightWindupRing } from '@/games/minion_battles/abilities/gatherLightHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Light)}01`;
-const MAX_USES = 3;
+const MAX_USES = 2;
 const PREFIRE_TIME = 0.4;
 export const LIGHT_BLAST_MAX_RANGE = 200;
 const MAX_RANGE = LIGHT_BLAST_MAX_RANGE;
@@ -63,6 +64,14 @@ export const LightBlastAbility = defineAbility({
             start: 0,
             end: PREFIRE_TIME,
             abilityPhase: AbilityPhase.Windup,
+						castBehaviours: [
+							{
+									timingStart: 'start',
+									behaviour: CastBehaviours.Instant((ctx) => {
+											spawnGatherLightWindupRing(ctx.engine as EngineWithGatherLight, ctx.caster);
+									}),
+							},
+					],
         },
         {
             id: 'active',

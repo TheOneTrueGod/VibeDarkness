@@ -7,6 +7,7 @@ import { Effect } from '../game/effects/Effect';
 import { StoryHomingParticleEmitter } from '../game/effects/StoryHomingParticleEmitter';
 import type { EngineContext } from '../game/EngineContext';
 import type { Unit } from '../game/units/Unit';
+import { LIGHT_RESOURCE_COLOR, LIGHT_RESOURCE_COLOR_NUMBER } from '../resources/Light';
 
 /** Ability windup time; owned here (not `0804Ability.ts`) to avoid a circular import — this
  * file is imported by `0804Ability.ts`, so the dependency can only flow one way. */
@@ -18,7 +19,6 @@ export const GATHER_LIGHT_ORB_DURATION = 0.6;
 /** Yellow orb tint (Light palette). */
 export const GATHER_LIGHT_ORB_TINT = 0xffe066;
 /** Purple windup ring color. */
-export const GATHER_LIGHT_RING_COLOR = 0x9933cc;
 export const GATHER_LIGHT_RING_RADIUS = 25;
 export const GATHER_LIGHT_RING_DURATION = GATHER_LIGHT_PREFIRE_TIME;
 
@@ -94,6 +94,7 @@ export function spawnBaseDarknessAtTile(
     row: number,
     roundNumber: number,
     amount: number = GATHER_LIGHT_DARKNESS_AMOUNT,
+    radius: number = 0,
 ): void {
     const grid = engine.terrainManager?.grid;
     if (!grid) return;
@@ -102,12 +103,12 @@ export function spawnBaseDarknessAtTile(
         x,
         y,
         lightAmount: amount,
-        radius: 0,
+        radius,
         overlapMethod: { method: 'base' },
         decay: {
             roundCreated: roundNumber,
             initialLightAmount: amount,
-            initialRadius: 0,
+            initialRadius: radius,
             roundsTotal: GATHER_LIGHT_DARKNESS_ROUNDS_TOTAL,
             noDecay: true,
         },
@@ -117,6 +118,7 @@ export function spawnBaseDarknessAtTile(
 export function spawnGatherLightWindupRing(
     engine: EngineWithGatherLight,
     caster: Unit,
+		color: number = LIGHT_RESOURCE_COLOR_NUMBER,
 ): void {
     engine.addEffect(new Effect({
         x: caster.x,
@@ -126,7 +128,7 @@ export function spawnGatherLightWindupRing(
         effectProperties: {
             direction: 'expand',
             shape: 'ring',
-            color: GATHER_LIGHT_RING_COLOR,
+            color,
             radius: GATHER_LIGHT_RING_RADIUS + caster.radius,
         },
     }));
@@ -189,9 +191,12 @@ export function applyGatherLightDarkness(
     const darknessTiles = getGatherLightTiles(casterCol, casterRow, grid.width, grid.height);
     const adjacentTiles = getAdjacentGatherLightTiles(casterCol, casterRow, grid.width, grid.height);
 
-    for (const { col, row } of darknessTiles) {
-        spawnBaseDarknessAtTile(engine, col, row, roundNumber);
-    }
+    // A single radius-1 source (not one radius-0 source per tile) covers the whole 3x3 block at a
+    // flat, un-attenuated GATHER_LIGHT_DARKNESS_AMOUNT. Nine overlapping radius-0 sources used to
+    // stack (LightGrid 'base' overlap sums additively, and each source's falloff bleeds
+    // abs(amount) tiles past its radius) — the caster's own tile was getting its own -2 plus a -1
+    // bleed-through from all 8 neighbors, i.e. -10 instead of -2.
+    spawnBaseDarknessAtTile(engine, casterCol, casterRow, roundNumber, GATHER_LIGHT_DARKNESS_AMOUNT, 1);
 
     return { darknessTiles, adjacentTiles };
 }

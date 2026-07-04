@@ -19,6 +19,8 @@ import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 const P = TINY_BATTLE_PLAYER_ID;
 const GATHER_LIGHT_ID = '0804';
 const BASELINE_GLOBAL_LIGHT = 3;
+/** Radius Gather Light's darkness source spawns with — see gatherLightHelpers.ts. */
+const GATHER_LIGHT_DARKNESS_RADIUS = 1;
 
 export const gatherLightCommittedScenario: ScenarioDefinition = {
     id: 'gather_light_committed_e2e',
@@ -62,19 +64,32 @@ export const gatherLightCommittedScenario: ScenarioDefinition = {
         const light = player.getResource('light');
         if (!light || light.current !== GATHER_LIGHT_AMOUNT) return false;
 
-        const tileLevel = engine.getLightLevelAt(player.x, player.y);
-        const expectedLevel = BASELINE_GLOBAL_LIGHT + GATHER_LIGHT_DARKNESS_AMOUNT;
-        return tileLevel === expectedLevel;
+        // Check the spawned darkness source directly rather than the displayed tile light level:
+        // LightGrid eases toward its target by 10% of the remaining delta per light-tick
+        // (GameEngine.runLightGameTick, ~6 ticks/s), which takes several real seconds to fully
+        // converge for a delta of 2 — far longer than this scenario needs to run to prove the
+        // ability spawned the right source. (One flat radius-1 source, not nine overlapping
+        // radius-0 sources — see the comment in gatherLightHelpers.ts:applyGatherLightDarkness.)
+        const darknessSources = engine.lightSources.filter(
+            (ls) => ls.active && ls.overlapMethod?.method === 'base' && ls.lightAmount < 0,
+        );
+        if (darknessSources.length !== 1) return false;
+        const [source] = darknessSources;
+        return source.lightAmount === GATHER_LIGHT_DARKNESS_AMOUNT && source.radius === GATHER_LIGHT_DARKNESS_RADIUS;
     },
 
     failureMessage(engine) {
         const player = engine.getLocalPlayerUnit();
         const light = player?.getResource('light');
-        const tileLevel = player ? engine.getLightLevelAt(player.x, player.y) : null;
-        const expectedLevel = BASELINE_GLOBAL_LIGHT + GATHER_LIGHT_DARKNESS_AMOUNT;
+        const darknessSources = engine.lightSources.filter(
+            (ls) => ls.active && ls.overlapMethod?.method === 'base' && ls.lightAmount < 0,
+        );
         return [
             `light.current=${light?.current ?? 'missing'} (expected ${GATHER_LIGHT_AMOUNT})`,
-            `caster tile light=${tileLevel} (expected ${expectedLevel})`,
+            `darkness sources=${darknessSources.length} (expected 1)`,
+            ...darknessSources.map(
+                (s) => `source amount=${s.lightAmount} radius=${s.radius} (expected ${GATHER_LIGHT_DARKNESS_AMOUNT}/${GATHER_LIGHT_DARKNESS_RADIUS})`,
+            ),
         ].join('; ');
     },
 };

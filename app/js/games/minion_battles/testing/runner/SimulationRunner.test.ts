@@ -46,6 +46,7 @@ import { aiSerializationRoundtripScenario } from '../scenarios/ai/ai_serializati
 import { throwTorchHitsDummyScenario } from '../scenarios/abilities/throwTorchScenario';
 import { lightImbuementAndImbuedBatScenario } from '../scenarios/abilities/lightImbuementScenario';
 import { lightBlastCommittedScenario } from '../scenarios/abilities/lightBlastScenario';
+import { gatherLightCommittedScenario } from '../scenarios/abilities/gatherLightScenario';
 import {
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
@@ -403,6 +404,11 @@ describe('runScenarioHeadless', () => {
 
     it('Light Blast (0801): committed cast damages dummy and leaves torch light', () => {
         const r = runScenarioHeadless(lightBlastCommittedScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Gather Light (0804): grants Light and darkens caster tile by exactly one step', () => {
+        const r = runScenarioHeadless(gatherLightCommittedScenario);
         expect(r.passed, r.message).toBe(true);
     });
 });

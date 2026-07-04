@@ -29,6 +29,7 @@ import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
 import type { IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { filterSelectTargetCandidates } from '../../../abilities/targeting';
 import type { GameEngine } from '../../../game/GameEngine';
+import { EngineWithGatherLight, spawnGatherLightWindupRing } from '@/games/minion_battles/abilities/gatherLightHelpers';
 
 // ---- Constants ----
 
@@ -212,7 +213,14 @@ export const ImbuedBatAbility = defineAbility({
     recoveries: [],
     prefireTime: 0.2,
     abilityTimings: [
-        { id: 'windup',   start: 0,   end: 0.2,  abilityPhase: AbilityPhase.Windup },
+        { id: 'windup',   start: 0,   end: 0.2,  abilityPhase: AbilityPhase.Windup, castBehaviours: [
+					{
+							timingStart: 'start',
+							behaviour: CastBehaviours.Instant((ctx) => {
+									spawnGatherLightWindupRing(ctx.engine as EngineWithGatherLight, ctx.caster);
+							}),
+					},
+			], },
         {
             id: 'hit',
             start: 0.2,

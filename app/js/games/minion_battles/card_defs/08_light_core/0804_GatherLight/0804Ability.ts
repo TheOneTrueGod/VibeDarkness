@@ -23,6 +23,7 @@ const MAX_USES = 2;
 const ACTIVE_DURATION = 0.05;
 const COOLDOWN_DURATION = 0.45;
 export const GATHER_LIGHT_AMOUNT = 2;
+export const GATHER_LIGHT_RING_COLOR = 0x9933cc;
 
 const GATHER_LIGHT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -57,7 +58,7 @@ export const GatherLightAbility = defineAbility({
                 {
                     timingStart: 'start',
                     behaviour: CastBehaviours.Instant((ctx) => {
-                        spawnGatherLightWindupRing(ctx.engine as EngineWithGatherLight, ctx.caster);
+                        spawnGatherLightWindupRing(ctx.engine as EngineWithGatherLight, ctx.caster, GATHER_LIGHT_RING_COLOR);
                     }),
                 },
             ],

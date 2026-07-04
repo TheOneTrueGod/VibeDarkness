@@ -337,6 +337,12 @@ export class UnitManager {
                     if (resource) {
                         resource.restoreFromJSON(rd);
                         unit.attachResource(resource, eventBus);
+                        // Fresh Light instances lose the tile-lookup context onRoundStart normally
+                        // sets; prime it immediately so the "+N per round" tooltip works right
+                        // after a restore instead of waiting for the next round boundary.
+                        if (resource instanceof Light) {
+                            resource.primeDisplayContext(unit, this.ctx);
+                        }
                     }
                 }
             }

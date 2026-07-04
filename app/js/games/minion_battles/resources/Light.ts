@@ -14,16 +14,18 @@ import type { Unit } from '../game/units/Unit';
 import type { EngineContext } from '../game/EngineContext';
 
 /** Minimum tile light level required to gain any Light resource per round. */
-export const LIGHT_RESOURCE_MIN_LIGHT_LEVEL = 2;
+export const LIGHT_RESOURCE_MIN_LIGHT_LEVEL = 3;
 /** Divisor in the per-round recovery formula; lower = faster recovery. */
-export const LIGHT_RESOURCE_DIVISOR = 2;
+export const LIGHT_RESOURCE_DIVISOR = 3;
 
-export const MAX_LIGHT_RECOVERY_PER_ROUND = 3;
+export const MAX_LIGHT_RECOVERY_PER_ROUND = 2;
+export const LIGHT_RESOURCE_COLOR = '#fef9c3'; // warm white-yellow
+export const LIGHT_RESOURCE_COLOR_NUMBER = 0xfff9c3; // warm white-yellow
 
 export class Light extends Resource {
 	readonly id = 'light';
 	readonly name = 'Light';
-	readonly color = '#fef9c3'; // warm white-yellow
+	readonly color = LIGHT_RESOURCE_COLOR; 
 	readonly iconName = 'Sun';
 
 	private _unit: Unit | null = null;
@@ -47,9 +49,19 @@ export class Light extends Resource {
 	}
 
 	onRoundStart(unit: Unit, engine: EngineContext): void {
+		this.primeDisplayContext(unit, engine);
+		this.add(this.perRoundGain);
+	}
+
+	/**
+	 * Set the tile-lookup context `perRoundGain` reads, without granting a round's gain.
+	 * `onRoundStart` only fires once per round, but a checkpoint restore (`UnitManager.restoreFromJSON`)
+	 * constructs a fresh `Light` instance mid-round — without this, `perRoundGain` (and its tooltip)
+	 * would read as 0 until the next round boundary.
+	 */
+	primeDisplayContext(unit: Unit, engine: EngineContext): void {
 		this._unit = unit;
 		this._engine = engine;
-		this.add(this.perRoundGain);
 	}
 
 	protected subscribe(_unit: Unit, _eventBus: EventBus): void {
