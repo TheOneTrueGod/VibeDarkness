@@ -14,9 +14,13 @@ import AbilitySlot from './AbilitySlot';
 import AbilityTooltip from './AbilityTooltip';
 import RoundTrackerCard from './RoundTrackerCard';
 import { getAbilityUseConfig, type RecoveryChargeType } from '../../abilities/abilityUses';
-import { getAbilityBarLayoutKey } from '../../abilities/abilityBarLayout';
+import { getAbilityBarLayoutKey, splitAbilityRows } from '../../abilities/abilityBarLayout';
 import { DEFAULT_PLAYER_ROUND_STAMINA_SURGE } from '../../game/GameEngine';
 import { UnitResourcePanel } from './resources/UnitResourcePanel';
+import {
+    ABILITY_SLOT_HEIGHT_PX,
+} from './AbilitySlot';
+import { useBattleActionRowHost } from '../../../../contexts/BattleActionRowContext';
 
 const RECOVERY_CHARGE_TYPES: RecoveryChargeType[] = ['staminaCharge', 'lightCharge', 'energyCharge', 'roundCharge'];
 
@@ -106,9 +110,12 @@ export default function AbilityBar({
     const [animationNow, setAnimationNow] = useState<number>(() => performance.now());
     const [pulseParticles, setPulseParticles] = useState<PulseParticle[]>([]);
     const rowRef = React.useRef<HTMLDivElement | null>(null);
+    const centerColumnRef = React.useRef<HTMLDivElement | null>(null);
     const cardRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
     const recoveryPillRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
     const prevRoundRef = React.useRef<number>(roundNumber);
+    const battleActionRow = useBattleActionRowHost();
+    const isFullBleedActionRow = battleActionRow?.actionRowHost != null;
     const prevRuntimeRef = React.useRef<
         Record<string, { currentUses: number; charges: Partial<Record<RecoveryChargeType, number>> }>
     >({});
@@ -147,6 +154,28 @@ export default function AbilityBar({
             })
             .filter((entry): entry is { abilityId: string; ability: AbilityStatic; runtime: UnitAbilityRuntimeState } => Boolean(entry));
     }, [visibleAbilityIds, playerUnit]);
+
+    const [firstRowCount, setFirstRowCount] = useState(() => handCards.length);
+
+    useEffect(() => {
+        setFirstRowCount(splitAbilityRows(handCards.length, centerColumnRef.current?.clientWidth ?? 0));
+    }, [handCards.length]);
+
+    useEffect(() => {
+        const el = centerColumnRef.current;
+        if (!el) return;
+        const update = () => {
+            setFirstRowCount(splitAbilityRows(handCards.length, el.clientWidth));
+        };
+        update();
+        const ro = new ResizeObserver(update);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [handCards.length]);
+
+    const firstRowCards = handCards.slice(0, firstRowCount);
+    const secondRowCards = handCards.slice(firstRowCount);
+    const hasSecondAbilityRow = secondRowCards.length > 0;
 
     const runtimeSnapshot = useMemo<
         Record<string, { currentUses: number; charges: Partial<Record<RecoveryChargeType, number>> }>
@@ -291,18 +320,128 @@ export default function AbilityBar({
         return card.ability;
     }, [mobileDescIndex, handCards]);
 
+    const renderHandCard = (card: (typeof handCards)[number], index: number) => {
+        if (!playerUnit) return null;
+        const disabledReason = getAbilityDisabledReason({
+            playerUnit,
+            ability: card.ability,
+            abilityId: card.abilityId,
+            currentUses: card.runtime.currentUses,
+            isMyTurn,
+            allUnits,
+            conditionalCancelContext,
+        });
+        const isHovered = hoveredCardId === card.abilityId;
+        const activeAbilityIds = playerUnit.activeAbilities.map((a) => a.abilityId);
+        const activeHandIndex = handCards.findIndex((c) => activeAbilityIds.includes(c.abilityId));
+        const isSelected = selectedCardIndex === index;
+        const isActive = activeHandIndex >= 0 && index === activeHandIndex && !isMyTurn;
+        const abilityModes = card.ability.abilityModes;
+        const currentAbilityMode = abilityModes
+            ? (abilityModeByAbilityId[card.abilityId] ?? abilityModes.defaultMode)
+            : undefined;
+        const showModeToggle = Boolean(
+            abilityModes &&
+            isMyTurn &&
+            (isSelected || isHovered),
+        );
+
+        return (
+            <div
+                key={card.abilityId}
+                ref={(el) => {
+                    cardRefs.current[card.abilityId] = el;
+                }}
+            >
+                <AbilitySlot
+                    ability={card.ability}
+                    runtime={card.runtime}
+                    isSelected={isSelected}
+                    isActive={isActive}
+                    disabledReason={disabledReason}
+                    onSelect={() => handleSelectCard(index)}
+                    isHovered={isHovered}
+                    onHoverChange={(hovered) => {
+                        if (hovered) {
+                            setHoveredCardId(card.abilityId);
+                        } else {
+                            setHoveredCardId((prev) => (prev === card.abilityId ? null : prev));
+                        }
+                    }}
+                    isMobile={isMobile}
+                    showMobileDescription={mobileDescIndex === index}
+                    onMobileDescriptionToggle={() => handleMobileDescToggle(index)}
+                    onMobileDescriptionDismiss={handleMobileDescDismiss}
+                    gameState={gameState}
+                    onPrimaryRecoveryPillRef={(el) => {
+                        recoveryPillRefs.current[card.abilityId] = el;
+                    }}
+                    abilityModes={abilityModes}
+                    currentAbilityMode={currentAbilityMode}
+                    showModeToggle={showModeToggle}
+                    onCycleAbilityMode={
+                        abilityModes && onCycleAbilityMode
+                            ? () => onCycleAbilityMode(card.abilityId, abilityModes.modes)
+                            : undefined
+                    }
+                />
+            </div>
+        );
+    };
+
+    const waitButton = (
+        <button
+            type="button"
+            onClick={onWait}
+            disabled={!isMyTurn}
+            className={`flex h-[104px] w-[80px] flex-shrink-0 flex-col items-center justify-center rounded-lg border-2 transition-all duration-150 ${
+                isMyTurn
+                    ? 'cursor-pointer border-dark-500 bg-dark-700 text-gray-200 hover:-translate-y-1 hover:border-gray-400 hover:bg-dark-600'
+                    : 'cursor-not-allowed border-dark-700 bg-dark-800 text-gray-600'
+            }`}
+            title={conditionalCancelContext ? 'Continue current ability (Space)' : hasNonconfirmedOrder ? 'End Turn (Space)' : 'Wait (Space)'}
+            aria-keyshortcuts="Space"
+            onPointerEnter={() => onWaitHoverChange?.(true)}
+            onPointerLeave={() => onWaitHoverChange?.(false)}
+        >
+            <span className="text-sm font-medium">
+                {conditionalCancelContext ? 'Continue' : hasNonconfirmedOrder ? 'End Turn' : 'Wait'}
+            </span>
+            <kbd
+                className={`mt-2 flex h-10 min-w-[3.5rem] items-center justify-center rounded border-2 px-2 font-mono text-[11px] font-semibold tracking-wide shadow-inner ${
+                    isMyTurn
+                        ? 'border-gray-500 bg-dark-800 text-gray-200'
+                        : 'border-dark-600 bg-dark-900 text-gray-500'
+                }`}
+            >
+                Space
+            </kbd>
+        </button>
+    );
+
+    const actionColumnClass = isFullBleedActionRow
+        ? 'w-80 border-l border-border-custom'
+        : 'w-[80px]';
+
     return (
-        <div className="relative bg-dark-900/80 border-t border-dark-700 p-3">
-            {/* Three-column layout: resource panel (left, w-80) | abilities (center, flex-1) | phantom mirror (right, w-80) */}
-            <div ref={rowRef} className="relative flex min-h-[158px] items-end">
-                {/* Left: unit portrait, health bar, and resource bars */}
-                <div className="flex w-80 shrink-0 self-stretch items-end">
-                    <UnitResourcePanel unit={playerUnit} />
-                </div>
-
-                {/* Center: round tracker + ability cards + wait button, centered within remaining space */}
-                <div className="flex flex-1 items-end justify-center gap-4">
-
+        <div
+            className={`relative border-t border-dark-700 bg-dark-900/80 py-3 ${
+                isFullBleedActionRow ? 'px-4' : 'p-3'
+            }`}
+        >
+            {/*
+              Row 1: portrait | ability row 1 | round tracker
+              Row 2: portrait | ability row 2 (when needed) | wait / end turn
+              Full-bleed (lobby battle chrome): px-4 + w-80 side columns align with timeline and chat.
+            */}
+            <div
+                ref={rowRef}
+                className={`relative grid min-h-[158px] items-end gap-x-4 gap-y-2 ${
+                    isFullBleedActionRow
+                        ? 'grid-cols-[20rem_minmax(0,1fr)_20rem]'
+                        : 'grid-cols-[20rem_minmax(0,1fr)_5rem]'
+                }`}
+            >
                 {pulseParticles.map((p) => {
                     const t = Math.max(0, Math.min(1, (animationNow - p.startMs - p.staggerMs) / p.durationMs));
                     const oneMinus = 1 - t;
@@ -315,7 +454,7 @@ export default function AbilityBar({
                     return (
                         <div
                             key={p.id}
-                            className="absolute rounded-full bg-gray-300 pointer-events-none z-20"
+                            className="pointer-events-none absolute z-20 rounded-full bg-gray-300"
                             style={{
                                 left: x - size / 2,
                                 top: y - size / 2,
@@ -326,131 +465,54 @@ export default function AbilityBar({
                         />
                     );
                 })}
-                <RoundTrackerCard
-                    roundNumber={roundNumber}
-                    progress={roundProgress}
-                    isPaused={isPaused}
-                    staminaSurge={playerUnit?.stamina ?? DEFAULT_PLAYER_ROUND_STAMINA_SURGE}
-                />
+
+                {/* Left portrait — spans both rows */}
+                <div className="col-start-1 row-span-2 flex w-80 shrink-0 items-end self-stretch">
+                    <UnitResourcePanel unit={playerUnit} />
+                </div>
+
+                {/* Center row 1 — ability cards */}
+                <div
+                    ref={centerColumnRef}
+                    className="col-start-2 row-start-1 flex min-w-0 flex-wrap content-end gap-2"
+                    onPointerLeave={() => setHoveredCardId(null)}
+                >
+                    {playerUnit ? (
+                        firstRowCards.length > 0 ? (
+                            firstRowCards.map((card, i) => renderHandCard(card, i))
+                        ) : (
+                            <p className="text-muted w-full py-4 text-center text-sm">No cards in hand</p>
+                        )
+                    ) : (
+                        <p className="text-muted w-full py-4 text-center text-sm">No cards in hand</p>
+                    )}
+                </div>
+
+                {/* Center row 2 — overflow ability cards */}
+                <div className="col-start-2 row-start-2 flex min-w-0 flex-wrap content-end gap-2">
+                    {hasSecondAbilityRow &&
+                        secondRowCards.map((card, i) => renderHandCard(card, firstRowCount + i))}
+                </div>
+
+                {/* Right row 1 — round tracker */}
                 {playerUnit && (
                     <>
-                        {/* Hand cards: gap-2 between cards; gap-4 on parent separates tracker / cluster / wait */}
                         <div
-                            className="flex max-w-[800px] flex-shrink-0 flex-wrap justify-center gap-2"
-                            onPointerLeave={() => setHoveredCardId(null)}
+                            className={`col-start-3 row-start-1 flex items-end ${actionColumnClass}`}
+                            style={{ minHeight: ABILITY_SLOT_HEIGHT_PX }}
                         >
-                            {handCards.map((card, index) => {
-                                const disabledReason = getAbilityDisabledReason({
-                                    playerUnit,
-                                    ability: card.ability,
-                                    abilityId: card.abilityId,
-                                    currentUses: card.runtime.currentUses,
-                                    isMyTurn,
-                                    allUnits,
-                                    conditionalCancelContext,
-                                });
-                                const isHovered = hoveredCardId === card.abilityId;
-                                const activeAbilityIds = playerUnit?.activeAbilities.map((a) => a.abilityId) ?? [];
-                                const activeHandIndex = handCards.findIndex((c) => activeAbilityIds.includes(c.abilityId));
-                                const isSelected = selectedCardIndex === index;
-                                const isActive = activeHandIndex >= 0 && index === activeHandIndex && !isMyTurn;
-                                const abilityModes = card.ability.abilityModes;
-                                const currentAbilityMode = abilityModes
-                                    ? (abilityModeByAbilityId[card.abilityId] ?? abilityModes.defaultMode)
-                                    : undefined;
-                                const showModeToggle = Boolean(
-                                    abilityModes &&
-                                    isMyTurn &&
-                                    (isSelected || isHovered),
-                                );
-
-                                return (
-                                    <div
-                                        key={card.abilityId}
-                                        ref={(el) => {
-                                            cardRefs.current[card.abilityId] = el;
-                                        }}
-                                    >
-                                        <AbilitySlot
-                                            ability={card.ability}
-                                            runtime={card.runtime}
-                                            isSelected={selectedCardIndex === index}
-                                            isActive={isActive}
-                                            disabledReason={disabledReason}
-                                            onSelect={() => handleSelectCard(index)}
-                                            isHovered={isHovered}
-                                            onHoverChange={(hovered) => {
-                                                if (hovered) {
-                                                    setHoveredCardId(card.abilityId);
-                                                } else {
-                                                    setHoveredCardId((prev) => (prev === card.abilityId ? null : prev));
-                                                }
-                                            }}
-                                            isMobile={isMobile}
-                                            showMobileDescription={mobileDescIndex === index}
-                                            onMobileDescriptionToggle={() => handleMobileDescToggle(index)}
-                                            onMobileDescriptionDismiss={handleMobileDescDismiss}
-                                            gameState={gameState}
-                                            onPrimaryRecoveryPillRef={(el) => {
-                                                recoveryPillRefs.current[card.abilityId] = el;
-                                            }}
-                                            abilityModes={abilityModes}
-                                            currentAbilityMode={currentAbilityMode}
-                                            showModeToggle={showModeToggle}
-                                            onCycleAbilityMode={
-                                                abilityModes && onCycleAbilityMode
-                                                    ? () => onCycleAbilityMode(card.abilityId, abilityModes.modes)
-                                                    : undefined
-                                            }
-                                        />
-                                    </div>
-                                );
-                            })}
-
-                            {handCards.length === 0 && (
-                                <p className="text-muted w-full py-4 text-center text-sm">No cards in hand</p>
-                            )}
+                            <RoundTrackerCard
+                                roundNumber={roundNumber}
+                                progress={roundProgress}
+                                isPaused={isPaused}
+                                staminaSurge={playerUnit.stamina ?? DEFAULT_PLAYER_ROUND_STAMINA_SURGE}
+                            />
                         </div>
-                        <button
-                            type="button"
-                            onClick={onWait}
-                            disabled={!isMyTurn}
-                            className={`flex h-[104px] w-[80px] flex-shrink-0 flex-col items-center justify-center rounded-lg border-2 transition-all duration-150 ${
-                                isMyTurn
-                                    ? 'cursor-pointer border-dark-500 bg-dark-700 text-gray-200 hover:-translate-y-1 hover:border-gray-400 hover:bg-dark-600'
-                                    : 'cursor-not-allowed border-dark-700 bg-dark-800 text-gray-600'
-                            }`}
-                            title={conditionalCancelContext ? 'Continue current ability (Space)' : hasNonconfirmedOrder ? 'End Turn (Space)' : 'Wait (Space)'}
-                            aria-keyshortcuts="Space"
-                            onPointerEnter={() => onWaitHoverChange?.(true)}
-                            onPointerLeave={() => onWaitHoverChange?.(false)}
-                        >
-                            <span className="text-sm font-medium">
-                                {conditionalCancelContext ? 'Continue' : hasNonconfirmedOrder ? 'End Turn' : 'Wait'}
-                            </span>
-                            <kbd
-                                className={`mt-2 flex h-10 min-w-[3.5rem] items-center justify-center rounded border-2 px-2 font-mono text-[11px] font-semibold tracking-wide shadow-inner ${
-                                    isMyTurn
-                                        ? 'border-gray-500 bg-dark-800 text-gray-200'
-                                        : 'border-dark-600 bg-dark-900 text-gray-500'
-                                }`}
-                            >
-                                Space
-                            </kbd>
-                        </button>
+                        <div className={`col-start-3 row-start-2 flex items-end ${actionColumnClass}`}>
+                            {waitButton}
+                        </div>
                     </>
                 )}
-
-                {!playerUnit && (
-                    <div className="flex min-h-[104px] w-full max-w-[800px] items-center justify-center" onPointerLeave={() => setHoveredCardId(null)}>
-                        <p className="text-muted text-sm py-4">No cards in hand</p>
-                    </div>
-                )}
-
-                </div>{/* end center column */}
-
-                {/* Right phantom: mirrors left resource panel width to keep abilities centered */}
-                <div className="w-80 shrink-0" aria-hidden />
             </div>
 
             {/* Mobile tooltip overlay */}

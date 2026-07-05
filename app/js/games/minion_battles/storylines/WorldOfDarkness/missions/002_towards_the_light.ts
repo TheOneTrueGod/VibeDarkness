@@ -147,7 +147,7 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: 'A faint light glows in the distance. As your campfire grows dim, you gather what you can and move towards it hoping for shelter... or answers.',
+            text: "The darkness does not appear to be letting up, and the campfire is starting to grow dim.\n\nIt's time to light a torch and find somewhere safe.",
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },
@@ -166,7 +166,11 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: "You run toward the light, desperate to put distance between yourself and the wolves. Your heart pounds. You turn, expecting to fight—but they only skulk at the entrance, eyes gleaming. They do not follow. You wait. Nothing comes but growls, fading into the dark.",
+            text: [
+							"You run toward the light, desperate to put distance between yourself and the wolves.",
+							"You turn, expecting to fight, but they only skulk at the entrance, eyes gleaming.",
+							"They do not follow."
+						].join("\n"),
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },

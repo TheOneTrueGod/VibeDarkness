@@ -5,6 +5,13 @@
  * tap shows description overlay (mobile).
  */
 
+/** Fixed card width in the ability bar (must match Tailwind `w-[124px]` below). */
+export const ABILITY_SLOT_WIDTH_PX = 124;
+/** Fixed card height in the ability bar (must match Tailwind `h-[158px]` below). */
+export const ABILITY_SLOT_HEIGHT_PX = 158;
+/** Horizontal gap between ability cards in the bar (`gap-2`). */
+export const ABILITY_BAR_CARD_GAP_PX = 8;
+
 import React, { useCallback } from 'react';
 import { getAbilityResourceCosts, type AbilityModesConfig, type AbilityStatic } from '../../abilities/Ability';
 import type { UnitAbilityRuntimeState } from '../../game/units/Unit';
