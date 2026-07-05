@@ -12,6 +12,10 @@ import {
     GRAVITY_LOCUS_GRAVITY_COST,
     GRAVITY_LOCUS_PREFIRE_TIME,
 } from '../gravityConstants';
+import { TerrainLayerManager } from '../../../game/TerrainLayerManager';
+import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
+import { TerrainManager } from '../../../terrain/TerrainManager';
+import { TerrainType } from '../../../terrain/TerrainType';
 import { GravityLocusAbility } from './0901Ability';
 
 const CARD_ID = GravityLocusAbility.id;
@@ -61,7 +65,7 @@ function makeEnemy(id: string, x: number, y: number): Unit {
     });
 }
 
-function makeEngine(units: Unit[]): EngineContext {
+function makeEngine(units: Unit[], terrainManager?: TerrainManager): EngineContext {
     const eventBus = new EventBus();
     return {
         gameTime: 0,
@@ -69,11 +73,19 @@ function makeEngine(units: Unit[]): EngineContext {
         roundNumber: 1,
         eventBus,
         units,
+        terrainManager: terrainManager ?? null,
         getUnit: (id: string) => units.find((u) => u.id === id),
         trackAbilityUse: vi.fn(),
         addEffectEmitter: vi.fn(),
         addEffect: vi.fn(),
     } as unknown as EngineContext;
+}
+
+function makeTerrainManager(cols: number, rows: number): TerrainManager {
+    const grid = TerrainGrid.createFilledTerrain(cols, rows, CELL_SIZE, TerrainType.Grass);
+    const manager = new TerrainManager(grid);
+    manager.setTerrainLayers(new TerrainLayerManager());
+    return manager;
 }
 
 function advanceSimulation(
@@ -139,6 +151,33 @@ describe('GravityLocusAbility', () => {
 
         expect(enemy.x).toBeLessThan(140);
         expect(Math.hypot(enemy.x - LOCUS.x, enemy.y - LOCUS.y)).toBeLessThan(3);
+    });
+
+    it('push mode does not nudge enemies through rock terrain', () => {
+        const terrainManager = makeTerrainManager(12, 6);
+        terrainManager.grid.set(5, 3, TerrainType.Rock);
+
+        const caster = makeCaster(100);
+        const locusX = CELL_SIZE * 3.5;
+        const enemyX = CELL_SIZE * 4.5;
+        const rowY = CELL_SIZE * 3.5;
+        const enemy = makeEnemy('enemy', enemyX, rowY);
+        const engine = makeEngine([caster, enemy], terrainManager);
+        const startX = enemy.x;
+
+        executeUnitAbility(
+            caster,
+            GravityLocusAbility,
+            [{ type: 'pixel', position: { x: locusX, y: rowY } }],
+            engine,
+            GRAVITY_ABILITY_MODE_PUSH,
+        );
+
+        advanceSimulation([caster, enemy], engine, GRAVITY_LOCUS_PREFIRE_TIME + 1.2, [caster]);
+
+        expect(enemy.x).toBeGreaterThan(startX);
+        expect(terrainManager.isPassable(enemy.x, enemy.y)).toBe(true);
+        expect(enemy.x).toBeLessThan(CELL_SIZE * 5);
     });
 
     it('casting spends gravity', () => {

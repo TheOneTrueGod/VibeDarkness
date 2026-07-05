@@ -1,5 +1,7 @@
 import type { ResearchTreeDef } from '../types';
 
+import { GRAVITY_CORE_MISSION_START_AMOUNT } from '../../games/minion_battles/card_defs/09_gravity_core/gravityConstants';
+
 export const GRAVITY_TREE_ID = 'gravity_core';
 export const GRAVITY_NODE_CORE = 'gravity_core';
 export const GRAVITY_NODE_FORCE_PUSH = 'force_push';
@@ -26,6 +28,7 @@ export const gravityTree: ResearchTreeDef = {
                 { type: 'replaceEquippedItem', fromItemId: '004', toItemId: '018' },
                 { type: 'replaceEquippedItem', fromItemId: '017', toItemId: '018' },
                 { type: 'addCard', cardId: '0901' },
+                { type: 'grantMissionStartResource', resourceId: 'gravity', amount: GRAVITY_CORE_MISSION_START_AMOUNT },
             ],
             modifiesAbility: { from: '0901', to: '0901' },
         },

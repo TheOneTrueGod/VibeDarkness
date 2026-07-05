@@ -18,7 +18,8 @@ export type ResearchEffect =
     | { type: 'addExtraCardsFromItem'; itemId: string; cardId: string; count: number }
     | { type: 'replaceCard'; fromCardId: string; toCardId: string }
     | { type: 'addCard'; cardId: string }
-    | { type: 'grantPet'; petId: string };
+    | { type: 'grantPet'; petId: string }
+    | { type: 'grantMissionStartResource'; resourceId: string; amount: number };
 
 /**
  * Specifies which abilities a modifier targets.

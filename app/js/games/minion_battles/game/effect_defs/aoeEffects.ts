@@ -13,6 +13,8 @@ export interface GravityFieldEffectData {
     direction?: 'in' | 'out';
     color?: number;
     radius?: number;
+    /** Global alpha multiplier for the field visual (default 1). */
+    alpha?: number;
 }
 
 export interface LiftColumnEffectData {
@@ -25,6 +27,7 @@ function drawOutwardGravityField(
     progress: number,
     radius: number,
     color: number,
+    alphaMul: number,
 ): void {
     const rings: RingPulseSpec[] = [
         { delay: 0, startRadius: radius * 0.15, endRadius: radius, width: 3, opacityMul: 1 },
@@ -33,11 +36,11 @@ function drawOutwardGravityField(
     ];
     const colors = [color, color, color];
     drawRingBursts(g, progress, colors, rings, (effectiveProgress, ring) =>
-        0.55 * ring.opacityMul * (1 - effectiveProgress * 0.95),
+        alphaMul * 0.55 * ring.opacityMul * (1 - effectiveProgress * 0.95),
     );
 
     const crackCount = 8;
-    const crackAlpha = Math.max(0, 0.45 * (1 - progress * 0.6));
+    const crackAlpha = Math.max(0, alphaMul * 0.45 * (1 - progress * 0.6));
     for (let i = 0; i < crackCount; i++) {
         const baseAngle = (i / crackCount) * Math.PI * 2;
         const innerR = radius * (0.2 + progress * 0.15);
@@ -55,6 +58,7 @@ function drawInwardGravityField(
     progress: number,
     radius: number,
     color: number,
+    alphaMul: number,
 ): void {
     const streamCount = 6;
     const particlesPerStream = 5;
@@ -66,7 +70,7 @@ function drawInwardGravityField(
             const spiralAngle = baseAngle + phase * Math.PI * 1.2;
             const x = Math.cos(spiralAngle) * dist;
             const y = Math.sin(spiralAngle) * dist;
-            const alpha = Math.max(0, 0.5 * (1 - phase));
+            const alpha = Math.max(0, alphaMul * 0.5 * (1 - phase));
             const dotR = 2 + (1 - phase) * 1.5;
             g.circle(x, y, dotR);
             g.fill({ color, alpha });
@@ -80,11 +84,11 @@ function drawInwardGravityField(
         const headY = Math.sin(tailAngle) * Math.max(0, tailDist - radius * 0.18);
         g.moveTo(tailX, tailY);
         g.lineTo(headX, headY);
-        g.stroke({ color, width: 1.5, alpha: Math.max(0, 0.35 * (1 - tailPhase)) });
+        g.stroke({ color, width: 1.5, alpha: Math.max(0, alphaMul * 0.35 * (1 - tailPhase)) });
     }
 
     g.circle(0, 0, radius * 0.12);
-    g.stroke({ color, width: 2, alpha: 0.35 + Math.sin(progress * Math.PI * 2) * 0.15 });
+    g.stroke({ color, width: 2, alpha: alphaMul * (0.35 + Math.sin(progress * Math.PI * 2) * 0.15) });
 }
 
 function drawLiftColumn(
@@ -235,10 +239,11 @@ export const gravityFieldEffectDef: IEffectDef = {
         const direction = data.direction ?? 'out';
         const color = data.color ?? GRAVITY_VIOLET;
         const radius = data.radius ?? effect.effectRadius ?? 60;
+        const alphaMul = data.alpha ?? 1;
         if (direction === 'out') {
-            drawOutwardGravityField(g, effect.progress, radius, color);
+            drawOutwardGravityField(g, effect.progress, radius, color, alphaMul);
         } else {
-            drawInwardGravityField(g, effect.progress, radius, color);
+            drawInwardGravityField(g, effect.progress, radius, color, alphaMul);
         }
     },
 };

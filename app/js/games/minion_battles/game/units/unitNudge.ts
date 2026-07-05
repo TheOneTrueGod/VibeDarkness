@@ -4,6 +4,35 @@ import type { TerrainManager } from '../../terrain/TerrainManager';
 import { computeForcedDisplacement } from '../forceMove';
 
 /**
+ * Clamp a nudge vector so its displacement respects terrain passability.
+ * Returns a (possibly shorter) vector; zero when movement is blocked.
+ */
+export function clampNudgeVectorToTerrain(
+    unit: Unit,
+    vector: { x: number; y: number },
+    terrainManager: TerrainManager | null | undefined,
+    grid: TerrainGrid | null | undefined,
+): { x: number; y: number } {
+    const mag = Math.hypot(vector.x, vector.y);
+    if (mag <= 0) return { x: 0, y: 0 };
+    if (!terrainManager && !grid) return vector;
+
+    const towardX = unit.x + vector.x;
+    const towardY = unit.y + vector.y;
+    const { distance } = computeForcedDisplacement(
+        unit.x,
+        unit.y,
+        towardX,
+        towardY,
+        mag,
+        terrainManager ? { terrainManager } : { grid: grid! },
+    );
+    if (distance <= 0) return { x: 0, y: 0 };
+    const scale = distance / mag;
+    return { x: vector.x * scale, y: vector.y * scale };
+}
+
+/**
  * Apply a non-interrupting nudge to a unit. Does not clear movement path or active abilities;
  * bypasses CC armour entirely (callers apply directly — no tier/CC gate).
  */

@@ -92,17 +92,37 @@ export function computeGravityGrazeRatePerRound(owner: Unit, engine: EngineConte
     return Math.max(rateUnits, rateProjectiles, GRAVITY_MIN_PER_ROUND);
 }
 
+/** Convert a per-round graze rate to gravity gained per second. */
+export function gravityGrazeRatePerSecond(ratePerRound: number): number {
+    return ratePerRound / ROUND_DURATION;
+}
+
 export class Gravity extends Resource {
     readonly id = 'gravity';
     readonly name = 'Gravity';
     readonly color = '#a855f7'; // purple-500
     readonly iconName = 'Atom';
 
+    private _unit: Unit | null = null;
+    private _engine: EngineContext | null = null;
+
     constructor() {
         super(0, 100);
     }
 
+    /** Live per-second graze gain from current proximity. Used by the tooltip. */
+    get perSecondGain(): number {
+        if (!this._unit || !this._engine) return 0;
+        return gravityGrazeRatePerSecond(computeGravityGrazeRatePerRound(this._unit, this._engine));
+    }
+
+    primeDisplayContext(unit: Unit, engine: EngineContext): void {
+        this._unit = unit;
+        this._engine = engine;
+    }
+
     onTick(unit: Unit, engine: EngineContext, dt: number): void {
+        this.primeDisplayContext(unit, engine);
         const ratePerRound = computeGravityGrazeRatePerRound(unit, engine);
         this.add(ratePerRound * dt / ROUND_DURATION);
     }
@@ -112,6 +132,7 @@ export class Gravity extends Resource {
     }
 
     protected unsubscribe(_eventBus: EventBus): void {
-        // No listeners to remove.
+        this._unit = null;
+        this._engine = null;
     }
 }

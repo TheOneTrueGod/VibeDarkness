@@ -20,6 +20,8 @@ export interface ResourceDisplay {
     max: number;
     /** If present, tooltip shows "+N per round" in the resource colour. */
     perRoundGain?: number;
+    /** If present, tooltip shows "+N/s" in the resource colour (continuous gain resources). */
+    perSecondGain?: number;
 }
 
 export abstract class Resource {
@@ -84,6 +86,12 @@ export abstract class Resource {
 
     /** Called each simulation tick; override for continuous engine-context-dependent gain (e.g. proximity graze). */
     onTick?(unit: Unit, engine: EngineContext, dt: number): void;
+
+    /**
+     * Optional: set unit/engine context for live tooltip gain rates without applying gain.
+     * Used by Light (per-round) and Gravity (per-second) tooltips after checkpoint restore.
+     */
+    primeDisplayContext?(unit: Unit, engine: EngineContext): void;
 
     /** Subclasses add their event subscriptions here. */
     protected abstract subscribe(unit: Unit, eventBus: EventBus): void;

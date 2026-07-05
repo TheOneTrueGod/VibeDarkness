@@ -14,13 +14,14 @@ import { areEnemies } from '../../../game/teams';
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget, ActiveAbility } from '../../../game/types';
 import type { EngineContext } from '../../../game/EngineContext';
-import { applyNudgeToUnit } from '../../../game/units/unitNudge';
+import { applyNudgeToUnit, clampNudgeVectorToTerrain } from '../../../game/units/unitNudge';
 import { Effect } from '../../../game/effects/Effect';
 import {
     GRAVITY_ABILITY_MODE_PULL,
     GRAVITY_ABILITY_MODE_PUSH,
     GRAVITY_LOCUS_ACTIVE_DURATION,
     GRAVITY_LOCUS_FIELD_RADIUS,
+    GRAVITY_LOCUS_FIELD_ALPHA,
     GRAVITY_LOCUS_GRAVITY_COST,
     GRAVITY_LOCUS_MAX_RANGE,
     GRAVITY_LOCUS_NUDGE_DISTANCE,
@@ -110,9 +111,21 @@ function applyLocusPulse(
                 }
             }
 
-            applyNudgeToUnit(target, { x: nudgeX, y: nudgeY }, GRAVITY_LOCUS_NUDGE_DURATION);
+            const clamped = clampNudgeVectorToTerrain(
+                target,
+                { x: nudgeX, y: nudgeY },
+                engine.terrainManager,
+                engine.terrainManager?.grid ?? null,
+            );
+            if (Math.hypot(clamped.x, clamped.y) < 0.5) continue;
 
-            const angle = Math.atan2(nudgeY, nudgeX);
+            applyNudgeToUnit(
+                target,
+                clamped,
+                GRAVITY_LOCUS_NUDGE_DURATION,
+            );
+
+            const angle = Math.atan2(clamped.y, clamped.x);
             engine.addEffect(new Effect({
                 x: target.x,
                 y: target.y,
@@ -163,6 +176,7 @@ export const GravityLocusAbility = defineAbility({
                 effectData: {
                     color: GRAVITY_VIOLET,
                     radius: GRAVITY_LOCUS_FIELD_RADIUS,
+                    alpha: GRAVITY_LOCUS_FIELD_ALPHA,
                 },
                 resolveEffectData: ({ abilityMode }) => ({
                     direction: resolveFieldDirection(abilityMode),

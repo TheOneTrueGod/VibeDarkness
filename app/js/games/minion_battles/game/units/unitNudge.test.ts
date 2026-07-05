@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Unit } from './Unit';
 import { EventBus } from '../EventBus';
-import { applyNudgeToUnit, updateUnitNudge } from './unitNudge';
+import { applyNudgeToUnit, clampNudgeVectorToTerrain, updateUnitNudge } from './unitNudge';
 import { updateUnitKnockback } from './unitKnockback';
 import { updateUnit } from './unitMovementTick';
 import {
@@ -110,6 +110,23 @@ describe('applyNudgeToUnit', () => {
 
         expect(terrainManager.isPassable(unit.x, unit.y)).toBe(true);
         expect(unit.x).toBeLessThan(CELL_SIZE * 3);
+    });
+
+    it('clampNudgeVectorToTerrain shortens push vectors blocked by rock', () => {
+        const terrainManager = makeTerrainManager(8, 4);
+        terrainManager.grid.set(3, 2, TerrainType.Rock);
+        const grid = terrainManager.grid;
+
+        const unit = makeUnit({ x: CELL_SIZE * 1.5, y: CELL_SIZE * 2.5 });
+        const clamped = clampNudgeVectorToTerrain(unit, { x: 200, y: 0 }, terrainManager, grid);
+
+        expect(clamped.x).toBeGreaterThan(0);
+        expect(clamped.x).toBeLessThan(200);
+        expect(clamped.y).toBe(0);
+
+        applyNudgeToUnit(unit, clamped, 0.2);
+        updateUnitNudge(unit, 0.2, grid, terrainManager);
+        expect(terrainManager.isPassable(unit.x, unit.y)).toBe(true);
     });
 });
 

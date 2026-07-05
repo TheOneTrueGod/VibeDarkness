@@ -252,6 +252,32 @@ export function getPetsFromResearch(
 }
 
 /**
+ * Returns battle-resource starting amounts from `grantMissionStartResource` effects.
+ * Amounts for the same resourceId are summed across all researched nodes.
+ */
+export function getMissionStartResourcesFromResearch(
+    researchTrees: Record<string, string[]> | undefined,
+): Map<string, number> {
+    const trees = researchTrees ?? {};
+    const amounts = new Map<string, number>();
+    for (const tree of RESEARCH_TREES) {
+        const researchedSet = new Set(trees[tree.id] ?? []);
+        const researchedNodes = sortNodesDeterministic(tree.nodes.filter((n) => researchedSet.has(n.id)));
+        for (const node of researchedNodes) {
+            for (const eff of node.effects) {
+                if (eff.type === 'grantMissionStartResource') {
+                    amounts.set(
+                        eff.resourceId,
+                        (amounts.get(eff.resourceId) ?? 0) + eff.amount,
+                    );
+                }
+            }
+        }
+    }
+    return amounts;
+}
+
+/**
  * Returns a map of cardId → replacement cardId based on all `replaceCard` effects in researched nodes.
  * Applied after equipment is resolved when building the battle deck.
  */

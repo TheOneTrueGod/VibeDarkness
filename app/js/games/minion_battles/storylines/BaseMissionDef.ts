@@ -39,7 +39,7 @@ import {
     applyAbilityResearchModifiersToRuntime,
     initializeAbilityRuntimeForUnit,
 } from '../abilities/abilityUses';
-import { mergeBattleEquipmentIdsFromResearch, getCardReplacementsFromResearch, getDirectCardsFromResearch, computeAbilityModifiersFromResearch, getPetsFromResearch } from '../../../researchTrees/evaluator';
+import { mergeBattleEquipmentIdsFromResearch, getCardReplacementsFromResearch, getDirectCardsFromResearch, computeAbilityModifiersFromResearch, getPetsFromResearch, getMissionStartResourcesFromResearch } from '../../../researchTrees/evaluator';
 import { getPetDef } from '../game/units/pet_defs/petDef';
 import { getAbilityTagsForId } from '../abilities/Ability';
 import { Ammo } from '../resources/Ammo';
@@ -78,6 +78,17 @@ function attachAmmoIfNeeded(engine: GameEngine, unit: Unit): void {
     if (!needsAmmo) return;
     if (unit.getResource('ammo')) return;
     unit.attachResource(new Ammo(), engine.eventBus);
+}
+
+function applyMissionStartResourcesFromResearch(
+    unit: Unit,
+    researchTrees: Record<string, string[]> | undefined,
+): void {
+    const grants = getMissionStartResourcesFromResearch(researchTrees);
+    for (const [resourceId, amount] of grants) {
+        const resource = unit.getResource(resourceId);
+        if (resource) resource.add(amount);
+    }
 }
 
 /** Parameters for initializing game state. */
@@ -264,6 +275,10 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             applyStickSwordResearchToAbilityRuntime(unit, getResearchNodes);
             attachAmmoIfNeeded(engine, unit);
             attachResourcesFromEquipment(equippedIds, unit, engine.eventBus);
+            applyMissionStartResourcesFromResearch(unit, researchByPlayer[pu.playerId]);
+            for (const resource of unit.resources) {
+                resource.primeDisplayContext?.(unit, engine);
+            }
             unit.attachResource(new Movement(), engine.eventBus);
             engine.addUnit(unit, 'initialGameSpawn');
 

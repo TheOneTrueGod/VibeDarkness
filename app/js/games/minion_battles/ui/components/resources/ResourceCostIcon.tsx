@@ -2,7 +2,7 @@
  * ResourceCostIcon — shows the cost of an ability in resource tokens.
  *
  * Renders up to {@link RESOURCE_COST_STACKED_ICON_MAX} overlapping ResourceIcon discs
- * (right-to-left stacking). Higher costs use a compact pill: `( 10x <icon> )`.
+ * (right-to-left stacking). Higher costs use a compact pill: `10x <icon>`.
  */
 
 import { ALL_RESOURCE_DISPLAY_DEFS } from '../../../resources/resourceDisplayDefs';
@@ -32,10 +32,8 @@ export function ResourceCostIcon({ resourceId, amount }: ResourceCostIconProps) 
                 style={{ borderColor: color, color }}
                 title={def ? `${amount} ${def.name}` : `${amount}`}
             >
-                <span className="opacity-80">(</span>
                 <span>{amount}x</span>
                 <ResourceIcon resourceId={resourceId} size={14} />
-                <span className="opacity-80">)</span>
             </span>
         );
     }

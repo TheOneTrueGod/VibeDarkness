@@ -36,6 +36,11 @@ export function ResourceBarRow({ resource }: ResourceBarRowProps) {
                         +<span style={{ color: '#fef08a' }}>{resource.perRoundGain}</span> per round
                     </div>
                 )}
+                {resource.perSecondGain !== undefined && resource.perSecondGain > 0 && (
+                    <div className="whitespace-nowrap">
+                        + <span style={{ color: resource.color }}>{resource.perSecondGain.toFixed(1)}</span>/s
+                    </div>
+                )}
             </div>
             {/* Icon with current-value badge overlaid */}
             <div className="relative shrink-0">
@@ -47,7 +52,7 @@ export function ResourceBarRow({ resource }: ResourceBarRowProps) {
                     className="absolute -bottom-0.5 -right-1 rounded px-0.5 text-[8px] font-bold leading-none text-white"
                     style={{ textShadow: '0 0 3px #000, 0 0 3px #000' }}
                 >
-                    {resource.current}
+                    {Math.floor(resource.current)}
                 </span>
             </div>
             {/* Bar — fixed width so all resource types align */}

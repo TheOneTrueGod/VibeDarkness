@@ -124,4 +124,22 @@ describe('Gravity resource', () => {
         gravity.onTick(owner, engine, ONE_ROUND_DT);
         expect(gravity.current).toBe(100);
     });
+
+    it('perSecondGain reflects live graze rate for tooltip', () => {
+        const owner = makeUnit('player', 'player', 0, 0);
+        const gravity = new Gravity();
+        owner.attachResource(gravity, new EventBus());
+
+        const farEnemy = makeUnit(
+            'enemy',
+            'enemy',
+            GRAVITY_GRAZE_MAX_DISTANCE + UNIT_RADIUS * 2 + 50,
+            0,
+        );
+        const engine = makeEngineContext([owner, farEnemy]);
+
+        expect(gravity.perSecondGain).toBe(0);
+        gravity.primeDisplayContext(owner, engine);
+        expect(gravity.perSecondGain).toBe(GRAVITY_MIN_PER_ROUND / ROUND_DURATION);
+    });
 });

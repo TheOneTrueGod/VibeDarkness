@@ -10,7 +10,9 @@ import { Gravity } from '../../../resources/Gravity';
 import {
     GRAVITY_ABILITY_MODE_PULL,
     GRAVITY_INVERSION_LIFT_DURATION,
+    GRAVITY_INVERSION_MAX_TARGETS,
     GRAVITY_INVERSION_PREFIRE_TIME,
+    GRAVITY_INVERSION_PULL_SLAM_SPACING,
     GRAVITY_INVERSION_SLAM_DAMAGE,
 } from '../gravityConstants';
 import { GravityInversionAbility } from './0903Ability';
@@ -121,12 +123,12 @@ describe('GravityInversionAbility', () => {
         expect(enemy.hp).toBe(100 - GRAVITY_INVERSION_SLAM_DAMAGE);
     });
 
-    it('pull mode lands the enemy adjacent to the caster', () => {
+    it('pull mode slams the enemy in front of the caster along caster-to-target bearing', () => {
         const caster = makeCaster(100);
         const enemy = makeEnemy('enemy', 100, 100);
         const engine = makeEngine([caster, enemy]);
-        const casterX = caster.x;
-        const casterY = caster.y;
+        const expectedLandX = caster.x + caster.radius + enemy.radius + GRAVITY_INVERSION_PULL_SLAM_SPACING;
+        const expectedLandY = caster.y;
 
         executeUnitAbility(
             caster,
@@ -144,7 +146,28 @@ describe('GravityInversionAbility', () => {
         );
 
         expect(enemy.hp).toBe(100 - GRAVITY_INVERSION_SLAM_DAMAGE);
-        expect(Math.hypot(enemy.x - casterX, enemy.y - casterY)).toBeLessThan(30);
+        expect(enemy.x).toBeCloseTo(expectedLandX, 1);
+        expect(enemy.y).toBeCloseTo(expectedLandY, 1);
+    });
+
+    it(`lifts at most ${GRAVITY_INVERSION_MAX_TARGETS} enemies in the AoE`, () => {
+        const caster = makeCaster(100);
+        const enemies = Array.from({ length: 7 }, (_, i) =>
+            makeEnemy(`enemy_${i}`, 100 + i * 2, 100),
+        );
+        const engine = makeEngine([caster, ...enemies]);
+
+        executeUnitAbility(
+            caster,
+            GravityInversionAbility,
+            [{ type: 'pixel', position: { ...TARGET } }],
+            engine,
+        );
+
+        advanceSimulation([caster, ...enemies], engine, GRAVITY_INVERSION_PREFIRE_TIME + 0.05, [caster]);
+
+        const lifted = enemies.filter((e) => e.hasBuff(LIFTED_BUFF_TYPE));
+        expect(lifted).toHaveLength(GRAVITY_INVERSION_MAX_TARGETS);
     });
 
     it('a CC-armoured boss absorbs the lift attempt', () => {

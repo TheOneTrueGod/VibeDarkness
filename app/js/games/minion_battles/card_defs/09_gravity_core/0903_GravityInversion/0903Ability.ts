@@ -32,7 +32,9 @@ import {
     GRAVITY_INVERSION_GRAVITY_COST,
     GRAVITY_INVERSION_LIFT_DURATION,
     GRAVITY_INVERSION_MAX_RANGE,
+    GRAVITY_INVERSION_MAX_TARGETS,
     GRAVITY_INVERSION_PREFIRE_TIME,
+    GRAVITY_INVERSION_PULL_SLAM_SPACING,
     GRAVITY_INVERSION_SHOCKWAVE_COLORS,
     GRAVITY_INVERSION_SLAM_DAMAGE,
 } from '../gravityConstants';
@@ -74,6 +76,7 @@ function getPixelTargetPosition(
 
 function resolveSlamParams(
     caster: Unit,
+    enemy: Unit,
     abilityMode: string | undefined,
     abilityId: string,
 ): LiftSlamParams {
@@ -82,7 +85,21 @@ function resolveSlamParams(
         sourceAbilityId: abilityId,
     };
     if ((abilityMode ?? GRAVITY_ABILITY_MODE_PUSH) === GRAVITY_ABILITY_MODE_PULL) {
-        params.horizontalTarget = { x: caster.x, y: caster.y };
+        const dx = enemy.x - caster.x;
+        const dy = enemy.y - caster.y;
+        const dist = Math.hypot(dx, dy);
+        const landDist = caster.radius + enemy.radius + GRAVITY_INVERSION_PULL_SLAM_SPACING;
+        if (dist >= 1e-3) {
+            params.horizontalTarget = {
+                x: caster.x + (dx / dist) * landDist,
+                y: caster.y + (dy / dist) * landDist,
+            };
+        } else {
+            params.horizontalTarget = {
+                x: caster.x + landDist,
+                y: caster.y,
+            };
+        }
     }
     return params;
 }
@@ -104,7 +121,12 @@ function findEnemiesInCircle(
             hits.push(unit);
         }
     }
-    return hits;
+    hits.sort((a, b) => {
+        const da = (a.x - center.x) ** 2 + (a.y - center.y) ** 2;
+        const db = (b.x - center.x) ** 2 + (b.y - center.y) ** 2;
+        return da - db;
+    });
+    return hits.slice(0, GRAVITY_INVERSION_MAX_TARGETS);
 }
 
 function spawnLiftColumnEffect(engine: EngineContext, unit: Unit): void {
@@ -178,12 +200,12 @@ function applyGravityInversion(
     );
     if (enemies.length === 0) return;
 
-    const slamParams = resolveSlamParams(caster, abilityMode, abilityId);
     const source: KnockbackSource = { unitId: caster.id, abilityId };
     const knockbackEngine = knockbackCtxFromEngine(engine);
     const liftedUnitIds: string[] = [];
 
     for (const enemy of enemies) {
+        const slamParams = resolveSlamParams(caster, enemy, abilityMode, abilityId);
         const result = tryApplyLift(
             enemy,
             GRAVITY_INVERSION_LIFT_DURATION,
@@ -278,8 +300,8 @@ export const GravityInversionAbility = defineAbility({
 
     getTooltipText(): string[] {
         return [
-            `Lift enemies in a small area for {${GRAVITY_INVERSION_LIFT_DURATION}}s, then slam for {${GRAVITY_INVERSION_SLAM_DAMAGE}} damage.`,
-            'Push drops straight down; Pull slams toward your feet.',
+            `Lift up to {${GRAVITY_INVERSION_MAX_TARGETS}} enemies in a small area for {${GRAVITY_INVERSION_LIFT_DURATION}}s, then slam for {${GRAVITY_INVERSION_SLAM_DAMAGE}} damage.`,
+            'Push drops straight down; Pull slams in front of you along each target\'s bearing.',
         ];
     },
 

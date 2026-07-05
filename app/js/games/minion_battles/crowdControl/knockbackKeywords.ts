@@ -18,6 +18,7 @@ const KNOCKBACK_TIER_DEFS: Record<number, KnockbackTierDef> = {
     1: { airTime: 0.10, slideTime: 0.05, magnitude: 12 },
     2: { airTime: 0.25, slideTime: 0.15, magnitude: 28 },
     3: { airTime: 0.50, slideTime: 0.30, magnitude: 45 },
+    4: { airTime: 0.65, slideTime: 0.40, magnitude: 65 },
 };
 
 export function getKnockbackTierDef(tier: number): KnockbackTierDef | null {
