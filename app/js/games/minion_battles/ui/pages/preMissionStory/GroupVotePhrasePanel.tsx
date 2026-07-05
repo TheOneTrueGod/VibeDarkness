@@ -52,7 +52,7 @@ export default function GroupVotePhrasePanel({
     return (
         <StoryPanelCard maxWidthClassName="max-w-xl sm:max-w-2xl md:max-w-3xl">
             <div className="flex flex-col items-center w-full min-w-0">
-                <p className="text-white mb-4 text-center break-words w-full">{phrase.text}</p>
+                <p className="text-white mb-4 text-center break-words whitespace-pre-line w-full">{phrase.text}</p>
                 <div className="flex flex-col gap-3 w-full min-w-0 items-stretch">
                     {options.map((opt) => {
                         const voters = voterNames(opt.id);

@@ -1,8 +1,9 @@
 /**
- * UnitRangeHitboxSpec — pick a unit under the cursor within caster min/max range.
+ * UnitRangeHitboxSpec — pick a unit near the cursor within caster min/max range.
  *
- * Preview: range rings, aim line, crosshair on a valid unit. Lock-on resolves the
- * unit whose circle contains the aim point when caster-to-unit-center distance is in range.
+ * Preview: range rings and crosshair on the proposed target. Lock-on resolves the
+ * closest living unit whose center lies within `UNIT_RANGE_PICK_CURSOR_EXTRA` + unit.radius
+ * of the aim point, when caster-to-unit-center distance is in range.
  * Team filtering is left to `SelectTargetDef.filter` / callers.
  */
 
@@ -10,10 +11,10 @@ import type { Unit } from '../game/units/Unit';
 import type { IAbilityPreviewGraphics } from '../abilities/Ability';
 import type { HitboxEngineContext, HitboxPreviewCaster } from './Hitbox';
 import { HitboxSpec } from './HitboxSpec';
-import { getUnitAtPosition } from '../abilities/targeting';
 import { drawCrosshair, drawRangeRings } from '../abilities/previewHelpers';
 
-const UNIT_RANGE_AIM_LINE_STROKE = { color: 0xc8c8c8, width: 2, alpha: 0.6 };
+/** Extra px beyond a unit's radius within which a cursor pick can snap to that unit. */
+export const UNIT_RANGE_PICK_CURSOR_EXTRA = 50;
 
 export class UnitRangeHitboxSpec extends HitboxSpec {
     readonly maxRange: number;
@@ -38,10 +39,27 @@ export class UnitRangeHitboxSpec extends HitboxSpec {
         aimPoint: { x: number; y: number },
         units: Unit[],
     ): Unit[] {
-        const unit = getUnitAtPosition(aimPoint, units);
-        if (!unit || unit.id === caster.id) return [];
-        if (!this.unitCenterDistanceInRange(caster, unit)) return [];
-        return [unit];
+        let best: Unit | null = null;
+        let bestDistSq = Infinity;
+
+        for (const unit of units) {
+            if (!unit.isAlive()) continue;
+            if (unit.id === caster.id) continue;
+            if (!this.unitCenterDistanceInRange(caster, unit)) continue;
+
+            const dx = unit.x - aimPoint.x;
+            const dy = unit.y - aimPoint.y;
+            const distSq = dx * dx + dy * dy;
+            const pickRadius = UNIT_RANGE_PICK_CURSOR_EXTRA + unit.radius;
+            if (distSq > pickRadius * pickRadius) continue;
+
+            if (distSq < bestDistSq) {
+                bestDistSq = distSq;
+                best = unit;
+            }
+        }
+
+        return best ? [best] : [];
     }
 
     renderTargetingPreview(
@@ -52,10 +70,6 @@ export class UnitRangeHitboxSpec extends HitboxSpec {
     ): Unit[] {
         gr.clear();
         drawRangeRings(gr, caster.x, caster.y, this.minRange, this.maxRange);
-
-        gr.moveTo(caster.x, caster.y);
-        gr.lineTo(mouseWorld.x, mouseWorld.y);
-        gr.stroke(UNIT_RANGE_AIM_LINE_STROKE);
 
         const candidates = this.resolveUnitAtAim(caster as Unit, mouseWorld, units);
         const primary = candidates[0];
@@ -83,7 +97,7 @@ export class UnitRangeHitboxSpec extends HitboxSpec {
     }
 }
 
-/** Factory for unit-pick select steps (center-to-center range, no radius padding). */
+/** Factory for unit-pick select steps (center-to-center range, generous cursor snap). */
 export function unitRangeHitbox(maxRange: number, minRange = 0): UnitRangeHitboxSpec {
     return new UnitRangeHitboxSpec(maxRange, minRange);
 }

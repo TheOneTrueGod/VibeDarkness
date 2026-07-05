@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Unit } from '../game/units/Unit';
 import { DEFAULT_UNIT_RADIUS } from '../game/units/unit_defs/unitConstants';
-import { unitRangeHitbox } from './UnitRangeHitboxSpec';
+import { UNIT_RANGE_PICK_CURSOR_EXTRA, unitRangeHitbox } from './UnitRangeHitboxSpec';
 
 const MAX_RANGE = 160;
 
@@ -31,7 +31,39 @@ describe('UnitRangeHitboxSpec', () => {
         expect(targets).toEqual([enemy]);
     });
 
-    it('resolveTargets returns empty when enemy is out of range', () => {
+    it('resolveTargets snaps to a unit within cursor extra + radius of aim', () => {
+        const caster = makeUnit('caster', 0, 0, 'player');
+        const enemy = makeUnit('enemy', 100, 0);
+        const aimOffset = DEFAULT_UNIT_RADIUS + UNIT_RANGE_PICK_CURSOR_EXTRA - 5;
+        const targets = hitbox.resolveTargets(
+            caster,
+            { x: 100 + aimOffset, y: 0 },
+            [caster, enemy],
+        );
+        expect(targets).toEqual([enemy]);
+    });
+
+    it('resolveTargets returns empty when aim is outside cursor snap radius', () => {
+        const caster = makeUnit('caster', 0, 0, 'player');
+        const enemy = makeUnit('enemy', 100, 0);
+        const aimOffset = DEFAULT_UNIT_RADIUS + UNIT_RANGE_PICK_CURSOR_EXTRA + 5;
+        const targets = hitbox.resolveTargets(
+            caster,
+            { x: 100 + aimOffset, y: 0 },
+            [caster, enemy],
+        );
+        expect(targets).toEqual([]);
+    });
+
+    it('resolveTargets picks the closest unit when several are in snap range', () => {
+        const caster = makeUnit('caster', 0, 0, 'player');
+        const near = makeUnit('near', 100, 0);
+        const far = makeUnit('far', 120, 0);
+        const targets = hitbox.resolveTargets(caster, { x: 105, y: 0 }, [caster, near, far]);
+        expect(targets).toEqual([near]);
+    });
+
+    it('resolveTargets returns empty when enemy is out of caster range', () => {
         const caster = makeUnit('caster', 0, 0, 'player');
         const enemy = makeUnit('enemy', MAX_RANGE + 50, 0);
         const targets = hitbox.resolveTargets(caster, { x: enemy.x, y: enemy.y }, [caster, enemy]);

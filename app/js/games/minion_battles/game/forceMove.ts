@@ -57,6 +57,9 @@ export interface ForcedDisplacement {
     distance: number;
 }
 
+/** Tolerance for caller vs internal distance mismatch (knockback tick float drift). */
+export const FORCED_DISPLACEMENT_EPSILON = 1e-6;
+
 /**
  * Compute how far a unit can be forcibly moved toward a target position without entering
  * an unpassable tile. Uses either TerrainManager or TerrainGrid for passability checks.
@@ -107,10 +110,13 @@ export function computeForcedDisplacement(
         if (!passable(x, y)) { wallHit = true; break; }
         safeDistance = d;
     }
-    if (!wallHit && safeDistance < desired) {
-        const x = startX + ux * desired;
-        const y = startY + uy * desired;
-        if (passable(x, y)) safeDistance = desired;
+    if (
+        !wallHit
+        && passable(towardX, towardY)
+        && maxDistance - safeDistance <= FORCED_DISPLACEMENT_EPSILON
+        && safeDistance >= desired - FORCED_DISPLACEMENT_EPSILON
+    ) {
+        safeDistance = maxDistance;
     }
 
     if (safeDistance <= 0) {

@@ -168,6 +168,28 @@ describe('forced movement unit collision', () => {
 });
 
 describe('forced movement terrain bounce', () => {
+    it('does not emit terrain collision on all-grass knockback ticks', () => {
+        const terrainManager = makeTerrainManager(20, 20);
+        const unit = makeUnit({ x: 450, y: 370 });
+        const eventBus = applyTestKnockback(unit, {
+            bounceOffTerrain: true,
+            collideWithUnits: false,
+        });
+        unit.knockback!.knockbackVector = { x: -30.676273442308, y: -78.1982496459655 };
+        unit.knockback!.knockbackAirTime = 0.5;
+        unit.knockback!.knockbackSlideTime = 0.3;
+
+        const terrainCollisions: ForcedMovementTerrainCollisionEvent[] = [];
+        eventBus.on('forced_movement_terrain_collision', (data) => terrainCollisions.push(data));
+
+        while (unit.knockback) {
+            tickKnockback(unit, eventBus, [unit], terrainManager);
+        }
+
+        expect(terrainCollisions).toHaveLength(0);
+        expect(terrainManager.isPassable(unit.x, unit.y)).toBe(true);
+    });
+
     it('reflects the vector and emits the tile event', () => {
         const terrainManager = makeTerrainManager(8, 4);
         terrainManager.grid.set(3, 2, TerrainType.Rock);

@@ -97,6 +97,8 @@ export function updateUnitKnockback(
                 sweep.endX,
                 sweep.endY,
                 ctx.units,
+                k.knockbackSource,
+                k.unitCollisionStartFraction,
             );
             if (hit) {
                 unit.x = hit.contactX;
@@ -264,11 +266,17 @@ function findFirstUnitCollisionAlongSegment(
     endX: number,
     endY: number,
     units: readonly Unit[],
+    knockbackSource?: KnockbackSource,
+    unitCollisionStartFraction?: number,
 ): UnitSegmentHit | null {
     let best: UnitSegmentHit | null = null;
+    const ignoreOverlapAtStart = (unitCollisionStartFraction ?? 0) > 0;
 
     for (const other of units) {
         if (other === mover || !other.isAlive()) continue;
+        // The unit that authored the knockback (usually the caster) must not block the
+        // flung unit — especially when the target was picked while adjacent/overlapping.
+        if (knockbackSource && other.id === knockbackSource.unitId) continue;
 
         const t = sweepCircleSegmentAgainstCircle(
             startX,
@@ -281,6 +289,9 @@ function findFirstUnitCollisionAlongSegment(
             other.radius,
         );
         if (t === null) continue;
+        // Grace fraction means the sweep may still start inside another unit's radius;
+        // ignore t=0 so only a genuine traverse contact counts.
+        if (ignoreOverlapAtStart && t === 0) continue;
 
         if (!best || t < best.t) {
             const dx = endX - startX;

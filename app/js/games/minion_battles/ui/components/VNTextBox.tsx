@@ -56,7 +56,7 @@ export default function VNTextBox({
                     </div>
                 )}
                 <div
-                    className={`text-white text-base sm:text-lg leading-relaxed overflow-y-auto shrink-0 ${bodyH} ${
+                    className={`text-white text-base sm:text-lg leading-relaxed whitespace-pre-line overflow-y-auto shrink-0 ${bodyH} ${
                         reserveSpaceForActions ? actionPad : ''
                     }`}
                 >

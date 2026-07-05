@@ -25,236 +25,240 @@ const WORLD_WIDTH = COLS * CELL_SIZE;
 const WORLD_HEIGHT = ROWS * CELL_SIZE;
 
 function createTerrain(): TerrainGrid {
-    const grid = new TerrainGrid(COLS, ROWS, CELL_SIZE, TerrainType.Grass);
+	const grid = new TerrainGrid(COLS, ROWS, CELL_SIZE, TerrainType.Grass);
 
-    // Large irregular rock formation in the center (~8×8, irregularly shaped)
-    const bigRock: [number, number][] = [
-        [17, 6], [18, 6], [19, 6],
-        [16, 7], [17, 7], [18, 7], [19, 7], [20, 7],
-        [16, 8], [17, 8], [18, 8], [19, 8], [20, 8], [21, 8],
-        [16, 9], [17, 9], [18, 9], [19, 9], [20, 9], [21, 9],
-        [16, 10], [17, 10], [18, 10], [19, 10], [20, 10],
-        [16, 11], [17, 11], [18, 11], [19, 11], [20, 11],
-        [17, 12], [18, 12], [19, 12],
-    ];
-    for (const [c, r] of bigRock) grid.set(c, r, TerrainType.Rock);
+	// Large irregular rock formation in the center (~8×8, irregularly shaped)
+	const bigRock: [number, number][] = [
+		[17, 6], [18, 6], [19, 6],
+		[16, 7], [17, 7], [18, 7], [19, 7], [20, 7],
+		[16, 8], [17, 8], [18, 8], [19, 8], [20, 8], [21, 8],
+		[16, 9], [17, 9], [18, 9], [19, 9], [20, 9], [21, 9],
+		[16, 10], [17, 10], [18, 10], [19, 10], [20, 10],
+		[16, 11], [17, 11], [18, 11], [19, 11], [20, 11],
+		[17, 12], [18, 12], [19, 12],
+	];
+	for (const [c, r] of bigRock) grid.set(c, r, TerrainType.Rock);
 
-    // Small rock patch — upper-left area (irregular 3×2)
-    grid.set(4, 4, TerrainType.Rock);
-    grid.set(5, 4, TerrainType.Rock);
-    grid.set(4, 5, TerrainType.Rock);
-    grid.set(5, 5, TerrainType.Rock);
-    grid.set(6, 5, TerrainType.Rock);
+	// Small rock patch — upper-left area (irregular 3×2)
+	grid.set(4, 4, TerrainType.Rock);
+	grid.set(5, 4, TerrainType.Rock);
+	grid.set(4, 5, TerrainType.Rock);
+	grid.set(5, 5, TerrainType.Rock);
+	grid.set(6, 5, TerrainType.Rock);
 
-    // Small rock patch — lower-right area (irregular 2×3)
-    grid.set(24, 14, TerrainType.Rock);
-    grid.set(25, 14, TerrainType.Rock);
-    grid.set(24, 15, TerrainType.Rock);
-    grid.set(25, 15, TerrainType.Rock);
-    grid.set(25, 16, TerrainType.Rock);
+	// Small rock patch — lower-right area (irregular 2×3)
+	grid.set(24, 14, TerrainType.Rock);
+	grid.set(25, 14, TerrainType.Rock);
+	grid.set(24, 15, TerrainType.Rock);
+	grid.set(25, 15, TerrainType.Rock);
+	grid.set(25, 16, TerrainType.Rock);
 
-    // Small rock patch — right side near enemies
-    grid.set(27, 3, TerrainType.Rock);
-    grid.set(28, 3, TerrainType.Rock);
-    grid.set(28, 4, TerrainType.Rock);
+	// Small rock patch — right side near enemies
+	grid.set(27, 3, TerrainType.Rock);
+	grid.set(28, 3, TerrainType.Rock);
+	grid.set(28, 4, TerrainType.Rock);
 
-    // Small, oddly shaped rocks — left side of the campfire (Campfire at col 13, row 10)
-    // Create a few irregular stones just to the left and slightly above/below.
-    grid.set(2, 9, TerrainType.Rock);
-    grid.set(3, 9, TerrainType.Rock);
-    grid.set(2, 10, TerrainType.Rock);
-    grid.set(3, 10, TerrainType.Rock);
-    grid.set(3, 11, TerrainType.Rock);
-    grid.set(4, 11, TerrainType.Rock);
+	// Small, oddly shaped rocks — left side of the campfire (Campfire at col 13, row 10)
+	// Create a few irregular stones just to the left and slightly above/below.
+	grid.set(2, 9, TerrainType.Rock);
+	grid.set(3, 9, TerrainType.Rock);
+	grid.set(2, 10, TerrainType.Rock);
+	grid.set(3, 10, TerrainType.Rock);
+	grid.set(3, 11, TerrainType.Rock);
+	grid.set(4, 11, TerrainType.Rock);
 
-    // Thick grass patch — upper-left (irregular 3×3)
-    grid.set(6, 2, TerrainType.ThickGrass);
-    grid.set(7, 2, TerrainType.ThickGrass);
-    grid.set(6, 3, TerrainType.ThickGrass);
-    grid.set(7, 3, TerrainType.ThickGrass);
-    grid.set(8, 3, TerrainType.ThickGrass);
+	// Thick grass patch — upper-left (irregular 3×3)
+	grid.set(6, 2, TerrainType.ThickGrass);
+	grid.set(7, 2, TerrainType.ThickGrass);
+	grid.set(6, 3, TerrainType.ThickGrass);
+	grid.set(7, 3, TerrainType.ThickGrass);
+	grid.set(8, 3, TerrainType.ThickGrass);
 
-    // Thick grass patch — lower-left (irregular 3×3)
-    grid.set(7, 14, TerrainType.ThickGrass);
-    grid.set(8, 14, TerrainType.ThickGrass);
-    grid.set(7, 15, TerrainType.ThickGrass);
-    grid.set(8, 15, TerrainType.ThickGrass);
-    grid.set(8, 16, TerrainType.ThickGrass);
+	// Thick grass patch — lower-left (irregular 3×3)
+	grid.set(7, 14, TerrainType.ThickGrass);
+	grid.set(8, 14, TerrainType.ThickGrass);
+	grid.set(7, 15, TerrainType.ThickGrass);
+	grid.set(8, 15, TerrainType.ThickGrass);
+	grid.set(8, 16, TerrainType.ThickGrass);
 
-    // Thick grass patch — right side (irregular 2×3)
-    grid.set(21, 4, TerrainType.ThickGrass);
-    grid.set(22, 4, TerrainType.ThickGrass);
-    grid.set(21, 5, TerrainType.ThickGrass);
-    grid.set(22, 5, TerrainType.ThickGrass);
-    grid.set(22, 6, TerrainType.ThickGrass);
+	// Thick grass patch — right side (irregular 2×3)
+	grid.set(21, 4, TerrainType.ThickGrass);
+	grid.set(22, 4, TerrainType.ThickGrass);
+	grid.set(21, 5, TerrainType.ThickGrass);
+	grid.set(22, 5, TerrainType.ThickGrass);
+	grid.set(22, 6, TerrainType.ThickGrass);
 
-    // Thick grass patch — lower-right (irregular 3×2)
-    grid.set(22, 16, TerrainType.ThickGrass);
-    grid.set(23, 16, TerrainType.ThickGrass);
-    grid.set(22, 17, TerrainType.ThickGrass);
-    grid.set(23, 17, TerrainType.ThickGrass);
-    grid.set(24, 17, TerrainType.ThickGrass);
+	// Thick grass patch — lower-right (irregular 3×2)
+	grid.set(22, 16, TerrainType.ThickGrass);
+	grid.set(23, 16, TerrainType.ThickGrass);
+	grid.set(22, 17, TerrainType.ThickGrass);
+	grid.set(23, 17, TerrainType.ThickGrass);
+	grid.set(24, 17, TerrainType.ThickGrass);
 
-    // One rock along the top at the edge of the light (campfire at 13,10; radius 10) — half in, half out
-    grid.set(12, 0, TerrainType.Rock);
-    grid.set(13, 0, TerrainType.Rock);
+	// One rock along the top at the edge of the light (campfire at 13,10; radius 10) — half in, half out
+	grid.set(12, 0, TerrainType.Rock);
+	grid.set(13, 0, TerrainType.Rock);
 
-    // Rocks along the new bottom edge (rows 20 and 21 after extending grid height)
-    // Slightly irregular shapes near the center and right.
-    grid.set(16, 20, TerrainType.Rock);
-    grid.set(17, 20, TerrainType.Rock);
-    grid.set(17, 21, TerrainType.Rock);
+	// Rocks along the new bottom edge (rows 20 and 21 after extending grid height)
+	// Slightly irregular shapes near the center and right.
+	grid.set(16, 20, TerrainType.Rock);
+	grid.set(17, 20, TerrainType.Rock);
+	grid.set(17, 21, TerrainType.Rock);
 
-    grid.set(26, 20, TerrainType.Rock);
-    grid.set(27, 20, TerrainType.Rock);
-    grid.set(27, 21, TerrainType.Rock);
+	grid.set(26, 20, TerrainType.Rock);
+	grid.set(27, 20, TerrainType.Rock);
+	grid.set(27, 21, TerrainType.Rock);
 
-    return grid;
+	return grid;
 }
 
 const ENEMIES = [
-    { ...ENEMY_DARK_WOLF, position: { x: 450, y: 370 }, unitAITreeId: 'hunt' },
-    { ...ENEMY_DARK_WOLF, position: { x: 530, y: 500 }, unitAITreeId: 'hunt' },
-    { ...ENEMY_DARK_WOLF, position: { x: 350, y: 600 }, unitAITreeId: 'hunt' },
+	{ ...ENEMY_DARK_WOLF, position: { x: 450, y: 370 }, unitAITreeId: 'hunt' },
+	{ ...ENEMY_DARK_WOLF, position: { x: 530, y: 500 }, unitAITreeId: 'hunt' },
+	{ ...ENEMY_DARK_WOLF, position: { x: 350, y: 600 }, unitAITreeId: 'hunt' },
 ];
 
 const LEVEL_EVENTS: LevelEvent[] = [
-    /** Halfway through round 1 / 2 (rounds are 10s each; see GameEngine ROUND_DURATION). */
-    {
-        type: 'spawnWave',
-        trigger: { afterSeconds: 5 },
-        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 1, unitAITreeId: 'hunt' }],
-        emittedByNpcId: '1',
-    },
-    {
-        type: 'spawnWave',
-        trigger: { afterSeconds: 15 },
-        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 1, unitAITreeId: 'hunt' }],
-        emittedByNpcId: '1',
-    },
-    {
-        type: 'spawnWave',
-        trigger: { atRound: 2 },
-        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 2, unitAITreeId: 'hunt' }],
-        emittedByNpcId: '1',
-    },
-    {
-        type: 'spawnWave',
-        trigger: { atRound: 3 },
-        spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 2, unitAITreeId: 'hunt' }],
-        emittedByNpcId: '1',
-    },
-    {
-        type: 'victoryCheck',
-        trigger: { afterRound: 3 },
-        conditions: [{ type: 'eliminateAllEnemies' }],
-        missionResult: 'victory',
-    },
+	/** Halfway through round 1 / 2 (rounds are 10s each; see GameEngine ROUND_DURATION). */
+	{
+		type: 'spawnWave',
+		trigger: { afterSeconds: 5 },
+		spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 1, unitAITreeId: 'hunt' }],
+		emittedByNpcId: '1',
+	},
+	{
+		type: 'spawnWave',
+		trigger: { afterSeconds: 15 },
+		spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 1, unitAITreeId: 'hunt' }],
+		emittedByNpcId: '1',
+	},
+	{
+		type: 'spawnWave',
+		trigger: { atRound: 2 },
+		spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 2, unitAITreeId: 'hunt' }],
+		emittedByNpcId: '1',
+	},
+	{
+		type: 'spawnWave',
+		trigger: { atRound: 3 },
+		spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 2, unitAITreeId: 'hunt' }],
+		emittedByNpcId: '1',
+	},
+	{
+		type: 'victoryCheck',
+		trigger: { afterRound: 3 },
+		conditions: [{ type: 'eliminateAllEnemies' }],
+		missionResult: 'victory',
+	},
 ];
 
 const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
-    {
-        id: 'survive_wolves',
-        label: 'Survive the wolves',
-        toComplete: { type: 'atLeastRound', round: 3 },
-    },
-    {
-        id: 'eliminate_enemies',
-        label: 'Eliminate all enemies to win',
-        requiresCompletedId: 'survive_wolves',
-        toComplete: { type: 'eliminateAllEnemies' },
-    },
+	{
+		id: 'survive_wolves',
+		label: 'Survive the wolves',
+		toComplete: { type: 'atLeastRound', round: 3 },
+	},
+	{
+		id: 'eliminate_enemies',
+		label: 'Eliminate all enemies to win',
+		requiresCompletedId: 'survive_wolves',
+		toComplete: { type: 'eliminateAllEnemies' },
+	},
 ];
 
 /** Campfire slightly right of player spawn (5 HP). Defend point; destructible; emits light. */
 const SPECIAL_TILES: SpecialTilePlacement[] = [
-    {
-        defId: 'Campfire',
-        col: 13,
-        row: 10,
-        defendPoint: true,
-        hp: 5,
-        tags: { destructible: true },
-        emitsLight: { lightAmount: 6, radius: 5 },
-    },
+	{
+		defId: 'Campfire',
+		col: 13,
+		row: 10,
+		defendPoint: true,
+		hp: 5,
+		tags: { destructible: true },
+		emitsLight: { lightAmount: 6, radius: 5 },
+	},
 ];
 
 const PRE_MISSION_STORY: PreMissionStoryDef = {
-    phrases: [
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: 'Wake Up',
-            textEffect: 'title_bounce',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: "Welcome to my game, and thanks for playing!  I will be your DM.  You open your eyes to find a campfire crackling before you. Beyond the glow, darkness presses in. From the edge of the light comes movement and growling.",
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: "You have no time to remember where you are. You push yourself up and scan the camp for anything you can use to defend yourself.",
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-        {
-            type: 'choice',
-            choiceId: 'dark_awakening_weapon',
-            options: [
-                {
-                    id: 'rocks',
-                    label: 'Grab some nearby rocks',
-                    action: { type: 'grant_research_to_player' as const, treeId: CRYSTAL_ROCKS_TREE_ID, nodeId: CRYSTAL_ROCKS_NODE_BASE },
-                },
-                {
-                    id: 'torch',
-                    label: 'Grab a thick branch',
-                    action: { type: 'grant_research_to_player' as const, treeId: STICK_SWORD_TREE_ID, nodeId: STICK_SWORD_NODE_BASE },
-                },
-                {
-                    id: 'pot_shield',
-                    label: 'Pick up the lid of a pot from the campfire',
-                    action: { type: 'grant_research_to_player' as const, treeId: TECH_SHIELD_TREE_ID, nodeId: TECH_SHIELD_NODE_BASE },
-                },
-            ],
-        },
-    ],
+	phrases: [
+		{
+			type: 'dialogue',
+			speakerId: '1',
+			text: "Welcome to my game, and thanks for playing!  I will be your DM for this story.",
+			portraitSide: 'left',
+			backgroundImage: STORY_BACKGROUNDS.campfire,
+		},
+		{
+			type: 'dialogue',
+			speakerId: '1',
+			text: 'Wake Up',
+			textEffect: 'title_bounce',
+			backgroundImage: STORY_BACKGROUNDS.campfire,
+		},
+		{
+			type: 'dialogue',
+			speakerId: '1',
+			text: [
+				"You open your eyes to find a campfire crackling before you.",
+				"Beyond the glow, darkness presses in, along with the sounds of movement and growling.",
+				"With little time to remember where you are, you push yourself up and scan the camp for weapons."
+			].join("\n"),
+			portraitSide: 'left',
+			backgroundImage: STORY_BACKGROUNDS.campfire,
+		},
+		{
+			type: 'choice',
+			choiceId: 'dark_awakening_weapon',
+			options: [
+				{
+					id: 'rocks',
+					label: 'Grab some nearby rocks',
+					action: { type: 'grant_research_to_player' as const, treeId: CRYSTAL_ROCKS_TREE_ID, nodeId: CRYSTAL_ROCKS_NODE_BASE },
+				},
+				{
+					id: 'torch',
+					label: 'Grab a thick branch',
+					action: { type: 'grant_research_to_player' as const, treeId: STICK_SWORD_TREE_ID, nodeId: STICK_SWORD_NODE_BASE },
+				},
+				{
+					id: 'pot_shield',
+					label: 'Pick up the lid of a pot from the campfire',
+					action: { type: 'grant_research_to_player' as const, treeId: TECH_SHIELD_TREE_ID, nodeId: TECH_SHIELD_NODE_BASE },
+				},
+			],
+		},
+	],
 };
 
 export class DarkAwakeningMission extends BaseMissionDef {
-    missionId = 'dark_awakening';
-    mapPosition = { x: 100, y: 150 };
-    description = 'You awaken in darkness with no memory. Survive the first night and find a way forward.';
-    campaignId = 'world_of_darkness';
-    name = 'A Dark Awakening';
-    worldWidth = WORLD_WIDTH;
-    worldHeight = WORLD_HEIGHT;
-    enemies = ENEMIES;
-    levelEvents = LEVEL_EVENTS;
-    battleObjectives = BATTLE_OBJECTIVES;
-    createTerrain = createTerrain;
-    specialTiles = SPECIAL_TILES;
-    aiController = 'stateBased' as const;
-    preMissionStory = PRE_MISSION_STORY;
-    lightLevelEnabled = true;
-    ninjutsuPools = { shadow: NINJUTSU_DISABLED };
-    globalLightLevel = 0;
-    /** Player spawn points: eight positions around the campfire in a square. */
-    playerSpawnPoints = [
-        { col: 12, row: 9 },
-        { col: 13, row: 9 },
-        { col: 14, row: 9 },
-        { col: 12, row: 10 },
-        { col: 14, row: 10 },
-        { col: 12, row: 11 },
-        { col: 13, row: 11 },
-        { col: 14, row: 11 },
-    ];
+	missionId = 'dark_awakening';
+	mapPosition = { x: 100, y: 150 };
+	description = 'You awaken in darkness with no memory. Survive the first night and find a way forward.';
+	campaignId = 'world_of_darkness';
+	name = 'A Dark Awakening';
+	worldWidth = WORLD_WIDTH;
+	worldHeight = WORLD_HEIGHT;
+	enemies = ENEMIES;
+	levelEvents = LEVEL_EVENTS;
+	battleObjectives = BATTLE_OBJECTIVES;
+	createTerrain = createTerrain;
+	specialTiles = SPECIAL_TILES;
+	aiController = 'stateBased' as const;
+	preMissionStory = PRE_MISSION_STORY;
+	lightLevelEnabled = true;
+	ninjutsuPools = { shadow: NINJUTSU_DISABLED };
+	globalLightLevel = 0;
+	/** Player spawn points: eight positions around the campfire in a square. */
+	playerSpawnPoints = [
+		{ col: 12, row: 9 },
+		{ col: 13, row: 9 },
+		{ col: 14, row: 9 },
+		{ col: 12, row: 10 },
+		{ col: 14, row: 10 },
+		{ col: 12, row: 11 },
+		{ col: 13, row: 11 },
+		{ col: 14, row: 11 },
+	];
 }
 
 /** Mission instance for use in MISSION_MAP and mission select. */
