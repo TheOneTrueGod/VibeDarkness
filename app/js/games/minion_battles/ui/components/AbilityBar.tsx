@@ -17,12 +17,12 @@ import { getAbilityUseConfig, type RecoveryChargeType } from '../../abilities/ab
 import { getAbilityBarLayoutKey, splitAbilityRows } from '../../abilities/abilityBarLayout';
 import { DEFAULT_PLAYER_ROUND_STAMINA_SURGE } from '../../game/GameEngine';
 import { UnitResourcePanel } from './resources/UnitResourcePanel';
-import {
-    ABILITY_SLOT_HEIGHT_PX,
-} from './AbilitySlot';
 import { useBattleActionRowHost } from '../../../../contexts/BattleActionRowContext';
 
 const RECOVERY_CHARGE_TYPES: RecoveryChargeType[] = ['staminaCharge', 'lightCharge', 'energyCharge', 'roundCharge'];
+
+/** Horizontal gutter beside vertical dividers in the center column (`px-3` × 2). */
+const ACTION_BAR_DIVIDER_GUTTER_X_PX = 24;
 
 /** True when the primary input is not mouse-like (e.g. touch-first). Avoids maxTouchPoints on hybrid desktops. */
 function getUsesMobileCardLayout(): boolean {
@@ -158,14 +158,17 @@ export default function AbilityBar({
     const [firstRowCount, setFirstRowCount] = useState(() => handCards.length);
 
     useEffect(() => {
-        setFirstRowCount(splitAbilityRows(handCards.length, centerColumnRef.current?.clientWidth ?? 0));
+        const el = centerColumnRef.current;
+        const contentWidth = Math.max(0, (el?.clientWidth ?? 0) - ACTION_BAR_DIVIDER_GUTTER_X_PX);
+        setFirstRowCount(splitAbilityRows(handCards.length, contentWidth));
     }, [handCards.length]);
 
     useEffect(() => {
         const el = centerColumnRef.current;
         if (!el) return;
         const update = () => {
-            setFirstRowCount(splitAbilityRows(handCards.length, el.clientWidth));
+            const contentWidth = Math.max(0, el.clientWidth - ACTION_BAR_DIVIDER_GUTTER_X_PX);
+            setFirstRowCount(splitAbilityRows(handCards.length, contentWidth));
         };
         update();
         const ro = new ResizeObserver(update);
@@ -419,27 +422,22 @@ export default function AbilityBar({
         </button>
     );
 
-    const actionColumnClass = isFullBleedActionRow
-        ? 'w-80 border-l border-border-custom'
-        : 'w-[80px]';
-
     return (
         <div
-            className={`relative border-t border-dark-700 bg-dark-900/80 py-3 ${
-                isFullBleedActionRow ? 'px-4' : 'p-3'
+            className={`relative overflow-x-hidden border-t border-dark-700 bg-dark-900/80 ${
+                isFullBleedActionRow ? 'p-4' : 'p-3'
             }`}
         >
             {/*
-              Row 1: portrait | ability row 1 | round tracker
-              Row 2: portrait | ability row 2 (when needed) | wait / end turn
+              Portrait (top) | ability rows (bottom-aligned) | end turn + round (top, same row)
               Full-bleed (lobby battle chrome): px-4 + w-80 side columns align with timeline and chat.
             */}
             <div
                 ref={rowRef}
-                className={`relative grid min-h-[158px] items-end gap-x-4 gap-y-2 ${
+                className={`relative grid min-h-[158px] gap-y-2 ${
                     isFullBleedActionRow
                         ? 'grid-cols-[20rem_minmax(0,1fr)_20rem]'
-                        : 'grid-cols-[20rem_minmax(0,1fr)_5rem]'
+                        : 'grid-cols-[20rem_minmax(0,1fr)_auto]'
                 }`}
             >
                 {pulseParticles.map((p) => {
@@ -466,41 +464,51 @@ export default function AbilityBar({
                     );
                 })}
 
-                {/* Left portrait — spans both rows */}
-                <div className="col-start-1 row-span-2 flex w-80 shrink-0 items-end self-stretch">
-                    <UnitResourcePanel unit={playerUnit} />
+                {/* Left portrait — top-aligned content, full-height divider */}
+                <div className="relative col-start-1 row-span-2 flex w-80 shrink-0 self-stretch">
+                    <div
+                        className="pointer-events-none absolute inset-y-0 right-0 border-r border-dark-700"
+                        aria-hidden
+                    />
+                    <div className="flex w-full items-start pr-3">
+                        <UnitResourcePanel unit={playerUnit} />
+                    </div>
                 </div>
 
-                {/* Center row 1 — ability cards */}
+                {/* Center — ability rows; width measured for single- vs two-row split */}
                 <div
                     ref={centerColumnRef}
-                    className="col-start-2 row-start-1 flex min-w-0 flex-wrap content-end gap-2"
+                    className="col-start-2 row-start-1 row-span-2 grid min-w-0 grid-rows-[auto_auto] gap-y-2 self-end px-3 content-end"
                     onPointerLeave={() => setHoveredCardId(null)}
                 >
-                    {playerUnit ? (
-                        firstRowCards.length > 0 ? (
-                            firstRowCards.map((card, i) => renderHandCard(card, i))
+                    <div className="flex min-w-0 flex-wrap content-end gap-2">
+                        {playerUnit ? (
+                            firstRowCards.length > 0 ? (
+                                firstRowCards.map((card, i) => renderHandCard(card, i))
+                            ) : (
+                                <p className="text-muted w-full py-4 text-center text-sm">No cards in hand</p>
+                            )
                         ) : (
                             <p className="text-muted w-full py-4 text-center text-sm">No cards in hand</p>
-                        )
-                    ) : (
-                        <p className="text-muted w-full py-4 text-center text-sm">No cards in hand</p>
-                    )}
+                        )}
+                    </div>
+                    <div className="flex min-w-0 flex-wrap content-end gap-2">
+                        {hasSecondAbilityRow &&
+                            secondRowCards.map((card, i) => renderHandCard(card, firstRowCount + i))}
+                    </div>
                 </div>
 
-                {/* Center row 2 — overflow ability cards */}
-                <div className="col-start-2 row-start-2 flex min-w-0 flex-wrap content-end gap-2">
-                    {hasSecondAbilityRow &&
-                        secondRowCards.map((card, i) => renderHandCard(card, firstRowCount + i))}
-                </div>
-
-                {/* Right row 1 — round tracker */}
+                {/* Right — end turn + round tracker on one row, top-aligned content */}
                 {playerUnit && (
-                    <>
+                    <div className="relative col-start-3 row-start-1 row-span-2 self-stretch">
                         <div
-                            className={`col-start-3 row-start-1 flex items-end ${actionColumnClass}`}
-                            style={{ minHeight: ABILITY_SLOT_HEIGHT_PX }}
-                        >
+                            className={`pointer-events-none absolute inset-y-0 left-0 border-l ${
+                                isFullBleedActionRow ? 'border-border-custom' : 'border-dark-700'
+                            }`}
+                            aria-hidden
+                        />
+                        <div className="flex items-start gap-2 pl-3">
+                            {waitButton}
                             <RoundTrackerCard
                                 roundNumber={roundNumber}
                                 progress={roundProgress}
@@ -508,10 +516,7 @@ export default function AbilityBar({
                                 staminaSurge={playerUnit.stamina ?? DEFAULT_PLAYER_ROUND_STAMINA_SURGE}
                             />
                         </div>
-                        <div className={`col-start-3 row-start-2 flex items-end ${actionColumnClass}`}>
-                            {waitButton}
-                        </div>
-                    </>
+                    </div>
                 )}
             </div>
 

@@ -51,7 +51,7 @@ export function UnitResourcePanel({ unit }: UnitResourcePanelProps) {
     const movementCount = movementResource ? Math.floor(movementResource.current) : 0;
 
     return (
-        <div className="flex w-full flex-row gap-3 border-r border-dark-700 bg-dark-900/60 p-4">
+        <div className="flex w-full flex-row gap-3 bg-dark-900/60">
             {/* Portrait + health bar below */}
             <div className="flex w-[100px] shrink-0 flex-col gap-2">
                 <div className="relative h-[100px] w-[100px] overflow-hidden rounded-lg bg-dark-800">

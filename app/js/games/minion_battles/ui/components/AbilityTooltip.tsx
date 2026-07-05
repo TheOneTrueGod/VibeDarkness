@@ -5,6 +5,7 @@
  */
 
 import React from 'react';
+import { AnchoredPortalTooltip } from './AnchoredPortalTooltip';
 import { getDisabledReasonDisplay, type DisabledReason } from './abilityDisabledReason';
 
 /**
@@ -52,6 +53,10 @@ export interface AbilityTooltipProps {
     isMobileOverlay?: boolean;
     /** Called when the mobile overlay's X button is tapped. */
     onDismiss?: () => void;
+    /** When set with `open`, desktop tooltip is portaled above the anchor (avoids overflow clipping). */
+    anchorRef?: React.RefObject<HTMLElement | null>;
+    /** Whether the portaled desktop tooltip is visible. Defaults to true when rendered. */
+    open?: boolean;
 }
 
 const TOOLTIP_WIDTH = 180;
@@ -64,6 +69,8 @@ export default function AbilityTooltip({
     disabledReason,
     isMobileOverlay = false,
     onDismiss,
+    anchorRef,
+    open = true,
 }: AbilityTooltipProps) {
     const reasonDisplay = disabledReason ? getDisabledReasonDisplay(disabledReason) : null;
 
@@ -107,15 +114,8 @@ export default function AbilityTooltip({
         );
     }
 
-    return (
-        <div
-            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-black border border-white rounded-lg p-3 shadow-lg pointer-events-none z-50 flex flex-col"
-            style={{
-                width: TOOLTIP_WIDTH,
-                minHeight: TOOLTIP_HEIGHT,
-            }}
-            role="tooltip"
-        >
+    const body = (
+        <>
             <h3 className="text-white font-bold text-xs mb-4 text-center">{title}</h3>
             <div className="text-xs space-y-1" style={{ lineHeight: LINE_HEIGHT }}>
                 {lines.map((line, i) => (
@@ -140,6 +140,38 @@ export default function AbilityTooltip({
                     </div>
                 </div>
             )}
+        </>
+    );
+
+    const desktopClassName =
+        'flex flex-col rounded-lg border border-white bg-black p-3 shadow-lg';
+
+    if (anchorRef) {
+        return (
+            <AnchoredPortalTooltip
+                anchorRef={anchorRef}
+                open={open}
+                className={desktopClassName}
+                style={{
+                    width: TOOLTIP_WIDTH,
+                    minHeight: TOOLTIP_HEIGHT,
+                }}
+            >
+                {body}
+            </AnchoredPortalTooltip>
+        );
+    }
+
+    return (
+        <div
+            className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 pointer-events-none z-50 flex flex-col ${desktopClassName}`}
+            style={{
+                width: TOOLTIP_WIDTH,
+                minHeight: TOOLTIP_HEIGHT,
+            }}
+            role="tooltip"
+        >
+            {body}
         </div>
     );
 }

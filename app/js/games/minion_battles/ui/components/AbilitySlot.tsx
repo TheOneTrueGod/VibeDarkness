@@ -12,7 +12,7 @@ export const ABILITY_SLOT_HEIGHT_PX = 158;
 /** Horizontal gap between ability cards in the bar (`gap-2`). */
 export const ABILITY_BAR_CARD_GAP_PX = 8;
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { getAbilityResourceCosts, type AbilityModesConfig, type AbilityStatic } from '../../abilities/Ability';
 import type { UnitAbilityRuntimeState } from '../../game/units/Unit';
 import { getAbilityUseConfig } from '../../abilities/abilityUses';
@@ -70,6 +70,7 @@ export default function AbilitySlot({
     showModeToggle = false,
     onCycleAbilityMode,
 }: AbilitySlotProps) {
+    const cardRef = useRef<HTMLDivElement | null>(null);
     const isDisabled = disabledReason !== null;
 
     const handleClick = useCallback(() => {
@@ -125,6 +126,7 @@ export default function AbilitySlot({
             aria-disabled={isDisabled}
         >
             <div
+                ref={cardRef}
                 className={`
                     relative w-[124px] h-[158px] rounded-lg border-2 transition-all duration-150
                     flex flex-col items-stretch justify-between p-2 overflow-visible pointer-events-none
@@ -251,9 +253,11 @@ export default function AbilitySlot({
                 </div>
             </div>
 
-            {/* Desktop hover tooltip */}
-            {isHovered && !isMobile && (
+            {/* Desktop hover tooltip (portaled above card) */}
+            {!isMobile && (
                 <AbilityTooltip
+                    anchorRef={cardRef}
+                    open={isHovered}
                     title={ability.name}
                     lines={tooltipLines}
                     disabledReason={disabledReason ?? undefined}
