@@ -13,6 +13,7 @@ export type BuffDuration =
 import type { Unit } from '../game/units/Unit';
 import type { EventBus } from '../game/EventBus';
 import type { TerrainManager } from '../terrain/TerrainManager';
+import type { EngineContext } from '../game/EngineContext';
 
 /** Context passed to {@link Buff.onBeforeExpire} when a timed buff is removed. */
 export interface BuffExpireContext {
@@ -61,6 +62,13 @@ export abstract class Buff {
      * from the unit's buff list. Generic engine path — no buff-type branching in the tick loop.
      */
     onBeforeExpire?(_unit: Unit, _ctx: BuffExpireContext): void;
+
+    /**
+     * Optional hook invoked every game tick while the buff is on the unit, just before the
+     * expiry check (e.g. gravity locus field pulses). Generic engine path — no buff-type
+     * branching in the tick loop.
+     */
+    onGameTick?(_unit: Unit, _engine: EngineContext, _dt: number): void;
 
     /** Check if this buff has expired at the given game state. */
     isExpired(gameTime: number, roundNumber: number): boolean {

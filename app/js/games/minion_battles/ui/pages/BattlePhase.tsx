@@ -57,7 +57,7 @@ import {
     resolveClick,
     getSelectTargetDefsFromTimings,
     buildMeleeSelectOrderTargets,
-    clampResolvedTargetToAbilityRange,
+    clampSelectTarget,
     resolveSelectTargetLockOnCandidates,
 } from '../../abilities/targeting';
 import { buildPlayerMovePathThroughWaypoints } from '../../terrain/playerMovePath';
@@ -1100,7 +1100,18 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                                 resolved = { type: 'pixel' as const, position: clickResult.worldPosition };
                             }
                             if (resolved) {
-                                resolved = clampResolvedTargetToAbilityRange(abilityDef, caster, resolved, engine);
+                                const collectedOrdered = selectDefs
+                                    .map((d) => its.collectedTargets[d.label])
+                                    .filter((t): t is NonNullable<typeof t> => t != null);
+                                resolved = clampSelectTarget(
+                                    abilityDef,
+                                    caster,
+                                    selectDef,
+                                    its.collectedTargets,
+                                    collectedOrdered,
+                                    resolved,
+                                    engine,
+                                );
                                 const numTargets = selectDef.numTargets ?? selectDef.hitbox.numTargets;
                                 const lockOnCandidates = candidates.map((u) => ({ unitId: u.id }));
                                 its.resolveTarget(

@@ -12,6 +12,7 @@ import { ExposedBuff, EXPOSED_BUFF_TYPE } from './ExposedBuff';
 import { DoubleDamageBuff, DOUBLE_DAMAGE_BUFF_TYPE } from './DoubleDamageBuff';
 import { LightImbueBuff, LIGHT_IMBUE_BUFF_TYPE } from './LightImbueBuff';
 import { LiftedBuff, LIFTED_BUFF_TYPE } from './LiftedBuff';
+import { GravityLocusFieldBuff, GRAVITY_LOCUS_FIELD_BUFF_TYPE } from './GravityLocusFieldBuff';
 
 type BuffDeserializer = (data: BuffSerialized) => Buff;
 
@@ -23,6 +24,7 @@ const registry: Record<string, BuffDeserializer> = {
     [DOUBLE_DAMAGE_BUFF_TYPE]: DoubleDamageBuff.fromJSON as BuffDeserializer,
     [LIGHT_IMBUE_BUFF_TYPE]: LightImbueBuff.fromJSON as BuffDeserializer,
     [LIFTED_BUFF_TYPE]: LiftedBuff.fromSerialized as BuffDeserializer,
+    [GRAVITY_LOCUS_FIELD_BUFF_TYPE]: GravityLocusFieldBuff.fromSerialized as BuffDeserializer,
 };
 
 /** Deserialize a buff from JSON. Returns the buff instance or throws if type unknown. */

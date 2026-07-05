@@ -12,6 +12,7 @@ import type { AIContext } from './types';
 import { areEnemies } from '../../teams';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import { getAbilityTargets } from '../../../abilities/Ability';
+import { getSelectTargetDefsFromTimings, buildAiSelectTargets } from '../../../abilities/targeting';
 import { UnitTag } from '../unitTag';
 import { meetsTagRequirements } from '../../../abilities/abilityUses';
 
@@ -300,8 +301,16 @@ export function tryQueueAbilityOrder(unit: Unit, context: AIContext, candidateEn
     if (!pick) return false;
 
     const { ability, target } = pick;
-    const resolvedTargets =
-        ability.targets.length === 0 ? [] : buildResolvedTargets(ability, target);
+    const selectDefs = getSelectTargetDefsFromTimings(ability, unit, { getUnit: context.getUnit });
+    let resolvedTargets: ResolvedTarget[];
+    let targetsByLabel: Record<string, ResolvedTarget> | undefined;
+    if (selectDefs.length > 0) {
+        const built = buildAiSelectTargets(unit, ability, target, { getUnit: context.getUnit });
+        resolvedTargets = built.targets;
+        targetsByLabel = built.targetsByLabel;
+    } else {
+        resolvedTargets = ability.targets.length === 0 ? [] : buildResolvedTargets(ability, target);
+    }
     const movePath = unit.pathInvalidated ? undefined : (unit.movement?.path ? [...unit.movement.path] : undefined);
 
     const ninjutsuCfg = ability.aiSettings?.ninjutsu;
@@ -320,6 +329,7 @@ export function tryQueueAbilityOrder(unit: Unit, context: AIContext, candidateEn
         unitId: unit.id,
         abilityId: ability.id,
         targets: resolvedTargets,
+        targetsByLabel,
         movePath,
     });
     context.emitTurnEnd(unit.id);

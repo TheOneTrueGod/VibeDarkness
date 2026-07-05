@@ -1,5 +1,9 @@
 import type { HitboxSpec } from '../hitboxes/HitboxSpec';
 
+/** AI auto-resolution for a select step (see `buildAiSelectTargets`). */
+export type SelectTargetAiHint =
+    | { kind: 'pixelFromAnchor'; direction: 'awayFromCaster'; distance: 'maxFromAnchor' };
+
 /** Player clicks to select a target via this hitbox. */
 export interface SelectTargetDef {
     kind: 'select';
@@ -20,6 +24,19 @@ export interface SelectTargetDef {
      * rather than using the hitbox-derived default (hitboxMaxRange + 100px).
      */
     maxLockOnExtra?: number;
+    /**
+     * `label` of an earlier `SelectTargetDef` on this ability (by declaration order in
+     * `abilityTimings`). This step's pixel pick — clamp radius, preview line origin, and
+     * AI landing resolution — are relative to that prior step's resolved target (e.g. the
+     * unit locked in step 1), not the caster.
+     */
+    anchorLabel?: string;
+    /** Max distance (px) from the anchor unit center for pixel picks. */
+    maxRangeFromAnchor?: number;
+    /** Min distance (px) from the anchor for pixel picks (avoids zero-vector launches). */
+    minRangeFromAnchor?: number;
+    /** Optional AI auto-resolution for this select step. */
+    aiHint?: SelectTargetAiHint;
 }
 
 /** Reuse a target that was committed by an earlier SelectTargetDef timing. */

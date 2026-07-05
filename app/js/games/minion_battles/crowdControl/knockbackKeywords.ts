@@ -186,6 +186,77 @@ export function applyDirectionalKnockback(
     return tryApplyKnockbackByTier(target, tier, source, synthX, synthY, engine, collisionOpts);
 }
 
+export interface AimedKnockbackOptions {
+    landingMinDistance: number;
+    landingMaxDistance: number;
+    /** Air-time multiplier at max landing distance relative to tier baseline (e.g. 1.25). */
+    distanceScale: number;
+}
+
+/**
+ * Compute knockback vector and timings so total displacement aims toward `landing`.
+ * Distance is clamped to `[landingMinDistance, landingMaxDistance]`; air time scales with distance.
+ */
+export function computeAimedKnockbackParams(
+    start: { x: number; y: number },
+    landing: { x: number; y: number },
+    tierDef: KnockbackTierDef,
+    options: AimedKnockbackOptions,
+): Pick<ApplyKnockbackParams, 'knockbackVector' | 'knockbackAirTime' | 'knockbackSlideTime'> {
+    const dx = landing.x - start.x;
+    const dy = landing.y - start.y;
+    let dist = Math.hypot(dx, dy);
+    dist = Math.min(options.landingMaxDistance, Math.max(options.landingMinDistance, dist));
+
+    const rawDist = Math.hypot(dx, dy);
+    const dirX = rawDist < 1e-6 ? 1 : dx / rawDist;
+    const dirY = rawDist < 1e-6 ? 0 : dy / rawDist;
+
+    const magnitude = dist / KNOCKBACK_TOTAL_DISPLACEMENT_FACTOR;
+    const t = options.landingMaxDistance > 0 ? dist / options.landingMaxDistance : 0;
+    const airTime = tierDef.airTime * (1 + (options.distanceScale - 1) * t);
+    const slideRatio = tierDef.airTime > 0 ? tierDef.slideTime / tierDef.airTime : 0;
+    const slideTime = airTime * slideRatio;
+
+    return {
+        knockbackVector: { x: dirX * magnitude, y: dirY * magnitude },
+        knockbackAirTime: airTime,
+        knockbackSlideTime: slideTime,
+    };
+}
+
+/**
+ * Apply aimed knockback with tier-based CC gating; vector and timings reach toward `landing`.
+ */
+export function tryApplyAimedKnockbackByTier(
+    target: Unit,
+    ccTier: number,
+    landing: { x: number; y: number },
+    source: KnockbackSource,
+    engine: KnockbackEngineCtx,
+    options: AimedKnockbackOptions,
+    collisionOpts?: ForcedMovementCollisionOpts,
+): KnockbackAttemptResult {
+    return _tryApplyTierForcedMovement(target, ccTier, engine, (t, tierDef) => {
+        const params = computeAimedKnockbackParams(
+            { x: t.x, y: t.y },
+            landing,
+            tierDef,
+            options,
+        );
+        t.applyKnockback(
+            {
+                ...params,
+                knockbackSource: source,
+                collideWithUnits: collisionOpts?.collideWithUnits,
+                bounceOffTerrain: collisionOpts?.bounceOffTerrain,
+            },
+            engine.eventBus as never,
+            (u) => engine.interruptUnitAndRefundAbilities?.(u),
+        );
+    });
+}
+
 function _launchKnockback(
     target: Unit,
     tierDef: KnockbackTierDef,

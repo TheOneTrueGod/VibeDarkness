@@ -13,10 +13,13 @@ import { TerrainType } from '../../../terrain/TerrainType';
 import { TerrainLayerManager } from '../../../game/TerrainLayerManager';
 import type { TeamId } from '../../../game/teams';
 import { Gravity } from '../../../resources/Gravity';
+import type { ResolvedTarget } from '../../../game/types';
 import {
     FORCE_PUSH_COLLISION_DAMAGE,
     FORCE_PUSH_COOLDOWN_DURATION,
+    FORCE_PUSH_LANDING_MAX_DISTANCE,
     FORCE_PUSH_PREFIRE_TIME,
+    FORCE_PUSH_SELECT_GAP,
     FORCE_PUSH_TERRAIN_DAMAGE,
     FORCE_PUSH_ACTIVE_DURATION,
 } from '../gravityConstants';
@@ -30,8 +33,32 @@ const MOVER_START_X = 100;
 const STRUCK_CENTER_X = 200;
 const SHARED_Y = 100;
 
+const LAUNCH_ADVANCE = FORCE_PUSH_PREFIRE_TIME + FORCE_PUSH_SELECT_GAP + 0.02;
+
 const TOTAL_CAST_DURATION =
     FORCE_PUSH_PREFIRE_TIME + FORCE_PUSH_ACTIVE_DURATION + FORCE_PUSH_COOLDOWN_DURATION;
+
+function forcePushTargets(
+    flung: Unit,
+    landing: { x: number; y: number },
+): ResolvedTarget[] {
+    return [
+        { type: 'unit', unitId: flung.id },
+        { type: 'pixel', position: landing },
+    ];
+}
+
+function landingAwayFromCaster(flung: Unit, caster: Unit): { x: number; y: number } {
+    const dx = flung.x - caster.x;
+    const dy = flung.y - caster.y;
+    const dist = Math.hypot(dx, dy);
+    const dirX = dist < 1e-6 ? 1 : dx / dist;
+    const dirY = dist < 1e-6 ? 0 : dy / dist;
+    return {
+        x: flung.x + dirX * FORCE_PUSH_LANDING_MAX_DISTANCE,
+        y: flung.y + dirY * FORCE_PUSH_LANDING_MAX_DISTANCE,
+    };
+}
 
 function makeCaster(initialGravity: number): Unit {
     const unit = new Unit({
@@ -155,11 +182,11 @@ describe('ForcePushAbility', () => {
         executeUnitAbility(
             caster,
             ForcePushAbility,
-            [{ type: 'unit', unitId: flung.id }],
+            forcePushTargets(flung, landingAwayFromCaster(flung, caster)),
             engine,
         );
 
-        advanceSimulation([caster, flung, struck], engine, FORCE_PUSH_PREFIRE_TIME + 0.05, [caster]);
+        advanceSimulation([caster, flung, struck], engine, LAUNCH_ADVANCE, [caster]);
         tickAllKnockback([caster, flung, struck], engine);
 
         expect(flung.hp).toBe(100 - FORCE_PUSH_COLLISION_DAMAGE);
@@ -175,11 +202,11 @@ describe('ForcePushAbility', () => {
         executeUnitAbility(
             caster,
             ForcePushAbility,
-            [{ type: 'unit', unitId: flung.id }],
+            forcePushTargets(flung, landingAwayFromCaster(flung, caster)),
             engine,
         );
 
-        advanceSimulation([caster, flung, ally], engine, FORCE_PUSH_PREFIRE_TIME + 0.05, [caster]);
+        advanceSimulation([caster, flung, ally], engine, LAUNCH_ADVANCE, [caster]);
         tickAllKnockback([caster, flung, ally], engine);
 
         expect(flung.hp).toBe(100 - FORCE_PUSH_COLLISION_DAMAGE);
@@ -202,15 +229,38 @@ describe('ForcePushAbility', () => {
         executeUnitAbility(
             caster,
             ForcePushAbility,
-            [{ type: 'unit', unitId: flung.id }],
+            forcePushTargets(flung, landingAwayFromCaster(flung, caster)),
             engine,
         );
 
-        advanceSimulation([caster, flung], engine, FORCE_PUSH_PREFIRE_TIME + 0.05, [caster]);
+        advanceSimulation([caster, flung], engine, LAUNCH_ADVANCE, [caster]);
         tickAllKnockback([flung], engine, terrainManager);
 
         expect(terrainCollisions.length).toBeGreaterThanOrEqual(1);
         expect(flung.hp).toBe(100 - FORCE_PUSH_TERRAIN_DAMAGE);
+    });
+
+    it('flung unit travels toward the aimed landing on open terrain', () => {
+        const openX = 300;
+        const openY = 300;
+        const caster = makeCaster(100);
+        caster.x = openX - 60;
+        caster.y = openY;
+        const flung = makeUnit('flung', openX, openY, 'enemy');
+        const engine = makeEngine([caster, flung]);
+
+        const landing = landingAwayFromCaster(flung, caster);
+        executeUnitAbility(
+            caster,
+            ForcePushAbility,
+            forcePushTargets(flung, landing),
+            engine,
+        );
+
+        advanceSimulation([caster, flung], engine, LAUNCH_ADVANCE, [caster]);
+        tickAllKnockback([flung], engine);
+
+        expect(flung.x).toBeGreaterThan(openX + 40);
     });
 
     it('cleans up collision listeners after the cast ends', () => {
@@ -222,7 +272,7 @@ describe('ForcePushAbility', () => {
         executeUnitAbility(
             caster,
             ForcePushAbility,
-            [{ type: 'unit', unitId: flung.id }],
+            forcePushTargets(flung, landingAwayFromCaster(flung, caster)),
             engine,
         );
 

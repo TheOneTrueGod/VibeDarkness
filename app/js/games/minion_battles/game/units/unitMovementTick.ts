@@ -39,8 +39,13 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
     const gameTime = eng.gameTime;
     const roundNumber = eng.roundNumber ?? 1;
 
-    // Expire buffs — optional teardown hooks run before removal
+    // Per-tick buff hooks (e.g. gravity locus field pulses) run before the expiry check
     const engCtx = engine as EngineContext;
+    for (const b of unit.buffs) {
+        b.onGameTick?.(unit, engCtx, dt);
+    }
+
+    // Expire buffs — optional teardown hooks run before removal
     for (const b of unit.buffs) {
         if (b.isExpired(gameTime, roundNumber)) {
             b.onBeforeExpire?.(unit, {

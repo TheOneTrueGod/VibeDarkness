@@ -1,7 +1,7 @@
 import type { AbilityStatic } from './Ability';
 import type { AbilityTimingInterval } from './abilityTimings';
 import type { CastBehaviourEntry } from './castBehaviourTypes';
-import { clampResolvedTargetToAbilityRange, getSelectTargetDefsFromTimings } from './targeting';
+import { clampResolvedTargetToAbilityRange, clampSelectTarget, getSelectTargetDefsFromTimings } from './targeting';
 import { isSelectTargetDef, isHitTargetDef } from './timingTargetDef';
 import type { ActiveAbility, ResolvedTarget } from '../game/types';
 import type { Unit } from '../game/units/Unit';
@@ -55,12 +55,23 @@ export function resolveCastBehaviourTarget(
     }
 
     if (ability && engine) {
-        return clampResolvedTargetToAbilityRange(
-            ability,
-            unit,
-            result,
-            engine as EngineWithGetUnit,
-        );
+        const eng = engine as EngineWithGetUnit;
+        if (targetDef && isSelectTargetDef(targetDef) && targetDef.anchorLabel) {
+            const selectDefs = getSelectTargetDefsFromTimings(ability, unit, eng);
+            const collectedOrdered = selectDefs
+                .map((d, i) => active.targetsByLabel?.[d.label] ?? active.targets[i])
+                .filter((t): t is ResolvedTarget => t != null);
+            return clampSelectTarget(
+                ability,
+                unit,
+                targetDef,
+                active.targetsByLabel ?? {},
+                collectedOrdered,
+                result,
+                eng,
+            );
+        }
+        return clampResolvedTargetToAbilityRange(ability, unit, result, eng);
     }
     return result;
 }

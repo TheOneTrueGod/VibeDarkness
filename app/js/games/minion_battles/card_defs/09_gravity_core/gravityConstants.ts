@@ -28,7 +28,11 @@ export const GRAVITY_ABILITY_MODE_PULL = 'pull';
 export const GRAVITY_LOCUS_MAX_RANGE = 180;
 export const GRAVITY_LOCUS_FIELD_RADIUS = 82.5;
 export const GRAVITY_LOCUS_PREFIRE_TIME = 0.35;
-export const GRAVITY_LOCUS_ACTIVE_DURATION = 2;
+/** Short deploy beat after windup; the cast totals ~1s and the field then outlives it. */
+export const GRAVITY_LOCUS_CAST_ACTIVE_DURATION = 0.1;
+export const GRAVITY_LOCUS_COOLDOWN_DURATION = 0.55;
+/** How long the deployed field keeps pulsing after the cast (carried by GravityLocusFieldBuff). */
+export const GRAVITY_LOCUS_FIELD_DURATION = 4;
 export const GRAVITY_LOCUS_PULSE_INTERVAL = 0.25;
 export const GRAVITY_LOCUS_NUDGE_DISTANCE = 14;
 export const GRAVITY_LOCUS_NUDGE_DURATION = 0.2;
@@ -39,15 +43,25 @@ export const GRAVITY_LOCUS_FIELD_ALPHA = 0.4;
 /** Gravity granted at mission start when Gravity Core research is unlocked. */
 export const GRAVITY_CORE_MISSION_START_AMOUNT = 10;
 
-/** Force Push (0902) — single-target directional launch with collision damage. */
+/** Force Push (0902) — aimed fling with collision damage. */
 export const FORCE_PUSH_MAX_RANGE = 160;
 export const FORCE_PUSH_PREFIRE_TIME = 0.25;
+export const FORCE_PUSH_SELECT_GAP = 0.05;
 export const FORCE_PUSH_ACTIVE_DURATION = 0.1;
 export const FORCE_PUSH_COOLDOWN_DURATION = 1.25;
-export const FORCE_PUSH_KNOCKBACK_TIER = 4;
+export const FORCE_PUSH_KNOCKBACK_TIER = 3;
 export const FORCE_PUSH_COLLISION_DAMAGE = 8;
 export const FORCE_PUSH_TERRAIN_DAMAGE = 8;
 export const FORCE_PUSH_GRAVITY_COST = 5;
+/** Sequential select labels for Force Push targeting. */
+export const FORCE_PUSH_TARGET_LABEL = 'Target';
+export const FORCE_PUSH_LANDING_LABEL = 'Landing';
+/** Max landing pixel distance from the flung unit (~1.25× tier-3 knockback displacement). */
+export const FORCE_PUSH_LANDING_MAX_DISTANCE = 84;
+/** Minimum fling distance to avoid a zero-vector launch. */
+export const FORCE_PUSH_LANDING_MIN_DISTANCE = 8;
+/** Air-time scale at max landing distance relative to tier-3 baseline (matches displacement cap). */
+export const FORCE_PUSH_LANDING_DISTANCE_SCALE = 1.25;
 
 /** Gravity Inversion (0903) — AoE lift + slam; mode changes horizontal landing only. */
 export const GRAVITY_INVERSION_MAX_RANGE = 160;

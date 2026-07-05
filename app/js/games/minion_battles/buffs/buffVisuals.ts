@@ -10,6 +10,7 @@ import { STUNNED_BUFF_TYPE } from './StunnedBuff';
 import { BLEED_BUFF_TYPE, BleedBuff } from './BleedBuff';
 import { EXPOSED_BUFF_TYPE } from './ExposedBuff';
 import { LIFTED_BUFF_TYPE } from './LiftedBuff';
+import { GRAVITY_LOCUS_FIELD_BUFF_TYPE } from './GravityLocusFieldBuff';
 
 /** Context passed when rendering a buff visual. */
 export interface IBuffVisualContext {
@@ -125,3 +126,5 @@ registerBuffVisual(LIFTED_BUFF_TYPE, (g, unit, _buff, _ctx) => {
     g.lineTo(4, y + 4);
     g.stroke({ color: 0xa855f7, width: 2, alpha: 0.85 });
 });
+// The field draws itself at the locus each tick; no marker on the caster.
+registerBuffVisual(GRAVITY_LOCUS_FIELD_BUFF_TYPE, () => {});

@@ -1,18 +1,18 @@
 /**
- * Force Push — fling a single enemy with directional knockback and opt-in collision damage.
+ * Force Push — fling a single enemy toward a chosen landing point with collision damage.
  *
- * Push flings away from the caster; Pull flings toward and past the caster. Collision damage
- * is authored here via forced-movement events — not in engine code.
+ * Two-step targeting: pick an enemy, then pick a landing pixel anchored on that unit.
+ * Collision damage is authored here via forced-movement events — not in engine code.
  */
 
 import { AbilityEventType } from '../../../abilities/Ability';
-import { AbilityPhase } from '../../../abilities/abilityTimings';
+import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
-import { getDirectionFromTo } from '../../../abilities/targetHelpers';
+import { resolveTargetToPoint } from '../../../abilities/targeting';
 import {
-    applyDirectionalKnockback,
     knockbackCtxFromEngine,
+    tryApplyAimedKnockbackByTier,
     type KnockbackEngineCtx,
 } from '../../../crowdControl/knockbackKeywords';
 import { areEnemies } from '../../../game/teams';
@@ -24,19 +24,24 @@ import type {
 import type { EngineContext } from '../../../game/EngineContext';
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget } from '../../../game/types';
-import { meleeLineHitbox } from '../../../hitboxes';
+import { meleeLineHitbox, nullHitbox } from '../../../hitboxes';
+import { drawClampedLine } from '../../../abilities/previewHelpers';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { type CardDef } from '../../types';
 import {
-    GRAVITY_ABILITY_MODE_PULL,
-    GRAVITY_ABILITY_MODE_PUSH,
     FORCE_PUSH_ACTIVE_DURATION,
     FORCE_PUSH_COLLISION_DAMAGE,
     FORCE_PUSH_COOLDOWN_DURATION,
     FORCE_PUSH_GRAVITY_COST,
     FORCE_PUSH_KNOCKBACK_TIER,
+    FORCE_PUSH_LANDING_DISTANCE_SCALE,
+    FORCE_PUSH_LANDING_LABEL,
+    FORCE_PUSH_LANDING_MAX_DISTANCE,
+    FORCE_PUSH_LANDING_MIN_DISTANCE,
     FORCE_PUSH_MAX_RANGE,
     FORCE_PUSH_PREFIRE_TIME,
+    FORCE_PUSH_SELECT_GAP,
+    FORCE_PUSH_TARGET_LABEL,
     FORCE_PUSH_TERRAIN_DAMAGE,
 } from '../gravityConstants';
 import { GRAVITY_VIOLET } from '../../../game/effect_defs/aoeEffects';
@@ -64,6 +69,79 @@ const FORCE_PUSH_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2
   <path d="M46 24 L54 32 L46 40" stroke="#c084fc" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`;
 
+const ABILITY_TIMINGS: AbilityTimingInterval[] = [
+    {
+        id: 'windup',
+        start: 0,
+        end: FORCE_PUSH_PREFIRE_TIME,
+        abilityPhase: AbilityPhase.Windup,
+    },
+    {
+        id: 'selectTarget',
+        start: FORCE_PUSH_PREFIRE_TIME,
+        end: FORCE_PUSH_PREFIRE_TIME + FORCE_PUSH_SELECT_GAP,
+        abilityPhase: AbilityPhase.Active,
+        targetDef: {
+            kind: 'select',
+            label: FORCE_PUSH_TARGET_LABEL,
+            hitbox: FORCE_PUSH_HITBOX,
+            filter: 'enemy',
+            allowMiss: true,
+        },
+    },
+    {
+        id: 'selectLanding',
+        start: FORCE_PUSH_PREFIRE_TIME + FORCE_PUSH_SELECT_GAP,
+        end: FORCE_PUSH_PREFIRE_TIME + FORCE_PUSH_ACTIVE_DURATION,
+        abilityPhase: AbilityPhase.Active,
+        targetDef: {
+            kind: 'select',
+            label: FORCE_PUSH_LANDING_LABEL,
+            hitbox: nullHitbox,
+            filter: 'any',
+            allowMiss: true,
+            anchorLabel: FORCE_PUSH_TARGET_LABEL,
+            maxRangeFromAnchor: FORCE_PUSH_LANDING_MAX_DISTANCE,
+            minRangeFromAnchor: FORCE_PUSH_LANDING_MIN_DISTANCE,
+            aiHint: {
+                kind: 'pixelFromAnchor',
+                direction: 'awayFromCaster',
+                distance: 'maxFromAnchor',
+            },
+        },
+        behaviour: CastBehaviours.Instant((ctx) => {
+            const eng = ctx.engine as EngineContext;
+            const active = ctx.caster.activeAbilities.find((a) => a.abilityId === ctx.abilityId);
+            if (!active) return;
+
+            const targetUnit = resolveTargetUnit(
+                active.targetsByLabel?.[FORCE_PUSH_TARGET_LABEL] ?? active.targets[0],
+                eng,
+            );
+            if (!targetUnit?.isAlive()) return;
+
+            const landingTarget =
+                active.targetsByLabel?.[FORCE_PUSH_LANDING_LABEL] ?? active.targets[1];
+            const landingPoint = resolveTargetToPoint(landingTarget, eng);
+            if (!landingPoint) return;
+
+            const payload = (active.castPayload ?? {}) as ForcePushCastPayload;
+            if (!payload.listeners) {
+                payload.listeners = subscribeForcePushCollisionListeners(eng, ctx.caster, ctx.abilityId);
+                active.castPayload = payload;
+            }
+
+            launchForcePushTarget(eng, ctx.caster, targetUnit, landingPoint, ctx.abilityId);
+        }),
+    },
+    {
+        id: 'cooldown',
+        start: FORCE_PUSH_PREFIRE_TIME + FORCE_PUSH_ACTIVE_DURATION,
+        end: FORCE_PUSH_PREFIRE_TIME + FORCE_PUSH_ACTIVE_DURATION + FORCE_PUSH_COOLDOWN_DURATION,
+        abilityPhase: AbilityPhase.Cooldown,
+    },
+];
+
 interface ForcePushCastPayload {
     listeners?: {
         onUnitCollision: (data: ForcedMovementUnitCollisionEvent) => void;
@@ -72,10 +150,10 @@ interface ForcePushCastPayload {
 }
 
 function resolveTargetUnit(
-    target: ResolvedTarget,
+    target: ResolvedTarget | undefined,
     engine: EngineContext,
 ): Unit | null {
-    if (target.type !== 'unit' || !target.unitId) return null;
+    if (!target || target.type !== 'unit' || !target.unitId) return null;
     return engine.getUnit(target.unitId) ?? null;
 }
 
@@ -169,24 +247,23 @@ function launchForcePushTarget(
     engine: EngineContext,
     caster: Unit,
     targetUnit: Unit,
-    abilityMode: string | undefined,
+    landing: { x: number; y: number },
     abilityId: string,
 ): void {
-    const mode = abilityMode ?? GRAVITY_ABILITY_MODE_PUSH;
-    const { dirX, dirY } = getDirectionFromTo(caster.x, caster.y, targetUnit.x, targetUnit.y);
-    const direction = mode === GRAVITY_ABILITY_MODE_PULL
-        ? { x: -dirX, y: -dirY }
-        : { x: dirX, y: dirY };
-
     const knockbackEngine: KnockbackEngineCtx = knockbackCtxFromEngine(engine);
     const source: KnockbackSource = { unitId: caster.id, abilityId };
 
-    applyDirectionalKnockback(
+    tryApplyAimedKnockbackByTier(
         targetUnit,
         FORCE_PUSH_KNOCKBACK_TIER,
-        direction,
+        landing,
         source,
         knockbackEngine,
+        {
+            landingMinDistance: FORCE_PUSH_LANDING_MIN_DISTANCE,
+            landingMaxDistance: FORCE_PUSH_LANDING_MAX_DISTANCE,
+            distanceScale: FORCE_PUSH_LANDING_DISTANCE_SCALE,
+        },
         { collideWithUnits: true, bounceOffTerrain: true },
     );
 }
@@ -200,59 +277,7 @@ export const ForcePushAbility = defineAbility({
     maxUses: MAX_USES,
     recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 }],
     prefireTime: FORCE_PUSH_PREFIRE_TIME,
-    abilityModes: {
-        modes: [GRAVITY_ABILITY_MODE_PUSH, GRAVITY_ABILITY_MODE_PULL],
-        defaultMode: GRAVITY_ABILITY_MODE_PUSH,
-    },
-    abilityTimings: [
-        {
-            id: 'windup',
-            start: 0,
-            end: FORCE_PUSH_PREFIRE_TIME,
-            abilityPhase: AbilityPhase.Windup,
-        },
-        {
-            id: 'launch',
-            start: FORCE_PUSH_PREFIRE_TIME,
-            end: FORCE_PUSH_PREFIRE_TIME + FORCE_PUSH_ACTIVE_DURATION,
-            abilityPhase: AbilityPhase.Active,
-            targetDef: {
-                kind: 'select',
-                label: 'Target',
-                hitbox: FORCE_PUSH_HITBOX,
-                filter: 'enemy',
-                allowMiss: true,
-            },
-            behaviour: CastBehaviours.Instant((ctx) => {
-                const eng = ctx.engine as EngineContext;
-                const targetUnit = resolveTargetUnit(ctx.target, eng);
-                if (!targetUnit?.isAlive()) return;
-
-                const active = ctx.caster.activeAbilities.find((a) => a.abilityId === ctx.abilityId);
-                if (!active) return;
-
-                const payload = (active.castPayload ?? {}) as ForcePushCastPayload;
-                if (!payload.listeners) {
-                    payload.listeners = subscribeForcePushCollisionListeners(eng, ctx.caster, ctx.abilityId);
-                    active.castPayload = payload;
-                }
-
-                launchForcePushTarget(
-                    eng,
-                    ctx.caster,
-                    targetUnit,
-                    ctx.abilityMode,
-                    ctx.abilityId,
-                );
-            }),
-        },
-        {
-            id: 'cooldown',
-            start: FORCE_PUSH_PREFIRE_TIME + FORCE_PUSH_ACTIVE_DURATION,
-            end: FORCE_PUSH_PREFIRE_TIME + FORCE_PUSH_ACTIVE_DURATION + FORCE_PUSH_COOLDOWN_DURATION,
-            abilityPhase: AbilityPhase.Cooldown,
-        },
-    ],
+    abilityTimings: ABILITY_TIMINGS,
     targets: [],
     clearMovementOnComplete: true,
     aiSettings: { minRange: 0, maxRange: FORCE_PUSH_MAX_RANGE },
@@ -263,8 +288,7 @@ export const ForcePushAbility = defineAbility({
 
     getTooltipText(): string[] {
         return [
-            `Fling an enemy with a powerful launch. Collisions deal {${FORCE_PUSH_COLLISION_DAMAGE}} damage.`,
-            'Push flings away from you; Pull brings them toward you.',
+            `Fling an enemy. Deals {${FORCE_PUSH_COLLISION_DAMAGE}} damage on collision.`,
         ];
     },
 
@@ -293,18 +317,18 @@ export const ForcePushAbility = defineAbility({
         },
     },
 
-    renderTargetingPreviewSelectedTargets(gr, caster, _targets, mouseWorld): void {
-        gr.clear();
-        const dx = mouseWorld.x - caster.x;
-        const dy = mouseWorld.y - caster.y;
-        const dist = Math.hypot(dx, dy);
-        const scale = dist > FORCE_PUSH_MAX_RANGE ? FORCE_PUSH_MAX_RANGE / dist : 1;
-        const tx = caster.x + dx * scale;
-        const ty = caster.y + dy * scale;
-
-        gr.moveTo(caster.x, caster.y);
-        gr.lineTo(tx, ty);
-        gr.stroke({ color: GRAVITY_VIOLET, alpha: 0.55, width: 2 });
+    renderTargetingPreviewSelectedTargets(gr, _caster, targets, mouseWorld, _units, engine): void {
+        const anchorTarget = targets[0];
+        if (!anchorTarget) return;
+        const anchorPoint = resolveTargetToPoint(anchorTarget, engine);
+        if (!anchorPoint) return;
+        drawClampedLine(
+            gr,
+            anchorPoint,
+            mouseWorld,
+            FORCE_PUSH_LANDING_MAX_DISTANCE,
+            { color: GRAVITY_VIOLET, width: 2, alpha: 0.55 },
+        );
     },
 });
 

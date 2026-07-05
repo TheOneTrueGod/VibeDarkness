@@ -2,7 +2,7 @@ import {
     resolveClick,
     getSelectTargetDefsFromTimings,
     buildMeleeSelectOrderTargets,
-    clampResolvedTargetToAbilityRange,
+    clampSelectTarget,
     resolveSelectTargetLockOnCandidates,
 } from '../../../abilities/targeting';
 import { getAbilityTargets } from '../../../abilities/Ability';
@@ -63,9 +63,12 @@ export class AbilityTargetingTool implements InteractionTool {
             }
 
             if (caster) {
-                resolved = clampResolvedTargetToAbilityRange(
+                resolved = clampSelectTarget(
                     this.ability,
                     caster,
+                    selectDef,
+                    this.targetsByLabel,
+                    this.currentTargets,
                     resolved,
                     engine,
                 );

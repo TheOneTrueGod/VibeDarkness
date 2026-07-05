@@ -21,6 +21,7 @@ import {
     FORCE_PUSH_COLLISION_DAMAGE,
     FORCE_PUSH_COOLDOWN_DURATION,
     FORCE_PUSH_GRAVITY_COST,
+    FORCE_PUSH_LANDING_MAX_DISTANCE,
     FORCE_PUSH_PREFIRE_TIME,
     FORCE_PUSH_TERRAIN_DAMAGE,
 } from '../../../card_defs/09_gravity_core/gravityConstants';
@@ -41,6 +42,30 @@ const ROCK_ROW = 5;
 
 const TOTAL_CAST_SECONDS = FORCE_PUSH_PREFIRE_TIME + FORCE_PUSH_COOLDOWN_DURATION + 0.35;
 const SECOND_PUSH_TICK = Math.ceil(TOTAL_CAST_SECONDS * 60) + 30;
+
+function forcePushOrderTargets(
+    unitId: string,
+    flingX: number,
+    flingY: number,
+    casterX: number,
+    casterY: number,
+) {
+    const dx = flingX - casterX;
+    const dy = flingY - casterY;
+    const dist = Math.hypot(dx, dy);
+    const dirX = dist < 1e-6 ? 1 : dx / dist;
+    const dirY = dist < 1e-6 ? 0 : dy / dist;
+    return [
+        { type: 'unit' as const, unitId },
+        {
+            type: 'pixel' as const,
+            position: {
+                x: flingX + dirX * FORCE_PUSH_LANDING_MAX_DISTANCE,
+                y: flingY + dirY * FORCE_PUSH_LANDING_MAX_DISTANCE,
+            },
+        },
+    ];
+}
 
 export const forcePushScenario: ScenarioDefinition = {
     id: 'force_push_collision_e2e',
@@ -91,7 +116,13 @@ export const forcePushScenario: ScenarioDefinition = {
         engine.state.orderMgr.queueOrder(SECOND_PUSH_TICK, {
             unitId: player.id,
             abilityId: FORCE_PUSH_ID,
-            targets: [{ type: 'unit', unitId: wallFling.id }],
+            targets: forcePushOrderTargets(
+                wallFling.id,
+                WALL_FLING_X,
+                WALL_FLING_Y,
+                PLAYER_X,
+                WALL_FLING_Y,
+            ),
         });
 
         for (let tick = 90; tick <= 480; tick += 90) {
@@ -107,7 +138,13 @@ export const forcePushScenario: ScenarioDefinition = {
         return [{
             unitId: player.id,
             abilityId: FORCE_PUSH_ID,
-            targets: [{ type: 'unit', unitId: fling.id }],
+            targets: forcePushOrderTargets(
+                fling.id,
+                FLING_X,
+                SHARED_Y,
+                PLAYER_X,
+                SHARED_Y,
+            ),
         }];
     },
 

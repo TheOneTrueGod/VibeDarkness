@@ -10,7 +10,9 @@ import {
     renderMeleeTrackingHighlights,
     resolveTargetToPoint,
     computeLungeAimState,
+    resolveAnchorPointFromCollected,
 } from '../../../abilities/targeting';
+import { drawClampedLine } from '../../../abilities/previewHelpers';
 import { areEnemies } from '../../teams';
 import type { TeamId } from '../../teams';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
@@ -107,6 +109,26 @@ function renderSelectTargetDef(
     if (state) {
         renderLungeIndicator(gr, caster, state.virtualX, state.virtualY);
     }
+}
+
+function renderAnchoredSelectTargetDef(
+    gr: IAbilityPreviewGraphics,
+    selectDef: SelectTargetDef,
+    collectedTargets: ResolvedTarget[],
+    selectTargetDefs: SelectTargetDef[],
+    mouseWorld: { x: number; y: number },
+    engine: GameEngine,
+    stroke: { color: number; width: number; alpha?: number } = { color: 0xc0c0c0, width: 2, alpha: 0.6 },
+): void {
+    if (!selectDef.anchorLabel || selectDef.maxRangeFromAnchor == null) return;
+    const anchorPoint = resolveAnchorPointFromCollected(
+        selectTargetDefs,
+        collectedTargets,
+        selectDef.anchorLabel,
+        engine,
+    );
+    if (!anchorPoint) return;
+    drawClampedLine(gr, anchorPoint, mouseWorld, selectDef.maxRangeFromAnchor, stroke);
 }
 
 const MOVE_TARGET_COLOR = 0x333333;
@@ -531,7 +553,18 @@ export class PreviewRenderer {
             const targetIndex = ts.currentTargets.length;
             const selectDef = selectTargetDefs[targetIndex];
             if (selectDef) {
-                renderSelectTargetDef(gr, ability, caster, selectDef, ts.mouseWorld, engine);
+                if (selectDef.anchorLabel && selectDef.maxRangeFromAnchor != null) {
+                    renderAnchoredSelectTargetDef(
+                        gr,
+                        selectDef,
+                        ts.currentTargets,
+                        selectTargetDefs,
+                        ts.mouseWorld,
+                        engine,
+                    );
+                } else {
+                    renderSelectTargetDef(gr, ability, caster, selectDef, ts.mouseWorld, engine);
+                }
             }
             if (ability.renderTargetingPreviewSelectedTargets) {
                 ability.renderTargetingPreviewSelectedTargets(gr, caster, ts.currentTargets, ts.mouseWorld, engine.units, engine);
@@ -597,7 +630,18 @@ export class PreviewRenderer {
                 // Render in-progress cursor for the next un-confirmed target (mirrors live targeting)
                 const nextSelectDef = selectTargetDefs[plan.currentTargets.length];
                 if (nextSelectDef) {
-                    renderSelectTargetDef(gr, ability, caster, nextSelectDef, plan.mouseWorld, engine);
+                    if (nextSelectDef.anchorLabel && nextSelectDef.maxRangeFromAnchor != null) {
+                        renderAnchoredSelectTargetDef(
+                            gr,
+                            nextSelectDef,
+                            plan.currentTargets,
+                            selectTargetDefs,
+                            plan.mouseWorld,
+                            engine,
+                        );
+                    } else {
+                        renderSelectTargetDef(gr, ability, caster, nextSelectDef, plan.mouseWorld, engine);
+                    }
                 }
                 if (ability.renderTargetingPreviewSelectedTargets) {
                     ability.renderTargetingPreviewSelectedTargets(gr, caster, plan.currentTargets, plan.mouseWorld, engine.units, engine);

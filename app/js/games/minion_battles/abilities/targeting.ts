@@ -311,3 +311,152 @@ export function clampResolvedTargetToAbilityRange(
     const scale = maxRange / dist;
     return { type: 'pixel', position: { x: caster.x + dx * scale, y: caster.y + dy * scale } };
 }
+
+/** Clamp a world point to `[minDistance, maxDistance]` from an origin along the click bearing. */
+export function clampPointToDistanceBand(
+    originX: number,
+    originY: number,
+    clickX: number,
+    clickY: number,
+    minDistance: number,
+    maxDistance: number,
+): { x: number; y: number } {
+    const dx = clickX - originX;
+    const dy = clickY - originY;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 1e-6) {
+        return { x: originX + maxDistance, y: originY };
+    }
+    const clampedDist = Math.min(maxDistance, Math.max(minDistance, dist));
+    return {
+        x: originX + (dx / dist) * clampedDist,
+        y: originY + (dy / dist) * clampedDist,
+    };
+}
+
+/**
+ * Resolve the anchor unit for an anchored `SelectTargetDef` from collected targets.
+ * Returns null when the anchor label is missing or not yet resolved to a unit.
+ */
+export function resolveAnchorUnit(
+    _selectDefs: readonly SelectTargetDef[],
+    collectedTargetsByLabel: Record<string, ResolvedTarget>,
+    anchorLabel: string,
+    engine: { getUnit(id: string): Unit | undefined | null },
+): Unit | null {
+    const anchorTarget = collectedTargetsByLabel[anchorLabel];
+    if (!anchorTarget || anchorTarget.type !== 'unit' || !anchorTarget.unitId) return null;
+    return engine.getUnit(anchorTarget.unitId) ?? null;
+}
+
+/**
+ * Resolve anchor position from ordered collected targets (preview / non-label maps).
+ */
+export function resolveAnchorPointFromCollected(
+    selectDefs: readonly SelectTargetDef[],
+    collectedTargets: ResolvedTarget[],
+    anchorLabel: string,
+    engine: { getUnit(id: string): { x: number; y: number } | undefined | null },
+): { x: number; y: number } | null {
+    const anchorIdx = selectDefs.findIndex((d) => d.label === anchorLabel);
+    if (anchorIdx < 0 || anchorIdx >= collectedTargets.length) return null;
+    return resolveTargetToPoint(collectedTargets[anchorIdx]!, engine);
+}
+
+/**
+ * Clamp a select-target resolution — anchor-relative pixel picks or caster-range fallback.
+ */
+export function clampSelectTarget(
+    ability: AbilityStatic,
+    caster: Unit,
+    selectDef: SelectTargetDef,
+    collectedTargetsByLabel: Record<string, ResolvedTarget>,
+    collectedTargetsOrdered: ResolvedTarget[],
+    target: ResolvedTarget,
+    engine: { getUnit(id: string): Unit | undefined | null },
+    minDistanceFromAnchor = 0,
+): ResolvedTarget {
+    if (
+        selectDef.anchorLabel != null
+        && selectDef.maxRangeFromAnchor != null
+        && selectDef.maxRangeFromAnchor > 0
+    ) {
+        const selectDefs = getSelectTargetDefsFromTimings(ability, caster, engine);
+        const labeledAnchor = collectedTargetsByLabel[selectDef.anchorLabel];
+        const anchorPoint =
+            (labeledAnchor ? resolveTargetToPoint(labeledAnchor, engine) : null)
+            ?? resolveAnchorPointFromCollected(selectDefs, collectedTargetsOrdered, selectDef.anchorLabel, engine);
+        if (!anchorPoint) return target;
+
+        const point = resolveTargetToPoint(target, engine) ?? anchorPoint;
+        const minDist = selectDef.minRangeFromAnchor ?? minDistanceFromAnchor;
+        const clamped = clampPointToDistanceBand(
+            anchorPoint.x,
+            anchorPoint.y,
+            point.x,
+            point.y,
+            minDist,
+            selectDef.maxRangeFromAnchor,
+        );
+        return { type: 'pixel', position: clamped };
+    }
+
+    return clampResolvedTargetToAbilityRange(ability, caster, target, engine);
+}
+
+/**
+ * Build AI order targets for abilities with per-timing `SelectTargetDef` entries.
+ */
+export function buildAiSelectTargets(
+    caster: Unit,
+    ability: AbilityStatic,
+    enemyUnit: Unit,
+    engine: { getUnit(id: string): Unit | undefined | null },
+): { targets: ResolvedTarget[]; targetsByLabel: Record<string, ResolvedTarget> } {
+    const selectDefs = getSelectTargetDefsFromTimings(ability, caster, engine);
+    const targets: ResolvedTarget[] = [];
+    const targetsByLabel: Record<string, ResolvedTarget> = {};
+
+    for (const selectDef of selectDefs) {
+        if (selectDef.aiHint?.kind === 'pixelFromAnchor' && selectDef.anchorLabel) {
+            const anchorUnit =
+                resolveAnchorUnit(selectDefs, targetsByLabel, selectDef.anchorLabel, engine)
+                ?? enemyUnit;
+            const maxDist = selectDef.maxRangeFromAnchor ?? 0;
+            let dirX = anchorUnit.x - caster.x;
+            let dirY = anchorUnit.y - caster.y;
+            const casterDist = Math.hypot(dirX, dirY);
+            if (casterDist < 1e-6) {
+                dirX = maxDist;
+                dirY = 0;
+            } else {
+                dirX /= casterDist;
+                dirY /= casterDist;
+            }
+            const distance = selectDef.aiHint.distance === 'maxFromAnchor' ? maxDist : maxDist;
+            const pixel: ResolvedTarget = {
+                type: 'pixel',
+                position: {
+                    x: anchorUnit.x + dirX * distance,
+                    y: anchorUnit.y + dirY * distance,
+                },
+            };
+            targets.push(pixel);
+            targetsByLabel[selectDef.label] = pixel;
+            continue;
+        }
+
+        if (selectDef.filter === 'enemy') {
+            const unitTarget: ResolvedTarget = { type: 'unit', unitId: enemyUnit.id };
+            targets.push(unitTarget);
+            targetsByLabel[selectDef.label] = unitTarget;
+            continue;
+        }
+
+        const fallback: ResolvedTarget = { type: 'pixel', position: { x: enemyUnit.x, y: enemyUnit.y } };
+        targets.push(fallback);
+        targetsByLabel[selectDef.label] = fallback;
+    }
+
+    return { targets, targetsByLabel };
+}
