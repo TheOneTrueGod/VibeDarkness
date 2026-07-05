@@ -32,6 +32,7 @@ import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext'
 import type { ActiveAbility, ResolvedTarget } from '../types';
 import { isSelectTargetDef, isHitTargetDef } from '../../abilities/timingTargetDef';
 import { resolveCastBehaviourTarget } from '../../abilities/resolveCastBehaviourTarget';
+import { resolveActiveAbilityMode } from '../../abilities/resolveAbilityMode';
 import { triggerAbilityEvent } from '../../abilities/events';
 import {
     detectAndFreezeTelegraphDistanceBreak,
@@ -65,10 +66,47 @@ function fireIntervalEntry(
                 effectData: { ...visualData, ...emitterDef.effectData },
             };
         }
-        const emitter = createEmitterFromDef(emitterDef, {
-            x: unit.x,
-            y: unit.y,
-            attachedToUnitId: unit.id,
+        let emitX = unit.x;
+        let emitY = unit.y;
+        let attachedToUnitId: string | undefined = unit.id;
+        if (emitterDef.effectPosition === 'target') {
+            const primaryTarget = resolveCastBehaviourTarget(
+                { targetIndex: 0 } as CastBehaviourEntry,
+                interval,
+                active,
+                unit,
+                ability,
+                engine,
+            );
+            if (primaryTarget?.type === 'pixel' && primaryTarget.position) {
+                emitX = primaryTarget.position.x;
+                emitY = primaryTarget.position.y;
+                attachedToUnitId = undefined;
+            } else if (primaryTarget?.type === 'unit' && primaryTarget.unitId) {
+                const targetUnit = engine.getUnit(primaryTarget.unitId);
+                if (targetUnit) {
+                    emitX = targetUnit.x;
+                    emitY = targetUnit.y;
+                    attachedToUnitId = undefined;
+                }
+            }
+        }
+
+        let resolvedEmitterDef = emitterDef;
+        if (emitterDef.resolveEffectData) {
+            resolvedEmitterDef = {
+                ...emitterDef,
+                effectData: {
+                    ...emitterDef.effectData,
+                    ...emitterDef.resolveEffectData({ abilityMode: active.abilityMode }),
+                },
+            };
+        }
+
+        const emitter = createEmitterFromDef(resolvedEmitterDef, {
+            x: emitX,
+            y: emitY,
+            attachedToUnitId,
             lifetime: interval.end - interval.start,
         });
         const key = interval.id;
@@ -129,6 +167,7 @@ function fireIntervalEntry(
             const setupCtx: import('../../abilities/castBehaviourTypes').CastBehaviourSetupContext = {
                 caster: unit,
                 abilityId: active.abilityId,
+                abilityMode: resolveActiveAbilityMode(active, ability),
                 target,
                 allTargets: active.targets,
                 castPayload: active.castPayload,
@@ -158,6 +197,7 @@ function fireIntervalEntry(
                 const tickCtx: import('../../abilities/castBehaviourTypes').CastBehaviourTickContext = {
                     caster: unit,
                     abilityId: active.abilityId,
+                    abilityMode: resolveActiveAbilityMode(active, ability),
                     target,
                     allTargets: active.targets,
                     castPayload: active.castPayload,
@@ -258,6 +298,7 @@ export function tickUnitActiveAbilities(
                 const tickCtx: import('../../abilities/castBehaviourTypes').CastBehaviourTickContext = {
                     caster: unit,
                     abilityId: active.abilityId,
+                    abilityMode: resolveActiveAbilityMode(active, ability),
                     target,
                     allTargets: active.targets,
                     castPayload: active.castPayload,
@@ -310,6 +351,7 @@ export function tickUnitActiveAbilities(
                 const baseCtx: CastBehaviourBaseContext = {
                     caster: unit,
                     abilityId: active.abilityId,
+                    abilityMode: resolveActiveAbilityMode(active, ability),
                     target: fallback,
                     allTargets: active.targets,
                     castPayload: active.castPayload,
@@ -378,6 +420,7 @@ export function tickUnitActiveAbilities(
                     const baseCtx: CastBehaviourBaseContext = {
                         caster: otherUnit,
                         abilityId: rec.active.abilityId,
+                        abilityMode: resolveActiveAbilityMode(rec.active, getAbility(rec.active.abilityId)),
                         target: behaviourTarget,
                         allTargets: rec.active.targets,
                         castPayload: rec.active.castPayload,
@@ -442,6 +485,7 @@ export function tickUnitActiveAbilities(
             const tickCtx: import('../../abilities/castBehaviourTypes').CastBehaviourTickContext = {
                 caster: unit,
                 abilityId: active.abilityId,
+                abilityMode: resolveActiveAbilityMode(active, ability),
                 target,
                 allTargets: active.targets,
                 castPayload: active.castPayload,

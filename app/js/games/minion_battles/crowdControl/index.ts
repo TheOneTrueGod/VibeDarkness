@@ -9,6 +9,11 @@ export {
     type HardCcStunAttemptResult,
 } from './tryApplyHardCcStun';
 export {
+    tryApplyLift,
+    type LiftAttemptOutcome,
+    type LiftAttemptResult,
+} from './tryApplyLift';
+export {
     tryApplyKnockbackByTier,
     getKnockbackTierDef,
     type KnockbackTierDef,

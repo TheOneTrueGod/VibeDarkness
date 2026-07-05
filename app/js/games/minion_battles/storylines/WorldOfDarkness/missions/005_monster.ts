@@ -146,6 +146,7 @@ export class MonsterMission extends BaseMissionDef {
     description = 'The Alpha Wolf hunts these tunnels. Confront the beast directly — or be hunted forever.';
     campaignId = 'world_of_darkness';
     name = 'Monster';
+    completionRewards = { knowledgeKeys: ['AlphaWolfDefeated'] };
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;
     enemies = ENEMIES;

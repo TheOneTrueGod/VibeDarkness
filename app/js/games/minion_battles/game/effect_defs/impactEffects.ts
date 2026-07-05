@@ -1,6 +1,21 @@
 import { Container, FillGradient, Graphics } from 'pixi.js';
 import type { Effect } from '../effects/Effect';
 import type { IEffectDef, IEffectRenderContext } from './types';
+import { CELL_SIZE } from '../../terrain/TerrainGrid';
+import { GRAVITY_VIOLET } from './aoeEffects';
+
+export const COLLISION_CLASH_EFFECT_TYPE = 'CollisionClash';
+export const TERRAIN_IMPACT_EFFECT_TYPE = 'TerrainImpact';
+
+export interface CollisionClashEffectData {
+    color?: number;
+}
+
+export interface TerrainImpactEffectData {
+    color?: number;
+    tile?: { col: number; row: number };
+    impact?: { x: number; y: number };
+}
 
 /** Punch effect: 9-pointed star with left-to-right gradient fill, black border, grows over duration. */
 export const punchEffectDef: IEffectDef = {
@@ -181,5 +196,108 @@ export const coneFlashEffectDef: IEffectDef = {
         }
         g.lineTo(innerR * Math.cos(startAngle), innerR * Math.sin(startAngle));
         g.fill({ color: CONE_FLASH_TEAL, alpha });
+    },
+};
+
+/** Force Push unit-vs-unit clash: bright spark burst at the impact point. */
+export const collisionClashEffectDef: IEffectDef = {
+    createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
+        return new Graphics();
+    },
+    updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
+        const g = visual as Graphics;
+        g.clear();
+        const data = (effect.effectData ?? {}) as CollisionClashEffectData;
+        const color = data.color ?? GRAVITY_VIOLET;
+        const progress = effect.progress;
+        const alpha = Math.max(0, 0.95 * (1 - progress * 1.1));
+        const burstRadius = 6 + progress * 22;
+
+        g.circle(0, 0, 4 + progress * 6);
+        g.fill({ color: 0xffffff, alpha: alpha * 0.85 });
+
+        const sparkCount = 10;
+        for (let i = 0; i < sparkCount; i++) {
+            const angle = (i / sparkCount) * Math.PI * 2 + progress * 0.4;
+            const innerR = burstRadius * 0.2;
+            const outerR = burstRadius * (0.55 + (1 - progress) * 0.35);
+            g.moveTo(Math.cos(angle) * innerR, Math.sin(angle) * innerR);
+            g.lineTo(Math.cos(angle) * outerR, Math.sin(angle) * outerR);
+            g.stroke({ color, width: 2, alpha });
+        }
+
+        if (progress < 0.35) {
+            const ringAlpha = Math.max(0, 0.6 * (1 - progress / 0.35));
+            g.circle(0, 0, burstRadius * 0.75);
+            g.stroke({ color, width: 2.5, alpha: ringAlpha });
+        }
+    },
+};
+
+function drawTerrainCrackDecal(
+    g: Graphics,
+    offsetX: number,
+    offsetY: number,
+    color: number,
+    progress: number,
+): void {
+    const half = CELL_SIZE * 0.42;
+    const crackAlpha = Math.max(0, 0.65 * (1 - progress * 0.55));
+    const cracks = [
+        { x1: -half * 0.3, y1: -half * 0.2, x2: half * 0.55, y2: half * 0.35 },
+        { x1: half * 0.15, y1: -half * 0.45, x2: -half * 0.5, y2: half * 0.25 },
+        { x1: -half * 0.1, y1: half * 0.1, x2: half * 0.35, y2: -half * 0.4 },
+    ];
+    for (const crack of cracks) {
+        g.moveTo(offsetX + crack.x1, offsetY + crack.y1);
+        g.lineTo(offsetX + crack.x2, offsetY + crack.y2);
+        g.stroke({ color, width: 2, alpha: crackAlpha });
+    }
+    g.rect(offsetX - half * 0.55, offsetY - half * 0.55, half * 1.1, half * 1.1);
+    g.stroke({ color, width: 1, alpha: crackAlpha * 0.35 });
+}
+
+/** Force Push wall hit: dust/debris burst plus a short-lived crack decal on the tile. */
+export const terrainImpactEffectDef: IEffectDef = {
+    createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
+        return new Graphics();
+    },
+    updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
+        const g = visual as Graphics;
+        g.clear();
+        const data = (effect.effectData ?? {}) as TerrainImpactEffectData;
+        const color = data.color ?? GRAVITY_VIOLET;
+        const progress = effect.progress;
+        const impactX = data.impact?.x ?? 0;
+        const impactY = data.impact?.y ?? 0;
+        const localImpactX = impactX - effect.x;
+        const localImpactY = impactY - effect.y;
+
+        const dustAlpha = Math.max(0, 0.55 * (1 - progress));
+        const dustCount = 8;
+        for (let i = 0; i < dustCount; i++) {
+            const angle = (i / dustCount) * Math.PI * 2 - Math.PI / 2;
+            const dist = 4 + progress * 18;
+            const px = localImpactX + Math.cos(angle) * dist;
+            const py = localImpactY + Math.sin(angle) * dist - progress * 10;
+            const dotR = 2.5 + (1 - progress) * 2;
+            g.circle(px, py, dotR);
+            g.fill({ color, alpha: dustAlpha });
+        }
+
+        g.circle(localImpactX, localImpactY, 5 + progress * 8);
+        g.fill({ color: 0xd4d4d8, alpha: dustAlpha * 0.5 });
+
+        if (data.tile) {
+            const tileCenterX = data.tile.col * CELL_SIZE + CELL_SIZE / 2;
+            const tileCenterY = data.tile.row * CELL_SIZE + CELL_SIZE / 2;
+            drawTerrainCrackDecal(
+                g,
+                tileCenterX - effect.x,
+                tileCenterY - effect.y,
+                color,
+                progress,
+            );
+        }
     },
 };

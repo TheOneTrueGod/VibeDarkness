@@ -82,6 +82,9 @@ export abstract class Resource {
     /** Called each round; override for engine-context-dependent recovery (e.g. tile-based gain). */
     onRoundStart?(unit: Unit, engine: EngineContext): void;
 
+    /** Called each simulation tick; override for continuous engine-context-dependent gain (e.g. proximity graze). */
+    onTick?(unit: Unit, engine: EngineContext, dt: number): void;
+
     /** Subclasses add their event subscriptions here. */
     protected abstract subscribe(unit: Unit, eventBus: EventBus): void;
 

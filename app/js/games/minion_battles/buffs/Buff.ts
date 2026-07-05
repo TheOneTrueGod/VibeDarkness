@@ -10,6 +10,18 @@ export type BuffDuration =
     | { value: number; unit: 'rounds' }
     | { value: number; unit: 'seconds' };
 
+import type { Unit } from '../game/units/Unit';
+import type { EventBus } from '../game/EventBus';
+import type { TerrainManager } from '../terrain/TerrainManager';
+
+/** Context passed to {@link Buff.onBeforeExpire} when a timed buff is removed. */
+export interface BuffExpireContext {
+    gameTime: number;
+    roundNumber: number;
+    eventBus: EventBus;
+    terrainManager: TerrainManager | null;
+}
+
 /** Serializable buff data. Subclasses extend with their own fields. */
 export interface BuffSerialized {
     _type: string;
@@ -43,6 +55,12 @@ export abstract class Buff {
     constructor(duration: BuffDuration) {
         this.duration = duration;
     }
+
+    /**
+     * Optional hook invoked once when {@link isExpired} is true, before the buff is removed
+     * from the unit's buff list. Generic engine path — no buff-type branching in the tick loop.
+     */
+    onBeforeExpire?(_unit: Unit, _ctx: BuffExpireContext): void;
 
     /** Check if this buff has expired at the given game state. */
     isExpired(gameTime: number, roundNumber: number): boolean {

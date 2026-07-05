@@ -73,6 +73,10 @@ import { worldModifierDarkSwarmScenario, worldModifierMidBattleAddScenario, worl
 import { deathVfxUnitDefEffectsFireScenario, deathVfxAlphaWolfUnchangedScenario } from './general/deathVfx';
 import { abilityTimingEmitterVisualEffectsFireScenario } from './general/abilityTimingEmitterVfx';
 import { directEffectVfxDefTargetPositionScenario } from './general/directEffectVfxDefPosition';
+import { gravityGrazeScenario } from './abilities/gravityGrazeScenario';
+import { gravityLocusScenario } from './abilities/gravityLocusScenario';
+import { forcePushScenario } from './abilities/forcePushScenario';
+import { gravityInversionScenario } from './abilities/gravityInversionScenario';
 import {
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
@@ -162,6 +166,10 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     lightBlastRangeCapScenario,
     lightBlastHitCapScenario,
     gatherLightCommittedScenario,
+    gravityGrazeScenario,
+    gravityLocusScenario,
+    forcePushScenario,
+    gravityInversionScenario,
     throwKnifePiercingBleedScenario,
     clawMovementDistanceScenario,
     pistolHitsDummyScenario,
@@ -201,6 +209,7 @@ const ABILITY_TREE_GROUPS: AbilityTreeSidebarGroup[] = [
     { treeId: 'tech_shield',   label: 'Tech Shield',    selectorKey: 'tree:tech_shield',   abilityIds: ['0104', '0110', '0113'] },
     { treeId: 'earth_core',    label: 'Earth Core',     selectorKey: 'tree:earth_core',    abilityIds: ['earth_core'] },
     { treeId: 'light',         label: 'Light Core',     selectorKey: 'tree:light',         abilityIds: ['0801', '0802', '0804'] },
+    { treeId: 'gravity_core',  label: 'Gravity',        selectorKey: 'tree:gravity_core',  abilityIds: ['0901', '0902', '0903', 'gravity_core'] },
 ];
 
 export function getAbilityTreeSidebarGroups(): AbilityTreeSidebarGroup[] {
@@ -281,6 +290,10 @@ export function inferScenarioAbilityId(scenario: ScenarioDefinition): string | n
     if (id.startsWith('tech_shield_raise_shield')) return '0104';
     if (id.startsWith('tech_shield_shining_block')) return '0110';
     if (id.startsWith('earth_core_')) return 'earth_core';
+    if (id.startsWith('gravity_graze_')) return 'gravity_core';
+    if (id.startsWith('gravity_locus_')) return '0901';
+    if (id.startsWith('force_push_')) return '0902';
+    if (id.startsWith('gravity_inversion_')) return '0903';
     return null;
 }
 

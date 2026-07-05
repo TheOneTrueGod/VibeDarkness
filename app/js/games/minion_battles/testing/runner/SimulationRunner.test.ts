@@ -47,6 +47,10 @@ import { throwTorchHitsDummyScenario } from '../scenarios/abilities/throwTorchSc
 import { lightImbuementAndImbuedBatScenario } from '../scenarios/abilities/lightImbuementScenario';
 import { lightBlastCommittedScenario } from '../scenarios/abilities/lightBlastScenario';
 import { gatherLightCommittedScenario } from '../scenarios/abilities/gatherLightScenario';
+import { gravityGrazeScenario } from '../scenarios/abilities/gravityGrazeScenario';
+import { gravityLocusScenario } from '../scenarios/abilities/gravityLocusScenario';
+import { forcePushScenario } from '../scenarios/abilities/forcePushScenario';
+import { gravityInversionScenario } from '../scenarios/abilities/gravityInversionScenario';
 import {
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
@@ -409,6 +413,26 @@ describe('runScenarioHeadless', () => {
 
     it('Gather Light (0804): grants Light and darkens caster tile by exactly one step', () => {
         const r = runScenarioHeadless(gatherLightCommittedScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Gravity graze: proximity fills gravity faster than isolation', () => {
+        const r = runScenarioHeadless(gravityGrazeScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Gravity Locus (0901): push nudges outward and pull draws inward without interrupting windup', () => {
+        const r = runScenarioHeadless(gravityLocusScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Force Push (0902): unit-unit collision and terrain bounce deal authored damage', () => {
+        const r = runScenarioHeadless(forcePushScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Gravity Inversion (0903): lift lock, slam damage, and pull lands at caster', () => {
+        const r = runScenarioHeadless(gravityInversionScenario);
         expect(r.passed, r.message).toBe(true);
     });
 });

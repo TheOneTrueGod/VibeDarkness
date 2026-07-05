@@ -142,6 +142,10 @@ export default function BattlePhase({
     const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
     const [selectedAbility, setSelectedAbility] = useState<AbilityStatic | null>(null);
     const [nonconfirmedOrder, setNonconfirmedOrder] = useState<BattleOrder | null>(null);
+    /** Per-ability cast mode (push/pull) — persists for the battle; written into submitted orders. */
+    const [abilityModeByAbilityId, setAbilityModeByAbilityId] = useState<Record<string, string>>({});
+    const abilityModeByAbilityIdRef = useRef<Record<string, string>>({});
+    abilityModeByAbilityIdRef.current = abilityModeByAbilityId;
     /** Playahead state while InteractiveTargetingSession is active. */
     const [interactiveTargetingState, setInteractiveTargetingState] = useState<'inactive' | 'playing' | 'paused' | 'done'>('inactive');
     /** True when every frozen SelectTargetDef label has a collected target (final input received). */
@@ -1041,7 +1045,12 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
         mgr.setCanUseOrderUi(canUseOrderUi);
         mgr.setWaitingForOrders(waitingForOrders);
         mgr.setMyAbilityIds(myAbilityIds);
-    }, [canUseOrderUi, waitingForOrders, myAbilityIds, battleInitPhase]);
+        mgr.setAbilityModeResolver((abilityId) => {
+            const stored = abilityModeByAbilityIdRef.current[abilityId];
+            if (stored !== undefined) return stored;
+            return getAbility(abilityId)?.abilityModes?.defaultMode;
+        });
+    }, [canUseOrderUi, waitingForOrders, myAbilityIds, battleInitPhase, abilityModeByAbilityId]);
 
     // ========================================================================
     // Keydown: delegate to manager.onKeyDown.
@@ -1205,6 +1214,16 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
         ? { activeAbilityId: pausedAbility.abilityId, abilityTagFilter: pausedAbility.conditionalCancelTagFilter }
         : undefined;
 
+    const handleCycleAbilityMode = (abilityId: string, modes: readonly string[]) => {
+        setAbilityModeByAbilityId((prev) => {
+            const current = prev[abilityId] ?? modes[0];
+            const idx = modes.indexOf(current);
+            const next = modes[(idx + 1) % modes.length]!;
+            return { ...prev, [abilityId]: next };
+        });
+        sessionRef.current?.getInteractionManager()?.refreshNonconfirmedAbilityMode(abilityId);
+    };
+
     const abilityBar = (
         <AbilityBar
             abilityIds={myAbilityIds}
@@ -1228,6 +1247,8 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
             gameState={engine}
             allUnits={engine.units}
             conditionalCancelContext={conditionalCancelContext}
+            abilityModeByAbilityId={abilityModeByAbilityId}
+            onCycleAbilityMode={handleCycleAbilityMode}
             onRegisterCardTarget={(key, pageX, pageY) => {
                 hudEffectCanvasRef.current?.registerHudFlightTarget(key, pageX, pageY);
             }}

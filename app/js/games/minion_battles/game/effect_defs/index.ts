@@ -10,14 +10,14 @@ export type { IEffectDef, IEffectRenderContext } from './types';
 import type { IEffectDef, IEffectRenderContext } from './types';
 
 // --- Sub-module imports ---
-import { punchEffectDef, biteEffectDef, slashingSwordEffectDef, coneFlashEffectDef } from './impactEffects';
+import { punchEffectDef, biteEffectDef, slashingSwordEffectDef, coneFlashEffectDef, collisionClashEffectDef, terrainImpactEffectDef } from './impactEffects';
 import { bulletTrailEffectDef, slashTrailEffectDef } from './trailEffects';
-import { afterimageEffectDef, stackGhostEffectDef } from './movementEffects';
+import { afterimageEffectDef, stackGhostEffectDef, nudgeArrowEffectDef } from './movementEffects';
 import { explosionEffectDef } from './explosionEffects';
 import { lightConeBurstEffectDef, LIGHT_CONE_BURST_EFFECT_TYPE } from './lightConeEffects';
 import { chargeUpEffectDef } from './chargeEffects';
 import { casterChargeUpEffectDef, CASTER_CHARGE_UP_EFFECT_TYPE } from './casterChargeUpEffect';
-import { pulseEffectDef, howlShockwaveEffectDef, critShockwaveEffectDef, enrageBurstEffectDef } from './aoeEffects';
+import { pulseEffectDef, howlShockwaveEffectDef, critShockwaveEffectDef, enrageBurstEffectDef, gravityFieldEffectDef, liftColumnEffectDef } from './aoeEffects';
 import {
     darkCreatureIconDeathEffectDef,
     alphaWolfStoryRemnantEffectDef,
@@ -76,6 +76,11 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     AuraPulse: auraPulseEffectDef,
     BrambleExplosion: brambleExplosionEffectDef,
     SpriteEffect: spriteEffectDef,
+    GravityField: gravityFieldEffectDef,
+    NudgeArrow: nudgeArrowEffectDef,
+    CollisionClash: collisionClashEffectDef,
+    TerrainImpact: terrainImpactEffectDef,
+    LiftColumn: liftColumnEffectDef,
 };
 
 /** Get the effect def for an effect type. Falls back to default. */

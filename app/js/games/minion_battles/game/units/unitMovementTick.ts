@@ -2,6 +2,7 @@ import type { Unit } from './Unit';
 import type { EngineContext } from '../EngineContext';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import type { TerrainLayerManager } from '../TerrainLayerManager';
+import { LIFTED_BUFF_TYPE } from '../../buffs/LiftedBuff';
 import { areEnemies } from '../teams';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
@@ -9,6 +10,7 @@ import { PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE } from '../../../../gameConstants
 import { MIN_FOLLOW_RADIUS } from '../gameConstants';
 import { checkNextCellOccupancy } from './unitCellSlide';
 import { updateUnitKnockback } from './unitKnockback';
+import { updateUnitNudge } from './unitNudge';
 import { tickWallUnstick } from './unitWallUnstick';
 
 /** Chebyshev grid tiles; after min wait time, end wait early if a live enemy is this close (wait+move failsafe). */
@@ -37,7 +39,18 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
     const gameTime = eng.gameTime;
     const roundNumber = eng.roundNumber ?? 1;
 
-    // Expire buffs
+    // Expire buffs — optional teardown hooks run before removal
+    const engCtx = engine as EngineContext;
+    for (const b of unit.buffs) {
+        if (b.isExpired(gameTime, roundNumber)) {
+            b.onBeforeExpire?.(unit, {
+                gameTime,
+                roundNumber,
+                eventBus: engCtx.eventBus,
+                terrainManager: engCtx.terrainManager ?? null,
+            });
+        }
+    }
     unit.buffs = unit.buffs.filter((b) => !b.isExpired(gameTime, roundNumber));
 
     // Wait action: enforce minimum and maximum wait duration, allow early end when movement finishes,
@@ -64,8 +77,17 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
 
     // Knockback: unit cannot move normally; apply push and wall bounce
     if (unit.knockback) {
-        updateUnitKnockback(unit, dt, grid, terrainManager);
+        const eng = engine as EngineContext;
+        updateUnitKnockback(unit, dt, grid, terrainManager, {
+            eventBus: eng.eventBus,
+            units: eng.units,
+        });
         return;
+    }
+
+    // Nudge: non-interrupting displacement; movement path and abilities continue
+    if (unit.nudge) {
+        updateUnitNudge(unit, dt, grid, terrainManager);
     }
 
     // Wall recovery: nudge/snap stuck units out of impassable terrain (runs before stun check so
@@ -75,7 +97,7 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
     }
 
     // Stunned/exposed/controlled units must not advance along a movement path (canAct already blocks new orders).
-    if (unit.hasBuff('stunned') || unit.hasBuff('exposed') || unit.controlled) {
+    if (unit.hasBuff('stunned') || unit.hasBuff(LIFTED_BUFF_TYPE) || unit.hasBuff('exposed') || unit.controlled) {
         return;
     }
 

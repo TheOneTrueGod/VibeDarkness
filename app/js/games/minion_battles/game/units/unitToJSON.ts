@@ -46,6 +46,7 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
                 a.castPayload !== undefined
                     ? JSON.parse(JSON.stringify(a.castPayload)) as unknown
                     : undefined,
+            ...(a.abilityMode !== undefined ? { abilityMode: a.abilityMode } : {}),
             ...(a.conditionalCancelPaused ? { conditionalCancelPaused: true } : {}),
             ...(a.conditionalCancelTagFilter !== undefined
                 ? { conditionalCancelTagFilter: [...a.conditionalCancelTagFilter] }
@@ -78,6 +79,14 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
             knockbackSlideTime: unit.knockback.knockbackSlideTime,
             knockbackSource: { ...unit.knockback.knockbackSource },
             knockbackElapsed: unit.knockback.knockbackElapsed,
+            ...(unit.knockback.passThroughTerrain ? { passThroughTerrain: true } : {}),
+            ...(unit.knockback.collideWithUnits ? { collideWithUnits: true } : {}),
+            ...(unit.knockback.bounceOffTerrain ? { bounceOffTerrain: true } : {}),
+        } : null,
+        nudge: unit.nudge ? {
+            nudgeVector: { ...unit.nudge.nudgeVector },
+            nudgeDuration: unit.nudge.nudgeDuration,
+            nudgeElapsed: unit.nudge.nudgeElapsed,
         } : null,
         resources: unit.resources.map((r) => r.toJSON()),
         abilityRuntime: Object.fromEntries(

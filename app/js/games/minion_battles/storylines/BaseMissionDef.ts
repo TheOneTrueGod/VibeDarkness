@@ -44,6 +44,7 @@ import { getPetDef } from '../game/units/pet_defs/petDef';
 import { getAbilityTagsForId } from '../abilities/Ability';
 import { Ammo } from '../resources/Ammo';
 import { Light } from '../resources/Light';
+import { Gravity } from '../resources/Gravity';
 import { Movement } from '../resources/Movement';
 import {
     hydrateLanterniteNestFromMissionDef,
@@ -66,6 +67,7 @@ function attachResourcesFromEquipment(equippedIds: string[], unit: Unit, eventBu
             if (seen.has(rid) || unit.getResource(rid)) continue;
             seen.add(rid);
             if (rid === 'light') unit.attachResource(new Light(), eventBus);
+            if (rid === 'gravity') unit.attachResource(new Gravity(), eventBus);
             // Extend here as more resource-granting items are added.
         }
     }

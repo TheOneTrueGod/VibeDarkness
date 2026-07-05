@@ -37,6 +37,8 @@ export interface CastBehaviourBaseContext {
     caster: Unit;
     /** ID of the ability being executed. Useful for knockback source attribution and event dispatch. */
     abilityId: string;
+    /** Committed cast mode from the order/active ability; defaults to the def's defaultMode when unset. */
+    abilityMode?: string;
     target: ResolvedTarget;
     allTargets: ResolvedTarget[];
     castPayload: unknown;

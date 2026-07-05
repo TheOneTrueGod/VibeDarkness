@@ -1,4 +1,5 @@
 import type { TerrainType } from '../terrain/TerrainType';
+import type { KnockbackSource } from './units/unitTypes';
 
 /**
  * EventBus - Typed pub/sub event system for the battle engine.
@@ -24,7 +25,10 @@ export type GameEventType =
     | 'boss_exposed_cc_suppressed'
     | 'ability_bar_changed'
     | 'control_assigned'
-    | 'control_released';
+    | 'control_released'
+    | 'forced_movement_unit_collision'
+    | 'forced_movement_terrain_collision'
+    | 'unit_slam_landed';
 
 export interface DamageTakenEvent {
     unitId: string;
@@ -145,6 +149,26 @@ export interface ControlChangedEvent {
     groupId: string | null;
 }
 
+export interface ForcedMovementUnitCollisionEvent {
+    movingUnitId: string;
+    struckUnitId: string;
+    impact: { x: number; y: number };
+    source: KnockbackSource;
+}
+
+export interface ForcedMovementTerrainCollisionEvent {
+    unitId: string;
+    impact: { x: number; y: number };
+    tile: { col: number; row: number };
+    source: KnockbackSource;
+}
+
+export interface UnitSlamLandedEvent {
+    unitId: string;
+    position: { x: number; y: number };
+    sourceAbilityId: string;
+}
+
 export type GameEventDataMap = {
     damage_taken: DamageTakenEvent;
     round_start: RoundStartEvent;
@@ -163,6 +187,9 @@ export type GameEventDataMap = {
     ability_bar_changed: AbilityBarChangedEvent;
     control_assigned: ControlChangedEvent;
     control_released: ControlChangedEvent;
+    forced_movement_unit_collision: ForcedMovementUnitCollisionEvent;
+    forced_movement_terrain_collision: ForcedMovementTerrainCollisionEvent;
+    unit_slam_landed: UnitSlamLandedEvent;
 };
 
 type EventCallback<T extends GameEventType> = (data: GameEventDataMap[T]) => void;

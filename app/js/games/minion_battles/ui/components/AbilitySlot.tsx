@@ -6,7 +6,7 @@
  */
 
 import React, { useCallback } from 'react';
-import { getAbilityResourceCosts, type AbilityStatic } from '../../abilities/Ability';
+import { getAbilityResourceCosts, type AbilityModesConfig, type AbilityStatic } from '../../abilities/Ability';
 import type { UnitAbilityRuntimeState } from '../../game/units/Unit';
 import { getAbilityUseConfig } from '../../abilities/abilityUses';
 import { useAbilityUseChargeAnimation, type AbilityChargeAnimRule } from '../abilityUseChargeAnimation';
@@ -36,6 +36,11 @@ interface AbilitySlotProps {
     gameState?: unknown;
     /** Optional ref to the primary recovery pill row for external effects. */
     onPrimaryRecoveryPillRef?: (el: HTMLDivElement | null) => void;
+    /** When set, show a per-cast mode toggle during ability selection/targeting. */
+    abilityModes?: AbilityModesConfig;
+    currentAbilityMode?: string;
+    showModeToggle?: boolean;
+    onCycleAbilityMode?: () => void;
 }
 
 export default function AbilitySlot({
@@ -53,6 +58,10 @@ export default function AbilitySlot({
     onMobileDescriptionDismiss: _onMobileDescriptionDismiss,
     gameState,
     onPrimaryRecoveryPillRef,
+    abilityModes,
+    currentAbilityMode,
+    showModeToggle = false,
+    onCycleAbilityMode,
 }: AbilitySlotProps) {
     const isDisabled = disabledReason !== null;
 
@@ -84,6 +93,13 @@ export default function AbilitySlot({
     const maxUses = Math.max(1, anim.maxUses);
     const isAtFullUses = usesLeft >= maxUses;
     const showRecovery = hasRecovery && !isAtFullUses;
+    const modeLabel = currentAbilityMode === 'pull' ? 'Pull' : currentAbilityMode === 'push' ? 'Push' : currentAbilityMode;
+
+    const handleModeToggle = useCallback((e: React.MouseEvent | React.KeyboardEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
+        onCycleAbilityMode?.();
+    }, [onCycleAbilityMode]);
 
     return (
         <div
@@ -127,6 +143,22 @@ export default function AbilitySlot({
                             />
                         ))}
                     </div>
+                )}
+                {showModeToggle && abilityModes && onCycleAbilityMode && (
+                    <button
+                        type="button"
+                        className="absolute bottom-1 left-1 z-20 flex h-7 min-w-[2.75rem] items-center justify-center rounded border border-violet-400/70 bg-violet-950/90 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200 shadow-sm pointer-events-auto hover:border-violet-300 hover:bg-violet-900"
+                        title={`Mode: ${modeLabel ?? currentAbilityMode} (click to cycle)`}
+                        aria-label={`Ability mode ${modeLabel ?? currentAbilityMode}, click to cycle`}
+                        onClick={handleModeToggle}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                handleModeToggle(e);
+                            }
+                        }}
+                    >
+                        {modeLabel ?? currentAbilityMode}
+                    </button>
                 )}
                 <div
                     className={`flex min-h-0 flex-1 flex-col items-center justify-between ${isDisabled ? 'opacity-50' : ''}`}

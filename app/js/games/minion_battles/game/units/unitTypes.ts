@@ -54,6 +54,10 @@ export interface KnockbackState {
     knockbackElapsed: number;
     /** When true, terrain collision is bypassed so the unit can travel through walls. */
     passThroughTerrain?: boolean;
+    /** When true, sweep movement against other living units and emit collision events. */
+    collideWithUnits?: boolean;
+    /** When true, reflect knockback off blocking terrain instead of halting. */
+    bounceOffTerrain?: boolean;
 }
 
 /** Parameters for applying knockback to a unit. */
@@ -64,6 +68,20 @@ export interface ApplyKnockbackParams {
     knockbackSource: KnockbackSource;
     /** When true, terrain collision is bypassed so the unit can travel through walls. */
     passThroughTerrain?: boolean;
+    /** When true, sweep movement against other living units and emit collision events. */
+    collideWithUnits?: boolean;
+    /** When true, reflect knockback off blocking terrain instead of halting. */
+    bounceOffTerrain?: boolean;
+}
+
+/** Non-interrupting nudge state on a unit. Serializable. */
+export interface NudgeState {
+    /** Total displacement vector (px) applied linearly over nudgeDuration. */
+    nudgeVector: { x: number; y: number };
+    /** Time (seconds) over which the full vector is applied. */
+    nudgeDuration: number;
+    /** Time (seconds) this nudge has been active. */
+    nudgeElapsed: number;
 }
 
 export interface UnitAbilityRuntimeState {

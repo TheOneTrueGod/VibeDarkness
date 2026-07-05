@@ -8,8 +8,9 @@ import { miscTree } from './trees/misc';
 import { earthTree } from './trees/earth';
 import { commandCoreTree } from './trees/command_core';
 import { lightTree } from './trees/light';
+import { gravityTree } from './trees/gravity';
 
-export const RESEARCH_TREES: ResearchTreeDef[] = [techShieldTree, crystalRocksTree, trainingTree, stickSwordTree, miscTree, earthTree, commandCoreTree, lightTree];
+export const RESEARCH_TREES: ResearchTreeDef[] = [techShieldTree, crystalRocksTree, trainingTree, stickSwordTree, miscTree, earthTree, commandCoreTree, lightTree, gravityTree];
 
 export function getResearchTree(treeId: string): ResearchTreeDef | undefined {
     return RESEARCH_TREES.find((t) => t.id === treeId);

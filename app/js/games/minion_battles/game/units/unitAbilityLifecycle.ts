@@ -14,6 +14,7 @@ import {
     syncNestedCardAbilityState,
 } from '../../abilities/abilityUses';
 import { initTelegraphCastPayload } from '../../abilities/telegraphTracking';
+import { resolveActiveAbilityMode } from '../../abilities/resolveAbilityMode';
 
 export function cleanupCastBehavioursForAbility(unit: Unit, active: ActiveAbility, engine: EngineContext): void {
     const ability = getAbility(active.abilityId);
@@ -30,6 +31,7 @@ export function cleanupCastBehavioursForAbility(unit: Unit, active: ActiveAbilit
         const ctx: CastBehaviourInterruptContext = {
             caster: unit,
             abilityId: active.abilityId,
+            abilityMode: resolveActiveAbilityMode(active, ability),
             target,
             allTargets: active.targets,
             castPayload: active.castPayload,
@@ -93,7 +95,13 @@ export function interruptAndRefundUnitAbilities(unit: Unit, engine: EngineContex
     unit.clearAbilityNote();
 }
 
-export function executeUnitAbility(unit: Unit, ability: AbilityStatic, targets: ResolvedTarget[], engine: EngineContext): void {
+export function executeUnitAbility(
+    unit: Unit,
+    ability: AbilityStatic,
+    targets: ResolvedTarget[],
+    engine: EngineContext,
+    orderAbilityMode?: string,
+): void {
     ensureAbilityRuntimeState(unit, ability.id);
     if (!canUseAbilityNow(unit, ability)) return;
     if (!spendAbilityCost(unit, ability)) return;
@@ -126,6 +134,9 @@ export function executeUnitAbility(unit: Unit, ability: AbilityStatic, targets: 
         targets: targets.map((t) => ({ ...t })),
         castBehaviourPayloads: {},
         evadeFired: false,
+        ...(orderAbilityMode !== undefined || ability.abilityModes?.defaultMode !== undefined
+            ? { abilityMode: orderAbilityMode ?? ability.abilityModes!.defaultMode }
+            : {}),
     };
     ability.beginActiveCast?.(engine, unit, active.targets, active);
     // Generic telegraph: capture primary target position when no beginActiveCast set it.

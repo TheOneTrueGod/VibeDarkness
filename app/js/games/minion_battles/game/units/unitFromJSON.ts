@@ -10,7 +10,7 @@ import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 import { PLAYER_CHARACTER_ID } from './unit_defs/unitDef';
 import { deserializeTacticalPlan } from './unitAI/plans/planUtils';
 import type { SerializedTacticalPlan } from './unitAI/plans/types';
-import type { AISettings, KnockbackSource, KnockbackState, UnitAbilityRuntimeState } from './unitTypes';
+import type { AISettings, KnockbackSource, KnockbackState, NudgeState, UnitAbilityRuntimeState } from './unitTypes';
 import type { UnitAIContext } from './unitAI/contextTypes';
 import { applyPetStateFromJSON } from './unitPetState';
 import { applyLanterniteStateFromJSON } from './unitLanterniteState';
@@ -95,6 +95,17 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
             knockbackSlideTime: kb.knockbackSlideTime as number,
             knockbackSource: { ...(kb.knockbackSource as KnockbackSource) },
             knockbackElapsed: kb.knockbackElapsed,
+            ...(kb.passThroughTerrain ? { passThroughTerrain: true } : {}),
+            ...(kb.collideWithUnits ? { collideWithUnits: true } : {}),
+            ...(kb.bounceOffTerrain ? { bounceOffTerrain: true } : {}),
+        };
+    }
+    const ng = data.nudge as NudgeState | null;
+    if (ng && typeof ng.nudgeElapsed === 'number') {
+        unit.nudge = {
+            nudgeVector: { ...(ng.nudgeVector as { x: number; y: number }) },
+            nudgeDuration: ng.nudgeDuration as number,
+            nudgeElapsed: ng.nudgeElapsed,
         };
     }
     unit.wallStuckTime = typeof data.wallStuckTime === 'number' ? data.wallStuckTime : 0;

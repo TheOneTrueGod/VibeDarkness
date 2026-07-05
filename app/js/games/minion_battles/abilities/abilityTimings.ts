@@ -72,13 +72,15 @@ type EmitterDefShared = {
      */
     visualEffects?: VisualEffectDef[];
     /**
-     * Which unit's position to use when spawning `visualEffects`.
-     * - `'caster'` (default) — spawn at the caster's position.
+     * Which position to use for the timing emitter and for `visualEffects`.
+     * - `'caster'` (default) — spawn at the caster's position; emitter follows the caster.
      * - `'target'`           — spawn at the primary target's position (first resolved target).
-     *
-     * Ignored when `visualEffects` is absent or empty.
      */
     effectPosition?: 'caster' | 'target';
+    /**
+     * Optional merge into `effectData` when the timing window opens (e.g. Ability Mode → field direction).
+     */
+    resolveEffectData?: (ctx: { abilityMode?: string }) => Record<string, unknown>;
 };
 
 export type AbilityTimingEmitterDef = EmitterDefShared & (

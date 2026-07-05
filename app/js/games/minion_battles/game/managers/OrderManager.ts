@@ -253,7 +253,7 @@ export class OrderManager {
         const ability = getAbility(order.abilityId);
         if (!ability) return;
 
-        unit.executeAbility(ability, order.targets, this.ctx);
+        unit.executeAbility(ability, order.targets, this.ctx, order.abilityMode);
 
         // Populate targetsByLabel (non-serialized, new-style targeting) from the order payload.
         // Re-map each value to the corresponding entry in active.targets (which are shallow

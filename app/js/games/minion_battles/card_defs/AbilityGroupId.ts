@@ -4,6 +4,7 @@
  * **05 = Earth** skill tree (see `card_defs/05_earth_core/` and `EarthCore.md`). Generic utility cards use **06**.
  * **07 = Command** pet/companion tree (see `card_defs/07_command_core/`).
  * **08 = Light** skill tree (see `card_defs/08_light_core/`).
+ * **09 = Gravity** skill tree (see `card_defs/09_gravity_core/` and `GravityCore.md`).
  */
 export enum AbilityGroupId {
     Enemy = 0,
@@ -15,6 +16,7 @@ export enum AbilityGroupId {
     Utility = 6,
     Command = 7,
     Light = 8,
+    Gravity = 9,
 }
 
 export function formatGroupId(group: AbilityGroupId): string {

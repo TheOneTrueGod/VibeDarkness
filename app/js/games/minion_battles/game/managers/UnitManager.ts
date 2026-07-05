@@ -253,6 +253,13 @@ export class UnitManager {
             if (!unit.active || unit.activeAbilities.length === 0) continue;
             unit.tickActiveAbilities(dt, engine, () => onNaturalAbilityCompletion(unit.id));
         }
+        // Phase 1c: per-tick resource hooks (e.g. gravity grazing)
+        for (const unit of this.units) {
+            if (!unit.active || !unit.isAlive()) continue;
+            for (const resource of unit.resources) {
+                resource.onTick?.(unit, engine, dt);
+            }
+        }
         // Phase 2: movement + ephemeral expiry
         const occupancyMgr = engine.cellOccupancyManager as CellOccupancyManager | null;
         occupancyMgr?.rebuild(this.units);

@@ -47,6 +47,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
     private _waitingForOrders: WaitingForOrders | null = null;
     private _adminMovePendingUnitId: string | null = null;
     private myAbilityIds: string[] = [];
+    private resolveAbilityMode: ((abilityId: string) => string | undefined) | null = null;
     private readonly listeners = new Set<UIListener>();
 
     // -------------------------------------------------------------------------
@@ -111,6 +112,26 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
 
     setMyAbilityIds(ids: string[]): void {
         this.myAbilityIds = ids;
+    }
+
+    /** BattlePhase supplies per-ability mode selection for order submission. */
+    setAbilityModeResolver(resolver: ((abilityId: string) => string | undefined) | null): void {
+        this.resolveAbilityMode = resolver;
+    }
+
+    /** Re-submit nonconfirmed order when the player toggles mode mid-targeting. */
+    refreshNonconfirmedAbilityMode(abilityId: string): void {
+        const order = this.uiState.nonconfirmedOrder;
+        if (!order || order.abilityId !== abilityId || !this.ctx) return;
+        const mode = this.resolveAbilityMode?.(abilityId);
+        const updated: BattleOrder = {
+            ...order,
+            ...(mode !== undefined ? { abilityMode: mode } : {}),
+        };
+        if (updated.abilityMode === order.abilityMode) return;
+        this.uiState = { ...this.uiState, nonconfirmedOrder: updated };
+        void this.ctx.session.submitPlayerOrder(updated, { canSubmitOrders: this._canUseOrderUi });
+        this.emitChange();
     }
 
     // -------------------------------------------------------------------------
@@ -327,6 +348,9 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
             moveTargetUnitId: moveTargetUnitId ?? undefined,
             moveTargetPixel: moveTargetPixel ?? undefined,
             ...(targetsByLabel && Object.keys(targetsByLabel).length > 0 ? { targetsByLabel } : {}),
+            ...(this.resolveAbilityMode?.(abilityId) !== undefined
+                ? { abilityMode: this.resolveAbilityMode!(abilityId) }
+                : {}),
         };
 
         this.defaultTool?.reset();

@@ -41,6 +41,7 @@ export interface EngineContext {
     getWorldHeight(): number;
 
     readonly units: Unit[];
+    readonly projectiles: Projectile[];
     readonly effects: Effect[];
     readonly specialTiles: SpecialTile[];
     readonly terrainLayers: TerrainLayerManager;

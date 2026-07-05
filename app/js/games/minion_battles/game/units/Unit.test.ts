@@ -425,6 +425,7 @@ describe('Unit', () => {
             },
             "movementPaused": true,
             "name": "Golden Snapshot",
+            "nudge": null,
             "ownerId": "p1",
             "pathInvalidated": false,
             "pathfindingRetriggerOffset": 7,

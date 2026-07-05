@@ -208,6 +208,8 @@ export interface BattleOrder {
     }>;
     /** When true, this order ends the unit's turn and allows the parallel batch to resume. */
     endTurn?: boolean;
+    /** Per-cast ability mode committed at order time (e.g. push/pull). Serialized with orders. */
+    abilityMode?: string;
 }
 
 /** An order scheduled to be applied at a specific game tick. */
@@ -281,6 +283,11 @@ export interface ActiveAbility {
      * Prefer this over inferring setup from `doCardEffect` phase boundaries. Serialized with checkpoints.
      */
     castPayload?: unknown;
+    /**
+     * Committed per-cast mode from the BattleOrder (e.g. push/pull). Serialized with checkpoints
+     * so mid-cast recovery preserves the mode behaviours read via ctx.abilityMode.
+     */
+    abilityMode?: string;
     /** Per-behaviour per-cast runtime state. Keyed by `${intervalId}_${behaviourIndex}`. NOT serialized. */
     castBehaviourPayloads?: Record<string, unknown>;
     /**

@@ -1,0 +1,13 @@
+import type { ItemDef } from '../types';
+
+export const coreGravityItem: ItemDef = {
+    id: '018',
+    name: 'Gravity Core',
+    description: 'Channels proximity to danger into gravitational force.',
+    slots: ['core'],
+    slotLayout: { weaponSlots: 1, utilitySlots: 1 },
+    // Gravity Locus (0901) is granted via Gravity Core research `addCard`.
+    cardsToAdd: ['0101', '0120', '0115'],
+    resourcesToAdd: ['gravity'],
+    icon: '018_core_gravity.svg',
+};

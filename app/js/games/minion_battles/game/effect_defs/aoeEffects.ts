@@ -3,6 +3,126 @@ import type { Effect } from '../effects/Effect';
 import type { IEffectDef, IEffectRenderContext } from './types';
 import { drawRingBursts, type RingPulseSpec } from './helpers';
 
+/** Default gravity kit violet (`#a855f7`). */
+export const GRAVITY_VIOLET = 0xa855f7;
+
+export const GRAVITY_FIELD_EFFECT_TYPE = 'GravityField';
+export const LIFT_COLUMN_EFFECT_TYPE = 'LiftColumn';
+
+export interface GravityFieldEffectData {
+    direction?: 'in' | 'out';
+    color?: number;
+    radius?: number;
+}
+
+export interface LiftColumnEffectData {
+    color?: number;
+    radius?: number;
+}
+
+function drawOutwardGravityField(
+    g: Graphics,
+    progress: number,
+    radius: number,
+    color: number,
+): void {
+    const rings: RingPulseSpec[] = [
+        { delay: 0, startRadius: radius * 0.15, endRadius: radius, width: 3, opacityMul: 1 },
+        { delay: 0.08, startRadius: radius * 0.1, endRadius: radius * 0.85, width: 2, opacityMul: 0.75 },
+        { delay: 0.16, startRadius: radius * 0.05, endRadius: radius * 0.7, width: 1.5, opacityMul: 0.55 },
+    ];
+    const colors = [color, color, color];
+    drawRingBursts(g, progress, colors, rings, (effectiveProgress, ring) =>
+        0.55 * ring.opacityMul * (1 - effectiveProgress * 0.95),
+    );
+
+    const crackCount = 8;
+    const crackAlpha = Math.max(0, 0.45 * (1 - progress * 0.6));
+    for (let i = 0; i < crackCount; i++) {
+        const baseAngle = (i / crackCount) * Math.PI * 2;
+        const innerR = radius * (0.2 + progress * 0.15);
+        const outerR = radius * (0.55 + progress * 0.35);
+        const wobble = Math.sin(progress * Math.PI * 4 + i) * 0.08;
+        const angle = baseAngle + wobble;
+        g.moveTo(Math.cos(angle) * innerR, Math.sin(angle) * innerR);
+        g.lineTo(Math.cos(angle) * outerR, Math.sin(angle) * outerR);
+        g.stroke({ color, width: 1.5, alpha: crackAlpha });
+    }
+}
+
+function drawInwardGravityField(
+    g: Graphics,
+    progress: number,
+    radius: number,
+    color: number,
+): void {
+    const streamCount = 6;
+    const particlesPerStream = 5;
+    for (let s = 0; s < streamCount; s++) {
+        const baseAngle = (s / streamCount) * Math.PI * 2 + progress * Math.PI * 0.4;
+        for (let p = 0; p < particlesPerStream; p++) {
+            const phase = (progress + p / particlesPerStream) % 1;
+            const dist = radius * (1 - phase * 0.85);
+            const spiralAngle = baseAngle + phase * Math.PI * 1.2;
+            const x = Math.cos(spiralAngle) * dist;
+            const y = Math.sin(spiralAngle) * dist;
+            const alpha = Math.max(0, 0.5 * (1 - phase));
+            const dotR = 2 + (1 - phase) * 1.5;
+            g.circle(x, y, dotR);
+            g.fill({ color, alpha });
+        }
+        const tailPhase = (progress + 0.5) % 1;
+        const tailDist = radius * (1 - tailPhase * 0.9);
+        const tailAngle = baseAngle + tailPhase * Math.PI * 1.2;
+        const tailX = Math.cos(tailAngle) * tailDist;
+        const tailY = Math.sin(tailAngle) * tailDist;
+        const headX = Math.cos(tailAngle) * Math.max(0, tailDist - radius * 0.18);
+        const headY = Math.sin(tailAngle) * Math.max(0, tailDist - radius * 0.18);
+        g.moveTo(tailX, tailY);
+        g.lineTo(headX, headY);
+        g.stroke({ color, width: 1.5, alpha: Math.max(0, 0.35 * (1 - tailPhase)) });
+    }
+
+    g.circle(0, 0, radius * 0.12);
+    g.stroke({ color, width: 2, alpha: 0.35 + Math.sin(progress * Math.PI * 2) * 0.15 });
+}
+
+function drawLiftColumn(
+    g: Graphics,
+    progress: number,
+    radius: number,
+    color: number,
+): void {
+    const columnHeight = radius * 2.2;
+    const baseAlpha = 0.28 + Math.sin(progress * Math.PI * 2) * 0.08;
+    g.rect(-radius * 0.35, -columnHeight * 0.5, radius * 0.7, columnHeight);
+    g.fill({ color, alpha: baseAlpha * 0.25 });
+
+    const wispCount = 10;
+    for (let i = 0; i < wispCount; i++) {
+        const phase = (progress + i / wispCount) % 1;
+        const x = Math.sin(i * 1.7 + progress * Math.PI * 2) * radius * 0.35;
+        const y = columnHeight * 0.45 - phase * columnHeight * 0.95;
+        const wispR = radius * (0.08 + (1 - phase) * 0.12);
+        const alpha = Math.max(0, 0.55 * (1 - phase));
+        g.circle(x, y, wispR);
+        g.fill({ color, alpha });
+    }
+
+    for (let i = 0; i < 6; i++) {
+        const debrisPhase = (progress * 1.3 + i * 0.17) % 1;
+        const angle = i * 1.05 + progress * 0.6;
+        const x = Math.cos(angle) * radius * 0.25;
+        const y = columnHeight * 0.35 - debrisPhase * columnHeight * 0.8;
+        g.moveTo(x, y);
+        g.lineTo(x + Math.cos(angle + 0.4) * 4, y - 6);
+        g.stroke({ color, width: 1, alpha: Math.max(0, 0.4 * (1 - debrisPhase)) });
+    }
+
+    g.ellipse(0, columnHeight * 0.42, radius * 0.55, radius * 0.18);
+    g.fill({ color, alpha: 0.22 });
+}
+
 /** Pulse effect: three waves of colored circles expanding and fading at different speeds. */
 export const pulseEffectDef: IEffectDef = {
     createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
@@ -100,5 +220,40 @@ export const howlShockwaveEffectDef: IEffectDef = {
         drawRingBursts(g, progress, colors, rings, (effectiveProgress, ring) =>
             0.92 * ring.opacityMul * (1 - effectiveProgress * 1.05),
         );
+    },
+};
+
+/** Gravity Locus field: inward streams (pull) or outward rings/cracks (push). */
+export const gravityFieldEffectDef: IEffectDef = {
+    createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
+        return new Graphics();
+    },
+    updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
+        const g = visual as Graphics;
+        g.clear();
+        const data = (effect.effectData ?? {}) as GravityFieldEffectData;
+        const direction = data.direction ?? 'out';
+        const color = data.color ?? GRAVITY_VIOLET;
+        const radius = data.radius ?? effect.effectRadius ?? 60;
+        if (direction === 'out') {
+            drawOutwardGravityField(g, effect.progress, radius, color);
+        } else {
+            drawInwardGravityField(g, effect.progress, radius, color);
+        }
+    },
+};
+
+/** Rising dust/debris column under a lifted unit (Gravity Inversion telegraph). */
+export const liftColumnEffectDef: IEffectDef = {
+    createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
+        return new Graphics();
+    },
+    updateVisual(visual: Container, effect: Effect, _context: IEffectRenderContext): void {
+        const g = visual as Graphics;
+        g.clear();
+        const data = (effect.effectData ?? {}) as LiftColumnEffectData;
+        const color = data.color ?? GRAVITY_VIOLET;
+        const radius = data.radius ?? effect.effectRadius ?? 18;
+        drawLiftColumn(g, effect.progress, radius, color);
     },
 };

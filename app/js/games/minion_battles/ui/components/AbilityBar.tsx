@@ -76,6 +76,9 @@ interface AbilityBarProps {
         activeAbilityId: string;
         abilityTagFilter?: readonly string[];
     };
+    /** Per-ability committed cast mode (BattlePhase-owned, persists for the battle). */
+    abilityModeByAbilityId?: Record<string, string>;
+    onCycleAbilityMode?: (abilityId: string, modes: readonly string[]) => void;
 }
 
 export default function AbilityBar({
@@ -94,6 +97,8 @@ export default function AbilityBar({
     allUnits = [],
     onRegisterCardTarget,
     conditionalCancelContext,
+    abilityModeByAbilityId = {},
+    onCycleAbilityMode,
 }: AbilityBarProps) {
     const [mobileDescIndex, setMobileDescIndex] = useState<number | null>(null);
     const [isMobile, setIsMobile] = useState(getUsesMobileCardLayout);
@@ -347,7 +352,17 @@ export default function AbilityBar({
                                 const isHovered = hoveredCardId === card.abilityId;
                                 const activeAbilityIds = playerUnit?.activeAbilities.map((a) => a.abilityId) ?? [];
                                 const activeHandIndex = handCards.findIndex((c) => activeAbilityIds.includes(c.abilityId));
+                                const isSelected = selectedCardIndex === index;
                                 const isActive = activeHandIndex >= 0 && index === activeHandIndex && !isMyTurn;
+                                const abilityModes = card.ability.abilityModes;
+                                const currentAbilityMode = abilityModes
+                                    ? (abilityModeByAbilityId[card.abilityId] ?? abilityModes.defaultMode)
+                                    : undefined;
+                                const showModeToggle = Boolean(
+                                    abilityModes &&
+                                    isMyTurn &&
+                                    (isSelected || isHovered),
+                                );
 
                                 return (
                                     <div
@@ -379,6 +394,14 @@ export default function AbilityBar({
                                             onPrimaryRecoveryPillRef={(el) => {
                                                 recoveryPillRefs.current[card.abilityId] = el;
                                             }}
+                                            abilityModes={abilityModes}
+                                            currentAbilityMode={currentAbilityMode}
+                                            showModeToggle={showModeToggle}
+                                            onCycleAbilityMode={
+                                                abilityModes && onCycleAbilityMode
+                                                    ? () => onCycleAbilityMode(card.abilityId, abilityModes.modes)
+                                                    : undefined
+                                            }
                                         />
                                     </div>
                                 );

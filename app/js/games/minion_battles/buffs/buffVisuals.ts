@@ -9,6 +9,7 @@ import type { Buff } from './Buff';
 import { STUNNED_BUFF_TYPE } from './StunnedBuff';
 import { BLEED_BUFF_TYPE, BleedBuff } from './BleedBuff';
 import { EXPOSED_BUFF_TYPE } from './ExposedBuff';
+import { LIFTED_BUFF_TYPE } from './LiftedBuff';
 
 /** Context passed when rendering a buff visual. */
 export interface IBuffVisualContext {
@@ -117,3 +118,10 @@ export function getBuffVisualRenderer(buffType: string): BuffVisualRenderer {
 registerBuffVisual(STUNNED_BUFF_TYPE, stunnedBuffVisual);
 registerBuffVisual(BLEED_BUFF_TYPE, bleedBuffVisual);
 registerBuffVisual(EXPOSED_BUFF_TYPE, stunnedBuffVisual);
+registerBuffVisual(LIFTED_BUFF_TYPE, (g, unit, _buff, _ctx) => {
+    const y = -unit.radius - 8;
+    g.moveTo(-4, y + 4);
+    g.lineTo(0, y - 4);
+    g.lineTo(4, y + 4);
+    g.stroke({ color: 0xa855f7, width: 2, alpha: 0.85 });
+});

@@ -2,6 +2,9 @@ import type { Unit, KnockbackSource } from '../game/units/Unit';
 import { ExposedBuff } from '../buffs/ExposedBuff';
 import { getDirectionFromTo } from '../abilities/targetHelpers';
 import { getEffectiveHardCcThreshold, onSuccessfulHardCcLand, recordHardCcArmourEvent } from './ccArmourState';
+import type { ApplyKnockbackParams } from '../game/units/unitTypes';
+
+export type ForcedMovementCollisionOpts = Pick<ApplyKnockbackParams, 'collideWithUnits' | 'bounceOffTerrain'>;
 
 // ---- Tier table ----
 
@@ -20,6 +23,11 @@ const KNOCKBACK_TIER_DEFS: Record<number, KnockbackTierDef> = {
 export function getKnockbackTierDef(tier: number): KnockbackTierDef | null {
     return KNOCKBACK_TIER_DEFS[tier] ?? null;
 }
+
+/** Slide phase applies half the air vector; total displacement = air + slide = (1 + this) × vector magnitude. */
+export const KNOCKBACK_SLIDE_DISPLACEMENT_FRACTION = 0.5;
+
+export const KNOCKBACK_TOTAL_DISPLACEMENT_FACTOR = 1 + KNOCKBACK_SLIDE_DISPLACEMENT_FRACTION;
 
 // ---- Result type ----
 
@@ -70,13 +78,13 @@ export function knockbackCtxFromEngine(engine: {
  *   - Armour break, ccArmourBreakStunDuration > 0: ExposedBuff + break stun (no physical launch).
  *   - Armour break, ccArmourBreakStunDuration = 0: knockback launches target + ExposedBuff.
  */
-export function tryApplyKnockbackByTier(
+type TierForcedMovementLaunch = (target: Unit, tierDef: KnockbackTierDef) => void;
+
+function _tryApplyTierForcedMovement(
     target: Unit,
     tier: number,
-    source: KnockbackSource,
-    casterX: number,
-    casterY: number,
     engine: KnockbackEngineCtx,
+    launch: TierForcedMovementLaunch,
 ): KnockbackAttemptResult {
     // Units in a juggernaut window are immune to knockback — no armour consumed, no launch.
     if (target.isInJuggernautWindow(engine.gameTime)) {
@@ -92,14 +100,14 @@ export function tryApplyKnockbackByTier(
     if (target.hasBuff('exposed')) {
         // Boss is in their break-stun window — physically launch them without
         // touching the armour counter or stacking another ExposedBuff.
-        _launchKnockback(target, tierDef, source, casterX, casterY, engine);
+        launch(target, tierDef);
         return { outcome: 'applied' };
     }
 
     const threshold = getEffectiveHardCcThreshold(target);
 
     if (threshold <= 0) {
-        _launchKnockback(target, tierDef, source, casterX, casterY, engine);
+        launch(target, tierDef);
         return { outcome: 'applied' };
     }
 
@@ -119,10 +127,42 @@ export function tryApplyKnockbackByTier(
         engine.interruptUnitAndRefundAbilities?.(target);
     } else {
         // No break stun defined — the knockback itself is the CC payoff.
-        _launchKnockback(target, tierDef, source, casterX, casterY, engine);
+        launch(target, tierDef);
         target.addBuff(new ExposedBuff(tierDef.airTime + tierDef.slideTime), engine.gameTime, engine.roundNumber);
     }
     return { outcome: 'applied' };
+}
+
+export function tryApplyKnockbackByTier(
+    target: Unit,
+    tier: number,
+    source: KnockbackSource,
+    casterX: number,
+    casterY: number,
+    engine: KnockbackEngineCtx,
+    collisionOpts?: ForcedMovementCollisionOpts,
+): KnockbackAttemptResult {
+    return _tryApplyTierForcedMovement(target, tier, engine, (t, tierDef) => {
+        _launchKnockback(t, tierDef, source, casterX, casterY, engine, collisionOpts);
+    });
+}
+
+/**
+ * Apply pull by tier — same resistance/CC-armour/exposed gating as knockback, but the launch
+ * vector points toward `pullPoint` and its magnitude is clamped so total displacement never
+ * overshoots the point (air + slide accounted via {@link KNOCKBACK_TOTAL_DISPLACEMENT_FACTOR}).
+ */
+export function tryApplyPullByTier(
+    target: Unit,
+    tier: number,
+    source: KnockbackSource,
+    pullPoint: { x: number; y: number },
+    engine: KnockbackEngineCtx,
+    collisionOpts?: ForcedMovementCollisionOpts,
+): KnockbackAttemptResult {
+    return _tryApplyTierForcedMovement(target, tier, engine, (t, tierDef) => {
+        _launchPull(t, tierDef, source, pullPoint, engine, collisionOpts);
+    });
 }
 
 /**
@@ -136,12 +176,13 @@ export function applyDirectionalKnockback(
     direction: { x: number; y: number },
     source: KnockbackSource,
     engine: KnockbackEngineCtx,
+    collisionOpts?: ForcedMovementCollisionOpts,
 ): KnockbackAttemptResult {
     // Place a synthetic source one unit behind the target along the direction vector,
     // so the computed away-vector equals the passed direction.
     const synthX = target.x - direction.x;
     const synthY = target.y - direction.y;
-    return tryApplyKnockbackByTier(target, tier, source, synthX, synthY, engine);
+    return tryApplyKnockbackByTier(target, tier, source, synthX, synthY, engine, collisionOpts);
 }
 
 function _launchKnockback(
@@ -151,6 +192,7 @@ function _launchKnockback(
     casterX: number,
     casterY: number,
     engine: KnockbackEngineCtx,
+    collisionOpts?: ForcedMovementCollisionOpts,
 ): void {
     const { dirX, dirY } = getDirectionFromTo(casterX, casterY, target.x, target.y);
     target.applyKnockback(
@@ -159,6 +201,36 @@ function _launchKnockback(
             knockbackAirTime: tierDef.airTime,
             knockbackSlideTime: tierDef.slideTime,
             knockbackSource: source,
+            collideWithUnits: collisionOpts?.collideWithUnits,
+            bounceOffTerrain: collisionOpts?.bounceOffTerrain,
+        },
+        engine.eventBus as never,
+        (u) => engine.interruptUnitAndRefundAbilities?.(u),
+    );
+}
+
+function _launchPull(
+    target: Unit,
+    tierDef: KnockbackTierDef,
+    source: KnockbackSource,
+    pullPoint: { x: number; y: number },
+    engine: KnockbackEngineCtx,
+    collisionOpts?: ForcedMovementCollisionOpts,
+): void {
+    const { dirX, dirY, dist } = getDirectionFromTo(target.x, target.y, pullPoint.x, pullPoint.y);
+    if (dist <= 0) return;
+
+    const maxVectorMag = dist / KNOCKBACK_TOTAL_DISPLACEMENT_FACTOR;
+    const magnitude = Math.min(tierDef.magnitude, maxVectorMag);
+
+    target.applyKnockback(
+        {
+            knockbackVector: { x: dirX * magnitude, y: dirY * magnitude },
+            knockbackAirTime: tierDef.airTime,
+            knockbackSlideTime: tierDef.slideTime,
+            knockbackSource: source,
+            collideWithUnits: collisionOpts?.collideWithUnits,
+            bounceOffTerrain: collisionOpts?.bounceOffTerrain,
         },
         engine.eventBus as never,
         (u) => engine.interruptUnitAndRefundAbilities?.(u),

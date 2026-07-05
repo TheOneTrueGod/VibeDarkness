@@ -25,6 +25,7 @@ import {
 } from '../../abilities/abilityUses';
 import type { ResolvedTarget } from '../types';
 import type { Buff } from '../../buffs/Buff';
+import { LIFTED_BUFF_TYPE } from '../../buffs/LiftedBuff';
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 import { getDefaultHp, getUnitCombatCcDef, getUnitEnrageDef } from './unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../../research/researchTrainingEffects';
@@ -47,6 +48,7 @@ import type {
     ApplyKnockbackParams,
     DamageModifier,
     KnockbackState,
+    NudgeState,
     UnitAbilityRuntimeState,
     UnitCombatSettings,
     UnitConfig,
@@ -61,6 +63,7 @@ import { serializeUnit } from './unitToJSON';
 import { applySerializedUnitState, normalizeLegacyUnitIdentity } from './unitFromJSON';
 import { moveUnitToward } from './unitCellSlide';
 import { applyKnockbackToUnit } from './unitKnockback';
+import { applyNudgeToUnit } from './unitNudge';
 import { getUnitEffectiveSpeed, unitHasIFrames, isUnitInJuggernautWindow, getUnitLungeDistance } from './unitAbilityQueries';
 import { updateUnit, tickUnitMovement, setUnitMovement, clearUnitMovement, invalidateUnitMovementPath } from './unitMovementTick';
 import { applyDamageToUnit, tickUnitDarknessCorruption } from './unitDamage';
@@ -198,6 +201,9 @@ export class Unit extends GameObject {
 
     /** Active knockback state; unit cannot move while set. */
     knockback: KnockbackState | null = null;
+
+    /** Active non-interrupting nudge displacement. Serialized. */
+    nudge: NudgeState | null = null;
 
     /** Seconds this unit has spent inside an impassable tile. Serialized. */
     wallStuckTime: number = 0;
@@ -338,6 +344,11 @@ export class Unit extends GameObject {
         return applyKnockbackToUnit(this, params, _eventBus, onApplied);
     }
 
+    /** Apply a non-interrupting nudge displacement (no CC gate, no path clear, no ability interrupt). */
+    applyNudge(vector: { x: number; y: number }, durationSeconds: number): void {
+        applyNudgeToUnit(this, vector, durationSeconds);
+    }
+
     /** Whether the unit is currently being knocked back (cannot move or act). */
     isInKnockback(): boolean {
         return this.knockback !== null;
@@ -401,6 +412,7 @@ export class Unit extends GameObject {
             this.isAlive() &&
             !this.isInKnockback() &&
             !this.hasBuff('stunned') &&
+            !this.hasBuff(LIFTED_BUFF_TYPE) &&
             !this.hasBuff('exposed') &&
             !this.controlled &&
             this.activeAbilities.length === 0 &&
@@ -457,7 +469,12 @@ export class Unit extends GameObject {
 
     interruptAndRefundAbilities(engine: EngineContext): void { interruptAndRefundUnitAbilities(this, engine); }
 
-    executeAbility(ability: AbilityStatic, targets: ResolvedTarget[], engine: EngineContext): void { executeUnitAbility(this, ability, targets, engine); }
+    executeAbility(
+        ability: AbilityStatic,
+        targets: ResolvedTarget[],
+        engine: EngineContext,
+        orderAbilityMode?: string,
+    ): void { executeUnitAbility(this, ability, targets, engine, orderAbilityMode); }
 
     /** Set the ability note (overwrites any existing). Used by abilities during execution. */
     setAbilityNote(note: { abilityId: string; abilityNote: unknown } | null): void {

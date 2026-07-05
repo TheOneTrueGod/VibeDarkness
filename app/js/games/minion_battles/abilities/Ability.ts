@@ -118,6 +118,12 @@ export interface AbilityAISettings {
 
 export type AbilityKeyword = 'nestedCard';
 
+/** Per-cast mode options declared on an ability (distinct from research-granted AbilityModifier). */
+export interface AbilityModesConfig {
+    modes: readonly string[];
+    defaultMode: string;
+}
+
 /**
  * Declarative windup telegraph rendered generically by `PreviewRenderer`.
  * When set, `Unit.executeAbility` captures the primary target position into
@@ -316,6 +322,12 @@ export interface AbilityStatic {
      * Use for abilities where continued movement after casting is unexpected (e.g. Throw Torch).
      */
     readonly clearMovementOnComplete?: boolean;
+
+    /**
+     * Optional per-cast mode toggle (e.g. push/pull). Mode is committed on the BattleOrder and
+     * copied to ActiveAbility at cast start — behaviours read `ctx.abilityMode`, not UI state.
+     */
+    readonly abilityModes?: AbilityModesConfig;
 
     /**
      * Half-open timing intervals for UI (timeline, segmented cooldown ring) and duration (`max(end)`).
