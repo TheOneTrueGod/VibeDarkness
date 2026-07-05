@@ -459,6 +459,15 @@ export class InteractiveTargetingSession {
     }
 
     /**
+     * Ends an active preview when conditional cancel commits a real parallel pause.
+     * Keeps the live engine state (e.g. in-wall position) — does not restore the mark snapshot.
+     */
+    endPreviewForConditionalCancel(): void {
+        this.heldRemoteOrders.clear();
+        this._clearActive();
+    }
+
+    /**
      * Restore to mark and re-queue the ability order with all targets collected so far
      * pre-filled in `targetsByLabel`, so the engine runs without pausing again.
      */

@@ -132,6 +132,8 @@ Abilities without windup lunge (e.g. Double Punch, Light Blast) keep using pre-t
 
 **Victory/defeat during preview:** `LevelEventManager` latches terminal state (`isTerminal`) when checks pass, but `BattleSession` wrappers skip `onVictory`/`onDefeat` while `isSequentialTargetingPreview` is set. In-place `commit()` calls `reemitSuppressedTerminalOutcome` so a one-shot result is not lost.
 
+**Conditional cancel during preview (Entombed wall):** When a cast interval with `conditionalCancel` exits inside impassable terrain (e.g. Digging Claws dash into rock), the engine commits a normal parallel-order pause even on the host ITS playahead path. The preview session ends without restoring the mark snapshot (in-wall position is kept). `waitingForOrders` and the Entombed Continue/swap UI behave like a non-ITS conditional cancel.
+
 ### Rewind overlay
 
 On every rollback restore (`commit` rollback path, `reset`, `replay`), ITS emits `sequential_targeting_rewind` **before** `_restoreToMark`. `BattlePhase` captures the canvas frame into a DOM overlay (not Pixi — the renderer is torn down), shows "⏪ Rewind", and fades it out (~500 ms) while the engine rebuilds underneath. In-place commit never restores and never emits.
@@ -151,6 +153,7 @@ The pill in the bottom-centre of the canvas reflects the current state of the pr
 | **Playing** | Green / Play icon | Engine is running the preview animation (no input needed right now) |
 | **Paused** | Amber / Pause icon | Engine is stopped waiting for the player to click a target |
 | **Done** | Sky-blue / Stop icon | All targets collected; player can Confirm or Replay |
+| **Conditional cancel** | (preview ends) | Entombed wall conditional cancel fired mid-cast — ITS preview stops, `waitingForOrders` commits, Entombed Continue/swap UI appears (same as non-ITS) |
 
 The **targeting cursor** (hitbox preview overlay) is only rendered when the state is **Paused**. During the Playing phase between target selections no cursor is shown.
 

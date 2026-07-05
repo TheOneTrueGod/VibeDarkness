@@ -46,6 +46,17 @@ import type { PlayerState } from '../../../types';
 import { BattleSession } from './BattleSession';
 import { OrderManager } from './managers/OrderManager';
 import { hashOrderId } from './battlenet/helpers/orderHashing';
+import { TerrainType } from '../terrain/TerrainType';
+import { Movement } from '../resources/Movement';
+
+/** Digging Claws ability id — matches `0534Ability.ts`. */
+const DIGGING_CLAWS_ABILITY_ID = '0534';
+const DIGGING_CLAWS_DASH_LABEL = 'Direction to dash';
+/** Rock column block used by earth-core digging-claws scenarios. */
+const DC_ROCK_START_COL = 5;
+const DC_ROCK_END_COL = 6;
+const DC_ROCK_START_ROW = 2;
+const DC_ROCK_END_ROW = 8;
 
 /** Double Punch ability id — matches `DoublePunchAbility.id` in `0116Ability.ts`. */
 const DOUBLE_PUNCH_ABILITY_ID = '0116';
@@ -1910,6 +1921,145 @@ describe('Reset/Replay pre-restore refresh (Step 2)', () => {
         expect(
             restoredEngine.state.orderMgr.hasPendingEndTurnOrderForUnit(remoteUnitId, atTick),
         ).toBe(true);
+
+        session.destroy();
+    });
+});
+
+describe('interactive sequential targeting — conditional cancel stop point', () => {
+    function buildDiggingClawsRockFixture() {
+        resetGameObjectIdCounter(1);
+        const engine = buildTinyBattleEngine({
+            gridW: 14,
+            gridH: 10,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+        for (let col = DC_ROCK_START_COL; col <= DC_ROCK_END_COL; col++) {
+            for (let row = DC_ROCK_START_ROW; row <= DC_ROCK_END_ROW; row++) {
+                engine.terrainManager!.grid.set(col, row, TerrainType.Rock);
+            }
+        }
+        const playerX = 2 * CELL_SIZE + CELL_SIZE / 2;
+        const playerY = 5 * CELL_SIZE + CELL_SIZE / 2;
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: playerX,
+            y: playerY,
+            abilities: [DIGGING_CLAWS_ABILITY_ID],
+        });
+        player.attachResource(new Movement(), engine.eventBus);
+        const targetInRock = {
+            x: DC_ROCK_START_COL * CELL_SIZE + CELL_SIZE / 2,
+            y: playerY,
+        };
+        return { engine, player, targetInRock };
+    }
+
+    it('host ITS preview commits waitingForOrders when Digging Claws dash ends in rock', () => {
+        const { engine, player, targetInRock } = buildDiggingClawsRockFixture();
+
+        stepUntil(engine, () => engine.waitingForOrders != null);
+
+        engine.isSequentialTargetingPreview = true;
+        engine.sequentialTargetingPreviewCast = {
+            unitId: player.id,
+            abilityId: DIGGING_CLAWS_ABILITY_ID,
+            startRound: engine.roundNumber,
+        };
+
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: DIGGING_CLAWS_ABILITY_ID,
+            targets: [{ type: 'pixel', position: targetInRock }],
+            targetsByLabel: { [DIGGING_CLAWS_DASH_LABEL]: { type: 'pixel', position: targetInRock } },
+            endTurn: true,
+        });
+
+        const settled = stepUntil(
+            engine,
+            () =>
+                player.activeAbilities.some((a) => a.conditionalCancelPaused)
+                && engine.waitingForOrders != null,
+            400,
+        );
+
+        expect(settled).toBe(true);
+        expect(engine.isSequentialTargetingPreview).toBe(false);
+        expect(engine.sequentialTargetingPreviewCast).toBeNull();
+        expect(engine.isPaused).toBe(true);
+        expect(engine.state.orderMgr.getActiveOrderWaiterForPlayer(TINY_BATTLE_PLAYER_ID)).not.toBeNull();
+        expect(engine.terrainManager!.isPassable(player.x, player.y)).toBe(false);
+
+        engine.destroy();
+    });
+
+    it('host BattleSession ITS ends preview when Digging Claws triggers conditional cancel in rock', async () => {
+        const session = new BattleSession({
+            api: makeApiStub(),
+            missionId: 'dark_awakening',
+            playerId: TINY_BATTLE_PLAYER_ID,
+            isHost: true,
+        });
+        await session.load({
+            players: { [TINY_BATTLE_PLAYER_ID]: { id: TINY_BATTLE_PLAYER_ID, name: 'P1', color: '#fff' } },
+            characterSelections: { [TINY_BATTLE_PLAYER_ID]: 'warrior' },
+            battleSeed: 1,
+        });
+        const engine = session.getEngine()!;
+        engine.stop();
+
+        for (let col = DC_ROCK_START_COL; col <= DC_ROCK_END_COL; col++) {
+            for (let row = DC_ROCK_START_ROW; row <= DC_ROCK_END_ROW; row++) {
+                engine.terrainManager!.grid.set(col, row, TerrainType.Rock);
+            }
+        }
+
+        const player = engine.getLocalPlayerUnit()!;
+        const playerX = 2 * CELL_SIZE + CELL_SIZE / 2;
+        const playerY = 5 * CELL_SIZE + CELL_SIZE / 2;
+        player.x = playerX;
+        player.y = playerY;
+        player.abilities = [DIGGING_CLAWS_ABILITY_ID];
+        initializeAbilityRuntimeForUnit(player);
+        player.attachResource(new Movement(), engine.eventBus);
+
+        stepUntil(engine, () => engine.waitingForOrders != null);
+
+        const targetInRock = {
+            x: DC_ROCK_START_COL * CELL_SIZE + CELL_SIZE / 2,
+            y: playerY,
+        };
+        const its = session.interactiveTargeting;
+        its.begin(
+            {
+                unitId: player.id,
+                abilityId: DIGGING_CLAWS_ABILITY_ID,
+                targets: [],
+                endTurn: true,
+            },
+            session,
+        );
+        expect(engine.waitingForTargetInput?.label).toBe(DIGGING_CLAWS_DASH_LABEL);
+
+        its.resolveTarget(
+            DIGGING_CLAWS_DASH_LABEL,
+            { type: 'pixel', position: targetInRock },
+            session,
+        );
+
+        const settled = stepUntil(
+            engine,
+            () =>
+                player.activeAbilities.some((a) => a.conditionalCancelPaused)
+                && engine.waitingForOrders != null,
+            400,
+        );
+
+        expect(settled).toBe(true);
+        expect(its.isActive).toBe(false);
+        expect(engine.isSequentialTargetingPreview).toBe(false);
+        expect(engine.state.orderMgr.getActiveOrderWaiterForPlayer(TINY_BATTLE_PLAYER_ID)).not.toBeNull();
 
         session.destroy();
     });

@@ -261,6 +261,17 @@ export class BattleSession implements BattleSessionHandle {
                 },
             });
         });
+        engine.setOnEndItsForConditionalCancel(() => {
+            if (this.interactiveTargeting.isActive) {
+                this.interactiveTargeting.endPreviewForConditionalCancel();
+            }
+            this.rebindEngineCallbacks();
+            this.emit({
+                type: 'pause_state',
+                paused: true,
+                waitingForOrders: engine.waitingForOrders,
+            });
+        });
     }
 
     private finalizeEngine(engine: GameEngine): void {
