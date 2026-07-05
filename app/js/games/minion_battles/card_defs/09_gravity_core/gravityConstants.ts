@@ -6,19 +6,19 @@
  */
 
 /** Floor gravity gain per round when far from enemies and projectiles. */
-export const GRAVITY_MIN_PER_ROUND = 5;
+export const GRAVITY_MIN_PER_ROUND = 2;
 
 /** Max gravity gain per round from grazing a nearby enemy unit. */
-export const GRAVITY_MAX_PER_ROUND_UNITS = 20;
+export const GRAVITY_MAX_PER_ROUND_UNITS = 5;
 
 /** Max gravity gain per round from grazing a nearby enemy projectile (higher than units). */
-export const GRAVITY_MAX_PER_ROUND_PROJECTILES = 35;
+export const GRAVITY_MAX_PER_ROUND_PROJECTILES = 10;
 
 /** Edge-to-edge graze distance at/under which the max rate applies. */
-export const GRAVITY_GRAZE_MIN_DISTANCE = 20;
+export const GRAVITY_GRAZE_MIN_DISTANCE = 10;
 
 /** Edge-to-edge graze distance at/over which only the floor rate applies. */
-export const GRAVITY_GRAZE_MAX_DISTANCE = 120;
+export const GRAVITY_GRAZE_MAX_DISTANCE = 50;
 
 /** Ability Mode values shared by all Gravity Core cards. */
 export const GRAVITY_ABILITY_MODE_PUSH = 'push';
@@ -53,10 +53,10 @@ export const FORCE_PUSH_GRAVITY_COST = 5;
 export const GRAVITY_INVERSION_MAX_RANGE = 160;
 export const GRAVITY_INVERSION_PREFIRE_TIME = 0.4;
 export const GRAVITY_INVERSION_ACTIVE_DURATION = 0.1;
-export const GRAVITY_INVERSION_COOLDOWN_DURATION = 1.5;
+export const GRAVITY_INVERSION_COOLDOWN_DURATION = 1;
 export const GRAVITY_INVERSION_AOE_RADIUS = 45;
 export const GRAVITY_INVERSION_MAX_TARGETS = 5;
-export const GRAVITY_INVERSION_LIFT_DURATION = 1.5;
+export const GRAVITY_INVERSION_LIFT_DURATION = 2;
 export const GRAVITY_INVERSION_SLAM_DAMAGE = 6;
 export const GRAVITY_INVERSION_GRAVITY_COST = 5;
 /** Extra gap (px) beyond edge-to-edge when Pull mode slams a target in front of the caster. */
