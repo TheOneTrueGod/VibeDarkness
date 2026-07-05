@@ -4,7 +4,7 @@ import { GRAVITY_CORE_MISSION_START_AMOUNT } from '../../games/minion_battles/ca
 
 export const GRAVITY_TREE_ID = 'gravity_core';
 export const GRAVITY_NODE_CORE = 'gravity_core';
-export const GRAVITY_NODE_FORCE_PUSH = 'force_push';
+export const GRAVITY_NODE_GRAVITY_LOCUS = 'gravity_locus';
 export const GRAVITY_NODE_GRAVITY_INVERSION = 'gravity_inversion';
 
 export const gravityTree: ResearchTreeDef = {
@@ -15,7 +15,8 @@ export const gravityTree: ResearchTreeDef = {
         {
             id: GRAVITY_NODE_CORE,
             title: 'Gravity Core',
-            description: 'Channel proximity to danger into gravitational force. Learn to bend the battlefield with a Gravity Locus.',
+            description:
+                'Channel proximity to danger into gravitational force. Learn to fling enemies with aimed Force Push.',
             flavorText: 'The void does not pull — you decide which way things fall.',
             order: 5,
             tier: 10,
@@ -27,16 +28,17 @@ export const gravityTree: ResearchTreeDef = {
             effects: [
                 { type: 'replaceEquippedItem', fromItemId: '004', toItemId: '018' },
                 { type: 'replaceEquippedItem', fromItemId: '017', toItemId: '018' },
-                { type: 'addCard', cardId: '0901' },
+                { type: 'addCard', cardId: '0902' },
                 { type: 'grantMissionStartResource', resourceId: 'gravity', amount: GRAVITY_CORE_MISSION_START_AMOUNT },
             ],
-            modifiesAbility: { from: '0901', to: '0901' },
+            modifiesAbility: { from: '0902', to: '0902' },
         },
         {
-            id: GRAVITY_NODE_FORCE_PUSH,
-            title: 'Force Push',
-            description: 'Fling an enemy with crushing force. Collisions with units and walls deal damage.',
-            flavorText: 'Momentum has a price — someone always pays.',
+            id: GRAVITY_NODE_GRAVITY_LOCUS,
+            title: 'Gravity Locus',
+            description:
+                'Deploy a sustained gravity field at a point. Nudge enemies outward or draw them inward without interrupting their actions.',
+            flavorText: 'Bend the battlefield — one pulse at a time.',
             order: 10,
             tier: 2,
             position: { x: 420, y: 290 },
@@ -47,8 +49,9 @@ export const gravityTree: ResearchTreeDef = {
             ],
             cost: {},
             effects: [
-                { type: 'addCard', cardId: '0902' },
+                { type: 'addCard', cardId: '0901' },
             ],
+            modifiesAbility: { from: '0901', to: '0901' },
         },
         {
             id: GRAVITY_NODE_GRAVITY_INVERSION,

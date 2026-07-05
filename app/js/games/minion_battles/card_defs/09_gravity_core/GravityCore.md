@@ -14,11 +14,11 @@ Gravity is a **control kit**, not a primary damage kit. Damage exists to punish 
 
 The tree ships three abilities on a simple spine (Tier 3 upgrades are out of scope for v1):
 
-| Card id | Ability | Role |
-|---------|---------|------|
-| **0901** | **Gravity Locus** | Non-interrupting **nudge** field at a point (short ~1s cast deploys a field that pulses for `GRAVITY_LOCUS_FIELD_DURATION`s after the cast ends); Push/Pull via Ability Mode |
-| **0902** | **Force Push** | Two-step **aimed fling** — pick enemy, then landing pixel — with unit/wall collision damage (only ability with collision damage) |
-| **0903** | **Gravity Inversion** | **Lift** + hard CC + slam; mode changes horizontal landing only |
+| Card id | Ability | Research unlock | Role |
+|---------|---------|-----------------|------|
+| **0902** | **Force Push** | **Gravity Core** (tier 1) | Two-step **aimed fling** — pick enemy, then landing pixel — with unit/wall collision damage (only ability with collision damage) |
+| **0901** | **Gravity Locus** | **Gravity Locus** node (tier 2) | Non-interrupting **nudge** field at a point (short ~1s cast deploys a field that pulses for `GRAVITY_LOCUS_FIELD_DURATION`s after the cast ends); Push/Pull via Ability Mode |
+| **0903** | **Gravity Inversion** | **Gravity Inversion** node (tier 2) | **Lift** + hard CC + slam; mode changes horizontal landing only |
 
 All three share the same **Ability Mode** toggle (`'push' | 'pull'`), set per cast during targeting — distinct from static research `AbilityModifier` tweaks.
 

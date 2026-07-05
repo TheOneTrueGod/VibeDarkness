@@ -4,7 +4,10 @@ import { getDirectionFromTo } from '../abilities/targetHelpers';
 import { getEffectiveHardCcThreshold, onSuccessfulHardCcLand, recordHardCcArmourEvent } from './ccArmourState';
 import type { ApplyKnockbackParams } from '../game/units/unitTypes';
 
-export type ForcedMovementCollisionOpts = Pick<ApplyKnockbackParams, 'collideWithUnits' | 'bounceOffTerrain'>;
+export type ForcedMovementCollisionOpts = Pick<
+    ApplyKnockbackParams,
+    'collideWithUnits' | 'bounceOffTerrain' | 'unitCollisionStartFraction'
+>;
 
 // ---- Tier table ----
 
@@ -250,6 +253,7 @@ export function tryApplyAimedKnockbackByTier(
                 knockbackSource: source,
                 collideWithUnits: collisionOpts?.collideWithUnits,
                 bounceOffTerrain: collisionOpts?.bounceOffTerrain,
+                unitCollisionStartFraction: collisionOpts?.unitCollisionStartFraction,
             },
             engine.eventBus as never,
             (u) => engine.interruptUnitAndRefundAbilities?.(u),
@@ -275,6 +279,7 @@ function _launchKnockback(
             knockbackSource: source,
             collideWithUnits: collisionOpts?.collideWithUnits,
             bounceOffTerrain: collisionOpts?.bounceOffTerrain,
+            unitCollisionStartFraction: collisionOpts?.unitCollisionStartFraction,
         },
         engine.eventBus as never,
         (u) => engine.interruptUnitAndRefundAbilities?.(u),
@@ -303,6 +308,7 @@ function _launchPull(
             knockbackSource: source,
             collideWithUnits: collisionOpts?.collideWithUnits,
             bounceOffTerrain: collisionOpts?.bounceOffTerrain,
+            unitCollisionStartFraction: collisionOpts?.unitCollisionStartFraction,
         },
         engine.eventBus as never,
         (u) => engine.interruptUnitAndRefundAbilities?.(u),

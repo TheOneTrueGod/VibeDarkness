@@ -65,7 +65,7 @@ export const GravityLocusAbility = defineAbility({
     prefireTime: GRAVITY_LOCUS_PREFIRE_TIME,
     abilityModes: {
         modes: [GRAVITY_ABILITY_MODE_PUSH, GRAVITY_ABILITY_MODE_PULL],
-        defaultMode: GRAVITY_ABILITY_MODE_PUSH,
+        defaultMode: GRAVITY_ABILITY_MODE_PULL,
     },
     abilityTimings: [
         {
@@ -105,7 +105,7 @@ export const GravityLocusAbility = defineAbility({
     getTooltipText(): string[] {
         return [
             `Deploy a gravity field for ${GRAVITY_LOCUS_FIELD_DURATION}s, nudging enemies within {${GRAVITY_LOCUS_FIELD_RADIUS}} each pulse.`,
-            'Push repels from the locus; Pull draws inward.',
+            'Pull draws inward; Push repels from the locus.',
         ];
     },
 
@@ -127,7 +127,7 @@ export const GravityLocusAbility = defineAbility({
 
         const ctx = engine as EngineContext;
         caster.addBuff(
-            new GravityLocusFieldBuff(locus, active?.abilityMode ?? GRAVITY_ABILITY_MODE_PUSH),
+            new GravityLocusFieldBuff(locus, active?.abilityMode ?? GRAVITY_ABILITY_MODE_PULL),
             ctx.gameTime,
             ctx.roundNumber,
             ctx.eventBus,

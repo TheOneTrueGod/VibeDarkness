@@ -58,6 +58,11 @@ export interface KnockbackState {
     collideWithUnits?: boolean;
     /** When true, reflect knockback off blocking terrain instead of halting. */
     bounceOffTerrain?: boolean;
+    /**
+     * Fraction of total knockback displacement (air + slide) before unit–unit collision
+     * activates. Terrain collision is unaffected. Omitted or 0 = check from first tick.
+     */
+    unitCollisionStartFraction?: number;
 }
 
 /** Parameters for applying knockback to a unit. */
@@ -72,6 +77,11 @@ export interface ApplyKnockbackParams {
     collideWithUnits?: boolean;
     /** When true, reflect knockback off blocking terrain instead of halting. */
     bounceOffTerrain?: boolean;
+    /**
+     * Fraction of total knockback displacement (air + slide) before unit–unit collision
+     * activates. Terrain collision is unaffected. Omitted or 0 = check from first tick.
+     */
+    unitCollisionStartFraction?: number;
 }
 
 /** Non-interrupting nudge state on a unit. Serializable. */

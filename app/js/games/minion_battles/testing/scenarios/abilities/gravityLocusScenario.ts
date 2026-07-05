@@ -23,6 +23,7 @@ import { Gravity } from '../../../resources/Gravity';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import {
     GRAVITY_ABILITY_MODE_PULL,
+    GRAVITY_ABILITY_MODE_PUSH,
     GRAVITY_LOCUS_GRAVITY_COST,
     GRAVITY_LOCUS_PREFIRE_TIME,
 } from '../../../card_defs/09_gravity_core/gravityConstants';
@@ -108,6 +109,7 @@ export const gravityLocusScenario: ScenarioDefinition = {
         return [{
             unitId: player.id,
             abilityId: GRAVITY_LOCUS_ID,
+            abilityMode: GRAVITY_ABILITY_MODE_PUSH,
             targets: [{ type: 'pixel', position: PUSH_LOCUS_POS }],
         }];
     },

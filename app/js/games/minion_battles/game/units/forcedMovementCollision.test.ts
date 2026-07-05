@@ -7,6 +7,7 @@ import type {
 } from '../EventBus';
 import { applyKnockbackToUnit, updateUnitKnockback } from './unitKnockback';
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
+import { KNOCKBACK_TOTAL_DISPLACEMENT_FACTOR } from '../../crowdControl/knockbackKeywords';
 import { TerrainGrid, CELL_SIZE } from '../../terrain/TerrainGrid';
 import { TerrainManager } from '../../terrain/TerrainManager';
 import { TerrainType } from '../../terrain/TerrainType';
@@ -55,7 +56,11 @@ function makeTerrainManager(cols: number, rows: number): TerrainManager {
 
 function applyTestKnockback(
     unit: Unit,
-    opts: { collideWithUnits?: boolean; bounceOffTerrain?: boolean } = {},
+    opts: {
+        collideWithUnits?: boolean;
+        bounceOffTerrain?: boolean;
+        unitCollisionStartFraction?: number;
+    } = {},
 ): EventBus {
     const eventBus = new EventBus();
     applyKnockbackToUnit(
@@ -67,6 +72,7 @@ function applyTestKnockback(
             knockbackSource: COLLISION_SOURCE,
             collideWithUnits: opts.collideWithUnits,
             bounceOffTerrain: opts.bounceOffTerrain,
+            unitCollisionStartFraction: opts.unitCollisionStartFraction,
         },
         eventBus,
     );
@@ -111,6 +117,53 @@ describe('forced movement unit collision', () => {
         expect(unitCollisions[0].impact.y).toBeCloseTo(SHARED_Y, 4);
         expect(mover.x).toBeCloseTo(EXPECTED_CONTACT_X, 4);
         expect(struck.x).toBe(STRUCK_CENTER_X);
+    });
+
+    it('does not move when already touching a blocker with no collision grace', () => {
+        const mover = makeUnit({ id: 'mover', x: EXPECTED_CONTACT_X, y: SHARED_Y });
+        const struck = makeUnit({
+            id: 'struck',
+            x: STRUCK_CENTER_X,
+            y: SHARED_Y,
+            teamId: 'enemy',
+        });
+        const units = [mover, struck];
+        const startX = mover.x;
+        const eventBus = applyTestKnockback(mover, { collideWithUnits: true });
+
+        while (mover.knockback) {
+            tickKnockback(mover, eventBus, units, null);
+        }
+
+        expect(mover.x).toBeCloseTo(startX, 4);
+    });
+
+    it('travels through grace distance before unit collision when already touching a blocker', () => {
+        const graceFraction = 0.25;
+        const totalDisplacement =
+            Math.hypot(RIGHTWARD_KNOCKBACK_VECTOR.x, RIGHTWARD_KNOCKBACK_VECTOR.y)
+            * KNOCKBACK_TOTAL_DISPLACEMENT_FACTOR;
+        const graceDistance = totalDisplacement * graceFraction;
+
+        const mover = makeUnit({ id: 'mover', x: EXPECTED_CONTACT_X, y: SHARED_Y });
+        const struck = makeUnit({
+            id: 'struck',
+            x: STRUCK_CENTER_X,
+            y: SHARED_Y,
+            teamId: 'enemy',
+        });
+        const units = [mover, struck];
+        const startX = mover.x;
+        const eventBus = applyTestKnockback(mover, {
+            collideWithUnits: true,
+            unitCollisionStartFraction: graceFraction,
+        });
+
+        while (mover.knockback) {
+            tickKnockback(mover, eventBus, units, null);
+        }
+
+        expect(mover.x - startX).toBeGreaterThan(graceDistance * 0.9);
     });
 });
 

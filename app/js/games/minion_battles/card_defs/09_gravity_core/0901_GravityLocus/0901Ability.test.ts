@@ -107,6 +107,24 @@ function advanceSimulation(
 }
 
 describe('GravityLocusAbility', () => {
+    it('defaults to pull mode when abilityMode is omitted', () => {
+        const caster = makeCaster(100);
+        const enemy = makeEnemy('enemy', 140, 100);
+        const engine = makeEngine([caster, enemy]);
+
+        executeUnitAbility(
+            caster,
+            GravityLocusAbility,
+            [{ type: 'pixel', position: { ...LOCUS } }],
+            engine,
+        );
+
+        advanceSimulation([caster, enemy], engine, GRAVITY_LOCUS_PREFIRE_TIME + 1.2, [caster]);
+
+        expect(enemy.x).toBeLessThan(140);
+        expect(Math.hypot(enemy.x - LOCUS.x, enemy.y - LOCUS.y)).toBeLessThan(3);
+    });
+
     it('push mode moves enemies outward without interrupting an enemy mid-windup', () => {
         const caster = makeCaster(100);
         const enemy = makeEnemy('enemy', 120, 100);

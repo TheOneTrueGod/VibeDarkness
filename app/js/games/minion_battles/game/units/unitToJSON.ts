@@ -82,6 +82,9 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
             ...(unit.knockback.passThroughTerrain ? { passThroughTerrain: true } : {}),
             ...(unit.knockback.collideWithUnits ? { collideWithUnits: true } : {}),
             ...(unit.knockback.bounceOffTerrain ? { bounceOffTerrain: true } : {}),
+            ...(unit.knockback.unitCollisionStartFraction != null && unit.knockback.unitCollisionStartFraction > 0
+                ? { unitCollisionStartFraction: unit.knockback.unitCollisionStartFraction }
+                : {}),
         } : null,
         nudge: unit.nudge ? {
             nudgeVector: { ...unit.nudge.nudgeVector },

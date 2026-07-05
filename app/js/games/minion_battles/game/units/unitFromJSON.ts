@@ -98,6 +98,9 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
             ...(kb.passThroughTerrain ? { passThroughTerrain: true } : {}),
             ...(kb.collideWithUnits ? { collideWithUnits: true } : {}),
             ...(kb.bounceOffTerrain ? { bounceOffTerrain: true } : {}),
+            ...(typeof kb.unitCollisionStartFraction === 'number' && kb.unitCollisionStartFraction > 0
+                ? { unitCollisionStartFraction: kb.unitCollisionStartFraction }
+                : {}),
         };
     }
     const ng = data.nudge as NudgeState | null;

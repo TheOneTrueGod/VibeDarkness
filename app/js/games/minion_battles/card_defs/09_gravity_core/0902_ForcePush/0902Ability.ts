@@ -43,6 +43,7 @@ import {
     FORCE_PUSH_SELECT_GAP,
     FORCE_PUSH_TARGET_LABEL,
     FORCE_PUSH_TERRAIN_DAMAGE,
+    FORCE_PUSH_UNIT_COLLISION_START_FRACTION,
 } from '../gravityConstants';
 import { GRAVITY_VIOLET } from '../../../game/effect_defs/aoeEffects';
 import {
@@ -86,7 +87,7 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
             label: FORCE_PUSH_TARGET_LABEL,
             hitbox: FORCE_PUSH_UNIT_HITBOX,
             filter: 'enemy',
-            allowMiss: true,
+            allowMiss: false,
         },
     },
     {
@@ -264,7 +265,7 @@ function launchForcePushTarget(
             landingMaxDistance: FORCE_PUSH_LANDING_MAX_DISTANCE,
             distanceScale: FORCE_PUSH_LANDING_DISTANCE_SCALE,
         },
-        { collideWithUnits: true, bounceOffTerrain: true },
+        { collideWithUnits: true, bounceOffTerrain: true, unitCollisionStartFraction: FORCE_PUSH_UNIT_COLLISION_START_FRACTION },
     );
 }
 
@@ -288,7 +289,8 @@ export const ForcePushAbility = defineAbility({
 
     getTooltipText(): string[] {
         return [
-            `Fling an enemy. Deals {${FORCE_PUSH_COLLISION_DAMAGE}} damage on collision.`,
+            'Pick an enemy, then a landing spot to fling them.',
+            `Collisions with units and walls deal {${FORCE_PUSH_COLLISION_DAMAGE}} damage.`,
         ];
     },
 

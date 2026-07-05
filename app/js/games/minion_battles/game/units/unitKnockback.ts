@@ -1,10 +1,11 @@
 import type { Unit } from './Unit';
-import type { ApplyKnockbackParams, KnockbackSource } from './unitTypes';
+import type { ApplyKnockbackParams, KnockbackSource, KnockbackState } from './unitTypes';
 import type { EventBus } from '../EventBus';
 import type { TerrainGrid } from '../../terrain/TerrainGrid';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import { computeForcedDisplacement } from '../forceMove';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
+import { KNOCKBACK_TOTAL_DISPLACEMENT_FACTOR } from '../../crowdControl/knockbackKeywords';
 
 /** Optional context for opt-in forced-movement collision events during knockback ticks. */
 export interface KnockbackUpdateContext {
@@ -40,6 +41,7 @@ export function applyKnockbackToUnit(
         passThroughTerrain: params.passThroughTerrain,
         collideWithUnits: params.collideWithUnits,
         bounceOffTerrain: params.bounceOffTerrain,
+        unitCollisionStartFraction: params.unitCollisionStartFraction,
     };
     unit.invalidateMovementPath();
     onApplied?.(unit);
@@ -86,25 +88,28 @@ export function updateUnitKnockback(
     const segmentLength = Math.sqrt(pushX * pushX + pushY * pushY);
 
     if (segmentLength > 0 && k.collideWithUnits && ctx?.eventBus && ctx.units) {
-        const hit = findFirstUnitCollisionAlongSegment(
-            unit,
-            startX,
-            startY,
-            startX + pushX,
-            startY + pushY,
-            ctx.units,
-        );
-        if (hit) {
-            unit.x = hit.contactX;
-            unit.y = hit.contactY;
-            ctx.eventBus.emit('forced_movement_unit_collision', {
-                movingUnitId: unit.id,
-                struckUnitId: hit.struckUnitId,
-                impact: { x: hit.contactX, y: hit.contactY },
-                source: k.knockbackSource,
-            });
-            unit.knockback = null;
-            return;
+        const sweep = unitCollisionSweepSegment(k, prevD, newD, startX, startY, pushX, pushY);
+        if (sweep) {
+            const hit = findFirstUnitCollisionAlongSegment(
+                unit,
+                sweep.startX,
+                sweep.startY,
+                sweep.endX,
+                sweep.endY,
+                ctx.units,
+            );
+            if (hit) {
+                unit.x = hit.contactX;
+                unit.y = hit.contactY;
+                ctx.eventBus.emit('forced_movement_unit_collision', {
+                    movingUnitId: unit.id,
+                    struckUnitId: hit.struckUnitId,
+                    impact: { x: hit.contactX, y: hit.contactY },
+                    source: k.knockbackSource,
+                });
+                unit.knockback = null;
+                return;
+            }
         }
     }
 
@@ -204,6 +209,52 @@ export function reflectVectorOffTerrain(
         return { x: -vx, y: vy };
     }
     return { x: vx, y: -vy };
+}
+
+function knockbackTotalDisplacementMagnitude(vector: { x: number; y: number }): number {
+    return Math.hypot(vector.x, vector.y) * KNOCKBACK_TOTAL_DISPLACEMENT_FACTOR;
+}
+
+/**
+ * Segment to sweep for unit–unit collision this tick, accounting for grace distance.
+ * Returns null when the entire tick is still inside the grace zone (no unit collision check).
+ */
+function unitCollisionSweepSegment(
+    k: KnockbackState,
+    prevD: { x: number; y: number },
+    newD: { x: number; y: number },
+    startX: number,
+    startY: number,
+    pushX: number,
+    pushY: number,
+): { startX: number; startY: number; endX: number; endY: number } | null {
+    const fraction = k.unitCollisionStartFraction ?? 0;
+    const endX = startX + pushX;
+    const endY = startY + pushY;
+
+    if (fraction <= 0) {
+        return { startX, startY, endX, endY };
+    }
+
+    const graceDist = knockbackTotalDisplacementMagnitude(k.knockbackVector) * fraction;
+    const traveledPrev = Math.hypot(prevD.x, prevD.y);
+    const traveledNew = Math.hypot(newD.x, newD.y);
+
+    if (traveledNew <= graceDist) {
+        return null;
+    }
+
+    if (traveledPrev >= graceDist) {
+        return { startX, startY, endX, endY };
+    }
+
+    const crossT = (graceDist - traveledPrev) / (traveledNew - traveledPrev);
+    return {
+        startX: startX + pushX * crossT,
+        startY: startY + pushY * crossT,
+        endX,
+        endY,
+    };
 }
 
 function findFirstUnitCollisionAlongSegment(
