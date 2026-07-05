@@ -184,14 +184,11 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: "In the center, a cauldron sits over a firepit, wood stacked nearby. In one corner: bones, scraps of cloth, rusted tools and armour. Someone was here before. The thought is unsettling—and yet, for now, you are safe.",
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: "You figure now is as good a time as any to catch your breath. What would you like to do with this moment of respite?",
+            text: [
+							"In the center, a cauldron sits over a firepit, wood stacked nearby",
+							"In one corner: bones, scraps of cloth, rusted tools and armour. Someone was here before.",
+							"You figure now is as good a time as any to catch your breath. What would you like to do with this moment of respite?"
+						].join("\n"),
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },
