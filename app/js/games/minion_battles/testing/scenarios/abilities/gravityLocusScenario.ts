@@ -1,11 +1,14 @@
 /**
- * Gravity Locus (0901) — push nudge preserves enemy windup; pull mode draws inward.
+ * Gravity Locus (0901) — push repels from the locus; pull mode draws inward.
  *
  * Two-beat pattern: a push cast at tick 0 shoves the enemy out of the first field,
  * then a pull cast (after the ~1s cast lock ends) captures the pushed position and
  * draws the enemy to the second locus. The pull locus is placed so it can only
- * capture the enemy if the push actually moved it — the final assert covers both
- * beats plus the never-interrupted windup.
+ * capture the enemy if the push actually moved it — the final assert covers both beats.
+ *
+ * Nudge non-interruption (enemy windups survive pulses) is covered by the co-located
+ * 0901Ability.test.ts: the engine sweeps unknown ability ids from activeAbilities every
+ * tick, so a stuck-windup probe cannot be observed in a full-engine scenario.
  */
 
 import type { ScenarioDefinition } from '../../types';
@@ -26,26 +29,29 @@ import {
 
 const P = TINY_BATTLE_PLAYER_ID;
 const GRAVITY_LOCUS_ID = '0901';
-const WINDUP_ABILITY_ID = 'windup_probe';
 
 const PLAYER_POS = { x: 3 * CELL_SIZE + CELL_SIZE / 2, y: 3 * CELL_SIZE + CELL_SIZE / 2 };
 const PUSH_LOCUS_POS = { x: 7 * CELL_SIZE + CELL_SIZE / 2, y: 3 * CELL_SIZE + CELL_SIZE / 2 };
 /** Inside the push field — push repels left (decreasing x). */
 const ENEMY_START_X = PUSH_LOCUS_POS.x - 30;
 /**
- * Within field radius (82.5) of the enemy's pushed-out resting spot (~locus - 86),
+ * Within field radius (82.5) of the enemy's pushed-out resting spot (~push locus - 86),
  * but OUT of range of ENEMY_START_X — the pull can only land if the push happened.
  */
 const PULL_LOCUS_POS = { x: 4 * CELL_SIZE + CELL_SIZE / 2, y: 3 * CELL_SIZE + CELL_SIZE / 2 };
 
+/** Pull mode clamps at the locus center; small slack for pulse discreteness. */
+const PULL_LAND_TOLERANCE = 6;
 /** Cast lock is ~1s; queue the pull just after the player is free again. */
 const PULL_CAST_TICK = Math.ceil(1.1 * 60);
+/** After the pull cast ends (~2.1s): a wait order holds the battle non-idle through the final check. */
+const POST_PULL_WAIT_TICK = Math.ceil(2.14 * 60);
 /** Pull field deploys at cast + prefire; ~3 pulses later the enemy sits on the locus. */
 const FINAL_CHECK_START_SECONDS = PULL_CAST_TICK / 60 + GRAVITY_LOCUS_PREFIRE_TIME + 1.2;
 
 export const gravityLocusScenario: ScenarioDefinition = {
     id: 'gravity_locus_push_pull_e2e',
-    title: 'Gravity Locus (0901): push repels without interrupting windup; pull draws inward',
+    title: 'Gravity Locus (0901): push repels from the locus; pull draws inward',
     category: 'ability',
     maxDurationMs: 8000,
 
@@ -79,12 +85,6 @@ export const gravityLocusScenario: ScenarioDefinition = {
             id: 'locus_enemy',
             hp: 100,
         });
-        enemy.activeAbilities = [{
-            abilityId: WINDUP_ABILITY_ID,
-            startTime: 0,
-            targets: [],
-            fired: false,
-        }];
         initializeAbilityRuntimeForUnit(enemy);
         engine.addUnit(enemy, 'initialGameSpawn');
 
@@ -93,6 +93,11 @@ export const gravityLocusScenario: ScenarioDefinition = {
             abilityId: GRAVITY_LOCUS_ID,
             abilityMode: GRAVITY_ABILITY_MODE_PULL,
             targets: [{ type: 'pixel', position: PULL_LOCUS_POS }],
+        });
+        engine.state.orderMgr.queueOrder(POST_PULL_WAIT_TICK, {
+            unitId: player.id,
+            abilityId: 'wait',
+            targets: [],
         });
 
         return engine;
@@ -113,25 +118,19 @@ export const gravityLocusScenario: ScenarioDefinition = {
         const enemy = engine.getUnit('locus_enemy');
         if (!enemy) return false;
 
-        // Nudges never interrupt: the probe windup must have survived both fields.
-        const windupIntact = enemy.activeAbilities.some((a) => a.abilityId === WINDUP_ABILITY_ID);
-        if (!windupIntact) return false;
-
         // Landing on the pull locus requires the push beat first (start pos is out of
         // the pull field's reach) and then the pull drawing the enemy to the center.
         const distToPullLocus = Math.hypot(enemy.x - PULL_LOCUS_POS.x, enemy.y - PULL_LOCUS_POS.y);
-        return distToPullLocus < 6;
+        return distToPullLocus < PULL_LAND_TOLERANCE;
     },
 
     failureMessage(engine) {
         const enemy = engine.getUnit('locus_enemy');
-        const windup = enemy?.activeAbilities.some((a) => a.abilityId === WINDUP_ABILITY_ID);
         const dist = enemy ? Math.hypot(enemy.x - PULL_LOCUS_POS.x, enemy.y - PULL_LOCUS_POS.y) : -1;
         return [
             `t=${engine.gameTime.toFixed(2)}s (final check from ${FINAL_CHECK_START_SECONDS.toFixed(2)}s)`,
             `enemy.x=${enemy?.x?.toFixed(1) ?? '?'} start=${ENEMY_START_X}`,
-            `windup=${windup}`,
-            `distToPullLocus=${dist?.toFixed(1)} (expected <6)`,
+            `distToPullLocus=${dist?.toFixed(1)} (expected <${PULL_LAND_TOLERANCE})`,
         ].join('; ');
     },
 };

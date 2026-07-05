@@ -21,6 +21,7 @@ const LOCK_TIME = 0.5;
 const PREFIRE_TIME = 1.0;
 const PROJECTILE_SPEED = 75;
 const MAX_DISTANCE = 200;
+const MAX_PROJECTILE_DISTANCE = 500;
 const DAMAGE = 4;
 const RED = 0xff0000;
 
@@ -65,7 +66,7 @@ const _base: AbilityStatic = defineAbility({
             abilityPhase: AbilityPhase.Active,
             behaviour: CastBehaviours.ProjectileLaunch()
                 .withSpeed(PROJECTILE_SPEED)
-                .withMaxRange(MAX_DISTANCE)
+                .withMaxRange(MAX_PROJECTILE_DISTANCE)
                 .withBaseDamage(DAMAGE)
                 .withRadius(10)
                 .withSpriteConfig({

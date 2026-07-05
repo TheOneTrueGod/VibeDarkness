@@ -24,7 +24,7 @@ import type {
 import type { EngineContext } from '../../../game/EngineContext';
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget } from '../../../game/types';
-import { meleeLineHitbox, nullHitbox } from '../../../hitboxes';
+import { unitRangeHitbox, nullHitbox } from '../../../hitboxes';
 import { drawClampedLine } from '../../../abilities/previewHelpers';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { type CardDef } from '../../types';
@@ -54,7 +54,7 @@ import type { KnockbackSource } from '../../../game/units/unitTypes';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Gravity)}02`;
 const MAX_USES = 2;
-const FORCE_PUSH_HITBOX = meleeLineHitbox(FORCE_PUSH_MAX_RANGE, 36);
+const FORCE_PUSH_UNIT_HITBOX = unitRangeHitbox(FORCE_PUSH_MAX_RANGE);
 
 const FORCE_PUSH_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -84,7 +84,7 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
         targetDef: {
             kind: 'select',
             label: FORCE_PUSH_TARGET_LABEL,
-            hitbox: FORCE_PUSH_HITBOX,
+            hitbox: FORCE_PUSH_UNIT_HITBOX,
             filter: 'enemy',
             allowMiss: true,
         },

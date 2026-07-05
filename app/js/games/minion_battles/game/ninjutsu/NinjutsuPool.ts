@@ -29,6 +29,11 @@ export interface SerializedNinjutsuPool {
     nextRechargeAt?: number;
 }
 
+export function effectiveNinjutsuMaxPool(config: NinjutsuPoolConfig, enemyUnitCount: number): number {
+    const perUnit = config.ninjutsuPerUnit ?? 0;
+    return config.maxPool + perUnit * enemyUnitCount;
+}
+
 export class NinjutsuPool {
     readonly type: string;
     readonly config: NinjutsuPoolConfig;
@@ -37,22 +42,22 @@ export class NinjutsuPool {
     nextRechargeAt: number;
     private pendingRequests: NinjutsuRequest[] = [];
 
-    constructor(type: string, config: NinjutsuPoolConfig) {
+    constructor(type: string, config: NinjutsuPoolConfig, enemyUnitCount = 0) {
         this.type = type;
         this.config = config;
-        this.current = config.maxPool;
+        this.current = effectiveNinjutsuMaxPool(config, enemyUnitCount);
         // For sub-round recharges: schedule first refill after one interval.
         this.nextRechargeAt = config.rechargeInterval < 1 ? config.rechargeInterval * ROUND_DURATION : 0;
     }
 
-    onRoundStart(roundNumber: number): void {
+    onRoundStart(roundNumber: number, enemyUnitCount: number): void {
         // Sub-round recharges (rechargeInterval < 1) are handled via interpolation in
         // resolveRequests — skip here to avoid double-refill.
         if (this.config.rechargeInterval < 1) return;
         // rechargeInterval > 1 is supported but intentionally unused by current tier presets.
         // It allows missions to configure longer droughts between attack flurries.
         if ((roundNumber - 1) % this.config.rechargeInterval === 0) {
-            this.current = this.config.maxPool;
+            this.current = effectiveNinjutsuMaxPool(this.config, enemyUnitCount);
         }
     }
 
@@ -78,11 +83,12 @@ export class NinjutsuPool {
         gameTime: number,
         queueOrder: (tick: number, order: BattleOrder) => void,
         random: (min: number, max: number) => number,
+        enemyUnitCount: number,
     ): void {
         // Mid-round interpolated recharge: fires every rechargeInterval rounds regardless of
         // whether there are pending requests, so the pool is ready when units next attack.
         if (this.config.enabled && this.config.rechargeInterval < 1 && gameTime >= this.nextRechargeAt) {
-            this.current = this.config.maxPool;
+            this.current = effectiveNinjutsuMaxPool(this.config, enemyUnitCount);
             this.nextRechargeAt = gameTime + this.config.rechargeInterval * ROUND_DURATION;
         }
 
@@ -119,11 +125,11 @@ export class NinjutsuPool {
         }
     }
 
-    getUIState(): NinjutsuUIState {
+    getUIState(enemyUnitCount: number): NinjutsuUIState {
         return {
             type: this.type,
             current: this.current,
-            max: this.config.maxPool,
+            max: effectiveNinjutsuMaxPool(this.config, enemyUnitCount),
             enabled: this.config.enabled,
         };
     }

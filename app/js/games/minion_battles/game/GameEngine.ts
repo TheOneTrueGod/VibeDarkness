@@ -69,7 +69,7 @@ import { CellOccupancyManager } from './managers/CellOccupancyManager';
 import { getUnitMaxPerTile, getUnitShovePriority, getUnitDefEntry, getBodyColorForUnit, getCharacterSpriteKey, getUnitSpawnDef, type UnitDefId } from './units/unit_defs/unitDef';
 import { STACK_GHOST_DURATION } from './effect_defs/movementEffects';
 import { applyVisualEffectDefs } from './effects/applyVisualEffectDefs';
-import { NinjutsuManager, type NinjutsuUIState } from './ninjutsu/NinjutsuManager';
+import { NinjutsuManager, countNinjutsuEnemyUnits, type NinjutsuUIState } from './ninjutsu/NinjutsuManager';
 import { NINJUTSU_DEFAULT, type NinjutsuPoolConfig } from './ninjutsu/ninjutsuConfig';
 import { findImpendingSelectTargetNeed } from './interaction/selectTargetLookahead';
 
@@ -507,11 +507,12 @@ export class GameEngine implements EngineContext {
      */
     initNinjutsu(poolConfigs: Partial<Record<string, NinjutsuPoolConfig>> | undefined): void {
         const config: Partial<Record<string, NinjutsuPoolConfig>> = poolConfigs ?? { shadow: NINJUTSU_DEFAULT };
-        this.state.ninjutsuManager = new NinjutsuManager(config);
+        const enemyUnitCount = countNinjutsuEnemyUnits(this.units);
+        this.state.ninjutsuManager = new NinjutsuManager(config, enemyUnitCount);
     }
 
     getNinjutsuPoolState(): NinjutsuUIState[] | null {
-        return this.state.ninjutsuManager?.getUIState() ?? null;
+        return this.state.ninjutsuManager?.getUIState(countNinjutsuEnemyUnits(this.units)) ?? null;
     }
 
     getWorldModifiersDebugSnapshot(): import('../worldModifiers/WorldModifierManager').WorldModifierDebugEntry[] {
@@ -1669,7 +1670,7 @@ export class GameEngine implements EngineContext {
                 staminaSurgeAbilityIds,
             });
             this.state.unitManager.onRoundStart(this.roundNumber, this);
-            this.state.ninjutsuManager?.onRoundStart(this.roundNumber);
+            this.state.ninjutsuManager?.onRoundStart(this.roundNumber, countNinjutsuEnemyUnits(this.units));
             this.applyChargedRocksLightChargePulse();
             processLanternitePulseMilestone('round_start', {
                 units: this.units,

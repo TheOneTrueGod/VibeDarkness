@@ -13,7 +13,7 @@ import { tickSpawnAnimation } from '../units/spawnAnimation';
 import { processUnitPassives } from '../../abilities/passiveRunner';
 import type { AIContext } from '../units/unitAI';
 import type { Resource } from '../../resources/Resource';
-import { MIN_FOLLOW_RADIUS } from '../gameConstants';
+import { countNinjutsuEnemyUnits } from '../ninjutsu/NinjutsuManager';
 import { Rage } from '../../resources/Rage';
 import { Mana } from '../../resources/Mana';
 import { Resonance } from '../../resources/Resonance';
@@ -298,6 +298,7 @@ export class UnitManager {
                 engine.gameTime,
                 (tick, order) => aiContext.queueOrder(tick, order),
                 (min, max) => engine.generateRandomInteger(min, max),
+                countNinjutsuEnemyUnits(this.units),
             );
         }
         // Phase 4: downgrade dead unit targets to pixel targets at last known position.

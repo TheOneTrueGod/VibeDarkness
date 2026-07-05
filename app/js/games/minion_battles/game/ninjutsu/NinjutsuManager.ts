@@ -4,15 +4,20 @@ import type { Unit } from '../units/Unit';
 import { NinjutsuPool } from './NinjutsuPool';
 import type { NinjutsuUIState, SerializedNinjutsuPool } from './NinjutsuPool';
 import type { NinjutsuPoolConfig } from './ninjutsuConfig';
+import type { Unit } from '../units/Unit';
 
 export type { NinjutsuUIState, SerializedNinjutsuPool };
+
+export function countNinjutsuEnemyUnits(units: readonly Unit[]): number {
+    return units.filter((u) => u.active && u.isAlive() && !u.isPlayerControlled()).length;
+}
 
 export class NinjutsuManager {
     private pools = new Map<string, NinjutsuPool>();
 
-    constructor(poolConfigs: Partial<Record<string, NinjutsuPoolConfig>>) {
+    constructor(poolConfigs: Partial<Record<string, NinjutsuPoolConfig>>, enemyUnitCount = 0) {
         for (const [type, config] of Object.entries(poolConfigs)) {
-            if (config) this.pools.set(type, new NinjutsuPool(type, config));
+            if (config) this.pools.set(type, new NinjutsuPool(type, config, enemyUnitCount));
         }
     }
 
@@ -20,8 +25,8 @@ export class NinjutsuManager {
         return this.pools.get(type);
     }
 
-    onRoundStart(roundNumber: number): void {
-        for (const pool of this.pools.values()) pool.onRoundStart(roundNumber);
+    onRoundStart(roundNumber: number, enemyUnitCount: number): void {
+        for (const pool of this.pools.values()) pool.onRoundStart(roundNumber, enemyUnitCount);
     }
 
     registerRequest(
@@ -39,14 +44,15 @@ export class NinjutsuManager {
         gameTime: number,
         queueOrder: (tick: number, order: BattleOrder) => void,
         random: (min: number, max: number) => number,
+        enemyUnitCount: number,
     ): void {
         for (const pool of this.pools.values()) {
-            pool.resolveRequests(gameTime, queueOrder, random);
+            pool.resolveRequests(gameTime, queueOrder, random, enemyUnitCount);
         }
     }
 
-    getUIState(): NinjutsuUIState[] {
-        return [...this.pools.values()].map((p) => p.getUIState());
+    getUIState(enemyUnitCount: number): NinjutsuUIState[] {
+        return [...this.pools.values()].map((p) => p.getUIState(enemyUnitCount));
     }
 
     toJSON(): SerializedNinjutsuPool[] {

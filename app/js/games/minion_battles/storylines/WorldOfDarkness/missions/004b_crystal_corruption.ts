@@ -49,6 +49,8 @@ function pathCell(col: number, row: number): { x: number; y: number } {
     return { x: col * CELL_SIZE + CELL_SIZE / 2, y: row * CELL_SIZE + CELL_SIZE / 2 };
 }
 
+const CRYSTAL_CORRUPTION_NINJUTSU_PER_UNIT = 0.1;
+
 const INITIAL_ENEMIES = [
     { ...ENEMY_DARK_WOLF, position: pathCell(20, 8), unitAITreeId: 'hunt' },
     { ...ENEMY_DARK_WOLF, position: pathCell(19, 9), unitAITreeId: 'hunt' },
@@ -199,7 +201,9 @@ export class CrystalCorruptionMission extends BaseMissionDef {
     specialTiles = SPECIAL_TILES;
     lightLevelEnabled = true;
     globalLightLevel = 0;
-    ninjutsuPools = { shadow: NINJUTSU_3_FLURRY_PER_ROUND };
+    ninjutsuPools = {
+        shadow: { ...NINJUTSU_3_FLURRY_PER_ROUND, ninjutsuPerUnit: CRYSTAL_CORRUPTION_NINJUTSU_PER_UNIT },
+    };
     preMissionStory = PRE_MISSION_STORY;
     postMissionStory = POST_MISSION_STORY;
     battleObjectives = [

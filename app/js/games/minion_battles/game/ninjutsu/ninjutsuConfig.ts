@@ -6,6 +6,8 @@ export interface NinjutsuPoolConfig {
     rechargeInterval: number;
     /** Gap between grants as a fraction of ROUND_DURATION (0.1 = 10% of a round). */
     pauseBetweenUses: number;
+    /** Extra pool capacity per live enemy unit (added to maxPool on init and each recharge). */
+    ninjutsuPerUnit?: number;
 }
 
 export const NINJUTSU_DISABLED: NinjutsuPoolConfig =
