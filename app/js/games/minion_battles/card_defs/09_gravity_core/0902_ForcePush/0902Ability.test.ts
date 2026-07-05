@@ -215,7 +215,8 @@ describe('ForcePushAbility', () => {
 
     it('wall bounce damages the flung unit', () => {
         const terrainManager = makeTerrainManager(12, 4);
-        terrainManager.grid.set(5, 2, TerrainType.Rock);
+        // Rock one column ahead of the ~50px fling from MOVER_START_X (caster at x=50).
+        terrainManager.grid.set(3, 2, TerrainType.Rock);
 
         const caster = makeCaster(100);
         const flung = makeUnit('flung', MOVER_START_X, SHARED_Y, 'enemy');

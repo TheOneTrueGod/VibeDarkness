@@ -24,6 +24,7 @@ import {
     FORCE_PUSH_LANDING_MAX_DISTANCE,
     FORCE_PUSH_PREFIRE_TIME,
     FORCE_PUSH_TERRAIN_DAMAGE,
+    FORCE_PUSH_UNIT_COLLISION_START_FRACTION,
 } from '../../../card_defs/09_gravity_core/gravityConstants';
 
 const P = TINY_BATTLE_PLAYER_ID;
@@ -33,11 +34,18 @@ const SHARED_Y = 3 * CELL_SIZE + CELL_SIZE / 2;
 /** Centered on the grid — avoids west-edge terrain clips from `0902Ability.test.ts` coords. */
 const PLAYER_X = 3 * CELL_SIZE + CELL_SIZE / 2;
 const FLING_X = PLAYER_X + 100;
-/** Edge-to-edge contact at launch so the first knockback segment hits the blocker. */
-const BLOCKER_X = FLING_X + DEFAULT_UNIT_RADIUS * 2 - 2;
+/**
+ * Blocker sits just beyond the unit-collision grace distance so overlap at grace end
+ * is not ignored (see FORCE_PUSH_UNIT_COLLISION_START_FRACTION).
+ */
+const COLLISION_GRACE_TRAVEL_PX =
+    FORCE_PUSH_LANDING_MAX_DISTANCE * FORCE_PUSH_UNIT_COLLISION_START_FRACTION;
+const BLOCKER_X =
+    FLING_X + COLLISION_GRACE_TRAVEL_PX + DEFAULT_UNIT_RADIUS * 2 + 2;
 const WALL_FLING_Y = 5 * CELL_SIZE + CELL_SIZE / 2;
 const WALL_FLING_X = 4 * CELL_SIZE + CELL_SIZE / 2;
-const ROCK_COL = 7;
+/** One column inside max fling travel from WALL_FLING_X toward the landing aim. */
+const ROCK_COL = 6;
 const ROCK_ROW = 5;
 
 const TOTAL_CAST_SECONDS = FORCE_PUSH_PREFIRE_TIME + FORCE_PUSH_COOLDOWN_DURATION + 0.35;

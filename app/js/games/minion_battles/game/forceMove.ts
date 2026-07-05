@@ -104,15 +104,43 @@ export function computeForcedDisplacement(
     let safeDistance = 0;
 
     let wallHit = false;
-    for (let d = step; d <= desired; d += step) {
-        const x = startX + ux * d;
-        const y = startY + uy * d;
-        if (!passable(x, y)) { wallHit = true; break; }
-        safeDistance = d;
+    if (desired < step) {
+        if (passable(towardX, towardY)) {
+            safeDistance = desired;
+        } else {
+            wallHit = true;
+            let lo = 0;
+            let hi = desired;
+            for (let i = 0; i < 10; i++) {
+                const mid = (lo + hi) / 2;
+                if (passable(startX + ux * mid, startY + uy * mid)) lo = mid;
+                else hi = mid;
+            }
+            safeDistance = lo;
+        }
+    } else {
+        for (let d = step; d <= desired; d += step) {
+            const x = startX + ux * d;
+            const y = startY + uy * d;
+            if (!passable(x, y)) { wallHit = true; break; }
+            safeDistance = d;
+        }
     }
-    if (
-        !wallHit
-        && passable(towardX, towardY)
+
+    if (wallHit && desired >= step) {
+        const upper = Math.min(desired, safeDistance + step);
+        if (upper > safeDistance) {
+            let lo = safeDistance;
+            let hi = upper;
+            for (let i = 0; i < 10; i++) {
+                const mid = (lo + hi) / 2;
+                if (passable(startX + ux * mid, startY + uy * mid)) lo = mid;
+                else hi = mid;
+            }
+            safeDistance = lo;
+        }
+    } else if (
+        passable(towardX, towardY)
         && maxDistance - safeDistance <= FORCED_DISPLACEMENT_EPSILON
         && safeDistance >= desired - FORCED_DISPLACEMENT_EPSILON
     ) {

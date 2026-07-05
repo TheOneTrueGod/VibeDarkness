@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { computeForcedDisplacement } from './forceMove';
+import { clampNudgeVectorToTerrain } from './units/unitNudge';
+import { Unit } from './units/Unit';
 import { TerrainGrid, CELL_SIZE } from '../terrain/TerrainGrid';
 import { TerrainManager } from '../terrain/TerrainManager';
 import { TerrainType } from '../terrain/TerrainType';
@@ -33,5 +35,76 @@ describe('computeForcedDisplacement', () => {
         );
 
         expect(distance).toBe(segmentLength);
+    });
+
+    it('stops before rock when the first coarse step would land inside the wall', () => {
+        const terrainManager = makeGrassManager(8, 4);
+        terrainManager.grid.set(3, 2, TerrainType.Rock);
+
+        const startX = CELL_SIZE * 2.9;
+        const startY = CELL_SIZE * 2.5;
+        const pushX = 8;
+        const pushY = 0;
+        const segmentLength = Math.hypot(pushX, pushY);
+
+        const { distance, dx } = computeForcedDisplacement(
+            startX,
+            startY,
+            startX + pushX,
+            startY + pushY,
+            segmentLength,
+            { terrainManager },
+        );
+
+        expect(distance).toBeGreaterThan(0);
+        expect(distance).toBeLessThan(segmentLength);
+        expect(terrainManager.isPassable(startX + dx, startY)).toBe(true);
+        expect(Math.floor((startX + dx) / CELL_SIZE)).toBeLessThan(3);
+    });
+
+    it('allows sub-step nudge segments on passable terrain', () => {
+        const terrainManager = makeGrassManager(8, 4);
+        const startX = 100;
+        const startY = 100;
+        const segmentLength = 0.7;
+
+        const { distance } = computeForcedDisplacement(
+            startX,
+            startY,
+            startX + segmentLength,
+            startY,
+            segmentLength,
+            { terrainManager },
+        );
+
+        expect(distance).toBeCloseTo(segmentLength, 5);
+    });
+
+    it('allows a short nudge beside rock at gravity-locus test coordinates', () => {
+        const terrainManager = makeGrassManager(12, 6);
+        terrainManager.grid.set(5, 3, TerrainType.Rock);
+
+        const enemy = new Unit({
+            id: 'enemy',
+            x: CELL_SIZE * 4.5,
+            y: CELL_SIZE * 3.5,
+            hp: 100,
+            maxHp: 100,
+            speed: 100,
+            teamId: 'enemy',
+            ownerId: 'ai',
+            characterId: 'dark_wolf',
+            name: 'enemy',
+        });
+
+        expect(terrainManager.isPassable(enemy.x, enemy.y)).toBe(true);
+
+        const clamped = clampNudgeVectorToTerrain(
+            enemy,
+            { x: 14, y: 0 },
+            terrainManager,
+            terrainManager.grid,
+        );
+        expect(clamped.x).toBeGreaterThan(0);
     });
 });
