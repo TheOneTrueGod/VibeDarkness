@@ -86,10 +86,7 @@ const ENEMIES = [
 	{
 		...SLIME,
 		name: 'Slime',
-		position: gridToWorld(
-			cliffPathPOI.north_path.col + 1,
-			cliffPathPOI.north_path.row + MIDDLE_OFFSET_ROW + 1,
-		),
+		position: wolvesAtCaveMouth[2]!,
 		unitAITreeId: 'hunt',
 	},
 	{

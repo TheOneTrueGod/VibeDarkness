@@ -15,13 +15,14 @@ import type { GameEngine } from '../../../game/GameEngine';
 import { BaseMissionDef, type InitializeGameStateParams } from '../../BaseMissionDef';
 import type {
 	BattleObjectiveDef,
+	EnemySpawnDef,
 	LevelEvent,
 	PlayerSpawnPoint,
 	SpecialTilePlacement,
 } from '../../types';
 import type { MapSegmentPOI } from '../../../terrain/segmentSchema';
 import type { PostMissionStoryDef, PreMissionStoryDef } from '../../storyTypes';
-import { ALLY_LANTERNITE } from '../../../constants/enemyConstants';
+import { ALLY_LANTERNITE, ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
 import { UnitTag } from '../../../game/units/unitTag';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
@@ -100,7 +101,39 @@ const MISSION_POIS: MapSegmentPOI[] = [
 // Pre-spawned scouts: 50_50 southern corridor (local cols 9-10, rows 15-17)
 // These lanternites head south through the cave exit to build the first nest.
 // ---------------------------------------------------------------------------
-const SCOUT_A_WORLD = gridToWorld(CAVE_ORIGIN_COL + 9, 9);   // global (31, 15)
+const SCOUT_A_GRID = { col: CAVE_ORIGIN_COL + 9, row: 9 };   // global (31, 9)
+const SCOUT_A_WORLD = gridToWorld(SCOUT_A_GRID.col, SCOUT_A_GRID.row);
+
+// ---------------------------------------------------------------------------
+// Opening wolf pack: 3 wolves pre-spawned alongside the scout, placed randomly
+// in a 5x5 tile box centred 1 tile south of it (outside the mouth of the cave).
+// Every tile in the box is passable dirt/grass in the stitched terrain.
+// ---------------------------------------------------------------------------
+const OPENING_WOLF_COUNT = 3;
+const OPENING_WOLF_BOX_CENTER = { col: SCOUT_A_GRID.col, row: SCOUT_A_GRID.row + 1 }; // global (31, 10)
+const OPENING_WOLF_BOX_HALF = 2; // 5x5 box
+
+/**
+ * Positions are drawn from the engine's seeded RNG (set in prepareForNewGame before
+ * mission init), so every client computes the same placement. The scout's own tile
+ * is excluded so a wolf never spawns on top of it.
+ */
+function buildOpeningWolves(engine: GameEngine): EnemySpawnDef[] {
+	const candidates: { col: number; row: number }[] = [];
+	for (let row = OPENING_WOLF_BOX_CENTER.row - OPENING_WOLF_BOX_HALF; row <= OPENING_WOLF_BOX_CENTER.row + OPENING_WOLF_BOX_HALF; row++) {
+		for (let col = OPENING_WOLF_BOX_CENTER.col - OPENING_WOLF_BOX_HALF; col <= OPENING_WOLF_BOX_CENTER.col + OPENING_WOLF_BOX_HALF; col++) {
+			if (col === SCOUT_A_GRID.col && row === SCOUT_A_GRID.row) continue;
+			candidates.push({ col, row });
+		}
+	}
+	const wolves: EnemySpawnDef[] = [];
+	for (let i = 0; i < OPENING_WOLF_COUNT && candidates.length > 0; i++) {
+		const idx = engine.generateRandomInteger(0, candidates.length - 1);
+		const tile = candidates.splice(idx, 1)[0]!;
+		wolves.push({ ...ENEMY_DARK_WOLF, position: gridToWorld(tile.col, tile.row) });
+	}
+	return wolves;
+}
 
 function buildScout(position: { x: number; y: number }) {
 	return {
@@ -185,8 +218,9 @@ export class EmberThresholdMission extends BaseMissionDef {
 		},
 	];
 
-	enemies = [
+	enemies: EnemySpawnDef[] = [
 		// One lanternite scout emerges from the cave heading south to build the first nest.
+		// The opening wolf pack is added in initializeGameState (needs the engine RNG).
 		buildScout(SCOUT_A_WORLD),
 	];
 
@@ -288,6 +322,9 @@ export class EmberThresholdMission extends BaseMissionDef {
 	postMissionStory = POST_MISSION_STORY;
 
 	override initializeGameState(engine: GameEngine, params: InitializeGameStateParams): void {
+		// Pre-spawn the opening wolf pack alongside the scout. Recomputed per battle so
+		// each playthrough rolls fresh positions from that battle's seed.
+		this.enemies = [buildScout(SCOUT_A_WORLD), ...buildOpeningWolves(engine)];
 		// Merge mission-specific nest POIs with any terrain-segment POIs.
 		super.initializeGameState(engine, {
 			...params,
