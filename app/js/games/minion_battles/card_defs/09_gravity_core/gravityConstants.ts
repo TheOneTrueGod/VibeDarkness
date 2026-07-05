@@ -26,7 +26,7 @@ export const GRAVITY_ABILITY_MODE_PULL = 'pull';
 
 /** Gravity Locus (0901) — point-target field tuning. */
 export const GRAVITY_LOCUS_MAX_RANGE = 180;
-export const GRAVITY_LOCUS_FIELD_RADIUS = 55;
+export const GRAVITY_LOCUS_FIELD_RADIUS = 82.5;
 export const GRAVITY_LOCUS_PREFIRE_TIME = 0.35;
 export const GRAVITY_LOCUS_ACTIVE_DURATION = 2;
 export const GRAVITY_LOCUS_PULSE_INTERVAL = 0.25;
@@ -64,3 +64,5 @@ export const GRAVITY_INVERSION_PULL_SLAM_SPACING = 20;
 
 /** Violet palette for `howlShockwaveEffectDef` on Gravity Inversion slams. */
 export const GRAVITY_INVERSION_SHOCKWAVE_COLORS = [0xc084fc, 0xa855f7, 0x6b21a8] as const;
+/** Visual scale for the slam shockwave rings (1 = default HowlShockwave size). */
+export const GRAVITY_INVERSION_SLAM_SHOCKWAVE_SCALE = 0.5;

@@ -36,6 +36,7 @@ import {
     GRAVITY_INVERSION_PREFIRE_TIME,
     GRAVITY_INVERSION_PULL_SLAM_SPACING,
     GRAVITY_INVERSION_SHOCKWAVE_COLORS,
+    GRAVITY_INVERSION_SLAM_SHOCKWAVE_SCALE,
     GRAVITY_INVERSION_SLAM_DAMAGE,
 } from '../gravityConstants';
 import {
@@ -151,7 +152,10 @@ function spawnSlamShockwaveEffect(
         y: position.y,
         duration: 0.45,
         effectType: HOWL_SHOCKWAVE_EFFECT_TYPE,
-        effectData: { colors: [...GRAVITY_INVERSION_SHOCKWAVE_COLORS] },
+        effectData: {
+            colors: [...GRAVITY_INVERSION_SHOCKWAVE_COLORS],
+            scale: GRAVITY_INVERSION_SLAM_SHOCKWAVE_SCALE,
+        },
     }));
 }
 
@@ -301,7 +305,7 @@ export const GravityInversionAbility = defineAbility({
     getTooltipText(): string[] {
         return [
             `Lift up to {${GRAVITY_INVERSION_MAX_TARGETS}} enemies in a small area for {${GRAVITY_INVERSION_LIFT_DURATION}}s, then slam for {${GRAVITY_INVERSION_SLAM_DAMAGE}} damage.`,
-            'Push drops straight down; Pull slams in front of you along each target\'s bearing.',
+            'Push drops straight down; Pull slams in front of you.',
         ];
     },
 

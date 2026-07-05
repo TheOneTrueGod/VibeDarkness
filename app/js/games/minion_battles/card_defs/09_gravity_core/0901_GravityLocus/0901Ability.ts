@@ -201,7 +201,7 @@ export const GravityLocusAbility = defineAbility({
     getTooltipText(): string[] {
         return [
             `Sustain a gravity field for ${GRAVITY_LOCUS_ACTIVE_DURATION}s, nudging enemies within {${GRAVITY_LOCUS_FIELD_RADIUS}} each pulse.`,
-            'Push repels from the locus; Pull draws inward without overshooting.',
+            'Push repels from the locus; Pull draws inward.',
         ];
     },
 

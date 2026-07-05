@@ -264,7 +264,7 @@ export const ForcePushAbility = defineAbility({
     getTooltipText(): string[] {
         return [
             `Fling an enemy with a powerful launch. Collisions deal {${FORCE_PUSH_COLLISION_DAMAGE}} damage.`,
-            'Push flings away from you; Pull flings toward and past you.',
+            'Push flings away from you; Pull brings them toward you.',
         ];
     },
 

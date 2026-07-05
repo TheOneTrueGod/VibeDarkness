@@ -4,7 +4,7 @@ import { EventBus } from '../game/EventBus';
 import { updateUnit } from '../game/units/unitMovementTick';
 import { knockbackCtxFromEngine } from '../crowdControl/knockbackKeywords';
 import { tryApplyLift } from '../crowdControl/tryApplyLift';
-import { LIFTED_BUFF_TYPE } from './LiftedBuff';
+import { LIFTED_BUFF_TYPE, LIFTED_RENDER_HEIGHT_RADIUS_FACTOR, getLiftedMaxRenderHeightPx, getLiftedRenderProgress, getLiftedRenderState } from './LiftedBuff';
 import { TerrainGrid, CELL_SIZE } from '../terrain/TerrainGrid';
 import { TerrainManager } from '../terrain/TerrainManager';
 import { TerrainType } from '../terrain/TerrainType';
@@ -155,5 +155,28 @@ describe('LiftedBuff', () => {
         expect(result.outcome).toBe('absorbed');
         expect(unit.hasBuff(LIFTED_BUFF_TYPE)).toBe(false);
         expect(unit.ccArmour.hardConsumed).toBe(1);
+    });
+
+    it('render height ramps from ground to max over the lift duration', () => {
+        const unit = makeUnit({ radius: 20 });
+        const engine = makeLiftEngine();
+        const maxHeight = getLiftedMaxRenderHeightPx(unit.radius);
+
+        applyLiftToUnit(unit, engine, {
+            slamDamage: SLAM_DAMAGE,
+            sourceAbilityId: LIFT_ABILITY_ID,
+        });
+
+        expect(maxHeight).toBe(unit.radius * LIFTED_RENDER_HEIGHT_RADIUS_FACTOR);
+        const atStart = getLiftedRenderState(unit, engine.gameTime);
+        expect(atStart?.maxHeight).toBe(maxHeight);
+        expect(atStart?.yOffset).toBeCloseTo(0, 5);
+
+        const midTime = engine.gameTime + LIFT_DURATION_SEC * 0.5;
+        expect(getLiftedRenderProgress(engine.gameTime, LIFT_DURATION_SEC, midTime)).toBeCloseTo(0.5, 5);
+        expect(getLiftedRenderState(unit, midTime)).toEqual({ yOffset: -maxHeight * 0.5, maxHeight });
+
+        const endTime = engine.gameTime + LIFT_DURATION_SEC;
+        expect(getLiftedRenderState(unit, endTime)).toEqual({ yOffset: -maxHeight, maxHeight });
     });
 });

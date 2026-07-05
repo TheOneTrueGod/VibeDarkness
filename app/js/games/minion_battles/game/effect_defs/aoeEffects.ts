@@ -214,12 +214,13 @@ export const howlShockwaveEffectDef: IEffectDef = {
         const g = visual as Graphics;
         g.clear();
         const progress = effect.progress;
-        const data = (effect.effectData ?? {}) as { colors?: number[] };
+        const data = (effect.effectData ?? {}) as { colors?: number[]; scale?: number };
         const colors = data.colors ?? [0xc4a574, 0x8b6914, 0x3d2914];
+        const scale = data.scale ?? 1;
         const rings: RingPulseSpec[] = [
-            { delay: 0, startRadius: 12, endRadius: 112, width: 4, opacityMul: 1 },
-            { delay: 0.06, startRadius: 12, endRadius: 100, width: 3, opacityMul: 0.85 },
-            { delay: 0.12, startRadius: 12, endRadius: 88, width: 2, opacityMul: 0.7 },
+            { delay: 0, startRadius: 12 * scale, endRadius: 112 * scale, width: 4 * scale, opacityMul: 1 },
+            { delay: 0.06, startRadius: 12 * scale, endRadius: 100 * scale, width: 3 * scale, opacityMul: 0.85 },
+            { delay: 0.12, startRadius: 12 * scale, endRadius: 88 * scale, width: 2 * scale, opacityMul: 0.7 },
         ];
         drawRingBursts(g, progress, colors, rings, (effectiveProgress, ring) =>
             0.92 * ring.opacityMul * (1 - effectiveProgress * 1.05),

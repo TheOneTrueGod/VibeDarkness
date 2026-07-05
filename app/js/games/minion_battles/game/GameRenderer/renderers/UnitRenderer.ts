@@ -12,8 +12,8 @@ import { resolveBehaviourTimingRef } from '../../../abilities/castBehaviourTypes
 import { resolveCastBehaviourTarget } from '../../../abilities/resolveCastBehaviourTarget';
 import {
     LIFTED_BUFF_TYPE,
-    LIFTED_RENDER_HEIGHT_RADIUS_FACTOR,
     LIFTED_RENDER_MAX_HEIGHT_PX,
+    getLiftedRenderState,
 } from '../../../buffs/LiftedBuff';
 import {
     renderUnit,
@@ -206,11 +206,11 @@ export class UnitRenderer {
                     knockupYOffset = -arcFactor * knockupMaxHeight;
                 }
             } else if (unit.hasBuff(LIFTED_BUFF_TYPE)) {
-                knockupMaxHeight = Math.min(
-                    unit.radius * LIFTED_RENDER_HEIGHT_RADIUS_FACTOR,
-                    LIFTED_RENDER_MAX_HEIGHT_PX,
-                );
-                knockupYOffset = -knockupMaxHeight;
+                const lifted = getLiftedRenderState(unit, engine.gameTime);
+                if (lifted) {
+                    knockupMaxHeight = lifted.maxHeight;
+                    knockupYOffset = lifted.yOffset;
+                }
             }
 
             // Shadow: rendered at ground level while unit is airborne, shrinking as unit rises.
