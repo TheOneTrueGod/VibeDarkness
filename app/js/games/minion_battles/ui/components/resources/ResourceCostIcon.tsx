@@ -11,6 +11,11 @@ import { ResourceIcon } from './ResourceIcon';
 /** Costs above this use the compact pill instead of repeated stacked icons. */
 export const RESOURCE_COST_STACKED_ICON_MAX = 4;
 
+/** Matches the ability bar uses pill (`AbilitySlot`). */
+export const RESOURCE_COST_COMPACT_BADGE_MIN_HEIGHT_PX = 22;
+/** Icon diameter inside the compact cost pill. */
+export const RESOURCE_COST_COMPACT_ICON_SIZE_PX = 16;
+
 const RESOURCE_DEF_BY_ID = Object.fromEntries(
     ALL_RESOURCE_DISPLAY_DEFS.map((d) => [d.id, d]),
 );
@@ -28,12 +33,16 @@ export function ResourceCostIcon({ resourceId, amount }: ResourceCostIconProps) 
         const color = def?.color ?? '#e5e7eb';
         return (
             <span
-                className="inline-flex shrink-0 items-center gap-0.5 rounded border bg-neutral-900/90 px-1 py-0.5 text-[10px] font-semibold tabular-nums leading-none"
-                style={{ borderColor: color, color }}
+                className="inline-flex shrink-0 items-center gap-0.5 rounded border bg-neutral-900/90 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums leading-none"
+                style={{
+                    borderColor: color,
+                    color,
+                    minHeight: RESOURCE_COST_COMPACT_BADGE_MIN_HEIGHT_PX,
+                }}
                 title={def ? `${amount} ${def.name}` : `${amount}`}
             >
                 <span>{amount}x</span>
-                <ResourceIcon resourceId={resourceId} size={14} />
+                <ResourceIcon resourceId={resourceId} size={RESOURCE_COST_COMPACT_ICON_SIZE_PX} />
             </span>
         );
     }

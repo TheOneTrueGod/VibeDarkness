@@ -434,7 +434,7 @@ export default function AbilityBar({
             */}
             <div
                 ref={rowRef}
-                className={`relative grid min-h-[158px] gap-y-2 ${
+                className={`relative grid min-h-[126px] gap-y-2 ${
                     isFullBleedActionRow
                         ? 'grid-cols-[20rem_minmax(0,1fr)_20rem]'
                         : 'grid-cols-[20rem_minmax(0,1fr)_auto]'

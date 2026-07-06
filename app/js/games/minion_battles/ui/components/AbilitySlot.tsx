@@ -5,10 +5,10 @@
  * tap shows description overlay (mobile).
  */
 
-/** Fixed card width in the ability bar (must match Tailwind `w-[124px]` below). */
-export const ABILITY_SLOT_WIDTH_PX = 124;
-/** Fixed card height in the ability bar (must match Tailwind `h-[158px]` below). */
-export const ABILITY_SLOT_HEIGHT_PX = 158;
+/** Fixed card width in the ability bar (must match Tailwind `w-[108px]` below). */
+export const ABILITY_SLOT_WIDTH_PX = 108;
+/** Fixed card height in the ability bar (must match Tailwind `h-[126px]` below). */
+export const ABILITY_SLOT_HEIGHT_PX = 126;
 /** Horizontal gap between ability cards in the bar (`gap-2`). */
 export const ABILITY_BAR_CARD_GAP_PX = 8;
 
@@ -20,7 +20,7 @@ import { useAbilityUseChargeAnimation, type AbilityChargeAnimRule } from '../abi
 import { ChargeIcon } from './ChargeIcon';
 import { RECOVERY_CHARGE_DEFINITIONS } from './recoveryChargeDefinitions';
 import AbilityTooltip from './AbilityTooltip';
-import { ResourceCostIcon } from './resources/ResourceCostIcon';
+import { ResourceCostIcon, RESOURCE_COST_COMPACT_BADGE_MIN_HEIGHT_PX } from './resources/ResourceCostIcon';
 import type { DisabledReason } from './abilityDisabledReason';
 
 interface AbilitySlotProps {
@@ -128,8 +128,8 @@ export default function AbilitySlot({
             <div
                 ref={cardRef}
                 className={`
-                    relative w-[124px] h-[158px] rounded-lg border-2 transition-all duration-150
-                    flex flex-col items-stretch justify-between p-2 overflow-visible pointer-events-none
+                    relative w-[108px] h-[126px] rounded-lg border-2 transition-all duration-150
+                    flex flex-col items-stretch p-1 overflow-visible pointer-events-none
                     ${isSelected
                         ? 'border-yellow-400 bg-surface-light -translate-y-2 shadow-lg shadow-yellow-400/25'
                         : isHovered && !isDisabled
@@ -142,61 +142,24 @@ export default function AbilitySlot({
                     }
                 `}
             >
-                {costs.length > 0 && (
-                    <div className="absolute top-1 right-1 z-10 flex flex-col items-center gap-0.5 pointer-events-none">
-                        {costs.map((cost) => (
-                            <ResourceCostIcon
-                                key={cost.resourceId}
-                                resourceId={cost.resourceId}
-                                amount={cost.amount}
-                            />
-                        ))}
-                    </div>
-                )}
-                {showModeToggle && abilityModes && onCycleAbilityMode && (
-                    <button
-                        type="button"
-                        className="absolute bottom-1 left-1 z-20 flex h-7 min-w-[2.75rem] items-center justify-center rounded border border-violet-400/70 bg-violet-950/90 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200 shadow-sm pointer-events-auto hover:border-violet-300 hover:bg-violet-900"
-                        title={`Mode: ${modeLabel ?? currentAbilityMode} (click to cycle)`}
-                        aria-label={`Ability mode ${modeLabel ?? currentAbilityMode}, click to cycle`}
-                        onClick={handleModeToggle}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                                handleModeToggle(e);
-                            }
-                        }}
-                    >
-                        {modeLabel ?? currentAbilityMode}
-                    </button>
-                )}
+                {/* Uses + recovery — inset from top-left corner */}
                 <div
-                    className={`flex min-h-0 flex-1 flex-col items-center justify-between ${isDisabled ? 'opacity-50' : ''}`}
+                    className={`absolute top-1 left-1 z-10 flex max-w-[calc(100%-32px)] items-center gap-0.5 pointer-events-none ${isDisabled ? 'opacity-50' : ''}`}
                 >
-                    {/* Card image */}
                     <div
-                        className="mb-1 mt-1 flex h-14 w-full items-center justify-center"
-                        dangerouslySetInnerHTML={{ __html: ability.image }}
-                    />
-
-                    {/* Card title */}
-                    <span className="w-full whitespace-normal px-1 text-center text-[14px] font-medium leading-tight text-gray-100">
-                        {ability.name}
-                    </span>
-
-                    <div className="mt-1 flex min-h-[22px] w-full items-center gap-1">
-                        <div className="rounded border border-white bg-surface px-2.5 py-1 text-[11px] tabular-nums leading-none text-gray-100">
-                            {usesLeft}/{maxUses}
-                        </div>
+                        className="flex shrink-0 items-center rounded border border-white bg-surface px-1.5 py-0.5 text-[10px] tabular-nums leading-none text-gray-100"
+                        style={{ minHeight: RESOURCE_COST_COMPACT_BADGE_MIN_HEIGHT_PX }}
+                    >
+                        {usesLeft}/{maxUses}
+                    </div>
                     {showRecovery && (
-                        <div className="flex-1 flex flex-col justify-center gap-0.5">
+                        <div className="flex min-w-0 flex-col justify-center gap-0.5">
                             {recoveryRules.map((rule, ruleIndex) => {
                                 const recoveryNeeded = Math.max(1, rule.chargesPerRecovery);
                                 const chargeDef = RECOVERY_CHARGE_DEFINITIONS[rule.chargeType];
                                 const rowTitle = chargeDef.rowExplanation;
-                                // Compute overlap: pips are 22px each; available width ~75px.
-                                // Positive = gap (px), negative = overlap (px).
                                 const PIP_SIZE = 22;
-                                const AVAILABLE_WIDTH = 75;
+                                const AVAILABLE_WIDTH = 52;
                                 const totalNatural = recoveryNeeded * PIP_SIZE + (recoveryNeeded - 1) * 2;
                                 const interPipSpacing = totalNatural > AVAILABLE_WIDTH && recoveryNeeded > 1
                                     ? -Math.ceil((totalNatural - AVAILABLE_WIDTH) / (recoveryNeeded - 1))
@@ -249,7 +212,49 @@ export default function AbilitySlot({
                             })}
                         </div>
                     )}
+                </div>
+
+                {/* Resource cost — inset from top-right corner */}
+                {costs.length > 0 && (
+                    <div className="absolute top-1 right-1 z-10 flex flex-col items-end gap-0.5 pointer-events-none">
+                        {costs.map((cost) => (
+                            <ResourceCostIcon
+                                key={cost.resourceId}
+                                resourceId={cost.resourceId}
+                                amount={cost.amount}
+                            />
+                        ))}
                     </div>
+                )}
+
+                {showModeToggle && abilityModes && onCycleAbilityMode && (
+                    <button
+                        type="button"
+                        className="absolute top-1/2 left-1/2 z-30 flex h-6 min-w-[2.75rem] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded border border-violet-400/70 bg-violet-950/95 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200 shadow-sm pointer-events-auto hover:border-violet-300 hover:bg-violet-900"
+                        title={`Mode: ${modeLabel ?? currentAbilityMode} (click to cycle)`}
+                        aria-label={`Ability mode ${modeLabel ?? currentAbilityMode}, click to cycle`}
+                        onClick={handleModeToggle}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                handleModeToggle(e);
+                            }
+                        }}
+                    >
+                        {modeLabel ?? currentAbilityMode}
+                    </button>
+                )}
+
+                <div
+                    className={`flex min-h-0 flex-1 flex-col items-center justify-start px-0.5 pt-7 pb-1.5 ${isDisabled ? 'opacity-50' : ''}`}
+                >
+                    <span className="mb-3 line-clamp-2 w-full text-center text-[13px] font-medium leading-tight text-gray-100">
+                        {ability.name}
+                    </span>
+
+                    <div
+                        className="flex h-12 w-full shrink-0 items-center justify-center"
+                        dangerouslySetInnerHTML={{ __html: ability.image }}
+                    />
                 </div>
             </div>
 
