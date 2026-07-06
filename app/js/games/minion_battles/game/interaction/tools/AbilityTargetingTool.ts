@@ -76,7 +76,10 @@ export class AbilityTargetingTool implements InteractionTool {
 
             // `newTargets` tracks one entry per click step so the next targetIndex is correct.
             const newTargets = [...this.currentTargets, resolved];
-            const newTargetsByLabel = { ...this.targetsByLabel, [selectDef.label]: resolved };
+            const labelTarget: ResolvedTarget = allCandidates.length > 0
+                ? { type: 'unit', unitId: allCandidates[0]!.unitId }
+                : resolved;
+            const newTargetsByLabel = { ...this.targetsByLabel, [selectDef.label]: labelTarget };
             this.currentTargets = newTargets;
             this.targetsByLabel = newTargetsByLabel;
             manager.setCurrentTargets(newTargets);

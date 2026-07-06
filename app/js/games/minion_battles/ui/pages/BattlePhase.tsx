@@ -12,7 +12,7 @@ import type { PlayerState, GameSidebarInfo } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import type { GameEngine } from '../../game/GameEngine';
 import type { SerializedGameState } from '../../game/types';
-import type { OrderWaiter, WaitingForOrders, BattleOrder, GhostPlanData } from '../../game/types';
+import type { OrderWaiter, WaitingForOrders, BattleOrder, GhostPlanData, ResolvedTarget } from '../../game/types';
 import {
     GHOST_PLAN_SEQUENTIAL_TARGETING_REBROADCAST_MS,
     isFreshSequentialTargetingSentinel,
@@ -1114,9 +1114,12 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                                 );
                                 const numTargets = selectDef.numTargets ?? selectDef.hitbox.numTargets;
                                 const lockOnCandidates = candidates.map((u) => ({ unitId: u.id }));
+                                const labelTarget: ResolvedTarget = lockOnCandidates.length > 0
+                                    ? { type: 'unit', unitId: lockOnCandidates[0]!.unitId }
+                                    : resolved;
                                 its.resolveTarget(
                                     label,
-                                    resolved,
+                                    labelTarget,
                                     session,
                                     buildMeleeSelectOrderTargets(resolved, lockOnCandidates, clickResult.worldPosition, numTargets),
                                 );

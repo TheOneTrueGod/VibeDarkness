@@ -254,11 +254,15 @@ export function buildMeleeSelectOrderTargets(
     if (lockOnCandidates.length === 0) {
         return [labelResolved];
     }
+    // Lock-on geometry can include units slightly beyond getAbilityMaxRange center distance
+    // (thick-line tolerance). clampSelectTarget may downgrade labelResolved to a range pixel —
+    // always prefer the highlighted lock-on unit as primary so MeleeAttack.onSetup records it.
+    const primary: ResolvedTarget = { type: 'unit', unitId: lockOnCandidates[0]!.unitId };
     const additionalLockOns: ResolvedTarget[] = lockOnCandidates
         .slice(1, numTargets)
         .map((c) => ({ type: 'unit' as const, unitId: c.unitId }));
     const aimPixel: ResolvedTarget = { type: 'pixel', position: clickWorldPosition };
-    return [labelResolved, ...additionalLockOns, aimPixel];
+    return [primary, ...additionalLockOns, aimPixel];
 }
 
 /** Convert a committed `ResolvedTarget` to a world-space point, or null if unresolvable. */

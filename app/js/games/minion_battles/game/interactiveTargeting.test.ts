@@ -32,7 +32,13 @@ import { findPreviewDeferredSelectLabel } from './interaction/selectTargetLookah
 import { getAbility } from '../abilities/AbilityRegistry';
 import { SwingBatCard } from '../card_defs/0115_SwingBat/0115Ability';
 import type { WindupLungePayload } from '../abilities/WindupLunge';
-import { DEFAULT_MELEE_LUNGE } from './units/unit_defs/unitConstants';
+import { DEFAULT_MELEE_LUNGE, DEFAULT_UNIT_RADIUS } from './units/unit_defs/unitConstants';
+import {
+    buildMeleeSelectOrderTargets,
+    clampSelectTarget,
+    getSelectTargetDefsFromTimings,
+    resolveSelectTargetLockOnCandidates,
+} from '../abilities/targeting';
 import {
     buildTinyBattleEngine,
     spawnTinyPlayerUnit,
@@ -60,6 +66,11 @@ const DC_ROCK_END_ROW = 8;
 
 /** Double Punch ability id — matches `DoublePunchAbility.id` in `0116Ability.ts`. */
 const DOUBLE_PUNCH_ABILITY_ID = '0116';
+/** Punch (0120) — single melee strike used for edge-range lock-on regression. */
+const PUNCH_ABILITY_ID = '0120';
+const PUNCH_TARGET_LABEL = 'Target';
+/** Logical reach from `0120Ability.ts` / `defineMeleeStrike` (exclusive of unit-radius padding). */
+const PUNCH_MAX_RANGE = 30;
 /** SelectTargetDef labels on Double Punch timings. */
 const DOUBLE_PUNCH_TARGET_1_LABEL = 'Target 1';
 const DOUBLE_PUNCH_TARGET_2_LABEL = 'Target 2';
@@ -416,6 +427,33 @@ function injectInteractiveTarget(
     expect(active).toBeDefined();
     if (!active!.targetsByLabel) active!.targetsByLabel = {};
     active!.targetsByLabel[label] = target;
+    engine.waitingForTargetInput = null;
+    engine.isPaused = false;
+}
+
+/** Mirrors `InteractiveTargetingSession.resolveTarget` positional-target injection. */
+function injectInteractiveMeleeTarget(
+    engine: GameEngine,
+    player: Unit,
+    abilityId: string,
+    label: string,
+    labelTarget: ResolvedTarget,
+    orderPositionalTargets: ResolvedTarget[],
+): void {
+    const active = player.activeAbilities.find((a) => a.abilityId === abilityId);
+    expect(active).toBeDefined();
+    if (orderPositionalTargets.length > 0) {
+        active!.targets = orderPositionalTargets.map((t) => ({ ...t }));
+    }
+    if (!active!.targetsByLabel) active!.targetsByLabel = {};
+    const primaryIdx = active!.targets.findIndex(
+        (t) => t.type === labelTarget.type
+            && (t.type === 'unit'
+                ? t.unitId === (labelTarget as { unitId?: string }).unitId
+                : t.position?.x === (labelTarget as { position?: { x: number } }).position?.x
+                    && t.position?.y === (labelTarget as { position?: { y: number } }).position?.y),
+    );
+    active!.targetsByLabel[label] = primaryIdx >= 0 ? active!.targets[primaryIdx]! : labelTarget;
     engine.waitingForTargetInput = null;
     engine.isPaused = false;
 }
@@ -1421,6 +1459,108 @@ describe('interactive sequential targeting', () => {
         }
         expect(getCastElapsed(engine, player, SWING_BAT_ABILITY_ID)).toBeLessThan(SWING_BAT_WINDUP_END);
         expect(Math.hypot(player.x - startX, player.y - startY)).toBeGreaterThan(1);
+
+        engine.destroy();
+    });
+
+    /**
+     * Scenario L — Punch lock-on at thick-line edge beyond center-to-center maxRange:
+     * hitbox highlights the enemy but clampSelectTarget downgrades label to a range pixel.
+     * order.targets must still carry the unit lock-on so MeleeAttack guaranteed hits fire.
+     */
+    it('Scenario L: Punch ITS preview damages enemy at lock-on edge beyond clamp range', () => {
+        resetGameObjectIdCounter(1);
+
+        const engine = buildTinyBattleEngine({
+            gridW: 12,
+            gridH: 10,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+
+        const playerX = 5 * CELL_SIZE + CELL_SIZE / 2;
+        const playerY = 5 * CELL_SIZE + CELL_SIZE / 2;
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: playerX,
+            y: playerY,
+            abilities: [PUNCH_ABILITY_ID],
+        });
+
+        // Just outside center-to-center maxRange (30 + 20 = 50) but still inside thick-line lock-on.
+        const edgeDistance = PUNCH_MAX_RANGE + DEFAULT_UNIT_RADIUS + 1;
+        const enemy = createTargetDummyAtWorld(engine, playerX + edgeDistance, playerY, {
+            id: 'enemy_edge',
+            hp: 100,
+        });
+        initializeAbilityRuntimeForUnit(enemy);
+        engine.addUnit(enemy, 'initialGameSpawn');
+
+        const ability = getAbility(PUNCH_ABILITY_ID);
+        expect(ability).toBeDefined();
+        const selectDefs = getSelectTargetDefsFromTimings(ability!, player, engine);
+        const selectDef = selectDefs.find((d) => d.label === PUNCH_TARGET_LABEL);
+        expect(selectDef).toBeDefined();
+
+        const clickWorld = { x: enemy.x, y: enemy.y };
+        const candidates = resolveSelectTargetLockOnCandidates(
+            ability!,
+            player,
+            selectDef!,
+            clickWorld,
+            engine,
+        );
+        expect(candidates.length).toBeGreaterThan(0);
+
+        let resolved: ResolvedTarget = { type: 'unit', unitId: candidates[0]!.id };
+        resolved = clampSelectTarget(ability!, player, selectDef!, {}, [], resolved, engine);
+        expect(resolved.type).toBe('pixel');
+
+        const lockOnCandidates = candidates.map((u) => ({ unitId: u.id }));
+        const numTargets = selectDef!.numTargets ?? selectDef!.hitbox.numTargets;
+        const orderPositionalTargets = buildMeleeSelectOrderTargets(
+            resolved,
+            lockOnCandidates,
+            clickWorld,
+            numTargets,
+        );
+        expect(orderPositionalTargets[0]?.type).toBe('unit');
+
+        stepUntil(engine, () => engine.waitingForOrders != null);
+
+        engine.isSequentialTargetingPreview = true;
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: PUNCH_ABILITY_ID,
+            targets: [],
+            targetsByLabel: {},
+            endTurn: true,
+        });
+
+        const paused = stepUntil(
+            engine,
+            () => engine.waitingForTargetInput?.label === PUNCH_TARGET_LABEL,
+            120,
+        );
+        expect(paused).toBe(true);
+
+        const labelTarget: ResolvedTarget = { type: 'unit', unitId: lockOnCandidates[0]!.unitId };
+        injectInteractiveMeleeTarget(
+            engine,
+            player,
+            PUNCH_ABILITY_ID,
+            PUNCH_TARGET_LABEL,
+            labelTarget,
+            orderPositionalTargets,
+        );
+
+        const initialHp = enemy.hp;
+        const damaged = stepUntil(
+            engine,
+            () => enemy.hp < initialHp,
+            200,
+        );
+        expect(damaged).toBe(true);
 
         engine.destroy();
     });

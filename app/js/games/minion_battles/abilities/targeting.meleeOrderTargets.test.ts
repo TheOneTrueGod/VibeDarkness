@@ -43,4 +43,13 @@ describe('buildMeleeSelectOrderTargets', () => {
             { type: 'pixel', position: clickPos },
         ]);
     });
+
+    it('range-clamped pixel label with lock-on candidate → unit primary + aimPixel', () => {
+        const clampedPixel: ResolvedTarget = { type: 'pixel', position: { x: 80, y: 50 } };
+        const result = buildMeleeSelectOrderTargets(clampedPixel, [{ unitId: 'u1' }], clickPos, 3);
+        expect(result).toEqual([
+            { type: 'unit', unitId: 'u1' },
+            { type: 'pixel', position: clickPos },
+        ]);
+    });
 });
