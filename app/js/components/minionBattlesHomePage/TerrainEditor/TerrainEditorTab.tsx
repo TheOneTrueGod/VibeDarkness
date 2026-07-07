@@ -7,13 +7,15 @@ import ToolPicker from './ToolPicker';
 import TerrainTypePicker from './TerrainTypePicker';
 import BrushSizePicker from './BrushSizePicker';
 import POIEditor from './POIEditor';
+import ZoneShapePicker from './ZoneShapePicker';
+import ZoneEditor from './ZoneEditor';
 import AdjacentPreviewCanvas from './AdjacentPreviewCanvas';
 import { EDITOR_CELL_SIZE } from './terrainEditorColors';
 import type { MapSegmentData } from '../../../games/minion_battles/terrain/segmentSchema';
 import { TerrainType } from '../../../games/minion_battles/terrain/TerrainType';
 import PanelLayout from '../PanelLayout';
 
-type RightTab = 'poi';
+type RightTab = 'poi' | 'zone';
 type CreateDir = 'north' | 'south' | 'east' | 'west';
 
 const PREVIEW_DEPTH = 2;
@@ -123,6 +125,7 @@ export default function TerrainEditorTab() {
             height,
             terrain: Array.from({ length: height }, () => Array<number>(width).fill(TerrainType.Grass)),
             pointsOfInterest: [],
+            zones: [],
         };
         try {
             const response = await fetch(`/api/terrain-segments/${id}`, {
@@ -230,6 +233,12 @@ export default function TerrainEditorTab() {
                                 />
                             </>
                         )}
+                        {state.activeTool === 'zone' && (
+                            <ZoneShapePicker
+                                activeShape={state.activeZoneShape}
+                                onSelect={actions.setZoneShape}
+                            />
+                        )}
                     </div>
                 }
                 leftWidth="w-40"
@@ -270,6 +279,7 @@ export default function TerrainEditorTab() {
                                         paintCells: actions.paintCells,
                                         addPOI: actions.addPOI,
                                         selectPOI: actions.selectPOI,
+                                        addZone: actions.addZone,
                                     }}
                                 />
                                 <AdjacentPreviewCanvas
@@ -315,6 +325,17 @@ export default function TerrainEditorTab() {
                             >
                                 Points of Interest
                             </button>
+                            <button
+                                type="button"
+                                className={`flex-1 py-2.5 text-xs font-medium transition-colors border-b-2 ${
+                                    rightTab === 'zone'
+                                        ? 'text-primary border-primary'
+                                        : 'text-muted border-transparent hover:text-white'
+                                }`}
+                                onClick={() => setRightTab('zone')}
+                            >
+                                Zones
+                            </button>
                         </div>
                         <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
                             {rightTab === 'poi' && (
@@ -342,6 +363,34 @@ export default function TerrainEditorTab() {
                                         onDelete={actions.deletePOI}
                                         showPOIs={state.showPOIs}
                                         onTogglePOIs={actions.togglePOIs}
+                                    />
+                                </>
+                            )}
+                            {rightTab === 'zone' && (
+                                <>
+                                    {state.selectedZoneId && (
+                                        <div className="border-b border-border-custom pb-3">
+                                            <ZoneEditor
+                                                section="properties"
+                                                zones={state.segmentData?.zones ?? []}
+                                                selectedZoneId={state.selectedZoneId}
+                                                onSelect={actions.selectZone}
+                                                onUpdate={actions.updateZone}
+                                                onDelete={actions.deleteZone}
+                                                showZones={state.showZones}
+                                                onToggleZones={actions.toggleZones}
+                                            />
+                                        </div>
+                                    )}
+                                    <ZoneEditor
+                                        section="list"
+                                        zones={state.segmentData?.zones ?? []}
+                                        selectedZoneId={state.selectedZoneId}
+                                        onSelect={actions.selectZone}
+                                        onUpdate={actions.updateZone}
+                                        onDelete={actions.deleteZone}
+                                        showZones={state.showZones}
+                                        onToggleZones={actions.toggleZones}
                                     />
                                 </>
                             )}

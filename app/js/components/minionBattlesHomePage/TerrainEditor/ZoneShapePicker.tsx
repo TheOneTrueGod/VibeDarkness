@@ -1,26 +1,26 @@
 import React from 'react';
-import { EditorTool } from './useEditorState';
+import { ZONE_SHAPES, ZoneShape } from '../../../games/minion_battles/terrain/segmentSchema';
 
-interface ToolPickerProps {
-    activeTool: EditorTool;
-    onSelect: (tool: EditorTool) => void;
+interface ZoneShapePickerProps {
+    activeShape: ZoneShape;
+    onSelect: (shape: ZoneShape) => void;
 }
 
-const tools: { id: EditorTool; icon: string; label: string }[] = [
-    { id: 'terrain_paint', icon: '▪', label: 'Paint' },
-    { id: 'poi', icon: '◉', label: 'POI' },
-    { id: 'zone', icon: '▭', label: 'Zone' },
-];
+const SHAPE_LABELS: Record<ZoneShape, { icon: string; label: string }> = {
+    box: { icon: '▭', label: 'Box' },
+    circle: { icon: '◯', label: 'Circle' },
+};
 
-export default function ToolPicker({ activeTool, onSelect }: ToolPickerProps) {
+export default function ZoneShapePicker({ activeShape, onSelect }: ZoneShapePickerProps) {
     return (
         <div className="flex flex-col gap-2">
-            {tools.map(({ id, icon, label }) => {
-                const isActive = activeTool === id;
+            {ZONE_SHAPES.map((shape) => {
+                const isActive = activeShape === shape;
+                const { icon, label } = SHAPE_LABELS[shape];
                 return (
                     <button
-                        key={id}
-                        onClick={() => onSelect(id)}
+                        key={shape}
+                        onClick={() => onSelect(shape)}
                         className={[
                             'w-full flex items-center gap-2 px-3 py-2 rounded text-sm font-medium border-2 transition-colors',
                             isActive

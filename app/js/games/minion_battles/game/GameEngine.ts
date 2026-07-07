@@ -292,6 +292,22 @@ export class GameEngine implements EngineContext {
         this.state.mapPOIs = pois;
     }
 
+    get mapZones(): import('../terrain/segmentSchema').MapSegmentZone[] {
+        return this.state.mapZones;
+    }
+    set mapZones(v: import('../terrain/segmentSchema').MapSegmentZone[]) {
+        this.state.mapZones = v;
+    }
+
+    /** Register zones from the loaded terrain segments for use by spawn behaviours and future triggers. */
+    registerMapZones(zones: import('../terrain/segmentSchema').MapSegmentZone[]): void {
+        this.state.mapZones = zones;
+    }
+
+    getZoneById(id: string): import('../terrain/segmentSchema').MapSegmentZone | undefined {
+        return this.state.mapZones.find((z) => z.id === id);
+    }
+
     get pendingOrders(): OrderAtTick[] {
         return this.state.orderMgr.pendingOrders;
     }
@@ -1795,6 +1811,7 @@ export class GameEngine implements EngineContext {
             lightTileGrid: this.state.lightTileGrid?.toJSON() ?? null,
             nextObjectId: this.objectIdSeq,
             mapPOIs: this.mapPOIs,
+            mapZones: this.mapZones,
             groups: this.state.groupManager.toJSON(this.gameTick),
             ninjutsuPools: this.state.ninjutsuManager?.toJSON() ?? undefined,
             ...(Object.keys(this.npcControlAssignments).length > 0
@@ -1940,6 +1957,9 @@ export class GameEngine implements EngineContext {
 
         // Restore map POIs (needed for networked lanternite nest spawning)
         engine.registerMapPOIs((data.mapPOIs ?? []) as import('../terrain/segmentSchema').MapSegmentPOI[]);
+
+        // Restore map zones (needed for spawn behaviours that run deterministically on every client)
+        engine.registerMapZones((data.mapZones ?? []) as import('../terrain/segmentSchema').MapSegmentZone[]);
 
         // Restore terrain layers (floor/ground/air effects)
         engine.state.terrainLayers = TerrainLayerManager.fromJSON(data.terrainEffects ?? [], data.floorTiles ?? []);

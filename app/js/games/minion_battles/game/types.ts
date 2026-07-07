@@ -137,6 +137,8 @@ export interface SerializedGameState {
     floorTiles?: import('./TerrainLayerManager').SerializedFloorTileEntry[];
     /** Map POIs (nest sites, etc.) used for networked lanternite spawning. */
     mapPOIs?: import('../terrain/segmentSchema').MapSegmentPOI[];
+    /** Map zones (named regions resolvable to grid tiles) used by spawn behaviours and future triggers. */
+    mapZones?: import('../terrain/segmentSchema').MapSegmentZone[];
     /** Serialized effect emitters (runtime-only factories not included; short-lived, safe to drop on reconnect). */
     effectEmitters?: Record<string, unknown>[];
     /** Value of the global generateGameObjectId counter at snapshot time. Restored on load so replayed effects/projectiles get identical IDs. */

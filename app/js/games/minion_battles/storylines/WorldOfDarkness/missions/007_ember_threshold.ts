@@ -20,7 +20,8 @@ import type {
 	PlayerSpawnPoint,
 	SpecialTilePlacement,
 } from '../../types';
-import type { MapSegmentPOI } from '../../../terrain/segmentSchema';
+import type { MapSegmentPOI, MapSegmentZone } from '../../../terrain/segmentSchema';
+import { resolveZoneTiles } from '../../../terrain/zones';
 import type { PostMissionStoryDef, PreMissionStoryDef } from '../../storyTypes';
 import { ALLY_LANTERNITE, ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
 import { UnitTag } from '../../../game/units/unitTag';
@@ -106,26 +107,25 @@ const SCOUT_A_WORLD = gridToWorld(SCOUT_A_GRID.col, SCOUT_A_GRID.row);
 
 // ---------------------------------------------------------------------------
 // Opening wolf pack: 3 wolves pre-spawned alongside the scout, placed randomly
-// in a 5x5 tile box centred 1 tile south of it (outside the mouth of the cave).
-// Every tile in the box is passable dirt/grass in the stitched terrain.
+// within the "outside of cave mouth" zone (see MapSegments/50_50_crystal_cave.ts).
 // ---------------------------------------------------------------------------
 const OPENING_WOLF_COUNT = 3;
-const OPENING_WOLF_BOX_CENTER = { col: SCOUT_A_GRID.col, row: SCOUT_A_GRID.row + 1 }; // global (31, 10)
-const OPENING_WOLF_BOX_HALF = 2; // 5x5 box
+const OUTSIDE_CAVE_MOUTH_ZONE_ID = 'outside of cave mouth';
 
 /**
  * Positions are drawn from the engine's seeded RNG (set in prepareForNewGame before
  * mission init), so every client computes the same placement. The scout's own tile
  * is excluded so a wolf never spawns on top of it.
  */
-function buildOpeningWolves(engine: GameEngine): EnemySpawnDef[] {
-	const candidates: { col: number; row: number }[] = [];
-	for (let row = OPENING_WOLF_BOX_CENTER.row - OPENING_WOLF_BOX_HALF; row <= OPENING_WOLF_BOX_CENTER.row + OPENING_WOLF_BOX_HALF; row++) {
-		for (let col = OPENING_WOLF_BOX_CENTER.col - OPENING_WOLF_BOX_HALF; col <= OPENING_WOLF_BOX_CENTER.col + OPENING_WOLF_BOX_HALF; col++) {
-			if (col === SCOUT_A_GRID.col && row === SCOUT_A_GRID.row) continue;
-			candidates.push({ col, row });
-		}
+function buildOpeningWolves(engine: GameEngine, terrainSegmentZones: MapSegmentZone[]): EnemySpawnDef[] {
+	const zone = terrainSegmentZones.find((z) => z.id === OUTSIDE_CAVE_MOUTH_ZONE_ID);
+	if (!zone) {
+		console.error(`ember_threshold: zone "${OUTSIDE_CAVE_MOUTH_ZONE_ID}" not found; opening wolves skipped.`);
+		return [];
 	}
+	const candidates = resolveZoneTiles(zone).filter(
+		(t) => !(t.col === SCOUT_A_GRID.col && t.row === SCOUT_A_GRID.row),
+	);
 	const wolves: EnemySpawnDef[] = [];
 	for (let i = 0; i < OPENING_WOLF_COUNT && candidates.length > 0; i++) {
 		const idx = engine.generateRandomInteger(0, candidates.length - 1);
@@ -324,7 +324,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 	override initializeGameState(engine: GameEngine, params: InitializeGameStateParams): void {
 		// Pre-spawn the opening wolf pack alongside the scout. Recomputed per battle so
 		// each playthrough rolls fresh positions from that battle's seed.
-		this.enemies = [buildScout(SCOUT_A_WORLD), ...buildOpeningWolves(engine)];
+		this.enemies = [buildScout(SCOUT_A_WORLD), ...buildOpeningWolves(engine, params.terrainSegmentZones ?? [])];
 		// Merge mission-specific nest POIs with any terrain-segment POIs.
 		super.initializeGameState(engine, {
 			...params,

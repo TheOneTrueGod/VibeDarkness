@@ -9,7 +9,7 @@ import type { MinionBattlesApi } from '../api/minionBattlesApi';
 import { MISSION_MAP, DARK_AWAKENING } from '../storylines';
 import { SPECTATOR_ID, isControlEnemy } from '../state';
 import { TerrainManager } from '../terrain/TerrainManager';
-import { getSegment } from '../terrain/segmentRegistry';
+import { getSegment, getMissionSegmentZones } from '../terrain/segmentRegistry';
 import { debugLog } from '../../../debugLog';
 import { logToLobbyLog, logToLobbyLogBattleSync } from '../../../lobbyLog';
 import { GameEngine } from './GameEngine';
@@ -434,6 +434,7 @@ export class BattleSession implements BattleSessionHandle {
             engine.setLevelEvents(mission.levelEvents);
         }
         const terrainSegmentPOIs = mission.segmentIds.flatMap((id) => getSegment(id)?.pointsOfInterest ?? []);
+        const terrainSegmentZones = getMissionSegmentZones(mission.segmentIds);
         mission.initializeGameState(engine, {
             playerUnits,
             characterSelections: selections,
@@ -443,6 +444,7 @@ export class BattleSession implements BattleSessionHandle {
             equippedItemsByPlayer,
             playerResearchTreesByPlayer,
             terrainSegmentPOIs,
+            terrainSegmentZones,
         });
         engine.initNinjutsu(mission.ninjutsuPools);
         engine.applyInstantLightingPass();

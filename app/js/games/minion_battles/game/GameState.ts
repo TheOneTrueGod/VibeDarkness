@@ -15,7 +15,7 @@ import { LightSourceManager } from './lightSources/LightSourceManager';
 import { EffectEmitterManager } from './effects/EffectEmitterManager';
 import { fingerprintInitial, FingerprintRing, type Fingerprint64 } from './Fingerprint';
 import { TerrainLayerManager } from './TerrainLayerManager';
-import type { MapSegmentPOI } from '../terrain/segmentSchema';
+import type { MapSegmentPOI, MapSegmentZone } from '../terrain/segmentSchema';
 import { LanterniteRespawnManager } from './lanternite/LanterniteRespawnManager';
 import { OrderManager } from './managers/OrderManager';
 import type { LightTileGrid } from './lightTileGrid/LightTileGrid';
@@ -75,6 +75,9 @@ export class GameState {
 
     /** POIs from the loaded map segment(s), used for enemySpawn point lookups. */
     mapPOIs: MapSegmentPOI[] = [];
+
+    /** Zones from the loaded map segment(s), in mission-global grid coords. */
+    mapZones: MapSegmentZone[] = [];
 
     /** The local player's ID. */
     localPlayerId = '';

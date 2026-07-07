@@ -16,6 +16,23 @@ export const MapSegmentPOISchema = z.object({
 });
 export type MapSegmentPOI = z.infer<typeof MapSegmentPOISchema>;
 
+export const ZONE_SHAPES = ['box', 'circle'] as const;
+export type ZoneShape = typeof ZONE_SHAPES[number];
+
+/**
+ * A named area within a segment (segment-local grid coords), resolvable to a list of
+ * grid squares. 'circle' is an ellipse inscribed in the topLeft/bottomRight bounding box.
+ * See `terrain/zones.ts` for the resolver. Reusable across missions/systems (spawning,
+ * and eventually enter-zone objective triggers) by referencing `id`.
+ */
+export const MapSegmentZoneSchema = z.object({
+    id: z.string(),
+    shape: z.enum(ZONE_SHAPES),
+    topLeft: z.object({ col: z.number().int(), row: z.number().int() }),
+    bottomRight: z.object({ col: z.number().int(), row: z.number().int() }),
+});
+export type MapSegmentZone = z.infer<typeof MapSegmentZoneSchema>;
+
 export const MapSegmentDataSchema = z.object({
     id: z.string(),
     gridCol: z.number().int(),
@@ -24,6 +41,7 @@ export const MapSegmentDataSchema = z.object({
     height: z.number().int().positive(),
     terrain: z.array(z.array(z.number().int().min(0).max(3))),
     pointsOfInterest: z.array(MapSegmentPOISchema).default([]),
+    zones: z.array(MapSegmentZoneSchema).default([]),
 });
 export type MapSegmentData = z.infer<typeof MapSegmentDataSchema>;
 

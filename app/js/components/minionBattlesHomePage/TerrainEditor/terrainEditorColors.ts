@@ -41,3 +41,15 @@ export const POI_RADIUS_ALPHA = 0.15;
 
 /** Border alpha for POI radius circles. */
 export const POI_RADIUS_BORDER_ALPHA = 0.6;
+
+/** Fill color for zone overlays (box/circle). */
+export const ZONE_FILL_COLOR = '#8e44ad';
+
+/** Fill alpha for zone overlays. */
+export const ZONE_FILL_ALPHA = 0.18;
+
+/** Border alpha for zone overlays. */
+export const ZONE_BORDER_ALPHA = 0.9;
+
+/** Border color for the currently selected zone. */
+export const ZONE_SELECTED_BORDER_COLOR = '#ffffff';

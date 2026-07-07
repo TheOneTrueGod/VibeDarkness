@@ -21,7 +21,10 @@ export default function SegmentSelector({ selectedId, onSelect, defaultId, onSeg
             const response = await fetch('/api/terrain-segments');
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const json = await response.json();
-            const fetched = (json as { segments: MapSegmentData[] }).segments ?? [];
+            const rawFetched = (json as { segments: MapSegmentData[] }).segments ?? [];
+            // Segment JSON saved before the `zones` field existed won't have it; default it here
+            // since this path reads raw API JSON rather than the Zod-validated schema.
+            const fetched = rawFetched.map((s) => ({ ...s, zones: s.zones ?? [] }));
             console.log('[SegmentSelector] API segments:', fetched.map((s) => s.id));
             setApiSegments(fetched);
         } catch (err) {

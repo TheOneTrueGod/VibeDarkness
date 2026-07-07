@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import {
     TERRAIN_COLORS,
     POI_STYLES,
@@ -6,9 +6,13 @@ import {
     HOVER_OVERLAY_ALPHA,
     POI_RADIUS_ALPHA,
     POI_RADIUS_BORDER_ALPHA,
+    ZONE_FILL_COLOR,
+    ZONE_FILL_ALPHA,
+    ZONE_BORDER_ALPHA,
+    ZONE_SELECTED_BORDER_COLOR,
 } from './terrainEditorColors';
 import { EditorState, EditorActions } from './useEditorState';
-import { MapSegmentPOI } from '../../../games/minion_battles/terrain/segmentSchema';
+import { MapSegmentPOI, MapSegmentZone } from '../../../games/minion_battles/terrain/segmentSchema';
 import { TerrainType } from '../../../games/minion_battles/terrain/TerrainType';
 
 // ---------------------------------------------------------------------------
@@ -17,7 +21,7 @@ import { TerrainType } from '../../../games/minion_battles/terrain/TerrainType';
 
 interface TerrainCanvasProps {
     state: EditorState;
-    actions: Pick<EditorActions, 'setHoveredCell' | 'paintCells' | 'addPOI' | 'selectPOI'>;
+    actions: Pick<EditorActions, 'setHoveredCell' | 'paintCells' | 'addPOI' | 'selectPOI' | 'addZone'>;
 }
 
 // ---------------------------------------------------------------------------
@@ -71,6 +75,50 @@ function hexToRgba(hex: string, alpha: number): string {
     return `rgba(${r},${g},${b},${alpha})`;
 }
 
+/** Normalizes two arbitrary corners into a topLeft/bottomRight pair (min/max). */
+function normalizeCorners(
+    a: { col: number; row: number },
+    b: { col: number; row: number },
+): { topLeft: { col: number; row: number }; bottomRight: { col: number; row: number } } {
+    return {
+        topLeft: { col: Math.min(a.col, b.col), row: Math.min(a.row, b.row) },
+        bottomRight: { col: Math.max(a.col, b.col), row: Math.max(a.row, b.row) },
+    };
+}
+
+/** Draws a zone's box/circle overlay (or a live drag preview when `isPreview` is set). */
+function drawZone(
+    ctx: CanvasRenderingContext2D,
+    zone: Pick<MapSegmentZone, 'shape' | 'topLeft' | 'bottomRight'>,
+    cellSize: number,
+    isSelected: boolean,
+    isPreview = false,
+): void {
+    const S = cellSize;
+    const x0 = zone.topLeft.col * S;
+    const y0 = zone.topLeft.row * S;
+    const x1 = (zone.bottomRight.col + 1) * S;
+    const y1 = (zone.bottomRight.row + 1) * S;
+
+    ctx.save();
+    if (isPreview) ctx.setLineDash([5, 4]);
+    ctx.fillStyle = hexToRgba(ZONE_FILL_COLOR, isPreview ? ZONE_FILL_ALPHA * 0.6 : ZONE_FILL_ALPHA);
+    ctx.strokeStyle = isSelected ? ZONE_SELECTED_BORDER_COLOR : hexToRgba(ZONE_FILL_COLOR, ZONE_BORDER_ALPHA);
+    ctx.lineWidth = isSelected ? 2.5 : 1.5;
+
+    ctx.beginPath();
+    if (zone.shape === 'box') {
+        ctx.rect(x0, y0, x1 - x0, y1 - y0);
+    } else {
+        const cx = (x0 + x1) / 2;
+        const cy = (y0 + y1) / 2;
+        ctx.ellipse(cx, cy, (x1 - x0) / 2, (y1 - y0) / 2, 0, 0, Math.PI * 2);
+    }
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -78,6 +126,8 @@ function hexToRgba(hex: string, alpha: number): string {
 export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const isMouseDown = useRef(false);
+    const [dragStart, setDragStart] = useState<{ col: number; row: number } | null>(null);
+    const [dragCurrent, setDragCurrent] = useState<{ col: number; row: number } | null>(null);
 
     // -----------------------------------------------------------------------
     // Rendering
@@ -90,7 +140,7 @@ export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        const { width, height, terrain, pointsOfInterest } = state.segmentData;
+        const { width, height, terrain, pointsOfInterest, zones } = state.segmentData;
         const S = EDITOR_CELL_SIZE;
 
         // 1. Terrain fill
@@ -207,7 +257,20 @@ export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
                 }
             }
         }
-    }, [state]);
+
+        // 5. Zone overlay
+        if (state.showZones && zones.length > 0) {
+            for (const zone of zones) {
+                drawZone(ctx, zone, S, zone.id === state.selectedZoneId);
+            }
+        }
+
+        // 6. Live zone-drag preview
+        if (state.activeTool === 'zone' && dragStart && dragCurrent) {
+            const { topLeft, bottomRight } = normalizeCorners(dragStart, dragCurrent);
+            drawZone(ctx, { shape: state.activeZoneShape, topLeft, bottomRight }, S, false, true);
+        }
+    }, [state, dragStart, dragCurrent]);
 
     // -----------------------------------------------------------------------
     // Mouse helpers
@@ -257,6 +320,10 @@ export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
                 );
                 actions.paintCells(brushCells);
             }
+
+            if (isMouseDown.current && state.activeTool === 'zone' && cell) {
+                setDragCurrent(cell);
+            }
         },
         [getCellFromEvent, actions, state.activeTool, state.brushSize, state.segmentData],
     );
@@ -277,6 +344,12 @@ export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
                     state.segmentData.height,
                 );
                 actions.paintCells(brushCells);
+                return;
+            }
+
+            if (state.activeTool === 'zone') {
+                setDragStart(cell);
+                setDragCurrent(cell);
                 return;
             }
 
@@ -316,11 +389,20 @@ export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
 
     const handleMouseUp = useCallback(() => {
         isMouseDown.current = false;
-    }, []);
+
+        if (state.activeTool === 'zone' && dragStart && dragCurrent) {
+            const { topLeft, bottomRight } = normalizeCorners(dragStart, dragCurrent);
+            actions.addZone({ shape: state.activeZoneShape, topLeft, bottomRight });
+        }
+        setDragStart(null);
+        setDragCurrent(null);
+    }, [state.activeTool, state.activeZoneShape, dragStart, dragCurrent, actions]);
 
     const handleMouseLeave = useCallback(() => {
         isMouseDown.current = false;
         actions.setHoveredCell(null);
+        setDragStart(null);
+        setDragCurrent(null);
     }, [actions]);
 
     // -----------------------------------------------------------------------

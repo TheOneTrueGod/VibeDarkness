@@ -24,6 +24,7 @@ import {
     MAP_SEGMENT_50_50_CRYSTAL_CAVE,
     CAVE_CAMPFIRE,
     CRYSTAL_POINTS,
+    OUTSIDE_CAVE_MOUTH_ZONE,
 } from './MapSegments/50_50_crystal_cave';
 import {
     MAP_SEGMENT_50_51_SOUTH_GATE,
@@ -163,6 +164,7 @@ export function registerWorldOfDarknessSegments(): void {
             50,
             MAP_SEGMENT_50_50_CRYSTAL_CAVE,
             crystalCavePOIs,
+            [OUTSIDE_CAVE_MOUTH_ZONE],
         ),
     );
 

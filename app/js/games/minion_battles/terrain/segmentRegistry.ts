@@ -1,6 +1,7 @@
-import type { MapSegmentData, MapSegmentPOI } from './segmentSchema';
+import type { MapSegmentData, MapSegmentPOI, MapSegmentZone } from './segmentSchema';
 import { MapSegmentDataSchema } from './segmentSchema';
 import { TerrainType } from './TerrainType';
+import { offsetZone } from './zones';
 
 const registry = new Map<string, MapSegmentData>();
 
@@ -34,6 +35,7 @@ export function tsTerrainToSegmentData(
     gridRow: number,
     terrain: TerrainType[][],
     pois?: MapSegmentPOI[],
+    zones?: MapSegmentZone[],
 ): MapSegmentData {
     return {
         id,
@@ -43,7 +45,35 @@ export function tsTerrainToSegmentData(
         height: terrain.length,
         terrain: terrain.map((row) => [...row]),
         pointsOfInterest: pois ?? [],
+        zones: zones ?? [],
     };
+}
+
+/**
+ * Resolves every zone declared on the given segments into mission-global grid coords.
+ * Each segment's origin is derived the same way the map-segments convention documents:
+ * `originCol = (gridCol - minCol) * width`, `originRow = (gridRow - minRow) * height`,
+ * where `minCol`/`minRow` are the smallest world-grid addresses among `segmentIds`.
+ * Segments not currently registered (e.g. procedural pads with no segment file) are skipped.
+ */
+export function getMissionSegmentZones(segmentIds: string[]): MapSegmentZone[] {
+    const segments = segmentIds
+        .map((id) => registry.get(id))
+        .filter((s): s is MapSegmentData => s != null);
+    if (segments.length === 0) return [];
+
+    const minCol = Math.min(...segments.map((s) => s.gridCol));
+    const minRow = Math.min(...segments.map((s) => s.gridRow));
+
+    const zones: MapSegmentZone[] = [];
+    for (const seg of segments) {
+        const originCol = (seg.gridCol - minCol) * seg.width;
+        const originRow = (seg.gridRow - minRow) * seg.height;
+        for (const zone of seg.zones) {
+            zones.push(offsetZone(zone, originCol, originRow));
+        }
+    }
+    return zones;
 }
 
 /**

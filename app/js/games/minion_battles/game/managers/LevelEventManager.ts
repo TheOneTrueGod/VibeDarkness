@@ -19,6 +19,7 @@ import type {
     SpawnWaveEntry,
 } from '../../storylines/types';
 import { getEdgePositions } from '../../storylines/edgeSpawns';
+import { resolveZoneTiles } from '../../terrain/zones';
 import { createUnitFromSpawnConfig } from '../units/index';
 import { resolveEnemySpawnStats } from '../units/unit_defs/unitDef';
 import {
@@ -311,11 +312,41 @@ export class LevelEventManager {
             return cells;
         };
 
+        const isValidSpawnCell = (col: number, row: number, behaviour: 'darkness' | 'anywhere'): boolean => {
+            const key = `${col},${row}`;
+            if (occupiedCells.has(key)) return false;
+
+            const { x, y } = grid.gridToWorld(col, row);
+            if (!terrainManager.isPassable(x, y)) return false;
+
+            if (behaviour === 'darkness') {
+                // Use animated visual grid (getLightAt) not a fresh target grid — tile must be visually dark.
+                const level = this.ctx.getLightAt(col, row);
+                if (level == null || level > DarknessLevel.FULL_DARKNESS) return false;
+            }
+
+            return true;
+        };
+
         const collectCandidateTiles = (
             behaviour: 'darkness' | 'anywhere',
             spawnTarget: { x: number; y: number; radius: number } | undefined,
+            spawnZoneId?: string,
         ): { col: number; row: number }[] => {
             const candidates: { col: number; row: number }[] = [];
+
+            if (spawnZoneId != null) {
+                const zone = this.ctx.getZoneById(spawnZoneId);
+                if (!zone) {
+                    console.error(`spawnWave: zone "${spawnZoneId}" not found; skipping this spawn entry.`);
+                    return [];
+                }
+                for (const { col, row } of resolveZoneTiles(zone)) {
+                    if (isValidSpawnCell(col, row, behaviour)) candidates.push({ col, row });
+                }
+                return candidates;
+            }
+
             const hasTarget = !!spawnTarget;
             const targetX = spawnTarget?.x ?? 0;
             const targetY = spawnTarget?.y ?? 0;
@@ -324,26 +355,14 @@ export class LevelEventManager {
 
             for (let row = 0; row < height; row++) {
                 for (let col = 0; col < width; col++) {
-                    const key = `${col},${row}`;
-                    if (occupiedCells.has(key)) continue;
-
-                    const { x, y } = grid.gridToWorld(col, row);
-
                     if (hasTarget) {
+                        const { x, y } = grid.gridToWorld(col, row);
                         const dx = x - targetX;
                         const dy = y - targetY;
                         if (dx * dx + dy * dy > radiusSq) continue;
                     }
 
-                    if (!terrainManager.isPassable(x, y)) continue;
-
-                    if (behaviour === 'darkness') {
-                        // Use animated visual grid (getLightAt) not a fresh target grid — tile must be visually dark.
-                        const level = this.ctx.getLightAt(col, row);
-                        if (level == null || level > DarknessLevel.FULL_DARKNESS) continue;
-                    }
-
-                    candidates.push({ col, row });
+                    if (isValidSpawnCell(col, row, behaviour)) candidates.push({ col, row });
                 }
             }
 
@@ -369,7 +388,7 @@ export class LevelEventManager {
                 continue;
             }
 
-            const candidates = collectCandidateTiles(behaviour === 'darkness' ? 'darkness' : 'anywhere', entry.spawnTarget);
+            const candidates = collectCandidateTiles(behaviour === 'darkness' ? 'darkness' : 'anywhere', entry.spawnTarget, entry.spawnZoneId);
             if (candidates.length === 0) {
                 console.error(
                     `spawnWave: no valid tiles for behaviour "${behaviour}"` +
@@ -713,11 +732,38 @@ export class LevelEventManager {
 
         const occupiedCells = new Set<string>();
 
+        const isValidSpawnCell = (col: number, row: number, behaviour: 'darkness' | 'anywhere'): boolean => {
+            const key = `${col},${row}`;
+            if (occupiedCells.has(key)) return false;
+            const { x, y } = grid.gridToWorld(col, row);
+            if (!terrainManager.isPassable(x, y)) return false;
+            if (behaviour === 'darkness') {
+                // Use animated visual grid — tile must be visually dark, not just target-dark.
+                const level = this.ctx.getLightAt(col, row);
+                if (level == null || level > DarknessLevel.FULL_DARKNESS) return false;
+            }
+            return true;
+        };
+
         const collectCandidates = (
             behaviour: 'darkness' | 'anywhere',
             spawnTarget: { x: number; y: number; radius: number } | undefined,
+            spawnZoneId?: string,
         ): { col: number; row: number }[] => {
             const candidates: { col: number; row: number }[] = [];
+
+            if (spawnZoneId != null) {
+                const zone = this.ctx.getZoneById(spawnZoneId);
+                if (!zone) {
+                    console.error(`continuousSpawn: zone "${spawnZoneId}" not found; skipping this spawn entry.`);
+                    return [];
+                }
+                for (const { col, row } of resolveZoneTiles(zone)) {
+                    if (isValidSpawnCell(col, row, behaviour)) candidates.push({ col, row });
+                }
+                return candidates;
+            }
+
             const hasTarget = !!spawnTarget;
             const targetX = spawnTarget?.x ?? 0;
             const targetY = spawnTarget?.y ?? 0;
@@ -725,21 +771,13 @@ export class LevelEventManager {
             const radiusSq = radiusPx * radiusPx;
             for (let row = 0; row < height; row++) {
                 for (let col = 0; col < width; col++) {
-                    const key = `${col},${row}`;
-                    if (occupiedCells.has(key)) continue;
-                    const { x, y } = grid.gridToWorld(col, row);
-                    if (!terrainManager.isPassable(x, y)) continue;
                     if (hasTarget) {
+                        const { x, y } = grid.gridToWorld(col, row);
                         const dx = x - targetX;
                         const dy = y - targetY;
                         if (dx * dx + dy * dy > radiusSq) continue;
                     }
-                    if (behaviour === 'darkness') {
-                        // Use animated visual grid — tile must be visually dark, not just target-dark.
-                        const level = this.ctx.getLightAt(col, row);
-                        if (level == null || level > DarknessLevel.FULL_DARKNESS) continue;
-                    }
-                    candidates.push({ col, row });
+                    if (isValidSpawnCell(col, row, behaviour)) candidates.push({ col, row });
                 }
             }
             return candidates;
@@ -769,7 +807,7 @@ export class LevelEventManager {
 
             if (maxUnits != null && unitCountByTeam && unitCountByTeam[base.teamId] > maxUnits) continue;
 
-            const candidates = collectCandidates(behaviour, entry.spawnTarget);
+            const candidates = collectCandidates(behaviour, entry.spawnTarget, entry.spawnZoneId);
             if (candidates.length === 0) continue;
             const spawnAttempts = Math.min(count, candidates.length);
             const chosenIndices = chooseRandomIndices(candidates.length, spawnAttempts);

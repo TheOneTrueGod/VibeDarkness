@@ -16,7 +16,7 @@ import type { LightSource as GridLightSource } from './LightGrid';
 import type { LightSource } from './lightSources/LightSource';
 import type { EffectEmitter } from './effects/EffectEmitter';
 import type { TerrainLayerManager } from './TerrainLayerManager';
-import type { MapSegmentPOI } from '../terrain/segmentSchema';
+import type { MapSegmentPOI, MapSegmentZone } from '../terrain/segmentSchema';
 import type { SpawnSource, WaitingForOrders } from './types';
 import type { CellOccupancyManager } from './managers/CellOccupancyManager';
 import type { WorldModifierManager } from '../worldModifiers/WorldModifierManager';
@@ -131,6 +131,12 @@ export interface EngineContext {
 
     /** POIs from the loaded map segment(s), used for enemySpawn point lookups. */
     mapPOIs: MapSegmentPOI[];
+
+    /** Zones from the loaded map segment(s), in mission-global grid coords. */
+    mapZones: MapSegmentZone[];
+
+    /** Looks up a registered zone by id (see `terrain/zones.ts` to resolve it to tiles). */
+    getZoneById(id: string): MapSegmentZone | undefined;
 
     /** Runtime cell occupancy tracker for managed units (swarmlings, wolves, etc.). null when unused. */
     cellOccupancyManager: CellOccupancyManager | null;

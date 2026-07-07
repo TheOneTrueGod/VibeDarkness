@@ -6,6 +6,7 @@
 
 import { TerrainType } from '../../../terrain/TerrainType';
 import type { SpecialTilePlacement } from '../../types';
+import type { MapSegmentZone } from '../../../terrain/segmentSchema';
 
 const _ = TerrainType.Grass;
 const R = TerrainType.Rock;
@@ -43,6 +44,14 @@ export const CAVE_CAMPFIRE = { row: 10, col: 19 } as const;
 export const pointsOfInterest = {
     campfire: CAVE_CAMPFIRE,
 } as const;
+
+/** 5x5 box just outside the cave's western opening (segment-local grid). Used for the opening wolf pack in mission 007. */
+export const OUTSIDE_CAVE_MOUTH_ZONE: MapSegmentZone = {
+    id: 'outside of cave mouth',
+    shape: 'box',
+    topLeft: { col: 7, row: 8 },
+    bottomRight: { col: 11, row: 12 },
+};
 
 /** Points of interest for crystal placements (segment-local grid). */
 export const CRYSTAL_POINTS = {

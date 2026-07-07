@@ -59,6 +59,12 @@ export interface SpawnWaveEntry {
      * a circular area of radius (in tiles) around (x, y) in world space.
      */
     spawnTarget?: SpawnTarget;
+    /**
+     * Alternative to `spawnTarget` — resolves candidate tiles from a registered zone
+     * (see `terrain/zones.ts` and `EngineContext.getZoneById`). Only honoured with
+     * spawnBehaviour 'anywhere' or 'darkness'; takes precedence over `spawnTarget` when set.
+     */
+    spawnZoneId?: string;
     /** How many units to attempt spawning for this entry. Defaults to 1. */
     spawnCount?: number;
     /** Number of individual creatures represented by each spawned token. Defaults to 1. */

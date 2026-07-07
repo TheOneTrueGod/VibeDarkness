@@ -51,6 +51,31 @@ registerSegment(tsTerrainToSegmentData('my_segment', col, row, MAP_SEGMENT_MY_SE
 
 Use semantic ids (e.g. `'enemy_spawn_1'`) rather than the auto-generated editor ids.
 
+## Zones — same idea, separate field
+
+The JSON also has a `zones` array (added alongside `pointsOfInterest`). Each entry has `id`, `shape` (`'box'` | `'circle'`), `topLeft: {col, row}`, `bottomRight: {col, row}` — segment-local coordinates. See `app/js/games/minion_battles/terrain/zones.ts` for how a zone resolves to grid tiles ('circle' is the ellipse inscribed in the topLeft/bottomRight box).
+
+Every zone should be exported as a named `MapSegmentZone` constant, since a zone's `id` (unlike a POI's auto-generated id) is typically referenced directly by mission code (e.g. `spawnZoneId`) or by `params.terrainSegmentZones.find(...)`. Export it as a full `{ id, shape, topLeft, bottomRight }` object, not just the coordinates:
+
+```ts
+export const OUTSIDE_CAVE_MOUTH_ZONE: MapSegmentZone = {
+    id: 'outside of cave mouth',
+    shape: 'box',
+    topLeft: { col: 7, row: 8 },
+    bottomRight: { col: 11, row: 12 },
+};
+```
+
+Then register it in `registerSegments.ts` as the 6th argument to `tsTerrainToSegmentData` (a `MapSegmentZone[]`), alongside the POI array:
+
+```ts
+registerSegment(
+    tsTerrainToSegmentData('my_segment', col, row, MAP_SEGMENT_MY_SEGMENT, mySegmentPOIs, [OUTSIDE_CAVE_MOUTH_ZONE]),
+);
+```
+
+If a zone's `id` or bounds changed, check any mission that references that `id` (via `spawnZoneId` on a spawn entry, or a direct lookup in `initializeGameState`) still makes sense.
+
 ## Step 7 — Check mission imports
 
 If a POI constant's value changed, verify the mission file that imports it still places enemies/objectives/tiles at sensible positions. Run `npm run lint` to catch type errors.

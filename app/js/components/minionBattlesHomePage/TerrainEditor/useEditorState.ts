@@ -3,23 +3,30 @@ import { TerrainType } from '../../../games/minion_battles/terrain/TerrainType';
 import {
     MapSegmentData,
     MapSegmentPOI,
+    MapSegmentZone,
+    ZoneShape,
 } from '../../../games/minion_battles/terrain/segmentSchema';
 
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
+export type EditorTool = 'terrain_paint' | 'poi' | 'zone';
+
 export interface EditorState {
     segmentId: string | null;
     segmentData: MapSegmentData | null;
     isDirty: boolean;
-    activeTool: 'terrain_paint' | 'poi';
+    activeTool: EditorTool;
     showPOIs: boolean;
     selectedTerrainType: TerrainType;
     brushSize: 1 | 2 | 3 | 4 | 5 | 7;
     selectedPOIId: string | null;
     hoveredCell: { col: number; row: number } | null;
     saveStatus: 'idle' | 'saving' | 'saved' | 'error';
+    showZones: boolean;
+    activeZoneShape: ZoneShape;
+    selectedZoneId: string | null;
 }
 
 const initialState: EditorState = {
@@ -33,6 +40,9 @@ const initialState: EditorState = {
     selectedPOIId: null,
     hoveredCell: null,
     saveStatus: 'idle',
+    showZones: true,
+    activeZoneShape: 'box',
+    selectedZoneId: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -41,7 +51,7 @@ const initialState: EditorState = {
 
 type EditorAction =
     | { type: 'LOAD_SEGMENT'; payload: MapSegmentData }
-    | { type: 'SET_TOOL'; payload: 'terrain_paint' | 'poi' }
+    | { type: 'SET_TOOL'; payload: EditorTool }
     | { type: 'SET_TERRAIN_TYPE'; payload: TerrainType }
     | { type: 'SET_BRUSH_SIZE'; payload: 1 | 2 | 3 | 4 | 5 | 7 }
     | { type: 'TOGGLE_POIS' }
@@ -52,7 +62,13 @@ type EditorAction =
     | { type: 'DELETE_POI'; payload: string }
     | { type: 'SELECT_POI'; payload: string | null }
     | { type: 'SET_SAVE_STATUS'; payload: 'idle' | 'saving' | 'saved' | 'error' }
-    | { type: 'CLEAR_DIRTY' };
+    | { type: 'CLEAR_DIRTY' }
+    | { type: 'SET_ZONE_SHAPE'; payload: ZoneShape }
+    | { type: 'TOGGLE_ZONES' }
+    | { type: 'ADD_ZONE'; payload: Omit<MapSegmentZone, 'id'> & { id?: string } }
+    | { type: 'UPDATE_ZONE'; payload: MapSegmentZone }
+    | { type: 'DELETE_ZONE'; payload: string }
+    | { type: 'SELECT_ZONE'; payload: string | null };
 
 // ---------------------------------------------------------------------------
 // Reducer
@@ -68,6 +84,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
                 segmentData: data,
                 isDirty: false,
                 selectedPOIId: null,
+                selectedZoneId: null,
             };
         }
 
@@ -179,6 +196,63 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         case 'CLEAR_DIRTY':
             return { ...state, isDirty: false };
 
+        case 'SET_ZONE_SHAPE':
+            return { ...state, activeZoneShape: action.payload };
+
+        case 'TOGGLE_ZONES':
+            return { ...state, showZones: !state.showZones };
+
+        case 'ADD_ZONE': {
+            if (!state.segmentData) return state;
+
+            const id = action.payload.id ?? Date.now().toString(36);
+            const newZone: MapSegmentZone = { ...action.payload, id };
+            const newZones = [...state.segmentData.zones, newZone];
+
+            return {
+                ...state,
+                isDirty: true,
+                selectedZoneId: id,
+                segmentData: { ...state.segmentData, zones: newZones },
+            };
+        }
+
+        case 'UPDATE_ZONE': {
+            if (!state.segmentData) return state;
+
+            const updated = action.payload;
+            const newZones = state.segmentData.zones.map((zone) =>
+                zone.id === updated.id ? updated : zone
+            );
+
+            return {
+                ...state,
+                isDirty: true,
+                selectedZoneId: updated.id,
+                segmentData: { ...state.segmentData, zones: newZones },
+            };
+        }
+
+        case 'DELETE_ZONE': {
+            if (!state.segmentData) return state;
+
+            const idToDelete = action.payload;
+            const newZones = state.segmentData.zones.filter(
+                (zone) => zone.id !== idToDelete
+            );
+
+            return {
+                ...state,
+                isDirty: true,
+                selectedZoneId:
+                    state.selectedZoneId === idToDelete ? null : state.selectedZoneId,
+                segmentData: { ...state.segmentData, zones: newZones },
+            };
+        }
+
+        case 'SELECT_ZONE':
+            return { ...state, selectedZoneId: action.payload };
+
         default:
             return state;
     }
@@ -190,7 +264,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
 
 export interface EditorActions {
     loadSegment: (data: MapSegmentData) => void;
-    setTool: (tool: 'terrain_paint' | 'poi') => void;
+    setTool: (tool: EditorTool) => void;
     setTerrainType: (type: TerrainType) => void;
     setBrushSize: (size: 1 | 2 | 3 | 4 | 5 | 7) => void;
     togglePOIs: () => void;
@@ -202,6 +276,12 @@ export interface EditorActions {
     selectPOI: (id: string | null) => void;
     setSaveStatus: (status: 'idle' | 'saving' | 'saved' | 'error') => void;
     clearDirty: () => void;
+    setZoneShape: (shape: ZoneShape) => void;
+    toggleZones: () => void;
+    addZone: (zone: Omit<MapSegmentZone, 'id'> & { id?: string }) => void;
+    updateZone: (zone: MapSegmentZone) => void;
+    deleteZone: (id: string) => void;
+    selectZone: (id: string | null) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -225,6 +305,12 @@ export function useEditorState(): { state: EditorState; actions: EditorActions }
         selectPOI: (id) => dispatch({ type: 'SELECT_POI', payload: id }),
         setSaveStatus: (status) => dispatch({ type: 'SET_SAVE_STATUS', payload: status }),
         clearDirty: () => dispatch({ type: 'CLEAR_DIRTY' }),
+        setZoneShape: (shape) => dispatch({ type: 'SET_ZONE_SHAPE', payload: shape }),
+        toggleZones: () => dispatch({ type: 'TOGGLE_ZONES' }),
+        addZone: (zone) => dispatch({ type: 'ADD_ZONE', payload: zone }),
+        updateZone: (zone) => dispatch({ type: 'UPDATE_ZONE', payload: zone }),
+        deleteZone: (id) => dispatch({ type: 'DELETE_ZONE', payload: id }),
+        selectZone: (id) => dispatch({ type: 'SELECT_ZONE', payload: id }),
     };
 
     return { state, actions };

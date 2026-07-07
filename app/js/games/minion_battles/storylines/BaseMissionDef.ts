@@ -22,7 +22,7 @@ import type { NinjutsuPoolConfig } from '../game/ninjutsu/ninjutsuConfig';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { EventBus } from '../game/EventBus';
 import type { Unit } from '../game/units/Unit';
-import type { MapSegmentPOI } from '../terrain/segmentSchema';
+import type { MapSegmentPOI, MapSegmentZone } from '../terrain/segmentSchema';
 import { createPlayerUnit, createUnitFromSpawnConfig } from '../game/units/index';
 import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
 import { getSpecialTileDef } from './specialTileDefs';
@@ -109,6 +109,8 @@ export interface InitializeGameStateParams {
     playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
     /** POIs collected from the fetched terrain segments; passed to the engine for spawn point lookups. */
     terrainSegmentPOIs?: MapSegmentPOI[];
+    /** Zones collected from the fetched terrain segments (already shifted to mission-global coords). */
+    terrainSegmentZones?: MapSegmentZone[];
 }
 
 /** Mission definition extending MissionBattleConfig with initializeGameState. */
@@ -183,6 +185,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
         engine.localPlayerId = params.localPlayerId;
         engine.terrainManager = params.terrainManager ?? null;
         engine.registerMapPOIs(params.terrainSegmentPOIs ?? []);
+        engine.registerMapZones(params.terrainSegmentZones ?? []);
 
         // Add player units
         const playerCount = params.playerUnits.length;
