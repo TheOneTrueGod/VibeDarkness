@@ -1327,7 +1327,9 @@ export class GameEngine implements EngineContext {
     }
 
     private fixedUpdate(dt: number): void {
-        if (this.state.levelEventManager.isTerminal) return;
+        if (this.state.levelEventManager.isTerminal) {
+            return;
+        }
 
         // Fingerprint invariant: row for tick N is emitted after TICK_END for tick N; `paused` matches
         // {@link getFingerprintTailPaused} after any in-frame deferred pause commit.
@@ -1338,7 +1340,9 @@ export class GameEngine implements EngineContext {
         // while headless `stepSimulationFixedTicks` must still run ticks in that window.
         // `loop()` may drain multiple FIXED_DT steps per rAF; without this guard, a second `fixedUpdate` in the
         // same frame could run the normal path after the deferred pause branch above committed this pause.
-        if (this.waitingForOrders != null) return;
+        if (this.waitingForOrders != null) {
+            return;
+        }
 
         // Interactive select-target lookahead: pause before advancing time so entry-tick
         // cast behaviour fires on the tick after the player picks (see select-target-lookahead plan).
@@ -1393,7 +1397,6 @@ export class GameEngine implements EngineContext {
                 this,
                 (unitId: string) => this.naturalAbilityCompletionUnitIdsThisTick.add(unitId),
                 aiCtx,
-                () => this.state.levelEventManager.runVictoryChecks(),
             );
             // Preview stop condition (findings 4 & 5): pause the preview when the caster's
             // ability is no longer running (natural completion, cancel, interrupt, death) or the
@@ -1491,6 +1494,8 @@ export class GameEngine implements EngineContext {
         );
         if (!this.storyPauseActive) {
             this.state.levelEventManager.runDefeatCheck();
+            // Mirror defeat: catch projectile/DoT kills after unitManager's per-enemy checks.
+            this.state.levelEventManager.runVictoryChecks();
         } else if (this.storyPauseEndsAt != null && this.gameTime >= this.storyPauseEndsAt) {
             this.endStoryPause();
         }

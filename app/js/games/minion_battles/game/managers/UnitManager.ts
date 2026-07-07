@@ -241,7 +241,6 @@ export class UnitManager {
         engine: EngineContext,
         onNaturalAbilityCompletion: (unitId: string) => void,
         aiContext: AIContext,
-        onBeforeEnemyAI?: () => void,
     ): void {
         // Phase 1a: passive ability tick (all alive units, no cast required)
         for (const unit of this.units) {
@@ -286,7 +285,6 @@ export class UnitManager {
         // Phase 3: AI decisions (all positions settled)
         for (const unit of this.units) {
             if (!unit.active || unit.isPlayerControlled() || !unit.canAct() || !unit.isAlive() || unit.isSpawning()) continue;
-            onBeforeEnemyAI?.();
             const tree = getUnitAITree(unit.unitAITreeId);
             if (tree) runUnitAI(unit, tree, aiContext);
             unit.pendingInterrupts.clear();

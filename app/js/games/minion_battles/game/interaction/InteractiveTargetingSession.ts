@@ -129,6 +129,8 @@ export class InteractiveTargetingSession {
     private _previewOrderQueued = false;
     /** Other batch waiters that received an assumed wait at begin() (not already confirmed). */
     private assumedWaitUnitIds: Set<string> = new Set();
+    /** True while a commit is running (guards re-entry from concurrent commit triggers). */
+    private _commitInFlight = false;
 
     // -------------------------------------------------------------------------
     // Public state
@@ -468,6 +470,15 @@ export class InteractiveTargetingSession {
     }
 
     /**
+     * Ends an active preview when victory/defeat latches during playahead.
+     * Keeps the live engine state — does not restore the mark snapshot.
+     */
+    endPreviewForTerminalOutcome(): void {
+        this.heldRemoteOrders.clear();
+        this._clearActive();
+    }
+
+    /**
      * Restore to mark and re-queue the ability order with all targets collected so far
      * pre-filled in `targetsByLabel`, so the engine runs without pausing again.
      */
@@ -531,8 +542,21 @@ export class InteractiveTargetingSession {
      * Rollback: restore to mark, apply held remote orders, submit via BattleNet (re-applies locally).
      * In-place: keep preview engine state, persist the finalized order without re-applying it,
      * clear preview flags, unpause, and re-emit any terminal outcome suppressed during preview.
+     *
+     * Re-entrant calls while a commit is awaiting network are dropped (terminal-outcome
+     * auto-commit can race the UI's AUTO_END_TURN poll).
      */
     async commit(session: BattleSession): Promise<void> {
+        if (this._commitInFlight) return;
+        this._commitInFlight = true;
+        try {
+            await this._commitImpl(session);
+        } finally {
+            this._commitInFlight = false;
+        }
+    }
+
+    private async _commitImpl(session: BattleSession): Promise<void> {
         if (!this._abilityId || !this._unitId || !this.mark || !this.originalOrder) return;
 
         // --- Phase 1: validate everything BEFORE touching engine or session state ---

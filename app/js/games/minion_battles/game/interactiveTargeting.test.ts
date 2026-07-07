@@ -31,6 +31,7 @@ import { spawnBrightLight } from '../abilities/brightKeyword';
 import { findPreviewDeferredSelectLabel } from './interaction/selectTargetLookahead';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { SwingBatCard } from '../card_defs/0115_SwingBat/0115Ability';
+import { LIGHT_BLAST_DAMAGE } from '../card_defs/08_light_core/0801_LightBlast/0801Ability';
 import type { WindupLungePayload } from '../abilities/WindupLunge';
 import { DEFAULT_MELEE_LUNGE, DEFAULT_UNIT_RADIUS } from './units/unit_defs/unitConstants';
 import {
@@ -127,12 +128,15 @@ interface LightBlastSessionFixture {
 }
 
 /** Host session paused at a parallel batch with Light Blast on the local caster. */
-async function mountLightBlastSessionFixture(): Promise<LightBlastSessionFixture> {
+async function mountLightBlastSessionFixture(
+    opts?: { onVictory?: (missionResult: string) => void },
+): Promise<LightBlastSessionFixture> {
     const session = new BattleSession({
         api: makeApiStub(),
         missionId: 'dark_awakening',
         playerId: 'p1',
         isHost: true,
+        ...(opts?.onVictory ? { onVictory: opts.onVictory } : {}),
     });
     const players: Record<string, PlayerState> = {
         p1: { id: 'p1', name: 'P1', color: '#fff' },
@@ -2062,6 +2066,149 @@ describe('Reset/Replay pre-restore refresh (Step 2)', () => {
             restoredEngine.state.orderMgr.hasPendingEndTurnOrderForUnit(remoteUnitId, atTick),
         ).toBe(true);
 
+        session.destroy();
+    });
+});
+
+describe('terminal outcome during ITS preview (auto-commit before surfacing UI)', () => {
+    /**
+     * Install an always-active eliminateAllEnemies victory check and reduce the field to a
+     * single one-blast-kill enemy, so the preview cast latches victory during playahead.
+     */
+    function armVictoryOnDummyKill(engine: GameEngine): void {
+        engine.setLevelEvents([
+            {
+                type: 'victoryCheck',
+                trigger: { afterRound: 0 },
+                conditions: [{ type: 'eliminateAllEnemies' }],
+            },
+        ]);
+        for (const unit of engine.units) {
+            if (unit.teamId === 'enemy' && unit.id !== 'enemy_commit_test') {
+                unit.hp = 0;
+            }
+        }
+        const dummy = engine.getUnit('enemy_commit_test')!;
+        dummy.hp = LIGHT_BLAST_DAMAGE;
+    }
+
+    function beginBlastPreviewAndKill(
+        session: BattleSession,
+        casterUnitId: string,
+        blastPixel: { x: number; y: number },
+    ): void {
+        const engine = session.getEngine()!;
+        const its = session.interactiveTargeting;
+        its.begin(
+            {
+                unitId: casterUnitId,
+                abilityId: LIGHT_BLAST_ID,
+                targets: [],
+                endTurn: true,
+            },
+            session,
+        );
+        const paused = stepUntil(engine, () => engine.waitingForTargetInput?.label === LIGHT_BLAST_TARGET_LABEL, 120);
+        expect(paused).toBe(true);
+        its.resolveTarget(LIGHT_BLAST_TARGET_LABEL, { type: 'pixel', position: blastPixel }, session);
+        const terminal = stepUntil(engine, () => engine.state.levelEventManager.isTerminal, 300);
+        expect(terminal).toBe(true);
+    }
+
+    it('host in-place: victory during preview persists the order, then fires onVictory', async () => {
+        const onVictory = vi.fn();
+        const fixture = await mountLightBlastSessionFixture({ onVictory });
+        const { session, casterUnitId, remoteUnitId, atTick, blastPixel } = fixture;
+        const engine = session.getEngine()!;
+
+        // Other waiter confirmed before begin → no assumed waits → in-place commit allowed.
+        engine.state.orderMgr.applyOrder(makePurePassOrder(remoteUnitId));
+
+        const persistCommittedOrder = vi.fn().mockResolvedValue(true);
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            persistCommittedOrder,
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        const restoreSpy = vi.spyOn(session, 'restoreFromInMemorySnapshot');
+
+        armVictoryOnDummyKill(engine);
+        beginBlastPreviewAndKill(session, casterUnitId, blastPixel);
+
+        // Victory UI must wait for the async auto-commit to persist the order first.
+        await vi.waitFor(() => {
+            expect(persistCommittedOrder).toHaveBeenCalledTimes(1);
+            expect(onVictory).toHaveBeenCalledWith('victory');
+        });
+        const [committedOrder, committedAtTick] = persistCommittedOrder.mock.calls[0] as [BattleOrder, number];
+        expect(committedOrder.unitId).toBe(casterUnitId);
+        expect(committedOrder.abilityId).toBe(LIGHT_BLAST_ID);
+        expect(committedAtTick).toBe(atTick);
+        expect(persistCommittedOrder.mock.invocationCallOrder[0]).toBeLessThan(
+            onVictory.mock.invocationCallOrder[0],
+        );
+
+        // In-place: same engine, preview flags cleared, session inactive.
+        expect(restoreSpy).not.toHaveBeenCalled();
+        expect(session.getEngine()).toBe(engine);
+        expect(engine.isSequentialTargetingPreview).toBe(false);
+        expect(session.interactiveTargeting.isActive).toBe(false);
+
+        restoreSpy.mockRestore();
+        session.destroy();
+    });
+
+    it('rollback: victory during preview restores the mark and resubmits without firing onVictory early', async () => {
+        const onVictory = vi.fn();
+        const fixture = await mountLightBlastSessionFixture({ onVictory });
+        const { session, casterUnitId, remoteUnitId, atTick, blastPixel } = fixture;
+        const engine = session.getEngine()!;
+
+        const submitOrder = vi.fn().mockResolvedValue(undefined);
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            submitOrder,
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        const restoreSpy = vi.spyOn(session, 'restoreFromInMemorySnapshot');
+
+        armVictoryOnDummyKill(engine);
+
+        const its = session.interactiveTargeting;
+        its.begin(
+            {
+                unitId: casterUnitId,
+                abilityId: LIGHT_BLAST_ID,
+                targets: [],
+                endTurn: true,
+            },
+            session,
+        );
+        const paused = stepUntil(engine, () => engine.waitingForTargetInput?.label === LIGHT_BLAST_TARGET_LABEL, 120);
+        expect(paused).toBe(true);
+        // Held real ability order forces the rollback path at commit time.
+        const heldReal: BattleOrder = {
+            unitId: remoteUnitId,
+            abilityId: DOUBLE_PUNCH_ABILITY_ID,
+            targets: [],
+            endTurn: true,
+        };
+        its.holdRemoteOrder(atTick, heldReal, hashOrderId('p2', atTick, heldReal));
+        its.resolveTarget(LIGHT_BLAST_TARGET_LABEL, { type: 'pixel', position: blastPixel }, session);
+        const terminal = stepUntil(engine, () => engine.state.levelEventManager.isTerminal, 300);
+        expect(terminal).toBe(true);
+
+        await vi.waitFor(() => {
+            expect(submitOrder).toHaveBeenCalledTimes(1);
+        });
+
+        // Preview terminal state was discarded: mark restored, order resubmitted, no early victory UI.
+        expect(restoreSpy).toHaveBeenCalledTimes(1);
+        expect(onVictory).not.toHaveBeenCalled();
+        const restoredEngine = session.getEngine()!;
+        expect(restoredEngine).not.toBe(engine);
+        expect(restoredEngine.state.levelEventManager.isTerminal).toBe(false);
+        expect(session.interactiveTargeting.isActive).toBe(false);
+
+        restoreSpy.mockRestore();
         session.destroy();
     });
 });

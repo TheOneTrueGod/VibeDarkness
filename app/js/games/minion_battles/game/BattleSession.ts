@@ -274,6 +274,51 @@ export class BattleSession implements BattleSessionHandle {
         });
     }
 
+    /**
+     * Fallback when a terminal outcome fires with preview flags set but no live ITS session
+     * (e.g. flags orphaned after an external teardown): clear flags and surface the outcome.
+     */
+    private teardownSequentialTargetingPreviewForTerminalOutcome(engine: GameEngine): void {
+        engine.isSequentialTargetingPreview = false;
+        engine.sequentialTargetingPreviewCast = null;
+        engine.waitingForTargetInput = null;
+        if (this.interactiveTargeting.isActive) {
+            this.interactiveTargeting.endPreviewForTerminalOutcome();
+        }
+        this.rebindEngineCallbacks();
+    }
+
+    /** Guards re-entry while a terminal-outcome auto-commit is awaiting network. */
+    private terminalPreviewAutoCommitInFlight = false;
+
+    /**
+     * Victory/defeat latched during ITS preview playahead. The killing order exists only in the
+     * local preview sim, so the outcome must not be surfaced until the order is persisted —
+     * otherwise other clients (and the server) never see the kill and desync.
+     *
+     * Routes through {@link InteractiveTargetingSession.commit}:
+     * - In-place commit persists the finalized order, then `reemitSuppressedTerminalOutcome`
+     *   fires the victory/defeat UI.
+     * - Rollback commit restores the mark (discarding the preview's terminal state) and resubmits
+     *   via BattleNet; the outcome re-fires naturally when the authoritative sim reaches the kill.
+     * - A failed commit restores the pre-preview pause with no outcome UI — correct, since the
+     *   kill never happened authoritatively.
+     */
+    private commitPreviewForTerminalOutcome(engine: GameEngine): void {
+        if (this.terminalPreviewAutoCommitInFlight) return;
+        if (!this.interactiveTargeting.isActive) {
+            this.teardownSequentialTargetingPreviewForTerminalOutcome(engine);
+            this.reemitSuppressedTerminalOutcome(engine);
+            return;
+        }
+        this.terminalPreviewAutoCommitInFlight = true;
+        void this.interactiveTargeting
+            .commit(this)
+            .finally(() => {
+                this.terminalPreviewAutoCommitInFlight = false;
+            });
+    }
+
     private finalizeEngine(engine: GameEngine): void {
         const mission = MISSION_MAP[this.config.missionId] ?? DARK_AWAKENING;
         // Defs are runtime-only; re-register after fromJSON so late spawns still assign.
@@ -324,13 +369,19 @@ export class BattleSession implements BattleSessionHandle {
         });
         if (onVictory) {
             engine.setOnVictory((result) => {
-                if (engine.isSequentialTargetingPreview) return;
+                if (engine.isSequentialTargetingPreview) {
+                    this.commitPreviewForTerminalOutcome(engine);
+                    return;
+                }
                 onVictory(result);
             });
         }
         if (onDefeat) {
             engine.setOnDefeat(() => {
-                if (engine.isSequentialTargetingPreview) return;
+                if (engine.isSequentialTargetingPreview) {
+                    this.commitPreviewForTerminalOutcome(engine);
+                    return;
+                }
                 onDefeat();
             });
         }
@@ -947,7 +998,9 @@ export class BattleSession implements BattleSessionHandle {
      */
     reemitSuppressedTerminalOutcome(engine: GameEngine): void {
         const outcome = engine.state.levelEventManager.getTerminalOutcome();
-        if (!outcome) return;
+        if (!outcome) {
+            return;
+        }
         if (outcome.kind === 'victory') {
             this.config.onVictory?.(outcome.missionResult);
         } else {
