@@ -13,7 +13,7 @@
  *                     in-place (solo host): keep preview state, persist order without re-apply.
  */
 
-import type { BattleOrder, ResolvedTarget, SerializedGameState } from '../types';
+import type { BattleOrder, ResolvedTarget, SerializedGameState, WaitingForOrders } from '../types';
 import type { BattleSession } from '../BattleSession';
 import { getSelectTargetDefsFromTimings } from '../../abilities/targeting';
 import { getAbility } from '../../abilities/AbilityRegistry';
@@ -409,12 +409,13 @@ export class InteractiveTargetingSession {
         const batch = this.mark.waitingForOrders;
         if (!batch) return false;
 
-        // Non-host playahead past the mark must rollback (lobby 39E984): in-place commit would
-        // keep a sim that already ran past the host's order batch and deadlock on submit.
         const engine = session.getEngine();
         const markTick = typeof this.mark.gameTick === 'number' ? this.mark.gameTick : 0;
         if (engine != null && !session.isHost() && engine.gameTick > markTick) {
-            return false;
+            // Default rollback (lobby 39E984); EC110E exception when other waiters are server-confirmed.
+            if (!this.nonHostPlayaheadWaitersAreServerConfirmed(session, batch)) {
+                return false;
+            }
         }
 
         const markWaiterIds = new Set(batch.waiters.map((w) => w.unitId));
@@ -432,6 +433,43 @@ export class InteractiveTargetingSession {
             if (!held || !isPurePassOrder(held.order)) return false;
         }
 
+        return true;
+    }
+
+    /**
+     * Non-host playahead in-place commit requires every other player's batch waiter to have
+     * server proof before we keep the preview sim past the mark tick.
+     */
+    private nonHostPlayaheadWaitersAreServerConfirmed(
+        session: BattleSession,
+        batch: WaitingForOrders,
+    ): boolean {
+        const markOrders = this.mark?.orders ?? [];
+        for (const waiter of batch.waiters) {
+            if (waiter.unitId === this._unitId) continue;
+            if (waiter.ownerId === 'ai') continue;
+            if (waiter.ownerId === session.getLocalPlayerId()) continue;
+
+            // Pre-preview server fetch (EC110E): endTurn rows in the mark are treated as immutable —
+            // OrderManager refuses to replace confirmed orders; no client path re-POSTs them
+            // (last-write-wins compaction per playerId/unitId/atTick could replace a row in theory).
+            const hasMarkOrder = markOrders.some(
+                (row) =>
+                    row.gameTick >= batch.atTick
+                    && row.order.unitId === waiter.unitId
+                    && row.order.endTurn === true,
+            );
+            if (hasMarkOrder) continue;
+
+            if (
+                this.assumedWaitUnitIds.has(waiter.unitId)
+                && this.heldRemoteOrders.has(waiter.unitId)
+            ) {
+                continue;
+            }
+
+            return false;
+        }
         return true;
     }
 
@@ -566,8 +604,8 @@ export class InteractiveTargetingSession {
         const markSnapshot = this.mark;
 
         // atTick must be present in the mark snapshot.
-        const atTick = markSnapshot.waitingForOrders?.atTick;
-        if (atTick == null) return;
+        const markAtTick = markSnapshot.waitingForOrders?.atTick;
+        if (markAtTick == null) return;
 
         // Ability def must exist (guard against a hot-reload removing it mid-preview).
         const ability = getAbility(abilityId);
@@ -581,8 +619,35 @@ export class InteractiveTargetingSession {
 
         await session.refreshRemoteOrdersBeforeInteractiveTargetingAction();
 
+        // Host may advance one batch while non-host preview freezes on gameTick+1 (lobby 8AF2AB).
+        let atTick = markAtTick;
+        const heartbeatBatch = session.getHeartbeatOrderBatchAtTick();
+        if (
+            heartbeatBatch != null
+            && heartbeatBatch !== markAtTick
+            && !session.isOrderBatchTickSubmittable(markAtTick)
+            && session.isOrderBatchTickSubmittable(heartbeatBatch)
+        ) {
+            // #region agent log
+            fetch('http://127.0.0.1:7873/ingest/38aed2ea-0a0f-4f89-a817-28c1022a6d07',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dcf8d4'},body:JSON.stringify({sessionId:'dcf8d4',location:'InteractiveTargetingSession.ts:_commitImpl',message:'ITS commit retargeted stale mark batch',data:{markAtTick,heartbeatBatch,unitId,abilityId},timestamp:Date.now(),hypothesisId:'B',runId:'post-fix'})}).catch(()=>{});
+            // #endregion
+            atTick = heartbeatBatch;
+        }
+
+        const engineTickBeforeCommit = session.getEngine()?.gameTick ?? null;
+        const batchSubmittable = session.isOrderBatchTickSubmittable(atTick);
+        const expectedToAct = session.isLocalPlayerExpectedToAct();
+        const inPlaceAvailable = session.isInPlaceCommitPersistenceAvailable();
+        const wouldInPlace = this.wouldCommitInPlace(session);
+        // #region agent log
+        fetch('http://127.0.0.1:7873/ingest/38aed2ea-0a0f-4f89-a817-28c1022a6d07',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dcf8d4'},body:JSON.stringify({sessionId:'dcf8d4',location:'InteractiveTargetingSession.ts:_commitImpl',message:'ITS commit pre-checks',data:{atTick,markAtTick,markTick:markSnapshot.gameTick,engineTickBeforeCommit,batchSubmittable,expectedToAct,inPlaceAvailable,wouldInPlace,unitId,abilityId,heartbeatBatch},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
+
         // Mark batch may be stale if the host advanced during preview (lobby F6E500).
-        if (!session.isOrderBatchTickSubmittable(atTick) || !session.isLocalPlayerExpectedToAct()) {
+        if (!batchSubmittable || !expectedToAct) {
+            // #region agent log
+            fetch('http://127.0.0.1:7873/ingest/38aed2ea-0a0f-4f89-a817-28c1022a6d07',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dcf8d4'},body:JSON.stringify({sessionId:'dcf8d4',location:'InteractiveTargetingSession.ts:_commitImpl',message:'ITS commit phase1 abort',data:{atTick,markAtTick,heartbeatBatch,batchSubmittable,expectedToAct},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
             const heldForAbort = [...this.heldRemoteOrders.values()];
             this.heldRemoteOrders.clear();
             this._restoreToMark(session, { applyHeldRemoteOrders: false });
@@ -602,7 +667,7 @@ export class InteractiveTargetingSession {
                 ? [...this._orderPositionalTargets]
                 : undefined;
         const baseOrder = this.originalOrder;
-        const inPlace = this.wouldCommitInPlace(session);
+        const inPlace = wouldInPlace;
         const heldRows = [...this.heldRemoteOrders.values()];
         this.heldRemoteOrders.clear();
 
@@ -644,7 +709,12 @@ export class InteractiveTargetingSession {
 
         // --- Phase 3: verify the order actually landed ---
         const engineAfter = session.getEngine();
-        if (engineAfter && !engineAfter.state.orderMgr.hasPendingEndTurnOrderForUnit(unitId, atTick)) {
+        const hasPending = engineAfter?.state.orderMgr.hasPendingEndTurnOrderForUnit(unitId, atTick) ?? false;
+        const hasDeferred = session.hasDeferredOrderFor(unitId, atTick);
+        // #region agent log
+        fetch('http://127.0.0.1:7873/ingest/38aed2ea-0a0f-4f89-a817-28c1022a6d07',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dcf8d4'},body:JSON.stringify({sessionId:'dcf8d4',location:'InteractiveTargetingSession.ts:_commitImpl',message:'ITS rollback phase3 verify',data:{atTick,inPlace:false,hasPending,hasDeferred,unitId,abilityId,engineTick:engineAfter?.gameTick??null},timestamp:Date.now(),hypothesisId:'C,D,E'})}).catch(()=>{});
+        // #endregion
+        if (engineAfter && !hasPending && !hasDeferred) {
             session.emitOrderSubmitFailed(unitId, abilityId);
         }
     }
@@ -661,6 +731,9 @@ export class InteractiveTargetingSession {
         const { realOrder, atTick, unitId, abilityId } = ctx;
 
         const persisted = await session.persistInPlaceCommittedTargetingOrder(realOrder, atTick);
+        // #region agent log
+        fetch('http://127.0.0.1:7873/ingest/38aed2ea-0a0f-4f89-a817-28c1022a6d07',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dcf8d4'},body:JSON.stringify({sessionId:'dcf8d4',location:'InteractiveTargetingSession.ts:_commitInPlace',message:'ITS in-place persist result',data:{atTick,persisted,unitId,abilityId,hasDeferred:session.hasDeferredOrderFor(unitId,atTick)},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
         if (!persisted) {
             session.emitOrderSubmitFailed(unitId, abilityId);
             return;

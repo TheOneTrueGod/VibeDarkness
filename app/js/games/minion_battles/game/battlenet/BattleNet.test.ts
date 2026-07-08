@@ -42,6 +42,7 @@ function makeSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessio
         getWaitingForOrdersBatch: () => null,
         isDebugSimulationFrozen: () => false,
         isEngineSimulationRunning: () => false,
+        isInteractiveTargetingPreviewActive: () => false,
         setMultiplayerAwaitHostCatchup: () => {},
         ...overrides,
     };
@@ -2343,5 +2344,299 @@ describe('BattleNet', () => {
         expect(seenHeartbeats.length).toBe(1);
         expect(seenHeartbeats[0].requestedGameTick).toBe(50);
         expect(seenHeartbeats[0].requestedGameHash).toBe('requested_at_50_');
+    });
+});
+
+/** EC110E / lobby 39E984: host paused at batch 2 expecting p1 while local pause plane is ahead. */
+const EC110E_HOST_FP = 'ec110e_host_fp____';
+const EC110E_HOST_TICK = 1;
+const EC110E_HOST_BATCH = 2;
+const EC110E_LOCAL_BATCH = 101;
+const EC110E_ENGINE_TICK = 100;
+
+function ec110eHeartbeat(overrides: Record<string, unknown> = {}) {
+    return {
+        hostTick: EC110E_HOST_TICK,
+        hostFingerprint: EC110E_HOST_FP,
+        hostPaused: true,
+        ordersTipTick: EC110E_HOST_TICK,
+        orderBatchAtTick: EC110E_HOST_BATCH,
+        pausedAtTick: EC110E_HOST_BATCH,
+        expectingFromPlayerIds: ['p1'],
+        initialFingerprint: '0011223344556677',
+        heartbeatSeq: 0,
+        ...overrides,
+    };
+}
+
+function ec110eSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessionHandle {
+    return makeSession({
+        getEngineTick: () => EC110E_ENGINE_TICK,
+        getLatestFingerprint: () => ({ tick: EC110E_ENGINE_TICK, fp: 'ec110e_local____', paused: true }),
+        getFingerprintRange: (from: number, to: number) =>
+            from <= EC110E_HOST_TICK && to >= EC110E_HOST_TICK
+                ? [{ tick: EC110E_HOST_TICK, fp: EC110E_HOST_FP, paused: true }]
+                : [],
+        isPausedForOrderSync: () => true,
+        getWaitingForOrdersBatch: () => ({
+            atTick: EC110E_LOCAL_BATCH,
+            waiters: [{ unitId: 'u_local', ownerId: 'p1' }],
+        }),
+        isInteractiveTargetingPreviewActive: () => false,
+        ...overrides,
+    });
+}
+
+describe('BattleNet non-host playahead order submit fixes', () => {
+    it('Fix B: defers during recovery then POSTs on poll when recovery ends (rollback caller)', async () => {
+        const order = makeOrder('recovery');
+        const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: ['h1'], skippedKeys: [] });
+        const appendBattleOrder = vi.fn(async (_l: string, _g: string, body: { idHash?: string }) => ({
+            accepted: true,
+            idHash: body.idHash ?? 'idhash',
+        }));
+        const api = makeApi({
+            appendBattleOrder,
+            getBattleHeartbeat: vi.fn(async () => ec110eHeartbeat()),
+        });
+        const session = ec110eSession({
+            getEngineTick: () => EC110E_HOST_TICK,
+            applyRemoteOrders,
+        });
+        const net = new BattleNet({
+            api,
+            session,
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+
+        await net.pollOnce();
+
+        const recoveringSpy = vi.spyOn(net, 'isRecovering', 'get').mockReturnValue(true);
+        await net.submitOrder(order, EC110E_HOST_BATCH);
+
+        expect(appendBattleOrder).not.toHaveBeenCalled();
+        expect(net.getOrderSyncSummary().queued).toBe(1);
+        expect(net.hasDeferredOrderFor(order.unitId, EC110E_HOST_BATCH)).toBe(true);
+
+        recoveringSpy.mockReturnValue(false);
+        await net.pollOnce();
+
+        expect(appendBattleOrder).toHaveBeenCalledTimes(1);
+        expect(appendBattleOrder).toHaveBeenCalledWith(
+            'l1',
+            'g1',
+            expect.objectContaining({ atTick: EC110E_HOST_BATCH }),
+        );
+        expect(net.getOrderSyncSummary().queued).toBe(0);
+        expect(applyRemoteOrders).toHaveBeenCalled();
+    });
+
+    it('Fix B: skipLocalApply variant defers during recovery without applyRemoteOrders on flush', async () => {
+        const order = makeOrder('recovery_inplace');
+        const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
+        const seedRemoteOrderDedupeKeys = vi.fn();
+        const appendBattleOrder = vi.fn(async (_l: string, _g: string, body: { idHash?: string }) => ({
+            accepted: true,
+            idHash: body.idHash ?? 'idhash',
+        }));
+        const api = makeApi({
+            appendBattleOrder,
+            getBattleHeartbeat: vi.fn(async () => ec110eHeartbeat()),
+        });
+        const session = ec110eSession({
+            getEngineTick: () => EC110E_ENGINE_TICK,
+            applyRemoteOrders,
+            seedRemoteOrderDedupeKeys,
+        });
+        const net = new BattleNet({
+            api,
+            session,
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+
+        await net.pollOnce();
+
+        const recoveringSpy = vi.spyOn(net, 'isRecovering', 'get').mockReturnValue(true);
+        await net.submitOrder(order, EC110E_HOST_BATCH, { skipLocalApply: true });
+
+        expect(appendBattleOrder).not.toHaveBeenCalled();
+        expect(net.getOrderSyncSummary().queued).toBe(1);
+        expect(seedRemoteOrderDedupeKeys).toHaveBeenCalledTimes(1);
+
+        recoveringSpy.mockReturnValue(false);
+        await net.pollOnce();
+
+        expect(appendBattleOrder).toHaveBeenCalledTimes(1);
+        expect(net.getOrderSyncSummary().queued).toBe(0);
+        expect(applyRemoteOrders).not.toHaveBeenCalled();
+    });
+
+    it('in-place ITS: skipLocalApply at mark batch POSTs immediately when engine is playahead-ahead (04B5B8)', async () => {
+        const HOST_TICK = 285;
+        const HOST_BATCH = 286;
+        const ENGINE_TICK = 311;
+        const order = makeOrder('inplace_playahead');
+        const appendBattleOrder = vi.fn(async (_l: string, _g: string, body: { idHash?: string }) => ({
+            accepted: true,
+            idHash: body.idHash ?? 'idhash',
+        }));
+        const api = makeApi({
+            appendBattleOrder,
+            getBattleHeartbeat: vi.fn(async () => ({
+                hostTick: HOST_TICK,
+                hostFingerprint: EC110E_HOST_FP,
+                hostPaused: true,
+                ordersTipTick: HOST_TICK,
+                orderBatchAtTick: HOST_BATCH,
+                pausedAtTick: HOST_BATCH,
+                expectingFromPlayerIds: ['p1'] as string[],
+                initialFingerprint: EC110E_HOST_FP,
+                heartbeatSeq: 0,
+            })),
+        });
+        const session = ec110eSession({
+            getEngineTick: () => ENGINE_TICK,
+            isPausedForOrderSync: () => true,
+            getWaitingForOrdersBatch: () => ({
+                atTick: HOST_BATCH,
+                waiters: [{ unitId: 'u_local', ownerId: 'p1' }],
+            }),
+            isInteractiveTargetingPreviewActive: () => true,
+            getFingerprintRange: (from: number, to: number) =>
+                from <= HOST_TICK && to >= HOST_TICK
+                    ? [{ tick: HOST_TICK, fp: EC110E_HOST_FP, paused: true }]
+                    : [],
+        });
+        const net = new BattleNet({
+            api,
+            session,
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+
+        await net.pollOnce();
+        await net.submitOrder(order, HOST_BATCH, { skipLocalApply: true });
+
+        expect(appendBattleOrder).toHaveBeenCalledTimes(1);
+        expect(appendBattleOrder).toHaveBeenCalledWith(
+            'l1',
+            'g1',
+            expect.objectContaining({ atTick: HOST_BATCH }),
+        );
+        expect(net.getOrderSyncSummary().queued).toBe(0);
+        expect(net.hasDeferredOrderFor(order.unitId, HOST_BATCH)).toBe(false);
+    });
+
+    it('Fix A guard (i): ITS preview active skips soft-align when host expects us ahead', async () => {
+        const api = makeApi({
+            getBattleHeartbeat: vi.fn(async () => ec110eHeartbeat()),
+        });
+        const session = ec110eSession({
+            isInteractiveTargetingPreviewActive: () => true,
+        });
+        const net = new BattleNet({
+            api,
+            session,
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const softAlign = vi.spyOn(net, 'softAlignToHostPausePlane');
+
+        await net.pollOnce();
+
+        expect(softAlign).not.toHaveBeenCalled();
+    });
+
+    it('Fix A guard (ii): heartbeat pendingOrders finalized endTurn row skips soft-align', async () => {
+        const order = makeOrder('pending_row');
+        const api = makeApi({
+            getBattleHeartbeat: vi.fn(async () =>
+                ec110eHeartbeat({
+                    pendingOrders: [
+                        {
+                            playerId: 'p1',
+                            atTick: EC110E_HOST_BATCH,
+                            finalized: true,
+                            order: { ...order, endTurn: true },
+                        },
+                    ],
+                }),
+            ),
+        });
+        const net = new BattleNet({
+            api,
+            session: ec110eSession(),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const softAlign = vi.spyOn(net, 'softAlignToHostPausePlane');
+
+        await net.pollOnce();
+
+        expect(softAlign).not.toHaveBeenCalled();
+    });
+
+    it('Fix A guard (iii) / EC110E: in-place mark batch POSTs immediately despite playahead engine tick', async () => {
+        const order = makeOrder('ec110e_defer');
+        const appendBattleOrder = vi.fn(async (_l: string, _g: string, body: { idHash?: string }) => ({
+            accepted: true,
+            idHash: body.idHash ?? 'idhash',
+        }));
+        const getBattleHeartbeat = vi.fn(async () => ec110eHeartbeat());
+        const api = makeApi({ appendBattleOrder, getBattleHeartbeat });
+        const net = new BattleNet({
+            api,
+            session: ec110eSession({ isInteractiveTargetingPreviewActive: () => true }),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const softAlign = vi.spyOn(net, 'softAlignToHostPausePlane').mockImplementation(() => {});
+
+        await net.pollOnce();
+        softAlign.mockRestore();
+
+        await net.submitOrder(order, EC110E_HOST_BATCH, { skipLocalApply: true });
+
+        expect(appendBattleOrder).toHaveBeenCalledTimes(1);
+        expect(net.getOrderSyncSummary().queued).toBe(0);
+
+        const softAlignAfterPost = vi.spyOn(net, 'softAlignToHostPausePlane');
+        await net.pollOnce();
+
+        expect(softAlignAfterPost).not.toHaveBeenCalled();
+        expect(appendBattleOrder).toHaveBeenCalledTimes(1);
+    });
+
+    it('genuine-stuck regression (39E984): soft-align fires when no Fix A guards apply', async () => {
+        const api = makeApi({
+            getBattleHeartbeat: vi.fn(async () => ec110eHeartbeat()),
+        });
+        const net = new BattleNet({
+            api,
+            session: ec110eSession(),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const softAlign = vi.spyOn(net, 'softAlignToHostPausePlane');
+
+        await net.pollOnce();
+
+        expect(softAlign).toHaveBeenCalledWith('host-expects-local-player-ahead-batch');
     });
 });

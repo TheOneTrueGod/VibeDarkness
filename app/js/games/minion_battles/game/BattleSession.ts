@@ -163,6 +163,11 @@ export class BattleSession implements BattleSessionHandle {
         return this.netAdapter?.isOrderBatchTickSubmittable?.(atTick) ?? true;
     }
 
+    /** Heartbeat parallel order batch; null without a net adapter (tests). */
+    getHeartbeatOrderBatchAtTick(): number | null {
+        return this.netAdapter?.getHeartbeatOrderBatchAtTick?.() ?? null;
+    }
+
     /**
      * True when the heartbeat expects this player to act (or waiters are unknown).
      * Without a net adapter (tests), always true.
@@ -692,6 +697,18 @@ export class BattleSession implements BattleSessionHandle {
         return this.engine?.waitingForOrders != null;
     }
 
+    isInteractiveTargetingPreviewActive(): boolean {
+        return this.interactiveTargeting.isActive;
+    }
+
+    getLocalPlayerId(): string {
+        return this.config.playerId;
+    }
+
+    hasDeferredOrderFor(unitId: string, atTick: number): boolean {
+        return this.netAdapter?.hasDeferredOrderFor?.(unitId, atTick) ?? false;
+    }
+
     /** Non-host: fixed-step sim is frozen until `gameTick <=` heartbeat host completed tail. */
     isMultiplayerAwaitHostCatchup(): boolean {
         return this.engine?.state.multiplayerAwaitHostCatchup ?? false;
@@ -975,7 +992,11 @@ export class BattleSession implements BattleSessionHandle {
      */
     async persistInPlaceCommittedTargetingOrder(order: BattleOrder, atTick: number): Promise<boolean> {
         if (!this.netAdapter) return false;
-        if (!this.netAdapter.isOrderSubmitPathAvailable()) return false;
+        const pathAvailable = this.netAdapter.isOrderSubmitPathAvailable();
+        // #region agent log
+        fetch('http://127.0.0.1:7873/ingest/38aed2ea-0a0f-4f89-a817-28c1022a6d07',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dcf8d4'},body:JSON.stringify({sessionId:'dcf8d4',location:'BattleSession.ts:persistInPlaceCommittedTargetingOrder',message:'in-place persist entry',data:{atTick,pathAvailable,isHost:this.config.isHost,unitId:order.unitId,abilityId:order.abilityId},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
+        if (!pathAvailable) return false;
 
         const idHash = hashOrderId(this.config.playerId, atTick, order);
 
@@ -988,6 +1009,13 @@ export class BattleSession implements BattleSessionHandle {
         }
 
         await this.netAdapter.submitOrder(order, atTick, { skipLocalApply: true });
+        const deferred = this.netAdapter.hasDeferredOrderFor(order.unitId, atTick);
+        // #region agent log
+        fetch('http://127.0.0.1:7873/ingest/38aed2ea-0a0f-4f89-a817-28c1022a6d07',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dcf8d4'},body:JSON.stringify({sessionId:'dcf8d4',location:'BattleSession.ts:persistInPlaceCommittedTargetingOrder',message:'in-place persist after submitOrder',data:{atTick,deferred,unitId:order.unitId},timestamp:Date.now(),hypothesisId:'A,D,E',runId:'post-fix'})}).catch(()=>{});
+        // #endregion
+        if (deferred) {
+            return false;
+        }
         this.appliedRemoteOrderKeys.add(idHash);
         return true;
     }

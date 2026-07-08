@@ -31,6 +31,7 @@ function makeSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessio
         getWaitingForOrdersBatch: () => null,
         isDebugSimulationFrozen: () => false,
         isEngineSimulationRunning: () => false,
+        isInteractiveTargetingPreviewActive: () => false,
         setMultiplayerAwaitHostCatchup: () => {},
         ...overrides,
     };

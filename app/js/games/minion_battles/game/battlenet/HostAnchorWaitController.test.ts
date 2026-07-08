@@ -36,6 +36,7 @@ function makeSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessio
         getWaitingForOrdersBatch: () => null,
         isDebugSimulationFrozen: () => false,
         isEngineSimulationRunning: () => false,
+        isInteractiveTargetingPreviewActive: () => false,
         setMultiplayerAwaitHostCatchup: () => {},
         ...overrides,
     };
@@ -375,6 +376,25 @@ describe('HostAnchorWaitController.refreshHostAnchorWaitAndBlocking', () => {
         h.controller.refreshHostAnchorWaitAndBlocking(10, hb({ hostTick: 10, hostPaused: true }));
         expect(h.requestResync).not.toHaveBeenCalled();
         expect(h.controller.getHostAnchorResyncEmittedForCurrentStall()).toBe(false);
+        dateSpy.mockRestore();
+    });
+
+    it('still fires host-stuck-after-submit when accepted-post at host batch (Fix A not-stuck state)', () => {
+        const dateSpy = vi.spyOn(Date, 'now');
+        dateSpy.mockReturnValueOnce(0);
+        const h = makeHarness({
+            session: {
+                isPausedForOrderSync: () => true,
+                getEngineTick: () => 12,
+            },
+        });
+        h.controller.setPreviouslySyncedAtTick(10);
+        h.orderQueue.noteAcceptedOurPostAtTick(11);
+        h.controller.refreshHostAnchorWaitAndBlocking(12, hb({ hostTick: 10, hostPaused: true }));
+        dateSpy.mockReturnValue(HOST_ANCHOR_RESYNC_MS + 100);
+        h.controller.refreshHostAnchorWaitAndBlocking(12, hb({ hostTick: 10, hostPaused: true }));
+        expect(h.requestResync).toHaveBeenCalledTimes(1);
+        expect(h.requestResync).toHaveBeenCalledWith('host-stuck-after-submit');
         dateSpy.mockRestore();
     });
 });

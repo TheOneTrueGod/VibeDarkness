@@ -34,6 +34,8 @@ export class OrderQueueController {
     private deferredFlushBlockedLogKey: string | null = null;
     /** Non-host: heartbeat polls still waiting on a deferred POST while paused. */
     private hostCatchupHeartbeatStreak = 0;
+    /** Non-host: `atTick` values where our POST was accepted but heartbeat may still expect us. */
+    private acceptedOurPostAtTicks = new Set<number>();
 
     constructor(private readonly ctx: BattleNetContext) {}
 
@@ -107,6 +109,20 @@ export class OrderQueueController {
             }
         }
         return { queued: this.deferredLocalOrders.length, sending };
+    }
+
+    hasDeferredOrderFor(unitId: string, atTick: number): boolean {
+        return this.deferredLocalOrders.some(
+            (row) => row.atTick === atTick && row.order.unitId === unitId,
+        );
+    }
+
+    noteAcceptedOurPostAtTick(atTick: number): void {
+        this.acceptedOurPostAtTicks.add(atTick);
+    }
+
+    hasAcceptedOurPostAtTick(atTick: number): boolean {
+        return this.acceptedOurPostAtTicks.has(atTick);
     }
 
     deferLocalOrder(
@@ -270,6 +286,7 @@ export class OrderQueueController {
         this.appliedOrderIdHashes.clear();
         this.ourOrdersAwaitingServerRange.clear();
         this.serverRangeConfirmedOurOrderHashes.clear();
+        this.acceptedOurPostAtTicks.clear();
         this.hostCatchupHeartbeatStreak = 0;
         this.lastOrderFetchSince = 0;
         this.lastSeenOrdersRecordCount = 0;

@@ -58,6 +58,8 @@ export interface BattleSessionHandle {
     isDebugSimulationFrozen(): boolean;
     /** True while the battle engine loop is running (`GameEngine.start` … `stop`). */
     isEngineSimulationRunning(): boolean;
+    /** True while interactive targeting preview (ITS) is simulating ahead locally. */
+    isInteractiveTargetingPreviewActive(): boolean;
     /**
      * Non-host: optional gate on fixed-step simulation relative to heartbeat tail.
      * {@link BattleNet} normally keeps this cleared so optimistic playahead runs until a natural pause.

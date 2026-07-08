@@ -51,6 +51,8 @@ import { Light } from '../resources/Light';
 import type { MinionBattlesApi } from '../api/minionBattlesApi';
 import type { PlayerState } from '../../../types';
 import { BattleSession } from './BattleSession';
+import { BattleNet } from './battlenet/BattleNet';
+import type { LobbyClient } from '../../../LobbyClient';
 import { OrderManager } from './managers/OrderManager';
 import { hashOrderId } from './battlenet/helpers/orderHashing';
 import { TerrainType } from '../terrain/TerrainType';
@@ -1921,11 +1923,8 @@ describe('commit-time in-place decision (Step 1)', () => {
     });
 });
 
-describe('non-host in-place commit (Step 3)', () => {
-    it('wouldCommitInPlace is true for non-host when persistence path and held pure passes align', async () => {
-        const fixture = await mountLightBlastSessionFixture();
-        const { session, casterUnitId, remoteUnitId, atTick } = fixture;
-
+describe('non-host in-place commit (Fix C + Fix B)', () => {
+    function makeNonHostP2Session(): BattleSession {
         const nonHostSession = new BattleSession({
             api: makeApiStub(),
             missionId: 'dark_awakening',
@@ -1939,6 +1938,14 @@ describe('non-host in-place commit (Step 3)', () => {
             },
             { p1: 'warrior', p2: 'ranger' },
         );
+        return nonHostSession;
+    }
+
+    it('wouldCommitInPlace is true for non-host when persistence path and held pure passes align', async () => {
+        const fixture = await mountLightBlastSessionFixture();
+        const { session, casterUnitId, remoteUnitId, atTick } = fixture;
+
+        const nonHostSession = makeNonHostP2Session();
 
         const engine = session.getEngine()!;
         const mark = engine.toJSON();
@@ -1970,57 +1977,404 @@ describe('non-host in-place commit (Step 3)', () => {
         nonHostSession.destroy();
     });
 
-    it('wouldCommitInPlace is false for non-host when engine playahead past mark (lobby 39E984)', async () => {
+    it('wouldCommitInPlace is false for non-host playahead when other waiter lacks server proof', async () => {
         const fixture = await mountLightBlastSessionFixture();
-        const { session, casterUnitId, remoteUnitId, atTick } = fixture;
+        const { session, remoteUnitId } = fixture;
 
-        const nonHostSession = new BattleSession({
-            api: makeApiStub(),
-            missionId: 'dark_awakening',
-            playerId: 'p2',
-            isHost: false,
-        });
-        nonHostSession.updateLobbyContext(
-            {
-                p1: { id: 'p1', name: 'P1', color: '#fff' },
-                p2: { id: 'p2', name: 'P2', color: '#000' },
-            },
-            { p1: 'warrior', p2: 'ranger' },
-        );
+        const nonHostSession = makeNonHostP2Session();
+        const hostEngine = session.getEngine()!;
 
-        const engine = session.getEngine()!;
-        const mark = engine.toJSON();
-        mark.checkpointRuntimeFingerprintHex = engine.getRuntimeFingerprintHex();
+        const caster = hostEngine.getUnit(remoteUnitId)!;
+        caster.abilities = [LIGHT_BLAST_ID];
+        initializeAbilityRuntimeForUnit(caster);
+        const light = new Light();
+        caster.attachResource(light, hostEngine.eventBus);
+        light.add(LIGHT_BLAST_LIGHT_COST);
+
+        const mark = hostEngine.toJSON();
+        mark.checkpointRuntimeFingerprintHex = hostEngine.getRuntimeFingerprintHex();
         const markTick = mark.gameTick;
 
         const its = nonHostSession.interactiveTargeting;
         its['_isActive'] = true;
         its['_abilityId'] = LIGHT_BLAST_ID;
-        its['_unitId'] = casterUnitId;
+        its['_unitId'] = remoteUnitId;
         its['mark'] = mark;
         its['originalOrder'] = {
-            unitId: casterUnitId,
+            unitId: remoteUnitId,
             abilityId: LIGHT_BLAST_ID,
             targets: [],
             endTurn: true,
         };
-        its['assumedWaitUnitIds'] = new Set([remoteUnitId]);
-        const passOrder = makePurePassOrder(remoteUnitId);
-        its.holdRemoteOrder(atTick, passOrder, hashOrderId('p1', atTick, passOrder));
 
         nonHostSession.setNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             submitOrder: vi.fn().mockResolvedValue(undefined),
         } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
 
-        // Simulate ITS playahead: live engine is past the mark tick.
         vi.spyOn(nonHostSession, 'getEngine').mockReturnValue({
             gameTick: markTick + 26,
+            waitingForOrders: mark.waitingForOrders,
         } as ReturnType<BattleSession['getEngine']>);
 
         expect(its.wouldCommitInPlace(nonHostSession)).toBe(false);
 
         session.destroy();
+        nonHostSession.destroy();
+    });
+
+    it('EC110E shape: server-confirmed other waiter in mark.orders allows in-place despite playahead', async () => {
+        const fixture = await mountLightBlastSessionFixture();
+        const { session, casterUnitId, remoteUnitId } = fixture;
+
+        const nonHostSession = makeNonHostP2Session();
+        const hostEngine = session.getEngine()!;
+
+        hostEngine.state.orderMgr.applyOrder(makePurePassOrder(casterUnitId));
+
+        const mark = hostEngine.toJSON();
+        mark.checkpointRuntimeFingerprintHex = hostEngine.getRuntimeFingerprintHex();
+        const markTick = mark.gameTick;
+
+        const its = nonHostSession.interactiveTargeting;
+        its['_isActive'] = true;
+        its['_abilityId'] = LIGHT_BLAST_ID;
+        its['_unitId'] = remoteUnitId;
+        its['mark'] = mark;
+        its['originalOrder'] = {
+            unitId: remoteUnitId,
+            abilityId: LIGHT_BLAST_ID,
+            targets: [],
+            endTurn: true,
+        };
+
+        nonHostSession.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            submitOrder: vi.fn().mockResolvedValue(undefined),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        vi.spyOn(nonHostSession, 'getEngine').mockReturnValue({
+            gameTick: markTick + 26,
+            waitingForOrders: mark.waitingForOrders,
+        } as ReturnType<BattleSession['getEngine']>);
+
+        expect(its.wouldCommitInPlace(nonHostSession)).toBe(true);
+
+        session.destroy();
+        nonHostSession.destroy();
+    });
+
+    it('playahead with assumed-wait held pure pass is in-place; without held row rolls back', async () => {
+        const fixture = await mountLightBlastSessionFixture();
+        const { session, casterUnitId, remoteUnitId, atTick } = fixture;
+
+        const nonHostSession = makeNonHostP2Session();
+        const hostEngine = session.getEngine()!;
+        const mark = hostEngine.toJSON();
+        mark.checkpointRuntimeFingerprintHex = hostEngine.getRuntimeFingerprintHex();
+        const markTick = mark.gameTick;
+
+        const passOrder = makePurePassOrder(casterUnitId);
+        const passKey = hashOrderId('p1', atTick, passOrder);
+
+        nonHostSession.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            submitOrder: vi.fn().mockResolvedValue(undefined),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        const its = nonHostSession.interactiveTargeting;
+        its['_isActive'] = true;
+        its['_abilityId'] = LIGHT_BLAST_ID;
+        its['_unitId'] = remoteUnitId;
+        its['mark'] = mark;
+        its['originalOrder'] = {
+            unitId: remoteUnitId,
+            abilityId: LIGHT_BLAST_ID,
+            targets: [],
+            endTurn: true,
+        };
+        its['assumedWaitUnitIds'] = new Set([casterUnitId]);
+
+        vi.spyOn(nonHostSession, 'getEngine').mockReturnValue({
+            gameTick: markTick + 26,
+            waitingForOrders: mark.waitingForOrders,
+        } as ReturnType<BattleSession['getEngine']>);
+
+        expect(its.wouldCommitInPlace(nonHostSession)).toBe(false);
+
+        its.holdRemoteOrder(atTick, passOrder, passKey);
+        expect(its.wouldCommitInPlace(nonHostSession)).toBe(true);
+
+        session.destroy();
+        nonHostSession.destroy();
+    });
+
+    it('Fix B phase-3: deferred queue row suppresses order_submit_failed on rollback commit', async () => {
+        const fixture = await mountLightBlastSessionFixture();
+        const { session, casterUnitId, remoteUnitId, atTick, blastPixel } = fixture;
+
+        const failEvents: Array<{ type: string }> = [];
+        session.subscribe((ev) => {
+            if (ev.type === 'order_submit_failed') failEvents.push(ev);
+        });
+
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            submitOrder: vi.fn().mockResolvedValue(undefined),
+            hasDeferredOrderFor: vi.fn().mockReturnValue(true),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
+
+        const its = session.interactiveTargeting;
+        const realOrder: BattleOrder = {
+            unitId: remoteUnitId,
+            abilityId: DOUBLE_PUNCH_ABILITY_ID,
+            targets: [],
+            endTurn: true,
+        };
+        its.holdRemoteOrder(atTick, realOrder, hashOrderId('p2', atTick, realOrder));
+        expect(its.wouldCommitInPlace(session)).toBe(false);
+
+        await its.commit(session);
+
+        expect(failEvents).toHaveLength(0);
+
+        session.destroy();
+    });
+
+    it('Fix B phase-3: emits order_submit_failed when submit did not land and no deferred row', async () => {
+        const fixture = await mountLightBlastSessionFixture();
+        const { session, casterUnitId, remoteUnitId, atTick, blastPixel } = fixture;
+
+        const failEvents: Array<{ type: string }> = [];
+        session.subscribe((ev) => {
+            if (ev.type === 'order_submit_failed') failEvents.push(ev);
+        });
+
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            submitOrder: vi.fn().mockResolvedValue(undefined),
+            hasDeferredOrderFor: vi.fn().mockReturnValue(false),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
+
+        const its = session.interactiveTargeting;
+        const realOrder: BattleOrder = {
+            unitId: remoteUnitId,
+            abilityId: DOUBLE_PUNCH_ABILITY_ID,
+            targets: [],
+            endTurn: true,
+        };
+        its.holdRemoteOrder(atTick, realOrder, hashOrderId('p2', atTick, realOrder));
+
+        await its.commit(session);
+
+        expect(failEvents).toHaveLength(1);
+        expect(failEvents[0]?.type).toBe('order_submit_failed');
+
+        session.destroy();
+    });
+
+    it('8AF2AB: retargets stale mark batch to heartbeat orderBatchAtTick on rollback commit', async () => {
+        const fixture = await mountLightBlastSessionFixture();
+        const { session, casterUnitId, remoteUnitId, atTick, blastPixel } = fixture;
+        const STALE_MARK_BATCH = atTick - 1;
+        const HEARTBEAT_BATCH = atTick;
+
+        const failEvents: Array<{ type: string }> = [];
+        session.subscribe((ev) => {
+            if (ev.type === 'order_submit_failed') failEvents.push(ev);
+        });
+
+        const submitOrder = vi.fn(async (order: BattleOrder, tick: number) => {
+            const eng = session.getEngine();
+            if (eng) {
+                eng.state.orderMgr.queueOrder(tick, { ...order, endTurn: true });
+            }
+        });
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            isOrderBatchTickSubmittable: (tick: number) => tick >= HEARTBEAT_BATCH,
+            getHeartbeatOrderBatchAtTick: () => HEARTBEAT_BATCH,
+            isLocalPlayerExpectedToAct: () => true,
+            submitOrder,
+            hasDeferredOrderFor: vi.fn().mockReturnValue(false),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
+
+        const its = session.interactiveTargeting;
+        const realOrder: BattleOrder = {
+            unitId: remoteUnitId,
+            abilityId: DOUBLE_PUNCH_ABILITY_ID,
+            targets: [],
+            endTurn: true,
+        };
+        its.holdRemoteOrder(HEARTBEAT_BATCH, realOrder, hashOrderId('p2', HEARTBEAT_BATCH, realOrder));
+        if (its.mark?.waitingForOrders) {
+            its.mark.waitingForOrders.atTick = STALE_MARK_BATCH;
+        }
+
+        await its.commit(session);
+
+        expect(failEvents).toHaveLength(0);
+        expect(submitOrder).toHaveBeenCalledWith(expect.objectContaining({ unitId: casterUnitId }), HEARTBEAT_BATCH);
+
+        session.destroy();
+    });
+
+    it('EC110E end-to-end: non-host playahead commit succeeds without soft-align or order_submit_failed', async () => {
+        const fixture = await mountLightBlastSessionFixture();
+        const { session: hostSession, casterUnitId, remoteUnitId, atTick, blastPixel } = fixture;
+        const hostEngine = hostSession.getEngine()!;
+
+        const hostPassOrder = makePurePassOrder(casterUnitId);
+        const hostPassKey = hashOrderId('p1', atTick, hostPassOrder);
+        hostEngine.state.orderMgr.applyOrder(hostPassOrder);
+
+        const snapshot = hostEngine.toJSON();
+        snapshot.checkpointRuntimeFingerprintHex = hostEngine.getRuntimeFingerprintHex();
+
+        const nonHostSession = makeNonHostP2Session();
+        await nonHostSession.load({
+            players: {
+                p1: { id: 'p1', name: 'P1', color: '#fff' },
+                p2: { id: 'p2', name: 'P2', color: '#000' },
+            },
+            characterSelections: { p1: 'warrior', p2: 'ranger' },
+            battleSeed: 1,
+        });
+        nonHostSession.getEngine()!.stop();
+        nonHostSession.restoreFromInMemorySnapshot(snapshot);
+        nonHostSession.getEngine()!.stop();
+
+        const engine = nonHostSession.getEngine()!;
+        const localCaster = engine.getUnit(remoteUnitId)!;
+        localCaster.abilities = [LIGHT_BLAST_ID];
+        initializeAbilityRuntimeForUnit(localCaster);
+        const light = new Light();
+        localCaster.attachResource(light, engine.eventBus);
+        light.add(LIGHT_BLAST_LIGHT_COST);
+
+        const enemy = createTargetDummyAtWorld(engine, blastPixel.x, blastPixel.y, {
+            id: 'enemy_ec110e_e2e',
+            hp: 100,
+        });
+        initializeAbilityRuntimeForUnit(enemy);
+        engine.addUnit(enemy, 'initialGameSpawn');
+
+        nonHostSession.applyRemoteOrders([
+            { atTick, order: hostPassOrder, idHash: hostPassKey, playerId: 'p1' },
+        ]);
+
+        const hostTick = atTick - 1;
+        const hostFp =
+            nonHostSession.getFingerprintRange(hostTick, hostTick)[0]?.fp ?? 'aaaaaaaaaaaaaaaa';
+        const appendBattleOrder = vi.fn(async (_l: string, _g: string, body: { idHash?: string }) => ({
+            accepted: true,
+            idHash: body.idHash ?? 'guest_order',
+        }));
+        const lobbyApi = {
+            appendLobbyLog: vi.fn(async () => ({ success: true })),
+            appendLobbyLogBatch: vi.fn(async () => ({ success: true })),
+            appendBattleOrder,
+            getBattleOrdersRange: vi.fn(async () => ({ orders: [] })),
+            mergeBattleAppliedOrders: vi.fn(async () => ({ success: true, merged: 0 })),
+            getBattleHeartbeat: vi.fn(async () => ({
+                hostTick,
+                hostFingerprint: hostFp,
+                hostPaused: true,
+                ordersTipTick: hostTick,
+                orderBatchAtTick: atTick,
+                pausedAtTick: atTick,
+                expectingFromPlayerIds: ['p2'],
+                initialFingerprint: nonHostSession.getInitialFingerprint(),
+                heartbeatSeq: 0,
+            })),
+            saveBattleInitialState: vi.fn(async () => {}),
+            getBattleInitialState: vi.fn(async () => ({
+                state: snapshot,
+                initialFingerprint: nonHostSession.getInitialFingerprint(),
+            })),
+            saveBattleSnapshot: vi.fn(async () => {}),
+            getBattleSnapshot: vi.fn(async () => ({
+                tick: hostTick,
+                state: snapshot,
+                synchash: null,
+            })),
+            appendBattleFingerprints: vi.fn(async () => ({ appended: 0 })),
+            getBattleFingerprintsRange: vi.fn(async () => ({ records: [] })),
+        };
+        const net = new BattleNet({
+            api: lobbyApi as unknown as LobbyClient,
+            session: nonHostSession,
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p2',
+        });
+        nonHostSession.setNetAdapter(net);
+
+        const softAlignSpy = vi.spyOn(net, 'softAlignToHostPausePlane').mockImplementation(() => {});
+        const loadSpy = vi.spyOn(nonHostSession, 'loadFromSnapshot');
+
+        await net.pollOnce();
+        softAlignSpy.mockRestore();
+
+        const markTick = engine.gameTick;
+        const its = nonHostSession.interactiveTargeting;
+        its.begin(
+            {
+                unitId: remoteUnitId,
+                abilityId: LIGHT_BLAST_ID,
+                targets: [],
+                endTurn: true,
+            },
+            nonHostSession,
+        );
+        const targetPaused = stepUntil(
+            engine,
+            () => engine.waitingForTargetInput?.label === LIGHT_BLAST_TARGET_LABEL,
+            120,
+        );
+        expect(targetPaused).toBe(true);
+        its.resolveTarget(
+            LIGHT_BLAST_TARGET_LABEL,
+            { type: 'pixel', position: blastPixel },
+            nonHostSession,
+        );
+        const playaheadReached = stepUntil(
+            engine,
+            () => engine.gameTick > markTick && engine.waitingForOrders != null,
+            500,
+        );
+        expect(playaheadReached).toBe(true);
+
+        const softAlignMidPreview = vi.spyOn(net, 'softAlignToHostPausePlane');
+        await net.pollOnce();
+        expect(softAlignMidPreview).not.toHaveBeenCalled();
+        expect(loadSpy).not.toHaveBeenCalled();
+
+        const failEvents: Array<{ type: string }> = [];
+        nonHostSession.subscribe((ev) => {
+            if (ev.type === 'order_submit_failed') failEvents.push(ev);
+        });
+
+        await nonHostSession.interactiveTargeting.commit(nonHostSession);
+
+        if (appendBattleOrder.mock.calls.length === 0) {
+            await net.pollOnce();
+        }
+
+        expect(failEvents).toHaveLength(0);
+        expect(appendBattleOrder).toHaveBeenCalled();
+        const postedAtTick = (appendBattleOrder.mock.calls[0]?.[2] as { atTick?: number } | undefined)?.atTick;
+        expect(postedAtTick).toBe(atTick);
+        expect(net.getOrderSyncSummary().queued).toBe(0);
+
+        hostSession.destroy();
         nonHostSession.destroy();
     });
 });

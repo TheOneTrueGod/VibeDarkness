@@ -36,6 +36,7 @@ function makeSession(): BattleSessionHandle {
         getWaitingForOrdersBatch: () => null,
         isDebugSimulationFrozen: () => false,
         isEngineSimulationRunning: () => false,
+        isInteractiveTargetingPreviewActive: () => false,
         setMultiplayerAwaitHostCatchup: () => {},
     };
 }
@@ -232,6 +233,33 @@ describe('OrderQueueController.emitHostCatchupWaitState', () => {
     });
 });
 
+describe('OrderQueueController.hasDeferredOrderFor', () => {
+    it('returns true when a deferred row matches unitId and atTick', () => {
+        const q = new OrderQueueController(makeCtx());
+        q.deferLocalOrder('h1', 5, makeOrder('u_match'), false);
+        q.deferLocalOrder('h2', 6, makeOrder('u_other'), false);
+        expect(q.hasDeferredOrderFor('u_match', 5)).toBe(true);
+    });
+
+    it('returns false when unitId or atTick does not match any deferred row', () => {
+        const q = new OrderQueueController(makeCtx());
+        q.deferLocalOrder('h1', 5, makeOrder('u1'), false);
+        expect(q.hasDeferredOrderFor('u1', 6)).toBe(false);
+        expect(q.hasDeferredOrderFor('u2', 5)).toBe(false);
+        expect(q.hasDeferredOrderFor('u2', 6)).toBe(false);
+    });
+});
+
+describe('OrderQueueController.acceptedOurPostAtTicks', () => {
+    it('notes and queries accepted POST atTick', () => {
+        const q = new OrderQueueController(makeCtx());
+        expect(q.hasAcceptedOurPostAtTick(7)).toBe(false);
+        q.noteAcceptedOurPostAtTick(7);
+        expect(q.hasAcceptedOurPostAtTick(7)).toBe(true);
+        expect(q.hasAcceptedOurPostAtTick(8)).toBe(false);
+    });
+});
+
 describe('OrderQueueController.resetLocalOptimisticOrdersOnResync', () => {
     it('clears in-flight tracking and counters but preserves deferred orders', () => {
         const q = new OrderQueueController(makeCtx());
@@ -254,6 +282,20 @@ describe('OrderQueueController.resetLocalOptimisticOrdersOnResync', () => {
         expect(q.getLastSeenOrdersRecordCount()).toBe(0);
         expect(q.getDeferredFlushBlockedLogKey()).toBeNull();
         expect(q.getDeferredLocalOrders()).toHaveLength(1);
+    });
+
+    it('clears accepted-post ticks while preserving deferred rows', () => {
+        const q = new OrderQueueController(makeCtx());
+        q.noteAcceptedOurPostAtTick(11);
+        q.noteAcceptedOurPostAtTick(12);
+        q.deferLocalOrder('h_deferred', 11, makeOrder('u_deferred'), true);
+
+        q.resetLocalOptimisticOrdersOnResync();
+
+        expect(q.hasAcceptedOurPostAtTick(11)).toBe(false);
+        expect(q.hasAcceptedOurPostAtTick(12)).toBe(false);
+        expect(q.getDeferredLocalOrders()).toHaveLength(1);
+        expect(q.getDeferredLocalOrders()[0]?.order.unitId).toBe('u_deferred');
     });
 });
 
