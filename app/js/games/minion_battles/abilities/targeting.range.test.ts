@@ -22,7 +22,7 @@ const MAX_FROM_ANCHOR = 84;
 const rangedPixelAbility = {
     id: 'test_ranged',
     getRange: () => ({ minRange: 0, maxRange: TEST_MAX_RANGE }),
-} as AbilityStatic;
+} as unknown as AbilityStatic;
 
 const anchoredAbility = {
     id: 'anchored_test',
@@ -61,9 +61,9 @@ const anchoredAbility = {
         },
     ],
     getRange: () => ({ minRange: 0, maxRange: TEST_MAX_RANGE }),
-} as AbilityStatic;
+} as unknown as AbilityStatic;
 
-const mockCaster = { id: 'caster', x: 100, y: 100, teamId: 'p1' } as Unit;
+const mockCaster = { id: 'caster', x: 100, y: 100, teamId: 'p1' } as unknown as Unit;
 const mockEngine = {
     getUnit(id: string) {
         if (id === 'far_enemy') return { x: 100 + TEST_MAX_RANGE + 80, y: 100 };
@@ -162,11 +162,13 @@ describe('resolveCastBehaviourTarget range clamp', () => {
 
 describe('clampSelectTarget anchor clamp', () => {
     it('clamps landing pixel to max distance from anchor unit', () => {
-        const caster = { id: 'c', x: 0, y: 0, teamId: 'p1' } as Unit;
-        const collectedByLabel = { [ANCHOR_LABEL]: { type: 'unit', unitId: 'enemy' } };
-        const selectDef = anchoredAbility.abilityTimings![1]!.targetDef as SelectTargetDef;
+        const caster = { id: 'c', x: 0, y: 0, teamId: 'p1' } as unknown as Unit;
+        const collectedByLabel: Record<string, ResolvedTarget> = { [ANCHOR_LABEL]: { type: 'unit', unitId: 'enemy' } };
+        const selectDef = (anchoredAbility.abilityTimings![1] as AbilityTimingInterval).targetDef as SelectTargetDef;
         const farClick: ResolvedTarget = { type: 'pixel', position: { x: 500, y: 0 } };
-        const engine = { getUnit: (id: string) => (id === 'enemy' ? { x: 100, y: 0 } : null) };
+        const engine = { getUnit: (id: string) => (id === 'enemy' ? { x: 100, y: 0 } : null) } as unknown as {
+            getUnit(id: string): Unit | null | undefined;
+        };
         const clamped = clampSelectTarget(
             anchoredAbility,
             caster,
@@ -182,8 +184,8 @@ describe('clampSelectTarget anchor clamp', () => {
 
 describe('buildAiSelectTargets', () => {
     it('places landing away from caster at max anchor distance', () => {
-        const caster = { id: 'c', x: 0, y: 0, teamId: 'p1' } as Unit;
-        const enemy = { id: 'enemy', x: 100, y: 0, teamId: 'e1' } as Unit;
+        const caster = { id: 'c', x: 0, y: 0, teamId: 'p1' } as unknown as Unit;
+        const enemy = { id: 'enemy', x: 100, y: 0, teamId: 'e1' } as unknown as Unit;
         const engine = { getUnit: (id: string) => (id === 'enemy' ? enemy : null) };
         const { targets, targetsByLabel } = buildAiSelectTargets(caster, anchoredAbility, enemy, engine);
         expect(targets).toHaveLength(2);

@@ -1,4 +1,5 @@
 import type { ResearchTreeDef } from '../types';
+import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 
 export const STICK_SWORD_TREE_ID = 'stick_sword';
 
@@ -32,10 +33,10 @@ export const stickSwordTree: ResearchTreeDef = {
             flavorText: 'A good heavy branch can break bone.',
             order: 5,
             tier: 1,
-            position: { x: 120, y: 290 },
+            position: { x: 180, y: 290 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
-            requirements: [],
+            requirements: [{ type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.BasicCore }],
             cost: {},
             effects: [{ type: 'equipItem', itemId: '002' }],
             overrideCurrentEquipment: true,
@@ -47,7 +48,7 @@ export const stickSwordTree: ResearchTreeDef = {
             description: 'Replace stick with a forged sword.',
             order: 10,
             tier: 2,
-            position: { x: 340, y: 200 },
+            position: { x: 400, y: 200 },
             prereqNodeIds: [STICK_SWORD_NODE_BASE],
             exclusiveWithNodeIds: [STICK_SWORD_NODE_PIPE_BAT],
             requirements: [{ type: 'anyResearched', treeId: STICK_SWORD_TREE_ID, nodeIds: [STICK_SWORD_NODE_BASE] }],
@@ -61,7 +62,7 @@ export const stickSwordTree: ResearchTreeDef = {
             description: 'Swing Sword inflicts {Bleed} on enemies it hits.',
             order: 20,
             tier: 3,
-            position: { x: 570, y: 100 },
+            position: { x: 630, y: 100 },
             prereqNodeIds: ['craft_sword'],
             exclusiveWithNodeIds: [],
             requirements: [],
@@ -75,7 +76,7 @@ export const stickSwordTree: ResearchTreeDef = {
             description: 'Replace your stick with a metal pipe bat. Swing Bat stuns and hits up to {3} targets.',
             order: 30,
             tier: 2,
-            position: { x: 340, y: 380 },
+            position: { x: 400, y: 380 },
             prereqNodeIds: [STICK_SWORD_NODE_BASE],
             exclusiveWithNodeIds: ['craft_sword'],
             requirements: [{ type: 'anyResearched', treeId: STICK_SWORD_TREE_ID, nodeIds: [STICK_SWORD_NODE_BASE] }],
@@ -89,7 +90,7 @@ export const stickSwordTree: ResearchTreeDef = {
             description: 'Two additional uses before your weapon arm needs to recover.',
             order: 40,
             tier: 3,
-            position: { x: 570, y: 290 },
+            position: { x: 630, y: 290 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
             requirements: [
@@ -104,7 +105,7 @@ export const stickSwordTree: ResearchTreeDef = {
             description: 'Your bat feels like an extension of your arm. Swing Bat gets a {Medium} damage increase.',
             order: 50,
             tier: 3,
-            position: { x: 570, y: 480 },
+            position: { x: 630, y: 480 },
             prereqNodeIds: [STICK_SWORD_NODE_PIPE_BAT],
             exclusiveWithNodeIds: [],
             requirements: [],

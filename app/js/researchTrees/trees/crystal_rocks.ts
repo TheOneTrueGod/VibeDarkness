@@ -1,5 +1,6 @@
 import type { ResearchTreeDef } from '../types';
 import { EARTH_TREE_ID, EARTH_NODE_ROCK_SYNERGY_DAMAGE, EARTH_NODE_ROCK_SYNERGY_ENTOMBED } from './earth';
+import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 
 export const CRYSTAL_ROCKS_TREE_ID = 'crystal_rocks';
 export const CRYSTAL_ROCKS_NODE_BASE = 'throw_rock';
@@ -20,10 +21,10 @@ export const crystalRocksTree: ResearchTreeDef = {
             flavorText: 'Rocks are everywhere. Use that.',
             order: 5,
             tier: 1,
-            position: { x: 120, y: 280 },
+            position: { x: 180, y: 280 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
-            requirements: [],
+            requirements: [{ type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.BasicCore }],
             cost: {},
             effects: [{ type: 'equipItem', itemId: '001' }],
             overrideCurrentEquipment: true,
@@ -35,7 +36,7 @@ export const crystalRocksTree: ResearchTreeDef = {
             description: 'Infuse rocks with unstable crystal energy. Passive: gain {1 lightCharge} at round start.',
             order: 10,
             tier: 2,
-            position: { x: 340, y: 180 },
+            position: { x: 400, y: 180 },
             prereqNodeIds: [CRYSTAL_ROCKS_NODE_BASE],
             exclusiveWithNodeIds: ['throwing_knives'],
             requirements: [{ type: 'anyResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeIds: [CRYSTAL_ROCKS_NODE_BASE] }],
@@ -49,7 +50,7 @@ export const crystalRocksTree: ResearchTreeDef = {
             description: 'Swap rocks for sharper thrown knives.',
             order: 11,
             tier: 2,
-            position: { x: 340, y: 380 },
+            position: { x: 400, y: 380 },
             prereqNodeIds: [CRYSTAL_ROCKS_NODE_BASE],
             exclusiveWithNodeIds: ['charged_rocks'],
             requirements: [{ type: 'anyResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeIds: [CRYSTAL_ROCKS_NODE_BASE] }],
@@ -63,7 +64,7 @@ export const crystalRocksTree: ResearchTreeDef = {
             description: 'Throw one additional rock or knife.',
             order: 20,
             tier: 3,
-            position: { x: 570, y: 300 },
+            position: { x: 630, y: 300 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: ['more_power', CRYSTAL_ROCKS_NODE_PIERCING_KNIVES],
             requirements: [
@@ -81,7 +82,7 @@ export const crystalRocksTree: ResearchTreeDef = {
             description: 'Increase thrown rock impact damage.',
             order: 30,
             tier: 3,
-            position: { x: 570, y: 120 },
+            position: { x: 630, y: 120 },
             prereqNodeIds: ['charged_rocks'],
             exclusiveWithNodeIds: ['more_rock'],
             requirements: [{ type: 'notResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeId: 'more_rock' }],
@@ -95,7 +96,7 @@ export const crystalRocksTree: ResearchTreeDef = {
             description: 'Throwing knives pierce through their {first target}, hitting it and continuing to the next.',
             order: 40,
             tier: 3,
-            position: { x: 570, y: 460 },
+            position: { x: 630, y: 460 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: ['more_rock'],
             requirements: [

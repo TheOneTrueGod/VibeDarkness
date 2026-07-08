@@ -3,6 +3,7 @@ import {
     getSelectTargetDefsFromTimings,
     buildMeleeSelectOrderTargets,
     clampSelectTarget,
+    clampResolvedTargetToAbilityRange,
     resolveSelectTargetLockOnCandidates,
 } from '../../../abilities/targeting';
 import { getAbilityTargets } from '../../../abilities/Ability';

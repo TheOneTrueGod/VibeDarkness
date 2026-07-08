@@ -24,7 +24,7 @@ export const trainingTree: ResearchTreeDef = {
             flavorText: 'Learn to brace with the terrain before every strike.',
             order: 10,
             tier: 1,
-            position: { x: 180, y: 130 },
+            position: { x: 240, y: 130 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
             requirements: [
@@ -41,7 +41,7 @@ export const trainingTree: ResearchTreeDef = {
             flavorText: 'Use walls and angles to open a second lane.',
             order: 20,
             tier: 3,
-            position: { x: 180, y: 370 },
+            position: { x: 240, y: 370 },
             prereqNodeIds: [TRAINING_NODE_CORE],
             exclusiveWithNodeIds: [TRAINING_NODE_STRONG_PUNCH, TRAINING_NODE_SNEAKY_PUNCH, TRAINING_NODE_CHARGING_PUNCH],
             requirements: [
@@ -60,7 +60,7 @@ export const trainingTree: ResearchTreeDef = {
             flavorText: 'Plant your feet and let the ground carry the blow.',
             order: 30,
             tier: 3,
-            position: { x: 380, y: 360 },
+            position: { x: 440, y: 360 },
             prereqNodeIds: [TRAINING_NODE_CORE],
             exclusiveWithNodeIds: [TRAINING_NODE_DOUBLE_PUNCH, TRAINING_NODE_SNEAKY_PUNCH, TRAINING_NODE_CHARGING_PUNCH],
             requirements: [
@@ -79,7 +79,7 @@ export const trainingTree: ResearchTreeDef = {
             flavorText: 'Strike when an enemy loses their footing.',
             order: 40,
             tier: 3,
-            position: { x: 450, y: 230 },
+            position: { x: 510, y: 230 },
             prereqNodeIds: [TRAINING_NODE_CORE],
             exclusiveWithNodeIds: [TRAINING_NODE_DOUBLE_PUNCH, TRAINING_NODE_STRONG_PUNCH, TRAINING_NODE_CHARGING_PUNCH],
             requirements: [
@@ -98,7 +98,7 @@ export const trainingTree: ResearchTreeDef = {
             flavorText: 'Momentum feeds the next move.',
             order: 50,
             tier: 3,
-            position: { x: 480, y: 100 },
+            position: { x: 540, y: 100 },
             prereqNodeIds: [TRAINING_NODE_CORE],
             exclusiveWithNodeIds: [TRAINING_NODE_DOUBLE_PUNCH, TRAINING_NODE_STRONG_PUNCH, TRAINING_NODE_SNEAKY_PUNCH],
             requirements: [

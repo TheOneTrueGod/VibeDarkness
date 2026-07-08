@@ -8,7 +8,7 @@ import type { Unit } from '../game/units/Unit';
 import type { IAbilityPreviewGraphics } from '../abilities/Ability';
 import { drawArcWedge } from '../abilities/previewHelpers';
 import { pointInCone } from '../abilities/coneGeometry';
-import { areEnemies } from '../game/teams';
+import { areEnemies, type TeamId } from '../game/teams';
 import type { HitboxEngineContext, HitboxPreviewCaster } from './Hitbox';
 import { HitboxSpec } from './HitboxSpec';
 
@@ -95,7 +95,7 @@ export class TruncatedConeHitboxSpec extends HitboxSpec {
     }
 
     private unitsInCone(
-        caster: { x: number; y: number; id?: string; teamId?: string },
+        caster: { x: number; y: number; id?: string; teamId?: TeamId },
         aimX: number,
         aimY: number,
         units: Unit[],

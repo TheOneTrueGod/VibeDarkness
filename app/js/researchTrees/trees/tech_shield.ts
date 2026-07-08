@@ -1,4 +1,5 @@
 import type { ResearchTreeDef } from '../types';
+import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 
 export const TECH_SHIELD_TREE_ID = 'tech_shield';
 export const TECH_SHIELD_NODE_BASE = 'raise_shield';
@@ -18,10 +19,10 @@ export const techShieldTree: ResearchTreeDef = {
             flavorText: 'Not pretty, but it stops a bite.',
             order: 5,
             tier: 1,
-            position: { x: 100, y: 100 },
+            position: { x: 160, y: 100 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
-            requirements: [],
+            requirements: [{ type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.BasicCore }],
             cost: {},
             effects: [{ type: 'equipItem', itemId: '003' }],
             overrideCurrentEquipment: true,
@@ -33,7 +34,7 @@ export const techShieldTree: ResearchTreeDef = {
             description: 'Embed a crystal into your shield.',
             order: 10,
             tier: 2,
-            position: { x: 340, y: 100 },
+            position: { x: 400, y: 100 },
             prereqNodeIds: [TECH_SHIELD_NODE_BASE],
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: TECH_SHIELD_TREE_ID, nodeIds: [TECH_SHIELD_NODE_BASE] }],
@@ -47,7 +48,7 @@ export const techShieldTree: ResearchTreeDef = {
             description: 'Learn how to store the energy from incoming blows... and redirect it.',
             order: 20,
             tier: 3,
-            position: { x: 230, y: 240 },
+            position: { x: 290, y: 240 },
             prereqNodeIds: ['crystal_embedded_shield'],
             exclusiveWithNodeIds: ['extra_shields'],
             requirements: [
@@ -63,7 +64,7 @@ export const techShieldTree: ResearchTreeDef = {
             description: 'Empower shield defense with crystal light.',
             order: 30,
             tier: 3,
-            position: { x: 470, y: 240 },
+            position: { x: 530, y: 240 },
             prereqNodeIds: ['crystal_embedded_shield'],
             exclusiveWithNodeIds: ['throwing_crystal_shield'],
             requirements: [

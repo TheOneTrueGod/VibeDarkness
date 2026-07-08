@@ -322,7 +322,9 @@ export const ForcePushAbility = defineAbility({
     renderTargetingPreviewSelectedTargets(gr, _caster, targets, mouseWorld, _units, engine): void {
         const anchorTarget = targets[0];
         if (!anchorTarget) return;
-        const anchorPoint = resolveTargetToPoint(anchorTarget, engine);
+        const eng = engine as EngineContext | undefined;
+        if (!eng) return;
+        const anchorPoint = resolveTargetToPoint(anchorTarget, eng);
         if (!anchorPoint) return;
         drawClampedLine(
             gr,

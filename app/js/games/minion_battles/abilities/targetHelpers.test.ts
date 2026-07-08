@@ -18,7 +18,7 @@ function makeEnemy(id: string, x: number, y: number, hp = 100, radius = 10): Uni
         teamId: 'enemy',
         isAlive: () => true,
         hasIFrames: () => false,
-    } as Unit;
+    } as unknown as Unit;
 }
 
 describe('damageEnemiesInCircle maxTargets', () => {

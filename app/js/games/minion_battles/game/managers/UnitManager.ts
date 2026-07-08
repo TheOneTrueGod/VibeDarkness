@@ -25,6 +25,7 @@ import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { getUnitMaxPerTile, getUnitShovePriority } from '../units/unit_defs/unitDef';
 import type { CellOccupancyManager } from './CellOccupancyManager';
 import { refreshActiveTargets } from '../../abilities/targetDowngrade';
+import { MIN_FOLLOW_RADIUS } from '../gameConstants';
 
 function refreshPlayerPursuitPath(unit: Unit, aiContext: AIContext): void {
     const targetId = unit.movement?.targetUnitId;

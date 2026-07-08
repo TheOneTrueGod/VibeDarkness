@@ -4,7 +4,6 @@ import type { Unit } from '../units/Unit';
 import { NinjutsuPool } from './NinjutsuPool';
 import type { NinjutsuUIState, SerializedNinjutsuPool } from './NinjutsuPool';
 import type { NinjutsuPoolConfig } from './ninjutsuConfig';
-import type { Unit } from '../units/Unit';
 
 export type { NinjutsuUIState, SerializedNinjutsuPool };
 
