@@ -33,4 +33,5 @@ export const NINJUTSU_TIER_4: NinjutsuPoolConfig =
 export const NINJUTSU_3_FLURRY_PER_ROUND: NinjutsuPoolConfig =
     { enabled: true, maxPool: 4, rechargeInterval: 1 / 3, pauseBetweenUses: 0 };
 
-export const NINJUTSU_DEFAULT = NINJUTSU_TIER_3;
+// Missions that don't configure ninjutsuPools get this — no throttling of enemy attacks.
+export const NINJUTSU_DEFAULT = NINJUTSU_DISABLED;

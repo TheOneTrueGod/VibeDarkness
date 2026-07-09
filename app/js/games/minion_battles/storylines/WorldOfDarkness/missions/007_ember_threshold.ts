@@ -38,6 +38,7 @@ import { MAP_SEGMENT_49_50_PATH_TO_CAVE } from '../MapSegments/49_50_path_to_cav
 import { MAP_SEGMENT_49_51_WEST_GLADE } from '../MapSegments/49_51_west_glade';
 import { MAP_SEGMENT_50_51_SOUTH_GATE } from '../MapSegments/50_51_south_gate';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
+import { NINJUTSU_3_FLURRY_PER_ROUND } from '../../../game/ninjutsu/ninjutsuConfig';
 
 const COLS = 44;
 const ROWS = 44;
@@ -275,21 +276,6 @@ export class EmberThresholdMission extends BaseMissionDef {
 				},
 			],
 		},
-		// Survive phase: 3 wolves surge from the darkness when the nests are established.
-		{
-			type: 'spawnWave',
-			trigger: { atRound: 4 },
-			spawns: [
-				{
-					characterId: 'dark_wolf',
-					name: 'Wolf',
-					spawnBehaviour: 'closest',
-					closestConfig: { inDarkness: true },
-					spawnCount: 3,
-					unitAITreeId: 'hunt',
-				},
-			],
-		},
 		// Victory: both nests still alive after surviving 1 round of the surge.
 		{
 			type: 'victoryCheck',
@@ -313,6 +299,8 @@ export class EmberThresholdMission extends BaseMissionDef {
 
 	lightLevelEnabled = true;
 	globalLightLevel = 0;
+
+	ninjutsuPools = { shadow: NINJUTSU_3_FLURRY_PER_ROUND };
 
 	specialTiles: SpecialTilePlacement[] = [
 		...crystalSpecialTilesAt(CAVE_ORIGIN_COL, 0),

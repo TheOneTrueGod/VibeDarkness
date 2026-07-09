@@ -68,7 +68,7 @@ export const PunchNEWAbility = defineMeleeStrike({
     // to keep the factory simple — behaviour range is 0.00–0.40 total.
     windupDuration: 0.2,
     activeDuration: 0.2,
-    cooldownDuration: 1.2,
+    cooldownDuration: 0.8,
     movementLockUntil: 0.4,
 
     getTooltipText(): string[] {
