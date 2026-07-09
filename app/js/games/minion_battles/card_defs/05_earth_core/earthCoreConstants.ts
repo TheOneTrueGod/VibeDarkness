@@ -34,3 +34,6 @@ export const EARTH_CORE_STONE_HEALTH = 100;
 
 /** Durability damage dealt to stone per qualifying damage instance. */
 export const EARTH_CORE_STONE_DAMAGE_PER_INSTANCE = 20;
+
+/** Rock resource granted at mission start when Earth Core research is unlocked. */
+export const EARTH_CORE_MISSION_START_ROCK_AMOUNT = 6;

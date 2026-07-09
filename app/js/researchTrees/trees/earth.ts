@@ -1,4 +1,5 @@
 import type { ResearchTreeDef } from '../types';
+import { EARTH_CORE_MISSION_START_ROCK_AMOUNT } from '../../games/minion_battles/card_defs/05_earth_core/earthCoreConstants';
 
 export const EARTH_TREE_ID = 'earth';
 export const EARTH_NODE_EARTH_CORE = 'earth_core';
@@ -23,7 +24,12 @@ export const earthTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [],
             requirements: [],
             cost: {},
-            effects: [{ type: 'addCard', cardId: '0111' }],
+            effects: [
+                { type: 'addCard', cardId: '0111' },
+                { type: 'replaceEquippedItem', fromItemId: '004', toItemId: '019' },
+                { type: 'replaceCard', fromCardId: 'throw_rock', toCardId: 'earth_core_throw_rock' },
+                { type: 'grantMissionStartResource', resourceId: 'rock', amount: EARTH_CORE_MISSION_START_ROCK_AMOUNT },
+            ],
             modifiesAbility: { from: '0111', to: '0111' },
         },
         {

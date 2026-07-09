@@ -1,0 +1,11 @@
+<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="earthCoreFill" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#c2884f" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#78350f" stop-opacity="0.35"/>
+    </radialGradient>
+  </defs>
+  <path d="M32 6 L50 18 L57 38 L45 58 L19 56 L7 34 Z" fill="url(#earthCoreFill)" stroke="#92400e" stroke-width="4"/>
+  <path d="M20 24 L32 16 L45 26 L48 42 L35 51 L20 45 Z" fill="#7a7a7a" opacity="0.5"/>
+  <path d="M26 32 L38 26 L41 38 L29 44 Z" fill="#525252" opacity="0.6"/>
+</svg>

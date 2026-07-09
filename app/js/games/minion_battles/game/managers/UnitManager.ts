@@ -18,7 +18,7 @@ import { Rage } from '../../resources/Rage';
 import { Mana } from '../../resources/Mana';
 import { Resonance } from '../../resources/Resonance';
 import { Light } from '../../resources/Light';
-import { EarthPower } from '../../resources/EarthPower';
+import { Rock } from '../../resources/Rock';
 import { Gravity } from '../../resources/Gravity';
 import { Movement } from '../../resources/Movement';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
@@ -116,8 +116,8 @@ function createResourceFromId(id: string): Resource | null {
             return new Resonance();
         case 'light':
             return new Light();
-        case 'earth_power':
-            return new EarthPower();
+        case 'rock':
+            return new Rock();
         case 'gravity':
             return new Gravity();
         case 'movement_points':

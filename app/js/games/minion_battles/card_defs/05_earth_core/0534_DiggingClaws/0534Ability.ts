@@ -31,9 +31,9 @@ const MAX_USES = 2;
 const RECOVERIES: AbilityRecoveryRule[] = [
 	{ chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 },
 ];
-const DASH_DURATION = 0.4;
+const DASH_DURATION = 0.6;
 const SLINGSHOT_PHASE = 0.3;
-const COOLDOWN_DURATION = 0.8;
+const COOLDOWN_DURATION = 0.4;
 const MAX_DISTANCE = 160;
 const UNIT_DAMAGE = 6;
 export const DIGGING_CLAWS_MAX_TARGETS = 5;

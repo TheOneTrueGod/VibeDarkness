@@ -49,6 +49,7 @@ import { KnockCard } from './05_earth_core/0531_Knock/0531Ability';
 import { AnchoredTremorCard } from './05_earth_core/0532_AnchoredTremor/0532Ability';
 import { StoneyPunchCard } from './05_earth_core/0533_StoneyPunch/0533Ability';
 import { DiggingClawsCard } from './05_earth_core/0534_DiggingClaws/0534Ability';
+import { EarthCoreThrowRockCard } from './05_earth_core/0535_EarthCoreThrowRock/0535Ability';
 import { DogBiteCard } from './07_command_core/0701_DogBite/0701Ability';
 import { PetCard } from './07_command_core/0703_Pet/0703Ability';
 import { SicEmCard } from './07_command_core/0704_SicEm/0704Ability';
@@ -110,6 +111,7 @@ const cardDefs: CardDef[] = [
     AnchoredTremorCard,
     StoneyPunchCard,
     DiggingClawsCard,
+    EarthCoreThrowRockCard,
     DogBiteCard,
     PetCard,
     SicEmCard,

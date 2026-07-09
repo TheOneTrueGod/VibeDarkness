@@ -1,4 +1,4 @@
-interface EarthPowerBarProps {
+interface RockBarProps {
     current: number;
     max: number;
 }
@@ -92,7 +92,7 @@ function buildRocks(): Rock[] {
 const ROCKS = buildRocks();
 const ROCK_COUNT = ROCKS.length;
 
-export function EarthPowerBar({ current, max }: EarthPowerBarProps) {
+export function RockBar({ current, max }: RockBarProps) {
     const filledCount = Math.round((current / Math.max(max, 1)) * ROCK_COUNT);
 
     return (

@@ -16,6 +16,7 @@ import { coreBasicItem } from './core/004_core_basic';
 import { coreWeaponsItem } from './core/006_core_weapons';
 import { coreLightItem } from './core/017_core_light';
 import { coreGravityItem } from './core/018_core_gravity';
+import { coreEarthItem } from './core/019_core_earth';
 import { throwTorchUtilityItem } from './utility/005_throw_torch';
 import { pistolItem } from './weapons/007_pistol';
 import { smgItem } from './weapons/008_smg';
@@ -33,6 +34,7 @@ import throwingKnivesIcon from './assets/016_throwing_knives.svg';
 import coreBasicIcon from './assets/004_core_basic.svg';
 import coreLightIcon from './assets/017_core_light.svg';
 import coreGravityIcon from './assets/018_core_gravity.svg';
+import coreEarthIcon from './assets/019_core_earth.svg';
 import throwTorchIcon from './assets/005_throw_torch.svg';
 import coreWeaponsIcon from './assets/006_core_weapons.svg';
 import pistolIcon from './assets/007_pistol.svg';
@@ -62,6 +64,7 @@ export const ITEM_ICON_URLS: Record<string, string> = {
     [coreBasicItem.id]: coreBasicIcon,
     [coreLightItem.id]: coreLightIcon,
     [coreGravityItem.id]: coreGravityIcon,
+    [coreEarthItem.id]: coreEarthIcon,
     [throwTorchUtilityItem.id]: throwTorchIcon,
     [coreWeaponsItem.id]: coreWeaponsIcon,
     [pistolItem.id]: pistolIcon,
@@ -84,6 +87,7 @@ export const ALL_PLAYER_ITEMS: string[] = [
     coreWeaponsItem.id,
     coreLightItem.id,
     coreGravityItem.id,
+    coreEarthItem.id,
     throwTorchUtilityItem.id,
     pistolItem.id,
     smgItem.id,
@@ -103,6 +107,7 @@ export const ITEMS: Record<string, ItemDef> = {
     [coreWeaponsItem.id]: coreWeaponsItem,
     [coreLightItem.id]: coreLightItem,
     [coreGravityItem.id]: coreGravityItem,
+    [coreEarthItem.id]: coreEarthItem,
     [throwTorchUtilityItem.id]: throwTorchUtilityItem,
     [pistolItem.id]: pistolItem,
     [smgItem.id]: smgItem,

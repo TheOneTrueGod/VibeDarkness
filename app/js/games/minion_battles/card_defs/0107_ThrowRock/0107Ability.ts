@@ -1,13 +1,13 @@
-﻿/**
- * ThrowRock - A basic ranged ability.
+/**
+ * ThrowRock - A basic ranged ability, and the shared base for its Earth Core variant.
  *
- * Targets a pixel. After windup, creates a projectile that travels up to
- * 200px toward the target. Base 5 damage on hit; **More Power** research
- * increases damage. **More Rock** (crystal_rocks tree) adds a second target
- * and second throw on a longer timeline (same pattern as Throw Charged Rock).
+ * Targets a pixel. After windup, creates a projectile that travels up to 200px toward
+ * the target. Base 5 damage on hit; **More Power** research increases damage. **More Rock**
+ * (crystal_rocks tree) adds a second target and throw on a longer timeline. `buildThrowRockAbility`
+ * is reused by Earth Core Throw Rock (0535) with a rock-resource cost instead of stamina uses.
  */
 
-import type { AbilityRecoveryRule, AbilityStatic, AttackBlockedInfo } from '../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStatic, AbilityTag, AttackBlockedInfo, ResourceCost } from '../../abilities/Ability';
 import { getAbilityModifier } from '../../abilities/abilityModifierHelpers';
 import type { TargetDef } from '../../abilities/targeting';
 import { clampToMaxRange, drawClampedLine, drawCrosshair } from '../../abilities/previewHelpers';
@@ -31,7 +31,6 @@ import {
     TWO_PIXEL_TARGETS,
 } from '../throwSharedTimings';
 
-const ABILITY_ID = 'throw_rock';
 const MAX_USES = 6;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
@@ -59,22 +58,25 @@ function rockDamageForResearch(research: Set<string>): number {
     return research.has('more_power') ? MORE_POWER_DAMAGE : BASE_DAMAGE;
 }
 
-function resolveRockProjectileDamage(ctx: import('../../abilities/castBehaviourTypes').CastBehaviourSetupContext): number {
+function resolveRockProjectileDamage(
+    abilityId: string,
+    ctx: import('../../abilities/castBehaviourTypes').CastBehaviourSetupContext,
+): number {
     const research = getCrystalRocksResearch(ctx.engine, ctx.caster);
     let damage = rockDamageForResearch(research);
     if (isSinglePlayerBattle(ctx.engine.units)) {
         damage = Math.max(damage, TWO_SHOT_WOLF_PER_HIT_DAMAGE);
     }
-    const mod = ctx.caster.abilityModifiers[ABILITY_ID] ?? {};
+    const mod = ctx.caster.abilityModifiers[abilityId] ?? {};
     return damage + (mod.damageFlat ?? 0);
 }
 
-function rockLaunchBehaviour() {
+function rockLaunchBehaviour(abilityId: string) {
     return CastBehaviours.ProjectileLaunch()
         .withSpeed(THROW_PROJECTILE_SPEED)
         .withMaxRange(THROW_RANGE)
         .withTravelFullRange()
-        .withResolveDamage(resolveRockProjectileDamage)
+        .withResolveDamage((ctx) => resolveRockProjectileDamage(abilityId, ctx))
         .withSpriteConfig({
             sprite: { file: 'images/projectiles/rock_spin.png', frames: 4, frameDirection: 'row', fps: 8 },
             loop: true,
@@ -83,100 +85,127 @@ function rockLaunchBehaviour() {
         });
 }
 
-const THROW_ROCK_BASE_TIMINGS = buildThrowBaseTimings({
-    launchBehaviour: rockLaunchBehaviour(),
-    entombed: ENTOMBED_OPTS,
-});
-
-const THROW_ROCK_MORE_ROCK_TIMINGS = buildMoreRockTimings({
-    launchBehaviour: rockLaunchBehaviour(),
-    entombed: ENTOMBED_MORE_ROCK_OPTS,
-});
-
 const THROW_ROCK_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
   <path d="M20 4 L32 12 L36 24 L28 36 L12 34 L4 20 Z" fill="#6b6b6b" stroke="#5a5a5a" stroke-width="1"/>
   <path d="M12 14 L20 10 L28 16 L30 26 L22 32 L12 28 Z" fill="#7a7a7a"/>
   <path d="M16 20 L24 16 L26 24 L18 28 Z" fill="#525252"/>
 </svg>`;
 
-export const ThrowRock: AbilityStatic & { range: number } = {
-    id: ABILITY_ID,
+export interface ThrowRockVariantConfig {
+    id: string;
+    name: string;
+    tags: readonly AbilityTag[];
+    resourceCost: ResourceCost | null;
+    maxUses: number;
+    recoveries?: readonly AbilityRecoveryRule[];
+}
+
+/**
+ * Builds a Throw Rock ability variant. Only `id`/`name`/`tags`/`resourceCost`/`maxUses`/
+ * `recoveries` differ between variants (e.g. stamina-gated Throw Rock vs rock-resource-gated
+ * Earth Core Throw Rock) — targeting, timings, damage, and tooltip logic are fully shared.
+ */
+export function buildThrowRockAbility(config: ThrowRockVariantConfig): AbilityStatic & { range: number } {
+    const { id, name, tags, resourceCost, maxUses, recoveries } = config;
+
+    const baseTimings = buildThrowBaseTimings({
+        launchBehaviour: rockLaunchBehaviour(id),
+        entombed: ENTOMBED_OPTS,
+    });
+
+    const moreRockTimings = buildMoreRockTimings({
+        launchBehaviour: rockLaunchBehaviour(id),
+        entombed: ENTOMBED_MORE_ROCK_OPTS,
+    });
+
+    return {
+        id,
+        name,
+        range: THROW_RANGE,
+        image: THROW_ROCK_IMAGE,
+        tags,
+        resourceCost,
+        rechargeTurns: 1,
+        maxUses,
+        recoveries: recoveries ?? RECOVERIES,
+        prefireTime: 0.3,
+        abilityTimings: baseTimings,
+        getAbilityTimings(caster, gameState) {
+            const research = getCrystalRocksResearch(gameState as import('../../abilities/AbilityEngineContext').AbilityEngineContext | undefined, caster);
+            return hasMoreRockResearch(research) ? moreRockTimings : baseTimings;
+        },
+        targets: TWO_PIXEL_TARGETS,
+        getTargets(caster?: Unit, gameState?: unknown): TargetDef[] {
+            const research = getCrystalRocksResearch(gameState as import('../../abilities/AbilityEngineContext').AbilityEngineContext | undefined, caster);
+            return hasMoreRockResearch(research) ? TWO_PIXEL_TARGETS : ONE_PIXEL_TARGET;
+        },
+        aiSettings: { minRange: 0, maxRange: THROW_RANGE },
+
+        getTooltipText(gameState?: unknown): string[] {
+            const eng = gameState as import('../../abilities/AbilityEngineContext').AbilityEngineContext | undefined;
+            const research = getCrystalRocksResearch(eng);
+            const hasMoreRock = hasMoreRockResearch(research);
+            const mod = getAbilityModifier(gameState, undefined, id);
+            const dmg = rockDamageForResearch(research) + (mod.damageFlat ?? 0);
+            const lines: string[] = hasMoreRock
+                ? [`Throws {2} rocks dealing {${dmg}} damage each to the first enemy hit`]
+                : [`Throws a rock dealing {${dmg}} damage to the first enemy hit`];
+
+            const activeTags: string[] = [...tags];
+            if (mod.addTags) activeTags.push(...mod.addTags);
+            return [...lines, ...buildTagDescriptionLines(activeTags)];
+        },
+
+        beginActiveCast(engine, caster, _targets, active) {
+            const research = getCrystalRocksResearch(engine as import('../../abilities/AbilityEngineContext').AbilityEngineContext | undefined, caster);
+            active.castPayload = beginThrowCastPayload(hasMoreRockResearch(research));
+        },
+
+        getAbilityStatesForActive(currentTime, active) {
+            return throwMovementPenaltyStatesForActive(currentTime, active);
+        },
+
+        getAbilityStates(currentTime) {
+            return throwMovementPenaltyStates(currentTime);
+        },
+
+        onAttackBlocked(_engine, _defender, attackInfo: AttackBlockedInfo): void {
+            deactivateProjectileOnBlock(attackInfo);
+        },
+
+        renderTargetingPreviewSelectedTargets(gr, caster, currentTargets, mouseWorld, _units, gameState): void {
+            const research = getCrystalRocksResearch(gameState as import('../../abilities/AbilityEngineContext').AbilityEngineContext | undefined, caster);
+            if (!hasMoreRockResearch(research)) {
+                drawClampedLine(gr, caster, mouseWorld, THROW_RANGE);
+                return;
+            }
+
+            drawClampedLine(gr, caster, mouseWorld, THROW_RANGE, { color: 0xc0c0c0, width: 2, alpha: 0.7 });
+            const clamped = clampToMaxRange(caster, mouseWorld, THROW_RANGE);
+            drawCrosshair(gr, clamped.endX, clamped.endY, 10, { color: 0xc0c0c0, width: 2, alpha: 0.95 });
+
+            if (currentTargets.length >= 1) {
+                const first = currentTargets[0];
+                if (first?.type === 'pixel' && first.position) {
+                    const c = clampToMaxRange(caster, first.position, THROW_RANGE);
+                    gr.moveTo(caster.x, caster.y);
+                    gr.lineTo(c.endX, c.endY);
+                    gr.stroke({ color: 0xc0c0c0, width: 2, alpha: 0.35 });
+                    drawCrosshair(gr, c.endX, c.endY, 10, { color: 0xc0c0c0, width: 2, alpha: 0.95 });
+                }
+            }
+        },
+    };
+}
+
+export const ThrowRock = buildThrowRockAbility({
+    id: 'throw_rock',
     name: 'Throw Rock',
-    range: THROW_RANGE,
-    image: THROW_ROCK_IMAGE,
     tags: ['RockThrow'],
     resourceCost: null,
-    rechargeTurns: 1,
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
-    prefireTime: 0.3,
-    abilityTimings: THROW_ROCK_BASE_TIMINGS,
-    getAbilityTimings(caster, gameState) {
-        const research = getCrystalRocksResearch(gameState as import('../../abilities/AbilityEngineContext').AbilityEngineContext | undefined, caster);
-        return hasMoreRockResearch(research) ? THROW_ROCK_MORE_ROCK_TIMINGS : THROW_ROCK_BASE_TIMINGS;
-    },
-    targets: TWO_PIXEL_TARGETS,
-    getTargets(caster?: Unit, gameState?: unknown): TargetDef[] {
-        const research = getCrystalRocksResearch(gameState as import('../../abilities/AbilityEngineContext').AbilityEngineContext | undefined, caster);
-        return hasMoreRockResearch(research) ? TWO_PIXEL_TARGETS : ONE_PIXEL_TARGET;
-    },
-    aiSettings: { minRange: 0, maxRange: THROW_RANGE },
-
-    getTooltipText(gameState?: unknown): string[] {
-        const eng = gameState as import('../../abilities/AbilityEngineContext').AbilityEngineContext | undefined;
-        const research = getCrystalRocksResearch(eng);
-        const hasMoreRock = hasMoreRockResearch(research);
-        const mod = getAbilityModifier(gameState, undefined, ABILITY_ID);
-        const dmg = rockDamageForResearch(research) + (mod.damageFlat ?? 0);
-        const lines: string[] = hasMoreRock
-            ? [`Throws {2} rocks dealing {${dmg}} damage each to the first enemy hit`]
-            : [`Throws a rock dealing {${dmg}} damage to the first enemy hit`];
-
-        const activeTags: string[] = [...(ThrowRock.tags ?? [])];
-        if (mod.addTags) activeTags.push(...mod.addTags);
-        return [...lines, ...buildTagDescriptionLines(activeTags)];
-    },
-
-    beginActiveCast(engine, caster, _targets, active) {
-        const research = getCrystalRocksResearch(engine as import('../../abilities/AbilityEngineContext').AbilityEngineContext | undefined, caster);
-        active.castPayload = beginThrowCastPayload(hasMoreRockResearch(research));
-    },
-
-    getAbilityStatesForActive(currentTime, active) {
-        return throwMovementPenaltyStatesForActive(currentTime, active);
-    },
-
-    getAbilityStates(currentTime) {
-        return throwMovementPenaltyStates(currentTime);
-    },
-
-    onAttackBlocked(_engine, _defender, attackInfo: AttackBlockedInfo): void {
-        deactivateProjectileOnBlock(attackInfo);
-    },
-
-    renderTargetingPreviewSelectedTargets(gr, caster, currentTargets, mouseWorld, _units, gameState): void {
-        const research = getCrystalRocksResearch(gameState as import('../../abilities/AbilityEngineContext').AbilityEngineContext | undefined, caster);
-        if (!hasMoreRockResearch(research)) {
-            drawClampedLine(gr, caster, mouseWorld, THROW_RANGE);
-            return;
-        }
-
-        drawClampedLine(gr, caster, mouseWorld, THROW_RANGE, { color: 0xc0c0c0, width: 2, alpha: 0.7 });
-        const clamped = clampToMaxRange(caster, mouseWorld, THROW_RANGE);
-        drawCrosshair(gr, clamped.endX, clamped.endY, 10, { color: 0xc0c0c0, width: 2, alpha: 0.95 });
-
-        if (currentTargets.length >= 1) {
-            const first = currentTargets[0];
-            if (first?.type === 'pixel' && first.position) {
-                const c = clampToMaxRange(caster, first.position, THROW_RANGE);
-                gr.moveTo(caster.x, caster.y);
-                gr.lineTo(c.endX, c.endY);
-                gr.stroke({ color: 0xc0c0c0, width: 2, alpha: 0.35 });
-                drawCrosshair(gr, c.endX, c.endY, 10, { color: 0xc0c0c0, width: 2, alpha: 0.95 });
-            }
-        }
-    },
-};
+});
 
 export const ThrowRockCard: CardDef = {
     abilityId: 'throw_rock',

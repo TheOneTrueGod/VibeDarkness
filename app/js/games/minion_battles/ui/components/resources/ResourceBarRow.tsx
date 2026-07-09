@@ -1,7 +1,7 @@
 import type { ResourceDisplay } from '../../../resources/Resource';
 import { ResourceIcon } from './ResourceIcon';
 import { AmmoBar } from './AmmoBar';
-import { EarthPowerBar } from './EarthPowerBar';
+import { RockBar } from './RockBar';
 import { GravityBar } from './GravityBar';
 import { LightBar } from './LightBar';
 import { GenericResourceBar } from './GenericResourceBar';
@@ -14,8 +14,8 @@ function ResourceBarContent({ resource }: { resource: ResourceDisplay }) {
     switch (resource.id) {
         case 'ammo':
             return <AmmoBar current={resource.current} max={resource.max} />;
-        case 'earth_power':
-            return <EarthPowerBar current={resource.current} max={resource.max} />;
+        case 'rock':
+            return <RockBar current={resource.current} max={resource.max} />;
         case 'gravity':
             return <GravityBar current={resource.current} max={resource.max} />;
         case 'light':
