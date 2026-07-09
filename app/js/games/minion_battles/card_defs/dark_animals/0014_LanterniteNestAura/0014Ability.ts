@@ -40,7 +40,7 @@ export const LanterniteNestAuraAbility: AbilityStatic = {
 
     getTooltipText(): string[] {
         return [
-            `Passive: every {${TICK_INTERVAL_SEC}s} the nest pulses, converting {2} nearby tiles to thorn ground.`,
+            `Passive: every {${TICK_INTERVAL_SEC}s} the nest pulses, converting {2} nearby tiles to thorn ground that damages shadow creatures.`,
         ];
     },
 

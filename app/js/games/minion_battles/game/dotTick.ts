@@ -40,9 +40,9 @@ export function tickAllDots(
     fx?: BleedDamageFxContext,
 ): void {
     tickBleedForRoundMilestone(units, eventBus, fx);
-    // Regular thorns: nature creatures are immune
+    // Regular thorns: only damage shadow (dark_creature) units — wolves, swarmlings, slimes, etc.
     tickThornEffect('bramble_slow', units, terrainLayers, eventBus,
-        (u) => getCreatureType(u.characterId) === 'nature');
+        (u) => getCreatureType(u.characterId) !== 'dark_creature');
     // Dark thorns (Thornbinder): dark creatures are immune
     tickThornEffect('dark_thorn', units, terrainLayers, eventBus,
         (u) => getCreatureType(u.characterId) === 'dark_creature');
