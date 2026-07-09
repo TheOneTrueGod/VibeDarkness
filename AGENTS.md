@@ -6,17 +6,17 @@ Tests use **Vitest**, not Jest. Never use `npx jest` — it will fail.
 
 ### Selecting which tests to run
 
-Run the subset of tests scoped to the change, not the whole suite:
+Run the **smallest** set that covers the change — not the whole suite on every edit. **`npm run ci`** runs lint, the full Vitest suite, and `tsc` every 30 minutes locally; use that as the broad regression backstop.
 
-- **Default:** `npx vitest run --changed` — uses the module graph to run tests affected by uncommitted changes. Use `npx vitest run --changed <base-ref>` when the work spans multiple commits on a branch.
-- **Targeting one source file:** `npx vitest related <file> --run` runs the tests that import it.
-- **Choosing paths manually:**
-  - `game/battlenet/**` changes → `npx vitest run app/js/games/minion_battles/game/battlenet`
-  - a card/ability change → its co-located `NNNNAbility.test.ts` plus `app/js/games/minion_battles/abilities`
-  - engine-core changes (`GameEngine.ts`, `types.ts`, `BattleSession.ts`, managers) → `--changed` will legitimately fan out wide; that is expected, not a reason to skip tests.
-- **The full suite (`npm run test`) is still right for** cross-cutting refactors (serialization, tick loop, shared types) and one final check at the end of a body of work — not after every edit.
+See **`.cursor/skills/scoped-testing/SKILL.md`** for the full decision tree. Quick reference:
 
-Vitest config lives in `vite.config.ts` (`test.include` / `test.exclude`). Discovery is scoped to `app/**/*.{test,spec}.{ts,tsx}` so `node_modules` and `.claude/worktrees/**` are never collected. If you add a separate `vitest.config.ts`, merge settings into `vite.config.ts` instead — a standalone config can override Vitest’s default excludes and accidentally run dependency tests.
+- **New or edited test file** → `npx vitest run path/to/That.test.ts`
+- **One changed source file** → `npx vitest related <file> --run`
+- **Several files / unclear impact** → `npx vitest run --changed` (or `--changed <base-ref>` / `HEAD~1` when the tree is clean)
+- **Domain folders:** `game/battlenet/**` → battlenet test dir; card/ability → co-located `NNNNAbility.test.ts` + `abilities/`
+- **Full suite (`npm run test`)** → cross-cutting refactors, pre-merge handoff, or when the user asks — **not** after routine edits
+
+Vitest config lives in `vite.config.ts` (`test.include` / `test.exclude`). Discovery is scoped to `app/**/*.{test,spec}.{ts,tsx}` so `node_modules` and `.claude/worktrees/**` are never collected.
 
 ## Debugging behavior bugs
 

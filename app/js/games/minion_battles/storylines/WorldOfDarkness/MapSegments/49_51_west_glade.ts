@@ -30,8 +30,8 @@ export const MAP_SEGMENT_49_51_WEST_GLADE: TerrainType[][] = [
     [_, T, T, _, _, D, D, D, D, D, _, _, _, _, R, R, _, _, _, _, _, _],
     [_, T, T, _, _, _, _, _, _, _, _, _, _, _, R, R, _, _, _, _, _, _],
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-    [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
+    [_, _, _, _, _, _, _, D, D, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, D, D, _, _, _, _, _, _, _, _, _, _, _, _, _],
 ];
 
 /** Clearing focus for Lanternite mound placement (segment-local grid coords). */

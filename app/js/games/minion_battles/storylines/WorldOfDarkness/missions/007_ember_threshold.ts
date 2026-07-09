@@ -21,7 +21,7 @@ import type {
 	SpecialTilePlacement,
 } from '../../types';
 import type { MapSegmentPOI, MapSegmentZone } from '../../../terrain/segmentSchema';
-import { resolveZoneTiles } from '../../../terrain/zones';
+import { resolveZoneTiles, offsetZone } from '../../../terrain/zones';
 import type { PostMissionStoryDef, PreMissionStoryDef } from '../../storyTypes';
 import { ALLY_LANTERNITE, ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
 import { UnitTag } from '../../../game/units/unitTag';
@@ -32,6 +32,7 @@ import {
 	CAVE_CAMPFIRE,
 	crystalSpecialTilesAt,
 	MAP_SEGMENT_50_50_CRYSTAL_CAVE,
+	OUTSIDE_CAVE_MOUTH_ZONE,
 } from '../MapSegments/50_50_crystal_cave';
 import { MAP_SEGMENT_49_50_PATH_TO_CAVE } from '../MapSegments/49_50_path_to_cave';
 import { MAP_SEGMENT_49_51_WEST_GLADE } from '../MapSegments/49_51_west_glade';
@@ -112,17 +113,23 @@ const SCOUT_A_WORLD = gridToWorld(SCOUT_A_GRID.col, SCOUT_A_GRID.row);
 const OPENING_WOLF_COUNT = 3;
 const OUTSIDE_CAVE_MOUTH_ZONE_ID = 'outside of cave mouth';
 
+/** Mission-global coords for the 50_50 outside-cave-mouth box (fallback when registry zones were clobbered by API JSON). */
+const OUTSIDE_CAVE_MOUTH_ZONE_GLOBAL = offsetZone(OUTSIDE_CAVE_MOUTH_ZONE, CAVE_ORIGIN_COL, 0);
+
+function resolveOutsideCaveMouthZone(terrainSegmentZones: MapSegmentZone[]): MapSegmentZone {
+	return (
+		terrainSegmentZones.find((z) => z.id === OUTSIDE_CAVE_MOUTH_ZONE_ID) ??
+		OUTSIDE_CAVE_MOUTH_ZONE_GLOBAL
+	);
+}
+
 /**
  * Positions are drawn from the engine's seeded RNG (set in prepareForNewGame before
  * mission init), so every client computes the same placement. The scout's own tile
  * is excluded so a wolf never spawns on top of it.
  */
 function buildOpeningWolves(engine: GameEngine, terrainSegmentZones: MapSegmentZone[]): EnemySpawnDef[] {
-	const zone = terrainSegmentZones.find((z) => z.id === OUTSIDE_CAVE_MOUTH_ZONE_ID);
-	if (!zone) {
-		console.error(`ember_threshold: zone "${OUTSIDE_CAVE_MOUTH_ZONE_ID}" not found; opening wolves skipped.`);
-		return [];
-	}
+	const zone = resolveOutsideCaveMouthZone(terrainSegmentZones);
 	const candidates = resolveZoneTiles(zone).filter(
 		(t) => !(t.col === SCOUT_A_GRID.col && t.row === SCOUT_A_GRID.row),
 	);
@@ -225,7 +232,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 	];
 
 	levelEvents: LevelEvent[] = [
-		// Continuous pressure: 2 wolves + 1 slime spawned every half-round near the south gate.
+		// Continuous pressure near the south gate (darkness spawns).
 		{
 			type: 'continuousSpawn',
 			trigger: { intervalRounds: 1 },
@@ -242,7 +249,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 		},
 		{
 			type: 'continuousSpawn',
-			trigger: { intervalRounds: 1.5 },
+			trigger: { intervalRounds: 1.5, startRound: 0.5 },
 			spawns: [
 				{
 					characterId: 'dark_wolf',
@@ -256,7 +263,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 		},
 		{
 			type: 'continuousSpawn',
-			trigger: { intervalRounds: 2 },
+			trigger: { intervalRounds: 2, startRound: 1 },
 			spawns: [
 				{
 					characterId: 'slime',

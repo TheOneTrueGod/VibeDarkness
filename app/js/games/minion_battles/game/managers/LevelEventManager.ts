@@ -55,6 +55,11 @@ const BASE_SPAWN_DEFS: Record<string, EnemySpawnDef> = {
 
 const ROUND_DURATION = 10;
 
+/** Game time (seconds) when a continuousSpawn with this startRound may first fire. */
+export function continuousSpawnStartGameTime(startRound: number): number {
+    return startRound < 1 ? startRound * ROUND_DURATION : (startRound - 1) * ROUND_DURATION;
+}
+
 export class LevelEventManager {
     private levelEvents: LevelEvent[] = [];
     private firedEventIndices: Set<number> = new Set();
@@ -701,14 +706,29 @@ export class LevelEventManager {
     }
 
     private processContinuousSpawnEvent(i: number, evt: LevelEventContinuousSpawn): void {
-        const startRound = evt.trigger.startRound ?? 1;
+        const startRound = evt.trigger.startRound;
         const endRound = evt.trigger.endRound;
-        if (this.ctx.roundNumber < startRound) return;
         if (endRound != null && this.ctx.roundNumber > endRound) return;
 
         const intervalRounds = evt.trigger.intervalRounds;
-        const lastSpawned = this.continuousSpawnLastSpawnedAt[i] ?? 0;
-        if (this.ctx.gameTime - lastSpawned < intervalRounds * ROUND_DURATION) return;
+        const intervalSeconds = intervalRounds * ROUND_DURATION;
+
+        if (startRound !== undefined) {
+            if (this.ctx.gameTime < continuousSpawnStartGameTime(startRound)) return;
+        } else if (this.ctx.roundNumber < 1) {
+            return;
+        }
+
+        let lastSpawned = this.continuousSpawnLastSpawnedAt[i];
+        if (lastSpawned === undefined) {
+            if (startRound !== undefined) {
+                lastSpawned = continuousSpawnStartGameTime(startRound) - intervalSeconds;
+            } else {
+                // Legacy default: first spawn after one full interval (startRound omitted).
+                lastSpawned = 0;
+            }
+        }
+        if (this.ctx.gameTime - lastSpawned < intervalSeconds) return;
 
         this.continuousSpawnLastSpawnedAt[i] = this.ctx.gameTime;
 

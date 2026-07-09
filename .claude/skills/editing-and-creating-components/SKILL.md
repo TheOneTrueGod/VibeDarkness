@@ -62,6 +62,6 @@ When adding or editing **tooltips, hover boxes, popovers, or any floating help U
 
 ## After edits
 
-- Run `npx tsc` and fix any issues it finds.
-- When verifying changes: run **`npm run lint`** (ESLint) **first** and fix **errors** before any Vitest run. Then Vitest **twice** when changes affect behaviour, types, or shared utilities: **`npx vitest run --changed`** (use **`npx vitest run --changed HEAD~1`** if nothing is uncommitted vs `HEAD`), then **`npm run test`** for the full suite.
+- Run `npx tsc --noEmit` when types or interfaces changed.
+- Run **`npm run lint`** first, then the **minimal** Vitest scope (see **scoped-testing** skill): new/edited `*.test.ts`, then `npx vitest related <file> --run`, then `npx vitest run --changed` only if needed. Do **not** run the full suite after every UI tweak — **`npm run ci`** covers that on a schedule.
 

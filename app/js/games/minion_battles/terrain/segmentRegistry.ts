@@ -17,15 +17,34 @@ export function listSegments(): MapSegmentData[] {
     return Array.from(registry.values());
 }
 
-/** Parse unknown JSON and register if valid. Returns null and logs warn on failure. */
+/**
+ * Parse unknown JSON and register if valid. Returns null and logs warn on failure.
+ * When the segment already exists in the registry (TypeScript startup registration) and the
+ * incoming payload omits `zones` or `pointsOfInterest`, those fields are preserved from the
+ * existing entry. Terrain-editor JSON often ships terrain only and would otherwise clobber
+ * gameplay metadata registered from TypeScript.
+ */
 export function parseAndRegisterSegment(raw: unknown): MapSegmentData | null {
     const result = MapSegmentDataSchema.safeParse(raw);
     if (!result.success) {
         console.warn('[segmentRegistry] Invalid segment data:', result.error.flatten());
         return null;
     }
-    registerSegment(result.data);
-    return result.data;
+    const incoming = result.data;
+    const existing = registry.get(incoming.id);
+    const merged: MapSegmentData =
+        existing == null
+            ? incoming
+            : {
+                  ...incoming,
+                  pointsOfInterest:
+                      incoming.pointsOfInterest.length > 0
+                          ? incoming.pointsOfInterest
+                          : existing.pointsOfInterest,
+                  zones: incoming.zones.length > 0 ? incoming.zones : existing.zones,
+              };
+    registerSegment(merged);
+    return merged;
 }
 
 /** Convert a TypeScript TerrainType[][] (legacy format) to MapSegmentData. */

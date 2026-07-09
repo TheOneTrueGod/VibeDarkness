@@ -1,5 +1,5 @@
 /**
- * Admin-only CI status indicator for the global title bar.
+ * Admin-only CI status indicator.
  */
 import React, { useCallback, useEffect, useState } from 'react';
 import type { CiStatus } from '../ci/ciStatus';
@@ -13,7 +13,12 @@ const PILL_COLOR_CLASS: Record<ReturnType<typeof getCiPillVariant>, string> = {
     fail: 'bg-danger',
 };
 
-export default function CiStatusPill() {
+interface CiStatusPillProps {
+    /** Embedded in a page header (e.g. lobby mission bar) instead of the fixed title bar. */
+    embedded?: boolean;
+}
+
+export default function CiStatusPill({ embedded = false }: CiStatusPillProps) {
     const [status, setStatus] = useState<CiStatus | null>(null);
     const [tooltipOpen, setTooltipOpen] = useState(false);
 
@@ -44,7 +49,7 @@ export default function CiStatusPill() {
 
     return (
         <div
-            className="relative pointer-events-auto -translate-x-2 translate-y-2"
+            className={`relative pointer-events-auto ${embedded ? '' : '-translate-x-2 translate-y-2'}`}
             onMouseEnter={() => setTooltipOpen(true)}
             onMouseLeave={() => setTooltipOpen(false)}
         >
@@ -54,7 +59,7 @@ export default function CiStatusPill() {
             />
             {tooltipOpen ? (
                 <div
-                    className="absolute right-0 top-[calc(100%+8px)] z-[300] min-w-[24rem] max-w-[36rem] -translate-x-2 translate-y-2 whitespace-pre-line rounded border border-border-custom bg-dark-900 px-6 py-4 text-sm leading-snug text-gray-100 shadow-lg"
+                    className="absolute right-0 top-[calc(100%+8px)] z-[300] min-w-[24rem] max-w-[36rem] -translate-x-2 translate-y-2 whitespace-pre-line rounded border border-border-custom bg-black px-6 py-4 text-sm leading-snug text-gray-100 shadow-lg"
                     role="tooltip"
                 >
                     {tooltip}

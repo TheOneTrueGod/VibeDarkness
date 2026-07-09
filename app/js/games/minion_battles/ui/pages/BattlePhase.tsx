@@ -15,6 +15,8 @@ import type { SerializedGameState } from '../../game/types';
 import type { OrderWaiter, WaitingForOrders, BattleOrder, GhostPlanData, ResolvedTarget } from '../../game/types';
 import { GhostPlanContext } from '../../../../contexts/GhostPlanContext';
 import {
+    buildOutboundGhostPlan,
+    hasOutboundGhostPlanChanged,
     ingestHeldGhostPlansFromPeers,
     resolveGhostPlansForRender,
 } from '../../game/interaction/ghostPlanRenderPolicy';
@@ -288,44 +290,23 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     const lastSentGhostPlanRef = useRef<GhostPlanData | null>(null);
     useEffect(() => {
         const interval = setInterval(() => {
-            const its = sessionRef.current?.interactiveTargeting;
-            if (its?.isActive) {
-                // Outbound: suppress playahead ghost — peers plan independently (see ITS docs).
-                if (lastSentGhostPlanRef.current !== null) {
-                    lastSentGhostPlanRef.current = null;
-                    sendGhostPlan(null);
-                }
-                return;
-            }
-            const manager = sessionRef.current?.getInteractionManager();
+            const session = sessionRef.current;
+            const its = session?.interactiveTargeting;
+            const engine = session?.getEngine();
+            const manager = session?.getInteractionManager();
             const uiState = manager?.getUIState();
-            const newPlan: GhostPlanData | null =
-                uiState?.selectedAbility && uiState?.previewOrderUnitId
-                    ? {
-                          unitId: uiState.previewOrderUnitId,
-                          abilityId: uiState.selectedAbility.id,
-                          currentTargets: [...uiState.currentTargets],
-                          mouseWorld: { ...uiState.mouseWorld },
-                      }
-                    : uiState?.nonconfirmedOrder
-                    ? {
-                          unitId: uiState.nonconfirmedOrder.unitId,
-                          abilityId: uiState.nonconfirmedOrder.abilityId,
-                          currentTargets: uiState.nonconfirmedOrder.targets,
-                          mouseWorld: uiState.nonconfirmedOrder.targets[0]?.position ?? { x: 0, y: 0 },
-                      }
-                    : null;
+            const itsWaitingForTarget =
+                (its?.isActive ?? false) && (engine?.waitingForTargetInput ?? null) !== null;
+            const newPlan = buildOutboundGhostPlan({
+                itsActive: its?.isActive ?? false,
+                itsUnitId: its?.isActive ? its.unitId : null,
+                itsAbilityId: its?.isActive ? its.abilityId : null,
+                itsCollectedTargets: its?.isActive ? Object.values(its.collectedTargets) : [],
+                itsWaitingForTarget,
+                uiState,
+            });
             const prev = lastSentGhostPlanRef.current;
-            const changed =
-                newPlan === null
-                    ? prev !== null
-                    : prev === null ||
-                      newPlan.unitId !== prev.unitId ||
-                      newPlan.abilityId !== prev.abilityId ||
-                      newPlan.mouseWorld.x !== prev.mouseWorld.x ||
-                      newPlan.mouseWorld.y !== prev.mouseWorld.y ||
-                      newPlan.currentTargets.length !== prev.currentTargets.length;
-            if (changed) {
+            if (hasOutboundGhostPlanChanged(prev, newPlan)) {
                 lastSentGhostPlanRef.current = newPlan;
                 sendGhostPlan(newPlan);
             }

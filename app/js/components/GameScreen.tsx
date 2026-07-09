@@ -3,6 +3,7 @@
  */
 import React, { useState, useEffect, useCallback, useRef, useMemo, useSyncExternalStore } from 'react';
 import Chat from './Chat';
+import CiStatusPill from './CiStatusPill';
 import LobbyIdBadge from './LobbyIdBadge';
 import type { MessageEntry } from './Chat';
 import PlayerList from './PlayerList';
@@ -399,6 +400,7 @@ export default function GameScreen({
                 </div>
                 <div className="flex-shrink-0 flex items-center justify-center min-w-0 max-w-[50%] sm:max-w-none">
                     <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                        {isAdmin ? <CiStatusPill embedded /> : null}
                         <span className="text-lg sm:text-xl font-semibold truncate">{lobby.name}</span>
                         <LobbyIdBadge id={lobby.id} className="hidden sm:inline" />
                     </div>
@@ -426,6 +428,7 @@ export default function GameScreen({
         ),
         [
             battleChromeDesktop,
+            isAdmin,
             isHost,
             isMobileOrTablet,
             lobby.id,

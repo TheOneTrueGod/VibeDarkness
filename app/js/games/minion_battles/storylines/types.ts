@@ -231,7 +231,7 @@ export interface LevelEventContinuousSpawn extends LevelEventBase {
     /** Spawn every this many rounds (e.g. 0.25 = quarter-round). Optional startRound/endRound limit the active window by round number. */
     trigger: {
         intervalRounds: number;
-        /** First round when spawning is active (inclusive). Omitted = round 1. */
+        /** First spawn may fire at this fractional round (game time: startRound&lt;1 → startRound×round duration; else (startRound−1)×round duration). Omitted = legacy first spawn after one interval. */
         startRound?: number;
         /** Last round when spawning is active (inclusive). Omitted = no end. */
         endRound?: number;

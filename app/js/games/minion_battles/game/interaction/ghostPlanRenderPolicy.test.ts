@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
+    buildOutboundGhostPlan,
+    hasOutboundGhostPlanChanged,
     ingestHeldGhostPlansFromPeers,
     resolveGhostPlansForRender,
 } from './ghostPlanRenderPolicy';
@@ -11,6 +13,73 @@ const PEER_PLAN: GhostPlanData = {
     currentTargets: [],
     mouseWorld: { x: 10, y: 20 },
 };
+
+describe('buildOutboundGhostPlan', () => {
+    it('broadcasts ITS cursor while paused at a select step', () => {
+        const plan = buildOutboundGhostPlan({
+            itsActive: true,
+            itsUnitId: 'u1',
+            itsAbilityId: '0116',
+            itsCollectedTargets: [],
+            itsWaitingForTarget: true,
+            uiState: {
+                selectedAbility: null,
+                selectedCardIndex: null,
+                nonconfirmedOrder: null,
+                currentTargets: [],
+                mouseWorld: { x: 50, y: 60 },
+                previewOrderUnitId: null,
+            },
+        });
+        expect(plan).toEqual({
+            unitId: 'u1',
+            abilityId: '0116',
+            currentTargets: [],
+            mouseWorld: { x: 50, y: 60 },
+        });
+    });
+
+    it('suppresses ITS ghost during playahead between target picks', () => {
+        expect(
+            buildOutboundGhostPlan({
+                itsActive: true,
+                itsUnitId: 'u1',
+                itsAbilityId: '0116',
+                itsCollectedTargets: [{ type: 'unit', unitId: 'e1' }],
+                itsWaitingForTarget: false,
+                uiState: { mouseWorld: { x: 1, y: 2 } } as never,
+            }),
+        ).toBeNull();
+    });
+
+    it('uses AbilityTargetingTool ui state when ITS is inactive', () => {
+        const plan = buildOutboundGhostPlan({
+            itsActive: false,
+            itsUnitId: null,
+            itsAbilityId: null,
+            itsCollectedTargets: [],
+            itsWaitingForTarget: false,
+            uiState: {
+                selectedAbility: { id: '0120' } as never,
+                selectedCardIndex: 0,
+                nonconfirmedOrder: null,
+                currentTargets: [],
+                mouseWorld: { x: 3, y: 4 },
+                previewOrderUnitId: 'u1',
+            },
+        });
+        expect(plan?.abilityId).toBe('0120');
+        expect(plan?.mouseWorld).toEqual({ x: 3, y: 4 });
+    });
+});
+
+describe('hasOutboundGhostPlanChanged', () => {
+    it('detects mouse movement', () => {
+        const base = { ...PEER_PLAN };
+        expect(hasOutboundGhostPlanChanged(base, { ...base, mouseWorld: { x: 11, y: 20 } })).toBe(true);
+        expect(hasOutboundGhostPlanChanged(base, { ...base })).toBe(false);
+    });
+});
 
 describe('ghostPlanRenderPolicy', () => {
     it('ingestHeldGhostPlansFromPeers stores peer plans and skips local + legacy sentinel', () => {

@@ -1,5 +1,5 @@
 ---
-description: Run ESLint (npm run lint) first, fix issues, then Vitest (--changed then full suite) after file create/save/delete; fix failures up to 2 times
+description: Run ESLint first, then the smallest relevant Vitest set after file create/save/delete; full suite via npm run ci, not every edit
 alwaysApply: true
 ---
 
@@ -15,19 +15,23 @@ Whenever you finish a command where **files have been created, saved, or deleted
    - If the project has a lint script: run **`npm run lint`** (this repo: **`eslint .`**) and fix any reported **errors**.
    - If there is no lint script: run the editor linter (e.g. ReadLints) on changed files and fix any reported errors.
 
-2. **Run tests in two passes** (Vitest) — only **after** step 1 succeeds; skip when **Skills only — no Vitest** (below) applies.
-   - **Pass A (scoped — change set):** `npx vitest run --changed` runs tests Vitest associates with git **uncommitted** changes (staged and unstaged), i.e. the usual “this edit batch” before commit. If the working tree is **clean** (changes were already committed), run `npx vitest run --changed HEAD~1` instead so Pass A still targets tests affected by the **latest commit**.
-   - **Pass B (full suite):** `npm run test` (`npx vitest run`).
+2. **Run the minimal relevant Vitest set** — only **after** step 1 succeeds; skip when **Skills only — no Vitest** (below) applies.
+   - **Before** invoking the first `npx vitest` / `npm run test` (and again before each re-run after a fix), post in the user-facing message: <span style="color: green">Starting unit tests — first pass on the code is done; feel free to run your own checks.</span> (exact HTML; see **scoped-testing** skill).
+   - Pick the **smallest** command that covers the change. See **`.cursor/skills/scoped-testing/SKILL.md`** for the decision tree.
+   - **Default for a focused edit:** co-located test file(s) you touched or created, plus `npx vitest related <changed-source> --run` for each changed non-test source file.
+   - **When several files changed or imports are unclear:** `npx vitest run --changed` (uncommitted changes). If the working tree is **clean**, use `npx vitest run --changed HEAD~1`.
+   - **Do not** run `npm run test` (full suite) after routine edits. **`npm run ci`** runs lint, the full test suite, and `tsc` on a 30-minute loop locally — that is the backstop for broad regressions.
+   - **Full suite (`npm run test`) only when:** the user asks, you are finishing a large cross-cutting refactor (serialization, tick loop, shared types), or you deliberately want a pre-merge sanity check.
 
 3. **If all tests pass**:
    - Return your normal response to the user
-   - At the end, append: `All (#) tests have passed` (replace # with the actual count)
+   - At the end, append how many tests ran, e.g. `All (7) scoped tests have passed` (use the actual count from the command you ran — not the full-suite total unless you ran the full suite).
 
 4. **If any tests fail**:
    - Attempt to fix the failing tests
-   - Re-run **`npm run lint`** (ESLint), then **Pass A then Pass B** (scoped `npx vitest run --changed` or `… --changed HEAD~1` when appropriate, then `npm run test`)
+   - Re-run **`npm run lint`** (ESLint), then the **same minimal Vitest scope** (or a slightly wider scope if the fix touched more modules)
    - Repeat up to **2 fix attempts** total
-   - If tests pass after a fix: return with `All (#) tests have passed` as above
+   - If tests pass after a fix: report the scoped count as above
    - If tests still fail after 2 attempts: stop fixing, return to the user with your response and at the end say in **red text**: `<span style="color: red">(#) tests failed</span>` (replace # with the failure count). Use this exact phrasing so the failure is clearly visible.
 
 ## When to Skip
@@ -40,6 +44,6 @@ Whenever you finish a command where **files have been created, saved, or deleted
 
 If the **only** files you created, saved, or deleted in that command are under **`.cursor/skills/`** (e.g. editing `SKILL.md`):
 
-- **Do not** run Vitest (neither `--changed` / scoped nor `npm run test`).
-- **Do not** append `All (#) tests have passed` or the red tests-failed footer (the suite was not run).
+- **Do not** run Vitest.
+- **Do not** append a tests-passed or tests-failed footer (the suite was not run).
 - **`npm run lint`**: optional; skip it when nothing outside `.cursor/skills/` changed.
