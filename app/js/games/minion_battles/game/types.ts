@@ -220,10 +220,10 @@ export interface OrderAtTick {
     order: BattleOrder;
 }
 
-/** Re-broadcast interval for the sequential-targeting sentinel while ITS is active. */
+/** @deprecated Legacy ITS sentinel — no longer broadcast; kept for stale peer plans. */
 export const GHOST_PLAN_SEQUENTIAL_TARGETING_REBROADCAST_MS = 1000;
 
-/** Max age before a sequential-targeting sentinel is ignored by peers. */
+/** @deprecated Legacy ITS sentinel TTL — see `isLegacySequentialTargetingSentinel`. */
 export const GHOST_PLAN_SEQUENTIAL_TARGETING_STALE_MS = 5000;
 
 /** A peer player's in-progress ability selection, shared via WebRTC for ghost preview rendering. */
@@ -232,13 +232,19 @@ export interface GhostPlanData {
     abilityId: string;
     currentTargets: ResolvedTarget[];
     mouseWorld: { x: number; y: number };
-    /** When true, the player is in sequential targeting preview — suppress rendering and block peer order submission. */
+    /**
+     * @deprecated Legacy sentinel (`sequentialTargeting: true`). No longer sent; receivers ignore
+     * for render/hold. Peers plan independently while another client is in ITS playahead.
+     */
     sequentialTargeting?: boolean;
-    /** Wall-clock ms when this plan was emitted; used to expire sequential-targeting sentinels. */
+    /** @deprecated Legacy sentinel timestamp. */
     sentAtMs?: number;
 }
 
-/** True when a sequential-targeting sentinel should still block peer order submission. */
+/**
+ * @deprecated Legacy peer-blocking sentinel consumer — ignore sentinels for render only.
+ * @see isLegacySequentialTargetingSentinel in `ghostPlanRenderPolicy.ts`
+ */
 export function isFreshSequentialTargetingSentinel(
     plan: GhostPlanData | null | undefined,
     firstSeenWithoutTimestampMs: number | undefined,

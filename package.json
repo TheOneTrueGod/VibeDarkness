@@ -11,6 +11,8 @@
     "preview": "vite preview",
     "php": "nodemon --watch backend --watch index.php --ext php --exec \"php -S localhost:8000 index.php\"",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "ci": "node scripts/ci.js",
     "test": "npx vitest run",
     "test:watch": "npx vitest",
     "desyncDebug-getTick": "node scripts/desyncDebug-getTick.js",

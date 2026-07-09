@@ -13,7 +13,7 @@
  *                     in-place (solo host): keep preview state, persist order without re-apply.
  */
 
-import type { BattleOrder, ResolvedTarget, SerializedGameState } from '../types';
+import type { BattleOrder, OrderAtTick, ResolvedTarget, SerializedGameState } from '../types';
 import type { BattleSession } from '../BattleSession';
 import { getSelectTargetDefsFromTimings } from '../../abilities/targeting';
 import { getAbility } from '../../abilities/AbilityRegistry';
@@ -452,6 +452,41 @@ export class InteractiveTargetingSession {
      */
     holdRemoteOrder(atTick: number, order: BattleOrder, key: string | null): void {
         this.heldRemoteOrders.set(order.unitId, { atTick, order, key });
+    }
+
+    /** Pending remote rows held during preview (for UI order-status indicators). */
+    getHeldRemoteOrderRows(): OrderAtTick[] {
+        return [...this.heldRemoteOrders.values()].map(({ atTick, order }) => ({
+            gameTick: atTick,
+            order,
+        }));
+    }
+
+    /**
+     * Saved mark-batch pause plane + merged pending orders for timeline player indicators
+     * while local ITS playahead is active.
+     */
+    getMarkOrderContextForUi(): {
+        waitingForOrders: SerializedGameState['waitingForOrders'];
+        pendingOrders: OrderAtTick[];
+    } {
+        const mark = this.mark;
+        if (!mark) {
+            return { waitingForOrders: null, pendingOrders: [] };
+        }
+        const markOrders = mark.orders ?? [];
+        const held = this.getHeldRemoteOrderRows();
+        const byUnitId = new Map<string, OrderAtTick>();
+        for (const row of markOrders) {
+            byUnitId.set(row.order.unitId, row);
+        }
+        for (const row of held) {
+            byUnitId.set(row.order.unitId, row);
+        }
+        return {
+            waitingForOrders: mark.waitingForOrders ?? null,
+            pendingOrders: [...byUnitId.values()],
+        };
     }
 
     /**

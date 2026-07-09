@@ -53,6 +53,7 @@ use App\Http\Handlers\Admin\ListAdminLobbiesHandler;
 use App\Http\Handlers\Admin\GetAdminLobbyLogHandler;
 use App\Http\Handlers\Admin\DeleteAdminLobbyLogHandler;
 use App\Http\Handlers\Admin\GetAdminLobbyUserStateIndexHandler;
+use App\Http\Handlers\Admin\GetCiStatusHandler;
 use App\Http\Handlers\Terrain\ListTerrainSegmentsHandler;
 use App\Http\Handlers\Terrain\GetTerrainSegmentHandler;
 use App\Http\Handlers\Terrain\SaveTerrainSegmentHandler;
@@ -77,6 +78,7 @@ class Router
             ['POST', '#^/api/account/logout$#', LogoutHandler::class],
             ['GET', '#^/api/account/characters$#', ListCharactersHandler::class],
             ['POST', '#^/api/account/characters$#', CreateCharacterHandler::class],
+            ['GET', '#^/api/admin/ci-status$#', GetCiStatusHandler::class],
             ['GET',    '#^/api/admin/lobbies$#',                                      ListAdminLobbiesHandler::class],
             ['GET',    '#^/api/admin/lobbies/([A-Z0-9]+)/log$#',                      GetAdminLobbyLogHandler::class],
             ['DELETE', '#^/api/admin/lobbies/([A-Z0-9]+)/log$#',                      DeleteAdminLobbyLogHandler::class],

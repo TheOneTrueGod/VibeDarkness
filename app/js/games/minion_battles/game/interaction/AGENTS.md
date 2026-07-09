@@ -9,5 +9,6 @@ Player-facing battle interaction: targeting tools and the **Interactive Targetin
 | `InteractiveTargetingSession.ts` | Preview lifecycle: begin / resolveTarget / reset / replay / commit |
 | `selectTargetLookahead.ts` | Pre-tick select pause; deferred-first-select |
 | `isITSPreviewComplete.ts` | Single predicate for preview Done (natural completion + conditional cancel) |
+| `ghostPlanRenderPolicy.ts` | Hold inbound peer ghost plans during local ITS; merge for render after rewind |
 | `PlayerInteractionManager.ts` | Tool activation (skips upfront targeting when sequential flag is on) |
 | `tools/` | `AbilityTargetingTool`, default / debug tools |

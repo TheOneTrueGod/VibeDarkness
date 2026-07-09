@@ -167,11 +167,21 @@ The **targeting cursor** (hitbox preview overlay) is only rendered when the stat
 
 ## Multiplayer isolation
 
-The preview runs **only on the selecting player's engine**. Other players' engines remain at `waitingForOrders` and are unaffected.
+The preview runs **only on the selecting player's engine**. Other players' engines remain at `waitingForOrders` and are unaffected — they keep full order UI at parallel pauses.
 
-Remote orders that arrive during the preview are **held** in `InteractiveTargetingSession.heldRemoteOrders` (keyed by `unitId`, latest wins). On rollback paths they are applied **after** the snapshot is restored. On in-place commit, held rows are not allowed (any held row forces rollback).
+**Remote orders (HTTP):** held in `InteractiveTargetingSession.heldRemoteOrders` during preview (keyed by `unitId`, latest wins). On rollback paths they are applied **after** the snapshot is restored. On in-place commit, held rows are not allowed (any held row forces rollback).
 
-Ghost plan broadcasts are suppressed while the preview is active so other players do not see the local playahead as the selecting player's "plan".
+**Ghost plans (WebRTC):** cosmetic peer targeting previews. Responsibilities are split by client:
+
+| Direction | While local ITS playahead is active |
+|-----------|-------------------------------------|
+| **Outbound** | Suppress — send `null` so peers do not see your playahead as a ghost plan. |
+| **Inbound** | Hold — accumulate peer plans in a local buffer; **do not render** them (they would not match preview sim). |
+| **After rewind** | Merge held peer ghosts into the canvas/timeline on the restored mark plane (same moment held orders apply). |
+
+Peers **do not** block their own turn when someone else enters ITS. They continue planning and broadcasting ghost plans over WebRTC; only the ITS client filters/holds inbound ghosts. Sync correctness for real orders stays in BattleNet (`holdRemoteOrder`, rollback commit, etc.).
+
+Implementation: `game/interaction/ghostPlanRenderPolicy.ts`, wired from `ui/pages/BattlePhase.tsx`.
 
 ---
 
@@ -194,7 +204,8 @@ Interactive preview orders set `targetsByLabel: {}` (empty object, not `undefine
 | `game/BattleSession.ts` | `restoreFromInMemorySnapshot`, `persistInPlaceCommittedTargetingOrder`, held-order hold/apply, pre-action poll |
 | `game/battlenet/BattleNet.ts` | `persistCommittedOrder`; `submitOrder` `skipLocalApply`; `refreshRemoteOrdersForTargetingPreview` |
 | `game/interaction/PlayerInteractionManager.ts` | `activateAbilityTargeting` skips `AbilityTargetingTool` when flag is on |
-| `ui/pages/BattlePhase.tsx` | Targeting cursor, status pill, Reset/Replay/Continue, rewind overlay, conditional auto-commit |
+| `game/interaction/ghostPlanRenderPolicy.ts` | Hold / render policy for peer ghost plans during local ITS |
+| `ui/pages/BattlePhase.tsx` | Targeting cursor, status pill, Reset/Replay/Continue, rewind overlay, ghost hold/merge, conditional auto-commit |
 | `game/interactiveTargeting.test.ts` | Engine pause/resume, fingerprint parity, commit-time in-place, rewind emit |
 | `game/interaction/AGENTS.md` | Short agent pointer for this folder |
 | `docs/plans/sequential-targeting-rollback-ux.md` | Plan for commit-time in-place, rewind UX, non-host path |

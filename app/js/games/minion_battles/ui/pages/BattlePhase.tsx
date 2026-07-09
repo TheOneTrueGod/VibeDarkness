@@ -5,7 +5,7 @@
  * round tracking, targeting flow, order submission, and server sync.
  */
 
-import React, { useEffect, useRef, useState, useCallback, useContext, useSyncExternalStore } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useContext, useSyncExternalStore, useMemo } from 'react';
 import { useCurrentUser } from '../../../../user/useCurrentUser';
 import { createPortal } from 'react-dom';
 import type { PlayerState, GameSidebarInfo } from '../../../../types';
@@ -13,11 +13,11 @@ import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import type { GameEngine } from '../../game/GameEngine';
 import type { SerializedGameState } from '../../game/types';
 import type { OrderWaiter, WaitingForOrders, BattleOrder, GhostPlanData, ResolvedTarget } from '../../game/types';
-import {
-    GHOST_PLAN_SEQUENTIAL_TARGETING_REBROADCAST_MS,
-    isFreshSequentialTargetingSentinel,
-} from '../../game/types';
 import { GhostPlanContext } from '../../../../contexts/GhostPlanContext';
+import {
+    ingestHeldGhostPlansFromPeers,
+    resolveGhostPlansForRender,
+} from '../../game/interaction/ghostPlanRenderPolicy';
 import { BattleSession } from '../../game/BattleSession';
 import {
     createBattleNet,
@@ -31,6 +31,7 @@ import ObjectiveMarkerOverlay from '../components/ObjectiveMarkerOverlay';
 import AbilityBar from '../components/AbilityBar';
 import TurnIndicator from '../components/TurnIndicator';
 import BattleTimeline from '../components/BattleTimeline';
+import type { PlayerTileOrderContext } from '../components/playerTileIndicator';
 import { WaitAbility } from '../../abilities/WaitAbility';
 import BattleSyncStatus from '../components/BattleSyncStatus';
 import BattleHostAnchorBanner from '../components/BattleHostAnchorBanner';
@@ -154,6 +155,35 @@ export default function BattlePhase({
     /** True when every frozen SelectTargetDef label has a collected target (final input received). */
     const { ghostPlans, sendGhostPlan } = useContext(GhostPlanContext);
 
+    /** Peer ghost plans received during local ITS — shown only after rewind (canonical pause plane). */
+    const heldGhostPlansRef = useRef<Record<string, GhostPlanData>>({});
+    const [peerGhostPlansVisibleAfterRewind, setPeerGhostPlansVisibleAfterRewind] = useState(false);
+    const itsPreviewActive = interactiveTargetingState !== 'inactive';
+
+    const renderGhostPlans = useMemo(() => {
+        if (itsPreviewActive) {
+            ingestHeldGhostPlansFromPeers(heldGhostPlansRef.current, ghostPlans, playerId);
+        }
+        return resolveGhostPlansForRender(ghostPlans, playerId, {
+            itsPreviewActive,
+            showPeerGhostsAfterRewind: peerGhostPlansVisibleAfterRewind,
+            heldPeerGhosts: heldGhostPlansRef.current,
+        });
+    }, [ghostPlans, playerId, itsPreviewActive, peerGhostPlansVisibleAfterRewind]);
+
+    const prevItsPreviewActiveRef = useRef(false);
+    useEffect(() => {
+        if (itsPreviewActive && !prevItsPreviewActiveRef.current) {
+            heldGhostPlansRef.current = {};
+            setPeerGhostPlansVisibleAfterRewind(false);
+        }
+        if (!itsPreviewActive) {
+            heldGhostPlansRef.current = {};
+            setPeerGhostPlansVisibleAfterRewind(false);
+        }
+        prevItsPreviewActiveRef.current = itsPreviewActive;
+    }, [itsPreviewActive]);
+
     const targetingStateRef = useRef<{
         selectedAbility: AbilityStatic | null;
         currentTargets: readonly { type: string; unitId?: string; position?: { x: number; y: number } }[];
@@ -198,9 +228,7 @@ export default function BattlePhase({
             mouseWorld: uiState?.mouseWorld ?? { x: 0, y: 0 },
             waitingForOrders,
             previewOrderUnitId: itsActive && itsUnitId ? itsUnitId : (uiState?.previewOrderUnitId ?? activeLocalWaiter?.unitId ?? null),
-            ghostPlans: Object.fromEntries(
-                Object.entries(ghostPlans).filter(([, v]) => v !== null)
-            ) as Record<string, GhostPlanData>,
+            ghostPlans: renderGhostPlans,
             nonconfirmedOrder: uiState?.nonconfirmedOrder ?? null,
         };
     }
@@ -226,6 +254,8 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
         queued: 0,
         sending: 0,
     });
+    /** Bumped during ITS preview so PlayerTile order lamps refresh on held-remote changes. */
+    const [playerTileRefresh, setPlayerTileRefresh] = useState(0);
     const [hasReceivedInitialHeartbeat, setHasReceivedInitialHeartbeat] = useState(isHost);
     /** Set when commit() detects a silent-drop from BattleNet; shown as a dismissible banner. */
     const [orderSubmitFailed, setOrderSubmitFailed] = useState(false);
@@ -256,36 +286,17 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     }, []);
 
     const lastSentGhostPlanRef = useRef<GhostPlanData | null>(null);
-    const lastSentSequentialTargetingMsRef = useRef(0);
-    /** First observation time for legacy sentinels missing sentAtMs (one grace period). */
-    const sequentialTargetingFirstSeenRef = useRef<Record<string, number>>({});
-    const [ghostPlanFreshnessClock, setGhostPlanFreshnessClock] = useState(0);
     useEffect(() => {
         const interval = setInterval(() => {
-            setGhostPlanFreshnessClock(Date.now());
             const its = sessionRef.current?.interactiveTargeting;
             if (its?.isActive) {
-                // Broadcast a "sequential targeting" signal so other players know not to submit
-                // their own orders yet. The preview animation is local-only, so we send a sentinel
-                // plan (with sequentialTargeting: true) rather than null, which would clear the signal.
-                const nowMs = Date.now();
-                if (nowMs - lastSentSequentialTargetingMsRef.current < GHOST_PLAN_SEQUENTIAL_TARGETING_REBROADCAST_MS) {
-                    return;
+                // Outbound: suppress playahead ghost — peers plan independently (see ITS docs).
+                if (lastSentGhostPlanRef.current !== null) {
+                    lastSentGhostPlanRef.current = null;
+                    sendGhostPlan(null);
                 }
-                const signal: GhostPlanData = {
-                    unitId: its.unitId ?? '',
-                    abilityId: its.abilityId ?? '',
-                    currentTargets: [],
-                    mouseWorld: { x: 0, y: 0 },
-                    sequentialTargeting: true,
-                    sentAtMs: nowMs,
-                };
-                lastSentSequentialTargetingMsRef.current = nowMs;
-                lastSentGhostPlanRef.current = signal;
-                sendGhostPlan(signal);
                 return;
             }
-            lastSentSequentialTargetingMsRef.current = 0;
             const manager = sessionRef.current?.getInteractionManager();
             const uiState = manager?.getUIState();
             const newPlan: GhostPlanData | null =
@@ -309,7 +320,6 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                 newPlan === null
                     ? prev !== null
                     : prev === null ||
-                      prev.sequentialTargeting === true ||
                       newPlan.unitId !== prev.unitId ||
                       newPlan.abilityId !== prev.abilityId ||
                       newPlan.mouseWorld.x !== prev.mouseWorld.x ||
@@ -328,32 +338,6 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
 
     const HOST_WAIT_POPOVER_AFTER_HEARTBEATS = BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS;
 
-    // True when any other connected player is in sequential targeting preview — block our own order
-    // submission until they confirm, since their orders are being held on the host anyway.
-    const anotherPlayerIsInSequentialTargeting = Object.entries(ghostPlans).some(
-        ([pid, plan]) => {
-            if (pid === playerId || plan?.sequentialTargeting !== true) {
-                if (plan == null) {
-                    delete sequentialTargetingFirstSeenRef.current[pid];
-                }
-                return false;
-            }
-            if (plan.sentAtMs == null && sequentialTargetingFirstSeenRef.current[pid] == null) {
-                sequentialTargetingFirstSeenRef.current[pid] = ghostPlanFreshnessClock || Date.now();
-            }
-            if (plan.sentAtMs != null) {
-                delete sequentialTargetingFirstSeenRef.current[pid];
-            }
-            return isFreshSequentialTargetingSentinel(
-                plan,
-                sequentialTargetingFirstSeenRef.current[pid],
-                ghostPlanFreshnessClock || Date.now(),
-            );
-        },
-    );
-    const anotherPlayerIsInSequentialTargetingRef = useRef(false);
-    anotherPlayerIsInSequentialTargetingRef.current = anotherPlayerIsInSequentialTargeting;
-
     const isMyTurn = activeLocalWaiter != null;
     const canUseOrderUi =
         netSyncStatus !== 'synced_pending_ack' &&
@@ -363,8 +347,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
         !waitingForHostCatchup &&
         !blockingHostPausePlane &&
         !sessionRef.current?.isMultiplayerAwaitHostCatchup() &&
-        (isHost || !fallingBehindHost) &&
-        !anotherPlayerIsInSequentialTargeting;
+        (isHost || !fallingBehindHost);
 
     const showHostCatchupPopover =
         !isHost &&
@@ -655,6 +638,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                 setOrderSubmitFailed(true);
             }
             if (ev.type === 'sequential_targeting_rewind') {
+                setPeerGhostPlansVisibleAfterRewind(true);
                 // Capture the last painted frame before restore tears down the engine.
                 // Force one render so the WebGL buffer is readable in this turn.
                 const eng = session.getEngine();
@@ -1017,12 +1001,13 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                 void session.interactiveTargeting.commit(session, 'auto_end_turn');
             }
             setInteractiveTargetingState(nextState);
+            setPlayerTileRefresh((n) => n + 1);
             if (prevItsStateRef.current !== nextState) {
                 prevItsStateRef.current = nextState;
             }
         }, 50);
         return () => window.clearInterval(id);
-    }, [canUseOrderUi, anotherPlayerIsInSequentialTargeting, activeLocalWaiter]);
+    }, [activeLocalWaiter]);
 
     // ========================================================================
     // Manager subscription: mirror selectedAbility, selectedCardIndex, nonconfirmedOrder
@@ -1172,7 +1157,6 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
             }
             return;
         }
-        if (anotherPlayerIsInSequentialTargetingRef.current) return;
         session?.getInteractionManager()?.onCanvasRightClick(screenX, screenY, shiftKey, ctrlKey);
     }, []);
 
@@ -1194,6 +1178,19 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     const engine = sessionRef.current?.getEngine() ?? null;
     const renderer = sessionRef.current?.getRenderer() ?? null;
     const camera = sessionRef.current?.getCamera() ?? null;
+
+    const itsForPlayerTile = sessionRef.current?.interactiveTargeting;
+    const playerTileOrderContext: PlayerTileOrderContext | undefined = !engine
+        ? undefined
+        : itsPreviewActive && itsForPlayerTile?.isActive
+          ? itsForPlayerTile.getMarkOrderContextForUi()
+          : {
+                waitingForOrders: engine.waitingForOrders,
+                pendingOrders: engine.state.orderMgr.pendingOrders,
+            };
+    void playerTileRefresh;
+
+    const showWebRtcConnectionStatus = Object.keys(players).length > 1;
 
     if (!isHost && !hasReceivedInitialHeartbeat) {
         return (
@@ -1290,7 +1287,9 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                         layout="rail"
                         previewAbility={canUseOrderUi ? (selectedAbility ?? WaitAbility) : null}
                         previewOrderUnitId={activeLocalWaiter?.unitId ?? null}
-                        ghostPlans={ghostPlans}
+                        ghostPlans={renderGhostPlans}
+                        playerTileOrderContext={playerTileOrderContext}
+                        showWebRtcConnectionStatus={showWebRtcConnectionStatus}
                     />
                 </aside>
 

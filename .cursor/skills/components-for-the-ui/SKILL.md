@@ -16,6 +16,8 @@ This skill keeps a **list of component names** and a **one-line description** of
 | **CharacterCreator** | Modal for creating a new campaign character: portrait carousel and Create button. |
 | **VNTextBox** | Visual-novel style dialogue/choice box used in the pre-mission story phase. |
 | **PlayerPill** | Two-line player pill: color dot, name, HOST badge, (You); optional second line (e.g. selected character). Used in PlayerList and character select. |
+| **AppTitleBar** | Fixed global title bar for logged-in users: account name top-left, admin-only **CiStatusPill** top-right. |
+| **CiStatusPill** | Small gray/green/red circle showing local CI health from `/api/admin/ci-status`; admin-only hover tooltip with pass/fail counts. |
 
 ## When to use
 

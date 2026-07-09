@@ -3,6 +3,11 @@ import { Maximize2, Minimize2 } from 'lucide-react';
 import type { PlayerState } from '../../../../types';
 import type { GameEngine } from '../../game/GameEngine';
 import type { GhostPlanData } from '../../game/types';
+import PlayerTile from './PlayerTile';
+import {
+    resolvePlayerTileIndicatorColor,
+    type PlayerTileOrderContext,
+} from './playerTileIndicator';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import type { AbilityStatic } from '../../abilities/Ability';
 import type { Unit } from '../../game/units/Unit';
@@ -159,6 +164,13 @@ interface BattleTimelineProps {
     /** Other players' live ability selections shared via WebRTC; shown at lower opacity on their rows. */
     ghostPlans?: Record<string, GhostPlanData | null>;
     /**
+     * When local ITS playahead is active, use the mark-batch pause plane + orders for player indicators
+     * instead of the live preview engine.
+     */
+    playerTileOrderContext?: PlayerTileOrderContext | null;
+    /** When true, small PlayerTiles show WebRTC connected/disconnected for remote players. */
+    showWebRtcConnectionStatus?: boolean;
+    /**
      * `strip` — full-width bar (e.g. below canvas). `rail` — left sidebar: fill parent height, scroll rows internally.
      */
     layout?: BattleTimelineLayout;
@@ -169,6 +181,19 @@ function playerControlledUnitsForOwner(engine: GameEngine, playerId: string): Un
         .filter((u) => u.ownerId === playerId && u.isPlayerControlled())
         .slice()
         .sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function resolveTimelineOrderContext(
+    engine: GameEngine,
+    override: PlayerTileOrderContext | null | undefined,
+): PlayerTileOrderContext {
+    if (override) {
+        return override;
+    }
+    return {
+        waitingForOrders: engine.waitingForOrders,
+        pendingOrders: engine.state.orderMgr.pendingOrders,
+    };
 }
 
 function hpBarColorClass(hp: number, maxHp: number, alive: boolean): string {
@@ -923,8 +948,14 @@ export default function BattleTimeline({
     previewAbility = null,
     previewOrderUnitId = null,
     ghostPlans,
+    playerTileOrderContext = null,
+    showWebRtcConnectionStatus = false,
     layout = 'strip',
 }: BattleTimelineProps) {
+    const orderContext = useMemo(
+        () => resolveTimelineOrderContext(engine, playerTileOrderContext),
+        [engine, playerTileOrderContext],
+    );
     const [panelHover, setPanelHover] = useState<TimelinePanelHover>(null);
     const [railCompact, setRailCompact] = useState(() => {
         try {
@@ -1046,15 +1077,20 @@ export default function BattleTimeline({
                             const units = playerControlledUnitsForOwner(engine, playerId);
                             return (
                                 <div key={playerId} className="flex min-w-0 flex-col gap-1.5">
-                                    <div
-                                        className="min-w-0 truncate text-xs font-semibold text-gray-200"
-                                        title={player.name}
-                                    >
-                                        <span style={{ color: player.color }}>{player.name}</span>
-                                        {player.isHost && (
-                                            <span className="ml-1 text-[10px] text-primary">(HOST)</span>
+                                    <PlayerTile
+                                        variant="small"
+                                        player={player}
+                                        indicatorColor={resolvePlayerTileIndicatorColor(
+                                            playerId,
+                                            orderContext,
+                                            ghostPlans?.[playerId] ?? null,
                                         )}
-                                    </div>
+                                        webRtcConnected={
+                                            showWebRtcConnectionStatus && playerId !== localPlayerId
+                                                ? player.isConnected !== false
+                                                : undefined
+                                        }
+                                    />
                                     {units.length === 0 ? (
                                         <div className="rounded-md bg-dark-800/50 px-2 py-1 text-[10px] text-gray-500">
                                             No unit in battle
