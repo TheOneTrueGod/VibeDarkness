@@ -245,8 +245,17 @@ export class BattleSession implements BattleSessionHandle {
             }
         });
         engine.setOnItsParallelPauseDecision((decision, waiters, gameTick) => {
+            const localPlayerId = this.config.playerId;
+            const newlyUncertain =
+                this.interactiveTargeting.isActive
+                && waiters.some((w) => w.ownerId !== localPlayerId)
+                && this.interactiveTargeting.noteMultiplayerUncertaintyDuringPreview();
             const lobbyClient = typeof api.getLobbyClient === 'function' ? api.getLobbyClient() : null;
             if (!lobbyClient) return;
+            if (!newlyUncertain && decision === 'drop') {
+                // Skip duplicate lobby lines when waiters persist across preview ticks.
+                return;
+            }
             logToLobbyLogBattleSync({
                 lobbyClient,
                 lobbyId: api.getLobbyId(),

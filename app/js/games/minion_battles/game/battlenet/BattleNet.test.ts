@@ -9,11 +9,14 @@ import {
     BattleNet,
     BATTLE_NET_MAX_DEFERRED_ORDERS,
     BATTLE_NET_T2_RESYNC_POLLS,
+    type BattleSessionHandle,
+} from './BattleNet';
+import {
     BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_POLLS,
     BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS,
     HOST_ANCHOR_RESYNC_MS,
-    type BattleSessionHandle,
-} from './BattleNet';
+    RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL,
+} from './constants';
 
 function makeOrder(id: string): BattleOrder {
     return {
@@ -205,7 +208,7 @@ describe('BattleNet', () => {
                     return {
                         hostTick: 50,
                         hostFingerprint: 'fp50aligned00000',
-                        hostPaused: behind,
+                        hostPaused: engineTick < 50,
                         ordersTipTick: 0,
                         pausedAtTick: behind ? 43 : null,
                         orderBatchAtTick: behind ? 43 : null,
@@ -217,7 +220,7 @@ describe('BattleNet', () => {
             ),
         });
         let engineTick = 49;
-        let paused = true;
+        let paused = false;
         const session = makeSession({
             getEngineTick: () => engineTick,
             isPausedForOrderSync: () => paused,
@@ -240,8 +243,6 @@ describe('BattleNet', () => {
         await net.pollOnce();
         expect(hbOpts[0]?.includePastApplied).toBe(false);
 
-        engineTick = 50;
-        paused = false;
         await net.pollOnce();
         expect(hbOpts[1]?.includePastApplied).toBe(true);
 
@@ -249,6 +250,37 @@ describe('BattleNet', () => {
         paused = false;
         await net.pollOnce();
         expect(hbOpts[2]?.includePastApplied).toBe(false);
+    });
+
+    it('non-host: paused one tick behind host tail triggers paused-behind-host-tail resync on poll', async () => {
+        const api = makeApi({
+            getBattleHeartbeat: vi.fn(async () => ({
+                hostTick: 50,
+                hostFingerprint: 'fp50aligned00000',
+                hostPaused: true,
+                ordersTipTick: 50,
+                pausedAtTick: 51,
+                orderBatchAtTick: 51,
+                expectingFromPlayerIds: ['p2'],
+                initialFingerprint: '0011223344556677',
+                heartbeatSeq: 0,
+            })),
+            getBattleOrdersRange: vi.fn(async () => ({ orders: [] })),
+        });
+        const net = new BattleNet({
+            api,
+            session: makeSession({
+                getEngineTick: () => 49,
+                isPausedForOrderSync: () => true,
+            }),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const resync = vi.spyOn(net, 'requestResync');
+        await net.pollOnce();
+        expect(resync).toHaveBeenCalledWith(RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL);
     });
 
     it('emits synced when equal tick fingerprints match', async () => {
@@ -1690,6 +1722,46 @@ describe('BattleNet', () => {
         expect(resync).not.toHaveBeenCalledWith('behind-host-heartbeat-moved');
     });
 
+    it('CDC293: non-host paused for orders while behind host tail triggers full resync on poll', async () => {
+        const hostFp = 'cdc293hostfp0000';
+        const api = makeApi({
+            getBattleHeartbeat: vi.fn(async () => ({
+                hostTick: 98,
+                hostFingerprint: hostFp,
+                hostPaused: true,
+                ordersTipTick: 98,
+                pausedAtTick: 99,
+                orderBatchAtTick: 99,
+                expectingFromPlayerIds: ['p1'],
+                initialFingerprint: '0011223344556677',
+                heartbeatSeq: 1,
+            })),
+            getBattleOrdersRange: vi.fn(async () => ({ orders: [] })),
+        });
+        const net = new BattleNet({
+            api,
+            session: makeSession({
+                getEngineTick: () => 96,
+                isPausedForOrderSync: () => true,
+                isInteractiveTargetingPreviewActive: () => false,
+                getWaitingForOrdersBatch: () => ({
+                    atTick: 97,
+                    waiters: [
+                        { unitId: 'unit_1', ownerId: 'p1' },
+                        { unitId: 'unit_2', ownerId: 'p2' },
+                    ],
+                }),
+            }),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p2',
+        });
+        const resync = vi.spyOn(net, 'requestResync');
+        await net.pollOnce();
+        expect(resync).toHaveBeenCalledWith(RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL);
+    });
+
     it('host equal-tick storage vs runtime mismatch surfaces waiting_for_host (no client-style hash resync)', async () => {
         const api = makeApi({
             getBattleHeartbeat: vi.fn(async () => ({
@@ -2170,13 +2242,11 @@ describe('BattleNet', () => {
 
     // HostBattleNet.mergeAppliedOrdersForBatch tests moved to battlenet/SnapshotPersistence.test.ts.
 
-    it('non-host: stuck paused host ahead forces full order rescan from tick 0 after K polls (material-change only)', async () => {
+    it('non-host: paused behind host tail triggers immediate full resync (replaces stuck-paused escalation path)', async () => {
         let hbPoll = 0;
         const getBattleHeartbeat = vi.fn(async () => {
             const idx = hbPoll;
             hbPoll += 1;
-            // `ordersRecordCount` is held constant so the main-path revision rescan does NOT
-            // trigger; only the new stuck-paused detector should issue the tick-zero rescan.
             return {
                 hostTick: 100 + idx * 25,
                 hostFingerprint: `host_fp_${idx}_________`,
@@ -2191,8 +2261,7 @@ describe('BattleNet', () => {
             };
         });
         const getBattleOrdersRange = vi.fn(async () => ({ orders: [] }));
-        const appendLobbyLogBatch = vi.fn(async () => ({ success: true }));
-        const api = makeApi({ getBattleHeartbeat, getBattleOrdersRange, appendLobbyLogBatch });
+        const api = makeApi({ getBattleHeartbeat, getBattleOrdersRange });
         const session = makeSession({
             getEngineTick: () => 50,
             isPausedForOrderSync: () => true,
@@ -2209,22 +2278,12 @@ describe('BattleNet', () => {
         });
         const resync = vi.spyOn(net, 'requestResync');
 
-        // K+1 polls: poll 1 establishes baseline (no prior material), polls 2..K+1 increment streak.
-        for (let i = 0; i < BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_POLLS + 1; i++) {
-            await net.pollOnce();
-        }
+        await net.pollOnce();
 
-        await flushLobbyLogBatchQueueForTests();
-
-        const detectorLogged = appendLobbyLogBatch.mock.calls.some((call) => {
-            const lines = ((call as unknown[])[1] as { lines?: Array<{ message?: string }> } | undefined)?.lines;
-            return lines?.some((row) => row.message === 'stuck-paused host ahead: forcing order rescan from tick 0');
-        });
-        expect(detectorLogged).toBe(true);
-        expect(resync).not.toHaveBeenCalledWith('stuck-paused-host-ahead');
+        expect(resync).toHaveBeenCalledWith(RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL);
     });
 
-    it('non-host: stuck paused host ahead escalates to requestResync after rescan fails to unblock', async () => {
+    it('non-host: paused behind host tail resync fires on first poll (no stuck-paused-host-ahead escalation)', async () => {
         let hbPoll = 0;
         const getBattleHeartbeat = vi.fn(async () => {
             const idx = hbPoll;
@@ -2260,28 +2319,25 @@ describe('BattleNet', () => {
         });
         const resync = vi.spyOn(net, 'requestResync');
 
-        // baseline poll + K to trigger rescan + M post-rescan polls to escalate to resync.
-        const totalPolls = 1 + BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_POLLS + BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS;
-        for (let i = 0; i < totalPolls; i++) {
-            await net.pollOnce();
-        }
+        await net.pollOnce();
 
-        expect(resync).toHaveBeenCalledWith('stuck-paused-host-ahead');
+        expect(resync).toHaveBeenCalledWith(RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL);
+        expect(resync).not.toHaveBeenCalledWith('stuck-paused-host-ahead');
     });
 
-    it('non-host: stuck paused detector does not trigger while engine catches up alongside host', async () => {
-        let engineTick = 50;
+    it('non-host: paused-behind-host-tail does not trigger while engine tick keeps pace with host tail', async () => {
+        let engineTick = 100;
         let hbPoll = 0;
         const getBattleHeartbeat = vi.fn(async () => {
             const idx = hbPoll;
             hbPoll += 1;
             return {
-                hostTick: 100 + idx * 10,
+                hostTick: engineTick,
                 hostFingerprint: `host_fp_progress_${idx}__`,
                 hostPaused: true,
-                ordersTipTick: 100 + idx * 10,
-                orderBatchAtTick: 101 + idx * 10,
-                pausedAtTick: 101 + idx * 10,
+                ordersTipTick: engineTick,
+                orderBatchAtTick: engineTick + 1,
+                pausedAtTick: engineTick + 1,
                 expectingFromPlayerIds: ['p2'] as string[],
                 initialFingerprint: '0011223344556677',
                 heartbeatSeq: idx,
@@ -2305,12 +2361,12 @@ describe('BattleNet', () => {
         });
         const resync = vi.spyOn(net, 'requestResync');
 
-        // Engine advances every poll alongside the host — streak should never accumulate.
         for (let i = 0; i < BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_POLLS + BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS + 2; i++) {
             await net.pollOnce();
             engineTick += 5;
         }
 
+        expect(resync).not.toHaveBeenCalledWith(RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL);
         expect(resync).not.toHaveBeenCalledWith('stuck-paused-host-ahead');
     });
 
@@ -2738,7 +2794,7 @@ describe('BattleNet non-host playahead order submit fixes', () => {
         });
     });
 
-    it('E2E104 (staged): non-host one tick behind host stages a row beyond host tail and applies it once hostTick catches up (no soft-align)', async () => {
+    it('E2E104 (staged): paused client one tick behind host tail triggers resync instead of staging apply', async () => {
         const E2E_ENGINE_TICK = 696;
         const E2E_LOCAL_BATCH = 697;
         const FAR_ROW_AT = 698;
@@ -2783,25 +2839,14 @@ describe('BattleNet non-host playahead order submit fixes', () => {
             gameId: 'g1',
             playerId: 'p1',
         });
-        const softAlign = vi.spyOn(net, 'softAlignToHostPausePlane').mockImplementation(() => {});
+        const resync = vi.spyOn(net, 'requestResync');
 
         await net.pollOnce();
+        expect(resync).toHaveBeenCalledWith(RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL);
         expect(applyRemoteOrders).not.toHaveBeenCalled();
-        expect(getBattleOrdersRange).toHaveBeenCalledTimes(1);
-
-        await net.pollOnce();
-        expect(applyRemoteOrders).toHaveBeenCalledTimes(1);
-        expect(applyRemoteOrders).toHaveBeenCalledWith([
-            expect.objectContaining({ atTick: FAR_ROW_AT, idHash: 'e2e104-staged' }),
-        ]);
-        // The row was already fetched on the first poll; the second poll releases it via drain,
-        // not a second range fetch.
-        expect(getBattleOrdersRange).toHaveBeenCalledTimes(1);
-
-        expect(softAlign).not.toHaveBeenCalled();
     });
 
-    it('5E0F6B (staged): far-future order beyond host tail is staged (not soft-aligned) and applies once hostTick catches up', async () => {
+    it('5E0F6B (staged): paused client behind host tail triggers resync instead of staging apply', async () => {
         const E5E_ENGINE_TICK = 676;
         const E5E_FAR_FUTURE_ORDER_AT = 703;
         const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
@@ -2845,18 +2890,11 @@ describe('BattleNet non-host playahead order submit fixes', () => {
             gameId: 'g1',
             playerId: '9',
         });
-        const softAlign = vi.spyOn(net, 'softAlignToHostPausePlane').mockImplementation(() => {});
+        const resync = vi.spyOn(net, 'requestResync');
 
         await net.pollOnce();
+        expect(resync).toHaveBeenCalledWith(RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL);
         expect(applyRemoteOrders).not.toHaveBeenCalled();
-
-        await net.pollOnce();
-        expect(applyRemoteOrders).toHaveBeenCalledTimes(1);
-        expect(applyRemoteOrders).toHaveBeenCalledWith([
-            expect.objectContaining({ atTick: E5E_FAR_FUTURE_ORDER_AT, idHash: 'cb27e46b' }),
-        ]);
-
-        expect(softAlign).not.toHaveBeenCalled();
     });
 });
 

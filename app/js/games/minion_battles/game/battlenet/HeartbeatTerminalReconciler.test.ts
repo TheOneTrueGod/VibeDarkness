@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import type { LobbyClient } from '../../../../LobbyClient';
 import { flushLobbyLogBatchQueueForTests } from '../../../../lobbyLogBatchQueue';
 import { BattleEventBus } from './BattleEventBus';
-import { BATTLE_NET_T2_RESYNC_POLLS } from './constants';
+import { BATTLE_NET_T2_RESYNC_POLLS, RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL } from './constants';
 import { FingerprintBatcher } from './FingerprintBatcher';
 import { HeartbeatHttp } from './HeartbeatHttp';
 import { HeartbeatState } from './HeartbeatState';
@@ -286,6 +286,58 @@ describe('HeartbeatTerminalReconciler.reconcileNonHostAheadOfHostTail: playahead
 
         const lines = await loggedLines(api.appendLobbyLogBatch);
         expect(lines.some((l) => l.message === 'playahead fingerprint divergence at host tail')).toBe(false);
+    });
+});
+
+describe('HeartbeatTerminalReconciler.reconcileNonHostBehindHostTail', () => {
+    it('paused for orders while behind host tail forces full resync (CDC293)', () => {
+        const { reconciler, requestResync } = makeHarness({
+            session: {
+                isPausedForOrderSync: () => true,
+                isInteractiveTargetingPreviewActive: () => false,
+            },
+        });
+
+        reconciler.reconcileNonHostBehindHostTail(
+            96,
+            hb({ hostTick: 98, hostFingerprint: 'hostfp00000000', hostPaused: true }),
+            false,
+        );
+
+        expect(requestResync).toHaveBeenCalledWith(RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL);
+    });
+
+    it('behind host tail while simulating forward (not paused) allows catch-up without resync', () => {
+        const { reconciler, requestResync } = makeHarness({
+            session: {
+                isPausedForOrderSync: () => false,
+            },
+        });
+
+        reconciler.reconcileNonHostBehindHostTail(
+            50,
+            hb({ hostTick: 55, hostFingerprint: 'hostfp00000000', hostPaused: false }),
+            true,
+        );
+
+        expect(requestResync).not.toHaveBeenCalled();
+    });
+
+    it('no resync while ITS preview is active even if paused flag is set', () => {
+        const { reconciler, requestResync } = makeHarness({
+            session: {
+                isPausedForOrderSync: () => true,
+                isInteractiveTargetingPreviewActive: () => true,
+            },
+        });
+
+        reconciler.reconcileNonHostBehindHostTail(
+            96,
+            hb({ hostTick: 98, hostFingerprint: 'hostfp00000000', hostPaused: true }),
+            true,
+        );
+
+        expect(requestResync).not.toHaveBeenCalled();
     });
 });
 

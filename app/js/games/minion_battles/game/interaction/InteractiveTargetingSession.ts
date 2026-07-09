@@ -141,6 +141,11 @@ export class InteractiveTargetingSession {
     private _previewOrderQueued = false;
     /** Other batch waiters that received an assumed wait at begin() (not already confirmed). */
     private assumedWaitUnitIds: Set<string> = new Set();
+    /**
+     * True when another player's orders could invalidate the preview timeline (assumed wait at
+     * begin/replay, or a parallel pause involving another player during playahead). Forces rollback.
+     */
+    private assumedRemoteWaitDuringPreview = false;
     /** True while a commit is running (guards re-entry from concurrent commit triggers). */
     private _commitInFlight = false;
 
@@ -180,6 +185,19 @@ export class InteractiveTargetingSession {
     allTargetsCollected(): boolean {
         return this._selectLabels.length > 0
             && this._selectLabels.every((label) => label in this.collectedTargets);
+    }
+
+    /**
+     * Marks that playahead crossed a multiplayer order boundary (another player's action could
+     * change the canonical path). Wired from {@link GameEngine}'s ITS parallel-pause callback.
+     * @returns true when the flag was newly set (first uncertainty this preview).
+     */
+    noteMultiplayerUncertaintyDuringPreview(): boolean {
+        if (!this._isActive || this.assumedRemoteWaitDuringPreview) {
+            return false;
+        }
+        this.assumedRemoteWaitDuringPreview = true;
+        return true;
     }
 
     setCurrentLabel(label: string | null): void {
@@ -245,6 +263,7 @@ export class InteractiveTargetingSession {
         this._currentLabel = null;
         this._previewOrderQueued = false;
         this.assumedWaitUnitIds = new Set();
+        this.assumedRemoteWaitDuringPreview = false;
 
         // Snapshot the pause state (include runtime fingerprint so restore does not reset to fingerprintInitial).
         const markState = engine.toJSON();
@@ -271,6 +290,7 @@ export class InteractiveTargetingSession {
                 endTurn: true,
             });
             this.assumedWaitUnitIds.add(waiter.unitId);
+            this.assumedRemoteWaitDuringPreview = true;
         }
 
         const deferredLabel = findPreviewDeferredSelectLabel(ability, caster, engine);
@@ -435,11 +455,15 @@ export class InteractiveTargetingSession {
     }
 
     /**
-     * Read-only commit-time predicate: in-place when every assumed-wait unit has a held pure pass,
-     * no other held rows exist, and a host persistence path is available (non-host in Step 3).
+     * Read-only commit-time predicate: in-place when preview did not depend on another player's
+     * orders (no assumed waits, no other-player parallel pause during playahead), no held remote
+     * rows exist, and a persistence path is available (non-host playahead past mark still forces
+     * rollback-only).
      */
     wouldCommitInPlace(session: BattleSession): boolean {
         if (!this.mark || !this._unitId) return false;
+
+        if (this.assumedRemoteWaitDuringPreview) return false;
 
         const batch = this.mark.waitingForOrders;
         if (!batch) return false;
@@ -453,20 +477,9 @@ export class InteractiveTargetingSession {
             return false;
         }
 
-        const markWaiterIds = new Set(batch.waiters.map((w) => w.unitId));
-
         if (!session.isInPlaceCommitPersistenceAvailable()) return false;
 
-        for (const [unitId, held] of this.heldRemoteOrders) {
-            if (!markWaiterIds.has(unitId)) return false;
-            if (!this.assumedWaitUnitIds.has(unitId)) return false;
-            if (!isPurePassOrder(held.order)) return false;
-        }
-
-        for (const unitId of this.assumedWaitUnitIds) {
-            const held = this.heldRemoteOrders.get(unitId);
-            if (!held || !isPurePassOrder(held.order)) return false;
-        }
+        if (this.heldRemoteOrders.size > 0) return false;
 
         return true;
     }
@@ -557,6 +570,7 @@ export class InteractiveTargetingSession {
                         targets: [],
                         endTurn: true,
                     });
+                    this.assumedRemoteWaitDuringPreview = true;
                 }
             }
         }
@@ -832,5 +846,6 @@ export class InteractiveTargetingSession {
         this.originalOrder = null;
         this._previewOrderQueued = false;
         this.assumedWaitUnitIds = new Set();
+        this.assumedRemoteWaitDuringPreview = false;
     }
 }

@@ -32,6 +32,9 @@ export const HOST_ANCHOR_WAIT_SHOW_MS = 2000;
 /** Same situation: suspected failure — force hard resync. */
 export const HOST_ANCHOR_RESYNC_MS = 10_000;
 
+/** Non-host: engine paused for orders while local tick is behind heartbeat hostTick. */
+export const RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL = 'paused-behind-host-tail';
+
 /** Host completed tick minus local engine tick — above this, treat as catching up; lock order UI. */
 export const BATTLE_NET_BEHIND_HOST_TICKS_THRESHOLD = 10;
 export const BATTLE_NET_MAX_DEFERRED_ORDERS = 32;

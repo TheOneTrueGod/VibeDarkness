@@ -1728,14 +1728,13 @@ describe('commit-time in-place decision (Step 1)', () => {
         ).toBe(false);
     });
 
-    it('(a) other waiter confirmed before begin commits in-place without restore', async () => {
+    it('(a) other waiter confirmed at mark still rolls back when preview skips other-player parallel pause', async () => {
         const fixture = await mountLightBlastSessionFixture();
         const { session, casterUnitId, remoteUnitId, blastPixel } = fixture;
         const engine = session.getEngine()!;
 
         engine.state.orderMgr.applyOrder(makePurePassOrder(remoteUnitId));
 
-        const engineBefore = session.getEngine();
         const restoreSpy = vi.spyOn(session, 'restoreFromInMemorySnapshot');
         const rewindEvents: Array<{ type: string }> = [];
         const unsubRewind = session.subscribe((ev) => {
@@ -1743,57 +1742,98 @@ describe('commit-time in-place decision (Step 1)', () => {
         });
         session.setNetAdapter({
             isOrderSubmitPathAvailable: () => true,
+            submitOrder: vi.fn().mockResolvedValue(undefined),
             persistCommittedOrder: vi.fn().mockResolvedValue(true),
         } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
 
         runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
 
         const its = session.interactiveTargeting;
-        expect(its.wouldCommitInPlace(session)).toBe(true);
         expect(its['assumedWaitUnitIds'] as Set<string>).not.toContain(remoteUnitId);
+        expect(its['assumedRemoteWaitDuringPreview']).toBe(true);
+        expect(its.wouldCommitInPlace(session)).toBe(false);
 
         await its.commit(session);
 
-        expect(restoreSpy).not.toHaveBeenCalled();
-        expect(session.getEngine()).toBe(engineBefore);
-        expect(rewindEvents).toHaveLength(0);
+        expect(restoreSpy).toHaveBeenCalledTimes(1);
+        expect(rewindEvents).toHaveLength(1);
 
         unsubRewind();
         restoreSpy.mockRestore();
         session.destroy();
     });
 
-    it('(b) pure-pass held order mid-preview commits in-place and registers dedupe key', async () => {
+    it('(a-host) host preview sets uncertainty when playahead drops other-player parallel pause', async () => {
+        const fixture = await mountLightBlastSessionFixture();
+        const { session, engine, casterUnitId, remoteUnitId, blastPixel } = fixture;
+
+        const remote = engine.getUnit(remoteUnitId)!;
+        remote.abilities = [PUNCH_ABILITY_ID];
+        initializeAbilityRuntimeForUnit(remote);
+
+        const enemy = engine.getUnit('enemy_commit_test')!;
+        engine.state.orderMgr.applyOrder({
+            unitId: remoteUnitId,
+            abilityId: PUNCH_ABILITY_ID,
+            targets: [{ type: 'unit', unitId: enemy.id }],
+            endTurn: true,
+        });
+
+        runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
+
+        const its = session.interactiveTargeting;
+        expect(its['assumedWaitUnitIds'] as Set<string>).not.toContain(remoteUnitId);
+        expect(its['assumedRemoteWaitDuringPreview']).toBe(true);
+        expect(its.wouldCommitInPlace(session)).toBe(false);
+        session.destroy();
+    });
+
+    it('(a2) noteMultiplayerUncertaintyDuringPreview is no-op when preview inactive', () => {
+        const session = new BattleSession({
+            api: makeApiStub(),
+            missionId: 'dark_awakening',
+            playerId: 'p1',
+            isHost: true,
+        });
+        expect(session.interactiveTargeting.noteMultiplayerUncertaintyDuringPreview()).toBe(false);
+        expect(session.interactiveTargeting.wouldCommitInPlace(session)).toBe(false);
+        session.destroy();
+    });
+
+    it('(b) pure-pass held order mid-preview commits via rollback when assumed wait was queued', async () => {
         const fixture = await mountLightBlastSessionFixture();
         const { session, casterUnitId, remoteUnitId, atTick, blastPixel } = fixture;
         const passOrder = makePurePassOrder(remoteUnitId);
         const passKey = hashOrderId('p2', atTick, passOrder);
 
-        const engineBefore = session.getEngine();
         const restoreSpy = vi.spyOn(session, 'restoreFromInMemorySnapshot');
+        const rewindEvents: Array<{ type: string }> = [];
+        const unsubRewind = session.subscribe((ev) => {
+            if (ev.type === 'sequential_targeting_rewind') rewindEvents.push(ev);
+        });
         session.setNetAdapter({
             isOrderSubmitPathAvailable: () => true,
-            persistCommittedOrder: vi.fn().mockResolvedValue(true),
+            submitOrder: vi.fn().mockResolvedValue(undefined),
         } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
 
         runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
 
         const its = session.interactiveTargeting;
         expect(its['assumedWaitUnitIds'] as Set<string>).toContain(remoteUnitId);
+        expect(its['assumedRemoteWaitDuringPreview']).toBe(true);
         its.holdRemoteOrder(atTick, passOrder, passKey);
-        expect(its.wouldCommitInPlace(session)).toBe(true);
+        expect(its.wouldCommitInPlace(session)).toBe(false);
 
         const queueSpy = vi.spyOn(OrderManager.prototype, 'queueOrder');
 
         await its.commit(session);
 
-        expect(restoreSpy).not.toHaveBeenCalled();
-        expect(session.getEngine()).toBe(engineBefore);
+        expect(restoreSpy).toHaveBeenCalledTimes(1);
+        expect(rewindEvents).toHaveLength(1);
+        expect(queueSpy).toHaveBeenCalledTimes(1);
+        expect(queueSpy).toHaveBeenCalledWith(atTick, passOrder);
 
-        queueSpy.mockClear();
-        session.applyHeldRemoteOrders([{ atTick, order: passOrder, key: passKey }]);
-        expect(queueSpy).not.toHaveBeenCalled();
-
+        unsubRewind();
         queueSpy.mockRestore();
         restoreSpy.mockRestore();
         session.destroy();
@@ -1942,7 +1982,7 @@ describe('non-host in-place commit (Fix C + Fix B)', () => {
         return nonHostSession;
     }
 
-    it('wouldCommitInPlace is true for non-host when persistence path and held pure passes align', async () => {
+    it('wouldCommitInPlace is false when assumed remote wait was queued during preview', async () => {
         const fixture = await mountLightBlastSessionFixture();
         const { session, casterUnitId, remoteUnitId, atTick } = fixture;
 
@@ -1964,6 +2004,7 @@ describe('non-host in-place commit (Fix C + Fix B)', () => {
             endTurn: true,
         };
         its['assumedWaitUnitIds'] = new Set([remoteUnitId]);
+        its['assumedRemoteWaitDuringPreview'] = true;
         const passOrder = makePurePassOrder(remoteUnitId);
         its.holdRemoteOrder(atTick, passOrder, hashOrderId('p1', atTick, passOrder));
 
@@ -1972,7 +2013,7 @@ describe('non-host in-place commit (Fix C + Fix B)', () => {
             submitOrder: vi.fn().mockResolvedValue(undefined),
         } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
 
-        expect(its.wouldCommitInPlace(nonHostSession)).toBe(true);
+        expect(its.wouldCommitInPlace(nonHostSession)).toBe(false);
 
         session.destroy();
         nonHostSession.destroy();
@@ -2095,6 +2136,7 @@ describe('non-host in-place commit (Fix C + Fix B)', () => {
             endTurn: true,
         };
         its['assumedWaitUnitIds'] = new Set([casterUnitId]);
+        its['assumedRemoteWaitDuringPreview'] = true;
 
         vi.spyOn(nonHostSession, 'getEngine').mockReturnValue({
             gameTick: markTick + 26,

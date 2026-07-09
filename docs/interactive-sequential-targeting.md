@@ -97,27 +97,22 @@ Abilities without windup lunge (e.g. Double Punch, Light Blast) keep using pre-t
 
 **In-place commit is allowed iff ALL hold:**
 
-- Every *other* waiter in the mark batch is accounted for by either:
-  (a) a confirmed order that already existed at `begin()` (it played in the preview naturally —
-  `begin()`'s assumed `wait` for that unit was rejected by the confirmed-order guard), or
-  (b) a held remote order that is a **pure pass** — `abilityId === 'wait'`, `endTurn === true`,
-  no `movePath`/`moveTargetUnitId`/`moveTargetPixel`/`targets` — i.e. byte-for-byte the same
-  effect as the assumed wait the preview queued.
-- No held order is anything other than a pure pass for a mark-batch waiter (a real ability, a
-  movement-carrying wait, or any row for an unexpected unit/tick ⇒ rollback).
+- Preview did **not** depend on another player's orders (`assumedRemoteWaitDuringPreview` is false). The flag is set when (a) an assumed `wait` was auto-queued for another mark-batch waiter at `begin()` / **Replay**, or (b) playahead crossed a parallel order pause that included another player (drop on host, freeze on non-host). Sole-local-waiter pauses do **not** set the flag. When set, commit is **rollback only**, even when a matching pure-pass row arrives mid-preview.
+- No held remote order rows exist at commit time (any held row ⇒ rollback).
 - A persistence path exists: host ⇒ `persistCommittedOrder`; non-host ⇒ submit with
   `skipLocalApply` (optimistic playahead). Unavailable while recovering / awaiting resync ack.
+- Non-host: `engine.gameTick` must not exceed the mark tick (playahead past mark ⇒ rollback-only).
 - No resync/engine replacement happened mid-preview (ITS is aborted in that case anyway).
 
 | | Rollback | In-place |
 |---|---|---|
-| When | Predicate false (real ability held, move-carrying wait, no persistence path, …) | Predicate true |
+| When | Predicate false (remote-order uncertainty, held remote row, no persistence path, non-host playahead past mark, …) | Predicate true |
 | `commit()` | Rewind overlay → restore mark → apply held → submit (re-applies locally) | Keep preview state → persist only (no local re-apply) |
 | Host persist | Normal `submitOrder` after restore | `persistCommittedOrder` (append + `mergeAppliedOrdersForBatch`) |
 | Non-host persist | Normal `submitOrder` after restore | `submitOrder(..., { skipLocalApply: true })` — rides optimistic client playahead |
 | UI | Continue ⏪ (player-initiated when `AUTO_END_TURN`) | Seamless auto-commit when `AUTO_END_TURN` |
 
-**Design invariant:** once a waiter has a confirmed (`endTurn: true`) order, `OrderManager.applyOrder` refuses to replace it. So if at commit time every other waiter is confirmed with exactly what the preview simulated, no remote order can arrive later that invalidates the previewed timeline.
+**Design invariant:** once every *other* waiter is confirmed at `begin()` and preview never crosses a parallel pause involving another player, no remote order can arrive later that invalidates the previewed timeline. Crossing that boundary (or assuming a remote `wait`) forces rollback.
 
 **Non-host optimistic path:** an in-place-committed non-host is indistinguishable, to the sync layer, from a client that legitimately ran ahead (`docs/game-sync-plan.md`). Ahead-of-host gates still apply (`submitOrder` deferral, `waiting_for_host` pause-plane). Fingerprint mismatch once the host catches up uses the existing `RecoveryCoordinator` resync (`loadFromSnapshot` aborts any active ITS).
 
@@ -166,7 +161,7 @@ The **targeting cursor** (hitbox preview overlay) is only rendered when the stat
 |---|---|---|
 | **Reset** | Red | Refresh remote orders, restore to mark (rewind overlay), discard collected targets, abort the session |
 | **Replay** | Sky-blue | Refresh remote orders, restore to mark (rewind overlay), re-queue with collected targets pre-filled, replay without pausing |
-| **Continue** | Primary | Commit. Label is **Continue ⏪** when commit will rewind. When `AUTO_END_TURN` is true: auto-commit only if `wouldCommitInPlace()` (seamless); otherwise show Continue so the rewind is player-initiated. A late teammate pure-pass while sitting at Done can flip the predicate and auto-commit. When seamless auto-commit fires, the status pill and buttons are hidden once all targets are collected. |
+| **Continue** | Primary | Commit. Label is **Continue ⏪** when commit will rewind. When `AUTO_END_TURN` is true: auto-commit only if `wouldCommitInPlace()` (seamless); otherwise show Continue so the rewind is player-initiated. A late teammate pure-pass while sitting at Done no longer flips the predicate to in-place when assumed waits were used during preview. When seamless auto-commit fires, the status pill and buttons are hidden once all targets are collected. |
 
 ---
 
@@ -174,7 +169,7 @@ The **targeting cursor** (hitbox preview overlay) is only rendered when the stat
 
 The preview runs **only on the selecting player's engine**. Other players' engines remain at `waitingForOrders` and are unaffected.
 
-Remote orders that arrive during the preview are **held** in `InteractiveTargetingSession.heldRemoteOrders` (keyed by `unitId`, latest wins). On rollback paths they are applied **after** the snapshot is restored. On in-place commit, held pure-pass rows only register dedupe keys (the assumed waits already produced the same effect).
+Remote orders that arrive during the preview are **held** in `InteractiveTargetingSession.heldRemoteOrders` (keyed by `unitId`, latest wins). On rollback paths they are applied **after** the snapshot is restored. On in-place commit, held rows are not allowed (any held row forces rollback).
 
 Ghost plan broadcasts are suppressed while the preview is active so other players do not see the local playahead as the selecting player's "plan".
 

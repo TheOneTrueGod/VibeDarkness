@@ -1399,6 +1399,14 @@ export class GameEngine implements EngineContext {
                         naturalCompletionUnitIds: [...this.naturalAbilityCompletionUnitIdsThisTick],
                     };
                     this.naturalAbilityCompletionUnitIdsThisTick.clear();
+                } else if (
+                    waiters.length > 0
+                    && this.isSequentialTargetingPreview
+                    && !this.waitersIncludeConditionalCancelPause(waiters)
+                ) {
+                    // Host/solo (and non-host ally-only): parallel pause would have formed but ITS
+                    // playahead skips scheduling it — same observability hook as drop in commitDeferred.
+                    this.onItsParallelPauseDecision?.('drop', waiters, this.gameTick);
                 }
             }
             this.state.unitManager.processCrystalAura();

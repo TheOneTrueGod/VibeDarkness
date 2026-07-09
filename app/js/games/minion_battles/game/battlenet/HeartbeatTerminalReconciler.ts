@@ -1,7 +1,7 @@
 import type { LobbyClient } from '../../../../LobbyClient';
 import { logToLobbyLogBattleSync } from '../../../../lobbyLog';
 import type { BattleNetContext } from './BattleNetContext';
-import { BATTLE_NET_T1_WAITING_POLLS, BATTLE_NET_T2_RESYNC_POLLS } from './constants';
+import { BATTLE_NET_T1_WAITING_POLLS, BATTLE_NET_T2_RESYNC_POLLS, RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL } from './constants';
 import type { BattleNetEventMap, NonHostHbPausePlaneSnap } from './types';
 
 /**
@@ -116,10 +116,38 @@ export class HeartbeatTerminalReconciler {
         hb: BattleNetEventMap['heartbeat'],
         materialChanged: boolean,
     ): void {
-        if (this.ctx.isHost || !materialChanged) {
+        if (this.ctx.isHost) {
             return;
         }
         if (engineTick >= hb.hostTick) {
+            return;
+        }
+        if (
+            this.ctx.session.isPausedForOrderSync()
+            && !this.ctx.session.isInteractiveTargetingPreviewActive()
+        ) {
+            if (hb.hostFingerprint == null || hb.hostFingerprint === '') {
+                return;
+            }
+            logToLobbyLogBattleSync({
+                lobbyClient: this.ctx.api as unknown as LobbyClient,
+                lobbyId: this.ctx.lobbyId,
+                playerId: this.ctx.playerId,
+                tick: engineTick,
+                severity: 'warn',
+                gameId: this.ctx.gameId,
+                message: 'paused behind host tail — forcing full resync',
+                context: {
+                    engineTick,
+                    hostTick: hb.hostTick,
+                    hostFingerprintHead: hb.hostFingerprint.slice(0, 12),
+                    materialChanged,
+                },
+            });
+            this.ctx.requestResync(RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL);
+            return;
+        }
+        if (!materialChanged) {
             return;
         }
         if (hb.hostFingerprint == null || hb.hostFingerprint === '') {
