@@ -5,7 +5,7 @@
  * round tracking, targeting flow, order submission, and server sync.
  */
 
-import React, { useEffect, useRef, useState, useCallback, useContext } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useContext, useSyncExternalStore } from 'react';
 import { useCurrentUser } from '../../../../user/useCurrentUser';
 import { createPortal } from 'react-dom';
 import type { PlayerState, GameSidebarInfo } from '../../../../types';
@@ -34,6 +34,7 @@ import BattleTimeline from '../components/BattleTimeline';
 import { WaitAbility } from '../../abilities/WaitAbility';
 import BattleSyncStatus from '../components/BattleSyncStatus';
 import BattleHostAnchorBanner from '../components/BattleHostAnchorBanner';
+import GameTickPill from '../components/GameTickPill';
 import BossFightHud from '../components/boss/BossFightHud';
 import type { BossHudSlice } from '../components/boss/BossFightHud';
 import WorldModifiersPanel from '../components/WorldModifiersPanel';
@@ -48,11 +49,13 @@ import { computeSynchash } from '@/utils/synchash';
 import { logToLobbyLog } from '../../../../lobbyLog';
 import { useBattleActionRowHost } from '../../../../contexts/BattleActionRowContext';
 import { useDebugConsole, type BattleDebugBridge, type BattleDebugSnapshot } from '../../../../contexts/DebugConsoleContext';
+import { getShowGameTick, subscribeShowGameTick } from '../../../../debugFlags';
 import HudEffectCanvas, { type HudEffectCanvasHandle } from '../components/HudEffectCanvas';
 import { fetchBattleAssets } from '../../game/fetchBattleAssets';
 import { MISSION_MAP, DARK_AWAKENING } from '../../storylines';
 import { AUTO_END_TURN } from '../../game/gameConstants';
 import { getAbility } from '../../abilities/AbilityRegistry';
+import { isITSPreviewComplete } from '../../game/interaction/isITSPreviewComplete';
 import {
     resolveClick,
     getSelectTargetDefsFromTimings,
@@ -149,7 +152,6 @@ export default function BattlePhase({
     /** Playahead state while InteractiveTargetingSession is active. */
     const [interactiveTargetingState, setInteractiveTargetingState] = useState<'inactive' | 'playing' | 'paused' | 'done'>('inactive');
     /** True when every frozen SelectTargetDef label has a collected target (final input received). */
-    const [interactiveAllTargetsCollected, setInteractiveAllTargetsCollected] = useState(false);
     const { ghostPlans, sendGhostPlan } = useContext(GhostPlanContext);
 
     const targetingStateRef = useRef<{
@@ -235,7 +237,23 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
 
     const battleActionRow = useBattleActionRowHost();
 
+    const showGameTick = useSyncExternalStore(
+        subscribeShowGameTick,
+        getShowGameTick,
+        getShowGameTick,
+    );
+
     const dismissResyncInformAck = useCallback(() => setResyncInformAck(null), []);
+
+    const getItsPlayaheadTicks = useCallback(() => {
+        const session = sessionRef.current;
+        const its = session?.interactiveTargeting;
+        const engine = session?.getEngine();
+        if (!its?.isActive || engine == null) return null;
+        const savedLocalTick = its.savedLocalTick;
+        if (savedLocalTick == null) return null;
+        return { savedLocalTick, playaheadTick: engine.gameTick };
+    }, []);
 
     const lastSentGhostPlanRef = useRef<GhostPlanData | null>(null);
     const lastSentSequentialTargetingMsRef = useRef(0);
@@ -975,7 +993,6 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
             const its = session?.interactiveTargeting;
             if (!its?.isActive) {
                 autoCommitItsAttemptedRef.current = false;
-                setInteractiveAllTargetsCollected(false);
                 setInteractiveTargetingState('inactive');
                 if (prevItsStateRef.current !== 'inactive') {
                     prevItsStateRef.current = 'inactive';
@@ -991,24 +1008,13 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
             if (eng.waitingForTargetInput) {
                 nextState = 'paused';
             } else {
-                const abilityDef = its.abilityId ? getAbility(its.abilityId) : null;
-                const caster = its.unitId ? eng.getUnit(its.unitId) ?? undefined : undefined;
-                const totalDefs = abilityDef && caster
-                    ? getSelectTargetDefsFromTimings(abilityDef, caster, eng).length
-                    : 0;
-                const collected = Object.keys(its.collectedTargets).length;
-                // Report 'done' only when all targets are collected AND the preview engine has
-                // paused (final-hit animation has played and the Step-5 stop condition fired).
-                // This ensures Done/Continue does not appear before the last hit lands visually.
-                const allCollected = totalDefs > 0 && collected >= totalDefs;
-                nextState = allCollected && eng.isPaused ? 'done' : 'playing';
+                nextState = isITSPreviewComplete(eng) ? 'done' : 'playing';
             }
-            setInteractiveAllTargetsCollected(its.allTargetsCollected());
             // AUTO_END_TURN commits as soon as the preview is done (in-place or rewind).
             if (nextState === 'done' && AUTO_END_TURN && !autoCommitItsAttemptedRef.current && session) {
                 autoCommitItsAttemptedRef.current = true;
                 setOrderSubmitFailed(false);
-                void session.interactiveTargeting.commit(session);
+                void session.interactiveTargeting.commit(session, 'auto_end_turn');
             }
             setInteractiveTargetingState(nextState);
             if (prevItsStateRef.current !== nextState) {
@@ -1318,6 +1324,11 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                             resyncInformAck={resyncInformAck}
                             onDismissResyncInformAck={dismissResyncInformAck}
                         />
+                        {showGameTick ? (
+                            <div className="pointer-events-none absolute right-3 top-3 z-20">
+                                <GameTickPill getItsTicks={getItsPlayaheadTicks} />
+                            </div>
+                        ) : null}
                         <BattleCanvas
                             engine={engine}
                             camera={camera}
@@ -1368,7 +1379,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                             </div>
                         )}
                         {interactiveTargetingState !== 'inactive'
-                            && !(AUTO_END_TURN && interactiveAllTargetsCollected) && (
+                            && !(AUTO_END_TURN && interactiveTargetingState === 'done') && (
                             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-50">
                                 <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border ${
                                     interactiveTargetingState === 'playing'
@@ -1419,7 +1430,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                                             setOrderSubmitFailed(false);
                                             autoCommitItsAttemptedRef.current = true;
                                             const session = sessionRef.current;
-                                            if (session) void session.interactiveTargeting.commit(session);
+                                            if (session) void session.interactiveTargeting.commit(session, 'ui_done');
                                         }}
                                     >
                                         Continue

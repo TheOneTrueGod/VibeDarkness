@@ -151,8 +151,9 @@ export class HeartbeatTerminalReconciler {
             const exp = hb.expectingFromPlayerIds;
             const parallelClear = Array.isArray(exp) && exp.length === 0;
             const hostFp = hb.hostFingerprint;
+            const agreeRow = this.ctx.session.getFingerprintRange(hb.hostTick, hb.hostTick)[0];
+            this.logFingerprintDivergenceAtHostTailIfMismatched(engineTick, hb, agreeRow?.fp ?? null, hostFp);
             if (parallelClear && hostFp != null && hostFp !== '') {
-                const agreeRow = this.ctx.session.getFingerprintRange(hb.hostTick, hb.hostTick)[0];
                 if (agreeRow != null && agreeRow.fp === hostFp) {
                     this.ctx.syncStatus.setStatus(
                         'optimistic_client_playahead',
@@ -270,6 +271,42 @@ export class HeartbeatTerminalReconciler {
         }
 
         this.ctx.syncStatus.setStatus('optimistic_client_playahead');
+    }
+
+    /**
+     * Playahead divergence observability (5E0F6B): when {@link reconcileNonHostAheadOfHostTail} is about
+     * to settle on `optimistic_client_playahead` while the local sim is ahead of the host's paused tail,
+     * verify the local ring fingerprint at `hostTick` against the heartbeat's `hostFingerprint`. A
+     * mismatch here means the two sims have genuinely diverged (not just staleness while the host
+     * catches up) — log at `error` so it is easy to grep. Observability only: this never escalates to
+     * resync itself, that stays on the existing align/desync paths.
+     */
+    private logFingerprintDivergenceAtHostTailIfMismatched(
+        engineTick: number,
+        hb: BattleNetEventMap['heartbeat'],
+        localFp: string | null,
+        hostFp: string | null,
+    ): void {
+        if (hostFp == null || hostFp === '' || localFp == null || localFp === hostFp) {
+            return;
+        }
+        logToLobbyLogBattleSync({
+            lobbyClient: this.ctx.api as unknown as LobbyClient,
+            lobbyId: this.ctx.lobbyId,
+            playerId: this.ctx.playerId,
+            tick: engineTick,
+            severity: 'error',
+            logType: 'desync',
+            gameId: this.ctx.gameId,
+            message: 'playahead fingerprint divergence at host tail',
+            context: {
+                hostTick: hb.hostTick,
+                localFp,
+                hostFp,
+                localBatchAtTick: this.ctx.session.getWaitingForOrdersBatch()?.atTick ?? null,
+                engineTick,
+            },
+        });
     }
 
     /**

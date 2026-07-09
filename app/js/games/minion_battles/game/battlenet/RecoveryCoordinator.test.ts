@@ -239,7 +239,14 @@ describe('RecoveryCoordinator.tryBootstrapFromLatestCheckpoint', () => {
                 })),
                 getBattleOrdersRange,
             },
-            sessionOverrides: { loadFromSnapshot, applyRemoteOrders },
+            // Snapshot at tick 5 is a paused checkpoint (tick 6 batch) — a freshly-restored engine
+            // reports that pause plane, which is exactly the OrderQueueController staging "needed
+            // right now" condition (atTick <= localPauseAtTick) for the replayed row at tick 6.
+            sessionOverrides: {
+                loadFromSnapshot,
+                applyRemoteOrders,
+                getWaitingForOrdersBatch: () => ({ atTick: 6, waiters: [] }),
+            },
         });
         const result = await h.coordinator.tryBootstrapFromLatestCheckpoint();
         expect(result).toBe(true);
@@ -380,6 +387,10 @@ describe('RecoveryCoordinator.runDesyncRecovery', () => {
                 getLatestFingerprint: () => ({ tick: 1, fp: 'aligned1', paused: false }),
                 loadFromSnapshot,
                 applyRemoteOrders,
+                // Snapshot at tick 1 is a paused checkpoint (tick 2 batch) — a freshly-restored
+                // engine reports that pause plane, satisfying OrderQueueController staging's
+                // "needed right now" condition for the replayed row at tick 2.
+                getWaitingForOrdersBatch: () => ({ atTick: 2, waiters: [] }),
             },
         });
         await h.coordinator.runDesyncRecovery('hash-mismatch');

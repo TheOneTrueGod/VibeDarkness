@@ -266,16 +266,24 @@ export class BattleSession implements BattleSessionHandle {
                 },
             });
         });
-        engine.setOnEndItsForConditionalCancel(() => {
-            if (this.interactiveTargeting.isActive) {
-                this.interactiveTargeting.endPreviewForConditionalCancel();
-            }
-            this.rebindEngineCallbacks();
-            this.emit({
-                type: 'pause_state',
-                paused: true,
-                waitingForOrders: engine.waitingForOrders,
-            });
+    }
+
+    /**
+     * Emit pause + waiting_for_orders after preview flags clear (e.g. conditional-cancel in-place commit).
+     */
+    emitWaitingForOrdersIfPaused(): void {
+        const engine = this.engine;
+        if (!engine?.waitingForOrders) return;
+        this.emit({
+            type: 'waiting_for_orders',
+            engine,
+            info: engine.waitingForOrders,
+            source: 'engine_callback',
+        });
+        this.emit({
+            type: 'pause_state',
+            paused: true,
+            waitingForOrders: engine.waitingForOrders,
         });
     }
 
@@ -288,7 +296,7 @@ export class BattleSession implements BattleSessionHandle {
         engine.sequentialTargetingPreviewCast = null;
         engine.waitingForTargetInput = null;
         if (this.interactiveTargeting.isActive) {
-            this.interactiveTargeting.endPreviewForTerminalOutcome();
+            this.interactiveTargeting.endPreviewForTerminalOutcome(this);
         }
         this.rebindEngineCallbacks();
     }
@@ -318,7 +326,7 @@ export class BattleSession implements BattleSessionHandle {
         }
         this.terminalPreviewAutoCommitInFlight = true;
         void this.interactiveTargeting
-            .commit(this)
+            .commit(this, 'terminal_outcome_auto_commit')
             .finally(() => {
                 this.terminalPreviewAutoCommitInFlight = false;
             });
@@ -547,7 +555,7 @@ export class BattleSession implements BattleSessionHandle {
         // If an interactive targeting preview is in progress, abort it before replacing the engine.
         // The mark/preview state is no longer valid after resync, so we just clear without restoring.
         if (this.interactiveTargeting.isActive) {
-            this.interactiveTargeting.abort();
+            this.interactiveTargeting.abort(this, 'resync_load_from_snapshot');
         }
         if (this.camera) {
             localStorage.setItem(
@@ -685,6 +693,23 @@ export class BattleSession implements BattleSessionHandle {
         return this.engine?.gameTick ?? 0;
     }
 
+    /** POST info-level battle-sync line to the lobby log when a lobby client is available. */
+    postBattleSyncLobbyLog(message: string, context?: Record<string, unknown>, tick?: number | null): void {
+        const { api, playerId } = this.config;
+        const lobbyClient = typeof api.getLobbyClient === 'function' ? api.getLobbyClient() : null;
+        if (!lobbyClient) return;
+        logToLobbyLogBattleSync({
+            lobbyClient,
+            lobbyId: api.getLobbyId(),
+            playerId,
+            tick: tick ?? this.getEngineTick(),
+            severity: 'info',
+            gameId: api.getGameId(),
+            message,
+            context,
+        });
+    }
+
     getRuntimeFingerprintHex(): string {
         return this.engine?.getRuntimeFingerprintHex() ?? '';
     }
@@ -707,6 +732,11 @@ export class BattleSession implements BattleSessionHandle {
 
     hasDeferredOrderFor(unitId: string, atTick: number): boolean {
         return this.netAdapter?.hasDeferredOrderFor?.(unitId, atTick) ?? false;
+    }
+
+    /** True when a wire dedupe key was registered by apply/submit (order consumed or queued). */
+    hasRemoteOrderDedupeKey(key: string): boolean {
+        return this.appliedRemoteOrderKeys.has(key);
     }
 
     /** Non-host: fixed-step sim is frozen until `gameTick <=` heartbeat host completed tail. */
@@ -979,9 +1009,28 @@ export class BattleSession implements BattleSessionHandle {
         await this.netAdapter?.submitOrder(order, atTick);
     }
 
-    /** Submit the confirmed order after interactive targeting commit (bypasses begin() routing). */
-    async submitCommittedTargetingOrder(order: BattleOrder, atTick: number): Promise<void> {
-        await this.netAdapter?.submitOrder(order, atTick);
+    /**
+     * Submit the confirmed order after interactive targeting rollback commit (bypasses begin() routing).
+     * @returns true when the order landed (pending row, deferred POST, or registered dedupe after local apply).
+     */
+    async submitCommittedTargetingOrder(order: BattleOrder, atTick: number): Promise<boolean> {
+        if (!this.netAdapter) {
+            return false;
+        }
+        const unitId = order.unitId;
+        const idHash = hashOrderId(this.config.playerId, atTick, order);
+        await this.netAdapter.submitOrder(order, atTick);
+        if (this.appliedRemoteOrderKeys.has(idHash)) {
+            return true;
+        }
+        if (this.netAdapter.hasDeferredOrderFor?.(unitId, atTick)) {
+            return true;
+        }
+        const engine = this.engine;
+        if (engine?.state.orderMgr.hasPendingEndTurnOrderForUnit(unitId, atTick)) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -993,9 +1042,6 @@ export class BattleSession implements BattleSessionHandle {
     async persistInPlaceCommittedTargetingOrder(order: BattleOrder, atTick: number): Promise<boolean> {
         if (!this.netAdapter) return false;
         const pathAvailable = this.netAdapter.isOrderSubmitPathAvailable();
-        // #region agent log
-        fetch('http://127.0.0.1:7873/ingest/38aed2ea-0a0f-4f89-a817-28c1022a6d07',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dcf8d4'},body:JSON.stringify({sessionId:'dcf8d4',location:'BattleSession.ts:persistInPlaceCommittedTargetingOrder',message:'in-place persist entry',data:{atTick,pathAvailable,isHost:this.config.isHost,unitId:order.unitId,abilityId:order.abilityId},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
         if (!pathAvailable) return false;
 
         const idHash = hashOrderId(this.config.playerId, atTick, order);
@@ -1010,9 +1056,6 @@ export class BattleSession implements BattleSessionHandle {
 
         await this.netAdapter.submitOrder(order, atTick, { skipLocalApply: true });
         const deferred = this.netAdapter.hasDeferredOrderFor(order.unitId, atTick);
-        // #region agent log
-        fetch('http://127.0.0.1:7873/ingest/38aed2ea-0a0f-4f89-a817-28c1022a6d07',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dcf8d4'},body:JSON.stringify({sessionId:'dcf8d4',location:'BattleSession.ts:persistInPlaceCommittedTargetingOrder',message:'in-place persist after submitOrder',data:{atTick,deferred,unitId:order.unitId},timestamp:Date.now(),hypothesisId:'A,D,E',runId:'post-fix'})}).catch(()=>{});
-        // #endregion
         if (deferred) {
             return false;
         }

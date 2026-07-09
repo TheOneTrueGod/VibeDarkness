@@ -72,6 +72,7 @@ import { applyVisualEffectDefs } from './effects/applyVisualEffectDefs';
 import { NinjutsuManager, countNinjutsuEnemyUnits, type NinjutsuUIState } from './ninjutsu/NinjutsuManager';
 import { NINJUTSU_DEFAULT, type NinjutsuPoolConfig } from './ninjutsu/ninjutsuConfig';
 import { findImpendingSelectTargetNeed } from './interaction/selectTargetLookahead';
+import { isITSPreviewComplete } from './interaction/isITSPreviewComplete';
 
 // Re-exports for backward compatibility
 export type { CardInstance } from './managers/CardManager';
@@ -158,11 +159,6 @@ export class GameEngine implements EngineContext {
     private onItsParallelPauseDecision:
         | ((decision: 'drop' | 'freeze', waiters: readonly OrderWaiter[], gameTick: number) => void)
         | null = null;
-    /**
-     * Fired when conditional cancel commits a parallel pause during an ITS preview — clears the
-     * session without rolling back preview state (in-wall position is correct for Entombed choice).
-     */
-    private onEndItsForConditionalCancel: (() => void) | null = null;
     private pendingAdminReason: string | null = null;
     private appliedRoundStartRecovery = false;
     private appliedMidRoundRecovery = false;
@@ -856,10 +852,6 @@ export class GameEngine implements EngineContext {
         this.onItsParallelPauseDecision = cb;
     }
 
-    setOnEndItsForConditionalCancel(cb: (() => void) | null): void {
-        this.onEndItsForConditionalCancel = cb;
-    }
-
     setOnRoundEnd(cb: (roundNumber: number) => void): void {
         this.onRoundEnd = cb;
     }
@@ -1211,25 +1203,17 @@ export class GameEngine implements EngineContext {
         );
     }
 
-    /** Ends ITS preview flags and notifies BattleSession without restoring the mark snapshot. */
-    private teardownSequentialTargetingPreviewForConditionalCancel(): void {
-        this.isSequentialTargetingPreview = false;
-        this.sequentialTargetingPreviewCast = null;
-        this.onEndItsForConditionalCancel?.();
-    }
-
     private commitDeferredOrderPauseAfterCompletedTick(): boolean {
         if (this.deferredOrderPause == null || this.deferredOrderPause.waiters.length === 0) {
             return false;
         }
         const previewWaiters = this.deferredOrderPause.waiters;
         const isConditionalCancelPause = this.waitersIncludeConditionalCancelPause(previewWaiters);
-        const wasItsPreview = this.isSequentialTargetingPreview;
         // Interactive targeting preview: ally-only pauses are always dropped so SelectTargetDef
         // intervals can run. On non-host (`freezeItsOnLocalPlayerParallelPause`), pauses that include
         // the local player must freeze (lobby 39E984) — otherwise the sim runs past the host's order
         // batch and deadlocks on submit. Host/solo keep legacy ITS playahead.
-        // Conditional cancel is always a hard stop: commit the parallel pause and end the preview.
+        // Conditional cancel still commits the parallel pause; ITS session ends at commit() after Done.
         if (this.isSequentialTargetingPreview && !isConditionalCancelPause) {
             const freezeLocal =
                 this.freezeItsOnLocalPlayerParallelPause &&
@@ -1240,7 +1224,7 @@ export class GameEngine implements EngineContext {
                 return false;
             }
             this.onItsParallelPauseDecision?.('freeze', previewWaiters, this.gameTick);
-        } else if (wasItsPreview && isConditionalCancelPause) {
+        } else if (this.isSequentialTargetingPreview && isConditionalCancelPause) {
             this.onItsParallelPauseDecision?.('freeze', previewWaiters, this.gameTick);
         }
         const { waiters: initialWaiters, naturalCompletionUnitIds } = this.deferredOrderPause;
@@ -1317,9 +1301,6 @@ export class GameEngine implements EngineContext {
             ...(teamworkCancelledOwnerIds !== undefined ? { teamworkCancelledOwnerIds } : {}),
         };
         this.isPaused = true;
-        if (wasItsPreview && isConditionalCancelPause) {
-            this.teardownSequentialTargetingPreviewForConditionalCancel();
-        }
         this.snapshotIndex++;
         this.onWaitingForOrders?.(this.waitingForOrders);
         this.onCheckpoint?.(this.gameTick, this.toJSON(), [...this.pendingOrders]);
@@ -1398,22 +1379,9 @@ export class GameEngine implements EngineContext {
                 (unitId: string) => this.naturalAbilityCompletionUnitIdsThisTick.add(unitId),
                 aiCtx,
             );
-            // Preview stop condition (findings 4 & 5): pause the preview when the caster's
-            // ability is no longer running (natural completion, cancel, interrupt, death) or the
-            // round advances beyond the snapshot round. This covers teamwork cancel too — see
-            // cancelActiveAbility(), which splices the entry from activeAbilities before this runs.
-            if (this.isSequentialTargetingPreview && this.sequentialTargetingPreviewCast != null && !this.isPaused) {
-                const { unitId: casterId, abilityId: castAbilityId, startRound } = this.sequentialTargetingPreviewCast;
-                const caster = this.getUnit(casterId);
-                const abilityStillActive = caster?.isAlive() &&
-                    caster.activeAbilities.some((a) => a.abilityId === castAbilityId);
-                const conditionalCancelActive = caster?.activeAbilities.some(
-                    (a) => a.abilityId === castAbilityId && a.conditionalCancelPaused,
-                ) ?? false;
-                const roundAdvanced = this.roundNumber > startRound;
-                if (!abilityStillActive || roundAdvanced || conditionalCancelActive) {
-                    this.isPaused = true;
-                }
+            // Preview stop: pause when isITSPreviewComplete (natural completion or conditional cancel).
+            if (isITSPreviewComplete(this) && !this.isPaused) {
+                this.isPaused = true;
             }
             if (this.waitingForOrders == null) {
                 const waiters = this.state.orderMgr.collectParallelWaiters();

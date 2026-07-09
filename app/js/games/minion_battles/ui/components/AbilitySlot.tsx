@@ -20,7 +20,11 @@ import { useAbilityUseChargeAnimation, type AbilityChargeAnimRule } from '../abi
 import { ChargeIcon } from './ChargeIcon';
 import { RECOVERY_CHARGE_DEFINITIONS } from './recoveryChargeDefinitions';
 import AbilityTooltip from './AbilityTooltip';
-import { ResourceCostIcon, RESOURCE_COST_COMPACT_BADGE_MIN_HEIGHT_PX } from './resources/ResourceCostIcon';
+import {
+    ResourceCostIcon,
+    RESOURCE_COST_COMPACT_BADGE_MIN_HEIGHT_PX,
+    STACKED_ICON_OVERLAP_PX,
+} from './resources/ResourceCostIcon';
 import type { DisabledReason } from './abilityDisabledReason';
 
 interface AbilitySlotProps {
@@ -158,17 +162,11 @@ export default function AbilitySlot({
                                 const recoveryNeeded = Math.max(1, rule.chargesPerRecovery);
                                 const chargeDef = RECOVERY_CHARGE_DEFINITIONS[rule.chargeType];
                                 const rowTitle = chargeDef.rowExplanation;
-                                const PIP_SIZE = 22;
-                                const AVAILABLE_WIDTH = 52;
-                                const totalNatural = recoveryNeeded * PIP_SIZE + (recoveryNeeded - 1) * 2;
-                                const interPipSpacing = totalNatural > AVAILABLE_WIDTH && recoveryNeeded > 1
-                                    ? -Math.ceil((totalNatural - AVAILABLE_WIDTH) / (recoveryNeeded - 1))
-                                    : 2;
                                 return (
                                     <div
                                         key={`${rule.chargeType}-${rule.chargesPerRecovery}`}
                                         ref={ruleIndex === 0 ? onPrimaryRecoveryPillRef ?? null : null}
-                                        className="flex min-h-[14px] items-center overflow-hidden py-px"
+                                        className="flex min-h-[14px] items-center py-px"
                                         title={rowTitle}
                                         aria-label={rowTitle}
                                     >
@@ -203,7 +201,8 @@ export default function AbilitySlot({
                                                     showFill={showFill}
                                                     fillOpacity={fillOpacity}
                                                     innerWidthPct={innerWidthPct}
-                                                    marginLeft={i === 0 ? 0 : interPipSpacing}
+                                                    marginLeft={i === 0 ? 0 : -STACKED_ICON_OVERLAP_PX}
+                                                    zIndex={recoveryNeeded - i}
                                                 />
                                             );
                                         })}

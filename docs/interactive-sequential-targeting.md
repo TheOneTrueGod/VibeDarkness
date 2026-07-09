@@ -126,13 +126,13 @@ Abilities without windup lunge (e.g. Double Punch, Light Blast) keep using pre-t
 1. Held pure-pass rows register their dedupe keys in `appliedRemoteOrderKeys` without re-queueing.
 2. Finalized order is built from collected input (same bytes as rollback).
 3. Host: `persistCommittedOrder` appends + merges the whole mark batch. Non-host: POST without local apply; ahead-of-host deferral gates still apply.
-4. `rebindEngineCallbacks()` restores `onParallelBatchResolved`; preview flags cleared; engine unpaused.
+4. `rebindEngineCallbacks()` restores `onParallelBatchResolved`; preview flags cleared; engine unpaused (except conditional-cancel in-place commit preserves the Entombed pause).
 
 **Accepted limitation:** refreshing mid-preview recovers to the **pre-turn** checkpoint (the mark snapshot), not the in-progress preview — same as rollback Reset.
 
 **Victory/defeat during preview:** `LevelEventManager` latches terminal state (`isTerminal`) when checks pass, but `BattleSession` wrappers skip `onVictory`/`onDefeat` while `isSequentialTargetingPreview` is set. In-place `commit()` calls `reemitSuppressedTerminalOutcome` so a one-shot result is not lost.
 
-**Conditional cancel during preview (Entombed wall):** When a cast interval with `conditionalCancel` exits inside impassable terrain (e.g. Digging Claws dash into rock), the engine commits a normal parallel-order pause even on the host ITS playahead path. The preview session ends without restoring the mark snapshot (in-wall position is kept). `waitingForOrders` and the Entombed Continue/swap UI behave like a non-ITS conditional cancel.
+**Conditional cancel during preview (Entombed wall):** When a cast interval with `conditionalCancel` exits inside impassable terrain (e.g. Digging Claws dash into rock), `isITSPreviewComplete` returns true (same as natural cast completion). The UI shows **Done**, then `commit()` persists the finalized order in-place (in-wall position kept). After commit, `waitingForOrders` and the Entombed Continue/swap UI surface via `emitWaitingForOrdersIfPaused`.
 
 ### Rewind overlay
 
@@ -152,8 +152,9 @@ The pill in the bottom-centre of the canvas reflects the current state of the pr
 |---|---|---|
 | **Playing** | Green / Play icon | Engine is running the preview animation (no input needed right now) |
 | **Paused** | Amber / Pause icon | Engine is stopped waiting for the player to click a target |
-| **Done** | Sky-blue / Stop icon | All targets collected; player can Confirm or Replay |
-| **Conditional cancel** | (preview ends) | Entombed wall conditional cancel fired mid-cast — ITS preview stops, `waitingForOrders` commits, Entombed Continue/swap UI appears (same as non-ITS) |
+| **Done** | Sky-blue / Stop icon | Preview complete (`isITSPreviewComplete`); player can Confirm or Replay |
+
+Preview completion (`isITSPreviewComplete` in `game/interaction/isITSPreviewComplete.ts`) is true when the preview cast has finished naturally, the round advanced, or the cast entered **conditional cancel** (e.g. Entombed in-wall). While `waitingForTargetInput` is set, completion is false.
 
 The **targeting cursor** (hitbox preview overlay) is only rendered when the state is **Paused**. During the Playing phase between target selections no cursor is shown.
 
@@ -192,6 +193,7 @@ Interactive preview orders set `targetsByLabel: {}` (empty object, not `undefine
 | `featureFlags.ts` | `USE_SEQUENTIAL_TARGETING` on/off switch |
 | `game/GameEngine.ts` | `waitingForTargetInput`, lookahead gate, preview stop condition, `isSequentialTargetingPreview` |
 | `game/interaction/selectTargetLookahead.ts` | Pre-tick impending select detection; deferred-first-select helper (`findPreviewDeferredSelectLabel`) |
+| `game/interaction/isITSPreviewComplete.ts` | Preview Done predicate (natural completion + conditional cancel) |
 | `game/units/unitAbilityTick.ts` | Entered-loop interval fire; `movementByLabel` at select entry; loud missing-label guard |
 | `game/interaction/InteractiveTargetingSession.ts` | Session lifecycle: begin / resolveTarget / reset / replay / commit; `wouldCommitInPlace` |
 | `game/BattleSession.ts` | `restoreFromInMemorySnapshot`, `persistInPlaceCommittedTargetingOrder`, held-order hold/apply, pre-action poll |

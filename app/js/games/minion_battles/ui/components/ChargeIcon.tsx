@@ -15,9 +15,11 @@ export interface ChargeIconProps {
     innerWidthPct: number;
     /** Left offset in px — positive = gap, negative = overlap with previous pip. */
     marginLeft?: number;
+    /** Stacking order when pips overlap (higher = in front). */
+    zIndex?: number;
 }
 
-export function ChargeIcon({ chargeType, showFill, fillOpacity, innerWidthPct, marginLeft }: ChargeIconProps) {
+export function ChargeIcon({ chargeType, showFill, fillOpacity, innerWidthPct, marginLeft, zIndex }: ChargeIconProps) {
     const def = RECOVERY_CHARGE_DEFINITIONS[chargeType];
     const { Icon } = def;
     const isPossessed = showFill && innerWidthPct >= 100;
@@ -27,7 +29,10 @@ export function ChargeIcon({ chargeType, showFill, fillOpacity, innerWidthPct, m
             className={`relative flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border overflow-hidden p-[3px] pointer-events-none ${def.iconCircleBorderClass} ${
                 isPossessed ? def.possessedBgClass : 'bg-black'
             } ${fillOpacity}`}
-            style={marginLeft !== undefined ? { marginLeft } : undefined}
+            style={{
+                ...(marginLeft !== undefined ? { marginLeft } : {}),
+                ...(zIndex !== undefined ? { zIndex } : {}),
+            }}
         >
             {showFill && !isPossessed && innerWidthPct > 0 && (
                 <div

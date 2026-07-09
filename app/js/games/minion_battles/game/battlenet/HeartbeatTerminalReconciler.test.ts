@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
+import type { LobbyClient } from '../../../../LobbyClient';
+import { flushLobbyLogBatchQueueForTests } from '../../../../lobbyLogBatchQueue';
 import { BattleEventBus } from './BattleEventBus';
 import { BATTLE_NET_T2_RESYNC_POLLS } from './constants';
 import { FingerprintBatcher } from './FingerprintBatcher';
@@ -11,6 +13,8 @@ import { SyncStatusController } from './SyncStatusController';
 import type { BattleNetContext } from './BattleNetContext';
 import type { BattleApi, BattleNetEventMap, BattleSessionHandle } from './types';
 import type { SerializedGameState } from '../types';
+
+type LoggedLobbyLine = { message?: string; severity?: string; context?: Record<string, unknown> };
 
 function makeSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessionHandle {
     return {
@@ -37,7 +41,14 @@ function makeSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessio
     };
 }
 
-function makeApi(): BattleApi {
+/**
+ * `logToLobbyLogBattleSync` casts `ctx.api` to `LobbyClient` at runtime and posts through the batch
+ * queue — tests need `appendLobbyLog(Batch)` (not part of the narrower `BattleApi` surface) to
+ * inspect logged lines, so the test double's type carries both.
+ */
+type TestBattleApi = BattleApi & Pick<LobbyClient, 'appendLobbyLog' | 'appendLobbyLogBatch'>;
+
+function makeApi(): TestBattleApi {
     return {
         appendBattleOrder: vi.fn() as unknown as BattleApi['appendBattleOrder'],
         getBattleOrdersRange: vi.fn() as unknown as BattleApi['getBattleOrdersRange'],
@@ -49,6 +60,8 @@ function makeApi(): BattleApi {
         saveBattleSnapshot: vi.fn() as unknown as BattleApi['saveBattleSnapshot'],
         appendBattleFingerprints: vi.fn() as unknown as BattleApi['appendBattleFingerprints'],
         getBattleFingerprintsRange: vi.fn() as unknown as BattleApi['getBattleFingerprintsRange'],
+        appendLobbyLog: vi.fn(async () => undefined) as unknown as LobbyClient['appendLobbyLog'],
+        appendLobbyLogBatch: vi.fn(async () => ({ success: true })) as unknown as LobbyClient['appendLobbyLogBatch'],
     };
 }
 
@@ -110,7 +123,7 @@ function makeHarness(opts: {
     const reconciler = new HeartbeatTerminalReconciler(ctx);
     const syncStatusSpy = vi.fn();
     events.on('sync-status', syncStatusSpy);
-    return { ctx, reconciler, requestResync, notePreviouslySyncedAnchorTick, syncStatusSpy };
+    return { ctx, api, reconciler, requestResync, notePreviouslySyncedAnchorTick, syncStatusSpy };
 }
 
 function hb(overrides: Partial<BattleNetEventMap['heartbeat']> = {}): BattleNetEventMap['heartbeat'] {
@@ -196,6 +209,83 @@ describe('HeartbeatTerminalReconciler.reconcileNonHostAheadOfHostTail', () => {
             reconciler.reconcileNonHostAheadOfHostTail(7, heartbeat);
         }
         expect(requestResync).toHaveBeenCalledWith('ahead-of-host');
+    });
+});
+
+/** Step 4: playahead divergence observability — fingerprint-compare before settling `optimistic_client_playahead`. */
+describe('HeartbeatTerminalReconciler.reconcileNonHostAheadOfHostTail: playahead fingerprint divergence observability', () => {
+    async function loggedLines(appendLobbyLogBatch: unknown): Promise<LoggedLobbyLine[]> {
+        await flushLobbyLogBatchQueueForTests();
+        const mock = appendLobbyLogBatch as { mock: { calls: unknown[][] } };
+        return mock.mock.calls.flatMap((call) => {
+            const body = call[1] as { lines?: LoggedLobbyLine[] } | undefined;
+            return body?.lines ?? [];
+        });
+    }
+
+    it('parallelClear + fingerprint mismatch: logs divergence at error severity with the exact context shape', async () => {
+        const { reconciler, api, syncStatusSpy } = makeHarness({
+            session: {
+                getFingerprintRange: (from: number, to: number) =>
+                    from === 4 && to === 4 ? [{ tick: 4, fp: 'local_mismatch', paused: true }] : [],
+                getWaitingForOrdersBatch: () => ({ atTick: 10, waiters: [] }),
+            },
+        });
+
+        reconciler.reconcileNonHostAheadOfHostTail(
+            6,
+            hb({ hostTick: 4, hostFingerprint: 'host_fp_value', hostPaused: true, expectingFromPlayerIds: [] }),
+        );
+
+        const lines = await loggedLines(api.appendLobbyLogBatch);
+        const divergence = lines.find((l) => l.message === 'playahead fingerprint divergence at host tail');
+        expect(divergence).toBeDefined();
+        expect(divergence?.severity).toBe('error');
+        expect(divergence?.context).toMatchObject({
+            hostTick: 4,
+            localFp: 'local_mismatch',
+            hostFp: 'host_fp_value',
+            localBatchAtTick: 10,
+            engineTick: 6,
+        });
+        // Observability only — must not escalate itself; the branch still settles on its normal status.
+        expect(syncStatusSpy).toHaveBeenLastCalledWith('optimistic_client_playahead');
+    });
+
+    it('parallelOpen (other player still expected) + fingerprint mismatch: also logs divergence (branch previously skipped this case)', async () => {
+        const { reconciler, api } = makeHarness({
+            session: {
+                getFingerprintRange: (from: number, to: number) =>
+                    from === 4 && to === 4 ? [{ tick: 4, fp: 'local_mismatch', paused: true }] : [],
+            },
+        });
+
+        reconciler.reconcileNonHostAheadOfHostTail(
+            6,
+            hb({ hostTick: 4, hostFingerprint: 'host_fp_value', hostPaused: true, expectingFromPlayerIds: ['p9'] }),
+        );
+
+        const lines = await loggedLines(api.appendLobbyLogBatch);
+        const divergence = lines.find((l) => l.message === 'playahead fingerprint divergence at host tail');
+        expect(divergence).toBeDefined();
+        expect(divergence?.severity).toBe('error');
+    });
+
+    it('fingerprints agree at host tail: does not log divergence', async () => {
+        const { reconciler, api } = makeHarness({
+            session: {
+                getFingerprintRange: (from: number, to: number) =>
+                    from === 4 && to === 4 ? [{ tick: 4, fp: 'agree_fp', paused: true }] : [],
+            },
+        });
+
+        reconciler.reconcileNonHostAheadOfHostTail(
+            6,
+            hb({ hostTick: 4, hostFingerprint: 'agree_fp', hostPaused: true, expectingFromPlayerIds: [] }),
+        );
+
+        const lines = await loggedLines(api.appendLobbyLogBatch);
+        expect(lines.some((l) => l.message === 'playahead fingerprint divergence at host tail')).toBe(false);
     });
 });
 

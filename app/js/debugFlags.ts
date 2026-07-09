@@ -4,6 +4,7 @@
 
 const SHOW_ALL_RESEARCH_TREES_KEY = 'vibedarkness.debug.showAllResearchTrees';
 const ALWAYS_SHOW_SYNC_STATUS_KEY = 'vibedarkness.debug.alwaysShowSyncStatus';
+const SHOW_GAME_TICK_KEY = 'vibedarkness.debug.showGameTick';
 
 export function getShowAllResearchTrees(): boolean {
     try {
@@ -50,6 +51,33 @@ export function setAlwaysShowSyncStatus(value: boolean): void {
 }
 
 export function subscribeAlwaysShowSyncStatus(onStoreChange: () => void): () => void {
+    const handler = () => onStoreChange();
+    window.addEventListener('vd-debug-flags-changed', handler);
+    window.addEventListener('storage', handler);
+    return () => {
+        window.removeEventListener('vd-debug-flags-changed', handler);
+        window.removeEventListener('storage', handler);
+    };
+}
+
+export function getShowGameTick(): boolean {
+    try {
+        return localStorage.getItem(SHOW_GAME_TICK_KEY) === '1';
+    } catch {
+        return false;
+    }
+}
+
+export function setShowGameTick(value: boolean): void {
+    try {
+        localStorage.setItem(SHOW_GAME_TICK_KEY, value ? '1' : '0');
+    } catch {
+        /* ignore */
+    }
+    window.dispatchEvent(new Event('vd-debug-flags-changed'));
+}
+
+export function subscribeShowGameTick(onStoreChange: () => void): () => void {
     const handler = () => onStoreChange();
     window.addEventListener('vd-debug-flags-changed', handler);
     window.addEventListener('storage', handler);

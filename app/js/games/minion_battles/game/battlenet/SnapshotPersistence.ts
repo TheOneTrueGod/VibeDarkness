@@ -133,12 +133,13 @@ export class SnapshotPersistence {
 
     /**
      * Debug: serializes the live engine via `BattleSessionHandle.getSerializedSnapshot`, logs it to
-     * `lobby_log.jsonl` at **critical** severity, then (host only) POSTs the same payload through
-     * `saveBattleSnapshot` — not React/debug-buffered lobby state.
+     * `lobby_log.jsonl` at **critical** severity (always POSTs — ignores Debug Console lobby-log
+     * thresholds), then (host only) POSTs the same payload through `saveBattleSnapshot` — not
+     * React/debug-buffered lobby state.
      */
     async debugLogLocalStateAndSubmitSnapshot(): Promise<void> {
         await this.writeSerializedLocalStateToLobbyAndMaybeSnapshot({
-            forceLobbyPost: false,
+            forceLobbyPost: true,
             immediateLobbyLog: true,
         });
     }

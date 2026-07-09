@@ -29,6 +29,7 @@ import {
 } from './interaction/InteractiveTargetingSession';
 import { spawnBrightLight } from '../abilities/brightKeyword';
 import { findPreviewDeferredSelectLabel } from './interaction/selectTargetLookahead';
+import { isITSPreviewComplete } from './interaction/isITSPreviewComplete';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { SwingBatCard } from '../card_defs/0115_SwingBat/0115Ability';
 import { LIGHT_BLAST_DAMAGE } from '../card_defs/08_light_core/0801_LightBlast/0801Ability';
@@ -2023,7 +2024,7 @@ describe('non-host in-place commit (Fix C + Fix B)', () => {
         nonHostSession.destroy();
     });
 
-    it('EC110E shape: server-confirmed other waiter in mark.orders allows in-place despite playahead', async () => {
+    it('rollback-only: server-confirmed other waiter in mark.orders no longer allows in-place under playahead (was EC110E exception)', async () => {
         const fixture = await mountLightBlastSessionFixture();
         const { session, casterUnitId, remoteUnitId } = fixture;
 
@@ -2058,13 +2059,13 @@ describe('non-host in-place commit (Fix C + Fix B)', () => {
             waitingForOrders: mark.waitingForOrders,
         } as ReturnType<BattleSession['getEngine']>);
 
-        expect(its.wouldCommitInPlace(nonHostSession)).toBe(true);
+        expect(its.wouldCommitInPlace(nonHostSession)).toBe(false);
 
         session.destroy();
         nonHostSession.destroy();
     });
 
-    it('playahead with assumed-wait held pure pass is in-place; without held row rolls back', async () => {
+    it('rollback-only: assumed-wait held pure-pass row no longer toggles in-place under playahead', async () => {
         const fixture = await mountLightBlastSessionFixture();
         const { session, casterUnitId, remoteUnitId, atTick } = fixture;
 
@@ -2103,7 +2104,7 @@ describe('non-host in-place commit (Fix C + Fix B)', () => {
         expect(its.wouldCommitInPlace(nonHostSession)).toBe(false);
 
         its.holdRemoteOrder(atTick, passOrder, passKey);
-        expect(its.wouldCommitInPlace(nonHostSession)).toBe(true);
+        expect(its.wouldCommitInPlace(nonHostSession)).toBe(false);
 
         session.destroy();
         nonHostSession.destroy();
@@ -2122,6 +2123,84 @@ describe('non-host in-place commit (Fix C + Fix B)', () => {
             isOrderSubmitPathAvailable: () => true,
             submitOrder: vi.fn().mockResolvedValue(undefined),
             hasDeferredOrderFor: vi.fn().mockReturnValue(true),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
+
+        const its = session.interactiveTargeting;
+        const realOrder: BattleOrder = {
+            unitId: remoteUnitId,
+            abilityId: DOUBLE_PUNCH_ABILITY_ID,
+            targets: [],
+            endTurn: true,
+        };
+        its.holdRemoteOrder(atTick, realOrder, hashOrderId('p2', atTick, realOrder));
+        expect(its.wouldCommitInPlace(session)).toBe(false);
+
+        await its.commit(session);
+
+        expect(failEvents).toHaveLength(0);
+
+        session.destroy();
+    });
+
+    it('Fix B regression: recovering window (isOrderSubmitPathAvailable false) still reaches submitOrder instead of dropping the order', async () => {
+        const fixture = await mountLightBlastSessionFixture();
+        const { session, casterUnitId, remoteUnitId, atTick, blastPixel } = fixture;
+
+        const failEvents: Array<{ type: string }> = [];
+        session.subscribe((ev) => {
+            if (ev.type === 'order_submit_failed') failEvents.push(ev);
+        });
+
+        // isOrderSubmitPathAvailable() is false during a BattleNet recovery/awaiting-ack window.
+        // submitCommittedTargetingOrder must still call submitOrder (which itself defers the
+        // order via BattleNet's own recovery-defer gate) rather than short-circuiting before
+        // ever reaching that gate — the pre-fix regression dropped the order and showed the
+        // "Your order was not accepted" banner even though BattleNet would have deferred it.
+        const submitOrder = vi.fn().mockResolvedValue(undefined);
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => false,
+            submitOrder,
+            hasDeferredOrderFor: vi.fn().mockReturnValue(true),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
+
+        const its = session.interactiveTargeting;
+        const realOrder: BattleOrder = {
+            unitId: remoteUnitId,
+            abilityId: DOUBLE_PUNCH_ABILITY_ID,
+            targets: [],
+            endTurn: true,
+        };
+        its.holdRemoteOrder(atTick, realOrder, hashOrderId('p2', atTick, realOrder));
+        expect(its.wouldCommitInPlace(session)).toBe(false);
+
+        await its.commit(session);
+
+        expect(submitOrder).toHaveBeenCalled();
+        expect(failEvents).toHaveLength(0);
+
+        session.destroy();
+    });
+
+    it('DF0266: phase-3 treats registered dedupe as success when sim consumed pending row', async () => {
+        const fixture = await mountLightBlastSessionFixture();
+        const { session, casterUnitId, remoteUnitId, atTick, blastPixel } = fixture;
+
+        const failEvents: Array<{ type: string }> = [];
+        session.subscribe((ev) => {
+            if (ev.type === 'order_submit_failed') failEvents.push(ev);
+        });
+
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            submitOrder: vi.fn(async (order: BattleOrder, tick: number) => {
+                // Simulates optimistic apply + tryResumeParallel consuming the pending row.
+                session.seedRemoteOrderDedupeKeys([hashOrderId('p1', tick, order)]);
+            }),
+            hasDeferredOrderFor: vi.fn().mockReturnValue(false),
         } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
 
         runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
@@ -2597,7 +2676,7 @@ describe('interactive sequential targeting — conditional cancel stop point', (
         return { engine, player, targetInRock };
     }
 
-    it('host ITS preview commits waitingForOrders when Digging Claws dash ends in rock', () => {
+    it('host ITS preview reaches isITSPreviewComplete when Digging Claws dash ends in rock', () => {
         const { engine, player, targetInRock } = buildDiggingClawsRockFixture();
 
         stepUntil(engine, () => engine.waitingForOrders != null);
@@ -2626,8 +2705,9 @@ describe('interactive sequential targeting — conditional cancel stop point', (
         );
 
         expect(settled).toBe(true);
-        expect(engine.isSequentialTargetingPreview).toBe(false);
-        expect(engine.sequentialTargetingPreviewCast).toBeNull();
+        expect(isITSPreviewComplete(engine)).toBe(true);
+        expect(engine.isSequentialTargetingPreview).toBe(true);
+        expect(engine.sequentialTargetingPreviewCast).not.toBeNull();
         expect(engine.isPaused).toBe(true);
         expect(engine.state.orderMgr.getActiveOrderWaiterForPlayer(TINY_BATTLE_PLAYER_ID)).not.toBeNull();
         expect(engine.terrainManager!.isPassable(player.x, player.y)).toBe(false);
@@ -2635,7 +2715,7 @@ describe('interactive sequential targeting — conditional cancel stop point', (
         engine.destroy();
     });
 
-    it('host BattleSession ITS ends preview when Digging Claws triggers conditional cancel in rock', async () => {
+    it('host BattleSession ITS Done then commit when Digging Claws triggers conditional cancel in rock', async () => {
         const session = new BattleSession({
             api: makeApiStub(),
             missionId: 'dark_awakening',
@@ -2698,8 +2778,23 @@ describe('interactive sequential targeting — conditional cancel stop point', (
         );
 
         expect(settled).toBe(true);
+        expect(isITSPreviewComplete(engine)).toBe(true);
+        expect(its.isActive).toBe(true);
+        expect(engine.isSequentialTargetingPreview).toBe(true);
+
+        const persistCommittedOrder = vi.fn().mockResolvedValue(true);
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            persistCommittedOrder,
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        await its.commit(session);
+
+        expect(persistCommittedOrder).toHaveBeenCalledTimes(1);
         expect(its.isActive).toBe(false);
         expect(engine.isSequentialTargetingPreview).toBe(false);
+        expect(engine.isPaused).toBe(true);
+        expect(player.activeAbilities.some((a) => a.conditionalCancelPaused)).toBe(true);
         expect(engine.state.orderMgr.getActiveOrderWaiterForPlayer(TINY_BATTLE_PLAYER_ID)).not.toBeNull();
 
         session.destroy();

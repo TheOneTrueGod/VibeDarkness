@@ -13,10 +13,13 @@ import {
 import {
     getShowAllResearchTrees,
     getAlwaysShowSyncStatus,
+    getShowGameTick,
     setShowAllResearchTrees,
     setAlwaysShowSyncStatus,
+    setShowGameTick,
     subscribeShowAllResearchTrees,
     subscribeAlwaysShowSyncStatus,
+    subscribeShowGameTick,
     getUserStateLogging,
     setUserStateLogging,
     subscribeUserStateLogging,
@@ -61,6 +64,12 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
         subscribeAlwaysShowSyncStatus,
         getAlwaysShowSyncStatus,
         getAlwaysShowSyncStatus,
+    );
+
+    const showGameTick = useSyncExternalStore(
+        subscribeShowGameTick,
+        getShowGameTick,
+        getShowGameTick,
     );
 
     const userStateLogging = useSyncExternalStore(
@@ -133,6 +142,15 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
                         onChange={(e) => setAlwaysShowSyncStatus(e.target.checked)}
                     />
                     <span className="leading-snug">Always show sync status</span>
+                </label>
+                <label className="flex items-start gap-2 cursor-pointer select-none">
+                    <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 rounded border border-border-custom bg-surface text-primary focus:ring-primary shrink-0"
+                        checked={showGameTick}
+                        onChange={(e) => setShowGameTick(e.target.checked)}
+                    />
+                    <span className="leading-snug">Show game tick</span>
                 </label>
                 <label className="flex items-start gap-2 cursor-pointer select-none">
                     <input

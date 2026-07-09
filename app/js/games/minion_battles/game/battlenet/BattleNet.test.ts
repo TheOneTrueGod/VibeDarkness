@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { LobbyClient } from '../../../../LobbyClient';
-import { flushLobbyLogBatchQueueForTests } from '../../../../lobbyLogBatchQueue';
+import {
+    flushLobbyLogBatchQueueForTests,
+    resetLobbyLogBatchQueueForTests,
+} from '../../../../lobbyLogBatchQueue';
 import type { BattleOrder, SerializedGameState } from '../types';
 import {
     BattleNet,
@@ -88,6 +91,14 @@ function makeApi(overrides: Record<string, unknown> = {}): LobbyClient {
     };
     return api as unknown as LobbyClient;
 }
+
+// The lobby-log batch queue (`lobbyLogBatchQueue.ts`) is module-level state shared across every
+// test in the process: leftover unflushed lines from an earlier test (or its lobbyClient mock)
+// can be swept up by a later test's size-threshold auto-flush and posted via the wrong mock.
+// Reset before every test file-wide so `appendLobbyLogBatch` assertions are test-local.
+beforeEach(() => {
+    resetLobbyLogBatchQueueForTests();
+});
 
 describe('BattleNet', () => {
     beforeEach(() => {
@@ -2638,5 +2649,322 @@ describe('BattleNet non-host playahead order submit fixes', () => {
         await net.pollOnce();
 
         expect(softAlign).toHaveBeenCalledWith('host-expects-local-player-ahead-batch');
+    });
+
+    it('5E0F6B: soft-align fingerprint mismatch at hostTick escalates the align warn to error severity', async () => {
+        const appendLobbyLogBatch = vi.fn(async () => ({ success: true }));
+        const api = makeApi({
+            getBattleHeartbeat: vi.fn(async () => ec110eHeartbeat()),
+            appendLobbyLogBatch,
+        });
+        const net = new BattleNet({
+            api,
+            // isPausedForOrderSync: false isolates maybeImmediateAlignWhenHostExpectsLocalPlayer's own
+            // mismatch handling. With it true (the EC110E default), reconcileNonHostAheadOfHostTail's
+            // pre-existing general ahead-of-host-tail hash-mismatch check (same getFingerprintRange
+            // comparison) fires first in the same poll and calls requestResync — which synchronously
+            // sets isRecovering and makes maybeImmediateAlignWhenHostExpectsLocalPlayer bail before it
+            // ever reaches this severity-escalation logic.
+            session: ec110eSession({
+                isPausedForOrderSync: () => false,
+                getFingerprintRange: (from: number, to: number) =>
+                    from <= EC110E_HOST_TICK && to >= EC110E_HOST_TICK
+                        ? [{ tick: EC110E_HOST_TICK, fp: 'diverged_local_fp', paused: true }]
+                        : [],
+            }),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const softAlign = vi.spyOn(net, 'softAlignToHostPausePlane').mockImplementation(() => {});
+
+        await net.pollOnce();
+        await flushLobbyLogBatchQueueForTests();
+
+        expect(softAlign).toHaveBeenCalledWith('host-expects-local-player-ahead-batch');
+        const lines = appendLobbyLogBatch.mock.calls.flatMap(
+            (call) =>
+                ((call as unknown[])[1] as { lines?: Array<Record<string, unknown>> } | undefined)?.lines ?? [],
+        );
+        const line = lines.find(
+            (l) =>
+                l.message ===
+                'host expects local player at earlier batch while local pause plane is ahead — soft-aligning',
+        );
+        expect(line).toBeDefined();
+        expect(line?.severity).toBe('error');
+        expect(line?.context).toMatchObject({
+            localFpAtHostTick: 'diverged_local_fp',
+            hostFingerprint: EC110E_HOST_FP,
+            fpMatchAtHostTick: false,
+        });
+    });
+
+    it('genuine-stuck regression (39E984): fingerprint agreement at hostTick keeps the align warn at warn severity', async () => {
+        const appendLobbyLogBatch = vi.fn(async () => ({ success: true }));
+        const api = makeApi({
+            getBattleHeartbeat: vi.fn(async () => ec110eHeartbeat()),
+            appendLobbyLogBatch,
+        });
+        const net = new BattleNet({
+            api,
+            session: ec110eSession(),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        vi.spyOn(net, 'softAlignToHostPausePlane').mockImplementation(() => {});
+
+        await net.pollOnce();
+        await flushLobbyLogBatchQueueForTests();
+
+        const lines = appendLobbyLogBatch.mock.calls.flatMap(
+            (call) =>
+                ((call as unknown[])[1] as { lines?: Array<Record<string, unknown>> } | undefined)?.lines ?? [],
+        );
+        const line = lines.find(
+            (l) =>
+                l.message ===
+                'host expects local player at earlier batch while local pause plane is ahead — soft-aligning',
+        );
+        expect(line).toBeDefined();
+        expect(line?.severity).toBe('warn');
+        expect(line?.context).toMatchObject({
+            localFpAtHostTick: EC110E_HOST_FP,
+            hostFingerprint: EC110E_HOST_FP,
+            fpMatchAtHostTick: true,
+        });
+    });
+
+    it('E2E104 (staged): non-host one tick behind host stages a row beyond host tail and applies it once hostTick catches up (no soft-align)', async () => {
+        const E2E_ENGINE_TICK = 696;
+        const E2E_LOCAL_BATCH = 697;
+        const FAR_ROW_AT = 698;
+        const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
+        let heartbeatCalls = 0;
+        const getBattleOrdersRange = vi.fn(async () => ({
+            orders: [{ atTick: FAR_ROW_AT, playerId: 'p9', idHash: 'e2e104-staged', order: makeOrder('far') }],
+        }));
+        const getBattleHeartbeat = vi.fn(async () => {
+            heartbeatCalls += 1;
+            const hostTick = heartbeatCalls === 1 ? 697 : FAR_ROW_AT;
+            return {
+                hostTick,
+                hostFingerprint: '00a52ba30fd778d0',
+                hostPaused: true,
+                ordersTipTick: FAR_ROW_AT,
+                orderBatchAtTick: FAR_ROW_AT,
+                pausedAtTick: FAR_ROW_AT,
+                expectingFromPlayerIds: ['p1', 'p9'],
+                initialFingerprint: '0011223344556677',
+                heartbeatSeq: heartbeatCalls,
+            };
+        });
+        const api = makeApi({ getBattleHeartbeat, getBattleOrdersRange });
+        const net = new BattleNet({
+            api,
+            session: makeSession({
+                getEngineTick: () => E2E_ENGINE_TICK,
+                isPausedForOrderSync: () => true,
+                getWaitingForOrdersBatch: () => ({
+                    atTick: E2E_LOCAL_BATCH,
+                    waiters: [
+                        { unitId: 'unit_1', ownerId: 'p1' },
+                        { unitId: 'unit_2', ownerId: 'p9' },
+                    ],
+                }),
+                isInteractiveTargetingPreviewActive: () => false,
+                applyRemoteOrders,
+            }),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        const softAlign = vi.spyOn(net, 'softAlignToHostPausePlane').mockImplementation(() => {});
+
+        await net.pollOnce();
+        expect(applyRemoteOrders).not.toHaveBeenCalled();
+        expect(getBattleOrdersRange).toHaveBeenCalledTimes(1);
+
+        await net.pollOnce();
+        expect(applyRemoteOrders).toHaveBeenCalledTimes(1);
+        expect(applyRemoteOrders).toHaveBeenCalledWith([
+            expect.objectContaining({ atTick: FAR_ROW_AT, idHash: 'e2e104-staged' }),
+        ]);
+        // The row was already fetched on the first poll; the second poll releases it via drain,
+        // not a second range fetch.
+        expect(getBattleOrdersRange).toHaveBeenCalledTimes(1);
+
+        expect(softAlign).not.toHaveBeenCalled();
+    });
+
+    it('5E0F6B (staged): far-future order beyond host tail is staged (not soft-aligned) and applies once hostTick catches up', async () => {
+        const E5E_ENGINE_TICK = 676;
+        const E5E_FAR_FUTURE_ORDER_AT = 703;
+        const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
+        let heartbeatCalls = 0;
+        const getBattleOrdersRange = vi.fn(async () => ({
+            orders: [
+                {
+                    atTick: E5E_FAR_FUTURE_ORDER_AT,
+                    idHash: 'cb27e46b',
+                    playerId: '1',
+                    order: makeOrder('host'),
+                },
+            ],
+        }));
+        const getBattleHeartbeat = vi.fn(async () => {
+            heartbeatCalls += 1;
+            const hostTick = heartbeatCalls === 1 ? 702 : E5E_FAR_FUTURE_ORDER_AT;
+            return {
+                hostTick,
+                hostFingerprint: 'fcacbc014dd66856',
+                hostPaused: true,
+                ordersTipTick: E5E_FAR_FUTURE_ORDER_AT,
+                orderBatchAtTick: E5E_FAR_FUTURE_ORDER_AT,
+                pausedAtTick: E5E_FAR_FUTURE_ORDER_AT,
+                expectingFromPlayerIds: ['1', '9'],
+                initialFingerprint: '0011223344556677',
+                heartbeatSeq: heartbeatCalls,
+                ordersRecordCount: 17,
+            };
+        });
+        const api = makeApi({ getBattleHeartbeat, getBattleOrdersRange });
+        const net = new BattleNet({
+            api,
+            session: makeSession({
+                getEngineTick: () => E5E_ENGINE_TICK,
+                isPausedForOrderSync: () => true,
+                applyRemoteOrders,
+            }),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: '9',
+        });
+        const softAlign = vi.spyOn(net, 'softAlignToHostPausePlane').mockImplementation(() => {});
+
+        await net.pollOnce();
+        expect(applyRemoteOrders).not.toHaveBeenCalled();
+
+        await net.pollOnce();
+        expect(applyRemoteOrders).toHaveBeenCalledTimes(1);
+        expect(applyRemoteOrders).toHaveBeenCalledWith([
+            expect.objectContaining({ atTick: E5E_FAR_FUTURE_ORDER_AT, idHash: 'cb27e46b' }),
+        ]);
+
+        expect(softAlign).not.toHaveBeenCalled();
+    });
+});
+
+/** Step 4: structural-divergence observability — host paused at batch B, local sim never formed a pause there. */
+describe('BattleNet: pause plane structural divergence (5E0F6B)', () => {
+    const STRUCT_HOST_TICK = 579;
+    const STRUCT_HOST_BATCH = 580;
+    const STRUCT_ENGINE_TICK = 601;
+    const STRUCT_AGREE_FP = 'agree_579_fp____';
+
+    function structuralHeartbeat() {
+        return {
+            hostTick: STRUCT_HOST_TICK,
+            hostFingerprint: STRUCT_AGREE_FP,
+            hostPaused: true,
+            ordersTipTick: STRUCT_HOST_TICK,
+            orderBatchAtTick: STRUCT_HOST_BATCH,
+            pausedAtTick: STRUCT_HOST_BATCH,
+            expectingFromPlayerIds: [] as string[],
+            initialFingerprint: '0011223344556677',
+            heartbeatSeq: 0,
+        };
+    }
+
+    it('host paused at batch B, local sim ran past B with its own pause plane elsewhere, fps agree at hostTick — logs once across repeated polls', async () => {
+        const appendLobbyLogBatch = vi.fn(async () => ({ success: true }));
+        const api = makeApi({
+            getBattleHeartbeat: vi.fn(async () => structuralHeartbeat()),
+            appendLobbyLogBatch,
+        });
+        const net = new BattleNet({
+            api,
+            session: makeSession({
+                getEngineTick: () => STRUCT_ENGINE_TICK,
+                isPausedForOrderSync: () => true,
+                getWaitingForOrdersBatch: () => ({
+                    atTick: 602,
+                    waiters: [{ unitId: 'unit_2', ownerId: 'p1' }],
+                }),
+                getFingerprintRange: (from: number, to: number) =>
+                    from <= STRUCT_HOST_TICK && to >= STRUCT_HOST_TICK
+                        ? [{ tick: STRUCT_HOST_TICK, fp: STRUCT_AGREE_FP, paused: true }]
+                        : [],
+            }),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+
+        await net.pollOnce();
+        await net.pollOnce();
+        await flushLobbyLogBatchQueueForTests();
+
+        const lines = appendLobbyLogBatch.mock.calls.flatMap(
+            (call) =>
+                ((call as unknown[])[1] as { lines?: Array<Record<string, unknown>> } | undefined)?.lines ?? [],
+        );
+        const divergenceLines = lines.filter(
+            (l) => l.message === 'pause plane structural divergence: host paused at batch local sim never formed',
+        );
+        expect(divergenceLines).toHaveLength(1);
+        expect(divergenceLines[0]?.severity).toBe('error');
+        expect(divergenceLines[0]?.context).toMatchObject({
+            hostTick: STRUCT_HOST_TICK,
+            hostBatchAtTick: STRUCT_HOST_BATCH,
+            engineTick: STRUCT_ENGINE_TICK,
+            localBatchAtTick: 602,
+        });
+    });
+
+    it('local pause plane equals the host batch — no structural divergence log', async () => {
+        const appendLobbyLogBatch = vi.fn(async () => ({ success: true }));
+        const api = makeApi({
+            getBattleHeartbeat: vi.fn(async () => structuralHeartbeat()),
+            appendLobbyLogBatch,
+        });
+        const net = new BattleNet({
+            api,
+            session: makeSession({
+                getEngineTick: () => STRUCT_ENGINE_TICK,
+                isPausedForOrderSync: () => true,
+                getWaitingForOrdersBatch: () => ({
+                    atTick: STRUCT_HOST_BATCH,
+                    waiters: [{ unitId: 'unit_2', ownerId: 'p1' }],
+                }),
+                getFingerprintRange: (from: number, to: number) =>
+                    from <= STRUCT_HOST_TICK && to >= STRUCT_HOST_TICK
+                        ? [{ tick: STRUCT_HOST_TICK, fp: STRUCT_AGREE_FP, paused: true }]
+                        : [],
+            }),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+
+        await net.pollOnce();
+        await flushLobbyLogBatchQueueForTests();
+
+        const lines = appendLobbyLogBatch.mock.calls.flatMap(
+            (call) =>
+                ((call as unknown[])[1] as { lines?: Array<Record<string, unknown>> } | undefined)?.lines ?? [],
+        );
+        expect(
+            lines.some(
+                (l) => l.message === 'pause plane structural divergence: host paused at batch local sim never formed',
+            ),
+        ).toBe(false);
     });
 });

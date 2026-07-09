@@ -30,6 +30,20 @@ type BattleNetSyncStatus =
     | 'failed'
     | 'synced_pending_ack';
 
+/** Local engine tick and authoritative server (host) completed tick from the PollLoop debug bridge. */
+export function readGameTicksFromSyncBridge(syncBridge: Record<string, unknown> | null): {
+    localTick: number | null;
+    serverTick: number | null;
+} {
+    const syncBridgeRecord = asRecord(syncBridge);
+    const heartbeatRecord = asRecord(syncBridgeRecord?.lastHeartbeat);
+    return {
+        localTick:
+            readNumber(syncBridgeRecord, 'clientTick') ?? readNumber(syncBridgeRecord, 'engineTick'),
+        serverTick: readNumber(heartbeatRecord, 'hostTick'),
+    };
+}
+
 /**
  * Maps `window.__minionBattlesSyncDebug` (PollLoop bridge) to props for {@link BattleSyncStatus} `variant="debug"`.
  * Matches {@link DebugHeartbeatSyncPanel} card wiring.

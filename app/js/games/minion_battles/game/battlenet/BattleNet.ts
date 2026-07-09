@@ -264,6 +264,11 @@ export class BattleNet implements BattleNetContext {
 	private waitingForHostPausedStallMaterialKey: string | null = null;
 	/** One-shot dedup for {@link maybeImmediateAlignWhenHostExpectsLocalPlayer} skip logs (500 ms poll loop). */
 	private immediateAlignSkipLogKey: string | null = null;
+	/**
+	 * One-shot dedup for {@link maybeLogPausePlaneStructuralDivergence}: the host `orderBatchAtTick`
+	 * already logged for, so an unchanged pause plane does not re-log every poll. Cleared on recovery entry.
+	 */
+	private structuralDivergenceLoggedForBatch: number | null = null;
 
 	/**
 	 * Non-host: consecutive polls where the host advanced (material change or new order records)
@@ -329,6 +334,11 @@ export class BattleNet implements BattleNetContext {
 		return batch != null && !Number.isNaN(batch) ? batch : null;
 	}
 
+	/** Latest heartbeat host completed tick (non-host catch-up / order-apply gates). */
+	getLatestHeartbeatHostTick(): number {
+		return this.latestHeartbeatHostTick;
+	}
+
 	/**
 	 * True when heartbeat does not list waiters, or lists this player.
 	 * When the host pause plane only expects other players, local submit/ITS must not start.
@@ -351,9 +361,6 @@ export class BattleNet implements BattleNetContext {
 
 	async submitOrder(order: BattleOrder, atTick: number, opts?: SubmitOrderOptions): Promise<void> {
 		const skipLocalApply = opts?.skipLocalApply === true;
-		// #region agent log
-		fetch('http://127.0.0.1:7873/ingest/38aed2ea-0a0f-4f89-a817-28c1022a6d07',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dcf8d4'},body:JSON.stringify({sessionId:'dcf8d4',location:'BattleNet.ts:submitOrder',message:'submitOrder entry',data:{atTick,skipLocalApply,isRecovering:this.isRecovering,awaitingAck:this.syncStatusController.isAwaitingUserAck(),hostTick:this.latestHeartbeatHostTick,pausedAtTick:this.latestHeartbeatPausedAtTick,localTick:this.session.getEngineTick(),expecting:this.heartbeatState.getLatestExpectingFromPlayerIds(),abilityId:order.abilityId,unitId:order.unitId},timestamp:Date.now(),hypothesisId:'A,C,E'})}).catch(()=>{});
-		// #endregion
 		if (this.isRecovering) {
 			const idHash = hashOrderId(this.playerId, atTick, order);
 			const whyImmediateSubmitSkipped =
@@ -418,15 +425,9 @@ export class BattleNet implements BattleNetContext {
 					abilityId: order.abilityId,
 				},
 			});
-			// #region agent log
-			fetch('http://127.0.0.1:7873/ingest/38aed2ea-0a0f-4f89-a817-28c1022a6d07',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dcf8d4'},body:JSON.stringify({sessionId:'dcf8d4',location:'BattleNet.ts:submitOrder',message:'gate exit',data:{gate:'recovery_defer',atTick,skipLocalApply,deferredCount:this.deferredLocalOrders.length},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
-			// #endregion
 			return;
 		}
 		if (this.syncStatusController.isAwaitingUserAck()) {
-			// #region agent log
-			fetch('http://127.0.0.1:7873/ingest/38aed2ea-0a0f-4f89-a817-28c1022a6d07',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dcf8d4'},body:JSON.stringify({sessionId:'dcf8d4',location:'BattleNet.ts:submitOrder',message:'gate exit',data:{gate:'awaiting_ack',atTick},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
-			// #endregion
 			logToLobbyLogBattleSync({
 				lobbyClient: this.api as unknown as LobbyClient,
 				lobbyId: this.lobbyId,
@@ -462,9 +463,6 @@ export class BattleNet implements BattleNetContext {
 			});
 			this.emitRejectedOrderSyncDetail('tick_in_past');
 			void this.softAlignAfterStaleOrderBatch('stale-order-batch');
-			// #region agent log
-			fetch('http://127.0.0.1:7873/ingest/38aed2ea-0a0f-4f89-a817-28c1022a6d07',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dcf8d4'},body:JSON.stringify({sessionId:'dcf8d4',location:'BattleNet.ts:submitOrder',message:'gate exit',data:{gate:'stale_batch',atTick,hostTick:this.latestHeartbeatHostTick,pausedAtTick:this.latestHeartbeatPausedAtTick},timestamp:Date.now(),hypothesisId:'B,E'})}).catch(()=>{});
-			// #endregion
 			return;
 		}
 		if (!this.isHost && !this.isLocalPlayerExpectedToAct()) {
@@ -483,9 +481,6 @@ export class BattleNet implements BattleNetContext {
 					unitId: order.unitId,
 				},
 			});
-			// #region agent log
-			fetch('http://127.0.0.1:7873/ingest/38aed2ea-0a0f-4f89-a817-28c1022a6d07',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dcf8d4'},body:JSON.stringify({sessionId:'dcf8d4',location:'BattleNet.ts:submitOrder',message:'gate exit',data:{gate:'not_expected',atTick,expecting:this.heartbeatState.getLatestExpectingFromPlayerIds()},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
-			// #endregion
 			return;
 		}
 
@@ -541,14 +536,8 @@ export class BattleNet implements BattleNetContext {
 					queuedDeferredAfter: this.deferredLocalOrders.length,
 				},
 			});
-			// #region agent log
-			fetch('http://127.0.0.1:7873/ingest/38aed2ea-0a0f-4f89-a817-28c1022a6d07',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dcf8d4'},body:JSON.stringify({sessionId:'dcf8d4',location:'BattleNet.ts:submitOrder',message:'gate exit',data:{gate:'ahead_of_host_defer',atTick,localEngineTick,hostTick:this.latestHeartbeatHostTick},timestamp:Date.now(),hypothesisId:'D,E'})}).catch(()=>{});
-			// #endregion
 			return;
 			}
-			// #region agent log
-			fetch('http://127.0.0.1:7873/ingest/38aed2ea-0a0f-4f89-a817-28c1022a6d07',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'dcf8d4'},body:JSON.stringify({sessionId:'dcf8d4',location:'BattleNet.ts:submitOrder',message:'gate skip',data:{gate:'ahead_of_host_defer_skipped_inplace_mark_batch',atTick,localEngineTick,hostTick:heartbeatHostTick,pausedAtTick:orderBatchHeartbeat},timestamp:Date.now(),hypothesisId:'D,E',runId:'post-fix'})}).catch(()=>{});
-			// #endregion
 		}
 
 		this.ourOrdersAwaitingServerRange.add(idHash);
@@ -920,6 +909,11 @@ export class BattleNet implements BattleNetContext {
 				heartbeatSeq: hbRaw.heartbeatSeq ?? null,
 				includePastApplied,
 			});
+			if (!this.isHost) {
+				this.drainAndApplyStagedRemoteRows(
+					typeof hbRaw.hostTick === 'number' ? hbRaw.hostTick : this.latestHeartbeatHostTick,
+				);
+			}
 			this.applyHeartbeatPastAppliedOrders(hbRaw);
 			const ordersRecordCountRaw = hbRaw.ordersRecordCount;
 			const ordersRecordCount =
@@ -1073,6 +1067,7 @@ export class BattleNet implements BattleNetContext {
 				}
 				this.syncReconciler.setLastNonHostHbPausePlane(this.syncReconciler.snapshotHbPausePlane(hb));
 				this.maybeDetectOptimisticPlaybackTrueDesync(engineTick, hb);
+				this.maybeLogPausePlaneStructuralDivergence(engineTick, hb);
 				this.session.setMultiplayerAwaitHostCatchup(false);
 			}
 
@@ -1107,6 +1102,40 @@ export class BattleNet implements BattleNetContext {
 		} finally {
 			this.isPolling = false;
 		}
+	}
+
+	/**
+	 * Non-host: re-partitions {@link OrderQueueController}'s staging map against the freshest
+	 * `hostTick` / local pause plane and applies anything now releasable. Runs at the top of every
+	 * non-host heartbeat pass, before new rows are fetched, so a staged peer row is picked up as
+	 * soon as the host (or our own pause plane) catches up to it — no soft-align needed.
+	 */
+	private drainAndApplyStagedRemoteRows(hostTick: number): void {
+		const localPauseAtTick = this.session.getWaitingForOrdersBatch()?.atTick ?? null;
+		const released = this.orderQueue.drainStagedRemoteRows({ hostTick, localPauseAtTick });
+		if (released.length === 0) {
+			return;
+		}
+		const applyResult = this.session.applyRemoteOrders(released);
+		this.registerAppliedOrderHashesFromRemoteApplyResult(applyResult);
+		this.emit('orders-applied', { count: applyResult.newlyAppliedKeys.length, source: 'poll' });
+		logToLobbyLogBattleSync({
+			lobbyClient: this.api as unknown as LobbyClient,
+			lobbyId: this.lobbyId,
+			playerId: this.playerId,
+			tick: this.session.getEngineTick(),
+			severity: 'info',
+			gameId: this.gameId,
+			message: 'order queue: drained staged remote rows now applicable',
+			context: {
+				hostTick,
+				localPauseAtTick,
+				releasedCount: released.length,
+				rows: summarizeRemoteWireRowsForLog(released),
+				newlyAppliedKeys: applyResult.newlyAppliedKeys,
+				skippedKeys: applyResult.skippedKeys,
+			},
+		});
 	}
 
 	private applyHeartbeatPastAppliedOrders(hb: BattleHeartbeatApiResult): void {
@@ -1153,7 +1182,16 @@ export class BattleNet implements BattleNetContext {
 			maxAt = Math.max(maxAt, atTick);
 		}
 		if (toApply.length > 0) {
-			const applyResult = this.session.applyRemoteOrders(toApply);
+			const localPauseAtTick = this.session.getWaitingForOrdersBatch()?.atTick ?? null;
+			const hostTickForPartition = typeof hb.hostTick === 'number' ? hb.hostTick : this.latestHeartbeatHostTick;
+			const { applyNow, stagedCount } = this.isHost
+				? { applyNow: toApply, stagedCount: 0 }
+				: this.orderQueue.partitionApplicableRemoteRows(toApply, {
+						hostTick: hostTickForPartition,
+						localPauseAtTick,
+					});
+			const applyResult =
+				applyNow.length > 0 ? this.session.applyRemoteOrders(applyNow) : { newlyAppliedKeys: [], skippedKeys: [] };
 			logToLobbyLogBattleSync({
 				lobbyClient: this.api as unknown as LobbyClient,
 				lobbyId: this.lobbyId,
@@ -1168,14 +1206,17 @@ export class BattleNet implements BattleNetContext {
 					hbHostTick: typeof hb.hostTick === 'number' ? hb.hostTick : null,
 					hbGameTickEcho: hb.gameTick ?? null,
 					hbRequestedGameTick: hb.requestedGameTick ?? null,
-					rows: summarizeRemoteWireRowsForLog(toApply),
+					stagedCount,
+					rows: summarizeRemoteWireRowsForLog(applyNow),
 					newlyAppliedKeys: applyResult.newlyAppliedKeys,
 					skippedKeys: applyResult.skippedKeys,
 					isHost: this.isHost,
 				},
 			});
-			this.registerAppliedOrderHashesFromRemoteApplyResult(applyResult);
-			this.emit('orders-applied', { count: applyResult.newlyAppliedKeys.length, source: 'poll' });
+			if (applyNow.length > 0) {
+				this.registerAppliedOrderHashesFromRemoteApplyResult(applyResult);
+				this.emit('orders-applied', { count: applyResult.newlyAppliedKeys.length, source: 'poll' });
+			}
 		}
 		if (maxAt >= 0) {
 			this.lastOrderFetchSince = Math.max(this.lastOrderFetchSince, maxAt + 1);
@@ -1211,7 +1252,15 @@ export class BattleNet implements BattleNetContext {
 			});
 		}
 		if (toApply.length > 0) {
-			const applyResult = this.session.applyRemoteOrders(toApply);
+			const localPauseAtTick = this.session.getWaitingForOrdersBatch()?.atTick ?? null;
+			const { applyNow, stagedCount } = this.isHost
+				? { applyNow: toApply, stagedCount: 0 }
+				: this.orderQueue.partitionApplicableRemoteRows(toApply, {
+						hostTick: this.latestHeartbeatHostTick,
+						localPauseAtTick,
+					});
+			const applyResult =
+				applyNow.length > 0 ? this.session.applyRemoteOrders(applyNow) : { newlyAppliedKeys: [], skippedKeys: [] };
 			logToLobbyLogBattleSync({
 				lobbyClient: this.api as unknown as LobbyClient,
 				lobbyId: this.lobbyId,
@@ -1227,14 +1276,17 @@ export class BattleNet implements BattleNetContext {
 					rangeRowCount: range.orders.length,
 					ordersRecordCountFromHeartbeat: opts?.serverOrderRecordCount ?? null,
 					orderFetchCursorBefore,
-					rows: summarizeRemoteWireRowsForLog(toApply),
+					stagedCount,
+					rows: summarizeRemoteWireRowsForLog(applyNow),
 					newlyAppliedKeys: applyResult.newlyAppliedKeys,
 					skippedKeys: applyResult.skippedKeys,
 					isHost: this.isHost,
 				},
 			});
-			this.registerAppliedOrderHashesFromRemoteApplyResult(applyResult);
-			this.emit('orders-applied', { count: applyResult.newlyAppliedKeys.length, source: 'poll' });
+			if (applyNow.length > 0) {
+				this.registerAppliedOrderHashesFromRemoteApplyResult(applyResult);
+				this.emit('orders-applied', { count: applyResult.newlyAppliedKeys.length, source: 'poll' });
+			}
 		}
 		const srvCount = opts?.serverOrderRecordCount;
 		if (srvCount != null) {
@@ -1882,6 +1934,7 @@ export class BattleNet implements BattleNetContext {
 		this.waitingForHostPausedStallSinceMs = null;
 		this.waitingForHostPausedStallMaterialKey = null;
 		this.immediateAlignSkipLogKey = null;
+		this.structuralDivergenceLoggedForBatch = null;
 		this.resetStuckPausedHostAheadStreak();
 		this.heartbeatState.resetMaterialTracking();
 		this.syncReconciler.setLastNonHostHbPausePlane(null);
@@ -1977,12 +2030,20 @@ export class BattleNet implements BattleNetContext {
 			);
 			return;
 		}
+		// Playahead divergence observability (5E0F6B): a fingerprint mismatch here means the local
+		// and host sims have genuinely diverged, not just fallen out of sync temporarily — escalate
+		// this line's severity so it stands out from the routine soft-align warn.
+		const localFpRowAtHostTick = this.session.getFingerprintRange(hb.hostTick, hb.hostTick)[0];
+		const localFpAtHostTick = localFpRowAtHostTick?.fp ?? null;
+		const hostFingerprint = hb.hostFingerprint ?? null;
+		const fpMatchAtHostTick: boolean | null =
+			localFpAtHostTick != null && hostFingerprint != null ? localFpAtHostTick === hostFingerprint : null;
 		logToLobbyLogBattleSync({
 			lobbyClient: this.api as unknown as LobbyClient,
 			lobbyId: this.lobbyId,
 			playerId: this.playerId,
 			tick: engineTick,
-			severity: 'warn',
+			severity: fpMatchAtHostTick === false ? 'error' : 'warn',
 			logType: 'desync',
 			gameId: this.gameId,
 			message:
@@ -1993,6 +2054,9 @@ export class BattleNet implements BattleNetContext {
 				hostBatchAtTick: hostBatch,
 				localBatchAtTick: localBatch.atTick,
 				expectingFromPlayerIds: expecting,
+				localFpAtHostTick,
+				hostFingerprint,
+				fpMatchAtHostTick,
 			},
 		});
 		this.softAlignToHostPausePlane('host-expects-local-player-ahead-batch');
@@ -2122,6 +2186,58 @@ export class BattleNet implements BattleNetContext {
 		this.requestResync('optimistic-playback-divergence');
 	}
 
+	/**
+	 * Structural-divergence observability (5E0F6B batch 580): the host is paused at parallel order
+	 * batch `B` while the local sim already ran straight through `B` without ever forming its own
+	 * pause there (the local pause plane sits at some other tick). If the local ring fingerprint at
+	 * `hostTick` still *agrees* with the host's, this is not a hash mismatch — it is the preview/canon
+	 * engine bug family (kept ITS preview timeline diverging from the host's canonical replay of the
+	 * same wire order). Logs once per `B`; escalation stays on the existing align/desync paths.
+	 */
+	private maybeLogPausePlaneStructuralDivergence(engineTick: number, hb: BattleNetEventMap['heartbeat']): void {
+		if (!hb.hostPaused) {
+			return;
+		}
+		const hostBatch = hb.orderBatchAtTick ?? hb.pausedAtTick;
+		if (hostBatch == null || engineTick <= hostBatch) {
+			return;
+		}
+		const localPauseAtTick = this.session.getWaitingForOrdersBatch()?.atTick ?? null;
+		if (localPauseAtTick === hostBatch) {
+			return;
+		}
+		const hostFp = hb.hostFingerprint;
+		if (hostFp == null || hostFp === '') {
+			return;
+		}
+		const localRow = this.session.getFingerprintRange(hb.hostTick, hb.hostTick)[0];
+		if (localRow == null || localRow.fp !== hostFp) {
+			return;
+		}
+		if (this.structuralDivergenceLoggedForBatch === hostBatch) {
+			return;
+		}
+		this.structuralDivergenceLoggedForBatch = hostBatch;
+		logToLobbyLogBattleSync({
+			lobbyClient: this.api as unknown as LobbyClient,
+			lobbyId: this.lobbyId,
+			playerId: this.playerId,
+			tick: engineTick,
+			severity: 'error',
+			logType: 'desync',
+			gameId: this.gameId,
+			message: 'pause plane structural divergence: host paused at batch local sim never formed',
+			context: {
+				hostTick: hb.hostTick,
+				hostBatchAtTick: hostBatch,
+				engineTick,
+				localBatchAtTick: localPauseAtTick,
+				hostFingerprintHead: hostFp.slice(0, 12),
+				localFpAtHostTickHead: localRow.fp.slice(0, 12),
+			},
+		});
+	}
+
 	private tickNonHostWaitingForHostPausedStall(hb: BattleNetEventMap['heartbeat']): void {
 		const material = this.materialKeyForHostTailStall(hb);
 		const stalledPhase =
@@ -2193,13 +2309,18 @@ export class BattleNet implements BattleNetContext {
 			this.resetStuckPausedHostAheadStreak();
 			return;
 		}
-		// engine catching up — clear streak (this poll already proved progress).
+		// engine catching up — clear streak only when the host gap is closed (lobby 5E0F6B).
 		if (
 			this.stuckPausedHostAheadPrevEngineTick !== null &&
 			engineTick > this.stuckPausedHostAheadPrevEngineTick
 		) {
-			this.resetStuckPausedHostAheadStreak();
-			return;
+			if (
+				engineTick >= hb.hostTick ||
+				hb.hostTick - engineTick < BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_GAP
+			) {
+				this.resetStuckPausedHostAheadStreak();
+				return;
+			}
 		}
 		const ordersIncreased = ordersRecordCount !== null && ordersRecordCount > this.lastSeenOrdersRecordCount;
 		const serverMoved = heartbeatMaterialChanged || ordersIncreased;

@@ -1,7 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { SnapshotPersistence } from './SnapshotPersistence';
 import type { BattleApi, BattleSessionHandle } from './types';
 import type { SerializedGameState } from '../types';
+
+const { logToLobbyLog, logToLobbyLogForced } = vi.hoisted(() => ({
+    logToLobbyLog: vi.fn(),
+    logToLobbyLogForced: vi.fn(),
+}));
+
+vi.mock('../../../../lobbyLog', () => ({
+    logToLobbyLog,
+    logToLobbyLogForced,
+}));
+
+import { SnapshotPersistence } from './SnapshotPersistence';
 
 function makeSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessionHandle {
     return {
@@ -206,6 +217,33 @@ describe('SnapshotPersistence.mergeAppliedOrdersForBatch', () => {
         await expect(ctrl.mergeAppliedOrdersForBatch(3)).resolves.toBe(false);
         expect(mergeBattleAppliedOrders).toHaveBeenCalledTimes(3);
         expect(requestResync).toHaveBeenCalledWith('merge-applied-failed');
+    });
+});
+
+describe('SnapshotPersistence.debugLogLocalStateAndSubmitSnapshot', () => {
+    beforeEach(() => {
+        logToLobbyLog.mockClear();
+        logToLobbyLogForced.mockClear();
+    });
+
+    it('POSTs serialized state via logToLobbyLogForced (ignores debug-console thresholds)', async () => {
+        const { ctrl, api } = make({
+            isHost: false,
+            session: {
+                getSerializedSnapshot: () => ({ gameTick: 849 } as SerializedGameState),
+            },
+        });
+        await ctrl.debugLogLocalStateAndSubmitSnapshot();
+        expect(logToLobbyLogForced).toHaveBeenCalledOnce();
+        expect(logToLobbyLogForced).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'debug: local serialized game state',
+                manualLobbyLogPost: true,
+                tick: 849,
+            }),
+        );
+        expect(logToLobbyLog).not.toHaveBeenCalled();
+        expect(api.saveBattleSnapshot).not.toHaveBeenCalled();
     });
 });
 

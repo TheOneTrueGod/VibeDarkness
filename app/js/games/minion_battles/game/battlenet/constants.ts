@@ -38,6 +38,12 @@ export const BATTLE_NET_MAX_DEFERRED_ORDERS = 32;
 export const BATTLE_NET_DEFERRED_FORCE_FLUSH_POLLS = 5;
 
 /**
+ * Non-host: max staged remote rows (beyond host tail / local pause plane) held in
+ * {@link OrderQueueController}'s staging map before forcing a full resync (lobby 5E0F6B/0721BF).
+ */
+export const BATTLE_NET_STAGED_REMOTE_ROWS_MAX = 64;
+
+/**
  * Non-host stuck-paused detector: minimum `hostTick - engineTick` gap that counts as
  * "host has advanced past us while we're paused for parallel orders". Smaller gaps are
  * treated as normal optimistic playahead / catch-up windows.

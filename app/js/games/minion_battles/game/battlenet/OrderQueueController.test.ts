@@ -11,7 +11,7 @@ import { SyncStatusController } from './SyncStatusController';
 import type { BattleNetContext } from './BattleNetContext';
 import type { BattleApi, BattleSessionHandle } from './types';
 import type { SerializedGameState } from '../types';
-import { BATTLE_NET_MAX_DEFERRED_ORDERS } from './constants';
+import { BATTLE_NET_MAX_DEFERRED_ORDERS, BATTLE_NET_STAGED_REMOTE_ROWS_MAX } from './constants';
 
 function makeOrder(unitId: string): BattleOrder {
     return { unitId, abilityId: 'fireball', targets: [] };
@@ -250,6 +250,87 @@ describe('OrderQueueController.hasDeferredOrderFor', () => {
     });
 });
 
+describe('OrderQueueController.partitionApplicableRemoteRows', () => {
+    it('applies rows with atTick <= hostTick (canon-complete)', () => {
+        const q = new OrderQueueController(makeCtx());
+        const rows = [{ atTick: 5, order: makeOrder('u1'), idHash: 'h1' }];
+        const { applyNow, stagedCount } = q.partitionApplicableRemoteRows(rows, { hostTick: 5, localPauseAtTick: null });
+        expect(applyNow).toEqual(rows);
+        expect(stagedCount).toBe(0);
+        expect(q.getStagedRemoteRowCount()).toBe(0);
+    });
+
+    it('applies a row at the local pause plane beyond hostTick (EC110E bootstrap shape: hostTick 1, local pause 2, row at 2)', () => {
+        const q = new OrderQueueController(makeCtx());
+        const rows = [{ atTick: 2, order: makeOrder('u1'), idHash: 'h1' }];
+        const { applyNow, stagedCount } = q.partitionApplicableRemoteRows(rows, { hostTick: 1, localPauseAtTick: 2 });
+        expect(applyNow).toEqual(rows);
+        expect(stagedCount).toBe(0);
+        expect(q.getStagedRemoteRowCount()).toBe(0);
+    });
+
+    it('stages rows beyond both hostTick and the local pause plane, without registering them as applied', () => {
+        const q = new OrderQueueController(makeCtx());
+        const rows = [{ atTick: 10, order: makeOrder('u1'), idHash: 'h1' }];
+        const { applyNow, stagedCount } = q.partitionApplicableRemoteRows(rows, { hostTick: 5, localPauseAtTick: 6 });
+        expect(applyNow).toEqual([]);
+        expect(stagedCount).toBe(1);
+        expect(q.getStagedRemoteRowCount()).toBe(1);
+        expect(q.getAppliedOrderIdHashes().has('h1')).toBe(false);
+    });
+
+    it('requests a resync when the staged-row queue exceeds its cap', () => {
+        const ctx = makeCtx();
+        const q = new OrderQueueController(ctx);
+        for (let i = 0; i < BATTLE_NET_STAGED_REMOTE_ROWS_MAX; i++) {
+            q.partitionApplicableRemoteRows([{ atTick: 100 + i, order: makeOrder('u'), idHash: `s${i}` }], {
+                hostTick: 5,
+                localPauseAtTick: null,
+            });
+        }
+        expect(ctx.requestResync).not.toHaveBeenCalled();
+        expect(q.getStagedRemoteRowCount()).toBe(BATTLE_NET_STAGED_REMOTE_ROWS_MAX);
+
+        q.partitionApplicableRemoteRows([{ atTick: 999, order: makeOrder('u'), idHash: 'overflow' }], {
+            hostTick: 5,
+            localPauseAtTick: null,
+        });
+        expect(ctx.requestResync).toHaveBeenCalledWith('staged-remote-rows-overflow');
+        expect(q.getStagedRemoteRowCount()).toBe(BATTLE_NET_STAGED_REMOTE_ROWS_MAX);
+    });
+});
+
+describe('OrderQueueController.drainStagedRemoteRows', () => {
+    it('releases a staged row once hostTick advances past its atTick', () => {
+        const q = new OrderQueueController(makeCtx());
+        q.partitionApplicableRemoteRows([{ atTick: 10, order: makeOrder('u1'), idHash: 'h1' }], {
+            hostTick: 5,
+            localPauseAtTick: null,
+        });
+        expect(q.getStagedRemoteRowCount()).toBe(1);
+
+        expect(q.drainStagedRemoteRows({ hostTick: 9, localPauseAtTick: null })).toEqual([]);
+        expect(q.getStagedRemoteRowCount()).toBe(1);
+
+        const released = q.drainStagedRemoteRows({ hostTick: 10, localPauseAtTick: null });
+        expect(released).toHaveLength(1);
+        expect(released[0]?.idHash).toBe('h1');
+        expect(q.getStagedRemoteRowCount()).toBe(0);
+
+        expect(q.drainStagedRemoteRows({ hostTick: 10, localPauseAtTick: null })).toEqual([]);
+    });
+
+    it('releases a staged row once the local pause plane reaches its atTick', () => {
+        const q = new OrderQueueController(makeCtx());
+        q.partitionApplicableRemoteRows([{ atTick: 8, order: makeOrder('u1'), idHash: 'h2' }], {
+            hostTick: 5,
+            localPauseAtTick: null,
+        });
+        expect(q.drainStagedRemoteRows({ hostTick: 5, localPauseAtTick: 8 })).toHaveLength(1);
+        expect(q.getStagedRemoteRowCount()).toBe(0);
+    });
+});
+
 describe('OrderQueueController.acceptedOurPostAtTicks', () => {
     it('notes and queries accepted POST atTick', () => {
         const q = new OrderQueueController(makeCtx());
@@ -282,6 +363,20 @@ describe('OrderQueueController.resetLocalOptimisticOrdersOnResync', () => {
         expect(q.getLastSeenOrdersRecordCount()).toBe(0);
         expect(q.getDeferredFlushBlockedLogKey()).toBeNull();
         expect(q.getDeferredLocalOrders()).toHaveLength(1);
+    });
+
+    it('preserves staged remote rows across a resync (like deferred rows)', () => {
+        const q = new OrderQueueController(makeCtx());
+        q.partitionApplicableRemoteRows([{ atTick: 10, order: makeOrder('u1'), idHash: 'staged1' }], {
+            hostTick: 5,
+            localPauseAtTick: null,
+        });
+        expect(q.getStagedRemoteRowCount()).toBe(1);
+
+        q.resetLocalOptimisticOrdersOnResync();
+
+        expect(q.getStagedRemoteRowCount()).toBe(1);
+        expect(q.drainStagedRemoteRows({ hostTick: 10, localPauseAtTick: null })).toHaveLength(1);
     });
 
     it('clears accepted-post ticks while preserving deferred rows', () => {

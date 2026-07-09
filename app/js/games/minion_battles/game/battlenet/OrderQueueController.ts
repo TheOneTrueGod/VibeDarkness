@@ -2,8 +2,17 @@ import type { LobbyClient } from '../../../../LobbyClient';
 import { logToLobbyLog, logToLobbyLogBattleSync } from '../../../../lobbyLog';
 import type { BattleOrder } from '../types';
 import type { BattleNetContext } from './BattleNetContext';
-import { BATTLE_NET_MAX_DEFERRED_ORDERS } from './constants';
+import { BATTLE_NET_MAX_DEFERRED_ORDERS, BATTLE_NET_STAGED_REMOTE_ROWS_MAX } from './constants';
 import { summarizeRemoteWireRowsForLog } from './helpers/orderWireLogSummary';
+import type { RemoteOrderWireRow } from './types';
+
+/** Common `toApply` row shape shared by all remote-row delivery paths (poll fetch, replay, heartbeat pastAppliedActions). */
+export type PartitionableRemoteOrderRow = {
+    atTick: number;
+    order: BattleOrder;
+    idHash: string;
+    playerId?: string;
+};
 
 export interface DeferredOrderRow {
     idHash: string;
@@ -36,6 +45,14 @@ export class OrderQueueController {
     private hostCatchupHeartbeatStreak = 0;
     /** Non-host: `atTick` values where our POST was accepted but heartbeat may still expect us. */
     private acceptedOurPostAtTicks = new Set<number>();
+    /**
+     * Non-host: remote rows beyond both the host tail and the local pause plane — held until
+     * {@link drainStagedRemoteRows} finds them applicable. Replaces the far-future skip (lobby
+     * 0721BF) and the checkpoint-bootstrap soft-align (lobby 5E0F6B); keyed by wire `idHash` so a
+     * later re-fetch of the same row dedupes naturally instead of registering a poisoned
+     * {@link appliedOrderIdHashes} entry.
+     */
+    private readonly stagedRemoteRows = new Map<string, RemoteOrderWireRow>();
 
     constructor(private readonly ctx: BattleNetContext) {}
 
@@ -123,6 +140,79 @@ export class OrderQueueController {
 
     hasAcceptedOurPostAtTick(atTick: number): boolean {
         return this.acceptedOurPostAtTicks.has(atTick);
+    }
+
+    getStagedRemoteRowCount(): number {
+        return this.stagedRemoteRows.size;
+    }
+
+    /**
+     * Splits remote rows into `applyNow` — canon-complete (`atTick <= hostTick`, true regardless of
+     * live poll vs full replay: rows through the host's completed tail are settled history) or
+     * needed right now (`atTick <=` the local engine's current parallel-order pause, the EC110E
+     * bootstrap case) — and rows staged for later (`atTick` beyond both: a pipelining peer's
+     * future rows). Staged rows are NOT registered in {@link appliedOrderIdHashes} and are not
+     * reported as `skippedKeys` — they simply wait for {@link drainStagedRemoteRows} on a later
+     * poll. Overflow past {@link BATTLE_NET_STAGED_REMOTE_ROWS_MAX} logs a warn and requests a
+     * full resync rather than growing unbounded.
+     */
+    partitionApplicableRemoteRows<T extends PartitionableRemoteOrderRow>(
+        rows: T[],
+        opts: { hostTick: number; localPauseAtTick: number | null },
+    ): { applyNow: T[]; stagedCount: number } {
+        const applyNow: T[] = [];
+        let stagedCount = 0;
+        for (const row of rows) {
+            if (row.atTick <= opts.hostTick || (opts.localPauseAtTick != null && row.atTick <= opts.localPauseAtTick)) {
+                applyNow.push(row);
+                continue;
+            }
+            stagedCount += 1;
+            if (this.stagedRemoteRows.has(row.idHash)) {
+                continue;
+            }
+            if (this.stagedRemoteRows.size >= BATTLE_NET_STAGED_REMOTE_ROWS_MAX) {
+                logToLobbyLog({
+                    lobbyClient: this.ctx.api as unknown as LobbyClient,
+                    lobbyId: this.ctx.lobbyId,
+                    playerId: this.ctx.playerId,
+                    tick: this.ctx.session.getEngineTick(),
+                    severity: 'warn',
+                    logType: 'desync',
+                    gameId: this.ctx.gameId,
+                    message: 'staged remote row queue cap exceeded; requesting resync',
+                    context: { cap: BATTLE_NET_STAGED_REMOTE_ROWS_MAX, idHash: row.idHash, atTick: row.atTick },
+                });
+                this.ctx.requestResync('staged-remote-rows-overflow');
+                continue;
+            }
+            this.stagedRemoteRows.set(row.idHash, row);
+        }
+        return { applyNow, stagedCount };
+    }
+
+    /**
+     * Re-partitions staged rows against the current `hostTick` / local pause plane and releases any
+     * now-applicable rows (removing them from the map). Called once per non-host heartbeat poll,
+     * before new rows are fetched, so a stalled peer's row is picked up as soon as the host (or our
+     * own pause plane) catches up to it.
+     */
+    drainStagedRemoteRows(opts: { hostTick: number; localPauseAtTick: number | null }): RemoteOrderWireRow[] {
+        if (this.stagedRemoteRows.size === 0) {
+            return [];
+        }
+        const released: RemoteOrderWireRow[] = [];
+        for (const [key, row] of this.stagedRemoteRows) {
+            const atTick = row.atTick ?? row.gameTick;
+            if (typeof atTick !== 'number') {
+                continue;
+            }
+            if (atTick <= opts.hostTick || (opts.localPauseAtTick != null && atTick <= opts.localPauseAtTick)) {
+                released.push(row);
+                this.stagedRemoteRows.delete(key);
+            }
+        }
+        return released;
     }
 
     deferLocalOrder(
@@ -272,8 +362,9 @@ export class OrderQueueController {
     }
 
     /**
-     * On resync: clears all in-flight order tracking but preserves the deferred queue so the
-     * required local turns are not silently dropped (they're re-attempted after recovery).
+     * On resync: clears all in-flight order tracking but preserves the deferred queue (and
+     * {@link stagedRemoteRows}, not touched here) so neither required local turns nor already-seen
+     * peer rows are silently dropped (both are re-attempted after recovery).
      */
     resetLocalOptimisticOrdersOnResync(): void {
         const deferredSnapshot = this.deferredLocalOrders.map((d) => ({
@@ -302,6 +393,7 @@ export class OrderQueueController {
             context: {
                 isHost: this.ctx.isHost,
                 deferredPreserved: deferredSnapshot,
+                stagedRemoteRowCountPreserved: this.stagedRemoteRows.size,
             },
         });
     }
@@ -401,14 +493,24 @@ export class OrderQueueController {
             });
         }
         if (toApply.length > 0) {
-            const applyResult = this.ctx.session.applyRemoteOrders(toApply);
+            const localPauseAtTick = this.ctx.session.getWaitingForOrdersBatch()?.atTick ?? null;
+            const hostTick = this.ctx.heartbeatState.getLatestHostTick();
+            const { applyNow, stagedCount } = this.ctx.isHost
+                ? { applyNow: toApply, stagedCount: 0 }
+                : this.partitionApplicableRemoteRows(toApply, { hostTick, localPauseAtTick });
+            const applyResult =
+                applyNow.length > 0
+                    ? this.ctx.session.applyRemoteOrders(applyNow)
+                    : { newlyAppliedKeys: [], skippedKeys: [] };
             for (const k of applyResult.newlyAppliedKeys) {
                 this.appliedOrderIdHashes.add(k);
             }
             for (const k of applyResult.skippedKeys) {
                 this.appliedOrderIdHashes.add(k);
             }
-            this.ctx.events.emit('orders-applied', { count: applyResult.newlyAppliedKeys.length, source: 'poll' });
+            if (applyNow.length > 0) {
+                this.ctx.events.emit('orders-applied', { count: applyResult.newlyAppliedKeys.length, source: 'poll' });
+            }
             logToLobbyLogBattleSync({
                 lobbyClient: this.ctx.api as unknown as LobbyClient,
                 lobbyId: this.ctx.lobbyId,
@@ -422,10 +524,11 @@ export class OrderQueueController {
                     sinceTick,
                     wireRowCount: orderRange.orders.length,
                     toApplyCount: toApply.length,
+                    stagedCount,
                     maxAtTickObserved,
                     newlyAppliedKeys: applyResult.newlyAppliedKeys,
                     skippedKeys: applyResult.skippedKeys,
-                    rows: summarizeRemoteWireRowsForLog(toApply),
+                    rows: summarizeRemoteWireRowsForLog(applyNow),
                     isHost: this.ctx.isHost,
                 },
             });

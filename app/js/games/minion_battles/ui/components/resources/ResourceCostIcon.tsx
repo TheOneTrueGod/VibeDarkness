@@ -10,6 +10,8 @@ import { ResourceIcon } from './ResourceIcon';
 
 /** Costs above this use the compact pill instead of repeated stacked icons. */
 export const RESOURCE_COST_STACKED_ICON_MAX = 4;
+/** Horizontal overlap between stacked resource / recovery charge icons (px). */
+export const STACKED_ICON_OVERLAP_PX = 8;
 
 /** Matches the ability bar uses pill (`AbilitySlot`). */
 export const RESOURCE_COST_COMPACT_BADGE_MIN_HEIGHT_PX = 22;
@@ -54,7 +56,7 @@ export function ResourceCostIcon({ resourceId, amount }: ResourceCostIconProps) 
                     key={i}
                     resourceId={resourceId}
                     size={22}
-                    style={{ marginLeft: i === 0 ? 0 : -8, zIndex: amount - i }}
+                    style={{ marginLeft: i === 0 ? 0 : -STACKED_ICON_OVERLAP_PX, zIndex: amount - i }}
                 />
             ))}
         </div>
