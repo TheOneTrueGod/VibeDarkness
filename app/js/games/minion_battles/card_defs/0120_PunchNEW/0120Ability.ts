@@ -25,6 +25,9 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 const MAX_RANGE = 30; // px
 const LINE_THICKNESS = 20; // px
 const PUNCH_DAMAGE = 8;
+// Small windup lunge — not for reach, but to route target selection through the
+// deferred (pre-simulation) select-target path instead of the mid-window lookahead path.
+const LUNGE_DISTANCE = 10; // px
 
 const PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -70,6 +73,8 @@ export const PunchNEWAbility = defineMeleeStrike({
     activeDuration: 0.2,
     cooldownDuration: 0.8,
     movementLockUntil: 0.4,
+    lunge: { distance: LUNGE_DISTANCE },
+    aiMaxRange: MAX_RANGE + LUNGE_DISTANCE,
 
     getTooltipText(): string[] {
         return [`Hit {1} enemy for {${PUNCH_DAMAGE}} damage`];

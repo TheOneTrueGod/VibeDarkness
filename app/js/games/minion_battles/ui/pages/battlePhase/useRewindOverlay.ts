@@ -5,7 +5,7 @@ import { RewindingTextEffect } from '../../../game/effect_defs/hudEffects';
 import type { HudEffectCanvasHandle } from '../../components/HudEffectCanvas';
 
 /** DOM rewind overlay fade duration (rollback restore under a frozen frame). */
-export const REWIND_OVERLAY_FADE_MS = 500;
+export const REWIND_OVERLAY_FADE_MS = 1000;
 
 interface UseRewindOverlayParams {
     battleCanvasAreaRef: RefObject<HTMLDivElement | null>;

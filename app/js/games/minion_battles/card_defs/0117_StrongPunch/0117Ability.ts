@@ -21,6 +21,9 @@ const LINE_THICKNESS = 24; // px
 // 8 base + ~20% small bonus = 10
 const PUNCH_DAMAGE = 10;
 const STUN_DURATION = 1.2; // seconds
+// Small windup lunge — not for reach, but to route target selection through the
+// deferred (pre-simulation) select-target path instead of the mid-window lookahead path.
+const LUNGE_DISTANCE = 10; // px
 
 const STRONG_PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -59,6 +62,8 @@ export const StrongPunchAbility = defineMeleeStrike({
     windupDuration: 0.15,
     activeDuration: 0.1,
     cooldownDuration: 1.15,
+    lunge: { distance: LUNGE_DISTANCE },
+    aiMaxRange: MAX_RANGE + LUNGE_DISTANCE,
 
     abilityEvents: {
         [AbilityEventType.ON_ATTACK_HIT]: [

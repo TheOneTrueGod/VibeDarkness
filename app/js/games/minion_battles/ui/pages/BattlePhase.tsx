@@ -5,7 +5,7 @@
  * round tracking, targeting flow, order submission, and server sync.
  */
 
-import React, { useRef, useState, useCallback, useSyncExternalStore } from 'react';
+import React, { useRef, useState, useCallback, useSyncExternalStore, useEffect } from 'react';
 import { useCurrentUser } from '../../../../user/useCurrentUser';
 import { createPortal } from 'react-dom';
 import type { PlayerState, GameSidebarInfo } from '../../../../types';
@@ -34,19 +34,24 @@ import { useDebugConsole } from '../../../../contexts/DebugConsoleContext';
 import { getShowGameTick, subscribeShowGameTick } from '../../../../debugFlags';
 import HudEffectCanvas, { type HudEffectCanvasHandle } from '../components/HudEffectCanvas';
 import { MISSION_MAP } from '../../storylines';
-import { AUTO_END_TURN } from '../../game/gameConstants';
 import { getAbility } from '../../abilities/AbilityRegistry';
+import { getTotalAbilityDurationForCast } from '../../abilities/abilityTimings';
 import { handleItsCanvasClick, handleItsCanvasRightClick } from '../../game/interaction/itsCanvasInput';
 import BattleLoadingScreen from './battlePhase/BattleLoadingScreen';
 import OrderSubmitFailedBanner from './battlePhase/OrderSubmitFailedBanner';
 import RewindOverlay from './battlePhase/RewindOverlay';
-import InteractiveTargetingControls from './battlePhase/InteractiveTargetingControls';
 import { computeTurnIndicatorProps } from './battlePhase/turnIndicatorState';
 import { useBossHudPolling } from './battlePhase/useBossHudPolling';
 import { useBattleDebugBridge } from './battlePhase/useBattleDebugBridge';
 import { useInteractiveTargetingProgress } from './battlePhase/useInteractiveTargetingProgress';
 import { useBattleGhostPlans } from './battlePhase/useBattleGhostPlans';
-import { useRewindOverlay } from './battlePhase/useRewindOverlay';
+import { useRewindOverlay, REWIND_OVERLAY_FADE_MS } from './battlePhase/useRewindOverlay';
+import ITSTimelineControls from '../components/ITSTimelineControls';
+import {
+    DEFAULT_FRAMES_PER_PIP,
+    abilityDurationSecondsToTicks,
+    framesPerPipForAbilityDuration,
+} from '../components/itsTimelineMath';
 import { useInteractionManagerBridge } from './battlePhase/useInteractionManagerBridge';
 import { useBattleNetSyncState } from './battlePhase/useBattleNetSyncState';
 import { useBattleRoundState } from './battlePhase/useBattleRoundState';
@@ -165,17 +170,53 @@ export default function BattlePhase({
         battleCanvasAreaRef,
         hudEffectCanvasRef,
     });
+    const [rewindSeed, setRewindSeed] = useState<{
+        savedLocalTick: number;
+        playaheadTick: number;
+        expectedDurationTicks: number;
+        framesPerPip: number;
+    } | null>(null);
+
+    useEffect(() => {
+        if (rewindOverlay == null) {
+            setRewindSeed(null);
+        }
+    }, [rewindOverlay]);
 
     const handleSessionEvent = useCallback(
         (ev: Parameters<typeof handleRoundSessionEvent>[0], session: BattleSession) => {
             if (ev.type === 'sequential_targeting_rewind') {
+                // Capture peak ticks + ability span before restore — ITS/engine still at playahead here.
+                const ticks = getItsPlayaheadTicks();
+                let expectedDurationTicks = 0;
+                let framesPerPip = DEFAULT_FRAMES_PER_PIP;
+                const its = session.interactiveTargeting;
+                const eng = session.getEngine();
+                if (its.isActive && eng != null && its.abilityId != null && its.unitId != null) {
+                    const ability = getAbility(its.abilityId);
+                    const caster = eng.getUnit(its.unitId);
+                    if (ability && caster) {
+                        try {
+                            const durationSec = getTotalAbilityDurationForCast(ability, caster, eng);
+                            expectedDurationTicks = abilityDurationSecondsToTicks(durationSec);
+                            framesPerPip = framesPerPipForAbilityDuration(durationSec);
+                        } catch {
+                            // keep defaults
+                        }
+                    }
+                }
+                setRewindSeed(
+                    ticks != null
+                        ? { ...ticks, expectedDurationTicks, framesPerPip }
+                        : null,
+                );
                 setPeerGhostPlansVisibleAfterRewind(true);
                 captureAndFade(session);
                 return;
             }
             handleRoundSessionEvent(ev, session);
         },
-        [captureAndFade, handleRoundSessionEvent, setPeerGhostPlansVisibleAfterRewind],
+        [captureAndFade, getItsPlayaheadTicks, handleRoundSessionEvent, setPeerGhostPlansVisibleAfterRewind],
     );
     const handleSessionEventRef = useRef(handleSessionEvent);
     handleSessionEventRef.current = handleSessionEvent;
@@ -455,20 +496,12 @@ export default function BattlePhase({
                         {rewindOverlay && (
                             <RewindOverlay overlay={rewindOverlay} opaque={rewindOverlayOpaque} />
                         )}
-                        {interactiveTargetingState !== 'inactive'
-                            && !(AUTO_END_TURN && interactiveTargetingState === 'done') && (
-                            <InteractiveTargetingControls
-                                state={interactiveTargetingState}
-                                sessionRef={sessionRef}
-                                setOrderSubmitFailed={setOrderSubmitFailed}
-                                autoCommitItsAttemptedRef={autoCommitItsAttemptedRef}
-                            />
-                        )}
                     </div>
 
                     <TurnIndicator
                         state={turnIndicator.state}
                         allyName={turnIndicator.allyName}
+                        freezePresentation={rewindOverlay != null}
                         hostCatchupPopover={
                             showHostCatchupPopover
                                 ? {
@@ -480,6 +513,26 @@ export default function BattlePhase({
                                 : null
                         }
                         orderPipeline={orderPipeline}
+                        itsControls={
+                            interactiveTargetingState !== 'inactive' || rewindOverlay != null
+                                ? (
+                                    <ITSTimelineControls
+                                        state={
+                                            interactiveTargetingState === 'inactive'
+                                                ? 'paused'
+                                                : interactiveTargetingState
+                                        }
+                                        sessionRef={sessionRef}
+                                        getItsPlayaheadTicks={getItsPlayaheadTicks}
+                                        setOrderSubmitFailed={setOrderSubmitFailed}
+                                        autoCommitItsAttemptedRef={autoCommitItsAttemptedRef}
+                                        rewindToken={rewindOverlay?.token ?? null}
+                                        rewindSeed={rewindSeed}
+                                        rewindDurationMs={REWIND_OVERLAY_FADE_MS}
+                                    />
+                                )
+                                : null
+                        }
                     />
                 </div>
             </div>

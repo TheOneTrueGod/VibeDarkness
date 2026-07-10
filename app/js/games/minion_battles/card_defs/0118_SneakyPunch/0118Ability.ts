@@ -24,6 +24,9 @@ const LINE_THICKNESS = 22; // px
 const BASE_DAMAGE = 8;
 // ~30% medium bonus on top of base = 12
 const BONUS_DAMAGE = 12;
+// Small windup lunge — not for reach, but to route target selection through the
+// deferred (pre-simulation) select-target path instead of the mid-window lookahead path.
+const LUNGE_DISTANCE = 10; // px
 
 const SNEAKY_PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -67,6 +70,8 @@ export const SneakyPunchAbility = defineMeleeStrike({
     activeDuration: 0.1,
     cooldownDuration: 1.15,
     movementLockUntil: 0.55,
+    lunge: { distance: LUNGE_DISTANCE },
+    aiMaxRange: MAX_RANGE + LUNGE_DISTANCE,
 
     onDamage(ctx, unit) {
         const isVulnerable = unit.hasBuff(STUNNED_BUFF_TYPE) || unit.hasBuff(BLEED_BUFF_TYPE) || unit.hasBuff(EXPOSED_BUFF_TYPE);

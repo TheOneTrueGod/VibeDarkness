@@ -31,6 +31,16 @@ interface TurnIndicatorProps {
     hostCatchupPopover?: HostCatchupPopoverProps | null;
     /** Local multiplayer: orders queued on device until POST is allowed (see timeline for in-flight count). */
     orderPipeline?: { queued: number; sending: number } | null;
+    /**
+     * When set (ITS playahead active), replaces the plaque text with these controls.
+     * Must be a single fixed-height line so the plaque does not grow.
+     */
+    itsControls?: React.ReactNode;
+    /**
+     * When true, ignore `state` / `allyName` changes (no shrink/grow blink).
+     * Used to hold the plaque steady through an ITS rewind crossfade.
+     */
+    freezePresentation?: boolean;
 }
 
 const BLINK_DURATION_MS = 220;
@@ -49,6 +59,8 @@ export default function TurnIndicator({
     allyName = 'Player',
     hostCatchupPopover = null,
     orderPipeline = null,
+    itsControls = null,
+    freezePresentation = false,
 }: TurnIndicatorProps) {
     const [phase, setPhase] = useState<'open' | 'closing' | 'closed' | 'opening'>(() =>
         state === 'playing' ? 'closed' : 'open',
@@ -56,7 +68,10 @@ export default function TurnIndicator({
     const phaseRef = useRef(phase);
     phaseRef.current = phase;
     const [displayState, setDisplayState] = useState<TurnIndicatorState>(state);
+    const [displayAllyName, setDisplayAllyName] = useState(allyName);
     const prevStateRef = useRef(state);
+    const pendingStateRef = useRef<TurnIndicatorState | null>(null);
+    const pendingAllyNameRef = useRef<string | null>(null);
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const clearTimer = () => {
         if (timeoutRef.current) {
@@ -65,11 +80,12 @@ export default function TurnIndicator({
         }
     };
 
-    useEffect(() => {
+    const applyStateChange = (next: TurnIndicatorState, nextAllyName: string) => {
         const prev = prevStateRef.current;
-        prevStateRef.current = state;
+        prevStateRef.current = next;
+        setDisplayAllyName(nextAllyName);
 
-        if (state === prev) return;
+        if (next === prev) return;
 
         const currentPhase = phaseRef.current;
 
@@ -77,8 +93,8 @@ export default function TurnIndicator({
             setPhase('closing');
             timeoutRef.current = setTimeout(() => {
                 timeoutRef.current = null;
-                setDisplayState(state);
-                if (state === 'playing') {
+                setDisplayState(next);
+                if (next === 'playing') {
                     setPhase('closed');
                 } else {
                     setPhase('opening');
@@ -88,53 +104,79 @@ export default function TurnIndicator({
                     }, BLINK_DURATION_MS);
                 }
             }, BLINK_DURATION_MS);
-        } else if (currentPhase === 'closed' && state !== 'playing') {
-            setDisplayState(state);
+        } else if (currentPhase === 'closed' && next !== 'playing') {
+            setDisplayState(next);
             setPhase('opening');
             timeoutRef.current = setTimeout(() => {
                 timeoutRef.current = null;
                 setPhase('open');
             }, BLINK_DURATION_MS);
         } else if (currentPhase === 'closing' || currentPhase === 'opening') {
-            // State changed mid-animation: cancel the blink and jump to the correct state
             clearTimer();
-            setDisplayState(state);
-            if (state === 'playing') {
+            setDisplayState(next);
+            if (next === 'playing') {
                 setPhase('closed');
             } else {
                 setPhase('open');
             }
         }
-    }, [state]);
+    };
+
+    useEffect(() => {
+        if (freezePresentation) {
+            pendingStateRef.current = state;
+            pendingAllyNameRef.current = allyName;
+            return;
+        }
+
+        const pendingState = pendingStateRef.current;
+        const pendingAlly = pendingAllyNameRef.current;
+        pendingStateRef.current = null;
+        pendingAllyNameRef.current = null;
+
+        if (pendingState != null) {
+            applyStateChange(pendingState, pendingAlly ?? allyName);
+            return;
+        }
+
+        applyStateChange(state, allyName);
+        // applyStateChange closes over phase timers; intentional to run on state/freeze edges only.
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- blink orchestration
+    }, [state, allyName, freezePresentation]);
 
     useEffect(() => clearTimer, []);
 
-    const isExpanded = phase === 'open' || phase === 'opening';
-    const isCollapsed = phase === 'closing' || phase === 'closed';
+    const forceOpenForIts = itsControls != null;
+    const isExpanded = forceOpenForIts || phase === 'open' || phase === 'opening';
+    const isCollapsed = !forceOpenForIts && (phase === 'closing' || phase === 'closed');
+
+    const effectiveDisplayState: TurnIndicatorState = forceOpenForIts
+        ? 'your_turn'
+        : displayState;
 
     const borderColorClass =
-        displayState === 'your_turn'
+        effectiveDisplayState === 'your_turn'
             ? 'bg-emerald-500/90'
-            : displayState === 'ally_turn'
+            : effectiveDisplayState === 'ally_turn'
               ? 'bg-amber-400/90'
               : 'bg-border-custom';
     const borderAccentClass =
-        displayState === 'your_turn'
+        effectiveDisplayState === 'your_turn'
             ? 'border-emerald-500/90'
-            : displayState === 'ally_turn'
+            : effectiveDisplayState === 'ally_turn'
               ? 'border-amber-400/90'
               : 'border-border-custom';
 
     const lineGradientLeft =
-        displayState === 'your_turn'
+        effectiveDisplayState === 'your_turn'
             ? 'bg-gradient-to-r from-transparent via-emerald-500/90 to-emerald-500/90'
-            : displayState === 'ally_turn'
+            : effectiveDisplayState === 'ally_turn'
               ? 'bg-gradient-to-r from-transparent via-amber-400/90 to-amber-400/90'
               : 'bg-gradient-to-r from-transparent via-border-custom to-border-custom';
     const lineGradientRight =
-        displayState === 'your_turn'
+        effectiveDisplayState === 'your_turn'
             ? 'bg-gradient-to-r from-emerald-500/90 via-emerald-500/90 to-transparent'
-            : displayState === 'ally_turn'
+            : effectiveDisplayState === 'ally_turn'
               ? 'bg-gradient-to-r from-amber-400/90 via-amber-400/90 to-transparent'
               : 'bg-gradient-to-r from-border-custom via-border-custom to-transparent';
 
@@ -142,13 +184,13 @@ export default function TurnIndicator({
         displayState === 'your_turn'
             ? 'Your Turn'
             : displayState === 'ally_turn'
-              ? `${allyName}'s Turn`
+              ? `${displayAllyName}'s Turn`
               : '';
     const plaqueStyle = {
         maxWidth: 'calc(100vw - 8rem)',
     } as const;
     const centerTextStyle = {
-        width: 'fit-content',
+        width: itsControls ? 'min(28rem, calc(100vw - 10rem))' : 'fit-content',
         maxWidth: `min(${PLAQUE_MAX_WIDTH_PX}px, calc(100vw - 10rem))`,
     } as const;
 
@@ -245,19 +287,30 @@ export default function TurnIndicator({
                             style={{
                                 paddingTop: `${Math.max(12 - BORDER_THICKNESS_PX, 8)}px`,
                                 paddingBottom: `${Math.max(12 - BORDER_THICKNESS_PX, 8)}px`,
+                                paddingLeft: itsControls ? '12px' : undefined,
+                                paddingRight: itsControls ? '12px' : undefined,
                             }}
                         >
-                            <span
-                                className={`
-                                    block max-w-full text-sm font-bold tracking-wide uppercase leading-5 whitespace-pre-wrap break-words
-                                    ${displayState === 'your_turn' ? 'text-emerald-300' : ''}
-                                    ${displayState === 'ally_turn' ? 'text-amber-200' : ''}
-                                    ${displayState === 'playing' ? 'text-gray-400' : ''}
-                                `}
-                                style={{ opacity: isExpanded && text ? 1 : 0 }}
-                            >
-                                {text || (isCollapsed ? '' : '—')}
-                            </span>
+                            {itsControls ? (
+                                <div
+                                    className="w-full min-w-0"
+                                    style={{ opacity: isExpanded ? 1 : 0 }}
+                                >
+                                    {itsControls}
+                                </div>
+                            ) : (
+                                <span
+                                    className={`
+                                        block max-w-full text-sm font-bold tracking-wide uppercase leading-5 whitespace-pre-wrap break-words
+                                        ${displayState === 'your_turn' ? 'text-emerald-300' : ''}
+                                        ${displayState === 'ally_turn' ? 'text-amber-200' : ''}
+                                        ${displayState === 'playing' ? 'text-gray-400' : ''}
+                                    `}
+                                    style={{ opacity: isExpanded && text ? 1 : 0 }}
+                                >
+                                    {text || (isCollapsed ? '' : '—')}
+                                </span>
+                            )}
                         </div>
                     </div>
 
