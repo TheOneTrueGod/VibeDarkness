@@ -211,7 +211,17 @@ function AppInner() {
     const gamePhase = lobbyGameData?.gamePhase as string | undefined;
     const gameStarted =
         gamePhase === 'pre_mission_story' || gamePhase === 'battle' || gamePhase === 'post_mission_story';
-    const webRtcPeerIds = gameStarted ? Object.keys(players) : [];
+    const webRtcPeerIds = useMemo(
+        () => (gameStarted ? Object.keys(players) : []),
+        [gameStarted, players],
+    );
+
+    // Clear ping flashes when leaving the lobby (mesh teardown used to do this).
+    useEffect(() => {
+        if (!currentLobby || !currentPlayer) {
+            setFlashingPlayerIds([]);
+        }
+    }, [currentLobby, currentPlayer]);
 
     // ==================== Message handling ====================
 

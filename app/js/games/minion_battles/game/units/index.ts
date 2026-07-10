@@ -11,13 +11,10 @@ import type { EngineContext } from '../EngineContext';
 import {
     getDefaultHp,
     getDefaultSpeed,
-    getDefaultRadius,
     getDefaultStamina,
     resolveEnemySpawnStats,
     PLAYER_CHARACTER_ID,
-    resolvePlayerUnitRadius,
 } from './unit_defs/unitDef';
-import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 import type { UnitTag } from './unitTag';
 import type { UnitCombatSettings } from './Unit';
 import { generateGameObjectId } from '../GameObject';
@@ -54,7 +51,6 @@ export function createPlayerUnit(
     const maxHp = config.maxHp ?? hp;
     const speed = config.speed ?? getDefaultSpeed(PLAYER_CHARACTER_ID);
     const stamina = getDefaultStamina(PLAYER_CHARACTER_ID);
-    const radius = resolvePlayerUnitRadius(config.portraitId);
 
     const unit = new Unit({
         id: config.id ?? idSource?.allocateObjectId?.('unit') ?? generateGameObjectId('unit'),
@@ -69,7 +65,6 @@ export function createPlayerUnit(
         speed,
         characterId: PLAYER_CHARACTER_ID,
         portraitId: config.portraitId,
-        radius,
         stamina,
         combatSettings: config.combatSettings,
     });
@@ -94,6 +89,7 @@ export function createUnitFromSpawnConfig(
         ownerId: string;
         abilities?: string[];
         aiSettings?: import('./Unit').AISettings | null;
+        /** Explicit radius override. When omitted, radius resolves from the unit def's size. */
         radius?: number;
         unitAITreeId?: string;
         stamina?: number;
@@ -123,7 +119,7 @@ export function createUnitFromSpawnConfig(
         speed,
         stackSize,
         characterId: config.characterId,
-        radius: config.radius ?? getDefaultRadius(config.characterId, DEFAULT_UNIT_RADIUS),
+        radius: config.radius,
         unitAITreeId: config.unitAITreeId,
         stamina: config.stamina ?? getDefaultStamina(config.characterId),
         combatSettings: config.combatSettings,

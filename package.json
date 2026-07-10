@@ -1,6 +1,6 @@
 {
   "name": "multiplayer-lobby",
-  "version": "1.4.3",
+  "version": "1.4.5",
   "description": "Multiplayer game lobby - frontend",
   "type": "module",
   "scripts": {

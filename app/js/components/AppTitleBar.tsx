@@ -11,17 +11,18 @@ const LOBBY_PATH_PATTERN = /^\/lobby\//;
 
 export default function AppTitleBar() {
     const location = useLocation();
-    const { name, isAdmin } = useCurrentUser();
+    const { isAdmin } = useCurrentUser();
     const inLobby = LOBBY_PATH_PATTERN.test(location.pathname);
 
+    if (!isAdmin || inLobby) {
+        return null;
+    }
+
     return (
-        <div className="pointer-events-none fixed top-0 left-0 right-0 z-[200] flex items-center justify-between px-4 py-2">
-            <span className="max-w-[45vw] truncate text-xs text-muted pointer-events-auto">{name}</span>
-            {isAdmin && !inLobby ? (
-                <div className="pointer-events-auto">
-                    <CiStatusPill />
-                </div>
-            ) : null}
+        <div className="pointer-events-none fixed top-0 left-0 right-0 z-[200] flex items-center justify-end px-4 py-2">
+            <div className="pointer-events-auto">
+                <CiStatusPill />
+            </div>
         </div>
     );
 }

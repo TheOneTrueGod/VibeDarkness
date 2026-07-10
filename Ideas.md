@@ -7,6 +7,11 @@ Voen: metal
 Annoying how things are out of range to be countered.  Being able to suck enemies towards you might be nice.
 Gravity
 
+Feedback July 9
+[] Implement Objective Key Jangling
+[] Implement keyword tooltip thing
+
+
 Feedback June 24
 [y] Blocking doesn't seem to work if the attacker is inside of you
 [x] Shining Block does not appear to be giving stamina on block

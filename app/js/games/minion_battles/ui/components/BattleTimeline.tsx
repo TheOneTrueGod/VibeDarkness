@@ -168,7 +168,7 @@ interface BattleTimelineProps {
      * instead of the live preview engine.
      */
     playerTileOrderContext?: PlayerTileOrderContext | null;
-    /** When true, small PlayerTiles show WebRTC connected/disconnected for remote players. */
+    /** When true, small PlayerTiles show WebRTC connected/disconnected (local player always connected). */
     showWebRtcConnectionStatus?: boolean;
     /**
      * `strip` — full-width bar (e.g. below canvas). `rail` — left sidebar: fill parent height, scroll rows internally.
@@ -1090,8 +1090,8 @@ export default function BattleTimeline({
                                             ghostPlans?.[playerId] ?? null,
                                         )}
                                         webRtcConnected={
-                                            showWebRtcConnectionStatus && playerId !== localPlayerId
-                                                ? player.isConnected !== false
+                                            showWebRtcConnectionStatus
+                                                ? playerId === localPlayerId || player.isConnected !== false
                                                 : undefined
                                         }
                                     />

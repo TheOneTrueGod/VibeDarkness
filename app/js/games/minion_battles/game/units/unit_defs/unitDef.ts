@@ -356,7 +356,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     dog: {
         bodyColor: 0x8a5a2b,
         characterSpriteKey: 'dog',
-        hp: 24,
+        hp: 48,
         speed: 140,
         size: 'Small',
         stamina: 2,

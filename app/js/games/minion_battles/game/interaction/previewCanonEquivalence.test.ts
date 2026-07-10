@@ -30,11 +30,20 @@ import type { BattleOrder, ResolvedTarget } from '../types';
 import type { Unit } from '../units/Unit';
 import { resetGameObjectIdCounter } from '../GameObject';
 import { fingerprintToHex } from '../Fingerprint';
-import { getAbility } from '../../abilities/AbilityRegistry';
-import { getSelectTargetDefsFromTimings } from '../../abilities/targeting';
+import { getAbility, getAllAbilities } from '../../abilities/AbilityRegistry';
+import { getSelectTargetDefsFromTimings, buildAiSelectTargets } from '../../abilities/targeting';
+import { getAbilityResourceCosts } from '../../abilities/Ability';
 import { initializeAbilityRuntimeForUnit } from '../../abilities/abilityUses';
 import { createTargetDummyAtWorld } from '../../testing/fixtures/targetDummies';
 import { Movement } from '../../resources/Movement';
+import { Ammo } from '../../resources/Ammo';
+import { Resonance } from '../../resources/Resonance';
+import { Light } from '../../resources/Light';
+import { Rock } from '../../resources/Rock';
+import { Gravity } from '../../resources/Gravity';
+import { Mana } from '../../resources/Mana';
+import { Rage } from '../../resources/Rage';
+import type { Resource } from '../../resources/Resource';
 import { hashOrderId } from '../battlenet/helpers/orderHashing';
 import { buildFinalizedSequentialTargetingOrder } from './InteractiveTargetingSession';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
@@ -51,6 +60,45 @@ const DIGGING_CLAWS_ABILITY_ID = '0534';
 const DIGGING_CLAWS_DASH_LABEL = 'Direction to dash';
 
 const SOLO_PLAYER_ID = 'p1';
+
+/** resourceId -> factory, mirroring `createResourceFromId` in `game/managers/UnitManager.ts`. */
+const RESOURCE_FACTORIES: Record<string, () => Resource> = {
+    movement_points: () => new Movement(),
+    ammo: () => new Ammo(),
+    resonance: () => new Resonance(),
+    light: () => new Light(),
+    rock: () => new Rock(),
+    gravity: () => new Gravity(),
+    mana: () => new Mana(),
+    rage: () => new Rage(),
+};
+
+/**
+ * Attach (or top off) whatever resources an ability's `resourceCost`/`resourceCosts` demand, so a
+ * generically-cast ability never fails to fire for lack of resource on a bare test caster. Real
+ * units get most of these from `BaseMissionDef` (Movement unconditionally, others via equipped
+ * items) — this fills the gap for a solo test caster that never went through that mission bootstrap
+ * for the ability being force-assigned.
+ */
+function ensureAbilityResourcesForCaster(caster: Unit, ability: { id: string }, engine: GameEngine): void {
+    const abilityStatic = getAbility(ability.id);
+    if (!abilityStatic) return;
+    for (const cost of getAbilityResourceCosts(abilityStatic)) {
+        let resource = caster.getResource(cost.resourceId);
+        if (!resource) {
+            const factory = RESOURCE_FACTORIES[cost.resourceId];
+            if (!factory) continue;
+            resource = factory();
+            caster.attachResource(resource, engine.eventBus);
+        }
+        resource.add(resource.max);
+    }
+}
+
+/** Abilities that reach the ITS flow (at least one `SelectTargetDef`) — the surface this bug family affects. */
+const ABILITIES_WITH_SELECT_TARGETS = getAllAbilities().filter(
+    (ability) => getSelectTargetDefsFromTimings(ability).length > 0,
+);
 
 beforeAll(() => {
     if (globalThis.requestAnimationFrame === undefined) {
@@ -124,6 +172,11 @@ async function runPreviewCanonEquivalence(setup: EquivalenceCaseSetup): Promise<
 
     caster.abilities = [setup.abilityId];
     initializeAbilityRuntimeForUnit(caster);
+    // Some abilities (e.g. Energy Blast, Cone of Light) start with 0 uses and only become castable
+    // once a charge-recovery mechanic accrues over many rounds — irrelevant to what this harness
+    // checks, so force full uses rather than waiting on (or faking) that accrual.
+    const runtime = caster.abilityRuntime[setup.abilityId];
+    if (runtime) runtime.currentUses = runtime.maxUses;
     const labelTargets = setup.setup(caster, engine);
 
     const gotBatch = stepUntil(engine, () => engine.waitingForOrders != null, 400);
@@ -290,4 +343,47 @@ describe('preview/canon execution equivalence (Step 5)', () => {
         engineA.destroy();
         engineB.destroy();
     });
+});
+
+/**
+ * Abilities the generic single-caster/single-dummy-enemy harness below cannot exercise for reasons
+ * unrelated to preview/canon equivalence (e.g. they need a pre-existing companion unit or a prior
+ * cast to set up their real target). Each entry names the concrete blocker; skipped, not deleted,
+ * so a future harness change (or dedicated hand-written case, as PunchNEW/Double Punch/Digging
+ * Claws already have above) can pick these back up.
+ */
+const GENERIC_HARNESS_UNSUPPORTED_ABILITY_IDS: Record<string, string> = {
+    '0611': "Beast Claw declares two separate 'Target' select windows (slash1/slash2) sharing one "
+        + "label; the harness's single label->pause->resolve loop can't disambiguate the second "
+        + "window from the first (see card_defs/utility/0611_BeastClaw/0611Ability.ts).",
+};
+
+describe('preview/canon execution equivalence — all registered abilities (Step 5, generalized)', () => {
+    for (const ability of ABILITIES_WITH_SELECT_TARGETS) {
+        const skipReason = GENERIC_HARNESS_UNSUPPORTED_ABILITY_IDS[ability.id];
+        const testFn = skipReason ? it.skip : it;
+        testFn(
+            `${ability.id} (${ability.name}): rollback-committed ITS run matches the canonical wire-order run${skipReason ? ` [skipped: ${skipReason}]` : ''}`,
+            async () => {
+                const { engineA, engineB } = await runPreviewCanonEquivalence({
+                    abilityId: ability.id,
+                    setup: (caster, engine) => {
+                        ensureAbilityResourcesForCaster(caster, ability, engine);
+                        const enemy = createTargetDummyAtWorld(engine, caster.x + 24, caster.y, {
+                            id: `peq_generic_enemy_${ability.id}`,
+                            hp: 500,
+                        });
+                        initializeAbilityRuntimeForUnit(enemy);
+                        engine.addUnit(enemy, 'initialGameSpawn');
+                        return buildAiSelectTargets(caster, ability, enemy, engine).targetsByLabel;
+                    },
+                });
+
+                assertPreviewCanonEquivalence(engineA, engineB);
+
+                engineA.destroy();
+                engineB.destroy();
+            },
+        );
+    }
 });

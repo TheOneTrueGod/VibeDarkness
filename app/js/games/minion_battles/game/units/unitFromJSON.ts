@@ -6,7 +6,6 @@ import type { AbilityNote } from '../AbilityNote';
 import type { BuffSerialized } from '../../buffs/Buff';
 import { buffFromJSON } from '../../buffs/buffRegistry';
 import { parseUnitTagsFromJSON } from './unitTag';
-import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 import { PLAYER_CHARACTER_ID } from './unit_defs/unitDef';
 import { deserializeTacticalPlan } from './unitAI/plans/planUtils';
 import type { SerializedTacticalPlan } from './unitAI/plans/types';
@@ -67,7 +66,9 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
         };
     }
 
-    unit.radius = (data.radius as number) ?? DEFAULT_UNIT_RADIUS;
+    // Radius resolves from the unit def; only explicit overrides are serialized.
+    // Legacy `data.radius` (pre-migration checkpoints) is intentionally ignored so def changes propagate.
+    unit.radiusOverride = typeof data.radiusOverride === 'number' ? data.radiusOverride : undefined;
     unit.aiSettings = (data.aiSettings as AISettings | null) ?? null;
     unit.pathfindingRetriggerOffset = (data.pathfindingRetriggerOffset as number) ?? 0;
     unit.pathInvalidated = (data.pathInvalidated as boolean) ?? false;

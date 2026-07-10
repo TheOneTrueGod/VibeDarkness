@@ -22,7 +22,7 @@ interface BattleAbilityBarProps {
     selectedCardIndex: number | null;
     nonconfirmedOrder: BattleOrder | null;
     abilityModeByAbilityId: Record<string, string>;
-    handleCycleAbilityMode: (abilityId: string) => void;
+    handleCycleAbilityMode: (abilityId: string, modes: readonly string[]) => void;
     setIsWaitHovered: (hovered: boolean) => void;
     setHoveredAbility: (ability: AbilityStatic | null) => void;
 }

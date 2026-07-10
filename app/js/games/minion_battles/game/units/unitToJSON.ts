@@ -56,7 +56,7 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
                 : {}),
         })),
         abilityNote: unit.abilityNote,
-        radius: unit.radius,
+        ...(unit.radiusOverride !== undefined ? { radiusOverride: unit.radiusOverride } : {}),
         aiSettings: unit.aiSettings,
         pathfindingRetriggerOffset: unit.pathfindingRetriggerOffset,
         pathInvalidated: unit.pathInvalidated,

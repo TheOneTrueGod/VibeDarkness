@@ -5,6 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { Unit } from './Unit';
 import { EventBus } from '../EventBus';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
+import { UNIT_SIZE_MAP } from './unit_defs/unitConstants';
 import { UnitTag } from './unitTag';
 import { StunnedBuff } from '../../buffs/StunnedBuff';
 import { Mana } from '../../resources/Mana';
@@ -436,7 +437,7 @@ describe('Unit', () => {
               "pet_2",
             ],
             "portraitId": "warrior",
-            "radius": 25,
+            "radiusOverride": 25,
             "resources": [
               {
                 "current": 75,
@@ -567,6 +568,35 @@ describe('Unit', () => {
         expect(restored.movement).not.toBeNull();
         expect(restored.movement!.path).toEqual(unit.movement!.path);
         expect(restored.movement!.pathfindingTick).toBe(unit.movement!.pathfindingTick);
+    });
+
+    it('resolves radius from the unit def and ignores legacy serialized radius', () => {
+        const eventBus = new EventBus();
+        const unit = new Unit({
+            id: 'dog_1',
+            x: 0,
+            y: 0,
+            hp: 48,
+            speed: 140,
+            teamId: 'player',
+            ownerId: 'ai',
+            characterId: 'dog',
+            name: 'Dog',
+        });
+
+        // No override: radius resolves from the def's size category, so def changes apply everywhere.
+        expect(unit.radiusOverride).toBeUndefined();
+        expect(unit.radius).toBe(UNIT_SIZE_MAP.Small);
+
+        // Def-resolved radius is not baked into checkpoints.
+        const json = unit.toJSON();
+        expect(json.radiusOverride).toBeUndefined();
+        expect(json.radius).toBeUndefined();
+
+        // A pre-migration checkpoint's baked radius no longer wins over the def.
+        const restored = Unit.fromJSON({ ...json, radius: 20 }, eventBus);
+        expect(restored.radiusOverride).toBeUndefined();
+        expect(restored.radius).toBe(UNIT_SIZE_MAP.Small);
     });
 
     it('restores unit without movement', () => {

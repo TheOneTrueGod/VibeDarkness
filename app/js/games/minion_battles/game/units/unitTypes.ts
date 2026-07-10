@@ -121,7 +121,7 @@ export interface UnitConfig {
     aiSettings?: AISettings | null;
     /** UnitAITree ID for AI. Default 'default'. */
     unitAITreeId?: string;
-    /** Visual/collision radius. Defaults to DEFAULT_UNIT_RADIUS. */
+    /** Explicit radius override. When omitted, radius resolves from the unit def's size (portrait for players). */
     radius?: number;
     /** Stamina stat. */
     stamina?: number;

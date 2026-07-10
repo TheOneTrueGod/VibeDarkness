@@ -59,6 +59,7 @@ use App\Http\Handlers\Terrain\GetTerrainSegmentHandler;
 use App\Http\Handlers\Terrain\SaveTerrainSegmentHandler;
 use App\Http\Handlers\Battle\PostUserStateHandler;
 use App\Http\Handlers\Battle\GetUserStateHandler;
+use App\Http\Handlers\LobbyDebug\LobbyDebugHandler;
 
 /**
  * Matches request method and path to handler functions.
@@ -72,6 +73,8 @@ class Router
     public function __construct()
     {
         $this->routes = [
+            ['GET',  '#^/lobby_debug(?:/([a-z_]+))?$#', LobbyDebugHandler::class],
+            ['POST', '#^/lobby_debug(?:/([a-z_]+))?$#', LobbyDebugHandler::class],
             ['POST', '#^/api/account/login$#', LoginHandler::class],
             ['POST', '#^/api/account/create$#', CreateAccountHandler::class],
             ['GET', '#^/api/account/me$#', GetCurrentUserHandler::class],

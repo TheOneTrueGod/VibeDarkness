@@ -23,6 +23,8 @@ const PROJECTILE_SPEED = 75;
 const MAX_DISTANCE = 200;
 const MAX_PROJECTILE_DISTANCE = 500;
 const DAMAGE = 4;
+const PROJECTILE_RADIUS = 5;
+const PROJECTILE_SCALE = 0.5;
 const RED = 0xff0000;
 
 const SLIME_SPIT_F1_URL = new URL('../../assets/projectiles/slime_spit_f1.svg', import.meta.url).href;
@@ -68,9 +70,9 @@ const _base: AbilityStatic = defineAbility({
                 .withSpeed(PROJECTILE_SPEED)
                 .withMaxRange(MAX_PROJECTILE_DISTANCE)
                 .withBaseDamage(DAMAGE)
-                .withRadius(10)
+                .withRadius(PROJECTILE_RADIUS)
                 .withSpriteConfig({
-                    sprite: { fps: 8, scale: 1, frameFiles: [SLIME_SPIT_F1_URL, SLIME_SPIT_F2_URL, SLIME_SPIT_F3_URL, SLIME_SPIT_F4_URL] },
+                    sprite: { fps: 8, scale: PROJECTILE_SCALE, frameFiles: [SLIME_SPIT_F1_URL, SLIME_SPIT_F2_URL, SLIME_SPIT_F3_URL, SLIME_SPIT_F4_URL] },
                     loop: true,
                 }),
         },

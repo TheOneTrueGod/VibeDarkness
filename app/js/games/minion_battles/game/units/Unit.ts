@@ -27,7 +27,14 @@ import type { ResolvedTarget } from '../types';
 import type { Buff } from '../../buffs/Buff';
 import { LIFTED_BUFF_TYPE } from '../../buffs/LiftedBuff';
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
-import { getDefaultHp, getUnitCombatCcDef, getUnitEnrageDef } from './unit_defs/unitDef';
+import {
+    getDefaultHp,
+    getDefaultRadius,
+    getUnitCombatCcDef,
+    getUnitEnrageDef,
+    PLAYER_CHARACTER_ID,
+    resolvePlayerUnitRadius,
+} from './unit_defs/unitDef';
 import { getHealthBonusFromResearch } from '../../research/researchTrainingEffects';
 import { evaluateSwapTriggers } from '../../abilities/abilitySwap';
 import { UnitTag } from './unitTag';
@@ -122,8 +129,22 @@ export class Unit extends GameObject {
     /** Note set by the currently executing ability (e.g. stored target position). Cleared when ability ends or is overwritten. */
     abilityNote: AbilityNote | null = null;
 
-    /** Visual radius for collision and rendering. */
-    radius: number = 20;
+    /**
+     * Explicit radius override (spawn config / scenarios). Undefined for nearly all units,
+     * in which case radius resolves from the unit def. Serialized only when set.
+     */
+    radiusOverride: number | undefined = undefined;
+
+    /** Visual radius for collision and rendering. Resolves from the unit def (portrait for players) unless overridden. */
+    get radius(): number {
+        if (this.radiusOverride !== undefined) return this.radiusOverride;
+        if (this.characterId === PLAYER_CHARACTER_ID) return resolvePlayerUnitRadius(this.portraitId);
+        return getDefaultRadius(this.characterId, DEFAULT_UNIT_RADIUS);
+    }
+
+    set radius(value: number) {
+        this.radiusOverride = value;
+    }
 
     /** AI behavior settings (only used for AI-controlled units). */
     aiSettings: AISettings | null = null;
@@ -257,7 +278,7 @@ export class Unit extends GameObject {
         this.abilities = config.abilities ?? [];
         this.aiSettings = config.aiSettings ?? null;
         this.unitAITreeId = config.unitAITreeId ?? 'hunt';
-        this.radius = config.radius ?? DEFAULT_UNIT_RADIUS;
+        this.radiusOverride = config.radius;
         this.stamina = config.stamina ?? 1;
         this.combatSettings = config.combatSettings;
         this.ephemeralDespawnAtGameTime = config.ephemeralDespawnAtGameTime ?? null;

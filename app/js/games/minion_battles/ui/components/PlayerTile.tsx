@@ -25,7 +25,7 @@ export interface PlayerTileProps {
     indicatorColor?: PlayerTileIndicatorColor;
     /**
      * When defined, show WebRTC connected/disconnected on the right (small variant).
-     * Omit when WebRTC mesh is inactive (e.g. solo).
+     * Local callers should pass true for the local player. Omit when WebRTC mesh is inactive (e.g. solo).
      */
     webRtcConnected?: boolean;
 }
