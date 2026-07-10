@@ -6,7 +6,6 @@ import {
 } from '../../harness/buildTinyBattleEngine';
 import { createTargetDummyAtWorld } from '../../fixtures/targetDummies';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
-import { Ammo } from '../../../resources/Ammo';
 
 const P = TINY_BATTLE_PLAYER_ID;
 
@@ -28,8 +27,6 @@ export const laserSwordHitsTwoTargetsScenario: ScenarioDefinition = {
             y: 260,
             abilities: ['0105'],
         });
-        const player = engine.getLocalPlayerUnit()!;
-        player.attachResource(new Ammo(), engine.eventBus);
         for (let i = 0; i < 3; i++) {
             const y = 200 + i * 60;
             const du = createTargetDummyAtWorld(engine, 280, y, { id: `target_dummy_${i}`, hp: 400 });

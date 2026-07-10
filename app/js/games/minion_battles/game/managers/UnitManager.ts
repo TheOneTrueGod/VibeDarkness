@@ -12,15 +12,8 @@ import { runUnitAI, runPathfindingRetrigger, getUnitAITree } from '../units/unit
 import { tickSpawnAnimation } from '../units/spawnAnimation';
 import { processUnitPassives } from '../../abilities/passiveRunner';
 import type { AIContext } from '../units/unitAI';
-import type { Resource } from '../../resources/Resource';
+import { createResourceFromId } from '../../resources/createResourceFromId';
 import { countNinjutsuEnemyUnits } from '../ninjutsu/NinjutsuManager';
-import { Rage } from '../../resources/Rage';
-import { Mana } from '../../resources/Mana';
-import { Resonance } from '../../resources/Resonance';
-import { Light } from '../../resources/Light';
-import { Rock } from '../../resources/Rock';
-import { Gravity } from '../../resources/Gravity';
-import { Movement } from '../../resources/Movement';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { getUnitMaxPerTile, getUnitShovePriority } from '../units/unit_defs/unitDef';
 import type { CellOccupancyManager } from './CellOccupancyManager';
@@ -104,27 +97,6 @@ function findEscapeCell(
         (preferred.length > 0 ? { col: best(preferred)!.col, row: best(preferred)!.row } : null) ??
         (cascade.length > 0 ? { col: best(cascade)!.col, row: best(cascade)!.row } : null)
     );
-}
-
-function createResourceFromId(id: string): Resource | null {
-    switch (id) {
-        case 'rage':
-            return new Rage();
-        case 'mana':
-            return new Mana();
-        case 'resonance':
-            return new Resonance();
-        case 'light':
-            return new Light();
-        case 'rock':
-            return new Rock();
-        case 'gravity':
-            return new Gravity();
-        case 'movement_points':
-            return new Movement();
-        default:
-            return null;
-    }
 }
 
 export class UnitManager {

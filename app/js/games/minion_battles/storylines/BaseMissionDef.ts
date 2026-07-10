@@ -59,7 +59,8 @@ import {
 } from '../game/lanternite/thornlingNestTick';
 import { getControlGroupId } from '../state';
 
-const AMMO_ABILITIES = new Set(['0105', '0112', '0203', '0204', '0205']);
+/** Gun abilities that require an ammo resource at mission start (not melee swords). */
+const AMMO_ABILITIES = new Set(['0203', '0204', '0205']);
 
 function attachResourcesFromEquipment(equippedIds: string[], unit: Unit, eventBus: EventBus): void {
     const seen = new Set<string>();

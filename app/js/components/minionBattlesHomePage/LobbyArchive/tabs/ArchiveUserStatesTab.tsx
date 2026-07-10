@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { LobbyClient, AdminUserStateIndex } from '../../../../LobbyClient';
 
@@ -118,45 +118,56 @@ export default function ArchiveUserStatesTab({ isActive, lobbyId, lobbyClient }:
         };
     }, [isActive, lobbyId, lobbyClient]);
 
-    const handleSelectTick = useCallback(
-        async (tick: number) => {
-            if (!index) return;
-            const batchStart = Math.floor(tick / BATCH_SIZE) * BATCH_SIZE;
-            setLoadedForTick(tick);
-            setSearchParams(
-                (prev) => {
-                    const next = new URLSearchParams(prev);
-                    next.set('batch', String(batchStart));
-                    next.set('tick', String(tick));
-                    return next;
-                },
-                { replace: true },
-            );
-            setTickData(null);
-            setTickLoading(true);
-            const userIds = Object.keys(index.users);
-            const results = await Promise.all(
-                userIds.map(async (userId) => {
-                    try {
-                        const entries = (await lobbyClient.getUserStateRange(lobbyId, userId, tick, tick)) as TickEntry[];
-                        const entry = entries.find((e) => e.tick === tick) ?? entries[0] ?? null;
-                        return { userId, entry };
-                    } catch {
-                        return { userId, entry: null };
-                    }
-                }),
-            );
-            setTickData(results);
-            setTickLoading(false);
-        },
-        [index, lobbyClient, lobbyId, setSearchParams],
-    );
+    const setTickInUrl = (tick: number) => {
+        const batchStart = Math.floor(tick / BATCH_SIZE) * BATCH_SIZE;
+        setSearchParams(
+            (prev) => {
+                const next = new URLSearchParams(prev);
+                next.set('batch', String(batchStart));
+                next.set('tick', String(tick));
+                return next;
+            },
+            { replace: true },
+        );
+    };
 
-    // Auto-load tick data when the index becomes available and a tick is already in the URL.
+    // URL is the source of truth for tick selection. Load data when selectedTick changes
+    // (initial restore, user click, or browser back/forward) — never set loadedForTick
+    // before the URL catches up, or the effect will "correct" back to the stale tick.
     useEffect(() => {
         if (!isActive || !index || selectedTick === null || loadedForTick === selectedTick) return;
-        void handleSelectTick(selectedTick);
-    }, [isActive, index, selectedTick, loadedForTick, handleSelectTick]);
+
+        let cancelled = false;
+        setTickData(null);
+        setTickLoading(true);
+
+        const userIds = Object.keys(index.users);
+        void Promise.all(
+            userIds.map(async (userId) => {
+                try {
+                    const entries = (await lobbyClient.getUserStateRange(
+                        lobbyId,
+                        userId,
+                        selectedTick,
+                        selectedTick,
+                    )) as TickEntry[];
+                    const entry = entries.find((e) => e.tick === selectedTick) ?? entries[0] ?? null;
+                    return { userId, entry };
+                } catch {
+                    return { userId, entry: null };
+                }
+            }),
+        ).then((results) => {
+            if (cancelled) return;
+            setTickData(results);
+            setLoadedForTick(selectedTick);
+            setTickLoading(false);
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isActive, index, selectedTick, loadedForTick, lobbyClient, lobbyId]);
 
     const { batches, batchStatuses, selectedBatch } = useMemo(() => {
         if (!index) return { batches: [], batchStatuses: new Map<number, TickStatus>(), selectedBatch: null };
@@ -242,6 +253,7 @@ export default function ArchiveUserStatesTab({ isActive, lobbyId, lobbyClient }:
                                         );
                                         setTickData(null);
                                         setLoadedForTick(null);
+                                        setTickLoading(false);
                                     }}
                                 >
                                     {b.fromTick}–{b.toTick}
@@ -270,7 +282,7 @@ export default function ArchiveUserStatesTab({ isActive, lobbyId, lobbyClient }:
                                             key={tick}
                                             type="button"
                                             className={`shrink-0 px-2 py-1 text-xs rounded border transition-colors ${pillClasses(status, isSelected)}`}
-                                            onClick={() => void handleSelectTick(tick)}
+                                            onClick={() => setTickInUrl(tick)}
                                         >
                                             {tick}
                                         </button>

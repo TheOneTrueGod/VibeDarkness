@@ -25,6 +25,7 @@ import {
 	BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_POLLS,
 	BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS,
 	ITS_PRE_ACTION_POLL_TIMEOUT_MS,
+	BATTLE_NET_STRUCTURAL_DIVERGENCE_GRACE_MS,
 } from './constants';
 import type {
 	ApplyRemoteOrdersResult,
@@ -54,6 +55,7 @@ export {
 	BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_GAP,
 	BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_POLLS,
 	BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS,
+	BATTLE_NET_STRUCTURAL_DIVERGENCE_GRACE_MS,
 } from './constants';
 export type {
 	ApplyRemoteOrdersResult,
@@ -255,10 +257,15 @@ export class BattleNet implements BattleNetContext {
 	}
 
 	/**
-	 * Non-host: first `(hostTick, localTick)` snapshot when `localTick > hostTick` (optimistic playahead window).
+	 * Non-host: first `(hostTick, localTick)` snapshot when `localTick > hostTick` (optimistic playahead window),
+	 * plus wall time when that window opened (structural-divergence grace).
 	 * Cleared when the tail catches up, alignment is proved, or desync recovery runs.
 	 */
-	private nonHostOptimisticPlayaheadAnchor: { hostTick: number; localTick: number } | null = null;
+	private nonHostOptimisticPlayaheadAnchor: {
+		hostTick: number;
+		localTick: number;
+		startedAtMs: number;
+	} | null = null;
 	/** Non-host: wall-clock stall detection while `waiting_for_host` + paused for parallel orders. */
 	private waitingForHostPausedStallSinceMs: number | null = null;
 	private waitingForHostPausedStallMaterialKey: string | null = null;
@@ -2132,7 +2139,11 @@ export class BattleNet implements BattleNetContext {
 			return;
 		}
 		if (this.nonHostOptimisticPlayaheadAnchor == null) {
-			this.nonHostOptimisticPlayaheadAnchor = { hostTick: hb.hostTick, localTick: engineTick };
+			this.nonHostOptimisticPlayaheadAnchor = {
+				hostTick: hb.hostTick,
+				localTick: engineTick,
+				startedAtMs: Date.now(),
+			};
 		}
 	}
 
@@ -2214,6 +2225,18 @@ export class BattleNet implements BattleNetContext {
 		if (localRow == null || localRow.fp !== hostFp) {
 			return;
 		}
+		const anchor = this.nonHostOptimisticPlayaheadAnchor;
+		const playaheadAtSameHostTick = anchor != null && hb.hostTick === anchor.hostTick;
+		if (playaheadAtSameHostTick) {
+			const elapsedMs = Date.now() - anchor.startedAtMs;
+			if (elapsedMs < BATTLE_NET_STRUCTURAL_DIVERGENCE_GRACE_MS) {
+				return;
+			}
+			this.syncStatusController.setStatus(
+				'waiting_for_host',
+				'Local sim advanced ahead of the host during optimistic playahead; waiting for the host to catch up.',
+			);
+		}
 		if (this.structuralDivergenceLoggedForBatch === hostBatch) {
 			return;
 		}
@@ -2234,6 +2257,10 @@ export class BattleNet implements BattleNetContext {
 				localBatchAtTick: localPauseAtTick,
 				hostFingerprintHead: hostFp.slice(0, 12),
 				localFpAtHostTickHead: localRow.fp.slice(0, 12),
+				optimisticPlayaheadAnchorHostTick: anchor?.hostTick ?? null,
+				optimisticPlayaheadStartedAtMs: anchor?.startedAtMs ?? null,
+				optimisticPlayaheadElapsedMs:
+					anchor != null ? Date.now() - anchor.startedAtMs : null,
 			},
 		});
 	}

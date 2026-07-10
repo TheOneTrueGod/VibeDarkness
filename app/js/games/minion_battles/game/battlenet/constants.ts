@@ -32,6 +32,12 @@ export const HOST_ANCHOR_WAIT_SHOW_MS = 2000;
 /** Same situation: suspected failure — force hard resync. */
 export const HOST_ANCHOR_RESYNC_MS = 10_000;
 
+/**
+ * Non-host structural-divergence observability: while `hostTick` still matches the tick
+ * optimistic playahead began from, suppress the error log until this grace elapses.
+ */
+export const BATTLE_NET_STRUCTURAL_DIVERGENCE_GRACE_MS = 10_000;
+
 /** Non-host: engine paused for orders while local tick is behind heartbeat hostTick. */
 export const RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL = 'paused-behind-host-tail';
 

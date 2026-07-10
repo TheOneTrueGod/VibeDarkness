@@ -141,7 +141,9 @@ const USER_STATE_LOGGING_KEY = 'vibedarkness.debug.userStateLogging';
 
 export function getUserStateLogging(): boolean {
     try {
-        return localStorage.getItem(USER_STATE_LOGGING_KEY) === '1';
+        const raw = localStorage.getItem(USER_STATE_LOGGING_KEY);
+        if (raw === null) return true;
+        return raw === '1';
     } catch {
         return false;
     }

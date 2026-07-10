@@ -1,5 +1,5 @@
 /*
- * Laser Sword â€” a resource-gated melee burst that costs Ammo.
+ * Laser Sword — stamina-gated melee burst (no ammo cost).
  *
  * Wider perpendicular slash than Swing Sword, hitting up to 2 enemies for double damage with a
  * strong knockback and a distinctive light-cyan slash trail. Intended as an occasional power swing
@@ -65,7 +65,7 @@ export const LaserSwordAbility: AbilityStatic = {
     name: 'Laser Sword',
     image: LASER_SWORD_IMAGE,
     resourceCost: null,
-    resourceCosts: [{ resourceId: 'ammo', amount: 8, allowPartialIfPositive: true }],
+    resourceCosts: [],
     rechargeTurns: 1,
     maxUses: MAX_USES,
     recoveries: RECOVERIES,

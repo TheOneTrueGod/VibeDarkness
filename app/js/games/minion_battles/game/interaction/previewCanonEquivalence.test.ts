@@ -36,14 +36,7 @@ import { getAbilityResourceCosts } from '../../abilities/Ability';
 import { initializeAbilityRuntimeForUnit } from '../../abilities/abilityUses';
 import { createTargetDummyAtWorld } from '../../testing/fixtures/targetDummies';
 import { Movement } from '../../resources/Movement';
-import { Ammo } from '../../resources/Ammo';
-import { Resonance } from '../../resources/Resonance';
-import { Light } from '../../resources/Light';
-import { Rock } from '../../resources/Rock';
-import { Gravity } from '../../resources/Gravity';
-import { Mana } from '../../resources/Mana';
-import { Rage } from '../../resources/Rage';
-import type { Resource } from '../../resources/Resource';
+import { createResourceFromId } from '../../resources/createResourceFromId';
 import { hashOrderId } from '../battlenet/helpers/orderHashing';
 import { buildFinalizedSequentialTargetingOrder } from './InteractiveTargetingSession';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
@@ -61,34 +54,15 @@ const DIGGING_CLAWS_DASH_LABEL = 'Direction to dash';
 
 const SOLO_PLAYER_ID = 'p1';
 
-/** resourceId -> factory, mirroring `createResourceFromId` in `game/managers/UnitManager.ts`. */
-const RESOURCE_FACTORIES: Record<string, () => Resource> = {
-    movement_points: () => new Movement(),
-    ammo: () => new Ammo(),
-    resonance: () => new Resonance(),
-    light: () => new Light(),
-    rock: () => new Rock(),
-    gravity: () => new Gravity(),
-    mana: () => new Mana(),
-    rage: () => new Rage(),
-};
-
-/**
- * Attach (or top off) whatever resources an ability's `resourceCost`/`resourceCosts` demand, so a
- * generically-cast ability never fails to fire for lack of resource on a bare test caster. Real
- * units get most of these from `BaseMissionDef` (Movement unconditionally, others via equipped
- * items) — this fills the gap for a solo test caster that never went through that mission bootstrap
- * for the ability being force-assigned.
- */
+/** Attach resources an ability's costs demand on a bare test caster (mirrors mission bootstrap). */
 function ensureAbilityResourcesForCaster(caster: Unit, ability: { id: string }, engine: GameEngine): void {
     const abilityStatic = getAbility(ability.id);
     if (!abilityStatic) return;
     for (const cost of getAbilityResourceCosts(abilityStatic)) {
         let resource = caster.getResource(cost.resourceId);
         if (!resource) {
-            const factory = RESOURCE_FACTORIES[cost.resourceId];
-            if (!factory) continue;
-            resource = factory();
+            resource = createResourceFromId(cost.resourceId) ?? undefined;
+            if (!resource) continue;
             caster.attachResource(resource, engine.eventBus);
         }
         resource.add(resource.max);

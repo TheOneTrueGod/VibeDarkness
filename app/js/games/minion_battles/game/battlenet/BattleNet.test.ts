@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { LobbyClient } from '../../../../LobbyClient';
 import {
     flushLobbyLogBatchQueueForTests,
@@ -14,6 +14,7 @@ import {
 import {
     BATTLE_NET_STUCK_PAUSED_HOST_AHEAD_POLLS,
     BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS,
+    BATTLE_NET_STRUCTURAL_DIVERGENCE_GRACE_MS,
     HOST_ANCHOR_RESYNC_MS,
     RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL,
 } from './constants';
@@ -2919,12 +2920,63 @@ describe('BattleNet: pause plane structural divergence (5E0F6B)', () => {
         };
     }
 
-    it('host paused at batch B, local sim ran past B with its own pause plane elsewhere, fps agree at hostTick — logs once across repeated polls', async () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-07-10T08:00:00.000Z'));
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('within optimistic playahead grace — suppresses structural divergence log', async () => {
         const appendLobbyLogBatch = vi.fn(async () => ({ success: true }));
         const api = makeApi({
             getBattleHeartbeat: vi.fn(async () => structuralHeartbeat()),
             appendLobbyLogBatch,
         });
+        const status = vi.fn();
+        const net = new BattleNet({
+            api,
+            session: makeSession({
+                getEngineTick: () => STRUCT_ENGINE_TICK,
+                isPausedForOrderSync: () => false,
+                getWaitingForOrdersBatch: () => null,
+                getFingerprintRange: (from: number, to: number) =>
+                    from <= STRUCT_HOST_TICK && to >= STRUCT_HOST_TICK
+                        ? [{ tick: STRUCT_HOST_TICK, fp: STRUCT_AGREE_FP, paused: true }]
+                        : [],
+            }),
+            isHost: false,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+        });
+        net.on('sync-status', status);
+
+        await net.pollOnce();
+        await net.pollOnce();
+        await flushLobbyLogBatchQueueForTests();
+
+        const lines = appendLobbyLogBatch.mock.calls.flatMap(
+            (call) =>
+                ((call as unknown[])[1] as { lines?: Array<Record<string, unknown>> } | undefined)?.lines ?? [],
+        );
+        expect(
+            lines.some(
+                (l) => l.message === 'pause plane structural divergence: host paused at batch local sim never formed',
+            ),
+        ).toBe(false);
+        expect(status).not.toHaveBeenCalledWith('waiting_for_host');
+    });
+
+    it('host paused at batch B, local sim ran past B with its own pause plane elsewhere, fps agree at hostTick — logs once after grace', async () => {
+        const appendLobbyLogBatch = vi.fn(async () => ({ success: true }));
+        const api = makeApi({
+            getBattleHeartbeat: vi.fn(async () => structuralHeartbeat()),
+            appendLobbyLogBatch,
+        });
+        const status = vi.fn();
         const net = new BattleNet({
             api,
             session: makeSession({
@@ -2944,8 +2996,10 @@ describe('BattleNet: pause plane structural divergence (5E0F6B)', () => {
             gameId: 'g1',
             playerId: 'p1',
         });
+        net.on('sync-status', status);
 
         await net.pollOnce();
+        vi.advanceTimersByTime(BATTLE_NET_STRUCTURAL_DIVERGENCE_GRACE_MS + 1);
         await net.pollOnce();
         await flushLobbyLogBatchQueueForTests();
 
@@ -2963,7 +3017,9 @@ describe('BattleNet: pause plane structural divergence (5E0F6B)', () => {
             hostBatchAtTick: STRUCT_HOST_BATCH,
             engineTick: STRUCT_ENGINE_TICK,
             localBatchAtTick: 602,
+            optimisticPlayaheadAnchorHostTick: STRUCT_HOST_TICK,
         });
+        expect(status).toHaveBeenCalledWith('waiting_for_host');
     });
 
     it('local pause plane equals the host batch — no structural divergence log', async () => {
