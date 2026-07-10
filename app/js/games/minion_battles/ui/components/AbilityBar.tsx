@@ -83,6 +83,8 @@ interface AbilityBarProps {
     /** Per-ability committed cast mode (BattlePhase-owned, persists for the battle). */
     abilityModeByAbilityId?: Record<string, string>;
     onCycleAbilityMode?: (abilityId: string, modes: readonly string[]) => void;
+    /** Called with the hovered card's ability, or null on unhover — only fires while the card is selectable (not disabled). */
+    onHoverAbility?: (ability: AbilityStatic | null) => void;
 }
 
 export default function AbilityBar({
@@ -103,6 +105,7 @@ export default function AbilityBar({
     conditionalCancelContext,
     abilityModeByAbilityId = {},
     onCycleAbilityMode,
+    onHoverAbility,
 }: AbilityBarProps) {
     const [mobileDescIndex, setMobileDescIndex] = useState<number | null>(null);
     const [isMobile, setIsMobile] = useState(getUsesMobileCardLayout);
@@ -201,6 +204,27 @@ export default function AbilityBar({
             setHoveredCardId(null);
         }
     }, [handCards, hoveredCardId]);
+
+    // Only surface the hovered ability to the parent (for the timeline preview) while the card
+    // is actually selectable — same rules that gate clicking it.
+    useEffect(() => {
+        if (!onHoverAbility) return;
+        const card = hoveredCardId ? handCards.find((c) => c.abilityId === hoveredCardId) : null;
+        if (!card || !playerUnit) {
+            onHoverAbility(null);
+            return;
+        }
+        const disabledReason = getAbilityDisabledReason({
+            playerUnit,
+            ability: card.ability,
+            abilityId: card.abilityId,
+            currentUses: card.runtime.currentUses,
+            isMyTurn,
+            allUnits,
+            conditionalCancelContext,
+        });
+        onHoverAbility(disabledReason == null ? card.ability : null);
+    }, [hoveredCardId, handCards, playerUnit, isMyTurn, allUnits, conditionalCancelContext, onHoverAbility]);
 
     // Register card top-center page positions as HUD flight targets, keyed by charge type so
     // particles only fly to cards that actually recover that resource.

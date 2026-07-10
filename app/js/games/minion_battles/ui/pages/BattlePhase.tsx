@@ -147,6 +147,8 @@ export default function BattlePhase({
     /** Mirror of manager UI state for AbilityBar rendering. */
     const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
     const [selectedAbility, setSelectedAbility] = useState<AbilityStatic | null>(null);
+    /** Ability hovered in the AbilityBar (only set while the card is selectable); overrides the timeline preview. */
+    const [hoveredAbility, setHoveredAbility] = useState<AbilityStatic | null>(null);
     const [nonconfirmedOrder, setNonconfirmedOrder] = useState<BattleOrder | null>(null);
     /** Per-ability cast mode (push/pull) — persists for the battle; written into submitted orders. */
     const [abilityModeByAbilityId, setAbilityModeByAbilityId] = useState<Record<string, string>>({});
@@ -204,36 +206,37 @@ export default function BattlePhase({
         previewOrderUnitId: null,
         nonconfirmedOrder: null,
     });
-    // Assign targetingStateRef in the component body so it's always current before each render.
-    // BattleCanvas reads targetingStateRef.current.selectedAbility to suppress drag-to-pan.
-    {
-        const manager = sessionRef.current?.getInteractionManager();
-        const uiState = manager?.getUIState();
-        const its = sessionRef.current?.interactiveTargeting;
-        const itsActive = its?.isActive ?? false;
-        const itsAbilityId = itsActive && its ? its.abilityId : null;
-        const itsUnitId = itsActive && its ? its.unitId : null;
-        const itsAbility = itsAbilityId ? getAbility(itsAbilityId) : null;
-        // Only show the targeting cursor when the engine is actually paused waiting for an input.
-        const itsWaitingForTarget = itsActive
-            ? (sessionRef.current?.getEngine()?.waitingForTargetInput ?? null)
-            : null;
-        const itsShowCursor = itsActive && itsWaitingForTarget !== null;
-        const itsCurrentTargets = itsShowCursor && its
-            ? Object.values(its.collectedTargets)
-            : null;
-        targetingStateRef.current = {
-            selectedAbility: itsShowCursor && itsAbility ? itsAbility : (uiState?.selectedAbility ?? null),
-            currentTargets: itsShowCursor && itsCurrentTargets !== null
-                ? itsCurrentTargets
-                : (uiState?.currentTargets ?? []),
-            mouseWorld: uiState?.mouseWorld ?? { x: 0, y: 0 },
-            waitingForOrders,
-            previewOrderUnitId: itsActive && itsUnitId ? itsUnitId : (uiState?.previewOrderUnitId ?? activeLocalWaiter?.unitId ?? null),
-            ghostPlans: renderGhostPlans,
-            nonconfirmedOrder: uiState?.nonconfirmedOrder ?? null,
-        };
-    }
+    // Computed in the component body so it's always current before each render.
+    // BattleCanvas reads targetingStateRef.current.selectedAbility to suppress drag-to-pan;
+    // itsActive/itsAbility/itsUnitId are reused below for the BattleTimeline preview props so
+    // the timeline reflects the ITS ability even before it has an active-ability instance
+    // (e.g. the very first target select, which pauses the engine before queuing any order).
+    const itsManager = sessionRef.current?.getInteractionManager();
+    const itsUiState = itsManager?.getUIState();
+    const its = sessionRef.current?.interactiveTargeting;
+    const itsActive = its?.isActive ?? false;
+    const itsAbilityId = itsActive && its ? its.abilityId : null;
+    const itsUnitId = itsActive && its ? its.unitId : null;
+    const itsAbility = itsAbilityId ? getAbility(itsAbilityId) : null;
+    // Only show the targeting cursor when the engine is actually paused waiting for an input.
+    const itsWaitingForTarget = itsActive
+        ? (sessionRef.current?.getEngine()?.waitingForTargetInput ?? null)
+        : null;
+    const itsShowCursor = itsActive && itsWaitingForTarget !== null;
+    const itsCurrentTargets = itsShowCursor && its
+        ? Object.values(its.collectedTargets)
+        : null;
+    targetingStateRef.current = {
+        selectedAbility: itsShowCursor && itsAbility ? itsAbility : (itsUiState?.selectedAbility ?? null),
+        currentTargets: itsShowCursor && itsCurrentTargets !== null
+            ? itsCurrentTargets
+            : (itsUiState?.currentTargets ?? []),
+        mouseWorld: itsUiState?.mouseWorld ?? { x: 0, y: 0 },
+        waitingForOrders,
+        previewOrderUnitId: itsActive && itsUnitId ? itsUnitId : (itsUiState?.previewOrderUnitId ?? activeLocalWaiter?.unitId ?? null),
+        ghostPlans: renderGhostPlans,
+        nonconfirmedOrder: itsUiState?.nonconfirmedOrder ?? null,
+    };
 const [bossHud, setBossHud] = useState<BossHudSlice>(null);
     const [activeWorldModifiers, setActiveWorldModifiers] = useState<WorldModifierDef[]>([]);
     const [ninjutsuPools, setNinjutsuPools] = useState<NinjutsuUIState[] | null>(null);
@@ -1250,6 +1253,7 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
             onRegisterCardTarget={(key, pageX, pageY) => {
                 hudEffectCanvasRef.current?.registerHudFlightTarget(key, pageX, pageY);
             }}
+            onHoverAbility={setHoveredAbility}
         />
     );
 
@@ -1266,8 +1270,14 @@ const [bossHud, setBossHud] = useState<BossHudSlice>(null);
                         players={players}
                         localPlayerId={playerId}
                         layout="rail"
-                        previewAbility={canUseOrderUi ? (selectedAbility ?? WaitAbility) : null}
-                        previewOrderUnitId={activeLocalWaiter?.unitId ?? null}
+                        previewAbility={
+                            itsActive && itsAbility
+                                ? itsAbility
+                                : canUseOrderUi
+                                  ? (hoveredAbility ?? selectedAbility ?? WaitAbility)
+                                  : null
+                        }
+                        previewOrderUnitId={itsActive && itsUnitId ? itsUnitId : (activeLocalWaiter?.unitId ?? null)}
                         ghostPlans={renderGhostPlans}
                         playerTileOrderContext={playerTileOrderContext}
                         showWebRtcConnectionStatus={showWebRtcConnectionStatus}

@@ -636,16 +636,18 @@ function renderPlayerUnitTimelineUnified(
     let previewLevel: 'none' | 'preview' | 'ghost' = 'none';
 
     let isWaitLockout = false;
-    if (showPreview && previewAbility) {
-        const intervals = intervalsForAbility(previewAbility, unit, engine);
-        const merged = buildPrimaryTimelineSegments(intervals);
-        segments = computeVisiblePrimarySegments(merged, 0, windowSeconds);
-        previewLevel = 'preview';
-    } else if (active && ability) {
+    if (active && ability) {
+        // A real cast in progress (including ITS playahead) always wins over a stale
+        // order-submission preview — the engine state is live and must drive the timeline.
         const intervals = intervalsForAbility(ability, unit, engine);
         const merged = buildPrimaryTimelineSegments(intervals);
         const elapsed = now - active.startTime;
         segments = computeVisiblePrimarySegments(merged, elapsed, windowSeconds);
+    } else if (showPreview && previewAbility) {
+        const intervals = intervalsForAbility(previewAbility, unit, engine);
+        const merged = buildPrimaryTimelineSegments(intervals);
+        segments = computeVisiblePrimarySegments(merged, 0, windowSeconds);
+        previewLevel = 'preview';
     } else if (unit.isInWaitLockout() && unit.waitMaxEndTime !== null) {
         const waitDuration = getTotalAbilityDuration(WaitAbility);
         const elapsed = Math.max(0, waitDuration - (unit.waitMaxEndTime - now));
@@ -860,16 +862,18 @@ function renderPlayerRow(
     let previewLevel: 'none' | 'preview' | 'ghost' = 'none';
 
     let isWaitLockout = false;
-    if (showPreview && previewAbility) {
-        const intervals = intervalsForAbility(previewAbility, unit, engine);
-        const merged = buildPrimaryTimelineSegments(intervals);
-        segments = computeVisiblePrimarySegments(merged, 0, windowSeconds);
-        previewLevel = 'preview';
-    } else if (active && ability) {
+    if (active && ability) {
+        // A real cast in progress (including ITS playahead) always wins over a stale
+        // order-submission preview — the engine state is live and must drive the timeline.
         const intervals = intervalsForAbility(ability, unit, engine);
         const merged = buildPrimaryTimelineSegments(intervals);
         const elapsed = now - active.startTime;
         segments = computeVisiblePrimarySegments(merged, elapsed, windowSeconds);
+    } else if (showPreview && previewAbility) {
+        const intervals = intervalsForAbility(previewAbility, unit, engine);
+        const merged = buildPrimaryTimelineSegments(intervals);
+        segments = computeVisiblePrimarySegments(merged, 0, windowSeconds);
+        previewLevel = 'preview';
     } else if (unit.isInWaitLockout() && unit.waitMaxEndTime !== null) {
         const waitDuration = getTotalAbilityDuration(WaitAbility);
         const elapsed = Math.max(0, waitDuration - (unit.waitMaxEndTime - now));
