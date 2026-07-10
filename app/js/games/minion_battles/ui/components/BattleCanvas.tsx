@@ -18,7 +18,7 @@ interface BattleCanvasProps {
     engine: GameEngine;
     camera: Camera;
     renderer: GameRenderer;
-    targetingStateRef?: React.RefObject<Record<string, unknown> | null>;
+    targetingStateRef?: React.RefObject<object | null>;
     /** Called when the user left-clicks on the canvas (screen-space coords). */
     onCanvasClick?: (screenX: number, screenY: number) => void;
     /** Called when the user right-clicks on the canvas (screen-space coords). */

@@ -31,9 +31,7 @@ import type {
     PollMessagePayload,
     ChatMessageData,
 } from './types';
-import { WebRtcLobbyMesh, WebRtcPingTestFn } from './WebRtcLobbyMesh';
-import { GhostPlanContext } from './contexts/GhostPlanContext';
-import type { GhostPlanData } from './games/minion_battles/game/types';
+import { WebRtcMeshProvider, type WebRtcMeshHandle } from './contexts/WebRtcMeshContext';
 import { GameSyncProvider, useGameSyncOptional } from './contexts/GameSyncContext';
 import { campaignPathForTab, playerCharacterPath } from './components/ability-tests/campaignTabPaths';
 
@@ -139,14 +137,8 @@ function AppInner() {
     /** Avoid GET /messages until startInLobby has seeded lastPollMessageId (pre-race duplicates). */
     const [pollMessagesReady, setPollMessagesReady] = useState(false);
 
-    // WebRTC mesh for peer-to-peer events (e.g. Ping)
-    const webRtcMeshRef = useRef<WebRtcLobbyMesh | null>(null);
-    const [webRtcReady, setWebRtcReady] = useState(false);
-    const [webRtcPeerConnected, setWebRtcPeerConnected] = useState<Record<string, boolean>>({});
-
-    // Ghost plans: other players' live ability targeting state, shared over WebRTC
-    const [ghostPlans, setGhostPlans] = useState<Record<string, GhostPlanData | null>>({});
-    const currentGhostPlanRef = useRef<GhostPlanData | null>(null);
+    // WebRTC mesh handle for signal routing and ping sends (state lives in WebRtcMeshProvider)
+    const webRtcMeshRef = useRef<WebRtcMeshHandle | null>(null);
 
     // Track which players should currently have flashing cards due to WebRTC pings
     const [flashingPlayerIds, setFlashingPlayerIds] = useState<string[]>([]);
@@ -205,10 +197,21 @@ function AppInner() {
         schedule(3000, false);
     }, []);
 
-    const sendGhostPlan = useCallback((plan: GhostPlanData | null) => {
-        currentGhostPlanRef.current = plan;
-        webRtcMeshRef.current?.sendEventToAll({ type: 'ghost_plan_update', plan: plan as Record<string, unknown> | null });
-    }, []);
+    const sendWebRtcSignal = useCallback(
+        (toPlayerId: string, signal: Record<string, unknown>) => {
+            const lobby = currentLobby;
+            const me = currentPlayerRef.current;
+            if (!lobby || !me) return;
+            const msg = Messages.webrtcSignal(toPlayerId, signal);
+            lobbyClient.sendMessage(lobby.id, me.id, msg.type, msg.data).catch(() => {});
+        },
+        [currentLobby, lobbyClient],
+    );
+
+    const gamePhase = lobbyGameData?.gamePhase as string | undefined;
+    const gameStarted =
+        gamePhase === 'pre_mission_story' || gamePhase === 'battle' || gamePhase === 'post_mission_story';
+    const webRtcPeerIds = gameStarted ? Object.keys(players) : [];
 
     // ==================== Message handling ====================
 
@@ -381,84 +384,6 @@ function AppInner() {
         const history = (state.chatHistory ?? []) as MessageEntry[];
         setChatMessages(history);
     }, []);
-
-    // Initialize or dispose WebRTC mesh when lobby / player changes
-    useEffect(() => {
-        if (!ENABLE_WEBRTC_LOBBY || !currentLobby || !currentPlayer) {
-            webRtcMeshRef.current?.dispose();
-            webRtcMeshRef.current = null;
-            setWebRtcReady(false);
-            setFlashingPlayerIds([]);
-            return;
-        }
-
-        setWebRtcPeerConnected({});
-        const mesh = new WebRtcLobbyMesh({
-            localPlayerId: currentPlayer.id,
-            sendSignal: (toPlayerId, signal) => {
-                const lobby = currentLobby;
-                const me = currentPlayerRef.current;
-                if (!lobby || !me) return;
-                const msg = Messages.webrtcSignal(toPlayerId, signal);
-                lobbyClient.sendMessage(lobby.id, me.id, msg.type, msg.data).catch(() => {});
-            },
-            onPeerEvent: (fromPlayerId, event) => {
-                if ((event.type as string | undefined) === 'ping') {
-                    triggerPlayerFlash(fromPlayerId);
-                } else if ((event.type as string | undefined) === 'ghost_plan_update') {
-                    const plan = (event.plan ?? null) as GhostPlanData | null;
-                    setGhostPlans((prev) => ({ ...prev, [fromPlayerId]: plan }));
-                }
-            },
-            onPeerConnected: (id) => {
-                setWebRtcPeerConnected((prev) => ({ ...prev, [id]: true }));
-                if (currentGhostPlanRef.current !== null) {
-                    webRtcMeshRef.current?.sendEventToAll({
-                        type: 'ghost_plan_update',
-                        plan: currentGhostPlanRef.current as unknown as Record<string, unknown>,
-                    });
-                }
-            },
-            onPeerDisconnected: (id) => {
-                setWebRtcPeerConnected((prev) => ({ ...prev, [id]: false }));
-                setGhostPlans((prev) => ({ ...prev, [id]: null }));
-            },
-        });
-        webRtcMeshRef.current = mesh;
-
-        // Bootstrap peer connections if the game is already in progress when the mesh is (re)created.
-        // Effect B only re-runs when players/lobbyGameData change; if currentLobby changes independently
-        // (common during mission-flow transitions) the new mesh would otherwise never get updatePeers called.
-        const phase = lobbyGameDataRef.current?.gamePhase as string | undefined;
-        const gameAlreadyStarted = phase === 'pre_mission_story' || phase === 'battle' || phase === 'post_mission_story';
-        mesh.updatePeers(gameAlreadyStarted ? Object.keys(playersRef.current) : []);
-
-        setWebRtcReady(true);
-
-        // Simple dev helper for testing ping from console
-        (window as unknown as { __vibeTestWebRtcPing?: WebRtcPingTestFn }).__vibeTestWebRtcPing = () => {
-            if (!currentLobby || !currentPlayer) return;
-            const meshInstance = webRtcMeshRef.current;
-            if (!meshInstance) return;
-            meshInstance.sendEventToAll({ type: 'ping', fromPlayerId: currentPlayer.id });
-            triggerPlayerFlash(currentPlayer.id);
-        };
-
-        return () => {
-            mesh.dispose();
-            if ((window as unknown as { __vibeTestWebRtcPing?: WebRtcPingTestFn }).__vibeTestWebRtcPing) {
-                (window as unknown as { __vibeTestWebRtcPing?: WebRtcPingTestFn }).__vibeTestWebRtcPing = undefined;
-            }
-        };
-    }, [currentLobby, currentPlayer, lobbyClient, triggerPlayerFlash]);
-
-    // Keep WebRTC peers in sync with current player list; only connect once the game starts
-    useEffect(() => {
-        if (!ENABLE_WEBRTC_LOBBY || !webRtcMeshRef.current) return;
-        const phase = lobbyGameData?.gamePhase as string | undefined;
-        const gameStarted = phase === 'pre_mission_story' || phase === 'battle' || phase === 'post_mission_story';
-        webRtcMeshRef.current.updatePeers(gameStarted ? Object.keys(players) : []);
-    }, [players, lobbyGameData]);
 
     const startInLobby = useCallback(
         async (lobby: LobbyState, player: PlayerState) => {
@@ -804,7 +729,8 @@ function AppInner() {
         setPollMessagesReady(false);
         const home =
             isAdmin ? campaignPathForTab('mission_select') : campaignPathForTab('join_mission');
-        const target = characterId && user?.id ? playerCharacterPath(user.id, characterId) : home;
+        // typeof guard: DOM onClick handlers can leak a MouseEvent into this optional param
+        const target = typeof characterId === 'string' && user?.id ? playerCharacterPath(user.id, characterId) : home;
         navigate(target, { replace: true });
         setScreen('lobby');
         refetchUser();
@@ -998,7 +924,19 @@ function AppInner() {
     // ==================== Render ====================
 
     return (
-        <GhostPlanContext.Provider value={{ ghostPlans, sendGhostPlan }}>
+        <WebRtcMeshProvider
+            ref={webRtcMeshRef}
+            enabled={ENABLE_WEBRTC_LOBBY}
+            lobby={currentLobby}
+            player={currentPlayer}
+            sendSignal={sendWebRtcSignal}
+            peerIds={webRtcPeerIds}
+            onTransientEvent={(fromPlayerId, event) => {
+                if ((event.type as string | undefined) === 'ping') {
+                    triggerPlayerFlash(fromPlayerId);
+                }
+            }}
+        >
         <>
             {screen === 'lobby' && (
                 <Routes>
@@ -1092,9 +1030,11 @@ function AppInner() {
                         onJoinNextLobby={handleClientJoinNextLobby}
                         onEmittedChatMessage={handleEmittedChatMessage}
                         onPing={() => {
-                            const mesh = webRtcMeshRef.current;
-                            if (ENABLE_WEBRTC_LOBBY && mesh && currentPlayer) {
-                                mesh.sendEventToAll({ type: 'ping', fromPlayerId: currentPlayer.id });
+                            if (ENABLE_WEBRTC_LOBBY && currentPlayer) {
+                                webRtcMeshRef.current?.sendTransientEvent({
+                                    type: 'ping',
+                                    fromPlayerId: currentPlayer.id,
+                                });
                             }
                             lobbyClient
                                 .sendMessage(currentLobby.id, currentPlayer.id, MessageType.PING, {
@@ -1103,9 +1043,7 @@ function AppInner() {
                                 .catch(() => {});
                             triggerPlayerFlash(currentPlayer.id);
                         }}
-                        pingEnabled={webRtcReady}
                         flashingPlayerIds={flashingPlayerIds}
-                        webRtcPeerConnected={webRtcPeerConnected}
                     />
                     <DebugConsoleInGame
                         user={user}
@@ -1139,7 +1077,7 @@ function AppInner() {
                 />
             )}
         </>
-        </GhostPlanContext.Provider>
+        </WebRtcMeshProvider>
     );
 }
 

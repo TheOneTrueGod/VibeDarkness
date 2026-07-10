@@ -470,7 +470,8 @@ export default function CharactersPanel({ api, lobbyClient, players, onStartMiss
                     }
                     left={
                         <div className="flex flex-col gap-2 p-3">
-                            {adminLoading && <p className="text-sm text-muted">Loading…</p>}
+                            {/* Only on initial load — during refreshes the stale list stays put so it doesn't shift */}
+                            {adminLoading && !adminDetails && <p className="text-sm text-muted">Loading…</p>}
                             {!adminLoading && sortedAdminCharacters.length === 0 && (
                                 <p className="text-sm text-muted">No characters found</p>
                             )}

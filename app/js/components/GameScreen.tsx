@@ -24,6 +24,7 @@ import {
     BattleActionRowProvider,
     BattleActionRowSlot,
 } from '../contexts/BattleActionRowContext';
+import { useWebRtcMeshOptional } from '../contexts/WebRtcMeshContext';
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -120,12 +121,8 @@ interface GameScreenProps {
     onEmittedChatMessage?: (entry: MessageEntry) => void;
     /** Sends a WebRTC ping event to other players. */
     onPing?: () => void;
-    /** Whether the Ping button should be enabled (e.g. only when WebRTC is ready). */
-    pingEnabled?: boolean;
     /** Player IDs whose cards should currently flash (e.g. WebRTC ping highlight). */
     flashingPlayerIds?: string[];
-    /** Map of playerId → whether their WebRTC peer connection is currently open. */
-    webRtcPeerConnected?: Record<string, boolean>;
 }
 
 export default function GameScreen({
@@ -153,13 +150,14 @@ export default function GameScreen({
     onJoinNextLobby,
     onEmittedChatMessage,
     onPing,
-    pingEnabled = true,
     flashingPlayerIds,
-    webRtcPeerConnected,
 }: GameScreenProps) {
     const { isAdmin } = useCurrentUser();
     const { showToast } = useToast();
     const gameSync = useGameSyncOptional();
+    const webRtcMesh = useWebRtcMeshOptional();
+    const pingEnabled = webRtcMesh?.ready ?? false;
+    const webRtcPeerConnected = webRtcMesh?.peerConnected;
     const [GameComp, setGameComp] = useState<React.ComponentType<GameComponentProps> | null>(null);
     const [gameLoadError, setGameLoadError] = useState<string | null>(null);
     const [gameSidebarInfo, setGameSidebarInfo] = useState<GameSidebarInfo | null>(null);
@@ -352,7 +350,7 @@ export default function GameScreen({
                 <button
                     type="button"
                     className="px-4 py-2 bg-danger text-white font-semibold text-sm rounded hover:bg-danger-hover transition-colors shrink-0"
-                    onClick={isHost && inBattle ? () => { window.location.href = '/'; } : onLeave}
+                    onClick={isHost && inBattle ? () => { window.location.href = '/'; } : () => onLeave()}
                 >
                     Leave
                 </button>
