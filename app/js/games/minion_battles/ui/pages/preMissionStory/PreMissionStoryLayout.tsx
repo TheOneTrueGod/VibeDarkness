@@ -18,6 +18,8 @@ interface PreMissionStoryLayoutProps {
     headerSlot?: React.ReactNode;
     /** Right column slot content (chat), forwarded from GameScreen via Game.tsx. */
     chatSlot?: React.ReactNode;
+    /** Left column slot content (player statuses). */
+    leftColumn?: React.ReactNode;
     /** Bottom row slot content (player statuses). */
     bottomRow?: React.ReactNode;
     /** Loading/resync overlay, rendered absolutely within the center slot. */
@@ -32,6 +34,7 @@ export default function PreMissionStoryLayout({
     onStoryViewportModeChange,
     headerSlot,
     chatSlot,
+    leftColumn,
     bottomRow,
     centerOverlay,
     children,
@@ -79,6 +82,7 @@ export default function PreMissionStoryLayout({
     return (
         <BattleUISlotLayout
             header={headerSlot}
+            leftColumn={leftColumn}
             rightColumn={chatSlot}
             bottomRow={bottomRow}
             center={

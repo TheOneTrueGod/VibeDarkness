@@ -70,6 +70,8 @@ interface RowSlotAbilitiesProps {
     onCycleAbilityMode?: (abilityId: string, modes: readonly string[]) => void;
     /** Called with the hovered card's ability, or null on unhover — only fires while the card is selectable. */
     onHoverAbility?: (ability: AbilityStatic | null) => void;
+    /** The turn indicator plaque (and ITS playahead controls); pinned to the top of this slot. */
+    turnIndicator?: React.ReactNode;
 }
 
 export default function RowSlotAbilities({
@@ -86,6 +88,7 @@ export default function RowSlotAbilities({
     abilityModeByAbilityId = {},
     onCycleAbilityMode,
     onHoverAbility,
+    turnIndicator,
 }: RowSlotAbilitiesProps) {
     const [mobileDescIndex, setMobileDescIndex] = useState<number | null>(null);
     const [isMobile, setIsMobile] = useState(getUsesMobileCardLayout);
@@ -393,49 +396,52 @@ export default function RowSlotAbilities({
     };
 
     return (
-        <div
-            ref={containerRef}
-            className="relative grid h-full min-w-0 grid-rows-[auto_auto] content-end gap-y-2 overflow-y-auto"
-            onPointerLeave={() => setHoveredCardId(null)}
-        >
-            {pulseParticles.map((p) => {
-                const t = Math.max(0, Math.min(1, (animationNow - p.startMs - p.staggerMs) / p.durationMs));
-                const oneMinus = 1 - t;
-                const x = oneMinus * oneMinus * p.fromX + 2 * oneMinus * t * p.controlX + t * t * p.toX;
-                const y = oneMinus * oneMinus * p.fromY + 2 * oneMinus * t * p.controlY + t * t * p.toY;
-                const opacity = p.alphaMode === 'rise'
-                    ? t
-                    : (t < 0.1 ? t / 0.1 : t > 0.85 ? (1 - t) / 0.15 : 1);
-                const size = p.sizeFrom + (p.sizeTo - p.sizeFrom) * t;
-                return (
-                    <div
-                        key={p.id}
-                        className="pointer-events-none absolute z-20 rounded-full bg-gray-300"
-                        style={{
-                            left: x - size / 2,
-                            top: y - size / 2,
-                            width: size,
-                            height: size,
-                            opacity: Math.max(0, Math.min(1, opacity)),
-                        }}
-                    />
-                );
-            })}
+        <div className="flex h-full min-w-0 flex-col">
+            {turnIndicator}
+            <div
+                ref={containerRef}
+                className="relative grid min-h-0 flex-1 grid-rows-[auto_auto] content-end gap-y-2 overflow-y-auto"
+                onPointerLeave={() => setHoveredCardId(null)}
+            >
+                {pulseParticles.map((p) => {
+                    const t = Math.max(0, Math.min(1, (animationNow - p.startMs - p.staggerMs) / p.durationMs));
+                    const oneMinus = 1 - t;
+                    const x = oneMinus * oneMinus * p.fromX + 2 * oneMinus * t * p.controlX + t * t * p.toX;
+                    const y = oneMinus * oneMinus * p.fromY + 2 * oneMinus * t * p.controlY + t * t * p.toY;
+                    const opacity = p.alphaMode === 'rise'
+                        ? t
+                        : (t < 0.1 ? t / 0.1 : t > 0.85 ? (1 - t) / 0.15 : 1);
+                    const size = p.sizeFrom + (p.sizeTo - p.sizeFrom) * t;
+                    return (
+                        <div
+                            key={p.id}
+                            className="pointer-events-none absolute z-20 rounded-full bg-gray-300"
+                            style={{
+                                left: x - size / 2,
+                                top: y - size / 2,
+                                width: size,
+                                height: size,
+                                opacity: Math.max(0, Math.min(1, opacity)),
+                            }}
+                        />
+                    );
+                })}
 
-            <div className="flex min-w-0 flex-wrap content-end gap-2">
-                {playerUnit ? (
-                    firstRowCards.length > 0 ? (
-                        firstRowCards.map((card, i) => renderHandCard(card, i))
+                <div className="flex min-w-0 flex-wrap content-end gap-2">
+                    {playerUnit ? (
+                        firstRowCards.length > 0 ? (
+                            firstRowCards.map((card, i) => renderHandCard(card, i))
+                        ) : (
+                            <p className="text-muted w-full py-4 text-center text-sm">No cards in hand</p>
+                        )
                     ) : (
                         <p className="text-muted w-full py-4 text-center text-sm">No cards in hand</p>
-                    )
-                ) : (
-                    <p className="text-muted w-full py-4 text-center text-sm">No cards in hand</p>
-                )}
-            </div>
-            <div className="flex min-w-0 flex-wrap content-end gap-2">
-                {hasSecondAbilityRow &&
-                    secondRowCards.map((card, i) => renderHandCard(card, firstRowCount + i))}
+                    )}
+                </div>
+                <div className="flex min-w-0 flex-wrap content-end gap-2">
+                    {hasSecondAbilityRow &&
+                        secondRowCards.map((card, i) => renderHandCard(card, firstRowCount + i))}
+                </div>
             </div>
 
             {isMobile && mobileDescAbility && (

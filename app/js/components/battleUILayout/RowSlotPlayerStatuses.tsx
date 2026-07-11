@@ -1,10 +1,10 @@
 /**
  * RowSlotPlayerStatuses - a Bottom Row slot's content: a fixed-height horizontal row of
- * player pills with status (ready/not-ready, connection). Used by the story phases' bottom row.
+ * player chips with status (ready/not-ready, connection). Used by the story phases' bottom row.
  */
 import React from 'react';
 import type { PlayerState } from '../../types';
-import PlayerPill from '../PlayerPill';
+import PlayerStatusChip from './PlayerStatusChip';
 import { SPECTATOR_ID } from '../../games/minion_battles/state';
 
 interface RowSlotPlayerStatusesProps {
@@ -26,38 +26,24 @@ export default function RowSlotPlayerStatuses({
     readyPlayerIds,
     flashingPlayerIds,
 }: RowSlotPlayerStatusesProps) {
-    const readySet = readyPlayerIds != null ? new Set(readyPlayerIds) : null;
-    const flashingSet = flashingPlayerIds != null ? new Set(flashingPlayerIds) : null;
     const visiblePlayers = Object.values(players).filter(
         (player) => characterSelections?.[player.id] !== SPECTATOR_ID,
     );
 
     return (
         <ul className="list-none flex h-full min-h-0 w-full flex-wrap content-start gap-2 overflow-y-auto [scrollbar-gutter:stable]">
-            {visiblePlayers.map((player) => {
-                const characterId = characterSelections?.[player.id];
-                const secondLine =
-                    characterId === SPECTATOR_ID
-                        ? 'Spectator'
-                        : characterId != null && characterIdToName?.[characterId] != null
-                          ? characterIdToName[characterId]
-                            : undefined;
-                const readyStatus =
-                    readySet != null
-                        ? (readySet.has(player.id) ? 'ready' : 'not_ready')
-                        : undefined;
-                return (
-                    <li key={player.id}>
-                        <PlayerPill
-                            player={player}
-                            currentPlayerId={currentPlayerId}
-                            secondLine={secondLine}
-                            readyStatus={readyStatus}
-                            isFlashing={flashingSet?.has(player.id) ?? false}
-                        />
-                    </li>
-                );
-            })}
+            {visiblePlayers.map((player) => (
+                <li key={player.id}>
+                    <PlayerStatusChip
+                        player={player}
+                        currentPlayerId={currentPlayerId}
+                        characterSelections={characterSelections}
+                        characterIdToName={characterIdToName}
+                        readyPlayerIds={readyPlayerIds}
+                        flashingPlayerIds={flashingPlayerIds}
+                    />
+                </li>
+            ))}
         </ul>
     );
 }

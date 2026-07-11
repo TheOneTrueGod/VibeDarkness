@@ -28,6 +28,8 @@ interface BattleAbilityBarProps {
     handleCycleAbilityMode: (abilityId: string, modes: readonly string[]) => void;
     setIsWaitHovered: (hovered: boolean) => void;
     setHoveredAbility: (ability: AbilityStatic | null) => void;
+    /** The turn indicator plaque (and ITS playahead controls); pinned to the top of the ability row. */
+    turnIndicator?: React.ReactNode;
 }
 
 interface BattleAbilityBarSlots {
@@ -54,6 +56,7 @@ export function useBattleAbilityBarSlots({
     handleCycleAbilityMode,
     setIsWaitHovered,
     setHoveredAbility,
+    turnIndicator,
 }: BattleAbilityBarProps): BattleAbilityBarSlots {
     const autoEndTurn = useAutoEndTurn();
 
@@ -98,6 +101,7 @@ export function useBattleAbilityBarSlots({
                     hudEffectCanvasRef.current?.registerHudFlightTarget(key, pageX, pageY);
                 }}
                 onHoverAbility={setHoveredAbility}
+                turnIndicator={turnIndicator}
             />
         ),
         bottomRightCorner: (

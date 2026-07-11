@@ -33,6 +33,7 @@ import DialoguePortraitSidebar from './preMissionStory/DialoguePortraitSidebar';
 import DialoguePhrasePanel from './preMissionStory/DialoguePhrasePanel';
 import { STORY_VIEWPORT_WINDOW_LAPTOP_MAX_PX } from './preMissionStory/storyViewportConstants';
 import RowSlotPlayerStatuses from '../../../../components/battleUILayout/RowSlotPlayerStatuses';
+import ColumnSlotPlayerStatuses from '../../../../components/battleUILayout/ColumnSlotPlayerStatuses';
 
 function isDialogue(phrase: PostMissionPhrase | undefined): phrase is DialoguePhrase {
     return !!phrase && phrase.type === 'dialogue';
@@ -440,6 +441,13 @@ export default function PostMissionStoryPhase({
             headerSlot={headerSlot}
             chatSlot={chatSlot}
             centerOverlay={centerOverlay}
+            leftColumn={
+                <ColumnSlotPlayerStatuses
+                    players={players}
+                    currentPlayerId={playerId}
+                    characterSelections={characterSelections}
+                />
+            }
             bottomRow={
                 <RowSlotPlayerStatuses
                     players={players}

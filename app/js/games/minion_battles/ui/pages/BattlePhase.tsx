@@ -358,6 +358,53 @@ export default function BattlePhase({
 
     const showWebRtcConnectionStatus = Object.keys(players).length > 1;
 
+    const turnIndicatorState = computeTurnIndicatorProps({
+        waitingForOrders,
+        storyPauseActive,
+        canUseOrderUi,
+        playerId,
+        players,
+    });
+
+    const turnIndicatorElement = (
+        <TurnIndicator
+            state={turnIndicatorState.state}
+            allyName={turnIndicatorState.allyName}
+            freezePresentation={rewindOverlay != null}
+            hostCatchupPopover={
+                showHostCatchupPopover
+                    ? {
+                          hostTick: hostCatchupHostTick,
+                          targetTick: hostCatchupTargetTick,
+                          stuckHeartbeats: hostCatchupStuckHeartbeats,
+                          onForceResync: handleForceResync,
+                      }
+                    : null
+            }
+            orderPipeline={orderPipeline}
+            itsControls={
+                interactiveTargetingState !== 'inactive' || rewindOverlay != null
+                    ? (
+                        <ITSTimelineControls
+                            state={
+                                interactiveTargetingState === 'inactive'
+                                    ? 'paused'
+                                    : interactiveTargetingState
+                            }
+                            sessionRef={sessionRef}
+                            getItsPlayaheadTicks={getItsPlayaheadTicks}
+                            setOrderSubmitFailed={setOrderSubmitFailed}
+                            autoCommitItsAttemptedRef={autoCommitItsAttemptedRef}
+                            rewindToken={rewindOverlay?.token ?? null}
+                            rewindSeed={rewindSeed}
+                            rewindDurationMs={REWIND_OVERLAY_FADE_MS}
+                        />
+                    )
+                    : null
+            }
+        />
+    );
+
     const abilityBarSlots = useBattleAbilityBarSlots({
         sessionRef,
         hudEffectCanvasRef,
@@ -375,6 +422,7 @@ export default function BattlePhase({
         handleCycleAbilityMode,
         setIsWaitHovered,
         setHoveredAbility,
+        turnIndicator: turnIndicatorElement,
     });
 
     if (!isHost && !hasReceivedInitialHeartbeat) {
@@ -401,14 +449,6 @@ export default function BattlePhase({
     const itsAbilityId = itsActive && its ? its.abilityId : null;
     const itsUnitId = itsActive && its ? its.unitId : null;
     const itsAbility = itsAbilityId ? getAbility(itsAbilityId) : null;
-
-    const turnIndicator = computeTurnIndicatorProps({
-        waitingForOrders,
-        storyPauseActive,
-        canUseOrderUi,
-        playerId,
-        players,
-    });
 
     return (
         <>
@@ -491,43 +531,6 @@ export default function BattlePhase({
                                 <RewindOverlay overlay={rewindOverlay} opaque={rewindOverlayOpaque} />
                             )}
                         </div>
-
-                        <TurnIndicator
-                            state={turnIndicator.state}
-                            allyName={turnIndicator.allyName}
-                            freezePresentation={rewindOverlay != null}
-                            hostCatchupPopover={
-                                showHostCatchupPopover
-                                    ? {
-                                          hostTick: hostCatchupHostTick,
-                                          targetTick: hostCatchupTargetTick,
-                                          stuckHeartbeats: hostCatchupStuckHeartbeats,
-                                          onForceResync: handleForceResync,
-                                      }
-                                    : null
-                            }
-                            orderPipeline={orderPipeline}
-                            itsControls={
-                                interactiveTargetingState !== 'inactive' || rewindOverlay != null
-                                    ? (
-                                        <ITSTimelineControls
-                                            state={
-                                                interactiveTargetingState === 'inactive'
-                                                    ? 'paused'
-                                                    : interactiveTargetingState
-                                            }
-                                            sessionRef={sessionRef}
-                                            getItsPlayaheadTicks={getItsPlayaheadTicks}
-                                            setOrderSubmitFailed={setOrderSubmitFailed}
-                                            autoCommitItsAttemptedRef={autoCommitItsAttemptedRef}
-                                            rewindToken={rewindOverlay?.token ?? null}
-                                            rewindSeed={rewindSeed}
-                                            rewindDurationMs={REWIND_OVERLAY_FADE_MS}
-                                        />
-                                    )
-                                    : null
-                            }
-                        />
 
                         {centerOverlay}
                     </div>

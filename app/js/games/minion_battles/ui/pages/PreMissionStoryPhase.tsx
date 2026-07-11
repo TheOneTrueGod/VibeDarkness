@@ -13,6 +13,7 @@ import { getItemDef } from '../../character_defs/items';
 import PreMissionStoryEndScreen from './preMissionStory/PreMissionStoryEndScreen';
 import PreMissionStoryLayout, { type StoryViewportLayoutMode } from './preMissionStory/PreMissionStoryLayout';
 import RowSlotPlayerStatuses from '../../../../components/battleUILayout/RowSlotPlayerStatuses';
+import ColumnSlotPlayerStatuses from '../../../../components/battleUILayout/ColumnSlotPlayerStatuses';
 import DialoguePortraitRow from './preMissionStory/DialoguePortraitRow';
 import DialoguePortraitSidebar from './preMissionStory/DialoguePortraitSidebar';
 import { STORY_VIEWPORT_WINDOW_LAPTOP_MAX_PX } from './preMissionStory/storyViewportConstants';
@@ -310,6 +311,14 @@ export default function PreMissionStoryPhase({
             headerSlot={headerSlot}
             chatSlot={chatSlot}
             centerOverlay={centerOverlay}
+            leftColumn={
+                <ColumnSlotPlayerStatuses
+                    players={players}
+                    currentPlayerId={playerId}
+                    characterSelections={characterSelections}
+                    readyPlayerIds={storyReadyPlayerIds}
+                />
+            }
             bottomRow={
                 <RowSlotPlayerStatuses
                     players={players}
