@@ -1853,7 +1853,6 @@ export class GameEngine implements EngineContext {
                 if (!unit.active || !unit.isAlive()) continue;
                 if (!unit.isPlayerControlled() || !unit.canAct()) continue;
                 if (waiterUnitIds.has(unit.id)) continue;
-                if (unit.movement !== null && unit.movement.path.length > 0 && !unit.movementPaused) continue;
                 if (!engine.state.orderMgr.hasPendingOrderForUnit(unit.id, atTick)) {
                     extra.push({ unitId: unit.id, ownerId: unit.ownerId });
                 }

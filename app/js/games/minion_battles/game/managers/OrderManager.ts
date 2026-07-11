@@ -54,10 +54,14 @@ export class OrderManager {
     /**
      * Whether this engine should pause for orders for the given unit.
      * Returns false when an order is already pending (engine will apply it naturally).
+     *
+     * Remaining movement path does NOT suppress the pause: once the unit can act
+     * (no active ability / wait lockout), the next parallel order plane forms even
+     * mid-walk so the player can queue another order. Wait+move stays gated by
+     * {@link Unit.canAct} via wait lockout until the wait ends.
      */
     shouldPauseForOrders(unit: Unit): boolean {
         if (!unit.isPlayerControlled() || !unit.canAct() || !unit.isAlive()) return false;
-        if (unit.movement !== null && unit.movement.path.length > 0 && !unit.movementPaused) return false;
         return !this.hasPendingOrderForUnit(unit.id);
     }
 

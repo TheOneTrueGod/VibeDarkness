@@ -3,23 +3,50 @@ import type { ScenarioDefinition } from '../types';
 
 const FIXED_STEP_SEC = 1 / 60;
 
-/** Headless scenarios: resolve a mid-cast conditional cancel pause (custom hook or auto-wait). */
-function maybeAutoResolveConditionalCancel(
+/**
+ * Headless scenarios: when the engine pauses for parallel orders, resolve waiters so the
+ * sim can continue. Conditional-cancel pauses use the scenario hook (or auto-wait);
+ * ordinary pauses auto-submit wait+endTurn (move-only / AI scenarios are not order-UI tests).
+ */
+function maybeAutoResolveParallelOrderPause(
     engine: GameEngine,
     onConditionalCancelPause?: (engine: GameEngine) => void,
 ): void {
     const batch = engine.waitingForOrders;
     if (!batch) return;
+
     const pausedWaiter = batch.waiters.find((w) =>
         engine.getUnit(w.unitId)?.activeAbilities.some((a) => a.conditionalCancelPaused),
     );
-    if (!pausedWaiter) return;
-    if (engine.state.orderMgr.hasPendingOrderForUnit(pausedWaiter.unitId, batch.atTick)) return;
-    if (onConditionalCancelPause) {
-        onConditionalCancelPause(engine);
+    if (pausedWaiter) {
+        if (engine.state.orderMgr.hasPendingOrderForUnit(pausedWaiter.unitId, batch.atTick)) return;
+        if (onConditionalCancelPause) {
+            onConditionalCancelPause(engine);
+            return;
+        }
+        engine.state.orderMgr.applyOrder({
+            unitId: pausedWaiter.unitId,
+            abilityId: 'wait',
+            targets: [],
+            endTurn: true,
+        });
         return;
     }
-    engine.state.orderMgr.applyOrder({ unitId: pausedWaiter.unitId, abilityId: 'wait', targets: [] });
+
+    let submitted = false;
+    for (const waiter of batch.waiters) {
+        if (engine.state.orderMgr.hasPendingEndTurnOrderForUnit(waiter.unitId, batch.atTick)) continue;
+        engine.state.orderMgr.applyOrder({
+            unitId: waiter.unitId,
+            abilityId: 'wait',
+            targets: [],
+            endTurn: true,
+        });
+        submitted = true;
+    }
+    if (submitted) {
+        engine.tryResumeParallel();
+    }
 }
 
 /** Extra frames to step after assertPass first returns true, so the animation plays out. */
@@ -115,7 +142,7 @@ export function createLiveScenarioRun(scenario: ScenarioDefinition): LiveScenari
                     markSettled();
                     return;
                 }
-                maybeAutoResolveConditionalCancel(engine, scenario.onConditionalCancelPause);
+                maybeAutoResolveParallelOrderPause(engine, scenario.onConditionalCancelPause);
                 engine.stepSimulationFixedTicks(1);
                 ticks++;
             }
@@ -190,7 +217,7 @@ export function runScenarioHeadless(scenario: ScenarioDefinition): ScenarioRunRe
             if (engine.isScenarioRunnerBattleIdle()) {
                 break;
             }
-            maybeAutoResolveConditionalCancel(engine, scenario.onConditionalCancelPause);
+            maybeAutoResolveParallelOrderPause(engine, scenario.onConditionalCancelPause);
             engine.stepSimulationFixedTicks(1);
             ticks++;
         }
