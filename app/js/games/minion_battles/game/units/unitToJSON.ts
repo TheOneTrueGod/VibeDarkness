@@ -55,12 +55,16 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
                 ? { movementByLabel: JSON.parse(JSON.stringify(a.movementByLabel)) as typeof a.movementByLabel }
                 : {}),
         })),
-        abilityNote: unit.abilityNote,
+        abilityNote: unit.abilityNote
+            ? (JSON.parse(JSON.stringify(unit.abilityNote)) as typeof unit.abilityNote)
+            : null,
         ...(unit.radiusOverride !== undefined ? { radiusOverride: unit.radiusOverride } : {}),
-        aiSettings: unit.aiSettings,
+        aiSettings: unit.aiSettings
+            ? (JSON.parse(JSON.stringify(unit.aiSettings)) as typeof unit.aiSettings)
+            : null,
         pathfindingRetriggerOffset: unit.pathfindingRetriggerOffset,
         pathInvalidated: unit.pathInvalidated,
-        aiContext: unit.aiContext,
+        aiContext: JSON.parse(JSON.stringify(unit.aiContext ?? {})) as typeof unit.aiContext,
         unitAITreeId: unit.unitAITreeId,
         moveJitter: unit.moveJitter,
         spawnTimer: unit.spawnTimer,

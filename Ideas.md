@@ -7,6 +7,9 @@ Voen: metal
 Annoying how things are out of range to be countered.  Being able to suck enemies towards you might be nice.
 Gravity
 
+Max - backline fill (healer, ranger).  Telekenisis
+Alan - Black mage.  Superpower:  Invulnerability
+
 Feedback July 9
 [] Implement Objective Key Jangling
 [] Implement keyword tooltip thing

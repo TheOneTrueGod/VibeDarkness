@@ -89,6 +89,12 @@ export class BattleSession implements BattleSessionHandle {
     private readonly listeners = new Set<BattleSessionListener>();
     /** Dedupe keys for remote rows applied this engine lifetime (cleared when the engine is torn down or replaced from snapshot). */
     private appliedRemoteOrderKeys = new Set<string>();
+    /**
+     * When the UI claims a rewind presentation (DOM crossfade), ITS awaits this before
+     * applying orders / unpausing. Headless callers that never defer resolve immediately.
+     */
+    private rewindPresentationResolve: (() => void) | null = null;
+    private rewindPresentationDeferred = false;
     /** Manages the local-preview run for abilities that use SelectTargetDef. */
     readonly interactiveTargeting = new InteractiveTargetingSession();
 
@@ -1093,9 +1099,42 @@ export class BattleSession implements BattleSessionHandle {
         this.emit({ type: 'order_submit_failed', unitId, abilityId });
     }
 
-    /** Emit a sequential_targeting_rewind event (UI captures the frame before restore). */
-    emitSequentialTargetingRewind(): void {
-        this.emit({ type: 'sequential_targeting_rewind' });
+    /**
+     * Emit a sequential_targeting_rewind event (UI captures the frame before restore).
+     * Resolves when the rewind presentation may end — immediately unless the UI calls
+     * {@link deferRewindPresentationUntilNotified} synchronously in a listener, then
+     * {@link notifyRewindPresentationComplete} after the crossfade.
+     */
+    emitSequentialTargetingRewind(): Promise<void> {
+        const prev = this.rewindPresentationResolve;
+        this.rewindPresentationResolve = null;
+        this.rewindPresentationDeferred = false;
+        prev?.();
+
+        return new Promise((resolve) => {
+            this.rewindPresentationResolve = resolve;
+            this.emit({ type: 'sequential_targeting_rewind' });
+            if (!this.rewindPresentationDeferred) {
+                this.rewindPresentationResolve = null;
+                resolve();
+            }
+        });
+    }
+
+    /**
+     * UI: call from the `sequential_targeting_rewind` handler so ITS holds sim resume
+     * until {@link notifyRewindPresentationComplete}.
+     */
+    deferRewindPresentationUntilNotified(): void {
+        this.rewindPresentationDeferred = true;
+    }
+
+    /** UI: call when the rewind crossfade finishes (or is cancelled). */
+    notifyRewindPresentationComplete(): void {
+        const resolve = this.rewindPresentationResolve;
+        this.rewindPresentationResolve = null;
+        this.rewindPresentationDeferred = false;
+        resolve?.();
     }
 
     /** Host: force a wait order and persist checkpoint (skip turn). */

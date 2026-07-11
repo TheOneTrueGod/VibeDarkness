@@ -1,11 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import {
-    DEFAULT_FRAMES_PER_PIP,
     ENGINE_TICKS_PER_SECOND,
-    ITS_PIP_BASELINE_DURATION_SEC,
+    FRAMES_PER_PIP,
+    PIP_GAP_PX,
+    PIP_WIDTH_PX,
     abilityDurationSecondsToTicks,
     computeItsTimelinePips,
-    framesPerPipForAbilityDuration,
+    computeItsTimelineWindow,
+    computeItsTimelineWindowForWidth,
+    maxPipsForWidth,
 } from './itsTimelineMath';
 
 describe('abilityDurationSecondsToTicks', () => {
@@ -21,34 +24,12 @@ describe('abilityDurationSecondsToTicks', () => {
     });
 });
 
-describe('framesPerPipForAbilityDuration', () => {
-    it('uses 1 frame per pip at the Dodge baseline duration', () => {
-        expect(framesPerPipForAbilityDuration(ITS_PIP_BASELINE_DURATION_SEC)).toBe(1);
-        expect(framesPerPipForAbilityDuration(0.4)).toBe(1);
-    });
-
-    it('coarsens longer abilities proportionally', () => {
-        expect(framesPerPipForAbilityDuration(0.8)).toBe(2);
-        expect(framesPerPipForAbilityDuration(2.0)).toBe(5);
-    });
-
-    it('never goes below 1 frame per pip', () => {
-        expect(framesPerPipForAbilityDuration(0.1)).toBe(1);
-    });
-
-    it('falls back to DEFAULT_FRAMES_PER_PIP when duration is unknown', () => {
-        expect(framesPerPipForAbilityDuration(0)).toBe(DEFAULT_FRAMES_PER_PIP);
-        expect(framesPerPipForAbilityDuration(-1)).toBe(DEFAULT_FRAMES_PER_PIP);
-        expect(framesPerPipForAbilityDuration(Number.NaN)).toBe(DEFAULT_FRAMES_PER_PIP);
-    });
-});
-
 describe('computeItsTimelinePips', () => {
-    it('uses DEFAULT_FRAMES_PER_PIP when framesPerPip is omitted', () => {
+    it('defaults to FRAMES_PER_PIP (2 ticks per pip)', () => {
         const model = computeItsTimelinePips({
             startTick: 100,
-            currentTick: 100 + DEFAULT_FRAMES_PER_PIP * 3,
-            highWaterTick: 100 + DEFAULT_FRAMES_PER_PIP * 3,
+            currentTick: 100 + FRAMES_PER_PIP * 3,
+            highWaterTick: 100 + FRAMES_PER_PIP * 3,
             expectedDurationTicks: 0,
         });
         expect(model.pipCount).toBe(3);
@@ -61,9 +42,8 @@ describe('computeItsTimelinePips', () => {
             currentTick: 0,
             highWaterTick: 0,
             expectedDurationTicks: 50,
-            framesPerPip: 5,
         });
-        expect(model.pipCount).toBe(10);
+        expect(model.pipCount).toBe(25);
         expect(model.currentPipIndex).toBe(0);
     });
 
@@ -73,22 +53,10 @@ describe('computeItsTimelinePips', () => {
             currentTick: 70,
             highWaterTick: 70,
             expectedDurationTicks: 20,
-            framesPerPip: 5,
         });
-        expect(model.pipCount).toBe(12);
-        expect(model.currentPipIndex).toBe(11);
-    });
-
-    it('clamps the current pip to the last index at the end of the span', () => {
-        const model = computeItsTimelinePips({
-            startTick: 0,
-            currentTick: 100,
-            highWaterTick: 25,
-            expectedDurationTicks: 25,
-            framesPerPip: 5,
-        });
-        expect(model.pipCount).toBe(20);
-        expect(model.currentPipIndex).toBe(19);
+        // 60 ticks / 2 = 30 pips
+        expect(model.pipCount).toBe(30);
+        expect(model.currentPipIndex).toBe(29);
     });
 
     it('honours a custom framesPerPip', () => {
@@ -102,16 +70,78 @@ describe('computeItsTimelinePips', () => {
         expect(model.pipCount).toBe(1);
         expect(model.currentPipIndex).toBe(0);
     });
+});
 
-    it('with 1 frame per pip, current index tracks tick offset directly', () => {
-        const model = computeItsTimelinePips({
-            startTick: 0,
-            currentTick: 12,
-            highWaterTick: 24,
-            expectedDurationTicks: 24,
-            framesPerPip: 1,
+describe('maxPipsForWidth', () => {
+    it('fits as many fixed pips as the track allows', () => {
+        // 3 pips: 2+1+2+1+2 = 8px
+        expect(maxPipsForWidth(8, PIP_WIDTH_PX, PIP_GAP_PX)).toBe(3);
+        expect(maxPipsForWidth(7, PIP_WIDTH_PX, PIP_GAP_PX)).toBe(2);
+    });
+});
+
+describe('computeItsTimelineWindow', () => {
+    it('shows the full span when it fits, with no overflow', () => {
+        expect(
+            computeItsTimelineWindow({ pipCount: 10, currentPipIndex: 3, maxVisiblePips: 20 }),
+        ).toEqual({
+            windowStart: 0,
+            visibleCount: 10,
+            leftOverflow: 0,
+            rightOverflow: 0,
+            visibleCurrentIndex: 3,
         });
-        expect(model.pipCount).toBe(24);
-        expect(model.currentPipIndex).toBe(12);
+    });
+
+    it('clips the right while the playhead is in the first half', () => {
+        expect(
+            computeItsTimelineWindow({ pipCount: 40, currentPipIndex: 5, maxVisiblePips: 20 }),
+        ).toEqual({
+            windowStart: 0,
+            visibleCount: 20,
+            leftOverflow: 0,
+            rightOverflow: 20,
+            visibleCurrentIndex: 5,
+        });
+    });
+
+    it('keeps the playhead centered once past the midpoint', () => {
+        // half of 20 = 10; current 15 → start at 5
+        expect(
+            computeItsTimelineWindow({ pipCount: 40, currentPipIndex: 15, maxVisiblePips: 20 }),
+        ).toEqual({
+            windowStart: 5,
+            visibleCount: 20,
+            leftOverflow: 5,
+            rightOverflow: 15,
+            visibleCurrentIndex: 10,
+        });
+    });
+
+    it('clamps the window at the end of the span', () => {
+        expect(
+            computeItsTimelineWindow({ pipCount: 40, currentPipIndex: 39, maxVisiblePips: 20 }),
+        ).toEqual({
+            windowStart: 20,
+            visibleCount: 20,
+            leftOverflow: 20,
+            rightOverflow: 0,
+            visibleCurrentIndex: 19,
+        });
+    });
+});
+
+describe('computeItsTimelineWindowForWidth', () => {
+    it('reserves label width when the right side overflows', () => {
+        // Wide enough for many pips, but span is longer → right label reserved.
+        const result = computeItsTimelineWindowForWidth({
+            pipCount: 100,
+            currentPipIndex: 0,
+            trackWidthPx: 100,
+        });
+        expect(result.rightOverflow).toBeGreaterThan(0);
+        expect(result.leftOverflow).toBe(0);
+        expect(result.visibleCount).toBe(result.maxVisiblePips);
+        expect(result.visibleCount).toBeLessThan(maxPipsForWidth(100));
     });
 });

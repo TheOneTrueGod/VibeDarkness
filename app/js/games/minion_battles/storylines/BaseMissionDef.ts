@@ -39,7 +39,7 @@ import {
     applyAbilityResearchModifiersToRuntime,
     initializeAbilityRuntimeForUnit,
 } from '../abilities/abilityUses';
-import { mergeBattleEquipmentIdsFromResearch, getCardReplacementsFromResearch, getDirectCardsFromResearch, computeAbilityModifiersFromResearch, getPetsFromResearch, getMissionStartResourcesFromResearch } from '../../../researchTrees/evaluator';
+import { mergeBattleEquipmentIdsFromResearch, getCardReplacementsFromResearch, getDirectCardsFromResearch, getRemovedCardsFromResearch, computeAbilityModifiersFromResearch, getPetsFromResearch, getMissionStartResourcesFromResearch } from '../../../researchTrees/evaluator';
 import { getPetDef } from '../game/units/pet_defs/petDef';
 import { getAbilityTagsForId } from '../abilities/Ability';
 import { Ammo } from '../resources/Ammo';
@@ -224,6 +224,14 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             // Add cards granted directly by research (bypasses item system).
             for (const cardId of getDirectCardsFromResearch(researchByPlayer[pu.playerId])) {
                 if (!abilities.includes(cardId)) abilities.push(cardId);
+            }
+
+            // Strip cards research says to remove (e.g. Light Core removing Throw Torch).
+            const removedCardIds = getRemovedCardsFromResearch(researchByPlayer[pu.playerId]);
+            if (removedCardIds.size > 0) {
+                for (let j = abilities.length - 1; j >= 0; j--) {
+                    if (removedCardIds.has(abilities[j]!)) abilities.splice(j, 1);
+                }
             }
 
             // Apply card-level replacements from research (e.g. Double Punch replaces Punch).

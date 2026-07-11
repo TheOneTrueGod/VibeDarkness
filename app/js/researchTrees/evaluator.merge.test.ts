@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     getDirectCardsFromResearch,
-    getCardReplacementsFromResearch,
+    getRemovedCardsFromResearch,
     getMissionStartResourcesFromResearch,
     mergeBattleEquipmentIdsFromResearch,
 } from './evaluator';
@@ -20,12 +20,12 @@ describe('mergeBattleEquipmentIdsFromResearch', () => {
     });
 });
 
-describe('getCardReplacementsFromResearch', () => {
-    it('Light Core research replaces Throw Torch (0601) with Light Blast (0801)', () => {
-        const replacements = getCardReplacementsFromResearch({
+describe('getRemovedCardsFromResearch', () => {
+    it('Light Core research removes Throw Torch (0601)', () => {
+        const removed = getRemovedCardsFromResearch({
             [LIGHT_TREE_ID]: [LIGHT_NODE_CORE],
         });
-        expect(replacements.get('0601')).toBe('0801');
+        expect(removed.has('0601')).toBe(true);
     });
 });
 
@@ -39,6 +39,13 @@ describe('getMissionStartResourcesFromResearch', () => {
 });
 
 describe('getDirectCardsFromResearch', () => {
+    it('Light Core research grants Light Blast (0801)', () => {
+        const cards = getDirectCardsFromResearch({
+            [LIGHT_TREE_ID]: [LIGHT_NODE_CORE],
+        });
+        expect(cards).toContain('0801');
+    });
+
     it('Gravity Core research grants Force Push (0902)', () => {
         const cards = getDirectCardsFromResearch({
             [GRAVITY_TREE_ID]: [GRAVITY_NODE_CORE],

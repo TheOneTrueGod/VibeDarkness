@@ -266,7 +266,11 @@ export class InteractiveTargetingSession {
         this.assumedRemoteWaitDuringPreview = false;
 
         // Snapshot the pause state (include runtime fingerprint so restore does not reset to fingerprintInitial).
-        const markState = engine.toJSON();
+        // Deep-clone: engine.toJSON() embeds live refs (aiContext, abilityNote, waiters, …). Without a
+        // clone, preview ticks and the first restore's fromJSON aliasing mutate the mark — later
+        // replay/reset restore mid-preview AI/charge state while x/y stay at the pause (wolves
+        // "teleport" after charging from the wrong place).
+        const markState = structuredClone(engine.toJSON());
         markState.checkpointRuntimeFingerprintHex = engine.getRuntimeFingerprintHex();
         this.mark = markState;
 
@@ -527,7 +531,7 @@ export class InteractiveTargetingSession {
         logItsButtonClick(session, this, actionSource);
         const logSnapshot = this._captureLogSnapshot(session);
         await session.refreshRemoteOrdersBeforeInteractiveTargetingAction();
-        this._restoreToMark(session);
+        await this._restoreToMark(session);
         Object.keys(this.collectedTargets).forEach((k) => delete this.collectedTargets[k]);
         this.collectedMovementByLabel = {};
         this._orderPositionalTargets = [];
@@ -582,7 +586,7 @@ export class InteractiveTargetingSession {
         const baseOrder = this.originalOrder;
 
         await session.refreshRemoteOrdersBeforeInteractiveTargetingAction();
-        this._restoreToMark(session);
+        await this._restoreToMark(session);
 
         const engine = session.getEngine();
         if (!engine) return;
@@ -692,7 +696,7 @@ export class InteractiveTargetingSession {
             const logSnapshot = this._captureLogSnapshot(session);
             const heldForAbort = [...this.heldRemoteOrders.values()];
             this.heldRemoteOrders.clear();
-            this._restoreToMark(session, { applyHeldRemoteOrders: false });
+            await this._restoreToMark(session, { applyHeldRemoteOrders: false });
             session.applyHeldRemoteOrders(heldForAbort);
             this._clearActive();
             session.emitOrderSubmitFailed(unitId, abilityId);
@@ -742,9 +746,9 @@ export class InteractiveTargetingSession {
 
         const rollbackLogSnapshot = this._captureLogSnapshot(session);
 
-        // --- Phase 2 (rollback): restore, clear, release, submit ---
+        // --- Phase 2 (rollback): restore, wait for crossfade, clear, release, submit ---
 
-        this._restoreToMark(session, { applyHeldRemoteOrders: false });
+        await this._restoreToMark(session, { applyHeldRemoteOrders: false });
         this._clearActive();
 
         const engine = session.getEngine();
@@ -846,17 +850,25 @@ export class InteractiveTargetingSession {
     // -------------------------------------------------------------------------
 
     /**
-     * Restore engine to `mark` state and apply all held remote orders.
-     * The saved `onParallelBatchResolved` callback is restored on the new engine.
+     * Restore engine to `mark` state, wait for the rewind crossfade (when the UI defers it),
+     * then apply held remote orders. Held-order / replay resume stays gated until presentation ends.
      */
-    private _restoreToMark(
+    private async _restoreToMark(
         session: BattleSession,
         opts?: { applyHeldRemoteOrders?: boolean },
-    ): void {
+    ): Promise<void> {
         if (!this.mark) return;
         // Capture-frame signal for the DOM rewind overlay (must fire before engine teardown).
-        session.emitSequentialTargetingRewind();
-        session.restoreFromInMemorySnapshot(this.mark);
+        const presentationDone = session.emitSequentialTargetingRewind();
+        // Clone again so GameEngine.fromJSON / applySerializedUnitState cannot alias or mutate
+        // nested mark fields (activeAbilities, aiContext) for the next replay.
+        session.restoreFromInMemorySnapshot(structuredClone(this.mark));
+        // Hold ticks under the fading overlay even if the mark was not order-paused.
+        const engine = session.getEngine();
+        if (engine) {
+            engine.isPaused = true;
+        }
+        await presentationDone;
         const applyHeld = opts?.applyHeldRemoteOrders !== false;
         if (applyHeld) {
             const rows = [...this.heldRemoteOrders.values()];

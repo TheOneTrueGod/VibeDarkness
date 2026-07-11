@@ -18,6 +18,7 @@ export type ResearchEffect =
     | { type: 'addExtraCardsFromItem'; itemId: string; cardId: string; count: number }
     | { type: 'replaceCard'; fromCardId: string; toCardId: string }
     | { type: 'addCard'; cardId: string }
+    | { type: 'removeCard'; cardId: string }
     | { type: 'grantPet'; petId: string }
     | { type: 'grantMissionStartResource'; resourceId: string; amount: number };
 

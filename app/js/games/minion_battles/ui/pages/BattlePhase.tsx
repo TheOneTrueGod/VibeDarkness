@@ -47,11 +47,7 @@ import { useInteractiveTargetingProgress } from './battlePhase/useInteractiveTar
 import { useBattleGhostPlans } from './battlePhase/useBattleGhostPlans';
 import { useRewindOverlay, REWIND_OVERLAY_FADE_MS } from './battlePhase/useRewindOverlay';
 import ITSTimelineControls from '../components/ITSTimelineControls';
-import {
-    DEFAULT_FRAMES_PER_PIP,
-    abilityDurationSecondsToTicks,
-    framesPerPipForAbilityDuration,
-} from '../components/itsTimelineMath';
+import { abilityDurationSecondsToTicks } from '../components/itsTimelineMath';
 import { useInteractionManagerBridge } from './battlePhase/useInteractionManagerBridge';
 import { useBattleNetSyncState } from './battlePhase/useBattleNetSyncState';
 import { useBattleRoundState } from './battlePhase/useBattleRoundState';
@@ -174,7 +170,6 @@ export default function BattlePhase({
         savedLocalTick: number;
         playaheadTick: number;
         expectedDurationTicks: number;
-        framesPerPip: number;
     } | null>(null);
 
     useEffect(() => {
@@ -189,7 +184,6 @@ export default function BattlePhase({
                 // Capture peak ticks + ability span before restore — ITS/engine still at playahead here.
                 const ticks = getItsPlayaheadTicks();
                 let expectedDurationTicks = 0;
-                let framesPerPip = DEFAULT_FRAMES_PER_PIP;
                 const its = session.interactiveTargeting;
                 const eng = session.getEngine();
                 if (its.isActive && eng != null && its.abilityId != null && its.unitId != null) {
@@ -199,7 +193,6 @@ export default function BattlePhase({
                         try {
                             const durationSec = getTotalAbilityDurationForCast(ability, caster, eng);
                             expectedDurationTicks = abilityDurationSecondsToTicks(durationSec);
-                            framesPerPip = framesPerPipForAbilityDuration(durationSec);
                         } catch {
                             // keep defaults
                         }
@@ -207,10 +200,12 @@ export default function BattlePhase({
                 }
                 setRewindSeed(
                     ticks != null
-                        ? { ...ticks, expectedDurationTicks, framesPerPip }
+                        ? { ...ticks, expectedDurationTicks }
                         : null,
                 );
                 setPeerGhostPlansVisibleAfterRewind(true);
+                // Hold sim resume until the DOM crossfade finishes.
+                session.deferRewindPresentationUntilNotified();
                 captureAndFade(session);
                 return;
             }

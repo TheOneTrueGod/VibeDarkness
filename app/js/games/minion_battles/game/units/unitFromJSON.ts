@@ -72,7 +72,7 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
     unit.aiSettings = (data.aiSettings as AISettings | null) ?? null;
     unit.pathfindingRetriggerOffset = (data.pathfindingRetriggerOffset as number) ?? 0;
     unit.pathInvalidated = (data.pathInvalidated as boolean) ?? false;
-    const rawCtx = (data.aiContext ?? {}) as Record<string, unknown>;
+    const rawCtx = JSON.parse(JSON.stringify(data.aiContext ?? {})) as Record<string, unknown>;
     if (rawCtx.unitAINodeId !== undefined) { rawCtx.aiState = rawCtx.unitAINodeId; delete rawCtx.unitAINodeId; }
     if (rawCtx.aiTargetUnitId !== undefined) { rawCtx.targetUnitId = rawCtx.aiTargetUnitId; delete rawCtx.aiTargetUnitId; }
     unit.aiContext = rawCtx as UnitAIContext;
@@ -113,8 +113,23 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
         };
     }
     unit.wallStuckTime = typeof data.wallStuckTime === 'number' ? data.wallStuckTime : 0;
-    unit.activeAbilities = (data.activeAbilities as ActiveAbility[]) ?? [];
-    unit.abilityNote = (data.abilityNote as AbilityNote | null) ?? null;
+    unit.activeAbilities = ((data.activeAbilities as ActiveAbility[]) ?? []).map((a) => ({
+        ...a,
+        targets: a.targets.map((t) => ({ ...t })),
+        castPayload:
+            a.castPayload !== undefined
+                ? JSON.parse(JSON.stringify(a.castPayload)) as unknown
+                : undefined,
+        ...(a.conditionalCancelTagFilter !== undefined
+            ? { conditionalCancelTagFilter: [...a.conditionalCancelTagFilter] }
+            : {}),
+        ...(a.movementByLabel !== undefined
+            ? { movementByLabel: JSON.parse(JSON.stringify(a.movementByLabel)) as typeof a.movementByLabel }
+            : {}),
+    }));
+    unit.abilityNote = data.abilityNote != null
+        ? JSON.parse(JSON.stringify(data.abilityNote)) as AbilityNote
+        : null;
 
     const buffsData = (data.buffs as BuffSerialized[] | undefined) ?? [];
     unit.buffs = buffsData.map((b) => buffFromJSON(b));

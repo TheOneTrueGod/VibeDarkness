@@ -229,6 +229,29 @@ export function getDirectCardsFromResearch(
 }
 
 /**
+ * Returns card IDs to strip from the unit's assembled ability list from `removeCard` effects
+ * in researched nodes. Applied after equipment/addCard cards are collected, before replaceCard.
+ */
+export function getRemovedCardsFromResearch(
+    researchTrees: Record<string, string[]> | undefined,
+): Set<string> {
+    const trees = researchTrees ?? {};
+    const cardIds = new Set<string>();
+    for (const tree of RESEARCH_TREES) {
+        const researchedSet = new Set(trees[tree.id] ?? []);
+        const researchedNodes = sortNodesDeterministic(tree.nodes.filter((n) => researchedSet.has(n.id)));
+        for (const node of researchedNodes) {
+            for (const eff of node.effects) {
+                if (eff.type === 'removeCard') {
+                    cardIds.add(eff.cardId);
+                }
+            }
+        }
+    }
+    return cardIds;
+}
+
+/**
  * Returns pet IDs granted by `grantPet` effects in researched nodes across all trees.
  * Call pre-battle to determine which pets to spawn alongside the player.
  */

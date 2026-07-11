@@ -16,6 +16,18 @@ export default {
                 success: '#2ECC71',
                 warning: '#F39C12',
                 muted: '#a0a0a0',
+                /**
+                 * Used widely as `bg-dark-*` / `border-dark-*`. Must stay defined — otherwise
+                 * Tailwind silently drops those classes (tooltips with `bg-dark-900/95` render
+                 * with no background).
+                 */
+                dark: {
+                    500: '#3d4f6f',
+                    600: '#2d3a52',
+                    700: '#243044',
+                    800: '#1f2b47',
+                    900: '#16213e',
+                },
             },
             borderRadius: {
                 DEFAULT: '8px',

@@ -8,9 +8,11 @@ import { getTotalAbilityDurationForCast } from '../../abilities/abilityTimings';
 import type { ItsPlayaheadTicks } from './GameTickPill';
 import ITSTimelineFrameStepper from './ITSTimelineFrameStepper';
 import {
-    DEFAULT_FRAMES_PER_PIP,
+    AnchoredPortalTooltip,
+} from './AnchoredPortalTooltip';
+import {
+    FRAMES_PER_PIP,
     abilityDurationSecondsToTicks,
-    framesPerPipForAbilityDuration,
 } from './itsTimelineMath';
 
 /** Fixed row height so the turn-indicator plaque does not grow. */
@@ -28,6 +30,8 @@ interface ItsIconButtonProps {
     disabled?: boolean;
     className: string;
     iconClassName: string;
+    /** When true, render {@link label} as visible text beside the icon. */
+    showText?: boolean;
 }
 
 /** Compact icon control with a fast hover tooltip. */
@@ -38,9 +42,11 @@ function ItsIconButton({
     disabled = false,
     className,
     iconClassName,
+    showText = false,
 }: ItsIconButtonProps) {
     const [tooltipVisible, setTooltipVisible] = useState(false);
     const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const buttonRef = useRef<HTMLButtonElement>(null);
 
     const clearShowTimer = () => {
         if (showTimerRef.current != null) {
@@ -54,6 +60,7 @@ function ItsIconButton({
     return (
         <div className="relative shrink-0">
             <button
+                ref={buttonRef}
                 type="button"
                 aria-label={label}
                 disabled={disabled}
@@ -69,20 +76,26 @@ function ItsIconButton({
                     clearShowTimer();
                     setTooltipVisible(false);
                 }}
-                className={`flex h-5 w-5 items-center justify-center rounded-sm border transition-opacity ${className} ${
+                className={`flex h-5 items-center justify-center rounded-sm border transition-opacity ${
+                    showText ? 'gap-0.5 px-1' : 'w-5'
+                } ${className} ${
                     disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:opacity-90'
                 }`}
             >
-                <Icon className={`h-3.5 w-3.5 ${iconClassName}`} strokeWidth={2.25} aria-hidden />
+                <Icon className={`h-3.5 w-3.5 shrink-0 ${iconClassName}`} strokeWidth={2.25} aria-hidden />
+                {showText ? (
+                    <span className={`text-[10px] font-semibold leading-none ${iconClassName}`}>
+                        {label}
+                    </span>
+                ) : null}
             </button>
-            {tooltipVisible ? (
-                <div
-                    className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1 -translate-x-1/2 whitespace-nowrap rounded border border-dark-600 bg-dark-900/95 px-1.5 py-0.5 text-[10px] text-gray-100 shadow"
-                    role="tooltip"
-                >
-                    {label}
-                </div>
-            ) : null}
+            <AnchoredPortalTooltip
+                anchorRef={buttonRef}
+                open={tooltipVisible}
+                className="px-1.5 py-0.5 text-[10px] whitespace-nowrap"
+            >
+                {label}
+            </AnchoredPortalTooltip>
         </div>
     );
 }
@@ -94,7 +107,6 @@ interface RewindScrubSnapshot {
     highWaterTick: number;
     startTick: number;
     expectedDurationTicks: number;
-    framesPerPip: number;
 }
 
 export interface ITSTimelineControlsProps {
@@ -110,40 +122,32 @@ export interface ITSTimelineControlsProps {
      */
     rewindSeed?: (ItsPlayaheadTicks & {
         expectedDurationTicks: number;
-        framesPerPip: number;
     }) | null;
     /** Duration of the rewind scrub animation (should match the DOM overlay fade). */
     rewindDurationMs?: number;
-    /**
-     * Game ticks per timeline pip. When omitted, derived from the active ability’s
-     * cast duration ({@link framesPerPipForAbilityDuration}).
-     */
-    framesPerPip?: number;
 }
 
 function readAbilityTimelineMeta(sessionRef: React.RefObject<BattleSession | null>): {
     expectedDurationTicks: number;
-    durationSec: number;
 } {
     const session = sessionRef.current;
     const its = session?.interactiveTargeting;
     const engine = session?.getEngine();
     if (!its?.isActive || engine == null || its.abilityId == null || its.unitId == null) {
-        return { expectedDurationTicks: 0, durationSec: 0 };
+        return { expectedDurationTicks: 0 };
     }
     const ability = getAbility(its.abilityId);
     const caster = engine.getUnit(its.unitId);
     if (!ability || !caster) {
-        return { expectedDurationTicks: 0, durationSec: 0 };
+        return { expectedDurationTicks: 0 };
     }
     try {
         const durationSec = getTotalAbilityDurationForCast(ability, caster, engine);
         return {
             expectedDurationTicks: abilityDurationSecondsToTicks(durationSec),
-            durationSec,
         };
     } catch {
-        return { expectedDurationTicks: 0, durationSec: 0 };
+        return { expectedDurationTicks: 0 };
     }
 }
 
@@ -160,14 +164,12 @@ export default function ITSTimelineControls({
     rewindToken = null,
     rewindSeed = null,
     rewindDurationMs = DEFAULT_REWIND_SCRUB_MS,
-    framesPerPip: framesPerPipOverride,
 }: ITSTimelineControlsProps) {
     const [, forceRerender] = useReducer((x: number) => x + 1, 0);
     const highWaterRef = useRef(0);
     const displayTickRef = useRef(0);
     const startTickRef = useRef(0);
     const expectedDurationRef = useRef(0);
-    const framesPerPipRef = useRef(DEFAULT_FRAMES_PER_PIP);
     const [displayTick, setDisplayTick] = useState(0);
     const [rewinding, setRewinding] = useState(false);
     const [scrub, setScrub] = useState<RewindScrubSnapshot | null>(null);
@@ -192,16 +194,11 @@ export default function ITSTimelineControls({
                 if (meta.expectedDurationTicks > 0) {
                     expectedDurationRef.current = meta.expectedDurationTicks;
                 }
-                if (framesPerPipOverride != null) {
-                    framesPerPipRef.current = framesPerPipOverride;
-                } else if (meta.durationSec > 0) {
-                    framesPerPipRef.current = framesPerPipForAbilityDuration(meta.durationSec);
-                }
             }
             forceRerender();
         }, 50);
         return () => window.clearInterval(id);
-    }, [getItsPlayaheadTicks, rewinding, sessionRef, framesPerPipOverride]);
+    }, [getItsPlayaheadTicks, rewinding, sessionRef]);
 
     useEffect(() => {
         // Hold timeline state while a rewind token is present or scrub is running —
@@ -260,10 +257,6 @@ export default function ITSTimelineControls({
                 rewindSeed?.expectedDurationTicks && rewindSeed.expectedDurationTicks > 0
                     ? rewindSeed.expectedDurationTicks
                     : expectedDurationRef.current,
-            framesPerPip:
-                rewindSeed?.framesPerPip && rewindSeed.framesPerPip > 0
-                    ? rewindSeed.framesPerPip
-                    : framesPerPipRef.current,
         };
 
         setRewinding(true);
@@ -302,8 +295,9 @@ export default function ITSTimelineControls({
     const highWaterTick = scrub?.highWaterTick
         ?? Math.max(highWaterRef.current, displayTick, startTick);
     const expectedDurationTicks = scrub?.expectedDurationTicks ?? expectedDurationRef.current;
-    const framesPerPip = scrub?.framesPerPip ?? framesPerPipRef.current;
-    const showDone = !AUTO_END_TURN && !rewinding && scrub == null;
+    const showDone = !AUTO_END_TURN;
+    const isRewindCrossfade = rewinding || scrub != null || rewindToken != null;
+    const doneDisabled = state !== 'done' || isRewindCrossfade;
 
     return (
         <div
@@ -312,11 +306,12 @@ export default function ITSTimelineControls({
             aria-label="Interactive targeting controls"
         >
             <ItsIconButton
-                label="Reset"
+                label="Undo"
                 icon={Undo2}
+                showText
                 className="border-red-700 bg-red-900/60"
                 iconClassName="text-red-300"
-                disabled={rewinding}
+                disabled={isRewindCrossfade}
                 onClick={() => {
                     setOrderSubmitFailed(false);
                     const s = sessionRef.current;
@@ -328,7 +323,7 @@ export default function ITSTimelineControls({
                 icon={RotateCw}
                 className="border-sky-700 bg-sky-900/60"
                 iconClassName="text-sky-300"
-                disabled={rewinding}
+                disabled={isRewindCrossfade}
                 onClick={() => {
                     setOrderSubmitFailed(false);
                     const s = sessionRef.current;
@@ -340,19 +335,20 @@ export default function ITSTimelineControls({
                 currentTick={displayTick}
                 highWaterTick={highWaterTick}
                 expectedDurationTicks={expectedDurationTicks}
-                framesPerPip={framesPerPip}
+                framesPerPip={FRAMES_PER_PIP}
             />
             {showDone ? (
                 <ItsIconButton
                     label="Done"
                     icon={Check}
-                    disabled={state !== 'done'}
+                    showText
+                    disabled={doneDisabled}
                     className={
-                        state === 'done'
+                        !doneDisabled
                             ? 'border-emerald-600 bg-emerald-600'
                             : 'border-dark-600 bg-dark-800'
                     }
-                    iconClassName={state === 'done' ? 'text-white' : 'text-gray-500'}
+                    iconClassName={!doneDisabled ? 'text-white' : 'text-gray-500'}
                     onClick={() => {
                         setOrderSubmitFailed(false);
                         autoCommitItsAttemptedRef.current = true;

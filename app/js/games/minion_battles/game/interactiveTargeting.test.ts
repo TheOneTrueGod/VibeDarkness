@@ -21,7 +21,7 @@ import { resetGameObjectIdCounter } from './GameObject';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { GameEngine } from './GameEngine';
 import type { Unit } from './units/Unit';
-import type { BattleOrder, ResolvedTarget } from './types';
+import type { BattleOrder, ResolvedTarget, SerializedGameState } from './types';
 import {
     buildFinalizedSequentialTargetingOrder,
     buildPositionalTargetsFromLabels,
@@ -75,6 +75,8 @@ const PUNCH_ABILITY_ID = '0120';
 const PUNCH_TARGET_LABEL = 'Target';
 /** Logical reach from `0120Ability.ts` / `defineMeleeStrike` (exclusive of unit-radius padding). */
 const PUNCH_MAX_RANGE = 30;
+/** Windup lunge distance from `0120Ability.ts` — extends `getRange().maxRange` by this much. */
+const PUNCH_LUNGE_DISTANCE = 10;
 /** SelectTargetDef labels on Double Punch timings. */
 const DOUBLE_PUNCH_TARGET_1_LABEL = 'Target 1';
 const DOUBLE_PUNCH_TARGET_2_LABEL = 'Target 2';
@@ -1494,8 +1496,8 @@ describe('interactive sequential targeting', () => {
             abilities: [PUNCH_ABILITY_ID],
         });
 
-        // Just outside center-to-center maxRange (30 + 20 = 50) but still inside thick-line lock-on.
-        const edgeDistance = PUNCH_MAX_RANGE + DEFAULT_UNIT_RADIUS + 1;
+        // Just outside center-to-center maxRange (30 + 20 + 10 lunge = 60) but still inside thick-line lock-on.
+        const edgeDistance = PUNCH_MAX_RANGE + DEFAULT_UNIT_RADIUS + PUNCH_LUNGE_DISTANCE + 1;
         const enemy = createTargetDummyAtWorld(engine, playerX + edgeDistance, playerY, {
             id: 'enemy_edge',
             hp: 100,
@@ -2501,6 +2503,133 @@ describe('non-host in-place commit (Fix C + Fix B)', () => {
 });
 
 describe('Reset/Replay pre-restore refresh (Step 2)', () => {
+    it('ITS mark stays isolated from live aiContext / activeAbilities across replay', async () => {
+        const fixture = await mountLightBlastSessionFixture();
+        const { session, casterUnitId, blastPixel } = fixture;
+        const enemyId = 'enemy_commit_test';
+
+        session.setNetAdapter({
+            refreshRemoteOrdersForTargetingPreview: vi.fn().mockResolvedValue(undefined),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        const its = session.interactiveTargeting;
+        its.begin(
+            {
+                unitId: casterUnitId,
+                abilityId: LIGHT_BLAST_ID,
+                targets: [],
+                endTurn: true,
+            },
+            session,
+        );
+
+        const mark = its['mark'] as SerializedGameState;
+        const markEnemy = mark.units.find((u) => (u as { id?: string }).id === enemyId) as {
+            id: string;
+            x: number;
+            y: number;
+            aiContext: Record<string, unknown>;
+            activeAbilities: unknown[];
+        };
+        expect(markEnemy).toBeDefined();
+        const markX = markEnemy.x;
+        const markY = markEnemy.y;
+        const markAiCtx = markEnemy.aiContext;
+        const markActiveAbilities = markEnemy.activeAbilities;
+
+        // Live preview must not mutate the frozen mark via shared refs.
+        const liveEnemy = session.getEngine()!.getUnit(enemyId)!;
+        liveEnemy.aiContext = { ...liveEnemy.aiContext, targetUnitId: 'poison' };
+        (liveEnemy.aiContext as Record<string, unknown>).probe = 'mutated';
+        expect(markAiCtx).not.toBe(liveEnemy.aiContext);
+        expect((markAiCtx as Record<string, unknown>).probe).toBeUndefined();
+
+        const paused = stepUntil(
+            session.getEngine()!,
+            () => session.getEngine()!.waitingForTargetInput?.label === LIGHT_BLAST_TARGET_LABEL,
+            120,
+        );
+        expect(paused).toBe(true);
+        its.resolveTarget(LIGHT_BLAST_TARGET_LABEL, { type: 'pixel', position: blastPixel }, session);
+        stepUntil(
+            session.getEngine()!,
+            () => isITSPreviewComplete(session.getEngine()!),
+            300,
+        );
+
+        // Several restores — previously aliased activeAbilities into the mark.
+        for (let i = 0; i < 3; i++) {
+            await its.replay(session);
+            stepUntil(
+                session.getEngine()!,
+                () => isITSPreviewComplete(session.getEngine()!),
+                300,
+            );
+        }
+
+        expect(markEnemy.x).toBe(markX);
+        expect(markEnemy.y).toBe(markY);
+        expect(markEnemy.activeAbilities).toBe(markActiveAbilities);
+        expect(markEnemy.activeAbilities).toHaveLength(0);
+
+        await its.reset(session);
+        its.begin(
+            {
+                unitId: casterUnitId,
+                abilityId: LIGHT_BLAST_ID,
+                targets: [],
+                endTurn: true,
+            },
+            session,
+        );
+        const enemyAfterReset = session.getEngine()!.getUnit(enemyId)!;
+        expect(enemyAfterReset.x).toBe(markX);
+        expect(enemyAfterReset.y).toBe(markY);
+
+        session.destroy();
+    });
+
+    it('replay holds order apply until rewind presentation completes', async () => {
+        const fixture = await mountLightBlastSessionFixture();
+        const { session, casterUnitId, blastPixel } = fixture;
+
+        session.setNetAdapter({
+            refreshRemoteOrdersForTargetingPreview: vi.fn().mockResolvedValue(undefined),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        session.subscribe((ev) => {
+            if (ev.type === 'sequential_targeting_rewind') {
+                session.deferRewindPresentationUntilNotified();
+            }
+        });
+
+        runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
+        const its = session.interactiveTargeting;
+        const markTick = its.savedLocalTick;
+        expect(markTick).not.toBeNull();
+
+        const applySpy = vi.spyOn(OrderManager.prototype, 'applyOrder');
+        const replayPromise = its.replay(session);
+
+        await vi.waitFor(() => {
+            const eng = session.getEngine();
+            expect(eng).not.toBeNull();
+            expect(eng!.isPaused).toBe(true);
+            expect(eng!.gameTick).toBe(markTick);
+            expect(eng!.waitingForOrders).not.toBeNull();
+        });
+        expect(applySpy).not.toHaveBeenCalled();
+
+        session.notifyRewindPresentationComplete();
+        await replayPromise;
+
+        expect(applySpy).toHaveBeenCalled();
+        expect(session.getEngine()!.waitingForOrders).toBeNull();
+
+        applySpy.mockRestore();
+        session.destroy();
+    });
+
     it('held order registered before reset() is pending after restore', async () => {
         const fixture = await mountLightBlastSessionFixture();
         const { session, casterUnitId, remoteUnitId, atTick } = fixture;

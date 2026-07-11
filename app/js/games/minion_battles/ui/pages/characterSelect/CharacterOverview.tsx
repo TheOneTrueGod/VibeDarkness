@@ -6,7 +6,7 @@ import { getItemDef } from '../../../character_defs/items';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import type { AbilityStatic } from '../../../abilities/Ability';
 import { getAbilityUseConfig } from '../../../abilities/abilityUses';
-import { mergeBattleEquipmentIdsFromResearch, getDirectCardsFromResearch, getCardReplacementsFromResearch } from '../../../../../researchTrees/evaluator';
+import { mergeBattleEquipmentIdsFromResearch, getDirectCardsFromResearch, getRemovedCardsFromResearch, getCardReplacementsFromResearch } from '../../../../../researchTrees/evaluator';
 import type { UnitAbilityRuntimeState } from '../../../game/units/Unit';
 import AbilitySlot from '../../components/AbilitySlot';
 import AbilityTooltip from '../../components/AbilityTooltip';
@@ -73,6 +73,12 @@ export function CharacterOverview({
         }
         for (const cardId of getDirectCardsFromResearch(character.researchTrees)) {
             if (!abilities.includes(cardId)) abilities.push(cardId);
+        }
+        const removedCardIds = getRemovedCardsFromResearch(character.researchTrees);
+        if (removedCardIds.size > 0) {
+            for (let i = abilities.length - 1; i >= 0; i--) {
+                if (removedCardIds.has(abilities[i]!)) abilities.splice(i, 1);
+            }
         }
         const replacements = getCardReplacementsFromResearch(character.researchTrees);
         if (replacements.size > 0) {

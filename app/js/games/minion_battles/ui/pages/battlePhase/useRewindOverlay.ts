@@ -18,6 +18,8 @@ export function useRewindOverlay({ battleCanvasAreaRef, hudEffectCanvasRef }: Us
     const [rewindOverlayOpaque, setRewindOverlayOpaque] = useState(true);
     const rewindFadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const rewindFadeRafRef = useRef<number | null>(null);
+    /** Session awaiting {@link BattleSession.notifyRewindPresentationComplete} for the active fade. */
+    const pendingPresentationSessionRef = useRef<BattleSession | null>(null);
 
     const clearRewindTimers = useCallback(() => {
         if (rewindFadeTimerRef.current != null) {
@@ -28,6 +30,14 @@ export function useRewindOverlay({ battleCanvasAreaRef, hudEffectCanvasRef }: Us
             cancelAnimationFrame(rewindFadeRafRef.current);
             rewindFadeRafRef.current = null;
         }
+    }, []);
+
+    const releasePresentationHold = useCallback((session: BattleSession | null) => {
+        if (session == null) return;
+        if (pendingPresentationSessionRef.current === session) {
+            pendingPresentationSessionRef.current = null;
+        }
+        session.notifyRewindPresentationComplete();
     }, []);
 
     const captureAndFade = useCallback(
@@ -48,6 +58,14 @@ export function useRewindOverlay({ battleCanvasAreaRef, hudEffectCanvasRef }: Us
                 }
             }
             clearRewindTimers();
+            // Superseded fade: release any prior hold before claiming this session.
+            if (
+                pendingPresentationSessionRef.current != null
+                && pendingPresentationSessionRef.current !== session
+            ) {
+                releasePresentationHold(pendingPresentationSessionRef.current);
+            }
+            pendingPresentationSessionRef.current = session;
             hudEffectCanvasRef.current?.addHudEffect(new RewindingTextEffect());
             setRewindOverlay({ frameUrl, token: Date.now() });
             setRewindOverlayOpaque(true);
@@ -58,18 +76,20 @@ export function useRewindOverlay({ battleCanvasAreaRef, hudEffectCanvasRef }: Us
                     rewindFadeTimerRef.current = setTimeout(() => {
                         setRewindOverlay(null);
                         rewindFadeTimerRef.current = null;
+                        releasePresentationHold(session);
                     }, REWIND_OVERLAY_FADE_MS);
                 });
             });
         },
-        [battleCanvasAreaRef, hudEffectCanvasRef, clearRewindTimers],
+        [battleCanvasAreaRef, hudEffectCanvasRef, clearRewindTimers, releasePresentationHold],
     );
 
     useEffect(() => {
         return () => {
             clearRewindTimers();
+            releasePresentationHold(pendingPresentationSessionRef.current);
         };
-    }, [clearRewindTimers]);
+    }, [clearRewindTimers, releasePresentationHold]);
 
     return {
         rewindOverlay,

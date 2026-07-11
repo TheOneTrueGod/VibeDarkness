@@ -1,5 +1,4 @@
 import type { ResearchTreeDef } from '../types';
-import { MISC_TREE_ID, MISC_NODE_LIGHTBEARER, MISC_NODE_TORCH_COPY } from './misc';
 import { STICK_SWORD_TREE_ID, STICK_SWORD_NODE_PIPE_BAT } from './stick_sword';
 
 export const LIGHT_TREE_ID = 'light_core';
@@ -10,7 +9,7 @@ export const LIGHT_NODE_GATHER_LIGHT = 'gather_light';
 export const lightTree: ResearchTreeDef = {
     id: LIGHT_TREE_ID,
     title: 'Light',
-    accessRequirements: [{ type: 'characterHasEquippedItem', itemId: '005' }],
+    accessRequirements: [],
     nodes: [
         {
             id: LIGHT_NODE_CORE,
@@ -23,13 +22,13 @@ export const lightTree: ResearchTreeDef = {
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
             requirements: [
-                { type: 'anyResearched', treeId: MISC_TREE_ID, nodeIds: [MISC_NODE_LIGHTBEARER, MISC_NODE_TORCH_COPY] },
                 { type: 'anyResearched', treeId: STICK_SWORD_TREE_ID, nodeIds: [STICK_SWORD_NODE_PIPE_BAT] },
             ],
             cost: {},
             effects: [
                 { type: 'replaceEquippedItem', fromItemId: '004', toItemId: '017' },
-                { type: 'replaceCard', fromCardId: '0601', toCardId: '0801' },
+                { type: 'removeCard', cardId: '0601' },
+                { type: 'addCard', cardId: '0801' },
             ],
             modifiesAbility: { from: '0601', to: '0801' },
         },

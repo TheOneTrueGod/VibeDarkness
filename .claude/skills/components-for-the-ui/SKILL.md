@@ -23,6 +23,7 @@ This skill keeps a **list of component names** and a **one-line description** of
 | **CharacterGrid** | Auto-fill grid of 200px character/option cards for the character-select screen. Lives in `ui/pages/characterSelect/`. |
 | **ITSTimelineControls** | Fixed-height ITS Reset / Replay / Done icon row with a live frame-stepper; replaces “Your Turn” text in the turn indicator during playahead. |
 | **ITSTimelineFrameStepper** | Compact passed / current / future pip bar for ITS playahead progress. |
+| **AnchoredPortalTooltip** | Portaled tooltip positioned from an anchor; always includes opaque `bg-black` surface chrome via `PORTAL_TOOLTIP_SURFACE_CLASS`. |
 
 ## When to use
 

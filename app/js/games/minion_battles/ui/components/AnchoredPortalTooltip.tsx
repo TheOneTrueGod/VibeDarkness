@@ -1,6 +1,9 @@
 /**
  * Renders tooltip content in a document portal, positioned relative to an anchor element.
  * Escapes overflow-hidden ancestors (e.g. the battle action bar).
+ *
+ * Always applies {@link PORTAL_TOOLTIP_SURFACE_CLASS} so tooltips keep a readable background
+ * even when callers forget to pass one in `className`.
  */
 
 import React, { useLayoutEffect, useState } from 'react';
@@ -10,6 +13,13 @@ import { createPortal } from 'react-dom';
 export const PORTAL_TOOLTIP_GAP_PX = 8;
 
 export const PORTAL_TOOLTIP_Z_INDEX = 200;
+
+/**
+ * Guaranteed tooltip chrome: opaque background + border + light text.
+ * Use for inline (non-portal) tooltips too — do not invent `bg-*` classes ad hoc.
+ */
+export const PORTAL_TOOLTIP_SURFACE_CLASS =
+    'rounded border border-border-custom bg-black text-gray-100 shadow-lg';
 
 export type PortalTooltipPlacement = 'top' | 'right';
 
@@ -77,7 +87,7 @@ export function AnchoredPortalTooltip({
     return createPortal(
         <div
             role="tooltip"
-            className={`pointer-events-none fixed ${positionClass} ${className}`}
+            className={`pointer-events-none fixed ${positionClass} ${PORTAL_TOOLTIP_SURFACE_CLASS} ${className}`}
             style={{
                 left: anchor.x,
                 top: anchor.y,

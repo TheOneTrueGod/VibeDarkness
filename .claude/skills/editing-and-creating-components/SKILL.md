@@ -29,19 +29,16 @@ Use this skill whenever you:
 
 When adding or editing **tooltips, hover boxes, popovers, or any floating help UI**:
 
-- **Always set an explicit background color**:
-  - Do **not** rely on inherited or default backgrounds.
-  - Use a Tailwind background class such as `bg-dark-900/95`, `bg-dark-800`, or `bg-black/80` so tooltips are readable in the dark theme.
-  - If the tooltip overlays busy content, prefer a slightly transparent dark background (e.g. `bg-dark-900/95`) plus a subtle border.
-- **Always set text and border colors**:
-  - Use light text (`text-gray-100`/`text-gray-200`) on dark backgrounds.
-  - Use a border (`border-dark-600`, `border-border-custom`) to visually separate from the game canvas or card bar.
+- **Prefer the shared helper**: use `AnchoredPortalTooltip` from `ui/components/AnchoredPortalTooltip.tsx`. It always applies `PORTAL_TOOLTIP_SURFACE_CLASS` (`bg-black` + border + light text), so a missing background cannot slip through.
+- **Inline tooltips** (no portal): import and include `PORTAL_TOOLTIP_SURFACE_CLASS` on the tooltip element. Do not hand-roll background classes.
+- **Never invent theme colors**: only use tokens that exist in `tailwind.config.js` (`bg-black`, `bg-dark-900`, `bg-surface`, `border-border-custom`, etc.). A class like `bg-dark-900` only works because `dark` is defined there — if Tailwind does not know the color, the class is silently dropped and the tooltip looks transparent.
+- **Always set text and border colors** (already covered by `PORTAL_TOOLTIP_SURFACE_CLASS` when using the helper).
 - **Keep tooltip content compact**:
   - Short title line (e.g. pile name) plus 1–2 lines of explanation.
   - Lists should use small text (`text-[11px]`–`text-xs`) and tight vertical spacing.
 - **Positioning**:
-  - Anchor relative to the triggering element (`relative` on parent, `absolute` on tooltip).
-  - Prefer positioning to the side or above/below with a margin (e.g. `left-full ml-3 top-1/2 -translate-y-1/2`) so the tooltip does not cover critical UI.
+  - Prefer `AnchoredPortalTooltip` so overflow-hidden parents cannot clip the tip.
+  - For rare inline tips: `relative` on parent, `absolute` on tooltip.
 
 ## Interaction patterns
 
