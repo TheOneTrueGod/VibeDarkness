@@ -39,6 +39,10 @@ import {
     lockTelegraphOnTargetEvade,
     updateTelegraphTracking,
 } from '../../abilities/telegraphTracking';
+import {
+    applyMovementByLabelEntry,
+    flushMovementByLabel,
+} from './applyMovementByLabel';
 
 /**
  * Fire all entry-time side effects for a single timing interval:
@@ -264,13 +268,27 @@ export function tickUnitActiveAbilities(
                     }
                 }
                 // Apply per-label movement re-input when a select interval fires.
+                // Lunge abilities defer until cooldown (post-lunge / post-lock) and repath then.
                 if (interval.targetDef?.kind === 'select' && active.movementByLabel) {
                     const enteredLabel = interval.targetDef.label;
                     const enteredMov = active.movementByLabel[enteredLabel];
                     if (enteredMov && enteredMov.movePath.length > 0) {
-                        unit.setMovement(enteredMov.movePath, enteredMov.moveTargetUnitId, engine.gameTick, enteredMov.moveTargetPixel);
-                        delete active.movementByLabel[enteredLabel];
+                        if (ability.lunge != null) {
+                            // Drop any deferred-targeting ghost path; keep the entry for cooldown flush.
+                            unit.clearMovement();
+                        } else {
+                            applyMovementByLabelEntry(unit, enteredMov, engine, { repathFromCurrent: false });
+                            delete active.movementByLabel[enteredLabel];
+                        }
                     }
+                }
+                // Lunge: apply queued post-lunge walk when cooldown begins (movement lock releases).
+                if (
+                    ability.lunge != null
+                    && interval.abilityPhase === AbilityPhase.Cooldown
+                    && active.movementByLabel
+                ) {
+                    flushMovementByLabel(unit, active, engine, { repathFromCurrent: true });
                 }
                 fireIntervalEntry(interval, active, unit, ability, engine, dt);
             }
@@ -565,6 +583,10 @@ export function tickUnitActiveAbilities(
                 prevTime: elapsed,
                 currentTime: elapsed,
             });
+        }
+        // Safety net: if a lunge cast never entered cooldown, still release queued walk.
+        if (ability?.lunge != null && active.movementByLabel) {
+            flushMovementByLabel(unit, active, engine, { repathFromCurrent: true });
         }
         if (ability?.clearMovementOnComplete) {
             unit.clearMovement();

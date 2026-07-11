@@ -423,8 +423,13 @@ export class InteractiveTargetingSession {
      *
      * Only valid while `engine.waitingForTargetInput` is set (i.e. the preview is paused).
      * Stores the movement in `collectedMovementByLabel` (for commit/replay) and on the live
-     * cast's `active.movementByLabel` so `unitAbilityTick` applies it when the select interval
-     * fires inline — the same pipeline point and `pathfindingTick` as a committed run.
+     * cast's `active.movementByLabel` when the cast has already started.
+     *
+     * Non-lunge: applied when the select interval fires.
+     * Lunge: held through windup/strike and applied (repathed) when cooldown begins.
+     *
+     * Always updates `unit.movement` for the ghost path preview — including deferred
+     * pre-cast pauses where no active ability exists yet.
      */
     resolveMovement(label: string, payload: MovementReInput, session: BattleSession): void {
         if (!this._isActive || !this._unitId) return;
@@ -437,12 +442,12 @@ export class InteractiveTargetingSession {
         const caster = engine.getUnit(this._unitId);
         if (!caster) return;
         const active = caster.activeAbilities.find((a) => a.abilityId === this._abilityId);
-        if (!active) return;
-        if (!active.movementByLabel) active.movementByLabel = {};
-        active.movementByLabel[label] = { ...payload };
+        if (active) {
+            if (!active.movementByLabel) active.movementByLabel = {};
+            active.movementByLabel[label] = { ...payload };
+        }
 
-        // Update unit.movement immediately so PreviewRenderer can draw the path.
-        // The engine tick will overwrite this with the same value when it resumes.
+        // Ghost path for PreviewRenderer (deferred lunge pauses have no active cast yet).
         if (payload.movePath.length > 0) {
             caster.setMovement(payload.movePath, payload.moveTargetUnitId, engine.gameTick, payload.moveTargetPixel);
         }
@@ -773,6 +778,7 @@ export class InteractiveTargetingSession {
             });
             return;
         }
+        session.getInteractionManager()?.clearNonconfirmedOrder();
         logItsPreviewEnded(session, rollbackLogSnapshot, 'submitted', 'rollback', {
             atTick,
             commitMode: 'rollback',
@@ -825,6 +831,10 @@ export class InteractiveTargetingSession {
         }
 
         session.reemitSuppressedTerminalOutcome(engine);
+
+        // Turn is confirmed for this batch — do not leave the ability as a nonconfirmed
+        // UI order (right-click would re-submit it on the next pause plane).
+        session.getInteractionManager()?.clearNonconfirmedOrder();
 
         logItsPreviewEnded(session, logSnapshot, 'submitted', 'in_place', {
             atTick,

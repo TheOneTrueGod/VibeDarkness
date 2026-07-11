@@ -100,8 +100,12 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
                     if (unit) this.defaultTool?.seedFromUnit(unit);
                 }
             }
+            // Nonconfirmed orders belong to a single pause batch. When the plane advances
+            // (or clears), drop any leftover — e.g. ITS Done left throw_rock in UI state and
+            // the next right-click would re-submit it via updateNonconfirmedMovement.
             this.uiState = {
                 ...this.uiState,
+                nonconfirmedOrder: null,
                 previewOrderUnitId: info
                     ? (this.ctx?.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx?.playerId ?? '')?.unitId ?? null)
                     : null,
@@ -401,6 +405,13 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         const updated = { ...order, movePath, moveTargetUnitId, moveTargetPixel };
         this.uiState = { ...this.uiState, nonconfirmedOrder: updated };
         void this.ctx.session.submitPlayerOrder(updated, { canSubmitOrders: this._canUseOrderUi });
+        this.emitChange();
+    }
+
+    /** Drop UI nonconfirmed order (ITS commit / batch advance). */
+    clearNonconfirmedOrder(): void {
+        if (this.uiState.nonconfirmedOrder == null) return;
+        this.uiState = { ...this.uiState, nonconfirmedOrder: null };
         this.emitChange();
     }
 

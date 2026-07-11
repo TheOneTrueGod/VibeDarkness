@@ -198,9 +198,8 @@ export interface BattleOrder {
     targetsByLabel?: Record<string, ResolvedTarget>;
     /**
      * Per-label movement re-input collected during interactive preview.
-     * Keyed by `SelectTargetDef.label`. When present, the unit's movement is updated
-     * when the interval for that label fires — both during preview (pause moment) and
-     * in the committed run (the interval's natural fire time).
+     * Keyed by `SelectTargetDef.label`. Non-lunge: applied when that select interval
+     * fires. Lunge: held until cooldown entry, then repathed from the post-lunge cell.
      * NOT serialized into checkpoints — runtime only.
      */
     movementByLabel?: Record<string, {
@@ -305,8 +304,9 @@ export interface ActiveAbility {
      */
     targetsByLabel?: Record<string, ResolvedTarget>;
     /**
-     * Per-label movement re-input from `BattleOrder.movementByLabel`, applied when
-     * the interval for that label fires. Serialized so mid-cast checkpoints preserve it.
+     * Per-label movement re-input from `BattleOrder.movementByLabel`.
+     * Non-lunge: applied when that select interval fires.
+     * Lunge: applied (repathed) when cooldown begins. Serialized for mid-cast checkpoints.
      */
     movementByLabel?: Record<string, {
         movePath: { col: number; row: number }[];

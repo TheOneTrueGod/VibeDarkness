@@ -1428,6 +1428,81 @@ describe('interactive sequential targeting', () => {
     });
 
     /**
+     * Lunge + movementByLabel: path chosen during targeting must not apply at hit entry
+     * (stale pre-lunge origin). It applies at cooldown with a repath from the post-lunge cell.
+     */
+    it('Swing Bat movementByLabel applies at cooldown from post-lunge cell, not at hit entry', () => {
+        const { engine, player, aimPixel } = buildSwingBatFixture();
+        const tm = engine.terrainManager!;
+        const startGrid = tm.grid.worldToGrid(player.x, player.y);
+        // Destination west of start — opposite the eastward lunge — so a pre-lunge path is wrong after slide.
+        const destCol = startGrid.col - 3;
+        const destRow = startGrid.row;
+        const stalePathFromStart = tm.findGridPath(startGrid.col, startGrid.row, destCol, destRow);
+        expect(stalePathFromStart).not.toBeNull();
+        expect(stalePathFromStart!.length).toBeGreaterThan(0);
+
+        stepUntil(engine, () => engine.waitingForOrders != null);
+
+        const target: ResolvedTarget = { type: 'pixel', position: aimPixel };
+        engine.isSequentialTargetingPreview = true;
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: SWING_BAT_ABILITY_ID,
+            targets: [target],
+            targetsByLabel: { [SWING_BAT_TARGET_LABEL]: target },
+            endTurn: true,
+            movementByLabel: {
+                [SWING_BAT_TARGET_LABEL]: { movePath: stalePathFromStart!.map((p) => ({ ...p })) },
+            },
+        });
+
+        const castStarted = stepUntil(
+            engine,
+            () => player.activeAbilities.some((a) => a.abilityId === SWING_BAT_ABILITY_ID),
+            30,
+        );
+        expect(castStarted).toBe(true);
+
+        // Through windup into hit: movement must stay cleared (deferred), entry still queued.
+        const reachedHit = stepUntil(
+            engine,
+            () => {
+                const elapsed = getCastElapsed(engine, player, SWING_BAT_ABILITY_ID);
+                return elapsed >= SWING_BAT_WINDUP_END && elapsed < 0.3;
+            },
+            60,
+        );
+        expect(reachedHit).toBe(true);
+        const activeAtHit = player.activeAbilities.find((a) => a.abilityId === SWING_BAT_ABILITY_ID);
+        expect(activeAtHit?.movementByLabel?.[SWING_BAT_TARGET_LABEL]).toBeDefined();
+        expect(player.movement).toBeNull();
+        // Windup lunge slides in world space (may remain in the same grid cell).
+        expect(player.x).toBeGreaterThan(startGrid.col * CELL_SIZE);
+
+        // Cooldown entry flushes + repaths from the post-lunge pose.
+        const reachedCooldown = stepUntil(
+            engine,
+            () => getCastElapsed(engine, player, SWING_BAT_ABILITY_ID) >= 0.3,
+            60,
+        );
+        expect(reachedCooldown).toBe(true);
+        expect(player.movement).not.toBeNull();
+        expect(player.movement!.path[player.movement!.path.length - 1]).toEqual({
+            col: destCol,
+            row: destRow,
+        });
+        // Player-move repath collapses a clear grass line to the destination cell —
+        // not the multi-cell A* path baked from the pre-lunge origin.
+        expect(player.movement!.path).toEqual([{ col: destCol, row: destRow }]);
+        expect(stalePathFromStart!.length).toBeGreaterThan(1);
+        const activeAfter = player.activeAbilities.find((a) => a.abilityId === SWING_BAT_ABILITY_ID);
+        expect(activeAfter?.movementByLabel).toBeUndefined();
+
+        engine.destroy();
+    });
+
+    /**
      * Scenario J — preview order with positional targets runs windup lunge before the hit interval.
      */
     it('Scenario J: Swing Bat preview with positional target advances during windup lunge', () => {
