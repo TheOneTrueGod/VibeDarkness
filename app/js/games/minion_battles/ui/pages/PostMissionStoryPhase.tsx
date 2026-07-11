@@ -13,6 +13,7 @@ import type {
     DialoguePhrase,
     ChoicePhrase,
     GrantResearchAutoPhrase,
+    PortraitSide,
     PostMissionPhrase,
     StoryChoiceAction,
     StoryChoiceActionGrantResearchConditional,
@@ -27,12 +28,9 @@ import ResourcePill, { campaignResourceGains } from '../../../../components/Reso
 import ResearchRewardTinyChip from '../../../../components/ResearchRewardTinyChip';
 import { getResearchNode } from '../../../../researchTrees/list';
 import type { ResearchNodeDef } from '../../../../researchTrees/types';
-import PreMissionStoryLayout, { type StoryViewportLayoutMode } from './preMissionStory/PreMissionStoryLayout';
-import DialoguePortraitRow from './preMissionStory/DialoguePortraitRow';
-import DialoguePortraitSidebar from './preMissionStory/DialoguePortraitSidebar';
-import DialoguePhrasePanel from './preMissionStory/DialoguePhrasePanel';
-import { STORY_VIEWPORT_WINDOW_LAPTOP_MAX_PX } from './preMissionStory/storyViewportConstants';
-import RowSlotPlayerStatuses from '../../../../components/battleUILayout/RowSlotPlayerStatuses';
+import PreMissionStoryLayout from './preMissionStory/PreMissionStoryLayout';
+import StorySegmentSpeakerPortrait from '../components/battleUiSlots/StorySegmentSpeakerPortrait';
+import RowSlotDialogue from '../components/battleUiSlots/RowSlotDialogue';
 import ColumnSlotPlayerStatuses from '../../../../components/battleUILayout/ColumnSlotPlayerStatuses';
 
 function isDialogue(phrase: PostMissionPhrase | undefined): phrase is DialoguePhrase {
@@ -135,11 +133,6 @@ export default function PostMissionStoryPhase({
     const [bgOpacity, setBgOpacity] = useState(1);
     /** After a reward choice, hide the VN UI so the victory modal does not sit over changing/disabled options. */
     const [phantomPostChoiceStep, setPhantomPostChoiceStep] = useState(false);
-    const [storyViewportMode, setStoryViewportMode] = useState<StoryViewportLayoutMode>(() =>
-        typeof window !== 'undefined' && window.innerHeight < STORY_VIEWPORT_WINDOW_LAPTOP_MAX_PX
-            ? 'laptop'
-            : 'desktop',
-    );
     const hasCompletedRef = useRef(false);
     /** When post-mission story has multiple choice phrases, collect grants before final `onComplete`. */
     const accumulatedResearchIdsRef = useRef<string[]>([]);
@@ -156,10 +149,6 @@ export default function PostMissionStoryPhase({
         setPhantomPostChoiceStep(false);
         hasCompletedRef.current = false;
     }, [missionId]);
-
-    const handleStoryViewportModeChange = useCallback((mode: StoryViewportLayoutMode) => {
-        setStoryViewportMode(mode);
-    }, []);
 
     const phrases: PostMissionPhrase[] = postMissionStory.phrases;
     const currentPhrase = phrases[phraseIndex];
@@ -408,27 +397,15 @@ export default function PostMissionStoryPhase({
         return null;
     }
 
-    /** Choice phases use vertical centering + scroll; dialogue stays bottom-aligned (VN layout). */
-    const centerChoiceInViewport = isChoice(currentPhrase);
     const dialoguePhrase: DialoguePhrase | null = isDialogue(currentPhrase) ? currentPhrase : null;
     const showingDialogue = dialoguePhrase != null;
-    const dialogueLayoutDensity = storyViewportMode === 'laptop' ? 'laptop' : 'desktop';
-    const dialogueLaptopRow = showingDialogue && storyViewportMode === 'laptop';
+    const portraitSide: PortraitSide = dialoguePhrase?.portraitSide ?? 'left';
+    const speakerPortrait = dialoguePhrase ? (
+        <StorySegmentSpeakerPortrait speakerId={dialoguePhrase.speakerId} />
+    ) : null;
     const layerBackground =
         dialoguePhrase?.backgroundImage != null ? backgroundImage : undefined;
 
-    const dialoguePanel =
-        dialoguePhrase != null ? (
-            <DialoguePhrasePanel
-                phrase={dialoguePhrase}
-                onAdvance={advancePhrase}
-                density={dialogueLayoutDensity}
-                speakerNameFallback="Narrator"
-            />
-        ) : null;
-
-    const phrasePanelWrapDialogue =
-        'shrink-0 py-2 sm:py-4 flex flex-col gap-3 sm:gap-4 w-full min-w-0 max-w-full justify-center items-stretch';
     const phrasePanelWrapNonDialogue =
         'shrink-0 pt-8 sm:pt-10 pb-2 sm:pb-4 flex flex-col gap-3 sm:gap-4 w-full min-w-0 max-w-full justify-center items-stretch';
 
@@ -436,8 +413,6 @@ export default function PostMissionStoryPhase({
         <PreMissionStoryLayout
             backgroundImage={layerBackground}
             bgOpacity={bgOpacity}
-            contentJustify={centerChoiceInViewport ? 'center' : 'end'}
-            onStoryViewportModeChange={handleStoryViewportModeChange}
             headerSlot={headerSlot}
             chatSlot={chatSlot}
             centerOverlay={centerOverlay}
@@ -448,29 +423,30 @@ export default function PostMissionStoryPhase({
                     characterSelections={characterSelections}
                 />
             }
+            bottomLeftCorner={portraitSide === 'left' ? speakerPortrait : undefined}
+            bottomLeftCornerPadded={portraitSide === 'left' ? false : undefined}
+            bottomRightCorner={portraitSide === 'right' ? speakerPortrait : undefined}
+            bottomRightCornerPadded={portraitSide === 'right' ? false : undefined}
             bottomRow={
-                <RowSlotPlayerStatuses
-                    players={players}
-                    currentPlayerId={playerId}
-                    characterSelections={characterSelections}
-                />
+                dialoguePhrase ? (
+                    <RowSlotDialogue phrase={dialoguePhrase} onAdvance={advancePhrase} speakerNameFallback="Narrator" />
+                ) : undefined
+            }
+            centerFloatingNext={
+                dialoguePhrase ? (
+                    <button
+                        type="button"
+                        onClick={advancePhrase}
+                        className="px-6 py-2 bg-primary text-white font-semibold rounded-lg shadow-lg hover:opacity-90"
+                    >
+                        Next
+                    </button>
+                ) : undefined
             }
         >
-            {dialogueLaptopRow ? (
-                <div className="flex flex-row flex-1 min-h-0 items-stretch gap-2 sm:gap-3 w-full py-1">
-                    <DialoguePortraitSidebar phrase={dialoguePhrase} />
-                    <div className="flex-1 min-w-0 flex flex-col justify-center">{dialoguePanel}</div>
-                </div>
-            ) : showingDialogue ? (
-                <>
-                    <DialoguePortraitRow phrase={dialoguePhrase} />
-                    <div className={phrasePanelWrapDialogue}>{dialoguePanel}</div>
-                </>
-            ) : (
+            {showingDialogue ? null : (
                 <div
-                    className={`flex flex-col gap-4 pb-6 ${phrasePanelWrapNonDialogue} ${
-                        centerChoiceInViewport ? 'my-auto min-h-0 overflow-y-auto overflow-x-hidden' : ''
-                    }`}
+                    className={`flex flex-col gap-4 pb-6 ${phrasePanelWrapNonDialogue} my-auto min-h-0 overflow-y-auto overflow-x-hidden`}
                 >
                     {isChoice(currentPhrase) ? (
                             amSpectator ? (

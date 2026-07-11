@@ -1,27 +1,29 @@
-import React, { useCallback, useLayoutEffect, useRef } from 'react';
+import React from 'react';
 import BattleUISlotLayout from '../../../../../components/battleUILayout/BattleUISlotLayout';
-import {
-    STORY_VIEWPORT_CONTAINER_LAPTOP_MAX_PX,
-    STORY_VIEWPORT_WINDOW_LAPTOP_MAX_PX,
-} from './storyViewportConstants';
-
-export type StoryViewportLayoutMode = 'desktop' | 'laptop';
 
 interface PreMissionStoryLayoutProps {
     backgroundImage?: string;
     bgOpacity: number;
-    /** Dialogue uses bottom-aligned VN layout; choices / votes center in the scroll area. */
-    contentJustify: 'end' | 'center';
-    /** Notified when laptop vs desktop story chrome should be used (container height + window fallback). */
-    onStoryViewportModeChange?: (mode: StoryViewportLayoutMode) => void;
+    /** Dialogue/VN text stays bottom-aligned; choices / votes center in the scroll area. Defaults to 'center'. */
+    contentJustify?: 'end' | 'center';
     /** Header slot content, forwarded from GameScreen via Game.tsx. */
     headerSlot?: React.ReactNode;
     /** Right column slot content (chat), forwarded from GameScreen via Game.tsx. */
     chatSlot?: React.ReactNode;
     /** Left column slot content (player statuses). */
     leftColumn?: React.ReactNode;
-    /** Bottom row slot content (player statuses). */
+    /** Bottom-left corner slot content (e.g. dialogue speaker portrait). */
+    bottomLeftCorner?: React.ReactNode;
+    /** Set false to let bottomLeftCorner's content fill the corner edge-to-edge. Defaults to true. */
+    bottomLeftCornerPadded?: boolean;
+    /** Bottom-right corner slot content (e.g. dialogue speaker portrait). */
+    bottomRightCorner?: React.ReactNode;
+    /** Set false to let bottomRightCorner's content fill the corner edge-to-edge. Defaults to true. */
+    bottomRightCornerPadded?: boolean;
+    /** Bottom row slot content (e.g. dialogue text). */
     bottomRow?: React.ReactNode;
+    /** Floating action (e.g. dialogue "Next"), pinned bottom-center of the center slot, just above the bottom row. */
+    centerFloatingNext?: React.ReactNode;
     /** Loading/resync overlay, rendered absolutely within the center slot. */
     centerOverlay?: React.ReactNode;
     children: React.ReactNode;
@@ -30,60 +32,29 @@ interface PreMissionStoryLayoutProps {
 export default function PreMissionStoryLayout({
     backgroundImage,
     bgOpacity,
-    contentJustify,
-    onStoryViewportModeChange,
+    contentJustify = 'center',
     headerSlot,
     chatSlot,
     leftColumn,
+    bottomLeftCorner,
+    bottomLeftCornerPadded,
+    bottomRightCorner,
+    bottomRightCornerPadded,
     bottomRow,
+    centerFloatingNext,
     centerOverlay,
     children,
 }: PreMissionStoryLayoutProps) {
     const justify = contentJustify === 'center' ? 'justify-center' : 'justify-end';
-    const scrollRegionRef = useRef<HTMLDivElement>(null);
-    const lastModeRef = useRef<StoryViewportLayoutMode | null>(null);
-
-    const emitMode = useCallback(
-        (mode: StoryViewportLayoutMode) => {
-            if (lastModeRef.current === mode) return;
-            lastModeRef.current = mode;
-            onStoryViewportModeChange?.(mode);
-        },
-        [onStoryViewportModeChange],
-    );
-
-    useLayoutEffect(() => {
-        if (!onStoryViewportModeChange) return;
-
-        const scrollEl = scrollRegionRef.current;
-        const compute = () => {
-            const h = scrollEl?.getBoundingClientRect().height ?? 0;
-            const winH = window.innerHeight;
-            const laptop =
-                (h > 0 && h < STORY_VIEWPORT_CONTAINER_LAPTOP_MAX_PX) ||
-                winH < STORY_VIEWPORT_WINDOW_LAPTOP_MAX_PX;
-            emitMode(laptop ? 'laptop' : 'desktop');
-        };
-
-        compute();
-
-        let ro: ResizeObserver | undefined;
-        if (scrollEl && typeof ResizeObserver !== 'undefined') {
-            ro = new ResizeObserver(() => compute());
-            ro.observe(scrollEl);
-        }
-        window.addEventListener('resize', compute);
-        return () => {
-            ro?.disconnect();
-            window.removeEventListener('resize', compute);
-        };
-    }, [onStoryViewportModeChange, emitMode, contentJustify]);
-
     return (
         <BattleUISlotLayout
             header={headerSlot}
             leftColumn={leftColumn}
             rightColumn={chatSlot}
+            bottomLeftCorner={bottomLeftCorner}
+            bottomLeftCornerPadded={bottomLeftCornerPadded}
+            bottomRightCorner={bottomRightCorner}
+            bottomRightCornerPadded={bottomRightCornerPadded}
             bottomRow={bottomRow}
             center={
                 <div className="w-full h-full flex flex-col overflow-hidden bg-black relative">
@@ -93,16 +64,16 @@ export default function PreMissionStoryLayout({
                             style={{ backgroundImage: `url(${backgroundImage})`, opacity: bgOpacity }}
                         />
                     )}
-                    <div
-                        ref={scrollRegionRef}
-                        className={`relative z-10 flex-1 flex flex-col min-h-0 ${justify} items-center overflow-y-auto overflow-x-hidden`}
-                    >
-                        <div
-                            className={`w-full max-w-[1200px] flex flex-col flex-1 min-h-0 ${justify} mx-auto px-3 sm:px-6 min-w-0`}
-                        >
+                    <div className={`relative z-10 flex-1 flex flex-col min-h-0 ${justify} items-center overflow-y-auto overflow-x-hidden`}>
+                        <div className={`w-full max-w-[1200px] flex flex-col flex-1 min-h-0 ${justify} mx-auto px-3 sm:px-6 min-w-0`}>
                             {children}
                         </div>
                     </div>
+                    {centerFloatingNext && (
+                        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex justify-center pb-4">
+                            <div className="pointer-events-auto">{centerFloatingNext}</div>
+                        </div>
+                    )}
                     {centerOverlay}
                 </div>
             }

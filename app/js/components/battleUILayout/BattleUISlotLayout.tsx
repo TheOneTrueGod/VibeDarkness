@@ -16,8 +16,12 @@ interface BattleUISlotLayoutProps {
     center: React.ReactNode;
     rightColumn?: React.ReactNode;
     bottomLeftCorner?: React.ReactNode;
+    /** Set false to let bottomLeftCorner's content fill the corner edge-to-edge. Defaults to true. */
+    bottomLeftCornerPadded?: boolean;
     bottomRow?: React.ReactNode;
     bottomRightCorner?: React.ReactNode;
+    /** Set false to let bottomRightCorner's content fill the corner edge-to-edge. Defaults to true. */
+    bottomRightCornerPadded?: boolean;
 }
 
 export default function BattleUISlotLayout({
@@ -26,8 +30,10 @@ export default function BattleUISlotLayout({
     center,
     rightColumn,
     bottomLeftCorner,
+    bottomLeftCornerPadded = true,
     bottomRow,
     bottomRightCorner,
+    bottomRightCornerPadded = true,
 }: BattleUISlotLayoutProps) {
     return (
         <div className="flex h-full min-h-0 w-full flex-col bg-surface">
@@ -45,11 +51,19 @@ export default function BattleUISlotLayout({
                 className="flex w-full shrink-0 flex-row border-t border-border-custom bg-dark-900/80"
                 style={{ height: BOTTOM_BAND_HEIGHT_PX }}
             >
-                <div className="flex h-full w-80 shrink-0 flex-col overflow-hidden border-r border-border-custom p-4">
+                <div
+                    className={`flex h-full w-80 shrink-0 flex-col overflow-hidden border-r border-border-custom ${
+                        bottomLeftCornerPadded ? 'p-4' : ''
+                    }`}
+                >
                     {bottomLeftCorner}
                 </div>
                 <div className="flex h-full min-w-0 flex-1 flex-col px-3 py-4">{bottomRow}</div>
-                <div className="flex h-full w-80 shrink-0 flex-col overflow-hidden border-l border-border-custom p-4">
+                <div
+                    className={`flex h-full w-80 shrink-0 flex-col overflow-hidden border-l border-border-custom ${
+                        bottomRightCornerPadded ? 'p-4' : ''
+                    }`}
+                >
                     {bottomRightCorner}
                 </div>
             </div>

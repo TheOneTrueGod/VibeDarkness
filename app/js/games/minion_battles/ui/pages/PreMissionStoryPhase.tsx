@@ -6,17 +6,15 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import type { PlayerState } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import { MessageType } from '../../../../MessageTypes';
-import type { PreMissionStoryDef, StoryChoiceActionEquipItem, StoryChoiceActionGrantResearchToPlayer } from '../../storylines/storyTypes';
+import type { PortraitSide, PreMissionStoryDef, StoryChoiceActionEquipItem, StoryChoiceActionGrantResearchToPlayer } from '../../storylines/storyTypes';
 import { STORY_BACKGROUNDS } from '../../assets/story';
 import { SPECTATOR_ID } from '../../state';
 import { getItemDef } from '../../character_defs/items';
 import PreMissionStoryEndScreen from './preMissionStory/PreMissionStoryEndScreen';
-import PreMissionStoryLayout, { type StoryViewportLayoutMode } from './preMissionStory/PreMissionStoryLayout';
-import RowSlotPlayerStatuses from '../../../../components/battleUILayout/RowSlotPlayerStatuses';
+import PreMissionStoryLayout from './preMissionStory/PreMissionStoryLayout';
 import ColumnSlotPlayerStatuses from '../../../../components/battleUILayout/ColumnSlotPlayerStatuses';
-import DialoguePortraitRow from './preMissionStory/DialoguePortraitRow';
-import DialoguePortraitSidebar from './preMissionStory/DialoguePortraitSidebar';
-import { STORY_VIEWPORT_WINDOW_LAPTOP_MAX_PX } from './preMissionStory/storyViewportConstants';
+import StorySegmentSpeakerPortrait from '../components/battleUiSlots/StorySegmentSpeakerPortrait';
+import RowSlotDialogue from '../components/battleUiSlots/RowSlotDialogue';
 import StoryPhraseBottomPanel from './preMissionStory/StoryPhraseBottomPanel';
 import { isDialogue, isGrantEquipmentRandom, isGroupVote } from './preMissionStory/preMissionStoryTypeGuards';
 
@@ -71,11 +69,6 @@ export default function PreMissionStoryPhase({
     const [backgroundImage, setBackgroundImage] = useState<string | undefined>();
     const [bgOpacity, setBgOpacity] = useState(1);
     const [isApplyingGroupVote, setIsApplyingGroupVote] = useState(false);
-    const [storyViewportMode, setStoryViewportMode] = useState<StoryViewportLayoutMode>(() =>
-        typeof window !== 'undefined' && window.innerHeight < STORY_VIEWPORT_WINDOW_LAPTOP_MAX_PX
-            ? 'laptop'
-            : 'desktop',
-    );
 
     const phrases = preMissionStory.phrases;
     const currentPhrase = phrases[phraseIndex];
@@ -99,10 +92,6 @@ export default function PreMissionStoryPhase({
     const advancePhrase = useCallback(() => {
         setPhraseIndex((i) => Math.min(i + 1, phrases.length));
     }, [phrases.length]);
-
-    const handleStoryViewportModeChange = useCallback((mode: StoryViewportLayoutMode) => {
-        setStoryViewportMode(mode);
-    }, []);
 
     // Ensure we only send a grant-equipment message once per phrase index.
     const lastGrantIndexRef = useRef<number | null>(null);
@@ -273,10 +262,10 @@ export default function PreMissionStoryPhase({
         return null;
     }
 
-    const contentJustify = isDialogue(currentPhrase) ? 'end' : 'center';
-    const showingDialogue = isDialogue(currentPhrase);
-    const dialogueLayoutDensity = storyViewportMode === 'laptop' ? 'laptop' : 'desktop';
-    const dialogueLaptopRow = showingDialogue && storyViewportMode === 'laptop';
+    const dialoguePhrase = isDialogue(currentPhrase) ? currentPhrase : null;
+    const showingDialogue = dialoguePhrase != null;
+    const portraitSide: PortraitSide = dialoguePhrase?.portraitSide ?? 'left';
+    const speakerPortrait = dialoguePhrase ? <StorySegmentSpeakerPortrait speakerId={dialoguePhrase.speakerId} /> : null;
 
     const phrasePanel = (
         <StoryPhraseBottomPanel
@@ -292,13 +281,10 @@ export default function PreMissionStoryPhase({
             onChoose={handleChoice}
             onGroupVote={handleGroupVote}
             onGroupVoteNext={handleGroupVoteNext}
-            dialogueDensity={dialogueLayoutDensity}
         />
     );
 
     /** Extra top inset so centered choice/vote cards aren’t flush with the scroll viewport top */
-    const phrasePanelWrapDialogue =
-        'shrink-0 py-2 sm:py-4 flex flex-col gap-3 sm:gap-4 w-full min-w-0 max-w-full justify-center items-stretch';
     const phrasePanelWrapNonDialogue =
         'shrink-0 pt-8 sm:pt-10 pb-2 sm:pb-4 flex flex-col gap-3 sm:gap-4 w-full min-w-0 max-w-full justify-center items-stretch';
 
@@ -306,8 +292,6 @@ export default function PreMissionStoryPhase({
         <PreMissionStoryLayout
             backgroundImage={backgroundImage}
             bgOpacity={bgOpacity}
-            contentJustify={contentJustify}
-            onStoryViewportModeChange={handleStoryViewportModeChange}
             headerSlot={headerSlot}
             chatSlot={chatSlot}
             centerOverlay={centerOverlay}
@@ -319,28 +303,26 @@ export default function PreMissionStoryPhase({
                     readyPlayerIds={storyReadyPlayerIds}
                 />
             }
+            bottomLeftCorner={portraitSide === 'left' ? speakerPortrait : undefined}
+            bottomLeftCornerPadded={portraitSide === 'left' ? false : undefined}
+            bottomRightCorner={portraitSide === 'right' ? speakerPortrait : undefined}
+            bottomRightCornerPadded={portraitSide === 'right' ? false : undefined}
             bottomRow={
-                <RowSlotPlayerStatuses
-                    players={players}
-                    currentPlayerId={playerId}
-                    characterSelections={characterSelections}
-                    readyPlayerIds={storyReadyPlayerIds}
-                />
+                dialoguePhrase ? <RowSlotDialogue phrase={dialoguePhrase} onAdvance={advancePhrase} /> : undefined
+            }
+            centerFloatingNext={
+                dialoguePhrase ? (
+                    <button
+                        type="button"
+                        onClick={advancePhrase}
+                        className="px-6 py-2 bg-primary text-white font-semibold rounded-lg shadow-lg hover:opacity-90"
+                    >
+                        Next
+                    </button>
+                ) : undefined
             }
         >
-            {dialogueLaptopRow ? (
-                <div className="flex flex-row flex-1 min-h-0 items-stretch gap-2 sm:gap-3 w-full py-1">
-                    <DialoguePortraitSidebar phrase={currentPhrase} />
-                    <div className="flex-1 min-w-0 flex flex-col justify-center">{phrasePanel}</div>
-                </div>
-            ) : showingDialogue ? (
-                <>
-                    <DialoguePortraitRow phrase={currentPhrase} />
-                    <div className={phrasePanelWrapDialogue}>{phrasePanel}</div>
-                </>
-            ) : (
-                <div className={phrasePanelWrapNonDialogue}>{phrasePanel}</div>
-            )}
+            {showingDialogue ? null : <div className={phrasePanelWrapNonDialogue}>{phrasePanel}</div>}
         </PreMissionStoryLayout>
     );
 }

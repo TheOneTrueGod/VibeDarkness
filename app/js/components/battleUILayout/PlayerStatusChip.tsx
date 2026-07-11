@@ -1,7 +1,7 @@
 /**
  * PlayerStatusChip - a single player's status chip: derives the PlayerPill's second-line
- * (character/spectator) and ready/flashing state from shared list-level context. Reused by
- * RowSlotPlayerStatuses and ColumnSlotPlayerStatuses so both lists render players identically.
+ * (character/spectator) and ready/flashing state from shared list-level context. Used by
+ * ColumnSlotPlayerStatuses.
  */
 import React from 'react';
 import type { PlayerState } from '../../types';

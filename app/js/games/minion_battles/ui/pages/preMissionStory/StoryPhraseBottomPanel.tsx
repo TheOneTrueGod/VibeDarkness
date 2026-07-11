@@ -1,11 +1,9 @@
 import React from 'react';
 import type { PlayerState } from '../../../../../types';
 import type { PreMissionPhrase } from '../../../storylines/storyTypes';
-import type { VNTextBoxDensity } from '../../components/VNTextBox';
-import DialoguePhrasePanel from './DialoguePhrasePanel';
 import ChoicePhrasePanel from './ChoicePhrasePanel';
 import GroupVotePhrasePanel from './GroupVotePhrasePanel';
-import { isChoice, isDialogue, isGroupVote } from './preMissionStoryTypeGuards';
+import { isChoice, isGroupVote } from './preMissionStoryTypeGuards';
 
 interface StoryPhraseBottomPanelProps {
     phrase: PreMissionPhrase;
@@ -24,8 +22,6 @@ interface StoryPhraseBottomPanelProps {
     ) => void;
     onGroupVote: (voteId: string, optionId: string) => void;
     onGroupVoteNext: () => void;
-    /** VN text box density when `phrase` is dialogue */
-    dialogueDensity?: VNTextBoxDensity;
 }
 
 export default function StoryPhraseBottomPanel({
@@ -41,11 +37,7 @@ export default function StoryPhraseBottomPanel({
     onChoose,
     onGroupVote,
     onGroupVoteNext,
-    dialogueDensity = 'desktop',
 }: StoryPhraseBottomPanelProps) {
-    if (isDialogue(phrase)) {
-        return <DialoguePhrasePanel phrase={phrase} onAdvance={onAdvance} density={dialogueDensity} />;
-    }
     if (isChoice(phrase)) {
         return (
             <ChoicePhrasePanel
