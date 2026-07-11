@@ -5,13 +5,16 @@ import type { BattleSession } from '../../../game/BattleSession';
 import type { GameEngine } from '../../../game/GameEngine';
 import type { BattleOrder, OrderWaiter } from '../../../game/types';
 import { useAutoEndTurn } from '../../components/useAutoEndTurn';
-import AbilityBar from '../../components/AbilityBar';
+import CornerSlotPlayerStats from '../../components/battleUiSlots/CornerSlotPlayerStats';
+import RowSlotAbilities from '../../components/battleUiSlots/RowSlotAbilities';
+import CornerSlotMiscControls from '../../components/battleUiSlots/CornerSlotMiscControls';
 import type { HudEffectCanvasHandle } from '../../components/HudEffectCanvas';
 
 interface BattleAbilityBarProps {
     sessionRef: RefObject<BattleSession | null>;
     hudEffectCanvasRef: RefObject<HudEffectCanvasHandle | null>;
-    engine: GameEngine;
+    /** Null before the battle session/engine finishes initializing; slots render empty until then. */
+    engine: GameEngine | null;
     myAbilityIds: string[];
     activeLocalWaiter: OrderWaiter | null;
     canUseOrderUi: boolean;
@@ -27,7 +30,14 @@ interface BattleAbilityBarProps {
     setHoveredAbility: (ability: AbilityStatic | null) => void;
 }
 
-export default function BattleAbilityBar({
+interface BattleAbilityBarSlots {
+    bottomLeftCorner: React.ReactNode;
+    bottomRow: React.ReactNode;
+    bottomRightCorner: React.ReactNode;
+}
+
+/** Computes the bottom-band slot content (player stats / ability hand / wait + round tracker). */
+export function useBattleAbilityBarSlots({
     sessionRef,
     hudEffectCanvasRef,
     engine,
@@ -44,8 +54,13 @@ export default function BattleAbilityBar({
     handleCycleAbilityMode,
     setIsWaitHovered,
     setHoveredAbility,
-}: BattleAbilityBarProps) {
+}: BattleAbilityBarProps): BattleAbilityBarSlots {
     const autoEndTurn = useAutoEndTurn();
+
+    if (!engine) {
+        return { bottomLeftCorner: null, bottomRow: null, bottomRightCorner: null };
+    }
+
     const pausedAbility = activeLocalWaiter != null
         ? engine.getUnit(activeLocalWaiter.unitId)?.activeAbilities.find((a) => a.conditionalCancelPaused)
         : undefined;
@@ -53,37 +68,50 @@ export default function BattleAbilityBar({
         ? { activeAbilityId: pausedAbility.abilityId, abilityTagFilter: pausedAbility.conditionalCancelTagFilter }
         : undefined;
 
-    return (
-        <AbilityBar
-            abilityIds={myAbilityIds}
-            playerUnit={
-                (activeLocalWaiter != null
-                    ? engine.getUnit(activeLocalWaiter.unitId) ?? engine.getLocalPlayerUnit()
-                    : engine.getLocalPlayerUnit()) ?? null
-            }
-            isMyTurn={canUseOrderUi && interactiveTargetingState === 'inactive'}
-            roundNumber={roundNumber}
-            roundProgress={roundProgress}
-            isPaused={isPaused}
-            selectedCardIndex={selectedCardIndex}
-            onSelectCard={(cardIndex, ability) =>
-                sessionRef.current?.getInteractionManager()?.activateAbilityTargeting(cardIndex, ability)
-            }
-            onWait={nonconfirmedOrder && !autoEndTurn
-                ? () => sessionRef.current?.getInteractionManager()?.handleEndTurn()
-                : () => sessionRef.current?.getInteractionManager()?.handleWait()
-            }
-            hasNonconfirmedOrder={!autoEndTurn && !!nonconfirmedOrder}
-            onWaitHoverChange={setIsWaitHovered}
-            gameState={engine}
-            allUnits={engine.units}
-            conditionalCancelContext={conditionalCancelContext}
-            abilityModeByAbilityId={abilityModeByAbilityId}
-            onCycleAbilityMode={handleCycleAbilityMode}
-            onRegisterCardTarget={(key, pageX, pageY) => {
-                hudEffectCanvasRef.current?.registerHudFlightTarget(key, pageX, pageY);
-            }}
-            onHoverAbility={setHoveredAbility}
-        />
-    );
+    const playerUnit =
+        (activeLocalWaiter != null
+            ? engine.getUnit(activeLocalWaiter.unitId) ?? engine.getLocalPlayerUnit()
+            : engine.getLocalPlayerUnit()) ?? null;
+    const isMyTurn = canUseOrderUi && interactiveTargetingState === 'inactive';
+    const onWait = nonconfirmedOrder && !autoEndTurn
+        ? () => sessionRef.current?.getInteractionManager()?.handleEndTurn()
+        : () => sessionRef.current?.getInteractionManager()?.handleWait();
+
+    return {
+        bottomLeftCorner: <CornerSlotPlayerStats unit={playerUnit} />,
+        bottomRow: (
+            <RowSlotAbilities
+                abilityIds={myAbilityIds}
+                playerUnit={playerUnit}
+                isMyTurn={isMyTurn}
+                roundNumber={roundNumber}
+                selectedCardIndex={selectedCardIndex}
+                onSelectCard={(cardIndex, ability) =>
+                    sessionRef.current?.getInteractionManager()?.activateAbilityTargeting(cardIndex, ability)
+                }
+                gameState={engine}
+                allUnits={engine.units}
+                conditionalCancelContext={conditionalCancelContext}
+                abilityModeByAbilityId={abilityModeByAbilityId}
+                onCycleAbilityMode={handleCycleAbilityMode}
+                onRegisterCardTarget={(key, pageX, pageY) => {
+                    hudEffectCanvasRef.current?.registerHudFlightTarget(key, pageX, pageY);
+                }}
+                onHoverAbility={setHoveredAbility}
+            />
+        ),
+        bottomRightCorner: (
+            <CornerSlotMiscControls
+                playerUnit={playerUnit}
+                isMyTurn={isMyTurn}
+                roundNumber={roundNumber}
+                roundProgress={roundProgress}
+                isPaused={isPaused}
+                onWait={onWait}
+                hasNonconfirmedOrder={!autoEndTurn && !!nonconfirmedOrder}
+                onWaitHoverChange={setIsWaitHovered}
+                conditionalCancelContext={conditionalCancelContext}
+            />
+        ),
+    };
 }

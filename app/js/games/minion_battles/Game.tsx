@@ -29,7 +29,7 @@ function getSelectedMissionId(data: Record<string, unknown>): string | null {
     return typeof missionId === 'string' && missionId.trim() !== '' ? missionId : null;
 }
 
-interface MinionBattlesGameProps extends Pick<GameComponentProps, 'minionBattlesApi' | 'onBattleNetResyncingChange'> {
+interface MinionBattlesGameProps extends Pick<GameComponentProps, 'minionBattlesApi' | 'onBattleNetResyncingChange' | 'headerSlot' | 'chatSlot' | 'centerOverlay'> {
     lobbyClient: LobbyClient;
     lobbyId: string;
     gameId: string;
@@ -84,6 +84,9 @@ export default function MinionBattlesGame({
     onBattleStartStatusChange,
     onBattleNetResyncingChange,
     onJoinNextLobby,
+    headerSlot,
+    chatSlot,
+    centerOverlay,
 }: MinionBattlesGameProps) {
     const { isAdmin } = useCurrentUser();
     const api = useMemo(
@@ -369,6 +372,9 @@ export default function MinionBattlesGame({
                     players={players}
                     characterSelections={effective.characterSelections as Record<string, string>}
                     postMissionStory={postMissionStory}
+                    headerSlot={headerSlot}
+                    chatSlot={chatSlot}
+                    centerOverlay={centerOverlay}
                     playerEquipmentByPlayer={
                         (lastGameStateFromServer ?? raw).playerEquipmentByPlayer as
                             | Record<string, string[]>
@@ -444,6 +450,9 @@ export default function MinionBattlesGame({
                     }
                     onPhaseChange={handlePhaseChange}
                     onBattleStartStatusChange={onBattleStartStatusChange}
+                    headerSlot={headerSlot}
+                    chatSlot={chatSlot}
+                    centerOverlay={centerOverlay}
                 />
             )}
             {selectedMissionId && gamePhase === 'battle' && (
@@ -459,6 +468,9 @@ export default function MinionBattlesGame({
                     onSidebarInfoChange={onSidebarInfoChange}
                     onEmittedChatMessage={onEmittedChatMessage}
                     onBattleNetResyncingChange={onBattleNetResyncingChange}
+                    headerSlot={headerSlot}
+                    chatSlot={chatSlot}
+                    centerOverlay={centerOverlay}
                     onVictory={(missionResult) => {
                         if (!selectedMissionId) return;
                         const missionId = selectedMissionId;

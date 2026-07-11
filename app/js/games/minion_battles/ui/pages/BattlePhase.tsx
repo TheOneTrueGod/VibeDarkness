@@ -7,7 +7,6 @@
 
 import React, { useRef, useState, useCallback, useSyncExternalStore, useEffect } from 'react';
 import { useCurrentUser } from '../../../../user/useCurrentUser';
-import { createPortal } from 'react-dom';
 import type { PlayerState, GameSidebarInfo } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import type { BattleSession } from '../../game/BattleSession';
@@ -19,8 +18,9 @@ import type { AbilityStatic } from '../../abilities/Ability';
 import BattleCanvas from '../components/BattleCanvas';
 import ObjectiveMarkerOverlay from '../components/ObjectiveMarkerOverlay';
 import TurnIndicator from '../components/TurnIndicator';
-import BattleAbilityBar from './battlePhase/BattleAbilityBar';
-import BattleTimeline from '../components/BattleTimeline';
+import { useBattleAbilityBarSlots } from './battlePhase/BattleAbilityBar';
+import BattleUISlotLayout from '../../../../components/battleUILayout/BattleUISlotLayout';
+import ColumnSlotPartyAndActions from '../components/battleUiSlots/ColumnSlotPartyAndActions';
 import type { PlayerTileOrderContext } from '../components/playerTileIndicator';
 import { WaitAbility } from '../../abilities/WaitAbility';
 import BattleSyncStatus from '../components/BattleSyncStatus';
@@ -29,7 +29,6 @@ import GameTickPill from '../components/GameTickPill';
 import BossFightHud from '../components/boss/BossFightHud';
 import WorldModifiersPanel from '../components/WorldModifiersPanel';
 import type { MessageEntry } from '../../../../components/Chat';
-import { useBattleActionRowHost } from '../../../../contexts/BattleActionRowContext';
 import { useDebugConsole } from '../../../../contexts/DebugConsoleContext';
 import { getShowGameTick, subscribeShowGameTick } from '../../../../debugFlags';
 import HudEffectCanvas, { type HudEffectCanvasHandle } from '../components/HudEffectCanvas';
@@ -80,6 +79,12 @@ interface BattlePhaseProps {
     onEmittedChatMessage?: (entry: MessageEntry) => void;
     /** Propagates Minion Battles BattleNet recovery overlay to GameScreen (`GET /heartbeat`-driven resync only). */
     onBattleNetResyncingChange?: (resyncing: boolean) => void;
+    /** Header slot content, built by GameScreen (player/CI/lobby info). */
+    headerSlot?: React.ReactNode;
+    /** Right column slot content, built by GameScreen (chat). */
+    chatSlot?: React.ReactNode;
+    /** Loading/resync overlay, built by GameScreen; rendered absolutely within the center slot. */
+    centerOverlay?: React.ReactNode;
 }
 
 export default function BattlePhase({
@@ -95,6 +100,9 @@ export default function BattlePhase({
     onDefeat,
     onEmittedChatMessage,
     onBattleNetResyncingChange,
+    headerSlot,
+    chatSlot,
+    centerOverlay,
 }: BattlePhaseProps) {
     const { isAdmin } = useCurrentUser();
     const canSubmitOrders = true;
@@ -256,8 +264,6 @@ export default function BattlePhase({
         setNetSyncStatus,
     });
 
-    const battleActionRow = useBattleActionRowHost();
-
     const showGameTick = useSyncExternalStore(
         subscribeShowGameTick,
         getShowGameTick,
@@ -352,6 +358,25 @@ export default function BattlePhase({
 
     const showWebRtcConnectionStatus = Object.keys(players).length > 1;
 
+    const abilityBarSlots = useBattleAbilityBarSlots({
+        sessionRef,
+        hudEffectCanvasRef,
+        engine,
+        myAbilityIds,
+        activeLocalWaiter,
+        canUseOrderUi,
+        interactiveTargetingState,
+        roundNumber,
+        roundProgress,
+        isPaused,
+        selectedCardIndex,
+        nonconfirmedOrder,
+        abilityModeByAbilityId,
+        handleCycleAbilityMode,
+        setIsWaitHovered,
+        setHoveredAbility,
+    });
+
     if (!isHost && !hasReceivedInitialHeartbeat) {
         return <BattleLoadingScreen message="You must gather your party before venturing forth." />;
     }
@@ -385,42 +410,15 @@ export default function BattlePhase({
         players,
     });
 
-    const actionRowHost = battleActionRow?.actionRowHost ?? null;
-
-    const abilityBar = (
-        <BattleAbilityBar
-            sessionRef={sessionRef}
-            hudEffectCanvasRef={hudEffectCanvasRef}
-            engine={engine}
-            myAbilityIds={myAbilityIds}
-            activeLocalWaiter={activeLocalWaiter}
-            canUseOrderUi={canUseOrderUi}
-            interactiveTargetingState={interactiveTargetingState}
-            roundNumber={roundNumber}
-            roundProgress={roundProgress}
-            isPaused={isPaused}
-            selectedCardIndex={selectedCardIndex}
-            nonconfirmedOrder={nonconfirmedOrder}
-            abilityModeByAbilityId={abilityModeByAbilityId}
-            handleCycleAbilityMode={handleCycleAbilityMode}
-            setIsWaitHovered={setIsWaitHovered}
-            setHoveredAbility={setHoveredAbility}
-        />
-    );
-
     return (
-        <div className="w-full h-full flex min-h-0 flex-col relative">
-            {/* Timeline rail + canvas stack share space above the hand; hand spans full width */}
-            <div className="flex min-h-0 flex-1 flex-row">
-                <aside
-                    className="flex w-80 shrink-0 min-h-0 flex-col overflow-x-hidden border-r border-dark-700"
-                    aria-label="Action timeline"
-                >
-                    <BattleTimeline
+        <>
+            <BattleUISlotLayout
+                header={headerSlot}
+                leftColumn={
+                    <ColumnSlotPartyAndActions
                         engine={engine}
                         players={players}
                         localPlayerId={playerId}
-                        layout="rail"
                         previewAbility={
                             itsActive && itsAbility
                                 ? itsAbility
@@ -433,111 +431,112 @@ export default function BattlePhase({
                         playerTileOrderContext={playerTileOrderContext}
                         showWebRtcConnectionStatus={showWebRtcConnectionStatus}
                     />
-                </aside>
+                }
+                rightColumn={chatSlot}
+                center={
+                    <div className="relative flex h-full min-h-0 w-full flex-col">
+                        <div ref={battleCanvasAreaRef} className="relative flex min-h-0 flex-1 flex-col">
+                            <BossFightHud
+                                boss={bossHud}
+                                onRegisterCcStatusTarget={(pageX, pageY) => {
+                                    hudEffectCanvasRef.current?.registerHudFlightTarget('boss:cc_status', pageX, pageY);
+                                }}
+                            />
+                            <WorldModifiersPanel modifiers={activeWorldModifiers} ninjutsuPools={ninjutsuPools} />
+                            <BattleSyncStatus
+                                variant="battle"
+                                isHost={isHost}
+                                isPaused={isPaused}
+                                syncStatus={netSyncStatus}
+                                syncDetails={netSyncDetails}
+                                fallingBehindHost={fallingBehindHost}
+                                ticksBehindHost={ticksBehindHost}
+                                waitingForHostPollStreak={waitingForHostPollStreak}
+                                stuckHeartbeats={hostCatchupStuckHeartbeats}
+                                deferredOrderCount={orderPipeline.queued}
+                                queuedOrders={orderPipeline.queued}
+                                sendingOrders={orderPipeline.sending}
+                                hostAnchorWaitElapsedMs={hostAnchorWaitElapsedMs}
+                                onRequestBattleReload={() =>
+                                    netRef.current?.requestResync('user-reload-from-sync-box')
+                                }
+                                onAcknowledgeRecoveryContinue={() => netRef.current?.acknowledgeRecoveryContinue()}
+                                resyncInformAck={resyncInformAck}
+                                onDismissResyncInformAck={dismissResyncInformAck}
+                            />
+                            {showGameTick ? (
+                                <div className="pointer-events-none absolute right-3 top-3 z-20">
+                                    <GameTickPill getItsTicks={getItsPlayaheadTicks} />
+                                </div>
+                            ) : null}
+                            <BattleCanvas
+                                engine={engine}
+                                camera={camera}
+                                renderer={renderer}
+                                targetingStateRef={targetingStateRef}
+                                onCanvasClick={handleCanvasClick}
+                                onCanvasRightClick={handleCanvasRightClick}
+                                onCanvasMouseMove={handleCanvasMouseMove}
+                            />
+                            <ObjectiveMarkerOverlay
+                                engine={engine}
+                                camera={camera}
+                                battleObjectives={MISSION_MAP[missionId]?.battleObjectives ?? []}
+                            />
+                            {!isHost && <BattleHostAnchorBanner phase={hostAnchorWaitPhase} />}
+                            {orderSubmitFailed && (
+                                <OrderSubmitFailedBanner onDismiss={() => setOrderSubmitFailed(false)} />
+                            )}
+                            {rewindOverlay && (
+                                <RewindOverlay overlay={rewindOverlay} opaque={rewindOverlayOpaque} />
+                            )}
+                        </div>
 
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                    <div ref={battleCanvasAreaRef} className="relative flex min-h-0 flex-1 flex-col">
-                        <BossFightHud
-                            boss={bossHud}
-                            onRegisterCcStatusTarget={(pageX, pageY) => {
-                                hudEffectCanvasRef.current?.registerHudFlightTarget('boss:cc_status', pageX, pageY);
-                            }}
-                        />
-                        <WorldModifiersPanel modifiers={activeWorldModifiers} ninjutsuPools={ninjutsuPools} />
-                        <BattleSyncStatus
-                            variant="battle"
-                            isHost={isHost}
-                            isPaused={isPaused}
-                            syncStatus={netSyncStatus}
-                            syncDetails={netSyncDetails}
-                            fallingBehindHost={fallingBehindHost}
-                            ticksBehindHost={ticksBehindHost}
-                            waitingForHostPollStreak={waitingForHostPollStreak}
-                            stuckHeartbeats={hostCatchupStuckHeartbeats}
-                            deferredOrderCount={orderPipeline.queued}
-                            queuedOrders={orderPipeline.queued}
-                            sendingOrders={orderPipeline.sending}
-                            hostAnchorWaitElapsedMs={hostAnchorWaitElapsedMs}
-                            onRequestBattleReload={() =>
-                                netRef.current?.requestResync('user-reload-from-sync-box')
+                        <TurnIndicator
+                            state={turnIndicator.state}
+                            allyName={turnIndicator.allyName}
+                            freezePresentation={rewindOverlay != null}
+                            hostCatchupPopover={
+                                showHostCatchupPopover
+                                    ? {
+                                          hostTick: hostCatchupHostTick,
+                                          targetTick: hostCatchupTargetTick,
+                                          stuckHeartbeats: hostCatchupStuckHeartbeats,
+                                          onForceResync: handleForceResync,
+                                      }
+                                    : null
                             }
-                            onAcknowledgeRecoveryContinue={() => netRef.current?.acknowledgeRecoveryContinue()}
-                            resyncInformAck={resyncInformAck}
-                            onDismissResyncInformAck={dismissResyncInformAck}
+                            orderPipeline={orderPipeline}
+                            itsControls={
+                                interactiveTargetingState !== 'inactive' || rewindOverlay != null
+                                    ? (
+                                        <ITSTimelineControls
+                                            state={
+                                                interactiveTargetingState === 'inactive'
+                                                    ? 'paused'
+                                                    : interactiveTargetingState
+                                            }
+                                            sessionRef={sessionRef}
+                                            getItsPlayaheadTicks={getItsPlayaheadTicks}
+                                            setOrderSubmitFailed={setOrderSubmitFailed}
+                                            autoCommitItsAttemptedRef={autoCommitItsAttemptedRef}
+                                            rewindToken={rewindOverlay?.token ?? null}
+                                            rewindSeed={rewindSeed}
+                                            rewindDurationMs={REWIND_OVERLAY_FADE_MS}
+                                        />
+                                    )
+                                    : null
+                            }
                         />
-                        {showGameTick ? (
-                            <div className="pointer-events-none absolute right-3 top-3 z-20">
-                                <GameTickPill getItsTicks={getItsPlayaheadTicks} />
-                            </div>
-                        ) : null}
-                        <BattleCanvas
-                            engine={engine}
-                            camera={camera}
-                            renderer={renderer}
-                            targetingStateRef={targetingStateRef}
-                            onCanvasClick={handleCanvasClick}
-                            onCanvasRightClick={handleCanvasRightClick}
-                            onCanvasMouseMove={handleCanvasMouseMove}
-                        />
-                        <ObjectiveMarkerOverlay
-                            engine={engine}
-                            camera={camera}
-                            battleObjectives={MISSION_MAP[missionId]?.battleObjectives ?? []}
-                        />
-                        {!isHost && <BattleHostAnchorBanner phase={hostAnchorWaitPhase} />}
-                        {orderSubmitFailed && (
-                            <OrderSubmitFailedBanner onDismiss={() => setOrderSubmitFailed(false)} />
-                        )}
-                        {rewindOverlay && (
-                            <RewindOverlay overlay={rewindOverlay} opaque={rewindOverlayOpaque} />
-                        )}
+
+                        {centerOverlay}
                     </div>
-
-                    <TurnIndicator
-                        state={turnIndicator.state}
-                        allyName={turnIndicator.allyName}
-                        freezePresentation={rewindOverlay != null}
-                        hostCatchupPopover={
-                            showHostCatchupPopover
-                                ? {
-                                      hostTick: hostCatchupHostTick,
-                                      targetTick: hostCatchupTargetTick,
-                                      stuckHeartbeats: hostCatchupStuckHeartbeats,
-                                      onForceResync: handleForceResync,
-                                  }
-                                : null
-                        }
-                        orderPipeline={orderPipeline}
-                        itsControls={
-                            interactiveTargetingState !== 'inactive' || rewindOverlay != null
-                                ? (
-                                    <ITSTimelineControls
-                                        state={
-                                            interactiveTargetingState === 'inactive'
-                                                ? 'paused'
-                                                : interactiveTargetingState
-                                        }
-                                        sessionRef={sessionRef}
-                                        getItsPlayaheadTicks={getItsPlayaheadTicks}
-                                        setOrderSubmitFailed={setOrderSubmitFailed}
-                                        autoCommitItsAttemptedRef={autoCommitItsAttemptedRef}
-                                        rewindToken={rewindOverlay?.token ?? null}
-                                        rewindSeed={rewindSeed}
-                                        rewindDurationMs={REWIND_OVERLAY_FADE_MS}
-                                    />
-                                )
-                                : null
-                        }
-                    />
-                </div>
-            </div>
-
-            {actionRowHost ? (
-                createPortal(<div className="min-w-0">{abilityBar}</div>, actionRowHost)
-            ) : (
-                <div className="shrink-0 min-w-0">{abilityBar}</div>
-            )}
+                }
+                bottomLeftCorner={abilityBarSlots.bottomLeftCorner}
+                bottomRow={abilityBarSlots.bottomRow}
+                bottomRightCorner={abilityBarSlots.bottomRightCorner}
+            />
             <HudEffectCanvas ref={hudEffectCanvasRef} engine={engine} />
-        </div>
+        </>
     );
 }

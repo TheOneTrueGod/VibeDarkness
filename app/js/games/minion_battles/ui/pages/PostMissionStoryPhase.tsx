@@ -32,6 +32,7 @@ import DialoguePortraitRow from './preMissionStory/DialoguePortraitRow';
 import DialoguePortraitSidebar from './preMissionStory/DialoguePortraitSidebar';
 import DialoguePhrasePanel from './preMissionStory/DialoguePhrasePanel';
 import { STORY_VIEWPORT_WINDOW_LAPTOP_MAX_PX } from './preMissionStory/storyViewportConstants';
+import RowSlotPlayerStatuses from '../../../../components/battleUILayout/RowSlotPlayerStatuses';
 
 function isDialogue(phrase: PostMissionPhrase | undefined): phrase is DialoguePhrase {
     return !!phrase && phrase.type === 'dialogue';
@@ -106,18 +107,27 @@ interface PostMissionStoryPhaseProps {
     /** Per-player research node ids by tree (lobby game state); used when a mission computes post-mission research options. */
     playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
     onComplete: (rewards: MissionRewards) => void;
+    /** Header slot content, forwarded from GameScreen via Game.tsx. */
+    headerSlot?: React.ReactNode;
+    /** Right column slot content (chat), forwarded from GameScreen via Game.tsx. */
+    chatSlot?: React.ReactNode;
+    /** Loading/resync overlay, forwarded from GameScreen via Game.tsx. */
+    centerOverlay?: React.ReactNode;
 }
 
 export default function PostMissionStoryPhase({
     api,
     playerId,
     missionId,
-    players: _players,
+    players,
     characterSelections = {},
     postMissionStory,
     playerEquipmentByPlayer = {},
     playerResearchTreesByPlayer = {},
     onComplete,
+    headerSlot,
+    chatSlot,
+    centerOverlay,
 }: PostMissionStoryPhaseProps) {
     const [phraseIndex, setPhraseIndex] = useState(0);
     const [backgroundImage, setBackgroundImage] = useState<string | undefined>();
@@ -427,6 +437,16 @@ export default function PostMissionStoryPhase({
             bgOpacity={bgOpacity}
             contentJustify={centerChoiceInViewport ? 'center' : 'end'}
             onStoryViewportModeChange={handleStoryViewportModeChange}
+            headerSlot={headerSlot}
+            chatSlot={chatSlot}
+            centerOverlay={centerOverlay}
+            bottomRow={
+                <RowSlotPlayerStatuses
+                    players={players}
+                    currentPlayerId={playerId}
+                    characterSelections={characterSelections}
+                />
+            }
         >
             {dialogueLaptopRow ? (
                 <div className="flex flex-row flex-1 min-h-0 items-stretch gap-2 sm:gap-3 w-full py-1">

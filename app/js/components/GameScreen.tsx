@@ -20,11 +20,9 @@ import { useGameSyncOptional } from '../contexts/GameSyncContext';
 import { useCurrentUser } from '../user/useCurrentUser';
 import { useToast } from '../contexts/ToastContext';
 import { MinionBattlesApi } from '../games/minion_battles/api/minionBattlesApi';
-import {
-    BattleActionRowProvider,
-    BattleActionRowSlot,
-} from '../contexts/BattleActionRowContext';
 import { useWebRtcMeshOptional } from '../contexts/WebRtcMeshContext';
+import HeaderSlotLobbyInfo from './battleUILayout/HeaderSlotLobbyInfo';
+import ColumnSlotChat from './battleUILayout/ColumnSlotChat';
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -81,6 +79,12 @@ export interface GameComponentProps {
     onBattleNetResyncingChange?: (resyncing: boolean) => void;
     /** Active campaign context used by campaign mission UX. */
     currentCampaignId?: string | null;
+    /** Header slot content (player/CI/lobby info), built by GameScreen. Only used by games that render BattleUISlotLayout. */
+    headerSlot?: React.ReactNode;
+    /** Right column slot content (chat), built by GameScreen. Only used by games that render BattleUISlotLayout. */
+    chatSlot?: React.ReactNode;
+    /** Loading/resync overlay, built by GameScreen; rendered absolutely within the game's own center slot. */
+    centerOverlay?: React.ReactNode;
 }
 
 interface GameScreenProps {
@@ -374,20 +378,17 @@ export default function GameScreen({
         (battlePlayerListHidden ||
             (effectiveLobbyGameData?.gamePhase ?? effectiveLobbyGameData?.game_phase) === 'battle');
 
-    /** Desktop Minion Battles combat: chat sits above a full-width action row (card hand portals into it). */
-    const battleChromeDesktop =
+    /** Desktop Minion Battles battle + pre/post-mission story: rendered via the shared BattleUISlotLayout shell
+     *  (header/chat built here and handed down as props; the rest of the screen is owned by the game component). */
+    const usesUnifiedSlotLayout =
         !isMobileOrTablet &&
         effectiveLobbyPageState === 'in_game' &&
         effectiveLobbyGameType === 'minion_battles' &&
-        inBattle;
+        (gamePhase === 'battle' || gamePhase === 'pre_mission_story' || gamePhase === 'post_mission_story');
 
     const lobbyHeader = useMemo(
         () => (
-            <div
-                className={`flex flex-wrap items-center gap-2 sm:gap-3 px-2 sm:px-4 py-3 bg-surface rounded ${
-                    battleChromeDesktop ? 'mb-0 shrink-0' : 'mb-4'
-                }`}
-            >
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 px-2 sm:px-4 py-3 bg-surface rounded mb-4">
                 <div className="min-w-0 flex-1 flex items-center gap-2">
                     <span className="truncate">{player.name}</span>
                     {isHost && (
@@ -425,7 +426,6 @@ export default function GameScreen({
             </div>
         ),
         [
-            battleChromeDesktop,
             isAdmin,
             isHost,
             isMobileOrTablet,
@@ -435,6 +435,19 @@ export default function GameScreen({
             player.name,
             unreadCount,
         ],
+    );
+
+    const headerSlot = useMemo(
+        () => (
+            <HeaderSlotLobbyInfo
+                playerName={player.name}
+                isHost={isHost}
+                isAdmin={isAdmin}
+                lobbyName={lobby.name}
+                lobbyId={lobby.id}
+            />
+        ),
+        [player.name, isHost, isAdmin, lobby.name, lobby.id],
     );
 
     const centralSection = useMemo(
@@ -587,6 +600,37 @@ export default function GameScreen({
         />
     );
 
+    const chatSlot = (
+        <ColumnSlotChat
+            messages={chatMessages}
+            connectionStatus={connectionStatus}
+            enabled={chatEnabled}
+            onSend={onSendChat}
+            topContent={chatTopContent}
+            headerRightContent={chatHeaderLeaveButton}
+        />
+    );
+
+    const centerOverlay = showResyncOverlay ? (
+        <div
+            className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/40"
+            style={{ pointerEvents: 'auto' }}
+            aria-busy="true"
+            aria-live="polite"
+        >
+            <div className="flex flex-col items-center gap-4 px-6 py-6 bg-surface rounded-xl border border-border-custom shadow-xl">
+                <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                <p className="text-muted">
+                    {isLoading
+                        ? 'Loading game state...'
+                        : battleNetResyncing && !isLoading
+                          ? 'Resyncing battle…'
+                          : 'Resyncing...'}
+                </p>
+            </div>
+        </div>
+    ) : null;
+
     if (isMobileOrTablet) {
         return (
             <div className="flex h-screen max-md:flex-col">
@@ -626,28 +670,43 @@ export default function GameScreen({
         );
     }
 
-    if (battleChromeDesktop) {
+    if (usesUnifiedSlotLayout) {
         return (
-            <BattleActionRowProvider>
-                <div className="flex h-screen min-h-0 flex-col">
-                    <div className="shrink-0 px-4 pt-4">{lobbyHeader}</div>
-                    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                        <div className="flex min-h-0 flex-1 flex-row items-stretch px-4 pb-2">
-                            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-                                {centralSection(
-                                    'rounded-tl-lg border border-r-0 border-border-custom',
-                                    'rounded-tl-lg',
-                                )}
-                                {playerListSection}
-                            </div>
-                            <div className="flex min-h-0 shrink-0 flex-col overflow-hidden rounded-tr-lg border border-l-0 border-border-custom">
-                                {chatPanel}
-                            </div>
-                        </div>
-                        <BattleActionRowSlot className="min-h-0 w-full shrink-0 border-t border-border-custom bg-surface" />
+            <div className="flex h-screen min-h-0 flex-col">
+                {gameLoadError ? (
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-4 text-muted">
+                        <p className="text-danger">{gameLoadError}</p>
                     </div>
-                </div>
-            </BattleActionRowProvider>
+                ) : GameComp ? (
+                    <GameComp
+                        lobbyClient={lobbyClient}
+                        lobbyId={lobby.id}
+                        gameId={effectiveLobbyGameId ?? ''}
+                        minionBattlesApi={minionBattlesApi}
+                        playerId={player.id}
+                        isHost={isHost}
+                        players={effectivePlayers}
+                        gameData={effectiveLobbyGameData}
+                        onSidebarInfoChange={setGameSidebarInfo}
+                        onRecordMissionResult={onRecordMissionResult}
+                        onLeave={onLeave}
+                        onContinue={onContinue}
+                        onTryAgain={onTryAgain}
+                        onJoinNextLobby={onJoinNextLobby}
+                        onEmittedChatMessage={onEmittedChatMessage}
+                        onBattleStartStatusChange={setBattlePlayerListHidden}
+                        onBattleNetResyncingChange={setBattleNetResyncing}
+                        currentCampaignId={currentCampaignId}
+                        headerSlot={headerSlot}
+                        chatSlot={chatSlot}
+                        centerOverlay={centerOverlay}
+                    />
+                ) : (
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-4 text-muted">
+                        <p>Loading game...</p>
+                    </div>
+                )}
+            </div>
         );
     }
 

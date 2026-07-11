@@ -12,6 +12,7 @@ import { SPECTATOR_ID } from '../../state';
 import { getItemDef } from '../../character_defs/items';
 import PreMissionStoryEndScreen from './preMissionStory/PreMissionStoryEndScreen';
 import PreMissionStoryLayout, { type StoryViewportLayoutMode } from './preMissionStory/PreMissionStoryLayout';
+import RowSlotPlayerStatuses from '../../../../components/battleUILayout/RowSlotPlayerStatuses';
 import DialoguePortraitRow from './preMissionStory/DialoguePortraitRow';
 import DialoguePortraitSidebar from './preMissionStory/DialoguePortraitSidebar';
 import { STORY_VIEWPORT_WINDOW_LAPTOP_MAX_PX } from './preMissionStory/storyViewportConstants';
@@ -39,6 +40,12 @@ interface PreMissionStoryPhaseProps {
     onPhaseChange?: (phase: string, gameState: Record<string, unknown>) => void;
     /** Lets the lobby UI hide battle-only chrome immediately when Start Game is clicked. */
     onBattleStartStatusChange?: (starting: boolean) => void;
+    /** Header slot content, forwarded from GameScreen via Game.tsx. */
+    headerSlot?: React.ReactNode;
+    /** Right column slot content (chat), forwarded from GameScreen via Game.tsx. */
+    chatSlot?: React.ReactNode;
+    /** Loading/resync overlay, forwarded from GameScreen via Game.tsx. */
+    centerOverlay?: React.ReactNode;
 }
 
 export default function PreMissionStoryPhase({
@@ -55,6 +62,9 @@ export default function PreMissionStoryPhase({
     groupVoteVotes = {},
     onPhaseChange,
     onBattleStartStatusChange,
+    headerSlot,
+    chatSlot,
+    centerOverlay,
 }: PreMissionStoryPhaseProps) {
     const [phraseIndex, setPhraseIndex] = useState(0);
     const [backgroundImage, setBackgroundImage] = useState<string | undefined>();
@@ -297,6 +307,17 @@ export default function PreMissionStoryPhase({
             bgOpacity={bgOpacity}
             contentJustify={contentJustify}
             onStoryViewportModeChange={handleStoryViewportModeChange}
+            headerSlot={headerSlot}
+            chatSlot={chatSlot}
+            centerOverlay={centerOverlay}
+            bottomRow={
+                <RowSlotPlayerStatuses
+                    players={players}
+                    currentPlayerId={playerId}
+                    characterSelections={characterSelections}
+                    readyPlayerIds={storyReadyPlayerIds}
+                />
+            }
         >
             {dialogueLaptopRow ? (
                 <div className="flex flex-row flex-1 min-h-0 items-stretch gap-2 sm:gap-3 w-full py-1">
