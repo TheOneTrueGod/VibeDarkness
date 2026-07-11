@@ -8,7 +8,7 @@ import { UnitSelectorDebugTool } from './tools/UnitSelectorDebugTool';
 import { AdminMoveDebugTool } from './tools/AdminMoveDebugTool';
 import { getDebugState } from '../../debugState';
 import { resolveClick, getSelectTargetDefsFromTimings } from '../../abilities/targeting';
-import { AUTO_END_TURN } from '../gameConstants';
+import { getAutoEndTurn } from '../autoEndTurnSetting';
 import { USE_SEQUENTIAL_TARGETING } from '../../featureFlags';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { TERRAIN_PROPERTIES } from '../../terrain/TerrainType';
@@ -228,7 +228,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         if (e.code === 'Space' && !e.repeat) {
             e.preventDefault();
             if (!this._canUseOrderUi) return;
-            if (this.uiState.nonconfirmedOrder && !AUTO_END_TURN) {
+            if (this.uiState.nonconfirmedOrder && !getAutoEndTurn()) {
                 this.handleEndTurn();
             } else {
                 this.handleWait();
@@ -360,7 +360,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         this.defaultTool?.reset();
         this.uiState = { ...this.uiState, currentTargets: [] };
 
-        if (abilityId === 'wait' || AUTO_END_TURN) {
+        if (abilityId === 'wait' || getAutoEndTurn()) {
             order.endTurn = true;
             this.uiState = { ...this.uiState, nonconfirmedOrder: null };
             void this.ctx.session.submitPlayerOrder(order, { canSubmitOrders: this._canUseOrderUi });
@@ -401,7 +401,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         moveTargetPixel: { x: number; y: number } | undefined,
     ): void {
         const order = this.uiState.nonconfirmedOrder;
-        if (!order || !this.ctx || AUTO_END_TURN) return;
+        if (!order || !this.ctx || getAutoEndTurn()) return;
         const updated = { ...order, movePath, moveTargetUnitId, moveTargetPixel };
         this.uiState = { ...this.uiState, nonconfirmedOrder: updated };
         void this.ctx.session.submitPlayerOrder(updated, { canSubmitOrders: this._canUseOrderUi });

@@ -5,6 +5,7 @@ import {
     PIP_GAP_PX,
     PIP_WIDTH_PX,
     abilityDurationSecondsToTicks,
+    computeItsTimelineKeyTickMarkers,
     computeItsTimelinePips,
     computeItsTimelineWindow,
     computeItsTimelineWindowForWidth,
@@ -128,6 +129,29 @@ describe('computeItsTimelineWindow', () => {
             rightOverflow: 0,
             visibleCurrentIndex: 19,
         });
+    });
+});
+
+describe('computeItsTimelineKeyTickMarkers', () => {
+    it('places 1s/2s/3s at the pip covering that many ticks', () => {
+        // FRAMES_PER_PIP = 2, ENGINE_TICKS_PER_SECOND = 60 → 30 pips/sec
+        const markers = computeItsTimelineKeyTickMarkers({ pipCount: 1000, framesPerPip: FRAMES_PER_PIP });
+        expect(markers).toEqual([
+            { seconds: 1, label: '1s', pipIndex: 30 },
+            { seconds: 2, label: '2s', pipIndex: 60 },
+            { seconds: 3, label: '3s', pipIndex: 90 },
+        ]);
+    });
+
+    it('omits markers whose pip falls past the end of the bar', () => {
+        const markers = computeItsTimelineKeyTickMarkers({ pipCount: 61, framesPerPip: FRAMES_PER_PIP });
+        expect(markers.map((m) => m.seconds)).toEqual([1, 2]);
+    });
+
+    it('honours a custom framesPerPip', () => {
+        const markers = computeItsTimelineKeyTickMarkers({ pipCount: 1000, framesPerPip: 10 });
+        // 1s = 60 ticks / 10 = pip 6; 2s = 120/10 = pip 12, etc.
+        expect(markers.map((m) => m.pipIndex)).toEqual([6, 12, 18]);
     });
 });
 

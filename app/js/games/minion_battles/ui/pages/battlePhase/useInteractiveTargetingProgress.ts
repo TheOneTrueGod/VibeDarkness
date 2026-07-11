@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import type { BattleSession } from '../../../game/BattleSession';
 import type { OrderWaiter } from '../../../game/types';
-import { AUTO_END_TURN } from '../../../game/gameConstants';
+import { getAutoEndTurn } from '../../../game/autoEndTurnSetting';
 import { isITSPreviewComplete } from '../../../game/interaction/isITSPreviewComplete';
 
 interface UseInteractiveTargetingProgressParams {
@@ -57,7 +57,7 @@ export function useInteractiveTargetingProgress({
             } else {
                 nextState = isITSPreviewComplete(eng) ? 'done' : 'playing';
             }
-            if (nextState === 'done' && AUTO_END_TURN && !autoCommitItsAttemptedRef.current && session) {
+            if (nextState === 'done' && getAutoEndTurn() && !autoCommitItsAttemptedRef.current && session) {
                 autoCommitItsAttemptedRef.current = true;
                 setOrderSubmitFailed(false);
                 void session.interactiveTargeting.commit(session, 'auto_end_turn');

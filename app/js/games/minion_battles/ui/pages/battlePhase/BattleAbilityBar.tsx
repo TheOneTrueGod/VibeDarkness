@@ -4,7 +4,7 @@ import type { AbilityStatic } from '../../../abilities/Ability';
 import type { BattleSession } from '../../../game/BattleSession';
 import type { GameEngine } from '../../../game/GameEngine';
 import type { BattleOrder, OrderWaiter } from '../../../game/types';
-import { AUTO_END_TURN } from '../../../game/gameConstants';
+import { useAutoEndTurn } from '../../components/useAutoEndTurn';
 import AbilityBar from '../../components/AbilityBar';
 import type { HudEffectCanvasHandle } from '../../components/HudEffectCanvas';
 
@@ -45,6 +45,7 @@ export default function BattleAbilityBar({
     setIsWaitHovered,
     setHoveredAbility,
 }: BattleAbilityBarProps) {
+    const autoEndTurn = useAutoEndTurn();
     const pausedAbility = activeLocalWaiter != null
         ? engine.getUnit(activeLocalWaiter.unitId)?.activeAbilities.find((a) => a.conditionalCancelPaused)
         : undefined;
@@ -68,11 +69,11 @@ export default function BattleAbilityBar({
             onSelectCard={(cardIndex, ability) =>
                 sessionRef.current?.getInteractionManager()?.activateAbilityTargeting(cardIndex, ability)
             }
-            onWait={nonconfirmedOrder && !AUTO_END_TURN
+            onWait={nonconfirmedOrder && !autoEndTurn
                 ? () => sessionRef.current?.getInteractionManager()?.handleEndTurn()
                 : () => sessionRef.current?.getInteractionManager()?.handleWait()
             }
-            hasNonconfirmedOrder={!AUTO_END_TURN && !!nonconfirmedOrder}
+            hasNonconfirmedOrder={!autoEndTurn && !!nonconfirmedOrder}
             onWaitHoverChange={setIsWaitHovered}
             gameState={engine}
             allUnits={engine.units}

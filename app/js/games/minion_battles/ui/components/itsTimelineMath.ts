@@ -169,3 +169,42 @@ export function abilityDurationSecondsToTicks(durationSec: number): number {
     if (!Number.isFinite(durationSec) || durationSec <= 0) return 0;
     return Math.ceil(durationSec * ENGINE_TICKS_PER_SECOND);
 }
+
+/** Real-time offsets (seconds from mark start) called out as scale markers on the pip bar. */
+export const ITS_TIMELINE_KEY_TICK_SECONDS = [1, 2, 3] as const;
+
+const ITS_TIMELINE_KEY_TICK_LABELS: Record<number, string> = {
+    1: '1s',
+    2: '2s',
+    3: '3s',
+};
+
+export interface ItsTimelineKeyTickMarker {
+    /** Real-time offset from mark start (e.g. `0.5`, `1`, `1.5`, `2`). */
+    seconds: number;
+    label: string;
+    /** Logical pip index (within the full span, not the visible window) this offset lands on. */
+    pipIndex: number;
+}
+
+/**
+ * Maps {@link ITS_TIMELINE_KEY_TICK_SECONDS} real-time offsets onto logical pip indices,
+ * using the engine tick rate and ticks-per-pip. Offsets past the end of the bar are omitted.
+ */
+export function computeItsTimelineKeyTickMarkers(args: {
+    pipCount: number;
+    framesPerPip?: number;
+}): ItsTimelineKeyTickMarker[] {
+    const framesPerPip = args.framesPerPip ?? FRAMES_PER_PIP;
+    const safePip = Math.max(1, Math.floor(framesPerPip));
+    const pipCount = Math.max(1, Math.floor(args.pipCount));
+
+    const markers: ItsTimelineKeyTickMarker[] = [];
+    for (const seconds of ITS_TIMELINE_KEY_TICK_SECONDS) {
+        const ticks = seconds * ENGINE_TICKS_PER_SECOND;
+        const pipIndex = Math.floor(ticks / safePip);
+        if (pipIndex < 0 || pipIndex >= pipCount) continue;
+        markers.push({ seconds, label: ITS_TIMELINE_KEY_TICK_LABELS[seconds] ?? `${seconds}s`, pipIndex });
+    }
+    return markers;
+}

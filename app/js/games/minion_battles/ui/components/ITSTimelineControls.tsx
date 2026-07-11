@@ -2,11 +2,13 @@ import React, { useEffect, useReducer, useRef, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { Undo2, RotateCw, Check } from 'lucide-react';
 import type { BattleSession } from '../../game/BattleSession';
-import { AUTO_END_TURN } from '../../game/gameConstants';
+import { ONLY_UNDO_AT_START } from '../../game/gameConstants';
+import { setAutoEndTurn } from '../../game/autoEndTurnSetting';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { getTotalAbilityDurationForCast } from '../../abilities/abilityTimings';
 import type { ItsPlayaheadTicks } from './GameTickPill';
 import ITSTimelineFrameStepper from './ITSTimelineFrameStepper';
+import { useAutoEndTurn } from './useAutoEndTurn';
 import {
     AnchoredPortalTooltip,
 } from './AnchoredPortalTooltip';
@@ -97,6 +99,24 @@ function ItsIconButton({
                 {label}
             </AnchoredPortalTooltip>
         </div>
+    );
+}
+
+/** Session-only toggle for {@link setAutoEndTurn}; unchecked shows the manual Done button. */
+function AutoEndCheckbox({ checked }: { checked: boolean }) {
+    return (
+        <label
+            className="flex h-5 shrink-0 cursor-pointer items-center gap-1 rounded-sm border border-dark-600 bg-dark-800 px-1 text-[10px] font-medium text-gray-300 hover:bg-dark-700"
+            title="Automatically end your turn once orders are submitted (this session only)"
+        >
+            <input
+                type="checkbox"
+                checked={checked}
+                onChange={(e) => setAutoEndTurn(e.target.checked)}
+                className="h-3 w-3 accent-emerald-500"
+            />
+            Auto End
+        </label>
     );
 }
 
@@ -295,9 +315,12 @@ export default function ITSTimelineControls({
     const highWaterTick = scrub?.highWaterTick
         ?? Math.max(highWaterRef.current, displayTick, startTick);
     const expectedDurationTicks = scrub?.expectedDurationTicks ?? expectedDurationRef.current;
-    const showDone = !AUTO_END_TURN;
+    const autoEndTurn = useAutoEndTurn();
+    const showDone = !autoEndTurn;
     const isRewindCrossfade = rewinding || scrub != null || rewindToken != null;
     const doneDisabled = state !== 'done' || isRewindCrossfade;
+    const hasCollectedTargets = Object.keys(sessionRef.current?.interactiveTargeting.collectedTargets ?? {}).length > 0;
+    const undoDisabled = isRewindCrossfade || (ONLY_UNDO_AT_START && hasCollectedTargets);
 
     return (
         <div
@@ -311,7 +334,7 @@ export default function ITSTimelineControls({
                 showText
                 className="border-red-700 bg-red-900/60"
                 iconClassName="text-red-300"
-                disabled={isRewindCrossfade}
+                disabled={undoDisabled}
                 onClick={() => {
                     setOrderSubmitFailed(false);
                     const s = sessionRef.current;
@@ -357,6 +380,7 @@ export default function ITSTimelineControls({
                     }}
                 />
             ) : null}
+            <AutoEndCheckbox checked={autoEndTurn} />
         </div>
     );
 }
