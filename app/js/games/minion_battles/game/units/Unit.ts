@@ -73,7 +73,7 @@ import { applyKnockbackToUnit } from './unitKnockback';
 import { applyNudgeToUnit } from './unitNudge';
 import { getUnitEffectiveSpeed, unitHasIFrames, isUnitInJuggernautWindow, getUnitLungeDistance } from './unitAbilityQueries';
 import { updateUnit, tickUnitMovement, setUnitMovement, clearUnitMovement, invalidateUnitMovementPath } from './unitMovementTick';
-import { applyDamageToUnit, tickUnitDarknessCorruption } from './unitDamage';
+import { applyDamageToUnit, applyDamageToUnitDetailed, tickUnitDarknessCorruption, type DamageBreakdown } from './unitDamage';
 import { MIN_EFFECTIVE_MAX_HP_PCT } from './unitHeal';
 
 export type {
@@ -349,6 +349,11 @@ export class Unit extends GameObject {
     /** Apply damage to this unit. Returns actual damage dealt. */
     takeDamage(amount: number, sourceUnitId: string | null, eventBus: EventBus): number {
         return applyDamageToUnit(this, amount, sourceUnitId, eventBus);
+    }
+
+    /** Apply damage to this unit, returning the full shield/armour/hp breakdown. */
+    takeDamageDetailed(amount: number, sourceUnitId: string | null, eventBus: EventBus): DamageBreakdown {
+        return applyDamageToUnitDetailed(this, amount, sourceUnitId, eventBus);
     }
 
     /** Set movement state with a grid-cell path. Clears movement if path is empty. Clears pathInvalidated. */

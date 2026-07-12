@@ -29,6 +29,14 @@ import { corruptionOrbEffectDef, torchProjectileEffectDef } from './corruptionEf
 import { lanterniteConstParticleEffectDef, auraPulseEffectDef } from './lanterniteEffects';
 import { brambleExplosionEffectDef } from './brambleEffects';
 import { spriteEffectDef } from './spriteEffectDefs';
+import {
+    bloodMistBurstEffectDef,
+    bloodMistImpactEffectDef,
+    bloodConeFlashEffectDef,
+    BLOOD_MIST_BURST_EFFECT_TYPE,
+    BLOOD_MIST_IMPACT_EFFECT_TYPE,
+    BLOOD_CONE_FLASH_EFFECT_TYPE,
+} from './bloodMageEffects';
 
 /** Default effect: expanding ring that fades out. */
 const defaultEffectDef: IEffectDef = {
@@ -81,6 +89,9 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     CollisionClash: collisionClashEffectDef,
     TerrainImpact: terrainImpactEffectDef,
     LiftColumn: liftColumnEffectDef,
+    [BLOOD_MIST_BURST_EFFECT_TYPE]: bloodMistBurstEffectDef,
+    [BLOOD_MIST_IMPACT_EFFECT_TYPE]: bloodMistImpactEffectDef,
+    [BLOOD_CONE_FLASH_EFFECT_TYPE]: bloodConeFlashEffectDef,
 };
 
 /** Get the effect def for an effect type. Falls back to default. */

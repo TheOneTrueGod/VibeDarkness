@@ -368,6 +368,9 @@ export class UnitRenderer {
                 }
                 buffEffects.visible = true;
                 buffEffects.clear();
+                // .clear() resets drawing commands but not .filters — reset explicitly each
+                // frame so a shield shimmer (buffVisuals.ts) doesn't linger after it expires.
+                buffEffects.filters = null;
                 const buffCtx = { gameTime };
                 for (const buff of unit.buffs) {
                     const renderer = getBuffVisualRenderer(buff._type);

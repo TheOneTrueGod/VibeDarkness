@@ -40,6 +40,8 @@ export interface DamageTakenEvent {
     hpDamage?: number;
     /** Armour removed by this damage instance. */
     armourRemoved?: number;
+    /** Shield-buff hp absorbed by this damage instance (consumed before armour). */
+    shieldAbsorbed?: number;
 }
 
 export interface TurnStartEvent {

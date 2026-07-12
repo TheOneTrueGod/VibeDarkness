@@ -54,6 +54,18 @@ function getAffordabilityFailReason(unit: Unit, ability: AbilityStatic): Disable
     return null;
 }
 
+/**
+ * Checks affordability of an ability's `hpCost`, separate from the generic resource-cost
+ * pipeline since HP is deducted manually by the ability's cast behaviour, not via `Resource`.
+ */
+function getHpAffordabilityFailReason(unit: Unit, ability: AbilityStatic): DisabledReason | null {
+    if (ability.hpCost == null) return null;
+    const gate = ability.hpCostGate ?? 'requireSurplus';
+    if (gate !== 'requireSurplus') return null;
+    if (unit.hp <= ability.hpCost) return { reason_id: 'cannot_afford', resourceId: 'hp' };
+    return null;
+}
+
 export function getAbilityDisabledReason(params: {
     playerUnit: Unit | null;
     ability: AbilityStatic;
@@ -70,6 +82,9 @@ export function getAbilityDisabledReason(params: {
     if (playerUnit) {
         const affordReason = getAffordabilityFailReason(playerUnit, ability);
         if (affordReason) return affordReason;
+
+        const hpAffordReason = getHpAffordabilityFailReason(playerUnit, ability);
+        if (hpAffordReason) return hpAffordReason;
     }
 
     if (currentUses <= 0) return { reason_id: 'no_uses_remaining' };

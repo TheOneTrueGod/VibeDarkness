@@ -112,12 +112,16 @@ type BlockingEngineContext = {
     interruptUnitAndRefundAbilities?: (unit: Unit) => void;
 };
 
-export function executeBlock(
+/**
+ * Fire the attacking ability's onAttackBlocked callback and ON_ATTACK_BLOCKED event rules.
+ * Shared by `executeBlock` (real blocking abilities, e.g. Raise Shield) and `tryDamageOrBlock`
+ * (a hit fully soaked by a `ShieldBuff`, which has no `getBlockingArc`).
+ */
+export function fireAttackBlockedHooks(
     engine: unknown,
+    attackingAbilityId: string,
     defender: Unit,
     attackInfo: AttackBlockedInfo,
-    attackingAbilityId: string,
-    block?: BlockingArc | null,
 ): void {
     const eng = engine as BlockingEngineContext;
     const ability = getAbility(attackingAbilityId);
@@ -131,6 +135,17 @@ export function executeBlock(
         primaryTarget: defender,
         attackInfo,
     });
+}
+
+export function executeBlock(
+    engine: unknown,
+    defender: Unit,
+    attackInfo: AttackBlockedInfo,
+    attackingAbilityId: string,
+    block?: BlockingArc | null,
+): void {
+    const eng = engine as BlockingEngineContext;
+    fireAttackBlockedHooks(engine, attackingAbilityId, defender, attackInfo);
     if (block?.ability.onBlockSuccess) {
         block.ability.onBlockSuccess(engine, defender, attackInfo);
     }
@@ -195,7 +210,19 @@ export function tryDamageOrBlock(
     const attacker = (engine as { getUnit?: (id: string) => Unit | undefined }).getUnit?.(attackerId);
     const ability = getAbility(abilityId);
     const modifiedDamage = getModifiedAbilityDamage(attacker, damage, ability?.damageModifierMultiplier);
-    defender.takeDamage(modifiedDamage, attackerId, eventBus);
+    // Note: this only covers damage routed through tryDamageOrBlock (melee/projectile
+    // CastBehaviours). Direct/AoE unit.takeDamage() call sites still get HP-pool shield
+    // absorption (universal, in unitDamage.ts) but won't fire onBlock.
+    const breakdown = defender.takeDamageDetailed(modifiedDamage, attackerId, eventBus);
+    if (breakdown.shieldAbsorbed >= modifiedDamage && breakdown.hpDamage <= 0) {
+        fireAttackBlockedHooks(
+            engine,
+            abilityId,
+            defender,
+            { type: attackType, sourceUnitId: attackerId, attackSourceX: attackerX, attackSourceY: attackerY },
+        );
+        return { hit: false, amountDealt: 0 };
+    }
     triggerAbilityEventFromAttack({
         engine: engine as {
             gameTime: number;

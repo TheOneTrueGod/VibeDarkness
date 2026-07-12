@@ -77,6 +77,9 @@ import { gravityGrazeScenario } from './abilities/gravityGrazeScenario';
 import { gravityLocusScenario } from './abilities/gravityLocusScenario';
 import { forcePushScenario } from './abilities/forcePushScenario';
 import { gravityInversionScenario } from './abilities/gravityInversionScenario';
+import { bloodMendScenario } from './abilities/bloodMendScenario';
+import { burstScenario } from './abilities/burstScenario';
+import { protectShieldAbsorptionScenario } from './abilities/protectScenario';
 import {
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
@@ -170,6 +173,9 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     gravityLocusScenario,
     forcePushScenario,
     gravityInversionScenario,
+    bloodMendScenario,
+    burstScenario,
+    protectShieldAbsorptionScenario,
     throwKnifePiercingBleedScenario,
     clawMovementDistanceScenario,
     pistolHitsDummyScenario,
@@ -210,6 +216,7 @@ const ABILITY_TREE_GROUPS: AbilityTreeSidebarGroup[] = [
     { treeId: 'earth_core',    label: 'Earth Core',     selectorKey: 'tree:earth_core',    abilityIds: ['earth_core'] },
     { treeId: 'light',         label: 'Light Core',     selectorKey: 'tree:light',         abilityIds: ['0801', '0802', '0804'] },
     { treeId: 'gravity_core',  label: 'Gravity',        selectorKey: 'tree:gravity_core',  abilityIds: ['0901', '0902', '0903', 'gravity_core'] },
+    { treeId: 'blood_mage',    label: 'Blood Mage',     selectorKey: 'tree:blood_mage',    abilityIds: ['0301', '0302', '0303'] },
 ];
 
 export function getAbilityTreeSidebarGroups(): AbilityTreeSidebarGroup[] {
@@ -294,6 +301,9 @@ export function inferScenarioAbilityId(scenario: ScenarioDefinition): string | n
     if (id.startsWith('gravity_locus_')) return '0901';
     if (id.startsWith('force_push_')) return '0902';
     if (id.startsWith('gravity_inversion_')) return '0903';
+    if (id.startsWith('blood_mend_')) return '0301';
+    if (id.startsWith('burst_')) return '0302';
+    if (id.startsWith('protect_')) return '0303';
     return null;
 }
 

@@ -11,6 +11,8 @@ import { BLEED_BUFF_TYPE, BleedBuff } from './BleedBuff';
 import { EXPOSED_BUFF_TYPE } from './ExposedBuff';
 import { LIFTED_BUFF_TYPE } from './LiftedBuff';
 import { GRAVITY_LOCUS_FIELD_BUFF_TYPE } from './GravityLocusFieldBuff';
+import { SHIELD_BUFF_TYPE, ShieldBuff } from './ShieldBuff';
+import { type ShieldShimmerFilter, tryCreateShieldShimmerFilter } from '../game/ShieldShimmerFilter';
 
 /** Context passed when rendering a buff visual. */
 export interface IBuffVisualContext {
@@ -105,6 +107,38 @@ const bleedBuffVisual: BuffVisualRenderer = (g, unit, buff, _ctx) => {
     }
 };
 
+/**
+ * Shield: a translucent shell around the unit's body, shimmering black/red/transparent.
+ * See card_defs/03_blood_mage/AGENTS.md for the design intent behind Protect, which grants this.
+ *
+ * The filter is applied to the shared `buffEffects` Graphics (see UnitRenderer), so while a
+ * shield is up, any other buff icons on the same unit are also rendered through the shimmer
+ * shader — an accepted MVP tradeoff rather than giving every buff its own filtered layer.
+ * One filter instance is cached per unit (not reallocated per frame); `uTime` is driven
+ * directly from `ctx.gameTime` rather than accumulated per-frame deltas.
+ */
+const shieldShimmerFilters = new WeakMap<Unit, ShieldShimmerFilter>();
+
+const shieldBuffVisual: BuffVisualRenderer = (g, unit, buff, ctx) => {
+    const shield = buff as ShieldBuff;
+    if (shield.remainingHp <= 0) return;
+
+    let filter = shieldShimmerFilters.get(unit);
+    if (filter === undefined) {
+        filter = tryCreateShieldShimmerFilter() ?? undefined;
+        if (filter) shieldShimmerFilters.set(unit, filter);
+    }
+    if (!filter) return; // shader unsupported on this GPU/driver — shield still functions mechanically, just no shimmer
+
+    filter.time = ctx.gameTime;
+    filter.shimmerAlpha = 0.4;
+
+    const shellRadius = unit.radius + 3;
+    g.circle(0, 0, shellRadius);
+    g.fill({ color: 0xffffff, alpha: 0.9 });
+    g.filters = [filter];
+};
+
 /** Register a buff visual renderer. */
 export function registerBuffVisual(buffType: string, renderer: BuffVisualRenderer): void {
     registry[buffType] = renderer;
@@ -128,3 +162,4 @@ registerBuffVisual(LIFTED_BUFF_TYPE, (g, unit, _buff, _ctx) => {
 });
 // The field draws itself at the locus each tick; no marker on the caster.
 registerBuffVisual(GRAVITY_LOCUS_FIELD_BUFF_TYPE, () => {});
+registerBuffVisual(SHIELD_BUFF_TYPE, shieldBuffVisual);

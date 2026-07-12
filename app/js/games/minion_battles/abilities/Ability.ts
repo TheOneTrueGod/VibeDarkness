@@ -228,6 +228,20 @@ export interface AbilityStatic {
     readonly resourceCost: ResourceCost | null;
     /** Optional multi-resource costs. If set, this takes precedence over resourceCost. */
     readonly resourceCosts?: ResourceCost[];
+    /**
+     * Optional HP cost to cast this ability (deducted manually by the ability's cast behaviour,
+     * not by the generic resource-cost pipeline). See `hpCostGate` for how affordability is gated.
+     */
+    readonly hpCost?: number;
+    /**
+     * Gating rule for `hpCost`. Defaults to `'requireSurplus'` when `hpCost` is set and this is
+     * omitted.
+     * - `'requireSurplus'`: caster must have `hp > hpCost` to cast (can't drop to 0 or below).
+     * - `'floorAtOne'`: always castable regardless of current HP; deduction is clamped so it can't
+     *   drop the caster below 1 HP.
+     * - `'none'`: no HP-based affordability gating at all.
+     */
+    readonly hpCostGate?: 'requireSurplus' | 'floorAtOne' | 'none';
     /** Rounds the card spends in exile before returning to deck. */
     readonly rechargeTurns: number;
     /** Base max uses for this ability (default 1 when omitted). */
