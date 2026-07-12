@@ -6,6 +6,7 @@ import { executeUnitAbility } from '../../../game/units/unitAbilityLifecycle';
 import { tickUnitActiveAbilities } from '../../../game/units/unitAbilityTick';
 import { DEFAULT_UNIT_RADIUS } from '../../../game/units/unit_defs/unitConstants';
 import { getAbilityDisabledReason } from '../../../ui/components/abilityDisabledReason';
+import { getSelectTargetDefsFromTimings, resolveSelectTargetLockOnCandidates } from '../../../abilities/targeting';
 import { SHIELD_BUFF_TYPE, type ShieldBuff } from '../../../buffs/ShieldBuff';
 import type { TeamId } from '../../../game/teams';
 import type { ResolvedTarget } from '../../../game/types';
@@ -127,6 +128,36 @@ describe('ProtectAbility_0303', () => {
             allUnits: [lowHpCaster, okCaster, ally],
             conditionalCancelContext: null,
         })).toBeNull();
+    });
+
+    it('click-based targeting lets the caster select themselves and other allies, never enemies', () => {
+        // Regression: UnitRangeHitboxSpec/filterSelectTargetCandidates used to hard-exclude
+        // the caster from candidates, so a self-castable filter:'ally' step could never
+        // resolve a click on the caster themselves through the real click-resolution path.
+        const caster = makeCaster(100);
+        const ally = makeAlly('ally', 100);
+        const enemy = new Unit({
+            id: 'enemy', x: 50, y: 250, hp: 100, maxHp: 100, speed: 100,
+            teamId: 'enemy' as TeamId, ownerId: 'ai', characterId: 'enemy', name: 'enemy',
+            radius: DEFAULT_UNIT_RADIUS,
+        });
+        const engine = makeEngine([caster, ally, enemy]);
+        const selectDef = getSelectTargetDefsFromTimings(ProtectAbility_0303, caster, engine)[0]!;
+
+        const clickOnSelf = resolveSelectTargetLockOnCandidates(
+            ProtectAbility_0303, caster, selectDef, { x: caster.x, y: caster.y }, engine,
+        );
+        expect(clickOnSelf.map((u) => u.id)).toEqual([caster.id]);
+
+        const clickOnAlly = resolveSelectTargetLockOnCandidates(
+            ProtectAbility_0303, caster, selectDef, { x: ally.x, y: ally.y }, engine,
+        );
+        expect(clickOnAlly.map((u) => u.id)).toEqual([ally.id]);
+
+        const clickOnEnemy = resolveSelectTargetLockOnCandidates(
+            ProtectAbility_0303, caster, selectDef, { x: enemy.x, y: enemy.y }, engine,
+        );
+        expect(clickOnEnemy).toEqual([]);
     });
 
     it('deducts PROTECT_HP_COST from the caster on cast', () => {

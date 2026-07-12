@@ -12,6 +12,14 @@ export interface SelectTargetDef {
     filter: 'enemy' | 'ally' | 'any';
     allowMiss?: boolean;
     /**
+     * Let the caster be a valid candidate for this select step (e.g. a self-castable
+     * `filter: 'ally'` heal). Requires the paired hitbox to also opt in (e.g.
+     * `unitRangeHitbox(range, minRange, true)`) — this flag alone does not surface the
+     * caster if the hitbox itself already excluded them from the raw candidate list.
+     * Defaults to false (every hitbox excludes the caster by convention).
+     */
+    includeSelf?: boolean;
+    /**
      * How many targets this timing window is expected to hit simultaneously.
      * Drives the preview highlight count. Defaults to the hitbox's own `numTargets`
      * (i.e. `selectDef.hitbox.numTargets`), which is itself 1 unless overridden.

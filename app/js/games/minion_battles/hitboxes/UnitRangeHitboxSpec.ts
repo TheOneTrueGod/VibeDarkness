@@ -5,6 +5,11 @@
  * closest living unit whose center lies within `UNIT_RANGE_PICK_CURSOR_EXTRA` + unit.radius
  * of the aim point, when caster-to-unit-center distance is in range.
  * Team filtering is left to `SelectTargetDef.filter` / callers.
+ *
+ * Excludes the caster by default (matches every other hitbox's convention), unless
+ * `includeCaster` is set — needed by self-targetable `filter: 'ally'` abilities
+ * (e.g. Blood Mend) since caster-to-caster distance is always 0 and would otherwise
+ * never be reachable through the click UI.
  */
 
 import type { Unit } from '../game/units/Unit';
@@ -19,11 +24,13 @@ export const UNIT_RANGE_PICK_CURSOR_EXTRA = 50;
 export class UnitRangeHitboxSpec extends HitboxSpec {
     readonly maxRange: number;
     readonly minRange: number;
+    readonly includeCaster: boolean;
 
-    constructor(maxRange: number, minRange = 0) {
+    constructor(maxRange: number, minRange = 0, includeCaster = false) {
         super();
         this.maxRange = maxRange;
         this.minRange = minRange;
+        this.includeCaster = includeCaster;
     }
 
     private unitCenterDistanceInRange(
@@ -44,7 +51,7 @@ export class UnitRangeHitboxSpec extends HitboxSpec {
 
         for (const unit of units) {
             if (!unit.isAlive()) continue;
-            if (unit.id === caster.id) continue;
+            if (unit.id === caster.id && !this.includeCaster) continue;
             if (!this.unitCenterDistanceInRange(caster, unit)) continue;
 
             const dx = unit.x - aimPoint.x;
@@ -97,7 +104,12 @@ export class UnitRangeHitboxSpec extends HitboxSpec {
     }
 }
 
-/** Factory for unit-pick select steps (center-to-center range, generous cursor snap). */
-export function unitRangeHitbox(maxRange: number, minRange = 0): UnitRangeHitboxSpec {
-    return new UnitRangeHitboxSpec(maxRange, minRange);
+/**
+ * Factory for unit-pick select steps (center-to-center range, generous cursor snap).
+ * `includeCaster` lets the caster select themselves — only meaningful for
+ * `filter: 'ally'` / `'any'` SelectTargetDefs (a `filter: 'enemy'` caster can
+ * never pass the team check anyway).
+ */
+export function unitRangeHitbox(maxRange: number, minRange = 0, includeCaster = false): UnitRangeHitboxSpec {
+    return new UnitRangeHitboxSpec(maxRange, minRange, includeCaster);
 }

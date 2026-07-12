@@ -92,9 +92,12 @@ function renderSelectTargetDef(
     const effectiveCaster: HitboxPreviewCaster = state ? { x: state.virtualX, y: state.virtualY } : caster;
     const effectiveAim = state ? state.adjustedMouse : aimPoint;
 
-    // Draw hitbox first — some implementations call gr.clear() internally.
-    const rawCandidates = selectDef.hitbox.renderTargetingPreview(gr, effectiveCaster, effectiveAim, engine.units);
-    const candidates = filterSelectTargetCandidates(rawCandidates, caster, selectDef.filter);
+    // Team/self-filter *before* the hitbox picks its nearest-candidate crosshair — hitboxes
+    // don't know about SelectTargetDef.filter, so an unfiltered unit list would let the
+    // crosshair snap to units (e.g. enemies for a filter:'ally' ability) that could never
+    // actually be selected. Draw hitbox first — some implementations call gr.clear() internally.
+    const teamFilteredUnits = filterSelectTargetCandidates(engine.units, caster, selectDef.filter, selectDef.includeSelf);
+    const candidates = selectDef.hitbox.renderTargetingPreview(gr, effectiveCaster, effectiveAim, teamFilteredUnits);
     if (candidates.length > 0) {
         candidates.sort(
             (a, b) =>

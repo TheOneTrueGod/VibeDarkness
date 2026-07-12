@@ -89,7 +89,13 @@ export default function AbilitySlot({
     }, [isDisabled, isMobile, showMobileDescription, onSelect, onMobileDescriptionToggle]);
 
     const tooltipLines = ability.getTooltipText(gameState);
+    // Display-only: getAbilityResourceCosts() also drives real affordability/spend/refund
+    // logic (unit.getResource(...)), and HP isn't a generic Resource — append it here
+    // purely for the card badge, never feed this array back into the economy pipeline.
     const costs = getAbilityResourceCosts(ability);
+    const displayCosts = ability.hpCost
+        ? [...costs, { resourceId: 'hp', amount: ability.hpCost }]
+        : costs;
     const recoveryRules = getAbilityUseConfig(ability.id).recoveries;
     const hasRecovery = recoveryRules.length > 0;
     const firstRule = recoveryRules[0];
@@ -214,13 +220,14 @@ export default function AbilitySlot({
                 </div>
 
                 {/* Resource cost — inset from top-right corner */}
-                {costs.length > 0 && (
+                {displayCosts.length > 0 && (
                     <div className="absolute top-1 right-1 z-10 flex flex-col items-end gap-0.5 pointer-events-none">
-                        {costs.map((cost) => (
+                        {displayCosts.map((cost) => (
                             <ResourceCostIcon
                                 key={cost.resourceId}
                                 resourceId={cost.resourceId}
                                 amount={cost.amount}
+                                alwaysCompact={cost.resourceId === 'hp'}
                             />
                         ))}
                     </div>

@@ -24,7 +24,9 @@ const CARD_ID = `${formatGroupId(AbilityGroupId.Mage)}03`;
 
 export const PROTECT_RANGE = 250;
 export const PROTECT_SHIELD_HP = 30;
-export const PROTECT_SHIELD_DURATION_SECONDS = 7;
+// ShieldBuff drains passively rather than expiring on a fixed timer — this rate is derived
+// so an undamaged shield fades to 0 in ~7s, matching the original duration-based feel.
+export const PROTECT_SHIELD_DRAIN_PER_SECOND = PROTECT_SHIELD_HP / 7;
 export const PROTECT_HP_COST = 5;
 // Same "expose the caster" feel as Blood Mend, but a shorter total cast (see AGENTS.md).
 export const PROTECT_WINDUP_DURATION = 0.7;
@@ -32,7 +34,7 @@ export const PROTECT_ACTIVE_DURATION = 0.05;
 export const PROTECT_COOLDOWN_DURATION = 0.4;
 const RANGE = PROTECT_RANGE;
 const SHIELD_HP = PROTECT_SHIELD_HP;
-const SHIELD_DURATION_SECONDS = PROTECT_SHIELD_DURATION_SECONDS;
+const SHIELD_DRAIN_PER_SECOND = PROTECT_SHIELD_DRAIN_PER_SECOND;
 const HP_COST = PROTECT_HP_COST;
 const WINDUP_DURATION = PROTECT_WINDUP_DURATION;
 const ACTIVE_DURATION = PROTECT_ACTIVE_DURATION;
@@ -46,7 +48,8 @@ const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
 
-const PROTECT_HITBOX = unitRangeHitbox(RANGE);
+// includeCaster: Protect can shield the caster themselves, not just other allies.
+const PROTECT_HITBOX = unitRangeHitbox(RANGE, 0, true);
 
 const PROTECT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -110,6 +113,7 @@ export const ProtectAbility_0303 = defineAbility({
                 hitbox: PROTECT_HITBOX,
                 filter: 'ally',
                 allowMiss: false,
+                includeSelf: true,
             },
             behaviour: CastBehaviours.Instant((ctx) => {
                 const eng = ctx.engine as EngineContext;
@@ -122,7 +126,7 @@ export const ProtectAbility_0303 = defineAbility({
                 // deduction is safe — no floorAtOne clamp needed (contrast with Blood Mend 0301).
                 ctx.caster.hp -= HP_COST;
                 targetUnit.addBuff(
-                    new ShieldBuff(SHIELD_HP, SHIELD_DURATION_SECONDS),
+                    new ShieldBuff(SHIELD_HP, SHIELD_DRAIN_PER_SECOND),
                     eng.gameTime,
                     eng.roundNumber,
                     eng.eventBus,
@@ -142,7 +146,7 @@ export const ProtectAbility_0303 = defineAbility({
     getTooltipText(): string[] {
         return [
             'Weave a shielding lattice of blood magic over an ally at your own expense.',
-            `Grants a shield absorbing the next {${SHIELD_HP}} damage, lasting {${SHIELD_DURATION_SECONDS}} seconds.`,
+            `Grants a shield absorbing the next {${SHIELD_HP}} damage. Fades over time if not fully used.`,
             `Costs {${HP_COST}} HP to cast.`,
         ];
     },

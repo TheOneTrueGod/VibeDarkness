@@ -7,6 +7,7 @@ import { tickUnitActiveAbilities } from '../../../game/units/unitAbilityTick';
 import { DEFAULT_UNIT_RADIUS } from '../../../game/units/unit_defs/unitConstants';
 import { DEFAULT_HEAL_PENALTY_PCT } from '../../../game/units/unitHeal';
 import { getAbilityDisabledReason } from '../../../ui/components/abilityDisabledReason';
+import { getSelectTargetDefsFromTimings, resolveSelectTargetLockOnCandidates } from '../../../abilities/targeting';
 import type { TeamId } from '../../../game/teams';
 import type { ResolvedTarget } from '../../../game/types';
 import {
@@ -133,6 +134,36 @@ describe('BloodMendAbility_0301', () => {
 
         expect(caster.hp).toBe(1);
         expect(ally.hp).toBe(50 + BLOOD_MEND_HEAL_AMOUNT);
+    });
+
+    it('click-based targeting lets the caster select themselves and other allies, never enemies', () => {
+        // Regression: UnitRangeHitboxSpec/filterSelectTargetCandidates used to hard-exclude
+        // the caster from candidates, so a self-castable filter:'ally' step could never
+        // resolve a click on the caster themselves through the real click-resolution path.
+        const caster = makeCaster(100);
+        const ally = makeAlly('ally', 100);
+        const enemy = new Unit({
+            id: 'enemy', x: 50, y: 250, hp: 100, maxHp: 100, speed: 100,
+            teamId: 'enemy' as TeamId, ownerId: 'ai', characterId: 'enemy', name: 'enemy',
+            radius: DEFAULT_UNIT_RADIUS,
+        });
+        const engine = makeEngine([caster, ally, enemy]);
+        const selectDef = getSelectTargetDefsFromTimings(BloodMendAbility_0301, caster, engine)[0]!;
+
+        const clickOnSelf = resolveSelectTargetLockOnCandidates(
+            BloodMendAbility_0301, caster, selectDef, { x: caster.x, y: caster.y }, engine,
+        );
+        expect(clickOnSelf.map((u) => u.id)).toEqual([caster.id]);
+
+        const clickOnAlly = resolveSelectTargetLockOnCandidates(
+            BloodMendAbility_0301, caster, selectDef, { x: ally.x, y: ally.y }, engine,
+        );
+        expect(clickOnAlly.map((u) => u.id)).toEqual([ally.id]);
+
+        const clickOnEnemy = resolveSelectTargetLockOnCandidates(
+            BloodMendAbility_0301, caster, selectDef, { x: enemy.x, y: enemy.y }, engine,
+        );
+        expect(clickOnEnemy).toEqual([]);
     });
 
     it('shows no_uses_remaining after one cast and recharges after a round boundary', () => {

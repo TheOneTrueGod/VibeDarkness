@@ -1,7 +1,11 @@
+import { SHIELD_RESOURCE_COLOR } from '../../../resources/resourceDisplayDefs';
+
 interface HealthSegmentBarProps {
     hp: number;
     maxHp: number;
     hpInjury?: number;
+    /** Total active shield HP (sum of ShieldBuff.remainingHp). Renders a light-blue overlay. */
+    shieldHp?: number;
 }
 
 const SEGMENTS = 4;
@@ -14,10 +18,13 @@ function segmentColor(hp: number, maxHp: number): string {
     return 'bg-red-500';
 }
 
-export function HealthSegmentBar({ hp, maxHp, hpInjury = 0 }: HealthSegmentBarProps) {
+export function HealthSegmentBar({ hp, maxHp, hpInjury = 0, shieldHp = 0 }: HealthSegmentBarProps) {
     const color = segmentColor(hp, maxHp);
     const hpPerSegment = maxHp / SEGMENTS;
     const injuryStartGlobal = maxHp - hpInjury;
+    // Shield width is capped at the non-injured capacity (effective max hp), never bleeding
+    // into the injury region.
+    const shieldGlobalWidth = Math.max(0, Math.min(shieldHp, injuryStartGlobal));
 
     return (
         <div className="flex w-full gap-0.5">
@@ -30,15 +37,24 @@ export function HealthSegmentBar({ hp, maxHp, hpInjury = 0 }: HealthSegmentBarPr
                 const injuryFill = hpInjury > 0
                     ? Math.max(0, Math.min(1, (segmentEnd - injuryOverlapStart) / hpPerSegment))
                     : 0;
+                const shieldFill = shieldGlobalWidth > 0
+                    ? Math.max(0, Math.min(1, (shieldGlobalWidth - segmentStart) / hpPerSegment))
+                    : 0;
                 return (
                     <div
                         key={i}
-                        className="relative h-3 flex-1 overflow-hidden rounded-sm bg-dark-700"
+                        className="relative h-3 flex-1 overflow-hidden rounded-sm bg-green-950"
                     >
                         {!isEmpty && (
                             <div
                                 className={`absolute inset-y-0 left-0 ${color} transition-[width] duration-150`}
                                 style={{ width: `${fill * 100}%` }}
+                            />
+                        )}
+                        {shieldFill > 0 && (
+                            <div
+                                className="absolute inset-y-0 left-0 transition-[width] duration-150"
+                                style={{ width: `${shieldFill * 100}%`, backgroundColor: SHIELD_RESOURCE_COLOR, opacity: 0.55 }}
                             />
                         )}
                         {injuryFill > 0 && (

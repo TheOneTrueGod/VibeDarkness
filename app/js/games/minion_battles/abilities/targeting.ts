@@ -123,14 +123,19 @@ export function renderMeleeTrackingHighlights(gr: IAbilityPreviewGraphics, hitUn
  * Call this after `HitboxSpec.renderTargetingPreview` (which does NOT self-exclude) and
  * after `HitboxSpec.resolveTargets` (which self-excludes but does NOT team-filter).
  * Safe to call on already-self-excluded lists — the caster check is a no-op in that case.
+ *
+ * Pass `includeSelf: true` (from `SelectTargetDef.includeSelf`) for self-castable `filter:
+ * 'ally'`/`'any'` steps — the caster still only appears here if the paired hitbox already
+ * put them in `units` (see `UnitRangeHitboxSpec`'s `includeCaster`).
  */
 export function filterSelectTargetCandidates(
     units: Unit[],
     caster: Pick<Unit, 'id' | 'teamId'>,
     filter: SelectTargetDef['filter'],
+    includeSelf = false,
 ): Unit[] {
     return units.filter(u => {
-        if (u.id === caster.id) return false;
+        if (u.id === caster.id && !includeSelf) return false;
         if (filter === 'enemy') return areEnemies(caster.teamId, u.teamId);
         if (filter === 'ally')  return areAllies(caster.teamId, u.teamId);
         return true; // 'any'
@@ -208,7 +213,7 @@ export function resolveSelectTargetLockOnCandidates(
     originCaster.y = originY;
 
     const raw = selectDef.hitbox.resolveTargets(originCaster, effectiveAim, engine.units as Unit[]);
-    const candidates = filterSelectTargetCandidates(raw, caster, selectDef.filter);
+    const candidates = filterSelectTargetCandidates(raw, caster, selectDef.filter, selectDef.includeSelf);
     candidates.sort((a, b) => {
         const da = (a.x - effectiveAim.x) ** 2 + (a.y - effectiveAim.y) ** 2;
         const db = (b.x - effectiveAim.x) ** 2 + (b.y - effectiveAim.y) ** 2;

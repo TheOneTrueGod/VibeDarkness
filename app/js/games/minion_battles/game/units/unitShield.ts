@@ -34,3 +34,13 @@ export function applyDamageToShields(unit: Unit, incomingDamage: number): Shield
 
     return { shieldAbsorbed, remainingDamage: remaining };
 }
+
+/** Sum of `remainingHp` across all active `ShieldBuff`s on a unit (0 when none). */
+export function getTotalShieldHp(unit: Unit): number {
+    let total = 0;
+    for (const buff of unit.buffs) {
+        if (buff._type !== SHIELD_BUFF_TYPE) continue;
+        total += (buff as ShieldBuff).remainingHp;
+    }
+    return total;
+}

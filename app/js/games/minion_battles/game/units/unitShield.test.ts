@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Unit } from './Unit';
 import { EventBus } from '../EventBus';
-import { applyDamageToShields } from './unitShield';
+import { applyDamageToShields, getTotalShieldHp } from './unitShield';
 import { applyDamageToUnitDetailed } from './unitDamage';
 import { ShieldBuff } from '../../buffs/ShieldBuff';
 
@@ -24,7 +24,7 @@ function makeUnit(overrides: Partial<ConstructorParameters<typeof Unit>[0]> = {}
 describe('applyDamageToShields', () => {
     it('a single shield absorbs a partial hit and reduces only remainingHp, leaving unit.hp untouched', () => {
         const unit = makeUnit();
-        unit.buffs = [new ShieldBuff(30, 7)];
+        unit.buffs = [new ShieldBuff(30, 0)];
 
         const result = applyDamageToShields(unit, 10);
 
@@ -35,7 +35,7 @@ describe('applyDamageToShields', () => {
 
     it('a hit exceeding shield hp carries the excess through as remainingDamage', () => {
         const unit = makeUnit();
-        unit.buffs = [new ShieldBuff(10, 7)];
+        unit.buffs = [new ShieldBuff(10, 0)];
 
         const result = applyDamageToShields(unit, 15);
 
@@ -45,8 +45,8 @@ describe('applyDamageToShields', () => {
 
     it('consumes two stacked shields in array order, only touching the second once the first is depleted', () => {
         const unit = makeUnit();
-        const first = new ShieldBuff(10, 7);
-        const second = new ShieldBuff(20, 7);
+        const first = new ShieldBuff(10, 0);
+        const second = new ShieldBuff(20, 0);
         unit.buffs = [first, second];
 
         const result = applyDamageToShields(unit, 15);
@@ -65,10 +65,23 @@ describe('applyDamageToShields', () => {
     });
 });
 
+describe('getTotalShieldHp', () => {
+    it('is 0 when there are no shield buffs', () => {
+        const unit = makeUnit();
+        expect(getTotalShieldHp(unit)).toBe(0);
+    });
+
+    it('sums remainingHp across multiple stacked shields', () => {
+        const unit = makeUnit();
+        unit.buffs = [new ShieldBuff(10, 0), new ShieldBuff(20, 0)];
+        expect(getTotalShieldHp(unit)).toBe(30);
+    });
+});
+
 describe('applyDamageToUnitDetailed shieldAbsorbed', () => {
     it('reports shieldAbsorbed matching what was actually consumed, and lets the rest through to hp', () => {
         const unit = makeUnit({ hp: 40, maxHp: 40 });
-        unit.buffs = [new ShieldBuff(10, 7)];
+        unit.buffs = [new ShieldBuff(10, 0)];
         const eventBus = new EventBus();
 
         const breakdown = applyDamageToUnitDetailed(unit, 15, null, eventBus);

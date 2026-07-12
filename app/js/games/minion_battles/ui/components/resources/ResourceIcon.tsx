@@ -25,6 +25,7 @@ import {
     Layers,
     Heart,
     Footprints,
+    Shield,
     type LucideIcon,
 } from 'lucide-react';
 import { ALL_RESOURCE_DISPLAY_DEFS } from '../../../resources/resourceDisplayDefs';
@@ -39,6 +40,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
     Layers,
     Heart,
     Footprints,
+    Shield,
 };
 
 const RESOURCE_DEF_BY_ID = Object.fromEntries(

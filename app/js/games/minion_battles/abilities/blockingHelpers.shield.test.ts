@@ -48,7 +48,7 @@ describe('tryDamageOrBlock with a ShieldBuff', () => {
         registerAbilityForTest(attackingAbility);
 
         const defender = makeUnit();
-        defender.buffs = [new ShieldBuff(30, 7)];
+        defender.buffs = [new ShieldBuff(30, 0)];
         const engine = makeEngine();
 
         const outcome = tryDamageOrBlock(defender, {
@@ -86,7 +86,7 @@ describe('tryDamageOrBlock with a ShieldBuff', () => {
         registerAbilityForTest(attackingAbility);
 
         const defender = makeUnit();
-        defender.buffs = [new ShieldBuff(10, 7)];
+        defender.buffs = [new ShieldBuff(10, 0)];
         const engine = makeEngine();
 
         const outcome = tryDamageOrBlock(defender, {

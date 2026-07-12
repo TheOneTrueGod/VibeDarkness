@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Maximize2, Minimize2 } from 'lucide-react';
+import { Maximize2, Minimize2, Heart, Shield } from 'lucide-react';
 import type { PlayerState } from '../../../../types';
 import type { GameEngine } from '../../game/GameEngine';
 import type { GhostPlanData } from '../../game/types';
@@ -13,6 +13,8 @@ import type { AbilityStatic } from '../../abilities/Ability';
 import type { Unit } from '../../game/units/Unit';
 import { isDarkCreatureCharacterId, PLAYER_CHARACTER_ID } from '../../game/units/unit_defs/unitDef';
 import { getPortrait } from '../../character_defs/portraits';
+import { getTotalShieldHp } from '../../game/units/unitShield';
+import { SHIELD_RESOURCE_COLOR } from '../../resources/resourceDisplayDefs';
 import { TimelinePhaseSegment } from './TimelinePhaseSegment';
 import { TimelineHoverFlyout, type TimelineHoverFlyoutProps } from './TimelineHoverFlyout';
 import slimeIcon from '../../assets/characters/slime.svg';
@@ -607,7 +609,13 @@ function renderPlayerUnitTimelineUnified(
     const hpPct = unit.maxHp > 0 ? Math.round((unit.hp / unit.maxHp) * 100) : 0;
     const hpInjuryPct = unit.maxHp > 0 ? (unit.hpInjury / unit.maxHp) * 100 : 0;
     const barClass = hpBarColorClass(unit.hp, unit.maxHp, alive);
-    const effectiveMaxHp = Math.floor(unit.getEffectiveMaxHp());
+    const effectiveMaxHp = Math.ceil(unit.getEffectiveMaxHp());
+    const totalShieldHp = getTotalShieldHp(unit);
+    // Shield overlay width, expressed as % of the bar's full maxHp span, capped at the
+    // non-injured capacity so it never bleeds into the (black) injury region.
+    const injuryStartGlobal = unit.maxHp - unit.hpInjury;
+    const shieldGlobalWidth = Math.max(0, Math.min(totalShieldHp, injuryStartGlobal));
+    const shieldPct = unit.maxHp > 0 ? (shieldGlobalWidth / unit.maxHp) * 100 : 0;
 
     const showPreview = !!(
         playerId === localPlayerId &&
@@ -723,7 +731,7 @@ function renderPlayerUnitTimelineUnified(
                         {unit.name}
                     </span>
                     <span className="shrink-0 text-[10px] text-gray-400">
-                        ({Math.floor(unit.hp)}/{effectiveMaxHp})
+                        ({Math.ceil(unit.hp)}/{effectiveMaxHp})
                     </span>
                     {toggleRowContractOrExpand != null && (
                         <button
@@ -763,15 +771,31 @@ function renderPlayerUnitTimelineUnified(
                 )}
             </div>
             <div className="flex min-w-0 items-center gap-2 pl-0">
-                <span className="w-11 shrink-0 text-right text-[10px] text-gray-400">
-                    {Math.floor(unit.hp)}/{effectiveMaxHp}
+                <span className="flex shrink-0 items-center gap-1 text-[10px] text-gray-400">
+                    <Heart size={10} className="shrink-0 text-red-400" aria-hidden />
+                    <span className="tabular-nums">{Math.ceil(unit.hp)}/{effectiveMaxHp}</span>
                 </span>
-                <div className="relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-dark-700">
+                <div className="relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-green-950">
                     <div className={`absolute left-0 top-0 h-full rounded-full ${barClass}`} style={{ width: `${hpPct}%` }} />
+                    {shieldPct > 0 && (
+                        <div
+                            className="absolute left-0 top-0 h-full rounded-full"
+                            style={{ width: `${shieldPct}%`, backgroundColor: SHIELD_RESOURCE_COLOR, opacity: 0.55 }}
+                        />
+                    )}
                     {hpInjuryPct > 0 && (
                         <div className="absolute right-0 top-0 h-full rounded-full bg-black" style={{ width: `${hpInjuryPct}%` }} />
                     )}
                 </div>
+                {totalShieldHp > 0 && (
+                    <span
+                        className="flex shrink-0 items-center gap-1 text-[10px] tabular-nums"
+                        style={{ color: SHIELD_RESOURCE_COLOR }}
+                    >
+                        {Math.ceil(totalShieldHp)}
+                        <Shield size={10} className="shrink-0" aria-hidden />
+                    </span>
+                )}
             </div>
             {track}
         </div>

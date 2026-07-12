@@ -76,6 +76,13 @@ describe('UnitRangeHitboxSpec', () => {
         expect(targets).toEqual([]);
     });
 
+    it('resolveTargets includes caster when includeCaster is set', () => {
+        const selfTargetable = unitRangeHitbox(MAX_RANGE, 0, true);
+        const caster = makeUnit('caster', 50, 50, 'player');
+        const targets = selfTargetable.resolveTargets(caster, { x: 50, y: 50 }, [caster]);
+        expect(targets).toEqual([caster]);
+    });
+
     it('minRange rejects targets closer than the floor', () => {
         const ranged = unitRangeHitbox(MAX_RANGE, 40);
         const caster = makeUnit('caster', 0, 0, 'player');

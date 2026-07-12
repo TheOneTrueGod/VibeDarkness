@@ -33,11 +33,15 @@ import type { AbilityStatic } from '../../../abilities/Ability';
 import { SHIELD_BUFF_TYPE, type ShieldBuff } from '../../../buffs/ShieldBuff';
 import {
     PROTECT_ACTIVE_DURATION,
-    PROTECT_SHIELD_DURATION_SECONDS,
+    PROTECT_SHIELD_DRAIN_PER_SECOND,
     PROTECT_SHIELD_HP,
     PROTECT_WINDUP_DURATION,
     ProtectAbility_0303,
 } from '../../../card_defs/03_blood_mage/0303_Protect/0303Ability';
+
+// Time for an undamaged shield to fully drain (ShieldBuff has no fixed duration anymore —
+// it fades passively via drainPerSecond and expires once remainingHp reaches 0).
+const NOMINAL_SHIELD_LIFETIME_SECONDS = PROTECT_SHIELD_HP / PROTECT_SHIELD_DRAIN_PER_SECOND;
 
 const P = TINY_BATTLE_PLAYER_ID;
 const CELL = 40;
@@ -54,9 +58,7 @@ const TEST_ATTACK_RANGE = 80;
 const TEST_ATTACK_LOW_ID = 'protect_scenario_test_attack_low';
 const TEST_ATTACK_HIGH_ID = 'protect_scenario_test_attack_high';
 const TEST_ATTACK_LOW_DAMAGE = 10; // < shield (30) — fully absorbed.
-const TEST_ATTACK_HIGH_DAMAGE = 25; // > remaining shield after beat 1 (20) — excess carries through.
-const REMAINING_SHIELD_AFTER_BEAT_1 = PROTECT_SHIELD_HP - TEST_ATTACK_LOW_DAMAGE;
-const OVERFLOW_TO_HP = TEST_ATTACK_HIGH_DAMAGE - REMAINING_SHIELD_AFTER_BEAT_1;
+const TEST_ATTACK_HIGH_DAMAGE = 25; // > remaining shield after beat 1 — excess carries through.
 const ALLY_A_START_HP = 80;
 
 // gameTime by which the shield has landed on both allies (active-frame CastBehaviour fires
@@ -64,8 +66,22 @@ const ALLY_A_START_HP = 80;
 const SHIELD_LANDS_AT = PROTECT_WINDUP_DURATION + PROTECT_ACTIVE_DURATION;
 const ATTACK_LOW_TIME = SHIELD_LANDS_AT + 0.15;
 const ATTACK_HIGH_TIME = ATTACK_LOW_TIME + 0.3;
-// Ally C's shield must survive untouched all the way to its natural expiry.
-const FINAL_CHECK_TIME = SHIELD_LANDS_AT + PROTECT_SHIELD_DURATION_SECONDS + 0.1;
+
+// The shield now drains continuously (not just on hits), so the capacity available at each
+// beat depends on elapsed time, not just prior damage. This is a best-effort continuous-time
+// approximation of that drain — the real simulation is tick-discretized (60Hz) and the exact
+// castBehaviour-entry / impactAt sub-tick moments add a bit more slop, hence the tolerance
+// used below rather than an exact equality.
+const SHIELD_AT_LOW_ATTACK = PROTECT_SHIELD_HP - PROTECT_SHIELD_DRAIN_PER_SECOND * (ATTACK_LOW_TIME - SHIELD_LANDS_AT);
+const SHIELD_AFTER_LOW_ATTACK = SHIELD_AT_LOW_ATTACK - TEST_ATTACK_LOW_DAMAGE;
+const SHIELD_AT_HIGH_ATTACK = SHIELD_AFTER_LOW_ATTACK - PROTECT_SHIELD_DRAIN_PER_SECOND * (ATTACK_HIGH_TIME - ATTACK_LOW_TIME);
+const EXPECTED_OVERFLOW_TO_HP = Math.max(0, TEST_ATTACK_HIGH_DAMAGE - SHIELD_AT_HIGH_ATTACK);
+const EXPECTED_ALLY_A_HP = ALLY_A_START_HP - EXPECTED_OVERFLOW_TO_HP;
+// Generous enough to absorb tick discretization + sub-tick timing slop, tight enough to still
+// fail if the drain rate or absorption math regresses meaningfully.
+const ALLY_A_HP_TOLERANCE = 1.5;
+// Ally C's shield must survive untouched all the way to its natural (drain-based) expiry.
+const FINAL_CHECK_TIME = SHIELD_LANDS_AT + NOMINAL_SHIELD_LIFETIME_SECONDS + 0.1;
 const KEEP_ALIVE_TIME = FINAL_CHECK_TIME + 0.5;
 
 function toTick(seconds: number): number {
@@ -178,9 +194,9 @@ export const protectShieldAbsorptionScenario: ScenarioDefinition = {
         engine.addUnit(allyC, 'initialGameSpawn');
 
         // Stage the two hits on Ally A after Protect's shield has landed, then a marker order
-        // well after Ally C's shield should have naturally expired. This keeps `pendingOrders`
+        // well after Ally C's shield should have naturally drained away. This keeps `pendingOrders`
         // non-empty so the runner's idle-detector doesn't settle the scenario early during the
-        // multi-second wait for the 7s expiry sweep (see the ability-tests skill's "Keeping the
+        // multi-second wait for the drain-based expiry (see the ability-tests skill's "Keeping the
         // simulation running" section).
         engine.state.orderMgr.queueOrder(toTick(ATTACK_LOW_TIME), {
             unitId: attackerLow.id,
@@ -237,7 +253,7 @@ export const protectShieldAbsorptionScenario: ScenarioDefinition = {
         const shieldC = allyC.buffs.find((b) => b._type === SHIELD_BUFF_TYPE) as ShieldBuff | undefined;
 
         return (
-            allyA.hp === ALLY_A_START_HP - OVERFLOW_TO_HP
+            Math.abs(allyA.hp - EXPECTED_ALLY_A_HP) <= ALLY_A_HP_TOLERANCE
             && shieldA === undefined
             && lowBlockedCounter.blocked >= 1
             && highBlockedCounter.blocked === 0
@@ -252,10 +268,10 @@ export const protectShieldAbsorptionScenario: ScenarioDefinition = {
         const shieldC = allyC?.buffs.find((b) => b._type === SHIELD_BUFF_TYPE) as ShieldBuff | undefined;
         return [
             `t=${engine.gameTime.toFixed(2)}s`,
-            `allyA hp=${allyA?.hp} (expected ${ALLY_A_START_HP - OVERFLOW_TO_HP})`,
+            `allyA hp=${allyA?.hp} (expected ${EXPECTED_ALLY_A_HP.toFixed(2)} +/- ${ALLY_A_HP_TOLERANCE})`,
             `allyA shield=${shieldA ? shieldA.remainingHp : 'removed'} (expected removed after depletion)`,
             `lowBlocked=${lowBlockedCounter.blocked} (expected >=1) highBlocked=${highBlockedCounter.blocked} (expected 0)`,
-            `allyC shield=${shieldC ? shieldC.remainingHp : 'removed'} (expected removed after ${PROTECT_SHIELD_DURATION_SECONDS}s natural expiry)`,
+            `allyC shield=${shieldC ? shieldC.remainingHp : 'removed'} (expected removed after ${NOMINAL_SHIELD_LIFETIME_SECONDS.toFixed(2)}s of drain)`,
         ].join('; ');
     },
 };

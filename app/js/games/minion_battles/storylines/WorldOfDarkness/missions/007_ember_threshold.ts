@@ -257,7 +257,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 					name: 'Wolf',
 					spawnBehaviour: 'darkness',
 					spawnTarget: { x: NEST_50_51_WORLD.x, y: NEST_50_51_WORLD.y, radius: 14 },
-					spawnCount: 1,
+					spawnCount: 2,
 					unitAITreeId: 'hunt',
 				},
 			],
@@ -272,6 +272,21 @@ export class EmberThresholdMission extends BaseMissionDef {
 					spawnBehaviour: 'darkness',
 					spawnTarget: { x: NEST_50_51_WORLD.x, y: NEST_50_51_WORLD.y, radius: 14 },
 					spawnCount: 1,
+					unitAITreeId: 'hunt',
+				},
+			],
+		},
+		// Burst of 4 swarmlings every 3 rounds, starting at the start of round 3.
+		{
+			type: 'continuousSpawn',
+			trigger: { intervalRounds: 3, startRound: 3 },
+			spawns: [
+				{
+					characterId: 'swarmling',
+					name: 'Swarmling',
+					spawnBehaviour: 'darkness',
+					spawnTarget: { x: NEST_50_51_WORLD.x, y: NEST_50_51_WORLD.y, radius: 14 },
+					spawnCount: 4,
 					unitAITreeId: 'hunt',
 				},
 			],

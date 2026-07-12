@@ -25,12 +25,18 @@ const RESOURCE_DEF_BY_ID = Object.fromEntries(
 interface ResourceCostIconProps {
     resourceId: string;
     amount: number;
+    /**
+     * Force the compact `Nx <icon>` pill even when `amount` is small enough for stacked
+     * icons. Use for costs that are rarely low (e.g. HP costs) so the card stays legible
+     * at a glance instead of switching layouts depending on the number.
+     */
+    alwaysCompact?: boolean;
 }
 
-export function ResourceCostIcon({ resourceId, amount }: ResourceCostIconProps) {
+export function ResourceCostIcon({ resourceId, amount, alwaysCompact = false }: ResourceCostIconProps) {
     if (amount <= 0) return null;
 
-    if (amount > RESOURCE_COST_STACKED_ICON_MAX) {
+    if (alwaysCompact || amount > RESOURCE_COST_STACKED_ICON_MAX) {
         const def = RESOURCE_DEF_BY_ID[resourceId];
         const color = def?.color ?? '#e5e7eb';
         return (

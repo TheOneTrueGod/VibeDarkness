@@ -45,7 +45,8 @@ const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
 
-const BLOOD_MEND_HITBOX = unitRangeHitbox(HEAL_RANGE);
+// includeCaster: Blood Mend can heal the caster themselves, not just other allies.
+const BLOOD_MEND_HITBOX = unitRangeHitbox(HEAL_RANGE, 0, true);
 
 const BLOOD_MEND_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -119,6 +120,7 @@ export const BloodMendAbility_0301 = defineAbility({
                 hitbox: BLOOD_MEND_HITBOX,
                 filter: 'ally',
                 allowMiss: false,
+                includeSelf: true,
             },
             behaviour: CastBehaviours.Instant((ctx) => {
                 const eng = ctx.engine as EngineContext;

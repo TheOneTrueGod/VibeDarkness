@@ -1,12 +1,14 @@
-import { useSyncExternalStore } from 'react';
-import { Heart, Footprints } from 'lucide-react';
+import { useState, useSyncExternalStore } from 'react';
+import { Heart, Footprints, Shield } from 'lucide-react';
 import type { Unit } from '../../../game/units/Unit';
 import { PLAYER_CHARACTER_ID } from '../../../game/units/unit_defs/unitDef';
 import { getPortrait } from '../../../character_defs/portraits';
 import { HealthSegmentBar } from './HealthSegmentBar';
 import { ResourceBarRow } from './ResourceBarRow';
 import type { ResourceDisplay } from '../../../resources/Resource';
-import { ALL_RESOURCE_DISPLAY_DEFS } from '../../../resources/resourceDisplayDefs';
+import { ALL_RESOURCE_DISPLAY_DEFS, SHIELD_RESOURCE_COLOR } from '../../../resources/resourceDisplayDefs';
+import { PORTAL_TOOLTIP_SURFACE_CLASS } from '../AnchoredPortalTooltip';
+import { getTotalShieldHp } from '../../../game/units/unitShield';
 import {
     getResourceBarDebugEnabled,
     getResourceBarDebugFill,
@@ -28,6 +30,11 @@ export function UnitResourcePanel({ unit }: UnitResourcePanelProps) {
         getResourceBarDebugFill,
         getResourceBarDebugFill,
     );
+    // Shared by the heart+number row and the health bar so hovering either shows the same
+    // tooltip; the movement (footprints) icons are a sibling and deliberately not wired in.
+    const [hpTooltipOpen, setHpTooltipOpen] = useState(false);
+    const showHpTooltip = () => setHpTooltipOpen(true);
+    const hideHpTooltip = () => setHpTooltipOpen(false);
 
     if (!unit) return null;
 
@@ -37,6 +44,9 @@ export function UnitResourcePanel({ unit }: UnitResourcePanelProps) {
             : undefined;
 
     const displayHp = debugEnabled ? Math.round((debugFill / 100) * unit.maxHp) : unit.hp;
+    const displayHpInjury = debugEnabled ? 0 : unit.hpInjury;
+    const displayEffectiveMaxHp = Math.ceil(unit.getEffectiveMaxHp());
+    const totalShieldHp = getTotalShieldHp(unit);
 
     const allResources: ResourceDisplay[] = debugEnabled
         ? ALL_RESOURCE_DISPLAY_DEFS.map((def) => ({
@@ -70,12 +80,26 @@ export function UnitResourcePanel({ unit }: UnitResourcePanelProps) {
 
                 {/* Heart icon + count + shoe icons + 4-segment bar */}
                 <div className="flex w-full flex-col gap-1">
-                    <div className="flex w-full items-center justify-between">
-                        <div className="flex items-center gap-1">
-                            <Heart size={12} className="shrink-0 text-red-400" />
-                            <span className="text-[10px] tabular-nums text-gray-300">
-                                {Math.floor(displayHp)}/{Math.floor(unit.getEffectiveMaxHp())}
-                            </span>
+                    <div className="relative flex w-full items-center justify-between">
+                        <div
+                            className="flex items-center gap-2"
+                            onMouseEnter={showHpTooltip}
+                            onMouseLeave={hideHpTooltip}
+                        >
+                            <div className="flex items-center gap-1">
+                                <Heart size={12} className="shrink-0 text-red-400" />
+                                <span className="text-[10px] tabular-nums text-gray-300">
+                                    {Math.ceil(displayHp)}/{displayEffectiveMaxHp}
+                                </span>
+                            </div>
+                            {totalShieldHp > 0 && (
+                                <div className="flex items-center gap-1">
+                                    <Shield size={12} className="shrink-0" style={{ color: SHIELD_RESOURCE_COLOR }} />
+                                    <span className="text-[10px] tabular-nums" style={{ color: SHIELD_RESOURCE_COLOR }}>
+                                        {Math.ceil(totalShieldHp)}
+                                    </span>
+                                </div>
+                            )}
                         </div>
                         {movementResource && (
                             <div className="flex items-center gap-0.5" title="Movement Points">
@@ -88,8 +112,21 @@ export function UnitResourcePanel({ unit }: UnitResourcePanelProps) {
                                 ))}
                             </div>
                         )}
+                        {hpTooltipOpen && (
+                            <div
+                                role="tooltip"
+                                className={`pointer-events-none absolute bottom-full left-0 z-10 mb-1 whitespace-nowrap px-2 py-1 text-[10px] leading-tight ${PORTAL_TOOLTIP_SURFACE_CLASS}`}
+                            >
+                                <div>Current Health: {Math.ceil(displayHp)}</div>
+                                <div>Max Health: {displayEffectiveMaxHp}</div>
+                                <div>Injury: {Math.ceil(displayHpInjury)}</div>
+                                {totalShieldHp > 0 && <div>Shield: {Math.ceil(totalShieldHp)}</div>}
+                            </div>
+                        )}
                     </div>
-                    <HealthSegmentBar hp={displayHp} maxHp={unit.maxHp} hpInjury={debugEnabled ? 0 : unit.hpInjury} />
+                    <div onMouseEnter={showHpTooltip} onMouseLeave={hideHpTooltip}>
+                        <HealthSegmentBar hp={displayHp} maxHp={unit.maxHp} hpInjury={displayHpInjury} shieldHp={totalShieldHp} />
+                    </div>
                 </div>
             </div>
 

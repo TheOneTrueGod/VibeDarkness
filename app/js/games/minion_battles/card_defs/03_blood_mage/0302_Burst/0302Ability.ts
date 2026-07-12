@@ -28,7 +28,7 @@ const CARD_ID = `${formatGroupId(AbilityGroupId.Mage)}02`;
 // "don't touch or parametrize the original" instruction in the Burst plan step.
 export const BURST_RANGE = 200;
 export const BURST_HALF_ANGLE_RAD = Math.PI / 6; // 60 degree total arc.
-export const BURST_DAMAGE = 18; // Matches Cone of Light's own damage value — see plan-level decisions.
+export const BURST_DAMAGE = 10; // Matches Cone of Light's own damage value — see plan-level decisions.
 export const BURST_MAX_TARGETS = 4;
 export const BURST_HP_COST = 5;
 // Longer than the ~0.2-0.4s norm — consistent with the archetype's exposed-windup feel (AGENTS.md).
