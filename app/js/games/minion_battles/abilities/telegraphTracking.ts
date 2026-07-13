@@ -8,6 +8,7 @@ import type { Unit } from '../game/units/Unit';
 import type { ActiveAbility } from '../game/types';
 import type { EngineContext } from '../game/EngineContext';
 import {
+    getTrackTargetCutoffElapsed,
     isAbilityTimingInterval,
     normalizeAbilityTimingsToIntervals,
     resolveAbilityTimingEntries,
@@ -140,7 +141,7 @@ export function detectAndFreezeTelegraphDistanceBreak(
     engine: EngineContext,
 ): { unitId: string; frozenAt: { x: number; y: number } } | null {
     if (!shouldTrackTelegraph(ability)) return null;
-    if (elapsed >= ability.prefireTime) return null;
+    if (elapsed >= getTrackTargetCutoffElapsed(ability, caster, engine)) return null;
     const payload = asTelegraphPayload(active.castPayload);
     if (!payload?.telegraphTargetUnitId || payload.telegraphLockedPosition != null) return null;
     const target = engine.getUnit(payload.telegraphTargetUnitId);
@@ -168,7 +169,7 @@ export function updateTelegraphTracking(
     engine: EngineContext,
 ): void {
     if (!shouldTrackTelegraph(ability)) return;
-    if (elapsed >= ability.prefireTime) return;
+    if (elapsed >= getTrackTargetCutoffElapsed(ability, caster, engine)) return;
 
     const payload = asTelegraphPayload(active.castPayload);
     if (!payload?.telegraphTargetUnitId) return;
@@ -199,7 +200,7 @@ export function lockTelegraphOnTargetEvade(
     engine: EngineContext,
 ): void {
     if (!shouldTrackTelegraph(ability)) return;
-    if (elapsed >= ability.prefireTime) return;
+    if (elapsed >= getTrackTargetCutoffElapsed(ability, caster, engine)) return;
 
     const payload = asTelegraphPayload(active.castPayload);
     if (!payload?.telegraphTargetUnitId) return;

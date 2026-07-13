@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { Unit } from '../game/units/Unit';
 import type { Effect } from '../game/effects/Effect';
 import type { ActiveAbility } from '../game/types';
+import type { AbilityStatic } from './Ability';
+import { AbilityPhase } from './abilityTimings';
 import { defineMeleeStrike } from './archetypes/defineMeleeStrike';
 import {
     detectAndFreezeTelegraphDistanceBreak,
@@ -50,6 +52,30 @@ const biteAbility = defineMeleeStrike({
     telegraph: { kind: 'shrinkingCircle', startRadius: 18, color: 0xff0000 },
     getTooltipText: () => ['bite'],
 });
+
+// windupDuration 0.6 + default activeDuration 0.1 => 'strike' spans [0.6, 0.7); prefireTime is 0.6.
+// A second Active-phase interval ('strike2') is appended so it survives applyCoopTailSplit
+// intact (its own end defines the tail boundary) — a plain trailing Cooldown interval id would
+// get renamed by the coop-tail split, so it isn't safe to reference from trackTargetUntilLabel.
+const trackUntilStrikeFiresAbility: AbilityStatic = {
+    ...defineMeleeStrike({
+        id: 'test_bite_track_until_fire',
+        name: 'Test Bite (track until fire)',
+        image: '',
+        damage: 2,
+        range: 30,
+        thickness: 20,
+        windupDuration: 0.6,
+        telegraph: { kind: 'shrinkingCircle', startRadius: 18, color: 0xff0000 },
+        getTooltipText: () => ['bite'],
+    }),
+    trackTargetUntilLabel: 'strike2',
+    abilityTimings: [
+        { id: 'windup', start: 0, end: 0.6, abilityPhase: AbilityPhase.Windup },
+        { id: 'strike', start: 0.6, end: 0.7, abilityPhase: AbilityPhase.Active },
+        { id: 'strike2', start: 0.7, end: 0.8, abilityPhase: AbilityPhase.Active },
+    ],
+};
 
 function makeEngine(units: Unit[]) {
     const spawnedEffects: Effect[] = [];
@@ -231,6 +257,55 @@ describe('telegraphTracking', () => {
 
         target.x = 99;
         updateTelegraphTracking(caster, active, biteAbility, biteAbility.prefireTime, engine as never);
+
+        const payload = active.castPayload as TelegraphCastPayload;
+        expect(payload.telegraphTargetX).toBe(40);
+    });
+
+    it('trackTargetUntilLabel extends tracking past prefireTime up to the labelled interval', () => {
+        const caster = createUnit({ id: 'caster', x: 0, y: 0, teamId: 'player' });
+        const target = createUnit({ id: 'target', x: 40, y: 0, teamId: 'enemy' });
+        const engine = makeEngine([caster, target]);
+        const active: ActiveAbility = {
+            abilityId: trackUntilStrikeFiresAbility.id,
+            startTime: 0,
+            targets: [{ type: 'unit', unitId: 'target' }],
+            castPayload: {
+                telegraphTargetX: 40,
+                telegraphTargetY: 0,
+                telegraphTargetUnitId: 'target',
+                telegraphLockedPosition: null,
+            },
+            evadeFired: false,
+        };
+
+        // Past prefireTime (0.6, the default cutoff) but before 'cooldown' starts (0.7).
+        target.x = 99;
+        updateTelegraphTracking(caster, active, trackUntilStrikeFiresAbility, 0.65, engine as never);
+
+        const payload = active.castPayload as TelegraphCastPayload;
+        expect(payload.telegraphTargetX).toBe(99);
+    });
+
+    it('trackTargetUntilLabel stops updating once the labelled interval starts', () => {
+        const caster = createUnit({ id: 'caster', x: 0, y: 0, teamId: 'player' });
+        const target = createUnit({ id: 'target', x: 40, y: 0, teamId: 'enemy' });
+        const engine = makeEngine([caster, target]);
+        const active: ActiveAbility = {
+            abilityId: trackUntilStrikeFiresAbility.id,
+            startTime: 0,
+            targets: [{ type: 'unit', unitId: 'target' }],
+            castPayload: {
+                telegraphTargetX: 40,
+                telegraphTargetY: 0,
+                telegraphTargetUnitId: 'target',
+                telegraphLockedPosition: null,
+            },
+            evadeFired: false,
+        };
+
+        target.x = 99;
+        updateTelegraphTracking(caster, active, trackUntilStrikeFiresAbility, 0.7, engine as never);
 
         const payload = active.castPayload as TelegraphCastPayload;
         expect(payload.telegraphTargetX).toBe(40);

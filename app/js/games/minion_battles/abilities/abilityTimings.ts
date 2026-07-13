@@ -606,6 +606,24 @@ export function resolveAbilityTimingEntries(
     return ability.getAbilityTimings?.(caster, gameState) ?? ability.abilityTimings;
 }
 
+/**
+ * Elapsed-time cutoff for "track the target until it fires" mechanics (see `trackTargetUntilLabel`
+ * on `AbilityStatic`). Resolves to the `start` of the `abilityTimings` interval whose `id` matches
+ * `trackTargetUntilLabel`; falls back to `prefireTime` when unset or the id isn't found.
+ */
+export function getTrackTargetCutoffElapsed(
+    ability: AbilityTimingsResolvable & { prefireTime: number; trackTargetUntilLabel?: string },
+    caster?: unknown,
+    gameState?: unknown,
+): number {
+    if (ability.trackTargetUntilLabel) {
+        const intervals = normalizeAbilityTimingsToIntervals(resolveAbilityTimingEntries(ability, caster, gameState));
+        const match = intervals.find((it) => it.id === ability.trackTargetUntilLabel);
+        if (match) return match.start;
+    }
+    return ability.prefireTime;
+}
+
 export function getTotalAbilityDuration(ability: {
     id?: string;
     abilityTimings: AbilityTimingEntry[];

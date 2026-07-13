@@ -17,7 +17,8 @@ import { isAbilityNote } from '../../game/AbilityNote';
 import { getPixelTargetPosition, damageEnemiesInCircle } from '../../abilities/targetHelpers';
 import type { EventBus } from '../../game/EventBus';
 import { isLightHateWeakened } from '../../game/lightHate';
-import type { TerrainLayerManager } from '../../game/TerrainLayerManager';
+import { rasterizeArea, type TerrainLayerManager } from '../../game/TerrainLayerManager';
+import { CELL_SIZE } from '../../terrain/TerrainGrid';
 
 export const THORNBINDER_ABILITY_ID = `${formatGroupId(AbilityGroupId.Enemy)}08`;
 
@@ -36,6 +37,7 @@ const SLOW_MULT_NORMAL = 0.52;
 const SLOW_MULT_WEAKENED = 0.72;
 const BRAMBLE_CLEAR_BEFORE_NEXT_SEC = 0.15;
 const TARGETING_RANGE = 320;
+const DURATION_JITTER_IN_SECONDS = 1;
 
 class ThornbinderHitboxSpec extends HitboxSpec {
     get maxRange(): number { return TARGETING_RANGE; }
@@ -60,6 +62,7 @@ interface EngineLike {
     addProjectile(projectile: Projectile): void;
     addEffect(effect: Effect): void;
     getAllLightSources(): import('../../game/LightGrid').LightSource[];
+    generateRandomInteger(min: number, max: number): number;
 }
 
 function getStrikePosition(caster: Unit, active: { targets: ResolvedTarget[] }): { x: number; y: number } | null {
@@ -77,6 +80,7 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
     rechargeTurns: 1,
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
+    durationJitterInSeconds: DURATION_JITTER_IN_SECONDS,
     prefireTime: STRIKE_TIME,
     abilityTimings: [
         { id: 'windup', start: 0, end: LOCK_TIME, abilityPhase: AbilityPhase.Windup },
@@ -150,17 +154,29 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
         });
 
         const expiresAt = eng.gameTime + (COOLDOWN_END - STRIKE_TIME) - BRAMBLE_CLEAR_BEFORE_NEXT_SEC;
-        eng.terrainLayers.add({
-            id: `bramble-${caster.id}-${eng.gameTime}`,
-            layer: 'ground',
-            effectType: 'dark_thorn',
-            placedAtGameTime: eng.gameTime,
-            expiresAtGameTime: Math.max(eng.gameTime + 0.05, expiresAt),
-            ownerUnitId: caster.id,
-            ownerAbilityId: THORNBINDER_ABILITY_ID,
-            area: { type: 'circle', x: pos.x, y: pos.y, radiusPx: radius },
-            params: { slowMult },
-        });
+        const baseExpiresAt = Math.max(eng.gameTime + 0.05, expiresAt);
+        const jitterHalf = DURATION_JITTER_IN_SECONDS / 2;
+        for (const { col, row } of rasterizeArea({ type: 'circle', x: pos.x, y: pos.y, radiusPx: radius })) {
+            const dx = (col * CELL_SIZE + CELL_SIZE / 2) - pos.x;
+            const dy = (row * CELL_SIZE + CELL_SIZE / 2) - pos.y;
+            const t = Math.min(1, Math.sqrt(dx * dx + dy * dy) / radius);
+            // Thorns near the center bias toward the upper half of the jitter range, thorns near the
+            // edge toward the lower half, so the patch thins from the outside in instead of vanishing at once.
+            const jitterMin = jitterHalf * (1 - t);
+            const jitterFrac = eng.generateRandomInteger(0, 1000) / 1000;
+            const jitter = jitterMin + jitterFrac * jitterHalf;
+            eng.terrainLayers.add({
+                id: `bramble-${caster.id}-${eng.gameTime}-${col}-${row}`,
+                layer: 'ground',
+                effectType: 'dark_thorn',
+                placedAtGameTime: eng.gameTime,
+                expiresAtGameTime: baseExpiresAt + jitter,
+                ownerUnitId: caster.id,
+                ownerAbilityId: THORNBINDER_ABILITY_ID,
+                area: { type: 'cell', col, row },
+                params: { slowMult },
+            });
+        }
 
         eng.addEffect(new Effect({
             x: pos.x,

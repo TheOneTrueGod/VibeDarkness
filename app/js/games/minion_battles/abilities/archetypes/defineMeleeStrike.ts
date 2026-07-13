@@ -99,6 +99,11 @@ export interface MeleeStrikeConfig {
      * Omit for no telegraph.
      */
     telegraph?: AbilityTelegraph;
+    /**
+     * `abilityTimings` interval id after which windup target-tracking (e.g. the telegraph aim)
+     * freezes instead of continuing until `prefireTime`. See `AbilityStatic.trackTargetUntilLabel`.
+     */
+    trackTargetUntilLabel?: string;
     abilityEvents?: Partial<Record<AbilityEventType, readonly AbilityEventRule[]>>;
 
     // ---- Lock-on ----
@@ -228,6 +233,7 @@ export function defineMeleeStrike(config: MeleeStrikeConfig): AbilityStatic {
         telegraph: config.telegraph
             ? { ...config.telegraph, trackTarget: config.telegraph.trackTarget ?? true }
             : undefined,
+        trackTargetUntilLabel: config.trackTargetUntilLabel,
         abilityEvents: config.abilityEvents,
         movementLock: { until: movementLockUntil },
         getTooltipText: config.getTooltipText,

@@ -116,7 +116,15 @@ const GUARD_A_WORLD = gridToWorld(NEST_49_51_COL - 2, NEST_49_51_ROW);
 const GUARD_B_WORLD = gridToWorld(NEST_49_51_COL + 2, NEST_49_51_ROW);
 
 /** Thornbinder pre-spawn — south-east of the first nest, in the lower glade. */
-const THORNBINDER_START_WORLD = gridToWorld(NEST_49_51_COL + 4, NEST_49_51_ROW + 5);
+const THORNBINDER_START_WORLD = gridToWorld(NEST_49_51_COL + 4, NEST_49_51_ROW + 11);
+
+/**
+ * Center of the player spawn cluster (see `playerSpawnPoints` below), and the
+ * point 6 tiles south of it where the initial wolf/swarmling ambush spawns.
+ */
+const PLAYER_SPAWN_CENTER_COL = NEST_49_51_COL;
+const PLAYER_SPAWN_CENTER_ROW = NEST_49_51_ROW + 3;
+const AMBUSH_BOX_WORLD = gridToWorld(PLAYER_SPAWN_CENTER_COL, PLAYER_SPAWN_CENTER_ROW + 6);
 
 // ---------------------------------------------------------------------------
 // Mission-specific POIs for the nest network
@@ -266,6 +274,29 @@ export class ThornMarchMission extends BaseMissionDef {
     ];
 
     levelEvents: LevelEvent[] = [
+        // Initial ambush — a few wolves and swarmlings in a 3x3 box, 6 tiles south of the player spawn cluster.
+        {
+            type: 'spawnWave',
+            trigger: { atRound: 0 },
+            spawns: [
+                {
+                    characterId: 'dark_wolf',
+                    name: 'Wolf',
+                    spawnBehaviour: 'anywhere',
+                    spawnTarget: { x: AMBUSH_BOX_WORLD.x, y: AMBUSH_BOX_WORLD.y, radius: 1.5 },
+                    spawnCount: 3,
+                    unitAITreeId: 'hunt',
+                },
+                {
+                    characterId: 'swarmling',
+                    name: 'Swarmling',
+                    spawnBehaviour: 'anywhere',
+                    spawnTarget: { x: AMBUSH_BOX_WORLD.x, y: AMBUSH_BOX_WORLD.y, radius: 1.5 },
+                    spawnCount: 3,
+                    unitAITreeId: 'hunt',
+                },
+            ],
+        },
         // 2 wolves every round
         {
             type: 'continuousSpawn',

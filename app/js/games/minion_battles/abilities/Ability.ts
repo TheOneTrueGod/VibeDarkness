@@ -305,6 +305,14 @@ export interface AbilityStatic {
      */
     readonly damageModifierMultiplier?: number;
     /**
+     * Maximum extra random duration (seconds) this ability adds to individual cells of a
+     * ground/air area effect it creates, so the area doesn't disappear all at once. Cells nearer
+     * the area's center bias toward the upper half of `[0, durationJitterInSeconds]`; cells nearer
+     * the edge bias toward the lower half (the midpoint, `durationJitterInSeconds / 2`, is implicit
+     * and not itself configurable). Use with `engine.generateRandomInteger` for a synced result.
+     */
+    readonly durationJitterInSeconds?: number;
+    /**
      * Declares that this ability's targeting and effect originate from a unit other than the caster.
      * - `type: 'pet'` — resolve from the caster's living pets.
      * - `selector: 'nearest'` — the single pet closest to the aim point (or caster if no aim point).
@@ -328,6 +336,15 @@ export interface AbilityStatic {
      * (`getTotalAbilityDuration` = `max(end)`), not from `prefireTime` alone.
      */
     readonly prefireTime: number;
+    /**
+     * `abilityTimings` interval `id` after which windup target-tracking stops ("fires").
+     * When set, tracking mechanics that would otherwise cut off at `prefireTime` (e.g. the
+     * telegraph aim in `telegraphTracking.ts`) instead freeze once the named interval starts.
+     * Falls back to `prefireTime` when unset or the id is not found — see
+     * `getTrackTargetCutoffElapsed` in `abilityTimings.ts`. Reusable by other "track the target
+     * until X" mechanics beyond the telegraph.
+     */
+    readonly trackTargetUntilLabel?: string;
     /** Bright N tier for light-leaving abilities (see `brightKeyword.ts`). */
     readonly bright?: number;
 

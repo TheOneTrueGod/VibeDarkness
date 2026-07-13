@@ -9,6 +9,7 @@ import {
     getTotalAbilityDuration,
     getTotalAbilityDurationForCast,
     getTotalAbilityDurationFromIntervals,
+    getTrackTargetCutoffElapsed,
     normalizeAbilityTimingsToIntervals,
     normalizeLegacyAbilityTimings,
     resolveAbilityTimingEntries,
@@ -133,6 +134,56 @@ describe('resolveAbilityTimingEntries / getTotalAbilityDurationForCast', () => {
         expect(resolveAbilityTimingEntries(ability)).toEqual(ability.getAbilityTimings());
         expect(getTotalAbilityDuration(ability)).toBe(1);
         expect(getTotalAbilityDurationForCast(ability)).toBe(2.5);
+    });
+});
+
+describe('getTrackTargetCutoffElapsed', () => {
+    // Two Active-phase intervals so the labelled one ('strike2') survives applyCoopTailSplit
+    // unchanged (its own end defines the tail boundary) — see coop tail split tests below for
+    // why a plain trailing Cooldown interval id would not survive normalization intact.
+    const intervals = [
+        { id: 'windup', start: 0, end: 0.6, abilityPhase: AbilityPhase.Windup },
+        { id: 'strike', start: 0.6, end: 0.7, abilityPhase: AbilityPhase.Active },
+        { id: 'strike2', start: 0.7, end: 0.8, abilityPhase: AbilityPhase.Active },
+    ];
+
+    it('falls back to prefireTime when trackTargetUntilLabel is unset', () => {
+        const ability = { id: 'x', abilityTimings: intervals, prefireTime: 0.6 };
+        expect(getTrackTargetCutoffElapsed(ability)).toBe(0.6);
+    });
+
+    it('falls back to prefireTime when the labelled interval is not found', () => {
+        const ability = {
+            id: 'x',
+            abilityTimings: intervals,
+            prefireTime: 0.6,
+            trackTargetUntilLabel: 'no_such_label',
+        };
+        expect(getTrackTargetCutoffElapsed(ability)).toBe(0.6);
+    });
+
+    it('resolves to the start of the labelled interval when found', () => {
+        const ability = {
+            id: 'x',
+            abilityTimings: intervals,
+            prefireTime: 0.6,
+            trackTargetUntilLabel: 'strike2',
+        };
+        expect(getTrackTargetCutoffElapsed(ability)).toBe(0.7);
+    });
+
+    it('resolves against getAbilityTimings when provided (per-cast override)', () => {
+        const ability = {
+            id: 'x',
+            abilityTimings: intervals,
+            prefireTime: 0.6,
+            trackTargetUntilLabel: 'cooldown',
+            getAbilityTimings: () => [
+                { id: 'windup', start: 0, end: 1, abilityPhase: AbilityPhase.Windup },
+                { id: 'cooldown', start: 1, end: 2, abilityPhase: AbilityPhase.Cooldown },
+            ],
+        };
+        expect(getTrackTargetCutoffElapsed(ability)).toBe(1);
     });
 });
 

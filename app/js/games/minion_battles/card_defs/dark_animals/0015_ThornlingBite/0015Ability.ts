@@ -15,6 +15,9 @@ const { ability: ThornlingBiteAbility, card: ThornlingBiteCard } = BasicAttackBu
     description: `A biting attack dealing {${DAMAGE}} damage.`,
     damage: DAMAGE,
     telegraphColor: 0x3a8f20,
+    // Keep the telegraph locked onto the target unit right up until the bite itself fires
+    // (the 'strike' interval from defineMeleeStrike), rather than freezing at windup end.
+    trackTargetUntilLabel: 'strike',
 }).build();
 
 export { ThornlingBiteAbility, ThornlingBiteCard };

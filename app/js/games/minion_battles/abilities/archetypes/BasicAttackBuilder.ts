@@ -35,6 +35,11 @@ export interface BasicAttackConfig {
     telegraphColor?: number;
     /** Telegraph animation style. Default 'shrinkingCircle'. */
     telegraphKind?: 'shrinkingCircle' | 'growingLine';
+    /**
+     * `abilityTimings` interval id after which windup target-tracking (e.g. the telegraph aim)
+     * freezes instead of continuing until `prefireTime`. See `AbilityStatic.trackTargetUntilLabel`.
+     */
+    trackTargetUntilLabel?: string;
     /** Ninjutsu pool config. Use `{ ignore: true }` for boss abilities that bypass the pool. */
     aiNinjutsu?: AbilityNinjutsuConfig;
 }
@@ -77,6 +82,7 @@ class BasicAttackBuilderInstance {
             telegraph: config.telegraphKind === 'growingLine'
                 ? { kind: 'growingLine', color: config.telegraphColor ?? 0xff8800, alpha: 0.3 }
                 : { kind: 'shrinkingCircle', startRadius: 18, color: config.telegraphColor ?? 0xff8800, alpha: 0.3 },
+            trackTargetUntilLabel: config.trackTargetUntilLabel,
             getTooltipText: () => [config.description],
         });
 
