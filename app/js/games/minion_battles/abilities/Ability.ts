@@ -129,9 +129,10 @@ export interface AbilityAISettings {
      * valid AI choice when at least one candidate enemy is within `[minRange, maxRange]` of the
      * caster — the same distance check `pickBestAbility` already applies to targeted abilities.
      * Omitted/false preserves legacy behavior: zero-target abilities are considered valid
-     * whenever any candidate enemy exists, ignoring `minRange`/`maxRange` entirely. Existing
-     * zero-target abilities (e.g. Thornbinder Bramble, Alpha Wolf Summon) rely on that legacy
-     * behavior and must not have this set.
+     * whenever any candidate enemy exists, ignoring `minRange`/`maxRange` entirely. Only
+     * genuinely rangeless zero-target abilities (e.g. Alpha Wolf Summon, a self-cast with
+     * `maxRange: 0`) should rely on that legacy behavior — any ability with a real max range
+     * (ground-target AoEs like Thornbinder Bramble/Thorn Stomp) must set this to true.
      */
     enforceRangeWhenUntargeted?: boolean;
 }

@@ -90,7 +90,13 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
         { id: 'cooldown', start: STRIKE_TIME, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
     ],
     targets: [],
-    aiSettings: { minRange: 0, maxRange: 320 },
+    aiSettings: {
+        minRange: 0,
+        maxRange: 320,
+        // This is a ground-target cast (targets: []); without this the AI would treat it as
+        // always valid regardless of distance to the locked pursuit target.
+        enforceRangeWhenUntargeted: true,
+    },
 
     getTooltipText(): string[] {
         return [
