@@ -6,6 +6,9 @@
  * Does not rescan for a closer target mid-pursuit — if the plan expires,
  * the unit returns to hunt_seek which will acquire a fresh target.
  * Does not require line-of-sight to keep a target — pathfinds relentlessly.
+ * Movement and the locked-target ability pool both use only the pursuit target; the full
+ * `enemies` scan is passed through solely for `candidateScope: 'anyNearby'` abilities (e.g. a
+ * reactive defensive AoE) so they can trigger off any nearby enemy, not just the one being chased.
  */
 
 import type { Unit } from '../../Unit';
@@ -47,7 +50,7 @@ export const hunt_pursue: AINode<'hunt', HuntNodeId> = {
 
             const enemies = findEnemies(unit, context.getUnits());
             const targetInEnemies = enemies.filter((e) => e.id === ctx.targetUnitId);
-            if (tryQueueAbilityOrder(unit, context, targetInEnemies)) return;
+            if (tryQueueAbilityOrder(unit, context, targetInEnemies, enemies)) return;
 
             context.emitTurnEnd(unit.id);
         },

@@ -267,7 +267,7 @@ export class ThornMarchMission extends BaseMissionDef {
             name: 'Thornbinder',
             position: THORNBINDER_START_WORLD,
             teamId: 'enemy' as const,
-            abilities: ['0008'],
+            abilities: ['0008', '0016'],
             aiSettings: { minRange: 80, maxRange: 320 },
             unitAITreeId: 'hunt',
         },

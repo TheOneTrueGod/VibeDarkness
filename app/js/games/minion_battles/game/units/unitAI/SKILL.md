@@ -180,8 +180,17 @@ ctx.aiState = 'aggroWander_attack';
 **AITrees do NOT directly order abilities.** Instead:
 
 1. Abilities define **AISettings** (minRange, maxRange, maxUsesPerRound, **priority**).
-2. Attack nodes call `tryQueueAbilityOrder(unit, context, candidateEnemies)`.
+2. Attack nodes call `tryQueueAbilityOrder(unit, context, candidateEnemies, nearbyEnemies?)`.
 3. That helper uses `pickBestAbility`, which selects by range, `maxUsesPerRound`, and priority.
+4. Two opt-in `AbilitySettings` fields exist for reactive/self-cast abilities (both default to
+   today's behavior when omitted, so existing abilities are unaffected):
+   - `candidateScope: 'anyNearby'` — score this ability against the node's `nearbyEnemies` list
+     instead of just `candidateEnemies` (the locked/primary target). A node only needs to pass a
+     broader `nearbyEnemies` list once for any of its abilities to opt in — see `hunt_pursue.ts`.
+   - `enforceRangeWhenUntargeted: true` — for a zero-`targets` ability (self-cast / ground-AoE),
+     actually enforce `minRange`/`maxRange` against the candidate pool instead of the legacy
+     "valid whenever any candidate enemy exists" behavior. Needed for a tightly-ranged
+     self-centered ability (e.g. a defensive stomp) to only fire when something is actually close.
 
 ## Adding a new tree
 

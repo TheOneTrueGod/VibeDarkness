@@ -24,7 +24,7 @@ import type { Unit } from '../../../game/units/Unit';
 import type { EngineContext } from '../../../game/EngineContext';
 import { Projectile } from '../../../game/projectiles/Projectile';
 import { getDirectionFromTo, pointInCone } from '../../../abilities/targetHelpers';
-import { resolveTargetToPoint } from '../../../abilities/targeting';
+import { resolveTargetToPoint, findMeleeAimPixelInTargets } from '../../../abilities/targeting';
 import { areEnemies } from '../../../game/teams';
 import { drawConeSlice } from '../../../abilities/previewHelpers';
 import { spawnBloodMistWindupBurst } from '../../../abilities/bloodMageVfx';
@@ -45,7 +45,11 @@ export const BURST_WINDUP_DURATION = 0.6;
 export const BURST_ACTIVE_DURATION = 0.1;
 export const BURST_COOLDOWN_DURATION = 0.5;
 // How long the wave takes to travel from its spawn point out to RANGE.
-export const BURST_WAVE_TRAVEL_DURATION = 0.3;
+export const BURST_WAVE_TRAVEL_DURATION = 0.5;
+// Keep the wave flying (and animating) out to RANGE even after it's used up all its pierce
+// hits, instead of stopping dead the instant it lands its last hit — Burst is the only
+// ability that currently wants this "keep animating" behavior on its projectile.
+export const BURST_CONTINUE_AFTER_MAX_TARGETS = true;
 export const BURST_KNOCKBACK_TIER = 2;
 const RANGE = BURST_RANGE;
 const HALF_ANGLE_RAD = BURST_HALF_ANGLE_RAD;
@@ -199,7 +203,15 @@ export const BurstAbility_0302 = defineAbility({
                     // module doc comment for how startWidth/endWidth reconstruct the cone.
                     timingStart: 'start',
                     behaviour: CastBehaviours.Instant((ctx) => {
-                        const aimPoint = resolveTargetToPoint(ctx.target, ctx.engine) ?? { x: ctx.caster.x, y: ctx.caster.y };
+                        // Aim by the actual clicked pixel, not the lock-on target's live position —
+                        // Burst's cone/wave direction is fixed at cast time, so it must not swing
+                        // toward wherever a locked-on enemy has since moved. `ctx.target` can be a
+                        // `unit` target (AbilityTargetingTool locks onto the first enemy in the
+                        // cone on click), so prefer the trailing aim pixel that's always appended
+                        // to `ctx.allTargets` for select targeting (see buildMeleeSelectOrderTargets).
+                        const aimPoint = findMeleeAimPixelInTargets(ctx.allTargets) ??
+                            resolveTargetToPoint(ctx.target, ctx.engine) ??
+                            { x: ctx.caster.x, y: ctx.caster.y };
                         const { dirX, dirY } = getDirectionFromTo(ctx.caster.x, ctx.caster.y, aimPoint.x, aimPoint.y);
 
                         const startDist = ctx.caster.radius;
@@ -224,6 +236,7 @@ export const BurstAbility_0302 = defineAbility({
                             rectEndWidth: endWidth,
                             knockbackTier: KNOCKBACK_TIER,
                             pierce: MAX_TARGETS - 1,
+                            continueAfterMaxHits: BURST_CONTINUE_AFTER_MAX_TARGETS,
                         });
                         ctx.engine.addProjectile(wave);
                     }),
@@ -237,7 +250,7 @@ export const BurstAbility_0302 = defineAbility({
     getTooltipText(): string[] {
         return [
             'Release a violent burst of blood magic at your own expense.',
-            `Deals {${DAMAGE}} damage to up to {${MAX_TARGETS}} enemies in a {60}° arc, {knockback ${KNOCKBACK_TIER}}.`,
+            `Deals {${DAMAGE}} damage to up to {${MAX_TARGETS}} cone. {knockback ${KNOCKBACK_TIER}}.`,
             `Costs {${HP_COST}} HP to cast.`,
         ];
     },

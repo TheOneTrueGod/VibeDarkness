@@ -78,7 +78,7 @@ export const ENEMY_THORNBINDER: EnemySpawnDef = {
     name: 'Thornbinder',
     position: { x: 0, y: 0 },
     teamId: 'enemy',
-    abilities: ['0008'],
+    abilities: ['0008', '0016'],
     aiSettings: { minRange: 80, maxRange: 320 },
     unitAITreeId: 'hunt',
 };

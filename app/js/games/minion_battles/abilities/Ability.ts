@@ -114,6 +114,26 @@ export interface AbilityAISettings {
     priority?: number;
     /** Ninjutsu pool configuration. Absent = participate in default 'shadow' pool with cost 1. */
     ninjutsu?: AbilityNinjutsuConfig;
+    /**
+     * Which candidate-enemy pool `pickBestAbility` scores this ability against.
+     * - `'lockedTarget'` (default when omitted): only the AI tree's current primary/locked
+     *   target is considered — today's behavior for every existing ability.
+     * - `'anyNearby'`: any enemy the calling tree node currently perceives is considered (see
+     *   that node's `tryQueueAbilityOrder` call site for what "nearby" means there). Use for
+     *   reactive/defensive abilities that should trigger off any threat, not just the unit's
+     *   pursuit target.
+     */
+    candidateScope?: 'lockedTarget' | 'anyNearby';
+    /**
+     * When true, an ability with an empty `targets` array (self-cast / ground-AoE) is only a
+     * valid AI choice when at least one candidate enemy is within `[minRange, maxRange]` of the
+     * caster — the same distance check `pickBestAbility` already applies to targeted abilities.
+     * Omitted/false preserves legacy behavior: zero-target abilities are considered valid
+     * whenever any candidate enemy exists, ignoring `minRange`/`maxRange` entirely. Existing
+     * zero-target abilities (e.g. Thornbinder Bramble, Alpha Wolf Summon) rely on that legacy
+     * behavior and must not have this set.
+     */
+    enforceRangeWhenUntargeted?: boolean;
 }
 
 export type AbilityKeyword = 'nestedCard';

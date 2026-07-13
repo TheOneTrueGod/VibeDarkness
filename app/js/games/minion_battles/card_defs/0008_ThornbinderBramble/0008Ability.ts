@@ -14,21 +14,23 @@ import type { HitboxEngineContext, HitboxPreviewCaster } from '../../hitboxes';
 import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { isAbilityNote } from '../../game/AbilityNote';
-import { getPixelTargetPosition, damageEnemiesInCircle } from '../../abilities/targetHelpers';
+import { getPixelTargetPosition, damageEnemiesInCircle, placeJitteredGroundThorns } from '../../abilities/targetHelpers';
 import type { EventBus } from '../../game/EventBus';
 import { isLightHateWeakened } from '../../game/lightHate';
-import { rasterizeArea, type TerrainLayerManager } from '../../game/TerrainLayerManager';
-import { CELL_SIZE } from '../../terrain/TerrainGrid';
+import type { TerrainLayerManager } from '../../game/TerrainLayerManager';
+import { ROUND_DURATION } from '../../game/gameConstants';
 
 export const THORNBINDER_ABILITY_ID = `${formatGroupId(AbilityGroupId.Enemy)}08`;
 
-const MAX_USES = 1;
+const MAX_USES = 2;
+// 2 uses banked at once, so the ability can burst-cast twice before needing a fresh round of recovery.
 const RECOVERIES: AbilityRecoveryRule[] = [
-    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 2 },
 ];
 const LOCK_TIME = 0.85;
 const STRIKE_TIME = 1.85;
-const COOLDOWN_END = 5.5;
+// A tiny amount over half a round, so back-to-back banked uses land just past the round midpoint.
+const COOLDOWN_END = ROUND_DURATION / 2 + 0.1;
 const BASE_RADIUS = 95;
 const WEAKENED_RADIUS = 72;
 const BASE_DAMAGE = 7;
@@ -153,30 +155,21 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
             attackType: 'melee',
         });
 
-        const expiresAt = eng.gameTime + (COOLDOWN_END - STRIKE_TIME) - BRAMBLE_CLEAR_BEFORE_NEXT_SEC;
-        const baseExpiresAt = Math.max(eng.gameTime + 0.05, expiresAt);
-        const jitterHalf = DURATION_JITTER_IN_SECONDS / 2;
-        for (const { col, row } of rasterizeArea({ type: 'circle', x: pos.x, y: pos.y, radiusPx: radius })) {
-            const dx = (col * CELL_SIZE + CELL_SIZE / 2) - pos.x;
-            const dy = (row * CELL_SIZE + CELL_SIZE / 2) - pos.y;
-            const t = Math.min(1, Math.sqrt(dx * dx + dy * dy) / radius);
-            // Thorns near the center bias toward the upper half of the jitter range, thorns near the
-            // edge toward the lower half, so the patch thins from the outside in instead of vanishing at once.
-            const jitterMin = jitterHalf * (1 - t);
-            const jitterFrac = eng.generateRandomInteger(0, 1000) / 1000;
-            const jitter = jitterMin + jitterFrac * jitterHalf;
-            eng.terrainLayers.add({
-                id: `bramble-${caster.id}-${eng.gameTime}-${col}-${row}`,
-                layer: 'ground',
-                effectType: 'dark_thorn',
-                placedAtGameTime: eng.gameTime,
-                expiresAtGameTime: baseExpiresAt + jitter,
-                ownerUnitId: caster.id,
-                ownerAbilityId: THORNBINDER_ABILITY_ID,
-                area: { type: 'cell', col, row },
-                params: { slowMult },
-            });
-        }
+        // Thorns last roughly a full round, so the patch is still (mostly) up right until the next slam.
+        const baseExpiresAt = eng.gameTime + ROUND_DURATION - BRAMBLE_CLEAR_BEFORE_NEXT_SEC;
+        placeJitteredGroundThorns({
+            engine: eng,
+            caster,
+            center: pos,
+            radius,
+            effectType: 'dark_thorn',
+            placedAtGameTime: eng.gameTime,
+            baseExpiresAtGameTime: baseExpiresAt,
+            durationJitterInSeconds: DURATION_JITTER_IN_SECONDS,
+            ownerAbilityId: THORNBINDER_ABILITY_ID,
+            params: { slowMult },
+            idPrefix: `bramble-${caster.id}-${eng.gameTime}`,
+        });
 
         eng.addEffect(new Effect({
             x: pos.x,

@@ -10,6 +10,8 @@ import { tryDamageOrBlock } from './blockingHelpers';
 import type { TryDamageOrBlockParams } from './blockingHelpers';
 import { areEnemies } from '../game/teams';
 import { pointInCone as pointInConeGeom } from './coneGeometry';
+import { rasterizeArea, type TerrainLayerManager, type TerrainLayerName } from '../game/TerrainLayerManager';
+import { CELL_SIZE } from '../terrain/TerrainGrid';
 
 export { pointInCone } from './coneGeometry';
 
@@ -244,5 +246,70 @@ export function damageEnemiesTouchingCaster(options: {
             attackType,
         });
         if (outcome.hit) alreadyHitIds.push(unit.id);
+    }
+}
+
+interface JitteredGroundThornsEngine {
+    terrainLayers: TerrainLayerManager;
+    generateRandomInteger(min: number, max: number): number;
+}
+
+/**
+ * Fill a circular area with one ground/air terrain-effect cell ("thorn") per rasterized grid
+ * cell, each with its own randomized extra expiry so the patch thins out over time instead of
+ * vanishing all at once. Cells nearer `center` bias toward the upper half of
+ * `[0, durationJitterInSeconds]` extra seconds; cells nearer the edge bias toward the lower half
+ * (the midpoint, `durationJitterInSeconds / 2`, is implicit — every cell lasts at least
+ * `baseExpiresAtGameTime` and at most `baseExpiresAtGameTime + durationJitterInSeconds`).
+ * Uses `engine.generateRandomInteger` so the result is identical across host and clients.
+ */
+export function placeJitteredGroundThorns(options: {
+    engine: JitteredGroundThornsEngine;
+    caster: Unit;
+    center: { x: number; y: number };
+    radius: number;
+    layer?: TerrainLayerName;
+    effectType: string;
+    placedAtGameTime: number;
+    baseExpiresAtGameTime: number;
+    durationJitterInSeconds: number;
+    ownerAbilityId: string;
+    params: Record<string, unknown>;
+    /** Unique per placement (e.g. `bramble-${caster.id}-${gameTime}`); cell coords are appended. */
+    idPrefix: string;
+}): void {
+    const {
+        engine,
+        caster,
+        center,
+        radius,
+        layer = 'ground',
+        effectType,
+        placedAtGameTime,
+        baseExpiresAtGameTime,
+        durationJitterInSeconds,
+        ownerAbilityId,
+        params,
+        idPrefix,
+    } = options;
+    const jitterHalf = durationJitterInSeconds / 2;
+    for (const { col, row } of rasterizeArea({ type: 'circle', x: center.x, y: center.y, radiusPx: radius })) {
+        const dx = (col * CELL_SIZE + CELL_SIZE / 2) - center.x;
+        const dy = (row * CELL_SIZE + CELL_SIZE / 2) - center.y;
+        const t = Math.min(1, Math.sqrt(dx * dx + dy * dy) / radius);
+        const jitterMin = jitterHalf * (1 - t);
+        const jitterFrac = engine.generateRandomInteger(0, 1000) / 1000;
+        const jitter = jitterMin + jitterFrac * jitterHalf;
+        engine.terrainLayers.add({
+            id: `${idPrefix}-${col}-${row}`,
+            layer,
+            effectType,
+            placedAtGameTime,
+            expiresAtGameTime: baseExpiresAtGameTime + jitter,
+            ownerUnitId: caster.id,
+            ownerAbilityId,
+            area: { type: 'cell', col, row },
+            params,
+        });
     }
 }

@@ -232,11 +232,16 @@ export function applyAIMovementToUnit(
 /**
  * Pick the best ability to use from unit.abilities based on AISettings (priority, range).
  * Returns { ability, target } or null if no valid ability.
+ *
+ * `nearbyEnemies` defaults to `candidateEnemies` — pass a broader list (e.g. every enemy the
+ * tree currently perceives, not just the locked target) to support abilities whose
+ * `aiSettings.candidateScope` is `'anyNearby'`.
  */
 export function pickBestAbility(
     unit: Unit,
     candidateEnemies: Unit[],
     context: AIContext,
+    nearbyEnemies: Unit[] = candidateEnemies,
 ): { ability: AbilityStatic; target: Unit } | null {
     const randomInt = (min: number, max: number) => context.generateRandomInteger(min, max);
     const candidates: { ability: AbilityStatic; target: Unit; priority: number }[] = [];
@@ -252,14 +257,23 @@ export function pickBestAbility(
         }
         if (!meetsTagRequirements(unit, ability)) continue;
 
+        const enemyPool = ai?.candidateScope === 'anyNearby' ? nearbyEnemies : candidateEnemies;
+
         if (ability.targets.length === 0) {
-            if (candidateEnemies.length > 0) {
-                candidates.push({ ability, target: candidateEnemies[0]!, priority: ai?.priority ?? 0 });
+            if (ai?.enforceRangeWhenUntargeted) {
+                const validTarget = findAIAbilityTarget(unit, ability, enemyPool, randomInt);
+                if (validTarget) {
+                    candidates.push({ ability, target: validTarget, priority: ai?.priority ?? 0 });
+                }
+                continue;
+            }
+            if (enemyPool.length > 0) {
+                candidates.push({ ability, target: enemyPool[0]!, priority: ai?.priority ?? 0 });
             }
             continue;
         }
 
-        const validTarget = findAIAbilityTarget(unit, ability, candidateEnemies, randomInt);
+        const validTarget = findAIAbilityTarget(unit, ability, enemyPool, randomInt);
         if (validTarget) {
             candidates.push({ ability, target: validTarget, priority: ai?.priority ?? 0 });
         }
@@ -295,9 +309,17 @@ function findAIAbilityTarget(
  * Try to queue one ability order. Uses pickBestAbility (priority-based). Returns true if queued (or deferred).
  * When ninjutsuManager is present and the ability participates in a pool, the order is deferred to
  * NinjutsuManager.resolveRequests() rather than queued immediately.
+ *
+ * `nearbyEnemies` (optional) is forwarded to `pickBestAbility` for abilities with
+ * `aiSettings.candidateScope: 'anyNearby'`; omit it and every ability behaves as before.
  */
-export function tryQueueAbilityOrder(unit: Unit, context: AIContext, candidateEnemies: Unit[]): boolean {
-    const pick = pickBestAbility(unit, candidateEnemies, context);
+export function tryQueueAbilityOrder(
+    unit: Unit,
+    context: AIContext,
+    candidateEnemies: Unit[],
+    nearbyEnemies?: Unit[],
+): boolean {
+    const pick = pickBestAbility(unit, candidateEnemies, context, nearbyEnemies);
     if (!pick) return false;
 
     const { ability, target } = pick;

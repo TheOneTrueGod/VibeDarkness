@@ -89,6 +89,15 @@ export class Projectile extends GameObject {
     /** Optional summons metadata (seed pods). */
     summonSeedWeak?: boolean;
 
+    /**
+     * When true, the projectile keeps flying after using up all its pierce hits instead of
+     * deactivating — it simply stops colliding with anything further. Only meant for abilities
+     * whose visual is expected to keep animating out to `maxDistance` regardless of how many
+     * targets it actually hit (e.g. Burst's blood wave); defaults to the normal stop-on-max-hits
+     * behavior for every other projectile.
+     */
+    continueAfterMaxHits: boolean;
+
     constructor(config: {
         id?: string;
         x: number;
@@ -111,6 +120,7 @@ export class Projectile extends GameObject {
         rectStartWidth?: number;
         rectEndWidth?: number;
         knockbackTier?: number;
+        continueAfterMaxHits?: boolean;
     }) {
         super(config.id ?? generateGameObjectId('proj'), config.x, config.y);
         this.velocityX = config.velocityX;
@@ -131,6 +141,7 @@ export class Projectile extends GameObject {
         this.rectStartWidth = config.rectStartWidth;
         this.rectEndWidth = config.rectEndWidth;
         this.knockbackTier = config.knockbackTier;
+        this.continueAfterMaxHits = config.continueAfterMaxHits ?? false;
         this.frameStartX = config.x;
         this.frameStartY = config.y;
     }
@@ -193,7 +204,7 @@ export class Projectile extends GameObject {
         const maxHits = this.pierce + 1;
         const hitsRemaining = maxHits - this.hitUnitIds.size;
         if (hitsRemaining <= 0) {
-            this.active = false;
+            if (!this.continueAfterMaxHits) this.active = false;
             return null;
         }
 
@@ -324,8 +335,10 @@ export class Projectile extends GameObject {
             lastHit = unit;
         }
 
-        // Deactivate when all pierce hits are spent.
-        if (this.hitUnitIds.size >= maxHits) {
+        // Deactivate when all pierce hits are spent — unless this projectile is meant to keep
+        // flying past max hits, in which case it stops colliding but its expire effect/visual
+        // still waits for the real end of flight (maxDistance, handled in update()).
+        if (this.hitUnitIds.size >= maxHits && !this.continueAfterMaxHits) {
             if (engine) this.triggerExpireEffect(engine, lastHit?.id);
             this.active = false;
         }
@@ -359,6 +372,7 @@ export class Projectile extends GameObject {
             rectStartWidth: this.rectStartWidth,
             rectEndWidth: this.rectEndWidth,
             knockbackTier: this.knockbackTier,
+            continueAfterMaxHits: this.continueAfterMaxHits,
             ...(this.summonSeedWeak !== undefined ? { summonSeedWeak: this.summonSeedWeak } : {}),
         };
     }
@@ -389,6 +403,7 @@ export class Projectile extends GameObject {
         proj.rectStartWidth = data.rectStartWidth as number | undefined;
         proj.rectEndWidth = data.rectEndWidth as number | undefined;
         proj.knockbackTier = data.knockbackTier as number | undefined;
+        proj.continueAfterMaxHits = (data.continueAfterMaxHits as boolean | undefined) ?? false;
         if (data.summonSeedWeak !== undefined) proj.summonSeedWeak = data.summonSeedWeak as boolean;
         return proj;
     }
