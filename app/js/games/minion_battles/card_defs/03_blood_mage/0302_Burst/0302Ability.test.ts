@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { EventBus } from '../../../game/EventBus';
 import { Unit } from '../../../game/units/Unit';
 import type { EngineContext } from '../../../game/EngineContext';
+import { Projectile } from '../../../game/projectiles/Projectile';
+import { getKnockbackTierDef } from '../../../crowdControl/knockbackKeywords';
 import { executeUnitAbility } from '../../../game/units/unitAbilityLifecycle';
 import { tickUnitActiveAbilities } from '../../../game/units/unitAbilityTick';
 import { DEFAULT_UNIT_RADIUS } from '../../../game/units/unit_defs/unitConstants';
@@ -9,19 +11,21 @@ import { getAbilityDisabledReason } from '../../../ui/components/abilityDisabled
 import type { TeamId } from '../../../game/teams';
 import type { ResolvedTarget } from '../../../game/types';
 import {
-    BURST_ACTIVE_DURATION,
     BURST_DAMAGE,
     BURST_HP_COST,
+    BURST_KNOCKBACK_TIER,
     BURST_MAX_TARGETS,
+    BURST_WAVE_TRAVEL_DURATION,
     BURST_WINDUP_DURATION,
     BurstAbility_0302,
 } from './0302Ability';
 
 const CARD_ID = BurstAbility_0302.id;
 const TICK_DT = 0.01;
-// MeleeAttack's impact fires at ~40% of the active window's progress (impactAt default), so
-// advance past the whole active window (not just its start) to guarantee the hit lands.
-const ACTIVE_TICK_ADVANCE = BURST_WINDUP_DURATION + BURST_ACTIVE_DURATION + 0.02;
+// The wave spawns at the end of windup and takes up to BURST_WAVE_TRAVEL_DURATION to sweep
+// out to max range, so advance past windup + the full travel time (plus a small margin) to
+// guarantee any in-range hit has landed.
+const ACTIVE_TICK_ADVANCE = BURST_WINDUP_DURATION + BURST_WAVE_TRAVEL_DURATION + 0.02;
 
 function makeCaster(hp: number): Unit {
     const unit = new Unit({
@@ -64,7 +68,7 @@ function makeEnemy(id: string, x: number, y: number): Unit {
     });
 }
 
-function makeEngine(units: Unit[]): EngineContext {
+function makeEngine(units: Unit[], projectiles: Projectile[]): EngineContext {
     return {
         gameTime: 0,
         gameTick: 0,
@@ -76,6 +80,7 @@ function makeEngine(units: Unit[]): EngineContext {
         trackAbilityUse: vi.fn(),
         addEffectEmitter: vi.fn(),
         addEffect: vi.fn(),
+        addProjectile: (p: Projectile) => projectiles.push(p),
     } as unknown as EngineContext;
 }
 
@@ -84,11 +89,21 @@ function aimTarget(distance: number): ResolvedTarget[] {
     return [{ type: 'pixel', position: { x: distance, y: 0 } }];
 }
 
-function advanceSimulation(caster: Unit, engine: EngineContext, totalSeconds: number): void {
+function advanceSimulation(
+    caster: Unit,
+    engine: EngineContext,
+    projectiles: Projectile[],
+    totalSeconds: number,
+): void {
     const steps = Math.ceil(totalSeconds / TICK_DT);
     for (let i = 0; i < steps; i++) {
         engine.gameTime += TICK_DT;
         tickUnitActiveAbilities(caster, TICK_DT, engine, vi.fn());
+        for (const proj of projectiles) {
+            if (!proj.active) continue;
+            proj.update(TICK_DT, engine);
+            proj.checkCollision(engine.units, engine.eventBus, engine.gameTime, engine);
+        }
     }
 }
 
@@ -101,14 +116,31 @@ describe('BurstAbility_0302', () => {
         const outsideAngle = makeEnemy('outsideAngle', 0, 150);
         // Outside range: on-axis but beyond BURST_RANGE.
         const outsideRange = makeEnemy('outsideRange', 10000, 0);
-        const engine = makeEngine([caster, inCone, outsideAngle, outsideRange]);
+        const projectiles: Projectile[] = [];
+        const engine = makeEngine([caster, inCone, outsideAngle, outsideRange], projectiles);
 
         executeUnitAbility(caster, BurstAbility_0302, aimTarget(150), engine);
-        advanceSimulation(caster, engine, ACTIVE_TICK_ADVANCE);
+        advanceSimulation(caster, engine, projectiles, ACTIVE_TICK_ADVANCE);
 
         expect(inCone.hp).toBe(100 - BURST_DAMAGE);
         expect(outsideAngle.hp).toBe(100);
         expect(outsideRange.hp).toBe(100);
+    });
+
+    it('knocks back hit enemies at BURST_KNOCKBACK_TIER along the direction of travel', () => {
+        const caster = makeCaster(100);
+        const inCone = makeEnemy('inCone', 150, 0);
+        const projectiles: Projectile[] = [];
+        const engine = makeEngine([caster, inCone], projectiles);
+
+        executeUnitAbility(caster, BurstAbility_0302, aimTarget(150), engine);
+        advanceSimulation(caster, engine, projectiles, ACTIVE_TICK_ADVANCE);
+
+        expect(inCone.hp).toBe(100 - BURST_DAMAGE);
+        expect(inCone.knockback).not.toBeNull();
+        const tierDef = getKnockbackTierDef(BURST_KNOCKBACK_TIER);
+        expect(inCone.knockback?.knockbackVector.x).toBeCloseTo(tierDef!.magnitude, 5);
+        expect(inCone.knockback?.knockbackVector.y).toBeCloseTo(0, 5);
     });
 
     it('hits at most BURST_MAX_TARGETS enemies when more are in the cone', () => {
@@ -118,10 +150,11 @@ describe('BurstAbility_0302', () => {
             // Spread them along the aim axis at slightly different ranges, all well within the cone.
             enemies.push(makeEnemy(`e${i}`, 60 + i * 5, 0));
         }
-        const engine = makeEngine([caster, ...enemies]);
+        const projectiles: Projectile[] = [];
+        const engine = makeEngine([caster, ...enemies], projectiles);
 
         executeUnitAbility(caster, BurstAbility_0302, aimTarget(150), engine);
-        advanceSimulation(caster, engine, ACTIVE_TICK_ADVANCE);
+        advanceSimulation(caster, engine, projectiles, ACTIVE_TICK_ADVANCE);
 
         const hitCount = enemies.filter((e) => e.hp < 100).length;
         expect(hitCount).toBe(BURST_MAX_TARGETS);
@@ -155,14 +188,15 @@ describe('BurstAbility_0302', () => {
     it('deducts BURST_HP_COST from the caster on cast', () => {
         const caster = makeCaster(100);
         const inCone = makeEnemy('inCone', 150, 0);
-        const engine = makeEngine([caster, inCone]);
+        const projectiles: Projectile[] = [];
+        const engine = makeEngine([caster, inCone], projectiles);
 
         executeUnitAbility(caster, BurstAbility_0302, aimTarget(150), engine);
         // Not paid yet during windup.
-        advanceSimulation(caster, engine, BURST_WINDUP_DURATION - 0.1);
+        advanceSimulation(caster, engine, projectiles, BURST_WINDUP_DURATION - 0.1);
         expect(caster.hp).toBe(100);
 
-        advanceSimulation(caster, engine, 0.12);
+        advanceSimulation(caster, engine, projectiles, 0.12);
         expect(caster.hp).toBe(100 - BURST_HP_COST);
     });
 });

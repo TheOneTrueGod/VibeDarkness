@@ -1,8 +1,17 @@
 /**
  * Burst — release a violent cone of blood magic at the caster's own expense, tearing into
  * everything in its arc. See `../AGENTS.md` for the full Blood Mage design intent. Modeled on
- * `card_defs/0121_ConeOfLight/0121Ability.ts` (cone hitbox + MeleeAttack CastBehaviour), but
- * with its own range/angle constants and a blood-mist windup instead of a flash telegraph.
+ * `card_defs/0121_ConeOfLight/0121Ability.ts` (cone hitbox), but with its own range/angle
+ * constants and a blood-mist windup instead of a flash telegraph.
+ *
+ * The cone hitbox (`BURST_HITBOX`) is still used for targeting — the aim preview and the
+ * `select` targetDef's allowed-target filter — but the actual damage is no longer an instant
+ * hit. Instead, a growing rectangular "wave" `Projectile` (`hitShape: 'rect'`) is fired from
+ * (caster position + caster radius) toward the aim point, sweeping out from `startWidth` to
+ * `endWidth` — the cone's width at the wave's start distance and at `RANGE` respectively — over
+ * `BURST_WAVE_TRAVEL_DURATION` seconds. Because width scales linearly with distance from the
+ * caster exactly as the cone's does, the wave's swept area is the same cone, just traversed
+ * over time instead of resolved instantly.
  */
 
 import type { AbilityRecoveryRule, IAbilityPreviewGraphics } from '../../../abilities/Ability';
@@ -13,12 +22,12 @@ import { HitboxSpec } from '../../../hitboxes/HitboxSpec';
 import type { HitboxEngineContext, HitboxPreviewCaster } from '../../../hitboxes';
 import type { Unit } from '../../../game/units/Unit';
 import type { EngineContext } from '../../../game/EngineContext';
-import { Effect } from '../../../game/effects/Effect';
+import { Projectile } from '../../../game/projectiles/Projectile';
 import { getDirectionFromTo, pointInCone } from '../../../abilities/targetHelpers';
+import { resolveTargetToPoint } from '../../../abilities/targeting';
 import { areEnemies } from '../../../game/teams';
 import { drawConeSlice } from '../../../abilities/previewHelpers';
 import { spawnBloodMistWindupBurst } from '../../../abilities/bloodMageVfx';
-import { BLOOD_CONE_FLASH_EFFECT_TYPE } from '../../../game/effect_defs/bloodMageEffects';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { type CardDef } from '../../types';
 
@@ -35,6 +44,9 @@ export const BURST_HP_COST = 5;
 export const BURST_WINDUP_DURATION = 0.6;
 export const BURST_ACTIVE_DURATION = 0.1;
 export const BURST_COOLDOWN_DURATION = 0.5;
+// How long the wave takes to travel from its spawn point out to RANGE.
+export const BURST_WAVE_TRAVEL_DURATION = 0.3;
+export const BURST_KNOCKBACK_TIER = 2;
 const RANGE = BURST_RANGE;
 const HALF_ANGLE_RAD = BURST_HALF_ANGLE_RAD;
 const DAMAGE = BURST_DAMAGE;
@@ -43,7 +55,8 @@ const HP_COST = BURST_HP_COST;
 const WINDUP_DURATION = BURST_WINDUP_DURATION;
 const ACTIVE_DURATION = BURST_ACTIVE_DURATION;
 const COOLDOWN_DURATION = BURST_COOLDOWN_DURATION;
-const CONE_FLASH_DURATION = 0.3;
+const WAVE_TRAVEL_DURATION = BURST_WAVE_TRAVEL_DURATION;
+const KNOCKBACK_TIER = BURST_KNOCKBACK_TIER;
 const PREVIEW_FILL_COLOR = 0x8b1220;
 const PREVIEW_STROKE_COLOR = 0x1a0508;
 
@@ -171,7 +184,7 @@ export const BurstAbility_0302 = defineAbility({
             castBehaviours: [
                 {
                     // Deducting the HP cost lives in its own Instant behaviour alongside the
-                    // MeleeAttack behaviour in the same window — both fire independently
+                    // wave-spawning behaviour in the same window — both fire independently
                     // (keyed by behaviour index), so no separate leading interval is needed.
                     timingStart: 'start',
                     behaviour: CastBehaviours.Instant((ctx) => {
@@ -182,27 +195,38 @@ export const BurstAbility_0302 = defineAbility({
                     }),
                 },
                 {
+                    // Fires the wave instead of resolving the cone instantly — see the
+                    // module doc comment for how startWidth/endWidth reconstruct the cone.
                     timingStart: 'start',
-                    timingEnd: 'end',
-                    behaviour: CastBehaviours.MeleeAttack()
-                        .withHitbox(BURST_HITBOX)
-                        .withDamage(DAMAGE)
-                        .withImpactVFX((ctx, _hitUnits, aimX, aimY) => {
-                            const { dirX, dirY } = getDirectionFromTo(ctx.caster.x, ctx.caster.y, aimX, aimY);
-                            const centerAngle = Math.atan2(dirY, dirX);
-                            ctx.engine.addEffect(new Effect({
-                                x: ctx.caster.x,
-                                y: ctx.caster.y,
-                                duration: CONE_FLASH_DURATION,
-                                effectType: BLOOD_CONE_FLASH_EFFECT_TYPE,
-                                effectData: {
-                                    centerAngle,
-                                    halfArcRad: HALF_ANGLE_RAD,
-                                    innerR: 0,
-                                    outerR: RANGE,
-                                },
-                            }));
-                        }),
+                    behaviour: CastBehaviours.Instant((ctx) => {
+                        const aimPoint = resolveTargetToPoint(ctx.target, ctx.engine) ?? { x: ctx.caster.x, y: ctx.caster.y };
+                        const { dirX, dirY } = getDirectionFromTo(ctx.caster.x, ctx.caster.y, aimPoint.x, aimPoint.y);
+
+                        const startDist = ctx.caster.radius;
+                        const travelDistance = Math.max(1, RANGE - startDist);
+                        const startWidth = 2 * startDist * Math.tan(HALF_ANGLE_RAD);
+                        const endWidth = 2 * RANGE * Math.tan(HALF_ANGLE_RAD);
+                        const speed = travelDistance / WAVE_TRAVEL_DURATION;
+
+                        const wave = new Projectile({
+                            x: ctx.caster.x + dirX * startDist,
+                            y: ctx.caster.y + dirY * startDist,
+                            velocityX: dirX * speed,
+                            velocityY: dirY * speed,
+                            damage: DAMAGE,
+                            sourceTeamId: ctx.caster.teamId,
+                            sourceUnitId: ctx.caster.id,
+                            sourceAbilityId: CARD_ID,
+                            maxDistance: travelDistance,
+                            projectileType: 'blood_wave',
+                            hitShape: 'rect',
+                            rectStartWidth: startWidth,
+                            rectEndWidth: endWidth,
+                            knockbackTier: KNOCKBACK_TIER,
+                            pierce: MAX_TARGETS - 1,
+                        });
+                        ctx.engine.addProjectile(wave);
+                    }),
                 },
             ],
         },
@@ -213,7 +237,7 @@ export const BurstAbility_0302 = defineAbility({
     getTooltipText(): string[] {
         return [
             'Release a violent burst of blood magic at your own expense.',
-            `Deals {${DAMAGE}} damage to up to {${MAX_TARGETS}} enemies in a {60}° arc`,
+            `Deals {${DAMAGE}} damage to up to {${MAX_TARGETS}} enemies in a {60}° arc, {knockback ${KNOCKBACK_TIER}}.`,
             `Costs {${HP_COST}} HP to cast.`,
         ];
     },

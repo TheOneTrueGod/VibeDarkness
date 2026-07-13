@@ -17,6 +17,7 @@ import { AbilityEventType } from '../../abilities/Ability';
 import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
 import { applyBleedStack } from '../../buffs/bleedRuntime';
 import { triggerAbilityEventFromAttack, triggerAbilityEventFromProjectileExpiry } from '../../abilities/events';
+import { applyDirectionalKnockback, knockbackCtxFromEngine } from '../../crowdControl/knockbackKeywords';
 import { TerrainType } from '../../terrain/TerrainType';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import type { ProjectileModifierId } from './ProjectileTravelModifiers';
@@ -39,6 +40,21 @@ export class Projectile extends GameObject {
     maxDistance: number;
     distanceTraveled: number = 0;
     radius: number = 5;
+    /**
+     * Hit-detection shape. 'circle' (default) collides via `radius` around the current point.
+     * 'rect' sweeps a rectangular slice each tick from the previous tick's position to the
+     * current one, with a width interpolated between `rectStartWidth` and `rectEndWidth` by
+     * travel progress (distanceTraveled / maxDistance) — e.g. Burst's growing cone wave.
+     */
+    hitShape: 'circle' | 'rect' = 'circle';
+    /** For hitShape 'rect': perpendicular width at spawn / at max distance. */
+    rectStartWidth?: number;
+    rectEndWidth?: number;
+    /** For hitShape 'rect': position at the start of the current tick's movement (set each update()). */
+    frameStartX: number;
+    frameStartY: number;
+    /** When set, each unit hit is knocked back at this tier in the projectile's direction of travel. */
+    knockbackTier?: number;
     /** Optional visual trail type (e.g. 'bullet'). When set, update() will spawn matching effects as the projectile moves. */
     trailType?: 'bullet';
     /** Projectile look variant — key into the projectile def registry. */
@@ -91,6 +107,10 @@ export class Projectile extends GameObject {
         passThroughEnemies?: boolean;
         pierce?: number;
         summonSeedWeak?: boolean;
+        hitShape?: 'circle' | 'rect';
+        rectStartWidth?: number;
+        rectEndWidth?: number;
+        knockbackTier?: number;
     }) {
         super(config.id ?? generateGameObjectId('proj'), config.x, config.y);
         this.velocityX = config.velocityX;
@@ -107,6 +127,12 @@ export class Projectile extends GameObject {
         this.passThroughEnemies = config.passThroughEnemies ?? false;
         this.pierce = config.pierce ?? 0;
         this.summonSeedWeak = config.summonSeedWeak;
+        this.hitShape = config.hitShape ?? 'circle';
+        this.rectStartWidth = config.rectStartWidth;
+        this.rectEndWidth = config.rectEndWidth;
+        this.knockbackTier = config.knockbackTier;
+        this.frameStartX = config.x;
+        this.frameStartY = config.y;
     }
 
     update(dt: number, engine: unknown): void {
@@ -114,6 +140,8 @@ export class Projectile extends GameObject {
 
         const prevX = this.x;
         const prevY = this.y;
+        this.frameStartX = prevX;
+        this.frameStartY = prevY;
 
         const moveX = this.velocityX * dt;
         const moveY = this.velocityY * dt;
@@ -171,15 +199,43 @@ export class Projectile extends GameObject {
 
         // Collect colliding enemies not already hit, sorted closest-first.
         const candidates: Array<{ unit: Unit; dist: number }> = [];
-        for (const unit of units) {
-            if (!unit.isAlive()) continue;
-            if (!areEnemies(this.sourceTeamId, unit.teamId)) continue;
-            if (this.hitUnitIds.has(unit.id)) continue;
-            const dx = unit.x - this.x;
-            const dy = unit.y - this.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist <= this.radius + unit.radius) {
+        if (this.hitShape === 'rect') {
+            // Sweep a thin rectangular slice from where this tick started to where it ended,
+            // widening over travel progress. Contiguous ticks union into the full swept shape.
+            const stepLen = Math.hypot(this.x - this.frameStartX, this.y - this.frameStartY);
+            const travelLen = Math.hypot(this.velocityX, this.velocityY) || 1;
+            const dirX = this.velocityX / travelLen;
+            const dirY = this.velocityY / travelLen;
+            const perpX = -dirY;
+            const perpY = dirX;
+            const progress = this.maxDistance > 0 ? Math.min(1, this.distanceTraveled / this.maxDistance) : 1;
+            const startWidth = this.rectStartWidth ?? 0;
+            const endWidth = this.rectEndWidth ?? 0;
+            const halfWidth = (startWidth + (endWidth - startWidth) * progress) / 2;
+            for (const unit of units) {
+                if (!unit.isAlive()) continue;
+                if (!areEnemies(this.sourceTeamId, unit.teamId)) continue;
+                if (this.hitUnitIds.has(unit.id)) continue;
+                const relX = unit.x - this.frameStartX;
+                const relY = unit.y - this.frameStartY;
+                const along = relX * dirX + relY * dirY;
+                if (along < -unit.radius || along > stepLen + unit.radius) continue;
+                const perp = relX * perpX + relY * perpY;
+                if (Math.abs(perp) > halfWidth + unit.radius) continue;
+                const dist = Math.hypot(unit.x - this.x, unit.y - this.y);
                 candidates.push({ unit, dist });
+            }
+        } else {
+            for (const unit of units) {
+                if (!unit.isAlive()) continue;
+                if (!areEnemies(this.sourceTeamId, unit.teamId)) continue;
+                if (this.hitUnitIds.has(unit.id)) continue;
+                const dx = unit.x - this.x;
+                const dy = unit.y - this.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist <= this.radius + unit.radius) {
+                    candidates.push({ unit, dist });
+                }
             }
         }
 
@@ -243,6 +299,21 @@ export class Projectile extends GameObject {
                 const e = engine as { gameTime: number; roundNumber: number };
                 applyBleedStack(unit, e.gameTime, e.roundNumber, 5);
             }
+            if (this.knockbackTier && engine) {
+                const travelLen = Math.hypot(this.velocityX, this.velocityY) || 1;
+                applyDirectionalKnockback(
+                    unit,
+                    this.knockbackTier,
+                    { x: this.velocityX / travelLen, y: this.velocityY / travelLen },
+                    { unitId: this.sourceUnitId, abilityId: this.sourceAbilityId },
+                    knockbackCtxFromEngine(engine as {
+                        gameTime: number;
+                        roundNumber?: number;
+                        eventBus: EventBus;
+                        interruptUnitAndRefundAbilities?: (unit: Unit) => void;
+                    }),
+                );
+            }
             eventBus.emit('projectile_hit', {
                 projectileId: this.id,
                 targetUnitId: unit.id,
@@ -284,6 +355,10 @@ export class Projectile extends GameObject {
             modifiers: this.modifiers,
             passThroughEnemies: this.passThroughEnemies,
             pierce: this.pierce,
+            hitShape: this.hitShape,
+            rectStartWidth: this.rectStartWidth,
+            rectEndWidth: this.rectEndWidth,
+            knockbackTier: this.knockbackTier,
             ...(this.summonSeedWeak !== undefined ? { summonSeedWeak: this.summonSeedWeak } : {}),
         };
     }
@@ -310,6 +385,10 @@ export class Projectile extends GameObject {
         proj.spriteConfig = data.spriteConfig as SpriteProjectileConfig | undefined;
         proj.passThroughEnemies = (data.passThroughEnemies as boolean | undefined) ?? false;
         proj.pierce = (data.pierce as number | undefined) ?? 0;
+        proj.hitShape = (data.hitShape as 'circle' | 'rect' | undefined) ?? 'circle';
+        proj.rectStartWidth = data.rectStartWidth as number | undefined;
+        proj.rectEndWidth = data.rectEndWidth as number | undefined;
+        proj.knockbackTier = data.knockbackTier as number | undefined;
         if (data.summonSeedWeak !== undefined) proj.summonSeedWeak = data.summonSeedWeak as boolean;
         return proj;
     }
