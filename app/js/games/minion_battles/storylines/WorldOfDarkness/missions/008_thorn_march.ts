@@ -116,7 +116,7 @@ const GUARD_A_WORLD = gridToWorld(NEST_49_51_COL - 2, NEST_49_51_ROW);
 const GUARD_B_WORLD = gridToWorld(NEST_49_51_COL + 2, NEST_49_51_ROW);
 
 /** Thornbinder pre-spawn — south-east of the first nest, in the lower glade. */
-const THORNBINDER_START_WORLD = gridToWorld(NEST_49_51_COL + 4, NEST_49_51_ROW + 11);
+const THORNBINDER_START_WORLD = gridToWorld(NEST_49_51_COL + 4, NEST_49_51_ROW + 24);
 
 /**
  * Center of the player spawn cluster (see `playerSpawnPoints` below), and the

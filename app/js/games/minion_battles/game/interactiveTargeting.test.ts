@@ -2411,8 +2411,9 @@ describe('non-host in-place commit (Fix C + Fix B)', () => {
             endTurn: true,
         };
         its.holdRemoteOrder(HEARTBEAT_BATCH, realOrder, hashOrderId('p2', HEARTBEAT_BATCH, realOrder));
-        if (its.mark?.waitingForOrders) {
-            its.mark.waitingForOrders.atTick = STALE_MARK_BATCH;
+        const mark = its['mark'] as SerializedGameState | null;
+        if (mark?.waitingForOrders) {
+            mark.waitingForOrders.atTick = STALE_MARK_BATCH;
         }
 
         await its.commit(session);

@@ -43,7 +43,7 @@ export class AlphaWolfStoryEmitter extends EffectEmitter {
     update(dt: number, engine: EngineContext): Effect[] {
         this.elapsed += dt;
 
-        const rand = () => Math.random();
+        const rand = () => engine.generateRandomNumber() / 0x7fffffff;
 
         const produced: Effect[] = [];
 

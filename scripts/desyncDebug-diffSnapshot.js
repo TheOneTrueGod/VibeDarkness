@@ -248,12 +248,11 @@ if (fieldPaths.length > 0) {
   const allDiffs = deepDiff(hostState, clientState);
   const byTopKey = new Map();
   for (const d of allDiffs) {
-    const top = d.path.split(/[.\[]/)[0];
+    const top = d.path.split(/[.[]/)[0];
     if (!byTopKey.has(top)) byTopKey.set(top, []);
     byTopKey.get(top).push(d);
   }
 
-  const matching = [...byTopKey.entries()].filter(([, v]) => v.length === 0);
   const diverging = [...byTopKey.entries()].filter(([, v]) => v.length > 0);
 
   // Also find top-level keys that are identical (not in allDiffs)

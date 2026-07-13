@@ -55,6 +55,7 @@ function isCoreEligible(
 function shuffled<T>(arr: T[]): T[] {
     const copy = [...arr];
     for (let i = copy.length - 1; i > 0; i--) {
+        // eslint-disable-next-line no-restricted-syntax -- per-player story-choice UI ordering, not simulated engine state
         const j = Math.floor(Math.random() * (i + 1));
         [copy[i], copy[j]] = [copy[j], copy[i]];
     }

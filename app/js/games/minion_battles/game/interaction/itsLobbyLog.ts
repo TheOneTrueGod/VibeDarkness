@@ -48,9 +48,9 @@ function summarizeTarget(target: ResolvedTarget): Record<string, unknown> {
     if (target.type === 'unit') {
         return { type: 'unit', unitId: target.unitId };
     }
-    if (target.type === 'position') {
+    if (target.type === 'pixel') {
         return {
-            type: 'position',
+            type: 'pixel',
             x: target.position?.x ?? null,
             y: target.position?.y ?? null,
         };
