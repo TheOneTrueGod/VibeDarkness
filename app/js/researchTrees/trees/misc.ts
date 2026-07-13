@@ -1,8 +1,6 @@
 import type { ResearchTreeDef } from '../types';
 
 export const MISC_TREE_ID = 'lightbearer';
-export const MISC_NODE_LIGHTBEARER = 'lightbearer';
-export const MISC_NODE_TORCH_COPY = 'torch_copy';
 export const MISC_NODE_BEAST_CORE = 'beast_core';
 export const MISC_NODE_AIR_CORE = 'air_core';
 export const MISC_NODE_CHARGED_CORE = 'charged_core';
@@ -11,39 +9,8 @@ export const MISC_NODE_BLINK_CORE = 'blink_core';
 export const miscTree: ResearchTreeDef = {
     id: MISC_TREE_ID,
     title: 'Lightbearer',
-    accessRequirements: [{ type: 'anyResearched', treeId: MISC_TREE_ID, nodeIds: [MISC_NODE_LIGHTBEARER, MISC_NODE_TORCH_COPY, MISC_NODE_BEAST_CORE, MISC_NODE_AIR_CORE, MISC_NODE_CHARGED_CORE, MISC_NODE_BLINK_CORE] }],
+    accessRequirements: [{ type: 'anyResearched', treeId: MISC_TREE_ID, nodeIds: [MISC_NODE_BEAST_CORE, MISC_NODE_AIR_CORE, MISC_NODE_CHARGED_CORE, MISC_NODE_BLINK_CORE] }],
     nodes: [
-        {
-            id: MISC_NODE_LIGHTBEARER,
-            title: 'Lightbearer',
-            description: 'You know how to craft and throw a torch into the darkness.',
-            flavorText: 'Fire carried forward is hope.',
-            order: 5,
-            tier: 1,
-            position: { x: 120, y: 290 },
-            prereqNodeIds: [],
-            exclusiveWithNodeIds: [MISC_NODE_TORCH_COPY],
-            requirements: [],
-            cost: {},
-            effects: [{ type: 'equipItem', itemId: '005' }],
-            overrideCurrentEquipment: true,
-            modifiesAbility: { from: '0601', to: '0601' },
-        },
-        {
-            id: MISC_NODE_TORCH_COPY,
-            title: 'Following Flame',
-            description: 'You followed the chosen bearer through the dark and learned the craft. You can shape and throw a torch of your own.',
-            order: 6,
-            tier: 1,
-            position: { x: 120, y: 160 },
-            prereqNodeIds: [],
-            exclusiveWithNodeIds: [MISC_NODE_LIGHTBEARER],
-            requirements: [],
-            cost: {},
-            effects: [{ type: 'equipItem', itemId: '005' }],
-            overrideCurrentEquipment: true,
-            modifiesAbility: { from: '0601', to: '0601' },
-        },
         {
             id: MISC_NODE_BEAST_CORE,
             title: 'Beast Core',

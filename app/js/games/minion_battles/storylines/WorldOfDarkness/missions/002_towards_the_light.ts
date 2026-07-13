@@ -28,7 +28,6 @@ import {
     crystalSpecialTilesAt,
 } from '../MapSegments/50_50_crystal_cave';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
-import { MISC_TREE_ID, MISC_NODE_LIGHTBEARER, MISC_NODE_TORCH_COPY } from '../../../../../researchTrees/trees/misc';
 
 const COLS = 66;
 const ROWS = 22;
@@ -151,13 +150,6 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },
-        {
-            type: 'groupVote',
-            voteId: 'towards_the_light_torchbearer',
-            text: 'Who will carry the torch into the darkness?',
-            optionSource: 'players',
-            effect: { type: 'grant_research_to_player', treeId: MISC_TREE_ID, nodeId: MISC_NODE_LIGHTBEARER },
-        },
     ],
 };
 
@@ -191,12 +183,6 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
 						].join("\n"),
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-        {
-            type: 'grant_research_auto',
-            treeId: MISC_TREE_ID,
-            nodeId: MISC_NODE_TORCH_COPY,
-            skipIfResearched: [{ treeId: MISC_TREE_ID, nodeIds: [MISC_NODE_LIGHTBEARER] }],
         },
         {
             type: 'choice',
