@@ -20,6 +20,7 @@ import type { AssetRegistry } from '../AssetRegistry';
 import type { OverlayRenderer } from './OverlayRenderer';
 import type { AbilityStatic, AbilityTelegraph, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { asTelegraphPayload } from '../../../abilities/telegraphTracking';
+import { LitClippingPreviewGraphics } from './LitClippingPreviewGraphics';
 import type { ResolvedTarget, GhostPlanData, ActiveAbility } from '../../types';
 import type { SelectTargetDef } from '../../../abilities/timingTargetDef';
 import type { HitboxPreviewCaster } from '../../../hitboxes/Hitbox';
@@ -456,16 +457,17 @@ export class PreviewRenderer {
         this.abilityPreviewGraphics.clear();
         for (const unit of engine.units) {
             if (!unit.isAlive()) continue;
-            if (areEnemies(localTeamId, unit.teamId) && this.overlayRenderer.isLightSystemActive()) {
-                const col = Math.floor(unit.x / CELL_SIZE);
-                const row = Math.floor(unit.y / CELL_SIZE);
-                const light = this.overlayRenderer.getLightAt(col, row);
-                if (light !== null && light <= DarknessLevel.FULL_DARKNESS) continue;
-            }
+            // Enemy telegraphs are clipped to their lit portions rather than hidden outright —
+            // an enemy stomping in darkness but aiming at a lit patch of ground should still show
+            // the parts of its arc/circle that fall in the light.
+            const clipToLight = areEnemies(localTeamId, unit.teamId) && this.overlayRenderer.isLightSystemActive();
+            const rawGr = this.abilityPreviewGraphics as unknown as IAbilityPreviewGraphics;
+            const gr: IAbilityPreviewGraphics = clipToLight
+                ? new LitClippingPreviewGraphics(rawGr, (x, y) => this.isWorldPointLit(x, y))
+                : rawGr;
             for (const active of unit.activeAbilities) {
                 const ability = getAbility(active.abilityId);
                 if (!ability) continue;
-                const gr = this.abilityPreviewGraphics as unknown as IAbilityPreviewGraphics;
                 if (ability.renderActivePreview) {
                     ability.renderActivePreview(gr, unit, active, engine.gameTime);
                 } else if (ability.telegraph) {
@@ -473,6 +475,14 @@ export class PreviewRenderer {
                 }
             }
         }
+    }
+
+    /** Light level at a world-space point, using the same lit/dark threshold as unit visibility. */
+    private isWorldPointLit(x: number, y: number): boolean {
+        const col = Math.floor(x / CELL_SIZE);
+        const row = Math.floor(y / CELL_SIZE);
+        const light = this.overlayRenderer.getLightAt(col, row);
+        return light === null || light > DarknessLevel.FULL_DARKNESS;
     }
 
     private renderTelegraphPreview(
