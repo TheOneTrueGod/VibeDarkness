@@ -1,34 +1,33 @@
-﻿/**
- * LanterniteStrike â€” short-range light pulse fired by Lanternite units while patrolling.
+/**
+ * LanterniteStrike — short-range light pulse fired by Lanternite units while patrolling.
  * Quick windup, single-target projectile, no card needed (unit ability only).
+ * Migrated to CastBehaviours.ProjectileLaunch() on the fire interval.
  */
 
-import type { AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics } from '../../abilities/Ability';
+import type { AbilityStatic, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
-import { Projectile } from '../../game/projectiles/Projectile';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { isAbilityNote } from '../../game/AbilityNote';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
 import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
+import { CastBehaviours } from '../../abilities/CastBehaviours';
+import { defineAbility } from '../../abilities/defineAbility';
 
 export const LANTERNITE_STRIKE_ID = `${formatGroupId(AbilityGroupId.Enemy)}10`;
 
 const LOCK_TIME = 0.4;
 const PREFIRE_TIME = 0.7;
+/** Short window so ProjectileLaunch (fires at window open) lands the shot at PREFIRE_TIME, not at LOCK_TIME. */
+const FIRE_END = PREFIRE_TIME + 0.1;
 const COOLDOWN_END = 3.7;
 const PROJECTILE_SPEED = 700;
 const MAX_DISTANCE = 200;
 const DAMAGE = 5;
 const LIGHT_COLOR = 0xffe080;
 
-interface GameEngineLike {
-    addProjectile(projectile: Projectile): void;
-}
-
-export const LanterniteStrikeAbility: AbilityStatic = {
+export const LanterniteStrikeAbility: AbilityStatic = defineAbility({
     id: LANTERNITE_STRIKE_ID,
     name: 'Lanternite Strike',
     image: '',
@@ -37,53 +36,28 @@ export const LanterniteStrikeAbility: AbilityStatic = {
     prefireTime: PREFIRE_TIME,
     abilityTimings: [
         { id: 'aim', start: 0, end: LOCK_TIME, abilityPhase: AbilityPhase.Windup },
-        { id: 'fire', start: LOCK_TIME, end: PREFIRE_TIME, abilityPhase: AbilityPhase.Active },
-        { id: 'cooldown', start: PREFIRE_TIME, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
+        { id: 'charge', start: LOCK_TIME, end: PREFIRE_TIME, abilityPhase: AbilityPhase.Active },
+        {
+            id: 'fire',
+            start: PREFIRE_TIME,
+            end: FIRE_END,
+            abilityPhase: AbilityPhase.Active,
+            behaviour: CastBehaviours.ProjectileLaunch()
+                .withSpeed(PROJECTILE_SPEED)
+                .withMaxRange(MAX_DISTANCE)
+                .withBaseDamage(DAMAGE),
+        },
+        { id: 'cooldown', start: FIRE_END, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
     ],
     targets: [{ type: 'pixel', label: 'Target' }] as TargetDef[],
     aiSettings: { minRange: 0, maxRange: MAX_DISTANCE },
+    getRange: (_caster: Unit) => ({ minRange: 0, maxRange: MAX_DISTANCE }),
 
     getTooltipText(): string[] {
         return [`Emits a light pulse dealing {${DAMAGE}} damage`];
     },
 
-    getAbilityStates(): AbilityStateEntry[] {
-        return [];
-    },
-
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        if (prevTime < LOCK_TIME && currentTime >= LOCK_TIME) {
-            const pos = getPixelTargetPosition(targets, 0);
-            if (pos) {
-                caster.setAbilityNote({ abilityId: '0010', abilityNote: { position: { ...pos } } });
-            }
-        }
-
-        if (prevTime < PREFIRE_TIME || currentTime < PREFIRE_TIME) return;
-        const eng = engine as GameEngineLike;
-        if (!isAbilityNote(caster.abilityNote, '0010')) return;
-        const pos = caster.abilityNote.abilityNote.position;
-        caster.clearAbilityNote();
-
-        const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, pos.x, pos.y);
-        if (dist === 0) return;
-
-        const projectile = new Projectile({
-            x: caster.x,
-            y: caster.y,
-            velocityX: dirX * PROJECTILE_SPEED,
-            velocityY: dirY * PROJECTILE_SPEED,
-            damage: DAMAGE,
-            sourceTeamId: caster.teamId,
-            sourceUnitId: caster.id,
-            sourceAbilityId: LANTERNITE_STRIKE_ID,
-            maxDistance: MAX_DISTANCE,
-        });
-
-        eng.addProjectile(projectile);
-    },
-
-    onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: import('../../abilities/Ability').AttackBlockedInfo): void {
+    onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: AttackBlockedInfo): void {
         deactivateProjectileOnBlock(attackInfo);
     },
 
@@ -96,9 +70,7 @@ export const LanterniteStrikeAbility: AbilityStatic = {
         const elapsed = gameTime - activeAbility.startTime;
         if (elapsed >= PREFIRE_TIME) return;
 
-        const target = isAbilityNote(caster.abilityNote, '0010')
-            ? caster.abilityNote.abilityNote.position
-            : getPixelTargetPosition(activeAbility.targets, 0);
+        const target = getPixelTargetPosition(activeAbility.targets, 0);
         if (!target) return;
 
         const { dirX: ux, dirY: uy, dist } = getDirectionFromTo(caster.x, caster.y, target.x, target.y);
@@ -115,4 +87,4 @@ export const LanterniteStrikeAbility: AbilityStatic = {
         gr.circle(caster.x, caster.y, MAX_DISTANCE);
         gr.stroke({ width: 1, color: LIGHT_COLOR, alpha: 0.35 });
     },
-};
+});

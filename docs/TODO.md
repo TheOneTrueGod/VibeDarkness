@@ -19,7 +19,6 @@
 
 | Todo | Notes |
 |------|-------|
-| Migrate LanterniteStrike (0010) to castBehaviours | `doCardEffect` sets an ability note at LOCK_TIME then fires a projectile at prefire — two threshold effects. Map them to castBehaviours on the windup and active timing intervals; ability-note init can move to `ON_CAST_START`. |
 | Migrate Pistol (0203) to castBehaviours | `doCardEffect` fires three shots at staggered time thresholds, each targeting a different target slot. Needs either a multi-shot CastBehaviour or three separate timing intervals each with a projectile CastBehaviour. |
 | Migrate SMG (0204) to castBehaviours | `doCardEffect` fires a rapid burst of shots at staggered intervals; same pattern as Pistol. Coordinate with the Pistol migration — a shared gun CastBehaviour that handles burst-fire would cover both. |
 | Migrate Shotgun (0205) to castBehaviours | `doCardEffect` fires a spread of simultaneous projectiles from a single origin point. Needs a spread-shot CastBehaviour; design can be shared with the Pistol/SMG gun CastBehaviour system. |
