@@ -123,25 +123,25 @@ const LEVEL_EVENTS: LevelEvent[] = [
 	{
 		type: 'spawnWave',
 		trigger: { afterSeconds: 5 },
-		spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 1, unitAITreeId: 'hunt' }],
+		spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'anywhere', inDarkness: true, spawnCount: 1, unitAITreeId: 'hunt' }],
 		emittedByNpcId: '1',
 	},
 	{
 		type: 'spawnWave',
 		trigger: { afterSeconds: 15 },
-		spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 1, unitAITreeId: 'hunt' }],
+		spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'anywhere', inDarkness: true, spawnCount: 1, unitAITreeId: 'hunt' }],
 		emittedByNpcId: '1',
 	},
 	{
 		type: 'spawnWave',
 		trigger: { atRound: 2 },
-		spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 2, unitAITreeId: 'hunt' }],
+		spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'anywhere', inDarkness: true, spawnCount: 2, unitAITreeId: 'hunt' }],
 		emittedByNpcId: '1',
 	},
 	{
 		type: 'spawnWave',
 		trigger: { atRound: 3 },
-		spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 2, unitAITreeId: 'hunt' }],
+		spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'anywhere', inDarkness: true, spawnCount: 2, unitAITreeId: 'hunt' }],
 		emittedByNpcId: '1',
 	},
 	{

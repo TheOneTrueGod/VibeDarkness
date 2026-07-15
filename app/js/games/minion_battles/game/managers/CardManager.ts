@@ -23,7 +23,6 @@ export interface CardInstance {
 
 export class CardManager {
     cards: Record<string, CardInstance[]> = {};
-    playerResearchTreesByPlayer: Record<string, Record<string, string[]>> = {};
     private ctx: EngineContext;
     private cardInstanceSeq = 1;
 
@@ -45,24 +44,8 @@ export class CardManager {
         };
     }
 
-    setPlayerResearchTreesByPlayer(map: Record<string, Record<string, string[]>>): void {
-        this.playerResearchTreesByPlayer = {};
-        for (const [playerId, trees] of Object.entries(map ?? {})) {
-            const normalizedTrees: Record<string, string[]> = {};
-            for (const [treeId, nodeIds] of Object.entries(trees ?? {})) {
-                normalizedTrees[treeId] = Array.isArray(nodeIds) ? [...nodeIds] : [];
-            }
-            this.playerResearchTreesByPlayer[playerId] = normalizedTrees;
-        }
-    }
-
-    getPlayerResearchNodes(playerId: string, treeId: string): string[] {
-        return this.playerResearchTreesByPlayer[playerId]?.[treeId] ?? [];
-    }
-
     toJSON(): {
         cards: Record<string, CardInstance[]>;
-        playerResearchTreesByPlayer: Record<string, Record<string, string[]>>;
     } {
         return {
             cards: Object.fromEntries(
@@ -71,19 +54,10 @@ export class CardManager {
                     cards.map((c) => ({ ...c })),
                 ]),
             ),
-            playerResearchTreesByPlayer: Object.fromEntries(
-                Object.entries(this.playerResearchTreesByPlayer).map(([playerId, trees]) => [
-                    playerId,
-                    Object.fromEntries(Object.entries(trees).map(([treeId, nodeIds]) => [treeId, [...nodeIds]])),
-                ]),
-            ),
         };
     }
 
-    restoreFromJSON(
-        cardsData: Record<string, SerializedCardInstance[]>,
-        researchData?: Record<string, Record<string, string[]>>,
-    ): void {
+    restoreFromJSON(cardsData: Record<string, SerializedCardInstance[]>): void {
         this.cards = Object.fromEntries(
             Object.entries(cardsData).map(([pid, cards]) => [
                 pid,
@@ -102,9 +76,5 @@ export class CardManager {
                 }),
             ]),
         );
-
-        if (researchData) {
-            this.setPlayerResearchTreesByPlayer(researchData);
-        }
     }
 }

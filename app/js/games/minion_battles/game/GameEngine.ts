@@ -352,10 +352,10 @@ export class GameEngine implements EngineContext {
     set cards(value: Record<string, import('./managers/CardManager').CardInstance[]>) { this.state.cardManager.cards = value; }
 
     get playerResearchTreesByPlayer(): Record<string, Record<string, string[]>> {
-        return this.state.cardManager.playerResearchTreesByPlayer;
+        return this.state.researchManager.playerResearchTreesByPlayer;
     }
     set playerResearchTreesByPlayer(value: Record<string, Record<string, string[]>>) {
-        this.state.cardManager.playerResearchTreesByPlayer = value;
+        this.state.researchManager.playerResearchTreesByPlayer = value;
     }
 
     addUnit(unit: Unit, spawnSource: SpawnSource = 'darknessSpawn'): void {
@@ -501,8 +501,8 @@ export class GameEngine implements EngineContext {
     getCrystalProtectionCount(col: number, row: number): number { return this.state.specialTileManager.getCrystalProtectionCount(col, row); }
     getDarkCrystalFilterSet(): Set<string> { return this.state.specialTileManager.getDarkCrystalFilterSet(); }
 
-    setPlayerResearchTreesByPlayer(map: Record<string, Record<string, string[]>>): void { this.state.cardManager.setPlayerResearchTreesByPlayer(map); }
-    getPlayerResearchNodes(playerId: string, treeId: string): string[] { return this.state.cardManager.getPlayerResearchNodes(playerId, treeId); }
+    setPlayerResearchTreesByPlayer(map: Record<string, Record<string, string[]>>): void { this.state.researchManager.setPlayerResearchTreesByPlayer(map); }
+    getPlayerResearchNodes(playerId: string, treeId: string): string[] { return this.state.researchManager.getPlayerResearchNodes(playerId, treeId); }
 
     registerLevelEvents(events: LevelEvent[]): void { this.state.levelEventManager.registerLevelEvents(events); }
     setLevelEvents(events: LevelEvent[]): void { this.state.levelEventManager.setLevelEvents(events); }
@@ -1780,7 +1780,7 @@ export class GameEngine implements EngineContext {
             firedEventIndices: levelEventData.firedEventIndices,
             victoryCheckFirstEmitDone: levelEventData.victoryCheckFirstEmitDone,
             continuousSpawnLastSpawnedAt: levelEventData.continuousSpawnLastSpawnedAt,
-            playerResearchTreesByPlayer: cardData.playerResearchTreesByPlayer,
+            playerResearchTreesByPlayer: this.state.researchManager.toJSON(),
             storyPauseActive: this.storyPauseActive,
             storyPauseReason: this.storyPauseReason,
             storyPauseEndsAt: this.storyPauseEndsAt,
@@ -1946,7 +1946,8 @@ export class GameEngine implements EngineContext {
         if (engine.terrainManager) engine.terrainManager.setTerrainLayers(engine.state.terrainLayers);
 
         // Restore cards + research trees
-        engine.state.cardManager.restoreFromJSON(data.cards, data.playerResearchTreesByPlayer);
+        engine.state.cardManager.restoreFromJSON(data.cards);
+        engine.state.researchManager.restoreFromJSON(data.playerResearchTreesByPlayer);
 
         // Restore group blackboards (AI strategic layer)
         engine.state.groupManager.fromJSON(data.groups ?? [], data.gameTick ?? 0);

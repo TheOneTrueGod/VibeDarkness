@@ -217,12 +217,7 @@ export class LevelEventManager {
         const occupiedCells = new Set<string>();
 
         const edgeEntries: { base: EnemySpawnDef; entry: SpawnWaveEntry; count: number }[] = [];
-        const otherEntries: {
-            base: EnemySpawnDef;
-            entry: SpawnWaveEntry;
-            behaviour: 'darkness' | 'anywhere';
-            count: number;
-        }[] = [];
+        const otherEntries: { base: EnemySpawnDef; entry: SpawnWaveEntry; count: number }[] = [];
         const closestPOIEntries: { base: EnemySpawnDef; entry: SpawnWaveEntry; count: number }[] = [];
         const closestEntries: { base: EnemySpawnDef; entry: SpawnWaveEntry; count: number }[] = [];
 
@@ -241,7 +236,7 @@ export class LevelEventManager {
             } else if (behaviour === 'closest') {
                 closestEntries.push({ base, entry, count });
             } else {
-                otherEntries.push({ base, entry, behaviour, count });
+                otherEntries.push({ base, entry, count });
             }
         }
 
@@ -317,14 +312,14 @@ export class LevelEventManager {
             return cells;
         };
 
-        const isValidSpawnCell = (col: number, row: number, behaviour: 'darkness' | 'anywhere'): boolean => {
+        const isValidSpawnCell = (col: number, row: number, inDarkness: boolean): boolean => {
             const key = `${col},${row}`;
             if (occupiedCells.has(key)) return false;
 
             const { x, y } = grid.gridToWorld(col, row);
             if (!terrainManager.isPassable(x, y)) return false;
 
-            if (behaviour === 'darkness') {
+            if (inDarkness) {
                 // Use animated visual grid (getLightAt) not a fresh target grid — tile must be visually dark.
                 const level = this.ctx.getLightAt(col, row);
                 if (level == null || level > DarknessLevel.FULL_DARKNESS) return false;
@@ -334,7 +329,7 @@ export class LevelEventManager {
         };
 
         const collectCandidateTiles = (
-            behaviour: 'darkness' | 'anywhere',
+            inDarkness: boolean,
             spawnTarget: { x: number; y: number; radius: number } | undefined,
             spawnZoneId?: string,
         ): { col: number; row: number }[] => {
@@ -347,7 +342,7 @@ export class LevelEventManager {
                     return [];
                 }
                 for (const { col, row } of resolveZoneTiles(zone)) {
-                    if (isValidSpawnCell(col, row, behaviour)) candidates.push({ col, row });
+                    if (isValidSpawnCell(col, row, inDarkness)) candidates.push({ col, row });
                 }
                 return candidates;
             }
@@ -367,7 +362,7 @@ export class LevelEventManager {
                         if (dx * dx + dy * dy > radiusSq) continue;
                     }
 
-                    if (isValidSpawnCell(col, row, behaviour)) candidates.push({ col, row });
+                    if (isValidSpawnCell(col, row, inDarkness)) candidates.push({ col, row });
                 }
             }
 
@@ -387,16 +382,17 @@ export class LevelEventManager {
             return result;
         };
 
-        for (const { base, entry, behaviour, count } of otherEntries) {
-            if (behaviour === 'darkness' && !this.ctx.lightLevelEnabled) {
-                console.error('spawnWave: spawnBehaviour "darkness" requested but light system is disabled; skipping this spawn entry.');
+        for (const { base, entry, count } of otherEntries) {
+            const inDarkness = entry.inDarkness === true;
+            if (inDarkness && !this.ctx.lightLevelEnabled) {
+                console.error('spawnWave: inDarkness=true requested but light system is disabled; skipping this spawn entry.');
                 continue;
             }
 
-            const candidates = collectCandidateTiles(behaviour === 'darkness' ? 'darkness' : 'anywhere', entry.spawnTarget, entry.spawnZoneId);
+            const candidates = collectCandidateTiles(inDarkness, entry.spawnTarget, entry.spawnZoneId);
             if (candidates.length === 0) {
                 console.error(
-                    `spawnWave: no valid tiles for behaviour "${behaviour}"` +
+                    `spawnWave: no valid tiles for behaviour "anywhere"` +
                         (entry.spawnTarget ? ` near (${entry.spawnTarget.x}, ${entry.spawnTarget.y})` : '') +
                         '; skipping this spawn entry.',
                 );
@@ -406,7 +402,7 @@ export class LevelEventManager {
             const spawnAttempts = Math.min(count, candidates.length);
             if (spawnAttempts < count) {
                 console.error(
-                    `spawnWave: requested ${count} spawns for behaviour "${behaviour}" but only found ${candidates.length} valid tiles.`,
+                    `spawnWave: requested ${count} spawns for behaviour "anywhere" but only found ${candidates.length} valid tiles.`,
                 );
             }
 
@@ -574,7 +570,7 @@ export class LevelEventManager {
                 // Build a synthetic SpawnTarget around the chosen POI
                 const poiWorld = grid.gridToWorld(closestPOI.col, closestPOI.row);
                 const syntheticTarget = { x: poiWorld.x, y: poiWorld.y, radius: poiRadius };
-                spawnCells = collectCandidateTiles(inDarkness ? 'darkness' : 'anywhere', syntheticTarget);
+                spawnCells = collectCandidateTiles(inDarkness, syntheticTarget);
                 if (spawnCells.length === 0) {
                     console.warn(
                         `spawnWave: closestEnemySpawnPoint — no valid tiles within radius ${poiRadius} of POI "${closestPOI.id}"` +
@@ -752,12 +748,12 @@ export class LevelEventManager {
 
         const occupiedCells = new Set<string>();
 
-        const isValidSpawnCell = (col: number, row: number, behaviour: 'darkness' | 'anywhere'): boolean => {
+        const isValidSpawnCell = (col: number, row: number, inDarkness: boolean): boolean => {
             const key = `${col},${row}`;
             if (occupiedCells.has(key)) return false;
             const { x, y } = grid.gridToWorld(col, row);
             if (!terrainManager.isPassable(x, y)) return false;
-            if (behaviour === 'darkness') {
+            if (inDarkness) {
                 // Use animated visual grid — tile must be visually dark, not just target-dark.
                 const level = this.ctx.getLightAt(col, row);
                 if (level == null || level > DarknessLevel.FULL_DARKNESS) return false;
@@ -766,7 +762,7 @@ export class LevelEventManager {
         };
 
         const collectCandidates = (
-            behaviour: 'darkness' | 'anywhere',
+            inDarkness: boolean,
             spawnTarget: { x: number; y: number; radius: number } | undefined,
             spawnZoneId?: string,
         ): { col: number; row: number }[] => {
@@ -779,7 +775,7 @@ export class LevelEventManager {
                     return [];
                 }
                 for (const { col, row } of resolveZoneTiles(zone)) {
-                    if (isValidSpawnCell(col, row, behaviour)) candidates.push({ col, row });
+                    if (isValidSpawnCell(col, row, inDarkness)) candidates.push({ col, row });
                 }
                 return candidates;
             }
@@ -797,7 +793,7 @@ export class LevelEventManager {
                         const dy = y - targetY;
                         if (dx * dx + dy * dy > radiusSq) continue;
                     }
-                    if (isValidSpawnCell(col, row, behaviour)) candidates.push({ col, row });
+                    if (isValidSpawnCell(col, row, inDarkness)) candidates.push({ col, row });
                 }
             }
             return candidates;
@@ -820,14 +816,14 @@ export class LevelEventManager {
             const cid = entry.characterId;
             const base = BASE_SPAWN_DEFS[cid];
             if (!base) continue;
-            const behaviour = (entry.spawnBehaviour ?? 'darkness') as 'darkness' | 'anywhere';
+            const inDarkness = entry.inDarkness === true;
             const count = Math.max(0, entry.spawnCount ?? 1);
             if (count <= 0) continue;
-            if (behaviour === 'darkness' && !this.ctx.lightLevelEnabled) continue;
+            if (inDarkness && !this.ctx.lightLevelEnabled) continue;
 
             if (maxUnits != null && unitCountByTeam && unitCountByTeam[base.teamId] > maxUnits) continue;
 
-            const candidates = collectCandidates(behaviour, entry.spawnTarget, entry.spawnZoneId);
+            const candidates = collectCandidates(inDarkness, entry.spawnTarget, entry.spawnZoneId);
             if (candidates.length === 0) continue;
             const spawnAttempts = Math.min(count, candidates.length);
             const chosenIndices = chooseRandomIndices(candidates.length, spawnAttempts);

@@ -25,7 +25,7 @@ export type LevelEventTrigger =
     | { afterSeconds: number };
 
 /** Behaviour for where a spawn wave places units. */
-export type SpawnBehaviour = 'edgeOfMap' | 'darkness' | 'anywhere' | 'closestEnemySpawnPoint' | 'closest';
+export type SpawnBehaviour = 'edgeOfMap' | 'anywhere' | 'closestEnemySpawnPoint' | 'closest';
 
 /** Optional target area for spawn placement (world coordinates, radius in tiles). */
 export interface SpawnTarget {
@@ -55,6 +55,13 @@ export interface SpawnWaveEntry {
     /** Where to spawn this entry's units. Defaults to 'edgeOfMap'. */
     spawnBehaviour?: SpawnBehaviour;
     /**
+     * When true, restricts placement to tiles in full darkness. Only honoured with
+     * spawnBehaviour 'anywhere' (e.g. `spawnBehaviour: 'anywhere', inDarkness: true` for what
+     * used to be a dedicated `'darkness'` behaviour). For 'closest' / 'closestEnemySpawnPoint',
+     * use their own `closestConfig.inDarkness` / `enemySpawnPointConfig.inDarkness` instead.
+     */
+    inDarkness?: boolean;
+    /**
      * Optional target area for random placement. When provided, units are spawned within
      * a circular area of radius (in tiles) around (x, y) in world space.
      */
@@ -62,7 +69,7 @@ export interface SpawnWaveEntry {
     /**
      * Alternative to `spawnTarget` — resolves candidate tiles from a registered zone
      * (see `terrain/zones.ts` and `EngineContext.getZoneById`). Only honoured with
-     * spawnBehaviour 'anywhere' or 'darkness'; takes precedence over `spawnTarget` when set.
+     * spawnBehaviour 'anywhere'; takes precedence over `spawnTarget` when set.
      */
     spawnZoneId?: string;
     /** How many units to attempt spawning for this entry. Defaults to 1. */
@@ -83,7 +90,7 @@ export interface SpawnWaveEntry {
      * picking the N nearest passable, unoccupied tiles that match the optional filters.
      */
     closestConfig?: {
-        /** If true, tiles must be in full darkness (same check as `spawnBehaviour: 'darkness'`). */
+        /** If true, tiles must be in full darkness (same check as the top-level `inDarkness` flag). */
         inDarkness?: boolean;
     };
     /**
@@ -98,7 +105,7 @@ export interface SpawnWaveEntry {
          */
         radius?: number;
         /**
-         * If true, the spawn tile must be in darkness (same check as `spawnBehaviour: 'darkness'`).
+         * If true, the spawn tile must be in darkness (same check as the top-level `inDarkness` flag).
          */
         inDarkness?: boolean;
         /**

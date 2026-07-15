@@ -105,13 +105,13 @@ const LEVEL_EVENTS: LevelEvent[] = [
 		type: 'continuousSpawn',
 		trigger: { intervalRounds: 1, startRound: 1 },
 		maxUnits: 6,
-		spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'darkness', spawnCount: 1, unitAITreeId: 'hunt' }],
+		spawns: [{ characterId: 'dark_wolf', spawnBehaviour: 'anywhere', inDarkness: true, spawnCount: 1, unitAITreeId: 'hunt' }],
 	},
 	{
 		type: 'continuousSpawn',
 		trigger: { intervalRounds: 1.5, startRound: 1.5 },
 		maxUnits: 10,
-		spawns: [{ characterId: 'slime', spawnBehaviour: 'darkness', spawnCount: 1, unitAITreeId: 'hunt' }],
+		spawns: [{ characterId: 'slime', spawnBehaviour: 'anywhere', inDarkness: true, spawnCount: 1, unitAITreeId: 'hunt' }],
 	},
 	{
 		type: 'victoryCheck',
