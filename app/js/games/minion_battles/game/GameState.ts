@@ -8,6 +8,7 @@ import { UnitManager } from './managers/UnitManager';
 import { ProjectileManager } from './managers/ProjectileManager';
 import { EffectManager } from './effects/EffectManager';
 import { CardManager } from './managers/CardManager';
+import { AbilityUseTracker } from './managers/AbilityUseTracker';
 import { SpecialTileManager } from './managers/SpecialTileManager';
 import { LevelEventManager } from './managers/LevelEventManager';
 import { ObjectiveManager } from './managers/ObjectiveManager';
@@ -52,6 +53,7 @@ export class GameState {
     readonly effectManager: EffectManager;
     readonly effectEmitterManager: EffectEmitterManager;
     readonly cardManager: CardManager;
+    readonly abilityUseTracker: AbilityUseTracker;
     readonly specialTileManager: SpecialTileManager;
     readonly levelEventManager: LevelEventManager;
     readonly objectiveManager: ObjectiveManager;
@@ -95,6 +97,7 @@ export class GameState {
         this.effectManager = new EffectManager(ctx);
         this.effectEmitterManager = new EffectEmitterManager();
         this.cardManager = new CardManager(ctx);
+        this.abilityUseTracker = new AbilityUseTracker();
         this.specialTileManager = new SpecialTileManager(ctx);
         this.levelEventManager = new LevelEventManager(ctx);
         this.objectiveManager = new ObjectiveManager(ctx);

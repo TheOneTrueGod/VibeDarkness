@@ -25,6 +25,19 @@ const DEFAULT_CONSTRUCTION_SEC = 10;
  */
 const CONSTRUCTION_STAND_RADIUS = 56;
 
+/**
+ * Distance (px) from the build site within which a hostile presence (e.g. a rival
+ * `swarm_nest` and its swarmlings) contests the spot and blocks construction.
+ */
+const CONTEST_RADIUS_PX = 160;
+
+/** True if a hostile unit is within the contest radius of the build site. */
+function isNestSiteContested(unit: Unit, siteX: number, siteY: number, context: AIContext): boolean {
+    return findEnemies(unit, context.getUnits()).some(
+        (e) => distance(siteX, siteY, e.x, e.y) <= CONTEST_RADIUS_PX,
+    );
+}
+
 export const lnet_scout_travel: AINode<'lanterniteNetwork', LanterniteNetworkNodeId> = {
     nodeId: 'lnet_scout_travel',
     actions: {
@@ -46,8 +59,14 @@ export const lnet_scout_travel: AINode<'lanterniteNetwork', LanterniteNetworkNod
             const standX = far.x + Math.cos(angle) * CONSTRUCTION_STAND_RADIUS;
             const standY = far.y + Math.sin(angle) * CONSTRUCTION_STAND_RADIUS;
 
-            // Begin construction if arrived at stand position
-            if (distance(unit.x, unit.y, standX, standY) < ARRIVAL_PX) {
+            // Begin construction if arrived at stand position — but only if the site isn't
+            // contested by a hostile presence (e.g. a rival swarm_nest). While contested, no
+            // build progress is made or animated; the opportunistic-attack check below still
+            // fires, so the scout fights for the spot instead of building on top of the enemy.
+            if (
+                distance(unit.x, unit.y, standX, standY) < ARRIVAL_PX &&
+                !isNestSiteContested(unit, far.x, far.y, context)
+            ) {
                 const constructionSec =
                     unit.lanterniteState.nestConfig?.scoutConstructionSec ?? DEFAULT_CONSTRUCTION_SEC;
                 unit.lanterniteState.constructionCompleteAtGameTime = context.gameTime + constructionSec;

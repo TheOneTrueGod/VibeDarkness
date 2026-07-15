@@ -14,8 +14,6 @@
 
 | Todo | Notes |
 |------|-------|
-| Create `AbilityUseTracker` class | Add `game/managers/AbilityUseTracker.ts` with a `Map<string, number>` and the three methods `trackAbilityUse`, `getAbilityUsesThisRound`, `clearAbilityUses` (copy logic from `CardManager`). No call-site changes yet — just the new file. |
-| Wire `AbilityUseTracker` into `GameState` and remove from `CardManager` | Add `abilityUseTracker: AbilityUseTracker` to `GameState` (construct it alongside `cardManager`). Redirect the three `GameEngine.ts` call sites (lines ~367, ~1402, ~1418) from `state.cardManager` to `state.abilityUseTracker`. Then delete `abilityUsesThisRound`, `trackAbilityUse`, `getAbilityUsesThisRound`, and `clearAbilityUses` from `CardManager`. |
 
 ## Medium
 

@@ -549,7 +549,7 @@ export class GameEngine implements EngineContext {
     }
 
     trackAbilityUse(unitId: string, abilityId: string): void {
-        this.state.cardManager.trackAbilityUse(unitId, abilityId);
+        this.state.abilityUseTracker.trackAbilityUse(unitId, abilityId);
     }
 
     mixOrderFingerprint(unitId: string, abilityId: string): void {
@@ -1652,7 +1652,7 @@ export class GameEngine implements EngineContext {
             emitTurnEnd: (unitId) => this.eventBus.emit('turn_end', { unitId, unitIds: [unitId] }),
             generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
             getAbilityUsesThisRound: (unitId, abilityId) =>
-                this.state.cardManager.getAbilityUsesThisRound(unitId, abilityId),
+                this.state.abilityUseTracker.getAbilityUsesThisRound(unitId, abilityId),
             WORLD_WIDTH: this.getWorldWidth(),
             WORLD_HEIGHT: this.getWorldHeight(),
             hasLineOfSight: (fromX, fromY, toX, toY) =>
@@ -1668,7 +1668,7 @@ export class GameEngine implements EngineContext {
     // ========================================================================
 
     private handleRoundEnd(roundNumber: number): void {
-        this.state.cardManager.clearAbilityUses();
+        this.state.abilityUseTracker.clearAbilityUses();
         this.state.lightSourceManager.handleRoundEnd(this.roundNumber);
         this.state.unitManager.onRoundEnd(roundNumber);
         this.state.worldModifierManager.handleRoundEnd(roundNumber);

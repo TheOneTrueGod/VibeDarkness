@@ -216,15 +216,19 @@ export function processLanterniteNests(params: {
             const aliveKids = state.spawnedIds.length;
 
             if (cfg.networked) {
-                // Network mode: assign roles, resolve scout target, stagger attack offset
+                // Network mode: assign roles, resolve scout target, stagger attack offset.
+                // Favor spawning a scout whenever scouts haven't caught up to defenders (so a
+                // scout that died en route gets promptly retried) or once the defender quota is
+                // met; otherwise spawn a defender.
                 const defenderCount = countAliveChildrenByRole(state.spawnedIds, params.units, 'defender');
+                const scoutCount = countAliveChildrenByRole(state.spawnedIds, params.units, 'scout');
                 const targetDefenders = Math.floor(cfg.maxLanternites / 2);
                 const nestPoiId = nest.lanterniteState.homeNestPoiId ?? cfg.nestPoiId;
 
                 let role: 'scout' | 'defender' = 'defender';
                 let targetPoi: MapSegmentPOI | null = null;
 
-                if (aliveKids === 0 || defenderCount >= targetDefenders) {
+                if (scoutCount <= defenderCount || defenderCount >= targetDefenders) {
                     if (nestPoiId && params.mapPOIs) {
                         targetPoi = findUnoccupiedConnectedNestPoi(nestPoiId, params.mapPOIs, params.units);
                     }

@@ -24,7 +24,6 @@ export interface CardInstance {
 export class CardManager {
     cards: Record<string, CardInstance[]> = {};
     playerResearchTreesByPlayer: Record<string, Record<string, string[]>> = {};
-    private abilityUsesThisRound: Map<string, number> = new Map();
     private ctx: EngineContext;
     private cardInstanceSeq = 1;
 
@@ -59,19 +58,6 @@ export class CardManager {
 
     getPlayerResearchNodes(playerId: string, treeId: string): string[] {
         return this.playerResearchTreesByPlayer[playerId]?.[treeId] ?? [];
-    }
-
-    trackAbilityUse(unitId: string, abilityId: string): void {
-        const key = `${unitId}:${abilityId}`;
-        this.abilityUsesThisRound.set(key, (this.abilityUsesThisRound.get(key) ?? 0) + 1);
-    }
-
-    getAbilityUsesThisRound(unitId: string, abilityId: string): number {
-        return this.abilityUsesThisRound.get(`${unitId}:${abilityId}`) ?? 0;
-    }
-
-    clearAbilityUses(): void {
-        this.abilityUsesThisRound.clear();
     }
 
     toJSON(): {

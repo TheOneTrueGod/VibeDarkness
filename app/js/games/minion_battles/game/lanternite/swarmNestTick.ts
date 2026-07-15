@@ -92,6 +92,12 @@ export function initializeSwarmNestSpawnState(nest: Unit, gameTime: number): voi
     };
 }
 
+/** Wire a mission-defined `swarm_nest` spawn's config and home POI (mirrors lanternite nest hydration). */
+export function hydrateSwarmNestFromMissionDef(unit: Unit, cfg: SwarmNestMissionConfig): void {
+    unit.swarmState.nestConfig = cfg;
+    if (cfg.nestPoiId) unit.swarmState.nestHomePoiId = cfg.nestPoiId;
+}
+
 /**
  * Advances swarm nest spawn timers once per simulation tick (host-only).
  * Also handles swarmling construction completion — spawns a new swarm nest at the target POI

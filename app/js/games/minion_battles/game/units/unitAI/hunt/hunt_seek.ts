@@ -10,7 +10,7 @@
 import type { Unit } from '../../Unit';
 import type { AIContext, AINode } from '../types';
 import type { HuntAITreeContext, HuntNodeId } from './context';
-import { findEnemies, queueWaitAndEndTurn } from '../utils';
+import { distance, findEnemies, queueWaitAndEndTurn } from '../utils';
 import { createPlan, shouldReplan } from '../plans/planUtils';
 
 /** Base ticks to hold a chase_target plan before reconsidering the target. */
@@ -45,6 +45,7 @@ export const hunt_seek: AINode<'hunt', HuntNodeId> = {
             // No valid plan — scan for the nearest enemy and create one.
             const enemies = findEnemies(unit, context.getUnits());
             if (enemies.length > 0) {
+                enemies.sort((a, b) => distance(unit.x, unit.y, a.x, a.y) - distance(unit.x, unit.y, b.x, b.y));
                 const targetId = enemies[0]!.id;
                 ctx.targetUnitId = targetId;
                 ctx.aiState = 'hunt_pursue';

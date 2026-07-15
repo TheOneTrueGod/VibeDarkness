@@ -310,6 +310,8 @@ export interface SwarmNestMissionConfig {
     spawnCount?: number;
     /** Seconds for a swarmling to build a new nest after arriving at a POI (default 10). */
     scoutConstructionSec?: number;
+    /** `nest` POI id this swarm nest occupies (mission-defined starting nests only). */
+    nestPoiId?: string;
 }
 
 /** Patrol endpoint for Lanternites spawned from a {@link lanterniteNest} nest. */
@@ -391,6 +393,8 @@ export interface EnemySpawnDef {
     lanterniteNest?: LanterniteNestMissionConfig;
     /** When spawning a `thornling_nest`, wires spawn pacing for thornlings from this nest. */
     thornlingNest?: ThornlingNestMissionConfig;
+    /** When spawning a `swarm_nest`, wires spawn pacing and home POI for swarmlings from this nest. */
+    swarmNest?: SwarmNestMissionConfig;
     /** Optional Lanternite ecology wiring beyond nest auto-spawns (e.g. proximity reinforcements). */
     lanterniteNestOwnerUnitId?: string;
     lanternPatrolFarWorld?: { x: number; y: number };

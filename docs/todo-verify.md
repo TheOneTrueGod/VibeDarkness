@@ -22,6 +22,8 @@
 
 | Todo | Notes | Date |
 |------|-------|------|
+| Create `AbilityUseTracker` class | Added `game/managers/AbilityUseTracker.ts` with `trackAbilityUse`, `getAbilityUsesThisRound`, `clearAbilityUses`, copied from `CardManager`. | 2026-07-14 |
+| Wire `AbilityUseTracker` into `GameState` and remove from `CardManager` | Added `abilityUseTracker` to `GameState`, constructed alongside `cardManager`. Redirected the three `GameEngine.ts` call sites (`trackAbilityUse`, `getAbilityUsesThisRound`, `clearAbilityUses`) to `state.abilityUseTracker`. Removed the now-dead `abilityUsesThisRound` map and its three methods from `CardManager`. | 2026-07-14 |
 | Add ability-test scenario for Claw (0111) movement distance vs. preview | Created `clawScenarios.ts`; fires Claw toward a pixel 200 px away (beyond max distance), asserts caster lands within 5 px of start + CLAW_MAX_DISTANCE. Exported `CLAW_MAX_DISTANCE`/`CLAW_COLLISION_STEP`. Test passes. | 2026-06-16 |
 | Port StoneyPunch (0533) to `selectTargetDefs` | `meleeLineHitbox(MAX_RANGE, 25)` on the `active` interval with `filter: 'enemy'`; removed legacy `targets: [{ type: 'unit' }]`. | 2026-06-16 |
 | Port AnchoredTremor (0532) to `selectTargetDefs` | `nullHitbox` `targetDef` on `active` interval; removed legacy `targets`. | 2026-06-16 |

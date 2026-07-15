@@ -6,6 +6,10 @@
  * second nest, then west into the second thorn section (48_52) to build the third. Only the
  * first nest is invulnerable; the other two can be attacked and must be defended.
  *
+ * A hostile `swarm_nest` is pre-spawned on the nest_48_52 spot, contesting it with the
+ * lanternite network — see `game/lanternite/AGENTS.md` for how the lanternite build logic
+ * reacts to a contested POI.
+ *
  * Terrain: 2×2 segment grid (each 22×22):
  *   [BLANK grass pad   | 49_51 west glade  ]
  *   [48_52 thorn path2 | 49_52 thorn path  ]
@@ -42,6 +46,7 @@ import {
 } from '../MapSegments/48_52_thorn_path_2';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 import { LANTERNITE_NEST_CHARACTER_ID, LANTERNITE_CHARACTER_ID } from '../../../game/lanternite/lanternitePulse';
+import { SWARM_NEST_CHARACTER_ID } from '../../../game/lanternite/swarmNestTick';
 
 // ---------------------------------------------------------------------------
 // Grid constants
@@ -106,7 +111,7 @@ const NEST_49_52_WORLD = gridToWorld(NEST_49_52_COL, NEST_49_52_ROW);
 /** Third nest site — 48_52 thorn path 2. */
 const NEST_48_52_COL = SEG_48_52_COL + THORN2_NEST_POINT.col;   // 0 + 9 = 9
 const NEST_48_52_ROW = SEG_48_52_ROW + THORN2_NEST_POINT.row;   // 22 + 8 = 30
-const _NEST_48_52_WORLD = gridToWorld(NEST_48_52_COL, NEST_48_52_ROW);
+const NEST_48_52_WORLD = gridToWorld(NEST_48_52_COL, NEST_48_52_ROW);
 
 /** Stable unit ID for the first nest (so guard lanternites can reference it). */
 const NEST_49_51_UNIT_ID = 'nest_49_51_unit';
@@ -271,6 +276,23 @@ export class ThornMarchMission extends BaseMissionDef {
             aiSettings: { minRange: 80, maxRange: 320 },
             unitAITreeId: 'hunt',
         },
+        // Hostile Swarm Nest pre-spawned directly on the third lanternite nest site —
+        // the two networks contest this POI. See game/lanternite/AGENTS.md.
+        {
+            characterId: SWARM_NEST_CHARACTER_ID,
+            name: 'Swarm Nest',
+            position: NEST_48_52_WORLD,
+            teamId: 'enemy' as const,
+            abilities: [],
+            aiSettings: { minRange: 0, maxRange: 0 },
+            unitAITreeId: 'lanterniteNestIdle',
+            swarmNest: {
+                maxSwarmlings: 6,
+                spawnIntervalSec: 10,
+                spawnCount: 2,
+                nestPoiId: 'nest_48_52',
+            },
+        },
     ];
 
     levelEvents: LevelEvent[] = [
@@ -387,16 +409,10 @@ export class ThornMarchMission extends BaseMissionDef {
                 },
             ],
         },
-        // Victory: all three nests still alive after 8 rounds
+        // Victory: all three nests alive, checked every tick from round 8 onward (not one-shot).
         {
             type: 'victoryCheck',
             trigger: { afterRound: 8 },
-            conditions: [{ type: 'aliveUnitCount', characterId: LANTERNITE_NEST_CHARACTER_ID, minCount: 3 }],
-        },
-        // Fallback check at round 10 if 3rd nest builds slowly
-        {
-            type: 'victoryCheck',
-            trigger: { afterRound: 10 },
             conditions: [{ type: 'aliveUnitCount', characterId: LANTERNITE_NEST_CHARACTER_ID, minCount: 3 }],
         },
     ];

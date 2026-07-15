@@ -57,6 +57,11 @@ import {
     initializeThornlingNestSpawnState,
     THORNLING_NEST_CHARACTER_ID,
 } from '../game/lanternite/thornlingNestTick';
+import {
+    hydrateSwarmNestFromMissionDef,
+    initializeSwarmNestSpawnState,
+    SWARM_NEST_CHARACTER_ID,
+} from '../game/lanternite/swarmNestTick';
 import { getControlGroupId } from '../state';
 
 /** Gun abilities that require an ammo resource at mission start (not melee swords). */
@@ -371,6 +376,9 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             if (spawn.thornlingNest != null && spawn.characterId === THORNLING_NEST_CHARACTER_ID) {
                 unit.thornlingState.nestConfig = spawn.thornlingNest;
             }
+            if (spawn.swarmNest != null && spawn.characterId === SWARM_NEST_CHARACTER_ID) {
+                hydrateSwarmNestFromMissionDef(unit, spawn.swarmNest);
+            }
             if (spawn.lanterniteNestOwnerUnitId != null) {
                 unit.lanterniteState.nestOwnerUnitId = spawn.lanterniteNestOwnerUnitId;
             }
@@ -410,6 +418,9 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             }
             if (u.characterId === THORNLING_NEST_CHARACTER_ID && u.thornlingState.nestConfig != null) {
                 initializeThornlingNestSpawnState(u, engine.gameTime);
+            }
+            if (u.characterId === SWARM_NEST_CHARACTER_ID && u.swarmState.nestConfig != null) {
+                initializeSwarmNestSpawnState(u, engine.gameTime);
             }
         }
 
