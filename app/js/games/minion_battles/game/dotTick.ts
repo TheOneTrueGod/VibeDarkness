@@ -28,6 +28,7 @@ function tickThornEffect(
         const row = Math.floor(unit.y / CELL_SIZE);
         const effect = terrainLayers.getGroundEffectAt(col, row);
         if (effect?.effectType === effectType) {
+            // Flat DoT tick damage; return value unused, so no need for the shield/armour breakdown.
             unit.takeDamage(1, effect.ownerUnitId ?? null, eventBus);
         }
     }

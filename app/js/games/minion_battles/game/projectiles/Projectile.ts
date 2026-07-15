@@ -287,6 +287,8 @@ export class Projectile extends GameObject {
                 this.damage,
                 sourceAbility?.damageModifierMultiplier,
             );
+            // Return value unused; ON_ATTACK_HIT fires unconditionally below regardless of
+            // shield absorption on this direct path, so the breakdown wouldn't change anything here.
             unit.takeDamage(modifiedDamage, this.sourceUnitId, eventBus);
             if (engine) {
                 triggerAbilityEventFromAttack({

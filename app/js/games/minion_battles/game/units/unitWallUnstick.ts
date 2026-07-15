@@ -96,6 +96,7 @@ export function tickWallUnstick(unit: Unit, dt: number, engine: EngineContext): 
             ? computeSlingshotDirection(unit.wallEntryPoint?.x, unit.wallEntryPoint?.y, unit.x, unit.y, tm)
             : null;
         if (dir) {
+            // Flat punishment damage; return value unused, so no need for the shield/armour breakdown.
             unit.takeDamage(5, null, engine.eventBus);
             // Snap to nearest passable cell first; knockback starting inside a wall is immediately
             // cancelled by computeForcedDisplacement (distance = 0 when first step is also in wall).
@@ -175,6 +176,7 @@ export function tickControlledSlingshot(unit: Unit, engine: EngineContext): void
         unit.controlledSlingshotDir = { x: dirX, y: dirY };
     }
 
+    // Flat punishment damage; return value unused, so no need for the shield/armour breakdown.
     unit.takeDamage(5, null, engine.eventBus);
 
     // Arc knockback: exactly one tile, 0.2 s air, terrain-bypassing so the unit travels through walls.

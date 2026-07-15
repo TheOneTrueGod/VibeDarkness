@@ -45,6 +45,8 @@ function applyEffects(caster: Unit, effects: PassiveEffect[], engine: EngineCont
                     const dy = target.y - caster.y;
                     if (dx * dx + dy * dy > effect.range * effect.range) continue;
                 }
+                // Only used for the hitSomething > 0 check below; hp-damage-only is sufficient,
+                // no need for the shield/armour breakdown.
                 const dealt = target.takeDamage(effect.damage, caster.id, engine.eventBus);
                 if (dealt > 0) hitSomething = true;
             }

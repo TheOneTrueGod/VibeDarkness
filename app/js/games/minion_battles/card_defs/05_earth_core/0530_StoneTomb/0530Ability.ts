@@ -79,6 +79,7 @@ export const StoneTomb = defineAbility({
             if (!unit.isAlive() || !areEnemies(source.teamId, unit.teamId)) continue;
             const dist = Math.hypot(unit.x - projectile.x, unit.y - projectile.y);
             if (dist > IMPACT_RADIUS + unit.radius) continue;
+            // Flat explosion damage; return value unused, so no need for the shield/armour breakdown.
             unit.takeDamage(DAMAGE, source.id, eng.eventBus);
             tryApplyKnockbackByTier(
                 unit, KNOCKBACK_TIER,

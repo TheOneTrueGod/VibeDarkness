@@ -94,6 +94,7 @@ export const AnchoredTremor: AbilityStatic = {
                 const dy = unit.y - target.y;
                 if (dx * dx + dy * dy > r2) continue;
                 const onStone = eng.terrainManager?.getTerrainAt(unit.x, unit.y) === TerrainType.Rock;
+                // Flat pulse damage; return value unused, so no need for the shield/armour breakdown.
                 unit.takeDamage(damage + (onStone ? STONE_BONUS_DAMAGE : 0), caster.id, eng.eventBus);
             }
         }

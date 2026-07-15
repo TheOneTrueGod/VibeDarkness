@@ -110,6 +110,7 @@ export function tickUnitDarknessCorruption(unit: Unit, dt: number, engine: Engin
         unit.corruptionProgress = 0;
         const hitIndex = unit.darknessDamageProcCount + 1;
         const damage = 5 * (hitIndex + 1);
+        // Flat corruption damage; return value unused, so no need for the shield/armour breakdown.
         unit.takeDamage(damage, null, engine.eventBus);
         unit.darknessDamageProcCount += 1;
     }

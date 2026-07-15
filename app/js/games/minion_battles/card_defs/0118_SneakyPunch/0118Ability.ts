@@ -76,6 +76,7 @@ export const SneakyPunchAbility = defineMeleeStrike({
     onDamage(ctx, unit) {
         const isVulnerable = unit.hasBuff(STUNNED_BUFF_TYPE) || unit.hasBuff(BLEED_BUFF_TYPE) || unit.hasBuff(EXPOSED_BUFF_TYPE);
         if (isVulnerable) {
+            // Flat bonus damage; return value unused, so no need for the shield/armour breakdown.
             unit.takeDamage(BONUS_DAMAGE, ctx.caster.id, ctx.engine.eventBus);
             ctx.engine.addEffect(new Effect({
                 x: unit.x,

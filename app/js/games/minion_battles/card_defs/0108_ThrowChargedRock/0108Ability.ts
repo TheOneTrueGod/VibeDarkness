@@ -219,6 +219,7 @@ export const ThrowChargedRock: AbilityStatic = {
 
         for (const unit of units) {
             const modifiedDamage = getModifiedAbilityDamage(sourceUnit, explosionDamage);
+            // Flat explosion damage; return value unused, so no need for the shield/armour breakdown.
             unit.takeDamage(modifiedDamage, sourceUnit.id, eng.eventBus);
             tryApplyKnockbackByTier(
                 unit,

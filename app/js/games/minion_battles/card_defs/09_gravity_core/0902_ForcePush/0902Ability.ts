@@ -205,6 +205,7 @@ function subscribeForcePushCollisionListeners(
         const struck = engine.getUnit(data.struckUnitId);
         if (!flung?.isAlive()) return;
 
+        // Flat collision damage; return values unused, so no need for the shield/armour breakdown.
         flung.takeDamage(FORCE_PUSH_COLLISION_DAMAGE, caster.id, engine.eventBus);
         spawnCollisionClashEffect(engine, data.impact);
 
@@ -219,6 +220,7 @@ function subscribeForcePushCollisionListeners(
         const flung = engine.getUnit(data.unitId);
         if (!flung?.isAlive()) return;
 
+        // Flat collision damage; return value unused, so no need for the shield/armour breakdown.
         flung.takeDamage(FORCE_PUSH_TERRAIN_DAMAGE, caster.id, engine.eventBus);
         engine.terrainManager?.damageRock(
             data.tile.col,

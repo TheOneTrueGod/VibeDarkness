@@ -315,6 +315,7 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
                 .map(e => e.unit);
             for (const unit of hits) {
                 const modifiedDamage = getModifiedAbilityDamage(context.caster, damage);
+                // Flat AoE explosion damage; return value unused, so no need for the shield/armour breakdown.
                 unit.takeDamage(modifiedDamage, context.caster.id, context.engine.eventBus);
                 if (knockbackTier != null) {
                     tryApplyKnockbackByTier(

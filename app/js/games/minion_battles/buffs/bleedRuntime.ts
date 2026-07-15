@@ -80,6 +80,7 @@ export function tickBleedForRoundMilestone(
         if (!bleed || bleed.stacks <= 0) continue;
 
         const damage = Math.ceil(bleed.stacks / 10);
+        // Only used for the damage-number visual; hp-damage-only is sufficient, no need for the breakdown.
         const actual = unit.takeDamage(damage, null, eventBus);
         bleed.stacks -= 1;
         if (fx) {

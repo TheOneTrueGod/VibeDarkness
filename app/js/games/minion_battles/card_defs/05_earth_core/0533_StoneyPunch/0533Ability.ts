@@ -52,6 +52,8 @@ export const StoneyPunch: AbilityStatic = {
         if (distance > MAX_RANGE + target.radius) return;
         const spentArmour = spendAllEarthCoreArmour(caster);
         const damage = BASE_DAMAGE + (spentArmour * BONUS_DAMAGE_PER_ARMOUR);
+        // Consumes the caster's own armour (spentArmour above), not the target's; return value
+        // unused, so no need for the shield/armour breakdown on the hit itself.
         target.takeDamage(damage, caster.id, eng.eventBus);
     },
     getAbilityStates(): [] {
