@@ -2,17 +2,20 @@
  * The Last Holdout - Mission enemy and terrain definitions.
  *
  * C-shaped bunker on the left where players defend. Global darkness 0; campfire in the
- * middle of the C (10 HP, defense point, light 6 radius 6). Continuous spawn: 4 swarmlings randomly
- * scattered in the right half of the map every 0.25 rounds. Victory: defeat all
- * enemies after round 4.
+ * middle of the C (10 HP, defense point, light 6 radius 6). 10 swarmlings pre-placed in the
+ * right half of the map at mission start, then 4 more randomly scattered there every 0.25
+ * rounds. Victory: defeat all enemies after round 4.
  */
 
-import { BaseMissionDef } from '../../BaseMissionDef';
+import { BaseMissionDef, type InitializeGameStateParams } from '../../BaseMissionDef';
+import type { GameEngine } from '../../../game/GameEngine';
 import { NINJUTSU_TIER_1 } from '../../../game/ninjutsu/ninjutsuConfig';
-import type { LevelEvent, SpecialTilePlacement } from '../../types';
+import type { EnemySpawnDef, LevelEvent, SpecialTilePlacement } from '../../types';
 import { darkSwarmModifier } from '../../../worldModifiers/presets';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
+import { ENEMY_SWARMLING } from '../../../constants/enemyConstants';
+import { scatterPositionsInCircle } from '../../missionSpawnHelpers';
 
 // Grid: 30 columns × 20 rows (1200×800 world at 40px cells)
 const COLS = 30;
@@ -103,16 +106,21 @@ function createTerrain(): TerrainGrid {
     return grid;
 }
 
-const ENEMIES: never[] = [];
+const ENEMIES: EnemySpawnDef[] = [];
+
+/**
+ * 10 swarmlings scattered across the right half of the map. Pre-placed (not a `spawnWave`
+ * level event) so they appear instantly at mission start with no spawn-in animation.
+ */
+function buildInitialSwarm(engine: GameEngine): EnemySpawnDef[] {
+    return scatterPositionsInCircle(engine, RIGHT_HALF, 10).map((position) => ({
+        ...ENEMY_SWARMLING,
+        position,
+        unitAITreeId: 'hunt',
+    }));
+}
 
 const LEVEL_EVENTS: LevelEvent[] = [
-    {
-        type: 'spawnWave',
-        trigger: { atRound: 1 },
-        spawns: [
-            { characterId: 'swarmling', spawnBehaviour: 'anywhere', spawnTarget: RIGHT_HALF, spawnCount: 10, unitAITreeId: 'hunt' },
-        ],
-    },
     {
         type: 'continuousSpawn',
         trigger: { intervalRounds: 0.25, startRound: 1, endRound: 4 },
@@ -177,6 +185,11 @@ export class LastHoldoutMission extends BaseMissionDef {
         { col: 9, row: 11 },
         { col: 10, row: 11 },
     ];
+
+    override initializeGameState(engine: GameEngine, params: InitializeGameStateParams): void {
+        this.enemies = [...this.enemies, ...buildInitialSwarm(engine)];
+        super.initializeGameState(engine, params);
+    }
 }
 
 /** Mission instance for use in MISSION_MAP and mission select. */

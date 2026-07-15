@@ -24,6 +24,7 @@ import type { GameEngine } from '../../../game/GameEngine';
 import { BaseMissionDef, type InitializeGameStateParams } from '../../BaseMissionDef';
 import type {
     BattleObjectiveDef,
+    EnemySpawnDef,
     LevelEvent,
     PlayerSpawnPoint,
 } from '../../types';
@@ -32,6 +33,8 @@ import type { PostMissionStoryDef, PreMissionStoryDef } from '../../storyTypes';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
+import { ENEMY_DARK_WOLF, ENEMY_SWARMLING } from '../../../constants/enemyConstants';
+import { scatterPositionsInCircle } from '../../missionSpawnHelpers';
 import {
     MAP_SEGMENT_49_51_WEST_GLADE,
     LANTERN_NEST_FOCUS,
@@ -131,6 +134,21 @@ const PLAYER_SPAWN_CENTER_COL = NEST_49_51_COL;
 const PLAYER_SPAWN_CENTER_ROW = NEST_49_51_ROW + 3;
 const AMBUSH_BOX_WORLD = gridToWorld(PLAYER_SPAWN_CENTER_COL, PLAYER_SPAWN_CENTER_ROW + 6);
 
+/**
+ * Initial ambush — 3 wolves and 3 swarmlings scattered in a small box south of the player
+ * spawn cluster. Pre-placed (not a `spawnWave` level event) so they appear instantly at
+ * mission start with no spawn-in animation, like every other unit in `enemies`.
+ */
+function buildInitialAmbush(engine: GameEngine): EnemySpawnDef[] {
+    const ambushTarget = { x: AMBUSH_BOX_WORLD.x, y: AMBUSH_BOX_WORLD.y, radius: 1.5 };
+    const wolfPositions = scatterPositionsInCircle(engine, ambushTarget, 3);
+    const swarmlingPositions = scatterPositionsInCircle(engine, ambushTarget, 3);
+    return [
+        ...wolfPositions.map((position) => ({ ...ENEMY_DARK_WOLF, position, unitAITreeId: 'hunt' })),
+        ...swarmlingPositions.map((position) => ({ ...ENEMY_SWARMLING, position, unitAITreeId: 'hunt' })),
+    ];
+}
+
 // ---------------------------------------------------------------------------
 // Mission-specific POIs for the nest network
 // ---------------------------------------------------------------------------
@@ -219,7 +237,7 @@ export class ThornMarchMission extends BaseMissionDef {
         },
     ];
 
-    enemies = [
+    enemies: EnemySpawnDef[] = [
         // Pre-spawned first nest — invulnerable (invulnerabilityGenerations = 1).
         // Its children get generations = 0 and are NOT invulnerable.
         {
@@ -296,29 +314,6 @@ export class ThornMarchMission extends BaseMissionDef {
     ];
 
     levelEvents: LevelEvent[] = [
-        // Initial ambush — a few wolves and swarmlings in a 3x3 box, 6 tiles south of the player spawn cluster.
-        {
-            type: 'spawnWave',
-            trigger: { atRound: 0 },
-            spawns: [
-                {
-                    characterId: 'dark_wolf',
-                    name: 'Wolf',
-                    spawnBehaviour: 'anywhere',
-                    spawnTarget: { x: AMBUSH_BOX_WORLD.x, y: AMBUSH_BOX_WORLD.y, radius: 1.5 },
-                    spawnCount: 3,
-                    unitAITreeId: 'hunt',
-                },
-                {
-                    characterId: 'swarmling',
-                    name: 'Swarmling',
-                    spawnBehaviour: 'anywhere',
-                    spawnTarget: { x: AMBUSH_BOX_WORLD.x, y: AMBUSH_BOX_WORLD.y, radius: 1.5 },
-                    spawnCount: 3,
-                    unitAITreeId: 'hunt',
-                },
-            ],
-        },
         // 2 wolves every round
         {
             type: 'continuousSpawn',
@@ -444,6 +439,7 @@ export class ThornMarchMission extends BaseMissionDef {
     postMissionStory = POST_MISSION_STORY;
 
     override initializeGameState(engine: GameEngine, params: InitializeGameStateParams): void {
+        this.enemies = [...this.enemies, ...buildInitialAmbush(engine)];
         super.initializeGameState(engine, {
             ...params,
             terrainSegmentPOIs: [...(params.terrainSegmentPOIs ?? []), ...MISSION_POIS],

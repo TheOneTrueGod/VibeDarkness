@@ -41,6 +41,16 @@ For reusable terrain, use **map segments** from the storylines folder.
 
 For segment file layout, POI exports, and anti-patterns, read **map-segments** end-to-end before editing complex maps.
 
+## Spawn timing: "start spawned" / "spawn at the start"
+
+When instructed to have enemies "start spawned" or "spawn at the start", both phrases mean **pre-place them in the mission's `enemies: EnemySpawnDef[]` list** — not a `spawnWave` level event, even one with an early-looking trigger.
+
+- `enemies` entries are added via `engine.addUnit(unit, 'initialGameSpawn')` (see `BaseMissionDef.ts`), which skips the unit spawn-in animation. Anything spawned through `levelEvents` (`spawnWave`, `continuousSpawn`, `proximitySpawn`) always goes through the animating `'darknessSpawn'` path, regardless of trigger timing.
+- `roundNumber` starts at `1` (`GameState.ts`), so a `spawnWave` with `trigger: { atRound: 0 }` **or** `{ atRound: 1 }` both fire on the very first tick — either is effectively an immediate/mission-start spawn and should not be used for "start spawned" enemies. Only `atRound: 2+` or `afterSeconds > 0` are genuinely mid-mission.
+- When the initial placement needs randomized-but-deterministic scatter (not fixed hand-authored coordinates), don't reach for `spawnBehaviour: 'anywhere'` — instead compute positions inside an `initializeGameState` override using the engine's seeded RNG, then merge them into `this.enemies` before calling `super.initializeGameState()`. Two established patterns:
+  - Circle-based: `scatterPositionsInCircle` in `storylines/missionSpawnHelpers.ts`.
+  - Zone-based: `buildOpeningWolves` in `WorldOfDarkness/missions/007_ember_threshold.ts` (uses `resolveZoneTiles` + `engine.generateRandomInteger`).
+
 ## Key types and locations
 
 - Mission base: `app/js/games/minion_battles/storylines/BaseMissionDef.ts`
