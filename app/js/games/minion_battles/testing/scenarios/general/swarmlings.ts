@@ -106,3 +106,111 @@ export const swarmlingHuntAndBiteScenario: ScenarioDefinition = {
         return `attacks landed: ${attacksLanded}/${REQUIRED_ATTACKS} (player hp=${player?.hp}/${player?.maxHp}) | ${swarmInfo}`;
     },
 };
+
+// ---------------------------------------------------------------------------
+// Two swarmlings converge on the same POI — shared build, no duplicate nest.
+// ---------------------------------------------------------------------------
+
+const SWARM_SHARED_SITE_COL = 6;
+const SWARM_SHARED_SITE_ROW = 3;
+/** Must match SEEK_STAND_RADIUS in snet_seek.ts. */
+const SWARM_SEEK_STAND_RADIUS = 56;
+/** Must match SWARM_DEFAULT_CONSTRUCTION_SEC in swarmNestTick.ts (10s). */
+const SWARM_SOLO_CONSTRUCTION_SEC = 10;
+
+function swarmWorldOf(col: number, row: number): { x: number; y: number } {
+    return { x: col * CELL + CELL / 2, y: row * CELL + CELL / 2 };
+}
+
+export const swarmlingSharedConstructionScenario: ScenarioDefinition = {
+    id: 'swarmling_shared_construction',
+    title: 'Swarmlings: two swarmlings building at the same site finish faster than one alone',
+    category: 'general',
+    generalSection: 'Enemies',
+    maxDurationMs: 15000,
+
+    buildEngine() {
+        const engine = buildTinyBattleEngine({ gridW: 10, gridH: 8, localPlayerId: P, grass: true });
+
+        engine.registerMapPOIs([
+            {
+                id: 'swarm_shared_site',
+                label: 'Shared Swarm Site',
+                col: SWARM_SHARED_SITE_COL,
+                row: SWARM_SHARED_SITE_ROW,
+                type: 'nest',
+            },
+        ]);
+
+        const sitePos = swarmWorldOf(SWARM_SHARED_SITE_COL, SWARM_SHARED_SITE_ROW);
+
+        // Both swarmlings start already standing at their construction position (angles 0 and PI,
+        // so they don't overlap) — this isolates the shared-build/acceleration behavior from travel time.
+        function makeSwarmling(id: string, angle: number): void {
+            const standX = sitePos.x + Math.cos(angle) * SWARM_SEEK_STAND_RADIUS;
+            const standY = sitePos.y + Math.sin(angle) * SWARM_SEEK_STAND_RADIUS;
+            const swarmling = createUnitFromSpawnConfig(
+                {
+                    id,
+                    characterId: 'swarmling',
+                    name: 'Test Swarmling',
+                    x: standX,
+                    y: standY,
+                    teamId: 'enemy',
+                    ownerId: 'ai',
+                    abilities: ['0013'],
+                    unitAITreeId: 'swarmlingNetwork',
+                    aiSettings: { minRange: 0, maxRange: 70 },
+                },
+                engine.eventBus,
+                engine,
+            );
+            swarmling.swarmState.targetNestPoiId = 'swarm_shared_site';
+            swarmling.swarmState.orbitAngle = angle;
+            initializeAbilityRuntimeForUnit(swarmling);
+            engine.addUnit(swarmling, 'initialGameSpawn');
+        }
+        makeSwarmling('shared_swarmling_a', 0);
+        makeSwarmling('shared_swarmling_b', Math.PI);
+
+        spawnTinyPlayerUnit(engine, {
+            playerId: P,
+            x: swarmWorldOf(0, 7).x,
+            y: swarmWorldOf(0, 7).y,
+            abilities: [],
+        });
+
+        return engine;
+    },
+
+    getInitialOrders(engine) {
+        const player = engine.getLocalPlayerUnit();
+        if (!player) return [];
+        return [{ unitId: player.id, abilityId: 'wait', targets: [] }];
+    },
+
+    assertPass(engine) {
+        // Exactly one nest should ever be built here, and — since two swarmlings are
+        // contributing — it must complete well before a lone swarmling's 10s duration would allow.
+        const nests = engine.units.filter((u) => u.characterId === 'swarm_nest' && u.isAlive());
+        return nests.length === 1 && engine.gameTime < SWARM_SOLO_CONSTRUCTION_SEC * 0.75;
+    },
+
+    failureMessage(engine) {
+        const nests = engine.units.filter((u) => u.characterId === 'swarm_nest' && u.isAlive());
+        const swarmlings = engine.units.filter((u) => u.characterId === 'swarmling' && u.isAlive());
+        const buildTime = swarmlings[0]?.swarmState.constructionCompleteAtGameTime;
+        return (
+            `alive nests=${nests.length} alive swarmlings=${swarmlings.length}` +
+            (buildTime != null
+                ? ` constructAt=${buildTime.toFixed(1)} now=${engine.gameTime.toFixed(1)}`
+                : ' no-construct-timer')
+        );
+    },
+
+    describeState(engine) {
+        const nests = engine.units.filter((u) => u.characterId === 'swarm_nest' && u.isAlive()).length;
+        const swarmlings = engine.units.filter((u) => u.characterId === 'swarmling' && u.isAlive()).length;
+        return `t=${engine.gameTime.toFixed(1)} nests=${nests} swarmlings=${swarmlings}`;
+    },
+};

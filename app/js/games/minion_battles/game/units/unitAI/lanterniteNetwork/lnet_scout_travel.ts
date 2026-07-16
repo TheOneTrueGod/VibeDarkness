@@ -67,9 +67,30 @@ export const lnet_scout_travel: AINode<'lanterniteNetwork', LanterniteNetworkNod
                 distance(unit.x, unit.y, standX, standY) < ARRIVAL_PX &&
                 !isNestSiteContested(unit, far.x, far.y, context)
             ) {
-                const constructionSec =
-                    unit.lanterniteState.nestConfig?.scoutConstructionSec ?? DEFAULT_CONSTRUCTION_SEC;
-                unit.lanterniteState.constructionCompleteAtGameTime = context.gameTime + constructionSec;
+                // If another scout is already building at this same POI, join its build instead
+                // of starting a fresh timer — processLanterniteNests accelerates the shared
+                // completion time based on how many scouts are contributing, and only one of us
+                // will spawn the actual nest once it's done.
+                const targetPoiId = unit.lanterniteState.targetNestPoiId;
+                const existingBuilder = targetPoiId
+                    ? context
+                          .getUnits()
+                          .find(
+                              (u) =>
+                                  u.id !== unit.id &&
+                                  u.isAlive() &&
+                                  u.lanterniteState.targetNestPoiId === targetPoiId &&
+                                  u.lanterniteState.constructionCompleteAtGameTime != null,
+                          )
+                    : undefined;
+                if (existingBuilder) {
+                    unit.lanterniteState.constructionCompleteAtGameTime =
+                        existingBuilder.lanterniteState.constructionCompleteAtGameTime;
+                } else {
+                    const constructionSec =
+                        unit.lanterniteState.nestConfig?.scoutConstructionSec ?? DEFAULT_CONSTRUCTION_SEC;
+                    unit.lanterniteState.constructionCompleteAtGameTime = context.gameTime + constructionSec;
+                }
                 queueWaitAndEndTurn(unit, context);
                 return;
             }

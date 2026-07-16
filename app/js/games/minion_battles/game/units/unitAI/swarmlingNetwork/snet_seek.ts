@@ -95,10 +95,25 @@ export const snet_seek: AINode<'swarmlingNetwork', SwarmlingNetworkNodeId> = {
             const standX = poiWorld.x + Math.cos(orbitAngle) * SEEK_STAND_RADIUS;
             const standY = poiWorld.y + Math.sin(orbitAngle) * SEEK_STAND_RADIUS;
 
-            // If arrived at stand position, start construction timer
+            // If arrived at stand position, start (or join) the construction timer. If another
+            // swarmling is already building at this same POI, adopt its shared completion time
+            // instead of starting a fresh one — processSwarmNests accelerates it based on how
+            // many swarmlings are contributing.
             if (distance(unit.x, unit.y, standX, standY) < ARRIVAL_THRESHOLD_PX) {
-                const constructionSec = SWARM_DEFAULT_CONSTRUCTION_SEC;
-                unit.swarmState.constructionCompleteAtGameTime = context.gameTime + constructionSec;
+                const existingBuilder = targetPoiId
+                    ? context
+                          .getUnits()
+                          .find(
+                              (u) =>
+                                  u.id !== unit.id &&
+                                  u.isAlive() &&
+                                  u.swarmState.targetNestPoiId === targetPoiId &&
+                                  u.swarmState.constructionCompleteAtGameTime != null,
+                          )
+                    : undefined;
+                unit.swarmState.constructionCompleteAtGameTime = existingBuilder
+                    ? existingBuilder.swarmState.constructionCompleteAtGameTime
+                    : context.gameTime + SWARM_DEFAULT_CONSTRUCTION_SEC;
                 queueWaitAndEndTurn(unit, context);
                 return;
             }

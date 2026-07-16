@@ -266,6 +266,119 @@ export const lanterniteNestDualSpawnScenario: ScenarioDefinition = {
 };
 
 // ---------------------------------------------------------------------------
+// Scenario 2b: Two scouts converge on the same POI — they share one build instead
+// of racing separately, and having two of them speeds construction up.
+// ---------------------------------------------------------------------------
+
+const SHARED_SITE_COL = 6;
+const SHARED_SITE_ROW = 3;
+const SHARED_SCOUT_CONSTRUCTION_SEC = 4;
+/** Must match CONSTRUCTION_STAND_RADIUS in lnet_scout_travel.ts. */
+const SHARED_CONSTRUCTION_STAND_RADIUS = 56;
+
+export const lanterniteSharedConstructionScenario: ScenarioDefinition = {
+    id: 'lanternite_shared_construction',
+    title: 'Lanternite: two scouts building at the same site finish faster than one alone',
+    category: 'general',
+    generalSection: 'Lanternites',
+    maxDurationMs: 8000,
+
+    buildEngine() {
+        const engine = buildTinyBattleEngine({
+            gridW: 10,
+            gridH: 8,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+
+        engine.registerMapPOIs([
+            { id: 'shared_site', label: 'Shared Site', col: SHARED_SITE_COL, row: SHARED_SITE_ROW, type: 'nest' },
+        ]);
+
+        const sitePos = worldOf(SHARED_SITE_COL, SHARED_SITE_ROW);
+
+        // Both scouts start already standing at their construction position (angles 0 and PI, so
+        // they don't overlap) — this isolates the shared-build/acceleration behavior from travel time.
+        function makeScout(id: string, angle: number): void {
+            const standX = sitePos.x + Math.cos(angle) * SHARED_CONSTRUCTION_STAND_RADIUS;
+            const standY = sitePos.y + Math.sin(angle) * SHARED_CONSTRUCTION_STAND_RADIUS;
+            const scout = createUnitFromSpawnConfig(
+                {
+                    id,
+                    characterId: 'lanternite',
+                    name: 'Test Scout',
+                    x: standX,
+                    y: standY,
+                    teamId: 'allied',
+                    ownerId: 'ai',
+                    abilities: ['0010'],
+                    unitAITreeId: 'lanterniteNetwork',
+                    aiSettings: { minRange: 0, maxRange: 600 },
+                },
+                engine.eventBus,
+                engine,
+            );
+            scout.lanterniteState.role = 'scout';
+            scout.lanterniteState.targetNestPoiId = 'shared_site';
+            scout.lanterniteState.patrolFarWorld = { x: sitePos.x, y: sitePos.y };
+            scout.lanterniteState.constructionAngle = angle;
+            scout.lanterniteState.nestConfig = {
+                maxLanternites: 1,
+                spawnIntervalSec: 1,
+                patrolDestination: { kind: 'world', x: sitePos.x, y: sitePos.y },
+                networked: true,
+                nestPoiId: 'shared_site',
+                scoutConstructionSec: SHARED_SCOUT_CONSTRUCTION_SEC,
+            };
+            initializeAbilityRuntimeForUnit(scout);
+            engine.addUnit(scout, 'initialGameSpawn');
+        }
+        makeScout('shared_scout_a', 0);
+        makeScout('shared_scout_b', Math.PI);
+
+        spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: worldOf(0, 7).x,
+            y: worldOf(0, 7).y,
+            abilities: [],
+        });
+
+        return engine;
+    },
+
+    getInitialOrders(engine) {
+        const player = engine.getLocalPlayerUnit();
+        if (!player) return [];
+        return [{ unitId: player.id, abilityId: 'wait', targets: [] }];
+    },
+
+    assertPass(engine) {
+        // Exactly one nest should ever be built here, and — since two scouts are contributing —
+        // it must complete well before a lone scout's SHARED_SCOUT_CONSTRUCTION_SEC (4s) would allow.
+        const nests = engine.units.filter((u) => u.characterId === 'lanternite_nest' && u.isAlive());
+        return nests.length === 1 && engine.gameTime < SHARED_SCOUT_CONSTRUCTION_SEC * 0.75;
+    },
+
+    failureMessage(engine) {
+        const nests = engine.units.filter((u) => u.characterId === 'lanternite_nest' && u.isAlive());
+        const scouts = engine.units.filter((u) => u.characterId === 'lanternite' && u.isAlive());
+        const buildTime = scouts[0]?.lanterniteState.constructionCompleteAtGameTime;
+        return (
+            `alive nests=${nests.length} alive scouts=${scouts.length}` +
+            (buildTime != null
+                ? ` constructAt=${buildTime.toFixed(1)} now=${engine.gameTime.toFixed(1)}`
+                : ' no-construct-timer')
+        );
+    },
+
+    describeState(engine) {
+        const nests = engine.units.filter((u) => u.characterId === 'lanternite_nest' && u.isAlive()).length;
+        const scouts = engine.units.filter((u) => u.characterId === 'lanternite' && u.isAlive()).length;
+        return `t=${engine.gameTime.toFixed(1)} nests=${nests} scouts=${scouts}`;
+    },
+};
+
+// ---------------------------------------------------------------------------
 // Scenario 3: Lanternite light-pulse fires at a nearby enemy and deals damage
 // ---------------------------------------------------------------------------
 

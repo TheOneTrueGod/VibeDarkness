@@ -62,6 +62,8 @@ const NEST_SPAWN_EXTRA_RADIUS = 70;
 
 export function processLanterniteNests(params: {
     gameTime: number;
+    /** Seconds elapsed this simulation tick — drives shared-construction acceleration below. */
+    dt: number;
     units: Unit[];
     eventBus: EventBus;
     addUnit: (unit: Unit, spawnSource?: import('../types').SpawnSource) => void;
@@ -88,6 +90,33 @@ export function processLanterniteNests(params: {
         generateRandomInteger: params.generateRandomInteger,
         allocateObjectId: params.idSource?.allocateObjectId?.bind(params.idSource),
     };
+
+    // --- Shared construction: scouts building at the same POI pool their effort, so N scouts
+    // at one site finish N times faster than a lone scout. Each additional scout beyond the
+    // first pulls the group's (already-synced, see lnet_scout_travel.ts's join logic) shared
+    // completion time closer by one extra `dt` this tick.
+    {
+        const buildersByPoi = new Map<string, Unit[]>();
+        for (const u of params.units) {
+            if (!u.isAlive()) continue;
+            const poiId = u.lanterniteState.targetNestPoiId;
+            const completeAt = u.lanterniteState.constructionCompleteAtGameTime;
+            if (poiId == null || completeAt == null || completeAt <= params.gameTime) continue;
+            const group = buildersByPoi.get(poiId);
+            if (group) group.push(u);
+            else buildersByPoi.set(poiId, [u]);
+        }
+        for (const group of buildersByPoi.values()) {
+            if (group.length < 2) continue;
+            const extra = (group.length - 1) * params.dt;
+            for (const u of group) {
+                u.lanterniteState.constructionCompleteAtGameTime = Math.max(
+                    params.gameTime,
+                    u.lanterniteState.constructionCompleteAtGameTime! - extra,
+                );
+            }
+        }
+    }
 
     // --- Construction completion: scouts that have finished building ---
     for (const unit of params.units) {

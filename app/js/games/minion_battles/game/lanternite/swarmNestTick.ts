@@ -98,6 +98,8 @@ export function initializeSwarmNestSpawnState(nest: Unit, gameTime: number): voi
  */
 export function processSwarmNests(params: {
     gameTime: number;
+    /** Seconds elapsed this simulation tick — drives shared-construction acceleration below. */
+    dt: number;
     units: Unit[];
     eventBus: EventBus;
     addUnit: (unit: Unit) => void;
@@ -123,6 +125,33 @@ export function processSwarmNests(params: {
     const terrainGrid = params.terrainGrid ?? null;
     const allPois = params.mapPOIs ?? [];
 
+    // --- Shared construction: swarmlings building at the same POI pool their effort, so N
+    // swarmlings at one site finish N times faster than a lone one. Each additional swarmling
+    // beyond the first pulls the group's (already-synced, see snet_seek.ts's join logic) shared
+    // completion time closer by one extra `dt` this tick.
+    {
+        const buildersByPoi = new Map<string, Unit[]>();
+        for (const u of params.units) {
+            if (!u.isAlive()) continue;
+            const poiId = u.swarmState.targetNestPoiId;
+            const completeAt = u.swarmState.constructionCompleteAtGameTime;
+            if (poiId == null || completeAt == null || completeAt <= params.gameTime) continue;
+            const group = buildersByPoi.get(poiId);
+            if (group) group.push(u);
+            else buildersByPoi.set(poiId, [u]);
+        }
+        for (const group of buildersByPoi.values()) {
+            if (group.length < 2) continue;
+            const extra = (group.length - 1) * params.dt;
+            for (const u of group) {
+                u.swarmState.constructionCompleteAtGameTime = Math.max(
+                    params.gameTime,
+                    u.swarmState.constructionCompleteAtGameTime! - extra,
+                );
+            }
+        }
+    }
+
     // --- Construction completion: swarmlings that have finished building ---
     for (const unit of params.units) {
         if (
@@ -135,6 +164,23 @@ export function processSwarmNests(params: {
         }
 
         const targetPoiId = unit.swarmState.targetNestPoiId;
+
+        // Skip if another swarmling already built a nest at this POI
+        if (targetPoiId != null) {
+            const alreadyOccupied = params.units.some(
+                (u) =>
+                    u.characterId === SWARM_NEST_CHARACTER_ID &&
+                    u.isAlive() &&
+                    u.swarmState.nestHomePoiId === targetPoiId,
+            );
+            if (alreadyOccupied) {
+                unit.hp = 0;
+                unit.active = false;
+                params.eventBus.emit('unit_died', { unitId: unit.id, killerUnitId: null });
+                continue;
+            }
+        }
+
         const targetPoi = targetPoiId ? allPois.find((p) => p.id === targetPoiId) : null;
 
         if (targetPoi && terrainGrid) {

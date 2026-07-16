@@ -30,11 +30,11 @@ import {
     shiningBlockStaminaOnBlockScenario,
     absorptionShieldStaminaOnBlockScenario,
 } from '../scenarios/abilities/techShieldScenarios';
-import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteDefenderAttackScenario } from '../scenarios/general/lanternites';
+import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteSharedConstructionScenario, lanterniteDefenderAttackScenario } from '../scenarios/general/lanternites';
 import { lanterniteDeathBehaviorsScenario, lanterniteNestOwnedNoRespawnScenario } from '../scenarios/general/lanterniteDeath';
 import { alphaWolfEnrageTriggersScenario, alphaWolfSummonScenario } from '../scenarios/general/enemies';
 import { npcControlScenario } from '../scenarios/general/npcControl';
-import { swarmlingHuntAndBiteScenario } from '../scenarios/general/swarmlings';
+import { swarmlingHuntAndBiteScenario, swarmlingSharedConstructionScenario } from '../scenarios/general/swarmlings';
 import { petAutoEngageScenario, petHeelScenario, petSicEmPounceScenario } from '../scenarios/general/pets';
 import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from '../scenarios/general/lightingSystem';
 import { aiPlanHoldStabilityScenario } from '../scenarios/ai/ai_plan_hold_stability';
@@ -211,6 +211,11 @@ describe('runScenarioHeadless', () => {
         expect(r.passed, r.message).toBe(true);
     });
 
+    it('passes lanternite shared construction scenario (two scouts, one nest, faster build)', () => {
+        const r = runScenarioHeadless(lanterniteSharedConstructionScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
     it('passes lanternite death: torch off and respawn fires', () => {
         const r = runScenarioHeadless(lanterniteDeathBehaviorsScenario);
         expect(r.passed, r.message).toBe(true);
@@ -324,6 +329,11 @@ describe('runScenarioHeadless', () => {
 
     it('passes swarmling hunt-and-bite scenario (4 swarmlings land 4 bites)', () => {
         const r = runScenarioHeadless(swarmlingHuntAndBiteScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes swarmling shared construction scenario (two swarmlings, one nest, faster build)', () => {
+        const r = runScenarioHeadless(swarmlingSharedConstructionScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

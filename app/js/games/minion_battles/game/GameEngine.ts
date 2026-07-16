@@ -1437,6 +1437,7 @@ export class GameEngine implements EngineContext {
         if (this.gameTick % LIGHT_TICK_INTERVAL === 0) this.runLightGameTick();
         processLanterniteNests({
             gameTime: this.gameTime,
+            dt,
             units: this.units,
             eventBus: this.eventBus,
             addUnit: (u, src) => this.addUnit(u, src),
@@ -1459,6 +1460,7 @@ export class GameEngine implements EngineContext {
         });
         processSwarmNests({
             gameTime: this.gameTime,
+            dt,
             units: this.units,
             mapPOIs: this.mapPOIs,
             terrainGrid: this.terrainManager?.grid ?? null,
