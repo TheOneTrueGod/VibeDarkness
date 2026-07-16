@@ -4,7 +4,7 @@
  * Migrated to CastBehaviours.ProjectileLaunch() on the fire interval.
  */
 
-import type { AbilityStatic, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStatic, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../game/types';
@@ -26,6 +26,11 @@ const PROJECTILE_SPEED = 700;
 const MAX_DISTANCE = 200;
 const DAMAGE = 5;
 const LIGHT_COLOR = 0xffe080;
+const MAX_USES = 4;
+// 4 uses banked at once, so the ability can fire up to 4 times before needing a fresh round of recovery.
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 4 },
+];
 
 export const LanterniteStrikeAbility: AbilityStatic = defineAbility({
     id: LANTERNITE_STRIKE_ID,
@@ -33,6 +38,8 @@ export const LanterniteStrikeAbility: AbilityStatic = defineAbility({
     image: '',
     resourceCost: null,
     rechargeTurns: 0,
+    maxUses: MAX_USES,
+    recoveries: RECOVERIES,
     prefireTime: PREFIRE_TIME,
     abilityTimings: [
         { id: 'aim', start: 0, end: LOCK_TIME, abilityPhase: AbilityPhase.Windup },

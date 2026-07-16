@@ -7,7 +7,6 @@
  */
 
 import type { GameEngine } from '../game/GameEngine';
-import type { UnitSpawnConfig } from '../game/types';
 import type {
     AIControllerId,
     EnemySpawnDef,
@@ -23,7 +22,8 @@ import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { EventBus } from '../game/EventBus';
 import type { Unit } from '../game/units/Unit';
 import type { MapSegmentPOI, MapSegmentZone } from '../terrain/segmentSchema';
-import { createPlayerUnit, createUnitFromSpawnConfig } from '../game/units/index';
+import { createPlayerUnit } from '../game/units/index';
+import { enemySpawnDefToSpawnDefinition } from '../game/units/spawning/adapters';
 import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
 import { getSpecialTileDef } from './specialTileDefs';
 import { getItemDef } from '../character_defs/items';
@@ -48,7 +48,6 @@ import { Rock } from '../resources/Rock';
 import { Gravity } from '../resources/Gravity';
 import { Movement } from '../resources/Movement';
 import {
-    hydrateLanterniteNestFromMissionDef,
     prepareLanterniteNestForMissionStart,
     upsertNestLightSource,
     LANTERNITE_NEST_CHARACTER_ID,
@@ -58,7 +57,6 @@ import {
     THORNLING_NEST_CHARACTER_ID,
 } from '../game/lanternite/thornlingNestTick';
 import {
-    hydrateSwarmNestFromMissionDef,
     initializeSwarmNestSpawnState,
     SWARM_NEST_CHARACTER_ID,
 } from '../game/lanternite/swarmNestTick';
@@ -305,26 +303,21 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             for (const petId of getPetsFromResearch(researchByPlayer[pu.playerId])) {
                 const petDef = getPetDef(petId);
                 if (!petDef) continue;
-                const pet = createUnitFromSpawnConfig(
+                const [pet] = engine.spawnUnit(
                     {
                         characterId: petDef.unitCharacterId,
                         name: petDef.name,
                         teamId: 'player',
-                        ownerId: 'ai',
-                        unitAITreeId: 'pet',
                         abilities: [...petDef.abilityIds],
-                        x: spawnX + 40,
-                        y: spawnY,
+                        unitAITreeId: 'pet',
                         aiSettings: { minRange: 0, maxRange: 50 },
+                        placement: { kind: 'fixedWorld', x: spawnX + 40, y: spawnY },
+                        aiHookup: { kind: 'pet', ownerUnitId: unit.id, defId: petId },
                     },
-                    params.eventBus,
-                    engine,
+                    'initialGameSpawn',
                 );
-                pet.petState.defId = petId;
-                pet.petState.ownerUnitId = unit.id;
-                unit.petState.unitIds.push(pet.id);
+                if (!pet) continue;
                 initializeAbilityRuntimeForUnit(pet);
-                engine.addUnit(pet, 'initialGameSpawn');
             }
         }
 
@@ -355,51 +348,15 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
 
         // Add enemies (health scaled by player count)
         const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
-        const enemySpawns: UnitSpawnConfig[] = this.enemies.map((e) => ({ ...e, ownerId: 'ai' }));
-        for (const spawn of enemySpawns) {
-            const stats = resolveEnemySpawnStats(spawn);
-            const unit = createUnitFromSpawnConfig(
-                {
-                    ...spawn,
-                    ...(spawn.unitId ? { id: spawn.unitId } : {}),
-                    hp: Math.round(stats.hp * (spawn.teamId === 'enemy' ? enemyHealthMult : 1)),
-                    speed: stats.speed,
-                    x: spawn.position.x,
-                    y: spawn.position.y,
-                },
-                params.eventBus,
-                engine,
-            );
-            if (spawn.lanterniteNest != null && spawn.characterId === LANTERNITE_NEST_CHARACTER_ID) {
-                hydrateLanterniteNestFromMissionDef(unit, spawn.lanterniteNest);
-            }
-            if (spawn.thornlingNest != null && spawn.characterId === THORNLING_NEST_CHARACTER_ID) {
-                unit.thornlingState.nestConfig = spawn.thornlingNest;
-            }
-            if (spawn.swarmNest != null && spawn.characterId === SWARM_NEST_CHARACTER_ID) {
-                hydrateSwarmNestFromMissionDef(unit, spawn.swarmNest);
-            }
-            if (spawn.lanterniteNestOwnerUnitId != null) {
-                unit.lanterniteState.nestOwnerUnitId = spawn.lanterniteNestOwnerUnitId;
-            }
-            if (spawn.lanternPatrolFarWorld != null) {
-                unit.lanterniteState.patrolFarWorld = { ...spawn.lanternPatrolFarWorld };
-            }
-            if (spawn.lanternPatrolLeg === 'toFar' || spawn.lanternPatrolLeg === 'toNest') {
-                unit.lanterniteState.patrolLeg = spawn.lanternPatrolLeg;
-            }
-            if (spawn.lanterniteRole != null) {
-                unit.lanterniteState.role = spawn.lanterniteRole;
-            }
-            if (spawn.lanterniteTargetNestPoiId != null) {
-                unit.lanterniteState.targetNestPoiId = spawn.lanterniteTargetNestPoiId;
-            }
-            if (spawn.invulnerabilityGenerations != null) {
-                unit.invulnerabilityGenerations = spawn.invulnerabilityGenerations;
-            }
+        for (const e of this.enemies) {
+            const def = enemySpawnDefToSpawnDefinition(e, 'ai');
+            const stats = resolveEnemySpawnStats(e);
+            def.hp = Math.round(stats.hp * (e.teamId === 'enemy' ? enemyHealthMult : 1));
+            def.speed = stats.speed;
+            const [unit] = engine.spawnUnit(def, 'initialGameSpawn');
+            if (!unit) continue;
             initializeAbilityRuntimeForUnit(unit);
             attachAmmoIfNeeded(engine, unit);
-            engine.addUnit(unit, 'initialGameSpawn');
         }
 
         for (const u of engine.units) {

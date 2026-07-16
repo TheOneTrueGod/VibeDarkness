@@ -13,7 +13,7 @@ import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { isAbilityNote } from '../../game/AbilityNote';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
 import { isLightHateWeakened } from '../../game/lightHate';
-import { createUnitFromSpawnConfig } from '../../game/units/index';
+import type { SpawnDefinition } from '../../game/units/spawning/spawnDefinition';
 
 export const HUSK_SEED_BARRAGE_ID = `${formatGroupId(AbilityGroupId.Enemy)}09`;
 
@@ -34,6 +34,7 @@ interface EngineLike {
     eventBus: import('../../game/EventBus').EventBus;
     addProjectile(projectile: Projectile): void;
     addUnit(unit: Unit, spawnSource?: import('../../game/types').SpawnSource): void;
+    spawnUnit(def: SpawnDefinition, spawnSource?: import('../../game/types').SpawnSource): Unit[];
     getUnit(id: string): Unit | undefined;
     allocateObjectId?(prefix?: string): string;
     lightLevelEnabled: boolean;
@@ -117,23 +118,19 @@ export const HuskSeedBarrageAbility: AbilityStatic = {
         for (let i = 0; i < spawnCount; i++) {
             const ox = i === 0 ? 0 : (i === 1 ? 16 : -16);
             const oy = i === 0 ? 0 : 12;
-            const husk = createUnitFromSpawnConfig(
+            eng.spawnUnit(
                 {
                     characterId: 'huskling',
                     name: 'huskling',
-                    x: projectile.x + ox,
-                    y: projectile.y + oy,
                     teamId: 'enemy',
-                    ownerId: 'ai',
                     abilities: ['0002'],
                     aiSettings: { minRange: 0, maxRange: 70 },
                     combatSettings: { damageModifier: { flatAmt: -3, multiplier: 1 } },
                     ephemeralDespawnAtGameTime: eng.gameTime + HUSK_LIFETIME_SEC,
+                    placement: { kind: 'fixedWorld', x: projectile.x + ox, y: projectile.y + oy },
                 },
-                eng.eventBus,
-                eng,
+                'abilitySpawn',
             );
-            eng.addUnit(husk, 'abilitySpawn');
         }
     },
 

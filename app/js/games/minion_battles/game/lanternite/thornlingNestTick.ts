@@ -6,7 +6,7 @@
 import type { EventBus } from '../EventBus';
 import type { EngineContext } from '../EngineContext';
 import type { Unit } from '../units/Unit';
-import { createUnitFromSpawnConfig } from '../units/index';
+import { spawnUnit, type SpawnUnitContext } from '../units/spawning/spawnUnit';
 
 export const THORNLING_NEST_CHARACTER_ID = 'thornling_nest';
 export const THORNLING_CHARACTER_ID = 'thornling';
@@ -37,11 +37,22 @@ export function processThornlingNests(params: {
     eventBus: EventBus;
     addUnit: (unit: Unit) => void;
     idSource?: Pick<EngineContext, 'allocateObjectId'>;
-    generateRandomNumber?: () => number;
+    /** Seeded RNG source — must be passed from the engine so spawn positions are deterministic across clients. */
+    generateRandomInteger: (min: number, max: number) => number;
 }): void {
-    const INT31 = 0x7fffffff;
-    // eslint-disable-next-line no-restricted-syntax
-    const rng = params.generateRandomNumber ?? (() => Math.floor(Math.random() * INT31));
+    const spawnCtx: SpawnUnitContext = {
+        units: params.units,
+        eventBus: params.eventBus,
+        addUnit: params.addUnit,
+        terrainManager: null,
+        lightLevelEnabled: false,
+        aiControllerId: null,
+        mapPOIs: [],
+        getLightAt: () => null,
+        getZoneById: () => undefined,
+        generateRandomInteger: params.generateRandomInteger,
+        allocateObjectId: params.idSource?.allocateObjectId?.bind(params.idSource),
+    };
 
     for (const nest of params.units) {
         if (!nest.isAlive() || nest.characterId !== THORNLING_NEST_CHARACTER_ID) continue;
@@ -63,28 +74,19 @@ export function processThornlingNests(params: {
         for (let burst = 0; burst < burstCount; burst++) {
             if (state.spawnedIds.length >= cfg.maxThornlings) break;
 
-            const angle = (rng() / INT31) * Math.PI * 2;
-            const dist = nest.radius + (rng() / INT31) * NEST_SPAWN_EXTRA_RADIUS;
-
-            const child = createUnitFromSpawnConfig(
-                {
-                    x: nest.x + Math.cos(angle) * dist,
-                    y: nest.y + Math.sin(angle) * dist,
-                    teamId: nest.teamId,
-                    ownerId: 'ai',
-                    characterId: spawnCharacterId,
-                    name: spawnCharacterId.charAt(0).toUpperCase() + spawnCharacterId.slice(1).replace(/_/g, ' '),
-                    abilities: spawnAbilities,
-                    unitAITreeId: spawnAITreeId,
-                    aiSettings: { minRange: 0, maxRange: 80 },
-                    hp: undefined,
-                    speed: undefined,
+            const [child] = spawnUnit(spawnCtx, {
+                characterId: spawnCharacterId,
+                name: spawnCharacterId.charAt(0).toUpperCase() + spawnCharacterId.slice(1).replace(/_/g, ' '),
+                abilities: spawnAbilities,
+                teamId: nest.teamId,
+                unitAITreeId: spawnAITreeId,
+                aiSettings: { minRange: 0, maxRange: 80 },
+                placement: {
+                    kind: 'relativeToUnit',
+                    anchorUnitId: nest.id,
+                    maxRadiusPx: nest.radius + NEST_SPAWN_EXTRA_RADIUS,
                 },
-                params.eventBus,
-                params.idSource,
-            );
-
-            params.addUnit(child);
+            });
             state.spawnedIds.push(child.id);
         }
 

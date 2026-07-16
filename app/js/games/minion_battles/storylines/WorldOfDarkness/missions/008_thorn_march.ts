@@ -123,6 +123,10 @@ const NEST_49_51_UNIT_ID = 'nest_49_51_unit';
 const GUARD_A_WORLD = gridToWorld(NEST_49_51_COL - 2, NEST_49_51_ROW);
 const GUARD_B_WORLD = gridToWorld(NEST_49_51_COL + 2, NEST_49_51_ROW);
 
+/** Scout lanternite positions — just south of the first nest, facing the march to 49_52. */
+const SCOUT_A_WORLD = gridToWorld(NEST_49_51_COL - 1, NEST_49_51_ROW + 2);
+const SCOUT_B_WORLD = gridToWorld(NEST_49_51_COL + 1, NEST_49_51_ROW + 2);
+
 /** Thornbinder pre-spawn — south-east of the first nest, in the lower glade. */
 const THORNBINDER_START_WORLD = gridToWorld(NEST_49_51_COL + 4, NEST_49_51_ROW + 24);
 
@@ -284,6 +288,33 @@ export class ThornMarchMission extends BaseMissionDef {
             lanterniteNestOwnerUnitId: NEST_49_51_UNIT_ID,
             lanterniteRole: 'defender' as const,
         },
+        // Two scout lanternites, marching south to build the second nest (49_52) from mission start.
+        {
+            characterId: LANTERNITE_CHARACTER_ID,
+            name: 'Lanternite Scout',
+            position: SCOUT_A_WORLD,
+            teamId: 'nature' as const,
+            abilities: ['0010'],
+            aiSettings: { minRange: 0, maxRange: 600 },
+            unitAITreeId: 'lanterniteNetwork',
+            lanterniteNestOwnerUnitId: NEST_49_51_UNIT_ID,
+            lanterniteRole: 'scout' as const,
+            lanterniteTargetNestPoiId: 'nest_49_52',
+            lanternPatrolFarWorld: NEST_49_52_WORLD,
+        },
+        {
+            characterId: LANTERNITE_CHARACTER_ID,
+            name: 'Lanternite Scout',
+            position: SCOUT_B_WORLD,
+            teamId: 'nature' as const,
+            abilities: ['0010'],
+            aiSettings: { minRange: 0, maxRange: 600 },
+            unitAITreeId: 'lanterniteNetwork',
+            lanterniteNestOwnerUnitId: NEST_49_51_UNIT_ID,
+            lanterniteRole: 'scout' as const,
+            lanterniteTargetNestPoiId: 'nest_49_52',
+            lanternPatrolFarWorld: NEST_49_52_WORLD,
+        },
         // Thornbinder pre-spawned near the first nest — zone controller in the glade.
         {
             characterId: 'thornbinder',
@@ -305,8 +336,8 @@ export class ThornMarchMission extends BaseMissionDef {
             aiSettings: { minRange: 0, maxRange: 0 },
             unitAITreeId: 'lanterniteNestIdle',
             swarmNest: {
-                maxSwarmlings: 6,
-                spawnIntervalSec: 10,
+                maxSwarmlings: 10,
+                spawnIntervalSec: 3,
                 spawnCount: 2,
                 nestPoiId: 'nest_48_52',
             },

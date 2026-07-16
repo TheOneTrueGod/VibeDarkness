@@ -24,7 +24,7 @@ import type { EnrageDef } from '../enrageDef';
  * Defines the spawn animation played when a unit of this type enters the field via darknessSpawn.
  * Duration drives spawnTimer; all other animation parameters live here, not on Unit.
  */
-export type SpawnDefinition =
+export type SpawnAnimationDef =
     | { type: 'darkVortex'; duration: number }
     | { type: 'burstRise'; duration: number; riseHeight?: number };
 
@@ -154,7 +154,7 @@ export interface UnitDefEntry {
      *  displacing them reactively. undefined = cannot shove. */
     shovePriority?: number;
     /** Spawn animation played when this unit enters via darknessSpawn. Absent = default dark vortex (0.5 s). */
-    spawnDef?: SpawnDefinition;
+    spawnDef?: SpawnAnimationDef;
 }
 
 const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
@@ -305,7 +305,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
             { type: 'sporeRebirth' },
         ],
         uiDescription:
-            'Lantern-bearing creature — pulses light twice each round (Soul Sap) and wanders patrol routes beside its nest.',
+            'Lantern-bearing creature — pulses light up to four times each round (Soul Sap) and wanders patrol routes beside its nest.',
     },
     lanternite_nest: {
         bodyColor: 0x065f46,
@@ -664,7 +664,7 @@ export function getUnitShovePriority(characterId: string): number | undefined {
 }
 
 /** Spawn animation definition for a character (undefined = use default dark vortex 0.5 s). */
-export function getUnitSpawnDef(characterId: string): SpawnDefinition | undefined {
+export function getUnitSpawnDef(characterId: string): SpawnAnimationDef | undefined {
     return UNIT_DEFS[characterId as UnitDefId]?.spawnDef;
 }
 

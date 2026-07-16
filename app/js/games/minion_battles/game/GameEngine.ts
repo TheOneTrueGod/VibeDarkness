@@ -59,6 +59,8 @@ import { processLanternitePulseMilestone, removeLanterniteLightSources } from '.
 import { processLanterniteNests } from './lanternite/lanterniteNestTick';
 import { processThornlingNests } from './lanternite/thornlingNestTick';
 import { processSwarmNests } from './lanternite/swarmNestTick';
+import { spawnUnit as spawnUnitFromDefinition } from './units/spawning/spawnUnit';
+import type { SpawnDefinition } from './units/spawning/spawnDefinition';
 import { TerrainLayerManager } from './TerrainLayerManager';
 import { isWithinEarthCoreNearbyStoneDamagedRange } from '../abilities/earthCoreHelpers';
 import { resetGameObjectIdCounter } from './GameObject';
@@ -370,6 +372,15 @@ export class GameEngine implements EngineContext {
         this.tryAssignNpcControlOnSpawn(unit);
         this.state.unitManager.addUnit(unit);
         this.mixRuntimeFingerprint(FingerprintEvent.SPAWN, this.hashString32(unit.id), Math.floor(unit.x), Math.floor(unit.y));
+    }
+
+    /**
+     * The single code path for constructing a unit from a `SpawnDefinition` and adding it to the
+     * battle — resolves placement, builds the unit, applies AI-hookup state, and calls `addUnit`.
+     * See game/units/spawning/spawnUnit.ts.
+     */
+    spawnUnit(def: SpawnDefinition, spawnSource?: SpawnSource): Unit[] {
+        return spawnUnitFromDefinition(this, def, spawnSource);
     }
 
     /**
@@ -1436,7 +1447,7 @@ export class GameEngine implements EngineContext {
             addLightSource: (ls) => this.addLightSource(ls),
             lightSources: this.state.lightSourceManager.lightSources,
             addEffectEmitter: (em) => this.addEffectEmitter(em),
-            generateRandomNumber: () => this.generateRandomNumber(),
+            generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
         });
         processThornlingNests({
             gameTime: this.gameTime,
@@ -1444,7 +1455,7 @@ export class GameEngine implements EngineContext {
             eventBus: this.eventBus,
             addUnit: (u) => this.addUnit(u, 'nestSpawn'),
             idSource: this,
-            generateRandomNumber: () => this.generateRandomNumber(),
+            generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
         });
         processSwarmNests({
             gameTime: this.gameTime,
@@ -1454,7 +1465,7 @@ export class GameEngine implements EngineContext {
             eventBus: this.eventBus,
             addUnit: (u) => this.addUnit(u, 'nestSpawn'),
             idSource: this,
-            generateRandomNumber: () => this.generateRandomNumber(),
+            generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
         });
         this.state.lanterniteRespawnManager.gameTick(this.gameTime, this, this.eventBus);
         this.state.unitManager.cleanupInactive();

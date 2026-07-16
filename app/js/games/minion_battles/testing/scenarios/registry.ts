@@ -50,7 +50,7 @@ import { lightBlastCommittedScenario, lightBlastRangeCapScenario, lightBlastHitC
 import { gatherLightCommittedScenario } from './abilities/gatherLightScenario';
 import { throwKnifePiercingBleedScenario } from './abilities/throwKnifeScenarios';
 import { clawMovementDistanceScenario } from './abilities/clawScenarios';
-import { pistolHitsDummyScenario } from './abilities/gunScenarios';
+import { pistolHitsDummyScenario, smgHitsDummyScenario, shotgunHitsDummyScenario } from './abilities/gunScenarios';
 import { absorptionShieldEnergyChargeScenario } from './abilities/absorptionShieldScenario';
 import {
     raiseShieldBlocksScenario,
@@ -179,6 +179,8 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     throwKnifePiercingBleedScenario,
     clawMovementDistanceScenario,
     pistolHitsDummyScenario,
+    smgHitsDummyScenario,
+    shotgunHitsDummyScenario,
     petAutoEngageScenario,
     petHeelScenario,
     petSicEmPounceScenario,
@@ -286,7 +288,9 @@ export function inferScenarioAbilityId(scenario: ScenarioDefinition): string | n
     if (id === 'punch_research_sneaky') return '0118';
     if (id === 'punch_research_charging') return '0119';
     if (id === 'punch_new_baseline' || id.startsWith('bash_')) return '0120';
-    if (id.startsWith('pistol_') || id.startsWith('smg_') || id.startsWith('shotgun_')) return '0203';
+    if (id.startsWith('pistol_')) return '0203';
+    if (id.startsWith('smg_')) return '0204';
+    if (id.startsWith('shotgun_')) return '0205';
     if (id.startsWith('throw_rock') || id.includes('throw_rock')) return 'throw_rock';
     if (id.startsWith('claw_')) return '0111';
     if (id.startsWith('laser_sword')) return '0105';

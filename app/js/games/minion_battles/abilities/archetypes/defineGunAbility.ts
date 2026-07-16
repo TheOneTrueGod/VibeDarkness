@@ -19,7 +19,15 @@
  * Timing:
  *  - cooldownDuration = seconds from the LAST shot to ability end.
  *  - Total duration = prefireTime + (numShots-1)*shotSpacing + SHOT_INTERVAL_WIDTH + cooldownDuration.
- *    (SHOT_INTERVAL_WIDTH = 1ms — negligible, required so the spray interval passes validation.)
+ *  - Absolute shot-fire times are exactly `prefireTime + i*shotSpacing` regardless of
+ *    SHOT_INTERVAL_WIDTH — the width cancels out of the progress-fraction math (fraction =
+ *    i*shotSpacing/windowLength, firedAt = start + fraction*windowLength). SHOT_INTERVAL_WIDTH
+ *    only needs to be wide enough that the fixed-tick simulation can't step clean over the
+ *    window: the engine samples ability-timing intervals once per fixed tick (60 Hz, ~16.7ms)
+ *    via point-containment, not range overlap, so a window narrower than one tick can be
+ *    entered and exited between two consecutive ticks and never get sampled at all — this is
+ *    fatal for single-shot guns (numShots=1, e.g. Shotgun), where naturalSprayWidth is 0 and
+ *    the window IS SHOT_INTERVAL_WIDTH. Keep this comfortably above one tick.
  */
 
 import type {
@@ -48,8 +56,10 @@ import {
 } from '../previewHelpers';
 import { getPixelTargetPosition } from '../targetHelpers';
 
-// Minimal interval width so the spray window passes validateAbilityTimings (start < end).
-const SHOT_INTERVAL_WIDTH = 0.001;
+// Spray window padding. Must exceed one fixed simulation tick (1/60s ≈ 0.0167s) with margin,
+// or the ability-timing sampler can step clean over the window without ever entering it —
+// see the class doc comment above. 0.05s is ~3 ticks of margin.
+const SHOT_INTERVAL_WIDTH = 0.05;
 
 // ---------------------------------------------------------------------------
 // Config interface

@@ -16,10 +16,11 @@ import { Effect } from '../../../game/effects/Effect';
 import { spawnSpriteEffect } from '../../../abilities/effectHelpers';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { areEnemies } from '../../../game/teams';
-import { createUnitFromSpawnConfig } from '../../../game/units/index';
 import { buildResolvedTargets } from '../../../game/units/unitAI/utils';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
+import { enemySpawnDefToSpawnDefinition } from '../../../game/units/spawning/adapters';
+import type { SpawnDefinition } from '../../../game/units/spawning/spawnDefinition';
 import type { EventBus } from '../../../game/EventBus';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}05`;
@@ -39,6 +40,7 @@ interface GameEngineLike {
     units: Unit[];
     getUnit(id: string): Unit | undefined;
     addUnit(unit: Unit, spawnSource?: import('../../../game/types').SpawnSource): void;
+    spawnUnit(def: SpawnDefinition, spawnSource?: import('../../../game/types').SpawnSource): Unit[];
     addEffect(effect: Effect): void;
     state: { orderMgr: { queueOrder(atTick: number, order: { unitId: string; abilityId: string; targets: ResolvedTarget[] }): void } };
     gameTick: number;
@@ -152,20 +154,18 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
 
             // Always AI-owned and non-controllable: do not inherit player control or Boss tag
             // from a player-controlled alpha wolf.
-            const config = {
-                ...ENEMY_DARK_WOLF,
-                x: spawnX,
-                y: spawnY,
-                position: { x: spawnX, y: spawnY },
-                teamId: caster.teamId,
-                ownerId: 'ai' as const,
-                unitAITreeId: caster.unitAITreeId,
-                controllable: false,
-                unitTags: [],
-            };
-
-            const wolf = createUnitFromSpawnConfig(config, eng.eventBus, eng);
-            eng.addUnit(wolf, 'abilitySpawn');
+            const [wolf] = eng.spawnUnit(
+                {
+                    ...enemySpawnDefToSpawnDefinition(ENEMY_DARK_WOLF, 'ai'),
+                    teamId: caster.teamId,
+                    unitAITreeId: caster.unitAITreeId,
+                    controllable: false,
+                    unitTags: [],
+                    placement: { kind: 'fixedWorld', x: spawnX, y: spawnY },
+                },
+                'abilitySpawn',
+            );
+            if (!wolf) continue;
 
             // Instant burst at the summon position to replace the skipped spawn animation.
             for (let p = 0; p < 10; p++) {

@@ -51,6 +51,7 @@ import { gravityGrazeScenario } from '../scenarios/abilities/gravityGrazeScenari
 import { gravityLocusScenario } from '../scenarios/abilities/gravityLocusScenario';
 import { forcePushScenario } from '../scenarios/abilities/forcePushScenario';
 import { gravityInversionScenario } from '../scenarios/abilities/gravityInversionScenario';
+import { pistolHitsDummyScenario, smgHitsDummyScenario, shotgunHitsDummyScenario } from '../scenarios/abilities/gunScenarios';
 import {
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
@@ -433,6 +434,21 @@ describe('runScenarioHeadless', () => {
 
     it('Gravity Inversion (0903): lift lock, slam damage, and pull lands at caster', () => {
         const r = runScenarioHeadless(gravityInversionScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Pistol (0203): dummy at mid range takes damage from at least one shot', () => {
+        const r = runScenarioHeadless(pistolHitsDummyScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('SMG (0204): dummy at mid range takes damage from the spray', () => {
+        const r = runScenarioHeadless(smgHitsDummyScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Shotgun (0205): dummy at close range takes damage from the pellet blast', () => {
+        const r = runScenarioHeadless(shotgunHitsDummyScenario);
         expect(r.passed, r.message).toBe(true);
     });
 });

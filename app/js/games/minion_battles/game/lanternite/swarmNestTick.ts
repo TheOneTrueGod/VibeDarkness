@@ -9,8 +9,7 @@ import type { EngineContext } from '../EngineContext';
 import type { Unit } from '../units/Unit';
 import type { MapSegmentPOI } from '../../terrain/segmentSchema';
 import type { SwarmNestMissionConfig } from '../../storylines/types';
-import { CELL_SIZE } from '../../terrain/TerrainGrid';
-import { createUnitFromSpawnConfig } from '../units/index';
+import { spawnUnit, type SpawnUnitContext } from '../units/spawning/spawnUnit';
 
 export const SWARM_NEST_CHARACTER_ID = 'swarm_nest';
 export const SWARM_NEST_SWARMLING_CHARACTER_ID = 'swarmling';
@@ -92,12 +91,6 @@ export function initializeSwarmNestSpawnState(nest: Unit, gameTime: number): voi
     };
 }
 
-/** Wire a mission-defined `swarm_nest` spawn's config and home POI (mirrors lanternite nest hydration). */
-export function hydrateSwarmNestFromMissionDef(unit: Unit, cfg: SwarmNestMissionConfig): void {
-    unit.swarmState.nestConfig = cfg;
-    if (cfg.nestPoiId) unit.swarmState.nestHomePoiId = cfg.nestPoiId;
-}
-
 /**
  * Advances swarm nest spawn timers once per simulation tick (host-only).
  * Also handles swarmling construction completion — spawns a new swarm nest at the target POI
@@ -111,11 +104,22 @@ export function processSwarmNests(params: {
     idSource?: Pick<EngineContext, 'allocateObjectId'>;
     mapPOIs?: readonly MapSegmentPOI[];
     terrainGrid?: TerrainGridLike | null;
-    generateRandomNumber?: () => number;
+    /** Seeded RNG source — must be passed from the engine so spawn positions are deterministic across clients. */
+    generateRandomInteger: (min: number, max: number) => number;
 }): void {
-    const INT31 = 0x7fffffff;
-    // eslint-disable-next-line no-restricted-syntax
-    const rng = params.generateRandomNumber ?? (() => Math.floor(Math.random() * INT31));
+    const spawnCtx: SpawnUnitContext = {
+        units: params.units,
+        eventBus: params.eventBus,
+        addUnit: params.addUnit,
+        terrainManager: null,
+        lightLevelEnabled: false,
+        aiControllerId: null,
+        mapPOIs: params.mapPOIs ?? [],
+        getLightAt: () => null,
+        getZoneById: () => undefined,
+        generateRandomInteger: params.generateRandomInteger,
+        allocateObjectId: params.idSource?.allocateObjectId?.bind(params.idSource),
+    };
     const terrainGrid = params.terrainGrid ?? null;
     const allPois = params.mapPOIs ?? [];
 
@@ -145,28 +149,17 @@ export function processSwarmNests(params: {
                 spawnIntervalSec: 8,
             };
 
-            const newNest = createUnitFromSpawnConfig(
-                {
-                    x: world.x,
-                    y: world.y,
-                    teamId: unit.teamId,
-                    ownerId: 'ai',
-                    characterId: SWARM_NEST_CHARACTER_ID,
-                    name: 'Swarm Nest',
-                    abilities: [],
-                    unitAITreeId: 'lanterniteNestIdle',
-                    aiSettings: null,
-                    hp: undefined,
-                    speed: undefined,
-                },
-                params.eventBus,
-                params.idSource,
-            );
-            newNest.swarmState.nestConfig = { ...cfg };
-            newNest.swarmState.nestHomePoiId = targetPoiId ?? null;
+            const [newNest] = spawnUnit(spawnCtx, {
+                characterId: SWARM_NEST_CHARACTER_ID,
+                name: 'Swarm Nest',
+                abilities: [],
+                teamId: unit.teamId,
+                unitAITreeId: 'lanterniteNestIdle',
+                aiSettings: null,
+                placement: { kind: 'fixedWorld', x: world.x, y: world.y },
+                aiHookup: { kind: 'swarmNest', nestConfig: { ...cfg }, homeNestPoiId: targetPoiId ?? undefined },
+            });
             initializeSwarmNestSpawnState(newNest, params.gameTime);
-
-            params.addUnit(newNest);
         }
 
         // Remove the swarmling that completed construction
@@ -195,41 +188,27 @@ export function processSwarmNests(params: {
             const aliveCount = state.spawnedIds.length;
             const orbitAngle = (aliveCount * GOLDEN_ANGLE) % (Math.PI * 2);
 
-            const angle = (rng() / INT31) * Math.PI * 2;
-            const dist = nest.radius + (rng() / INT31) * NEST_SPAWN_EXTRA_RADIUS;
-
-            const child = createUnitFromSpawnConfig(
-                {
-                    x: nest.x + Math.cos(angle) * dist,
-                    y: nest.y + Math.sin(angle) * dist,
-                    teamId: nest.teamId,
-                    ownerId: 'ai',
-                    characterId: SWARM_NEST_SWARMLING_CHARACTER_ID,
-                    name: 'Swarmling',
-                    abilities: [SWARMLING_BITE_ABILITY_ID],
-                    unitAITreeId: SWARMLING_AI_TREE_ID,
-                    aiSettings: { minRange: 0, maxRange: 70 },
-                    hp: undefined,
-                    speed: undefined,
-                },
-                params.eventBus,
-                params.idSource,
-            );
-
-            child.swarmState.orbitAngle = orbitAngle;
-            child.swarmState.nestOwnerUnitId = nest.id;
-
             // Assign target POI if available
+            let targetNestPoiId: string | undefined;
             if (terrainGrid && allPois.length > 0) {
                 const targetPoi = findUnclaimedNestPoi(nest.x, nest.y, allPois, params.units, terrainGrid);
-                if (targetPoi) {
-                    child.swarmState.targetNestPoiId = targetPoi.id;
-                    // Pre-mark so subsequent spawns in this burst don't pick the same POI
-                    child.swarmState.targetNestPoiId = targetPoi.id;
-                }
+                if (targetPoi) targetNestPoiId = targetPoi.id;
             }
 
-            params.addUnit(child);
+            const [child] = spawnUnit(spawnCtx, {
+                characterId: SWARM_NEST_SWARMLING_CHARACTER_ID,
+                name: 'Swarmling',
+                abilities: [SWARMLING_BITE_ABILITY_ID],
+                teamId: nest.teamId,
+                unitAITreeId: SWARMLING_AI_TREE_ID,
+                aiSettings: { minRange: 0, maxRange: 70 },
+                placement: {
+                    kind: 'relativeToUnit',
+                    anchorUnitId: nest.id,
+                    maxRadiusPx: nest.radius + NEST_SPAWN_EXTRA_RADIUS,
+                },
+                aiHookup: { kind: 'swarm', orbitAngle, targetNestPoiId, nestOwnerUnitId: nest.id },
+            });
             state.spawnedIds.push(child.id);
         }
 

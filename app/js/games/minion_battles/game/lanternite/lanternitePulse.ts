@@ -4,7 +4,6 @@
 
 import type { Unit } from '../units/Unit';
 import type { EventBus } from '../EventBus';
-import type { LanterniteNestMissionConfig } from '../../storylines/types';
 import { LightSource } from '../lightSources/LightSource';
 
 export const LANTERNITE_CHARACTER_ID = 'lanternite';
@@ -148,7 +147,3 @@ export function prepareLanterniteNestForMissionStart(unit: Unit, gameTime: numbe
     };
 }
 
-export function hydrateLanterniteNestFromMissionDef(unit: Unit, cfg: LanterniteNestMissionConfig): void {
-    unit.lanterniteState.nestConfig = cfg;
-    if (cfg.nestPoiId) unit.lanterniteState.homeNestPoiId = cfg.nestPoiId;
-}

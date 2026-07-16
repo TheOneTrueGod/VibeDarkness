@@ -70,7 +70,7 @@ A Lanternite with **no** nest owner (spawned directly into a mission) respawns *
 ## Code Map [Draft]
 
 ### Core Lanternite systems
-- `app/js/games/minion_battles/game/lanternite/lanternitePulse.ts` — Soul Sap pulse, torch light management, free-unit respawn scheduling, mission start init (`prepareLanterniteNestForMissionStart`, `hydrateLanterniteNestFromMissionDef`)
+- `app/js/games/minion_battles/game/lanternite/lanternitePulse.ts` — Soul Sap pulse, torch light management, free-unit respawn scheduling, mission start init (`prepareLanterniteNestForMissionStart`)
 - `app/js/games/minion_battles/game/lanternite/lanterniteNestTick.ts` — per-tick nest pacing; construction completion loop (scouts → new nest spawn); role-aware networked spawn logic; legacy patrol fallback
 - `app/js/games/minion_battles/game/lanternite/lanterniteNetworkUtils.ts` — POI graph helpers: `getConnectedNestPoiIds`, `findUnoccupiedConnectedNestPoi`, `countAliveChildrenByRole`
 

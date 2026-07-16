@@ -15,7 +15,7 @@ import {
 import { getPerceptionRange } from '../../unit_defs/unitDef';
 import type { LanterniteNetworkAITreeContext, LanterniteNetworkNodeId } from './context';
 
-const ATTACK_COOLDOWN_SEC = 8;
+const ATTACK_COOLDOWN_SEC = 1;
 
 export const lnet_scout_construct: AINode<'lanterniteNetwork', LanterniteNetworkNodeId> = {
     nodeId: 'lnet_scout_construct',

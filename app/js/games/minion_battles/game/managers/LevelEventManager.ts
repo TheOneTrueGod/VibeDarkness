@@ -4,8 +4,6 @@
  */
 
 import type { EngineContext } from '../EngineContext';
-import { DarknessLevel } from '../darknessLevels';
-import type { Unit } from '../units/Unit';
 import type {
     LevelEvent,
     LevelEventSpawnWave,
@@ -18,10 +16,9 @@ import type {
     EnemySpawnDef,
     SpawnWaveEntry,
 } from '../../storylines/types';
-import { getEdgePositions } from '../../storylines/edgeSpawns';
-import { resolveZoneTiles } from '../../terrain/zones';
-import { createUnitFromSpawnConfig } from '../units/index';
 import { resolveEnemySpawnStats } from '../units/unit_defs/unitDef';
+import { spawnUnit } from '../units/spawning/spawnUnit';
+import { enemySpawnDefToSpawnDefinition, spawnWaveEntryToSpawnDefinition } from '../units/spawning/adapters';
 import {
     ENEMY_MELEE,
     SLIME,
@@ -187,428 +184,20 @@ export class LevelEventManager {
         }
     }
 
-    /** Optional Lantern ecology fields from mission spawn / wave entries. */
-    private applyLanterniteEcologySpawnFields(unit: Unit, entry: SpawnWaveEntry | EnemySpawnDef): void {
-        if ('lanterniteNestOwnerUnitId' in entry && entry.lanterniteNestOwnerUnitId != null) {
-            unit.lanterniteState.nestOwnerUnitId = entry.lanterniteNestOwnerUnitId;
-        }
-        if ('lanternPatrolFarWorld' in entry && entry.lanternPatrolFarWorld != null) {
-            unit.lanterniteState.patrolFarWorld = { ...entry.lanternPatrolFarWorld };
-        }
-        if ('lanternPatrolLeg' in entry && (entry.lanternPatrolLeg === 'toFar' || entry.lanternPatrolLeg === 'toNest')) {
-            unit.lanterniteState.patrolLeg = entry.lanternPatrolLeg;
-        }
-    }
-
     private executeSpawnWaveSpawns(spawns: SpawnWaveEntry[]): void {
-        const terrainManager = this.ctx.terrainManager;
-        if (!terrainManager) {
-            console.error('spawnWave: terrainManager is null; skipping spawn wave.');
-            return;
-        }
-
-        const grid = terrainManager.grid;
-        const width = grid.width;
-        const height = grid.height;
-        const cellSize = grid.cellSize;
         const playerCount = this.ctx.units.filter((u) => u.teamId === 'player').length;
         const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
 
-        const occupiedCells = new Set<string>();
-
-        const edgeEntries: { base: EnemySpawnDef; entry: SpawnWaveEntry; count: number }[] = [];
-        const otherEntries: { base: EnemySpawnDef; entry: SpawnWaveEntry; count: number }[] = [];
-        const closestPOIEntries: { base: EnemySpawnDef; entry: SpawnWaveEntry; count: number }[] = [];
-        const closestEntries: { base: EnemySpawnDef; entry: SpawnWaveEntry; count: number }[] = [];
-
         for (const entry of spawns) {
-            const cid = entry.characterId;
-            const base = BASE_SPAWN_DEFS[cid];
+            const base = BASE_SPAWN_DEFS[entry.characterId];
             if (!base) continue;
-            const behaviour = entry.spawnBehaviour ?? 'edgeOfMap';
-            const count = Math.max(0, entry.spawnCount ?? 1);
-            if (count <= 0) continue;
 
-            if (behaviour === 'edgeOfMap') {
-                edgeEntries.push({ base, entry, count });
-            } else if (behaviour === 'closestEnemySpawnPoint') {
-                closestPOIEntries.push({ base, entry, count });
-            } else if (behaviour === 'closest') {
-                closestEntries.push({ base, entry, count });
-            } else {
-                otherEntries.push({ base, entry, count });
-            }
-        }
+            const def = spawnWaveEntryToSpawnDefinition(base, entry, 'ai');
+            const stats = resolveEnemySpawnStats({ ...base, ...entry });
+            def.hp = Math.round(stats.hp * (base.teamId === 'enemy' ? enemyHealthMult : 1));
+            def.speed = stats.speed;
 
-        const totalEdgeCount = edgeEntries.reduce((sum, e) => sum + e.count, 0);
-        if (totalEdgeCount > 0) {
-            const worldW = grid.worldWidth;
-            const worldH = grid.worldHeight;
-            const positions = getEdgePositions(totalEdgeCount, worldW, worldH);
-            let idx = 0;
-            for (const { base, entry, count } of edgeEntries) {
-                for (let n = 0; n < count; n++) {
-                    const pos = positions[idx] ?? { x: 40, y: 40 };
-                    idx++;
-                    const fallbackTreeId = this.ctx.aiControllerId === 'alphaWolfBoss' ? 'alphaWolfBoss' : 'default';
-                    const stats = resolveEnemySpawnStats({ ...base, ...entry });
-                    const config = {
-                        ...base,
-                        ...entry,
-                        position: pos,
-                        x: pos.x,
-                        y: pos.y,
-                        ownerId: 'ai' as const,
-                        hp: Math.round(stats.hp * (base.teamId === 'enemy' ? enemyHealthMult : 1)),
-                        speed: stats.speed,
-                        unitAITreeId: entry.unitAITreeId ?? base.unitAITreeId ?? fallbackTreeId,
-                    };
-                    const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus, this.ctx);
-                    this.applyLanterniteEcologySpawnFields(unit, entry);
-                    this.ctx.addUnit(unit);
-                }
-            }
-        }
-
-        const getRingCells = (
-            originCol: number,
-            originRow: number,
-            r: number,
-        ): { col: number; row: number }[] => {
-            if (r === 0) {
-                return originCol >= 0 && originCol < width && originRow >= 0 && originRow < height
-                    ? [{ col: originCol, row: originRow }]
-                    : [];
-            }
-            const cells: { col: number; row: number }[] = [];
-            const topRow = originRow - r;
-            const bottomRow = originRow + r;
-            const leftCol = originCol - r;
-            const rightCol = originCol + r;
-            if (topRow >= 0 && topRow < height) {
-                for (let dc = -r; dc <= r; dc++) {
-                    const col = originCol + dc;
-                    if (col >= 0 && col < width) cells.push({ col, row: topRow });
-                }
-            }
-            if (bottomRow >= 0 && bottomRow < height) {
-                for (let dc = -r; dc <= r; dc++) {
-                    const col = originCol + dc;
-                    if (col >= 0 && col < width) cells.push({ col, row: bottomRow });
-                }
-            }
-            if (leftCol >= 0 && leftCol < width) {
-                for (let dr = -r + 1; dr <= r - 1; dr++) {
-                    const row = originRow + dr;
-                    if (row >= 0 && row < height) cells.push({ col: leftCol, row });
-                }
-            }
-            if (rightCol >= 0 && rightCol < width) {
-                for (let dr = -r + 1; dr <= r - 1; dr++) {
-                    const row = originRow + dr;
-                    if (row >= 0 && row < height) cells.push({ col: rightCol, row });
-                }
-            }
-            return cells;
-        };
-
-        const isValidSpawnCell = (col: number, row: number, inDarkness: boolean): boolean => {
-            const key = `${col},${row}`;
-            if (occupiedCells.has(key)) return false;
-
-            const { x, y } = grid.gridToWorld(col, row);
-            if (!terrainManager.isPassable(x, y)) return false;
-
-            if (inDarkness) {
-                // Use animated visual grid (getLightAt) not a fresh target grid — tile must be visually dark.
-                const level = this.ctx.getLightAt(col, row);
-                if (level == null || level > DarknessLevel.FULL_DARKNESS) return false;
-            }
-
-            return true;
-        };
-
-        const collectCandidateTiles = (
-            inDarkness: boolean,
-            spawnTarget: { x: number; y: number; radius: number } | undefined,
-            spawnZoneId?: string,
-        ): { col: number; row: number }[] => {
-            const candidates: { col: number; row: number }[] = [];
-
-            if (spawnZoneId != null) {
-                const zone = this.ctx.getZoneById(spawnZoneId);
-                if (!zone) {
-                    console.error(`spawnWave: zone "${spawnZoneId}" not found; skipping this spawn entry.`);
-                    return [];
-                }
-                for (const { col, row } of resolveZoneTiles(zone)) {
-                    if (isValidSpawnCell(col, row, inDarkness)) candidates.push({ col, row });
-                }
-                return candidates;
-            }
-
-            const hasTarget = !!spawnTarget;
-            const targetX = spawnTarget?.x ?? 0;
-            const targetY = spawnTarget?.y ?? 0;
-            const radiusPx = (spawnTarget?.radius ?? 0) * cellSize;
-            const radiusSq = radiusPx * radiusPx;
-
-            for (let row = 0; row < height; row++) {
-                for (let col = 0; col < width; col++) {
-                    if (hasTarget) {
-                        const { x, y } = grid.gridToWorld(col, row);
-                        const dx = x - targetX;
-                        const dy = y - targetY;
-                        if (dx * dx + dy * dy > radiusSq) continue;
-                    }
-
-                    if (isValidSpawnCell(col, row, inDarkness)) candidates.push({ col, row });
-                }
-            }
-
-            return candidates;
-        };
-
-        const chooseRandomIndices = (availableCount: number, needed: number): number[] => {
-            const indices: number[] = [];
-            for (let j = 0; j < availableCount; j++) indices.push(j);
-            const result: number[] = [];
-            const count = Math.min(needed, availableCount);
-            for (let j = 0; j < count; j++) {
-                const pickIndex = this.ctx.generateRandomInteger(0, indices.length - 1);
-                const [chosen] = indices.splice(pickIndex, 1);
-                result.push(chosen);
-            }
-            return result;
-        };
-
-        for (const { base, entry, count } of otherEntries) {
-            const inDarkness = entry.inDarkness === true;
-            if (inDarkness && !this.ctx.lightLevelEnabled) {
-                console.error('spawnWave: inDarkness=true requested but light system is disabled; skipping this spawn entry.');
-                continue;
-            }
-
-            const candidates = collectCandidateTiles(inDarkness, entry.spawnTarget, entry.spawnZoneId);
-            if (candidates.length === 0) {
-                console.error(
-                    `spawnWave: no valid tiles for behaviour "anywhere"` +
-                        (entry.spawnTarget ? ` near (${entry.spawnTarget.x}, ${entry.spawnTarget.y})` : '') +
-                        '; skipping this spawn entry.',
-                );
-                continue;
-            }
-
-            const spawnAttempts = Math.min(count, candidates.length);
-            if (spawnAttempts < count) {
-                console.error(
-                    `spawnWave: requested ${count} spawns for behaviour "anywhere" but only found ${candidates.length} valid tiles.`,
-                );
-            }
-
-            const chosenIndices = chooseRandomIndices(candidates.length, spawnAttempts);
-            for (const idx of chosenIndices) {
-                const cell = candidates[idx]!;
-                const key = `${cell.col},${cell.row}`;
-                occupiedCells.add(key);
-                const pos = grid.gridToWorld(cell.col, cell.row);
-                const stats = resolveEnemySpawnStats({ ...base, ...entry });
-                const config = {
-                    ...base,
-                    ...entry,
-                    position: pos,
-                    x: pos.x,
-                    y: pos.y,
-                    ownerId: 'ai' as const,
-                    hp: Math.round(stats.hp * (base.teamId === 'enemy' ? enemyHealthMult : 1)),
-                    speed: stats.speed,
-                };
-                const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus, this.ctx);
-                this.applyLanterniteEcologySpawnFields(unit, entry);
-                this.ctx.addUnit(unit);
-            }
-        }
-
-        // Handle 'closest' entries — scans Chebyshev rings outward from avg player position
-        for (const { base, entry, count } of closestEntries) {
-            const inDarkness = entry.closestConfig?.inDarkness === true;
-
-            if (inDarkness && !this.ctx.lightLevelEnabled) {
-                console.error('spawnWave: closest inDarkness=true but light system is disabled; skipping this spawn entry.');
-                continue;
-            }
-
-            const livingPlayers = this.ctx.units.filter((u) => u.isPlayerControlled() && u.isAlive());
-            if (livingPlayers.length === 0) {
-                console.error('spawnWave: closest — no living player units; skipping this spawn entry.');
-                continue;
-            }
-
-            const avgX = livingPlayers.reduce((s, u) => s + u.x, 0) / livingPlayers.length;
-            const avgY = livingPlayers.reduce((s, u) => s + u.y, 0) / livingPlayers.length;
-            const { col: originCol, row: originRow } = grid.worldToGrid(avgX, avgY);
-
-            const spawnCells: { col: number; row: number }[] = [];
-            outer: for (let r = 0; r <= width + height; r++) {
-                const ringCells = getRingCells(originCol, originRow, r);
-                if (ringCells.length === 0 && r > 0) break;
-                for (const cell of ringCells) {
-                    const key = `${cell.col},${cell.row}`;
-                    if (occupiedCells.has(key)) continue;
-                    const { x, y } = grid.gridToWorld(cell.col, cell.row);
-                    if (!terrainManager.isPassable(x, y)) continue;
-                    if (inDarkness) {
-                        // Use animated visual grid — tile must be visually dark, not just target-dark.
-                        const level = this.ctx.getLightAt(cell.col, cell.row);
-                        if (level == null || level > DarknessLevel.FULL_DARKNESS) continue;
-                    }
-                    spawnCells.push(cell);
-                    if (spawnCells.length >= count) break outer;
-                }
-            }
-
-            if (spawnCells.length === 0) {
-                console.error('spawnWave: closest — no valid tiles found; skipping this spawn entry.');
-                continue;
-            }
-            if (spawnCells.length < count) {
-                console.error(`spawnWave: closest — requested ${count} spawns but only found ${spawnCells.length} valid tiles.`);
-            }
-
-            for (const cell of spawnCells) {
-                const key = `${cell.col},${cell.row}`;
-                occupiedCells.add(key);
-                const pos = grid.gridToWorld(cell.col, cell.row);
-                const stats = resolveEnemySpawnStats({ ...base, ...entry });
-                const config = {
-                    ...base,
-                    ...entry,
-                    position: pos,
-                    x: pos.x,
-                    y: pos.y,
-                    ownerId: 'ai' as const,
-                    hp: Math.round(stats.hp * (base.teamId === 'enemy' ? enemyHealthMult : 1)),
-                    speed: stats.speed,
-                };
-                const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus, this.ctx);
-                this.applyLanterniteEcologySpawnFields(unit, entry);
-                this.ctx.addUnit(unit);
-            }
-        }
-
-        // Handle 'closestEnemySpawnPoint' entries
-        for (const { base, entry, count } of closestPOIEntries) {
-            const cfg = entry.enemySpawnPointConfig;
-            const matchesTags = cfg?.matchesTags;
-            const poiRadius = cfg?.radius ?? 0;
-            const inDarkness = cfg?.inDarkness === true;
-
-            // Collect all enemySpawn POIs, optionally filtered by tags
-            let eligiblePOIs = this.ctx.mapPOIs.filter((p) => p.type === 'enemySpawn');
-            if (matchesTags && matchesTags.length > 0) {
-                eligiblePOIs = eligiblePOIs.filter((p) =>
-                    matchesTags.every((tag) => p.tags?.includes(tag)),
-                );
-            }
-
-            if (eligiblePOIs.length === 0) {
-                console.warn(
-                    `spawnWave: closestEnemySpawnPoint — no eligible enemySpawn POIs` +
-                        (matchesTags ? ` matching tags [${matchesTags.join(', ')}]` : '') +
-                        '; skipping this spawn entry.',
-                );
-                continue;
-            }
-
-            // Find living player units to measure distance from
-            const livingPlayers = this.ctx.units.filter((u) => u.isPlayerControlled() && u.isAlive());
-            if (livingPlayers.length === 0) {
-                console.warn('spawnWave: closestEnemySpawnPoint — no living player units; skipping this spawn entry.');
-                continue;
-            }
-
-            // Find the closest eligible POI to any living player unit (world distance)
-            let closestPOI = eligiblePOIs[0]!;
-            let closestDistSq = Infinity;
-            for (const poi of eligiblePOIs) {
-                const poiWorld = grid.gridToWorld(poi.col, poi.row);
-                for (const player of livingPlayers) {
-                    const dx = player.x - poiWorld.x;
-                    const dy = player.y - poiWorld.y;
-                    const distSq = dx * dx + dy * dy;
-                    if (distSq < closestDistSq) {
-                        closestDistSq = distSq;
-                        closestPOI = poi;
-                    }
-                }
-            }
-
-            // If radius is 0, just spawn on the POI cell itself (if passable)
-            let spawnCells: { col: number; row: number }[];
-            if (poiRadius === 0) {
-                const poiWorld = grid.gridToWorld(closestPOI.col, closestPOI.row);
-                const key = `${closestPOI.col},${closestPOI.row}`;
-                if (!occupiedCells.has(key) && terrainManager.isPassable(poiWorld.x, poiWorld.y)) {
-                    if (inDarkness) {
-                        // Use animated visual grid — POI must be visually dark, not just target-dark.
-                        const level = this.ctx.getLightAt(closestPOI.col, closestPOI.row);
-                        if (level == null) {
-                            console.warn('spawnWave: closestEnemySpawnPoint inDarkness=true but light system is disabled; skipping spawn entry.');
-                            continue;
-                        }
-                        if (level > DarknessLevel.FULL_DARKNESS) {
-                            console.warn('spawnWave: closestEnemySpawnPoint — POI cell is not in darkness; skipping spawn entry.');
-                            continue;
-                        }
-                    }
-                    spawnCells = [{ col: closestPOI.col, row: closestPOI.row }];
-                } else {
-                    console.warn('spawnWave: closestEnemySpawnPoint — POI cell is not passable or occupied; skipping spawn entry.');
-                    continue;
-                }
-            } else {
-                // Build a synthetic SpawnTarget around the chosen POI
-                const poiWorld = grid.gridToWorld(closestPOI.col, closestPOI.row);
-                const syntheticTarget = { x: poiWorld.x, y: poiWorld.y, radius: poiRadius };
-                spawnCells = collectCandidateTiles(inDarkness, syntheticTarget);
-                if (spawnCells.length === 0) {
-                    console.warn(
-                        `spawnWave: closestEnemySpawnPoint — no valid tiles within radius ${poiRadius} of POI "${closestPOI.id}"` +
-                            (inDarkness ? ' (inDarkness filter active)' : '') +
-                            '; skipping this spawn entry.',
-                    );
-                    continue;
-                }
-            }
-
-            const spawnAttempts = Math.min(count, spawnCells.length);
-            if (spawnAttempts < count) {
-                console.warn(
-                    `spawnWave: closestEnemySpawnPoint — requested ${count} spawns but only found ${spawnCells.length} valid tiles.`,
-                );
-            }
-
-            const chosenIndices = chooseRandomIndices(spawnCells.length, spawnAttempts);
-            for (const idx of chosenIndices) {
-                const cell = spawnCells[idx]!;
-                const key = `${cell.col},${cell.row}`;
-                occupiedCells.add(key);
-                const pos = grid.gridToWorld(cell.col, cell.row);
-                const stats = resolveEnemySpawnStats({ ...base, ...entry });
-                const config = {
-                    ...base,
-                    ...entry,
-                    position: pos,
-                    x: pos.x,
-                    y: pos.y,
-                    ownerId: 'ai' as const,
-                    hp: Math.round(stats.hp * (base.teamId === 'enemy' ? enemyHealthMult : 1)),
-                    speed: stats.speed,
-                };
-                const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus, this.ctx);
-                this.applyLanterniteEcologySpawnFields(unit, entry);
-                this.ctx.addUnit(unit);
-            }
+            spawnUnit(this.ctx, def, undefined);
         }
     }
 
@@ -637,22 +226,13 @@ export class LevelEventManager {
 
         const playerCount = this.ctx.units.filter((u) => u.teamId === 'player').length;
         const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
-        for (const def of evt.extraEnemySpawns ?? []) {
-            const stats = resolveEnemySpawnStats(def);
-            const unit = createUnitFromSpawnConfig(
-                {
-                    ...def,
-                    x: def.position.x,
-                    y: def.position.y,
-                    ownerId: 'ai',
-                    hp: Math.round(stats.hp * (def.teamId === 'enemy' ? enemyHealthMult : 1)),
-                    speed: stats.speed,
-                },
-                this.ctx.eventBus,
-                this.ctx,
-            );
-            this.applyLanterniteEcologySpawnFields(unit, def);
-            this.ctx.addUnit(unit);
+        for (const enemyDef of evt.extraEnemySpawns ?? []) {
+            const def = enemySpawnDefToSpawnDefinition(enemyDef, 'ai');
+            const stats = resolveEnemySpawnStats(enemyDef);
+            def.hp = Math.round(stats.hp * (enemyDef.teamId === 'enemy' ? enemyHealthMult : 1));
+            def.speed = stats.speed;
+
+            spawnUnit(this.ctx, def, undefined);
         }
 
         if (evt.revealObjectiveIds?.length) this.ctx.revealBattleObjectives(evt.revealObjectiveIds);
@@ -728,12 +308,6 @@ export class LevelEventManager {
 
         this.continuousSpawnLastSpawnedAt[i] = this.ctx.gameTime;
 
-        const terrainManager = this.ctx.terrainManager;
-        if (!terrainManager) return;
-        const grid = terrainManager.grid;
-        const width = grid.width;
-        const height = grid.height;
-        const cellSize = grid.cellSize;
         const playerCount = this.ctx.units.filter((u) => u.teamId === 'player').length;
         const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
 
@@ -746,107 +320,30 @@ export class LevelEventManager {
                   }, {})
                 : null;
 
-        const occupiedCells = new Set<string>();
-
-        const isValidSpawnCell = (col: number, row: number, inDarkness: boolean): boolean => {
-            const key = `${col},${row}`;
-            if (occupiedCells.has(key)) return false;
-            const { x, y } = grid.gridToWorld(col, row);
-            if (!terrainManager.isPassable(x, y)) return false;
-            if (inDarkness) {
-                // Use animated visual grid — tile must be visually dark, not just target-dark.
-                const level = this.ctx.getLightAt(col, row);
-                if (level == null || level > DarknessLevel.FULL_DARKNESS) return false;
-            }
-            return true;
-        };
-
-        const collectCandidates = (
-            inDarkness: boolean,
-            spawnTarget: { x: number; y: number; radius: number } | undefined,
-            spawnZoneId?: string,
-        ): { col: number; row: number }[] => {
-            const candidates: { col: number; row: number }[] = [];
-
-            if (spawnZoneId != null) {
-                const zone = this.ctx.getZoneById(spawnZoneId);
-                if (!zone) {
-                    console.error(`continuousSpawn: zone "${spawnZoneId}" not found; skipping this spawn entry.`);
-                    return [];
-                }
-                for (const { col, row } of resolveZoneTiles(zone)) {
-                    if (isValidSpawnCell(col, row, inDarkness)) candidates.push({ col, row });
-                }
-                return candidates;
-            }
-
-            const hasTarget = !!spawnTarget;
-            const targetX = spawnTarget?.x ?? 0;
-            const targetY = spawnTarget?.y ?? 0;
-            const radiusPx = (spawnTarget?.radius ?? 0) * cellSize;
-            const radiusSq = radiusPx * radiusPx;
-            for (let row = 0; row < height; row++) {
-                for (let col = 0; col < width; col++) {
-                    if (hasTarget) {
-                        const { x, y } = grid.gridToWorld(col, row);
-                        const dx = x - targetX;
-                        const dy = y - targetY;
-                        if (dx * dx + dy * dy > radiusSq) continue;
-                    }
-                    if (isValidSpawnCell(col, row, inDarkness)) candidates.push({ col, row });
-                }
-            }
-            return candidates;
-        };
-
-        const chooseRandomIndices = (availableCount: number, needed: number): number[] => {
-            const indices: number[] = [];
-            for (let j = 0; j < availableCount; j++) indices.push(j);
-            const result: number[] = [];
-            const count = Math.min(needed, availableCount);
-            for (let j = 0; j < count; j++) {
-                const pickIndex = this.ctx.generateRandomInteger(0, indices.length - 1);
-                const [chosen] = indices.splice(pickIndex, 1);
-                result.push(chosen);
-            }
-            return result;
-        };
+        const isOverCap = (teamId: string): boolean =>
+            maxUnits != null && unitCountByTeam != null && unitCountByTeam[teamId] > maxUnits;
 
         for (const entry of evt.spawns) {
-            const cid = entry.characterId;
-            const base = BASE_SPAWN_DEFS[cid];
+            const base = BASE_SPAWN_DEFS[entry.characterId];
             if (!base) continue;
-            const inDarkness = entry.inDarkness === true;
-            const count = Math.max(0, entry.spawnCount ?? 1);
-            if (count <= 0) continue;
-            if (inDarkness && !this.ctx.lightLevelEnabled) continue;
+            if (isOverCap(base.teamId)) continue;
 
-            if (maxUnits != null && unitCountByTeam && unitCountByTeam[base.teamId] > maxUnits) continue;
+            const def = spawnWaveEntryToSpawnDefinition(base, entry, 'ai');
+            const stats = resolveEnemySpawnStats({ ...base, ...entry });
+            def.hp = Math.round(stats.hp * (base.teamId === 'enemy' ? enemyHealthMult : 1));
+            def.speed = stats.speed;
 
-            const candidates = collectCandidates(inDarkness, entry.spawnTarget, entry.spawnZoneId);
-            if (candidates.length === 0) continue;
-            const spawnAttempts = Math.min(count, candidates.length);
-            const chosenIndices = chooseRandomIndices(candidates.length, spawnAttempts);
-            for (const idx of chosenIndices) {
-                if (maxUnits != null && unitCountByTeam && unitCountByTeam[base.teamId] > maxUnits) break;
-                const cell = candidates[idx]!;
-                const key = `${cell.col},${cell.row}`;
-                occupiedCells.add(key);
-                const pos = grid.gridToWorld(cell.col, cell.row);
-                const stats = resolveEnemySpawnStats({ ...base, ...entry });
-                const config = {
-                    ...base,
-                    ...entry,
-                    position: pos,
-                    x: pos.x,
-                    y: pos.y,
-                    ownerId: 'ai' as const,
-                    hp: Math.round(stats.hp * (base.teamId === 'enemy' ? enemyHealthMult : 1)),
-                    speed: stats.speed,
-                };
-                const unit = createUnitFromSpawnConfig(config, this.ctx.eventBus, this.ctx);
-                this.ctx.addUnit(unit);
-                if (unitCountByTeam) unitCountByTeam[base.teamId] += 1;
+            if (maxUnits != null) {
+                // Per-unit cap check: a burst can partially fulfill under a cap, so this cannot
+                // be a single batched spawnUnit(..., def) call — each attempt is its own call.
+                const attempts = def.count ?? 1;
+                for (let n = 0; n < attempts; n++) {
+                    if (isOverCap(base.teamId)) break;
+                    const spawned = spawnUnit(this.ctx, { ...def, count: 1 }, undefined);
+                    if (unitCountByTeam) unitCountByTeam[base.teamId] = (unitCountByTeam[base.teamId] ?? 0) + spawned.length;
+                }
+            } else {
+                spawnUnit(this.ctx, def, undefined);
             }
         }
     }

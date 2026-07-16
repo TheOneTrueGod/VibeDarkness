@@ -45,6 +45,40 @@ describe('continuousSpawnStartGameTime', () => {
     });
 });
 
+describe('LevelEventManager continuousSpawn lanternite ecology fields', () => {
+    it('wires lanternPatrolFarWorld/lanterniteNestOwnerUnitId onto continuousSpawn-spawned lanternites (regression: previously only spawnWave/proximitySpawn wired these)', () => {
+        const engine = setupEngine();
+        engine.registerLevelEvents([
+            {
+                type: 'continuousSpawn',
+                trigger: { intervalRounds: 1 },
+                spawns: [
+                    {
+                        characterId: 'lanternite',
+                        name: 'Lanternite',
+                        spawnBehaviour: 'anywhere',
+                        spawnCount: 1,
+                        unitAITreeId: 'lanternitePatrol',
+                        lanterniteNestOwnerUnitId: 'nest_1',
+                        lanternPatrolFarWorld: { x: 123, y: 456 },
+                        lanternPatrolLeg: 'toFar',
+                    },
+                ],
+            },
+        ]);
+
+        engine.gameTime = 10;
+        engine.state.levelEventManager.processLevelEvents();
+
+        const lanternites = engine.units.filter((u) => u.characterId === 'lanternite');
+        expect(lanternites).toHaveLength(1);
+        const [lanternite] = lanternites;
+        expect(lanternite!.lanterniteState.nestOwnerUnitId).toBe('nest_1');
+        expect(lanternite!.lanterniteState.patrolFarWorld).toEqual({ x: 123, y: 456 });
+        expect(lanternite!.lanterniteState.patrolLeg).toBe('toFar');
+    });
+});
+
 describe('LevelEventManager continuousSpawn startRound', () => {
     it('fires the first spawn at startRound 0.5 (5s) for a 1.5-round interval', () => {
         const engine = setupEngine();
