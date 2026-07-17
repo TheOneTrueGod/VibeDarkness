@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { TerrainType } from './TerrainType';
+import { MapSegmentNetworkSchema } from './networkSchema';
 
 export const POI_TYPES = ['generic', 'campfire', 'crystal', 'nest', 'patrol_point', 'enemySpawn'] as const;
 export type POIType = typeof POI_TYPES[number];
@@ -42,6 +43,13 @@ export const MapSegmentDataSchema = z.object({
     terrain: z.array(z.array(z.number().int().min(0).max(3))),
     pointsOfInterest: z.array(MapSegmentPOISchema).default([]),
     zones: z.array(MapSegmentZoneSchema).default([]),
+    /**
+     * Connectivity graph nodes/edges for this segment (e.g. lanternite nest sites). Kept as a
+     * sibling to `pointsOfInterest` rather than folded into `MapSegmentPOI` — POIs are consumed by
+     * unrelated systems (`closestEnemySpawnPoint` spawn behaviour, `BattleSession`'s blanket POI
+     * auto-collection) that would otherwise need to filter out network-only entries.
+     */
+    network: MapSegmentNetworkSchema.optional(),
 });
 export type MapSegmentData = z.infer<typeof MapSegmentDataSchema>;
 

@@ -139,6 +139,13 @@ export interface SerializedGameState {
     mapPOIs?: import('../terrain/segmentSchema').MapSegmentPOI[];
     /** Map zones (named regions resolvable to grid tiles) used by spawn behaviours and future triggers. */
     mapZones?: import('../terrain/segmentSchema').MapSegmentZone[];
+    /**
+     * `MapNetworkManager`'s serialized form. Deliberately empty today (see
+     * `MapNetworkManager.toJSON`'s doc comment) — node/edge structure is always rebuilt fresh from
+     * segment data on restore, never from this field. Kept optional/present for checkpoint
+     * back-compat with pre-this-plan snapshots that omit it entirely.
+     */
+    mapNetwork?: import('./managers/mapNetwork/types').SerializedMapNetwork;
     /** Serialized effect emitters (runtime-only factories not included; short-lived, safe to drop on reconnect). */
     effectEmitters?: Record<string, unknown>[];
     /** Value of the global generateGameObjectId counter at snapshot time. Restored on load so replayed effects/projectiles get identical IDs. */
@@ -165,6 +172,16 @@ export interface SerializedGameState {
 /** Optional args when hydrating {@link GameEngine} from JSON (e.g. server checkpoint `synchash`). */
 export interface GameEngineFromJSONOpts {
     checkpointRuntimeFingerprintHex?: string | null;
+    /**
+     * Mission terrain segment IDs, used to rebuild `mapNetworkManager`'s graph via
+     * `getMissionSegmentNetwork`. Checkpoint restore paths (`BattleSession.loadFromSnapshot`/
+     * `restoreFromInMemorySnapshot`) call `GameEngine.fromJSON` directly without re-running
+     * `mission.initializeGameState`, so the network graph — never itself serialized, see
+     * `SerializedGameState.mapNetwork` — would otherwise come back empty. Omit only when no
+     * mission context is available (e.g. unit tests constructing bare snapshots); the manager then
+     * harmlessly stays empty, matching pre-this-plan behavior.
+     */
+    segmentIds?: string[];
 }
 
 /** Serialized card instance. */

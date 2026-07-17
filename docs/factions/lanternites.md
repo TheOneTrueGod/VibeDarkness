@@ -26,7 +26,11 @@ If `lightLevelEnabled` is active on the mission, the pulse also refreshes their 
 
 ### Nest Network
 
-Nests form a **network** via terrain POIs. Each `nest` POI may declare connections to other `nest` POIs with `connects:<poi_id>` tags. The runtime treats connections as bidirectional.
+Nests form a **network** via `MapNetworkManager` (`game/managers/mapNetwork/MapNetworkManager.ts`), a
+generic graph of nodes/edges built from each map segment's `network.nodes`/`network.edges` data
+(see `terrain/networkSchema.ts`, resolved mission-wide by `getMissionSegmentNetwork`). This replaced
+an earlier design where `nest` POIs declared connectivity via ad hoc `connects:<poi_id>` string tags,
+parsed fresh on every call — that tag-parsing code no longer exists.
 
 When a nest spawns, it prioritizes roles:
 1. **First spawn** is always a **scout** — it pathfinds toward the nearest unoccupied connected nest POI.
@@ -72,7 +76,7 @@ A Lanternite with **no** nest owner (spawned directly into a mission) respawns *
 ### Core Lanternite systems
 - `app/js/games/minion_battles/game/lanternite/lanternitePulse.ts` — Soul Sap pulse, torch light management, free-unit respawn scheduling, mission start init (`prepareLanterniteNestForMissionStart`)
 - `app/js/games/minion_battles/game/lanternite/lanterniteNestTick.ts` — per-tick nest pacing; construction completion loop (scouts → new nest spawn); role-aware networked spawn logic; legacy patrol fallback
-- `app/js/games/minion_battles/game/lanternite/lanterniteNetworkUtils.ts` — POI graph helpers: `getConnectedNestPoiIds`, `findUnoccupiedConnectedNestPoi`, `countAliveChildrenByRole`
+- `app/js/games/minion_battles/game/lanternite/lanterniteNetworkUtils.ts` — nest-network query helpers built on `MapNetworkManager`: `findUnoccupiedConnectedNestPoi`, `countAliveChildrenByRole`
 
 ### AI trees
 - `app/js/games/minion_battles/game/units/unitAI/lanterniteNetwork/` — **networked nest AI** (`lnet_assign_role`, `lnet_scout_travel`, `lnet_scout_construct`, `lnet_defend`)
@@ -90,13 +94,15 @@ A Lanternite with **no** nest owner (spawned directly into a mission) respawns *
 - `app/js/games/minion_battles/constants/enemyConstants.ts` — `ALLY_LANTERNITE` (abilities: `['0010']`) and `ALLY_LANTERNITE_NEST` spawn templates
 - `app/js/games/minion_battles/storylines/types.ts` — `LanterniteNestMissionConfig` (`maxLanternites`, `spawnIntervalSec`, `patrolDestination`, `networked?`, `nestPoiId?`, `scoutConstructionSec?`)
 
-### Terrain network (POIs)
-- `app/js/games/minion_battles/terrain/segmentSchema.ts` — `MapSegmentPOI` type; `nest` is a valid POI type; `tags` array holds `connects:<id>` strings
-- `app/js/games/minion_battles/storylines/WorldOfDarkness/registerSegments.ts` — registers `nest_west` (west glade, stitched col=7/row=37, tag `connects:nest_south`) and `nest_south` (south gate, stitched col=31/row=33)
-- POI `col`/`row` in mission-007 are **stitched-world coordinates** (not segment-local), matching `terrainGrid.gridToWorld(col, row)` in the 44×44 stitched grid
+### Terrain network (graph data)
+- `app/js/games/minion_battles/terrain/networkSchema.ts` — `NetworkNodeDef`/`NetworkEdgeDef`/`MapSegmentNetwork` schemas; a segment's `network.nodes`/`network.edges` replace the old POI `connects:<id>` tags
+- `app/js/games/minion_battles/terrain/segmentRegistry.ts` — `getMissionSegmentNetwork(segmentIds)` resolves segment-local node positions to mission-global pixel coords, mirroring `getMissionSegmentZones`
+- `app/js/games/minion_battles/game/managers/mapNetwork/MapNetworkManager.ts` — runtime graph: node/edge storage, neighbor queries, unit-membership tick, ownership derivation
+- `app/js/games/minion_battles/storylines/WorldOfDarkness/registerSegments.ts` — registers each segment's `network` data (e.g. `WEST_GLADE_NETWORK`, `SOUTH_GATE_NETWORK`, `THORN_PATH_NETWORK`, `THORN_PATH_2_NETWORK`) alongside its POIs
+- Mission POI `col`/`row` (e.g. in `007_ember_threshold.ts`) are **stitched-world coordinates** (not segment-local), matching `terrainGrid.gridToWorld(col, row)` in the 44×44 stitched grid; network node positions are segment-local and auto-offset by `getMissionSegmentNetwork`
 
 ### Engine integration
-- `app/js/games/minion_battles/game/GameEngine.ts` — passes `mapPOIs` and `terrainGrid` to `processLanterniteNests` each tick; `drainLanterniteRespawns()` for free-unit respawn
+- `app/js/games/minion_battles/game/GameEngine.ts` — passes `mapPOIs` and `mapNetwork` (the `MapNetworkManager` instance) to `processLanterniteNests` each tick; `drainLanterniteRespawns()` for free-unit respawn
 
 ### Mission
 - `app/js/games/minion_battles/storylines/WorldOfDarkness/missions/007_ember_threshold.ts` — `networked: true`, `nestPoiId: 'nest_west'`, `scoutConstructionSec: 12`; `maxLanternites: 3`, `spawnIntervalSec: 14`

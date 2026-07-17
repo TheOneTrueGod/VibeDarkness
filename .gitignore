@@ -4,6 +4,6 @@ dist/
 storage/
 deploy.zip
 .env.deploy
-Plans/
+/Plans/
 vendor/
 .claude/worktrees/

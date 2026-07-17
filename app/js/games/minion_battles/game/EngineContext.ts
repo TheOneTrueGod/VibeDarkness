@@ -20,6 +20,7 @@ import type { MapSegmentPOI, MapSegmentZone } from '../terrain/segmentSchema';
 import type { SpawnSource, WaitingForOrders } from './types';
 import type { CellOccupancyManager } from './managers/CellOccupancyManager';
 import type { WorldModifierManager } from '../worldModifiers/WorldModifierManager';
+import type { MapNetworkManager } from './managers/mapNetwork/MapNetworkManager';
 
 export interface EngineContext {
     gameTime: number;
@@ -143,4 +144,12 @@ export interface EngineContext {
 
     /** Mid-battle modifier API: add/remove/enable/disable world modifiers. */
     readonly worldModifierManager: WorldModifierManager;
+
+    /**
+     * Generic map-network graph (node/edge structure + per-node unit membership), e.g. lanternite
+     * nest sites. Always present (harmlessly empty when a mission has no network data), matching
+     * `mapPOIs`/`mapZones`'s always-array convention rather than `cellOccupancyManager`'s nullable
+     * one.
+     */
+    readonly mapNetworkManager: MapNetworkManager;
 }

@@ -2,6 +2,23 @@ import type { MapSegmentData, MapSegmentPOI, MapSegmentZone } from './segmentSch
 import { MapSegmentDataSchema } from './segmentSchema';
 import { TerrainType } from './TerrainType';
 import { offsetZone } from './zones';
+import { CELL_SIZE } from './TerrainGrid';
+import type { NetworkEdgeDef, NetworkNodePosition } from './networkSchema';
+
+/**
+ * A network node resolved to mission-global pixel coordinates (see `getMissionSegmentNetwork`).
+ * `x`/`y` are resolved from segment-local grid/pixel positions to mission-global pixels; `radius`
+ * is passed through verbatim from `NetworkNodeDef.radius` — already pixel-space, per
+ * `networkSchema.ts`'s doc comment — not derived from grid cells the way `x`/`y` are.
+ */
+export interface ResolvedNetworkNode {
+    id: string;
+    x: number;
+    y: number;
+    radius: number;
+    tags: string[];
+    segmentId: string;
+}
 
 const registry = new Map<string, MapSegmentData>();
 
@@ -93,6 +110,76 @@ export function getMissionSegmentZones(segmentIds: string[]): MapSegmentZone[] {
         }
     }
     return zones;
+}
+
+/** Resolves a single segment-local `NetworkNodePosition` to mission-global pixel coords. */
+function resolveNetworkNodePosition(
+    position: NetworkNodePosition,
+    originCol: number,
+    originRow: number,
+): { x: number; y: number } {
+    if (position.kind === 'gridPoint') {
+        return {
+            x: (originCol + position.col) * CELL_SIZE + CELL_SIZE / 2,
+            y: (originRow + position.row) * CELL_SIZE + CELL_SIZE / 2,
+        };
+    }
+    return {
+        x: originCol * CELL_SIZE + position.x,
+        y: originRow * CELL_SIZE + position.y,
+    };
+}
+
+/**
+ * Resolves every network node declared on the given segments into mission-global pixel
+ * coordinates, and every edge whose endpoints both resolved. Mirrors `getMissionSegmentZones`'s
+ * origin math exactly: `originCol = (gridCol - minCol) * width`, `originRow = (gridRow - minRow) *
+ * height`, computed once across `segmentIds`; segments not currently registered are skipped
+ * (same behavior as `getMissionSegmentZones`). An edge referencing a node id that wasn't
+ * collected (e.g. a typo, or a node defined on a segment not included in `segmentIds`) is
+ * dropped with a `console.warn`, matching `parseAndRegisterSegment`'s warn-on-invalid pattern.
+ */
+export function getMissionSegmentNetwork(segmentIds: string[]): {
+    nodes: ResolvedNetworkNode[];
+    edges: NetworkEdgeDef[];
+} {
+    const segments = segmentIds
+        .map((id) => registry.get(id))
+        .filter((s): s is MapSegmentData => s != null);
+    if (segments.length === 0) return { nodes: [], edges: [] };
+
+    const minCol = Math.min(...segments.map((s) => s.gridCol));
+    const minRow = Math.min(...segments.map((s) => s.gridRow));
+
+    const nodes: ResolvedNetworkNode[] = [];
+    const rawEdges: NetworkEdgeDef[] = [];
+    for (const seg of segments) {
+        const originCol = (seg.gridCol - minCol) * seg.width;
+        const originRow = (seg.gridRow - minRow) * seg.height;
+        const network = seg.network;
+        if (network == null) continue;
+        for (const node of network.nodes) {
+            const { x, y } = resolveNetworkNodePosition(node.position, originCol, originRow);
+            nodes.push({
+                id: node.id,
+                x,
+                y,
+                radius: node.radius ?? 0,
+                tags: node.tags ?? [],
+                segmentId: seg.id,
+            });
+        }
+        rawEdges.push(...network.edges);
+    }
+
+    const nodeIds = new Set(nodes.map((n) => n.id));
+    const edges = rawEdges.filter(([a, b]: NetworkEdgeDef): boolean => {
+        if (nodeIds.has(a) && nodeIds.has(b)) return true;
+        console.warn(`[segmentRegistry] Dropping network edge with unknown node id(s): [${a}, ${b}]`);
+        return false;
+    });
+
+    return { nodes, edges };
 }
 
 /**

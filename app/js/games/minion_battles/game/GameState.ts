@@ -25,6 +25,7 @@ import { GroupManager } from './units/unitAI/groups/GroupManager';
 import { InterruptSystem } from './units/unitAI/plans/InterruptSystem';
 import { WorldModifierManager } from '../worldModifiers/WorldModifierManager';
 import type { NinjutsuManager } from './ninjutsu/NinjutsuManager';
+import { MapNetworkManager } from './managers/mapNetwork/MapNetworkManager';
 
 export class GameState {
 
@@ -65,6 +66,7 @@ export class GameState {
     readonly groupManager: GroupManager;
     readonly interruptSystem: InterruptSystem;
     readonly worldModifierManager: WorldModifierManager;
+    readonly mapNetworkManager: MapNetworkManager;
 
     terrainManager: TerrainManager | null = null;
 
@@ -110,5 +112,6 @@ export class GameState {
         this.groupManager = new GroupManager();
         this.interruptSystem = new InterruptSystem(() => this.unitManager.units);
         this.worldModifierManager = new WorldModifierManager(ctx);
+        this.mapNetworkManager = new MapNetworkManager();
     }
 }

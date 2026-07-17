@@ -1,65 +1,40 @@
 /**
- * Lanternite network utilities — POI graph helpers for nest-to-nest connectivity.
+ * Lanternite network utilities — nest-to-nest connectivity queries built on `MapNetworkManager`.
  *
- * Connections are declared via `connects:<poi_id>` tags on `nest` POIs and are bidirectional:
- * if A declares connects:B, the runtime also treats B as connected to A.
+ * Connectivity is defined by the map network graph (`MapNetworkManager`), populated at mission
+ * init from segment `network.nodes`/`network.edges` data (see `getMissionSegmentNetwork`). This
+ * file no longer parses `connects:<poi_id>` POI tags itself — that logic moved into the manager.
  */
 
-import type { MapSegmentPOI } from '../../terrain/segmentSchema';
+import type { MapNetworkManager } from '../managers/mapNetwork/MapNetworkManager';
+import type { NetworkNode } from '../managers/mapNetwork/types';
 import type { Unit } from '../units/Unit';
-import { LANTERNITE_NEST_CHARACTER_ID } from './lanternitePulse';
-
-/** Collect all POI IDs connected to the given nest POI (bidirectional via `connects:` tags). */
-export function getConnectedNestPoiIds(nestPoiId: string, allPois: readonly MapSegmentPOI[]): string[] {
-    const connected: string[] = [];
-
-    // Forward: tags on the source POI
-    const sourcePoi = allPois.find((p) => p.id === nestPoiId && p.type === 'nest');
-    for (const tag of sourcePoi?.tags ?? []) {
-        if (tag.startsWith('connects:')) {
-            const targetId = tag.slice('connects:'.length);
-            if (targetId && !connected.includes(targetId)) connected.push(targetId);
-        }
-    }
-
-    // Reverse: any nest POI that declares connects: to us
-    for (const poi of allPois) {
-        if (poi.type !== 'nest' || poi.id === nestPoiId) continue;
-        for (const tag of poi.tags ?? []) {
-            if (tag === `connects:${nestPoiId}` && !connected.includes(poi.id)) {
-                connected.push(poi.id);
-            }
-        }
-    }
-
-    return connected;
-}
 
 /**
- * Find a connected nest POI that has no alive `lanternite_nest` unit claiming it
- * and no living scout already traveling toward it.
+ * Find a connected (neighbor) nest node with no owning `characterId` (per
+ * `mapNetwork.getOwnerCharacterId` — position/radius-based node membership) and no living unit
+ * already traveling toward it. The "targeting" check stays unit-state-based
+ * (`lanterniteState.targetNestPoiId`) rather than a manager query — "targeting" is unit-local
+ * intent, not a node occupancy fact the manager tracks.
  */
 export function findUnoccupiedConnectedNestPoi(
     nestPoiId: string,
-    allPois: readonly MapSegmentPOI[],
+    mapNetwork: Pick<MapNetworkManager, 'getNeighborIds' | 'getOwnerCharacterId' | 'getNode'>,
     allUnits: readonly Unit[],
-): MapSegmentPOI | null {
-    const connectedIds = getConnectedNestPoiIds(nestPoiId, allPois);
+): NetworkNode | null {
+    const neighborIds = mapNetwork.getNeighborIds(nestPoiId);
 
-    for (const connId of connectedIds) {
-        const alreadyClaimed = allUnits.some(
-            (u) =>
-                u.isAlive() &&
-                u.characterId === LANTERNITE_NEST_CHARACTER_ID &&
-                u.lanterniteState.homeNestPoiId === connId,
-        );
+    for (const neighborId of neighborIds) {
+        const owner = mapNetwork.getOwnerCharacterId(neighborId, allUnits);
+        if (owner != null) continue;
+
         const alreadyTargeted = allUnits.some(
-            (u) => u.isAlive() && u.lanterniteState.targetNestPoiId === connId,
+            (u) => u.isAlive() && u.lanterniteState.targetNestPoiId === neighborId,
         );
-        if (!alreadyClaimed && !alreadyTargeted) {
-            const poi = allPois.find((p) => p.id === connId && p.type === 'nest');
-            if (poi) return poi;
-        }
+        if (alreadyTargeted) continue;
+
+        const node = mapNetwork.getNode(neighborId);
+        if (node) return node;
     }
 
     return null;

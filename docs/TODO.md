@@ -28,6 +28,7 @@
 | Migrate AnchoredTremor (0532) to castBehaviours | `doCardEffect` applies repeating pulse damage on each game tick during the active window. Needs a multi-pulse CastBehaviour (or per-interval repeating hits via `enteredTimingIds` logic); more complex than single-threshold abilities. |
 | Migrate StoneyPunch (0533) to castBehaviours | `doCardEffect` applies a melee hit that consumes all armour for bonus damage per armour point. Use `MeleeAttackBehaviour` with an armour-consumption side effect; armour drain can go in `ON_ATTACK_HIT` abilityEvents. |
 | Migrate ThrowTorch (0601) to castBehaviours | `ProjectileLaunch` pattern established. `TorchProjectile` → `LightSource` conversion is engine-side in `EffectManager.gameUpdate` — confirm launch wires into it before editing. Card-grant to random ally may need an `ON_PROJECTILE_EXPIRED` abilityEvents rule. |
+| Migrate swarm nest network (`swarmNestTick.ts`, `snet_seek.ts`/`snet_hunt.ts`, `unit.swarmState`) onto `MapNetworkManager` | Follow the pattern established for lanternite in `docs/plans/done/map-network-manager.md` (archived — plan is complete). Needs an explicit decision on whether swarm's intentional "always contest, no occupancy check" behavior (see `game/lanternite/AGENTS.md`) becomes a `mapNetwork` query parameter or stays a swarm-side override — this is a design question, not just a port. Also an opportunity to reconcile the `nestHomePoiId` (swarm) vs `homeNestPoiId` (lanternite) field-naming inconsistency while touching this code. |
 
 ## Hard
 

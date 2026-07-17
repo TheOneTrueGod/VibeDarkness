@@ -12,6 +12,7 @@ import { MAP_SEGMENT_49_50_PATH_TO_CAVE } from './MapSegments/49_50_path_to_cave
 import {
     MAP_SEGMENT_49_51_WEST_GLADE,
     LANTERN_NEST_FOCUS,
+    WEST_GLADE_NETWORK,
 } from './MapSegments/49_51_west_glade';
 import { MAP_SEGMENT_50_48_PATH_TOP } from './MapSegments/50_48_path_top';
 import {
@@ -29,6 +30,7 @@ import {
 import {
     MAP_SEGMENT_50_51_SOUTH_GATE,
     PATROL_DRAW_POINT,
+    SOUTH_GATE_NETWORK,
 } from './MapSegments/50_51_south_gate';
 import {
     MAP_SEGMENT_49_52_THORN_PATH,
@@ -36,6 +38,7 @@ import {
     PATROL_POINT,
     ENEMY_SPAWN_1,
     ENEMY_SPAWN_2,
+    THORN_PATH_NETWORK,
 } from './MapSegments/49_52_thorn_path';
 import {
     MAP_SEGMENT_48_52_THORN_PATH_2,
@@ -44,6 +47,7 @@ import {
     WEST_SPAWN,
     NORTH_SPAWN,
     NORTHEAST_SPAWN,
+    THORN_PATH_2_NETWORK,
 } from './MapSegments/48_52_thorn_path_2';
 
 export function registerWorldOfDarknessSegments(): void {
@@ -66,12 +70,16 @@ export function registerWorldOfDarknessSegments(): void {
             col: LANTERN_NEST_FOCUS.col,           // 7 — same as segment-local (top-left origin)
             row: 22 + LANTERN_NEST_FOCUS.row,      // 37 — stitched (row offset 22 for bottom segment row)
             type: 'nest',
-            tags: ['connects:nest_south'],
+            // connects:nest_south tag removed — connectivity is now carried by this segment's
+            // `network` data (WEST_GLADE_NETWORK, see MapSegments/49_51_west_glade.ts) instead of
+            // a POI tag. `50_51_south_gate.ts`'s own `connects:nest_west` POI tag has likewise been
+            // removed now that its `network` data (SOUTH_GATE_NETWORK) carries that connectivity.
         },
     ];
-    registerSegment(
-        tsTerrainToSegmentData('49_51_west_glade', 49, 51, MAP_SEGMENT_49_51_WEST_GLADE, westGladePOIs),
-    );
+    registerSegment({
+        ...tsTerrainToSegmentData('49_51_west_glade', 49, 51, MAP_SEGMENT_49_51_WEST_GLADE, westGladePOIs),
+        network: WEST_GLADE_NETWORK,
+    });
 
     // 50_48 Path Top — no POIs
     registerSegment(
@@ -184,18 +192,20 @@ export function registerWorldOfDarknessSegments(): void {
             col: 22 + 9,  // stitched — segment-local (9, 11) on the dirt corridor
             row: 22 + 11,
             type: 'nest',
-            tags: ['connects:nest_west'],
+            // connects:nest_west tag removed — connectivity is now carried by this segment's
+            // `network` data (SOUTH_GATE_NETWORK, see MapSegments/50_51_south_gate.ts).
         },
     ];
-    registerSegment(
-        tsTerrainToSegmentData(
+    registerSegment({
+        ...tsTerrainToSegmentData(
             '50_51_south_gate',
             50,
             51,
             MAP_SEGMENT_50_51_SOUTH_GATE,
             southGatePOIs,
         ),
-    );
+        network: SOUTH_GATE_NETWORK,
+    });
 
     // 49_52 Thorn Path
     const thornPathPOIs: MapSegmentPOI[] = [
@@ -204,9 +214,10 @@ export function registerWorldOfDarknessSegments(): void {
         { id: 'enemy_spawn_1', label: 'Enemy Spawn 1', col: ENEMY_SPAWN_1.col, row: ENEMY_SPAWN_1.row, type: 'enemySpawn' },
         { id: 'enemy_spawn_2', label: 'Enemy Spawn 2', col: ENEMY_SPAWN_2.col, row: ENEMY_SPAWN_2.row, type: 'enemySpawn' },
     ];
-    registerSegment(
-        tsTerrainToSegmentData('49_52_thorn_path', 49, 52, MAP_SEGMENT_49_52_THORN_PATH, thornPathPOIs),
-    );
+    registerSegment({
+        ...tsTerrainToSegmentData('49_52_thorn_path', 49, 52, MAP_SEGMENT_49_52_THORN_PATH, thornPathPOIs),
+        network: THORN_PATH_NETWORK,
+    });
 
     // 48_52 Thorn Path 2
     const thornPath2POIs: MapSegmentPOI[] = [
@@ -216,7 +227,8 @@ export function registerWorldOfDarknessSegments(): void {
         { id: 'north_spawn',      label: 'North Spawn',      col: NORTH_SPAWN.col,     row: NORTH_SPAWN.row,     type: 'enemySpawn' },
         { id: 'northeast_spawn',  label: 'Northeast Spawn',  col: NORTHEAST_SPAWN.col, row: NORTHEAST_SPAWN.row, type: 'enemySpawn' },
     ];
-    registerSegment(
-        tsTerrainToSegmentData('48_52_thorn_path_2', 48, 52, MAP_SEGMENT_48_52_THORN_PATH_2, thornPath2POIs),
-    );
+    registerSegment({
+        ...tsTerrainToSegmentData('48_52_thorn_path_2', 48, 52, MAP_SEGMENT_48_52_THORN_PATH_2, thornPath2POIs),
+        network: THORN_PATH_2_NETWORK,
+    });
 }

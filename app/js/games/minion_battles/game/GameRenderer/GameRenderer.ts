@@ -27,6 +27,7 @@ import { LightSourceRenderer } from './renderers/LightSourceRenderer';
 import { PreviewRenderer } from './renderers/PreviewRenderer';
 import { TerrainEffectRenderer } from './renderers/TerrainEffectRenderer';
 import { FloorTileRenderer } from './renderers/FloorTileRenderer';
+import { MapNetworkRenderer } from './renderers/MapNetworkRenderer';
 import { isRenderLayerVisible } from '../../../../debug/renderVisibilityStore';
 
 export class GameRenderer {
@@ -47,6 +48,7 @@ export class GameRenderer {
 	private previewRenderer!: PreviewRenderer;
 	private terrainEffectRenderer!: TerrainEffectRenderer;
 	private floorTileRenderer!: FloorTileRenderer;
+	private mapNetworkRenderer!: MapNetworkRenderer;
 
 	/** Optional debug: draw a yellow outline around this unit. */
 	private debugUnitOutlineId: string | null = null;
@@ -148,6 +150,7 @@ export class GameRenderer {
 		this.previewRenderer = new PreviewRenderer(this.gameContainer, this.assetRegistry, this.overlayRenderer);
 		this.floorTileRenderer = new FloorTileRenderer(this.gameContainer);
 		this.terrainEffectRenderer = new TerrainEffectRenderer(this.gameContainer);
+		this.mapNetworkRenderer = new MapNetworkRenderer(this.gameContainer);
 
 		const afterLoad = (): void => {
 			const tex = this.assetRegistry.getEffectTexture('darkBlob');
@@ -307,6 +310,12 @@ export class GameRenderer {
 		if (previewsVisible) {
 			this.previewRenderer.render(engine, this.localTeamId, targetingState ?? null);
 		}
+
+		const mapNetworkVisible = isRenderLayerVisible('mapNetwork');
+		this.mapNetworkRenderer.setLayerVisible(mapNetworkVisible);
+		if (mapNetworkVisible) {
+			this.mapNetworkRenderer.render(engine);
+		}
 		this.app.render();
 	}
 
@@ -324,6 +333,7 @@ export class GameRenderer {
 		this.overlayRenderer.destroy();
 		this.floorTileRenderer.destroy();
 		this.terrainEffectRenderer.destroy();
+		this.mapNetworkRenderer.destroy();
 		this.specialTileRenderer.destroy();
 		this.projectileRenderer.destroy();
 		this.effectRenderer.destroy();

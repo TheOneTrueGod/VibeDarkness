@@ -75,11 +75,22 @@ export const lanterniteNestBuildScenario: ScenarioDefinition = {
             grass: true,
         });
 
-        // Register network POIs using world-grid coords (same as gridToWorld(col, row))
+        // POIs are cosmetic/informational only now — connectivity comes from `mapNetworkManager`
+        // below (`connects:` POI tags are no longer parsed; see `lanterniteNetworkUtils.ts`).
         engine.registerMapPOIs([
-            { id: 'test_nest_a', label: 'Nest A', col: NEST_A_COL, row: NEST_A_ROW, type: 'nest', tags: ['connects:test_nest_b'] },
+            { id: 'test_nest_a', label: 'Nest A', col: NEST_A_COL, row: NEST_A_ROW, type: 'nest' },
             { id: 'test_nest_b', label: 'Nest B', col: NEST_B_COL, row: NEST_B_ROW, type: 'nest' },
         ]);
+        // This harness has no mission/segments to derive a network from (see
+        // `buildTinyBattleEngine`), so the test registers the graph directly — mirrors what
+        // `BaseMissionDef.initializeGameState` does via `getMissionSegmentNetwork` in the real game.
+        engine.mapNetworkManager.loadFromSegments({
+            nodes: [
+                { id: 'test_nest_a', x: worldOf(NEST_A_COL, NEST_A_ROW).x, y: worldOf(NEST_A_COL, NEST_A_ROW).y, radius: 0, tags: ['nest'], segmentId: 'test' },
+                { id: 'test_nest_b', x: worldOf(NEST_B_COL, NEST_B_ROW).x, y: worldOf(NEST_B_COL, NEST_B_ROW).y, radius: 0, tags: ['nest'], segmentId: 'test' },
+            ],
+            edges: [['test_nest_a', 'test_nest_b']],
+        });
 
         const pos = worldOf(NEST_A_COL, NEST_A_ROW);
         const nestUnit = createUnitFromSpawnConfig(
@@ -177,11 +188,19 @@ export const lanterniteNestDualSpawnScenario: ScenarioDefinition = {
             grass: true,
         });
 
-        // Use distinct POI IDs from scenario 1 so the two scenarios don't share state
+        // Use distinct POI IDs from scenario 1 so the two scenarios don't share state.
+        // POIs are cosmetic/informational only — connectivity comes from `mapNetworkManager` below.
         engine.registerMapPOIs([
-            { id: 'dual_nest_a', label: 'Nest A', col: NEST_A_COL, row: NEST_A_ROW, type: 'nest', tags: ['connects:dual_nest_b'] },
+            { id: 'dual_nest_a', label: 'Nest A', col: NEST_A_COL, row: NEST_A_ROW, type: 'nest' },
             { id: 'dual_nest_b', label: 'Nest B', col: NEST_B_COL, row: NEST_B_ROW, type: 'nest' },
         ]);
+        engine.mapNetworkManager.loadFromSegments({
+            nodes: [
+                { id: 'dual_nest_a', x: worldOf(NEST_A_COL, NEST_A_ROW).x, y: worldOf(NEST_A_COL, NEST_A_ROW).y, radius: 0, tags: ['nest'], segmentId: 'test' },
+                { id: 'dual_nest_b', x: worldOf(NEST_B_COL, NEST_B_ROW).x, y: worldOf(NEST_B_COL, NEST_B_ROW).y, radius: 0, tags: ['nest'], segmentId: 'test' },
+            ],
+            edges: [['dual_nest_a', 'dual_nest_b']],
+        });
 
         const pos = worldOf(NEST_A_COL, NEST_A_ROW);
         const nestUnit = createUnitFromSpawnConfig(

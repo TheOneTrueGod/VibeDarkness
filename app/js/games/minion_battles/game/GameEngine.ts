@@ -67,6 +67,8 @@ import { resetGameObjectIdCounter } from './GameObject';
 import type { EffectEmitter } from './effects/EffectEmitter';
 import { registerLateBuiltinHandlers } from '../worldModifiers/builtinHandlers';
 import type { WorldModifierManager } from '../worldModifiers/WorldModifierManager';
+import type { MapNetworkManager } from './managers/mapNetwork/MapNetworkManager';
+import { getMissionSegmentNetwork } from '../terrain/segmentRegistry';
 import { CellOccupancyManager } from './managers/CellOccupancyManager';
 import { getUnitMaxPerTile, getUnitShovePriority, getUnitDefEntry, getBodyColorForUnit, getCharacterSpriteKey, getUnitSpawnDef, type UnitDefId } from './units/unit_defs/unitDef';
 import { STACK_GHOST_DURATION } from './effect_defs/movementEffects';
@@ -557,6 +559,11 @@ export class GameEngine implements EngineContext {
 
     get worldModifierManager(): WorldModifierManager {
         return this.state.worldModifierManager;
+    }
+
+    /** Read-only: mutation goes through `loadFromSegments`/`tick`, called by mission init/fixedUpdate. */
+    get mapNetworkManager(): MapNetworkManager {
+        return this.state.mapNetworkManager;
     }
 
     trackAbilityUse(unitId: string, abilityId: string): void {
@@ -1383,6 +1390,7 @@ export class GameEngine implements EngineContext {
             this.state.levelEventManager.processLevelEvents();
             this.state.objectiveManager.processObjectives();
             const aiCtx = this.buildAIContext();
+            this.state.mapNetworkManager.tick(this.units);
             this.state.groupManager.tick(this.gameTick, aiCtx);
             this.state.unitManager.gameTick(
                 dt,
@@ -1443,7 +1451,7 @@ export class GameEngine implements EngineContext {
             addUnit: (u, src) => this.addUnit(u, src),
             idSource: this,
             mapPOIs: this.mapPOIs,
-            terrainGrid: this.terrainManager?.grid ?? null,
+            mapNetwork: this.state.mapNetworkManager,
             lightLevelEnabled: this.lightLevelEnabled,
             addLightSource: (ls) => this.addLightSource(ls),
             lightSources: this.state.lightSourceManager.lightSources,
@@ -1673,6 +1681,7 @@ export class GameEngine implements EngineContext {
             cancelActiveAbility: (unitId, abilityId) => this.cancelActiveAbility(unitId, abilityId),
             mapPOIs: this.mapPOIs,
             ninjutsuManager: this.state.ninjutsuManager ?? undefined,
+            mapNetwork: this.state.mapNetworkManager,
         };
     }
 
@@ -1806,6 +1815,7 @@ export class GameEngine implements EngineContext {
             nextObjectId: this.objectIdSeq,
             mapPOIs: this.mapPOIs,
             mapZones: this.mapZones,
+            mapNetwork: this.state.mapNetworkManager.toJSON(),
             groups: this.state.groupManager.toJSON(this.gameTick),
             ninjutsuPools: this.state.ninjutsuManager?.toJSON() ?? undefined,
             ...(Object.keys(this.npcControlAssignments).length > 0
@@ -1953,6 +1963,17 @@ export class GameEngine implements EngineContext {
 
         // Restore map zones (needed for spawn behaviours that run deterministically on every client)
         engine.registerMapZones((data.mapZones ?? []) as import('../terrain/segmentSchema').MapSegmentZone[]);
+
+        // Restore map network graph. Deliberately NOT restored from `data.mapNetwork` (always an
+        // empty no-op payload, see `SerializedGameState.mapNetwork`'s doc comment) — rebuilt fresh
+        // from segment data instead, mirroring `mission.initializeGameState`'s own
+        // `loadFromSegments` call. This restore path runs independently of
+        // `initializeGameState` (checkpoint/resync callers construct a fresh engine straight from
+        // JSON), so `opts.segmentIds` is the only way the graph gets populated here.
+        engine.state.mapNetworkManager.restoreFromJSON(data.mapNetwork);
+        if (opts?.segmentIds) {
+            engine.state.mapNetworkManager.loadFromSegments(getMissionSegmentNetwork(opts.segmentIds));
+        }
 
         // Restore terrain layers (floor/ground/air effects)
         engine.state.terrainLayers = TerrainLayerManager.fromJSON(data.terrainEffects ?? [], data.floorTiles ?? []);

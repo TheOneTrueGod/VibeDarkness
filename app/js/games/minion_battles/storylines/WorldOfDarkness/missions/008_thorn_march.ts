@@ -163,7 +163,8 @@ const MISSION_POIS: MapSegmentPOI[] = [
         col: NEST_49_51_COL,
         row: NEST_49_51_ROW,
         type: 'nest',
-        tags: ['connects:nest_49_52'],
+        // connects:nest_49_52 tag removed — carried by MapSegments/49_51_west_glade.ts's
+        // WEST_GLADE_NETWORK instead (see registerSegments.ts).
     },
     {
         id: 'nest_49_52',
@@ -171,7 +172,8 @@ const MISSION_POIS: MapSegmentPOI[] = [
         col: NEST_49_52_COL,
         row: NEST_49_52_ROW,
         type: 'nest',
-        tags: ['connects:nest_49_51', 'connects:nest_48_52'],
+        // connects:nest_49_51 / connects:nest_48_52 tags removed — carried by
+        // MapSegments/49_52_thorn_path.ts's THORN_PATH_NETWORK instead.
     },
     {
         id: 'nest_48_52',
@@ -179,7 +181,8 @@ const MISSION_POIS: MapSegmentPOI[] = [
         col: NEST_48_52_COL,
         row: NEST_48_52_ROW,
         type: 'nest',
-        tags: ['connects:nest_49_52'],
+        // connects:nest_49_52 tag removed — carried by MapSegments/48_52_thorn_path_2.ts's
+        // THORN_PATH_2_NETWORK instead.
     },
 ];
 

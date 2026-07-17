@@ -8,7 +8,8 @@ import type { EngineContext } from '../EngineContext';
 import type { Unit } from '../units/Unit';
 import type { MapSegmentPOI } from '../../terrain/segmentSchema';
 import type { LanterniteNestMissionConfig } from '../../storylines/types';
-import { CELL_SIZE } from '../../terrain/TerrainGrid';
+import type { MapNetworkManager } from '../managers/mapNetwork/MapNetworkManager';
+import type { NetworkNode } from '../managers/mapNetwork/types';
 import {
     LANTERNITE_CHARACTER_ID,
     LANTERNITE_NEST_CHARACTER_ID,
@@ -31,6 +32,9 @@ const GOLDEN_ANGLE = 2.399963229728653;
 
 const ROUND_DURATION_SEC = 8;
 
+/** Read-only query surface `processLanterniteNests` needs — mirrors `AIContext.mapNetwork`'s `Pick<...>` restriction (query only, no `tick`/`loadFromSegments`). */
+type MapNetworkQuery = Pick<MapNetworkManager, 'getNeighborIds' | 'getOwnerCharacterId' | 'getNode'>;
+
 function pruneSpawnedLanternIds(nest: Unit, units: readonly Unit[]): void {
     const state = nest.lanterniteState.nestSpawnState;
     if (!state) return;
@@ -49,10 +53,6 @@ function resolvePatrolFarWorld(nest: Unit, units: readonly Unit[]): { x: number;
     return other ? { x: other.x, y: other.y } : null;
 }
 
-interface TerrainGridLike {
-    gridToWorld: (col: number, row: number) => { x: number; y: number };
-}
-
 /**
  * Advances nest spawn timers once per simulation tick (host).
  * Also handles scout construction completion — spawns a new nest and removes the scout.
@@ -69,7 +69,8 @@ export function processLanterniteNests(params: {
     addUnit: (unit: Unit, spawnSource?: import('../types').SpawnSource) => void;
     idSource?: Pick<EngineContext, 'allocateObjectId'> | EngineContext;
     mapPOIs?: readonly MapSegmentPOI[];
-    terrainGrid?: TerrainGridLike | null;
+    /** Read-only map-network query surface — resolves scout targets via the node graph instead of `connects:` POI tags. Optional, matching `mapPOIs`'s convention. */
+    mapNetwork?: MapNetworkQuery;
     lightLevelEnabled?: boolean;
     addLightSource?: (ls: LightSource) => void;
     lightSources?: LightSource[];
@@ -128,7 +129,12 @@ export function processLanterniteNests(params: {
             continue;
         }
 
-        // Skip if another scout already built a nest at this POI
+        // Skip if another scout already built a nest at this POI. Deliberately left as an explicit
+        // `homeNestPoiId === targetNestPoiId` check rather than migrated to
+        // `mapNetwork.getOwnerCharacterId` — that generic query answers "who currently occupies
+        // this node by position," while this check needs the narrower "is there a live
+        // `lanternite_nest` whose *home* is this exact POI id" fact; replicating that exactly
+        // through the generic method would need extra plumbing, not worth the churn here.
         if (unit.lanterniteState.targetNestPoiId != null) {
             const alreadyOccupied = params.units.some(
                 (u) =>
@@ -242,13 +248,13 @@ export function processLanterniteNests(params: {
                 const nestPoiId = nest.lanterniteState.homeNestPoiId ?? cfg.nestPoiId;
 
                 let role: 'scout' | 'defender' = 'defender';
-                let targetPoi: MapSegmentPOI | null = null;
+                let targetNode: NetworkNode | null = null;
 
                 if (scoutCount <= defenderCount || defenderCount >= targetDefenders) {
-                    if (nestPoiId && params.mapPOIs) {
-                        targetPoi = findUnoccupiedConnectedNestPoi(nestPoiId, params.mapPOIs, params.units);
+                    if (nestPoiId && params.mapNetwork) {
+                        targetNode = findUnoccupiedConnectedNestPoi(nestPoiId, params.mapNetwork, params.units);
                     }
-                    role = targetPoi ? 'scout' : 'defender';
+                    role = targetNode ? 'scout' : 'defender';
                 }
 
                 unitAITreeId = 'lanterniteNetwork';
@@ -260,12 +266,11 @@ export function processLanterniteNests(params: {
                 let patrolFarWorld: { x: number; y: number } | undefined;
                 let targetNestPoiId: string | undefined;
                 let nestConfig: LanterniteNestMissionConfig | undefined;
-                if (role === 'scout' && targetPoi) {
-                    const worldPos = params.terrainGrid
-                        ? params.terrainGrid.gridToWorld(targetPoi.col, targetPoi.row)
-                        : { x: targetPoi.col * CELL_SIZE + CELL_SIZE / 2, y: targetPoi.row * CELL_SIZE + CELL_SIZE / 2 };
-                    patrolFarWorld = worldPos;
-                    targetNestPoiId = targetPoi.id;
+                if (role === 'scout' && targetNode) {
+                    // The manager already stores mission-global px — no `terrainGrid.gridToWorld`
+                    // conversion needed (unlike the old POI-tag path).
+                    patrolFarWorld = { x: targetNode.x, y: targetNode.y };
+                    targetNestPoiId = targetNode.id;
                     nestConfig = cfg;
                 }
 

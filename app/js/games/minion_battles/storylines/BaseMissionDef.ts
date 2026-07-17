@@ -22,6 +22,7 @@ import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { EventBus } from '../game/EventBus';
 import type { Unit } from '../game/units/Unit';
 import type { MapSegmentPOI, MapSegmentZone } from '../terrain/segmentSchema';
+import { getMissionSegmentNetwork } from '../terrain/segmentRegistry';
 import { createPlayerUnit } from '../game/units/index';
 import { enemySpawnDefToSpawnDefinition } from '../game/units/spawning/adapters';
 import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
@@ -192,6 +193,11 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
         engine.terrainManager = params.terrainManager ?? null;
         engine.registerMapPOIs(params.terrainSegmentPOIs ?? []);
         engine.registerMapZones(params.terrainSegmentZones ?? []);
+        // Deliberate simplification: call getMissionSegmentNetwork directly using this.segmentIds
+        // rather than threading a new terrainSegmentNetwork param through BattleSession the way
+        // POIs/zones are pre-computed there — mapNetworkManager is new with no existing
+        // multi-call-site convention to match yet.
+        engine.state.mapNetworkManager.loadFromSegments(getMissionSegmentNetwork(this.segmentIds));
 
         // Add player units
         const playerCount = params.playerUnits.length;

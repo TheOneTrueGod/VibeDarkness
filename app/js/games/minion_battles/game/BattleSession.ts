@@ -593,7 +593,10 @@ export class BattleSession implements BattleSessionHandle {
         const camera = new Camera(800, 600, terrainGrid.worldWidth, terrainGrid.worldHeight);
         this.camera = camera;
         renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
-        const engine = GameEngine.fromJSON(gameState, playerId, terrainManager, opts);
+        const engine = GameEngine.fromJSON(gameState, playerId, terrainManager, {
+            ...opts,
+            segmentIds: mission.segmentIds,
+        });
         renderer.setTerrain(terrainManager);
         // Fallback for snapshots predating ninjutsu serialization: re-init from mission config.
         if (!engine.state.ninjutsuManager) {
@@ -656,6 +659,7 @@ export class BattleSession implements BattleSessionHandle {
         renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
         const engine = GameEngine.fromJSON(snapshot, playerId, terrainManager, {
             checkpointRuntimeFingerprintHex: snapshot.checkpointRuntimeFingerprintHex,
+            segmentIds: mission.segmentIds,
         });
         renderer.setTerrain(terrainManager);
         if (!engine.state.ninjutsuManager) {

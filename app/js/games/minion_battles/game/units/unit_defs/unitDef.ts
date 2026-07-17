@@ -155,6 +155,9 @@ export interface UnitDefEntry {
     shovePriority?: number;
     /** Spawn animation played when this unit enters via darknessSpawn. Absent = default dark vortex (0.5 s). */
     spawnDef?: SpawnAnimationDef;
+    /** Opts this character into `MapNetworkManager`'s per-tick node membership tracking.
+     *  undefined/false = invisible to the network, exactly like unmanaged units and `CellOccupancyManager`. */
+    participatesInMapNetwork?: boolean;
 }
 
 const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
@@ -306,6 +309,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         ],
         uiDescription:
             'Lantern-bearing creature — pulses light up to four times each round (Soul Sap) and wanders patrol routes beside its nest.',
+        participatesInMapNetwork: true,
     },
     lanternite_nest: {
         bodyColor: 0x065f46,
@@ -318,6 +322,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         creatureType: 'nature',
         uiDescription:
             'Living nursery — births lantern scouts on a rhythm; needs protection when stirred.',
+        participatesInMapNetwork: true,
     },
     thornling: {
         bodyColor: 0x3a6b1f,
@@ -656,6 +661,11 @@ export function getCreatureType(characterId: string): CreatureType | undefined {
 /** Max unit objects of this type that can share one tile. undefined = exempt from occupancy system. */
 export function getUnitMaxPerTile(characterId: string): number | undefined {
     return UNIT_DEFS[characterId as UnitDefId]?.maxPerTile;
+}
+
+/** Whether this character type opts into `MapNetworkManager` node-membership tracking. Defaults to false. */
+export function getUnitParticipatesInMapNetwork(characterId: string): boolean {
+    return UNIT_DEFS[characterId as UnitDefId]?.participatesInMapNetwork ?? false;
 }
 
 /** Shove priority for the unit. undefined = cannot shove other units. */

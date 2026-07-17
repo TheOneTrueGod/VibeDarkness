@@ -8,6 +8,7 @@ import type { SpecialTile } from '../../specialTiles/SpecialTile';
 import type { BattleOrder } from '../../types';
 import type { MapSegmentPOI } from '../../../terrain/segmentSchema';
 import type { NinjutsuManager } from '../../ninjutsu/NinjutsuManager';
+import type { MapNetworkManager } from '../../managers/mapNetwork/MapNetworkManager';
 
 /** Light source for AI (e.g. Torch effect, crystal tile). */
 export interface AILightSource {
@@ -58,6 +59,23 @@ export interface AIContext {
     mapPOIs?: readonly MapSegmentPOI[];
     /** Ninjutsu pool manager for throttling enemy attacks. Absent when ninjutsu is not configured for this session. */
     ninjutsuManager?: NinjutsuManager;
+    /**
+     * Read-only query surface onto the map network graph (node/edge structure, unit
+     * membership/ownership). `Pick<...>` deliberately excludes `tick`/`loadFromSegments` — AI
+     * trees may only query the graph, never mutate it. Optional — not all engines provide this.
+     */
+    mapNetwork?: Pick<
+        MapNetworkManager,
+        | 'getNode'
+        | 'getNeighborIds'
+        | 'getNeighborNodes'
+        | 'findNodeContainingPosition'
+        | 'findNodeForUnit'
+        | 'getUnitIdsInNode'
+        | 'getUnitCountsByCharacterId'
+        | 'getOwnerCharacterId'
+        | 'getAllNodeIds'
+    >;
 }
 
 /** Node ID within a tree. Format: <tree_name>_<node_name> */

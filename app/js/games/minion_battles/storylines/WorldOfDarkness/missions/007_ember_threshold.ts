@@ -89,7 +89,9 @@ const MISSION_POIS: MapSegmentPOI[] = [
 		col: NEST_50_51_COL,
 		row: NEST_50_51_ROW,
 		type: 'nest',
-		tags: ['connects:nest_49_51'],
+		// connects:nest_49_51 tag removed — that connectivity is now carried by
+		// MapSegments/50_51_south_gate.ts's `SOUTH_GATE_NETWORK` (node `nest_50_51`, edge to
+		// `nest_49_51`), resolved via this mission's `segmentIds`.
 	},
 	{
 		id: 'nest_49_51',

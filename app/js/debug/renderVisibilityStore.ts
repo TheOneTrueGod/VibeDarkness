@@ -15,6 +15,7 @@ export const RENDER_LAYER_IDS = [
     'effects',
     'previews',
     'hudEffects',
+    'mapNetwork',
 ] as const;
 
 export type RenderLayerId = (typeof RENDER_LAYER_IDS)[number];
@@ -33,6 +34,7 @@ export const RENDER_LAYER_LABELS: Record<RenderLayerId, string> = {
     effects: 'Effects',
     previews: 'Targeting & move previews',
     hudEffects: 'HUD effects (screen-space canvas)',
+    mapNetwork: 'Map network (debug: nodes & edges)',
 };
 
 function createDefaultSnapshot(): RenderVisibilitySnapshot {
@@ -48,6 +50,9 @@ function createDefaultSnapshot(): RenderVisibilitySnapshot {
         effects: true,
         previews: true,
         hudEffects: true,
+        // Debug-only overlay (yellow nodes/edges) — off by default unlike the real render layers
+        // above, which are all on by default and toggled off for debugging clarity.
+        mapNetwork: false,
     };
 }
 
