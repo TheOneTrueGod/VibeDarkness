@@ -513,6 +513,126 @@ export const lanterniteDefenderAttackScenario: ScenarioDefinition = {
 };
 
 // ---------------------------------------------------------------------------
+// Scenario 3b: Lanternite light-pulse tracks a moving target through the windup
+// and still connects, instead of firing at the target's pre-windup position.
+// ---------------------------------------------------------------------------
+
+export const lanterniteDefenderTracksMovingTargetScenario: ScenarioDefinition = {
+    id: 'lanternite_defender_tracks_moving_target',
+    title: 'Lanternite: light pulse tracks a moving target through the windup and still hits',
+    category: 'general',
+    generalSection: 'Lanternites',
+    // 0.7s prefire + brief projectile flight + buffer
+    maxDurationMs: 5000,
+
+    buildEngine() {
+        const engine = buildTinyBattleEngine({
+            gridW: 10,
+            gridH: 6,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+
+        const lanPos = worldOf(DEF_LAN_COL, DEF_LAN_ROW);
+        const lanternite = createUnitFromSpawnConfig(
+            {
+                id: 'test_lanternite_moving',
+                characterId: 'lanternite',
+                name: 'Test Lanternite',
+                x: lanPos.x,
+                y: lanPos.y,
+                teamId: 'allied',
+                ownerId: 'ai',
+                abilities: ['0010'],
+                unitAITreeId: 'lanterniteNetwork',
+                aiSettings: { minRange: 0, maxRange: 200 },
+            },
+            engine.eventBus,
+            engine,
+        );
+        lanternite.lanterniteState.role = 'defender';
+        initializeAbilityRuntimeForUnit(lanternite);
+        engine.addUnit(lanternite, 'initialGameSpawn');
+
+        // Enemy starts directly across from the lanternite (same row), then walks straight up
+        // during the windup. A frozen-at-cast-start aim would still fire along the original row
+        // and miss; only live tracking through the windup keeps the shot on target.
+        const enemyPos = worldOf(ENEMY_COL, ENEMY_ROW);
+        const enemy = createUnitFromSpawnConfig(
+            {
+                id: 'test_enemy_moving',
+                characterId: 'enemy_melee',
+                name: 'Test Enemy',
+                hp: ENEMY_HP,
+                x: enemyPos.x,
+                y: enemyPos.y,
+                teamId: 'enemy',
+                ownerId: 'ai',
+                abilities: [],
+                unitAITreeId: 'static_test_no_ai',
+            },
+            engine.eventBus,
+            engine,
+        );
+        engine.addUnit(enemy, 'initialGameSpawn');
+
+        spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: worldOf(0, 0).x,
+            y: worldOf(0, 0).y,
+            abilities: [],
+        });
+
+        return engine;
+    },
+
+    getInitialOrders(engine) {
+        const lan = engine.getUnit('test_lanternite_moving');
+        const enemy = engine.getUnit('test_enemy_moving');
+        if (!lan || !enemy) return [];
+        const player = engine.getLocalPlayerUnit();
+        const orders: import('../../../game/types').BattleOrder[] = [
+            { unitId: lan.id, abilityId: '0010', targets: [{ type: 'unit', unitId: enemy.id }] },
+            {
+                unitId: enemy.id,
+                abilityId: MOVE_ONLY_ABILITY_ID,
+                targets: [],
+                movePath: [
+                    { col: ENEMY_COL, row: ENEMY_ROW - 1 },
+                    { col: ENEMY_COL, row: ENEMY_ROW - 2 },
+                    { col: ENEMY_COL, row: ENEMY_ROW - 3 },
+                ],
+            },
+        ];
+        if (player) {
+            orders.push({ unitId: player.id, abilityId: 'wait', targets: [] });
+        }
+        return orders;
+    },
+
+    assertPass(engine) {
+        const enemy = engine.getUnit('test_enemy_moving');
+        return enemy != null && enemy.hp < ENEMY_HP;
+    },
+
+    failureMessage(engine) {
+        const enemy = engine.getUnit('test_enemy_moving');
+        const lan = engine.getUnit('test_lanternite_moving');
+        return (
+            `enemy hp=${enemy?.hp ?? '—'}/${ENEMY_HP} pos=(${enemy?.x.toFixed(0)},${enemy?.y.toFixed(0)}) ` +
+            `lan activeAbilities=${lan?.activeAbilities.length ?? 0} ` +
+            `t=${engine.gameTime.toFixed(1)}`
+        );
+    },
+
+    describeState(engine) {
+        const enemy = engine.getUnit('test_enemy_moving');
+        const lan = engine.getUnit('test_lanternite_moving');
+        return `t=${engine.gameTime.toFixed(1)} enemyHp=${enemy?.hp ?? '—'} lanState=${lan?.aiContext?.aiState ?? '?'}`;
+    },
+};
+
+// ---------------------------------------------------------------------------
 // Scenario 4: Lanternite nest passive spreads bramble_slow tiles each tick
 // ---------------------------------------------------------------------------
 

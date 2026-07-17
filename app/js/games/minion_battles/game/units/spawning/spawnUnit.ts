@@ -428,7 +428,7 @@ function applyAiHookup(ctx: SpawnUnitContext, unit: Unit, hookup: SpawnAiHookup 
         }
         case 'swarmNest': {
             unit.swarmState.nestConfig = hookup.nestConfig;
-            if (hookup.homeNestPoiId != null) unit.swarmState.nestHomePoiId = hookup.homeNestPoiId;
+            if (hookup.homeNestPoiId != null) unit.swarmState.homeNestPoiId = hookup.homeNestPoiId;
             return;
         }
         case 'thornlingNest': {

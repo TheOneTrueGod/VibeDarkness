@@ -1471,7 +1471,7 @@ export class GameEngine implements EngineContext {
             dt,
             units: this.units,
             mapPOIs: this.mapPOIs,
-            terrainGrid: this.terrainManager?.grid ?? null,
+            mapNetwork: this.state.mapNetworkManager,
             eventBus: this.eventBus,
             addUnit: (u) => this.addUnit(u, 'nestSpawn'),
             idSource: this,

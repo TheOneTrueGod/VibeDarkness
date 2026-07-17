@@ -148,9 +148,13 @@ export function detectAndFreezeTelegraphDistanceBreak(
     if (!target) return null;
     if (unitHasActiveEvade(target)) return null; // evade-break loop owns this case
     const extra = getAbilityMaxLockOnExtra(ability, caster, engine);
+    // Abilities without a SelectTargetDef hitbox (e.g. legacy pixel/unit `targets`) have no
+    // hitbox-derived range to tether to — fall back to the ability's own declared range instead
+    // of the melee-sized LOCK_ON_TETHER_EXTRA default, so ranged abilities don't break tether early.
+    const fallbackRange = getAbilityHitboxMaxRange(ability, caster, engine) ?? ability.getRange?.(caster)?.maxRange ?? null;
     const tetherBreakRange = extra !== null
         ? caster.radius + target.radius + extra
-        : getLockOnRange(getAbilityHitboxMaxRange(ability, caster, engine));
+        : getLockOnRange(fallbackRange);
     const lockPos = evaluateTargetLockBreak(caster, target, tetherBreakRange);
     if (!lockPos) return null;
     applyTelegraphLock(payload, lockPos, engine);

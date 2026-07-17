@@ -7,10 +7,11 @@
 import type { AbilityRecoveryRule, AbilityStatic, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
-import type { ResolvedTarget } from '../../game/types';
+import type { ActiveAbility } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
+import { asTelegraphPayload } from '../../abilities/telegraphTracking';
 import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { defineAbility } from '../../abilities/defineAbility';
@@ -56,7 +57,10 @@ export const LanterniteStrikeAbility: AbilityStatic = defineAbility({
         },
         { id: 'cooldown', start: FIRE_END, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
     ],
-    targets: [{ type: 'pixel', label: 'Target' }] as TargetDef[],
+    targets: [{ type: 'unit', label: 'Target' }] as TargetDef[],
+    // Tracks the live target position through the aim/charge windup (freezing on evade or
+    // tether-break) instead of firing at wherever the target was when the AI queued the attack.
+    telegraph: { kind: 'growingLine', color: LIGHT_COLOR, trackTarget: true },
     aiSettings: { minRange: 0, maxRange: MAX_DISTANCE },
     getRange: (_caster: Unit) => ({ minRange: 0, maxRange: MAX_DISTANCE }),
 
@@ -71,13 +75,16 @@ export const LanterniteStrikeAbility: AbilityStatic = defineAbility({
     renderActivePreview(
         gr: IAbilityPreviewGraphics,
         caster: Unit,
-        activeAbility: { startTime: number; targets: ResolvedTarget[] },
+        activeAbility: ActiveAbility,
         gameTime: number,
     ): void {
         const elapsed = gameTime - activeAbility.startTime;
         if (elapsed >= PREFIRE_TIME) return;
 
-        const target = getPixelTargetPosition(activeAbility.targets, 0);
+        const payload = asTelegraphPayload(activeAbility.castPayload);
+        const target = payload
+            ? { x: payload.telegraphTargetX, y: payload.telegraphTargetY }
+            : getPixelTargetPosition(activeAbility.targets, 0);
         if (!target) return;
 
         const { dirX: ux, dirY: uy, dist } = getDirectionFromTo(caster.x, caster.y, target.x, target.y);

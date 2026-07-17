@@ -9,6 +9,8 @@ import type { EngineContext } from '../EngineContext';
 import type { Unit } from '../units/Unit';
 import type { MapSegmentPOI } from '../../terrain/segmentSchema';
 import type { SwarmNestMissionConfig } from '../../storylines/types';
+import type { MapNetworkManager } from '../managers/mapNetwork/MapNetworkManager';
+import type { NetworkNode } from '../managers/mapNetwork/types';
 import { spawnUnit, type SpawnUnitContext } from '../units/spawning/spawnUnit';
 
 export const SWARM_NEST_CHARACTER_ID = 'swarm_nest';
@@ -32,9 +34,10 @@ const NEST_SPAWN_EXTRA_RADIUS = 60;
 /** Default seconds a swarmling waits at a POI before the new nest spawns. */
 const DEFAULT_CONSTRUCTION_SEC = 10;
 
-interface TerrainGridLike {
-    gridToWorld: (col: number, row: number) => { x: number; y: number };
-}
+/** Read-only query surface `findUnclaimedNetworkNode`/`processSwarmNests` need — mirrors
+ *  `lanterniteNestTick.ts`'s `MapNetworkQuery` `Pick<...>` restriction (query only, no
+ *  `tick`/`loadFromSegments`). */
+type MapNetworkQuery = Pick<MapNetworkManager, 'getAllNodeIds' | 'getNode'>;
 
 function pruneSpawnedIds(nest: Unit, units: readonly Unit[]): void {
     const state = nest.swarmState.nestSpawnState;
@@ -46,36 +49,45 @@ function pruneSpawnedIds(nest: Unit, units: readonly Unit[]): void {
 }
 
 /**
- * Find the nearest unclaimed nest POI: one that has no live swarm_nest occupying it
- * and no live swarmling already targeting it.
+ * Find the nearest unclaimed network node: one that has no live swarm_nest currently calling it
+ * home and no live swarmling already targeting it.
+ *
+ * Design notes — see `docs/plans/swarm-nest-network-migration.md` decisions #1/#2. Do not "fix"
+ * this to match lanternite's `findUnoccupiedConnectedNestPoi`:
+ *  - No `mapNetwork.getOwnerCharacterId` call: swarm nests are meant to *always contest* a node
+ *    regardless of which faction already holds it — that's what drives the contested-nest-site
+ *    fights lanternite's `isNestSiteContested` reacts to. Only the swarm's own units
+ *    (`homeNestPoiId`/`targetNestPoiId`) exclude a node here, same as before this migration.
+ *  - No neighbor-only traversal (`mapNetwork.getNeighborIds`): swarm scans every node in the
+ *    graph and picks nearest-by-distance, unlike lanternite's neighbor-restricted selection. This
+ *    is a deliberate, pre-existing behavior difference, not an oversight to "align."
  */
-export function findUnclaimedNestPoi(
+export function findUnclaimedNetworkNode(
     sourceX: number,
     sourceY: number,
-    allPois: readonly MapSegmentPOI[],
+    mapNetwork: MapNetworkQuery,
     allUnits: readonly Unit[],
-    terrainGrid: TerrainGridLike,
-): MapSegmentPOI | null {
-    const occupiedPoiIds = new Set<string>();
+): NetworkNode | null {
+    const occupiedNodeIds = new Set<string>();
     for (const u of allUnits) {
         if (!u.isAlive()) continue;
-        if (u.swarmState.nestHomePoiId) occupiedPoiIds.add(u.swarmState.nestHomePoiId);
-        if (u.swarmState.targetNestPoiId) occupiedPoiIds.add(u.swarmState.targetNestPoiId);
+        if (u.swarmState.homeNestPoiId) occupiedNodeIds.add(u.swarmState.homeNestPoiId);
+        if (u.swarmState.targetNestPoiId) occupiedNodeIds.add(u.swarmState.targetNestPoiId);
     }
 
-    let best: MapSegmentPOI | null = null;
+    let best: NetworkNode | null = null;
     let bestDist = Infinity;
 
-    for (const poi of allPois) {
-        if (poi.type !== 'nest') continue;
-        if (occupiedPoiIds.has(poi.id)) continue;
-        const world = terrainGrid.gridToWorld(poi.col, poi.row);
-        const dx = world.x - sourceX;
-        const dy = world.y - sourceY;
+    for (const nodeId of mapNetwork.getAllNodeIds()) {
+        if (occupiedNodeIds.has(nodeId)) continue;
+        const node = mapNetwork.getNode(nodeId);
+        if (!node) continue;
+        const dx = node.x - sourceX;
+        const dy = node.y - sourceY;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < bestDist) {
             bestDist = dist;
-            best = poi;
+            best = node;
         }
     }
 
@@ -105,7 +117,8 @@ export function processSwarmNests(params: {
     addUnit: (unit: Unit) => void;
     idSource?: Pick<EngineContext, 'allocateObjectId'>;
     mapPOIs?: readonly MapSegmentPOI[];
-    terrainGrid?: TerrainGridLike | null;
+    /** Read-only map-network query surface — resolves nest targets via the node graph instead of the old flat POI scan. Optional, matching `mapPOIs`'s convention. */
+    mapNetwork?: MapNetworkQuery;
     /** Seeded RNG source — must be passed from the engine so spawn positions are deterministic across clients. */
     generateRandomInteger: (min: number, max: number) => number;
 }): void {
@@ -122,8 +135,6 @@ export function processSwarmNests(params: {
         generateRandomInteger: params.generateRandomInteger,
         allocateObjectId: params.idSource?.allocateObjectId?.bind(params.idSource),
     };
-    const terrainGrid = params.terrainGrid ?? null;
-    const allPois = params.mapPOIs ?? [];
 
     // --- Shared construction: swarmlings building at the same POI pool their effort, so N
     // swarmlings at one site finish N times faster than a lone one. Each additional swarmling
@@ -171,7 +182,7 @@ export function processSwarmNests(params: {
                 (u) =>
                     u.characterId === SWARM_NEST_CHARACTER_ID &&
                     u.isAlive() &&
-                    u.swarmState.nestHomePoiId === targetPoiId,
+                    u.swarmState.homeNestPoiId === targetPoiId,
             );
             if (alreadyOccupied) {
                 unit.hp = 0;
@@ -181,10 +192,11 @@ export function processSwarmNests(params: {
             }
         }
 
-        const targetPoi = targetPoiId ? allPois.find((p) => p.id === targetPoiId) : null;
+        const targetNode = targetPoiId ? (params.mapNetwork?.getNode(targetPoiId) ?? null) : null;
 
-        if (targetPoi && terrainGrid) {
-            const world = terrainGrid.gridToWorld(targetPoi.col, targetPoi.row);
+        if (targetNode) {
+            // Node positions are already mission-global px — no `terrainGrid.gridToWorld`
+            // conversion needed (unlike the old POI-tag path), mirrors lanternite's cleanup.
 
             // Resolve config from swarmling's parent nest
             const parentNest = unit.swarmState.nestOwnerUnitId
@@ -202,7 +214,7 @@ export function processSwarmNests(params: {
                 teamId: unit.teamId,
                 unitAITreeId: 'lanterniteNestIdle',
                 aiSettings: null,
-                placement: { kind: 'fixedWorld', x: world.x, y: world.y },
+                placement: { kind: 'fixedWorld', x: targetNode.x, y: targetNode.y },
                 aiHookup: { kind: 'swarmNest', nestConfig: { ...cfg }, homeNestPoiId: targetPoiId ?? undefined },
             });
             initializeSwarmNestSpawnState(newNest, params.gameTime);
@@ -234,11 +246,11 @@ export function processSwarmNests(params: {
             const aliveCount = state.spawnedIds.length;
             const orbitAngle = (aliveCount * GOLDEN_ANGLE) % (Math.PI * 2);
 
-            // Assign target POI if available
+            // Assign target node if available
             let targetNestPoiId: string | undefined;
-            if (terrainGrid && allPois.length > 0) {
-                const targetPoi = findUnclaimedNestPoi(nest.x, nest.y, allPois, params.units, terrainGrid);
-                if (targetPoi) targetNestPoiId = targetPoi.id;
+            if (params.mapNetwork) {
+                const targetNode = findUnclaimedNetworkNode(nest.x, nest.y, params.mapNetwork, params.units);
+                if (targetNode) targetNestPoiId = targetNode.id;
             }
 
             const [child] = spawnUnit(spawnCtx, {

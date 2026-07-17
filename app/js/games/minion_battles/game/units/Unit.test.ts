@@ -138,7 +138,7 @@ function buildGoldenSerializationUnit(eventBus: EventBus): Unit {
         spawnedIds: ['swarm_1', 'swarm_2'],
         nextSpawnAtGameTime: 22,
     };
-    unit.swarmState.nestHomePoiId = 'swarm_home_poi';
+    unit.swarmState.homeNestPoiId = 'swarm_home_poi';
     unit.swarmState.orbitAngle = 2.4;
     unit.swarmState.targetNestPoiId = 'swarm_target_poi';
     unit.swarmState.nestOwnerUnitId = 'swarm_nest_owner';
@@ -450,13 +450,13 @@ describe('Unit', () => {
             "speed": 120,
             "stackSize": 3,
             "stamina": 2,
+            "swarmHomeNestPoiId": "swarm_home_poi",
             "swarmNestConfig": {
               "maxSwarmlings": 8,
               "scoutConstructionSec": 10,
               "spawnCount": 2,
               "spawnIntervalSec": 2.5,
             },
-            "swarmNestHomePoiId": "swarm_home_poi",
             "swarmNestSpawnState": {
               "nextSpawnAtGameTime": 22,
               "spawnedIds": [

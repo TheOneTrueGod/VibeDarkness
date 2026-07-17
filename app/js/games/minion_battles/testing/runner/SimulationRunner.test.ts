@@ -30,11 +30,15 @@ import {
     shiningBlockStaminaOnBlockScenario,
     absorptionShieldStaminaOnBlockScenario,
 } from '../scenarios/abilities/techShieldScenarios';
-import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteSharedConstructionScenario, lanterniteDefenderAttackScenario } from '../scenarios/general/lanternites';
+import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteSharedConstructionScenario, lanterniteDefenderAttackScenario, lanterniteDefenderTracksMovingTargetScenario } from '../scenarios/general/lanternites';
 import { lanterniteDeathBehaviorsScenario, lanterniteNestOwnedNoRespawnScenario } from '../scenarios/general/lanterniteDeath';
 import { alphaWolfEnrageTriggersScenario, alphaWolfSummonScenario } from '../scenarios/general/enemies';
 import { npcControlScenario } from '../scenarios/general/npcControl';
-import { swarmlingHuntAndBiteScenario, swarmlingSharedConstructionScenario } from '../scenarios/general/swarmlings';
+import {
+    swarmlingHuntAndBiteScenario,
+    swarmlingSharedConstructionScenario,
+    swarmlingContestsOccupiedNestScenario,
+} from '../scenarios/general/swarmlings';
 import { petAutoEngageScenario, petHeelScenario, petSicEmPounceScenario } from '../scenarios/general/pets';
 import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario } from '../scenarios/general/lightingSystem';
 import { aiPlanHoldStabilityScenario } from '../scenarios/ai/ai_plan_hold_stability';
@@ -201,6 +205,11 @@ describe('runScenarioHeadless', () => {
         expect(r.passed, r.message).toBe(true);
     });
 
+    it('passes lanternite light-pulse tracks moving target scenario', () => {
+        const r = runScenarioHeadless(lanterniteDefenderTracksMovingTargetScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
     it('passes lanternite nest build scenario', () => {
         const r = runScenarioHeadless(lanterniteNestBuildScenario);
         expect(r.passed, r.message).toBe(true);
@@ -334,6 +343,11 @@ describe('runScenarioHeadless', () => {
 
     it('passes swarmling shared construction scenario (two swarmlings, one nest, faster build)', () => {
         const r = runScenarioHeadless(swarmlingSharedConstructionScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes swarmling contests occupied nest scenario (nearest node wins, always contests)', () => {
+        const r = runScenarioHeadless(swarmlingContestsOccupiedNestScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

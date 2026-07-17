@@ -293,6 +293,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         uiDescription: 'Fast skittering biter — snaps twice per round.',
         maxPerTile: 3,
         spawnDef: { type: 'burstRise', duration: 0.6, riseHeight: 24 },
+        participatesInMapNetwork: true,
     },
     lanternite: {
         bodyColor: 0x34d399,
@@ -357,6 +358,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         creatureType: 'dark_creature',
         onDeathVisualEffects: darkCreatureParticleBurstVFX(5),
         uiDescription: 'Swarm Nest — spawns skittering swarmlings that seek out other nest sites.',
+        participatesInMapNetwork: true,
     },
     dog: {
         bodyColor: 0x8a5a2b,

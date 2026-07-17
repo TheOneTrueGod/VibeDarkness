@@ -15,6 +15,10 @@ type DamageResolver = (ctx: CastBehaviourSetupContext) => number;
 function resolveLaunchTarget(ctx: CastBehaviourSetupContext): { x: number; y: number } | null {
     const t: ResolvedTarget | undefined = ctx.target;
     if (t?.type === 'pixel' && t.position) return t.position;
+    if (t?.type === 'unit' && t.unitId) {
+        const unit = ctx.engine.getUnit(t.unitId);
+        return unit ? { x: unit.x, y: unit.y } : null;
+    }
     return getPixelTargetPosition(ctx.allTargets, 0);
 }
 

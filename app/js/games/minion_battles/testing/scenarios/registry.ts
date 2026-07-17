@@ -60,10 +60,14 @@ import {
     shiningBlockStaminaOnBlockScenario,
     absorptionShieldStaminaOnBlockScenario,
 } from './abilities/techShieldScenarios';
-import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteSharedConstructionScenario, lanterniteDefenderAttackScenario, lanterniteNestThornSpreadScenario } from './general/lanternites';
+import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteSharedConstructionScenario, lanterniteDefenderAttackScenario, lanterniteDefenderTracksMovingTargetScenario, lanterniteNestThornSpreadScenario } from './general/lanternites';
 import { lanterniteDeathBehaviorsScenario, lanterniteNestOwnedNoRespawnScenario } from './general/lanterniteDeath';
 import { petAutoEngageScenario, petHeelScenario, petSicEmPounceScenario } from './general/pets';
-import { swarmlingHuntAndBiteScenario, swarmlingSharedConstructionScenario } from './general/swarmlings';
+import {
+    swarmlingHuntAndBiteScenario,
+    swarmlingSharedConstructionScenario,
+    swarmlingContestsOccupiedNestScenario,
+} from './general/swarmlings';
 import { aiPlanHoldStabilityScenario } from './ai/ai_plan_hold_stability';
 import { aiTerrainInterruptScenario } from './ai/ai_terrain_interrupt';
 import { aiReplanStaggerScenario } from './ai/ai_replan_stagger';
@@ -130,6 +134,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     enemyArcherShotScenario,
     swarmlingHuntAndBiteScenario,
     swarmlingSharedConstructionScenario,
+    swarmlingContestsOccupiedNestScenario,
     absorptionShieldEnergyChargeScenario,
     raiseShieldBlocksScenario,
     raiseShieldAllyStaminaSurgeScenario,
@@ -141,6 +146,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     lanterniteNestDualSpawnScenario,
     lanterniteSharedConstructionScenario,
     lanterniteDefenderAttackScenario,
+    lanterniteDefenderTracksMovingTargetScenario,
     lanterniteNestThornSpreadScenario,
     lanterniteDeathBehaviorsScenario,
     lanterniteNestOwnedNoRespawnScenario,
