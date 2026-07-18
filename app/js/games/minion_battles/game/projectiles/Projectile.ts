@@ -59,6 +59,8 @@ export class Projectile extends GameObject {
     trailType?: 'bullet';
     /** Projectile look variant — key into the projectile def registry. */
     projectileType: string;
+    /** Optional render-only arc apex height (px), set by the launching ability's CastBehaviour. */
+    arcHeight?: number;
     /** Sprite-based config for sprite_projectile type. Travels with the instance and is serialized. */
     spriteConfig?: SpriteProjectileConfig;
     /** Optional behavior modifiers (e.g. stonephase terrain traversal rules). */
@@ -111,6 +113,7 @@ export class Projectile extends GameObject {
         maxDistance: number;
         trailType?: 'bullet';
         projectileType?: string;
+        arcHeight?: number;
         spriteConfig?: SpriteProjectileConfig;
         modifiers?: ProjectileModifierId[];
         passThroughEnemies?: boolean;
@@ -132,6 +135,7 @@ export class Projectile extends GameObject {
         this.maxDistance = config.maxDistance;
         this.trailType = config.trailType;
         this.projectileType = config.projectileType ?? 'default';
+        this.arcHeight = config.arcHeight;
         this.spriteConfig = config.spriteConfig;
         this.modifiers = config.modifiers ?? [];
         this.passThroughEnemies = config.passThroughEnemies ?? false;
@@ -376,6 +380,7 @@ export class Projectile extends GameObject {
             knockbackTier: this.knockbackTier,
             continueAfterMaxHits: this.continueAfterMaxHits,
             ...(this.summonSeedWeak !== undefined ? { summonSeedWeak: this.summonSeedWeak } : {}),
+            ...(this.arcHeight !== undefined ? { arcHeight: this.arcHeight } : {}),
         };
     }
 
@@ -407,6 +412,7 @@ export class Projectile extends GameObject {
         proj.knockbackTier = data.knockbackTier as number | undefined;
         proj.continueAfterMaxHits = (data.continueAfterMaxHits as boolean | undefined) ?? false;
         if (data.summonSeedWeak !== undefined) proj.summonSeedWeak = data.summonSeedWeak as boolean;
+        if (data.arcHeight !== undefined) proj.arcHeight = data.arcHeight as number;
         return proj;
     }
 

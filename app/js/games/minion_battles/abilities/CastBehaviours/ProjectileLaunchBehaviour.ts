@@ -40,6 +40,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
     private passThroughEnemies: boolean = false;
     private modifiers: ProjectileModifierId[] = [];
     private travelFullRange: boolean = false;
+    private arcHeight?: number;
 
     withSpeed(speed: number): this {
         this.speed = speed;
@@ -99,6 +100,12 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
         return this;
     }
 
+    /** Render-only arc apex height (px) forwarded to the spawned Projectile. */
+    withArcHeight(height: number): this {
+        this.arcHeight = height;
+        return this;
+    }
+
     onSetup(ctx: CastBehaviourSetupContext): void {
         const targetPos = resolveLaunchTarget(ctx);
         if (!targetPos) return;
@@ -122,6 +129,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
             sourceAbilityId: ctx.abilityId,
             maxDistance: travelDistance,
             projectileType: this.projectileType,
+            arcHeight: this.arcHeight,
             spriteConfig: this.spriteConfig,
             passThroughEnemies: this.passThroughEnemies,
             pierce: this.pierce,

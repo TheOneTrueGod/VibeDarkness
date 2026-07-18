@@ -7,13 +7,12 @@ import type { ActiveAbility } from '../../game/types';
 import { Projectile } from '../../game/projectiles/Projectile';
 import { Effect } from '../../game/effects/Effect';
 import { AbilityPhase } from '../../abilities/abilityTimings';
-import type { ResolvedTarget } from '../../game/types';
+import { CastBehaviours } from '../../abilities/CastBehaviours';
 import type { Unit } from '../../game/units/Unit';
 import { HitboxSpec } from '../../hitboxes';
 import type { HitboxEngineContext, HitboxPreviewCaster } from '../../hitboxes';
 import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { isAbilityNote } from '../../game/AbilityNote';
 import { getPixelTargetPosition, damageEnemiesInCircle, placeJitteredGroundThorns } from '../../abilities/targetHelpers';
 import type { EventBus } from '../../game/EventBus';
 import { isLightHateWeakened } from '../../game/lightHate';
@@ -40,6 +39,9 @@ const SLOW_MULT_WEAKENED = 0.72;
 const BRAMBLE_CLEAR_BEFORE_NEXT_SEC = 0.15;
 const TARGETING_RANGE = 320;
 const DURATION_JITTER_IN_SECONDS = 1;
+// Flight time ~=1s at max range (matches the old fixed windup->strike cadence); faster for closer targets.
+const THORN_PROJECTILE_SPEED = TARGETING_RANGE / (STRIKE_TIME - LOCK_TIME);
+const ARC_HEIGHT = 100;
 
 class ThornbinderHitboxSpec extends HitboxSpec {
     get maxRange(): number { return TARGETING_RANGE; }
@@ -61,17 +63,9 @@ interface EngineLike {
     lightLevelEnabled: boolean;
     globalLightLevel: number;
     terrainManager: { grid: import('../../terrain/TerrainGrid').TerrainGrid } | null;
-    addProjectile(projectile: Projectile): void;
     addEffect(effect: Effect): void;
     getAllLightSources(): import('../../game/LightGrid').LightSource[];
     generateRandomInteger(min: number, max: number): number;
-}
-
-function getStrikePosition(caster: Unit, active: { targets: ResolvedTarget[] }): { x: number; y: number } | null {
-    if (isAbilityNote(caster.abilityNote, '0008')) {
-        return caster.abilityNote.abilityNote.position;
-    }
-    return getPixelTargetPosition(active.targets, 0);
 }
 
 export const ThornbinderBrambleAbility: AbilityStatic = {
@@ -86,7 +80,19 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
     prefireTime: STRIKE_TIME,
     abilityTimings: [
         { id: 'windup', start: 0, end: LOCK_TIME, abilityPhase: AbilityPhase.Windup },
-        { id: 'strike', start: LOCK_TIME, end: STRIKE_TIME, abilityPhase: AbilityPhase.Active, targetDef: { kind: 'select', label: 'Ground', hitbox: THORNBINDER_HITBOX, filter: 'any', allowMiss: true } },
+        {
+            id: 'strike',
+            start: LOCK_TIME,
+            end: STRIKE_TIME,
+            abilityPhase: AbilityPhase.Active,
+            targetDef: { kind: 'select', label: 'Ground', hitbox: THORNBINDER_HITBOX, filter: 'any', allowMiss: true },
+            behaviour: CastBehaviours.ProjectileLaunch()
+                .withSpeed(THORN_PROJECTILE_SPEED)
+                .withMaxRange(TARGETING_RANGE)
+                .withProjectileType('bramble_spike')
+                .withPassThroughEnemies()
+                .withArcHeight(ARC_HEIGHT),
+        },
         { id: 'cooldown', start: STRIKE_TIME, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
     ],
     targets: [],
@@ -108,41 +114,9 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
         return [];
     },
 
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
+    onProjectileExpired(engine: unknown, caster: Unit, projectile: Projectile): void {
         const eng = engine as EngineLike;
-        if (prevTime < LOCK_TIME && currentTime >= LOCK_TIME) {
-            const pos = getPixelTargetPosition(targets, 0);
-            if (pos) {
-                caster.setAbilityNote({
-                    abilityId: '0008',
-                    abilityNote: { position: { ...pos } },
-                });
-                const dx = pos.x - caster.x;
-                const dy = pos.y - caster.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist > 1) {
-                    const speed = dist / (STRIKE_TIME - LOCK_TIME);
-                    eng.addProjectile(new Projectile({
-                        x: caster.x,
-                        y: caster.y,
-                        velocityX: (dx / dist) * speed,
-                        velocityY: (dy / dist) * speed,
-                        damage: 0,
-                        sourceTeamId: caster.teamId,
-                        sourceUnitId: caster.id,
-                        sourceAbilityId: THORNBINDER_ABILITY_ID,
-                        maxDistance: dist,
-                        projectileType: 'bramble_spike',
-                        passThroughEnemies: true,
-                    }));
-                }
-            }
-        }
-        if (prevTime >= STRIKE_TIME || currentTime < STRIKE_TIME) return;
-
-        const pos = getStrikePosition(caster, { targets });
-        caster.clearAbilityNote();
-        if (!pos) return;
+        const pos = { x: projectile.x, y: projectile.y };
 
         const weakened = isLightHateWeakened(caster, eng);
         const radius = weakened ? WEAKENED_RADIUS : BASE_RADIUS;
@@ -196,7 +170,7 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
         const elapsed = gameTime - activeAbility.startTime;
         if (elapsed >= STRIKE_TIME) return;
 
-        const target = getStrikePosition(caster, activeAbility);
+        const target = getPixelTargetPosition(activeAbility.targets, 0);
         if (!target) return;
 
         // Arcing trajectory line: visible during windup, fades out as the projectile launches

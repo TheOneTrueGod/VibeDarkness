@@ -15,7 +15,7 @@ export const brambleSpikeDef: IProjectileDef = {
     updateVisual(visual, proj) {
         if (proj.maxDistance > 0) {
             const t = Math.min(1, proj.distanceTraveled / proj.maxDistance);
-            const arcH = Math.min(proj.maxDistance * 0.4, 100);
+            const arcH = proj.arcHeight ?? Math.min(proj.maxDistance * 0.4, 100);
             visual.y = proj.y - 4 * t * (1 - t) * arcH;
         }
         visual.rotation = 0;

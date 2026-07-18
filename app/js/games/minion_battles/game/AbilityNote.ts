@@ -7,7 +7,6 @@
 export interface AbilityNoteMap {
     '0001': { position: { x: number; y: number } };
     '0002': { position: { x: number; y: number } };
-    '0008': { position: { x: number; y: number } };
     '0009': { position: { x: number; y: number } };
     '0111': { hitTargetIds: string[] };
     '0534': {
