@@ -561,7 +561,9 @@ export class GameEngine implements EngineContext {
         return this.state.worldModifierManager;
     }
 
-    /** Read-only: mutation goes through `loadFromSegments`/`tick`, called by mission init/fixedUpdate. */
+    /** Read-only: mutation goes through `loadFromSegments`/`buildInitialMembership` (mission init
+     *  and resync) and `updateUnitNode`/`unregisterUnit` (per-unit steady-state, from
+     *  `UnitManager.gameTick` and the `unit_died` listener). */
     get mapNetworkManager(): MapNetworkManager {
         return this.state.mapNetworkManager;
     }
@@ -717,6 +719,13 @@ export class GameEngine implements EngineContext {
                     }
                 }
             }
+        });
+
+        // Map-network hygiene: unregister immediately rather than waiting for the next
+        // updateUnitNode diff, which may never re-fire since a dead unit's position typically
+        // never changes again after death.
+        this.eventBus.on('unit_died', (data) => {
+            this.state.mapNetworkManager.unregisterUnit(data.unitId);
         });
 
         this.eventBus.on('stack_members_died', (data) => {
@@ -1390,7 +1399,6 @@ export class GameEngine implements EngineContext {
             this.state.levelEventManager.processLevelEvents();
             this.state.objectiveManager.processObjectives();
             const aiCtx = this.buildAIContext();
-            this.state.mapNetworkManager.tick(this.units);
             this.state.groupManager.tick(this.gameTick, aiCtx);
             this.state.unitManager.gameTick(
                 dt,
@@ -1973,6 +1981,10 @@ export class GameEngine implements EngineContext {
         engine.state.mapNetworkManager.restoreFromJSON(data.mapNetwork);
         if (opts?.segmentIds) {
             engine.state.mapNetworkManager.loadFromSegments(getMissionSegmentNetwork(opts.segmentIds));
+            // Unit restoration (engine.state.unitManager.restoreFromJSON) already ran earlier in
+            // this function, so engine.units is populated here — seed membership once, same as
+            // the mission-init path in BaseMissionDef.initializeGameState.
+            engine.state.mapNetworkManager.buildInitialMembership(engine.units);
         }
 
         // Restore terrain layers (floor/ground/air effects)

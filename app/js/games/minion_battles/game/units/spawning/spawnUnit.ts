@@ -532,8 +532,10 @@ function applyAiHookup(ctx: SpawnUnitContext, unit: Unit, hookup: SpawnAiHookup 
             return;
         }
         case 'swarm': {
+            // currentNodeId/targetNodeId are intentionally NOT set here — they start null and are
+            // resolved lazily on the swarmling's first snet_seek tick (spawn position counts as
+            // an implicit first arrival). See swarmlingNetwork/snet_seek.ts.
             if (hookup.orbitAngle != null) unit.swarmState.orbitAngle = hookup.orbitAngle;
-            if (hookup.targetNestPoiId != null) unit.swarmState.targetNestPoiId = hookup.targetNestPoiId;
             if (hookup.nestOwnerUnitId != null) unit.swarmState.nestOwnerUnitId = hookup.nestOwnerUnitId;
             return;
         }

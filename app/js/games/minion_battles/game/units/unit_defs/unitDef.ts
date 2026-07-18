@@ -158,6 +158,10 @@ export interface UnitDefEntry {
     /** Opts this character into `MapNetworkManager`'s per-tick node membership tracking.
      *  undefined/false = invisible to the network, exactly like unmanaged units and `CellOccupancyManager`. */
     participatesInMapNetwork?: boolean;
+    /** Static tags every spawn of this character type carries (e.g. `UnitTag.Structure`). Merged
+     *  with any per-spawn `SpawnDefinition.unitTags` at construction time in
+     *  `createUnitFromSpawnConfig` — additive only, never removes a tag a spawn config also sets. */
+    tags?: UnitTag[];
 }
 
 const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
@@ -324,6 +328,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         uiDescription:
             'Living nursery — births lantern scouts on a rhythm; needs protection when stirred.',
         participatesInMapNetwork: true,
+        tags: [UnitTag.Structure],
     },
     thornling: {
         bodyColor: 0x3a6b1f,
@@ -359,6 +364,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         onDeathVisualEffects: darkCreatureParticleBurstVFX(5),
         uiDescription: 'Swarm Nest — spawns skittering swarmlings that seek out other nest sites.',
         participatesInMapNetwork: true,
+        tags: [UnitTag.Structure],
     },
     dog: {
         bodyColor: 0x8a5a2b,
@@ -668,6 +674,11 @@ export function getUnitMaxPerTile(characterId: string): number | undefined {
 /** Whether this character type opts into `MapNetworkManager` node-membership tracking. Defaults to false. */
 export function getUnitParticipatesInMapNetwork(characterId: string): boolean {
     return UNIT_DEFS[characterId as UnitDefId]?.participatesInMapNetwork ?? false;
+}
+
+/** Static per-characterId tags (e.g. `UnitTag.Structure`). Defaults to `[]`. */
+export function getUnitStaticTags(characterId: string): UnitTag[] {
+    return UNIT_DEFS[characterId as UnitDefId]?.tags ?? [];
 }
 
 /** Shove priority for the unit. undefined = cannot shove other units. */

@@ -140,7 +140,8 @@ function buildGoldenSerializationUnit(eventBus: EventBus): Unit {
     };
     unit.swarmState.homeNestPoiId = 'swarm_home_poi';
     unit.swarmState.orbitAngle = 2.4;
-    unit.swarmState.targetNestPoiId = 'swarm_target_poi';
+    unit.swarmState.currentNodeId = 'swarm_current_node';
+    unit.swarmState.targetNodeId = 'swarm_target_node';
     unit.swarmState.nestOwnerUnitId = 'swarm_nest_owner';
     unit.swarmState.constructionCompleteAtGameTime = 25;
 
@@ -465,9 +466,10 @@ describe('Unit', () => {
               ],
             },
             "swarmlingConstructionCompleteAtGameTime": 25,
+            "swarmlingCurrentNodeId": "swarm_current_node",
             "swarmlingNestOwnerUnitId": "swarm_nest_owner",
             "swarmlingOrbitAngle": 2.4,
-            "swarmlingTargetNestPoiId": "swarm_target_poi",
+            "swarmlingTargetNodeId": "swarm_target_node",
             "tacticalPlan": {
               "groupCohesionCenter": {
                 "x": 120,

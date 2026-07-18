@@ -168,7 +168,7 @@ describe('spawnUnit placement', () => {
             engine,
         );
         engine.addUnit(nest, 'initialGameSpawn');
-        engine.state.mapNetworkManager.tick(engine.units);
+        engine.state.mapNetworkManager.buildInitialMembership(engine.units);
 
         const spawned = engine.spawnUnit({
             ...BASE,
@@ -204,7 +204,7 @@ describe('spawnUnit placement', () => {
             );
             engine.addUnit(unit, 'initialGameSpawn');
         }
-        engine.state.mapNetworkManager.tick(engine.units);
+        engine.state.mapNetworkManager.buildInitialMembership(engine.units);
 
         const spawned = engine.spawnUnit({
             ...BASE,
@@ -241,7 +241,7 @@ describe('spawnUnit placement', () => {
             engine,
         );
         engine.addUnit(nest, 'initialGameSpawn');
-        engine.state.mapNetworkManager.tick(engine.units);
+        engine.state.mapNetworkManager.buildInitialMembership(engine.units);
 
         const spawned = engine.spawnUnit({
             ...BASE,

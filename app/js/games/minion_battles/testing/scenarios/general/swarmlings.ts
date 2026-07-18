@@ -113,7 +113,8 @@ export const swarmlingHuntAndBiteScenario: ScenarioDefinition = {
 
 const SWARM_SHARED_SITE_COL = 6;
 const SWARM_SHARED_SITE_ROW = 3;
-/** Must match SEEK_STAND_RADIUS in snet_seek.ts. */
+/** Arbitrary offset so the two swarmlings don't spawn exactly on top of each other; arrival is
+ *  driven directly by presetting `swarmState.currentNodeId` below, not by physical proximity. */
 const SWARM_SEEK_STAND_RADIUS = 56;
 /** Must match SWARM_DEFAULT_CONSTRUCTION_SEC in swarmNestTick.ts (10s). */
 const SWARM_SOLO_CONSTRUCTION_SEC = 10;
@@ -149,8 +150,8 @@ export const swarmlingSharedConstructionScenario: ScenarioDefinition = {
         // lookup (see `docs/plans/swarm-nest-network-migration.md` Step 2/3) — register a matching
         // network node (same id as the POI above) so construction can still complete here.
         // Mirrors `lanternites.ts`'s `engine.mapNetworkManager.loadFromSegments(...)` pattern; no
-        // edges needed since this scenario hardcodes `targetNestPoiId` directly and never calls
-        // `findUnclaimedNetworkNode`.
+        // edges needed since this scenario hardcodes `swarmState.currentNodeId` directly and never
+        // calls `findUnclaimedNetworkNode`.
         engine.mapNetworkManager.loadFromSegments({
             nodes: [
                 {
@@ -165,8 +166,10 @@ export const swarmlingSharedConstructionScenario: ScenarioDefinition = {
             edges: [],
         });
 
-        // Both swarmlings start already standing at their construction position (angles 0 and PI,
-        // so they don't overlap) — this isolates the shared-build/acceleration behavior from travel time.
+        // Both swarmlings start already positioned near the site (angles 0 and PI, so they don't
+        // overlap) with `currentNodeId` preset to the site — this isolates the shared-build/
+        // acceleration behavior from travel time (snet_seek settles immediately on its first tick
+        // since currentNodeId is already set to a valid, unclaimed nest node).
         function makeSwarmling(id: string, angle: number): void {
             const standX = sitePos.x + Math.cos(angle) * SWARM_SEEK_STAND_RADIUS;
             const standY = sitePos.y + Math.sin(angle) * SWARM_SEEK_STAND_RADIUS;
@@ -186,7 +189,7 @@ export const swarmlingSharedConstructionScenario: ScenarioDefinition = {
                 engine.eventBus,
                 engine,
             );
-            swarmling.swarmState.targetNestPoiId = 'swarm_shared_site';
+            swarmling.swarmState.currentNodeId = 'swarm_shared_site';
             swarmling.swarmState.orbitAngle = angle;
             initializeAbilityRuntimeForUnit(swarmling);
             engine.addUnit(swarmling, 'initialGameSpawn');
@@ -263,13 +266,20 @@ export const swarmlingContestsOccupiedNestScenario: ScenarioDefinition = {
         const farNodePos = swarmWorldOf(CONTEST_FAR_NODE_COL, CONTEST_FAR_NODE_ROW);
         const nestPos = swarmWorldOf(CONTEST_NEST_COL, CONTEST_NEST_ROW);
 
-        // Two candidate network nodes: one close to the swarm nest but already held by a
-        // lanternite_nest (a different faction/characterId entirely), one genuinely unclaimed but
-        // much farther away. Per docs/plans/swarm-nest-network-migration.md decisions #1/#2,
-        // `findUnclaimedNetworkNode` must still pick the near, occupied-by-another-faction node —
-        // it only excludes nodes already claimed by the swarm's *own* units, and it scans the
-        // whole graph rather than restricting to neighbors. If a future change added
-        // `getOwnerCharacterId`-based exclusion, this scenario would fail by picking the far node.
+        // Two candidate network nodes: one close to the swarm nest, one genuinely unclaimed but
+        // much farther away. Per docs/plans/swarm-nest-network-migration.md decisions #1/#2 (and
+        // the later population-gradient migration, see game/lanternite/AGENTS.md), a swarmling's
+        // build-eligibility check (`isValidUnclaimedBuildNode`/`isNodeClaimedBySwarm`) only
+        // excludes nodes already claimed by the swarm's *own* units — a rival faction's structure
+        // occupying a node would not stop a swarmling from settling and building there, since
+        // that check never looks at non-swarm units at all. (An earlier version of this scenario
+        // placed a live `lanternite_nest` directly on `contest_near_node` to dramatize that, but
+        // it actively interfered with the AI under the population-gradient redesign — a rival
+        // structure within alert radius reads as a threat and pulls the swarmling into `snet_hunt`
+        // before it ever resolves `currentNodeId`/settles — so it's omitted; the node topology
+        // alone is what's under test.) The freshly spawned swarmling resolves its initial
+        // `currentNodeId` from its spawn position (near the swarm nest, hence near
+        // `contest_near_node`) and must settle there, not end up building at the far node instead.
         engine.mapNetworkManager.loadFromSegments({
             nodes: [
                 { id: 'contest_near_node', x: nearNodePos.x, y: nearNodePos.y, radius: 20, tags: ['nest'], segmentId: 'test' },
@@ -277,26 +287,6 @@ export const swarmlingContestsOccupiedNestScenario: ScenarioDefinition = {
             ],
             edges: [],
         });
-
-        // A live, opted-in non-swarm unit standing exactly on the near node — "occupying" it from
-        // another faction's perspective.
-        const occupier = createUnitFromSpawnConfig(
-            {
-                id: 'contest_occupier',
-                characterId: 'lanternite_nest',
-                name: 'Occupying Lanternite Nest',
-                x: nearNodePos.x,
-                y: nearNodePos.y,
-                teamId: 'allied',
-                ownerId: 'ai',
-                abilities: [],
-                unitAITreeId: 'lanterniteNestIdle',
-                aiSettings: { minRange: 0, maxRange: 0 },
-            },
-            engine.eventBus,
-            engine,
-        );
-        engine.addUnit(occupier, 'initialGameSpawn');
 
         // Swarm nest, primed to spawn its first swarmling on tick one.
         const nest = createUnitFromSpawnConfig(
@@ -337,18 +327,21 @@ export const swarmlingContestsOccupiedNestScenario: ScenarioDefinition = {
 
     assertPass(engine) {
         const swarmling = engine.units.find((u) => u.characterId === 'swarmling' && u.isAlive());
-        return swarmling?.swarmState.targetNestPoiId === 'contest_near_node';
+        return (
+            swarmling?.swarmState.currentNodeId === 'contest_near_node' &&
+            swarmling.swarmState.constructionCompleteAtGameTime != null
+        );
     },
 
     failureMessage(engine) {
         const swarmling = engine.units.find((u) => u.characterId === 'swarmling' && u.isAlive());
         return swarmling
-            ? `swarmling targetNestPoiId=${swarmling.swarmState.targetNestPoiId ?? 'none'}`
+            ? `swarmling currentNodeId=${swarmling.swarmState.currentNodeId ?? 'none'} targetNodeId=${swarmling.swarmState.targetNodeId ?? 'none'}`
             : 'no swarmling spawned';
     },
 
     describeState(engine) {
         const swarmling = engine.units.find((u) => u.characterId === 'swarmling' && u.isAlive());
-        return `t=${engine.gameTime.toFixed(1)} swarmlingTarget=${swarmling?.swarmState.targetNestPoiId ?? 'none'}`;
+        return `t=${engine.gameTime.toFixed(1)} swarmlingCurrentNode=${swarmling?.swarmState.currentNodeId ?? 'none'}`;
     },
 };

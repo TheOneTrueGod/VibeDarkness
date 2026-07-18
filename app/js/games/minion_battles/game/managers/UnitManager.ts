@@ -254,6 +254,10 @@ export class UnitManager {
                 if (tree) runPathfindingRetrigger(unit, tree, aiContext);
             }
             unit.tickMovement(dt, engine);
+            // Incremental map-network membership update — the unit "notifies" the manager of a
+            // node change right after its position is finalized for this tick, instead of the
+            // manager rescanning every participating unit every tick. See MapNetworkManager.updateUnitNode.
+            engine.mapNetworkManager.updateUnitNode(unit);
         }
         // Phase 3: AI decisions (all positions settled)
         for (const unit of this.units) {

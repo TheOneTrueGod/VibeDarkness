@@ -13,7 +13,7 @@ import { areEnemies } from '../../teams';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import { getAbilityTargets } from '../../../abilities/Ability';
 import { getSelectTargetDefsFromTimings, buildAiSelectTargets } from '../../../abilities/targeting';
-import { UnitTag } from '../unitTag';
+import { UnitTag, hasUnitTag } from '../unitTag';
 import { meetsTagRequirements } from '../../../abilities/abilityUses';
 
 export { ROUND_DURATION } from '../../gameConstants';
@@ -39,6 +39,13 @@ export function everyAITicks(gameTick: number, intervalTicks: number): boolean {
 export function findEnemies(unit: Unit, units: Unit[]): Unit[] {
     const hostile = units.filter((u) => u.isAlive() && areEnemies(unit.teamId, u.teamId));
     return hostile.filter((u) => !u.tags?.includes(UnitTag.ProtectedByCrystal) && !u.isInvincible() && !u.isSpawning());
+}
+
+/** Living hostile units tagged `UnitTag.Structure` (e.g. lanternite_nest, swarm_nest). The
+ *  generic "find any enemy structure" helper — any AI tree that needs to target/path toward a
+ *  hostile structure should use this rather than a def-specific or speed-based proxy. */
+export function findEnemyStructures(unit: Unit, units: Unit[]): Unit[] {
+    return findEnemies(unit, units).filter((u) => hasUnitTag(u, UnitTag.Structure));
 }
 
 /**

@@ -62,12 +62,12 @@ describe('MapNetworkManager', () => {
         });
     });
 
-    describe('tick', () => {
+    describe('buildInitialMembership', () => {
         it('assigns a unit to the node containing its position', () => {
             const mgr = new MapNetworkManager();
             mgr.loadFromSegments(network);
             const u1 = makeUnit('u1', 1, 1, 'lanternite');
-            mgr.tick([u1]);
+            mgr.buildInitialMembership([u1]);
             expect(mgr.getUnitIdsInNode('a')).toEqual(['u1']);
             expect(mgr.findNodeForUnit('u1')?.id).toBe('a');
         });
@@ -76,12 +76,12 @@ describe('MapNetworkManager', () => {
             const mgr = new MapNetworkManager();
             mgr.loadFromSegments(network);
             const u1 = makeUnit('u1', 1, 1, 'lanternite');
-            mgr.tick([u1]);
+            mgr.buildInitialMembership([u1]);
             expect(mgr.findNodeForUnit('u1')?.id).toBe('a');
 
             u1.x = 100;
             u1.y = 1;
-            mgr.tick([u1]);
+            mgr.buildInitialMembership([u1]);
             expect(mgr.findNodeForUnit('u1')?.id).toBe('b');
             expect(mgr.getUnitIdsInNode('a')).toEqual([]);
         });
@@ -90,11 +90,11 @@ describe('MapNetworkManager', () => {
             const mgr = new MapNetworkManager();
             mgr.loadFromSegments(network);
             const u1 = makeUnit('u1', 1, 1, 'lanternite');
-            mgr.tick([u1]);
+            mgr.buildInitialMembership([u1]);
             expect(mgr.getUnitIdsInNode('a')).toEqual(['u1']);
 
             u1.hp = 0;
-            mgr.tick([u1]);
+            mgr.buildInitialMembership([u1]);
             expect(mgr.getUnitIdsInNode('a')).toEqual([]);
             expect(mgr.findNodeForUnit('u1')).toBeUndefined();
         });
@@ -103,7 +103,7 @@ describe('MapNetworkManager', () => {
             const mgr = new MapNetworkManager();
             mgr.loadFromSegments(network);
             const u1 = makeUnit('u1', 1000, 1000, 'lanternite');
-            mgr.tick([u1]);
+            mgr.buildInitialMembership([u1]);
             expect(mgr.findNodeForUnit('u1')).toBeUndefined();
         });
 
@@ -112,7 +112,93 @@ describe('MapNetworkManager', () => {
             mgr.loadFromSegments(network);
             // 'slime' does not set participatesInMapNetwork — must stay invisible to the network.
             const u1 = makeUnit('u1', 1, 1, 'slime');
-            mgr.tick([u1]);
+            mgr.buildInitialMembership([u1]);
+            expect(mgr.getUnitIdsInNode('a')).toEqual([]);
+            expect(mgr.findNodeForUnit('u1')).toBeUndefined();
+        });
+    });
+
+    describe('updateUnitNode / unregisterUnit', () => {
+        it('assigns a unit on first call', () => {
+            const mgr = new MapNetworkManager();
+            mgr.loadFromSegments(network);
+            const u1 = makeUnit('u1', 1, 1, 'lanternite');
+            mgr.updateUnitNode(u1);
+            expect(mgr.getUnitIdsInNode('a')).toEqual(['u1']);
+            expect(mgr.findNodeForUnit('u1')?.id).toBe('a');
+        });
+
+        it('reassigns a unit when it moves to a different node, removing it from the old one', () => {
+            const mgr = new MapNetworkManager();
+            mgr.loadFromSegments(network);
+            const u1 = makeUnit('u1', 1, 1, 'lanternite');
+            mgr.updateUnitNode(u1);
+            expect(mgr.findNodeForUnit('u1')?.id).toBe('a');
+
+            u1.x = 100;
+            u1.y = 1;
+            mgr.updateUnitNode(u1);
+            expect(mgr.findNodeForUnit('u1')?.id).toBe('b');
+            expect(mgr.getUnitIdsInNode('a')).toEqual([]);
+        });
+
+        it('is a no-op when the unit stays in the same node', () => {
+            const mgr = new MapNetworkManager();
+            mgr.loadFromSegments(network);
+            const u1 = makeUnit('u1', 1, 1, 'lanternite');
+            mgr.updateUnitNode(u1);
+            const nodeA = mgr.getNode('a');
+            const arrayRefBefore = nodeA?.unitIds;
+            u1.x = 2;
+            mgr.updateUnitNode(u1);
+            expect(mgr.getNode('a')?.unitIds).toBe(arrayRefBefore);
+            expect(mgr.getUnitIdsInNode('a')).toEqual(['u1']);
+        });
+
+        it('unregisters a dead unit and does not re-add it', () => {
+            const mgr = new MapNetworkManager();
+            mgr.loadFromSegments(network);
+            const u1 = makeUnit('u1', 1, 1, 'lanternite');
+            mgr.updateUnitNode(u1);
+            expect(mgr.getUnitIdsInNode('a')).toEqual(['u1']);
+
+            u1.hp = 0;
+            mgr.updateUnitNode(u1);
+            expect(mgr.getUnitIdsInNode('a')).toEqual([]);
+            expect(mgr.findNodeForUnit('u1')).toBeUndefined();
+        });
+
+        it('never assigns a unit whose def does not opt into the network', () => {
+            const mgr = new MapNetworkManager();
+            mgr.loadFromSegments(network);
+            const u1 = makeUnit('u1', 1, 1, 'slime');
+            mgr.updateUnitNode(u1);
+            expect(mgr.getUnitIdsInNode('a')).toEqual([]);
+            expect(mgr.findNodeForUnit('u1')).toBeUndefined();
+        });
+
+        it('unregisterUnit removes a cached unit and is safe to call twice / on an unknown id', () => {
+            const mgr = new MapNetworkManager();
+            mgr.loadFromSegments(network);
+            const u1 = makeUnit('u1', 1, 1, 'lanternite');
+            mgr.updateUnitNode(u1);
+            expect(mgr.getUnitIdsInNode('a')).toEqual(['u1']);
+
+            mgr.unregisterUnit('u1');
+            expect(mgr.getUnitIdsInNode('a')).toEqual([]);
+            expect(() => mgr.unregisterUnit('u1')).not.toThrow();
+            expect(() => mgr.unregisterUnit('never_registered')).not.toThrow();
+        });
+
+        it('loadFromSegments clears the node cache so a stale unit id does not leak into the new graph', () => {
+            const mgr = new MapNetworkManager();
+            mgr.loadFromSegments(network);
+            const u1 = makeUnit('u1', 1, 1, 'lanternite');
+            mgr.updateUnitNode(u1);
+            expect(mgr.getUnitIdsInNode('a')).toEqual(['u1']);
+
+            mgr.loadFromSegments(network);
+            // Fresh graph: node 'a' exists again but with empty membership until re-synced.
             expect(mgr.getUnitIdsInNode('a')).toEqual([]);
             expect(mgr.findNodeForUnit('u1')).toBeUndefined();
         });
@@ -125,7 +211,7 @@ describe('MapNetworkManager', () => {
             const u1 = makeUnit('u1', 1, 1, 'lanternite');
             const u2 = makeUnit('u2', 2, 2, 'lanternite');
             const u3 = makeUnit('u3', -1, -1, 'lanternite_nest');
-            mgr.tick([u1, u2, u3]);
+            mgr.buildInitialMembership([u1, u2, u3]);
 
             const counts = mgr.getUnitCountsByCharacterId('a', [u1, u2, u3]);
             expect(counts.get('lanternite')).toBe(2);
@@ -143,7 +229,7 @@ describe('MapNetworkManager', () => {
             mgr.loadFromSegments(network);
             const u1 = makeUnit('u1', 1, 1, 'lanternite');
             const u2 = makeUnit('u2', 2, 2, 'lanternite_nest');
-            mgr.tick([u1, u2]);
+            mgr.buildInitialMembership([u1, u2]);
             expect(mgr.getOwnerCharacterId('a', [u1, u2])).toBeUndefined();
         });
 
@@ -151,7 +237,7 @@ describe('MapNetworkManager', () => {
             const mgr = new MapNetworkManager();
             mgr.loadFromSegments(network);
             const u1 = makeUnit('u1', 1, 1, 'lanternite');
-            mgr.tick([u1]);
+            mgr.buildInitialMembership([u1]);
             expect(mgr.getOwnerCharacterId('a', [u1])).toBe('lanternite');
         });
     });

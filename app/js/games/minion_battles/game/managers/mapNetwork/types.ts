@@ -3,8 +3,10 @@ import type { NetworkEdgeDef } from '../../../terrain/networkSchema';
 
 /**
  * Runtime shape of a single map-network node. Generic structural/query data only — no baked-in
- * AI behavior. `unitIds` is rebuilt from scratch every `MapNetworkManager.tick()` call from live
- * unit positions (mirrors `GroupManager`'s `unitIds: string[]` membership convention).
+ * AI behavior. `unitIds` is seeded from live unit positions by `MapNetworkManager.buildInitialMembership`
+ * (called once after mission init and once after resync) and kept current afterward via
+ * incremental per-unit `updateUnitNode`/`unregisterUnit` calls, not a per-tick full rebuild
+ * (mirrors `GroupManager`'s `unitIds: string[]` membership convention).
  */
 export interface NetworkNode {
     id: string;
@@ -27,8 +29,8 @@ export interface ResolvedMapNetwork {
 /**
  * `MapNetworkManager`'s serialized form. Deliberately empty today: node/edge structure is always
  * rebuilt fresh by `loadFromSegments` during mission init (never from a checkpoint), and `unitIds`
- * membership repopulates itself on the next `tick()` call after any restore — so there is nothing
- * authoritative to persist yet. Kept as a real (if empty) type — rather than omitting
+ * membership repopulates itself via `buildInitialMembership` immediately after any restore — so
+ * there is nothing authoritative to persist yet. Kept as a real (if empty) type — rather than omitting
  * `toJSON`/`restoreFromJSON` entirely — so a future authoritative field has an obvious place to
  * land, and so this doesn't read as "forgot to serialize" the way `LanterniteRespawnManager`'s
  * total lack of serialization does (see `game/lanternite/LanterniteRespawnManager.ts`).

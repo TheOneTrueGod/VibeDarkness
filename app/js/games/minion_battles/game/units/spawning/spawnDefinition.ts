@@ -80,7 +80,7 @@ export type SpawnAiHookup =
           nestOwnerUnitId?: string;
       }
     | { kind: 'lanterniteNest'; nestConfig: LanterniteNestMissionConfig; homeNestPoiId?: string }
-    | { kind: 'swarm'; orbitAngle?: number; targetNestPoiId?: string; nestOwnerUnitId?: string }
+    | { kind: 'swarm'; orbitAngle?: number; nestOwnerUnitId?: string }
     | { kind: 'swarmNest'; nestConfig: SwarmNestMissionConfig; homeNestPoiId?: string }
     | { kind: 'thornlingNest'; nestConfig: ThornlingNestMissionConfig }
     | { kind: 'pet'; ownerUnitId: string; defId: string };

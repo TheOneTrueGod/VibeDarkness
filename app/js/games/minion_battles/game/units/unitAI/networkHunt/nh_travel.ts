@@ -1,7 +1,8 @@
 /**
  * Network-hunt travel: march hop-by-hop along the mission's node network (see
  * `game/managers/mapNetwork/MapNetworkManager.ts`) toward the nearest enemy-owned structure — a
- * stationary, speed-0 hostile unit (a lanternite/swarm/thornling nest). Moving from network node
+ * hostile unit tagged `UnitTag.Structure` (a lanternite/swarm nest; `thornling_nest` is
+ * deliberately not tagged and so is not a valid target here). Moving from network node
  * to network node (rather than beelining straight at the structure across open terrain) keeps the
  * unit "on the path" the way a patrol would.
  *
@@ -10,8 +11,9 @@
 
 import type { Unit } from '../../Unit';
 import type { AIContext, AINode } from '../types';
-import { distance, findEnemies, getEnemiesInPerceptionAndLOS, everyAITicks, queueWaitAndEndTurn } from '../utils';
+import { distance, findEnemies, findEnemyStructures, getEnemiesInPerceptionAndLOS, everyAITicks, queueWaitAndEndTurn } from '../utils';
 import { getPerceptionRange } from '../../unit_defs/unitDef';
+import { resolveNearestNodeId, findNodePath } from '../../../managers/mapNetwork/graphSearch';
 import type { NetworkHuntAITreeContext, NetworkHuntNodeId } from './context';
 
 type MapNetworkQuery = NonNullable<AIContext['mapNetwork']>;
@@ -20,63 +22,6 @@ type MapNetworkQuery = NonNullable<AIContext['mapNetwork']>;
  *  matching the existing `gameTick % N === 0` idiom used elsewhere (e.g.
  *  `LevelEventManager`'s victory-check throttle, `default_siegeDefendPoint`'s path-retrigger check). */
 const ENEMY_SCAN_INTERVAL_TICKS = 10;
-
-/**
- * Resolve the node this unit currently considers itself "at": the node whose radius contains its
- * position, or — when it's out on an edge between nodes — the node closest to it by straight-line
- * distance.
- */
-function resolveCurrentNodeId(unit: Unit, mapNetwork: MapNetworkQuery): string | null {
-    const contained = mapNetwork.findNodeContainingPosition(unit.x, unit.y);
-    if (contained) return contained.id;
-
-    let bestId: string | null = null;
-    let bestDistSq = Infinity;
-    for (const nodeId of mapNetwork.getAllNodeIds()) {
-        const node = mapNetwork.getNode(nodeId);
-        if (!node) continue;
-        const dx = node.x - unit.x;
-        const dy = node.y - unit.y;
-        const distSq = dx * dx + dy * dy;
-        if (distSq < bestDistSq) {
-            bestDistSq = distSq;
-            bestId = nodeId;
-        }
-    }
-    return bestId;
-}
-
-/**
- * Breadth-first shortest path (by edge count) from `fromId` to `toId`, inclusive of both ends.
- * Returns null when unreachable.
- */
-function findNodePath(mapNetwork: MapNetworkQuery, fromId: string, toId: string): string[] | null {
-    if (fromId === toId) return [fromId];
-    const prev = new Map<string, string>();
-    const visited = new Set<string>([fromId]);
-    const queue = [fromId];
-    for (let head = 0; head < queue.length; head++) {
-        const current = queue[head]!;
-        if (current === toId) break;
-        for (const neighborId of mapNetwork.getNeighborIds(current)) {
-            if (visited.has(neighborId)) continue;
-            visited.add(neighborId);
-            prev.set(neighborId, current);
-            queue.push(neighborId);
-        }
-    }
-    if (!visited.has(toId)) return null;
-
-    const path: string[] = [toId];
-    let current = toId;
-    while (current !== fromId) {
-        const parent = prev.get(current);
-        if (!parent) return null;
-        path.push(parent);
-        current = parent;
-    }
-    return path.reverse();
-}
 
 interface TravelStep {
     stepTarget: { x: number; y: number };
@@ -90,10 +35,10 @@ interface TravelStep {
  * nearest structure when no structure sits on a graph-reachable node.
  */
 function resolveTravelStep(unit: Unit, context: AIContext, mapNetwork: MapNetworkQuery): TravelStep | null {
-    const structures = findEnemies(unit, context.getUnits()).filter((e) => e.speed === 0);
+    const structures = findEnemyStructures(unit, context.getUnits());
     if (structures.length === 0) return null;
 
-    const currentNodeId = resolveCurrentNodeId(unit, mapNetwork);
+    const currentNodeId = resolveNearestNodeId(unit.x, unit.y, mapNetwork);
     if (!currentNodeId) return null;
 
     let bestPath: string[] | null = null;
@@ -161,7 +106,7 @@ export const nh_travel: AINode<'networkHunt', NetworkHuntNodeId> = {
             }
 
             const step = resolveTravelStep(unit, context, mapNetwork);
-            ctx.currentNodeId = resolveCurrentNodeId(unit, mapNetwork) ?? undefined;
+            ctx.currentNodeId = resolveNearestNodeId(unit.x, unit.y, mapNetwork) ?? undefined;
             ctx.targetStructureNodeId = step?.targetStructureNodeId;
 
             if (!step) {

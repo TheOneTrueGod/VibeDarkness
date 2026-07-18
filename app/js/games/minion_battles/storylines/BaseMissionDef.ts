@@ -387,6 +387,12 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             }
         }
 
+        // Seed map-network membership once, now that every mission-init unit (players, pets,
+        // enemies incl. lanternite_nest/swarm_nest/lanternite/swarmling) has been added.
+        // Steady-state updates happen incrementally via MapNetworkManager.updateUnitNode
+        // (UnitManager.gameTick's Phase 2 movement loop) — this is not a per-tick call.
+        engine.state.mapNetworkManager.buildInitialMembership(engine.units);
+
         // Add special tiles (Campfire, Crystal, etc.) — maxHp, emitsLight, protectRadius, defendPoint from placement
         if (this.specialTiles && this.specialTiles.length > 0) {
             for (const p of this.specialTiles) {

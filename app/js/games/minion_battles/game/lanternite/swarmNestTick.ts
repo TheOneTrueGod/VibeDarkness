@@ -12,6 +12,7 @@ import type { SwarmNestMissionConfig } from '../../storylines/types';
 import type { MapNetworkManager } from '../managers/mapNetwork/MapNetworkManager';
 import type { NetworkNode } from '../managers/mapNetwork/types';
 import { spawnUnit, type SpawnUnitContext } from '../units/spawning/spawnUnit';
+import { resolveNearestNodeId, findNearestNodeByHops } from '../managers/mapNetwork/graphSearch';
 
 export const SWARM_NEST_CHARACTER_ID = 'swarm_nest';
 export const SWARM_NEST_SWARMLING_CHARACTER_ID = 'swarmling';
@@ -36,8 +37,11 @@ const DEFAULT_CONSTRUCTION_SEC = 10;
 
 /** Read-only query surface `findUnclaimedNetworkNode`/`processSwarmNests` need — mirrors
  *  `lanterniteNestTick.ts`'s `MapNetworkQuery` `Pick<...>` restriction (query only, no
- *  `tick`/`loadFromSegments`). */
-type MapNetworkQuery = Pick<MapNetworkManager, 'getAllNodeIds' | 'getNode'>;
+ *  `buildInitialMembership`/`updateUnitNode`/`loadFromSegments`). */
+type MapNetworkQuery = Pick<
+    MapNetworkManager,
+    'getAllNodeIds' | 'getNode' | 'getNeighborIds' | 'findNodeContainingPosition'
+>;
 
 function pruneSpawnedIds(nest: Unit, units: readonly Unit[]): void {
     const state = nest.swarmState.nestSpawnState;
@@ -49,18 +53,47 @@ function pruneSpawnedIds(nest: Unit, units: readonly Unit[]): void {
 }
 
 /**
- * Find the nearest unclaimed network node: one that has no live swarm_nest currently calling it
- * home and no live swarmling already targeting it.
+ * True if a living `swarm_nest` structure already calls `nodeId` home. Deliberately does NOT
+ * treat an in-progress construction (a swarmling already settled and building there) as a claim —
+ * multiple swarmlings converging on the same unfinished site is the intended "shared construction"
+ * behavior (see the existing-builder join logic in `snet_seek.ts`, which accelerates completion
+ * per additional contributor via `processSwarmNests`'s shared-construction pooling). Only the
+ * finished structure actually reserves the node against further targeting.
+ */
+export function isNodeClaimedBySwarm(nodeId: string, allUnits: readonly Unit[]): boolean {
+    return allUnits.some(
+        (u) => u.isAlive() && u.characterId === SWARM_NEST_CHARACTER_ID && u.swarmState.homeNestPoiId === nodeId,
+    );
+}
+
+/**
+ * True if `nodeId` is a valid, currently-unclaimed nest build site: it exists, is tagged `'nest'`,
+ * and is not claimed per `isNodeClaimedBySwarm`. Used both by `findUnclaimedNetworkNode`'s
+ * bootstrap search and by `snet_seek.ts`'s per-arrival eligibility check.
+ */
+export function isValidUnclaimedBuildNode(
+    nodeId: string,
+    mapNetwork: Pick<MapNetworkManager, 'getNode'>,
+    allUnits: readonly Unit[],
+): boolean {
+    const node = mapNetwork.getNode(nodeId);
+    if (!node || !node.tags.includes('nest')) return false;
+    return !isNodeClaimedBySwarm(nodeId, allUnits);
+}
+
+/**
+ * Bootstrap-only direction-picker: used by `snet_seek.ts` when a swarmling has no population
+ * gradient signal to follow yet (e.g. population is uniformly flat at mission start). Primary
+ * metric is graph-hop count via BFS outward from the node nearest `(sourceX, sourceY)`. Falls
+ * back to whole-graph straight-line-nearest among unclaimed candidates when the source node has
+ * no BFS-reachable unclaimed candidate (e.g. a disconnected graph/component) — preserves the
+ * pre-existing guarantee that a target is always found if one exists anywhere.
  *
  * Design notes — see `docs/plans/swarm-nest-network-migration.md` decisions #1/#2. Do not "fix"
- * this to match lanternite's `findUnoccupiedConnectedNestPoi`:
- *  - No `mapNetwork.getOwnerCharacterId` call: swarm nests are meant to *always contest* a node
- *    regardless of which faction already holds it — that's what drives the contested-nest-site
- *    fights lanternite's `isNestSiteContested` reacts to. Only the swarm's own units
- *    (`homeNestPoiId`/`targetNestPoiId`) exclude a node here, same as before this migration.
- *  - No neighbor-only traversal (`mapNetwork.getNeighborIds`): swarm scans every node in the
- *    graph and picks nearest-by-distance, unlike lanternite's neighbor-restricted selection. This
- *    is a deliberate, pre-existing behavior difference, not an oversight to "align."
+ * this to match lanternite's `findUnoccupiedConnectedNestPoi`: no `mapNetwork.getOwnerCharacterId`
+ * call — swarm nests are meant to *always contest* a node regardless of which faction already
+ * holds it, that's what drives the contested-nest-site fights lanternite's `isNestSiteContested`
+ * reacts to. Only the swarm's own claims (`isNodeClaimedBySwarm`) exclude a node here.
  */
 export function findUnclaimedNetworkNode(
     sourceX: number,
@@ -68,18 +101,20 @@ export function findUnclaimedNetworkNode(
     mapNetwork: MapNetworkQuery,
     allUnits: readonly Unit[],
 ): NetworkNode | null {
-    const occupiedNodeIds = new Set<string>();
-    for (const u of allUnits) {
-        if (!u.isAlive()) continue;
-        if (u.swarmState.homeNestPoiId) occupiedNodeIds.add(u.swarmState.homeNestPoiId);
-        if (u.swarmState.targetNestPoiId) occupiedNodeIds.add(u.swarmState.targetNestPoiId);
+    const isCandidate = (nodeId: string) => isValidUnclaimedBuildNode(nodeId, mapNetwork, allUnits);
+
+    const fromId = resolveNearestNodeId(sourceX, sourceY, mapNetwork);
+    if (fromId) {
+        const viaHops = findNearestNodeByHops(mapNetwork, fromId, isCandidate);
+        if (viaHops) return mapNetwork.getNode(viaHops) ?? null;
     }
 
+    // Euclidean fallback across every node in the graph, unclaimed-only — covers a disconnected
+    // graph/component where BFS from fromId can't reach any candidate.
     let best: NetworkNode | null = null;
     let bestDist = Infinity;
-
     for (const nodeId of mapNetwork.getAllNodeIds()) {
-        if (occupiedNodeIds.has(nodeId)) continue;
+        if (!isCandidate(nodeId)) continue;
         const node = mapNetwork.getNode(nodeId);
         if (!node) continue;
         const dx = node.x - sourceX;
@@ -144,7 +179,7 @@ export function processSwarmNests(params: {
         const buildersByPoi = new Map<string, Unit[]>();
         for (const u of params.units) {
             if (!u.isAlive()) continue;
-            const poiId = u.swarmState.targetNestPoiId;
+            const poiId = u.swarmState.currentNodeId;
             const completeAt = u.swarmState.constructionCompleteAtGameTime;
             if (poiId == null || completeAt == null || completeAt <= params.gameTime) continue;
             const group = buildersByPoi.get(poiId);
@@ -174,7 +209,7 @@ export function processSwarmNests(params: {
             continue;
         }
 
-        const targetPoiId = unit.swarmState.targetNestPoiId;
+        const targetPoiId = unit.swarmState.currentNodeId;
 
         // Skip if another swarmling already built a nest at this POI
         if (targetPoiId != null) {
@@ -246,13 +281,11 @@ export function processSwarmNests(params: {
             const aliveCount = state.spawnedIds.length;
             const orbitAngle = (aliveCount * GOLDEN_ANGLE) % (Math.PI * 2);
 
-            // Assign target node if available
-            let targetNestPoiId: string | undefined;
-            if (params.mapNetwork) {
-                const targetNode = findUnclaimedNetworkNode(nest.x, nest.y, params.mapNetwork, params.units);
-                if (targetNode) targetNestPoiId = targetNode.id;
-            }
-
+            // No target node is assigned here — currentNodeId/targetNodeId start null and are
+            // resolved lazily on the swarmling's first snet_seek tick (its spawn position, near
+            // the nest's own node, counts as an implicit first arrival). The swarmling then hops
+            // node-to-node via the population gradient rather than beelining at a single
+            // pre-computed distant target. See swarmlingNetwork/snet_seek.ts.
             const [child] = spawnUnit(spawnCtx, {
                 characterId: SWARM_NEST_SWARMLING_CHARACTER_ID,
                 name: 'Swarmling',
@@ -265,7 +298,7 @@ export function processSwarmNests(params: {
                     anchorUnitId: nest.id,
                     maxRadiusPx: nest.radius + NEST_SPAWN_EXTRA_RADIUS,
                 },
-                aiHookup: { kind: 'swarm', orbitAngle, targetNestPoiId, nestOwnerUnitId: nest.id },
+                aiHookup: { kind: 'swarm', orbitAngle, nestOwnerUnitId: nest.id },
             });
             state.spawnedIds.push(child.id);
         }

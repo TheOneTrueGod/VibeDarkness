@@ -13,6 +13,7 @@ import {
     getDefaultSpeed,
     getDefaultStamina,
     resolveEnemySpawnStats,
+    getUnitStaticTags,
     PLAYER_CHARACTER_ID,
 } from './unit_defs/unitDef';
 import type { UnitTag } from './unitTag';
@@ -132,6 +133,11 @@ export function createUnitFromSpawnConfig(
 
     if (config.unitTags && config.unitTags.length > 0) {
         unit.tags = [...config.unitTags];
+    }
+
+    const staticTags = getUnitStaticTags(config.characterId);
+    if (staticTags.length > 0) {
+        unit.tags = Array.from(new Set([...unit.tags, ...staticTags]));
     }
 
     if (config.controlGroupId !== undefined) {

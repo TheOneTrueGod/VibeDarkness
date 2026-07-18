@@ -16,6 +16,9 @@ export enum UnitTag {
     Invincible = 'invincible',
     /** Boss is enraged — triggers alternate ability set and increased aggression. */
     Enraged = 'enraged',
+    /** Stationary structure (e.g. a lanternite_nest or swarm_nest) — the generic "is this a
+     *  structure" signal for AI trees that need to find/target enemy structures. */
+    Structure = 'structure',
 }
 
 const UNIT_TAG_VALUES = new Set<string>(Object.values(UnitTag));

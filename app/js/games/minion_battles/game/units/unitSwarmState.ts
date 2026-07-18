@@ -10,8 +10,15 @@ export interface UnitSwarmState {
     homeNestPoiId: string | null;
     /** Swarmling: golden-angle orbit slot (radians). Used for ring positioning around both nest POIs and hunt targets. */
     orbitAngle: number | null;
-    /** Swarmling: ID of the target `nest` POI this swarmling is pathfinding toward to build a nest. */
-    targetNestPoiId: string | null;
+    /** Swarmling: id of the network node this unit last confirmed arrival at (its spawn node
+     *  counts as an implicit first arrival). Updated only on arrival, never while in transit —
+     *  see `snet_seek.ts`'s reassign-on-arrival state machine. */
+    currentNodeId: string | null;
+    /** Swarmling: id of the network node this unit has committed to as its next hop while in
+     *  transit. `null` means the unit is stationary at `currentNodeId` and due for a fresh
+     *  gradient decision. Cleared back to `null` on arrival, at which point `currentNodeId`
+     *  becomes this value. */
+    targetNodeId: string | null;
     /** Swarmling: unit ID of the swarm nest that spawned this swarmling. */
     nestOwnerUnitId: string | null;
     /** Swarmling: game time when construction completes and a new swarm nest should spawn. */
@@ -24,7 +31,8 @@ export function createSwarmState(): UnitSwarmState {
         nestSpawnState: null,
         homeNestPoiId: null,
         orbitAngle: null,
-        targetNestPoiId: null,
+        currentNodeId: null,
+        targetNodeId: null,
         nestOwnerUnitId: null,
         constructionCompleteAtGameTime: null,
     };
@@ -47,8 +55,11 @@ export function swarmStateToJSON(unit: Unit): Record<string, unknown> {
             : {}),
         ...(unit.swarmState.homeNestPoiId != null ? { swarmHomeNestPoiId: unit.swarmState.homeNestPoiId } : {}),
         ...(unit.swarmState.orbitAngle != null ? { swarmlingOrbitAngle: unit.swarmState.orbitAngle } : {}),
-        ...(unit.swarmState.targetNestPoiId != null
-            ? { swarmlingTargetNestPoiId: unit.swarmState.targetNestPoiId }
+        ...(unit.swarmState.currentNodeId != null
+            ? { swarmlingCurrentNodeId: unit.swarmState.currentNodeId }
+            : {}),
+        ...(unit.swarmState.targetNodeId != null
+            ? { swarmlingTargetNodeId: unit.swarmState.targetNodeId }
             : {}),
         ...(unit.swarmState.nestOwnerUnitId != null
             ? { swarmlingNestOwnerUnitId: unit.swarmState.nestOwnerUnitId }
@@ -78,8 +89,11 @@ export function applySwarmStateFromJSON(unit: Unit, data: Record<string, unknown
     if (typeof data.swarmlingOrbitAngle === 'number') {
         unit.swarmState.orbitAngle = data.swarmlingOrbitAngle;
     }
-    if (typeof data.swarmlingTargetNestPoiId === 'string') {
-        unit.swarmState.targetNestPoiId = data.swarmlingTargetNestPoiId;
+    if (typeof data.swarmlingCurrentNodeId === 'string') {
+        unit.swarmState.currentNodeId = data.swarmlingCurrentNodeId;
+    }
+    if (typeof data.swarmlingTargetNodeId === 'string') {
+        unit.swarmState.targetNodeId = data.swarmlingTargetNodeId;
     }
     if (typeof data.swarmlingNestOwnerUnitId === 'string') {
         unit.swarmState.nestOwnerUnitId = data.swarmlingNestOwnerUnitId;
