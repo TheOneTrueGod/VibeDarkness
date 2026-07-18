@@ -6,6 +6,7 @@ const R = TerrainType.Rock;
 const G = TerrainType.Grass;
 const T = TerrainType.ThickGrass;
 const D = TerrainType.Dirt;
+const I = TerrainType.Impassable;
 
 describe('TerrainGrid', () => {
     describe('createFilledTerrain', () => {
@@ -77,6 +78,19 @@ describe('TerrainGrid', () => {
         });
     });
 
+    describe('Impassable terrain', () => {
+        it('is not passable, matching the out-of-bounds fallback (Rock)', () => {
+            const grid = TerrainGrid.createTerrainFromArray(2, 1, CELL_SIZE, [[I, G]]);
+            expect(grid.isPassable(CELL_SIZE / 2, CELL_SIZE / 2)).toBe(false);
+        });
+
+        it('blocks line of sight the same as Rock', () => {
+            const grid = TerrainGrid.createTerrainFromArray(3, 1, CELL_SIZE, [[G, I, G]]);
+            const y = CELL_SIZE / 2;
+            expect(grid.hasLineOfSight(CELL_SIZE * 0.5, y, CELL_SIZE * 2.5, y)).toBe(false);
+        });
+    });
+
 });
 
 describe('stitchTerrain', () => {
@@ -136,11 +150,29 @@ describe('stitchTerrain', () => {
         expect(stitchTerrain([[]], G)).toEqual([]);
     });
 
-    it('handles null/undefined tiles by padding with fill (column width from other tiles)', () => {
+    it('contributes zero-width columns for a null tile with no sibling to infer size from', () => {
         const tile = [[R, G], [G, R]];
         const stitched = stitchTerrain([[tile, null]], G);
         expect(stitched).toHaveLength(2);
         expect(stitched[0]).toEqual([R, G]);
         expect(stitched[1]).toEqual([G, R]);
+    });
+
+    it('fills a missing (null) tile with Impassable, not fill, sized from sibling tiles', () => {
+        const topRight = [[G, G], [G, G]];
+        const bottomLeft = [[G, G], [G, G]];
+        const bottomRight = [[G, G], [G, G]];
+        const stitched = stitchTerrain(
+            [
+                [null, topRight],
+                [bottomLeft, bottomRight],
+            ],
+            G,
+        );
+        expect(stitched).toHaveLength(4);
+        expect(stitched[0]).toEqual([I, I, G, G]);
+        expect(stitched[1]).toEqual([I, I, G, G]);
+        expect(stitched[2]).toEqual([G, G, G, G]);
+        expect(stitched[3]).toEqual([G, G, G, G]);
     });
 });

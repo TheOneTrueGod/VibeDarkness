@@ -88,6 +88,7 @@ export class TerrainRenderer {
 
         this.drawGridOverlay(ctx, grid.cellSize, grid.width, grid.height);
         this.drawNoiseOverlay(ctx, 0, 0, worldW, worldH);
+        this.clearImpassableCells(ctx, getTypeAt, grid.width, grid.height, grid.cellSize);
 
         const texture = Texture.from({ resource: canvas, label: 'terrain' });
         const sprite = new Sprite(texture);
@@ -159,21 +160,28 @@ export class TerrainRenderer {
         ctx.clip();
 
         ctx.clearRect(x, y, cs, cs);
-        ctx.fillStyle = TERRAIN_PROPERTIES[TerrainType.Dirt].color;
-        ctx.fillRect(x, y, cs, cs);
 
         const getTypeAt = (c: number, r: number): TerrainType => tm.getEffectiveTerrainType(c, r);
 
-        for (const terrainType of LAYER_ORDER) {
-            this.getRenderer(terrainType).drawCell(ctx, x, y, cs, col, row, getTypeAt);
-        }
+        // Impassable renders as void (transparent, no fill/grid/noise) — same as the area outside
+        // the map bounds. Leaving the clearRect above as the only drawing achieves that.
+        if (getTypeAt(col, row) !== TerrainType.Impassable) {
+            ctx.fillStyle = TERRAIN_PROPERTIES[TerrainType.Dirt].color;
+            ctx.fillRect(x, y, cs, cs);
 
-        this.drawGridOverlayCell(ctx, col, row, cs);
+            for (const terrainType of LAYER_ORDER) {
+                this.getRenderer(terrainType).drawCell(ctx, x, y, cs, col, row, getTypeAt);
+            }
+
+            this.drawGridOverlayCell(ctx, col, row, cs);
+        }
 
         ctx.restore();
 
         // Noise is applied via getImageData/putImageData which ignore clip; apply after restore.
-        this.drawNoiseOverlay(ctx, x, y, cs, cs);
+        if (getTypeAt(col, row) !== TerrainType.Impassable) {
+            this.drawNoiseOverlay(ctx, x, y, cs, cs);
+        }
     }
 
     /** Subtle grid lines across the full canvas. */
@@ -237,6 +245,26 @@ export class TerrainRenderer {
             ctx.moveTo(x, y + cs);
             ctx.lineTo(x + cs, y + cs);
             ctx.stroke();
+        }
+    }
+
+    /**
+     * Punches transparent holes for Impassable cells so they read as void — identical to the area
+     * outside the map bounds — instead of the dirt/grid/noise base laid down for every cell above.
+     */
+    private clearImpassableCells(
+        ctx: CanvasRenderingContext2D,
+        getTypeAt: (c: number, r: number) => TerrainType,
+        gridWidth: number,
+        gridHeight: number,
+        cellSize: number,
+    ): void {
+        for (let row = 0; row < gridHeight; row++) {
+            for (let col = 0; col < gridWidth; col++) {
+                if (getTypeAt(col, row) === TerrainType.Impassable) {
+                    ctx.clearRect(col * cellSize, row * cellSize, cellSize, cellSize);
+                }
+            }
         }
     }
 

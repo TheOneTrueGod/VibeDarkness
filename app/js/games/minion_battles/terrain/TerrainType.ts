@@ -12,6 +12,13 @@ export enum TerrainType {
     Rock = 3,
     /** Runtime-only: destroyed rock rubble (passable). Not in terrain editor bedrock palette. */
     Rubble = 4,
+    /**
+     * Synthetic filler for gaps in a stitched mission map (e.g. the unused corner of an L-shaped
+     * layout) — see `stitchTerrain`. Renders as void (fully transparent, no fog/darkness overlay)
+     * and is impassable to units, identical to the area outside the map bounds. Not in terrain
+     * editor bedrock palette; never authored directly into a segment.
+     */
+    Impassable = 5,
 }
 
 export type TerrainRenderStrategy = 'marching-squares' | 'hard-edge';
@@ -92,5 +99,20 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         renderStrategy: 'hard-edge',
         blocksBleed: true,
         hardEdgeFamily: [TerrainType.Rock],
+    },
+    [TerrainType.Impassable]: {
+        name: 'Impassable',
+        // Never actually painted — TerrainRenderer skips this type entirely (renders as void).
+        color: '#1a1a2e',
+        // Matches TerrainGrid.get()'s out-of-bounds fallback (Rock) exactly, so this behaves
+        // identically to standing just past the edge of the map.
+        passable: false,
+        speedMultiplier: 0,
+        pathfindingWeight: Infinity,
+        projectilePassable: true,
+        // Unused: excluded from TerrainRenderer's LAYER_ORDER, so no layer renderer ever runs for it.
+        renderStrategy: 'hard-edge',
+        blocksBleed: true,
+        hardEdgeFamily: [],
     },
 };

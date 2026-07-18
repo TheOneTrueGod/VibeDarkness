@@ -5,6 +5,7 @@ import { type FogFilter, tryCreateFogFilter } from '../../FogFilter';
 import type { GameEngine } from '../../GameEngine';
 import type { AssetRegistry } from '../AssetRegistry';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
+import { TerrainType } from '../../../terrain/TerrainType';
 import { debugSettingsSnapshot } from '../../../../../debug/debugSettingsStore';
 
 const Z_CRYSTAL_AURA = 2;
@@ -159,6 +160,9 @@ export class OverlayRenderer {
             const ctx = canvas.getContext('2d')!;
             for (let row = 0; row < height; row++) {
                 for (let col = 0; col < width; col++) {
+                    // Impassable renders as void with no fog/darkness overlay — same as the area
+                    // outside the map bounds, which this overlay's grid never even reaches.
+                    if (terrainGrid.get(col, row) === TerrainType.Impassable) continue;
                     const level = tileGrid ? tileGrid.get(row, col) : engine.state.globalLightLevel;
                     const alpha = OverlayRenderer.lightLevelToAlpha(level);
                     if (alpha > 0) {

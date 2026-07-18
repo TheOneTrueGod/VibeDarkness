@@ -96,7 +96,8 @@ export class TerrainGrid {
 
     /**
      * True if the line between two world positions does not pass through obstructed terrain.
-     * Only Rock is considered obstructing (blocks line of sight).
+     * Rock and Impassable are considered obstructing (block line of sight) — Impassable mirrors
+     * Rock here since it stands in for "outside the map" (see TerrainType.Impassable).
      */
     hasLineOfSight(fromX: number, fromY: number, toX: number, toY: number): boolean {
         const from = this.worldToGrid(fromX, fromY);
@@ -106,7 +107,8 @@ export class TerrainGrid {
             const t = i / steps;
             const col = Math.round(from.col + (to.col - from.col) * t);
             const row = Math.round(from.row + (to.row - from.row) * t);
-            if (this.get(col, row) === TerrainType.Rock) return false;
+            const type = this.get(col, row);
+            if (type === TerrainType.Rock || type === TerrainType.Impassable) return false;
         }
         return true;
     }
@@ -161,11 +163,14 @@ export class TerrainGrid {
 
 /**
  * Stitch a 2D grid of terrain "tiles" (each tile is a 2D array of TerrainType) into one 2D array.
- * Tiles are placed left-to-right, top-to-bottom. Missing rows in a tile are padded with fill.
- * Null/undefined tiles are treated as a tile of fill (size from other tiles in same row/column).
+ * Tiles are placed left-to-right, top-to-bottom. Missing rows/columns within an otherwise-present
+ * tile (ragged sizing) are padded with `fill`. A wholly null/undefined tile — e.g. an unused
+ * corner of an L-shaped mission layout — is filled with `TerrainType.Impassable` instead of
+ * `fill`, sized from sibling tiles in the same row/column: that space has no real terrain data,
+ * so it renders as void and blocks movement, rather than pretending to be walkable ground.
  *
- * @param quadrantGrid - [tileRow][tileCol] = TerrainType[][] (or null/undefined for a tile of fill)
- * @param fill - Terrain type for padding and for null/undefined tiles
+ * @param quadrantGrid - [tileRow][tileCol] = TerrainType[][] (or null/undefined for a missing tile)
+ * @param fill - Terrain type used only to pad ragged/mismatched-size tiles
  */
 export function stitchTerrain(
     quadrantGrid: (TerrainType[][] | null | undefined)[][],
@@ -198,7 +203,7 @@ export function stitchTerrain(
                 const t = quadrantGrid[tr]?.[tc];
                 if (t == null || t.length === 0) {
                     const w = maxWidthPerCol[tc];
-                    for (let k = 0; k < w; k++) row.push(fill);
+                    for (let k = 0; k < w; k++) row.push(TerrainType.Impassable);
                     continue;
                 }
                 const tileWidth = t[0]?.length ?? 0;

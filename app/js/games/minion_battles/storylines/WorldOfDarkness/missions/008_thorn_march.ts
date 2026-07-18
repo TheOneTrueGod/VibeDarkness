@@ -70,17 +70,14 @@ const SEG_48_52_ROW = 22;
 const WORLD_WIDTH = COLS * CELL_SIZE;
 const WORLD_HEIGHT = ROWS * CELL_SIZE;
 
-/** 22×22 grass fill for the unused top-left quadrant (no segment exists at 48_51). */
-const BLANK_22: TerrainType[][] = Array.from(
-    { length: 22 },
-    () => Array<TerrainType>(22).fill(TerrainType.Grass),
-);
-
 function createTerrain(): TerrainGrid {
     const stitched = stitchTerrain(
         [
             [
-                BLANK_22,
+                // Unused top-left quadrant (no segment exists at 48_51) — stitchTerrain fills a
+                // missing tile with TerrainType.Impassable, giving the L-shaped layout we want
+                // instead of an open, walkable corner with no gameplay content.
+                null,
                 getTerrainForSegment('49_51_west_glade', MAP_SEGMENT_49_51_WEST_GLADE),
             ],
             [
