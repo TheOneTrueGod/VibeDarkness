@@ -68,7 +68,7 @@ import type { EffectEmitter } from './effects/EffectEmitter';
 import { registerLateBuiltinHandlers } from '../worldModifiers/builtinHandlers';
 import type { WorldModifierManager } from '../worldModifiers/WorldModifierManager';
 import type { MapNetworkManager } from './managers/mapNetwork/MapNetworkManager';
-import { getMissionSegmentNetwork } from '../terrain/segmentRegistry';
+import { getMissionSegmentNetwork, getMissionSegmentPlacements } from '../terrain/segmentRegistry';
 import { CellOccupancyManager } from './managers/CellOccupancyManager';
 import { getUnitMaxPerTile, getUnitShovePriority, getUnitDefEntry, getBodyColorForUnit, getCharacterSpriteKey, getUnitSpawnDef, type UnitDefId } from './units/unit_defs/unitDef';
 import { STACK_GHOST_DURATION } from './effect_defs/movementEffects';
@@ -1832,6 +1832,12 @@ export class GameEngine implements EngineContext {
         };
     }
 
+    /**
+     * NOTE: reload/resync (`BattleSession.loadFromSnapshot`/`restoreFromInMemorySnapshot`) rebuilds
+     * the engine straight from JSON, independently of `mission.initializeGameState`. Any addition
+     * to that method which is *not* serialized (re-derived from `opts.segmentIds`/mission config
+     * rather than persisted) must be replicated here too, or it will be lost on reload.
+     */
     static fromJSON(
         data: SerializedGameState,
         localPlayerId: string,
@@ -1985,6 +1991,13 @@ export class GameEngine implements EngineContext {
             // this function, so engine.units is populated here — seed membership once, same as
             // the mission-init path in BaseMissionDef.initializeGameState.
             engine.state.mapNetworkManager.buildInitialMembership(engine.units);
+            // Same reasoning as the network graph above: segment placement (for
+            // TerrainManager.getSegmentIdAt, the debug mouse-position tile readout) is rebuilt
+            // fresh from segment data rather than serialized — opts.segmentIds is the only way it
+            // gets populated on this restore path.
+            if (engine.terrainManager) {
+                engine.terrainManager.segmentPlacements = getMissionSegmentPlacements(opts.segmentIds);
+            }
         }
 
         // Restore terrain layers (floor/ground/air effects)

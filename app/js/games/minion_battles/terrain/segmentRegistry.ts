@@ -112,6 +112,40 @@ export function getMissionSegmentZones(segmentIds: string[]): MapSegmentZone[] {
     return zones;
 }
 
+/** A segment's placement rect in mission-global grid coords (see `getMissionSegmentPlacements`). */
+export interface ResolvedSegmentPlacement {
+    id: string;
+    originCol: number;
+    originRow: number;
+    width: number;
+    height: number;
+}
+
+/**
+ * Resolves every registered segment among `segmentIds` to its mission-global placement rect, for
+ * reverse lookups (e.g. "which segment is under this tile?" in `TerrainManager.getSegmentIdAt`).
+ * Mirrors `getMissionSegmentZones`'s origin math exactly: `originCol = (gridCol - minCol) *
+ * width`, `originRow = (gridRow - minRow) * height`. Segments not currently registered (e.g.
+ * procedural pads with no segment file) are skipped, same as `getMissionSegmentZones`.
+ */
+export function getMissionSegmentPlacements(segmentIds: string[]): ResolvedSegmentPlacement[] {
+    const segments = segmentIds
+        .map((id) => registry.get(id))
+        .filter((s): s is MapSegmentData => s != null);
+    if (segments.length === 0) return [];
+
+    const minCol = Math.min(...segments.map((s) => s.gridCol));
+    const minRow = Math.min(...segments.map((s) => s.gridRow));
+
+    return segments.map((seg) => ({
+        id: seg.id,
+        originCol: (seg.gridCol - minCol) * seg.width,
+        originRow: (seg.gridRow - minRow) * seg.height,
+        width: seg.width,
+        height: seg.height,
+    }));
+}
+
 /** Resolves a single segment-local `NetworkNodePosition` to mission-global pixel coords. */
 function resolveNetworkNodePosition(
     position: NetworkNodePosition,

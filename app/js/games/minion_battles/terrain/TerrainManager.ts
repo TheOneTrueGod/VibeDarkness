@@ -13,6 +13,7 @@ import {
     EARTH_CORE_STONE_HEALTH,
 } from '../card_defs/05_earth_core/earthCoreConstants';
 import type { FloorTile, TerrainStoneDamagedTransition } from './FloorTile';
+import type { ResolvedSegmentPlacement } from './segmentRegistry';
 import {
     DAMAGE_TIER_NONE,
     getDamageTier,
@@ -29,10 +30,20 @@ export class TerrainManager {
     private terrainLayers: TerrainLayerManager | null = null;
     private onStoneDamaged?: (event: TerrainStoneDamagedTransition) => void;
     private lastRockDamageSourceUnitId: string | null = null;
+    /** Mission-global segment placement rects, for debug/tooling lookups. See `getSegmentIdAt`. */
+    segmentPlacements: ResolvedSegmentPlacement[] = [];
 
     constructor(grid: TerrainGrid) {
         this.grid = grid;
         this.pathfinder = new Pathfinder(grid);
+    }
+
+    /** Which registered map segment (if any) a grid cell belongs to. Debug/tooling use only. */
+    getSegmentIdAt(col: number, row: number): string | null {
+        const placement = this.segmentPlacements.find(
+            (p) => col >= p.originCol && col < p.originCol + p.width && row >= p.originRow && row < p.originRow + p.height,
+        );
+        return placement?.id ?? null;
     }
 
     /** Attach the TerrainLayerManager so floor tiles affect passability and rock queries. */

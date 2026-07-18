@@ -22,7 +22,7 @@ import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { EventBus } from '../game/EventBus';
 import type { Unit } from '../game/units/Unit';
 import type { MapSegmentPOI, MapSegmentZone } from '../terrain/segmentSchema';
-import { getMissionSegmentNetwork } from '../terrain/segmentRegistry';
+import { getMissionSegmentNetwork, getMissionSegmentPlacements } from '../terrain/segmentRegistry';
 import { createPlayerUnit } from '../game/units/index';
 import { enemySpawnDefToSpawnDefinition } from '../game/units/spawning/adapters';
 import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
@@ -187,6 +187,11 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
      * Set up the initial game state with player units, enemies, projectiles, and effects.
      * Adds units to engine.units, projectiles to engine.projectiles, effects to engine.effects,
      * and cards to engine.cards.
+     *
+     * NOTE: `GameEngine.fromJSON` runs this same mission-setup role on reload/resync, but
+     * independently of this method. Any addition here that is *not* serialized into game state
+     * (i.e. re-derived from `segmentIds`/mission config rather than persisted) must be replicated
+     * there too, or it will be lost on reload.
      */
     initializeGameState(engine: GameEngine, params: InitializeGameStateParams): void {
         engine.localPlayerId = params.localPlayerId;
@@ -198,6 +203,12 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
         // POIs/zones are pre-computed there — mapNetworkManager is new with no existing
         // multi-call-site convention to match yet.
         engine.state.mapNetworkManager.loadFromSegments(getMissionSegmentNetwork(this.segmentIds));
+        // Same simplification as above: resolved directly from this.segmentIds for debug/tooling
+        // lookups (e.g. DebugConsole's mouse-position tile readout), not threaded through
+        // BattleSession params.
+        if (engine.terrainManager) {
+            engine.terrainManager.segmentPlacements = getMissionSegmentPlacements(this.segmentIds);
+        }
 
         // Add player units
         const playerCount = params.playerUnits.length;

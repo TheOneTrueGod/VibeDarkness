@@ -23,6 +23,7 @@ declare global {
             col: number;
             terrainName: string;
             lightLevel: number | null;
+            segmentId: string | null;
         };
     }
 }
@@ -219,7 +220,8 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
                 );
                 lightLevel = lightGrid[row]?.[col] ?? null;
             }
-            window.__minionBattlesDebugMouse = { worldX: clampedX, worldY: clampedY, row, col, terrainName, lightLevel };
+            const segmentId = engine.terrainManager.getSegmentIdAt(col, row);
+            window.__minionBattlesDebugMouse = { worldX: clampedX, worldY: clampedY, row, col, terrainName, lightLevel, segmentId };
         }
     }
 

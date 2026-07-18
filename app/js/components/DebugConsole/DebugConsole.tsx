@@ -61,6 +61,7 @@ interface MouseDebugInfo {
     col: number;
     terrainName: string;
     lightLevel: number | null;
+    segmentId: string | null;
 }
 
 type DebugDockSide = 'bottom' | 'left' | 'top' | 'right';
@@ -130,7 +131,7 @@ export default function DebugConsole({
             if (!data) return;
             setMouseDebug((prev) => {
                 if (!prev) return { ...data };
-                if (prev.worldX === data.worldX && prev.worldY === data.worldY && prev.row === data.row && prev.col === data.col && prev.terrainName === data.terrainName && prev.lightLevel === data.lightLevel) {
+                if (prev.worldX === data.worldX && prev.worldY === data.worldY && prev.row === data.row && prev.col === data.col && prev.terrainName === data.terrainName && prev.lightLevel === data.lightLevel && prev.segmentId === data.segmentId) {
                     return prev;
                 }
                 return { ...data };
@@ -244,7 +245,7 @@ export default function DebugConsole({
                                         x {mouseDebug.worldX.toFixed(1)}, y {mouseDebug.worldY.toFixed(1)}
                                     </div>
                                     <div>
-                                        row {mouseDebug.row}, col {mouseDebug.col}
+                                        row {mouseDebug.row}, col {mouseDebug.col}, tile {mouseDebug.segmentId ?? 'unknown'}
                                     </div>
                                     <div>
                                         {mouseDebug.terrainName}
