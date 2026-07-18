@@ -52,6 +52,24 @@ When you introduce a **new** `characterId`, add its baseline row in `game/units/
   - Does **not** use `spawnTarget`. Not randomised — always picks the geometrically closest tiles.
   - Use this for "spawn near the players" patterns (ambushes, reinforcements that close in).
 
+- **`spawnBehaviour: 'network_nearest_owned_leaf'`**
+  - Finds the **leaf node** (a `MapNetworkManager` node with at most one edge — a dead end of the
+    mission's node graph, e.g. the far end of a nest chain) that is **owned** (has a unit sitting
+    in its radius, per `MapNetworkManager.getOwnerCharacterId`) and closest to any living player.
+  - Optional `networkNearestOwnedLeafConfig`:
+    - `ownerCharacterIds?: string[]` — the "type of node" filter: only leaf nodes currently owned
+      by one of these characterIds are eligible (e.g. `['swarm_nest', 'swarmling']` to target
+      swarmling-held nests specifically). Omit to match any owned leaf node.
+    - `maxDistance?: number` — max distance (in tiles) from the nearest living player for a leaf
+      node to be eligible; farther nodes are ignored. Omitted = no cap.
+    - `radius?: number` — spawn radius (in tiles) around the chosen node's cell. 0 (default) =
+      only that cell.
+    - `inDarkness?: boolean` — require the spawn tile(s) to be in full darkness.
+  - If no leaf node matches the owner/distance filters, or the resolved cell(s) aren't valid spawn
+    tiles, the entry is **skipped** with a `console.warn` — not a crash.
+  - Use this to make reinforcements emerge from a faction's own nest network (e.g. swarmling
+    waves spawning near the swarm's held nest) instead of a generic map-wide POI.
+
 ## spawnTarget and spawnCount details
 
 - **`spawnTarget`**
@@ -69,7 +87,7 @@ When you introduce a **new** `characterId`, add its baseline row in `game/units/
 
 ## Dark-creature faction spawn convention
 
-Units with `creatureType: 'dark_creature'` (wolves, swarmlings, thornbinders, etc.) should **always** use `enemySpawnPointConfig: { inDarkness: true }` when `spawnBehaviour` is `'closestEnemySpawnPoint'`, and `inDarkness: true` on `closestConfig` when `spawnBehaviour` is `'closest'`. Dark creatures emerging from lit areas breaks the lore and visual grammar of the darkness threat. Only omit this if a specific design note explicitly calls for it.
+Units with `creatureType: 'dark_creature'` (wolves, swarmlings, thornbinders, etc.) should **always** use `enemySpawnPointConfig: { inDarkness: true }` when `spawnBehaviour` is `'closestEnemySpawnPoint'`, `inDarkness: true` on `closestConfig` when `spawnBehaviour` is `'closest'`, and `inDarkness: true` on `networkNearestOwnedLeafConfig` when `spawnBehaviour` is `'network_nearest_owned_leaf'`. Dark creatures emerging from lit areas breaks the lore and visual grammar of the darkness threat. Only omit this if a specific design note explicitly calls for it.
 
 ## `closestEnemySpawnPoint` details
 

@@ -86,6 +86,14 @@ function spawnBehaviourToPlacement(entry: SpawnWaveEntry): SpawnPlacement {
                 inDarkness: entry.enemySpawnPointConfig?.inDarkness,
                 matchesTags: entry.enemySpawnPointConfig?.matchesTags,
             };
+        case 'network_nearest_owned_leaf':
+            return {
+                kind: 'networkNearestOwnedLeaf',
+                ownerCharacterIds: entry.networkNearestOwnedLeafConfig?.ownerCharacterIds,
+                radius: entry.networkNearestOwnedLeafConfig?.radius,
+                inDarkness: entry.networkNearestOwnedLeafConfig?.inDarkness,
+                maxDistance: entry.networkNearestOwnedLeafConfig?.maxDistance,
+            };
         case 'anywhere':
         default:
             return {

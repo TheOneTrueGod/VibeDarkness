@@ -12,6 +12,7 @@ import { LANTERNITE_NETWORK_AI_TREE } from './lanterniteNetwork/index';
 import { HUNT_AI_TREE } from './hunt/index';
 import { PET_AI_TREE } from './pet/index';
 import { SWARMLING_NETWORK_AI_TREE } from './swarmlingNetwork/index';
+import { NETWORK_HUNT_AI_TREE } from './networkHunt/index';
 
 export type { AIContext, AILightSource, UnitAITree, AINode, AIEdgeCondition, AINodeId } from './types';
 export { isNodeInTree } from './types';
@@ -19,6 +20,7 @@ export { runUnitAI, runPathfindingRetrigger, getCurrentNodeId, setCurrentNodeId 
 export {
     ROUND_DURATION,
     distance,
+    everyAITicks,
     findEnemies,
     getEnemiesInPerceptionAndLOS,
     buildResolvedTargets,
@@ -56,6 +58,8 @@ export { HUNT_AI_TREE } from './hunt/index';
 export type { HuntNodeId, HuntAITreeContext } from './hunt/index';
 export { SWARMLING_NETWORK_AI_TREE } from './swarmlingNetwork/index';
 export type { SwarmlingNetworkAITreeContext, SwarmlingNetworkNodeId } from './swarmlingNetwork/index';
+export { NETWORK_HUNT_AI_TREE } from './networkHunt/index';
+export type { NetworkHuntAITreeContext, NetworkHuntNodeId } from './networkHunt/index';
 
 /** Registry: tree ID -> tree. */
 const TREE_REGISTRY: Record<string, UnitAITree> = {
@@ -68,6 +72,7 @@ const TREE_REGISTRY: Record<string, UnitAITree> = {
     hunt: HUNT_AI_TREE,
     pet: PET_AI_TREE,
     swarmlingNetwork: SWARMLING_NETWORK_AI_TREE,
+    networkHunt: NETWORK_HUNT_AI_TREE,
 };
 
 export function getUnitAITree(treeId: string): UnitAITree | null {

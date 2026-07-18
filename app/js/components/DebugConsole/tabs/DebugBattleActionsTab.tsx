@@ -13,8 +13,7 @@ interface DebugBattleActionsTabProps {
 
 export default function DebugBattleActionsTab({ isActive, inBattle, isHost = false, skipCurrentTurn = null }: DebugBattleActionsTabProps) {
     const { isAdmin } = useCurrentUser();
-    const { darkOverlayEnabled, godModeEnabled, superSpeedEnabled, setDarkOverlayEnabled, setGodModeEnabled, setSuperSpeedEnabled } =
-        useDebugSettings();
+    const { godModeEnabled, superSpeedEnabled, setGodModeEnabled, setSuperSpeedEnabled } = useDebugSettings();
     const { battleBridge } = useDebugConsole();
 
     if (!isActive || !inBattle || !isAdmin) return null;
@@ -57,17 +56,6 @@ export default function DebugBattleActionsTab({ isActive, inBattle, isHost = fal
                 </button>
                 <span className="text-[11px] text-muted">Reload initial state and replay all orders from tick 0.</span>
             </div>
-            <div className="flex items-center gap-2">
-                <span>Darkness layer</span>
-                <DebugOnOffButton
-                    enabled={darkOverlayEnabled}
-                    onToggle={() => setDarkOverlayEnabled(!darkOverlayEnabled)}
-                    onLabel="On"
-                    offLabel="Off"
-                />
-                <span className="text-[11px] text-muted">When off, the battle map hides the light/darkness overlay.</span>
-            </div>
-
             <div className="flex items-center gap-2">
                 <span>God mode</span>
                 <DebugOnOffButton enabled={godModeEnabled} onToggle={() => setGodModeEnabled(!godModeEnabled)} onLabel="On" offLabel="Off" />

@@ -31,7 +31,12 @@ export type LevelEventTrigger =
     | { afterSeconds: number };
 
 /** Behaviour for where a spawn wave places units. */
-export type SpawnBehaviour = 'edgeOfMap' | 'anywhere' | 'closestEnemySpawnPoint' | 'closest';
+export type SpawnBehaviour =
+    | 'edgeOfMap'
+    | 'anywhere'
+    | 'closestEnemySpawnPoint'
+    | 'closest'
+    | 'network_nearest_owned_leaf';
 
 /** Optional target area for spawn placement (world coordinates, radius in tiles). */
 export interface SpawnTarget {
@@ -118,6 +123,29 @@ export interface SpawnWaveEntry {
          * If provided, only POIs whose `tags` array contains ALL of these tags are eligible.
          */
         matchesTags?: string[];
+    };
+    /**
+     * Config for `spawnBehaviour: 'network_nearest_owned_leaf'`.
+     * Selects the nearest-to-players "leaf" node (a `MapNetworkManager` node with at most one
+     * edge — a dead end of the network graph, e.g. the far end of a nest chain) that is currently
+     * owned by a unit (see `MapNetworkManager.getOwnerCharacterId`), then spawns units near it.
+     */
+    networkNearestOwnedLeafConfig?: {
+        /**
+         * Only leaf nodes currently owned by one of these characterIds are eligible (e.g.
+         * `['swarm_nest', 'swarmling']` to target swarmling-held nests specifically). Omit to
+         * match any owned leaf node regardless of owner.
+         */
+        ownerCharacterIds?: string[];
+        /** Spawn radius around the chosen node's cell, in tiles. 0 (default) = only that cell. */
+        radius?: number;
+        /** If true, the spawn tile(s) must be in full darkness. */
+        inDarkness?: boolean;
+        /**
+         * Max distance (in tiles) from the nearest living player for a leaf node to be eligible.
+         * Nodes farther than this are ignored. Omitted = no cap.
+         */
+        maxDistance?: number;
     };
 }
 

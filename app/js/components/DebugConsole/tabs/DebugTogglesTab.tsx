@@ -3,6 +3,7 @@
  */
 import React, { useCallback, useSyncExternalStore } from 'react';
 import { useDebugSettings } from '../../../contexts/DebugSettingsContext';
+import DebugOnOffButton from '../DebugOnOffButton';
 import {
     DEBUG_TYPES,
     DEBUG_LOG_THRESHOLD_LABELS,
@@ -52,7 +53,7 @@ const THRESHOLD_OPTIONS = (
 ).map((value) => ({ value, label: DEBUG_LOG_THRESHOLD_LABELS[value] }));
 
 export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
-    const { logEveryTick, setLogEveryTick } = useDebugSettings();
+    const { logEveryTick, setLogEveryTick, darkOverlayEnabled, setDarkOverlayEnabled } = useDebugSettings();
 
     const showAllResearchTrees = useSyncExternalStore(
         subscribeShowAllResearchTrees,
@@ -213,6 +214,19 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
                 Toggle battle canvas render layers on or off. All layers start visible; settings reset when you
                 refresh the page.
             </p>
+            <div className="flex items-center gap-2 mb-3">
+                <span>Darkness layer</span>
+                <DebugOnOffButton
+                    enabled={darkOverlayEnabled}
+                    onToggle={() => setDarkOverlayEnabled(!darkOverlayEnabled)}
+                    onLabel="On"
+                    offLabel="Off"
+                />
+                <span className="text-[11px] text-muted">
+                    When off, hides the light/darkness overlay and reveals all enemy units and their ability previews,
+                    regardless of darkness.
+                </span>
+            </div>
             <div className="grid grid-cols-2 gap-x-8 gap-y-3 items-start">
                 {RENDER_LAYER_IDS.map((layerId) => (
                     <label key={layerId} className="flex items-start gap-2 cursor-pointer select-none">

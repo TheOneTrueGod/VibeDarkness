@@ -1,4 +1,5 @@
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
+import { debugSettingsSnapshot } from '../../../../../debug/debugSettingsStore';
 import { DarknessLevel } from '../../darknessLevels';
 import type { GameEngine } from '../../GameEngine';
 import type { AssetRegistry } from '../AssetRegistry';
@@ -256,7 +257,10 @@ export class UnitRenderer {
             const row = Math.floor(unit.y / cellSize);
             const light = this.overlayRenderer.getLightAt(col, row);
             const inFullDarkness =
-                light !== null && light <= DarknessLevel.FULL_DARKNESS && areEnemies(localTeamId, unit.teamId);
+                debugSettingsSnapshot.darkOverlayEnabled &&
+                light !== null &&
+                light <= DarknessLevel.FULL_DARKNESS &&
+                areEnemies(localTeamId, unit.teamId);
             const isDebugOutlined = this.debugUnitOutlineId === unit.id;
 
             const body = visual.children.find((c) => c.label === 'body') as Graphics | undefined;

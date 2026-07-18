@@ -25,6 +25,16 @@ export function distance(x1: number, y1: number, x2: number, y2: number): number
     return Math.sqrt(dx * dx + dy * dy);
 }
 
+/**
+ * True once every `intervalTicks` game ticks (e.g. `everyAITicks(context.gameTick, 10)` to throttle
+ * a perception scan to once per 10 ticks instead of every tick). Formalizes the `gameTick % N === 0`
+ * idiom already used ad hoc elsewhere (e.g. `LevelEventManager`'s victory-check throttle,
+ * `default_siegeDefendPoint`'s path-retrigger check). `intervalTicks <= 0` always returns false.
+ */
+export function everyAITicks(gameTick: number, intervalTicks: number): boolean {
+    return intervalTicks > 0 && gameTick % intervalTicks === 0;
+}
+
 /** Get all living units hostile to the given unit. Enemies cannot see crystal-protected or invincible units. */
 export function findEnemies(unit: Unit, units: Unit[]): Unit[] {
     const hostile = units.filter((u) => u.isAlive() && areEnemies(unit.teamId, u.teamId));

@@ -18,6 +18,7 @@ import { DarknessLevel } from '../../darknessLevels';
 import { createUnitFromSpawnConfig } from '../index';
 import { getEdgePositions } from '../../../storylines/edgeSpawns';
 import { resolveZoneTiles } from '../../../terrain/zones';
+import type { MapNetworkManager } from '../../managers/mapNetwork/MapNetworkManager';
 import type { SpawnDefinition, SpawnPlacement, SpawnAiHookup } from './spawnDefinition';
 
 /**
@@ -31,6 +32,9 @@ export interface SpawnUnitContext {
     readonly lightLevelEnabled: boolean;
     readonly aiControllerId: string | null;
     readonly mapPOIs: readonly MapSegmentPOI[];
+    /** Query surface for `networkNearestOwnedLeaf` placement. Optional — callers outside the main
+     *  engine loop (nest ticks, abilities) that don't build one simply can't use that placement kind. */
+    mapNetworkManager?: MapNetworkManager | null;
     addUnit(unit: Unit, spawnSource?: SpawnSource): void;
     getLightAt(col: number, row: number): number | null;
     getZoneById(id: string): MapSegmentZone | undefined;
@@ -332,6 +336,110 @@ function resolveClosestEnemySpawnPointPositions(
     return chosenCells.map((cell) => grid.gridToWorld(cell.col, cell.row));
 }
 
+/**
+ * Nearest-to-players "leaf" node (a `MapNetworkManager` node with at most one edge — a dead end
+ * of the network graph) that is currently owned by a unit, optionally restricted to specific
+ * owner characterIds and a max distance from the nearest living player. Node cell (radius 0) or
+ * tiles within radius, mirroring `resolveClosestEnemySpawnPointPositions`'s POI-radius handling.
+ */
+function resolveNetworkNearestOwnedLeafPositions(
+    ctx: SpawnUnitContext,
+    terrainManager: TerrainManager,
+    occupiedCells: Set<string>,
+    count: number,
+    placement: Extract<SpawnPlacement, { kind: 'networkNearestOwnedLeaf' }>,
+): WorldPos[] {
+    const grid = terrainManager.grid;
+    const mapNetwork = ctx.mapNetworkManager;
+    if (!mapNetwork) {
+        console.warn('spawnUnit: networkNearestOwnedLeaf — no map network available; skipping this spawn entry.');
+        return [];
+    }
+
+    const inDarkness = placement.inDarkness === true;
+    if (inDarkness && !ctx.lightLevelEnabled) {
+        console.warn('spawnUnit: networkNearestOwnedLeaf inDarkness=true but light system is disabled; skipping this spawn entry.');
+        return [];
+    }
+
+    const livingPlayers = ctx.units.filter((u) => u.isPlayerControlled() && u.isAlive());
+    if (livingPlayers.length === 0) {
+        console.warn('spawnUnit: networkNearestOwnedLeaf — no living player units; skipping this spawn entry.');
+        return [];
+    }
+
+    const ownerCharacterIds = placement.ownerCharacterIds;
+    const maxDistancePx = placement.maxDistance != null ? placement.maxDistance * grid.cellSize : null;
+
+    let closestNode: ReturnType<MapNetworkManager['getNode']> | undefined;
+    let closestDistSq = Infinity;
+    for (const nodeId of mapNetwork.getAllNodeIds()) {
+        if (mapNetwork.getNeighborIds(nodeId).length > 1) continue; // not a leaf
+
+        const owner = mapNetwork.getOwnerCharacterId(nodeId, ctx.units);
+        if (owner == null) continue; // not owned
+        if (ownerCharacterIds && ownerCharacterIds.length > 0 && !ownerCharacterIds.includes(owner)) continue;
+
+        const node = mapNetwork.getNode(nodeId);
+        if (!node) continue;
+
+        let nodeDistSq = Infinity;
+        for (const player of livingPlayers) {
+            const dx = player.x - node.x;
+            const dy = player.y - node.y;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < nodeDistSq) nodeDistSq = distSq;
+        }
+        if (maxDistancePx != null && nodeDistSq > maxDistancePx * maxDistancePx) continue;
+
+        if (nodeDistSq < closestDistSq) {
+            closestDistSq = nodeDistSq;
+            closestNode = node;
+        }
+    }
+
+    if (!closestNode) {
+        console.warn(
+            'spawnUnit: networkNearestOwnedLeaf — no eligible owned leaf node found' +
+                (ownerCharacterIds ? ` matching owners [${ownerCharacterIds.join(', ')}]` : '') +
+                '; skipping this spawn entry.',
+        );
+        return [];
+    }
+
+    const nodeRadius = placement.radius ?? 0;
+    let cells: GridCell[];
+    if (nodeRadius === 0) {
+        const cell = grid.worldToGrid(closestNode.x, closestNode.y);
+        if (!isValidSpawnCell(ctx, terrainManager, occupiedCells, cell.col, cell.row, inDarkness)) {
+            console.warn(
+                `spawnUnit: networkNearestOwnedLeaf — node "${closestNode.id}" cell is not a valid spawn tile; skipping this spawn entry.`,
+            );
+            return [];
+        }
+        cells = [cell];
+    } else {
+        cells = collectCandidateTiles(ctx, terrainManager, occupiedCells, inDarkness, { x: closestNode.x, y: closestNode.y, radius: nodeRadius }, undefined);
+        if (cells.length === 0) {
+            console.warn(
+                `spawnUnit: networkNearestOwnedLeaf — no valid tiles within radius ${nodeRadius} of node "${closestNode.id}"` +
+                    (inDarkness ? ' (inDarkness filter active)' : '') +
+                    '; skipping this spawn entry.',
+            );
+            return [];
+        }
+    }
+
+    const spawnAttempts = Math.min(count, cells.length);
+    if (spawnAttempts < count) {
+        console.warn(`spawnUnit: networkNearestOwnedLeaf — requested ${count} spawns but only found ${cells.length} valid tiles.`);
+    }
+
+    const chosenCells = chooseRandomIndices(ctx, cells.length, spawnAttempts).map((idx) => cells[idx]!);
+    for (const cell of chosenCells) occupiedCells.add(`${cell.col},${cell.row}`);
+    return chosenCells.map((cell) => grid.gridToWorld(cell.col, cell.row));
+}
+
 /** Uniform-random annulus around an anchor unit — factored out of the three nest-tick modules. */
 function resolveRelativeToUnitPositions(
     ctx: SpawnUnitContext,
@@ -396,6 +504,9 @@ function resolvePlacements(ctx: SpawnUnitContext, placement: SpawnPlacement, cou
     }
     if (placement.kind === 'closestEnemySpawnPoint') {
         return resolveClosestEnemySpawnPointPositions(ctx, terrainManager, occupiedCells, count, placement);
+    }
+    if (placement.kind === 'networkNearestOwnedLeaf') {
+        return resolveNetworkNearestOwnedLeafPositions(ctx, terrainManager, occupiedCells, count, placement);
     }
     return [];
 }

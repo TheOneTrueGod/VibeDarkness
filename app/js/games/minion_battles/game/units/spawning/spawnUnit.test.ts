@@ -153,6 +153,103 @@ describe('spawnUnit placement', () => {
         });
         expect(spawned).toHaveLength(0);
     });
+
+    it('networkNearestOwnedLeaf spawns on the nearest owned leaf node cell', () => {
+        const engine = setupEngine();
+        addPlayerAt(engine, 40, 40);
+        const leafWorld = { x: 5 * CELL_SIZE + CELL_SIZE / 2, y: 5 * CELL_SIZE + CELL_SIZE / 2 };
+        engine.state.mapNetworkManager.loadFromSegments({
+            nodes: [{ id: 'leaf', x: leafWorld.x, y: leafWorld.y, radius: CELL_SIZE, tags: ['nest'], segmentId: 'test' }],
+            edges: [],
+        });
+        const nest = createUnitFromSpawnConfig(
+            { characterId: 'swarm_nest', name: 'Swarm Nest', x: leafWorld.x, y: leafWorld.y, teamId: 'enemy', ownerId: 'ai', abilities: [] },
+            engine.eventBus,
+            engine,
+        );
+        engine.addUnit(nest, 'initialGameSpawn');
+        engine.state.mapNetworkManager.tick(engine.units);
+
+        const spawned = engine.spawnUnit({
+            ...BASE,
+            placement: { kind: 'networkNearestOwnedLeaf', ownerCharacterIds: ['swarm_nest'] },
+            count: 1,
+        });
+        expect(spawned).toHaveLength(1);
+        expect(spawned[0]!.x).toBe(leafWorld.x);
+        expect(spawned[0]!.y).toBe(leafWorld.y);
+    });
+
+    it('networkNearestOwnedLeaf ignores a node with 2+ edges even when owned and closer', () => {
+        const engine = setupEngine();
+        addPlayerAt(engine, 40, 40);
+        const hubWorld = { x: 2 * CELL_SIZE + CELL_SIZE / 2, y: 2 * CELL_SIZE + CELL_SIZE / 2 };
+        const leafWorld = { x: 8 * CELL_SIZE + CELL_SIZE / 2, y: 8 * CELL_SIZE + CELL_SIZE / 2 };
+        engine.state.mapNetworkManager.loadFromSegments({
+            nodes: [
+                { id: 'hub', x: hubWorld.x, y: hubWorld.y, radius: CELL_SIZE, tags: [], segmentId: 'test' },
+                { id: 'leafA', x: leafWorld.x, y: leafWorld.y, radius: CELL_SIZE, tags: [], segmentId: 'test' },
+                { id: 'leafB', x: 9 * CELL_SIZE + CELL_SIZE / 2, y: 9 * CELL_SIZE + CELL_SIZE / 2, radius: CELL_SIZE, tags: [], segmentId: 'test' },
+            ],
+            edges: [
+                ['hub', 'leafA'],
+                ['hub', 'leafB'],
+            ],
+        });
+        for (const world of [hubWorld, leafWorld]) {
+            const unit = createUnitFromSpawnConfig(
+                { characterId: 'swarm_nest', name: 'Swarm Nest', x: world.x, y: world.y, teamId: 'enemy', ownerId: 'ai', abilities: [] },
+                engine.eventBus,
+                engine,
+            );
+            engine.addUnit(unit, 'initialGameSpawn');
+        }
+        engine.state.mapNetworkManager.tick(engine.units);
+
+        const spawned = engine.spawnUnit({
+            ...BASE,
+            placement: { kind: 'networkNearestOwnedLeaf', ownerCharacterIds: ['swarm_nest'] },
+            count: 1,
+        });
+        expect(spawned).toHaveLength(1);
+        expect(spawned[0]!.x).toBe(leafWorld.x);
+        expect(spawned[0]!.y).toBe(leafWorld.y);
+    });
+
+    it('networkNearestOwnedLeaf returns nothing when no eligible owned leaf node exists', () => {
+        const engine = setupEngine();
+        addPlayerAt(engine, 40, 40);
+        const spawned = engine.spawnUnit({
+            ...BASE,
+            placement: { kind: 'networkNearestOwnedLeaf' },
+            count: 1,
+        });
+        expect(spawned).toHaveLength(0);
+    });
+
+    it('networkNearestOwnedLeaf respects maxDistance, skipping a leaf node beyond the cap', () => {
+        const engine = setupEngine();
+        addPlayerAt(engine, 40, 40);
+        const farWorld = { x: 9 * CELL_SIZE + CELL_SIZE / 2, y: 9 * CELL_SIZE + CELL_SIZE / 2 };
+        engine.state.mapNetworkManager.loadFromSegments({
+            nodes: [{ id: 'leaf', x: farWorld.x, y: farWorld.y, radius: CELL_SIZE, tags: [], segmentId: 'test' }],
+            edges: [],
+        });
+        const nest = createUnitFromSpawnConfig(
+            { characterId: 'swarm_nest', name: 'Swarm Nest', x: farWorld.x, y: farWorld.y, teamId: 'enemy', ownerId: 'ai', abilities: [] },
+            engine.eventBus,
+            engine,
+        );
+        engine.addUnit(nest, 'initialGameSpawn');
+        engine.state.mapNetworkManager.tick(engine.units);
+
+        const spawned = engine.spawnUnit({
+            ...BASE,
+            placement: { kind: 'networkNearestOwnedLeaf', ownerCharacterIds: ['swarm_nest'], maxDistance: 1 },
+            count: 1,
+        });
+        expect(spawned).toHaveLength(0);
+    });
 });
 
 describe('spawnUnit aiHookup', () => {

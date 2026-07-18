@@ -357,9 +357,9 @@ export class ThornMarchMission extends BaseMissionDef {
                     characterId: 'dark_wolf',
                     name: 'Wolf',
                     spawnBehaviour: 'closestEnemySpawnPoint',
-                    enemySpawnPointConfig: { inDarkness: true },
+                    enemySpawnPointConfig: { inDarkness: true, radius: 3 },
                     spawnCount: 2,
-                    unitAITreeId: 'hunt',
+                    unitAITreeId: 'networkHunt',
                 },
             ],
         },
@@ -372,13 +372,15 @@ export class ThornMarchMission extends BaseMissionDef {
                     characterId: 'dark_wolf',
                     name: 'Wolf',
                     spawnBehaviour: 'closestEnemySpawnPoint',
-                    enemySpawnPointConfig: { inDarkness: true },
+                    enemySpawnPointConfig: { inDarkness: true, radius: 3 },
                     spawnCount: 1,
-                    unitAITreeId: 'hunt',
+                    unitAITreeId: 'networkHunt',
                 },
             ],
         },
-        // 2 swarmlings every round
+        // 2 swarmlings every round — spawn near the swarm's own nest network (nearest owned leaf
+        // node) rather than a generic enemySpawn POI, so reinforcements emerge from swarm-held
+        // ground and the 'hunt' AI naturally marches them toward the players from there.
         {
             type: 'continuousSpawn',
             trigger: { intervalRounds: 1 },
@@ -386,10 +388,14 @@ export class ThornMarchMission extends BaseMissionDef {
                 {
                     characterId: 'swarmling',
                     name: 'Swarmling',
-                    spawnBehaviour: 'closestEnemySpawnPoint',
-                    enemySpawnPointConfig: { inDarkness: true },
+                    spawnBehaviour: 'network_nearest_owned_leaf',
+                    networkNearestOwnedLeafConfig: {
+                        ownerCharacterIds: [SWARM_NEST_CHARACTER_ID, 'swarmling'],
+                        radius: 3,
+                        inDarkness: true,
+                    },
                     spawnCount: 2,
-                    unitAITreeId: 'hunt',
+                    unitAITreeId: 'networkHunt',
                 },
             ],
         },
@@ -401,10 +407,14 @@ export class ThornMarchMission extends BaseMissionDef {
                 {
                     characterId: 'swarmling',
                     name: 'Swarmling',
-                    spawnBehaviour: 'closestEnemySpawnPoint',
-                    enemySpawnPointConfig: { inDarkness: true },
+                    spawnBehaviour: 'network_nearest_owned_leaf',
+                    networkNearestOwnedLeafConfig: {
+                        ownerCharacterIds: [SWARM_NEST_CHARACTER_ID, 'swarmling'],
+                        radius: 3,
+                        inDarkness: true,
+                    },
                     spawnCount: 2,
-                    unitAITreeId: 'hunt',
+                    unitAITreeId: 'networkHunt',
                 },
             ],
         },
@@ -419,7 +429,7 @@ export class ThornMarchMission extends BaseMissionDef {
                     spawnBehaviour: 'closestEnemySpawnPoint',
                     enemySpawnPointConfig: { inDarkness: true },
                     spawnCount: 1,
-                    unitAITreeId: 'hunt',
+                    unitAITreeId: 'networkHunt',
                 },
             ],
         },
@@ -434,7 +444,7 @@ export class ThornMarchMission extends BaseMissionDef {
                     spawnBehaviour: 'closestEnemySpawnPoint',
                     enemySpawnPointConfig: { inDarkness: true },
                     spawnCount: 1,
-                    unitAITreeId: 'hunt',
+                    unitAITreeId: 'networkHunt',
                 },
             ],
         },
@@ -458,12 +468,12 @@ export class ThornMarchMission extends BaseMissionDef {
     gatherPartyBackgroundImage = STORY_BACKGROUNDS.campfire;
     // Players spawn in 6 cells around a point south of the first nest (centered at NEST_49_51_COL, NEST_49_51_ROW+3)
     playerSpawnPoints: PlayerSpawnPoint[] = [
-        { col: NEST_49_51_COL - 1, row: NEST_49_51_ROW + 2 },
-        { col: NEST_49_51_COL,     row: NEST_49_51_ROW + 2 },
-        { col: NEST_49_51_COL + 1, row: NEST_49_51_ROW + 2 },
         { col: NEST_49_51_COL - 1, row: NEST_49_51_ROW + 4 },
         { col: NEST_49_51_COL,     row: NEST_49_51_ROW + 4 },
         { col: NEST_49_51_COL + 1, row: NEST_49_51_ROW + 4 },
+        { col: NEST_49_51_COL - 1, row: NEST_49_51_ROW + 6 },
+        { col: NEST_49_51_COL,     row: NEST_49_51_ROW + 6 },
+        { col: NEST_49_51_COL + 1, row: NEST_49_51_ROW + 6 },
     ];
 
     lightLevelEnabled = true;

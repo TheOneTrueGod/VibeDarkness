@@ -38,6 +38,16 @@ export type SpawnPlacement =
           matchesTags?: string[];
       }
     | {
+          kind: 'networkNearestOwnedLeaf';
+          /** Only leaf nodes owned by one of these characterIds are eligible. Omit to match any owned leaf node. */
+          ownerCharacterIds?: string[];
+          /** Tiles within this radius (in cells) of the node are candidates. 0 = the node's own cell. */
+          radius?: number;
+          inDarkness?: boolean;
+          /** Max distance (in tiles) from the nearest living player for a leaf node to be eligible. Omitted = no cap. */
+          maxDistance?: number;
+      }
+    | {
           kind: 'relativeToUnit';
           anchorUnitId: string;
           /** Random annulus around the anchor (default min = anchor's own radius). */

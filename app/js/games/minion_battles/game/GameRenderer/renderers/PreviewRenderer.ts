@@ -1,5 +1,6 @@
 import { Graphics } from 'pixi.js';
 import type { Container } from 'pixi.js';
+import { debugSettingsSnapshot } from '../../../../../debug/debugSettingsStore';
 import { DarknessLevel } from '../../darknessLevels';
 import type { GameEngine } from '../../GameEngine';
 import type { Unit } from '../../units/Unit';
@@ -460,7 +461,10 @@ export class PreviewRenderer {
             // Enemy telegraphs are clipped to their lit portions rather than hidden outright —
             // an enemy stomping in darkness but aiming at a lit patch of ground should still show
             // the parts of its arc/circle that fall in the light.
-            const clipToLight = areEnemies(localTeamId, unit.teamId) && this.overlayRenderer.isLightSystemActive();
+            const clipToLight =
+                debugSettingsSnapshot.darkOverlayEnabled &&
+                areEnemies(localTeamId, unit.teamId) &&
+                this.overlayRenderer.isLightSystemActive();
             const rawGr = this.abilityPreviewGraphics as unknown as IAbilityPreviewGraphics;
             const gr: IAbilityPreviewGraphics = clipToLight
                 ? new LitClippingPreviewGraphics(rawGr, (x, y) => this.isWorldPointLit(x, y))
@@ -593,7 +597,12 @@ export class PreviewRenderer {
     }
 
     private enemyUnitHiddenInFullDarkness(unit: Unit, localTeamId: TeamId): boolean {
-        if (!areEnemies(localTeamId, unit.teamId) || !this.overlayRenderer.isLightSystemActive()) return false;
+        if (
+            !debugSettingsSnapshot.darkOverlayEnabled ||
+            !areEnemies(localTeamId, unit.teamId) ||
+            !this.overlayRenderer.isLightSystemActive()
+        )
+            return false;
         const col = Math.floor(unit.x / CELL_SIZE);
         const row = Math.floor(unit.y / CELL_SIZE);
         const light = this.overlayRenderer.getLightAt(col, row);

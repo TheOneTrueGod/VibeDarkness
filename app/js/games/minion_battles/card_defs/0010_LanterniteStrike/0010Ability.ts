@@ -18,14 +18,14 @@ import { defineAbility } from '../../abilities/defineAbility';
 
 export const LANTERNITE_STRIKE_ID = `${formatGroupId(AbilityGroupId.Enemy)}10`;
 
-const LOCK_TIME = 0.4;
-const PREFIRE_TIME = 0.7;
+const LOCK_TIME = 0.5;
+const PREFIRE_TIME = 0.4;
 /** Short window so ProjectileLaunch (fires at window open) lands the shot at PREFIRE_TIME, not at LOCK_TIME. */
 const FIRE_END = PREFIRE_TIME + 0.1;
-const COOLDOWN_END = 3.7;
+const COOLDOWN_END = 3;
 const PROJECTILE_SPEED = 700;
 const MAX_DISTANCE = 200;
-const DAMAGE = 5;
+const DAMAGE = 2;
 const LIGHT_COLOR = 0xffe080;
 const MAX_USES = 4;
 // 4 uses banked at once, so the ability can fire up to 4 times before needing a fresh round of recovery.
