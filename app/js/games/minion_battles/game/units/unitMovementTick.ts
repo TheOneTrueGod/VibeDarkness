@@ -16,6 +16,40 @@ import { tickWallUnstick } from './unitWallUnstick';
 /** Chebyshev grid tiles; after min wait time, end wait early if a live enemy is this close (wait+move failsafe). */
 export const WAIT_ENEMY_PROXIMITY_FAILSAFE_GRID = 4;
 
+/**
+ * True unless `(toCol, toRow)` is a diagonal step from the unit's current cell that corner-cuts a
+ * wall (destination open, but one of the two flanking orthogonal cells is not) — mirrors the
+ * corner-cutting guard `Pathfinder.astar` already applies when building AI paths. Movement walks
+ * a straight line toward `path[0]`'s cell center every tick with no terrain check along the way,
+ * so a malformed path (e.g. a skipped waypoint) could otherwise carry a unit straight through a
+ * wall corner. Only evaluated for cells adjacent (≤1 cell away) to the unit's current position —
+ * player click-to-move can legitimately jump straight to a distant, separately-validated cell
+ * (see `playerMovePath.ts`'s `resolvePlayerMoveSegment`), so anything farther is left alone.
+ */
+function isValidAdjacentPathStep(
+    terrainManager: TerrainManager,
+    fromX: number,
+    fromY: number,
+    toCol: number,
+    toRow: number,
+): boolean {
+    const fromCol = Math.floor(fromX / CELL_SIZE);
+    const fromRow = Math.floor(fromY / CELL_SIZE);
+    const dc = toCol - fromCol;
+    const dr = toRow - fromRow;
+    if (Math.abs(dc) > 1 || Math.abs(dr) > 1) return true;
+
+    const cellPassable = (col: number, row: number) =>
+        terrainManager.isPassable(col * CELL_SIZE + CELL_SIZE / 2, row * CELL_SIZE + CELL_SIZE / 2);
+
+    if (!cellPassable(toCol, toRow)) return false;
+    if (dc !== 0 && dr !== 0) {
+        if (!cellPassable(fromCol + dc, fromRow)) return false;
+        if (!cellPassable(fromCol, fromRow + dr)) return false;
+    }
+    return true;
+}
+
 /** During wait+move: true if any live enemy is within Chebyshev distance on the grid from this unit's cell. */
 export function hasEnemyWithinWaitProximityFailsafe(unit: Unit, engine: unknown, maxChebyshevGrid: number): boolean {
     const units = (engine as { units?: readonly Unit[] }).units;
@@ -127,6 +161,15 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
 
     // Target: jittered position around the center of the next grid cell in the path
     const nextCell = unit.movement.path[0];
+
+    // Defensive: reject a corner-cutting adjacent step before interpolating toward it (see
+    // isValidAdjacentPathStep). Discard the path and let the AI recompute a safe one next tick
+    // rather than walking the unit through a wall.
+    if (terrainManager && !isValidAdjacentPathStep(terrainManager, unit.x, unit.y, nextCell.col, nextCell.row)) {
+        unit.invalidateMovementPath();
+        return;
+    }
+
     const centerX = nextCell.col * CELL_SIZE + CELL_SIZE / 2;
     const centerY = nextCell.row * CELL_SIZE + CELL_SIZE / 2;
 

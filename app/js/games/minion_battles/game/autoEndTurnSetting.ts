@@ -2,12 +2,19 @@ import { AUTO_END_TURN } from './gameConstants';
 
 type Listener = () => void;
 
+const AUTO_END_TURN_STORAGE_KEY = 'minionBattles.autoEndTurn';
+
+function loadStoredAutoEndTurn(): boolean {
+    const stored = localStorage.getItem(AUTO_END_TURN_STORAGE_KEY);
+    return stored === null ? AUTO_END_TURN : stored === 'true';
+}
+
 /**
  * Runtime override for {@link AUTO_END_TURN}, toggleable via the ITS timeline "Auto End"
- * checkbox. Lives only in memory for this game session — resets to the {@link AUTO_END_TURN}
- * default on page refresh.
+ * checkbox. Persisted to localStorage once the user changes it; until then it falls back to
+ * the {@link AUTO_END_TURN} default on page refresh.
  */
-let autoEndTurn: boolean = AUTO_END_TURN;
+let autoEndTurn: boolean = loadStoredAutoEndTurn();
 const listeners = new Set<Listener>();
 
 export function getAutoEndTurn(): boolean {
@@ -17,6 +24,7 @@ export function getAutoEndTurn(): boolean {
 export function setAutoEndTurn(value: boolean): void {
     if (autoEndTurn === value) return;
     autoEndTurn = value;
+    localStorage.setItem(AUTO_END_TURN_STORAGE_KEY, String(value));
     listeners.forEach((listener) => listener());
 }
 

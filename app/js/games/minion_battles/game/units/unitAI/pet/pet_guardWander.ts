@@ -65,8 +65,8 @@ function pathTowardGuardTarget(unit: Unit, context: AIContext, ctx: PetAITreeCon
     const from = grid.worldToGrid(unit.x, unit.y);
     const to = grid.worldToGrid(ctx.guardTargetX, ctx.guardTargetY);
     const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-    if (path && path.length > 1) {
-        unit.setMovement(path.slice(1), ownerIdOrUndefined(unit), context.gameTick);
+    if (path && path.length > 0) {
+        unit.setMovement(path, ownerIdOrUndefined(unit), context.gameTick);
     } else {
         clearPetGuardWander(ctx);
     }

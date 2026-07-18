@@ -101,8 +101,8 @@ export const lnet_scout_travel: AINode<'lanterniteNetwork', LanterniteNetworkNod
                 const from = grid.worldToGrid(unit.x, unit.y);
                 const to = grid.worldToGrid(standX, standY);
                 const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-                if (path && path.length > 1) {
-                    unit.setMovement(path.slice(1), undefined, context.gameTick);
+                if (path && path.length > 0) {
+                    unit.setMovement(path, undefined, context.gameTick);
                 }
             }
 

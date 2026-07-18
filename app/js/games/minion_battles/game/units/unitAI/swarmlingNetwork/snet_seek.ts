@@ -190,8 +190,8 @@ export const snet_seek: AINode<'swarmlingNetwork', SwarmlingNetworkNodeId> = {
                 const from = grid.worldToGrid(unit.x, unit.y);
                 const to = grid.worldToGrid(targetNode.x, targetNode.y);
                 const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-                if (path && path.length > 1) {
-                    unit.setMovement(path.slice(1), undefined, context.gameTick);
+                if (path && path.length > 0) {
+                    unit.setMovement(path, undefined, context.gameTick);
                 }
             }
 
@@ -210,8 +210,8 @@ export const snet_seek: AINode<'swarmlingNetwork', SwarmlingNetworkNodeId> = {
             const from = grid.worldToGrid(unit.x, unit.y);
             const to = grid.worldToGrid(targetNode.x, targetNode.y);
             const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-            if (path && path.length > 1) {
-                unit.setMovement(path.slice(1), undefined, context.gameTick);
+            if (path && path.length > 0) {
+                unit.setMovement(path, undefined, context.gameTick);
             }
         },
     },

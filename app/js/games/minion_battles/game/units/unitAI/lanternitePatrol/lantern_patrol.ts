@@ -48,9 +48,7 @@ export const lantern_patrol: AINode<'lanternitePatrol', LanternitePatrolNodeId> 
             const toCell = grid.worldToGrid(dest.x, dest.y);
             const path = context.findGridPathForUnit(unit, from.col, from.row, toCell.col, toCell.row);
 
-            if (path && path.length > 1) {
-                unit.setMovement(path.slice(1), undefined, context.gameTick);
-            } else if (path && path.length === 1 && (path[0].col !== from.col || path[0].row !== from.row)) {
+            if (path && path.length > 0) {
                 unit.setMovement(path, undefined, context.gameTick);
             }
 

@@ -119,7 +119,7 @@ export const nh_travel: AINode<'networkHunt', NetworkHuntNodeId> = {
                 const from = grid.worldToGrid(unit.x, unit.y);
                 const to = grid.worldToGrid(step.stepTarget.x, step.stepTarget.y);
                 const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-                if (path && path.length > 1) unit.setMovement(path.slice(1), undefined, context.gameTick);
+                if (path && path.length > 0) unit.setMovement(path, undefined, context.gameTick);
             }
 
             queueWaitAndEndTurn(unit, context);
@@ -138,7 +138,7 @@ export const nh_travel: AINode<'networkHunt', NetworkHuntNodeId> = {
             const from = grid.worldToGrid(unit.x, unit.y);
             const to = grid.worldToGrid(step.stepTarget.x, step.stepTarget.y);
             const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-            if (path && path.length > 1) unit.setMovement(path.slice(1), undefined, context.gameTick);
+            if (path && path.length > 0) unit.setMovement(path, undefined, context.gameTick);
         },
     },
     edges: [

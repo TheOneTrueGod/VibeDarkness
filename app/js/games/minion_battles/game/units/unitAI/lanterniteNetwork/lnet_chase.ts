@@ -38,8 +38,8 @@ export const lnet_chase: AINode<'lanterniteNetwork', LanterniteNetworkNodeId> = 
                     const from = grid.worldToGrid(unit.x, unit.y);
                     const to = grid.worldToGrid(target.x, target.y);
                     const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-                    if (path && path.length > 1) {
-                        unit.setMovement(path.slice(1), target.id, context.gameTick);
+                    if (path && path.length > 0) {
+                        unit.setMovement(path, target.id, context.gameTick);
                     } else {
                         unit.clearMovement();
                     }
@@ -63,8 +63,8 @@ export const lnet_chase: AINode<'lanterniteNetwork', LanterniteNetworkNodeId> = 
             const from = grid.worldToGrid(unit.x, unit.y);
             const to = grid.worldToGrid(target.x, target.y);
             const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-            if (path && path.length > 1) {
-                unit.setMovement(path.slice(1), target.id, context.gameTick);
+            if (path && path.length > 0) {
+                unit.setMovement(path, target.id, context.gameTick);
             }
         },
     },

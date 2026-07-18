@@ -112,8 +112,8 @@ export const lnet_guard: AINode<'lanterniteNetwork', LanterniteNetworkNodeId> = 
                         // Already has a path toward this target — let it run
                     } else {
                         const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-                        if (path && path.length > 1) {
-                            unit.setMovement(path.slice(1), undefined, context.gameTick);
+                        if (path && path.length > 0) {
+                            unit.setMovement(path, undefined, context.gameTick);
                         } else {
                             // Unreachable — abandon and pick a new point next tick
                             ctx.patrolTargetX = undefined;
@@ -144,8 +144,8 @@ export const lnet_guard: AINode<'lanterniteNetwork', LanterniteNetworkNodeId> = 
             const from = grid.worldToGrid(unit.x, unit.y);
             const to = grid.worldToGrid(ctx.patrolTargetX, ctx.patrolTargetY);
             const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-            if (path && path.length > 1) {
-                unit.setMovement(path.slice(1), undefined, context.gameTick);
+            if (path && path.length > 0) {
+                unit.setMovement(path, undefined, context.gameTick);
             }
         },
     },
