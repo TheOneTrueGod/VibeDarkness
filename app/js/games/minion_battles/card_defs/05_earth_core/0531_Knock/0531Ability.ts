@@ -30,6 +30,7 @@ export const KnockAbility = defineAbility({
             start: 0.25,
             end: 0.35,
             abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
             targetDef: { kind: 'select', label: 'Target location', hitbox: nullHitbox, filter: 'any', allowMiss: true },
             behaviour: CastBehaviours.ProjectileLaunch()
                 .withSpeed(950)

@@ -82,6 +82,7 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
         start: FORCE_PUSH_PREFIRE_TIME,
         end: FORCE_PUSH_PREFIRE_TIME + FORCE_PUSH_SELECT_GAP,
         abilityPhase: AbilityPhase.Active,
+        doNotRefund: true,
         targetDef: {
             kind: 'select',
             label: FORCE_PUSH_TARGET_LABEL,

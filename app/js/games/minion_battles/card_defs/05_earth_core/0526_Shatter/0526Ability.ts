@@ -17,7 +17,7 @@ const STONE_CONSUME_RADIUS = 1.5;
 const TARGETS: TargetDef[] = [{ type: 'pixel', label: 'Shatter target' }];
 const TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup', start: 0, end: 0.25, abilityPhase: AbilityPhase.Windup },
-    { id: 'burst', start: 0.25, end: 0.35, abilityPhase: AbilityPhase.Active },
+    { id: 'burst', start: 0.25, end: 0.35, abilityPhase: AbilityPhase.Active, doNotRefund: true },
     { id: 'recover', start: 0.35, end: 1.2, abilityPhase: AbilityPhase.Cooldown },
 ];
 

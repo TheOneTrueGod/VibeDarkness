@@ -245,6 +245,7 @@ export function defineGunAbility(config: GunAbilityConfig): AbilityStatic {
         start: sprayStart,
         end: sprayEnd,
         abilityPhase: AbilityPhase.Active,
+        doNotRefund: true,
         behaviour,
     });
     if (config.cooldownDuration > 0) {

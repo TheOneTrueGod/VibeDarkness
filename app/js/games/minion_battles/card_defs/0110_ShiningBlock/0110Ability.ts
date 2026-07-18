@@ -81,7 +81,7 @@ function executeShiningBlockRetaliation(engine: unknown, defender: Unit, aimPos:
         unit.takeDamage(modifiedDamage, defender.id, eng.eventBus);
         const stunResult = tryApplyHardCcStun(unit, STUN_DURATION, eng.gameTime, eng.roundNumber, eng.eventBus);
         if (stunResult.outcome === 'applied') {
-            unit.interruptAllAbilities();
+            unit.interruptAllAbilities(eng);
         }
     }
 

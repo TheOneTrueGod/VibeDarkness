@@ -107,6 +107,7 @@ export const ProtectAbility_0303 = defineAbility({
             start: WINDUP_DURATION,
             end: WINDUP_DURATION + ACTIVE_DURATION,
             abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
             targetDef: {
                 kind: 'select',
                 label: TARGET_LABEL,

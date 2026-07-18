@@ -34,7 +34,7 @@ const punchBehaviour = CastBehaviours.MeleeAttack()
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup',   start: 0,    end: 0.2, abilityPhase: AbilityPhase.Windup },
-    { id: 'punch1',   start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active,
+    { id: 'punch1',   start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active, doNotRefund: true,
       targetDef: { kind: 'select', label: 'Target 1', hitbox: PUNCH_HITBOX, filter: 'enemy', allowMiss: true },
       behaviour: punchBehaviour },
     { id: 'gap',      start: 0.3, end: 0.5, abilityPhase: AbilityPhase.Waiting,

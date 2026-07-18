@@ -79,6 +79,7 @@ export const GravityLocusAbility = defineAbility({
             start: GRAVITY_LOCUS_PREFIRE_TIME,
             end: GRAVITY_LOCUS_PREFIRE_TIME + GRAVITY_LOCUS_CAST_ACTIVE_DURATION,
             abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
             targetDef: {
                 kind: 'select',
                 label: 'Locus',

@@ -44,6 +44,7 @@ export const ClawAbility: AbilityStatic = {
 			start: 0,
 			end: CLAW_DURATION,
 			abilityPhase: AbilityPhase.Active,
+			doNotRefund: true,
 			tags: ['iframe'] as const,
 			targetDef: { kind: 'select', label: 'Dash direction', hitbox: nullHitbox, filter: 'any', allowMiss: true },
 			behaviour: CastBehaviours.Dash()

@@ -226,6 +226,7 @@ export const ImbuedBatAbility = defineAbility({
             start: 0.2,
             end: 0.3,
             abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
             targetDef: { kind: 'select', label: 'Target', hitbox: IMBUED_BAT_HITBOX, filter: 'enemy', allowMiss: true },
             behaviour: imbuedBatBehaviour,
         },

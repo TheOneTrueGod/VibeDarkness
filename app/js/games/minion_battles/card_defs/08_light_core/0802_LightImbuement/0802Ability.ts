@@ -65,6 +65,7 @@ export const LightImbuementAbility = defineAbility({
             start: PREFIRE_TIME,
             end: PREFIRE_TIME + ACTIVE_DURATION,
             abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
             castBehaviours: [
                 {
                     timingStart: 'start',

@@ -85,6 +85,7 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
             start: LOCK_TIME,
             end: STRIKE_TIME,
             abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
             targetDef: { kind: 'select', label: 'Ground', hitbox: THORNBINDER_HITBOX, filter: 'any', allowMiss: true },
             behaviour: CastBehaviours.ProjectileLaunch()
                 .withSpeed(THORN_PROJECTILE_SPEED)

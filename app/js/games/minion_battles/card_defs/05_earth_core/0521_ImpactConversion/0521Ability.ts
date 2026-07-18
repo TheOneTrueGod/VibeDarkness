@@ -5,7 +5,7 @@ import { type CardDef } from '../../types';
 import { IMPACT_CONVERSION_PASSIVE_ID } from '../../../abilities/earthCoreMeleePassives';
 
 const TIMINGS: AbilityTimingInterval[] = [
-    { id: 'passive', start: 0, end: 0.01, abilityPhase: AbilityPhase.Active },
+    { id: 'passive', start: 0, end: 0.01, abilityPhase: AbilityPhase.Active, doNotRefund: true },
 ];
 
 export const ImpactConversionAbility: AbilityStatic = {

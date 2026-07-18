@@ -54,7 +54,7 @@ export const HuskSeedBarrageAbility: AbilityStatic = {
     prefireTime: FIRE_TIME,
     abilityTimings: [
         { id: 'channel', start: 0, end: CHANNEL_END, abilityPhase: AbilityPhase.Windup },
-        { id: 'aim', start: CHANNEL_END, end: FIRE_TIME, abilityPhase: AbilityPhase.Active },
+        { id: 'aim', start: CHANNEL_END, end: FIRE_TIME, abilityPhase: AbilityPhase.Active, doNotRefund: true },
         { id: 'cooldown', start: FIRE_TIME, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
     ],
     targets: [{ type: 'pixel', label: 'Landing zone' }] as TargetDef[],

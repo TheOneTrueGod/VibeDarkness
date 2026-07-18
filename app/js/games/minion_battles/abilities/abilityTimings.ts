@@ -194,6 +194,14 @@ export interface AbilityTimingInterval {
      * Only place this on Active intervals. applyCoopTailSplit does NOT preserve this field.
      */
     onProjectileHit?: VisualEffectDef[];
+    /**
+     * Marks this interval's `start` as the "no longer refundable" cutoff: once a cast's
+     * elapsed time reaches this point, `refundAbilityCost` skips refunding the ability's
+     * resource cost if the cast is cut short. At most one interval per ability should set
+     * this — by convention, the ability's first Active-phase interval. See
+     * `getDoNotRefundCutoffElapsed`.
+     */
+    doNotRefund?: boolean;
 }
 
 export type AbilityTimingEntry = AbilityTiming | AbilityTimingInterval;
@@ -622,6 +630,22 @@ export function getTrackTargetCutoffElapsed(
         if (match) return match.start;
     }
     return ability.prefireTime;
+}
+
+/**
+ * Elapsed-time cutoff past which `refundAbilityCost` should not restore this ability's
+ * resource cost when a cast is cut short. Resolves to the `start` of the interval with
+ * `doNotRefund: true`; falls back to the ability's total duration (i.e. never triggers)
+ * when no interval sets the flag.
+ */
+export function getDoNotRefundCutoffElapsed(
+    ability: AbilityTimingsResolvable,
+    caster?: unknown,
+    gameState?: unknown,
+): number {
+    const intervals = normalizeAbilityTimingsToIntervals(resolveAbilityTimingEntries(ability, caster, gameState));
+    const match = intervals.find((it) => it.doNotRefund);
+    return match ? match.start : getTotalAbilityDurationFromIntervals(intervals);
 }
 
 export function getTotalAbilityDuration(ability: {

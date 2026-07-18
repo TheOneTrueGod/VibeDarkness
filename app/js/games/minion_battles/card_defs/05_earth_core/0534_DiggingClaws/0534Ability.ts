@@ -110,6 +110,7 @@ export const DiggingClawsAbility: AbilityStatic = {
 			start: 0,
 			end: DASH_DURATION,
 			abilityPhase: AbilityPhase.Active,
+			doNotRefund: true,
 			tags: ['iframe'] as const,
 			targetDef: { kind: 'select', label: 'Direction to dash', hitbox: nullHitbox, filter: 'any', allowMiss: true },
 			conditionalCancel: {

@@ -64,6 +64,7 @@ export const ThrowTorchAbility = defineAbility({
             start: PREFIRE_TIME,
             end: PREFIRE_TIME + 0.05,
             abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
             targetDef: { kind: 'select', label: 'Target location', hitbox: nullHitbox, filter: 'any', allowMiss: true },
             behaviour: CastBehaviours.ProjectileLaunch()
                 .withSpeed(TORCH_PROJECTILE_SPEED)

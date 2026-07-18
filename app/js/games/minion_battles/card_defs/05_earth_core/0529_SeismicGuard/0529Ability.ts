@@ -9,7 +9,7 @@ import { type CardDef } from '../../types';
 
 const ABILITY_ID = '0529';
 const TREMORSENSE_RADIUS_PX = (EARTH_CORE_SHARED_DIAMETER * CELL_SIZE) / 2;
-const TIMINGS: AbilityTimingInterval[] = [{ id: 'passive', start: 0, end: 0.1, abilityPhase: AbilityPhase.Active }];
+const TIMINGS: AbilityTimingInterval[] = [{ id: 'passive', start: 0, end: 0.1, abilityPhase: AbilityPhase.Active, doNotRefund: true }];
 
 const SEISMIC_GUARD_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
   <circle cx="20" cy="20" r="16" fill="#3f4b2f"/>

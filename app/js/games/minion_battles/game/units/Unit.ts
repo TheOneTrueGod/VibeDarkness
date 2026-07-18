@@ -463,7 +463,7 @@ export class Unit extends GameObject {
     }
 
     /** Interrupt all active abilities (e.g. when stunned). Refunds resource costs. */
-    interruptAllAbilities(): void { interruptAllUnitAbilities(this); }
+    interruptAllAbilities(engine: { gameTime: number }): void { interruptAllUnitAbilities(this, engine); }
 
     tickActiveAbilities(dt: number, engine: EngineContext, onNaturalCompletion: () => void): void {
         tickUnitActiveAbilities(this, dt, engine, onNaturalCompletion);
@@ -489,7 +489,7 @@ export class Unit extends GameObject {
     canUseAbility(ability: AbilityStatic): boolean { return canUseAbilityNow(this, ability); }
     consumeAbilityUse(abilityId: string): boolean { return consumeAbilityUseUtil(this, abilityId); }
     spendAbilityCost(ability: AbilityStatic): boolean { return spendAbilityCost(this, ability); }
-    refundAbilityCost(ability: AbilityStatic): void { refundAbilityCost(this, ability); }
+    refundAbilityCost(ability: AbilityStatic, elapsed: number): void { refundAbilityCost(this, ability, elapsed); }
 
     cancelActiveAbility(abilityId: string, engine: EngineContext): void { cancelUnitActiveAbility(this, abilityId, engine); }
 

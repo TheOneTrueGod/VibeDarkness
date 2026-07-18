@@ -184,7 +184,8 @@ export class OrderManager {
         const cancelledAbilityId = pausedAbility.abilityId;
         const cancelledAbility = getAbility(cancelledAbilityId);
         if (cancelledAbility) {
-            refundAbilityCost(unit, cancelledAbility);
+            const elapsed = Math.max(0, this.ctx.gameTime - pausedAbility.startTime);
+            refundAbilityCost(unit, cancelledAbility, elapsed);
         }
         this.ctx.cancelActiveAbility(unit.id, cancelledAbilityId);
         unit.clearAbilityNote();

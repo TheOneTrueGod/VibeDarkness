@@ -72,7 +72,7 @@ export const ThornStompAbility: AbilityStatic = {
     prefireTime: WINDUP_TIME,
     abilityTimings: [
         { id: 'windup', start: 0, end: WINDUP_TIME, abilityPhase: AbilityPhase.Windup },
-        { id: 'strike', start: WINDUP_TIME, end: STRIKE_TIME, abilityPhase: AbilityPhase.Active },
+        { id: 'strike', start: WINDUP_TIME, end: STRIKE_TIME, abilityPhase: AbilityPhase.Active, doNotRefund: true },
         { id: 'cooldown', start: STRIKE_TIME, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
     ],
     targets: [],

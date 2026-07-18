@@ -123,6 +123,7 @@ export const ConeOfLightAbility: AbilityStatic = {
             start: 0.2,
             end: 0.3,
             abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
             targetDef: {
                 kind: 'select',
                 label: 'Direction',

@@ -30,6 +30,7 @@ const TIMINGS: AbilityTimingInterval[] = [
         start: 0.2,
         end: 1.6,
         abilityPhase: AbilityPhase.Active,
+        doNotRefund: true,
         targetDef: { kind: 'select', label: 'Pulse center', hitbox: nullHitbox, filter: 'any', allowMiss: true },
         emitterDef: {
             mode: 'interval',

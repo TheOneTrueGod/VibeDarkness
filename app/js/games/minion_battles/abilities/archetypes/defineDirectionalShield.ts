@@ -96,6 +96,7 @@ export function defineDirectionalShield(config: DirectionalShieldConfig): Abilit
             start: 0,
             end: duration,
             abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
             targetDef: { kind: 'select', label: 'Direction to block', hitbox: nullHitbox, filter: 'any', allowMiss: true },
         },
     ];

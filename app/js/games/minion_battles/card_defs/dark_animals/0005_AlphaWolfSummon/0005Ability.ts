@@ -82,6 +82,7 @@ export const AlphaWolfSummonAbility: AbilityStatic = {
             start: PREFIRE_TIME,
             end: PREFIRE_TIME + 0.1,
             abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
         },
         {
             id: 'cooldown',

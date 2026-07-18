@@ -38,6 +38,7 @@ export const StoneTomb = defineAbility({
             start: 0.3,
             end: 0.4,
             abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
             targetDef: { kind: 'select', label: 'Impact location', hitbox: nullHitbox, filter: 'any', allowMiss: true },
             behaviour: CastBehaviours.ProjectileLaunch()
                 .withSpeed(900)

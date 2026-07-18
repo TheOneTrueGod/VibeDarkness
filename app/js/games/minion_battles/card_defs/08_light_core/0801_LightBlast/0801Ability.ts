@@ -79,6 +79,7 @@ export const LightBlastAbility = defineAbility({
             start: PREFIRE_TIME,
             end: PREFIRE_TIME + 0.05,
             abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
             targetDef: { kind: 'select', label: 'Target', hitbox: nullHitbox, filter: 'any', allowMiss: true },
             onProjectileHit: [{
                 type: 'effect',

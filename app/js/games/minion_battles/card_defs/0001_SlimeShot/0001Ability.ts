@@ -66,6 +66,7 @@ const _base: AbilityStatic = defineAbility({
             start: LOCK_TIME,
             end: PREFIRE_TIME,
             abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
             behaviour: CastBehaviours.ProjectileLaunch()
                 .withSpeed(PROJECTILE_SPEED)
                 .withMaxRange(MAX_PROJECTILE_DISTANCE)

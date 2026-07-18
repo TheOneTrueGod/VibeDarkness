@@ -11,7 +11,7 @@ const RADIUS = 100;
 const DAMAGE = 10;
 const TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup', start: 0, end: 0.35, abilityPhase: AbilityPhase.Windup },
-    { id: 'quake', start: 0.35, end: 0.45, abilityPhase: AbilityPhase.Active },
+    { id: 'quake', start: 0.35, end: 0.45, abilityPhase: AbilityPhase.Active, doNotRefund: true },
     { id: 'recover', start: 0.45, end: 1.5, abilityPhase: AbilityPhase.Cooldown },
 ];
 

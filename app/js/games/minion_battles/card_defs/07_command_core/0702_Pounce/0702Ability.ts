@@ -99,6 +99,7 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
         start: WINDUP_TIME,
         end: WINDUP_TIME + DASH_DURATION,
         abilityPhase: AbilityPhase.Active,
+        doNotRefund: true,
         targetDef: { kind: 'select', label: 'Pounce target', hitbox: nullHitbox, filter: 'any', allowMiss: true },
         behaviour: pounceDash,
     },

@@ -19,7 +19,7 @@ const STONE_BONUS_DAMAGE = 4;
 const TARGETS: TargetDef[] = [{ type: 'pixel', label: 'Punch direction' }];
 const TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup', start: 0, end: 0.2, abilityPhase: AbilityPhase.Windup },
-    { id: 'hit', start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active },
+    { id: 'hit', start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active, doNotRefund: true },
     { id: 'recover', start: 0.3, end: 1.1, abilityPhase: AbilityPhase.Cooldown },
 ];
 

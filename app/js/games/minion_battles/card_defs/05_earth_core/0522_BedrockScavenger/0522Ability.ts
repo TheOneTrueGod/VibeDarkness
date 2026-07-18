@@ -11,7 +11,7 @@ import { grantEarthCoreArmourFromSource } from '../../../abilities/earthCoreArmo
 import type { EngineContext } from '../../../game/EngineContext';
 
 const TIMINGS: AbilityTimingInterval[] = [
-    { id: 'passive', start: 0, end: 0.01, abilityPhase: AbilityPhase.Active },
+    { id: 'passive', start: 0, end: 0.01, abilityPhase: AbilityPhase.Active, doNotRefund: true },
 ];
 
 export const BedrockScavengerAbility: AbilityStatic = {

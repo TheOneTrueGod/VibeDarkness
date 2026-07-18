@@ -29,7 +29,7 @@ export const FaultHarvest: AbilityStatic = {
     resourceCost: null,
     rechargeTurns: 0,
     prefireTime: 0,
-    abilityTimings: [{ id: 'passive', start: 0, end: 0.1, abilityPhase: AbilityPhase.Active }],
+    abilityTimings: [{ id: 'passive', start: 0, end: 0.1, abilityPhase: AbilityPhase.Active, doNotRefund: true }],
     targets: [],
     getTooltipText(): string[] {
         return ['Passive: when your armour breaks, gain {12} Resonance.'];

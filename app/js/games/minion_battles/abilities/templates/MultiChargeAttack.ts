@@ -124,7 +124,14 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 
 			timings.push(
 				{ id: windupId, start: windupStart, end: windupEnd, abilityPhase: AbilityPhase.Windup, ...juggernautTag },
-				{ id: dashId, start: dashStart, end: dashEnd, abilityPhase: AbilityPhase.Active, ...juggernautTag },
+				{
+					id: dashId,
+					start: dashStart,
+					end: dashEnd,
+					abilityPhase: AbilityPhase.Active,
+					...juggernautTag,
+					...(i === 0 ? { doNotRefund: true } : {}),
+				},
 			);
 
 			phases.push({

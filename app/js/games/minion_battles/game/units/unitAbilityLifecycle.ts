@@ -76,8 +76,8 @@ export function interruptAndRefundUnitAbilities(unit: Unit, engine: EngineContex
         if (!active) break;
         const ability = getAbility(active.abilityId);
         if (ability) {
-            refundAbilityCost(unit, ability);
             const elapsed = Math.max(0, engine.gameTime - active.startTime);
+            refundAbilityCost(unit, ability, elapsed);
             triggerAbilityEvent({
                 engine,
                 caster: unit,
@@ -163,10 +163,13 @@ export function executeUnitAbility(
 }
 
 /** Interrupt all active abilities (e.g. when stunned). Refunds resource costs. */
-export function interruptAllUnitAbilities(unit: Unit): void {
+export function interruptAllUnitAbilities(unit: Unit, engine: { gameTime: number }): void {
     for (const active of unit.activeAbilities) {
         const ability = getAbility(active.abilityId);
-        if (ability) refundAbilityCost(unit, ability);
+        if (ability) {
+            const elapsed = Math.max(0, engine.gameTime - active.startTime);
+            refundAbilityCost(unit, ability, elapsed);
+        }
     }
     unit.activeAbilities = [];
     unit.clearAbilityNote();

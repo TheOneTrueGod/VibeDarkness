@@ -258,6 +258,7 @@ export const GravityInversionAbility = defineAbility({
             start: GRAVITY_INVERSION_PREFIRE_TIME,
             end: GRAVITY_INVERSION_PREFIRE_TIME + GRAVITY_INVERSION_ACTIVE_DURATION,
             abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
             targetDef: {
                 kind: 'select',
                 label: 'Target',

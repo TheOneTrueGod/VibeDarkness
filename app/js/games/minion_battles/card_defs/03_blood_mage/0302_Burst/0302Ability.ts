@@ -178,6 +178,7 @@ export const BurstAbility_0302 = defineAbility({
             start: WINDUP_DURATION,
             end: WINDUP_DURATION + ACTIVE_DURATION,
             abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
             targetDef: {
                 kind: 'select',
                 label: 'Direction',

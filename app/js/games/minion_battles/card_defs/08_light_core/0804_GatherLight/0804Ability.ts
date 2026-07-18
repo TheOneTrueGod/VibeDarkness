@@ -68,6 +68,7 @@ export const GatherLightAbility = defineAbility({
             start: GATHER_LIGHT_PREFIRE_TIME,
             end: GATHER_LIGHT_PREFIRE_TIME + ACTIVE_DURATION,
             abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
             castBehaviours: [
                 {
                     timingStart: 'start',

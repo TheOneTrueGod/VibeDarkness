@@ -11,6 +11,7 @@ import type { ResolvedTarget } from '../game/types';
 import type { ActiveAbility } from '../game/types';
 import type { Unit } from '../game/units/Unit';
 import type { AbilityTimingEntry } from './abilityTimings';
+import { getDoNotRefundCutoffElapsed } from './abilityTimings';
 import type { AbilityEventRule } from './events/AbilityEventRule';
 import type { UnitTag } from '../game/units/unitTag';
 import type { PassiveDef } from './passiveDef';
@@ -601,8 +602,11 @@ export function spendAbilityCost(unit: Unit, ability: AbilityStatic): boolean {
 
 /**
  * Refund the resource cost for an ability (e.g. when the ability is interrupted).
+ * `elapsed` is how far into the cast the interruption happened; if it's at or past the
+ * ability's `doNotRefund` cutoff (see `getDoNotRefundCutoffElapsed`), no refund is given.
  */
-export function refundAbilityCost(unit: Unit, ability: AbilityStatic): void {
+export function refundAbilityCost(unit: Unit, ability: AbilityStatic, elapsed: number): void {
+    if (elapsed >= getDoNotRefundCutoffElapsed(ability, unit)) return;
     for (const cost of getAbilityResourceCosts(ability)) {
         const resource = unit.getResource(cost.resourceId);
         if (resource) resource.add(cost.amount);

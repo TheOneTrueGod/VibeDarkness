@@ -95,6 +95,7 @@ export const EnergyBlastAbility: AbilityStatic = {
             start: 0.2,
             end: 0.3,
             abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
             targetDef: { kind: 'select', label: 'Target location', hitbox: ENERGY_BLAST_HITBOX, filter: 'enemy', allowMiss: true },
             behaviour: CastBehaviours.ProjectileLaunch()
                 .withSpeed(PROJECTILE_SPEED)

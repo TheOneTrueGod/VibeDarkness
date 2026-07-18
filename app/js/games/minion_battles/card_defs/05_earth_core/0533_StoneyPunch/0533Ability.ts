@@ -15,7 +15,7 @@ const MAX_RANGE = 75;
 const STONEY_PUNCH_HITBOX = meleeLineHitbox(MAX_RANGE, 25);
 const TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup', start: 0, end: 0.22, abilityPhase: AbilityPhase.Windup },
-    { id: 'active', start: 0.22, end: 0.35, abilityPhase: AbilityPhase.Active, targetDef: { kind: 'select', label: 'Melee target', hitbox: STONEY_PUNCH_HITBOX, filter: 'enemy', allowMiss: true } },
+    { id: 'active', start: 0.22, end: 0.35, abilityPhase: AbilityPhase.Active, doNotRefund: true, targetDef: { kind: 'select', label: 'Melee target', hitbox: STONEY_PUNCH_HITBOX, filter: 'enemy', allowMiss: true } },
     { id: 'cooldown', start: 0.35, end: 0.8, abilityPhase: AbilityPhase.Cooldown },
 ];
 

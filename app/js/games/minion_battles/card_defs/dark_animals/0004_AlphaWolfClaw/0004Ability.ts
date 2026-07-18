@@ -74,6 +74,7 @@ export const AlphaWolfClawAbility = defineAbility({
             start: PREFIRE_TIME,
             end: ACTIVE_END,
             abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
             targetDef: { kind: 'select', label: 'Target', hitbox: HITBOX, filter: 'enemy', allowMiss: true },
             behaviour: SWING_BEHAVIOUR,
         },

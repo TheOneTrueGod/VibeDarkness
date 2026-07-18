@@ -47,7 +47,7 @@ const laserSwordBehaviour = CastBehaviours.MeleeAttack()
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup',   start: 0,   end: 0.2, abilityPhase: AbilityPhase.Windup },
-    { id: 'slash',    start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active,
+    { id: 'slash',    start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active, doNotRefund: true,
       targetDef: { kind: 'select', label: 'Target', hitbox: LASER_SWORD_HITBOX, filter: 'enemy', allowMiss: true },
       behaviour: laserSwordBehaviour },
     { id: 'cooldown', start: 0.3, end: 2.3, abilityPhase: AbilityPhase.Cooldown },

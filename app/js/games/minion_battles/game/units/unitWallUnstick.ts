@@ -70,7 +70,7 @@ export function tickWallUnstick(unit: Unit, dt: number, engine: EngineContext): 
                 if (phase === AbilityPhase.Cooldown || phase === AbilityPhase.CoopCooldown) {
                     return true;
                 }
-                refundAbilityCost(unit, ability);
+                refundAbilityCost(unit, ability, elapsed);
                 return false;
             });
             unit.activeAbilities = kept;

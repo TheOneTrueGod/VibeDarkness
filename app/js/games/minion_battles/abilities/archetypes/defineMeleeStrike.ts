@@ -202,6 +202,7 @@ export function defineMeleeStrike(config: MeleeStrikeConfig): AbilityStatic {
     const ABILITY_TIMINGS: AbilityTimingInterval[] = [
         { id: 'windup',   start: 0,          end: windupEnd,   abilityPhase: AbilityPhase.Windup },
         { id: 'strike',   start: windupEnd,   end: activeEnd,   abilityPhase: AbilityPhase.Active,
+          doNotRefund: true,
           targetDef: { kind: 'select', label: 'Target', hitbox, filter: 'enemy', allowMiss: true,
               ...(config.maxLockOnExtra !== undefined ? { maxLockOnExtra: config.maxLockOnExtra } : {}) },
           behaviour },

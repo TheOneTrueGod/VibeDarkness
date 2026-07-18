@@ -285,7 +285,7 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
             return;
         }
         case 'interruptPrimaryTargetAbilities':
-            context.primaryTarget?.interruptAllAbilities();
+            context.primaryTarget?.interruptAllAbilities(context.engine);
             return;
         case 'setAbilityNote':
             context.caster.setAbilityNote({ abilityId: effect.abilityId, abilityNote: effect.note });

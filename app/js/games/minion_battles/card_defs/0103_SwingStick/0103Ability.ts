@@ -89,7 +89,7 @@ const swingStickBehaviour = CastBehaviours.MeleeAttack()
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup',   start: 0,   end: 0.2,  abilityPhase: AbilityPhase.Windup },
-    { id: 'hit',      start: 0.2, end: 0.3,  abilityPhase: AbilityPhase.Active,
+    { id: 'hit',      start: 0.2, end: 0.3,  abilityPhase: AbilityPhase.Active, doNotRefund: true,
       targetDef: { kind: 'select', label: 'Target', hitbox: SWING_STICK_HITBOX, filter: 'enemy', allowMiss: true },
       behaviour: swingStickBehaviour },
     { id: 'cooldown', start: 0.3, end: 1.55, abilityPhase: AbilityPhase.Cooldown },

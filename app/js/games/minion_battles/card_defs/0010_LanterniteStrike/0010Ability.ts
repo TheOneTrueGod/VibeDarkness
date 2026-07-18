@@ -44,7 +44,7 @@ export const LanterniteStrikeAbility: AbilityStatic = defineAbility({
     prefireTime: PREFIRE_TIME,
     abilityTimings: [
         { id: 'aim', start: 0, end: LOCK_TIME, abilityPhase: AbilityPhase.Windup },
-        { id: 'charge', start: LOCK_TIME, end: PREFIRE_TIME, abilityPhase: AbilityPhase.Active },
+        { id: 'charge', start: LOCK_TIME, end: PREFIRE_TIME, abilityPhase: AbilityPhase.Active, doNotRefund: true },
         {
             id: 'fire',
             start: PREFIRE_TIME,

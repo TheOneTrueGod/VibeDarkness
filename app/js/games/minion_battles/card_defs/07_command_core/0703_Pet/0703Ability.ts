@@ -41,6 +41,7 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
         start: 0,
         end: CAST_DURATION,
         abilityPhase: AbilityPhase.Active,
+        doNotRefund: true,
         targetDef: { kind: 'select', label: 'Confirm', hitbox: nullHitbox, filter: 'any', allowMiss: true },
         castBehaviours: [
             {

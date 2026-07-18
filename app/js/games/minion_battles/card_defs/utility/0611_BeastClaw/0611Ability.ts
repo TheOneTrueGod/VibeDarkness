@@ -109,6 +109,7 @@ export const BeastClawAbility = defineAbility({
             start: SWING1_START,
             end: SWING1_END,
             abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
             targetDef: { kind: 'select', label: 'Target', hitbox: HITBOX, filter: 'enemy', allowMiss: true },
             behaviour: SWING1_BEHAVIOUR,
         },
