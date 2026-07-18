@@ -319,7 +319,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     lanternite_nest: {
         bodyColor: 0x065f46,
         characterSpriteKey: 'lanternite_nest',
-        hp: 120,
+        hp: 20,
         speed: 0,
         size: 'Extra Large',
         stamina: 1,

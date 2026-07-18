@@ -80,6 +80,15 @@ export function rasterizeArea(area: TerrainEffectArea): Array<{ col: number; row
     return cells;
 }
 
+/**
+ * Decides which of two effects covering the same cell takes precedence.
+ * Currently "newest wins" (ties favor the candidate). Centralized here so the
+ * precedence policy can be changed in one place without touching call sites.
+ */
+function effectTakesPrecedence(candidate: TerrainEffectRecord, existing: TerrainEffectRecord): boolean {
+    return candidate.placedAtGameTime >= existing.placedAtGameTime;
+}
+
 /** Returns true if the effect's area geometrically covers cell (col, row). */
 function effectCoversCell(record: TerrainEffectRecord, col: number, row: number): boolean {
     const area = record.area;
@@ -189,7 +198,8 @@ export class TerrainLayerManager {
 
     /**
      * Add an effect to the manager. For each cell in the effect's area, the
-     * effect claims the cell only if no older effect already owns it.
+     * effect claims the cell unless an existing effect there takes precedence
+     * (see effectTakesPrecedence).
      */
     add(record: TerrainEffectRecord): void {
         const cells = rasterizeArea(record.area);
@@ -199,8 +209,8 @@ export class TerrainLayerManager {
             const existingId = layerMap.get(key);
             if (existingId !== undefined) {
                 const existing = this.effectRegistry.get(existingId);
-                if (existing && existing.placedAtGameTime <= record.placedAtGameTime) {
-                    continue; // existing is older or tied; new effect does not claim this cell
+                if (existing && !effectTakesPrecedence(record, existing)) {
+                    continue; // existing takes precedence; new effect does not claim this cell
                 }
             }
             layerMap.set(key, record.id);
@@ -209,8 +219,9 @@ export class TerrainLayerManager {
     }
 
     /**
-     * Remove an effect by id. Cells it owned are reclaimed by the oldest
-     * remaining effect on the same layer that covers each vacated cell.
+     * Remove an effect by id. Cells it owned are reclaimed by whichever
+     * remaining effect on the same layer takes precedence for each vacated cell
+     * (see effectTakesPrecedence).
      */
     remove(id: string): void {
         const record = this.effectRegistry.get(id);
@@ -233,27 +244,16 @@ export class TerrainLayerManager {
 
         for (const { col, row } of vacated) {
             const key = cellKey(col, row);
-            let oldest: TerrainEffectRecord | null = null;
+            let winner: TerrainEffectRecord | null = null;
             for (const e of this.effectRegistry.values()) {
                 if (e.layer !== record.layer) continue;
                 if (!effectCoversCell(e, col, row)) continue;
-                if (!oldest || e.placedAtGameTime < oldest.placedAtGameTime) {
-                    oldest = e;
+                if (!winner || effectTakesPrecedence(e, winner)) {
+                    winner = e;
                 }
             }
-            if (oldest) layerMap.set(key, oldest.id);
+            if (winner) layerMap.set(key, winner.id);
         }
-    }
-
-    /** Remove all effects owned by a unit, optionally filtered to a specific layer. */
-    removeByOwner(ownerUnitId: string, layer?: TerrainLayerName): void {
-        const toRemove: string[] = [];
-        for (const [id, record] of this.effectRegistry) {
-            if (record.ownerUnitId === ownerUnitId && (layer === undefined || record.layer === layer)) {
-                toRemove.push(id);
-            }
-        }
-        for (const id of toRemove) this.remove(id);
     }
 
     /** Remove all effects whose expiresAtGameTime has passed. Call once per tick cleanup. */

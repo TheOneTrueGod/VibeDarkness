@@ -1,5 +1,6 @@
 ﻿/**
- * Thornbinder â€” AoE bramble slam: damage + slowing patch until shortly before next cast.
+ * Thornbinder â€” AoE bramble slam: damage + a slowing patch that persists on the terrain
+ * layer (owned by the terrain system, not this unit) until it naturally expires.
  */
 
 import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
@@ -123,8 +124,6 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
         const radius = weakened ? WEAKENED_RADIUS : BASE_RADIUS;
         const damage = weakened ? WEAKENED_DAMAGE : BASE_DAMAGE;
         const slowMult = weakened ? SLOW_MULT_WEAKENED : SLOW_MULT_NORMAL;
-
-        eng.terrainLayers.removeByOwner(caster.id, 'ground');
 
         damageEnemiesInCircle({
             engine: eng,

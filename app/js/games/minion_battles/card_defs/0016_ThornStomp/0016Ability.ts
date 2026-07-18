@@ -110,8 +110,6 @@ export const ThornStompAbility: AbilityStatic = {
         const slowMult = weakened ? SLOW_MULT_WEAKENED : SLOW_MULT_NORMAL;
         const center = { x: caster.x, y: caster.y };
 
-        eng.terrainLayers.removeByOwner(caster.id, 'ground');
-
         const knockbackCtx = knockbackCtxFromEngine(eng);
         const knockbackSource: KnockbackSource = { unitId: caster.id, abilityId: THORN_STOMP_ABILITY_ID };
         damageEnemiesInCircle({
