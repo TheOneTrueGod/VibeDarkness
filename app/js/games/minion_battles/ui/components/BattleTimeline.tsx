@@ -22,6 +22,7 @@ import swordwomanIcon from '../../assets/characters/swordwoman.svg';
 import wolfHeadIcon from '../../assets/characters/dark_animals/wolf-head.svg';
 import wolfHowlIcon from '../../assets/characters/dark_animals/wolf-howl.svg';
 import boarIcon from '../../assets/characters/dark_animals/boar.svg';
+import swarmlingIcon from '../../assets/characters/dark_animals/swarmling.svg';
 import {
     AbilityPhase,
     buildPrimaryTimelineSegments,
@@ -43,6 +44,7 @@ const ENEMY_CHARACTER_ICONS: Record<string, string> = {
     dark_wolf: wolfHeadIcon,
     alpha_wolf: wolfHowlIcon,
     boar: boarIcon,
+    swarmling: swarmlingIcon,
 };
 
 export type TimelinePanelHover =
