@@ -3,6 +3,10 @@ import type { GameEngine } from '../GameEngine';
 /**
  * True when an interactive sequential targeting preview has finished playing and the
  * player may commit (Done pill). False while still collecting a target or when not in preview.
+ *
+ * Round advance alone does **not** complete the preview (lobby 10EA88): a cast mid-windup
+ * can cross a round boundary while SelectTargetDef input is still ahead. Completion follows
+ * caster death, cast leave-active, or conditional-cancel pause.
  */
 export function isITSPreviewComplete(engine: GameEngine): boolean {
     if (!engine.isSequentialTargetingPreview || engine.sequentialTargetingPreviewCast == null) {
@@ -12,12 +16,9 @@ export function isITSPreviewComplete(engine: GameEngine): boolean {
         return false;
     }
 
-    const { unitId: casterId, abilityId: castAbilityId, startRound } = engine.sequentialTargetingPreviewCast;
+    const { unitId: casterId, abilityId: castAbilityId } = engine.sequentialTargetingPreviewCast;
     const caster = engine.getUnit(casterId);
     if (!caster?.isAlive()) {
-        return true;
-    }
-    if (engine.roundNumber > startRound) {
         return true;
     }
 

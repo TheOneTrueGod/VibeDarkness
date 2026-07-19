@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import type { BattleSession } from '../BattleSession';
 import type { InteractiveTargetingSession } from './InteractiveTargetingSession';
 import {
+    ITS_AUTO_COMMIT_BLOCK_TARGETS_INCOMPLETE,
     captureItsLogSnapshot,
     captureItsPausePlaneLog,
     logItsPreviewCancelled,
@@ -133,20 +134,20 @@ describe('itsLobbyLog', () => {
         );
     });
 
-    it('logItsAutoCommitEval records incomplete-target commits', () => {
+    it('logItsAutoCommitEval records blocked incomplete-target auto-commits', () => {
         const session = makeSessionMock();
         logItsAutoCommitEval(session, makeItsMock(), {
             previewComplete: true,
             allTargetsCollected: false,
-            willCommit: true,
-            blockReason: 'targets_incomplete_still_committing',
+            willCommit: false,
+            blockReason: ITS_AUTO_COMMIT_BLOCK_TARGETS_INCOMPLETE,
         });
         expect(session.postBattleSyncLobbyLog).toHaveBeenCalledWith(
             'ITS: auto end turn eval',
             expect.objectContaining({
                 allTargetsCollected: false,
-                willCommit: true,
-                blockReason: 'targets_incomplete_still_committing',
+                willCommit: false,
+                blockReason: ITS_AUTO_COMMIT_BLOCK_TARGETS_INCOMPLETE,
             }),
         );
     });

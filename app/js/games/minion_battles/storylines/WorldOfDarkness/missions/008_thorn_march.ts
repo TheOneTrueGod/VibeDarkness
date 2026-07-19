@@ -369,7 +369,7 @@ export class ThornMarchMission extends BaseMissionDef {
         // 1 slime every 2 rounds
         {
             type: 'continuousSpawn',
-            trigger: { intervalRounds: 2, startRound: 0.5 },
+            trigger: { intervalRounds: 2, startRound: 3 },
             spawns: [
                 {
                     characterId: 'slime',
@@ -388,7 +388,7 @@ export class ThornMarchMission extends BaseMissionDef {
         // 1 thornbinder every 2 rounds — zone controller that slows player movement with bramble
         {
             type: 'continuousSpawn',
-            trigger: { intervalRounds: 3, startRound: 0.5 },
+            trigger: { intervalRounds: 3, startRound: 3 },
             spawns: [
                 {
                     characterId: 'thornbinder',

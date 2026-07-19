@@ -93,4 +93,37 @@ describe('isITSPreviewComplete', () => {
         expect(isPreviewCastConditionalCancelPaused(engine)).toBe(true);
         engine.destroy();
     });
+
+    it('returns false when round advances while preview cast is still active (lobby 10EA88)', () => {
+        const { engine, player } = buildPreviewEngine();
+        const startRound = engine.roundNumber;
+        engine.sequentialTargetingPreviewCast = {
+            unitId: player.id,
+            abilityId: DOUBLE_PUNCH_ABILITY_ID,
+            startRound,
+        };
+        player.activeAbilities = [{
+            abilityId: DOUBLE_PUNCH_ABILITY_ID,
+            startTime: engine.gameTime,
+            targets: [],
+            targetsByLabel: {},
+        }];
+        engine.roundNumber = startRound + 1;
+        expect(isITSPreviewComplete(engine)).toBe(false);
+        engine.destroy();
+    });
+
+    it('returns true when cast left activeAbilities even if round also advanced', () => {
+        const { engine, player } = buildPreviewEngine();
+        const startRound = engine.roundNumber;
+        engine.sequentialTargetingPreviewCast = {
+            unitId: player.id,
+            abilityId: DOUBLE_PUNCH_ABILITY_ID,
+            startRound,
+        };
+        player.activeAbilities = [];
+        engine.roundNumber = startRound + 1;
+        expect(isITSPreviewComplete(engine)).toBe(true);
+        engine.destroy();
+    });
 });

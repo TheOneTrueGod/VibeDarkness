@@ -10,6 +10,9 @@ export type ItsActionSource =
     | 'auto_end_turn'
     | 'terminal_outcome_auto_commit';
 
+/** AUTO_END_TURN refused commit because not every SelectTargetDef label was collected. */
+export const ITS_AUTO_COMMIT_BLOCK_TARGETS_INCOMPLETE = 'targets_incomplete';
+
 /** Non-user ITS cancellation (resync, terminal teardown). */
 export type ItsCancelReason =
     | 'user_reset'
@@ -219,7 +222,7 @@ export function logItsSelectPauseEntered(
 
 /**
  * Logged whenever AUTO_END_TURN considers committing — whether or not it proceeds.
- * Distinguishes preview-complete vs all-targets-collected (lobby 12D040 empty commit).
+ * Distinguishes preview-complete vs all-targets-collected (lobby 12D040 / 10EA88).
  */
 export function logItsAutoCommitEval(
     session: BattleSession,

@@ -4,7 +4,11 @@ import type { BattleSession } from '../../../game/BattleSession';
 import type { OrderWaiter } from '../../../game/types';
 import { getAutoEndTurn } from '../../../game/autoEndTurnSetting';
 import { isITSPreviewComplete } from '../../../game/interaction/isITSPreviewComplete';
-import { logItsAutoCommitEval, logItsSelectPauseEntered } from '../../../game/interaction/itsLobbyLog';
+import {
+    ITS_AUTO_COMMIT_BLOCK_TARGETS_INCOMPLETE,
+    logItsAutoCommitEval,
+    logItsSelectPauseEntered,
+} from '../../../game/interaction/itsLobbyLog';
 
 interface UseInteractiveTargetingProgressParams {
     sessionRef: RefObject<BattleSession | null>;
@@ -73,16 +77,19 @@ export function useInteractiveTargetingProgress({
 
             if (nextState === 'done' && getAutoEndTurn() && !autoCommitItsAttemptedRef.current && session) {
                 const allTargetsCollected = its.allTargetsCollected();
-                // Logging only: still commits when targets are incomplete (lobby 12D040 repro path).
+                // Incomplete selects must not auto-commit (lobbies 12D040 / 10EA88).
+                const willCommit = allTargetsCollected;
                 logItsAutoCommitEval(session, its, {
                     previewComplete: true,
                     allTargetsCollected,
-                    willCommit: true,
-                    blockReason: allTargetsCollected ? null : 'targets_incomplete_still_committing',
+                    willCommit,
+                    blockReason: willCommit ? null : ITS_AUTO_COMMIT_BLOCK_TARGETS_INCOMPLETE,
                 });
                 autoCommitItsAttemptedRef.current = true;
-                setOrderSubmitFailed(false);
-                void session.interactiveTargeting.commit(session, 'auto_end_turn');
+                if (willCommit) {
+                    setOrderSubmitFailed(false);
+                    void session.interactiveTargeting.commit(session, 'auto_end_turn');
+                }
             }
             setInteractiveTargetingState(nextState);
             setPlayerTileRefresh((n) => n + 1);
