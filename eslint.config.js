@@ -10,6 +10,14 @@ export default tseslint.config(
     eslint.configs.recommended,
     ...tseslint.configs.recommended,
     {
+        files: ['e2e/**/*.{ts,tsx}', 'playwright.config.ts'],
+        languageOptions: {
+            globals: {
+                ...globals.node,
+            },
+        },
+    },
+    {
         files: ['app/js/**/*.{ts,tsx}', 'vite-env.d.ts'],
         languageOptions: {
             globals: {

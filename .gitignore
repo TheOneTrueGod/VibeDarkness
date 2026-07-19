@@ -7,3 +7,4 @@ deploy.zip
 /Plans/
 vendor/
 .claude/worktrees/
+tmp/
