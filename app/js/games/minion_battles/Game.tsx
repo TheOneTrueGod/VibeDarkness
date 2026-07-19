@@ -24,6 +24,8 @@ import type { CampaignResourceKey } from '../../types';
 import VictoryModal from './ui/components/VictoryModal';
 import { MinionBattlesApi } from './api/minionBattlesApi';
 import { TestIds } from '../../testing/testIds';
+import { useGameSyncOptional } from '../../contexts/GameSyncContext';
+import { isUnifiedSlotLayoutPhase } from '../../contexts/gameSyncOptimisticPatch';
 
 function getSelectedMissionId(data: Record<string, unknown>): string | null {
     const missionId = data.selectedMissionId ?? data.selected_mission_id;
@@ -90,6 +92,8 @@ export default function MinionBattlesGame({
     centerOverlay,
 }: MinionBattlesGameProps) {
     const { isAdmin } = useCurrentUser();
+    const gameSync = useGameSyncOptional();
+    const applyOptimisticGamePatch = gameSync?.applyOptimisticGamePatch;
     const api = useMemo(
         () =>
             minionBattlesApiProp ??
@@ -335,8 +339,16 @@ export default function MinionBattlesGame({
                     [];
                 setCharacterSelectReadyPlayerIds(ready);
             }
+            // Keep GameScreen layout in sync with local content phase (lobby 10EA88-class flicker:
+            // story mounted inside classic lobby chrome until the next GameSync poll).
+            if (isUnifiedSlotLayoutPhase(phase) && newGameState) {
+                applyOptimisticGamePatch?.({
+                    ...newGameState,
+                    gamePhase: phase,
+                });
+            }
         },
-        [clearLocalOverrides],
+        [clearLocalOverrides, applyOptimisticGamePatch],
     );
 
     const [battleTick, setBattleTick] = useState<number | null>(null);

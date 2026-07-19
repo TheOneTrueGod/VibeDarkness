@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { GameStatePayload, PollMessagePayload } from '../types';
 import { MessageType } from '../MessageTypes';
 import { LobbyClient } from '../LobbyClient';
 import { debugLog } from '../debugLog';
+import { mergeOptimisticGameIntoPayload } from './gameSyncOptimisticPatch';
 
 const FULL_STATE_FETCH_MIN_SPACING_MS = 200;
 
@@ -16,6 +17,11 @@ interface GameSyncContextValue {
   gameState: GameStatePayload | null;
   syncStatus: SyncStatus;
   requestResync: () => void;
+  /**
+   * Host-confirmed game field merge so layout (unified slot shell) can update
+   * in the same turn as local phase changes, without waiting for the next poll.
+   */
+  applyOptimisticGamePatch: (gamePatch: Record<string, unknown>) => void;
 }
 
 const GameSyncContext = createContext<GameSyncContextValue | null>(null);
@@ -68,6 +74,10 @@ export function GameSyncProvider({
   const requestResync = useCallback(() => {
     debugLog('sync tracking', 'info', 'requestResync: next poll will force full state fetch');
     forceResyncRef.current = true;
+  }, []);
+
+  const applyOptimisticGamePatch = useCallback((gamePatch: Record<string, unknown>) => {
+    setGameState((prev) => mergeOptimisticGameIntoPayload(prev, gamePatch) ?? prev);
   }, []);
 
   const doFullStateFetch = useCallback(
@@ -200,11 +210,15 @@ export function GameSyncProvider({
     return () => window.clearInterval(id);
   }, [doFullStateFetch, fetchMessagesBatch]);
   
-  const value: GameSyncContextValue = {
-    gameState,
-    syncStatus,
-    requestResync,
-  };
+  const value = useMemo<GameSyncContextValue>(
+    () => ({
+      gameState,
+      syncStatus,
+      requestResync,
+      applyOptimisticGamePatch,
+    }),
+    [gameState, syncStatus, requestResync, applyOptimisticGamePatch],
+  );
 
   return <GameSyncContext.Provider value={value}>{children}</GameSyncContext.Provider>;
 }

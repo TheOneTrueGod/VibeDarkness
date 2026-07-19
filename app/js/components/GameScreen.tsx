@@ -17,6 +17,7 @@ import { getAlwaysShowSyncStatus, subscribeAlwaysShowSyncStatus } from '../debug
 import { LobbyClient } from '../LobbyClient';
 import { getGameById } from '../games/list';
 import { useGameSyncOptional } from '../contexts/GameSyncContext';
+import { isUnifiedSlotLayoutPhase } from '../contexts/gameSyncOptimisticPatch';
 import { useCurrentUser } from '../user/useCurrentUser';
 import { useToast } from '../contexts/ToastContext';
 import { MinionBattlesApi } from '../games/minion_battles/api/minionBattlesApi';
@@ -386,7 +387,7 @@ export default function GameScreen({
         !isMobileOrTablet &&
         effectiveLobbyPageState === 'in_game' &&
         effectiveLobbyGameType === 'minion_battles' &&
-        (gamePhase === 'battle' || gamePhase === 'pre_mission_story' || gamePhase === 'post_mission_story');
+        isUnifiedSlotLayoutPhase(typeof gamePhase === 'string' ? gamePhase : null);
 
     const lobbyHeader = useMemo(
         () => (
@@ -714,6 +715,8 @@ export default function GameScreen({
 
     return (
         <div className="flex h-screen max-md:flex-col">
+            {/* Mirrors Chat desktop width (`w-80`) so the main column stays visually centered. */}
+            <div className="w-80 shrink-0" aria-hidden="true" />
             <div className="flex min-w-0 flex-1 flex-col p-4">
                 {lobbyHeader}
                 {centralSection('rounded-lg', 'rounded-lg')}
