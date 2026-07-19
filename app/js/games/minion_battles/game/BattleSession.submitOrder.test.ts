@@ -112,4 +112,30 @@ describe('BattleSession submitPlayerOrder + BattleNet', () => {
 
         session.destroy();
     });
+
+    it('does not POST wait while an ITS preview is active (lobby 10EA88)', async () => {
+        const { session, unitId } = await mountSessionAtLocalPlayerTurn();
+        const engine = session.getEngine()!;
+        const atTick = engine.waitingForOrders?.atTick;
+        if (typeof atTick !== 'number') throw new Error('expected waitingForOrders.atTick');
+
+        const netSubmitOrder = vi.fn(async () => {});
+        session.setNetAdapter({
+            submitOrder: netSubmitOrder,
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        // Swing Sword (0112) uses deferred-first select — begin leaves waitingForOrders set.
+        const swordBegan = session.interactiveTargeting.begin(
+            { unitId, abilityId: '0112', targets: [], endTurn: true },
+            session,
+        );
+        expect(swordBegan).toBe(true);
+        expect(session.interactiveTargeting.isActive).toBe(true);
+        expect(engine.waitingForOrders?.atTick).toBe(atTick);
+
+        await session.submitPlayerOrder(makeWaitOrder(unitId, 1, 1), { canSubmitOrders: true });
+        expect(netSubmitOrder).not.toHaveBeenCalled();
+
+        session.destroy();
+    });
 });

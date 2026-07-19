@@ -75,7 +75,8 @@ export function useBattleAbilityBarSlots({
         (activeLocalWaiter != null
             ? engine.getUnit(activeLocalWaiter.unitId) ?? engine.getLocalPlayerUnit()
             : engine.getLocalPlayerUnit()) ?? null;
-    const isMyTurn = canUseOrderUi && interactiveTargetingState === 'inactive';
+    const isItsPreviewActive = interactiveTargetingState !== 'inactive';
+    const isMyTurn = canUseOrderUi && !isItsPreviewActive;
     const onWait = nonconfirmedOrder && !autoEndTurn
         ? () => sessionRef.current?.getInteractionManager()?.handleEndTurn()
         : () => sessionRef.current?.getInteractionManager()?.handleWait();
@@ -108,6 +109,7 @@ export function useBattleAbilityBarSlots({
             <CornerSlotMiscControls
                 playerUnit={playerUnit}
                 isMyTurn={isMyTurn}
+                waitDisabledReason={isItsPreviewActive ? 'its_preview_active' : null}
                 roundNumber={roundNumber}
                 roundProgress={roundProgress}
                 isPaused={isPaused}

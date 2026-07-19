@@ -25,9 +25,11 @@ import {
     type ItsLogSnapshot,
     captureItsLogSnapshot,
     logItsButtonClick,
+    logItsMovementReinput,
     logItsPreviewCancelled,
     logItsPreviewEnded,
     logItsPreviewStarted,
+    logItsResetPausePlane,
     logItsTargetAdded,
 } from './itsLobbyLog';
 
@@ -185,6 +187,19 @@ export class InteractiveTargetingSession {
     allTargetsCollected(): boolean {
         return this._selectLabels.length > 0
             && this._selectLabels.every((label) => label in this.collectedTargets);
+    }
+
+    /** Whether a preview cast order has been queued for this ITS run. */
+    get previewOrderQueued(): boolean {
+        return this._previewOrderQueued;
+    }
+
+    /**
+     * True when playahead assumed another waiter's order (or noted multiplayer uncertainty).
+     * Affects in-place vs rollback commit.
+     */
+    get hasAssumedRemoteWaitDuringPreview(): boolean {
+        return this.assumedRemoteWaitDuringPreview;
     }
 
     /**
@@ -451,6 +466,14 @@ export class InteractiveTargetingSession {
         if (payload.movePath.length > 0) {
             caster.setMovement(payload.movePath, payload.moveTargetUnitId, engine.gameTick, payload.moveTargetPixel);
         }
+
+        logItsMovementReinput(
+            session,
+            this,
+            label,
+            payload.movePath.length,
+            payload.moveTargetPixel != null,
+        );
     }
 
     /**
@@ -534,9 +557,11 @@ export class InteractiveTargetingSession {
     async reset(session: BattleSession, actionSource: ItsActionSource = 'ui_reset'): Promise<void> {
         if (!this._isActive) return;
         logItsButtonClick(session, this, actionSource);
+        logItsResetPausePlane(session, this, 'before_restore');
         const logSnapshot = this._captureLogSnapshot(session);
         await session.refreshRemoteOrdersBeforeInteractiveTargetingAction();
         await this._restoreToMark(session);
+        logItsResetPausePlane(session, this, 'after_restore');
         Object.keys(this.collectedTargets).forEach((k) => delete this.collectedTargets[k]);
         this.collectedMovementByLabel = {};
         this._orderPositionalTargets = [];

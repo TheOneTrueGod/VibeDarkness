@@ -13,6 +13,7 @@ import { USE_SEQUENTIAL_TARGETING } from '../../featureFlags';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { TERRAIN_PROPERTIES } from '../../terrain/TerrainType';
 import { getLightGrid } from '../LightGrid';
+import { logOrderUiKeyAction } from './itsLobbyLog';
 
 declare global {
     interface Window {
@@ -229,7 +230,22 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         // Space — confirm/wait
         if (e.code === 'Space' && !e.repeat) {
             e.preventDefault();
-            if (!this._canUseOrderUi) return;
+            if (!this._canUseOrderUi) {
+                if (this.ctx) {
+                    logOrderUiKeyAction(this.ctx.session, {
+                        action: 'space',
+                        itsActive: this.ctx.session.interactiveTargeting.isActive,
+                        canUseOrderUi: false,
+                        hasActiveLocalWaiter:
+                            this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId) != null,
+                        hasNonconfirmedOrder: this.uiState.nonconfirmedOrder != null,
+                        autoEndTurn: getAutoEndTurn(),
+                        blocked: true,
+                        blockReason: 'can_use_order_ui_false',
+                    });
+                }
+                return;
+            }
             if (this.uiState.nonconfirmedOrder && !getAutoEndTurn()) {
                 this.handleEndTurn();
             } else {
@@ -374,15 +390,86 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
     }
 
     handleWait(): void {
-        if (!this._canUseOrderUi || !this._waitingForOrders) return;
-        if (!this.ctx?.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId)) return;
+        const logWait = (blocked: boolean, blockReason: string | null): void => {
+            if (!this.ctx) return;
+            logOrderUiKeyAction(this.ctx.session, {
+                action: 'wait',
+                itsActive: this.ctx.session.interactiveTargeting.isActive,
+                canUseOrderUi: this._canUseOrderUi,
+                hasActiveLocalWaiter:
+                    this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId) != null,
+                hasNonconfirmedOrder: this.uiState.nonconfirmedOrder != null,
+                autoEndTurn: getAutoEndTurn(),
+                blocked,
+                blockReason,
+            });
+        };
+        if (this.ctx?.session.interactiveTargeting.isActive) {
+            // Deferred-first-select ITS keeps waitingForOrders + active waiter, so Space would
+            // otherwise POST wait for the open batch (lobby 10EA88 / 12D040).
+            logWait(true, 'its_preview_active');
+            return;
+        }
+        if (!this._canUseOrderUi || !this._waitingForOrders) {
+            logWait(true, !this._canUseOrderUi ? 'can_use_order_ui_false' : 'no_waiting_for_orders_ui');
+            return;
+        }
+        if (!this.ctx?.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId)) {
+            logWait(true, 'no_active_local_waiter');
+            return;
+        }
+        logWait(false, null);
         this.deactivateTool();
         this.submitOrder('wait', []);
     }
 
     handleEndTurn(): void {
         const order = this.uiState.nonconfirmedOrder;
-        if (!order || !this._canUseOrderUi || !this.ctx) return;
+        if (this.ctx?.session.interactiveTargeting.isActive) {
+            logOrderUiKeyAction(this.ctx.session, {
+                action: 'end_turn',
+                itsActive: true,
+                canUseOrderUi: this._canUseOrderUi,
+                hasActiveLocalWaiter:
+                    this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId) != null,
+                hasNonconfirmedOrder: order != null,
+                autoEndTurn: getAutoEndTurn(),
+                blocked: true,
+                blockReason: 'its_preview_active',
+            });
+            return;
+        }
+        if (!order || !this._canUseOrderUi || !this.ctx) {
+            if (this.ctx) {
+                logOrderUiKeyAction(this.ctx.session, {
+                    action: 'end_turn',
+                    itsActive: this.ctx.session.interactiveTargeting.isActive,
+                    canUseOrderUi: this._canUseOrderUi,
+                    hasActiveLocalWaiter:
+                        this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId) != null,
+                    hasNonconfirmedOrder: this.uiState.nonconfirmedOrder != null,
+                    autoEndTurn: getAutoEndTurn(),
+                    blocked: true,
+                    blockReason: !order
+                        ? 'no_nonconfirmed_order'
+                        : !this._canUseOrderUi
+                          ? 'can_use_order_ui_false'
+                          : 'no_context',
+                });
+            }
+            return;
+        }
+        logOrderUiKeyAction(this.ctx.session, {
+            action: 'end_turn',
+            itsActive: this.ctx.session.interactiveTargeting.isActive,
+            canUseOrderUi: true,
+            hasActiveLocalWaiter:
+                this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId) != null,
+            hasNonconfirmedOrder: true,
+            autoEndTurn: getAutoEndTurn(),
+            blocked: false,
+            blockReason: null,
+        });
         const confirmed: BattleOrder = { ...order, endTurn: true };
         this.uiState = { ...this.uiState, nonconfirmedOrder: null };
         void this.ctx.session.submitPlayerOrder(confirmed, { canSubmitOrders: this._canUseOrderUi });

@@ -37,6 +37,25 @@ export interface ItsLogSnapshot {
     collectedLabels: readonly string[];
 }
 
+/** Compact pending-order rows for lobby_log (keep payload small). */
+export interface ItsPendingOrderLogRow {
+    gameTick: number;
+    unitId: string;
+    abilityId: string;
+    endTurn: boolean;
+}
+
+export interface ItsPausePlaneLog {
+    waitingForOrdersAtTick: number | null;
+    waiterUnitIds: string[];
+    waitingForTargetInputLabel: string | null;
+    isPaused: boolean;
+    isSequentialTargetingPreview: boolean;
+    previewOrderQueued: boolean;
+    assumedRemoteWaitDuringPreview: boolean;
+    pendingOrders: ItsPendingOrderLogRow[];
+}
+
 const ITS_BUTTON_CLICK_MESSAGES: Partial<Record<ItsActionSource, string>> = {
     ui_reset: 'ITS: Reset button clicked',
     ui_replay: 'ITS: Replay button clicked',
@@ -76,6 +95,31 @@ function itsContext(
     };
 }
 
+/** Pending orders + pause/select plane for diagnosing Space/wait-during-ITS and Undo races. */
+export function captureItsPausePlaneLog(
+    session: BattleSession,
+    its?: InteractiveTargetingSession | null,
+): ItsPausePlaneLog {
+    const engine = session.getEngine();
+    const waiting = engine?.waitingForOrders ?? null;
+    const pendingOrders: ItsPendingOrderLogRow[] = (engine?.pendingOrders ?? []).map((row) => ({
+        gameTick: row.gameTick,
+        unitId: row.order.unitId,
+        abilityId: row.order.abilityId,
+        endTurn: row.order.endTurn === true,
+    }));
+    return {
+        waitingForOrdersAtTick: waiting?.atTick ?? null,
+        waiterUnitIds: waiting?.waiters.map((w) => w.unitId) ?? [],
+        waitingForTargetInputLabel: engine?.waitingForTargetInput?.label ?? null,
+        isPaused: engine?.isPaused === true,
+        isSequentialTargetingPreview: engine?.isSequentialTargetingPreview === true,
+        previewOrderQueued: its?.previewOrderQueued === true,
+        assumedRemoteWaitDuringPreview: its?.hasAssumedRemoteWaitDuringPreview === true,
+        pendingOrders,
+    };
+}
+
 export function captureItsLogSnapshot(
     its: InteractiveTargetingSession,
     session: BattleSession,
@@ -99,7 +143,14 @@ export function logItsButtonClick(
 ): void {
     const message = ITS_BUTTON_CLICK_MESSAGES[source];
     if (!message) return;
-    session.postBattleSyncLobbyLog(message, itsContext(session, captureItsLogSnapshot(its, session), { source }));
+    session.postBattleSyncLobbyLog(
+        message,
+        itsContext(session, captureItsLogSnapshot(its, session), {
+            source,
+            allTargetsCollected: its.allTargetsCollected(),
+            pausePlane: captureItsPausePlaneLog(session, its),
+        }),
+    );
 }
 
 export function logItsPreviewStarted(
@@ -112,6 +163,7 @@ export function logItsPreviewStarted(
         itsContext(session, captureItsLogSnapshot(its, session), {
             batchAtTick: extra.batchAtTick,
             deferredFirstLabel: extra.deferredFirstLabel,
+            pausePlane: captureItsPausePlaneLog(session, its),
         }),
     );
 }
@@ -129,6 +181,78 @@ export function logItsTargetAdded(
             label,
             target: summarizeTarget(target),
             allTargetsCollected,
+        }),
+    );
+}
+
+export function logItsMovementReinput(
+    session: BattleSession,
+    its: InteractiveTargetingSession,
+    label: string,
+    movePathLen: number,
+    hasMoveTargetPixel: boolean,
+): void {
+    session.postBattleSyncLobbyLog(
+        'ITS: movement reinput',
+        itsContext(session, captureItsLogSnapshot(its, session), {
+            label,
+            movePathLen,
+            hasMoveTargetPixel,
+            pausePlane: captureItsPausePlaneLog(session, its),
+        }),
+    );
+}
+
+export function logItsSelectPauseEntered(
+    session: BattleSession,
+    its: InteractiveTargetingSession,
+    label: string,
+): void {
+    session.postBattleSyncLobbyLog(
+        'ITS: select pause entered',
+        itsContext(session, captureItsLogSnapshot(its, session), {
+            label,
+            pausePlane: captureItsPausePlaneLog(session, its),
+        }),
+    );
+}
+
+/**
+ * Logged whenever AUTO_END_TURN considers committing — whether or not it proceeds.
+ * Distinguishes preview-complete vs all-targets-collected (lobby 12D040 empty commit).
+ */
+export function logItsAutoCommitEval(
+    session: BattleSession,
+    its: InteractiveTargetingSession,
+    extra: {
+        previewComplete: boolean;
+        allTargetsCollected: boolean;
+        willCommit: boolean;
+        blockReason: string | null;
+    },
+): void {
+    session.postBattleSyncLobbyLog(
+        'ITS: auto end turn eval',
+        itsContext(session, captureItsLogSnapshot(its, session), {
+            source: 'auto_end_turn',
+            ...extra,
+            pausePlane: captureItsPausePlaneLog(session, its),
+        }),
+    );
+}
+
+/** Undo/Reset: capture pause-plane before restore so wait-in-cache races show up. */
+export function logItsResetPausePlane(
+    session: BattleSession,
+    its: InteractiveTargetingSession,
+    phase: 'before_restore' | 'after_restore',
+): void {
+    session.postBattleSyncLobbyLog(
+        phase === 'before_restore' ? 'ITS: reset pause plane before restore' : 'ITS: reset pause plane after restore',
+        itsContext(session, captureItsLogSnapshot(its, session), {
+            source: 'ui_reset',
+            phase,
+            pausePlane: captureItsPausePlaneLog(session, its),
         }),
     );
 }
@@ -158,4 +282,41 @@ export function logItsPreviewCancelled(
                 ? 'resync'
                 : 'terminal_outcome';
     logItsPreviewEnded(session, snapshot, 'cancelled', detail, { cancelReason: reason });
+}
+
+/**
+ * Space / Wait / End-turn from the order UI — especially while ITS is active
+ * (lobby 12D040: wait POSTed during Swing Sword preview, then Undo auto-played).
+ */
+export function logOrderUiKeyAction(
+    session: BattleSession,
+    extra: {
+        action: 'space' | 'wait' | 'end_turn';
+        itsActive: boolean;
+        canUseOrderUi: boolean;
+        hasActiveLocalWaiter: boolean;
+        hasNonconfirmedOrder: boolean;
+        autoEndTurn: boolean;
+        blocked: boolean;
+        blockReason: string | null;
+    },
+): void {
+    const its = session.interactiveTargeting;
+    const snapshot = its.isActive
+        ? captureItsLogSnapshot(its, session)
+        : {
+              abilityId: null,
+              unitId: null,
+              markTick: null,
+              batchAtTick: session.getEngine()?.waitingForOrders?.atTick ?? null,
+              selectLabels: [] as string[],
+              collectedLabels: [] as string[],
+          };
+    session.postBattleSyncLobbyLog(
+        'order UI: Space/Wait/EndTurn',
+        itsContext(session, snapshot, {
+            ...extra,
+            pausePlane: captureItsPausePlaneLog(session, its.isActive ? its : null),
+        }),
+    );
 }

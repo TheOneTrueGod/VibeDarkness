@@ -1008,6 +1008,17 @@ export class BattleSession implements BattleSessionHandle {
      */
     async submitPlayerOrder(order: BattleOrder, opts: { canSubmitOrders: boolean }): Promise<void> {
         const engine = this.engine;
+        // Defense in depth: deferred-first-select ITS leaves waitingForOrders set, so Wait/Space
+        // could otherwise POST a wait for the open batch (lobby 10EA88). Commit uses
+        // submitCommittedTargetingOrder / persistInPlaceCommittedTargetingOrder instead.
+        if (this.interactiveTargeting.isActive) {
+            this.postBattleSyncLobbyLog('submitPlayerOrder blocked: ITS preview active', {
+                abilityId: order.abilityId,
+                unitId: order.unitId,
+                endTurn: order.endTurn === true,
+            });
+            return;
+        }
         const batch = engine?.waitingForOrders;
         if (!batch || !opts.canSubmitOrders) return;
         if (!batch.waiters.some((w) => w.unitId === order.unitId)) return;

@@ -11,6 +11,8 @@ import { TestIds } from '../../../../../testing/testIds';
 interface CornerSlotMiscControlsProps {
     playerUnit: Unit | null;
     isMyTurn: boolean;
+    /** When set, Wait is disabled for this reason (tooltip); ITS preview is the main case. */
+    waitDisabledReason?: 'its_preview_active' | null;
     roundNumber: number;
     roundProgress: number;
     isPaused: boolean;
@@ -27,6 +29,7 @@ interface CornerSlotMiscControlsProps {
 export default function CornerSlotMiscControls({
     playerUnit,
     isMyTurn,
+    waitDisabledReason = null,
     roundNumber,
     roundProgress,
     isPaused,
@@ -36,6 +39,14 @@ export default function CornerSlotMiscControls({
     conditionalCancelContext,
 }: CornerSlotMiscControlsProps) {
     if (!playerUnit) return null;
+
+    const waitTitle = !isMyTurn && waitDisabledReason === 'its_preview_active'
+        ? 'Wait unavailable during targeting preview (Undo to cancel)'
+        : conditionalCancelContext
+          ? 'Continue current ability (Space)'
+          : hasNonconfirmedOrder
+            ? 'End Turn (Space)'
+            : 'Wait (Space)';
 
     return (
         <div className="flex h-full w-full items-start gap-2">
@@ -56,13 +67,7 @@ export default function CornerSlotMiscControls({
                         ? 'cursor-pointer border-dark-500 bg-dark-700 text-gray-200 hover:-translate-y-1 hover:border-gray-400 hover:bg-dark-600'
                         : 'cursor-not-allowed border-dark-700 bg-dark-800 text-gray-600'
                 }`}
-                title={
-                    conditionalCancelContext
-                        ? 'Continue current ability (Space)'
-                        : hasNonconfirmedOrder
-                          ? 'End Turn (Space)'
-                          : 'Wait (Space)'
-                }
+                title={waitTitle}
                 aria-keyshortcuts="Space"
                 onPointerEnter={() => onWaitHoverChange?.(true)}
                 onPointerLeave={() => onWaitHoverChange?.(false)}

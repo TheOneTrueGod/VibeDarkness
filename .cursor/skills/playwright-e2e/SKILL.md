@@ -1,11 +1,17 @@
 ---
 name: playwright-e2e
-description: Headless Playwright e2e/smoke for VibeDarkness with project sandbox (allowed origins, downloads under tmp/playwright, Chromium sandbox). Use when verifying UI in a browser or writing e2e specs under e2e/.
+description: Sandboxed Playwright for VibeDarkness — lobby debugging, UI smoke, and expandable agent browser tools. Use when driving the live app headlessly, reproducing lobby/battle issues, or proposing new Playwright helpers.
 ---
 
-# Playwright (sandboxed e2e)
+# Playwright (sandboxed browser tooling)
 
-Not part of **`npm run ci`** or Vitest. Agents use this for headless UI checks after frontend work.
+Not part of **`npm run ci`** or Vitest.
+
+**Primary use for agents: debugging lobbies** in a real browser (host/join, phases, battle ticks, Wait, leave) with the same sandboxed Chromium setup as e2e smoke. Also used for UI verification after frontend work.
+
+We can **set up a dedicated testing mission** for Playwright runs when that would help (ask the user / pair on a mission id rather than always using storyline first missions). Expand this toolkit **as needed** — when a lobby-debug or play workflow is awkward, **propose a new script, testid, or helper** (do not wait for the user to invent every tool).
+
+Companion for storage/`lobby_debug` investigation: **debugging-lobbies**.
 
 ## Commands
 
@@ -45,4 +51,5 @@ Use `page.getByTestId(...)`. Wait accessible name is **`Wait`** (kbd is `aria-hi
 1. Prefer testids over copy/CSS.
 2. Do not use Playwright instead of Vitest for engine logic.
 3. After changes: `npm run lint:changed`, then the relevant Playwright command.
-4. Smoke notes: `tmp/playwright/mission-play-notes.md`, `account-creation-notes.md`.
+4. Notes from exploratory runs: `tmp/playwright/mission-play-notes.md`, `account-creation-notes.md`.
+5. When stuck diagnosing a lobby in-browser, propose the next Playwright capability (e.g. join-as-second-client, pause-at-tick, dump sync bridge, testing-mission host) instead of only manual clicks.
