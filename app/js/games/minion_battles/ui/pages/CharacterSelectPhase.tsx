@@ -27,6 +27,7 @@ import { CharacterOverview } from './characterSelect/CharacterOverview';
 import CharacterSelectLayout from './characterSelect/CharacterSelectLayout';
 import { CharacterSelectCornerPortrait } from './characterSelect/CharacterSelectCornerPortrait';
 import { CharacterSelectBottomAbilityList } from './characterSelect/CharacterSelectBottomAbilityList';
+import { CharacterSelectAdminTabsCorner } from './characterSelect/CharacterSelectAdminTabsCorner';
 import ColumnSlotPlayerStatuses from '../../../../components/battleUILayout/ColumnSlotPlayerStatuses';
 
 interface CharacterSelectPhaseProps {
@@ -121,11 +122,19 @@ export default function CharacterSelectPhase({
         && !(activeTab === 'players' && isAdmin)
         && !(activeTab === 'replay' && isAdmin);
 
+    const showAdminTabs = isAdmin && !(editorOpen && characterToEdit);
+
+    const adminTabsCorner = showAdminTabs ? (
+        <CharacterSelectAdminTabsCorner
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+        />
+    ) : undefined;
+
     const body = (
         <>
             <CharacterSelectHeader
                 activeTab={activeTab}
-                setActiveTab={setActiveTab}
                 isAdmin={isAdmin}
                 editorOpen={editorOpen}
                 characterToEdit={characterToEdit}
@@ -246,6 +255,7 @@ export default function CharacterSelectPhase({
                         <CharacterSelectBottomAbilityList character={characterToEdit} />
                     ) : undefined
                 }
+                bottomRightCorner={adminTabsCorner}
             >
                 {body}
             </CharacterSelectLayout>
@@ -255,6 +265,13 @@ export default function CharacterSelectPhase({
     return (
         <div className="w-full h-full flex flex-col max-w-[1200px] mx-auto">
             {body}
+            {adminTabsCorner && (
+                <div className="shrink-0 px-5 pb-4 flex justify-end">
+                    <div className="w-full max-w-[200px]">
+                        {adminTabsCorner}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

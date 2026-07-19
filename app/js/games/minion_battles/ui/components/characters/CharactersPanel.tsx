@@ -384,7 +384,6 @@ export default function CharactersPanel({ api, lobbyClient, players, onStartMiss
                                         character={character}
                                         selected={lobbyAdminSelectedCharId === character.id}
                                         onSelect={() => setLobbyAdminSelectedCharId(character.id)}
-                                        compact
                                     />
                                 ))}
                             </div>

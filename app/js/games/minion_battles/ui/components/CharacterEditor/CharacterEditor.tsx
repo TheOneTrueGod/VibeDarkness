@@ -673,7 +673,6 @@ export default function CharacterEditor({
                             <CharacterPortrait
                                 picture={portrait?.picture ?? ''}
                                 sizePx={200}
-                                className="border border-border-custom"
                             />
                         </div>
                     </div>

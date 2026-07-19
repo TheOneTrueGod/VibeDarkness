@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import type { PlayerState } from '../../../../../types';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import { getPortrait } from '../../../character_defs/portraits';
+import CharacterPortrait from '../../components/CharacterPortrait';
 
 export interface CampaignCharacterCardProps {
     character: CampaignCharacter;
@@ -10,13 +11,15 @@ export interface CampaignCharacterCardProps {
     missionTraitFilter: { allowedTraits?: string[]; disallowedTraits?: string[] } | undefined;
     /** When true, this character is required for this session and cannot be changed or deleted. */
     isLocked?: boolean;
-    /** Local player's current selection — green outline like the loadout corner portrait. */
+    /** Local player's current selection. */
     isMySelection?: boolean;
     playerSelections: Record<string, string>;
     players: Record<string, PlayerState>;
     onSelect: (characterId: string, portraitId: string, characterDisplayName?: string) => void;
     onDelete: (characterId: string) => void;
 }
+
+const PORTRAIT_SIZE_PX = 200;
 
 export function CampaignCharacterCard({
     character,
@@ -42,22 +45,16 @@ export function CampaignCharacterCard({
             .filter(Boolean);
     }, [playerSelections, character.id, players]);
 
-    const selectionOutline = isMySelection
-        ? 'border-green-500 shadow-[0_0_16px_rgba(34,197,94,0.35)]'
-        : 'border-border-custom';
-
     return (
         <div
             className={`
-                w-[200px] h-[200px] rounded-lg overflow-hidden relative flex flex-col
-                transition-all
-                border-2 ${selectionOutline}
+                relative transition-all
                 ${canUse
-                    ? `cursor-pointer hover:-translate-y-1 hover:shadow-[0_8px_16px_rgba(0,0,0,0.4)] ${isMySelection ? '' : 'hover:border-primary'}`
+                    ? 'cursor-pointer hover:-translate-y-1'
                     : 'opacity-70 cursor-not-allowed'
                 }
-                bg-surface
             `}
+            style={{ width: PORTRAIT_SIZE_PX }}
             onClick={() => canUse && onSelect(character.id, character.portraitId, displayName)}
             title={isLocked ? `${displayName} — required for this mission` : canUse ? displayName : `${displayName} — ${disallowReason ?? 'Not available'}`}
         >
@@ -72,9 +69,28 @@ export function CampaignCharacterCard({
                     ×
                 </button>
             )}
-            <div className="w-full flex-1 overflow-hidden flex items-center justify-center bg-background relative">
-                {portrait?.picture && <img src={portrait.picture} alt="" className="w-full h-full object-cover" />}
-            </div>
+
+            <CharacterPortrait
+                picture={portrait?.picture ?? ''}
+                name={displayName}
+                selected={isMySelection}
+                sizePx={PORTRAIT_SIZE_PX}
+                className={canUse && !isMySelection ? 'hover:border-primary' : ''}
+                footerTrailing={
+                    selectingPlayers.length > 0 ? (
+                        <>
+                            {selectingPlayers.map((p) => (
+                                <div
+                                    key={p.id}
+                                    className="w-4 h-4 rounded-full border border-white/50 shadow-sm"
+                                    style={{ backgroundColor: p.color }}
+                                    title={p.name}
+                                />
+                            ))}
+                        </>
+                    ) : undefined
+                }
+            />
 
             {disallowReason != null && (
                 <div className="absolute inset-0 bottom-8 flex items-center justify-center pointer-events-none overflow-hidden">
@@ -86,22 +102,6 @@ export function CampaignCharacterCard({
                     </span>
                 </div>
             )}
-
-            <div className="px-3 py-2 bg-surface-light flex items-center justify-between gap-1">
-                <span className="text-sm font-semibold truncate">{displayName}</span>
-                {selectingPlayers.length > 0 && (
-                    <div className="flex gap-1 shrink-0">
-                        {selectingPlayers.map((p) => (
-                            <div
-                                key={p.id}
-                                className="w-4 h-4 rounded-full border border-white/50 shadow-sm"
-                                style={{ backgroundColor: p.color }}
-                                title={p.name}
-                            />
-                        ))}
-                    </div>
-                )}
-            </div>
         </div>
     );
 }

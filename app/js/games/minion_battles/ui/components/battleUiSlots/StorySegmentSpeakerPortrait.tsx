@@ -1,6 +1,6 @@
 /**
- * StorySegmentSpeakerPortrait - a Corner slot's content: the current dialogue speaker's portrait
- * and name. Which corner it's placed in is driven by the phrase's `portraitSide` (see storyTypes.ts).
+ * StorySegmentSpeakerPortrait - a Corner slot's content: the current dialogue speaker's portrait.
+ * Which corner it's placed in is driven by the phrase's `portraitSide` (see storyTypes.ts).
  */
 import React from 'react';
 import { getNpc } from '../../../constants/npcs';
@@ -22,11 +22,11 @@ export default function StorySegmentSpeakerPortrait({ speakerId }: StorySegmentS
                 <CharacterPortrait
                     picture={npc.portrait}
                     sizePx={PORTRAIT_SIZE_PX}
-                    className="border-2 border-primary shadow-lg"
+                    selected
                 />
             ) : (
                 <div
-                    className="rounded-lg border-2 border-primary shadow-lg"
+                    className="rounded-lg border-2 border-primary shadow-[0_0_0_1px_rgba(78,205,196,0.25)]"
                     style={{ width: PORTRAIT_SIZE_PX, height: PORTRAIT_SIZE_PX, backgroundColor: npc.color }}
                 />
             )}

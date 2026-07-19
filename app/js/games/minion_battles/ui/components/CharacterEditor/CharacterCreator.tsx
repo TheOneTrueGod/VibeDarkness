@@ -6,6 +6,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { getPortraitIdsForPlayer, getPortrait } from '../../../character_defs/portraits';
 import { getRandomCharacterName } from '../../../character_defs/characterNames';
 import { getDefaultEquipmentForCampaign } from '../../../character_defs/items';
+import CharacterPortrait from '../CharacterPortrait';
 
 const CARD_SIZE = 200;
 
@@ -125,37 +126,43 @@ export default function CharacterCreator({
 
                     {/* Prev portrait - faded, left and up a bit */}
                     <div
-                        className="absolute overflow-hidden rounded-lg opacity-50 pointer-events-none transition-transform duration-300"
+                        className="absolute opacity-50 pointer-events-none transition-transform duration-300"
                         style={{
-                            width: CARD_SIZE,
-                            height: CARD_SIZE,
                             left: '50%',
                             transform: 'translate(calc(-100% - 24px), -12px)',
                             zIndex: 0,
                         }}
                     >
-                        <PortraitBlock portraitId={prevPortraitId} />
+                        <CharacterPortrait
+                            picture={getPortrait(prevPortraitId)?.picture ?? ''}
+                            sizePx={CARD_SIZE}
+                        />
                     </div>
                     {/* Next portrait - faded, right and up a bit */}
                     <div
-                        className="absolute overflow-hidden rounded-lg opacity-50 pointer-events-none transition-transform duration-300"
+                        className="absolute opacity-50 pointer-events-none transition-transform duration-300"
                         style={{
-                            width: CARD_SIZE,
-                            height: CARD_SIZE,
                             left: '50%',
                             transform: 'translate(24px, -12px)',
                             zIndex: 0,
                         }}
                     >
-                        <PortraitBlock portraitId={nextPortraitId} />
+                        <CharacterPortrait
+                            picture={getPortrait(nextPortraitId)?.picture ?? ''}
+                            sizePx={CARD_SIZE}
+                        />
                     </div>
 
                     {/* Selected portrait - centre */}
                     <div
-                        className={`relative overflow-hidden rounded-lg border-2 border-primary shadow-lg transition-transform duration-300 ${animating ? 'scale-95' : 'scale-100'}`}
-                        style={{ width: CARD_SIZE, height: CARD_SIZE, zIndex: 1 }}
+                        className={`relative transition-transform duration-300 ${animating ? 'scale-95' : 'scale-100'}`}
+                        style={{ zIndex: 1 }}
                     >
-                        <PortraitBlock portraitId={selectedPortraitId} />
+                        <CharacterPortrait
+                            picture={getPortrait(selectedPortraitId)?.picture ?? ''}
+                            sizePx={CARD_SIZE}
+                            selected
+                        />
                     </div>
 
                     {/* Arrows */}
@@ -199,16 +206,6 @@ export default function CharacterCreator({
                     </button>
                 </div>
             </div>
-        </div>
-    );
-}
-
-function PortraitBlock({ portraitId }: { portraitId: string }) {
-    const portrait = getPortrait(portraitId);
-    if (!portrait) return null;
-    return (
-        <div className="w-full h-full flex items-center justify-center bg-background">
-            {portrait.picture && <img src={portrait.picture} alt="" className="w-full h-full object-cover" />}
         </div>
     );
 }

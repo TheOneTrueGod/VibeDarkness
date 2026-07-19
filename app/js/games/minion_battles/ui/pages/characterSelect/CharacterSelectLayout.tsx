@@ -12,6 +12,8 @@ interface CharacterSelectLayoutProps {
     bottomLeftCorner?: React.ReactNode;
     /** Bottom row (ability list). */
     bottomRow?: React.ReactNode;
+    /** Bottom-right corner (admin tabs). */
+    bottomRightCorner?: React.ReactNode;
     /** Loading/resync overlay, rendered absolutely within the center slot. */
     centerOverlay?: React.ReactNode;
     children: React.ReactNode;
@@ -27,6 +29,7 @@ export default function CharacterSelectLayout({
     leftColumn,
     bottomLeftCorner,
     bottomRow,
+    bottomRightCorner,
     centerOverlay,
     children,
 }: CharacterSelectLayoutProps) {
@@ -37,6 +40,7 @@ export default function CharacterSelectLayout({
             rightColumn={chatSlot}
             bottomLeftCorner={bottomLeftCorner}
             bottomRow={bottomRow}
+            bottomRightCorner={bottomRightCorner}
             center={
                 <div className="relative flex h-full w-full min-h-0 flex-col overflow-hidden">
                     <div className="mx-auto flex h-full w-full max-w-[1200px] min-h-0 flex-col px-3 sm:px-6">
