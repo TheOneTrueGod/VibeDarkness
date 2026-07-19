@@ -28,6 +28,7 @@ import { buildWorldModifiersFromSources } from '../worldModifiers/buildWorldModi
 import { BUILTIN_WORLD_MODIFIERS } from '../worldModifiers/builtins/index';
 import { InteractiveTargetingSession, type HeldRemoteOrder } from './interaction/InteractiveTargetingSession';
 import { USE_SEQUENTIAL_TARGETING } from '../featureFlags';
+import { PERF_UI, PERF_UI_REACT, tickPerformanceTracker } from './performance/tickPerformanceTracker';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { getSelectTargetDefsFromTimings } from '../abilities/targeting';
 
@@ -116,9 +117,11 @@ export class BattleSession implements BattleSessionHandle {
     }
 
     private emit(event: BattleSessionEvent): void {
-        for (const l of this.listeners) {
-            l(event);
-        }
+        tickPerformanceTracker.measure([PERF_UI, PERF_UI_REACT], () => {
+            for (const l of this.listeners) {
+                l(event);
+            }
+        });
     }
 
     getEngine(): GameEngine | null {

@@ -29,6 +29,17 @@ import { TerrainEffectRenderer } from './renderers/TerrainEffectRenderer';
 import { FloorTileRenderer } from './renderers/FloorTileRenderer';
 import { MapNetworkRenderer } from './renderers/MapNetworkRenderer';
 import { isRenderLayerVisible } from '../../../../debug/renderVisibilityStore';
+import {
+	PERF_UI,
+	PERF_UI_CANVAS,
+	PERF_UI_CANVAS_EFFECTS,
+	PERF_UI_CANVAS_OVERLAY,
+	PERF_UI_CANVAS_PIXI_PRESENT,
+	PERF_UI_CANVAS_PREVIEWS,
+	PERF_UI_CANVAS_TERRAIN,
+	PERF_UI_CANVAS_UNITS,
+	tickPerformanceTracker,
+} from '../performance/tickPerformanceTracker';
 
 export class GameRenderer {
 	app: Application;
@@ -231,92 +242,106 @@ export class GameRenderer {
 	): void {
 		if (!this.initialized) return;
 
-		if (engine !== this.eventBusSource) {
-			if (this.eventBusSource) {
-				this.eventBusSource.eventBus.off('damage_taken', this.damageTakenBound);
-				this.eventBusSource.eventBus.off('terrain_stone_damaged', this.terrainStoneDamagedBound);
+		tickPerformanceTracker.measure([PERF_UI, PERF_UI_CANVAS], () => {
+			if (engine !== this.eventBusSource) {
+				if (this.eventBusSource) {
+					this.eventBusSource.eventBus.off('damage_taken', this.damageTakenBound);
+					this.eventBusSource.eventBus.off('terrain_stone_damaged', this.terrainStoneDamagedBound);
+				}
+				this.eventBusSource = engine;
+				if (engine) {
+					engine.eventBus.on('damage_taken', this.damageTakenBound);
+					engine.eventBus.on('terrain_stone_damaged', this.terrainStoneDamagedBound);
+				}
+				this.unitRenderer.clearHitFlashes();
+				this.overlayRenderer.reset();
 			}
-			this.eventBusSource = engine;
-			if (engine) {
-				engine.eventBus.on('damage_taken', this.damageTakenBound);
-				engine.eventBus.on('terrain_stone_damaged', this.terrainStoneDamagedBound);
+
+			// Update game container offset and scale (camera + zoom)
+			this.gameContainer.scale.set(camera.zoom);
+			this.gameContainer.x = -camera.x * camera.zoom + camera.viewportWidth / 2;
+			this.gameContainer.y = -camera.y * camera.zoom + camera.viewportHeight / 2;
+
+			tickPerformanceTracker.measure([PERF_UI_CANVAS_TERRAIN], () => {
+				if (engine.terrainManager && isRenderLayerVisible('terrain')) {
+					this.terrainRenderer.update(engine.terrainManager);
+				}
+				if (this.terrainSprite) {
+					this.terrainSprite.visible = isRenderLayerVisible('terrain');
+				}
+			});
+
+			tickPerformanceTracker.measure([PERF_UI_CANVAS_OVERLAY], () => {
+				const overlayVisible = isRenderLayerVisible('overlay');
+				this.overlayRenderer.setLayerVisible(overlayVisible);
+				if (overlayVisible) {
+					this.overlayRenderer.render(engine);
+				}
+			});
+
+			const floorTilesVisible = isRenderLayerVisible('floorTiles');
+			this.floorTileRenderer.setLayerVisible(floorTilesVisible);
+			if (floorTilesVisible) {
+				this.floorTileRenderer.render(engine);
 			}
-			this.unitRenderer.clearHitFlashes();
-			this.overlayRenderer.reset();
-		}
 
-		// Update game container offset and scale (camera + zoom)
-		this.gameContainer.scale.set(camera.zoom);
-		this.gameContainer.x = -camera.x * camera.zoom + camera.viewportWidth / 2;
-		this.gameContainer.y = -camera.y * camera.zoom + camera.viewportHeight / 2;
+			const terrainEffectsVisible = isRenderLayerVisible('terrainEffects');
+			this.terrainEffectRenderer.setLayerVisible(terrainEffectsVisible);
+			if (terrainEffectsVisible) {
+				this.terrainEffectRenderer.render(engine);
+			}
 
-		if (engine.terrainManager && isRenderLayerVisible('terrain')) {
-			this.terrainRenderer.update(engine.terrainManager);
-		}
-		if (this.terrainSprite) {
-			this.terrainSprite.visible = isRenderLayerVisible('terrain');
-		}
+			tickPerformanceTracker.measure([PERF_UI_CANVAS_UNITS], () => {
+				const unitsVisible = isRenderLayerVisible('units');
+				this.unitRenderer.setLayerVisible(unitsVisible);
+				if (unitsVisible) {
+					this.unitRenderer.render(engine, this.localTeamId, this.debugUnitOutlineId);
+				}
+			});
 
-		const overlayVisible = isRenderLayerVisible('overlay');
-		this.overlayRenderer.setLayerVisible(overlayVisible);
-		if (overlayVisible) {
-			this.overlayRenderer.render(engine);
-		}
+			const specialTilesVisible = isRenderLayerVisible('specialTiles');
+			this.specialTileRenderer.setLayerVisible(specialTilesVisible);
+			if (specialTilesVisible) {
+				this.specialTileRenderer.render(engine.specialTiles);
+			}
 
-		const floorTilesVisible = isRenderLayerVisible('floorTiles');
-		this.floorTileRenderer.setLayerVisible(floorTilesVisible);
-		if (floorTilesVisible) {
-			this.floorTileRenderer.render(engine);
-		}
+			const lightSourcesVisible = isRenderLayerVisible('lightSources');
+			this.lightSourceRenderer.setLayerVisible(lightSourcesVisible);
+			if (lightSourcesVisible) {
+				this.lightSourceRenderer.render(engine);
+			}
 
-		const terrainEffectsVisible = isRenderLayerVisible('terrainEffects');
-		this.terrainEffectRenderer.setLayerVisible(terrainEffectsVisible);
-		if (terrainEffectsVisible) {
-			this.terrainEffectRenderer.render(engine);
-		}
+			const projectilesVisible = isRenderLayerVisible('projectiles');
+			this.projectileRenderer.setLayerVisible(projectilesVisible);
+			if (projectilesVisible) {
+				this.projectileRenderer.render(engine.projectiles, engine.gameTime);
+			}
 
-		const unitsVisible = isRenderLayerVisible('units');
-		this.unitRenderer.setLayerVisible(unitsVisible);
-		if (unitsVisible) {
-			this.unitRenderer.render(engine, this.localTeamId, this.debugUnitOutlineId);
-		}
+			tickPerformanceTracker.measure([PERF_UI_CANVAS_EFFECTS], () => {
+				const effectsVisible = isRenderLayerVisible('effects');
+				this.effectRenderer.setLayerVisible(effectsVisible);
+				if (effectsVisible) {
+					this.effectRenderer.render(engine.effects);
+				}
+			});
 
-		const specialTilesVisible = isRenderLayerVisible('specialTiles');
-		this.specialTileRenderer.setLayerVisible(specialTilesVisible);
-		if (specialTilesVisible) {
-			this.specialTileRenderer.render(engine.specialTiles);
-		}
+			tickPerformanceTracker.measure([PERF_UI_CANVAS_PREVIEWS], () => {
+				const previewsVisible = isRenderLayerVisible('previews');
+				this.previewRenderer.setLayerVisible(previewsVisible);
+				if (previewsVisible) {
+					this.previewRenderer.render(engine, this.localTeamId, targetingState ?? null);
+				}
+			});
 
-		const lightSourcesVisible = isRenderLayerVisible('lightSources');
-		this.lightSourceRenderer.setLayerVisible(lightSourcesVisible);
-		if (lightSourcesVisible) {
-			this.lightSourceRenderer.render(engine);
-		}
-
-		const projectilesVisible = isRenderLayerVisible('projectiles');
-		this.projectileRenderer.setLayerVisible(projectilesVisible);
-		if (projectilesVisible) {
-			this.projectileRenderer.render(engine.projectiles, engine.gameTime);
-		}
-
-		const effectsVisible = isRenderLayerVisible('effects');
-		this.effectRenderer.setLayerVisible(effectsVisible);
-		if (effectsVisible) {
-			this.effectRenderer.render(engine.effects);
-		}
-
-		const previewsVisible = isRenderLayerVisible('previews');
-		this.previewRenderer.setLayerVisible(previewsVisible);
-		if (previewsVisible) {
-			this.previewRenderer.render(engine, this.localTeamId, targetingState ?? null);
-		}
-
-		const mapNetworkVisible = isRenderLayerVisible('mapNetwork');
-		this.mapNetworkRenderer.setLayerVisible(mapNetworkVisible);
-		if (mapNetworkVisible) {
-			this.mapNetworkRenderer.render(engine);
-		}
-		this.app.render();
+			const mapNetworkVisible = isRenderLayerVisible('mapNetwork');
+			this.mapNetworkRenderer.setLayerVisible(mapNetworkVisible);
+			if (mapNetworkVisible) {
+				this.mapNetworkRenderer.render(engine);
+			}
+			tickPerformanceTracker.measure([PERF_UI_CANVAS_PIXI_PRESENT], () => {
+				this.app.render();
+			});
+		});
 	}
 
 	/** Full cleanup. Idempotent: safe to call multiple times. */

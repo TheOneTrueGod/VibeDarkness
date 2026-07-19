@@ -7,11 +7,13 @@ export interface DebugSettings {
     superSpeedEnabled: boolean;
     debugPauseMode: boolean;
     logEveryTick: boolean;
+    jsPerformanceTracking: boolean;
     setDarkOverlayEnabled: (value: boolean) => void;
     setGodModeEnabled: (value: boolean) => void;
     setSuperSpeedEnabled: (value: boolean) => void;
     setDebugPauseMode: (value: boolean) => void;
     setLogEveryTick: (value: boolean) => void;
+    setJsPerformanceTracking: (value: boolean) => void;
     advanceOneDebugTick: () => void;
 }
 
@@ -21,11 +23,13 @@ const DebugSettingsContext = createContext<DebugSettings>({
     superSpeedEnabled: false,
     debugPauseMode: false,
     logEveryTick: false,
+    jsPerformanceTracking: false,
     setDarkOverlayEnabled: () => {},
     setGodModeEnabled: () => {},
     setSuperSpeedEnabled: () => {},
     setDebugPauseMode: () => {},
     setLogEveryTick: () => {},
+    setJsPerformanceTracking: () => {},
     advanceOneDebugTick: () => {},
 });
 
@@ -39,6 +43,7 @@ export function DebugSettingsProvider({ children }: { children: React.ReactNode 
     const [superSpeedEnabled, setSuperSpeedEnabled] = useState(false);
     const [debugPauseMode, setDebugPauseMode] = useState(false);
     const [logEveryTick, setLogEveryTick] = useState(false);
+    const [jsPerformanceTracking, setJsPerformanceTracking] = useState(false);
 
     // Sync to non-React snapshot used by engine / renderer
     useEffect(() => {
@@ -64,6 +69,10 @@ export function DebugSettingsProvider({ children }: { children: React.ReactNode 
         debugSettingsSnapshot.logEveryTick = logEveryTick;
     }, [logEveryTick]);
 
+    useEffect(() => {
+        debugSettingsSnapshot.jsPerformanceTracking = jsPerformanceTracking;
+    }, [jsPerformanceTracking]);
+
     const value = useMemo(
         () => ({
             darkOverlayEnabled,
@@ -71,14 +80,16 @@ export function DebugSettingsProvider({ children }: { children: React.ReactNode 
             superSpeedEnabled,
             debugPauseMode,
             logEveryTick,
+            jsPerformanceTracking,
             setDarkOverlayEnabled,
             setGodModeEnabled,
             setSuperSpeedEnabled,
             setDebugPauseMode,
             setLogEveryTick,
+            setJsPerformanceTracking,
             advanceOneDebugTick: () => requestDebugAdvanceTicks(1),
         }),
-        [darkOverlayEnabled, godModeEnabled, superSpeedEnabled, debugPauseMode, logEveryTick],
+        [darkOverlayEnabled, godModeEnabled, superSpeedEnabled, debugPauseMode, logEveryTick, jsPerformanceTracking],
     );
 
     return <DebugSettingsContext.Provider value={value}>{children}</DebugSettingsContext.Provider>;

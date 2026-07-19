@@ -16,7 +16,7 @@ After a code change, run the **smallest** set that still covers what you changed
    npx vitest run path/to/MyFeature.test.ts
    ```
 
-2. **One changed source file** — run tests that import it:
+2. **One changed source file** — run tests that import it (`related`), **except hub files** (see below):
    ```bash
    npx vitest related app/js/path/to/Changed.ts --run
    ```
@@ -41,16 +41,34 @@ After a code change, run the **smallest** set that still covers what you changed
    - Deliberate pre-merge / handoff check
    - **Not** after every small edit (CI covers this routinely)
 
+## Hub files — do **not** use `vitest related`
+
+Some modules sit in so many import graphs that `related` becomes a near-suite run (hundreds of tests, many minutes). **Never** use `npx vitest related <hub> --run` for routine edits to:
+
+- `game/GameEngine.ts`
+- `game/types.ts` (and other widely shared wire/runtime type modules)
+- `app/js/debug/debugSettingsStore.ts`
+- Other “imported by everyone” facades (e.g. large harness entrypoints like `SimulationRunner` when you only touched a leaf)
+
+For those, prefer:
+
+1. Co-located / newly written `*.test.ts` for the change
+2. A **named** small set (e.g. `GameEngine.test.ts` only if engine behaviour changed)
+3. `npx vitest run --changed` only when you intentionally want broad coverage (still not `npm run test` unless step 6 applies)
+
+On Windows PowerShell, do not pipe Vitest through `Select-Object -Last N` while waiting — it buffers until exit and looks hung.
+
 ## New feature checklist
 
 | What you shipped | Minimal run |
 |------------------|-------------|
 | New module + new `*.test.ts` | That test file |
 | Changed `X.ts`, existing `X.test.ts` | `npx vitest run X.test.ts` |
-| Changed `X.ts`, no dedicated test | `npx vitest related X.ts --run` |
+| Changed leaf `X.ts`, no dedicated test | `npx vitest related X.ts --run` |
+| Changed **hub** (Engine / shared types / debug store) | Co-located + named small set — **not** `related` |
 | React component + unit tests for helpers | Helper test files; skip full UI unless you changed integration behaviour |
 | PHP API handler | No Vitest unless TS client types/tests exist; lint TS if types changed |
-| Engine / shared types | Expect `--changed` to fan out wide — run it, but still skip full suite unless cross-cutting |
+| Engine / shared types (cross-cutting) | Prefer named tests; use `--changed` only when deliberate; full suite only if step 6 |
 
 ## TypeScript
 

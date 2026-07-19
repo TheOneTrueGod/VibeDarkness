@@ -53,7 +53,14 @@ const THRESHOLD_OPTIONS = (
 ).map((value) => ({ value, label: DEBUG_LOG_THRESHOLD_LABELS[value] }));
 
 export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
-    const { logEveryTick, setLogEveryTick, darkOverlayEnabled, setDarkOverlayEnabled } = useDebugSettings();
+    const {
+        logEveryTick,
+        setLogEveryTick,
+        jsPerformanceTracking,
+        setJsPerformanceTracking,
+        darkOverlayEnabled,
+        setDarkOverlayEnabled,
+    } = useDebugSettings();
 
     const showAllResearchTrees = useSyncExternalStore(
         subscribeShowAllResearchTrees,
@@ -166,12 +173,27 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
                     <input
                         type="checkbox"
                         className="mt-0.5 h-4 w-4 rounded border border-border-custom bg-surface text-primary focus:ring-primary shrink-0"
+                        checked={jsPerformanceTracking}
+                        onChange={(e) => setJsPerformanceTracking(e.target.checked)}
+                    />
+                    <span className="leading-snug">JS performance tracking</span>
+                </label>
+                <label className="flex items-start gap-2 cursor-pointer select-none">
+                    <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 rounded border border-border-custom bg-surface text-primary focus:ring-primary shrink-0"
                         checked={userStateLogging}
                         onChange={(e) => setUserStateLogging(e.target.checked)}
                     />
                     <span className="leading-snug">Log user state to server</span>
                 </label>
             </div>
+            {jsPerformanceTracking && (
+                <p className="text-xs text-muted mt-2 max-w-xl">
+                    Attaches a nested <code className="text-muted">performanceLog</code> (ms for the last game
+                    tick) on serialized game state when logging ticks or saving snapshots.
+                </p>
+            )}
 
             <h3 className="text-xs font-semibold text-muted uppercase tracking-wide mt-8 mb-2">
                 Resource bars

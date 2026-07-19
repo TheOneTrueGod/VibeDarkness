@@ -51,6 +51,19 @@ import {
     syncNestedCardAbilityState,
 } from '../abilities/abilityUses';
 import { debugSettingsSnapshot, consumeDebugAdvanceTickRequest } from '../../../debug/debugSettingsStore';
+import {
+    PERF_ENGINE,
+    PERF_ENGINE_CLEANUP,
+    PERF_ENGINE_EFFECTS,
+    PERF_ENGINE_LEVEL_EVENTS,
+    PERF_ENGINE_LIGHTING,
+    PERF_ENGINE_NESTS,
+    PERF_ENGINE_ORDERS,
+    PERF_ENGINE_PROJECTILES,
+    PERF_ENGINE_RENDER_TICK,
+    PERF_ENGINE_UNITS,
+    tickPerformanceTracker,
+} from './performance/tickPerformanceTracker';
 import { tickAllDots, DOT_TICKS_PER_ROUND } from './dotTick';
 import { createDamageTakenEffect } from './createDamageTakenEffect';
 import { CantDieBuff } from '../buffs/CantDieBuff';
@@ -1009,15 +1022,17 @@ export class GameEngine implements EngineContext {
      * (i.e. when `isRunningLoop` is false).
      */
     doRenderTick(realDt: number): void {
-        this.state.effectManager.renderUpdate(realDt);
-        const posSnapshot = this.getUnitPositionSnapshot();
-        const emitterVisualEffects = this.state.effectEmitterManager.renderUpdate(
-            realDt, posSnapshot, this.isPaused,
-        );
-        for (const fx of emitterVisualEffects) {
-            fx.id = this.allocateEffectObjectId('fx');
-            this.state.effectManager.addEffect(fx);
-        }
+        tickPerformanceTracker.measure([PERF_ENGINE, PERF_ENGINE_RENDER_TICK], () => {
+            this.state.effectManager.renderUpdate(realDt);
+            const posSnapshot = this.getUnitPositionSnapshot();
+            const emitterVisualEffects = this.state.effectEmitterManager.renderUpdate(
+                realDt, posSnapshot, this.isPaused,
+            );
+            for (const fx of emitterVisualEffects) {
+                fx.id = this.allocateEffectObjectId('fx');
+                this.state.effectManager.addEffect(fx);
+            }
+        });
     }
 
     /** Advance simulation by a wall-clock duration using fixed-step integration at 60 Hz. */
@@ -1367,142 +1382,165 @@ export class GameEngine implements EngineContext {
         this.gameTick++;
         this.naturalAbilityCompletionUnitIdsThisTick.clear();
 
-        const roundTime = this.gameTime - (this.roundNumber - 1) * ROUND_DURATION;
-        this.processRoundProgressMilestones(roundTime);
+        tickPerformanceTracker.begin(PERF_ENGINE);
+        try {
+            const roundTime = this.gameTime - (this.roundNumber - 1) * ROUND_DURATION;
+            this.processRoundProgressMilestones(roundTime);
 
-        // Apply scheduled orders (stable merge when multiple orders share this tick)
-        const toApply = this.pendingOrders.filter((o) => o.gameTick === this.gameTick);
-        this.pendingOrders = this.pendingOrders.filter((o) => o.gameTick !== this.gameTick);
-        toApply.sort((a, b) => {
-            const ua = a.order.unitId;
-            const ub = b.order.unitId;
-            return ua < ub ? -1 : ua > ub ? 1 : 0;
-        });
-        for (const { order } of toApply) {
-            this.state.orderMgr.applyOrderLogic(order);
-        }
-
-        this.state.specialTileManager.processSpecialTileLightDecays();
-        this.state.lightSourceManager.processDecays();
-
-        // Check for round end
-        if (roundTime >= ROUND_DURATION) {
-            this.eventBus.emit('round_end', { roundNumber: this.roundNumber });
-            this.onRoundEnd?.(this.roundNumber);
-            this.roundNumber++;
-            this.appliedRoundStartRecovery = false;
-            this.appliedMidRoundRecovery = false;
-            this.appliedDotTicks = 0;
-        }
-
-        if (!this.storyPauseActive) {
-            this.state.levelEventManager.processLevelEvents();
-            this.state.objectiveManager.processObjectives();
-            const aiCtx = this.buildAIContext();
-            this.state.groupManager.tick(this.gameTick, aiCtx);
-            this.state.unitManager.gameTick(
-                dt,
-                this,
-                (unitId: string) => this.naturalAbilityCompletionUnitIdsThisTick.add(unitId),
-                aiCtx,
-            );
-            // Preview stop: pause when isITSPreviewComplete (natural completion or conditional cancel).
-            if (isITSPreviewComplete(this) && !this.isPaused) {
-                this.isPaused = true;
-            }
-            if (this.waitingForOrders == null) {
-                const waiters = this.state.orderMgr.collectParallelWaiters();
-                // During ITS: host/solo ignore all parallel pauses (legacy playahead). Non-host only
-                // schedules pauses that include the local player (see commitDeferredOrderPause…).
-                const schedulePause =
-                    waiters.length > 0 &&
-                    (!this.isSequentialTargetingPreview ||
-                        (this.freezeItsOnLocalPlayerParallelPause &&
-                            this.deferredPauseIncludesLocalPlayer(waiters)));
-                if (schedulePause) {
-                    this.state.levelEventManager.runVictoryChecks();
-                    this.deferredOrderPause = {
-                        waiters,
-                        naturalCompletionUnitIds: [...this.naturalAbilityCompletionUnitIdsThisTick],
-                    };
-                    this.naturalAbilityCompletionUnitIdsThisTick.clear();
-                } else if (
-                    waiters.length > 0
-                    && this.isSequentialTargetingPreview
-                    && !this.waitersIncludeConditionalCancelPause(waiters)
-                ) {
-                    // Host/solo (and non-host ally-only): parallel pause would have formed but ITS
-                    // playahead skips scheduling it — same observability hook as drop in commitDeferred.
-                    this.onItsParallelPauseDecision?.('drop', waiters, this.gameTick);
+            // Apply scheduled orders (stable merge when multiple orders share this tick)
+            tickPerformanceTracker.measure([PERF_ENGINE_ORDERS], () => {
+                const toApply = this.pendingOrders.filter((o) => o.gameTick === this.gameTick);
+                this.pendingOrders = this.pendingOrders.filter((o) => o.gameTick !== this.gameTick);
+                toApply.sort((a, b) => {
+                    const ua = a.order.unitId;
+                    const ub = b.order.unitId;
+                    return ua < ub ? -1 : ua > ub ? 1 : 0;
+                });
+                for (const { order } of toApply) {
+                    this.state.orderMgr.applyOrderLogic(order);
                 }
+            });
+
+            this.state.specialTileManager.processSpecialTileLightDecays();
+            this.state.lightSourceManager.processDecays();
+
+            // Check for round end
+            if (roundTime >= ROUND_DURATION) {
+                this.eventBus.emit('round_end', { roundNumber: this.roundNumber });
+                this.onRoundEnd?.(this.roundNumber);
+                this.roundNumber++;
+                this.appliedRoundStartRecovery = false;
+                this.appliedMidRoundRecovery = false;
+                this.appliedDotTicks = 0;
             }
-            this.state.unitManager.processCrystalAura();
-            this.state.specialTileManager.gameTick(this.units, this);
-        }
-        this.state.unitManager.tickDarknessCorruption(dt, this);
-        if (!this.storyPauseActive) {
-            this.state.projectileManager.update(dt);
-        }
-        const emitterEffects = this.state.effectEmitterManager.update(dt, this);
-        for (const fx of emitterEffects) {
-            fx.id = this.allocateEffectObjectId('fx');
-            this.state.effectManager.addEffect(fx);
-        }
-        this.state.effectManager.gameUpdate(dt);
-        this.state.lightSourceManager.update(dt);
-        if (this.gameTick % LIGHT_TICK_INTERVAL === 0) this.runLightGameTick();
-        processLanterniteNests({
-            gameTime: this.gameTime,
-            dt,
-            units: this.units,
-            eventBus: this.eventBus,
-            addUnit: (u, src) => this.addUnit(u, src),
-            idSource: this,
-            mapPOIs: this.mapPOIs,
-            mapNetwork: this.state.mapNetworkManager,
-            lightLevelEnabled: this.lightLevelEnabled,
-            addLightSource: (ls) => this.addLightSource(ls),
-            lightSources: this.state.lightSourceManager.lightSources,
-            addEffectEmitter: (em) => this.addEffectEmitter(em),
-            generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
-        });
-        processThornlingNests({
-            gameTime: this.gameTime,
-            units: this.units,
-            eventBus: this.eventBus,
-            addUnit: (u) => this.addUnit(u, 'nestSpawn'),
-            idSource: this,
-            generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
-        });
-        processSwarmNests({
-            gameTime: this.gameTime,
-            dt,
-            units: this.units,
-            mapPOIs: this.mapPOIs,
-            mapNetwork: this.state.mapNetworkManager,
-            eventBus: this.eventBus,
-            addUnit: (u) => this.addUnit(u, 'nestSpawn'),
-            idSource: this,
-            generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
-        });
-        this.state.lanterniteRespawnManager.gameTick(this.gameTime, this, this.eventBus);
-        this.state.unitManager.cleanupInactive();
-        this.state.projectileManager.cleanupInactive();
-        this.state.effectManager.cleanupInactive();
-        this.state.lightSourceManager.cleanupInactive();
-        this.state.terrainLayers.cleanupExpired(this.gameTime);
-        this.mixRuntimeFingerprint(
-            FingerprintEvent.EFFECT_TICK,
-            this.projectiles.length >>> 0,
-            this.units.length >>> 0,
-            this.state.lightSourceManager.lightSources.length >>> 0,
-        );
-        if (!this.storyPauseActive) {
-            this.state.levelEventManager.runDefeatCheck();
-            // Mirror defeat: catch projectile/DoT kills after unitManager's per-enemy checks.
-            this.state.levelEventManager.runVictoryChecks();
-        } else if (this.storyPauseEndsAt != null && this.gameTime >= this.storyPauseEndsAt) {
-            this.endStoryPause();
+
+            if (!this.storyPauseActive) {
+                tickPerformanceTracker.measure([PERF_ENGINE_LEVEL_EVENTS], () => {
+                    this.state.levelEventManager.processLevelEvents();
+                    this.state.objectiveManager.processObjectives();
+                });
+                const aiCtx = this.buildAIContext();
+                this.state.groupManager.tick(this.gameTick, aiCtx);
+                tickPerformanceTracker.measure([PERF_ENGINE_UNITS], () => {
+                    this.state.unitManager.gameTick(
+                        dt,
+                        this,
+                        (unitId: string) => this.naturalAbilityCompletionUnitIdsThisTick.add(unitId),
+                        aiCtx,
+                    );
+                });
+                // Preview stop: pause when isITSPreviewComplete (natural completion or conditional cancel).
+                if (isITSPreviewComplete(this) && !this.isPaused) {
+                    this.isPaused = true;
+                }
+                if (this.waitingForOrders == null) {
+                    const waiters = this.state.orderMgr.collectParallelWaiters();
+                    // During ITS: host/solo ignore all parallel pauses (legacy playahead). Non-host only
+                    // schedules pauses that include the local player (see commitDeferredOrderPause…).
+                    const schedulePause =
+                        waiters.length > 0 &&
+                        (!this.isSequentialTargetingPreview ||
+                            (this.freezeItsOnLocalPlayerParallelPause &&
+                                this.deferredPauseIncludesLocalPlayer(waiters)));
+                    if (schedulePause) {
+                        this.state.levelEventManager.runVictoryChecks();
+                        this.deferredOrderPause = {
+                            waiters,
+                            naturalCompletionUnitIds: [...this.naturalAbilityCompletionUnitIdsThisTick],
+                        };
+                        this.naturalAbilityCompletionUnitIdsThisTick.clear();
+                    } else if (
+                        waiters.length > 0
+                        && this.isSequentialTargetingPreview
+                        && !this.waitersIncludeConditionalCancelPause(waiters)
+                    ) {
+                        // Host/solo (and non-host ally-only): parallel pause would have formed but ITS
+                        // playahead skips scheduling it — same observability hook as drop in commitDeferred.
+                        this.onItsParallelPauseDecision?.('drop', waiters, this.gameTick);
+                    }
+                }
+                this.state.unitManager.processCrystalAura();
+                this.state.specialTileManager.gameTick(this.units, this);
+            }
+            this.state.unitManager.tickDarknessCorruption(dt, this);
+            if (!this.storyPauseActive) {
+                tickPerformanceTracker.measure([PERF_ENGINE_PROJECTILES], () => {
+                    this.state.projectileManager.update(dt);
+                });
+            }
+            tickPerformanceTracker.measure([PERF_ENGINE_EFFECTS], () => {
+                const emitterEffects = this.state.effectEmitterManager.update(dt, this);
+                for (const fx of emitterEffects) {
+                    fx.id = this.allocateEffectObjectId('fx');
+                    this.state.effectManager.addEffect(fx);
+                }
+                this.state.effectManager.gameUpdate(dt);
+            });
+            tickPerformanceTracker.measure([PERF_ENGINE_LIGHTING], () => {
+                this.state.lightSourceManager.update(dt);
+                if (this.gameTick % LIGHT_TICK_INTERVAL === 0) this.runLightGameTick();
+            });
+            tickPerformanceTracker.measure([PERF_ENGINE_NESTS], () => {
+                processLanterniteNests({
+                    gameTime: this.gameTime,
+                    dt,
+                    units: this.units,
+                    eventBus: this.eventBus,
+                    addUnit: (u, src) => this.addUnit(u, src),
+                    idSource: this,
+                    mapPOIs: this.mapPOIs,
+                    mapNetwork: this.state.mapNetworkManager,
+                    lightLevelEnabled: this.lightLevelEnabled,
+                    addLightSource: (ls) => this.addLightSource(ls),
+                    lightSources: this.state.lightSourceManager.lightSources,
+                    addEffectEmitter: (em) => this.addEffectEmitter(em),
+                    generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
+                });
+                processThornlingNests({
+                    gameTime: this.gameTime,
+                    units: this.units,
+                    eventBus: this.eventBus,
+                    addUnit: (u) => this.addUnit(u, 'nestSpawn'),
+                    idSource: this,
+                    generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
+                });
+                processSwarmNests({
+                    gameTime: this.gameTime,
+                    dt,
+                    units: this.units,
+                    mapPOIs: this.mapPOIs,
+                    mapNetwork: this.state.mapNetworkManager,
+                    eventBus: this.eventBus,
+                    addUnit: (u) => this.addUnit(u, 'nestSpawn'),
+                    idSource: this,
+                    generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
+                });
+                this.state.lanterniteRespawnManager.gameTick(this.gameTime, this, this.eventBus);
+            });
+            tickPerformanceTracker.measure([PERF_ENGINE_CLEANUP], () => {
+                this.state.unitManager.cleanupInactive();
+                this.state.projectileManager.cleanupInactive();
+                this.state.effectManager.cleanupInactive();
+                this.state.lightSourceManager.cleanupInactive();
+                this.state.terrainLayers.cleanupExpired(this.gameTime);
+            });
+            this.mixRuntimeFingerprint(
+                FingerprintEvent.EFFECT_TICK,
+                this.projectiles.length >>> 0,
+                this.units.length >>> 0,
+                this.state.lightSourceManager.lightSources.length >>> 0,
+            );
+            if (!this.storyPauseActive) {
+                this.state.levelEventManager.runDefeatCheck();
+                // Mirror defeat: catch projectile/DoT kills after unitManager's per-enemy checks.
+                this.state.levelEventManager.runVictoryChecks();
+            } else if (this.storyPauseEndsAt != null && this.gameTime >= this.storyPauseEndsAt) {
+                this.endStoryPause();
+            }
+        } finally {
+            tickPerformanceTracker.end();
+            // Finalize before checkpoint / tick-log toJSON so performanceLog is attached.
+            tickPerformanceTracker.finalizeLastGameTick();
         }
         this.mixRuntimeFingerprint(FingerprintEvent.TICK_END, this.gameTick >>> 0, Math.floor(this.gameTime * 1000));
         const committedParallelPause = this.commitDeferredOrderPauseAfterCompletedTick();
@@ -1788,6 +1826,7 @@ export class GameEngine implements EngineContext {
     toJSON(): SerializedGameState {
         const levelEventData = this.state.levelEventManager.toJSON();
         const cardData = this.state.cardManager.toJSON();
+        const performanceLog = tickPerformanceTracker.getLastPerformanceLog();
         return {
             randomSeed: this.randomSeed,
             gameTime: this.gameTime,
@@ -1829,6 +1868,7 @@ export class GameEngine implements EngineContext {
             ...(Object.keys(this.npcControlAssignments).length > 0
                 ? { npcControlAssignments: { ...this.npcControlAssignments } }
                 : {}),
+            ...(performanceLog != null ? { performanceLog } : {}),
         };
     }
 

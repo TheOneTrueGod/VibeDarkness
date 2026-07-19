@@ -11,6 +11,11 @@ export interface DebugSettingsSnapshot {
     debugAdvanceTicksRequested: number;
     /** When true, logs syncHash, gameTick, and gameState to the console on every tick. */
     logEveryTick: boolean;
+    /**
+     * When true, collects nested JS timings for the last game tick and attaches
+     * `performanceLog` on serialized game state (checkpoints / tick logs).
+     */
+    jsPerformanceTracking: boolean;
 }
 
 export const debugSettingsSnapshot: DebugSettingsSnapshot = {
@@ -20,6 +25,7 @@ export const debugSettingsSnapshot: DebugSettingsSnapshot = {
     debugPauseMode: false,
     debugAdvanceTicksRequested: 0,
     logEveryTick: false,
+    jsPerformanceTracking: false,
 };
 
 export function requestDebugAdvanceTicks(count = 1): void {

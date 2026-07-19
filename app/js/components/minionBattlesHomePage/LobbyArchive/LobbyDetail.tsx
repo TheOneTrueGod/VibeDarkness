@@ -4,10 +4,11 @@ import type { LobbyClient } from '../../../LobbyClient';
 import ArchiveGameStateTab from './tabs/ArchiveGameStateTab';
 import ArchiveLobbyLogTab from './tabs/ArchiveLobbyLogTab';
 import ArchiveUserStatesTab from './tabs/ArchiveUserStatesTab';
+import ArchivePerformanceTab from './tabs/ArchivePerformanceTab';
 
-type DetailTab = 'game_state' | 'lobby_log' | 'user_states';
+type DetailTab = 'game_state' | 'lobby_log' | 'user_states' | 'performance';
 
-const VALID_TABS: DetailTab[] = ['game_state', 'lobby_log', 'user_states'];
+const VALID_TABS: DetailTab[] = ['game_state', 'lobby_log', 'user_states', 'performance'];
 
 interface LobbyDetailProps {
     lobbyId: string;
@@ -19,6 +20,7 @@ const TABS: { id: DetailTab; label: string }[] = [
     { id: 'game_state', label: 'Game State' },
     { id: 'lobby_log', label: 'Lobby Log' },
     { id: 'user_states', label: 'User States' },
+    { id: 'performance', label: 'Performance' },
 ];
 
 export default function LobbyDetail({ lobbyId, lobbyClient, onJoinLobby }: LobbyDetailProps) {
@@ -119,6 +121,9 @@ export default function LobbyDetail({ lobbyId, lobbyClient, onJoinLobby }: Lobby
             )}
             {activeTab === 'user_states' && (
                 <ArchiveUserStatesTab isActive lobbyId={lobbyId} lobbyClient={lobbyClient} />
+            )}
+            {activeTab === 'performance' && (
+                <ArchivePerformanceTab isActive lobbyId={lobbyId} lobbyClient={lobbyClient} />
             )}
         </div>
     );

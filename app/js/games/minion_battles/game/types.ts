@@ -167,6 +167,12 @@ export interface SerializedGameState {
      * via opts.
      */
     checkpointRuntimeFingerprintHex?: string;
+    /**
+     * Debug-only nested JS timings for the last completed game tick (ms). Present only when
+     * Debug Console → JS performance tracking is enabled. Not restored on load; ignored by
+     * fingerprint logic.
+     */
+    performanceLog?: import('./performance/tickPerformanceTracker').PerformanceLog;
 }
 
 /** Optional args when hydrating {@link GameEngine} from JSON (e.g. server checkpoint `synchash`). */
