@@ -22,6 +22,15 @@ export type PerformanceLog = PerformanceLogNode & {
     description: typeof PERFORMANCE_LOG_DESCRIPTION;
 };
 
+/** One finalized tick retained in the client-only debug history ring. */
+export interface PerformanceTickRecord {
+    gameTick: number;
+    log: PerformanceLog;
+}
+
+/** Client-only ring buffer size for the Debug Console Performance tab. */
+export const PERFORMANCE_HISTORY_CAPACITY = 50;
+
 type MutableNode = {
     /** Inclusive ms for this node (own work + children), summed across samples. */
     inclusiveMs: number;
@@ -88,6 +97,8 @@ export class TickPerformanceTracker {
     /** Test override; when null, follows {@link debugSettingsSnapshot.jsPerformanceTracking}. */
     private enabledOverride: boolean | null = null;
     private stack: StackFrame[] = [];
+    private history: PerformanceTickRecord[] = [];
+    private listeners = new Set<() => void>();
 
     /** @param enabled When set, overrides the debug snapshot (tests). Pass `null` to follow snapshot. */
     setEnabled(enabled: boolean | null): void {
@@ -96,11 +107,27 @@ export class TickPerformanceTracker {
             this.root = createNode();
             this.lastLog = null;
             this.stack = [];
+            this.history = [];
+            this.notify();
         }
     }
 
     isEnabled(): boolean {
         return this.enabledOverride ?? debugSettingsSnapshot.jsPerformanceTracking;
+    }
+
+    /** Subscribe to history / last-log updates (Debug Console Performance tab). */
+    subscribe(listener: () => void): () => void {
+        this.listeners.add(listener);
+        return () => {
+            this.listeners.delete(listener);
+        };
+    }
+
+    private notify(): void {
+        for (const listener of this.listeners) {
+            listener();
+        }
     }
 
     /**
@@ -157,8 +184,9 @@ export class TickPerformanceTracker {
     /**
      * Snapshot accumulated timings into the last-tick performance log and clear
      * the accumulator for the next tick / frame window.
+     * When `gameTick` is provided, also pushes into the client-only history ring.
      */
-    finalizeLastGameTick(): PerformanceLog | null {
+    finalizeLastGameTick(gameTick?: number): PerformanceLog | null {
         if (!this.isEnabled()) {
             this.lastLog = null;
             return null;
@@ -173,6 +201,13 @@ export class TickPerformanceTracker {
             ...categories,
         } as PerformanceLog;
         this.root = createNode();
+        if (typeof gameTick === 'number' && Number.isFinite(gameTick)) {
+            this.history.push({ gameTick, log: this.lastLog });
+            while (this.history.length > PERFORMANCE_HISTORY_CAPACITY) {
+                this.history.shift();
+            }
+        }
+        this.notify();
         return this.lastLog;
     }
 
@@ -180,11 +215,18 @@ export class TickPerformanceTracker {
         return this.isEnabled() ? this.lastLog : null;
     }
 
-    /** Test helper — wipe accumulator and last log. */
+    /** Newest-last copy of the client-only history ring (max {@link PERFORMANCE_HISTORY_CAPACITY}). */
+    getHistory(): readonly PerformanceTickRecord[] {
+        return this.history.slice();
+    }
+
+    /** Test helper — wipe accumulator, last log, and history. */
     reset(): void {
         this.root = createNode();
         this.lastLog = null;
         this.stack = [];
+        this.history = [];
+        this.notify();
     }
 }
 

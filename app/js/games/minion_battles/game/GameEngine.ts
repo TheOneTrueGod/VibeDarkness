@@ -1540,7 +1540,7 @@ export class GameEngine implements EngineContext {
         } finally {
             tickPerformanceTracker.end();
             // Finalize before checkpoint / tick-log toJSON so performanceLog is attached.
-            tickPerformanceTracker.finalizeLastGameTick();
+            tickPerformanceTracker.finalizeLastGameTick(this.gameTick);
         }
         this.mixRuntimeFingerprint(FingerprintEvent.TICK_END, this.gameTick >>> 0, Math.floor(this.gameTime * 1000));
         const committedParallelPause = this.commitDeferredOrderPauseAfterCompletedTick();

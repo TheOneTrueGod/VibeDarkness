@@ -15,6 +15,7 @@ import DebugCampaignDataTab from './tabs/DebugCampaignDataTab';
 import DebugCharactersTab from './tabs/DebugCharactersTab';
 import DebugTogglesTab from './tabs/DebugTogglesTab';
 import DebugWorldModifiersTab from './tabs/DebugWorldModifiersTab';
+import DebugPerformanceTab from './tabs/DebugPerformanceTab';
 import DebugTabButton from './DebugTabButton';
 import { useDebugSettings } from '../../contexts/DebugSettingsContext';
 import { useDebugConsole } from '../../contexts/DebugConsoleContext';
@@ -26,6 +27,7 @@ export type TabId =
     | 'game-state'
     | 'units'
     | 'orders'
+    | 'performance'
     | 'player-data'
     | 'campaign-data'
     | 'characters'
@@ -150,9 +152,9 @@ export default function DebugConsole({
         }
     }, [inBattle, isAdmin, activeTab]);
 
-    // When leaving battle, units / orders tabs no longer exist.
+    // When leaving battle, units / orders / performance tabs no longer exist.
     useEffect(() => {
-        if (!inBattle && (activeTab === 'units' || activeTab === 'orders')) {
+        if (!inBattle && (activeTab === 'units' || activeTab === 'orders' || activeTab === 'performance')) {
             setActiveTab('game-state');
         }
     }, [inBattle, activeTab]);
@@ -207,6 +209,7 @@ export default function DebugConsole({
                     gameState={gameState}
                     battleOrdersDebug={battleOrdersDebug}
                 />
+                <DebugPerformanceTab isActive={activeTab === 'performance'} inBattle={inBattle} />
                 <DebugPlayerDataTab isActive={activeTab === 'player-data'} fetchPlayerData={fetchPlayerData} />
                 <DebugCampaignDataTab isActive={activeTab === 'campaign-data'} fetchCampaignData={fetchCampaignData} />
                 <DebugCharactersTab
@@ -350,6 +353,15 @@ export default function DebugConsole({
                         {inBattle && (
                             <DebugTabButton isActive={activeTab === 'orders'} onClick={() => setActiveTab('orders')}>
                                 Orders
+                            </DebugTabButton>
+                        )}
+
+                        {inBattle && (
+                            <DebugTabButton
+                                isActive={activeTab === 'performance'}
+                                onClick={() => setActiveTab('performance')}
+                            >
+                                Performance
                             </DebugTabButton>
                         )}
 

@@ -5,7 +5,7 @@ description: How to capture and analyze Minion Battles JS performance logs (debu
 
 # Performance debugging
 
-Capture per-tick JS timings during a battle, then inspect them in Lobby Archive → **Performance**.
+Capture per-tick JS timings during a battle, then inspect them live or in Lobby Archive → **Performance**.
 
 ## Capture (in battle)
 
@@ -21,7 +21,7 @@ Optional but useful with dense time series:
 Tracker implementation: `app/js/games/minion_battles/game/performance/tickPerformanceTracker.ts`.  
 Toggle wiring: `app/js/debug/debugSettingsStore.ts`, Debug Console Toggles tab.
 
-Without both toggles, the Performance tab will show user states with **no** `performanceLog` samples (or no user state at all).
+Without both toggles, the Performance archive tab will show user states with **no** `performanceLog` samples (or no user state at all). Live Debug Console Performance only needs **JS performance tracking**.
 
 ## What is in `performanceLog`
 
@@ -34,6 +34,10 @@ Typical top-level shape (children evolve as instrumentation grows — read the t
 - `ui.canvas` — Pixi `GameRenderer.render` (terrain, overlay, units, effects, previews, `pixiPresent`)
 
 Canvas frames between ticks accumulate into the next finalized tick. Fingerprints ignore this field; `fromJSON` does not restore it.
+
+## Live Debug Console (in battle)
+
+With **JS performance tracking** on, Debug Console → **Performance** keeps the last 50 ticks in a client-only ring (`PERFORMANCE_HISTORY_CAPACITY`; not serialized). Stacked-area chart + category table support breadcrumb drill-down into nested `performanceLog` paths. See `DebugPerformanceTab` and `tickPerformanceTracker.getHistory()`.
 
 ## Where logs live
 

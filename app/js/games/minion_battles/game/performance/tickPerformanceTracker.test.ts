@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+    PERFORMANCE_HISTORY_CAPACITY,
     PERFORMANCE_LOG_DESCRIPTION,
     TickPerformanceTracker,
 } from './tickPerformanceTracker';
@@ -86,10 +87,25 @@ describe('TickPerformanceTracker', () => {
         const tracker = new TickPerformanceTracker();
         tracker.setEnabled(true);
         tracker.addAbsolute(['engine'], 12);
-        tracker.finalizeLastGameTick();
+        tracker.finalizeLastGameTick(5);
         expect(tracker.getLastPerformanceLog()?.totalTimeTaken).toBe(12);
+        expect(tracker.getHistory()).toHaveLength(1);
 
         tracker.setEnabled(false);
         expect(tracker.getLastPerformanceLog()).toBeNull();
+        expect(tracker.getHistory()).toHaveLength(0);
+    });
+
+    it('keeps a ring buffer of the last PERFORMANCE_HISTORY_CAPACITY ticks', () => {
+        const tracker = new TickPerformanceTracker();
+        tracker.setEnabled(true);
+        for (let i = 1; i <= PERFORMANCE_HISTORY_CAPACITY + 3; i++) {
+            tracker.addAbsolute(['engine'], i);
+            tracker.finalizeLastGameTick(i);
+        }
+        const history = tracker.getHistory();
+        expect(history).toHaveLength(PERFORMANCE_HISTORY_CAPACITY);
+        expect(history[0]!.gameTick).toBe(4);
+        expect(history[history.length - 1]!.gameTick).toBe(PERFORMANCE_HISTORY_CAPACITY + 3);
     });
 });
