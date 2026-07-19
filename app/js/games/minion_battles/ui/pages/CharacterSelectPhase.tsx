@@ -24,6 +24,8 @@ import { CharacterSelectHeader } from './characterSelect/CharacterSelectHeader';
 import { CharacterGrid } from './characterSelect/CharacterGrid';
 import { CharacterSelectFooter } from './characterSelect/CharacterSelectFooter';
 import { CharacterOverview } from './characterSelect/CharacterOverview';
+import CharacterSelectLayout from './characterSelect/CharacterSelectLayout';
+import ColumnSlotPlayerStatuses from '../../../../components/battleUILayout/ColumnSlotPlayerStatuses';
 
 interface CharacterSelectPhaseProps {
     api: MinionBattlesApi;
@@ -46,6 +48,12 @@ interface CharacterSelectPhaseProps {
     setLocalOverride?: (path: string, value: unknown) => void;
     removeLocalOverride?: (path: string) => void;
     onPhaseChange?: (phase: string, gameState: Record<string, unknown>) => void;
+    /** Header slot content, forwarded from GameScreen via Game.tsx. */
+    headerSlot?: React.ReactNode;
+    /** Right column slot content (chat), forwarded from GameScreen via Game.tsx. */
+    chatSlot?: React.ReactNode;
+    /** Loading/resync overlay, forwarded from GameScreen via Game.tsx. */
+    centerOverlay?: React.ReactNode;
 }
 
 export default function CharacterSelectPhase({
@@ -63,6 +71,9 @@ export default function CharacterSelectPhase({
     setLocalOverride,
     removeLocalOverride,
     onPhaseChange,
+    headerSlot,
+    chatSlot,
+    centerOverlay,
 }: CharacterSelectPhaseProps) {
     const { isAdmin, role } = useCurrentUser();
     const { user } = useUserData();
@@ -91,8 +102,15 @@ export default function CharacterSelectPhase({
         effectivelyReady, setReadyLoading, allRequiredPlayersPresent, allSelected, allReady, atLeastOneCharacter,
     } = state;
 
-    return (
-        <div className="w-full h-full flex flex-col max-w-[1200px] mx-auto">
+    const readyPlayerIdsForStatuses = effectivelyReady && !characterSelectReadyPlayerIds.includes(playerId)
+        ? [...characterSelectReadyPlayerIds, playerId]
+        : characterSelectReadyPlayerIds;
+
+    /** Desktop GameScreen unified branch passes slots; mobile/classic keep bottom PlayerList instead. */
+    const useUnifiedSlotShell = headerSlot != null || chatSlot != null;
+
+    const body = (
+        <>
             <CharacterSelectHeader
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
@@ -179,6 +197,32 @@ export default function CharacterSelectPhase({
                 onOpenEditor={() => setEditorOpen(true)}
                 onCloseEditor={() => { setEditorOpen(false); setEditorForceEditable(false); }}
             />
+        </>
+    );
+
+    if (useUnifiedSlotShell) {
+        return (
+            <CharacterSelectLayout
+                headerSlot={headerSlot}
+                chatSlot={chatSlot}
+                centerOverlay={centerOverlay}
+                leftColumn={
+                    <ColumnSlotPlayerStatuses
+                        players={players}
+                        currentPlayerId={playerId}
+                        characterSelections={characterSelections}
+                        readyPlayerIds={readyPlayerIdsForStatuses}
+                    />
+                }
+            >
+                {body}
+            </CharacterSelectLayout>
+        );
+    }
+
+    return (
+        <div className="w-full h-full flex flex-col max-w-[1200px] mx-auto">
+            {body}
         </div>
     );
 }

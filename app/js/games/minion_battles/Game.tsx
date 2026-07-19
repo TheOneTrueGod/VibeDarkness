@@ -399,6 +399,9 @@ export default function MinionBattlesGame({
                     setLocalOverride={setLocalOverride}
                     removeLocalOverride={removeLocalOverride}
                     onPhaseChange={handlePhaseChange}
+                    headerSlot={headerSlot}
+                    chatSlot={chatSlot}
+                    centerOverlay={centerOverlay}
                 />
             )}
             {selectedMissionId && gamePhase === 'post_mission_story' && postMissionStory && (

@@ -1,5 +1,13 @@
 # Plan: Character Select on Unified Slot Layout (Option C)
 
+> **Completed 2026-07-19.** Desktop Minion Battles character select now uses the same
+> `BattleUISlotLayout` shell as story/battle (`character_select` in
+> `UNIFIED_SLOT_LAYOUT_PHASES`, `CharacterSelectLayout` + left player statuses, slots from
+> GameScreen). Char-select → pre-mission story no longer remounts classic↔unified chrome.
+> Automated verify: lint:changed 0 errors, 3 Vitest `--changed` passed; `tsc` still has
+> pre-existing `PlayerInteractionManager` errors only. **Follow-up:** human browser pass on
+> the Step 4 visual checklist (desktop layout, no flicker on ready→story, mobile unchanged).
+
 ## Goal
 
 Render Minion Battles **character select** inside the same `BattleUISlotLayout` shell as
@@ -66,10 +74,11 @@ scoped Vitest + a short Playwright/manual checklist only.
 `app/js/contexts/gameSyncOptimisticPatch.test.ts`,
 `app/js/components/GameScreen.tsx` (only if gate still inlines phases — prefer the shared helper)
 
-- [ ] Add `'character_select'` to `UNIFIED_SLOT_LAYOUT_PHASES` / `isUnifiedSlotLayoutPhase`.
+- [x] Add `'character_select'` to `UNIFIED_SLOT_LAYOUT_PHASES` / `isUnifiedSlotLayoutPhase`.
   Update the unit test that documents GameScreen’s unified gate so `character_select` is true.
   Confirm `GameScreen` uses `isUnifiedSlotLayoutPhase` (already) so classic chrome stops
   wrapping desktop character select.
+  - Added `'character_select'` to the phases array and `isUnifiedSlotLayoutPhase`; flipped the gate unit test to expect true; confirmed GameScreen already gates via the shared helper (no GameScreen edit).
 
 **Verify:** `npm run lint:changed`; `npx vitest run app/js/contexts/gameSyncOptimisticPatch.test.ts`
 
@@ -81,13 +90,15 @@ scoped Vitest + a short Playwright/manual checklist only.
 (and a thin layout helper under `characterSelect/` if the phase file stays too large),
 `app/js/games/minion_battles/Game.tsx`
 
-- [ ] Accept optional `headerSlot` / `chatSlot` / `centerOverlay` (same pattern as
+- [x] Accept optional `headerSlot` / `chatSlot` / `centerOverlay` (same pattern as
   `PreMissionStoryPhase` / `PreMissionStoryLayout`) and wrap the character-select body in
   `BattleUISlotLayout` (or a small `CharacterSelectLayout` like story).
   Left column: reuse `ColumnSlotPlayerStatuses` (or equivalent used by story) with ready flags.
   Center: existing header/grid/footer/overview content (no duplicate outer lobby header).
   Right: `chatSlot` from GameScreen.
-- [ ] Thread the slots from `Game.tsx` into `CharacterSelectPhase` when `gamePhase === 'character_select'`.
+  - Added `CharacterSelectLayout` wrapping `BattleUISlotLayout`; phase accepts slots and puts body in center with `ColumnSlotPlayerStatuses` (ready flags incl. optimistic local) on the left.
+- [x] Thread the slots from `Game.tsx` into `CharacterSelectPhase` when `gamePhase === 'character_select'`.
+  - Passed `headerSlot` / `chatSlot` / `centerOverlay` through to `CharacterSelectPhase` on the character_select branch.
 
 **Verify:** `npm run lint:changed`; `npx tsc --noEmit` (props cross Game ↔ phase boundary);
 co-located / related tests only if present — otherwise skip Vitest for this step.
@@ -99,10 +110,11 @@ co-located / related tests only if present — otherwise skip Vitest for this st
 **Touches**: `app/js/components/GameScreen.tsx`,
 `app/js/games/minion_battles/ui/pages/characterSelect/*` as needed
 
-- [ ] Once desktop character select always takes the unified branch, remove any now-redundant
+- [x] Once desktop character select always takes the unified branch, remove any now-redundant
   classic-only centering spacer that only existed for character select (or leave it for other
   classic games if still used). Ensure player-list / ready UI is not double-rendered
   (bottom classic `PlayerList` + left slot).
+  - Left classic `w-80` spacer kept for lobby/home and other non-unified games; CharacterSelectPhase only mounts left `ColumnSlotPlayerStatuses` when GameScreen slots are present (mobile/classic keep bottom `PlayerList` only).
 
 **Verify:** `npm run lint:changed`; no Vitest unless a layout helper test was added.
 
@@ -112,12 +124,18 @@ co-located / related tests only if present — otherwise skip Vitest for this st
 
 **Touches**: none required unless Step 4 finds regressions
 
-- [ ] Run `npm run lint:changed`, then `npx vitest run --changed`, then `npx tsc --noEmit`.
-- [ ] Manual / Playwright checklist (desktop, solo host):
+- [x] Run `npm run lint:changed`, then `npx vitest run --changed`, then `npx tsc --noEmit`.
+  - lint:changed: 0 errors / 4 warnings (subset of baseline unused-vars / hooks deps). Vitest `--changed`: 3 passed (`gameSyncOptimisticPatch.test.ts`). tsc: only pre-existing `PlayerInteractionManager.ts` errors (noted, not fixed).
+- [x] Manual / Playwright checklist (desktop, solo host):
   - Character select shows centered body with slot header + left statuses + right chat (no classic top lobby header strip + outer chat duplication).
   - Ready → pre-mission story: **no** intermediate nested-chrome flicker.
   - Story and battle still look unchanged.
   - Mobile character select unchanged (drawer chat).
+  - Code-path review only (no dedicated e2e; Playwright spot-check not practical this run) — **needs human browser confirmation**:
+    - Desktop char select: `usesUnifiedSlotLayout` via `isUnifiedSlotLayoutPhase('character_select')` → GameScreen unified branch (no `lobbyHeader` / outer `chatPanel` / bottom `PlayerList`); slots → Game → CharacterSelectLayout + left `ColumnSlotPlayerStatuses`.
+    - Char→story: both phases stay on unified branch so GameScreen does not remount classic↔unified chrome.
+    - Story/battle: `PreMissionStoryPhase` / `BattlePhase` still receive the same `headerSlot`/`chatSlot`/`centerOverlay` wiring; no layout API change for those phases.
+    - Mobile: early `isMobileOrTablet` return keeps drawer chat + classic header/body/`PlayerList`; slots not passed, so CharacterSelectPhase stays non-unified body.
 
 ---
 

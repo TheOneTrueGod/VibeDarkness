@@ -381,7 +381,7 @@ export default function GameScreen({
         (battlePlayerListHidden ||
             (effectiveLobbyGameData?.gamePhase ?? effectiveLobbyGameData?.game_phase) === 'battle');
 
-    /** Desktop Minion Battles battle + pre/post-mission story: rendered via the shared BattleUISlotLayout shell
+    /** Desktop Minion Battles character select / battle / pre/post-mission story: shared BattleUISlotLayout shell
      *  (header/chat built here and handed down as props; the rest of the screen is owned by the game component). */
     const usesUnifiedSlotLayout =
         !isMobileOrTablet &&
@@ -715,7 +715,8 @@ export default function GameScreen({
 
     return (
         <div className="flex h-screen max-md:flex-col">
-            {/* Mirrors Chat desktop width (`w-80`) so the main column stays visually centered. */}
+            {/* Classic lobby / non-unified games: mirror Chat `w-80` so the main column stays centered.
+                Desktop Minion Battles character_select uses the unified branch above (no spacer / no bottom PlayerList). */}
             <div className="w-80 shrink-0" aria-hidden="true" />
             <div className="flex min-w-0 flex-1 flex-col p-4">
                 {lobbyHeader}

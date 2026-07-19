@@ -2,6 +2,7 @@ import type { GameStatePayload } from '../types';
 
 /** Phases where GameScreen uses BattleUISlotLayout instead of classic lobby chrome. */
 export const UNIFIED_SLOT_LAYOUT_PHASES = [
+    'character_select',
     'battle',
     'pre_mission_story',
     'post_mission_story',
@@ -13,7 +14,8 @@ export function isUnifiedSlotLayoutPhase(
     phase: string | null | undefined,
 ): phase is UnifiedSlotLayoutPhase {
     return (
-        phase === 'battle'
+        phase === 'character_select'
+        || phase === 'battle'
         || phase === 'pre_mission_story'
         || phase === 'post_mission_story'
     );

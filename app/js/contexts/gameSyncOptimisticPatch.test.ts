@@ -23,7 +23,7 @@ function basePayload(gamePhase: string): GameStatePayload {
 
 describe('gameSyncOptimisticPatch', () => {
     it('isUnifiedSlotLayoutPhase matches GameScreen unified gate', () => {
-        expect(isUnifiedSlotLayoutPhase('character_select')).toBe(false);
+        expect(isUnifiedSlotLayoutPhase('character_select')).toBe(true);
         expect(isUnifiedSlotLayoutPhase('pre_mission_story')).toBe(true);
         expect(isUnifiedSlotLayoutPhase('post_mission_story')).toBe(true);
         expect(isUnifiedSlotLayoutPhase('battle')).toBe(true);
