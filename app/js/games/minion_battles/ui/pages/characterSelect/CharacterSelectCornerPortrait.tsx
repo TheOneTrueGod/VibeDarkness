@@ -7,7 +7,7 @@ interface CharacterSelectCornerPortraitProps {
     onChangeCharacter: () => void;
 }
 
-/** Bottom-left slot: Change Character above portrait + name (fits BattleUISlotLayout bottom band). */
+/** Bottom-left slot: Change Character above a square portrait + name. */
 export function CharacterSelectCornerPortrait({
     character,
     onChangeCharacter,
@@ -24,15 +24,28 @@ export function CharacterSelectCornerPortrait({
             >
                 Change character
             </button>
-            <div className="min-h-0 flex-1 w-full max-w-[200px] rounded-lg overflow-hidden bg-background border-2 border-green-500 shadow-[0_0_16px_rgba(34,197,94,0.35)] flex flex-col">
-                <div className="flex-1 min-h-0 overflow-hidden flex items-center justify-center relative">
-                    {portrait?.picture
-                        ? <img src={portrait.picture} alt={displayName} className="w-full h-full object-cover" />
-                        : <span className="text-gray-500 text-sm">No portrait</span>
-                    }
-                </div>
-                <div className="shrink-0 px-2 py-1 bg-surface-light text-center">
-                    <span className="text-xs font-semibold text-white truncate block">{displayName}</span>
+            <div
+                className="min-h-0 flex-1 w-full"
+                style={{ containerType: 'size' }}
+            >
+                <div className="flex h-full w-full items-center justify-center">
+                    <div
+                        className="flex flex-col overflow-hidden rounded-lg bg-background border-2 border-green-500 shadow-[0_0_16px_rgba(34,197,94,0.35)]"
+                        style={{
+                            width: 'min(100cqw, 100cqh)',
+                            height: 'min(100cqw, 100cqh)',
+                        }}
+                    >
+                        <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden">
+                            {portrait?.picture
+                                ? <img src={portrait.picture} alt={displayName} className="h-full w-full object-cover" />
+                                : <span className="text-gray-500 text-sm">No portrait</span>
+                            }
+                        </div>
+                        <div className="shrink-0 bg-surface-light px-2 py-1 text-center">
+                            <span className="block truncate text-xs font-semibold text-white">{displayName}</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
