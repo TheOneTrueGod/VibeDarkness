@@ -56,8 +56,8 @@ export function CharacterGrid({
     onOpenCreator,
     setCreateCardRef,
 }: CharacterGridProps) {
-    // Show the local player's current selection as an ordinary, unselected card so it
-    // can always be picked again — even when it's their only character.
+    // Exclude local selection from other-player chips so the card stays pickable again,
+    // but still highlight it with isMySelection green outline.
     const otherPlayerSelections = useMemo(() => {
         const { [playerId]: _mine, ...rest } = characterSelections;
         return rest;
@@ -84,6 +84,7 @@ export function CharacterGrid({
                                 missionId={missionId}
                                 missionTraitFilter={missionTraitFilter}
                                 isLocked
+                                isMySelection={mySelection === lockedChar.id}
                                 playerSelections={otherPlayerSelections}
                                 players={players}
                                 onSelect={onSelect}
@@ -99,6 +100,7 @@ export function CharacterGrid({
                             campaignId={campaignId}
                             missionId={missionId}
                             missionTraitFilter={missionTraitFilter}
+                            isMySelection={mySelection === char.id}
                             playerSelections={otherPlayerSelections}
                             players={players}
                             onSelect={onSelect}

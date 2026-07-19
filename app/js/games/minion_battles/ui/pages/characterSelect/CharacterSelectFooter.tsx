@@ -5,7 +5,10 @@ import { TestIds } from '../../../../../testing/testIds';
 
 interface CharacterSelectFooterProps {
     activeTab: 'characters' | 'players' | 'replay';
+    /** 'overview' = loadout; 'grid' = pick / change character (Ready hidden). */
+    view: 'overview' | 'grid';
     editorOpen: boolean;
+    isAdmin: boolean;
     mySelection: string | null;
     effectivelyReady: boolean;
     setReadyLoading: boolean;
@@ -22,7 +25,9 @@ interface CharacterSelectFooterProps {
 
 export function CharacterSelectFooter({
     activeTab,
+    view,
     editorOpen,
+    isAdmin,
     mySelection,
     effectivelyReady,
     setReadyLoading,
@@ -38,7 +43,8 @@ export function CharacterSelectFooter({
 }: CharacterSelectFooterProps) {
     if (activeTab === 'players') return null;
 
-    const readyBtn = mySelection && (
+    const showReady = view !== 'grid';
+    const readyBtn = showReady && mySelection && (
         <button
             type="button"
             data-testid={TestIds.characterSelectReady}
@@ -55,7 +61,7 @@ export function CharacterSelectFooter({
     );
 
     return (
-        <div className="flex justify-center gap-4 py-4 px-5 shrink-0 border-t border-border-custom">
+        <div className="flex justify-center gap-4 py-4 px-5 shrink-0">
             {editorOpen ? (
                 <>
                     <button
@@ -69,7 +75,7 @@ export function CharacterSelectFooter({
                 </>
             ) : (
                 <>
-                    {mySelection && mySelection !== SPECTATOR_ID && !isControlEnemy(mySelection) && characterToEdit && (
+                    {isAdmin && mySelection && mySelection !== SPECTATOR_ID && !isControlEnemy(mySelection) && characterToEdit && (
                         <button
                             type="button"
                             className="px-6 py-3 text-sm font-medium rounded-lg border border-border-custom bg-surface-light text-white hover:bg-border-custom transition-colors cursor-pointer"

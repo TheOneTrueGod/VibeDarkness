@@ -25,6 +25,8 @@ import { CharacterGrid } from './characterSelect/CharacterGrid';
 import { CharacterSelectFooter } from './characterSelect/CharacterSelectFooter';
 import { CharacterOverview } from './characterSelect/CharacterOverview';
 import CharacterSelectLayout from './characterSelect/CharacterSelectLayout';
+import { CharacterSelectCornerPortrait } from './characterSelect/CharacterSelectCornerPortrait';
+import { CharacterSelectBottomAbilityList } from './characterSelect/CharacterSelectBottomAbilityList';
 import ColumnSlotPlayerStatuses from '../../../../components/battleUILayout/ColumnSlotPlayerStatuses';
 
 interface CharacterSelectPhaseProps {
@@ -109,6 +111,16 @@ export default function CharacterSelectPhase({
     /** Desktop GameScreen unified branch passes slots; mobile/classic keep bottom PlayerList instead. */
     const useUnifiedSlotShell = headerSlot != null || chatSlot != null;
 
+    const isLoadoutOverview =
+        view === 'overview'
+        && !!characterToEdit
+        && !!mySelection
+        && mySelection !== SPECTATOR_ID
+        && !isControlEnemy(mySelection)
+        && !(editorOpen && characterToEdit)
+        && !(activeTab === 'players' && isAdmin)
+        && !(activeTab === 'replay' && isAdmin);
+
     const body = (
         <>
             <CharacterSelectHeader
@@ -117,6 +129,7 @@ export default function CharacterSelectPhase({
                 isAdmin={isAdmin}
                 editorOpen={editorOpen}
                 characterToEdit={characterToEdit}
+                view={view}
             />
 
             {activeTab === 'players' && isAdmin ? (
@@ -144,8 +157,12 @@ export default function CharacterSelectPhase({
                         hideMissionMap
                     />
                 </div>
-            ) : view === 'overview' && characterToEdit && mySelection && mySelection !== SPECTATOR_ID && !isControlEnemy(mySelection) ? (
-                <CharacterOverview character={characterToEdit} onChangeCharacter={() => setView('grid')} />
+            ) : isLoadoutOverview && characterToEdit ? (
+                <CharacterOverview
+                    character={characterToEdit}
+                    onChangeCharacter={() => setView('grid')}
+                    useLayoutSlots={useUnifiedSlotShell}
+                />
             ) : (
                 <CharacterGrid
                     charactersLoading={charactersLoading}
@@ -183,7 +200,9 @@ export default function CharacterSelectPhase({
 
             <CharacterSelectFooter
                 activeTab={activeTab}
+                view={view}
                 editorOpen={editorOpen}
+                isAdmin={isAdmin}
                 mySelection={mySelection}
                 effectivelyReady={effectivelyReady}
                 setReadyLoading={setReadyLoading}
@@ -213,6 +232,19 @@ export default function CharacterSelectPhase({
                         characterSelections={characterSelections}
                         readyPlayerIds={readyPlayerIdsForStatuses}
                     />
+                }
+                bottomLeftCorner={
+                    isLoadoutOverview && characterToEdit ? (
+                        <CharacterSelectCornerPortrait
+                            character={characterToEdit}
+                            onChangeCharacter={() => setView('grid')}
+                        />
+                    ) : undefined
+                }
+                bottomRow={
+                    isLoadoutOverview && characterToEdit ? (
+                        <CharacterSelectBottomAbilityList character={characterToEdit} />
+                    ) : undefined
                 }
             >
                 {body}

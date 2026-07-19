@@ -10,6 +10,8 @@ export interface CampaignCharacterCardProps {
     missionTraitFilter: { allowedTraits?: string[]; disallowedTraits?: string[] } | undefined;
     /** When true, this character is required for this session and cannot be changed or deleted. */
     isLocked?: boolean;
+    /** Local player's current selection — green outline like the loadout corner portrait. */
+    isMySelection?: boolean;
     playerSelections: Record<string, string>;
     players: Record<string, PlayerState>;
     onSelect: (characterId: string, portraitId: string, characterDisplayName?: string) => void;
@@ -22,6 +24,7 @@ export function CampaignCharacterCard({
     missionId,
     missionTraitFilter,
     isLocked = false,
+    isMySelection = false,
     playerSelections,
     players,
     onSelect,
@@ -39,14 +42,18 @@ export function CampaignCharacterCard({
             .filter(Boolean);
     }, [playerSelections, character.id, players]);
 
+    const selectionOutline = isMySelection
+        ? 'border-green-500 shadow-[0_0_16px_rgba(34,197,94,0.35)]'
+        : 'border-border-custom';
+
     return (
         <div
             className={`
                 w-[200px] h-[200px] rounded-lg overflow-hidden relative flex flex-col
                 transition-all
-                border-2 border-border-custom
+                border-2 ${selectionOutline}
                 ${canUse
-                    ? 'cursor-pointer hover:-translate-y-1 hover:shadow-[0_8px_16px_rgba(0,0,0,0.4)] hover:border-primary'
+                    ? `cursor-pointer hover:-translate-y-1 hover:shadow-[0_8px_16px_rgba(0,0,0,0.4)] ${isMySelection ? '' : 'hover:border-primary'}`
                     : 'opacity-70 cursor-not-allowed'
                 }
                 bg-surface

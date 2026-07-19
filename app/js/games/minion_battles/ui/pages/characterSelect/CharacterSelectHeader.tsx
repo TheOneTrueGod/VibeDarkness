@@ -7,6 +7,8 @@ interface CharacterSelectHeaderProps {
     isAdmin: boolean;
     editorOpen: boolean;
     characterToEdit: CampaignCharacter | null;
+    /** 'overview' = loadout main view; 'grid' = pick / change character. */
+    view: 'overview' | 'grid';
 }
 
 export function CharacterSelectHeader({
@@ -15,6 +17,7 @@ export function CharacterSelectHeader({
     isAdmin,
     editorOpen,
     characterToEdit,
+    view,
 }: CharacterSelectHeaderProps) {
     const tabBtn = (tab: 'characters' | 'players' | 'replay', label: string) => (
         <button
@@ -30,20 +33,27 @@ export function CharacterSelectHeader({
         </button>
     );
 
+    const showTabs = isAdmin && !(editorOpen && characterToEdit);
+
     const title =
         activeTab === 'players' && isAdmin
             ? 'Players'
             : editorOpen && characterToEdit
               ? 'Edit character'
-              : 'Select your character';
+              : view === 'overview'
+                ? 'Select your Loadout'
+                : 'Select your character';
 
     return (
         <div className="flex items-center px-5 py-5 shrink-0">
             <div className="flex-1 flex gap-2">
-                {(!(editorOpen && characterToEdit) || isAdmin) && !(editorOpen && characterToEdit) &&
-                    tabBtn('characters', 'Characters')}
-                {isAdmin && tabBtn('players', 'Players')}
-                {isAdmin && tabBtn('replay', 'Replay')}
+                {showTabs && (
+                    <>
+                        {tabBtn('characters', 'Characters')}
+                        {tabBtn('players', 'Players')}
+                        {tabBtn('replay', 'Replay')}
+                    </>
+                )}
             </div>
             <h2 className="text-[32px] font-bold shrink-0">{title}</h2>
             <div className="flex-1" />
