@@ -104,7 +104,10 @@ export default function DebugPerformanceTab({ isActive, inBattle }: DebugPerform
         getPerformanceHistorySnapshot,
     );
 
-    const history = useMemo(() => tickPerformanceTracker.getHistory(), [historyEpoch]);
+    const history = useMemo(() => {
+        void historyEpoch;
+        return tickPerformanceTracker.getHistory();
+    }, [historyEpoch]);
 
     const displayRecord = useMemo(() => {
         if (history.length === 0) return null;

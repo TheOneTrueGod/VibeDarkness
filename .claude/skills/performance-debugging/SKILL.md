@@ -30,8 +30,11 @@ Attached on serialized game state for the **last completed game tick** (ms). Nes
 Typical top-level shape (children evolve as instrumentation grows — read the tracker path constants and call sites):
 
 - `engine` — `fixedUpdate` / sim work (`orders`, `units`, `projectiles`, `effects`, `lighting`, …) plus `renderTick` visual effect updates on the engine rAF
+  - `engine.units` further splits into `passives`, `abilities`, `resources`, `occupancy`, `movement`, `ai`, `ninjutsu`, `targets` (see `UnitManager.gameTick`)
 - `ui.react` — BattleSession listener emit handling
-- `ui.canvas` — Pixi `GameRenderer.render` (terrain, overlay, units, effects, previews, `pixiPresent`)
+- `ui.canvas` — CPU sync of battle sprites/layers, then `pixiPresent` (Pixi stage → screen)
+  - Layer sync: `terrain`, `overlay`, `floorTiles`, `terrainEffects`, `units`, `specialTiles`, `lightSources`, `projectiles`, `effects`, `previews`, `mapNetwork`
+  - `pixiPresent` → Pixi `app.render()` / `renderer.render({ container: stage })` runner phases: `prerender`, `renderStart`, `webgl` (main draw), `renderEnd`, `postrender`. Exclusive ms on `pixiPresent` is mostly transform/options setup before those runners.
 
 Canvas frames between ticks accumulate into the next finalized tick. Fingerprints ignore this field; `fromJSON` does not restore it.
 

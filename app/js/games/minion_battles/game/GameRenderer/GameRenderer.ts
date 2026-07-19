@@ -33,13 +33,19 @@ import {
 	PERF_UI,
 	PERF_UI_CANVAS,
 	PERF_UI_CANVAS_EFFECTS,
+	PERF_UI_CANVAS_FLOOR_TILES,
+	PERF_UI_CANVAS_LIGHT_SOURCES,
+	PERF_UI_CANVAS_MAP_NETWORK,
 	PERF_UI_CANVAS_OVERLAY,
-	PERF_UI_CANVAS_PIXI_PRESENT,
 	PERF_UI_CANVAS_PREVIEWS,
+	PERF_UI_CANVAS_PROJECTILES,
+	PERF_UI_CANVAS_SPECIAL_TILES,
 	PERF_UI_CANVAS_TERRAIN,
+	PERF_UI_CANVAS_TERRAIN_EFFECTS,
 	PERF_UI_CANVAS_UNITS,
 	tickPerformanceTracker,
 } from '../performance/tickPerformanceTracker';
+import { presentPixiApplicationWithTiming } from './pixiPresentWithTiming';
 
 export class GameRenderer {
 	app: Application;
@@ -279,17 +285,21 @@ export class GameRenderer {
 				}
 			});
 
-			const floorTilesVisible = isRenderLayerVisible('floorTiles');
-			this.floorTileRenderer.setLayerVisible(floorTilesVisible);
-			if (floorTilesVisible) {
-				this.floorTileRenderer.render(engine);
-			}
+			tickPerformanceTracker.measure([PERF_UI_CANVAS_FLOOR_TILES], () => {
+				const floorTilesVisible = isRenderLayerVisible('floorTiles');
+				this.floorTileRenderer.setLayerVisible(floorTilesVisible);
+				if (floorTilesVisible) {
+					this.floorTileRenderer.render(engine);
+				}
+			});
 
-			const terrainEffectsVisible = isRenderLayerVisible('terrainEffects');
-			this.terrainEffectRenderer.setLayerVisible(terrainEffectsVisible);
-			if (terrainEffectsVisible) {
-				this.terrainEffectRenderer.render(engine);
-			}
+			tickPerformanceTracker.measure([PERF_UI_CANVAS_TERRAIN_EFFECTS], () => {
+				const terrainEffectsVisible = isRenderLayerVisible('terrainEffects');
+				this.terrainEffectRenderer.setLayerVisible(terrainEffectsVisible);
+				if (terrainEffectsVisible) {
+					this.terrainEffectRenderer.render(engine);
+				}
+			});
 
 			tickPerformanceTracker.measure([PERF_UI_CANVAS_UNITS], () => {
 				const unitsVisible = isRenderLayerVisible('units');
@@ -299,23 +309,29 @@ export class GameRenderer {
 				}
 			});
 
-			const specialTilesVisible = isRenderLayerVisible('specialTiles');
-			this.specialTileRenderer.setLayerVisible(specialTilesVisible);
-			if (specialTilesVisible) {
-				this.specialTileRenderer.render(engine.specialTiles);
-			}
+			tickPerformanceTracker.measure([PERF_UI_CANVAS_SPECIAL_TILES], () => {
+				const specialTilesVisible = isRenderLayerVisible('specialTiles');
+				this.specialTileRenderer.setLayerVisible(specialTilesVisible);
+				if (specialTilesVisible) {
+					this.specialTileRenderer.render(engine.specialTiles);
+				}
+			});
 
-			const lightSourcesVisible = isRenderLayerVisible('lightSources');
-			this.lightSourceRenderer.setLayerVisible(lightSourcesVisible);
-			if (lightSourcesVisible) {
-				this.lightSourceRenderer.render(engine);
-			}
+			tickPerformanceTracker.measure([PERF_UI_CANVAS_LIGHT_SOURCES], () => {
+				const lightSourcesVisible = isRenderLayerVisible('lightSources');
+				this.lightSourceRenderer.setLayerVisible(lightSourcesVisible);
+				if (lightSourcesVisible) {
+					this.lightSourceRenderer.render(engine);
+				}
+			});
 
-			const projectilesVisible = isRenderLayerVisible('projectiles');
-			this.projectileRenderer.setLayerVisible(projectilesVisible);
-			if (projectilesVisible) {
-				this.projectileRenderer.render(engine.projectiles, engine.gameTime);
-			}
+			tickPerformanceTracker.measure([PERF_UI_CANVAS_PROJECTILES], () => {
+				const projectilesVisible = isRenderLayerVisible('projectiles');
+				this.projectileRenderer.setLayerVisible(projectilesVisible);
+				if (projectilesVisible) {
+					this.projectileRenderer.render(engine.projectiles, engine.gameTime);
+				}
+			});
 
 			tickPerformanceTracker.measure([PERF_UI_CANVAS_EFFECTS], () => {
 				const effectsVisible = isRenderLayerVisible('effects');
@@ -333,14 +349,16 @@ export class GameRenderer {
 				}
 			});
 
-			const mapNetworkVisible = isRenderLayerVisible('mapNetwork');
-			this.mapNetworkRenderer.setLayerVisible(mapNetworkVisible);
-			if (mapNetworkVisible) {
-				this.mapNetworkRenderer.render(engine);
-			}
-			tickPerformanceTracker.measure([PERF_UI_CANVAS_PIXI_PRESENT], () => {
-				this.app.render();
+			tickPerformanceTracker.measure([PERF_UI_CANVAS_MAP_NETWORK], () => {
+				const mapNetworkVisible = isRenderLayerVisible('mapNetwork');
+				this.mapNetworkRenderer.setLayerVisible(mapNetworkVisible);
+				if (mapNetworkVisible) {
+					this.mapNetworkRenderer.render(engine);
+				}
 			});
+
+			// Pixi stage → GPU/canvas flush (not the CPU layer sync above).
+			presentPixiApplicationWithTiming(this.app);
 		});
 	}
 

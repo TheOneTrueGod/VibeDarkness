@@ -19,6 +19,17 @@ import { getUnitMaxPerTile, getUnitShovePriority } from '../units/unit_defs/unit
 import type { CellOccupancyManager } from './CellOccupancyManager';
 import { refreshActiveTargets } from '../../abilities/targetDowngrade';
 import { MIN_FOLLOW_RADIUS } from '../gameConstants';
+import {
+    PERF_UNITS_ABILITIES,
+    PERF_UNITS_AI,
+    PERF_UNITS_MOVEMENT,
+    PERF_UNITS_NINJUTSU,
+    PERF_UNITS_OCCUPANCY,
+    PERF_UNITS_PASSIVES,
+    PERF_UNITS_RESOURCES,
+    PERF_UNITS_TARGETS,
+    tickPerformanceTracker,
+} from '../performance/tickPerformanceTracker';
 
 function refreshPlayerPursuitPath(unit: Unit, aiContext: AIContext): void {
     const targetId = unit.movement?.targetUnitId;
@@ -216,74 +227,90 @@ export class UnitManager {
         aiContext: AIContext,
     ): void {
         // Phase 1a: passive ability tick (all alive units, no cast required)
-        for (const unit of this.units) {
-            if (!unit.active) continue;
-            processUnitPassives(unit, dt, engine);
-        }
+        tickPerformanceTracker.measure([PERF_UNITS_PASSIVES], () => {
+            for (const unit of this.units) {
+                if (!unit.active) continue;
+                processUnitPassives(unit, dt, engine);
+            }
+        });
         // Phase 1b: active ability tick
-        for (const unit of this.units) {
-            if (!unit.active || unit.activeAbilities.length === 0) continue;
-            unit.tickActiveAbilities(dt, engine, () => onNaturalAbilityCompletion(unit.id));
-        }
+        tickPerformanceTracker.measure([PERF_UNITS_ABILITIES], () => {
+            for (const unit of this.units) {
+                if (!unit.active || unit.activeAbilities.length === 0) continue;
+                unit.tickActiveAbilities(dt, engine, () => onNaturalAbilityCompletion(unit.id));
+            }
+        });
         // Phase 1c: per-tick resource hooks (e.g. gravity grazing)
-        for (const unit of this.units) {
-            if (!unit.active || !unit.isAlive()) continue;
-            for (const resource of unit.resources) {
-                resource.onTick?.(unit, engine, dt);
-            }
-        }
-        // Phase 2: movement + ephemeral expiry
-        const occupancyMgr = engine.cellOccupancyManager as CellOccupancyManager | null;
-        occupancyMgr?.rebuild(this.units);
-        if (occupancyMgr) this.applyOccupancyDisplacement(occupancyMgr, engine);
-
-        for (const unit of this.units) {
-            if (!unit.active) continue;
-            if (unit.isSpawning()) {
-                tickSpawnAnimation(unit, dt, engine);
-                continue;
-            }
-            if (unit.growAnimTimer > 0) {
-                unit.growAnimTimer = Math.max(0, unit.growAnimTimer - dt);
-            }
-            if (unit.pathfindingRetriggerOffset > 0 && engine.gameTick % unit.pathfindingRetriggerOffset === 0) {
-                if (unit.isPlayerControlled() && unit.movement?.targetUnitId) {
-                    refreshPlayerPursuitPath(unit, aiContext);
+        tickPerformanceTracker.measure([PERF_UNITS_RESOURCES], () => {
+            for (const unit of this.units) {
+                if (!unit.active || !unit.isAlive()) continue;
+                for (const resource of unit.resources) {
+                    resource.onTick?.(unit, engine, dt);
                 }
-                const tree = getUnitAITree(unit.unitAITreeId);
-                if (tree) runPathfindingRetrigger(unit, tree, aiContext);
             }
-            unit.tickMovement(dt, engine);
-            // Incremental map-network membership update — the unit "notifies" the manager of a
-            // node change right after its position is finalized for this tick, instead of the
-            // manager rescanning every participating unit every tick. See MapNetworkManager.updateUnitNode.
-            engine.mapNetworkManager.updateUnitNode(unit);
-        }
+        });
+        // Phase 2a: occupancy rebuild + shove displacement
+        tickPerformanceTracker.measure([PERF_UNITS_OCCUPANCY], () => {
+            const occupancyMgr = engine.cellOccupancyManager as CellOccupancyManager | null;
+            occupancyMgr?.rebuild(this.units);
+            if (occupancyMgr) this.applyOccupancyDisplacement(occupancyMgr, engine);
+        });
+        // Phase 2b: movement + ephemeral expiry + pathfinding retrigger
+        tickPerformanceTracker.measure([PERF_UNITS_MOVEMENT], () => {
+            for (const unit of this.units) {
+                if (!unit.active) continue;
+                if (unit.isSpawning()) {
+                    tickSpawnAnimation(unit, dt, engine);
+                    continue;
+                }
+                if (unit.growAnimTimer > 0) {
+                    unit.growAnimTimer = Math.max(0, unit.growAnimTimer - dt);
+                }
+                if (unit.pathfindingRetriggerOffset > 0 && engine.gameTick % unit.pathfindingRetriggerOffset === 0) {
+                    if (unit.isPlayerControlled() && unit.movement?.targetUnitId) {
+                        refreshPlayerPursuitPath(unit, aiContext);
+                    }
+                    const tree = getUnitAITree(unit.unitAITreeId);
+                    if (tree) runPathfindingRetrigger(unit, tree, aiContext);
+                }
+                unit.tickMovement(dt, engine);
+                // Incremental map-network membership update — the unit "notifies" the manager of a
+                // node change right after its position is finalized for this tick, instead of the
+                // manager rescanning every participating unit every tick. See MapNetworkManager.updateUnitNode.
+                engine.mapNetworkManager.updateUnitNode(unit);
+            }
+        });
         // Phase 3: AI decisions (all positions settled)
-        for (const unit of this.units) {
-            if (!unit.active || unit.isPlayerControlled() || !unit.canAct() || !unit.isAlive() || unit.isSpawning()) continue;
-            const tree = getUnitAITree(unit.unitAITreeId);
-            if (tree) runUnitAI(unit, tree, aiContext);
-            unit.pendingInterrupts.clear();
-        }
+        tickPerformanceTracker.measure([PERF_UNITS_AI], () => {
+            for (const unit of this.units) {
+                if (!unit.active || unit.isPlayerControlled() || !unit.canAct() || !unit.isAlive() || unit.isSpawning()) continue;
+                const tree = getUnitAITree(unit.unitAITreeId);
+                if (tree) runUnitAI(unit, tree, aiContext);
+                unit.pendingInterrupts.clear();
+            }
+        });
         // Phase 3b: resolve deferred ninjutsu attack grants — units that registered requests in Phase 3
         // have their orders queued here, ordered by ability priority with ties broken randomly.
-        if (aiContext.ninjutsuManager) {
-            aiContext.ninjutsuManager.resolveRequests(
-                engine.gameTime,
-                (tick, order) => aiContext.queueOrder(tick, order),
-                (min, max) => engine.generateRandomInteger(min, max),
-                countNinjutsuEnemyUnits(this.units),
-            );
-        }
+        tickPerformanceTracker.measure([PERF_UNITS_NINJUTSU], () => {
+            if (aiContext.ninjutsuManager) {
+                aiContext.ninjutsuManager.resolveRequests(
+                    engine.gameTime,
+                    (tick, order) => aiContext.queueOrder(tick, order),
+                    (min, max) => engine.generateRandomInteger(min, max),
+                    countNinjutsuEnemyUnits(this.units),
+                );
+            }
+        });
         // Phase 4: downgrade dead unit targets to pixel targets at last known position.
         // Runs after all ticks (so kills from any source are captured) but before
         // cleanupInactive removes dead units from engine.units.
-        for (const unit of this.units) {
-            for (const active of unit.activeAbilities) {
-                refreshActiveTargets(active, engine);
+        tickPerformanceTracker.measure([PERF_UNITS_TARGETS], () => {
+            for (const unit of this.units) {
+                for (const active of unit.activeAbilities) {
+                    refreshActiveTargets(active, engine);
+                }
             }
-        }
+        });
     }
 
     tickDarknessCorruption(dt: number, engine: EngineContext): void {

@@ -366,44 +366,6 @@ export class ThornMarchMission extends BaseMissionDef {
                 },
             ],
         },
-        // +1 wolf every other round (so 2 or 3 wolves per round)
-        {
-            type: 'continuousSpawn',
-            trigger: { intervalRounds: 2, startRound: 0.5 },
-            spawns: [
-                {
-                    characterId: 'dark_wolf',
-                    name: 'Wolf',
-                    spawnBehaviour: 'network_nearest_owned_leaf',
-                    networkNearestOwnedLeafConfig: {
-                        ownerCharacterIds: [SWARM_NEST_CHARACTER_ID, 'swarmling'],
-                        radius: 3,
-                        inDarkness: true,
-                    },
-                    spawnCount: 1,
-                    unitAITreeId: 'networkHunt',
-                },
-            ],
-        },
-        // 2 swarmlings every round
-        {
-            type: 'continuousSpawn',
-            trigger: { intervalRounds: 1 },
-            spawns: [
-                {
-                    characterId: 'swarmling',
-                    name: 'Swarmling',
-                    spawnBehaviour: 'network_nearest_owned_leaf',
-                    networkNearestOwnedLeafConfig: {
-                        ownerCharacterIds: [SWARM_NEST_CHARACTER_ID, 'swarmling'],
-                        radius: 3,
-                        inDarkness: true,
-                    },
-                    spawnCount: 2,
-                    unitAITreeId: 'networkHunt',
-                },
-            ],
-        },
         // 1 slime every 2 rounds
         {
             type: 'continuousSpawn',
@@ -426,7 +388,7 @@ export class ThornMarchMission extends BaseMissionDef {
         // 1 thornbinder every 2 rounds — zone controller that slows player movement with bramble
         {
             type: 'continuousSpawn',
-            trigger: { intervalRounds: 2, startRound: 0.5 },
+            trigger: { intervalRounds: 3, startRound: 0.5 },
             spawns: [
                 {
                     characterId: 'thornbinder',
