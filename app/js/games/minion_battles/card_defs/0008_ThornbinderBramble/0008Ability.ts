@@ -27,7 +27,7 @@ const MAX_USES = 2;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 2 },
 ];
-const LOCK_TIME = 0.85;
+const LOCK_TIME = 1.3;
 const STRIKE_TIME = 1.85;
 // A tiny amount over half a round, so back-to-back banked uses land just past the round midpoint.
 const COOLDOWN_END = ROUND_DURATION / 2 + 0.1;

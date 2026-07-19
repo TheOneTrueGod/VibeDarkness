@@ -350,7 +350,7 @@ export class ThornMarchMission extends BaseMissionDef {
         // 2 wolves every round
         {
             type: 'continuousSpawn',
-            trigger: { intervalRounds: 1 },
+            trigger: { intervalRounds: 1, startRound: 1.5 },
             spawns: [
                 {
                     characterId: 'dark_wolf',
@@ -361,7 +361,7 @@ export class ThornMarchMission extends BaseMissionDef {
                         radius: 3,
                         inDarkness: true,
                     },
-                    spawnCount: 2,
+                    spawnCount: 1,
                     unitAITreeId: 'networkHunt',
                 },
             ],
@@ -369,7 +369,7 @@ export class ThornMarchMission extends BaseMissionDef {
         // +1 wolf every other round (so 2 or 3 wolves per round)
         {
             type: 'continuousSpawn',
-            trigger: { intervalRounds: 2 },
+            trigger: { intervalRounds: 2, startRound: 0.5 },
             spawns: [
                 {
                     characterId: 'dark_wolf',
@@ -404,29 +404,10 @@ export class ThornMarchMission extends BaseMissionDef {
                 },
             ],
         },
-        // +2 swarmlings every other round (so 2 or 4 swarmlings per round)
-        {
-            type: 'continuousSpawn',
-            trigger: { intervalRounds: 2 },
-            spawns: [
-                {
-                    characterId: 'swarmling',
-                    name: 'Swarmling',
-                    spawnBehaviour: 'network_nearest_owned_leaf',
-                    networkNearestOwnedLeafConfig: {
-                        ownerCharacterIds: [SWARM_NEST_CHARACTER_ID, 'swarmling'],
-                        radius: 3,
-                        inDarkness: true,
-                    },
-                    spawnCount: 2,
-                    unitAITreeId: 'networkHunt',
-                },
-            ],
-        },
         // 1 slime every 2 rounds
         {
             type: 'continuousSpawn',
-            trigger: { intervalRounds: 2 },
+            trigger: { intervalRounds: 2, startRound: 0.5 },
             spawns: [
                 {
                     characterId: 'slime',
@@ -445,7 +426,7 @@ export class ThornMarchMission extends BaseMissionDef {
         // 1 thornbinder every 2 rounds — zone controller that slows player movement with bramble
         {
             type: 'continuousSpawn',
-            trigger: { intervalRounds: 2 },
+            trigger: { intervalRounds: 2, startRound: 0.5 },
             spawns: [
                 {
                     characterId: 'thornbinder',

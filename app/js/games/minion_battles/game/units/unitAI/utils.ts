@@ -43,9 +43,28 @@ export function findEnemies(unit: Unit, units: Unit[]): Unit[] {
 
 /** Living hostile units tagged `UnitTag.Structure` (e.g. lanternite_nest, swarm_nest). The
  *  generic "find any enemy structure" helper — any AI tree that needs to target/path toward a
- *  hostile structure should use this rather than a def-specific or speed-based proxy. */
+ *  hostile structure should use this rather than a def-specific or speed-based proxy.
+ *  Excludes invincible structures (same filter as {@link findEnemies}) — use
+ *  {@link findEnemyStructuresForTravel} when marching toward nests that may be invulnerable. */
 export function findEnemyStructures(unit: Unit, units: Unit[]): Unit[] {
     return findEnemies(unit, units).filter((u) => hasUnitTag(u, UnitTag.Structure));
+}
+
+/**
+ * Hostile structures eligible as **travel destinations** (e.g. `networkHunt` march). Includes
+ * invincible structures so waves still advance toward an invulnerable nest; combat/perception
+ * continue to use {@link findEnemies} / {@link findEnemyStructures}, which exclude them.
+ * Still skips crystal-protected and mid-spawn units.
+ */
+export function findEnemyStructuresForTravel(unit: Unit, units: Unit[]): Unit[] {
+    return units.filter(
+        (u) =>
+            u.isAlive() &&
+            areEnemies(unit.teamId, u.teamId) &&
+            hasUnitTag(u, UnitTag.Structure) &&
+            !u.tags?.includes(UnitTag.ProtectedByCrystal) &&
+            !u.isSpawning(),
+    );
 }
 
 /**

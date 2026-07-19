@@ -1,19 +1,27 @@
 /**
  * Network-hunt travel: march hop-by-hop along the mission's node network (see
- * `game/managers/mapNetwork/MapNetworkManager.ts`) toward the nearest enemy-owned structure — a
- * hostile unit tagged `UnitTag.Structure` (a lanternite/swarm nest; `thornling_nest` is
- * deliberately not tagged and so is not a valid target here). Moving from network node
- * to network node (rather than beelining straight at the structure across open terrain) keeps the
- * unit "on the path" the way a patrol would.
+ * `game/managers/mapNetwork/MapNetworkManager.ts`) toward the nearest enemy structure — including
+ * invulnerable ones so waves still pressure a nest marked invincible for combat. Empty nest-tagged
+ * network nodes (not ally-owned) are also valid destinations so units advance along the chain
+ * before a middle nest is built. Moving node-to-node (rather than beelining straight across open
+ * terrain) keeps the unit "on the path" the way a patrol would.
  *
  * Periodically scans for any nearby enemy; spotting one switches to nh_engage.
  */
 
 import type { Unit } from '../../Unit';
 import type { AIContext, AINode } from '../types';
-import { distance, findEnemies, findEnemyStructures, getEnemiesInPerceptionAndLOS, everyAITicks, queueWaitAndEndTurn } from '../utils';
+import {
+    distance,
+    findEnemies,
+    findEnemyStructuresForTravel,
+    getEnemiesInPerceptionAndLOS,
+    everyAITicks,
+    queueWaitAndEndTurn,
+} from '../utils';
 import { getPerceptionRange } from '../../unit_defs/unitDef';
-import { resolveNearestNodeId, findNodePath } from '../../../managers/mapNetwork/graphSearch';
+import { resolveNearestNodeId, findNodePath, findNearestNodeByHops } from '../../../managers/mapNetwork/graphSearch';
+import { areEnemies } from '../../../teams';
 import type { NetworkHuntAITreeContext, NetworkHuntNodeId } from './context';
 
 type MapNetworkQuery = NonNullable<AIContext['mapNetwork']>;
@@ -23,20 +31,59 @@ type MapNetworkQuery = NonNullable<AIContext['mapNetwork']>;
  *  `LevelEventManager`'s victory-check throttle, `default_siegeDefendPoint`'s path-retrigger check). */
 const ENEMY_SCAN_INTERVAL_TICKS = 10;
 
+const NEST_NETWORK_TAG = 'nest';
+
 interface TravelStep {
     stepTarget: { x: number; y: number };
     targetStructureNodeId?: string;
 }
 
+/** True when this nest node is a valid outward-march destination for `unit` (empty, or owned by a
+ *  hostile character — not by an ally occupying the site). */
+function isNonAllyNestDestination(
+    unit: Unit,
+    nodeId: string,
+    mapNetwork: MapNetworkQuery,
+    allUnits: readonly Unit[],
+): boolean {
+    const node = mapNetwork.getNode(nodeId);
+    if (!node?.tags.includes(NEST_NETWORK_TAG)) return false;
+
+    const ownerCharacterId = mapNetwork.getOwnerCharacterId(nodeId, allUnits);
+    if (ownerCharacterId == null) return true; // empty nest site
+
+    const ownerSample = allUnits.find((u) => u.isAlive() && u.characterId === ownerCharacterId);
+    if (!ownerSample) return true;
+    return areEnemies(unit.teamId, ownerSample.teamId);
+}
+
 /**
- * Find the nearest enemy structure by graph-hop distance from the unit's current node, and return
- * the next stepping-stone position to walk toward: the next hop's node (staying on the network
- * path), or the structure itself once no further hops remain. Falls back to a straight line at the
- * nearest structure when no structure sits on a graph-reachable node.
+ * Next hop toward `destNodeId` from `currentNodeId`, or the destination node's world position when
+ * already adjacent / on that node.
+ */
+function stepTowardNode(
+    mapNetwork: MapNetworkQuery,
+    currentNodeId: string,
+    destNodeId: string,
+): TravelStep | null {
+    const path = findNodePath(mapNetwork, currentNodeId, destNodeId);
+    if (!path) return null;
+    const nextHopNode = path.length > 1 ? mapNetwork.getNode(path[1]!) : mapNetwork.getNode(destNodeId);
+    if (!nextHopNode) return null;
+    return {
+        stepTarget: { x: nextHopNode.x, y: nextHopNode.y },
+        targetStructureNodeId: destNodeId,
+    };
+}
+
+/**
+ * Find the next stepping-stone along the network toward (1) the nearest enemy structure by hop
+ * count, else (2) the nearest empty / enemy-owned nest node, else (3) a straight-line fallback to
+ * the nearest enemy structure when none sit on a graph-reachable node.
  */
 function resolveTravelStep(unit: Unit, context: AIContext, mapNetwork: MapNetworkQuery): TravelStep | null {
-    const structures = findEnemyStructures(unit, context.getUnits());
-    if (structures.length === 0) return null;
+    const allUnits = context.getUnits();
+    const structures = findEnemyStructuresForTravel(unit, allUnits);
 
     const currentNodeId = resolveNearestNodeId(unit.x, unit.y, mapNetwork);
     if (!currentNodeId) return null;
@@ -54,17 +101,35 @@ function resolveTravelStep(unit: Unit, context: AIContext, mapNetwork: MapNetwor
         }
     }
 
-    if (!bestPath || !bestTarget) {
+    if (bestPath && bestTarget) {
+        const destNodeId = bestPath[bestPath.length - 1]!;
+        const nextHopNode = bestPath.length > 1 ? mapNetwork.getNode(bestPath[1]!) : null;
+        return {
+            stepTarget: nextHopNode
+                ? { x: nextHopNode.x, y: nextHopNode.y }
+                : { x: bestTarget.x, y: bestTarget.y },
+            targetStructureNodeId: destNodeId,
+        };
+    }
+
+    // Empty / enemy-owned nest nodes — advance along the chain before a middle nest is built,
+    // and when invincible-or-missing structures don't map onto the graph.
+    const nestDestId = findNearestNodeByHops(mapNetwork, currentNodeId, (nodeId) => {
+        if (nodeId === currentNodeId) return false;
+        return isNonAllyNestDestination(unit, nodeId, mapNetwork, allUnits);
+    });
+    if (nestDestId) {
+        const nestStep = stepTowardNode(mapNetwork, currentNodeId, nestDestId);
+        if (nestStep) return nestStep;
+    }
+
+    if (structures.length > 0) {
         structures.sort((a, b) => distance(unit.x, unit.y, a.x, a.y) - distance(unit.x, unit.y, b.x, b.y));
         const fallback = structures[0]!;
         return { stepTarget: { x: fallback.x, y: fallback.y } };
     }
 
-    const nextHopNode = bestPath.length > 1 ? mapNetwork.getNode(bestPath[1]!) : null;
-    return {
-        stepTarget: nextHopNode ? { x: nextHopNode.x, y: nextHopNode.y } : { x: bestTarget.x, y: bestTarget.y },
-        targetStructureNodeId: bestPath[bestPath.length - 1],
-    };
+    return null;
 }
 
 export const nh_travel: AINode<'networkHunt', NetworkHuntNodeId> = {
@@ -97,7 +162,7 @@ export const nh_travel: AINode<'networkHunt', NetworkHuntNodeId> = {
                 }
             }
 
-            // --- Travel: march along the network graph toward the nearest enemy structure ---
+            // --- Travel: march along the network graph toward the nearest enemy structure / nest ---
             const mapNetwork = context.mapNetwork;
             const grid = context.terrainManager?.grid;
             if (!mapNetwork || !grid) {

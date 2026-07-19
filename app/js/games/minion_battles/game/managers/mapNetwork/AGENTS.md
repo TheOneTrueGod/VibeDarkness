@@ -67,17 +67,20 @@ unit" signal for AI trees. It's set **statically per characterId**, not per spaw
   swept up by `networkHunt`'s old `speed === 0` proxy; now it's simply not a valid `networkHunt`
   target.
 
-Any AI tree needing "find enemy structures" should call `findEnemyStructures(unit, units)`
-(`game/units/unitAI/utils.ts`) rather than re-deriving a proxy — `nh_travel.ts` is the only current
-consumer.
+Any AI tree needing "find enemy structures" for **combat / visibility** should call
+`findEnemyStructures(unit, units)` (`game/units/unitAI/utils.ts`) — that helper excludes
+invincible structures (same filter as `findEnemies`). **`networkHunt` travel** uses
+`findEnemyStructuresForTravel` instead so waves still march toward invulnerable nests; empty
+nest-tagged network nodes (not ally-owned) are a secondary destination so hops continue before a
+middle nest is built. `nh_travel.ts` is the only current travel consumer.
 
 ## Graph search primitives (`graphSearch.ts`)
 
 | Function | Used by |
 |---|---|
 | `resolveNearestNodeId(x, y, mapNetwork)` — node containing the position, or nearest-by-distance fallback | `nh_travel.ts` (every travel tick), `snet_seek.ts` (spawn-position bootstrap) |
-| `findNodePath(mapNetwork, fromId, toId)` — BFS shortest path by edge count | `nh_travel.ts` (hop-by-hop travel toward the nearest enemy structure) |
-| `findNearestNodeByHops(mapNetwork, fromId, predicate)` — BFS, returns first match in non-decreasing hop order | `swarmNestTick.ts`'s `findUnclaimedNetworkNode` (bootstrap direction-picker) |
+| `findNodePath(mapNetwork, fromId, toId)` — BFS shortest path by edge count | `nh_travel.ts` (hop-by-hop travel toward the nearest enemy structure / nest node) |
+| `findNearestNodeByHops(mapNetwork, fromId, predicate)` — BFS, returns first match in non-decreasing hop order | `swarmNestTick.ts`'s `findUnclaimedNetworkNode` (bootstrap direction-picker); `nh_travel.ts` (empty / enemy-owned nest fallback) |
 
 These live here rather than `unitAI/utils.ts` because both an AI tree (`nh_travel.ts`) and a
 non-AI nest-tick module (`game/lanternite/swarmNestTick.ts`) need them.
@@ -87,8 +90,10 @@ non-AI nest-tick module (`game/lanternite/swarmNestTick.ts`) need them.
 The three trees deliberately use the graph differently — this is not an inconsistency to "fix":
 
 - **`networkHunt`** (wave reinforcements: wolves, wave-spawned swarmlings) — no persistent
-  targeting state. Every travel tick, recomputes the nearest enemy structure by graph-hop distance
-  fresh and takes the next hop toward it. Switches to `nh_engage` on spotting any enemy.
+  targeting state. Every travel tick, recomputes the nearest travel destination fresh: enemy
+  structures via `findEnemyStructuresForTravel` (includes invincible nests), else the nearest
+  empty / enemy-owned nest-tagged network node, and takes the next hop toward it. Switches to
+  `nh_engage` on spotting any enemy.
 - **`lanterniteNetwork`** (lanternite scouts) — a single fixed target assigned once
   (`findUnoccupiedConnectedNestPoi`, a *neighbor-of-home*-restricted search using
   `getOwnerCharacterId`), walked straight to. Unchanged by the population-gradient work below.
