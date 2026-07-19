@@ -17,6 +17,7 @@ import StorySegmentSpeakerPortrait from '../components/battleUiSlots/StorySegmen
 import RowSlotDialogue from '../components/battleUiSlots/RowSlotDialogue';
 import StoryPhraseBottomPanel from './preMissionStory/StoryPhraseBottomPanel';
 import { isDialogue, isGrantEquipmentRandom, isGroupVote } from './preMissionStory/preMissionStoryTypeGuards';
+import { TestIds } from '../../../../testing/testIds';
 
 interface PreMissionStoryPhaseProps {
     api: MinionBattlesApi;
@@ -314,6 +315,7 @@ export default function PreMissionStoryPhase({
                 dialoguePhrase ? (
                     <button
                         type="button"
+                        data-testid={TestIds.storyNext}
                         onClick={advancePhrase}
                         className="px-6 py-2 bg-primary text-white font-semibold rounded-lg shadow-lg hover:opacity-90"
                     >

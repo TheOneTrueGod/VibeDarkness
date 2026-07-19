@@ -23,6 +23,7 @@ import { MessageType } from '../../MessageTypes';
 import type { CampaignResourceKey } from '../../types';
 import VictoryModal from './ui/components/VictoryModal';
 import { MinionBattlesApi } from './api/minionBattlesApi';
+import { TestIds } from '../../testing/testIds';
 
 function getSelectedMissionId(data: Record<string, unknown>): string | null {
     const missionId = data.selectedMissionId ?? data.selected_mission_id;
@@ -338,8 +339,32 @@ export default function MinionBattlesGame({
         [clearLocalOverrides],
     );
 
+    const [battleTick, setBattleTick] = useState<number | null>(null);
+    useEffect(() => {
+        if (gamePhase !== 'battle') {
+            setBattleTick(null);
+            return;
+        }
+        const poll = () => {
+            const bridge = (window as unknown as { __minionBattlesSyncDebug?: { clientTick?: unknown; engineTick?: unknown } })
+                .__minionBattlesSyncDebug;
+            const tick = bridge?.clientTick ?? bridge?.engineTick;
+            if (typeof tick === 'number' && Number.isFinite(tick)) {
+                setBattleTick(tick);
+            }
+        };
+        poll();
+        const id = window.setInterval(poll, 100);
+        return () => window.clearInterval(id);
+    }, [gamePhase]);
+
     return (
-        <div className={`w-full h-full ${gamePhase === 'battle' ? 'overflow-hidden' : 'overflow-auto'}`}>
+        <div
+            className={`w-full h-full ${gamePhase === 'battle' ? 'overflow-hidden' : 'overflow-auto'}`}
+            data-testid={TestIds.gameSession}
+            data-game-phase={gamePhase}
+            data-game-tick={battleTick ?? undefined}
+        >
             {!selectedMissionId && (
                 <div className="text-center p-5">
                     <h2 className="text-2xl font-bold">Minion Battles</h2>

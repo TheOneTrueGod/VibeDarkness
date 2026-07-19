@@ -12,45 +12,37 @@ Not part of **`npm run ci`** or Vitest. Agents use this for headless UI checks a
 ```bash
 npm run test:e2e:smoke   # starter sandbox smoke
 npm run test:e2e         # all specs under e2e/
+npm run account:create   # create/login helper account
+npm run play:smoke       # login → host first mission → play to tick 100
 ```
 
-Requires Chromium once: `npx playwright install chromium`.
+Requires Chromium once: `npx playwright install chromium`. Stack: `npm run php` + `npm run dev` (or reuse running servers).
 
-Expects the local stack (Playwright can start them, or reuse running ones):
+## Sandbox
 
-- `npm run php` → `http://localhost:8000`
-- `npm run dev` → `http://localhost:5173` (baseURL; proxies `/api` to PHP)
+Chromium OS sandbox on; artifacts under `tmp/playwright/`; only localhost Vite/PHP origins; `file://` blocked. Specs must `import { test, expect } from './fixtures/sandboxed'`.
 
-Override base URL with `PLAYWRIGHT_BASE_URL` if needed.
+## Selectors: prefer `data-testid`
 
-## Sandbox guarantees
+Canonical ids: **`app/js/testing/testIds.ts`** (mirror for Node scripts: `scripts/testIds.mjs`).
 
-| Control | Where |
-|---------|--------|
-| Chromium OS sandbox **on** (`chromiumSandbox: true`, never `--no-sandbox`) | `playwright.config.ts` |
-| Downloads / traces / reports under **`tmp/playwright/`** (gitignored) | `e2e/sandboxConstants.ts` |
-| Only **localhost:5173** and **localhost:8000** (and 127.0.0.1) | `e2e/fixtures/sandbox.ts` |
-| **`file://` blocked** | same fixture |
+| Test id | Purpose |
+|---------|---------|
+| `login-username` / `login-password` / `login-submit` / `login-mode-toggle` | Auth form |
+| `campaign-tab-{tabId}` | Campaign home tabs (`characters`, `join_mission`, …) |
+| `characters-create` / `character-card-{id}` | Characters panel |
+| `character-editor-tab-mission-map` / `mission-map-node-{missionId}` / `mission-host` | Host mission |
+| `character-select-ready` | Lobby Ready |
+| `story-next` / `story-choice-{optionId}` | Pre-mission story |
+| `battle-wait` / `lobby-leave` | Battle Wait + Leave |
+| `app-logout` | Campaign chrome Log out |
+| `game-session` | Root with `data-game-phase` + `data-game-tick` |
 
-Always write new specs with:
-
-```ts
-import { test, expect } from './fixtures/sandboxed';
-```
-
-Do **not** import `@playwright/test` directly in specs — that skips origin/`file://` guards.
-
-Allowed origins live in `e2e/sandboxConstants.ts`. Widen them only when a real project dependency requires it (prefer keeping the list tiny).
+Use `page.getByTestId(...)`. Wait accessible name is **`Wait`** (kbd is `aria-hidden`); `title` still has “Wait (Space)”.
 
 ## Agent workflow
 
-1. Prefer **`npm run test:e2e:smoke`** after UI/layout changes, or a named `e2e/*.spec.ts` you added.
-2. Do **not** replace Vitest with Playwright for engine/unit logic — see **scoped-testing**.
-3. Artifacts: `tmp/playwright/` (screenshots on failure, HTML report, downloads). Do not write outside the repo.
-4. After e2e code changes: **`npm run lint:changed`**, then the relevant Playwright command (not the full Vitest suite).
-
-## Adding a spec
-
-1. Create `e2e/<name>.spec.ts` using the sandboxed fixtures.
-2. Keep selectors stable; prefer roles/labels over CSS when possible.
-3. Assume headless Chromium only (no Firefox/WebKit in this project config).
+1. Prefer testids over copy/CSS.
+2. Do not use Playwright instead of Vitest for engine logic.
+3. After changes: `npm run lint:changed`, then the relevant Playwright command.
+4. Smoke notes: `tmp/playwright/mission-play-notes.md`, `account-creation-notes.md`.

@@ -17,6 +17,7 @@ import ResearchRewardTinyChip from '../../../../../components/ResearchRewardTiny
 import ResourcePill, { campaignResourceGains } from '../../../../../components/ResourcePill';
 import { MISSION_REWARD_CHIP_CLASSNAME } from '../../../../../components/ResearchRewardTinyChip';
 import { getItemDef } from '../../../character_defs/items';
+import { TestIds, missionMapNodeTestId } from '../../../../../testing/testIds';
 
 const CIRCLE_R = 28;
 const SIDE_CIRCLE_R = 18;
@@ -197,6 +198,7 @@ function MissionTooltip({
                             )}
                             <button
                                 type="button"
+                                data-testid={TestIds.missionHost}
                                 onClick={() => { onStartMission(data.id); onDismiss(); }}
                                 className="px-4 py-1.5 rounded-lg bg-primary text-secondary text-sm font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer"
                             >
@@ -407,6 +409,7 @@ export default function MissionMapTab({ character, isAdmin, onStartMission, onMa
                             onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNodeClick(id, pos.x, pos.y); } } : undefined}
                             tabIndex={clickable ? 0 : undefined}
                             role={clickable ? 'button' : undefined}
+                            data-testid={clickable ? missionMapNodeTestId(id) : undefined}
                             aria-label={clickable ? `${def?.name ?? id} — click to view details` : undefined}
                             style={{
                                 cursor: clickable ? 'pointer' : 'default',

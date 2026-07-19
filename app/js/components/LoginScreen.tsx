@@ -3,6 +3,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import type { AccountState } from '../types';
+import { TestIds } from '../testing/testIds';
 
 const USERNAME_STORAGE_KEY = 'loginUsername';
 
@@ -74,7 +75,7 @@ export default function LoginScreen({ onLogin, lobbyClient }: LoginScreenProps) 
                     Multiplayer Game
                 </h1>
 
-                <div className="bg-surface rounded-lg p-6">
+                <div className="bg-surface rounded-lg p-6" data-testid={TestIds.loginForm}>
                     <h2 className="text-lg font-semibold mb-4">
                         {mode === 'login' ? 'Log in' : 'Create account'}
                     </h2>
@@ -85,6 +86,7 @@ export default function LoginScreen({ onLogin, lobbyClient }: LoginScreenProps) 
                             </label>
                             <input
                                 id="username"
+                                data-testid={TestIds.loginUsername}
                                 type="text"
                                 className="w-full px-4 py-3 border border-border-custom rounded bg-surface-light text-white text-base focus:outline-none focus:border-primary placeholder:text-muted"
                                 placeholder="Enter username"
@@ -100,6 +102,7 @@ export default function LoginScreen({ onLogin, lobbyClient }: LoginScreenProps) 
                             </label>
                             <input
                                 id="password"
+                                data-testid={TestIds.loginPassword}
                                 type="password"
                                 className="w-full px-4 py-3 border border-border-custom rounded bg-surface-light text-white text-base focus:outline-none focus:border-primary placeholder:text-muted"
                                 placeholder="Enter password"
@@ -109,11 +112,12 @@ export default function LoginScreen({ onLogin, lobbyClient }: LoginScreenProps) 
                             />
                         </div>
                         {error && (
-                            <p className="text-red-500 text-sm">{error}</p>
+                            <p className="text-red-500 text-sm" data-testid="login-error">{error}</p>
                         )}
                         <div className="flex flex-col gap-2">
                             <button
                                 type="submit"
+                                data-testid={TestIds.loginSubmit}
                                 className="w-full px-6 py-3 bg-primary text-secondary font-semibold text-base rounded hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 disabled={loading}
                             >
@@ -121,6 +125,7 @@ export default function LoginScreen({ onLogin, lobbyClient }: LoginScreenProps) 
                             </button>
                             <button
                                 type="button"
+                                data-testid={TestIds.loginModeToggle}
                                 className="w-full px-4 py-2 text-muted hover:text-white text-sm transition-colors"
                                 onClick={() => {
                                     setMode((m) => (m === 'login' ? 'create' : 'login'));

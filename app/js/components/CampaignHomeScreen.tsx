@@ -25,6 +25,7 @@ import {
     playersListPath,
     playerCharactersPath,
 } from './ability-tests/campaignTabPaths';
+import { TestIds, campaignTabTestId } from '../testing/testIds';
 
 /** Per-tab settings: label and whether the tab is visible for the current user. */
 const TAB_SETTINGS: Record<
@@ -249,7 +250,7 @@ export default function CampaignHomeScreen({
             </div>
 
             {hasCampaign && campaign && (
-                <nav className="flex border-t border-border-custom bg-surface" aria-label="Tabs">
+                <nav className="flex border-t border-border-custom bg-surface" aria-label="Tabs" data-testid={TestIds.campaignTabs}>
                     {visibleTabs.map((id) => {
                         const { label, adminTab } = TAB_SETTINGS[id];
                         const isActive = activeTab === id;
@@ -257,6 +258,7 @@ export default function CampaignHomeScreen({
                             <button
                                 key={id}
                                 type="button"
+                                data-testid={campaignTabTestId(id)}
                                 className={`flex-1 py-4 text-sm font-medium transition-colors ${
                                     isActive
                                         ? 'text-primary border-b-2 border-primary'

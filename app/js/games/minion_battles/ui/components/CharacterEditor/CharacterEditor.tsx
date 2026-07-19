@@ -21,6 +21,7 @@ import CharacterPortrait from '../CharacterPortrait';
 import InventoryPanel from './InventoryPanel';
 import { ResearchTreeList, ResearchTreeContent, ResearchedNodesGrid } from '../ResearchTreePanel';
 import type { AccountState, CampaignResources, CampaignState } from '../../../../../types';
+import { TestIds } from '../../../../../testing/testIds';
 import { getCoreFromEquipment } from '../../../character_defs/items';
 import { RESEARCH_TREES } from '../../../../../researchTrees/list';
 import {
@@ -535,6 +536,7 @@ export default function CharacterEditor({
                 {!hideMissionMap && (
                     <button
                         type="button"
+                        data-testid={TestIds.characterEditorMissionMapTab}
                         className={`px-3 py-2 border-b-2 text-sm cursor-pointer ${
                             activeTab === 'missionMap'
                                 ? 'border-primary text-primary'

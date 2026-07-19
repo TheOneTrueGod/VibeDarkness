@@ -49,6 +49,11 @@ When adding or editing **tooltips, hover boxes, popovers, or any floating help U
   - Use `title` attributes for simple one-line hints.
   - For richer content, render actual tooltip elements with screen-readable text, not only icons.
 
+## Accessibility + test hooks
+
+- Prefer real `aria-label` / roles for interactive controls.
+- For Playwright/agent automation, also set **`data-testid`** from `app/js/testing/testIds.ts` (see **playwright-e2e** skill). Do not invent one-off ids.
+
 ## Consistency with existing UI
 
 - Match surrounding components:
@@ -60,5 +65,5 @@ When adding or editing **tooltips, hover boxes, popovers, or any floating help U
 ## After edits
 
 - Run `npx tsc --noEmit` when types or interfaces changed.
-- Run **`npm run lint`** first, then the **minimal** Vitest scope (see **scoped-testing** skill): new/edited `*.test.ts`, then `npx vitest related <file> --run`, then `npx vitest run --changed` only if needed. Do **not** run the full suite after every UI tweak — **`npm run ci`** covers that on a schedule.
+- Run **`npm run lint:changed`** first, then the **minimal** Vitest scope (see **scoped-testing** skill). Do **not** run the full suite after every UI tweak — **`npm run ci`** covers that on a schedule.
 

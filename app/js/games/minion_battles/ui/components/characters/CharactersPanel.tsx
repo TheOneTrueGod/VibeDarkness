@@ -12,6 +12,7 @@ import { useUserData } from '../../../../../user/UserDataProvider';
 import { STORYLINES } from '../../../storylines/index';
 import PanelLayout from '../../../../../components/minionBattlesHomePage/PanelLayout';
 import { playersListPath, playerCharactersPath, playerCharacterPath } from '../../../../../components/ability-tests/campaignTabPaths';
+import { TestIds } from '../../../../../testing/testIds';
 import { ItemCard } from './ItemCard';
 import { CharacterCard } from './CharacterCard';
 import { CharacterListCard } from './CharacterListCard';
@@ -655,6 +656,7 @@ export default function CharactersPanel({ api, lobbyClient, players, onStartMiss
             <button
                 ref={createButtonRef}
                 type="button"
+                data-testid={TestIds.charactersCreate}
                 onClick={() => setCreatorOpen(true)}
                 className="w-full rounded-lg border-2 border-dashed border-border-custom px-4 py-3 text-sm text-muted hover:border-primary hover:text-white transition-colors cursor-pointer text-left"
             >
@@ -665,7 +667,7 @@ export default function CharactersPanel({ api, lobbyClient, players, onStartMiss
 
     const centerPanel = (() => {
         if (playerLoading && playerCharacters.length === 0) {
-            return <div className="p-5 text-sm text-muted">Loading characters…</div>;
+            return <div className="p-5 text-sm text-muted" data-testid={TestIds.charactersLoading}>Loading characters…</div>;
         }
         if (!playerLoading && playerCharacters.length === 0) {
             return (
@@ -674,6 +676,7 @@ export default function CharactersPanel({ api, lobbyClient, players, onStartMiss
                     <button
                         ref={createButtonRef}
                         type="button"
+                        data-testid={TestIds.charactersCreate}
                         onClick={() => setCreatorOpen(true)}
                         className="px-4 py-2 rounded-lg bg-primary text-secondary text-sm font-bold hover:opacity-90 transition-opacity cursor-pointer"
                     >

@@ -1,6 +1,7 @@
 import React from 'react';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import { SPECTATOR_ID, isControlEnemy } from '../../../state';
+import { TestIds } from '../../../../../testing/testIds';
 
 interface CharacterSelectFooterProps {
     activeTab: 'characters' | 'players' | 'replay';
@@ -40,6 +41,7 @@ export function CharacterSelectFooter({
     const readyBtn = mySelection && (
         <button
             type="button"
+            data-testid={TestIds.characterSelectReady}
             disabled={effectivelyReady || setReadyLoading}
             className={`px-8 py-3 text-lg font-bold rounded-lg transition-colors shadow-lg ${
                 effectivelyReady || setReadyLoading

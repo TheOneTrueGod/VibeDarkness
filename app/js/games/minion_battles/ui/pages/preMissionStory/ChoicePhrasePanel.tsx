@@ -3,6 +3,7 @@ import type { ChoicePhrase } from '../../../storylines/storyTypes';
 import ResourcePill, { campaignResourceGains } from '../../../../../components/ResourcePill';
 import StoryPanelCard from './StoryPanelCard';
 import { isGrantResources } from './preMissionStoryTypeGuards';
+import { TestIds, storyChoiceTestId } from '../../../../../testing/testIds';
 
 interface ChoicePhrasePanelProps {
     phrase: ChoicePhrase;
@@ -23,6 +24,7 @@ export default function ChoicePhrasePanel({ phrase, amSpectator, onAdvance, onCh
                     <p className="text-muted mb-4">Spectators do not make choices.</p>
                     <button
                         type="button"
+                        data-testid={TestIds.storyNext}
                         onClick={onAdvance}
                         className="px-6 py-2 bg-primary text-white font-semibold rounded-lg hover:opacity-90"
                     >
@@ -35,6 +37,7 @@ export default function ChoicePhrasePanel({ phrase, amSpectator, onAdvance, onCh
                         <button
                             key={opt.id}
                             type="button"
+                            data-testid={storyChoiceTestId(opt.id)}
                             onClick={() => onChoose(phrase.choiceId, opt.id, opt)}
                             className="block w-full min-w-0 text-center px-4 sm:px-6 py-4 rounded-lg border-2 border-border-custom bg-surface hover:border-primary hover:bg-surface-light/80 transition-colors text-lg text-white flex flex-col gap-2 items-center justify-center"
                         >

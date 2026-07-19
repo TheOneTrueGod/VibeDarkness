@@ -4,6 +4,7 @@ dist/
 storage/
 deploy.zip
 .env.deploy
+.env.playwright.local
 /Plans/
 vendor/
 .claude/worktrees/

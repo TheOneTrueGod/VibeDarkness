@@ -23,6 +23,7 @@ import { MinionBattlesApi } from '../games/minion_battles/api/minionBattlesApi';
 import { useWebRtcMeshOptional } from '../contexts/WebRtcMeshContext';
 import HeaderSlotLobbyInfo from './battleUILayout/HeaderSlotLobbyInfo';
 import ColumnSlotChat from './battleUILayout/ColumnSlotChat';
+import { TestIds } from '../testing/testIds';
 
 const MOBILE_BREAKPOINT = 768;
 
@@ -353,6 +354,7 @@ export default function GameScreen({
                 )}
                 <button
                     type="button"
+                    data-testid={TestIds.lobbyLeave}
                     className="px-4 py-2 bg-danger text-white font-semibold text-sm rounded hover:bg-danger-hover transition-colors shrink-0"
                     onClick={isHost && inBattle ? () => { window.location.href = '/'; } : () => onLeave()}
                 >

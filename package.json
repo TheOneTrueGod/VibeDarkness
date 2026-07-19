@@ -19,6 +19,8 @@
     "test:e2e": "playwright test",
     "test:e2e:smoke": "playwright test e2e/smoke.spec.ts",
     "test:e2e:ui": "playwright test --ui",
+    "account:create": "node scripts/create-account-playwright.mjs",
+    "play:smoke": "node scripts/play-mission-smoke-playwright.mjs",
     "desyncDebug-getTick": "node scripts/desyncDebug-getTick.js",
     "desyncDebug-getFingerprints": "node scripts/desyncDebug-getFingerprints.js",
     "desyncDebug-getLobbyLog": "node scripts/desyncDebug-getLobbyLog.js",
