@@ -125,7 +125,7 @@ const SCOUT_A_WORLD = gridToWorld(NEST_49_51_COL - 1, NEST_49_51_ROW + 2);
 const SCOUT_B_WORLD = gridToWorld(NEST_49_51_COL + 1, NEST_49_51_ROW + 2);
 
 /** Thornbinder pre-spawn — south-east of the first nest, in the lower glade. */
-const THORNBINDER_START_WORLD = gridToWorld(NEST_49_51_COL - 4, NEST_49_51_ROW + 24);
+const THORNBINDER_START_WORLD = gridToWorld(NEST_49_51_COL + 4, NEST_49_51_ROW + 28);
 
 /**
  * Center of the player spawn cluster (see `playerSpawnPoints` below), and the
@@ -345,6 +345,8 @@ export class ThornMarchMission extends BaseMissionDef {
     ];
 
     levelEvents: LevelEvent[] = [
+        // All continuous dark-creature waves spawn from the nearest swarm-owned leaf node
+        // (the contested nest_48_52 site) so reinforcements emerge from dark nest ground.
         // 2 wolves every round
         {
             type: 'continuousSpawn',
@@ -353,8 +355,12 @@ export class ThornMarchMission extends BaseMissionDef {
                 {
                     characterId: 'dark_wolf',
                     name: 'Wolf',
-                    spawnBehaviour: 'closestEnemySpawnPoint',
-                    enemySpawnPointConfig: { inDarkness: true, radius: 3 },
+                    spawnBehaviour: 'network_nearest_owned_leaf',
+                    networkNearestOwnedLeafConfig: {
+                        ownerCharacterIds: [SWARM_NEST_CHARACTER_ID, 'swarmling'],
+                        radius: 3,
+                        inDarkness: true,
+                    },
                     spawnCount: 2,
                     unitAITreeId: 'networkHunt',
                 },
@@ -368,16 +374,18 @@ export class ThornMarchMission extends BaseMissionDef {
                 {
                     characterId: 'dark_wolf',
                     name: 'Wolf',
-                    spawnBehaviour: 'closestEnemySpawnPoint',
-                    enemySpawnPointConfig: { inDarkness: true, radius: 3 },
+                    spawnBehaviour: 'network_nearest_owned_leaf',
+                    networkNearestOwnedLeafConfig: {
+                        ownerCharacterIds: [SWARM_NEST_CHARACTER_ID, 'swarmling'],
+                        radius: 3,
+                        inDarkness: true,
+                    },
                     spawnCount: 1,
                     unitAITreeId: 'networkHunt',
                 },
             ],
         },
-        // 2 swarmlings every round — spawn near the swarm's own nest network (nearest owned leaf
-        // node) rather than a generic enemySpawn POI, so reinforcements emerge from swarm-held
-        // ground and the 'hunt' AI naturally marches them toward the players from there.
+        // 2 swarmlings every round
         {
             type: 'continuousSpawn',
             trigger: { intervalRounds: 1 },
@@ -423,8 +431,12 @@ export class ThornMarchMission extends BaseMissionDef {
                 {
                     characterId: 'slime',
                     name: 'Slime',
-                    spawnBehaviour: 'closestEnemySpawnPoint',
-                    enemySpawnPointConfig: { inDarkness: true },
+                    spawnBehaviour: 'network_nearest_owned_leaf',
+                    networkNearestOwnedLeafConfig: {
+                        ownerCharacterIds: [SWARM_NEST_CHARACTER_ID, 'swarmling'],
+                        radius: 3,
+                        inDarkness: true,
+                    },
                     spawnCount: 1,
                     unitAITreeId: 'networkHunt',
                 },
@@ -438,8 +450,12 @@ export class ThornMarchMission extends BaseMissionDef {
                 {
                     characterId: 'thornbinder',
                     name: 'Thornbinder',
-                    spawnBehaviour: 'closestEnemySpawnPoint',
-                    enemySpawnPointConfig: { inDarkness: true },
+                    spawnBehaviour: 'network_nearest_owned_leaf',
+                    networkNearestOwnedLeafConfig: {
+                        ownerCharacterIds: [SWARM_NEST_CHARACTER_ID, 'swarmling'],
+                        radius: 3,
+                        inDarkness: true,
+                    },
                     spawnCount: 1,
                     unitAITreeId: 'networkHunt',
                 },
