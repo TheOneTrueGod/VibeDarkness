@@ -76,7 +76,7 @@ Interface or boundary changes: `npx tsc --noEmit` in addition to scoped Vitest (
 
 ## Before running Vitest
 
-**Immediately before** the first `npx vitest` or `npm run test` in a turn (only **after** `npm run lint` succeeds with no errors), include this line in your **user-facing message** so the user sees it while tests run:
+**Immediately before** the first `npx vitest` or `npm run test` in a turn (only **after** `npm run lint:changed` succeeds with no errors), include this line in your **user-facing message** so the user sees it while tests run:
 
 <span style="color: green">Starting unit tests — first pass on the code is done; feel free to run your own checks.</span>
 

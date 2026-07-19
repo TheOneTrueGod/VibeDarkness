@@ -12,12 +12,17 @@ import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
 /** Description attached to every finalized performanceLog root. */
 export const PERFORMANCE_LOG_DESCRIPTION = 'time taken for the last gameTick';
 
+/**
+ * Nested timing node. Category keys map to child nodes; `totalTimeTaken` is always present.
+ * Root logs may also carry `description` (skipped when listing category children).
+ */
 export type PerformanceLogNode = {
     totalTimeTaken: number;
-} & {
-    [category: string]: PerformanceLogNode | number;
+    description?: typeof PERFORMANCE_LOG_DESCRIPTION;
+    [category: string]: PerformanceLogNode | number | typeof PERFORMANCE_LOG_DESCRIPTION | undefined;
 };
 
+/** Finalized root log attached to checkpoints / debug history. */
 export type PerformanceLog = PerformanceLogNode & {
     description: typeof PERFORMANCE_LOG_DESCRIPTION;
 };
@@ -199,7 +204,7 @@ export class TickPerformanceTracker {
             description: PERFORMANCE_LOG_DESCRIPTION,
             totalTimeTaken,
             ...categories,
-        } as PerformanceLog;
+        };
         this.root = createNode();
         if (typeof gameTick === 'number' && Number.isFinite(gameTick)) {
             this.history.push({ gameTick, log: this.lastLog });

@@ -62,7 +62,7 @@ When adding or reorganizing a **thematic line of cards** (a new skill tree):
 
 ## Verification after code edits
 
-When a skill tells the agent to run tests after changing application code, match the workspace **post-change** hook (`.cursor/rules/post-change-test-hook.mdc`) and **scoped-testing** skill (`.cursor/skills/scoped-testing/SKILL.md`): **`npm run lint`** before Vitest; post the green **Starting unit tests** line (see scoped-testing) immediately before each Vitest run; run the **minimal** relevant tests, not the full suite unless cross-cutting or the user asks. **`npm run ci`** is the periodic full-suite + lint + `tsc` backstop.
+When a skill tells the agent to run tests after changing application code, match the workspace **post-change** hook (`.cursor/rules/post-change-test-hook.mdc`) and **scoped-testing** skill (`.cursor/skills/scoped-testing/SKILL.md`): **`npm run lint:changed`** before Vitest (not full `npm run lint`); post the green **Starting unit tests** line (see scoped-testing) immediately before each Vitest run; run the **minimal** relevant tests, not the full suite unless cross-cutting or the user asks. **`npm run ci`** is the periodic full-suite + lint + `tsc` backstop.
 
 ## Structure
 

@@ -1,5 +1,5 @@
 ---
-description: Run ESLint first, then the smallest relevant Vitest set after file create/save/delete; full suite via npm run ci, not every edit
+description: Run ESLint on changed files first, then the smallest relevant Vitest set after file create/save/delete; full suite via npm run ci, not every edit
 alwaysApply: true
 ---
 
@@ -9,11 +9,13 @@ Whenever you finish a command where **files have been created, saved, or deleted
 
 ## Workflow
 
-**Order is mandatory:** run **ESLint** (step 1) and resolve problems **before** starting **any** Vitest run (step 2). Do not run `npx vitest` or `npm run test` until `npm run lint` has finished and **errors** are fixed (warnings: fix when the project treats them as blocking, or when trivial).
+**Order is mandatory:** run **ESLint** (step 1) and resolve problems **before** starting **any** Vitest run (step 2). Do not run `npx vitest` or `npm run test` until changed-file lint has finished and **errors** are fixed (warnings: fix when the project treats them as blocking, or when trivial).
 
-1. **Run ESLint and fix lint errors**:
-   - If the project has a lint script: run **`npm run lint`** (this repo: **`eslint .`**) and fix any reported **errors**.
-   - If there is no lint script: run the editor linter (e.g. ReadLints) on changed files and fix any reported errors.
+1. **Run ESLint on changed files and fix lint errors**:
+   - Run **`npm run lint:changed`** (working-tree paths vs `HEAD`: modified/added tracked + untracked lintable files). Fix any reported **errors**.
+   - Do **not** use **`npm run lint`** / `eslint .` for this hook — that full-tree run belongs to **`npm run ci`** (and manual full checks).
+   - If there are no lintable working-tree changes, `lint:changed` exits 0 and you may proceed.
+   - If `lint:changed` is unavailable for some reason: fall back to the editor linter (e.g. ReadLints) on the files you touched.
 
 2. **Run the minimal relevant Vitest set** — only **after** step 1 succeeds; skip when **Skills only — no Vitest** (below) applies.
    - **Before** invoking the first `npx vitest` / `npm run test` (and again before each re-run after a fix), post in the user-facing message: <span style="color: green">Starting unit tests — first pass on the code is done; feel free to run your own checks.</span> (exact HTML; see **scoped-testing** skill).
@@ -29,7 +31,7 @@ Whenever you finish a command where **files have been created, saved, or deleted
 
 4. **If any tests fail**:
    - Attempt to fix the failing tests
-   - Re-run **`npm run lint`** (ESLint), then the **same minimal Vitest scope** (or a slightly wider scope if the fix touched more modules)
+   - Re-run **`npm run lint:changed`**, then the **same minimal Vitest scope** (or a slightly wider scope if the fix touched more modules)
    - Repeat up to **2 fix attempts** total
    - If tests pass after a fix: report the scoped count as above
    - If tests still fail after 2 attempts: stop fixing, return to the user with your response and at the end say in **red text**: `<span style="color: red">(#) tests failed</span>` (replace # with the failure count). Use this exact phrasing so the failure is clearly visible.
@@ -46,4 +48,4 @@ If the **only** files you created, saved, or deleted in that command are under *
 
 - **Do not** run Vitest.
 - **Do not** append a tests-passed or tests-failed footer (the suite was not run).
-- **`npm run lint`**: optional; skip it when nothing outside `.cursor/skills/` changed.
+- **`npm run lint:changed`**: optional; skip it when nothing outside `.cursor/skills/` changed.

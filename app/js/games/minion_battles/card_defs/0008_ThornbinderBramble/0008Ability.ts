@@ -27,11 +27,15 @@ const MAX_USES = 2;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 2 },
 ];
-const LOCK_TIME = 1.3;
+/** Windup ends / projectile launches at this elapsed time (seconds). */
+export const THORNBINDER_LOCK_TIME = 1.3;
+const LOCK_TIME = THORNBINDER_LOCK_TIME;
 const STRIKE_TIME = 1.85;
 // A tiny amount over half a round, so back-to-back banked uses land just past the round midpoint.
 const COOLDOWN_END = ROUND_DURATION / 2 + 0.1;
-const BASE_RADIUS = 95;
+/** Impact AoE radius (normal light); used by expiration + projectile preview. */
+export const THORNBINDER_BASE_RADIUS = 95;
+const BASE_RADIUS = THORNBINDER_BASE_RADIUS;
 const WEAKENED_RADIUS = 72;
 const BASE_DAMAGE = 7;
 const WEAKENED_DAMAGE = 5;

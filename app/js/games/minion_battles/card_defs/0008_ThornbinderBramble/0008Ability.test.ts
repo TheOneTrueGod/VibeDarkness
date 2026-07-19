@@ -5,13 +5,13 @@ import { Projectile } from '../../game/projectiles/Projectile';
 import { TerrainLayerManager } from '../../game/TerrainLayerManager';
 import type { IAbilityPreviewGraphics } from '../../abilities/Ability';
 import type { ActiveAbility } from '../../game/types';
-import { ThornbinderBrambleAbility, THORNBINDER_ABILITY_ID } from './0008Ability';
+import {
+    ThornbinderBrambleAbility,
+    THORNBINDER_ABILITY_ID,
+    THORNBINDER_BASE_RADIUS,
+    THORNBINDER_LOCK_TIME,
+} from './0008Ability';
 import { ThornStompAbility } from '../0016_ThornStomp/0016Ability';
-
-// Mirrors the ability's own private constants so the test doesn't need to export them just for
-// testing.
-const LOCK_TIME = 0.85;
-const BASE_RADIUS = 95;
 
 function makeGraphicsRecorder(): IAbilityPreviewGraphics & {
     circles: { x: number; y: number; radius: number }[];
@@ -118,12 +118,12 @@ describe('ThornbinderBrambleAbility renderActivePreview (pre-launch windup line,
         };
 
         const duringWindup = makeGraphicsRecorder();
-        ThornbinderBrambleAbility.renderActivePreview!(duringWindup, caster, activeAbility, LOCK_TIME / 2);
+        ThornbinderBrambleAbility.renderActivePreview!(duringWindup, caster, activeAbility, THORNBINDER_LOCK_TIME / 2);
         expect(duringWindup.lineToCalls).toBeGreaterThan(0);
         expect(duringWindup.circles.length).toBe(0); // no impact ring — that's the projectile's job now
 
         const afterLaunch = makeGraphicsRecorder();
-        ThornbinderBrambleAbility.renderActivePreview!(afterLaunch, caster, activeAbility, LOCK_TIME + 0.01);
+        ThornbinderBrambleAbility.renderActivePreview!(afterLaunch, caster, activeAbility, THORNBINDER_LOCK_TIME + 0.01);
         expect(afterLaunch.lineToCalls).toBe(0);
         expect(afterLaunch.circles.length).toBe(0);
     });
@@ -159,7 +159,7 @@ describe('ThornbinderBrambleAbility renderProjectilePreview (in-flight impact ri
             expect(c.y).toBeCloseTo(300, 5);
         }
         const innerRing = gr.circles[gr.circles.length - 1]!;
-        expect(innerRing.radius).toBeCloseTo(BASE_RADIUS * 0.5, 1);
+        expect(innerRing.radius).toBeCloseTo(THORNBINDER_BASE_RADIUS * 0.5, 1);
     });
 
     it('keeps rendering when the launching unit has been interrupted or killed', () => {
