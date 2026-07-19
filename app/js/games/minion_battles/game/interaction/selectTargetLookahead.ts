@@ -8,6 +8,7 @@
 import type { AbilityStatic } from '../../abilities/Ability';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import {
+    computeTickElapsed,
     enteredTimingIds,
     normalizeAbilityTimingsToIntervals,
     resolveAbilityTimingEntries,
@@ -110,8 +111,8 @@ export function findImpendingSelectTargetNeed(
 ): ImpendingSelectTargetNeed | null {
     for (const unit of engine.units) {
         for (const active of unit.activeAbilities) {
-            const prevElapsed = engine.gameTime - active.startTime;
-            const nextElapsed = prevElapsed + dt;
+            // See computeTickElapsed's doc comment for why this must not be reimplemented inline.
+            const { prevElapsed, nextElapsed } = computeTickElapsed(engine.gameTime + dt, dt, active.startTime);
             const need = findImpendingNeedForCast(
                 unit.id,
                 active,

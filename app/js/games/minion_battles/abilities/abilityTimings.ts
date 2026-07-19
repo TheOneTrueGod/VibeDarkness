@@ -384,6 +384,35 @@ export function activeTimingIds(elapsed: number, intervals: AbilityTimingInterva
     return s;
 }
 
+/**
+ * Computes {prevElapsed, nextElapsed} for the fixed tick ending at `gameTimeAfterTick`,
+ * for a cast that started at `startTime`.
+ *
+ * The pre-tick lookahead (selectTargetLookahead.ts, called BEFORE GameEngine.gameTime
+ * advances) and the real tick (unitAbilityTick.ts, called AFTER it advances) predict/
+ * confirm the *same* tick and must derive bit-identical prevElapsed/nextElapsed for it.
+ * Do not reimplement `gameTime - startTime` inline at either site — call this instead.
+ * `prevElapsed` is always derived by subtracting `dt` back out of `nextElapsed` (never
+ * recomputed from a separate pre-increment gameTime); that's what keeps the two call
+ * sites from drifting by an IEEE754 rounding ULP. See "Scenario L" in
+ * interactiveTargeting.test.ts for the historical bug this guards against.
+ *
+ * @param gameTimeAfterTick - the value `engine.gameTime` has (or will have) once this
+ *   tick's `+= dt` applies. Lookahead callers (pre-increment) pass `engine.gameTime + dt`;
+ *   real-tick callers (post-increment) pass `engine.gameTime` as-is.
+ */
+export function computeTickElapsed(
+    gameTimeAfterTick: number,
+    dt: number,
+    startTime: number,
+): { prevElapsed: number; nextElapsed: number } {
+    const nextElapsed = gameTimeAfterTick - startTime;
+    const prevElapsed = nextElapsed - dt;
+    return { prevElapsed, nextElapsed };
+}
+
+// If you need matching prevElapsed/nextElapsed for a fixed-tick boundary check, use
+// computeTickElapsed above rather than inlining gameTime - startTime arithmetic.
 export function enteredTimingIds(
     prevElapsed: number,
     nextElapsed: number,

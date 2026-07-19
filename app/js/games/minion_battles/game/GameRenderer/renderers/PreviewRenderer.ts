@@ -479,6 +479,24 @@ export class PreviewRenderer {
                 }
             }
         }
+
+        // Projectile-driven previews render independently of the caster's activeAbilities, so
+        // they keep showing even if the caster is interrupted or killed while the projectile is
+        // still in flight (e.g. Thornbinder Bramble's impact ring).
+        for (const proj of engine.projectiles) {
+            if (!proj.active) continue;
+            const ability = getAbility(proj.sourceAbilityId);
+            if (!ability?.projectileRendersActivePreview || !ability.renderProjectilePreview) continue;
+            const rawGr = this.abilityPreviewGraphics as unknown as IAbilityPreviewGraphics;
+            const clipToLight =
+                debugSettingsSnapshot.darkOverlayEnabled &&
+                areEnemies(localTeamId, proj.sourceTeamId) &&
+                this.overlayRenderer.isLightSystemActive();
+            const gr: IAbilityPreviewGraphics = clipToLight
+                ? new LitClippingPreviewGraphics(rawGr, (x, y) => this.isWorldPointLit(x, y))
+                : rawGr;
+            ability.renderProjectilePreview(gr, proj, engine.gameTime);
+        }
     }
 
     /** Light level at a world-space point, using the same lit/dark threshold as unit visibility. */

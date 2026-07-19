@@ -461,6 +461,25 @@ export interface AbilityStatic {
     ): void;
 
     /**
+     * Optional. When true, this ability's launched projectile renders its own active-preview
+     * telegraph via `renderProjectilePreview` for as long as it's in flight — independent of the
+     * casting unit's ActiveAbility/interrupt state. Use for lobbed AoE abilities whose impact
+     * preview must keep showing even if the caster is interrupted or killed mid-flight.
+     */
+    projectileRendersActivePreview?: boolean;
+
+    /**
+     * Optional. Companion to `projectileRendersActivePreview` — renders the preview for one
+     * in-flight projectile (looked up via `Projectile.sourceAbilityId`), called each frame while
+     * the projectile is active.
+     */
+    renderProjectilePreview?(
+        gr: IAbilityPreviewGraphics,
+        projectile: unknown,
+        gameTime: number,
+    ): void;
+
+    /**
      * Optional. Returns a visual-only world-space offset for the caster while this cast is active.
      * This does not mutate simulation position, collision, or pathing.
      */

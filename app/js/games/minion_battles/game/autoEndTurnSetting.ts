@@ -5,6 +5,7 @@ type Listener = () => void;
 const AUTO_END_TURN_STORAGE_KEY = 'minionBattles.autoEndTurn';
 
 function loadStoredAutoEndTurn(): boolean {
+    if (typeof localStorage === 'undefined') return AUTO_END_TURN;
     const stored = localStorage.getItem(AUTO_END_TURN_STORAGE_KEY);
     return stored === null ? AUTO_END_TURN : stored === 'true';
 }
@@ -24,7 +25,7 @@ export function getAutoEndTurn(): boolean {
 export function setAutoEndTurn(value: boolean): void {
     if (autoEndTurn === value) return;
     autoEndTurn = value;
-    localStorage.setItem(AUTO_END_TURN_STORAGE_KEY, String(value));
+    if (typeof localStorage !== 'undefined') localStorage.setItem(AUTO_END_TURN_STORAGE_KEY, String(value));
     listeners.forEach((listener) => listener());
 }
 

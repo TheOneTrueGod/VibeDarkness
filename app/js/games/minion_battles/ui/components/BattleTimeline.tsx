@@ -79,7 +79,7 @@ function TimelineTimeRuler({ windowSeconds }: { windowSeconds: number }) {
     const axisTopPercent = 36;
 
     return (
-        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <div className="pointer-events-none absolute inset-y-0 left-1 right-1 overflow-hidden" aria-hidden>
             <div
                 className="absolute left-0 right-0 h-px bg-gray-600"
                 style={{ top: `${axisTopPercent}%` }}
@@ -286,7 +286,7 @@ function renderEnemyTimelineTrack(
     return (
         <div className={`relative overflow-hidden rounded-md bg-dark-800/80 ${TIMELINE_TRACK_HEIGHT_CLASS}`}>
             <TimelineTimeRuler windowSeconds={windowSeconds} />
-            <div className="absolute inset-0 overflow-hidden rounded-md">
+            <div className="absolute inset-y-0 left-1 right-1 overflow-hidden rounded-md">
                 {exposedMarkers.map((m) => {
                     const clampedEnd = Math.min(m.endFromNow, windowSeconds);
                     const widthPercent = (clampedEnd / windowSeconds) * 100;
@@ -550,7 +550,7 @@ function renderPlayerTimelineTrack(
             {hasTimeline && (
                 <>
                     <div
-                        className={`absolute inset-0 overflow-hidden rounded-md ${segmentsOpacityClass}`}
+                        className={`absolute inset-y-0 left-1 right-1 overflow-hidden rounded-md ${segmentsOpacityClass}`}
                     >
                         {segments.map((seg, idx) => (
                             <TimelinePhaseSegment
@@ -698,15 +698,17 @@ function renderPlayerUnitTimelineUnified(
                   <div className={`relative overflow-hidden rounded-md bg-dark-800/80 ${TIMELINE_TRACK_HEIGHT_CLASS}`}>
                       <TimelineTimeRuler windowSeconds={windowSeconds} />
                       {isControlled && (
-                          <TimelinePhaseSegment
-                              phase="controlled"
-                              leftPercent={0}
-                              widthPercent={controlledWidthPct}
-                              label="Controlled"
-                              description=""
-                              isHighlighted={false}
-                              onPointerEnter={() => {}}
-                          />
+                          <div className="absolute inset-y-0 left-1 right-1">
+                              <TimelinePhaseSegment
+                                  phase="controlled"
+                                  leftPercent={0}
+                                  widthPercent={controlledWidthPct}
+                                  label="Controlled"
+                                  description=""
+                                  isHighlighted={false}
+                                  onPointerEnter={() => {}}
+                              />
+                          </div>
                       )}
                   </div>
               );

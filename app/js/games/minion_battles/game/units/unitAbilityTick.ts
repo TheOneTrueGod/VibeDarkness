@@ -11,6 +11,7 @@ import { getAbility } from '../../abilities/AbilityRegistry';
 import {
     normalizeAbilityTimingsToIntervals,
     resolveAbilityTimingEntries,
+    computeTickElapsed,
     enteredTimingIds,
     exitedTimingIds,
     getTotalAbilityDurationForCast,
@@ -244,8 +245,7 @@ export function tickUnitActiveAbilities(
             continue;
         }
 
-        const currentTime = engine.gameTime - active.startTime;
-        const prevTime = currentTime - dt;
+        const { prevElapsed: prevTime, nextElapsed: currentTime } = computeTickElapsed(engine.gameTime, dt, active.startTime);
         const safePrevTime = Math.max(0, prevTime);
 
         const intervals = normalizeAbilityTimingsToIntervals(resolveAbilityTimingEntries(ability, unit, engine));

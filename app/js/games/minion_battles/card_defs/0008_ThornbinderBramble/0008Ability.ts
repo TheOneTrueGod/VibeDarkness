@@ -161,6 +161,9 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
     },
     onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {},
 
+    // Pre-launch only: the arcing trajectory line while winding up. Stays caster-driven since
+    // there's no projectile yet — if the caster is interrupted/killed during windup, the cast
+    // never fires and there's nothing to preserve.
     renderActivePreview(
         gr: IAbilityPreviewGraphics,
         caster: Unit,
@@ -168,43 +171,57 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
         gameTime: number,
     ): void {
         const elapsed = gameTime - activeAbility.startTime;
-        if (elapsed >= STRIKE_TIME) return;
+        if (elapsed >= LOCK_TIME) return;
 
         const target = getPixelTargetPosition(activeAbility.targets, 0);
         if (!target) return;
 
-        // Arcing trajectory line: visible during windup, fades out as the projectile launches
-        if (elapsed < LOCK_TIME) {
-            const lineFadeT = elapsed / LOCK_TIME;
-            const dx = target.x - caster.x;
-            const dy = target.y - caster.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            const arcH = Math.min(dist * 0.4, 100);
-            const ctrlX = (caster.x + target.x) / 2;
-            const ctrlY = (caster.y + target.y) / 2 - arcH;
-            const SEGS = 16;
-            for (let i = 0; i <= SEGS; i++) {
-                const t = i / SEGS;
-                const mt = 1 - t;
-                const bx = mt * mt * caster.x + 2 * mt * t * ctrlX + t * t * target.x;
-                const by = mt * mt * caster.y + 2 * mt * t * ctrlY + t * t * target.y;
-                if (i === 0) gr.moveTo(bx, by);
-                else gr.lineTo(bx, by);
-            }
-            gr.stroke({ color: 0xef4444, width: 2, alpha: 0.25 + 0.45 * lineFadeT });
+        const lineFadeT = elapsed / LOCK_TIME;
+        const dx = target.x - caster.x;
+        const dy = target.y - caster.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const arcH = Math.min(dist * 0.4, 100);
+        const ctrlX = (caster.x + target.x) / 2;
+        const ctrlY = (caster.y + target.y) / 2 - arcH;
+        const SEGS = 16;
+        for (let i = 0; i <= SEGS; i++) {
+            const t = i / SEGS;
+            const mt = 1 - t;
+            const bx = mt * mt * caster.x + 2 * mt * t * ctrlX + t * t * target.x;
+            const by = mt * mt * caster.y + 2 * mt * t * ctrlY + t * t * target.y;
+            if (i === 0) gr.moveTo(bx, by);
+            else gr.lineTo(bx, by);
         }
+        gr.stroke({ color: 0xef4444, width: 2, alpha: 0.25 + 0.45 * lineFadeT });
+    },
+
+    // Post-launch: the impact-radius ring, driven by the projectile itself so it keeps
+    // rendering (and lands in sync with the real impact) even if the caster is interrupted or
+    // killed while the projectile is still in flight.
+    projectileRendersActivePreview: true,
+    renderProjectilePreview(gr: IAbilityPreviewGraphics, projectile: unknown, _gameTime: number): void {
+        const proj = projectile as Projectile;
+        const speed = Math.hypot(proj.velocityX, proj.velocityY);
+        if (speed <= 0 || proj.maxDistance <= 0) return;
+
+        // The projectile only knows its current position, not its landing spot — project it
+        // forward along its (straight-line, constant-velocity) travel direction by the
+        // remaining distance to reconstruct the target.
+        const remaining = proj.maxDistance - proj.distanceTraveled;
+        const targetX = proj.x + (proj.velocityX / speed) * remaining;
+        const targetY = proj.y + (proj.velocityY / speed) * remaining;
+        const progress = Math.min(1, proj.distanceTraveled / proj.maxDistance);
 
         // Outer boundary circle: shows full impact radius, brightens as impact nears
-        const borderAlpha = 0.25 + 0.55 * Math.min(1, elapsed / STRIKE_TIME);
-        gr.circle(target.x, target.y, BASE_RADIUS);
+        const borderAlpha = 0.25 + 0.55 * progress;
+        gr.circle(targetX, targetY, BASE_RADIUS);
         gr.stroke({ color: 0xef4444, width: 2, alpha: borderAlpha });
 
-        // Expanding inner ring: grows from 0 to BASE_RADIUS over the full cast (0 â†’ STRIKE_TIME)
-        const ringT = elapsed / STRIKE_TIME;
-        const ringRadius = ringT * BASE_RADIUS;
+        // Expanding inner ring: grows from 0 to BASE_RADIUS as the projectile closes in
+        const ringRadius = progress * BASE_RADIUS;
         if (ringRadius > 2) {
-            gr.circle(target.x, target.y, ringRadius);
-            gr.stroke({ color: 0xfca5a5, width: 3, alpha: 0.45 + 0.45 * ringT });
+            gr.circle(targetX, targetY, ringRadius);
+            gr.stroke({ color: 0xfca5a5, width: 3, alpha: 0.45 + 0.45 * progress });
         }
     },
 };

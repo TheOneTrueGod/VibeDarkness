@@ -29,9 +29,9 @@ export const PROTECT_SHIELD_HP = 30;
 export const PROTECT_SHIELD_DRAIN_PER_SECOND = PROTECT_SHIELD_HP / 7;
 export const PROTECT_HP_COST = 5;
 // Same "expose the caster" feel as Blood Mend, but a shorter total cast (see AGENTS.md).
-export const PROTECT_WINDUP_DURATION = 0.7;
+export const PROTECT_WINDUP_DURATION = 0.1;
 export const PROTECT_ACTIVE_DURATION = 0.05;
-export const PROTECT_COOLDOWN_DURATION = 0.4;
+export const PROTECT_COOLDOWN_DURATION = 0.6;
 const RANGE = PROTECT_RANGE;
 const SHIELD_HP = PROTECT_SHIELD_HP;
 const SHIELD_DRAIN_PER_SECOND = PROTECT_SHIELD_DRAIN_PER_SECOND;

@@ -33,6 +33,8 @@ import { isITSPreviewComplete } from './interaction/isITSPreviewComplete';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { SwingBatCard } from '../card_defs/0115_SwingBat/0115Ability';
 import { LIGHT_BLAST_DAMAGE } from '../card_defs/08_light_core/0801_LightBlast/0801Ability';
+import { ProtectAbility_0303, PROTECT_WINDUP_DURATION } from '../card_defs/03_blood_mage/0303_Protect/0303Ability';
+import { SHIELD_BUFF_TYPE } from '../buffs/ShieldBuff';
 import type { WindupLungePayload } from '../abilities/WindupLunge';
 import { DEFAULT_MELEE_LUNGE, DEFAULT_UNIT_RADIUS } from './units/unit_defs/unitConstants';
 import {
@@ -90,6 +92,9 @@ const LIGHT_BLAST_PREFIRE = 0.4;
 const LIGHT_BLAST_LIGHT_COST = 1;
 /** SelectTargetDef label on Light Blast timings. */
 const LIGHT_BLAST_TARGET_LABEL = 'Target';
+/** Protect (0303) ability id and its SelectTargetDef label — matches `0303Ability.ts`. */
+const PROTECT_ABILITY_ID = ProtectAbility_0303.id;
+const PROTECT_TARGET_LABEL = 'Ally';
 
 beforeAll(() => {
     if (globalThis.requestAnimationFrame === undefined) {
@@ -3045,5 +3050,80 @@ describe('interactive sequential targeting — conditional cancel stop point', (
         expect(engine.state.orderMgr.getActiveOrderWaiterForPlayer(TINY_BATTLE_PLAYER_ID)).not.toBeNull();
 
         session.destroy();
+    });
+
+    /**
+     * Scenario L — Protect (0303) self-cast preview: with the current very short
+     * windup (0.1 s = 6 ticks) the pre-tick lookahead must still pause for the
+     * 'Ally' SelectTargetDef before the 'active' interval enters. Reproduces the
+     * live-lobby report of "Select-target interval entered without resolved
+     * label during interactive preview" (unitAbilityTick.ts console.error).
+     */
+    it('Scenario L: Protect (0303) self-cast preview pauses before active interval; invariant never violated', () => {
+        resetGameObjectIdCounter(1);
+
+        const engine = buildTinyBattleEngine({
+            gridW: 12,
+            gridH: 10,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+
+        const playerX = 5 * CELL_SIZE + CELL_SIZE / 2;
+        const playerY = 5 * CELL_SIZE + CELL_SIZE / 2;
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: playerX,
+            y: playerY,
+            abilities: [PROTECT_ABILITY_ID],
+        });
+
+        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+        stepUntil(engine, () => engine.waitingForOrders != null);
+
+        engine.isSequentialTargetingPreview = true;
+        engine.sequentialTargetingPreviewCast = {
+            unitId: player.id,
+            abilityId: PROTECT_ABILITY_ID,
+            startRound: engine.roundNumber,
+        };
+
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: PROTECT_ABILITY_ID,
+            targets: [],
+            targetsByLabel: {},
+            endTurn: true,
+        });
+
+        const paused = stepUntil(
+            engine,
+            () => engine.waitingForTargetInput?.label === PROTECT_TARGET_LABEL,
+            60,
+        );
+        expect(paused).toBe(true);
+        expect(getCastElapsed(engine, player, PROTECT_ABILITY_ID)).toBeLessThan(PROTECT_WINDUP_DURATION);
+
+        const active = player.activeAbilities.find((a) => a.abilityId === PROTECT_ABILITY_ID);
+        expect(active).not.toBeUndefined();
+        active!.targetsByLabel!['Ally'] = { type: 'unit', unitId: player.id };
+        engine.waitingForTargetInput = null;
+        engine.isPaused = false;
+
+        const done = stepUntil(
+            engine,
+            () => player.activeAbilities.length === 0,
+            300,
+        );
+        expect(done).toBe(true);
+
+        const shield = player.buffs.find((b) => b._type === SHIELD_BUFF_TYPE);
+        expect(shield).toBeDefined();
+
+        expect(errorSpy).not.toHaveBeenCalled();
+        errorSpy.mockRestore();
+
+        engine.destroy();
     });
 });

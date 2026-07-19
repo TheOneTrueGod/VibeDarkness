@@ -3,6 +3,7 @@ import {
     AbilityPhase,
     activeTimingIds,
     buildPrimaryTimelineSegments,
+    computeTickElapsed,
     elapsedIsInCoopCooldown,
     enteredTimingIds,
     exitedTimingIds,
@@ -101,6 +102,76 @@ describe('enteredTimingIds / exitedTimingIds', () => {
         // First crossing + one duplicate at prev===start (deduped in unitAbilityTick).
         expect(activeEntries).toBe(2);
     });
+});
+
+describe('computeTickElapsed (lookahead vs real-tick call-site parity)', () => {
+    const dt = 1 / 60;
+
+    /**
+     * Simulates the two call-site patterns side by side: the pre-tick lookahead
+     * (selectTargetLookahead.ts) computes `computeTickElapsed(gameTime + dt, ...)` BEFORE
+     * gameTime advances; the real tick (unitAbilityTick.ts) computes
+     * `computeTickElapsed(gameTime, ...)` AFTER it advances. Both must agree bit-for-bit
+     * at every step, and the fake 'active' interval must be detected as entered.
+     */
+    function stepAndCheckParity(duration: number, maxSteps: number): number {
+        const intervals = normalizeAbilityTimingsToIntervals([
+            { id: 'w', start: 0, end: duration, abilityPhase: AbilityPhase.Windup },
+            { id: 'a', start: duration, end: duration + dt, abilityPhase: AbilityPhase.Active },
+        ]);
+        const startTime = 0;
+        let gameTime = startTime;
+        let activeEntries = 0;
+
+        for (let step = 1; step <= maxSteps; step++) {
+            const lookahead = computeTickElapsed(gameTime + dt, dt, startTime);
+            gameTime += dt;
+            const real = computeTickElapsed(gameTime, dt, startTime);
+
+            expect(lookahead.nextElapsed).toBe(real.nextElapsed);
+            expect(lookahead.prevElapsed).toBe(real.prevElapsed);
+
+            if (enteredTimingIds(real.prevElapsed, real.nextElapsed, intervals).has('a')) {
+                activeEntries++;
+            }
+        }
+        return activeEntries;
+    }
+
+    // Durations reached via the SAME repeated-`+= dt` accumulation GameEngine.fixedUpdate
+    // uses for gameTime — n * dt (single multiplication) can land a couple of ULPs off the
+    // accumulated value, which would make the 1-tick-wide interval window fall *between*
+    // two sweep steps for reasons unrelated to computeTickElapsed itself. n = 1..120 covers
+    // up to 2s — well past Protect's historical 6-tick / 0.1s failure and any plausible
+    // windup/active/cooldown length.
+    function accumulatedTicksElapsed(n: number): number {
+        let t = 0;
+        for (let i = 0; i < n; i++) t += dt;
+        return t;
+    }
+    const alignedTickCounts = Array.from({ length: 120 }, (_, i) => i + 1);
+
+    it.each(alignedTickCounts)(
+        'prevElapsed/nextElapsed agree bit-for-bit for aligned duration n=%i ticks',
+        (n) => {
+            const activeEntries = stepAndCheckParity(accumulatedTicksElapsed(n), n + 2);
+            // The interval must be detected as entering at least once (one crossing, plus
+            // occasionally a duplicate at prev===start — see the "knock active entry" test
+            // above). The parity assertions inside stepAndCheckParity are the actual
+            // regression guard for this sweep.
+            expect(activeEntries).toBeGreaterThanOrEqual(1);
+        },
+    );
+
+    // Non-tick-aligned durations for contrast — these never land exactly on a step
+    // boundary, exercising the "ordinary" floating case alongside the aligned sweep above.
+    it.each([0.05, 0.137, 1 / 3, 2.5])(
+        'prevElapsed/nextElapsed agree bit-for-bit for non-aligned duration %f',
+        (duration) => {
+            const activeEntries = stepAndCheckParity(duration, Math.ceil(duration / dt) + 3);
+            expect(activeEntries).toBeGreaterThanOrEqual(1);
+        },
+    );
 });
 
 describe('getTotalAbilityDuration', () => {
