@@ -24,7 +24,7 @@ export function CharacterSelectHeader({
             : editorOpen && characterToEdit
               ? 'Edit character'
               : view === 'overview'
-                ? 'Select your Loadout'
+                ? 'Prepare Carefully'
                 : 'Select your character';
 
     return (

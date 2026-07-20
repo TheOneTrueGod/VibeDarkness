@@ -2,7 +2,7 @@ import React from 'react';
 import { playerDoesNotNeedLoadoutSelection } from './loadoutSelection';
 import { CharacterSelectLoadoutEmptyState } from './CharacterSelectLoadoutEmptyState';
 
-/** Center loadout UI on the Select your Loadout (overview) view. */
+/** Center loadout UI on the Prepare Carefully (overview) view. */
 export function CharacterSelectLoadoutSelector() {
     if (playerDoesNotNeedLoadoutSelection()) {
         return <CharacterSelectLoadoutEmptyState />;
