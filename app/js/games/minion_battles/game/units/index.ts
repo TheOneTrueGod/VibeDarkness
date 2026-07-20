@@ -37,6 +37,8 @@ export type UnitFactoryConfig = {
     speed?: number;
     /** Optional combat tuning values (e.g. flat damage bonus from research). */
     combatSettings?: UnitCombatSettings;
+    /** Aggregated passive research bonuses (computed at mission start). */
+    passiveBonuses?: import('../../../../researchTrees/types').PassiveBonuses;
 };
 
 /**
@@ -68,6 +70,7 @@ export function createPlayerUnit(
         portraitId: config.portraitId,
         stamina,
         combatSettings: config.combatSettings,
+        passiveBonuses: config.passiveBonuses,
     });
     applyCombatCrowdControlProfile(unit);
     return unit;

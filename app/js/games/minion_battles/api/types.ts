@@ -21,6 +21,8 @@ export interface CharacterUpdates {
     name?: string;
     portraitId?: string;
     researchTrees?: Record<string, string[]>;
+    /** Per-tree node level counts for multi-level (passive) research nodes. */
+    researchNodeLevels?: Record<string, Record<string, number>>;
     /** Per-campaign mission results; key = campaignId. */
     missionResults?: Record<string, MissionResult[]>;
     /** Active campaign for this character. */

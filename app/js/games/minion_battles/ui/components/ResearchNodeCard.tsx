@@ -20,6 +20,10 @@ export interface ResearchNodeCardProps {
     /** Prefer `variant="display"`. When omitted, treated as interactive unless explicitly `false`. */
     interactive?: boolean;
     state?: 'researched' | 'enabled' | 'blocked' | 'default';
+    /** Current purchased level (for multi-level passives). */
+    currentLevel?: number;
+    /** Max purchasable levels; when &gt; 1, shows Lv X/Y badge. */
+    maxLevels?: number;
     /** Muted zinc styling (e.g. post-mission / reward reveal). Default keeps existing greens/surface. */
     tone?: 'default' | 'muted';
     /** Compact = tight grid card; comfortable = wider card with more description lines. */
@@ -66,6 +70,8 @@ export default function ResearchNodeCard({
     state = 'default',
     variant,
     interactive,
+    currentLevel = 0,
+    maxLevels = 1,
     tone = 'default',
     layout = 'compact',
     showCost = true,
@@ -187,7 +193,14 @@ export default function ResearchNodeCard({
 
     const content = (
         <div className="flex h-full min-h-0 w-full flex-col gap-1 overflow-hidden">
-            <div className={`${titleClass} shrink-0`}>{node.title}</div>
+            <div className={`${titleClass} shrink-0 flex items-center gap-1.5 min-w-0`}>
+                <span className="truncate">{node.title}</span>
+                {maxLevels > 1 && (
+                    <span className="shrink-0 rounded bg-black/30 px-1 py-px text-[9px] font-semibold tabular-nums text-amber-200/90">
+                        Lv {currentLevel}/{maxLevels}
+                    </span>
+                )}
+            </div>
             <div
                 className={`${descSizeClass} min-h-0 flex-1 text-gray-300 ${layout === 'comfortable' ? 'line-clamp-4' : 'line-clamp-3'}`}
                 style={{

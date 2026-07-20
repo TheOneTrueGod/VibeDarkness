@@ -20,6 +20,7 @@ export interface CampaignCharacterPayload {
     campaignId: string;
     missionId: string;
     researchTrees?: Record<string, string[]>;
+    researchNodeLevels?: Record<string, Record<string, number>>;
     /** Per-campaign mission results; key = campaignId. */
     missionResults?: Record<string, MissionResult[]>;
     lastUsed?: number;
@@ -394,7 +395,15 @@ export class LobbyClient {
     /** Update a campaign character (equipment, name, portraitId). Must be owned by current account. */
     async updateCharacter(
         characterId: string,
-        updates: { equipment?: string[]; name?: string; portraitId?: string; researchTrees?: Record<string, string[]>; missionResults?: Record<string, MissionResult[]>; campaignId?: string }
+        updates: {
+            equipment?: string[];
+            name?: string;
+            portraitId?: string;
+            researchTrees?: Record<string, string[]>;
+            researchNodeLevels?: Record<string, Record<string, number>>;
+            missionResults?: Record<string, MissionResult[]>;
+            campaignId?: string;
+        }
     ): Promise<CampaignCharacterPayload> {
         const data = await this.request(`/api/characters/${encodeURIComponent(characterId)}`, {
             method: 'PATCH',
@@ -413,7 +422,7 @@ export class LobbyClient {
 
     async researchCharacterNode(
         characterId: string,
-        payload: { treeId: string; nodeId: string }
+        payload: { treeId: string; nodeId: string; maxLevels?: number }
     ): Promise<CampaignCharacterPayload> {
         const data = await this.request(`/api/characters/${encodeURIComponent(characterId)}/research`, {
             method: 'POST',

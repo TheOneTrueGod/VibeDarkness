@@ -11,6 +11,11 @@ import {
     getStaminaRecoveryBonusFromResearch,
 } from '../../research/researchTrainingEffects';
 import {
+    applyPassiveBonusToBase,
+    computePassiveBonuses,
+    DEFAULT_PASSIVE_MULT,
+} from '../../../../researchTrees/passiveBonuses';
+import {
     applyCrystalRocksResearchToAbilityRuntime,
     applyStickSwordResearchToAbilityRuntime,
     initializeAbilityRuntimeForUnit,
@@ -90,15 +95,21 @@ export function spawnTinyPlayerUnit(
         y: number;
         abilities: string[];
         playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
+        playerResearchNodeLevelsByPlayer?: Record<string, Record<string, Record<string, number>>>;
     },
 ): Unit {
     const eventBus = engine.eventBus;
     const getResearchNodes = researchGetter(params.playerResearchTreesByPlayer, params.playerId);
+    const passiveBonuses = computePassiveBonuses(
+        params.playerResearchTreesByPlayer?.[params.playerId],
+        params.playerResearchNodeLevelsByPlayer?.[params.playerId],
+    );
     const baseHp = getDefaultHp(PLAYER_CHARACTER_ID);
     const healthBonus = getHealthBonusFromResearch(getResearchNodes);
     const flatDamageBonus = getDamageBonusFromResearch(getResearchNodes);
     const staminaRecoveryBonus = getStaminaRecoveryBonusFromResearch(getResearchNodes);
-    const maxHp = baseHp + healthBonus;
+    const maxHp = applyPassiveBonusToBase(baseHp + healthBonus, passiveBonuses.maxHealth);
+    const damageMultiplier = passiveBonuses.all_damage?.mult ?? DEFAULT_PASSIVE_MULT;
     const unit = createPlayerUnit(
         {
             x: params.x,
@@ -111,7 +122,10 @@ export function spawnTinyPlayerUnit(
             hp: maxHp,
             maxHp,
             combatSettings:
-                flatDamageBonus > 0 ? { damageModifier: { flatAmt: flatDamageBonus, multiplier: 1 } } : undefined,
+                flatDamageBonus > 0 || damageMultiplier !== DEFAULT_PASSIVE_MULT
+                    ? { damageModifier: { flatAmt: flatDamageBonus, multiplier: damageMultiplier } }
+                    : undefined,
+            passiveBonuses,
         },
         eventBus,
         engine,

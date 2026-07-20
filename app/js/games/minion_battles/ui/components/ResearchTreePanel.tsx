@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { AccountState, CampaignResources } from '../../../../types';
 import type { CampaignCharacter } from '../../character_defs/CampaignCharacter';
-import type { ResearchTreeDef, ResearchNodeDef, Requirement } from '../../../../researchTrees/types';
+import type { ResearchTreeDef, ResearchNodeDef, Requirement, ResearchNodeLevels } from '../../../../researchTrees/types';
 import {
 	canResearchNode,
 	computeEffectiveResourcesForTree,
 	meetsRequirement,
 } from '../../../../researchTrees/evaluator';
+import { getNodeLevel, getNodeMaxLevels } from '../../../../researchTrees/passiveBonuses';
 import ResourcePill, { RESOURCE_ORDER } from '../../../../components/ResourcePill';
 import ResearchNodeCard, { type ResearchRequirementBadge } from './ResearchNodeCard';
 import { getItemDef } from '../../character_defs/items';
@@ -183,6 +184,8 @@ export interface ResearchTreeContentProps {
 	character: CampaignCharacter;
 	equipment: string[];
 	researchTrees: Record<string, string[]>;
+	/** Per-tree node level counts for multi-level passive nodes. */
+	researchNodeLevels?: ResearchNodeLevels;
 	campaignResources: CampaignResources;
 	saving: boolean;
 	canResetResearch: boolean;
@@ -200,6 +203,7 @@ export function ResearchTreeContent({
 	character,
 	equipment,
 	researchTrees,
+	researchNodeLevels,
 	campaignResources,
 	saving,
 	canResetResearch,
@@ -211,10 +215,10 @@ export function ResearchTreeContent({
 		const safeAccount = account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 };
 		return {
 			account: safeAccount as AccountState,
-			character: { ...character, equipment, researchTrees } as CampaignCharacter,
+			character: { ...character, equipment, researchTrees, researchNodeLevels } as CampaignCharacter,
 			campaignResources,
 		};
-	}, [account, campaignResources, character, equipment, researchTrees]);
+	}, [account, campaignResources, character, equipment, researchTrees, researchNodeLevels]);
 
 	const VIEW_W_MIN = 520;
 	const VIEW_H_MIN = 400;
@@ -226,8 +230,6 @@ export function ResearchTreeContent({
 	const hasResearchInThisTree = (researchTrees[tree.id] ?? []).length > 0;
 
 	const effective = computeEffectiveResourcesForTree(tree, ctx);
-	const researchedSet = new Set(researchTrees[tree.id] ?? []);
-
 	const researchedByTreeId = useMemo(() => {
 		const out: Record<string, Set<string>> = {};
 		for (const [treeId, nodeIds] of Object.entries(researchTrees)) {
@@ -363,18 +365,24 @@ export function ResearchTreeContent({
 						</svg>
 
 						{tree.nodes.map((n) => {
-							const researched = researchedSet.has(n.id);
+							const currentLevel = getNodeLevel(tree.id, n.id, researchTrees, researchNodeLevels);
+							const maxLevels = getNodeMaxLevels(n);
+							const atMax = currentLevel >= maxLevels;
 							const check = canResearchNode(tree, n.id, ctx, { skipCostCheck: isAdmin });
-							const enabled = !researched && check.ok;
-							const blocked = !researched && !check.ok;
+							const enabled = !atMax && check.ok;
+							const blocked = !atMax && !check.ok;
 							const pos = mapPos(n.position);
 							const knowledgeKeys = accountKnowledgeKeys(n.requirements);
 							const itemReqs = equippedItemRequirementLabels(n.requirements);
-							const selectionReason = researched
-								? 'Already researched.'
+							const selectionReason = atMax
+								? maxLevels > 1
+									? `Fully researched (Lv ${currentLevel}/${maxLevels}).`
+									: 'Already researched.'
 								: blocked
 									? getResearchBlockReason(check.missing)
-									: null;
+									: currentLevel > 0
+										? `Lv ${currentLevel}/${maxLevels} — click to upgrade.`
+										: null;
 							const requirementBadges: ResearchRequirementBadge[] = [
 								...knowledgeKeys.map((key) => {
 									const req = n.requirements.find(
@@ -415,7 +423,9 @@ export function ResearchTreeContent({
 									<ResearchNodeCard
 										node={n}
 										variant="interactive"
-										state={researched ? 'researched' : enabled ? 'enabled' : blocked ? 'blocked' : 'default'}
+										state={atMax ? 'researched' : enabled ? 'enabled' : blocked ? 'blocked' : 'default'}
+										currentLevel={currentLevel}
+										maxLevels={maxLevels}
 										showCost
 										showRequirements
 										showTier
@@ -430,16 +440,22 @@ export function ResearchTreeContent({
 							const fromTree = allTrees.find((t) => t.id === ref.fromTreeId);
 							const node = fromTree?.nodes.find((n) => n.id === ref.nodeId);
 							if (!fromTree || !node) return null;
-							const researched = (researchTrees[ref.fromTreeId] ?? []).includes(ref.nodeId);
+							const currentLevel = getNodeLevel(ref.fromTreeId, ref.nodeId, researchTrees, researchNodeLevels);
+							const maxLevels = getNodeMaxLevels(node);
+							const atMax = currentLevel >= maxLevels;
 							const check = canResearchNode(fromTree, ref.nodeId, ctx, { skipCostCheck: isAdmin });
-							const enabled = !researched && check.ok;
-							const blocked = !researched && !check.ok;
+							const enabled = !atMax && check.ok;
+							const blocked = !atMax && !check.ok;
 							const pos = mapPos(ref.position);
-							const selectionReason = researched
-								? 'Already researched.'
+							const selectionReason = atMax
+								? maxLevels > 1
+									? `Fully researched (Lv ${currentLevel}/${maxLevels}).`
+									: 'Already researched.'
 								: blocked
 									? getResearchBlockReason(check.missing)
-									: null;
+									: currentLevel > 0
+										? `Lv ${currentLevel}/${maxLevels} — click to upgrade.`
+										: null;
 							return (
 								<div
 									key={`cross:${ref.fromTreeId}:${ref.nodeId}`}
@@ -449,7 +465,9 @@ export function ResearchTreeContent({
 									<ResearchNodeCard
 										node={node}
 										variant="interactive"
-										state={researched ? 'researched' : enabled ? 'enabled' : blocked ? 'blocked' : 'default'}
+										state={atMax ? 'researched' : enabled ? 'enabled' : blocked ? 'blocked' : 'default'}
+										currentLevel={currentLevel}
+										maxLevels={maxLevels}
 										showCost
 										showRequirements
 										showTier

@@ -47,6 +47,27 @@ export interface AbilityResearchModifier extends AbilityModifier {
     abilitySpecification: AbilitySpecification;
 }
 
+/** Stat keys that passive research nodes can modify. */
+export type PassiveStatKey = 'maxHealth' | 'all_damage' | 'earth_damage';
+
+/** Per-stat add/mult contribution from a passive node (totals at max level). */
+export interface PassiveBonusEntry {
+    add?: number;
+    mult?: number;
+}
+
+/** Map of passive stat → add/mult granted at full node levels. */
+export type PassiveBonusMap = Partial<Record<PassiveStatKey, PassiveBonusEntry>>;
+
+/**
+ * Aggregated passive bonuses for a character (computed at mission start / Stat Bonuses tab).
+ * `add` values are summed across nodes; `mult` is `1 + sum(nodeMult - 1)` across nodes.
+ */
+export type PassiveBonuses = Partial<Record<PassiveStatKey, { add: number; mult: number }>>;
+
+/** Per-tree map of nodeId → purchased level for multi-level (passive) nodes. */
+export type ResearchNodeLevels = Record<string, Record<string, number>>;
+
 export interface ResearchNodeDef {
     id: string;
     title: string;
@@ -74,6 +95,16 @@ export interface ResearchNodeDef {
      * Use the same ID for both when the node modifies rather than replaces an ability.
      */
     modifiesAbility?: { from: string; to: string };
+    /**
+     * Max purchasable levels for this node. Omit or `1` = binary unlock.
+     * Passive nodes with `passiveBonus` typically set this &gt; 1.
+     */
+    levels?: number;
+    /**
+     * Max passive bonuses granted at full `levels`. Contribution scales with current level:
+     * `floor(add * L / Max)` and `(mult - 1) * L / Max`.
+     */
+    passiveBonus?: PassiveBonusMap;
 }
 
 /** A node from another tree shown inside this tree's panel. Purchasing stores it under fromTreeId. */

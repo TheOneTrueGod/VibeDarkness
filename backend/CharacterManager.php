@@ -97,7 +97,7 @@ class CharacterManager
      * Update a character's fields (equipment, name, portraitId, researchTrees). Caller must ensure ownership.
      *
      * @param string $characterId
-     * @param array{equipment?: string[], name?: string, portraitId?: string, researchTrees?: array<string, string[]>, lastUsed?: int, missionResults?: array<string, list<array<string, mixed>>>, campaignId?: string} $updates
+     * @param array{equipment?: string[], name?: string, portraitId?: string, researchTrees?: array<string, string[]>, researchNodeLevels?: array<string, array<string, int>>, lastUsed?: int, missionResults?: array<string, list<array<string, mixed>>>, campaignId?: string} $updates
      * @return Character|null Updated character or null if not found
      */
     public function updateCharacter(string $characterId, array $updates): ?Character
@@ -118,6 +118,9 @@ class CharacterManager
         }
         if (isset($updates['researchTrees']) && is_array($updates['researchTrees'])) {
             $data['researchTrees'] = $updates['researchTrees'];
+        }
+        if (isset($updates['researchNodeLevels']) && is_array($updates['researchNodeLevels'])) {
+            $data['researchNodeLevels'] = $updates['researchNodeLevels'];
         }
         if (array_key_exists('lastUsed', $updates)) {
             $data['lastUsed'] = max(0, (int) $updates['lastUsed']);

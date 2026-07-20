@@ -79,7 +79,7 @@ export class MinionBattlesApi {
 
     async researchCharacterNode(
         characterId: string,
-        payload: { treeId: string; nodeId: string },
+        payload: { treeId: string; nodeId: string; maxLevels?: number },
     ): Promise<CampaignCharacterPayload> {
         return this.lobbyClient.researchCharacterNode(characterId, payload);
     }

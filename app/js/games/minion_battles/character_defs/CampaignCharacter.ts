@@ -37,6 +37,24 @@ function migrateLightCoreEquipment(
     return equipment.map((id) => (id === '008' ? coreLightItem.id : id));
 }
 
+function normalizeResearchNodeLevels(
+    raw: CampaignCharacterData['researchNodeLevels'],
+): Record<string, Record<string, number>> {
+    if (!raw || typeof raw !== 'object') return {};
+    const out: Record<string, Record<string, number>> = {};
+    for (const [treeId, levels] of Object.entries(raw)) {
+        if (!treeId || !levels || typeof levels !== 'object') continue;
+        const treeOut: Record<string, number> = {};
+        for (const [nodeId, level] of Object.entries(levels)) {
+            if (!nodeId) continue;
+            if (typeof level !== 'number' || !Number.isFinite(level) || level < 1) continue;
+            treeOut[nodeId] = Math.floor(level);
+        }
+        if (Object.keys(treeOut).length > 0) out[treeId] = treeOut;
+    }
+    return out;
+}
+
 export class CampaignCharacter {
     readonly id: string;
     readonly ownerAccountId: number | undefined;
@@ -49,6 +67,8 @@ export class CampaignCharacter {
     readonly campaignId: string;
     readonly missionId: string;
     readonly researchTrees: Record<string, string[]>;
+    /** Per-tree node level counts for multi-level research nodes. */
+    readonly researchNodeLevels: Record<string, Record<string, number>>;
     /** Unix seconds; 0 if never used in a mission (per server). */
     readonly lastUsed: number;
     /** Per-campaign mission results. Key = campaignId. */
@@ -75,6 +95,7 @@ export class CampaignCharacter {
         this.campaignId = typeof data.campaignId === 'string' ? data.campaignId : '';
         this.missionId = typeof data.missionId === 'string' ? data.missionId : '';
         this.researchTrees = rawResearchTrees;
+        this.researchNodeLevels = normalizeResearchNodeLevels(data.researchNodeLevels);
         this.lastUsed =
             typeof data.lastUsed === 'number' && Number.isFinite(data.lastUsed) && data.lastUsed > 0
                 ? Math.floor(data.lastUsed)
@@ -147,6 +168,7 @@ export class CampaignCharacter {
             campaignId: this.campaignId,
             missionId: this.missionId,
             researchTrees: this.researchTrees,
+            researchNodeLevels: this.researchNodeLevels,
             lastUsed: this.lastUsed,
             missionResults: this.missionResults,
         };

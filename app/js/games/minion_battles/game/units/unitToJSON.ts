@@ -112,6 +112,9 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
         stamina: unit.stamina,
         buffs: unit.buffs.map((b) => b.toJSON()),
         combatSettings: unit.combatSettings,
+        ...(unit.passiveBonuses && Object.keys(unit.passiveBonuses).length > 0
+            ? { passiveBonuses: unit.passiveBonuses }
+            : {}),
         ...(unit.ephemeralDespawnAtGameTime != null
             ? { ephemeralDespawnAtGameTime: unit.ephemeralDespawnAtGameTime }
             : {}),

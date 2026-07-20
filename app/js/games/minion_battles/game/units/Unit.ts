@@ -6,7 +6,8 @@
  * Subclasses define per-character defaults.
  */
 
-import type { AbilityModifier } from '../../../../researchTrees/types';
+import type { AbilityModifier, PassiveBonuses } from '../../../../researchTrees/types';
+import { applyPassiveBonusToBase } from '../../../../researchTrees/passiveBonuses';
 import { GameObject, generateGameObjectId } from '../GameObject';
 import { type TeamId } from '../teams';
 import type { ActiveAbility } from '../types';
@@ -244,6 +245,8 @@ export class Unit extends GameObject {
     buffs: Buff[] = [];
     /** Per-unit combat tuning values (optional, serialized). */
     combatSettings: UnitCombatSettings | undefined;
+    /** Aggregated passive research bonuses (computed at mission start). Serialized. */
+    passiveBonuses: PassiveBonuses | undefined;
 
     /** When non-null, unit dies when GameEngine.gameTime reaches this value (husks, etc.). */
     ephemeralDespawnAtGameTime: number | null = null;
@@ -281,6 +284,7 @@ export class Unit extends GameObject {
         this.radiusOverride = config.radius;
         this.stamina = config.stamina ?? 1;
         this.combatSettings = config.combatSettings;
+        this.passiveBonuses = config.passiveBonuses;
         this.ephemeralDespawnAtGameTime = config.ephemeralDespawnAtGameTime ?? null;
         this.stackSize = config.stackSize ?? 1;
     }
@@ -331,14 +335,14 @@ export class Unit extends GameObject {
     }
 
     /**
-     * Calculate max health from unit def base + health-affecting research.
-     * Loops through RESEARCH_HEALTH_BONUSES for each researched node.
+     * Calculate max health from unit def base + Training health maps + unit passiveBonuses.
+     * Prefer the bag attached at mission start; callers without a bag get Training-map HP only.
      * @param getResearchNodes Callback (treeId) => researched node IDs for this unit's owner.
      */
     calculateMaxHealth(getResearchNodes: (treeId: string) => string[]): number {
         const base = getDefaultHp(this.characterId);
         const bonus = getHealthBonusFromResearch(getResearchNodes);
-        return base + bonus;
+        return applyPassiveBonusToBase(base + bonus, this.passiveBonuses?.maxHealth);
     }
 
     /** Return this unit's damage modifier; defaults to no bonus. */
@@ -533,6 +537,7 @@ export class Unit extends GameObject {
             abilities: data.abilities as string[],
             stamina: (data.stamina as number | undefined) ?? 1,
             combatSettings: data.combatSettings as UnitCombatSettings | undefined,
+            passiveBonuses: data.passiveBonuses as import('../../../../researchTrees/types').PassiveBonuses | undefined,
         });
         applySerializedUnitState(unit, data, eventBus, currentGameTick);
         return unit;

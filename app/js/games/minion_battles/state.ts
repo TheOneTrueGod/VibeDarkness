@@ -79,6 +79,8 @@ export interface MinionBattlesState {
     playerEquippedItems?: Record<string, string[]>;
     /** Player research trees snapshot for runtime battle logic. */
     playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
+    /** Multi-level research node counts (playerId → treeId → nodeId → level). */
+    playerResearchNodeLevelsByPlayer?: Record<string, Record<string, Record<string, number>>>;
 }
 
 export interface MinionBattlesGameOptions {

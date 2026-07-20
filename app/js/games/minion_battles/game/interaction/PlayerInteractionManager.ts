@@ -1,6 +1,7 @@
 import type { AbilityStatic } from '../../abilities/Ability';
 import { getAbilityTargets } from '../../abilities/Ability';
 import type { BattleOrder, ResolvedTarget, WaitingForOrders } from '../types';
+import type { BattleSession } from '../BattleSession';
 import type { InteractionTool, PlayerInteractionContext, PlayerInteractionUIState, IPlayerInteractionManager } from './InteractionTool';
 import { DefaultTool } from './tools/DefaultTool';
 import { AbilityTargetingTool } from './tools/AbilityTargetingTool';
@@ -232,7 +233,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
             e.preventDefault();
             if (!this._canUseOrderUi) {
                 if (this.ctx) {
-                    logOrderUiKeyAction(this.ctx.session, {
+                    logOrderUiKeyAction(this.ctx.session as BattleSession, {
                         action: 'space',
                         itsActive: this.ctx.session.interactiveTargeting.isActive,
                         canUseOrderUi: false,
@@ -392,7 +393,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
     handleWait(): void {
         const logWait = (blocked: boolean, blockReason: string | null): void => {
             if (!this.ctx) return;
-            logOrderUiKeyAction(this.ctx.session, {
+            logOrderUiKeyAction(this.ctx.session as BattleSession, {
                 action: 'wait',
                 itsActive: this.ctx.session.interactiveTargeting.isActive,
                 canUseOrderUi: this._canUseOrderUi,
@@ -426,7 +427,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
     handleEndTurn(): void {
         const order = this.uiState.nonconfirmedOrder;
         if (this.ctx?.session.interactiveTargeting.isActive) {
-            logOrderUiKeyAction(this.ctx.session, {
+            logOrderUiKeyAction(this.ctx.session as BattleSession, {
                 action: 'end_turn',
                 itsActive: true,
                 canUseOrderUi: this._canUseOrderUi,
@@ -441,7 +442,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         }
         if (!order || !this._canUseOrderUi || !this.ctx) {
             if (this.ctx) {
-                logOrderUiKeyAction(this.ctx.session, {
+                logOrderUiKeyAction(this.ctx.session as BattleSession, {
                     action: 'end_turn',
                     itsActive: this.ctx.session.interactiveTargeting.isActive,
                     canUseOrderUi: this._canUseOrderUi,
@@ -459,7 +460,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
             }
             return;
         }
-        logOrderUiKeyAction(this.ctx.session, {
+        logOrderUiKeyAction(this.ctx.session as BattleSession, {
             action: 'end_turn',
             itsActive: this.ctx.session.interactiveTargeting.isActive,
             canUseOrderUi: true,

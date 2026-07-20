@@ -401,6 +401,13 @@ export interface AbilityStatic {
     getTooltipText(gameState?: unknown): string[];
 
     /**
+     * Optional. Resolves this ability's base damage for display / cast helpers when a caster
+     * is available. When `caster` is omitted, returns the raw ability number with no
+     * passive damage bonuses applied.
+     */
+    getDamage?(caster?: Unit): number;
+
+    /**
      * Execute the ability's effect over time using threshold checks.
      *
      * Called every tick while the ability is active. `prevTime` and `currentTime` are seconds elapsed

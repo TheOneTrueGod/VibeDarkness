@@ -41,6 +41,12 @@ export function getAbilityModifier(
     return eng?.getLocalPlayerUnit?.()?.abilityModifiers[abilityId] ?? {};
 }
 
+/** Local player unit from a tooltip gameState / engine, if available. */
+export function getLocalPlayerUnitFromGameState(gameState: unknown): Unit | undefined {
+    const eng = gameState as EngineWithLocalUnit | undefined;
+    return eng?.getLocalPlayerUnit?.() ?? undefined;
+}
+
 /**
  * Returns true if the player that owns `caster` has unlocked the given research node.
  *

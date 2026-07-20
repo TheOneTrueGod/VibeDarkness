@@ -31,6 +31,8 @@ import { meleeLineHitbox } from '../../hitboxes';
 import type { HitboxSpec } from '../../hitboxes/HitboxSpec';
 import { defineAbility, type AbilityDefInput } from '../defineAbility';
 import type { WindupLungeConfig } from '../WindupLunge';
+import { applyPassiveDamageBonuses } from '../damageModifiers';
+import { getLocalPlayerUnitFromGameState } from '../abilityModifierHelpers';
 
 // ---------------------------------------------------------------------------
 // Config interface
@@ -219,6 +221,9 @@ export function defineMeleeStrike(config: MeleeStrikeConfig): AbilityStatic {
     };
 
     // Assemble the full input for defineAbility.
+    const baseDamage = config.damage;
+    const getDamage = (caster?: Unit): number => applyPassiveDamageBonuses(baseDamage, caster);
+
     const defInput: AbilityDefInput = {
         id: config.id,
         name: config.name,
@@ -237,7 +242,18 @@ export function defineMeleeStrike(config: MeleeStrikeConfig): AbilityStatic {
         trackTargetUntilLabel: config.trackTargetUntilLabel,
         abilityEvents: config.abilityEvents,
         movementLock: { until: movementLockUntil },
-        getTooltipText: config.getTooltipText,
+        getDamage,
+        getTooltipText(gameState?: unknown): string[] {
+            const caster = getLocalPlayerUnitFromGameState(gameState);
+            const lines = config.getTooltipText(gameState);
+            if (!caster) return lines;
+            // Rewrite floored tooltip damage placeholders that match the raw base to the caster-aware value.
+            const display = getDamage(caster);
+            if (display === baseDamage) return lines;
+            return lines.map((line) =>
+                line.split(`{${baseDamage}}`).join(`{${display}}`),
+            );
+        },
         ...(config.lunge ? { lunge: config.lunge } : {}),
     };
 

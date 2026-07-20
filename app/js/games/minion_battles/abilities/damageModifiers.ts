@@ -1,4 +1,5 @@
 import type { Unit } from '../game/units/Unit';
+import { DEFAULT_PASSIVE_MULT, applyPassiveBonusToBase } from '../../../researchTrees/passiveBonuses';
 
 export const DEFAULT_DAMAGE_MODIFIER_MULTIPLIER = 1;
 
@@ -17,6 +18,8 @@ export const ABILITY_DAMAGE_MODIFIER_MULTIPLIER_OVERRIDES: Record<string, number
 
 /**
  * Applies the attacker's damage modifier to base damage for a specific ability.
+ * Formula: `(baseDamage + flatAmt * abilityFlatScale) * multiplier * stackSize`.
+ * When `multiplier === 1`, this matches the historical flat Training bonus behaviour.
  * Returns integer damage suitable for `Unit.takeDamage`.
  */
 export function getModifiedAbilityDamage(
@@ -26,6 +29,23 @@ export function getModifiedAbilityDamage(
 ): number {
     if (!attacker) return Math.max(0, Math.round(baseDamage));
     const damageModifier = attacker.getDamageModifier();
-    const flatBonus = damageModifier.flatAmt * damageModifier.multiplier * abilityDamageModifierMultiplier;
-    return Math.max(0, Math.round((baseDamage + flatBonus) * attacker.stackSize));
+    const flatPart = damageModifier.flatAmt * abilityDamageModifierMultiplier;
+    return Math.max(
+        0,
+        Math.round((baseDamage + flatPart) * damageModifier.multiplier * attacker.stackSize),
+    );
+}
+
+/**
+ * Apply caster `passiveBonuses.all_damage` to a raw ability base (tooltips / getDamage helpers).
+ * When `caster` is omitted, returns the base unchanged (no passive bonuses).
+ */
+export function applyPassiveDamageBonuses(baseDamage: number, caster?: Unit): number {
+    if (!caster) return Math.max(0, Math.floor(baseDamage));
+    return Math.max(0, applyPassiveBonusToBase(baseDamage, caster.passiveBonuses?.all_damage));
+}
+
+/** Read the caster's all_damage mult, defaulting to 1 when absent / no caster. */
+export function getAllDamagePassiveMult(caster?: Unit): number {
+    return caster?.passiveBonuses?.all_damage?.mult ?? DEFAULT_PASSIVE_MULT;
 }

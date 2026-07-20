@@ -35,6 +35,11 @@ import {
     getStaminaRecoveryBonusFromResearch,
 } from '../research/researchTrainingEffects';
 import {
+    applyPassiveBonusToBase,
+    computePassiveBonuses,
+    DEFAULT_PASSIVE_MULT,
+} from '../../../researchTrees/passiveBonuses';
+import {
     applyCrystalRocksResearchToAbilityRuntime,
     applyStickSwordResearchToAbilityRuntime,
     applyAbilityResearchModifiersToRuntime,
@@ -114,6 +119,8 @@ export interface InitializeGameStateParams {
     equippedItemsByPlayer?: Record<string, string[]>;
     /** Player research trees (playerId -> treeId -> researched node ids). Used for max health etc. */
     playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
+    /** Multi-level research counts (playerId -> treeId -> nodeId -> level). */
+    playerResearchNodeLevelsByPlayer?: Record<string, Record<string, Record<string, number>>>;
     /** POIs collected from the fetched terrain segments; passed to the engine for spawn point lookups. */
     terrainSegmentPOIs?: MapSegmentPOI[];
     /** Zones collected from the fetched terrain segments (already shifted to mission-global coords). */
@@ -218,6 +225,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
         const playerSpacing = worldH / (playerCount + 1);
         const spawnPoints = this.playerSpawnPoints;
         const researchByPlayer = params.playerResearchTreesByPlayer ?? {};
+        const researchLevelsByPlayer = params.playerResearchNodeLevelsByPlayer ?? {};
         for (let i = 0; i < playerCount; i++) {
             const pu = params.playerUnits[i];
             const mergedEquip = mergeBattleEquipmentIdsFromResearch(
@@ -276,11 +284,25 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
 
             const getResearchNodes = (treeId: string) =>
                 researchByPlayer[pu.playerId]?.[treeId] ?? [];
+            const passiveBonuses = computePassiveBonuses(
+                researchByPlayer[pu.playerId],
+                researchLevelsByPlayer[pu.playerId],
+            );
             const baseHp = getDefaultHp(PLAYER_CHARACTER_ID);
             const healthBonus = getHealthBonusFromResearch(getResearchNodes);
             const flatDamageBonus = getDamageBonusFromResearch(getResearchNodes);
             const staminaRecoveryBonus = getStaminaRecoveryBonusFromResearch(getResearchNodes);
-            const maxHp = baseHp + healthBonus;
+            const maxHp = applyPassiveBonusToBase(baseHp + healthBonus, passiveBonuses.maxHealth);
+            const damageMultiplier = passiveBonuses.all_damage?.mult ?? DEFAULT_PASSIVE_MULT;
+            const combatSettings =
+                flatDamageBonus > 0 || damageMultiplier !== DEFAULT_PASSIVE_MULT
+                    ? {
+                          damageModifier: {
+                              flatAmt: flatDamageBonus,
+                              multiplier: damageMultiplier,
+                          },
+                      }
+                    : undefined;
             const unit = createPlayerUnit(
                 {
                     x: spawnX,
@@ -292,9 +314,8 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     portraitId: pu.portraitId ?? 'warrior',
                     hp: maxHp,
                     maxHp,
-                    combatSettings: flatDamageBonus > 0
-                        ? { damageModifier: { flatAmt: flatDamageBonus, multiplier: 1 } }
-                        : undefined,
+                    combatSettings,
+                    passiveBonuses,
                 },
                 params.eventBus,
                 engine,

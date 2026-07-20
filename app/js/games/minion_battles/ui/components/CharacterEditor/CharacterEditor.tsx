@@ -31,9 +31,11 @@ import {
     prereqClosure,
     treeHasAnyResearch,
 } from '../../../../../researchTrees/evaluator';
+import { getNodeMaxLevels } from '../../../../../researchTrees/passiveBonuses';
 import ResourcePill from '../../../../../components/ResourcePill';
 import { getShowAllResearchTrees, subscribeShowAllResearchTrees } from '../../../../../debugFlags';
 import MissionMapTab from './MissionMapTab';
+import StatBonusesTab from './StatBonusesTab';
 import { STORYLINES } from '../../../storylines/index';
 
 interface CharacterEditorProps {
@@ -73,7 +75,7 @@ interface CharacterEditorProps {
     adminKnowledgePanel?: React.ReactNode;
 }
 
-type EditorTab = 'missionMap' | 'equipment' | 'research';
+type EditorTab = 'missionMap' | 'equipment' | 'research' | 'statBonuses';
 const MAX_CHARACTER_NAME_LENGTH = 15;
 
 /** Slot descriptor for the doll: type and optional index for weapon/utility. */
@@ -136,6 +138,9 @@ export default function CharacterEditor({
     const [dragItemId, setDragItemId] = useState<string | null>(null);
     const [dragSlot, setDragSlot] = useState<EquipmentSlotType | null>(null);
     const [researchTrees, setResearchTrees] = useState<Record<string, string[]>>(() => character.researchTrees ?? {});
+    const [researchNodeLevels, setResearchNodeLevels] = useState<Record<string, Record<string, number>>>(
+        () => character.researchNodeLevels ?? {},
+    );
     const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
     const [adminUseGridView, setAdminUseGridView] = useState(false);
     const [localCampaign, setLocalCampaign] = useState<CampaignState | null>(null);
@@ -158,7 +163,8 @@ export default function CharacterEditor({
     useEffect(() => {
         setEquipment([...character.equipment]);
         setResearchTrees(character.researchTrees ?? {});
-    }, [character.equipment, character.researchTrees]);
+        setResearchNodeLevels(character.researchNodeLevels ?? {});
+    }, [character.equipment, character.researchTrees, character.researchNodeLevels]);
 
     useEffect(() => {
         setName(character.name);
@@ -170,7 +176,7 @@ export default function CharacterEditor({
     const eligibleResearchTrees = useMemo(() => {
         const ctx = {
             account: (account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 }) as AccountState,
-            character: { ...character, equipment, researchTrees } as CampaignCharacter,
+            character: { ...character, equipment, researchTrees, researchNodeLevels } as CampaignCharacter,
             campaignResources: (resolvedCampaign?.resources ?? {}) as CampaignResources,
         };
         return RESEARCH_TREES.filter((t) => {
@@ -189,7 +195,7 @@ export default function CharacterEditor({
                 return false;
             });
         });
-    }, [account, character, equipment, researchTrees, resolvedCampaign?.resources]);
+    }, [account, character, equipment, researchTrees, researchNodeLevels, resolvedCampaign?.resources]);
 
     const displayResearchTrees = showAllResearchTreesDebug ? RESEARCH_TREES : eligibleResearchTrees;
 
@@ -353,6 +359,9 @@ export default function CharacterEditor({
             setSaving(true);
             try {
                 const nextResearchTrees: Record<string, string[]> = { ...researchTrees };
+                const nextResearchNodeLevels: Record<string, Record<string, number>> = {
+                    ...researchNodeLevels,
+                };
                 let nextEquipment = [...equipment];
 
                 for (const treeId of treeIds) {
@@ -362,6 +371,7 @@ export default function CharacterEditor({
                     const researchedForTree = researchTrees[treeId] ?? [];
                     const researchedSet = new Set(researchedForTree);
                     nextResearchTrees[treeId] = [];
+                    delete nextResearchNodeLevels[treeId];
 
                     // Reverse any replaceEquippedItem operations coming from nodes we are un-researching.
                     const researchedNodes = tree.nodes.filter((n) => researchedSet.has(n.id));
@@ -381,9 +391,11 @@ export default function CharacterEditor({
                 const updatedChar = await api.updateCharacter(character.id, {
                     equipment: nextEquipment,
                     researchTrees: nextResearchTrees,
+                    researchNodeLevels: nextResearchNodeLevels,
                 });
 
                 setResearchTrees(updatedChar.researchTrees ?? nextResearchTrees);
+                setResearchNodeLevels(updatedChar.researchNodeLevels ?? nextResearchNodeLevels);
                 setEquipment(updatedChar.equipment ?? nextEquipment);
                 onSaved?.({ equipment: updatedChar.equipment ?? nextEquipment, name, portraitId: selectedPortraitId });
             } catch (e) {
@@ -392,7 +404,7 @@ export default function CharacterEditor({
                 setSaving(false);
             }
         },
-        [character.id, equipment, api, name, permissionAccount?.role, researchTrees, selectedPortraitId, onSaved]
+        [character.id, equipment, api, name, permissionAccount?.role, researchTrees, researchNodeLevels, selectedPortraitId, onSaved]
     );
 
     const handleResearchNode = useCallback(
@@ -403,28 +415,47 @@ export default function CharacterEditor({
 
             const ctx = {
                 account: (account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 }) as AccountState,
-                character: { ...character, equipment, researchTrees } as CampaignCharacter,
+                character: { ...character, equipment, researchTrees, researchNodeLevels } as CampaignCharacter,
                 campaignResources: resolvedCampaign.resources,
             };
 
             const check = canResearchNode(tree, nodeId, ctx);
             if (!check.ok) return;
 
-            // Auto-research prerequisites client-side by posting each missing node (server will dedupe).
-            const closure = prereqClosure(tree, nodeId);
+            const targetNode = tree.nodes.find((n) => n.id === nodeId);
+            const maxLevels = targetNode ? getNodeMaxLevels(targetNode) : 1;
             const already = new Set(researchTrees[treeId] ?? []);
-            const toDo = closure.filter((id) => !already.has(id));
+            // Level-ups only post the target node; first unlock may auto-research prereqs.
+            const isLevelUp = already.has(nodeId);
+            const toDo = isLevelUp
+                ? [nodeId]
+                : prereqClosure(tree, nodeId).filter((id) => !already.has(id));
 
             setSaving(true);
             try {
                 for (const nid of toDo) {
-                    const updated = await api.researchCharacterNode(character.id, { treeId, nodeId: nid });
+                    const nodeDef = tree.nodes.find((n) => n.id === nid);
+                    const updated = await api.researchCharacterNode(character.id, {
+                        treeId,
+                        nodeId: nid,
+                        maxLevels: nodeDef ? getNodeMaxLevels(nodeDef) : maxLevels,
+                    });
                     setResearchTrees(updated.researchTrees ?? {});
+                    setResearchNodeLevels(updated.researchNodeLevels ?? {});
                 }
-                const latestTrees = (await api.getCharacter(character.id)).researchTrees ?? {};
+                const latest = await api.getCharacter(character.id);
+                const latestTrees = latest.researchTrees ?? {};
+                const latestLevels = latest.researchNodeLevels ?? {};
+                setResearchTrees(latestTrees);
+                setResearchNodeLevels(latestLevels);
                 const ctx2 = {
                     account: ctx.account,
-                    character: { ...character, equipment, researchTrees: latestTrees } as CampaignCharacter,
+                    character: {
+                        ...character,
+                        equipment,
+                        researchTrees: latestTrees,
+                        researchNodeLevels: latestLevels,
+                    } as CampaignCharacter,
                     campaignResources: resolvedCampaign.resources,
                 };
                 const applied = applyResearchEffects(tree, ctx2);
@@ -440,7 +471,18 @@ export default function CharacterEditor({
                 setSaving(false);
             }
         },
-        [account, character, equipment, api, researchTrees, resolvedCampaign?.resources, selectedPortraitId, name, onSaved],
+        [
+            account,
+            character,
+            equipment,
+            api,
+            researchTrees,
+            researchNodeLevels,
+            resolvedCampaign?.resources,
+            selectedPortraitId,
+            name,
+            onSaved,
+        ],
     );
 
     const handleEquipToSlot = useCallback(
@@ -571,6 +613,17 @@ export default function CharacterEditor({
                 >
                     Upgrades
                 </button>
+                <button
+                    type="button"
+                    className={`px-3 py-2 border-b-2 text-sm cursor-pointer ${
+                        activeTab === 'statBonuses'
+                            ? 'border-primary text-primary'
+                            : 'border-transparent text-muted hover:text-white'
+                    }`}
+                    onClick={() => setActiveTab('statBonuses')}
+                >
+                    Stat Bonuses
+                </button>
             </div>
 
             {/* Content: left (portrait + sidebar) | right (main) */}
@@ -678,7 +731,7 @@ export default function CharacterEditor({
                     </div>
 
                     {/* Panel-specific sidebar */}
-                    {activeTab === 'missionMap' ? null : activeTab === 'equipment' ? (
+                    {activeTab === 'missionMap' || activeTab === 'statBonuses' ? null : activeTab === 'equipment' ? (
                         <div className="flex-1 min-h-0 overflow-auto p-3">
                             {equippedItemsDisplay === 'list' ? (
                                 <EquippedItemsList
@@ -854,6 +907,7 @@ export default function CharacterEditor({
                                                     character={character}
                                                     equipment={equipment}
                                                     researchTrees={researchTrees}
+                                                    researchNodeLevels={researchNodeLevels}
                                                     campaignResources={resolvedCampaign.resources}
                                                     saving={saving}
                                                     canResetResearch
@@ -874,6 +928,15 @@ export default function CharacterEditor({
                                     )}
                                 </>
                             )}
+                        </div>
+                    )}
+
+                    {activeTab === 'statBonuses' && (
+                        <div className="flex-1 min-h-0 overflow-auto p-4">
+                            <StatBonusesTab
+                                researchTrees={researchTrees}
+                                researchNodeLevels={researchNodeLevels}
+                            />
                         </div>
                     )}
                 </div>

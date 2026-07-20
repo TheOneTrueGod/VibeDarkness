@@ -40,6 +40,12 @@ export interface CampaignCharacterData {
     campaignId: string;
     missionId: string;
     researchTrees?: Record<string, string[]>;
+    /**
+     * Per-tree map of nodeId → purchased level for multi-level (passive) research nodes.
+     * Binary nodes stay in `researchTrees` only; leveled nodes appear in both
+     * (`researchTrees` for presence/prereqs, this map for the current level).
+     */
+    researchNodeLevels?: Record<string, Record<string, number>>;
     /** Unix seconds; server sets when this character starts a mission as a playable unit. */
     lastUsed?: number;
     /**

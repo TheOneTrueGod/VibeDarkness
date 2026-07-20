@@ -24,6 +24,8 @@ class Character
     private string $missionId;
     /** @var array<string, string[]> */
     private array $researchTrees;
+    /** @var array<string, array<string, int>> treeId → nodeId → level */
+    private array $researchNodeLevels;
     /** Unix timestamp when this character last started a mission (playable unit). 0 = never. */
     private int $lastUsed;
     /** Per-campaign mission results. Key = campaignId, value = list of MissionResult objects. */
@@ -42,7 +44,8 @@ class Character
         string $missionId = '',
         array $researchTrees = [],
         int $lastUsed = 0,
-        array $missionResults = []
+        array $missionResults = [],
+        array $researchNodeLevels = []
     ) {
         $this->id = $id;
         $this->ownerAccountId = $ownerAccountId;
@@ -55,6 +58,7 @@ class Character
         $this->campaignId = $campaignId;
         $this->missionId = $missionId;
         $this->researchTrees = self::normalizeResearchTrees($researchTrees);
+        $this->researchNodeLevels = self::normalizeResearchNodeLevels($researchNodeLevels);
         $this->lastUsed = max(0, $lastUsed);
         $this->missionResults = is_array($missionResults) ? $missionResults : [];
     }
@@ -119,6 +123,12 @@ class Character
         return $this->researchTrees;
     }
 
+    /** @return array<string, array<string, int>> */
+    public function getResearchNodeLevels(): array
+    {
+        return $this->researchNodeLevels;
+    }
+
     public function getLastUsed(): int
     {
         return $this->lastUsed;
@@ -136,6 +146,12 @@ class Character
         $this->researchTrees = self::normalizeResearchTrees($researchTrees);
     }
 
+    /** @param array<string, array<string, int>> $researchNodeLevels */
+    public function setResearchNodeLevels(array $researchNodeLevels): void
+    {
+        $this->researchNodeLevels = self::normalizeResearchNodeLevels($researchNodeLevels);
+    }
+
     /** API and storage array (serializable) */
     public function toArray(): array
     {
@@ -151,6 +167,7 @@ class Character
             'campaignId' => $this->campaignId,
             'missionId' => $this->missionId,
             'researchTrees' => $this->researchTrees,
+            'researchNodeLevels' => $this->researchNodeLevels,
             'lastUsed' => $this->lastUsed,
             'missionResults' => $this->missionResults,
         ];
@@ -163,6 +180,7 @@ class Character
         $traits = $data['traits'] ?? [];
         $battleChipDetails = $data['battleChipDetails'] ?? [];
         $researchTrees = $data['researchTrees'] ?? [];
+        $researchNodeLevels = $data['researchNodeLevels'] ?? [];
         $missionResults = $data['missionResults'] ?? [];
         return new self(
             $data['id'] ?? '',
@@ -177,7 +195,8 @@ class Character
             (string) ($data['missionId'] ?? ''),
             is_array($researchTrees) ? $researchTrees : [],
             (int) ($data['lastUsed'] ?? 0),
-            is_array($missionResults) ? $missionResults : []
+            is_array($missionResults) ? $missionResults : [],
+            is_array($researchNodeLevels) ? $researchNodeLevels : []
         );
     }
 
@@ -207,6 +226,38 @@ class Character
                 $clean[] = $nid;
             }
             $out[$treeId] = array_values(array_unique($clean));
+        }
+        return $out;
+    }
+
+    /**
+     * @param mixed $researchNodeLevels
+     * @return array<string, array<string, int>>
+     */
+    private static function normalizeResearchNodeLevels(mixed $researchNodeLevels): array
+    {
+        if (!is_array($researchNodeLevels)) {
+            return [];
+        }
+        $out = [];
+        foreach ($researchNodeLevels as $treeId => $levels) {
+            if (!is_string($treeId) || $treeId === '' || !is_array($levels)) {
+                continue;
+            }
+            $treeOut = [];
+            foreach ($levels as $nodeId => $level) {
+                if (!is_string($nodeId) || $nodeId === '') {
+                    continue;
+                }
+                $levelInt = (int) $level;
+                if ($levelInt < 1) {
+                    continue;
+                }
+                $treeOut[$nodeId] = $levelInt;
+            }
+            if ($treeOut !== []) {
+                $out[$treeId] = $treeOut;
+            }
         }
         return $out;
     }

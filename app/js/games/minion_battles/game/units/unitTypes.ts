@@ -5,6 +5,7 @@ import type { ActiveAbility } from '../types';
 import type { VisualEffectDef } from '../effects/visualEffectDef';
 import type { TeamId } from '../teams';
 import type { Unit } from './Unit';
+import type { PassiveBonuses } from '../../../../researchTrees/types';
 
 /** AI behavior settings for enemy units. */
 export interface AISettings {
@@ -127,6 +128,8 @@ export interface UnitConfig {
     stamina?: number;
     /** Optional per-unit combat tuning values. */
     combatSettings?: UnitCombatSettings;
+    /** Aggregated passive research bonuses (computed at mission start). */
+    passiveBonuses?: PassiveBonuses;
     ephemeralDespawnAtGameTime?: number | null;
     /** Number of units in this stack (default 1). */
     stackSize?: number;

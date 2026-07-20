@@ -2,8 +2,9 @@ import type { AccountState, CampaignResources } from '../types';
 import type { CampaignCharacter } from '../games/minion_battles/character_defs/CampaignCharacter';
 import { fromCampaignCharacterData } from '../games/minion_battles/character_defs/CampaignCharacter';
 import { getCoreFromEquipment, getItemDef } from '../games/minion_battles/character_defs/items';
-import type { ResearchTreeDef, ResearchNodeDef, Requirement, CampaignResourceCost, CampaignResourceKey, ResearchEffect, AbilityModifier } from './types';
+import type { ResearchTreeDef, ResearchNodeDef, Requirement, CampaignResourceCost, CampaignResourceKey, ResearchEffect, AbilityModifier, ResearchNodeLevels } from './types';
 import { RESEARCH_TREES } from './list';
+import { getNodeLevel, getNodeMaxLevels } from './passiveBonuses';
 
 export interface ResearchContext {
     account: AccountState;
@@ -28,10 +29,39 @@ export function nodeById(tree: ResearchTreeDef): Record<string, ResearchNodeDef>
     return map;
 }
 
+export function multiplyCost(cost: CampaignResourceCost, times: number): CampaignResourceCost {
+    if (times <= 1) return { ...cost };
+    const out: CampaignResourceCost = {};
+    for (const [k, v] of Object.entries(cost ?? {})) {
+        const key = k as CampaignResourceKey;
+        out[key] = (v ?? 0) * times;
+    }
+    return out;
+}
+
 export function sumCosts(nodes: ResearchNodeDef[]): CampaignResourceCost {
     const out: CampaignResourceCost = {};
     for (const n of nodes) {
         for (const [k, v] of Object.entries(n.cost ?? {})) {
+            const key = k as CampaignResourceKey;
+            out[key] = (out[key] ?? 0) + (v ?? 0);
+        }
+    }
+    return out;
+}
+
+/** Sum researched-node costs, multiplying each leveled node's cost by its purchased level. */
+export function sumResearchedCosts(
+    tree: ResearchTreeDef,
+    researchTrees: Record<string, string[]> | undefined,
+    researchNodeLevels: ResearchNodeLevels | undefined,
+): CampaignResourceCost {
+    const out: CampaignResourceCost = {};
+    for (const node of tree.nodes) {
+        const level = getNodeLevel(tree.id, node.id, researchTrees, researchNodeLevels);
+        if (level <= 0) continue;
+        const scaled = multiplyCost(node.cost ?? {}, level);
+        for (const [k, v] of Object.entries(scaled)) {
             const key = k as CampaignResourceKey;
             out[key] = (out[key] ?? 0) + (v ?? 0);
         }
@@ -106,9 +136,7 @@ export function sortNodesDeterministic(nodes: ResearchNodeDef[]): ResearchNodeDe
 }
 
 export function computeEffectiveResourcesForTree(tree: ResearchTreeDef, ctx: ResearchContext): CampaignResources {
-    const researchedSet = getResearchedSet(ctx.character, tree.id);
-    const researchedNodes = tree.nodes.filter((n) => researchedSet.has(n.id));
-    const costs = sumCosts(researchedNodes);
+    const costs = sumResearchedCosts(tree, ctx.character.researchTrees, ctx.character.researchNodeLevels);
     return subtractCosts(ctx.campaignResources, costs);
 }
 
@@ -121,10 +149,27 @@ export function canResearchNode(tree: ResearchTreeDef, nodeId: string, ctx: Rese
     const researched: Record<string, Set<string>> = Object.fromEntries(
         Object.entries(ctx.character.researchTrees ?? {}).map(([tid, ids]) => [tid, new Set(ids)]),
     );
+    const currentLevel = getNodeLevel(
+        tree.id,
+        nodeId,
+        ctx.character.researchTrees,
+        ctx.character.researchNodeLevels,
+    );
+    const maxLevels = getNodeMaxLevels(node);
 
-    const closureIds = prereqClosure(tree, nodeId);
+    // Already at max level — cannot research further.
+    if (currentLevel >= maxLevels) {
+        return { ok: false, missing: ['already_researched'] };
+    }
+
+    // Leveling an already-unlocked node: only check one more level of cost + node requirements.
+    const isLevelUp = currentLevel > 0;
+
+    const closureIds = isLevelUp ? [nodeId] : prereqClosure(tree, nodeId);
     const closureNodes = closureIds.map((id) => byId[id]).filter(Boolean) as ResearchNodeDef[];
-    const neededNodes = closureNodes.filter((n) => !researchedForTree.has(n.id));
+    const neededNodes = isLevelUp
+        ? [node]
+        : closureNodes.filter((n) => !researchedForTree.has(n.id));
 
     // exclusivity checks (only for nodes being researched now or already researched)
     const allWillBeResearched = new Set<string>([...closureIds, ...Array.from(researchedForTree)]);
@@ -147,9 +192,10 @@ export function canResearchNode(tree: ResearchTreeDef, nodeId: string, ctx: Rese
         }
     }
 
-    // Cost must be affordable with effective resources, considering prerequisites being added in this action
+    // Cost must be affordable with effective resources.
+    // First unlock may include prereq nodes; level-ups only pay this node's cost once.
     if (!options.skipCostCheck) {
-        const costTotal = sumCosts(neededNodes);
+        const costTotal = isLevelUp ? (node.cost ?? {}) : sumCosts(neededNodes);
         for (const [k, v] of Object.entries(costTotal)) {
             const key = k as CampaignResourceKey;
             if ((effective[key] ?? 0) < (v ?? 0)) {
@@ -324,20 +370,23 @@ export function getCardReplacementsFromResearch(
 }
 
 /**
- * Returns nodes the character has not yet researched and are structurally available:
+ * Returns nodes the character has not yet fully researched and are structurally available:
  * all prereqNodeIds are satisfied, no exclusive node has been researched, and all
  * research-state requirements (anyResearched / notResearched) pass. External
  * requirements (accountKnowledge, equipment, costs) are ignored — no context needed.
  *
+ * Multi-level nodes remain available until their purchased level reaches `levels`.
+ *
  * @param researchedTrees  researchTrees map from CampaignCharacter
  * @param options.treeId   optional: restrict to one tree
  * @param options.tier     optional: restrict to one display tier
+ * @param options.researchNodeLevels  optional: level counts for multi-level nodes
  */
 export function getAvailableResearchNodes(
     researchedTrees: Record<string, string[]> | undefined,
-    options: { treeId?: string; tier?: number } = {},
+    options: { treeId?: string; tier?: number; researchNodeLevels?: ResearchNodeLevels } = {},
 ): ResearchNodeDef[] {
-    const { treeId, tier } = options;
+    const { treeId, tier, researchNodeLevels } = options;
     const trees = researchedTrees ?? {};
 
     const treesToSearch = treeId
@@ -355,16 +404,21 @@ export function getAvailableResearchNodes(
         const researchedSet = allResearched[tree.id];
 
         for (const node of tree.nodes) {
-            if (researchedSet.has(node.id)) continue;
+            const currentLevel = getNodeLevel(tree.id, node.id, trees, researchNodeLevels);
+            const maxLevels = getNodeMaxLevels(node);
+            if (currentLevel >= maxLevels) continue;
             if (tier !== undefined && node.tier !== tier) continue;
 
             if (node.exclusiveWithNodeIds.some((exId) => researchedSet.has(exId))) continue;
-            if (!node.prereqNodeIds.every((prereqId) => researchedSet.has(prereqId))) continue;
+            // Prereqs only required for first unlock; level-ups skip prereq re-check beyond presence
+            if (currentLevel === 0 && !node.prereqNodeIds.every((prereqId) => researchedSet.has(prereqId))) {
+                continue;
+            }
 
             const researchReqsMet = node.requirements.every((req) => {
                 if (req.type === 'anyResearched') {
                     const set = allResearched[req.treeId] ?? new Set<string>();
-                    return req.nodeIds.some((nodeId) => set.has(nodeId));
+                    return req.nodeIds.some((nid) => set.has(nid));
                 }
                 if (req.type === 'notResearched') {
                     const set = allResearched[req.treeId] ?? new Set<string>();

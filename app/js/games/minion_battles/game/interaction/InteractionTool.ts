@@ -6,6 +6,10 @@ import type { BattleOrder, ResolvedTarget, WaitingForOrders } from '../types';
 
 export interface PlayerInteractionSession {
     submitPlayerOrder(order: BattleOrder, opts: { canSubmitOrders: boolean }): Promise<void>;
+    /** ITS preview gate — used to block wait/end-turn while a local preview is active. */
+    readonly interactiveTargeting: {
+        readonly isActive: boolean;
+    };
 }
 
 export interface PlayerInteractionContext {

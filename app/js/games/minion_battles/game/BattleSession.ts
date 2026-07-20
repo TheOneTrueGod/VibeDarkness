@@ -503,6 +503,10 @@ export class BattleSession implements BattleSessionHandle {
         const equippedItemsByPlayer = (snapshotRecord?.playerEquipmentByPlayer as Record<string, string[]> | undefined) ?? {};
         const playerResearchTreesByPlayer =
             (snapshotRecord?.playerResearchTreesByPlayer as Record<string, Record<string, string[]>> | undefined) ?? {};
+        const playerResearchNodeLevelsByPlayer =
+            (snapshotRecord?.playerResearchNodeLevelsByPlayer as
+                | Record<string, Record<string, Record<string, number>>>
+                | undefined) ?? {};
 
         const engine = new GameEngine();
         engine.prepareForNewGame({
@@ -525,6 +529,7 @@ export class BattleSession implements BattleSessionHandle {
             terrainManager,
             equippedItemsByPlayer,
             playerResearchTreesByPlayer,
+            playerResearchNodeLevelsByPlayer,
             terrainSegmentPOIs,
             terrainSegmentZones,
         });

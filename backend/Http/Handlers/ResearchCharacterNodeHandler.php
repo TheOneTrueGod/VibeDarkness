@@ -28,6 +28,12 @@ class ResearchCharacterNodeHandler
         $body = \getJsonBody();
         $treeId = trim((string) ($body['treeId'] ?? ''));
         $nodeId = trim((string) ($body['nodeId'] ?? ''));
+        // Optional client-provided max levels for passive nodes (defaults to 1 = binary).
+        $maxLevels = (int) ($body['maxLevels'] ?? 1);
+        if ($maxLevels < 1) {
+            $maxLevels = 1;
+        }
+
         if ($treeId === '' || $nodeId === '') {
             http_response_code(400);
             return ['success' => false, 'error' => 'treeId and nodeId required'];
@@ -52,17 +58,40 @@ class ResearchCharacterNodeHandler
             return ['success' => false, 'error' => 'Not your character'];
         }
 
-        // Minimal backend validation (structure): for now we only persist the node as researched.
+        // Minimal backend validation (structure): persist researched presence + level counts.
         // Full validation against a server-side registry is added in later tasks (tree defs + evaluator mirror).
         $existing = $character->getResearchTrees();
         $list = $existing[$treeId] ?? [];
         $list = is_array($list) ? $list : [];
+
+        $levels = $character->getResearchNodeLevels();
+        $treeLevels = is_array($levels[$treeId] ?? null) ? $levels[$treeId] : [];
+        $currentLevel = (int) ($treeLevels[$nodeId] ?? 0);
+        if ($currentLevel < 1 && in_array($nodeId, $list, true)) {
+            $currentLevel = 1;
+        }
+
+        if ($currentLevel >= $maxLevels) {
+            // Already at max — idempotent success with no change.
+            return [
+                'success' => true,
+                'character' => $character->toArray(),
+            ];
+        }
+
+        $nextLevel = $currentLevel + 1;
         if (!in_array($nodeId, $list, true)) {
             $list[] = $nodeId;
         }
         $existing[$treeId] = array_values(array_unique(array_map('strval', $list)));
 
-        $updated = $characterManager->updateCharacter($characterId, ['researchTrees' => $existing]);
+        $treeLevels[$nodeId] = $nextLevel;
+        $levels[$treeId] = $treeLevels;
+
+        $updated = $characterManager->updateCharacter($characterId, [
+            'researchTrees' => $existing,
+            'researchNodeLevels' => $levels,
+        ]);
         if ($updated === null) {
             http_response_code(500);
             return ['success' => false, 'error' => 'Update failed'];
@@ -83,4 +112,3 @@ class ResearchCharacterNodeHandler
         ];
     }
 }
-
