@@ -31,7 +31,7 @@ import {
 } from '../../abilities/castBehaviourTypes';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
 import type { ActiveAbility, ResolvedTarget } from '../types';
-import { isSelectTargetDef, isHitTargetDef } from '../../abilities/timingTargetDef';
+import { isSelectTargetDef, isHitTargetDef, isInteractiveTargetDef } from '../../abilities/timingTargetDef';
 import { resolveCastBehaviourTarget } from '../../abilities/resolveCastBehaviourTarget';
 import { resolveActiveAbilityMode } from '../../abilities/resolveAbilityMode';
 import { triggerAbilityEvent } from '../../abilities/events';
@@ -258,11 +258,11 @@ export function tickUnitActiveAbilities(
         // Emitter entry/exit loop + castBehaviour entry (via fireIntervalEntry).
         for (const interval of intervals) {
             if (entered.has(interval.id)) {
-                if (interval.targetDef?.kind === 'select' && active.targetsByLabel !== undefined) {
+                if (interval.targetDef && isInteractiveTargetDef(interval.targetDef) && active.targetsByLabel !== undefined) {
                     const label = interval.targetDef.label;
                     if (active.targetsByLabel[label] === undefined) {
                         console.error(
-                            `[unitAbilityTick] Select-target interval "${interval.id}" entered without resolved label "${label}" during interactive preview (ability ${active.abilityId}). Lookahead invariant violated.`,
+                            `[unitAbilityTick] Interactive-target interval "${interval.id}" entered without resolved label "${label}" during interactive preview (ability ${active.abilityId}). Lookahead invariant violated.`,
                         );
                         continue;
                     }

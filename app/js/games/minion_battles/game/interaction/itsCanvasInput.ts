@@ -3,11 +3,13 @@ import { getAbility } from '../../abilities/AbilityRegistry';
 import {
     resolveClick,
     getSelectTargetDefsFromTimings,
+    getInteractiveTargetDefsFromTimings,
     buildMeleeSelectOrderTargets,
     clampSelectTarget,
     resolveSelectTargetLockOnCandidates,
 } from '../../abilities/targeting';
-import type { SelectTargetDef } from '../../abilities/timingTargetDef';
+import type { InteractiveTargetDef, SelectTargetDef } from '../../abilities/timingTargetDef';
+import { isConfirmRadiusTargetDef, isSelectTargetDef } from '../../abilities/timingTargetDef';
 import { buildPlayerMovePathThroughWaypoints } from '../../terrain/playerMovePath';
 import type { Unit } from '../units/Unit';
 import type { ResolvedTarget } from '../types';
@@ -76,6 +78,16 @@ export function resolveItsSelectTargetForClick(
     return { labelTarget, resolved, orderTargets };
 }
 
+/** Confirm-radius: any click (when allowMiss !== false) stores a dummy pixel; geometry unchanged. */
+export function resolveItsConfirmRadiusForClick(
+    def: InteractiveTargetDef & { kind: 'confirmRadius' },
+    clickWorldPos: { x: number; y: number },
+): ItsSelectTargetResolution | null {
+    if (def.allowMiss === false) return null;
+    const resolved: ResolvedTarget = { type: 'pixel', position: clickWorldPos };
+    return { labelTarget: resolved, resolved, orderTargets: [resolved] };
+}
+
 /** Returns true iff ITS is active (swallows the click even when engine/camera/waitingSignal are missing). */
 export function handleItsCanvasClick(
     session: BattleSession,
@@ -95,19 +107,24 @@ export function handleItsCanvasClick(
         const abilityDef = its.abilityId ? getAbility(its.abilityId) : null;
         const clickResult = resolveClick(screenX, screenY, camera, engine.units);
         if (caster && abilityDef) {
-            const selectDefs = getSelectTargetDefsFromTimings(abilityDef, caster, engine);
-            const selectDef = selectDefs.find((d) => d.label === label);
-            if (selectDef) {
+            const interactiveDefs = getInteractiveTargetDefsFromTimings(abilityDef, caster, engine);
+            const interactiveDef = interactiveDefs.find((d) => d.label === label);
+            if (interactiveDef) {
                 const mouseWorld = camera.screenToWorld(screenX, screenY);
-                const resolution = resolveItsSelectTargetForClick(
-                    abilityDef,
-                    caster,
-                    selectDef,
-                    mouseWorld,
-                    clickResult.worldPosition,
-                    its.collectedTargets,
-                    engine,
-                );
+                let resolution: ItsSelectTargetResolution | null = null;
+                if (isConfirmRadiusTargetDef(interactiveDef)) {
+                    resolution = resolveItsConfirmRadiusForClick(interactiveDef, clickResult.worldPosition);
+                } else if (isSelectTargetDef(interactiveDef)) {
+                    resolution = resolveItsSelectTargetForClick(
+                        abilityDef,
+                        caster,
+                        interactiveDef,
+                        mouseWorld,
+                        clickResult.worldPosition,
+                        its.collectedTargets,
+                        engine,
+                    );
+                }
                 if (resolution) {
                     its.resolveTarget(
                         label,

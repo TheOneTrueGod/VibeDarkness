@@ -9,8 +9,8 @@ import type { Unit } from '../game/units/Unit';
 import type { Camera } from '../game/Camera';
 import type { ResolvedTarget } from '../game/types';
 import type { AbilityStatic, IAbilityPreviewGraphics } from './Ability';
-import type { SelectTargetDef } from './timingTargetDef';
-import { isSelectTargetDef } from './timingTargetDef';
+import type { InteractiveTargetDef, SelectTargetDef } from './timingTargetDef';
+import { isInteractiveTargetDef, isSelectTargetDef } from './timingTargetDef';
 import { isAbilityTimingInterval } from './abilityTimings';
 import { areEnemies, areAllies } from '../game/teams';
 
@@ -103,6 +103,27 @@ export function getSelectTargetDefsFromTimings(
     const result: SelectTargetDef[] = [];
     for (const entry of entries) {
         if (isAbilityTimingInterval(entry) && entry.targetDef && isSelectTargetDef(entry.targetDef)) {
+            result.push(entry.targetDef);
+        }
+    }
+    return result;
+}
+
+/**
+ * Collect interactive timing target defs (`select` + `confirmRadius`) in declaration order.
+ * Used by ITS pause / label collection; select-only helpers stay on {@link getSelectTargetDefsFromTimings}.
+ */
+export function getInteractiveTargetDefsFromTimings(
+    ability: AbilityStatic,
+    caster?: Unit,
+    engine?: unknown,
+): InteractiveTargetDef[] {
+    const entries = ability.getAbilityTimings
+        ? ability.getAbilityTimings(caster, engine)
+        : ability.abilityTimings;
+    const result: InteractiveTargetDef[] = [];
+    for (const entry of entries) {
+        if (isAbilityTimingInterval(entry) && entry.targetDef && isInteractiveTargetDef(entry.targetDef)) {
             result.push(entry.targetDef);
         }
     }

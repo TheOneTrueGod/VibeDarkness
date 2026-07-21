@@ -8,7 +8,7 @@ import { AbilityTargetingTool } from './tools/AbilityTargetingTool';
 import { UnitSelectorDebugTool } from './tools/UnitSelectorDebugTool';
 import { AdminMoveDebugTool } from './tools/AdminMoveDebugTool';
 import { getDebugState } from '../../debugState';
-import { resolveClick, getSelectTargetDefsFromTimings } from '../../abilities/targeting';
+import { resolveClick, getInteractiveTargetDefsFromTimings } from '../../abilities/targeting';
 import { getAutoEndTurn } from '../autoEndTurnSetting';
 import { USE_SEQUENTIAL_TARGETING } from '../../featureFlags';
 import { getAbility } from '../../abilities/AbilityRegistry';
@@ -325,8 +325,8 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         if (!active) return;
         if (USE_SEQUENTIAL_TARGETING) {
             const caster = this.ctx.engine.getUnit(active.unitId) ?? undefined;
-            const selectDefs = getSelectTargetDefsFromTimings(ability, caster, this.ctx.engine);
-            if (selectDefs.length > 0) {
+            const interactiveDefs = getInteractiveTargetDefsFromTimings(ability, caster, this.ctx.engine);
+            if (interactiveDefs.length > 0) {
                 this.submitOrder(ability.id, []);
                 return;
             }

@@ -7,12 +7,14 @@ import {
     DEFAULT_PASSIVE_MULT,
     getNonZeroPassiveBonusRows,
 } from '../../../../../researchTrees/passiveBonuses';
-import type { PassiveStatKey, ResearchNodeLevels } from '../../../../../researchTrees/types';
+import { PassiveStatKey, type ResearchNodeLevels } from '../../../../../researchTrees/types';
 
 const STAT_LABELS: Record<PassiveStatKey, string> = {
-    maxHealth: 'Max Health',
-    all_damage: 'All Damage',
-    earth_damage: 'Earth Damage',
+    [PassiveStatKey.MaxHealth]: 'Max Health',
+    [PassiveStatKey.AllDamage]: 'All Damage',
+    [PassiveStatKey.EarthDamage]: 'Earth Damage',
+    [PassiveStatKey.PetMaxHealth]: 'Pet Max Health',
+    [PassiveStatKey.Ability0701Damage]: 'Dog Bite Damage',
 };
 
 function formatAdd(add: number): string {

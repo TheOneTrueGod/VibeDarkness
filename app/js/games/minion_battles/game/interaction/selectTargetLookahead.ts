@@ -13,7 +13,7 @@ import {
     normalizeAbilityTimingsToIntervals,
     resolveAbilityTimingEntries,
 } from '../../abilities/abilityTimings';
-import { isSelectTargetDef } from '../../abilities/timingTargetDef';
+import { isInteractiveTargetDef } from '../../abilities/timingTargetDef';
 import type { EngineContext } from '../EngineContext';
 import type { ActiveAbility } from '../types';
 import type { Unit } from '../units/Unit';
@@ -46,7 +46,7 @@ function findImpendingNeedForCast(
 
     for (const interval of intervals) {
         if (!entered.has(interval.id)) continue;
-        if (!interval.targetDef || !isSelectTargetDef(interval.targetDef)) continue;
+        if (!interval.targetDef || !isInteractiveTargetDef(interval.targetDef)) continue;
 
         const label = interval.targetDef.label;
         if (active.targetsByLabel[label] !== undefined) continue;
@@ -59,15 +59,15 @@ function findImpendingNeedForCast(
 }
 
 /**
- * Returns the first unresolved SelectTargetDef interval that would enter on the
- * next fixed tick, or null when no interactive preview cast needs input.
+ * Returns the first unresolved interactive target interval (`select` / `confirmRadius`)
+ * that would enter on the next fixed tick, or null when no preview cast needs input.
  */
 /**
- * Returns the label of the first SelectTargetDef when interactive preview must defer
+ * Returns the label of the first interactive target when preview must defer
  * queueing the cast order until the player picks (no simulation ticks before input).
  *
  * Defer when:
- * - the first select interval starts at elapsed 0 (lookahead cannot pause before cast apply), or
+ * - the first interactive interval starts at elapsed 0 (lookahead cannot pause before cast apply), or
  * - the ability has windup `lunge` (beginActiveCast needs a target before windup movement).
  *
  * Otherwise returns null and pre-tick lookahead handles the first pause.
@@ -81,7 +81,7 @@ export function findPreviewDeferredSelectLabel(
         resolveAbilityTimingEntries(ability, unit, engine),
     );
     for (const interval of intervals) {
-        if (!interval.targetDef || !isSelectTargetDef(interval.targetDef)) continue;
+        if (!interval.targetDef || !isInteractiveTargetDef(interval.targetDef)) continue;
         if (interval.start === 0) return interval.targetDef.label;
         if (ability.lunge != null) return interval.targetDef.label;
         return null;
@@ -99,7 +99,7 @@ export function findFirstSelectTargetLabelAtElapsedZero(
         resolveAbilityTimingEntries(ability, unit, engine),
     );
     for (const interval of intervals) {
-        if (!interval.targetDef || !isSelectTargetDef(interval.targetDef)) continue;
+        if (!interval.targetDef || !isInteractiveTargetDef(interval.targetDef)) continue;
         return interval.start === 0 ? interval.targetDef.label : null;
     }
     return null;

@@ -18,10 +18,11 @@ const BITE_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http:
   <circle cx="32" cy="32" r="4" fill="none" stroke="#c8822a" stroke-width="1.5" stroke-dasharray="2,2"/>
 </svg>`;
 
+// Damage includes abilityModifiers.damageFlat (Empower Pet → PassiveStatKey.Ability0701Damage).
 const { ability: DogBiteAbility, card: DogBiteCard } = BasicAttackBuilder({
     id: CARD_ID,
     name: 'Dog Bite',
-    description: `Snap at the target for {${DAMAGE}} damage.`,
+    description: `Snap at the target for {{DAMAGE}} damage.`,
     damage: DAMAGE,
     image: BITE_IMAGE,
     windupDuration: 0.6,

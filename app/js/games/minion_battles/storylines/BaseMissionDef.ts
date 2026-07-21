@@ -45,8 +45,10 @@ import {
     applyAbilityResearchModifiersToRuntime,
     initializeAbilityRuntimeForUnit,
 } from '../abilities/abilityUses';
-import { mergeBattleEquipmentIdsFromResearch, getCardReplacementsFromResearch, getDirectCardsFromResearch, getRemovedCardsFromResearch, computeAbilityModifiersFromResearch, getPetsFromResearch, getMissionStartResourcesFromResearch } from '../../../researchTrees/evaluator';
+import { mergeBattleEquipmentIdsFromResearch, getCardReplacementsFromResearch, getDirectCardsFromResearch, getRemovedCardsFromResearch, computeAbilityModifiersFromResearch, getPetsFromResearch, getPetAbilitiesFromResearch, getMissionStartResourcesFromResearch } from '../../../researchTrees/evaluator';
+import { PassiveStatKey } from '../../../researchTrees/types';
 import { getPetDef } from '../game/units/pet_defs/petDef';
+import { AbilityGroupId, formatGroupId } from '../card_defs/AbilityGroupId';
 import { getAbilityTagsForId } from '../abilities/Ability';
 import { Ammo } from '../resources/Ammo';
 import { Light } from '../resources/Light';
@@ -338,23 +340,48 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             engine.addUnit(unit, 'initialGameSpawn');
 
             // Spawn pets granted by research alongside this player unit.
+            const petAbilitiesById = getPetAbilitiesFromResearch(researchByPlayer[pu.playerId]);
+            const dogBiteAbilityId = `${formatGroupId(AbilityGroupId.Command)}01`;
             for (const petId of getPetsFromResearch(researchByPlayer[pu.playerId])) {
                 const petDef = getPetDef(petId);
                 if (!petDef) continue;
+                const grantedAbilities = petAbilitiesById.get(petId) ?? [];
+                const abilityIds = [...petDef.abilityIds];
+                for (const id of grantedAbilities) {
+                    if (!abilityIds.includes(id)) abilityIds.push(id);
+                }
+                const petBaseHp = getDefaultHp(petDef.unitCharacterId);
+                const petMaxHp = applyPassiveBonusToBase(
+                    petBaseHp,
+                    passiveBonuses[PassiveStatKey.PetMaxHealth],
+                );
+                const biteDamageFlat = passiveBonuses[PassiveStatKey.Ability0701Damage]?.add ?? 0;
                 const [pet] = engine.spawnUnit(
                     {
                         characterId: petDef.unitCharacterId,
                         name: petDef.name,
                         teamId: 'player',
-                        abilities: [...petDef.abilityIds],
+                        abilities: abilityIds,
                         unitAITreeId: 'pet',
                         aiSettings: { minRange: 0, maxRange: 50 },
                         placement: { kind: 'fixedWorld', x: spawnX + 40, y: spawnY },
                         aiHookup: { kind: 'pet', ownerUnitId: unit.id, defId: petId },
+                        hp: petMaxHp,
                     },
                     'initialGameSpawn',
                 );
                 if (!pet) continue;
+                pet.maxHp = petMaxHp;
+                pet.hp = petMaxHp;
+                if (biteDamageFlat > 0) {
+                    pet.abilityModifiers = {
+                        ...pet.abilityModifiers,
+                        [dogBiteAbilityId]: {
+                            ...(pet.abilityModifiers[dogBiteAbilityId] ?? {}),
+                            damageFlat: biteDamageFlat,
+                        },
+                    };
+                }
                 initializeAbilityRuntimeForUnit(pet);
             }
         }

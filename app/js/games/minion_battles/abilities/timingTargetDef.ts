@@ -47,13 +47,36 @@ export interface SelectTargetDef {
     aiHint?: SelectTargetAiHint;
 }
 
+/**
+ * Pause ITS after windup (or whenever this interval enters) so the player can confirm
+ * or undo. Click does not change ability geometry — preview draws `radius` at the
+ * ability source (caster, or pet when `abilitySource: 'pet'`).
+ */
+export interface ConfirmRadiusTargetDef {
+    kind: 'confirmRadius';
+    label: string;
+    /** Preview circle radius in world px. */
+    radius: number;
+    /** When true (default), any click confirms. */
+    allowMiss?: boolean;
+}
+
 /** Reuse a target that was committed by an earlier SelectTargetDef timing. */
 export interface HitTargetDef {
     kind: 'hit';
     labels: string[];
 }
 
-export type TimingTargetDef = SelectTargetDef | HitTargetDef;
+export type TimingTargetDef = SelectTargetDef | ConfirmRadiusTargetDef | HitTargetDef;
+
+/** Target defs that pause ITS for player input (select lock-on or confirm-radius). */
+export type InteractiveTargetDef = SelectTargetDef | ConfirmRadiusTargetDef;
 
 export function isSelectTargetDef(d: TimingTargetDef): d is SelectTargetDef { return d.kind === 'select'; }
+export function isConfirmRadiusTargetDef(d: TimingTargetDef): d is ConfirmRadiusTargetDef {
+    return d.kind === 'confirmRadius';
+}
+export function isInteractiveTargetDef(d: TimingTargetDef): d is InteractiveTargetDef {
+    return d.kind === 'select' || d.kind === 'confirmRadius';
+}
 export function isHitTargetDef(d: TimingTargetDef): d is HitTargetDef    { return d.kind === 'hit'; }

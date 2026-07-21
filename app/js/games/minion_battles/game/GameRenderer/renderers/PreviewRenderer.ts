@@ -7,6 +7,7 @@ import type { Unit } from '../../units/Unit';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import {
     getSelectTargetDefsFromTimings,
+    getInteractiveTargetDefsFromTimings,
     filterSelectTargetCandidates,
     renderMeleeTrackingHighlights,
     resolveTargetToPoint,
@@ -14,6 +15,7 @@ import {
     resolveAnchorPointFromCollected,
 } from '../../../abilities/targeting';
 import { drawClampedLine } from '../../../abilities/previewHelpers';
+import { resolveAbilitySourceUnits } from '../../../abilities/abilitySourceUnits';
 import { areEnemies } from '../../teams';
 import type { TeamId } from '../../teams';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
@@ -23,7 +25,8 @@ import type { AbilityStatic, AbilityTelegraph, IAbilityPreviewGraphics } from '.
 import { asTelegraphPayload } from '../../../abilities/telegraphTracking';
 import { LitClippingPreviewGraphics } from './LitClippingPreviewGraphics';
 import type { ResolvedTarget, GhostPlanData, ActiveAbility } from '../../types';
-import type { SelectTargetDef } from '../../../abilities/timingTargetDef';
+import type { ConfirmRadiusTargetDef, SelectTargetDef } from '../../../abilities/timingTargetDef';
+import { isConfirmRadiusTargetDef, isSelectTargetDef } from '../../../abilities/timingTargetDef';
 import type { HitboxPreviewCaster } from '../../../hitboxes/Hitbox';
 
 // ---------------------------------------------------------------------------
@@ -74,6 +77,22 @@ function renderLungeIndicator(
  * caster position, then the movement line + ghost circle is drawn on top.
  * Candidates are sorted by distance to the effective aim point before highlight slicing.
  */
+/** Draw confirm-radius preview at ability source (pet when abilitySource is pet). */
+function renderConfirmRadiusTargetDef(
+    gr: IAbilityPreviewGraphics,
+    ability: AbilityStatic,
+    caster: Unit,
+    def: ConfirmRadiusTargetDef,
+    engine: GameEngine,
+): void {
+    const sources = resolveAbilitySourceUnits(ability, caster, engine.units);
+    const origin = sources[0] ?? caster;
+    gr.circle(origin.x, origin.y, def.radius);
+    gr.stroke({ color: 0x86efac, width: 2, alpha: 0.75 });
+    gr.circle(origin.x, origin.y, def.radius);
+    gr.fill({ color: 0x22c55e, alpha: 0.12 });
+}
+
 function renderSelectTargetDef(
     gr: IAbilityPreviewGraphics,
     ability: AbilityStatic,
@@ -583,22 +602,27 @@ export class PreviewRenderer {
         this.targetingPreviewGraphics.clear();
         const gr = this.targetingPreviewGraphics as unknown as import('../../../abilities/Ability').IAbilityPreviewGraphics;
 
-        const selectTargetDefs = getSelectTargetDefsFromTimings(ability, caster, engine);
-        if (selectTargetDefs.length > 0) {
+        const interactiveDefs = getInteractiveTargetDefsFromTimings(ability, caster, engine);
+        if (interactiveDefs.length > 0) {
             const targetIndex = ts.currentTargets.length;
-            const selectDef = selectTargetDefs[targetIndex];
-            if (selectDef) {
-                if (selectDef.anchorLabel && selectDef.maxRangeFromAnchor != null) {
-                    renderAnchoredSelectTargetDef(
-                        gr,
-                        selectDef,
-                        ts.currentTargets,
-                        selectTargetDefs,
-                        ts.mouseWorld,
-                        engine,
-                    );
-                } else {
-                    renderSelectTargetDef(gr, ability, caster, selectDef, ts.mouseWorld, engine);
+            const interactiveDef = interactiveDefs[targetIndex];
+            if (interactiveDef) {
+                if (isConfirmRadiusTargetDef(interactiveDef)) {
+                    renderConfirmRadiusTargetDef(gr, ability, caster, interactiveDef, engine);
+                } else if (isSelectTargetDef(interactiveDef)) {
+                    const selectTargetDefs = getSelectTargetDefsFromTimings(ability, caster, engine);
+                    if (interactiveDef.anchorLabel && interactiveDef.maxRangeFromAnchor != null) {
+                        renderAnchoredSelectTargetDef(
+                            gr,
+                            interactiveDef,
+                            ts.currentTargets,
+                            selectTargetDefs,
+                            ts.mouseWorld,
+                            engine,
+                        );
+                    } else {
+                        renderSelectTargetDef(gr, ability, caster, interactiveDef, ts.mouseWorld, engine);
+                    }
                 }
             }
             if (ability.renderTargetingPreviewSelectedTargets) {

@@ -15,7 +15,7 @@
 
 import type { BattleOrder, OrderAtTick, ResolvedTarget, SerializedGameState } from '../types';
 import type { BattleSession } from '../BattleSession';
-import { getSelectTargetDefsFromTimings } from '../../abilities/targeting';
+import { getInteractiveTargetDefsFromTimings } from '../../abilities/targeting';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { findPreviewDeferredSelectLabel } from './selectTargetLookahead';
 import { isPreviewCastConditionalCancelPaused } from './isITSPreviewComplete';
@@ -261,10 +261,10 @@ export class InteractiveTargetingSession {
         const caster = engine.getUnit(unitId);
         if (!ability || !caster) return false;
 
-        const selectDefs = getSelectTargetDefsFromTimings(ability, caster, engine);
-        if (selectDefs.length === 0) return false;
+        const interactiveDefs = getInteractiveTargetDefsFromTimings(ability, caster, engine);
+        if (interactiveDefs.length === 0) return false;
 
-        this._selectLabels = selectDefs.map((def) => def.label);
+        this._selectLabels = interactiveDefs.map((def) => def.label);
 
         this._isActive = true;
         this._abilityId = abilityId;

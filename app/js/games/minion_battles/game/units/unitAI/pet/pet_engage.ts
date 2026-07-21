@@ -1,7 +1,8 @@
 /**
- * pet_engage — Chase the locked target and bite it.
+ * pet_engage — Chase the locked target and attack it.
  *
- * Uses only basicAttackAbilityId (no other abilities auto-triggered from this state).
+ * Prefers any owned ability with aiSettings that is usable and in range (e.g. Fling Thorn
+ * from Mimic Thorn research). Falls back to basicAttackAbilityId (Dog Bite) otherwise.
  * Backs off to pet_return when too far from the owner, retreats to pet_heel when heeled,
  * and falls back to pet_follow when the target dies.
  */
@@ -12,8 +13,44 @@ import type { PetAITreeContext, PetNodeId } from './context';
 import { findEnemies, applyAIMovementToUnit, buildResolvedTargets, distance, ROUND_DURATION } from '../utils';
 import { getPetDef } from '../../pet_defs/petDef';
 import { getAbility } from '../../../../abilities/AbilityRegistry';
+import { canUseAbilityNow, meetsTagRequirements } from '../../../../abilities/abilityUses';
+import type { AbilityStatic } from '../../../../abilities/Ability';
 
 const RESCAN_INTERVAL_ROUNDS = 0.25;
+
+/**
+ * Pick the best engage ability for the locked target: highest aiSettings.priority among
+ * usable in-range abilities, then longer maxRange. Falls back to basicAttackAbilityId.
+ */
+function pickPetEngageAbility(
+    unit: Unit,
+    target: Unit,
+    basicAttackAbilityId: string,
+): AbilityStatic | null {
+    const dist = distance(unit.x, unit.y, target.x, target.y);
+    const candidates: { ability: AbilityStatic; priority: number; maxRange: number }[] = [];
+
+    for (const abilityId of unit.abilities) {
+        const ability = getAbility(abilityId);
+        if (!ability?.aiSettings) continue;
+        if (!canUseAbilityNow(unit, ability)) continue;
+        if (!meetsTagRequirements(unit, ability)) continue;
+        const { minRange, maxRange } = ability.aiSettings;
+        if (dist < minRange || dist > maxRange) continue;
+        candidates.push({
+            ability,
+            priority: ability.aiSettings.priority ?? 0,
+            maxRange,
+        });
+    }
+
+    if (candidates.length > 0) {
+        candidates.sort((a, b) => b.priority - a.priority || b.maxRange - a.maxRange);
+        return candidates[0]!.ability;
+    }
+
+    return getAbility(basicAttackAbilityId) ?? null;
+}
 
 export const pet_engage: AINode<'pet', PetNodeId> = {
     nodeId: 'pet_engage',
@@ -79,9 +116,8 @@ export const pet_engage: AINode<'pet', PetNodeId> = {
                 });
             }
 
-            // Only use the basic attack ability
             if (petDef) {
-                const ability = getAbility(petDef.basicAttackAbilityId);
+                const ability = pickPetEngageAbility(unit, target, petDef.basicAttackAbilityId);
                 if (ability) {
                     const targets = buildResolvedTargets(ability, target);
                     context.queueOrder(context.gameTick, {

@@ -20,6 +20,8 @@ export type ResearchEffect =
     | { type: 'addCard'; cardId: string }
     | { type: 'removeCard'; cardId: string }
     | { type: 'grantPet'; petId: string }
+    /** Grant an extra ability id to a pet kind at mission start (merged into spawn ability list). */
+    | { type: 'grantPetAbility'; petId: string; abilityId: string }
     | { type: 'grantMissionStartResource'; resourceId: string; amount: number };
 
 /**
@@ -47,8 +49,18 @@ export interface AbilityResearchModifier extends AbilityModifier {
     abilitySpecification: AbilitySpecification;
 }
 
-/** Stat keys that passive research nodes can modify. */
-export type PassiveStatKey = 'maxHealth' | 'all_damage' | 'earth_damage';
+/**
+ * Passive research stat keys.
+ * Ability-specific flat damage uses `ability_<abilityId>_damage`
+ * (e.g. Ability0701Damage = 'ability_0701_damage' for Dog Bite).
+ */
+export enum PassiveStatKey {
+    MaxHealth = 'maxHealth',
+    AllDamage = 'all_damage',
+    EarthDamage = 'earth_damage',
+    PetMaxHealth = 'pet_maxHealth',
+    Ability0701Damage = 'ability_0701_damage',
+}
 
 /** Per-stat add/mult contribution from a passive node (totals at max level). */
 export interface PassiveBonusEntry {

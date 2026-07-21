@@ -30,7 +30,7 @@ import { InteractiveTargetingSession, type HeldRemoteOrder } from './interaction
 import { USE_SEQUENTIAL_TARGETING } from '../featureFlags';
 import { PERF_UI, PERF_UI_REACT, tickPerformanceTracker } from './performance/tickPerformanceTracker';
 import { getAbility } from '../abilities/AbilityRegistry';
-import { getSelectTargetDefsFromTimings } from '../abilities/targeting';
+import { getInteractiveTargetDefsFromTimings } from '../abilities/targeting';
 
 export interface BattleSessionConfig {
     api: MinionBattlesApi;
@@ -1036,7 +1036,7 @@ export class BattleSession implements BattleSessionHandle {
         if (USE_SEQUENTIAL_TARGETING) {
             const ability = getAbility(order.abilityId);
             const caster = engine?.getUnit(order.unitId);
-            if (ability && caster && getSelectTargetDefsFromTimings(ability, caster, engine).length > 0) {
+            if (ability && caster && getInteractiveTargetDefsFromTimings(ability, caster, engine).length > 0) {
                 if (this.interactiveTargeting.begin(order, this)) {
                     return;
                 }

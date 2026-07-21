@@ -1,4 +1,5 @@
 import type { ResearchTreeDef } from '../types';
+import { PassiveStatKey } from '../types';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 import { DescriptiveValue } from '../descriptiveValue';
 
@@ -141,7 +142,7 @@ export const trainingTree: ResearchTreeDef = {
             effects: [],
             levels: TRAINING_HEALTHY_LEVELS,
             passiveBonus: {
-                maxHealth: { add: TRAINING_HEALTHY_MAX_HEALTH_ADD },
+                [PassiveStatKey.MaxHealth]: { add: TRAINING_HEALTHY_MAX_HEALTH_ADD },
             },
         },
         {
@@ -162,7 +163,7 @@ export const trainingTree: ResearchTreeDef = {
             effects: [],
             levels: TRAINING_MIGHTY_LEVELS,
             passiveBonus: {
-                all_damage: { mult: TRAINING_MIGHTY_ALL_DAMAGE_MULT },
+                [PassiveStatKey.AllDamage]: { mult: TRAINING_MIGHTY_ALL_DAMAGE_MULT },
             },
         },
     ],

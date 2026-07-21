@@ -321,6 +321,32 @@ export function getPetsFromResearch(
 }
 
 /**
+ * Returns extra ability IDs granted to each pet kind by `grantPetAbility` research effects.
+ * Merged into the pet's spawn ability list in BaseMissionDef (does not replace petDef.abilityIds).
+ */
+export function getPetAbilitiesFromResearch(
+    researchTrees: Record<string, string[]> | undefined,
+): Map<string, string[]> {
+    const trees = researchTrees ?? {};
+    const byPet = new Map<string, string[]>();
+    for (const tree of RESEARCH_TREES) {
+        const researchedSet = new Set(trees[tree.id] ?? []);
+        const researchedNodes = sortNodesDeterministic(tree.nodes.filter((n) => researchedSet.has(n.id)));
+        for (const node of researchedNodes) {
+            for (const eff of node.effects) {
+                if (eff.type !== 'grantPetAbility') continue;
+                const list = byPet.get(eff.petId) ?? [];
+                if (!list.includes(eff.abilityId)) {
+                    list.push(eff.abilityId);
+                }
+                byPet.set(eff.petId, list);
+            }
+        }
+    }
+    return byPet;
+}
+
+/**
  * Returns battle-resource starting amounts from `grantMissionStartResource` effects.
  * Amounts for the same resourceId are summed across all researched nodes.
  */

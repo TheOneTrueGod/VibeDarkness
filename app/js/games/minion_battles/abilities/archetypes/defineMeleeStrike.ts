@@ -180,6 +180,7 @@ export function defineMeleeStrike(config: MeleeStrikeConfig): AbilityStatic {
     );
 
     // Build the attack behaviour.
+    // Include abilityModifiers.damageFlat (e.g. Empower Pet → ability_0701_damage on Dog Bite).
     let behaviour = CastBehaviours.MeleeAttack()
         .withHitbox(hitbox)
         .withImpact(config.impactType ?? 'punch')
@@ -188,7 +189,7 @@ export function defineMeleeStrike(config: MeleeStrikeConfig): AbilityStatic {
             forwardDistance: config.forwardDistance ?? 12,
             backwardDistance: config.backwardDistance ?? 0,
         })
-        .withDamage(config.damage);
+        .withDamage((ctx) => config.damage + (ctx.caster.abilityModifiers[config.id]?.damageFlat ?? 0));
 
     if (config.knockbackTier !== undefined) {
         behaviour = behaviour.withKnockback(config.knockbackTier);
@@ -232,8 +233,10 @@ export function defineMeleeStrike(config: MeleeStrikeConfig): AbilityStatic {
         DAMAGE: { kind: 'damage', base: baseDamage },
         ...config.tooltipBindings,
     };
-    const getDamage = (caster?: Unit): number =>
-        getAbilityDamageForDisplay(baseDamage, caster ? { attacker: caster } : {});
+    const getDamage = (caster?: Unit): number => {
+        const withFlat = baseDamage + (caster?.abilityModifiers[config.id]?.damageFlat ?? 0);
+        return getAbilityDamageForDisplay(withFlat, caster ? { attacker: caster } : {});
+    };
 
     const defInput: AbilityDefInput = {
         id: config.id,
@@ -262,11 +265,13 @@ export function defineMeleeStrike(config: MeleeStrikeConfig): AbilityStatic {
                     ? line
                     : line.split(`{${baseDamage}}`).join('{{DAMAGE}}'),
             );
-            return formatTooltipLegacyLines(
-                templates,
-                tooltipBindings,
-                resolveTooltipContext(gameState, { ability: { id: config.id } }),
-            );
+            const tipCtx = resolveTooltipContext(gameState, { ability: { id: config.id } });
+            const flat = tipCtx.attacker?.abilityModifiers[config.id]?.damageFlat ?? 0;
+            const bindings: TooltipTokenBindings = {
+                ...tooltipBindings,
+                DAMAGE: { kind: 'damage', base: baseDamage + flat },
+            };
+            return formatTooltipLegacyLines(templates, bindings, tipCtx);
         },
         ...(config.lunge ? { lunge: config.lunge } : {}),
     };
