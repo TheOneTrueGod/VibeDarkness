@@ -2,8 +2,11 @@ import { useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import type { BattleSession } from '../../../game/BattleSession';
 import type { BattleNet } from '../../../game/battlenet';
-import { computeSynchash } from '@/utils/synchash';
-import type { BattleDebugBridge, BattleDebugSnapshot } from '../../../../../contexts/DebugConsoleContext';
+import type {
+    BattleDebugBridge,
+    BattleDebugSnapshot,
+    BattleDebugSnapshotOptions,
+} from '../../../../../contexts/DebugConsoleContext';
 
 declare global {
     interface Window {
@@ -23,7 +26,7 @@ interface UseBattleDebugBridgeParams {
     setAdminMovePendingUnitId: (unitId: string | null) => void;
 }
 
-/** Debug bridge registration, 100 ms snapshot/synchash poll, admin-move pending sync. */
+/** Debug bridge registration + cheap admin-move pending sync (no eager toJSON). */
 export function useBattleDebugBridge({
     sessionRef,
     netRef,
@@ -32,10 +35,35 @@ export function useBattleDebugBridge({
     setAdminMovePendingUnitId,
 }: UseBattleDebugBridgeParams) {
     const snapshotRef = useRef<BattleDebugSnapshot>({ gameTick: null, gameState: null, synchash: null });
+    /** Tick for which `snapshotRef.current.gameState` was last serialized. */
+    const gameStateTickRef = useRef<number | null>(null);
     const adminMovePendingRef = useRef<string | null>(null);
     adminMovePendingRef.current = adminMovePendingUnitId;
 
     useEffect(() => {
+        const refreshMeta = (): BattleDebugSnapshot => {
+            const engine = sessionRef.current?.getEngine();
+            if (!engine) {
+                snapshotRef.current = { gameTick: null, gameState: null, synchash: null };
+                gameStateTickRef.current = null;
+                return snapshotRef.current;
+            }
+            const gameTick = typeof engine.gameTick === 'number' ? engine.gameTick : null;
+            // Match BattleSession / checkpoint synchash — O(1), not a full-state hash.
+            const synchash = engine.getRuntimeFingerprintHex();
+            if (
+                snapshotRef.current.gameTick !== gameTick ||
+                snapshotRef.current.synchash !== synchash
+            ) {
+                snapshotRef.current = {
+                    ...snapshotRef.current,
+                    gameTick,
+                    synchash,
+                };
+            }
+            return snapshotRef.current;
+        };
+
         const bridge: BattleDebugBridge = {
             setUnitHover: (unitId) => {
                 sessionRef.current?.getRenderer()?.setDebugUnitOutline(unitId);
@@ -90,7 +118,29 @@ export function useBattleDebugBridge({
             triggerReplayFromStart: () => {
                 void sessionRef.current?.replayMissionFromStart();
             },
-            getSnapshot: () => snapshotRef.current,
+            getSnapshot: (options?: BattleDebugSnapshotOptions) => {
+                refreshMeta();
+                if (!options?.includeGameState) {
+                    return snapshotRef.current;
+                }
+                const engine = sessionRef.current?.getEngine();
+                if (!engine) return snapshotRef.current;
+                const gameTick = typeof engine.gameTick === 'number' ? engine.gameTick : null;
+                if (
+                    snapshotRef.current.gameState != null &&
+                    gameStateTickRef.current === gameTick
+                ) {
+                    return snapshotRef.current;
+                }
+                snapshotRef.current = {
+                    ...snapshotRef.current,
+                    gameTick,
+                    gameState: engine.toJSON() as unknown as Record<string, unknown>,
+                    synchash: engine.getRuntimeFingerprintHex(),
+                };
+                gameStateTickRef.current = gameTick;
+                return snapshotRef.current;
+            },
             getWorldModifiersDebug: () => {
                 const engine = sessionRef.current?.getEngine();
                 return engine ? engine.getWorldModifiersDebugSnapshot() : [];
@@ -119,32 +169,19 @@ export function useBattleDebugBridge({
         };
     }, [sessionRef, netRef, setBattleBridge]);
 
+    // Cheap poll: clear React admin-move pending when the interaction manager finishes.
+    // Full engine toJSON / synchash hashing is on-demand via getSnapshot({ includeGameState }).
     useEffect(() => {
-        let hashSeq = 0;
         const id = window.setInterval(() => {
-            const engine = sessionRef.current?.getEngine();
             const mgr = sessionRef.current?.getInteractionManager();
-            if (engine) {
-                const state = engine.toJSON() as unknown as Record<string, unknown>;
-                snapshotRef.current = {
-                    gameTick: typeof engine.gameTick === 'number' ? engine.gameTick : null,
-                    gameState: state,
-                    synchash: snapshotRef.current.synchash,
-                };
-                if (adminMovePendingRef.current !== null && (mgr?.adminMovePendingUnitId ?? null) === null) {
-                    setAdminMovePendingUnitId(null);
-                }
-                const seq = ++hashSeq;
-                void computeSynchash(state).then((h: string) => {
-                    if (seq === hashSeq) {
-                        snapshotRef.current = { ...snapshotRef.current, synchash: h };
-                    }
-                });
+            if (adminMovePendingRef.current !== null && (mgr?.adminMovePendingUnitId ?? null) === null) {
+                setAdminMovePendingUnitId(null);
             }
         }, 100);
         return () => {
             window.clearInterval(id);
             snapshotRef.current = { gameTick: null, gameState: null, synchash: null };
+            gameStateTickRef.current = null;
         };
     }, [sessionRef, setAdminMovePendingUnitId]);
 

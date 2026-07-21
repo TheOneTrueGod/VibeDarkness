@@ -13,7 +13,6 @@ import { getAutoEndTurn } from '../autoEndTurnSetting';
 import { USE_SEQUENTIAL_TARGETING } from '../../featureFlags';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { TERRAIN_PROPERTIES } from '../../terrain/TerrainType';
-import { getLightGrid } from '../LightGrid';
 import { logOrderUiKeyAction } from './itsLobbyLog';
 
 declare global {
@@ -212,16 +211,10 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
             const { col, row } = grid.worldToGrid(clampedX, clampedY);
             const terrain = engine.terrainManager.getTerrainAt(clampedX, clampedY);
             const terrainName = TERRAIN_PROPERTIES[terrain]?.name ?? String(terrain);
-            let lightLevel: number | null = null;
-            if (engine.lightLevelEnabled) {
-                const lightGrid = getLightGrid(
-                    engine.globalLightLevel,
-                    grid.width,
-                    grid.height,
-                    engine.getAllLightSources(),
-                );
-                lightLevel = lightGrid[row]?.[col] ?? null;
-            }
+            // Use the engine's live light tile grid (updated on light ticks). Do not
+            // recompute the full target grid here — that was O(map×sources) per mousemove
+            // only to fill a debug tooltip polled at 100ms.
+            const lightLevel = engine.getLightAt(col, row);
             const segmentId = engine.terrainManager.getSegmentIdAt(col, row);
             window.__minionBattlesDebugMouse = { worldX: clampedX, worldY: clampedY, row, col, terrainName, lightLevel, segmentId };
         }

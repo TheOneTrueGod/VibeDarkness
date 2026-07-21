@@ -65,7 +65,7 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState }: DebugUn
     useEffect(() => {
         if (!isActive || !inBattle || !battleBridge) return;
         const id = window.setInterval(() => {
-            setLiveGameState(battleBridge.getSnapshot().gameState);
+            setLiveGameState(battleBridge.getSnapshot({ includeGameState: true }).gameState);
         }, 100);
         return () => window.clearInterval(id);
     }, [isActive, inBattle, battleBridge]);

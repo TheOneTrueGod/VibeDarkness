@@ -9,6 +9,14 @@ export interface BattleDebugSnapshot {
     synchash: string | null;
 }
 
+export interface BattleDebugSnapshotOptions {
+    /**
+     * When true, serialize the full engine state into `gameState` (expensive).
+     * Default false — tick/synchash only. Units tab opts in; Game State tab does not.
+     */
+    includeGameState?: boolean;
+}
+
 export interface BattleDebugBridge {
     adminHealUnit(unitId: string): void;
     adminKillUnit(unitId: string): void;
@@ -17,7 +25,7 @@ export interface BattleDebugBridge {
     logLocalStateToLobby(): Promise<void>;
     triggerDesync(): void;
     triggerReplayFromStart(): void;
-    getSnapshot(): BattleDebugSnapshot;
+    getSnapshot(options?: BattleDebugSnapshotOptions): BattleDebugSnapshot;
     getWorldModifiersDebug(): WorldModifierDebugEntry[];
     setWorldModifierDisabled(modifierId: string, disabled: boolean): void;
     addTestWorldModifier(): void;
