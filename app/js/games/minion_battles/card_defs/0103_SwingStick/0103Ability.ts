@@ -15,8 +15,11 @@
 import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry } from '../../abilities/Ability';
 import { AbilityEventType, AbilityState } from '../../abilities/Ability';
 import { setupWindupLungePayload } from '../../abilities/WindupLunge';
-import { localPlayerResearchNodesGetter } from '../../abilities/abilityModifierHelpers';
-import { getDamageBonusFromResearch } from '../../research/researchTrainingEffects';
+import { resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../abilities/tooltipTokens';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
@@ -41,11 +44,24 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 ];
 
 const BASE_MAX_RANGE = 25;
-const DAMAGE = 10;
+export const SWING_STICK_DAMAGE = 10;
+const DAMAGE = SWING_STICK_DAMAGE;
 const SWING_BAT_EFFECT_DURATION = 0.4;
 const STUN_DURATION = 1.0;
+const KNOCKBACK_TIER = 1;
 const LINE_THICKNESS = 26;
 const SWING_LENGTH = 80;
+
+const TOOLTIP_LINES = [
+    'Swing your stick dealing {{DAMAGE}} damage.',
+    '{{KNOCKBACK}}, {{STUN}} stun.',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    DAMAGE: { kind: 'damage', base: DAMAGE },
+    KNOCKBACK: { kind: 'knockback', tier: KNOCKBACK_TIER },
+    STUN: { kind: 'plain', value: `${STUN_DURATION}s` },
+};
 
 const SWING_STICK_HITBOX = perpendicularSwingHitbox(BASE_MAX_RANGE, SWING_LENGTH, LINE_THICKNESS);
 
@@ -124,7 +140,7 @@ export const SwingStickAbility_0103: AbilityStatic = {
             {
                 conditions: [{ type: 'hitResultIs', result: 'hit' }],
                 effects: [
-                    { type: 'applyKnockbackToPrimaryTarget', tier: 1, sourceAbilityId: CARD_ID },
+                    { type: 'applyKnockbackToPrimaryTarget', tier: KNOCKBACK_TIER, sourceAbilityId: CARD_ID },
                     { type: 'applyStunnedToPrimaryTarget', duration: STUN_DURATION },
                     { type: 'interruptPrimaryTargetAbilities' },
                 ],
@@ -133,11 +149,11 @@ export const SwingStickAbility_0103: AbilityStatic = {
     },
 
     getTooltipText(gameState?: unknown): string[] {
-        const totalDmg = DAMAGE + getDamageBonusFromResearch(localPlayerResearchNodesGetter(gameState));
-        return [
-            `Swing your stick dealing {${totalDmg}} damage.`,
-            `{knockback 1}, {${STUN_DURATION}s} stun.`,
-        ];
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
+        );
     },
 
     getRange(_caster: Unit): { minRange: number; maxRange: number } {

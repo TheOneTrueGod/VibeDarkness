@@ -1,12 +1,18 @@
 /**
  * AbilityTooltip - Tooltip for abilities with a title and one or more lines.
  * Static text and dynamic text (wrapped in {}) are rendered in different colours.
+ * Prefer `segmentLines` (from formatTooltipLines) for research-aware tokens; legacy
+ * `{value}` / `{text:#hex}` strings still work via `lines`.
  * Fixed width and height for consistent layout regardless of content.
  */
 
 import React from 'react';
+import type { TooltipSegment } from '../../abilities/tooltipTokens';
 import { AnchoredPortalTooltip } from './AnchoredPortalTooltip';
 import { getDisabledReasonDisplay, type DisabledReason } from './abilityDisabledReason';
+
+/** Unified render shape (legacy parse + TooltipSegment). */
+type RenderSegment = { text: string; dynamic: boolean; color?: string };
 
 /**
  * Splits a line into static and dynamic segments. Dynamic parts are inside {}.
@@ -14,8 +20,8 @@ import { getDisabledReasonDisplay, type DisabledReason } from './abilityDisabled
  * instead of the default amber. Any content with a colon where the part after is a hex colour
  * (#RRGGBB or #RGB) is treated as a coloured segment.
  */
-function parseTooltipLine(line: string): Array<{ text: string; dynamic: boolean; color?: string }> {
-    const segments: Array<{ text: string; dynamic: boolean; color?: string }> = [];
+function parseTooltipLine(line: string): RenderSegment[] {
+    const segments: RenderSegment[] = [];
     const re = /\{([^}]*)\}/g;
     let lastIndex = 0;
     let m: RegExpExecArray | null;
@@ -42,11 +48,53 @@ function parseTooltipLine(line: string): Array<{ text: string; dynamic: boolean;
     return segments;
 }
 
+function tooltipSegmentToRender(seg: TooltipSegment): RenderSegment {
+    return {
+        text: seg.text,
+        dynamic: seg.role === 'dynamic',
+        color: seg.color,
+    };
+}
+
+/** Prefer pre-resolved segmentLines; otherwise legacy-parse each string line. */
+function resolveLinesForRender(
+    lines: string[],
+    segmentLines?: TooltipSegment[][],
+): RenderSegment[][] {
+    if (segmentLines && segmentLines.length > 0) {
+        return segmentLines.map((row) => row.map(tooltipSegmentToRender));
+    }
+    return lines.map(parseTooltipLine);
+}
+
+function renderSegmentSpans(
+    segments: RenderSegment[],
+    staticClassName: string,
+): React.ReactNode {
+    return segments.map((seg, j) => (
+        <span
+            key={j}
+            className={seg.color ? undefined : (seg.dynamic ? 'text-amber-300' : staticClassName)}
+            style={seg.color ? { color: seg.color } : undefined}
+        >
+            {seg.text}
+        </span>
+    ));
+}
+
 export interface AbilityTooltipProps {
     /** Tooltip title (e.g. ability name). */
     title: string;
-    /** One or more lines. Use {value} for dynamic parts (e.g. "Hit {1} enemy for {8} damage"). */
+    /**
+     * Legacy string lines. Use `{value}` for dynamic parts (e.g. "Hit {1} enemy for {8} damage").
+     * Ignored for content when `segmentLines` is set (still required for callers that always pass it).
+     */
     lines: string[];
+    /**
+     * Pre-resolved token segments from `formatTooltipLines`. When set (non-empty),
+     * these are rendered instead of parsing `lines`.
+     */
+    segmentLines?: TooltipSegment[][];
     /** When set, shows a rose-colored section explaining why the ability is disabled. */
     disabledReason?: DisabledReason;
     /** Whether this is a mobile overlay (full-width with dismiss). */
@@ -66,6 +114,7 @@ const LINE_HEIGHT = 1.35;
 export default function AbilityTooltip({
     title,
     lines,
+    segmentLines,
     disabledReason,
     isMobileOverlay = false,
     onDismiss,
@@ -73,6 +122,7 @@ export default function AbilityTooltip({
     open = true,
 }: AbilityTooltipProps) {
     const reasonDisplay = disabledReason ? getDisabledReasonDisplay(disabledReason) : null;
+    const renderedLines = resolveLinesForRender(lines, segmentLines);
 
     if (isMobileOverlay) {
         return (
@@ -90,17 +140,9 @@ export default function AbilityTooltip({
                     </button>
                 </div>
                 <div className="text-gray-200 text-xs leading-relaxed space-y-1">
-                    {lines.map((line, i) => (
+                    {renderedLines.map((segs, i) => (
                         <div key={i} style={{ lineHeight: LINE_HEIGHT }}>
-                            {parseTooltipLine(line).map((seg, j) => (
-                                <span
-                                    key={j}
-                                    className={seg.color ? undefined : (seg.dynamic ? 'text-amber-300' : 'text-muted')}
-                                    style={seg.color ? { color: seg.color } : undefined}
-                                >
-                                    {seg.text}
-                                </span>
-                            ))}
+                            {renderSegmentSpans(segs, 'text-muted')}
                         </div>
                     ))}
                 </div>
@@ -118,17 +160,9 @@ export default function AbilityTooltip({
         <>
             <h3 className="text-white font-bold text-xs mb-4 text-center">{title}</h3>
             <div className="text-xs space-y-1" style={{ lineHeight: LINE_HEIGHT }}>
-                {lines.map((line, i) => (
+                {renderedLines.map((segs, i) => (
                     <div key={i}>
-                        {parseTooltipLine(line).map((seg, j) => (
-                            <span
-                                key={j}
-                                className={seg.color ? undefined : (seg.dynamic ? 'text-amber-300' : 'text-gray-200')}
-                                style={seg.color ? { color: seg.color } : undefined}
-                            >
-                                {seg.text}
-                            </span>
-                        ))}
+                        {renderSegmentSpans(segs, 'text-gray-200')}
                     </div>
                 ))}
             </div>

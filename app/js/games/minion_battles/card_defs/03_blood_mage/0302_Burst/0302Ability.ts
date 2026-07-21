@@ -28,6 +28,11 @@ import { resolveTargetToPoint, findMeleeAimPixelInTargets } from '../../../abili
 import { areEnemies } from '../../../game/teams';
 import { drawConeSlice } from '../../../abilities/previewHelpers';
 import { spawnBloodMistWindupBurst } from '../../../abilities/bloodMageVfx';
+import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../../abilities/tooltipTokens';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { type CardDef } from '../../types';
 
@@ -146,6 +151,19 @@ const BURST_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/s
   <path d="M14 32 L48 14 L38 30 L52 30 L20 52 L30 34 Z" fill="url(#burstGlow)" stroke="#fca5a5" stroke-width="1.5"/>
 </svg>`;
 
+const TOOLTIP_LINES = [
+    'Release a violent burst of blood magic at your own expense.',
+    'Deals {{DAMAGE}} damage to up to {{MAX_TARGETS}} cone. {{KNOCKBACK}}.',
+    'Costs {{HP_COST}} HP to cast.',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    DAMAGE: { kind: 'damage', base: DAMAGE },
+    MAX_TARGETS: { kind: 'plain', value: MAX_TARGETS },
+    KNOCKBACK: { kind: 'knockback', tier: KNOCKBACK_TIER },
+    HP_COST: { kind: 'plain', value: HP_COST },
+};
+
 export const BurstAbility_0302 = defineAbility({
     id: CARD_ID,
     name: 'Burst',
@@ -248,12 +266,12 @@ export const BurstAbility_0302 = defineAbility({
     ],
     targets: [],
 
-    getTooltipText(): string[] {
-        return [
-            'Release a violent burst of blood magic at your own expense.',
-            `Deals {${DAMAGE}} damage to up to {${MAX_TARGETS}} cone. {knockback ${KNOCKBACK_TIER}}.`,
-            `Costs {${HP_COST}} HP to cast.`,
-        ];
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
+        );
     },
 });
 

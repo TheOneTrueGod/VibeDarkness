@@ -31,8 +31,12 @@ import { meleeLineHitbox } from '../../hitboxes';
 import type { HitboxSpec } from '../../hitboxes/HitboxSpec';
 import { defineAbility, type AbilityDefInput } from '../defineAbility';
 import type { WindupLungeConfig } from '../WindupLunge';
-import { applyPassiveDamageBonuses } from '../damageModifiers';
-import { getLocalPlayerUnitFromGameState } from '../abilityModifierHelpers';
+import { getAbilityDamageForDisplay } from '../damageModifiers';
+import { resolveTooltipContext } from '../abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../tooltipTokens';
 
 // ---------------------------------------------------------------------------
 // Config interface
@@ -222,7 +226,11 @@ export function defineMeleeStrike(config: MeleeStrikeConfig): AbilityStatic {
 
     // Assemble the full input for defineAbility.
     const baseDamage = config.damage;
-    const getDamage = (caster?: Unit): number => applyPassiveDamageBonuses(baseDamage, caster);
+    const tooltipBindings: TooltipTokenBindings = {
+        DAMAGE: { kind: 'damage', base: baseDamage },
+    };
+    const getDamage = (caster?: Unit): number =>
+        getAbilityDamageForDisplay(baseDamage, caster ? { attacker: caster } : {});
 
     const defInput: AbilityDefInput = {
         id: config.id,
@@ -244,14 +252,17 @@ export function defineMeleeStrike(config: MeleeStrikeConfig): AbilityStatic {
         movementLock: { until: movementLockUntil },
         getDamage,
         getTooltipText(gameState?: unknown): string[] {
-            const caster = getLocalPlayerUnitFromGameState(gameState);
-            const lines = config.getTooltipText(gameState);
-            if (!caster) return lines;
-            // Rewrite floored tooltip damage placeholders that match the raw base to the caster-aware value.
-            const display = getDamage(caster);
-            if (display === baseDamage) return lines;
-            return lines.map((line) =>
-                line.split(`{${baseDamage}}`).join(`{${display}}`),
+            // Prefer explicit {{DAMAGE}}; also rewrite legacy `{base}` placeholders so
+            // existing melee tooltips pick up the unified damage-modifier path.
+            const templates = config.getTooltipText(gameState).map((line) =>
+                line.includes('{{DAMAGE}}')
+                    ? line
+                    : line.split(`{${baseDamage}}`).join('{{DAMAGE}}'),
+            );
+            return formatTooltipLegacyLines(
+                templates,
+                tooltipBindings,
+                resolveTooltipContext(gameState, { ability: { id: config.id } }),
             );
         },
         ...(config.lunge ? { lunge: config.lunge } : {}),

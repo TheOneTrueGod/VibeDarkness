@@ -125,7 +125,13 @@ export function CharacterSelectBottomAbilityList({ character }: CharacterSelectB
                         zIndex: 9999,
                     }}
                 >
-                    <AbilityTooltip title={hoveredCard.ability.name} lines={hoveredCard.ability.getTooltipText()} />
+                    <AbilityTooltip
+                        title={hoveredCard.ability.name}
+                        lines={hoveredCard.ability.getTooltipText({
+                            researchTrees: character.researchTrees,
+                            researchNodeLevels: character.researchNodeLevels,
+                        })}
+                    />
                 </div>,
                 document.body,
             )}

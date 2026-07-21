@@ -30,13 +30,16 @@ import {
 } from '../../abilities/meleeAnimationProfile';
 import { renderMeleeTrackingHighlights } from '../../abilities/targeting';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
-import { hasResearchNode, localPlayerResearchNodesGetter } from '../../abilities/abilityModifierHelpers';
+import { hasResearchNode, resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../abilities/tooltipTokens';
 import {
     STICK_SWORD_TREE_ID,
     STICK_SWORD_NODE_PIPE_BAT_DAMAGE,
 } from '../../../../researchTrees/trees/stick_sword';
 import { getApproxIntegerIncrease, DescriptiveValue } from '../../../../researchTrees/descriptiveValue';
-import { getDamageBonusFromResearch } from '../../research/researchTrainingEffects';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}15`;
 const MAX_USES = 2;
@@ -45,10 +48,12 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 ];
 const BASE_MIN_RANGE = 0;
 const BASE_MAX_RANGE = 25;
-const BASE_DAMAGE = 10;
+export const SWING_BAT_BASE_DAMAGE = 10;
+const BASE_DAMAGE = SWING_BAT_BASE_DAMAGE;
 const DAMAGE_RESEARCH_BONUS = getApproxIntegerIncrease(BASE_DAMAGE, DescriptiveValue.Medium);
 const SWING_BAT_EFFECT_DURATION = 0.4;
 const MAX_TARGETS = 3;
+const KNOCKBACK_TIER = 3;
 const LINE_THICKNESS = 26;
 const SWING_LENGTH = 80;
 
@@ -63,11 +68,32 @@ const SWING_BAT_PROFILE: MeleeAnimationProfile = {
     }),
 };
 
+function hasPipeBatDamageResearch(gameState: unknown, caster?: Unit): boolean {
+    const eng = gameState as AbilityEngineContext | undefined;
+    if (hasResearchNode(eng, caster, STICK_SWORD_TREE_ID, STICK_SWORD_NODE_PIPE_BAT_DAMAGE)) {
+        return true;
+    }
+    const trees = (gameState as { researchTrees?: Record<string, string[]> } | undefined)?.researchTrees;
+    return trees?.[STICK_SWORD_TREE_ID]?.includes(STICK_SWORD_NODE_PIPE_BAT_DAMAGE) ?? false;
+}
+
 function getDamage(engine: AbilityEngineContext | undefined, caster: Unit | undefined): number {
-    return hasResearchNode(engine, caster, STICK_SWORD_TREE_ID, STICK_SWORD_NODE_PIPE_BAT_DAMAGE)
+    return hasPipeBatDamageResearch(engine, caster)
         ? BASE_DAMAGE + DAMAGE_RESEARCH_BONUS
         : BASE_DAMAGE;
 }
+
+/** Ability-specific base for tooltips (Reinforced Steel), before global Training/Mighty. */
+function getTooltipBaseDamage(gameState?: unknown): number {
+    return hasPipeBatDamageResearch(gameState)
+        ? BASE_DAMAGE + DAMAGE_RESEARCH_BONUS
+        : BASE_DAMAGE;
+}
+
+const TOOLTIP_LINES = [
+    'Swing your pipe bat dealing {{DAMAGE}} damage to up to {{MAX_TARGETS}} enemies.',
+    '{{KNOCKBACK}}.',
+] as const;
 
 const SWING_BAT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <rect x="10" y="28" width="44" height="12" rx="3" fill="#6b6b7a" stroke="#4a4a58" stroke-width="2"/>
@@ -100,7 +126,7 @@ const swingBatBehaviour = CastBehaviours.MeleeAttack()
         }
         return baseDmg;
     })
-    .withKnockback(3);
+    .withKnockback(KNOCKBACK_TIER);
 
 // ---- Timings ----
 
@@ -129,13 +155,16 @@ export const SwingBatAbility_0115: AbilityStatic = {
     lunge: { distance: DEFAULT_MELEE_LUNGE },
 
     getTooltipText(gameState?: unknown): string[] {
-        const eng = gameState as AbilityEngineContext | undefined;
-        const baseDmg = getDamage(eng, undefined);
-        const totalDmg = baseDmg + getDamageBonusFromResearch(localPlayerResearchNodesGetter(gameState));
-        return [
-            `Swing your pipe bat dealing {${totalDmg}} damage to up to ${MAX_TARGETS} enemies.`,
-            `{knockback 3}.`,
-        ];
+        const bindings: TooltipTokenBindings = {
+            DAMAGE: { kind: 'damage', base: getTooltipBaseDamage(gameState) },
+            MAX_TARGETS: { kind: 'plain', value: MAX_TARGETS },
+            KNOCKBACK: { kind: 'knockback', tier: KNOCKBACK_TIER },
+        };
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            bindings,
+            resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
+        );
     },
 
     getRange(_caster: Unit): { minRange: number; maxRange: number } {

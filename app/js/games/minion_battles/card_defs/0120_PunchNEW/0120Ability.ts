@@ -77,7 +77,7 @@ export const PunchNEWAbility = defineMeleeStrike({
     aiMaxRange: MAX_RANGE + LUNGE_DISTANCE,
 
     getTooltipText(): string[] {
-        return [`Hit {1} enemy for {${PUNCH_DAMAGE}} damage`];
+        return ['Hit {1} enemy for {{DAMAGE}} damage'];
     },
 });
 

@@ -1,6 +1,8 @@
-import type { AbilityModifier } from '../../../researchTrees/types';
+import type { AbilityModifier, ResearchNodeLevels } from '../../../researchTrees/types';
 import type { Unit } from '../game/units/Unit';
 import type { AbilityEngineContext } from './AbilityEngineContext';
+import { buildDamageModifierFromResearch } from './damageModifiers';
+import type { TooltipResolveContext } from './tooltipTokens';
 
 /**
  * Returns a `getResearchNodes(treeId)` function bound to the local player, suitable for
@@ -18,6 +20,54 @@ export function localPlayerResearchNodesGetter(
 
 interface EngineWithLocalUnit {
     getLocalPlayerUnit?(): Unit | null;
+}
+
+/** Out-of-battle / character-select bag that may be passed as `getTooltipText` gameState. */
+interface ResearchTooltipBag {
+    researchTrees?: Record<string, string[]>;
+    researchNodeLevels?: ResearchNodeLevels;
+}
+
+export interface ResolveTooltipContextOpts {
+    /** Explicit research trees (character select); also read from gameState duck-type. */
+    researchTrees?: Record<string, string[]>;
+    /** Leveled passive nodes (Mighty, etc.); also read from gameState.researchNodeLevels. */
+    researchNodeLevels?: ResearchNodeLevels;
+    /** Ability providing id / damageModifierMultiplier for display scaling. */
+    ability?: { id?: string; damageModifierMultiplier?: number };
+}
+
+/**
+ * Build {@link TooltipResolveContext} for `formatTooltipLines` / damage tokens.
+ * Battle: prefers local player unit as `attacker`.
+ * Out-of-battle: builds `damageModifier` from research trees + levels (opts or gameState bag).
+ */
+export function resolveTooltipContext(
+    gameState?: unknown,
+    opts?: ResolveTooltipContextOpts,
+): TooltipResolveContext {
+    const bag = gameState as ResearchTooltipBag | undefined;
+    const ctx: TooltipResolveContext = {};
+
+    if (opts?.ability?.id !== undefined) {
+        ctx.abilityId = opts.ability.id;
+    }
+    if (opts?.ability?.damageModifierMultiplier !== undefined) {
+        ctx.abilityFlatScale = opts.ability.damageModifierMultiplier;
+    }
+
+    const attacker = getLocalPlayerUnitFromGameState(gameState);
+    if (attacker) {
+        ctx.attacker = attacker;
+        return ctx;
+    }
+
+    const researchTrees = opts?.researchTrees ?? bag?.researchTrees;
+    if (researchTrees) {
+        const levels = opts?.researchNodeLevels ?? bag?.researchNodeLevels;
+        ctx.damageModifier = buildDamageModifierFromResearch(researchTrees, levels);
+    }
+    return ctx;
 }
 
 /**

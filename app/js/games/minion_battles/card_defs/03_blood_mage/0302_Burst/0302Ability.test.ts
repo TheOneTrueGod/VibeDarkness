@@ -19,9 +19,18 @@ import {
     BURST_WINDUP_DURATION,
     BurstAbility_0302,
 } from './0302Ability';
+import {
+    TRAINING_MIGHTY_ALL_DAMAGE_MULT,
+    TRAINING_MIGHTY_LEVELS,
+    TRAINING_NODE_MIGHTY,
+    TRAINING_TREE_ID,
+} from '../../../../../researchTrees/trees/training';
 
 const CARD_ID = BurstAbility_0302.id;
 const TICK_DT = 0.01;
+const MIGHTY_TWO_LEVELS = 2;
+const MIGHTY_TWO_LEVEL_MULT =
+    1 + ((TRAINING_MIGHTY_ALL_DAMAGE_MULT - 1) * MIGHTY_TWO_LEVELS) / TRAINING_MIGHTY_LEVELS;
 // The wave spawns at the end of windup and takes up to BURST_WAVE_TRAVEL_DURATION to sweep
 // out to max range, so advance past windup + the full travel time (plus a small margin) to
 // guarantee any in-range hit has landed.
@@ -198,5 +207,37 @@ describe('BurstAbility_0302', () => {
 
         advanceSimulation(caster, engine, projectiles, 0.12);
         expect(caster.hp).toBe(100 - BURST_HP_COST);
+    });
+});
+
+describe('Burst getTooltipText (damage tokens)', () => {
+    it('without context shows base damage 10', () => {
+        const lines = BurstAbility_0302.getTooltipText();
+        expect(lines.some((l) => l.includes('{10}'))).toBe(true);
+        expect(lines.some((l) => l.includes('{14}'))).toBe(false);
+        expect(lines.some((l) => l.includes(`{${BURST_MAX_TARGETS}}`))).toBe(true);
+        expect(lines.some((l) => l.includes(`{knockback ${BURST_KNOCKBACK_TIER}}`))).toBe(true);
+        expect(lines.some((l) => l.includes(`{${BURST_HP_COST}}`))).toBe(true);
+    });
+
+    it('Mighty mult 1.4 on base 10 shows dynamic {14}', () => {
+        const gameState = {
+            getLocalPlayerUnit: () => ({
+                getDamageModifier: () => ({ flatAmt: 0, multiplier: MIGHTY_TWO_LEVEL_MULT }),
+                stackSize: 1,
+            }),
+        };
+        const lines = BurstAbility_0302.getTooltipText(gameState);
+        expect(lines.some((l) => l.includes('{14}'))).toBe(true);
+        expect(lines.some((l) => l.includes(`{${BURST_DAMAGE}}`))).toBe(false);
+    });
+
+    it('research bag (character select) resolves Mighty via resolveTooltipContext', () => {
+        const lines = BurstAbility_0302.getTooltipText({
+            researchTrees: { [TRAINING_TREE_ID]: [TRAINING_NODE_MIGHTY] },
+            researchNodeLevels: { [TRAINING_TREE_ID]: { [TRAINING_NODE_MIGHTY]: MIGHTY_TWO_LEVELS } },
+        });
+        expect(lines.some((l) => l.includes('{14}'))).toBe(true);
+        expect(lines.some((l) => l.includes(`{${BURST_DAMAGE}}`))).toBe(false);
     });
 });

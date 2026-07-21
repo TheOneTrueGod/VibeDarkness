@@ -395,15 +395,27 @@ export interface AbilityStatic {
     getAbilityTimings?(caster?: Unit, gameState?: unknown): AbilityTimingEntry[];
 
     /**
-     * Get tooltip lines for the card UI. Use {value} in a line for dynamic parts
-     * (e.g. "Hit {1} enemy for {8} damage"). Dynamic segments are rendered in a distinct colour.
+     * Get tooltip lines for the card UI.
+     *
+     * Prefer named tokens + binders for numbers affected by research (Mighty, Training flat):
+     * templates with `{{DAMAGE}}` / `{{MAX_TARGETS}}` etc., a `TooltipTokenBindings` map, and
+     * `formatTooltipLines(lines, bindings, resolveTooltipContext(gameState, { ability: this }))`.
+     * Pass the resulting `TooltipSegment[][]` to AbilityTooltip via `segmentLines`, or bridge
+     * as legacy `{value}` / `{text:#hex}` strings during migration.
+     *
+     * Legacy: use `{value}` in a line for dynamic parts (e.g. "Hit {1} enemy for {8} damage").
+     * Dynamic segments are rendered in a distinct colour. Unmigrated abilities may keep `{N}`.
+     *
+     * `gameState` is the battle engine in combat, or a research bag
+     * (`{ researchTrees, researchNodeLevels }`) on character select so out-of-battle tooltips
+     * can resolve the same damage modifier as mission spawn.
      */
     getTooltipText(gameState?: unknown): string[];
 
     /**
      * Optional. Resolves this ability's base damage for display / cast helpers when a caster
-     * is available. When `caster` is omitted, returns the raw ability number with no
-     * passive damage bonuses applied.
+     * is available. Prefer `getAbilityDamageForDisplay` (full flat + mult + stackSize path).
+     * When `caster` is omitted, returns the raw ability number with no modifiers applied.
      */
     getDamage?(caster?: Unit): number;
 
