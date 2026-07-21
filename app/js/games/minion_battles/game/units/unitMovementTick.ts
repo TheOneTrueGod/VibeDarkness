@@ -2,6 +2,7 @@ import type { Unit } from './Unit';
 import type { EngineContext } from '../EngineContext';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import type { TerrainLayerManager } from '../TerrainLayerManager';
+import type { UnitWalkIntent } from './unitTypes';
 import { LIFTED_BUFF_TYPE } from '../../buffs/LiftedBuff';
 import { areEnemies } from '../teams';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
@@ -12,6 +13,7 @@ import { checkNextCellOccupancy } from './unitCellSlide';
 import { updateUnitKnockback } from './unitKnockback';
 import { updateUnitNudge } from './unitNudge';
 import { tickWallUnstick } from './unitWallUnstick';
+import { buildPlayerMovePathThroughWaypoints } from '../../terrain/playerMovePath';
 
 /** Chebyshev grid tiles; after min wait time, end wait early if a live enemy is this close (wait+move failsafe). */
 export const WAIT_ENEMY_PROXIMITY_FAILSAFE_GRID = 4;
@@ -95,7 +97,7 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
     // Wait action: enforce minimum and maximum wait duration, allow early end when movement finishes,
     // or after min time if an enemy is within grid range (failsafe so long paths do not stall in melee).
     if (unit.waitMinEndTime !== null && unit.waitMaxEndTime !== null) {
-        const reachedMovementTarget = !unit.movement;
+        const reachedMovementTarget = !unit.movement && !unit.walkIntent;
         const afterMin = gameTime >= unit.waitMinEndTime;
         const afterMax = gameTime >= unit.waitMaxEndTime;
         const enemyProximityFailsafe =
@@ -124,9 +126,12 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
         return;
     }
 
-    // Nudge: non-interrupting displacement; movement path and abilities continue
+    // Nudge: non-interrupting displacement; when it ends, invalidate path so walkIntent repaths.
     if (unit.nudge) {
         updateUnitNudge(unit, dt, grid, terrainManager);
+        if (!unit.nudge && unit.walkIntent) {
+            unit.invalidateMovementPath();
+        }
     }
 
     // Wall recovery: nudge/snap stuck units out of impassable terrain (runs before stun check so
@@ -140,6 +145,9 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
         return;
     }
 
+    // After forced displace: rebuild path from durable walkIntent once the unit can move again.
+    tryRepathFromWalkIntent(unit, engine as EngineContext);
+
     // Move along grid path
     if (!unit.isAlive() || !unit.movement || unit.movement.path.length === 0 || unit.movementPaused) return;
 
@@ -151,11 +159,17 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
             const pdy = pursuitTarget.y - unit.y;
             const stopDist = unit.radius + pursuitTarget.radius + MIN_FOLLOW_RADIUS;
             if (pdx * pdx + pdy * pdy <= stopDist * stopDist) {
-                unit.movement = null;
+                clearUnitMovement(unit);
                 return;
             }
         } else {
             unit.movement.targetUnitId = undefined;
+            if (unit.walkIntent) {
+                unit.walkIntent = {
+                    dest: { ...unit.walkIntent.dest },
+                    ...(unit.walkIntent.targetPixel ? { targetPixel: { ...unit.walkIntent.targetPixel } } : {}),
+                };
+            }
         }
     }
 
@@ -221,7 +235,8 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
     if (remainingDistSq <= EPSILON * EPSILON) {
         unit.movement.path.shift();
         if (unit.movement.path.length === 0) {
-            unit.movement = null;
+            // Arrived at destination — drop durable intent so we do not immediately repath.
+            clearUnitMovement(unit);
         } else {
             // Cell boundary check: can we enter the next cell?
             checkNextCellOccupancy(unit, engine as EngineContext);
@@ -238,6 +253,74 @@ export function tickUnitMovement(unit: Unit, dt: number, engine: EngineContext):
     }
 }
 
+/** Build walkIntent from a non-empty path's last cell (+ chase/pixel). */
+export function walkIntentFromPath(
+    path: { col: number; row: number }[],
+    targetUnitId: string | undefined,
+    targetPixel?: { x: number; y: number },
+): UnitWalkIntent | null {
+    if (path.length === 0) return null;
+    const last = path[path.length - 1]!;
+    return {
+        dest: { col: last.col, row: last.row },
+        ...(targetUnitId !== undefined ? { targetUnitId } : {}),
+        ...(targetPixel ? { targetPixel: { ...targetPixel } } : {}),
+    };
+}
+
+/**
+ * When walkIntent is set and the live path is missing, rebuild a path from the current cell
+ * once the unit can actually move (speed > 0, not paused).
+ */
+export function tryRepathFromWalkIntent(unit: Unit, engine: EngineContext): void {
+    if (!unit.isAlive() || unit.movementPaused) return;
+    if (!unit.walkIntent) return;
+    if (unit.movement && unit.movement.path.length > 0) return;
+    if (!engine.terrainManager) return;
+
+    // Fully locked (e.g. melee movementLock amount 0) — keep intent, repath when free.
+    if (unit.getEffectiveSpeed(engine.gameTime) <= 0) return;
+
+    const intent = unit.walkIntent;
+    const from = engine.terrainManager.grid.worldToGrid(unit.x, unit.y);
+    if (from.col === intent.dest.col && from.row === intent.dest.row) {
+        if (intent.targetPixel) {
+            setUnitMovement(
+                unit,
+                [{ col: intent.dest.col, row: intent.dest.row }],
+                intent.targetUnitId,
+                engine.gameTick,
+                intent.targetPixel,
+            );
+        } else if (intent.targetUnitId) {
+            // Still pursuing — stay on dest cell with chase target.
+            setUnitMovement(
+                unit,
+                [{ col: intent.dest.col, row: intent.dest.row }],
+                intent.targetUnitId,
+                engine.gameTick,
+            );
+        } else {
+            clearUnitMovement(unit);
+        }
+        return;
+    }
+
+    const repath = buildPlayerMovePathThroughWaypoints(
+        engine.terrainManager,
+        from.col,
+        from.row,
+        [intent.dest],
+    );
+    if (repath == null || repath.length === 0) {
+        // Unreachable for now — keep intent for a later retry; leave path empty.
+        unit.movement = null;
+        unit.pathInvalidated = true;
+        return;
+    }
+    setUnitMovement(unit, repath, intent.targetUnitId, engine.gameTick, intent.targetPixel);
+}
+
 /** Set movement state with a grid-cell path. Clears movement if path is empty. Clears pathInvalidated. */
 export function setUnitMovement(
     unit: Unit,
@@ -247,10 +330,11 @@ export function setUnitMovement(
     targetPixel?: { x: number; y: number },
 ): void {
     if (path.length === 0) {
-        unit.movement = null;
+        clearUnitMovement(unit);
         return;
     }
     unit.pathInvalidated = false;
+    unit.walkIntent = walkIntentFromPath(path, targetUnitId, targetPixel);
     unit.movement = {
         path: path.map((p) => ({ ...p })),
         targetUnitId,
@@ -259,14 +343,16 @@ export function setUnitMovement(
     };
 }
 
-/** Clear all movement state. */
+/** Clear live path and durable walk intent. */
 export function clearUnitMovement(unit: Unit): void {
     unit.movement = null;
+    unit.walkIntent = null;
+    unit.pathInvalidated = false;
 }
 
 /**
  * Mark the current pathfinding route as invalid (e.g. after knockback or forced movement).
- * Next normal move will recalculate the path. Clears movement so the unit does not follow the old route.
+ * Clears the live path but keeps walkIntent so movement can repath when the unit is free again.
  */
 export function invalidateUnitMovementPath(unit: Unit): void {
     unit.movement = null;

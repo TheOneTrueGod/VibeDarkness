@@ -19,21 +19,27 @@ export class DefaultTool implements InteractionTool {
     }
 
     seedFromUnit(unit: Unit): void {
-        if (unit.pathInvalidated || !unit.movement) {
-            this.reset();
-            return;
-        }
-        const existingPath = unit.movement.path;
-        this.pendingMovePath = existingPath.length > 0 ? existingPath.map((p) => ({ ...p })) : null;
-        this.pendingMoveTargetUnitId = existingPath.length > 0 ? (unit.movement.targetUnitId ?? null) : null;
-        this.pendingMoveTargetPixel =
-            existingPath.length > 0 && unit.movement.targetPixel
+        if (unit.movement && unit.movement.path.length > 0) {
+            const existingPath = unit.movement.path;
+            this.pendingMovePath = existingPath.map((p) => ({ ...p }));
+            this.pendingMoveTargetUnitId = unit.movement.targetUnitId ?? null;
+            this.pendingMoveTargetPixel = unit.movement.targetPixel
                 ? { ...unit.movement.targetPixel }
                 : null;
-        this.pendingMoveWaypoints =
-            this.pendingMovePath && this.pendingMovePath.length > 0
-                ? [{ ...this.pendingMovePath[this.pendingMovePath.length - 1]! }]
-                : [];
+            this.pendingMoveWaypoints = [{ ...existingPath[existingPath.length - 1]! }];
+            return;
+        }
+        if (unit.walkIntent) {
+            const dest = unit.walkIntent.dest;
+            this.pendingMovePath = [{ ...dest }];
+            this.pendingMoveTargetUnitId = unit.walkIntent.targetUnitId ?? null;
+            this.pendingMoveTargetPixel = unit.walkIntent.targetPixel
+                ? { ...unit.walkIntent.targetPixel }
+                : null;
+            this.pendingMoveWaypoints = [{ ...dest }];
+            return;
+        }
+        this.reset();
     }
 
     onCanvasRightClick(

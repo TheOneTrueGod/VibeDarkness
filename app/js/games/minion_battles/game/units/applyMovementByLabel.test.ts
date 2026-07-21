@@ -1,3 +1,6 @@
+/**
+ * Apply `ActiveAbility.movementByLabel` entries onto a unit's movement path.
+ */
 import { describe, expect, it } from 'vitest';
 import {
     applyMovementByLabelEntry,
@@ -58,6 +61,7 @@ describe('applyMovementByLabel', () => {
         expect(path[path.length - 1]).toEqual({ col: 8, row: 4 });
         // Straight grass line → single destination cell from current col 2.
         expect(path).toEqual([{ col: 8, row: 4 }]);
+        expect(player.walkIntent?.dest).toEqual({ col: 8, row: 4 });
 
         engine.destroy();
     });

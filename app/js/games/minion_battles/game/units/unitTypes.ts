@@ -33,6 +33,16 @@ export interface UnitMovement {
     pathfindingTick: number;
 }
 
+/**
+ * Durable walk destination. Survives `invalidateMovementPath` (lunge, dash, knockback);
+ * cleared only by `clearMovement`, empty `setMovement`, or arrival at the destination.
+ */
+export interface UnitWalkIntent {
+    dest: { col: number; row: number };
+    targetUnitId?: string;
+    targetPixel?: { x: number; y: number };
+}
+
 /** Source of knockback (for callbacks). Serializable. */
 export interface KnockbackSource {
     /** Unit ID that applied the knockback. */

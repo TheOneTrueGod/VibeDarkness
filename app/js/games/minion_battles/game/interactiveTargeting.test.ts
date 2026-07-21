@@ -1508,6 +1508,73 @@ describe('interactive sequential targeting', () => {
     });
 
     /**
+     * Lunge + order movePath (right-click before cast): walkIntent survives windup invalidate;
+     * path resumes from the post-lunge cell once movement lock lifts (speed > 0 after windup).
+     */
+    it('Swing Bat order movePath resumes from post-lunge cell at cooldown', () => {
+        const { engine, player, aimPixel } = buildSwingBatFixture();
+        const tm = engine.terrainManager!;
+        const startGrid = tm.grid.worldToGrid(player.x, player.y);
+        const destCol = startGrid.col - 3;
+        const destRow = startGrid.row;
+        const movePath = tm.findGridPath(startGrid.col, startGrid.row, destCol, destRow);
+        expect(movePath).not.toBeNull();
+        expect(movePath!.length).toBeGreaterThan(0);
+
+        stepUntil(engine, () => engine.waitingForOrders != null);
+
+        const target: ResolvedTarget = { type: 'pixel', position: aimPixel };
+        engine.isSequentialTargetingPreview = true;
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: SWING_BAT_ABILITY_ID,
+            targets: [target],
+            targetsByLabel: { [SWING_BAT_TARGET_LABEL]: target },
+            endTurn: true,
+            movePath: movePath!.map((p) => ({ ...p })),
+        });
+
+        const castStarted = stepUntil(
+            engine,
+            () => player.activeAbilities.some((a) => a.abilityId === SWING_BAT_ABILITY_ID),
+            30,
+        );
+        expect(castStarted).toBe(true);
+        expect(player.walkIntent?.dest).toEqual({ col: destCol, row: destRow });
+
+        // Mid-windup: path cleared by lunge invalidate; intent kept; unit has slid east.
+        const reachedMidWindup = stepUntil(
+            engine,
+            () => {
+                const elapsed = getCastElapsed(engine, player, SWING_BAT_ABILITY_ID);
+                return elapsed > 0.05 && elapsed < SWING_BAT_WINDUP_END;
+            },
+            60,
+        );
+        expect(reachedMidWindup).toBe(true);
+        expect(player.walkIntent?.dest).toEqual({ col: destCol, row: destRow });
+        expect(player.movement).toBeNull();
+        expect(player.x).toBeGreaterThan(startGrid.col * CELL_SIZE);
+
+        // After movement lock (windup) ends, auto-repath from post-lunge cell to walkIntent.
+        const reachedAfterLock = stepUntil(
+            engine,
+            () => getCastElapsed(engine, player, SWING_BAT_ABILITY_ID) >= 0.3,
+            60,
+        );
+        expect(reachedAfterLock).toBe(true);
+        expect(player.movement).not.toBeNull();
+        expect(player.movement!.path[player.movement!.path.length - 1]).toEqual({
+            col: destCol,
+            row: destRow,
+        });
+        expect(player.movement!.path).toEqual([{ col: destCol, row: destRow }]);
+        expect(player.walkIntent?.dest).toEqual({ col: destCol, row: destRow });
+
+        engine.destroy();
+    });
+
+    /**
      * Scenario J — preview order with positional targets runs windup lunge before the hit interval.
      */
     it('Scenario J: Swing Bat preview with positional target advances during windup lunge', () => {

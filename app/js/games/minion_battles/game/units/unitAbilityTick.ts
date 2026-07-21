@@ -274,15 +274,16 @@ export function tickUnitActiveAbilities(
                     const enteredMov = active.movementByLabel[enteredLabel];
                     if (enteredMov && enteredMov.movePath.length > 0) {
                         if (ability.lunge != null) {
-                            // Drop any deferred-targeting ghost path; keep the entry for cooldown flush.
-                            unit.clearMovement();
+                            // Drop any deferred-targeting ghost path; keep walkIntent + label for cooldown flush.
+                            unit.invalidateMovementPath();
                         } else {
                             applyMovementByLabelEntry(unit, enteredMov, engine, { repathFromCurrent: false });
                             delete active.movementByLabel[enteredLabel];
                         }
                     }
                 }
-                // Lunge: apply queued post-lunge walk when cooldown begins (movement lock releases).
+                // Lunge: apply queued ITS movement when cooldown begins (movement lock releases).
+                // Pre-cast walk resumes via Unit.walkIntent + auto-repath once speed > 0.
                 if (
                     ability.lunge != null
                     && interval.abilityPhase === AbilityPhase.Cooldown
@@ -584,7 +585,7 @@ export function tickUnitActiveAbilities(
                 currentTime: elapsed,
             });
         }
-        // Safety net: if a lunge cast never entered cooldown, still release queued walk.
+        // Safety net: if a lunge cast never entered cooldown, still release queued ITS walk.
         if (ability?.lunge != null && active.movementByLabel) {
             flushMovementByLabel(unit, active, engine, { repathFromCurrent: true });
         }

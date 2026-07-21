@@ -63,8 +63,8 @@ function buildGoldenSerializationUnit(eventBus: EventBus): Unit {
         [{ col: 2, row: 3 }, { col: 3, row: 4 }],
         'move_target_unit',
         42,
+        { x: 130, y: 170 },
     );
-    unit.movement!.targetPixel = { x: 130, y: 170 };
 
     unit.ccArmour.durationResistPct = { ALL: 0.25, STUN: 0.5 };
     unit.ccArmour.durationFlatSec = { ALL: 0.1 };
@@ -507,6 +507,17 @@ describe('Unit', () => {
             "unitAITreeId": "hunt",
             "waitMaxEndTime": 20,
             "waitMinEndTime": 10,
+            "walkIntent": {
+              "dest": {
+                "col": 3,
+                "row": 4,
+              },
+              "targetPixel": {
+                "x": 130,
+                "y": 170,
+              },
+              "targetUnitId": "move_target_unit",
+            },
             "wallEntryPoint": {
               "x": 88,
               "y": 92,

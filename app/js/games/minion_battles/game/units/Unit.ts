@@ -61,6 +61,7 @@ import type {
     UnitCombatSettings,
     UnitConfig,
     UnitMovement,
+    UnitWalkIntent,
 } from './unitTypes';
 import { createPetState, type UnitPetState } from './unitPetState';
 import { createLanterniteState, type UnitLanterniteState } from './unitLanterniteState';
@@ -86,6 +87,7 @@ export type {
     UnitAbilityRuntimeState,
     UnitCombatSettings,
     UnitMovement,
+    UnitWalkIntent,
 } from './unitTypes';
 
 
@@ -155,6 +157,12 @@ export class Unit extends GameObject {
 
     /** True after forced movement (knockback, ability displacement); next normal move must recalculate path. */
     pathInvalidated: boolean = false;
+
+    /**
+     * Durable walk destination. Survives path invalidation; cleared by clearMovement / arrival.
+     * When set and `movement` is empty, movement tick repaths once the unit is free to walk.
+     */
+    walkIntent: UnitWalkIntent | null = null;
 
     /** Per-controller AI context bag (serialized via toJSON/fromJSON). */
     aiContext: UnitAIContext = {};
@@ -360,13 +368,13 @@ export class Unit extends GameObject {
         return applyDamageToUnitDetailed(this, amount, sourceUnitId, eventBus);
     }
 
-    /** Set movement state with a grid-cell path. Clears movement if path is empty. Clears pathInvalidated. */
+    /** Set movement state with a grid-cell path. Clears movement if path is empty. Sets walkIntent; clears pathInvalidated. */
     setMovement(path: { col: number; row: number }[], targetUnitId: string | undefined, pathfindingTick: number, targetPixel?: { x: number; y: number }): void { setUnitMovement(this, path, targetUnitId, pathfindingTick, targetPixel); }
 
-    /** Clear all movement state. */
+    /** Clear live path and durable walk intent. */
     clearMovement(): void { clearUnitMovement(this); }
 
-    /** Mark pathfinding route invalid; next move recalculates. Clears movement so unit doesn't follow old route. */
+    /** Clear live path but keep walkIntent so movement can repath after forced displacement. */
     invalidateMovementPath(): void { invalidateUnitMovementPath(this); }
 
     /** Launch the unit with a knockback impulse. CC resistance is handled upstream by `tryApplyKnockbackByTier`. */

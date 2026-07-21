@@ -36,6 +36,19 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
             ...(unit.movement.targetPixel ? { targetPixel: { ...unit.movement.targetPixel } } : {}),
             pathfindingTick: unit.movement.pathfindingTick,
         } : null,
+        ...(unit.walkIntent
+            ? {
+                walkIntent: {
+                    dest: { ...unit.walkIntent.dest },
+                    ...(unit.walkIntent.targetUnitId !== undefined
+                        ? { targetUnitId: unit.walkIntent.targetUnitId }
+                        : {}),
+                    ...(unit.walkIntent.targetPixel
+                        ? { targetPixel: { ...unit.walkIntent.targetPixel } }
+                        : {}),
+                },
+            }
+            : {}),
         abilities: unit.abilities,
         activeAbilities: unit.activeAbilities.map((a) => ({
             abilityId: a.abilityId,

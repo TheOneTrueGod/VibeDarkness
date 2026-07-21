@@ -4,6 +4,9 @@
  * Non-lunge abilities apply at select-interval entry (stored path as-is).
  * Lunge abilities defer until cooldown entry and repath from the post-lunge cell
  * so a destination chosen during deferred targeting stays valid after the slide.
+ *
+ * Pre-cast walk (order movePath) is preserved via `Unit.walkIntent` across any
+ * `invalidateMovementPath` (lunge / dash / knockback) — not via this module.
  */
 
 import type { EngineContext } from '../EngineContext';
@@ -14,6 +17,11 @@ export type MovementByLabelEntry = {
     movePath: { col: number; row: number }[];
     moveTargetUnitId?: string;
     moveTargetPixel?: { x: number; y: number };
+};
+
+/** ActiveAbility fields used when flushing ITS movementByLabel. */
+export type MovementByLabelActive = {
+    movementByLabel?: Record<string, MovementByLabelEntry>;
 };
 
 /** Last grid cell of a stored re-input path (the intended destination). */
@@ -82,7 +90,7 @@ export function applyMovementByLabelEntry(
 /** Apply every remaining movementByLabel entry (repath when requested), then clear the map. */
 export function flushMovementByLabel(
     unit: Unit,
-    active: { movementByLabel?: Record<string, MovementByLabelEntry> },
+    active: MovementByLabelActive,
     engine: EngineContext,
     opts: { repathFromCurrent: boolean },
 ): void {

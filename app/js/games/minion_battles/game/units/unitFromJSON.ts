@@ -66,6 +66,29 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
         };
     }
 
+    const walkIntentData = data.walkIntent as {
+        dest: { col: number; row: number };
+        targetUnitId?: string;
+        targetPixel?: { x: number; y: number };
+    } | null | undefined;
+    if (walkIntentData?.dest) {
+        unit.walkIntent = {
+            dest: { ...walkIntentData.dest },
+            ...(walkIntentData.targetUnitId !== undefined ? { targetUnitId: walkIntentData.targetUnitId } : {}),
+            ...(walkIntentData.targetPixel ? { targetPixel: { ...walkIntentData.targetPixel } } : {}),
+        };
+    } else if (unit.movement && unit.movement.path.length > 0) {
+        // Legacy checkpoints: derive intent from live path.
+        const last = unit.movement.path[unit.movement.path.length - 1]!;
+        unit.walkIntent = {
+            dest: { col: last.col, row: last.row },
+            ...(unit.movement.targetUnitId !== undefined ? { targetUnitId: unit.movement.targetUnitId } : {}),
+            ...(unit.movement.targetPixel ? { targetPixel: { ...unit.movement.targetPixel } } : {}),
+        };
+    } else {
+        unit.walkIntent = null;
+    }
+
     // Radius resolves from the unit def; only explicit overrides are serialized.
     // Legacy `data.radius` (pre-migration checkpoints) is intentionally ignored so def changes propagate.
     unit.radiusOverride = typeof data.radiusOverride === 'number' ? data.radiusOverride : undefined;
