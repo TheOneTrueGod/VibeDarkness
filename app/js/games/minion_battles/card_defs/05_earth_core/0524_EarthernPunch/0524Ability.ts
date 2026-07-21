@@ -11,11 +11,26 @@ import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
 import { isOnStone } from '../../../abilities/earthCoreHelpers';
 import { getEffectiveTerrain, type FloorTile } from '../../../terrain/FloorTile';
 import type { EventBus } from '../../../game/EventBus';
+import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../../abilities/tooltipTokens';
 
 const MAX_RANGE = 75;
 const LINE_THICKNESS = 20;
 const BASE_DAMAGE = 12;
 const STONE_BONUS_DAMAGE = 4;
+
+const TOOLTIP_LINES = [
+    'Punch through enemies for {{DAMAGE}} damage',
+    'Deal +{{DAMAGE_2}} damage to targets standing on stone',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    DAMAGE: { kind: 'damage', base: BASE_DAMAGE },
+    DAMAGE_2: { kind: 'damage', base: STONE_BONUS_DAMAGE },
+};
 const TARGETS: TargetDef[] = [{ type: 'pixel', label: 'Punch direction' }];
 const TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup', start: 0, end: 0.2, abilityPhase: AbilityPhase.Windup },
@@ -54,8 +69,12 @@ export const EarthernPunchAbility: AbilityStatic = {
     prefireTime: 0.2,
     abilityTimings: TIMINGS,
     targets: TARGETS,
-    getTooltipText(): string[] {
-        return ['Punch through enemies for {12} damage', 'Deal +{4} damage to targets standing on stone'];
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: EARTHERN_PUNCH_ABILITY_ID } }),
+        );
     },
     getAbilityStates(): [] {
         return [];

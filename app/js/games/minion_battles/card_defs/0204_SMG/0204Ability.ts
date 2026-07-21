@@ -2,6 +2,11 @@ import type { AbilityRecoveryRule, AbilityStatic } from '../../abilities/Ability
 import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { defineGunAbility } from '../../abilities/archetypes/defineGunAbility';
+import { resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../abilities/tooltipTokens';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Ranger)}04`;
 const MAX_USES = 2;
@@ -24,6 +29,16 @@ const SMG_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg
   <rect x="18" y="34" width="6" height="10" rx="1" fill="#5a5a5a" />
 </svg>`;
 
+const TOOLTIP_LINES = [
+    'Spray {{NUM_SHOTS}} bullets in a cone',
+    'Each bullet deals {{DAMAGE}} damage',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    NUM_SHOTS: { kind: 'plain', value: NUM_SHOTS },
+    DAMAGE: { kind: 'damage', base: BULLET_DAMAGE },
+};
+
 export const SMGAbility: AbilityStatic = defineGunAbility({
     id: CARD_ID,
     name: 'SMG',
@@ -41,10 +56,13 @@ export const SMGAbility: AbilityStatic = defineGunAbility({
     targetLabel: 'Spray direction',
     prefireTime: FIRST_SHOT_TIME,
     cooldownDuration: COOLDOWN_TIME,
-    getTooltipText: () => [
-        'Spray {8} bullets in a cone',
-        'Each bullet deals {10} damage',
-    ],
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
+        );
+    },
 });
 
 export const SMGCard: CardDef = {

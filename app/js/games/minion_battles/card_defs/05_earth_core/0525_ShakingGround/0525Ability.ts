@@ -6,9 +6,19 @@ import { type CardDef } from '../../types';
 import { SHAKING_GROUND_ABILITY_ID } from '../../../abilities/earthCoreMeleePassives';
 import { damageEnemiesInCircle } from '../../../abilities/targetHelpers';
 import type { EventBus } from '../../../game/EventBus';
+import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
+import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 
 const RADIUS = 100;
 const DAMAGE = 10;
+const TOOLTIP_LINES = [
+    'Shake the ground in a {{RADIUS}} radius for {{DAMAGE}} damage',
+    'Damages one stone tile under the caster',
+] as const;
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    RADIUS: { kind: 'plain', value: RADIUS },
+    DAMAGE: { kind: 'damage', base: DAMAGE },
+};
 const TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup', start: 0, end: 0.35, abilityPhase: AbilityPhase.Windup },
     { id: 'quake', start: 0.35, end: 0.45, abilityPhase: AbilityPhase.Active, doNotRefund: true },
@@ -35,8 +45,12 @@ export const ShakingGroundAbility: AbilityStatic = {
     prefireTime: 0.35,
     abilityTimings: TIMINGS,
     targets: [],
-    getTooltipText(): string[] {
-        return ['Shake the ground in a {100} radius for {10} damage', 'Damages one stone tile under the caster'];
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: SHAKING_GROUND_ABILITY_ID } }),
+        );
     },
     getAbilityStates(): [] {
         return [];

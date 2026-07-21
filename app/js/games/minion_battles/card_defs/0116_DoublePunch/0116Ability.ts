@@ -13,6 +13,11 @@ import type { AbilityRecoveryRule } from '../../abilities/Ability';
 import { defineAbility } from '../../abilities/defineAbility';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
+import { resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../abilities/tooltipTokens';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { meleeLineHitbox } from '../../hitboxes';
 
@@ -23,7 +28,17 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 ];
 const MAX_RANGE = 30; // px
 const LINE_THICKNESS = 20; // px
-const PUNCH_DAMAGE = 8;
+export const PUNCH_DAMAGE = 8;
+const HIT_COUNT = 2;
+
+const TOOLTIP_LINES = [
+    'Hit {{HIT_COUNT}} enemies in sequence for {{DAMAGE}} damage each',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    HIT_COUNT: { kind: 'plain', value: HIT_COUNT },
+    DAMAGE: { kind: 'damage', base: PUNCH_DAMAGE },
+};
 
 const PUNCH_HITBOX = meleeLineHitbox(MAX_RANGE, LINE_THICKNESS);
 
@@ -89,7 +104,11 @@ export const DoublePunchAbility = defineAbility({
     // Lock movement through both strikes; release during cooldown.
     movementLock: { until: 0.6 },
 
-    getTooltipText(): string[] {
-        return ['Hit {2} enemies in sequence for {8} damage each'];
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
+        );
     },
 });

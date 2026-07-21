@@ -46,6 +46,11 @@ import {
     FORCE_PUSH_UNIT_COLLISION_START_FRACTION,
 } from '../gravityConstants';
 import { GRAVITY_VIOLET } from '../../../game/effect_defs/aoeEffects';
+import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../../abilities/tooltipTokens';
 import {
     COLLISION_CLASH_EFFECT_TYPE,
     TERRAIN_IMPACT_EFFECT_TYPE,
@@ -56,6 +61,15 @@ import type { KnockbackSource } from '../../../game/units/unitTypes';
 const CARD_ID = `${formatGroupId(AbilityGroupId.Gravity)}02`;
 const MAX_USES = 2;
 const FORCE_PUSH_UNIT_HITBOX = unitRangeHitbox(FORCE_PUSH_MAX_RANGE);
+
+const TOOLTIP_LINES = [
+    'Pick an enemy, then a landing spot to fling them.',
+    'Collisions with units and walls deal {{DAMAGE}} damage.',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    DAMAGE: { kind: 'damage', base: FORCE_PUSH_COLLISION_DAMAGE },
+};
 
 const FORCE_PUSH_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -290,11 +304,12 @@ export const ForcePushAbility = defineAbility({
         return { minRange: 0, maxRange: FORCE_PUSH_MAX_RANGE };
     },
 
-    getTooltipText(): string[] {
-        return [
-            'Pick an enemy, then a landing spot to fling them.',
-            `Collisions with units and walls deal {${FORCE_PUSH_COLLISION_DAMAGE}} damage.`,
-        ];
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
+        );
     },
 
     abilityEvents: {

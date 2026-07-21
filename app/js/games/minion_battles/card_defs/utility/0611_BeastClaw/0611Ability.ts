@@ -15,6 +15,11 @@ import {
     ABILITY_DAMAGE_MODIFIER_MULTIPLIER_OVERRIDES,
     DEFAULT_DAMAGE_MODIFIER_MULTIPLIER,
 } from '../../../abilities/damageModifiers';
+import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../../abilities/tooltipTokens';
 import type { CardDef } from '../../types';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Utility)}11`;
@@ -30,6 +35,16 @@ const CLAW_SLASH_DELAY = 0.03;
 const KNOCKBACK_TIER = 2;
 const REACH = 10;
 const BOX_SIZE = 28;
+const DAMAGE_MODIFIER_MULTIPLIER =
+    ABILITY_DAMAGE_MODIFIER_MULTIPLIER_OVERRIDES[CARD_ID] ?? DEFAULT_DAMAGE_MODIFIER_MULTIPLIER;
+
+const TOOLTIP_LINES = [
+    'Double slash in front dealing {{DAMAGE}} damage each hit. Interrupts and knocks back enemies.',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    DAMAGE: { kind: 'damage', base: DAMAGE },
+};
 
 const HITBOX = convexQuadHitbox(REACH, BOX_SIZE);
 
@@ -99,7 +114,7 @@ export const BeastClawAbility = defineAbility({
     image: CLAW_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
-    damageModifierMultiplier: ABILITY_DAMAGE_MODIFIER_MULTIPLIER_OVERRIDES[CARD_ID] ?? DEFAULT_DAMAGE_MODIFIER_MULTIPLIER,
+    damageModifierMultiplier: DAMAGE_MODIFIER_MULTIPLIER,
     prefireTime: PREFIRE_TIME,
     targets: [{ type: 'pixel', label: 'Target point' }],
     abilityTimings: [
@@ -141,10 +156,14 @@ export const BeastClawAbility = defineAbility({
         maxRange: HITBOX.maxRange,
     },
     movementLock: { until: SWING2_END },
-    getTooltipText(_gameState?: unknown): string[] {
-        return [
-            `Double slash in front dealing {${DAMAGE}} damage each hit. Interrupts and knocks back enemies.`,
-        ];
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, {
+                ability: { id: CARD_ID, damageModifierMultiplier: DAMAGE_MODIFIER_MULTIPLIER },
+            }),
+        );
     },
 });
 

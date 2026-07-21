@@ -6,10 +6,16 @@ import { deactivateProjectileOnBlock } from '../../../abilities/effectHelpers';
 import type { Unit } from '../../../game/units/Unit';
 import { type CardDef } from '../../types';
 import { nullHitbox } from '../../../hitboxes';
+import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
+import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 
 const ABILITY_ID = '0531';
 const RANGE = 220;
 const DAMAGE = 6;
+const TOOLTIP_LINES = ['Fire a Stonephase projectile for {{DAMAGE}} damage.'] as const;
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    DAMAGE: { kind: 'damage', base: DAMAGE },
+};
 
 const KNOCK_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
   <rect x="5" y="5" width="30" height="30" rx="6" fill="#5a5a5a"/>
@@ -43,8 +49,12 @@ export const KnockAbility = defineAbility({
     targets: [],
     aiSettings: { minRange: 0, maxRange: RANGE },
     getRange: () => ({ minRange: 0, maxRange: RANGE }),
-    getTooltipText(): string[] {
-        return ['Fire a Stonephase projectile for {6} damage.'];
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: ABILITY_ID } }),
+        );
     },
     onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: AttackBlockedInfo): void {
         deactivateProjectileOnBlock(attackInfo);

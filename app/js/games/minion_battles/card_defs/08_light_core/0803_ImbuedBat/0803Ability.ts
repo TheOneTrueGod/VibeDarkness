@@ -30,6 +30,11 @@ import type { IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { filterSelectTargetCandidates } from '../../../abilities/targeting';
 import type { GameEngine } from '../../../game/GameEngine';
 import { EngineWithGatherLight, spawnGatherLightWindupRing } from '@/games/minion_battles/abilities/gatherLightHelpers';
+import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../../abilities/tooltipTokens';
 
 // ---- Constants ----
 
@@ -42,12 +47,28 @@ const MAX_TARGETS = 3;
 const SWING_BAT_ABILITY_ID = '0115';
 
 const PRIMARY_DAMAGE = 18;
+const KNOCKBACK_TIER = 3;
 
 /** Forward light burst from the caster; wide arc opens toward the bat swing. */
 export const LIGHT_CONE_MAX_RANGE = 100;
 export const LIGHT_CONE_HALF_ARC_RAD = Math.PI / 4;
 export const LIGHT_CONE_DAMAGE = 12;
 const LIGHT_CONE_MAX_TARGETS = 5;
+
+const TOOLTIP_LINES = [
+    'Swing your light-imbued bat dealing {{DAMAGE}} damage to up to {{MAX_TARGETS}} enemies.',
+    '{{KNOCKBACK}}.',
+    'Releases an arc of light dealing {{DAMAGE_2}} damage to up to {{LIGHT_CONE_MAX_TARGETS}} enemies ahead.',
+    'Granted for one use by {Light Imbuement}.',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    DAMAGE: { kind: 'damage', base: PRIMARY_DAMAGE },
+    MAX_TARGETS: { kind: 'plain', value: MAX_TARGETS },
+    KNOCKBACK: { kind: 'knockback', tier: KNOCKBACK_TIER },
+    DAMAGE_2: { kind: 'damage', base: LIGHT_CONE_DAMAGE },
+    LIGHT_CONE_MAX_TARGETS: { kind: 'plain', value: LIGHT_CONE_MAX_TARGETS },
+};
 const LIGHT_CONE_EFFECT_DURATION = 0.35;
 
 /** Targeting preview colors — muted gold arc band. */
@@ -267,12 +288,11 @@ export const ImbuedBatAbility = defineAbility({
         });
     },
 
-    getTooltipText(): string[] {
-        return [
-            `Swing your light-imbued bat dealing {${PRIMARY_DAMAGE}} damage to up to ${MAX_TARGETS} enemies.`,
-            `{knockback 3}.`,
-            `Releases an arc of light dealing {${LIGHT_CONE_DAMAGE}} damage to up to ${LIGHT_CONE_MAX_TARGETS} enemies ahead.`,
-            `Granted for one use by {Light Imbuement}.`,
-        ];
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
+        );
     },
 });

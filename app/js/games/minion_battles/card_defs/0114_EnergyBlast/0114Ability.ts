@@ -3,6 +3,11 @@ import { AbilityEventType } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import { clampToMaxRange, drawClampedLine, drawCrosshair } from '../../abilities/previewHelpers';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
+import { resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../abilities/tooltipTokens';
 import { type CardDef } from '../types';
 import { HitboxSpec } from '../../hitboxes';
 import type { HitboxEngineContext, HitboxPreviewCaster } from '../../hitboxes';
@@ -15,13 +20,24 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 ];
 const RANGE = 100;
 const EXPLOSION_RADIUS = 40;
-const EXPLOSION_DAMAGE = 30;
+export const ENERGY_BLAST_EXPLOSION_DAMAGE = 30;
+const EXPLOSION_DAMAGE = ENERGY_BLAST_EXPLOSION_DAMAGE;
 const MAX_EXPLOSION_TARGETS = 5;
 const PROJECTILE_SPEED = 600;
 const PROJECTILE_RADIUS = 12;
 const PREVIEW_COLOR = 0x8be9ff;
 
 const KNOCKBACK_TIER = 1;
+
+const TOOLTIP_LINES = [
+    'Fire a pulsing energy projectile',
+    'Explodes, dealing {{DAMAGE}} to up to {{MAX_TARGETS}} enemies',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    DAMAGE: { kind: 'damage', base: EXPLOSION_DAMAGE },
+    MAX_TARGETS: { kind: 'plain', value: MAX_EXPLOSION_TARGETS },
+};
 
 class EnergyBlastHitboxSpec extends HitboxSpec {
     get maxRange(): number { return RANGE; }
@@ -127,11 +143,12 @@ export const EnergyBlastAbility: AbilityStatic = {
         ],
     },
 
-    getTooltipText(_gameState?: unknown): string[] {
-        return [
-            'Fire a pulsing energy projectile',
-            `Explodes, dealing {${EXPLOSION_DAMAGE}} to up to {${MAX_EXPLOSION_TARGETS}} enemies`,
-        ];
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
+        );
     },
 
     getAbilityStates(): [] {

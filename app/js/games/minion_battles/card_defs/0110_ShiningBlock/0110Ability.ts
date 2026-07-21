@@ -16,6 +16,11 @@ import { tryApplyHardCcStun } from '../../crowdControl/tryApplyHardCcStun';
 import { areEnemies } from '../../game/teams';
 import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses';
 import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
+import { resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../abilities/tooltipTokens';
 import type { AbilityEventRuntimeContext } from '../../abilities/events/AbilityEventRuntime';
 import type { Unit } from '../../game/units/Unit';
 import type { EventBus } from '../../game/EventBus';
@@ -32,10 +37,24 @@ const SHIELD_FILL_COLOR = 0x27d3c8;
 const SHIELD_STROKE_COLOR = 0x1a9d94;
 
 const RETALIATION_RANGE = 200;
-const RETALIATION_DAMAGE = 4;
+export const SHINING_BLOCK_RETALIATION_DAMAGE = 4;
+const RETALIATION_DAMAGE = SHINING_BLOCK_RETALIATION_DAMAGE;
 const RETALIATION_MAX_TARGETS = 3;
 const STUN_DURATION = 2;
 const CONE_FLASH_DURATION = 0.3;
+
+const TOOLTIP_LINES = [
+    'Raise your crystal shield blocking all attacks from the front',
+    'On Block: Deals {{DAMAGE}} damage and stuns up to {{MAX_TARGETS}} enemies for {{STUN}} seconds.',
+    '{Bright 2}',
+    'On Block: Gain {1} stamina charge. Nearby allies gain {2} stamina surges and {1} light charge',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    DAMAGE: { kind: 'damage', base: RETALIATION_DAMAGE },
+    MAX_TARGETS: { kind: 'plain', value: RETALIATION_MAX_TARGETS },
+    STUN: { kind: 'plain', value: STUN_DURATION },
+};
 
 const SHINING_BLOCK_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -124,13 +143,12 @@ export const ShiningBlockAbility = {
     fillColor: SHIELD_FILL_COLOR,
     strokeColor: SHIELD_STROKE_COLOR,
 
-    getTooltipText(_gameState?: unknown): string[] {
-        return [
-            'Raise your crystal shield blocking all attacks from the front',
-            `On Block: Deals {${RETALIATION_DAMAGE}} damage and stuns up to {${RETALIATION_MAX_TARGETS}} enemies for {${STUN_DURATION}} seconds.`,
-            '{Bright 2}',
-            'On Block: Gain {1} stamina charge. Nearby allies gain {2} stamina surges and {1} light charge',
-        ];
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
+        );
     },
 
     abilityEvents: {

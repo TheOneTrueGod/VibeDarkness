@@ -36,7 +36,11 @@ import type { ActiveAbility, ResolvedTarget } from '../../game/types';
 import { type CardDef } from '../types';
 import { Effect } from '../../game/effects/Effect';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
-import { hasResearchNode } from '../../abilities/abilityModifierHelpers';
+import { hasResearchNode, resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../abilities/tooltipTokens';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}12`;
 export const SWORD_BASE_MAX_USES = 4;
@@ -45,7 +49,8 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 ];
 
 const BASE_MAX_RANGE = 48;
-const DAMAGE = 10;
+export const SWING_SWORD_DAMAGE = 10;
+const DAMAGE = SWING_SWORD_DAMAGE;
 const KNOCKBACK_TIER = 1;
 const MAX_TARGETS = 2;
 const LINE_THICKNESS = 36;
@@ -53,6 +58,15 @@ const SWING_LENGTH = 80;
 const SLASH_TRAIL_DURATION = 0.35;
 const SLASH_TRAIL_THICKNESS = 14;
 const SLASH_TRAIL_COLOR = 0xc0c8d0;
+
+const TOOLTIP_LINES = [
+    'Slash with the sword dealing {{DAMAGE}} damage to up to {{MAX_TARGETS}} enemies, nudging them back.',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    DAMAGE: { kind: 'damage', base: DAMAGE },
+    MAX_TARGETS: { kind: 'plain', value: MAX_TARGETS },
+};
 
 const SWING_SWORD_HITBOX = perpendicularSwingHitbox(BASE_MAX_RANGE, SWING_LENGTH, LINE_THICKNESS, MAX_TARGETS);
 
@@ -144,12 +158,15 @@ export const SwingSwordAbility = defineAbility({
     movementLock: { until: 0.2 },
 
     getTooltipText(gameState?: unknown): string[] {
-        const bleedLine = hasResearchNode(gameState as AbilityEngineContext | undefined, undefined, STICK_SWORD_TREE_ID, STICK_SWORD_NODE_JAGGED_EDGE)
-            ? ' Inflicts {Bleed}.'
-            : '';
-        return [
-            `Slash with the sword dealing {${DAMAGE}} damage to up to ${MAX_TARGETS} enemies, nudging them back.${bleedLine}`,
-        ];
+        const lines = formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
+        );
+        if (hasResearchNode(gameState as AbilityEngineContext | undefined, undefined, STICK_SWORD_TREE_ID, STICK_SWORD_NODE_JAGGED_EDGE)) {
+            lines[0] = `${lines[0]} Inflicts {Bleed}.`;
+        }
+        return lines;
     },
 
     beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], _active: ActiveAbility): void {

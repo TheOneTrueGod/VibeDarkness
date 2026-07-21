@@ -8,7 +8,11 @@
  */
 
 import type { AbilityRecoveryRule, AbilityStatic, AbilityTag, AttackBlockedInfo, ResourceCost } from '../../abilities/Ability';
-import { getAbilityModifier } from '../../abilities/abilityModifierHelpers';
+import { getAbilityModifier, resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../abilities/tooltipTokens';
 import type { TargetDef } from '../../abilities/targeting';
 import { clampToMaxRange, drawClampedLine, drawCrosshair } from '../../abilities/previewHelpers';
 import type { Unit } from '../../game/units/Unit';
@@ -35,9 +39,12 @@ const MAX_USES = 6;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
-const BASE_DAMAGE = 5;
+export const THROW_ROCK_BASE_DAMAGE = 5;
+const BASE_DAMAGE = THROW_ROCK_BASE_DAMAGE;
 /** Matches More Power bump used on Throw Charged Rock explosion damage. */
-const MORE_POWER_DAMAGE = 8;
+export const THROW_ROCK_MORE_POWER_DAMAGE = 8;
+const MORE_POWER_DAMAGE = THROW_ROCK_MORE_POWER_DAMAGE;
+const MORE_ROCK_HIT_COUNT = 2;
 
 /** Default dark wolf HP at ×1 enemy scaling — two hits at this damage kill a wolf. */
 const TWO_SHOT_WOLF_PER_HIT_DAMAGE = 6;
@@ -146,10 +153,17 @@ export function buildThrowRockAbility(config: ThrowRockVariantConfig): AbilitySt
             const research = getCrystalRocksResearch(eng);
             const hasMoreRock = hasMoreRockResearch(research);
             const mod = getAbilityModifier(gameState, undefined, id);
-            const dmg = rockDamageForResearch(research) + (mod.damageFlat ?? 0);
-            const lines: string[] = hasMoreRock
-                ? [`Throws {2} rocks dealing {${dmg}} damage each to the first enemy hit`]
-                : [`Throws a rock dealing {${dmg}} damage to the first enemy hit`];
+            const damageBase = rockDamageForResearch(research) + (mod.damageFlat ?? 0);
+            const lines = formatTooltipLegacyLines(
+                hasMoreRock
+                    ? ['Throws {{HIT_COUNT}} rocks dealing {{DAMAGE}} damage each to the first enemy hit']
+                    : ['Throws a rock dealing {{DAMAGE}} damage to the first enemy hit'],
+                {
+                    DAMAGE: { kind: 'damage', base: damageBase },
+                    HIT_COUNT: { kind: 'plain', value: MORE_ROCK_HIT_COUNT },
+                } satisfies TooltipTokenBindings,
+                resolveTooltipContext(gameState, { ability: { id } }),
+            );
 
             const activeTags: string[] = [...tags];
             if (mod.addTags) activeTags.push(...mod.addTags);

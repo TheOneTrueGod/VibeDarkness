@@ -7,6 +7,11 @@ import { AbilityState, AbilityEventType } from '../../abilities/Ability';
 import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import { createMovementTargetPreview } from '../../abilities/previewHelpers';
+import { resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
+import {
+	formatTooltipLegacyLines,
+	type TooltipTokenBindings,
+} from '../../abilities/tooltipTokens';
 import type { Unit } from '../../game/units/Unit';
 import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
@@ -21,8 +26,18 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 const CLAW_DURATION = 0.4;
 export const CLAW_MAX_DISTANCE = 100;
 export const CLAW_COLLISION_STEP = 4;
-const DAMAGE = 5;
+export const CLAW_DAMAGE = 5;
+const DAMAGE = CLAW_DAMAGE;
 const KNOCKBACK_TIER = 2;
+
+const TOOLTIP_LINES = [
+	'Dash toward a point with iframes',
+	'Deal {{DAMAGE}} damage and knock back enemies you touch',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+	DAMAGE: { kind: 'damage', base: DAMAGE },
+};
 
 const CLAW_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <path d="M20 44 L28 32 L36 40 L44 28 M24 48 L32 36 L40 44" stroke="#6b5b4f" stroke-width="3" fill="none" stroke-linecap="round"/>
@@ -81,11 +96,12 @@ export const ClawAbility: AbilityStatic = {
 		],
 	},
 
-	getTooltipText(_gameState?: unknown): string[] {
-		return [
-			'Dash toward a point with iframes',
-			`Deal {${DAMAGE}} damage and knock back enemies you touch`,
-		];
+	getTooltipText(gameState?: unknown): string[] {
+		return formatTooltipLegacyLines(
+			TOOLTIP_LINES,
+			TOOLTIP_BINDINGS,
+			resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
+		);
 	},
 
 	getAbilityStates(currentTime: number): AbilityStateEntry[] {

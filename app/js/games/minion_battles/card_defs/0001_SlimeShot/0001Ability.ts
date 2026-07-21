@@ -15,6 +15,11 @@ import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targ
 import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { defineAbility } from '../../abilities/defineAbility';
+import { resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../abilities/tooltipTokens';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}01`;
 const LOCK_TIME = 0.5;
@@ -26,6 +31,14 @@ const DAMAGE = 4;
 const PROJECTILE_RADIUS = 5;
 const PROJECTILE_SCALE = 0.5;
 const RED = 0xff0000;
+
+const TOOLTIP_LINES = [
+    'Lobs a slow glob dealing {{DAMAGE}} damage to an enemy',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    DAMAGE: { kind: 'damage', base: DAMAGE },
+};
 
 const SLIME_SPIT_F1_URL = new URL('../../assets/projectiles/slime_spit_f1.svg', import.meta.url).href;
 const SLIME_SPIT_F2_URL = new URL('../../assets/projectiles/slime_spit_f2.svg', import.meta.url).href;
@@ -88,8 +101,12 @@ const _base: AbilityStatic = defineAbility({
     aiSettings: { minRange: 0, maxRange: MAX_DISTANCE },
     getRange: (_caster: Unit) => ({ minRange: 0, maxRange: MAX_DISTANCE }),
 
-    getTooltipText(_gameState?: unknown): string[] {
-        return [`Lobs a slow glob dealing {${DAMAGE}} damage to an enemy`];
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
+        );
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: AttackBlockedInfo): void {

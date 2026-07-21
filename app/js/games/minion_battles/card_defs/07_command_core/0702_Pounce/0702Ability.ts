@@ -23,6 +23,11 @@ import type { KnockbackEngineCtx } from '../../../crowdControl/knockbackKeywords
 import { drawChargeCapsuleTimingTelegraph, resolveTerrainAwareMovementDisplacement } from '../../../abilities/previewHelpers';
 import { DoubleDamageBuff, DOUBLE_DAMAGE_BUFF_TYPE } from '../../../buffs/DoubleDamageBuff';
 import { nullHitbox } from '../../../hitboxes';
+import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../../abilities/tooltipTokens';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}02`;
 
@@ -42,6 +47,16 @@ const STUN_DURATION = 1.0;
 const KNOCKBACK_TIER = 2;
 /** Pass through this many hits; dash ends on the next one. */
 const STOP_AFTER_HITS = 4;
+
+const TOOLTIP_LINES = [
+    'Leap through enemies, stopping on the {{STOP_AFTER_HITS}}th hit. Each hit deals {{DAMAGE}} damage, stuns for {{STUN_DURATION}}s, and flings the target backwards.',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    STOP_AFTER_HITS: { kind: 'plain', value: STOP_AFTER_HITS },
+    DAMAGE: { kind: 'damage', base: DAMAGE },
+    STUN_DURATION: { kind: 'plain', value: STUN_DURATION },
+};
 
 const pounceDash = new DashBehaviour()
     .withMaxDistance(MAX_DASH_DISTANCE)
@@ -131,10 +146,12 @@ export const PounceAbility: AbilityStatic = {
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
 
-    getTooltipText(): string[] {
-        return [
-            `Leap through enemies, stopping on the ${STOP_AFTER_HITS}th hit. Each hit deals {${DAMAGE}} damage, stuns for {${STUN_DURATION}s}, and flings the target backwards.`,
-        ];
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
+        );
     },
 
     getAbilityStates(currentTime: number): AbilityStateEntry[] {

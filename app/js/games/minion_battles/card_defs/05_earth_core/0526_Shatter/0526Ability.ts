@@ -9,10 +9,25 @@ import { getEarthCoreArmour } from '../../../abilities/earthCoreArmour';
 import { getPixelTargetPosition } from '../../../abilities/targetHelpers';
 import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
 import type { EventBus } from '../../../game/EventBus';
+import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../../abilities/tooltipTokens';
 
 const RANGE = 180;
 const BASE_DAMAGE = 6;
 const ARMOUR_TO_DAMAGE_RATIO = 2;
+
+const TOOLTIP_LINES = [
+    'Shatter a target for {{DAMAGE}} + {{ARMOUR_RATIO}}x current armour damage',
+    'Consumes one nearby stone at the target',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    DAMAGE: { kind: 'damage', base: BASE_DAMAGE },
+    ARMOUR_RATIO: { kind: 'plain', value: ARMOUR_TO_DAMAGE_RATIO },
+};
 const STONE_CONSUME_RADIUS = 1.5;
 const TARGETS: TargetDef[] = [{ type: 'pixel', label: 'Shatter target' }];
 const TIMINGS: AbilityTimingInterval[] = [
@@ -59,8 +74,12 @@ export const ShatterAbility: AbilityStatic = {
     prefireTime: 0.25,
     abilityTimings: TIMINGS,
     targets: TARGETS,
-    getTooltipText(): string[] {
-        return ['Shatter a target for {6} + 2x current armour damage', 'Consumes one nearby stone at the target'];
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: SHATTER_ABILITY_ID } }),
+        );
     },
     getRange(caster: Unit): { minRange: number; maxRange: number } {
         return { minRange: 0, maxRange: RANGE + caster.radius };

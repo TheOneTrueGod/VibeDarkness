@@ -89,9 +89,13 @@ export const SneakyPunchAbility = defineMeleeStrike({
 
     getTooltipText(): string[] {
         return [
-            `Hit {1} enemy for {${BASE_DAMAGE}} damage`,
-            `+{${BONUS_DAMAGE}} bonus damage vs stunned, {bleeding}, or {exposed} enemies`,
+            'Hit {1} enemy for {{DAMAGE}} damage',
+            '+{{BONUS_DAMAGE}} bonus damage vs stunned, {bleeding}, or {exposed} enemies',
         ];
+    },
+    tooltipBindings: {
+        // Flat add-on in combat (not run through damage modifiers) — plain display number.
+        BONUS_DAMAGE: { kind: 'plain', value: BONUS_DAMAGE },
     },
 });
 

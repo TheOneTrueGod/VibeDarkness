@@ -2,6 +2,11 @@ import type { AbilityRecoveryRule, AbilityStatic, IAbilityPreviewGraphics } from
 import { AbilityEventType } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
+import { resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../abilities/tooltipTokens';
 import { type CardDef } from '../types';
 import { HitboxSpec } from '../../hitboxes/HitboxSpec';
 import type { HitboxEngineContext, HitboxPreviewCaster } from '../../hitboxes';
@@ -20,12 +25,27 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 ];
 const CONE_RANGE = 220;
 const CONE_HALF_ANGLE_RAD = STANDARD_SHIELD_HALF_ARC_RAD / 2;
-const DAMAGE = 18;
+export const CONE_OF_LIGHT_DAMAGE = 18;
+const DAMAGE = CONE_OF_LIGHT_DAMAGE;
 const MAX_TARGETS = 6;
 const STUN_DURATION = 2;
+const ARC_DEGREES = 60;
 const CONE_FLASH_DURATION = 0.3;
 const PREVIEW_FILL_COLOR = 0xa0a0a0;
 const PREVIEW_STROKE_COLOR = 0x505050;
+
+const TOOLTIP_LINES = [
+    'Release a blinding cone of light',
+    'Deals {{DAMAGE}} damage to up to {{MAX_TARGETS}} enemies in a {{ARC_DEGREES}}° arc',
+    'Stuns hit enemies for {{STUN}} seconds',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    DAMAGE: { kind: 'damage', base: DAMAGE },
+    MAX_TARGETS: { kind: 'plain', value: MAX_TARGETS },
+    ARC_DEGREES: { kind: 'plain', value: ARC_DEGREES },
+    STUN: { kind: 'plain', value: STUN_DURATION },
+};
 
 class ConeOfLightHitboxSpec extends HitboxSpec {
     get maxRange(): number { return CONE_RANGE; }
@@ -168,12 +188,12 @@ export const ConeOfLightAbility: AbilityStatic = {
         ],
     },
 
-    getTooltipText(): string[] {
-        return [
-            'Release a blinding cone of light',
-            `Deals {${DAMAGE}} damage to up to {${MAX_TARGETS}} enemies in a {60}° arc`,
-            `Stuns hit enemies for {${STUN_DURATION}} seconds`,
-        ];
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
+        );
     },
 
     getAbilityStates(): [] {

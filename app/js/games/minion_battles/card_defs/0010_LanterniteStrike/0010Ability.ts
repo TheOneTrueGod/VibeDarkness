@@ -15,6 +15,11 @@ import { asTelegraphPayload } from '../../abilities/telegraphTracking';
 import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { defineAbility } from '../../abilities/defineAbility';
+import { resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../abilities/tooltipTokens';
 
 export const LANTERNITE_STRIKE_ID = `${formatGroupId(AbilityGroupId.Enemy)}10`;
 
@@ -32,6 +37,14 @@ const MAX_USES = 4;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 4 },
 ];
+
+const TOOLTIP_LINES = [
+    'Emits a light pulse dealing {{DAMAGE}} damage',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    DAMAGE: { kind: 'damage', base: DAMAGE },
+};
 
 export const LanterniteStrikeAbility: AbilityStatic = defineAbility({
     id: LANTERNITE_STRIKE_ID,
@@ -64,8 +77,12 @@ export const LanterniteStrikeAbility: AbilityStatic = defineAbility({
     aiSettings: { minRange: 0, maxRange: MAX_DISTANCE },
     getRange: (_caster: Unit) => ({ minRange: 0, maxRange: MAX_DISTANCE }),
 
-    getTooltipText(): string[] {
-        return [`Emits a light pulse dealing {${DAMAGE}} damage`];
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: LANTERNITE_STRIKE_ID } }),
+        );
     },
 
     onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: AttackBlockedInfo): void {

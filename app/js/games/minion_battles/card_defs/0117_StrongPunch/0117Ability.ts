@@ -80,9 +80,13 @@ export const StrongPunchAbility = defineMeleeStrike({
 
     getTooltipText(): string[] {
         return [
-            `Hit {1} enemy for {${PUNCH_DAMAGE}} damage.`,
-            `{knockback 1} and {${STUN_DURATION}s} stun.`,
+            'Hit {1} enemy for {{DAMAGE}} damage.',
+            '{{KNOCKBACK}} and {{STUN}} stun.',
         ];
+    },
+    tooltipBindings: {
+        KNOCKBACK: { kind: 'knockback', tier: 1 },
+        STUN: { kind: 'plain', value: `${STUN_DURATION}s` },
     },
 });
 

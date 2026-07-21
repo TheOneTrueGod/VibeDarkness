@@ -6,7 +6,11 @@
  */
 
 import type { AbilityRecoveryRule, AbilityStatic, AttackBlockedInfo } from '../../abilities/Ability';
-import { getAbilityModifier } from '../../abilities/abilityModifierHelpers';
+import { getAbilityModifier, resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../abilities/tooltipTokens';
 import type { TargetDef } from '../../abilities/targeting';
 import { clampToMaxRange, drawClampedLine, drawCrosshair } from '../../abilities/previewHelpers';
 import type { Unit } from '../../game/units/Unit';
@@ -34,7 +38,9 @@ const MAX_USES = 5;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
-const BASE_DAMAGE = 7;
+export const THROW_KNIFE_BASE_DAMAGE = 7;
+const BASE_DAMAGE = THROW_KNIFE_BASE_DAMAGE;
+const MULTI_THROW_HIT_COUNT = 2;
 
 function hasKnifeMultiThrow(research: Set<string>): boolean {
     return research.has('throwing_knives') && hasMoreRockResearch(research);
@@ -106,11 +112,28 @@ export const ThrowKnife: AbilityStatic = {
         const research = getCrystalRocksResearch(eng);
         const pierceLine = hasKnifePierce(research) ? ' Pierces through the {first target}.' : '';
         const mod = getAbilityModifier(gameState, undefined, ABILITY_ID);
-        const dmg = BASE_DAMAGE + (mod.damageFlat ?? 0);
+        const damageBase = BASE_DAMAGE + (mod.damageFlat ?? 0);
+        const bindings: TooltipTokenBindings = {
+            DAMAGE: { kind: 'damage', base: damageBase },
+            HIT_COUNT: { kind: 'plain', value: MULTI_THROW_HIT_COUNT },
+        };
+        const ctx = resolveTooltipContext(gameState, { ability: { id: ABILITY_ID } });
         if (hasKnifeMultiThrow(research)) {
-            return [`Throws {2} knives dealing {${dmg}} damage each to the first enemy hit`];
+            return formatTooltipLegacyLines(
+                ['Throws {{HIT_COUNT}} knives dealing {{DAMAGE}} damage each to the first enemy hit'],
+                bindings,
+                ctx,
+            );
         }
-        return [`Throws a knife dealing {${dmg}} damage to the first enemy hit.${pierceLine}`];
+        const lines = formatTooltipLegacyLines(
+            ['Throws a knife dealing {{DAMAGE}} damage to the first enemy hit.'],
+            bindings,
+            ctx,
+        );
+        if (pierceLine) {
+            lines[0] = `${lines[0]}${pierceLine}`;
+        }
+        return lines;
     },
 
     beginActiveCast(engine, caster, _targets, active) {

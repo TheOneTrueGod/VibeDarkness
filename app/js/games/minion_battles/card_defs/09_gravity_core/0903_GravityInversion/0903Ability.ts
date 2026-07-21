@@ -44,10 +44,26 @@ import {
     LIFT_COLUMN_EFFECT_TYPE,
 } from '../../../game/effect_defs/aoeEffects';
 import type { AbilityEventRuntimeContext } from '../../../abilities/events/AbilityEventRuntime';
+import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../../abilities/tooltipTokens';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Gravity)}03`;
 const MAX_USES = 2;
 const HOWL_SHOCKWAVE_EFFECT_TYPE = 'HowlShockwave';
+
+const TOOLTIP_LINES = [
+    'Lift up to {{MAX_TARGETS}} enemies in a small area for {{LIFT_DURATION}}s, then slam for {{DAMAGE}} damage.',
+    'Push drops straight down; Pull slams in front of you.',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    MAX_TARGETS: { kind: 'plain', value: GRAVITY_INVERSION_MAX_TARGETS },
+    LIFT_DURATION: { kind: 'plain', value: GRAVITY_INVERSION_LIFT_DURATION },
+    DAMAGE: { kind: 'damage', base: GRAVITY_INVERSION_SLAM_DAMAGE },
+};
 
 const GRAVITY_INVERSION_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -303,11 +319,12 @@ export const GravityInversionAbility = defineAbility({
         return { minRange: 0, maxRange: GRAVITY_INVERSION_MAX_RANGE };
     },
 
-    getTooltipText(): string[] {
-        return [
-            `Lift up to {${GRAVITY_INVERSION_MAX_TARGETS}} enemies in a small area for {${GRAVITY_INVERSION_LIFT_DURATION}}s, then slam for {${GRAVITY_INVERSION_SLAM_DAMAGE}} damage.`,
-            'Push drops straight down; Pull slams in front of you.',
-        ];
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
+        );
     },
 
     abilityEvents: {

@@ -6,6 +6,11 @@ import {
     ABILITY_DAMAGE_MODIFIER_MULTIPLIER_OVERRIDES,
     DEFAULT_DAMAGE_MODIFIER_MULTIPLIER,
 } from '../../abilities/damageModifiers';
+import { resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../abilities/tooltipTokens';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Ranger)}05`;
 const MAX_USES = 2;
@@ -19,12 +24,24 @@ const BULLET_SPEED = 1300;
 const BULLET_DAMAGE = 10;
 const PELLETS = 6;
 const INACCURACY_BASE = Math.PI / 16;
+const DAMAGE_MODIFIER_MULTIPLIER =
+    ABILITY_DAMAGE_MODIFIER_MULTIPLIER_OVERRIDES[CARD_ID] ?? DEFAULT_DAMAGE_MODIFIER_MULTIPLIER;
 
 const SHOTGUN_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <rect x="8" y="28" width="40" height="6" rx="2" fill="#b8b8b8" stroke="#909090" stroke-width="1"/>
   <rect x="24" y="32" width="10" height="14" rx="2" fill="#3b2a1a" stroke="#1f140c" stroke-width="1"/>
   <rect x="12" y="34" width="8" height="8" rx="2" fill="#5c4033" />
 </svg>`;
+
+const TOOLTIP_LINES = [
+    'Fire {{PELLETS}} pellets in a cone',
+    'Each pellet deals {{DAMAGE}} damage',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    PELLETS: { kind: 'plain', value: PELLETS },
+    DAMAGE: { kind: 'damage', base: BULLET_DAMAGE },
+};
 
 export const ShotgunAbility: AbilityStatic = defineGunAbility({
     id: CARD_ID,
@@ -34,7 +51,7 @@ export const ShotgunAbility: AbilityStatic = defineGunAbility({
     rechargeTurns: 0,
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
-    damageModifierMultiplier: ABILITY_DAMAGE_MODIFIER_MULTIPLIER_OVERRIDES[CARD_ID] ?? DEFAULT_DAMAGE_MODIFIER_MULTIPLIER,
+    damageModifierMultiplier: DAMAGE_MODIFIER_MULTIPLIER,
     damage: BULLET_DAMAGE,
     maxDistance: MAX_DISTANCE,
     bulletSpeed: BULLET_SPEED,
@@ -44,10 +61,15 @@ export const ShotgunAbility: AbilityStatic = defineGunAbility({
     targetLabel: 'Blast direction',
     prefireTime: SHOT_TIME,
     cooldownDuration: COOLDOWN_TIME,
-    getTooltipText: () => [
-        `Fire ${PELLETS} pellets in a cone`,
-        'Each pellet deals {10} damage',
-    ],
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, {
+                ability: { id: CARD_ID, damageModifierMultiplier: DAMAGE_MODIFIER_MULTIPLIER },
+            }),
+        );
+    },
 });
 
 export const ShotgunCard: CardDef = {

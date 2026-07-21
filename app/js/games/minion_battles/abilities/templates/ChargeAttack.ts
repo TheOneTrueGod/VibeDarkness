@@ -15,6 +15,8 @@ import { tryDamageOrBlock } from '../blockingHelpers';
 import { tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
 import { createChargeCapsuleTargetPreview, drawChargeCapsuleTimingTelegraph } from '../previewHelpers';
 import { getDirectionFromTo } from '../targetHelpers';
+import { formatTooltipLegacyLines } from '../tooltipTokens';
+import { resolveTooltipContext } from '../abilityModifierHelpers';
 
 export interface ChargeNote {
 	targetId: string;
@@ -118,8 +120,16 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 		return { abilityId: this.config.id };
 	}
 
-	getTooltipText(): string[] {
-		return [this.config.tooltipText];
+	getTooltipText(gameState?: unknown): string[] {
+		const base = this.config.damage;
+		const template = this.config.tooltipText.includes('{{DAMAGE}}')
+			? this.config.tooltipText
+			: this.config.tooltipText.split(`{${base}}`).join('{{DAMAGE}}');
+		return formatTooltipLegacyLines(
+			[template],
+			{ DAMAGE: { kind: 'damage', base } },
+			resolveTooltipContext(gameState, { ability: { id: this.id } }),
+		);
 	}
 
 	getRange(caster: Unit): { minRange: number; maxRange: number } {

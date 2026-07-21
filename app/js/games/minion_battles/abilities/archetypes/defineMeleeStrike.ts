@@ -137,6 +137,8 @@ export interface MeleeStrikeConfig {
 
     // ---- Tooltip ----
     getTooltipText: (gameState?: unknown) => string[];
+    /** Extra token bindings merged with the default DAMAGE binding. */
+    tooltipBindings?: TooltipTokenBindings;
 
     // ---- Movement lock ----
     /**
@@ -228,6 +230,7 @@ export function defineMeleeStrike(config: MeleeStrikeConfig): AbilityStatic {
     const baseDamage = config.damage;
     const tooltipBindings: TooltipTokenBindings = {
         DAMAGE: { kind: 'damage', base: baseDamage },
+        ...config.tooltipBindings,
     };
     const getDamage = (caster?: Unit): number =>
         getAbilityDamageForDisplay(baseDamage, caster ? { attacker: caster } : {});

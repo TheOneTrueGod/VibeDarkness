@@ -18,7 +18,7 @@ import { BASIC_ATTACK_LOCK_ON_EXTRA, BASIC_ATTACK_MAX_LOCK_ON_EXTRA } from '../t
 export interface BasicAttackConfig {
     id: string;
     name: string;
-    /** Tooltip text. Use {N} notation to highlight damage numbers, e.g. "Deals {2} damage." */
+    /** Tooltip text. Prefer `{{DAMAGE}}` for research-aware damage; `{N}` matching `damage` is rewritten. */
     description: string;
     damage: number;
     /** SVG string for the card icon. Defaults to empty string (no icon). */
@@ -83,7 +83,11 @@ class BasicAttackBuilderInstance {
                 ? { kind: 'growingLine', color: config.telegraphColor ?? 0xff8800, alpha: 0.3 }
                 : { kind: 'shrinkingCircle', startRadius: 18, color: config.telegraphColor ?? 0xff8800, alpha: 0.3 },
             trackTargetUntilLabel: config.trackTargetUntilLabel,
-            getTooltipText: () => [config.description],
+            getTooltipText: () => [
+                config.description.includes('{{DAMAGE}}')
+                    ? config.description
+                    : config.description.split(`{${config.damage}}`).join('{{DAMAGE}}'),
+            ],
         });
 
         const ability: AbilityStatic = {

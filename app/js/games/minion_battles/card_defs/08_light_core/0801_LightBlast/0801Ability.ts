@@ -18,6 +18,11 @@ import { areEnemies } from '../../../game/teams';
 import type { Unit } from '../../../game/units/Unit';
 import { applyHeal, DEFAULT_HEAL_PENALTY_PCT } from '../../../game/units/unitHeal';
 import { EngineWithGatherLight, spawnGatherLightWindupRing } from '@/games/minion_battles/abilities/gatherLightHelpers';
+import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../../abilities/tooltipTokens';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Light)}01`;
 const MAX_USES = 2;
@@ -29,6 +34,18 @@ export const LIGHT_BLAST_DAMAGE = 12;
 export const LIGHT_BLAST_MAX_TARGETS = 5;
 const LIGHT_BLAST_HEAL = 5;
 const BRIGHT_MAGNITUDE = 3;
+
+const TOOLTIP_LINES = [
+    'Create a sudden blast of light, dealing {{DAMAGE}} damage to up to {{MAX_TARGETS}} enemies.',
+    'Heals allies in the blast for {{HEAL}}.',
+    '{Bright 3}',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    DAMAGE: { kind: 'damage', base: LIGHT_BLAST_DAMAGE },
+    MAX_TARGETS: { kind: 'plain', value: LIGHT_BLAST_MAX_TARGETS },
+    HEAL: { kind: 'plain', value: LIGHT_BLAST_HEAL },
+};
 
 const LIGHT_BLAST_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -132,12 +149,12 @@ export const LightBlastAbility = defineAbility({
         return { minRange: 0, maxRange: MAX_RANGE };
     },
 
-    getTooltipText(): string[] {
-        return [
-            `Create a sudden blast of light, dealing ${LIGHT_BLAST_DAMAGE} damage to up to ${LIGHT_BLAST_MAX_TARGETS} enemies.`,
-            `Heals allies in the blast for ${LIGHT_BLAST_HEAL}.`,
-            '{Bright 3}',
-        ];
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
+        );
     },
 
     renderTargetingPreviewSelectedTargets(gr, caster, _targets, mouseWorld): void {

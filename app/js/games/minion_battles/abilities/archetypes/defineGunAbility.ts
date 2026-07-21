@@ -122,7 +122,7 @@ export interface GunAbilityConfig {
     damageModifierMultiplier?: number;
 
     // ---- Tooltip ----
-    getTooltipText: () => string[];
+    getTooltipText: (gameState?: unknown) => string[];
 }
 
 // ---------------------------------------------------------------------------

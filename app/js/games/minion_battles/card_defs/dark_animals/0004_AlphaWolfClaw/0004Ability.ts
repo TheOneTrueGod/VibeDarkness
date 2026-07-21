@@ -16,6 +16,11 @@ import { drawEnemyConvexQuadHitboxTelegraph } from '../../../abilities/previewHe
 import { convexQuadHitbox } from '../../../hitboxes/ConvexQuadHitbox';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
+import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../../abilities/tooltipTokens';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}04`;
 const PREFIRE_TIME = 0.8;
@@ -31,6 +36,14 @@ const BOX_SIZE = 44;
 const REACH = 40;
 /** Match brief active phase after prefire so the outline stays fully red through impact. */
 const CLAW_PREVIEW_HOLD_RED = 0.12;
+
+const TOOLTIP_LINES = [
+    'Slash in a square in front, dealing {{DAMAGE}} damage and knocking back enemies.',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    DAMAGE: { kind: 'damage', base: DAMAGE },
+};
 
 const HITBOX = convexQuadHitbox(REACH, BOX_SIZE);
 
@@ -93,8 +106,12 @@ export const AlphaWolfClawAbility = defineAbility({
         ninjutsu: { ignore: true },
     },
     movementLock: { until: ACTIVE_END },
-    getTooltipText(_gameState?: unknown): string[] {
-        return [`Slash in a square in front, dealing {${DAMAGE}} damage and knocking back enemies.`];
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
+        );
     },
 
     renderActivePreview(

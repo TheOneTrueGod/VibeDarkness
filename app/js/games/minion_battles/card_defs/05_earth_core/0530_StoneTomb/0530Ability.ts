@@ -11,12 +11,20 @@ import type { Projectile } from '../../../game/projectiles/Projectile';
 import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 import { type CardDef } from '../../types';
 import { tryApplyKnockbackByTier } from '../../../crowdControl/knockbackKeywords';
+import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
+import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 
 const ABILITY_ID = '0530';
 const RANGE = 220;
 const DAMAGE = 5;
 const IMPACT_RADIUS = 55;
 const KNOCKBACK_TIER = 1;
+const TOOLTIP_LINES = [
+    'Throw a rock that creates stone, dealing {{DAMAGE}} damage and knocking back nearby enemies.',
+] as const;
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    DAMAGE: { kind: 'damage', base: DAMAGE },
+};
 
 const STONE_TOMB_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
   <rect x="6" y="8" width="28" height="24" rx="4" fill="#6b6b6b"/>
@@ -51,8 +59,12 @@ export const StoneTomb = defineAbility({
     targets: [],
     aiSettings: { minRange: 0, maxRange: RANGE },
     getRange: () => ({ minRange: 0, maxRange: RANGE }),
-    getTooltipText(): string[] {
-        return ['Throw a rock that creates stone, dealing {5} damage and knocking back nearby enemies.'];
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: ABILITY_ID } }),
+        );
     },
     onAttackBlocked(_engine: unknown, _defender: Unit, attackInfo: AttackBlockedInfo): void {
         deactivateProjectileOnBlock(attackInfo);

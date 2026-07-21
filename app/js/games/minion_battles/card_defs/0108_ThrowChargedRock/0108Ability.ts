@@ -3,7 +3,11 @@
     AbilityStatic,
     AttackBlockedInfo,
 } from '../../abilities/Ability';
-import { getAbilityModifier } from '../../abilities/abilityModifierHelpers';
+import { getAbilityModifier, resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../abilities/tooltipTokens';
 import type { TargetDef } from '../../abilities/targeting';
 import { clampToMaxRange, drawClampedLine, drawCrosshair } from '../../abilities/previewHelpers';
 import type { Unit } from '../../game/units/Unit';
@@ -46,14 +50,19 @@ const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'lightCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
 const BASE_EXPLOSION_RADIUS = 50;
-const BASE_EXPLOSION_DAMAGE = 5;
+export const THROW_CHARGED_ROCK_BASE_EXPLOSION_DAMAGE = 5;
+const BASE_EXPLOSION_DAMAGE = THROW_CHARGED_ROCK_BASE_EXPLOSION_DAMAGE;
 const BASE_MAX_TARGETS = 4;
-const DIRECT_HIT_DAMAGE = 5;
+export const THROW_CHARGED_ROCK_DIRECT_HIT_DAMAGE = 5;
+const DIRECT_HIT_DAMAGE = THROW_CHARGED_ROCK_DIRECT_HIT_DAMAGE;
 
 const MORE_ROCK_EXPLOSION_RADIUS_MULT = 0.75;
-const MORE_ROCK_EXPLOSION_DAMAGE = 3;
+export const THROW_CHARGED_ROCK_MORE_ROCK_EXPLOSION_DAMAGE = 3;
+const MORE_ROCK_EXPLOSION_DAMAGE = THROW_CHARGED_ROCK_MORE_ROCK_EXPLOSION_DAMAGE;
+const MORE_ROCK_HIT_COUNT = 2;
 
-const MORE_POWER_EXPLOSION_DAMAGE = 8;
+export const THROW_CHARGED_ROCK_MORE_POWER_EXPLOSION_DAMAGE = 8;
+const MORE_POWER_EXPLOSION_DAMAGE = THROW_CHARGED_ROCK_MORE_POWER_EXPLOSION_DAMAGE;
 const MORE_POWER_MAX_TARGETS = 6;
 
 const KNOCKBACK_TIER = 1;
@@ -132,31 +141,39 @@ export const ThrowChargedRock: AbilityStatic = {
         const research = getCrystalRocksResearch(eng);
         const hasMoreRock = hasMoreRockResearch(research);
         const hasMorePower = hasMorePowerResearch(research);
-        const targets = hasMoreRock ? 2 : 1;
         let explosionDamage = hasMoreRock ? MORE_ROCK_EXPLOSION_DAMAGE : BASE_EXPLOSION_DAMAGE;
         let maxTargets = BASE_MAX_TARGETS;
 
-        let firstLine = '';
         if (hasMorePower) {
             explosionDamage = MORE_POWER_EXPLOSION_DAMAGE;
             maxTargets = MORE_POWER_MAX_TARGETS;
         }
 
         const mod = getAbilityModifier(gameState, undefined, CARD_ID);
-        const directHit = DIRECT_HIT_DAMAGE + (mod.damageFlat ?? 0);
+        const directHitBase = DIRECT_HIT_DAMAGE + (mod.damageFlat ?? 0);
         explosionDamage += mod.explosionDamageFlat ?? 0;
 
-        if (hasMorePower || !hasMoreRock) {
-            firstLine = `Throw a rock dealing {${directHit}} damage.`;
-        } else {
-            firstLine = `Throws {${targets}} rocks dealing {${directHit}} damage.`;
-        }
-        return [
-            firstLine,
-            `Explodes, dealing {${explosionDamage}} to up to {${maxTargets}} enemies.`,
-            '{Bright 2}',
-            'Exhaust into {Throw Rock}',
-        ];
+        const firstLine = (hasMorePower || !hasMoreRock)
+            ? 'Throw a rock dealing {{DAMAGE}} damage.'
+            : 'Throws {{HIT_COUNT}} rocks dealing {{DAMAGE}} damage.';
+
+        const bindings: TooltipTokenBindings = {
+            DAMAGE: { kind: 'damage', base: directHitBase },
+            DAMAGE_EXPLOSION: { kind: 'damage', base: explosionDamage },
+            MAX_TARGETS: { kind: 'plain', value: maxTargets },
+            HIT_COUNT: { kind: 'plain', value: MORE_ROCK_HIT_COUNT },
+        };
+
+        return formatTooltipLegacyLines(
+            [
+                firstLine,
+                'Explodes, dealing {{DAMAGE_EXPLOSION}} to up to {{MAX_TARGETS}} enemies.',
+                '{Bright 2}',
+                'Exhaust into {Throw Rock}',
+            ],
+            bindings,
+            resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
+        );
     },
 
     beginActiveCast(engine, caster, _targets, active) {

@@ -25,6 +25,11 @@ import {
 	computeSlingshotDirection,
 	findNearestPassableDirection,
 } from '../../../game/units/slingshotHelpers';
+import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
+import {
+	formatTooltipLegacyLines,
+	type TooltipTokenBindings,
+} from '../../../abilities/tooltipTokens';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Earth)}34` as '0534';
 const MAX_USES = 2;
@@ -39,6 +44,15 @@ const UNIT_DAMAGE = 6;
 export const DIGGING_CLAWS_MAX_TARGETS = 5;
 const ROCK_DAMAGE = 35;
 const KNOCKBACK_TIER = 2;
+
+const TOOLTIP_LINES = [
+	'Dashing attack that deals {{DAMAGE}} damage and knock back up to {{MAX_TARGETS}} enemies you touch',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+	DAMAGE: { kind: 'damage', base: UNIT_DAMAGE },
+	MAX_TARGETS: { kind: 'plain', value: DIGGING_CLAWS_MAX_TARGETS },
+};
 const SLINGSHOT_SPEED = 400; // px/s
 const SLINGSHOT_LAUNCH_MAGNITUDE = 160;
 const SLINGSHOT_LAUNCH_AIR_TIME = 0.4;
@@ -133,10 +147,12 @@ export const DiggingClawsAbility: AbilityStatic = {
 		}],
 	},
 
-	getTooltipText(): string[] {
-		return [
-			`Dashing attack that deals {${UNIT_DAMAGE}} damage and knock back up to {${DIGGING_CLAWS_MAX_TARGETS}} enemies you touch`,
-		];
+	getTooltipText(gameState?: unknown): string[] {
+		return formatTooltipLegacyLines(
+			TOOLTIP_LINES,
+			TOOLTIP_BINDINGS,
+			resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
+		);
 	},
 
 	getAbilityStates(currentTime: number): AbilityStateEntry[] {

@@ -10,6 +10,11 @@ import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry } from '../.
 import { AbilityState } from '../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
+import { resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../abilities/tooltipTokens';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { perpendicularSwingHitbox } from '../../hitboxes';
 import { createSlashTrailEffect } from '../../abilities/effectHelpers';
@@ -23,13 +28,23 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 ];
 const PREFIRE_TIME = 0.2;
 const BASE_MAX_RANGE = 56;
-const DAMAGE = 20;
+export const LASER_SWORD_DAMAGE = 20;
+const DAMAGE = LASER_SWORD_DAMAGE;
 const SLASH_TRAIL_DURATION = 0.35;
 const SLASH_TRAIL_THICKNESS = 14;
 const KNOCKBACK_TIER = 3;
 const MAX_TARGETS = 2;
 const LINE_THICKNESS = 36;
 const SWING_LENGTH = 80;
+
+const TOOLTIP_LINES = [
+    'Slash with the laser sword dealing {{DAMAGE}} damage to up to {{MAX_TARGETS}} enemies, interrupting and knocking them back.',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    DAMAGE: { kind: 'damage', base: DAMAGE },
+    MAX_TARGETS: { kind: 'plain', value: MAX_TARGETS },
+};
 
 const LASER_SWORD_HITBOX = perpendicularSwingHitbox(BASE_MAX_RANGE, SWING_LENGTH, LINE_THICKNESS, MAX_TARGETS);
 
@@ -74,10 +89,12 @@ export const LaserSwordAbility: AbilityStatic = {
     abilityTimings: ABILITY_TIMINGS,
     aiSettings: { minRange: 0, maxRange: LASER_SWORD_HITBOX.maxRange },
 
-    getTooltipText(): string[] {
-        return [
-            `Slash with the laser sword dealing {${DAMAGE}} damage to up to ${MAX_TARGETS} enemies, interrupting and knocking them back.`,
-        ];
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
+        );
     },
 
     getRange(_caster: Unit): { minRange: number; maxRange: number } {

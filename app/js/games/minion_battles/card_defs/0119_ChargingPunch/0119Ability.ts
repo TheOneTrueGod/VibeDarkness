@@ -77,7 +77,7 @@ export const ChargingPunchAbility = defineMeleeStrike({
 
     getTooltipText(): string[] {
         return [
-            `Hit {1} enemy for {${PUNCH_DAMAGE}} damage`,
+            'Hit {1} enemy for {{DAMAGE}} damage',
             'On hit: grant {1} Light Charge to a random ability',
         ];
     },

@@ -7,12 +7,25 @@ import type { EventBus } from '../../../game/EventBus';
 import { getEarthCoreArmour, spendAllEarthCoreArmour } from '../0527_EarthCoreShared/earthCoreArmour';
 import { type CardDef } from '../../types';
 import { meleeLineHitbox } from '../../../hitboxes';
+import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
+import {
+    formatTooltipLegacyLines,
+    type TooltipTokenBindings,
+} from '../../../abilities/tooltipTokens';
 
 const ABILITY_ID = '0533';
 const BASE_DAMAGE = 4;
 const BONUS_DAMAGE_PER_ARMOUR = 2;
 const MAX_RANGE = 75;
 const STONEY_PUNCH_HITBOX = meleeLineHitbox(MAX_RANGE, 25);
+
+const TOOLTIP_LINES = [
+    'Melee burst. Consumes all armour, adding {{DAMAGE}} damage per armour consumed.',
+] as const;
+
+const TOOLTIP_BINDINGS: TooltipTokenBindings = {
+    DAMAGE: { kind: 'damage', base: BONUS_DAMAGE_PER_ARMOUR },
+};
 const TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup', start: 0, end: 0.22, abilityPhase: AbilityPhase.Windup },
     { id: 'active', start: 0.22, end: 0.35, abilityPhase: AbilityPhase.Active, doNotRefund: true, targetDef: { kind: 'select', label: 'Melee target', hitbox: STONEY_PUNCH_HITBOX, filter: 'enemy', allowMiss: true } },
@@ -39,8 +52,12 @@ export const StoneyPunch: AbilityStatic = {
     abilityTimings: TIMINGS,
     targets: [],
     aiSettings: { minRange: 0, maxRange: MAX_RANGE },
-    getTooltipText(): string[] {
-        return ['Melee burst. Consumes all armour, adding {2} damage per armour consumed.'];
+    getTooltipText(gameState?: unknown): string[] {
+        return formatTooltipLegacyLines(
+            TOOLTIP_LINES,
+            TOOLTIP_BINDINGS,
+            resolveTooltipContext(gameState, { ability: { id: ABILITY_ID } }),
+        );
     },
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
         if (prevTime >= 0.22 || currentTime < 0.22) return;
