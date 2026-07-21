@@ -1,7 +1,7 @@
 /**
- * Bramble Patch (pet strike) — Thorn Stomp payoff only. Commanded by the player's
- * Bramble Patch card (0707) after windup + confirm-radius. No ITS select here (command
- * card owns the timeline). Restored only by commandCharge from the owner card.
+ * Bramble Patch (pet strike) — commanded by the player's Bramble Patch card (0707).
+ * Owns the slam windup (pet rooted) then Thorn Stomp–style payoff. Restored only by
+ * commandCharge from the owner card.
  */
 
 import type { AbilityRecoveryRule, AbilityStatic, IAbilityPreviewGraphics } from '../../../abilities/Ability';
@@ -26,12 +26,20 @@ export const BRAMBLE_PATCH_STRIKE_ID = `${formatGroupId(AbilityGroupId.Command)}
 export const BRAMBLE_PATCH_RADIUS = 95;
 export const BRAMBLE_PATCH_DAMAGE = 7;
 export const BRAMBLE_PATCH_KNOCKBACK_TIER = 2;
+/** Pet windup length — command card telegraph is timed to match. */
+export const BRAMBLE_PATCH_WINDUP = 1.0;
+/**
+ * Same ground thorns as lanternite nest aura (`0014`): DoT hits `dark_creature` only, so
+ * players and lanternites are treated as allied (immune). Distinct from Thornbinder's
+ * `dark_thorn`, which damages everything except dark creatures.
+ */
+export const BRAMBLE_PATCH_THORN_EFFECT_TYPE = 'bramble_slow';
 const SLOW_MULT = 0.52;
 const THORN_CLEAR_BEFORE_NEXT_SEC = 0.15;
 const DURATION_JITTER_IN_SECONDS = 1;
 
-/** Strike is near-instant; windup already played on the command card. */
-const STRIKE_END = 1 / 60;
+const WINDUP = BRAMBLE_PATCH_WINDUP;
+const STRIKE_END = WINDUP + 1 / 60;
 const COOLDOWN_END = STRIKE_END + 0.1;
 
 const RECOVERIES: AbilityRecoveryRule[] = [
@@ -87,7 +95,7 @@ export function applyBramblePatchStrike(engine: EngineLike, caster: Unit): void 
         caster,
         center,
         radius: BRAMBLE_PATCH_RADIUS,
-        effectType: 'dark_thorn',
+        effectType: BRAMBLE_PATCH_THORN_EFFECT_TYPE,
         placedAtGameTime: engine.gameTime,
         baseExpiresAtGameTime: baseExpiresAt,
         durationJitterInSeconds: DURATION_JITTER_IN_SECONDS,
@@ -107,8 +115,14 @@ export function applyBramblePatchStrike(engine: EngineLike, caster: Unit): void 
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     {
-        id: 'strike',
+        id: 'windup',
         start: 0,
+        end: WINDUP,
+        abilityPhase: AbilityPhase.Windup,
+    },
+    {
+        id: 'strike',
+        start: WINDUP,
         end: STRIKE_END,
         abilityPhase: AbilityPhase.Active,
         doNotRefund: true,
@@ -133,7 +147,9 @@ export const BramblePatchStrikeAbility_0706: AbilityStatic = defineAbility({
     maxUses: 1,
     recoveries: RECOVERIES,
     durationJitterInSeconds: DURATION_JITTER_IN_SECONDS,
-    prefireTime: 0,
+    prefireTime: WINDUP,
+    // Full root for the windup so the pet cannot walk out of the slam telegraph.
+    movementLock: { until: WINDUP },
     // No aiSettings — only commanded via 0707.
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
@@ -141,7 +157,7 @@ export const BramblePatchStrikeAbility_0706: AbilityStatic = defineAbility({
 
     getTooltipText(): string[] {
         return [
-            `Slam the ground, dealing damage and leaving bramble that slows movement`,
+            'Slam the ground, dealing damage and leaving lanternite-style bramble that slows movement and damages shadow creatures.',
             `{knockback ${BRAMBLE_PATCH_KNOCKBACK_TIER}}`,
         ];
     },
@@ -149,10 +165,17 @@ export const BramblePatchStrikeAbility_0706: AbilityStatic = defineAbility({
     renderActivePreview(
         gr: IAbilityPreviewGraphics,
         caster: Unit,
-        _activeAbility: ActiveAbility,
-        _gameTime: number,
+        activeAbility: ActiveAbility,
+        gameTime: number,
     ): void {
+        const elapsed = gameTime - activeAbility.startTime;
+        if (elapsed >= WINDUP) {
+            gr.circle(caster.x, caster.y, BRAMBLE_PATCH_RADIUS);
+            gr.stroke({ color: 0x86efac, width: 2, alpha: 0.5 });
+            return;
+        }
+        const borderAlpha = 0.25 + 0.55 * Math.min(1, elapsed / WINDUP);
         gr.circle(caster.x, caster.y, BRAMBLE_PATCH_RADIUS);
-        gr.stroke({ color: 0x86efac, width: 2, alpha: 0.5 });
+        gr.stroke({ color: 0xef4444, width: 2, alpha: borderAlpha });
     },
 });

@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import { getInteractiveTargetDefsFromTimings } from '../../../abilities/targeting';
 import { isConfirmRadiusTargetDef } from '../../../abilities/timingTargetDef';
-import { BRAMBLE_PATCH_RADIUS } from '../0706_BramblePatch/0706Ability';
-import { BRAMBLE_PATCH_COMMAND_WINDUP } from './0707Ability';
+import {
+    BRAMBLE_PATCH_RADIUS,
+    BRAMBLE_PATCH_WINDUP,
+} from '../0706_BramblePatch/0706Ability';
 
 describe('Bramble Patch command 0707', () => {
     it('pauses ITS with confirmRadius after windup', () => {
@@ -20,12 +22,19 @@ describe('Bramble Patch command 0707', () => {
             (t) => 'id' in t && t.id === 'confirm',
         );
         expect(confirmInterval && 'start' in confirmInterval && confirmInterval.start).toBe(
-            BRAMBLE_PATCH_COMMAND_WINDUP,
+            BRAMBLE_PATCH_WINDUP,
         );
     });
 
     it('uses pet abilitySource', () => {
         const ability = getAbility('0707');
         expect(ability?.abilitySource).toEqual({ type: 'pet', selector: 'nearest' });
+    });
+
+    it('recovers one use per roundCharge (not stamina)', () => {
+        const ability = getAbility('0707');
+        expect(ability?.recoveries).toEqual([
+            { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+        ]);
     });
 });

@@ -65,6 +65,7 @@ import {
     tickPerformanceTracker,
 } from './performance/tickPerformanceTracker';
 import { tickAllDots, DOT_TICKS_PER_ROUND } from './dotTick';
+import { clearUnitTileTransitionState } from './terrainEffects/tileTransitions';
 import { createDamageTakenEffect } from './createDamageTakenEffect';
 import { CantDieBuff } from '../buffs/CantDieBuff';
 import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
@@ -877,6 +878,7 @@ export class GameEngine implements EngineContext {
         this.appliedRoundStartRecovery = false;
         this.appliedMidRoundRecovery = false;
         this.appliedDotTicks = 0;
+        clearUnitTileTransitionState();
     }
 
     setMissionLightConfig(lightLevelEnabled: boolean, globalLightLevel: number): void {
@@ -1796,7 +1798,7 @@ export class GameEngine implements EngineContext {
         }
         const dotTickInterval = ROUND_DURATION / DOT_TICKS_PER_ROUND;
         while (this.appliedDotTicks < DOT_TICKS_PER_ROUND && roundTime >= this.appliedDotTicks * dotTickInterval) {
-            tickAllDots(this.units, this.terrainLayers, this.eventBus, bleedFx);
+            tickAllDots(this.units, this.terrainLayers, this.eventBus, bleedFx, this.appliedDotTicks);
             this.appliedDotTicks++;
         }
     }
@@ -2109,6 +2111,7 @@ export class GameEngine implements EngineContext {
         engine.appliedRoundStartRecovery = roundTime > 0;
         engine.appliedMidRoundRecovery = roundTime >= ROUND_DURATION / 2;
         engine.appliedDotTicks = Math.min(DOT_TICKS_PER_ROUND, Math.floor(roundTime / (ROUND_DURATION / DOT_TICKS_PER_ROUND)));
+        clearUnitTileTransitionState();
 
         engine.deferredOrderPause = null;
         if (engine.waitingForOrders != null) {

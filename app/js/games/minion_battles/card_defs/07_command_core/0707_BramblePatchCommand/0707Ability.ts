@@ -1,6 +1,7 @@
 /**
  * Bramble Patch — player command card. Owns the ITS timeline: windup → confirmRadius
- * (preview blast at the nearest pet) → Instant that commands the pet to use strike 0706.
+ * (preview blast at the nearest pet). Commands the pet into strike 0706 at cast start so
+ * the pet's windup (and movement root) runs in parallel with this telegraph.
  * Mimic Brambles research grants this card and the pet strike ability.
  */
 
@@ -13,20 +14,22 @@ import {
     BRAMBLE_PATCH_RADIUS,
     BRAMBLE_PATCH_STRIKE_ID,
     BRAMBLE_PATCH_KNOCKBACK_TIER,
+    BRAMBLE_PATCH_WINDUP,
 } from '../0706_BramblePatch/0706Ability';
-import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
 import type { AbilityRecoveryRule, IAbilityPreviewGraphics } from '../../../abilities/Ability';
+import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}07`;
 const MAX_USES = 1;
 const RECOVERIES: AbilityRecoveryRule[] = [
-    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+    { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
 
-export const BRAMBLE_PATCH_COMMAND_WINDUP = 1.0;
-const CONFIRM_END = BRAMBLE_PATCH_COMMAND_WINDUP + 1 / 60;
+/** Re-export for callers that historically imported windup from the command card. */
+export const BRAMBLE_PATCH_COMMAND_WINDUP = BRAMBLE_PATCH_WINDUP;
+const CONFIRM_END = BRAMBLE_PATCH_WINDUP + 1 / 60;
 const CAST_ACTIVE_END = CONFIRM_END + 0.1;
 const COOLDOWN_END = CAST_ACTIVE_END + 0.4;
 
@@ -36,12 +39,12 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     {
         id: 'windup',
         start: 0,
-        end: BRAMBLE_PATCH_COMMAND_WINDUP,
+        end: BRAMBLE_PATCH_WINDUP,
         abilityPhase: AbilityPhase.Windup,
     },
     {
         id: 'confirm',
-        start: BRAMBLE_PATCH_COMMAND_WINDUP,
+        start: BRAMBLE_PATCH_WINDUP,
         end: CONFIRM_END,
         abilityPhase: AbilityPhase.Active,
         doNotRefund: true,
@@ -53,23 +56,12 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
         },
     },
     {
-        id: 'command',
+        id: 'resolve',
         start: CONFIRM_END,
         end: CAST_ACTIVE_END,
         abilityPhase: AbilityPhase.Active,
         doNotRefund: true,
-        castBehaviours: [
-            {
-                timingStart: 'start',
-                behaviour: CastBehaviours.Instant((ctx) => {
-                    const pets = resolveAbilitySourceUnits(BramblePatchCommandAbility_0707, ctx.caster, ctx.engine.units);
-                    if (pets.length === 0) return;
-                    commandPetAbility(pets, BRAMBLE_PATCH_STRIKE_ID, [], ctx.engine, {
-                        preGrantCharge: { chargeType: 'commandCharge', amount: 1 },
-                    });
-                }),
-            },
-        ],
+        // Pet was already commanded at cast start; this window only finishes the player timeline.
     },
     { id: 'cooldown', start: CAST_ACTIVE_END, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
 ];
@@ -88,7 +80,7 @@ export const BramblePatchCommandAbility_0707 = defineAbility({
     rechargeTurns: 0,
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
-    prefireTime: BRAMBLE_PATCH_COMMAND_WINDUP,
+    prefireTime: BRAMBLE_PATCH_WINDUP,
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
     abilitySource: BRAMBLE_PET_SOURCE,
@@ -99,7 +91,7 @@ export const BramblePatchCommandAbility_0707 = defineAbility({
 
     getTooltipText(): string[] {
         return [
-            `Command the nearest pet to slam a bramble patch, dealing damage and leaving slowing thorns`,
+            'Command the nearest pet to slam a bramble patch, dealing damage and leaving lanternite-style thorns that slow movement and damage shadow creatures.',
             `{knockback ${BRAMBLE_PATCH_KNOCKBACK_TIER}}`,
         ];
     },
@@ -110,7 +102,7 @@ export const BramblePatchCommandAbility_0707 = defineAbility({
         _targets: ResolvedTarget[],
         active: ActiveAbility,
     ): void {
-        const eng = engine as { units: Unit[] };
+        const eng = engine as AbilityEngineContext;
         const pets = resolveAbilitySourceUnits(BramblePatchCommandAbility_0707, caster, eng.units);
         const pet = pets[0];
         active.castPayload = {
@@ -118,6 +110,12 @@ export const BramblePatchCommandAbility_0707 = defineAbility({
             previewY: pet?.y ?? caster.y,
             petUnitId: pet?.id,
         };
+        // Start the pet's windup immediately so its movement root matches this telegraph.
+        if (pets.length > 0) {
+            commandPetAbility(pets, BRAMBLE_PATCH_STRIKE_ID, [], eng, {
+                preGrantCharge: { chargeType: 'commandCharge', amount: 1 },
+            });
+        }
     },
 
     renderActivePreview(
@@ -133,15 +131,15 @@ export const BramblePatchCommandAbility_0707 = defineAbility({
         const ox = payload?.previewX ?? caster.x;
         const oy = payload?.previewY ?? caster.y;
         const elapsed = gameTime - activeAbility.startTime;
-        if (elapsed >= BRAMBLE_PATCH_COMMAND_WINDUP) {
+        if (elapsed >= BRAMBLE_PATCH_WINDUP) {
             gr.circle(ox, oy, BRAMBLE_PATCH_RADIUS);
             gr.stroke({ color: 0x86efac, width: 2, alpha: 0.85 });
             return;
         }
-        const borderAlpha = 0.25 + 0.55 * Math.min(1, elapsed / BRAMBLE_PATCH_COMMAND_WINDUP);
+        const borderAlpha = 0.25 + 0.55 * Math.min(1, elapsed / BRAMBLE_PATCH_WINDUP);
         gr.circle(ox, oy, BRAMBLE_PATCH_RADIUS);
         gr.stroke({ color: 0xef4444, width: 2, alpha: borderAlpha });
-        const ringT = elapsed / BRAMBLE_PATCH_COMMAND_WINDUP;
+        const ringT = elapsed / BRAMBLE_PATCH_WINDUP;
         const ringRadius = ringT * BRAMBLE_PATCH_RADIUS;
         if (ringRadius > 2) {
             gr.circle(ox, oy, ringRadius);

@@ -19,6 +19,7 @@ import { getUnitMaxPerTile, getUnitShovePriority } from '../units/unit_defs/unit
 import type { CellOccupancyManager } from './CellOccupancyManager';
 import { refreshActiveTargets } from '../../abilities/targetDowngrade';
 import { MIN_FOLLOW_RADIUS } from '../gameConstants';
+import { processUnitTileTransition } from '../terrainEffects/tileTransitions';
 import {
     PERF_UNITS_ABILITIES,
     PERF_UNITS_AI,
@@ -274,6 +275,7 @@ export class UnitManager {
                     if (tree) runPathfindingRetrigger(unit, tree, aiContext);
                 }
                 unit.tickMovement(dt, engine);
+                processUnitTileTransition(unit, engine);
                 // Incremental map-network membership update — the unit "notifies" the manager of a
                 // node change right after its position is finalized for this tick, instead of the
                 // manager rescanning every participating unit every tick. See MapNetworkManager.updateUnitNode.
