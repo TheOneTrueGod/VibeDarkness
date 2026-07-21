@@ -121,7 +121,7 @@ const swingBatBehaviour = CastBehaviours.MeleeAttack()
     .withDamage((ctx, unit) => {
         const eng = ctx.engine as AbilityEngineContext;
         const baseDmg = getDamage(eng, ctx.caster);
-        if (isSinglePlayerBattle(eng.units) && unit.characterId === 'dark_wolf') {
+        if (isSinglePlayerBattle(eng) && unit.characterId === 'dark_wolf') {
             return Math.max(baseDmg, unit.maxHp);
         }
         return baseDmg;

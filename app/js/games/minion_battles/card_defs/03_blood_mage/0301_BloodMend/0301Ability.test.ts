@@ -11,6 +11,11 @@ import { getSelectTargetDefsFromTimings, resolveSelectTargetLockOnCandidates } f
 import type { TeamId } from '../../../game/teams';
 import type { ResolvedTarget } from '../../../game/types';
 import {
+    BLOOD_MAGE_ALLY_SPLASH_DAMAGE,
+    BLOOD_MAGE_ALLY_SPLASH_MAX_TARGETS,
+    BLOOD_MAGE_ALLY_SPLASH_RADIUS,
+} from '../../../abilities/bloodMageAllySplash';
+import {
     BLOOD_MEND_HEAL_AMOUNT,
     BLOOD_MEND_HP_COST,
     BLOOD_MEND_WINDUP_DURATION,
@@ -58,6 +63,22 @@ function makeAlly(id: string, hp: number): Unit {
         teamId: 'player' as TeamId,
         ownerId: 'p1',
         characterId: 'player',
+        name: id,
+        radius: DEFAULT_UNIT_RADIUS,
+    });
+}
+
+function makeEnemy(id: string, x: number, y: number, hp = 100): Unit {
+    return new Unit({
+        id,
+        x,
+        y,
+        hp,
+        maxHp: 100,
+        speed: 100,
+        teamId: 'enemy' as TeamId,
+        ownerId: 'ai',
+        characterId: 'enemy',
         name: id,
         radius: DEFAULT_UNIT_RADIUS,
     });
@@ -119,6 +140,32 @@ describe('BloodMendAbility_0301', () => {
         expect(caster.hp).toBe(100 - BLOOD_MEND_HP_COST);
         expect(ally.hp).toBe(50 + BLOOD_MEND_HEAL_AMOUNT);
         expect(ally.hpInjury).toBeCloseTo(BLOOD_MEND_HEAL_AMOUNT * DEFAULT_HEAL_PENALTY_PCT);
+    });
+
+    it('active frame deals splash damage to up to 4 nearest enemies around the ally', () => {
+        const caster = makeCaster(100);
+        const ally = makeAlly('ally', 50);
+        // Ally at (100,100). Four near enemies + one farther-in-circle + one outside radius.
+        const near = [
+            makeEnemy('e1', 120, 100), // 20px
+            makeEnemy('e2', 100, 130), // 30px
+            makeEnemy('e3', 140, 100), // 40px
+            makeEnemy('e4', 100, 150), // 50px
+        ];
+        const fifthInCircle = makeEnemy('e5', 160, 100); // 60px — in radius but 5th-closest
+        const outside = makeEnemy('far', 100 + BLOOD_MAGE_ALLY_SPLASH_RADIUS + 20, 100);
+        const engine = makeEngine([caster, ally, ...near, fifthInCircle, outside]);
+
+        executeUnitAbility(caster, BloodMendAbility_0301, targetsFor(ally), engine);
+        advanceSimulation(caster, engine, ACTIVE_TICK_ADVANCE);
+
+        for (const enemy of near) {
+            expect(enemy.hp).toBe(100 - BLOOD_MAGE_ALLY_SPLASH_DAMAGE);
+        }
+        expect(fifthInCircle.hp).toBe(100);
+        expect(outside.hp).toBe(100);
+        expect(ally.hp).toBe(50 + BLOOD_MEND_HEAL_AMOUNT);
+        expect(BLOOD_MAGE_ALLY_SPLASH_MAX_TARGETS).toBe(4);
     });
 
     it("floorAtOne: casting at hp<=5 still succeeds and clamps the caster at exactly 1 HP", () => {

@@ -71,7 +71,7 @@ function resolveRockProjectileDamage(
 ): number {
     const research = getCrystalRocksResearch(ctx.engine, ctx.caster);
     let damage = rockDamageForResearch(research);
-    if (isSinglePlayerBattle(ctx.engine.units)) {
+    if (isSinglePlayerBattle(ctx.engine)) {
         damage = Math.max(damage, TWO_SHOT_WOLF_PER_HIT_DAMAGE);
     }
     const mod = ctx.caster.abilityModifiers[abilityId] ?? {};

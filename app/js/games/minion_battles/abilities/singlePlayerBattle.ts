@@ -1,8 +1,6 @@
-import type { Unit } from '../game/units/Unit';
-
-/** True when exactly one player-controlled unit is on the player team (typical solo campaign / single-player battles). */
-export function isSinglePlayerBattle(units: Unit[] | undefined): boolean {
-    if (!units?.length) return false;
-    const n = units.filter((u) => u.teamId === 'player' && u.isPlayerControlled()).length;
-    return n === 1;
+/** True when the mission started with exactly one player character on the roster. */
+export function isSinglePlayerBattle(
+    battle: { enemyScalingPlayerCount?: number } | undefined | null,
+): boolean {
+    return (battle?.enemyScalingPlayerCount ?? 1) === 1;
 }

@@ -28,6 +28,12 @@ export interface EngineContext {
     roundNumber: number;
     storyPauseActive: boolean;
 
+    /**
+     * Human player-character roster size at mission start (not pets/summons).
+     * Frozen for the whole battle; used for enemy HP scaling.
+     */
+    enemyScalingPlayerCount: number;
+
     readonly eventBus: EventBus;
     terrainManager: TerrainManager | null;
 

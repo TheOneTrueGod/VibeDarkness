@@ -92,6 +92,12 @@ export interface SerializedSpecialTile {
 export interface SerializedGameState {
     /** Deterministic RNG seed (host-generated before initial sync). */
     randomSeed?: number;
+    /**
+     * Human player-character roster size at mission start (not pets/summons).
+     * Frozen for the whole battle. Omitted on legacy checkpoints — restored by counting
+     * player characters present in the snapshot.
+     */
+    enemyScalingPlayerCount?: number;
     gameTime: number;
     gameTick: number;
     roundNumber: number;

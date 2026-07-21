@@ -88,6 +88,12 @@ export class GameState {
     /** The local player's ID. */
     localPlayerId = '';
 
+    /**
+     * Human player-character roster size at mission start (not pets/summons).
+     * Frozen for the whole battle; used for enemy HP scaling and solo-battle checks.
+     */
+    enemyScalingPlayerCount = 1;
+
     /** AI controller ID for enemy units. */
     aiControllerId: string | null = null;
 

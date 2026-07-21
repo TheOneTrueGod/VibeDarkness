@@ -7,11 +7,17 @@ import { AbilityPhase } from '../../../abilities/abilityTimings';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { resolveTargetToPoint } from '../../../abilities/targeting';
-import { unitRangeHitbox } from '../../../hitboxes';
 import type { AbilityRecoveryRule } from '../../../abilities/Ability';
 import type { Unit } from '../../../game/units/Unit';
 import type { EngineContext } from '../../../game/EngineContext';
 import { applyHeal } from '../../../game/units/unitHeal';
+import {
+    BLOOD_MAGE_ALLY_SPLASH_DAMAGE,
+    BLOOD_MAGE_ALLY_SPLASH_MAX_TARGETS,
+    BLOOD_MAGE_ALLY_SPLASH_RADIUS,
+    dealBloodMageAllySplash,
+    unitRangeWithAllySplashHitbox,
+} from '../../../abilities/bloodMageAllySplash';
 import {
     BLOOD_MIST_TRAVEL_DEFAULT_DURATION,
     spawnBloodMistImpactFlash,
@@ -46,7 +52,8 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 ];
 
 // includeCaster: Blood Mend can heal the caster themselves, not just other allies.
-const BLOOD_MEND_HITBOX = unitRangeHitbox(HEAL_RANGE, 0, true);
+// Splash circle is drawn around the hovered ally during targeting.
+const BLOOD_MEND_HITBOX = unitRangeWithAllySplashHitbox(HEAL_RANGE, BLOOD_MAGE_ALLY_SPLASH_RADIUS, true);
 
 const BLOOD_MEND_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -133,7 +140,11 @@ export const BloodMendAbility_0301 = defineAbility({
                 // Order matters: pay the HP cost before healing (see payHpCostFloorAtOne doc).
                 payHpCostFloorAtOne(ctx.caster, HP_COST);
                 applyHeal(targetUnit, HEAL_AMOUNT);
-                spawnBloodMistImpactFlash(eng, { x: targetUnit.x, y: targetUnit.y }, { variant: 'heal' });
+                dealBloodMageAllySplash(eng, ctx.caster, { x: targetUnit.x, y: targetUnit.y }, CARD_ID);
+                spawnBloodMistImpactFlash(eng, { x: targetUnit.x, y: targetUnit.y }, {
+                    variant: 'heal',
+                    radius: BLOOD_MAGE_ALLY_SPLASH_RADIUS,
+                });
             }),
         },
         {
@@ -149,6 +160,7 @@ export const BloodMendAbility_0301 = defineAbility({
         return [
             'Channel a wave of blood magic into an ally, mending their wounds at your own expense.',
             `Heals the target for {${HEAL_AMOUNT}} HP.`,
+            `Deals {${BLOOD_MAGE_ALLY_SPLASH_DAMAGE}} damage to up to {${BLOOD_MAGE_ALLY_SPLASH_MAX_TARGETS}} enemies near the target.`,
             `Costs {${HP_COST}} HP to cast — can never drop you below 1 HP.`,
         ];
     },

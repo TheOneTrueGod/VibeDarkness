@@ -221,6 +221,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
 
         // Add player units
         const playerCount = params.playerUnits.length;
+        engine.enemyScalingPlayerCount = playerCount;
         const grid = params.terrainManager?.grid;
         const worldW = grid ? grid.worldWidth : this.worldWidth;
         const worldH = grid ? grid.worldHeight : this.worldHeight;
@@ -411,8 +412,8 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
         }
         engine.registerPlayerControl(controlDefs, assignmentsByGroup);
 
-        // Add enemies (health scaled by player count)
-        const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
+        // Add enemies (health scaled by frozen player-character roster size)
+        const enemyHealthMult = getEnemyHealthMultiplier(engine.enemyScalingPlayerCount);
         for (const e of this.enemies) {
             const def = enemySpawnDefToSpawnDefinition(e, 'ai');
             const stats = resolveEnemySpawnStats(e);

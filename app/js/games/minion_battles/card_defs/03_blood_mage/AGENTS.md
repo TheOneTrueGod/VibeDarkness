@@ -13,9 +13,10 @@ cost, only clamped so it can't kill the caster).
 
 | Path | Purpose |
 |---|---|
-| `0301_BloodMend/` | Ally heal costing HP (`hpCostGate: 'floorAtOne'`) |
+| `0301_BloodMend/` | Ally heal costing HP (`hpCostGate: 'floorAtOne'`) + ally-centered splash |
 | `0302_Burst/` | Cone damage costing HP, modeled on `card_defs/0121_ConeOfLight/` |
-| `0303_Protect/` | Ally shield buff (`buffs/ShieldBuff.ts`) costing HP |
+| `0303_Protect/` | Ally shield buff (`buffs/ShieldBuff.ts`) costing HP + ally-centered splash |
+| `../../abilities/bloodMageAllySplash.ts` | Shared ally-target splash (radius / damage / max targets, hover preview hitbox, active-frame damage) for Mend + Protect |
 | `../../abilities/bloodMageVfx.ts` | Shared blood-mist VFX helpers (windup burst, travel, impact flash) — reused by all three abilities instead of bespoke one-offs |
 | `../../game/effect_defs/bloodMageEffects.ts` | Effect visuals the helpers above spawn (`BloodMistBurst`, `BloodMistImpact`, `BloodConeFlash`) |
 | `../../game/ShieldShimmerFilter.ts` | Shield shimmer visual filter (black/red/transparent) rendered on units carrying a `ShieldBuff` |

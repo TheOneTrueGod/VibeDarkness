@@ -83,7 +83,7 @@ import type { WorldModifierManager } from '../worldModifiers/WorldModifierManage
 import type { MapNetworkManager } from './managers/mapNetwork/MapNetworkManager';
 import { getMissionSegmentNetwork, getMissionSegmentPlacements } from '../terrain/segmentRegistry';
 import { CellOccupancyManager } from './managers/CellOccupancyManager';
-import { getUnitMaxPerTile, getUnitShovePriority, getUnitDefEntry, getBodyColorForUnit, getCharacterSpriteKey, getUnitSpawnDef, type UnitDefId } from './units/unit_defs/unitDef';
+import { getUnitMaxPerTile, getUnitShovePriority, getUnitDefEntry, getBodyColorForUnit, getCharacterSpriteKey, getUnitSpawnDef, PLAYER_CHARACTER_ID, type UnitDefId } from './units/unit_defs/unitDef';
 import { STACK_GHOST_DURATION } from './effect_defs/movementEffects';
 import { applyVisualEffectDefs } from './effects/applyVisualEffectDefs';
 import { NinjutsuManager, countNinjutsuEnemyUnits, type NinjutsuUIState } from './ninjutsu/NinjutsuManager';
@@ -333,6 +333,13 @@ export class GameEngine implements EngineContext {
     }
     set localPlayerId(v: string) {
         this.state.localPlayerId = v;
+    }
+
+    get enemyScalingPlayerCount(): number {
+        return this.state.enemyScalingPlayerCount;
+    }
+    set enemyScalingPlayerCount(v: number) {
+        this.state.enemyScalingPlayerCount = v;
     }
 
     get aiControllerId(): string | null {
@@ -861,6 +868,7 @@ export class GameEngine implements EngineContext {
         });
         if (this.terrainManager) this.terrainManager.setTerrainLayers(this.state.terrainLayers);
         this.aiControllerId = config.aiControllerId ?? null;
+        this.enemyScalingPlayerCount = 1;
         this.state.levelEventManager.resetTerminalState();
         this.resetObjectIdSequence(1);
         this.randomSeed = config.randomSeed >>> 0;
@@ -1829,6 +1837,7 @@ export class GameEngine implements EngineContext {
         const performanceLog = tickPerformanceTracker.getLastPerformanceLog();
         return {
             randomSeed: this.randomSeed,
+            enemyScalingPlayerCount: this.enemyScalingPlayerCount,
             gameTime: this.gameTime,
             gameTick: this.gameTick,
             roundNumber: this.roundNumber,
@@ -1917,6 +1926,16 @@ export class GameEngine implements EngineContext {
 
         // Restore units (direct push, bypasses addUnit jitter since state is serialized)
         engine.state.unitManager.restoreFromJSON(data.units, engine.eventBus, engine.gameTick);
+
+        // Roster size is frozen at mission start; legacy checkpoints omit it — recover from heroes present.
+        engine.enemyScalingPlayerCount =
+            data.enemyScalingPlayerCount ??
+            Math.max(
+                1,
+                engine.units.filter(
+                    (u) => u.characterId === PLAYER_CHARACTER_ID && u.isPlayerControlled(),
+                ).length,
+            );
 
         // Some checkpoints only list a subset of parallel waiters (e.g. host order already saved).
         // Without merging, we would clear pause while another human's unit still owes an order,

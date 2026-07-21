@@ -18,6 +18,11 @@ export interface AbilityEngineContext {
     gameTime: number;
     gameTick?: number;
     roundNumber?: number;
+    /**
+     * Human player-character roster size at mission start (not pets/summons).
+     * Optional on test stubs; {@link isSinglePlayerBattle} defaults missing to 1.
+     */
+    enemyScalingPlayerCount?: number;
     eventBus: EventBus;
     generateRandomInteger(min: number, max: number): number;
     requestHitPause?(frames: number): void;

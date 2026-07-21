@@ -11,6 +11,11 @@ import { SHIELD_BUFF_TYPE, type ShieldBuff } from '../../../buffs/ShieldBuff';
 import type { TeamId } from '../../../game/teams';
 import type { ResolvedTarget } from '../../../game/types';
 import {
+    BLOOD_MAGE_ALLY_SPLASH_DAMAGE,
+    BLOOD_MAGE_ALLY_SPLASH_MAX_TARGETS,
+    BLOOD_MAGE_ALLY_SPLASH_RADIUS,
+} from '../../../abilities/bloodMageAllySplash';
+import {
     PROTECT_HP_COST,
     PROTECT_SHIELD_HP,
     PROTECT_WINDUP_DURATION,
@@ -63,6 +68,22 @@ function makeAlly(id: string, hp: number): Unit {
     });
 }
 
+function makeEnemy(id: string, x: number, y: number, hp = 100): Unit {
+    return new Unit({
+        id,
+        x,
+        y,
+        hp,
+        maxHp: 100,
+        speed: 100,
+        teamId: 'enemy' as TeamId,
+        ownerId: 'ai',
+        characterId: 'enemy',
+        name: id,
+        radius: DEFAULT_UNIT_RADIUS,
+    });
+}
+
 function makeEngine(units: Unit[]): EngineContext {
     return {
         gameTime: 0,
@@ -102,6 +123,32 @@ describe('ProtectAbility_0303', () => {
         const shield = ally.buffs.find((b) => b._type === SHIELD_BUFF_TYPE) as ShieldBuff | undefined;
         expect(shield).toBeDefined();
         expect(shield?.remainingHp).toBe(PROTECT_SHIELD_HP);
+    });
+
+    it('active frame deals splash damage to up to 4 nearest enemies around the ally', () => {
+        const caster = makeCaster(100);
+        const ally = makeAlly('ally', 50);
+        const near = [
+            makeEnemy('e1', 120, 100),
+            makeEnemy('e2', 100, 130),
+            makeEnemy('e3', 140, 100),
+            makeEnemy('e4', 100, 150),
+        ];
+        const fifthInCircle = makeEnemy('e5', 160, 100);
+        const outside = makeEnemy('far', 100 + BLOOD_MAGE_ALLY_SPLASH_RADIUS + 20, 100);
+        const engine = makeEngine([caster, ally, ...near, fifthInCircle, outside]);
+
+        executeUnitAbility(caster, ProtectAbility_0303, targetsFor(ally), engine);
+        advanceSimulation(caster, engine, ACTIVE_TICK_ADVANCE);
+
+        for (const enemy of near) {
+            expect(enemy.hp).toBe(100 - BLOOD_MAGE_ALLY_SPLASH_DAMAGE);
+        }
+        expect(fifthInCircle.hp).toBe(100);
+        expect(outside.hp).toBe(100);
+        const shield = ally.buffs.find((b) => b._type === SHIELD_BUFF_TYPE) as ShieldBuff | undefined;
+        expect(shield?.remainingHp).toBe(PROTECT_SHIELD_HP);
+        expect(BLOOD_MAGE_ALLY_SPLASH_MAX_TARGETS).toBe(4);
     });
 
     it('is disabled (cannot_afford / hp) at hp<=5 and castable at hp=6', () => {

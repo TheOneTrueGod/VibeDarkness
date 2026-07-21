@@ -7,10 +7,16 @@ import { AbilityPhase } from '../../../abilities/abilityTimings';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { resolveTargetToPoint } from '../../../abilities/targeting';
-import { unitRangeHitbox } from '../../../hitboxes';
 import type { AbilityRecoveryRule } from '../../../abilities/Ability';
 import type { EngineContext } from '../../../game/EngineContext';
 import { ShieldBuff } from '../../../buffs/ShieldBuff';
+import {
+    BLOOD_MAGE_ALLY_SPLASH_DAMAGE,
+    BLOOD_MAGE_ALLY_SPLASH_MAX_TARGETS,
+    BLOOD_MAGE_ALLY_SPLASH_RADIUS,
+    dealBloodMageAllySplash,
+    unitRangeWithAllySplashHitbox,
+} from '../../../abilities/bloodMageAllySplash';
 import {
     BLOOD_MIST_TRAVEL_DEFAULT_DURATION,
     spawnBloodMistImpactFlash,
@@ -49,7 +55,8 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 ];
 
 // includeCaster: Protect can shield the caster themselves, not just other allies.
-const PROTECT_HITBOX = unitRangeHitbox(RANGE, 0, true);
+// Splash circle is drawn around the hovered ally during targeting.
+const PROTECT_HITBOX = unitRangeWithAllySplashHitbox(RANGE, BLOOD_MAGE_ALLY_SPLASH_RADIUS, true);
 
 const PROTECT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -132,7 +139,11 @@ export const ProtectAbility_0303 = defineAbility({
                     eng.roundNumber,
                     eng.eventBus,
                 );
-                spawnBloodMistImpactFlash(eng, { x: targetUnit.x, y: targetUnit.y }, { variant: 'shield' });
+                dealBloodMageAllySplash(eng, ctx.caster, { x: targetUnit.x, y: targetUnit.y }, CARD_ID);
+                spawnBloodMistImpactFlash(eng, { x: targetUnit.x, y: targetUnit.y }, {
+                    variant: 'shield',
+                    radius: BLOOD_MAGE_ALLY_SPLASH_RADIUS,
+                });
             }),
         },
         {
@@ -148,6 +159,7 @@ export const ProtectAbility_0303 = defineAbility({
         return [
             'Weave a shielding lattice of blood magic over an ally at your own expense.',
             `Grants a shield absorbing the next {${SHIELD_HP}} damage. Fades over time if not fully used.`,
+            `Deals {${BLOOD_MAGE_ALLY_SPLASH_DAMAGE}} damage to up to {${BLOOD_MAGE_ALLY_SPLASH_MAX_TARGETS}} enemies near the target.`,
             `Costs {${HP_COST}} HP to cast.`,
         ];
     },

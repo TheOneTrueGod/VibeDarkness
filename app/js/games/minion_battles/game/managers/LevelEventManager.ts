@@ -185,8 +185,7 @@ export class LevelEventManager {
     }
 
     private executeSpawnWaveSpawns(spawns: SpawnWaveEntry[]): void {
-        const playerCount = this.ctx.units.filter((u) => u.teamId === 'player').length;
-        const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
+        const enemyHealthMult = getEnemyHealthMultiplier(this.ctx.enemyScalingPlayerCount);
 
         for (const entry of spawns) {
             const base = BASE_SPAWN_DEFS[entry.characterId];
@@ -224,8 +223,7 @@ export class LevelEventManager {
             this.executeSpawnWaveSpawns(evt.spawnWaveEntries);
         }
 
-        const playerCount = this.ctx.units.filter((u) => u.teamId === 'player').length;
-        const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
+        const enemyHealthMult = getEnemyHealthMultiplier(this.ctx.enemyScalingPlayerCount);
         for (const enemyDef of evt.extraEnemySpawns ?? []) {
             const def = enemySpawnDefToSpawnDefinition(enemyDef, 'ai');
             const stats = resolveEnemySpawnStats(enemyDef);
@@ -308,8 +306,7 @@ export class LevelEventManager {
 
         this.continuousSpawnLastSpawnedAt[i] = this.ctx.gameTime;
 
-        const playerCount = this.ctx.units.filter((u) => u.teamId === 'player').length;
-        const enemyHealthMult = getEnemyHealthMultiplier(playerCount);
+        const enemyHealthMult = getEnemyHealthMultiplier(this.ctx.enemyScalingPlayerCount);
 
         const maxUnits = evt.maxUnits;
         const unitCountByTeam: Record<string, number> | null =
