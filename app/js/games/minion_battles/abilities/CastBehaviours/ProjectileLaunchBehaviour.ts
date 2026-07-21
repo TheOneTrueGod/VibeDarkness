@@ -41,6 +41,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
     private modifiers: ProjectileModifierId[] = [];
     private travelFullRange: boolean = false;
     private arcHeight?: number;
+    private rotationSpeed?: number;
 
     withSpeed(speed: number): this {
         this.speed = speed;
@@ -106,6 +107,12 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
         return this;
     }
 
+    /** Render-only spin speed (degrees/sec) forwarded to the spawned Projectile. */
+    withRotationSpeed(degreesPerSecond: number): this {
+        this.rotationSpeed = degreesPerSecond;
+        return this;
+    }
+
     onSetup(ctx: CastBehaviourSetupContext): void {
         const targetPos = resolveLaunchTarget(ctx);
         if (!targetPos) return;
@@ -130,6 +137,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
             maxDistance: travelDistance,
             projectileType: this.projectileType,
             arcHeight: this.arcHeight,
+            rotationSpeed: this.rotationSpeed,
             spriteConfig: this.spriteConfig,
             passThroughEnemies: this.passThroughEnemies,
             pierce: this.pierce,

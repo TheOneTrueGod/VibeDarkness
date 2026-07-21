@@ -45,7 +45,7 @@ function makeCaster(): Unit {
 }
 
 function makeEngine(caster: Unit) {
-    return {
+    const engine = {
         units: [caster],
         gameTime: 0,
         eventBus: new EventBus(),
@@ -56,7 +56,9 @@ function makeEngine(caster: Unit) {
         addEffect: () => {},
         getAllLightSources: () => [],
         generateRandomInteger: () => 0,
+        getUnit: (id: string) => engine.units.find((u) => u.id === id),
     };
+    return engine;
 }
 
 function fireBramble(engine: ReturnType<typeof makeEngine>, caster: Unit, x: number, y: number) {
@@ -108,19 +110,48 @@ describe('ThornbinderBrambleAbility ground-thorn ownership', () => {
     });
 });
 
-describe('ThornbinderBrambleAbility renderActivePreview (pre-launch windup line, caster-driven)', () => {
-    it('draws only the arc trajectory line during windup, and nothing once the projectile would have launched', () => {
+describe('ThornbinderBrambleAbility impact', () => {
+    it('damages and knocks back enemies caught in the blast, radially outward from the impact point', () => {
         const caster = makeCaster();
+        const target = new Unit({
+            x: caster.x + 40,
+            y: caster.y,
+            hp: 52,
+            speed: 42,
+            teamId: 'player',
+            ownerId: 'player-1',
+            characterId: 'dummy',
+            name: 'dummy',
+        });
+        const engine = makeEngine(caster);
+        engine.units.push(target);
+
+        const hpBefore = target.hp;
+        fireBramble(engine, caster, caster.x, caster.y);
+
+        expect(target.hp).toBeLessThan(hpBefore);
+        expect(target.knockback).not.toBeNull();
+    });
+});
+
+describe('ThornbinderBrambleAbility renderActivePreview (pre-launch windup line, caster-driven)', () => {
+    it('draws the arc trajectory line and an impact ring at the target during windup, and nothing once the projectile would have launched', () => {
+        const caster = makeCaster();
+        const targetX = caster.x + 100;
+        const targetY = caster.y;
         const activeAbility: ActiveAbility = {
             abilityId: THORNBINDER_ABILITY_ID,
             startTime: 0,
-            targets: [{ type: 'pixel', position: { x: caster.x + 100, y: caster.y } }],
+            targets: [{ type: 'pixel', position: { x: targetX, y: targetY } }],
         };
 
         const duringWindup = makeGraphicsRecorder();
         ThornbinderBrambleAbility.renderActivePreview!(duringWindup, caster, activeAbility, THORNBINDER_LOCK_TIME / 2);
         expect(duringWindup.lineToCalls).toBeGreaterThan(0);
-        expect(duringWindup.circles.length).toBe(0); // no impact ring — that's the projectile's job now
+        expect(duringWindup.circles.length).toBe(1); // impact ring at the landing spot, shown before launch too
+        expect(duringWindup.circles[0].x).toBeCloseTo(targetX, 5);
+        expect(duringWindup.circles[0].y).toBeCloseTo(targetY, 5);
+        expect(duringWindup.circles[0].radius).toBe(THORNBINDER_BASE_RADIUS);
 
         const afterLaunch = makeGraphicsRecorder();
         ThornbinderBrambleAbility.renderActivePreview!(afterLaunch, caster, activeAbility, THORNBINDER_LOCK_TIME + 0.01);

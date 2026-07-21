@@ -61,6 +61,10 @@ export class Projectile extends GameObject {
     projectileType: string;
     /** Optional render-only arc apex height (px), set by the launching ability's CastBehaviour. */
     arcHeight?: number;
+    /** Optional render-only spin speed (degrees/sec), set by the launching ability's CastBehaviour. */
+    rotationSpeed?: number;
+    /** Current accumulated visual rotation (degrees), driven by `rotationSpeed` each update(). */
+    rotation: number = 0;
     /** Sprite-based config for sprite_projectile type. Travels with the instance and is serialized. */
     spriteConfig?: SpriteProjectileConfig;
     /** Optional behavior modifiers (e.g. stonephase terrain traversal rules). */
@@ -114,6 +118,7 @@ export class Projectile extends GameObject {
         trailType?: 'bullet';
         projectileType?: string;
         arcHeight?: number;
+        rotationSpeed?: number;
         spriteConfig?: SpriteProjectileConfig;
         modifiers?: ProjectileModifierId[];
         passThroughEnemies?: boolean;
@@ -136,6 +141,7 @@ export class Projectile extends GameObject {
         this.trailType = config.trailType;
         this.projectileType = config.projectileType ?? 'default';
         this.arcHeight = config.arcHeight;
+        this.rotationSpeed = config.rotationSpeed;
         this.spriteConfig = config.spriteConfig;
         this.modifiers = config.modifiers ?? [];
         this.passThroughEnemies = config.passThroughEnemies ?? false;
@@ -162,6 +168,9 @@ export class Projectile extends GameObject {
         const moveY = this.velocityY * dt;
         this.x += moveX;
         this.y += moveY;
+        if (this.rotationSpeed) {
+            this.rotation = (this.rotation + this.rotationSpeed * dt) % 360;
+        }
         const terrainManager = (engine as { terrainManager?: TerrainManager | null })?.terrainManager ?? null;
         this.distanceTraveled += this.calculateDistanceContribution(prevX, prevY, this.x, this.y, terrainManager);
 
@@ -381,6 +390,7 @@ export class Projectile extends GameObject {
             continueAfterMaxHits: this.continueAfterMaxHits,
             ...(this.summonSeedWeak !== undefined ? { summonSeedWeak: this.summonSeedWeak } : {}),
             ...(this.arcHeight !== undefined ? { arcHeight: this.arcHeight } : {}),
+            ...(this.rotationSpeed !== undefined ? { rotationSpeed: this.rotationSpeed, rotation: this.rotation } : {}),
         };
     }
 
@@ -413,6 +423,8 @@ export class Projectile extends GameObject {
         proj.continueAfterMaxHits = (data.continueAfterMaxHits as boolean | undefined) ?? false;
         if (data.summonSeedWeak !== undefined) proj.summonSeedWeak = data.summonSeedWeak as boolean;
         if (data.arcHeight !== undefined) proj.arcHeight = data.arcHeight as number;
+        if (data.rotationSpeed !== undefined) proj.rotationSpeed = data.rotationSpeed as number;
+        if (data.rotation !== undefined) proj.rotation = data.rotation as number;
         return proj;
     }
 

@@ -15,6 +15,9 @@ import type { HitboxEngineContext, HitboxPreviewCaster } from '../../hitboxes';
 import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { getPixelTargetPosition, damageEnemiesInCircle, placeJitteredGroundThorns } from '../../abilities/targetHelpers';
+import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
+import { knockbackCtxFromEngine, tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
+import type { KnockbackSource } from '../../game/units/unitTypes';
 import type { EventBus } from '../../game/EventBus';
 import { isLightHateWeakened } from '../../game/lightHate';
 import type { TerrainLayerManager } from '../../game/TerrainLayerManager';
@@ -42,6 +45,7 @@ const WEAKENED_DAMAGE = 5;
 const SLOW_MULT_NORMAL = 0.52;
 const SLOW_MULT_WEAKENED = 0.72;
 const BRAMBLE_CLEAR_BEFORE_NEXT_SEC = 0.15;
+const KNOCKBACK_TIER = 1;
 const TARGETING_RANGE = 320;
 const DURATION_JITTER_IN_SECONDS = 1;
 // Flight time ~=1s at max range (matches the old fixed windup->strike cadence); faster for closer targets.
@@ -112,7 +116,7 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
 
     getTooltipText(): string[] {
         return [
-            'Slam the ground, dealing damage and leaving bramble that slows movement',
+            `Slam the ground, dealing damage, {knockback ${KNOCKBACK_TIER}}, and leaving bramble that slows movement`,
             'Weakened by bright light (Light Hate)',
         ];
     },
@@ -129,6 +133,8 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
         const damage = weakened ? WEAKENED_DAMAGE : BASE_DAMAGE;
         const slowMult = weakened ? SLOW_MULT_WEAKENED : SLOW_MULT_NORMAL;
 
+        const knockbackCtx = knockbackCtxFromEngine(eng);
+        const knockbackSource: KnockbackSource = { unitId: caster.id, abilityId: THORNBINDER_ABILITY_ID };
         damageEnemiesInCircle({
             engine: eng,
             caster,
@@ -137,6 +143,21 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
             damage,
             abilityId: THORNBINDER_ABILITY_ID,
             attackType: 'melee',
+            onHit: (unit) => {
+                tryDamageOrBlock(unit, {
+                    engine: eng,
+                    gameTime: eng.gameTime,
+                    eventBus: eng.eventBus,
+                    attackerX: pos.x,
+                    attackerY: pos.y,
+                    attackerId: caster.id,
+                    abilityId: THORNBINDER_ABILITY_ID,
+                    damage,
+                    attackType: 'melee',
+                });
+                // Away from the impact point, mirroring Thorn Stomp's radially-outward knockback.
+                tryApplyKnockbackByTier(unit, KNOCKBACK_TIER, knockbackSource, pos.x, pos.y, knockbackCtx);
+            },
         });
 
         // Thorns last roughly a full round, so the patch is still (mostly) up right until the next slam.
@@ -197,6 +218,11 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
             else gr.lineTo(bx, by);
         }
         gr.stroke({ color: 0xef4444, width: 2, alpha: 0.25 + 0.45 * lineFadeT });
+
+        // Impact-radius ring at the landing spot, fading in over the windup — mirrors the
+        // projectile-driven ring below so the danger zone is visible before launch too.
+        gr.circle(target.x, target.y, BASE_RADIUS);
+        gr.stroke({ color: 0xef4444, width: 2, alpha: 0.25 + 0.55 * lineFadeT });
     },
 
     // Post-launch: the impact-radius ring, driven by the projectile itself so it keeps

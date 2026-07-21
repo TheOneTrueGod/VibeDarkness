@@ -28,6 +28,7 @@ const PREFIRE_TIME = 0.2;
 const MAX_RANGE = 200;
 const BRIGHT_MAGNITUDE = 3;
 const TORCH_PROJECTILE_SPEED = 400;
+const TORCH_ROTATION_SPEED = 540;
 
 const THROW_TORCH_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -70,7 +71,8 @@ export const ThrowTorchAbility = defineAbility({
                 .withSpeed(TORCH_PROJECTILE_SPEED)
                 .withMaxRange(MAX_RANGE)
                 .withProjectileType('torch')
-                .withPassThroughEnemies(),
+                .withPassThroughEnemies()
+                .withRotationSpeed(TORCH_ROTATION_SPEED),
         },
         {
             id: 'cooldown',

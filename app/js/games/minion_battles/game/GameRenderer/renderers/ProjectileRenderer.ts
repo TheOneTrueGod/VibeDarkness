@@ -33,6 +33,9 @@ export class ProjectileRenderer {
             visual.y = proj.y;
             visual.visible = proj.active;
             getProjectileDef(proj.projectileType).updateVisual(visual, proj, gameTime);
+            if (proj.rotationSpeed) {
+                visual.rotation = (proj.rotation * Math.PI) / 180;
+            }
         }
 
         const activeProjIds = new Set(projectiles.map((p) => p.id));
