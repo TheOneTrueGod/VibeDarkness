@@ -141,14 +141,18 @@ export default function AbilitySlot({
                     relative w-[108px] h-[126px] rounded-lg border-2 transition-all duration-150
                     flex flex-col items-stretch p-1 overflow-visible pointer-events-none
                     ${isSelected
-                        ? 'border-yellow-400 bg-surface-light -translate-y-2 shadow-lg shadow-yellow-400/25'
+                        ? ability.actionChannel === 'special'
+                            ? 'border-cyan-400 bg-surface-light -translate-y-2 shadow-lg shadow-cyan-400/25'
+                            : 'border-yellow-400 bg-surface-light -translate-y-2 shadow-lg shadow-yellow-400/25'
                         : isHovered && !isDisabled
                             ? 'border-white bg-[#283a56] -translate-y-1'
                             : isActive
                                 ? 'border-green-500 bg-surface-light shadow-lg shadow-green-500/25'
                                 : isDisabled
                                     ? 'border-white/30 bg-surface-light'
-                                    : 'border-white bg-surface-light'
+                                    : ability.actionChannel === 'special'
+                                        ? 'border-cyan-700/80 bg-surface-light'
+                                        : 'border-white bg-surface-light'
                     }
                 `}
             >

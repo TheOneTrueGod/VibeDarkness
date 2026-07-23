@@ -90,6 +90,7 @@ export function useBattleAbilityBarSlots({
                 isMyTurn={isMyTurn}
                 roundNumber={roundNumber}
                 selectedCardIndex={selectedCardIndex}
+                specialActionAbilityId={nonconfirmedOrder?.specialAction?.abilityId ?? null}
                 onSelectCard={(cardIndex, ability) =>
                     sessionRef.current?.getInteractionManager()?.activateAbilityTargeting(cardIndex, ability)
                 }

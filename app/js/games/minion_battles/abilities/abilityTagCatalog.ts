@@ -12,6 +12,7 @@ export type AbilityTagSettingsByTag = {
     Entombed: PriorityTagSettings;
     RockThrow: PriorityTagSettings;
     free: PriorityTagSettings;
+    basicAttack: PriorityTagSettings;
 };
 
 /** Empty settings object type for tags with no catalog options yet. */
@@ -49,6 +50,11 @@ export const ABILITY_TAG_CATALOG: AbilityTagCatalog = {
     },
     RockThrow: { hint: 'Rock Throw' },
     free: { hint: 'Free Action' },
+    basicAttack: {
+        hint: 'Basic Attack',
+        displayName: 'Basic Attack',
+        autoAddToDescription: true,
+    },
 };
 
 export function getAbilityTagCatalogEntry<K extends AbilityTag>(tag: K): AbilityTagCatalogEntry<K> {

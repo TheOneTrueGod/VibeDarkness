@@ -4,6 +4,7 @@ import { pet_follow } from './pet_follow';
 import { pet_engage } from './pet_engage';
 import { pet_return } from './pet_return';
 import { pet_heel } from './pet_heel';
+import { pet_ordered_move } from './pet_ordered_move';
 
 export type { PetNodeId } from './context';
 export type { PetAITreeContext } from './context';
@@ -16,5 +17,6 @@ export const PET_AI_TREE: UnitAITree<'pet', PetNodeId> = {
         pet_engage,
         pet_return,
         pet_heel,
+        pet_ordered_move,
     },
 };

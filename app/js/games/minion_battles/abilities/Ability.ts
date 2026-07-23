@@ -187,7 +187,17 @@ export type AbilityTelegraph = ShrinkingCircleTelegraph | GrowingLineTelegraph;
  * Simple capability / classification tags on an ability (distinct from structured `keywords` like nestedCard).
  * Extend this union when new tags are needed.
  */
-export type AbilityTag = 'priority' | 'meleeTracking' | 'evade' | 'Entombed' | 'RockThrow' | 'free';
+export type AbilityTag =
+    | 'priority'
+    | 'meleeTracking'
+    | 'evade'
+    | 'Entombed'
+    | 'RockThrow'
+    | 'free'
+    | 'basicAttack';
+
+/** Which order channel an ability occupies. Specials are zero-frame and ride beside a primary. */
+export type AbilityActionChannel = 'primary' | 'special';
 
 type AbilityTagResolver = (abilityId: string) => readonly AbilityTag[];
 
@@ -280,6 +290,20 @@ export interface AbilityStatic {
     readonly keywords?: Partial<{ [K in AbilityKeyword]: AbilityKeywordDefs[K] }>;
     /** Optional tags (e.g. recovery-charge priority). Distinct from `keywords`. */
     readonly tags?: readonly AbilityTag[];
+    /**
+     * Order channel. `'special'` abilities fill `BattleOrder.specialAction` and never occupy
+     * `activeAbilities` (zero-frame). Default `'primary'`.
+     */
+    readonly actionChannel?: AbilityActionChannel;
+    /**
+     * Sole sim entry for `actionChannel: 'special'`. Called from OrderManager; must not push
+     * an ActiveAbility. Primary-channel abilities leave this undefined.
+     */
+    applySpecialAction?(
+        caster: Unit,
+        targets: ResolvedTarget[],
+        engine: unknown,
+    ): void;
     /** Optional declarative rules keyed by trigger event. */
     readonly abilityEvents?: Partial<Record<AbilityEventType, readonly AbilityEventRule[]>>;
     /**

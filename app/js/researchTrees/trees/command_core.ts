@@ -31,7 +31,11 @@ export const commandCoreTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [],
             requirements: [],
             cost: {},
-            effects: [{ type: 'grantPet', petId: 'dog' }],
+            effects: [
+                { type: 'grantPet', petId: 'dog' },
+                { type: 'addCard', cardId: '0708' },
+                { type: 'addCard', cardId: '0709' },
+            ],
         },
         {
             id: COMMAND_CORE_NODE_HEEL,

@@ -4,7 +4,7 @@
  */
 
 import type { EngineContext } from '../EngineContext';
-import type { BattleOrder, OrderAtTick, WaitingForOrders, OrderWaiter } from '../types';
+import type { BattleOrder, BattleOrderSpecialAction, OrderAtTick, WaitingForOrders, OrderWaiter } from '../types';
 import type { Unit } from '../units/Unit';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { refundAbilityCost } from '../../abilities/Ability';
@@ -12,6 +12,11 @@ import { unitAbilityHasTag } from '../../abilities/abilityUses';
 
 const WAIT_ORDER_MIN_DURATION_SEC = 1.5;
 const WAIT_ORDER_MAX_DURATION_SEC = 1.5;
+
+function specialActionKey(special: BattleOrderSpecialAction | undefined): string {
+    if (!special) return '';
+    return `${special.abilityId}:${JSON.stringify(special.targets)}`;
+}
 
 export class OrderManager {
     pendingOrders: OrderAtTick[] = [];
@@ -113,24 +118,79 @@ export class OrderManager {
 
                 if (existing.abilityId === order.abilityId && order.endTurn === true) {
                     // Same ability, just confirming turn end — mutate the flag in place, skip cancel/re-exec.
+                    // Preserve specialAction from the existing entry (confirm payloads often omit it).
                     const entry = this.pendingOrders.find(
                         (o) => o.gameTick >= batch.atTick && o.order.unitId === order.unitId,
                     );
-                    if (entry) entry.order = { ...entry.order, endTurn: true };
+                    if (entry) {
+                        entry.order = {
+                            ...entry.order,
+                            endTurn: true,
+                            ...(order.specialAction !== undefined
+                                ? { specialAction: order.specialAction }
+                                : {}),
+                            ...(order.movePath !== undefined ? { movePath: order.movePath } : {}),
+                            ...(order.moveTargetPixel !== undefined
+                                ? { moveTargetPixel: order.moveTargetPixel }
+                                : {}),
+                        };
+                    }
                     this.onAfterOrderQueued();
                     return;
                 }
 
                 if (existing.abilityId === order.abilityId && !order.endTurn) {
-                    // Same ability, still nonconfirmed — update movePath in place without re-executing the ability.
+                    // Same primary, still nonconfirmed — update move / special in place without
+                    // re-executing the primary ability.
                     const entry = this.pendingOrders.find(
                         (o) => o.gameTick >= batch.atTick && o.order.unitId === order.unitId,
                     );
-                    if (entry) entry.order = { ...entry.order, movePath: order.movePath, moveTargetPixel: order.moveTargetPixel };
+                    if (entry) {
+                        const prevSpecialKey = specialActionKey(entry.order.specialAction);
+                        const nextSpecial =
+                            order.specialAction !== undefined
+                                ? order.specialAction
+                                : entry.order.specialAction;
+                        // Explicit clear: caller passes specialAction: undefined via a sentinel?
+                        // Use nullish — only overwrite when the field is present on the incoming order.
+                        const specialChanged =
+                            order.specialAction !== undefined
+                            && specialActionKey(order.specialAction) !== prevSpecialKey;
+                        const clearedSpecial =
+                            'specialAction' in order
+                            && order.specialAction === undefined
+                            && entry.order.specialAction !== undefined;
+
+                        entry.order = {
+                            ...entry.order,
+                            movePath: order.movePath !== undefined ? order.movePath : entry.order.movePath,
+                            moveTargetPixel:
+                                order.moveTargetPixel !== undefined
+                                    ? order.moveTargetPixel
+                                    : entry.order.moveTargetPixel,
+                            moveTargetUnitId:
+                                order.moveTargetUnitId !== undefined
+                                    ? order.moveTargetUnitId
+                                    : entry.order.moveTargetUnitId,
+                            ...('specialAction' in order
+                                ? { specialAction: order.specialAction }
+                                : {}),
+                        };
+
+                        if (specialChanged && nextSpecial) {
+                            this.applySpecialActionOnly(order.unitId, nextSpecial);
+                        }
+                        // clearedSpecial: prior special already applied as a side effect; no undo.
+                        void clearedSpecial;
+                    }
                     return;
                 }
 
                 // Replacing a nonconfirmed order with a new one — cancel the previously-set ability first.
+                // Keep specialAction from existing if the replacement omits it (primary swap).
+                if (!('specialAction' in order) && existing.specialAction) {
+                    order = { ...order, specialAction: existing.specialAction };
+                }
                 const unit = this.ctx.getUnit(order.unitId);
                 if (unit) {
                     if (existing.abilityId !== 'wait') {
@@ -224,6 +284,21 @@ export class OrderManager {
         return this.applyConditionalCancelDecision(order, unit, pausedAbility);
     }
 
+    /** Apply a special action without touching movement or the primary cast. */
+    private applySpecialActionOnly(unitId: string, special: BattleOrderSpecialAction): void {
+        const unit = this.ctx.getUnit(unitId);
+        if (!unit || !unit.isAlive()) return;
+        this.runSpecialAction(unit, special);
+    }
+
+    private runSpecialAction(unit: Unit, special: BattleOrderSpecialAction): void {
+        const ability = getAbility(special.abilityId);
+        if (!ability || ability.actionChannel !== 'special') return;
+        if (!ability.applySpecialAction) return;
+        this.ctx.mixOrderFingerprint(unit.id, `special:${special.abilityId}`);
+        ability.applySpecialAction(unit, special.targets, this.ctx);
+    }
+
     applyOrderLogic(order: BattleOrder): void {
         const unit = this.ctx.getUnit(order.unitId);
         if (!unit || !unit.isAlive()) return;
@@ -240,12 +315,16 @@ export class OrderManager {
             unit.clearMovement();
         }
 
+        // Cancel-sentinel: skip special + wait timers (prior primary already cancelled in applyOrder).
+        if (order.abilityId === 'wait' && order.endTurn === false) {
+            return;
+        }
+
+        if (order.specialAction) {
+            this.runSpecialAction(unit, order.specialAction);
+        }
+
         if (order.abilityId === 'wait') {
-            if (order.endTurn === false) {
-                // Cancel-sentinel: the player cancelled their nonconfirmed order. The previously-set
-                // ability was already cancelled in applyOrder before this point. No wait timers needed.
-                return;
-            }
             // Mid-cast resume (conditional cancel): keep the active cast, skip turn wait lockout.
             if (unit.activeAbilities.length > 0) {
                 return;

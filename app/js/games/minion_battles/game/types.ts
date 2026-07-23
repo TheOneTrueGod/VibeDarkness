@@ -208,6 +208,17 @@ export interface SerializedCardInstance {
     discardAddedAtTime?: number;
 }
 
+/** Zero-frame special action riding beside the primary ability on a BattleOrder. */
+export interface BattleOrderSpecialAction {
+    abilityId: string;
+    targets: ResolvedTarget[];
+    /**
+     * Named targets from select defs. Runtime / ITS carry-through; same caveats as
+     * {@link BattleOrder.targetsByLabel}.
+     */
+    targetsByLabel?: Record<string, ResolvedTarget>;
+}
+
 /** An order submitted by a player (or AI) for a unit's turn. */
 export interface BattleOrder {
     unitId: string;
@@ -236,6 +247,11 @@ export interface BattleOrder {
         moveTargetUnitId?: string;
         moveTargetPixel?: { x: number; y: number };
     }>;
+    /**
+     * Optional zero-frame special (e.g. Order: Attack). Applied without occupying
+     * `activeAbilities`; may coexist with a primary `abilityId` / wait.
+     */
+    specialAction?: BattleOrderSpecialAction;
     /** When true, this order ends the unit's turn and allows the parallel batch to resume. */
     endTurn?: boolean;
     /** Per-cast ability mode committed at order time (e.g. push/pull). Serialized with orders. */

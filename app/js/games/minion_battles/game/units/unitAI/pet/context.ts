@@ -1,11 +1,24 @@
 import type { UnitAIContextBase } from '../contextBase';
 
-export type PetNodeId = 'pet_follow' | 'pet_engage' | 'pet_return' | 'pet_heel';
+export type PetNodeId =
+    | 'pet_follow'
+    | 'pet_engage'
+    | 'pet_return'
+    | 'pet_heel'
+    | 'pet_ordered_move';
 
 export interface PetAITreeContext extends UnitAIContextBase {
     aiTree: 'pet';
     aiState?: PetNodeId;
     targetUnitId?: string;
+    /**
+     * When true with {@link targetUnitId}, engage rescans must not steal focus until the
+     * target dies / becomes unreachable or a new order clears the lock.
+     */
+    orderedFocus?: boolean;
+    /** World-pixel destination for {@link pet_ordered_move}. */
+    orderedMoveX?: number;
+    orderedMoveY?: number;
     /** gameTime when heel command expires and pet may re-engage. */
     heelUntilGameTime?: number;
     /** Maximum distance (px) from owner the pet holds during heel. */

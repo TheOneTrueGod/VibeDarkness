@@ -119,7 +119,7 @@ Abilities without windup lunge (e.g. Double Punch, Light Blast) keep using pre-t
 **What persists on in-place commit:**
 
 1. Held pure-pass rows register their dedupe keys in `appliedRemoteOrderKeys` without re-queueing.
-2. Finalized order is built from collected input (same bytes as rollback).
+2. Finalized order is built from collected input (same bytes as rollback). `buildFinalizedSequentialTargetingOrder` spreads `baseOrder`, so optional `specialAction` (zero-frame special channel) chosen before ITS begins is preserved on commit.
 3. Host: `persistCommittedOrder` appends + merges the whole mark batch. Non-host: POST without local apply; ahead-of-host deferral gates still apply.
 4. `rebindEngineCallbacks()` restores `onParallelBatchResolved`; preview flags cleared; engine unpaused (except conditional-cancel in-place commit preserves the Entombed pause).
 

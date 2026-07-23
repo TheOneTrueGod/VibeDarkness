@@ -62,6 +62,7 @@ export const pet_engage: AINode<'pet', PetNodeId> = {
             if ((ctx.heelUntilGameTime ?? 0) > context.gameTime) {
                 ctx.aiState = 'pet_heel';
                 ctx.targetUnitId = undefined;
+                ctx.orderedFocus = false;
                 return;
             }
 
@@ -75,6 +76,7 @@ export const pet_engage: AINode<'pet', PetNodeId> = {
             if (ownerAlive && owner && distance(unit.x, unit.y, owner.x, owner.y) > returnRange) {
                 ctx.aiState = 'pet_return';
                 ctx.targetUnitId = undefined;
+                ctx.orderedFocus = false;
                 return;
             }
 
@@ -84,16 +86,23 @@ export const pet_engage: AINode<'pet', PetNodeId> = {
                 ctx.lastScanTime = context.gameTime;
                 const enemies = findEnemies(unit, context.getUnits());
                 if (enemies.length > 0) {
-                    // Keep current target if still alive; otherwise pick nearest
+                    // Sticky ordered focus: keep current target while it remains a valid enemy.
                     const currentAlive = ctx.targetUnitId
                         ? enemies.some((e) => e.id === ctx.targetUnitId)
                         : false;
-                    if (!currentAlive && enemies.length > 0) {
+                    if (ctx.orderedFocus && currentAlive) {
+                        // Keep lock — do not steal focus.
+                    } else if (!currentAlive && enemies.length > 0) {
+                        if (ctx.orderedFocus) {
+                            // Ordered target gone — clear sticky lock and pick nearest.
+                            ctx.orderedFocus = false;
+                        }
                         enemies.sort((a, b) => distance(unit.x, unit.y, a.x, a.y) - distance(unit.x, unit.y, b.x, b.y));
                         ctx.targetUnitId = enemies[0]!.id;
                     }
                 } else {
                     ctx.targetUnitId = undefined;
+                    ctx.orderedFocus = false;
                 }
             }
 
@@ -102,6 +111,7 @@ export const pet_engage: AINode<'pet', PetNodeId> = {
             if (!target?.isAlive()) {
                 ctx.aiState = 'pet_follow';
                 ctx.targetUnitId = undefined;
+                ctx.orderedFocus = false;
                 return;
             }
 

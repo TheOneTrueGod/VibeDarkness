@@ -49,6 +49,8 @@ interface RowSlotAbilitiesProps {
     roundNumber: number;
     /** Currently selected card index (in the hand), or null. */
     selectedCardIndex: number | null;
+    /** Ability id of the committed special on the nonconfirmed order, if any. */
+    specialActionAbilityId?: string | null;
     /** Called when a card is selected. */
     onSelectCard: (handIndex: number, ability: AbilityStatic) => void;
     /** Current game state for dynamic descriptions. */
@@ -80,6 +82,7 @@ export default function RowSlotAbilities({
     isMyTurn,
     roundNumber,
     selectedCardIndex,
+    specialActionAbilityId = null,
     onSelectCard,
     gameState,
     allUnits = [],
@@ -340,7 +343,9 @@ export default function RowSlotAbilities({
         const isHovered = hoveredCardId === card.abilityId;
         const activeAbilityIds = playerUnit.activeAbilities.map((a) => a.abilityId);
         const activeHandIndex = handCards.findIndex((c) => activeAbilityIds.includes(c.abilityId));
-        const isSelected = selectedCardIndex === index;
+        const isSelected =
+            selectedCardIndex === index
+            || (specialActionAbilityId != null && card.abilityId === specialActionAbilityId);
         const isActive = activeHandIndex >= 0 && index === activeHandIndex && !isMyTurn;
         const abilityModes = card.ability.abilityModes;
         const currentAbilityMode = abilityModes

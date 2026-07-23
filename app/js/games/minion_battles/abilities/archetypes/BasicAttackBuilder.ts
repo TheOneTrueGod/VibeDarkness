@@ -92,7 +92,7 @@ class BasicAttackBuilderInstance {
 
         const ability: AbilityStatic = {
             ...base,
-            tags: [...(base.tags ?? []), 'free'],
+            tags: [...(base.tags ?? []), 'free', 'basicAttack'],
         };
 
         return { ability, card: { abilityId: config.id } };

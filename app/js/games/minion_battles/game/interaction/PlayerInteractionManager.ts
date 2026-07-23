@@ -323,7 +323,19 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         if (!this._waitingForOrders || !this.ctx) return;
         const active = this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId);
         if (!active) return;
-        if (USE_SEQUENTIAL_TARGETING) {
+
+        // Toggle-off: re-selecting the same special clears it from the nonconfirmed order.
+        if (
+            ability.actionChannel === 'special'
+            && this.uiState.nonconfirmedOrder?.specialAction?.abilityId === ability.id
+            && !(this.activeTool instanceof AbilityTargetingTool)
+        ) {
+            this.clearSpecialAction();
+            return;
+        }
+
+        // Specials never enter ITS (zero-frame; no select timings).
+        if (ability.actionChannel !== 'special' && USE_SEQUENTIAL_TARGETING) {
             const caster = this.ctx.engine.getUnit(active.unitId) ?? undefined;
             const interactiveDefs = getInteractiveTargetDefsFromTimings(ability, caster, this.ctx.engine);
             if (interactiveDefs.length > 0) {
@@ -355,8 +367,43 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         const movePath = this.defaultTool?.pendingMovePath ?? undefined;
         const moveTargetUnitId = this.defaultTool?.pendingMoveTargetUnitId ?? undefined;
         const moveTargetPixel = this.defaultTool?.pendingMoveTargetPixel ?? undefined;
+        const ability = abilityId !== 'wait' ? getAbility(abilityId) : null;
+        const isSpecial = ability?.actionChannel === 'special';
+        const prev = this.uiState.nonconfirmedOrder;
 
-        const order: BattleOrder = {
+        let order: BattleOrder;
+
+        if (isSpecial) {
+            // Merge into specialAction; keep existing primary (or wait placeholder).
+            const primaryId = prev && prev.abilityId !== 'wait' ? prev.abilityId : 'wait';
+            const primaryTargets = primaryId !== 'wait' && prev ? prev.targets : [];
+            order = {
+                unitId: active.unitId,
+                abilityId: primaryId,
+                targets: primaryTargets,
+                ...(prev?.targetsByLabel ? { targetsByLabel: prev.targetsByLabel } : {}),
+                ...(prev?.abilityMode ? { abilityMode: prev.abilityMode } : {}),
+                ...(prev?.movementByLabel ? { movementByLabel: prev.movementByLabel } : {}),
+                movePath: movePath ?? prev?.movePath,
+                moveTargetUnitId: moveTargetUnitId ?? prev?.moveTargetUnitId,
+                moveTargetPixel: moveTargetPixel ?? prev?.moveTargetPixel,
+                specialAction: {
+                    abilityId,
+                    targets,
+                    ...(targetsByLabel && Object.keys(targetsByLabel).length > 0
+                        ? { targetsByLabel }
+                        : {}),
+                },
+            };
+            // Special alone never auto-ends the turn.
+            this.defaultTool?.reset();
+            this.uiState = { ...this.uiState, currentTargets: [], nonconfirmedOrder: order };
+            void this.ctx.session.submitPlayerOrder(order, { canSubmitOrders: this._canUseOrderUi });
+            this.emitChange();
+            return;
+        }
+
+        order = {
             unitId: active.unitId,
             abilityId,
             targets,
@@ -367,11 +414,14 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
             ...(this.resolveAbilityMode?.(abilityId) !== undefined
                 ? { abilityMode: this.resolveAbilityMode!(abilityId) }
                 : {}),
+            // Carry any previously chosen special alongside the primary.
+            ...(prev?.specialAction ? { specialAction: prev.specialAction } : {}),
         };
 
         this.defaultTool?.reset();
         this.uiState = { ...this.uiState, currentTargets: [] };
 
+        // Auto-end-turn applies to primary (and wait), not specials.
         if (abilityId === 'wait' || getAutoEndTurn()) {
             order.endTurn = true;
             this.uiState = { ...this.uiState, nonconfirmedOrder: null };
@@ -379,6 +429,26 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         } else {
             this.uiState = { ...this.uiState, nonconfirmedOrder: order };
             void this.ctx.session.submitPlayerOrder(order, { canSubmitOrders: this._canUseOrderUi });
+        }
+        this.emitChange();
+    }
+
+    /** Clear specialAction from the nonconfirmed order (toggle-off). */
+    clearSpecialAction(): void {
+        const prev = this.uiState.nonconfirmedOrder;
+        if (!prev?.specialAction || !this.ctx) return;
+        // Keep the key present so OrderManager's in-place merge clears the field.
+        const updated: BattleOrder = { ...prev, specialAction: undefined };
+        // If only wait + special remained, drop the whole nonconfirmed order via cancel sentinel.
+        if (updated.abilityId === 'wait' && !updated.movePath?.length) {
+            this.uiState = { ...this.uiState, nonconfirmedOrder: null };
+            void this.ctx.session.submitPlayerOrder(
+                { unitId: prev.unitId, abilityId: 'wait', targets: [], endTurn: false },
+                { canSubmitOrders: this._canUseOrderUi },
+            );
+        } else {
+            this.uiState = { ...this.uiState, nonconfirmedOrder: updated };
+            void this.ctx.session.submitPlayerOrder(updated, { canSubmitOrders: this._canUseOrderUi });
         }
         this.emitChange();
     }

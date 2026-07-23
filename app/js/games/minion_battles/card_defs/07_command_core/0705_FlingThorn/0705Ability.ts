@@ -70,6 +70,7 @@ export const FlingThornAbility_0705: AbilityStatic = defineAbility({
         { id: 'cooldown', start: FIRE_END, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
     ],
     targets: [{ type: 'unit', label: 'Target' }] as TargetDef[],
+    tags: ['basicAttack'],
     telegraph: { kind: 'growingLine', color: THORN_COLOR, trackTarget: true },
     aiSettings: { minRange: 0, maxRange: FLING_THORN_MAX_DISTANCE, priority: 1 },
     getRange: (_caster: Unit) => ({ minRange: 0, maxRange: FLING_THORN_MAX_DISTANCE }),

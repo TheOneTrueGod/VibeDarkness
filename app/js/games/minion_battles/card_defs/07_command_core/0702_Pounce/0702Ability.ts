@@ -36,13 +36,13 @@ const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'commandCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
 
-const WINDUP_TIME = 0.3;
+const WINDUP_TIME = 0.2;
 const DASH_DURATION = 0.3;
-const COOLDOWN_DURATION = 0.8;
+const COOLDOWN_DURATION = 0.1;
 export const MAX_DASH_DISTANCE = 100;
 /** Step size when probing passability along the pounce path (matches DashBehaviour default). */
 export const POUNCE_COLLISION_STEP = 4;
-const DAMAGE = 8;
+const DAMAGE = 10;
 const STUN_DURATION = 1.0;
 const KNOCKBACK_TIER = 2;
 /** Pass through this many hits; dash ends on the next one. */

@@ -49,6 +49,15 @@ Some player cards trigger another unit's ability (e.g. Sic 'em 0704 → Pounce 0
 
 Reference implementation: `card_defs/07_command_core/0704_SicEm/0704Ability.ts`.
 
+## Special actions
+
+Zero-frame abilities with `actionChannel: 'special'` fill `BattleOrder.specialAction` instead of replacing the primary `abilityId`. They never occupy `activeAbilities` and are applied via `applySpecialAction`.
+
+- Usable **alongside** a primary ability (and movement) in the same turn.
+- Selecting a special never auto-ends the turn; auto-end-turn only fires on a **primary** submit.
+- ITS: specials do not enter sequential targeting; when a primary begins ITS, carry `specialAction` on the order so commit preserves it (`buildFinalizedSequentialTargetingOrder` spreads `baseOrder`).
+- Reference: Order: Attack (`0708`) and Order: Move (`0709`).
+
 ## Targeting preview helper choice
 
 See the decision table at the top of `abilities/previewHelpers.ts`. Rule of thumb: if runtime movement uses `DashBehaviour` / `computeForcedDisplacement`, the preview must use the matching terrain-aware preset.

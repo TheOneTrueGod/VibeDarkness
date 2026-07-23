@@ -68,6 +68,8 @@ import { SicEmAbility } from '../card_defs/07_command_core/0704_SicEm/0704Abilit
 import { FlingThornAbility_0705 } from '../card_defs/07_command_core/0705_FlingThorn/0705Ability';
 import { BramblePatchStrikeAbility_0706 } from '../card_defs/07_command_core/0706_BramblePatch/0706Ability';
 import { BramblePatchCommandAbility_0707 } from '../card_defs/07_command_core/0707_BramblePatchCommand/0707Ability';
+import { OrderAttackAbility } from '../card_defs/07_command_core/0708_OrderAttack/0708Ability';
+import { OrderMoveAbility } from '../card_defs/07_command_core/0709_OrderMove/0709Ability';
 import { LightBlastAbility } from '../card_defs/08_light_core/0801_LightBlast/0801Ability';
 import { LightImbuementAbility } from '../card_defs/08_light_core/0802_LightImbuement/0802Ability';
 import { ImbuedBatAbility } from '../card_defs/08_light_core/0803_ImbuedBat/0803Ability';
@@ -156,6 +158,8 @@ register(SicEmAbility);
 register(FlingThornAbility_0705);
 register(BramblePatchStrikeAbility_0706);
 register(BramblePatchCommandAbility_0707);
+register(OrderAttackAbility);
+register(OrderMoveAbility);
 register(LightBlastAbility);
 register(LightImbuementAbility);
 register(ImbuedBatAbility);
