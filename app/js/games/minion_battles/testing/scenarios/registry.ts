@@ -74,6 +74,10 @@ import { aiReplanStaggerScenario } from './ai/ai_replan_stagger';
 import { aiSerializationRoundtripScenario } from './ai/ai_serialization_roundtrip';
 import { lightingIlluminatesAreaScenario, lightDelayedFadeScenario, campfireDecayScenario, lightingBaseOverlapScenario } from './general/lightingSystem';
 import { worldModifierDarkSwarmScenario, worldModifierMidBattleAddScenario, worldEffectVisualEffectsFireScenario } from './general/worldModifiers';
+import {
+    dsEnemyHardenedRaisesEnemyHpScenario,
+    dsSwarmReinforcementsOverRoundsScenario,
+} from './general/darknessStrength';
 import { deathVfxUnitDefEffectsFireScenario, deathVfxAlphaWolfUnchangedScenario } from './general/deathVfx';
 import { abilityTimingEmitterVisualEffectsFireScenario } from './general/abilityTimingEmitterVfx';
 import { directEffectVfxDefTargetPositionScenario } from './general/directEffectVfxDefPosition';
@@ -199,6 +203,8 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     worldModifierDarkSwarmScenario,
     worldModifierMidBattleAddScenario,
     worldEffectVisualEffectsFireScenario,
+    dsEnemyHardenedRaisesEnemyHpScenario,
+    dsSwarmReinforcementsOverRoundsScenario,
     deathVfxUnitDefEffectsFireScenario,
     deathVfxAlphaWolfUnchangedScenario,
     abilityTimingEmitterVisualEffectsFireScenario,
@@ -255,6 +261,7 @@ const GENERAL_GROUP_ORDER: { slug: string; section: string }[] = [
     { slug: 'pets', section: 'Pets' },
     { slug: 'ai', section: 'AI' },
     { slug: 'world-modifiers', section: 'World Modifiers' },
+    { slug: 'darkness-strength', section: 'Darkness Strength' },
     { slug: 'death-vfx', section: 'Death VFX' },
     { slug: 'ability-emitter-vfx', section: 'Ability Emitter VFX' },
 ];

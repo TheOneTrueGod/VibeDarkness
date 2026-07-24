@@ -35,6 +35,8 @@ interface PreMissionStoryPhaseProps {
     gatherPartyBackgroundImage?: string;
     /** Current equipment per player (from server); used to compute replaceItemIds when equipping. */
     playerEquipmentByPlayer?: Record<string, string[]>;
+    /** Per-player research (lobby game state); used to filter exclusivity-blocked story grants. */
+    playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
     /** Votes per group vote (voteId -> playerId -> optionId); synced from server. */
     groupVoteVotes?: Record<string, Record<string, string>>;
     onPhaseChange?: (phase: string, gameState: Record<string, unknown>) => void;
@@ -59,6 +61,7 @@ export default function PreMissionStoryPhase({
     storyReadyPlayerIds,
     gatherPartyBackgroundImage: gatherPartyBackgroundImageProp,
     playerEquipmentByPlayer,
+    playerResearchTreesByPlayer = {},
     groupVoteVotes = {},
     onPhaseChange,
     onBattleStartStatusChange,
@@ -276,6 +279,7 @@ export default function PreMissionStoryPhase({
             allPlayerIds={allPlayerIds}
             playerId={playerId}
             amSpectator={amSpectator}
+            playerResearchTrees={playerResearchTreesByPlayer[playerId]}
             groupVoteVotes={groupVoteVotes}
             isApplyingGroupVote={isApplyingGroupVote}
             onAdvance={advancePhrase}

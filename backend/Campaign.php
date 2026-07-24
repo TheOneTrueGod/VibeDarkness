@@ -26,13 +26,31 @@ class Campaign
     private array $missionResults;
     /** @var array{food: int, metal: int, population: int, crystals: int} */
     private array $resources;
+    /**
+     * Active DarknessStrength instance crumbs (packageId + optional data).
+     * @var array<int, array{packageId: string, data?: array<string, mixed>}>
+     */
+    private array $darknessStrengthInstances;
+    /**
+     * Admin force enable/disable overrides keyed by packageId.
+     * @var array<string, array{enabled: bool, data?: array<string, mixed>}>
+     */
+    private array $adminDarknessStrengthOverrides;
+    /**
+     * Stub region map; full lord-domain content later.
+     * @var array<string, array{activeDomainPackageIds?: array<int, string>}>
+     */
+    private array $regions;
 
     public function __construct(
         string $id,
         string $name = '',
         array $campaignCharacters = [],
         array $missionResults = [],
-        array $resources = []
+        array $resources = [],
+        array $darknessStrengthInstances = [],
+        array $adminDarknessStrengthOverrides = [],
+        array $regions = []
     ) {
         $this->id = $id;
         $this->name = $name;
@@ -42,6 +60,9 @@ class Campaign
             ['food' => 0, 'metal' => 0, 'population' => 0, 'crystals' => 0],
             $resources
         );
+        $this->darknessStrengthInstances = self::normalizeDarknessStrengthInstances($darknessStrengthInstances);
+        $this->adminDarknessStrengthOverrides = self::normalizeAdminDarknessStrengthOverrides($adminDarknessStrengthOverrides);
+        $this->regions = self::normalizeRegions($regions);
     }
 
     public function getId(): string
@@ -91,6 +112,39 @@ class Campaign
             ['food' => 0, 'metal' => 0, 'population' => 0, 'crystals' => 0],
             array_intersect_key($resources, array_flip(['food', 'metal', 'population', 'crystals']))
         );
+    }
+
+    /** @return array<int, array{packageId: string, data?: array<string, mixed>}> */
+    public function getDarknessStrengthInstances(): array
+    {
+        return $this->darknessStrengthInstances;
+    }
+
+    public function setDarknessStrengthInstances(array $instances): void
+    {
+        $this->darknessStrengthInstances = self::normalizeDarknessStrengthInstances($instances);
+    }
+
+    /** @return array<string, array{enabled: bool, data?: array<string, mixed>}> */
+    public function getAdminDarknessStrengthOverrides(): array
+    {
+        return $this->adminDarknessStrengthOverrides;
+    }
+
+    public function setAdminDarknessStrengthOverrides(array $overrides): void
+    {
+        $this->adminDarknessStrengthOverrides = self::normalizeAdminDarknessStrengthOverrides($overrides);
+    }
+
+    /** @return array<string, array{activeDomainPackageIds?: array<int, string>}> */
+    public function getRegions(): array
+    {
+        return $this->regions;
+    }
+
+    public function setRegions(array $regions): void
+    {
+        $this->regions = self::normalizeRegions($regions);
     }
 
     /** Add or override a mission result. Only one result per mission; new result replaces existing. Does not add resources to campaign; use getEffectiveResources() for display. */
@@ -224,6 +278,14 @@ class Campaign
             'campaignCharacters' => array_values($this->campaignCharacters),
             'missionResults' => array_values($this->missionResults),
             'resources' => $this->getEffectiveResources(),
+            'darknessStrengthInstances' => array_values($this->darknessStrengthInstances),
+            // Empty maps encode as {} (not []) for stable client defaults.
+            'adminDarknessStrengthOverrides' => empty($this->adminDarknessStrengthOverrides)
+                ? new \stdClass()
+                : $this->adminDarknessStrengthOverrides,
+            'regions' => empty($this->regions)
+                ? new \stdClass()
+                : $this->regions,
         ];
     }
 
@@ -232,12 +294,102 @@ class Campaign
         $chars = $data['campaignCharacters'] ?? [];
         $results = $data['missionResults'] ?? [];
         $res = $data['resources'] ?? [];
+        $instances = $data['darknessStrengthInstances'] ?? [];
+        $overrides = $data['adminDarknessStrengthOverrides'] ?? [];
+        $regions = $data['regions'] ?? [];
         return new self(
             $data['id'],
             $data['name'] ?? '',
             is_array($chars) ? $chars : [],
             is_array($results) ? $results : [],
-            is_array($res) ? $res : []
+            is_array($res) ? $res : [],
+            is_array($instances) ? $instances : [],
+            is_array($overrides) ? $overrides : [],
+            is_array($regions) ? $regions : []
         );
+    }
+
+    /**
+     * @param mixed $raw
+     * @return array<int, array{packageId: string, data?: array<string, mixed>}>
+     */
+    private static function normalizeDarknessStrengthInstances($raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+        $out = [];
+        foreach ($raw as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $packageId = isset($row['packageId']) && is_string($row['packageId']) ? trim($row['packageId']) : '';
+            if ($packageId === '') {
+                continue;
+            }
+            $entry = ['packageId' => $packageId];
+            if (isset($row['data']) && is_array($row['data'])) {
+                $entry['data'] = $row['data'];
+            }
+            $out[] = $entry;
+        }
+        return $out;
+    }
+
+    /**
+     * @param mixed $raw
+     * @return array<string, array{enabled: bool, data?: array<string, mixed>}>
+     */
+    private static function normalizeAdminDarknessStrengthOverrides($raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+        $out = [];
+        foreach ($raw as $packageId => $row) {
+            if (!is_string($packageId) || trim($packageId) === '' || !is_array($row)) {
+                continue;
+            }
+            $entry = ['enabled' => (bool) ($row['enabled'] ?? false)];
+            if (isset($row['data']) && is_array($row['data'])) {
+                $entry['data'] = $row['data'];
+            }
+            $out[trim($packageId)] = $entry;
+        }
+        return $out;
+    }
+
+    /**
+     * @param mixed $raw
+     * @return array<string, array{activeDomainPackageIds?: array<int, string>}>
+     */
+    private static function normalizeRegions($raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+        $out = [];
+        foreach ($raw as $regionId => $row) {
+            if (!is_string($regionId) || trim($regionId) === '' || !is_array($row)) {
+                continue;
+            }
+            $entry = [];
+            if (isset($row['activeDomainPackageIds']) && is_array($row['activeDomainPackageIds'])) {
+                $ids = array_values(
+                    array_filter(
+                        array_map(
+                            static fn ($id) => is_string($id) ? trim($id) : '',
+                            $row['activeDomainPackageIds']
+                        ),
+                        static fn ($id): bool => $id !== ''
+                    )
+                );
+                if ($ids !== []) {
+                    $entry['activeDomainPackageIds'] = $ids;
+                }
+            }
+            $out[trim($regionId)] = $entry;
+        }
+        return $out;
     }
 }

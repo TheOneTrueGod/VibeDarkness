@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import type { AccountState, PlayerState } from '../../../../../types';
 import type { MinionBattlesApi } from '../../../api/minionBattlesApi';
 import type { LobbyClient } from '../../../../../LobbyClient';
@@ -11,12 +11,19 @@ import { ALL_PLAYER_ITEMS } from '../../../character_defs/items';
 import { useUserData } from '../../../../../user/UserDataProvider';
 import { STORYLINES } from '../../../storylines/index';
 import PanelLayout from '../../../../../components/minionBattlesHomePage/PanelLayout';
-import { playersListPath, playerCharactersPath, playerCharacterPath } from '../../../../../components/ability-tests/campaignTabPaths';
+import {
+    playersListPath,
+    playerCharactersPath,
+    playerCharacterPath,
+    playerCampaignDataPath,
+    isPlayerCampaignDataPath,
+} from '../../../../../components/ability-tests/campaignTabPaths';
 import { TestIds } from '../../../../../testing/testIds';
 import { ItemCard } from './ItemCard';
 import { CharacterCard } from './CharacterCard';
 import { CharacterListCard } from './CharacterListCard';
 import { PlayerCard } from './PlayerCard';
+import { CampaignDataPanel } from './CampaignDataPanel';
 import { buildCounts, sortByLastUsed, sortPlayers, getItemName } from './characterUtils';
 
 function formatCountdown(seconds: number): string {
@@ -42,10 +49,13 @@ export default function CharactersPanel({ api, lobbyClient, players, onStartMiss
     // ── URL params ───────────────────────────────────────────────────────────
     const { playerId: playerIdParam, characterId: characterIdParam } = useParams<{ playerId?: string; characterId?: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
+    const isCampaignDataSelected = isPlayerCampaignDataPath(location.pathname);
 
     // ── Lobby admin state (when players prop is provided) ────────────────────
     const [lobbySelectedPlayerId, setLobbySelectedPlayerId] = useState<string | null>(null);
     const [lobbyAdminSelectedCharId, setLobbyAdminSelectedCharId] = useState<string | null>(null);
+    const [lobbyShowCampaignData, setLobbyShowCampaignData] = useState(false);
 
     // ── Admin state ──────────────────────────────────────────────────────────
     const [adminDetails, setAdminDetails] = useState<{
@@ -144,22 +154,24 @@ export default function CharactersPanel({ api, lobbyClient, players, onStartMiss
     // Lobby context: auto-select first character for the selected lobby player
     useEffect(() => {
         if (!isAdmin || !players || !adminDetails) { return; }
+        if (lobbyShowCampaignData) return;
         const sortedChars = sortByLastUsed(adminDetails.characters);
         if (sortedChars.length === 0) { setLobbyAdminSelectedCharId(null); return; }
         if (!lobbyAdminSelectedCharId || !sortedChars.some((c) => c.id === lobbyAdminSelectedCharId)) {
             setLobbyAdminSelectedCharId(sortedChars[0].id);
         }
-    }, [isAdmin, players, adminDetails, lobbyAdminSelectedCharId]);
+    }, [isAdmin, players, adminDetails, lobbyAdminSelectedCharId, lobbyShowCampaignData]);
 
     // Campaign home context: auto-navigate to first character when no character is selected
     useEffect(() => {
         if (!isAdmin || players || adminLoading || !adminDetails || !playerIdParam) return;
+        if (isCampaignDataSelected) return;
         const sortedChars = sortByLastUsed(adminDetails.characters);
         if (sortedChars.length === 0) return;
         if (!characterIdParam || !sortedChars.some((c) => c.id === characterIdParam)) {
             navigate(playerCharacterPath(playerIdParam, sortedChars[0].id), { replace: true });
         }
-    }, [isAdmin, players, adminLoading, adminDetails, characterIdParam, playerIdParam, navigate]);
+    }, [isAdmin, players, adminLoading, adminDetails, characterIdParam, playerIdParam, navigate, isCampaignDataSelected]);
 
     // Admin: EAR countdown ticker
     useEffect(() => {
@@ -194,9 +206,17 @@ export default function CharactersPanel({ api, lobbyClient, players, onStartMiss
 
     const selectedAdminCharacter = useMemo(() => {
         if (!adminDetails) return null;
+        if (players ? lobbyShowCampaignData : isCampaignDataSelected) return null;
         const charId = players ? lobbyAdminSelectedCharId : characterIdParam;
         return adminDetails.characters.find((c) => c.id === charId) ?? null;
-    }, [adminDetails, players, lobbyAdminSelectedCharId, characterIdParam]);
+    }, [
+        adminDetails,
+        players,
+        lobbyAdminSelectedCharId,
+        characterIdParam,
+        lobbyShowCampaignData,
+        isCampaignDataSelected,
+    ]);
 
     const inventoryCounts = useMemo(
         () => buildCounts(adminDetails?.account.inventoryItemIds ?? []),
@@ -299,7 +319,7 @@ export default function CharactersPanel({ api, lobbyClient, players, onStartMiss
                                     key={player.id}
                                     player={player}
                                     selected={false}
-                                    onSelect={() => { setLobbySelectedPlayerId(player.id); setLobbyAdminSelectedCharId(null); }}
+                                    onSelect={() => { setLobbySelectedPlayerId(player.id); setLobbyAdminSelectedCharId(null); setLobbyShowCampaignData(false); }}
                                 />
                             ))}
                         </div>
@@ -323,7 +343,7 @@ export default function CharactersPanel({ api, lobbyClient, players, onStartMiss
                         </div>
                         <button
                             type="button"
-                            onClick={() => { setLobbySelectedPlayerId(null); setAdminDetails(null); }}
+                            onClick={() => { setLobbySelectedPlayerId(null); setAdminDetails(null); setLobbyShowCampaignData(false); }}
                             className="rounded-lg border border-border-custom bg-surface-light px-4 py-2 text-sm font-medium text-white hover:bg-border-custom"
                         >
                             Back
@@ -372,6 +392,25 @@ export default function CharactersPanel({ api, lobbyClient, players, onStartMiss
 
                     <div className="flex flex-1 min-h-0 gap-4 overflow-hidden">
                         <div className="w-[200px] shrink-0 overflow-auto rounded-lg border border-border-custom bg-surface p-3">
+                            {lobbyClient && (
+                                <button
+                                    type="button"
+                                    data-testid={TestIds.campaignDataRow}
+                                    data-selected={lobbyShowCampaignData ? 'true' : 'false'}
+                                    onClick={() => {
+                                        setLobbyShowCampaignData(true);
+                                        setLobbyAdminSelectedCharId(null);
+                                    }}
+                                    className={`mb-3 w-full rounded-lg border-2 px-3 py-2.5 text-left transition-colors ${
+                                        lobbyShowCampaignData
+                                            ? 'border-primary bg-surface-light shadow-[0_0_0_1px_rgba(78,205,196,0.2)]'
+                                            : 'border-border-custom bg-surface hover:bg-white/5'
+                                    }`}
+                                >
+                                    <p className="text-sm font-semibold text-white">Campaign data</p>
+                                    <p className="text-[10px] text-muted">DarknessStrength & more</p>
+                                </button>
+                            )}
                             <p className="mb-3 text-sm font-semibold text-white">Characters</p>
                             <div className="space-y-3">
                                 {adminLoading && <p className="text-sm text-muted">Loading…</p>}
@@ -382,15 +421,24 @@ export default function CharactersPanel({ api, lobbyClient, players, onStartMiss
                                     <CharacterListCard
                                         key={character.id}
                                         character={character}
-                                        selected={lobbyAdminSelectedCharId === character.id}
-                                        onSelect={() => setLobbyAdminSelectedCharId(character.id)}
+                                        selected={!lobbyShowCampaignData && lobbyAdminSelectedCharId === character.id}
+                                        onSelect={() => {
+                                            setLobbyShowCampaignData(false);
+                                            setLobbyAdminSelectedCharId(character.id);
+                                        }}
                                     />
                                 ))}
                             </div>
                         </div>
 
                         <div className="flex-1 min-w-0 overflow-hidden rounded-lg border border-border-custom bg-surface">
-                            {selectedAdminCharacter ? (
+                            {lobbyShowCampaignData && lobbyClient ? (
+                                <CampaignDataPanel
+                                    lobbyClient={lobbyClient}
+                                    characters={adminDetails?.characters ?? []}
+                                    account={adminDetails?.account ?? null}
+                                />
+                            ) : selectedAdminCharacter ? (
                                 <CharacterEditor
                                     key={selectedAdminCharacter.id}
                                     character={selectedAdminCharacter}
@@ -470,6 +518,26 @@ export default function CharactersPanel({ api, lobbyClient, players, onStartMiss
                     }
                     left={
                         <div className="flex flex-col gap-2 p-3">
+                            {adminDetails && (
+                                <button
+                                    type="button"
+                                    data-testid={TestIds.campaignDataRow}
+                                    data-selected={isCampaignDataSelected ? 'true' : 'false'}
+                                    onClick={() => {
+                                        if (playerIdParam != null) {
+                                            navigate(playerCampaignDataPath(playerIdParam));
+                                        }
+                                    }}
+                                    className={`w-full rounded-lg border-2 px-4 py-3 text-left transition-colors ${
+                                        isCampaignDataSelected
+                                            ? 'border-primary bg-surface-light shadow-[0_0_0_1px_rgba(78,205,196,0.2)]'
+                                            : 'border-border-custom bg-surface hover:bg-white/5'
+                                    }`}
+                                >
+                                    <p className="font-semibold text-white">Campaign data</p>
+                                    <p className="text-[10px] text-muted">DarknessStrength & more</p>
+                                </button>
+                            )}
                             {/* Only on initial load — during refreshes the stale list stays put so it doesn't shift */}
                             {adminLoading && !adminDetails && <p className="text-sm text-muted">Loading…</p>}
                             {!adminLoading && sortedAdminCharacters.length === 0 && (
@@ -479,7 +547,7 @@ export default function CharactersPanel({ api, lobbyClient, players, onStartMiss
                                 <CharacterCard
                                     key={character.id}
                                     character={character}
-                                    selected={characterIdParam === character.id}
+                                    selected={!isCampaignDataSelected && characterIdParam === character.id}
                                     onSelect={() => playerIdParam != null && navigate(playerCharacterPath(playerIdParam, character.id))}
                                     onDelete={() => void handleDeleteAdminCharacter(character.id)}
                                     subtitle={character.id}
@@ -499,7 +567,19 @@ export default function CharactersPanel({ api, lobbyClient, players, onStartMiss
                     }
                     leftSize="small"
                     center={
-                        selectedAdminCharacter ? (
+                        isCampaignDataSelected ? (
+                            lobbyClient ? (
+                                <CampaignDataPanel
+                                    lobbyClient={lobbyClient}
+                                    characters={adminDetails?.characters ?? []}
+                                    account={adminDetails?.account ?? null}
+                                />
+                            ) : (
+                                <div className="flex h-full items-center justify-center p-6 text-muted">
+                                    Campaign data requires lobby client
+                                </div>
+                            )
+                        ) : selectedAdminCharacter ? (
                             <CharacterEditor
                                 key={selectedAdminCharacter.id}
                                 character={selectedAdminCharacter}

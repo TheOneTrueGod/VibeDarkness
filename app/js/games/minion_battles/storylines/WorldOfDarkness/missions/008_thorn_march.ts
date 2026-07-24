@@ -414,6 +414,7 @@ export class ThornMarchMission extends BaseMissionDef {
 
     missionId = ThornMarchMission.missionId;
     mapPosition = { x: 270, y: 350 };
+    missionType = 'battle' as const;
     description = 'March through the thornwood and dismantle the nest at its heart before the swarm spreads.';
     name = ThornMarchMission.nameStr;
     worldWidth = WORLD_WIDTH;

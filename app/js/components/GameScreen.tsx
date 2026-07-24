@@ -61,7 +61,17 @@ export interface GameComponentProps {
         itemIds?: string[],
         researchRewardIds?: string[],
         researchRewards?: import('../types').MissionResearchRewardEntry[],
-        options?: { controlledNpcs?: boolean }
+        options?: {
+            controlledNpcs?: boolean;
+            /** Host-only: fold mission-end DarknessStrength progression into this PATCH. */
+            applyDarknessStrengthProgression?: boolean;
+            darknessStrengthPromotions?: import('../darknessStrength/progression').DarknessStrengthDataPromotion[];
+        }
+    ) => Promise<void>;
+    /** Host-only: mission-end DarknessStrength progression without recording a mission result (e.g. defeat). */
+    onDarknessStrengthMissionEnd?: (
+        outcome: 'victory' | 'defeat',
+        promotions?: import('../darknessStrength/progression').DarknessStrengthDataPromotion[]
     ) => Promise<void>;
     /** Called when user leaves (e.g. from defeat modal). */
     onLeave?: () => void;
@@ -117,7 +127,16 @@ interface GameScreenProps {
         itemIds?: string[],
         researchRewardIds?: string[],
         researchRewards?: import('../types').MissionResearchRewardEntry[],
-        options?: { controlledNpcs?: boolean }
+        options?: {
+            controlledNpcs?: boolean;
+            applyDarknessStrengthProgression?: boolean;
+            darknessStrengthPromotions?: import('../darknessStrength/progression').DarknessStrengthDataPromotion[];
+        }
+    ) => Promise<void>;
+    /** Host-only: mission-end DarknessStrength progression without addMissionResult (defeat). */
+    onDarknessStrengthMissionEnd?: (
+        outcome: 'victory' | 'defeat',
+        promotions?: import('../darknessStrength/progression').DarknessStrengthDataPromotion[]
     ) => Promise<void>;
     /** Create a new lobby for the given mission and navigate to it (e.g. Try Again after defeat). */
     onTryAgain?: (missionId: string, previousCharacterSelections: Record<string, string>) => Promise<boolean>;
@@ -152,6 +171,7 @@ export default function GameScreen({
     onContinue,
     onSelectGame,
     onRecordMissionResult,
+    onDarknessStrengthMissionEnd,
     onTryAgain,
     onJoinNextLobby,
     onEmittedChatMessage,
@@ -489,6 +509,7 @@ export default function GameScreen({
                                     gameData={effectiveLobbyGameData}
                                     onSidebarInfoChange={setGameSidebarInfo}
                                     onRecordMissionResult={onRecordMissionResult}
+                                    onDarknessStrengthMissionEnd={onDarknessStrengthMissionEnd}
                                     onLeave={onLeave}
                                     onContinue={onContinue}
                                     onTryAgain={onTryAgain}
@@ -562,6 +583,7 @@ export default function GameScreen({
             onJoinNextLobby,
             onLeave,
             onRecordMissionResult,
+            onDarknessStrengthMissionEnd,
             onSelectGame,
             onTryAgain,
             onCanvasClick,
@@ -692,6 +714,7 @@ export default function GameScreen({
                         gameData={effectiveLobbyGameData}
                         onSidebarInfoChange={setGameSidebarInfo}
                         onRecordMissionResult={onRecordMissionResult}
+                        onDarknessStrengthMissionEnd={onDarknessStrengthMissionEnd}
                         onLeave={onLeave}
                         onContinue={onContinue}
                         onTryAgain={onTryAgain}

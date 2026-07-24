@@ -467,6 +467,9 @@ export interface PostMissionChoiceResolveParams {
     playerId?: string;
 }
 
+/** Mission map node category — drives the Lucide icon on the Mission Map. */
+export type MissionType = 'battle' | 'story' | 'boss';
+
 /** Full battle configuration for a mission. */
 export interface MissionBattleConfig {
     /** Mission ID (matches selectedMissionId in game state). */

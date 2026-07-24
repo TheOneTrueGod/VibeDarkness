@@ -49,7 +49,16 @@ interface MinionBattlesGameProps extends Pick<GameComponentProps, 'minionBattles
         itemIds?: string[],
         researchRewardIds?: string[],
         researchRewards?: MissionResearchRewardEntry[],
-        options?: { controlledNpcs?: boolean }
+        options?: {
+            controlledNpcs?: boolean;
+            applyDarknessStrengthProgression?: boolean;
+            darknessStrengthPromotions?: import('../../darknessStrength/progression').DarknessStrengthDataPromotion[];
+        }
+    ) => Promise<void>;
+    /** Host-only: mission-end DarknessStrength progression without addMissionResult (defeat). */
+    onDarknessStrengthMissionEnd?: (
+        outcome: 'victory' | 'defeat',
+        promotions?: import('../../darknessStrength/progression').DarknessStrengthDataPromotion[]
     ) => Promise<void>;
     /** Called when user clicks Leave in the defeat modal; receives the character id they were playing (undefined for spectators). */
     onLeave?: (characterId?: string) => void;
@@ -80,6 +89,7 @@ export default function MinionBattlesGame({
     gameData,
     onSidebarInfoChange,
     onRecordMissionResult,
+    onDarknessStrengthMissionEnd,
     onLeave,
     onContinue,
     onTryAgain,
@@ -451,7 +461,10 @@ export default function MinionBattlesGame({
                             skipRewards ? undefined : itemIds,
                             skipRewards ? undefined : rewards.researchRewardIds,
                             skipRewards ? undefined : rewards.researchRewards,
-                            amNpcController ? { controlledNpcs: true } : undefined
+                            {
+                                ...(amNpcController ? { controlledNpcs: true } : {}),
+                                ...(isHost ? { applyDarknessStrengthProgression: true } : {}),
+                            }
                         );
                         void persistCharacterMissionResult(missionId, 'victory');
                         setMissionRewards(
@@ -481,6 +494,11 @@ export default function MinionBattlesGame({
                     playerEquipmentByPlayer={
                         (lastGameStateFromServer ?? raw).playerEquipmentByPlayer as
                             | Record<string, string[]>
+                            | undefined
+                    }
+                    playerResearchTreesByPlayer={
+                        (lastGameStateFromServer ?? raw).playerResearchTreesByPlayer as
+                            | Record<string, Record<string, string[]>>
                             | undefined
                     }
                     groupVoteVotes={
@@ -547,7 +565,10 @@ export default function MinionBattlesGame({
                                 skipRewards ? undefined : startingItemIds,
                                 undefined,
                                 undefined,
-                                amNpcController ? { controlledNpcs: true } : undefined
+                                {
+                                    ...(amNpcController ? { controlledNpcs: true } : {}),
+                                    ...(isHost ? { applyDarknessStrengthProgression: true } : {}),
+                                }
                             );
                             void persistCharacterMissionResult(missionId, 'victory');
                             setMissionRewards(
@@ -563,6 +584,10 @@ export default function MinionBattlesGame({
                     onDefeat={() => {
                         if (selectedMissionId) {
                             void persistCharacterMissionResult(selectedMissionId, 'defeat');
+                        }
+                        if (isHost) {
+                            // Promotions: host may pass battle tallies later; empty merge is a no-op.
+                            void onDarknessStrengthMissionEnd?.('defeat');
                         }
                         setDefeatModalOpen(true);
                     }}

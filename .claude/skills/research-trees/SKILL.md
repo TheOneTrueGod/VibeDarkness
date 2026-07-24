@@ -24,6 +24,7 @@ All tree and node definitions live in `app/js/researchTrees/`:
 ### Node relationships
 - `prereqNodeIds` — nodes that must be researched before this one is available
 - `exclusiveWithNodeIds` — nodes that conflict; only one of the group may be researched
+- `draft` — when `true`, the node is WIP: hidden from Upgrades selection UI and excluded from `getAvailableResearchNodes` / filter-style mission reward discovery
 
 ### Persistence
 Research is stored on `CampaignCharacter` as `researchTrees: Record<treeId, nodeId[]>` — a map from tree ID to the array of researched node IDs. See `character_defs/CampaignCharacter.ts`.

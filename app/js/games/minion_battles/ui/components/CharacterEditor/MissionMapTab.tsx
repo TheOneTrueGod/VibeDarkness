@@ -2,14 +2,17 @@
  * MissionMapTab — SVG-based mission progress map for a campaign character.
  *
  * Shows all missions in the character's campaign as circles connected by lines.
- * Colors: green = victory, red = defeat, gray = no result.
+ * Node fill: gray = finished; red = battle; blue = story; radial gradient = boss.
  * Locked missions are dimmed; admins can click them anyway.
  * Hovering a node shows a tooltip; clicking pins it and shows a "Host Mission" button.
  */
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import type { LucideIcon } from 'lucide-react';
+import { Scroll, Skull, Swords } from 'lucide-react';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import type { MissionResult } from '../../../../../types';
+import type { MissionType } from '../../../storylines/types';
 import { STORYLINES, MISSION_MAP } from '../../../storylines/index';
 import { getUnlockedMissionIds, hasVictoryResult, isMissionCompleted, getAllMissionIdsInOrder, isSideMissionId } from '../../../storylines/unlock';
 import { getResolvedMissionResearchRewards } from '../../../../../researchTrees/list';
@@ -22,6 +25,26 @@ import { TestIds, missionMapNodeTestId } from '../../../../../testing/testIds';
 const CIRCLE_R = 28;
 const SIDE_CIRCLE_R = 18;
 const PADDING = 70;
+const MISSION_ICON_SIZE = 22;
+
+const MISSION_TYPE_ICONS: Record<MissionType, LucideIcon> = {
+    battle: Swords,
+    story: Scroll,
+    boss: Skull,
+};
+
+const DEFAULT_MISSION_TYPE: MissionType = 'battle';
+
+/** Solid fills for finished / battle / story nodes. */
+const MISSION_NODE_FILL = {
+    finished: '#6b7280', // gray-500
+    battle: '#ef4444', // red-500
+    story: '#3b82f6', // blue-500
+} as const;
+
+/** Solid accent used for boss hover glow (gradient fill cannot drive drop-shadow alone). */
+const BOSS_GLOW_COLOR = '#e11d48'; // rose-600
+const BOSS_GRADIENT_ID = 'mission-map-boss-fill';
 
 interface Props {
     character: CampaignCharacter;
@@ -30,10 +53,28 @@ interface Props {
     onMarkVictory?: (missionId: string) => Promise<void>;
 }
 
-function getMissionColor(missionId: string, missionResults: MissionResult[]): string {
-    if (hasVictoryResult(missionId, missionResults)) return '#22c55e'; // green-500
-    if (isMissionCompleted(missionId, missionResults)) return '#ef4444'; // red-500
-    return '#6b7280'; // gray-500
+/** SVG fill for a mission node: gray when finished, else type-based (boss uses gradient url). */
+function getMissionNodeFill(
+    missionId: string,
+    missionType: MissionType,
+    missionResults: MissionResult[],
+): string {
+    if (isMissionCompleted(missionId, missionResults)) return MISSION_NODE_FILL.finished;
+    if (missionType === 'boss') return `url(#${BOSS_GRADIENT_ID})`;
+    if (missionType === 'story') return MISSION_NODE_FILL.story;
+    return MISSION_NODE_FILL.battle;
+}
+
+/** Solid color for hover glow / drop-shadow (never a gradient url). */
+function getMissionGlowColor(
+    missionId: string,
+    missionType: MissionType,
+    missionResults: MissionResult[],
+): string {
+    if (isMissionCompleted(missionId, missionResults)) return MISSION_NODE_FILL.finished;
+    if (missionType === 'boss') return BOSS_GLOW_COLOR;
+    if (missionType === 'story') return MISSION_NODE_FILL.story;
+    return MISSION_NODE_FILL.battle;
 }
 
 function getStatusLabel(missionId: string, missionResults: MissionResult[]): { label: string; color: string } | null {
@@ -266,7 +307,7 @@ export default function MissionMapTab({ character, isAdmin, onStartMission, onMa
                 x: baseX + xDir * col * COL_STEP,
                 y: 120 + row * ROW_STEP,
             };
-            return { id, def, pos, number: idx + 1, isSide };
+            return { id, def, pos, isSide };
         });
     }, [missionIds, storyline]);
 
@@ -362,6 +403,15 @@ export default function MissionMapTab({ character, isAdmin, onStartMission, onMa
                 style={{ minHeight: Math.max(vbH, 300) }}
                 xmlns="http://www.w3.org/2000/svg"
             >
+                <defs>
+                    {/* Subtle two-tone radial fill for unfinished boss nodes */}
+                    <radialGradient id={BOSS_GRADIENT_ID} cx="32%" cy="28%" r="78%">
+                        <stop offset="0%" stopColor="#fb7185" />
+                        <stop offset="55%" stopColor="#e11d48" />
+                        <stop offset="100%" stopColor="#7f1d1d" />
+                    </radialGradient>
+                </defs>
+
                 {/* Connection lines */}
                 {(storyline.edges ?? []).map((edge) => {
                     const from = posMap.get(edge.fromMissionId);
@@ -383,18 +433,21 @@ export default function MissionMapTab({ character, isAdmin, onStartMission, onMa
                 })}
 
                 {/* Mission nodes */}
-                {missions.map(({ id, def, pos, number, isSide }) => {
+                {missions.map(({ id, def, pos, isSide }) => {
                     const isUnlocked = unlockedIds.has(id);
                     const clickable = isUnlocked || isAdmin;
-                    const color = getMissionColor(id, missionResults);
+                    const missionType = def?.missionType ?? DEFAULT_MISSION_TYPE;
+                    const finished = isMissionCompleted(id, missionResults);
+                    const color = getMissionNodeFill(id, missionType, missionResults);
+                    const glowColor = getMissionGlowColor(id, missionType, missionResults);
                     const dimmed = !isUnlocked && !isAdmin;
                     const isHovered = hoveredId === id;
                     const isPressed = pressedId === id;
                     const isPinned = tooltip?.pinned && tooltip.id === id;
                     const r = isSide ? SIDE_CIRCLE_R : CIRCLE_R;
+                    const MissionIcon = MISSION_TYPE_ICONS[missionType];
 
                     const nodeScale = isPressed ? 0.92 : (isHovered || isPinned) ? 1.1 : 1;
-                    const glowColor = color;
 
                     return (
                         // Outer g: positioning via SVG transform (no CSS transform here to avoid conflict)
@@ -461,47 +514,35 @@ export default function MissionMapTab({ character, isAdmin, onStartMission, onMa
                                 )}
                                 <circle
                                     r={r}
-                                    fill={isSide ? '#1e1b4b' : color}
-                                    stroke={isSide ? (hasVictoryResult(id, missionResults) ? '#22c55e' : '#7c3aed') : ((isHovered || isPinned) ? 'white' : '#1f2937')}
+                                    fill={color}
+                                    stroke={isSide
+                                        ? (finished ? '#9ca3af' : '#7c3aed')
+                                        : ((isHovered || isPinned) ? 'white' : '#1f2937')}
                                     strokeWidth={isSide ? 2 : ((isHovered || isPinned) ? 2.5 : 2)}
                                     strokeOpacity={(isHovered || isPinned) ? 0.7 : 1}
                                 />
-                                {/* Checkmark or number inside side mission circle */}
+                                {/* Checkmark / star for side missions; type icon for main missions */}
                                 {isSide ? (
                                     <text
                                         textAnchor="middle"
                                         dominantBaseline="central"
                                         fontSize={10}
-                                        fill={hasVictoryResult(id, missionResults) ? '#22c55e' : '#a78bfa'}
+                                        fill={finished ? '#e5e7eb' : '#a78bfa'}
                                         style={{ pointerEvents: 'none', userSelect: 'none' }}
                                     >
                                         {hasVictoryResult(id, missionResults) ? '✓' : '★'}
                                     </text>
                                 ) : (
-                                    <>
-                                        {/* Mission image if available */}
-                                        {def?.image && (
-                                            <image
-                                                href={def.image}
-                                                x={-r + 4}
-                                                y={-r + 4}
-                                                width={(r - 4) * 2}
-                                                height={(r - 4) * 2}
-                                                clipPath={`circle(${r - 4}px)`}
-                                            />
-                                        )}
-                                        {/* Number inside circle */}
-                                        <text
-                                            textAnchor="middle"
-                                            dominantBaseline="central"
-                                            fontSize={13}
-                                            fontWeight="bold"
-                                            fill="white"
-                                            style={{ pointerEvents: 'none', userSelect: 'none' }}
-                                        >
-                                            {number}
-                                        </text>
-                                    </>
+                                    <MissionIcon
+                                        width={MISSION_ICON_SIZE}
+                                        height={MISSION_ICON_SIZE}
+                                        x={-MISSION_ICON_SIZE / 2}
+                                        y={-MISSION_ICON_SIZE / 2}
+                                        color="white"
+                                        strokeWidth={2.25}
+                                        aria-hidden
+                                        style={{ pointerEvents: 'none' }}
+                                    />
                                 )}
                                 {/* Side Quest label above node */}
                                 {isSide && (

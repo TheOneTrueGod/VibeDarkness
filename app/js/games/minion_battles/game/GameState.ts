@@ -26,6 +26,7 @@ import { InterruptSystem } from './units/unitAI/plans/InterruptSystem';
 import { WorldModifierManager } from '../worldModifiers/WorldModifierManager';
 import type { NinjutsuManager } from './ninjutsu/NinjutsuManager';
 import { MapNetworkManager } from './managers/mapNetwork/MapNetworkManager';
+import type { ActiveDarknessStrength } from '../../../darknessStrength/resolve';
 
 export class GameState {
 
@@ -93,6 +94,12 @@ export class GameState {
      * Frozen for the whole battle; used for enemy HP scaling and solo-battle checks.
      */
     enemyScalingPlayerCount = 1;
+
+    /**
+     * Active DarknessStrength packages for this battle (resolve → compile at spawn / WM install).
+     * Serialized as instance crumbs; defs reattached from the registry on restore.
+     */
+    activeDarknessStrengths: ActiveDarknessStrength[] = [];
 
     /** AI controller ID for enemy units. */
     aiControllerId: string | null = null;

@@ -1,9 +1,13 @@
 import type { ResearchTreeDef } from '../types';
 import { EARTH_TREE_ID, EARTH_NODE_ROCK_SYNERGY_DAMAGE, EARTH_NODE_ROCK_SYNERGY_ENTOMBED } from './earth';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
+import {
+    STARTING_WEAPON_ROCKS_NODE_ID,
+    exclusiveStartingWeaponPeers,
+} from './startingWeaponNodes';
 
 export const CRYSTAL_ROCKS_TREE_ID = 'crystal_rocks';
-export const CRYSTAL_ROCKS_NODE_BASE = 'throw_rock';
+export const CRYSTAL_ROCKS_NODE_BASE = STARTING_WEAPON_ROCKS_NODE_ID;
 export const CRYSTAL_ROCKS_NODE_PIERCING_KNIVES = 'piercing_knives';
 
 export const crystalRocksTree: ResearchTreeDef = {
@@ -23,7 +27,7 @@ export const crystalRocksTree: ResearchTreeDef = {
             tier: 1,
             position: { x: 180, y: 280 },
             prereqNodeIds: [],
-            exclusiveWithNodeIds: [],
+            exclusiveWithNodeIds: exclusiveStartingWeaponPeers(CRYSTAL_ROCKS_NODE_BASE),
             requirements: [{ type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.BasicCore }],
             cost: {},
             effects: [{ type: 'equipItem', itemId: '001' }],

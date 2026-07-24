@@ -1,8 +1,12 @@
 import type { ResearchTreeDef } from '../types';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
+import {
+    STARTING_WEAPON_SHIELD_NODE_ID,
+    exclusiveStartingWeaponPeers,
+} from './startingWeaponNodes';
 
 export const TECH_SHIELD_TREE_ID = 'tech_shield';
-export const TECH_SHIELD_NODE_BASE = 'raise_shield';
+export const TECH_SHIELD_NODE_BASE = STARTING_WEAPON_SHIELD_NODE_ID;
 export const TECH_SHIELD_NODE_STRENGTHENING_LIGHT = 'extra_shields';
 
 export const techShieldTree: ResearchTreeDef = {
@@ -21,7 +25,7 @@ export const techShieldTree: ResearchTreeDef = {
             tier: 1,
             position: { x: 160, y: 100 },
             prereqNodeIds: [],
-            exclusiveWithNodeIds: [],
+            exclusiveWithNodeIds: exclusiveStartingWeaponPeers(TECH_SHIELD_NODE_BASE),
             requirements: [{ type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.BasicCore }],
             cost: {},
             effects: [{ type: 'equipItem', itemId: '003' }],

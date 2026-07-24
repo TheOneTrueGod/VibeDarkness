@@ -2,6 +2,10 @@
  * Shared frontend types for lobby, players, and API payloads
  */
 import type { BattleOrder } from './games/minion_battles/game/types';
+import type {
+    DarknessStrengthAdminOverride,
+    DarknessStrengthInstance,
+} from './darknessStrength/types';
 
 export interface LobbyState {
     id: string;
@@ -77,12 +81,23 @@ export interface CampaignResources {
 
 export type CampaignResourceKey = keyof CampaignResources;
 
+/** Stub campaign region entry (lord domains later). */
+export interface CampaignRegionState {
+    activeDomainPackageIds?: string[];
+}
+
 export interface CampaignState {
     id: string;
     name: string;
     campaignCharacters: CampaignCharacter[];
     missionResults: MissionResult[];
     resources: CampaignResources;
+    /** Active DarknessStrength crumbs; API defaults to `[]` when absent on disk. */
+    darknessStrengthInstances: DarknessStrengthInstance[];
+    /** Admin force enable/disable keyed by packageId; API defaults to `{}`. */
+    adminDarknessStrengthOverrides?: Record<string, DarknessStrengthAdminOverride>;
+    /** Region stub map; API defaults to `{}`. */
+    regions?: Record<string, CampaignRegionState>;
 }
 
 /** Info pushed from a game component into the chat sidebar. */

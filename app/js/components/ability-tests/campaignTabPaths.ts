@@ -39,3 +39,13 @@ export function playerCharactersPath(playerId: number | string): string {
 export function playerCharacterPath(playerId: number | string, characterId: string): string {
     return `/players/${playerId}/characters/${characterId}`;
 }
+
+/** Admin Campaign data center (DarknessStrength, etc.) for a selected player. */
+export function playerCampaignDataPath(playerId: number | string): string {
+    return `/players/${playerId}/campaign-data`;
+}
+
+/** True when the path is the admin Campaign data panel for a player. */
+export function isPlayerCampaignDataPath(pathname: string): boolean {
+    return /^\/players\/[^/]+\/campaign-data\/?$/.test(pathname);
+}

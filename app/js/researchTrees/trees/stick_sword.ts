@@ -1,10 +1,14 @@
 import type { ResearchTreeDef } from '../types';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
+import {
+    STARTING_WEAPON_STICK_NODE_ID,
+    exclusiveStartingWeaponPeers,
+} from './startingWeaponNodes';
 
 export const STICK_SWORD_TREE_ID = 'stick_sword';
 
 /** Researched node: base swing stick ability (tier 1). */
-export const STICK_SWORD_NODE_BASE = 'swing_stick';
+export const STICK_SWORD_NODE_BASE = STARTING_WEAPON_STICK_NODE_ID;
 
 /** Researched node: Jagged Edge — Swing Sword inflicts bleed. */
 export const STICK_SWORD_NODE_JAGGED_EDGE = 'sword_jagged_edge';
@@ -35,7 +39,7 @@ export const stickSwordTree: ResearchTreeDef = {
             tier: 1,
             position: { x: 180, y: 290 },
             prereqNodeIds: [],
-            exclusiveWithNodeIds: [],
+            exclusiveWithNodeIds: exclusiveStartingWeaponPeers(STICK_SWORD_NODE_BASE),
             requirements: [{ type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.BasicCore }],
             cost: {},
             effects: [{ type: 'equipItem', itemId: '002' }],

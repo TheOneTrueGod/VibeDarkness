@@ -11,6 +11,7 @@ import type {
     AIControllerId,
     EnemySpawnDef,
     MissionBattleConfig,
+    MissionType,
     LevelEvent,
     PlayerSpawnPoint,
     BattleObjectiveDef,
@@ -39,6 +40,7 @@ import {
     computePassiveBonuses,
     DEFAULT_PASSIVE_MULT,
 } from '../../../researchTrees/passiveBonuses';
+import { compileStatBags, mergePassiveBonuses } from '../../../darknessStrength/compile';
 import {
     applyCrystalRocksResearchToAbilityRuntime,
     applyStickSwordResearchToAbilityRuntime,
@@ -135,6 +137,8 @@ export interface IBaseMissionDef extends MissionBattleConfig {
     segmentIds: string[];
     /** Position on the Mission Map canvas (pixels). */
     mapPosition?: { x: number; y: number };
+    /** Mission Map node category (battle / story / boss icon). */
+    missionType: MissionType;
     /** Optional image URL or asset path shown inside the mission circle on the Mission Map. */
     image?: string;
     /** Short flavour description shown in the Mission Map tooltip. */
@@ -160,6 +164,8 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     abstract name: string;
     abstract enemies: EnemySpawnDef[];
     abstract createTerrain: () => TerrainGrid;
+    /** Mission Map node category (battle / story / boss icon). */
+    abstract missionType: MissionType;
     /** World width in pixels (e.g. terrain columns × cell size). */
     abstract worldWidth: number;
     /** World height in pixels (e.g. terrain rows × cell size). */
@@ -287,10 +293,16 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
 
             const getResearchNodes = (treeId: string) =>
                 researchByPlayer[pu.playerId]?.[treeId] ?? [];
-            const passiveBonuses = computePassiveBonuses(
+            const researchPassives = computePassiveBonuses(
                 researchByPlayer[pu.playerId],
                 researchLevelsByPlayer[pu.playerId],
             );
+            // Player-targeted DarknessStrength bags (starters are enemy-only; hook for future packs).
+            const dsPlayerBag = compileStatBags(engine.activeDarknessStrengths, {
+                characterId: PLAYER_CHARACTER_ID,
+            }).player;
+            const passiveBonuses =
+                mergePassiveBonuses(researchPassives, dsPlayerBag) ?? researchPassives;
             const baseHp = getDefaultHp(PLAYER_CHARACTER_ID);
             const healthBonus = getHealthBonusFromResearch(getResearchNodes);
             const flatDamageBonus = getDamageBonusFromResearch(getResearchNodes);

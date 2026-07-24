@@ -6,6 +6,12 @@ import { TerrainManager } from '../../../terrain/TerrainManager';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { createUnitFromSpawnConfig } from '../index';
 import type { SpawnDefinition } from './spawnDefinition';
+import { resolveActiveDarknessStrengths } from '../../../../../darknessStrength/resolve';
+import {
+    DS_ENEMY_HARDENED_ID,
+    DS_ENEMY_HARDENED_MAX_HEALTH_MULT,
+} from '../../../../../darknessStrength/packages/starters';
+import { getDefaultHp } from '../unit_defs/unitDef';
 
 function setupEngine(gridSize = 10): GameEngine {
     resetGameObjectIdCounter(1);
@@ -304,5 +310,24 @@ describe('spawnUnit aiHookup', () => {
         const engine = setupEngine();
         const spawned = engine.spawnUnit({ ...BASE, placement: { kind: 'fixedWorld', x: 0, y: 0 } });
         expect(spawned[0]!.lanterniteState.role).toBeNull();
+    });
+});
+
+describe('spawnUnit DarknessStrength statBag', () => {
+    it('bakes active enemy packages onto spawned units', () => {
+        const engine = setupEngine();
+        engine.setActiveDarknessStrengths(
+            resolveActiveDarknessStrengths({ instances: [{ packageId: DS_ENEMY_HARDENED_ID }] }),
+        );
+        const baseHp = getDefaultHp('swarmling');
+        const spawned = engine.spawnUnit({
+            characterId: 'swarmling',
+            teamId: 'enemy',
+            abilities: [],
+            placement: { kind: 'fixedWorld', x: 80, y: 80 },
+        });
+        expect(spawned).toHaveLength(1);
+        expect(spawned[0]!.maxHp).toBe(Math.floor(baseHp * DS_ENEMY_HARDENED_MAX_HEALTH_MULT));
+        expect(spawned[0]!.passiveBonuses?.maxHealth?.mult).toBe(DS_ENEMY_HARDENED_MAX_HEALTH_MULT);
     });
 });

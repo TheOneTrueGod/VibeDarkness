@@ -20,6 +20,8 @@ import { getEdgePositions } from '../../../storylines/edgeSpawns';
 import { resolveZoneTiles } from '../../../terrain/zones';
 import type { MapNetworkManager } from '../../managers/mapNetwork/MapNetworkManager';
 import type { SpawnDefinition, SpawnPlacement, SpawnAiHookup } from './spawnDefinition';
+import type { ActiveDarknessStrength } from '../../../../../darknessStrength/resolve';
+import { applyDarknessStrengthStatBuffs } from '../../../../../darknessStrength/compile';
 
 /**
  * Narrow, structural context spawnUnit needs. `GameEngine` (which implements `EngineContext`)
@@ -35,6 +37,11 @@ export interface SpawnUnitContext {
     /** Query surface for `networkNearestOwnedLeaf` placement. Optional — callers outside the main
      *  engine loop (nest ticks, abilities) that don't build one simply can't use that placement kind. */
     mapNetworkManager?: MapNetworkManager | null;
+    /**
+     * Resolved DarknessStrength packages for this battle (statBag bake at spawn).
+     * Optional — omitted in tiny harnesses / ability-only spawns that don't install campaign DS.
+     */
+    readonly activeDarknessStrengths?: readonly ActiveDarknessStrength[];
     addUnit(unit: Unit, spawnSource?: SpawnSource): void;
     getLightAt(col: number, row: number): number | null;
     getZoneById(id: string): MapSegmentZone | undefined;
@@ -604,6 +611,11 @@ export function spawnUnit(ctx: SpawnUnitContext, def: SpawnDefinition, spawnSour
         );
 
         if (def.invulnerabilityGenerations != null) unit.invulnerabilityGenerations = def.invulnerabilityGenerations;
+
+        const activeDs = ctx.activeDarknessStrengths;
+        if (activeDs && activeDs.length > 0) {
+            applyDarknessStrengthStatBuffs(unit, activeDs);
+        }
 
         applyAiHookup(ctx, unit, def.aiHookup);
         ctx.addUnit(unit, spawnSource);

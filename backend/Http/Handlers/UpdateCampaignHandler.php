@@ -60,6 +60,15 @@ class UpdateCampaignHandler
         if (isset($data['resources']) && is_array($data['resources'])) {
             $campaign->setResources($data['resources']);
         }
+        if (isset($data['darknessStrengthInstances']) && is_array($data['darknessStrengthInstances'])) {
+            $campaign->setDarknessStrengthInstances($data['darknessStrengthInstances']);
+        }
+        if (array_key_exists('adminDarknessStrengthOverrides', $data) && is_array($data['adminDarknessStrengthOverrides'])) {
+            $campaign->setAdminDarknessStrengthOverrides($data['adminDarknessStrengthOverrides']);
+        }
+        if (array_key_exists('regions', $data) && is_array($data['regions'])) {
+            $campaign->setRegions($data['regions']);
+        }
         if (isset($data['addMissionResult']) && is_array($data['addMissionResult'])) {
             $mr = $data['addMissionResult'];
             $missionId = $mr['missionId'] ?? '';

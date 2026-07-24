@@ -1,5 +1,10 @@
 /**
  * Core Awakening - Mission 6: Story-only reward pick after The Beast (core items).
+ *
+ * Offers up to {@link CORE_AWAKENING_OPTION_COUNT} random tier-10 root research nodes
+ * (prereq-free "core" unlocks discovered from {@link RESEARCH_TREES}).
+ * Cores may declare a target-audience player-id list; matching players see those first
+ * with a "For you" treatment in the UI.
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
@@ -8,30 +13,101 @@ import type { PostMissionChoiceResolveParams } from '../../types';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
+import { RESEARCH_TREES, getResearchNode } from '../../../../../researchTrees/list';
+import { isDraftResearchNode } from '../../../../../researchTrees/types';
 import { EARTH_TREE_ID, EARTH_NODE_EARTH_CORE } from '../../../../../researchTrees/trees/earth';
-import {
-    MISC_TREE_ID,
-    MISC_NODE_CHARGED_CORE,
-    MISC_NODE_BLINK_CORE,
-} from '../../../../../researchTrees/trees/misc';
+import { GRAVITY_TREE_ID, GRAVITY_NODE_CORE } from '../../../../../researchTrees/trees/gravity';
 import {
     COMMAND_CORE_TREE_ID,
     COMMAND_CORE_NODE_LOYAL_COMPANION,
 } from '../../../../../researchTrees/trees/command_core';
 import { LIGHT_TREE_ID, LIGHT_NODE_CORE } from '../../../../../researchTrees/trees/light';
-import { getResearchNode } from '../../../../../researchTrees/list';
+import { BLOOD_MAGE_TREE_ID, BLOOD_MAGE_NODE_CORE } from '../../../../../researchTrees/trees/blood_mage';
+import {
+    MISC_TREE_ID,
+    MISC_NODE_BLINK_CORE,
+} from '../../../../../researchTrees/trees/misc';
 
 function createTerrain(): TerrainGrid {
     return TerrainGrid.createTerrainFromArray(1, 1, CELL_SIZE, [[TerrainType.Grass]], TerrainType.Grass);
 }
 
-const CORE_CANDIDATES: { id: string; treeId: string; nodeId: string; label: string }[] = [
-    { id: 'earth_core',   treeId: EARTH_TREE_ID,       nodeId: EARTH_NODE_EARTH_CORE,             label: 'The Earth Core'   },
-    { id: 'command_core', treeId: COMMAND_CORE_TREE_ID, nodeId: COMMAND_CORE_NODE_LOYAL_COMPANION, label: 'The Command Core' },
-    { id: 'charged_core', treeId: MISC_TREE_ID,         nodeId: MISC_NODE_CHARGED_CORE,            label: 'The Charged Core' },
-    { id: 'blink_core',   treeId: MISC_TREE_ID,         nodeId: MISC_NODE_BLINK_CORE,              label: 'The Blink Core'   },
-    { id: 'light_core',   treeId: LIGHT_TREE_ID,        nodeId: LIGHT_NODE_CORE,                   label: 'The Light Core'   },
-];
+/** Research tier used for Core Awakening candidate discovery. */
+export const CORE_AWAKENING_TIER = 10;
+
+/** How many core options to offer when more are eligible. */
+export const CORE_AWAKENING_OPTION_COUNT = 8;
+
+function coreCandidateKey(treeId: string, nodeId: string): string {
+    return `${treeId}+${nodeId}`;
+}
+
+/**
+ * Account player IDs that a given core is tailored for (shown with "For you" + sort priority).
+ * Keys are `${treeId}+${nodeId}` (same as candidate ids).
+ */
+export const CORE_TARGET_PLAYER_IDS: Readonly<Record<string, readonly string[]>> = {
+    [coreCandidateKey(EARTH_TREE_ID, EARTH_NODE_EARTH_CORE)]: ['9'],
+    [coreCandidateKey(GRAVITY_TREE_ID, GRAVITY_NODE_CORE)]: ['16', '11'],
+    [coreCandidateKey(COMMAND_CORE_TREE_ID, COMMAND_CORE_NODE_LOYAL_COMPANION)]: ['8', '17'],
+    [coreCandidateKey(LIGHT_TREE_ID, LIGHT_NODE_CORE)]: ['10'],
+    [coreCandidateKey(BLOOD_MAGE_TREE_ID, BLOOD_MAGE_NODE_CORE)]: ['23'],
+    [coreCandidateKey(MISC_TREE_ID, MISC_NODE_BLINK_CORE)]: ['1'],
+};
+
+export interface CoreAwakeningCandidate {
+    id: string;
+    treeId: string;
+    nodeId: string;
+    label: string;
+    /** Account player IDs this core is tailored for (empty = no target audience). */
+    targetPlayerIds: readonly string[];
+}
+
+/** Whether `playerId` is in the core's target audience. */
+export function isCoreForPlayer(
+    candidate: Pick<CoreAwakeningCandidate, 'targetPlayerIds'>,
+    playerId: string | undefined,
+): boolean {
+    if (!playerId) return false;
+    return candidate.targetPlayerIds.includes(playerId);
+}
+
+/** Player-facing choice label from tree + node titles. */
+export function coreChoiceLabel(treeTitle: string, nodeTitle: string): string {
+    if (/core/i.test(nodeTitle)) {
+        return /^the\s/i.test(nodeTitle) ? nodeTitle : `The ${nodeTitle}`;
+    }
+    if (/core/i.test(treeTitle)) {
+        return /^the\s/i.test(treeTitle) ? treeTitle : `The ${treeTitle}`;
+    }
+    return `The ${treeTitle} Core`;
+}
+
+/**
+ * Tier-10 research nodes with no prereqs — the pool of "core" unlocks for this mission.
+ * Sorted by id so shuffle seeds stay stable as trees are registered.
+ */
+export function listTier10RootCoreCandidates(): CoreAwakeningCandidate[] {
+    const out: CoreAwakeningCandidate[] = [];
+    for (const tree of RESEARCH_TREES) {
+        for (const node of tree.nodes) {
+            if (node.tier !== CORE_AWAKENING_TIER) continue;
+            if (isDraftResearchNode(node)) continue;
+            if (node.prereqNodeIds.length > 0) continue;
+            const id = coreCandidateKey(tree.id, node.id);
+            out.push({
+                id,
+                treeId: tree.id,
+                nodeId: node.id,
+                label: coreChoiceLabel(tree.title, node.title),
+                targetPlayerIds: CORE_TARGET_PLAYER_IDS[id] ?? [],
+            });
+        }
+    }
+    out.sort((a, b) => a.id.localeCompare(b.id));
+    return out;
+}
 
 function isCoreEligible(
     treeId: string,
@@ -52,14 +128,57 @@ function isCoreEligible(
     return true;
 }
 
-function shuffled<T>(arr: T[]): T[] {
+/** FNV-1a 32-bit hash — stable seed for UI shuffle (not engine RNG). */
+function hashSeed(input: string): number {
+    let h = 2166136261;
+    for (let i = 0; i < input.length; i++) {
+        h ^= input.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+}
+
+/** Mulberry32 PRNG — deterministic from seed so lobby polls do not reshuffle options. */
+function mulberry32(seed: number): () => number {
+    return () => {
+        let t = (seed += 0x6d2b79f5);
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+/**
+ * Deterministic Fisher–Yates shuffle. Same seed + same input order → same output.
+ * Used so post-mission choice rows stay stable across React re-renders from lobby polling.
+ */
+export function seededShuffle<T>(arr: readonly T[], seed: string): T[] {
+    const rand = mulberry32(hashSeed(seed));
     const copy = [...arr];
     for (let i = copy.length - 1; i > 0; i--) {
-        // eslint-disable-next-line no-restricted-syntax -- per-player story-choice UI ordering, not simulated engine state
-        const j = Math.floor(Math.random() * (i + 1));
+        const j = Math.floor(rand() * (i + 1));
         [copy[i], copy[j]] = [copy[j], copy[i]];
     }
     return copy;
+}
+
+/**
+ * Build the offered list: all eligible "for you" cores first (guaranteed inclusion),
+ * then fill remaining slots from a seeded shuffle of the rest.
+ */
+export function pickCoreAwakeningOptions(
+    eligible: readonly CoreAwakeningCandidate[],
+    playerId: string | undefined,
+    seed: string,
+    optionCount: number = CORE_AWAKENING_OPTION_COUNT,
+): CoreAwakeningCandidate[] {
+    const forYou = eligible.filter((c) => isCoreForPlayer(c, playerId));
+    const others = eligible.filter((c) => !isCoreForPlayer(c, playerId));
+    const ordered = [
+        ...seededShuffle(forYou, `${seed}|forYou`),
+        ...seededShuffle(others, `${seed}|others`),
+    ];
+    return ordered.slice(0, optionCount);
 }
 
 const POST_MISSION_STORY: PostMissionStoryDef = {
@@ -98,25 +217,35 @@ export class CoreAwakeningMission extends BaseMissionDef {
         if (params.choiceId !== 'core_awakening_reward') return null;
 
         const trees = params.playerResearchTrees ?? {};
+        const candidates = listTier10RootCoreCandidates();
 
-        const anyOwned = CORE_CANDIDATES.some(({ treeId, nodeId }) =>
+        const anyOwned = candidates.some(({ treeId, nodeId }) =>
             (trees[treeId] ?? []).includes(nodeId),
         );
         if (anyOwned) return null;
 
-        const eligible = CORE_CANDIDATES.filter(({ treeId, nodeId }) =>
+        const eligible = candidates.filter(({ treeId, nodeId }) =>
             isCoreEligible(treeId, nodeId, trees, params.equippedItemIds),
         );
 
-        return shuffled(eligible).slice(0, 4).map(({ id, treeId, nodeId, label }) => ({
+        // Seed from player + choice + eligible set so lobby poll re-renders keep the same order.
+        const seed = [
+            params.playerId ?? '',
+            params.choiceId,
+            eligible.map((c) => c.id).join(','),
+        ].join('|');
+
+        return pickCoreAwakeningOptions(eligible, params.playerId, seed).map(({ id, treeId, nodeId, label, targetPlayerIds }) => ({
             id,
             label,
+            forYou: isCoreForPlayer({ targetPlayerIds }, params.playerId),
             action: { type: 'grant_research_to_player', treeId, nodeId },
         }));
     }
 
     missionId = 'core_awakening';
     mapPosition = { x: 610, y: 350 };
+    missionType = 'story' as const;
     description = 'A deep resonance stirs within. An awakening that will change the path ahead.';
     campaignId = 'world_of_darkness';
     name = 'Core Awakening';

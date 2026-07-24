@@ -6,8 +6,10 @@ import {
 	canResearchNode,
 	computeEffectiveResourcesForTree,
 	meetsRequirement,
+	selectableResearchNodes,
 } from '../../../../researchTrees/evaluator';
 import { getNodeLevel, getNodeMaxLevels } from '../../../../researchTrees/passiveBonuses';
+import { isDraftResearchNode } from '../../../../researchTrees/types';
 import ResourcePill, { RESOURCE_ORDER } from '../../../../components/ResourcePill';
 import ResearchNodeCard, { type ResearchRequirementBadge } from './ResearchNodeCard';
 import { getItemDef } from '../../character_defs/items';
@@ -238,9 +240,20 @@ export function ResearchTreeContent({
 		return out;
 	}, [researchTrees]);
 
+	const nodes = useMemo(() => selectableResearchNodes(tree), [tree]);
+	const crossTreeRefs = useMemo(
+		() =>
+			(tree.crossTreeNodeRefs ?? []).filter((ref) => {
+				const other = allTrees.find((t) => t.id === ref.fromTreeId);
+				const node = other?.nodes.find((n) => n.id === ref.nodeId);
+				return node != null && !isDraftResearchNode(node);
+			}),
+		[tree, allTrees],
+	);
+
 	const allPositions = [
-		...tree.nodes.map((n) => n.position),
-		...(tree.crossTreeNodeRefs ?? []).map((ref) => ref.position),
+		...nodes.map((n) => n.position),
+		...crossTreeRefs.map((ref) => ref.position),
 	];
 	const bounds = allPositions.reduce(
 		(acc, { x, y }) => ({
@@ -300,9 +313,9 @@ export function ResearchTreeContent({
 				>
 					<div className="relative" style={{ width: VIEW_W, height: VIEW_H }}>
 						<svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}>
-							{tree.nodes.flatMap((n) =>
+							{nodes.flatMap((n) =>
 								n.prereqNodeIds.map((p) => {
-									const from = tree.nodes.find((x) => x.id === p);
+									const from = nodes.find((x) => x.id === p);
 									if (!from) return null;
 									const a = mapPos(from.position);
 									const b = mapPos(n.position);
@@ -319,11 +332,11 @@ export function ResearchTreeContent({
 									);
 								}),
 							)}
-							{tree.nodes.flatMap((n) =>
+							{nodes.flatMap((n) =>
 								n.requirements.flatMap((req, reqIndex) => {
 									if (req.type !== 'anyResearched') return [];
 									return req.nodeIds.map((nodeId) => {
-										const from = tree.nodes.find((x) => x.id === nodeId);
+										const from = nodes.find((x) => x.id === nodeId);
 										if (!from) return null;
 										const a = mapPos(from.position);
 										const b = mapPos(n.position);
@@ -341,9 +354,9 @@ export function ResearchTreeContent({
 									});
 								}),
 							)}
-							{tree.nodes.flatMap((n) =>
+							{nodes.flatMap((n) =>
 								n.exclusiveWithNodeIds.map((ex) => {
-									const other = tree.nodes.find((x) => x.id === ex);
+									const other = nodes.find((x) => x.id === ex);
 									if (!other) return null;
 									if (n.id > other.id) return null;
 									const a = mapPos(n.position);
@@ -364,7 +377,7 @@ export function ResearchTreeContent({
 							)}
 						</svg>
 
-						{tree.nodes.map((n) => {
+						{nodes.map((n) => {
 							const currentLevel = getNodeLevel(tree.id, n.id, researchTrees, researchNodeLevels);
 							const maxLevels = getNodeMaxLevels(n);
 							const atMax = currentLevel >= maxLevels;
@@ -436,7 +449,7 @@ export function ResearchTreeContent({
 								</div>
 							);
 						})}
-						{(tree.crossTreeNodeRefs ?? []).map((ref) => {
+						{crossTreeRefs.map((ref) => {
 							const fromTree = allTrees.find((t) => t.id === ref.fromTreeId);
 							const node = fromTree?.nodes.find((n) => n.id === ref.nodeId);
 							if (!fromTree || !node) return null;

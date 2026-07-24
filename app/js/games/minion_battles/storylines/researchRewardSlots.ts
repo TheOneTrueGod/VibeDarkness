@@ -1,6 +1,8 @@
 import type { ResearchRewardSlot, StoryChoiceOptionRow } from './storyTypes';
 import type { ResearchNodeDef } from '../../../researchTrees/types';
+import { isDraftResearchNode } from '../../../researchTrees/types';
 import { RESEARCH_TREES } from '../../../researchTrees/list';
+import { collectResearchedNodeIds } from '../../../researchTrees/evaluator';
 
 interface NodeCandidate {
     treeId: string;
@@ -62,16 +64,18 @@ export function resolveResearchRewardSlots(
         // Filter slot — collect candidates across all trees
         const checkStructural = slot.respectRequirements !== false;
         const candidates: NodeCandidate[] = [];
+        const allResearchedNodeIds = collectResearchedNodeIds(researched);
         for (const tree of RESEARCH_TREES) {
             if (slot.treeId && tree.id !== slot.treeId) continue;
             const researchedSet = new Set(researched[tree.id] ?? []);
             for (const node of tree.nodes) {
+                if (isDraftResearchNode(node)) continue;
                 if (researchedSet.has(node.id)) continue;
                 if (slot.minTier !== undefined && (node.tier ?? 0) < slot.minTier) continue;
                 if (slot.maxTier !== undefined && (node.tier ?? 0) > slot.maxTier) continue;
                 if (claimedKeys.has(`${tree.id}:${node.id}`)) continue;
                 if (!nodeRequirementsMet(node, equippedSet, researched)) continue;
-                if (checkStructural && !nodeStructurallyAvailable(node, researchedSet)) continue;
+                if (checkStructural && !nodeStructurallyAvailable(node, researchedSet, allResearchedNodeIds)) continue;
                 candidates.push({ treeId: tree.id, node });
             }
         }
@@ -110,9 +114,13 @@ function nodeRequirementsMet(
     return true;
 }
 
-function nodeStructurallyAvailable(node: ResearchNodeDef, researchedSet: Set<string>): boolean {
+function nodeStructurallyAvailable(
+    node: ResearchNodeDef,
+    researchedSet: Set<string>,
+    allResearchedNodeIds: Set<string>,
+): boolean {
     if (!node.prereqNodeIds.every((id) => researchedSet.has(id))) return false;
-    if (node.exclusiveWithNodeIds.some((id) => researchedSet.has(id))) return false;
+    if (node.exclusiveWithNodeIds.some((id) => allResearchedNodeIds.has(id))) return false;
     return true;
 }
 

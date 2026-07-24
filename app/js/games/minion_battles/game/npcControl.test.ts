@@ -308,6 +308,7 @@ describe('npcControl', () => {
         class MinimalControlMission extends BaseMissionDef {
             missionId = 'test_npc_control';
             name = 'Test NPC Control';
+            missionType = 'battle' as const;
             worldWidth = 5 * CELL_SIZE;
             worldHeight = 5 * CELL_SIZE;
             playerControl = [{ controlGroupId: BOSS_GROUP, label: 'Control Alpha Wolf' }];

@@ -236,6 +236,11 @@ export class LobbyClient {
         return data.campaign as import('./types').CampaignState;
     }
 
+    /**
+     * PATCH campaign fields. Supports DarknessStrength persistence keys:
+     * `darknessStrengthInstances`, `adminDarknessStrengthOverrides`, `regions`
+     * (see `darknessStrength/campaignFields.ts`).
+     */
     async updateCampaign(
         campaignId: string,
         payload: Partial<import('./types').CampaignState> & {

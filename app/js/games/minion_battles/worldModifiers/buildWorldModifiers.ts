@@ -2,6 +2,8 @@ import type { WorldModifierDef } from './types';
 
 export interface WorldModifierSources {
     builtins?: WorldModifierDef[];
+    /** Campaign DarknessStrength-compiled modifiers (below mission). */
+    campaign?: WorldModifierDef[];
     mission?: WorldModifierDef[];
     /** Story-level or boss-script overrides; highest precedence. */
     story?: WorldModifierDef[];
@@ -9,12 +11,15 @@ export interface WorldModifierSources {
 
 /**
  * Merges world modifier defs from all sources with id deduplication.
- * Precedence: story > mission > builtins (later sources override earlier).
+ * Precedence: story > mission > campaign > builtins (later sources override earlier).
  */
 export function buildWorldModifiersFromSources(sources: WorldModifierSources): WorldModifierDef[] {
     const map = new Map<string, WorldModifierDef>();
 
     for (const def of sources.builtins ?? []) {
+        map.set(def.id, def);
+    }
+    for (const def of sources.campaign ?? []) {
         map.set(def.id, def);
     }
     for (const def of sources.mission ?? []) {

@@ -233,6 +233,7 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
 export class DarkAwakeningMission extends BaseMissionDef {
 	missionId = 'dark_awakening';
 	mapPosition = { x: 100, y: 150 };
+	missionType = 'battle' as const;
 	description = 'You awaken in darkness with no memory. Survive the first night and find a way forward.';
 	campaignId = 'world_of_darkness';
 	name = 'A Dark Awakening';

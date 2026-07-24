@@ -15,10 +15,10 @@ export const bloodMageTree: ResearchTreeDef = {
             id: BLOOD_MAGE_NODE_CORE,
             title: 'Blood Mage Core',
             description:
-                'Spend your own {hp} to mend an ally\'s wounds. Even at death\'s door, you can still land one last desperate save.',
+                'Use the power within your own blood to defeat your enemies.',
             flavorText: 'Blood remembers what it was given for.',
             order: 5,
-            tier: 1,
+            tier: 10,
             position: { x: 180, y: 290 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],

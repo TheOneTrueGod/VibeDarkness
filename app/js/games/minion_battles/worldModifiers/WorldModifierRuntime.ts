@@ -11,6 +11,17 @@ import type { EngineContext } from '../game/EngineContext';
 import { LightSource } from '../game/lightSources/LightSource';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { applyVisualEffectDefs } from '../game/effects/applyVisualEffectDefs';
+import { spawnUnit } from '../game/units/spawning/spawnUnit';
+import type { SpawnDefinition, SpawnPlacement } from '../game/units/spawning/spawnDefinition';
+import type { SpawnUnitContext } from '../game/units/spawning/spawnUnit';
+import { resolveEnemySpawnStats } from '../game/units/unit_defs/unitDef';
+import {
+    ENEMY_SWARMLING,
+    getEnemyHealthMultiplier,
+} from '../constants/enemyConstants';
+import type { EnemySpawnDef } from '../storylines/types';
+import type { SpawnBehaviour } from '../storylines/types';
+import type { ActiveDarknessStrength } from '../../../darknessStrength/resolve';
 
 // ---------------------------------------------------------------------------
 // Event contexts
@@ -108,6 +119,47 @@ export function evaluateCondition(cond: WorldCondition, ctx: WorldRuleEvalContex
 // Effect application
 // ---------------------------------------------------------------------------
 
+/** Known enemy templates for `spawnUnits` (mirrors LevelEventManager BASE_SPAWN_DEFS subset). */
+const SPAWN_UNITS_TEMPLATES: Record<string, EnemySpawnDef> = {
+    swarmling: ENEMY_SWARMLING,
+};
+
+function spawnBehaviourToPlacement(
+    behaviour: SpawnBehaviour | undefined,
+    inDarkness: boolean | undefined,
+): SpawnPlacement {
+    switch (behaviour ?? 'edgeOfMap') {
+        case 'edgeOfMap':
+            return { kind: 'edgeOfMap' };
+        case 'closest':
+            return { kind: 'closestToPlayers', inDarkness };
+        case 'anywhere':
+        default:
+            return { kind: 'anywhere', inDarkness };
+    }
+}
+
+function asSpawnUnitContext(engine: EngineContext): SpawnUnitContext {
+    const withDs = engine as EngineContext & {
+        activeDarknessStrengths?: readonly ActiveDarknessStrength[];
+    };
+    return {
+        units: engine.units,
+        eventBus: engine.eventBus,
+        terrainManager: engine.terrainManager,
+        lightLevelEnabled: engine.lightLevelEnabled,
+        aiControllerId: engine.aiControllerId,
+        mapPOIs: engine.mapPOIs,
+        mapNetworkManager: engine.mapNetworkManager,
+        activeDarknessStrengths: withDs.activeDarknessStrengths,
+        addUnit: (unit, spawnSource) => engine.addUnit(unit, spawnSource),
+        getLightAt: (col, row) => engine.getLightAt(col, row),
+        getZoneById: (id) => engine.getZoneById(id),
+        generateRandomInteger: (min, max) => engine.generateRandomInteger(min, max),
+        allocateObjectId: engine.allocateObjectId?.bind(engine),
+    };
+}
+
 export function applyEffect(
     effect: WorldEffect,
     ctx: WorldRuleEvalContext,
@@ -161,6 +213,30 @@ export function applyEffect(
             });
             engine.addLightSource(ls);
             callbacks.onRegisterSpawnedLightSource?.(ls.id, ls, col, row);
+            applyVisualEffects(effect.visualEffects, ctx, engine);
+            break;
+        }
+
+        case 'spawnUnits': {
+            const template = SPAWN_UNITS_TEMPLATES[effect.characterId];
+            const teamId = effect.teamId ?? template?.teamId ?? 'enemy';
+            const stats = resolveEnemySpawnStats({ characterId: effect.characterId });
+            const enemyHealthMult =
+                teamId === 'enemy' ? getEnemyHealthMultiplier(engine.enemyScalingPlayerCount) : 1;
+            const def: SpawnDefinition = {
+                characterId: effect.characterId,
+                name: template?.name,
+                hp: Math.round(stats.hp * enemyHealthMult),
+                speed: stats.speed,
+                abilities: template?.abilities ?? [],
+                aiSettings: template?.aiSettings ?? null,
+                unitAITreeId: template?.unitAITreeId,
+                teamId,
+                ownerId: 'ai',
+                placement: spawnBehaviourToPlacement(effect.spawnBehaviour, effect.inDarkness),
+                count: Math.max(0, effect.count),
+            };
+            spawnUnit(asSpawnUnitContext(engine), def);
             applyVisualEffects(effect.visualEffects, ctx, engine);
             break;
         }

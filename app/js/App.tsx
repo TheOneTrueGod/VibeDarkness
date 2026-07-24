@@ -34,6 +34,10 @@ import type {
 import { WebRtcMeshProvider, type WebRtcMeshHandle } from './contexts/WebRtcMeshContext';
 import { GameSyncProvider, useGameSyncOptional } from './contexts/GameSyncContext';
 import { campaignPathForTab, playerCharacterPath } from './components/ability-tests/campaignTabPaths';
+import {
+    applyMissionEndDarknessStrengthProgression,
+    type DarknessStrengthDataPromotion,
+} from './darknessStrength/progression';
 
 const LOBBY_PATH_PREFIX = '/lobby/';
 
@@ -822,6 +826,29 @@ function AppInner() {
         [currentLobby, currentPlayer, lobbyClient]
     );
 
+    const applyDarknessStrengthMissionEnd = useCallback(
+        async (
+            outcome: 'victory' | 'defeat',
+            promotions?: DarknessStrengthDataPromotion[]
+        ) => {
+            const campaignId = currentCampaignId ?? user?.campaignIds?.[0] ?? null;
+            if (!campaignId) return;
+            try {
+                const campaign = await lobbyClient.getCampaign(campaignId);
+                const nextInstances = applyMissionEndDarknessStrengthProgression(
+                    campaign.darknessStrengthInstances ?? [],
+                    { outcome, promotions }
+                );
+                await lobbyClient.updateCampaign(campaignId, {
+                    darknessStrengthInstances: nextInstances,
+                });
+            } catch (e) {
+                console.warn('Failed to apply DarknessStrength mission-end progression:', e);
+            }
+        },
+        [currentCampaignId, user, lobbyClient]
+    );
+
     const recordMissionResult = useCallback(
         async (
             missionId: string,
@@ -831,11 +858,29 @@ function AppInner() {
             itemIds?: string[],
             researchRewardIds?: string[],
             researchRewards?: import('./types').MissionResearchRewardEntry[],
-            options?: { controlledNpcs?: boolean }
+            options?: {
+                controlledNpcs?: boolean;
+                /** Host-only: fold mission-end DarknessStrength progression into this PATCH. */
+                applyDarknessStrengthProgression?: boolean;
+                darknessStrengthPromotions?: DarknessStrengthDataPromotion[];
+            }
         ) => {
             const campaignId = currentCampaignId ?? user?.campaignIds?.[0] ?? null;
             if (!campaignId) return;
             try {
+                let darknessStrengthInstances:
+                    | import('./types').CampaignState['darknessStrengthInstances']
+                    | undefined;
+                if (options?.applyDarknessStrengthProgression) {
+                    const campaign = await lobbyClient.getCampaign(campaignId);
+                    darknessStrengthInstances = applyMissionEndDarknessStrengthProgression(
+                        campaign.darknessStrengthInstances ?? [],
+                        {
+                            outcome: 'victory',
+                            promotions: options.darknessStrengthPromotions,
+                        }
+                    );
+                }
                 await lobbyClient.updateCampaign(campaignId, {
                     addMissionResult: {
                         missionId,
@@ -848,6 +893,9 @@ function AppInner() {
                             researchRewards.length > 0 && { researchRewards }),
                         ...(options?.controlledNpcs === true && { controlledNpcs: true }),
                     },
+                    ...(darknessStrengthInstances !== undefined
+                        ? { darknessStrengthInstances }
+                        : {}),
                 });
                 if (grantKnowledgeKeys?.length) {
                     const updated = await lobbyClient.getMe();
@@ -989,6 +1037,18 @@ function AppInner() {
                         }
                     />
                     <Route
+                        path="/players/:playerId/campaign-data"
+                        element={
+                            <CampaignHomeScreen
+                                lobbyClient={lobbyClient}
+                                onSelectMission={handleCreateLobbyForMission}
+                                onJoinLobby={handleJoinLobby}
+                                refetchUser={refetchUser}
+                                onStartMissionForCharacter={handleStartMissionForCharacter}
+                            />
+                        }
+                    />
+                    <Route
                         path="/players/:playerId/characters/:characterId"
                         element={
                             <CampaignHomeScreen
@@ -1036,6 +1096,7 @@ function AppInner() {
                         onContinue={handleContinueFromMission}
                         onSelectGame={handleSelectGame}
                         onRecordMissionResult={recordMissionResult}
+                        onDarknessStrengthMissionEnd={applyDarknessStrengthMissionEnd}
                         onTryAgain={(missionId, prevCharSel) => handleHostContinueToNextMission(missionId, currentCampaignId ?? null, prevCharSel)}
                         onJoinNextLobby={handleClientJoinNextLobby}
                         onEmittedChatMessage={handleEmittedChatMessage}

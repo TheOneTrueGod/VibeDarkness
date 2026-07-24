@@ -211,6 +211,7 @@ export class TowardsTheLightMission extends BaseMissionDef {
 
     missionId = 'towards_the_light';
     mapPosition = { x: 270, y: 150 };
+    missionType = 'battle' as const;
     description = 'Push through the crystal caves toward a faint glow. Something ancient stirs in the dark.';
     campaignId = 'world_of_darkness';
     name = 'Towards the Light';

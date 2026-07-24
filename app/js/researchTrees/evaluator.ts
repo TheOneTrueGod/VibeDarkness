@@ -3,6 +3,7 @@ import type { CampaignCharacter } from '../games/minion_battles/character_defs/C
 import { fromCampaignCharacterData } from '../games/minion_battles/character_defs/CampaignCharacter';
 import { getCoreFromEquipment, getItemDef } from '../games/minion_battles/character_defs/items';
 import type { ResearchTreeDef, ResearchNodeDef, Requirement, CampaignResourceCost, CampaignResourceKey, ResearchEffect, AbilityModifier, ResearchNodeLevels } from './types';
+import { isDraftResearchNode } from './types';
 import { RESEARCH_TREES } from './list';
 import { getNodeLevel, getNodeMaxLevels } from './passiveBonuses';
 
@@ -12,9 +13,43 @@ export interface ResearchContext {
     campaignResources: CampaignResources;
 }
 
+/** Nodes that may appear on research screens (excludes draft). */
+export function selectableResearchNodes(tree: ResearchTreeDef): ResearchNodeDef[] {
+    return tree.nodes.filter((n) => !isDraftResearchNode(n));
+}
+
 export function getResearchedSet(character: CampaignCharacter, treeId: string): Set<string> {
     const ids = character.researchTrees?.[treeId] ?? [];
     return new Set(Array.isArray(ids) ? ids : []);
+}
+
+/** All researched node ids across every tree (for cross-tree exclusivity checks). */
+export function collectResearchedNodeIds(
+    researchedTrees: Record<string, string[]> | undefined,
+): Set<string> {
+    const out = new Set<string>();
+    for (const ids of Object.values(researchedTrees ?? {})) {
+        if (!Array.isArray(ids)) continue;
+        for (const id of ids) out.add(id);
+    }
+    return out;
+}
+
+/**
+ * True when a grant/research of `treeId`/`nodeId` should be blocked because the node is
+ * already owned or conflicts via `exclusiveWithNodeIds` with any researched node.
+ */
+export function isResearchNodeBlockedByOwnershipOrExclusivity(
+    treeId: string,
+    nodeId: string,
+    researchedTrees: Record<string, string[]> | undefined,
+): boolean {
+    const inTree = researchedTrees?.[treeId] ?? [];
+    if (Array.isArray(inTree) && inTree.includes(nodeId)) return true;
+    const node = RESEARCH_TREES.find((t) => t.id === treeId)?.nodes.find((n) => n.id === nodeId);
+    if (!node) return true;
+    const allResearched = collectResearchedNodeIds(researchedTrees);
+    return node.exclusiveWithNodeIds.some((exId) => allResearched.has(exId));
 }
 
 export function treeHasAnyResearch(character: CampaignCharacter, treeId: string): boolean {
@@ -144,6 +179,7 @@ export function canResearchNode(tree: ResearchTreeDef, nodeId: string, ctx: Rese
     const byId = nodeById(tree);
     const node = byId[nodeId];
     if (!node) return { ok: false, missing: ['unknown_node'] };
+    if (isDraftResearchNode(node)) return { ok: false, missing: ['draft_node'] };
 
     const researchedForTree = getResearchedSet(ctx.character, tree.id);
     const researched: Record<string, Set<string>> = Object.fromEntries(
@@ -171,8 +207,10 @@ export function canResearchNode(tree: ResearchTreeDef, nodeId: string, ctx: Rese
         ? [node]
         : closureNodes.filter((n) => !researchedForTree.has(n.id));
 
-    // exclusivity checks (only for nodes being researched now or already researched)
-    const allWillBeResearched = new Set<string>([...closureIds, ...Array.from(researchedForTree)]);
+    // exclusivity checks — exclusiveWithNodeIds are matched against researched nodes in ANY tree
+    // (starting weapons live in separate trees but conflict with each other).
+    const allResearchedAcrossTrees = collectResearchedNodeIds(ctx.character.researchTrees);
+    const allWillBeResearched = new Set<string>([...closureIds, ...allResearchedAcrossTrees]);
     for (const n of closureNodes) {
         for (const ex of n.exclusiveWithNodeIds) {
             if (allWillBeResearched.has(ex)) {
@@ -423,6 +461,7 @@ export function getAvailableResearchNodes(
     for (const tree of RESEARCH_TREES) {
         allResearched[tree.id] = new Set(trees[tree.id] ?? []);
     }
+    const allResearchedNodeIds = collectResearchedNodeIds(trees);
 
     const result: ResearchNodeDef[] = [];
 
@@ -430,12 +469,13 @@ export function getAvailableResearchNodes(
         const researchedSet = allResearched[tree.id];
 
         for (const node of tree.nodes) {
+            if (isDraftResearchNode(node)) continue;
             const currentLevel = getNodeLevel(tree.id, node.id, trees, researchNodeLevels);
             const maxLevels = getNodeMaxLevels(node);
             if (currentLevel >= maxLevels) continue;
             if (tier !== undefined && node.tier !== tier) continue;
 
-            if (node.exclusiveWithNodeIds.some((exId) => researchedSet.has(exId))) continue;
+            if (node.exclusiveWithNodeIds.some((exId) => allResearchedNodeIds.has(exId))) continue;
             // Prereqs only required for first unlock; level-ups skip prereq re-check beyond presence
             if (currentLevel === 0 && !node.prereqNodeIds.every((prereqId) => researchedSet.has(prereqId))) {
                 continue;

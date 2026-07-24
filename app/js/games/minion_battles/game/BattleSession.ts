@@ -26,6 +26,11 @@ import { summarizeRemoteWireRowsForLog } from './battlenet/helpers/orderWireLogS
 import { logUserState } from './battlenet/userStateLog';
 import { buildWorldModifiersFromSources } from '../worldModifiers/buildWorldModifiers';
 import { BUILTIN_WORLD_MODIFIERS } from '../worldModifiers/builtins/index';
+import {
+    resolveActiveDarknessStrengths,
+    type ResolveActiveDarknessStrengthsInput,
+} from '../../../darknessStrength/resolve';
+import { compileWorldModifiers } from '../../../darknessStrength/compile';
 import { InteractiveTargetingSession, type HeldRemoteOrder } from './interaction/InteractiveTargetingSession';
 import { USE_SEQUENTIAL_TARGETING } from '../featureFlags';
 import { PERF_UI, PERF_UI_REACT, tickPerformanceTracker } from './performance/tickPerformanceTracker';
@@ -47,6 +52,12 @@ export interface BattleSessionLoadArgs {
     characterSelections: Record<string, string>;
     battleSeed: number;
     initialSnapshot?: SerializedGameState;
+    /**
+     * Optional DarknessStrength resolve input (campaign instances + overrides + region/mission).
+     * When set on a fresh load, resolved packages are installed before enemy spawn so statBags bake in.
+     * Snapshot loads restore active packages from serialized crumbs instead.
+     */
+    darknessStrength?: ResolveActiveDarknessStrengthsInput;
 }
 
 export type BattleSessionEvent =
@@ -366,6 +377,7 @@ export class BattleSession implements BattleSessionHandle {
         engine.state.worldModifierManager.install(
             buildWorldModifiersFromSources({
                 builtins: BUILTIN_WORLD_MODIFIERS,
+                campaign: compileWorldModifiers(engine.activeDarknessStrengths),
                 mission: mission.worldModifiers,
             }),
         );
@@ -458,7 +470,13 @@ export class BattleSession implements BattleSessionHandle {
      * Deterministic load: always initialize from mission + seed.
      * Optional initial snapshot is used only for metadata and mismatch fallback.
      */
-    async load({ players, characterSelections, battleSeed, initialSnapshot }: BattleSessionLoadArgs): Promise<void> {
+    async load({
+        players,
+        characterSelections,
+        battleSeed,
+        initialSnapshot,
+        darknessStrength,
+    }: BattleSessionLoadArgs): Promise<void> {
         this.updateLobbyContext(players, characterSelections);
         this.appliedRemoteOrderKeys.clear();
         this.teardownEngineAndRendererOnly();
@@ -518,6 +536,10 @@ export class BattleSession implements BattleSessionHandle {
         engine.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
         if (mission.levelEvents && mission.levelEvents.length > 0) {
             engine.setLevelEvents(mission.levelEvents);
+        }
+        // Install before initializeGameState so enemy (and player) spawns bake statBags.
+        if (darknessStrength) {
+            engine.setActiveDarknessStrengths(resolveActiveDarknessStrengths(darknessStrength));
         }
         const terrainSegmentPOIs = mission.segmentIds.flatMap((id) => getSegment(id)?.pointsOfInterest ?? []);
         const terrainSegmentZones = getMissionSegmentZones(mission.segmentIds);

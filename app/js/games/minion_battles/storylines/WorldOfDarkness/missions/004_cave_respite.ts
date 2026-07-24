@@ -243,6 +243,7 @@ export class CaveRespiteMission extends BaseMissionDef {
 
     missionId = 'cave_respite';
     mapPosition = { x: 610, y: 150 };
+    missionType = 'story' as const;
     description = 'A rare moment of rest in a hidden alcove. Choose wisely how to spend your time.';
     campaignId = 'world_of_darkness';
     name = 'Cave respite';

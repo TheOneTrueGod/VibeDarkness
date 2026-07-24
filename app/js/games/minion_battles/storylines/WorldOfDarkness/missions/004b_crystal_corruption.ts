@@ -190,6 +190,7 @@ export class CrystalCorruptionMission extends BaseMissionDef {
 
     missionId = 'crystal_corruption';
     mapPosition = { x: 780, y: 150 };
+    missionType = 'battle' as const;
     description = 'The crystals pulse with dark energy. Purge the corruption before it spreads beyond the cave.';
     campaignId = 'world_of_darkness';
     name = 'Crystal Corruption';

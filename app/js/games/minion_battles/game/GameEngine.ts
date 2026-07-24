@@ -36,6 +36,9 @@ import { LightTileGrid } from './lightTileGrid/LightTileGrid';
 import { LightSource } from './lightSources/LightSource';
 import type { EngineContext } from './EngineContext';
 import { GameState } from './GameState';
+import type { ActiveDarknessStrength } from '../../../darknessStrength/resolve';
+import { getDarknessStrength } from '../../../darknessStrength/registry';
+import type { DarknessStrengthInstance } from '../../../darknessStrength/types';
 import {
     FingerprintEvent,
     fingerprintFromHex,
@@ -341,6 +344,19 @@ export class GameEngine implements EngineContext {
     }
     set enemyScalingPlayerCount(v: number) {
         this.state.enemyScalingPlayerCount = v;
+    }
+
+    /** Active DarknessStrength packages (statBag at spawn; WM/spawnTweaks in later steps). */
+    get activeDarknessStrengths(): ActiveDarknessStrength[] {
+        return this.state.activeDarknessStrengths;
+    }
+    set activeDarknessStrengths(value: ActiveDarknessStrength[]) {
+        this.state.activeDarknessStrengths = value;
+    }
+
+    /** Install resolved DarknessStrengths before mission init / late spawns. */
+    setActiveDarknessStrengths(active: ActiveDarknessStrength[]): void {
+        this.state.activeDarknessStrengths = active.slice();
     }
 
     get aiControllerId(): string | null {
@@ -1866,6 +1882,14 @@ export class GameEngine implements EngineContext {
             storyPauseEndsAt: this.storyPauseEndsAt,
             objectives: this.state.objectiveManager.toJSON(),
             worldModifiers: this.state.worldModifierManager.toJSON(),
+            ...(this.state.activeDarknessStrengths.length > 0
+                ? {
+                      activeDarknessStrengths: this.state.activeDarknessStrengths.map(
+                          ({ packageId, data }): DarknessStrengthInstance =>
+                              data !== undefined ? { packageId, data } : { packageId },
+                      ),
+                  }
+                : {}),
             lightSources: this.state.lightSourceManager.toJSON(),
             terrainEffects: this.state.terrainLayers.toEffectsJSON(),
             floorTiles: this.state.terrainLayers.toFloorTilesJSON(),
@@ -1920,6 +1944,17 @@ export class GameEngine implements EngineContext {
 
         engine.state.objectiveManager.importSnapshot(data.objectives);
         engine.state.worldModifierManager.importSnapshot(data.worldModifiers ?? null);
+        engine.setActiveDarknessStrengths(
+            (data.activeDarknessStrengths ?? [])
+                .map((inst): ActiveDarknessStrength | null => {
+                    const def = getDarknessStrength(inst.packageId);
+                    if (!def) return null;
+                    return inst.data !== undefined
+                        ? { packageId: inst.packageId, data: inst.data, def }
+                        : { packageId: inst.packageId, def };
+                })
+                .filter((a): a is ActiveDarknessStrength => a != null),
+        );
 
         engine.pendingOrders = (data.orders ?? []).map((o) => ({
             gameTick: o.gameTick,

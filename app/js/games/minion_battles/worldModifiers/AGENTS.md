@@ -108,6 +108,7 @@ Each rule in `rules[eventType]` is a `WorldEventRule`:
 | Type | Key fields |
 |------|-----------|
 | `spawnLightSource` | `lightAmount` (negative = darklight), `radius`, `durationRounds`, `position: 'victim' \| 'killer'`, optional `color`; optional `overlapMethod: OverlapMethod` (see `LightGrid.ts`; defaults to `'max'`); optional `noDecay: boolean` (hold full emission/radius until expiry, then vanish — skips linear fade) |
+| `spawnUnits` | `characterId`, `count`, optional `spawnBehaviour` (default `edgeOfMap`), `inDarkness`, `teamId` (default `enemy`) — uses shared `spawnUnit` placement |
 | `incrementCounter` | `counterId`, optional `amount` (default 1) |
 | `addWorldModifier` | `modifierDef: WorldModifierDef` |
 | `removeWorldModifier` | `modifierId` |
@@ -170,14 +171,18 @@ Includes `ambient: [{ type: 'rain_overlay' }]` and increments `storm_ticks` on e
 
 ## Build helper
 
-`buildWorldModifiersFromSources({ builtins, mission, story })` merges three sources and deduplicates by `id`. Later sources override earlier:
+`buildWorldModifiersFromSources({ builtins, campaign, mission, story })` merges four sources and deduplicates by `id`. Later sources override earlier:
 
 ```
 builtins (always lowest precedence)
+  < campaign (DarknessStrength-compiled WM, e.g. round-start spawnUnits)
   < mission.worldModifiers
   < storyWorldModifiers (battle init payload)
 ```
 
+### `spawnUnits` WorldEffect
+
+Declarative unit spawn via the shared `spawnUnit` path. Fields: `characterId`, `count`, optional `spawnBehaviour` (default `edgeOfMap`), `inDarkness`, `teamId` (default `enemy`). Used by DarknessStrength `spawnTweak` packages compiled in `app/js/darknessStrength/compile.ts` (`compileWorldModifiers`).
 ---
 
 ## Mid-battle modifier changes

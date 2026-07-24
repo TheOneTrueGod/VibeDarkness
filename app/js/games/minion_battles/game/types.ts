@@ -160,6 +160,11 @@ export interface SerializedGameState {
     groups?: import('./units/unitAI/groups/types').SerializedGroup[];
     /** Active world modifier instance states (per-lifetime counters, disabled flag, dynamic defs). */
     worldModifiers?: import('../worldModifiers/types').SerializedWorldModifierInstance[];
+    /**
+     * Active DarknessStrength instance crumbs for late spawns after resync.
+     * Defs are reattached from the static registry on restore.
+     */
+    activeDarknessStrengths?: import('../../../darknessStrength/types').DarknessStrengthInstance[];
     /** Serialized ninjutsu pool configs and runtime state (budget, delay). */
     ninjutsuPools?: import('./ninjutsu/NinjutsuPool').SerializedNinjutsuPool[];
     /**

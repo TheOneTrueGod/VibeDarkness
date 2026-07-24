@@ -81,6 +81,11 @@ export interface StoryChoiceOptionRow {
     loreDescription?: string;
     action: StoryChoiceAction;
     disabledLabel?: string;
+    /**
+     * When true, this option is tailored for the viewing player — sort to the top and
+     * show the star + "For you" badge in post-mission reward UI.
+     */
+    forYou?: boolean;
 }
 
 /**

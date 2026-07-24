@@ -12,6 +12,7 @@ interface StoryPhraseBottomPanelProps {
     allPlayerIds: string[];
     playerId: string;
     amSpectator: boolean;
+    playerResearchTrees?: Record<string, string[]>;
     groupVoteVotes: Record<string, Record<string, string>>;
     isApplyingGroupVote: boolean;
     onAdvance: () => void;
@@ -31,6 +32,7 @@ export default function StoryPhraseBottomPanel({
     allPlayerIds,
     playerId,
     amSpectator,
+    playerResearchTrees,
     groupVoteVotes,
     isApplyingGroupVote,
     onAdvance,
@@ -43,6 +45,7 @@ export default function StoryPhraseBottomPanel({
             <ChoicePhrasePanel
                 phrase={phrase}
                 amSpectator={amSpectator}
+                playerResearchTrees={playerResearchTrees}
                 onAdvance={onAdvance}
                 onChoose={onChoose}
             />

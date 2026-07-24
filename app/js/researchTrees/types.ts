@@ -89,6 +89,11 @@ export interface ResearchNodeDef {
     order: number;
     /** Display tier shown in the research tree view (1 = base, 2 = first upgrade, etc.). */
     tier?: number;
+    /**
+     * When true, this node is work-in-progress: hidden from research selection UI and
+     * excluded from available-node / mission-reward discovery.
+     */
+    draft?: boolean;
     position: { x: number; y: number };
     prereqNodeIds: string[];
     exclusiveWithNodeIds: string[];
@@ -117,6 +122,11 @@ export interface ResearchNodeDef {
      * `floor(add * L / Max)` and `(mult - 1) * L / Max`.
      */
     passiveBonus?: PassiveBonusMap;
+}
+
+/** True when the node is WIP and must not appear in research selection / discovery. */
+export function isDraftResearchNode(node: Pick<ResearchNodeDef, 'draft'>): boolean {
+    return node.draft === true;
 }
 
 /** A node from another tree shown inside this tree's panel. Purchasing stores it under fromTreeId. */

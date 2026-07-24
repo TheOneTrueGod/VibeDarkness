@@ -17,7 +17,7 @@ export const lightTree: ResearchTreeDef = {
             description: 'Channel the power of light into a blast of energy.',
             flavorText: 'Light does not ask permission to fill the dark.',
             order: 5,
-            tier: 1,
+            tier: 10,
             position: { x: 180, y: 290 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],

@@ -18,6 +18,12 @@ export const TestIds = {
     /** Suffix with character id */
     characterCardPrefix: 'character-card-',
     characterEditorMissionMapTab: 'character-editor-tab-mission-map',
+
+    /** Admin Players → Campaign data center */
+    campaignDataPanel: 'campaign-data-panel',
+    campaignDataRow: 'campaign-data-row',
+    campaignDataCampaignSelect: 'campaign-data-campaign-select',
+    campaignDataDarknessStrengthTab: 'campaign-data-tab-darkness-strength',
     missionHost: 'mission-host',
     missionMapNodePrefix: 'mission-map-node-',
 

@@ -5,6 +5,7 @@
  */
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { flushSync } from 'react-dom';
+import { Star } from 'lucide-react';
 import type { MissionResearchRewardEntry, PlayerState } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import { MessageType } from '../../../../MessageTypes';
@@ -32,6 +33,12 @@ import PreMissionStoryLayout from './preMissionStory/PreMissionStoryLayout';
 import StorySegmentSpeakerPortrait from '../components/battleUiSlots/StorySegmentSpeakerPortrait';
 import RowSlotDialogue from '../components/battleUiSlots/RowSlotDialogue';
 import ColumnSlotPlayerStatuses from '../../../../components/battleUILayout/ColumnSlotPlayerStatuses';
+
+/** Switch post-mission reward choices to two columns when option count exceeds this. */
+const REWARD_TWO_COLUMN_THRESHOLD = 4;
+
+/** Badge on reward options flagged {@link StoryChoiceOptionRow.forYou}. */
+const FOR_YOU_BADGE_LABEL = 'For you';
 
 function isDialogue(phrase: PostMissionPhrase | undefined): phrase is DialoguePhrase {
     return !!phrase && phrase.type === 'dialogue';
@@ -156,26 +163,34 @@ export default function PostMissionStoryPhase({
     const amSpectator = (characterSelections[playerId] ?? '') === SPECTATOR_ID;
     const amNpcController = isControlEnemy(characterSelections[playerId]);
 
+    const myEquipment = playerEquipmentByPlayer[playerId] ?? [];
+    const myResearchTrees = playerResearchTreesByPlayer[playerId];
+    // Content fingerprints — lobby polls often replace equal equipment/research with new object refs.
+    const equipmentKey = myEquipment.join('\0');
+    const researchKey = JSON.stringify(myResearchTrees ?? {});
+
     const postMissionChoiceOptions = useMemo((): ChoicePhrase['options'] => {
         if (!currentPhrase || currentPhrase.type !== 'choice') return [];
 
         if (currentPhrase.researchRewardSlots) {
             return resolveResearchRewardSlots(
                 currentPhrase.researchRewardSlots,
-                playerResearchTreesByPlayer[playerId],
-                playerEquipmentByPlayer[playerId] ?? [],
+                myResearchTrees,
+                myEquipment,
             );
         }
 
         const missionDef = MISSION_MAP[missionId];
         const computed = missionDef?.getPostMissionChoiceOptions?.({
             choiceId: currentPhrase.choiceId,
-            equippedItemIds: playerEquipmentByPlayer[playerId] ?? [],
-            playerResearchTrees: playerResearchTreesByPlayer[playerId],
+            equippedItemIds: myEquipment,
+            playerResearchTrees: myResearchTrees,
             playerId,
         });
         return computed ?? currentPhrase.options;
-    }, [currentPhrase, missionId, playerId, playerEquipmentByPlayer, playerResearchTreesByPlayer]);
+        // equipmentKey / researchKey fingerprint content; omit object refs that churn every poll.
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- myEquipment/myResearchTrees via keys
+    }, [currentPhrase, missionId, playerId, equipmentKey, researchKey]);
 
     useEffect(() => {
         if (currentPhrase && isDialogue(currentPhrase) && currentPhrase.backgroundImage) {
@@ -409,6 +424,15 @@ export default function PostMissionStoryPhase({
     const phrasePanelWrapNonDialogue =
         'shrink-0 pt-8 sm:pt-10 pb-2 sm:pb-4 flex flex-col gap-3 sm:gap-4 w-full min-w-0 max-w-full justify-center items-stretch';
 
+    const useTwoColumnRewardLayout =
+        isChoice(currentPhrase) && postMissionChoiceOptions.length > REWARD_TWO_COLUMN_THRESHOLD;
+    const rewardOptionButtonClass =
+        'block w-full text-left px-6 py-4 rounded-lg border-2 transition-colors text-lg flex flex-col gap-2 border-border-custom bg-surface hover:border-primary hover:bg-surface-light/80 text-white';
+    const skipOptionButtonClass =
+        `block w-full text-left px-6 py-4 rounded-lg border-2 transition-colors text-lg flex flex-col gap-2 border-border-custom bg-surface/30 hover:border-zinc-400 hover:bg-surface/50 text-zinc-300 hover:text-zinc-200${
+            useTwoColumnRewardLayout ? ' col-span-2' : ''
+        }`;
+
     return (
         <PreMissionStoryLayout
             backgroundImage={layerBackground}
@@ -463,7 +487,13 @@ export default function PostMissionStoryPhase({
                             ) : (
                                 <>
                                     <div className="border-2 border-border-custom rounded-lg bg-surface-light shadow-lg overflow-visible p-6">
-                                        <div className="space-y-3">
+                                        <div
+                                            className={
+                                                useTwoColumnRewardLayout
+                                                    ? 'grid grid-cols-2 gap-3'
+                                                    : 'flex flex-col gap-3'
+                                            }
+                                        >
                                             {postMissionChoiceOptions.map((opt) => {
                                                 const resolvedOption = resolveChoiceOption(opt);
                                                 if (resolvedOption.disabled) return null;
@@ -479,11 +509,24 @@ export default function PostMissionStoryPhase({
                                                                 resolvedOption
                                                             )
                                                         }
-                                                        className="block w-full text-left px-6 py-4 rounded-lg border-2 transition-colors text-lg flex flex-col gap-2 border-border-custom bg-surface hover:border-primary hover:bg-surface-light/80 text-white"
+                                                        className={rewardOptionButtonClass}
                                                     >
-                                                        <span className="text-lg font-medium text-white">
-                                                            {opt.loreTitle ?? opt.label}
-                                                        </span>
+                                                        <div className="flex items-center gap-2 w-full min-w-0">
+                                                            {opt.forYou && (
+                                                                <Star
+                                                                    className="h-4 w-4 shrink-0 text-amber-400 fill-amber-400"
+                                                                    aria-hidden
+                                                                />
+                                                            )}
+                                                            <span className="text-lg font-medium text-white flex-1 min-w-0">
+                                                                {opt.loreTitle ?? opt.label}
+                                                            </span>
+                                                            {opt.forYou && (
+                                                                <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full border border-amber-400/50 bg-amber-400/15 text-amber-300">
+                                                                    {FOR_YOU_BADGE_LABEL}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         {opt.loreDescription && (
                                                             <span className="text-sm text-zinc-400 leading-snug">
                                                                 {opt.loreDescription}
@@ -521,7 +564,7 @@ export default function PostMissionStoryPhase({
                                                         disabled: false,
                                                     })
                                                 }
-                                                className="block w-full text-left px-6 py-4 rounded-lg border-2 transition-colors text-lg flex flex-col gap-2 border-border-custom bg-surface/30 hover:border-zinc-500 hover:bg-surface/50 text-zinc-500 hover:text-zinc-400"
+                                                className={skipOptionButtonClass}
                                             >
                                                 <span className="text-lg font-medium">
                                                     Leave nothing but footprints

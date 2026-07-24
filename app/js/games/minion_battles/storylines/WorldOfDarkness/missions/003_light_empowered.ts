@@ -208,6 +208,7 @@ export class LightEmpoweredMission extends BaseMissionDef {
 
 	missionId = 'light_empowered';
 	mapPosition = { x: 440, y: 150 };
+	missionType = 'battle' as const;
 	description = 'Forage for supplies in the lit passages. Territorial creatures guard the food sources.';
 	campaignId = 'world_of_darkness';
 	name = 'Find some food';

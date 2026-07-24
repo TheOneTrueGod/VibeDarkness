@@ -1,6 +1,8 @@
 import type { WorldModifierDef } from './types';
 import type { OverlapMethod } from '../game/LightGrid';
 import type { VisualEffectDef } from '../game/effects/visualEffectDef';
+import type { SpawnBehaviour } from '../storylines/types';
+import type { TeamId } from '../game/teams';
 
 export type { VisualEffectDef };
 
@@ -11,6 +13,7 @@ export type { VisualEffectDef };
  */
 export type WorldEffect =
     | SpawnLightSourceEffect
+    | SpawnUnitsEffect
     | IncrementCounterEffect
     | AddWorldModifierEffect
     | RemoveWorldModifierEffect
@@ -30,6 +33,24 @@ export interface SpawnLightSourceEffect {
     overlapMethod?: OverlapMethod;
     /** If true, skip linear fade — source holds full emission/radius until duration expires. */
     noDecay?: boolean;
+    /** VisualEffect: wire to VisualEffect runtime when available. */
+    visualEffects?: VisualEffectDef[];
+}
+
+/**
+ * Spawn one or more units via the shared `spawnUnit` path (placement + bake).
+ * Typical use: DarknessStrength `spawnTweak` compiled to `on_round_start` rules.
+ */
+export interface SpawnUnitsEffect {
+    type: 'spawnUnits';
+    characterId: string;
+    count: number;
+    /** Defaults to `edgeOfMap`. */
+    spawnBehaviour?: SpawnBehaviour;
+    /** Only with `spawnBehaviour: 'anywhere'` — restrict to full-darkness tiles. */
+    inDarkness?: boolean;
+    /** Defaults to `'enemy'`. */
+    teamId?: TeamId;
     /** VisualEffect: wire to VisualEffect runtime when available. */
     visualEffects?: VisualEffectDef[];
 }
