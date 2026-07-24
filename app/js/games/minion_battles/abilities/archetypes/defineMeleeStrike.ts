@@ -234,7 +234,7 @@ export function defineMeleeStrike(config: MeleeStrikeConfig): AbilityStatic {
         ...config.tooltipBindings,
     };
     const getDamage = (caster?: Unit): number => {
-        const withFlat = baseDamage + (caster?.abilityModifiers[config.id]?.damageFlat ?? 0);
+        const withFlat = baseDamage + (caster?.abilityModifiers?.[config.id]?.damageFlat ?? 0);
         return getAbilityDamageForDisplay(withFlat, caster ? { attacker: caster } : {});
     };
 
@@ -266,7 +266,7 @@ export function defineMeleeStrike(config: MeleeStrikeConfig): AbilityStatic {
                     : line.split(`{${baseDamage}}`).join('{{DAMAGE}}'),
             );
             const tipCtx = resolveTooltipContext(gameState, { ability: { id: config.id } });
-            const flat = tipCtx.attacker?.abilityModifiers[config.id]?.damageFlat ?? 0;
+            const flat = tipCtx.attacker?.abilityModifiers?.[config.id]?.damageFlat ?? 0;
             const bindings: TooltipTokenBindings = {
                 ...tooltipBindings,
                 DAMAGE: { kind: 'damage', base: baseDamage + flat },

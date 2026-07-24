@@ -91,8 +91,8 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 		this.windupEnd = w;
 		this.prefireTime = w + l;
 		this.abilityTimings = [
-			{ id: 'windup', start: 0, end: w, abilityPhase: AbilityPhase.Windup },
-			{ id: 'lunge', start: w, end: w + l, abilityPhase: AbilityPhase.Active, doNotRefund: true },
+			{ id: 'windup', start: 0, end: w, abilityPhase: AbilityPhase.Windup, doNotRefund: true },
+			{ id: 'lunge', start: w, end: w + l, abilityPhase: AbilityPhase.Active },
 			{ id: 'cooldown', start: w + l, end: w + l + cd, abilityPhase: AbilityPhase.Cooldown },
 		];
 		this.targets = [{ type: 'pixel', label: 'Charge direction' }] as TargetDef[];

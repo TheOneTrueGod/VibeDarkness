@@ -44,7 +44,7 @@ function makeCtx(researchTrees: Record<string, string[]>): ResearchContext {
             missionId: '',
             researchTrees,
         }),
-        campaignResources: { food: 99, metal: 99, crystals: 99 },
+        campaignResources: { food: 99, metal: 99, population: 99, crystals: 99 },
     };
 }
 

@@ -11,6 +11,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import SyncStatusCard from './SyncStatusCard';
+import { pickTurnIndicatorPropsAfterUnfreeze } from './turnIndicatorPresentation';
 
 export type TurnIndicatorState = 'your_turn' | 'ally_turn' | 'playing';
 
@@ -39,6 +40,7 @@ interface TurnIndicatorProps {
     /**
      * When true, ignore `state` / `allyName` changes (no shrink/grow blink).
      * Used to hold the plaque steady through an ITS rewind crossfade.
+     * When this flips back to false, the current live props are applied (not a mid-freeze stash).
      */
     freezePresentation?: boolean;
 }
@@ -70,8 +72,6 @@ export default function TurnIndicator({
     const [displayState, setDisplayState] = useState<TurnIndicatorState>(state);
     const [displayAllyName, setDisplayAllyName] = useState(allyName);
     const prevStateRef = useRef(state);
-    const pendingStateRef = useRef<TurnIndicatorState | null>(null);
-    const pendingAllyNameRef = useRef<string | null>(null);
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const clearTimer = () => {
         if (timeoutRef.current) {
@@ -123,23 +123,11 @@ export default function TurnIndicator({
     };
 
     useEffect(() => {
-        if (freezePresentation) {
-            pendingStateRef.current = state;
-            pendingAllyNameRef.current = allyName;
-            return;
-        }
-
-        const pendingState = pendingStateRef.current;
-        const pendingAlly = pendingAllyNameRef.current;
-        pendingStateRef.current = null;
-        pendingAllyNameRef.current = null;
-
-        if (pendingState != null) {
-            applyStateChange(pendingState, pendingAlly ?? allyName);
-            return;
-        }
-
-        applyStateChange(state, allyName);
+        // Hold the plaque steady during ITS rewind. When freeze ends (or live props change
+        // while unfrozen), apply live props only — see pickTurnIndicatorPropsAfterUnfreeze.
+        if (freezePresentation) return;
+        const next = pickTurnIndicatorPropsAfterUnfreeze({ liveState: state, liveAllyName: allyName });
+        applyStateChange(next.state, next.allyName);
         // applyStateChange closes over phase timers; intentional to run on state/freeze edges only.
         // eslint-disable-next-line react-hooks/exhaustive-deps -- blink orchestration
     }, [state, allyName, freezePresentation]);
