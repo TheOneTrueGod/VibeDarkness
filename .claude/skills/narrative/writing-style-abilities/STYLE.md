@@ -12,6 +12,15 @@ Use **`[Canon]` / `[Draft]` / `[Open]`** on section headings per `narrative-hub`
 - **Audience:** new player vs expert shorthand allowed or not.
 - **Mechanics language:** how explicit numbers, durations, and conditions should read.
 
+### Card / research `description` fields [Canon]
+
+When a mechanic has a named keyword, prefer the keyword form (with keyword styling) over a prose paraphrase of the same rule.
+
+- Prefer: grants `{Entombed}` / deals damage and `{knockback 2}`.
+- Avoid: long explanations of “throws still work while in walls” or “pushes units away” when the keyword already names that rule.
+
+Tooltip arrays still follow **Keyword lines** below for standalone mechanical lines.
+
 ### Keyword lines [Canon]
 
 Mechanical keywords in `getTooltipText()` use a **standalone-line** format — separate from descriptive prose lines.

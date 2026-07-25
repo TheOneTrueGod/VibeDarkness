@@ -117,7 +117,7 @@ Files: new `buffs/LiftedBuff.ts`, `buffs/buffRegistry.ts`, `buffs/buffVisuals.ts
 
 - [x] New `LiftedBuff` (generic — any future kit can lift): holds the unit fully CC'd (no move/act, mirror `StunnedBuff`'s gating) for `duration` seconds with params `{ slamDamage, horizontalTarget?: {x,y}, sourceAbilityId }`. On expiry it applies the slam: terrain-aware horizontal displacement to `horizontalTarget` when set, deals `slamDamage`, and emits a typed `unit_slam_landed` `{ unitId, position, sourceAbilityId }` event for visuals/listeners. Register in `buffRegistry.ts` for checkpoint serialization and give it a buff-icon entry in `buffVisuals.ts`.
   - `LiftedBuff.ts` + generic `Buff.onBeforeExpire` hook in tick path; registry, violet chevron visual, `unit_slam_landed` on EventBus.
-- [x] Apply-path helper `tryApplyLift(target, duration, slamParams, source, engine)` in `crowdControl/` running the same shared hard-CC armour gate as knockback/stun (`hardCcArmourConsumed`, absorbed/exposed semantics — see `tryApplyKnockbackByTier` and the `boss-cc-armour` conventions).
+- [x] Apply-path helper `tryApplyLift(target, duration, slamParams, source, engine)` in `crowdControl/` running the same shared hard-CC armour gate as knockback/stun (`hardCcArmourConsumed`, absorbed/exposed semantics — see `tryApplyKnockbackByTier` and `crowdControl/AGENTS.md`).
   - `tryApplyLift.ts` mirrors `tryApplyHardCcStun` gating; exported from `crowdControl/index.ts`.
 - [x] `UnitRenderer`: render lifted units with a vertical sprite offset while the buff is active (check how knockback air-time is rendered and mirror; keep it minimal — the telegraph column visual comes from Step 6's effect def).
   - Sustained lift offset + ground shadow reuse knockback arc constants from `LiftedBuff`.
@@ -241,7 +241,7 @@ Verify: `npx tsc --noEmit`, `npx vitest related app/js/researchTrees/trees/gravi
 
 Files: new `testing/scenarios/abilities/gravityGrazeScenario.ts`, `gravityLocusScenario.ts`, `forcePushScenario.ts`, `gravityInversionScenario.ts`; `testing/scenarios/registry.ts`.
 
-Follow the `ability-tests` skill (structure like `lightBlastScenario.ts`; pre-queued orders like the `boss-cc-armour` two-punch pattern where a boss is involved). High-level, deterministic, fast — system-level assertions, not number checks.
+Follow the `ability-tests` skill (structure like `lightBlastScenario.ts`; pre-queued orders like `enemy_boss_stun_mechanics` where a boss is involved). High-level, deterministic, fast — system-level assertions, not number checks.
 
 - [x] `gravityGrazeScenario`: a unit carrying the Gravity resource near an enemy fills gravity noticeably faster than an isolated one, and near an enemy projectile faster still — proves the `Resource.onTick` wiring end-to-end.
   - `gravityGrazeScenario.ts`: three parallel grazers (isolated / enemy / projectile) with wait orders; asserts tiered gain after one `ROUND_DURATION`.

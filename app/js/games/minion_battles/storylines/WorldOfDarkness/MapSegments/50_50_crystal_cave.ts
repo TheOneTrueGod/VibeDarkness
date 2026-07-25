@@ -63,8 +63,8 @@ export const CRYSTAL_POINTS = {
 } as const;
 
 /** Crystal DayLight emission used by cave crystals (and tests). */
-export const CRYSTAL_DAYLIGHT_AMOUNT = 5;
-export const CRYSTAL_DAYLIGHT_RADIUS = 1;
+export const CRYSTAL_DAYLIGHT_AMOUNT = 3;
+export const CRYSTAL_DAYLIGHT_RADIUS = 3;
 
 /** Shared gameplay fields for the five cave crystals (position added per mission via offset). */
 export const CRYSTAL_TILE_DEFAULTS: Omit<SpecialTilePlacement, 'col' | 'row'> = {

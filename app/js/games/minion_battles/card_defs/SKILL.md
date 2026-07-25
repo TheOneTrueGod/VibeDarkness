@@ -200,10 +200,12 @@ Whenever an ability needs to store data for future use, it must be serializable.
 
 ## Registration
 
-- **Ability**: In `abilities/AbilityRegistry.ts`, import and call `register(YourAbility)`.
+- **Ability**: In `abilities/AbilityRegistry.ts`, import and call `register(YourAbility)`. **This is the step most often forgotten.** A card can appear in `CARD_DEF_MAP` while `getAbility(id)` returns `undefined`, so the ability is silently unusable (historically bitten Double Punch / `0116`).
 - **Card def**: In `card_defs/index.ts`, import and add to the `cardDefs` array.
 
 To avoid name collisions when importing multiple abilities, suffix the exported ability constant with its 4-digit ID: e.g. `SwingBatAbility_0103`, `SwingBatAbility_0115`. Apply this convention to all new abilities.
+
+Declarative cast behaviours and select-target lock-on: see `abilities/AGENTS.md`.
 
 ## Passive abilities
 

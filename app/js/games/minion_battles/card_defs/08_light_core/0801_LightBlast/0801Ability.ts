@@ -1,13 +1,13 @@
 /**
- * Light Blast - Ranged AoE that damages enemies, heals allies, and plants a torch at the target.
+ * Light Blast - Ranged AoE that damages enemies, heals allies, and leaves DayLight at the target.
  *
  * Targets a pixel within MAX_RANGE. Brief windup, then a burst of light in a circle
- * around the target point. Allies in the circle are healed; a torch light source is left behind.
+ * around the target point. Allies in the circle are healed; a DayLight source is left behind.
  */
 
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import { nullHitbox } from '../../../hitboxes';
-import { spawnBrightLight, type EngineWithLight } from '../../../abilities/brightKeyword';
+import type { EngineWithLight } from '../../../abilities/brightKeyword';
 import { type CardDef } from '../../types';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
@@ -17,6 +17,7 @@ import { createMovementPenaltyStates } from '../../../abilities/shieldHelpers';
 import { areEnemies } from '../../../game/teams';
 import type { Unit } from '../../../game/units/Unit';
 import { applyHeal, DEFAULT_HEAL_PENALTY_PCT } from '../../../game/units/unitHeal';
+import { LightSource } from '../../../game/lightSources/LightSource';
 import { EngineWithGatherLight, spawnGatherLightWindupRing } from '@/games/minion_battles/abilities/gatherLightHelpers';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import {
@@ -33,12 +34,15 @@ const LIGHT_BLAST_RADIUS = 40;
 export const LIGHT_BLAST_DAMAGE = 12;
 export const LIGHT_BLAST_MAX_TARGETS = 5;
 const LIGHT_BLAST_HEAL = 5;
-const BRIGHT_MAGNITUDE = 3;
+/** DayLight left at the blast point. */
+export const LIGHT_BLAST_DAYLIGHT_AMOUNT = 1;
+export const LIGHT_BLAST_DAYLIGHT_RADIUS = 2;
+export const LIGHT_BLAST_DAYLIGHT_ROUNDS = 3;
 
 const TOOLTIP_LINES = [
     'Create a sudden blast of light, dealing {{DAMAGE}} damage to up to {{MAX_TARGETS}} enemies.',
     'Heals allies in the blast for {{HEAL}}.',
-    '{Bright 3}',
+    `Leaves a field of daylight behind, burning shadow creatures.`,
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
@@ -69,7 +73,6 @@ const LIGHT_BLAST_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/
 export const LightBlastAbility = defineAbility({
     id: CARD_ID,
     name: 'Light Blast',
-    bright: BRIGHT_MAGNITUDE,
     image: LIGHT_BLAST_IMAGE,
     resourceCost: { resourceId: 'light', amount: 1 },
     rechargeTurns: 1,
@@ -130,7 +133,19 @@ export const LightBlastAbility = defineAbility({
                     applyHeal(unit, LIGHT_BLAST_HEAL, healPenaltyPct);
                 }
 
-                spawnBrightLight(eng, pos.x, pos.y, BRIGHT_MAGNITUDE, { lightType: 'DayLight' });
+                eng.addLightSource(new LightSource({
+                    x: pos.x,
+                    y: pos.y,
+                    lightAmount: LIGHT_BLAST_DAYLIGHT_AMOUNT,
+                    radius: LIGHT_BLAST_DAYLIGHT_RADIUS,
+                    lightType: 'DayLight',
+                    decay: {
+                        roundCreated: eng.roundNumber ?? 1,
+                        initialLightAmount: LIGHT_BLAST_DAYLIGHT_AMOUNT,
+                        initialRadius: LIGHT_BLAST_DAYLIGHT_RADIUS,
+                        roundsTotal: LIGHT_BLAST_DAYLIGHT_ROUNDS,
+                    },
+                }));
             }),
         },
         {

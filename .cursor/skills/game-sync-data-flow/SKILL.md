@@ -91,3 +91,6 @@ Host **`saveBattleSnapshot`** → **`SaveSnapshotHandler`**: persists snapshot w
 - **`merge-applied`** must succeed before authoritative playback lines exist for non-hosts merging **applied** replay; failures trigger host resync.
 - **`fingerprints.jsonl`** can still briefly race **`snapshots/`** — **`AppendOrderHandler`** **`maxAllowedTick`** slack unchanged.
 - **Host migration mid-battle** still **`TODO`** (log at **critical** if instrumented callers detect host id churn).
+- **Recovery vs full page refresh:** `BattleSession.teardownEngineAndRendererOnly` replaces the engine but **reuses** the Pixi `GameRenderer`. If tier 0/1 bootstrap looks wrong until the player refreshes, suspect stale renderer/Pixi state first (`BattleSession` load/teardown paths).
+- **`FingerprintBatcher.pendingBatch` is not cleared** in `resetForDesyncRecoveryEntry`. Pre-recovery fingerprints can still flush after restore and corrupt post-recovery hash rows (host recovery especially). Check `FingerprintBatcher` + recovery entry logging.
+- **Recovery heartbeat ≠ `pollOnce`:** `RecoveryCoordinator.primeOrderRevisionCounterFromHeartbeat` only advances the seen-orders counter. Full `pollOnce` side effects (await-host flags, non-host reconciler paths) wait for the next scheduled poll — unlike a fresh mount where `net.start()` polls immediately.

@@ -27,6 +27,8 @@ This directory contains two distinct classes of objects that both produce visual
 4. Construct it with `new Effect({ x, y, duration, effectType, effectData })` and call `engine.addEffect(effect)`.
 5. Keep it purely visual — no `engine` access inside the effect.
 
+**Particle batching:** `ParticleImage` / `StoryHomingParticle` draw through a Pixi `ParticleContainer` in `game/GameRenderer/renderers/EffectRenderer.ts` (shared `darkBlob` texture). Other effect types that need nested Containers stay on the normal sprite path.
+
 ---
 
 ## 2. EffectEmitter — game-tick factory, produces Effects

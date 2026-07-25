@@ -67,4 +67,19 @@ describe('tickDayLightDamage', () => {
         tickDayLightDamage([unit], engine, 0);
         expect(unit.takeDamage).not.toHaveBeenCalled();
     });
+
+    it('floors fractional DayLight damage', () => {
+        const unit = mockUnit({ characterId: 'dark_wolf' });
+        const engine = {
+            eventBus: {},
+            getLightIntensity: vi.fn().mockReturnValue(1.4),
+        } as unknown as EngineContext;
+
+        tickDayLightDamage([unit], engine, 0);
+        expect(unit.takeDamage).toHaveBeenCalledWith(
+            Math.floor(DAYLIGHT_DAMAGE_PER_INTENSITY * 1.4),
+            null,
+            engine.eventBus,
+        );
+    });
 });

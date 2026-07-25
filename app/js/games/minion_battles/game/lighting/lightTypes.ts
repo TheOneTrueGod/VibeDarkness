@@ -33,7 +33,7 @@ export const LIGHT_TYPE_TINT: Record<LightType, number> = {
 /** Soft overlay wash RGBA for the dominant render type (alpha baked into string usage). */
 export const LIGHT_TYPE_OVERLAY_RGB: Record<LightType, { r: number; g: number; b: number }> = {
     FireLight: { r: 255, g: 170, b: 64 },
-    DayLight: { r: 136, g: 204, b: 255 },
+    DayLight: { r: 239, g: 239, b: 110 },
     DarkLight: { r: 153, g: 51, b: 204 },
     LanternLight: { r: 68, g: 204, b: 102 },
 };

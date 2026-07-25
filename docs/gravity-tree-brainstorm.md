@@ -30,7 +30,7 @@ Gravity is a **battlefield choreographer** kit, not a damage kit — its damage 
 | Core item pattern | `character_defs/items/core/017_core_light.ts` | `resourcesToAdd: ['light']`, `cardsToAdd`, `slotLayout`. Directly reusable shape for a Gravity Core. |
 | Tree pattern | `researchTrees/trees/light.ts`, `earth.ts` | Core trees gate on `characterHasEquippedItem` (the Core item) rather than a specific weapon, so "works with any weapon" is already the norm, not an exception. |
 | Knockback system | `crowdControl/knockbackKeywords.ts`, `game/units/unitKnockback.ts` | Tiered launch (air time / slide time / magnitude), gated by CC-armour threshold (bosses absorb N hits first), terrain-aware (`computeForcedDisplacement` stops a unit at a wall). |
-| CC armour / hard-CC threshold | `crowdControl/tryApplyHardCcStun.ts`, `ccArmourState.ts` | See `[[boss-cc-armour]]` memory — bosses need N absorbed hits before a stun/launch actually lands. Gravity Inversion's 1.5s hard CC will run through this same gate for boss-tier enemies. |
+| CC armour / hard-CC threshold | `crowdControl/tryApplyHardCcStun.ts`, `ccArmourState.ts` | See `crowdControl/AGENTS.md` — bosses need N absorbed hits before a stun/launch actually lands. Gravity Inversion's 1.5s hard CC will run through this same gate for boss-tier enemies. |
 | `AbilityGroupId` + folder convention | `card_defs/AbilityGroupId.ts`, `card_defs/05_earth_core/EarthCore.md` | Earth Core's doc is the template for a new skill-tree line. |
 
 ## 4. What's genuinely new engine work

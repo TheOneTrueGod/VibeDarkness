@@ -59,6 +59,7 @@ The runner calls `isScenarioRunnerBattleIdle()` after each tick; if every unit i
 | Walk to a fixed point | One `MOVE_ONLY_ABILITY_ID` order; `movePath` from `tm.findGridPath(fromCol, fromRow, toCol, toRow)` |
 | Walk left and right across the map | Build a multi-leg zigzag `movePath` manually — no terrain manager needed on open grass: iterate `startCol → 0 → maxCol → 0`, pushing each cell into an array, then pass the whole array as `movePath` |
 | Stand still without pausing the engine | `{ unitId: player.id, abilityId: 'wait', targets: [] }` |
+| Two (or more) casts from one unit across cooldown | `getInitialOrders` only applies once and only one order per unit is accepted there. Pre-queue the later cast in `buildEngine()` with `engine.queueOrder(futureTick, order)`. Applying the first order also leaves a tick-0 pending entry that keeps `isScenarioRunnerBattleIdle()` false until the future tick runs. Reference: `enemy_boss_stun_mechanics` in `testing/scenarios/general/enemies.ts`. |
 
 **Estimating path length**: player speed is ~90 px/s; each grid cell is 40 px. A three-leg zigzag across a 15-wide map covers ~35 steps × 40 px / 90 px/s ≈ 15 s — enough to outlast most scenarios.
 

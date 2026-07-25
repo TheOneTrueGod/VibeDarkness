@@ -40,7 +40,7 @@ export function tickDayLightDamage(
         const intensity = engine.getLightIntensity(col, row, 'DayLight');
         if (intensity == null || intensity <= 0) continue;
 
-        const damage = DAYLIGHT_DAMAGE_PER_INTENSITY * intensity;
+        const damage = Math.floor(DAYLIGHT_DAMAGE_PER_INTENSITY * intensity);
         if (damage <= 0) continue;
         unit.takeDamage(damage, null, engine.eventBus);
     }
