@@ -12,7 +12,9 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         { fromMissionId: 'cave_respite', result: 'victory', toMissionId: 'crystal_corruption', isSideMission: true },
         { fromMissionId: 'crystal_corruption', result: 'victory', toMissionId: 'monster' },
         { fromMissionId: 'monster', result: 'victory', toMissionId: 'core_awakening' },
-        { fromMissionId: 'core_awakening', result: 'victory', toMissionId: 'ember_threshold' },
+        // Placeholder slot: a mission between core_awakening and south_gate_swarm will be inserted later.
+        { fromMissionId: 'core_awakening', result: 'victory', toMissionId: 'south_gate_swarm' },
+        { fromMissionId: 'south_gate_swarm', result: 'victory', toMissionId: 'ember_threshold' },
         { fromMissionId: 'ember_threshold', result: 'victory', toMissionId: 'thorn_march' },
         { fromMissionId: 'thorn_march', result: 'victory', toMissionId: 'thornling_rise' },
     ],

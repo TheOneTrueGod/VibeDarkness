@@ -13,6 +13,7 @@ import { CAVE_RESPITE } from './WorldOfDarkness/missions/004_cave_respite';
 import { CRYSTAL_CORRUPTION } from './WorldOfDarkness/missions/004b_crystal_corruption';
 import { MONSTER } from './WorldOfDarkness/missions/005_monster';
 import { CORE_AWAKENING } from './WorldOfDarkness/missions/006_core_awakening';
+import { SOUTH_GATE_SWARM } from './WorldOfDarkness/missions/006c_south_gate_swarm';
 import { EMBER_THRESHOLD } from './WorldOfDarkness/missions/007_ember_threshold';
 import { THORN_MARCH } from './WorldOfDarkness/missions/008_thorn_march';
 import { THORNLING_RISE } from './WorldOfDarkness/missions/009_thornling_rise';
@@ -34,6 +35,7 @@ export const MISSION_MAP: Record<string, IBaseMissionDef> = {
     crystal_corruption: CRYSTAL_CORRUPTION,
     monster: MONSTER,
     core_awakening: CORE_AWAKENING,
+    south_gate_swarm: SOUTH_GATE_SWARM,
     ember_threshold: EMBER_THRESHOLD,
     thorn_march: THORN_MARCH,
     thornling_rise: THORNLING_RISE,

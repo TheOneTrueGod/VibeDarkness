@@ -75,7 +75,8 @@ export class ThornlingRiseMission extends BaseMissionDef {
     segmentIds = ['48_52_thorn_path_2', '49_52_thorn_path'];
 
     missionId = ThornlingRiseMission.missionId;
-    mapPosition = { x: 100, y: 350 };
+    /** Row 3 (L→R): starts under Thorn March to continue the snake. */
+    mapPosition = { x: 100, y: 550 };
     missionType = 'battle' as const;
     description = 'A thornling nest surges with new growth. Destroy it before the swarm overwhelms the region.';
     name = ThornlingRiseMission.nameStr;
