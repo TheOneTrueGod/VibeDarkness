@@ -6,6 +6,7 @@
  */
 
 import type { OverlapMethod } from '../LightGrid';
+import { DEFAULT_LIGHT_TYPE, resolveLightType, type LightType } from '../lighting/lightTypes';
 
 export interface LightSourceDecay {
     roundCreated: number;
@@ -30,6 +31,8 @@ export class LightSource {
     followUnitId?: string;
     decay: LightSourceDecay;
     overlapMethod?: OverlapMethod;
+    /** Typed light channel for positive emission. Defaults to FireLight. */
+    lightType: LightType;
 
     constructor(config: {
         /**
@@ -46,6 +49,7 @@ export class LightSource {
         followUnitId?: string;
         decay: LightSourceDecay;
         overlapMethod?: OverlapMethod;
+        lightType?: LightType;
     }) {
         this.id = config.id ?? '';
         this.x = config.x;
@@ -56,6 +60,7 @@ export class LightSource {
         this.followUnitId = config.followUnitId;
         this.decay = { ...config.decay };
         this.overlapMethod = config.overlapMethod;
+        this.lightType = config.lightType ?? DEFAULT_LIGHT_TYPE;
     }
 
     toJSON(): Record<string, unknown> {
@@ -66,6 +71,7 @@ export class LightSource {
             active: this.active,
             lightAmount: this.lightAmount,
             radius: this.radius,
+            lightType: this.lightType,
             ...(this.color !== undefined ? { color: this.color } : {}),
             ...(this.followUnitId !== undefined ? { followUnitId: this.followUnitId } : {}),
             ...(this.overlapMethod !== undefined ? { overlapMethod: this.overlapMethod } : {}),
@@ -84,6 +90,7 @@ export class LightSource {
             followUnitId: data.followUnitId as string | undefined,
             decay: data.decay as LightSourceDecay,
             overlapMethod: data.overlapMethod as OverlapMethod | undefined,
+            lightType: resolveLightType(data.lightType),
         });
         ls.active = data.active as boolean;
         return ls;

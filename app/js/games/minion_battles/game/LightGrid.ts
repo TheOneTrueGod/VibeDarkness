@@ -1,9 +1,20 @@
 /**
- * LightGrid - Per-tile light level computation.
+ * LightGrid - Per-tile multi-channel light computation.
  *
- * Each source has a flat-brightness zone out to `radius` tiles, then linear falloff.
- * Sources combine according to their overlapMethod (defaults to 'max').
+ * Each positive source has a flat-brightness zone out to `radius` tiles in its lightType,
+ * then linear falloff contributed to FireLight. Negative emission is void darkness (untyped).
+ * Sources combine according to their overlapMethod (defaults to 'max') per channel / void pool.
  */
+
+import {
+    DEFAULT_LIGHT_TYPE,
+    LIGHT_TYPES,
+    type LightType,
+    type LightTypeIntensities,
+    emptyLightTypeIntensities,
+    resolveLightType,
+    visibilityFromChannels,
+} from './lighting/lightTypes';
 
 /**
  * Controls how a light source's contribution combines with other sources on the same tile.
@@ -20,6 +31,7 @@ export type OverlapMethod =
     | { method: 'add'; contributionDR?: number } // contributionDR defaults to 1 (no DR)
     | { method: 'base' };
 
+/** Grid computation input (distinct from the runtime LightSource GameObject). */
 export interface LightSource {
     col: number;
     row: number;
@@ -27,6 +39,11 @@ export interface LightSource {
     radius: number;
     /** How this source combines with others on the same tile. Defaults to 'max'. */
     overlapMethod?: OverlapMethod;
+    /**
+     * Typed light channel for positive emission. Defaults to FireLight.
+     * Ignored when emission is negative (void darkness).
+     */
+    lightType?: LightType;
 }
 
 /**
@@ -41,7 +58,7 @@ function roundedEuclideanDistance(col: number, row: number, sc: number, sr: numb
 /**
  * Light contribution from a single source at distance d.
  * Within radius: flat at emission. Beyond radius: linear falloff toward 0.
- * Negative emission (darklight) uses the mirrored form.
+ * Negative emission (void darkness) uses the mirrored form.
  */
 function sourceContribution(emission: number, radius: number, d: number): number {
     if (d <= radius) return emission;
@@ -118,10 +135,98 @@ function sumBaseContributions(contribs: TileContrib[]): number {
     return total;
 }
 
+function combinePool(contribs: TileContrib[], isPositive: boolean): number {
+    return sumBaseContributions(contribs) + combineLightGroup(contribs, isPositive);
+}
+
+export interface LightChannelGridResult {
+    /** Per-type positive channel intensities (no global floor baked in). */
+    channels: Record<LightType, number[][]>;
+    /** Combined void darkness per tile (≤ 0). */
+    voidDarkness: number[][];
+    /** Visibility: globalLightLevel + max(channels) + voidDarkness. */
+    visibility: number[][];
+}
+
+function emptyGrid(width: number, height: number, fill = 0): number[][] {
+    const grid: number[][] = [];
+    for (let row = 0; row < height; row++) {
+        grid.push(new Array(width).fill(fill));
+    }
+    return grid;
+}
+
 /**
- * Compute light level for every tile. Returns grid[row][col].
- * tileLevel = globalLightLevel + baseSum + positiveSum + negativeSum.
- * 'base' sources stack additively; max/add sources combine via combineLightGroup.
+ * Compute multi-channel light levels for every tile.
+ * Positive sources contribute to their lightType within radius; falloff goes to FireLight.
+ * Negative emission feeds the void pool only.
+ */
+export function computeLightChannelGrid(
+    globalLightLevel: number,
+    width: number,
+    height: number,
+    sources: LightSource[],
+): LightChannelGridResult {
+    const channels: Record<LightType, number[][]> = {
+        FireLight: emptyGrid(width, height),
+        DayLight: emptyGrid(width, height),
+        DarkLight: emptyGrid(width, height),
+        LanternLight: emptyGrid(width, height),
+    };
+    const voidDarkness = emptyGrid(width, height);
+    const visibility = emptyGrid(width, height);
+
+    for (let row = 0; row < height; row++) {
+        for (let col = 0; col < width; col++) {
+            const channelContribs: Record<LightType, TileContrib[]> = {
+                FireLight: [],
+                DayLight: [],
+                DarkLight: [],
+                LanternLight: [],
+            };
+            const voidContribs: TileContrib[] = [];
+
+            for (const s of sources) {
+                // Snap to 0.25 increments so ring boundaries transition atomically for all
+                // cells at the same distance rather than drifting cell-by-cell as values decay.
+                const emission = Math.round(s.emission * 4) / 4;
+                const radius = Math.round(s.radius * 4) / 4;
+                const range = radius + Math.abs(emission);
+                const d = roundedEuclideanDistance(col, row, s.col, s.row);
+                if (d > range) continue;
+                const contrib = sourceContribution(emission, radius, d);
+                if (contrib === 0) continue;
+                const overlapMethod: OverlapMethod = s.overlapMethod ?? { method: 'max' };
+
+                if (contrib < 0) {
+                    voidContribs.push({ amount: contrib, overlapMethod });
+                    continue;
+                }
+
+                // Within radius: source type. Beyond radius: FireLight falloff.
+                const channel: LightType =
+                    d <= radius ? resolveLightType(s.lightType ?? DEFAULT_LIGHT_TYPE) : 'FireLight';
+                channelContribs[channel].push({ amount: contrib, overlapMethod });
+            }
+
+            const intensities = emptyLightTypeIntensities();
+            for (const type of LIGHT_TYPES) {
+                const value = combinePool(channelContribs[type], true);
+                intensities[type] = value;
+                channels[type][row]![col] = value;
+            }
+            const voidValue = combinePool(voidContribs, false);
+            voidDarkness[row]![col] = voidValue;
+            visibility[row]![col] = visibilityFromChannels(intensities, voidValue, globalLightLevel);
+        }
+    }
+
+    return { channels, voidDarkness, visibility };
+}
+
+/**
+ * Compute light level for every tile. Returns visibility grid[row][col].
+ * tileLevel = globalLightLevel + max(typed channels) + voidDarkness.
  */
 export function computeLightGrid(
     globalLightLevel: number,
@@ -129,40 +234,7 @@ export function computeLightGrid(
     height: number,
     sources: LightSource[],
 ): number[][] {
-    const grid: number[][] = [];
-    for (let row = 0; row < height; row++) {
-        const r: number[] = [];
-        for (let col = 0; col < width; col++) {
-            const posContribs: TileContrib[] = [];
-            const negContribs: TileContrib[] = [];
-            for (const s of sources) {
-                // Snap to 0.25 increments so ring boundaries transition atomically for all
-                // cells at the same distance rather than drifting cell-by-cell as values decay.
-                const emission = Math.round(s.emission * 4) / 4;
-                const radius   = Math.round(s.radius   * 4) / 4;
-                const range = radius + Math.abs(emission);
-                const d = roundedEuclideanDistance(col, row, s.col, s.row);
-                if (d > range) continue;
-                const contrib = sourceContribution(emission, radius, d);
-                if (contrib === 0) continue;
-                const overlapMethod: OverlapMethod = s.overlapMethod ?? { method: 'max' };
-                if (contrib > 0) {
-                    posContribs.push({ amount: contrib, overlapMethod });
-                } else {
-                    negContribs.push({ amount: contrib, overlapMethod });
-                }
-            }
-            r.push(
-                globalLightLevel
-                + sumBaseContributions(posContribs)
-                + sumBaseContributions(negContribs)
-                + combineLightGroup(posContribs, true)
-                + combineLightGroup(negContribs, false),
-            );
-        }
-        grid.push(r);
-    }
-    return grid;
+    return computeLightChannelGrid(globalLightLevel, width, height, sources).visibility;
 }
 
 /**
@@ -179,3 +251,6 @@ export function getLightGrid(
 
 /** @deprecated Previously cleared a module cache; no-op — kept for call-site compatibility */
 export function clearLightGridCache(): void {}
+
+/** Re-export for callers that only need channel intensities helpers. */
+export type { LightType, LightTypeIntensities };

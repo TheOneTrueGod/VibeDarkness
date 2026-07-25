@@ -224,7 +224,10 @@ export const ThrowChargedRock: AbilityStatic = {
             }),
         );
 
-        spawnBrightLight(eng as EngineWithLight, proj.x, proj.y, BRIGHT_MAGNITUDE, PREVIEW_TEAL);
+        spawnBrightLight(eng as EngineWithLight, proj.x, proj.y, BRIGHT_MAGNITUDE, {
+            color: PREVIEW_TEAL,
+            lightType: 'FireLight',
+        });
 
         const units = (eng.units ?? [])
             .filter((u) => u.isAlive() && areEnemies(sourceUnit.teamId, u.teamId))

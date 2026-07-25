@@ -1,5 +1,7 @@
 import { LightSource } from '../game/lightSources/LightSource';
 import type { AbilityEngineContext } from './AbilityEngineContext';
+import type { LightType } from '../game/lighting/lightTypes';
+import { DEFAULT_LIGHT_TYPE } from '../game/lighting/lightTypes';
 
 export type EngineWithLight = AbilityEngineContext & { addLightSource(ls: LightSource): void };
 
@@ -21,16 +23,24 @@ export function spawnBrightLight(
     x: number,
     y: number,
     magnitude: number,
-    color?: number,
+    colorOrOpts?: number | { color?: number; lightType?: LightType },
 ): void {
     const def = BRIGHT_DEFS[magnitude];
     if (!def) return;
+    const opts =
+        typeof colorOrOpts === 'number'
+            ? { color: colorOrOpts, lightType: DEFAULT_LIGHT_TYPE }
+            : {
+                  color: colorOrOpts?.color,
+                  lightType: colorOrOpts?.lightType ?? DEFAULT_LIGHT_TYPE,
+              };
     eng.addLightSource(new LightSource({
         x,
         y,
         lightAmount: def.lightAmount,
         radius: def.radius,
-        color,
+        color: opts.color,
+        lightType: opts.lightType,
         decay: def.roundsTotal != null
             ? {
                 roundCreated: eng.roundNumber ?? 1,

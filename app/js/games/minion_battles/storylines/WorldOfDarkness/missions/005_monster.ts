@@ -94,7 +94,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
         defId: 'DarkCrystal',
         col: WOLF_COL,
         row: WOLF_ROW,
-        emitsLight: { lightAmount: 5, radius: 5 },
+        emitsLight: { lightAmount: 5, radius: 5, lightType: 'DarkLight' },
         colorFilter: { color: 0x6633aa, alpha: 0.35, filterRadius: 8 },
     },
     {

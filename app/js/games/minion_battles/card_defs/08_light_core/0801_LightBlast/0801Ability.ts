@@ -130,7 +130,7 @@ export const LightBlastAbility = defineAbility({
                     applyHeal(unit, LIGHT_BLAST_HEAL, healPenaltyPct);
                 }
 
-                spawnBrightLight(eng, pos.x, pos.y, BRIGHT_MAGNITUDE);
+                spawnBrightLight(eng, pos.x, pos.y, BRIGHT_MAGNITUDE, { lightType: 'DayLight' });
             }),
         },
         {

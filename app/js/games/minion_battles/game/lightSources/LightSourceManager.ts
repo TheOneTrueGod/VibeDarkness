@@ -94,7 +94,14 @@ export class LightSourceManager {
             const isBase = ls.overlapMethod?.method === 'base';
             if (ls.radius <= 0 && !isBase) continue;
             const { col, row } = grid.worldToGrid(ls.x, ls.y);
-            inputs.push({ col, row, emission: ls.lightAmount, radius: ls.radius, overlapMethod: ls.overlapMethod });
+            inputs.push({
+                col,
+                row,
+                emission: ls.lightAmount,
+                radius: ls.radius,
+                overlapMethod: ls.overlapMethod,
+                lightType: ls.lightType,
+            });
         }
         return inputs;
     }

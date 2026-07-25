@@ -40,7 +40,7 @@ function createTerrain(): TerrainGrid {
 const DARK_CRYSTAL_REPLACEMENT = {
     hp: 1,
     maxHp: 1,
-    emitsLight: { lightAmount: 3, radius: 2 },
+    emitsLight: { lightAmount: 3, radius: 2, lightType: 'DarkLight' as const },
     colorFilter: { color: 0x6633aa, alpha: 0.3, filterRadius: 3 },
 } as const;
 

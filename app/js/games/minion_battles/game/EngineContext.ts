@@ -14,6 +14,7 @@ import type { Projectile } from './projectiles/Projectile';
 import type { SpecialTile } from './specialTiles/SpecialTile';
 import type { LightSource as GridLightSource } from './LightGrid';
 import type { LightSource } from './lightSources/LightSource';
+import type { LightType } from './lighting/lightTypes';
 import type { EffectEmitter } from './effects/EffectEmitter';
 import type { TerrainLayerManager } from './TerrainLayerManager';
 import type { MapSegmentPOI, MapSegmentZone } from '../terrain/segmentSchema';
@@ -124,8 +125,15 @@ export interface EngineContext {
     /**
      * Returns the light level at a grid cell (col, row), or null if light is disabled or out of bounds.
      * Prefer this over getLightLevelAt for renderer tile-index queries (no pixel→grid conversion needed).
+     * Visibility = max(typed channels) + void darkness + globalLightLevel.
      */
     getLightAt(col: number, row: number): number | null;
+
+    /** Animated intensity for a typed light channel at a grid cell. */
+    getLightIntensity(col: number, row: number, type: LightType): number | null;
+
+    /** Dominant render light type at a grid cell (null if unlit / disabled). */
+    getDominantLightType(col: number, row: number): LightType | null;
 
     /**
      * Allocate a unique id for a game entity (unit, projectile, special tile) owned by this

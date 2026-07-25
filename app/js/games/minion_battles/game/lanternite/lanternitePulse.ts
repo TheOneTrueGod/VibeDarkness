@@ -61,6 +61,7 @@ function upsertLanternLightSource(args: {
             lightAmount: LANTERNITE_TORCH_LIGHT,
             radius: LANTERNITE_TORCH_RADIUS_TILES,
             followUnitId: args.lanternite.id,
+            lightType: 'LanternLight',
             decay: {
                 roundCreated: 0,
                 initialLightAmount: LANTERNITE_TORCH_LIGHT,
@@ -88,6 +89,7 @@ export function upsertNestLightSource(args: {
             lightAmount: LANTERNITE_NEST_LIGHT,
             radius: LANTERNITE_NEST_RADIUS_TILES,
             followUnitId: args.nest.id,
+            lightType: 'LanternLight',
             decay: {
                 roundCreated: 0,
                 initialLightAmount: LANTERNITE_NEST_LIGHT,

@@ -5,6 +5,8 @@
  */
 
 import type { OverlapMethod } from '../LightGrid';
+import type { LightType } from '../lighting/lightTypes';
+import { resolveLightType } from '../lighting/lightTypes';
 
 /** Runtime special tile (position, hp, etc.). */
 export interface SpecialTile {
@@ -34,10 +36,15 @@ export interface SpecialTile {
         decayInterval?: number;
         /** How this source combines with other light sources on the same tile. Defaults to 'max'. */
         overlapMethod?: OverlapMethod;
+        /** Typed light channel. Defaults to FireLight. */
+        lightType?: LightType;
     };
     /** Internal: next time (in rounds since start) we apply one decay step. */
     lightDecayNextAtRound?: number;
-    /** For Crystal: tile distance (Chebyshev) for protection aura and terrain blocking. Set from mission placement. */
+    /**
+     * Legacy: tile distance (Chebyshev) for crystal protection aura / path blocking.
+     * Optional for old checkpoints; new missions omit this.
+     */
     protectRadius?: number;
     /** For DarkCrystal: purple color filter. Set from mission placement. */
     colorFilter?: { color: number; alpha: number; filterRadius: number };
@@ -73,6 +80,7 @@ export function specialTileFromJSON(
                   decayRate: (rawEmits as { decayRate?: number }).decayRate,
                   decayInterval: (rawEmits as { decayInterval?: number }).decayInterval,
                   overlapMethod: (rawEmits as { overlapMethod?: OverlapMethod }).overlapMethod,
+                  lightType: resolveLightType((rawEmits as { lightType?: unknown }).lightType),
               }
             : undefined;
     const maxHp = (data.maxHp as number) ?? 1;

@@ -465,7 +465,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
         // (UnitManager.gameTick's Phase 2 movement loop) — this is not a per-tick call.
         engine.state.mapNetworkManager.buildInitialMembership(engine.units);
 
-        // Add special tiles (Campfire, Crystal, etc.) — maxHp, emitsLight, protectRadius, defendPoint from placement
+        // Add special tiles (Campfire, Crystal, etc.) — maxHp, emitsLight, defendPoint from placement
         if (this.specialTiles && this.specialTiles.length > 0) {
             for (const p of this.specialTiles) {
                 const def = getSpecialTileDef(p.defId);

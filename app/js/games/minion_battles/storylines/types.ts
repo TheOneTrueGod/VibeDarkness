@@ -17,6 +17,7 @@ import type {
 } from './storyTypes';
 import type { WorldModifierDef } from '../worldModifiers/types';
 import type { OverlapMethod } from '../game/LightGrid';
+import type { LightType } from '../game/lighting/lightTypes';
 import type {
     ThornlingNestMissionConfig,
     SwarmNestMissionConfig,
@@ -441,8 +442,10 @@ export interface SpecialTilePlacement {
         decayInterval?: number;
         /** How this source combines with other light sources on the same tile. Defaults to 'max'. */
         overlapMethod?: OverlapMethod;
+        /** Typed light channel. Defaults to FireLight. */
+        lightType?: LightType;
     };
-    /** For Crystal: tile distance (Chebyshev) for protection aura and terrain blocking. */
+    /** Legacy crystal protect aura (Chebyshev). Optional for old data; new missions omit. */
     protectRadius?: number;
     /** For DarkCrystal: purple color filter in a square area. Tile distance (Chebyshev) from center. */
     colorFilter?: { color: number; alpha: number; filterRadius: number };

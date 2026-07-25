@@ -62,17 +62,24 @@ export const CRYSTAL_POINTS = {
     crystal_5: { row: 13, col: 20 },
 } as const;
 
+/** Crystal DayLight emission used by cave crystals (and tests). */
+export const CRYSTAL_DAYLIGHT_AMOUNT = 5;
+export const CRYSTAL_DAYLIGHT_RADIUS = 1;
+
 /** Shared gameplay fields for the five cave crystals (position added per mission via offset). */
 export const CRYSTAL_TILE_DEFAULTS: Omit<SpecialTilePlacement, 'col' | 'row'> = {
     defId: 'Crystal',
-    emitsLight: { lightAmount: 8, radius: 1 },
-    protectRadius: 3,
+    emitsLight: {
+        lightAmount: CRYSTAL_DAYLIGHT_AMOUNT,
+        radius: CRYSTAL_DAYLIGHT_RADIUS,
+        lightType: 'DayLight',
+    },
 };
 
-/** Dark-crystal variant: corrupted appearance, no protective aura. */
+/** Dark-crystal variant: corrupted appearance, DarkLight emission. */
 export const DARK_CRYSTAL_TILE_DEFAULTS: Omit<SpecialTilePlacement, 'col' | 'row'> = {
     defId: 'DarkCrystal',
-    emitsLight: { lightAmount: 3, radius: 2 },
+    emitsLight: { lightAmount: 3, radius: 2, lightType: 'DarkLight' },
     colorFilter: { color: 0x6633aa, alpha: 0.3, filterRadius: 3 },
 };
 

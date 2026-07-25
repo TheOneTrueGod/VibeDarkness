@@ -31,8 +31,9 @@ import type { BattleObjectiveDef, LevelEvent, PlayerControlDef } from '../storyl
 import type { SpecialTile } from './specialTiles/SpecialTile';
 import { isTileDefendPoint } from './specialTiles/SpecialTile';
 import type { AIContext, AILightSource } from './units/unitAI';
-import { computeLightGrid, type LightSource as GridLightInput } from './LightGrid';
+import { computeLightChannelGrid, type LightSource as GridLightInput } from './LightGrid';
 import { LightTileGrid } from './lightTileGrid/LightTileGrid';
+import { LIGHT_TYPES, type LightType } from './lighting/lightTypes';
 import { LightSource } from './lightSources/LightSource';
 import type { EngineContext } from './EngineContext';
 import { GameState } from './GameState';
@@ -68,6 +69,7 @@ import {
     tickPerformanceTracker,
 } from './performance/tickPerformanceTracker';
 import { tickAllDots, DOT_TICKS_PER_ROUND } from './dotTick';
+import { tickDayLightDamage } from './lighting/dayLightDamage';
 import { clearUnitTileTransitionState } from './terrainEffects/tileTransitions';
 import { createDamageTakenEffect } from './createDamageTakenEffect';
 import { CantDieBuff } from '../buffs/CantDieBuff';
@@ -622,9 +624,10 @@ export class GameEngine implements EngineContext {
         const grid = this.state.lightTileGrid;
         if (!grid || !this.lightLevelEnabled || !this.terrainManager?.grid) return null;
         const { col, row } = this.terrainManager.grid.worldToGrid(x, y);
-        return grid.get(
+        return grid.getVisibility(
             Math.max(0, Math.min(grid.gridHeight - 1, row)),
             Math.max(0, Math.min(grid.gridWidth - 1, col)),
+            this.globalLightLevel,
         );
     }
 
@@ -633,17 +636,38 @@ export class GameEngine implements EngineContext {
         const grid = this.state.lightTileGrid;
         if (!grid) return this.state.globalLightLevel;
         if (row < 0 || row >= grid.gridHeight || col < 0 || col >= grid.gridWidth) return null;
-        return grid.get(row, col);
+        return grid.getVisibility(row, col, this.globalLightLevel);
+    }
+
+    getLightIntensity(col: number, row: number, type: LightType): number | null {
+        if (!this.state.lightLevelEnabled) return null;
+        const grid = this.state.lightTileGrid;
+        if (!grid) return type === 'FireLight' ? this.state.globalLightLevel : 0;
+        if (row < 0 || row >= grid.gridHeight || col < 0 || col >= grid.gridWidth) return null;
+        return grid.getChannel(row, col, type);
+    }
+
+    getDominantLightType(col: number, row: number): LightType | null {
+        if (!this.state.lightLevelEnabled) return null;
+        const grid = this.state.lightTileGrid;
+        if (!grid) return null;
+        if (row < 0 || row >= grid.gridHeight || col < 0 || col >= grid.gridWidth) return null;
+        return grid.getDominantType(row, col);
     }
 
     private initLightGrid(): void {
         if (!this.terrainManager?.grid) return;
         const { width, height } = this.terrainManager.grid;
         const tileGrid = LightTileGrid.create(width, height);
-        const target = computeLightGrid(this.globalLightLevel, width, height, this.getAllLightSources());
-        for (let row = 0; row < height; row++)
-            for (let col = 0; col < width; col++)
-                tileGrid.set(row, col, target[row][col]);
+        const target = computeLightChannelGrid(this.globalLightLevel, width, height, this.getAllLightSources());
+        for (let row = 0; row < height; row++) {
+            for (let col = 0; col < width; col++) {
+                for (const type of LIGHT_TYPES) {
+                    tileGrid.setChannel(row, col, type, target.channels[type][row]![col]!);
+                }
+                tileGrid.setVoid(row, col, target.voidDarkness[row]![col]!);
+            }
+        }
         this.state.lightTileGrid = tileGrid;
     }
 
@@ -651,20 +675,28 @@ export class GameEngine implements EngineContext {
         const grid = this.state.lightTileGrid;
         if (!grid || !this.terrainManager?.grid) return;
         const { width, height } = this.terrainManager.grid;
-        const target = computeLightGrid(this.globalLightLevel, width, height, this.getAllLightSources());
+        const target = computeLightChannelGrid(this.globalLightLevel, width, height, this.getAllLightSources());
+        const animateToward = (cur: number, rawTgt: number): number => {
+            // Round target to integer — fractional emission/radius produces float targets
+            // which would cause cur to oscillate between floor(tgt) and ceil(tgt) forever.
+            const tgt = Math.round(rawTgt);
+            // Proportional step: moves 10% of the remaining delta each tick.
+            // Snap to target when the step is negligible to avoid asymptotic drift
+            // (important for integer threshold checks like corruption at light <= 0).
+            const delta = tgt - cur;
+            const step = 0.1 * delta;
+            if (Math.abs(step) < 0.01) return tgt;
+            if (delta !== 0) return cur + step;
+            return cur;
+        };
         for (let row = 0; row < height; row++) {
             for (let col = 0; col < width; col++) {
-                const cur = grid.get(row, col);
-                // Round target to integer — fractional emission/radius produces float targets
-                // which would cause cur to oscillate between floor(tgt) and ceil(tgt) forever.
-                const tgt = Math.round(target[row][col]);
-                // Proportional step: moves 10% of the remaining delta each tick.
-                // Snap to target when the step is negligible to avoid asymptotic drift
-                // (important for integer threshold checks like corruption at light <= 0).
-                const delta = tgt - cur;
-                const step = 0.1 * delta;
-                if (Math.abs(step) < 0.01) grid.set(row, col, tgt);
-                else if (delta !== 0) grid.set(row, col, cur + step);
+                for (const type of LIGHT_TYPES) {
+                    const cur = grid.getChannel(row, col, type);
+                    grid.setChannel(row, col, type, animateToward(cur, target.channels[type][row]![col]!));
+                }
+                const curVoid = grid.getVoid(row, col);
+                grid.setVoid(row, col, animateToward(curVoid, target.voidDarkness[row]![col]!));
             }
         }
     }
@@ -1815,6 +1847,7 @@ export class GameEngine implements EngineContext {
         const dotTickInterval = ROUND_DURATION / DOT_TICKS_PER_ROUND;
         while (this.appliedDotTicks < DOT_TICKS_PER_ROUND && roundTime >= this.appliedDotTicks * dotTickInterval) {
             tickAllDots(this.units, this.terrainLayers, this.eventBus, bleedFx, this.appliedDotTicks);
+            tickDayLightDamage(this.units, this, this.appliedDotTicks);
             this.appliedDotTicks++;
         }
     }

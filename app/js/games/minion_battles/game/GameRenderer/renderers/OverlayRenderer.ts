@@ -7,10 +7,14 @@ import type { AssetRegistry } from '../AssetRegistry';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { debugSettingsSnapshot } from '../../../../../debug/debugSettingsStore';
+import { LIGHT_TYPE_OVERLAY_RGB, type LightType } from '../../lighting/lightTypes';
 
 const Z_CRYSTAL_AURA = 2;
 const Z_DARKNESS = 5;
 const Z_FOG_TINT = 13;
+
+/** Soft typed-light wash alpha when a non-FireLight type dominates. */
+const TYPED_LIGHT_WASH_ALPHA = 0.06;
 
 export class OverlayRenderer {
     private darknessOverlaySprite: Sprite | null = null;
@@ -138,12 +142,13 @@ export class OverlayRenderer {
             this.lastRenderTime = 0;
         }
 
-        this.renderCrystalAura(engine);
+        // Crystal protect aura removed with protectRadius; keep dark-crystal colorFilter wash.
+        this.crystalAuraGraphics.clear();
+        this.crystalAuraGraphics.visible = false;
         this.renderDarkCrystalAura(engine);
     }
 
     private updateDarknessOverlay(engine: GameEngine): void {
-        const tileGrid = engine.state.lightTileGrid;
         const terrainGrid = engine.terrainManager!.grid;
         const width = terrainGrid.width;
         const height = terrainGrid.height;
@@ -163,7 +168,7 @@ export class OverlayRenderer {
                     // Impassable renders as void with no fog/darkness overlay — same as the area
                     // outside the map bounds, which this overlay's grid never even reaches.
                     if (terrainGrid.get(col, row) === TerrainType.Impassable) continue;
-                    const level = tileGrid ? tileGrid.get(row, col) : engine.state.globalLightLevel;
+                    const level = engine.getLightAt(col, row) ?? engine.state.globalLightLevel;
                     const alpha = OverlayRenderer.lightLevelToAlpha(level);
                     if (alpha > 0) {
                         ctx.fillStyle = `rgba(20,0,35,${alpha})`;
@@ -171,6 +176,11 @@ export class OverlayRenderer {
                     } else if (level >= DarknessLevel.SUNLIGHT) {
                         ctx.fillStyle = `rgba(255,245,200,0.08)`;
                         ctx.fillRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                    }
+
+                    const dominant = engine.getDominantLightType(col, row);
+                    if (dominant && dominant !== 'FireLight' && level > DarknessLevel.FULL_DARKNESS) {
+                        OverlayRenderer.fillTypedWash(ctx, col, row, dominant);
                     }
                 }
             }
@@ -188,18 +198,15 @@ export class OverlayRenderer {
         }
     }
 
-    private renderCrystalAura(engine: GameEngine): void {
-        this.crystalAuraGraphics.clear();
-        const grid = engine.terrainManager?.grid;
-        if (!grid) return;
-        const protectedSet = engine.getCrystalProtectedSet();
-        if (protectedSet.size === 0) return;
-        for (const key of protectedSet) {
-            const [col, row] = key.split(',').map(Number);
-            if (Number.isNaN(col) || Number.isNaN(row)) continue;
-            this.crystalAuraGraphics.rect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
-            this.crystalAuraGraphics.fill({ color: 0x4488ff, alpha: 0.15 });
-        }
+    private static fillTypedWash(
+        ctx: CanvasRenderingContext2D,
+        col: number,
+        row: number,
+        type: LightType,
+    ): void {
+        const rgb = LIGHT_TYPE_OVERLAY_RGB[type];
+        ctx.fillStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},${TYPED_LIGHT_WASH_ALPHA})`;
+        ctx.fillRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
     }
 
     private renderDarkCrystalAura(engine: GameEngine): void {
@@ -207,7 +214,11 @@ export class OverlayRenderer {
         const grid = engine.terrainManager?.grid;
         if (!grid) return;
         const filterSet = engine.getDarkCrystalFilterSet();
-        if (filterSet.size === 0) return;
+        if (filterSet.size === 0) {
+            this.darkCrystalAuraGraphics.visible = false;
+            return;
+        }
+        this.darkCrystalAuraGraphics.visible = true;
         const darkCrystals = engine.specialTiles.filter(
             (t) => t.defId === 'DarkCrystal' && t.hp > 0 && t.colorFilter,
         );

@@ -2,6 +2,7 @@ import { Graphics } from 'pixi.js';
 import type { Container } from 'pixi.js';
 import type { GameEngine } from '../../GameEngine';
 import type { AssetRegistry } from '../AssetRegistry';
+import { LIGHT_TYPE_TINT } from '../../lighting/lightTypes';
 
 const Z_LIGHT_SOURCES = 5; // below special tiles (6), same level as darkness overlay
 
@@ -35,6 +36,7 @@ export class LightSourceRenderer {
             g.visible = ls.active && ls.lightAmount > 0;
             if (!g.visible) continue;
             g.clear();
+            const typeTint = LIGHT_TYPE_TINT[ls.lightType];
             if (ls.color != null) {
                 const size = ls.radius * 3;
                 g.circle(0, 0, size);
@@ -44,11 +46,13 @@ export class LightSourceRenderer {
                 g.stroke({ color: ls.color, width: 1, alpha: 0.7 });
             } else {
                 const size = Math.max(8, Math.min(20, ls.radius * 4));
+                const core = ls.lightType === 'FireLight' ? 0xffdd00 : 0xffffff;
+                const stroke = ls.lightType === 'FireLight' ? 0xff6600 : typeTint;
                 g.circle(0, 0, size);
-                g.fill({ color: 0xffaa40, alpha: 0.4 + (ls.lightAmount / 15) * 0.4 });
+                g.fill({ color: typeTint, alpha: 0.4 + (ls.lightAmount / 15) * 0.4 });
                 g.circle(0, 0, size * 0.6);
-                g.fill({ color: 0xffdd00, alpha: 0.5 });
-                g.stroke({ color: 0xff6600, width: 1, alpha: 0.8 });
+                g.fill({ color: core, alpha: 0.5 });
+                g.stroke({ color: stroke, width: 1, alpha: 0.8 });
             }
         }
 

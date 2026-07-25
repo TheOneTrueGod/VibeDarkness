@@ -12,14 +12,14 @@ export interface CampfireDef {
     image: string;
 }
 
-/** Crystal: indestructible tile; light, protectRadius, and maxHp are set per placement in the mission. */
+/** Crystal: indestructible tile; light and maxHp are set per placement in the mission. */
 export interface CrystalDef {
     id: 'Crystal';
     /** SVG image URL (data URL or file URL). */
     image: string;
 }
 
-/** Dark Crystal: emits purple-tinted light; colorFilter creates arena effect. */
+/** Dark Crystal: emits DarkLight; colorFilter creates arena effect. */
 export interface DarkCrystalDef {
     id: 'DarkCrystal';
     /** SVG image URL (data URL or file URL). */
@@ -70,7 +70,7 @@ const DARK_CRYSTAL_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3
 </svg>`;
 const DARK_CRYSTAL_DATA_URL = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(DARK_CRYSTAL_SVG)))}`;
 
-/** Registry of special tile definitions by ID. Light, maxHp, protectRadius come from mission placement. */
+/** Registry of special tile definitions by ID. Light and maxHp come from mission placement. */
 export const SPECIAL_TILE_DEFS: Record<string, SpecialTileDef> = {
     Campfire: { id: 'Campfire', image: CAMPFIRE_DATA_URL },
     Crystal: { id: 'Crystal', image: CRYSTAL_DATA_URL },

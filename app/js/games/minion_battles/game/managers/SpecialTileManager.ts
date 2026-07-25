@@ -108,6 +108,7 @@ export class SpecialTileManager {
                     emission: light.lightAmount * scale,
                     radius: light.radius,
                     overlapMethod: light.overlapMethod,
+                    lightType: light.lightType,
                 });
             }
         }
