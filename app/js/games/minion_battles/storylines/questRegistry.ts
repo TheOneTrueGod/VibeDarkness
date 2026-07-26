@@ -4,9 +4,12 @@
 
 import type { QuestDef } from './questTypes';
 import { FIND_THE_HERD_OF_BOARS } from './WorldOfDarkness/quests/find_the_herd_of_boars';
+import { SCAVENGE_THE_PLAINS } from './WorldOfDarkness/quests/scavenge_the_plains';
 
 export const QUEST_MAP: Record<string, QuestDef> = {
+    /** Plumbing / fixed-slot fixture (not in the post-core bank filters). */
     [FIND_THE_HERD_OF_BOARS.id]: FIND_THE_HERD_OF_BOARS,
+    [SCAVENGE_THE_PLAINS.id]: SCAVENGE_THE_PLAINS,
 };
 
 export function getQuestDef(questDefId: string): QuestDef | undefined {

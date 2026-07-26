@@ -2,9 +2,10 @@
  * Resolve QuestDef MissionSlotSpecs into ResolvedMissionRef[] once per run (prep → active).
  * Same runSeed + slot index must yield deterministic results when generators exist.
  *
- * v1: fixed slots copy missionId; random_battle / random_story throw until generators land.
+ * v1: fixed slots copy missionId; random_story picks from the bag; random_battle still stubbed.
  */
 
+import { pickRandomStoryMission, RANDOM_STORY_GENERATOR_ID } from './randomStoryResolve';
 import type {
     MissionSlotSpec,
     QuestDef,
@@ -66,14 +67,22 @@ function resolveRandomBattleStub(
     throw new QuestSlotResolverNotImplementedError('random_battle', spec.params, ctx.slotIndex);
 }
 
-function resolveRandomStoryStub(
+function resolveRandomStory(
     spec: Extract<MissionSlotSpec, { kind: 'random_story' }>,
     ctx: QuestSlotResolveContext,
-): never {
-    throw new QuestSlotResolverNotImplementedError('random_story', spec.params, ctx.slotIndex);
+): ResolvedMissionRef {
+    const slotSeed = ctx.slotSeed ?? slotSeedFor(ctx.runSeed, ctx.slotIndex ?? 0);
+    const picked = pickRandomStoryMission(spec.params, slotSeed);
+    return {
+        kind: 'generated',
+        missionId: picked.missionId,
+        generatorId: RANDOM_STORY_GENERATOR_ID,
+        seed: slotSeed,
+        params: spec.params,
+    };
 }
 
-/** Resolve a single MissionSlotSpec. Random kinds throw until generators exist. */
+/** Resolve a single MissionSlotSpec. */
 export function resolveMissionSlot(
     spec: MissionSlotSpec,
     ctx: QuestSlotResolveContext,
@@ -84,7 +93,7 @@ export function resolveMissionSlot(
         case 'random_battle':
             return resolveRandomBattleStub(spec, ctx);
         case 'random_story':
-            return resolveRandomStoryStub(spec, ctx);
+            return resolveRandomStory(spec, ctx);
         default: {
             const _exhaustive: never = spec;
             throw new Error(`Unknown mission slot kind: ${JSON.stringify(_exhaustive)}`);
@@ -94,7 +103,7 @@ export function resolveMissionSlot(
 
 /**
  * Resolve all slots on a QuestDef for a run.
- * Uses runSeed (+ slot index) so future random resolvers stay deterministic.
+ * Uses runSeed (+ slot index) so random resolvers stay deterministic.
  */
 export function resolveQuestSlots(
     quest: QuestDef,

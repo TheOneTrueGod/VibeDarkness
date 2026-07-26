@@ -15,7 +15,17 @@ import type { MissionResult } from '../../../../../types';
 import type { MissionType } from '../../../storylines/types';
 import type { StartQuestOptions } from '../../../storylines/questLobby';
 import { STORYLINES, MISSION_MAP } from '../../../storylines/index';
-import { getUnlockedMissionIds, hasVictoryResult, isMissionCompleted, getAllMissionIdsInOrder, isSideMissionId } from '../../../storylines/unlock';
+import {
+    getUnlockedMissionIds,
+    hasVictoryResult,
+    isMissionCompleted,
+    getAllMissionIdsInOrder,
+    isSideMissionId,
+    getUnlockedQuestSlotBanks,
+    countQuestBankClears,
+    isQuestSlotBankUnlocked,
+} from '../../../storylines/unlock';
+import type { QuestSlotBank } from '../../../storylines/questTypes';
 import { getResolvedMissionResearchRewards } from '../../../../../researchTrees/list';
 import ResearchRewardTinyChip from '../../../../../components/ResearchRewardTinyChip';
 import ResourcePill, { campaignResourceGains } from '../../../../../components/ResourcePill';
@@ -279,6 +289,7 @@ export default function MissionMapTab({
     const [hoveredId, setHoveredId] = useState<string | null>(null);
     const [pressedId, setPressedId] = useState<string | null>(null);
     const [tooltip, setTooltip] = useState<TooltipData | null>(null);
+    const [focusedBankId, setFocusedBankId] = useState<string | null>(null);
     const svgRef = useRef<SVGSVGElement>(null);
 
     const storyline = useMemo(
@@ -326,24 +337,41 @@ export default function MissionMapTab({
         });
     }, [missionIds, storyline]);
 
+    const questBanksOnMap = useMemo((): QuestSlotBank[] => {
+        if (!storyline) return [];
+        return (storyline.questSlotBanks ?? []).filter((b) => b.mapPosition != null);
+    }, [storyline]);
+
+    const unlockedQuestBankIds = useMemo(() => {
+        if (!storyline) return new Set<string>();
+        return new Set(getUnlockedQuestSlotBanks(storyline, missionResults).map((b) => b.id));
+    }, [storyline, missionResults]);
+
     const posMap = useMemo(() => {
         const m = new Map<string, { x: number; y: number }>();
         for (const { id, pos } of missions) m.set(id, pos);
+        for (const bank of questBanksOnMap) {
+            if (bank.mapPosition) m.set(`questBank:${bank.id}`, bank.mapPosition);
+        }
         return m;
-    }, [missions]);
+    }, [missions, questBanksOnMap]);
 
-    // Compute SVG viewBox from mission extents.
+    // Compute SVG viewBox from mission + quest-bank extents.
     const { minX, minY, maxX, maxY } = useMemo(() => {
-        if (missions.length === 0) return { minX: 0, minY: 0, maxX: 400, maxY: 300 };
+        const points = [
+            ...missions.map((m) => m.pos),
+            ...questBanksOnMap.map((b) => b.mapPosition!).filter(Boolean),
+        ];
+        if (points.length === 0) return { minX: 0, minY: 0, maxX: 400, maxY: 300 };
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        for (const { pos } of missions) {
+        for (const pos of points) {
             if (pos.x < minX) minX = pos.x;
             if (pos.y < minY) minY = pos.y;
             if (pos.x > maxX) maxX = pos.x;
             if (pos.y > maxY) maxY = pos.y;
         }
         return { minX, minY, maxX, maxY };
-    }, [missions]);
+    }, [missions, questBanksOnMap]);
 
     const vbX = minX - PADDING;
     const vbY = minY - PADDING;
@@ -412,7 +440,11 @@ export default function MissionMapTab({
         <div className="w-full h-full overflow-auto p-2">
             <p className="text-xs text-muted mb-2 px-1">{storyline.title}</p>
             {onStartQuest && (
-                <QuestBanksPanel character={character} onStartQuest={onStartQuest} />
+                <QuestBanksPanel
+                    character={character}
+                    onStartQuest={onStartQuest}
+                    focusedBankId={focusedBankId}
+                />
             )}
             <svg
                 ref={svgRef}
@@ -445,6 +477,27 @@ export default function MissionMapTab({
                             stroke={edge.isSideMission ? '#4c1d95' : '#374151'}
                             strokeWidth={edge.isSideMission ? 2 : 3}
                             strokeDasharray={edge.isSideMission ? '5 4' : undefined}
+                            strokeLinecap="round"
+                        />
+                    );
+                })}
+
+                {/* Side-quest edges from unlock mission → quest bank node */}
+                {questBanksOnMap.map((bank) => {
+                    if (!bank.unlockAfterMissionId || !bank.mapPosition) return null;
+                    const from = posMap.get(bank.unlockAfterMissionId);
+                    const to = bank.mapPosition;
+                    if (!from) return null;
+                    return (
+                        <line
+                            key={`quest-bank-edge-${bank.id}`}
+                            x1={from.x}
+                            y1={from.y}
+                            x2={to.x}
+                            y2={to.y}
+                            stroke="#4c1d95"
+                            strokeWidth={2}
+                            strokeDasharray="5 4"
                             strokeLinecap="round"
                         />
                     );
@@ -584,6 +637,117 @@ export default function MissionMapTab({
                                     style={{ pointerEvents: 'none', userSelect: 'none', transition: 'fill 0.12s ease' }}
                                 >
                                     {def?.name ?? id}
+                                </text>
+                            </g>
+                        </g>
+                    );
+                })}
+
+                {/* Quest slot bank nodes (side-quest style) */}
+                {questBanksOnMap.map((bank) => {
+                    const pos = bank.mapPosition!;
+                    const nodeId = `questBank:${bank.id}`;
+                    const unlocked =
+                        unlockedQuestBankIds.has(bank.id)
+                        || (storyline
+                            ? isQuestSlotBankUnlocked(bank, missionResults)
+                            : false);
+                    const clickable = unlocked || isAdmin;
+                    const clears = countQuestBankClears(bank, questResults);
+                    const dimmed = !unlocked && !isAdmin;
+                    const isHovered = hoveredId === nodeId;
+                    const isPressed = pressedId === nodeId;
+                    const r = SIDE_CIRCLE_R;
+                    const nodeScale = isPressed ? 0.92 : isHovered ? 1.1 : 1;
+                    const finished = clears >= bank.requiredClears;
+                    const label = bank.title ?? bank.id.replace(/_/g, ' ');
+
+                    return (
+                        <g
+                            key={nodeId}
+                            transform={`translate(${pos.x}, ${pos.y})`}
+                            onClick={
+                                clickable
+                                    ? () => {
+                                          setFocusedBankId(bank.id);
+                                      }
+                                    : undefined
+                            }
+                            onMouseEnter={clickable ? () => setHoveredId(nodeId) : undefined}
+                            onMouseLeave={
+                                clickable
+                                    ? () => {
+                                          setHoveredId((h) => (h === nodeId ? null : h));
+                                          setPressedId((p) => (p === nodeId ? null : p));
+                                      }
+                                    : undefined
+                            }
+                            onMouseDown={clickable ? () => setPressedId(nodeId) : undefined}
+                            onMouseUp={clickable ? () => setPressedId(null) : undefined}
+                            tabIndex={clickable ? 0 : undefined}
+                            role={clickable ? 'button' : undefined}
+                            data-testid={clickable ? `mission-map-quest-bank-${bank.id}` : undefined}
+                            aria-label={clickable ? `${label} quest bank` : undefined}
+                            style={{
+                                cursor: clickable ? 'pointer' : 'default',
+                                opacity: dimmed ? 0.35 : 1,
+                                outline: 'none',
+                            }}
+                        >
+                            <g
+                                style={{
+                                    transform: `scale(${nodeScale})`,
+                                    transformOrigin: '0px 0px',
+                                    transition: 'transform 0.12s ease, filter 0.12s ease',
+                                    filter: isHovered && !isPressed
+                                        ? 'brightness(1.25) drop-shadow(0 0 8px #7c3aed88)'
+                                        : undefined,
+                                }}
+                            >
+                                {(bank.isSideQuest ?? true) && (
+                                    <text
+                                        y={-r - 5}
+                                        textAnchor="middle"
+                                        fontSize={8}
+                                        fill="#7c3aed"
+                                        fontStyle="italic"
+                                        style={{ pointerEvents: 'none', userSelect: 'none' }}
+                                    >
+                                        side quest
+                                    </text>
+                                )}
+                                <circle
+                                    r={r}
+                                    fill={finished ? '#6b7280' : '#7c3aed'}
+                                    stroke={finished ? '#9ca3af' : '#a78bfa'}
+                                    strokeWidth={2}
+                                />
+                                <text
+                                    textAnchor="middle"
+                                    dominantBaseline="central"
+                                    fontSize={10}
+                                    fill={finished ? '#e5e7eb' : '#ede9fe'}
+                                    style={{ pointerEvents: 'none', userSelect: 'none' }}
+                                >
+                                    {finished ? '✓' : 'Q'}
+                                </text>
+                                <text
+                                    y={r + 14}
+                                    textAnchor="middle"
+                                    fontSize={10}
+                                    fill={isHovered ? '#ffffff' : '#d1d5db'}
+                                    style={{ pointerEvents: 'none', userSelect: 'none' }}
+                                >
+                                    {label}
+                                </text>
+                                <text
+                                    y={r + 26}
+                                    textAnchor="middle"
+                                    fontSize={8}
+                                    fill="#a1a1aa"
+                                    style={{ pointerEvents: 'none', userSelect: 'none' }}
+                                >
+                                    {clears}/{bank.requiredClears}
                                 </text>
                             </g>
                         </g>

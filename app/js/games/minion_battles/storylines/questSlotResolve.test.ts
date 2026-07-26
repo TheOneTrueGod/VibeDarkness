@@ -7,11 +7,20 @@ import {
     slotSeedFor,
 } from './questSlotResolve';
 import { FIND_THE_HERD_OF_BOARS } from './WorldOfDarkness/quests/find_the_herd_of_boars';
+import { SCAVENGE_THE_PLAINS } from './WorldOfDarkness/quests/scavenge_the_plains';
+import {
+    LOCATION_PLAINS_TAG,
+    PLAINS_RANDOM_STORY_CHALLENGE_MAX,
+    PLAINS_RANDOM_STORY_CHALLENGE_MIN,
+} from './WorldOfDarkness/questMissions/questMissionConstants';
+import { FOUND_BERRIES_MISSION_ID } from './WorldOfDarkness/questMissions/found_berries';
+import { SURFACE_METAL_DEPOSIT_MISSION_ID } from './WorldOfDarkness/questMissions/surface_metal_deposit';
+import { RANDOM_STORY_GENERATOR_ID } from './randomStoryResolve';
 
 const RUN_SEED = 42;
 
 describe('resolveQuestSlots — fixed only', () => {
-    it('resolves the example quest to fixed mission refs in order', () => {
+    it('resolves the fixture quest to fixed mission refs in order', () => {
         const resolved = resolveQuestSlots(FIND_THE_HERD_OF_BOARS, { runSeed: RUN_SEED });
         expect(resolved).toEqual([
             { kind: 'fixed', missionId: 'dark_awakening' },
@@ -37,7 +46,43 @@ describe('resolveMissionSlot — fixed', () => {
     });
 });
 
-describe('resolveQuestSlots — random stubs', () => {
+describe('resolveQuestSlots — random_story', () => {
+    it('picks a plains bag mission for Scavenge the Plains slot 0', () => {
+        const resolved = resolveQuestSlots(SCAVENGE_THE_PLAINS, { runSeed: RUN_SEED });
+        expect(resolved[0]?.kind).toBe('generated');
+        if (resolved[0]?.kind === 'generated') {
+            expect([FOUND_BERRIES_MISSION_ID, SURFACE_METAL_DEPOSIT_MISSION_ID]).toContain(
+                resolved[0].missionId,
+            );
+            expect(resolved[0].generatorId).toBe(RANDOM_STORY_GENERATOR_ID);
+        }
+        expect(resolved[1]).toEqual({ kind: 'fixed', missionId: 'quest_find_some_food' });
+        expect(resolved[2]).toEqual({ kind: 'fixed', missionId: 'quest_crystal_corruption' });
+    });
+
+    it('is stable for the same runSeed', () => {
+        const a = resolveQuestSlots(SCAVENGE_THE_PLAINS, { runSeed: RUN_SEED });
+        const b = resolveQuestSlots(SCAVENGE_THE_PLAINS, { runSeed: RUN_SEED });
+        expect(a).toEqual(b);
+    });
+
+    it('resolves random_story alone with plains filters', () => {
+        const ref = resolveMissionSlot(
+            {
+                kind: 'random_story',
+                params: {
+                    challengeRatingMin: PLAINS_RANDOM_STORY_CHALLENGE_MIN,
+                    challengeRatingMax: PLAINS_RANDOM_STORY_CHALLENGE_MAX,
+                    tags: [LOCATION_PLAINS_TAG],
+                },
+            },
+            { runSeed: RUN_SEED, slotIndex: 0, slotSeed: slotSeedFor(RUN_SEED, 0) },
+        );
+        expect(ref.kind).toBe('generated');
+    });
+});
+
+describe('resolveQuestSlots — random_battle stub', () => {
     const mixedQuest: QuestDef = {
         id: 'mixed_slots_test_quest',
         title: 'Mixed slots (test only)',
@@ -45,7 +90,6 @@ describe('resolveQuestSlots — random stubs', () => {
         slots: [
             { kind: 'fixed', missionId: 'dark_awakening' },
             { kind: 'random_battle', params: { biome: 'forest', challengeRating: 1 } },
-            { kind: 'random_story', params: { outcomeBias: 'neutral' } },
         ],
     };
 
@@ -60,28 +104,6 @@ describe('resolveQuestSlots — random stubs', () => {
             const err = e as QuestSlotResolverNotImplementedError;
             expect(err.slotKind).toBe('random_battle');
             expect(err.slotIndex).toBe(1);
-            expect(err.message).toMatch(/random_battle/);
-            expect(err.params).toEqual({ biome: 'forest', challengeRating: 1 });
-        }
-    });
-
-    it('throws for random_story when resolved alone', () => {
-        expect(() =>
-            resolveMissionSlot(
-                { kind: 'random_story', params: { tags: ['placeholder'] } },
-                { runSeed: RUN_SEED, slotIndex: 2, slotSeed: slotSeedFor(RUN_SEED, 2) },
-            ),
-        ).toThrow(QuestSlotResolverNotImplementedError);
-        try {
-            resolveMissionSlot(
-                { kind: 'random_story', params: { tags: ['placeholder'] } },
-                { runSeed: RUN_SEED, slotIndex: 2 },
-            );
-        } catch (e) {
-            expect(e).toBeInstanceOf(QuestSlotResolverNotImplementedError);
-            const err = e as QuestSlotResolverNotImplementedError;
-            expect(err.slotKind).toBe('random_story');
-            expect(err.slotIndex).toBe(2);
         }
     });
 });

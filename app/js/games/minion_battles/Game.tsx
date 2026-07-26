@@ -24,6 +24,7 @@ import {
     getSideMissionIds,
     getQuestDef,
     abandonQuestRun,
+    queueCampaignReward,
     placeQuestResultOnMap,
     planQuestVictoryContinue,
     planQuestDefeatRetry,
@@ -576,6 +577,12 @@ export default function MinionBattlesGame({
                             | Record<string, Record<string, string[]>>
                             | undefined
                     }
+                    playerStoryChoices={
+                        ((lastGameStateFromServer ?? raw) as Record<string, unknown>)
+                            .playerStoryChoices as
+                            | Record<string, Record<string, string>>
+                            | undefined
+                    }
                     onComplete={(rewards) => {
                         if (!selectedMissionId) return;
                         const missionId = selectedMissionId;
@@ -593,10 +600,30 @@ export default function MinionBattlesGame({
                                 ...(chosenPostItemId ? [chosenPostItemId] : []),
                             ])
                         );
+                        // Mid-quest: queue resource Campaign Rewards on the Quest Character;
+                        // apply them only on quest clear (not via this mission result).
+                        const deferResourcesToQuest =
+                            !!questLobbyFields && !skipRewards && !!rewards.resourceDelta;
+                        if (deferResourcesToQuest && sel) {
+                            void (async () => {
+                                try {
+                                    const rawChar = await api.getCharacter(sel);
+                                    const run = rawChar.activeQuestRun ?? null;
+                                    if (!questRunMatchesLobby(run, questLobbyFields)) return;
+                                    const queued = queueCampaignReward(run!, {
+                                        source: 'story',
+                                        resourceDelta: rewards.resourceDelta,
+                                    });
+                                    await api.updateCharacter(sel, { activeQuestRun: queued });
+                                } catch (e) {
+                                    console.warn('Failed to queue quest Campaign Rewards:', e);
+                                }
+                            })();
+                        }
                         void onRecordMissionResult?.(
                             missionId,
                             'victory',
-                            skipRewards ? undefined : rewards.resourceDelta,
+                            skipRewards || deferResourcesToQuest ? undefined : rewards.resourceDelta,
                             skipRewards ? undefined : grantKnowledgeKeys,
                             skipRewards ? undefined : itemIds,
                             skipRewards ? undefined : rewards.researchRewardIds,
@@ -612,6 +639,7 @@ export default function MinionBattlesGame({
                                 ? null
                                 : {
                                       ...rewards,
+                                      // Still show chosen resources on the victory UI even when deferred.
                                       itemFromFirstChoice:
                                           rewards.itemFromFirstChoice ?? itemIds[0] ?? undefined,
                                   }

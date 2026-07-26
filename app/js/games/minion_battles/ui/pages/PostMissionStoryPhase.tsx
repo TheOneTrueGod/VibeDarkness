@@ -33,6 +33,13 @@ import PreMissionStoryLayout from './preMissionStory/PreMissionStoryLayout';
 import StorySegmentSpeakerPortrait from '../components/battleUiSlots/StorySegmentSpeakerPortrait';
 import RowSlotDialogue from '../components/battleUiSlots/RowSlotDialogue';
 import ColumnSlotPlayerStatuses from '../../../../components/battleUILayout/ColumnSlotPlayerStatuses';
+import {
+    addResourceDelta,
+    allEligiblePlayersHaveChoice,
+    choiceOptionsHaveAlsoGrantToOthers,
+    eligibleStoryRewardPlayerIds,
+    sumAlsoGrantToOthersFromParty,
+} from '../../storylines/partyStoryGrants';
 
 /** Switch post-mission reward choices to two columns when option count exceeds this. */
 const REWARD_TWO_COLUMN_THRESHOLD = 4;
@@ -112,6 +119,8 @@ interface PostMissionStoryPhaseProps {
     playerEquipmentByPlayer?: Record<string, string[]>;
     /** Per-player research node ids by tree (lobby game state); used when a mission computes post-mission research options. */
     playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
+    /** playerId → choiceId → optionId (lobby game state); used for alsoGrantToOthers stacking. */
+    playerStoryChoices?: Record<string, Record<string, string>>;
     onComplete: (rewards: MissionRewards) => void;
     /** Header slot content, forwarded from GameScreen via Game.tsx. */
     headerSlot?: React.ReactNode;
@@ -130,6 +139,7 @@ export default function PostMissionStoryPhase({
     postMissionStory,
     playerEquipmentByPlayer = {},
     playerResearchTreesByPlayer = {},
+    playerStoryChoices = {},
     onComplete,
     headerSlot,
     chatSlot,
@@ -140,7 +150,10 @@ export default function PostMissionStoryPhase({
     const [bgOpacity, setBgOpacity] = useState(1);
     /** After a reward choice, hide the VN UI so the victory modal does not sit over changing/disabled options. */
     const [phantomPostChoiceStep, setPhantomPostChoiceStep] = useState(false);
+    /** Waiting for party choices when alsoGrantToOthers is in play. */
+    const [waitingForPartyChoiceId, setWaitingForPartyChoiceId] = useState<string | null>(null);
     const hasCompletedRef = useRef(false);
+    const pendingPartyChoiceOptionsRef = useRef<ChoicePhrase['options'] | null>(null);
     /** When post-mission story has multiple choice phrases, collect grants before final `onComplete`. */
     const accumulatedResearchIdsRef = useRef<string[]>([]);
     const accumulatedResearchEntriesRef = useRef<MissionResearchRewardEntry[]>([]);
@@ -285,20 +298,92 @@ export default function PostMissionStoryPhase({
             return {
                 action,
                 disabledLabel: option.disabledLabel,
-                disabled: false,
+                disabled: !!option.disabledLabel,
             };
         },
         [playerEquipmentByPlayer, playerId]
+    );
+
+    const finishAfterChoice = useCallback(
+        (choiceId: string, optionsForParty: ChoicePhrase['options']) => {
+            if (hasCompletedRef.current) return;
+
+            const eligible = eligibleStoryRewardPlayerIds(characterSelections);
+            if (!amSpectator && !amNpcController && choiceOptionsHaveAlsoGrantToOthers(optionsForParty)) {
+                addResourceDelta(
+                    accumulatedResourceDeltaRef.current,
+                    sumAlsoGrantToOthersFromParty(
+                        playerId,
+                        choiceId,
+                        optionsForParty,
+                        eligible,
+                        playerStoryChoices,
+                    ),
+                );
+            }
+
+            const morePhrasesRemain = phraseIndex < phrases.length - 1;
+            if (morePhrasesRemain) {
+                setWaitingForPartyChoiceId(null);
+                pendingPartyChoiceOptionsRef.current = null;
+                setPhraseIndex((i) => i + 1);
+                return;
+            }
+
+            flushSync(() => {
+                setPhantomPostChoiceStep(true);
+            });
+
+            const resourceDeltaFlat = accumulatedResourceDeltaRef.current;
+            const resourceDelta =
+                Object.keys(resourceDeltaFlat).length > 0
+                    ? {
+                          ...(resourceDeltaFlat.food != null && { food: resourceDeltaFlat.food }),
+                          ...(resourceDeltaFlat.metal != null && { metal: resourceDeltaFlat.metal }),
+                          ...(resourceDeltaFlat.crystals != null && {
+                              crystals: resourceDeltaFlat.crystals,
+                          }),
+                      }
+                    : undefined;
+
+            if (hasCompletedRef.current) return;
+            hasCompletedRef.current = true;
+            setWaitingForPartyChoiceId(null);
+            pendingPartyChoiceOptionsRef.current = null;
+            onComplete({
+                resourceDelta,
+                itemFromFirstChoice: firstEquipItemRef.current,
+                researchRewardIds:
+                    accumulatedResearchIdsRef.current.length > 0
+                        ? accumulatedResearchIdsRef.current
+                        : undefined,
+                researchRewards:
+                    accumulatedResearchEntriesRef.current.length > 0
+                        ? accumulatedResearchEntriesRef.current
+                        : undefined,
+            });
+        },
+        [
+            amSpectator,
+            amNpcController,
+            characterSelections,
+            onComplete,
+            phraseIndex,
+            phrases.length,
+            playerId,
+            playerStoryChoices,
+        ],
     );
 
     const handleChoice = useCallback(
         async (
             choiceId: string,
             optionId: string,
-            option?: { action?: { type: string; itemId?: string } },
-            resolvedOption?: ResolvedChoiceOption
+            option?: { action?: StoryChoiceAction; itemId?: string },
+            resolvedOption?: ResolvedChoiceOption,
         ) => {
             if (resolvedOption?.disabled) return;
+            if (waitingForPartyChoiceId) return;
             try {
                 const currentEquipment = playerEquipmentByPlayer?.[playerId] ?? [];
                 let itemId: string | undefined;
@@ -342,59 +427,76 @@ export default function PostMissionStoryPhase({
             }
 
             if (
-                !amNpcController &&
-                action?.type === 'equip_item' &&
-                action.itemId &&
-                firstEquipItemRef.current === undefined
+                !amNpcController
+                && action?.type === 'equip_item'
+                && action.itemId
+                && firstEquipItemRef.current === undefined
             ) {
                 firstEquipItemRef.current = action.itemId;
             }
 
             if (!amNpcController && isGrantResources(action) && action) {
-                const acc = accumulatedResourceDeltaRef.current;
-                if (action.food != null) acc.food = (acc.food ?? 0) + action.food;
-                if (action.metal != null) acc.metal = (acc.metal ?? 0) + action.metal;
-                if (action.crystals != null) acc.crystals = (acc.crystals ?? 0) + action.crystals;
+                addResourceDelta(accumulatedResourceDeltaRef.current, {
+                    food: action.food,
+                    metal: action.metal,
+                    crystals: action.crystals,
+                });
             }
 
-            const morePhrasesRemain = phraseIndex < phrases.length - 1;
-            if (morePhrasesRemain) {
-                setPhraseIndex((i) => i + 1);
+            const optionsForParty = postMissionChoiceOptions;
+            const needsPartyWait =
+                !amSpectator
+                && !amNpcController
+                && choiceOptionsHaveAlsoGrantToOthers(optionsForParty);
+
+            if (needsPartyWait) {
+                pendingPartyChoiceOptionsRef.current = optionsForParty;
+                setWaitingForPartyChoiceId(choiceId);
+                const eligible = eligibleStoryRewardPlayerIds(characterSelections);
+                // Include our just-sent choice locally for the wait check.
+                const mergedChoices: Record<string, Record<string, string>> = {
+                    ...playerStoryChoices,
+                    [playerId]: {
+                        ...(playerStoryChoices[playerId] ?? {}),
+                        [choiceId]: optionId,
+                    },
+                };
+                if (allEligiblePlayersHaveChoice(choiceId, eligible, mergedChoices)) {
+                    finishAfterChoice(choiceId, optionsForParty);
+                }
                 return;
             }
 
-            // Phantom “last step”: paint an empty frame before completing so nothing remains behind the victory modal.
-            flushSync(() => {
-                setPhantomPostChoiceStep(true);
-            });
-
-            const resourceDeltaFlat = accumulatedResourceDeltaRef.current;
-            const resourceDelta =
-                Object.keys(resourceDeltaFlat).length > 0
-                    ? {
-                          ...(resourceDeltaFlat.food != null && { food: resourceDeltaFlat.food }),
-                          ...(resourceDeltaFlat.metal != null && { metal: resourceDeltaFlat.metal }),
-                          ...(resourceDeltaFlat.crystals != null && { crystals: resourceDeltaFlat.crystals }),
-                      }
-                    : undefined;
-
-            if (hasCompletedRef.current) return;
-            hasCompletedRef.current = true;
-            onComplete({
-                resourceDelta,
-                itemFromFirstChoice: firstEquipItemRef.current,
-                researchRewardIds:
-                    accumulatedResearchIdsRef.current.length > 0
-                        ? accumulatedResearchIdsRef.current
-                        : undefined,
-                researchRewards:
-                    accumulatedResearchEntriesRef.current.length > 0
-                        ? accumulatedResearchEntriesRef.current
-                        : undefined,
-            });
+            finishAfterChoice(choiceId, optionsForParty);
         },
-        [api, amNpcController, phraseIndex, phrases.length, playerId, playerEquipmentByPlayer, onComplete]
+        [
+            amNpcController,
+            amSpectator,
+            api,
+            characterSelections,
+            finishAfterChoice,
+            playerEquipmentByPlayer,
+            playerId,
+            playerStoryChoices,
+            postMissionChoiceOptions,
+            waitingForPartyChoiceId,
+        ],
     );
+
+    useEffect(() => {
+        if (!waitingForPartyChoiceId) return;
+        const eligible = eligibleStoryRewardPlayerIds(characterSelections);
+        if (!allEligiblePlayersHaveChoice(waitingForPartyChoiceId, eligible, playerStoryChoices)) {
+            return;
+        }
+        const options = pendingPartyChoiceOptionsRef.current ?? [];
+        finishAfterChoice(waitingForPartyChoiceId, options);
+    }, [
+        waitingForPartyChoiceId,
+        playerStoryChoices,
+        characterSelections,
+        finishAfterChoice,
+    ]);
 
     if (phantomPostChoiceStep) {
         return <div className="w-full h-full min-h-full bg-black" aria-hidden />;
@@ -494,13 +596,37 @@ export default function PostMissionStoryPhase({
                                                     : 'flex flex-col gap-3'
                                             }
                                         >
+                                            {waitingForPartyChoiceId && (
+                                                <p className="text-sm text-amber-200/90 col-span-2">
+                                                    Waiting for other players to choose…
+                                                </p>
+                                            )}
                                             {postMissionChoiceOptions.map((opt) => {
                                                 const resolvedOption = resolveChoiceOption(opt);
-                                                if (resolvedOption.disabled) return null;
+                                                if (resolvedOption.disabled) {
+                                                    return (
+                                                        <button
+                                                            key={opt.id}
+                                                            type="button"
+                                                            disabled
+                                                            className={`${rewardOptionButtonClass} opacity-50 cursor-not-allowed`}
+                                                        >
+                                                            <span className="text-lg font-medium text-zinc-400">
+                                                                {opt.loreTitle ?? opt.label}
+                                                            </span>
+                                                            <span className="text-sm text-zinc-500">
+                                                                {resolvedOption.disabledLabel
+                                                                    ?? opt.disabledLabel
+                                                                    ?? 'Unavailable'}
+                                                            </span>
+                                                        </button>
+                                                    );
+                                                }
                                                 return (
                                                     <button
                                                         key={opt.id}
                                                         type="button"
+                                                        disabled={!!waitingForPartyChoiceId}
                                                         onClick={() =>
                                                             handleChoice(
                                                                 currentPhrase.choiceId,

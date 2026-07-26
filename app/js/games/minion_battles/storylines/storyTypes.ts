@@ -44,6 +44,16 @@ export interface StoryChoiceActionGrantResources {
     food?: number;
     metal?: number;
     crystals?: number;
+    /**
+     * Also grant these resources to every other non-spectator player when they complete
+     * this choice phrase (stacks with their own choice). Requires the post-mission phase
+     * to wait until all players have chosen before finalizing rewards.
+     */
+    alsoGrantToOthers?: {
+        food?: number;
+        metal?: number;
+        crystals?: number;
+    };
 }
 
 /** Choice action: grant one research node to the player's selected campaign character. */

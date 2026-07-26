@@ -1,6 +1,6 @@
 /**
- * Placeholder World of Darkness quest — fixed slots only for plumbing tests.
- * Title/content are temporary stand-ins until real boar-herd missions exist.
+ * Fixed-slot plumbing fixture for unit tests (not in the post–Core Awakening bank filters).
+ * Real content quest: `scavenge_the_plains`.
  */
 
 import type { QuestDef } from '../../questTypes';

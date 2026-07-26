@@ -13,12 +13,18 @@ import type { CampaignResourceKey } from '../../../types';
 /** Campaign map gate: N required quest clears matching filters. */
 export type QuestSlotBank = {
     id: string;
+    /** Player-facing bank title on the Mission Map / quest panel. */
+    title?: string;
     /** Unlocks when this mission (or prior bank) has victory — wire via storyline graph. */
     unlockAfterMissionId?: string;
     requiredClears: number;
     filters: QuestEligibilityFilters;
     /** Optional: max simultaneous assigned slots shown in the bank UI. */
     displaySlotCount?: number;
+    /** Position on the Mission Map canvas (pixels). */
+    mapPosition?: { x: number; y: number };
+    /** When true, render like a side-mission node (dashed edge, side-quest label). */
+    isSideQuest?: boolean;
 };
 
 export type QuestEligibilityFilters = {
@@ -41,8 +47,13 @@ export type RandomBattleSlotParams = {
 
 export type RandomStorySlotParams = {
     outcomeBias?: 'beneficial' | 'neutral' | 'harmful';
+    /** Inclusive lower bound for mission `challengeRating`. */
+    challengeRatingMin?: number;
+    /** Inclusive upper bound for mission `challengeRating`. */
+    challengeRatingMax?: number;
     /** Skill bags etc. — shape left open for later. */
     skillRequirements?: { skillId: string; minLevel: number }[];
+    /** All listed tags must be present on the candidate mission. */
     tags?: string[];
 };
 

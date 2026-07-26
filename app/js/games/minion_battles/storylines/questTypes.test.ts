@@ -2,18 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { getQuestDef, listQuestsForCampaign, QUEST_MAP } from './questRegistry';
 import type { MissionSlotSpec, QuestDef } from './questTypes';
 import { FIND_THE_HERD_OF_BOARS } from './WorldOfDarkness/quests/find_the_herd_of_boars';
+import { SCAVENGE_THE_PLAINS } from './WorldOfDarkness/quests/scavenge_the_plains';
 
 describe('QUEST_MAP / registry', () => {
-    it('returns the World of Darkness example quest', () => {
-        const def = getQuestDef(FIND_THE_HERD_OF_BOARS.id);
-        expect(def).toBeDefined();
-        expect(def).toEqual(FIND_THE_HERD_OF_BOARS);
-        expect(QUEST_MAP[FIND_THE_HERD_OF_BOARS.id]).toBe(FIND_THE_HERD_OF_BOARS);
+    it('returns the World of Darkness fixture and Scavenge the Plains quests', () => {
+        expect(getQuestDef(FIND_THE_HERD_OF_BOARS.id)).toEqual(FIND_THE_HERD_OF_BOARS);
+        expect(getQuestDef(SCAVENGE_THE_PLAINS.id)).toEqual(SCAVENGE_THE_PLAINS);
+        expect(QUEST_MAP[SCAVENGE_THE_PLAINS.id]).toBe(SCAVENGE_THE_PLAINS);
     });
 
-    it('listQuestsForCampaign includes the example for world_of_darkness', () => {
+    it('listQuestsForCampaign includes Scavenge the Plains for world_of_darkness', () => {
         const list = listQuestsForCampaign('world_of_darkness');
-        expect(list.some((q) => q.id === FIND_THE_HERD_OF_BOARS.id)).toBe(true);
+        expect(list.some((q) => q.id === SCAVENGE_THE_PLAINS.id)).toBe(true);
         expect(listQuestsForCampaign('no_such_campaign')).toEqual([]);
     });
 });

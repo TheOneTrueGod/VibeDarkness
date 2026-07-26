@@ -197,6 +197,12 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     image?: string;
     /** Short flavour description shown in the Mission Map tooltip. */
     description?: string;
+    /** Challenge rating for random quest slot matching. */
+    challengeRating?: number;
+    /** Content tags for filters (e.g. `location:plains`). */
+    tags?: string[];
+    /** When true, eligible for `random_story` slot resolvers. */
+    randomStoryPool?: boolean;
 
     /**
      * Set up the initial game state with player units, enemies, projectiles, and effects.

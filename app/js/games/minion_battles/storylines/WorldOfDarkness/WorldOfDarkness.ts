@@ -1,24 +1,37 @@
 import type { StorylineDef } from '../types';
 import type { QuestSlotBank } from '../questTypes';
+import { LOCATION_PLAINS_TAG } from './questMissions/questMissionConstants';
 
-/** Dev/example bank id — unlocks after light_empowered; not wired to main path edges yet. */
-export const WOD_EXAMPLE_QUEST_BANK_ID = 'wod_example_quest_bank';
+/** Quest slot bank after Core Awakening (side-quest node on the Mission Map). */
+export const WOD_POST_CORE_QUEST_BANK_ID = 'wod_post_core_awakening_quests';
 
-/** Example required clears for the World of Darkness quest bank (content-defined). */
-export const WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS = 2;
+/** Required clears before this bank is "done" (content can raise later). */
+export const WOD_POST_CORE_QUEST_BANK_REQUIRED_CLEARS = 1;
+
+/** Core Awakening map position — bank sits directly below, same x. */
+export const CORE_AWAKENING_MAP_X = 610;
+export const CORE_AWAKENING_MAP_Y = 350;
+export const POST_CORE_QUEST_BANK_MAP_Y = 550;
 
 /**
- * DEV/EXAMPLE quest slot bank after `light_empowered`.
- * Filters match placeholder quest defs (e.g. find_the_herd_of_boars). Main campaign edges are
- * unchanged until real content is ready — bank gate helpers are covered in unlock.questBanks tests.
+ * Side-quest bank unlocked after Core Awakening.
+ * Main path core_awakening → south_gate_swarm stays ungated by this bank.
  */
-export const WOD_EXAMPLE_QUEST_BANK: QuestSlotBank = {
-    id: WOD_EXAMPLE_QUEST_BANK_ID,
-    unlockAfterMissionId: 'light_empowered',
-    requiredClears: WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS,
-    filters: { tags: ['placeholder'] },
-    displaySlotCount: WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS,
+export const WOD_POST_CORE_QUEST_BANK: QuestSlotBank = {
+    id: WOD_POST_CORE_QUEST_BANK_ID,
+    title: 'Surface Quests',
+    unlockAfterMissionId: 'core_awakening',
+    requiredClears: WOD_POST_CORE_QUEST_BANK_REQUIRED_CLEARS,
+    filters: { tags: [LOCATION_PLAINS_TAG, 'post_core_awakening'] },
+    displaySlotCount: WOD_POST_CORE_QUEST_BANK_REQUIRED_CLEARS,
+    mapPosition: { x: CORE_AWAKENING_MAP_X, y: POST_CORE_QUEST_BANK_MAP_Y },
+    isSideQuest: true,
 };
+
+/** Alias for tests that still import the old example bank names. */
+export const WOD_EXAMPLE_QUEST_BANK_ID = WOD_POST_CORE_QUEST_BANK_ID;
+export const WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS = WOD_POST_CORE_QUEST_BANK_REQUIRED_CLEARS;
+export const WOD_EXAMPLE_QUEST_BANK = WOD_POST_CORE_QUEST_BANK;
 
 export const WorldOfDarknessStoryline: StorylineDef = {
     id: 'world_of_darkness',
@@ -32,12 +45,10 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         { fromMissionId: 'cave_respite', result: 'victory', toMissionId: 'crystal_corruption', isSideMission: true },
         { fromMissionId: 'crystal_corruption', result: 'victory', toMissionId: 'monster' },
         { fromMissionId: 'monster', result: 'victory', toMissionId: 'core_awakening' },
-        // Placeholder slot: a mission between core_awakening and south_gate_swarm will be inserted later.
         { fromMissionId: 'core_awakening', result: 'victory', toMissionId: 'south_gate_swarm' },
         { fromMissionId: 'south_gate_swarm', result: 'victory', toMissionId: 'ember_threshold' },
         { fromMissionId: 'ember_threshold', result: 'victory', toMissionId: 'thorn_march' },
         { fromMissionId: 'thorn_march', result: 'victory', toMissionId: 'thornling_rise' },
     ],
-    // DEV/EXAMPLE — do not treat as final campaign pacing.
-    questSlotBanks: [WOD_EXAMPLE_QUEST_BANK],
+    questSlotBanks: [WOD_POST_CORE_QUEST_BANK],
 };

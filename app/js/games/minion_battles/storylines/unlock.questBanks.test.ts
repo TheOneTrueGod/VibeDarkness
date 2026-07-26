@@ -67,23 +67,26 @@ function bankVictory(questDefId: string, bankId: string): QuestResult {
     };
 }
 
-describe('WorldOfDarkness example quest bank', () => {
-    it('is attached to the storyline with requiredClears = 2', () => {
+describe('WorldOfDarkness post–Core Awakening quest bank', () => {
+    it('is attached to the storyline as a side-quest bank with requiredClears = 1', () => {
         expect(WorldOfDarknessStoryline.questSlotBanks).toEqual([WOD_EXAMPLE_QUEST_BANK]);
         expect(WOD_EXAMPLE_QUEST_BANK.requiredClears).toBe(WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS);
-        expect(WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS).toBe(2);
+        expect(WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS).toBe(1);
+        expect(WOD_EXAMPLE_QUEST_BANK.isSideQuest).toBe(true);
+        expect(WOD_EXAMPLE_QUEST_BANK.unlockAfterMissionId).toBe('core_awakening');
+        expect(WOD_EXAMPLE_QUEST_BANK.mapPosition).toEqual({ x: 610, y: 550 });
     });
 
-    it('unlocks only after light_empowered victory', () => {
+    it('unlocks only after core_awakening victory', () => {
         expect(isQuestSlotBankUnlocked(WOD_EXAMPLE_QUEST_BANK, [])).toBe(false);
         expect(
-            isQuestSlotBankUnlocked(WOD_EXAMPLE_QUEST_BANK, [victoryMission('towards_the_light')]),
+            isQuestSlotBankUnlocked(WOD_EXAMPLE_QUEST_BANK, [victoryMission('monster')]),
         ).toBe(false);
         expect(
-            isQuestSlotBankUnlocked(WOD_EXAMPLE_QUEST_BANK, [victoryMission('light_empowered')]),
+            isQuestSlotBankUnlocked(WOD_EXAMPLE_QUEST_BANK, [victoryMission('core_awakening')]),
         ).toBe(true);
         expect(
-            getUnlockedQuestSlotBanks(WorldOfDarknessStoryline, [victoryMission('light_empowered')]),
+            getUnlockedQuestSlotBanks(WorldOfDarknessStoryline, [victoryMission('core_awakening')]),
         ).toEqual([WOD_EXAMPLE_QUEST_BANK]);
     });
 });
@@ -152,7 +155,7 @@ describe('getOptionalEligibleQuests / victory helpers', () => {
 describe('getEligibleQuestsForBank / requiredClears', () => {
     const bank: QuestSlotBank = {
         id: 'test_bank',
-        requiredClears: WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS,
+        requiredClears: 2,
         filters: { tags: ['placeholder'] },
     };
     const pool = [FIND_THE_HERD_OF_BOARS, OTHER_PLACEHOLDER_QUEST, NON_MATCHING_QUEST];
@@ -186,7 +189,7 @@ describe('getEligibleQuestsForBank / requiredClears', () => {
                 bankVictory(FIND_THE_HERD_OF_BOARS.id, bank.id),
                 bankVictory(OTHER_PLACEHOLDER_QUEST.id, bank.id),
             ]),
-        ).toBe(WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS);
+        ).toBe(2);
         expect(
             isQuestBankRequiredClearsSatisfied(bank, [
                 bankVictory(FIND_THE_HERD_OF_BOARS.id, bank.id),
@@ -305,7 +308,7 @@ describe('mission gated by quest bank (requiresQuestBankId)', () => {
             {
                 id: 'gate_bank',
                 unlockAfterMissionId: 'm2',
-                requiredClears: WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS,
+                requiredClears: 2,
                 filters: { tags: ['placeholder'] },
             },
         ],

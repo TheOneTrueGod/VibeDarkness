@@ -545,6 +545,18 @@ export interface MissionBattleConfig {
      * Character select shows one card per entry; selection is `control_enemy:<groupId>`.
      */
     playerControl?: PlayerControlDef[];
+    /**
+     * Challenge rating for random quest slot matching (e.g. random_story bags).
+     * Omit on missions that should not enter random pools.
+     */
+    challengeRating?: number;
+    /** Content tags for filters (e.g. `location:plains`). */
+    tags?: string[];
+    /**
+     * When true, this mission may be selected by `random_story` slot resolvers
+     * (still must match challengeRating / tags params).
+     */
+    randomStoryPool?: boolean;
 }
 
 /** Storyline flow edge: fromMissionId + result unlocks toMissionId. */

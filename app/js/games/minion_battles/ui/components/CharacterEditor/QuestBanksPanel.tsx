@@ -22,10 +22,12 @@ export interface QuestBanksPanelProps {
     character: CampaignCharacter;
     /** Begin a new quest (caller may route through Quest Prep) or continue an active run. */
     onStartQuest?: (questDefId: string, options?: StartQuestOptions) => void;
+    /** When set (e.g. from Mission Map bank node click), expand that bank's picker. */
+    focusedBankId?: string | null;
 }
 
 function bankDisplayLabel(bank: QuestSlotBank): string {
-    return bank.id.replace(/_/g, ' ');
+    return bank.title ?? bank.id.replace(/_/g, ' ');
 }
 
 function QuestResultBadge({ result }: { result: QuestResult }) {
@@ -89,8 +91,12 @@ function QuestPickRow({
     );
 }
 
-export default function QuestBanksPanel({ character, onStartQuest }: QuestBanksPanelProps) {
+export default function QuestBanksPanel({ character, onStartQuest, focusedBankId = null }: QuestBanksPanelProps) {
     const [expandedBankId, setExpandedBankId] = useState<string | null>(null);
+
+    React.useEffect(() => {
+        if (focusedBankId) setExpandedBankId(focusedBankId);
+    }, [focusedBankId]);
 
     const storyline = useMemo(
         () => STORYLINES.find((s) => s.id === character.campaignId) ?? null,
