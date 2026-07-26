@@ -58,6 +58,17 @@ interface CampaignHomeScreenProps {
         character: import('../games/minion_battles/character_defs/CampaignCharacter').CampaignCharacter,
         ownerAccount: import('../types').AccountState,
     ) => void;
+    /** Start / continue a quest run (Mission Map banks + Quest Prep). */
+    onStartQuestForCharacter?: (
+        questDefId: string,
+        character: import('../games/minion_battles/character_defs/CampaignCharacter').CampaignCharacter,
+        ownerAccount: import('../types').AccountState,
+        options?: {
+            mode?: 'continue' | 'start';
+            assignedBankId?: string | null;
+            equipment?: string[];
+        },
+    ) => void;
 }
 
 export default function CampaignHomeScreen({
@@ -66,6 +77,7 @@ export default function CampaignHomeScreen({
     onJoinLobby,
     refetchUser,
     onStartMissionForCharacter,
+    onStartQuestForCharacter,
 }: CampaignHomeScreenProps) {
     const navigate = useNavigate();
     const location = useLocation();
@@ -232,6 +244,7 @@ export default function CampaignHomeScreen({
                                 api={api}
                                 lobbyClient={lobbyClient}
                                 onStartMissionForCharacter={onStartMissionForCharacter}
+                                onStartQuestForCharacter={onStartQuestForCharacter}
                             />
                         )}
 

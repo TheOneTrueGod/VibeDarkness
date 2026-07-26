@@ -13,6 +13,7 @@ import { Scroll, Skull, Swords } from 'lucide-react';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import type { MissionResult } from '../../../../../types';
 import type { MissionType } from '../../../storylines/types';
+import type { StartQuestOptions } from '../../../storylines/questLobby';
 import { STORYLINES, MISSION_MAP } from '../../../storylines/index';
 import { getUnlockedMissionIds, hasVictoryResult, isMissionCompleted, getAllMissionIdsInOrder, isSideMissionId } from '../../../storylines/unlock';
 import { getResolvedMissionResearchRewards } from '../../../../../researchTrees/list';
@@ -21,6 +22,7 @@ import ResourcePill, { campaignResourceGains } from '../../../../../components/R
 import { MISSION_REWARD_CHIP_CLASSNAME } from '../../../../../components/ResearchRewardTinyChip';
 import { getItemDef } from '../../../character_defs/items';
 import { TestIds, missionMapNodeTestId } from '../../../../../testing/testIds';
+import QuestBanksPanel from './QuestBanksPanel';
 
 const CIRCLE_R = 28;
 const SIDE_CIRCLE_R = 18;
@@ -50,6 +52,8 @@ interface Props {
     character: CampaignCharacter;
     isAdmin: boolean;
     onStartMission: (missionId: string) => void;
+    /** Start / continue a quest (prep handled by CharacterEditor when mode is start). */
+    onStartQuest?: (questDefId: string, options?: StartQuestOptions) => void;
     onMarkVictory?: (missionId: string) => Promise<void>;
 }
 
@@ -265,7 +269,13 @@ function MissionTooltip({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function MissionMapTab({ character, isAdmin, onStartMission, onMarkVictory }: Props) {
+export default function MissionMapTab({
+    character,
+    isAdmin,
+    onStartMission,
+    onStartQuest,
+    onMarkVictory,
+}: Props) {
     const [hoveredId, setHoveredId] = useState<string | null>(null);
     const [pressedId, setPressedId] = useState<string | null>(null);
     const [tooltip, setTooltip] = useState<TooltipData | null>(null);
@@ -281,9 +291,14 @@ export default function MissionMapTab({ character, isAdmin, onStartMission, onMa
         [character.missionResults, character.campaignId],
     );
 
+    const questResults = useMemo(
+        () => character.questResults[character.campaignId] ?? [],
+        [character.questResults, character.campaignId],
+    );
+
     const unlockedIds = useMemo(
-        () => (storyline ? getUnlockedMissionIds(storyline, missionResults) : new Set<string>()),
-        [storyline, missionResults],
+        () => (storyline ? getUnlockedMissionIds(storyline, missionResults, questResults) : new Set<string>()),
+        [storyline, missionResults, questResults],
     );
 
     const missionIds = useMemo(
@@ -396,6 +411,9 @@ export default function MissionMapTab({ character, isAdmin, onStartMission, onMa
     return (
         <div className="w-full h-full overflow-auto p-2">
             <p className="text-xs text-muted mb-2 px-1">{storyline.title}</p>
+            {onStartQuest && (
+                <QuestBanksPanel character={character} onStartQuest={onStartQuest} />
+            )}
             <svg
                 ref={svgRef}
                 viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}

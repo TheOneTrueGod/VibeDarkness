@@ -3,6 +3,7 @@
  */
 
 import type { EnemySpawnDef } from '../storylines/types';
+import type { LightTileGridJSON } from './lightTileGrid/LightTileGrid';
 
 /**
  * Describes how a unit entered the battle, used to determine whether to play a spawn animation.
@@ -135,8 +136,8 @@ export interface SerializedGameState {
     objectives?: { completedIds: string[]; revealedIds: string[] };
     /** Persistent in-game light sources (thrown torches, etc.). */
     lightSources?: Record<string, unknown>[];
-    /** Stored per-tile light levels (quadrant-organized). */
-    lightTileGrid?: { w: number; h: number; q: number[][] } | null;
+    /** Stored per-tile light levels (quadrant-organized; legacy `q` or channels-v1). */
+    lightTileGrid?: LightTileGridJSON | null;
     /** Ground/air terrain effect overlays (bramble, etc.). Legacy rock floor effects migrate on load. */
     terrainEffects?: Record<string, unknown>[];
     /** Sparse authoritative floor tile overrides (rock damage, rubble, summoned rock). */

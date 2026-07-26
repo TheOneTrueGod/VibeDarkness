@@ -5,6 +5,7 @@
 
 import type { CampaignCharacterData, CharacterDisallowReason } from './campaignCharacterTypes';
 import type { MissionResult } from '../../../types';
+import type { QuestResult, QuestRunState } from '../storylines/questTypes';
 import { getItemDef } from './items';
 import { LIGHT_TREE_ID, LIGHT_NODE_CORE } from '../../../researchTrees/trees/light';
 import { coreLightItem } from './items/core/017_core_light';
@@ -73,6 +74,10 @@ export class CampaignCharacter {
     readonly lastUsed: number;
     /** Per-campaign mission results. Key = campaignId. */
     readonly missionResults: Record<string, MissionResult[]>;
+    /** Per-campaign quest results. Key = campaignId. */
+    readonly questResults: Record<string, QuestResult[]>;
+    /** Active QuestRun (Quest Character lives on `questCharacter`); null when none. */
+    readonly activeQuestRun: QuestRunState | null;
 
     constructor(data: CampaignCharacterData) {
         this.id = data.id;
@@ -102,6 +107,12 @@ export class CampaignCharacter {
                 : 0;
         this.missionResults =
             data.missionResults && typeof data.missionResults === 'object' ? data.missionResults : {};
+        this.questResults =
+            data.questResults && typeof data.questResults === 'object' ? data.questResults : {};
+        this.activeQuestRun =
+            data.activeQuestRun && typeof data.activeQuestRun === 'object'
+                ? data.activeQuestRun
+                : null;
     }
 
     /**
@@ -171,6 +182,8 @@ export class CampaignCharacter {
             researchNodeLevels: this.researchNodeLevels,
             lastUsed: this.lastUsed,
             missionResults: this.missionResults,
+            questResults: this.questResults,
+            activeQuestRun: this.activeQuestRun,
         };
     }
 }

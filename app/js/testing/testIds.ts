@@ -27,6 +27,16 @@ export const TestIds = {
     missionHost: 'mission-host',
     missionMapNodePrefix: 'mission-map-node-',
 
+    /** Mission Map quest banks / optional / prep (Campaign Home) */
+    questBanksPanel: 'quest-banks-panel',
+    questContinue: 'quest-continue',
+    questBankPrefix: 'quest-bank-',
+    questStartPrefix: 'quest-start-',
+    questStartOptionalPrefix: 'quest-start-optional-',
+    questPrepBanner: 'quest-prep-banner',
+    questPrepConfirm: 'quest-prep-confirm',
+    questPrepCancel: 'quest-prep-cancel',
+
     characterSelectReady: 'character-select-ready',
     storyNext: 'story-next',
     storyChoicePrefix: 'story-choice-',

@@ -12,7 +12,13 @@ import { DebugSettingsProvider } from './contexts/DebugSettingsContext';
 import { DebugConsoleProvider } from './contexts/DebugConsoleContext';
 import CampaignHomeScreen from './components/CampaignHomeScreen';
 import LoginScreen from './components/LoginScreen';
-import { MISSION_MAP } from './games/minion_battles/storylines';
+import {
+    MISSION_MAP,
+    getQuestDef,
+    questLobbyFieldsFromRun,
+    startQuestRun,
+} from './games/minion_battles/storylines';
+import type { QuestLobbyFields } from './games/minion_battles/storylines/questLobby';
 import type { CampaignCharacter } from './games/minion_battles/character_defs/CampaignCharacter';
 import GameScreen from './components/GameScreen';
 import type { MessageEntry } from './components/Chat';
@@ -452,13 +458,20 @@ function AppInner() {
 
     /** Create a lobby for a specific mission and go straight to character select. */
     const handleCreateLobbyForMission = useCallback(
-        async (missionId: string, campaignId: string | null): Promise<boolean> => {
+        async (
+            missionId: string,
+            campaignId: string | null,
+            questLobby?: QuestLobbyFields | null,
+        ): Promise<boolean> => {
             if (!user?.id) return false;
             setCurrentCampaignId(campaignId);
             try {
                 const missionDef = MISSION_MAP[missionId];
                 const missionName = missionDef?.name ?? missionId;
-                const result = await lobbyClient.createLobby(`Mission: ${missionName}`, user.id);
+                const lobbyTitle = questLobby
+                    ? `Quest: ${getQuestDef(questLobby.questDefId)?.title ?? questLobby.questDefId}`
+                    : `Mission: ${missionName}`;
+                const result = await lobbyClient.createLobby(lobbyTitle, user.id);
                 const lobby = result.lobby as LobbyState;
                 const player = result.player as PlayerState;
                 const account = result.account as AccountState;
@@ -471,6 +484,13 @@ function AppInner() {
                     await lobbyClient.updateGameState(lobby.id, gameId, player.id, {
                         gamePhase: 'character_select',
                         selectedMissionId: missionId,
+                        ...(questLobby
+                            ? {
+                                  questDefId: questLobby.questDefId,
+                                  questRunId: questLobby.questRunId,
+                                  questSlotIndex: questLobby.questSlotIndex,
+                              }
+                            : {}),
                     });
                 }
 
@@ -513,7 +533,12 @@ function AppInner() {
      * lobby/game/player IDs.
      */
     const handleHostContinueToNextMission = useCallback(
-        async (missionId: string, campaignId: string | null, previousCharacterSelections: Record<string, string> = {}): Promise<boolean> => {
+        async (
+            missionId: string,
+            campaignId: string | null,
+            previousCharacterSelections: Record<string, string> = {},
+            questLobby?: QuestLobbyFields | null,
+        ): Promise<boolean> => {
             if (!user?.id) return false;
             // Capture old lobby context before any state changes
             const oldLobbyId = currentLobby?.id ?? null;
@@ -525,7 +550,10 @@ function AppInner() {
                 // Create new lobby (mirrors handleCreateLobbyForMission logic)
                 const missionDef = MISSION_MAP[missionId];
                 const missionName = missionDef?.name ?? missionId;
-                const result = await lobbyClient.createLobby(`Mission: ${missionName}`, user.id);
+                const lobbyTitle = questLobby
+                    ? `Quest: ${getQuestDef(questLobby.questDefId)?.title ?? questLobby.questDefId}`
+                    : `Mission: ${missionName}`;
+                const result = await lobbyClient.createLobby(lobbyTitle, user.id);
                 const newLobby = result.lobby as LobbyState;
                 const newPlayer = result.player as PlayerState;
                 const newAccount = result.account as AccountState;
@@ -539,6 +567,13 @@ function AppInner() {
                         gamePhase: 'character_select',
                         selectedMissionId: missionId,
                         characterSelections: previousCharacterSelections,
+                        ...(questLobby
+                            ? {
+                                  questDefId: questLobby.questDefId,
+                                  questRunId: questLobby.questRunId,
+                                  questSlotIndex: questLobby.questSlotIndex,
+                              }
+                            : {}),
                     });
                 }
 
@@ -686,6 +721,101 @@ function AppInner() {
             } catch (error) {
                 showToast(
                     'Failed to start mission: ' + (error instanceof Error ? error.message : 'Unknown error'),
+                    'error',
+                );
+            }
+        },
+        [lobbyClient, user, showToast, startInLobby, loadGameState, navigate],
+    );
+
+    /**
+     * Start (or continue) a quest run for a character after Quest Prep,
+     * then open a lobby stamped with questDefId / questRunId / questSlotIndex.
+     */
+    const handleStartQuestForCharacter = useCallback(
+        async (
+            questDefId: string,
+            character: CampaignCharacter,
+            ownerAccount: AccountState,
+            options: {
+                mode?: 'continue' | 'start';
+                assignedBankId?: string | null;
+                equipment?: string[];
+            } = {},
+        ) => {
+            if (!user?.id) return;
+            const mode = options.mode ?? 'start';
+            const assignedBankId = options.assignedBankId ?? null;
+            const equipment = options.equipment ?? character.equipment;
+            const questDef = getQuestDef(questDefId);
+            if (!questDef) {
+                showToast(`Unknown quest: ${questDefId}`, 'error');
+                return;
+            }
+            setCurrentCampaignId(character.campaignId || questDef.campaignId);
+            try {
+                let run = character.activeQuestRun;
+                const canContinue =
+                    mode === 'continue'
+                    && run
+                    && run.status === 'active'
+                    && run.questDefId === questDefId;
+                if (!canContinue) {
+                    run = startQuestRun({
+                        questDef,
+                        character: { id: character.id, equipment },
+                        runSeed: (Date.now() >>> 0) || 1,
+                        assignedBankId,
+                    });
+                    await lobbyClient.updateCharacter(character.id, { activeQuestRun: run });
+                }
+                const lobbyStamp = questLobbyFieldsFromRun(run!);
+                const missionId = lobbyStamp.selectedMissionId;
+                const missionDef = MISSION_MAP[missionId];
+                const missionName = missionDef?.name ?? missionId;
+                const result = await lobbyClient.createLobby(
+                    `Quest: ${questDef.title} — ${missionName}`,
+                    user.id,
+                );
+                const lobby = result.lobby as LobbyState;
+                const player = result.player as PlayerState;
+                const account = result.account as AccountState;
+
+                await lobbyClient.setLobbyState(lobby.id, player.id, 'in_game', 'minion_battles');
+                const { gameState } = await lobbyClient.getLobbyState(lobby.id, player.id);
+                const payload = gameState as unknown as GameStatePayload;
+                const gameId = payload.gameId ?? null;
+                if (gameId) {
+                    await lobbyClient.updateGameState(lobby.id, gameId, player.id, {
+                        gamePhase: 'character_select',
+                        selectedMissionId: missionId,
+                        questDefId: lobbyStamp.questDefId,
+                        questRunId: lobbyStamp.questRunId,
+                        questSlotIndex: lobbyStamp.questSlotIndex,
+                        requiredPlayers: [
+                            { playerName: ownerAccount.name, characterId: character.id },
+                        ],
+                    });
+                }
+
+                const { gameState: finalState } = await lobbyClient.getLobbyState(lobby.id, player.id);
+                loadGameState(finalState as unknown as GameStatePayload);
+
+                setCurrentAccount(account);
+                setCurrentLobby(lobby);
+                setCurrentPlayer(player);
+                setConnectionStatus('connecting');
+                setChatEnabled(false);
+                setPlayers({ [player.id]: { ...player, isConnected: false } });
+                setScreen('game');
+                navigate(`${LOBBY_PATH_PREFIX}${lobby.id}`, { replace: true });
+
+                setPollMessagesReady(false);
+                setLastPollMessageId(null);
+                await startInLobby(lobby, player);
+            } catch (error) {
+                showToast(
+                    'Failed to start quest: ' + (error instanceof Error ? error.message : 'Unknown error'),
                     'error',
                 );
             }
@@ -1008,6 +1138,7 @@ function AppInner() {
                                 onJoinLobby={handleJoinLobby}
                                 refetchUser={refetchUser}
                                 onStartMissionForCharacter={handleStartMissionForCharacter}
+                                onStartQuestForCharacter={handleStartQuestForCharacter}
                             />
                         }
                     />
@@ -1021,6 +1152,7 @@ function AppInner() {
                                 onJoinLobby={handleJoinLobby}
                                 refetchUser={refetchUser}
                                 onStartMissionForCharacter={handleStartMissionForCharacter}
+                                onStartQuestForCharacter={handleStartQuestForCharacter}
                             />
                         }
                     />
@@ -1033,6 +1165,7 @@ function AppInner() {
                                 onJoinLobby={handleJoinLobby}
                                 refetchUser={refetchUser}
                                 onStartMissionForCharacter={handleStartMissionForCharacter}
+                                onStartQuestForCharacter={handleStartQuestForCharacter}
                             />
                         }
                     />
@@ -1045,6 +1178,7 @@ function AppInner() {
                                 onJoinLobby={handleJoinLobby}
                                 refetchUser={refetchUser}
                                 onStartMissionForCharacter={handleStartMissionForCharacter}
+                                onStartQuestForCharacter={handleStartQuestForCharacter}
                             />
                         }
                     />
@@ -1057,6 +1191,7 @@ function AppInner() {
                                 onJoinLobby={handleJoinLobby}
                                 refetchUser={refetchUser}
                                 onStartMissionForCharacter={handleStartMissionForCharacter}
+                                onStartQuestForCharacter={handleStartQuestForCharacter}
                             />
                         }
                     />
@@ -1097,7 +1232,14 @@ function AppInner() {
                         onSelectGame={handleSelectGame}
                         onRecordMissionResult={recordMissionResult}
                         onDarknessStrengthMissionEnd={applyDarknessStrengthMissionEnd}
-                        onTryAgain={(missionId, prevCharSel) => handleHostContinueToNextMission(missionId, currentCampaignId ?? null, prevCharSel)}
+                        onTryAgain={(missionId, prevCharSel, questLobby) =>
+                            handleHostContinueToNextMission(
+                                missionId,
+                                currentCampaignId ?? null,
+                                prevCharSel,
+                                questLobby,
+                            )
+                        }
                         onJoinNextLobby={handleClientJoinNextLobby}
                         onEmittedChatMessage={handleEmittedChatMessage}
                         onPing={() => {

@@ -24,6 +24,7 @@ import type {
     LanternitePatrolDestination,
     LanterniteNestMissionConfig,
 } from '../game/units/spawning/nestMissionConfigs';
+import type { QuestSlotBank } from './questTypes';
 
 /** Trigger for level events: at round, after round (checks start), or after seconds. */
 export type LevelEventTrigger =
@@ -553,6 +554,11 @@ export interface StorylineFlowEdge {
     toMissionId: string;
     /** When true, this edge leads to an optional side mission that players can skip. */
     isSideMission?: boolean;
+    /**
+     * When set, the edge also requires that quest slot bank's `requiredClears`
+     * victory placements before `toMissionId` unlocks (see unlock.ts).
+     */
+    requiresQuestBankId?: string;
 }
 
 /** Storyline definition for campaign UI and unlock logic. */
@@ -561,4 +567,6 @@ export interface StorylineDef {
     title: string;
     startMissionId: string;
     edges?: StorylineFlowEdge[];
+    /** Campaign map quest banks (filters + required clears). */
+    questSlotBanks?: QuestSlotBank[];
 }

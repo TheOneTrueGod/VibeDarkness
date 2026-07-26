@@ -67,6 +67,10 @@ export interface MinionBattlesState {
     game_phase?: GamePhase;
     selectedMissionId?: string;
     selected_mission_id?: string;
+    /** Active quest lobby stamp (mirrors MinionBattlesGameStatePayload). */
+    questDefId?: string;
+    questRunId?: string;
+    questSlotIndex?: number;
     /** Map of playerId -> characterId for character selections */
     characterSelections?: Record<string, string>;
     character_selections?: Record<string, string>;

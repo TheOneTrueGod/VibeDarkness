@@ -3,6 +3,7 @@
  */
 import type { CampaignCharacterPayload, CreateCharacterPayload } from '../../../LobbyClient';
 import type { AccountState, CampaignResourceKey, CampaignState, MissionResult } from '../../../types';
+import type { QuestResult, QuestRunState } from '../storylines/questTypes';
 import type { GamePhase } from '../state';
 
 export type { CampaignCharacterPayload, CreateCharacterPayload };
@@ -25,6 +26,10 @@ export interface CharacterUpdates {
     researchNodeLevels?: Record<string, Record<string, number>>;
     /** Per-campaign mission results; key = campaignId. */
     missionResults?: Record<string, MissionResult[]>;
+    /** Per-campaign quest results; key = campaignId. */
+    questResults?: Record<string, QuestResult[]>;
+    /** Active QuestRun (includes Quest Character); null clears. */
+    activeQuestRun?: QuestRunState | null;
     /** Active campaign for this character. */
     campaignId?: string;
 }
@@ -80,6 +85,14 @@ export interface MinionBattlesGameStatePayload {
      * this to know when to show the "Continue" button.
      */
     nextLobbyId?: string;
+    /**
+     * Active quest mission chain (optional). When set, continue/retry use the
+     * character's `activeQuestRun` resolved slots instead of storyline edges.
+     */
+    questDefId?: string;
+    questRunId?: string;
+    /** Index into `activeQuestRun.resolvedSlots` for this lobby's mission. */
+    questSlotIndex?: number;
 }
 
 /** Full game blob from polling (may include arbitrary extra keys from the server). */

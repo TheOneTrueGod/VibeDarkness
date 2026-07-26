@@ -97,7 +97,7 @@ class CharacterManager
      * Update a character's fields (equipment, name, portraitId, researchTrees). Caller must ensure ownership.
      *
      * @param string $characterId
-     * @param array{equipment?: string[], name?: string, portraitId?: string, researchTrees?: array<string, string[]>, researchNodeLevels?: array<string, array<string, int>>, lastUsed?: int, missionResults?: array<string, list<array<string, mixed>>>, campaignId?: string} $updates
+     * @param array{equipment?: string[], name?: string, portraitId?: string, researchTrees?: array<string, string[]>, researchNodeLevels?: array<string, array<string, int>>, lastUsed?: int, missionResults?: array<string, list<array<string, mixed>>>, questResults?: array<string, list<array<string, mixed>>>, activeQuestRun?: array<string, mixed>|null, campaignId?: string} $updates
      * @return Character|null Updated character or null if not found
      */
     public function updateCharacter(string $characterId, array $updates): ?Character
@@ -127,6 +127,12 @@ class CharacterManager
         }
         if (isset($updates['missionResults']) && is_array($updates['missionResults'])) {
             $data['missionResults'] = $updates['missionResults'];
+        }
+        if (isset($updates['questResults']) && is_array($updates['questResults'])) {
+            $data['questResults'] = $updates['questResults'];
+        }
+        if (array_key_exists('activeQuestRun', $updates)) {
+            $data['activeQuestRun'] = is_array($updates['activeQuestRun']) ? $updates['activeQuestRun'] : null;
         }
         if (array_key_exists('campaignId', $updates)) {
             $data['campaignId'] = (string) $updates['campaignId'];

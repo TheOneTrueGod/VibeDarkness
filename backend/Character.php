@@ -30,6 +30,10 @@ class Character
     private int $lastUsed;
     /** Per-campaign mission results. Key = campaignId, value = list of MissionResult objects. */
     private array $missionResults;
+    /** Per-campaign quest results. Key = campaignId, value = list of QuestResult objects. */
+    private array $questResults;
+    /** Active QuestRunState blob (includes questCharacter), or null when none. */
+    private ?array $activeQuestRun;
 
     public function __construct(
         string $id,
@@ -45,7 +49,9 @@ class Character
         array $researchTrees = [],
         int $lastUsed = 0,
         array $missionResults = [],
-        array $researchNodeLevels = []
+        array $researchNodeLevels = [],
+        array $questResults = [],
+        ?array $activeQuestRun = null
     ) {
         $this->id = $id;
         $this->ownerAccountId = $ownerAccountId;
@@ -61,6 +67,8 @@ class Character
         $this->researchNodeLevels = self::normalizeResearchNodeLevels($researchNodeLevels);
         $this->lastUsed = max(0, $lastUsed);
         $this->missionResults = is_array($missionResults) ? $missionResults : [];
+        $this->questResults = is_array($questResults) ? $questResults : [];
+        $this->activeQuestRun = $activeQuestRun;
     }
 
     public function getId(): string
@@ -140,6 +148,18 @@ class Character
         return $this->missionResults;
     }
 
+    /** @return array<string, list<array<string, mixed>>> */
+    public function getQuestResults(): array
+    {
+        return $this->questResults;
+    }
+
+    /** @return array<string, mixed>|null */
+    public function getActiveQuestRun(): ?array
+    {
+        return $this->activeQuestRun;
+    }
+
     /** @param array<string, string[]> $researchTrees */
     public function setResearchTrees(array $researchTrees): void
     {
@@ -170,6 +190,8 @@ class Character
             'researchNodeLevels' => $this->researchNodeLevels,
             'lastUsed' => $this->lastUsed,
             'missionResults' => $this->missionResults,
+            'questResults' => $this->questResults,
+            'activeQuestRun' => $this->activeQuestRun,
         ];
     }
 
@@ -182,6 +204,11 @@ class Character
         $researchTrees = $data['researchTrees'] ?? [];
         $researchNodeLevels = $data['researchNodeLevels'] ?? [];
         $missionResults = $data['missionResults'] ?? [];
+        $questResults = $data['questResults'] ?? [];
+        $activeQuestRun = null;
+        if (array_key_exists('activeQuestRun', $data) && is_array($data['activeQuestRun'])) {
+            $activeQuestRun = $data['activeQuestRun'];
+        }
         return new self(
             $data['id'] ?? '',
             (int) ($data['ownerAccountId'] ?? 0),
@@ -196,7 +223,9 @@ class Character
             is_array($researchTrees) ? $researchTrees : [],
             (int) ($data['lastUsed'] ?? 0),
             is_array($missionResults) ? $missionResults : [],
-            is_array($researchNodeLevels) ? $researchNodeLevels : []
+            is_array($researchNodeLevels) ? $researchNodeLevels : [],
+            is_array($questResults) ? $questResults : [],
+            $activeQuestRun
         );
     }
 

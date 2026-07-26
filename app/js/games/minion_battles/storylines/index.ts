@@ -43,4 +43,81 @@ export const MISSION_MAP: Record<string, IBaseMissionDef> = {
 };
 
 export type { StorylineDef, StorylineFlowEdge } from './types';
-export { getUnlockedMissionIds, isMissionCompleted, getAllMissionIdsInOrder, hasVictoryResult, getNextVictoryMissionId, getSideMissionIds, isSideMissionId } from './unlock';
+export {
+    getUnlockedMissionIds,
+    isMissionCompleted,
+    getAllMissionIdsInOrder,
+    hasVictoryResult,
+    getNextVictoryMissionId,
+    getSideMissionIds,
+    isSideMissionId,
+    isQuestSlotBankUnlocked,
+    getUnlockedQuestSlotBanks,
+    questMatchesFilters,
+    hasQuestVictoryResult,
+    getEligibleQuestsForBank,
+    getOptionalEligibleQuests,
+    listQuestVictoryResults,
+    getQuestBankVictorySlots,
+    countQuestBankClears,
+    isQuestBankRequiredClearsSatisfied,
+    isQuestBankOpenForJoinFill,
+    placeQuestResultOnMap,
+} from './unlock';
+export type { QuestMapPlacement } from './unlock';
+
+export { QUEST_MAP, getQuestDef, listQuestsForCampaign } from './questRegistry';
+export {
+    resolveQuestSlots,
+    resolveMissionSlot,
+    QuestSlotResolverNotImplementedError,
+    slotSeedFor,
+} from './questSlotResolve';
+export type { QuestSlotResolveContext, MissionSlotResolver } from './questSlotResolve';
+export {
+    startQuestRun,
+    abandonQuestRun,
+    advanceQuestRunOnMissionVictory,
+    stayQuestRunOnMissionDefeat,
+    queueCampaignReward,
+    completeQuestRun,
+    buildCampaignRewardsPayload,
+    cloneQuestCharacterFromCampaign,
+    getCurrentResolvedMission,
+} from './questRun';
+export type {
+    StartQuestRunParams,
+    CampaignCharacterSheetSource,
+    CampaignRewardsPayload,
+    CompleteQuestRunOptions,
+    CompleteQuestRunResult,
+    AdvanceQuestVictoryResult,
+} from './questRun';
+export {
+    missionIdFromResolvedRef,
+    questLobbyFieldsFromRun,
+    readQuestLobbyFields,
+    questRunMatchesLobby,
+    planQuestVictoryContinue,
+    planQuestDefeatRetry,
+} from './questLobby';
+export type { QuestLobbyFields, QuestVictoryContinuePlan, StartQuestOptions } from './questLobby';
+export {
+    QUEST_CLEAR_MISSION_RESULT_PREFIX,
+    questClearMissionResultId,
+    isCampaignRewardsPayloadEmpty,
+    shouldApplyCampaignRewards,
+    markQuestResultCampaignRewardsApplied,
+    campaignRewardsToMissionGrantArgs,
+} from './questCampaignRewards';
+export type { CampaignRewardsMissionGrantArgs } from './questCampaignRewards';
+export type {
+    QuestDef,
+    QuestCharacter,
+    QuestRunState,
+    QuestResult,
+    QuestSlotBank,
+    MissionSlotSpec,
+    CampaignReward,
+    ResolvedMissionRef,
+} from './questTypes';

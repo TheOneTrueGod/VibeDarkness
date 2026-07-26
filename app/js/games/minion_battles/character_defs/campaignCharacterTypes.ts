@@ -3,6 +3,8 @@
  * All shapes are serializable for API and storage.
  */
 
+import type { QuestResult, QuestRunState } from '../storylines/questTypes';
+
 /** Allowed trait strings for characters (extend as needed). */
 export type CharacterTrait =
     | 'brave'
@@ -53,6 +55,16 @@ export interface CampaignCharacterData {
      * Each array holds at most one entry per missionId (the best/latest result).
      */
     missionResults?: Record<string, import('../../../types').MissionResult[]>;
+    /**
+     * Per-campaign quest results. Key = campaignId.
+     * Source of truth for map banks / optional quest placement.
+     */
+    questResults?: Record<string, QuestResult[]>;
+    /**
+     * Active QuestRun for this Campaign Character (null/absent when none).
+     * Holds the Quest Character sheet for the current attempt.
+     */
+    activeQuestRun?: QuestRunState | null;
 }
 
 /** One-word reason a character cannot be used on a mission. */

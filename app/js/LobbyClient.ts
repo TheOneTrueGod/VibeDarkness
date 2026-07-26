@@ -5,6 +5,7 @@
 
 import type { CampaignResourceKey, BattleOrderRecord, HeartbeatResponse, MissionResult } from './types';
 import type { BattleOrder, SerializedGameState } from './games/minion_battles/game/types';
+import type { QuestResult, QuestRunState } from './games/minion_battles/storylines/questTypes';
 import { isBattleHeartbeatTraceEnvOn, traceBattleHeartbeatLine } from './battleHeartbeatTrace';
 
 /** Campaign character as returned from API (serializable). */
@@ -23,6 +24,10 @@ export interface CampaignCharacterPayload {
     researchNodeLevels?: Record<string, Record<string, number>>;
     /** Per-campaign mission results; key = campaignId. */
     missionResults?: Record<string, MissionResult[]>;
+    /** Per-campaign quest results; key = campaignId. */
+    questResults?: Record<string, QuestResult[]>;
+    /** Active QuestRun (includes Quest Character); null/absent when none. */
+    activeQuestRun?: QuestRunState | null;
     lastUsed?: number;
 }
 
@@ -407,6 +412,8 @@ export class LobbyClient {
             researchTrees?: Record<string, string[]>;
             researchNodeLevels?: Record<string, Record<string, number>>;
             missionResults?: Record<string, MissionResult[]>;
+            questResults?: Record<string, QuestResult[]>;
+            activeQuestRun?: QuestRunState | null;
             campaignId?: string;
         }
     ): Promise<CampaignCharacterPayload> {

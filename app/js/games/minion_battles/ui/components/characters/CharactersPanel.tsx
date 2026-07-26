@@ -40,9 +40,25 @@ interface CharactersPanelProps {
     /** Lobby member list — when provided, admin mode shows a state-based lobby player list instead of URL routing. */
     players?: Record<string, PlayerState>;
     onStartMissionForCharacter?: (missionId: string, character: CampaignCharacter, ownerAccount: AccountState) => void;
+    onStartQuestForCharacter?: (
+        questDefId: string,
+        character: CampaignCharacter,
+        ownerAccount: AccountState,
+        options?: {
+            mode?: 'continue' | 'start';
+            assignedBankId?: string | null;
+            equipment?: string[];
+        },
+    ) => void;
 }
 
-export default function CharactersPanel({ api, lobbyClient, players, onStartMissionForCharacter }: CharactersPanelProps) {
+export default function CharactersPanel({
+    api,
+    lobbyClient,
+    players,
+    onStartMissionForCharacter,
+    onStartQuestForCharacter,
+}: CharactersPanelProps) {
     const { user } = useUserData();
     const isAdmin = user?.role === 'admin';
 
@@ -597,6 +613,17 @@ export default function CharactersPanel({ api, lobbyClient, players, onStartMiss
                                         ? (missionId) => onStartMissionForCharacter(missionId, selectedAdminCharacter, adminDetails.account)
                                         : undefined
                                 }
+                                onStartQuest={
+                                    onStartQuestForCharacter && adminDetails?.account
+                                        ? (questDefId, options) =>
+                                              onStartQuestForCharacter(
+                                                  questDefId,
+                                                  selectedAdminCharacter,
+                                                  adminDetails.account,
+                                                  options,
+                                              )
+                                        : undefined
+                                }
                                 adminEquipmentPanel={
                                     <div className="flex flex-wrap items-center gap-3">
                                         <span className="text-sm font-semibold text-muted shrink-0">Items</span>
@@ -780,6 +807,17 @@ export default function CharactersPanel({ api, lobbyClient, players, onStartMiss
                     onStartMission={
                         onStartMissionForCharacter && user
                             ? (missionId) => onStartMissionForCharacter(missionId, selectedPlayerCharacter, user)
+                            : undefined
+                    }
+                    onStartQuest={
+                        onStartQuestForCharacter && user
+                            ? (questDefId, options) =>
+                                  onStartQuestForCharacter(
+                                      questDefId,
+                                      selectedPlayerCharacter,
+                                      user,
+                                      options,
+                                  )
                             : undefined
                     }
                 />

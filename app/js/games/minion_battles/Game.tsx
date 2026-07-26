@@ -6,7 +6,7 @@
  * appear instantly in the UI without waiting
  * for the server round-trip.
  */
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useCurrentUser } from '../../user/useCurrentUser';
 import type { MissionResearchRewardEntry, MissionResult, PlayerState, GameSidebarInfo } from '../../types';
 import type { LobbyClient } from '../../LobbyClient';
@@ -17,10 +17,31 @@ import CharacterSelectPhase from './ui/pages/CharacterSelectPhase';
 import PreMissionStoryPhase from './ui/pages/PreMissionStoryPhase';
 import PostMissionStoryPhase from './ui/pages/PostMissionStoryPhase';
 import BattlePhase from './ui/pages/BattlePhase';
-import { MISSION_MAP, STORYLINES, getNextVictoryMissionId, getSideMissionIds } from './storylines';
+import {
+    MISSION_MAP,
+    STORYLINES,
+    getNextVictoryMissionId,
+    getSideMissionIds,
+    getQuestDef,
+    abandonQuestRun,
+    placeQuestResultOnMap,
+    planQuestVictoryContinue,
+    planQuestDefeatRetry,
+    questRunMatchesLobby,
+    readQuestLobbyFields,
+    questClearMissionResultId,
+    isCampaignRewardsPayloadEmpty,
+    shouldApplyCampaignRewards,
+    markQuestResultCampaignRewardsApplied,
+    campaignRewardsToMissionGrantArgs,
+    type QuestLobbyFields,
+    type QuestVictoryContinuePlan,
+    type CampaignRewardsPayload,
+} from './storylines';
 import { SPECTATOR_ID, isControlEnemy } from './state';
 import { MessageType } from '../../MessageTypes';
 import type { CampaignResourceKey } from '../../types';
+import type { QuestResult } from './storylines/questTypes';
 import VictoryModal from './ui/components/VictoryModal';
 import { MinionBattlesApi } from './api/minionBattlesApi';
 import { TestIds } from '../../testing/testIds';
@@ -68,8 +89,13 @@ interface MinionBattlesGameProps extends Pick<GameComponentProps, 'minionBattles
     /** Create a new lobby for the given mission (Try Again / Continue victory path).
      *  Returns true on success; false triggers the onContinue fallback.
      *  previousCharacterSelections carries the battle's character selections into the new lobby so
-     *  players see their prior character pre-selected without having to re-pick. */
-    onTryAgain?: (missionId: string, previousCharacterSelections: Record<string, string>) => Promise<boolean>;
+     *  players see their prior character pre-selected without having to re-pick.
+     *  questLobby stamps questDefId / questRunId / questSlotIndex when continuing a quest chain. */
+    onTryAgain?: (
+        missionId: string,
+        previousCharacterSelections: Record<string, string>,
+        questLobby?: QuestLobbyFields | null,
+    ) => Promise<boolean>;
     /** Called when host sends an emitted message (e.g. NPC chat) so the UI can show it immediately. */
     onEmittedChatMessage?: (entry: import('../../components/Chat').MessageEntry) => void;
     /** Called when the game is about to switch from pre-battle story into battle. */
@@ -112,8 +138,18 @@ export default function MinionBattlesGame({
     );
     const [defeatModalOpen, setDefeatModalOpen] = useState(false);
     const [victoryModalOpen, setVictoryModalOpen] = useState(false);
+    /** Set when this lobby is part of a quest chain and victory advanced/completed the run. */
+    const [questVictoryPlan, setQuestVictoryPlan] = useState<QuestVictoryContinuePlan | null>(null);
+    /** Quest-clear Campaign Rewards for the victory modal (completion + queued). */
+    const [campaignRewards, setCampaignRewards] = useState<CampaignRewardsPayload | null>(null);
+    /** In-session guard so remount/poll cannot double-apply Campaign Rewards grants. */
+    const appliedCampaignRewardRunIdsRef = useRef<Set<string>>(new Set());
     const raw = useMemo(() => gameData ?? {}, [gameData]);
     const nextLobbyId = (gameData as import('./api/types').MinionBattlesGameDataPayload | null)?.nextLobbyId ?? null;
+    const questLobbyFields = useMemo(
+        () => readQuestLobbyFields(raw as Record<string, unknown>),
+        [raw],
+    );
 
     // Infer battle phase when gamePhase is missing but engine state (units, gameTick) exists.
     // This happens when loading from checkpoints that lack phase metadata.
@@ -276,6 +312,110 @@ export default function MinionBattlesGame({
         researchRewardIds?: string[];
         researchRewards?: MissionResearchRewardEntry[];
     } | null>(null);
+
+    /**
+     * Advance or complete the active quest run after mission victory.
+     * Returns a continue plan for the victory modal, or null when not in a matching quest lobby.
+     * On quest finale: surfaces Campaign Rewards in the UI and applies grants once.
+     */
+    const prepareQuestVictoryContinue = useCallback(async (): Promise<QuestVictoryContinuePlan | null> => {
+        if (!questLobbyFields) return null;
+        const sel = (effective.characterSelections as Record<string, string>)?.[playerId];
+        if (!sel || sel === SPECTATOR_ID || isControlEnemy(sel)) return null;
+        try {
+            const rawChar = await api.getCharacter(sel);
+            const run = rawChar.activeQuestRun ?? null;
+            if (!questRunMatchesLobby(run, questLobbyFields)) return null;
+            const questDef = getQuestDef(run!.questDefId);
+            if (!questDef) return null;
+            const plan = planQuestVictoryContinue(run!, questDef);
+            if (plan.kind === 'continued') {
+                await api.updateCharacter(sel, { activeQuestRun: plan.run });
+            } else {
+                const campaignId = questDef.campaignId;
+                const existingMap: Record<string, QuestResult[]> = rawChar.questResults ?? {};
+                const existingList = existingMap[campaignId] ?? [];
+                const storyline = STORYLINES.find((s) => s.id === campaignId);
+                const banks = storyline?.questSlotBanks ?? [];
+                const placement = placeQuestResultOnMap(plan.complete.result, banks, existingList);
+                const payload = plan.complete.campaignRewardsToApply;
+                const existingVictory = existingList.find(
+                    (r) => r.questDefId === plan.complete.result.questDefId && r.result === 'victory',
+                );
+                const runId = run!.runId;
+                const alreadyAppliedInSession = appliedCampaignRewardRunIdsRef.current.has(runId);
+                const shouldGrant =
+                    !alreadyAppliedInSession && shouldApplyCampaignRewards(existingVictory);
+
+                // Sync session guard before any await so remount/poll cannot double-grant.
+                if (shouldGrant) {
+                    appliedCampaignRewardRunIdsRef.current.add(runId);
+                    if (!isCampaignRewardsPayloadEmpty(payload) && onRecordMissionResult) {
+                        const grant = campaignRewardsToMissionGrantArgs(payload);
+                        try {
+                            await onRecordMissionResult(
+                                questClearMissionResultId(questDef.id),
+                                'victory',
+                                grant.resourceDelta,
+                                grant.grantKnowledgeKeys,
+                                grant.itemIds,
+                                grant.researchRewardIds,
+                            );
+                        } catch (grantErr) {
+                            // Allow a later retry if the grant path failed before persistence.
+                            appliedCampaignRewardRunIdsRef.current.delete(runId);
+                            throw grantErr;
+                        }
+                    }
+                }
+
+                const placedResult: QuestResult = markQuestResultCampaignRewardsApplied({
+                    ...plan.complete.result,
+                    placement: placement.placement,
+                    ...(placement.bankId ? { bankId: placement.bankId } : {}),
+                    timestamp: plan.complete.result.timestamp ?? Date.now(),
+                });
+                // If a prior victory already applied grants, keep that flag even if we re-place.
+                if (existingVictory?.campaignRewardsApplied === true) {
+                    placedResult.campaignRewardsApplied = true;
+                }
+                const updatedList = [
+                    ...existingList.filter(
+                        (r) => !(r.questDefId === placedResult.questDefId && r.result === 'victory'),
+                    ),
+                    placedResult,
+                ];
+                await api.updateCharacter(sel, {
+                    activeQuestRun: null,
+                    questResults: { ...existingMap, [campaignId]: updatedList },
+                });
+                // UI: show completionRewards + queued Campaign Rewards under "Campaign Rewards".
+                setCampaignRewards(
+                    isCampaignRewardsPayloadEmpty(payload) ? null : payload,
+                );
+            }
+            setQuestVictoryPlan(plan);
+            return plan;
+        } catch (e) {
+            console.warn('Failed to advance quest run after victory:', e);
+            return null;
+        }
+    }, [api, effective.characterSelections, onRecordMissionResult, playerId, questLobbyFields]);
+
+    const handleAbandonQuest = useCallback(async () => {
+        if (!questLobbyFields) return;
+        const sel = (effective.characterSelections as Record<string, string>)?.[playerId];
+        if (!sel || sel === SPECTATOR_ID || isControlEnemy(sel)) return;
+        try {
+            const rawChar = await api.getCharacter(sel);
+            const run = rawChar.activeQuestRun ?? null;
+            if (!run || run.runId !== questLobbyFields.questRunId) return;
+            void abandonQuestRun(run); // domain mark; discard active run below
+            await api.updateCharacter(sel, { activeQuestRun: null });
+        } catch (e) {
+            console.warn('Failed to abandon quest run:', e);
+        }
+    }, [api, effective.characterSelections, playerId, questLobbyFields]);
 
     // ---- Sync from gameData (GameSyncContext owns fetching; gameData flows from there) ----
     useEffect(() => {
@@ -476,7 +616,7 @@ export default function MinionBattlesGame({
                                           rewards.itemFromFirstChoice ?? itemIds[0] ?? undefined,
                                   }
                         );
-                        setVictoryModalOpen(true);
+                        void prepareQuestVictoryContinue().finally(() => setVictoryModalOpen(true));
                     }}
                 />
             )}
@@ -578,7 +718,7 @@ export default function MinionBattlesGame({
                                           itemFromFirstChoice: startingItemIds[0] ?? undefined,
                                       }
                             );
-                            setVictoryModalOpen(true);
+                            void prepareQuestVictoryContinue().finally(() => setVictoryModalOpen(true));
                         }
                     }}
                     onDefeat={() => {
@@ -598,7 +738,71 @@ export default function MinionBattlesGame({
                     <div className="bg-surface-light border border-border-custom rounded-lg shadow-xl p-10 mx-4 text-center min-h-[35vh] w-[min(90%, 28rem)] flex flex-col justify-center">
                         <h2 className="text-2xl font-bold text-danger mb-2">Defeat!</h2>
                         <p className="text-muted mb-6">You have succumbed to the darkness</p>
-                        <div className="flex justify-center">
+                        {questLobbyFields ? (
+                            <p className="text-xs text-muted mb-4">
+                                Quest run kept — retry this mission, or abandon the quest.
+                            </p>
+                        ) : null}
+                        <div className="flex flex-wrap justify-center gap-3">
+                            {questLobbyFields && isHost !== false && selectedMissionId && (
+                                <button
+                                    type="button"
+                                    className="px-4 py-2 bg-primary hover:bg-primary-hover text-secondary font-medium rounded transition-colors"
+                                    onClick={async () => {
+                                        setDefeatModalOpen(false);
+                                        if (!onTryAgain) {
+                                            const sel = (effective.characterSelections as Record<string, string>)[playerId];
+                                            const characterId =
+                                                sel && sel !== SPECTATOR_ID && !isControlEnemy(sel) ? sel : undefined;
+                                            onLeave?.(characterId);
+                                            return;
+                                        }
+                                        const sel = (effective.characterSelections as Record<string, string>)?.[playerId];
+                                        let lobbyStamp: QuestLobbyFields = questLobbyFields;
+                                        let missionId = selectedMissionId;
+                                        if (sel && sel !== SPECTATOR_ID && !isControlEnemy(sel)) {
+                                            try {
+                                                const rawChar = await api.getCharacter(sel);
+                                                const run = rawChar.activeQuestRun ?? null;
+                                                if (questRunMatchesLobby(run, questLobbyFields)) {
+                                                    const retry = planQuestDefeatRetry(run!);
+                                                    missionId = retry.missionId;
+                                                    lobbyStamp = retry.lobbyFields;
+                                                }
+                                            } catch (e) {
+                                                console.warn('Failed to plan quest defeat retry:', e);
+                                            }
+                                        }
+                                        const created = await onTryAgain(missionId, characterSelections, lobbyStamp);
+                                        if (!created) {
+                                            const leaveSel = (effective.characterSelections as Record<string, string>)[playerId];
+                                            const characterId =
+                                                leaveSel && leaveSel !== SPECTATOR_ID && !isControlEnemy(leaveSel)
+                                                    ? leaveSel
+                                                    : undefined;
+                                            onLeave?.(characterId);
+                                        }
+                                    }}
+                                >
+                                    Retry Mission
+                                </button>
+                            )}
+                            {questLobbyFields && (
+                                <button
+                                    type="button"
+                                    className="px-4 py-2 bg-violet-800 hover:bg-violet-700 text-violet-100 font-medium rounded transition-colors border border-violet-600"
+                                    onClick={async () => {
+                                        setDefeatModalOpen(false);
+                                        await handleAbandonQuest();
+                                        const sel = (effective.characterSelections as Record<string, string>)[playerId];
+                                        const characterId =
+                                            sel && sel !== SPECTATOR_ID && !isControlEnemy(sel) ? sel : undefined;
+                                        onLeave?.(characterId);
+                                    }}
+                                >
+                                    Abandon Quest
+                                </button>
+                            )}
                             <button
                                 type="button"
                                 className="px-4 py-2 bg-dark-600 hover:bg-dark-500 text-white font-medium rounded transition-colors"
@@ -621,15 +825,38 @@ export default function MinionBattlesGame({
                     nextLobbyId={nextLobbyId}
                     onJoinNextLobby={onJoinNextLobby}
                     missionRewards={missionRewards}
-                    sideMissions={selectedMissionId
-                        ? getSideMissionIds(selectedMissionId, STORYLINES).map((id) => ({
-                              missionId: id,
-                              name: MISSION_MAP[id]?.name ?? id,
-                          }))
-                        : []}
+                    campaignRewards={campaignRewards}
+                    questBanner={
+                        questVictoryPlan?.kind === 'finale'
+                            ? `Quest complete: ${getQuestDef(questVictoryPlan.complete.result.questDefId)?.title ?? questVictoryPlan.complete.result.questDefId}`
+                            : questVictoryPlan?.kind === 'continued'
+                              ? `Quest continues — mission ${questVictoryPlan.run.currentSlotIndex + 1}/${questVictoryPlan.run.resolvedSlots.length}`
+                              : questLobbyFields
+                                ? (getQuestDef(questLobbyFields.questDefId)?.title ?? null)
+                                : null
+                    }
+                    continueLabel={
+                        questVictoryPlan?.kind === 'finale'
+                            ? 'Finish Quest'
+                            : questVictoryPlan?.kind === 'continued'
+                              ? 'Continue Quest'
+                              : 'Continue'
+                    }
+                    sideMissions={
+                        questVictoryPlan || questLobbyFields
+                            ? []
+                            : selectedMissionId
+                              ? getSideMissionIds(selectedMissionId, STORYLINES).map((id) => ({
+                                    missionId: id,
+                                    name: MISSION_MAP[id]?.name ?? id,
+                                }))
+                              : []
+                    }
                     onStartSideMission={async (sideMissionId) => {
                         setVictoryModalOpen(false);
                         setMissionRewards(null);
+                        setCampaignRewards(null);
+                        setQuestVictoryPlan(null);
                         if (onTryAgain) {
                             const created = await onTryAgain(sideMissionId, characterSelections);
                             if (created) return;
@@ -646,9 +873,28 @@ export default function MinionBattlesGame({
                     onClose={async () => {
                         setVictoryModalOpen(false);
                         setMissionRewards(null);
+                        setCampaignRewards(null);
+                        const plan = questVictoryPlan;
+                        setQuestVictoryPlan(null);
                         const sel = (effective.characterSelections as Record<string, string>)[playerId];
                         const isSpectatorOrEnemy = !sel || sel === SPECTATOR_ID || isControlEnemy(sel);
                         const characterId = isSpectatorOrEnemy ? undefined : sel;
+                        if (plan?.kind === 'continued' && onTryAgain) {
+                            const created = await onTryAgain(
+                                plan.nextMissionId,
+                                characterSelections,
+                                plan.lobbyFields,
+                            );
+                            if (created) return;
+                        }
+                        if (plan?.kind === 'finale') {
+                            if (onContinue) {
+                                onContinue(characterId);
+                            } else {
+                                onLeave?.();
+                            }
+                            return;
+                        }
                         const nextMissionId = selectedMissionId
                             ? getNextVictoryMissionId(selectedMissionId, STORYLINES)
                             : null;

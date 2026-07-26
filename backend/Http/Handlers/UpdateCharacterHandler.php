@@ -67,6 +67,12 @@ class UpdateCharacterHandler
         if (isset($data['missionResults']) && is_array($data['missionResults'])) {
             $updates['missionResults'] = $data['missionResults'];
         }
+        if (isset($data['questResults']) && is_array($data['questResults'])) {
+            $updates['questResults'] = $data['questResults'];
+        }
+        if (array_key_exists('activeQuestRun', $data)) {
+            $updates['activeQuestRun'] = is_array($data['activeQuestRun']) ? $data['activeQuestRun'] : null;
+        }
         if (array_key_exists('campaignId', $data)) {
             $updates['campaignId'] = (string) $data['campaignId'];
         }
