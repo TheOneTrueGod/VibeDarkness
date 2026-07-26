@@ -28,6 +28,8 @@ export const TestIds = {
     missionMapNodePrefix: 'mission-map-node-',
 
     /** Mission Map quest banks / optional / prep (Campaign Home) */
+    missionMapSubTabMap: 'mission-map-subtab-map',
+    missionMapSubTabQuests: 'mission-map-subtab-quests',
     questBanksPanel: 'quest-banks-panel',
     questContinue: 'quest-continue',
     questBankPrefix: 'quest-bank-',

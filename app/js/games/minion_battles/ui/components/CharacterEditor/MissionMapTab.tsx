@@ -25,6 +25,8 @@ import {
     countQuestBankClears,
     isQuestSlotBankUnlocked,
     getEligibleQuestsForBank,
+    getOptionalEligibleQuests,
+    listQuestVictoryResults,
 } from '../../../storylines/unlock';
 import type { QuestDef, QuestSlotBank } from '../../../storylines/questTypes';
 import { getResolvedMissionResearchRewards } from '../../../../../researchTrees/list';
@@ -38,6 +40,26 @@ import {
     missionMapQuestBankTestId,
 } from '../../../../../testing/testIds';
 import QuestBanksPanel from './QuestBanksPanel';
+
+/** Match GameScreen mobile breakpoint: stacked Quests card crowds the map below this width. */
+const NARROW_BREAKPOINT_PX = 768;
+
+type MissionMapPane = 'map' | 'quests';
+
+function useIsNarrowViewport(): boolean {
+    const [isNarrow, setIsNarrow] = useState(() =>
+        typeof window !== 'undefined'
+            ? window.matchMedia(`(max-width: ${NARROW_BREAKPOINT_PX - 1}px)`).matches
+            : false,
+    );
+    useEffect(() => {
+        const mql = window.matchMedia(`(max-width: ${NARROW_BREAKPOINT_PX - 1}px)`);
+        const handler = () => setIsNarrow(mql.matches);
+        mql.addEventListener('change', handler);
+        return () => mql.removeEventListener('change', handler);
+    }, []);
+    return isNarrow;
+}
 
 const CIRCLE_R = 28;
 const SIDE_CIRCLE_R = 18;
@@ -410,6 +432,8 @@ export default function MissionMapTab({
     const [tooltip, setTooltip] = useState<TooltipData | null>(null);
     const [bankTooltip, setBankTooltip] = useState<QuestBankTooltipData | null>(null);
     const [focusedBankId, setFocusedBankId] = useState<string | null>(null);
+    const [mobilePane, setMobilePane] = useState<MissionMapPane>('map');
+    const isNarrow = useIsNarrowViewport();
     const questBanksPanelRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
 
@@ -467,6 +491,32 @@ export default function MissionMapTab({
         if (!storyline) return new Set<string>();
         return new Set(getUnlockedQuestSlotBanks(storyline, missionResults).map((b) => b.id));
     }, [storyline, missionResults]);
+
+    const hasQuestsContent = useMemo(() => {
+        if (!onStartQuest || !storyline) return false;
+        const unlockedBanks = getUnlockedQuestSlotBanks(storyline, missionResults);
+        const optionalQuests = getOptionalEligibleQuests(character.campaignId, questResults);
+        const victoryResults = listQuestVictoryResults(questResults);
+        const activeQuest =
+            character.activeQuestRun?.status === 'active' ? character.activeQuestRun : null;
+        return (
+            unlockedBanks.length > 0
+            || optionalQuests.length > 0
+            || victoryResults.length > 0
+            || activeQuest != null
+        );
+    }, [
+        onStartQuest,
+        storyline,
+        missionResults,
+        questResults,
+        character.campaignId,
+        character.activeQuestRun,
+    ]);
+
+    const usePaneTabs = isNarrow && hasQuestsContent;
+    const showMap = !usePaneTabs || mobilePane === 'map';
+    const showQuests = hasQuestsContent && (!usePaneTabs || mobilePane === 'quests');
 
     const posMap = useMemo(() => {
         const m = new Map<string, { x: number; y: number }>();
@@ -538,14 +588,20 @@ export default function MissionMapTab({
         (bank: QuestSlotBank, svgPosX: number, svgPosY: number) => {
             setFocusedBankId(bank.id);
             setTooltip(null);
-            const { x, y } = svgToViewport(svgPosX, svgPosY);
-            setBankTooltip({ bankId: bank.id, cx: x, cy: y, pinned: true });
+            if (isNarrow) {
+                // Quests live on a separate pane — jump there instead of a map-anchored tooltip.
+                setMobilePane('quests');
+                setBankTooltip(null);
+            } else {
+                const { x, y } = svgToViewport(svgPosX, svgPosY);
+                setBankTooltip({ bankId: bank.id, cx: x, cy: y, pinned: true });
+            }
             // Panel may be above the fold of a tall map — bring it into view too.
             requestAnimationFrame(() => {
                 questBanksPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             });
         },
-        [svgToViewport],
+        [svgToViewport, isNarrow],
     );
 
     // Dismiss pinned tooltip on Escape or outside click
@@ -578,18 +634,60 @@ export default function MissionMapTab({
         );
     }
 
+    const pillClass = (pane: MissionMapPane) =>
+        `px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer ${
+            mobilePane === pane
+                ? 'bg-primary text-secondary'
+                : 'text-muted hover:text-white'
+        }`;
+
     return (
         <div className="w-full h-full overflow-auto p-2">
-            <p className="text-xs text-muted mb-2 px-1">{storyline.title}</p>
-            {onStartQuest && (
+            {usePaneTabs && (
+                <div
+                    className="mb-2 mx-1 inline-flex gap-1 p-1 rounded-full border border-border-custom bg-background/60"
+                    role="tablist"
+                    aria-label="Mission map panes"
+                >
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={mobilePane === 'map'}
+                        data-testid={TestIds.missionMapSubTabMap}
+                        className={pillClass('map')}
+                        onClick={() => {
+                            setMobilePane('map');
+                        }}
+                    >
+                        Map
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={mobilePane === 'quests'}
+                        data-testid={TestIds.missionMapSubTabQuests}
+                        className={pillClass('quests')}
+                        onClick={() => {
+                            setMobilePane('quests');
+                            setTooltip(null);
+                            setBankTooltip(null);
+                        }}
+                    >
+                        Quests
+                    </button>
+                </div>
+            )}
+            {showQuests && onStartQuest && (
                 <div ref={questBanksPanelRef}>
                     <QuestBanksPanel
                         character={character}
                         onStartQuest={onStartQuest}
                         focusedBankId={focusedBankId}
+                        hideSectionTitle={usePaneTabs}
                     />
                 </div>
             )}
+            {showMap && (
             <svg
                 ref={svgRef}
                 viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
@@ -890,9 +988,10 @@ export default function MissionMapTab({
                     );
                 })}
             </svg>
+            )}
 
             {/* Tooltip portal */}
-            {tooltip && (
+            {tooltip && showMap && (
                 <MissionTooltip
                     data={tooltip}
                     missionResults={missionResults}
@@ -903,7 +1002,7 @@ export default function MissionMapTab({
                     onDismiss={dismissTooltip}
                 />
             )}
-            {bankTooltip && (() => {
+            {bankTooltip && showMap && (() => {
                 const bank = questBanksOnMap.find((b) => b.id === bankTooltip.bankId);
                 if (!bank) return null;
                 const unlocked = unlockedQuestBankIds.has(bank.id);

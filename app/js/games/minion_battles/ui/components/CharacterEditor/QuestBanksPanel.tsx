@@ -24,6 +24,8 @@ export interface QuestBanksPanelProps {
     onStartQuest?: (questDefId: string, options?: StartQuestOptions) => void;
     /** When set (e.g. from Mission Map bank node click), expand that bank's picker. */
     focusedBankId?: string | null;
+    /** Hide the "Quests" heading (e.g. when a parent tab/pill already labels the pane). */
+    hideSectionTitle?: boolean;
 }
 
 function bankDisplayLabel(bank: QuestSlotBank): string {
@@ -91,7 +93,12 @@ function QuestPickRow({
     );
 }
 
-export default function QuestBanksPanel({ character, onStartQuest, focusedBankId = null }: QuestBanksPanelProps) {
+export default function QuestBanksPanel({
+    character,
+    onStartQuest,
+    focusedBankId = null,
+    hideSectionTitle = false,
+}: QuestBanksPanelProps) {
     const [expandedBankId, setExpandedBankId] = useState<string | null>(null);
 
     React.useEffect(() => {
@@ -143,22 +150,26 @@ export default function QuestBanksPanel({ character, onStartQuest, focusedBankId
             data-testid={TestIds.questBanksPanel}
             className="mb-3 mx-1 flex flex-col gap-3 rounded-lg border border-border-custom bg-surface px-3 py-2.5"
         >
-            <div className="flex items-center justify-between gap-2">
-                <h3 className="text-xs font-semibold text-white uppercase tracking-wide">Quests</h3>
-                {activeQuest && activeQuestDef && (
-                    <button
-                        type="button"
-                        data-testid={TestIds.questContinue}
-                        className="px-3 py-1.5 rounded-lg bg-primary text-secondary text-xs font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer"
-                        onClick={() =>
-                            onStartQuest(activeQuest.questDefId, { mode: 'continue' })
-                        }
-                    >
-                        Continue “{activeQuestDef.title}” (slot {activeQuest.currentSlotIndex + 1}/
-                        {activeQuest.resolvedSlots.length})
-                    </button>
-                )}
-            </div>
+            {(activeQuest && activeQuestDef) || !hideSectionTitle ? (
+                <div className="flex items-center justify-between gap-2">
+                    {!hideSectionTitle && (
+                        <h3 className="text-xs font-semibold text-white uppercase tracking-wide">Quests</h3>
+                    )}
+                    {activeQuest && activeQuestDef && (
+                        <button
+                            type="button"
+                            data-testid={TestIds.questContinue}
+                            className={`px-3 py-1.5 rounded-lg bg-primary text-secondary text-xs font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer ${hideSectionTitle ? 'ml-auto' : ''}`}
+                            onClick={() =>
+                                onStartQuest(activeQuest.questDefId, { mode: 'continue' })
+                            }
+                        >
+                            Continue “{activeQuestDef.title}” (slot {activeQuest.currentSlotIndex + 1}/
+                            {activeQuest.resolvedSlots.length})
+                        </button>
+                    )}
+                </div>
+            ) : null}
 
             {unlockedBanks.length > 0 && (
                 <section className="flex flex-col gap-2" aria-label="Quest slot banks">
