@@ -24,14 +24,19 @@ import {
     getUnlockedQuestSlotBanks,
     countQuestBankClears,
     isQuestSlotBankUnlocked,
+    getEligibleQuestsForBank,
 } from '../../../storylines/unlock';
-import type { QuestSlotBank } from '../../../storylines/questTypes';
+import type { QuestDef, QuestSlotBank } from '../../../storylines/questTypes';
 import { getResolvedMissionResearchRewards } from '../../../../../researchTrees/list';
 import ResearchRewardTinyChip from '../../../../../components/ResearchRewardTinyChip';
 import ResourcePill, { campaignResourceGains } from '../../../../../components/ResourcePill';
 import { MISSION_REWARD_CHIP_CLASSNAME } from '../../../../../components/ResearchRewardTinyChip';
 import { getItemDef } from '../../../character_defs/items';
-import { TestIds, missionMapNodeTestId } from '../../../../../testing/testIds';
+import {
+    TestIds,
+    missionMapNodeTestId,
+    missionMapQuestBankTestId,
+} from '../../../../../testing/testIds';
 import QuestBanksPanel from './QuestBanksPanel';
 
 const CIRCLE_R = 28;
@@ -105,6 +110,119 @@ interface TooltipData {
     cx: number;
     cy: number;
     pinned: boolean;
+}
+
+interface QuestBankTooltipData {
+    bankId: string;
+    cx: number;
+    cy: number;
+    pinned: boolean;
+}
+
+function QuestBankTooltip({
+    data,
+    bank,
+    eligibleQuests,
+    clears,
+    isLocked,
+    onStartQuest,
+    onDismiss,
+}: {
+    data: QuestBankTooltipData;
+    bank: QuestSlotBank;
+    eligibleQuests: QuestDef[];
+    clears: number;
+    isLocked: boolean;
+    onStartQuest?: (questDefId: string, options?: StartQuestOptions) => void;
+    onDismiss: () => void;
+}) {
+    const TOOLTIP_W = 300;
+    const TOOLTIP_APPROX_H = 200;
+    const MARGIN = 12;
+    const nodeR = SIDE_CIRCLE_R;
+    const spaceAbove = data.cy - nodeR - MARGIN;
+    const placeAbove = spaceAbove > TOOLTIP_APPROX_H + 8;
+    const top = placeAbove
+        ? data.cy - nodeR - MARGIN - TOOLTIP_APPROX_H
+        : data.cy + nodeR + MARGIN;
+    const rawLeft = data.cx - TOOLTIP_W / 2;
+    const left = Math.max(MARGIN, Math.min(rawLeft, window.innerWidth - TOOLTIP_W - MARGIN));
+    const label = bank.title ?? bank.id.replace(/_/g, ' ');
+
+    return createPortal(
+        <div
+            data-testid={TestIds.questBankTooltip}
+            data-quest-bank-tooltip
+            className="fixed z-[9999] pointer-events-none"
+            style={{ top, left, width: TOOLTIP_W }}
+        >
+            <div
+                className={`rounded-xl border bg-[#0f172a]/95 backdrop-blur-sm shadow-2xl overflow-hidden
+                    ${data.pinned ? 'border-violet-500/60 pointer-events-auto' : 'border-white/10'}`}
+            >
+                <div className="flex items-start justify-between gap-2 px-4 pt-3 pb-2 border-b border-white/8">
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                        {(bank.isSideQuest ?? true) && (
+                            <span className="text-[10px] font-semibold text-violet-400 uppercase tracking-wide">
+                                Side Quest
+                            </span>
+                        )}
+                        <span className="text-sm font-bold text-white leading-snug truncate">{label}</span>
+                    </div>
+                    <span className="shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full border mt-0.5 text-zinc-300 border-zinc-600 bg-zinc-800/50">
+                        {clears}/{bank.requiredClears}
+                    </span>
+                </div>
+                <div className="px-4 py-2.5">
+                    <p className="text-[13px] italic text-zinc-300 leading-relaxed">
+                        {isLocked
+                            ? 'This quest slot unlocks after Core Awakening. You can still run matching quests from Optional / side quests.'
+                            : 'Choose a quest for this slot. Loadout freezes at prep for the whole run.'}
+                    </p>
+                </div>
+                {data.pinned && (
+                    <div className="flex flex-col gap-2 px-4 py-2.5 border-t border-white/8 bg-white/3">
+                        {isLocked ? (
+                            <p
+                                data-testid="quest-bank-tooltip-locked"
+                                className="text-[12px] text-amber-200/90"
+                            >
+                                Locked — beat Core Awakening to assign a quest here.
+                            </p>
+                        ) : eligibleQuests.length === 0 ? (
+                            <p className="text-[12px] text-zinc-500 italic">No eligible quests left.</p>
+                        ) : (
+                            eligibleQuests.map((q) => (
+                                <button
+                                    key={q.id}
+                                    type="button"
+                                    data-testid={`${TestIds.questStartPrefix}${q.id}`}
+                                    onClick={() => {
+                                        onStartQuest?.(q.id, {
+                                            mode: 'start',
+                                            assignedBankId: bank.id,
+                                        });
+                                        onDismiss();
+                                    }}
+                                    className="w-full text-left px-3 py-2 rounded-lg bg-primary text-secondary text-xs font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+                                >
+                                    Start “{q.title}”
+                                </button>
+                            ))
+                        )}
+                        <button
+                            type="button"
+                            onClick={onDismiss}
+                            className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer self-start"
+                        >
+                            Dismiss
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>,
+        document.body,
+    );
 }
 
 function MissionTooltip({
@@ -245,6 +363,7 @@ function MissionTooltip({
                             {isAdmin && onMarkVictory && !hasVictoryResult(data.id, missionResults) && (
                                 <button
                                     type="button"
+                                    data-testid={TestIds.missionMarkVictory}
                                     onClick={() => { void onMarkVictory(data.id); onDismiss(); }}
                                     className="px-3 py-1.5 rounded-lg border border-green-700/60 bg-green-950/50 text-green-400 text-xs font-semibold hover:bg-green-900/50 active:scale-95 transition-all cursor-pointer"
                                 >
@@ -289,7 +408,9 @@ export default function MissionMapTab({
     const [hoveredId, setHoveredId] = useState<string | null>(null);
     const [pressedId, setPressedId] = useState<string | null>(null);
     const [tooltip, setTooltip] = useState<TooltipData | null>(null);
+    const [bankTooltip, setBankTooltip] = useState<QuestBankTooltipData | null>(null);
     const [focusedBankId, setFocusedBankId] = useState<string | null>(null);
+    const questBanksPanelRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
 
     const storyline = useMemo(
@@ -406,19 +527,40 @@ export default function MissionMapTab({
 
     const handleNodeClick = useCallback((id: string, svgPosX: number, svgPosY: number) => {
         const { x, y } = svgToViewport(svgPosX, svgPosY);
+        setBankTooltip(null);
         setTooltip({ id, cx: x, cy: y, pinned: true });
     }, [svgToViewport]);
 
     const dismissTooltip = useCallback(() => setTooltip(null), []);
+    const dismissBankTooltip = useCallback(() => setBankTooltip(null), []);
+
+    const handleQuestBankClick = useCallback(
+        (bank: QuestSlotBank, svgPosX: number, svgPosY: number) => {
+            setFocusedBankId(bank.id);
+            setTooltip(null);
+            const { x, y } = svgToViewport(svgPosX, svgPosY);
+            setBankTooltip({ bankId: bank.id, cx: x, cy: y, pinned: true });
+            // Panel may be above the fold of a tall map — bring it into view too.
+            requestAnimationFrame(() => {
+                questBanksPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+        },
+        [svgToViewport],
+    );
 
     // Dismiss pinned tooltip on Escape or outside click
     useEffect(() => {
-        if (!tooltip?.pinned) return;
-        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') dismissTooltip(); };
+        if (!tooltip?.pinned && !bankTooltip?.pinned) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                dismissTooltip();
+                dismissBankTooltip();
+            }
+        };
         const onMouseDown = (e: MouseEvent) => {
-            // Only dismiss if click is outside the tooltip portal (checked via data attribute)
             const target = e.target as HTMLElement;
             if (!target.closest('[data-mission-tooltip]')) dismissTooltip();
+            if (!target.closest('[data-quest-bank-tooltip]')) dismissBankTooltip();
         };
         document.addEventListener('keydown', onKey);
         document.addEventListener('mousedown', onMouseDown);
@@ -426,7 +568,7 @@ export default function MissionMapTab({
             document.removeEventListener('keydown', onKey);
             document.removeEventListener('mousedown', onMouseDown);
         };
-    }, [tooltip?.pinned, dismissTooltip]);
+    }, [tooltip?.pinned, bankTooltip?.pinned, dismissTooltip, dismissBankTooltip]);
 
     if (!storyline) {
         return (
@@ -440,11 +582,13 @@ export default function MissionMapTab({
         <div className="w-full h-full overflow-auto p-2">
             <p className="text-xs text-muted mb-2 px-1">{storyline.title}</p>
             {onStartQuest && (
-                <QuestBanksPanel
-                    character={character}
-                    onStartQuest={onStartQuest}
-                    focusedBankId={focusedBankId}
-                />
+                <div ref={questBanksPanelRef}>
+                    <QuestBanksPanel
+                        character={character}
+                        onStartQuest={onStartQuest}
+                        focusedBankId={focusedBankId}
+                    />
+                </div>
             )}
             <svg
                 ref={svgRef}
@@ -652,9 +796,8 @@ export default function MissionMapTab({
                         || (storyline
                             ? isQuestSlotBankUnlocked(bank, missionResults)
                             : false);
-                    const clickable = unlocked || isAdmin;
                     const clears = countQuestBankClears(bank, questResults);
-                    const dimmed = !unlocked && !isAdmin;
+                    const dimmed = !unlocked;
                     const isHovered = hoveredId === nodeId;
                     const isPressed = pressedId === nodeId;
                     const r = SIDE_CIRCLE_R;
@@ -662,35 +805,28 @@ export default function MissionMapTab({
                     const finished = clears >= bank.requiredClears;
                     const label = bank.title ?? bank.id.replace(/_/g, ' ');
 
+                    const isBankPinned = bankTooltip?.pinned && bankTooltip.bankId === bank.id;
+
                     return (
                         <g
                             key={nodeId}
                             transform={`translate(${pos.x}, ${pos.y})`}
-                            onClick={
-                                clickable
-                                    ? () => {
-                                          setFocusedBankId(bank.id);
-                                      }
-                                    : undefined
-                            }
-                            onMouseEnter={clickable ? () => setHoveredId(nodeId) : undefined}
-                            onMouseLeave={
-                                clickable
-                                    ? () => {
-                                          setHoveredId((h) => (h === nodeId ? null : h));
-                                          setPressedId((p) => (p === nodeId ? null : p));
-                                      }
-                                    : undefined
-                            }
-                            onMouseDown={clickable ? () => setPressedId(nodeId) : undefined}
-                            onMouseUp={clickable ? () => setPressedId(null) : undefined}
-                            tabIndex={clickable ? 0 : undefined}
-                            role={clickable ? 'button' : undefined}
-                            data-testid={clickable ? `mission-map-quest-bank-${bank.id}` : undefined}
-                            aria-label={clickable ? `${label} quest bank` : undefined}
+                            onClick={() => handleQuestBankClick(bank, pos.x, pos.y)}
+                            onMouseEnter={() => setHoveredId(nodeId)}
+                            onMouseLeave={() => {
+                                setHoveredId((h) => (h === nodeId ? null : h));
+                                setPressedId((p) => (p === nodeId ? null : p));
+                            }}
+                            onMouseDown={() => setPressedId(nodeId)}
+                            onMouseUp={() => setPressedId(null)}
+                            tabIndex={0}
+                            role="button"
+                            data-testid={missionMapQuestBankTestId(bank.id)}
+                            aria-label={`${label} quest bank`}
+                            aria-expanded={isBankPinned || undefined}
                             style={{
-                                cursor: clickable ? 'pointer' : 'default',
-                                opacity: dimmed ? 0.35 : 1,
+                                cursor: 'pointer',
+                                opacity: dimmed ? 0.45 : 1,
                                 outline: 'none',
                             }}
                         >
@@ -767,6 +903,27 @@ export default function MissionMapTab({
                     onDismiss={dismissTooltip}
                 />
             )}
+            {bankTooltip && (() => {
+                const bank = questBanksOnMap.find((b) => b.id === bankTooltip.bankId);
+                if (!bank) return null;
+                const unlocked = unlockedQuestBankIds.has(bank.id);
+                const eligible = getEligibleQuestsForBank(
+                    bank,
+                    character.campaignId,
+                    questResults,
+                );
+                return (
+                    <QuestBankTooltip
+                        data={bankTooltip}
+                        bank={bank}
+                        eligibleQuests={eligible}
+                        clears={countQuestBankClears(bank, questResults)}
+                        isLocked={!unlocked && !isAdmin}
+                        onStartQuest={onStartQuest}
+                        onDismiss={dismissBankTooltip}
+                    />
+                );
+            })()}
         </div>
     );
 }

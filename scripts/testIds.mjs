@@ -16,6 +16,15 @@ export const TestIds = {
     characterEditorMissionMapTab: 'character-editor-tab-mission-map',
     missionHost: 'mission-host',
     missionMapNodePrefix: 'mission-map-node-',
+    missionMapQuestBankPrefix: 'mission-map-quest-bank-',
+    questBanksPanel: 'quest-banks-panel',
+    questBankTooltip: 'quest-bank-tooltip',
+    questStartPrefix: 'quest-start-',
+    questStartOptionalPrefix: 'quest-start-optional-',
+    questPrepBanner: 'quest-prep-banner',
+    questPrepConfirm: 'quest-prep-confirm',
+    questPrepCancel: 'quest-prep-cancel',
+    missionMarkVictory: 'mission-mark-victory',
     characterSelectReady: 'character-select-ready',
     storyNext: 'story-next',
     storyChoicePrefix: 'story-choice-',
@@ -35,6 +44,10 @@ export function characterCardTestId(characterId) {
 
 export function missionMapNodeTestId(missionId) {
     return `${TestIds.missionMapNodePrefix}${missionId}`;
+}
+
+export function missionMapQuestBankTestId(bankId) {
+    return `${TestIds.missionMapQuestBankPrefix}${bankId}`;
 }
 
 export function storyChoiceTestId(optionId) {

@@ -31,11 +31,15 @@ export const TestIds = {
     questBanksPanel: 'quest-banks-panel',
     questContinue: 'quest-continue',
     questBankPrefix: 'quest-bank-',
+    /** SVG quest-bank node on Mission Map — suffix with bank id */
+    missionMapQuestBankPrefix: 'mission-map-quest-bank-',
+    questBankTooltip: 'quest-bank-tooltip',
     questStartPrefix: 'quest-start-',
     questStartOptionalPrefix: 'quest-start-optional-',
     questPrepBanner: 'quest-prep-banner',
     questPrepConfirm: 'quest-prep-confirm',
     questPrepCancel: 'quest-prep-cancel',
+    missionMarkVictory: 'mission-mark-victory',
 
     characterSelectReady: 'character-select-ready',
     storyNext: 'story-next',
@@ -61,6 +65,10 @@ export function characterCardTestId(characterId: string): string {
 
 export function missionMapNodeTestId(missionId: string): string {
     return `${TestIds.missionMapNodePrefix}${missionId}`;
+}
+
+export function missionMapQuestBankTestId(bankId: string): string {
+    return `${TestIds.missionMapQuestBankPrefix}${bankId}`;
 }
 
 export function storyChoiceTestId(optionId: string): string {
