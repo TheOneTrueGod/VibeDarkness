@@ -11,7 +11,8 @@ Run the **smallest** set that covers the change — not the whole suite on every
 See **`.cursor/skills/scoped-testing/SKILL.md`** for the full decision tree. Quick reference:
 
 - **New or edited test file** → `npx vitest run path/to/That.test.ts`
-- **One changed source file** → `npx vitest related <file> --run`
+- **Changed source with co-located `*.test.ts`** → that test file only (do **not** also `vitest related`)
+- **Changed leaf with no co-located test** → `npx vitest related <file> --run` (skip hubs / `MISSION_MAP` missions / `storylines/index`)
 - **Several files / unclear impact** → `npx vitest run --changed` (or `--changed <base-ref>` / `HEAD~1` when the tree is clean)
 - **Domain folders:** `game/battlenet/**` → battlenet test dir; card/ability → co-located `NNNNAbility.test.ts` + `abilities/`
 - **Full suite (`npm run test`)** → cross-cutting refactors, pre-merge handoff, or when the user asks — **not** after routine edits

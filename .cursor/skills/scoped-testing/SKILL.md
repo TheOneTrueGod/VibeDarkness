@@ -16,13 +16,17 @@ After a code change, run the **smallest** set that still covers what you changed
    npx vitest run path/to/MyFeature.test.ts
    ```
 
-2. **One changed source file** — run tests that import it (`related`), **except hub files** (see below):
+2. **Co-located test for a changed source** — if you changed `Foo.ts` and `Foo.test.ts` exists beside it (or you just created it), run **only** that file:
+   ```bash
+   npx vitest run path/to/Foo.test.ts
+   ```
+   **Do not also run `vitest related`** for the same leaf. Co-located coverage is enough for mission-local, item-local, and similar edits (e.g. dropping a `worldModifiers` entry). Widen only if the change alters a shared export used outside this module.
+
+3. **No co-located test** — then use import-graph related, **except hubs / registry leaves** (see below):
    ```bash
    npx vitest related app/js/path/to/Changed.ts --run
    ```
-   Repeat for each changed non-test file if they are independent; one `related` call per file is usually enough for a single feature.
-
-3. **Co-located test** — if `Foo.ts` has `Foo.test.ts` beside it, run that file even if `related` did not list it.
+   One `related` call per independent changed non-test file is usually enough.
 
 4. **Several files or unclear fan-out** — git-aware module graph:
    ```bash
@@ -41,14 +45,20 @@ After a code change, run the **smallest** set that still covers what you changed
    - Deliberate pre-merge / handoff check
    - **Not** after every small edit (CI covers this routinely)
 
-## Hub files — do **not** use `vitest related`
+## Hub files and registry leaves — do **not** use `vitest related`
 
-Some modules sit in so many import graphs that `related` becomes a near-suite run (hundreds of tests, many minutes). **Never** use `npx vitest related <hub> --run` for routine edits to:
+Some modules sit in so many import graphs that `related` becomes a near-suite run (hundreds of tests, many minutes). **Never** use `npx vitest related <path> --run` for routine edits to:
 
+**Hubs**
 - `game/GameEngine.ts`
 - `game/types.ts` (and other widely shared wire/runtime type modules)
 - `app/js/debug/debugSettingsStore.ts`
-- Other “imported by everyone” facades (e.g. large harness entrypoints like `SimulationRunner` when you only touched a leaf)
+- Large harness entrypoints (e.g. `SimulationRunner` when you only touched a leaf)
+- `storylines/index.ts` (`MISSION_MAP` / storyline registry)
+
+**Registry leaves** (imported only so a hub can register them — `related` still fans out through the hub)
+- `storylines/**/missions/*.ts` (wired via `MISSION_MAP`)
+- Other single-entry registry modules with a co-located `*.test.ts` (prefer that test only)
 
 For those, prefer:
 
@@ -63,9 +73,10 @@ On Windows PowerShell, do not pipe Vitest through `Select-Object -Last N` while 
 | What you shipped | Minimal run |
 |------------------|-------------|
 | New module + new `*.test.ts` | That test file |
-| Changed `X.ts`, existing `X.test.ts` | `npx vitest run X.test.ts` |
-| Changed leaf `X.ts`, no dedicated test | `npx vitest related X.ts --run` |
-| Changed **hub** (Engine / shared types / debug store) | Co-located + named small set — **not** `related` |
+| Changed `X.ts`, existing `X.test.ts` | `npx vitest run X.test.ts` only — **not** `related` |
+| Mission / registry leaf + co-located test | That mission test file only |
+| Changed leaf `X.ts`, no dedicated test | `npx vitest related X.ts --run` (skip if hub/registry leaf) |
+| Changed **hub** (Engine / shared types / `storylines/index` / debug store) | Co-located + named small set — **not** `related` |
 | React component + unit tests for helpers | Helper test files; skip full UI unless you changed integration behaviour |
 | PHP API handler | No Vitest unless TS client types/tests exist; lint TS if types changed |
 | Engine / shared types (cross-cutting) | Prefer named tests; use `--changed` only when deliberate; full suite only if step 6 |

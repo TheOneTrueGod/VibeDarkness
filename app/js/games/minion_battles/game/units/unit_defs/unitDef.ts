@@ -288,7 +288,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         bodyColor: 0x1a1a2e,
         characterSpriteKey: 'swarmling',
         hp: 4,
-        speed: 90,
+        speed: 45,
         size: 'Diminutive',
         stamina: 2,
         perceptionRange: 250,

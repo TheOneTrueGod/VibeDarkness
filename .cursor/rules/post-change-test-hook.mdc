@@ -20,7 +20,8 @@ Whenever you finish a command where **files have been created, saved, or deleted
 2. **Run the minimal relevant Vitest set** — only **after** step 1 succeeds; skip when **Skills only — no Vitest** (below) applies.
    - **Before** invoking the first `npx vitest` / `npm run test` (and again before each re-run after a fix), post in the user-facing message: <span style="color: green">Starting unit tests — first pass on the code is done; feel free to run your own checks.</span> (exact HTML; see **scoped-testing** skill).
    - Pick the **smallest** command that covers the change. See **`.cursor/skills/scoped-testing/SKILL.md`** for the decision tree.
-   - **Default for a focused edit:** co-located test file(s) you touched or created, plus `npx vitest related <changed-source> --run` for each changed non-test source file.
+   - **Default for a focused edit:** if the changed source has a co-located `*.test.ts`, run **only** that file. Do **not** also run `vitest related` for the same leaf (missions, items, and other registry leaves fan out through hubs and inflate the run).
+   - **Use `vitest related` only when** there is no co-located test **and** the file is not a hub/registry leaf (see scoped-testing).
    - **When several files changed or imports are unclear:** `npx vitest run --changed` (uncommitted changes). If the working tree is **clean**, use `npx vitest run --changed HEAD~1`.
    - **Do not** run `npm run test` (full suite) after routine edits. **`npm run ci`** runs lint, the full test suite, and `tsc` on a 30-minute loop locally — that is the backstop for broad regressions.
    - **Full suite (`npm run test`) only when:** the user asks, you are finishing a large cross-cutting refactor (serialization, tick loop, shared types), or you deliberately want a pre-merge sanity check.
@@ -44,8 +45,8 @@ Whenever you finish a command where **files have been created, saved, or deleted
 
 ### Skills only — no Vitest
 
-If the **only** files you created, saved, or deleted in that command are under **`.cursor/skills/`** (e.g. editing `SKILL.md`):
+If the **only** files you created, saved, or deleted in that command are under **`.cursor/skills/`**, **`.claude/skills/`**, or agent/docs guidance (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules/*.mdc`) with **no** app/runtime/config code changes:
 
 - **Do not** run Vitest.
 - **Do not** append a tests-passed or tests-failed footer (the suite was not run).
-- **`npm run lint:changed`**: optional; skip it when nothing outside `.cursor/skills/` changed.
+- **`npm run lint:changed`**: optional; skip it when nothing lintable outside those paths changed.
