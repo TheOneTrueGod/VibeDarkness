@@ -41,25 +41,7 @@ import {
 } from '../../../../../testing/testIds';
 import QuestBanksPanel from './QuestBanksPanel';
 
-/** Match GameScreen mobile breakpoint: stacked Quests card crowds the map below this width. */
-const NARROW_BREAKPOINT_PX = 768;
-
 type MissionMapPane = 'map' | 'quests';
-
-function useIsNarrowViewport(): boolean {
-    const [isNarrow, setIsNarrow] = useState(() =>
-        typeof window !== 'undefined'
-            ? window.matchMedia(`(max-width: ${NARROW_BREAKPOINT_PX - 1}px)`).matches
-            : false,
-    );
-    useEffect(() => {
-        const mql = window.matchMedia(`(max-width: ${NARROW_BREAKPOINT_PX - 1}px)`);
-        const handler = () => setIsNarrow(mql.matches);
-        mql.addEventListener('change', handler);
-        return () => mql.removeEventListener('change', handler);
-    }, []);
-    return isNarrow;
-}
 
 const CIRCLE_R = 28;
 const SIDE_CIRCLE_R = 18;
@@ -432,8 +414,7 @@ export default function MissionMapTab({
     const [tooltip, setTooltip] = useState<TooltipData | null>(null);
     const [bankTooltip, setBankTooltip] = useState<QuestBankTooltipData | null>(null);
     const [focusedBankId, setFocusedBankId] = useState<string | null>(null);
-    const [mobilePane, setMobilePane] = useState<MissionMapPane>('map');
-    const isNarrow = useIsNarrowViewport();
+    const [activePane, setActivePane] = useState<MissionMapPane>('map');
     const questBanksPanelRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
 
@@ -514,9 +495,9 @@ export default function MissionMapTab({
         character.activeQuestRun,
     ]);
 
-    const usePaneTabs = isNarrow && hasQuestsContent;
-    const showMap = !usePaneTabs || mobilePane === 'map';
-    const showQuests = hasQuestsContent && (!usePaneTabs || mobilePane === 'quests');
+    const usePaneTabs = hasQuestsContent;
+    const showMap = !usePaneTabs || activePane === 'map';
+    const showQuests = usePaneTabs && activePane === 'quests';
 
     const posMap = useMemo(() => {
         const m = new Map<string, { x: number; y: number }>();
@@ -588,20 +569,19 @@ export default function MissionMapTab({
         (bank: QuestSlotBank, svgPosX: number, svgPosY: number) => {
             setFocusedBankId(bank.id);
             setTooltip(null);
-            if (isNarrow) {
+            if (hasQuestsContent) {
                 // Quests live on a separate pane — jump there instead of a map-anchored tooltip.
-                setMobilePane('quests');
+                setActivePane('quests');
                 setBankTooltip(null);
+                requestAnimationFrame(() => {
+                    questBanksPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                });
             } else {
                 const { x, y } = svgToViewport(svgPosX, svgPosY);
                 setBankTooltip({ bankId: bank.id, cx: x, cy: y, pinned: true });
             }
-            // Panel may be above the fold of a tall map — bring it into view too.
-            requestAnimationFrame(() => {
-                questBanksPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            });
         },
-        [svgToViewport, isNarrow],
+        [svgToViewport, hasQuestsContent],
     );
 
     // Dismiss pinned tooltip on Escape or outside click
@@ -636,7 +616,7 @@ export default function MissionMapTab({
 
     const pillClass = (pane: MissionMapPane) =>
         `px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer ${
-            mobilePane === pane
+            activePane === pane
                 ? 'bg-primary text-secondary'
                 : 'text-muted hover:text-white'
         }`;
@@ -652,11 +632,11 @@ export default function MissionMapTab({
                     <button
                         type="button"
                         role="tab"
-                        aria-selected={mobilePane === 'map'}
+                        aria-selected={activePane === 'map'}
                         data-testid={TestIds.missionMapSubTabMap}
                         className={pillClass('map')}
                         onClick={() => {
-                            setMobilePane('map');
+                            setActivePane('map');
                         }}
                     >
                         Map
@@ -664,11 +644,11 @@ export default function MissionMapTab({
                     <button
                         type="button"
                         role="tab"
-                        aria-selected={mobilePane === 'quests'}
+                        aria-selected={activePane === 'quests'}
                         data-testid={TestIds.missionMapSubTabQuests}
                         className={pillClass('quests')}
                         onClick={() => {
-                            setMobilePane('quests');
+                            setActivePane('quests');
                             setTooltip(null);
                             setBankTooltip(null);
                         }}
