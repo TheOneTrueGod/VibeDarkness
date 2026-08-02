@@ -18,6 +18,7 @@ import { EMBER_THRESHOLD } from './WorldOfDarkness/missions/007_ember_threshold'
 import { THORN_MARCH } from './WorldOfDarkness/missions/008_thorn_march';
 import { THORNLING_RISE } from './WorldOfDarkness/missions/009_thornling_rise';
 import { LAST_HOLDOUT } from './BunkerAtTheEnd/missions/last_holdout';
+import { SWARM_PRESSURE } from './BunkerAtTheEnd/missions/002_swarm_pressure';
 import { FOUND_BERRIES } from './WorldOfDarkness/questMissions/found_berries';
 import { SURFACE_METAL_DEPOSIT } from './WorldOfDarkness/questMissions/surface_metal_deposit';
 import { QUEST_FIND_SOME_FOOD } from './WorldOfDarkness/questMissions/quest_find_some_food';
@@ -44,6 +45,7 @@ export const MISSION_MAP: Record<string, IBaseMissionDef> = {
     thorn_march: THORN_MARCH,
     thornling_rise: THORNLING_RISE,
     last_holdout: LAST_HOLDOUT,
+    swarm_pressure: SWARM_PRESSURE,
     // Quest-only / random-story bag (not on the main storyline edge graph)
     found_berries: FOUND_BERRIES,
     surface_metal_deposit: SURFACE_METAL_DEPOSIT,

@@ -7,7 +7,7 @@ export const coreGravityItem: ItemDef = {
     slots: ['core'],
     slotLayout: { weaponSlots: 1, utilitySlots: 1 },
     // Force Push (0902) is granted via Gravity Core research `addCard`.
-    cardsToAdd: ['0101', '0120', '0115', '0601'],
+    cardsToAdd: ['0101', '0120', '0601'],
     resourcesToAdd: ['gravity'],
     icon: '018_core_gravity.svg',
 };

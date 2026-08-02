@@ -10,7 +10,7 @@ export const GRAVITY_NODE_GRAVITY_INVERSION = 'gravity_inversion';
 export const gravityTree: ResearchTreeDef = {
     id: GRAVITY_TREE_ID,
     title: 'Gravity',
-    accessRequirements: [{ type: 'accountKnowledge', key: 'AlphaWolfDefeated' }],
+    accessRequirements: [],
     nodes: [
         {
             id: GRAVITY_NODE_CORE,

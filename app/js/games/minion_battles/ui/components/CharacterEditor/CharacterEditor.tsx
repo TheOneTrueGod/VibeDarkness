@@ -760,7 +760,7 @@ export default function CharacterEditor({
                                     </span>
                                 )}
                             </div>
-                            {!isEditingName && (
+                            {!isEditingName && activeTab !== 'research' && (
                                 <div className="flex gap-2 shrink-0">
                                     <button
                                         type="button"
@@ -781,12 +781,14 @@ export default function CharacterEditor({
                                 </div>
                             )}
                         </div>
-                        <div className="flex justify-center pt-4">
-                            <CharacterPortrait
-                                picture={portrait?.picture ?? ''}
-                                sizePx={200}
-                            />
-                        </div>
+                        {activeTab !== 'research' && (
+                            <div className="flex justify-center pt-4">
+                                <CharacterPortrait
+                                    picture={portrait?.picture ?? ''}
+                                    sizePx={200}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     {/* Panel-specific sidebar */}
