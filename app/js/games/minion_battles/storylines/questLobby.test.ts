@@ -6,12 +6,27 @@ import {
     questLobbyFieldsFromRun,
     questRunMatchesLobby,
     readQuestLobbyFields,
+    requiredPlayersFromPartyRoster,
 } from './questLobby';
-import { startQuestRun } from './questRun';
+import { finalizeQuestPrepLoadout, startQuestRun } from './questRun';
 import { FIND_THE_HERD_OF_BOARS } from './WorldOfDarkness/quests/find_the_herd_of_boars';
 
 const CHARACTER = { id: 'char_q', equipment: ['004'] as const };
 const RUN_SEED = 42;
+
+function startActiveRun() {
+    const prep = startQuestRun({
+        questDef: FIND_THE_HERD_OF_BOARS,
+        character: CHARACTER,
+        runSeed: RUN_SEED,
+    });
+    return finalizeQuestPrepLoadout({
+        run: prep,
+        equipment: CHARACTER.equipment,
+        selectedAbilityIds: [],
+        partyRoster: [{ playerName: 'Q', characterId: CHARACTER.id }],
+    });
+}
 
 describe('questLobbyFieldsFromRun / readQuestLobbyFields', () => {
     it('stamps lobby fields from the current resolved slot', () => {
@@ -24,6 +39,7 @@ describe('questLobbyFieldsFromRun / readQuestLobbyFields', () => {
         expect(fields.questDefId).toBe(FIND_THE_HERD_OF_BOARS.id);
         expect(fields.questRunId).toBe(run.runId);
         expect(fields.questSlotIndex).toBe(0);
+        expect(fields.questRunSeed).toBe(RUN_SEED);
         expect(fields.selectedMissionId).toBe('dark_awakening');
         expect(missionIdFromResolvedRef(run.resolvedSlots[0])).toBe('dark_awakening');
     });
@@ -34,36 +50,50 @@ describe('questLobbyFieldsFromRun / readQuestLobbyFields', () => {
                 questDefId: 'find_the_herd_of_boars',
                 questRunId: 'run_1',
                 questSlotIndex: 1,
+                questRunSeed: 9,
             }),
         ).toEqual({
             questDefId: 'find_the_herd_of_boars',
             questRunId: 'run_1',
             questSlotIndex: 1,
+            questRunSeed: 9,
         });
         expect(readQuestLobbyFields({ questDefId: 'x' })).toBeNull();
         expect(readQuestLobbyFields(null)).toBeNull();
     });
 
     it('questRunMatchesLobby requires active run and matching stamp', () => {
-        const run = startQuestRun({
+        const prep = startQuestRun({
             questDef: FIND_THE_HERD_OF_BOARS,
             character: CHARACTER,
             runSeed: RUN_SEED,
         });
-        const lobby = questLobbyFieldsFromRun(run);
-        expect(questRunMatchesLobby(run, lobby)).toBe(true);
-        expect(questRunMatchesLobby(run, { ...lobby, questSlotIndex: 99 })).toBe(false);
-        expect(questRunMatchesLobby({ ...run, status: 'abandoned' }, lobby)).toBe(false);
+        const lobby = questLobbyFieldsFromRun(prep);
+        expect(questRunMatchesLobby(prep, lobby)).toBe(false);
+        const run = startActiveRun();
+        const activeLobby = questLobbyFieldsFromRun(run);
+        expect(questRunMatchesLobby(run, activeLobby)).toBe(true);
+        expect(questRunMatchesLobby(run, { ...activeLobby, questSlotIndex: 99 })).toBe(false);
+        expect(questRunMatchesLobby({ ...run, status: 'abandoned' }, activeLobby)).toBe(false);
+    });
+
+    it('requiredPlayersFromPartyRoster maps roster entries', () => {
+        expect(
+            requiredPlayersFromPartyRoster([
+                { playerName: 'A', characterId: 'c1' },
+                { playerName: 'B', characterId: 'c2' },
+            ]),
+        ).toEqual([
+            { playerName: 'A', characterId: 'c1' },
+            { playerName: 'B', characterId: 'c2' },
+        ]);
+        expect(requiredPlayersFromPartyRoster(undefined)).toEqual([]);
     });
 });
 
 describe('planQuestVictoryContinue / planQuestDefeatRetry', () => {
     it('victory advances to the next resolved mission id', () => {
-        const run = startQuestRun({
-            questDef: FIND_THE_HERD_OF_BOARS,
-            character: CHARACTER,
-            runSeed: RUN_SEED,
-        });
+        const run = startActiveRun();
         const plan = planQuestVictoryContinue(run, FIND_THE_HERD_OF_BOARS);
         expect(plan.kind).toBe('continued');
         if (plan.kind !== 'continued') return;
@@ -73,11 +103,7 @@ describe('planQuestVictoryContinue / planQuestDefeatRetry', () => {
     });
 
     it('finale completes the quest on the last slot victory', () => {
-        let run = startQuestRun({
-            questDef: FIND_THE_HERD_OF_BOARS,
-            character: CHARACTER,
-            runSeed: RUN_SEED,
-        });
+        let run = startActiveRun();
         for (let i = 0; i < FIND_THE_HERD_OF_BOARS.slots.length - 1; i++) {
             const step = planQuestVictoryContinue(run, FIND_THE_HERD_OF_BOARS);
             expect(step.kind).toBe('continued');
@@ -93,11 +119,7 @@ describe('planQuestVictoryContinue / planQuestDefeatRetry', () => {
     });
 
     it('defeat retry keeps the same mission id and lobby stamp', () => {
-        const run = startQuestRun({
-            questDef: FIND_THE_HERD_OF_BOARS,
-            character: CHARACTER,
-            runSeed: RUN_SEED,
-        });
+        const run = startActiveRun();
         const continued = planQuestVictoryContinue(run, FIND_THE_HERD_OF_BOARS);
         expect(continued.kind).toBe('continued');
         if (continued.kind !== 'continued') return;

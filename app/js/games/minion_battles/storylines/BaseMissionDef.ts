@@ -48,6 +48,7 @@ import {
     initializeAbilityRuntimeForUnit,
 } from '../abilities/abilityUses';
 import { mergeBattleEquipmentIdsFromResearch, getCardReplacementsFromResearch, getDirectCardsFromResearch, getRemovedCardsFromResearch, computeAbilityModifiersFromResearch, getPetsFromResearch, getPetAbilitiesFromResearch, getMissionStartResourcesFromResearch } from '../../../researchTrees/evaluator';
+import { expandAttachedAbilityIds } from './questPrepLoadout';
 import { PassiveStatKey } from '../../../researchTrees/types';
 import { getPetDef } from '../game/units/pet_defs/petDef';
 import { AbilityGroupId, formatGroupId } from '../card_defs/AbilityGroupId';
@@ -125,6 +126,13 @@ export interface InitializeGameStateParams {
     playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
     /** Multi-level research counts (playerId -> treeId -> nodeId -> level). */
     playerResearchNodeLevelsByPlayer?: Record<string, Record<string, Record<string, number>>>;
+    /**
+     * Quest Prep primary ability picks by player id. When present for a player,
+     * replaces the equipment/research-built ability list (attachments expanded).
+     */
+    questPrepLoadoutsByPlayer?: Record<string, string[]>;
+    /** Frozen Quest Prep picks by character id (continue lobbies / player-id churn). */
+    questAbilityLoadoutsByCharacterId?: Record<string, string[]>;
     /** POIs collected from the fetched terrain segments; passed to the engine for spawn point lookups. */
     terrainSegmentPOIs?: MapSegmentPOI[];
     /** Zones collected from the fetched terrain segments (already shifted to mission-global coords). */
@@ -283,6 +291,19 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 for (let j = 0; j < abilities.length; j++) {
                     const replacement = cardReplacements.get(abilities[j]!);
                     if (replacement) abilities[j] = replacement;
+                }
+            }
+
+            // Quest Prep freeze: use selected primaries (+ free attached companions).
+            const charId = params.characterSelections?.[pu.playerId];
+            const questPrimaries =
+                params.questPrepLoadoutsByPlayer?.[pu.playerId]
+                ?? (charId ? params.questAbilityLoadoutsByCharacterId?.[charId] : undefined);
+            if (questPrimaries) {
+                abilities.length = 0;
+                abilities.push(...expandAttachedAbilityIds(questPrimaries));
+                if (abilities.length === 0) {
+                    abilities.push('0101', '0120');
                 }
             }
 

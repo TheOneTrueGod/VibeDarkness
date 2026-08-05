@@ -1,88 +1,16 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
-import { getItemDef } from '../../../character_defs/items';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import type { AbilityStatic } from '../../../abilities/Ability';
-import { getAbilityUseConfig } from '../../../abilities/abilityUses';
-import {
-    mergeBattleEquipmentIdsFromResearch,
-    getDirectCardsFromResearch,
-    getRemovedCardsFromResearch,
-    getCardReplacementsFromResearch,
-} from '../../../../../researchTrees/evaluator';
-import type { UnitAbilityRuntimeState } from '../../../game/units/Unit';
-import AbilitySlot from '../../components/AbilitySlot';
+import { buildAccessibleAbilityIds } from '../../../storylines/questPrepLoadout';
+import { AbilitySlotPreview } from '../../components/AbilitySlotPreview';
 import AbilityTooltip from '../../components/AbilityTooltip';
-
-function AbilitySlotPreview({
-    ability,
-    onHover,
-}: {
-    ability: AbilityStatic;
-    onHover: (ability: AbilityStatic | null, rect: DOMRect | null) => void;
-}) {
-    const wrapperRef = useRef<HTMLDivElement>(null);
-    const useConfig = getAbilityUseConfig(ability.id);
-    const runtime = useMemo((): UnitAbilityRuntimeState => ({
-        currentUses: useConfig.maxUses,
-        maxUses: useConfig.maxUses,
-        recoveryChargesByType: {},
-        active: true,
-        replacedAbilityId: null,
-    }), [useConfig.maxUses]);
-    return (
-        <div
-            ref={wrapperRef}
-            onPointerEnter={() => onHover(ability, wrapperRef.current?.getBoundingClientRect() ?? null)}
-            onPointerLeave={() => onHover(null, null)}
-        >
-            <AbilitySlot
-                ability={ability}
-                runtime={runtime}
-                isSelected={false}
-                disabledReason={null}
-                onSelect={() => {}}
-                isHovered={false}
-                onHoverChange={() => {}}
-                isMobile={false}
-                showMobileDescription={false}
-                onMobileDescriptionToggle={() => {}}
-                onMobileDescriptionDismiss={() => {}}
-            />
-        </div>
-    );
-}
 
 function useCharacterAbilityCards(character: CampaignCharacter): AbilityStatic[] {
     return useMemo((): AbilityStatic[] => {
-        const merged = mergeBattleEquipmentIdsFromResearch(character.equipment, character.researchTrees);
-        const equippedIds = [...merged.equipmentIds, ...merged.extraEquippedItemIds];
-        const abilities: string[] = [];
-        for (const itemId of equippedIds) {
-            const item = getItemDef(itemId);
-            if (!item) continue;
-            for (const cardId of item.cardsToAdd) {
-                if (!abilities.includes(cardId)) abilities.push(cardId);
-            }
-        }
-        for (const cardId of getDirectCardsFromResearch(character.researchTrees)) {
-            if (!abilities.includes(cardId)) abilities.push(cardId);
-        }
-        const removedCardIds = getRemovedCardsFromResearch(character.researchTrees);
-        if (removedCardIds.size > 0) {
-            for (let i = abilities.length - 1; i >= 0; i--) {
-                if (removedCardIds.has(abilities[i]!)) abilities.splice(i, 1);
-            }
-        }
-        const replacements = getCardReplacementsFromResearch(character.researchTrees);
-        if (replacements.size > 0) {
-            for (let i = 0; i < abilities.length; i++) {
-                const r = replacements.get(abilities[i]!);
-                if (r) abilities[i] = r;
-            }
-        }
-        return abilities.map((id) => getAbility(id)).filter((a): a is AbilityStatic => a != null);
+        const ids = buildAccessibleAbilityIds(character.equipment, character.researchTrees);
+        return ids.map((id) => getAbility(id)).filter((a): a is AbilityStatic => a != null);
     }, [character.equipment, character.researchTrees]);
 }
 

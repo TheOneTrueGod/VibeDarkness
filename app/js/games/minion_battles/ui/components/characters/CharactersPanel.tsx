@@ -47,7 +47,6 @@ interface CharactersPanelProps {
         options?: {
             mode?: 'continue' | 'start';
             assignedBankId?: string | null;
-            equipment?: string[];
         },
     ) => void;
 }

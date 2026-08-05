@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { QuestDef } from './questTypes';
+import type { QuestDef, QuestRunState } from './questTypes';
 import {
     abandonQuestRun,
     advanceQuestRunOnMissionVictory,
     completeQuestRun,
+    finalizeQuestPrepLoadout,
     getCurrentResolvedMission,
     queueCampaignReward,
     startQuestRun,
@@ -31,8 +32,18 @@ const QUEST_WITH_COMPLETION: QuestDef = {
     },
 };
 
+function startActiveRun(params: Parameters<typeof startQuestRun>[0]): QuestRunState {
+    const prep = startQuestRun(params);
+    return finalizeQuestPrepLoadout({
+        run: prep,
+        equipment: params.character.equipment,
+        selectedAbilityIds: [],
+        partyRoster: [{ playerName: 'Tester', characterId: params.character.id }],
+    });
+}
+
 describe('startQuestRun', () => {
-    it('clones Campaign Character into Quest Character and resolves fixed slots', () => {
+    it('clones Campaign Character into Quest Character in prep and resolves fixed slots', () => {
         const run = startQuestRun({
             questDef: FIND_THE_HERD_OF_BOARS,
             character: CAMPAIGN_CHARACTER,
@@ -41,7 +52,7 @@ describe('startQuestRun', () => {
             runId: 'run_fixed_1',
         });
 
-        expect(run.status).toBe('active');
+        expect(run.status).toBe('prep');
         expect(run.questDefId).toBe(FIND_THE_HERD_OF_BOARS.id);
         expect(run.runSeed).toBe(RUN_SEED_A);
         expect(run.currentSlotIndex).toBe(0);
@@ -49,6 +60,7 @@ describe('startQuestRun', () => {
         expect(run.questCharacter.sourceCharacterId).toBe(CAMPAIGN_CHARACTER.id);
         expect(run.questCharacter.equipment).toEqual(CAMPAIGN_CHARACTER.equipment);
         expect(run.questCharacter.equipment).not.toBe(CAMPAIGN_CHARACTER.equipment);
+        expect(run.questCharacter.selectedAbilityIds).toEqual([]);
         expect(run.questCharacter.campaignRewards).toEqual([]);
         expect(run.resolvedSlots).toEqual([
             { kind: 'fixed', missionId: 'dark_awakening' },
@@ -73,7 +85,7 @@ describe('startQuestRun', () => {
 
 describe('mission victory / defeat', () => {
     it('advances slot index on victory and keeps the same resolvedSlots on defeat retry', () => {
-        let run = startQuestRun({
+        let run = startActiveRun({
             questDef: FIND_THE_HERD_OF_BOARS,
             character: CAMPAIGN_CHARACTER,
             runSeed: RUN_SEED_A,
@@ -103,7 +115,7 @@ describe('mission victory / defeat', () => {
     });
 
     it('signals finale on the last slot victory without clearing resolvedSlots', () => {
-        let run = startQuestRun({
+        let run = startActiveRun({
             questDef: FIND_THE_HERD_OF_BOARS,
             character: CAMPAIGN_CHARACTER,
             runSeed: RUN_SEED_A,
@@ -125,7 +137,7 @@ describe('mission victory / defeat', () => {
 
 describe('abandonQuestRun', () => {
     it('marks abandoned and leaves Quest Character / Campaign Rewards untouched (no campaign apply)', () => {
-        let run = startQuestRun({
+        let run = startActiveRun({
             questDef: FIND_THE_HERD_OF_BOARS,
             character: CAMPAIGN_CHARACTER,
             runSeed: RUN_SEED_A,
@@ -164,7 +176,7 @@ describe('abandon then new run may re-resolve', () => {
         });
         expect(second.runId).not.toBe(first.runId);
         expect(second.runSeed).toBe(RUN_SEED_B);
-        expect(second.status).toBe('active');
+        expect(second.status).toBe('prep');
         expect(second.currentSlotIndex).toBe(0);
         // Fixed slots are seed-independent, but resolve is invoked again (new array).
         expect(second.resolvedSlots).toEqual(first.resolvedSlots);
@@ -174,7 +186,7 @@ describe('abandon then new run may re-resolve', () => {
 
 describe('completeQuestRun / Campaign Rewards', () => {
     it('does not expose an apply payload until complete; then merges completion + queued Campaign Rewards', () => {
-        let run = startQuestRun({
+        let run = startActiveRun({
             questDef: QUEST_WITH_COMPLETION,
             character: CAMPAIGN_CHARACTER,
             runSeed: RUN_SEED_A,
@@ -244,7 +256,7 @@ describe('completeQuestRun / Campaign Rewards', () => {
 
     it('rejects complete when run is abandoned', () => {
         const run = abandonQuestRun(
-            startQuestRun({
+            startActiveRun({
                 questDef: QUEST_WITH_COMPLETION,
                 character: CAMPAIGN_CHARACTER,
                 runSeed: RUN_SEED_A,

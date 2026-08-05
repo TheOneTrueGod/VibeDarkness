@@ -13,10 +13,12 @@ import type {
     CampaignReward,
     QuestCharacter,
     QuestDef,
+    QuestPartyRosterEntry,
     QuestResult,
     QuestResultPlacement,
     QuestRunState,
 } from './questTypes';
+import { QUEST_PREP_ABILITY_SLOT_COUNT } from './questPrepLoadout';
 
 /** Minimal Campaign Character shape needed to clone a Quest Character. */
 export type CampaignCharacterSheetSource = {
@@ -87,19 +89,21 @@ function pushUnique(target: string[], ids: string[] | undefined): void {
     }
 }
 
-/** Clone Campaign Character loadout into a fresh Quest Character (no Campaign Rewards yet). */
+/** Clone Campaign Character loadout into a fresh Quest Character (abilities filled at prep finalize). */
 export function cloneQuestCharacterFromCampaign(
     character: CampaignCharacterSheetSource,
 ): QuestCharacter {
     return {
         sourceCharacterId: character.id,
         equipment: [...character.equipment],
+        selectedAbilityIds: [],
         campaignRewards: [],
     };
 }
 
 /**
- * Start a quest run: resolve slots once, clone Campaign Character → Quest Character, freeze as active.
+ * Start a quest run in Quest Prep: resolve slots once, clone Campaign Character → Quest Character.
+ * Ability picks + equipment snapshot finalize when leaving prep (`finalizeQuestPrepLoadout`).
  * Does not mutate the Campaign Character.
  */
 export function startQuestRun(params: StartQuestRunParams): QuestRunState {
@@ -109,11 +113,47 @@ export function startQuestRun(params: StartQuestRunParams): QuestRunState {
         runId: runId ?? `quest_run_${questDef.id}_${runSeed}`,
         questDefId: questDef.id,
         runSeed,
-        status: 'active',
+        status: 'prep',
         currentSlotIndex: 0,
         resolvedSlots,
         questCharacter: cloneQuestCharacterFromCampaign(character),
         assignedBankId,
+    };
+}
+
+export type FinalizeQuestPrepLoadoutParams = {
+    run: QuestRunState;
+    /** Campaign Character equipment at freeze time. */
+    equipment: readonly string[];
+    /** Primary Quest Prep slot picks (max QUEST_PREP_ABILITY_SLOT_COUNT). */
+    selectedAbilityIds: readonly string[];
+    partyRoster: readonly QuestPartyRosterEntry[];
+};
+
+/**
+ * Leave Quest Prep: freeze equipment + primary ability picks, lock party roster, mark run active.
+ */
+export function finalizeQuestPrepLoadout(params: FinalizeQuestPrepLoadoutParams): QuestRunState {
+    const { run, equipment, selectedAbilityIds, partyRoster } = params;
+    if (run.status !== 'prep' && run.status !== 'active') {
+        throw new Error(
+            `Cannot finalize Quest Prep: quest run status is "${run.status}" (expected "prep" or "active")`,
+        );
+    }
+    const primaries = [...selectedAbilityIds].slice(0, QUEST_PREP_ABILITY_SLOT_COUNT);
+    return {
+        ...run,
+        status: 'active',
+        partyRoster: partyRoster.map((e) => ({
+            playerName: e.playerName,
+            characterId: e.characterId,
+        })),
+        questCharacter: {
+            ...run.questCharacter,
+            equipment: [...equipment],
+            selectedAbilityIds: primaries,
+            campaignRewards: run.questCharacter.campaignRewards ?? [],
+        },
     };
 }
 

@@ -15,6 +15,24 @@ export interface MissionTraitFilter {
     disallowedTraits?: string[];
 }
 
+/** Ensure legacy Quest Character sheets include selectedAbilityIds. */
+function normalizeActiveQuestRun(run: QuestRunState): QuestRunState {
+    const qc = run.questCharacter;
+    const selectedAbilityIds = Array.isArray(qc?.selectedAbilityIds)
+        ? qc.selectedAbilityIds.filter((id): id is string => typeof id === 'string')
+        : [];
+    return {
+        ...run,
+        questCharacter: {
+            ...qc,
+            sourceCharacterId: typeof qc?.sourceCharacterId === 'string' ? qc.sourceCharacterId : '',
+            equipment: Array.isArray(qc?.equipment) ? qc.equipment : [],
+            selectedAbilityIds,
+            campaignRewards: qc?.campaignRewards,
+        },
+    };
+}
+
 /**
  * Create a CampaignCharacter instance from the serializable object from the server.
  */
@@ -111,7 +129,7 @@ export class CampaignCharacter {
             data.questResults && typeof data.questResults === 'object' ? data.questResults : {};
         this.activeQuestRun =
             data.activeQuestRun && typeof data.activeQuestRun === 'object'
-                ? data.activeQuestRun
+                ? normalizeActiveQuestRun(data.activeQuestRun)
                 : null;
     }
 

@@ -78,9 +78,19 @@ export type QuestDef = {
  * Quest Character: frozen entry loadout + quest-only progression for one attempt.
  * Quest Rewards mutate this sheet; Campaign Rewards are queued here until quest clear.
  */
+export type QuestPartyRosterEntry = {
+    playerName: string;
+    characterId: string;
+};
+
 export type QuestCharacter = {
     sourceCharacterId: string;
     equipment: string[];
+    /**
+     * Primary Quest Prep ability slot picks (not attached/bundle companions).
+     * Empty until prep is finalized; battles expand attachments from these IDs.
+     */
+    selectedAbilityIds: string[];
     /** Campaign Rewards queued during the run; applied only on quest clear. */
     campaignRewards?: CampaignReward[];
 };
@@ -110,6 +120,11 @@ export type QuestRunState = {
     questCharacter: QuestCharacter;
     /** Bank id if started from a map bank; null if optional/side. */
     assignedBankId?: string | null;
+    /**
+     * Party locked at end of Quest Prep (first mission). Later quest-line lobbies
+     * stamp `requiredPlayers` from this roster.
+     */
+    partyRoster?: QuestPartyRosterEntry[];
 };
 
 export type QuestResultPlacement = 'bank' | 'optional';

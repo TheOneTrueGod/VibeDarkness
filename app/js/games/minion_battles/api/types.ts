@@ -93,6 +93,17 @@ export interface MinionBattlesGameStatePayload {
     questRunId?: string;
     /** Index into `activeQuestRun.resolvedSlots` for this lobby's mission. */
     questSlotIndex?: number;
+    /** Seed used to resolve quest slots (joiners recreate matching prep runs). */
+    questRunSeed?: number;
+    /**
+     * In-progress Quest Prep primary ability picks by player id (lobby sync during prep).
+     */
+    questPrepLoadoutsByPlayer?: Record<string, string[]>;
+    /**
+     * Frozen Quest Prep primary ability picks by character id (survives continue lobbies
+     * when player ids change).
+     */
+    questAbilityLoadoutsByCharacterId?: Record<string, string[]>;
 }
 
 /** Full game blob from polling (may include arbitrary extra keys from the server). */

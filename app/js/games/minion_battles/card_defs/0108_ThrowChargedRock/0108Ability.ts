@@ -130,6 +130,8 @@ export const ThrowChargedRock: AbilityStatic = {
             fallbackAbilityId: 'throw_rock',
         },
     },
+    /** Quest Prep: Throw Rock comes free with Charged Rock (does not occupy a slot). */
+    attachedAbilityIds: ['throw_rock'],
     getTargets(caster?: Unit, gameState?: unknown): TargetDef[] {
         const research = getCrystalRocksResearch(gameState as AbilityEngineContext | undefined, caster);
         return hasMoreRockResearch(research) ? TWO_PIXEL_TARGETS : ONE_PIXEL_TARGET;

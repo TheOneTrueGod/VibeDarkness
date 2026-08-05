@@ -27,6 +27,7 @@ const SAMPLE_RUN: QuestRunState = {
     questCharacter: {
         sourceCharacterId: 'char_test',
         equipment: ['004', '001'],
+        selectedAbilityIds: ['throw_rock', '0802'],
         campaignRewards: [
             {
                 source: 'draft_pick',
@@ -36,6 +37,7 @@ const SAMPLE_RUN: QuestRunState = {
         ],
     },
     assignedBankId: SAMPLE_ASSIGNED_BANK_ID,
+    partyRoster: [{ playerName: 'Tester', characterId: 'char_test' }],
 };
 
 const SAMPLE_VICTORY: QuestResult = {
@@ -88,7 +90,14 @@ describe('quest run / result persistence on Campaign Character', () => {
         const reloaded = fromCampaignCharacterData(character.toJSON());
         expect(reloaded.activeQuestRun).toEqual(SAMPLE_RUN);
         expect(reloaded.activeQuestRun?.questCharacter.equipment).toEqual(['004', '001']);
+        expect(reloaded.activeQuestRun?.questCharacter.selectedAbilityIds).toEqual([
+            'throw_rock',
+            '0802',
+        ]);
         expect(reloaded.activeQuestRun?.questCharacter.sourceCharacterId).toBe('char_test');
+        expect(reloaded.activeQuestRun?.partyRoster).toEqual([
+            { playerName: 'Tester', characterId: 'char_test' },
+        ]);
     });
 
     it('round-trips a victory QuestResult under questResults[campaignId]', () => {

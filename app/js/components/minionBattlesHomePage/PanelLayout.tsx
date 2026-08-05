@@ -85,7 +85,7 @@ export default function PanelLayout({
 }: PanelLayoutProps) {
     const resolvedLeftWidth = leftSize != null ? LEFT_SIZE_CLASSES[leftSize] : leftWidth;
     return (
-        <div className="h-[calc(100vh-200px)] min-h-[500px] w-full max-w-[min(1200px,100%)] mx-auto rounded-lg border border-border-custom bg-surface overflow-hidden flex flex-col">
+        <div className="h-[calc(100vh-140px)] min-h-[500px] w-full max-w-[min(1200px,100%)] mx-auto rounded-lg border border-border-custom bg-surface overflow-hidden flex flex-col">
             {title != null ? (
                 <div className="px-4 py-3 border-b border-border-custom shrink-0 flex items-center justify-between gap-3">
                     <div className="min-w-0">

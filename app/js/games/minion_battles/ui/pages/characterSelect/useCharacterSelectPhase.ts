@@ -13,6 +13,8 @@ interface UseCharacterSelectPhaseParams {
     isHost: boolean;
     preMissionStory?: PreMissionStoryDef | null;
     missionDef?: IBaseMissionDef | null;
+    /** Optional async work before sending Ready (e.g. freeze Quest Prep loadout). */
+    onBeforeReady?: () => Promise<void>;
 }
 
 export function useCharacterSelectPhase({
@@ -23,6 +25,7 @@ export function useCharacterSelectPhase({
     isHost,
     preMissionStory,
     missionDef,
+    onBeforeReady,
 }: UseCharacterSelectPhaseParams) {
     const {
         allSelected, allReady, atLeastOneCharacter, allRequiredPlayersPresent,
@@ -32,6 +35,9 @@ export function useCharacterSelectPhase({
     const handleSetReady = useCallback(async () => {
         setSetReadyLoading(true);
         try {
+            if (onBeforeReady) {
+                await onBeforeReady();
+            }
             await api.sendMessage(MessageType.CHARACTER_SELECT_READY, {});
             setOptimisticAmReady(true);
         } catch (error) {
@@ -39,7 +45,7 @@ export function useCharacterSelectPhase({
         } finally {
             setSetReadyLoading(false);
         }
-    }, [api, setSetReadyLoading, setOptimisticAmReady]);
+    }, [api, setSetReadyLoading, setOptimisticAmReady, onBeforeReady]);
 
     const handleContinueToStory = useCallback(async () => {
         try {

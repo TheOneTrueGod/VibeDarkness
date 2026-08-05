@@ -133,7 +133,10 @@ export default function QuestBanksPanel({
     const victoryResults = useMemo(() => listQuestVictoryResults(questResults), [questResults]);
 
     const activeQuest =
-        character.activeQuestRun?.status === 'active' ? character.activeQuestRun : null;
+        character.activeQuestRun?.status === 'active'
+        || character.activeQuestRun?.status === 'prep'
+            ? character.activeQuestRun
+            : null;
     const activeQuestDef = activeQuest ? getQuestDef(activeQuest.questDefId) : undefined;
 
     if (!storyline) return null;

@@ -188,6 +188,14 @@ export default function MinionBattlesGame({
     const [requiredPlayers, setRequiredPlayers] = useState<Array<{ playerName: string; characterId: string }>>(
         () => (raw.requiredPlayers as Array<{ playerName: string; characterId: string }> | undefined) ?? [],
     );
+    /** Quest Prep primary ability picks by player id (lobby-synced). */
+    const [questPrepLoadoutsByPlayer, setQuestPrepLoadoutsByPlayer] = useState<Record<string, string[]>>(
+        () => (raw.questPrepLoadoutsByPlayer as Record<string, string[]> | undefined) ?? {},
+    );
+    /** Frozen Quest Prep picks by character id. */
+    const [questAbilityLoadoutsByCharacterId, setQuestAbilityLoadoutsByCharacterId] = useState<Record<string, string[]>>(
+        () => (raw.questAbilityLoadoutsByCharacterId as Record<string, string[]> | undefined) ?? {},
+    );
     /** Game state returned when transitioning to battle; used as initialGameState (includes playerEquipmentByPlayer). */
     const [phaseChangeGameState, setPhaseChangeGameState] = useState<Record<string, unknown> | null>(null);
     /** Last game state from server (phase transition or poll); used so pre-mission story has current equipment. */
@@ -456,6 +464,14 @@ export default function MinionBattlesGame({
         if (gd.requiredPlayers) {
             setRequiredPlayers(gd.requiredPlayers as Array<{ playerName: string; characterId: string }>);
         }
+        if (gd.questPrepLoadoutsByPlayer && typeof gd.questPrepLoadoutsByPlayer === 'object') {
+            setQuestPrepLoadoutsByPlayer(gd.questPrepLoadoutsByPlayer as Record<string, string[]>);
+        }
+        if (gd.questAbilityLoadoutsByCharacterId && typeof gd.questAbilityLoadoutsByCharacterId === 'object') {
+            setQuestAbilityLoadoutsByCharacterId(
+                gd.questAbilityLoadoutsByCharacterId as Record<string, string[]>,
+            );
+        }
 
         reconcileLocalOverrides({
             characterSelections: newCharSel ?? {},
@@ -547,6 +563,9 @@ export default function MinionBattlesGame({
                     missionDef={missionDef ?? null}
                     preMissionStory={preMissionStory}
                     requiredPlayers={requiredPlayers}
+                    questLobbyFields={questLobbyFields}
+                    questPrepLoadoutsByPlayer={questPrepLoadoutsByPlayer}
+                    questAbilityLoadoutsByCharacterId={questAbilityLoadoutsByCharacterId}
                     setLocalOverride={setLocalOverride}
                     removeLocalOverride={removeLocalOverride}
                     onPhaseChange={handlePhaseChange}

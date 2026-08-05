@@ -8,13 +8,20 @@ import {
     completeQuestRun,
     type CompleteQuestRunResult,
 } from './questRun';
-import type { QuestDef, QuestRunState, ResolvedMissionRef } from './questTypes';
+import type {
+    QuestDef,
+    QuestPartyRosterEntry,
+    QuestRunState,
+    ResolvedMissionRef,
+} from './questTypes';
 
 /** Fields stamped on Minion Battles lobby game JSON for an active quest mission. */
 export type QuestLobbyFields = {
     questDefId: string;
     questRunId: string;
     questSlotIndex: number;
+    /** Seed used to resolve slots — joiners recreate matching runs during Quest Prep. */
+    questRunSeed?: number;
 };
 
 /** UI / App options when starting or continuing a quest from Campaign Home. */
@@ -22,9 +29,18 @@ export type StartQuestOptions = {
     mode?: 'continue' | 'start';
     /** Bank id when started from a map bank; null/omit for optional/side. */
     assignedBankId?: string | null;
-    /** Loadout to freeze into Quest Character (defaults to Campaign Character equipment). */
-    equipment?: string[];
 };
+
+/** Map frozen party roster → lobby requiredPlayers (identity). */
+export function requiredPlayersFromPartyRoster(
+    roster: readonly QuestPartyRosterEntry[] | null | undefined,
+): Array<{ playerName: string; characterId: string }> {
+    if (!roster?.length) return [];
+    return roster.map((e) => ({
+        playerName: e.playerName,
+        characterId: e.characterId,
+    }));
+}
 
 export type QuestVictoryContinuePlan =
     | {
@@ -59,6 +75,7 @@ export function questLobbyFieldsFromRun(run: QuestRunState): QuestLobbyFields & 
         questDefId: run.questDefId,
         questRunId: run.runId,
         questSlotIndex: run.currentSlotIndex,
+        questRunSeed: run.runSeed,
         selectedMissionId: missionId,
     };
 }
@@ -76,7 +93,15 @@ export function readQuestLobbyFields(
     if (typeof questSlotIndex !== 'number' || !Number.isInteger(questSlotIndex) || questSlotIndex < 0) {
         return null;
     }
-    return { questDefId, questRunId, questSlotIndex };
+    const questRunSeed = data.questRunSeed;
+    return {
+        questDefId,
+        questRunId,
+        questSlotIndex,
+        ...(typeof questRunSeed === 'number' && Number.isFinite(questRunSeed)
+            ? { questRunSeed }
+            : {}),
+    };
 }
 
 /** True when character run matches lobby stamp (active quest mission). */
@@ -86,6 +111,20 @@ export function questRunMatchesLobby(
 ): boolean {
     if (!run || !lobby) return false;
     if (run.status !== 'active') return false;
+    return (
+        run.questDefId === lobby.questDefId
+        && run.runId === lobby.questRunId
+        && run.currentSlotIndex === lobby.questSlotIndex
+    );
+}
+
+/** True when character run matches lobby stamp during Quest Prep (status prep). */
+export function questRunMatchesLobbyPrep(
+    run: QuestRunState | null | undefined,
+    lobby: QuestLobbyFields | null | undefined,
+): boolean {
+    if (!run || !lobby) return false;
+    if (run.status !== 'prep') return false;
     return (
         run.questDefId === lobby.questDefId
         && run.runId === lobby.questRunId
@@ -119,6 +158,7 @@ export function planQuestVictoryContinue(
                 questDefId: advanced.run.questDefId,
                 questRunId: advanced.run.runId,
                 questSlotIndex: advanced.run.currentSlotIndex,
+                questRunSeed: advanced.run.runSeed,
             },
         };
     }

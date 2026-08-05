@@ -16,6 +16,7 @@ import {
     MISSION_MAP,
     getQuestDef,
     questLobbyFieldsFromRun,
+    requiredPlayersFromPartyRoster,
     startQuestRun,
 } from './games/minion_battles/storylines';
 import type { QuestLobbyFields } from './games/minion_battles/storylines/questLobby';
@@ -563,6 +564,31 @@ function AppInner() {
                 const payload = gameState as unknown as GameStatePayload;
                 const newGameId = payload.gameId ?? null;
                 if (newGameId) {
+                    let requiredPlayers: Array<{ playerName: string; characterId: string }> = [];
+                    const questAbilityLoadoutsByCharacterId: Record<string, string[]> = {};
+                    if (questLobby) {
+                        // Prefer frozen party roster + ability loadouts from prior selections' runs.
+                        for (const characterId of Object.values(previousCharacterSelections)) {
+                            if (!characterId || characterId.startsWith('control_enemy') || characterId === 'spectator') {
+                                continue;
+                            }
+                            try {
+                                const rawChar = await lobbyClient.getCharacter(characterId);
+                                const run = rawChar.activeQuestRun;
+                                if (run?.questCharacter?.selectedAbilityIds) {
+                                    questAbilityLoadoutsByCharacterId[characterId] = [
+                                        ...run.questCharacter.selectedAbilityIds,
+                                    ];
+                                }
+                                if (requiredPlayers.length === 0) {
+                                    const fromRoster = requiredPlayersFromPartyRoster(run?.partyRoster);
+                                    if (fromRoster.length > 0) requiredPlayers = fromRoster;
+                                }
+                            } catch {
+                                // ignore — fall back below
+                            }
+                        }
+                    }
                     await lobbyClient.updateGameState(newLobby.id, newGameId, newPlayer.id, {
                         gamePhase: 'character_select',
                         selectedMissionId: missionId,
@@ -572,6 +598,13 @@ function AppInner() {
                                   questDefId: questLobby.questDefId,
                                   questRunId: questLobby.questRunId,
                                   questSlotIndex: questLobby.questSlotIndex,
+                                  ...(questLobby.questRunSeed !== undefined
+                                      ? { questRunSeed: questLobby.questRunSeed }
+                                      : {}),
+                                  ...(requiredPlayers.length > 0 ? { requiredPlayers } : {}),
+                                  ...(Object.keys(questAbilityLoadoutsByCharacterId).length > 0
+                                      ? { questAbilityLoadoutsByCharacterId }
+                                      : {}),
                               }
                             : {}),
                     });
@@ -729,8 +762,8 @@ function AppInner() {
     );
 
     /**
-     * Start (or continue) a quest run for a character after Quest Prep,
-     * then open a lobby stamped with questDefId / questRunId / questSlotIndex.
+     * Start (or continue) a quest run for a character, then open a character_select
+     * lobby (Quest Prep for new/prep runs; reserved party for later slots).
      */
     const handleStartQuestForCharacter = useCallback(
         async (
@@ -740,13 +773,11 @@ function AppInner() {
             options: {
                 mode?: 'continue' | 'start';
                 assignedBankId?: string | null;
-                equipment?: string[];
             } = {},
         ) => {
             if (!user?.id) return;
             const mode = options.mode ?? 'start';
             const assignedBankId = options.assignedBankId ?? null;
-            const equipment = options.equipment ?? character.equipment;
             const questDef = getQuestDef(questDefId);
             if (!questDef) {
                 showToast(`Unknown quest: ${questDefId}`, 'error');
@@ -758,12 +789,12 @@ function AppInner() {
                 const canContinue =
                     mode === 'continue'
                     && run
-                    && run.status === 'active'
+                    && (run.status === 'active' || run.status === 'prep')
                     && run.questDefId === questDefId;
                 if (!canContinue) {
                     run = startQuestRun({
                         questDef,
-                        character: { id: character.id, equipment },
+                        character: { id: character.id, equipment: character.equipment },
                         runSeed: (Date.now() >>> 0) || 1,
                         assignedBankId,
                     });
@@ -786,15 +817,20 @@ function AppInner() {
                 const payload = gameState as unknown as GameStatePayload;
                 const gameId = payload.gameId ?? null;
                 if (gameId) {
+                    const fromRoster = requiredPlayersFromPartyRoster(run!.partyRoster);
+                    const requiredPlayers =
+                        fromRoster.length > 0
+                            ? fromRoster
+                            : [{ playerName: ownerAccount.name, characterId: character.id }];
                     await lobbyClient.updateGameState(lobby.id, gameId, player.id, {
                         gamePhase: 'character_select',
                         selectedMissionId: missionId,
                         questDefId: lobbyStamp.questDefId,
                         questRunId: lobbyStamp.questRunId,
                         questSlotIndex: lobbyStamp.questSlotIndex,
-                        requiredPlayers: [
-                            { playerName: ownerAccount.name, characterId: character.id },
-                        ],
+                        questRunSeed: lobbyStamp.questRunSeed,
+                        questPrepLoadoutsByPlayer: {},
+                        requiredPlayers,
                     });
                 }
 

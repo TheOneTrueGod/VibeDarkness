@@ -525,6 +525,11 @@ export class BattleSession implements BattleSessionHandle {
             (snapshotRecord?.playerResearchNodeLevelsByPlayer as
                 | Record<string, Record<string, Record<string, number>>>
                 | undefined) ?? {};
+        const questPrepLoadoutsByPlayer =
+            (snapshotRecord?.questPrepLoadoutsByPlayer as Record<string, string[]> | undefined) ?? undefined;
+        const questAbilityLoadoutsByCharacterId =
+            (snapshotRecord?.questAbilityLoadoutsByCharacterId as Record<string, string[]> | undefined)
+            ?? undefined;
 
         const engine = new GameEngine();
         engine.prepareForNewGame({
@@ -552,6 +557,8 @@ export class BattleSession implements BattleSessionHandle {
             equippedItemsByPlayer,
             playerResearchTreesByPlayer,
             playerResearchNodeLevelsByPlayer,
+            questPrepLoadoutsByPlayer,
+            questAbilityLoadoutsByCharacterId,
             terrainSegmentPOIs,
             terrainSegmentZones,
         });

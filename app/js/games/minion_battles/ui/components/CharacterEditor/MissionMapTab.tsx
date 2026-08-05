@@ -9,7 +9,7 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { LucideIcon } from 'lucide-react';
-import { Scroll, Skull, Swords } from 'lucide-react';
+import { ChevronDown, Scroll, Skull, Swords } from 'lucide-react';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import type { MissionResult } from '../../../../../types';
 import type { MissionType } from '../../../storylines/types';
@@ -45,7 +45,8 @@ type MissionMapPane = 'map' | 'quests';
 
 const CIRCLE_R = 28;
 const SIDE_CIRCLE_R = 18;
-const PADDING = 70;
+/** ViewBox inset — covers node radius, name label below, and hover rings without huge empty margins. */
+const PADDING = 48;
 const MISSION_ICON_SIZE = 22;
 
 const MISSION_TYPE_ICONS: Record<MissionType, LucideIcon> = {
@@ -74,6 +75,8 @@ interface Props {
     /** Start / continue a quest (prep handled by CharacterEditor when mode is start). */
     onStartQuest?: (questDefId: string, options?: StartQuestOptions) => void;
     onMarkVictory?: (missionId: string) => Promise<void>;
+    /** Admin-only: change the character's campaign from the map toolbar. */
+    onCampaignChange?: (campaignId: string) => void | Promise<void>;
 }
 
 /** SVG fill for a mission node: gray when finished, else type-based (boss uses gradient url). */
@@ -408,6 +411,7 @@ export default function MissionMapTab({
     onStartMission,
     onStartQuest,
     onMarkVictory,
+    onCampaignChange,
 }: Props) {
     const [hoveredId, setHoveredId] = useState<string | null>(null);
     const [pressedId, setPressedId] = useState<string | null>(null);
@@ -479,7 +483,10 @@ export default function MissionMapTab({
         const optionalQuests = getOptionalEligibleQuests(character.campaignId, questResults);
         const victoryResults = listQuestVictoryResults(questResults);
         const activeQuest =
-            character.activeQuestRun?.status === 'active' ? character.activeQuestRun : null;
+            character.activeQuestRun?.status === 'active'
+            || character.activeQuestRun?.status === 'prep'
+                ? character.activeQuestRun
+                : null;
         return (
             unlockedBanks.length > 0
             || optionalQuests.length > 0
@@ -614,47 +621,75 @@ export default function MissionMapTab({
         );
     }
 
+    // Match Campaign select height (`text-xs` + `py-1`).
     const pillClass = (pane: MissionMapPane) =>
-        `px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer ${
+        `px-2.5 py-0.5 rounded-full text-xs font-semibold leading-5 transition-colors cursor-pointer ${
             activePane === pane
                 ? 'bg-primary text-secondary'
                 : 'text-muted hover:text-white'
         }`;
 
+    const showToolbar = usePaneTabs || Boolean(onCampaignChange);
+
     return (
-        <div className="w-full h-full overflow-auto p-2">
-            {usePaneTabs && (
-                <div
-                    className="mb-2 mx-1 inline-flex gap-1 p-1 rounded-full border border-border-custom bg-background/60"
-                    role="tablist"
-                    aria-label="Mission map panes"
-                >
-                    <button
-                        type="button"
-                        role="tab"
-                        aria-selected={activePane === 'map'}
-                        data-testid={TestIds.missionMapSubTabMap}
-                        className={pillClass('map')}
-                        onClick={() => {
-                            setActivePane('map');
-                        }}
-                    >
-                        Map
-                    </button>
-                    <button
-                        type="button"
-                        role="tab"
-                        aria-selected={activePane === 'quests'}
-                        data-testid={TestIds.missionMapSubTabQuests}
-                        className={pillClass('quests')}
-                        onClick={() => {
-                            setActivePane('quests');
-                            setTooltip(null);
-                            setBankTooltip(null);
-                        }}
-                    >
-                        Quests
-                    </button>
+        <div className="w-full h-full overflow-auto">
+            {showToolbar && (
+                <div className="shrink-0 flex items-center gap-3 pb-2 border-b border-border-custom mb-2">
+                    {usePaneTabs && (
+                        <div
+                            className="inline-flex gap-0.5 p-0.5 rounded-full border border-border-custom bg-background/60 shrink-0"
+                            role="tablist"
+                            aria-label="Mission map panes"
+                        >
+                            <button
+                                type="button"
+                                role="tab"
+                                aria-selected={activePane === 'map'}
+                                data-testid={TestIds.missionMapSubTabMap}
+                                className={pillClass('map')}
+                                onClick={() => {
+                                    setActivePane('map');
+                                }}
+                            >
+                                Map
+                            </button>
+                            <button
+                                type="button"
+                                role="tab"
+                                aria-selected={activePane === 'quests'}
+                                data-testid={TestIds.missionMapSubTabQuests}
+                                className={pillClass('quests')}
+                                onClick={() => {
+                                    setActivePane('quests');
+                                    setTooltip(null);
+                                    setBankTooltip(null);
+                                }}
+                            >
+                                Quests
+                            </button>
+                        </div>
+                    )}
+                    {onCampaignChange && (
+                        <div className={`flex items-center gap-2 min-w-0 ${usePaneTabs ? 'ml-auto' : ''}`}>
+                            <label className="text-xs text-muted shrink-0">Campaign:</label>
+                            <div className="relative w-44 max-w-[40vw] shrink-0">
+                                <select
+                                    value={character.campaignId}
+                                    onChange={(e) => void onCampaignChange(e.target.value)}
+                                    className="w-full appearance-none text-xs bg-surface border border-border-custom rounded pl-2 pr-7 py-1 text-white"
+                                >
+                                    {STORYLINES.map((s) => (
+                                        <option key={s.id} value={s.id}>{s.title}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown
+                                    className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white"
+                                    aria-hidden
+                                    strokeWidth={2.25}
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
             {showQuests && onStartQuest && (
@@ -671,8 +706,8 @@ export default function MissionMapTab({
             <svg
                 ref={svgRef}
                 viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
-                className="w-full"
-                style={{ minHeight: Math.max(vbH, 300) }}
+                className="w-full h-auto block"
+                style={{ aspectRatio: `${vbW} / ${vbH}` }}
                 xmlns="http://www.w3.org/2000/svg"
             >
                 <defs>

@@ -613,6 +613,11 @@ export interface AbilityStatic {
     onRoundStart?(unit: Unit, engine: import('../game/EngineContext').EngineContext): void;
     /** Swap network config. When present, this ability starts hidden and activates via the swap evaluator. */
     readonly swapConfig?: AbilitySwapConfig;
+    /**
+     * Quest Prep: companion ability IDs granted free with this primary pick (do not occupy a slot).
+     * Example: Light Imbuement → Imbued Bat; Throw Charged Rock → Throw Rock.
+     */
+    readonly attachedAbilityIds?: readonly string[];
 }
 
 /** Information about an attack that was blocked. */

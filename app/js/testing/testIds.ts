@@ -38,9 +38,10 @@ export const TestIds = {
     questBankTooltip: 'quest-bank-tooltip',
     questStartPrefix: 'quest-start-',
     questStartOptionalPrefix: 'quest-start-optional-',
-    questPrepBanner: 'quest-prep-banner',
-    questPrepConfirm: 'quest-prep-confirm',
-    questPrepCancel: 'quest-prep-cancel',
+    /** Character-select Quest Prep subtitle ("Prepare yourself for your journey.") */
+    questPrepSubtitle: 'quest-prep-subtitle',
+    questPrepAbilityPicker: 'quest-prep-ability-picker',
+    questPrepAbilitySlotBar: 'quest-prep-ability-slot-bar',
     missionMarkVictory: 'mission-mark-victory',
 
     characterSelectReady: 'character-select-ready',

@@ -36,7 +36,6 @@ import ResourcePill from '../../../../../components/ResourcePill';
 import { getShowAllResearchTrees, subscribeShowAllResearchTrees } from '../../../../../debugFlags';
 import MissionMapTab from './MissionMapTab';
 import StatBonusesTab from './StatBonusesTab';
-import { STORYLINES, getQuestDef } from '../../../storylines/index';
 import type { StartQuestOptions } from '../../../storylines/questLobby';
 
 interface CharacterEditorProps {
@@ -68,7 +67,7 @@ interface CharacterEditorProps {
     localPlayerId?: number;
     /** Called when the player clicks a mission on the Mission Map. */
     onStartMission?: (missionId: string) => void;
-    /** Start / continue a QuestRun lobby (new starts may go through Quest Prep first). */
+    /** Start / continue a QuestRun lobby (Quest Prep happens in character_select). */
     onStartQuest?: (questDefId: string, options?: StartQuestOptions) => void;
     /** When true, hides the Mission Map tab (e.g. when opened from inside a lobby). */
     hideMissionMap?: boolean;
@@ -77,12 +76,6 @@ interface CharacterEditorProps {
     /** Admin-only content rendered next to the grant-campaign-resources block in the Upgrades tab. */
     adminKnowledgePanel?: React.ReactNode;
 }
-
-/** Quest Prep: equip Campaign Character, then confirm to freeze into Quest Character. */
-type QuestPrepState = {
-    questDefId: string;
-    assignedBankId: string | null;
-};
 
 type EditorTab = 'missionMap' | 'equipment' | 'research' | 'statBonuses';
 const MAX_CHARACTER_NAME_LENGTH = 15;
@@ -156,8 +149,6 @@ export default function CharacterEditor({
     const [localCampaign, setLocalCampaign] = useState<CampaignState | null>(null);
     const [grantResourceKey, setGrantResourceKey] = useState<'food' | 'metal' | 'population' | 'crystals'>('food');
     const [grantResourceAmount, setGrantResourceAmount] = useState<string>('1');
-    const [questPrep, setQuestPrep] = useState<QuestPrepState | null>(null);
-    const [questPrepStarting, setQuestPrepStarting] = useState(false);
 
     const selectedPortraitId = portraitIds[portraitIndex] ?? portraitIds[0];
     const portrait = getPortrait(selectedPortraitId);
@@ -165,11 +156,8 @@ export default function CharacterEditor({
 
     const resolvedCampaign = campaign ?? localCampaign;
     const permissionAccount = viewerAccount ?? account ?? null;
-    /** During Quest Prep, reuse Equipment tab in edit (freeze) mode even for non-admins. */
-    const inQuestPrep = questPrep != null;
-    const effectiveEditMode = editMode || inQuestPrep;
-    const effectiveShowInventory = showInventoryPanel || inQuestPrep;
-    const questPrepDef = questPrep ? getQuestDef(questPrep.questDefId) : undefined;
+    const effectiveEditMode = editMode;
+    const effectiveShowInventory = showInventoryPanel;
 
     const showAllResearchTreesDebug = useSyncExternalStore(
         subscribeShowAllResearchTrees,
@@ -338,12 +326,11 @@ export default function CharacterEditor({
 
     const visibleInventoryItems = useMemo(() => {
         const isAdminViewer = permissionAccount?.role === 'admin';
-        const accountInventory = account?.inventoryItemIds ?? [];
         const base = isAdminViewer
             ? ALL_PLAYER_ITEMS
-            : (inventoryItems ?? (inQuestPrep ? accountInventory : []));
+            : (inventoryItems ?? account?.inventoryItemIds ?? []);
         return base.filter((id) => !equipment.includes(id));
-    }, [permissionAccount?.role, equipment, inventoryItems, account?.inventoryItemIds, inQuestPrep]);
+    }, [permissionAccount?.role, equipment, inventoryItems, account?.inventoryItemIds]);
 
 
     const handleGrantResource = useCallback(async () => {
@@ -587,51 +574,21 @@ export default function CharacterEditor({
         }
     }, [isAdmin, character.id, character.campaignId, character.equipment, character.name, character.portraitId, api, onSaved]);
 
-    /** Continue skips prep; new starts open Equipment tab (freeze loadout → Quest Character). */
+    /** Start / continue opens a quest lobby immediately (Quest Prep is in character_select). */
     const handleMapStartQuest = useCallback(
         (questDefId: string, options?: StartQuestOptions) => {
             if (!onStartQuest) return;
-            if (options?.mode === 'continue') {
-                onStartQuest(questDefId, options);
-                return;
-            }
-            setQuestPrep({
-                questDefId,
-                assignedBankId: options?.assignedBankId ?? null,
-            });
-            setActiveTab('equipment');
+            onStartQuest(questDefId, options);
         },
         [onStartQuest],
     );
-
-    const cancelQuestPrep = useCallback(() => {
-        setQuestPrep(null);
-        setQuestPrepStarting(false);
-        if (!hideMissionMap) setActiveTab('missionMap');
-    }, [hideMissionMap]);
-
-    const confirmQuestPrep = useCallback(() => {
-        if (!questPrep || !onStartQuest) return;
-        setQuestPrepStarting(true);
-        try {
-            onStartQuest(questPrep.questDefId, {
-                mode: 'start',
-                assignedBankId: questPrep.assignedBankId,
-                // Prefer editor state so a just-saved equip is frozen into Quest Character.
-                equipment: [...equipment],
-            });
-            setQuestPrep(null);
-        } finally {
-            setQuestPrepStarting(false);
-        }
-    }, [questPrep, onStartQuest, equipment]);
 
     const firstTreeId = displayResearchTrees[0]?.id ?? null;
     const selectedTree = displayResearchTrees.find((t) => t.id === (selectedTreeId ?? firstTreeId));
     const selectedTreeDimmed = selectedTree ? dimmedResearchTreeIds.has(selectedTree.id) : false;
 
     return (
-        <div className="flex flex-col h-full w-full bg-surface rounded-lg border border-border-custom overflow-hidden">
+        <div className="flex flex-col h-full w-full bg-surface overflow-hidden">
             {/* Tabs */}
             <div className="flex gap-1 px-2 pt-2 border-b border-border-custom shrink-0">
                 {!hideMissionMap && (
@@ -648,7 +605,7 @@ export default function CharacterEditor({
                         Mission Map
                     </button>
                 )}
-                {(isAdmin || inQuestPrep) && (
+                {isAdmin && (
                     <button
                         type="button"
                         className={`px-3 py-2 border-b-2 text-sm cursor-pointer ${
@@ -658,7 +615,7 @@ export default function CharacterEditor({
                         }`}
                         onClick={() => setActiveTab('equipment')}
                     >
-                        Equipment{inQuestPrep ? ' (Quest Prep)' : ''}
+                        Equipment
                     </button>
                 )}
                 <button
@@ -852,21 +809,7 @@ export default function CharacterEditor({
                 {/* Right column: panel main container */}
                 <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
                     {activeTab === 'missionMap' && (
-                        <div className="flex-1 min-h-0 overflow-auto p-4 flex flex-col">
-                            {isAdmin && (
-                                <div className="shrink-0 flex items-center gap-2 pb-2 border-b border-border-custom mb-2">
-                                    <label className="text-xs text-muted shrink-0">Campaign:</label>
-                                    <select
-                                        value={character.campaignId}
-                                        onChange={(e) => void handleCampaignChange(e.target.value)}
-                                        className="text-xs bg-surface border border-border-custom rounded px-2 py-1 text-white flex-1"
-                                    >
-                                        {STORYLINES.map((s) => (
-                                            <option key={s.id} value={s.id}>{s.title}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
+                        <div className="flex-1 min-h-0 overflow-auto p-2 flex flex-col">
                             <div className="flex-1 min-h-0">
                                 <MissionMapTab
                                     character={character}
@@ -874,6 +817,7 @@ export default function CharacterEditor({
                                     onStartMission={onStartMission ?? (() => {})}
                                     onStartQuest={onStartQuest ? handleMapStartQuest : undefined}
                                     onMarkVictory={isAdmin ? handleMarkVictory : undefined}
+                                    onCampaignChange={isAdmin ? handleCampaignChange : undefined}
                                 />
                             </div>
                         </div>
@@ -881,42 +825,6 @@ export default function CharacterEditor({
 
                     {activeTab === 'equipment' && (
                         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                            {inQuestPrep && (
-                                <div
-                                    data-testid={TestIds.questPrepBanner}
-                                    className="shrink-0 flex flex-wrap items-center justify-between gap-2 border-b border-amber-700/40 bg-amber-950/35 px-4 py-2.5"
-                                >
-                                    <div className="min-w-0">
-                                        <p className="text-xs font-semibold text-amber-200">
-                                            Quest Prep — {questPrepDef?.title ?? questPrep?.questDefId}
-                                        </p>
-                                        <p className="text-[11px] text-amber-100/70 mt-0.5">
-                                            Equip your Campaign Character, then confirm to freeze loadout into the
-                                            Quest Character and open the first mission.
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        <button
-                                            type="button"
-                                            data-testid={TestIds.questPrepCancel}
-                                            onClick={cancelQuestPrep}
-                                            className="px-3 py-1.5 rounded-lg border border-border-custom bg-surface text-xs text-zinc-300 hover:text-white cursor-pointer"
-                                            disabled={questPrepStarting}
-                                        >
-                                            Cancel
-                                        </button>
-                                        <button
-                                            type="button"
-                                            data-testid={TestIds.questPrepConfirm}
-                                            onClick={confirmQuestPrep}
-                                            className="px-3 py-1.5 rounded-lg bg-primary text-secondary text-xs font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer disabled:opacity-60"
-                                            disabled={questPrepStarting || saving}
-                                        >
-                                            {questPrepStarting ? 'Starting…' : 'Confirm & start quest'}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
                             {effectiveShowInventory && (
                                 <div className="flex-1 min-h-0 overflow-auto p-4">
                                     <InventoryPanel

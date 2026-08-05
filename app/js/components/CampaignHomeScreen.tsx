@@ -66,7 +66,6 @@ interface CampaignHomeScreenProps {
         options?: {
             mode?: 'continue' | 'start';
             assignedBankId?: string | null;
-            equipment?: string[];
         },
     ) => void;
 }
@@ -184,11 +183,11 @@ export default function CampaignHomeScreen({
         <div className="h-screen flex flex-col">
             <div className="flex-1 overflow-y-auto w-full">
             <div
-                className={`mx-auto w-full px-5 py-8 max-md:px-5 max-md:py-5 ${
+                className={`mx-auto w-full px-5 py-2 max-md:px-5 max-md:py-5 ${
                     activeTab === 'welcome' ? 'max-w-[800px]' : 'max-w-full'
                 }`}
             >
-                <div className="relative mb-8 flex items-center justify-center">
+                <div className="relative mb-2 flex items-center justify-center">
                     <h1 className="text-4xl max-md:text-3xl font-bold text-primary">
                         Minion Battles
                     </h1>

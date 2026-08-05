@@ -3,12 +3,14 @@
  * Shows "Create Character" card (top left) and list of player's campaign characters.
  * Characters sorted by server `lastUsed` (most recent mission first), then mission eligibility.
  * Disallow reason shown diagonally on cards when they cannot be used.
+ * Quest Prep (quest lobby, status prep / first slot) uses dedicated center + bottom segments.
  */
-import React from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import type { PlayerState } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import type { PreMissionStoryDef } from '../../storylines/storyTypes';
 import type { IBaseMissionDef } from '../../storylines/BaseMissionDef';
+import type { QuestLobbyFields } from '../../storylines/questLobby';
 import { ALL_PLAYER_ITEMS } from '../../character_defs/items';
 import { isControlEnemy, SPECTATOR_ID } from '../../state';
 import CharacterCreator from '../components/CharacterEditor/CharacterCreator';
@@ -29,6 +31,17 @@ import { CharacterSelectCornerPortrait } from './characterSelect/CharacterSelect
 import { CharacterSelectBottomAbilityList } from './characterSelect/CharacterSelectBottomAbilityList';
 import { CharacterSelectAdminTabsCorner } from './characterSelect/CharacterSelectAdminTabsCorner';
 import ColumnSlotPlayerStatuses from '../../../../components/battleUILayout/ColumnSlotPlayerStatuses';
+import { QuestPrepOverview } from './characterSelect/questPrep/QuestPrepOverview';
+import { QuestPrepAbilitySlotBar } from './characterSelect/questPrep/QuestPrepAbilitySlotBar';
+import {
+    QuestPrepLoadoutProvider,
+    useQuestPrepLoadoutContext,
+} from './characterSelect/questPrep/QuestPrepLoadoutContext';
+import type { CampaignCharacter } from '../../character_defs/CampaignCharacter';
+import {
+    buildPartyRosterFromLobby,
+    freezeQuestPrepForCharacter,
+} from '../../storylines/questPrepFinalize';
 
 interface CharacterSelectPhaseProps {
     api: MinionBattlesApi;
@@ -48,6 +61,12 @@ interface CharacterSelectPhaseProps {
     preMissionStory?: PreMissionStoryDef | null;
     /** Required players whose presence is needed before the battle can start (from Mission Map flow). */
     requiredPlayers?: Array<{ playerName: string; characterId: string }>;
+    /** Active quest lobby stamp (when this lobby is part of a quest run). */
+    questLobbyFields?: QuestLobbyFields | null;
+    /** In-progress Quest Prep primary ability picks by player id. */
+    questPrepLoadoutsByPlayer?: Record<string, string[]>;
+    /** Frozen Quest Prep picks by character id. */
+    questAbilityLoadoutsByCharacterId?: Record<string, string[]>;
     setLocalOverride?: (path: string, value: unknown) => void;
     removeLocalOverride?: (path: string) => void;
     onPhaseChange?: (phase: string, gameState: Record<string, unknown>) => void;
@@ -57,6 +76,55 @@ interface CharacterSelectPhaseProps {
     chatSlot?: React.ReactNode;
     /** Loading/resync overlay, forwarded from GameScreen via Game.tsx. */
     centerOverlay?: React.ReactNode;
+}
+
+function isQuestPrepMode(
+    questLobbyFields: QuestLobbyFields | null | undefined,
+    character: CampaignCharacter | null,
+): boolean {
+    if (!questLobbyFields) return false;
+    const run = character?.activeQuestRun;
+    if (run?.status === 'prep' && run.questDefId === questLobbyFields.questDefId) return true;
+    // Joiner on first mission before they have a local prep run.
+    if (
+        questLobbyFields.questSlotIndex === 0
+        && (!run || run.questDefId !== questLobbyFields.questDefId || run.status === 'prep')
+    ) {
+        return true;
+    }
+    return false;
+}
+
+function QuestPrepCenter({
+    useLayoutSlots,
+    onChangeCharacter,
+}: {
+    useLayoutSlots: boolean;
+    onChangeCharacter: () => void;
+}) {
+    const loadout = useQuestPrepLoadoutContext();
+    return (
+        <QuestPrepOverview
+            character={loadout.character}
+            onChangeCharacter={onChangeCharacter}
+            useLayoutSlots={useLayoutSlots}
+            selectableIds={loadout.selectableIds}
+            selectedPrimaryIds={loadout.selectedPrimaryIds}
+            slotsFull={loadout.slotsFull}
+            onAdd={loadout.addAbility}
+        />
+    );
+}
+
+function QuestPrepBottomRow() {
+    const loadout = useQuestPrepLoadoutContext();
+    return (
+        <QuestPrepAbilitySlotBar
+            character={loadout.character}
+            selectedPrimaryIds={loadout.selectedPrimaryIds}
+            onRemove={loadout.removeAbility}
+        />
+    );
 }
 
 export default function CharacterSelectPhase({
@@ -71,6 +139,9 @@ export default function CharacterSelectPhase({
     missionDef,
     preMissionStory,
     requiredPlayers = [],
+    questLobbyFields = null,
+    questPrepLoadoutsByPlayer = {},
+    questAbilityLoadoutsByCharacterId = {},
     setLocalOverride,
     removeLocalOverride,
     onPhaseChange,
@@ -92,10 +163,6 @@ export default function CharacterSelectPhase({
         setLocalOverride, removeLocalOverride,
     });
 
-    const phase = useCharacterSelectPhase({
-        api, state, characterSelections, onPhaseChange, isHost, preMissionStory, missionDef,
-    });
-
     const {
         mySelection, characterToEdit, editorOpen, setEditorOpen, editorForceEditable, setEditorForceEditable,
         creatorOpen, setCreatorOpen, createCardRef, setCreateCardRef,
@@ -104,6 +171,65 @@ export default function CharacterSelectPhase({
         resolvedRequiredPlayers, controlSelectionsByGroup,
         effectivelyReady, setReadyLoading, allRequiredPlayersPresent, allSelected, allReady, atLeastOneCharacter,
     } = state;
+
+    const inQuestPrep = useMemo(
+        () => isQuestPrepMode(questLobbyFields, characterToEdit),
+        [questLobbyFields, characterToEdit],
+    );
+
+    const localPrimariesRef = useRef<string[]>(questPrepLoadoutsByPlayer[playerId] ?? []);
+    const onSelectedPrimaryIdsChange = useCallback((ids: string[]) => {
+        localPrimariesRef.current = ids;
+    }, []);
+
+    const phase = useCharacterSelectPhase({
+        api,
+        state,
+        characterSelections,
+        onPhaseChange,
+        isHost,
+        preMissionStory,
+        missionDef,
+        onBeforeReady: inQuestPrep && questLobbyFields && characterToEdit
+            ? async () => {
+                const primaries = localPrimariesRef.current;
+                const partyRoster = buildPartyRosterFromLobby(players, characterSelections);
+                // Ensure local selection is in the roster even if name race.
+                if (
+                    mySelection
+                    && mySelection !== SPECTATOR_ID
+                    && !isControlEnemy(mySelection)
+                    && user?.name
+                    && !partyRoster.some((e) => e.characterId === mySelection)
+                ) {
+                    partyRoster.push({ playerName: user.name, characterId: mySelection });
+                }
+                const frozen = freezeQuestPrepForCharacter({
+                    existingRun: characterToEdit.activeQuestRun,
+                    lobby: questLobbyFields,
+                    character: {
+                        id: characterToEdit.id,
+                        equipment: characterToEdit.equipment,
+                    },
+                    selectedAbilityIds: primaries,
+                    partyRoster,
+                    assignedBankId: characterToEdit.activeQuestRun?.assignedBankId ?? null,
+                });
+                await api.updateCharacter(characterToEdit.id, { activeQuestRun: frozen });
+                // Keep lobby loadout maps in sync for battle filter (+ continue lobbies).
+                await api.updateGameState({
+                    questPrepLoadoutsByPlayer: {
+                        ...questPrepLoadoutsByPlayer,
+                        [playerId]: [...primaries],
+                    },
+                    questAbilityLoadoutsByCharacterId: {
+                        ...questAbilityLoadoutsByCharacterId,
+                        [characterToEdit.id]: [...primaries],
+                    },
+                });
+            }
+            : undefined,
+    });
 
     const readyPlayerIdsForStatuses = effectivelyReady && !characterSelectReadyPlayerIds.includes(playerId)
         ? [...characterSelectReadyPlayerIds, playerId]
@@ -166,6 +292,11 @@ export default function CharacterSelectPhase({
                         hideMissionMap
                     />
                 </div>
+            ) : isLoadoutOverview && characterToEdit && inQuestPrep ? (
+                <QuestPrepCenter
+                    useLayoutSlots={useUnifiedSlotShell}
+                    onChangeCharacter={() => setView('grid')}
+                />
             ) : isLoadoutOverview && characterToEdit ? (
                 <CharacterOverview
                     character={characterToEdit}
@@ -229,7 +360,7 @@ export default function CharacterSelectPhase({
     );
 
     if (useUnifiedSlotShell) {
-        return (
+        const layout = (
             <CharacterSelectLayout
                 headerSlot={headerSlot}
                 chatSlot={chatSlot}
@@ -251,7 +382,9 @@ export default function CharacterSelectPhase({
                     ) : undefined
                 }
                 bottomRow={
-                    isLoadoutOverview && characterToEdit ? (
+                    isLoadoutOverview && characterToEdit && inQuestPrep ? (
+                        <QuestPrepBottomRow />
+                    ) : isLoadoutOverview && characterToEdit ? (
                         <CharacterSelectBottomAbilityList character={characterToEdit} />
                     ) : undefined
                 }
@@ -260,11 +393,31 @@ export default function CharacterSelectPhase({
                 {body}
             </CharacterSelectLayout>
         );
+
+        if (isLoadoutOverview && characterToEdit && inQuestPrep) {
+            return (
+                <QuestPrepLoadoutProvider
+                    api={api}
+                    playerId={playerId}
+                    character={characterToEdit}
+                    questPrepLoadoutsByPlayer={questPrepLoadoutsByPlayer}
+                    onSelectedPrimaryIdsChange={onSelectedPrimaryIdsChange}
+                >
+                    {layout}
+                </QuestPrepLoadoutProvider>
+            );
+        }
+        return layout;
     }
 
-    return (
+    const classic = (
         <div className="w-full h-full flex flex-col max-w-[1200px] mx-auto">
             {body}
+            {isLoadoutOverview && characterToEdit && inQuestPrep && (
+                <div className="shrink-0 px-5 pb-4" style={{ minHeight: 120 }}>
+                    <QuestPrepBottomRow />
+                </div>
+            )}
             {adminTabsCorner && (
                 <div className="shrink-0 px-5 pb-4 flex justify-end">
                     <div className="w-full max-w-[200px]">
@@ -274,4 +427,19 @@ export default function CharacterSelectPhase({
             )}
         </div>
     );
+
+    if (isLoadoutOverview && characterToEdit && inQuestPrep) {
+        return (
+            <QuestPrepLoadoutProvider
+                api={api}
+                playerId={playerId}
+                character={characterToEdit}
+                questPrepLoadoutsByPlayer={questPrepLoadoutsByPlayer}
+                onSelectedPrimaryIdsChange={onSelectedPrimaryIdsChange}
+            >
+                {classic}
+            </QuestPrepLoadoutProvider>
+        );
+    }
+    return classic;
 }

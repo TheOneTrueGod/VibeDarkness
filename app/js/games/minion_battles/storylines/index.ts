@@ -100,6 +100,7 @@ export {
     completeQuestRun,
     buildCampaignRewardsPayload,
     cloneQuestCharacterFromCampaign,
+    finalizeQuestPrepLoadout,
     getCurrentResolvedMission,
 } from './questRun';
 export type {
@@ -109,14 +110,37 @@ export type {
     CompleteQuestRunOptions,
     CompleteQuestRunResult,
     AdvanceQuestVictoryResult,
+    FinalizeQuestPrepLoadoutParams,
 } from './questRun';
+export {
+    QUEST_PREP_ABILITY_SLOT_COUNT,
+    buildAccessibleAbilityIds,
+    getAttachedAbilityIds,
+    isAttachedOnlyAbility,
+    filterSelectableQuestPrepAbilityIds,
+    expandAttachedAbilityIds,
+    addQuestPrepAbility,
+    removeQuestPrepAbility,
+    isQuestPrepSlotsFull,
+} from './questPrepLoadout';
+export {
+    buildPartyRosterFromLobby,
+    ensureQuestPrepRun,
+    freezeQuestPrepForCharacter,
+} from './questPrepFinalize';
+export type {
+    EnsureQuestPrepRunParams,
+    FreezeQuestPrepForCharacterParams,
+} from './questPrepFinalize';
 export {
     missionIdFromResolvedRef,
     questLobbyFieldsFromRun,
     readQuestLobbyFields,
     questRunMatchesLobby,
+    questRunMatchesLobbyPrep,
     planQuestVictoryContinue,
     planQuestDefeatRetry,
+    requiredPlayersFromPartyRoster,
 } from './questLobby';
 export type { QuestLobbyFields, QuestVictoryContinuePlan, StartQuestOptions } from './questLobby';
 export {
@@ -137,4 +161,5 @@ export type {
     MissionSlotSpec,
     CampaignReward,
     ResolvedMissionRef,
+    QuestPartyRosterEntry,
 } from './questTypes';
