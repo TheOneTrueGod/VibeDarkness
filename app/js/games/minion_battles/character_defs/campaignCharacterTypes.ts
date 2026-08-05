@@ -61,7 +61,8 @@ export interface CampaignCharacterData {
      */
     questResults?: Record<string, QuestResult[]>;
     /**
-     * Active QuestRun for this Campaign Character (null/absent when none).
+     * Singular active QuestRun for this Campaign Character (null/absent when none).
+     * At most one prep/active run at a time — not a `questRuns` map.
      * Holds the Quest Character sheet for the current attempt.
      */
     activeQuestRun?: QuestRunState | null;

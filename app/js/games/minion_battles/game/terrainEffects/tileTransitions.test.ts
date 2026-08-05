@@ -7,6 +7,7 @@ import type { TeamId } from '../teams';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import {
     DOT_TICKS_PER_ROUND,
+    DARK_THORN_DOT_DAMAGE_PER_HIT,
     THORN_DOT_DAMAGE_PER_HIT,
     THORN_DOT_DAMAGE_PER_ROUND,
     tickAllDots,
@@ -14,8 +15,9 @@ import {
 import {
     BRAMBLE_SLOW_EFFECT_TYPE,
     DARK_THORN_EFFECT_TYPE,
+    DARK_THORN_ENTER_DAMAGE,
+    DARK_THORN_LAND_DAMAGE,
     THORN_ENTER_DAMAGE,
-    THORN_LAND_DAMAGE,
     clearUnitTileTransitionState,
     getOnLeaveInvocationCount,
     processUnitTileTransition,
@@ -76,7 +78,7 @@ describe('tileTransitions thorn enter/land', () => {
         resetOnLeaveInvocationCount();
     });
 
-    it('deals enter damage when a grounded unit walks onto dark_thorn', () => {
+    it('deals enter damage when a grounded unit walks onto dark_thorn, then destroys that cell', () => {
         const terrainLayers = new TerrainLayerManager();
         placeThorn(terrainLayers, DARK_THORN_EFFECT_TYPE, 1, 0);
         // player characterId has no creatureType → not dark_creature → takes dark_thorn
@@ -93,7 +95,8 @@ describe('tileTransitions thorn enter/land', () => {
         unit.x = CELL_SIZE * 1.5;
         processUnitTileTransition(unit, engine);
 
-        expect(unit.hp).toBe(100 - THORN_ENTER_DAMAGE);
+        expect(unit.hp).toBe(100 - DARK_THORN_ENTER_DAMAGE);
+        expect(terrainLayers.getGroundEffectAt(1, 0)).toBeNull();
         expect(getOnLeaveInvocationCount()).toBe(1);
     });
 
@@ -113,6 +116,8 @@ describe('tileTransitions thorn enter/land', () => {
         processUnitTileTransition(unit, engine);
 
         expect(unit.hp).toBe(100 - THORN_ENTER_DAMAGE);
+        // Player bramble thorns persist after dealing damage.
+        expect(terrainLayers.getGroundEffectAt(1, 0)?.effectType).toBe(BRAMBLE_SLOW_EFFECT_TYPE);
     });
 
     it('skips enter damage while in knockback air phase over thorns', () => {
@@ -169,8 +174,9 @@ describe('tileTransitions thorn enter/land', () => {
         unit.knockback.knockbackElapsed = 0.6; // past airTime → grounded
         processUnitTileTransition(unit, engine);
 
-        expect(unit.hp).toBe(100 - THORN_LAND_DAMAGE);
-        expect(unit.hp).not.toBe(100 - THORN_ENTER_DAMAGE - THORN_LAND_DAMAGE);
+        expect(unit.hp).toBe(100 - DARK_THORN_LAND_DAMAGE);
+        expect(unit.hp).not.toBe(100 - DARK_THORN_ENTER_DAMAGE - DARK_THORN_LAND_DAMAGE);
+        expect(terrainLayers.getGroundEffectAt(1, 0)).toBeNull();
     });
 
     it('does not damage immune creature types on enter or land', () => {
@@ -217,12 +223,32 @@ describe('tileTransitions thorn enter/land', () => {
     });
 });
 
-describe('thorn DoT reduced to 4/round', () => {
-    it('deals THORN_DOT_DAMAGE_PER_ROUND over a full set of milestones', () => {
+describe('thorn DoT', () => {
+    it('deals THORN_DOT_DAMAGE_PER_ROUND from bramble_slow over a full set of milestones', () => {
         expect(THORN_DOT_DAMAGE_PER_ROUND).toBe(
             THORN_DOT_DAMAGE_PER_HIT * (DOT_TICKS_PER_ROUND / 2),
         );
 
+        const terrainLayers = new TerrainLayerManager();
+        placeThorn(terrainLayers, BRAMBLE_SLOW_EFFECT_TYPE, 0, 0);
+        const unit = makeUnit({
+            id: 'wolf',
+            characterId: 'dark_wolf',
+            x: CELL_SIZE * 0.5,
+            y: CELL_SIZE * 0.5,
+        });
+        const eventBus = new EventBus();
+        const startHp = unit.hp;
+
+        for (let i = 0; i < DOT_TICKS_PER_ROUND; i++) {
+            tickAllDots([unit], terrainLayers, eventBus, undefined, i);
+        }
+
+        expect(startHp - unit.hp).toBe(THORN_DOT_DAMAGE_PER_ROUND);
+        expect(terrainLayers.getGroundEffectAt(0, 0)?.effectType).toBe(BRAMBLE_SLOW_EFFECT_TYPE);
+    });
+
+    it('deals one doubled dark_thorn DoT hit then destroys that cell', () => {
         const terrainLayers = new TerrainLayerManager();
         placeThorn(terrainLayers, DARK_THORN_EFFECT_TYPE, 0, 0);
         const unit = makeUnit({
@@ -239,6 +265,7 @@ describe('thorn DoT reduced to 4/round', () => {
             tickAllDots([unit], terrainLayers, eventBus, undefined, i);
         }
 
-        expect(startHp - unit.hp).toBe(THORN_DOT_DAMAGE_PER_ROUND);
+        expect(startHp - unit.hp).toBe(DARK_THORN_DOT_DAMAGE_PER_HIT);
+        expect(terrainLayers.getGroundEffectAt(0, 0)).toBeNull();
     });
 });

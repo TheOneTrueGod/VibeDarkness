@@ -1,8 +1,11 @@
 /**
  * Quest slot banks + optional/side quests for Mission Map (Campaign Home UI v1).
  * Shows clears/required progress, eligible pickers, and victory markers per questDefId.
+ *
+ * A character has at most one active quest run (`activeQuestRun`). The active quest's
+ * row shows Continue + Abandon (confirm popover); other rows show Start.
  */
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import type { QuestDef, QuestResult, QuestSlotBank } from '../../../storylines/questTypes';
 import type { StartQuestOptions } from '../../../storylines/questLobby';
@@ -17,11 +20,17 @@ import {
     listQuestVictoryResults,
 } from '../../../storylines/index';
 import { TestIds } from '../../../../../testing/testIds';
+import {
+    AnchoredPortalTooltip,
+    PORTAL_TOOLTIP_SURFACE_CLASS,
+} from '../AnchoredPortalTooltip';
 
 export interface QuestBanksPanelProps {
     character: CampaignCharacter;
-    /** Begin a new quest (caller may route through Quest Prep) or continue an active run. */
+    /** Begin a new quest or continue the single active run. */
     onStartQuest?: (questDefId: string, options?: StartQuestOptions) => void;
+    /** Clear the character's active quest run (after confirm). */
+    onAbandonQuest?: () => void | Promise<void>;
     /** When set (e.g. from Mission Map bank node click), expand that bank's picker. */
     focusedBankId?: string | null;
     /** Hide the "Quests" heading (e.g. when a parent tab/pill already labels the pane). */
@@ -63,15 +72,26 @@ function QuestResultBadge({ result }: { result: QuestResult }) {
 
 function QuestPickRow({
     quest,
-    onPick,
-    pickLabel,
-    testId,
+    isActive,
+    activeSlotLabel,
+    onStart,
+    onContinue,
+    onAbandon,
+    startTestId,
 }: {
     quest: QuestDef;
-    onPick: () => void;
-    pickLabel: string;
-    testId?: string;
+    isActive: boolean;
+    /** e.g. "1/3" when active */
+    activeSlotLabel?: string;
+    onStart: () => void;
+    onContinue: () => void;
+    onAbandon?: () => void | Promise<void>;
+    startTestId?: string;
 }) {
+    const abandonBtnRef = useRef<HTMLButtonElement>(null);
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [abandoning, setAbandoning] = useState(false);
+
     return (
         <li className="flex items-center justify-between gap-2 rounded-md border border-border-custom bg-background/40 px-2.5 py-1.5">
             <div className="min-w-0">
@@ -79,16 +99,83 @@ function QuestPickRow({
                 <p className="text-[10px] text-muted truncate">
                     {quest.slots.length} mission{quest.slots.length === 1 ? '' : 's'}
                     {quest.tags?.length ? ` · ${quest.tags.join(', ')}` : ''}
+                    {isActive && activeSlotLabel ? ` · slot ${activeSlotLabel}` : ''}
                 </p>
             </div>
-            <button
-                type="button"
-                data-testid={testId}
-                onClick={onPick}
-                className="shrink-0 px-2.5 py-1 rounded-md bg-primary text-secondary text-[11px] font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer"
-            >
-                {pickLabel}
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+                {isActive ? (
+                    <>
+                        <button
+                            type="button"
+                            data-testid={TestIds.questContinue}
+                            onClick={onContinue}
+                            className="px-2.5 py-1 rounded-md bg-primary text-secondary text-[11px] font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+                        >
+                            Continue
+                        </button>
+                        {onAbandon && (
+                            <>
+                                <button
+                                    ref={abandonBtnRef}
+                                    type="button"
+                                    data-testid={TestIds.questAbandon}
+                                    onClick={() => setConfirmOpen((o) => !o)}
+                                    className="px-2.5 py-1 rounded-md bg-red-800/90 text-red-100 text-[11px] font-bold border border-red-600 hover:bg-red-700 active:scale-95 transition-all cursor-pointer"
+                                >
+                                    Abandon
+                                </button>
+                                <AnchoredPortalTooltip
+                                    anchorRef={abandonBtnRef}
+                                    open={confirmOpen}
+                                    placement="top"
+                                    className={`${PORTAL_TOOLTIP_SURFACE_CLASS} p-2.5 w-[220px] pointer-events-auto`}
+                                >
+                                    <p className="text-[11px] text-zinc-200 mb-2 leading-snug">
+                                        Abandon “{quest.title}”? This run’s progress will be discarded.
+                                    </p>
+                                    <div className="flex items-center justify-end gap-1.5">
+                                        <button
+                                            type="button"
+                                            data-testid={TestIds.questAbandonCancel}
+                                            className="px-2 py-1 rounded text-[11px] text-zinc-300 hover:text-white cursor-pointer"
+                                            onClick={() => setConfirmOpen(false)}
+                                            disabled={abandoning}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="button"
+                                            data-testid={TestIds.questAbandonConfirm}
+                                            className="px-2 py-1 rounded bg-red-700 text-red-50 text-[11px] font-bold hover:bg-red-600 cursor-pointer disabled:opacity-60"
+                                            disabled={abandoning}
+                                            onClick={async () => {
+                                                setAbandoning(true);
+                                                try {
+                                                    await onAbandon();
+                                                    setConfirmOpen(false);
+                                                } finally {
+                                                    setAbandoning(false);
+                                                }
+                                            }}
+                                        >
+                                            {abandoning ? 'Abandoning…' : 'Abandon'}
+                                        </button>
+                                    </div>
+                                </AnchoredPortalTooltip>
+                            </>
+                        )}
+                    </>
+                ) : (
+                    <button
+                        type="button"
+                        data-testid={startTestId}
+                        onClick={onStart}
+                        className="px-2.5 py-1 rounded-md bg-primary text-secondary text-[11px] font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+                    >
+                        Start
+                    </button>
+                )}
+            </div>
         </li>
     );
 }
@@ -96,14 +183,26 @@ function QuestPickRow({
 export default function QuestBanksPanel({
     character,
     onStartQuest,
+    onAbandonQuest,
     focusedBankId = null,
     hideSectionTitle = false,
 }: QuestBanksPanelProps) {
     const [expandedBankId, setExpandedBankId] = useState<string | null>(null);
 
     React.useEffect(() => {
-        if (focusedBankId) setExpandedBankId(focusedBankId);
-    }, [focusedBankId]);
+        if (focusedBankId) {
+            setExpandedBankId(focusedBankId);
+            return;
+        }
+        const bankId = character.activeQuestRun?.assignedBankId;
+        if (
+            bankId
+            && (character.activeQuestRun?.status === 'active'
+                || character.activeQuestRun?.status === 'prep')
+        ) {
+            setExpandedBankId(bankId);
+        }
+    }, [focusedBankId, character.activeQuestRun?.assignedBankId, character.activeQuestRun?.status]);
 
     const storyline = useMemo(
         () => STORYLINES.find((s) => s.id === character.campaignId) ?? null,
@@ -132,12 +231,16 @@ export default function QuestBanksPanel({
 
     const victoryResults = useMemo(() => listQuestVictoryResults(questResults), [questResults]);
 
+    /** At most one active run per character (prep or in-progress). */
     const activeQuest =
         character.activeQuestRun?.status === 'active'
         || character.activeQuestRun?.status === 'prep'
             ? character.activeQuestRun
             : null;
     const activeQuestDef = activeQuest ? getQuestDef(activeQuest.questDefId) : undefined;
+    const activeSlotLabel = activeQuest
+        ? `${activeQuest.currentSlotIndex + 1}/${activeQuest.resolvedSlots.length}`
+        : undefined;
 
     if (!storyline) return null;
 
@@ -148,31 +251,51 @@ export default function QuestBanksPanel({
         return null;
     }
 
+    const startOrReplace = (questDefId: string, options: StartQuestOptions) => {
+        if (
+            activeQuest
+            && activeQuest.questDefId !== questDefId
+            && !window.confirm(
+                `You already have an active quest (“${activeQuestDef?.title ?? activeQuest.questDefId}”). `
+                + 'Starting this quest abandons the current run. Continue?',
+            )
+        ) {
+            return;
+        }
+        onStartQuest(questDefId, options);
+    };
+
+    const renderQuestRow = (q: QuestDef, startTestId: string, assignedBankId: string | null) => {
+        const isActive = activeQuest?.questDefId === q.id;
+        return (
+            <QuestPickRow
+                key={q.id}
+                quest={q}
+                isActive={isActive}
+                activeSlotLabel={isActive ? activeSlotLabel : undefined}
+                startTestId={startTestId}
+                onStart={() =>
+                    startOrReplace(q.id, {
+                        mode: 'start',
+                        assignedBankId,
+                    })
+                }
+                onContinue={() => onStartQuest(q.id, { mode: 'continue' })}
+                onAbandon={onAbandonQuest}
+            />
+        );
+    };
+
     return (
         <div
             data-testid={TestIds.questBanksPanel}
             className="mb-3 mx-1 flex flex-col gap-3 rounded-lg border border-border-custom bg-surface px-3 py-2.5"
         >
-            {(activeQuest && activeQuestDef) || !hideSectionTitle ? (
+            {!hideSectionTitle && (
                 <div className="flex items-center justify-between gap-2">
-                    {!hideSectionTitle && (
-                        <h3 className="text-xs font-semibold text-white uppercase tracking-wide">Quests</h3>
-                    )}
-                    {activeQuest && activeQuestDef && (
-                        <button
-                            type="button"
-                            data-testid={TestIds.questContinue}
-                            className={`px-3 py-1.5 rounded-lg bg-primary text-secondary text-xs font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer ${hideSectionTitle ? 'ml-auto' : ''}`}
-                            onClick={() =>
-                                onStartQuest(activeQuest.questDefId, { mode: 'continue' })
-                            }
-                        >
-                            Continue “{activeQuestDef.title}” (slot {activeQuest.currentSlotIndex + 1}/
-                            {activeQuest.resolvedSlots.length})
-                        </button>
-                    )}
+                    <h3 className="text-xs font-semibold text-white uppercase tracking-wide">Quests</h3>
                 </div>
-            ) : null}
+            )}
 
             {unlockedBanks.length > 0 && (
                 <section className="flex flex-col gap-2" aria-label="Quest slot banks">
@@ -234,7 +357,6 @@ export default function QuestBanksPanel({
                                     </button>
                                 </div>
 
-                                {/* Cleared / active slot markers */}
                                 <ul className="mt-2 flex flex-col gap-1">
                                     {slotVictories.map((r) => (
                                         <li
@@ -295,20 +417,13 @@ export default function QuestBanksPanel({
                                                 No eligible quests for this bank.
                                             </li>
                                         ) : (
-                                            eligible.map((q) => (
-                                                <QuestPickRow
-                                                    key={q.id}
-                                                    quest={q}
-                                                    pickLabel="Start"
-                                                    testId={`${TestIds.questStartPrefix}${q.id}`}
-                                                    onPick={() =>
-                                                        onStartQuest(q.id, {
-                                                            mode: 'start',
-                                                            assignedBankId: bank.id,
-                                                        })
-                                                    }
-                                                />
-                                            ))
+                                            eligible.map((q) =>
+                                                renderQuestRow(
+                                                    q,
+                                                    `${TestIds.questStartPrefix}${q.id}`,
+                                                    bank.id,
+                                                ),
+                                            )
                                         )}
                                     </ul>
                                 )}
@@ -324,20 +439,13 @@ export default function QuestBanksPanel({
                         Optional / side quests
                     </p>
                     <ul className="flex flex-col gap-1.5">
-                        {optionalQuests.map((q) => (
-                            <QuestPickRow
-                                key={q.id}
-                                quest={q}
-                                pickLabel="Start"
-                                testId={`${TestIds.questStartOptionalPrefix}${q.id}`}
-                                onPick={() =>
-                                    onStartQuest(q.id, {
-                                        mode: 'start',
-                                        assignedBankId: null,
-                                    })
-                                }
-                            />
-                        ))}
+                        {optionalQuests.map((q) =>
+                            renderQuestRow(
+                                q,
+                                `${TestIds.questStartOptionalPrefix}${q.id}`,
+                                null,
+                            ),
+                        )}
                     </ul>
                 </section>
             )}

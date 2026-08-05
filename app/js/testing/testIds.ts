@@ -31,15 +31,20 @@ export const TestIds = {
     missionMapSubTabMap: 'mission-map-subtab-map',
     missionMapSubTabQuests: 'mission-map-subtab-quests',
     questBanksPanel: 'quest-banks-panel',
+    /** Inline Continue on the active quest row (Quests panel / bank tooltip). */
     questContinue: 'quest-continue',
+    questAbandon: 'quest-abandon',
+    questAbandonConfirm: 'quest-abandon-confirm',
+    questAbandonCancel: 'quest-abandon-cancel',
     questBankPrefix: 'quest-bank-',
     /** SVG quest-bank node on Mission Map — suffix with bank id */
     missionMapQuestBankPrefix: 'mission-map-quest-bank-',
     questBankTooltip: 'quest-bank-tooltip',
     questStartPrefix: 'quest-start-',
     questStartOptionalPrefix: 'quest-start-optional-',
-    /** Character-select Quest Prep subtitle ("Prepare yourself for your journey.") */
+    /** Optional Character-select header subtitle test id override target. */
     questPrepSubtitle: 'quest-prep-subtitle',
+    /** Character-select Quest Prep ability picker root. */
     questPrepAbilityPicker: 'quest-prep-ability-picker',
     questPrepAbilitySlotBar: 'quest-prep-ability-slot-bar',
     missionMarkVictory: 'mission-mark-victory',

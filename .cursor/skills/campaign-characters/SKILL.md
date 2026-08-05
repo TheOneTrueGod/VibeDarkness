@@ -41,6 +41,7 @@ Each character has exactly one **main weapon** in the campaign sense: the focal 
 - **Missions**: `MissionBattleConfig` can define `allowedTraits` (allowlist) and `disallowedTraits` (denylist). See `storylines/types.ts` for the full config.
 - **Character select**: Shows a "Create Character" card and the player's characters sorted by usability. Characters that cannot be used show a diagonal reason label.
 - **CharacterCreator**: Popover with portrait carousel and Create button. See `ui/components/CharacterEditor/CharacterCreator.tsx`.
+- **Quests**: `activeQuestRun` is singular — at most one prep/active quest run per character. Mission Map Quests panel shows Continue + Abandon on that row (not a separate header Continue). See `docs/plans/quest-system.md` and `storylines/WorldOfDarkness/quests/AGENTS.md`.
 
 ## Battle phase
 

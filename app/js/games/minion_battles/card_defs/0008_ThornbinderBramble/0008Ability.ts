@@ -22,6 +22,7 @@ import type { EventBus } from '../../game/EventBus';
 import { isLightHateWeakened } from '../../game/lightHate';
 import type { TerrainLayerManager } from '../../game/TerrainLayerManager';
 import { ROUND_DURATION } from '../../game/gameConstants';
+import { DARK_THORN_DURATION_ROUNDS } from '../../game/terrainEffects/tileTransitions';
 
 export const THORNBINDER_ABILITY_ID = `${formatGroupId(AbilityGroupId.Enemy)}08`;
 
@@ -160,8 +161,9 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
             },
         });
 
-        // Thorns last roughly a full round, so the patch is still (mostly) up right until the next slam.
-        const baseExpiresAt = eng.gameTime + ROUND_DURATION - BRAMBLE_CLEAR_BEFORE_NEXT_SEC;
+        // Thorns last roughly two rounds (unless a cell deals damage and destroys itself).
+        const baseExpiresAt =
+            eng.gameTime + DARK_THORN_DURATION_ROUNDS * ROUND_DURATION - BRAMBLE_CLEAR_BEFORE_NEXT_SEC;
         placeJitteredGroundThorns({
             engine: eng,
             caster,

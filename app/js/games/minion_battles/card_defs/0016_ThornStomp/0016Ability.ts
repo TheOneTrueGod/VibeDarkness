@@ -21,6 +21,7 @@ import type { EventBus } from '../../game/EventBus';
 import { isLightHateWeakened } from '../../game/lightHate';
 import type { TerrainLayerManager } from '../../game/TerrainLayerManager';
 import { ROUND_DURATION } from '../../game/gameConstants';
+import { DARK_THORN_DURATION_ROUNDS } from '../../game/terrainEffects/tileTransitions';
 
 export const THORN_STOMP_ABILITY_ID = `${formatGroupId(AbilityGroupId.Enemy)}16`;
 
@@ -138,10 +139,11 @@ export const ThornStompAbility: AbilityStatic = {
             },
         });
 
-        // Thorns last close to a full round, same reasoning as Bramble: with only 1 use/round
-        // recovered, the next stomp is realistically ~a round away, not gated by this cast's own
-        // (near-zero) cooldown tail.
-        const baseExpiresAt = eng.gameTime + ROUND_DURATION - THORN_CLEAR_BEFORE_NEXT_SEC;
+        // Thorns last roughly two rounds (unless a cell deals damage and destroys itself), same
+        // lifetime as Bramble. With only 1 use/round recovered, the next stomp is realistically
+        // ~a round away, not gated by this cast's own (near-zero) cooldown tail.
+        const baseExpiresAt =
+            eng.gameTime + DARK_THORN_DURATION_ROUNDS * ROUND_DURATION - THORN_CLEAR_BEFORE_NEXT_SEC;
         placeJitteredGroundThorns({
             engine: eng,
             caster,

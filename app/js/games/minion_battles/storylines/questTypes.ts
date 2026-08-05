@@ -109,6 +109,10 @@ export type ResolvedMissionRef =
 
 export type QuestRunStatus = 'prep' | 'active' | 'completed' | 'abandoned';
 
+/**
+ * In-progress (or prep) quest attempt. Campaign Character stores at most one
+ * via `activeQuestRun` — never concurrent runs.
+ */
 export type QuestRunState = {
     runId: string;
     questDefId: string;

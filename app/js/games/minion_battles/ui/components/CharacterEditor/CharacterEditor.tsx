@@ -37,6 +37,7 @@ import { getShowAllResearchTrees, subscribeShowAllResearchTrees } from '../../..
 import MissionMapTab from './MissionMapTab';
 import StatBonusesTab from './StatBonusesTab';
 import type { StartQuestOptions } from '../../../storylines/questLobby';
+import { abandonQuestRun } from '../../../storylines/questRun';
 
 interface CharacterEditorProps {
     character: CampaignCharacter;
@@ -583,6 +584,23 @@ export default function CharacterEditor({
         [onStartQuest],
     );
 
+    /** Clear the singular activeQuestRun after UI confirm. */
+    const handleAbandonQuest = useCallback(async () => {
+        const run = character.activeQuestRun;
+        if (!run) return;
+        try {
+            void abandonQuestRun(run);
+            await api.updateCharacter(character.id, { activeQuestRun: null });
+            onSaved?.({
+                equipment: character.equipment,
+                name: character.name,
+                portraitId: character.portraitId,
+            });
+        } catch (e) {
+            console.warn('Failed to abandon quest:', e);
+        }
+    }, [character, api, onSaved]);
+
     const firstTreeId = displayResearchTrees[0]?.id ?? null;
     const selectedTree = displayResearchTrees.find((t) => t.id === (selectedTreeId ?? firstTreeId));
     const selectedTreeDimmed = selectedTree ? dimmedResearchTreeIds.has(selectedTree.id) : false;
@@ -816,6 +834,7 @@ export default function CharacterEditor({
                                     isAdmin={isAdmin}
                                     onStartMission={onStartMission ?? (() => {})}
                                     onStartQuest={onStartQuest ? handleMapStartQuest : undefined}
+                                    onAbandonQuest={onStartQuest ? handleAbandonQuest : undefined}
                                     onMarkVictory={isAdmin ? handleMarkVictory : undefined}
                                     onCampaignChange={isAdmin ? handleCampaignChange : undefined}
                                 />

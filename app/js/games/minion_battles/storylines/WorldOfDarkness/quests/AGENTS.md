@@ -12,4 +12,6 @@ World of Darkness **QuestDef** content: mini-run definitions (slots, tags, compl
 
 ## System code (not in this folder)
 
-Runtime types, run state, slot resolve, lobby advance/retry/abandon, and Campaign Rewards apply-on-clear live under `storylines/` (`questTypes.ts`, `questRun.ts`, `questSlotResolve.ts`, `questLobby.ts`, `questCampaignRewards.ts`, `questRegistry.ts`). Design notes: `docs/plans/quest-system.md`. Mission Map / Quest Prep UI: `ui/components/CharacterEditor/` (`MissionMapTab`, `QuestBanksPanel`).
+Runtime types, run state, slot resolve, lobby advance/retry/abandon, and Campaign Rewards apply-on-clear live under `storylines/` (`questTypes.ts`, `questRun.ts`, `questSlotResolve.ts`, `questLobby.ts`, `questCampaignRewards.ts`, `questRegistry.ts`). Design notes: `docs/plans/quest-system.md`.
+
+Mission Map / Quests UI: `ui/components/CharacterEditor/` (`MissionMapTab`, `QuestBanksPanel`). A character has **at most one** `activeQuestRun` (prep or active). The active quest’s list row shows **Continue** + **Abandon** (confirm popover); other rows show **Start**. Quest Prep (ability pick / freeze) is in character select (`characterSelect/questPrep/`), not the Character Editor Equipment tab.

@@ -15,6 +15,12 @@ import { getCreatureType } from '../units/unit_defs/unitDef';
 
 export const THORN_ENTER_DAMAGE = 2;
 export const THORN_LAND_DAMAGE = 4;
+/** Thornbinder `dark_thorn` enter damage (2× shared thorn enter). */
+export const DARK_THORN_ENTER_DAMAGE = THORN_ENTER_DAMAGE * 2;
+/** Thornbinder `dark_thorn` land damage (2× shared thorn land). */
+export const DARK_THORN_LAND_DAMAGE = THORN_LAND_DAMAGE * 2;
+/** How long Thornbinder ground thorns last, in rounds (before jitter). */
+export const DARK_THORN_DURATION_ROUNDS = 2;
 
 export const BRAMBLE_SLOW_EFFECT_TYPE = 'bramble_slow';
 export const DARK_THORN_EFFECT_TYPE = 'dark_thorn';
@@ -85,16 +91,27 @@ function isImmuneToThornEffect(unit: Unit, effectType: string): boolean {
     return true;
 }
 
+/** @returns true if damage was applied. */
 function applyThornDamage(
     unit: Unit,
     effectType: string,
     ownerUnitId: string | null,
     damage: number,
     eventBus: EventBus,
-): void {
-    if (!unit.isAlive()) return;
-    if (isImmuneToThornEffect(unit, effectType)) return;
+): boolean {
+    if (!unit.isAlive()) return false;
+    if (isImmuneToThornEffect(unit, effectType)) return false;
     unit.takeDamage(damage, ownerUnitId, eventBus);
+    return true;
+}
+
+function destroyDarkThornAfterDamage(
+    effect: { id: string; effectType: string },
+    dealtDamage: boolean,
+    terrainLayers: TerrainLayerManager,
+): void {
+    if (!dealtDamage || effect.effectType !== DARK_THORN_EFFECT_TYPE) return;
+    terrainLayers.remove(effect.id);
 }
 
 /** Called when a unit leaves a cell. No thorn effect today. */
@@ -118,6 +135,13 @@ export function onLeave(
     // No terrain leave effects yet.
 }
 
+function enterOrLandDamageFor(effectType: string, kind: 'enter' | 'land'): number {
+    if (effectType === DARK_THORN_EFFECT_TYPE) {
+        return kind === 'enter' ? DARK_THORN_ENTER_DAMAGE : DARK_THORN_LAND_DAMAGE;
+    }
+    return kind === 'enter' ? THORN_ENTER_DAMAGE : THORN_LAND_DAMAGE;
+}
+
 /** Called when a grounded unit enters a new cell (skipped while airborne). */
 export function onEnter(cell: TileCell, unit: Unit, engine: TileTransitionEngine): void {
     const effect = engine.terrainLayers.getGroundEffectAt(cell.col, cell.row);
@@ -126,13 +150,14 @@ export function onEnter(cell: TileCell, unit: Unit, engine: TileTransitionEngine
         effect.effectType === BRAMBLE_SLOW_EFFECT_TYPE ||
         effect.effectType === DARK_THORN_EFFECT_TYPE
     ) {
-        applyThornDamage(
+        const dealt = applyThornDamage(
             unit,
             effect.effectType,
             effect.ownerUnitId ?? null,
-            THORN_ENTER_DAMAGE,
+            enterOrLandDamageFor(effect.effectType, 'enter'),
             engine.eventBus,
         );
+        destroyDarkThornAfterDamage(effect, dealt, engine.terrainLayers);
     }
 }
 
@@ -144,13 +169,14 @@ export function onLand(cell: TileCell, unit: Unit, engine: TileTransitionEngine)
         effect.effectType === BRAMBLE_SLOW_EFFECT_TYPE ||
         effect.effectType === DARK_THORN_EFFECT_TYPE
     ) {
-        applyThornDamage(
+        const dealt = applyThornDamage(
             unit,
             effect.effectType,
             effect.ownerUnitId ?? null,
-            THORN_LAND_DAMAGE,
+            enterOrLandDamageFor(effect.effectType, 'land'),
             engine.eventBus,
         );
+        destroyDarkThornAfterDamage(effect, dealt, engine.terrainLayers);
     }
 }
 

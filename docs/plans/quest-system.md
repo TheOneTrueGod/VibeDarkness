@@ -258,8 +258,8 @@ type QuestResult = {
 - Backend character JSON merge paths if fields are stripped (check `CreateCharacterHandler` / update handlers — only if whitelist exists)
 - `app/js/games/minion_battles/character_defs/questRunPersistence.test.ts` (new)
 
-- [x] Add `questResults?: Record<string, QuestResult[]>` and `activeQuestRun?: QuestRunState | null` (or `questRuns` map) on character data.
-  - Added both fields on `CampaignCharacterData` / `CampaignCharacter`, LobbyClient payload + updates, and PHP `Character` / update whitelist.
+- [x] Add `questResults?: Record<string, QuestResult[]>` and singular `activeQuestRun?: QuestRunState | null` on character data (not a multi-run `questRuns` map).
+  - Added both fields on `CampaignCharacterData` / `CampaignCharacter`, LobbyClient payload + updates, and PHP `Character` / update whitelist. One prep/active run per character at a time.
 - [x] Round-trip through existing character save/load; default absent → empty.
   - Constructor defaults `questResults` → `{}`, `activeQuestRun` → `null`; `toJSON` includes both; PHP `fromArray`/`toArray` + PATCH merge preserve them.
 - [x] Test: serialize/deserialize run + victory result.
@@ -320,7 +320,7 @@ type QuestResult = {
 - [x] Defeat: offer retry (same mission id); abandon entry point calls domain abandon.
   - Defeat modal: Retry Mission (same slot stamp), Abandon Quest (`abandonQuestRun` + clear `activeQuestRun`), Leave.
 - [x] No full Campaign Home redesign in this step — enough to start/continue a quest from an admin or temporary entry if needed.
-  - Mission Map temp entry: Continue active quest + admin Start example quest (new run) → stamped lobby.
+  - Mission Map Quests panel: active quest row shows inline Continue + Abandon (confirm); Start on other rows; start while another run is active confirms replace. Admin / map bank Start also stamps lobby.
 
 ---
 
@@ -334,13 +334,13 @@ type QuestResult = {
 - [x] Render unlocked quest banks with progress `clears/required`.
   - `QuestBanksPanel` on Mission Map: unlocked banks show clears/required + open/filled slot markers.
 - [x] Quest picker for eligible defs; start/assign into bank.
-  - Per-bank “Choose quest” expands eligible defs; Start sets `assignedBankId` into prep → lobby.
+  - Per-bank “Choose quest” expands eligible defs; Start (or Continue+Abandon when that quest is the singular active run) → prep lobby / abandon clears `activeQuestRun`.
 - [x] Optional/side quests section for overflow / extras.
   - Optional section lists uncleared campaign quests (`getOptionalEligibleQuests`); start with `assignedBankId: null`.
 - [x] Show quest results similarly to mission victory markers (per `questDefId`).
   - Bank slot ✓ markers + “Quest results” victory badges (placement bank/optional); mission unlock now passes `questResults`.
-- [x] Wiring: start quest → prep (reuse character editor equip path in freeze mode if possible) → first mission lobby.
-  - CharacterEditor Quest Prep opens Equipment tab in edit mode; Confirm freezes loadout via `startQuestRun` + stamped lobby.
+- [x] Wiring: start quest → prep (character_select Quest Prep) → first mission lobby.
+  - Start creates a quest-prep lobby immediately; ability pick + freeze on Ready; later slots use `partyRoster` / frozen loadout.
 
 ---
 
@@ -400,6 +400,7 @@ Defaults baked into this plan; change before/during implement if needed:
 
 - [x] Abandon keeps bank **assignment**, discards run only
 - [ ] Whether campaign save also mirrors `questResults` (default: character-only unless unlock code already reads campaign `missionResults` exclusively — then mirror like missions)
-- [ ] Prep UI: full Character Editor vs slim “Quest Prep” sheet
+- [ ] Prep UI: full Character Editor vs slim “Quest Prep” sheet — **resolved:** prep is character_select Quest Prep (ability pick + freeze), not Character Editor Equipment.
 - [ ] Whether optional quests can later be “promoted” into a free bank slot after the fact (default: no; join-fill only at clear time)
 - [x] Vocabulary: Campaign Character / Quest Character; Campaign Rewards / Quest Rewards; optional quests
+- [x] One active quest run per Campaign Character (`activeQuestRun` singular — no concurrent runs)

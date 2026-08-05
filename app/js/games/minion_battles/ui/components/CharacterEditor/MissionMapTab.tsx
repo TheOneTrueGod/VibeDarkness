@@ -74,6 +74,8 @@ interface Props {
     onStartMission: (missionId: string) => void;
     /** Start / continue a quest (prep handled by CharacterEditor when mode is start). */
     onStartQuest?: (questDefId: string, options?: StartQuestOptions) => void;
+    /** Clear the character's single active quest run (after confirm). */
+    onAbandonQuest?: () => void | Promise<void>;
     onMarkVictory?: (missionId: string) => Promise<void>;
     /** Admin-only: change the character's campaign from the map toolbar. */
     onCampaignChange?: (campaignId: string) => void | Promise<void>;
@@ -132,7 +134,9 @@ function QuestBankTooltip({
     eligibleQuests,
     clears,
     isLocked,
+    activeQuestDefId,
     onStartQuest,
+    onAbandonQuest,
     onDismiss,
 }: {
     data: QuestBankTooltipData;
@@ -140,7 +144,10 @@ function QuestBankTooltip({
     eligibleQuests: QuestDef[];
     clears: number;
     isLocked: boolean;
+    /** Singular active run's questDefId, if any. */
+    activeQuestDefId?: string | null;
     onStartQuest?: (questDefId: string, options?: StartQuestOptions) => void;
+    onAbandonQuest?: () => void | Promise<void>;
     onDismiss: () => void;
 }) {
     const TOOLTIP_W = 300;
@@ -199,23 +206,72 @@ function QuestBankTooltip({
                         ) : eligibleQuests.length === 0 ? (
                             <p className="text-[12px] text-zinc-500 italic">No eligible quests left.</p>
                         ) : (
-                            eligibleQuests.map((q) => (
-                                <button
-                                    key={q.id}
-                                    type="button"
-                                    data-testid={`${TestIds.questStartPrefix}${q.id}`}
-                                    onClick={() => {
-                                        onStartQuest?.(q.id, {
-                                            mode: 'start',
-                                            assignedBankId: bank.id,
-                                        });
-                                        onDismiss();
-                                    }}
-                                    className="w-full text-left px-3 py-2 rounded-lg bg-primary text-secondary text-xs font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer"
-                                >
-                                    Start “{q.title}”
-                                </button>
-                            ))
+                            eligibleQuests.map((q) => {
+                                const isActive = activeQuestDefId === q.id;
+                                if (isActive) {
+                                    return (
+                                        <div key={q.id} className="flex flex-col gap-1.5">
+                                            <button
+                                                type="button"
+                                                data-testid={TestIds.questContinue}
+                                                onClick={() => {
+                                                    onStartQuest?.(q.id, { mode: 'continue' });
+                                                    onDismiss();
+                                                }}
+                                                className="w-full text-left px-3 py-2 rounded-lg bg-primary text-secondary text-xs font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+                                            >
+                                                Continue “{q.title}”
+                                            </button>
+                                            {onAbandonQuest && (
+                                                <button
+                                                    type="button"
+                                                    data-testid={TestIds.questAbandon}
+                                                    onClick={() => {
+                                                        if (
+                                                            !window.confirm(
+                                                                `Abandon “${q.title}”? This run’s progress will be discarded.`,
+                                                            )
+                                                        ) {
+                                                            return;
+                                                        }
+                                                        void onAbandonQuest();
+                                                        onDismiss();
+                                                    }}
+                                                    className="w-full text-left px-3 py-2 rounded-lg bg-red-800/90 text-red-100 text-xs font-bold border border-red-600 hover:bg-red-700 active:scale-95 transition-all cursor-pointer"
+                                                >
+                                                    Abandon
+                                                </button>
+                                            )}
+                                        </div>
+                                    );
+                                }
+                                return (
+                                    <button
+                                        key={q.id}
+                                        type="button"
+                                        data-testid={`${TestIds.questStartPrefix}${q.id}`}
+                                        onClick={() => {
+                                            if (
+                                                activeQuestDefId
+                                                && activeQuestDefId !== q.id
+                                                && !window.confirm(
+                                                    'You already have an active quest. Starting this quest abandons the current run. Continue?',
+                                                )
+                                            ) {
+                                                return;
+                                            }
+                                            onStartQuest?.(q.id, {
+                                                mode: 'start',
+                                                assignedBankId: bank.id,
+                                            });
+                                            onDismiss();
+                                        }}
+                                        className="w-full text-left px-3 py-2 rounded-lg bg-primary text-secondary text-xs font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+                                    >
+                                        Start “{q.title}”
+                                    </button>
+                                );
+                            })
                         )}
                         <button
                             type="button"
@@ -410,6 +466,7 @@ export default function MissionMapTab({
     isAdmin,
     onStartMission,
     onStartQuest,
+    onAbandonQuest,
     onMarkVictory,
     onCampaignChange,
 }: Props) {
@@ -697,6 +754,7 @@ export default function MissionMapTab({
                     <QuestBanksPanel
                         character={character}
                         onStartQuest={onStartQuest}
+                        onAbandonQuest={onAbandonQuest}
                         focusedBankId={focusedBankId}
                         hideSectionTitle={usePaneTabs}
                     />
@@ -1033,7 +1091,15 @@ export default function MissionMapTab({
                         eligibleQuests={eligible}
                         clears={countQuestBankClears(bank, questResults)}
                         isLocked={!unlocked && !isAdmin}
+                        activeQuestDefId={
+                            character.activeQuestRun
+                            && (character.activeQuestRun.status === 'active'
+                                || character.activeQuestRun.status === 'prep')
+                                ? character.activeQuestRun.questDefId
+                                : null
+                        }
                         onStartQuest={onStartQuest}
+                        onAbandonQuest={onAbandonQuest}
                         onDismiss={dismissBankTooltip}
                     />
                 );
