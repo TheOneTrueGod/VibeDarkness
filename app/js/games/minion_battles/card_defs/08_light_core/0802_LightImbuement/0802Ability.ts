@@ -106,7 +106,7 @@ export const LightImbuementAbility = defineAbility({
         ];
     },
 
-    /** Quest Prep: Imbued Bat comes free with Light Imbuement (does not occupy a slot). */
+    /** Prep: Imbued Bat comes free with Light Imbuement (does not occupy a slot; tagged `secondary`). */
     attachedAbilityIds: ['0803'],
 
     renderTargetingPreviewSelectedTargets(): void {

@@ -97,7 +97,7 @@ class CharacterManager
      * Update a character's fields (equipment, name, portraitId, researchTrees). Caller must ensure ownership.
      *
      * @param string $characterId
-     * @param array{equipment?: string[], name?: string, portraitId?: string, researchTrees?: array<string, string[]>, researchNodeLevels?: array<string, array<string, int>>, lastUsed?: int, missionResults?: array<string, list<array<string, mixed>>>, questResults?: array<string, list<array<string, mixed>>>, activeQuestRun?: array<string, mixed>|null, campaignId?: string} $updates
+     * @param array{equipment?: string[], name?: string, portraitId?: string, researchTrees?: array<string, string[]>, researchNodeLevels?: array<string, array<string, int>>, lastUsed?: int, missionResults?: array<string, list<array<string, mixed>>>, questResults?: array<string, list<array<string, mixed>>>, activeQuestRun?: array<string, mixed>|null, campaignId?: string, lastMissionAbilityIds?: string[]} $updates
      * @return Character|null Updated character or null if not found
      */
     public function updateCharacter(string $characterId, array $updates): ?Character
@@ -136,6 +136,17 @@ class CharacterManager
         }
         if (array_key_exists('campaignId', $updates)) {
             $data['campaignId'] = (string) $updates['campaignId'];
+        }
+        if (isset($updates['lastMissionAbilityIds']) && is_array($updates['lastMissionAbilityIds'])) {
+            $clean = [];
+            foreach ($updates['lastMissionAbilityIds'] as $id) {
+                $id = is_string($id) ? trim($id) : '';
+                if ($id === '') {
+                    continue;
+                }
+                $clean[] = $id;
+            }
+            $data['lastMissionAbilityIds'] = array_values(array_unique($clean));
         }
         $updated = Character::fromArray($data);
         $this->persist($updated);

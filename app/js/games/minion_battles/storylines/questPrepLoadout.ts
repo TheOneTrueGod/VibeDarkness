@@ -1,7 +1,9 @@
 /**
- * Quest Prep ability loadout helpers: accessible pool, 7 primary slots, free attachments.
+ * Prep ability loadout helpers (Quest Prep + regular mission Prepare Carefully):
+ * accessible pool, primary slots, secondary/attached companions.
  */
 
+import { abilityHasTag } from '../abilities/Ability';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { getItemDef } from '../character_defs/items';
 import {
@@ -11,12 +13,15 @@ import {
     mergeBattleEquipmentIdsFromResearch,
 } from '../../../researchTrees/evaluator';
 
-/** Max primary ability slots a player may fill during Quest Prep. */
-export const QUEST_PREP_ABILITY_SLOT_COUNT = 7;
+/** Max primary ability slots a player may fill during Quest Prep / mission ability selection. */
+export const PREP_ABILITY_SLOT_COUNT = 7;
+
+/** @deprecated Prefer PREP_ABILITY_SLOT_COUNT — same value. */
+export const QUEST_PREP_ABILITY_SLOT_COUNT = PREP_ABILITY_SLOT_COUNT;
 
 /**
  * Ability IDs the Campaign Character currently has access to via equipment + research
- * (same pipeline as battle deck construction before Quest Prep filtering).
+ * (same pipeline as battle deck construction before prep filtering).
  */
 export function buildAccessibleAbilityIds(
     equipment: readonly string[],
@@ -59,6 +64,11 @@ export function getAttachedAbilityIds(abilityId: string): readonly string[] {
     return ability?.attachedAbilityIds ?? [];
 }
 
+/** True when the ability is tagged `secondary` (granted by another ability; not a prep pick). */
+export function isSecondaryAbility(abilityId: string): boolean {
+    return abilityHasTag(abilityId, 'secondary');
+}
+
 /** True when `abilityId` is listed as an attachment of some other accessible primary. */
 export function isAttachedOnlyAbility(
     abilityId: string,
@@ -72,13 +82,13 @@ export function isAttachedOnlyAbility(
 }
 
 /**
- * Center-pane pool: accessible abilities minus those that only appear as attachments.
+ * Center-pane pool: accessible abilities minus secondaries and attachment-only companions.
  */
 export function filterSelectableQuestPrepAbilityIds(
     accessibleAbilityIds: readonly string[],
 ): string[] {
     return accessibleAbilityIds.filter(
-        (id) => !isAttachedOnlyAbility(id, accessibleAbilityIds),
+        (id) => !isSecondaryAbility(id) && !isAttachedOnlyAbility(id, accessibleAbilityIds),
     );
 }
 
@@ -100,7 +110,7 @@ export function addQuestPrepAbility(
     abilityId: string,
 ): string[] {
     if (selectedPrimaryIds.includes(abilityId)) return [...selectedPrimaryIds];
-    if (selectedPrimaryIds.length >= QUEST_PREP_ABILITY_SLOT_COUNT) {
+    if (selectedPrimaryIds.length >= PREP_ABILITY_SLOT_COUNT) {
         return [...selectedPrimaryIds];
     }
     return [...selectedPrimaryIds, abilityId];
@@ -115,5 +125,46 @@ export function removeQuestPrepAbility(
 }
 
 export function isQuestPrepSlotsFull(selectedPrimaryIds: readonly string[]): boolean {
-    return selectedPrimaryIds.length >= QUEST_PREP_ABILITY_SLOT_COUNT;
+    return selectedPrimaryIds.length >= PREP_ABILITY_SLOT_COUNT;
+}
+
+/** Mission Prepare Carefully: selection UI only when over the primary slot cap. */
+export function needsMissionAbilitySelection(selectableCount: number): boolean {
+    return selectableCount > PREP_ABILITY_SLOT_COUNT;
+}
+
+/** Mission Prepare Carefully: all primaries auto-brought; picker hidden; unselect disabled. */
+export function isMissionPrepReadOnly(selectableCount: number): boolean {
+    return selectableCount <= PREP_ABILITY_SLOT_COUNT;
+}
+
+/**
+ * Ready gate for mission ability loadout.
+ * At/under cap: all selectable primaries must be selected (auto).
+ * Over cap: exactly PREP_ABILITY_SLOT_COUNT primaries required.
+ */
+export function isMissionPrepAbilityReady(
+    selectedPrimaryIds: readonly string[],
+    selectableIds: readonly string[],
+): boolean {
+    if (selectableIds.length <= PREP_ABILITY_SLOT_COUNT) {
+        if (selectedPrimaryIds.length !== selectableIds.length) return false;
+        return selectableIds.every((id) => selectedPrimaryIds.includes(id));
+    }
+    return selectedPrimaryIds.length >= PREP_ABILITY_SLOT_COUNT;
+}
+
+/**
+ * Initial mission selection: under/at cap → all selectable;
+ * over cap → remembered ids that are still selectable (up to slot count).
+ */
+export function resolveInitialMissionSelection(
+    selectableIds: readonly string[],
+    rememberedIds: readonly string[],
+): string[] {
+    if (selectableIds.length <= PREP_ABILITY_SLOT_COUNT) {
+        return [...selectableIds];
+    }
+    const remembered = rememberedIds.filter((id) => selectableIds.includes(id));
+    return remembered.slice(0, PREP_ABILITY_SLOT_COUNT);
 }

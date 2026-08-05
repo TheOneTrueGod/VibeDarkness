@@ -5,7 +5,7 @@
  * Disallow reason shown diagonally on cards when they cannot be used.
  * Quest Prep (quest lobby, status prep / first slot) uses dedicated center + bottom segments.
  */
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import type { PlayerState } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import type { PreMissionStoryDef } from '../../storylines/storyTypes';
@@ -25,10 +25,8 @@ import { useCharacterSelectPhase } from './characterSelect/useCharacterSelectPha
 import { CharacterSelectHeader } from './characterSelect/CharacterSelectHeader';
 import { CharacterGrid } from './characterSelect/CharacterGrid';
 import { CharacterSelectFooter } from './characterSelect/CharacterSelectFooter';
-import { CharacterOverview } from './characterSelect/CharacterOverview';
 import CharacterSelectLayout from './characterSelect/CharacterSelectLayout';
 import { CharacterSelectCornerPortrait } from './characterSelect/CharacterSelectCornerPortrait';
-import { CharacterSelectBottomAbilityList } from './characterSelect/CharacterSelectBottomAbilityList';
 import { CharacterSelectAdminTabsCorner } from './characterSelect/CharacterSelectAdminTabsCorner';
 import ColumnSlotPlayerStatuses from '../../../../components/battleUILayout/ColumnSlotPlayerStatuses';
 import { QuestPrepOverview } from './characterSelect/questPrep/QuestPrepOverview';
@@ -37,11 +35,17 @@ import {
     QuestPrepLoadoutProvider,
     useQuestPrepLoadoutContext,
 } from './characterSelect/questPrep/QuestPrepLoadoutContext';
+import { MissionPrepOverview } from './characterSelect/missionPrep/MissionPrepOverview';
+import {
+    MissionPrepLoadoutProvider,
+    useMissionPrepLoadoutContext,
+} from './characterSelect/missionPrep/MissionPrepLoadoutContext';
 import type { CampaignCharacter } from '../../character_defs/CampaignCharacter';
 import {
     buildPartyRosterFromLobby,
     freezeQuestPrepForCharacter,
 } from '../../storylines/questPrepFinalize';
+import { PREP_ABILITY_SLOT_COUNT } from '../../storylines/questPrepLoadout';
 
 interface CharacterSelectPhaseProps {
     api: MinionBattlesApi;
@@ -67,6 +71,8 @@ interface CharacterSelectPhaseProps {
     questPrepLoadoutsByPlayer?: Record<string, string[]>;
     /** Frozen Quest Prep picks by character id. */
     questAbilityLoadoutsByCharacterId?: Record<string, string[]>;
+    /** In-progress Prepare Carefully primary ability picks by player id (regular missions). */
+    missionPrepLoadoutsByPlayer?: Record<string, string[]>;
     setLocalOverride?: (path: string, value: unknown) => void;
     removeLocalOverride?: (path: string) => void;
     onPhaseChange?: (phase: string, gameState: Record<string, unknown>) => void;
@@ -127,6 +133,44 @@ function QuestPrepBottomRow() {
     );
 }
 
+function MissionPrepCenter({
+    useLayoutSlots,
+    onChangeCharacter,
+}: {
+    useLayoutSlots: boolean;
+    onChangeCharacter: () => void;
+}) {
+    const loadout = useMissionPrepLoadoutContext();
+    return (
+        <MissionPrepOverview
+            character={loadout.character}
+            onChangeCharacter={onChangeCharacter}
+            useLayoutSlots={useLayoutSlots}
+            selectionRequired={loadout.selectionRequired}
+            selectableIds={loadout.selectableIds}
+            selectedPrimaryIds={loadout.selectedPrimaryIds}
+            slotsFull={loadout.slotsFull}
+            onAdd={loadout.addAbility}
+        />
+    );
+}
+
+function MissionPrepBottomRow() {
+    const loadout = useMissionPrepLoadoutContext();
+    const slotCount = loadout.readOnly
+        ? Math.max(loadout.selectableIds.length, loadout.selectedPrimaryIds.length)
+        : loadout.slotCount;
+    return (
+        <QuestPrepAbilitySlotBar
+            character={loadout.character}
+            selectedPrimaryIds={loadout.selectedPrimaryIds}
+            slotCount={slotCount > 0 ? slotCount : loadout.slotCount}
+            onRemove={loadout.removeAbility}
+            readOnly={loadout.readOnly}
+        />
+    );
+}
+
 export default function CharacterSelectPhase({
     api,
     playerId,
@@ -142,6 +186,7 @@ export default function CharacterSelectPhase({
     questLobbyFields = null,
     questPrepLoadoutsByPlayer = {},
     questAbilityLoadoutsByCharacterId = {},
+    missionPrepLoadoutsByPlayer = {},
     setLocalOverride,
     removeLocalOverride,
     onPhaseChange,
@@ -176,10 +221,20 @@ export default function CharacterSelectPhase({
         () => isQuestPrepMode(questLobbyFields, characterToEdit),
         [questLobbyFields, characterToEdit],
     );
+    const inMissionPrep = !inQuestPrep;
 
-    const localPrimariesRef = useRef<string[]>(questPrepLoadoutsByPlayer[playerId] ?? []);
+    const localPrimariesRef = useRef<string[]>(
+        inQuestPrep
+            ? (questPrepLoadoutsByPlayer[playerId] ?? [])
+            : (missionPrepLoadoutsByPlayer[playerId] ?? []),
+    );
     const onSelectedPrimaryIdsChange = useCallback((ids: string[]) => {
         localPrimariesRef.current = ids;
+    }, []);
+
+    const [missionAbilityReady, setMissionAbilityReady] = useState(true);
+    const onMissionAbilityReadyChange = useCallback((ready: boolean) => {
+        setMissionAbilityReady(ready);
     }, []);
 
     const phase = useCharacterSelectPhase({
@@ -228,7 +283,20 @@ export default function CharacterSelectPhase({
                     },
                 });
             }
-            : undefined,
+            : inMissionPrep && characterToEdit
+              ? async () => {
+                    const primaries = localPrimariesRef.current.slice(0, PREP_ABILITY_SLOT_COUNT);
+                    await api.updateGameState({
+                        missionPrepLoadoutsByPlayer: {
+                            ...missionPrepLoadoutsByPlayer,
+                            [playerId]: [...primaries],
+                        },
+                    });
+                    await api.updateCharacter(characterToEdit.id, {
+                        lastMissionAbilityIds: [...primaries],
+                    });
+                }
+              : undefined,
     });
 
     const readyPlayerIdsForStatuses = effectivelyReady && !characterSelectReadyPlayerIds.includes(playerId)
@@ -298,10 +366,9 @@ export default function CharacterSelectPhase({
                     onChangeCharacter={() => setView('grid')}
                 />
             ) : isLoadoutOverview && characterToEdit ? (
-                <CharacterOverview
-                    character={characterToEdit}
-                    onChangeCharacter={() => setView('grid')}
+                <MissionPrepCenter
                     useLayoutSlots={useUnifiedSlotShell}
+                    onChangeCharacter={() => setView('grid')}
                 />
             ) : (
                 <CharacterGrid
@@ -352,6 +419,7 @@ export default function CharacterSelectPhase({
                 atLeastOneCharacter={atLeastOneCharacter}
                 resolvedRequiredPlayers={resolvedRequiredPlayers}
                 characterToEdit={characterToEdit}
+                abilityLoadoutReady={!isLoadoutOverview || inQuestPrep || missionAbilityReady}
                 onSetReady={phase.handleSetReady}
                 onOpenEditor={() => setEditorOpen(true)}
                 onCloseEditor={() => { setEditorOpen(false); setEditorForceEditable(false); }}
@@ -385,7 +453,7 @@ export default function CharacterSelectPhase({
                     isLoadoutOverview && characterToEdit && inQuestPrep ? (
                         <QuestPrepBottomRow />
                     ) : isLoadoutOverview && characterToEdit ? (
-                        <CharacterSelectBottomAbilityList character={characterToEdit} />
+                        <MissionPrepBottomRow />
                     ) : undefined
                 }
                 bottomRightCorner={adminTabsCorner}
@@ -407,6 +475,20 @@ export default function CharacterSelectPhase({
                 </QuestPrepLoadoutProvider>
             );
         }
+        if (isLoadoutOverview && characterToEdit) {
+            return (
+                <MissionPrepLoadoutProvider
+                    api={api}
+                    playerId={playerId}
+                    character={characterToEdit}
+                    missionPrepLoadoutsByPlayer={missionPrepLoadoutsByPlayer}
+                    onSelectedPrimaryIdsChange={onSelectedPrimaryIdsChange}
+                    onAbilityReadyChange={onMissionAbilityReadyChange}
+                >
+                    {layout}
+                </MissionPrepLoadoutProvider>
+            );
+        }
         return layout;
     }
 
@@ -416,6 +498,11 @@ export default function CharacterSelectPhase({
             {isLoadoutOverview && characterToEdit && inQuestPrep && (
                 <div className="shrink-0 px-5 pb-4" style={{ minHeight: 120 }}>
                     <QuestPrepBottomRow />
+                </div>
+            )}
+            {isLoadoutOverview && characterToEdit && !inQuestPrep && (
+                <div className="shrink-0 px-5 pb-4" style={{ minHeight: 120 }}>
+                    <MissionPrepBottomRow />
                 </div>
             )}
             {adminTabsCorner && (
@@ -439,6 +526,20 @@ export default function CharacterSelectPhase({
             >
                 {classic}
             </QuestPrepLoadoutProvider>
+        );
+    }
+    if (isLoadoutOverview && characterToEdit) {
+        return (
+            <MissionPrepLoadoutProvider
+                api={api}
+                playerId={playerId}
+                character={characterToEdit}
+                missionPrepLoadoutsByPlayer={missionPrepLoadoutsByPlayer}
+                onSelectedPrimaryIdsChange={onSelectedPrimaryIdsChange}
+                onAbilityReadyChange={onMissionAbilityReadyChange}
+            >
+                {classic}
+            </MissionPrepLoadoutProvider>
         );
     }
     return classic;

@@ -16,6 +16,8 @@ interface QuestPrepAbilitySlotBarProps {
     selectedPrimaryIds: readonly string[];
     slotCount?: number;
     onRemove: (abilityId: string) => void;
+    /** When true, occupied slots cannot be cleared (mission under/at ability cap). */
+    readOnly?: boolean;
 }
 
 /** Bottom row: 7 Quest Prep primary slots; click occupied to remove (+ attached leave with it). */
@@ -24,6 +26,7 @@ export function QuestPrepAbilitySlotBar({
     selectedPrimaryIds,
     slotCount = QUEST_PREP_ABILITY_SLOT_COUNT,
     onRemove,
+    readOnly = false,
 }: QuestPrepAbilitySlotBarProps) {
     const [hoveredCard, setHoveredCard] = useState<{ ability: AbilityStatic; rect: DOMRect } | null>(null);
     const handleCardHover = useCallback((ability: AbilityStatic | null, rect: DOMRect | null) => {
@@ -63,7 +66,11 @@ export function QuestPrepAbilitySlotBar({
                                         <AbilitySlotPreview
                                             ability={slot.primary}
                                             onHover={handleCardHover}
-                                            onSelect={() => onRemove(slot.primary!.id)}
+                                            onSelect={
+                                                readOnly
+                                                    ? undefined
+                                                    : () => onRemove(slot.primary!.id)
+                                            }
                                         />
                                         {slot.attached.length > 0 && (
                                             <div className="flex gap-0.5 items-center">

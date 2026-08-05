@@ -34,6 +34,8 @@ class Character
     private array $questResults;
     /** Active QuestRunState blob (includes questCharacter), or null when none. */
     private ?array $activeQuestRun;
+    /** @var string[] Last Prepare Carefully primary ability picks for regular missions. */
+    private array $lastMissionAbilityIds;
 
     public function __construct(
         string $id,
@@ -51,7 +53,8 @@ class Character
         array $missionResults = [],
         array $researchNodeLevels = [],
         array $questResults = [],
-        ?array $activeQuestRun = null
+        ?array $activeQuestRun = null,
+        array $lastMissionAbilityIds = []
     ) {
         $this->id = $id;
         $this->ownerAccountId = $ownerAccountId;
@@ -69,6 +72,7 @@ class Character
         $this->missionResults = is_array($missionResults) ? $missionResults : [];
         $this->questResults = is_array($questResults) ? $questResults : [];
         $this->activeQuestRun = $activeQuestRun;
+        $this->lastMissionAbilityIds = self::normalizeStringIdList($lastMissionAbilityIds);
     }
 
     public function getId(): string
@@ -160,6 +164,12 @@ class Character
         return $this->activeQuestRun;
     }
 
+    /** @return string[] */
+    public function getLastMissionAbilityIds(): array
+    {
+        return $this->lastMissionAbilityIds;
+    }
+
     /** @param array<string, string[]> $researchTrees */
     public function setResearchTrees(array $researchTrees): void
     {
@@ -192,6 +202,7 @@ class Character
             'missionResults' => $this->missionResults,
             'questResults' => $this->questResults,
             'activeQuestRun' => $this->activeQuestRun,
+            'lastMissionAbilityIds' => $this->lastMissionAbilityIds,
         ];
     }
 
@@ -209,6 +220,7 @@ class Character
         if (array_key_exists('activeQuestRun', $data) && is_array($data['activeQuestRun'])) {
             $activeQuestRun = $data['activeQuestRun'];
         }
+        $lastMissionAbilityIds = $data['lastMissionAbilityIds'] ?? [];
         return new self(
             $data['id'] ?? '',
             (int) ($data['ownerAccountId'] ?? 0),
@@ -225,7 +237,8 @@ class Character
             is_array($missionResults) ? $missionResults : [],
             is_array($researchNodeLevels) ? $researchNodeLevels : [],
             is_array($questResults) ? $questResults : [],
-            $activeQuestRun
+            $activeQuestRun,
+            is_array($lastMissionAbilityIds) ? $lastMissionAbilityIds : []
         );
     }
 
@@ -289,5 +302,25 @@ class Character
             }
         }
         return $out;
+    }
+
+    /**
+     * @param mixed $ids
+     * @return string[]
+     */
+    private static function normalizeStringIdList(mixed $ids): array
+    {
+        if (!is_array($ids)) {
+            return [];
+        }
+        $clean = [];
+        foreach ($ids as $id) {
+            $id = is_string($id) ? trim($id) : '';
+            if ($id === '') {
+                continue;
+            }
+            $clean[] = $id;
+        }
+        return array_values(array_unique($clean));
     }
 }

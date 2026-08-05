@@ -18,6 +18,8 @@ interface CharacterSelectFooterProps {
     atLeastOneCharacter: boolean;
     resolvedRequiredPlayers: Array<{ playerName: string; connectedPlayer: unknown | null }>;
     characterToEdit: CampaignCharacter | null;
+    /** False when mission ability selection is incomplete (over-cap and fewer than 7 picks). */
+    abilityLoadoutReady?: boolean;
     onSetReady: () => void;
     onOpenEditor: () => void;
     onCloseEditor: () => void;
@@ -37,6 +39,7 @@ export function CharacterSelectFooter({
     atLeastOneCharacter,
     resolvedRequiredPlayers,
     characterToEdit,
+    abilityLoadoutReady = true,
     onSetReady,
     onOpenEditor,
     onCloseEditor,
@@ -44,13 +47,14 @@ export function CharacterSelectFooter({
     if (activeTab === 'players') return null;
 
     const showReady = view !== 'grid';
+    const readyBlocked = effectivelyReady || setReadyLoading || !abilityLoadoutReady;
     const readyBtn = showReady && mySelection && (
         <button
             type="button"
             data-testid={TestIds.characterSelectReady}
-            disabled={effectivelyReady || setReadyLoading}
+            disabled={readyBlocked}
             className={`px-8 py-3 text-lg font-bold rounded-lg transition-colors shadow-lg ${
-                effectivelyReady || setReadyLoading
+                readyBlocked
                     ? 'bg-gray-600 text-gray-400 cursor-default'
                     : 'bg-primary text-secondary hover:opacity-90 cursor-pointer'
             }`}
@@ -85,6 +89,11 @@ export function CharacterSelectFooter({
                         </button>
                     )}
                     {readyBtn}
+                    {showReady && mySelection && !abilityLoadoutReady && !effectivelyReady && (
+                        <p className="text-yellow-400/80 py-2 text-sm">
+                            Select 7 abilities to continue
+                        </p>
+                    )}
                     {!allRequiredPlayersPresent && (
                         <p className="text-yellow-400/80 py-2 text-sm">
                             Waiting for{' '}

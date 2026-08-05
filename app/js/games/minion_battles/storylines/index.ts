@@ -113,15 +113,21 @@ export type {
     FinalizeQuestPrepLoadoutParams,
 } from './questRun';
 export {
+    PREP_ABILITY_SLOT_COUNT,
     QUEST_PREP_ABILITY_SLOT_COUNT,
     buildAccessibleAbilityIds,
     getAttachedAbilityIds,
+    isSecondaryAbility,
     isAttachedOnlyAbility,
     filterSelectableQuestPrepAbilityIds,
     expandAttachedAbilityIds,
     addQuestPrepAbility,
     removeQuestPrepAbility,
     isQuestPrepSlotsFull,
+    needsMissionAbilitySelection,
+    isMissionPrepReadOnly,
+    isMissionPrepAbilityReady,
+    resolveInitialMissionSelection,
 } from './questPrepLoadout';
 export {
     buildPartyRosterFromLobby,

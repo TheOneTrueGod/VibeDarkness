@@ -194,7 +194,9 @@ export type AbilityTag =
     | 'Entombed'
     | 'RockThrow'
     | 'free'
-    | 'basicAttack';
+    | 'basicAttack'
+    /** Granted by another ability; not selectable for prep loadouts and does not occupy a slot. */
+    | 'secondary';
 
 /** Which order channel an ability occupies. Specials are zero-frame and ride beside a primary. */
 export type AbilityActionChannel = 'primary' | 'special';
@@ -614,8 +616,8 @@ export interface AbilityStatic {
     /** Swap network config. When present, this ability starts hidden and activates via the swap evaluator. */
     readonly swapConfig?: AbilitySwapConfig;
     /**
-     * Quest Prep: companion ability IDs granted free with this primary pick (do not occupy a slot).
-     * Example: Light Imbuement → Imbued Bat; Throw Charged Rock → Throw Rock.
+     * Companion ability IDs granted free with this primary pick (do not occupy a prep slot).
+     * Companions should usually carry the `secondary` tag. Example: Light Imbuement → Imbued Bat.
      */
     readonly attachedAbilityIds?: readonly string[];
 }

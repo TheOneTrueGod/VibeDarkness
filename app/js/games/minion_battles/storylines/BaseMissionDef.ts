@@ -133,6 +133,11 @@ export interface InitializeGameStateParams {
     questPrepLoadoutsByPlayer?: Record<string, string[]>;
     /** Frozen Quest Prep picks by character id (continue lobbies / player-id churn). */
     questAbilityLoadoutsByCharacterId?: Record<string, string[]>;
+    /**
+     * Prepare Carefully primary ability picks by player id (regular missions).
+     * Applied when no Quest Prep loadout is present for that player.
+     */
+    missionPrepLoadoutsByPlayer?: Record<string, string[]>;
     /** POIs collected from the fetched terrain segments; passed to the engine for spawn point lookups. */
     terrainSegmentPOIs?: MapSegmentPOI[];
     /** Zones collected from the fetched terrain segments (already shifted to mission-global coords). */
@@ -294,14 +299,16 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 }
             }
 
-            // Quest Prep freeze: use selected primaries (+ free attached companions).
+            // Quest Prep / mission Prepare Carefully: selected primaries (+ free attached companions).
             const charId = params.characterSelections?.[pu.playerId];
             const questPrimaries =
                 params.questPrepLoadoutsByPlayer?.[pu.playerId]
                 ?? (charId ? params.questAbilityLoadoutsByCharacterId?.[charId] : undefined);
-            if (questPrimaries) {
+            const missionPrimaries = params.missionPrepLoadoutsByPlayer?.[pu.playerId];
+            const prepPrimaries = questPrimaries ?? missionPrimaries;
+            if (prepPrimaries) {
                 abilities.length = 0;
-                abilities.push(...expandAttachedAbilityIds(questPrimaries));
+                abilities.push(...expandAttachedAbilityIds(prepPrimaries));
                 if (abilities.length === 0) {
                     abilities.push('0101', '0120');
                 }

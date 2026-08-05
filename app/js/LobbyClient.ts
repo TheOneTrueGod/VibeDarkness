@@ -415,6 +415,7 @@ export class LobbyClient {
             questResults?: Record<string, QuestResult[]>;
             activeQuestRun?: QuestRunState | null;
             campaignId?: string;
+            lastMissionAbilityIds?: string[];
         }
     ): Promise<CampaignCharacterPayload> {
         const data = await this.request(`/api/characters/${encodeURIComponent(characterId)}`, {

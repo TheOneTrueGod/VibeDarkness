@@ -66,6 +66,11 @@ export interface CampaignCharacterData {
      * Holds the Quest Character sheet for the current attempt.
      */
     activeQuestRun?: QuestRunState | null;
+    /**
+     * Last primary ability IDs selected on Prepare Carefully for a regular mission
+     * (up to PREP_ABILITY_SLOT_COUNT). Used to pre-select on the next mission lobby.
+     */
+    lastMissionAbilityIds?: string[];
 }
 
 /** One-word reason a character cannot be used on a mission. */

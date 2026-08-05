@@ -96,6 +96,8 @@ export class CampaignCharacter {
     readonly questResults: Record<string, QuestResult[]>;
     /** Active QuestRun (Quest Character lives on `questCharacter`); null when none. */
     readonly activeQuestRun: QuestRunState | null;
+    /** Last Prepare Carefully primary ability picks for regular missions. */
+    readonly lastMissionAbilityIds: string[];
 
     constructor(data: CampaignCharacterData) {
         this.id = data.id;
@@ -131,6 +133,9 @@ export class CampaignCharacter {
             data.activeQuestRun && typeof data.activeQuestRun === 'object'
                 ? normalizeActiveQuestRun(data.activeQuestRun)
                 : null;
+        this.lastMissionAbilityIds = Array.isArray(data.lastMissionAbilityIds)
+            ? data.lastMissionAbilityIds.filter((id): id is string => typeof id === 'string')
+            : [];
     }
 
     /**
@@ -202,6 +207,7 @@ export class CampaignCharacter {
             missionResults: this.missionResults,
             questResults: this.questResults,
             activeQuestRun: this.activeQuestRun,
+            lastMissionAbilityIds: this.lastMissionAbilityIds,
         };
     }
 }

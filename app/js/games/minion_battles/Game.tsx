@@ -196,6 +196,10 @@ export default function MinionBattlesGame({
     const [questAbilityLoadoutsByCharacterId, setQuestAbilityLoadoutsByCharacterId] = useState<Record<string, string[]>>(
         () => (raw.questAbilityLoadoutsByCharacterId as Record<string, string[]> | undefined) ?? {},
     );
+    /** Prepare Carefully primary ability picks by player id (regular missions). */
+    const [missionPrepLoadoutsByPlayer, setMissionPrepLoadoutsByPlayer] = useState<Record<string, string[]>>(
+        () => (raw.missionPrepLoadoutsByPlayer as Record<string, string[]> | undefined) ?? {},
+    );
     /** Game state returned when transitioning to battle; used as initialGameState (includes playerEquipmentByPlayer). */
     const [phaseChangeGameState, setPhaseChangeGameState] = useState<Record<string, unknown> | null>(null);
     /** Last game state from server (phase transition or poll); used so pre-mission story has current equipment. */
@@ -472,6 +476,9 @@ export default function MinionBattlesGame({
                 gd.questAbilityLoadoutsByCharacterId as Record<string, string[]>,
             );
         }
+        if (gd.missionPrepLoadoutsByPlayer && typeof gd.missionPrepLoadoutsByPlayer === 'object') {
+            setMissionPrepLoadoutsByPlayer(gd.missionPrepLoadoutsByPlayer as Record<string, string[]>);
+        }
 
         reconcileLocalOverrides({
             characterSelections: newCharSel ?? {},
@@ -566,6 +573,7 @@ export default function MinionBattlesGame({
                     questLobbyFields={questLobbyFields}
                     questPrepLoadoutsByPlayer={questPrepLoadoutsByPlayer}
                     questAbilityLoadoutsByCharacterId={questAbilityLoadoutsByCharacterId}
+                    missionPrepLoadoutsByPlayer={missionPrepLoadoutsByPlayer}
                     setLocalOverride={setLocalOverride}
                     removeLocalOverride={removeLocalOverride}
                     onPhaseChange={handlePhaseChange}

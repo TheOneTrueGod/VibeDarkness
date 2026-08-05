@@ -32,6 +32,8 @@ export interface CharacterUpdates {
     activeQuestRun?: QuestRunState | null;
     /** Active campaign for this character. */
     campaignId?: string;
+    /** Last Prepare Carefully primary ability picks for regular missions. */
+    lastMissionAbilityIds?: string[];
 }
 
 export interface SendMessageResult {
@@ -104,6 +106,10 @@ export interface MinionBattlesGameStatePayload {
      * when player ids change).
      */
     questAbilityLoadoutsByCharacterId?: Record<string, string[]>;
+    /**
+     * In-progress Prepare Carefully primary ability picks by player id (regular missions).
+     */
+    missionPrepLoadoutsByPlayer?: Record<string, string[]>;
 }
 
 /** Full game blob from polling (may include arbitrary extra keys from the server). */

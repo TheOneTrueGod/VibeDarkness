@@ -13,6 +13,7 @@ export type AbilityTagSettingsByTag = {
     RockThrow: PriorityTagSettings;
     free: PriorityTagSettings;
     basicAttack: PriorityTagSettings;
+    secondary: PriorityTagSettings;
 };
 
 /** Empty settings object type for tags with no catalog options yet. */
@@ -54,6 +55,10 @@ export const ABILITY_TAG_CATALOG: AbilityTagCatalog = {
         hint: 'Basic Attack',
         displayName: 'Basic Attack',
         autoAddToDescription: true,
+    },
+    secondary: {
+        hint: 'Granted by another ability',
+        displayName: 'Secondary',
     },
 };
 
