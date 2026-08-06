@@ -4,7 +4,10 @@ import {
     planQuestDefeatRetry,
     planQuestVictoryContinue,
     questLobbyFieldsFromRun,
+    questLobbyNamePrefix,
     questRunMatchesLobby,
+    questSlotMissionIds,
+    questSlotPillStatus,
     readQuestLobbyFields,
     requiredPlayersFromPartyRoster,
 } from './questLobby';
@@ -127,5 +130,28 @@ describe('planQuestVictoryContinue / planQuestDefeatRetry', () => {
         expect(retry.missionId).toBe('towards_the_light');
         expect(retry.lobbyFields.questSlotIndex).toBe(1);
         expect(retry.lobbyFields.questRunId).toBe(continued.run.runId);
+    });
+});
+
+describe('questSlotMissionIds / questSlotPillStatus / questLobbyNamePrefix', () => {
+    it('uses fixed slot mission ids when no active run', () => {
+        expect(questSlotMissionIds(FIND_THE_HERD_OF_BOARS, null)).toEqual([
+            'dark_awakening',
+            'towards_the_light',
+            'light_empowered',
+        ]);
+    });
+
+    it('colors pills by currentSlotIndex (completed / active / upcoming)', () => {
+        expect(questSlotPillStatus(0, null)).toBe('upcoming');
+        expect(questSlotPillStatus(0, 1)).toBe('completed');
+        expect(questSlotPillStatus(1, 1)).toBe('active');
+        expect(questSlotPillStatus(2, 1)).toBe('upcoming');
+    });
+
+    it('builds the quest lobby name prefix used for teardown matching', () => {
+        expect(questLobbyNamePrefix(FIND_THE_HERD_OF_BOARS.title)).toBe(
+            'Quest: Find the herd of boars',
+        );
     });
 });

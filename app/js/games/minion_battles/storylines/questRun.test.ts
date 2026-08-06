@@ -7,6 +7,7 @@ import {
     finalizeQuestPrepLoadout,
     getCurrentResolvedMission,
     queueCampaignReward,
+    seekQuestRunToSlot,
     startQuestRun,
     stayQuestRunOnMissionDefeat,
 } from './questRun';
@@ -41,6 +42,42 @@ function startActiveRun(params: Parameters<typeof startQuestRun>[0]): QuestRunSt
         partyRoster: [{ playerName: 'Tester', characterId: params.character.id }],
     });
 }
+
+describe('seekQuestRunToSlot', () => {
+    it('jumps currentSlotIndex and leaves prep when seeking past slot 0', () => {
+        const prep = startQuestRun({
+            questDef: FIND_THE_HERD_OF_BOARS,
+            character: CAMPAIGN_CHARACTER,
+            runSeed: RUN_SEED_A,
+        });
+        const sought = seekQuestRunToSlot(prep, 2);
+        expect(sought.currentSlotIndex).toBe(2);
+        expect(sought.status).toBe('active');
+        expect(sought.resolvedSlots).toEqual(prep.resolvedSlots);
+    });
+
+    it('stays in prep when seeking to slot 0 from prep', () => {
+        const prep = startQuestRun({
+            questDef: FIND_THE_HERD_OF_BOARS,
+            character: CAMPAIGN_CHARACTER,
+            runSeed: RUN_SEED_A,
+        });
+        const sought = seekQuestRunToSlot(prep, 0);
+        expect(sought.currentSlotIndex).toBe(0);
+        expect(sought.status).toBe('prep');
+    });
+
+    it('rejects out-of-range and abandoned runs', () => {
+        const run = startActiveRun({
+            questDef: FIND_THE_HERD_OF_BOARS,
+            character: CAMPAIGN_CHARACTER,
+            runSeed: RUN_SEED_A,
+        });
+        expect(() => seekQuestRunToSlot(run, -1)).toThrow(/out of range/);
+        expect(() => seekQuestRunToSlot(run, run.resolvedSlots.length)).toThrow(/out of range/);
+        expect(() => seekQuestRunToSlot(abandonQuestRun(run), 0)).toThrow(/abandoned/);
+    });
+});
 
 describe('startQuestRun', () => {
     it('clones Campaign Character into Quest Character in prep and resolves fixed slots', () => {

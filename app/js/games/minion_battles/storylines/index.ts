@@ -94,6 +94,7 @@ export {
 export {
     startQuestRun,
     abandonQuestRun,
+    seekQuestRunToSlot,
     advanceQuestRunOnMissionVictory,
     stayQuestRunOnMissionDefeat,
     queueCampaignReward,
@@ -147,8 +148,16 @@ export {
     planQuestVictoryContinue,
     planQuestDefeatRetry,
     requiredPlayersFromPartyRoster,
+    questLobbyNamePrefix,
+    questSlotMissionIds,
+    questSlotPillStatus,
 } from './questLobby';
-export type { QuestLobbyFields, QuestVictoryContinuePlan, StartQuestOptions } from './questLobby';
+export type {
+    QuestLobbyFields,
+    QuestVictoryContinuePlan,
+    StartQuestOptions,
+    QuestSlotPillStatus,
+} from './questLobby';
 export {
     QUEST_CLEAR_MISSION_RESULT_PREFIX,
     questClearMissionResultId,

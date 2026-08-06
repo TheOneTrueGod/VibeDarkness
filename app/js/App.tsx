@@ -16,7 +16,9 @@ import {
     MISSION_MAP,
     getQuestDef,
     questLobbyFieldsFromRun,
+    questLobbyNamePrefix,
     requiredPlayersFromPartyRoster,
+    seekQuestRunToSlot,
     startQuestRun,
 } from './games/minion_battles/storylines';
 import type { QuestLobbyFields } from './games/minion_battles/storylines/questLobby';
@@ -773,11 +775,13 @@ function AppInner() {
             options: {
                 mode?: 'continue' | 'start';
                 assignedBankId?: string | null;
+                adminSeekSlotIndex?: number;
             } = {},
         ) => {
             if (!user?.id) return;
             const mode = options.mode ?? 'start';
             const assignedBankId = options.assignedBankId ?? null;
+            const adminSeekSlotIndex = options.adminSeekSlotIndex;
             const questDef = getQuestDef(questDefId);
             if (!questDef) {
                 showToast(`Unknown quest: ${questDefId}`, 'error');
@@ -788,18 +792,92 @@ function AppInner() {
                 let run = character.activeQuestRun;
                 const canContinue =
                     mode === 'continue'
+                    && adminSeekSlotIndex === undefined
                     && run
                     && (run.status === 'active' || run.status === 'prep')
                     && run.questDefId === questDefId;
                 if (!canContinue) {
-                    run = startQuestRun({
-                        questDef,
-                        character: { id: character.id, equipment: character.equipment },
-                        runSeed: (Date.now() >>> 0) || 1,
-                        assignedBankId,
-                    });
+                    const reuseSameQuest =
+                        adminSeekSlotIndex !== undefined
+                        && run
+                        && (run.status === 'active' || run.status === 'prep')
+                        && run.questDefId === questDefId;
+                    if (!reuseSameQuest) {
+                        run = startQuestRun({
+                            questDef,
+                            character: { id: character.id, equipment: character.equipment },
+                            runSeed: (Date.now() >>> 0) || 1,
+                            assignedBankId:
+                                assignedBankId
+                                ?? (run?.questDefId === questDefId ? run.assignedBankId ?? null : null),
+                        });
+                    }
+                }
+                if (adminSeekSlotIndex !== undefined) {
+                    run = seekQuestRunToSlot(run!, adminSeekSlotIndex);
+                }
+                if (!canContinue || adminSeekSlotIndex !== undefined) {
                     await lobbyClient.updateCharacter(character.id, { activeQuestRun: run });
                 }
+
+                // Admin seek: tear down any live lobbies for this quest title, keep party users.
+                let preservedRequiredPlayers: Array<{ playerName: string; characterId: string }> | null =
+                    null;
+                if (adminSeekSlotIndex !== undefined) {
+                    const fromRoster = requiredPlayersFromPartyRoster(run!.partyRoster);
+                    if (fromRoster.length > 0) {
+                        preservedRequiredPlayers = fromRoster;
+                    } else {
+                        const gameRequired = lobbyGameDataRef.current?.requiredPlayers;
+                        if (Array.isArray(gameRequired) && gameRequired.length > 0) {
+                            preservedRequiredPlayers = gameRequired.filter(
+                                (e): e is { playerName: string; characterId: string } =>
+                                    !!e
+                                    && typeof e === 'object'
+                                    && typeof (e as { playerName?: unknown }).playerName === 'string'
+                                    && typeof (e as { characterId?: unknown }).characterId === 'string',
+                            );
+                        }
+                    }
+
+                    const namePrefix = questLobbyNamePrefix(questDef.title);
+                    const active = await lobbyClient.getActiveLobbies();
+                    const matchingIds = active
+                        .filter((entry) => typeof entry.name === 'string' && entry.name.startsWith(namePrefix))
+                        .map((entry) => entry.lobby_id);
+                    const currentId = currentLobby?.id ?? null;
+                    if (
+                        currentId
+                        && lobbyGameDataRef.current?.questDefId === questDefId
+                        && !matchingIds.includes(currentId)
+                    ) {
+                        matchingIds.push(currentId);
+                    }
+                    for (const lobbyId of matchingIds) {
+                        try {
+                            await lobbyClient.deleteAdminLobby(lobbyId);
+                        } catch (err) {
+                            console.warn('Failed to delete quest lobby', lobbyId, err);
+                        }
+                    }
+                    if (currentId && matchingIds.includes(currentId)) {
+                        setCurrentLobby(null);
+                        setCurrentPlayer(null);
+                        setCurrentAccount(null);
+                        setPlayers({});
+                        setChatMessages([]);
+                        setClicks({});
+                        setChatEnabled(false);
+                        setConnectionStatus('disconnected');
+                        setLobbyPageState('home');
+                        setLobbyGameId(null);
+                        setLobbyGameType(null);
+                        setLobbyGameData(null);
+                        setLastPollMessageId(null);
+                        setPollMessagesReady(false);
+                    }
+                }
+
                 const lobbyStamp = questLobbyFieldsFromRun(run!);
                 const missionId = lobbyStamp.selectedMissionId;
                 const missionDef = MISSION_MAP[missionId];
@@ -819,9 +897,12 @@ function AppInner() {
                 if (gameId) {
                     const fromRoster = requiredPlayersFromPartyRoster(run!.partyRoster);
                     const requiredPlayers =
-                        fromRoster.length > 0
+                        (preservedRequiredPlayers && preservedRequiredPlayers.length > 0
+                            ? preservedRequiredPlayers
+                            : null)
+                        ?? (fromRoster.length > 0
                             ? fromRoster
-                            : [{ playerName: ownerAccount.name, characterId: character.id }];
+                            : [{ playerName: ownerAccount.name, characterId: character.id }]);
                     await lobbyClient.updateGameState(lobby.id, gameId, player.id, {
                         gamePhase: 'character_select',
                         selectedMissionId: missionId,
@@ -856,7 +937,7 @@ function AppInner() {
                 );
             }
         },
-        [lobbyClient, user, showToast, startInLobby, loadGameState, navigate],
+        [lobbyClient, user, showToast, startInLobby, loadGameState, navigate, currentLobby],
     );
 
     const handleJoinLobby = useCallback(

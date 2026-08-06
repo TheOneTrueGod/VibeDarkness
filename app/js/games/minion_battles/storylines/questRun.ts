@@ -169,6 +169,35 @@ export function abandonQuestRun(run: QuestRunState): QuestRunState {
 }
 
 /**
+ * Admin debug: jump the run to a resolved slot index.
+ * Slots before `slotIndex` are treated as done; slots after remain unstarted.
+ * Seeking past slot 0 leaves Quest Prep (`status: 'active'`).
+ */
+export function seekQuestRunToSlot(run: QuestRunState, slotIndex: number): QuestRunState {
+    if (run.status !== 'prep' && run.status !== 'active') {
+        throw new Error(
+            `Cannot seek quest slot: quest run status is "${run.status}" (expected "prep" or "active")`,
+        );
+    }
+    if (
+        !Number.isInteger(slotIndex)
+        || slotIndex < 0
+        || slotIndex >= run.resolvedSlots.length
+    ) {
+        throw new Error(
+            `Cannot seek quest slot: index ${slotIndex} out of range for run ${run.runId} `
+            + `(${run.resolvedSlots.length} slots)`,
+        );
+    }
+    const stayInPrep = slotIndex === 0 && run.status === 'prep';
+    return {
+        ...run,
+        status: stayInPrep ? 'prep' : 'active',
+        currentSlotIndex: slotIndex,
+    };
+}
+
+/**
  * Mission victory: advance to the next resolved slot, or signal finale (same index) for completeQuestRun.
  */
 export function advanceQuestRunOnMissionVictory(run: QuestRunState): AdvanceQuestVictoryResult {

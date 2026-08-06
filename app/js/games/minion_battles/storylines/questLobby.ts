@@ -29,7 +29,51 @@ export type StartQuestOptions = {
     mode?: 'continue' | 'start';
     /** Bank id when started from a map bank; null/omit for optional/side. */
     assignedBankId?: string | null;
+    /**
+     * Admin debug: after ensuring a run for this quest, jump to this resolved slot
+     * (tear down matching quest lobbies, then open a lobby for that mission).
+     */
+    adminSeekSlotIndex?: number;
 };
+
+/** Lobby title prefix used when creating quest lobbies (`Quest: {title} — {mission}`). */
+export function questLobbyNamePrefix(questTitle: string): string {
+    return `Quest: ${questTitle}`;
+}
+
+/** Mission id labels for quest slot pills (resolved run when present, else slot specs). */
+export function questSlotMissionIds(
+    quest: QuestDef,
+    run: QuestRunState | null | undefined,
+): string[] {
+    if (
+        run
+        && run.questDefId === quest.id
+        && (run.status === 'prep' || run.status === 'active')
+        && run.resolvedSlots.length > 0
+    ) {
+        return run.resolvedSlots.map((ref) => ref.missionId);
+    }
+    return quest.slots.map((slot) => {
+        if (slot.kind === 'fixed') return slot.missionId;
+        if (slot.kind === 'random_story') return 'random_story';
+        if (slot.kind === 'random_battle') return 'random_battle';
+        return 'unknown';
+    });
+}
+
+export type QuestSlotPillStatus = 'completed' | 'active' | 'upcoming';
+
+/** Pill color status for admin quest mission skip UI. */
+export function questSlotPillStatus(
+    slotIndex: number,
+    currentSlotIndex: number | null,
+): QuestSlotPillStatus {
+    if (currentSlotIndex === null) return 'upcoming';
+    if (slotIndex < currentSlotIndex) return 'completed';
+    if (slotIndex === currentSlotIndex) return 'active';
+    return 'upcoming';
+}
 
 /** Map frozen party roster → lobby requiredPlayers (identity). */
 export function requiredPlayersFromPartyRoster(

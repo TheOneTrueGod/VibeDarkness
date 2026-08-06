@@ -311,6 +311,68 @@ class LobbyManager
     }
 
     /**
+     * Admin-only: force-unload a live lobby (empty players, drop from memory + active list).
+     * Keeps on-disk lobby archive artifacts for Lobby Archive.
+     */
+    public function adminDeleteActiveLobby(string $lobbyId): bool
+    {
+        $lobby = $this->getLobby($lobbyId);
+        $found = $lobby !== null;
+        if ($lobby !== null) {
+            foreach ($lobby->getPlayers() as $player) {
+                $lobby->removePlayer($player->getId());
+            }
+            $this->persistLobby($lobby);
+            unset($this->lobbies[$lobbyId]);
+        }
+        $this->removeLobbyFromActiveLobbiesFile($lobbyId);
+        return $found;
+    }
+
+    /**
+     * Remove one lobby id from the shared active-lobbies file (if present).
+     */
+    private function removeLobbyFromActiveLobbiesFile(string $lobbyId): void
+    {
+        $path = $this->getActiveLobbiesFilePath();
+        $fp = fopen($path, 'c+');
+        if ($fp === false) {
+            return;
+        }
+        if (!flock($fp, LOCK_EX)) {
+            fclose($fp);
+            return;
+        }
+        $json = stream_get_contents($fp);
+        $list = [];
+        if ($json !== false && $json !== '') {
+            $data = json_decode($json, true);
+            if (is_array($data)) {
+                foreach ($data as $entry) {
+                    if (
+                        is_array($entry)
+                        && isset($entry['lobby_id'], $entry['last_update'], $entry['player_ids'])
+                        && (string) $entry['lobby_id'] !== $lobbyId
+                    ) {
+                        $list[] = [
+                            'lobby_id' => (string) $entry['lobby_id'],
+                            'last_update' => (int) $entry['last_update'],
+                            'player_ids' => array_values(array_map('strval', (array) $entry['player_ids'])),
+                        ];
+                    }
+                }
+            }
+        }
+        $out = json_encode($list, JSON_PRETTY_PRINT);
+        ftruncate($fp, 0);
+        rewind($fp);
+        fwrite($fp, $out !== false ? $out : '[]');
+        fflush($fp);
+        flock($fp, LOCK_UN);
+        fclose($fp);
+    }
+
+    /**
      * Get recent messages for a lobby (for polling clients).
      * If $afterMessageId is null, returns the most recent $limit messages.
      * Otherwise returns up to $limit messages after that id.

@@ -757,6 +757,7 @@ export default function MissionMapTab({
                         onAbandonQuest={onAbandonQuest}
                         focusedBankId={focusedBankId}
                         hideSectionTitle={usePaneTabs}
+                        isAdmin={isAdmin}
                     />
                 </div>
             )}

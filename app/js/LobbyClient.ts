@@ -821,6 +821,14 @@ export class LobbyClient {
         return (data as unknown as { lobbies: AdminLobbyEntry[] }).lobbies ?? [];
     }
 
+    /** Admin-only: force-unload a live lobby (keeps on-disk archive). */
+    async deleteAdminLobby(lobbyId: string): Promise<{ deleted: boolean }> {
+        const data = await this.request(`/api/admin/lobbies/${encodeURIComponent(lobbyId)}`, {
+            method: 'DELETE',
+        });
+        return { deleted: Boolean((data as { deleted?: boolean }).deleted) };
+    }
+
     async getAdminLobbyLog(lobbyId: string): Promise<object[]> {
         const data = await this.request(`/api/admin/lobbies/${encodeURIComponent(lobbyId)}/log`);
         return (data as unknown as { lines: object[] }).lines ?? [];

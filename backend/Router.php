@@ -51,6 +51,7 @@ use App\Http\Handlers\ListAdminAccountsHandler;
 use App\Http\Handlers\SetEmergencyRecoveryHandler;
 use App\Http\Handlers\Admin\ListAdminLobbiesHandler;
 use App\Http\Handlers\Admin\GetAdminLobbyLogHandler;
+use App\Http\Handlers\Admin\DeleteAdminLobbyHandler;
 use App\Http\Handlers\Admin\DeleteAdminLobbyLogHandler;
 use App\Http\Handlers\Admin\GetAdminLobbyUserStateIndexHandler;
 use App\Http\Handlers\Admin\GetCiStatusHandler;
@@ -83,6 +84,7 @@ class Router
             ['POST', '#^/api/account/characters$#', CreateCharacterHandler::class],
             ['GET', '#^/api/admin/ci-status$#', GetCiStatusHandler::class],
             ['GET',    '#^/api/admin/lobbies$#',                                      ListAdminLobbiesHandler::class],
+            ['DELETE', '#^/api/admin/lobbies/([A-Z0-9]+)$#',                          DeleteAdminLobbyHandler::class],
             ['GET',    '#^/api/admin/lobbies/([A-Z0-9]+)/log$#',                      GetAdminLobbyLogHandler::class],
             ['DELETE', '#^/api/admin/lobbies/([A-Z0-9]+)/log$#',                      DeleteAdminLobbyLogHandler::class],
             ['GET',    '#^/api/admin/lobbies/([A-Z0-9]+)/user-state-index$#',         GetAdminLobbyUserStateIndexHandler::class],

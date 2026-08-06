@@ -66,6 +66,7 @@ interface CampaignHomeScreenProps {
         options?: {
             mode?: 'continue' | 'start';
             assignedBankId?: string | null;
+            adminSeekSlotIndex?: number;
         },
     ) => void;
 }

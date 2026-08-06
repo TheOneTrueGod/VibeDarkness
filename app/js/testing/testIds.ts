@@ -42,6 +42,10 @@ export const TestIds = {
     questBankTooltip: 'quest-bank-tooltip',
     questStartPrefix: 'quest-start-',
     questStartOptionalPrefix: 'quest-start-optional-',
+    /** Admin quest-row mission skip pill — suffix with `{questDefId}-{slotIndex}`. */
+    questAdminMissionPillPrefix: 'quest-admin-mission-pill-',
+    questAdminSeekConfirm: 'quest-admin-seek-confirm',
+    questAdminSeekCancel: 'quest-admin-seek-cancel',
     /** Optional Character-select header subtitle test id override target. */
     questPrepSubtitle: 'quest-prep-subtitle',
     /** Character-select Quest Prep ability picker root. */
