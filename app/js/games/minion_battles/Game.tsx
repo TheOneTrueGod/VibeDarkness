@@ -577,6 +577,7 @@ export default function MinionBattlesGame({
                     setLocalOverride={setLocalOverride}
                     removeLocalOverride={removeLocalOverride}
                     onPhaseChange={handlePhaseChange}
+                    lobbyId={lobbyId}
                     headerSlot={headerSlot}
                     chatSlot={chatSlot}
                     centerOverlay={centerOverlay}

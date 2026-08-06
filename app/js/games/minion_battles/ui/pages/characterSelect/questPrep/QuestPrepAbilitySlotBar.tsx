@@ -52,7 +52,7 @@ export function QuestPrepAbilitySlotBar({
         <>
             <div
                 data-testid={TestIds.questPrepAbilitySlotBar}
-                className="flex h-full w-full min-h-0 items-center justify-center"
+                className="flex w-full min-h-0 items-center justify-center"
             >
                 <div className="overflow-x-auto max-w-full">
                     <div className="flex gap-2 w-max mx-auto items-end">

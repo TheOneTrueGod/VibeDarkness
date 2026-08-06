@@ -22,13 +22,15 @@ import { useUserData } from '../../../../user/UserDataProvider';
 import { useCharacterSelectState } from './characterSelect/useCharacterSelectState';
 import { useCharacterSelectCharacters } from './characterSelect/useCharacterSelectCharacters';
 import { useCharacterSelectPhase } from './characterSelect/useCharacterSelectPhase';
-import { CharacterSelectHeader } from './characterSelect/CharacterSelectHeader';
+import { CharacterSelectHeader, getCharacterSelectPhaseTitle } from './characterSelect/CharacterSelectHeader';
 import { CharacterGrid } from './characterSelect/CharacterGrid';
 import { CharacterSelectFooter } from './characterSelect/CharacterSelectFooter';
 import CharacterSelectLayout from './characterSelect/CharacterSelectLayout';
 import { CharacterSelectCornerPortrait } from './characterSelect/CharacterSelectCornerPortrait';
 import { CharacterSelectAdminTabsCorner } from './characterSelect/CharacterSelectAdminTabsCorner';
 import ColumnSlotPlayerStatuses from '../../../../components/battleUILayout/ColumnSlotPlayerStatuses';
+import HeaderSlotLobbyInfo from '../../../../components/battleUILayout/HeaderSlotLobbyInfo';
+import { useDebugConsole } from '../../../../contexts/DebugConsoleContext';
 import { QuestPrepOverview } from './characterSelect/questPrep/QuestPrepOverview';
 import { QuestPrepAbilitySlotBar } from './characterSelect/questPrep/QuestPrepAbilitySlotBar';
 import {
@@ -76,6 +78,8 @@ interface CharacterSelectPhaseProps {
     setLocalOverride?: (path: string, value: unknown) => void;
     removeLocalOverride?: (path: string) => void;
     onPhaseChange?: (phase: string, gameState: Record<string, unknown>) => void;
+    /** Lobby id for the unified-shell header badge. */
+    lobbyId?: string;
     /** Header slot content, forwarded from GameScreen via Game.tsx. */
     headerSlot?: React.ReactNode;
     /** Right column slot content (chat), forwarded from GameScreen via Game.tsx. */
@@ -190,12 +194,14 @@ export default function CharacterSelectPhase({
     setLocalOverride,
     removeLocalOverride,
     onPhaseChange,
+    lobbyId = '',
     headerSlot,
     chatSlot,
     centerOverlay,
 }: CharacterSelectPhaseProps) {
     const { isAdmin, role } = useCurrentUser();
     const { user } = useUserData();
+    const { debugConsoleEnabled } = useDebugConsole();
     const campaignId = campaignIdProp || (missionDef?.campaignId ?? missionId);
 
     const state = useCharacterSelectState({
@@ -306,15 +312,28 @@ export default function CharacterSelectPhase({
     /** Desktop GameScreen unified branch passes slots; mobile/classic keep bottom PlayerList instead. */
     const useUnifiedSlotShell = headerSlot != null || chatSlot != null;
 
-    const isLoadoutOverview =
+    const hasSelectedCharacterLoadout =
         view === 'overview'
         && !!characterToEdit
         && !!mySelection
         && mySelection !== SPECTATOR_ID
         && !isControlEnemy(mySelection)
-        && !(editorOpen && characterToEdit)
         && !(activeTab === 'players' && isAdmin)
         && !(activeTab === 'replay' && isAdmin);
+
+    const isLoadoutOverview = hasSelectedCharacterLoadout && !(editorOpen && characterToEdit);
+    /** Footer + ability strip in the bottom band (Prepare Carefully and Edit Character). */
+    const footerInBottomBand = useUnifiedSlotShell && hasSelectedCharacterLoadout;
+
+    const phaseTitle = getCharacterSelectPhaseTitle({
+        activeTab,
+        isAdmin,
+        editorOpen,
+        characterToEdit,
+        view,
+    });
+    const missionName = missionDef?.name ?? missionId;
+    const lobbyHeaderTitle = missionName ? `${phaseTitle}: ${missionName}` : phaseTitle;
 
     const showAdminTabs = isAdmin && !(editorOpen && characterToEdit);
 
@@ -325,6 +344,56 @@ export default function CharacterSelectPhase({
         />
     ) : undefined;
 
+    const footerProps = {
+        activeTab,
+        view,
+        editorOpen,
+        isAdmin,
+        mySelection,
+        effectivelyReady,
+        setReadyLoading,
+        allRequiredPlayersPresent,
+        allSelected,
+        allReady,
+        atLeastOneCharacter,
+        resolvedRequiredPlayers,
+        characterToEdit,
+        abilityLoadoutReady: !hasSelectedCharacterLoadout || inQuestPrep || missionAbilityReady,
+        onSetReady: phase.handleSetReady,
+        onOpenEditor: () => setEditorOpen(true),
+        onCloseEditor: () => { setEditorOpen(false); setEditorForceEditable(false); },
+    } as const;
+
+    const abilityBottomRow =
+        hasSelectedCharacterLoadout && characterToEdit && inQuestPrep ? (
+            <QuestPrepBottomRow />
+        ) : hasSelectedCharacterLoadout && characterToEdit ? (
+            <MissionPrepBottomRow />
+        ) : null;
+
+    const bottomRowWithActions = footerInBottomBand ? (
+        <div className="flex h-full w-full min-h-0 flex-col">
+            {/* Equal flex spacers: padding above buttons, between buttons/cards, and below cards */}
+            <div className="min-h-0 flex-1" aria-hidden />
+            <CharacterSelectFooter {...footerProps} compact />
+            <div className="min-h-0 flex-1" aria-hidden />
+            <div className="flex shrink-0 justify-center">
+                {abilityBottomRow}
+            </div>
+            <div className="min-h-0 flex-1" aria-hidden />
+        </div>
+    ) : abilityBottomRow;
+
+    const resolvedHeaderSlot = useUnifiedSlotShell ? (
+        <HeaderSlotLobbyInfo
+            playerName={players[playerId]?.name ?? ''}
+            isHost={isHost}
+            isAdmin={isAdmin}
+            lobbyName={lobbyHeaderTitle}
+            lobbyId={lobbyId}
+        />
+    ) : headerSlot;
+
     const body = (
         <>
             <CharacterSelectHeader
@@ -333,6 +402,7 @@ export default function CharacterSelectPhase({
                 editorOpen={editorOpen}
                 characterToEdit={characterToEdit}
                 view={view}
+                titleInLobbyHeader={useUnifiedSlotShell}
             />
 
             {activeTab === 'players' && isAdmin ? (
@@ -350,7 +420,7 @@ export default function CharacterSelectPhase({
                         api={api}
                         onSaved={chars.handleEditorSaved}
                         onClose={() => { setEditorOpen(false); setEditorForceEditable(false); }}
-                        editMode={isAdmin || editorForceEditable}
+                        editMode={isAdmin || editorForceEditable || debugConsoleEnabled}
                         inventoryItems={isAdmin ? ALL_PLAYER_ITEMS : user?.inventoryItemIds ?? []}
                         showInventoryPanel={(isAdmin ? ALL_PLAYER_ITEMS : user?.inventoryItemIds ?? []).length > 0}
                         account={user}
@@ -405,32 +475,14 @@ export default function CharacterSelectPhase({
                 />
             )}
 
-            <CharacterSelectFooter
-                activeTab={activeTab}
-                view={view}
-                editorOpen={editorOpen}
-                isAdmin={isAdmin}
-                mySelection={mySelection}
-                effectivelyReady={effectivelyReady}
-                setReadyLoading={setReadyLoading}
-                allRequiredPlayersPresent={allRequiredPlayersPresent}
-                allSelected={allSelected}
-                allReady={allReady}
-                atLeastOneCharacter={atLeastOneCharacter}
-                resolvedRequiredPlayers={resolvedRequiredPlayers}
-                characterToEdit={characterToEdit}
-                abilityLoadoutReady={!isLoadoutOverview || inQuestPrep || missionAbilityReady}
-                onSetReady={phase.handleSetReady}
-                onOpenEditor={() => setEditorOpen(true)}
-                onCloseEditor={() => { setEditorOpen(false); setEditorForceEditable(false); }}
-            />
+            {!footerInBottomBand && <CharacterSelectFooter {...footerProps} />}
         </>
     );
 
     if (useUnifiedSlotShell) {
         const layout = (
             <CharacterSelectLayout
-                headerSlot={headerSlot}
+                headerSlot={resolvedHeaderSlot}
                 chatSlot={chatSlot}
                 centerOverlay={centerOverlay}
                 leftColumn={
@@ -442,27 +494,22 @@ export default function CharacterSelectPhase({
                     />
                 }
                 bottomLeftCorner={
-                    isLoadoutOverview && characterToEdit ? (
+                    hasSelectedCharacterLoadout && characterToEdit ? (
                         <CharacterSelectCornerPortrait
                             character={characterToEdit}
                             onChangeCharacter={() => setView('grid')}
                         />
                     ) : undefined
                 }
-                bottomRow={
-                    isLoadoutOverview && characterToEdit && inQuestPrep ? (
-                        <QuestPrepBottomRow />
-                    ) : isLoadoutOverview && characterToEdit ? (
-                        <MissionPrepBottomRow />
-                    ) : undefined
-                }
+                bottomRow={bottomRowWithActions ?? undefined}
                 bottomRightCorner={adminTabsCorner}
+                compactBottomRow={footerInBottomBand}
             >
                 {body}
             </CharacterSelectLayout>
         );
 
-        if (isLoadoutOverview && characterToEdit && inQuestPrep) {
+        if (hasSelectedCharacterLoadout && characterToEdit && inQuestPrep) {
             return (
                 <QuestPrepLoadoutProvider
                     api={api}
@@ -475,7 +522,7 @@ export default function CharacterSelectPhase({
                 </QuestPrepLoadoutProvider>
             );
         }
-        if (isLoadoutOverview && characterToEdit) {
+        if (hasSelectedCharacterLoadout && characterToEdit) {
             return (
                 <MissionPrepLoadoutProvider
                     api={api}
@@ -495,12 +542,12 @@ export default function CharacterSelectPhase({
     const classic = (
         <div className="w-full h-full flex flex-col max-w-[1200px] mx-auto">
             {body}
-            {isLoadoutOverview && characterToEdit && inQuestPrep && (
+            {hasSelectedCharacterLoadout && characterToEdit && inQuestPrep && (
                 <div className="shrink-0 px-5 pb-4" style={{ minHeight: 120 }}>
                     <QuestPrepBottomRow />
                 </div>
             )}
-            {isLoadoutOverview && characterToEdit && !inQuestPrep && (
+            {hasSelectedCharacterLoadout && characterToEdit && !inQuestPrep && (
                 <div className="shrink-0 px-5 pb-4" style={{ minHeight: 120 }}>
                     <MissionPrepBottomRow />
                 </div>
@@ -515,7 +562,7 @@ export default function CharacterSelectPhase({
         </div>
     );
 
-    if (isLoadoutOverview && characterToEdit && inQuestPrep) {
+    if (hasSelectedCharacterLoadout && characterToEdit && inQuestPrep) {
         return (
             <QuestPrepLoadoutProvider
                 api={api}
@@ -528,7 +575,7 @@ export default function CharacterSelectPhase({
             </QuestPrepLoadoutProvider>
         );
     }
-    if (isLoadoutOverview && characterToEdit) {
+    if (hasSelectedCharacterLoadout && characterToEdit) {
         return (
             <MissionPrepLoadoutProvider
                 api={api}

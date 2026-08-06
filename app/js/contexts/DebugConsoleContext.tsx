@@ -32,6 +32,9 @@ export interface BattleDebugBridge {
 }
 
 interface DebugConsoleContextValue {
+    /** True after tilde ×3 unlocks the debug drawer; false after tilde disables it. */
+    debugConsoleEnabled: boolean;
+    setDebugConsoleEnabled: (enabled: boolean) => void;
     selectedDebugUnitId: string | null;
     setSelectedDebugUnitId: (id: string | null) => void;
     battleBridge: BattleDebugBridge | null;
@@ -41,6 +44,8 @@ interface DebugConsoleContextValue {
 }
 
 const DebugConsoleContext = createContext<DebugConsoleContextValue>({
+    debugConsoleEnabled: false,
+    setDebugConsoleEnabled: () => {},
     selectedDebugUnitId: null,
     setSelectedDebugUnitId: () => {},
     battleBridge: null,
@@ -54,11 +59,14 @@ export function useDebugConsole(): DebugConsoleContextValue {
 }
 
 export function DebugConsoleProvider({ children }: { children: React.ReactNode }) {
+    const [debugConsoleEnabled, setDebugConsoleEnabled] = useState(false);
     const [selectedDebugUnitId, setSelectedDebugUnitId] = useState<string | null>(null);
     const [battleBridge, setBattleBridge] = useState<BattleDebugBridge | null>(null);
     const [adminMovePendingUnitId, setAdminMovePendingUnitId] = useState<string | null>(null);
     const value = useMemo(
         () => ({
+            debugConsoleEnabled,
+            setDebugConsoleEnabled,
             selectedDebugUnitId,
             setSelectedDebugUnitId,
             battleBridge,
@@ -66,7 +74,7 @@ export function DebugConsoleProvider({ children }: { children: React.ReactNode }
             adminMovePendingUnitId,
             setAdminMovePendingUnitId,
         }),
-        [selectedDebugUnitId, battleBridge, adminMovePendingUnitId],
+        [debugConsoleEnabled, selectedDebugUnitId, battleBridge, adminMovePendingUnitId],
     );
     return <DebugConsoleContext.Provider value={value}>{children}</DebugConsoleContext.Provider>;
 }

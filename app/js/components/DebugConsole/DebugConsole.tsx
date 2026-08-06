@@ -89,8 +89,7 @@ export default function DebugConsole({
 }: DebugConsoleProps) {
     const { isAdmin } = useCurrentUser();
     const { debugPauseMode, setDebugPauseMode, advanceOneDebugTick } = useDebugSettings();
-    const { setSelectedDebugUnitId, battleBridge } = useDebugConsole();
-    const [debugMode, setDebugMode] = useState(false);
+    const { setSelectedDebugUnitId, battleBridge, debugConsoleEnabled, setDebugConsoleEnabled } = useDebugConsole();
     const [expanded, setExpanded] = useState(false);
     const [, setTildeCount] = useState(0);
     const [activeTab, setActiveTab] = useState<TabId>(() => (inBattle && isAdmin ? 'battle-actions' : 'game-state'));
@@ -105,21 +104,21 @@ export default function DebugConsole({
     const onKeyDown = useCallback(
         (e: KeyboardEvent) => {
             if (e.key !== '`' && e.key !== '~') return;
-            if (debugMode) {
-                setDebugMode(false);
+            if (debugConsoleEnabled) {
+                setDebugConsoleEnabled(false);
                 setTildeCount(0);
             } else {
                 setTildeCount((prev) => {
                     const next = prev + 1;
                     if (next >= 3) {
-                        setDebugMode(true);
+                        setDebugConsoleEnabled(true);
                         return 0;
                     }
                     return next;
                 });
             }
         },
-        [debugMode],
+        [debugConsoleEnabled, setDebugConsoleEnabled],
     );
 
     useEffect(() => {
@@ -222,7 +221,7 @@ export default function DebugConsole({
             </>
     );
 
-    if (!debugMode) return null;
+    if (!debugConsoleEnabled) return null;
 
     return (
         <div

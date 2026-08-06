@@ -33,6 +33,8 @@ interface BattleUISlotLayoutProps {
     bottomRightCorner?: React.ReactNode;
     /** Set false to let bottomRightCorner's content fill the corner edge-to-edge. Defaults to true. */
     bottomRightCornerPadded?: boolean;
+    /** Optional className for the bottom-row content cell (default `px-3 py-4`). */
+    bottomRowClassName?: string;
 }
 
 export default function BattleUISlotLayout({
@@ -45,6 +47,7 @@ export default function BattleUISlotLayout({
     bottomRow,
     bottomRightCorner,
     bottomRightCornerPadded = true,
+    bottomRowClassName,
 }: BattleUISlotLayoutProps) {
     return (
         <div
@@ -81,7 +84,13 @@ export default function BattleUISlotLayout({
                     >
                         {bottomLeftCorner}
                     </div>
-                    <div className="flex h-full min-w-0 flex-1 flex-col px-3 py-4">{bottomRow}</div>
+                    <div
+                        className={`flex h-full min-w-0 flex-1 flex-col ${
+                            bottomRowClassName ?? 'px-3 py-4'
+                        }`}
+                    >
+                        {bottomRow}
+                    </div>
                     <div
                         className={`flex h-full w-80 shrink-0 flex-col overflow-hidden border-l border-r border-border-custom ${
                             bottomRightCornerPadded ? 'p-4' : ''
