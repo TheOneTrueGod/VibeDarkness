@@ -1,12 +1,10 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useMemo } from 'react';
 import { getAbility } from '../../../../abilities/AbilityRegistry';
 import type { AbilityStatic } from '../../../../abilities/Ability';
 import type { CampaignCharacter } from '../../../../character_defs/CampaignCharacter';
 import { getAttachedAbilityIds } from '../../../../storylines/questPrepLoadout';
 import { TestIds } from '../../../../../../testing/testIds';
 import { AbilitySlotPreview } from '../../../components/AbilitySlotPreview';
-import AbilityTooltip from '../../../components/AbilityTooltip';
 
 interface QuestPrepAbilityPickerProps {
     character: CampaignCharacter;
@@ -28,10 +26,13 @@ export function QuestPrepAbilityPicker({
         () => selectableIds.map((id) => getAbility(id)).filter((a): a is AbilityStatic => a != null),
         [selectableIds],
     );
-    const [hoveredCard, setHoveredCard] = useState<{ ability: AbilityStatic; rect: DOMRect } | null>(null);
-    const handleCardHover = useCallback((ability: AbilityStatic | null, rect: DOMRect | null) => {
-        setHoveredCard(ability && rect ? { ability, rect } : null);
-    }, []);
+    const tooltipContext = useMemo(
+        () => ({
+            researchTrees: character.researchTrees,
+            researchNodeLevels: character.researchNodeLevels,
+        }),
+        [character.researchTrees, character.researchNodeLevels],
+    );
 
     return (
         <div
@@ -55,7 +56,7 @@ export function QuestPrepAbilityPicker({
                                 <div key={ability.id} className="flex flex-col items-center gap-1">
                                     <AbilitySlotPreview
                                         ability={ability}
-                                        onHover={handleCardHover}
+                                        tooltipContext={tooltipContext}
                                         onSelect={() => {
                                             if (!disabledTitle) onAdd(ability.id);
                                         }}
@@ -74,28 +75,6 @@ export function QuestPrepAbilityPicker({
                     </div>
                 )}
             </div>
-            {hoveredCard && createPortal(
-                <div
-                    style={{
-                        position: 'fixed',
-                        top: hoveredCard.rect.top,
-                        left: hoveredCard.rect.left + hoveredCard.rect.width / 2,
-                        width: 0,
-                        height: 0,
-                        pointerEvents: 'none',
-                        zIndex: 9999,
-                    }}
-                >
-                    <AbilityTooltip
-                        title={hoveredCard.ability.name}
-                        lines={hoveredCard.ability.getTooltipText({
-                            researchTrees: character.researchTrees,
-                            researchNodeLevels: character.researchNodeLevels,
-                        })}
-                    />
-                </div>,
-                document.body,
-            )}
         </div>
     );
 }

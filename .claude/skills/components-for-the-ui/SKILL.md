@@ -23,7 +23,10 @@ This skill keeps a **list of component names** and a **one-line description** of
 | **CharacterGrid** | Auto-fill grid of 200px character/option cards for the character-select screen. Lives in `ui/pages/characterSelect/`. |
 | **ITSTimelineControls** | Fixed-height ITS Reset / Replay / Done icon row with a live frame-stepper; replaces “Your Turn” text in the turn indicator during playahead. |
 | **ITSTimelineFrameStepper** | Compact passed / current / future pip bar for ITS playahead progress. |
-| **AnchoredPortalTooltip** | Portaled tooltip positioned from an anchor; always includes opaque `bg-black` surface chrome via `PORTAL_TOOLTIP_SURFACE_CLASS`. |
+| **AnchoredPortalTooltip** | Portaled tooltip from an anchor; auto-flips / clamps to stay in the viewport; always includes opaque `bg-black` surface chrome via `PORTAL_TOOLTIP_SURFACE_CLASS`. Lives in `minion_battles/ui/components/`. |
+| **AbilityTooltip** | Ability name + description lines; desktop uses **AnchoredPortalTooltip** (`anchorRef` required); mobile bottom overlay. Lives in `minion_battles/ui/components/`. |
+| **AbilitySlot** | Ability bar card with uses/costs and hover tooltip. Lives in `minion_battles/ui/components/`. |
+| **AbilitySlotPreview** | Character-select / Quest Prep AbilitySlot wrapper with fake full uses + shared portaled tooltips. Lives in `minion_battles/ui/components/`. |
 
 ## When to use
 

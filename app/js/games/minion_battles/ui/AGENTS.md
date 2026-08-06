@@ -6,7 +6,7 @@ Paths below are relative to `app/js/games/minion_battles/`.
 
 | Directory | Purpose |
 |-----------|---------|
-| `ui/components/` | Reusable React battle UI widgets (card hand, targeting overlays, canvas wrapper). |
+| `ui/components/` | Reusable React battle UI widgets (card hand, targeting overlays, canvas wrapper). See `ui/components/AGENTS.md` for the component catalogue (tooltips, ability slots, etc.). |
 | `ui/pages/` | Full-screen or phase-level React surfaces (`BattlePhase.tsx`, lobby-adjacent flow, editors). |
 
 ## Battle view stack

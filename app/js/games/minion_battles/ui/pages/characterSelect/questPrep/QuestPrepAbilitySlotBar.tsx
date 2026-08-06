@@ -1,5 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useMemo } from 'react';
 import { getAbility } from '../../../../abilities/AbilityRegistry';
 import type { AbilityStatic } from '../../../../abilities/Ability';
 import type { CampaignCharacter } from '../../../../character_defs/CampaignCharacter';
@@ -9,7 +8,6 @@ import {
 } from '../../../../storylines/questPrepLoadout';
 import { TestIds } from '../../../../../../testing/testIds';
 import { AbilitySlotPreview } from '../../../components/AbilitySlotPreview';
-import AbilityTooltip from '../../../components/AbilityTooltip';
 
 interface QuestPrepAbilitySlotBarProps {
     character: CampaignCharacter;
@@ -28,10 +26,13 @@ export function QuestPrepAbilitySlotBar({
     onRemove,
     readOnly = false,
 }: QuestPrepAbilitySlotBarProps) {
-    const [hoveredCard, setHoveredCard] = useState<{ ability: AbilityStatic; rect: DOMRect } | null>(null);
-    const handleCardHover = useCallback((ability: AbilityStatic | null, rect: DOMRect | null) => {
-        setHoveredCard(ability && rect ? { ability, rect } : null);
-    }, []);
+    const tooltipContext = useMemo(
+        () => ({
+            researchTrees: character.researchTrees,
+            researchNodeLevels: character.researchNodeLevels,
+        }),
+        [character.researchTrees, character.researchNodeLevels],
+    );
 
     const slots = useMemo(() => {
         const out: Array<{ primary: AbilityStatic | null; attached: AbilityStatic[] }> = [];
@@ -49,77 +50,53 @@ export function QuestPrepAbilitySlotBar({
     }, [selectedPrimaryIds, slotCount]);
 
     return (
-        <>
-            <div
-                data-testid={TestIds.questPrepAbilitySlotBar}
-                className="flex w-full min-h-0 items-center justify-center"
-            >
-                <div className="overflow-x-auto max-w-full">
-                    <div className="flex gap-2 w-max mx-auto items-end">
-                        {slots.map((slot, index) => (
-                            <div
-                                key={`quest-prep-slot-${index}`}
-                                className="flex flex-col items-center gap-0.5 min-w-[72px]"
-                            >
-                                {slot.primary ? (
-                                    <>
-                                        <AbilitySlotPreview
-                                            ability={slot.primary}
-                                            onHover={handleCardHover}
-                                            onSelect={
-                                                readOnly
-                                                    ? undefined
-                                                    : () => onRemove(slot.primary!.id)
-                                            }
-                                        />
-                                        {slot.attached.length > 0 && (
-                                            <div className="flex gap-0.5 items-center">
-                                                {slot.attached.map((a) => (
-                                                    <AbilitySlotPreview
-                                                        key={a.id}
-                                                        ability={a}
-                                                        onHover={handleCardHover}
-                                                        compact
-                                                    />
-                                                ))}
-                                            </div>
-                                        )}
-                                    </>
-                                ) : (
-                                    <div
-                                        className="w-[72px] h-[96px] rounded-lg border border-dashed border-border-custom bg-surface/40 flex items-center justify-center"
-                                        aria-label={`Empty ability slot ${index + 1}`}
-                                    >
-                                        <span className="text-[10px] text-muted">{index + 1}</span>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
+        <div
+            data-testid={TestIds.questPrepAbilitySlotBar}
+            className="flex w-full min-h-0 items-center justify-center"
+        >
+            <div className="overflow-x-auto max-w-full">
+                <div className="flex gap-2 w-max mx-auto items-end">
+                    {slots.map((slot, index) => (
+                        <div
+                            key={`quest-prep-slot-${index}`}
+                            className="flex flex-col items-center gap-0.5 min-w-[72px]"
+                        >
+                            {slot.primary ? (
+                                <>
+                                    <AbilitySlotPreview
+                                        ability={slot.primary}
+                                        tooltipContext={tooltipContext}
+                                        onSelect={
+                                            readOnly
+                                                ? undefined
+                                                : () => onRemove(slot.primary!.id)
+                                        }
+                                    />
+                                    {slot.attached.length > 0 && (
+                                        <div className="flex gap-0.5 items-center">
+                                            {slot.attached.map((a) => (
+                                                <AbilitySlotPreview
+                                                    key={a.id}
+                                                    ability={a}
+                                                    tooltipContext={tooltipContext}
+                                                    compact
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <div
+                                    className="w-[72px] h-[96px] rounded-lg border border-dashed border-border-custom bg-surface/40 flex items-center justify-center"
+                                    aria-label={`Empty ability slot ${index + 1}`}
+                                >
+                                    <span className="text-[10px] text-muted">{index + 1}</span>
+                                </div>
+                            )}
+                        </div>
+                    ))}
                 </div>
             </div>
-            {hoveredCard && createPortal(
-                <div
-                    style={{
-                        position: 'fixed',
-                        top: hoveredCard.rect.top,
-                        left: hoveredCard.rect.left + hoveredCard.rect.width / 2,
-                        width: 0,
-                        height: 0,
-                        pointerEvents: 'none',
-                        zIndex: 9999,
-                    }}
-                >
-                    <AbilityTooltip
-                        title={hoveredCard.ability.name}
-                        lines={hoveredCard.ability.getTooltipText({
-                            researchTrees: character.researchTrees,
-                            researchNodeLevels: character.researchNodeLevels,
-                        })}
-                    />
-                </div>,
-                document.body,
-            )}
-        </>
+        </div>
     );
 }

@@ -3,7 +3,7 @@
  * Static text and dynamic text (wrapped in {}) are rendered in different colours.
  * Prefer `segmentLines` (from formatTooltipLines) for research-aware tokens; legacy
  * `{value}` / `{text:#hex}` strings still work via `lines`.
- * Fixed width and height for consistent layout regardless of content.
+ * Desktop tooltips portal via {@link AnchoredPortalTooltip} and auto-flip to stay visible.
  */
 
 import React from 'react';
@@ -101,7 +101,7 @@ export interface AbilityTooltipProps {
     isMobileOverlay?: boolean;
     /** Called when the mobile overlay's X button is tapped. */
     onDismiss?: () => void;
-    /** When set with `open`, desktop tooltip is portaled above the anchor (avoids overflow clipping). */
+    /** Required for desktop tooltips — portals above/beside the anchor and auto-flips. */
     anchorRef?: React.RefObject<HTMLElement | null>;
     /** Whether the portaled desktop tooltip is visible. Defaults to true when rendered. */
     open?: boolean;
@@ -180,32 +180,23 @@ export default function AbilityTooltip({
     const desktopClassName =
         'flex flex-col rounded-lg border border-white bg-black p-3 shadow-lg';
 
-    if (anchorRef) {
-        return (
-            <AnchoredPortalTooltip
-                anchorRef={anchorRef}
-                open={open}
-                className={desktopClassName}
-                style={{
-                    width: TOOLTIP_WIDTH,
-                    minHeight: TOOLTIP_HEIGHT,
-                }}
-            >
-                {body}
-            </AnchoredPortalTooltip>
-        );
+    if (!anchorRef) {
+        return null;
     }
 
     return (
-        <div
-            className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 pointer-events-none z-50 flex flex-col ${desktopClassName}`}
+        <AnchoredPortalTooltip
+            anchorRef={anchorRef}
+            open={open}
+            placement="top"
+            autoFlip
+            className={desktopClassName}
             style={{
                 width: TOOLTIP_WIDTH,
                 minHeight: TOOLTIP_HEIGHT,
             }}
-            role="tooltip"
         >
             {body}
-        </div>
+        </AnchoredPortalTooltip>
     );
 }

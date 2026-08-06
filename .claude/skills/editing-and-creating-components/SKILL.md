@@ -29,7 +29,8 @@ Use this skill whenever you:
 
 When adding or editing **tooltips, hover boxes, popovers, or any floating help UI**:
 
-- **Prefer the shared helper**: use `AnchoredPortalTooltip` from `ui/components/AnchoredPortalTooltip.tsx`. It always applies `PORTAL_TOOLTIP_SURFACE_CLASS` (`bg-black` + border + light text), so a missing background cannot slip through.
+- **Prefer the shared helper**: use `AnchoredPortalTooltip` from `ui/components/AnchoredPortalTooltip.tsx`. It always applies `PORTAL_TOOLTIP_SURFACE_CLASS` (`bg-black` + border + light text), so a missing background cannot slip through. Prefer `placement` + default `autoFlip` so tips stay on-screen near edges.
+- **Ability copy**: use `AbilityTooltip` with an `anchorRef` (do not invent zero-size portal wrappers). Character-select previews should use `AbilitySlotPreview` + `tooltipContext`.
 - **Inline tooltips** (no portal): import and include `PORTAL_TOOLTIP_SURFACE_CLASS` on the tooltip element. Do not hand-roll background classes.
 - **Never invent theme colors**: only use tokens that exist in `tailwind.config.js` (`bg-black`, `bg-dark-900`, `bg-surface`, `border-border-custom`, etc.). A class like `bg-dark-900` only works because `dark` is defined there — if Tailwind does not know the color, the class is silently dropped and the tooltip looks transparent.
 - **Always set text and border colors** (already covered by `PORTAL_TOOLTIP_SURFACE_CLASS` when using the helper).
@@ -37,7 +38,7 @@ When adding or editing **tooltips, hover boxes, popovers, or any floating help U
   - Short title line (e.g. pile name) plus 1–2 lines of explanation.
   - Lists should use small text (`text-[11px]`–`text-xs`) and tight vertical spacing.
 - **Positioning**:
-  - Prefer `AnchoredPortalTooltip` so overflow-hidden parents cannot clip the tip.
+  - Prefer `AnchoredPortalTooltip` so overflow-hidden parents cannot clip the tip; let auto-flip choose top/bottom/left/right.
   - For rare inline tips: `relative` on parent, `absolute` on tooltip.
 
 ## Interaction patterns
