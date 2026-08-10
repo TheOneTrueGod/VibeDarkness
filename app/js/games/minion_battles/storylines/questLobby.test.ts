@@ -43,8 +43,8 @@ describe('questLobbyFieldsFromRun / readQuestLobbyFields', () => {
         expect(fields.questRunId).toBe(run.runId);
         expect(fields.questSlotIndex).toBe(0);
         expect(fields.questRunSeed).toBe(RUN_SEED);
-        expect(fields.selectedMissionId).toBe('dark_awakening');
-        expect(missionIdFromResolvedRef(run.resolvedSlots[0])).toBe('dark_awakening');
+        expect(fields.selectedMissionId).toBe('quest_boar_herd_north');
+        expect(missionIdFromResolvedRef(run.resolvedSlots[0])).toBe('quest_boar_herd_north');
     });
 
     it('reads valid lobby payload fields and rejects incomplete ones', () => {
@@ -100,7 +100,7 @@ describe('planQuestVictoryContinue / planQuestDefeatRetry', () => {
         const plan = planQuestVictoryContinue(run, FIND_THE_HERD_OF_BOARS);
         expect(plan.kind).toBe('continued');
         if (plan.kind !== 'continued') return;
-        expect(plan.nextMissionId).toBe('towards_the_light');
+        expect(plan.nextMissionId).toBe(run.resolvedSlots[1]!.missionId);
         expect(plan.lobbyFields.questSlotIndex).toBe(1);
         expect(plan.run.currentSlotIndex).toBe(1);
     });
@@ -127,17 +127,17 @@ describe('planQuestVictoryContinue / planQuestDefeatRetry', () => {
         expect(continued.kind).toBe('continued');
         if (continued.kind !== 'continued') return;
         const retry = planQuestDefeatRetry(continued.run);
-        expect(retry.missionId).toBe('towards_the_light');
+        expect(retry.missionId).toBe(continued.nextMissionId);
         expect(retry.lobbyFields.questSlotIndex).toBe(1);
         expect(retry.lobbyFields.questRunId).toBe(continued.run.runId);
     });
 });
 
 describe('questSlotMissionIds / questSlotPillStatus / questLobbyNamePrefix', () => {
-    it('uses fixed slot mission ids when no active run', () => {
+    it('uses fixed slot mission ids and random_story placeholder when no active run', () => {
         expect(questSlotMissionIds(FIND_THE_HERD_OF_BOARS, null)).toEqual([
-            'dark_awakening',
-            'towards_the_light',
+            'quest_boar_herd_north',
+            'random_story',
             'light_empowered',
         ]);
     });

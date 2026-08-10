@@ -99,12 +99,10 @@ describe('startQuestRun', () => {
         expect(run.questCharacter.equipment).not.toBe(CAMPAIGN_CHARACTER.equipment);
         expect(run.questCharacter.selectedAbilityIds).toEqual([]);
         expect(run.questCharacter.campaignRewards).toEqual([]);
-        expect(run.resolvedSlots).toEqual([
-            { kind: 'fixed', missionId: 'dark_awakening' },
-            { kind: 'fixed', missionId: 'towards_the_light' },
-            { kind: 'fixed', missionId: 'light_empowered' },
-        ]);
-        expect(getCurrentResolvedMission(run)?.missionId).toBe('dark_awakening');
+        expect(run.resolvedSlots[0]).toEqual({ kind: 'fixed', missionId: 'quest_boar_herd_north' });
+        expect(run.resolvedSlots[1]?.kind).toBe('generated');
+        expect(run.resolvedSlots[2]).toEqual({ kind: 'fixed', missionId: 'light_empowered' });
+        expect(getCurrentResolvedMission(run)?.missionId).toBe('quest_boar_herd_north');
     });
 
     it('does not mutate the Campaign Character equipment array', () => {
@@ -141,7 +139,9 @@ describe('mission victory / defeat', () => {
         expect(afterDefeat.currentSlotIndex).toBe(1);
         expect(afterDefeat.resolvedSlots).toEqual(slotsAtStart);
         expect(afterDefeat.status).toBe('active');
-        expect(getCurrentResolvedMission(afterDefeat)?.missionId).toBe('towards_the_light');
+        expect(getCurrentResolvedMission(afterDefeat)?.missionId).toBe(
+            slotsAtStart[1]?.missionId,
+        );
 
         // Retry same mission then win → next slot
         const afterRetryVictory = advanceQuestRunOnMissionVictory(afterDefeat);
@@ -215,9 +215,18 @@ describe('abandon then new run may re-resolve', () => {
         expect(second.runSeed).toBe(RUN_SEED_B);
         expect(second.status).toBe('prep');
         expect(second.currentSlotIndex).toBe(0);
-        // Fixed slots are seed-independent, but resolve is invoked again (new array).
-        expect(second.resolvedSlots).toEqual(first.resolvedSlots);
+        // Fixed slots are seed-independent; random_story may differ by seed.
+        expect(second.resolvedSlots[0]).toEqual(first.resolvedSlots[0]);
+        expect(second.resolvedSlots[2]).toEqual(first.resolvedSlots[2]);
         expect(second.resolvedSlots).not.toBe(first.resolvedSlots);
+        expect(second.resolvedSlots[1]?.kind).toBe('generated');
+        expect(first.resolvedSlots[1]?.kind).toBe('generated');
+        if (
+            second.resolvedSlots[1]?.kind === 'generated'
+            && first.resolvedSlots[1]?.kind === 'generated'
+        ) {
+            expect(second.resolvedSlots[1].seed).not.toBe(first.resolvedSlots[1].seed);
+        }
     });
 });
 

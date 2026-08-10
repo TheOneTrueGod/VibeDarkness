@@ -19,14 +19,18 @@ import { RANDOM_STORY_GENERATOR_ID } from './randomStoryResolve';
 
 const RUN_SEED = 42;
 
-describe('resolveQuestSlots — fixed only', () => {
-    it('resolves the fixture quest to fixed mission refs in order', () => {
+describe('resolveQuestSlots — find_the_herd_of_boars', () => {
+    it('resolves fixed north push, generated plains story, and placeholder finale', () => {
         const resolved = resolveQuestSlots(FIND_THE_HERD_OF_BOARS, { runSeed: RUN_SEED });
-        expect(resolved).toEqual([
-            { kind: 'fixed', missionId: 'dark_awakening' },
-            { kind: 'fixed', missionId: 'towards_the_light' },
-            { kind: 'fixed', missionId: 'light_empowered' },
-        ]);
+        expect(resolved[0]).toEqual({ kind: 'fixed', missionId: 'quest_boar_herd_north' });
+        expect(resolved[1]?.kind).toBe('generated');
+        if (resolved[1]?.kind === 'generated') {
+            expect([FOUND_BERRIES_MISSION_ID, SURFACE_METAL_DEPOSIT_MISSION_ID]).toContain(
+                resolved[1].missionId,
+            );
+            expect(resolved[1].generatorId).toBe(RANDOM_STORY_GENERATOR_ID);
+        }
+        expect(resolved[2]).toEqual({ kind: 'fixed', missionId: 'light_empowered' });
     });
 
     it('is stable for the same runSeed', () => {

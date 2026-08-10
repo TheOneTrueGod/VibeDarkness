@@ -206,12 +206,16 @@ function QuestPickRow({
     return (
         <li className="flex items-start justify-between gap-2 rounded-md border border-border-custom bg-background/40 px-2.5 py-1.5">
             <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-white truncate">{quest.title}</p>
+                <p className="text-xs font-medium text-white truncate">
+                    {quest.title}
+                    {isAdmin && (
+                        <span className="text-[10px] font-normal text-muted"> ({quest.id})</span>
+                    )}
+                </p>
                 <p className="text-[10px] text-muted truncate">
                     {quest.slots.length} mission{quest.slots.length === 1 ? '' : 's'}
                     {quest.tags?.length ? ` · ${quest.tags.join(', ')}` : ''}
                     {isActive && activeSlotLabel ? ` · slot ${activeSlotLabel}` : ''}
-                    {isAdmin ? ` (${quest.id})` : ''}
                 </p>
                 {isAdmin && onAdminSeek && missionIds.length > 0 && (
                     <div className="mt-1 flex flex-wrap gap-1">

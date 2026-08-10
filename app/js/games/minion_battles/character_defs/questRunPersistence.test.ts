@@ -10,12 +10,11 @@ const SAMPLE_RUN_SEED = 42;
 const SAMPLE_CURRENT_SLOT_INDEX = 1;
 const SAMPLE_ASSIGNED_BANK_ID = 'bank_south_gate';
 
-const SAMPLE_RESOLVED_SLOTS = FIND_THE_HERD_OF_BOARS.slots.map((slot) => {
-    if (slot.kind !== 'fixed') {
-        throw new Error('example quest must use fixed slots for persistence tests');
-    }
-    return { kind: 'fixed' as const, missionId: slot.missionId };
-});
+const SAMPLE_RESOLVED_SLOTS = [
+    { kind: 'fixed' as const, missionId: 'quest_boar_herd_north' },
+    { kind: 'fixed' as const, missionId: 'found_berries' },
+    { kind: 'fixed' as const, missionId: 'light_empowered' },
+];
 
 const SAMPLE_RUN: QuestRunState = {
     runId: 'run_test_1',

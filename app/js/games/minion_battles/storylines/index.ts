@@ -23,6 +23,7 @@ import { FOUND_BERRIES } from './WorldOfDarkness/questMissions/found_berries';
 import { SURFACE_METAL_DEPOSIT } from './WorldOfDarkness/questMissions/surface_metal_deposit';
 import { QUEST_FIND_SOME_FOOD } from './WorldOfDarkness/questMissions/quest_find_some_food';
 import { QUEST_CRYSTAL_CORRUPTION } from './WorldOfDarkness/questMissions/quest_crystal_corruption';
+import { QUEST_BOAR_HERD_NORTH } from './WorldOfDarkness/questMissions/quest_boar_herd_north';
 
 /** Default mission when missionId is unknown (e.g. fallback in BattlePhase). */
 export { DARK_AWAKENING };
@@ -51,6 +52,7 @@ export const MISSION_MAP: Record<string, IBaseMissionDef> = {
     surface_metal_deposit: SURFACE_METAL_DEPOSIT,
     quest_find_some_food: QUEST_FIND_SOME_FOOD,
     quest_crystal_corruption: QUEST_CRYSTAL_CORRUPTION,
+    quest_boar_herd_north: QUEST_BOAR_HERD_NORTH,
 };
 
 export type { StorylineDef, StorylineFlowEdge } from './types';

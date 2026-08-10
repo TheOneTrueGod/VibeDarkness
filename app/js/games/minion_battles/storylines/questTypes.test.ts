@@ -28,13 +28,10 @@ describe('MissionSlotSpec narrowing', () => {
         }
     });
 
-    it('example quest uses only fixed slots', () => {
-        for (const slot of FIND_THE_HERD_OF_BOARS.slots) {
-            expect(slot.kind).toBe('fixed');
-            if (slot.kind === 'fixed') {
-                expect(slot.missionId).toBeTruthy();
-            }
-        }
+    it('example quest mixes fixed and random_story slots', () => {
+        expect(FIND_THE_HERD_OF_BOARS.slots[0]?.kind).toBe('fixed');
+        expect(FIND_THE_HERD_OF_BOARS.slots[1]?.kind).toBe('random_story');
+        expect(FIND_THE_HERD_OF_BOARS.slots[2]?.kind).toBe('fixed');
         expect(FIND_THE_HERD_OF_BOARS.slots.length).toBeGreaterThanOrEqual(2);
         expect(FIND_THE_HERD_OF_BOARS.slots.length).toBeLessThanOrEqual(4);
     });
