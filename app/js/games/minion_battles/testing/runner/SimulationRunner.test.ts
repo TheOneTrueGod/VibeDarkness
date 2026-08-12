@@ -55,6 +55,12 @@ import { gravityGrazeScenario } from '../scenarios/abilities/gravityGrazeScenari
 import { gravityLocusScenario } from '../scenarios/abilities/gravityLocusScenario';
 import { forcePushScenario } from '../scenarios/abilities/forcePushScenario';
 import { gravityInversionScenario } from '../scenarios/abilities/gravityInversionScenario';
+import {
+    energyBlastStrictPriorityFillScenario,
+    imbuedBatConeStrictFillScenario,
+    liftStrictPriorityFillScenario,
+    lightBlastStrictPriorityFillScenario,
+} from '../scenarios/abilities/strictLockOnScenarios';
 import { pistolHitsDummyScenario, smgHitsDummyScenario, shotgunHitsDummyScenario } from '../scenarios/abilities/gunScenarios';
 import {
     earthCoreEarthernPunchScenario,
@@ -456,8 +462,28 @@ describe('runScenarioHeadless', () => {
         expect(r.passed, r.message).toBe(true);
     });
 
-    it('Gravity Inversion (0903): lift lock, slam damage, and pull lands at caster', () => {
+    it('Lift (0903): lift lock, slam damage, and pull lands at caster', () => {
         const r = runScenarioHeadless(gravityInversionScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Lift (0903): strict priority fill drops leavers', () => {
+        const r = runScenarioHeadless(liftStrictPriorityFillScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Light Blast (0801): strict priority fill drops leavers', () => {
+        const r = runScenarioHeadless(lightBlastStrictPriorityFillScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Energy Blast (0114): explosion priority fill drops leavers', () => {
+        const r = runScenarioHeadless(energyBlastStrictPriorityFillScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Imbued Bat (0803): cone strict fill drops leavers', () => {
+        const r = runScenarioHeadless(imbuedBatConeStrictFillScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

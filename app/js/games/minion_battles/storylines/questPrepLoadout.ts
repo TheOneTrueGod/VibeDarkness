@@ -155,8 +155,10 @@ export function isMissionPrepAbilityReady(
 }
 
 /**
- * Initial mission selection: under/at cap → all selectable;
- * over cap → remembered ids that are still selectable (up to slot count).
+ * Initial prep selection (Quest Prep + mission Prepare Carefully):
+ * under/at cap → all selectable;
+ * over cap with remembered picks → remembered ids that are still selectable (up to slot count);
+ * over cap with no previous loadout → first {@link PREP_ABILITY_SLOT_COUNT} selectable.
  */
 export function resolveInitialMissionSelection(
     selectableIds: readonly string[],
@@ -166,5 +168,8 @@ export function resolveInitialMissionSelection(
         return [...selectableIds];
     }
     const remembered = rememberedIds.filter((id) => selectableIds.includes(id));
+    if (remembered.length === 0) {
+        return selectableIds.slice(0, PREP_ABILITY_SLOT_COUNT);
+    }
     return remembered.slice(0, PREP_ABILITY_SLOT_COUNT);
 }

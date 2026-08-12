@@ -6,13 +6,14 @@
  */
 
 import { AbilityPhase } from '../../../abilities/abilityTimings';
-import { nullHitbox } from '../../../hitboxes';
+import { circleAoEHitbox } from '../../../hitboxes';
+import type { HitboxEngineContext } from '../../../hitboxes/Hitbox';
 import type { EngineWithLight } from '../../../abilities/brightKeyword';
 import { type CardDef } from '../../types';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
-import { damageEnemiesInCircle } from '../../../abilities/targetHelpers';
+import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
 import { createMovementPenaltyStates } from '../../../abilities/shieldHelpers';
 import { areEnemies } from '../../../game/teams';
 import type { Unit } from '../../../game/units/Unit';
@@ -24,15 +25,34 @@ import {
     formatTooltipLegacyLines,
     type TooltipTokenBindings,
 } from '../../../abilities/tooltipTokens';
+import {
+    collectStrictAoEHits,
+    extractCommittedUnitIds,
+} from '../../../abilities/priorityFillHits';
+import { findMeleeAimPixelInTargets } from '../../../abilities/targeting';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Light)}01`;
 const MAX_USES = 2;
 const PREFIRE_TIME = 0.4;
 export const LIGHT_BLAST_MAX_RANGE = 200;
 const MAX_RANGE = LIGHT_BLAST_MAX_RANGE;
-const LIGHT_BLAST_RADIUS = 40;
+export const LIGHT_BLAST_RADIUS = 40;
 export const LIGHT_BLAST_DAMAGE = 12;
 export const LIGHT_BLAST_MAX_TARGETS = 5;
+
+const LIGHT_BLAST_HITBOX = circleAoEHitbox({
+    castRange: LIGHT_BLAST_MAX_RANGE,
+    aoeRadius: LIGHT_BLAST_RADIUS,
+    numTargets: LIGHT_BLAST_MAX_TARGETS,
+    previewStyle: {
+        color: 0xffd97a,
+        lineWidth: 1,
+        lineAlpha: 0.45,
+        fillAlpha: 0.1,
+        strokeAlpha: 0.3,
+        showCrosshair: false,
+    },
+});
 const LIGHT_BLAST_HEAL = 5;
 /** DayLight left at the blast point. */
 export const LIGHT_BLAST_DAYLIGHT_AMOUNT = 1;
@@ -100,7 +120,14 @@ export const LightBlastAbility = defineAbility({
             end: PREFIRE_TIME + 0.05,
             abilityPhase: AbilityPhase.Active,
             doNotRefund: true,
-            targetDef: { kind: 'select', label: 'Target', hitbox: nullHitbox, filter: 'any', allowMiss: true },
+            targetDef: {
+                kind: 'select',
+                label: 'Target',
+                hitbox: LIGHT_BLAST_HITBOX,
+                filter: 'enemy',
+                allowMiss: true,
+                lockOnMode: 'strictHitbox',
+            },
             onProjectileHit: [{
                 type: 'effect',
                 effectType: 'Explosion',
@@ -109,20 +136,35 @@ export const LightBlastAbility = defineAbility({
                 position: 'target',
             }],
             behaviour: CastBehaviours.Instant((ctx) => {
-                const pos = ctx.target.position ?? { x: ctx.caster.x, y: ctx.caster.y };
+                const pos = findMeleeAimPixelInTargets(ctx.allTargets)
+                    ?? ctx.target.position
+                    ?? { x: ctx.caster.x, y: ctx.caster.y };
                 const eng = ctx.engine as EngineWithLight;
 
-                damageEnemiesInCircle({
-                    engine: eng,
+                const enemies = collectStrictAoEHits({
+                    hitbox: LIGHT_BLAST_HITBOX,
+                    engine: eng as unknown as HitboxEngineContext,
                     caster: ctx.caster,
-                    center: pos,
-                    radius: LIGHT_BLAST_RADIUS,
-                    damage: LIGHT_BLAST_DAMAGE,
-                    abilityId: CARD_ID,
-                    attackType: 'ranged',
-                    maxTargets: LIGHT_BLAST_MAX_TARGETS,
+                    aimX: pos.x,
+                    aimY: pos.y,
+                    committedIds: extractCommittedUnitIds(ctx.allTargets),
+                    numTargets: LIGHT_BLAST_MAX_TARGETS,
                 });
+                for (const unit of enemies) {
+                    tryDamageOrBlock(unit, {
+                        engine: eng,
+                        gameTime: eng.gameTime,
+                        eventBus: eng.eventBus,
+                        attackerX: pos.x,
+                        attackerY: pos.y,
+                        attackerId: ctx.caster.id,
+                        abilityId: CARD_ID,
+                        damage: LIGHT_BLAST_DAMAGE,
+                        attackType: 'melee',
+                    });
+                }
 
+                // Ally heal is a separate pass — does not consume enemy damage slots.
                 const healPenaltyPct = ctx.caster.abilityModifiers[CARD_ID]?.healPenaltyPctOverride ?? DEFAULT_HEAL_PENALTY_PCT;
                 for (const unit of eng.units) {
                     if (!unit.isAlive()) continue;
@@ -172,22 +214,6 @@ export const LightBlastAbility = defineAbility({
         );
     },
 
-    renderTargetingPreviewSelectedTargets(gr, caster, _targets, mouseWorld): void {
-        gr.clear();
-        const dx = mouseWorld.x - caster.x;
-        const dy = mouseWorld.y - caster.y;
-        const dist = Math.hypot(dx, dy);
-        const scale = dist > MAX_RANGE ? MAX_RANGE / dist : 1;
-        const tx = caster.x + dx * scale;
-        const ty = caster.y + dy * scale;
-
-        gr.moveTo(caster.x, caster.y);
-        gr.lineTo(tx, ty);
-        gr.stroke({ color: 0xffd97a, alpha: 0.45, width: 1 });
-
-        gr.circle(tx, ty, LIGHT_BLAST_RADIUS);
-        gr.stroke({ color: 0xffd97a, alpha: 0.3, width: 2 });
-    },
 });
 
 export const LightBlastCard: CardDef = {

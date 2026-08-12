@@ -1,8 +1,9 @@
 /**
- * Gravity Inversion — small AoE lift that suspends enemies then slams them down.
+ * Lift (0903) — small AoE lift that suspends enemies then slams them down.
  *
  * Push mode drops in place; Pull mode slams toward the caster's feet. Lift timing and
- * damage are identical in both modes. Slam shockwave is visual-only (no collision damage).
+ * damage are identical in both modes. Slam also applies a small knockback wave around the
+ * landing unit (see LiftedBuff).
  */
 
 import { AbilityEventType } from '../../../abilities/Ability';
@@ -12,13 +13,12 @@ import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { knockbackCtxFromEngine } from '../../../crowdControl/knockbackKeywords';
 import { tryApplyLift } from '../../../crowdControl/tryApplyLift';
 import type { LiftSlamParams } from '../../../buffs/LiftedBuff';
-import { areEnemies } from '../../../game/teams';
 import { Effect } from '../../../game/effects/Effect';
-import { nullHitbox } from '../../../hitboxes';
+import { circleAoEHitbox } from '../../../hitboxes';
+import type { HitboxEngineContext } from '../../../hitboxes/Hitbox';
 import type { EngineContext } from '../../../game/EngineContext';
 import type { UnitSlamLandedEvent } from '../../../game/EventBus';
 import type { Unit } from '../../../game/units/Unit';
-import type { ResolvedTarget } from '../../../game/types';
 import { DEFAULT_UNIT_RADIUS } from '../../../game/units/unit_defs/unitConstants';
 import type { KnockbackSource } from '../../../game/units/unitTypes';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
@@ -49,6 +49,11 @@ import {
     formatTooltipLegacyLines,
     type TooltipTokenBindings,
 } from '../../../abilities/tooltipTokens';
+import {
+    collectStrictAoEHits,
+    extractCommittedUnitIds,
+} from '../../../abilities/priorityFillHits';
+import { findMeleeAimPixelInTargets } from '../../../abilities/targeting';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Gravity)}03`;
 const MAX_USES = 2;
@@ -57,6 +62,8 @@ const HOWL_SHOCKWAVE_EFFECT_TYPE = 'HowlShockwave';
 const TOOLTIP_LINES = [
     'Lift up to {{MAX_TARGETS}} enemies in a small area for {{LIFT_DURATION}}s, then slam for {{DAMAGE}} damage.',
     'Push drops straight down; Pull slams in front of you.',
+    'Slam knocks back nearby units.',
+    '{knockback 1}',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
@@ -84,12 +91,19 @@ interface GravityInversionCastPayload {
     liftedUnitIds?: string[];
 }
 
-function getPixelTargetPosition(
-    target: ResolvedTarget,
-): { x: number; y: number } | null {
-    if (target.type !== 'pixel' || !target.position) return null;
-    return target.position;
-}
+const LIFT_HITBOX = circleAoEHitbox({
+    castRange: GRAVITY_INVERSION_MAX_RANGE,
+    aoeRadius: GRAVITY_INVERSION_AOE_RADIUS,
+    numTargets: GRAVITY_INVERSION_MAX_TARGETS,
+    previewStyle: {
+        color: GRAVITY_VIOLET,
+        lineWidth: 1,
+        lineAlpha: 0.45,
+        fillAlpha: 0.08,
+        strokeAlpha: 0.35,
+        showCrosshair: false,
+    },
+});
 
 function resolveSlamParams(
     caster: Unit,
@@ -119,31 +133,6 @@ function resolveSlamParams(
         }
     }
     return params;
-}
-
-function findEnemiesInCircle(
-    engine: EngineContext,
-    caster: Unit,
-    center: { x: number; y: number },
-    radius: number,
-): Unit[] {
-    const radiusSq = radius * radius;
-    const hits: Unit[] = [];
-    for (const unit of engine.units) {
-        if (!unit.isAlive()) continue;
-        if (!areEnemies(caster.teamId, unit.teamId)) continue;
-        const dx = unit.x - center.x;
-        const dy = unit.y - center.y;
-        if (dx * dx + dy * dy <= radiusSq) {
-            hits.push(unit);
-        }
-    }
-    hits.sort((a, b) => {
-        const da = (a.x - center.x) ** 2 + (a.y - center.y) ** 2;
-        const db = (b.x - center.x) ** 2 + (b.y - center.y) ** 2;
-        return da - db;
-    });
-    return hits.slice(0, GRAVITY_INVERSION_MAX_TARGETS);
 }
 
 function spawnLiftColumnEffect(engine: EngineContext, unit: Unit): void {
@@ -211,13 +200,17 @@ function applyGravityInversion(
     abilityMode: string | undefined,
     abilityId: string,
     castPayload: GravityInversionCastPayload,
+    committedIds: readonly string[],
 ): void {
-    const enemies = findEnemiesInCircle(
-        engine,
+    const enemies = collectStrictAoEHits({
+        hitbox: LIFT_HITBOX,
+        engine: engine as unknown as HitboxEngineContext,
         caster,
-        center,
-        GRAVITY_INVERSION_AOE_RADIUS,
-    );
+        aimX: center.x,
+        aimY: center.y,
+        committedIds,
+        numTargets: GRAVITY_INVERSION_MAX_TARGETS,
+    });
     if (enemies.length === 0) return;
 
     const source: KnockbackSource = { unitId: caster.id, abilityId };
@@ -251,7 +244,7 @@ function applyGravityInversion(
 
 export const GravityInversionAbility = defineAbility({
     id: CARD_ID,
-    name: 'Gravity Inversion',
+    name: 'Lift',
     image: GRAVITY_INVERSION_IMAGE,
     resourceCost: { resourceId: 'gravity', amount: GRAVITY_INVERSION_GRAVITY_COST },
     rechargeTurns: 1,
@@ -278,13 +271,17 @@ export const GravityInversionAbility = defineAbility({
             targetDef: {
                 kind: 'select',
                 label: 'Target',
-                hitbox: nullHitbox,
-                filter: 'any',
+                hitbox: LIFT_HITBOX,
+                filter: 'enemy',
                 allowMiss: true,
+                lockOnMode: 'strictHitbox',
             },
             behaviour: CastBehaviours.Instant((ctx) => {
                 const eng = ctx.engine as EngineContext;
-                const center = getPixelTargetPosition(ctx.target);
+                const center = findMeleeAimPixelInTargets(ctx.allTargets)
+                    ?? (ctx.target.type === 'pixel' && ctx.target.position
+                        ? ctx.target.position
+                        : null);
                 if (!center) return;
 
                 const active = ctx.caster.activeAbilities.find((a) => a.abilityId === ctx.abilityId);
@@ -298,6 +295,7 @@ export const GravityInversionAbility = defineAbility({
                     ctx.abilityMode,
                     ctx.abilityId,
                     payload,
+                    extractCommittedUnitIds(ctx.allTargets),
                 );
                 active.castPayload = payload;
             }),
@@ -353,22 +351,6 @@ export const GravityInversionAbility = defineAbility({
         },
     },
 
-    renderTargetingPreviewSelectedTargets(gr, caster, _targets, mouseWorld): void {
-        gr.clear();
-        const dx = mouseWorld.x - caster.x;
-        const dy = mouseWorld.y - caster.y;
-        const dist = Math.hypot(dx, dy);
-        const scale = dist > GRAVITY_INVERSION_MAX_RANGE ? GRAVITY_INVERSION_MAX_RANGE / dist : 1;
-        const tx = caster.x + dx * scale;
-        const ty = caster.y + dy * scale;
-
-        gr.moveTo(caster.x, caster.y);
-        gr.lineTo(tx, ty);
-        gr.stroke({ color: GRAVITY_VIOLET, alpha: 0.45, width: 1 });
-
-        gr.circle(tx, ty, GRAVITY_INVERSION_AOE_RADIUS);
-        gr.stroke({ color: GRAVITY_VIOLET, alpha: 0.35, width: 2 });
-    },
 });
 
 export const GravityInversionCard: CardDef = {

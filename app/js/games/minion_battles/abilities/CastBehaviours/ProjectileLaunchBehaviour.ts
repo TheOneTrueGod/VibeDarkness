@@ -7,12 +7,17 @@ import type { ResolvedTarget } from '../../game/types';
 import { Projectile } from '../../game/projectiles/Projectile';
 import { clampToMaxRange } from '../previewHelpers';
 import { getDirectionFromTo, getPixelTargetPosition } from '../targetHelpers';
+import { findMeleeAimPixelInTargets } from '../targeting';
 import type { ProjectileModifierId } from '../../game/projectiles/ProjectileTravelModifiers';
 import type { SpriteProjectileConfig } from '../../game/projectiles/projectile_defs';
 
 type DamageResolver = (ctx: CastBehaviourSetupContext) => number;
 
 function resolveLaunchTarget(ctx: CastBehaviourSetupContext): { x: number; y: number } | null {
+    // Prefer trailing aim pixel so AoE lock-on unit entries do not redirect the projectile.
+    const aimPixel = findMeleeAimPixelInTargets(ctx.allTargets);
+    if (aimPixel) return aimPixel;
+
     const t: ResolvedTarget | undefined = ctx.target;
     if (t?.type === 'pixel' && t.position) return t.position;
     if (t?.type === 'unit' && t.unitId) {

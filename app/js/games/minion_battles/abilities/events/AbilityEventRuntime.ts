@@ -14,6 +14,11 @@ import { getModifiedAbilityDamage } from '../damageModifiers';
 import type { AbilityCondition } from './AbilityCondition';
 import { createAbilityEventDispatchState, dispatchAbilityEventRules, type AbilityEventDispatchState } from './AbilityEventDispatcher';
 import type { AbilityEffect } from './AbilityEffect';
+import {
+    explodeAtPointWithPriorityFill,
+    extractCommittedUnitIds,
+} from '../priorityFillHits';
+import type { HitboxEngineContext } from '../../hitboxes/Hitbox';
 
 type CustomConditionHandler = (
     params: Record<string, unknown> | undefined,
@@ -305,14 +310,21 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
                 effectData: resolvedEffectData,
                 effectProperties: effect.effectProperties,
             }));
-            const allUnits = context.engine.units ?? [];
-            const hits = allUnits
-                .filter(u => u.isAlive() && areEnemies(context.caster.teamId, u.teamId))
-                .map(u => ({ unit: u, dist: Math.hypot(u.x - projectile.x, u.y - projectile.y) }))
-                .filter(e => e.dist <= effectRadius + e.unit.radius)
-                .sort((a, b) => a.dist - b.dist)
-                .slice(0, maxTargets)
-                .map(e => e.unit);
+            const units = context.engine.units ?? [];
+            const eng: HitboxEngineContext = {
+                units,
+                getUnit: (id) => context.engine.getUnit(id),
+                gameTime: context.engine.gameTime,
+            };
+            const committedIds = extractCommittedUnitIds(context.targets);
+            const hits = explodeAtPointWithPriorityFill({
+                engine: eng,
+                caster: context.caster,
+                center: { x: projectile.x, y: projectile.y },
+                radius: effectRadius,
+                committedIds,
+                numTargets: maxTargets,
+            });
             for (const unit of hits) {
                 const modifiedDamage = getModifiedAbilityDamage(context.caster, damage);
                 // Flat AoE explosion damage; return value unused, so no need for the shield/armour breakdown.

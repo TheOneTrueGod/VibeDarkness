@@ -23,18 +23,21 @@ import { Effect } from '../../../game/effects/Effect';
 import { LIGHT_CONE_BURST_EFFECT_TYPE } from '../../../game/effect_defs/lightConeEffects';
 import { setupWindupLungePayload } from '../../../abilities/WindupLunge';
 import { spawnRadiusScaledChargeUp, createChargeUpConfig } from '../../../abilities/meleeAnimationProfile';
-import { damageEnemiesInTruncatedCone } from '../../../abilities/targetHelpers';
+import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
 import type { Unit } from '../../../game/units/Unit';
 import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
-import type { IAbilityPreviewGraphics } from '../../../abilities/Ability';
-import { filterSelectTargetCandidates } from '../../../abilities/targeting';
-import type { GameEngine } from '../../../game/GameEngine';
 import { EngineWithGatherLight, spawnGatherLightWindupRing } from '@/games/minion_battles/abilities/gatherLightHelpers';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import {
     formatTooltipLegacyLines,
     type TooltipTokenBindings,
 } from '../../../abilities/tooltipTokens';
+import {
+    resolveStrictAoEHits,
+    splitSelectOrderTargets,
+} from '../../../abilities/priorityFillHits';
+import { filterCombatHitTargets } from '../../../abilities/combatTargetFilter';
+import { areEnemies } from '../../../game/teams';
 
 // ---- Constants ----
 
@@ -71,12 +74,6 @@ const TOOLTIP_BINDINGS: TooltipTokenBindings = {
 };
 const LIGHT_CONE_EFFECT_DURATION = 0.35;
 
-/** Targeting preview colors — muted gold arc band. */
-const LIGHT_ARC_PREVIEW_FILL = 0xc9b456;
-const LIGHT_ARC_PREVIEW_STROKE = 0xa89440;
-const LIGHT_ARC_PREVIEW_FILL_ALPHA = 0.18;
-const LIGHT_ARC_PREVIEW_STROKE_ALPHA = 0.48;
-
 const SWING_EFFECT_DURATION = 0.4;
 
 // ---- Hitboxes ----
@@ -97,52 +94,6 @@ const IMBUED_BAT_LIGHT_CONE = new TruncatedConeHitboxSpec(
         return Math.atan2(ep.centerY - caster.y, ep.centerX - caster.x);
     },
 );
-
-/** Lunge-adjusted caster/aim for preview parity with {@link PreviewRenderer.renderSelectTargetDef}. */
-function resolveImbuedBatSwingPreviewGeometry(
-    caster: Unit,
-    mouseWorld: { x: number; y: number },
-    engine: GameEngine | undefined,
-): { swingCaster: Unit; aim: { x: number; y: number } } {
-    const lungeMax = engine ? caster.getLungeDistance(engine, DEFAULT_MELEE_LUNGE) : 0;
-    const dx = mouseWorld.x - caster.x;
-    const dy = mouseWorld.y - caster.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist < 0.5 || lungeMax <= 0) {
-        return { swingCaster: caster, aim: mouseWorld };
-    }
-    const neededLunge = Math.max(0, dist - IMBUED_BAT_HITBOX.maxRange);
-    const actualLunge = Math.min(lungeMax, neededLunge);
-    if (actualLunge <= 0) {
-        return { swingCaster: caster, aim: mouseWorld };
-    }
-    const dirX = dx / dist;
-    const dirY = dy / dist;
-    const virtualX = caster.x + dirX * actualLunge;
-    const virtualY = caster.y + dirY * actualLunge;
-    return {
-        swingCaster: { x: virtualX, y: virtualY, id: caster.id } as Unit,
-        aim: {
-            x: virtualX + dirX * Math.min(IMBUED_BAT_HITBOX.maxRange, dist - actualLunge),
-            y: virtualY + dirY * Math.min(IMBUED_BAT_HITBOX.maxRange, dist - actualLunge),
-        },
-    };
-}
-
-function primarySwingWouldConnect(
-    caster: Unit,
-    mouseWorld: { x: number; y: number },
-    units: Unit[],
-    engine: GameEngine | undefined,
-): boolean {
-    const { swingCaster, aim } = resolveImbuedBatSwingPreviewGeometry(caster, mouseWorld, engine);
-    const hits = filterSelectTargetCandidates(
-        IMBUED_BAT_HITBOX.resolveTargets(swingCaster, aim, units),
-        caster,
-        'enemy',
-    );
-    return hits.length > 0;
-}
 
 // ---- Animation profile ----
 
@@ -203,21 +154,37 @@ const imbuedBatBehaviour = CastBehaviours.MeleeAttack()
             },
         }));
 
-        damageEnemiesInTruncatedCone({
-            engine: ctx.engine,
-            caster: ctx.caster,
-            aimX: ep.centerX,
-            aimY: ep.centerY,
-            minR: cone.minR,
-            maxR: cone.maxR,
-            halfAngleRad: cone.halfArcRad,
-            damage: LIGHT_CONE_DAMAGE,
-            abilityId: CARD_ID,
-            attackType: 'ranged',
-            maxTargets: LIGHT_CONE_MAX_TARGETS,
-            originX: cone.originX,
-            originY: cone.originY,
+        const split = splitSelectOrderTargets(
+            ctx.allTargets,
+            MAX_TARGETS,
+            [LIGHT_CONE_MAX_TARGETS],
+        );
+        const companionCommitted = split.companionIds[0] ?? [];
+        // resolveTargets (not resolveHits) so we get the full in-cone set before priority fill.
+        const inCone = IMBUED_BAT_LIGHT_CONE.resolveTargets(
+            ctx.caster,
+            { x: aimX, y: aimY },
+            ctx.engine.units,
+        ).filter((u) => areEnemies(ctx.caster.teamId, u.teamId));
+        const inShape = filterCombatHitTargets(inCone, ctx.engine.gameTime);
+        const coneHits = resolveStrictAoEHits({
+            committedIds: companionCommitted,
+            inShapeUnits: inShape,
+            numTargets: LIGHT_CONE_MAX_TARGETS,
         });
+        for (const unit of coneHits) {
+            tryDamageOrBlock(unit, {
+                engine: ctx.engine,
+                gameTime: ctx.engine.gameTime,
+                eventBus: ctx.engine.eventBus,
+                attackerX: cone.originX,
+                attackerY: cone.originY,
+                attackerId: ctx.caster.id,
+                abilityId: CARD_ID,
+                damage: LIGHT_CONE_DAMAGE,
+                attackType: 'melee',
+            });
+        }
     })
     .withDamage(PRIMARY_DAMAGE)
     .withKnockback(3);
@@ -249,7 +216,18 @@ export const ImbuedBatAbility = defineAbility({
             end: 0.3,
             abilityPhase: AbilityPhase.Active,
             doNotRefund: true,
-            targetDef: { kind: 'select', label: 'Target', hitbox: IMBUED_BAT_HITBOX, filter: 'enemy', allowMiss: true },
+            targetDef: {
+                kind: 'select',
+                label: 'Target',
+                hitbox: IMBUED_BAT_HITBOX,
+                filter: 'enemy',
+                allowMiss: true,
+                companionHitboxes: [{
+                    hitbox: IMBUED_BAT_LIGHT_CONE,
+                    numTargets: LIGHT_CONE_MAX_TARGETS,
+                    filter: 'enemy',
+                }],
+            },
             behaviour: imbuedBatBehaviour,
         },
         { id: 'cooldown', start: 0.3, end: 1.65, abilityPhase: AbilityPhase.Cooldown },
@@ -268,25 +246,6 @@ export const ImbuedBatAbility = defineAbility({
     beginActiveCast(engine: unknown, caster: Unit, targets: ResolvedTarget[], active: ActiveAbility): void {
         setupWindupLungePayload(engine, caster, targets, active, { distance: DEFAULT_MELEE_LUNGE }, IMBUED_BAT_HITBOX.maxRange);
         spawnRadiusScaledChargeUp(engine as { addEffect(effect: Effect): void }, caster, IMBUED_BAT_PROFILE);
-    },
-
-    renderTargetingPreviewSelectedTargets(
-        gr: IAbilityPreviewGraphics,
-        caster: Unit,
-        _currentTargets: ResolvedTarget[],
-        mouseWorld: { x: number; y: number },
-        units: Unit[],
-        gameState?: unknown,
-    ): void {
-        const engine = gameState as GameEngine | undefined;
-        if (!primarySwingWouldConnect(caster, mouseWorld, units, engine)) return;
-
-        IMBUED_BAT_LIGHT_CONE.renderTargetingPreview(gr, caster, mouseWorld, units, {
-            fillColor: LIGHT_ARC_PREVIEW_FILL,
-            fillAlpha: LIGHT_ARC_PREVIEW_FILL_ALPHA,
-            strokeColor: LIGHT_ARC_PREVIEW_STROKE,
-            strokeAlpha: LIGHT_ARC_PREVIEW_STROKE_ALPHA,
-        });
     },
 
     getTooltipText(gameState?: unknown): string[] {

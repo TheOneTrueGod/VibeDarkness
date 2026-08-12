@@ -55,7 +55,7 @@ export const gravityTree: ResearchTreeDef = {
         },
         {
             id: GRAVITY_NODE_GRAVITY_INVERSION,
-            title: 'Gravity Inversion',
+            title: 'Lift',
             description: 'Suspend enemies in the air, then slam them down. Pull mode drags them to your feet.',
             flavorText: 'For a moment, the ground forgets them.',
             order: 12,

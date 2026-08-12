@@ -516,6 +516,7 @@ export default function CharacterSelectPhase({
                     playerId={playerId}
                     character={characterToEdit}
                     questPrepLoadoutsByPlayer={questPrepLoadoutsByPlayer}
+                    rememberedAbilityIds={questAbilityLoadoutsByCharacterId[characterToEdit.id]}
                     onSelectedPrimaryIdsChange={onSelectedPrimaryIdsChange}
                 >
                     {layout}
@@ -569,6 +570,7 @@ export default function CharacterSelectPhase({
                 playerId={playerId}
                 character={characterToEdit}
                 questPrepLoadoutsByPlayer={questPrepLoadoutsByPlayer}
+                rememberedAbilityIds={questAbilityLoadoutsByCharacterId[characterToEdit.id]}
                 onSelectedPrimaryIdsChange={onSelectedPrimaryIdsChange}
             >
                 {classic}

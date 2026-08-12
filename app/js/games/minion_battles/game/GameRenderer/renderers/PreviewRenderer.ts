@@ -119,6 +119,7 @@ function renderSelectTargetDef(
     // actually be selected. Draw hitbox first — some implementations call gr.clear() internally.
     const teamFilteredUnits = filterSelectTargetCandidates(engine.units, caster, selectDef.filter, selectDef.includeSelf);
     const candidates = selectDef.hitbox.renderTargetingPreview(gr, effectiveCaster, effectiveAim, teamFilteredUnits);
+    const highlightUnits: Unit[] = [];
     if (candidates.length > 0) {
         candidates.sort(
             (a, b) =>
@@ -126,7 +127,43 @@ function renderSelectTargetDef(
                 - ((b.x - effectiveAim.x) ** 2 + (b.y - effectiveAim.y) ** 2),
         );
         const maxHighlights = selectDef.numTargets ?? selectDef.hitbox.numTargets;
-        renderMeleeTrackingHighlights(gr, candidates.slice(0, maxHighlights));
+        highlightUnits.push(...candidates.slice(0, maxHighlights));
+    }
+
+    // Companion hitboxes (e.g. Imbued Bat light cone): only when primary would connect,
+    // matching commit rules (companions are not committed on a primary miss).
+    if (highlightUnits.length > 0) {
+        const takenIds = new Set(highlightUnits.map((u) => u.id));
+        for (const companion of selectDef.companionHitboxes ?? []) {
+            const companionFilter = companion.filter ?? selectDef.filter;
+            const companionPool = filterSelectTargetCandidates(
+                engine.units,
+                caster,
+                companionFilter,
+                selectDef.includeSelf,
+            );
+            const companionCandidates = companion.hitbox.renderTargetingPreview(
+                gr,
+                effectiveCaster,
+                effectiveAim,
+                companionPool,
+            );
+            companionCandidates.sort(
+                (a, b) =>
+                    (a.x - effectiveAim.x) ** 2 + (a.y - effectiveAim.y) ** 2
+                    - ((b.x - effectiveAim.x) ** 2 + (b.y - effectiveAim.y) ** 2),
+            );
+            const maxCompanion = companion.numTargets ?? companion.hitbox.numTargets;
+            for (const u of companionCandidates.slice(0, maxCompanion)) {
+                if (takenIds.has(u.id)) continue;
+                takenIds.add(u.id);
+                highlightUnits.push(u);
+            }
+        }
+    }
+
+    if (highlightUnits.length > 0) {
+        renderMeleeTrackingHighlights(gr, highlightUnits);
     }
 
     // Lunge indicator on top (must come after hitbox draw).

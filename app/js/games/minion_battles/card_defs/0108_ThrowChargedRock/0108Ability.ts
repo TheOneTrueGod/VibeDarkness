@@ -9,11 +9,9 @@ import {
     type TooltipTokenBindings,
 } from '../../abilities/tooltipTokens';
 import type { TargetDef } from '../../abilities/targeting';
-import { clampToMaxRange, drawClampedLine, drawCrosshair } from '../../abilities/previewHelpers';
 import type { Unit } from '../../game/units/Unit';
 import { Effect } from '../../game/effects/Effect';
 import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
-import { areEnemies } from '../../game/teams';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
 import { knockbackCtxFromEngine, tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
@@ -34,6 +32,13 @@ import {
 } from '../throwSharedTimings';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
 import { spawnBrightLight, type EngineWithLight } from '../../abilities/brightKeyword';
+import { circleAoEHitbox } from '../../hitboxes';
+import type { HitboxEngineContext } from '../../hitboxes/Hitbox';
+import {
+    explodeAtPointWithPriorityFill,
+    extractCommittedUnitIds,
+} from '../../abilities/priorityFillHits';
+import type { ResolvedTarget } from '../../game/types';
 
 const THROW_CHARGED_ROCK_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
   <path d="M20 4 L32 12 L36 24 L28 36 L12 34 L4 20 Z" fill="#6b6b6b" stroke="#5a5a5a" stroke-width="1"/>
@@ -98,15 +103,45 @@ function chargedRockLaunchBehaviour() {
         .withResolveDamage(resolveDirectHitDamage);
 }
 
-const THROW_CHARGED_ROCK_BASE_TIMINGS = buildThrowBaseTimings({
-    launchBehaviour: chargedRockLaunchBehaviour(),
-    entombed: ENTOMBED_OPTS,
-});
+function chargedRockSelectOpts(explosionRadius: number, maxTargets: number) {
+    return {
+        selectHitbox: circleAoEHitbox({
+            castRange: THROW_RANGE,
+            aoeRadius: explosionRadius,
+            numTargets: maxTargets,
+            previewStyle: {
+                color: PREVIEW_TEAL,
+                lineWidth: 2,
+                lineAlpha: 0.7,
+                fillAlpha: 0.15,
+                strokeAlpha: 0.5,
+                showCrosshair: true,
+            },
+        }),
+        selectFilter: 'enemy' as const,
+        lockOnMode: 'strictHitbox' as const,
+    };
+}
 
-const THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS = buildMoreRockTimings({
-    launchBehaviour: chargedRockLaunchBehaviour(),
-    entombed: ENTOMBED_MORE_ROCK_OPTS,
-});
+function buildChargedRockTimings(research: Set<string>) {
+    const explosionRadius = getExplosionRadiusForResearch(research);
+    const maxTargets = hasMorePowerResearch(research) ? MORE_POWER_MAX_TARGETS : BASE_MAX_TARGETS;
+    const selectOpts = chargedRockSelectOpts(explosionRadius, maxTargets);
+    if (hasMoreRockResearch(research)) {
+        return buildMoreRockTimings({
+            launchBehaviour: chargedRockLaunchBehaviour(),
+            entombed: ENTOMBED_MORE_ROCK_OPTS,
+            ...selectOpts,
+        });
+    }
+    return buildThrowBaseTimings({
+        launchBehaviour: chargedRockLaunchBehaviour(),
+        entombed: ENTOMBED_OPTS,
+        ...selectOpts,
+    });
+}
+
+const THROW_CHARGED_ROCK_BASE_TIMINGS = buildChargedRockTimings(new Set());
 
 export const ThrowChargedRock: AbilityStatic = {
     id: CARD_ID,
@@ -122,7 +157,7 @@ export const ThrowChargedRock: AbilityStatic = {
     abilityTimings: THROW_CHARGED_ROCK_BASE_TIMINGS,
     getAbilityTimings(caster, gameState) {
         const research = getCrystalRocksResearch(gameState as AbilityEngineContext | undefined, caster);
-        return hasMoreRockResearch(research) ? THROW_CHARGED_ROCK_MORE_ROCK_TIMINGS : THROW_CHARGED_ROCK_BASE_TIMINGS;
+        return buildChargedRockTimings(research);
     },
     targets: TWO_PIXEL_TARGETS,
     keywords: {
@@ -231,13 +266,17 @@ export const ThrowChargedRock: AbilityStatic = {
             lightType: 'FireLight',
         });
 
-        const units = (eng.units ?? [])
-            .filter((u) => u.isAlive() && areEnemies(sourceUnit.teamId, u.teamId))
-            .map((u) => ({ unit: u, dist: Math.hypot(u.x - proj.x, u.y - proj.y) }))
-            .filter((entry) => entry.dist <= explosionRadius + entry.unit.radius)
-            .sort((a, b) => a.dist - b.dist)
-            .slice(0, maxTargets)
-            .map((entry) => entry.unit);
+        const matching = sourceUnit.activeAbilities.filter((a) => a.abilityId === CARD_ID);
+        matching.sort((a, b) => b.startTime - a.startTime);
+        const activeTargets: ResolvedTarget[] = matching[0]?.targets ?? [];
+        const units = explodeAtPointWithPriorityFill({
+            engine: eng as unknown as HitboxEngineContext,
+            caster: sourceUnit,
+            center: { x: proj.x, y: proj.y },
+            radius: explosionRadius,
+            committedIds: extractCommittedUnitIds(activeTargets),
+            numTargets: maxTargets,
+        });
 
         for (const unit of units) {
             const modifiedDamage = getModifiedAbilityDamage(sourceUnit, explosionDamage);
@@ -254,30 +293,6 @@ export const ThrowChargedRock: AbilityStatic = {
         }
     },
 
-    renderTargetingPreviewSelectedTargets(gr, caster, currentTargets, mouseWorld, _units, gameState): void {
-        const research = getCrystalRocksResearch(gameState as AbilityEngineContext | undefined, caster);
-        const explosionRadius = getExplosionRadiusForResearch(research);
-
-        // Draw current aim preview at mouse position
-        const clamped = clampToMaxRange(caster, mouseWorld, THROW_RANGE);
-        drawClampedLine(gr, caster, mouseWorld, THROW_RANGE, { color: 0x8ef9ff, width: 2, alpha: 0.7 });
-        gr.circle(clamped.endX, clamped.endY, explosionRadius);
-        gr.fill({ color: PREVIEW_TEAL, alpha: 0.15 });
-        gr.circle(clamped.endX, clamped.endY, explosionRadius);
-        gr.stroke({ color: PREVIEW_TEAL, width: 2, alpha: 0.5 });
-
-        // Draw confirmed targets
-        for (const t of currentTargets) {
-            if (t.type === 'pixel' && t.position) {
-                const c = clampToMaxRange(caster, t.position, THROW_RANGE);
-                drawCrosshair(gr, c.endX, c.endY, 10, { color: 0x8ef9ff, width: 2, alpha: 0.95 });
-                gr.circle(c.endX, c.endY, explosionRadius);
-                gr.fill({ color: PREVIEW_TEAL, alpha: 0.1 });
-                gr.circle(c.endX, c.endY, explosionRadius);
-                gr.stroke({ color: PREVIEW_TEAL, width: 2, alpha: 0.45 });
-            }
-        }
-    },
 };
 
 export const ThrowChargedRockCard: CardDef = {

@@ -6,6 +6,7 @@ import {
     getInteractiveTargetDefsFromTimings,
     buildMeleeSelectOrderTargets,
     clampSelectTarget,
+    resolveSelectTargetCompanionLockOns,
     resolveSelectTargetLockOnCandidates,
 } from '../../abilities/targeting';
 import type { InteractiveTargetDef, SelectTargetDef } from '../../abilities/timingTargetDef';
@@ -42,6 +43,14 @@ export function resolveItsSelectTargetForClick(
         mouseWorld,
         engine,
     );
+    const companionUnits = resolveSelectTargetCompanionLockOns(
+        abilityDef,
+        caster,
+        selectDef,
+        mouseWorld,
+        engine,
+        candidates,
+    );
     let resolved: ResolvedTarget | null = null;
     if (candidates.length > 0) {
         resolved = { type: 'unit', unitId: candidates[0]!.id };
@@ -66,6 +75,7 @@ export function resolveItsSelectTargetForClick(
     );
     const numTargets = selectDef.numTargets ?? selectDef.hitbox.numTargets;
     const lockOnCandidates = candidates.map((u) => ({ unitId: u.id }));
+    const companionCandidates = companionUnits.map((u) => ({ unitId: u.id }));
     const labelTarget: ResolvedTarget = lockOnCandidates.length > 0
         ? { type: 'unit', unitId: lockOnCandidates[0]!.unitId }
         : resolved;
@@ -74,6 +84,7 @@ export function resolveItsSelectTargetForClick(
         lockOnCandidates,
         clickWorldPos,
         numTargets,
+        companionCandidates,
     );
     return { labelTarget, resolved, orderTargets };
 }

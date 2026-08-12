@@ -21,6 +21,9 @@ export interface BuffExpireContext {
     roundNumber: number;
     eventBus: EventBus;
     terrainManager: TerrainManager | null;
+    /** Live unit list for expire-time AoE (e.g. slam knockback). */
+    units?: readonly Unit[];
+    interruptUnitAndRefundAbilities?(unit: Unit): void;
 }
 
 /** Serializable buff data. Subclasses extend with their own fields. */

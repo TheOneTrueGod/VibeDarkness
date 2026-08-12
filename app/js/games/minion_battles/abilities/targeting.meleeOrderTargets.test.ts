@@ -15,7 +15,7 @@ describe('buildMeleeSelectOrderTargets', () => {
         const primary: ResolvedTarget = { type: 'unit', unitId: 'u1' };
         const result = buildMeleeSelectOrderTargets(primary, [{ unitId: 'u1' }], clickPos, 3);
         expect(result).toEqual([
-            { type: 'unit', unitId: 'u1' },
+            { type: 'unit', unitId: 'u1', lockRole: 'primary' },
             { type: 'pixel', position: clickPos },
         ]);
     });
@@ -25,9 +25,9 @@ describe('buildMeleeSelectOrderTargets', () => {
         const candidates = [{ unitId: 'u1' }, { unitId: 'u2' }, { unitId: 'u3' }];
         const result = buildMeleeSelectOrderTargets(primary, candidates, clickPos, 3);
         expect(result).toEqual([
-            { type: 'unit', unitId: 'u1' },
-            { type: 'unit', unitId: 'u2' },
-            { type: 'unit', unitId: 'u3' },
+            { type: 'unit', unitId: 'u1', lockRole: 'primary' },
+            { type: 'unit', unitId: 'u2', lockRole: 'primary' },
+            { type: 'unit', unitId: 'u3', lockRole: 'primary' },
             { type: 'pixel', position: clickPos },
         ]);
     });
@@ -37,9 +37,9 @@ describe('buildMeleeSelectOrderTargets', () => {
         const candidates = [{ unitId: 'u1' }, { unitId: 'u2' }, { unitId: 'u3' }, { unitId: 'u4' }];
         const result = buildMeleeSelectOrderTargets(primary, candidates, clickPos, 3);
         expect(result).toEqual([
-            { type: 'unit', unitId: 'u1' },
-            { type: 'unit', unitId: 'u2' },
-            { type: 'unit', unitId: 'u3' },
+            { type: 'unit', unitId: 'u1', lockRole: 'primary' },
+            { type: 'unit', unitId: 'u2', lockRole: 'primary' },
+            { type: 'unit', unitId: 'u3', lockRole: 'primary' },
             { type: 'pixel', position: clickPos },
         ]);
     });
@@ -48,7 +48,24 @@ describe('buildMeleeSelectOrderTargets', () => {
         const clampedPixel: ResolvedTarget = { type: 'pixel', position: { x: 80, y: 50 } };
         const result = buildMeleeSelectOrderTargets(clampedPixel, [{ unitId: 'u1' }], clickPos, 3);
         expect(result).toEqual([
-            { type: 'unit', unitId: 'u1' },
+            { type: 'unit', unitId: 'u1', lockRole: 'primary' },
+            { type: 'pixel', position: clickPos },
+        ]);
+    });
+
+    it('companion candidates append after primary and before aim pixel', () => {
+        const primary: ResolvedTarget = { type: 'unit', unitId: 'u1' };
+        const result = buildMeleeSelectOrderTargets(
+            primary,
+            [{ unitId: 'u1' }],
+            clickPos,
+            3,
+            [{ unitId: 'c1' }, { unitId: 'c2' }],
+        );
+        expect(result).toEqual([
+            { type: 'unit', unitId: 'u1', lockRole: 'primary' },
+            { type: 'unit', unitId: 'c1', lockRole: 'companion' },
+            { type: 'unit', unitId: 'c2', lockRole: 'companion' },
             { type: 'pixel', position: clickPos },
         ]);
     });

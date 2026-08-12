@@ -245,6 +245,61 @@ export function resolveSelectTargetLockOnCandidates(
 }
 
 /**
+ * Resolve companion hitbox lock-on candidates for the same click as the primary select.
+ * Uses the same lunge-adjusted origin/aim as {@link resolveSelectTargetLockOnCandidates}.
+ * Dedupes units already taken by `primaryCandidates` so they are not committed twice.
+ */
+export function resolveSelectTargetCompanionLockOns(
+    ability: AbilityStatic,
+    caster: Unit,
+    selectDef: SelectTargetDef,
+    aimPoint: { x: number; y: number },
+    engine: SelectLockOnEngine,
+    primaryCandidates: readonly Unit[] = [],
+): Unit[] {
+    const companions = selectDef.companionHitboxes;
+    if (!companions?.length) return [];
+
+    let originX = caster.x;
+    let originY = caster.y;
+    let effectiveAim = aimPoint;
+
+    if (ability.lunge != null) {
+        const lungeMax = caster.getLungeDistance(engine, ability.lunge.distance);
+        const state = computeLungeAimState(caster, aimPoint, selectDef.hitbox.maxRange, lungeMax);
+        if (state) {
+            originX = state.virtualX;
+            originY = state.virtualY;
+            effectiveAim = state.adjustedMouse;
+        }
+    }
+
+    const originCaster = Object.create(caster) as Unit;
+    originCaster.x = originX;
+    originCaster.y = originY;
+
+    const taken = new Set(primaryCandidates.map((u) => u.id));
+    const result: Unit[] = [];
+    for (const companion of companions) {
+        const raw = companion.hitbox.resolveTargets(originCaster, effectiveAim, engine.units as Unit[]);
+        const filter = companion.filter ?? selectDef.filter;
+        const filtered = filterSelectTargetCandidates(raw, caster, filter, selectDef.includeSelf)
+            .filter((u) => !taken.has(u.id));
+        filtered.sort((a, b) => {
+            const da = (a.x - effectiveAim.x) ** 2 + (a.y - effectiveAim.y) ** 2;
+            const db = (b.x - effectiveAim.x) ** 2 + (b.y - effectiveAim.y) ** 2;
+            return da - db;
+        });
+        const max = companion.numTargets ?? companion.hitbox.numTargets;
+        for (const u of filtered.slice(0, max)) {
+            taken.add(u.id);
+            result.push(u);
+        }
+    }
+    return result;
+}
+
+/**
  * Find the trailing aim pixel appended by `buildMeleeSelectOrderTargets`.
  * Convention: last `pixel` entry in the array (always appended after lock-on units).
  * Returns `null` when no pixel entry is present.
@@ -260,22 +315,27 @@ export function findMeleeAimPixelInTargets(targets: ResolvedTarget[]): { x: numb
 }
 
 /**
- * Build the `order.targets` array for a melee SelectTargetDef click.
+ * Build the `order.targets` array for a melee / AoE SelectTargetDef click.
  *
  * Convention (mirrors AbilityTargetingTool upfront path):
- * - Candidates present: `[primary, ...additionalLockOns(1..numTargets-1), aimPixel]`
- * - No candidates:      `[labelResolved]` only
+ * - Primary candidates: `[primary, ...additionalLockOns(1..numTargets-1), ...companions, aimPixel]`
+ * - No primary candidates: `[labelResolved]` only (companions are not committed on a primary miss)
+ *
+ * Companion IDs (from `SelectTargetDef.companionHitboxes`) append after primary lock-ons and
+ * before the trailing aim pixel. Split with `splitSelectOrderTargets` in `priorityFillHits.ts`.
  *
  * @param labelResolved  Primary resolved target (unit or pixel) stored in `targetsByLabel`.
  * @param lockOnCandidates All sorted lock-on candidates (closest-first), up to hitbox numTargets.
  * @param clickWorldPosition Raw click world position — appended as trailing aim pixel when candidates exist.
  * @param numTargets Max lock-on slots from the SelectTargetDef / hitbox.
+ * @param companionCandidates Optional companion lock-ons (already capped per companion def).
  */
 export function buildMeleeSelectOrderTargets(
     labelResolved: ResolvedTarget,
     lockOnCandidates: Array<{ unitId: string }>,
     clickWorldPosition: { x: number; y: number },
     numTargets: number,
+    companionCandidates: Array<{ unitId: string }> = [],
 ): ResolvedTarget[] {
     if (lockOnCandidates.length === 0) {
         return [labelResolved];
@@ -283,12 +343,17 @@ export function buildMeleeSelectOrderTargets(
     // Lock-on geometry can include units slightly beyond getAbilityMaxRange center distance
     // (thick-line tolerance). clampSelectTarget may downgrade labelResolved to a range pixel —
     // always prefer the highlighted lock-on unit as primary so MeleeAttack.onSetup records it.
-    const primary: ResolvedTarget = { type: 'unit', unitId: lockOnCandidates[0]!.unitId };
+    const primary: ResolvedTarget = { type: 'unit', unitId: lockOnCandidates[0]!.unitId, lockRole: 'primary' };
     const additionalLockOns: ResolvedTarget[] = lockOnCandidates
         .slice(1, numTargets)
-        .map((c) => ({ type: 'unit' as const, unitId: c.unitId }));
+        .map((c) => ({ type: 'unit' as const, unitId: c.unitId, lockRole: 'primary' as const }));
+    const companionLockOns: ResolvedTarget[] = companionCandidates.map((c) => ({
+        type: 'unit' as const,
+        unitId: c.unitId,
+        lockRole: 'companion' as const,
+    }));
     const aimPixel: ResolvedTarget = { type: 'pixel', position: clickWorldPosition };
-    return [primary, ...additionalLockOns, aimPixel];
+    return [primary, ...additionalLockOns, ...companionLockOns, aimPixel];
 }
 
 /** Convert a committed `ResolvedTarget` to a world-space point, or null if unresolvable. */

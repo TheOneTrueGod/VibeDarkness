@@ -14,6 +14,7 @@ export function QuestPrepLoadoutProvider({
     playerId,
     character,
     questPrepLoadoutsByPlayer,
+    rememberedAbilityIds,
     onSelectedPrimaryIdsChange,
     children,
 }: {
@@ -21,6 +22,8 @@ export function QuestPrepLoadoutProvider({
     playerId: string;
     character: CampaignCharacter;
     questPrepLoadoutsByPlayer: Record<string, string[]>;
+    /** Prior quest loadout for this character when the lobby has none yet. */
+    rememberedAbilityIds?: readonly string[];
     /** Mirror local primaries for Ready/freeze (avoids lobby sync race). */
     onSelectedPrimaryIdsChange?: (ids: string[]) => void;
     children: React.ReactNode;
@@ -30,6 +33,7 @@ export function QuestPrepLoadoutProvider({
         playerId,
         character,
         questPrepLoadoutsByPlayer,
+        rememberedAbilityIds,
     });
     useEffect(() => {
         onSelectedPrimaryIdsChange?.(loadout.selectedPrimaryIds);

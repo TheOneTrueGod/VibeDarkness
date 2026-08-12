@@ -65,7 +65,7 @@ export const FORCE_PUSH_LANDING_DISTANCE_SCALE = 1.25;
 /** Fraction of total knockback travel before unit–unit collision is checked (adjacent-unit pop-out). */
 export const FORCE_PUSH_UNIT_COLLISION_START_FRACTION = 0.25;
 
-/** Gravity Inversion (0903) — AoE lift + slam; mode changes horizontal landing only. */
+/** Lift (0903) — AoE lift + slam; mode changes horizontal landing only. */
 export const GRAVITY_INVERSION_MAX_RANGE = 160;
 export const GRAVITY_INVERSION_PREFIRE_TIME = 0.4;
 export const GRAVITY_INVERSION_ACTIVE_DURATION = 0.1;
@@ -78,7 +78,7 @@ export const GRAVITY_INVERSION_GRAVITY_COST = 5;
 /** Extra gap (px) beyond edge-to-edge when Pull mode slams a target in front of the caster. */
 export const GRAVITY_INVERSION_PULL_SLAM_SPACING = 20;
 
-/** Violet palette for `howlShockwaveEffectDef` on Gravity Inversion slams. */
+/** Violet palette for `howlShockwaveEffectDef` on Lift slams. */
 export const GRAVITY_INVERSION_SHOCKWAVE_COLORS = [0xc084fc, 0xa855f7, 0x6b21a8] as const;
 /** Visual scale for the slam shockwave rings (1 = default HowlShockwave size). */
 export const GRAVITY_INVERSION_SLAM_SHOCKWAVE_SCALE = 0.5;

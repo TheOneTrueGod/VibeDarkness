@@ -10,7 +10,8 @@ import type { AbilityEngineContext } from '../abilities/AbilityEngineContext';
 import type { CastBehaviour, CastBehaviourEntry } from '../abilities/castBehaviourTypes';
 import { withEntombedWallConditionalCancelAndLinger } from '../abilities/entombed/entombedWallCancel';
 import type { TargetDef } from '../abilities/targeting';
-import { nullHitbox } from '../hitboxes';
+import type { SelectTargetDef } from '../abilities/timingTargetDef';
+import { nullHitbox, type HitboxSpec } from '../hitboxes';
 import type { ActiveAbility } from '../game/types';
 import type { Unit } from '../game/units/Unit';
 import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
@@ -90,6 +91,25 @@ export interface BuildThrowBaseTimingsOpts {
     cooldownLabel?: string;
     launchBehaviour?: CastBehaviour;
     entombed?: EntombedTimingOpts;
+    /** Override the select hitbox (default `nullHitbox`). */
+    selectHitbox?: HitboxSpec;
+    /** Select filter (default `'any'`). */
+    selectFilter?: SelectTargetDef['filter'];
+    lockOnMode?: SelectTargetDef['lockOnMode'];
+}
+
+function throwSelectTargetDef(
+    label: string,
+    opts: Pick<BuildThrowBaseTimingsOpts, 'selectHitbox' | 'selectFilter' | 'lockOnMode'>,
+): SelectTargetDef {
+    return {
+        kind: 'select',
+        label,
+        hitbox: opts.selectHitbox ?? nullHitbox,
+        filter: opts.selectFilter ?? 'any',
+        allowMiss: true,
+        ...(opts.lockOnMode ? { lockOnMode: opts.lockOnMode } : {}),
+    };
 }
 
 export function buildThrowBaseTimings(opts: BuildThrowBaseTimingsOpts = {}): AbilityTimingInterval[] {
@@ -115,7 +135,7 @@ export function buildThrowBaseTimings(opts: BuildThrowBaseTimingsOpts = {}): Abi
             doNotRefund: true,
             timelineLabel: opts.activeLabel ?? 'Active',
             timelineDescription: 'Release frame — projectile is thrown.',
-            targetDef: { kind: 'select', label: 'Target location', hitbox: nullHitbox, filter: 'any', allowMiss: true },
+            targetDef: throwSelectTargetDef('Target location', opts),
             ...(launch ? { castBehaviours: throwLaunchAtWindowStart(launch, 0) } : {}),
         },
         {
@@ -137,11 +157,19 @@ export function buildThrowBaseTimings(opts: BuildThrowBaseTimingsOpts = {}): Abi
 export interface BuildMoreRockTimingsOpts {
     launchBehaviour: CastBehaviour;
     entombed?: EntombedTimingOpts;
+    selectHitbox?: HitboxSpec;
+    selectFilter?: SelectTargetDef['filter'];
+    lockOnMode?: SelectTargetDef['lockOnMode'];
 }
 
 /** Timeline: windup / throw / short windup / throw / cooldown (`::::::=:::=...`). */
 export function buildMoreRockTimings(opts: BuildMoreRockTimingsOpts): AbilityTimingInterval[] {
     const { launchBehaviour, entombed } = opts;
+    const selectOpts = {
+        selectHitbox: opts.selectHitbox,
+        selectFilter: opts.selectFilter,
+        lockOnMode: opts.lockOnMode,
+    };
     const raw: AbilityTimingInterval[] = [
         {
             id: 'windup_1',
@@ -159,7 +187,7 @@ export function buildMoreRockTimings(opts: BuildMoreRockTimingsOpts): AbilityTim
             doNotRefund: true,
             timelineLabel: 'First throw',
             timelineDescription: 'First projectile is in flight.',
-            targetDef: { kind: 'select', label: 'Target location', hitbox: nullHitbox, filter: 'any', allowMiss: true },
+            targetDef: throwSelectTargetDef('Target location', selectOpts),
             castBehaviours: throwLaunchAtWindowStart(launchBehaviour, 0),
         },
         {
@@ -177,7 +205,7 @@ export function buildMoreRockTimings(opts: BuildMoreRockTimingsOpts): AbilityTim
             abilityPhase: AbilityPhase.Active,
             timelineLabel: 'Second throw',
             timelineDescription: 'Second projectile is in flight.',
-            targetDef: { kind: 'select', label: 'Second target (More Rock)', hitbox: nullHitbox, filter: 'any', allowMiss: true },
+            targetDef: throwSelectTargetDef('Second target (More Rock)', selectOpts),
             castBehaviours: throwLaunchAtWindowStart(launchBehaviour, 1),
         },
         {

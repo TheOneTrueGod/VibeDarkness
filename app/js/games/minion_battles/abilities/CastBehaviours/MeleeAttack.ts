@@ -18,6 +18,7 @@ import type { TryDamageOrBlockParams } from '../blockingHelpers';
 import { getLockOnRange as getLockOnRangeFromMax } from '../targetLockTracking';
 import { resolveMeleeSlideDirection } from '../meleeSlideDirection';
 import { findMeleeAimPixelInTargets } from '../targeting';
+import { assignHitSlots, priorityFillHits } from '../priorityFillHits';
 
 // ---- Easing (melee lunge slide) ----
 
@@ -81,46 +82,6 @@ interface MeleeAttackPayload {
     impactFired: boolean;
 }
 
-// ---- Stack-aware hit-slot assignment ----
-
-/**
- * Assign up to `cap` hit slots to candidates. Each unique unit gets one slot
- * first (preserving order). Remaining slots are given to stacks (largest
- * first, capped by stackSize), so a single stack can be hit multiple times
- * when there are not enough distinct targets to fill all slots.
- *
- * Prefer spreading hits across different stacks before hitting the same stack
- * twice.
- */
-function assignHitSlots(candidates: Unit[], cap: number): Unit[] {
-    const slotsUsed = new Map<string, number>();
-    const result: Unit[] = [];
-
-    for (const u of candidates) {
-        if (result.length >= cap) break;
-        if (!slotsUsed.has(u.id)) {
-            slotsUsed.set(u.id, 1);
-            result.push(u);
-        }
-    }
-
-    if (result.length < cap) {
-        const stackable = [...new Set(candidates)]
-            .filter((u) => u.stackSize > (slotsUsed.get(u.id) ?? 0))
-            .sort((a, b) => b.stackSize - a.stackSize);
-
-        for (const u of stackable) {
-            while (result.length < cap && (slotsUsed.get(u.id) ?? 0) < u.stackSize) {
-                slotsUsed.set(u.id, (slotsUsed.get(u.id) ?? 0) + 1);
-                result.push(u);
-            }
-            if (result.length >= cap) break;
-        }
-    }
-
-    return result;
-}
-
 // ---- Behaviour class ----
 
 export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBehaviour {
@@ -136,6 +97,13 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
      * Use withLockOnExtra() for basic attacks where the default 100px tether is too generous.
      */
     private lockOnExtraOverride: number | null = null;
+    /**
+     * Resolve-time lock-on policy. Source of truth for MeleeAttack hit resolution
+     * (SelectTargetDef.lockOnMode documents the same intent for Instant/AoE helpers).
+     * Default `'tether'` preserves melee forgiveness; `'strictHitbox'` drops tether
+     * and uses priority fill against in-shape units only.
+     */
+    private lockOnMode: 'tether' | 'strictHitbox' = 'tether';
 
     withHitbox(def: HitboxDef | HitboxSpec): this {
         this.hitboxDef = def;
@@ -194,6 +162,12 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         return this;
     }
 
+    /** See {@link MeleeAttackBehaviour.lockOnMode}. */
+    withLockOnMode(mode: 'tether' | 'strictHitbox'): this {
+        this.lockOnMode = mode;
+        return this;
+    }
+
     private getNumLockOns(): number {
         return (this.hitboxDef && 'numTargets' in this.hitboxDef)
             ? (this.hitboxDef as HitboxSpec).numTargets
@@ -223,11 +197,12 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         const numLockOns = this.getNumLockOns();
 
         // Collect locked units starting at the primary target's slot, up to numLockOns.
+        // Skip companion lock-ons (`lockRole: 'companion'`) from SelectTargetDef.companionHitboxes.
         const startIdx = Math.max(0, ctx.allTargets.indexOf(ctx.target));
         const lockedUnits: LockedUnit[] = [];
-        for (let i = startIdx; i < Math.min(ctx.allTargets.length, startIdx + numLockOns); i++) {
+        for (let i = startIdx; i < ctx.allTargets.length && lockedUnits.length < numLockOns; i++) {
             const t = ctx.allTargets[i];
-            if (t?.type === 'unit' && t.unitId != null) {
+            if (t?.type === 'unit' && t.unitId != null && t.lockRole !== 'companion') {
                 lockedUnits.push({ unitId: t.unitId });
             }
         }
@@ -239,7 +214,8 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         // Uses findMeleeAimPixelInTargets (last pixel) so fewer-than-numLockOns cases
         // (e.g. 1 enemy in a 3-slot hitbox → [unit, pixel]) are handled correctly.
         let aimPixel: { x: number; y: number } | null = null;
-        if (numLockOns > 1) {
+        const hasCompanionLock = ctx.allTargets.some((t) => t.type === 'unit' && t.lockRole === 'companion');
+        if (numLockOns > 1 || hasCompanionLock) {
             aimPixel = findMeleeAimPixelInTargets(ctx.allTargets);
         }
 
@@ -323,30 +299,7 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
             aimY = ctx.caster.y + payload.aimDirY * FALLBACK_DIST;
         }
 
-        // --- Guaranteed hits: locked units still within lock-on range ---
-        // Evaded units (lockedPosition set) are excluded — they dodged intentionally.
-        // When lockOnExtraOverride is set, the range is caster.radius + target.radius + extra
-        // (computed per-target so differently-sized units are handled correctly).
-        const defaultLockOnRange = getLockOnRange(this.hitboxDef);
-        const guaranteedHitIds = new Set<string>();
-        const guaranteedHits: Unit[] = [];
-
-        for (const locked of payload.lockedUnits) {
-            if (payload.evadedUnitIds.has(locked.unitId)) continue; // evaded
-            const liveUnit = ctx.engine.getUnit(locked.unitId);
-            if (!liveUnit || !liveUnit.isAlive()) continue;
-            const lockOnRange = this.lockOnExtraOverride !== null
-                ? ctx.caster.radius + liveUnit.radius + this.lockOnExtraOverride
-                : defaultLockOnRange;
-            const dx = liveUnit.x - ctx.caster.x;
-            const dy = liveUnit.y - ctx.caster.y;
-            if (Math.sqrt(dx * dx + dy * dy) <= lockOnRange) {
-                guaranteedHits.push(liveUnit);
-                guaranteedHitIds.add(locked.unitId);
-            }
-        }
-
-        // --- Hitbox check fills any remaining slots ---
+        // --- Hitbox units at impact ---
         let hitboxUnits: Unit[] = [];
         if (this.hitboxDef != null) {
             if ('maxRange' in this.hitboxDef) {
@@ -372,19 +325,55 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         // Evaded units are excluded from all hits — the attack targets the floor at the evade
         // snapshot position, not the unit itself, so even a hitbox overlap should not apply damage.
         const evadedIds = payload.evadedUnitIds;
+        const lockedIds = payload.lockedUnits
+            .map((l) => l.unitId)
+            .filter((id) => !evadedIds.has(id));
 
-        // Final list: stack-aware slot assignment (stacks may appear multiple times).
-        const allCandidates: Unit[] = [...guaranteedHits];
-        for (const u of hitboxUnits) {
-            if (!guaranteedHitIds.has(u.id) && !evadedIds.has(u.id)) {
-                allCandidates.push(u);
+        let hitUnits: Unit[];
+        if (this.lockOnMode === 'strictHitbox') {
+            // No tether: committed IDs only count if still in the hitbox; fill remaining slots.
+            const inShape = hitboxUnits.filter((u) => !evadedIds.has(u.id));
+            const cap = this.hitboxDef != null && 'maxRange' in this.hitboxDef
+                ? (this.hitboxDef as HitboxSpec).numTargets
+                : this.maxHits;
+            hitUnits = priorityFillHits(lockedIds, inShape, cap);
+        } else {
+            // --- Guaranteed hits: locked units still within lock-on range ---
+            // Evaded units are excluded — they dodged intentionally.
+            // When lockOnExtraOverride is set, the range is caster.radius + target.radius + extra
+            // (computed per-target so differently-sized units are handled correctly).
+            const defaultLockOnRange = getLockOnRange(this.hitboxDef);
+            const guaranteedHitIds = new Set<string>();
+            const guaranteedHits: Unit[] = [];
+
+            for (const locked of payload.lockedUnits) {
+                if (payload.evadedUnitIds.has(locked.unitId)) continue; // evaded
+                const liveUnit = ctx.engine.getUnit(locked.unitId);
+                if (!liveUnit || !liveUnit.isAlive()) continue;
+                const lockOnRange = this.lockOnExtraOverride !== null
+                    ? ctx.caster.radius + liveUnit.radius + this.lockOnExtraOverride
+                    : defaultLockOnRange;
+                const dx = liveUnit.x - ctx.caster.x;
+                const dy = liveUnit.y - ctx.caster.y;
+                if (Math.sqrt(dx * dx + dy * dy) <= lockOnRange) {
+                    guaranteedHits.push(liveUnit);
+                    guaranteedHitIds.add(locked.unitId);
+                }
             }
-        }
 
-        const hitUnits: Unit[] =
-            this.hitboxDef != null && 'maxRange' in this.hitboxDef
-                ? assignHitSlots(allCandidates, (this.hitboxDef as HitboxSpec).numTargets)
-                : allCandidates;
+            // Final list: stack-aware slot assignment (stacks may appear multiple times).
+            const allCandidates: Unit[] = [...guaranteedHits];
+            for (const u of hitboxUnits) {
+                if (!guaranteedHitIds.has(u.id) && !evadedIds.has(u.id)) {
+                    allCandidates.push(u);
+                }
+            }
+
+            hitUnits =
+                this.hitboxDef != null && 'maxRange' in this.hitboxDef
+                    ? assignHitSlots(allCandidates, (this.hitboxDef as HitboxSpec).numTargets)
+                    : allCandidates;
+        }
 
         // Spawn impact VFX — custom callback takes full control when set.
         // Only animate from caster when the attack actually lands; misses and evades appear in place.

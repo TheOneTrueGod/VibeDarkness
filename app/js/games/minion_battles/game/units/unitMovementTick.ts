@@ -89,6 +89,8 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
                 roundNumber,
                 eventBus: engCtx.eventBus,
                 terrainManager: engCtx.terrainManager ?? null,
+                units: engCtx.units,
+                interruptUnitAndRefundAbilities: engCtx.interruptUnitAndRefundAbilities?.bind(engCtx),
             });
         }
     }

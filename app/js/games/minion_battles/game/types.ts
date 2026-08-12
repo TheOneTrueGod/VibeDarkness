@@ -318,6 +318,12 @@ export interface ResolvedTarget {
     unitId?: string;
     playerId?: string;
     position?: { x: number; y: number };
+    /**
+     * When set on a unit lock-on, distinguishes primary select hitbox commits from
+     * `SelectTargetDef.companionHitboxes` commits in `order.targets`.
+     * Omitted / `'primary'` = primary; `'companion'` is ignored by MeleeAttack tether.
+     */
+    lockRole?: 'primary' | 'companion';
 }
 
 /** Enemy placement at battle start: mission `EnemySpawnDef` plus owner. Baseline hp/speed resolved from unit defs when omitted. */

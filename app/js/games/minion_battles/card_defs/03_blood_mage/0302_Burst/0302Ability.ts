@@ -203,6 +203,7 @@ export const BurstAbility_0302 = defineAbility({
                 hitbox: BURST_HITBOX,
                 filter: 'enemy',
                 allowMiss: true,
+                lockOnMode: 'strictHitbox',
             },
             castBehaviours: [
                 {

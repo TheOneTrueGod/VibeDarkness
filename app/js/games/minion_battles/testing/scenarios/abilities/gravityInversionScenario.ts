@@ -1,5 +1,5 @@
 /**
- * Gravity Inversion (0903) — LiftedBuff hard CC + slam through the real order path.
+ * Lift (0903) — LiftedBuff hard CC + slam through the real order path.
  *
  * Beat 1: push mode locks the enemy during the float window then deals slam damage.
  * Beat 2: pull mode slams the enemy adjacent to the caster.
@@ -39,7 +39,7 @@ const PULL_LANDING_MAX_DIST = 30;
 
 export const gravityInversionScenario: ScenarioDefinition = {
     id: 'gravity_inversion_lift_slam_e2e',
-    title: 'Gravity Inversion (0903): lift locks action; pull slam lands at caster feet',
+    title: 'Lift (0903): lift locks action; pull slam lands at caster feet',
     category: 'ability',
     maxDurationMs: 10000,
 

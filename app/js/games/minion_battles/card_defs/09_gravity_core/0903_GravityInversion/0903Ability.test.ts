@@ -100,6 +100,10 @@ function advanceSimulation(
 }
 
 describe('GravityInversionAbility', () => {
+    it('is named Lift', () => {
+        expect(GravityInversionAbility.name).toBe('Lift');
+    });
+
     it('lifted enemy cannot act for 1.5s then takes slam damage', () => {
         const caster = makeCaster(100);
         const enemy = makeEnemy('enemy', 100, 100);
@@ -168,6 +172,36 @@ describe('GravityInversionAbility', () => {
 
         const lifted = enemies.filter((e) => e.hasBuff(LIFTED_BUFF_TYPE));
         expect(lifted).toHaveLength(GRAVITY_INVERSION_MAX_TARGETS);
+    });
+
+    it('strict priority fill drops a committed enemy that left the AoE', () => {
+        const caster = makeCaster(100);
+        const leaver = makeEnemy('leaver', 200, 100);
+        const stayer = makeEnemy('stayer', 100, 100);
+        const newcomer = makeEnemy('newcomer', 110, 100);
+        const engine = makeEngine([caster, leaver, stayer, newcomer]);
+
+        executeUnitAbility(
+            caster,
+            GravityInversionAbility,
+            [
+                { type: 'unit', unitId: 'leaver', lockRole: 'primary' },
+                { type: 'unit', unitId: 'stayer', lockRole: 'primary' },
+                { type: 'pixel', position: { ...TARGET } },
+            ],
+            engine,
+        );
+
+        advanceSimulation(
+            [caster, leaver, stayer, newcomer],
+            engine,
+            GRAVITY_INVERSION_PREFIRE_TIME + 0.05,
+            [caster],
+        );
+
+        expect(leaver.hasBuff(LIFTED_BUFF_TYPE)).toBe(false);
+        expect(stayer.hasBuff(LIFTED_BUFF_TYPE)).toBe(true);
+        expect(newcomer.hasBuff(LIFTED_BUFF_TYPE)).toBe(true);
     });
 
     it('a CC-armoured boss absorbs the lift attempt', () => {

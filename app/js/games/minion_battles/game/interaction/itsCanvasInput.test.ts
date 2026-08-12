@@ -221,7 +221,7 @@ describe('resolveItsSelectTargetForClick', () => {
 
         expect(resolution).not.toBeNull();
         expect(resolution!.orderTargets).toEqual([
-            { type: 'unit', unitId: enemy.id },
+            { type: 'unit', unitId: enemy.id, lockRole: 'primary' },
             { type: 'pixel', position: clickWorld },
         ]);
         engine.destroy();

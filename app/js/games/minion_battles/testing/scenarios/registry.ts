@@ -87,6 +87,12 @@ import { gravityGrazeScenario } from './abilities/gravityGrazeScenario';
 import { gravityLocusScenario } from './abilities/gravityLocusScenario';
 import { forcePushScenario } from './abilities/forcePushScenario';
 import { gravityInversionScenario } from './abilities/gravityInversionScenario';
+import {
+    energyBlastStrictPriorityFillScenario,
+    imbuedBatConeStrictFillScenario,
+    liftStrictPriorityFillScenario,
+    lightBlastStrictPriorityFillScenario,
+} from './abilities/strictLockOnScenarios';
 import { bloodMendScenario } from './abilities/bloodMendScenario';
 import { burstScenario } from './abilities/burstScenario';
 import { protectShieldAbsorptionScenario } from './abilities/protectScenario';
@@ -189,6 +195,10 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     gravityLocusScenario,
     forcePushScenario,
     gravityInversionScenario,
+    liftStrictPriorityFillScenario,
+    lightBlastStrictPriorityFillScenario,
+    energyBlastStrictPriorityFillScenario,
+    imbuedBatConeStrictFillScenario,
     bloodMendScenario,
     burstScenario,
     protectShieldAbsorptionScenario,

@@ -27,6 +27,25 @@ export interface SelectTargetDef {
      */
     numTargets?: number;
     /**
+     * How committed lock-on IDs are treated at resolve time.
+     * - `'tether'` (default when omitted): melee-style forgiveness — locked units may still
+     *   count when outside the hitbox but within the tether bubble.
+     * - `'strictHitbox'`: committed units count only if still inside the hitbox at resolve
+     *   (no tether). Remaining slots fill from other in-shape units (priority fill).
+     */
+    lockOnMode?: 'tether' | 'strictHitbox';
+    /**
+     * Extra hitboxes resolved on the same select click (e.g. Imbued Bat light cone).
+     * Order.targets convention: `[primary0..P-1, companion0..C-1, …, aimPixel]`.
+     * Preview/commit append companion candidates after primary; resolve uses strict fill
+     * per companion unless that path opts into tether separately.
+     */
+    companionHitboxes?: Array<{
+        hitbox: HitboxSpec;
+        numTargets?: number;
+        filter?: SelectTargetDef['filter'];
+    }>;
+    /**
      * Extra px beyond (caster.radius + target.radius) at which the windup telegraph tether breaks.
      * When set, the telegraph freezes when distance > caster.radius + target.radius + maxLockOnExtra,
      * rather than using the hitbox-derived default (hitboxMaxRange + 100px).

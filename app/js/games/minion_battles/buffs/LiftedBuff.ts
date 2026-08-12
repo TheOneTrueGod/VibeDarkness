@@ -1,19 +1,30 @@
 /**
  * LiftedBuff — suspended airborne hard CC. Unit cannot move or act for the duration;
- * on expiry applies terrain-aware horizontal slam displacement, damage, and a slam event.
+ * on expiry applies terrain-aware horizontal slam displacement, damage, slam AoE knockback,
+ * and a slam event.
  */
 
 import { Buff, type BuffExpireContext, type BuffSerialized } from './Buff';
 import type { Unit } from '../game/units/Unit';
 import { computeForcedDisplacement } from '../game/forceMove';
+import { knockbackCtxFromEngine, tryApplyKnockbackByTier } from '../crowdControl/knockbackKeywords';
 
 export const LIFTED_BUFF_TYPE = 'lifted';
 
+/** Base vertical lift cap before the +50% height stretch (UnitRenderer pixels). */
+const LIFTED_RENDER_MAX_HEIGHT_BASE_PX = 50;
 /** Vertical lift cap for UnitRenderer (pixels). */
-export const LIFTED_RENDER_MAX_HEIGHT_PX = 50;
+export const LIFTED_RENDER_MAX_HEIGHT_PX = LIFTED_RENDER_MAX_HEIGHT_BASE_PX * 1.5;
 
+/** Base unit-radius multiplier before the +50% height stretch. */
+const LIFTED_RENDER_HEIGHT_RADIUS_FACTOR_BASE = 1.5;
 /** Unit radius multiplier for render lift height. */
-export const LIFTED_RENDER_HEIGHT_RADIUS_FACTOR = 1.5;
+export const LIFTED_RENDER_HEIGHT_RADIUS_FACTOR = LIFTED_RENDER_HEIGHT_RADIUS_FACTOR_BASE * 1.5;
+
+/** Knockback tier applied to nearby units when a lifted unit slams down. */
+export const LIFTED_SLAM_KNOCKBACK_TIER = 1;
+/** Slam knockback AoE radius as a multiple of the slamming unit's radius (1× unit size). */
+export const LIFTED_SLAM_KNOCKBACK_RADIUS_FACTOR = 1;
 
 export function getLiftedMaxRenderHeightPx(unitRadius: number): number {
     return Math.min(
@@ -96,6 +107,8 @@ export class LiftedBuff extends Buff {
             unit.takeDamage(this.slamDamage, this.sourceUnitId, ctx.eventBus);
         }
 
+        applySlamKnockback(unit, ctx, this.sourceUnitId, this.sourceAbilityId);
+
         ctx.eventBus.emit('unit_slam_landed', {
             unitId: unit.id,
             position: { x: unit.x, y: unit.y },
@@ -127,5 +140,49 @@ export class LiftedBuff extends Buff {
         buff.appliedAtTime = data.appliedAtTime ?? 0;
         buff.appliedAtRound = data.appliedAtRound ?? 1;
         return buff;
+    }
+}
+
+/**
+ * Magnitude-{@link LIFTED_SLAM_KNOCKBACK_TIER} knockback for other grounded units whose centers
+ * lie within {@link LIFTED_SLAM_KNOCKBACK_RADIUS_FACTOR} × the slamming unit's radius.
+ */
+function applySlamKnockback(
+    slammingUnit: Unit,
+    ctx: BuffExpireContext,
+    sourceUnitId: string,
+    sourceAbilityId: string,
+): void {
+    const units = ctx.units;
+    if (!units || units.length === 0) return;
+
+    const radius = slammingUnit.radius * LIFTED_SLAM_KNOCKBACK_RADIUS_FACTOR;
+    if (!(radius > 0)) return;
+
+    const knockbackCtx = knockbackCtxFromEngine({
+        gameTime: ctx.gameTime,
+        roundNumber: ctx.roundNumber,
+        eventBus: ctx.eventBus,
+        interruptUnitAndRefundAbilities: ctx.interruptUnitAndRefundAbilities,
+    });
+    const source = { unitId: sourceUnitId, abilityId: sourceAbilityId };
+
+    for (const other of units) {
+        if (other.id === slammingUnit.id) continue;
+        if (!other.active || !other.isAlive() || other.isSpawning()) continue;
+        // Still-floating lifts slam on their own expiry; don't shove them mid-air.
+        if (other.hasBuff(LIFTED_BUFF_TYPE)) continue;
+
+        const dist = Math.hypot(other.x - slammingUnit.x, other.y - slammingUnit.y);
+        if (dist > radius) continue;
+
+        tryApplyKnockbackByTier(
+            other,
+            LIFTED_SLAM_KNOCKBACK_TIER,
+            source,
+            slammingUnit.x,
+            slammingUnit.y,
+            knockbackCtx,
+        );
     }
 }

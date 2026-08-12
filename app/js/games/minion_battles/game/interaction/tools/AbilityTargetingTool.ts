@@ -4,6 +4,7 @@ import {
     buildMeleeSelectOrderTargets,
     clampSelectTarget,
     clampResolvedTargetToAbilityRange,
+    resolveSelectTargetCompanionLockOns,
     resolveSelectTargetLockOnCandidates,
 } from '../../../abilities/targeting';
 import { getAbilityTargets } from '../../../abilities/Ability';
@@ -16,6 +17,8 @@ type LockOnCache = {
     mouseWorldPos: { x: number; y: number };
     /** All highlighted candidates sorted by proximity to mouse, up to hitbox numTargets. */
     allCandidates: Array<{ unitId: string }>;
+    /** Companion hitbox lock-ons for the same click (after primary in order.targets). */
+    companionCandidates: Array<{ unitId: string }>;
 };
 
 /**
@@ -52,6 +55,7 @@ export class AbilityTargetingTool implements InteractionTool {
 
             const cache = this.lockOnCache;
             const allCandidates = cache?.targetIdx === targetIndex ? (cache.allCandidates ?? []) : [];
+            const companionCandidates = cache?.targetIdx === targetIndex ? (cache.companionCandidates ?? []) : [];
             const numTargets = selectDef.numTargets ?? selectDef.hitbox.numTargets;
 
             let resolved: ResolvedTarget;
@@ -91,6 +95,7 @@ export class AbilityTargetingTool implements InteractionTool {
                     allCandidates,
                     clickResult.worldPosition,
                     numTargets,
+                    companionCandidates,
                 );
                 manager.submitOrder(this.ability.id, orderTargets, newTargetsByLabel);
                 manager.deactivateTool();
@@ -179,10 +184,19 @@ export class AbilityTargetingTool implements InteractionTool {
                             worldPos,
                             engine,
                         );
+                        const companionUnits = resolveSelectTargetCompanionLockOns(
+                            this.ability,
+                            caster,
+                            selectDef,
+                            worldPos,
+                            engine,
+                            hitUnits,
+                        );
                         this.lockOnCache = {
                             targetIdx: targetIndex,
                             mouseWorldPos: { x: worldPos.x, y: worldPos.y },
                             allCandidates: hitUnits.map((u) => ({ unitId: u.id })),
+                            companionCandidates: companionUnits.map((u) => ({ unitId: u.id })),
                         };
                     } else {
                         this.lockOnCache = null;

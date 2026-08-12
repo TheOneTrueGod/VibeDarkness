@@ -150,9 +150,11 @@ export const ConeOfLightAbility: AbilityStatic = {
                 hitbox: CONE_OF_LIGHT_HITBOX,
                 filter: 'enemy',
                 allowMiss: true,
+                lockOnMode: 'strictHitbox',
             },
             behaviour: CastBehaviours.MeleeAttack()
                 .withHitbox(CONE_OF_LIGHT_HITBOX)
+                .withLockOnMode('strictHitbox')
                 .withDamage(DAMAGE)
                 .withImpactVFX((ctx, _hitUnits, aimX, aimY) => {
                     const { dirX, dirY } = getDirectionFromTo(ctx.caster.x, ctx.caster.y, aimX, aimY);

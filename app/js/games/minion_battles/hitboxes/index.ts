@@ -4,5 +4,6 @@ export { ThickLineHitbox } from './ThickLineHitbox';
 export { CircleHitbox } from './CircleHitbox';
 export { HitboxSpec, MeleeLineHitboxSpec, meleeLineHitbox, PerpendicularSwingHitboxSpec, perpendicularSwingHitbox, NullHitboxSpec, nullHitbox } from './HitboxSpec';
 export { UnitRangeHitboxSpec, unitRangeHitbox } from './UnitRangeHitboxSpec';
+export { CircleAoEHitboxSpec, circleAoEHitbox, type CircleAoEPreviewStyle } from './CircleAoEHitboxSpec';
 export { TruncatedConeHitboxSpec, type TruncatedConeGeometry, type TruncatedConeMinRadiusResolver } from './TruncatedConeHitbox';
 export { ConvexQuadHitboxSpec, convexQuadHitbox } from './ConvexQuadHitbox';

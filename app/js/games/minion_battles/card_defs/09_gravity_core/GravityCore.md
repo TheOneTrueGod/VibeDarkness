@@ -18,7 +18,7 @@ The tree ships three abilities on a simple spine (Tier 3 upgrades are out of sco
 |---------|---------|-----------------|------|
 | **0902** | **Force Push** | **Gravity Core** (tier 1) | Two-step **aimed fling** — pick enemy, then landing pixel — with unit/wall collision damage (only ability with collision damage) |
 | **0901** | **Gravity Locus** | **Gravity Locus** node (tier 2) | Non-interrupting **nudge** field at a point (short ~1s cast deploys a field that pulses for `GRAVITY_LOCUS_FIELD_DURATION`s after the cast ends); Push/Pull via Ability Mode |
-| **0903** | **Gravity Inversion** | **Gravity Inversion** node (tier 2) | **Lift** + hard CC + slam; mode changes horizontal landing only |
+| **0903** | **Lift** | **Lift** node (tier 2) | **Lift** + hard CC + slam; mode changes horizontal landing only |
 
 All three share the same **Ability Mode** toggle (`'push' | 'pull'`), set per cast during targeting — distinct from static research `AbilityModifier` tweaks.
 
@@ -30,13 +30,13 @@ All three share the same **Ability Mode** toggle (`'push' | 'pull'`), set per ca
 | **Ability Mode** | Per-cast Push ↔ Pull on abilities that declare `abilityModes`. Behaviours read mode from the **order/active ability**, never live UI state — deterministic for multiplayer replay. |
 | **Nudge** | Subtle reposition via `applyNudgeToUnit` — **not CC**: no path clear, no ability interrupt, no CC-armour gate. Visual: faint `NudgeArrowEffectDef`, **no motion streak**. |
 | **Launch / knockback** | Force Push uses **aimed** knockback (tier-3 CC gate, custom vector/air-time to reach the chosen landing pixel, capped at ~1.25× tier-3 displacement) with opt-in unit collision + terrain bounce events. Visual: motion streak on launches; clash spark vs wall dust/crack for collision types. |
-| **Lift** | Gravity Inversion applies `LiftedBuff` (hard CC, suspended airborne) then slam damage + `unit_slam_landed` event. Visual: `LiftColumnEffectDef` telegraph; violet `howlShockwaveEffectDef` on landing. |
+| **Lift** | Lift applies `LiftedBuff` (hard CC, suspended airborne) then slam damage, nearby magnitude-1 knockback, and `unit_slam_landed`. Visual: `LiftColumnEffectDef` telegraph; violet `howlShockwaveEffectDef` on landing. |
 
 ### Push vs Pull semantics (reference point per ability)
 
 - **Gravity Locus**: reference point is the locus — Push nudges outward, Pull nudges inward (enemies stop at the locus, never overshoot).
 - **Force Push**: two-step targeting — enemy within caster range, then a **landing pixel** anchored on that unit (max ~84 px). No Push/Pull mode; direction follows the aim line.
-- **Gravity Inversion**: lift timing and damage identical; Push slams straight down, Pull sets `horizontalTarget` at the caster’s feet.
+- **Lift**: lift timing and damage identical; Push slams straight down, Pull sets `horizontalTarget` at the caster’s feet.
 
 ## Resources
 

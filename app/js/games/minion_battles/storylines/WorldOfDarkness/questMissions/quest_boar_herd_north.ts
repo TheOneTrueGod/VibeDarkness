@@ -1,14 +1,18 @@
 /**
  * Quest: Find the herd of boars — slot 1.
  * Same stacked cliff + crystal-cave map as light_empowered, but the goal is to
- * push to the northernmost path. No boars; denser wolf/slime pressure from the north.
+ * push to the northernmost path. Opening pack waits outside the cave mouth;
+ * denser wolf/slime pressure continues from the north.
  */
 
-import { BaseMissionDef } from '../../BaseMissionDef';
+import type { GameEngine } from '../../../game/GameEngine';
+import { BaseMissionDef, type InitializeGameStateParams } from '../../BaseMissionDef';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { BattleObjectiveDef, EnemySpawnDef, LevelEvent, SpecialTilePlacement } from '../../types';
 import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
-import { ENEMY_DARK_WOLF, SLIME } from '../../../constants/enemyConstants';
+import type { MapSegmentZone } from '../../../terrain/segmentSchema';
+import { resolveZoneTiles, offsetZone } from '../../../terrain/zones';
+import { ENEMY_DARK_WOLF, ENEMY_SWARMLING } from '../../../constants/enemyConstants';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
@@ -16,6 +20,7 @@ import {
     MAP_SEGMENT_50_50_CRYSTAL_CAVE,
     CAVE_CAMPFIRE,
     crystalSpecialTilesAt,
+    OUTSIDE_CAVE_MOUTH_ZONE,
 } from '../MapSegments/50_50_crystal_cave';
 import {
     MAP_SEGMENT_50_49_CLIFF_PATH_NORTH,
@@ -41,8 +46,6 @@ function createTerrain(): TerrainGrid {
     return TerrainGrid.createTerrainFromArray(COLS, ROWS, CELL_SIZE, stitched, _);
 }
 
-/** Full grid row for segment 50_49 (top segment, rows 0-21). */
-const MIDDLE_OFFSET_ROW = 0;
 /** Full grid row for segment 50_50 (bottom segment, rows 22-43). */
 const BOTTOM_OFFSET_ROW = 22;
 
@@ -55,18 +58,15 @@ function gridToWorld(col: number, row: number): { x: number; y: number } {
 
 /** Northern path goal (top segment). */
 const NORTH_GOAL_COL = cliffPathPOI.north_path.col;
-const NORTH_GOAL_ROW = cliffPathPOI.north_path.row + MIDDLE_OFFSET_ROW;
+const NORTH_GOAL_ROW = cliffPathPOI.north_path.row;
 const NORTH_GOAL_WORLD = gridToWorld(NORTH_GOAL_COL, NORTH_GOAL_ROW);
 
 /** Party must reach within this Chebyshev distance of the northern path. */
 export const QUEST_BOAR_HERD_NORTH_GOAL_MAX_DISTANCE = 2;
 
-/**
- * light_empowered start (non-boar): 4 wolves + 1 slime.
- * This quest doubles those opening counts.
- */
-export const QUEST_BOAR_HERD_NORTH_START_WOLF_COUNT = 8;
-export const QUEST_BOAR_HERD_NORTH_START_SLIME_COUNT = 2;
+/** Opening pack in the outside-cave-mouth box. */
+export const QUEST_BOAR_HERD_NORTH_START_WOLF_COUNT = 2;
+export const QUEST_BOAR_HERD_NORTH_START_SWARMLING_COUNT = 4;
 
 /** light_empowered continuousSpawn per-wave counts / caps, doubled here. */
 export const QUEST_BOAR_HERD_NORTH_WOLF_SPAWN_COUNT = 2;
@@ -77,40 +77,45 @@ export const QUEST_BOAR_HERD_NORTH_SLIME_MAX_UNITS = 20;
 /** Spawn / pressure radius (tiles) around the northern goal. */
 export const QUEST_BOAR_HERD_NORTH_SPAWN_RADIUS_TILES = 5;
 
-/** Grid offsets from the north-path POI for opening wolves (8). */
-const OPENING_WOLF_OFFSETS: ReadonlyArray<{ dCol: number; dRow: number }> = [
-    { dCol: -2, dRow: -1 },
-    { dCol: -1, dRow: -1 },
-    { dCol: 0, dRow: -1 },
-    { dCol: 1, dRow: -1 },
-    { dCol: -2, dRow: 0 },
-    { dCol: -1, dRow: 0 },
-    { dCol: 1, dRow: 0 },
-    { dCol: 2, dRow: 0 },
-];
+const OUTSIDE_CAVE_MOUTH_ZONE_ID = 'outside of cave mouth';
 
-/** Grid offsets from the north-path POI for opening slimes (2). */
-const OPENING_SLIME_OFFSETS: ReadonlyArray<{ dCol: number; dRow: number }> = [
-    { dCol: 0, dRow: 1 },
-    { dCol: 1, dRow: 1 },
-];
+/** Mission-global coords for the stacked cave segment (fallback when registry zones were clobbered). */
+const OUTSIDE_CAVE_MOUTH_ZONE_GLOBAL = offsetZone(OUTSIDE_CAVE_MOUTH_ZONE, 0, BOTTOM_OFFSET_ROW);
 
-function openingEnemies(): EnemySpawnDef[] {
-    const wolves = OPENING_WOLF_OFFSETS.map((o) => ({
-        ...ENEMY_DARK_WOLF,
-        position: gridToWorld(NORTH_GOAL_COL + o.dCol, NORTH_GOAL_ROW + o.dRow),
-        unitAITreeId: 'hunt' as const,
-    }));
-    const slimes = OPENING_SLIME_OFFSETS.map((o) => ({
-        ...SLIME,
-        name: 'Slime',
-        position: gridToWorld(NORTH_GOAL_COL + o.dCol, NORTH_GOAL_ROW + o.dRow),
-        unitAITreeId: 'hunt' as const,
-    }));
-    return [...wolves, ...slimes];
+function resolveOutsideCaveMouthZone(terrainSegmentZones: MapSegmentZone[]): MapSegmentZone {
+    return (
+        terrainSegmentZones.find((z) => z.id === OUTSIDE_CAVE_MOUTH_ZONE_ID)
+        ?? OUTSIDE_CAVE_MOUTH_ZONE_GLOBAL
+    );
 }
 
-const ENEMIES = openingEnemies();
+/**
+ * Opening pack: 2 wolves + 4 swarmlings scattered in the outside-cave-mouth box.
+ * Positions use the engine's seeded RNG so every client matches.
+ */
+function buildOpeningPack(
+    engine: GameEngine,
+    terrainSegmentZones: MapSegmentZone[],
+): EnemySpawnDef[] {
+    const zone = resolveOutsideCaveMouthZone(terrainSegmentZones);
+    const candidates = resolveZoneTiles(zone);
+    const total =
+        QUEST_BOAR_HERD_NORTH_START_WOLF_COUNT + QUEST_BOAR_HERD_NORTH_START_SWARMLING_COUNT;
+    const positions: { x: number; y: number }[] = [];
+    for (let i = 0; i < total && candidates.length > 0; i++) {
+        const idx = engine.generateRandomInteger(0, candidates.length - 1);
+        const tile = candidates.splice(idx, 1)[0]!;
+        positions.push(gridToWorld(tile.col, tile.row));
+    }
+
+    const wolves = positions
+        .slice(0, QUEST_BOAR_HERD_NORTH_START_WOLF_COUNT)
+        .map((position) => ({ ...ENEMY_DARK_WOLF, position, unitAITreeId: 'hunt' as const }));
+    const swarmlings = positions
+        .slice(QUEST_BOAR_HERD_NORTH_START_WOLF_COUNT)
+        .map((position) => ({ ...ENEMY_SWARMLING, position, unitAITreeId: 'hunt' as const }));
+    return [...wolves, ...swarmlings];
+}
 
 const NORTH_SPAWN_TARGET = {
     x: NORTH_GOAL_WORLD.x,
@@ -236,7 +241,8 @@ export class QuestBoarHerdNorthMission extends BaseMissionDef {
     name = 'Quest: Push north';
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;
-    enemies = ENEMIES;
+    /** Opening pack is filled in {@link initializeGameState} (needs battle RNG). */
+    enemies: EnemySpawnDef[] = [];
     levelEvents = LEVEL_EVENTS;
     battleObjectives = BATTLE_OBJECTIVES;
     createTerrain = createTerrain;
@@ -258,6 +264,11 @@ export class QuestBoarHerdNorthMission extends BaseMissionDef {
         { col: 18, row: 33 },
         { col: 19, row: 33 },
     ];
+
+    override initializeGameState(engine: GameEngine, params: InitializeGameStateParams): void {
+        this.enemies = buildOpeningPack(engine, params.terrainSegmentZones ?? []);
+        super.initializeGameState(engine, params);
+    }
 }
 
 export const QUEST_BOAR_HERD_NORTH = new QuestBoarHerdNorthMission();

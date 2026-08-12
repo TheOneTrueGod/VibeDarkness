@@ -249,7 +249,7 @@ export const gravityFieldEffectDef: IEffectDef = {
     },
 };
 
-/** Rising dust/debris column under a lifted unit (Gravity Inversion telegraph). */
+/** Rising dust/debris column under a lifted unit (Lift telegraph). */
 export const liftColumnEffectDef: IEffectDef = {
     createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
         return new Graphics();

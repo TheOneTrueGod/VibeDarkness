@@ -1,7 +1,6 @@
-﻿import type { AbilityRecoveryRule, AbilityStatic, IAbilityPreviewGraphics } from '../../abilities/Ability';
+﻿import type { AbilityRecoveryRule, AbilityStatic } from '../../abilities/Ability';
 import { AbilityEventType } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
-import { clampToMaxRange, drawClampedLine, drawCrosshair } from '../../abilities/previewHelpers';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
 import {
@@ -9,9 +8,7 @@ import {
     type TooltipTokenBindings,
 } from '../../abilities/tooltipTokens';
 import { type CardDef } from '../types';
-import { HitboxSpec } from '../../hitboxes';
-import type { HitboxEngineContext, HitboxPreviewCaster } from '../../hitboxes';
-import type { Unit } from '../../game/units/Unit';
+import { circleAoEHitbox } from '../../hitboxes';
 
 const CARD_ID = '0114';
 const MAX_USES = 1;
@@ -39,54 +36,19 @@ const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     MAX_TARGETS: { kind: 'plain', value: MAX_EXPLOSION_TARGETS },
 };
 
-class EnergyBlastHitboxSpec extends HitboxSpec {
-    get maxRange(): number { return RANGE; }
-
-    renderTargetingPreview(
-        gr: IAbilityPreviewGraphics,
-        caster: HitboxPreviewCaster,
-        mouseWorld: { x: number; y: number },
-        units: Unit[],
-    ): Unit[] {
-        const clamped = clampToMaxRange(caster as { x: number; y: number }, mouseWorld, RANGE);
-        const impactX = clamped.endX;
-        const impactY = clamped.endY;
-        drawClampedLine(gr, caster as { x: number; y: number }, mouseWorld, RANGE, { color: PREVIEW_COLOR, width: 2, alpha: 0.8 });
-        drawCrosshair(gr, impactX, impactY, 10, { color: PREVIEW_COLOR, width: 2, alpha: 0.95 });
-        gr.circle(impactX, impactY, EXPLOSION_RADIUS);
-        gr.fill({ color: PREVIEW_COLOR, alpha: 0.15 });
-        gr.circle(impactX, impactY, EXPLOSION_RADIUS);
-        gr.stroke({ color: PREVIEW_COLOR, width: 2, alpha: 0.5 });
-        return units.filter(
-            (u) => u.isAlive() && Math.hypot(u.x - impactX, u.y - impactY) <= EXPLOSION_RADIUS + u.radius,
-        );
-    }
-
-    resolveTargets(
-        caster: Unit,
-        aimPoint: { x: number; y: number },
-        units: Unit[],
-    ): Unit[] {
-        return units.filter(
-            (u) => u.id !== caster.id && u.isAlive() &&
-                Math.hypot(u.x - aimPoint.x, u.y - aimPoint.y) <= EXPLOSION_RADIUS + u.radius,
-        );
-    }
-
-    resolveHits(
-        engine: HitboxEngineContext,
-        caster: Unit,
-        aimX: number,
-        aimY: number,
-    ): Unit[] {
-        return engine.units.filter(
-            (u) => u.id !== caster.id && u.isAlive() &&
-                Math.hypot(u.x - aimX, u.y - aimY) <= EXPLOSION_RADIUS + u.radius,
-        );
-    }
-}
-
-const ENERGY_BLAST_HITBOX = new EnergyBlastHitboxSpec();
+const ENERGY_BLAST_HITBOX = circleAoEHitbox({
+    castRange: RANGE,
+    aoeRadius: EXPLOSION_RADIUS,
+    numTargets: MAX_EXPLOSION_TARGETS,
+    previewStyle: {
+        color: PREVIEW_COLOR,
+        lineWidth: 2,
+        lineAlpha: 0.8,
+        fillAlpha: 0.15,
+        strokeAlpha: 0.5,
+        showCrosshair: true,
+    },
+});
 
 const ENERGY_BLAST_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <circle cx="32" cy="32" r="20" fill="#71ddff" opacity="0.35"/>
@@ -112,7 +74,14 @@ export const EnergyBlastAbility: AbilityStatic = {
             end: 0.3,
             abilityPhase: AbilityPhase.Active,
             doNotRefund: true,
-            targetDef: { kind: 'select', label: 'Target location', hitbox: ENERGY_BLAST_HITBOX, filter: 'enemy', allowMiss: true },
+            targetDef: {
+                kind: 'select',
+                label: 'Target location',
+                hitbox: ENERGY_BLAST_HITBOX,
+                filter: 'enemy',
+                allowMiss: true,
+                lockOnMode: 'strictHitbox',
+            },
             behaviour: CastBehaviours.ProjectileLaunch()
                 .withSpeed(PROJECTILE_SPEED)
                 .withRadius(PROJECTILE_RADIUS)

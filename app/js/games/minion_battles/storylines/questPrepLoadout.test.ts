@@ -82,6 +82,16 @@ describe('mission Prepare Carefully helpers', () => {
         ]);
     });
 
+    it('auto-selects the first PREP_ABILITY_SLOT_COUNT when over cap with no previous loadout', () => {
+        const selectable = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+        expect(resolveInitialMissionSelection(selectable, [])).toEqual(
+            selectable.slice(0, PREP_ABILITY_SLOT_COUNT),
+        );
+        expect(resolveInitialMissionSelection(selectable, ['missing'])).toEqual(
+            selectable.slice(0, PREP_ABILITY_SLOT_COUNT),
+        );
+    });
+
     it('gates ready on a full primary loadout when over cap', () => {
         const selectable = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
         expect(isMissionPrepAbilityReady(['a', 'b'], selectable)).toBe(false);

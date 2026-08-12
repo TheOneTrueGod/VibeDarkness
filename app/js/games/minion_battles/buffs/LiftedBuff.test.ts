@@ -4,7 +4,9 @@ import { EventBus } from '../game/EventBus';
 import { updateUnit } from '../game/units/unitMovementTick';
 import { knockbackCtxFromEngine } from '../crowdControl/knockbackKeywords';
 import { tryApplyLift } from '../crowdControl/tryApplyLift';
-import { LIFTED_BUFF_TYPE, LIFTED_RENDER_HEIGHT_RADIUS_FACTOR, getLiftedMaxRenderHeightPx, getLiftedRenderProgress, getLiftedRenderState } from './LiftedBuff';
+import { LIFTED_BUFF_TYPE, LIFTED_RENDER_HEIGHT_RADIUS_FACTOR, LIFTED_SLAM_KNOCKBACK_RADIUS_FACTOR, LIFTED_SLAM_KNOCKBACK_TIER, getLiftedMaxRenderHeightPx, getLiftedRenderProgress, getLiftedRenderState } from './LiftedBuff';
+import { DEFAULT_UNIT_RADIUS } from '../game/units/unit_defs/unitConstants';
+import { getKnockbackTierDef } from '../crowdControl/knockbackKeywords';
 import { TerrainGrid, CELL_SIZE } from '../terrain/TerrainGrid';
 import { TerrainManager } from '../terrain/TerrainManager';
 import { TerrainType } from '../terrain/TerrainType';
@@ -33,13 +35,15 @@ function makeUnit(overrides: Partial<ConstructorParameters<typeof Unit>[0]> = {}
     });
 }
 
-function makeLiftEngine(gameTime = 0, terrainManager: TerrainManager | null = null) {
+function makeLiftEngine(gameTime = 0, terrainManager: TerrainManager | null = null, units: Unit[] = []) {
     const eventBus = new EventBus();
     return {
         eventBus,
         gameTime,
         roundNumber: 1,
         terrainManager,
+        units,
+        interruptUnitAndRefundAbilities: vi.fn(),
         ctx: knockbackCtxFromEngine({
             gameTime,
             roundNumber: 1,
@@ -73,7 +77,7 @@ function tickUntilLiftEnds(unit: Unit, engine: ReturnType<typeof makeLiftEngine>
             gameTime: engine.gameTime,
             roundNumber: 1,
             eventBus: engine.eventBus,
-            interruptUnitAndRefundAbilities: vi.fn(),
+            interruptUnitAndRefundAbilities: engine.interruptUnitAndRefundAbilities,
         });
         updateUnit(unit, dt, engine);
     }
@@ -200,5 +204,49 @@ describe('LiftedBuff', () => {
 
         const endTime = engine.gameTime + LIFT_DURATION_SEC;
         expect(getLiftedRenderState(unit, endTime)).toEqual({ yOffset: -maxHeight, maxHeight });
+    });
+
+    it('applies magnitude-1 knockback to nearby units within 1× slamming unit radius on slam', () => {
+        const slamming = makeUnit({ id: 'slamming', x: 100, y: 100, radius: DEFAULT_UNIT_RADIUS });
+        const nearby = makeUnit({
+            id: 'nearby',
+            x: 100 + DEFAULT_UNIT_RADIUS * 0.5,
+            y: 100,
+            radius: DEFAULT_UNIT_RADIUS,
+            teamId: 'player',
+            ownerId: 'p1',
+            characterId: 'player',
+        });
+        nearby.ccArmour.hardFloor = 0;
+        nearby.ccArmour.bonusHard = 0;
+        const far = makeUnit({
+            id: 'far',
+            x: 100 + DEFAULT_UNIT_RADIUS * 2,
+            y: 100,
+            radius: DEFAULT_UNIT_RADIUS,
+            teamId: 'player',
+            ownerId: 'p1',
+            characterId: 'player',
+        });
+        far.ccArmour.hardFloor = 0;
+        far.ccArmour.bonusHard = 0;
+
+        const engine = makeLiftEngine(0, null, [slamming, nearby, far]);
+        const farStart = { x: far.x, y: far.y };
+        const tier1 = getKnockbackTierDef(LIFTED_SLAM_KNOCKBACK_TIER)!;
+        expect(LIFTED_SLAM_KNOCKBACK_RADIUS_FACTOR).toBe(1);
+
+        applyLiftToUnit(slamming, engine, {
+            slamDamage: SLAM_DAMAGE,
+            sourceAbilityId: LIFT_ABILITY_ID,
+        });
+        tickUntilLiftEnds(slamming, engine);
+
+        expect(nearby.knockback).not.toBeNull();
+        expect(far.knockback).toBeNull();
+        expect(far.x).toBe(farStart.x);
+        expect(far.y).toBe(farStart.y);
+        // Tier-1 air+slide times are what "magnitude 1" means in knockbackKeywords.
+        expect(tier1.magnitude).toBeGreaterThan(0);
     });
 });
