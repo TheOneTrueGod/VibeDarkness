@@ -8,7 +8,11 @@ import type { TerrainManager } from '../../terrain/TerrainManager';
 import { clampNudgeVectorToTerrain } from '../units/unitNudge';
 import { CROWD_SPACING_OVERLAP_EPSILON } from './crowdSpacingConstants';
 import { CrowdSpacingGrid } from './CrowdSpacingGrid';
-import { getCrowdSpacingRole, getCrowdSpacingWeight } from './crowdSpacingRoles';
+import {
+    getCrowdSpacingRadius,
+    getCrowdSpacingRole,
+    getCrowdSpacingWeight,
+} from './crowdSpacingRoles';
 
 /** Fallback axis when two units share the exact same center (deterministic). */
 const COINCIDENT_AXIS_X = 1;
@@ -57,7 +61,8 @@ export function resolveCrowdSpacingPass(args: ResolveCrowdSpacingPassArgs): void
     const seenPairs = new Set<string>();
     for (const idA of sortedIds) {
         const a = byId.get(idA)!;
-        const neighbors = grid.queryNeighbors(a.x, a.y, a.radius);
+        const radiusA = getCrowdSpacingRadius(a);
+        const neighbors = grid.queryNeighbors(a.x, a.y, radiusA);
         for (const idB of neighbors) {
             if (idB <= idA) continue;
             if (!byId.has(idB)) continue;
@@ -85,7 +90,8 @@ export function resolveCrowdSpacingPass(args: ResolveCrowdSpacingPassArgs): void
                 ny = dy / dist;
             }
 
-            const overlap = a.radius + b.radius - dist;
+            const radiusB = getCrowdSpacingRadius(b);
+            const overlap = radiusA + radiusB - dist;
             if (overlap <= CROWD_SPACING_OVERLAP_EPSILON) continue;
 
             if (roleA === 'soft' && roleB === 'soft') {
@@ -124,6 +130,6 @@ export function resolveCrowdSpacingPass(args: ResolveCrowdSpacingPassArgs): void
 
         unit.x += clamped.x;
         unit.y += clamped.y;
-        grid.updateUnit(unit.id, unit.x, unit.y, unit.radius);
+        grid.updateUnit(unit.id, unit.x, unit.y, getCrowdSpacingRadius(unit));
     }
 }

@@ -6,9 +6,11 @@ import {
     CROWD_SPACING_FALLBACK_CELL_SIZE,
     CROWD_SPACING_OVERLAP_EPSILON,
     CROWD_SPACING_PASSES_PER_TICK,
+    CROWD_SPACING_PLAYER_RADIUS_PADDING,
     crowdSpacingCellSizeFromMaxRadius,
 } from './crowdSpacingConstants';
 import {
+    getCrowdSpacingRadius,
     getCrowdSpacingRole,
     getCrowdSpacingWeight,
 } from './crowdSpacingRoles';
@@ -86,6 +88,20 @@ describe('getCrowdSpacingWeight', () => {
     it('returns unit radius for MVP', () => {
         const unit = makeUnit({ radius: TEST_RADIUS });
         expect(getCrowdSpacingWeight(unit)).toBe(TEST_RADIUS);
+    });
+});
+
+describe('getCrowdSpacingRadius', () => {
+    it('matches display radius for AI units', () => {
+        const unit = makeUnit({ radius: TEST_RADIUS });
+        expect(getCrowdSpacingRadius(unit)).toBe(TEST_RADIUS);
+        expect(unit.radius).toBe(TEST_RADIUS);
+    });
+
+    it('adds player personal-space padding without changing display radius', () => {
+        const unit = makeUnit({ ownerId: 'p1', radius: TEST_RADIUS });
+        expect(unit.radius).toBe(TEST_RADIUS);
+        expect(getCrowdSpacingRadius(unit)).toBe(TEST_RADIUS + CROWD_SPACING_PLAYER_RADIUS_PADDING);
     });
 });
 

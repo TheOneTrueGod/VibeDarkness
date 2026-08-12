@@ -7,7 +7,7 @@ import type { Unit } from '../units/Unit';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import { crowdSpacingCellSizeFromMaxRadius } from './crowdSpacingConstants';
 import { CrowdSpacingGrid } from './CrowdSpacingGrid';
-import { getCrowdSpacingRole } from './crowdSpacingRoles';
+import { getCrowdSpacingRadius, getCrowdSpacingRole } from './crowdSpacingRoles';
 import { resolveCrowdSpacingPass } from './resolveCrowdSpacing';
 
 export class CrowdSpacingManager {
@@ -50,7 +50,8 @@ export class CrowdSpacingManager {
     private syncParticipants(participants: readonly Unit[]): void {
         let maxRadius = 0;
         for (const p of participants) {
-            if (p.radius > maxRadius) maxRadius = p.radius;
+            const r = getCrowdSpacingRadius(p);
+            if (r > maxRadius) maxRadius = r;
         }
         const desiredCellSize = crowdSpacingCellSizeFromMaxRadius(maxRadius);
         const trackedEmpty = this.grid.trackedCount === 0;
@@ -61,7 +62,7 @@ export class CrowdSpacingManager {
                     id: p.id,
                     x: p.x,
                     y: p.y,
-                    radius: p.radius,
+                    radius: getCrowdSpacingRadius(p),
                 })),
                 desiredCellSize,
             );
@@ -74,7 +75,7 @@ export class CrowdSpacingManager {
             if (!wanted.has(id)) this.grid.removeUnit(id);
         }
         for (const p of participants) {
-            this.grid.updateUnit(p.id, p.x, p.y, p.radius);
+            this.grid.updateUnit(p.id, p.x, p.y, getCrowdSpacingRadius(p));
         }
     }
 }

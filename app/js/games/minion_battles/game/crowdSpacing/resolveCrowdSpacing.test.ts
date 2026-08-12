@@ -5,8 +5,9 @@ import { TerrainGrid, CELL_SIZE } from '../../terrain/TerrainGrid';
 import { TerrainManager } from '../../terrain/TerrainManager';
 import { TerrainType } from '../../terrain/TerrainType';
 import { TerrainLayerManager } from '../TerrainLayerManager';
-import { CROWD_SPACING_OVERLAP_EPSILON } from './crowdSpacingConstants';
+import { CROWD_SPACING_OVERLAP_EPSILON, CROWD_SPACING_PLAYER_RADIUS_PADDING } from './crowdSpacingConstants';
 import { CrowdSpacingGrid } from './CrowdSpacingGrid';
+import { getCrowdSpacingRadius } from './crowdSpacingRoles';
 import { resolveCrowdSpacingPass } from './resolveCrowdSpacing';
 
 const SMALL_RADIUS = 20;
@@ -59,7 +60,12 @@ function rebuildAndResolve(
 ): CrowdSpacingGrid {
     const grid = new CrowdSpacingGrid();
     grid.rebuild(
-        units.map((u) => ({ id: u.id, x: u.x, y: u.y, radius: u.radius })),
+        units.map((u) => ({
+            id: u.id,
+            x: u.x,
+            y: u.y,
+            radius: getCrowdSpacingRadius(u),
+        })),
     );
     resolveCrowdSpacingPass({
         units,
@@ -113,6 +119,28 @@ describe('resolveCrowdSpacingPass', () => {
         expect(anchor.x).toBe(anchorStart.x);
         expect(anchor.y).toBe(anchorStart.y);
         expect(soft.x).toBeCloseTo(softStart.x - overlap, 5);
+        expect(soft.y).toBe(softStart.y);
+    });
+
+    it('player personal-space padding pushes softs farther without growing display radius', () => {
+        const soft = makeSoft('soft', 0, 0);
+        const player = makeSoft('player', OVERLAP_GAP, 0);
+        player.ownerId = 'p1';
+        player.teamId = 'player';
+        const softStart = { x: soft.x, y: soft.y };
+        const playerStart = { x: player.x, y: player.y };
+        const displayOverlap = soft.radius + player.radius - OVERLAP_GAP;
+        const spacingOverlap =
+            getCrowdSpacingRadius(soft) + getCrowdSpacingRadius(player) - OVERLAP_GAP;
+        expect(spacingOverlap).toBe(displayOverlap + CROWD_SPACING_PLAYER_RADIUS_PADDING);
+        expect(player.radius).toBe(SMALL_RADIUS);
+
+        rebuildAndResolve([soft, player]);
+
+        expect(player.x).toBe(playerStart.x);
+        expect(player.y).toBe(playerStart.y);
+        expect(player.radius).toBe(SMALL_RADIUS);
+        expect(soft.x).toBeCloseTo(softStart.x - spacingOverlap, 5);
         expect(soft.y).toBe(softStart.y);
     });
 

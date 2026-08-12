@@ -67,6 +67,7 @@ Run via **`npm run <script> -- <flags>`** when you have local disk access. Prefe
 | **`desyncDebug-diffSnapshot`** | Host snapshot vs client log state | Phantom desync check |
 | **`desyncDebug-getOrders`** | Orders in range (`--file pending\|log`) | Correlate orders with divergence |
 | **`desyncDebug-getCombatEvents`** | Death/spawn/VFX timing from snapshots | Visual flash timing |
+| **`desyncDebug-traceCast`** | Focus-unit cast / HP / knockback / nearby enemy casts (`--ability` or tick range) | “What interrupted my Dodge / hit during iframes?” |
 
 ## Investigation workflow
 

@@ -27,6 +27,7 @@
     "desyncDebug-diffTick": "node scripts/desyncDebug-diffTick.js",
     "desyncDebug-getOrders": "node scripts/desyncDebug-getOrders.js",
     "desyncDebug-getCombatEvents": "node scripts/desyncDebug-getCombatEvents.js",
+    "desyncDebug-traceCast": "node scripts/desyncDebug-traceCast.js",
     "desyncDebug-desyncs": "node scripts/desyncDebug-desyncs.js",
     "desyncDebug-diffSnapshot": "node scripts/desyncDebug-diffSnapshot.js",
     "terrain-backup": "node scripts/terrain-backup.js",

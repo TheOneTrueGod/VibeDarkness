@@ -5,8 +5,19 @@
 import type { Unit } from '../units/Unit';
 import { UnitTag, hasUnitTag } from '../units/unitTag';
 import { isUnitAirborne } from '../terrainEffects/tileTransitions';
+import { CROWD_SPACING_PLAYER_RADIUS_PADDING } from './crowdSpacingConstants';
 
 export type CrowdSpacingRole = 'exempt' | 'soft' | 'anchor';
+
+/**
+ * Collision radius used by CrowdSpacing (grid + overlap). Display `unit.radius` is unchanged.
+ * Player-controlled units get a small personal-space padding so packs feel less claustrophobic.
+ */
+export function getCrowdSpacingRadius(unit: Unit): number {
+    const base = unit.radius;
+    if (unit.isPlayerControlled()) return base + CROWD_SPACING_PLAYER_RADIUS_PADDING;
+    return base;
+}
 
 /**
  * How hard a unit resists being moved by CrowdSpacing.

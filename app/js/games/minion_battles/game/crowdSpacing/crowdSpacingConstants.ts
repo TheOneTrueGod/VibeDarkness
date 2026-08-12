@@ -9,6 +9,12 @@ import { CELL_SIZE } from '../../terrain/TerrainGrid';
 export const CROWD_SPACING_OVERLAP_EPSILON = 0.5;
 
 /**
+ * Extra CrowdSpacing collision radius for player-controlled units (world px).
+ * Does not change display / unit.radius — only how far softs are kept away.
+ */
+export const CROWD_SPACING_PLAYER_RADIUS_PADDING = 10;
+
+/**
  * Fallback uniform-grid cell size when max participating radius is unknown.
  * Large enough that a typical unit spans ≤ ~2×2 cells.
  */
