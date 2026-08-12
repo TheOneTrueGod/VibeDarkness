@@ -23,6 +23,7 @@ import { processUnitTileTransition } from '../terrainEffects/tileTransitions';
 import {
     PERF_UNITS_ABILITIES,
     PERF_UNITS_AI,
+    PERF_UNITS_CROWD_SPACING,
     PERF_UNITS_MOVEMENT,
     PERF_UNITS_NINJUTSU,
     PERF_UNITS_OCCUPANCY,
@@ -281,6 +282,10 @@ export class UnitManager {
                 // manager rescanning every participating unit every tick. See MapNetworkManager.updateUnitNode.
                 engine.mapNetworkManager.updateUnitNode(unit);
             }
+        });
+        // Phase 2c: CrowdSpacing — soft radius pack after positions settle for the tick
+        tickPerformanceTracker.measure([PERF_UNITS_CROWD_SPACING], () => {
+            engine.crowdSpacingManager.tick(this.units, engine.terrainManager);
         });
         // Phase 3: AI decisions (all positions settled)
         tickPerformanceTracker.measure([PERF_UNITS_AI], () => {

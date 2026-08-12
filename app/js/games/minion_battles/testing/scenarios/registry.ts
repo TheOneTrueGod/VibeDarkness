@@ -5,6 +5,7 @@ import {
     pathStraightMoveScenario,
     dodgeIFrameProtectionScenario,
 } from './general/pathfinding';
+import { crowdSpacingPackAndAnchorsScenario } from './general/crowdSpacing';
 import { swingSwordAppliesBleedScenario } from './general/buffs';
 import {
     bossStunMechanicsScenario,
@@ -109,6 +110,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     pathAroundRockScenario,
     pathShortCommuteScenario,
     dodgeIFrameProtectionScenario,
+    crowdSpacingPackAndAnchorsScenario,
     swingSwordAppliesBleedScenario,
     punchStrongScenario,
     punchDoubleScenario,

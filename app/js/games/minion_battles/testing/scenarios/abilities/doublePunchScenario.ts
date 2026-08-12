@@ -26,6 +26,7 @@ import {
 } from '../../harness/buildTinyBattleEngine';
 import { createTargetDummyAtWorld } from '../../fixtures/targetDummies';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
+import { UnitTag } from '../../../game/units/unitTag';
 
 const P = TINY_BATTLE_PLAYER_ID;
 const CELL = 40;
@@ -51,10 +52,12 @@ export const doublePunchDeathFallbackScenario: ScenarioDefinition = {
         });
 
         // E1: dies from punch1 (HP == PUNCH_DAMAGE).
+        // CrowdSpacingAnchor: keep E1/E2 co-located — soft packing would separate them before punch2.
         const e1 = createTargetDummyAtWorld(engine, ENEMY_POS.x, ENEMY_POS.y, {
             id: 'dp_e1',
             hp: PUNCH_DAMAGE,
         });
+        e1.tags = [UnitTag.CrowdSpacingAnchor];
         initializeAbilityRuntimeForUnit(e1);
         engine.addUnit(e1, 'initialGameSpawn');
 
@@ -63,6 +66,7 @@ export const doublePunchDeathFallbackScenario: ScenarioDefinition = {
             id: 'dp_e2',
             hp: PUNCH_DAMAGE,
         });
+        e2.tags = [UnitTag.CrowdSpacingAnchor];
         initializeAbilityRuntimeForUnit(e2);
         engine.addUnit(e2, 'initialGameSpawn');
 

@@ -20,6 +20,7 @@ import type { TerrainLayerManager } from './TerrainLayerManager';
 import type { MapSegmentPOI, MapSegmentZone } from '../terrain/segmentSchema';
 import type { SpawnSource, WaitingForOrders } from './types';
 import type { CellOccupancyManager } from './managers/CellOccupancyManager';
+import type { CrowdSpacingManager } from './crowdSpacing/CrowdSpacingManager';
 import type { WorldModifierManager } from '../worldModifiers/WorldModifierManager';
 import type { MapNetworkManager } from './managers/mapNetwork/MapNetworkManager';
 
@@ -155,6 +156,12 @@ export interface EngineContext {
 
     /** Runtime cell occupancy tracker for managed units (swarmlings, wolves, etc.). null when unused. */
     cellOccupancyManager: CellOccupancyManager | null;
+
+    /**
+     * Ephemeral CrowdSpacing soft-pack grid + one-pass resolve.
+     * Always present; runtime-only — clear on load, never checkpointed.
+     */
+    readonly crowdSpacingManager: CrowdSpacingManager;
 
     /** Mid-battle modifier API: add/remove/enable/disable world modifiers. */
     readonly worldModifierManager: WorldModifierManager;

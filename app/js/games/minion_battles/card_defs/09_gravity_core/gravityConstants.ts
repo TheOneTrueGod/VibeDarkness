@@ -56,8 +56,8 @@ export const FORCE_PUSH_GRAVITY_COST = 5;
 /** Sequential select labels for Force Push targeting. */
 export const FORCE_PUSH_TARGET_LABEL = 'Target';
 export const FORCE_PUSH_LANDING_LABEL = 'Landing';
-/** Max landing pixel distance from the flung unit (~1.25× tier-3 knockback displacement). */
-export const FORCE_PUSH_LANDING_MAX_DISTANCE = 84;
+/** Max landing pixel distance from the flung unit. */
+export const FORCE_PUSH_LANDING_MAX_DISTANCE = 126;
 /** Minimum fling distance to avoid a zero-vector launch. */
 export const FORCE_PUSH_LANDING_MIN_DISTANCE = 8;
 /** Air-time scale at max landing distance relative to tier-3 baseline (matches displacement cap). */

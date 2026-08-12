@@ -15,8 +15,8 @@ import { getCreatureType } from '../units/unit_defs/unitDef';
 
 export const THORN_ENTER_DAMAGE = 2;
 export const THORN_LAND_DAMAGE = 4;
-/** Thornbinder `dark_thorn` enter damage (2× shared thorn enter). */
-export const DARK_THORN_ENTER_DAMAGE = THORN_ENTER_DAMAGE * 2;
+/** Thornbinder `dark_thorn` enter damage (same as shared thorn enter). */
+export const DARK_THORN_ENTER_DAMAGE = THORN_ENTER_DAMAGE;
 /** Thornbinder `dark_thorn` land damage (2× shared thorn land). */
 export const DARK_THORN_LAND_DAMAGE = THORN_LAND_DAMAGE * 2;
 /** How long Thornbinder ground thorns last, in rounds (before jitter). */

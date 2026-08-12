@@ -249,8 +249,8 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     thornbinder: {
         bodyColor: 0x3d2c4a,
         characterSpriteKey: 'thornbinder',
-        hp: 52,
-        speed: 42,
+        hp: 42,
+        speed: 34,
         size: 'Large',
         stamina: 1,
         perceptionRange: 380,

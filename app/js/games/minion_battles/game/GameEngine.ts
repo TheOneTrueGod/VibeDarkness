@@ -89,6 +89,7 @@ import type { WorldModifierManager } from '../worldModifiers/WorldModifierManage
 import type { MapNetworkManager } from './managers/mapNetwork/MapNetworkManager';
 import { getMissionSegmentNetwork, getMissionSegmentPlacements } from '../terrain/segmentRegistry';
 import { CellOccupancyManager } from './managers/CellOccupancyManager';
+import { CrowdSpacingManager } from './crowdSpacing/CrowdSpacingManager';
 import { getUnitMaxPerTile, getUnitShovePriority, getUnitDefEntry, getBodyColorForUnit, getCharacterSpriteKey, getUnitSpawnDef, PLAYER_CHARACTER_ID, type UnitDefId } from './units/unit_defs/unitDef';
 import { STACK_GHOST_DURATION } from './effect_defs/movementEffects';
 import { applyVisualEffectDefs } from './effects/applyVisualEffectDefs';
@@ -196,6 +197,9 @@ export class GameEngine implements EngineContext {
 
     /** Runtime occupancy tracker — not serialized, rebuilt at the start of each movement phase. */
     readonly cellOccupancyManager = new CellOccupancyManager();
+
+    /** Ephemeral CrowdSpacing grid — not serialized; clear on load, sync+resolve after movement. */
+    readonly crowdSpacingManager = new CrowdSpacingManager();
 
     /**
      * Set by unitAbilityTick when an interval with a SelectTargetDef is entered but no
@@ -927,6 +931,7 @@ export class GameEngine implements EngineContext {
         this.appliedMidRoundRecovery = false;
         this.appliedDotTicks = 0;
         clearUnitTileTransitionState();
+        this.crowdSpacingManager.clear();
     }
 
     setMissionLightConfig(lightLevelEnabled: boolean, globalLightLevel: number): void {
@@ -2180,6 +2185,8 @@ export class GameEngine implements EngineContext {
         engine.appliedMidRoundRecovery = roundTime >= ROUND_DURATION / 2;
         engine.appliedDotTicks = Math.min(DOT_TICKS_PER_ROUND, Math.floor(roundTime / (ROUND_DURATION / DOT_TICKS_PER_ROUND)));
         clearUnitTileTransitionState();
+        // CrowdSpacing grid is ephemeral — never restore from JSON; rebuild on first tick.
+        engine.crowdSpacingManager.clear();
 
         engine.deferredOrderPause = null;
         if (engine.waitingForOrders != null) {

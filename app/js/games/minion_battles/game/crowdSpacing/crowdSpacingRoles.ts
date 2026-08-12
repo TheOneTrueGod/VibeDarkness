@@ -1,0 +1,41 @@
+/**
+ * CrowdSpacing participation: who is exempt / soft / anchor, and spacing weight.
+ */
+
+import type { Unit } from '../units/Unit';
+import { UnitTag, hasUnitTag } from '../units/unitTag';
+import { isUnitAirborne } from '../terrainEffects/tileTransitions';
+
+export type CrowdSpacingRole = 'exempt' | 'soft' | 'anchor';
+
+/**
+ * How hard a unit resists being moved by CrowdSpacing.
+ * MVP: weight = radius. Mass / override may replace this later without changing call sites.
+ */
+export function getCrowdSpacingWeight(unit: Unit): number {
+    return unit.radius;
+}
+
+/** Forced-mover MVP: knockback (incl. slide) or engine-controlled sequences occupy space as anchors. */
+export function isCrowdSpacingForcedMover(unit: Unit): boolean {
+    return unit.knockback != null || unit.controlled;
+}
+
+/**
+ * Participation role for CrowdSpacing.
+ * Dead / inactive / spawning / airborne → exempt (not in the grid).
+ * Players, CrowdSpacingAnchor tag, and forced-movers → anchor.
+ * Everyone else grounded and alive → soft.
+ */
+export function getCrowdSpacingRole(unit: Unit): CrowdSpacingRole {
+    if (!unit.isAlive() || unit.isSpawning()) return 'exempt';
+    if (isUnitAirborne(unit)) return 'exempt';
+    if (
+        unit.isPlayerControlled() ||
+        hasUnitTag(unit, UnitTag.CrowdSpacingAnchor) ||
+        isCrowdSpacingForcedMover(unit)
+    ) {
+        return 'anchor';
+    }
+    return 'soft';
+}

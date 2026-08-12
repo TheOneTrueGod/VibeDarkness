@@ -19,6 +19,11 @@ export enum UnitTag {
     /** Stationary structure (e.g. a lanternite_nest or swarm_nest) — the generic "is this a
      *  structure" signal for AI trees that need to find/target enemy structures. */
     Structure = 'structure',
+    /**
+     * Heavy / boss-scale unit that occupies CrowdSpacing space but is never displaced by it.
+     * Independent of {@link UnitTag.Boss} — apply wherever a unit must stand its ground.
+     */
+    CrowdSpacingAnchor = 'crowdSpacingAnchor',
 }
 
 const UNIT_TAG_VALUES = new Set<string>(Object.values(UnitTag));

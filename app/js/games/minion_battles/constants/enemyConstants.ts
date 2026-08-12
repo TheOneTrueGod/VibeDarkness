@@ -68,7 +68,7 @@ export const ENEMY_ALPHA_WOLF: EnemySpawnDef = {
     abilities: ['0005', '0007', '0011', '0012'],
     aiSettings: { minRange: 0, maxRange: 100 },
     radius: 26,
-    unitTags: [UnitTag.Boss],
+    unitTags: [UnitTag.Boss, UnitTag.CrowdSpacingAnchor],
     unitAITreeId: 'alphaWolfBoss',
 };
 
