@@ -2,7 +2,13 @@ import type { Unit } from './Unit';
 import type { ActiveAbility, ResolvedTarget } from '../types';
 import type { EngineContext } from '../EngineContext';
 import type { CastBehaviourInterruptContext } from '../../abilities/castBehaviourTypes';
-import type { AbilityTimingInterval } from '../../abilities/abilityTimings';
+import {
+    AbilityPhase,
+    getCoveringAbilityPhaseAtElapsed,
+    normalizeAbilityTimingsToIntervals,
+    resolveAbilityTimingEntries,
+    type AbilityTimingInterval,
+} from '../../abilities/abilityTimings';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { refundAbilityCost, spendAbilityCost, AbilityEventType, type AbilityStatic } from '../../abilities/Ability';
 import { triggerAbilityEvent } from '../../abilities/events';
@@ -15,6 +21,41 @@ import {
 } from '../../abilities/abilityUses';
 import { initTelegraphCastPayload } from '../../abilities/telegraphTracking';
 import { resolveActiveAbilityMode } from '../../abilities/resolveAbilityMode';
+
+function findCooldownInterval(intervals: AbilityTimingInterval[]): AbilityTimingInterval | undefined {
+    return intervals.find(
+        (it) => it.abilityPhase === AbilityPhase.Cooldown || it.abilityPhase === AbilityPhase.CoopCooldown,
+    );
+}
+
+function isCooldownPhase(phase: AbilityPhase | null): boolean {
+    return phase === AbilityPhase.Cooldown || phase === AbilityPhase.CoopCooldown;
+}
+
+/**
+ * Snap an in-progress cast to the start of its cooldown interval (no refund).
+ * Clears cast payload / behaviours so windup/active effects do not continue.
+ */
+function skipActiveAbilityToCooldown(
+    unit: Unit,
+    active: ActiveAbility,
+    ability: AbilityStatic,
+    engine: { gameTime: number },
+    engineForCleanup?: EngineContext,
+): boolean {
+    const intervals = normalizeAbilityTimingsToIntervals(
+        resolveAbilityTimingEntries(ability, unit, engineForCleanup ?? engine),
+    );
+    const cooldown = findCooldownInterval(intervals);
+    if (!cooldown) return false;
+    if (engineForCleanup) {
+        cleanupCastBehavioursForAbility(unit, active, engineForCleanup);
+    }
+    active.startTime = engine.gameTime - cooldown.start;
+    active.castPayload = undefined;
+    active.castBehaviourPayloads = {};
+    return true;
+}
 
 export function cleanupCastBehavioursForAbility(unit: Unit, active: ActiveAbility, engine: EngineContext): void {
     const ability = getAbility(active.abilityId);
@@ -71,13 +112,25 @@ export function cancelUnitActiveAbility(unit: Unit, abilityId: string, engine: E
 }
 
 export function interruptAndRefundUnitAbilities(unit: Unit, engine: EngineContext): void {
-    while (unit.activeAbilities.length > 0) {
-        const active = unit.activeAbilities[0];
-        if (!active) break;
+    const kept: ActiveAbility[] = [];
+    for (const active of unit.activeAbilities) {
         const ability = getAbility(active.abilityId);
-        if (ability) {
-            const elapsed = Math.max(0, engine.gameTime - active.startTime);
-            refundAbilityCost(unit, ability, elapsed);
+        if (!ability) continue;
+        const elapsed = Math.max(0, engine.gameTime - active.startTime);
+        const intervals = normalizeAbilityTimingsToIntervals(
+            resolveAbilityTimingEntries(ability, unit, engine),
+        );
+        const phase = getCoveringAbilityPhaseAtElapsed(elapsed, intervals);
+
+        if (isCooldownPhase(phase)) {
+            kept.push(active);
+            continue;
+        }
+
+        if (
+            ability.skipToCooldownOnInterrupt
+            && findCooldownInterval(intervals)
+        ) {
             triggerAbilityEvent({
                 engine,
                 caster: unit,
@@ -88,10 +141,25 @@ export function interruptAndRefundUnitAbilities(unit: Unit, engine: EngineContex
                 prevTime: elapsed,
                 currentTime: elapsed,
             });
+            skipActiveAbilityToCooldown(unit, active, ability, engine, engine);
+            kept.push(active);
+            continue;
         }
+
+        refundAbilityCost(unit, ability, elapsed);
+        triggerAbilityEvent({
+            engine,
+            caster: unit,
+            ability,
+            activeAbility: active,
+            targets: active.targets,
+            eventType: AbilityEventType.ON_CAST_END,
+            prevTime: elapsed,
+            currentTime: elapsed,
+        });
         cleanupCastBehavioursForAbility(unit, active, engine);
-        unit.activeAbilities.splice(0, 1);
     }
+    unit.activeAbilities = kept;
     unit.clearAbilityNote();
 }
 
@@ -162,16 +230,31 @@ export function executeUnitAbility(
     engine.eventBus.emit('ability_used', { unitId: unit.id, abilityId: ability.id });
 }
 
-/** Interrupt all active abilities (e.g. when stunned). Refunds resource costs. */
+/** Interrupt all active abilities (e.g. when stunned). Refunds resource costs unless skipped to cooldown. */
 export function interruptAllUnitAbilities(unit: Unit, engine: { gameTime: number }): void {
+    const kept: ActiveAbility[] = [];
     for (const active of unit.activeAbilities) {
         const ability = getAbility(active.abilityId);
-        if (ability) {
-            const elapsed = Math.max(0, engine.gameTime - active.startTime);
-            refundAbilityCost(unit, ability, elapsed);
+        if (!ability) continue;
+        const elapsed = Math.max(0, engine.gameTime - active.startTime);
+        const intervals = normalizeAbilityTimingsToIntervals(
+            resolveAbilityTimingEntries(ability, unit, engine),
+        );
+        const phase = getCoveringAbilityPhaseAtElapsed(elapsed, intervals);
+
+        if (isCooldownPhase(phase)) {
+            kept.push(active);
+            continue;
         }
+
+        if (ability.skipToCooldownOnInterrupt && skipActiveAbilityToCooldown(unit, active, ability, engine)) {
+            kept.push(active);
+            continue;
+        }
+
+        refundAbilityCost(unit, ability, elapsed);
     }
-    unit.activeAbilities = [];
+    unit.activeAbilities = kept;
     unit.clearAbilityNote();
 }
 

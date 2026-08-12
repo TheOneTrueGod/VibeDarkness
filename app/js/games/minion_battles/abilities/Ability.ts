@@ -403,6 +403,13 @@ export interface AbilityStatic {
     readonly clearMovementOnComplete?: boolean;
 
     /**
+     * When true, interrupting this cast (stun / hard CC / interrupt effects) before cooldown
+     * snaps the active entry to the start of its Cooldown/CoopCooldown interval instead of
+     * removing it — so the full cooldown still runs. No resource refund is applied on that path.
+     */
+    readonly skipToCooldownOnInterrupt?: boolean;
+
+    /**
      * Optional per-cast mode toggle (e.g. push/pull). Mode is committed on the BattleOrder and
      * copied to ActiveAbility at cast start — behaviours read `ctx.abilityMode`, not UI state.
      */

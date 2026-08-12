@@ -480,7 +480,7 @@ export class Unit extends GameObject {
         evaluateSwapTriggers(this, { type: 'buffApplied', buffType: buff._type }, eventBus);
     }
 
-    /** Interrupt all active abilities (e.g. when stunned). Refunds resource costs. */
+    /** Interrupt all active abilities (e.g. when stunned). Refunds unless skip-to-cooldown. */
     interruptAllAbilities(engine: { gameTime: number }): void { interruptAllUnitAbilities(this, engine); }
 
     tickActiveAbilities(dt: number, engine: EngineContext, onNaturalCompletion: () => void): void {

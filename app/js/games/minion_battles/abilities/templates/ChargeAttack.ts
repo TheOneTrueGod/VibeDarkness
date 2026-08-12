@@ -73,6 +73,7 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 	readonly forbiddenTags?: readonly UnitTag[];
 	readonly maxUses: number;
 	readonly recoveries?: readonly AbilityRecoveryRule[];
+	readonly skipToCooldownOnInterrupt = true;
 
 	private readonly config: ChargeAttackConfig;
 	private readonly lungeMovement: LungeMovement;

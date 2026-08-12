@@ -50,8 +50,17 @@ export const north_path: PointOfInterest = { row: 3, col: 6 };
 /** Center of the path, ~3 rows from the bottom. */
 export const south_path: PointOfInterest = { row: 18, col: 5 };
 
+/** Light-emitting crystals along the cliff path (segment-local). */
+export const crystal_south: PointOfInterest = { row: 21, col: 8 };
+export const crystal_mid: PointOfInterest = { row: 13, col: 14 };
+
 export const pointsOfInterest = {
     cave_center,
     north_path,
     south_path,
+    crystal_south,
+    crystal_mid,
 } as const;
+
+/** Ordered crystal POIs for mission special-tile placement. */
+export const CLIFF_PATH_CRYSTAL_POINTS = [crystal_south, crystal_mid] as const;

@@ -37,6 +37,16 @@ describe('quest_boar_herd_north', () => {
         });
     });
 
+    it('places light-emitting crystals on the 50_49 cliff path', () => {
+        const crystals = (QUEST_BOAR_HERD_NORTH.specialTiles ?? []).filter((t) => t.defId === 'Crystal');
+        expect(crystals).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ col: 8, row: 21, emitsLight: expect.objectContaining({ lightType: 'DayLight' }) }),
+                expect.objectContaining({ col: 14, row: 13, emitsLight: expect.objectContaining({ lightType: 'DayLight' }) }),
+            ]),
+        );
+    });
+
     it('opens with 2 wolves and 4 swarmlings in the outside-cave-mouth box', () => {
         resetGameObjectIdCounter(1);
         const engine = new GameEngine();

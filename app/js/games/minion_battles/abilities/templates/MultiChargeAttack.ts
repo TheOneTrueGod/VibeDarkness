@@ -93,6 +93,7 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 	readonly forbiddenTags?: readonly UnitTag[];
 	readonly maxUses: number;
 	readonly recoveries?: readonly AbilityRecoveryRule[];
+	readonly skipToCooldownOnInterrupt = true;
 
 	private readonly config: MultiChargeAttackConfig;
 	private readonly dashPhases: DashPhase[];
@@ -123,14 +124,20 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 			const dashEnd = dashStart + config.lungeDuration;
 
 			timings.push(
-				{ id: windupId, start: windupStart, end: windupEnd, abilityPhase: AbilityPhase.Windup, ...juggernautTag },
+				{
+					id: windupId,
+					start: windupStart,
+					end: windupEnd,
+					abilityPhase: AbilityPhase.Windup,
+					...juggernautTag,
+					...(i === 0 ? { doNotRefund: true } : {}),
+				},
 				{
 					id: dashId,
 					start: dashStart,
 					end: dashEnd,
 					abilityPhase: AbilityPhase.Active,
 					...juggernautTag,
-					...(i === 0 ? { doNotRefund: true } : {}),
 				},
 			);
 
