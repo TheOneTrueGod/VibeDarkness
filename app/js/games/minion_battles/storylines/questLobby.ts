@@ -154,6 +154,48 @@ export function missionIdFromResolvedRef(ref: ResolvedMissionRef | null | undefi
     return typeof ref.missionId === 'string' && ref.missionId.trim() !== '' ? ref.missionId : null;
 }
 
+/**
+ * Skip resolved slots whose mission ids already have a character victory.
+ * Stops before the last slot so quest-clear still goes through the victory finale.
+ * Used when Continue runs after a win that failed to persist the slot advance.
+ */
+export function advanceQuestRunPastClearedMissions(
+    run: QuestRunState,
+    wonMissionIds: ReadonlySet<string>,
+): QuestRunState {
+    if (run.status !== 'active' && run.status !== 'prep') return run;
+    let slot = run.currentSlotIndex;
+    const last = run.resolvedSlots.length - 1;
+    while (slot < last) {
+        const missionId = missionIdFromResolvedRef(run.resolvedSlots[slot]);
+        if (!missionId || !wonMissionIds.has(missionId)) break;
+        slot += 1;
+    }
+    if (slot === run.currentSlotIndex) return run;
+    return {
+        ...run,
+        status: slot === 0 && run.status === 'prep' ? 'prep' : 'active',
+        currentSlotIndex: slot,
+    };
+}
+
+/** Victory mission ids from a character's per-campaign missionResults map. */
+export function wonMissionIdsFromMissionResults(
+    missionResults: Record<string, Array<{ missionId?: string; result?: string }>> | null | undefined,
+): Set<string> {
+    const won = new Set<string>();
+    if (!missionResults) return won;
+    for (const list of Object.values(missionResults)) {
+        if (!Array.isArray(list)) continue;
+        for (const entry of list) {
+            if (entry?.result === 'victory' && typeof entry.missionId === 'string' && entry.missionId !== '') {
+                won.add(entry.missionId);
+            }
+        }
+    }
+    return won;
+}
+
 /** Lobby stamp + selectedMissionId for the run's current slot. */
 export function questLobbyFieldsFromRun(run: QuestRunState): QuestLobbyFields & {
     selectedMissionId: string;

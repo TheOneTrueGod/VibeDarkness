@@ -1010,7 +1010,18 @@ class LobbyManager
         if (is_file($basePathFile)) {
             $baseData = json_decode((string) file_get_contents($basePathFile), true);
             if (is_array($baseData)) {
-                            foreach (['gamePhase', 'game_phase', 'selectedMissionId', 'selected_mission_id', 'characterSelections', 'character_selections', 'characterPortraitIds', 'character_portrait_ids', 'characterDisplayNames', 'character_display_names', 'characterSelectReadyPlayerIds', 'character_select_ready_player_ids', 'playerStoryChoices', 'playerEquippedItems', 'storyReadyPlayerIds', 'groupVoteVotes', 'groupVoteApplied'] as $key) {
+                            foreach ([
+                                'gamePhase', 'game_phase', 'selectedMissionId', 'selected_mission_id',
+                                'characterSelections', 'character_selections', 'characterPortraitIds',
+                                'character_portrait_ids', 'characterDisplayNames', 'character_display_names',
+                                'characterSelectReadyPlayerIds', 'character_select_ready_player_ids',
+                                'playerStoryChoices', 'playerEquippedItems', 'storyReadyPlayerIds',
+                                'groupVoteVotes', 'groupVoteApplied',
+                                'questDefId', 'questRunId', 'questSlotIndex', 'questRunSeed',
+                                'requiredPlayers', 'questPrepLoadoutsByPlayer',
+                                'questAbilityLoadoutsByCharacterId', 'missionPrepLoadoutsByPlayer',
+                                'nextLobbyId', 'battleSeed', 'storyGrantedEquipment', 'storyGrantsApplied',
+                            ] as $key) {
                     if (array_key_exists($key, $baseData) && $baseData[$key] !== null) {
                         $result[$key] = $baseData[$key];
                     }
@@ -1196,7 +1207,7 @@ class LobbyManager
             return false;
         }
 
-        $currentState = $this->getGameStateData($lobbyId, $gameId);
+        $currentState = $this->readMissionGamePayload($lobbyId, $gameId);
         if ($currentState === null) {
             return false;
         }
@@ -1276,7 +1287,7 @@ class LobbyManager
         if ($lobby->getGameId() !== $gameId) {
             return false;
         }
-        $currentState = $this->getGameStateData($lobbyId, $gameId);
+        $currentState = $this->readMissionGamePayload($lobbyId, $gameId);
         if ($currentState === null) {
             return false;
         }
@@ -1324,7 +1335,7 @@ class LobbyManager
             return false;
         }
 
-        $currentState = $this->getGameStateData($lobbyId, $gameId);
+        $currentState = $this->readMissionGamePayload($lobbyId, $gameId);
         if ($currentState === null) {
             return false;
         }
@@ -1433,7 +1444,7 @@ class LobbyManager
             return false;
         }
 
-        $currentState = $this->getGameStateData($lobbyId, $gameId);
+        $currentState = $this->readMissionGamePayload($lobbyId, $gameId);
         if ($currentState === null) {
             return false;
         }
@@ -1514,7 +1525,7 @@ class LobbyManager
             return false;
         }
 
-        $currentState = $this->getGameStateData($lobbyId, $gameId);
+        $currentState = $this->readMissionGamePayload($lobbyId, $gameId);
         if ($currentState === null) {
             return false;
         }
@@ -1547,7 +1558,7 @@ class LobbyManager
             return false;
         }
 
-        $currentState = $this->getGameStateData($lobbyId, $gameId);
+        $currentState = $this->readMissionGamePayload($lobbyId, $gameId);
         if ($currentState === null) {
             return false;
         }
@@ -1584,7 +1595,7 @@ class LobbyManager
             return false;
         }
 
-        $currentState = $this->getGameStateData($lobbyId, $gameId);
+        $currentState = $this->readMissionGamePayload($lobbyId, $gameId);
         if ($currentState === null) {
             return false;
         }

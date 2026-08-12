@@ -21,6 +21,8 @@ import {
     requiredPlayersFromPartyRoster,
     seekQuestRunToSlot,
     startQuestRun,
+    advanceQuestRunPastClearedMissions,
+    wonMissionIdsFromMissionResults,
 } from './games/minion_battles/storylines';
 import type { QuestLobbyFields } from './games/minion_battles/storylines/questLobby';
 import type { CampaignCharacter } from './games/minion_battles/character_defs/CampaignCharacter';
@@ -847,7 +849,19 @@ function AppInner() {
             }
             setCurrentCampaignId(character.campaignId || questDef.campaignId);
             try {
+                // Quest-page Continue must use the server run — UI character state can still
+                // hold the pre-victory slot after mission clear advances currentSlotIndex.
                 let run = character.activeQuestRun;
+                let fetchedMissionResults = character.missionResults;
+                if (mode === 'continue') {
+                    try {
+                        const latest = await lobbyClient.getCharacter(character.id);
+                        run = latest.activeQuestRun ?? null;
+                        fetchedMissionResults = latest.missionResults ?? fetchedMissionResults;
+                    } catch (err) {
+                        console.warn('Failed to refresh character before quest continue:', err);
+                    }
+                }
                 const canContinue =
                     mode === 'continue'
                     && adminSeekSlotIndex === undefined
@@ -869,6 +883,16 @@ function AppInner() {
                                 assignedBankId
                                 ?? (run?.questDefId === questDefId ? run.assignedBankId ?? null : null),
                         });
+                    }
+                }
+                if (canContinue && run) {
+                    const skipped = advanceQuestRunPastClearedMissions(
+                        run,
+                        wonMissionIdsFromMissionResults(fetchedMissionResults),
+                    );
+                    if (skipped.currentSlotIndex !== run.currentSlotIndex) {
+                        run = skipped;
+                        await lobbyClient.updateCharacter(character.id, { activeQuestRun: run });
                     }
                 }
                 if (adminSeekSlotIndex !== undefined) {

@@ -146,6 +146,8 @@ export {
     questLobbyFieldsFromRun,
     readQuestLobbyFields,
     questRunMatchesLobby,
+    advanceQuestRunPastClearedMissions,
+    wonMissionIdsFromMissionResults,
     questRunMatchesLobbyPrep,
     planQuestVictoryContinue,
     planQuestDefeatRetry,

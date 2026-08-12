@@ -30,6 +30,7 @@ import {
     planQuestDefeatRetry,
     questRunMatchesLobby,
     readQuestLobbyFields,
+    missionIdFromResolvedRef,
     questClearMissionResultId,
     isCampaignRewardsPayloadEmpty,
     shouldApplyCampaignRewards,
@@ -330,15 +331,35 @@ export default function MinionBattlesGame({
      * Advance or complete the active quest run after mission victory.
      * Returns a continue plan for the victory modal, or null when not in a matching quest lobby.
      * On quest finale: surfaces Campaign Rewards in the UI and applies grants once.
+     *
+     * Optional story resource deltas are queued on the Quest Character in the same read/write
+     * as the slot advance so a parallel missionResults PATCH cannot stomp `currentSlotIndex`.
      */
-    const prepareQuestVictoryContinue = useCallback(async (): Promise<QuestVictoryContinuePlan | null> => {
-        if (!questLobbyFields) return null;
+    const prepareQuestVictoryContinue = useCallback(async (
+        options?: { queueResourceDelta?: Partial<Record<CampaignResourceKey, number>> },
+    ): Promise<QuestVictoryContinuePlan | null> => {
         const sel = (effective.characterSelections as Record<string, string>)?.[playerId];
         if (!sel || sel === SPECTATOR_ID || isControlEnemy(sel)) return null;
         try {
             const rawChar = await api.getCharacter(sel);
-            const run = rawChar.activeQuestRun ?? null;
-            if (!questRunMatchesLobby(run, questLobbyFields)) return null;
+            let run = rawChar.activeQuestRun ?? null;
+            const matchesLobby = questRunMatchesLobby(run, questLobbyFields);
+            const currentMissionId = missionIdFromResolvedRef(
+                run?.resolvedSlots[run?.currentSlotIndex ?? -1],
+            );
+            const matchesSelectedMission =
+                !matchesLobby
+                && run?.status === 'active'
+                && currentMissionId !== null
+                && currentMissionId === selectedMissionId;
+            if (!matchesLobby && !matchesSelectedMission) return null;
+            const queueDelta = options?.queueResourceDelta;
+            if (queueDelta && Object.keys(queueDelta).length > 0) {
+                run = queueCampaignReward(run!, {
+                    source: 'story',
+                    resourceDelta: queueDelta,
+                });
+            }
             const questDef = getQuestDef(run!.questDefId);
             if (!questDef) return null;
             const plan = planQuestVictoryContinue(run!, questDef);
@@ -413,7 +434,7 @@ export default function MinionBattlesGame({
             console.warn('Failed to advance quest run after victory:', e);
             return null;
         }
-    }, [api, effective.characterSelections, onRecordMissionResult, playerId, questLobbyFields]);
+    }, [api, effective.characterSelections, onRecordMissionResult, playerId, questLobbyFields, selectedMissionId]);
 
     const handleAbandonQuest = useCallback(async () => {
         if (!questLobbyFields) return;
@@ -632,22 +653,6 @@ export default function MinionBattlesGame({
                         // apply them only on quest clear (not via this mission result).
                         const deferResourcesToQuest =
                             !!questLobbyFields && !skipRewards && !!rewards.resourceDelta;
-                        if (deferResourcesToQuest && sel) {
-                            void (async () => {
-                                try {
-                                    const rawChar = await api.getCharacter(sel);
-                                    const run = rawChar.activeQuestRun ?? null;
-                                    if (!questRunMatchesLobby(run, questLobbyFields)) return;
-                                    const queued = queueCampaignReward(run!, {
-                                        source: 'story',
-                                        resourceDelta: rewards.resourceDelta,
-                                    });
-                                    await api.updateCharacter(sel, { activeQuestRun: queued });
-                                } catch (e) {
-                                    console.warn('Failed to queue quest Campaign Rewards:', e);
-                                }
-                            })();
-                        }
                         void onRecordMissionResult?.(
                             missionId,
                             'victory',
@@ -661,7 +666,6 @@ export default function MinionBattlesGame({
                                 ...(isHost ? { applyDarknessStrengthProgression: true } : {}),
                             }
                         );
-                        void persistCharacterMissionResult(missionId, 'victory');
                         setMissionRewards(
                             skipRewards
                                 ? null
@@ -672,7 +676,20 @@ export default function MinionBattlesGame({
                                           rewards.itemFromFirstChoice ?? itemIds[0] ?? undefined,
                                   }
                         );
-                        void prepareQuestVictoryContinue().finally(() => setVictoryModalOpen(true));
+                        // Serialize character PATCHes: missionResults, then queue+advance in one write.
+                        // Parallel void updates previously stomped currentSlotIndex back to the cleared mission.
+                        void (async () => {
+                            try {
+                                await persistCharacterMissionResult(missionId, 'victory');
+                                await prepareQuestVictoryContinue(
+                                    deferResourcesToQuest && rewards.resourceDelta
+                                        ? { queueResourceDelta: rewards.resourceDelta }
+                                        : undefined,
+                                );
+                            } finally {
+                                setVictoryModalOpen(true);
+                            }
+                        })();
                     }}
                 />
             )}
@@ -766,7 +783,6 @@ export default function MinionBattlesGame({
                                     ...(isHost ? { applyDarknessStrengthProgression: true } : {}),
                                 }
                             );
-                            void persistCharacterMissionResult(missionId, 'victory');
                             setMissionRewards(
                                 skipRewards
                                     ? null
@@ -774,7 +790,14 @@ export default function MinionBattlesGame({
                                           itemFromFirstChoice: startingItemIds[0] ?? undefined,
                                       }
                             );
-                            void prepareQuestVictoryContinue().finally(() => setVictoryModalOpen(true));
+                            void (async () => {
+                                try {
+                                    await persistCharacterMissionResult(missionId, 'victory');
+                                    await prepareQuestVictoryContinue();
+                                } finally {
+                                    setVictoryModalOpen(true);
+                                }
+                            })();
                         }
                     }}
                     onDefeat={() => {

@@ -102,56 +102,73 @@ class CharacterManager
      */
     public function updateCharacter(string $characterId, array $updates): ?Character
     {
-        $character = $this->getCharacter($characterId);
-        if ($character === null) {
+        $lockPath = $this->getStoragePath() . '/' . $characterId . '.json.lock';
+        $fp = fopen($lockPath, 'c+');
+        if ($fp === false) {
             return null;
         }
-        $data = $character->toArray();
-        if (isset($updates['equipment']) && is_array($updates['equipment'])) {
-            $data['equipment'] = array_values($updates['equipment']);
+        if (!flock($fp, LOCK_EX)) {
+            fclose($fp);
+            return null;
         }
-        if (array_key_exists('name', $updates)) {
-            $data['name'] = (string) $updates['name'];
-        }
-        if (array_key_exists('portraitId', $updates)) {
-            $data['portraitId'] = (string) $updates['portraitId'];
-        }
-        if (isset($updates['researchTrees']) && is_array($updates['researchTrees'])) {
-            $data['researchTrees'] = $updates['researchTrees'];
-        }
-        if (isset($updates['researchNodeLevels']) && is_array($updates['researchNodeLevels'])) {
-            $data['researchNodeLevels'] = $updates['researchNodeLevels'];
-        }
-        if (array_key_exists('lastUsed', $updates)) {
-            $data['lastUsed'] = max(0, (int) $updates['lastUsed']);
-        }
-        if (isset($updates['missionResults']) && is_array($updates['missionResults'])) {
-            $data['missionResults'] = $updates['missionResults'];
-        }
-        if (isset($updates['questResults']) && is_array($updates['questResults'])) {
-            $data['questResults'] = $updates['questResults'];
-        }
-        if (array_key_exists('activeQuestRun', $updates)) {
-            $data['activeQuestRun'] = is_array($updates['activeQuestRun']) ? $updates['activeQuestRun'] : null;
-        }
-        if (array_key_exists('campaignId', $updates)) {
-            $data['campaignId'] = (string) $updates['campaignId'];
-        }
-        if (isset($updates['lastMissionAbilityIds']) && is_array($updates['lastMissionAbilityIds'])) {
-            $clean = [];
-            foreach ($updates['lastMissionAbilityIds'] as $id) {
-                $id = is_string($id) ? trim($id) : '';
-                if ($id === '') {
-                    continue;
-                }
-                $clean[] = $id;
+
+        try {
+            // Bypass cache so concurrent HTTP workers merge against the latest disk state.
+            unset($this->cache[$characterId]);
+            $character = $this->loadFromStorage($characterId);
+            if ($character === null) {
+                return null;
             }
-            $data['lastMissionAbilityIds'] = array_values(array_unique($clean));
+            $data = $character->toArray();
+            if (isset($updates['equipment']) && is_array($updates['equipment'])) {
+                $data['equipment'] = array_values($updates['equipment']);
+            }
+            if (array_key_exists('name', $updates)) {
+                $data['name'] = (string) $updates['name'];
+            }
+            if (array_key_exists('portraitId', $updates)) {
+                $data['portraitId'] = (string) $updates['portraitId'];
+            }
+            if (isset($updates['researchTrees']) && is_array($updates['researchTrees'])) {
+                $data['researchTrees'] = $updates['researchTrees'];
+            }
+            if (isset($updates['researchNodeLevels']) && is_array($updates['researchNodeLevels'])) {
+                $data['researchNodeLevels'] = $updates['researchNodeLevels'];
+            }
+            if (array_key_exists('lastUsed', $updates)) {
+                $data['lastUsed'] = max(0, (int) $updates['lastUsed']);
+            }
+            if (isset($updates['missionResults']) && is_array($updates['missionResults'])) {
+                $data['missionResults'] = $updates['missionResults'];
+            }
+            if (isset($updates['questResults']) && is_array($updates['questResults'])) {
+                $data['questResults'] = $updates['questResults'];
+            }
+            if (array_key_exists('activeQuestRun', $updates)) {
+                $data['activeQuestRun'] = is_array($updates['activeQuestRun']) ? $updates['activeQuestRun'] : null;
+            }
+            if (array_key_exists('campaignId', $updates)) {
+                $data['campaignId'] = (string) $updates['campaignId'];
+            }
+            if (isset($updates['lastMissionAbilityIds']) && is_array($updates['lastMissionAbilityIds'])) {
+                $clean = [];
+                foreach ($updates['lastMissionAbilityIds'] as $id) {
+                    $id = is_string($id) ? trim($id) : '';
+                    if ($id === '') {
+                        continue;
+                    }
+                    $clean[] = $id;
+                }
+                $data['lastMissionAbilityIds'] = array_values(array_unique($clean));
+            }
+            $updated = Character::fromArray($data);
+            $this->persist($updated);
+            $this->cache[$characterId] = $updated;
+            return $updated;
+        } finally {
+            flock($fp, LOCK_UN);
+            fclose($fp);
         }
-        $updated = Character::fromArray($data);
-        $this->persist($updated);
-        $this->cache[$characterId] = $updated;
-        return $updated;
     }
 
     /**

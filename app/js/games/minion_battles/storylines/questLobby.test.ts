@@ -11,8 +11,10 @@ import {
     questSlotPillStatus,
     readQuestLobbyFields,
     requiredPlayersFromPartyRoster,
+    advanceQuestRunPastClearedMissions,
+    wonMissionIdsFromMissionResults,
 } from './questLobby';
-import { finalizeQuestPrepLoadout, startQuestRun } from './questRun';
+import { finalizeQuestPrepLoadout, queueCampaignReward, startQuestRun } from './questRun';
 import { FIND_THE_HERD_OF_BOARS } from './WorldOfDarkness/quests/find_the_herd_of_boars';
 
 const CHARACTER = { id: 'char_q', equipment: ['004'] as const };
@@ -137,6 +139,24 @@ describe('planQuestVictoryContinue / planQuestDefeatRetry', () => {
         expect(plan.run.currentSlotIndex).toBe(1);
     });
 
+    it('queued story Campaign Rewards survive the slot advance used for Continue', () => {
+        // Victory flow must queue rewards before advancing in one character write; stomping the
+        // pre-advance run is what made quest-page Continue reopen mission 1.
+        const run = startActiveRun();
+        const withReward = queueCampaignReward(run, {
+            source: 'story',
+            resourceDelta: { food: 2 },
+        });
+        const plan = planQuestVictoryContinue(withReward, FIND_THE_HERD_OF_BOARS);
+        expect(plan.kind).toBe('continued');
+        if (plan.kind !== 'continued') return;
+        expect(plan.run.currentSlotIndex).toBe(1);
+        expect(plan.run.questCharacter.campaignRewards).toEqual([
+            { source: 'story', resourceDelta: { food: 2 } },
+        ]);
+        expect(plan.nextMissionId).toBe(run.resolvedSlots[1]!.missionId);
+    });
+
     it('finale completes the quest on the last slot victory', () => {
         let run = startActiveRun();
         for (let i = 0; i < FIND_THE_HERD_OF_BOARS.slots.length - 1; i++) {
@@ -185,5 +205,26 @@ describe('questSlotMissionIds / questSlotPillStatus / questLobbyNamePrefix', () 
         expect(questLobbyNamePrefix(FIND_THE_HERD_OF_BOARS.title)).toBe(
             'Quest: Find the herd of boars',
         );
+    });
+});
+
+describe('advanceQuestRunPastClearedMissions', () => {
+    it('advances past a won first slot and stops on the next uncleared mission', () => {
+        const run = startActiveRun();
+        const won = wonMissionIdsFromMissionResults({
+            world_of_darkness: [{ missionId: run.resolvedSlots[0]!.missionId, result: 'victory' }],
+        });
+        const skipped = advanceQuestRunPastClearedMissions(run, won);
+        expect(skipped.currentSlotIndex).toBe(1);
+        expect(skipped.resolvedSlots[1]!.missionId).toBe(run.resolvedSlots[1]!.missionId);
+        expect(skipped.status).toBe('active');
+    });
+
+    it('does not complete the quest when every slot is already won', () => {
+        const run = startActiveRun();
+        const won = new Set(run.resolvedSlots.map((slot) => slot.missionId));
+        const skipped = advanceQuestRunPastClearedMissions(run, won);
+        expect(skipped.currentSlotIndex).toBe(run.resolvedSlots.length - 1);
+        expect(skipped.status).toBe('active');
     });
 });
