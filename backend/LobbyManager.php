@@ -61,6 +61,278 @@ class LobbyManager
     }
 
     /**
+     * Idempotent quest-mission continue: claim or create the next private reserved lobby.
+     * Uses an exclusive lock on the source lobby so concurrent Continue clicks converge.
+     *
+     * @param array{
+     *   lobbyName: string,
+     *   nextMissionId: string,
+     *   questDefId: string,
+     *   questRunId: string,
+     *   questSlotIndex: int,
+     *   questRunSeed?: int|float,
+     *   requiredPlayers: list<array{playerName: string, characterId: string}>,
+     *   characterSelections?: array<string, string>,
+     *   questAbilityLoadoutsByCharacterId?: array<string, list<string>>
+     * } $payload
+     * @return array{lobby: array, player: array, created: bool}|array{error: string}
+     */
+    public function claimQuestContinuationLobby(
+        string $sourceLobbyId,
+        string $playerId,
+        string $playerName,
+        array $payload
+    ): array {
+        $sourceLobby = $this->getLobby($sourceLobbyId);
+        if ($sourceLobby === null) {
+            return ['error' => 'Source lobby not found'];
+        }
+        if ($sourceLobby->getPlayer($playerId) === null) {
+            return ['error' => 'Not a member of the source lobby'];
+        }
+
+        $requiredPlayers = [];
+        if (isset($payload['requiredPlayers']) && is_array($payload['requiredPlayers'])) {
+            foreach ($payload['requiredPlayers'] as $entry) {
+                if (!is_array($entry)) {
+                    continue;
+                }
+                $name = trim((string) ($entry['playerName'] ?? ''));
+                $characterId = trim((string) ($entry['characterId'] ?? ''));
+                if ($name === '' || $characterId === '') {
+                    continue;
+                }
+                $requiredPlayers[] = [
+                    'playerName' => $name,
+                    'characterId' => $characterId,
+                ];
+            }
+        }
+        if ($requiredPlayers === []) {
+            return ['error' => 'requiredPlayers is required for quest continuation'];
+        }
+        $allowedNames = array_map(static fn($e) => $e['playerName'], $requiredPlayers);
+        if (!in_array($playerName, $allowedNames, true)) {
+            return ['error' => 'Only quest party members can continue'];
+        }
+
+        $nextMissionId = trim((string) ($payload['nextMissionId'] ?? ''));
+        $questDefId = trim((string) ($payload['questDefId'] ?? ''));
+        $questRunId = trim((string) ($payload['questRunId'] ?? ''));
+        $questSlotIndex = $payload['questSlotIndex'] ?? null;
+        $lobbyName = trim((string) ($payload['lobbyName'] ?? ''));
+        if ($nextMissionId === '' || $questDefId === '' || $questRunId === '') {
+            return ['error' => 'Missing quest continuation fields'];
+        }
+        if (!is_int($questSlotIndex) && !(is_string($questSlotIndex) && ctype_digit((string) $questSlotIndex))) {
+            if (!is_numeric($questSlotIndex)) {
+                return ['error' => 'Invalid questSlotIndex'];
+            }
+        }
+        $questSlotIndex = (int) $questSlotIndex;
+        if ($questSlotIndex < 0) {
+            return ['error' => 'Invalid questSlotIndex'];
+        }
+        if ($lobbyName === '') {
+            $lobbyName = 'Quest continue';
+        }
+
+        $lockPath = $this->lobbyDir($sourceLobbyId) . '/continue_claim.lock';
+        $fp = fopen($lockPath, 'c+');
+        if ($fp === false) {
+            return ['error' => 'Failed to lock quest continuation'];
+        }
+        if (!flock($fp, LOCK_EX)) {
+            fclose($fp);
+            return ['error' => 'Failed to lock quest continuation'];
+        }
+
+        try {
+            // Re-load under lock — another request may have claimed already.
+            $sourceLobby = $this->getLobby($sourceLobbyId);
+            if ($sourceLobby === null) {
+                return ['error' => 'Source lobby not found'];
+            }
+            $sourceGameId = $sourceLobby->getGameId();
+            if ($sourceGameId === null || $sourceGameId === '') {
+                return ['error' => 'Source lobby has no active game'];
+            }
+
+            $sourceState = $this->readMissionGamePayload($sourceLobbyId, $sourceGameId);
+            if ($sourceState === null) {
+                return ['error' => 'Source game state missing'];
+            }
+
+            $existingNextId = $sourceState['nextLobbyId'] ?? null;
+            if (is_string($existingNextId) && $existingNextId !== '') {
+                $existing = $this->getLobby($existingNextId);
+                if ($existing !== null) {
+                    $join = $this->joinLobby($existingNextId, $playerId, $playerName);
+                    if ($join === null) {
+                        return ['error' => 'Continuation lobby not found'];
+                    }
+                    if (isset($join['error'])) {
+                        return ['error' => (string) $join['error']];
+                    }
+                    return [
+                        'lobby' => $join['lobby'],
+                        'player' => $join['player'],
+                        'created' => false,
+                    ];
+                }
+            }
+
+            $maxPlayers = max(count($requiredPlayers), 1);
+            $created = $this->createLobby($lobbyName, $playerId, $playerName, $maxPlayers, false);
+            $newLobbyId = (string) $created['lobby']['id'];
+
+            if (!$this->setLobbyState($newLobbyId, $playerId, 'in_game', 'minion_battles')) {
+                return ['error' => 'Failed to start continuation game'];
+            }
+
+            $newLobby = $this->getLobby($newLobbyId);
+            if ($newLobby === null || $newLobby->getGameId() === null) {
+                return ['error' => 'Continuation lobby missing game'];
+            }
+            $newGameId = $newLobby->getGameId();
+
+            $characterSelections = [];
+            if (isset($payload['characterSelections']) && is_array($payload['characterSelections'])) {
+                foreach ($payload['characterSelections'] as $pid => $cid) {
+                    if (is_string($pid) && is_string($cid) && $cid !== '') {
+                        $characterSelections[$pid] = $cid;
+                    }
+                }
+            }
+
+            $abilityLoadouts = [];
+            if (
+                isset($payload['questAbilityLoadoutsByCharacterId'])
+                && is_array($payload['questAbilityLoadoutsByCharacterId'])
+            ) {
+                foreach ($payload['questAbilityLoadoutsByCharacterId'] as $cid => $ids) {
+                    if (!is_string($cid) || !is_array($ids)) {
+                        continue;
+                    }
+                    $abilityLoadouts[$cid] = array_values(array_filter(
+                        $ids,
+                        static fn($id) => is_string($id) && $id !== ''
+                    ));
+                }
+            }
+
+            $gamePatch = [
+                'gamePhase' => 'character_select',
+                'selectedMissionId' => $nextMissionId,
+                'questDefId' => $questDefId,
+                'questRunId' => $questRunId,
+                'questSlotIndex' => $questSlotIndex,
+                'requiredPlayers' => $requiredPlayers,
+                'characterSelections' => $characterSelections,
+            ];
+            if (isset($payload['questRunSeed']) && is_numeric($payload['questRunSeed'])) {
+                $gamePatch['questRunSeed'] = (int) $payload['questRunSeed'];
+            }
+            if ($abilityLoadouts !== []) {
+                $gamePatch['questAbilityLoadoutsByCharacterId'] = $abilityLoadouts;
+            }
+
+            if (!$this->mergeGameStateUnchecked($newLobbyId, $newGameId, $gamePatch)) {
+                return ['error' => 'Failed to configure continuation lobby'];
+            }
+
+            if (!$this->mergeGameStateUnchecked($sourceLobbyId, $sourceGameId, [
+                'nextLobbyId' => $newLobbyId,
+            ])) {
+                return ['error' => 'Failed to stamp nextLobbyId on source lobby'];
+            }
+
+            $freshLobby = $this->getLobby($newLobbyId);
+            $freshPlayer = $freshLobby?->getPlayer($playerId);
+            if ($freshLobby === null || $freshPlayer === null) {
+                return ['error' => 'Continuation lobby unavailable after create'];
+            }
+
+            return [
+                'lobby' => $freshLobby->toArray(true),
+                'player' => $freshPlayer->toArray(true),
+                'created' => true,
+            ];
+        } finally {
+            flock($fp, LOCK_UN);
+            fclose($fp);
+        }
+    }
+
+    /**
+     * When game JSON lists requiredPlayers, reject joiners whose display name is not rostered.
+     */
+    private function requiredPlayersJoinError(Lobby $lobby, string $playerName): ?string
+    {
+        $gameId = $lobby->getGameId();
+        if ($gameId === null || $gameId === '') {
+            return null;
+        }
+        $state = $this->readMissionGamePayload($lobby->getId(), $gameId);
+        if ($state === null) {
+            return null;
+        }
+        $required = $state['requiredPlayers'] ?? null;
+        if (!is_array($required) || $required === []) {
+            return null;
+        }
+        foreach ($required as $entry) {
+            if (!is_array($entry)) {
+                continue;
+            }
+            $name = trim((string) ($entry['playerName'] ?? ''));
+            if ($name !== '' && $name === $playerName) {
+                return null;
+            }
+        }
+        return 'This lobby is reserved for the quest party';
+    }
+
+    /**
+     * Read mission game_<id>.json without merging battle checkpoints.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function readMissionGamePayload(string $lobbyId, string $gameId): ?array
+    {
+        $path = $this->getStoragePath() . '/' . $lobbyId . '/game_' . $gameId . '.json';
+        if (!is_file($path)) {
+            return null;
+        }
+        $json = file_get_contents($path);
+        if ($json === false || $json === '') {
+            return null;
+        }
+        $data = json_decode($json, true);
+        return is_array($data) ? $data : null;
+    }
+
+    /**
+     * Merge updates into mission game JSON without a host check (internal / claim path).
+     *
+     * @param array<string, mixed> $updates
+     */
+    private function mergeGameStateUnchecked(string $lobbyId, string $gameId, array $updates): bool
+    {
+        $lobby = $this->getLobby($lobbyId);
+        if ($lobby === null || $lobby->getGameId() !== $gameId) {
+            return false;
+        }
+        $currentState = $this->readMissionGamePayload($lobbyId, $gameId);
+        if ($currentState === null) {
+            return false;
+        }
+        $newState = array_merge($currentState, $updates);
+        $this->persistGameState($lobbyId, $gameId, $newState);
+        return true;
+    }
+
+    /**
      * Get a lobby by ID. If not in memory (e.g. created via HTTP), load from shared storage.
      */
     public function getLobby(string $lobbyId): ?Lobby
@@ -250,6 +522,12 @@ class LobbyManager
                 'player' => $existingPlayer->toArray(true),
                 'isRejoin' => true,
             ];
+        }
+
+        // Quest / reserved lobbies: only rostered party members may join.
+        $joinBlock = $this->requiredPlayersJoinError($lobby, $playerName);
+        if ($joinBlock !== null) {
+            return ['error' => $joinBlock];
         }
 
         $player = new Player($playerId, $playerName);

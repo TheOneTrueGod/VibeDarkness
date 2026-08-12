@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    buildQuestContinuationClaimPayload,
     missionIdFromResolvedRef,
     planQuestDefeatRetry,
     planQuestVictoryContinue,
@@ -91,6 +92,37 @@ describe('questLobbyFieldsFromRun / readQuestLobbyFields', () => {
             { playerName: 'B', characterId: 'c2' },
         ]);
         expect(requiredPlayersFromPartyRoster(undefined)).toEqual([]);
+    });
+
+    it('buildQuestContinuationClaimPayload stamps reserved party fields', () => {
+        const run = startActiveRun();
+        const plan = planQuestVictoryContinue(run, FIND_THE_HERD_OF_BOARS);
+        expect(plan.kind).toBe('continued');
+        if (plan.kind !== 'continued') return;
+        const requiredPlayers = requiredPlayersFromPartyRoster(plan.run.partyRoster);
+        const payload = buildQuestContinuationClaimPayload({
+            questTitle: FIND_THE_HERD_OF_BOARS.title,
+            nextMissionId: plan.nextMissionId,
+            lobbyFields: plan.lobbyFields,
+            requiredPlayers,
+            characterSelections: { '1': CHARACTER.id },
+            questAbilityLoadoutsByCharacterId: { [CHARACTER.id]: ['0101'] },
+        });
+        expect(payload.lobbyName).toContain(questLobbyNamePrefix(FIND_THE_HERD_OF_BOARS.title));
+        expect(payload.nextMissionId).toBe(plan.nextMissionId);
+        expect(payload.questRunId).toBe(plan.lobbyFields.questRunId);
+        expect(payload.questSlotIndex).toBe(1);
+        expect(payload.requiredPlayers).toEqual(requiredPlayers);
+        expect(payload.characterSelections).toEqual({ '1': CHARACTER.id });
+        expect(payload.questAbilityLoadoutsByCharacterId?.[CHARACTER.id]).toEqual(['0101']);
+        expect(() =>
+            buildQuestContinuationClaimPayload({
+                questTitle: 'x',
+                nextMissionId: 'm',
+                lobbyFields: plan.lobbyFields,
+                requiredPlayers: [],
+            }),
+        ).toThrow(/requiredPlayers/);
     });
 });
 

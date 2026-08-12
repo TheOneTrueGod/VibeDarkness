@@ -19,13 +19,12 @@ import { TerrainType } from '../../../terrain/TerrainType';
 import {
     MAP_SEGMENT_50_50_CRYSTAL_CAVE,
     CAVE_CAMPFIRE,
-    CRYSTAL_TILE_DEFAULTS,
     crystalSpecialTilesAt,
     OUTSIDE_CAVE_MOUTH_ZONE,
 } from '../MapSegments/50_50_crystal_cave';
 import {
     MAP_SEGMENT_50_49_CLIFF_PATH_NORTH,
-    CLIFF_PATH_CRYSTAL_POINTS,
+    CLIFF_PATH_CAMPFIRE_POINTS,
     pointsOfInterest as cliffPathPOI,
 } from '../MapSegments/50_49_cliff_path_north';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
@@ -189,11 +188,13 @@ const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
     },
 ];
 
-/** 50_49 is the top segment (origin 0,0) — segment-local crystal coords are global here. */
-const CLIFF_PATH_CRYSTALS: SpecialTilePlacement[] = CLIFF_PATH_CRYSTAL_POINTS.map(({ col, row }) => ({
-    ...CRYSTAL_TILE_DEFAULTS,
+/** 50_49 is the top segment (origin 0,0) — segment-local campfire coords are global here. */
+const CLIFF_PATH_CAMPFIRES: SpecialTilePlacement[] = CLIFF_PATH_CAMPFIRE_POINTS.map(({ col, row }) => ({
+    defId: 'Campfire' as const,
     col,
     row,
+    hp: 5,
+    emitsLight: { lightAmount: 4, radius: 2, lightType: 'FireLight' },
 }));
 
 const SPECIAL_TILES: SpecialTilePlacement[] = [
@@ -205,7 +206,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
         emitsLight: { lightAmount: 4, radius: 2 },
     },
     ...crystalSpecialTilesAt(0, BOTTOM_OFFSET_ROW),
-    ...CLIFF_PATH_CRYSTALS,
+    ...CLIFF_PATH_CAMPFIRES,
 ];
 
 const PRE_MISSION_STORY: PreMissionStoryDef = {

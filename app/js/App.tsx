@@ -14,6 +14,7 @@ import CampaignHomeScreen from './components/CampaignHomeScreen';
 import LoginScreen from './components/LoginScreen';
 import {
     MISSION_MAP,
+    buildQuestContinuationClaimPayload,
     getQuestDef,
     questLobbyFieldsFromRun,
     questLobbyNamePrefix,
@@ -528,12 +529,13 @@ function AppInner() {
     );
 
     /**
-     * Host: create a new lobby for the next mission, stamp `nextLobbyId` on the current lobby
-     * so clients can auto-redirect, then navigate the host to the new lobby.
+     * Continue to the next mission lobby.
      *
-     * The old lobby state must still be in React state when this is called (captured at the top
-     * before anything is cleared) because `updateGameState` is host-only and requires the old
-     * lobby/game/player IDs.
+     * Quest (non-terminus): any party member may call this. Server claim is race-safe —
+     * first caller creates a private reserved lobby; others join the same one.
+     *
+     * Non-quest: host creates the next lobby and stamps `nextLobbyId` on the current lobby
+     * (clients join via {@link handleClientJoinNextLobby}).
      */
     const handleHostContinueToNextMission = useCallback(
         async (
@@ -550,12 +552,99 @@ function AppInner() {
 
             setCurrentCampaignId(campaignId);
             try {
-                // Create new lobby (mirrors handleCreateLobbyForMission logic)
+                if (questLobby) {
+                    if (!oldLobbyId || !oldPlayerId) {
+                        showToast('Cannot continue quest: missing lobby context', 'error');
+                        return false;
+                    }
+
+                    let requiredPlayers: Array<{ playerName: string; characterId: string }> = [];
+                    const questAbilityLoadoutsByCharacterId: Record<string, string[]> = {};
+                    for (const characterId of Object.values(previousCharacterSelections)) {
+                        if (!characterId || characterId.startsWith('control_enemy') || characterId === 'spectator') {
+                            continue;
+                        }
+                        try {
+                            const rawChar = await lobbyClient.getCharacter(characterId);
+                            const run = rawChar.activeQuestRun;
+                            if (run?.questCharacter?.selectedAbilityIds) {
+                                questAbilityLoadoutsByCharacterId[characterId] = [
+                                    ...run.questCharacter.selectedAbilityIds,
+                                ];
+                            }
+                            if (requiredPlayers.length === 0) {
+                                const fromRoster = requiredPlayersFromPartyRoster(run?.partyRoster);
+                                if (fromRoster.length > 0) requiredPlayers = fromRoster;
+                            }
+                        } catch {
+                            // ignore — fall back below
+                        }
+                    }
+                    if (requiredPlayers.length === 0) {
+                        const gameRequired = lobbyGameDataRef.current?.requiredPlayers;
+                        if (Array.isArray(gameRequired) && gameRequired.length > 0) {
+                            requiredPlayers = gameRequired.filter(
+                                (e): e is { playerName: string; characterId: string } =>
+                                    !!e
+                                    && typeof e === 'object'
+                                    && typeof (e as { playerName?: unknown }).playerName === 'string'
+                                    && typeof (e as { characterId?: unknown }).characterId === 'string',
+                            );
+                        }
+                    }
+                    if (requiredPlayers.length === 0) {
+                        showToast(
+                            'Cannot continue quest: party roster missing. Rejoin from Mission Map Continue.',
+                            'error',
+                        );
+                        return false;
+                    }
+
+                    const questTitle =
+                        getQuestDef(questLobby.questDefId)?.title ?? questLobby.questDefId;
+                    const claimPayload = buildQuestContinuationClaimPayload({
+                        questTitle,
+                        nextMissionId: missionId,
+                        lobbyFields: questLobby,
+                        requiredPlayers,
+                        characterSelections: previousCharacterSelections,
+                        questAbilityLoadoutsByCharacterId,
+                    });
+                    const result = await lobbyClient.claimQuestContinuation(oldLobbyId, claimPayload);
+                    const newLobby = result.lobby as LobbyState;
+                    const newPlayer = result.player as PlayerState;
+                    const newAccount = result.account as AccountState;
+
+                    // Leave the finished lobby (non-fatal); claim already put us in the next one.
+                    lobbyClient.leaveLobby(oldLobbyId, oldPlayerId).catch((error) => {
+                        console.error('Error leaving lobby during quest continue:', error);
+                    });
+
+                    const { gameState: finalState } = await lobbyClient.getLobbyState(
+                        newLobby.id,
+                        newPlayer.id,
+                    );
+                    loadGameState(finalState as unknown as GameStatePayload);
+
+                    setCurrentAccount(newAccount);
+                    setCurrentLobby(newLobby);
+                    setCurrentPlayer(newPlayer);
+                    setConnectionStatus('connecting');
+                    setChatEnabled(false);
+                    setPlayers({ [newPlayer.id]: { ...newPlayer, isConnected: false } });
+                    setScreen('game');
+                    navigate(`${LOBBY_PATH_PREFIX}${newLobby.id}`, { replace: true });
+
+                    setPollMessagesReady(false);
+                    setLastPollMessageId(null);
+                    await startInLobby(newLobby, newPlayer);
+                    return true;
+                }
+
+                // Non-quest: host creates next lobby + stamps nextLobbyId for clients.
                 const missionDef = MISSION_MAP[missionId];
                 const missionName = missionDef?.name ?? missionId;
-                const lobbyTitle = questLobby
-                    ? `Quest: ${getQuestDef(questLobby.questDefId)?.title ?? questLobby.questDefId}`
-                    : `Mission: ${missionName}`;
+                const lobbyTitle = `Mission: ${missionName}`;
                 const result = await lobbyClient.createLobby(lobbyTitle, user.id);
                 const newLobby = result.lobby as LobbyState;
                 const newPlayer = result.player as PlayerState;
@@ -566,54 +655,13 @@ function AppInner() {
                 const payload = gameState as unknown as GameStatePayload;
                 const newGameId = payload.gameId ?? null;
                 if (newGameId) {
-                    let requiredPlayers: Array<{ playerName: string; characterId: string }> = [];
-                    const questAbilityLoadoutsByCharacterId: Record<string, string[]> = {};
-                    if (questLobby) {
-                        // Prefer frozen party roster + ability loadouts from prior selections' runs.
-                        for (const characterId of Object.values(previousCharacterSelections)) {
-                            if (!characterId || characterId.startsWith('control_enemy') || characterId === 'spectator') {
-                                continue;
-                            }
-                            try {
-                                const rawChar = await lobbyClient.getCharacter(characterId);
-                                const run = rawChar.activeQuestRun;
-                                if (run?.questCharacter?.selectedAbilityIds) {
-                                    questAbilityLoadoutsByCharacterId[characterId] = [
-                                        ...run.questCharacter.selectedAbilityIds,
-                                    ];
-                                }
-                                if (requiredPlayers.length === 0) {
-                                    const fromRoster = requiredPlayersFromPartyRoster(run?.partyRoster);
-                                    if (fromRoster.length > 0) requiredPlayers = fromRoster;
-                                }
-                            } catch {
-                                // ignore — fall back below
-                            }
-                        }
-                    }
                     await lobbyClient.updateGameState(newLobby.id, newGameId, newPlayer.id, {
                         gamePhase: 'character_select',
                         selectedMissionId: missionId,
                         characterSelections: previousCharacterSelections,
-                        ...(questLobby
-                            ? {
-                                  questDefId: questLobby.questDefId,
-                                  questRunId: questLobby.questRunId,
-                                  questSlotIndex: questLobby.questSlotIndex,
-                                  ...(questLobby.questRunSeed !== undefined
-                                      ? { questRunSeed: questLobby.questRunSeed }
-                                      : {}),
-                                  ...(requiredPlayers.length > 0 ? { requiredPlayers } : {}),
-                                  ...(Object.keys(questAbilityLoadoutsByCharacterId).length > 0
-                                      ? { questAbilityLoadoutsByCharacterId }
-                                      : {}),
-                              }
-                            : {}),
                     });
                 }
 
-                // Stamp nextLobbyId on the OLD lobby BEFORE clearing state
-                // so clients polling the old lobby can see it
                 if (oldLobbyId && oldGameId && oldPlayerId) {
                     lobbyClient
                         .updateGameState(oldLobbyId, oldGameId, oldPlayerId, {
@@ -622,7 +670,6 @@ function AppInner() {
                         .catch(console.error);
                 }
 
-                // Fetch final state then set all React state (mirrors handleCreateLobbyForMission)
                 const { gameState: finalState } = await lobbyClient.getLobbyState(newLobby.id, newPlayer.id);
                 const finalPayload = finalState as unknown as GameStatePayload;
                 loadGameState(finalPayload);
@@ -648,7 +695,18 @@ function AppInner() {
                 return false;
             }
         },
-        [currentLobby, currentPlayer, lobbyGameIdRef, user, lobbyClient, loadGameState, startInLobby, showToast, navigate]
+        [
+            currentLobby,
+            currentPlayer,
+            lobbyGameDataRef,
+            lobbyGameIdRef,
+            user,
+            lobbyClient,
+            loadGameState,
+            startInLobby,
+            showToast,
+            navigate,
+        ]
     );
 
     /**
@@ -882,9 +940,19 @@ function AppInner() {
                 const missionId = lobbyStamp.selectedMissionId;
                 const missionDef = MISSION_MAP[missionId];
                 const missionName = missionDef?.name ?? missionId;
+                const fromRosterForCreate = requiredPlayersFromPartyRoster(run!.partyRoster);
+                const questMaxPlayers = Math.max(
+                    (preservedRequiredPlayers ?? fromRosterForCreate).length,
+                    1,
+                );
+                // Later slots / reserved party: private lobby sized to the roster.
+                const isReservedPartyLobby =
+                    run!.status === 'active' || questMaxPlayers > 1 || !!preservedRequiredPlayers;
                 const result = await lobbyClient.createLobby(
                     `Quest: ${questDef.title} — ${missionName}`,
                     user.id,
+                    questMaxPlayers,
+                    !isReservedPartyLobby,
                 );
                 const lobby = result.lobby as LobbyState;
                 const player = result.player as PlayerState;

@@ -880,6 +880,7 @@ export default function MinionBattlesGame({
                     isHost={isHost}
                     nextLobbyId={nextLobbyId}
                     onJoinNextLobby={onJoinNextLobby}
+                    questContinuation={questVictoryPlan?.kind === 'continued'}
                     missionRewards={missionRewards}
                     campaignRewards={campaignRewards}
                     questBanner={

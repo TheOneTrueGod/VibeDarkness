@@ -37,12 +37,22 @@ describe('quest_boar_herd_north', () => {
         });
     });
 
-    it('places light-emitting crystals on the 50_49 cliff path', () => {
-        const crystals = (QUEST_BOAR_HERD_NORTH.specialTiles ?? []).filter((t) => t.defId === 'Crystal');
-        expect(crystals).toEqual(
+    it('places FireLight campfires on the 50_49 cliff path', () => {
+        const cliffCampfires = (QUEST_BOAR_HERD_NORTH.specialTiles ?? []).filter(
+            (t) => t.defId === 'Campfire' && (t.row === 21 || t.row === 13),
+        );
+        expect(cliffCampfires).toEqual(
             expect.arrayContaining([
-                expect.objectContaining({ col: 8, row: 21, emitsLight: expect.objectContaining({ lightType: 'DayLight' }) }),
-                expect.objectContaining({ col: 14, row: 13, emitsLight: expect.objectContaining({ lightType: 'DayLight' }) }),
+                expect.objectContaining({
+                    col: 8,
+                    row: 21,
+                    emitsLight: expect.objectContaining({ lightType: 'FireLight' }),
+                }),
+                expect.objectContaining({
+                    col: 14,
+                    row: 13,
+                    emitsLight: expect.objectContaining({ lightType: 'FireLight' }),
+                }),
             ]),
         );
     });

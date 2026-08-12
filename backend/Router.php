@@ -9,6 +9,7 @@ use App\Http\Handlers\GetLobbyHandler;
 use App\Http\Handlers\GetActiveLobbiesHandler;
 use App\Http\Handlers\GetLobbyStateHandler;
 use App\Http\Handlers\GetMessagesHandler;
+use App\Http\Handlers\ClaimQuestContinuationHandler;
 use App\Http\Handlers\JoinLobbyHandler;
 use App\Http\Handlers\LeaveLobbyHandler;
 use App\Http\Handlers\ListLobbiesHandler;
@@ -126,6 +127,7 @@ class Router
             ['GET',  '#^/api/lobbies/([A-Z0-9]+)/user-state/([a-zA-Z0-9._-]+)$#',  GetUserStateHandler::class],
             ['GET', '#^/api/lobbies/([A-Z0-9]+)/messages$#', GetMessagesHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/messages$#', PostMessageHandler::class],
+            ['POST', '#^/api/lobbies/([A-Z0-9]+)/continue-quest$#', ClaimQuestContinuationHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/join$#', JoinLobbyHandler::class],
             ['POST', '#^/api/lobbies/([A-Z0-9]+)/leave$#', LeaveLobbyHandler::class],
             ['GET', '#^/api/lobbies/([A-Z0-9]+)$#', GetLobbyHandler::class],

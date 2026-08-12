@@ -68,6 +68,8 @@ interface ApiResponse {
     player?: PlayerInfo;
     playerId?: string;
     isRejoin?: boolean;
+    /** Present on quest-continuation claim responses. */
+    created?: boolean;
     gameState?: LobbyStateResult['gameState'];
     lastMessageId?: number | null;
     messages?: PollMessage[];
@@ -310,6 +312,26 @@ export class LobbyClient {
             player: data.player as PlayerInfo,
             account: data.account as AccountInfo,
             isRejoin: data.isRejoin as boolean | undefined,
+        };
+    }
+
+    /**
+     * Race-safe quest continue: claim or join the next private reserved lobby for this party.
+     * All players should call this with the same source lobby id.
+     */
+    async claimQuestContinuation(
+        sourceLobbyId: string,
+        payload: import('./games/minion_battles/storylines/questLobby').QuestContinuationClaimPayload,
+    ): Promise<CreateLobbyResult & { created: boolean }> {
+        const data = await this.request(`/api/lobbies/${sourceLobbyId}/continue-quest`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
+        return {
+            lobby: data.lobby as LobbyState,
+            player: data.player as PlayerInfo,
+            account: data.account as AccountInfo,
+            created: Boolean(data.created),
         };
     }
 

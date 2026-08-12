@@ -33,6 +33,11 @@ interface VictoryModalProps {
     nextLobbyId?: string | null;
     /** Client-only: join the next lobby that the host created. */
     onJoinNextLobby?: (lobbyId: string) => Promise<void>;
+    /**
+     * When true, every player gets an active Continue (race-safe quest claim on the server).
+     * Skips the host-only / waiting-for-host split used for normal mission continue.
+     */
+    questContinuation?: boolean;
     /** Quest chain banner (e.g. progress or quest-complete). */
     questBanner?: string | null;
     /** Host Continue button label override. */
@@ -68,6 +73,7 @@ export default function VictoryModal({
     isHost,
     nextLobbyId,
     onJoinNextLobby,
+    questContinuation = false,
     questBanner,
     continueLabel = 'Continue',
 }: VictoryModalProps) {
@@ -217,8 +223,8 @@ export default function VictoryModal({
                     </div>
                 )}
                 <div className="flex justify-center">
-                    {/* Host (or solo play): existing continue flow */}
-                    {(isHost === true || isHost === undefined) && (
+                    {/* Quest continuation: any party member claims the same next lobby. */}
+                    {questContinuation ? (
                         <button
                             type="button"
                             className="px-6 py-2 bg-primary hover:bg-primary-hover text-secondary font-medium rounded transition-colors"
@@ -226,26 +232,39 @@ export default function VictoryModal({
                         >
                             {continueLabel}
                         </button>
-                    )}
-                    {/* Client, waiting for host to choose next mission */}
-                    {isHost === false && !nextLobbyId && (
-                        <button
-                            type="button"
-                            className="px-6 py-2 bg-gray-600 text-gray-400 font-medium rounded cursor-not-allowed"
-                            disabled
-                        >
-                            Waiting for host…
-                        </button>
-                    )}
-                    {/* Client, host has created next lobby */}
-                    {isHost === false && nextLobbyId && (
-                        <button
-                            type="button"
-                            className="px-6 py-2 bg-primary hover:bg-primary-hover text-secondary font-medium rounded transition-colors"
-                            onClick={() => onJoinNextLobby?.(nextLobbyId)}
-                        >
-                            {continueLabel}
-                        </button>
+                    ) : (
+                        <>
+                            {/* Host (or solo play): existing continue flow */}
+                            {(isHost === true || isHost === undefined) && (
+                                <button
+                                    type="button"
+                                    className="px-6 py-2 bg-primary hover:bg-primary-hover text-secondary font-medium rounded transition-colors"
+                                    onClick={onClose}
+                                >
+                                    {continueLabel}
+                                </button>
+                            )}
+                            {/* Client, waiting for host to choose next mission */}
+                            {isHost === false && !nextLobbyId && (
+                                <button
+                                    type="button"
+                                    className="px-6 py-2 bg-gray-600 text-gray-400 font-medium rounded cursor-not-allowed"
+                                    disabled
+                                >
+                                    Waiting for host…
+                                </button>
+                            )}
+                            {/* Client, host has created next lobby */}
+                            {isHost === false && nextLobbyId && (
+                                <button
+                                    type="button"
+                                    className="px-6 py-2 bg-primary hover:bg-primary-hover text-secondary font-medium rounded transition-colors"
+                                    onClick={() => onJoinNextLobby?.(nextLobbyId)}
+                                >
+                                    {continueLabel}
+                                </button>
+                            )}
+                        </>
                     )}
                 </div>
             </div>

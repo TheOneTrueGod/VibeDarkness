@@ -86,6 +86,55 @@ export function requiredPlayersFromPartyRoster(
     }));
 }
 
+/** Body for POST /api/lobbies/{id}/continue-quest */
+export type QuestContinuationClaimPayload = {
+    lobbyName: string;
+    nextMissionId: string;
+    questDefId: string;
+    questRunId: string;
+    questSlotIndex: number;
+    questRunSeed?: number;
+    requiredPlayers: Array<{ playerName: string; characterId: string }>;
+    characterSelections?: Record<string, string>;
+    questAbilityLoadoutsByCharacterId?: Record<string, string[]>;
+};
+
+/**
+ * Build the race-safe quest-continuation claim payload.
+ * Caller must supply a non-empty `requiredPlayers` (from partyRoster).
+ */
+export function buildQuestContinuationClaimPayload(params: {
+    questTitle: string;
+    nextMissionId: string;
+    lobbyFields: QuestLobbyFields;
+    requiredPlayers: Array<{ playerName: string; characterId: string }>;
+    characterSelections?: Record<string, string>;
+    questAbilityLoadoutsByCharacterId?: Record<string, string[]>;
+}): QuestContinuationClaimPayload {
+    const { questTitle, nextMissionId, lobbyFields, requiredPlayers } = params;
+    if (requiredPlayers.length === 0) {
+        throw new Error('buildQuestContinuationClaimPayload: requiredPlayers must be non-empty');
+    }
+    return {
+        lobbyName: `${questLobbyNamePrefix(questTitle)} — continue`,
+        nextMissionId,
+        questDefId: lobbyFields.questDefId,
+        questRunId: lobbyFields.questRunId,
+        questSlotIndex: lobbyFields.questSlotIndex,
+        ...(lobbyFields.questRunSeed !== undefined
+            ? { questRunSeed: lobbyFields.questRunSeed }
+            : {}),
+        requiredPlayers,
+        ...(params.characterSelections
+            ? { characterSelections: params.characterSelections }
+            : {}),
+        ...(params.questAbilityLoadoutsByCharacterId
+            && Object.keys(params.questAbilityLoadoutsByCharacterId).length > 0
+            ? { questAbilityLoadoutsByCharacterId: params.questAbilityLoadoutsByCharacterId }
+            : {}),
+    };
+}
+
 export type QuestVictoryContinuePlan =
     | {
           kind: 'continued';

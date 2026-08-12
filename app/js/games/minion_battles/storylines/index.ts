@@ -150,12 +150,14 @@ export {
     planQuestVictoryContinue,
     planQuestDefeatRetry,
     requiredPlayersFromPartyRoster,
+    buildQuestContinuationClaimPayload,
     questLobbyNamePrefix,
     questSlotMissionIds,
     questSlotPillStatus,
 } from './questLobby';
 export type {
     QuestLobbyFields,
+    QuestContinuationClaimPayload,
     QuestVictoryContinuePlan,
     StartQuestOptions,
     QuestSlotPillStatus,
