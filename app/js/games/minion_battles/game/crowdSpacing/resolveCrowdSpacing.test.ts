@@ -122,6 +122,22 @@ describe('resolveCrowdSpacingPass', () => {
         expect(soft.y).toBe(softStart.y);
     });
 
+    it('charge/dash immobile unit acts as anchor (soft yields; charger stays put)', () => {
+        const soft = makeSoft('soft', 0, 0);
+        const charger = makeSoft('charger', OVERLAP_GAP, 0);
+        charger.crowdSpacingImmobile = true;
+        const softStart = { x: soft.x, y: soft.y };
+        const chargerStart = { x: charger.x, y: charger.y };
+        const overlap = soft.radius + charger.radius - OVERLAP_GAP;
+
+        rebuildAndResolve([soft, charger]);
+
+        expect(charger.x).toBe(chargerStart.x);
+        expect(charger.y).toBe(chargerStart.y);
+        expect(soft.x).toBeCloseTo(softStart.x - overlap, 5);
+        expect(soft.y).toBe(softStart.y);
+    });
+
     it('player personal-space padding pushes softs farther without growing display radius', () => {
         const soft = makeSoft('soft', 0, 0);
         const player = makeSoft('player', OVERLAP_GAP, 0);

@@ -20,6 +20,8 @@ export type LiftAttemptResult =
  * Apply a lift hard CC with duration resist and hard CC armour gate + chain stacking.
  * Mirrors {@link tryApplyHardCcStun} gating; on success the target is suspended until expiry
  * then slammed via {@link LiftedBuff.onBeforeExpire}.
+ * Active iFrames (when `engine.respectIFrames` is not false) no-op like juggernaut —
+ * no lift, no interrupt, no armour.
  */
 export function tryApplyLift(
     target: Unit,
@@ -30,6 +32,11 @@ export function tryApplyLift(
     ccCharges = 1,
 ): LiftAttemptResult {
     if (target.isInJuggernautWindow(engine.gameTime)) {
+        return { outcome: 'absorbed' };
+    }
+
+    const respectIFrames = engine.respectIFrames !== false;
+    if (respectIFrames && target.hasIFrames(engine.gameTime)) {
         return { outcome: 'absorbed' };
     }
 

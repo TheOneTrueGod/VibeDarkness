@@ -218,7 +218,12 @@ export const SwingBatAbility_0115: AbilityStatic = {
         gr.fill({ color: 0x9ca3af, alpha: 0.5 });
         gr.stroke({ color: 0x505060, width: 2, alpha: 0.9 });
 
-        const ctx = { units, getUnit: (id: string) => units.find((u) => u.id === id) };
+        // Preview has no engine clock; gameTime 0 only affects iFrame filtering for highlights.
+        const ctx = {
+            units,
+            getUnit: (id: string) => units.find((u) => u.id === id),
+            gameTime: 0,
+        };
         const hits = ThickLineHitbox.getUnitsInHitbox(ctx, caster, leftX, leftY, rightX, rightY, LINE_THICKNESS);
         if (hits.length > 0) {
             hits.sort((a, b) => {

@@ -11,6 +11,8 @@ import { KNOCKBACK_TOTAL_DISPLACEMENT_FACTOR } from '../../crowdControl/knockbac
 export interface KnockbackUpdateContext {
     eventBus?: EventBus;
     units?: readonly Unit[];
+    /** Required for iFrame pass-through on unit–unit sweeps (`hasIFrames`). */
+    gameTime?: number;
 }
 
 interface UnitSegmentHit {
@@ -99,6 +101,7 @@ export function updateUnitKnockback(
                 ctx.units,
                 k.knockbackSource,
                 k.unitCollisionStartFraction,
+                ctx.gameTime,
             );
             if (hit) {
                 unit.x = hit.contactX;
@@ -268,6 +271,7 @@ function findFirstUnitCollisionAlongSegment(
     units: readonly Unit[],
     knockbackSource?: KnockbackSource,
     unitCollisionStartFraction?: number,
+    gameTime?: number,
 ): UnitSegmentHit | null {
     let best: UnitSegmentHit | null = null;
     const ignoreOverlapAtStart = (unitCollisionStartFraction ?? 0) > 0;
@@ -277,6 +281,8 @@ function findFirstUnitCollisionAlongSegment(
         // The unit that authored the knockback (usually the caster) must not block the
         // flung unit — especially when the target was picked while adjacent/overlapping.
         if (knockbackSource && other.id === knockbackSource.unitId) continue;
+        // Combat iFrames: pass through — no collision stop / event (Force Push, etc.).
+        if (gameTime !== undefined && other.hasIFrames(gameTime)) continue;
 
         const t = sweepCircleSegmentAgainstCircle(
             startX,

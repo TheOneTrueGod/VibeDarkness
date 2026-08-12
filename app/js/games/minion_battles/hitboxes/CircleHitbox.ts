@@ -1,6 +1,7 @@
 import type { Unit } from '../game/units/Unit';
 import { Hitbox, type HitboxEngineContext } from './Hitbox';
 import { areEnemies } from '../game/teams';
+import { filterCombatHitTargets } from '../abilities/combatTargetFilter';
 
 export abstract class CircleHitbox extends Hitbox {
     static getUnitsInHitbox(
@@ -21,6 +22,6 @@ export abstract class CircleHitbox extends Hitbox {
                 result.push(unit);
             }
         }
-        return result;
+        return filterCombatHitTargets(result, engine.gameTime);
     }
 }

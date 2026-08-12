@@ -13,6 +13,7 @@ vi.mock('../../../../lobbyLog', () => ({
 }));
 
 import { SnapshotPersistence } from './SnapshotPersistence';
+import { TICK_STATE_HISTORY_CAPACITY, tickStateHistory } from '../tickStateHistory';
 
 function makeSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessionHandle {
     return {
@@ -224,6 +225,7 @@ describe('SnapshotPersistence.debugLogLocalStateAndSubmitSnapshot', () => {
     beforeEach(() => {
         logToLobbyLog.mockClear();
         logToLobbyLogForced.mockClear();
+        tickStateHistory.clear();
     });
 
     it('POSTs serialized state via logToLobbyLogForced (ignores debug-console thresholds)', async () => {
@@ -234,16 +236,60 @@ describe('SnapshotPersistence.debugLogLocalStateAndSubmitSnapshot', () => {
             },
         });
         await ctrl.debugLogLocalStateAndSubmitSnapshot();
-        expect(logToLobbyLogForced).toHaveBeenCalledOnce();
-        expect(logToLobbyLogForced).toHaveBeenCalledWith(
+        expect(logToLobbyLogForced).toHaveBeenCalledTimes(2);
+        expect(logToLobbyLogForced).toHaveBeenNthCalledWith(
+            1,
             expect.objectContaining({
                 message: 'debug: local serialized game state',
                 manualLobbyLogPost: true,
                 tick: 849,
             }),
         );
+        expect(logToLobbyLogForced).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({
+                message: 'debug: recent tick history',
+                manualLobbyLogPost: true,
+                tick: 849,
+                context: expect.objectContaining({
+                    capacity: TICK_STATE_HISTORY_CAPACITY,
+                    count: 0,
+                    ticks: [],
+                }),
+            }),
+        );
         expect(logToLobbyLog).not.toHaveBeenCalled();
         expect(api.saveBattleSnapshot).not.toHaveBeenCalled();
+    });
+
+    it('includes retained tick history in the second lobby log line', async () => {
+        tickStateHistory.push({
+            syncHash: 'abc',
+            gameTick: 10,
+            gameState: { gameTick: 10 } as SerializedGameState,
+        });
+        const { ctrl } = make({
+            isHost: false,
+            session: {
+                getSerializedSnapshot: () => ({ gameTick: 11 } as SerializedGameState),
+            },
+        });
+        await ctrl.debugLogLocalStateAndSubmitSnapshot();
+        expect(logToLobbyLogForced).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({
+                message: 'debug: recent tick history',
+                context: expect.objectContaining({
+                    count: 1,
+                    ticks: [
+                        expect.objectContaining({
+                            syncHash: 'abc',
+                            gameTick: 10,
+                        }),
+                    ],
+                }),
+            }),
+        );
     });
 });
 

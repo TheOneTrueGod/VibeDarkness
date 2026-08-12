@@ -1,6 +1,6 @@
 /**
- * Thorn Stomp — Thornbinder's panic response when something gets in close. After a one-second
- * wind-up it slams the ground beneath itself, knocking back and damaging anything nearby before
+ * Thorn Stomp — Thornbinder's panic response when something gets in close. After a 1.5s wind-up
+ * it slams the ground beneath itself, knocking back and damaging anything nearby before
  * leaving a jittered patch of slowing thorns, mirroring Bramble's payoff but centered on its own
  * feet. It is purely reactive: the AI never approaches to use it, only firing when a threat has
  * already closed inside half the stomp's blast radius despite the unit's usual kiting.
@@ -29,7 +29,9 @@ const MAX_USES = 1;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
-const WINDUP_TIME = 1;
+/** Base windup before the +50% reactability stretch. */
+const THORN_STOMP_BASE_WINDUP = 1;
+const WINDUP_TIME = THORN_STOMP_BASE_WINDUP * 1.5;
 // One-tick "active" linger so the timeline ring reads red at the payoff instant.
 const STRIKE_TIME = WINDUP_TIME + 1 / 60;
 // Almost no cooldown — the AI's reactive gate (aiSettings below) and the 1-use/round recovery
@@ -113,6 +115,7 @@ export const ThornStompAbility: AbilityStatic = {
 
         const knockbackCtx = knockbackCtxFromEngine(eng);
         const knockbackSource: KnockbackSource = { unitId: caster.id, abilityId: THORN_STOMP_ABILITY_ID };
+        // Impact discovery via CircleHitbox (damageEnemiesInCircle); env thorns below ignore iframes.
         damageEnemiesInCircle({
             engine: eng,
             caster,

@@ -8,6 +8,8 @@ import type { Unit } from '../game/units/Unit';
 export interface HitboxEngineContext {
     units: Unit[];
     getUnit(id: string): Unit | undefined;
+    /** Current battle time; used to evaluate combat iFrames after geometry. */
+    gameTime: number;
 }
 
 /** Caster-like position for preview drawing. */

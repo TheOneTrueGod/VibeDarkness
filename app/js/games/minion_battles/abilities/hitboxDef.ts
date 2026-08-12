@@ -3,6 +3,7 @@ import type { HitboxEngineContext } from '../hitboxes/Hitbox';
 import { CircleHitbox } from '../hitboxes/CircleHitbox';
 import { ThickLineHitbox } from '../hitboxes/ThickLineHitbox';
 import { clampToMaxRange } from './previewHelpers';
+import { filterCombatHitTargets } from './combatTargetFilter';
 
 export type HitboxDef =
     | { shape: 'circle';    range: number | 'caster' }
@@ -54,7 +55,11 @@ export function resolveHitbox(def: HitboxDef, ctx: ResolveHitboxContext): Unit[]
             units = [];
             break;
         case 'custom':
-            units = def.resolve(caster, { x: aimX, y: aimY }, engine.units);
+            // Custom shapes bypass Circle/ThickLine getters — filter here.
+            units = filterCombatHitTargets(
+                def.resolve(caster, { x: aimX, y: aimY }, engine.units),
+                engine.gameTime,
+            );
             break;
     }
 

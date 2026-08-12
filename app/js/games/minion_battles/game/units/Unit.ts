@@ -159,6 +159,12 @@ export class Unit extends GameObject {
     pathInvalidated: boolean = false;
 
     /**
+     * Runtime-only: this tick the unit is mid charge-lunge / dash (or similar ability displacement).
+     * CrowdSpacing treats the unit as an anchor (occupies space, never pushed). Cleared each UnitManager tick.
+     */
+    crowdSpacingImmobile: boolean = false;
+
+    /**
      * Durable walk destination. Survives path invalidation; cleared by clearMovement / arrival.
      * When set and `movement` is empty, movement tick repaths once the unit is free to walk.
      */

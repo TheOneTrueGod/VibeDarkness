@@ -124,6 +124,9 @@ export class LungeMovement {
         const toX = ox + dirX * newDist;
         const toY = oy + dirY * newDist;
 
+        // Charge lunges are CrowdSpacing anchors for this tick (softs pack away; caster stays on path).
+        caster.crowdSpacingImmobile = true;
+
         const segmentLength = Math.sqrt((toX - fromX) ** 2 + (toY - fromY) ** 2);
         const terrainManager = engine.terrainManager ?? null;
         if (segmentLength > 0) {

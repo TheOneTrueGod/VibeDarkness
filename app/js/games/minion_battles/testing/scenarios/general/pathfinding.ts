@@ -11,6 +11,10 @@ import { createDarkWolfUnit } from '../../../game/units/dark_animals/DarkWolf';
 import { createUnitFromSpawnConfig } from '../../../game/units/index';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
 import { Movement } from '../../../resources/Movement';
+import {
+    THORNBINDER_ABILITY_ID,
+    THORNBINDER_LOCK_TIME,
+} from '../../../card_defs/0008_ThornbinderBramble/0008Ability';
 
 /** Path scenarios only: no AI tree / retrigger so scripted move orders are not overwritten. */
 function configurePathTestPlayer(engine: GameEngine): void {
@@ -300,6 +304,140 @@ export const dodgeIFrameProtectionScenario: ScenarioDefinition = {
             `player hp=${player?.hp}/${player?.maxHp} movement=${movement?.current}/${movement?.max} t=${engine.gameTime.toFixed(2)} ` +
             `wolf active=[${wolf?.activeAbilities.map((a) => a.abilityId).join(',') ?? '—'}] ` +
             `slime active=[${slime?.activeAbilities.map((a) => a.abilityId).join(',') ?? '—'}]`
+        );
+    },
+};
+
+// ─── Dodge iFrame vs Thornbinder Bramble ─────────────────────────────────────
+
+/** Matches Dodge `iframe` timing window (0101Ability). */
+const DODGE_IFRAME_DURATION_SEC = 0.4;
+/**
+ * Thornbinder flight speed is TARGETING_RANGE / flight duration = 320/0.55.
+ * Keep caster→aim distance well under max so impact lands inside the dodge window.
+ */
+const TB_IFRAME_CASTER_OFFSET_X = 100;
+/** Short dodge so the player stays in the impact circle and the same grid cell (no thorn enter). */
+const TB_IFRAME_DODGE_OFFSET_X = 12;
+const TB_IFRAME_PLAYER = { x: 3 * CELL + CELL / 2, y: 4 * CELL + CELL / 2 }; // (140, 180)
+const TB_IFRAME_CASTER = {
+    x: TB_IFRAME_PLAYER.x - TB_IFRAME_CASTER_OFFSET_X,
+    y: TB_IFRAME_PLAYER.y,
+};
+const TB_IFRAME_DODGE_TARGET = {
+    x: TB_IFRAME_PLAYER.x + TB_IFRAME_DODGE_OFFSET_X,
+    y: TB_IFRAME_PLAYER.y,
+};
+/** Thornbinder cast tick (60 Hz). */
+const TB_IFRAME_CAST_TICK = 1;
+/**
+ * Dodge starts just before lock+short flight so iframes cover impact.
+ * Impact ≈ castStart + LOCK_TIME + offset/speed (LOCK_TIME tracks Bramble windup).
+ */
+const TB_IFRAME_DODGE_TICK = Math.floor(
+    (TB_IFRAME_CAST_TICK / 60 + THORNBINDER_LOCK_TIME - 0.08) * 60,
+);
+/** Assert after impact and after the dodge window ends (DoT milestone is later at 2.5s). */
+const TB_IFRAME_ASSERT_AFTER_SEC =
+    TB_IFRAME_CAST_TICK / 60 + THORNBINDER_LOCK_TIME + 0.35 + DODGE_IFRAME_DURATION_SEC * 0.25;
+
+/**
+ * Dodge vs Thornbinder Bramble: player Dodges so iframes overlap the bramble impact;
+ * combat damage + knockback must not apply (env thorns are out of scope for this assert).
+ *
+ * Timeline (60 Hz, approximate; LOCK_TIME-driven):
+ *  tick  1 — Thornbinder queues Bramble at player start
+ *  dodge tick — player Dodges a short step east (iframes ~0.4s); stays in impact radius
+ *  lock tick — projectile launches (LOCK_TIME)
+ *  shortly after — impact during iframes → no HP loss, no knockback, Dodge completes
+ */
+export const dodgeIFrameVsThornbinderScenario: ScenarioDefinition = {
+    id: 'dodge_iframe_vs_thornbinder',
+    title: 'Dodge: iframes block Thornbinder Bramble impact',
+    category: 'general',
+    generalSection: 'Movement',
+    maxDurationMs: 3500,
+
+    buildEngine() {
+        const engine = buildTinyBattleEngine({
+            gridW: 10,
+            gridH: 8,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: TB_IFRAME_PLAYER.x,
+            y: TB_IFRAME_PLAYER.y,
+            abilities: ['0101'],
+        });
+        player.attachResource(new Movement(), engine.eventBus);
+        player.unitAITreeId = 'static_test_no_ai';
+        player.pathfindingRetriggerOffset = 0;
+
+        const binder = createUnitFromSpawnConfig(
+            {
+                id: 'dodge_iframe_thornbinder',
+                characterId: 'thornbinder',
+                name: 'Thornbinder',
+                x: TB_IFRAME_CASTER.x,
+                y: TB_IFRAME_CASTER.y,
+                teamId: 'enemy',
+                ownerId: 'ai',
+                abilities: [THORNBINDER_ABILITY_ID],
+            },
+            engine.eventBus,
+        );
+        initializeAbilityRuntimeForUnit(binder);
+        binder.unitAITreeId = 'static_test_no_ai';
+        binder.pathfindingRetriggerOffset = 0;
+        engine.addUnit(binder, 'initialGameSpawn');
+
+        engine.state.orderMgr.queueOrder(TB_IFRAME_CAST_TICK, {
+            unitId: binder.id,
+            abilityId: THORNBINDER_ABILITY_ID,
+            targets: [{ type: 'pixel', position: { ...TB_IFRAME_PLAYER } }],
+        });
+
+        engine.state.orderMgr.queueOrder(TB_IFRAME_DODGE_TICK, {
+            unitId: player.id,
+            abilityId: '0101',
+            targets: [{ type: 'pixel', position: { ...TB_IFRAME_DODGE_TARGET } }],
+        });
+
+        return engine;
+    },
+
+    getInitialOrders(engine) {
+        const player = engine.getLocalPlayerUnit()!;
+        return [{ unitId: player.id, abilityId: 'wait', targets: [] }];
+    },
+
+    assertPass(engine) {
+        const player = engine.getLocalPlayerUnit();
+        if (!player || engine.gameTime < TB_IFRAME_ASSERT_AFTER_SEC) return false;
+        const movement = player.getResource('movement_points');
+        const movementConsumed = movement !== undefined && movement.current === 1;
+        const dodgeDone = !player.activeAbilities.some((a) => a.abilityId === '0101');
+        return (
+            player.hp === player.maxHp &&
+            player.knockback === null &&
+            movementConsumed &&
+            dodgeDone
+        );
+    },
+
+    failureMessage(engine) {
+        const player = engine.getLocalPlayerUnit();
+        const binder = engine.getUnit('dodge_iframe_thornbinder');
+        const movement = player?.getResource('movement_points');
+        return (
+            `player hp=${player?.hp}/${player?.maxHp} knockback=${player?.knockback ? 'yes' : 'no'} ` +
+            `movement=${movement?.current}/${movement?.max} dodgeActive=${Boolean(
+                player?.activeAbilities.some((a) => a.abilityId === '0101'),
+            )} t=${engine.gameTime.toFixed(2)} ` +
+            `binder active=[${binder?.activeAbilities.map((a) => a.abilityId).join(',') ?? '—'}]`
         );
     },
 };

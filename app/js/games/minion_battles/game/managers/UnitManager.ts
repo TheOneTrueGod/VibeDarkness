@@ -228,6 +228,10 @@ export class UnitManager {
         onNaturalAbilityCompletion: (unitId: string) => void,
         aiContext: AIContext,
     ): void {
+        // Ephemeral CrowdSpacing anchors from charge/dash — ability ticks re-set for this frame.
+        for (const unit of this.units) {
+            unit.crowdSpacingImmobile = false;
+        }
         // Phase 1a: passive ability tick (all alive units, no cast required)
         tickPerformanceTracker.measure([PERF_UNITS_PASSIVES], () => {
             for (const unit of this.units) {

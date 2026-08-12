@@ -10,6 +10,9 @@ import { tryDamageOrBlock } from './blockingHelpers';
 import type { TryDamageOrBlockParams } from './blockingHelpers';
 import { areEnemies } from '../game/teams';
 import { pointInCone as pointInConeGeom } from './coneGeometry';
+import { filterCombatHitTargets } from './combatTargetFilter';
+import { CircleHitbox } from '../hitboxes/CircleHitbox';
+import type { HitboxEngineContext } from '../hitboxes/Hitbox';
 import { rasterizeArea, type TerrainLayerManager, type TerrainLayerName } from '../game/TerrainLayerManager';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 
@@ -64,10 +67,21 @@ interface AoEEngine {
     units: Unit[];
     gameTime: number;
     eventBus: EventBus;
+    getUnit?(id: string): Unit | undefined;
+}
+
+/** Adapt AoE engine slices to the hitbox query context (getUnit optional on thin test mocks). */
+function toHitboxEngine(eng: AoEEngine): HitboxEngineContext {
+    return {
+        units: eng.units,
+        gameTime: eng.gameTime,
+        getUnit: (id) => eng.getUnit?.(id) ?? eng.units.find((u) => u.id === id),
+    };
 }
 
 /**
  * Damage all enemy units within `radius` of `center` using `tryDamageOrBlock`.
+ * Candidates come from `CircleHitbox.getUnitsInHitbox` (hostile to caster; combat iFrames filtered).
  * When `onHit` is provided it replaces the standard damage call, allowing custom
  * damage types (e.g. un-blockable `unit.takeDamage`) or per-unit side effects.
  */
@@ -84,15 +98,13 @@ export function damageEnemiesInCircle(options: {
     onHit?: (unit: Unit) => void;
 }): void {
     const { engine: eng, caster, center, radius, damage, abilityId, attackType = 'melee', maxTargets, onHit } = options;
-    const r2 = radius * radius;
-    let candidates: Unit[] = [];
-    for (const unit of eng.units) {
-        if (!unit.isAlive() || !areEnemies(caster.teamId, unit.teamId)) continue;
-        const dx = unit.x - center.x;
-        const dy = unit.y - center.y;
-        if (dx * dx + dy * dy > r2) continue;
-        candidates.push(unit);
-    }
+    let candidates = CircleHitbox.getUnitsInHitbox(
+        toHitboxEngine(eng),
+        caster,
+        center.x,
+        center.y,
+        radius,
+    );
     if (maxTargets != null && candidates.length > maxTargets) {
         candidates = candidates
             .map((unit) => ({
@@ -124,6 +136,8 @@ export function damageEnemiesInCircle(options: {
 
 /**
  * Damage enemies inside a truncated cone (inner cut-off + max range) aimed from caster toward (aimX, aimY).
+ * Geometry stays custom (no truncated-cone hitbox yet); candidates are passed through
+ * `filterCombatHitTargets` so combat iFrames are excluded before `tryDamageOrBlock`.
  * When `maxTargets` is set, only the closest enemies are damaged.
  */
 export function damageEnemiesInTruncatedCone(options: {
@@ -164,6 +178,7 @@ export function damageEnemiesInTruncatedCone(options: {
         if (!pointInConeGeom(originX, originY, unit.x, unit.y, dirX, dirY, minR, maxR, halfAngleRad)) continue;
         candidates.push(unit);
     }
+    candidates = filterCombatHitTargets(candidates, eng.gameTime);
     if (maxTargets != null && candidates.length > maxTargets) {
         candidates = candidates
             .map((unit) => ({

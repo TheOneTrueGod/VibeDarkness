@@ -3,6 +3,7 @@ import { logToLobbyLog, logToLobbyLogForced } from '../../../../lobbyLog';
 import { sleep } from './helpers/heartbeatTiming';
 import type { BattleApi, BattleSessionHandle } from './types';
 import type { SerializedGameState } from '../types';
+import { TICK_STATE_HISTORY_CAPACITY, tickStateHistory } from '../tickStateHistory';
 
 export interface SnapshotPersistenceConfig {
     api: BattleApi;
@@ -134,13 +135,14 @@ export class SnapshotPersistence {
     /**
      * Debug: serializes the live engine via `BattleSessionHandle.getSerializedSnapshot`, logs it to
      * `lobby_log.jsonl` at **critical** severity (always POSTs — ignores Debug Console lobby-log
-     * thresholds), then (host only) POSTs the same payload through `saveBattleSnapshot` — not
-     * React/debug-buffered lobby state.
+     * thresholds), also POSTs the in-memory recent-tick history ring, then (host only) POSTs the
+     * same payload through `saveBattleSnapshot` — not React/debug-buffered lobby state.
      */
     async debugLogLocalStateAndSubmitSnapshot(): Promise<void> {
         await this.writeSerializedLocalStateToLobbyAndMaybeSnapshot({
             forceLobbyPost: true,
             immediateLobbyLog: true,
+            includeTickHistory: true,
         });
     }
 
@@ -175,6 +177,7 @@ export class SnapshotPersistence {
         await this.writeSerializedLocalStateToLobbyAndMaybeSnapshot({
             forceLobbyPost: true,
             immediateLobbyLog: false,
+            includeTickHistory: false,
         });
     }
 
@@ -183,10 +186,13 @@ export class SnapshotPersistence {
      *        "debug" threshold is `off` (used for automated desync traces).
      * @param immediateLobbyLog When true (Debug Console «Log local state» only), bypass the lobby log
      *        batch queue for this line.
+     * @param includeTickHistory When true («Log local state» only), also POST the in-memory
+     *        recent-tick ring (same shape as console «log every tick»).
      */
     private async writeSerializedLocalStateToLobbyAndMaybeSnapshot(options: {
         forceLobbyPost: boolean;
         immediateLobbyLog: boolean;
+        includeTickHistory: boolean;
     }): Promise<void> {
         const state = this.config.session.getSerializedSnapshot();
         const tick = state.gameTick;
@@ -224,6 +230,33 @@ export class SnapshotPersistence {
                 ...logArgs,
                 manualLobbyLogPost: options.immediateLobbyLog,
             });
+        }
+
+        if (options.includeTickHistory) {
+            const ticks = tickStateHistory.getHistory();
+            const historyArgs = {
+                lobbyClient: this.config.api as unknown as LobbyClient,
+                lobbyId: this.config.lobbyId,
+                playerId: this.config.playerId,
+                tick,
+                severity: 'critical' as const,
+                logType: 'debug' as const,
+                gameId: this.config.gameId,
+                gamePhase: 'battle' as const,
+                message: 'debug: recent tick history',
+                context: {
+                    isHost: this.config.isHost,
+                    capacity: TICK_STATE_HISTORY_CAPACITY,
+                    count: ticks.length,
+                    ticks,
+                },
+                manualLobbyLogPost: options.immediateLobbyLog,
+            };
+            if (options.forceLobbyPost) {
+                logToLobbyLogForced(historyArgs);
+            } else {
+                logToLobbyLog(historyArgs);
+            }
         }
 
         if (!this.config.isHost) {

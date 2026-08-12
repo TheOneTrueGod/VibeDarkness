@@ -31,10 +31,14 @@ const MAX_USES = 2;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 2 },
 ];
+/** Base windup before the +50% reactability stretch. */
+const THORNBINDER_BASE_WINDUP = 1.3;
 /** Windup ends / projectile launches at this elapsed time (seconds). */
-export const THORNBINDER_LOCK_TIME = 1.3;
+export const THORNBINDER_LOCK_TIME = THORNBINDER_BASE_WINDUP * 1.5;
 const LOCK_TIME = THORNBINDER_LOCK_TIME;
-const STRIKE_TIME = 1.85;
+/** Projectile flight window after lock (kept when windup was stretched). */
+const THORNBINDER_FLIGHT_DURATION = 0.55;
+const STRIKE_TIME = LOCK_TIME + THORNBINDER_FLIGHT_DURATION;
 // A tiny amount over half a round, so back-to-back banked uses land just past the round midpoint.
 const COOLDOWN_END = ROUND_DURATION / 2 + 0.1;
 /** Impact AoE radius (normal light); used by expiration + projectile preview. */
@@ -49,8 +53,8 @@ const BRAMBLE_CLEAR_BEFORE_NEXT_SEC = 0.15;
 const KNOCKBACK_TIER = 1;
 const TARGETING_RANGE = 320;
 const DURATION_JITTER_IN_SECONDS = 1;
-// Flight time ~=1s at max range (matches the old fixed windup->strike cadence); faster for closer targets.
-const THORN_PROJECTILE_SPEED = TARGETING_RANGE / (STRIKE_TIME - LOCK_TIME);
+// Flight time = THORNBINDER_FLIGHT_DURATION at max range; faster for closer targets.
+const THORN_PROJECTILE_SPEED = TARGETING_RANGE / THORNBINDER_FLIGHT_DURATION;
 const ARC_HEIGHT = 100;
 
 class ThornbinderHitboxSpec extends HitboxSpec {
@@ -61,6 +65,7 @@ class ThornbinderHitboxSpec extends HitboxSpec {
         return [];
     }
     resolveTargets(_caster: Unit, _aimPoint: { x: number; y: number }, _units: Unit[]): Unit[] { return []; }
+    // Targeting range only — impact combat hits use damageEnemiesInCircle → CircleHitbox.
     resolveHits(_engine: HitboxEngineContext, _caster: Unit, _aimX: number, _aimY: number): Unit[] { return []; }
 }
 const THORNBINDER_HITBOX = new ThornbinderHitboxSpec();
@@ -136,6 +141,7 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
 
         const knockbackCtx = knockbackCtxFromEngine(eng);
         const knockbackSource: KnockbackSource = { unitId: caster.id, abilityId: THORNBINDER_ABILITY_ID };
+        // Impact discovery via CircleHitbox (damageEnemiesInCircle); env thorns below ignore iframes.
         damageEnemiesInCircle({
             engine: eng,
             caster,

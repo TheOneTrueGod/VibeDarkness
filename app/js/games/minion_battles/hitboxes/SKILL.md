@@ -5,42 +5,60 @@ description: Guides using and creating hitbox classes for ability hit detection 
 
 # Working with Hitboxes
 
-Hitboxes live in `app/js/games/minion_battles/hitboxes/` and provide reusable hit-detection and targeting-preview logic for abilities. Always prefer a hitbox class over inlining collision math in an ability file.
+Hitboxes live in `app/js/games/minion_battles/hitboxes/` and provide reusable hit-detection and targeting-preview logic for abilities. **Combat hit lists must come from a hitbox** (`getUnitsInHitbox` / `resolveHitbox`) or a helper that wraps one (e.g. `damageEnemiesInCircle` in `abilities/targetHelpers.ts`). Do not hand-roll enemy radius / capsule loops for combat damage or CC.
+
+## Combat hit discovery (default path)
+
+1. Geometry via `CircleHitbox`, `ThickLineHitbox`, or `resolveHitbox` (`abilities/hitboxDef.ts`).
+2. Post-geometry filter runs inside that pipeline (`filterCombatHitTargets` in `abilities/combatTargetFilter.ts`): drops inactive / dead / spawning units and, **by default**, units with active iFrames.
+3. Apply damage/CC via `tryDamageOrBlock` / knockback helpers (those also refuse iframe targets by default).
+
+**Caller does not need a separate `hasIFrames` check** for standard combat hits collected this way.
+
+| Concern | Who handles it |
+|---------|----------------|
+| `active` / alive / spawning / enemy team / self-exclusion | Hitbox getters (and filter) |
+| Combat iFrames | Hitbox pipeline by default (`respectIFrames: true`) |
+| Multi-tick `hitTargetIds` / already-hit sets | Caller (ability note) |
+| Damage / block | Caller — `tryDamageOrBlock` (or helpers that call it) |
+
+**Environment damage** (thorn enter/land/DoT, day-light, wall-unstick, etc.) is **outside** this pipeline — call `takeDamage` / tile logic directly; do **not** route env HP loss through hitbox combat filtering.
+
+**True-strike (rare):** pass `respectIFrames: false` into the filter / apply helpers when a future ability must ignore iframes. No live cards use this yet — do not add it casually.
 
 ## Available Hitbox Types
 
+### CircleHitbox
+
+Disk AoE around a point. Prefer this (or `damageEnemiesInCircle`) for circle combat impacts.
+
 ### ThickLineHitbox
 
-A line segment with thickness. Use for melee swings, lunges, and any linear area-of-effect. Import from the `hitboxes/` barrel export.
+A line segment with thickness. Use for melee swings, lunges, and linear AoE. Import from the `hitboxes/` barrel export.
 
-**`getUnitsInHitbox`** — Returns all active, alive enemy units whose circle overlaps the capsule defined by a line segment with thickness.
+**`getUnitsInHitbox`** — Units whose circle overlaps the capsule; combat filter applied at the end.
 
-Handled internally (you do NOT need to check these):
-- `unit.active` and `unit.isAlive()`
-- `areEnemies(caster.teamId, unit.teamId)`
-- Self-exclusion
+**`renderTargetingPreview`** — Thick rectangle from caster to clamped mouse for the targeting overlay.
 
-NOT handled (check these yourself after the call):
-- `unit.hasIFrames(eng.gameTime)` — invincibility frames
-- `hitTargetIds` tracking for multi-tick abilities
-- Damage dealing / block checks — call `tryDamageOrBlock` on each hit unit
+**Line / capsule previews** — Support clear **wind-up timing** in `renderActivePreview` (e.g. aim lines that tighten, `ChargeAttack`’s shrinking capsule). **Do not** replace that pattern with the generic area telegraph.
 
-**`renderTargetingPreview`** — Draws a thick rectangle from caster to the clamped mouse position for the targeting overlay.
+**Non-line enemy hit previews** — For **cone, quad, circle, or other filled region** in `renderActivePreview`, use `abilities/previewHelpers.ts` (`drawEnemyConeHitboxTelegraph`, `drawEnemyConvexQuadHitboxTelegraph`, etc.). If the shape does not map cleanly, confirm the telegraph with the player.
 
-**Line / capsule previews** — These shapes already support clear **wind-up timing** in `renderActivePreview` (e.g. aim lines that tighten, `ChargeAttack`’s shrinking capsule). **Do not** replace that pattern with the generic area telegraph.
+### `resolveHitbox`
 
-**Non-line enemy hit previews** — When an enemy shows a **cone, quad, circle, or other filled region** in `renderActivePreview`, use the shared helpers in `abilities/previewHelpers.ts` (`drawEnemyConeHitboxTelegraph`, `drawEnemyConvexQuadHitboxTelegraph`, etc.) so timing matches project conventions. If the hitbox type does not map cleanly to those helpers, confirm the intended telegraph with the player.
+Declarative `HitboxDef` dispatcher in `abilities/hitboxDef.ts` (circle / meleeLine / custom). Results are combat-filtered (custom shapes get an explicit filter pass). Prefer this when CastBehaviours own the shape spec.
 
 ## Usage Patterns
 
-See existing abilities for reference implementations:
+See existing abilities under `card_defs/` for reference:
 
-- **One-shot melee** (e.g. Punch, Swing Bat): Query the hitbox once at `prefireTime`, sort by distance, hit the closest.
-- **Multi-tick lunge** (e.g. Dark Wolf Bite, Boar Charge): Query each tick during the lunge phase; track already-hit IDs in `abilityNote`.
+- **One-shot melee** (e.g. Punch, Swing Bat): Query once at `prefireTime`, sort by distance, hit the closest.
+- **Multi-tick lunge** (e.g. Dark Wolf Bite, Boar Charge): Query each tick; track already-hit IDs in `abilityNote`.
+- **Circle impact** (e.g. Thornbinder, Thorn Stomp): `damageEnemiesInCircle` → `CircleHitbox.getUnitsInHitbox`.
 
 ## Adding a New Hitbox Type
 
 1. Create `hitboxes/YourHitbox.ts` extending `Hitbox`.
-2. Implement a static `getUnitsInHitbox(engine, caster, ...args): Unit[]` method. Follow the same conventions: filter by active, alive, enemy, exclude self.
-3. Optionally implement a static `renderTargetingPreview(...)` for the targeting overlay.
+2. Implement static `getUnitsInHitbox(engine, caster, ...args): Unit[]`. End with `filterCombatHitTargets` (same as circle/line) unless the type is explicitly non-combat.
+3. Optionally implement static `renderTargetingPreview(...)`.
 4. Re-export from `hitboxes/index.ts`.

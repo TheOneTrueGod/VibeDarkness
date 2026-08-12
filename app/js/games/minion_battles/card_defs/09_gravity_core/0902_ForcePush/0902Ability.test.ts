@@ -166,6 +166,7 @@ function tickAllKnockback(
             updateUnitKnockback(unit, KNOCKBACK_TICK_DT, grid, terrainManager, {
                 eventBus: engine.eventBus,
                 units,
+                gameTime: engine.gameTime,
             });
         }
         if (!anyKnockback) break;
@@ -191,6 +192,55 @@ describe('ForcePushAbility', () => {
 
         expect(flung.hp).toBe(100 - FORCE_PUSH_COLLISION_DAMAGE);
         expect(struck.hp).toBe(100 - FORCE_PUSH_COLLISION_DAMAGE);
+    });
+
+    it('passes through an iFrame blocker without damaging either unit', () => {
+        const caster = makeCaster(100);
+        const flung = makeUnit('flung', MOVER_START_X, SHARED_Y, 'enemy');
+        const struck = makeUnit('struck', STRUCK_CENTER_X, SHARED_Y, 'enemy');
+        vi.spyOn(struck, 'hasIFrames').mockReturnValue(true);
+        const engine = makeEngine([caster, flung, struck]);
+
+        executeUnitAbility(
+            caster,
+            ForcePushAbility,
+            forcePushTargets(flung, landingAwayFromCaster(flung, caster)),
+            engine,
+        );
+
+        advanceSimulation([caster, flung, struck], engine, LAUNCH_ADVANCE, [caster]);
+        tickAllKnockback([caster, flung, struck], engine);
+
+        expect(flung.hp).toBe(100);
+        expect(struck.hp).toBe(100);
+        expect(flung.x).toBeGreaterThan(STRUCK_CENTER_X);
+    });
+
+    it('unit collision listener no-ops when struck has iFrames even if an event fires', () => {
+        const caster = makeCaster(100);
+        const flung = makeUnit('flung', MOVER_START_X, SHARED_Y, 'enemy');
+        const struck = makeUnit('struck', STRUCK_CENTER_X, SHARED_Y, 'enemy');
+        vi.spyOn(struck, 'hasIFrames').mockReturnValue(true);
+        const engine = makeEngine([caster, flung, struck]);
+
+        executeUnitAbility(
+            caster,
+            ForcePushAbility,
+            forcePushTargets(flung, landingAwayFromCaster(flung, caster)),
+            engine,
+        );
+
+        advanceSimulation([caster, flung, struck], engine, LAUNCH_ADVANCE, [caster]);
+
+        engine.eventBus.emit('forced_movement_unit_collision', {
+            movingUnitId: flung.id,
+            struckUnitId: struck.id,
+            impact: { x: flung.x, y: flung.y },
+            source: { unitId: caster.id, abilityId: CARD_ID },
+        });
+
+        expect(flung.hp).toBe(100);
+        expect(struck.hp).toBe(100);
     });
 
     it('flung enemy into an ally damages only the flung unit', () => {

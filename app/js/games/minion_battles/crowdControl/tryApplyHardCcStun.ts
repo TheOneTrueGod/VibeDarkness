@@ -16,6 +16,7 @@ export type HardCcStunAttemptResult =
 /**
  * Apply a STUN hard CC with duration resist and hard CC armour gate + chain stacking.
  * Pass eventBus to emit a 'boss_exposed_cc_suppressed' event when CC is absorbed by an Exposed unit.
+ * Active iFrames (when `respectIFrames` is not false) no-op like juggernaut — no stun, no armour.
  */
 export function tryApplyHardCcStun(
     target: Unit,
@@ -24,9 +25,14 @@ export function tryApplyHardCcStun(
     roundNumber: number,
     eventBus?: EventBus,
     ccCharges = 1,
+    respectIFrames = true,
 ): HardCcStunAttemptResult {
     // Units in a juggernaut window are immune to CC interruption — no armour consumed, no stun.
     if (target.isInJuggernautWindow(gameTime)) {
+        return { outcome: 'absorbed' };
+    }
+
+    if (respectIFrames && target.hasIFrames(gameTime)) {
         return { outcome: 'absorbed' };
     }
 

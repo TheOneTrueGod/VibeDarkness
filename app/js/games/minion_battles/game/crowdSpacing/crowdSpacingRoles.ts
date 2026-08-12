@@ -27,9 +27,13 @@ export function getCrowdSpacingWeight(unit: Unit): number {
     return unit.radius;
 }
 
-/** Forced-mover MVP: knockback (incl. slide) or engine-controlled sequences occupy space as anchors. */
+/**
+ * Temporary anchors that occupy space but are never displaced by CrowdSpacing:
+ * knockback (incl. slide), engine-controlled sequences, and ability-driven charge/dash
+ * (`unit.crowdSpacingImmobile`, set by LungeMovement / DashBehaviour for the tick).
+ */
 export function isCrowdSpacingForcedMover(unit: Unit): boolean {
-    return unit.knockback != null || unit.controlled;
+    return unit.knockback != null || unit.controlled || unit.crowdSpacingImmobile;
 }
 
 /**

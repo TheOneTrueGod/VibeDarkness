@@ -138,13 +138,17 @@ describe('getCrowdSpacingRole', () => {
         expect(getCrowdSpacingRole(makeUnit({ tags: [UnitTag.Boss] }))).toBe('soft');
     });
 
-    it('marks knockback slide and controlled as anchors (not air)', () => {
+    it('marks knockback slide, controlled, and charge/dash immobile as anchors (not air)', () => {
         const slide = withKnockback(makeUnit(), KNOCKBACK_AIR_TIME + 0.05);
         expect(getCrowdSpacingRole(slide)).toBe('anchor');
 
         const controlled = makeUnit();
         controlled.controlled = true;
         expect(getCrowdSpacingRole(controlled)).toBe('anchor');
+
+        const charging = makeUnit();
+        charging.crowdSpacingImmobile = true;
+        expect(getCrowdSpacingRole(charging)).toBe('anchor');
     });
 
     it('defaults grounded AI enemies to soft', () => {

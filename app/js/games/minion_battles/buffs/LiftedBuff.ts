@@ -90,8 +90,11 @@ export class LiftedBuff extends Buff {
             unit.y += disp.dy;
         }
 
-        // Flat slam damage; return value unused, so no need for the shield/armour breakdown.
-        unit.takeDamage(this.slamDamage, this.sourceUnitId, ctx.eventBus);
+        // Combat slam: skip damage during iFrames (env-style takeDamage is not gated globally).
+        if (!unit.hasIFrames(ctx.gameTime)) {
+            // Flat slam damage; return value unused, so no need for the shield/armour breakdown.
+            unit.takeDamage(this.slamDamage, this.sourceUnitId, ctx.eventBus);
+        }
 
         ctx.eventBus.emit('unit_slam_landed', {
             unitId: unit.id,

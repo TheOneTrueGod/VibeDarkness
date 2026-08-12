@@ -10,6 +10,7 @@ import type { Unit } from '../game/units/Unit';
 import { Hitbox, type HitboxEngineContext, type HitboxPreviewCaster } from './Hitbox';
 import { areEnemies } from '../game/teams';
 import { clampToMaxRange } from '../abilities/previewHelpers';
+import { filterCombatHitTargets } from '../abilities/combatTargetFilter';
 import type { IAbilityPreviewGraphics } from '../abilities/Ability';
 
 /** Minimum distance from point (px, py) to segment (x0,y0)-(x1,y1). */
@@ -90,6 +91,6 @@ export abstract class ThickLineHitbox extends Hitbox {
                 result.push(unit);
             }
         }
-        return result;
+        return filterCombatHitTargets(result, engine.gameTime);
     }
 }

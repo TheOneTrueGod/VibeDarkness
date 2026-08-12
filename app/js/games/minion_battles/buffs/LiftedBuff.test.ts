@@ -119,6 +119,28 @@ describe('LiftedBuff', () => {
         expect(slamEvents[0].position.y).toBeCloseTo(unit.y, 5);
     });
 
+    it('skips slam damage when the unit has iFrames on landing', () => {
+        const unit = makeUnit();
+        const engine = makeLiftEngine();
+        const slamEvents: UnitSlamLandedEvent[] = [];
+        engine.eventBus.on('unit_slam_landed', (data) => slamEvents.push(data));
+
+        applyLiftToUnit(unit, engine, {
+            slamDamage: SLAM_DAMAGE,
+            sourceAbilityId: LIFT_ABILITY_ID,
+        });
+        expect(unit.hasBuff(LIFTED_BUFF_TYPE)).toBe(true);
+
+        // iFrames after lift applies (tryApplyLift itself resists iframes at cast time).
+        vi.spyOn(unit, 'hasIFrames').mockReturnValue(true);
+
+        tickUntilLiftEnds(unit, engine);
+
+        expect(unit.hasBuff(LIFTED_BUFF_TYPE)).toBe(false);
+        expect(unit.hp).toBe(100);
+        expect(slamEvents).toHaveLength(1);
+    });
+
     it('terrain-clamps horizontalTarget displacement on slam', () => {
         const terrainManager = makeTerrainManager(8, 4);
         terrainManager.grid.set(4, 2, TerrainType.Rock);

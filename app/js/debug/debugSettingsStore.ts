@@ -9,7 +9,7 @@ export interface DebugSettingsSnapshot {
     debugPauseMode: boolean;
     /** Number of fixed ticks requested via debug single-step control. */
     debugAdvanceTicksRequested: number;
-    /** When true, logs syncHash, gameTick, and gameState to the console on every tick. */
+    /** When true, logs syncHash, gameTick, and gameState to the console on every tick (same payload is always retained in the tick history ring). */
     logEveryTick: boolean;
     /**
      * When true, collects nested JS timings for the last game tick and attaches

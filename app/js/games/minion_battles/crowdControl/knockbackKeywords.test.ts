@@ -1,16 +1,47 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
     computeAimedKnockbackParams,
     getKnockbackTierDef,
     KNOCKBACK_TOTAL_DISPLACEMENT_FACTOR,
+    tryApplyKnockbackByTier,
+    type KnockbackEngineCtx,
 } from './knockbackKeywords';
 import {
     FORCE_PUSH_LANDING_DISTANCE_SCALE,
     FORCE_PUSH_LANDING_MAX_DISTANCE,
     FORCE_PUSH_LANDING_MIN_DISTANCE,
 } from '../card_defs/09_gravity_core/gravityConstants';
+import { Unit } from '../game/units/Unit';
+import type { KnockbackSource } from '../game/units/unitTypes';
+import { EventBus } from '../game/EventBus';
 
 const TIER_3 = getKnockbackTierDef(3)!;
+const IFRAME_KNOCKBACK_TIER = 3;
+const IFRAME_KNOCKBACK_SOURCE: KnockbackSource = { unitId: 'caster', abilityId: 'test_kb' };
+
+function makeKnockbackTarget(): Unit {
+    return new Unit({
+        id: 'target',
+        x: 100,
+        y: 100,
+        hp: 100,
+        maxHp: 100,
+        speed: 50,
+        teamId: 'enemy',
+        ownerId: 'ai',
+        characterId: 'enemy_melee',
+        name: 'Target',
+    });
+}
+
+function makeKnockbackCtx(overrides: Partial<KnockbackEngineCtx> = {}): KnockbackEngineCtx {
+    return {
+        gameTime: 1,
+        roundNumber: 1,
+        eventBus: new EventBus(),
+        ...overrides,
+    };
+}
 
 describe('computeAimedKnockbackParams', () => {
     const options = {
@@ -49,5 +80,48 @@ describe('computeAimedKnockbackParams', () => {
             5,
         );
         expect(maxParams.knockbackAirTime).toBeGreaterThan(nearParams.knockbackAirTime);
+    });
+});
+
+describe('tryApplyKnockbackByTier with iFrames', () => {
+    it('fully resists knockback when target has iFrames', () => {
+        const target = makeKnockbackTarget();
+        target.ccArmour.hardFloor = 0;
+        vi.spyOn(target, 'hasIFrames').mockReturnValue(true);
+        const interrupt = vi.fn();
+        const ctx = makeKnockbackCtx({ interruptUnitAndRefundAbilities: interrupt });
+
+        const result = tryApplyKnockbackByTier(
+            target,
+            IFRAME_KNOCKBACK_TIER,
+            IFRAME_KNOCKBACK_SOURCE,
+            0,
+            0,
+            ctx,
+        );
+
+        expect(result.outcome).toBe('fully_resisted');
+        expect(target.knockback).toBeNull();
+        expect(interrupt).not.toHaveBeenCalled();
+        expect(target.ccArmour.hardConsumed).toBe(0);
+    });
+
+    it('applies knockback when respectIFrames is false even if target has iFrames', () => {
+        const target = makeKnockbackTarget();
+        target.ccArmour.hardFloor = 0;
+        vi.spyOn(target, 'hasIFrames').mockReturnValue(true);
+        const ctx = makeKnockbackCtx({ respectIFrames: false });
+
+        const result = tryApplyKnockbackByTier(
+            target,
+            IFRAME_KNOCKBACK_TIER,
+            IFRAME_KNOCKBACK_SOURCE,
+            0,
+            0,
+            ctx,
+        );
+
+        expect(result.outcome).toBe('applied');
+        expect(target.knockback).not.toBeNull();
     });
 });

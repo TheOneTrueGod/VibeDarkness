@@ -4,6 +4,7 @@ import type { LobbyClient } from '../../../LobbyClient';
 import DebugJsonBlock from '../DebugJsonBlock';
 import DebugHeartbeatSyncPanel from './DebugHeartbeatSyncPanel';
 import { useDebugConsole } from '../../../contexts/DebugConsoleContext';
+import { TICK_STATE_HISTORY_CAPACITY } from '../../../games/minion_battles/game/tickStateHistory';
 
 interface DebugGameStateTabProps {
     isActive: boolean;
@@ -118,7 +119,7 @@ export default function DebugGameStateTab({
                 {canLogLocalBattle && (
                     <button
                         type="button"
-                        title="Logs live engine JSON to lobby_log (critical) and POSTs snapshot if host"
+                        title={`Logs live engine JSON + last ${TICK_STATE_HISTORY_CAPACITY} tick dumps to lobby_log (critical) and POSTs snapshot if host`}
                         className={utilityBtnClass}
                         disabled={logLocalBusy}
                         onClick={() => void logLocalStateToLobby()}

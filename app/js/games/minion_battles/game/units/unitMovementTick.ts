@@ -122,6 +122,7 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
         updateUnitKnockback(unit, dt, grid, terrainManager, {
             eventBus: eng.eventBus,
             units: eng.units,
+            gameTime: eng.gameTime,
         });
         return;
     }

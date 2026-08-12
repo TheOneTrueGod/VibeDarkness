@@ -45,6 +45,12 @@ export interface KnockbackEngineCtx {
     roundNumber: number;
     eventBus: unknown;
     interruptUnitAndRefundAbilities?(unit: Unit): void;
+    /**
+     * When true (default), targets with active iFrames fully resist tier forced movement
+     * (no launch, no interrupt, no armour consume) — same class as juggernaut.
+     * Set false for rare true-strike (unused by live cards).
+     */
+    respectIFrames?: boolean;
 }
 
 // ---- Engine context factory ----
@@ -92,6 +98,12 @@ function _tryApplyTierForcedMovement(
 ): KnockbackAttemptResult {
     // Units in a juggernaut window are immune to knockback — no armour consumed, no launch.
     if (target.isInJuggernautWindow(engine.gameTime)) {
+        return { outcome: 'fully_resisted' };
+    }
+
+    // Active iFrames resist combat knockback/pull the same way (unless true-strike opt-out).
+    const respectIFrames = engine.respectIFrames !== false;
+    if (respectIFrames && target.hasIFrames(engine.gameTime)) {
         return { outcome: 'fully_resisted' };
     }
 

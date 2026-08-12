@@ -24,6 +24,7 @@ import type { ApplyRemoteOrdersResult, BattleNet, BattleSessionHandle, RemoteOrd
 import { hashOrderId } from './battlenet/helpers/orderHashing';
 import { summarizeRemoteWireRowsForLog } from './battlenet/helpers/orderWireLogSummary';
 import { logUserState } from './battlenet/userStateLog';
+import { tickStateHistory } from './tickStateHistory';
 import { buildWorldModifiersFromSources } from '../worldModifiers/buildWorldModifiers';
 import { BUILTIN_WORLD_MODIFIERS } from '../worldModifiers/builtins/index';
 import {
@@ -1258,5 +1259,6 @@ export class BattleSession implements BattleSessionHandle {
         this.listeners.clear();
         this.initialFingerprint = null;
         this.initialSerializedState = null;
+        tickStateHistory.clear();
     }
 }

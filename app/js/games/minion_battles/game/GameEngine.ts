@@ -55,6 +55,7 @@ import {
     syncNestedCardAbilityState,
 } from '../abilities/abilityUses';
 import { debugSettingsSnapshot, consumeDebugAdvanceTickRequest } from '../../../debug/debugSettingsStore';
+import { tickStateHistory } from './tickStateHistory';
 import {
     PERF_ENGINE,
     PERF_ENGINE_CLEANUP,
@@ -1615,8 +1616,15 @@ export class GameEngine implements EngineContext {
         this.state.runtimeFingerprintRing.push(this.gameTick, this.runtimeFingerprint, paused);
         this.onTickComplete?.(this.gameTick, this.getRuntimeFingerprintHex(), paused, this.pendingAdminReason ?? undefined);
         this.pendingAdminReason = null;
+        // Always retain the same payload the console toggle would print; dump via «Log local state».
+        const tickRecord = {
+            syncHash: this.getRuntimeFingerprintHex(),
+            gameTick: this.gameTick,
+            gameState: this.toJSON(),
+        };
+        tickStateHistory.push(tickRecord);
         if (debugSettingsSnapshot.logEveryTick) {
-            console.log('[tick]', { syncHash: this.getRuntimeFingerprintHex(), gameTick: this.gameTick, gameState: this.toJSON() });
+            console.log('[tick]', tickRecord);
         }
         if (committedParallelPause) {
             return;

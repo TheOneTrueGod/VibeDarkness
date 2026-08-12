@@ -16,7 +16,7 @@ Important: ability implementation files belong in `card_defs/` folders (not dire
 - **Do**: Implement `doCardEffect` by calling helpers keyed to clear behaviours (e.g. "at 0.05s draw a card", "during windup apply forced displacement toward target").
 - **Don't**: Inline geometry, damage/block checks, or drawing logic in the ability file when a shared helper already exists or can be added.
 - **Helpers**: See utility files in `abilities/` (`targetHelpers.ts`, `effectHelpers.ts`, `previewHelpers.ts`, `gunHelpers.ts`, `blockingHelpers.ts`, `petCommands.ts`) for available helpers. When adding new reusable behaviour, add or extend a helper first, then call it from the ability.
-- **Hitboxes**: For hit-detection shapes, see the **working-with-hitboxes** skill.
+- **Hitboxes (combat)**: When an ability damages or CCs units in a shape, collect targets via a hitbox (`CircleHitbox` / `ThickLineHitbox` / `resolveHitbox`) or a helper that wraps one (e.g. `damageEnemiesInCircle`). Do **not** hand-roll enemy radius/capsule loops for combat. Combat iFrames are filtered inside that pipeline by default. Environment damage (thorns, DoT, day-light, etc.) stays on direct `takeDamage` / tile paths — see **working-with-hitboxes** / `hitboxes/SKILL.md`.
 
 ## Reuse before you build
 
@@ -280,7 +280,8 @@ For longer-range or more powerful repositions, use `amount: 2`. Abilities that d
 - [ ] Ability registered in `AbilityRegistry.ts`; card def registered in `card_defs/index.ts`.
 - [ ] Character's card list includes the new card id if the character should have the card.
 - [ ] If a **new enemy character** was introduced: add it to `BESTIARY_ENTRIES` in `app/js/components/BestiaryPanel.tsx` and ensure its sprite key appears in `SPRITE_ICONS`.
-- [ ] If the ability inflicts knockback: use `targetUnit.applyKnockback` with serializable params.
+- [ ] If the ability damages or CCs units in a shape: use a hitbox or a hitbox-wrapping helper — no hand-rolled combat radius loops.
+- [ ] If the ability inflicts knockback: use `tryApplyKnockbackByTier` (or documented knockback helpers) with serializable params.
 - [ ] If the ability has a select `targetDef`, confirm it behaves under sequential targeting (see playahead section).
 
 ### Juice / feel

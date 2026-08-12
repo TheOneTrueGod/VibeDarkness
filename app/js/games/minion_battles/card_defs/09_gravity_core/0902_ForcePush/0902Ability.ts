@@ -220,6 +220,14 @@ function subscribeForcePushCollisionListeners(
         const struck = engine.getUnit(data.struckUnitId);
         if (!flung?.isAlive()) return;
 
+        // Defense in depth: unit–unit sweep already passes through iFrames; skip damage if an event still fires.
+        if (
+            flung.hasIFrames(engine.gameTime)
+            || (struck?.isAlive() === true && struck.hasIFrames(engine.gameTime))
+        ) {
+            return;
+        }
+
         // Flat collision damage; return values unused, so no need for the shield/armour breakdown.
         flung.takeDamage(FORCE_PUSH_COLLISION_DAMAGE, caster.id, engine.eventBus);
         spawnCollisionClashEffect(engine, data.impact);

@@ -177,6 +177,11 @@ export interface TryDamageOrBlockParams {
     abilityId: string;
     damage: number;
     attackType: 'melee' | 'charging';
+    /**
+     * When true (default), defenders with active iFrames miss — no damage and no block
+     * side-effects. Set false for rare true-strike (unused by live cards).
+     */
+    respectIFrames?: boolean;
 }
 
 export interface DamageOutcome {
@@ -188,12 +193,27 @@ export interface DamageOutcome {
 /**
  * If the defender can block the attack (from attacker position), execute block and return
  * `{ hit: false, amountDealt: 0 }`. Otherwise deal damage and return the modified amount.
+ * Active iFrames (when `respectIFrames` is not false) miss without damage or block side-effects.
  */
 export function tryDamageOrBlock(
     defender: Unit,
     params: TryDamageOrBlockParams,
 ): DamageOutcome {
-    const { engine, gameTime, eventBus, attackerX, attackerY, attackerId, abilityId, damage, attackType } = params;
+    const {
+        engine,
+        gameTime,
+        eventBus,
+        attackerX,
+        attackerY,
+        attackerId,
+        abilityId,
+        damage,
+        attackType,
+        respectIFrames = true,
+    } = params;
+    if (respectIFrames && defender.hasIFrames(gameTime)) {
+        return { hit: false, amountDealt: 0 };
+    }
     if (canAttackBeBlocked(defender, attackerX, attackerY, gameTime)) {
         const block = getBlockingArcForUnit(defender, gameTime);
         if (block) {

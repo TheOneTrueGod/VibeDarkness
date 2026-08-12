@@ -85,9 +85,10 @@ function tickKnockback(
     units: Unit[],
     terrainManager: TerrainManager | null,
     dt = KNOCKBACK_TICK_DT,
+    gameTime = 0,
 ): void {
     const grid = terrainManager?.grid ?? null;
-    updateUnitKnockback(unit, dt, grid, terrainManager, { eventBus, units });
+    updateUnitKnockback(unit, dt, grid, terrainManager, { eventBus, units, gameTime });
 }
 
 describe('forced movement unit collision', () => {
@@ -164,6 +165,56 @@ describe('forced movement unit collision', () => {
         }
 
         expect(mover.x - startX).toBeGreaterThan(graceDistance * 0.9);
+    });
+
+    it('passes through an iFrame blocker without stopping or emitting a collision', () => {
+        const mover = makeUnit({ id: 'mover' });
+        const struck = makeUnit({
+            id: 'struck',
+            x: STRUCK_CENTER_X,
+            y: SHARED_Y,
+            teamId: 'enemy',
+        });
+        vi.spyOn(struck, 'hasIFrames').mockReturnValue(true);
+        const units = [mover, struck];
+        const eventBus = applyTestKnockback(mover, { collideWithUnits: true });
+
+        const unitCollisions: ForcedMovementUnitCollisionEvent[] = [];
+        eventBus.on('forced_movement_unit_collision', (data) => unitCollisions.push(data));
+
+        while (mover.knockback) {
+            tickKnockback(mover, eventBus, units, null);
+        }
+
+        expect(unitCollisions).toHaveLength(0);
+        expect(mover.x).toBeGreaterThan(STRUCK_CENTER_X);
+        expect(struck.x).toBe(STRUCK_CENTER_X);
+        expect(struck.hp).toBe(100);
+        expect(mover.hp).toBe(100);
+    });
+
+    it('still collides with a non-iFrame blocker', () => {
+        const mover = makeUnit({ id: 'mover' });
+        const struck = makeUnit({
+            id: 'struck',
+            x: STRUCK_CENTER_X,
+            y: SHARED_Y,
+            teamId: 'enemy',
+        });
+        vi.spyOn(struck, 'hasIFrames').mockReturnValue(false);
+        const units = [mover, struck];
+        const eventBus = applyTestKnockback(mover, { collideWithUnits: true });
+
+        const unitCollisions: ForcedMovementUnitCollisionEvent[] = [];
+        eventBus.on('forced_movement_unit_collision', (data) => unitCollisions.push(data));
+
+        while (mover.knockback) {
+            tickKnockback(mover, eventBus, units, null);
+        }
+
+        expect(unitCollisions).toHaveLength(1);
+        expect(unitCollisions[0].struckUnitId).toBe('struck');
+        expect(mover.x).toBeCloseTo(EXPECTED_CONTACT_X, 4);
     });
 });
 
