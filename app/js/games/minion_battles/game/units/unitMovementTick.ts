@@ -9,11 +9,18 @@ import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
 import { PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE } from '../../../../gameConstants';
 import { MIN_FOLLOW_RADIUS } from '../gameConstants';
+import { WAIT_ABILITY_MODE_FAR } from '../../abilities/WaitAbility';
 import { checkNextCellOccupancy } from './unitCellSlide';
 import { updateUnitKnockback } from './unitKnockback';
 import { updateUnitNudge } from './unitNudge';
 import { tickWallUnstick } from './unitWallUnstick';
 import { buildPlayerMovePathThroughWaypoints } from '../../terrain/playerMovePath';
+
+function clearWaitLockout(unit: Unit): void {
+    unit.waitMinEndTime = null;
+    unit.waitMaxEndTime = null;
+    unit.waitAbilityMode = null;
+}
 
 /** Chebyshev grid tiles; after min wait time, end wait early if a live enemy is this close (wait+move failsafe). */
 export const WAIT_ENEMY_PROXIMITY_FAILSAFE_GRID = 4;
@@ -96,20 +103,25 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
     }
     unit.buffs = unit.buffs.filter((b) => !b.isExpired(gameTime, roundNumber));
 
-    // Wait action: enforce minimum and maximum wait duration, allow early end when movement finishes,
-    // or after min time if an enemy is within grid range (failsafe so long paths do not stall in melee).
+    // Wait action: enforce min/max duration. Fixed modes end at max; far ends on arrival (after min),
+    // enemy damage (handled elsewhere), max safety cap, or (non-far) enemy proximity failsafe.
     if (unit.waitMinEndTime !== null && unit.waitMaxEndTime !== null) {
+        const isFarWait = unit.waitAbilityMode === WAIT_ABILITY_MODE_FAR;
         const reachedMovementTarget = !unit.movement && !unit.walkIntent;
         const afterMin = gameTime >= unit.waitMinEndTime;
         const afterMax = gameTime >= unit.waitMaxEndTime;
         const enemyProximityFailsafe =
-            afterMin && hasEnemyWithinWaitProximityFailsafe(unit, engine, WAIT_ENEMY_PROXIMITY_FAILSAFE_GRID);
+            !isFarWait
+            && afterMin
+            && hasEnemyWithinWaitProximityFailsafe(unit, engine, WAIT_ENEMY_PROXIMITY_FAILSAFE_GRID);
 
-        const playerEarlyEnd = unit.isPlayerControlled() && PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE && afterMin && reachedMovementTarget;
-        if (afterMax || playerEarlyEnd || enemyProximityFailsafe) {
-            unit.waitMinEndTime = null;
-            unit.waitMaxEndTime = null;
-            if (unit.isPlayerControlled() && !PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE) {
+        const movementEarlyEnd = afterMin && reachedMovementTarget && (
+            isFarWait
+            || (unit.isPlayerControlled() && PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE)
+        );
+        if (afterMax || movementEarlyEnd || enemyProximityFailsafe) {
+            clearWaitLockout(unit);
+            if (unit.isPlayerControlled() && !PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE && !isFarWait) {
                 unit.movementPaused = true;
             }
         }

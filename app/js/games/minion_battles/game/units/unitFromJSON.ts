@@ -105,6 +105,7 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
     unit.growAnimTimer = (data.growAnimTimer as number | undefined) ?? 0;
     unit.waitMinEndTime = (data.waitMinEndTime as number | null) ?? null;
     unit.waitMaxEndTime = (data.waitMaxEndTime as number | null) ?? null;
+    unit.waitAbilityMode = (data.waitAbilityMode as string | null) ?? null;
     unit.movementPaused = (data.movementPaused as boolean | undefined) ?? false;
     applyCcArmourStateFromJSON(unit, data);
     unit.corruptionProgress = Math.max(0, Math.min(1, (data.corruptionProgress as number) ?? 0));

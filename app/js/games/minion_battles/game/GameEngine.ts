@@ -25,6 +25,7 @@ import {
     normalizeAbilityTimingsToIntervals,
     resolveAbilityTimingEntries,
 } from '../abilities/abilityTimings';
+import { WAIT_ABILITY_MODE_FAR } from '../abilities/WaitAbility';
 import { areAllies, areEnemies, type TeamId } from './teams';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import type { BattleObjectiveDef, LevelEvent, PlayerControlDef } from '../storylines/types';
@@ -846,6 +847,19 @@ export class GameEngine implements EngineContext {
         this.eventBus.on('damage_taken', (data) => {
             this.mixRuntimeFingerprint(FingerprintEvent.DAMAGE, this.hashString32(data.unitId), Math.floor(data.amount));
         });
+
+        // Far wait: end after the minimum duration when an enemy deals damage.
+        this.eventBus.on('damage_taken', (data: DamageTakenEvent) => {
+            const unit = this.getUnit(data.unitId);
+            if (!unit?.isInWaitLockout() || unit.waitAbilityMode !== WAIT_ABILITY_MODE_FAR) return;
+            if (unit.waitMinEndTime != null && this.gameTime < unit.waitMinEndTime) return;
+            if (!data.sourceUnitId) return;
+            const source = this.getUnit(data.sourceUnitId);
+            if (!source || !areEnemies(unit.teamId, source.teamId)) return;
+            unit.waitMinEndTime = null;
+            unit.waitMaxEndTime = null;
+            unit.waitAbilityMode = null;
+        });
         this.eventBus.on('unit_died', (data) => {
             this.mixRuntimeFingerprint(
                 FingerprintEvent.DEATH,
@@ -1376,6 +1390,7 @@ export class GameEngine implements EngineContext {
                 if (unit.isInWaitLockout() && unit.waitMinEndTime !== null && this.gameTime >= unit.waitMinEndTime) {
                     unit.waitMinEndTime = null;
                     unit.waitMaxEndTime = null;
+                    unit.waitAbilityMode = null;
                     cancelledOwners.add(unit.ownerId);
                 }
             }

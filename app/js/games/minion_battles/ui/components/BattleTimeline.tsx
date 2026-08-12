@@ -28,7 +28,7 @@ import {
     buildPrimaryTimelineSegments,
     computeVisiblePrimarySegments,
     getEnemyActionWindowFromIntervals,
-    getTotalAbilityDuration,
+    getTotalAbilityDurationForCast,
     normalizeAbilityTimingsToIntervals,
     resolveAbilityTimingEntries,
     type AbilityTimingInterval,
@@ -659,7 +659,7 @@ function renderPlayerUnitTimelineUnified(
         segments = computeVisiblePrimarySegments(merged, 0, windowSeconds);
         previewLevel = 'preview';
     } else if (unit.isInWaitLockout() && unit.waitMaxEndTime !== null) {
-        const waitDuration = getTotalAbilityDuration(WaitAbility);
+        const waitDuration = getTotalAbilityDurationForCast(WaitAbility, unit, engine);
         const elapsed = Math.max(0, waitDuration - (unit.waitMaxEndTime - now));
         const intervals = intervalsForAbility(WaitAbility, unit, engine);
         const merged = buildPrimaryTimelineSegments(intervals);
@@ -903,7 +903,7 @@ function renderPlayerRow(
         segments = computeVisiblePrimarySegments(merged, 0, windowSeconds);
         previewLevel = 'preview';
     } else if (unit.isInWaitLockout() && unit.waitMaxEndTime !== null) {
-        const waitDuration = getTotalAbilityDuration(WaitAbility);
+        const waitDuration = getTotalAbilityDurationForCast(WaitAbility, unit, engine);
         const elapsed = Math.max(0, waitDuration - (unit.waitMaxEndTime - now));
         const intervals = intervalsForAbility(WaitAbility, unit, engine);
         const merged = buildPrimaryTimelineSegments(intervals);

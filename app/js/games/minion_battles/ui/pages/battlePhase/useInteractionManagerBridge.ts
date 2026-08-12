@@ -80,11 +80,20 @@ export function useInteractionManagerBridge({
         sessionRef.current?.getInteractionManager()?.refreshNonconfirmedAbilityMode(abilityId);
     };
 
+    const handleSetAbilityMode = (abilityId: string, mode: string) => {
+        setAbilityModeByAbilityId((prev) => {
+            if (prev[abilityId] === mode) return prev;
+            return { ...prev, [abilityId]: mode };
+        });
+        sessionRef.current?.getInteractionManager()?.refreshNonconfirmedAbilityMode(abilityId);
+    };
+
     return {
         selectedCardIndex,
         selectedAbility,
         nonconfirmedOrder,
         abilityModeByAbilityId,
         handleCycleAbilityMode,
+        handleSetAbilityMode,
     };
 }

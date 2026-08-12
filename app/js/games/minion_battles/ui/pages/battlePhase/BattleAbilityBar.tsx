@@ -26,6 +26,7 @@ interface BattleAbilityBarProps {
     nonconfirmedOrder: BattleOrder | null;
     abilityModeByAbilityId: Record<string, string>;
     handleCycleAbilityMode: (abilityId: string, modes: readonly string[]) => void;
+    handleSetAbilityMode: (abilityId: string, mode: string) => void;
     setIsWaitHovered: (hovered: boolean) => void;
     setHoveredAbility: (ability: AbilityStatic | null) => void;
     /** The turn indicator plaque (and ITS playahead controls); pinned to the top of the ability row. */
@@ -54,6 +55,7 @@ export function useBattleAbilityBarSlots({
     nonconfirmedOrder,
     abilityModeByAbilityId,
     handleCycleAbilityMode,
+    handleSetAbilityMode,
     setIsWaitHovered,
     setHoveredAbility,
     turnIndicator,
@@ -118,6 +120,11 @@ export function useBattleAbilityBarSlots({
                 hasNonconfirmedOrder={!autoEndTurn && !!nonconfirmedOrder}
                 onWaitHoverChange={setIsWaitHovered}
                 conditionalCancelContext={conditionalCancelContext}
+                waitAbilityMode={
+                    abilityModeByAbilityId.wait
+                    ?? undefined
+                }
+                onSetWaitAbilityMode={(mode) => handleSetAbilityMode('wait', mode)}
             />
         ),
     };

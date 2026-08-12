@@ -11,6 +11,7 @@ import { StunnedBuff } from '../../buffs/StunnedBuff';
 import { Mana } from '../../resources/Mana';
 import { createPlan } from './unitAI/plans/planUtils';
 import type { TacticalPlan } from './unitAI/plans/types';
+import { WAIT_ABILITY_MODE_FAR } from '../../abilities/WaitAbility';
 
 /** Tick passed to toJSON/fromJSON in the golden checkpoint snapshot test. */
 const GOLDEN_SERIALIZATION_TICK = 5;
@@ -50,6 +51,7 @@ function buildGoldenSerializationUnit(eventBus: EventBus): Unit {
     unit.growAnimTimer = 0.2;
     unit.waitMinEndTime = 10;
     unit.waitMaxEndTime = 20;
+    unit.waitAbilityMode = WAIT_ABILITY_MODE_FAR;
     unit.movementPaused = true;
     unit.corruptionProgress = 0.35;
     unit.crystalCorruptionProgress = 0.6;
@@ -505,6 +507,7 @@ describe('Unit', () => {
               ],
             },
             "unitAITreeId": "hunt",
+            "waitAbilityMode": "far",
             "waitMaxEndTime": 20,
             "waitMinEndTime": 10,
             "walkIntent": {
@@ -554,6 +557,7 @@ describe('Unit', () => {
         unit.active = true;
         unit.waitMinEndTime = 10;
         unit.waitMaxEndTime = 20;
+        unit.waitAbilityMode = WAIT_ABILITY_MODE_FAR;
         unit.radius = 25;
         unit.setMovement([{ col: 2, row: 3 }, { col: 3, row: 3 }], undefined, 42);
 
@@ -574,6 +578,7 @@ describe('Unit', () => {
         expect(restored.name).toBe(unit.name);
         expect(restored.waitMinEndTime).toBe(unit.waitMinEndTime);
         expect(restored.waitMaxEndTime).toBe(unit.waitMaxEndTime);
+        expect(restored.waitAbilityMode).toBe(WAIT_ABILITY_MODE_FAR);
         expect(restored.radius).toBe(unit.radius);
         expect(restored.abilities).toEqual(unit.abilities);
         expect(restored.aiSettings).toEqual(unit.aiSettings);

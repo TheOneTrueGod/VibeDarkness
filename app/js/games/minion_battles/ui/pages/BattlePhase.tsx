@@ -289,6 +289,7 @@ export default function BattlePhase({
         nonconfirmedOrder,
         abilityModeByAbilityId,
         handleCycleAbilityMode,
+        handleSetAbilityMode,
     } = useInteractionManagerBridge({
         sessionRef,
         canUseOrderUi,
@@ -420,6 +421,7 @@ export default function BattlePhase({
         nonconfirmedOrder,
         abilityModeByAbilityId,
         handleCycleAbilityMode,
+        handleSetAbilityMode,
         setIsWaitHovered,
         setHoveredAbility,
         turnIndicator: turnIndicatorElement,

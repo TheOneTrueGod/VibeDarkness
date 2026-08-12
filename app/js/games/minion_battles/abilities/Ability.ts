@@ -140,10 +140,21 @@ export interface AbilityAISettings {
 
 export type AbilityKeyword = 'nestedCard';
 
+/** How the per-cast mode control is rendered in battle UI. */
+export type AbilityModeToggleStyle = 'cycle' | 'segmentedAbove';
+
 /** Per-cast mode options declared on an ability (distinct from research-granted AbilityModifier). */
 export interface AbilityModesConfig {
     modes: readonly string[];
     defaultMode: string;
+    /**
+     * UI presentation for the mode control.
+     * - `cycle` (default): single button that cycles modes (e.g. Lift push/pull).
+     * - `segmentedAbove`: discrete buttons rendered above the card (e.g. Wait S/M/F).
+     */
+    toggleStyle?: AbilityModeToggleStyle;
+    /** Optional short labels for segmented toggles (mode id → label, e.g. short → S). */
+    modeLabels?: Readonly<Record<string, string>>;
 }
 
 /**

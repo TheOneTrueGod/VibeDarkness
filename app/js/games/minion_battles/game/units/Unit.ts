@@ -216,6 +216,11 @@ export class Unit extends GameObject {
     /** When using the "wait" action: earliest and latest gameTime (seconds) when the wait can end. */
     waitMinEndTime: number | null = null;
     waitMaxEndTime: number | null = null;
+    /**
+     * Committed wait mode for the active wait lockout (`short` / `medium` / `far`).
+     * Cleared when the lockout ends. Null when not waiting.
+     */
+    waitAbilityMode: string | null = null;
     /** When true, the unit holds position but retains its queued movement path for the next order. */
     movementPaused: boolean = false;
 

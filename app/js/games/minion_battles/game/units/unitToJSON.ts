@@ -84,6 +84,7 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
         growAnimTimer: unit.growAnimTimer,
         waitMinEndTime: unit.waitMinEndTime,
         waitMaxEndTime: unit.waitMaxEndTime,
+        ...(unit.waitAbilityMode != null ? { waitAbilityMode: unit.waitAbilityMode } : {}),
         movementPaused: unit.movementPaused,
         corruptionProgress: unit.corruptionProgress,
         crystalCorruptionProgress: unit.crystalCorruptionProgress,

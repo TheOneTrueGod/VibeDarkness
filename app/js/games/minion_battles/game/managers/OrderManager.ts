@@ -9,9 +9,7 @@ import type { Unit } from '../units/Unit';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { refundAbilityCost } from '../../abilities/Ability';
 import { unitAbilityHasTag } from '../../abilities/abilityUses';
-
-const WAIT_ORDER_MIN_DURATION_SEC = 1.5;
-const WAIT_ORDER_MAX_DURATION_SEC = 1.5;
+import { resolveWaitOrderWindow } from '../../abilities/WaitAbility';
 
 function specialActionKey(special: BattleOrderSpecialAction | undefined): string {
     if (!special) return '';
@@ -198,6 +196,7 @@ export class OrderManager {
                     } else {
                         unit.waitMinEndTime = null;
                         unit.waitMaxEndTime = null;
+                        unit.waitAbilityMode = null;
                     }
                 }
                 // Fall through — queueOrder will deduplicate by removing the old entry.
@@ -307,6 +306,7 @@ export class OrderManager {
 
         unit.waitMinEndTime = null;
         unit.waitMaxEndTime = null;
+        unit.waitAbilityMode = null;
         unit.movementPaused = false;
 
         if (order.movePath !== undefined && order.movePath !== null && order.movePath.length > 0) {
@@ -329,8 +329,12 @@ export class OrderManager {
             if (unit.activeAbilities.length > 0) {
                 return;
             }
-            unit.waitMinEndTime = this.ctx.gameTime + WAIT_ORDER_MIN_DURATION_SEC;
-            unit.waitMaxEndTime = this.ctx.gameTime + WAIT_ORDER_MAX_DURATION_SEC;
+            const waitWindow = resolveWaitOrderWindow(order.abilityMode);
+            unit.waitAbilityMode = order.abilityMode
+                ?? getAbility('wait')?.abilityModes?.defaultMode
+                ?? null;
+            unit.waitMinEndTime = this.ctx.gameTime + waitWindow.minSec;
+            unit.waitMaxEndTime = this.ctx.gameTime + waitWindow.maxSec;
             return;
         }
 
