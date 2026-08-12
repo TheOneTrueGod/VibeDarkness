@@ -240,7 +240,7 @@ export default function AbilitySlot({
                 {showModeToggle && abilityModes && onCycleAbilityMode && (
                     <button
                         type="button"
-                        className="absolute top-1/2 left-1/2 z-30 flex h-6 min-w-[2.75rem] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded border border-violet-400/70 bg-violet-950/95 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200 shadow-sm pointer-events-auto hover:border-violet-300 hover:bg-violet-900"
+                        className="absolute bottom-2 left-1/2 z-30 flex h-6 min-w-[2.75rem] -translate-x-1/2 items-center justify-center rounded border border-violet-400/70 bg-violet-950/95 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200 shadow-sm pointer-events-auto hover:border-violet-300 hover:bg-violet-900"
                         title={`Mode: ${modeLabel ?? currentAbilityMode} (click to cycle)`}
                         aria-label={`Ability mode ${modeLabel ?? currentAbilityMode}, click to cycle`}
                         onClick={handleModeToggle}
