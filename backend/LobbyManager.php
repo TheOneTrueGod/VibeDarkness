@@ -509,12 +509,8 @@ class LobbyManager
         if ($lobby === null) {
             return null;
         }
-        
-        if ($lobby->isFull()) {
-            return ['error' => 'Lobby is full'];
-        }
 
-        // Check if player already exists (reconnecting)
+        // Reconnecting players already occupy a slot — check before isFull (solo lobbies otherwise reject refresh).
         $existingPlayer = $lobby->getPlayer($playerId);
         if ($existingPlayer) {
             return [
@@ -522,6 +518,10 @@ class LobbyManager
                 'player' => $existingPlayer->toArray(true),
                 'isRejoin' => true,
             ];
+        }
+
+        if ($lobby->isFull()) {
+            return ['error' => 'Lobby is full'];
         }
 
         // Quest / reserved lobbies: only rostered party members may join.
