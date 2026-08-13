@@ -2,11 +2,9 @@ import React, { useMemo } from 'react';
 import { getAbility } from '../../../../abilities/AbilityRegistry';
 import type { AbilityStatic } from '../../../../abilities/Ability';
 import type { CampaignCharacter } from '../../../../character_defs/CampaignCharacter';
-import {
-    getAttachedAbilityIds,
-    QUEST_PREP_ABILITY_SLOT_COUNT,
-} from '../../../../storylines/questPrepLoadout';
+import { QUEST_PREP_ABILITY_SLOT_COUNT } from '../../../../storylines/questPrepLoadout';
 import { TestIds } from '../../../../../../testing/testIds';
+import { ABILITY_SLOT_HEIGHT_PX, ABILITY_SLOT_WIDTH_PX } from '../../../components/AbilitySlot';
 import { AbilitySlotPreview } from '../../../components/AbilitySlotPreview';
 
 interface QuestPrepAbilitySlotBarProps {
@@ -34,17 +32,11 @@ export function QuestPrepAbilitySlotBar({
         [character.researchTrees, character.researchNodeLevels],
     );
 
-    const slots = useMemo(() => {
-        const out: Array<{ primary: AbilityStatic | null; attached: AbilityStatic[] }> = [];
+    const slots = useMemo((): Array<AbilityStatic | null> => {
+        const out: Array<AbilityStatic | null> = [];
         for (let i = 0; i < slotCount; i++) {
             const primaryId = selectedPrimaryIds[i];
-            const primary = primaryId ? getAbility(primaryId) ?? null : null;
-            const attached = primaryId
-                ? getAttachedAbilityIds(primaryId)
-                    .map((id) => getAbility(id))
-                    .filter((a): a is AbilityStatic => a != null)
-                : [];
-            out.push({ primary, attached });
+            out.push(primaryId ? getAbility(primaryId) ?? null : null);
         }
         return out;
     }, [selectedPrimaryIds, slotCount]);
@@ -54,40 +46,27 @@ export function QuestPrepAbilitySlotBar({
             data-testid={TestIds.questPrepAbilitySlotBar}
             className="flex w-full min-h-0 items-center justify-center"
         >
-            <div className="overflow-x-auto max-w-full">
-                <div className="flex gap-2 w-max mx-auto items-end">
-                    {slots.map((slot, index) => (
-                        <div
-                            key={`quest-prep-slot-${index}`}
-                            className="flex flex-col items-center gap-0.5 min-w-[72px]"
-                        >
-                            {slot.primary ? (
-                                <>
-                                    <AbilitySlotPreview
-                                        ability={slot.primary}
-                                        tooltipContext={tooltipContext}
-                                        onSelect={
-                                            readOnly
-                                                ? undefined
-                                                : () => onRemove(slot.primary!.id)
-                                        }
-                                    />
-                                    {slot.attached.length > 0 && (
-                                        <div className="flex gap-0.5 items-center">
-                                            {slot.attached.map((a) => (
-                                                <AbilitySlotPreview
-                                                    key={a.id}
-                                                    ability={a}
-                                                    tooltipContext={tooltipContext}
-                                                    compact
-                                                />
-                                            ))}
-                                        </div>
-                                    )}
-                                </>
+            <div className="max-w-full overflow-x-auto overflow-y-hidden">
+                <div className="mx-auto flex w-max items-center gap-2">
+                    {slots.map((ability, index) => (
+                        <div key={`quest-prep-slot-${index}`} className="shrink-0">
+                            {ability ? (
+                                <AbilitySlotPreview
+                                    ability={ability}
+                                    tooltipContext={tooltipContext}
+                                    onSelect={
+                                        readOnly
+                                            ? undefined
+                                            : () => onRemove(ability.id)
+                                    }
+                                />
                             ) : (
                                 <div
-                                    className="w-[72px] h-[96px] rounded-lg border border-dashed border-border-custom bg-surface/40 flex items-center justify-center"
+                                    className="rounded-lg border border-dashed border-border-custom bg-surface/40 flex items-center justify-center shrink-0"
+                                    style={{
+                                        width: ABILITY_SLOT_WIDTH_PX,
+                                        height: ABILITY_SLOT_HEIGHT_PX,
+                                    }}
                                     aria-label={`Empty ability slot ${index + 1}`}
                                 >
                                     <span className="text-[10px] text-muted">{index + 1}</span>

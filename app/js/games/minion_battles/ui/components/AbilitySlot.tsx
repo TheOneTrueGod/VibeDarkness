@@ -257,7 +257,7 @@ export default function AbilitySlot({
                 <div
                     className={`flex min-h-0 flex-1 flex-col items-center justify-start px-0.5 pt-7 pb-1.5 ${isDisabled ? 'opacity-50' : ''}`}
                 >
-                    <span className="mb-3 line-clamp-2 w-full text-center text-[13px] font-medium leading-tight text-gray-100">
+                    <span className="mb-2 line-clamp-2 min-h-[2.5em] shrink-0 w-full text-center text-[12px] font-medium leading-tight text-gray-100">
                         {ability.name}
                     </span>
 
