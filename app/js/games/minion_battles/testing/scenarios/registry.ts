@@ -111,6 +111,7 @@ import {
     earthCoreBedrockScavengerScenario,
     earthCoreDeepResonanceScenario,
 } from './abilities/earthCoreScenarios';
+import { rapidThrowComboScenario } from './abilities/rapidThrowComboScenario';
 
 export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     pathStraightMoveScenario,
@@ -181,6 +182,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     earthCoreImpactConversionScenario,
     earthCoreBedrockScavengerScenario,
     earthCoreDeepResonanceScenario,
+    rapidThrowComboScenario,
     laserSwordHitsTwoTargetsScenario,
     throwTorchHitsDummyScenario,
     beastClawFrontHitBackMissScenario,

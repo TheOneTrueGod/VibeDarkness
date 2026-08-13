@@ -2,7 +2,17 @@ import type { AccountState, CampaignResources } from '../types';
 import type { CampaignCharacter } from '../games/minion_battles/character_defs/CampaignCharacter';
 import { fromCampaignCharacterData } from '../games/minion_battles/character_defs/CampaignCharacter';
 import { getCoreFromEquipment, getItemDef } from '../games/minion_battles/character_defs/items';
-import type { ResearchTreeDef, ResearchNodeDef, Requirement, CampaignResourceCost, CampaignResourceKey, ResearchEffect, AbilityModifier, ResearchNodeLevels } from './types';
+import type {
+    ResearchTreeDef,
+    ResearchNodeDef,
+    Requirement,
+    CampaignResourceCost,
+    CampaignResourceKey,
+    ResearchEffect,
+    AbilityModifier,
+    AbilityResearchModifier,
+    ResearchNodeLevels,
+} from './types';
 import { isDraftResearchNode } from './types';
 import { RESEARCH_TREES } from './list';
 import { getNodeLevel, getNodeMaxLevels } from './passiveBonuses';
@@ -85,6 +95,52 @@ export function sumCosts(nodes: ResearchNodeDef[]): CampaignResourceCost {
     return out;
 }
 
+/** Cost for the next purchase of a node at `currentLevel` (0 = not yet unlocked). */
+export function getResearchNodePurchaseCost(
+    node: ResearchNodeDef,
+    currentLevel: number,
+): CampaignResourceCost {
+    const base = node.cost ?? {};
+    if (node.purchaseCostMultipliesByTargetLevel) {
+        return multiplyCost(base, currentLevel + 1);
+    }
+    return { ...base };
+}
+
+function addCostsInto(target: CampaignResourceCost, add: CampaignResourceCost): void {
+    for (const [k, v] of Object.entries(add)) {
+        const key = k as CampaignResourceKey;
+        target[key] = (target[key] ?? 0) + (v ?? 0);
+    }
+}
+
+/** Total campaign resources spent on a node across all purchased levels. */
+export function sumNodeTotalSpentCost(node: ResearchNodeDef, purchasedLevel: number): CampaignResourceCost {
+    const out: CampaignResourceCost = {};
+    if (purchasedLevel <= 0) return out;
+    if (node.purchaseCostMultipliesByTargetLevel) {
+        for (let level = 1; level <= purchasedLevel; level++) {
+            addCostsInto(out, multiplyCost(node.cost ?? {}, level));
+        }
+        return out;
+    }
+    return multiplyCost(node.cost ?? {}, purchasedLevel);
+}
+
+function sumPurchaseCostsForNodes(
+    tree: ResearchTreeDef,
+    nodes: ResearchNodeDef[],
+    researchTrees: Record<string, string[]> | undefined,
+    researchNodeLevels: ResearchNodeLevels | undefined,
+): CampaignResourceCost {
+    const out: CampaignResourceCost = {};
+    for (const node of nodes) {
+        const currentLevel = getNodeLevel(tree.id, node.id, researchTrees, researchNodeLevels);
+        addCostsInto(out, getResearchNodePurchaseCost(node, currentLevel));
+    }
+    return out;
+}
+
 /** Sum researched-node costs, multiplying each leveled node's cost by its purchased level. */
 export function sumResearchedCosts(
     tree: ResearchTreeDef,
@@ -95,11 +151,7 @@ export function sumResearchedCosts(
     for (const node of tree.nodes) {
         const level = getNodeLevel(tree.id, node.id, researchTrees, researchNodeLevels);
         if (level <= 0) continue;
-        const scaled = multiplyCost(node.cost ?? {}, level);
-        for (const [k, v] of Object.entries(scaled)) {
-            const key = k as CampaignResourceKey;
-            out[key] = (out[key] ?? 0) + (v ?? 0);
-        }
+        addCostsInto(out, sumNodeTotalSpentCost(node, level));
     }
     return out;
 }
@@ -233,7 +285,14 @@ export function canResearchNode(tree: ResearchTreeDef, nodeId: string, ctx: Rese
     // Cost must be affordable with effective resources.
     // First unlock may include prereq nodes; level-ups only pay this node's cost once.
     if (!options.skipCostCheck) {
-        const costTotal = isLevelUp ? (node.cost ?? {}) : sumCosts(neededNodes);
+        const costTotal = isLevelUp
+            ? getResearchNodePurchaseCost(node, currentLevel)
+            : sumPurchaseCostsForNodes(
+                tree,
+                neededNodes,
+                ctx.character.researchTrees,
+                ctx.character.researchNodeLevels,
+            );
         for (const [k, v] of Object.entries(costTotal)) {
             const key = k as CampaignResourceKey;
             if ((effective[key] ?? 0) < (v ?? 0)) {
@@ -517,6 +576,22 @@ function mergeModifierInto(entry: AbilityModifier, modifier: AbilityModifier): v
             ? Math.min(entry.healPenaltyPctOverride, modifier.healPenaltyPctOverride)
             : modifier.healPenaltyPctOverride;
     }
+    /** Only one source expected (Rapid Throw); take max when multiple nodes contribute. */
+    if (modifier.comboMax !== undefined) {
+        entry.comboMax = Math.max(entry.comboMax ?? 0, modifier.comboMax);
+    }
+}
+
+function scaleAbilityResearchModifierByLevel(
+    modifier: AbilityResearchModifier,
+    level: number,
+): AbilityModifier {
+    const { abilitySpecification: _spec, ...fields } = modifier;
+    const scaled: AbilityModifier = { ...fields };
+    if (fields.comboMax !== undefined) {
+        scaled.comboMax = fields.comboMax * level;
+    }
+    return scaled;
 }
 
 /**
@@ -531,23 +606,27 @@ export function computeAbilityModifiersFromResearch(
     researchTrees: Record<string, string[]> | undefined,
     getTagsForAbility?: (abilityId: string) => readonly string[],
     unitAbilityIds?: string[],
+    researchNodeLevels?: ResearchNodeLevels,
 ): Record<string, AbilityModifier> {
     const trees = researchTrees ?? {};
     const result: Record<string, AbilityModifier> = {};
     for (const tree of RESEARCH_TREES) {
-        const researchedSet = new Set(trees[tree.id] ?? []);
-        const researchedNodes = sortNodesDeterministic(tree.nodes.filter((n) => researchedSet.has(n.id)));
+        const researchedNodes = sortNodesDeterministic(
+            tree.nodes.filter((n) => getNodeLevel(tree.id, n.id, trees, researchNodeLevels) > 0),
+        );
         for (const node of researchedNodes) {
+            const level = getNodeLevel(tree.id, node.id, trees, researchNodeLevels);
             for (const modifier of node.abilityResearchModifiers ?? []) {
                 const spec = modifier.abilitySpecification;
+                const scaled = scaleAbilityResearchModifierByLevel(modifier, level);
                 if (spec.type === 'abilityId') {
                     const entry = result[spec.abilityId] ?? (result[spec.abilityId] = {});
-                    mergeModifierInto(entry, modifier);
+                    mergeModifierInto(entry, scaled);
                 } else if (spec.type === 'tag' && getTagsForAbility && unitAbilityIds) {
                     for (const abilityId of unitAbilityIds) {
                         if (getTagsForAbility(abilityId).includes(spec.tag)) {
                             const entry = result[abilityId] ?? (result[abilityId] = {});
-                            mergeModifierInto(entry, modifier);
+                            mergeModifierInto(entry, scaled);
                         }
                     }
                 }

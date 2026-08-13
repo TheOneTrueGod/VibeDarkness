@@ -110,7 +110,9 @@ export function applyAbilityResearchModifiersToRuntime(
 /** Like abilityHasTag but also checks tags added via the unit's abilityModifiers (e.g. from research). */
 export function unitAbilityHasTag(unit: Unit, abilityId: string, tag: string): boolean {
     if (abilityHasTag(abilityId, tag as AbilityTag)) return true;
-    return unit.abilityModifiers[abilityId]?.addTags?.includes(tag) ?? false;
+    if (unit.abilityModifiers[abilityId]?.addTags?.includes(tag)) return true;
+    if (tag === 'Combo' && (unit.abilityModifiers[abilityId]?.comboMax ?? 0) > 0) return true;
+    return false;
 }
 
 export function initializeAbilityRuntimeForUnit(unit: Unit): void {

@@ -17,6 +17,7 @@ import type { TargetDef } from '../../abilities/targeting';
 import { clampToMaxRange, drawClampedLine, drawCrosshair } from '../../abilities/previewHelpers';
 import type { Unit } from '../../game/units/Unit';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
+import { AbilityPhase } from '../../abilities/abilityTimings';
 import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
 import { isSinglePlayerBattle } from '../../abilities/singlePlayerBattle';
 import { buildTagDescriptionLines } from '../../abilities/abilityTagCatalog';
@@ -120,11 +121,6 @@ export function buildThrowRockAbility(config: ThrowRockVariantConfig): AbilitySt
         entombed: ENTOMBED_OPTS,
     });
 
-    const moreRockTimings = buildMoreRockTimings({
-        launchBehaviour: rockLaunchBehaviour(id),
-        entombed: ENTOMBED_MORE_ROCK_OPTS,
-    });
-
     return {
         id,
         name,
@@ -139,7 +135,20 @@ export function buildThrowRockAbility(config: ThrowRockVariantConfig): AbilitySt
         abilityTimings: baseTimings,
         getAbilityTimings(caster, gameState) {
             const research = getCrystalRocksResearch(gameState as import('../../abilities/AbilityEngineContext').AbilityEngineContext | undefined, caster);
-            return hasMoreRockResearch(research) ? moreRockTimings : baseTimings;
+            const mod = getAbilityModifier(gameState, caster, id);
+            const comboCancelPhase = (mod.comboMax ?? 0) > 0 ? AbilityPhase.Cooldown : undefined;
+            const opts = { comboCancelPhase };
+            return hasMoreRockResearch(research)
+                ? buildMoreRockTimings({
+                    launchBehaviour: rockLaunchBehaviour(id),
+                    entombed: ENTOMBED_MORE_ROCK_OPTS,
+                    ...opts,
+                })
+                : buildThrowBaseTimings({
+                    launchBehaviour: rockLaunchBehaviour(id),
+                    entombed: ENTOMBED_OPTS,
+                    ...opts,
+                });
         },
         targets: TWO_PIXEL_TARGETS,
         getTargets(caster?: Unit, gameState?: unknown): TargetDef[] {
@@ -167,7 +176,9 @@ export function buildThrowRockAbility(config: ThrowRockVariantConfig): AbilitySt
 
             const activeTags: string[] = [...tags];
             if (mod.addTags) activeTags.push(...mod.addTags);
-            return [...lines, ...buildTagDescriptionLines(activeTags)];
+            if ((mod.comboMax ?? 0) > 0) activeTags.push('Combo');
+            const magnitudes = (mod.comboMax ?? 0) > 0 ? { Combo: mod.comboMax! } : undefined;
+            return [...lines, ...buildTagDescriptionLines(activeTags, magnitudes)];
         },
 
         beginActiveCast(engine, caster, _targets, active) {

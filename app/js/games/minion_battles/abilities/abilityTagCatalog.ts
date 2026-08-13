@@ -10,6 +10,7 @@ export type AbilityTagSettingsByTag = {
     meleeTracking: PriorityTagSettings;
     evade: PriorityTagSettings;
     Entombed: PriorityTagSettings;
+    Combo: PriorityTagSettings;
     RockThrow: PriorityTagSettings;
     free: PriorityTagSettings;
     basicAttack: PriorityTagSettings;
@@ -46,6 +47,12 @@ export const ABILITY_TAG_CATALOG: AbilityTagCatalog = {
     Entombed: {
         hint: 'Usable in Walls',
         colour: '#CD853F',
+        hasMagnitude: true,
+        autoAddToDescription: true,
+    },
+    Combo: {
+        hint: 'Chain during cooldown',
+        colour: '#E6A817',
         hasMagnitude: true,
         autoAddToDescription: true,
     },

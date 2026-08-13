@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ResearchNodeDef } from '../../../../researchTrees/types';
+import { getResearchNodePurchaseCost } from '../../../../researchTrees/evaluator';
 import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
 import ResearchAbilityPreview from './ResearchAbilityPreview';
 import { useCurrentUser } from '../../../../user/useCurrentUser';
@@ -86,7 +87,7 @@ export default function ResearchNodeCard({
 
     const mode = resolveVariant(variant, interactive);
     const isInteractive = mode === 'interactive';
-    const costGains = campaignResourceGains(node.cost);
+    const costGains = campaignResourceGains(getResearchNodePurchaseCost(node, currentLevel));
     const hasReqBadges = showRequirements && requirementBadges.length > 0;
     const hasTooltipContent = Boolean(node.flavorText || selectionReason || node.modifiesAbility);
 

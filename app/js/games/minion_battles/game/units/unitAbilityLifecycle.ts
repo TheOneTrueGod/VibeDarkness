@@ -202,10 +202,12 @@ export function executeUnitAbility(
         targets: targets.map((t) => ({ ...t })),
         castBehaviourPayloads: {},
         evadeFired: false,
+        comboCount: unit.pendingComboCount ?? 1,
         ...(orderAbilityMode !== undefined || ability.abilityModes?.defaultMode !== undefined
             ? { abilityMode: orderAbilityMode ?? ability.abilityModes!.defaultMode }
             : {}),
     };
+    unit.pendingComboCount = undefined;
     ability.beginActiveCast?.(engine, unit, active.targets, active);
     // Generic telegraph: capture primary target position when no beginActiveCast set it.
     if (ability.telegraph && active.castPayload == null) {

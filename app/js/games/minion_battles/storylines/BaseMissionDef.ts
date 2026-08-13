@@ -372,7 +372,12 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             if (staminaRecoveryBonus > 0) {
                 unit.stamina += staminaRecoveryBonus;
             }
-            unit.abilityModifiers = computeAbilityModifiersFromResearch(researchByPlayer[pu.playerId], getAbilityTagsForId, unit.abilities);
+            unit.abilityModifiers = computeAbilityModifiersFromResearch(
+                researchByPlayer[pu.playerId],
+                getAbilityTagsForId,
+                unit.abilities,
+                researchLevelsByPlayer[pu.playerId],
+            );
             initializeAbilityRuntimeForUnit(unit);
             applyAbilityResearchModifiersToRuntime(unit, unit.abilityModifiers);
             applyCrystalRocksResearchToAbilityRuntime(unit, getResearchNodes);

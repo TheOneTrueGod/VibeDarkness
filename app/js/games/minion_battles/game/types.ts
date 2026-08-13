@@ -393,4 +393,8 @@ export interface ActiveAbility {
      * may choose as a replacement. Undefined means any ability is valid. Serialized.
      */
     conditionalCancelTagFilter?: readonly string[];
+    /**
+     * Combo Cancel chain depth for this cast (starts at 1 on a fresh cast). Serialized.
+     */
+    comboCount?: number;
 }

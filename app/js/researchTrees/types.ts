@@ -40,6 +40,8 @@ export interface AbilityModifier {
     explosionDamageFlat?: number;
     /** Tags to add to this ability for this unit (e.g. 'Entombed'). String to avoid circular imports — use AbilityTag values. */
     addTags?: readonly string[];
+    /** Max casts per Combo Cancel chain (research-granted, e.g. Rapid Throw). */
+    comboMax?: number;
     /** Overrides DEFAULT_HEAL_PENALTY_PCT for this ability's heals, down to 0 for "no penalty". */
     healPenaltyPctOverride?: number;
 }
@@ -99,6 +101,11 @@ export interface ResearchNodeDef {
     exclusiveWithNodeIds: string[];
     requirements: Requirement[];
     cost: CampaignResourceCost;
+    /**
+     * When true, each purchase costs `cost` multiplied by the target level (currentLevel + 1).
+     * E.g. base `{ metal: 5 }` at level 0 → 5 metal; level 1 → 10 metal for the next rank.
+     */
+    purchaseCostMultipliesByTargetLevel?: boolean;
     effects: ResearchEffect[];
     /** Ability parameter modifications granted by this node. Merged additively across all researched nodes. */
     abilityResearchModifiers?: AbilityResearchModifier[];

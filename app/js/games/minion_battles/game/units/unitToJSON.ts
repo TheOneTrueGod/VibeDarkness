@@ -64,6 +64,7 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
             ...(a.conditionalCancelTagFilter !== undefined
                 ? { conditionalCancelTagFilter: [...a.conditionalCancelTagFilter] }
                 : {}),
+            ...(a.comboCount !== undefined && a.comboCount !== 1 ? { comboCount: a.comboCount } : {}),
             ...(a.movementByLabel !== undefined
                 ? { movementByLabel: JSON.parse(JSON.stringify(a.movementByLabel)) as typeof a.movementByLabel }
                 : {}),

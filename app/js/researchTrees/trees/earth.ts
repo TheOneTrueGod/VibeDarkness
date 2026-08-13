@@ -6,6 +6,11 @@ export const EARTH_NODE_EARTH_CORE = 'earth_core';
 export const EARTH_NODE_DIGGING_CLAWS = 'digging_claws';
 export const EARTH_NODE_ROCK_SYNERGY_DAMAGE = 'earth_rock_damage';
 export const EARTH_NODE_ROCK_SYNERGY_ENTOMBED = 'earth_rock_entombed';
+export const EARTH_NODE_RAPID_THROW = 'rapid_throw';
+export const EARTH_RAPID_THROW_LEVELS = 3;
+export const EARTH_BURIED_ARSENAL_METAL_COST = 5;
+export const EARTH_STONE_SYNERGY_METAL_PER_LEVEL = 5;
+export const EARTH_RAPID_THROW_METAL_COST = 30;
 
 export const earthTree: ResearchTreeDef = {
     id: EARTH_TREE_ID,
@@ -56,7 +61,8 @@ export const earthTree: ResearchTreeDef = {
             prereqNodeIds: [EARTH_NODE_EARTH_CORE],
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
-            cost: {},
+            cost: { metal: EARTH_STONE_SYNERGY_METAL_PER_LEVEL },
+            purchaseCostMultipliesByTargetLevel: true,
             effects: [],
             abilityResearchModifiers: [
                 {
@@ -77,7 +83,7 @@ export const earthTree: ResearchTreeDef = {
             prereqNodeIds: [EARTH_NODE_EARTH_CORE],
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
-            cost: {},
+            cost: { metal: EARTH_BURIED_ARSENAL_METAL_COST },
             effects: [],
             abilityResearchModifiers: [
                 {
@@ -86,6 +92,28 @@ export const earthTree: ResearchTreeDef = {
                 },
             ],
             modifiesAbility: { from: 'throw_rock', to: 'throw_rock' },
+        },
+        {
+            id: EARTH_NODE_RAPID_THROW,
+            title: 'Rapid Throw',
+            description: `Rock throws gain {Combo} — chain an extra throw during cooldown each level (${EARTH_RAPID_THROW_LEVELS} levels: Combo 1 / 2 / 3).`,
+            flavorText: 'The stone leaves your hand before the last one lands.',
+            order: 9,
+            tier: 13,
+            position: { x: 620, y: 280 },
+            prereqNodeIds: [EARTH_NODE_ROCK_SYNERGY_ENTOMBED],
+            exclusiveWithNodeIds: [],
+            requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_ROCK_SYNERGY_ENTOMBED] }],
+            cost: { metal: EARTH_RAPID_THROW_METAL_COST },
+            effects: [],
+            levels: EARTH_RAPID_THROW_LEVELS,
+            abilityResearchModifiers: [
+                {
+                    abilitySpecification: { type: 'tag', tag: 'RockThrow' },
+                    comboMax: 1,
+                },
+            ],
+            modifiesAbility: { from: 'throw_rock', to: 'throw_charged_rock' },
         },
     ],
 };

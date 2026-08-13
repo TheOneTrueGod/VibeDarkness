@@ -30,6 +30,8 @@ import {
     throwMovementPenaltyStatesForActive,
     TWO_PIXEL_TARGETS,
 } from '../throwSharedTimings';
+import { AbilityPhase } from '../../abilities/abilityTimings';
+import { buildTagDescriptionLines } from '../../abilities/abilityTagCatalog';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
 import { spawnBrightLight, type EngineWithLight } from '../../abilities/brightKeyword';
 import { circleAoEHitbox } from '../../hitboxes';
@@ -123,21 +125,24 @@ function chargedRockSelectOpts(explosionRadius: number, maxTargets: number) {
     };
 }
 
-function buildChargedRockTimings(research: Set<string>) {
+function buildChargedRockTimings(research: Set<string>, comboCancelPhase?: AbilityPhase) {
     const explosionRadius = getExplosionRadiusForResearch(research);
     const maxTargets = hasMorePowerResearch(research) ? MORE_POWER_MAX_TARGETS : BASE_MAX_TARGETS;
     const selectOpts = chargedRockSelectOpts(explosionRadius, maxTargets);
+    const comboOpts = comboCancelPhase !== undefined ? { comboCancelPhase } : {};
     if (hasMoreRockResearch(research)) {
         return buildMoreRockTimings({
             launchBehaviour: chargedRockLaunchBehaviour(),
             entombed: ENTOMBED_MORE_ROCK_OPTS,
             ...selectOpts,
+            ...comboOpts,
         });
     }
     return buildThrowBaseTimings({
         launchBehaviour: chargedRockLaunchBehaviour(),
         entombed: ENTOMBED_OPTS,
         ...selectOpts,
+        ...comboOpts,
     });
 }
 
@@ -157,7 +162,9 @@ export const ThrowChargedRock: AbilityStatic = {
     abilityTimings: THROW_CHARGED_ROCK_BASE_TIMINGS,
     getAbilityTimings(caster, gameState) {
         const research = getCrystalRocksResearch(gameState as AbilityEngineContext | undefined, caster);
-        return buildChargedRockTimings(research);
+        const mod = getAbilityModifier(gameState, caster, CARD_ID);
+        const comboCancelPhase = (mod.comboMax ?? 0) > 0 ? AbilityPhase.Cooldown : undefined;
+        return buildChargedRockTimings(research, comboCancelPhase);
     },
     targets: TWO_PIXEL_TARGETS,
     keywords: {
@@ -201,7 +208,7 @@ export const ThrowChargedRock: AbilityStatic = {
             HIT_COUNT: { kind: 'plain', value: MORE_ROCK_HIT_COUNT },
         };
 
-        return formatTooltipLegacyLines(
+        const lines = formatTooltipLegacyLines(
             [
                 firstLine,
                 'Explodes, dealing {{DAMAGE_EXPLOSION}} to up to {{MAX_TARGETS}} enemies.',
@@ -211,6 +218,15 @@ export const ThrowChargedRock: AbilityStatic = {
             bindings,
             resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
         );
+
+        const tagLines: string[] = [];
+        if (mod.addTags?.length) {
+            tagLines.push(...buildTagDescriptionLines(mod.addTags));
+        }
+        if ((mod.comboMax ?? 0) > 0) {
+            tagLines.push(...buildTagDescriptionLines(['Combo'], { Combo: mod.comboMax! }));
+        }
+        return [...lines, ...tagLines];
     },
 
     beginActiveCast(engine, caster, _targets, active) {

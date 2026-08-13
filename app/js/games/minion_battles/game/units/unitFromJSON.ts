@@ -147,6 +147,7 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
         ...(a.conditionalCancelTagFilter !== undefined
             ? { conditionalCancelTagFilter: [...a.conditionalCancelTagFilter] }
             : {}),
+        ...(a.comboCount !== undefined ? { comboCount: a.comboCount } : {}),
         ...(a.movementByLabel !== undefined
             ? { movementByLabel: JSON.parse(JSON.stringify(a.movementByLabel)) as typeof a.movementByLabel }
             : {}),

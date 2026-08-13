@@ -203,6 +203,7 @@ export type AbilityTag =
     | 'meleeTracking'
     | 'evade'
     | 'Entombed'
+    | 'Combo'
     | 'RockThrow'
     | 'free'
     | 'basicAttack'

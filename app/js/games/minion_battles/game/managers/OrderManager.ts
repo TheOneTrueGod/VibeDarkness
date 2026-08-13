@@ -247,6 +247,7 @@ export class OrderManager {
             refundAbilityCost(unit, cancelledAbility, elapsed);
         }
         this.ctx.cancelActiveAbility(unit.id, cancelledAbilityId);
+        unit.pendingComboCount = (pausedAbility.comboCount ?? 1) + 1;
         unit.clearAbilityNote();
         return true;
     }

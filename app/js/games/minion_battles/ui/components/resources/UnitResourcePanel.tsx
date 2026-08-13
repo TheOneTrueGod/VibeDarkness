@@ -60,6 +60,9 @@ export function UnitResourcePanel({ unit }: UnitResourcePanelProps) {
     const movementResource = allResources.find((r) => r.id === 'movement_points');
     const movementCount = movementResource ? Math.floor(movementResource.current) : 0;
 
+    const comboActive = unit.activeAbilities.find((a) => (a.comboCount ?? 1) > 1);
+    const comboCount = comboActive?.comboCount;
+
     return (
         <div className="flex w-full flex-row gap-3 bg-dark-900/60">
             {/* Portrait + health bar below */}
@@ -74,6 +77,11 @@ export function UnitResourcePanel({ unit }: UnitResourcePanelProps) {
                     ) : (
                         <div className="flex h-full w-full items-center justify-center text-3xl font-bold text-gray-400">
                             {unit.name.charAt(0).toUpperCase()}
+                        </div>
+                    )}
+                    {comboCount !== undefined && comboCount > 1 && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-1 py-0.5 text-center text-[10px] font-semibold tabular-nums text-amber-300">
+                            Combo {comboCount}
                         </div>
                     )}
                 </div>

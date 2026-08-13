@@ -129,6 +129,11 @@ export class Unit extends GameObject {
     /** Abilities currently being executed (tick-based effects in progress). */
     activeAbilities: ActiveAbility[] = [];
 
+    /**
+     * Transient: combo depth for the next cast after a Combo Cancel follow-up. NOT serialized.
+     */
+    pendingComboCount?: number;
+
     /** Note set by the currently executing ability (e.g. stored target position). Cleared when ability ends or is overwritten. */
     abilityNote: AbilityNote | null = null;
 
