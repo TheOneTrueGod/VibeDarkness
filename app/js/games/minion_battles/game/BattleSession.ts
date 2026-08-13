@@ -1048,11 +1048,13 @@ export class BattleSession implements BattleSessionHandle {
      */
     async submitPlayerOrder(order: BattleOrder, opts: { canSubmitOrders: boolean }): Promise<void> {
         const engine = this.engine;
-        const batch = engine?.waitingForOrders;
+        if (!engine) return;
+
+        let batch = engine.waitingForOrders;
         if (!batch || !opts.canSubmitOrders) return;
         if (!batch.waiters.some((w) => w.unitId === order.unitId)) return;
 
-        const caster = engine?.getUnit(order.unitId);
+        const caster = engine.getUnit(order.unitId);
         const conditionalCancelFollowUp = isCasterInConditionalCancelPause(caster);
 
         // Defense in depth: deferred-first-select ITS leaves waitingForOrders set, so Wait/Space
@@ -1069,6 +1071,9 @@ export class BattleSession implements BattleSessionHandle {
             }
             await this.interactiveTargeting.commit(this, 'conditional_cancel_follow_up');
             if (this.interactiveTargeting.isActive) return;
+            // In-place commit replaces waitingForOrders when realigning atTick (lobby C9D014).
+            batch = engine.waitingForOrders;
+            if (!batch || !batch.waiters.some((w) => w.unitId === order.unitId)) return;
         }
 
         // Stale pause plane (lobby F6E500): do not start ITS or POST on a completed batch.
@@ -1086,8 +1091,7 @@ export class BattleSession implements BattleSessionHandle {
             }
         }
 
-        const atTick = batch.atTick;
-        await this.netAdapter?.submitOrder(order, atTick);
+        await this.netAdapter?.submitOrder(order, batch.atTick);
     }
 
     /**

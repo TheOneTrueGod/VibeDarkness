@@ -11,6 +11,8 @@ interface UseInteractionManagerBridgeParams {
     waitingForOrders: WaitingForOrders | null;
     myAbilityIds: string[];
     battleInitPhase: 'fetching_assets' | 'loading_battle' | 'submitting' | 'ready';
+    /** Engine tick / ITS poll bump — drives combo-cancel auto-select. */
+    playerTileRefresh: number;
 }
 
 /** Ability mode state, manager UI mirror, config push, and keydown delegation. */
@@ -20,6 +22,7 @@ export function useInteractionManagerBridge({
     waitingForOrders,
     myAbilityIds,
     battleInitPhase,
+    playerTileRefresh,
 }: UseInteractionManagerBridgeParams) {
     /** Mirror of manager UI state for AbilityBar rendering. */
     const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
@@ -59,6 +62,12 @@ export function useInteractionManagerBridge({
             return getAbility(abilityId)?.abilityModes?.defaultMode;
         });
     }, [canUseOrderUi, waitingForOrders, myAbilityIds, battleInitPhase, abilityModeByAbilityId, sessionRef]);
+
+    useEffect(() => {
+        if (battleInitPhase !== 'ready') return;
+        if (sessionRef.current?.getEngine() == null) return;
+        sessionRef.current?.getInteractionManager()?.tryAutoSelectComboCancelPause();
+    }, [battleInitPhase, canUseOrderUi, waitingForOrders, myAbilityIds, playerTileRefresh, sessionRef]);
 
     // Keydown: delegate to manager.onKeyDown.
     useEffect(() => {

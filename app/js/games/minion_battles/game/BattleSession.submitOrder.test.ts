@@ -138,4 +138,60 @@ describe('BattleSession submitPlayerOrder + BattleNet', () => {
 
         session.destroy();
     });
+
+    it('combo follow-up POST uses realigned batch atTick after ITS commit (lobby C9D014)', async () => {
+        const { session, unitId } = await mountSessionAtLocalPlayerTurn();
+        const engine = session.getEngine()!;
+        const canonicalAtTick = engine.waitingForOrders?.atTick;
+        if (typeof canonicalAtTick !== 'number') throw new Error('expected waitingForOrders.atTick');
+        const playaheadAtTick = canonicalAtTick + 27;
+
+        engine.waitingForOrders = {
+            ...engine.waitingForOrders!,
+            atTick: playaheadAtTick,
+        };
+        const unit = engine.getUnit(unitId);
+        if (!unit) throw new Error('missing unit');
+        unit.activeAbilities = [{
+            abilityId: 'throw_charged_rock',
+            startTime: engine.gameTime,
+            targets: [],
+            conditionalCancelPaused: true,
+            conditionalCancelTagFilter: ['Combo'],
+        }];
+
+        const staleBatchAtTick = engine.waitingForOrders.atTick;
+        expect(staleBatchAtTick).toBe(playaheadAtTick);
+
+        const netSubmitOrder = vi.fn(async () => {});
+        session.setNetAdapter({
+            submitOrder: netSubmitOrder,
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        const commitSpy = vi.spyOn(session.interactiveTargeting, 'commit').mockImplementation(async (_sess) => {
+            engine.waitingForOrders = {
+                ...engine.waitingForOrders!,
+                atTick: canonicalAtTick,
+            };
+            (session.interactiveTargeting as unknown as { _isActive: boolean })._isActive = false;
+        });
+
+        (session.interactiveTargeting as unknown as { _isActive: boolean })._isActive = true;
+
+        const followUpOrder: BattleOrder = {
+            unitId,
+            abilityId: 'throw_rock',
+            targets: [{ type: 'pixel', position: { x: 100, y: 100 } }],
+            endTurn: true,
+        };
+        await session.submitPlayerOrder(followUpOrder, { canSubmitOrders: true });
+
+        expect(commitSpy).toHaveBeenCalledTimes(1);
+        expect(netSubmitOrder).toHaveBeenCalledTimes(1);
+        expect(netSubmitOrder).toHaveBeenCalledWith(followUpOrder, canonicalAtTick);
+        expect(netSubmitOrder).not.toHaveBeenCalledWith(expect.anything(), playaheadAtTick);
+
+        commitSpy.mockRestore();
+        session.destroy();
+    });
 });

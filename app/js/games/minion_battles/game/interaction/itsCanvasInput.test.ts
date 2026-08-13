@@ -12,7 +12,7 @@ import {
 } from '../../testing/harness/buildTinyBattleEngine';
 import { createTargetDummyAtWorld } from '../../testing/fixtures/targetDummies';
 import { initializeAbilityRuntimeForUnit } from '../../abilities/abilityUses';
-import { resolveItsSelectTargetForClick } from './itsCanvasInput';
+import { resolveItsSelectTargetForClick, shouldDeferItsCanvasInputToOrderUi } from './itsCanvasInput';
 
 const SWING_BAT_ID = SwingBatCard.abilityId;
 const FORCE_PUSH_ID = ForcePushCard.abilityId;
@@ -224,6 +224,78 @@ describe('resolveItsSelectTargetForClick', () => {
             { type: 'unit', unitId: enemy.id, lockRole: 'primary' },
             { type: 'pixel', position: clickWorld },
         ]);
+        engine.destroy();
+    });
+});
+
+describe('shouldDeferItsCanvasInputToOrderUi', () => {
+    it('returns true when ITS preview is active on combo cancel without select input', () => {
+        resetGameObjectIdCounter(1);
+        const engine = buildTinyBattleEngine({
+            gridW: 12,
+            gridH: 8,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: 120,
+            y: 160,
+            abilities: ['throw_charged_rock'],
+        });
+        player.activeAbilities = [{
+            abilityId: 'throw_charged_rock',
+            startTime: engine.gameTime,
+            targets: [],
+            conditionalCancelPaused: true,
+            conditionalCancelTagFilter: ['Combo'],
+        }];
+        engine.waitingForTargetInput = null;
+
+        expect(
+            shouldDeferItsCanvasInputToOrderUi(engine, {
+                isActive: true,
+                unitId: player.id,
+            }),
+        ).toBe(true);
+
+        engine.destroy();
+    });
+
+    it('returns false while ITS is waiting for a select-target label', () => {
+        resetGameObjectIdCounter(1);
+        const engine = buildTinyBattleEngine({
+            gridW: 12,
+            gridH: 8,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: 120,
+            y: 160,
+            abilities: ['throw_charged_rock'],
+        });
+        player.activeAbilities = [{
+            abilityId: 'throw_charged_rock',
+            startTime: engine.gameTime,
+            targets: [],
+            conditionalCancelPaused: true,
+            conditionalCancelTagFilter: ['Combo'],
+        }];
+        engine.waitingForTargetInput = {
+            label: 'Target location',
+            unitId: player.id,
+            abilityId: 'throw_charged_rock',
+        };
+
+        expect(
+            shouldDeferItsCanvasInputToOrderUi(engine, {
+                isActive: true,
+                unitId: player.id,
+            }),
+        ).toBe(false);
+
         engine.destroy();
     });
 });

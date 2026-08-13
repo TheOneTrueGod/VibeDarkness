@@ -16,6 +16,7 @@ import type { Unit } from '../units/Unit';
 import type { ResolvedTarget } from '../types';
 import type { GameEngine } from '../GameEngine';
 import type { BattleSession } from '../BattleSession';
+import { isCasterInConditionalCancelPause } from './isITSPreviewComplete';
 
 export interface ItsSelectTargetResolution {
     labelTarget: ResolvedTarget;
@@ -99,6 +100,21 @@ export function resolveItsConfirmRadiusForClick(
     return { labelTarget: resolved, resolved, orderTargets: [resolved] };
 }
 
+/**
+ * Combo/Entombed follow-up uses AbilityTargetingTool while ITS preview may still be active
+ * (before in-place commit). Defer canvas input to the order UI instead of swallowing clicks.
+ */
+export function shouldDeferItsCanvasInputToOrderUi(
+    engine: GameEngine | null | undefined,
+    its: { isActive: boolean; unitId: string | null },
+): boolean {
+    if (!its.isActive || !engine || engine.waitingForTargetInput != null) {
+        return false;
+    }
+    if (!its.unitId) return false;
+    return isCasterInConditionalCancelPause(engine.getUnit(its.unitId));
+}
+
 /** Returns true iff ITS is active (swallows the click even when engine/camera/waitingSignal are missing). */
 export function handleItsCanvasClick(
     session: BattleSession,
@@ -110,6 +126,9 @@ export function handleItsCanvasClick(
         return false;
     }
     const engine = session.getEngine();
+    if (shouldDeferItsCanvasInputToOrderUi(engine, its)) {
+        return false;
+    }
     const camera = session.getCamera();
     const waitingSignal = engine?.waitingForTargetInput;
     if (engine && camera && waitingSignal) {
@@ -163,6 +182,9 @@ export function handleItsCanvasRightClick(
         return false;
     }
     const engine = session.getEngine();
+    if (shouldDeferItsCanvasInputToOrderUi(engine, its)) {
+        return false;
+    }
     const camera = session.getCamera();
     const waitingSignal = engine?.waitingForTargetInput;
     if (engine && camera && waitingSignal && engine.terrainManager) {

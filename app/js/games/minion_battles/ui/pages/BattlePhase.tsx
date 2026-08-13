@@ -296,6 +296,7 @@ export default function BattlePhase({
         waitingForOrders,
         myAbilityIds,
         battleInitPhase,
+        playerTileRefresh,
     });
 
     const showHostCatchupPopover =
