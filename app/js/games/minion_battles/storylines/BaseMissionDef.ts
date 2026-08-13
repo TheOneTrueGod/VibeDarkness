@@ -29,6 +29,7 @@ import { enemySpawnDefToSpawnDefinition } from '../game/units/spawning/adapters'
 import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
 import { getSpecialTileDef } from './specialTileDefs';
 import { getItemDef } from '../character_defs/items';
+import { resolveItemCardsToAdd } from '../character_defs/items/resolveItemCardsToAdd';
 import { getDefaultHp, PLAYER_CHARACTER_ID, resolveEnemySpawnStats } from '../game/units/unit_defs/unitDef';
 import {
     getDamageBonusFromResearch,
@@ -53,6 +54,7 @@ import { PassiveStatKey } from '../../../researchTrees/types';
 import { getPetDef } from '../game/units/pet_defs/petDef';
 import { AbilityGroupId, formatGroupId } from '../card_defs/AbilityGroupId';
 import { getAbilityTagsForId } from '../abilities/Ability';
+import { expandAbilityIdsForResearchModifiers } from '../abilities/abilityModifierHelpers';
 import { Ammo } from '../resources/Ammo';
 import { Light } from '../resources/Light';
 import { Rock } from '../resources/Rock';
@@ -266,7 +268,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             for (const itemId of equippedIds) {
                 const itemDef = getItemDef(itemId);
                 if (!itemDef) continue;
-                for (const cardId of itemDef.cardsToAdd) {
+                for (const cardId of resolveItemCardsToAdd(itemDef, researchByPlayer[pu.playerId])) {
                     if (!abilities.includes(cardId)) {
                         abilities.push(cardId);
                     }
@@ -375,7 +377,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             unit.abilityModifiers = computeAbilityModifiersFromResearch(
                 researchByPlayer[pu.playerId],
                 getAbilityTagsForId,
-                unit.abilities,
+                expandAbilityIdsForResearchModifiers(unit.abilities),
                 researchLevelsByPlayer[pu.playerId],
             );
             initializeAbilityRuntimeForUnit(unit);

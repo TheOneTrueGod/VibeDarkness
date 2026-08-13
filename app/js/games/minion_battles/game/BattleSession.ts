@@ -37,6 +37,7 @@ import { USE_SEQUENTIAL_TARGETING } from '../featureFlags';
 import { PERF_UI, PERF_UI_REACT, tickPerformanceTracker } from './performance/tickPerformanceTracker';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { getInteractiveTargetDefsFromTimings } from '../abilities/targeting';
+import { isCasterInConditionalCancelPause } from './interaction/isITSPreviewComplete';
 
 export interface BattleSessionConfig {
     api: MinionBattlesApi;
@@ -1047,29 +1048,37 @@ export class BattleSession implements BattleSessionHandle {
      */
     async submitPlayerOrder(order: BattleOrder, opts: { canSubmitOrders: boolean }): Promise<void> {
         const engine = this.engine;
+        const batch = engine?.waitingForOrders;
+        if (!batch || !opts.canSubmitOrders) return;
+        if (!batch.waiters.some((w) => w.unitId === order.unitId)) return;
+
+        const caster = engine?.getUnit(order.unitId);
+        const conditionalCancelFollowUp = isCasterInConditionalCancelPause(caster);
+
         // Defense in depth: deferred-first-select ITS leaves waitingForOrders set, so Wait/Space
         // could otherwise POST a wait for the open batch (lobby 10EA88). Commit uses
         // submitCommittedTargetingOrder / persistInPlaceCommittedTargetingOrder instead.
         if (this.interactiveTargeting.isActive) {
-            this.postBattleSyncLobbyLog('submitPlayerOrder blocked: ITS preview active', {
-                abilityId: order.abilityId,
-                unitId: order.unitId,
-                endTurn: order.endTurn === true,
-            });
-            return;
+            if (!conditionalCancelFollowUp) {
+                this.postBattleSyncLobbyLog('submitPlayerOrder blocked: ITS preview active', {
+                    abilityId: order.abilityId,
+                    unitId: order.unitId,
+                    endTurn: order.endTurn === true,
+                });
+                return;
+            }
+            await this.interactiveTargeting.commit(this, 'conditional_cancel_follow_up');
+            if (this.interactiveTargeting.isActive) return;
         }
-        const batch = engine?.waitingForOrders;
-        if (!batch || !opts.canSubmitOrders) return;
-        if (!batch.waiters.some((w) => w.unitId === order.unitId)) return;
+
         // Stale pause plane (lobby F6E500): do not start ITS or POST on a completed batch.
         if (!this.isOrderBatchTickSubmittable(batch.atTick) || !this.isLocalPlayerExpectedToAct()) {
             this.emitOrderSubmitFailed(order.unitId, order.abilityId);
             return;
         }
 
-        if (USE_SEQUENTIAL_TARGETING) {
+        if (USE_SEQUENTIAL_TARGETING && !conditionalCancelFollowUp) {
             const ability = getAbility(order.abilityId);
-            const caster = engine?.getUnit(order.unitId);
             if (ability && caster && getInteractiveTargetDefsFromTimings(ability, caster, engine).length > 0) {
                 if (this.interactiveTargeting.begin(order, this)) {
                     return;

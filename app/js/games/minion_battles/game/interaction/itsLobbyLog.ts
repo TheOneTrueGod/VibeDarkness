@@ -8,7 +8,9 @@ export type ItsActionSource =
     | 'ui_replay'
     | 'ui_done'
     | 'auto_end_turn'
-    | 'terminal_outcome_auto_commit';
+    | 'terminal_outcome_auto_commit'
+    | 'conditional_cancel_follow_up'
+    | 'conditional_cancel_continue';
 
 /** AUTO_END_TURN refused commit because not every SelectTargetDef label was collected. */
 export const ITS_AUTO_COMMIT_BLOCK_TARGETS_INCOMPLETE = 'targets_incomplete';

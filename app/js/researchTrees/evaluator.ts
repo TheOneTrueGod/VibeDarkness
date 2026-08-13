@@ -589,7 +589,8 @@ function scaleAbilityResearchModifierByLevel(
     const { abilitySpecification: _spec, ...fields } = modifier;
     const scaled: AbilityModifier = { ...fields };
     if (fields.comboMax !== undefined) {
-        scaled.comboMax = fields.comboMax * level;
+        // Template comboMax is per-level unit (1); chain allows (level + 1) throws total.
+        scaled.comboMax = fields.comboMax * (level + 1);
     }
     return scaled;
 }

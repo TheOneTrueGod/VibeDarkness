@@ -42,7 +42,15 @@ export function isPreviewCastConditionalCancelPaused(engine: GameEngine): boolea
     const cast = engine.sequentialTargetingPreviewCast;
     if (!cast) return false;
     const caster = engine.getUnit(cast.unitId);
+    return isCasterInConditionalCancelPause(caster, cast.abilityId);
+}
+
+/** True when a unit is mid conditional-cancel and awaiting a follow-up or wait. */
+export function isCasterInConditionalCancelPause(
+    caster: { activeAbilities: ReadonlyArray<{ abilityId: string; conditionalCancelPaused?: boolean }> } | null | undefined,
+    abilityId?: string,
+): boolean {
     return caster?.activeAbilities.some(
-        (a) => a.abilityId === cast.abilityId && a.conditionalCancelPaused,
+        (a) => a.conditionalCancelPaused && (abilityId == null || a.abilityId === abilityId),
     ) ?? false;
 }

@@ -224,7 +224,7 @@ export const ThrowChargedRock: AbilityStatic = {
             tagLines.push(...buildTagDescriptionLines(mod.addTags));
         }
         if ((mod.comboMax ?? 0) > 0) {
-            tagLines.push(...buildTagDescriptionLines(['Combo'], { Combo: mod.comboMax! }));
+            tagLines.push(...buildTagDescriptionLines(['Combo'], { Combo: mod.comboMax! - 1 }));
         }
         return [...lines, ...tagLines];
     },

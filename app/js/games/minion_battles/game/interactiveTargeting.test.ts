@@ -3110,6 +3110,12 @@ describe('interactive sequential targeting — conditional cancel stop point', (
         await its.commit(session);
 
         expect(persistCommittedOrder).toHaveBeenCalledTimes(1);
+        expect(persistCommittedOrder).toHaveBeenCalledWith(
+            expect.objectContaining({ endTurn: false }),
+            expect.any(Number),
+        );
+        const commitAtTick = persistCommittedOrder.mock.calls[0]![1] as number;
+        expect(engine.waitingForOrders?.atTick).toBe(commitAtTick);
         expect(its.isActive).toBe(false);
         expect(engine.isSequentialTargetingPreview).toBe(false);
         expect(engine.isPaused).toBe(true);

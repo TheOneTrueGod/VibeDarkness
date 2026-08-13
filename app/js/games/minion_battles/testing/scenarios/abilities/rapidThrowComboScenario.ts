@@ -14,7 +14,8 @@ import {
 
 const P = TINY_BATTLE_PLAYER_ID;
 const THROW_ROCK_ABILITY_ID = 'throw_rock';
-const RAPID_THROW_LEVEL_TWO = 2;
+const RAPID_THROW_LEVEL_ONE = 1;
+const RAPID_THROW_CHAIN_LENGTH = RAPID_THROW_LEVEL_ONE + 1;
 
 export const rapidThrowComboScenarioState = {
     firstPause: false,
@@ -23,10 +24,10 @@ export const rapidThrowComboScenarioState = {
     finalComboCount: 0,
 };
 
-/** Rapid Throw rank 2: two chained throws, no third Combo Cancel pause. */
+/** Rapid Throw rank 1: two chained throws, no third Combo Cancel pause. */
 export const rapidThrowComboScenario: ScenarioDefinition = {
     id: 'earth_rapid_throw_combo_chain',
-    title: 'Rapid Throw Combo Chain (rank 2)',
+    title: 'Rapid Throw Combo Chain (rank 1)',
     category: 'ability',
     maxDurationMs: 8000,
     buildEngine() {
@@ -39,7 +40,7 @@ export const rapidThrowComboScenario: ScenarioDefinition = {
             [P]: { [EARTH_TREE_ID]: [EARTH_NODE_RAPID_THROW] },
         };
         const researchNodeLevels = {
-            [P]: { [EARTH_TREE_ID]: { [EARTH_NODE_RAPID_THROW]: RAPID_THROW_LEVEL_TWO } },
+            [P]: { [EARTH_TREE_ID]: { [EARTH_NODE_RAPID_THROW]: RAPID_THROW_LEVEL_ONE } },
         };
         const engine = buildTinyBattleEngine({
             gridW: 14,
@@ -120,8 +121,8 @@ export const rapidThrowComboScenario: ScenarioDefinition = {
         if (rapidThrowComboScenarioState.secondPause) parts.push('unexpected third Combo Cancel pause');
         const player = engine.getLocalPlayerUnit();
         const active = player?.activeAbilities.find((a) => a.abilityId === THROW_ROCK_ABILITY_ID);
-        if (active?.comboCount !== RAPID_THROW_LEVEL_TWO) {
-            parts.push(`comboCount=${active?.comboCount ?? 'none'} expected ${RAPID_THROW_LEVEL_TWO}`);
+        if (active?.comboCount !== RAPID_THROW_CHAIN_LENGTH) {
+            parts.push(`comboCount=${active?.comboCount ?? 'none'} expected ${RAPID_THROW_CHAIN_LENGTH}`);
         }
         return parts.length > 0 ? parts.join('; ') : 'assertPass returned false';
     },

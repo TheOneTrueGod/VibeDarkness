@@ -14,6 +14,7 @@ import { USE_SEQUENTIAL_TARGETING } from '../../featureFlags';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { TERRAIN_PROPERTIES } from '../../terrain/TerrainType';
 import { logOrderUiKeyAction } from './itsLobbyLog';
+import { isCasterInConditionalCancelPause } from './isITSPreviewComplete';
 
 declare global {
     interface Window {
@@ -334,9 +335,12 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
             return;
         }
 
+        const caster = this.ctx.engine.getUnit(active.unitId) ?? undefined;
+        // Combo / Entombed follow-ups submit at the open batch tick — not a new ITS playahead (lobby EF5D0C).
+        const skipItsForConditionalCancelFollowUp = isCasterInConditionalCancelPause(caster);
+
         // Specials never enter ITS (zero-frame; no select timings).
-        if (ability.actionChannel !== 'special' && USE_SEQUENTIAL_TARGETING) {
-            const caster = this.ctx.engine.getUnit(active.unitId) ?? undefined;
+        if (!skipItsForConditionalCancelFollowUp && ability.actionChannel !== 'special' && USE_SEQUENTIAL_TARGETING) {
             const interactiveDefs = getInteractiveTargetDefsFromTimings(ability, caster, this.ctx.engine);
             if (interactiveDefs.length > 0) {
                 this.submitOrder(ability.id, []);
@@ -469,6 +473,19 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
             });
         };
         if (this.ctx?.session.interactiveTargeting.isActive) {
+            const active = this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId);
+            const caster = active ? this.ctx.engine.getUnit(active.unitId) : undefined;
+            if (isCasterInConditionalCancelPause(caster)) {
+                void this.ctx.session.interactiveTargeting
+                    .commit(this.ctx.session, 'conditional_cancel_continue')
+                    .then(() => {
+                        if (!this.ctx?.session.interactiveTargeting.isActive) {
+                            this.deactivateTool();
+                            this.submitOrder('wait', []);
+                        }
+                    });
+                return;
+            }
             // Deferred-first-select ITS keeps waitingForOrders + active waiter, so Space would
             // otherwise POST wait for the open batch (lobby 10EA88 / 12D040).
             logWait(true, 'its_preview_active');

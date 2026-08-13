@@ -173,6 +173,23 @@ describe('buildFinalizedSequentialTargetingOrder', () => {
         expect(finalized.endTurn).toBe(true);
         expect(finalized.targets[0]?.unitId).toBe('e1');
     });
+
+    it('honors endTurn:false when conditional cancel keeps the batch open', () => {
+        const base: BattleOrder = {
+            unitId: 'u1',
+            abilityId: 'throw_charged_rock',
+            targets: [{ type: 'pixel', position: { x: 1, y: 2 } }],
+        };
+        const finalized = buildFinalizedSequentialTargetingOrder(
+            ['Target location'],
+            { 'Target location': { type: 'pixel', position: { x: 1, y: 2 } } },
+            base,
+            undefined,
+            undefined,
+            { endTurn: false },
+        );
+        expect(finalized.endTurn).toBe(false);
+    });
 });
 
 describe('Order: Attack / Order: Move abilities', () => {

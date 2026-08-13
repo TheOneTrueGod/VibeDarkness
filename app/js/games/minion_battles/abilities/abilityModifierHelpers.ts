@@ -3,6 +3,7 @@ import type { Unit } from '../game/units/Unit';
 import type { AbilityEngineContext } from './AbilityEngineContext';
 import { buildDamageModifierFromResearch } from './damageModifiers';
 import type { TooltipResolveContext } from './tooltipTokens';
+import { getAbility } from './AbilityRegistry';
 
 /**
  * Returns a `getResearchNodes(treeId)` function bound to the local player, suitable for
@@ -114,4 +115,23 @@ export function hasResearchNode(
     const ownerId = caster?.ownerId ?? (engine as AbilityEngineContext & { localPlayerId?: string } | undefined)?.localPlayerId ?? '';
     if (!ownerId || !engine?.getPlayerResearchNodes) return false;
     return engine.getPlayerResearchNodes(ownerId, treeId).includes(nodeId);
+}
+
+/**
+ * Bar slots plus nested-card fallbacks and attached companions — needed so research
+ * modifiers (e.g. Rapid Throw comboMax) apply to Throw Rock when only Charged Rock is equipped.
+ */
+export function expandAbilityIdsForResearchModifiers(unitAbilityIds: readonly string[]): string[] {
+    const out: string[] = [];
+    for (const id of unitAbilityIds) {
+        if (!out.includes(id)) out.push(id);
+        const ability = getAbility(id);
+        if (!ability) continue;
+        for (const attachedId of ability.attachedAbilityIds ?? []) {
+            if (!out.includes(attachedId)) out.push(attachedId);
+        }
+        const fallbackId = ability.keywords?.nestedCard?.fallbackAbilityId;
+        if (fallbackId && !out.includes(fallbackId)) out.push(fallbackId);
+    }
+    return out;
 }

@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
+    initializeAbilityRuntimeForUnit,
+    syncNestedCardAbilityState,
+} from '../abilities/abilityUses';
+import { Unit } from '../game/units/Unit';
+import {
     PREP_ABILITY_SLOT_COUNT,
     QUEST_PREP_ABILITY_SLOT_COUNT,
     addQuestPrepAbility,
+    buildAccessibleAbilityIds,
     expandAttachedAbilityIds,
     filterSelectableQuestPrepAbilityIds,
     isAttachedOnlyAbility,
@@ -14,6 +20,37 @@ import {
     removeQuestPrepAbility,
     resolveInitialMissionSelection,
 } from './questPrepLoadout';
+import { coreEarthItem } from '../character_defs/items/core/019_core_earth';
+import { resolveItemCardsToAdd } from '../character_defs/items/resolveItemCardsToAdd';
+import { STARTING_WEAPON_ROCKS_NODE_ID } from '../../../researchTrees/trees/startingWeaponNodes';
+
+describe('buildAccessibleAbilityIds', () => {
+    it('grants throw_rock from Earth Core when rock weapon research is absent', () => {
+        const ids = buildAccessibleAbilityIds([coreEarthItem.id], {});
+        expect(ids).toContain(STARTING_WEAPON_ROCKS_NODE_ID);
+    });
+
+    it('skips Earth Core throw_rock when Throw Rock is researched', () => {
+        expect(
+            resolveItemCardsToAdd(coreEarthItem, { crystal_rocks: [STARTING_WEAPON_ROCKS_NODE_ID] }),
+        ).not.toContain(STARTING_WEAPON_ROCKS_NODE_ID);
+    });
+
+    it('still includes throw_rock from equipped rocks when Throw Rock is researched', () => {
+        const ids = buildAccessibleAbilityIds(['019', '001'], {
+            crystal_rocks: [STARTING_WEAPON_ROCKS_NODE_ID],
+        });
+        expect(ids).toContain(STARTING_WEAPON_ROCKS_NODE_ID);
+    });
+
+    it('does not grant throw_rock from Earth Core when Charged Rocks is researched', () => {
+        const ids = buildAccessibleAbilityIds([coreEarthItem.id, '013'], {
+            crystal_rocks: ['charged_rocks'],
+        });
+        expect(ids).not.toContain(STARTING_WEAPON_ROCKS_NODE_ID);
+        expect(ids).toContain('throw_charged_rock');
+    });
+});
 
 describe('Quest Prep slot helpers', () => {
     it('enforces PREP_ABILITY_SLOT_COUNT primary slots', () => {
@@ -41,11 +78,33 @@ describe('attached ability expansion', () => {
         expect(expandAttachedAbilityIds(['0802'])).toEqual(['0802', '0803']);
     });
 
-    it('expands Throw Charged Rock with Throw Rock', () => {
-        expect(expandAttachedAbilityIds(['throw_charged_rock'])).toEqual([
-            'throw_charged_rock',
-            'throw_rock',
-        ]);
+    it('expands Throw Charged Rock without duplicating its nested Throw Rock slot', () => {
+        expect(expandAttachedAbilityIds(['throw_charged_rock'])).toEqual(['throw_charged_rock']);
+    });
+
+    it('still treats Throw Rock as prep-attached when Charged Rock is accessible', () => {
+        expect(isAttachedOnlyAbility('throw_rock', ['throw_charged_rock'])).toBe(true);
+    });
+
+    it('battle runtime keeps a single Throw Charged Rock bar slot after nested-card sync', () => {
+        const unit = new Unit({
+            id: 'chip',
+            x: 0,
+            y: 0,
+            teamId: 'player',
+            ownerId: '1',
+            characterId: 'player',
+            abilities: expandAttachedAbilityIds([
+                '0101',
+                '0120',
+                '0601',
+                'throw_charged_rock',
+                '0111',
+            ]),
+        });
+        initializeAbilityRuntimeForUnit(unit);
+        syncNestedCardAbilityState(unit);
+        expect(unit.abilities).toEqual(['0101', '0120', '0601', 'throw_charged_rock', '0111']);
     });
 
     it('treats attached companions as non-selectable when parent is accessible', () => {

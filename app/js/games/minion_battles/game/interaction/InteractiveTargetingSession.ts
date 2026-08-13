@@ -101,6 +101,7 @@ export function buildFinalizedSequentialTargetingOrder(
     baseOrder: BattleOrder,
     movementByLabel?: Record<string, MovementReInput>,
     positionalTargetsOverride?: ResolvedTarget[],
+    opts?: { endTurn?: boolean },
 ): BattleOrder {
     // Melee multi-lock override is only valid for a single select label. Multi-select
     // abilities (e.g. Double Punch) must use per-label collected targets.
@@ -115,7 +116,7 @@ export function buildFinalizedSequentialTargetingOrder(
         ...baseOrder,
         targets,
         targetsByLabel: buildTargetsByLabelFromPositional(selectLabels, collectedTargets, targets),
-        endTurn: true,
+        endTurn: opts?.endTurn ?? true,
         ...(movementByLabel && Object.keys(movementByLabel).length > 0 ? { movementByLabel } : {}),
     };
 }
@@ -753,12 +754,18 @@ export class InteractiveTargetingSession {
         const heldRows = [...this.heldRemoteOrders.values()];
         this.heldRemoteOrders.clear();
 
+        const engineForCommit = session.getEngine();
+        const endTurnOnCommit =
+            engineForCommit != null && isPreviewCastConditionalCancelPaused(engineForCommit)
+                ? false
+                : true;
         const realOrder = buildFinalizedSequentialTargetingOrder(
             selectLabels,
             collected,
             baseOrder,
             movementByLabel,
             positionalTargetsOverride,
+            { endTurn: endTurnOnCommit },
         );
 
         if (inPlace) {
@@ -852,6 +859,13 @@ export class InteractiveTargetingSession {
         this._clearActive();
 
         if (preserveConditionalCancelPause) {
+            // Playahead preview advances waitingForOrders.atTick past the mark batch (lobby EF5D0C).
+            if (engine.waitingForOrders != null) {
+                engine.waitingForOrders = {
+                    ...engine.waitingForOrders,
+                    atTick,
+                };
+            }
             session.emitWaitingForOrdersIfPaused();
         }
 

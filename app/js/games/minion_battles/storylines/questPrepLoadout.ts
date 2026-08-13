@@ -6,6 +6,7 @@
 import { abilityHasTag } from '../abilities/Ability';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { getItemDef } from '../character_defs/items';
+import { resolveItemCardsToAdd } from '../character_defs/items/resolveItemCardsToAdd';
 import {
     getCardReplacementsFromResearch,
     getDirectCardsFromResearch,
@@ -33,7 +34,7 @@ export function buildAccessibleAbilityIds(
     for (const itemId of equippedIds) {
         const item = getItemDef(itemId);
         if (!item) continue;
-        for (const cardId of item.cardsToAdd) {
+        for (const cardId of resolveItemCardsToAdd(item, researchTrees)) {
             if (!abilities.includes(cardId)) abilities.push(cardId);
         }
     }
@@ -97,7 +98,11 @@ export function expandAttachedAbilityIds(primaryIds: readonly string[]): string[
     const out: string[] = [];
     for (const id of primaryIds) {
         if (!out.includes(id)) out.push(id);
+        const primaryAbility = getAbility(id);
+        const nestedFallbackId = primaryAbility?.keywords?.nestedCard?.fallbackAbilityId;
         for (const attached of getAttachedAbilityIds(id)) {
+            // In battle the nested-card parent already occupies that bar slot via fallback swap.
+            if (nestedFallbackId && attached === nestedFallbackId) continue;
             if (!out.includes(attached)) out.push(attached);
         }
     }

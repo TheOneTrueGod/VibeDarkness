@@ -177,7 +177,7 @@ export function buildThrowRockAbility(config: ThrowRockVariantConfig): AbilitySt
             const activeTags: string[] = [...tags];
             if (mod.addTags) activeTags.push(...mod.addTags);
             if ((mod.comboMax ?? 0) > 0) activeTags.push('Combo');
-            const magnitudes = (mod.comboMax ?? 0) > 0 ? { Combo: mod.comboMax! } : undefined;
+            const magnitudes = (mod.comboMax ?? 0) > 0 ? { Combo: mod.comboMax! - 1 } : undefined;
             return [...lines, ...buildTagDescriptionLines(activeTags, magnitudes)];
         },
 

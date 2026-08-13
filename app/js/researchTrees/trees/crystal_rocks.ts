@@ -8,6 +8,7 @@ import {
 
 export const CRYSTAL_ROCKS_TREE_ID = 'crystal_rocks';
 export const CRYSTAL_ROCKS_NODE_BASE = STARTING_WEAPON_ROCKS_NODE_ID;
+export const CRYSTAL_ROCKS_NODE_CHARGED_ROCKS = 'charged_rocks';
 export const CRYSTAL_ROCKS_NODE_PIERCING_KNIVES = 'piercing_knives';
 
 export const crystalRocksTree: ResearchTreeDef = {
