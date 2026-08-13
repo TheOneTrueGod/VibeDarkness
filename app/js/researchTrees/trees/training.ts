@@ -45,7 +45,7 @@ export const trainingTree: ResearchTreeDef = {
                 { type: 'accountKnowledge', key: 'Research' },
                 { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.BasicCore },
             ],
-            cost: { food: 5 },
+            cost: {},
             effects: [],
         },
         {

@@ -10,7 +10,7 @@ export const EARTH_NODE_ROCK_SYNERGY_ENTOMBED = 'earth_rock_entombed';
 export const earthTree: ResearchTreeDef = {
     id: EARTH_TREE_ID,
     title: 'Earth',
-    accessRequirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
+    accessRequirements: [],
     nodes: [
         {
             id: EARTH_NODE_EARTH_CORE,
@@ -18,7 +18,7 @@ export const earthTree: ResearchTreeDef = {
             description: 'Your body resonates with the earth. You can dash through enemies with a powerful claw strike.',
             flavorText: 'The ground remembers every root that ever broke it.',
             order: 5,
-            tier: 10,
+            tier: 1,
             position: { x: 120, y: 90 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
@@ -56,7 +56,7 @@ export const earthTree: ResearchTreeDef = {
             prereqNodeIds: [EARTH_NODE_EARTH_CORE],
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
-            cost: { crystals: 5 },
+            cost: {},
             effects: [],
             abilityResearchModifiers: [
                 {
@@ -77,7 +77,7 @@ export const earthTree: ResearchTreeDef = {
             prereqNodeIds: [EARTH_NODE_EARTH_CORE],
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
-            cost: { crystals: 5 },
+            cost: {},
             effects: [],
             abilityResearchModifiers: [
                 {
