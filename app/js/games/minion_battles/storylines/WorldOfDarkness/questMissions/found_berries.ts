@@ -34,6 +34,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
         {
             type: 'choice',
             choiceId: FOUND_BERRIES_CHOICE_ID,
+            backgroundImage: STORY_BACKGROUNDS.foundBerries,
             options: [
                 {
                     id: 'eat_berries',

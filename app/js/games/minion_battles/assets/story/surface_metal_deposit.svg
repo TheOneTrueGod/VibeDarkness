@@ -1,0 +1,126 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a1428"/>
+      <stop offset="55%" stop-color="#2a2340"/>
+      <stop offset="100%" stop-color="#3d3550"/>
+    </linearGradient>
+    <linearGradient id="grass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3f7a4a"/>
+      <stop offset="100%" stop-color="#234832"/>
+    </linearGradient>
+    <linearGradient id="grassNear" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#4f9258"/>
+      <stop offset="100%" stop-color="#2a5536"/>
+    </linearGradient>
+    <linearGradient id="rockLight" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#9a9084"/>
+      <stop offset="100%" stop-color="#6f655c"/>
+    </linearGradient>
+    <linearGradient id="rockDark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6b635a"/>
+      <stop offset="100%" stop-color="#4a433c"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#d8e8f4"/>
+      <stop offset="45%" stop-color="#8aa3b8"/>
+      <stop offset="100%" stop-color="#4f6578"/>
+    </linearGradient>
+    <radialGradient id="berryGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#c084fc" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#c084fc" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softBlur" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+  </defs>
+
+  <!-- Sky -->
+  <rect width="1600" height="900" fill="url(#sky)"/>
+
+  <!-- Distant plains haze -->
+  <ellipse cx="800" cy="620" rx="920" ry="180" fill="#2f3a48" opacity="0.45"/>
+
+  <!-- Far hills -->
+  <path d="M0 560 Q220 500 420 540 T860 520 T1280 550 T1600 530 L1600 900 L0 900 Z" fill="#33463f" opacity="0.75"/>
+  <path d="M0 590 Q300 540 620 575 T1100 555 T1600 585 L1600 900 L0 900 Z" fill="#2a3d36" opacity="0.85"/>
+
+  <!-- Main grassy field -->
+  <rect x="0" y="620" width="1600" height="280" fill="url(#grass)"/>
+
+  <!-- Rocky mountain / outcrop -->
+  <g id="mountain">
+    <!-- Base mass -->
+    <path d="M520 620 L680 280 L860 220 L1020 300 L1120 620 Z" fill="url(#rockDark)"/>
+    <!-- Mid slope -->
+    <path d="M620 620 L740 340 L900 260 L1040 360 L1080 620 Z" fill="url(#rockLight)"/>
+    <!-- Sunlit ridge -->
+    <path d="M740 340 L860 240 L980 320 L900 260 Z" fill="#b5ab9f"/>
+    <!-- Shadow cleft -->
+    <path d="M680 620 L760 420 L820 620 Z" fill="#4a433c" opacity="0.65"/>
+    <!-- Scree at base -->
+    <ellipse cx="820" cy="632" rx="210" ry="28" fill="#3f3933" opacity="0.55"/>
+    <path d="M650 620 L710 590 L760 620 Z" fill="#6f655c"/>
+    <path d="M880 620 L940 592 L990 620 Z" fill="#5a5248"/>
+    <path d="M760 620 L800 600 L845 620 Z" fill="#7d7368"/>
+    <!-- Metal chunk embedded in scree -->
+    <g transform="translate(792 608) rotate(-18)">
+      <polygon points="0,0 34,-8 42,10 18,22 -6,14" fill="url(#metal)" stroke="#5f7384" stroke-width="1.5"/>
+      <polygon points="8,-2 26,-6 32,4 16,12 4,6" fill="#e8f4ff" opacity="0.55"/>
+      <path d="M12 2 L28 -2" stroke="#ffffff" stroke-width="2" opacity="0.35" stroke-linecap="round"/>
+    </g>
+    <path d="M770 618 L812 606 L834 618 Z" fill="#5a5248"/>
+    <path d="M828 618 L868 604 L902 618 Z" fill="#6b635a"/>
+  </g>
+
+  <!-- Wind-stripped soil seam hint -->
+  <path d="M730 618 Q820 600 910 618" fill="none" stroke="#3a3530" stroke-width="6" opacity="0.35"/>
+
+  <!-- Foreground grass tufts -->
+  <g fill="#2f6840" opacity="0.9">
+    <path d="M0 700 Q8 660 16 700 Q24 670 32 700 Q40 665 48 700 L48 720 L0 720 Z"/>
+    <path d="M120 740 Q128 700 136 740 Q144 710 152 740 Q160 705 168 740 L168 760 L120 760 Z"/>
+    <path d="M1450 720 Q1458 680 1466 720 Q1474 690 1482 720 Q1490 685 1498 720 L1498 740 L1450 740 Z"/>
+    <path d="M1530 760 Q1538 720 1546 760 Q1554 730 1562 760 Q1570 725 1578 760 L1578 780 L1530 780 Z"/>
+  </g>
+
+  <!-- Fantasy berry brambles  foreground left -->
+  <g id="berries-left">
+    <ellipse cx="210" cy="760" rx="120" ry="70" fill="url(#berryGlow)" filter="url(#softBlur)"/>
+    <path d="M40 820 Q80 700 150 760 Q210 690 260 780 Q220 860 120 850 Q60 840 40 820 Z" fill="#1f4d2d"/>
+    <path d="M70 820 Q110 730 160 770 Q200 720 230 790" fill="none" stroke="#163b24" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="95" cy="755" r="11" fill="#7c3aed"/>
+    <circle cx="92" cy="752" r="4" fill="#e9d5ff" opacity="0.8"/>
+    <circle cx="138" cy="735" r="10" fill="#2563eb"/>
+    <circle cx="135" cy="732" r="3.5" fill="#dbeafe" opacity="0.85"/>
+    <circle cx="178" cy="768" r="12" fill="#db2777"/>
+    <circle cx="175" cy="764" r="4" fill="#fce7f3" opacity="0.85"/>
+    <circle cx="120" cy="790" r="9" fill="#9333ea"/>
+    <circle cx="117" cy="787" r="3" fill="#f3e8ff" opacity="0.8"/>
+    <circle cx="205" cy="748" r="10" fill="#1d4ed8"/>
+    <circle cx="202" cy="745" r="3.5" fill="#bfdbfe" opacity="0.85"/>
+    <ellipse cx="150" cy="810" rx="34" ry="12" fill="#163b24" opacity="0.35"/>
+  </g>
+
+  <!-- Fantasy berry brambles  foreground right -->
+  <g id="berries-right">
+    <ellipse cx="1390" cy="770" rx="130" ry="75" fill="url(#berryGlow)" filter="url(#softBlur)"/>
+    <path d="M1240 830 Q1280 710 1360 760 Q1420 690 1490 770 Q1460 860 1340 855 Q1270 845 1240 830 Z" fill="#1f4d2d"/>
+    <path d="M1270 825 Q1310 735 1370 775 Q1420 725 1460 795" fill="none" stroke="#163b24" stroke-width="8" stroke-linecap="round"/>
+    <circle cx="1295" cy="760" r="11" fill="#7c3aed"/>
+    <circle cx="1292" cy="757" r="4" fill="#e9d5ff" opacity="0.8"/>
+    <circle cx="1340" cy="742" r="10" fill="#db2777"/>
+    <circle cx="1337" cy="739" r="3.5" fill="#fce7f3" opacity="0.85"/>
+    <circle cx="1388" cy="778" r="12" fill="#2563eb"/>
+    <circle cx="1385" cy="775" r="4" fill="#dbeafe" opacity="0.85"/>
+    <circle cx="1435" cy="752" r="10" fill="#9333ea"/>
+    <circle cx="1432" cy="749" r="3.5" fill="#f3e8ff" opacity="0.85"/>
+    <circle cx="1465" cy="790" r="9" fill="#1d4ed8"/>
+    <circle cx="1462" cy="787" r="3" fill="#bfdbfe" opacity="0.85"/>
+    <ellipse cx="1365" cy="815" rx="36" ry="12" fill="#163b24" opacity="0.35"/>
+  </g>
+
+  <!-- Near foreground grass overlay -->
+  <rect x="0" y="780" width="1600" height="120" fill="url(#grassNear)" opacity="0.55"/>
+  <path d="M0 820 Q400 790 800 810 T1600 800 L1600 900 L0 900 Z" fill="#245a34" opacity="0.45"/>
+</svg>

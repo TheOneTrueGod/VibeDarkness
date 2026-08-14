@@ -65,7 +65,10 @@ export default function PreMissionStoryLayout({
                     {backgroundImage && (
                         <div
                             className="absolute inset-0 bg-cover bg-center transition-opacity duration-500 z-0"
-                            style={{ backgroundImage: `url(${backgroundImage})`, opacity: bgOpacity }}
+                            style={{
+                                backgroundImage: `url("${backgroundImage}")`,
+                                opacity: bgOpacity,
+                            }}
                         />
                     )}
                     <div className={`relative z-10 flex-1 flex flex-col min-h-0 ${justify} items-center overflow-y-auto overflow-x-hidden`}>

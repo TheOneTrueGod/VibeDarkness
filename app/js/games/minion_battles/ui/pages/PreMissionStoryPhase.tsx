@@ -18,6 +18,7 @@ import RowSlotDialogue from '../components/battleUiSlots/RowSlotDialogue';
 import StoryPhraseBottomPanel from './preMissionStory/StoryPhraseBottomPanel';
 import { isChoice, isDialogue, isGrantEquipmentRandom, isGroupVote } from './preMissionStory/preMissionStoryTypeGuards';
 import { STORY_CHOICE_BOTTOM_ROW_CLASS } from './preMissionStory/storyChoiceGrid';
+import { storyPhraseBackgroundUrl } from './preMissionStory/storyPhraseBackground';
 import { TestIds } from '../../../../testing/testIds';
 
 interface PreMissionStoryPhaseProps {
@@ -71,12 +72,13 @@ export default function PreMissionStoryPhase({
     centerOverlay,
 }: PreMissionStoryPhaseProps) {
     const [phraseIndex, setPhraseIndex] = useState(0);
-    const [backgroundImage, setBackgroundImage] = useState<string | undefined>();
     const [bgOpacity, setBgOpacity] = useState(1);
+    const prevPhraseBackgroundRef = useRef<string | undefined>();
     const [isApplyingGroupVote, setIsApplyingGroupVote] = useState(false);
 
     const phrases = preMissionStory.phrases;
     const currentPhrase = phrases[phraseIndex];
+    const phraseBackgroundUrl = storyPhraseBackgroundUrl(currentPhrase);
     const isEnd = phraseIndex >= phrases.length;
     const amSpectator = (characterSelections[playerId] ?? '') === SPECTATOR_ID;
 
@@ -87,12 +89,20 @@ export default function PreMissionStoryPhase({
     }, [isEnd, api]);
 
     useEffect(() => {
-        if (currentPhrase && isDialogue(currentPhrase) && currentPhrase.backgroundImage) {
-            setBackgroundImage(currentPhrase.backgroundImage);
-            setBgOpacity(0);
-            requestAnimationFrame(() => setBgOpacity(1));
+        if (!phraseBackgroundUrl) {
+            prevPhraseBackgroundRef.current = undefined;
+            return;
         }
-    }, [phraseIndex, currentPhrase]);
+        if (phraseBackgroundUrl === prevPhraseBackgroundRef.current) return;
+        const isFirstBackground = prevPhraseBackgroundRef.current === undefined;
+        prevPhraseBackgroundRef.current = phraseBackgroundUrl;
+        if (isFirstBackground) {
+            setBgOpacity(1);
+            return;
+        }
+        setBgOpacity(0);
+        requestAnimationFrame(() => setBgOpacity(1));
+    }, [phraseBackgroundUrl]);
 
     const advancePhrase = useCallback(() => {
         setPhraseIndex((i) => Math.min(i + 1, phrases.length));
@@ -299,7 +309,7 @@ export default function PreMissionStoryPhase({
 
     return (
         <PreMissionStoryLayout
-            backgroundImage={backgroundImage}
+            backgroundImage={phraseBackgroundUrl}
             bgOpacity={bgOpacity}
             headerSlot={headerSlot}
             chatSlot={chatSlot}

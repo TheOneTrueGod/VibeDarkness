@@ -127,6 +127,8 @@ export interface ChoicePhrase {
      * granting a research node. No `getPostMissionChoiceOptions` override needed.
      */
     researchRewardSlots?: ResearchRewardSlot[];
+    /** Full-screen background while the choice grid is shown; fades when changing. */
+    backgroundImage?: string;
 }
 
 /**

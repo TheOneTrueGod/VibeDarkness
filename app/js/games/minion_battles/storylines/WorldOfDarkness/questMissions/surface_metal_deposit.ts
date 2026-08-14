@@ -83,6 +83,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
         {
             type: 'choice',
             choiceId: SURFACE_METAL_CHOICE_ID,
+            backgroundImage: STORY_BACKGROUNDS.surfaceMetalDeposit,
             // Placeholder; rows come from getPostMissionChoiceOptions (Earth Core gate).
             options: [],
         },

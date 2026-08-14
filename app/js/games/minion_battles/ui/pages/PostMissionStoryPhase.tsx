@@ -28,6 +28,8 @@ import type { ResearchNodeDef } from '../../../../researchTrees/types';
 import PreMissionStoryLayout from './preMissionStory/PreMissionStoryLayout';
 import PostMissionChoicePanel from './preMissionStory/PostMissionChoicePanel';
 import { STORY_CHOICE_BOTTOM_ROW_CLASS } from './preMissionStory/storyChoiceGrid';
+import { storyPhraseBackgroundUrl } from './preMissionStory/storyPhraseBackground';
+import { isGrantResources } from './preMissionStory/preMissionStoryTypeGuards';
 import StorySegmentSpeakerPortrait from '../components/battleUiSlots/StorySegmentSpeakerPortrait';
 import RowSlotDialogue from '../components/battleUiSlots/RowSlotDialogue';
 import ColumnSlotPlayerStatuses from '../../../../components/battleUILayout/ColumnSlotPlayerStatuses';
@@ -134,8 +136,8 @@ export default function PostMissionStoryPhase({
     centerOverlay,
 }: PostMissionStoryPhaseProps) {
     const [phraseIndex, setPhraseIndex] = useState(0);
-    const [backgroundImage, setBackgroundImage] = useState<string | undefined>();
     const [bgOpacity, setBgOpacity] = useState(1);
+    const prevPhraseBackgroundRef = useRef<string | undefined>();
     /** After a reward choice, hide the VN UI so the victory modal does not sit over changing/disabled options. */
     const [phantomPostChoiceStep, setPhantomPostChoiceStep] = useState(false);
     /** Waiting for party choices when alsoGrantToOthers is in play. */
@@ -160,6 +162,7 @@ export default function PostMissionStoryPhase({
 
     const phrases: PostMissionPhrase[] = postMissionStory.phrases;
     const currentPhrase = phrases[phraseIndex];
+    const phraseBackgroundUrl = storyPhraseBackgroundUrl(currentPhrase);
     const isEnd = phraseIndex >= phrases.length;
     const amSpectator = (characterSelections[playerId] ?? '') === SPECTATOR_ID;
     const amNpcController = isControlEnemy(characterSelections[playerId]);
@@ -194,12 +197,20 @@ export default function PostMissionStoryPhase({
     }, [currentPhrase, missionId, playerId, equipmentKey, researchKey]);
 
     useEffect(() => {
-        if (currentPhrase && isDialogue(currentPhrase) && currentPhrase.backgroundImage) {
-            setBackgroundImage(currentPhrase.backgroundImage);
-            setBgOpacity(0);
-            requestAnimationFrame(() => setBgOpacity(1));
+        if (!phraseBackgroundUrl) {
+            prevPhraseBackgroundRef.current = undefined;
+            return;
         }
-    }, [phraseIndex, currentPhrase]);
+        if (phraseBackgroundUrl === prevPhraseBackgroundRef.current) return;
+        const isFirstBackground = prevPhraseBackgroundRef.current === undefined;
+        prevPhraseBackgroundRef.current = phraseBackgroundUrl;
+        if (isFirstBackground) {
+            setBgOpacity(1);
+            return;
+        }
+        setBgOpacity(0);
+        requestAnimationFrame(() => setBgOpacity(1));
+    }, [phraseBackgroundUrl]);
 
     useEffect(() => {
         if (!currentPhrase || !isGrantResearchAuto(currentPhrase) || amSpectator || amNpcController) {
@@ -510,8 +521,7 @@ export default function PostMissionStoryPhase({
     const speakerPortrait = dialoguePhrase ? (
         <StorySegmentSpeakerPortrait speakerId={dialoguePhrase.speakerId} />
     ) : null;
-    const layerBackground =
-        dialoguePhrase?.backgroundImage != null ? backgroundImage : undefined;
+    const layerBackground = phraseBackgroundUrl;
 
     const choicePanel = choicePhrase ? (
         <PostMissionChoicePanel
