@@ -8,6 +8,9 @@ export const WAIT_ABILITY_MODE_SHORT = 'short';
 export const WAIT_ABILITY_MODE_MEDIUM = 'medium';
 export const WAIT_ABILITY_MODE_FAR = 'far';
 
+/** Default wait mode when the player has not chosen S / M / F. */
+export const WAIT_ABILITY_DEFAULT_MODE = WAIT_ABILITY_MODE_SHORT;
+
 export const WAIT_ABILITY_MODES = [
     WAIT_ABILITY_MODE_SHORT,
     WAIT_ABILITY_MODE_MEDIUM,
@@ -40,8 +43,9 @@ export function resolveWaitOrderWindow(mode: string | undefined): WaitOrderWindo
         case WAIT_ABILITY_MODE_FAR:
             return { minSec: WAIT_DURATION_FAR_MIN_SEC, maxSec: WAIT_DURATION_FAR_MAX_SEC };
         case WAIT_ABILITY_MODE_MEDIUM:
-        default:
             return { minSec: WAIT_DURATION_MEDIUM_SEC, maxSec: WAIT_DURATION_MEDIUM_SEC };
+        default:
+            return { minSec: WAIT_DURATION_SHORT_SEC, maxSec: WAIT_DURATION_SHORT_SEC };
     }
 }
 
@@ -74,11 +78,11 @@ export const WaitAbility: AbilityStatic = {
     prefireTime: 0,
     abilityModes: {
         modes: WAIT_ABILITY_MODES,
-        defaultMode: WAIT_ABILITY_MODE_MEDIUM,
+        defaultMode: WAIT_ABILITY_DEFAULT_MODE,
         toggleStyle: 'segmentedAbove',
         modeLabels: WAIT_ABILITY_MODE_LABELS,
     },
-    abilityTimings: waitTimingsForMode(WAIT_ABILITY_MODE_MEDIUM),
+    abilityTimings: waitTimingsForMode(WAIT_ABILITY_DEFAULT_MODE),
     getAbilityTimings: (caster) => waitTimingsForMode(resolveWaitModeFromCaster(caster as Unit | undefined)),
     getTooltipText: () => [
         'Hold position for a short time.',

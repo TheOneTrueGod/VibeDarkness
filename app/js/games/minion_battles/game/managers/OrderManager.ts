@@ -330,10 +330,11 @@ export class OrderManager {
             if (unit.activeAbilities.length > 0) {
                 return;
             }
-            const waitWindow = resolveWaitOrderWindow(order.abilityMode);
-            unit.waitAbilityMode = order.abilityMode
+            const waitMode = order.abilityMode
                 ?? getAbility('wait')?.abilityModes?.defaultMode
                 ?? null;
+            const waitWindow = resolveWaitOrderWindow(waitMode ?? undefined);
+            unit.waitAbilityMode = waitMode;
             unit.waitMinEndTime = this.ctx.gameTime + waitWindow.minSec;
             unit.waitMaxEndTime = this.ctx.gameTime + waitWindow.maxSec;
             return;

@@ -47,6 +47,11 @@ export const THROW_ROCK_MORE_POWER_DAMAGE = 8;
 const MORE_POWER_DAMAGE = THROW_ROCK_MORE_POWER_DAMAGE;
 const MORE_ROCK_HIT_COUNT = 2;
 
+const ROCK_SPIN_F1_URL = new URL('../../assets/projectiles/rock_spin_f1.svg', import.meta.url).href;
+const ROCK_SPIN_F2_URL = new URL('../../assets/projectiles/rock_spin_f2.svg', import.meta.url).href;
+const ROCK_SPIN_F3_URL = new URL('../../assets/projectiles/rock_spin_f3.svg', import.meta.url).href;
+const ROCK_SPIN_F4_URL = new URL('../../assets/projectiles/rock_spin_f4.svg', import.meta.url).href;
+
 /** Default dark wolf HP at ×1 enemy scaling — two hits at this damage kill a wolf. */
 const TWO_SHOT_WOLF_PER_HIT_DAMAGE = 6;
 
@@ -86,7 +91,10 @@ function rockLaunchBehaviour(abilityId: string) {
         .withTravelFullRange()
         .withResolveDamage((ctx) => resolveRockProjectileDamage(abilityId, ctx))
         .withSpriteConfig({
-            sprite: { file: 'images/projectiles/rock_spin.png', frames: 4, frameDirection: 'row', fps: 8 },
+            sprite: {
+                fps: 8,
+                frameFiles: [ROCK_SPIN_F1_URL, ROCK_SPIN_F2_URL, ROCK_SPIN_F3_URL, ROCK_SPIN_F4_URL],
+            },
             loop: true,
             trail: { effectType: 'BulletTrail' },
             animations: [{ type: 'rotation', mode: 'constant', degreesPerSecond: 180 }],

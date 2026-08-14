@@ -16,7 +16,8 @@ import {
     WaitAbility,
 } from '../../../abilities/WaitAbility';
 
-/** Matches ability-card height so S/M/F toggles sit in the spare space above the smaller Wait card. */
+/** Matches `h-6` on the S/M/F mode toggle buttons. */
+const WAIT_MODE_TOGGLE_HEIGHT_PX = 24;
 const WAIT_COLUMN_HEIGHT_PX = 126;
 const WAIT_CARD_HEIGHT_PX = 96;
 const WAIT_CARD_WIDTH_PX = 80;
@@ -81,7 +82,7 @@ export default function CornerSlotMiscControls({
     const currentMode =
         waitAbilityMode
         ?? WaitAbility.abilityModes?.defaultMode
-        ?? WAIT_ABILITY_MODE_MEDIUM;
+        ?? WAIT_ABILITY_MODE_SHORT;
     const showModeToggle = Boolean(
         isMyTurn && isPlainWait && onSetWaitAbilityMode && WaitAbility.abilityModes,
     );
@@ -174,12 +175,14 @@ export default function CornerSlotMiscControls({
                     </kbd>
                 </button>
             </div>
-            <RoundTrackerCard
-                roundNumber={roundNumber}
-                progress={roundProgress}
-                isPaused={isPaused}
-                staminaSurge={playerUnit.stamina ?? DEFAULT_PLAYER_ROUND_STAMINA_SURGE}
-            />
+            <div style={{ marginTop: WAIT_MODE_TOGGLE_HEIGHT_PX }}>
+                <RoundTrackerCard
+                    roundNumber={roundNumber}
+                    progress={roundProgress}
+                    isPaused={isPaused}
+                    staminaSurge={playerUnit.stamina ?? DEFAULT_PLAYER_ROUND_STAMINA_SURGE}
+                />
+            </div>
         </div>
     );
 }

@@ -66,10 +66,10 @@ describe('resolveWaitOrderWindow', () => {
         });
     });
 
-    it('defaults unknown modes to medium', () => {
+    it('defaults unknown modes to short', () => {
         expect(resolveWaitOrderWindow(undefined)).toEqual({
-            minSec: WAIT_DURATION_MEDIUM_SEC,
-            maxSec: WAIT_DURATION_MEDIUM_SEC,
+            minSec: WAIT_DURATION_SHORT_SEC,
+            maxSec: WAIT_DURATION_SHORT_SEC,
         });
     });
 
@@ -96,6 +96,21 @@ describe('wait order modes', () => {
         expect(player.waitAbilityMode).toBe(WAIT_ABILITY_MODE_SHORT);
         expect(player.waitMinEndTime).toBe(5 + WAIT_DURATION_SHORT_SEC);
         expect(player.waitMaxEndTime).toBe(5 + WAIT_DURATION_SHORT_SEC);
+    });
+
+    it('applies a short wait lockout by default when abilityMode is omitted', () => {
+        const player = makePlayer();
+        const mgr = makeOrderManager([player], 4);
+        mgr.applyOrderLogic({
+            unitId: player.id,
+            abilityId: 'wait',
+            targets: [],
+            endTurn: true,
+        });
+
+        expect(player.waitAbilityMode).toBe(WAIT_ABILITY_MODE_SHORT);
+        expect(player.waitMinEndTime).toBe(4 + WAIT_DURATION_SHORT_SEC);
+        expect(player.waitMaxEndTime).toBe(4 + WAIT_DURATION_SHORT_SEC);
     });
 
     it('applies a medium wait lockout of exactly 2 seconds', () => {

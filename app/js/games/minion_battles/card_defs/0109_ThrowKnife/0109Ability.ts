@@ -42,6 +42,8 @@ export const THROW_KNIFE_BASE_DAMAGE = 7;
 const BASE_DAMAGE = THROW_KNIFE_BASE_DAMAGE;
 const MULTI_THROW_HIT_COUNT = 2;
 
+const THROW_KNIFE_PROJECTILE_URL = new URL('../../assets/projectiles/knife.svg', import.meta.url).href;
+
 function hasKnifeMultiThrow(research: Set<string>): boolean {
     return research.has('throwing_knives') && hasMoreRockResearch(research);
 }
@@ -63,7 +65,7 @@ function knifeLaunchBehaviour(pierce: number) {
         .withTravelFullRange()
         .withResolveDamage(resolveKnifeDamage)
         .withSpriteConfig({
-            sprite: { frameFiles: ['images/projectiles/knife.png'] },
+            sprite: { frameFiles: [THROW_KNIFE_PROJECTILE_URL] },
             loop: false,
             animations: [{ type: 'rotation', mode: 'velocity-facing' }],
         });
