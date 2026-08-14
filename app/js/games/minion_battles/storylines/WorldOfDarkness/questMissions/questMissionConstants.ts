@@ -15,8 +15,8 @@ export const PLAINS_RANDOM_STORY_CHALLENGE_MAX = 20;
 /** Found Berries — Keep the Berries Campaign Reward. */
 export const FOUND_BERRIES_KEEP_FOOD = 2;
 
-/** Surface metal deposit — Harvest Campaign Reward (chooser). */
-export const SURFACE_METAL_HARVEST_METAL = 2;
+/** Surface metal deposit — Investigate rocks Campaign Reward (chooser). */
+export const SURFACE_METAL_HARVEST_METAL = 3;
 
 /** Surface metal deposit — Extract Metal Campaign Reward (chooser). */
 export const SURFACE_METAL_EXTRACT_SELF_METAL = 5;

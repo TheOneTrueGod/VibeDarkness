@@ -39,9 +39,9 @@ function buildChoiceOptions(playerResearchTrees: Record<string, string[]> | unde
     return [
         {
             id: SURFACE_METAL_OPTION_HARVEST,
-            label: 'Harvest',
-            loreTitle: 'Harvest',
-            loreDescription: `Pry loose what you can by hand. Campaign Reward: +${SURFACE_METAL_HARVEST_METAL} Metal when the quest ends.`,
+            label: 'Investigate some interesting nearby rocks',
+            loreTitle: 'Investigate some interesting nearby rocks',
+            loreDescription: `Chip samples from the outcrop. Campaign Reward: +${SURFACE_METAL_HARVEST_METAL} Metal when the quest ends.`,
             action: {
                 type: 'grant_resources',
                 metal: SURFACE_METAL_HARVEST_METAL,

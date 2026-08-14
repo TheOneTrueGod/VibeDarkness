@@ -4,7 +4,7 @@ import BattleUISlotLayout from '../../../../../components/battleUILayout/BattleU
 interface PreMissionStoryLayoutProps {
     backgroundImage?: string;
     bgOpacity: number;
-    /** Dialogue/VN text stays bottom-aligned; choices / votes center in the scroll area. Defaults to 'center'. */
+    /** Dialogue/VN text stays bottom-aligned; group votes center in the scroll area. Defaults to 'center'. */
     contentJustify?: 'end' | 'center';
     /** Header slot content, forwarded from GameScreen via Game.tsx. */
     headerSlot?: React.ReactNode;
@@ -20,8 +20,10 @@ interface PreMissionStoryLayoutProps {
     bottomRightCorner?: React.ReactNode;
     /** Set false to let bottomRightCorner's content fill the corner edge-to-edge. Defaults to true. */
     bottomRightCornerPadded?: boolean;
-    /** Bottom row slot content (e.g. dialogue text). */
+    /** Bottom row slot content (e.g. dialogue text or choice grid). */
     bottomRow?: React.ReactNode;
+    /** Optional className for the bottom-row content cell. */
+    bottomRowClassName?: string;
     /** Floating action (e.g. dialogue "Next"), pinned bottom-center of the center slot, just above the bottom row. */
     centerFloatingNext?: React.ReactNode;
     /** Loading/resync overlay, rendered absolutely within the center slot. */
@@ -41,6 +43,7 @@ export default function PreMissionStoryLayout({
     bottomRightCorner,
     bottomRightCornerPadded,
     bottomRow,
+    bottomRowClassName,
     centerFloatingNext,
     centerOverlay,
     children,
@@ -56,6 +59,7 @@ export default function PreMissionStoryLayout({
             bottomRightCorner={bottomRightCorner}
             bottomRightCornerPadded={bottomRightCornerPadded}
             bottomRow={bottomRow}
+            bottomRowClassName={bottomRowClassName}
             center={
                 <div className="w-full h-full flex flex-col overflow-hidden bg-black relative">
                     {backgroundImage && (

@@ -1,15 +1,27 @@
 import React, { useMemo } from 'react';
 import type { ChoicePhrase, StoryChoiceOptionRow } from '../../../storylines/storyTypes';
 import ResourcePill, { campaignResourceGains } from '../../../../../components/ResourcePill';
-import StoryPanelCard from './StoryPanelCard';
+import StoryChoiceGrid, {
+    STORY_CHOICE_CELL_BUTTON_BASE,
+    STORY_CHOICE_CELL_BUTTON_PRIMARY,
+    STORY_CHOICE_CELL_BUTTON_SKIP,
+} from '../../components/battleUiSlots/StoryChoiceGrid';
 import { isGrantResources } from './preMissionStoryTypeGuards';
 import { TestIds, storyChoiceTestId } from '../../../../../testing/testIds';
 import { isResearchNodeBlockedByOwnershipOrExclusivity } from '../../../../../researchTrees/evaluator';
+import {
+    STORY_CHOICE_SKIP_DESCRIPTION,
+    STORY_CHOICE_SKIP_LABEL,
+    STORY_CHOICE_SKIP_OPTION_ID,
+    arrangeStoryChoiceGridSlots,
+    isStoryChoiceSkipOption,
+} from './storyChoiceGrid';
 
-/** Badge / skip copy — matches post-mission reward skip. */
-export const PRE_MISSION_SKIP_LABEL = 'Leave nothing but footprints';
-export const PRE_MISSION_SKIP_DESCRIPTION = 'Take no upgrade and move on.';
-export const PRE_MISSION_SKIP_OPTION_ID = 'skip';
+export {
+    PRE_MISSION_SKIP_LABEL,
+    PRE_MISSION_SKIP_DESCRIPTION,
+    PRE_MISSION_SKIP_OPTION_ID,
+} from './storyChoiceGrid';
 
 interface ChoicePhrasePanelProps {
     phrase: ChoicePhrase;
@@ -45,6 +57,15 @@ export function filterChoiceOptionsByResearch(
     });
 }
 
+function syntheticFootprintsSkipOption(): StoryChoiceOptionRow {
+    return {
+        id: STORY_CHOICE_SKIP_OPTION_ID,
+        label: STORY_CHOICE_SKIP_LABEL,
+        loreDescription: STORY_CHOICE_SKIP_DESCRIPTION,
+        action: { type: 'grant_resources' },
+    };
+}
+
 export default function ChoicePhrasePanel({
     phrase,
     amSpectator,
@@ -61,58 +82,71 @@ export default function ChoicePhrasePanel({
         phrase.options.length > 0 &&
         phrase.options.every(isGrantResearchOption);
 
+    const gridSlots = useMemo(() => {
+        const syntheticSkip = showFootprintsSkip ? syntheticFootprintsSkipOption() : null;
+        return arrangeStoryChoiceGridSlots(visibleOptions, syntheticSkip);
+    }, [showFootprintsSkip, visibleOptions]);
+
+    if (amSpectator) {
+        return (
+            <div className="flex h-full min-h-0 w-full flex-col items-center justify-center gap-3 text-center">
+                <p className="text-muted text-sm">Spectators do not make choices.</p>
+                <button
+                    type="button"
+                    data-testid={TestIds.storyNext}
+                    onClick={onAdvance}
+                    className="rounded-lg bg-primary px-6 py-2 font-semibold text-white hover:opacity-90"
+                >
+                    Next
+                </button>
+            </div>
+        );
+    }
+
     return (
-        <StoryPanelCard maxWidthClassName="max-w-xl sm:max-w-2xl md:max-w-3xl">
-            {amSpectator ? (
-                <div className="flex flex-col items-center justify-center space-y-3 text-center min-h-0">
-                    <p className="text-muted mb-4">Spectators do not make choices.</p>
+        <StoryChoiceGrid
+            cells={gridSlots.map((opt) => {
+                if (!opt) return null;
+                const isSkip = isStoryChoiceSkipOption(opt);
+                const buttonClass = `${STORY_CHOICE_CELL_BUTTON_BASE} ${
+                    isSkip ? STORY_CHOICE_CELL_BUTTON_SKIP : STORY_CHOICE_CELL_BUTTON_PRIMARY
+                }`;
+                const title = opt.loreTitle ?? opt.label;
+                const description = opt.loreDescription;
+                return (
                     <button
+                        key={opt.id}
                         type="button"
-                        data-testid={TestIds.storyNext}
-                        onClick={onAdvance}
-                        className="px-6 py-2 bg-primary text-white font-semibold rounded-lg hover:opacity-90"
+                        data-testid={storyChoiceTestId(opt.id)}
+                        onClick={() =>
+                            onChoose(
+                                phrase.choiceId,
+                                opt.id,
+                                isSkip ? undefined : opt,
+                            )
+                        }
+                        className={buttonClass}
                     >
-                        Next
+                        <span className="line-clamp-2 text-xs font-medium leading-snug sm:text-sm">{title}</span>
+                        {description ? (
+                            <span className="line-clamp-2 text-[10px] leading-snug text-zinc-400 sm:text-xs">
+                                {description}
+                            </span>
+                        ) : null}
+                        {!isSkip && isGrantResources(opt.action) ? (
+                            <div className="flex max-w-full flex-wrap items-center justify-center gap-1">
+                                {campaignResourceGains({
+                                    food: opt.action.food,
+                                    metal: opt.action.metal,
+                                    crystals: opt.action.crystals,
+                                }).map(({ resource, count }) => (
+                                    <ResourcePill key={`${opt.id}-${resource}`} resource={resource} count={count} />
+                                ))}
+                            </div>
+                        ) : null}
                     </button>
-                </div>
-            ) : (
-                <div className="flex flex-col items-center justify-center gap-3 w-full min-w-0">
-                    {showFootprintsSkip ? (
-                        <button
-                            type="button"
-                            data-testid={storyChoiceTestId(PRE_MISSION_SKIP_OPTION_ID)}
-                            onClick={() => onChoose(phrase.choiceId, PRE_MISSION_SKIP_OPTION_ID, undefined)}
-                            className="block w-full min-w-0 text-center px-4 sm:px-6 py-4 rounded-lg border-2 border-border-custom bg-surface/30 hover:border-zinc-400 hover:bg-surface/50 transition-colors text-lg text-zinc-300 hover:text-zinc-200 flex flex-col gap-2 items-center justify-center"
-                        >
-                            <span className="break-words font-medium">{PRE_MISSION_SKIP_LABEL}</span>
-                            <span className="text-sm leading-snug">{PRE_MISSION_SKIP_DESCRIPTION}</span>
-                        </button>
-                    ) : (
-                        visibleOptions.map((opt) => (
-                            <button
-                                key={opt.id}
-                                type="button"
-                                data-testid={storyChoiceTestId(opt.id)}
-                                onClick={() => onChoose(phrase.choiceId, opt.id, opt)}
-                                className="block w-full min-w-0 text-center px-4 sm:px-6 py-4 rounded-lg border-2 border-border-custom bg-surface hover:border-primary hover:bg-surface-light/80 transition-colors text-lg text-white flex flex-col gap-2 items-center justify-center"
-                            >
-                                <span className="break-words">{opt.label}</span>
-                                {isGrantResources(opt.action) && (
-                                    <div className="flex flex-wrap items-center justify-center gap-2">
-                                        {campaignResourceGains({
-                                            food: opt.action.food,
-                                            metal: opt.action.metal,
-                                            crystals: opt.action.crystals,
-                                        }).map(({ resource, count }) => (
-                                            <ResourcePill key={`${opt.id}-${resource}`} resource={resource} count={count} />
-                                        ))}
-                                    </div>
-                                )}
-                            </button>
-                        ))
-                    )}
-                </div>
-            )}
-        </StoryPanelCard>
+                );
+            })}
+        />
     );
 }

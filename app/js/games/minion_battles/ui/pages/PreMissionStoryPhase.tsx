@@ -16,7 +16,8 @@ import ColumnSlotPlayerStatuses from '../../../../components/battleUILayout/Colu
 import StorySegmentSpeakerPortrait from '../components/battleUiSlots/StorySegmentSpeakerPortrait';
 import RowSlotDialogue from '../components/battleUiSlots/RowSlotDialogue';
 import StoryPhraseBottomPanel from './preMissionStory/StoryPhraseBottomPanel';
-import { isDialogue, isGrantEquipmentRandom, isGroupVote } from './preMissionStory/preMissionStoryTypeGuards';
+import { isChoice, isDialogue, isGrantEquipmentRandom, isGroupVote } from './preMissionStory/preMissionStoryTypeGuards';
+import { STORY_CHOICE_BOTTOM_ROW_CLASS } from './preMissionStory/storyChoiceGrid';
 import { TestIds } from '../../../../testing/testIds';
 
 interface PreMissionStoryPhaseProps {
@@ -267,7 +268,10 @@ export default function PreMissionStoryPhase({
     }
 
     const dialoguePhrase = isDialogue(currentPhrase) ? currentPhrase : null;
+    const choicePhrase = isChoice(currentPhrase) ? currentPhrase : null;
+    const groupVotePhrase = isGroupVote(currentPhrase) ? currentPhrase : null;
     const showingDialogue = dialoguePhrase != null;
+    const showingChoiceInBottomRow = choicePhrase != null;
     const portraitSide: PortraitSide = dialoguePhrase?.portraitSide ?? 'left';
     const speakerPortrait = dialoguePhrase ? <StorySegmentSpeakerPortrait speakerId={dialoguePhrase.speakerId} /> : null;
 
@@ -313,8 +317,13 @@ export default function PreMissionStoryPhase({
             bottomRightCorner={portraitSide === 'right' ? speakerPortrait : undefined}
             bottomRightCornerPadded={portraitSide === 'right' ? false : undefined}
             bottomRow={
-                dialoguePhrase ? <RowSlotDialogue phrase={dialoguePhrase} onAdvance={advancePhrase} /> : undefined
+                dialoguePhrase ? (
+                    <RowSlotDialogue phrase={dialoguePhrase} onAdvance={advancePhrase} />
+                ) : showingChoiceInBottomRow ? (
+                    phrasePanel
+                ) : undefined
             }
+            bottomRowClassName={showingChoiceInBottomRow ? STORY_CHOICE_BOTTOM_ROW_CLASS : undefined}
             centerFloatingNext={
                 dialoguePhrase ? (
                     <button
@@ -328,7 +337,9 @@ export default function PreMissionStoryPhase({
                 ) : undefined
             }
         >
-            {showingDialogue ? null : <div className={phrasePanelWrapNonDialogue}>{phrasePanel}</div>}
+            {showingDialogue || showingChoiceInBottomRow ? null : (
+                <div className={phrasePanelWrapNonDialogue}>{groupVotePhrase ? phrasePanel : null}</div>
+            )}
         </PreMissionStoryLayout>
     );
 }

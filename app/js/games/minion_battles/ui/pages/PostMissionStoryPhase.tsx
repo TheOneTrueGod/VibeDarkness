@@ -5,7 +5,6 @@
  */
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { flushSync } from 'react-dom';
-import { Star } from 'lucide-react';
 import type { MissionResearchRewardEntry, PlayerState } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import { MessageType } from '../../../../MessageTypes';
@@ -19,17 +18,16 @@ import type {
     StoryChoiceAction,
     StoryChoiceActionGrantResearchConditional,
     StoryChoiceActionGrantResearchToPlayer,
-    StoryChoiceActionGrantResources,
 } from '../../storylines/storyTypes';
 import { MISSION_MAP } from '../../storylines';
 import { resolveResearchRewardSlots } from '../../storylines/researchRewardSlots';
 import { getItemDef } from '../../character_defs/items';
 import { SPECTATOR_ID, isControlEnemy } from '../../state';
-import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
-import ResearchRewardTinyChip from '../../../../components/ResearchRewardTinyChip';
 import { getResearchNode } from '../../../../researchTrees/list';
 import type { ResearchNodeDef } from '../../../../researchTrees/types';
 import PreMissionStoryLayout from './preMissionStory/PreMissionStoryLayout';
+import PostMissionChoicePanel from './preMissionStory/PostMissionChoicePanel';
+import { STORY_CHOICE_BOTTOM_ROW_CLASS } from './preMissionStory/storyChoiceGrid';
 import StorySegmentSpeakerPortrait from '../components/battleUiSlots/StorySegmentSpeakerPortrait';
 import RowSlotDialogue from '../components/battleUiSlots/RowSlotDialogue';
 import ColumnSlotPlayerStatuses from '../../../../components/battleUILayout/ColumnSlotPlayerStatuses';
@@ -41,12 +39,6 @@ import {
     sumAlsoGrantToOthersFromParty,
 } from '../../storylines/partyStoryGrants';
 
-/** Switch post-mission reward choices to two columns when option count exceeds this. */
-const REWARD_TWO_COLUMN_THRESHOLD = 4;
-
-/** Badge on reward options flagged {@link StoryChoiceOptionRow.forYou}. */
-const FOR_YOU_BADGE_LABEL = 'For you';
-
 function isDialogue(phrase: PostMissionPhrase | undefined): phrase is DialoguePhrase {
     return !!phrase && phrase.type === 'dialogue';
 }
@@ -57,10 +49,6 @@ function isChoice(phrase: PostMissionPhrase | undefined): phrase is ChoicePhrase
 
 function isGrantResearchAuto(phrase: PostMissionPhrase | undefined): phrase is GrantResearchAutoPhrase {
     return phrase?.type === 'grant_research_auto';
-}
-
-function isGrantResources(action: { type: string } | undefined): action is StoryChoiceActionGrantResources {
-    return !!action && action.type === 'grant_resources';
 }
 
 function isGrantResearchToPlayer(
@@ -515,7 +503,9 @@ export default function PostMissionStoryPhase({
     }
 
     const dialoguePhrase: DialoguePhrase | null = isDialogue(currentPhrase) ? currentPhrase : null;
+    const choicePhrase: ChoicePhrase | null = isChoice(currentPhrase) ? currentPhrase : null;
     const showingDialogue = dialoguePhrase != null;
+    const showingChoiceInBottomRow = choicePhrase != null;
     const portraitSide: PortraitSide = dialoguePhrase?.portraitSide ?? 'left';
     const speakerPortrait = dialoguePhrase ? (
         <StorySegmentSpeakerPortrait speakerId={dialoguePhrase.speakerId} />
@@ -523,17 +513,17 @@ export default function PostMissionStoryPhase({
     const layerBackground =
         dialoguePhrase?.backgroundImage != null ? backgroundImage : undefined;
 
-    const phrasePanelWrapNonDialogue =
-        'shrink-0 pt-8 sm:pt-10 pb-2 sm:pb-4 flex flex-col gap-3 sm:gap-4 w-full min-w-0 max-w-full justify-center items-stretch';
-
-    const useTwoColumnRewardLayout =
-        isChoice(currentPhrase) && postMissionChoiceOptions.length > REWARD_TWO_COLUMN_THRESHOLD;
-    const rewardOptionButtonClass =
-        'block w-full text-left px-6 py-4 rounded-lg border-2 transition-colors text-lg flex flex-col gap-2 border-border-custom bg-surface hover:border-primary hover:bg-surface-light/80 text-white';
-    const skipOptionButtonClass =
-        `block w-full text-left px-6 py-4 rounded-lg border-2 transition-colors text-lg flex flex-col gap-2 border-border-custom bg-surface/30 hover:border-zinc-400 hover:bg-surface/50 text-zinc-300 hover:text-zinc-200${
-            useTwoColumnRewardLayout ? ' col-span-2' : ''
-        }`;
+    const choicePanel = choicePhrase ? (
+        <PostMissionChoicePanel
+            phrase={choicePhrase}
+            options={postMissionChoiceOptions}
+            amSpectator={amSpectator}
+            waitingForPartyChoiceId={waitingForPartyChoiceId}
+            resolveChoiceOption={resolveChoiceOption}
+            onChoose={handleChoice}
+            onSpectatorComplete={() => onComplete({})}
+        />
+    ) : null;
 
     return (
         <PreMissionStoryLayout
@@ -556,8 +546,11 @@ export default function PostMissionStoryPhase({
             bottomRow={
                 dialoguePhrase ? (
                     <RowSlotDialogue phrase={dialoguePhrase} onAdvance={advancePhrase} speakerNameFallback="Narrator" />
+                ) : showingChoiceInBottomRow ? (
+                    choicePanel
                 ) : undefined
             }
+            bottomRowClassName={showingChoiceInBottomRow ? STORY_CHOICE_BOTTOM_ROW_CLASS : undefined}
             centerFloatingNext={
                 dialoguePhrase ? (
                     <button
@@ -570,142 +563,7 @@ export default function PostMissionStoryPhase({
                 ) : undefined
             }
         >
-            {showingDialogue ? null : (
-                <div
-                    className={`flex flex-col gap-4 pb-6 ${phrasePanelWrapNonDialogue} my-auto min-h-0 overflow-y-auto overflow-x-hidden`}
-                >
-                    {isChoice(currentPhrase) ? (
-                            amSpectator ? (
-                                <div className="shrink-0 pb-6">
-                                    <p className="text-muted mb-4">Spectators do not receive rewards.</p>
-                                    <button
-                                        type="button"
-                                        onClick={() => onComplete({})}
-                                        className="px-6 py-2 bg-primary text-white font-semibold rounded-lg hover:opacity-90"
-                                    >
-                                        Next
-                                    </button>
-                                </div>
-                            ) : (
-                                <>
-                                    <div className="border-2 border-border-custom rounded-lg bg-surface-light shadow-lg overflow-visible p-6">
-                                        <div
-                                            className={
-                                                useTwoColumnRewardLayout
-                                                    ? 'grid grid-cols-2 gap-3'
-                                                    : 'flex flex-col gap-3'
-                                            }
-                                        >
-                                            {waitingForPartyChoiceId && (
-                                                <p className="text-sm text-amber-200/90 col-span-2">
-                                                    Waiting for other players to choose…
-                                                </p>
-                                            )}
-                                            {postMissionChoiceOptions.map((opt) => {
-                                                const resolvedOption = resolveChoiceOption(opt);
-                                                if (resolvedOption.disabled) {
-                                                    return (
-                                                        <button
-                                                            key={opt.id}
-                                                            type="button"
-                                                            disabled
-                                                            className={`${rewardOptionButtonClass} opacity-50 cursor-not-allowed`}
-                                                        >
-                                                            <span className="text-lg font-medium text-zinc-400">
-                                                                {opt.loreTitle ?? opt.label}
-                                                            </span>
-                                                            <span className="text-sm text-zinc-500">
-                                                                {resolvedOption.disabledLabel
-                                                                    ?? opt.disabledLabel
-                                                                    ?? 'Unavailable'}
-                                                            </span>
-                                                        </button>
-                                                    );
-                                                }
-                                                return (
-                                                    <button
-                                                        key={opt.id}
-                                                        type="button"
-                                                        disabled={!!waitingForPartyChoiceId}
-                                                        onClick={() =>
-                                                            handleChoice(
-                                                                currentPhrase.choiceId,
-                                                                opt.id,
-                                                                opt,
-                                                                resolvedOption
-                                                            )
-                                                        }
-                                                        className={rewardOptionButtonClass}
-                                                    >
-                                                        <div className="flex items-center gap-2 w-full min-w-0">
-                                                            {opt.forYou && (
-                                                                <Star
-                                                                    className="h-4 w-4 shrink-0 text-amber-400 fill-amber-400"
-                                                                    aria-hidden
-                                                                />
-                                                            )}
-                                                            <span className="text-lg font-medium text-white flex-1 min-w-0">
-                                                                {opt.loreTitle ?? opt.label}
-                                                            </span>
-                                                            {opt.forYou && (
-                                                                <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full border border-amber-400/50 bg-amber-400/15 text-amber-300">
-                                                                    {FOR_YOU_BADGE_LABEL}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        {opt.loreDescription && (
-                                                            <span className="text-sm text-zinc-400 leading-snug">
-                                                                {opt.loreDescription}
-                                                            </span>
-                                                        )}
-                                                        {resolvedOption.researchReward && (
-                                                            <div className="pt-1 flex justify-start">
-                                                                <ResearchRewardTinyChip
-                                                                    node={resolvedOption.researchReward.node}
-                                                                />
-                                                            </div>
-                                                        )}
-                                                        {isGrantResources(opt.action) && (
-                                                            <div className="flex flex-wrap items-center gap-2">
-                                                                {campaignResourceGains({
-                                                                    food: opt.action.food,
-                                                                    metal: opt.action.metal,
-                                                                    crystals: opt.action.crystals,
-                                                                }).map(({ resource, count }) => (
-                                                                    <ResourcePill
-                                                                        key={`${opt.id}-${resource}`}
-                                                                        resource={resource}
-                                                                        count={count}
-                                                                    />
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </button>
-                                                );
-                                            })}
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    handleChoice(currentPhrase.choiceId, 'skip', undefined, {
-                                                        disabled: false,
-                                                    })
-                                                }
-                                                className={skipOptionButtonClass}
-                                            >
-                                                <span className="text-lg font-medium">
-                                                    Leave nothing but footprints
-                                                </span>
-                                                <span className="text-sm leading-snug">
-                                                    Take no upgrade and move on.
-                                                </span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </>
-                            )
-                    ) : null}
-                </div>
-            )}
+            {showingDialogue || showingChoiceInBottomRow ? null : undefined}
         </PreMissionStoryLayout>
     );
 }
