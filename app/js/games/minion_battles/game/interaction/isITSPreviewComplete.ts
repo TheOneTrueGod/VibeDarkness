@@ -1,6 +1,23 @@
 import type { GameEngine } from '../GameEngine';
 
 /**
+ * True while the preview cast order is queued but has not been applied yet (e.g. ITS began
+ * at the mark tick while the batch order applies on the next tick). Lobby 1EFEAD: treating
+ * "not yet started" as complete latched auto-commit and soft-locked the battle UI.
+ */
+function isPreviewCastOrderStillPending(
+    engine: GameEngine,
+    cast: { unitId: string; abilityId: string },
+): boolean {
+    return engine.state.orderMgr.pendingOrders.some(
+        (entry) =>
+            entry.order.unitId === cast.unitId
+            && entry.order.abilityId === cast.abilityId
+            && entry.gameTick >= engine.gameTick,
+    );
+}
+
+/**
  * True when an interactive sequential targeting preview has finished playing and the
  * player may commit (Done pill). False while still collecting a target or when not in preview.
  *
@@ -16,7 +33,8 @@ export function isITSPreviewComplete(engine: GameEngine): boolean {
         return false;
     }
 
-    const { unitId: casterId, abilityId: castAbilityId } = engine.sequentialTargetingPreviewCast;
+    const cast = engine.sequentialTargetingPreviewCast;
+    const { unitId: casterId, abilityId: castAbilityId } = cast;
     const caster = engine.getUnit(casterId);
     if (!caster?.isAlive()) {
         return true;
@@ -24,7 +42,7 @@ export function isITSPreviewComplete(engine: GameEngine): boolean {
 
     const abilityStillActive = caster.activeAbilities.some((a) => a.abilityId === castAbilityId);
     if (!abilityStillActive) {
-        return true;
+        return !isPreviewCastOrderStillPending(engine, cast);
     }
 
     const conditionalCancelActive = caster.activeAbilities.some(

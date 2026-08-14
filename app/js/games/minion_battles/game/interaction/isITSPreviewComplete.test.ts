@@ -69,6 +69,21 @@ describe('isITSPreviewComplete', () => {
         engine.destroy();
     });
 
+    it('returns false when preview order is queued but the cast has not started yet (lobby 1EFEAD)', () => {
+        const { engine, player } = buildPreviewEngine();
+        engine.state.orderMgr.pendingOrders.push({
+            gameTick: engine.gameTick + 1,
+            order: {
+                unitId: player.id,
+                abilityId: DOUBLE_PUNCH_ABILITY_ID,
+                targets: [],
+                endTurn: true,
+            },
+        });
+        expect(isITSPreviewComplete(engine)).toBe(false);
+        engine.destroy();
+    });
+
     it('returns true when preview cast leaves activeAbilities', () => {
         const { engine, player } = buildPreviewEngine();
         player.activeAbilities = [{
