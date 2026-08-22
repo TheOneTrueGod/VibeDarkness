@@ -2142,17 +2142,19 @@ export class GameEngine implements EngineContext {
         // `initializeGameState` (checkpoint/resync callers construct a fresh engine straight from
         // JSON), so `opts.segmentIds` is the only way the graph gets populated here.
         engine.state.mapNetworkManager.restoreFromJSON(data.mapNetwork);
-        if (opts?.segmentIds) {
-            engine.state.mapNetworkManager.loadFromSegments(getMissionSegmentNetwork(opts.segmentIds));
+        const networkPayload = opts?.segmentNetwork
+            ?? (opts?.segmentIds ? getMissionSegmentNetwork(opts.segmentIds) : null);
+        if (networkPayload) {
+            engine.state.mapNetworkManager.loadFromSegments(networkPayload);
             // Unit restoration (engine.state.unitManager.restoreFromJSON) already ran earlier in
             // this function, so engine.units is populated here — seed membership once, same as
             // the mission-init path in BaseMissionDef.initializeGameState.
             engine.state.mapNetworkManager.buildInitialMembership(engine.units);
-            // Same reasoning as the network graph above: segment placement (for
-            // TerrainManager.getSegmentIdAt, the debug mouse-position tile readout) is rebuilt
-            // fresh from segment data rather than serialized — opts.segmentIds is the only way it
-            // gets populated on this restore path.
-            if (engine.terrainManager) {
+        }
+        if (engine.terrainManager) {
+            if (opts?.segmentPlacements) {
+                engine.terrainManager.segmentPlacements = opts.segmentPlacements;
+            } else if (opts?.segmentIds) {
                 engine.terrainManager.segmentPlacements = getMissionSegmentPlacements(opts.segmentIds);
             }
         }

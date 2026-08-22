@@ -78,7 +78,7 @@ export async function runBattleBootstrap({
     // --- Battle Initialization: fetch terrain assets ---
     onPhase('fetching_assets');
     const mission = MISSION_MAP[missionId] ?? DARK_AWAKENING;
-    await fetchBattleAssets(api, playerId, mission.segmentIds);
+    await fetchBattleAssets(api, playerId, mission.getFetchSegmentIds());
 
     if (!isAlive()) {
         tearDownNetForAbortedLoad();

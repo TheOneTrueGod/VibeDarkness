@@ -24,6 +24,22 @@ import type { EventBus } from '../game/EventBus';
 import type { Unit } from '../game/units/Unit';
 import type { MapSegmentPOI, MapSegmentZone } from '../terrain/segmentSchema';
 import { getMissionSegmentNetwork, getMissionSegmentPlacements } from '../terrain/segmentRegistry';
+import {
+    composeMissionMap,
+    layoutDestinationSegmentIds,
+    type ComposedMissionMap,
+    type MissionMapLayout,
+} from '../terrain/missionLayout';
+import {
+    HOME_CAMPFIRE_LIGHT_AMOUNT,
+    HOME_CAMPFIRE_LIGHT_RADIUS,
+    HOME_CAMPFIRE_MAX_HP,
+    mergePartyResearch,
+    resolveHomeSegmentId,
+    listHomeSegmentIds,
+    type HomeResolveContext,
+} from './homeBase';
+import type { MissionResult } from '../../../types';
 import { createPlayerUnit } from '../game/units/index';
 import { enemySpawnDefToSpawnDefinition } from '../game/units/spawning/adapters';
 import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
@@ -144,6 +160,8 @@ export interface InitializeGameStateParams {
     terrainSegmentPOIs?: MapSegmentPOI[];
     /** Zones collected from the fetched terrain segments (already shifted to mission-global coords). */
     terrainSegmentZones?: MapSegmentZone[];
+    /** Shared campaign results used to resolve the home/spawn tile. */
+    missionResults?: MissionResult[];
 }
 
 /** Mission definition extending MissionBattleConfig with initializeGameState. */
@@ -165,8 +183,18 @@ export interface IBaseMissionDef extends MissionBattleConfig {
      * Registered on the engine during {@link initializeGameState} before enemies spawn.
      */
     playerControl?: PlayerControlDef[];
+    /** Mission-local tile layout; when set, terrain is composed instead of a custom `createTerrain`. */
+    mapLayout?: MissionMapLayout;
+    /** Pin spawn/home segment for layout missions; omit to use {@link resolveHomeSegmentId}. */
+    spawnSegmentId?: string;
     /** Set up initial game state: player units, enemies, projectiles, effects, cards. */
     initializeGameState(engine: GameEngine, params: InitializeGameStateParams): void;
+    /** Compose layout + resolved home, or null when this mission does not use `mapLayout`. */
+    composeMap(ctx?: HomeResolveContext): ComposedMissionMap | null;
+    /** Segment ids to fetch for layout missions (destinations + home candidates). */
+    getFetchSegmentIds(): string[];
+    /** Create terrain; layout missions use the composer. */
+    createTerrain: (ctx?: HomeResolveContext) => TerrainGrid;
 }
 
 /**
@@ -178,7 +206,6 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     abstract missionId: string;
     abstract name: string;
     abstract enemies: EnemySpawnDef[];
-    abstract createTerrain: () => TerrainGrid;
     /** Mission Map node category (battle / story / boss icon). */
     abstract missionType: MissionType;
     /** World width in pixels (e.g. terrain columns × cell size). */
@@ -218,6 +245,27 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     tags?: string[];
     /** When true, eligible for `random_story` slot resolvers. */
     randomStoryPool?: boolean;
+    /** Mission-local tile layout for the composer path. */
+    mapLayout?: MissionMapLayout;
+    /** Pin spawn/home segment; omit to resolve from campaign context. */
+    spawnSegmentId?: string;
+
+    composeMap(ctx?: HomeResolveContext): ComposedMissionMap | null {
+        if (!this.mapLayout) return null;
+        const spawnId = resolveHomeSegmentId(ctx ?? {}, { missionOverride: this.spawnSegmentId });
+        return composeMissionMap(this.mapLayout, spawnId);
+    }
+
+    /**
+     * Layout missions compose from `mapLayout`. Hand-stitched missions override this field.
+     */
+    createTerrain = (ctx?: HomeResolveContext): TerrainGrid => {
+        const composed = this.composeMap(ctx);
+        if (!composed) {
+            throw new Error(`Mission ${this.missionId} must set mapLayout or override createTerrain`);
+        }
+        return composed.terrainGrid;
+    };
 
     /**
      * Set up the initial game state with player units, enemies, projectiles, and effects.
@@ -232,18 +280,31 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     initializeGameState(engine: GameEngine, params: InitializeGameStateParams): void {
         engine.localPlayerId = params.localPlayerId;
         engine.terrainManager = params.terrainManager ?? null;
-        engine.registerMapPOIs(params.terrainSegmentPOIs ?? []);
-        engine.registerMapZones(params.terrainSegmentZones ?? []);
-        // Deliberate simplification: call getMissionSegmentNetwork directly using this.segmentIds
-        // rather than threading a new terrainSegmentNetwork param through BattleSession the way
-        // POIs/zones are pre-computed there — mapNetworkManager is new with no existing
-        // multi-call-site convention to match yet.
-        engine.state.mapNetworkManager.loadFromSegments(getMissionSegmentNetwork(this.segmentIds));
-        // Same simplification as above: resolved directly from this.segmentIds for debug/tooling
-        // lookups (e.g. DebugConsole's mouse-position tile readout), not threaded through
-        // BattleSession params.
-        if (engine.terrainManager) {
-            engine.terrainManager.segmentPlacements = getMissionSegmentPlacements(this.segmentIds);
+        const composed = this.composeMap({
+            researchTrees: mergePartyResearch(params.playerResearchTreesByPlayer),
+            missionResults: params.missionResults,
+        });
+        if (composed) {
+            engine.registerMapPOIs(params.terrainSegmentPOIs ?? composed.pois);
+            engine.registerMapZones(params.terrainSegmentZones ?? composed.zones);
+            engine.state.mapNetworkManager.loadFromSegments(composed.network);
+            if (engine.terrainManager) {
+                engine.terrainManager.segmentPlacements = composed.placements;
+            }
+        } else {
+            engine.registerMapPOIs(params.terrainSegmentPOIs ?? []);
+            engine.registerMapZones(params.terrainSegmentZones ?? []);
+            // Deliberate simplification: call getMissionSegmentNetwork directly using this.segmentIds
+            // rather than threading a new terrainSegmentNetwork param through BattleSession the way
+            // POIs/zones are pre-computed there — mapNetworkManager is new with no existing
+            // multi-call-site convention to match yet.
+            engine.state.mapNetworkManager.loadFromSegments(getMissionSegmentNetwork(this.segmentIds));
+            // Same simplification as above: resolved directly from this.segmentIds for debug/tooling
+            // lookups (e.g. DebugConsole's mouse-position tile readout), not threaded through
+            // BattleSession params.
+            if (engine.terrainManager) {
+                engine.terrainManager.segmentPlacements = getMissionSegmentPlacements(this.segmentIds);
+            }
         }
 
         // Add player units
@@ -253,7 +314,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
         const worldW = grid ? grid.worldWidth : this.worldWidth;
         const worldH = grid ? grid.worldHeight : this.worldHeight;
         const playerSpacing = worldH / (playerCount + 1);
-        const spawnPoints = this.playerSpawnPoints;
+        const spawnPoints = this.playerSpawnPoints ?? composed?.playerSpawnPoints;
         const researchByPlayer = params.playerResearchTreesByPlayer ?? {};
         const researchLevelsByPlayer = params.playerResearchNodeLevelsByPlayer ?? {};
         for (let i = 0; i < playerCount; i++) {
@@ -529,8 +590,51 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 engine.addSpecialTile(tile);
             }
         }
+        this.placeHomeCampfiresFromLayout(engine, composed);
 
         // Base implementation adds no projectiles or effects.
         // Subclasses may override to add initial projectiles/effects.
+    }
+
+    /** Segment ids to fetch: destinations + every home the resolver might pick. */
+    getFetchSegmentIds(): string[] {
+        if (!this.mapLayout) return this.segmentIds;
+        return [...new Set([
+            ...layoutDestinationSegmentIds(this.mapLayout),
+            ...listHomeSegmentIds(),
+            ...(this.spawnSegmentId ? [this.spawnSegmentId] : []),
+            ...this.segmentIds,
+        ])];
+    }
+
+    private placeHomeCampfiresFromLayout(engine: GameEngine, composed: ComposedMissionMap | null): void {
+        if (!composed?.spawnPlacement) return;
+        if (this.specialTiles && this.specialTiles.length > 0) return;
+        const spawn = composed.spawnPlacement;
+        const existing = new Set(
+            (engine.specialTiles ?? []).map((t) => `${t.defId}:${t.col}:${t.row}`),
+        );
+        for (const poi of composed.pois) {
+            if (poi.type !== 'campfire') continue;
+            if (poi.col < spawn.originCol || poi.col >= spawn.originCol + spawn.width) continue;
+            if (poi.row < spawn.originRow || poi.row >= spawn.originRow + spawn.height) continue;
+            const key = `Campfire:${poi.col}:${poi.row}`;
+            if (existing.has(key)) continue;
+            const def = getSpecialTileDef('Campfire');
+            if (!def) continue;
+            engine.addSpecialTile({
+                id: `special_Campfire_${poi.col}_${poi.row}`,
+                defId: 'Campfire',
+                col: poi.col,
+                row: poi.row,
+                hp: HOME_CAMPFIRE_MAX_HP,
+                maxHp: HOME_CAMPFIRE_MAX_HP,
+                defendPoint: false,
+                emitsLight: {
+                    lightAmount: HOME_CAMPFIRE_LIGHT_AMOUNT,
+                    radius: HOME_CAMPFIRE_LIGHT_RADIUS,
+                },
+            });
+        }
     }
 }

@@ -4,6 +4,8 @@
 
 import type { EnemySpawnDef } from '../storylines/types';
 import type { LightTileGridJSON } from './lightTileGrid/LightTileGrid';
+import type { ResolvedNetworkNode, ResolvedSegmentPlacement } from '../terrain/segmentRegistry';
+import type { NetworkEdgeDef } from '../terrain/networkSchema';
 
 /**
  * Describes how a unit entered the battle, used to determine whether to play a spawn animation.
@@ -200,6 +202,12 @@ export interface GameEngineFromJSONOpts {
      * harmlessly stays empty, matching pre-this-plan behavior.
      */
     segmentIds?: string[];
+    /**
+     * Layout-composer missions pass explicit placements/network so restore does not use world-grid
+     * `gridCol`/`gridRow` math (which would separate `0_0` from `50_50` by fifty tiles).
+     */
+    segmentPlacements?: ResolvedSegmentPlacement[];
+    segmentNetwork?: { nodes: ResolvedNetworkNode[]; edges: NetworkEdgeDef[] };
 }
 
 /** Serialized card instance. */

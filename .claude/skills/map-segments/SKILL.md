@@ -60,6 +60,7 @@ Prefer **one `stitchTerrain` call** whose matrix matches the **mental map** (qua
 - **Horizontal strip (e.g. three 22×22):** one tile row, multiple columns — see `WorldOfDarkness/missions/002_towards_the_light.ts`.
 - **Vertical stack (e.g. three 22×22 in one column):** multiple tile rows, one column per row — see `003_light_empowered.ts`.
 - **2×2 (or N×M) quadrants:** `[[NW, NE], [SW, SE]]` — each cell is its own `TerrainType[][]` — see `007_ember_threshold.ts`.
+- **Layout composer (home + destinations):** `mapLayout` with `{ kind: 'spawn' }` and destination `{ kind: 'segment', id }` cells. Placement is the layout matrix, **not** segment world addresses — so `50_50` can sit beside `0_0`. Source: `terrain/missionLayout.ts`, sample `WorldOfDarkness/missions/010_circle_arena.ts`. Home swaps: `storylines/homeBase.ts`.
 
 This keeps debug/visual “grid of segments” aligned with the code and avoids accidentally treating a hand-built **pre-merged** wide array as a single logical row of segments.
 

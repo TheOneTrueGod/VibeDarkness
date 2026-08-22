@@ -161,6 +161,68 @@ export class TerrainGrid {
     }
 }
 
+/** Per-tile-column/row sizes and origins produced by {@link stitchTerrain} / the layout composer. */
+export interface StitchLayoutMetrics {
+    tileRows: number;
+    tileCols: number;
+    maxHeightPerRow: number[];
+    maxWidthPerCol: number[];
+    /** Grid-column origin of each tile column (sum of widths to the left). */
+    originColByTile: number[];
+    /** Grid-row origin of each tile row (sum of heights above). */
+    originRowByTile: number[];
+    totalWidth: number;
+    totalHeight: number;
+}
+
+/**
+ * Sizing/origin math shared by {@link stitchTerrain} and the mission layout composer so POIs and
+ * placements land on the same cells as the stitched bedrock.
+ */
+export function getStitchLayoutMetrics(
+    quadrantGrid: (TerrainType[][] | null | undefined)[][],
+): StitchLayoutMetrics {
+    const tileRows = quadrantGrid.length;
+    const tileCols = tileRows > 0 ? Math.max(...quadrantGrid.map((row) => row.length)) : 0;
+    const maxHeightPerRow: number[] = [];
+    const maxWidthPerCol: number[] = new Array(tileCols).fill(0);
+    for (let tr = 0; tr < tileRows; tr++) {
+        let maxH = 0;
+        for (let tc = 0; tc < tileCols; tc++) {
+            const t = quadrantGrid[tr]?.[tc];
+            const h = t?.length ?? 0;
+            const w = t?.[0]?.length ?? 0;
+            maxH = Math.max(maxH, h);
+            if (tc < maxWidthPerCol.length) maxWidthPerCol[tc] = Math.max(maxWidthPerCol[tc], w);
+        }
+        maxHeightPerRow.push(maxH);
+    }
+
+    const originColByTile: number[] = [];
+    let totalWidth = 0;
+    for (let tc = 0; tc < tileCols; tc++) {
+        originColByTile.push(totalWidth);
+        totalWidth += maxWidthPerCol[tc] ?? 0;
+    }
+    const originRowByTile: number[] = [];
+    let totalHeight = 0;
+    for (let tr = 0; tr < tileRows; tr++) {
+        originRowByTile.push(totalHeight);
+        totalHeight += maxHeightPerRow[tr] ?? 0;
+    }
+
+    return {
+        tileRows,
+        tileCols,
+        maxHeightPerRow,
+        maxWidthPerCol,
+        originColByTile,
+        originRowByTile,
+        totalWidth,
+        totalHeight,
+    };
+}
+
 /**
  * Stitch a 2D grid of terrain "tiles" (each tile is a 2D array of TerrainType) into one 2D array.
  * Tiles are placed left-to-right, top-to-bottom. Missing rows/columns within an otherwise-present
@@ -176,24 +238,10 @@ export function stitchTerrain(
     quadrantGrid: (TerrainType[][] | null | undefined)[][],
     fill: TerrainType,
 ): TerrainType[][] {
-    const tileRows = quadrantGrid.length;
-    const tileCols = tileRows > 0 ? Math.max(...quadrantGrid.map((row) => row.length)) : 0;
-    if (tileRows === 0 || tileCols === 0) return [];
+    const metrics = getStitchLayoutMetrics(quadrantGrid);
+    if (metrics.tileRows === 0 || metrics.tileCols === 0) return [];
 
-    const maxHeightPerRow: number[] = [];
-    const maxWidthPerCol: number[] = new Array(tileCols).fill(0);
-    for (let tr = 0; tr < tileRows; tr++) {
-        let maxH = 0;
-        for (let tc = 0; tc < tileCols; tc++) {
-            const t = quadrantGrid[tr]?.[tc];
-            const h = t?.length ?? 0;
-            const w = t?.[0]?.length ?? 0;
-            maxH = Math.max(maxH, h);
-            if (tc < maxWidthPerCol.length) maxWidthPerCol[tc] = Math.max(maxWidthPerCol[tc], w);
-        }
-        maxHeightPerRow.push(maxH);
-    }
-
+    const { tileRows, tileCols, maxHeightPerRow, maxWidthPerCol } = metrics;
     const result: TerrainType[][] = [];
     for (let tr = 0; tr < tileRows; tr++) {
         const blockH = maxHeightPerRow[tr];

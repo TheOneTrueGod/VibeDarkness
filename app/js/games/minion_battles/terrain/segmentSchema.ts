@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { TerrainType } from './TerrainType';
 import { MapSegmentNetworkSchema } from './networkSchema';
 
-export const POI_TYPES = ['generic', 'campfire', 'crystal', 'nest', 'patrol_point', 'enemySpawn'] as const;
+export const POI_TYPES = ['generic', 'campfire', 'crystal', 'nest', 'patrol_point', 'enemySpawn', 'playerSpawn'] as const;
 export type POIType = typeof POI_TYPES[number];
 
 export const MapSegmentPOISchema = z.object({

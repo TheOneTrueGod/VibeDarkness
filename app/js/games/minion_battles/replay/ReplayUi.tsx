@@ -7,6 +7,7 @@ import type { IBaseMissionDef } from '../storylines/BaseMissionDef';
 import { Camera } from '../game/Camera';
 import { GameRenderer } from '../game/GameRenderer';
 import { TerrainManager } from '../terrain/TerrainManager';
+import { terrainContextFromSnapshot } from '../storylines/homeBase';
 import BattleCanvas from '../ui/components/BattleCanvas';
 import { Replay } from './Replay';
 
@@ -108,7 +109,7 @@ export default function ReplayUi(): React.ReactElement {
             if (!rendererRef.current) {
                 rendererRef.current = new GameRenderer();
             }
-            const terrain = mission.createTerrain();
+            const terrain = mission.createTerrain(terrainContextFromSnapshot(initialState as unknown as Record<string, unknown>));
             cameraRef.current = new Camera(800, 600, terrain.worldWidth, terrain.worldHeight);
             rendererRef.current.setTerrain(new TerrainManager(terrain));
             rendererRef.current.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);

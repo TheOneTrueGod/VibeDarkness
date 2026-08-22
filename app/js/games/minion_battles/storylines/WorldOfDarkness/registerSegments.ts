@@ -26,7 +26,17 @@ import {
     CAVE_CAMPFIRE,
     CRYSTAL_POINTS,
     OUTSIDE_CAVE_MOUTH_ZONE,
+    CRYSTAL_CAVE_SEGMENT_ID,
+    CRYSTAL_CAVE_GRID_COL,
+    CRYSTAL_CAVE_GRID_ROW,
+    HOME_PLAYER_SPAWN_OFFSETS,
 } from './MapSegments/50_50_crystal_cave';
+import {
+    MAP_SEGMENT_0_0_BOSS_ARENA,
+    BOSS_ARENA_SEGMENT_ID,
+    BOSS_ARENA_GRID_COL,
+    BOSS_ARENA_GRID_ROW,
+} from './MapSegments/0_0_boss_arena';
 import {
     MAP_SEGMENT_50_51_SOUTH_GATE,
     PATROL_DRAW_POINT,
@@ -129,6 +139,13 @@ export function registerWorldOfDarknessSegments(): void {
             row: CAVE_CAMPFIRE.row,
             type: 'campfire',
         },
+        ...HOME_PLAYER_SPAWN_OFFSETS.map((offset, index) => ({
+            id: `home_player_spawn_${index + 1}`,
+            label: `Home Player Spawn ${index + 1}`,
+            col: CAVE_CAMPFIRE.col + offset.dCol,
+            row: CAVE_CAMPFIRE.row + offset.dRow,
+            type: 'playerSpawn' as const,
+        })),
         {
             id: 'crystal_1',
             label: 'Crystal 1',
@@ -167,12 +184,22 @@ export function registerWorldOfDarknessSegments(): void {
     ];
     registerSegment(
         tsTerrainToSegmentData(
-            '50_50_crystal_cave',
-            50,
-            50,
+            CRYSTAL_CAVE_SEGMENT_ID,
+            CRYSTAL_CAVE_GRID_COL,
+            CRYSTAL_CAVE_GRID_ROW,
             MAP_SEGMENT_50_50_CRYSTAL_CAVE,
             crystalCavePOIs,
             [OUTSIDE_CAVE_MOUTH_ZONE],
+        ),
+    );
+
+    // 0_0 Boss arena — encounter tile placed by layout composer, not world-grid adjacency
+    registerSegment(
+        tsTerrainToSegmentData(
+            BOSS_ARENA_SEGMENT_ID,
+            BOSS_ARENA_GRID_COL,
+            BOSS_ARENA_GRID_ROW,
+            MAP_SEGMENT_0_0_BOSS_ARENA,
         ),
     );
 

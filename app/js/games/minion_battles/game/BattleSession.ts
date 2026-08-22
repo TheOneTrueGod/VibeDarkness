@@ -10,6 +10,10 @@ import { MISSION_MAP, DARK_AWAKENING } from '../storylines';
 import { SPECTATOR_ID, isControlEnemy } from '../state';
 import { TerrainManager } from '../terrain/TerrainManager';
 import { getSegment, getMissionSegmentZones } from '../terrain/segmentRegistry';
+import { mergePartyResearch, terrainContextFromSnapshot } from '../storylines/homeBase';
+import type { HomeResolveContext } from '../storylines/homeBase';
+import type { IBaseMissionDef } from '../storylines/BaseMissionDef';
+import type { BattleOrder, GameEngineFromJSONOpts, SerializedGameState, WaitingForOrders } from './types';
 import { debugLog } from '../../../debugLog';
 import { logToLobbyLog, logToLobbyLogBattleSync } from '../../../lobbyLog';
 import { GameEngine } from './GameEngine';
@@ -19,7 +23,6 @@ import { Camera } from './Camera';
 import { PlayerInteractionManager } from './interaction/PlayerInteractionManager';
 import { fingerprintToHex, type FingerprintRingEntry } from './Fingerprint';
 import { debugSettingsSnapshot } from '../../../debug/debugSettingsStore';
-import type { BattleOrder, SerializedGameState, WaitingForOrders } from './types';
 import type { ApplyRemoteOrdersResult, BattleNet, BattleSessionHandle, RemoteOrderWireRow } from './battlenet';
 import { hashOrderId } from './battlenet/helpers/orderHashing';
 import { summarizeRemoteWireRowsForLog } from './battlenet/helpers/orderWireLogSummary';
@@ -38,6 +41,17 @@ import { PERF_UI, PERF_UI_REACT, tickPerformanceTracker } from './performance/ti
 import { getAbility } from '../abilities/AbilityRegistry';
 import { getInteractiveTargetDefsFromTimings } from '../abilities/targeting';
 import { isCasterInConditionalCancelPause } from './interaction/isITSPreviewComplete';
+
+function segmentRestoreOpts(
+    mission: IBaseMissionDef,
+    ctx?: HomeResolveContext,
+): Pick<GameEngineFromJSONOpts, 'segmentIds' | 'segmentPlacements' | 'segmentNetwork'> {
+    const composed = mission.composeMap(ctx);
+    if (composed) {
+        return { segmentPlacements: composed.placements, segmentNetwork: composed.network };
+    }
+    return { segmentIds: mission.segmentIds };
+}
 
 export interface BattleSessionConfig {
     api: MinionBattlesApi;
@@ -490,14 +504,18 @@ export class BattleSession implements BattleSessionHandle {
             this.renderer = renderer;
         }
         const mission = MISSION_MAP[missionId] ?? DARK_AWAKENING;
-        const terrainGrid = mission.createTerrain();
+        const snapshotRecord = (initialSnapshot ?? null) as Record<string, unknown> | null;
+        const playerResearchTreesByPlayer =
+            (snapshotRecord?.playerResearchTreesByPlayer as Record<string, Record<string, string[]>> | undefined) ?? {};
+        const terrainCtx = { researchTrees: mergePartyResearch(playerResearchTreesByPlayer) };
+        const composed = mission.composeMap(terrainCtx);
+        const terrainGrid = mission.createTerrain(terrainCtx);
         const terrainManager = new TerrainManager(terrainGrid);
         const camera = new Camera(800, 600, terrainGrid.worldWidth, terrainGrid.worldHeight);
         this.camera = camera;
         renderer.setTerrain(terrainManager);
         renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
 
-        const snapshotRecord = (initialSnapshot ?? null) as Record<string, unknown> | null;
         const selections =
             Object.keys(characterSelections).length > 0
                 ? characterSelections
@@ -521,8 +539,6 @@ export class BattleSession implements BattleSessionHandle {
                 };
             });
         const equippedItemsByPlayer = (snapshotRecord?.playerEquipmentByPlayer as Record<string, string[]> | undefined) ?? {};
-        const playerResearchTreesByPlayer =
-            (snapshotRecord?.playerResearchTreesByPlayer as Record<string, Record<string, string[]>> | undefined) ?? {};
         const playerResearchNodeLevelsByPlayer =
             (snapshotRecord?.playerResearchNodeLevelsByPlayer as
                 | Record<string, Record<string, Record<string, number>>>
@@ -551,8 +567,9 @@ export class BattleSession implements BattleSessionHandle {
         if (darknessStrength) {
             engine.setActiveDarknessStrengths(resolveActiveDarknessStrengths(darknessStrength));
         }
-        const terrainSegmentPOIs = mission.segmentIds.flatMap((id) => getSegment(id)?.pointsOfInterest ?? []);
-        const terrainSegmentZones = getMissionSegmentZones(mission.segmentIds);
+        const terrainSegmentPOIs = composed?.pois
+            ?? mission.segmentIds.flatMap((id) => getSegment(id)?.pointsOfInterest ?? []);
+        const terrainSegmentZones = composed?.zones ?? getMissionSegmentZones(mission.segmentIds);
         mission.initializeGameState(engine, {
             playerUnits,
             characterSelections: selections,
@@ -631,14 +648,15 @@ export class BattleSession implements BattleSessionHandle {
             this.renderer = renderer;
         }
         const mission = MISSION_MAP[missionId] ?? DARK_AWAKENING;
-        const terrainGrid = mission.createTerrain();
+        const terrainCtx = terrainContextFromSnapshot(gameState as unknown as Record<string, unknown>);
+        const terrainGrid = mission.createTerrain(terrainCtx);
         const terrainManager = new TerrainManager(terrainGrid);
         const camera = new Camera(800, 600, terrainGrid.worldWidth, terrainGrid.worldHeight);
         this.camera = camera;
         renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
         const engine = GameEngine.fromJSON(gameState, playerId, terrainManager, {
             ...opts,
-            segmentIds: mission.segmentIds,
+            ...segmentRestoreOpts(mission, terrainCtx),
         });
         renderer.setTerrain(terrainManager);
         // Fallback for snapshots predating ninjutsu serialization: re-init from mission config.
@@ -695,14 +713,15 @@ export class BattleSession implements BattleSessionHandle {
             this.renderer = renderer;
         }
         const mission = MISSION_MAP[missionId] ?? DARK_AWAKENING;
-        const terrainGrid = mission.createTerrain();
+        const terrainCtx = terrainContextFromSnapshot(snapshot as unknown as Record<string, unknown>);
+        const terrainGrid = mission.createTerrain(terrainCtx);
         const terrainManager = new TerrainManager(terrainGrid);
         const camera = new Camera(800, 600, terrainGrid.worldWidth, terrainGrid.worldHeight);
         this.camera = camera;
         renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
         const engine = GameEngine.fromJSON(snapshot, playerId, terrainManager, {
             checkpointRuntimeFingerprintHex: snapshot.checkpointRuntimeFingerprintHex,
-            segmentIds: mission.segmentIds,
+            ...segmentRestoreOpts(mission, terrainCtx),
         });
         renderer.setTerrain(terrainManager);
         if (!engine.state.ninjutsuManager) {

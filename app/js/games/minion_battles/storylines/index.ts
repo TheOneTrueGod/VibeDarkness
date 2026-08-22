@@ -17,6 +17,7 @@ import { SOUTH_GATE_SWARM } from './WorldOfDarkness/missions/006c_south_gate_swa
 import { EMBER_THRESHOLD } from './WorldOfDarkness/missions/007_ember_threshold';
 import { THORN_MARCH } from './WorldOfDarkness/missions/008_thorn_march';
 import { THORNLING_RISE } from './WorldOfDarkness/missions/009_thornling_rise';
+import { THE_CIRCLE } from './WorldOfDarkness/missions/010_circle_arena';
 import { LAST_HOLDOUT } from './BunkerAtTheEnd/missions/last_holdout';
 import { SWARM_PRESSURE } from './BunkerAtTheEnd/missions/002_swarm_pressure';
 import { FOUND_BERRIES } from './WorldOfDarkness/questMissions/found_berries';
@@ -45,6 +46,7 @@ export const MISSION_MAP: Record<string, IBaseMissionDef> = {
     ember_threshold: EMBER_THRESHOLD,
     thorn_march: THORN_MARCH,
     thornling_rise: THORNLING_RISE,
+    the_circle: THE_CIRCLE,
     last_holdout: LAST_HOLDOUT,
     swarm_pressure: SWARM_PRESSURE,
     // Quest-only / random-story bag (not on the main storyline edge graph)

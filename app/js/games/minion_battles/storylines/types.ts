@@ -9,6 +9,9 @@ import type { TeamId } from '../game/teams';
 import type { AISettings } from '../game/units/Unit';
 import type { UnitTag } from '../game/units/unitTag';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
+import type { MissionMapLayout } from '../terrain/missionLayout';
+export type { MissionMapLayout };
+import type { MissionResult } from '../../../types';
 import type {
     InBattleStoryDef,
     PostMissionStoryDef,
@@ -490,8 +493,21 @@ export interface MissionBattleConfig {
     levelEvents?: LevelEvent[];
     /** Optional battle objectives (ObjectivePanel); state is checkpointed. */
     battleObjectives?: BattleObjectiveDef[];
-    /** Create the terrain grid for this mission's battlefield. */
-    createTerrain: () => TerrainGrid;
+    /**
+     * Optional mission-local layout (destination tiles + spawn slot). When set, `createTerrain`
+     * may be omitted — {@link BaseMissionDef} composes from this via `composeMissionMap`.
+     */
+    mapLayout?: MissionMapLayout;
+    /**
+     * Pin the spawn/home segment for layout missions. When omitted, {@link resolveHomeSegmentId}
+     * picks from campaign research / progress.
+     */
+    spawnSegmentId?: string;
+    /** Shared lobby context for resolving the home/spawn tile. */
+    createTerrain: (ctx?: {
+        researchTrees?: Record<string, string[]>;
+        missionResults?: MissionResult[];
+    }) => TerrainGrid;
     /** Optional special tiles (Campfire, Crystal, etc.) placed on the map. */
     specialTiles?: SpecialTilePlacement[];
     /**

@@ -3,6 +3,7 @@ import type { IBaseMissionDef } from '../storylines/BaseMissionDef';
 import type { SerializedGameState } from '../game/types';
 import { TerrainManager } from '../terrain/TerrainManager';
 import { GameEngine } from '../game/GameEngine';
+import { terrainContextFromSnapshot } from '../storylines/homeBase';
 
 export interface ReplayState {
     tick: number;
@@ -48,10 +49,14 @@ export class Replay {
     }
 
     private createEngine(): GameEngine {
-        const terrain = this.mission.createTerrain();
+        const terrainCtx = terrainContextFromSnapshot(this.initialState as unknown as Record<string, unknown>);
+        const terrain = this.mission.createTerrain(terrainCtx);
         const terrainManager = new TerrainManager(terrain);
         const localPlayerId = getDefaultLocalPlayerId(this.players);
-        const engine = GameEngine.fromJSON(this.initialState, localPlayerId, terrainManager);
+        const composed = this.mission.composeMap(terrainCtx);
+        const engine = GameEngine.fromJSON(this.initialState, localPlayerId, terrainManager, composed
+            ? { segmentPlacements: composed.placements, segmentNetwork: composed.network }
+            : { segmentIds: this.mission.segmentIds });
         for (const record of this.orders) {
             engine.state.orderMgr.queueOrder(record.atTick, record.order);
         }

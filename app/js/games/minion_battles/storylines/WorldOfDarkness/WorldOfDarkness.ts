@@ -43,6 +43,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         { fromMissionId: 'light_empowered', result: 'victory', toMissionId: 'cave_respite' },
         { fromMissionId: 'cave_respite', result: 'victory', toMissionId: 'monster' },
         { fromMissionId: 'cave_respite', result: 'victory', toMissionId: 'crystal_corruption', isSideMission: true },
+        { fromMissionId: 'cave_respite', result: 'victory', toMissionId: 'the_circle', isSideMission: true },
         { fromMissionId: 'crystal_corruption', result: 'victory', toMissionId: 'monster' },
         { fromMissionId: 'monster', result: 'victory', toMissionId: 'core_awakening' },
         { fromMissionId: 'core_awakening', result: 'victory', toMissionId: 'south_gate_swarm' },

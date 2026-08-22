@@ -217,6 +217,47 @@ export function getMissionSegmentNetwork(segmentIds: string[]): {
 }
 
 /**
+ * Same graph resolution as {@link getMissionSegmentNetwork}, but origins come from explicit
+ * mission-local placements (layout composer) instead of world-grid `gridCol`/`gridRow`.
+ */
+export function getMissionSegmentNetworkFromPlacements(
+    placements: ResolvedSegmentPlacement[],
+): {
+    nodes: ResolvedNetworkNode[];
+    edges: NetworkEdgeDef[];
+} {
+    const nodes: ResolvedNetworkNode[] = [];
+    const rawEdges: NetworkEdgeDef[] = [];
+    for (const placement of placements) {
+        const seg = registry.get(placement.id);
+        if (seg == null) continue;
+        const network = seg.network;
+        if (network == null) continue;
+        for (const node of network.nodes) {
+            const { x, y } = resolveNetworkNodePosition(node.position, placement.originCol, placement.originRow);
+            nodes.push({
+                id: node.id,
+                x,
+                y,
+                radius: node.radius ?? 0,
+                tags: node.tags ?? [],
+                segmentId: seg.id,
+            });
+        }
+        rawEdges.push(...network.edges);
+    }
+
+    const nodeIds = new Set(nodes.map((n) => n.id));
+    const edges = rawEdges.filter(([a, b]: NetworkEdgeDef): boolean => {
+        if (nodeIds.has(a) && nodeIds.has(b)) return true;
+        console.warn(`[segmentRegistry] Dropping network edge with unknown node id(s): [${a}, ${b}]`);
+        return false;
+    });
+
+    return { nodes, edges };
+}
+
+/**
  * Returns terrain for a segment from the registry, cast to TerrainType[][].
  * Falls back to the provided TS array if the segment is not registered.
  */

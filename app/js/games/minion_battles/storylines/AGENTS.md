@@ -15,4 +15,5 @@ and the class body (`BaseMissionDef`). Adding it to the class only compiles fine
 will be `undefined` wherever `IBaseMissionDef` is used — including `BattleSession` — causing
 silent runtime failures with no error message.
 
-Verify with `npx tsc --noEmit` after making the change.
+Layout-composer fields (`mapLayout`, `spawnSegmentId`, `composeMap`, `getFetchSegmentIds`) follow
+the same rule. Verify with `npx tsc --noEmit` after making the change.

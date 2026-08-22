@@ -35,7 +35,7 @@ Key exports:
 
 - `MapSegmentData` — top-level segment shape (`id`, `gridCol`, `gridRow`, `width`, `height`, `terrain: number[][]`, `pointsOfInterest: MapSegmentPOI[]`).
 - `MapSegmentPOI` — a named point of interest (`id`, `label`, `col`, `row`, `type: POIType`, optional `radius`).
-- `POI_TYPES` — the current allowed POI type values: `generic`, `campfire`, `crystal`, `nest`, `patrol_point`, `spawn`.
+- `POI_TYPES` — allowed POI type values; see `segmentSchema.ts` (do not duplicate the list here).
 
 ## How to add a new POI type
 

@@ -32,6 +32,8 @@ This convention helps order missions and identify their sequence in a campaign.
 
 For reusable terrain, use **map segments** from the storylines folder.
 
+**Layout-composer missions** (opt-in): set `mapLayout` (destination tiles + `{ kind: 'spawn' }` slots) and optional `spawnSegmentId`. `BaseMissionDef` composes terrain via `terrain/missionLayout.ts`; the home tile is `storylines/homeBase.ts`. Do **not** use world-grid `gridCol`/`gridRow` for those placements. Example: `WorldOfDarkness/missions/010_circle_arena.ts`. Existing missions keep hand-written `stitchTerrain`.
+
 ## Terrain grids and `stitchTerrain`
 
 - **Compose** maps with `stitchTerrain` and `TerrainGrid.createTerrainFromArray` as documented in **`map-segments`** (`.cursor/skills/map-segments/SKILL.md`).

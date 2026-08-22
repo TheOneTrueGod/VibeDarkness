@@ -8,6 +8,10 @@ import { TerrainType } from '../../../terrain/TerrainType';
 import type { SpecialTilePlacement } from '../../types';
 import type { MapSegmentZone } from '../../../terrain/segmentSchema';
 
+export const CRYSTAL_CAVE_SEGMENT_ID = '50_50_crystal_cave';
+export const CRYSTAL_CAVE_GRID_COL = 50;
+export const CRYSTAL_CAVE_GRID_ROW = 50;
+
 const _ = TerrainType.Grass;
 const R = TerrainType.Rock;
 const T = TerrainType.ThickGrass;
@@ -40,6 +44,18 @@ export const MAP_SEGMENT_50_50_CRYSTAL_CAVE: TerrainType[][] = [
 
 /** Point of interest: center of cave floor (campfire location in missions 2 and 3). */
 export const CAVE_CAMPFIRE = { row: 10, col: 19 } as const;
+
+/** Offsets from {@link CAVE_CAMPFIRE} for multiplayer home spawns (all on cave-floor dirt). */
+export const HOME_PLAYER_SPAWN_OFFSETS = [
+    { dCol: -1, dRow: -1 },
+    { dCol: 0, dRow: -1 },
+    { dCol: 1, dRow: -1 },
+    { dCol: -1, dRow: 0 },
+    { dCol: 1, dRow: 0 },
+    { dCol: -1, dRow: 1 },
+    { dCol: 0, dRow: 1 },
+    { dCol: 1, dRow: 1 },
+] as const;
 
 export const pointsOfInterest = {
     campfire: CAVE_CAMPFIRE,
