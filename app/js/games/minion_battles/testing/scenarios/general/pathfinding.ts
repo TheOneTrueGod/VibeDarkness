@@ -14,6 +14,7 @@ import { Movement } from '../../../resources/Movement';
 import {
     THORNBINDER_ABILITY_ID,
     THORNBINDER_LOCK_TIME,
+    THORN_PROJECTILE_SPEED,
 } from '../../../card_defs/0008_ThornbinderBramble/0008Ability';
 
 /** Path scenarios only: no AI tree / retrigger so scripted move orders are not overwritten. */
@@ -313,8 +314,8 @@ export const dodgeIFrameProtectionScenario: ScenarioDefinition = {
 /** Matches Dodge `iframe` timing window (0101Ability). */
 const DODGE_IFRAME_DURATION_SEC = 0.4;
 /**
- * Thornbinder flight speed is TARGETING_RANGE / flight duration = 320/0.55.
  * Keep caster→aim distance well under max so impact lands inside the dodge window.
+ * Flight time is offset / {@link THORN_PROJECTILE_SPEED}.
  */
 const TB_IFRAME_CASTER_OFFSET_X = 100;
 /** Short dodge so the player stays in the impact circle and the same grid cell (no thorn enter). */
@@ -330,25 +331,24 @@ const TB_IFRAME_DODGE_TARGET = {
 };
 /** Thornbinder cast tick (60 Hz). */
 const TB_IFRAME_CAST_TICK = 1;
-/**
- * Dodge starts just before lock+short flight so iframes cover impact.
- * Impact ≈ castStart + LOCK_TIME + offset/speed (LOCK_TIME tracks Bramble windup).
- */
-const TB_IFRAME_DODGE_TICK = Math.floor(
-    (TB_IFRAME_CAST_TICK / 60 + THORNBINDER_LOCK_TIME - 0.08) * 60,
-);
+const TB_IFRAME_CAST_START_SEC = TB_IFRAME_CAST_TICK / 60;
+const TB_IFRAME_FLIGHT_SEC = TB_IFRAME_CASTER_OFFSET_X / THORN_PROJECTILE_SPEED;
+const TB_IFRAME_IMPACT_SEC = TB_IFRAME_CAST_START_SEC + THORNBINDER_LOCK_TIME + TB_IFRAME_FLIGHT_SEC;
+/** Dodge so iframes cover impact (start ~0.25s before the spike lands). */
+const TB_IFRAME_DODGE_LEAD_SEC = 0.25;
+const TB_IFRAME_DODGE_TICK = Math.floor((TB_IFRAME_IMPACT_SEC - TB_IFRAME_DODGE_LEAD_SEC) * 60);
 /** Assert after impact and after the dodge window ends (DoT milestone is later at 2.5s). */
 const TB_IFRAME_ASSERT_AFTER_SEC =
-    TB_IFRAME_CAST_TICK / 60 + THORNBINDER_LOCK_TIME + 0.35 + DODGE_IFRAME_DURATION_SEC * 0.25;
+    TB_IFRAME_IMPACT_SEC + DODGE_IFRAME_DURATION_SEC * 0.25;
 
 /**
  * Dodge vs Thornbinder Bramble: player Dodges so iframes overlap the bramble impact;
  * combat damage + knockback must not apply (env thorns are out of scope for this assert).
  *
- * Timeline (60 Hz, approximate; LOCK_TIME-driven):
+ * Timeline (60 Hz, approximate; LOCK_TIME + flight-driven):
  *  tick  1 — Thornbinder queues Bramble at player start
- *  dodge tick — player Dodges a short step east (iframes ~0.4s); stays in impact radius
  *  lock tick — projectile launches (LOCK_TIME)
+ *  dodge tick — player Dodges a short step east (iframes ~0.4s); stays in impact radius
  *  shortly after — impact during iframes → no HP loss, no knockback, Dodge completes
  */
 export const dodgeIFrameVsThornbinderScenario: ScenarioDefinition = {
@@ -356,7 +356,7 @@ export const dodgeIFrameVsThornbinderScenario: ScenarioDefinition = {
     title: 'Dodge: iframes block Thornbinder Bramble impact',
     category: 'general',
     generalSection: 'Movement',
-    maxDurationMs: 3500,
+    maxDurationMs: Math.ceil((TB_IFRAME_ASSERT_AFTER_SEC + 0.75) * 1000),
 
     buildEngine() {
         const engine = buildTinyBattleEngine({

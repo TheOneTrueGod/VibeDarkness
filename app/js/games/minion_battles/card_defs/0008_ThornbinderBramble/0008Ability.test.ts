@@ -9,7 +9,11 @@ import {
     ThornbinderBrambleAbility,
     THORNBINDER_ABILITY_ID,
     THORNBINDER_BASE_RADIUS,
+    THORNBINDER_FLIGHT_DURATION,
     THORNBINDER_LOCK_TIME,
+    THORNBINDER_PROJECTILE_SLOWDOWN,
+    THORNBINDER_TARGETING_RANGE,
+    THORN_PROJECTILE_SPEED,
 } from './0008Ability';
 import { ThornStompAbility } from '../0016_ThornStomp/0016Ability';
 
@@ -97,7 +101,9 @@ describe('ThornbinderBrambleAbility ground-thorn ownership', () => {
         const caster = makeCaster();
         const engine = makeEngine(caster);
 
-        ThornStompAbility.doCardEffect!(engine, caster, [], 0, 1);
+        const stompStrike = ThornStompAbility.abilityTimings.find((t) => t.id === 'strike');
+        expect(stompStrike).toBeDefined();
+        ThornStompAbility.doCardEffect!(engine, caster, [], 0, stompStrike!.start + 0.01);
         const stompEffects = Array.from(engine.terrainLayers.allEffects.values());
         expect(stompEffects.length).toBeGreaterThan(0);
 
@@ -134,6 +140,21 @@ describe('ThornbinderBrambleAbility impact', () => {
     });
 });
 
+describe('ThornbinderBrambleAbility projectile speed', () => {
+    it('covers max range in the slowed flight window and keeps strike/prefire aligned with that window', () => {
+        expect(THORN_PROJECTILE_SPEED * THORNBINDER_FLIGHT_DURATION).toBeCloseTo(
+            THORNBINDER_TARGETING_RANGE,
+        );
+        expect(THORNBINDER_PROJECTILE_SLOWDOWN).toBe(4);
+        expect(ThornbinderBrambleAbility.prefireTime).toBe(
+            THORNBINDER_LOCK_TIME + THORNBINDER_FLIGHT_DURATION,
+        );
+        const strike = ThornbinderBrambleAbility.abilityTimings.find((t) => t.id === 'strike');
+        expect(strike).toBeDefined();
+        expect(strike!.end - strike!.start).toBe(THORNBINDER_FLIGHT_DURATION);
+    });
+});
+
 describe('ThornbinderBrambleAbility renderActivePreview (pre-launch windup line, caster-driven)', () => {
     it('draws the arc trajectory line and an impact ring at the target during windup, and nothing once the projectile would have launched', () => {
         const caster = makeCaster();
@@ -162,35 +183,49 @@ describe('ThornbinderBrambleAbility renderActivePreview (pre-launch windup line,
 
 describe('ThornbinderBrambleAbility renderProjectilePreview (in-flight impact ring, projectile-driven)', () => {
     function makeInFlightProjectile(distanceTraveled: number): Projectile {
-        // Launched from (100, 300) toward (400, 300) — pure +x direction, 300px total flight.
+        // Launched from (100, 300) toward max range along +x, using the live bramble speed.
         const proj = new Projectile({
             x: 100 + distanceTraveled,
             y: 300,
-            velocityX: 300,
+            velocityX: THORN_PROJECTILE_SPEED,
             velocityY: 0,
             damage: 0,
             sourceTeamId: 'enemy',
             sourceUnitId: 'caster-1',
             sourceAbilityId: THORNBINDER_ABILITY_ID,
-            maxDistance: 300,
+            maxDistance: THORNBINDER_TARGETING_RANGE,
         });
         proj.distanceTraveled = distanceTraveled;
         return proj;
     }
 
     it('grows the ring with travel progress and centers it on the reconstructed landing spot, not the projectile\'s current position', () => {
-        const proj = makeInFlightProjectile(150); // halfway through a 300px flight
+        const proj = makeInFlightProjectile(THORNBINDER_TARGETING_RANGE / 2);
 
         const gr = makeGraphicsRecorder();
         ThornbinderBrambleAbility.renderProjectilePreview!(gr, proj, 0);
 
+        const landingX = 100 + THORNBINDER_TARGETING_RANGE;
         expect(gr.circles.length).toBeGreaterThan(0);
         for (const c of gr.circles) {
-            expect(c.x).toBeCloseTo(400, 5); // landing spot (100 + 300), not proj.x (250)
+            expect(c.x).toBeCloseTo(landingX, 5);
             expect(c.y).toBeCloseTo(300, 5);
         }
         const innerRing = gr.circles[gr.circles.length - 1]!;
         expect(innerRing.radius).toBeCloseTo(THORNBINDER_BASE_RADIUS * 0.5, 1);
+    });
+
+    it('fills the explosion ring at one-quarter radius after one-quarter of max-range travel (time-independent of the 4x slowdown)', () => {
+        const proj = makeInFlightProjectile(THORNBINDER_TARGETING_RANGE / THORNBINDER_PROJECTILE_SLOWDOWN);
+
+        const gr = makeGraphicsRecorder();
+        ThornbinderBrambleAbility.renderProjectilePreview!(gr, proj, 0);
+
+        const innerRing = gr.circles[gr.circles.length - 1]!;
+        expect(innerRing.radius).toBeCloseTo(
+            THORNBINDER_BASE_RADIUS / THORNBINDER_PROJECTILE_SLOWDOWN,
+            1,
+        );
     });
 
     it('keeps rendering when the launching unit has been interrupted or killed', () => {

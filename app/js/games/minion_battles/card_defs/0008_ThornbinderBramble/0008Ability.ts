@@ -36,8 +36,13 @@ const THORNBINDER_BASE_WINDUP = 1.3;
 /** Windup ends / projectile launches at this elapsed time (seconds). */
 export const THORNBINDER_LOCK_TIME = THORNBINDER_BASE_WINDUP * 1.5;
 const LOCK_TIME = THORNBINDER_LOCK_TIME;
-/** Projectile flight window after lock (kept when windup was stretched). */
-const THORNBINDER_FLIGHT_DURATION = 0.55;
+/** Original max-range flight window before {@link THORNBINDER_PROJECTILE_SLOWDOWN}. */
+const THORNBINDER_BASE_FLIGHT_DURATION = 0.55;
+/** Projectile speed divisor — flight time scales by this factor. */
+export const THORNBINDER_PROJECTILE_SLOWDOWN = 4;
+/** Projectile flight window after lock at max range (kept when windup was stretched). */
+export const THORNBINDER_FLIGHT_DURATION =
+    THORNBINDER_BASE_FLIGHT_DURATION * THORNBINDER_PROJECTILE_SLOWDOWN;
 const STRIKE_TIME = LOCK_TIME + THORNBINDER_FLIGHT_DURATION;
 // A tiny amount over half a round, so back-to-back banked uses land just past the round midpoint.
 const COOLDOWN_END = ROUND_DURATION / 2 + 0.1;
@@ -51,10 +56,11 @@ const SLOW_MULT_NORMAL = 0.52;
 const SLOW_MULT_WEAKENED = 0.72;
 const BRAMBLE_CLEAR_BEFORE_NEXT_SEC = 0.15;
 const KNOCKBACK_TIER = 1;
-const TARGETING_RANGE = 320;
+export const THORNBINDER_TARGETING_RANGE = 320;
+const TARGETING_RANGE = THORNBINDER_TARGETING_RANGE;
 const DURATION_JITTER_IN_SECONDS = 1;
 // Flight time = THORNBINDER_FLIGHT_DURATION at max range; faster for closer targets.
-const THORN_PROJECTILE_SPEED = TARGETING_RANGE / THORNBINDER_FLIGHT_DURATION;
+export const THORN_PROJECTILE_SPEED = TARGETING_RANGE / THORNBINDER_FLIGHT_DURATION;
 const ARC_HEIGHT = 100;
 
 class ThornbinderHitboxSpec extends HitboxSpec {
@@ -114,7 +120,7 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
     targets: [],
     aiSettings: {
         minRange: 0,
-        maxRange: 320,
+        maxRange: TARGETING_RANGE,
         // This is a ground-target cast (targets: []); without this the AI would treat it as
         // always valid regardless of distance to the locked pursuit target.
         enforceRangeWhenUntargeted: true,
@@ -213,7 +219,7 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
         const dx = target.x - caster.x;
         const dy = target.y - caster.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const arcH = Math.min(dist * 0.4, 100);
+        const arcH = Math.min(dist * 0.4, ARC_HEIGHT);
         const ctrlX = (caster.x + target.x) / 2;
         const ctrlY = (caster.y + target.y) / 2 - arcH;
         const SEGS = 16;
