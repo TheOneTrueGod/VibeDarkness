@@ -26,6 +26,7 @@ import {
     buildFinalizedSequentialTargetingOrder,
     buildPositionalTargetsFromLabels,
     isPurePassOrder,
+    InteractiveTargetingSession,
 } from './interaction/InteractiveTargetingSession';
 import { spawnBrightLight } from '../abilities/brightKeyword';
 import { findPreviewDeferredSelectLabel } from './interaction/selectTargetLookahead';
@@ -60,6 +61,14 @@ import { OrderManager } from './managers/OrderManager';
 import { hashOrderId } from './battlenet/helpers/orderHashing';
 import { TerrainType } from '../terrain/TerrainType';
 import { Movement } from '../resources/Movement';
+import { ONE_PIXEL_TARGET } from '../card_defs/throwSharedTimings';
+import { computeAbilityModifiersFromResearch } from '../../../researchTrees/evaluator';
+import { getAbilityTagsForId } from '../abilities/Ability';
+import {
+    EARTH_NODE_RAPID_THROW,
+    EARTH_TREE_ID,
+} from '../../../researchTrees/trees/earth';
+import { resolveItsSelectTargetForClick } from './interaction/itsCanvasInput';
 
 /** Digging Claws ability id — matches `0534Ability.ts`. */
 const DIGGING_CLAWS_ABILITY_ID = '0534';
@@ -3196,6 +3205,204 @@ describe('interactive sequential targeting — conditional cancel stop point', (
 
         expect(errorSpy).not.toHaveBeenCalled();
         errorSpy.mockRestore();
+
+        engine.destroy();
+    });
+});
+
+describe('interactive sequential targeting — Throw Rock Rapid Throw combo', () => {
+    const THROW_ROCK_ABILITY_ID = 'throw_rock';
+    const THROW_ROCK_TARGET_LABEL = ONE_PIXEL_TARGET[0]!.label;
+    const RAPID_THROW_LEVEL_ONE = 1;
+
+    function buildThrowRockComboFixture(opts?: { withCombo?: boolean }) {
+        resetGameObjectIdCounter(1);
+        const engine = buildTinyBattleEngine({
+            gridW: 14,
+            gridH: 10,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+        const playerX = 3 * CELL_SIZE + CELL_SIZE / 2;
+        const playerY = 5 * CELL_SIZE + CELL_SIZE / 2;
+        const dummyX = playerX + 160;
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: playerX,
+            y: playerY,
+            abilities: [THROW_ROCK_ABILITY_ID],
+        });
+        const dummy = createTargetDummyAtWorld(engine, dummyX, playerY, {
+            id: 'throw_rock_dummy',
+            hp: 100,
+        });
+        initializeAbilityRuntimeForUnit(dummy);
+        engine.addUnit(dummy, 'initialGameSpawn');
+
+        if (opts?.withCombo !== false) {
+            player.abilityModifiers = computeAbilityModifiersFromResearch(
+                { [EARTH_TREE_ID]: [EARTH_NODE_RAPID_THROW] },
+                getAbilityTagsForId,
+                player.abilities,
+                { [EARTH_TREE_ID]: { [EARTH_NODE_RAPID_THROW]: RAPID_THROW_LEVEL_ONE } },
+            );
+        }
+
+        return { engine, player, dummy, aimPixel: { x: dummy.x, y: dummy.y } };
+    }
+
+    function queueThrowRockPreview(engine: GameEngine, player: Unit): void {
+        engine.isSequentialTargetingPreview = true;
+        engine.sequentialTargetingPreviewCast = {
+            unitId: player.id,
+            abilityId: THROW_ROCK_ABILITY_ID,
+            startRound: engine.roundNumber,
+        };
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: THROW_ROCK_ABILITY_ID,
+            targets: [],
+            targetsByLabel: {},
+            endTurn: true,
+        });
+    }
+
+    it('pauses at the first pixel select with Rapid Throw comboMax (does not skip to combo cancel)', () => {
+        const { engine, player } = buildThrowRockComboFixture();
+        expect(player.abilityModifiers[THROW_ROCK_ABILITY_ID]?.comboMax).toBeGreaterThan(0);
+
+        const gotWaitingForOrders = stepUntil(engine, () => engine.waitingForOrders != null);
+        expect(gotWaitingForOrders).toBe(true);
+
+        queueThrowRockPreview(engine, player);
+
+        const paused = stepUntil(
+            engine,
+            () => engine.waitingForTargetInput != null
+                || player.activeAbilities.some((a) => a.conditionalCancelPaused),
+            120,
+        );
+        expect(paused).toBe(true);
+        expect(player.activeAbilities.some((a) => a.conditionalCancelPaused)).toBe(false);
+        expect(engine.waitingForTargetInput).not.toBeNull();
+        expect(engine.waitingForTargetInput!.label).toBe(THROW_ROCK_TARGET_LABEL);
+        expect(engine.waitingForTargetInput!.abilityId).toBe(THROW_ROCK_ABILITY_ID);
+
+        engine.destroy();
+    });
+
+    it('resolves a pixel click at the first Throw Rock select, then reaches the Combo Cancel window', () => {
+        const { engine, player, aimPixel } = buildThrowRockComboFixture();
+
+        const gotWaitingForOrders = stepUntil(engine, () => engine.waitingForOrders != null);
+        expect(gotWaitingForOrders).toBe(true);
+
+        queueThrowRockPreview(engine, player);
+
+        const selectPaused = stepUntil(
+            engine,
+            () => engine.waitingForTargetInput?.label === THROW_ROCK_TARGET_LABEL,
+            120,
+        );
+        expect(selectPaused).toBe(true);
+
+        const ability = getAbility(THROW_ROCK_ABILITY_ID)!;
+        const selectDef = getSelectTargetDefsFromTimings(ability, player, engine)[0]!;
+        expect(selectDef.label).toBe(THROW_ROCK_TARGET_LABEL);
+
+        const resolution = resolveItsSelectTargetForClick(
+            ability,
+            player,
+            selectDef,
+            aimPixel,
+            aimPixel,
+            {},
+            engine,
+        );
+        expect(resolution).not.toBeNull();
+        expect(resolution!.labelTarget.type).toBe('pixel');
+
+        const active = player.activeAbilities.find((a) => a.abilityId === THROW_ROCK_ABILITY_ID);
+        expect(active).toBeDefined();
+        if (!active!.targetsByLabel) active!.targetsByLabel = {};
+        active!.targets = [resolution!.labelTarget];
+        active!.targetsByLabel[THROW_ROCK_TARGET_LABEL] = resolution!.labelTarget;
+        engine.waitingForTargetInput = null;
+        engine.isPaused = false;
+
+        const comboPaused = stepUntil(
+            engine,
+            () => player.activeAbilities.some((a) => a.conditionalCancelPaused),
+            200,
+        );
+        expect(comboPaused).toBe(true);
+        expect(isITSPreviewComplete(engine)).toBe(true);
+
+        engine.destroy();
+    });
+
+    it('ITS begin defers the first Throw Rock pick so the line preview is available immediately', () => {
+        const { engine, player, aimPixel } = buildThrowRockComboFixture();
+        expect(findPreviewDeferredSelectLabel(
+            getAbility(THROW_ROCK_ABILITY_ID)!,
+            player,
+            engine,
+        )).toBe(THROW_ROCK_TARGET_LABEL);
+
+        const gotWaitingForOrders = stepUntil(engine, () => engine.waitingForOrders != null);
+        expect(gotWaitingForOrders).toBe(true);
+
+        const session = {
+            getEngine: () => engine,
+            isOrderBatchTickSubmittable: () => true,
+            isLocalPlayerExpectedToAct: () => true,
+            postBattleSyncLobbyLog: vi.fn(),
+            isHost: () => true,
+            getEngineTick: () => engine.gameTick,
+            getLocalPlayerId: () => TINY_BATTLE_PLAYER_ID,
+        } as unknown as BattleSession;
+
+        const its = new InteractiveTargetingSession();
+        const began = its.begin(
+            {
+                unitId: player.id,
+                abilityId: THROW_ROCK_ABILITY_ID,
+                targets: [],
+                endTurn: true,
+            },
+            session,
+        );
+        expect(began).toBe(true);
+        expect(engine.waitingForTargetInput?.label).toBe(THROW_ROCK_TARGET_LABEL);
+        expect(player.activeAbilities.some((a) => a.abilityId === THROW_ROCK_ABILITY_ID)).toBe(false);
+
+        const ability = getAbility(THROW_ROCK_ABILITY_ID)!;
+        const selectDef = getSelectTargetDefsFromTimings(ability, player, engine)[0]!;
+        const resolution = resolveItsSelectTargetForClick(
+            ability,
+            player,
+            selectDef,
+            aimPixel,
+            aimPixel,
+            {},
+            engine,
+        );
+        expect(resolution).not.toBeNull();
+
+        its.resolveTarget(
+            THROW_ROCK_TARGET_LABEL,
+            resolution!.labelTarget,
+            session,
+            resolution!.orderTargets,
+        );
+
+        const comboPaused = stepUntil(
+            engine,
+            () => player.activeAbilities.some((a) => a.conditionalCancelPaused),
+            200,
+        );
+        expect(comboPaused).toBe(true);
+        expect(isITSPreviewComplete(engine)).toBe(true);
 
         engine.destroy();
     });

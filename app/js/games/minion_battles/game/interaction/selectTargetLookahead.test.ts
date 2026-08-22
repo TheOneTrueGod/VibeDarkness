@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { SwingBatCard } from '../../card_defs/0115_SwingBat/0115Ability';
+import { ONE_PIXEL_TARGET } from '../../card_defs/throwSharedTimings';
 import {
     buildTinyBattleEngine,
     spawnTinyPlayerUnit,
@@ -58,6 +59,15 @@ describe('findPreviewDeferredSelectLabel', () => {
         const { engine, player } = buildCasterWithAbility(LIGHT_BLAST_ID);
         const ability = getAbility(LIGHT_BLAST_ID);
         expect(findPreviewDeferredSelectLabel(ability!, player, engine)).toBeNull();
+        engine.destroy();
+    });
+
+    it('returns Target location for Throw Rock (pixel-aim nullHitbox, select after windup)', () => {
+        const { engine, player } = buildCasterWithAbility('throw_rock');
+        const ability = getAbility('throw_rock');
+        expect(ability).toBeDefined();
+        expect(findPreviewDeferredSelectLabel(ability!, player, engine)).toBe(ONE_PIXEL_TARGET[0]!.label);
+        expect(findFirstSelectTargetLabelAtElapsedZero(ability!, player, engine)).toBeNull();
         engine.destroy();
     });
 });

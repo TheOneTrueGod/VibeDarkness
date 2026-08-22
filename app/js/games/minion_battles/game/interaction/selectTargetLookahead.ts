@@ -13,7 +13,8 @@ import {
     normalizeAbilityTimingsToIntervals,
     resolveAbilityTimingEntries,
 } from '../../abilities/abilityTimings';
-import { isInteractiveTargetDef } from '../../abilities/timingTargetDef';
+import { isInteractiveTargetDef, isSelectTargetDef } from '../../abilities/timingTargetDef';
+import { nullHitbox } from '../../hitboxes';
 import type { EngineContext } from '../EngineContext';
 import type { ActiveAbility } from '../types';
 import type { Unit } from '../units/Unit';
@@ -59,16 +60,15 @@ function findImpendingNeedForCast(
 }
 
 /**
- * Returns the first unresolved interactive target interval (`select` / `confirmRadius`)
- * that would enter on the next fixed tick, or null when no preview cast needs input.
- */
-/**
  * Returns the label of the first interactive target when preview must defer
  * queueing the cast order until the player picks (no simulation ticks before input).
  *
  * Defer when:
  * - the first interactive interval starts at elapsed 0 (lookahead cannot pause before cast apply), or
- * - the ability has windup `lunge` (beginActiveCast needs a target before windup movement).
+ * - the ability has windup `lunge` (beginActiveCast needs a target before windup movement), or
+ * - the first select is a pixel-aim `nullHitbox` pick (Throw Rock, Dodge, Claw). Lookahead
+ *   pause at the later Active frame playaheads through windup with no line preview and
+ *   swallows canvas clicks until React observes `waitingForTargetInput`.
  *
  * Otherwise returns null and pre-tick lookahead handles the first pause.
  */
@@ -84,6 +84,9 @@ export function findPreviewDeferredSelectLabel(
         if (!interval.targetDef || !isInteractiveTargetDef(interval.targetDef)) continue;
         if (interval.start === 0) return interval.targetDef.label;
         if (ability.lunge != null) return interval.targetDef.label;
+        if (isSelectTargetDef(interval.targetDef) && interval.targetDef.hitbox === nullHitbox) {
+            return interval.targetDef.label;
+        }
         return null;
     }
     return null;

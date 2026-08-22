@@ -282,7 +282,9 @@ export default function BattleCanvas({
     const handlePointerDown = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
         if (e.button !== 0) return;
         const targetingState = targetingStateRef?.current as { selectedAbility?: unknown } | null;
-        if (targetingState?.selectedAbility) return;
+        // ITS select pause can land before React copies waitingForTargetInput into targetingState.
+        // Treat that as targeting so aim-moves are not stolen as camera pan (no click fires).
+        if (targetingState?.selectedAbility || engine.waitingForTargetInput != null) return;
 
         const { x, y } = getScreenPoint(e);
         dragStateRef.current = {
@@ -295,7 +297,7 @@ export default function BattleCanvas({
         };
         suppressClickRef.current = false;
         e.currentTarget.setPointerCapture(e.pointerId);
-    }, [targetingStateRef]);
+    }, [engine, targetingStateRef]);
 
     const handlePointerMove = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
         const { x, y } = getScreenPoint(e);
