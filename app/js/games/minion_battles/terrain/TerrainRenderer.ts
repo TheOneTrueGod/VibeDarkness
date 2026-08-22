@@ -170,7 +170,7 @@ export class TerrainRenderer {
             ctx.fillRect(x, y, cs, cs);
 
             for (const terrainType of LAYER_ORDER) {
-                this.getRenderer(terrainType).drawCell(ctx, x, y, cs, col, row, getTypeAt);
+                this.getRenderer(terrainType).drawCell(ctx, x, y, cs, col, row, getTypeAt, this.gridWidth, this.gridHeight);
             }
 
             this.drawGridOverlayCell(ctx, col, row, cs);

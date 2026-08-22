@@ -18,6 +18,7 @@ export abstract class TerrainLayerRenderer {
     /**
      * Repaint a single cell — used by repaintCell.
      * getTypeAt handles OOB (returns Rock for out-of-bounds, matching TerrainGrid.get semantics).
+     * gridWidth/gridHeight let marching-squares skip OOB cells (they are not a rock wall).
      */
     abstract drawCell(
         ctx: CanvasRenderingContext2D,
@@ -27,6 +28,8 @@ export abstract class TerrainLayerRenderer {
         col: number,
         row: number,
         getTypeAt: (c: number, r: number) => TerrainType,
+        gridWidth?: number,
+        gridHeight?: number,
     ): void;
 
     /**
