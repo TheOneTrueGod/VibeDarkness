@@ -43,8 +43,8 @@ export interface IPlayerInteractionManager {
     setCurrentTargets(targets: ResolvedTarget[]): void;
     getUIState(): PlayerInteractionUIState;
     /**
-     * Updates movement fields on the current nonconfirmedOrder and resubmits it.
-     * No-op if there is no nonconfirmedOrder or AUTO_END_TURN is set.
+     * Updates movement fields on the current nonconfirmedOrder (or creates a wait+move plan)
+     * and resubmits it without ending the turn.
      */
     updateNonconfirmedMovement(
         movePath: { col: number; row: number }[],

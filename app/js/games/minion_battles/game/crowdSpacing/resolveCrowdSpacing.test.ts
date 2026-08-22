@@ -122,19 +122,35 @@ describe('resolveCrowdSpacingPass', () => {
         expect(soft.y).toBe(softStart.y);
     });
 
-    it('charge/dash immobile unit acts as anchor (soft yields; charger stays put)', () => {
+    it('charge/dash immobile unit is exempt (does not push overlapping softs)', () => {
         const soft = makeSoft('soft', 0, 0);
         const charger = makeSoft('charger', OVERLAP_GAP, 0);
         charger.crowdSpacingImmobile = true;
         const softStart = { x: soft.x, y: soft.y };
         const chargerStart = { x: charger.x, y: charger.y };
-        const overlap = soft.radius + charger.radius - OVERLAP_GAP;
 
         rebuildAndResolve([soft, charger]);
 
         expect(charger.x).toBe(chargerStart.x);
         expect(charger.y).toBe(chargerStart.y);
-        expect(soft.x).toBeCloseTo(softStart.x - overlap, 5);
+        expect(soft.x).toBe(softStart.x);
+        expect(soft.y).toBe(softStart.y);
+    });
+
+    it('dashing player is exempt and does not shove overlapping softs', () => {
+        const soft = makeSoft('soft', 0, 0);
+        const player = makeSoft('player', OVERLAP_GAP, 0);
+        player.ownerId = 'p1';
+        player.teamId = 'player';
+        player.crowdSpacingImmobile = true;
+        const softStart = { x: soft.x, y: soft.y };
+        const playerStart = { x: player.x, y: player.y };
+
+        rebuildAndResolve([soft, player]);
+
+        expect(player.x).toBe(playerStart.x);
+        expect(player.y).toBe(playerStart.y);
+        expect(soft.x).toBe(softStart.x);
         expect(soft.y).toBe(softStart.y);
     });
 

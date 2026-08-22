@@ -228,7 +228,7 @@ export class UnitManager {
         onNaturalAbilityCompletion: (unitId: string) => void,
         aiContext: AIContext,
     ): void {
-        // Ephemeral CrowdSpacing anchors from charge/dash — ability ticks re-set for this frame.
+        // Ephemeral CrowdSpacing dash/lunge exemption — ability ticks re-set while still moving.
         for (const unit of this.units) {
             unit.crowdSpacingImmobile = false;
         }

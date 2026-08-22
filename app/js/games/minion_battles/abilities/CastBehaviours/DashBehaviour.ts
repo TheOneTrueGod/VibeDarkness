@@ -167,12 +167,11 @@ export class DashBehaviour implements CastBehaviour {
         const payload = ctx.behaviourPayload as DashPayload | null;
         if (!payload || payload.totalDistance <= 0) return;
 
-        // Ability dash is a CrowdSpacing anchor for this tick (softs pack away; caster stays on path).
-        ctx.caster.crowdSpacingImmobile = true;
-
         const distToEnd = Math.hypot(payload.endX - ctx.caster.x, payload.endY - ctx.caster.y);
-
-        if (!payload.stopped && distToEnd > 0) {
+        const stillDashing = !payload.stopped && distToEnd > 0;
+        // Ghost through CrowdSpacing only while the dash is still displacing.
+        if (stillDashing) {
+            ctx.caster.crowdSpacingImmobile = true;
             const progressDelta = ctx.windowProgress - ctx.prevWindowProgress;
             const moveThisTick = Math.min(progressDelta * payload.totalDistance, distToEnd);
             if (moveThisTick > 0) {

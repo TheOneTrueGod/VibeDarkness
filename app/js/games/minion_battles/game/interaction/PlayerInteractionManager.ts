@@ -576,7 +576,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         }
         logWait(false, null);
         this.deactivateTool();
-        this.submitOrder('wait', []);
+        this.confirmPendingClientOrders();
     }
 
     handleEndTurn(): void {
@@ -595,7 +595,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
             });
             return;
         }
-        if (!order || !this._canUseOrderUi || !this.ctx) {
+        if (!this._canUseOrderUi || !this.ctx) {
             if (this.ctx) {
                 logOrderUiKeyAction(this.ctx.session as BattleSession, {
                     action: 'end_turn',
@@ -606,11 +606,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
                     hasNonconfirmedOrder: this.uiState.nonconfirmedOrder != null,
                     autoEndTurn: getAutoEndTurn(),
                     blocked: true,
-                    blockReason: !order
-                        ? 'no_nonconfirmed_order'
-                        : !this._canUseOrderUi
-                          ? 'can_use_order_ui_false'
-                          : 'no_context',
+                    blockReason: !this._canUseOrderUi ? 'can_use_order_ui_false' : 'no_context',
                 });
             }
             return;
@@ -621,14 +617,84 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
             canUseOrderUi: true,
             hasActiveLocalWaiter:
                 this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId) != null,
-            hasNonconfirmedOrder: true,
+            hasNonconfirmedOrder: order != null,
             autoEndTurn: getAutoEndTurn(),
             blocked: false,
             blockReason: null,
         });
-        const confirmed: BattleOrder = { ...order, endTurn: true };
+        this.confirmPendingClientOrders();
+    }
+
+    /**
+     * Snapshot right-click / nonconfirmed movement so Wait/Space can attach it even if
+     * {@link DefaultTool} was reset (e.g. a waitingForOrders seed) before the keyup.
+     */
+    private snapshotPendingMovement(unit: Unit | undefined): {
+        movePath?: { col: number; row: number }[];
+        moveTargetUnitId?: string;
+        moveTargetPixel?: { x: number; y: number };
+    } {
+        const tool = this.defaultTool;
+        if (tool?.pendingMovePath && tool.pendingMovePath.length > 0) {
+            return {
+                movePath: tool.pendingMovePath.map((p) => ({ ...p })),
+                ...(tool.pendingMoveTargetUnitId ? { moveTargetUnitId: tool.pendingMoveTargetUnitId } : {}),
+                ...(tool.pendingMoveTargetPixel ? { moveTargetPixel: { ...tool.pendingMoveTargetPixel } } : {}),
+            };
+        }
+        const fromOrder = this.uiState.nonconfirmedOrder;
+        if (fromOrder?.movePath && fromOrder.movePath.length > 0) {
+            return {
+                movePath: fromOrder.movePath.map((p) => ({ ...p })),
+                ...(fromOrder.moveTargetUnitId ? { moveTargetUnitId: fromOrder.moveTargetUnitId } : {}),
+                ...(fromOrder.moveTargetPixel ? { moveTargetPixel: { ...fromOrder.moveTargetPixel } } : {}),
+            };
+        }
+        if (unit?.movement && unit.movement.path.length > 0) {
+            return {
+                movePath: unit.movement.path.map((p) => ({ ...p })),
+                ...(unit.movement.targetUnitId ? { moveTargetUnitId: unit.movement.targetUnitId } : {}),
+                ...(unit.movement.targetPixel ? { moveTargetPixel: { ...unit.movement.targetPixel } } : {}),
+            };
+        }
+        if (unit?.walkIntent) {
+            return {
+                movePath: [{ ...unit.walkIntent.dest }],
+                ...(unit.walkIntent.targetUnitId ? { moveTargetUnitId: unit.walkIntent.targetUnitId } : {}),
+                ...(unit.walkIntent.targetPixel ? { moveTargetPixel: { ...unit.walkIntent.targetPixel } } : {}),
+            };
+        }
+        return {};
+    }
+
+    /**
+     * End the turn with whatever is already planned locally: nonconfirmed ability/special
+     * plus right-click movement (DefaultTool, nonconfirmed order, or unit.movement).
+     */
+    private confirmPendingClientOrders(): void {
+        if (!this.ctx || !this._waitingForOrders || !this._canUseOrderUi) return;
+        const active = this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId);
+        if (!active) return;
+
+        const unit = this.ctx.engine.getUnit(active.unitId);
+        const move = this.snapshotPendingMovement(unit);
+        const prev = this.uiState.nonconfirmedOrder;
+        const hasPrimary = prev != null && prev.abilityId !== 'wait';
+        const order: BattleOrder = {
+            unitId: active.unitId,
+            abilityId: hasPrimary ? prev.abilityId : 'wait',
+            targets: hasPrimary ? prev.targets : (prev?.targets ?? []),
+            ...(prev?.targetsByLabel ? { targetsByLabel: prev.targetsByLabel } : {}),
+            ...(prev?.abilityMode ? { abilityMode: prev.abilityMode } : {}),
+            ...(prev?.movementByLabel ? { movementByLabel: prev.movementByLabel } : {}),
+            ...(prev?.specialAction ? { specialAction: prev.specialAction } : {}),
+            ...move,
+            endTurn: true,
+        };
+
+        this.defaultTool?.reset();
         this.uiState = { ...this.uiState, nonconfirmedOrder: null };
-        void this.ctx.session.submitPlayerOrder(confirmed, { canSubmitOrders: this._canUseOrderUi });
+        void this.ctx.session.submitPlayerOrder(order, { canSubmitOrders: this._canUseOrderUi });
         this.emitChange();
     }
 
@@ -645,9 +711,21 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         moveTargetUnitId: string | undefined,
         moveTargetPixel: { x: number; y: number } | undefined,
     ): void {
+        if (!this.ctx || !this._waitingForOrders) return;
+        const active = this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId);
+        if (!active) return;
+
         const order = this.uiState.nonconfirmedOrder;
-        if (!order || !this.ctx || getAutoEndTurn()) return;
-        const updated = { ...order, movePath, moveTargetUnitId, moveTargetPixel };
+        const updated: BattleOrder = order
+            ? { ...order, movePath, moveTargetUnitId, moveTargetPixel }
+            : {
+                unitId: active.unitId,
+                abilityId: 'wait',
+                targets: [],
+                movePath,
+                moveTargetUnitId,
+                moveTargetPixel,
+            };
         this.uiState = { ...this.uiState, nonconfirmedOrder: updated };
         void this.ctx.session.submitPlayerOrder(updated, { canSubmitOrders: this._canUseOrderUi });
         this.emitChange();

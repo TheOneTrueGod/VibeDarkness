@@ -124,12 +124,11 @@ export class LungeMovement {
         const toX = ox + dirX * newDist;
         const toY = oy + dirY * newDist;
 
-        // Charge lunges are CrowdSpacing anchors for this tick (softs pack away; caster stays on path).
-        caster.crowdSpacingImmobile = true;
-
         const segmentLength = Math.sqrt((toX - fromX) ** 2 + (toY - fromY) ** 2);
         const terrainManager = engine.terrainManager ?? null;
+        // Ghost through CrowdSpacing only while the lunge is still displacing this tick.
         if (segmentLength > 0) {
+            caster.crowdSpacingImmobile = true;
             const { distance } = computeForcedDisplacement(
                 fromX, fromY, toX, toY, segmentLength,
                 { terrainManager, step: this.collisionStep },

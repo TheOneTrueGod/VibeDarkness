@@ -164,8 +164,9 @@ export class Unit extends GameObject {
     pathInvalidated: boolean = false;
 
     /**
-     * Runtime-only: this tick the unit is mid charge-lunge / dash (or similar ability displacement).
-     * CrowdSpacing treats the unit as an anchor (occupies space, never pushed). Cleared each UnitManager tick.
+     * Runtime-only: this tick the unit is mid charge-lunge / dash displacement.
+     * CrowdSpacing treats the unit as exempt (not in the grid — ghosts through the pack).
+     * Cleared each UnitManager tick; DashBehaviour / LungeMovement re-set only while still moving.
      */
     crowdSpacingImmobile: boolean = false;
 

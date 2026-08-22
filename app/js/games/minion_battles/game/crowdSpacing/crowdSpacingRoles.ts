@@ -28,23 +28,25 @@ export function getCrowdSpacingWeight(unit: Unit): number {
 }
 
 /**
- * Temporary anchors that occupy space but are never displaced by CrowdSpacing:
- * knockback (incl. slide), engine-controlled sequences, and ability-driven charge/dash
- * (`unit.crowdSpacingImmobile`, set by LungeMovement / DashBehaviour for the tick).
+ * Temporary non-displaced CrowdSpacing participants: knockback (incl. slide) and
+ * engine-controlled sequences. Ability dash/lunge uses {@link Unit.crowdSpacingImmobile}
+ * instead — that path is exempt (does not occupy CrowdSpacing space).
  */
 export function isCrowdSpacingForcedMover(unit: Unit): boolean {
-    return unit.knockback != null || unit.controlled || unit.crowdSpacingImmobile;
+    return unit.knockback != null || unit.controlled;
 }
 
 /**
  * Participation role for CrowdSpacing.
  * Dead / inactive / spawning / airborne → exempt (not in the grid).
+ * Mid dash/lunge (`crowdSpacingImmobile`) → exempt so the caster ghosts through the pack.
  * Players, CrowdSpacingAnchor tag, and forced-movers → anchor.
  * Everyone else grounded and alive → soft.
  */
 export function getCrowdSpacingRole(unit: Unit): CrowdSpacingRole {
     if (!unit.isAlive() || unit.isSpawning()) return 'exempt';
     if (isUnitAirborne(unit)) return 'exempt';
+    if (unit.crowdSpacingImmobile) return 'exempt';
     if (
         unit.isPlayerControlled() ||
         hasUnitTag(unit, UnitTag.CrowdSpacingAnchor) ||

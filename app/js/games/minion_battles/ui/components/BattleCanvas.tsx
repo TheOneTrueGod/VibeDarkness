@@ -280,6 +280,13 @@ export default function BattleCanvas({
     };
 
     const handlePointerDown = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
+        // Right-button down sets the move target immediately so Space/Wait in the same
+        // instant can include it (contextmenu often waits until mouseup).
+        if (e.button === 2) {
+            const { x, y } = getScreenPoint(e);
+            onCanvasRightClick?.(x, y, e.shiftKey, e.ctrlKey);
+            return;
+        }
         if (e.button !== 0) return;
         const targetingState = targetingStateRef?.current as { selectedAbility?: unknown } | null;
         // ITS select pause can land before React copies waitingForTargetInput into targetingState.
@@ -297,7 +304,7 @@ export default function BattleCanvas({
         };
         suppressClickRef.current = false;
         e.currentTarget.setPointerCapture(e.pointerId);
-    }, [engine, targetingStateRef]);
+    }, [engine, targetingStateRef, onCanvasRightClick]);
 
     const handlePointerMove = useCallback((e: React.PointerEvent<HTMLCanvasElement>) => {
         const { x, y } = getScreenPoint(e);
