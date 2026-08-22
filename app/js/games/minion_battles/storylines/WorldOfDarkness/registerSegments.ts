@@ -32,10 +32,18 @@ import {
     HOME_PLAYER_SPAWN_OFFSETS,
 } from './MapSegments/50_50_crystal_cave';
 import {
+    MAP_SEGMENT_10_10_EAST_CAVE,
+    EAST_CAVE_SEGMENT_ID,
+    EAST_CAVE_GRID_COL,
+    EAST_CAVE_GRID_ROW,
+    EAST_CAVE_CAMPFIRE,
+} from './MapSegments/10_10_east_cave';
+import {
     MAP_SEGMENT_0_0_BOSS_ARENA,
     BOSS_ARENA_SEGMENT_ID,
     BOSS_ARENA_GRID_COL,
     BOSS_ARENA_GRID_ROW,
+    ARENA_RING_SPAWN_POINTS,
 } from './MapSegments/0_0_boss_arena';
 import {
     MAP_SEGMENT_50_51_SOUTH_GATE,
@@ -193,13 +201,48 @@ export function registerWorldOfDarknessSegments(): void {
         ),
     );
 
+    // 10_10 East cave — home tile, mouth on the east wall
+    const eastCavePOIs: MapSegmentPOI[] = [
+        {
+            id: 'cave_campfire',
+            label: 'Cave Campfire',
+            col: EAST_CAVE_CAMPFIRE.col,
+            row: EAST_CAVE_CAMPFIRE.row,
+            type: 'campfire',
+        },
+        ...HOME_PLAYER_SPAWN_OFFSETS.map((offset, index) => ({
+            id: `home_player_spawn_${index + 1}`,
+            label: `Home Player Spawn ${index + 1}`,
+            col: EAST_CAVE_CAMPFIRE.col + offset.dCol,
+            row: EAST_CAVE_CAMPFIRE.row + offset.dRow,
+            type: 'playerSpawn' as const,
+        })),
+    ];
+    registerSegment(
+        tsTerrainToSegmentData(
+            EAST_CAVE_SEGMENT_ID,
+            EAST_CAVE_GRID_COL,
+            EAST_CAVE_GRID_ROW,
+            MAP_SEGMENT_10_10_EAST_CAVE,
+            eastCavePOIs,
+        ),
+    );
+
     // 0_0 Boss arena — encounter tile placed by layout composer, not world-grid adjacency
+    const arenaRingPOIs: MapSegmentPOI[] = ARENA_RING_SPAWN_POINTS.map((pt, index) => ({
+        id: `arena_ring_${index + 1}`,
+        label: `Arena Ring ${index + 1}`,
+        col: pt.col,
+        row: pt.row,
+        type: 'enemySpawn',
+    }));
     registerSegment(
         tsTerrainToSegmentData(
             BOSS_ARENA_SEGMENT_ID,
             BOSS_ARENA_GRID_COL,
             BOSS_ARENA_GRID_ROW,
             MAP_SEGMENT_0_0_BOSS_ARENA,
+            arenaRingPOIs,
         ),
     );
 

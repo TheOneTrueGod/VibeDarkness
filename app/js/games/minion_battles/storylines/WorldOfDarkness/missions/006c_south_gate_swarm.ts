@@ -1,5 +1,5 @@
 /**
- * South Gate Swarm — Mission 6c: first fight after Core Awakening.
+ * South Gate Swarm — Mission 6c: fight after Thornbinder Arena.
  *
  * Terrain: vertical stack of 50_50 (crystal cave) over 50_51 (south gate).
  * Opening pack in the outside-cave-mouth box; a swarm nest holds the south gate.
@@ -294,8 +294,8 @@ export class SouthGateSwarmMission extends BaseMissionDef {
     enemies: EnemySpawnDef[] = [];
 
     missionId = SouthGateSwarmMission.missionId;
-    /** Row 2 (R→L): between Core Awakening (610) and Ember Threshold (270). */
-    mapPosition = { x: 440, y: 350 };
+    /** Row 2 (R→L): after Thornbinder Arena (440), before Ember Threshold (100). */
+    mapPosition = { x: 270, y: 350 };
     missionType = 'battle' as const;
     description =
         'A swarm nest has taken root beyond the southern gate. Clear the opening pack and tear the nest down.';

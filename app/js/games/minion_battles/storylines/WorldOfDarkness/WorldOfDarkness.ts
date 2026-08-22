@@ -15,7 +15,7 @@ export const POST_CORE_QUEST_BANK_MAP_Y = 550;
 
 /**
  * Side-quest bank unlocked after Core Awakening.
- * Main path core_awakening → south_gate_swarm stays ungated by this bank.
+ * Main path core_awakening → thornbinder_arena → south_gate_swarm stays ungated by this bank.
  */
 export const WOD_POST_CORE_QUEST_BANK: QuestSlotBank = {
     id: WOD_POST_CORE_QUEST_BANK_ID,
@@ -46,7 +46,8 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         { fromMissionId: 'cave_respite', result: 'victory', toMissionId: 'the_circle', isSideMission: true },
         { fromMissionId: 'crystal_corruption', result: 'victory', toMissionId: 'monster' },
         { fromMissionId: 'monster', result: 'victory', toMissionId: 'core_awakening' },
-        { fromMissionId: 'core_awakening', result: 'victory', toMissionId: 'south_gate_swarm' },
+        { fromMissionId: 'core_awakening', result: 'victory', toMissionId: 'thornbinder_arena' },
+        { fromMissionId: 'thornbinder_arena', result: 'victory', toMissionId: 'south_gate_swarm' },
         { fromMissionId: 'south_gate_swarm', result: 'victory', toMissionId: 'ember_threshold' },
         { fromMissionId: 'ember_threshold', result: 'victory', toMissionId: 'thorn_march' },
         { fromMissionId: 'thorn_march', result: 'victory', toMissionId: 'thornling_rise' },

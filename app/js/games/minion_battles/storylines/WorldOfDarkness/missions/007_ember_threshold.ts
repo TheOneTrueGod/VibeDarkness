@@ -306,7 +306,8 @@ export class EmberThresholdMission extends BaseMissionDef {
 	];
 
 	missionId = EmberThresholdMission.missionId;
-	mapPosition = { x: 270, y: 350 };
+	/** Row 2 (R→L): west end, after South Gate Swarm. */
+	mapPosition = { x: 100, y: 350 };
 	missionType = 'battle' as const;
 	description = 'Hold the threshold against relentless waves of shadow creatures. The line must not break.';
 	name = EmberThresholdMission.nameStr;

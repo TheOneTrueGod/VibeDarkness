@@ -11,6 +11,19 @@ import type { MapSegmentZone } from '../../../terrain/segmentSchema';
 export const CRYSTAL_CAVE_SEGMENT_ID = '50_50_crystal_cave';
 export const CRYSTAL_CAVE_GRID_COL = 50;
 export const CRYSTAL_CAVE_GRID_ROW = 50;
+export const CRYSTAL_CAVE_SIZE = 22;
+
+/** Inclusive box of the enclosed cave chamber (C-shape, mouth on the west). */
+export const CRYSTAL_CAVE_CHAMBER = {
+    colStart: 13,
+    colEnd: 21,
+    rowStart: 6,
+    rowEnd: 14,
+} as const;
+
+/** Inclusive rows where the west cave mouth is dirt. */
+export const CRYSTAL_CAVE_MOUTH_ROW_START = 9;
+export const CRYSTAL_CAVE_MOUTH_ROW_END = 11;
 
 const _ = TerrainType.Grass;
 const R = TerrainType.Rock;
