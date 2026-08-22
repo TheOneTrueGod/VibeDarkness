@@ -92,6 +92,7 @@ describe('ThornbinderArenaMission', () => {
             expect(terrain.get(seamHomeCol, r)).toBe(TerrainType.Dirt);
             expect(terrain.get(seamArenaCol, r)).toBe(TerrainType.Dirt);
         }
+        expect(ARENA_WEST_PATH_ROW_END - ARENA_WEST_PATH_ROW_START + 1).toBe(EAST_WALL_OPENING_SIZE);
         for (let c = ARENA_WEST_PATH_COL_START; c <= ARENA_WEST_PATH_COL_END; c++) {
             for (let r = ARENA_WEST_PATH_ROW_START; r <= ARENA_WEST_PATH_ROW_END; r++) {
                 expect(terrain.get(ARENA_ORIGIN_COL + c, r)).toBe(TerrainType.Dirt);

@@ -5,7 +5,7 @@
  */
 
 import { TerrainType } from '../../../terrain/TerrainType';
-import { EAST_WALL_OPENING_ROW } from './10_10_east_cave';
+import { EAST_WALL_OPENING_ROW, EAST_WALL_OPENING_SIZE } from './10_10_east_cave';
 
 export const BOSS_ARENA_SEGMENT_ID = '0_0_boss_arena';
 export const BOSS_ARENA_GRID_COL = 0;
@@ -15,9 +15,9 @@ export const BOSS_ARENA_CENTER = { col: 11, row: 11 } as const;
 export const BOSS_ARENA_DIRT_RADIUS = 7;
 /** West tangent of the dirt circle — the path from the cave meets the ring here. */
 export const BOSS_ARENA_CIRCLE_WEST_COL = BOSS_ARENA_CENTER.col - BOSS_ARENA_DIRT_RADIUS;
-/** Dirt trail on the west grass: cave-mouth rows down to the circle's left edge. */
+/** Dirt trail on the west grass: same height as the cave mouth, to the circle's left edge. */
 export const ARENA_WEST_PATH_ROW_START = EAST_WALL_OPENING_ROW;
-export const ARENA_WEST_PATH_ROW_END = BOSS_ARENA_CENTER.row;
+export const ARENA_WEST_PATH_ROW_END = EAST_WALL_OPENING_ROW + EAST_WALL_OPENING_SIZE - 1;
 export const ARENA_WEST_PATH_COL_START = 0;
 export const ARENA_WEST_PATH_COL_END = BOSS_ARENA_CIRCLE_WEST_COL;
 /** Ring radius (tiles) for arena spawn crystals — inside the dirt disk, off the west cave mouth. */
