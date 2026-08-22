@@ -154,7 +154,8 @@ export default function Chat({
                     disabled={!enabled}
                 />
                 <button
-                    className="px-4 py-3 bg-primary text-secondary font-semibold rounded hover:bg-primary-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    type="button"
+                    className="self-center px-2.5 py-1.5 text-xs font-medium rounded border border-primary bg-transparent text-primary hover:bg-primary/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={handleSend}
                     disabled={!enabled}
                 >
