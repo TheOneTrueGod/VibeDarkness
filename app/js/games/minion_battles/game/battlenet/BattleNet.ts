@@ -63,6 +63,7 @@ export type {
 	BattleNetSyncTerminalStatus,
 	BattleNetPollOnceOptions,
 	BattleNetFactoryArgs,
+	LocalSyncAnomalyContext,
 	RemoteOrderWireRow,
 	SubmitOrderOptions,
 } from './types';
@@ -1055,6 +1056,10 @@ export class BattleNet implements BattleNetContext {
 				this.heartbeatTerminalReconciler.reconcileFingerprintsEqualHostTick(engineTick, hb);
 			} else if (!this.isHost && engineTick > hb.hostTick) {
 				this.heartbeatTerminalReconciler.reconcileNonHostAheadOfHostTail(engineTick, hb);
+			}
+
+			if (!this.isRecovering) {
+				this.heartbeatTerminalReconciler.observeLocalSyncAnomalies(engineTick);
 			}
 
 			if (!this.isHost) {

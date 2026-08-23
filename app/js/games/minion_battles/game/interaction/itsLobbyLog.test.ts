@@ -16,15 +16,23 @@ import {
     logItsResetPausePlane,
     logOrderUiKeyAction,
 } from './itsLobbyLog';
+import { STUCK_PAUSE_PLANE_DESYNC_MESSAGE } from '../battlenet/constants';
 
-function makeSessionMock(): BattleSession & { postBattleSyncLobbyLog: ReturnType<typeof vi.fn> } {
+function makeSessionMock(): BattleSession & {
+    postBattleSyncLobbyLog: ReturnType<typeof vi.fn>;
+    postDesyncLobbyLogForced: ReturnType<typeof vi.fn>;
+} {
     return {
         getEngineTick: () => 42,
         getEngine: () => null,
         isHost: () => false,
         interactiveTargeting: { isActive: false },
         postBattleSyncLobbyLog: vi.fn(),
-    } as unknown as BattleSession & { postBattleSyncLobbyLog: ReturnType<typeof vi.fn> };
+        postDesyncLobbyLogForced: vi.fn(),
+    } as unknown as BattleSession & {
+        postBattleSyncLobbyLog: ReturnType<typeof vi.fn>;
+        postDesyncLobbyLogForced: ReturnType<typeof vi.fn>;
+    };
 }
 
 function makeItsMock(): InteractiveTargetingSession {
@@ -158,6 +166,30 @@ describe('itsLobbyLog', () => {
         expect(session.postBattleSyncLobbyLog).toHaveBeenCalledWith(
             'ITS: reset pause plane before restore',
             expect.objectContaining({ phase: 'before_restore', source: 'ui_reset' }),
+        );
+        expect(session.postDesyncLobbyLogForced).not.toHaveBeenCalled();
+    });
+
+    it('ITS reset after restore with isPaused and no waiter posts a forced desync line', () => {
+        const session = makeSessionMock();
+        session.getEngine = () =>
+            ({
+                waitingForOrders: null,
+                pendingOrders: [{ gameTick: 1245, order: { unitId: 'unit_1', abilityId: 'wait', endTurn: false } }],
+                waitingForTargetInput: null,
+                isPaused: true,
+                isSequentialTargetingPreview: false,
+            }) as ReturnType<BattleSession['getEngine']>;
+        logItsResetPausePlane(session, makeItsMock(), 'after_restore');
+        expect(session.postDesyncLobbyLogForced).toHaveBeenCalledWith(
+            STUCK_PAUSE_PLANE_DESYNC_MESSAGE,
+            expect.objectContaining({
+                source: 'its_reset_after_restore',
+                pausePlane: expect.objectContaining({
+                    isPaused: true,
+                    waitingForOrdersAtTick: null,
+                }),
+            }),
         );
     });
 

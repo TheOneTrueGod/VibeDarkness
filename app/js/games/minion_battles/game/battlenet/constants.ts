@@ -41,6 +41,23 @@ export const BATTLE_NET_STRUCTURAL_DIVERGENCE_GRACE_MS = 10_000;
 /** Non-host: engine paused for orders while local tick is behind heartbeat hostTick. */
 export const RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL = 'paused-behind-host-tail';
 
+/** Pending-order rows included on automatic desync lobby traces (newest-at-or-after-tick first). */
+export const DESYNC_PENDING_ORDER_LOG_CAP = 16;
+
+/**
+ * Heartbeat polls (~500ms) a live engine can stay `isPaused` with no `waitingForOrders` before we
+ * treat it as a stuck pause plane and POST a forced desync diagnostic (skips ITS rewind overlay).
+ */
+export const STUCK_PAUSE_PLANE_LOG_POLLS = 2;
+
+/** Host equal-tick compare: runtime fingerprint/pause flag disagrees with storage tail. */
+export const HOST_EQUAL_TICK_FINGERPRINT_MISMATCH_MESSAGE =
+    'equal-tick fingerprint mismatch vs heartbeat (host) — no automatic resync';
+
+/** Local engine paused with no parallel-order waiter (lobby 3EA100 ITS Reset). */
+export const STUCK_PAUSE_PLANE_DESYNC_MESSAGE =
+    'stuck pause plane: isPaused without waitingForOrders (desync diagnostic)';
+
 /** Host completed tick minus local engine tick — above this, treat as catching up; lock order UI. */
 export const BATTLE_NET_BEHIND_HOST_TICKS_THRESHOLD = 10;
 export const BATTLE_NET_MAX_DEFERRED_ORDERS = 32;

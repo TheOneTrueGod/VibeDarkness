@@ -1,6 +1,7 @@
 import type { BattleSession } from '../BattleSession';
 import type { InteractiveTargetingSession } from './InteractiveTargetingSession';
 import type { ResolvedTarget } from '../types';
+import { STUCK_PAUSE_PLANE_DESYNC_MESSAGE } from '../battlenet/constants';
 
 /** User-initiated ITS control (UI buttons or AUTO_END_TURN). */
 export type ItsActionSource =
@@ -252,14 +253,26 @@ export function logItsResetPausePlane(
     its: InteractiveTargetingSession,
     phase: 'before_restore' | 'after_restore',
 ): void {
+    const pausePlane = captureItsPausePlaneLog(session, its);
     session.postBattleSyncLobbyLog(
         phase === 'before_restore' ? 'ITS: reset pause plane before restore' : 'ITS: reset pause plane after restore',
         itsContext(session, captureItsLogSnapshot(its, session), {
             source: 'ui_reset',
             phase,
-            pausePlane: captureItsPausePlaneLog(session, its),
+            pausePlane,
         }),
     );
+    if (
+        phase === 'after_restore' &&
+        pausePlane.isPaused &&
+        pausePlane.waitingForOrdersAtTick == null &&
+        pausePlane.waitingForTargetInputLabel == null
+    ) {
+        session.postDesyncLobbyLogForced?.(STUCK_PAUSE_PLANE_DESYNC_MESSAGE, itsContext(session, captureItsLogSnapshot(its, session), {
+            source: 'its_reset_after_restore',
+            pausePlane,
+        }));
+    }
 }
 
 export function logItsPreviewEnded(

@@ -64,6 +64,9 @@ function extractTick(obj) {
 
 function isDesyncEvent(obj) {
   const msg = (obj.message ?? '').toLowerCase();
+  const logType = String(obj.logType ?? obj.context?.logType ?? '').toLowerCase();
+  if (logType === 'desync') return true;
+  if (msg.includes('desync detected') || msg.includes('stuck pause plane')) return true;
   return msg.includes('fingerprint') && (msg.includes('mismatch') || msg.includes('desync') || msg.includes('resync'));
 }
 

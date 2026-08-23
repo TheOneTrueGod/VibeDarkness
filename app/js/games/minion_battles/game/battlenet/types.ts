@@ -18,6 +18,32 @@ export type ApplyRemoteOrdersResult = {
     skippedKeys: string[];
 };
 
+/** One pending order row on an automatic desync lobby trace (not a full order payload). */
+export type LocalSyncPendingOrderRow = {
+    gameTick: number;
+    unitId: string;
+    abilityId: string;
+    endTurn: boolean;
+};
+
+/**
+ * Live engine pause-plane snapshot for host/client desync diagnostics.
+ * Kept small so it can POST on every detected episode without dumping `toJSON()`.
+ */
+export type LocalSyncAnomalyContext = {
+    engineTick: number;
+    isPaused: boolean;
+    storyPauseActive: boolean;
+    waitingForTargetInputLabel: string | null;
+    waitingForOrdersAtTick: number | null;
+    waiterUnitIds: string[];
+    itsPreviewActive: boolean;
+    pendingOrderCount: number;
+    pendingOrdersAtOrAfterTick: LocalSyncPendingOrderRow[];
+    runtimeFingerprintHex: string;
+    fingerprintTailPaused: boolean;
+};
+
 export interface BattleSessionHandle {
     getEngineTick(): number;
     /** Incremental sim hash at the current engine state (matches tick-complete flush / {@link GameEngine.getRuntimeFingerprintHex}). */
@@ -60,6 +86,11 @@ export interface BattleSessionHandle {
     isEngineSimulationRunning(): boolean;
     /** True while interactive targeting preview (ITS) is simulating ahead locally. */
     isInteractiveTargetingPreviewActive(): boolean;
+    /**
+     * Compact live pause-plane + pending-order summary for automatic desync lobby traces.
+     * Optional on test doubles that do not exercise those traces.
+     */
+    getLocalSyncAnomalyContext?(): LocalSyncAnomalyContext;
     /**
      * Non-host: optional gate on fixed-step simulation relative to heartbeat tail.
      * {@link BattleNet} normally keeps this cleared so optimistic playahead runs until a natural pause.

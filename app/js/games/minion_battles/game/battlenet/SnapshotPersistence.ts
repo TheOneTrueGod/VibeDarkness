@@ -24,6 +24,8 @@ export interface SnapshotPersistenceConfig {
 export class SnapshotPersistence {
     private lastSnapshotTick: number | null = null;
     private lastBootstrapSnapshotTick: number | null = null;
+    /** Dedupes automatic diagnostic dumps for the same mismatch / stuck-pause episode. */
+    private lastDetectedDesyncEpisodeKey: string | null = null;
 
     constructor(private readonly config: SnapshotPersistenceConfig) {}
 
@@ -152,6 +154,34 @@ export class SnapshotPersistence {
      * Invoked only from {@link RecoveryCoordinator.runDesyncRecovery} — not from visibility / tab focus.
      */
     async desyncRecoveryLobbyTrace(reason: string): Promise<void> {
+        await this.writeForcedDesyncDiagnostic({
+            reason,
+            message: 'desync recovery: pre-repair trace marker',
+        });
+    }
+
+    /**
+     * Forced marker + serialized local state when a desync-like condition is detected
+     * (including host-only mismatches that do not start {@link RecoveryCoordinator.runDesyncRecovery}).
+     * One dump per `episodeKey`; later polls with the same key are no-ops.
+     */
+    async logDetectedDesyncDiagnostic(reason: string, episodeKey: string): Promise<void> {
+        if (this.lastDetectedDesyncEpisodeKey === episodeKey) {
+            return;
+        }
+        this.lastDetectedDesyncEpisodeKey = episodeKey;
+        await this.writeForcedDesyncDiagnostic({
+            reason,
+            message: 'desync detected: diagnostic dump (no recovery started)',
+        });
+    }
+
+    /** Allow a later episode (after the sim returns to a healthy pause plane) to dump again. */
+    clearDetectedDesyncEpisode(): void {
+        this.lastDetectedDesyncEpisodeKey = null;
+    }
+
+    private async writeForcedDesyncDiagnostic(args: { reason: string; message: string }): Promise<void> {
         const session = this.config.session;
         const tick = session.getEngineTick();
         const latestFp = session.getLatestFingerprint();
@@ -164,20 +194,21 @@ export class SnapshotPersistence {
             logType: 'desync',
             gameId: this.config.gameId,
             gamePhase: 'battle',
-            message: 'desync recovery: pre-repair trace marker',
+            message: args.message,
             context: {
-                reason,
+                reason: args.reason,
                 isHost: this.config.isHost,
                 engineTick: tick,
                 latestFingerprintTick: latestFp?.tick ?? null,
                 latestFingerprintHex: latestFp?.fp ?? null,
                 fingerprintTailPaused: latestFp?.paused ?? null,
+                localSync: session.getLocalSyncAnomalyContext?.() ?? null,
             },
         });
         await this.writeSerializedLocalStateToLobbyAndMaybeSnapshot({
             forceLobbyPost: true,
             immediateLobbyLog: false,
-            includeTickHistory: false,
+            includeTickHistory: true,
         });
     }
 
@@ -186,8 +217,8 @@ export class SnapshotPersistence {
      *        "debug" threshold is `off` (used for automated desync traces).
      * @param immediateLobbyLog When true (Debug Console «Log local state» only), bypass the lobby log
      *        batch queue for this line.
-     * @param includeTickHistory When true («Log local state» only), also POST the in-memory
-     *        recent-tick ring (same shape as console «log every tick»).
+     * @param includeTickHistory When true, also POST the in-memory recent-tick ring
+     *        (`debug: recent tick history` — same line as Debug Console «Log local state»).
      */
     private async writeSerializedLocalStateToLobbyAndMaybeSnapshot(options: {
         forceLobbyPost: boolean;

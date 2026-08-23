@@ -1,14 +1,35 @@
 import type { LobbyClient } from '../../../../LobbyClient';
-import { logToLobbyLogBattleSync } from '../../../../lobbyLog';
+import { logToLobbyLogBattleSync, logToLobbyLogForced } from '../../../../lobbyLog';
 import type { BattleNetContext } from './BattleNetContext';
-import { BATTLE_NET_T1_WAITING_POLLS, BATTLE_NET_T2_RESYNC_POLLS, RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL } from './constants';
-import type { BattleNetEventMap, NonHostHbPausePlaneSnap } from './types';
+import {
+    BATTLE_NET_T1_WAITING_POLLS,
+    BATTLE_NET_T2_RESYNC_POLLS,
+    HOST_EQUAL_TICK_FINGERPRINT_MISMATCH_MESSAGE,
+    RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL,
+    STUCK_PAUSE_PLANE_DESYNC_MESSAGE,
+    STUCK_PAUSE_PLANE_LOG_POLLS,
+} from './constants';
+import type { BattleNetEventMap, LocalSyncAnomalyContext, NonHostHbPausePlaneSnap } from './types';
+
+function isStuckPausePlane(local: LocalSyncAnomalyContext): boolean {
+    return (
+        local.isPaused &&
+        local.waitingForOrdersAtTick == null &&
+        local.waitingForTargetInputLabel == null &&
+        !local.itsPreviewActive &&
+        !local.storyPauseActive
+    );
+}
 
 /**
  * After each heartbeat poll, decides terminal sync UI status (`synced`, `optimistic_client_playahead`,
  * `waiting_for_host`, …) and whether to request full resync, using local fingerprint rows vs server tail.
  */
 export class HeartbeatTerminalReconciler {
+    private lastHostMismatchKey: string | null = null;
+    private stuckPausePollStreak = 0;
+    private lastStuckPauseLogKey: string | null = null;
+
     constructor(private readonly ctx: BattleNetContext) {}
 
     private get sr() {
@@ -29,6 +50,7 @@ export class HeartbeatTerminalReconciler {
                 this.sr.resetNonHostAheadStreak();
                 this.ctx.notePreviouslySyncedAnchorTick(hb.hostTick);
             }
+            this.lastHostMismatchKey = null;
             this.ctx.syncStatus.setStatus('synced');
             return;
         }
@@ -40,6 +62,7 @@ export class HeartbeatTerminalReconciler {
             local.paused !== hb.hostPaused &&
             this.sr.hostPauseFlagMismatchBenignForParallelBatch(engineTick, hb, local)
         ) {
+            this.lastHostMismatchKey = null;
             this.ctx.syncStatus.setStatus('synced');
             return;
         }
@@ -76,12 +99,14 @@ export class HeartbeatTerminalReconciler {
             hb.hostFingerprint &&
             (local.fp !== hb.hostFingerprint || local.paused !== hb.hostPaused)
         ) {
+            const fpMismatch = local.fp !== hb.hostFingerprint;
             this.ctx.syncStatus.setStatus(
                 'waiting_for_host',
-                local.fp !== hb.hostFingerprint
+                fpMismatch
                     ? 'Host runtime fingerprint does not match server storage tail.'
                     : 'Host pause flag does not match storage tail vs heartbeat.',
             );
+            this.logHostEqualTickMismatch(engineTick, hb, local, fpMismatch);
             return;
         }
         if (!this.ctx.isHost && hb.hostFingerprint != null) {
@@ -393,5 +418,91 @@ export class HeartbeatTerminalReconciler {
                 'Heartbeat pause plane updated; still waiting on server-completed tail.',
             );
         }
+    }
+
+    /**
+     * Host and non-host: detect a live engine frozen with `isPaused` and no waiter
+     * (lobby 3EA100 ITS Reset). Fingerprints can still match the last completed tick, so this
+     * is independent of {@link reconcileFingerprintsEqualHostTick}.
+     */
+    observeLocalSyncAnomalies(engineTick: number): void {
+        const local = this.ctx.session.getLocalSyncAnomalyContext?.();
+        if (local == null || !isStuckPausePlane(local)) {
+            this.stuckPausePollStreak = 0;
+            return;
+        }
+        this.stuckPausePollStreak += 1;
+        if (this.stuckPausePollStreak < STUCK_PAUSE_PLANE_LOG_POLLS) {
+            return;
+        }
+        const episodeKey = `stuck-pause:${engineTick}`;
+        if (this.lastStuckPauseLogKey === episodeKey) {
+            return;
+        }
+        this.lastStuckPauseLogKey = episodeKey;
+        logToLobbyLogForced({
+            lobbyClient: this.ctx.api as unknown as LobbyClient,
+            lobbyId: this.ctx.lobbyId,
+            playerId: this.ctx.playerId,
+            tick: engineTick,
+            severity: 'warn',
+            logType: 'desync',
+            gameId: this.ctx.gameId,
+            gamePhase: 'battle',
+            message: STUCK_PAUSE_PLANE_DESYNC_MESSAGE,
+            context: {
+                isHost: this.ctx.isHost,
+                source: 'heartbeat_poll',
+                pollStreak: this.stuckPausePollStreak,
+                ...local,
+            },
+        });
+        void this.ctx.snapshotPersistence.logDetectedDesyncDiagnostic('stuck-pause-plane', episodeKey).catch((err) => {
+            console.error('[BattleNet] stuck-pause diagnostic dump failed', err);
+        });
+    }
+
+    private logHostEqualTickMismatch(
+        engineTick: number,
+        hb: BattleNetEventMap['heartbeat'],
+        local: { tick: number; fp: string; paused: boolean },
+        fpMismatch: boolean,
+    ): void {
+        const episodeKey = `host-fp-mismatch:${engineTick}:${local.fp}:${hb.hostFingerprint}:${local.paused}:${hb.hostPaused}`;
+        if (this.lastHostMismatchKey === episodeKey) {
+            return;
+        }
+        this.lastHostMismatchKey = episodeKey;
+        const anomaly = this.ctx.session.getLocalSyncAnomalyContext?.() ?? null;
+        logToLobbyLogForced({
+            lobbyClient: this.ctx.api as unknown as LobbyClient,
+            lobbyId: this.ctx.lobbyId,
+            playerId: this.ctx.playerId,
+            tick: engineTick,
+            severity: 'warn',
+            logType: 'desync',
+            gameId: this.ctx.gameId,
+            gamePhase: 'battle',
+            message: HOST_EQUAL_TICK_FINGERPRINT_MISMATCH_MESSAGE,
+            context: {
+                isHost: true,
+                engineTick,
+                hostTick: hb.hostTick,
+                fpMismatch,
+                pauseFlagMismatch: local.paused !== hb.hostPaused,
+                localFingerprint: local.fp,
+                hostFingerprint: hb.hostFingerprint,
+                localPausedRing: local.paused,
+                hostPaused: hb.hostPaused,
+                orderBatchAtTick: hb.orderBatchAtTick,
+                expectingFromPlayerIds: hb.expectingFromPlayerIds,
+                localSync: anomaly,
+            },
+        });
+        void this.ctx.snapshotPersistence
+            .logDetectedDesyncDiagnostic(fpMismatch ? 'host-fingerprint-mismatch' : 'host-pause-flag-mismatch', episodeKey)
+            .catch((err) => {
+                console.error('[BattleNet] host mismatch diagnostic dump failed', err);
+            });
     }
 }

@@ -2,7 +2,14 @@ import { describe, it, expect, vi } from 'vitest';
 import type { LobbyClient } from '../../../../LobbyClient';
 import { flushLobbyLogBatchQueueForTests } from '../../../../lobbyLogBatchQueue';
 import { BattleEventBus } from './BattleEventBus';
-import { BATTLE_NET_T2_RESYNC_POLLS, RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL } from './constants';
+import {
+    BATTLE_NET_T2_RESYNC_POLLS,
+    HOST_EQUAL_TICK_FINGERPRINT_MISMATCH_MESSAGE,
+    RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL,
+    STUCK_PAUSE_PLANE_DESYNC_MESSAGE,
+    STUCK_PAUSE_PLANE_LOG_POLLS,
+} from './constants';
+import type { LocalSyncAnomalyContext } from './types';
 import { FingerprintBatcher } from './FingerprintBatcher';
 import { HeartbeatHttp } from './HeartbeatHttp';
 import { HeartbeatState } from './HeartbeatState';
@@ -171,6 +178,121 @@ describe('HeartbeatTerminalReconciler.reconcileFingerprintsEqualHostTick', () =>
             hb({ hostTick: 3, hostFingerprint: 'servertail', hostPaused: false }),
         );
         expect(syncStatusSpy).toHaveBeenLastCalledWith('waiting_for_host');
+    });
+
+    async function loggedLines(appendLobbyLogBatch: unknown): Promise<LoggedLobbyLine[]> {
+        await flushLobbyLogBatchQueueForTests();
+        const mock = appendLobbyLogBatch as { mock: { calls: unknown[][] } };
+        return mock.mock.calls.flatMap((call) => {
+            const body = call[1] as { lines?: LoggedLobbyLine[] } | undefined;
+            return body?.lines ?? [];
+        });
+    }
+
+    it('host: fingerprint mismatch posts a forced desync lobby line once per episode', async () => {
+        const { reconciler, api, requestResync } = makeHarness({
+            isHost: true,
+            session: {
+                getLatestFingerprint: () => ({ tick: 3, fp: 'localonly', paused: false }),
+                getLocalSyncAnomalyContext: () => ({
+                    engineTick: 3,
+                    isPaused: true,
+                    storyPauseActive: false,
+                    waitingForTargetInputLabel: null,
+                    waitingForOrdersAtTick: 4,
+                    waiterUnitIds: ['unit_1'],
+                    itsPreviewActive: false,
+                    pendingOrderCount: 1,
+                    pendingOrdersAtOrAfterTick: [
+                        { gameTick: 4, unitId: 'unit_1', abilityId: 'wait', endTurn: false },
+                    ],
+                    runtimeFingerprintHex: 'localonly',
+                    fingerprintTailPaused: true,
+                }),
+            },
+        });
+        const heartbeat = hb({ hostTick: 3, hostFingerprint: 'servertail', hostPaused: false });
+        reconciler.reconcileFingerprintsEqualHostTick(3, heartbeat);
+        reconciler.reconcileFingerprintsEqualHostTick(3, heartbeat);
+        await Promise.resolve();
+        const lines = await loggedLines(api.appendLobbyLogBatch);
+        const mismatch = lines.filter((l) => l.message === HOST_EQUAL_TICK_FINGERPRINT_MISMATCH_MESSAGE);
+        expect(mismatch).toHaveLength(1);
+        expect(mismatch[0]?.severity).toBe('warn');
+        expect(mismatch[0]?.context).toMatchObject({
+            isHost: true,
+            fpMismatch: true,
+            localFingerprint: 'localonly',
+            hostFingerprint: 'servertail',
+            localSync: expect.objectContaining({ waitingForOrdersAtTick: 4, waiterUnitIds: ['unit_1'] }),
+        });
+        expect(requestResync).not.toHaveBeenCalled();
+    });
+});
+
+function stuckPauseContext(overrides: Partial<LocalSyncAnomalyContext> = {}): LocalSyncAnomalyContext {
+    return {
+        engineTick: 1244,
+        isPaused: true,
+        storyPauseActive: false,
+        waitingForTargetInputLabel: null,
+        waitingForOrdersAtTick: null,
+        waiterUnitIds: [],
+        itsPreviewActive: false,
+        pendingOrderCount: 1,
+        pendingOrdersAtOrAfterTick: [{ gameTick: 1245, unitId: 'unit_1', abilityId: 'wait', endTurn: false }],
+        runtimeFingerprintHex: 'deadbeef',
+        fingerprintTailPaused: true,
+        ...overrides,
+    };
+}
+
+describe('HeartbeatTerminalReconciler.observeLocalSyncAnomalies', () => {
+    async function loggedLines(appendLobbyLogBatch: unknown): Promise<LoggedLobbyLine[]> {
+        await flushLobbyLogBatchQueueForTests();
+        const mock = appendLobbyLogBatch as { mock: { calls: unknown[][] } };
+        return mock.mock.calls.flatMap((call) => {
+            const body = call[1] as { lines?: LoggedLobbyLine[] } | undefined;
+            return body?.lines ?? [];
+        });
+    }
+
+    it(`logs stuck pause plane after ${STUCK_PAUSE_PLANE_LOG_POLLS} polls and does not resync`, async () => {
+        const { reconciler, api, requestResync } = makeHarness({
+            isHost: true,
+            session: {
+                getLocalSyncAnomalyContext: () => stuckPauseContext(),
+            },
+        });
+        for (let i = 0; i < STUCK_PAUSE_PLANE_LOG_POLLS; i += 1) {
+            reconciler.observeLocalSyncAnomalies(1244);
+        }
+        await Promise.resolve();
+        const lines = await loggedLines(api.appendLobbyLogBatch);
+        const stuck = lines.filter((l) => l.message === STUCK_PAUSE_PLANE_DESYNC_MESSAGE);
+        expect(stuck).toHaveLength(1);
+        expect(stuck[0]?.context).toMatchObject({
+            source: 'heartbeat_poll',
+            isPaused: true,
+            waitingForOrdersAtTick: null,
+            pendingOrdersAtOrAfterTick: [{ gameTick: 1245, unitId: 'unit_1', abilityId: 'wait', endTurn: false }],
+        });
+        expect(requestResync).not.toHaveBeenCalled();
+    });
+
+    it('does not log a healthy order pause', async () => {
+        const { reconciler, api } = makeHarness({
+            isHost: true,
+            session: {
+                getLocalSyncAnomalyContext: () =>
+                    stuckPauseContext({ waitingForOrdersAtTick: 1245, waiterUnitIds: ['unit_1'] }),
+            },
+        });
+        for (let i = 0; i < STUCK_PAUSE_PLANE_LOG_POLLS; i += 1) {
+            reconciler.observeLocalSyncAnomalies(1244);
+        }
+        const lines = await loggedLines(api.appendLobbyLogBatch);
+        expect(lines.some((l) => l.message === STUCK_PAUSE_PLANE_DESYNC_MESSAGE)).toBe(false);
     });
 });
 

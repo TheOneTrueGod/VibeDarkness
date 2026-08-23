@@ -303,3 +303,88 @@ describe('SnapshotPersistence bootstrap tick tracking', () => {
         expect(ctrl.getLastBootstrapSnapshotTick()).toBeNull();
     });
 });
+
+describe('SnapshotPersistence.logDetectedDesyncDiagnostic', () => {
+    beforeEach(() => {
+        logToLobbyLogForced.mockClear();
+        logToLobbyLog.mockClear();
+        tickStateHistory.clear();
+    });
+
+    it('posts a forced desync marker and serialized state once per episode key', async () => {
+        const { ctrl } = make({
+            isHost: true,
+            session: {
+                getEngineTick: () => 1244,
+                getLatestFingerprint: () => ({ tick: 1244, fp: 'hostfp', paused: true }),
+                getSerializedSnapshot: () => ({ gameTick: 1244 } as SerializedGameState),
+            },
+        });
+        await ctrl.logDetectedDesyncDiagnostic('host-fingerprint-mismatch', 'host-fp-mismatch:1244');
+        await ctrl.logDetectedDesyncDiagnostic('host-fingerprint-mismatch', 'host-fp-mismatch:1244');
+        const markers = logToLobbyLogForced.mock.calls.filter(
+            (call) => (call[0] as { message?: string }).message === 'desync detected: diagnostic dump (no recovery started)',
+        );
+        expect(markers).toHaveLength(1);
+        expect(markers[0]?.[0]).toMatchObject({
+            severity: 'warn',
+            logType: 'desync',
+            context: expect.objectContaining({
+                reason: 'host-fingerprint-mismatch',
+                isHost: true,
+                engineTick: 1244,
+            }),
+        });
+        expect(
+            logToLobbyLogForced.mock.calls.some(
+                (call) => (call[0] as { message?: string }).message === 'debug: local serialized game state',
+            ),
+        ).toBe(true);
+        expect(
+            logToLobbyLogForced.mock.calls.some(
+                (call) => (call[0] as { message?: string }).message === 'debug: recent tick history',
+            ),
+        ).toBe(true);
+    });
+
+    it('POSTs the in-memory tick ring on the same debug: recent tick history line as Log local state', async () => {
+        tickStateHistory.push({
+            syncHash: 'ringfp',
+            gameTick: 1243,
+            gameState: { gameTick: 1243 } as SerializedGameState,
+        });
+        const { ctrl } = make({
+            isHost: false,
+            session: {
+                getEngineTick: () => 1244,
+                getSerializedSnapshot: () => ({ gameTick: 1244 } as SerializedGameState),
+            },
+        });
+        await ctrl.logDetectedDesyncDiagnostic('stuck-pause-plane', 'stuck-pause:1244');
+        const historyCall = logToLobbyLogForced.mock.calls.find(
+            (call) => (call[0] as { message?: string }).message === 'debug: recent tick history',
+        );
+        expect(historyCall?.[0]).toMatchObject({
+            severity: 'critical',
+            logType: 'debug',
+            context: expect.objectContaining({
+                capacity: TICK_STATE_HISTORY_CAPACITY,
+                count: 1,
+                ticks: [expect.objectContaining({ syncHash: 'ringfp', gameTick: 1243 })],
+            }),
+        });
+    });
+
+    it('dumps again after clearDetectedDesyncEpisode', async () => {
+        const { ctrl } = make({
+            session: { getEngineTick: () => 10 },
+        });
+        await ctrl.logDetectedDesyncDiagnostic('stuck-pause-plane', 'stuck-pause:10');
+        ctrl.clearDetectedDesyncEpisode();
+        await ctrl.logDetectedDesyncDiagnostic('stuck-pause-plane', 'stuck-pause:10');
+        const markers = logToLobbyLogForced.mock.calls.filter(
+            (call) => (call[0] as { message?: string }).message === 'desync detected: diagnostic dump (no recovery started)',
+        );
+        expect(markers).toHaveLength(2);
+    });
+});

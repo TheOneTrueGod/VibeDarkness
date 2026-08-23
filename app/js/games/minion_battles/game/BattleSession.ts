@@ -15,7 +15,7 @@ import type { HomeResolveContext } from '../storylines/homeBase';
 import type { IBaseMissionDef } from '../storylines/BaseMissionDef';
 import type { BattleOrder, GameEngineFromJSONOpts, SerializedGameState, WaitingForOrders } from './types';
 import { debugLog } from '../../../debugLog';
-import { logToLobbyLog, logToLobbyLogBattleSync } from '../../../lobbyLog';
+import { logToLobbyLog, logToLobbyLogBattleSync, logToLobbyLogForced } from '../../../lobbyLog';
 import { GameEngine } from './GameEngine';
 import { PLAYER_CHARACTER_ID } from './units/unit_defs/unitDef';
 import { GameRenderer } from './GameRenderer';
@@ -23,7 +23,14 @@ import { Camera } from './Camera';
 import { PlayerInteractionManager } from './interaction/PlayerInteractionManager';
 import { fingerprintToHex, type FingerprintRingEntry } from './Fingerprint';
 import { debugSettingsSnapshot } from '../../../debug/debugSettingsStore';
-import type { ApplyRemoteOrdersResult, BattleNet, BattleSessionHandle, RemoteOrderWireRow } from './battlenet';
+import type {
+    ApplyRemoteOrdersResult,
+    BattleNet,
+    BattleSessionHandle,
+    LocalSyncAnomalyContext,
+    RemoteOrderWireRow,
+} from './battlenet';
+import { DESYNC_PENDING_ORDER_LOG_CAP } from './battlenet/constants';
 import { hashOrderId } from './battlenet/helpers/orderHashing';
 import { summarizeRemoteWireRowsForLog } from './battlenet/helpers/orderWireLogSummary';
 import { logUserState } from './battlenet/userStateLog';
@@ -789,6 +796,57 @@ export class BattleSession implements BattleSessionHandle {
             message,
             context,
         });
+    }
+
+    /**
+     * Forced `logType: 'desync'` line — posts even when Debug Console desync/battle-sync floors are off.
+     * Used when the live game detects a host mismatch or stuck pause plane.
+     */
+    postDesyncLobbyLogForced(message: string, context?: Record<string, unknown>, tick?: number | null): void {
+        const { api, playerId } = this.config;
+        const lobbyClient = typeof api.getLobbyClient === 'function' ? api.getLobbyClient() : null;
+        if (!lobbyClient) return;
+        logToLobbyLogForced({
+            lobbyClient,
+            lobbyId: api.getLobbyId(),
+            playerId,
+            tick: tick ?? this.getEngineTick(),
+            severity: 'warn',
+            logType: 'desync',
+            gameId: api.getGameId(),
+            gamePhase: 'battle',
+            message,
+            context,
+        });
+    }
+
+    getLocalSyncAnomalyContext(): LocalSyncAnomalyContext {
+        const engine = this.engine;
+        const waiting = engine?.waitingForOrders ?? null;
+        const pending = engine?.pendingOrders ?? [];
+        const engineTick = engine?.gameTick ?? 0;
+        const atOrAfter = pending
+            .filter((row) => row.gameTick >= engineTick)
+            .slice(0, DESYNC_PENDING_ORDER_LOG_CAP)
+            .map((row) => ({
+                gameTick: row.gameTick,
+                unitId: row.order.unitId,
+                abilityId: row.order.abilityId,
+                endTurn: row.order.endTurn === true,
+            }));
+        return {
+            engineTick,
+            isPaused: engine?.isPaused === true,
+            storyPauseActive: engine?.storyPauseActive === true,
+            waitingForTargetInputLabel: engine?.waitingForTargetInput?.label ?? null,
+            waitingForOrdersAtTick: waiting?.atTick ?? null,
+            waiterUnitIds: waiting?.waiters.map((w) => w.unitId) ?? [],
+            itsPreviewActive: this.interactiveTargeting.isActive,
+            pendingOrderCount: pending.length,
+            pendingOrdersAtOrAfterTick: atOrAfter,
+            runtimeFingerprintHex: this.getRuntimeFingerprintHex(),
+            fingerprintTailPaused: this.getFingerprintTailPaused(),
+        };
     }
 
     getRuntimeFingerprintHex(): string {
