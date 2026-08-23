@@ -3406,4 +3406,131 @@ describe('interactive sequential targeting — Throw Rock Rapid Throw combo', ()
 
         engine.destroy();
     });
+
+    it('does not force ITS commit at combo when playahead assumed no remote pass', () => {
+        const { engine, player, aimPixel } = buildThrowRockComboFixture();
+        const gotWaitingForOrders = stepUntil(engine, () => engine.waitingForOrders != null);
+        expect(gotWaitingForOrders).toBe(true);
+
+        const session = {
+            getEngine: () => engine,
+            isOrderBatchTickSubmittable: () => true,
+            isLocalPlayerExpectedToAct: () => true,
+            postBattleSyncLobbyLog: vi.fn(),
+            isHost: () => true,
+            getEngineTick: () => engine.gameTick,
+            getLocalPlayerId: () => TINY_BATTLE_PLAYER_ID,
+        } as unknown as BattleSession;
+
+        const its = new InteractiveTargetingSession();
+        expect(its.begin(
+            {
+                unitId: player.id,
+                abilityId: THROW_ROCK_ABILITY_ID,
+                targets: [],
+                endTurn: true,
+            },
+            session,
+        )).toBe(true);
+        expect(its.shouldForceItsCommitAtComboWindow()).toBe(false);
+
+        const ability = getAbility(THROW_ROCK_ABILITY_ID)!;
+        const selectDef = getSelectTargetDefsFromTimings(ability, player, engine)[0]!;
+        const resolution = resolveItsSelectTargetForClick(
+            ability,
+            player,
+            selectDef,
+            aimPixel,
+            aimPixel,
+            {},
+            engine,
+        );
+        expect(resolution).not.toBeNull();
+        its.resolveTarget(
+            THROW_ROCK_TARGET_LABEL,
+            resolution!.labelTarget,
+            session,
+            resolution!.orderTargets,
+        );
+
+        const comboPaused = stepUntil(
+            engine,
+            () => player.activeAbilities.some((a) => a.conditionalCancelPaused),
+            200,
+        );
+        expect(comboPaused).toBe(true);
+        expect(isITSPreviewComplete(engine)).toBe(true);
+        expect(its.shouldForceItsCommitAtComboWindow()).toBe(false);
+
+        engine.destroy();
+    });
+
+    it('notes an assumed remote pass and forces ITS commit when playahead reaches the combo window', () => {
+        const TINY_BATTLE_REMOTE_PLAYER_ID = 'tiny_p2';
+        const { engine, player, dummy, aimPixel } = buildThrowRockComboFixture();
+        spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_REMOTE_PLAYER_ID,
+            name: 'Bob',
+            x: dummy.x - 16,
+            y: dummy.y,
+            abilities: [PUNCH_ABILITY_ID],
+        });
+
+        const gotWaitingForOrders = stepUntil(engine, () => engine.waitingForOrders != null);
+        expect(gotWaitingForOrders).toBe(true);
+        expect(engine.waitingForOrders?.waiters.some((w) => w.ownerId === TINY_BATTLE_REMOTE_PLAYER_ID)).toBe(true);
+
+        const session = {
+            getEngine: () => engine,
+            isOrderBatchTickSubmittable: () => true,
+            isLocalPlayerExpectedToAct: () => true,
+            postBattleSyncLobbyLog: vi.fn(),
+            isHost: () => true,
+            getEngineTick: () => engine.gameTick,
+            getLocalPlayerId: () => TINY_BATTLE_PLAYER_ID,
+        } as unknown as BattleSession;
+
+        const its = new InteractiveTargetingSession();
+        expect(its.begin(
+            {
+                unitId: player.id,
+                abilityId: THROW_ROCK_ABILITY_ID,
+                targets: [],
+                endTurn: true,
+            },
+            session,
+        )).toBe(true);
+        expect(its.hasAssumedRemoteWaitDuringPreview).toBe(true);
+        expect(its.shouldForceItsCommitAtComboWindow()).toBe(true);
+
+        const ability = getAbility(THROW_ROCK_ABILITY_ID)!;
+        const selectDef = getSelectTargetDefsFromTimings(ability, player, engine)[0]!;
+        const resolution = resolveItsSelectTargetForClick(
+            ability,
+            player,
+            selectDef,
+            aimPixel,
+            aimPixel,
+            {},
+            engine,
+        );
+        expect(resolution).not.toBeNull();
+        its.resolveTarget(
+            THROW_ROCK_TARGET_LABEL,
+            resolution!.labelTarget,
+            session,
+            resolution!.orderTargets,
+        );
+
+        const comboPaused = stepUntil(
+            engine,
+            () => player.activeAbilities.some((a) => a.conditionalCancelPaused),
+            200,
+        );
+        expect(comboPaused).toBe(true);
+        expect(isITSPreviewComplete(engine)).toBe(true);
+        expect(its.shouldForceItsCommitAtComboWindow()).toBe(true);
+
+        engine.destroy();
+    });
 });

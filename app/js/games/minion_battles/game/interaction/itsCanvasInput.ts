@@ -106,12 +106,15 @@ export function resolveItsConfirmRadiusForClick(
  */
 export function shouldDeferItsCanvasInputToOrderUi(
     engine: GameEngine | null | undefined,
-    its: { isActive: boolean; unitId: string | null },
+    its: { isActive: boolean; unitId: string | null; shouldForceItsCommitAtComboWindow?: () => boolean },
 ): boolean {
     if (!its.isActive || !engine || engine.waitingForTargetInput != null) {
         return false;
     }
     if (!its.unitId) return false;
+    if (its.shouldForceItsCommitAtComboWindow?.()) {
+        return false;
+    }
     return isCasterInConditionalCancelPause(engine.getUnit(its.unitId));
 }
 

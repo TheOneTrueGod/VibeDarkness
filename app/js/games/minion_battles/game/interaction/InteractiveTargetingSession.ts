@@ -204,6 +204,15 @@ export class InteractiveTargetingSession {
     }
 
     /**
+     * True when this preview skipped another player's real order (assumed pass at begin,
+     * dropped their later parallel pause, or held a remote row). Combo / Entombed follow-up
+     * must not submit on this timeline — Done / Auto End commits throw 1 only (rollback).
+     */
+    shouldForceItsCommitAtComboWindow(): boolean {
+        return this._isActive && (this.assumedRemoteWaitDuringPreview || this.heldRemoteOrders.size > 0);
+    }
+
+    /**
      * Marks that playahead crossed a multiplayer order boundary (another player's action could
      * change the canonical path). Wired from {@link GameEngine}'s ITS parallel-pause callback.
      * @returns true when the flag was newly set (first uncertainty this preview).

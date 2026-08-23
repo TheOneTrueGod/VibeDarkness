@@ -69,7 +69,9 @@ export function useBattleAbilityBarSlots({
     const pausedAbility = activeLocalWaiter != null
         ? engine.getUnit(activeLocalWaiter.unitId)?.activeAbilities.find((a) => a.conditionalCancelPaused)
         : undefined;
-    const conditionalCancelContext = pausedAbility != null
+    const forceItsCommitAtCombo =
+        sessionRef.current?.interactiveTargeting.shouldForceItsCommitAtComboWindow() === true;
+    const conditionalCancelContext = pausedAbility != null && !forceItsCommitAtCombo
         ? { activeAbilityId: pausedAbility.abilityId, abilityTagFilter: pausedAbility.conditionalCancelTagFilter }
         : undefined;
 

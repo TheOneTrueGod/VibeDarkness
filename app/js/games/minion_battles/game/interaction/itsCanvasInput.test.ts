@@ -262,6 +262,40 @@ describe('shouldDeferItsCanvasInputToOrderUi', () => {
         engine.destroy();
     });
 
+    it('returns false when ITS must commit at the combo window after an assumed pass', () => {
+        resetGameObjectIdCounter(1);
+        const engine = buildTinyBattleEngine({
+            gridW: 12,
+            gridH: 8,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: 120,
+            y: 160,
+            abilities: ['throw_charged_rock'],
+        });
+        player.activeAbilities = [{
+            abilityId: 'throw_charged_rock',
+            startTime: engine.gameTime,
+            targets: [],
+            conditionalCancelPaused: true,
+            conditionalCancelTagFilter: ['Combo'],
+        }];
+        engine.waitingForTargetInput = null;
+
+        expect(
+            shouldDeferItsCanvasInputToOrderUi(engine, {
+                isActive: true,
+                unitId: player.id,
+                shouldForceItsCommitAtComboWindow: () => true,
+            }),
+        ).toBe(false);
+
+        engine.destroy();
+    });
+
     it('returns false while ITS is waiting for a select-target label', () => {
         resetGameObjectIdCounter(1);
         const engine = buildTinyBattleEngine({

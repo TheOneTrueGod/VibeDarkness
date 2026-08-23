@@ -17,6 +17,7 @@ import { Camera } from '../Camera';
 import type { GameRenderer } from '../GameRenderer/GameRenderer';
 import type { BattleOrder } from '../types';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
+import { getAbility } from '../../abilities/AbilityRegistry';
 import { setAutoEndTurn, getAutoEndTurn } from '../autoEndTurnSetting';
 import {
     buildTinyBattleEngine,
@@ -99,7 +100,11 @@ describe('PlayerInteractionManager wait confirms client-side move', () => {
                     submitted.push({ ...order, movePath: order.movePath ? [...order.movePath] : order.movePath });
                     engine.state.orderMgr.applyOrder(order);
                 },
-                interactiveTargeting: { isActive: false },
+                interactiveTargeting: {
+                    isActive: false,
+                    shouldForceItsCommitAtComboWindow: () => false,
+                    commit: async () => {},
+                },
             },
             playerId: TINY_BATTLE_PLAYER_ID,
         });
@@ -170,5 +175,145 @@ describe('PlayerInteractionManager wait confirms client-side move', () => {
         expect(order?.abilityId).toBe('test_primary');
         expect(order?.endTurn).toBe(true);
         expect(order?.movePath?.at(-1)).toEqual({ col: 5, row: 4 });
+    });
+});
+
+describe('PlayerInteractionManager combo follow-up after assumed ITS pass', () => {
+    const THROW_CHARGED_ROCK_ABILITY_ID = 'throw_charged_rock';
+    const THROW_ROCK_ABILITY_ID = 'throw_rock';
+    let engineToDestroy: GameEngine | null = null;
+    let managerToDestroy: PlayerInteractionManager | null = null;
+
+    afterEach(() => {
+        managerToDestroy?.destroy();
+        managerToDestroy = null;
+        engineToDestroy?.destroy();
+        engineToDestroy = null;
+    });
+
+    function mountComboPauseManager(forceItsCommit: boolean): {
+        manager: PlayerInteractionManager;
+        player: ReturnType<typeof spawnTinyPlayerUnit>;
+        engine: GameEngine;
+    } {
+        const engine = buildTinyBattleEngine({
+            gridW: GRID_W,
+            gridH: GRID_H,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+        const start = playerCellCenter(2, 4);
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: start.x,
+            y: start.y,
+            abilities: [THROW_ROCK_ABILITY_ID, THROW_CHARGED_ROCK_ABILITY_ID],
+        });
+        player.activeAbilities = [{
+            abilityId: THROW_CHARGED_ROCK_ABILITY_ID,
+            startTime: engine.gameTime,
+            targets: [],
+            conditionalCancelPaused: true,
+            conditionalCancelTagFilter: ['Combo'],
+        }];
+        engine.waitingForOrders = {
+            atTick: engine.gameTick,
+            waiters: [{ unitId: player.id, ownerId: TINY_BATTLE_PLAYER_ID }],
+        };
+
+        const camera = new Camera(800, 600, engine.getWorldWidth(), engine.getWorldHeight());
+        const manager = new PlayerInteractionManager();
+        manager.setContext({
+            engine,
+            camera,
+            renderer: { setDebugUnitOutline: () => {} } as unknown as GameRenderer,
+            session: {
+                submitPlayerOrder: async () => {},
+                interactiveTargeting: {
+                    isActive: true,
+                    shouldForceItsCommitAtComboWindow: () => forceItsCommit,
+                    commit: async () => {},
+                },
+            },
+            playerId: TINY_BATTLE_PLAYER_ID,
+        });
+        manager.setCanUseOrderUi(true);
+        manager.setMyAbilityIds([THROW_ROCK_ABILITY_ID, THROW_CHARGED_ROCK_ABILITY_ID]);
+        manager.setWaitingForOrders(engine.waitingForOrders);
+        engineToDestroy = engine;
+        managerToDestroy = manager;
+        return { manager, player, engine };
+    }
+
+    it('does not auto-select the combo bar when ITS must commit throw 1', () => {
+        const { manager } = mountComboPauseManager(true);
+        manager.tryAutoSelectComboCancelPause();
+        expect(manager.getUIState().selectedCardIndex).toBeNull();
+        expect(manager.getUIState().selectedAbility).toBeNull();
+    });
+
+    it('ignores combo card clicks when ITS must commit throw 1', () => {
+        const { manager } = mountComboPauseManager(true);
+        const ability = getAbility(THROW_ROCK_ABILITY_ID);
+        expect(ability).toBeDefined();
+        manager.activateAbilityTargeting(0, ability!);
+        expect(manager.getUIState().selectedCardIndex).toBeNull();
+    });
+
+    it('Wait at the combo window commits throw 1 only after an assumed pass', async () => {
+        const commit = vi.fn(async () => {});
+        const submitted: BattleOrder[] = [];
+        const engine = buildTinyBattleEngine({
+            gridW: GRID_W,
+            gridH: GRID_H,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+        const start = playerCellCenter(2, 4);
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: start.x,
+            y: start.y,
+            abilities: [THROW_ROCK_ABILITY_ID],
+        });
+        player.activeAbilities = [{
+            abilityId: THROW_CHARGED_ROCK_ABILITY_ID,
+            startTime: engine.gameTime,
+            targets: [],
+            conditionalCancelPaused: true,
+            conditionalCancelTagFilter: ['Combo'],
+        }];
+        engine.waitingForOrders = {
+            atTick: engine.gameTick,
+            waiters: [{ unitId: player.id, ownerId: TINY_BATTLE_PLAYER_ID }],
+        };
+        const camera = new Camera(800, 600, engine.getWorldWidth(), engine.getWorldHeight());
+        const manager = new PlayerInteractionManager();
+        manager.setContext({
+            engine,
+            camera,
+            renderer: { setDebugUnitOutline: () => {} } as unknown as GameRenderer,
+            session: {
+                submitPlayerOrder: async (order: BattleOrder) => {
+                    submitted.push(order);
+                },
+                interactiveTargeting: {
+                    isActive: true,
+                    shouldForceItsCommitAtComboWindow: () => true,
+                    commit,
+                },
+            },
+            playerId: TINY_BATTLE_PLAYER_ID,
+        });
+        manager.setCanUseOrderUi(true);
+        manager.setWaitingForOrders(engine.waitingForOrders);
+        engineToDestroy = engine;
+        managerToDestroy = manager;
+
+        manager.handleWait();
+        await Promise.resolve();
+
+        expect(commit).toHaveBeenCalledTimes(1);
+        expect(submitted).toHaveLength(0);
     });
 });

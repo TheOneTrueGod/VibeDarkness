@@ -26,7 +26,10 @@ function makeSessionMock(): BattleSession & {
         getEngineTick: () => 42,
         getEngine: () => null,
         isHost: () => false,
-        interactiveTargeting: { isActive: false },
+        interactiveTargeting: {
+            isActive: false,
+            shouldForceItsCommitAtComboWindow: () => false,
+        },
         postBattleSyncLobbyLog: vi.fn(),
         postDesyncLobbyLogForced: vi.fn(),
     } as unknown as BattleSession & {

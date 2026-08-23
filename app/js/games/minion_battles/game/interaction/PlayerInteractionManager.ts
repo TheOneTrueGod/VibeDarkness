@@ -138,6 +138,10 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
             this.lastComboAutoSelectKey = null;
             return;
         }
+        if (this.ctx.session.interactiveTargeting.shouldForceItsCommitAtComboWindow()) {
+            this.lastComboAutoSelectKey = null;
+            return;
+        }
         const active = this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId);
         if (!active) {
             this.lastComboAutoSelectKey = null;
@@ -392,6 +396,9 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         if (!active) return;
         const caster = this.ctx.engine.getUnit(active.unitId) ?? undefined;
         const comboCancelPause = isCasterInConditionalCancelPause(caster);
+        if (comboCancelPause && this.ctx.session.interactiveTargeting.shouldForceItsCommitAtComboWindow()) {
+            return;
+        }
 
         if (this.activeTool instanceof AbilityTargetingTool && this.activeTool.cardIndex === cardIndex) {
             if (comboCancelPause) {
@@ -551,6 +558,14 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
             const active = this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId);
             const caster = active ? this.ctx.engine.getUnit(active.unitId) : undefined;
             if (isCasterInConditionalCancelPause(caster)) {
+                if (this.ctx.session.interactiveTargeting.shouldForceItsCommitAtComboWindow()) {
+                    logWait(true, 'its_combo_after_assumed_pass');
+                    void this.ctx.session.interactiveTargeting.commit(
+                        this.ctx.session,
+                        'combo_window_after_assumed_pass',
+                    );
+                    return;
+                }
                 void this.ctx.session.interactiveTargeting
                     .commit(this.ctx.session, 'conditional_cancel_continue')
                     .then(() => {

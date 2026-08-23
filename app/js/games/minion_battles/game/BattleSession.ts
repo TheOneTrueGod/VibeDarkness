@@ -1146,6 +1146,12 @@ export class BattleSession implements BattleSessionHandle {
                 });
                 return;
             }
+            // Assumed remote pass (or held remotes): the combo pause is not committable.
+            // Confirm throw 1 only; do not POST the follow-up on this preview batch.
+            if (this.interactiveTargeting.shouldForceItsCommitAtComboWindow()) {
+                await this.interactiveTargeting.commit(this, 'combo_window_after_assumed_pass');
+                return;
+            }
             await this.interactiveTargeting.commit(this, 'conditional_cancel_follow_up');
             if (this.interactiveTargeting.isActive) return;
             // In-place commit replaces waitingForOrders when realigning atTick (lobby C9D014).

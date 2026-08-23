@@ -194,4 +194,49 @@ describe('BattleSession submitPlayerOrder + BattleNet', () => {
         commitSpy.mockRestore();
         session.destroy();
     });
+
+    it('combo follow-up after an assumed remote pass commits throw 1 only', async () => {
+        const { session, unitId } = await mountSessionAtLocalPlayerTurn();
+        const engine = session.getEngine()!;
+        const unit = engine.getUnit(unitId);
+        if (!unit) throw new Error('missing unit');
+        unit.activeAbilities = [{
+            abilityId: 'throw_charged_rock',
+            startTime: engine.gameTime,
+            targets: [],
+            conditionalCancelPaused: true,
+            conditionalCancelTagFilter: ['Combo'],
+        }];
+
+        const netSubmitOrder = vi.fn(async () => {});
+        session.setNetAdapter({
+            submitOrder: netSubmitOrder,
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        const commitSpy = vi.spyOn(session.interactiveTargeting, 'commit').mockImplementation(async () => {
+            (session.interactiveTargeting as unknown as { _isActive: boolean })._isActive = false;
+        });
+
+        const its = session.interactiveTargeting as unknown as {
+            _isActive: boolean;
+            assumedRemoteWaitDuringPreview: boolean;
+        };
+        its._isActive = true;
+        its.assumedRemoteWaitDuringPreview = true;
+
+        const followUpOrder: BattleOrder = {
+            unitId,
+            abilityId: 'throw_rock',
+            targets: [{ type: 'pixel', position: { x: 100, y: 100 } }],
+            endTurn: true,
+        };
+        await session.submitPlayerOrder(followUpOrder, { canSubmitOrders: true });
+
+        expect(commitSpy).toHaveBeenCalledTimes(1);
+        expect(commitSpy).toHaveBeenCalledWith(session, 'combo_window_after_assumed_pass');
+        expect(netSubmitOrder).not.toHaveBeenCalled();
+
+        commitSpy.mockRestore();
+        session.destroy();
+    });
 });
