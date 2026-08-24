@@ -141,4 +141,5 @@ export function advanceWindupLunge(
     unit.x = payload.lungeStartX + dirX * actualLunge * progress;
     unit.y = payload.lungeStartY + dirY * actualLunge * progress;
     unit.invalidateMovementPath();
+    unit.claimAbilityMovement();
 }

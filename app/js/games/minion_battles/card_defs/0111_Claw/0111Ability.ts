@@ -23,7 +23,7 @@ const MAX_USES = 2;
 const RECOVERIES: AbilityRecoveryRule[] = [
 	{ chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 },
 ];
-const CLAW_DURATION = 0.4;
+export const CLAW_DURATION = 0.4;
 export const CLAW_MAX_DISTANCE = 100;
 export const CLAW_COLLISION_STEP = 4;
 export const CLAW_DAMAGE = 5;

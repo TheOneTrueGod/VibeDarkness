@@ -23,5 +23,6 @@ Declarative cast timing, targeting, hitboxes, and reusable cast behaviours for M
 - **Aim source of truth:** `active.targets` / `targetsByLabel` must be downgraded to pixel when a locked unit evades, breaks tether, or dies — otherwise later ticks chase the live unit. See `targetDowngrade.ts` and the evade/tether blocks in the unit ability tick.
 - **Render offsets:** any code that walks timing intervals for caster slide/offset must use `getEffectiveCastBehaviours`, or the `behaviour:` shorthand is skipped.
 - **Melee line preview/hits:** `MeleeLineHitboxSpec` projects aim to full `maxRange` (not click distance). Team filtering for select-target is caller-side via `filterSelectTargetCandidates`.
+- **Self-displacement owns walking:** While an ability is sliding the caster, the engine claims exclusive movement for that tick. Walk orders are kept but not advanced; walking resumes when the slide stops, even if the cast is still in cooldown. Dash and lunge do this automatically. Custom slides must use the same unit displacement helpers so they inherit it. Do not add a timing tag or movement-lock for this — windup plant-feet remains a separate movement-lock on the ability. See `Unit` and the dash/lunge behaviours.
 
 Authoring workflow and registration checklist: `card_defs/SKILL.md` and the **creating-an-ability** skill.

@@ -128,7 +128,7 @@ export class LungeMovement {
         const terrainManager = engine.terrainManager ?? null;
         // Ghost through CrowdSpacing only while the lunge is still displacing this tick.
         if (segmentLength > 0) {
-            caster.crowdSpacingImmobile = true;
+            caster.claimAbilityMovement();
             const { distance } = computeForcedDisplacement(
                 fromX, fromY, toX, toY, segmentLength,
                 { terrainManager, step: this.collisionStep },

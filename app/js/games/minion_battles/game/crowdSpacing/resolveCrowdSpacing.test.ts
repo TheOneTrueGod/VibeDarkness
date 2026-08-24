@@ -125,7 +125,7 @@ describe('resolveCrowdSpacingPass', () => {
     it('charge/dash immobile unit is exempt (does not push overlapping softs)', () => {
         const soft = makeSoft('soft', 0, 0);
         const charger = makeSoft('charger', OVERLAP_GAP, 0);
-        charger.crowdSpacingImmobile = true;
+        charger.abilityOwnsMovementThisTick = true;
         const softStart = { x: soft.x, y: soft.y };
         const chargerStart = { x: charger.x, y: charger.y };
 
@@ -142,7 +142,7 @@ describe('resolveCrowdSpacingPass', () => {
         const player = makeSoft('player', OVERLAP_GAP, 0);
         player.ownerId = 'p1';
         player.teamId = 'player';
-        player.crowdSpacingImmobile = true;
+        player.abilityOwnsMovementThisTick = true;
         const softStart = { x: soft.x, y: soft.y };
         const playerStart = { x: player.x, y: player.y };
 

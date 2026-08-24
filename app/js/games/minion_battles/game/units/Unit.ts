@@ -164,11 +164,11 @@ export class Unit extends GameObject {
     pathInvalidated: boolean = false;
 
     /**
-     * Runtime-only: this tick the unit is mid charge-lunge / dash displacement.
-     * CrowdSpacing treats the unit as exempt (not in the grid — ghosts through the pack).
-     * Cleared each UnitManager tick; DashBehaviour / LungeMovement re-set only while still moving.
+     * Runtime-only: this tick an ability is sliding this unit (dash, lunge, moveUnit).
+     * Walk orders are kept but not advanced; CrowdSpacing treats the unit as exempt.
+     * Cleared each UnitManager tick; displacement primitives re-claim while still moving.
      */
-    crowdSpacingImmobile: boolean = false;
+    abilityOwnsMovementThisTick: boolean = false;
 
     /**
      * Durable walk destination. Survives path invalidation; cleared by clearMovement / arrival.
@@ -415,9 +415,18 @@ export class Unit extends GameObject {
     }
 
     /**
+     * Claim exclusive movement for this tick. Walk / occupancy shove / CrowdSpacing
+     * treat the unit as ability-controlled until UnitManager clears the flag next tick.
+     */
+    claimAbilityMovement(): void {
+        this.abilityOwnsMovementThisTick = true;
+    }
+
+    /**
      * Move the unit toward a world position by at most maxDistance.
      * If the unit has a movement path, checks whether a new step (current grid cell)
      * needs to be prepended to the path so pathfinding stays valid after the move.
+     * A non-zero step claims exclusive movement for this tick.
      * Returns the actual distance moved.
      */
     moveUnit(towardX: number, towardY: number, maxDistance: number): number {

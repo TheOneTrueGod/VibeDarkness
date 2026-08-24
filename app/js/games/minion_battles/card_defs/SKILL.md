@@ -29,6 +29,8 @@ Before implementing, break the ability into its constituent parts (movement, hit
 
 When an ability needs behaviour similar to an existing `CastBehaviour` (movement, melee, etc.), prefer **extending that behaviour** with new configuration options rather than creating a sibling class that duplicates the core logic. A new `CastBehaviour` class is appropriate only when the behaviour is genuinely atomic — it does one thing with no overlap with existing behaviours.
 
+Dash and lunge claim exclusive movement for the caster while they slide; walk orders resume after the slide. Custom slides must use the same unit displacement helpers. See **Self-displacement owns walking** in `abilities/AGENTS.md`.
+
 ## Separation of concerns: hitboxes vs abilityEvents
 
 Keep two concerns separate in the `castBehaviours` system:

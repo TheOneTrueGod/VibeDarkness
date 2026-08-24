@@ -87,6 +87,9 @@ export function moveUnitToward(unit: Unit, towardX: number, towardY: number, max
     const step = Math.min(maxDistance, dist);
     unit.x += (dx / dist) * step;
     unit.y += (dy / dist) * step;
+    if (step > 0) {
+        unit.claimAbilityMovement();
+    }
 
     if (unit.movement && unit.movement.path.length > 0) {
         const currentCol = Math.floor(unit.x / CELL_SIZE);

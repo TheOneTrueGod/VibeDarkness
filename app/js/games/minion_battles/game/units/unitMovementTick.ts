@@ -160,6 +160,11 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
         return;
     }
 
+    // Ability dash/lunge owns the body this tick — keep walkIntent, do not walk or repath.
+    if (unit.abilityOwnsMovementThisTick) {
+        return;
+    }
+
     // After forced displace: rebuild path from durable walkIntent once the unit can move again.
     tryRepathFromWalkIntent(unit, engine as EngineContext);
 

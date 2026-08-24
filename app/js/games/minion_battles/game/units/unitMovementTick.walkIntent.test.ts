@@ -2,6 +2,7 @@
  * Unit.walkIntent — durable destination across invalidate / forced displace.
  */
 import { describe, expect, it } from 'vitest';
+import './Unit';
 import {
     clearUnitMovement,
     invalidateUnitMovementPath,

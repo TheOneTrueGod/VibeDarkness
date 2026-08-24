@@ -149,11 +149,11 @@ describe('getCrowdSpacingRole', () => {
 
     it('exempts charge/dash displacement from CrowdSpacing, including player casters', () => {
         const charging = makeUnit();
-        charging.crowdSpacingImmobile = true;
+        charging.abilityOwnsMovementThisTick = true;
         expect(getCrowdSpacingRole(charging)).toBe('exempt');
 
         const dodgingPlayer = makeUnit({ ownerId: 'p1' });
-        dodgingPlayer.crowdSpacingImmobile = true;
+        dodgingPlayer.abilityOwnsMovementThisTick = true;
         expect(getCrowdSpacingRole(dodgingPlayer)).toBe('exempt');
     });
 

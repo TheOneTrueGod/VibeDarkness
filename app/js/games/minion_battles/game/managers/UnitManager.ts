@@ -215,7 +215,7 @@ export class UnitManager {
 
             // Find an escape cell — prefer less-full, exclude shoveFromCell to prevent bounce
             const escape = findEscapeCell(col, row, maxPerTile, unit.moveJitter ?? 0, mgr, grid, unit.shoveFromCell);
-            if (escape && !unit.movement) {
+            if (escape && !unit.movement && !unit.abilityOwnsMovementThisTick) {
                 unit.setMovement([escape], undefined, engine.gameTick);
                 unit.shoveFromCell = { col, row };
             }
@@ -228,9 +228,9 @@ export class UnitManager {
         onNaturalAbilityCompletion: (unitId: string) => void,
         aiContext: AIContext,
     ): void {
-        // Ephemeral CrowdSpacing dash/lunge exemption — ability ticks re-set while still moving.
+        // Ephemeral ability-movement claim — dash/lunge/moveUnit re-claim while still sliding.
         for (const unit of this.units) {
-            unit.crowdSpacingImmobile = false;
+            unit.abilityOwnsMovementThisTick = false;
         }
         // Phase 1a: passive ability tick (all alive units, no cast required)
         tickPerformanceTracker.measure([PERF_UNITS_PASSIVES], () => {
@@ -272,7 +272,11 @@ export class UnitManager {
                 if (unit.growAnimTimer > 0) {
                     unit.growAnimTimer = Math.max(0, unit.growAnimTimer - dt);
                 }
-                if (unit.pathfindingRetriggerOffset > 0 && engine.gameTick % unit.pathfindingRetriggerOffset === 0) {
+                if (
+                    !unit.abilityOwnsMovementThisTick
+                    && unit.pathfindingRetriggerOffset > 0
+                    && engine.gameTick % unit.pathfindingRetriggerOffset === 0
+                ) {
                     if (unit.isPlayerControlled() && unit.movement?.targetUnitId) {
                         refreshPlayerPursuitPath(unit, aiContext);
                     }

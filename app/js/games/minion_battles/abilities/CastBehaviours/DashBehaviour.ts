@@ -171,7 +171,7 @@ export class DashBehaviour implements CastBehaviour {
         const stillDashing = !payload.stopped && distToEnd > 0;
         // Ghost through CrowdSpacing only while the dash is still displacing.
         if (stillDashing) {
-            ctx.caster.crowdSpacingImmobile = true;
+            ctx.caster.claimAbilityMovement();
             const progressDelta = ctx.windowProgress - ctx.prevWindowProgress;
             const moveThisTick = Math.min(progressDelta * payload.totalDistance, distToEnd);
             if (moveThisTick > 0) {
