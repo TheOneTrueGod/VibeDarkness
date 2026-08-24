@@ -58,6 +58,7 @@ const LIGHT_BLAST_HEAL = 5;
 export const LIGHT_BLAST_DAYLIGHT_AMOUNT = 1;
 export const LIGHT_BLAST_DAYLIGHT_RADIUS = 2;
 export const LIGHT_BLAST_DAYLIGHT_ROUNDS = 3;
+export const LIGHT_BLAST_LIGHT_COST = 1;
 
 const TOOLTIP_LINES = [
     'Create a sudden blast of light, dealing {{DAMAGE}} damage to up to {{MAX_TARGETS}} enemies.',
@@ -94,7 +95,7 @@ export const LightBlastAbility = defineAbility({
     id: CARD_ID,
     name: 'Light Blast',
     image: LIGHT_BLAST_IMAGE,
-    resourceCost: { resourceId: 'light', amount: 1 },
+    resourceCost: { resourceId: 'light', amount: LIGHT_BLAST_LIGHT_COST },
     rechargeTurns: 1,
     maxUses: MAX_USES,
     recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 }],

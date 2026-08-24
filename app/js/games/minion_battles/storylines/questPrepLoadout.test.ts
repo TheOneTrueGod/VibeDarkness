@@ -4,6 +4,7 @@ import {
     syncNestedCardAbilityState,
 } from '../abilities/abilityUses';
 import { Unit } from '../game/units/Unit';
+import { getDefaultHp, getDefaultSpeed, PLAYER_CHARACTER_ID } from '../game/units/unit_defs/unitDef';
 import {
     PREP_ABILITY_SLOT_COUNT,
     QUEST_PREP_ABILITY_SLOT_COUNT,
@@ -91,9 +92,12 @@ describe('attached ability expansion', () => {
             id: 'chip',
             x: 0,
             y: 0,
+            hp: getDefaultHp(PLAYER_CHARACTER_ID),
+            speed: getDefaultSpeed(PLAYER_CHARACTER_ID),
             teamId: 'player',
             ownerId: '1',
-            characterId: 'player',
+            characterId: PLAYER_CHARACTER_ID,
+            name: 'Chip',
             abilities: expandAttachedAbilityIds([
                 '0101',
                 '0120',

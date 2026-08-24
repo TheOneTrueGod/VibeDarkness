@@ -1,4 +1,5 @@
 import type { AbilityStatic } from '../../abilities/Ability';
+import type { Unit } from '../units/Unit';
 import { getAbilityTargets } from '../../abilities/Ability';
 import type { BattleOrder, ResolvedTarget, WaitingForOrders } from '../types';
 import type { BattleSession } from '../BattleSession';

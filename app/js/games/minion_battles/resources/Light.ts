@@ -19,6 +19,8 @@ export const LIGHT_RESOURCE_MIN_LIGHT_LEVEL = 3;
 export const LIGHT_RESOURCE_DIVISOR = 3;
 
 export const MAX_LIGHT_RECOVERY_PER_ROUND = 2;
+/** Starting Light capacity when a unit first gains the resource (Light Core). */
+export const LIGHT_STARTING_MAX = 5;
 export const LIGHT_RESOURCE_COLOR = '#fef9c3'; // warm white-yellow
 export const LIGHT_RESOURCE_COLOR_NUMBER = 0xfff9c3; // warm white-yellow
 
@@ -32,7 +34,7 @@ export class Light extends Resource {
 	private _engine: EngineContext | null = null;
 
 	constructor() {
-		super(0, 5);
+		super(0, LIGHT_STARTING_MAX);
 	}
 
 	/** Live per-round gain for the unit's current tile. Used by the tooltip. */

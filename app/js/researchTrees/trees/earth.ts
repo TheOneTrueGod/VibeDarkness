@@ -1,4 +1,4 @@
-import type { ResearchTreeDef } from '../types';
+import { PassiveStatKey, type ResearchTreeDef } from '../types';
 import { EARTH_CORE_MISSION_START_ROCK_AMOUNT } from '../../games/minion_battles/card_defs/05_earth_core/earthCoreConstants';
 
 export const EARTH_TREE_ID = 'earth';
@@ -7,10 +7,15 @@ export const EARTH_NODE_DIGGING_CLAWS = 'digging_claws';
 export const EARTH_NODE_ROCK_SYNERGY_DAMAGE = 'earth_rock_damage';
 export const EARTH_NODE_ROCK_SYNERGY_ENTOMBED = 'earth_rock_entombed';
 export const EARTH_NODE_RAPID_THROW = 'rapid_throw';
+export const EARTH_NODE_EARTH_ATTUNED = 'earth_attuned';
 export const EARTH_RAPID_THROW_LEVELS = 3;
 export const EARTH_BURIED_ARSENAL_METAL_COST = 5;
 export const EARTH_STONE_SYNERGY_METAL_PER_LEVEL = 5;
 export const EARTH_RAPID_THROW_METAL_COST = 30;
+export const EARTH_ATTUNED_LEVELS = 2;
+export const EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK = 1;
+export const EARTH_ATTUNED_MAX_MOVEMENT_ADD = EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK * EARTH_ATTUNED_LEVELS;
+export const EARTH_ATTUNED_METAL_COST = 15;
 
 export const earthTree: ResearchTreeDef = {
     id: EARTH_TREE_ID,
@@ -114,6 +119,25 @@ export const earthTree: ResearchTreeDef = {
                 },
             ],
             modifiesAbility: { from: 'throw_rock', to: 'throw_charged_rock' },
+        },
+        {
+            id: EARTH_NODE_EARTH_ATTUNED,
+            title: 'Earth Attuned',
+            description: `+{${EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK}} max Movement Point and +{${EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK}} Movement Point regeneration per round per rank (${EARTH_ATTUNED_LEVELS} ranks).`,
+            flavorText: 'The stone underfoot starts giving back the steps you take.',
+            order: 10,
+            tier: 12,
+            position: { x: 620, y: 90 },
+            prereqNodeIds: [EARTH_NODE_EARTH_CORE],
+            exclusiveWithNodeIds: [],
+            requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
+            cost: { metal: EARTH_ATTUNED_METAL_COST },
+            effects: [],
+            levels: EARTH_ATTUNED_LEVELS,
+            passiveBonus: {
+                [PassiveStatKey.MaxMovementPoints]: { add: EARTH_ATTUNED_MAX_MOVEMENT_ADD },
+                [PassiveStatKey.MovementRegenPerRound]: { add: EARTH_ATTUNED_MAX_MOVEMENT_ADD },
+            },
         },
     ],
 };

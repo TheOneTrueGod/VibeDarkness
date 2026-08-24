@@ -5,6 +5,6 @@ import { rapidThrowComboScenario } from './rapidThrowComboScenario';
 describe('rapidThrowComboScenario', () => {
     it('passes headless', () => {
         const result = runScenarioHeadless(rapidThrowComboScenario);
-        expect(result.passed, result.failureMessage).toBe(true);
+        expect(result.passed, result.message).toBe(true);
     });
 });

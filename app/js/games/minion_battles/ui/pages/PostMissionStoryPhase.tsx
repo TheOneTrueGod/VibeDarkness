@@ -137,7 +137,7 @@ export default function PostMissionStoryPhase({
 }: PostMissionStoryPhaseProps) {
     const [phraseIndex, setPhraseIndex] = useState(0);
     const [bgOpacity, setBgOpacity] = useState(1);
-    const prevPhraseBackgroundRef = useRef<string | undefined>();
+    const prevPhraseBackgroundRef = useRef<string | undefined>(undefined);
     /** After a reward choice, hide the VN UI so the victory modal does not sit over changing/disabled options. */
     const [phantomPostChoiceStep, setPhantomPostChoiceStep] = useState(false);
     /** Waiting for party choices when alsoGrantToOthers is in play. */

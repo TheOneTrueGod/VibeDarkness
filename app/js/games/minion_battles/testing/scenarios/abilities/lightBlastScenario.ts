@@ -17,12 +17,10 @@ import { createTargetDummyAtWorld } from '../../fixtures/targetDummies';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
 import { Light } from '../../../resources/Light';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
-import { LIGHT_BLAST_DAMAGE, LIGHT_BLAST_MAX_RANGE, LIGHT_BLAST_MAX_TARGETS } from '../../../card_defs/08_light_core/0801_LightBlast/0801Ability';
+import { LIGHT_BLAST_DAMAGE, LIGHT_BLAST_LIGHT_COST, LIGHT_BLAST_MAX_RANGE, LIGHT_BLAST_MAX_TARGETS } from '../../../card_defs/08_light_core/0801_LightBlast/0801Ability';
 
 const P = TINY_BATTLE_PLAYER_ID;
 const LIGHT_BLAST_ID = '0801';
-/** Matches `0801Ability` `resourceCost.amount`. */
-const LIGHT_BLAST_LIGHT_COST = 1;
 
 export const lightBlastCommittedScenario: ScenarioDefinition = {
     id: 'light_blast_committed_e2e',

@@ -33,7 +33,7 @@ import { findPreviewDeferredSelectLabel } from './interaction/selectTargetLookah
 import { isITSPreviewComplete } from './interaction/isITSPreviewComplete';
 import { getAbility } from '../abilities/AbilityRegistry';
 import { SwingBatCard } from '../card_defs/0115_SwingBat/0115Ability';
-import { LIGHT_BLAST_DAMAGE } from '../card_defs/08_light_core/0801_LightBlast/0801Ability';
+import { LIGHT_BLAST_DAMAGE, LIGHT_BLAST_LIGHT_COST } from '../card_defs/08_light_core/0801_LightBlast/0801Ability';
 import { ProtectAbility_0303, PROTECT_WINDUP_DURATION } from '../card_defs/03_blood_mage/0303_Protect/0303Ability';
 import { SHIELD_BUFF_TYPE } from '../buffs/ShieldBuff';
 import type { WindupLungePayload } from '../abilities/WindupLunge';
@@ -97,8 +97,6 @@ const FIXED_DT = 1 / 60;
 /** Matches `0801Ability` `PREFIRE_TIME`. */
 const LIGHT_BLAST_ID = '0801';
 const LIGHT_BLAST_PREFIRE = 0.4;
-/** Matches `0801Ability` `resourceCost.amount`. */
-const LIGHT_BLAST_LIGHT_COST = 1;
 /** SelectTargetDef label on Light Blast timings. */
 const LIGHT_BLAST_TARGET_LABEL = 'Target';
 /** Protect (0303) ability id and its SelectTargetDef label — matches `0303Ability.ts`. */

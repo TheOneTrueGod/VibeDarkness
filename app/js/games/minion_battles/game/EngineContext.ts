@@ -103,6 +103,9 @@ export interface EngineContext {
      */
     cancelActiveAbility(unitId: string, abilityId: string): void;
 
+    /** Interrupt a unit mid-cast and refund ability costs still eligible for refund. */
+    interruptUnitAndRefundAbilities?(unit: Unit): void;
+
     /**
      * Called from unitAbilityTick when a conditionalCancel condition fires on interval exit.
      * Schedules a deferred order pause scoped to the triggering unit so the player can

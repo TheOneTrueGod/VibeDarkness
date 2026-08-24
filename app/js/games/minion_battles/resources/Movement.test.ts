@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Movement } from './Movement';
+import { Movement, MOVEMENT_BASE_MAX, MOVEMENT_BASE_RECOVERY_PER_ROUND } from './Movement';
 import { EventBus } from '../game/EventBus';
 import { Unit } from '../game/units/Unit';
 import type { EngineContext } from '../game/EngineContext';
@@ -7,6 +7,13 @@ import { buildTinyBattleEngine, spawnTinyPlayerUnit, TINY_BATTLE_PLAYER_ID } fro
 import { canAffordAbility } from '../abilities/Ability';
 import { DodgeAbility } from '../card_defs/0101_Dodge/0101Ability';
 import { ClawAbility } from '../card_defs/0111_Claw/0111Ability';
+import { computePassiveBonuses } from '../../../researchTrees/passiveBonuses';
+import {
+    EARTH_ATTUNED_LEVELS,
+    EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK,
+    EARTH_NODE_EARTH_ATTUNED,
+    EARTH_TREE_ID,
+} from '../../../researchTrees/trees/earth';
 
 function makeUnit(id: string): Unit {
     return new Unit({
@@ -32,10 +39,10 @@ function makeEngineContext(terrainSlowStacks = 0): EngineContext {
 }
 
 describe('Movement resource', () => {
-    it('starts at 2 with max 2', () => {
+    it('starts at base current and max', () => {
         const movement = new Movement();
-        expect(movement.current).toBe(2);
-        expect(movement.max).toBe(2);
+        expect(movement.current).toBe(MOVEMENT_BASE_MAX);
+        expect(movement.max).toBe(MOVEMENT_BASE_MAX);
         expect(movement.id).toBe('movement_points');
     });
 
@@ -44,41 +51,41 @@ describe('Movement resource', () => {
         const unit = makeUnit('u1');
         const movement = new Movement();
         unit.attachResource(movement, eventBus);
-        expect(movement.current).toBe(2);
+        expect(movement.current).toBe(MOVEMENT_BASE_MAX);
         unit.detachAllResources(eventBus);
-        expect(movement.current).toBe(2);
+        expect(movement.current).toBe(MOVEMENT_BASE_MAX);
     });
 });
 
 describe('Movement recovery at round start', () => {
-    it('recovers 2 movement per round', () => {
+    it('recovers the base amount per round', () => {
         const unit = makeUnit('u1');
         const movement = new Movement();
         movement.current = 0;
         unit.attachResource(movement, new EventBus());
 
         unit.onRoundStart(1, makeEngineContext());
-        expect(movement.current).toBe(2);
+        expect(movement.current).toBe(MOVEMENT_BASE_RECOVERY_PER_ROUND);
     });
 
-    it('is capped at max 2', () => {
+    it('is capped at max', () => {
         const unit = makeUnit('u1');
         const movement = new Movement();
         movement.current = 1;
         unit.attachResource(movement, new EventBus());
 
         unit.onRoundStart(1, makeEngineContext());
-        expect(movement.current).toBe(2); // 1 + 2 = 3, capped at max 2
+        expect(movement.current).toBe(MOVEMENT_BASE_MAX);
     });
 
     it('stays at max when already full', () => {
         const unit = makeUnit('u1');
         const movement = new Movement();
-        movement.current = 2;
+        movement.current = MOVEMENT_BASE_MAX;
         unit.attachResource(movement, new EventBus());
 
         unit.onRoundStart(1, makeEngineContext());
-        expect(movement.current).toBe(2);
+        expect(movement.current).toBe(MOVEMENT_BASE_MAX);
     });
 
     it('1 slow stack reduces recovery to 1', () => {
@@ -89,7 +96,7 @@ describe('Movement recovery at round start', () => {
         unit.movementRecoverySlowStacks = 1;
 
         unit.onRoundStart(1, makeEngineContext());
-        expect(movement.current).toBe(1); // 2 - 1 = 1
+        expect(movement.current).toBe(MOVEMENT_BASE_RECOVERY_PER_ROUND - 1);
     });
 
     it('2 slow stacks reduce recovery to 0', () => {
@@ -97,7 +104,7 @@ describe('Movement recovery at round start', () => {
         const movement = new Movement();
         movement.current = 0;
         unit.attachResource(movement, new EventBus());
-        unit.movementRecoverySlowStacks = 2;
+        unit.movementRecoverySlowStacks = MOVEMENT_BASE_RECOVERY_PER_ROUND;
 
         unit.onRoundStart(1, makeEngineContext());
         expect(movement.current).toBe(0); // 2 - 2 = 0
@@ -121,7 +128,7 @@ describe('Movement recovery at round start', () => {
         unit.attachResource(movement, new EventBus());
 
         unit.onRoundStart(1, makeEngineContext(1)); // 1 terrain slow stack
-        expect(movement.current).toBe(1); // 2 - 1 = 1
+        expect(movement.current).toBe(MOVEMENT_BASE_RECOVERY_PER_ROUND - 1);
     });
 
     it('spell slow stacks and terrain slow stacks stack additively', () => {
@@ -148,8 +155,43 @@ describe('Movement recovery at round start', () => {
         unit.attachResource(movement, engine.eventBus);
 
         engine.stepSimulationFixedTicks(1); // round_start fires
-        expect(movement.current).toBe(2);
+        expect(movement.current).toBe(MOVEMENT_BASE_RECOVERY_PER_ROUND);
         engine.destroy();
+    });
+});
+
+describe('Earth Attuned movement passives', () => {
+    const attunedMax = MOVEMENT_BASE_MAX + EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK * EARTH_ATTUNED_LEVELS;
+    const attunedRegen =
+        MOVEMENT_BASE_RECOVERY_PER_ROUND + EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK * EARTH_ATTUNED_LEVELS;
+
+    function makeAttunedUnit(): Unit {
+        const unit = makeUnit('attuned');
+        unit.passiveBonuses = computePassiveBonuses(
+            { [EARTH_TREE_ID]: [EARTH_NODE_EARTH_ATTUNED] },
+            { [EARTH_TREE_ID]: { [EARTH_NODE_EARTH_ATTUNED]: EARTH_ATTUNED_LEVELS } },
+        );
+        return unit;
+    }
+
+    it('raises max and starting current by both ranks on attach', () => {
+        const unit = makeAttunedUnit();
+        const movement = new Movement();
+        unit.attachResource(movement, new EventBus());
+        expect(unit.getMaxMovement()).toBe(attunedMax);
+        expect(movement.max).toBe(attunedMax);
+        expect(movement.current).toBe(attunedMax);
+    });
+
+    it('recovers the attuned amount per round', () => {
+        const unit = makeAttunedUnit();
+        const movement = new Movement();
+        unit.attachResource(movement, new EventBus());
+        movement.current = 0;
+
+        unit.onRoundStart(1, makeEngineContext());
+        expect(unit.getMovementRecoveryPerRound()).toBe(attunedRegen);
+        expect(movement.current).toBe(attunedRegen);
     });
 });
 

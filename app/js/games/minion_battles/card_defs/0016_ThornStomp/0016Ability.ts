@@ -31,7 +31,8 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 ];
 /** Base windup before the +50% reactability stretch. */
 const THORN_STOMP_BASE_WINDUP = 1;
-const WINDUP_TIME = THORN_STOMP_BASE_WINDUP * 1.5;
+export const THORN_STOMP_WINDUP_TIME = THORN_STOMP_BASE_WINDUP * 1.5;
+const WINDUP_TIME = THORN_STOMP_WINDUP_TIME;
 // One-tick "active" linger so the timeline ring reads red at the payoff instant.
 const STRIKE_TIME = WINDUP_TIME + 1 / 60;
 // Almost no cooldown — the AI's reactive gate (aiSettings below) and the 1-use/round recovery

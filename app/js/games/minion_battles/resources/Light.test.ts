@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Light, LIGHT_RESOURCE_MIN_LIGHT_LEVEL, LIGHT_RESOURCE_DIVISOR, MAX_LIGHT_RECOVERY_PER_ROUND } from './Light';
+import { Light, LIGHT_RESOURCE_MIN_LIGHT_LEVEL, LIGHT_RESOURCE_DIVISOR, LIGHT_STARTING_MAX, MAX_LIGHT_RECOVERY_PER_ROUND } from './Light';
 import { EventBus } from '../game/EventBus';
 import { Unit } from '../game/units/Unit';
 import type { EngineContext } from '../game/EngineContext';
@@ -28,10 +28,10 @@ function makeEngineContext(lightLevel: number | null): EngineContext {
 const BRIGHT_LEVEL = LIGHT_RESOURCE_MIN_LIGHT_LEVEL + LIGHT_RESOURCE_DIVISOR * MAX_LIGHT_RECOVERY_PER_ROUND;
 
 describe('Light resource', () => {
-    it('starts at 0 with max 5', () => {
+    it('starts at 0 with the Light Core capacity', () => {
         const light = new Light();
         expect(light.current).toBe(0);
-        expect(light.max).toBe(5);
+        expect(light.max).toBe(LIGHT_STARTING_MAX);
     });
 
     it('perRoundGain is 0 before any context is set', () => {
@@ -56,7 +56,7 @@ describe('Light resource', () => {
     it('perRoundGain reads 0 after a bare restoreFromJSON, until primeDisplayContext is called', () => {
         const unit = makeUnit('u1');
         const restored = new Light();
-        restored.restoreFromJSON({ current: 3, max: 5 });
+        restored.restoreFromJSON({ current: 3, max: LIGHT_STARTING_MAX });
         unit.attachResource(restored, new EventBus());
 
         expect(restored.current).toBe(3);

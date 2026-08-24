@@ -207,7 +207,7 @@ export class LightEmpoweredMission extends BaseMissionDef {
 	segmentIds = ['50_49_cliff_path_north', '50_50_crystal_cave'];
 
 	missionId = 'light_empowered';
-	mapPosition = { x: 440, y: 150 };
+	mapPosition?: { x: number; y: number } = { x: 440, y: 150 };
 	missionType = 'battle' as const;
 	description = 'Forage for supplies in the lit passages. Territorial creatures guard the food sources.';
 	campaignId = 'world_of_darkness';

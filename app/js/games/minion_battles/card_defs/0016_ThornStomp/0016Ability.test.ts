@@ -3,7 +3,7 @@ import { EventBus } from '../../game/EventBus';
 import { Unit } from '../../game/units/Unit';
 import { Projectile } from '../../game/projectiles/Projectile';
 import { TerrainLayerManager } from '../../game/TerrainLayerManager';
-import { ThornStompAbility } from './0016Ability';
+import { ThornStompAbility, THORN_STOMP_WINDUP_TIME } from './0016Ability';
 import { ThornbinderBrambleAbility, THORNBINDER_ABILITY_ID } from '../0008_ThornbinderBramble/0008Ability';
 
 function makeCaster(): Unit {
@@ -35,7 +35,7 @@ function makeEngine(caster: Unit) {
 }
 
 function fireStomp(engine: ReturnType<typeof makeEngine>, caster: Unit) {
-    ThornStompAbility.doCardEffect!(engine, caster, [], 0, 1);
+    ThornStompAbility.doCardEffect!(engine, caster, [], 0, THORN_STOMP_WINDUP_TIME + 0.01);
 }
 
 function fireBramble(engine: ReturnType<typeof makeEngine>, caster: Unit, x: number, y: number) {

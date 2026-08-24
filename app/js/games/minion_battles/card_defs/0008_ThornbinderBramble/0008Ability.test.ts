@@ -15,7 +15,8 @@ import {
     THORNBINDER_TARGETING_RANGE,
     THORN_PROJECTILE_SPEED,
 } from './0008Ability';
-import { ThornStompAbility } from '../0016_ThornStomp/0016Ability';
+import { isAbilityTimingInterval, type AbilityTimingInterval } from '../../abilities/abilityTimings';
+import { ThornStompAbility, THORN_STOMP_WINDUP_TIME } from '../0016_ThornStomp/0016Ability';
 
 function makeGraphicsRecorder(): IAbilityPreviewGraphics & {
     circles: { x: number; y: number; radius: number }[];
@@ -101,9 +102,7 @@ describe('ThornbinderBrambleAbility ground-thorn ownership', () => {
         const caster = makeCaster();
         const engine = makeEngine(caster);
 
-        const stompStrike = ThornStompAbility.abilityTimings.find((t) => t.id === 'strike');
-        expect(stompStrike).toBeDefined();
-        ThornStompAbility.doCardEffect!(engine, caster, [], 0, stompStrike!.start + 0.01);
+        ThornStompAbility.doCardEffect!(engine, caster, [], 0, THORN_STOMP_WINDUP_TIME + 0.01);
         const stompEffects = Array.from(engine.terrainLayers.allEffects.values());
         expect(stompEffects.length).toBeGreaterThan(0);
 
@@ -149,7 +148,9 @@ describe('ThornbinderBrambleAbility projectile speed', () => {
         expect(ThornbinderBrambleAbility.prefireTime).toBe(
             THORNBINDER_LOCK_TIME + THORNBINDER_FLIGHT_DURATION,
         );
-        const strike = ThornbinderBrambleAbility.abilityTimings.find((t) => t.id === 'strike');
+        const strike = ThornbinderBrambleAbility.abilityTimings.find(
+            (t): t is AbilityTimingInterval => isAbilityTimingInterval(t) && t.id === 'strike',
+        );
         expect(strike).toBeDefined();
         expect(strike!.end - strike!.start).toBe(THORNBINDER_FLIGHT_DURATION);
     });

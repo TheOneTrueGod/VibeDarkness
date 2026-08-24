@@ -5,9 +5,11 @@ import {
     EARTH_NODE_ROCK_SYNERGY_DAMAGE,
     EARTH_NODE_ROCK_SYNERGY_ENTOMBED,
     EARTH_NODE_RAPID_THROW,
+    EARTH_NODE_EARTH_ATTUNED,
     EARTH_BURIED_ARSENAL_METAL_COST,
     EARTH_STONE_SYNERGY_METAL_PER_LEVEL,
     EARTH_RAPID_THROW_METAL_COST,
+    EARTH_ATTUNED_METAL_COST,
     EARTH_TREE_ID,
 } from './trees/earth';
 import type { CampaignCharacter } from '../games/minion_battles/character_defs/CampaignCharacter';
@@ -39,6 +41,12 @@ describe('earth tree metal costs', () => {
         const node = earthTree.nodes.find((n) => n.id === EARTH_NODE_RAPID_THROW)!;
         expect(getResearchNodePurchaseCost(node, 0)).toEqual({ metal: EARTH_RAPID_THROW_METAL_COST });
         expect(getResearchNodePurchaseCost(node, 1)).toEqual({ metal: EARTH_RAPID_THROW_METAL_COST });
+    });
+
+    it('Earth Attuned costs metal per rank', () => {
+        const node = earthTree.nodes.find((n) => n.id === EARTH_NODE_EARTH_ATTUNED)!;
+        expect(getResearchNodePurchaseCost(node, 0)).toEqual({ metal: EARTH_ATTUNED_METAL_COST });
+        expect(getResearchNodePurchaseCost(node, 1)).toEqual({ metal: EARTH_ATTUNED_METAL_COST });
     });
 
     it('canResearchNode rejects Stone Synergy when metal is below scaled cost', () => {

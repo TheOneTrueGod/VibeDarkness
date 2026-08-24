@@ -137,11 +137,12 @@ describe('PlayerInteractionManager wait confirms client-side move', () => {
         manager.handleWait();
         await Promise.resolve();
 
-        const order = submitted.at(-1);
+        const order = submitted[submitted.length - 1];
+        const movePath = order?.movePath;
         expect(order?.abilityId).toBe('wait');
         expect(order?.endTurn).toBe(true);
-        expect(order?.movePath?.length).toBeGreaterThan(0);
-        expect(order?.movePath?.at(-1)).toEqual({ col: 6, row: 4 });
+        expect(movePath?.length).toBeGreaterThan(0);
+        expect(movePath?.[movePath.length - 1]).toEqual({ col: 6, row: 4 });
     });
 
     it('Wait still includes the right-click path if DefaultTool was reset before Space', async () => {
@@ -155,9 +156,10 @@ describe('PlayerInteractionManager wait confirms client-side move', () => {
         manager.handleWait();
         await Promise.resolve();
 
-        const order = submitted.at(-1);
+        const order = submitted[submitted.length - 1];
+        const movePath = order?.movePath;
         expect(order?.endTurn).toBe(true);
-        expect(order?.movePath?.at(-1)).toEqual({ col: 6, row: 4 });
+        expect(movePath?.[movePath.length - 1]).toEqual({ col: 6, row: 4 });
     });
 
     it('Wait confirms a nonconfirmed ability together with the pending move', async () => {
@@ -170,11 +172,12 @@ describe('PlayerInteractionManager wait confirms client-side move', () => {
         manager.handleWait();
         await Promise.resolve();
 
-        const order = submitted.at(-1);
+        const order = submitted[submitted.length - 1];
+        const movePath = order?.movePath;
         expect(order?.unitId).toBe(unitId);
         expect(order?.abilityId).toBe('test_primary');
         expect(order?.endTurn).toBe(true);
-        expect(order?.movePath?.at(-1)).toEqual({ col: 5, row: 4 });
+        expect(movePath?.[movePath.length - 1]).toEqual({ col: 5, row: 4 });
     });
 });
 

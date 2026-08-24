@@ -62,6 +62,8 @@ export enum PassiveStatKey {
     EarthDamage = 'earth_damage',
     PetMaxHealth = 'pet_maxHealth',
     Ability0701Damage = 'ability_0701_damage',
+    MaxMovementPoints = 'maxMovementPoints',
+    MovementRegenPerRound = 'movementRegenPerRound',
 }
 
 /** Per-stat add/mult contribution from a passive node (totals at max level). */

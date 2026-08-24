@@ -5,7 +5,7 @@
  *   - Player (warrior) at centre-left with abilities 0115 (Swing Bat), 0802 (Light Imbuement),
  *     and 0803 (Imbued Bat, pre-loaded via swap network).
  *   - One target dummy directly in front, within melee range.
- *   - Player starts with some Light attached (Light Imbuement is free and generates its own).
+ *   - Player starts with enough Light to pay Light Imbuement's cost (the ability then generates more).
  *
  * Order sequence:
  *   1. Use Light Imbuement (0802) — charges for 2 s then applies LightImbueBuff, triggering
@@ -27,6 +27,7 @@ import {
 import { createTargetDummyAtWorld } from '../../fixtures/targetDummies';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
 import { Light } from '../../../resources/Light';
+import { LIGHT_IMBUEMENT_LIGHT_COST } from '../../../card_defs/08_light_core/0802_LightImbuement/0802Ability';
 
 const P = TINY_BATTLE_PLAYER_ID;
 const CELL = 40;
@@ -36,7 +37,7 @@ const PLAYER_POS = { x: 3 * CELL + CELL / 2, y: 5 * CELL + CELL / 2 }; // (140, 
 // 35 px to the right — within Swing Bat / Imbued Bat max range (25 px + unit radius).
 const DUMMY_POS  = { x: PLAYER_POS.x + 35, y: PLAYER_POS.y };
 
-const LIGHT_AMOUNT = 100; // arbitrary starting Light; Light Imbuement itself is free
+const STARTING_LIGHT = LIGHT_IMBUEMENT_LIGHT_COST;
 
 const SWING_BAT_ABILITY_ID = '0115';
 const LIGHT_IMBUEMENT_ABILITY_ID = '0802';
@@ -65,7 +66,7 @@ export const lightImbuementAndImbuedBatScenario: ScenarioDefinition = {
         // Light resource attached so Imbued Bat / other abilities in the bar have something to draw on.
         const light = new Light();
         player.attachResource(light, engine.eventBus);
-        light.add(LIGHT_AMOUNT);
+        light.add(STARTING_LIGHT);
 
         // Target dummy in melee range.
         const dummy = createTargetDummyAtWorld(engine, DUMMY_POS.x, DUMMY_POS.y, {

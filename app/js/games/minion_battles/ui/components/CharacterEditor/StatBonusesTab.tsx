@@ -15,6 +15,8 @@ const STAT_LABELS: Record<PassiveStatKey, string> = {
     [PassiveStatKey.EarthDamage]: 'Earth Damage',
     [PassiveStatKey.PetMaxHealth]: 'Pet Max Health',
     [PassiveStatKey.Ability0701Damage]: 'Dog Bite Damage',
+    [PassiveStatKey.MaxMovementPoints]: 'Max Movement Points',
+    [PassiveStatKey.MovementRegenPerRound]: 'Movement Regen / Round',
 };
 
 function formatAdd(add: number): string {

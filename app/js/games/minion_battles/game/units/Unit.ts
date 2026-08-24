@@ -6,8 +6,9 @@
  * Subclasses define per-character defaults.
  */
 
-import type { AbilityModifier, PassiveBonuses } from '../../../../researchTrees/types';
+import { PassiveStatKey, type AbilityModifier, type PassiveBonuses } from '../../../../researchTrees/types';
 import { applyPassiveBonusToBase } from '../../../../researchTrees/passiveBonuses';
+import { MOVEMENT_BASE_MAX, MOVEMENT_BASE_RECOVERY_PER_ROUND } from '../../resources/Movement';
 import { GameObject, generateGameObjectId } from '../GameObject';
 import { type TeamId } from '../teams';
 import type { ActiveAbility } from '../types';
@@ -442,9 +443,16 @@ export class Unit extends GameObject {
     getEffectiveSpeed(gameTime: number): number { return getUnitEffectiveSpeed(this, gameTime); }
 
     /** Maximum movement points. Override via research/item effects. */
-    getMaxMovement(): number { return 2; }
+    getMaxMovement(): number {
+        return applyPassiveBonusToBase(MOVEMENT_BASE_MAX, this.passiveBonuses?.[PassiveStatKey.MaxMovementPoints]);
+    }
     /** Movement points recovered at round start before slow stacks are applied. */
-    getMovementRecoveryPerRound(): number { return 2; }
+    getMovementRecoveryPerRound(): number {
+        return applyPassiveBonusToBase(
+            MOVEMENT_BASE_RECOVERY_PER_ROUND,
+            this.passiveBonuses?.[PassiveStatKey.MovementRegenPerRound],
+        );
+    }
     /** Total slow stacks reducing movement recovery this round (terrain + spell effects). */
     getMovementSlowStacks(engine: EngineContext): number {
         let stacks = this.movementRecoverySlowStacks;

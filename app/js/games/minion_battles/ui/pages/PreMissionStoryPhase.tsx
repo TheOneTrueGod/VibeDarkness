@@ -73,7 +73,7 @@ export default function PreMissionStoryPhase({
 }: PreMissionStoryPhaseProps) {
     const [phraseIndex, setPhraseIndex] = useState(0);
     const [bgOpacity, setBgOpacity] = useState(1);
-    const prevPhraseBackgroundRef = useRef<string | undefined>();
+    const prevPhraseBackgroundRef = useRef<string | undefined>(undefined);
     const [isApplyingGroupVote, setIsApplyingGroupVote] = useState(false);
 
     const phrases = preMissionStory.phrases;
