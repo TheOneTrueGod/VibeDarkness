@@ -1,11 +1,17 @@
 import type { ResearchTreeDef } from '../types';
+import { DescriptiveValue } from '../descriptiveValue';
 
-import { GRAVITY_CORE_MISSION_START_AMOUNT } from '../../games/minion_battles/card_defs/09_gravity_core/gravityConstants';
+import {
+    GRAVITY_CORE_MISSION_START_AMOUNT,
+    GRAVITY_SHIELD_DURATION_ROUNDS,
+    GRAVITY_SHIELD_HP,
+} from '../../games/minion_battles/card_defs/09_gravity_core/gravityConstants';
 
 export const GRAVITY_TREE_ID = 'gravity_core';
 export const GRAVITY_NODE_CORE = 'gravity_core';
 export const GRAVITY_NODE_GRAVITY_LOCUS = 'gravity_locus';
 export const GRAVITY_NODE_GRAVITY_INVERSION = 'gravity_inversion';
+export const GRAVITY_NODE_GRAVITY_SHIELD = 'gravity_shield';
 
 export const gravityTree: ResearchTreeDef = {
     id: GRAVITY_TREE_ID,
@@ -69,6 +75,25 @@ export const gravityTree: ResearchTreeDef = {
             cost: {},
             effects: [
                 { type: 'addCard', cardId: '0903' },
+            ],
+        },
+        {
+            id: GRAVITY_NODE_GRAVITY_SHIELD,
+            title: 'Gravity Shield',
+            description:
+                `Grant an ally a {${DescriptiveValue.Large}} shield of {${GRAVITY_SHIELD_HP}} armour that drains over {${GRAVITY_SHIELD_DURATION_ROUNDS}} round.`,
+            flavorText: 'The space around them thickens until the next blow has to fight the crush.',
+            order: 14,
+            tier: 13,
+            position: { x: 420, y: 160 },
+            prereqNodeIds: [GRAVITY_NODE_CORE],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: GRAVITY_TREE_ID, nodeIds: [GRAVITY_NODE_CORE] },
+            ],
+            cost: {},
+            effects: [
+                { type: 'addCard', cardId: '0904' },
             ],
         },
     ],

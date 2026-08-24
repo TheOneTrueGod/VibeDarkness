@@ -38,6 +38,10 @@ export interface AbilityModifier {
     maxUsesFlat?: number;
     /** Flat bonus added to explosion/AOE damage (e.g. throw_charged_rock splash). */
     explosionDamageFlat?: number;
+    /** Multiplier applied to the ability's lingering duration (e.g. Gravity Locus field). Merged by product. */
+    durationMult?: number;
+    /** Knockback tier granted or raised on this ability (take max when merging). */
+    knockbackTier?: number;
     /** Tags to add to this ability for this unit (e.g. 'Entombed'). String to avoid circular imports — use AbilityTag values. */
     addTags?: readonly string[];
     /** Max casts per Combo Cancel chain (research-granted, e.g. Rapid Throw). */

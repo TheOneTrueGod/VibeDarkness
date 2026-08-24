@@ -55,6 +55,7 @@ import { gravityGrazeScenario } from '../scenarios/abilities/gravityGrazeScenari
 import { gravityLocusScenario } from '../scenarios/abilities/gravityLocusScenario';
 import { forcePushScenario } from '../scenarios/abilities/forcePushScenario';
 import { gravityInversionScenario } from '../scenarios/abilities/gravityInversionScenario';
+import { gravityShieldScenario } from '../scenarios/abilities/gravityShieldScenario';
 import {
     energyBlastStrictPriorityFillScenario,
     imbuedBatConeStrictFillScenario,
@@ -464,6 +465,11 @@ describe('runScenarioHeadless', () => {
 
     it('Lift (0903): lift lock, slam damage, and pull lands at caster', () => {
         const r = runScenarioHeadless(gravityInversionScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Gravity Shield (0904): grants a high-armour shield that drains in one round', () => {
+        const r = runScenarioHeadless(gravityShieldScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

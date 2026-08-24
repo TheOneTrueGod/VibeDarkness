@@ -72,5 +72,13 @@ describe('ShieldBuff', () => {
         expect(restored.drainPerSecond).toBeCloseTo(30 / 7, 10);
         expect(restored.appliedAtTime).toBe(3.5);
         expect(restored.appliedAtRound).toBe(2);
+        expect(restored.theme).toBe('blood');
+    });
+
+    it('round-trips a gravity theme through toJSON/fromJSON', () => {
+        const buff = new ShieldBuff(20, 2, 'gravity');
+        const restored = ShieldBuff.fromJSON(buff.toJSON());
+        expect(restored.theme).toBe('gravity');
+        expect(restored.remainingHp).toBe(20);
     });
 });

@@ -13,6 +13,7 @@ import { LIFTED_BUFF_TYPE } from './LiftedBuff';
 import { GRAVITY_LOCUS_FIELD_BUFF_TYPE } from './GravityLocusFieldBuff';
 import { SHIELD_BUFF_TYPE, ShieldBuff } from './ShieldBuff';
 import { type ShieldShimmerFilter, tryCreateShieldShimmerFilter } from '../game/ShieldShimmerFilter';
+import { GRAVITY_VIOLET } from '../game/effect_defs/aoeEffects';
 
 /** Context passed when rendering a buff visual. */
 export interface IBuffVisualContext {
@@ -108,6 +109,23 @@ const bleedBuffVisual: BuffVisualRenderer = (g, unit, buff, _ctx) => {
 };
 
 /**
+ * Gravity Shield: a pulsing violet crush-shell. No blood shimmer — Gravity's palette is
+ * `#a855f7`, and the blood shader would read as Protect on a gravity cast.
+ */
+const gravityShieldBuffVisual: BuffVisualRenderer = (g, unit, buff, ctx) => {
+    const shield = buff as ShieldBuff;
+    if (shield.remainingHp <= 0) return;
+
+    const pulse = 0.55 + 0.25 * Math.sin(ctx.gameTime * 5);
+    const shellRadius = unit.radius + 4;
+    g.circle(0, 0, shellRadius);
+    g.fill({ color: GRAVITY_VIOLET, alpha: 0.14 * pulse });
+    g.stroke({ color: GRAVITY_VIOLET, width: 2, alpha: 0.75 * pulse });
+    g.circle(0, 0, shellRadius * 0.7);
+    g.stroke({ color: 0xc084fc, width: 1, alpha: 0.5 * pulse });
+};
+
+/**
  * Shield: a translucent shell around the unit's body, shimmering black/red/transparent.
  * See card_defs/03_blood_mage/AGENTS.md for the design intent behind Protect, which grants this.
  *
@@ -122,6 +140,10 @@ const shieldShimmerFilters = new WeakMap<Unit, ShieldShimmerFilter>();
 const shieldBuffVisual: BuffVisualRenderer = (g, unit, buff, ctx) => {
     const shield = buff as ShieldBuff;
     if (shield.remainingHp <= 0) return;
+    if (shield.theme === 'gravity') {
+        gravityShieldBuffVisual(g, unit, buff, ctx);
+        return;
+    }
 
     let filter = shieldShimmerFilters.get(unit);
     if (filter === undefined) {

@@ -5,6 +5,8 @@
  * Abilities and the Gravity resource import from here — no magic numbers elsewhere.
  */
 
+import { ROUND_DURATION } from '../../game/gameConstants';
+
 /** Floor gravity gain per round when far from enemies and projectiles. */
 export const GRAVITY_MIN_PER_ROUND = 2;
 
@@ -42,6 +44,22 @@ export const GRAVITY_LOCUS_FIELD_ALPHA = 0.4;
 
 /** Gravity granted at mission start when Gravity Core research is unlocked. */
 export const GRAVITY_CORE_MISSION_START_AMOUNT = 10;
+
+/** Gravity Shield (0904) — ally absorb shield that drains within one round. */
+export const GRAVITY_SHIELD_MAX_RANGE = 160;
+export const GRAVITY_SHIELD_PREFIRE_TIME = 0.3;
+export const GRAVITY_SHIELD_ACTIVE_DURATION = 0.05;
+export const GRAVITY_SHIELD_COOLDOWN_DURATION = 0.45;
+export const GRAVITY_SHIELD_HP = 20;
+export const GRAVITY_SHIELD_DURATION_ROUNDS = 1;
+/** Undamaged shield fades to 0 across GRAVITY_SHIELD_DURATION_ROUNDS of battle time. */
+export const GRAVITY_SHIELD_DRAIN_PER_SECOND =
+    GRAVITY_SHIELD_HP / (GRAVITY_SHIELD_DURATION_ROUNDS * ROUND_DURATION);
+/** Medium spend: twice the spine abilities' cost of 5. */
+export const GRAVITY_SHIELD_GRAVITY_COST = 10;
+export const GRAVITY_SHIELD_TARGET_LABEL = 'Ally';
+/** Visual scale for the apply-burst shockwave on the shielded ally. */
+export const GRAVITY_SHIELD_IMPACT_SHOCKWAVE_SCALE = 0.55;
 
 /** Force Push (0902) — aimed fling with collision damage. */
 export const FORCE_PUSH_MAX_RANGE = 160;
