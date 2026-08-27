@@ -3,6 +3,10 @@ import { DescriptiveValue } from '../descriptiveValue';
 
 import {
     GRAVITY_CORE_MISSION_START_AMOUNT,
+    GRAVITY_LOCUS_ABILITY_ID,
+    GRAVITY_LOCUS_REPULSE_DURATION_MULT,
+    GRAVITY_LOCUS_REPULSE_EXPLOSION_DAMAGE,
+    GRAVITY_LOCUS_REPULSE_KNOCKBACK_TIER,
     GRAVITY_SHIELD_DURATION_ROUNDS,
     GRAVITY_SHIELD_HP,
 } from '../../games/minion_battles/card_defs/09_gravity_core/gravityConstants';
@@ -12,6 +16,7 @@ export const GRAVITY_NODE_CORE = 'gravity_core';
 export const GRAVITY_NODE_GRAVITY_LOCUS = 'gravity_locus';
 export const GRAVITY_NODE_GRAVITY_INVERSION = 'gravity_inversion';
 export const GRAVITY_NODE_GRAVITY_SHIELD = 'gravity_shield';
+export const GRAVITY_NODE_REPULSE = 'gravity_repulse';
 
 export const gravityTree: ResearchTreeDef = {
     id: GRAVITY_TREE_ID,
@@ -56,6 +61,33 @@ export const gravityTree: ResearchTreeDef = {
             cost: {},
             effects: [
                 { type: 'addCard', cardId: '0901' },
+            ],
+            modifiesAbility: { from: '0901', to: '0901' },
+        },
+        {
+            id: GRAVITY_NODE_REPULSE,
+            title: 'Repulse',
+            description:
+                `Gravity Locus's field lasts {${DescriptiveValue.Huge}} less time, but collapses into a shrinking ring and detonates when it ends — dealing {${GRAVITY_LOCUS_REPULSE_EXPLOSION_DAMAGE}} damage and knocking back every enemy still caught inside.`,
+            flavorText: 'What was pulled together does not stay together.',
+            order: 11,
+            tier: 3,
+            position: { x: 620, y: 290 },
+            prereqNodeIds: [GRAVITY_NODE_GRAVITY_LOCUS],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: GRAVITY_TREE_ID, nodeIds: [GRAVITY_NODE_GRAVITY_LOCUS] },
+            ],
+            cost: {},
+            effects: [],
+            abilityResearchModifiers: [
+                {
+                    abilitySpecification: { type: 'abilityId', abilityId: GRAVITY_LOCUS_ABILITY_ID },
+                    durationMult: GRAVITY_LOCUS_REPULSE_DURATION_MULT,
+                    explosionDamageFlat: GRAVITY_LOCUS_REPULSE_EXPLOSION_DAMAGE,
+                    knockbackTier: GRAVITY_LOCUS_REPULSE_KNOCKBACK_TIER,
+                    addTags: ['GravityRepulse'],
+                },
             ],
             modifiesAbility: { from: '0901', to: '0901' },
         },

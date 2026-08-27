@@ -207,6 +207,8 @@ export type AbilityTag =
     | 'RockThrow'
     | 'free'
     | 'basicAttack'
+    /** Gravity Locus detonates its field on expiry instead of just fading (Repulse research). */
+    | 'GravityRepulse'
     /** Granted by another ability; not selectable for prep loadouts and does not occupy a slot. */
     | 'secondary';
 

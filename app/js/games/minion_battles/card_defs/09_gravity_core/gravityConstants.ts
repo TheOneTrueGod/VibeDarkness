@@ -27,6 +27,7 @@ export const GRAVITY_ABILITY_MODE_PUSH = 'push';
 export const GRAVITY_ABILITY_MODE_PULL = 'pull';
 
 /** Gravity Locus (0901) — point-target field tuning. */
+export const GRAVITY_LOCUS_ABILITY_ID = '0901';
 export const GRAVITY_LOCUS_MAX_RANGE = 180;
 export const GRAVITY_LOCUS_FIELD_RADIUS = 82.5;
 export const GRAVITY_LOCUS_PREFIRE_TIME = 0.35;
@@ -41,6 +42,13 @@ export const GRAVITY_LOCUS_NUDGE_DURATION = 0.2;
 export const GRAVITY_LOCUS_GRAVITY_COST = 5;
 /** Visual alpha multiplier for the sustained field emitter (lower = less distracting). */
 export const GRAVITY_LOCUS_FIELD_ALPHA = 0.4;
+
+/** Repulse (Gravity Locus tier-3 upgrade) — the field collapses into a shrinking ring, then detonates. */
+export const GRAVITY_LOCUS_REPULSE_DURATION_MULT = 0.5;
+/** Field radius shrinks toward this fraction of GRAVITY_LOCUS_FIELD_RADIUS by the time it detonates. */
+export const GRAVITY_LOCUS_REPULSE_MIN_RADIUS_FRACTION = 0.2;
+export const GRAVITY_LOCUS_REPULSE_EXPLOSION_DAMAGE = 12;
+export const GRAVITY_LOCUS_REPULSE_KNOCKBACK_TIER = 2;
 
 /** Gravity granted at mission start when Gravity Core research is unlocked. */
 export const GRAVITY_CORE_MISSION_START_AMOUNT = 10;

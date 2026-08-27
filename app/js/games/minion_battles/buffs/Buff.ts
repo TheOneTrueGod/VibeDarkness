@@ -14,6 +14,7 @@ import type { Unit } from '../game/units/Unit';
 import type { EventBus } from '../game/EventBus';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import type { EngineContext } from '../game/EngineContext';
+import type { Effect } from '../game/effects/Effect';
 
 /** Context passed to {@link Buff.onBeforeExpire} when a timed buff is removed. */
 export interface BuffExpireContext {
@@ -24,6 +25,8 @@ export interface BuffExpireContext {
     /** Live unit list for expire-time AoE (e.g. slam knockback). */
     units?: readonly Unit[];
     interruptUnitAndRefundAbilities?(unit: Unit): void;
+    /** Spawn a visual effect at expiry (e.g. a detonation burst). */
+    addEffect?(effect: Effect): void;
 }
 
 /** Serializable buff data. Subclasses extend with their own fields. */

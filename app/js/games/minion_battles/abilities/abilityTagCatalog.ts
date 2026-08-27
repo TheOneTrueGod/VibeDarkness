@@ -15,6 +15,7 @@ export type AbilityTagSettingsByTag = {
     free: PriorityTagSettings;
     basicAttack: PriorityTagSettings;
     secondary: PriorityTagSettings;
+    GravityRepulse: PriorityTagSettings;
 };
 
 /** Empty settings object type for tags with no catalog options yet. */
@@ -67,6 +68,7 @@ export const ABILITY_TAG_CATALOG: AbilityTagCatalog = {
         hint: 'Granted by another ability',
         displayName: 'Secondary',
     },
+    GravityRepulse: { hint: 'Detonates on field expiry' },
 };
 
 export function getAbilityTagCatalogEntry<K extends AbilityTag>(tag: K): AbilityTagCatalogEntry<K> {

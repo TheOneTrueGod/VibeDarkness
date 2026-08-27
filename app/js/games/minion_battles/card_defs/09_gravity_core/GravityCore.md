@@ -12,12 +12,13 @@ Gravity is a **control kit**, not a primary damage kit. Damage exists to punish 
 
 ## Ability spine
 
-The tree ships four abilities on a simple spine (Tier 3 upgrades are out of scope for v1):
+The tree ships four abilities on a simple spine, plus one tier-3 upgrade node (Repulse) that modifies an existing ability via `AbilityModifier` instead of adding a new card:
 
 | Card id | Ability | Research unlock | Role |
 |---------|---------|-----------------|------|
 | **0902** | **Force Push** | **Gravity Core** (tier 1) | Two-step **aimed fling** — pick enemy, then landing pixel — with unit/wall collision damage (only ability with collision damage) |
 | **0901** | **Gravity Locus** | **Gravity Locus** node (tier 2) | Non-interrupting **nudge** field at a point (short ~1s cast deploys a field that pulses for `GRAVITY_LOCUS_FIELD_DURATION`s after the cast ends); Push/Pull via Ability Mode |
+| **0901** | **Gravity Locus + Repulse** | **Repulse** node (tier 3, requires Gravity Locus) | Shortens the field (`durationMult`) and detonates it on expiry (`explosionDamageFlat` + `knockbackTier`, gated by the `GravityRepulse` ability tag) — see `buffs/GravityLocusFieldBuff.ts` |
 | **0903** | **Lift** | **Lift** node (tier 2) | **Lift** + hard CC + slam; mode changes horizontal landing only |
 | **0904** | **Gravity Shield** | **Gravity Shield** node (tier 13) | Ally (or self) **absorb shield** — `GRAVITY_SHIELD_HP` armour that drains over `GRAVITY_SHIELD_DURATION_ROUNDS` round via `ShieldBuff` |
 
@@ -30,6 +31,7 @@ Force Push, Gravity Locus, and Lift share the same **Ability Mode** toggle (`'pu
 | **Grazing resource** | Proximity to enemy units and projectiles fills **gravity** continuously; projectiles pay out more than units. Constants in `gravityConstants.ts`; logic in `resources/Gravity.ts` via `Resource.onTick`. |
 | **Ability Mode** | Per-cast Push ↔ Pull on abilities that declare `abilityModes`. Behaviours read mode from the **order/active ability**, never live UI state — deterministic for multiplayer replay. |
 | **Nudge** | Subtle reposition via `applyNudgeToUnit` — **not CC**: no path clear, no ability interrupt, no CC-armour gate. Visual: faint `NudgeArrowEffectDef`, **no motion streak**. |
+| **Repulse (Gravity Locus upgrade)** | With the `GravityRepulse` tag active, the field radius shrinks toward the locus over its (shortened) lifetime — a closing ring — then `GravityLocusFieldBuff.onBeforeExpire` detonates: flat damage + knockback (tier from research) for every enemy still inside the original radius, plus a violet ring `Explosion` effect. |
 | **Launch / knockback** | Force Push uses **aimed** knockback (tier-3 CC gate, custom vector/air-time to reach the chosen landing pixel, capped at ~1.25× tier-3 displacement) with opt-in unit collision + terrain bounce events. Visual: motion streak on launches; clash spark vs wall dust/crack for collision types. |
 | **Lift** | Lift applies `LiftedBuff` (hard CC, suspended airborne) then slam damage, nearby magnitude-1 knockback, and `unit_slam_landed`. Visual: `LiftColumnEffectDef` telegraph; violet `howlShockwaveEffectDef` on landing. |
 | **Gravity Shield** | Ally-targeted `ShieldBuff` (`theme: 'gravity'`) with a high starting absorb pool that drains to 0 in one round. Visual: violet pulse shell (not the blood-mage shimmer); apply burst uses violet `howlShockwaveEffectDef`. |

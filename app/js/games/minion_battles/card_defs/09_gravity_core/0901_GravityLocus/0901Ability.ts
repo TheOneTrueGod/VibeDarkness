@@ -15,7 +15,7 @@ import { defineAbility } from '../../../abilities/defineAbility';
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget, ActiveAbility } from '../../../game/types';
 import type { EngineContext } from '../../../game/EngineContext';
-import { GravityLocusFieldBuff } from '../../../buffs/GravityLocusFieldBuff';
+import { GravityLocusFieldBuff, type GravityLocusRepulseConfig } from '../../../buffs/GravityLocusFieldBuff';
 import {
     GRAVITY_ABILITY_MODE_PULL,
     GRAVITY_ABILITY_MODE_PUSH,
@@ -28,6 +28,7 @@ import {
     GRAVITY_LOCUS_PREFIRE_TIME,
 } from '../gravityConstants';
 import { GRAVITY_VIOLET } from '../../../game/effect_defs/aoeEffects';
+import { getAbilityModifier } from '../../../abilities/abilityModifierHelpers';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Gravity)}01`;
 const MAX_USES = 1;
@@ -103,11 +104,19 @@ export const GravityLocusAbility = defineAbility({
         return { minRange: 0, maxRange: GRAVITY_LOCUS_MAX_RANGE };
     },
 
-    getTooltipText(): string[] {
-        return [
-            `Deploy a gravity field for ${GRAVITY_LOCUS_FIELD_DURATION}s, nudging enemies within {${GRAVITY_LOCUS_FIELD_RADIUS}} each pulse.`,
+    getTooltipText(gameState?: unknown): string[] {
+        const mod = getAbilityModifier(gameState, undefined, CARD_ID);
+        const duration = GRAVITY_LOCUS_FIELD_DURATION * (mod.durationMult ?? 1);
+        const lines = [
+            `Deploy a gravity field for ${duration}s, nudging enemies within {${GRAVITY_LOCUS_FIELD_RADIUS}} each pulse.`,
             'Pull draws inward; Push repels from the locus.',
         ];
+        if (mod.addTags?.includes('GravityRepulse')) {
+            lines.push(
+                `Repulse: the field collapses into a shrinking ring, then detonates on expiry — {${mod.explosionDamageFlat ?? 0}} damage and a knockback to enemies still caught inside.`,
+            );
+        }
+        return lines;
     },
 
     doCardEffect(
@@ -127,8 +136,14 @@ export const GravityLocusAbility = defineAbility({
         if (!locus) return;
 
         const ctx = engine as EngineContext;
+        const mod = caster.abilityModifiers[CARD_ID] ?? {};
+        const duration = GRAVITY_LOCUS_FIELD_DURATION * (mod.durationMult ?? 1);
+        const repulse: GravityLocusRepulseConfig | undefined = mod.addTags?.includes('GravityRepulse')
+            ? { explosionDamage: mod.explosionDamageFlat ?? 0, knockbackTier: mod.knockbackTier ?? 1 }
+            : undefined;
+
         caster.addBuff(
-            new GravityLocusFieldBuff(locus, active?.abilityMode ?? GRAVITY_ABILITY_MODE_PULL),
+            new GravityLocusFieldBuff(locus, active?.abilityMode ?? GRAVITY_ABILITY_MODE_PULL, duration, repulse),
             ctx.gameTime,
             ctx.roundNumber,
             ctx.eventBus,

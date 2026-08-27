@@ -564,6 +564,8 @@ function mergeModifierInto(entry: AbilityModifier, modifier: AbilityModifier): v
     if (modifier.damageFlat !== undefined) entry.damageFlat = (entry.damageFlat ?? 0) + modifier.damageFlat;
     if (modifier.maxUsesFlat !== undefined) entry.maxUsesFlat = (entry.maxUsesFlat ?? 0) + modifier.maxUsesFlat;
     if (modifier.explosionDamageFlat !== undefined) entry.explosionDamageFlat = (entry.explosionDamageFlat ?? 0) + modifier.explosionDamageFlat;
+    if (modifier.durationMult !== undefined) entry.durationMult = (entry.durationMult ?? 1) * modifier.durationMult;
+    if (modifier.knockbackTier !== undefined) entry.knockbackTier = Math.max(entry.knockbackTier ?? 0, modifier.knockbackTier);
     if (modifier.addTags?.length) {
         const existing = entry.addTags ? [...entry.addTags] : [];
         for (const tag of modifier.addTags) {

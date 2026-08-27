@@ -9,8 +9,12 @@ import { Gravity } from '../../../resources/Gravity';
 import {
     GRAVITY_ABILITY_MODE_PULL,
     GRAVITY_ABILITY_MODE_PUSH,
+    GRAVITY_LOCUS_FIELD_DURATION,
     GRAVITY_LOCUS_GRAVITY_COST,
     GRAVITY_LOCUS_PREFIRE_TIME,
+    GRAVITY_LOCUS_REPULSE_DURATION_MULT,
+    GRAVITY_LOCUS_REPULSE_EXPLOSION_DAMAGE,
+    GRAVITY_LOCUS_REPULSE_KNOCKBACK_TIER,
 } from '../gravityConstants';
 import { TerrainLayerManager } from '../../../game/TerrainLayerManager';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
@@ -196,6 +200,45 @@ describe('GravityLocusAbility', () => {
         expect(enemy.x).toBeGreaterThan(startX);
         expect(terrainManager.isPassable(enemy.x, enemy.y)).toBe(true);
         expect(enemy.x).toBeLessThan(CELL_SIZE * 5);
+    });
+
+    it('Repulse: shortens the field and detonates on expiry, damaging and knocking back enemies inside', () => {
+        const caster = makeCaster(100);
+        caster.abilityModifiers[CARD_ID] = {
+            durationMult: GRAVITY_LOCUS_REPULSE_DURATION_MULT,
+            explosionDamageFlat: GRAVITY_LOCUS_REPULSE_EXPLOSION_DAMAGE,
+            knockbackTier: GRAVITY_LOCUS_REPULSE_KNOCKBACK_TIER,
+            addTags: ['GravityRepulse'],
+        };
+        const enemy = makeEnemy('enemy', 140, 100);
+        const engine = makeEngine([caster, enemy]);
+
+        executeUnitAbility(
+            caster,
+            GravityLocusAbility,
+            [{ type: 'pixel', position: { ...LOCUS } }],
+            engine,
+            GRAVITY_ABILITY_MODE_PULL,
+        );
+
+        const shortenedDuration = GRAVITY_LOCUS_FIELD_DURATION * GRAVITY_LOCUS_REPULSE_DURATION_MULT;
+        const startHp = enemy.hp;
+
+        // Just before the shortened field ends: pulled in, not yet detonated.
+        advanceSimulation(
+            [caster, enemy],
+            engine,
+            GRAVITY_LOCUS_PREFIRE_TIME + shortenedDuration - 0.05,
+            [caster],
+        );
+        expect(enemy.hp).toBe(startHp);
+        const distBeforeExplosion = Math.hypot(enemy.x - LOCUS.x, enemy.y - LOCUS.y);
+
+        // Push past expiry: detonation damages and knocks the enemy away from the locus.
+        advanceSimulation([caster, enemy], engine, 0.2, [caster]);
+
+        expect(enemy.hp).toBe(startHp - GRAVITY_LOCUS_REPULSE_EXPLOSION_DAMAGE);
+        expect(Math.hypot(enemy.x - LOCUS.x, enemy.y - LOCUS.y)).toBeGreaterThan(distBeforeExplosion + 5);
     });
 
     it('casting spends gravity', () => {
