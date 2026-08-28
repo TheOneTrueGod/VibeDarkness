@@ -7,9 +7,9 @@
  * game tick. Serialized with the unit so the field survives checkpoint restore.
  *
  * Repulse upgrade: when `repulse` is set (Gravity Locus research modifier), the field
- * radius shrinks toward the locus over the (shortened) buff duration — a closing ring —
- * then detonates on expiry via `onBeforeExpire`, damaging and knocking back enemies
- * still caught inside the original field radius.
+ * radius starts small and expands outward over the (shortened) buff duration — a
+ * widening ring — then detonates on expiry via `onBeforeExpire`, damaging and knocking
+ * back enemies still caught inside the original field radius.
  */
 
 import { Buff, type BuffExpireContext, type BuffSerialized } from './Buff';
@@ -76,14 +76,14 @@ export class GravityLocusFieldBuff extends Buff {
         this.repulse = repulse;
     }
 
-    /** Current field radius — fixed unless Repulse is shrinking it toward detonation. */
+    /** Current field radius — fixed unless Repulse is expanding it toward detonation. */
     private getFieldRadius(gameTime: number): number {
         if (!this.repulse) return GRAVITY_LOCUS_FIELD_RADIUS;
         const progress = this.duration.value > 0
             ? Math.min(1, (gameTime - this.appliedAtTime) / this.duration.value)
             : 1;
         const minRadius = GRAVITY_LOCUS_FIELD_RADIUS * GRAVITY_LOCUS_REPULSE_MIN_RADIUS_FRACTION;
-        return GRAVITY_LOCUS_FIELD_RADIUS - (GRAVITY_LOCUS_FIELD_RADIUS - minRadius) * progress;
+        return minRadius + (GRAVITY_LOCUS_FIELD_RADIUS - minRadius) * progress;
     }
 
     override onGameTick(unit: Unit, engine: EngineContext, dt: number): void {

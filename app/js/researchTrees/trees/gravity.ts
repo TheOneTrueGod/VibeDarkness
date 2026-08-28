@@ -68,7 +68,7 @@ export const gravityTree: ResearchTreeDef = {
             id: GRAVITY_NODE_REPULSE,
             title: 'Repulse',
             description:
-                `Gravity Locus's field lasts {${DescriptiveValue.Huge}} less time, but collapses into a shrinking ring and detonates when it ends — dealing {${GRAVITY_LOCUS_REPULSE_EXPLOSION_DAMAGE}} damage and knocking back every enemy still caught inside.`,
+                `Gravity Locus's field lasts {${DescriptiveValue.Huge}} less time, but widens into a growing ring and detonates when it ends — dealing {${GRAVITY_LOCUS_REPULSE_EXPLOSION_DAMAGE}} damage and knocking back every enemy still caught inside.`,
             flavorText: 'What was pulled together does not stay together.',
             order: 11,
             tier: 3,

@@ -37,9 +37,17 @@ export function isCrowdSpacingForcedMover(unit: Unit): boolean {
 }
 
 /**
+ * Test scenarios spawn units with this `unitAITreeId` (no matching AI tree) specifically to hold
+ * them stationary for deterministic hitbox/timing assertions — see `testing/fixtures/targetDummies.ts`.
+ * CrowdSpacing displacing them would silently break that "stationary" contract across many scenarios.
+ */
+const STATIC_TEST_NO_AI_TREE_ID = 'static_test_no_ai';
+
+/**
  * Participation role for CrowdSpacing.
  * Dead / inactive / spawning / airborne → exempt (not in the grid).
  * Mid dash/lunge (`abilityOwnsMovementThisTick`) → exempt so the caster ghosts through the pack.
+ * Static test-only units (no AI tree, held stationary on purpose) → exempt.
  * Players, CrowdSpacingAnchor tag, and forced-movers → anchor.
  * Everyone else grounded and alive → soft.
  */
@@ -47,6 +55,7 @@ export function getCrowdSpacingRole(unit: Unit): CrowdSpacingRole {
     if (!unit.isAlive() || unit.isSpawning()) return 'exempt';
     if (isUnitAirborne(unit)) return 'exempt';
     if (unit.abilityOwnsMovementThisTick) return 'exempt';
+    if (unit.unitAITreeId === STATIC_TEST_NO_AI_TREE_ID) return 'exempt';
     if (
         unit.isPlayerControlled() ||
         hasUnitTag(unit, UnitTag.CrowdSpacingAnchor) ||

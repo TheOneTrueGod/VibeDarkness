@@ -113,7 +113,7 @@ export const GravityLocusAbility = defineAbility({
         ];
         if (mod.addTags?.includes('GravityRepulse')) {
             lines.push(
-                `Repulse: the field collapses into a shrinking ring, then detonates on expiry — {${mod.explosionDamageFlat ?? 0}} damage and a knockback to enemies still caught inside.`,
+                `Repulse: the field widens into a growing ring, then detonates on expiry — {${mod.explosionDamageFlat ?? 0}} damage and a knockback to enemies still caught inside.`,
             );
         }
         return lines;

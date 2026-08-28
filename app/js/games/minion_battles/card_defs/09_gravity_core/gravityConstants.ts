@@ -43,9 +43,9 @@ export const GRAVITY_LOCUS_GRAVITY_COST = 5;
 /** Visual alpha multiplier for the sustained field emitter (lower = less distracting). */
 export const GRAVITY_LOCUS_FIELD_ALPHA = 0.4;
 
-/** Repulse (Gravity Locus tier-3 upgrade) — the field collapses into a shrinking ring, then detonates. */
+/** Repulse (Gravity Locus tier-3 upgrade) — the field widens outward as a ring, then detonates. */
 export const GRAVITY_LOCUS_REPULSE_DURATION_MULT = 0.5;
-/** Field radius shrinks toward this fraction of GRAVITY_LOCUS_FIELD_RADIUS by the time it detonates. */
+/** Field radius starts at this fraction of GRAVITY_LOCUS_FIELD_RADIUS and expands to full radius by the time it detonates. */
 export const GRAVITY_LOCUS_REPULSE_MIN_RADIUS_FRACTION = 0.2;
 export const GRAVITY_LOCUS_REPULSE_EXPLOSION_DAMAGE = 12;
 export const GRAVITY_LOCUS_REPULSE_KNOCKBACK_TIER = 2;
