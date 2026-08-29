@@ -2,6 +2,7 @@ import type { TerrainManager } from '../../terrain/TerrainManager';
 import type { GameEngine } from '../../game/GameEngine';
 import { Unit } from '../../game/units/Unit';
 import { createUnitFromSpawnConfig } from '../../game/units/index';
+import { UnitTag } from '../../game/units/unitTag';
 
 const DEFAULT_DUMMY_HP = 500;
 
@@ -23,6 +24,8 @@ function targetDummySpawnArgs(
             ownerId: 'ai',
             /** Unknown tree id → no AI tick (stationary dummy). */
             unitAITreeId: 'static_test_no_ai',
+            /** Exact, unmoving position — hitbox/timing assertions depend on it; see UnitTag doc. */
+            unitTags: [UnitTag.CrowdSpacingExempt],
         },
         engine.eventBus,
         engine,

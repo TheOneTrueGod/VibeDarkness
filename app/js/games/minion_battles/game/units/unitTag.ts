@@ -24,6 +24,12 @@ export enum UnitTag {
      * Independent of {@link UnitTag.Boss} — apply wherever a unit must stand its ground.
      */
     CrowdSpacingAnchor = 'crowdSpacingAnchor',
+    /**
+     * Unit does not participate in CrowdSpacing at all — neither displaced nor displacing others.
+     * Applied to fixed test-fixture probes (e.g. `testing/fixtures/targetDummies.ts`) whose exact,
+     * unmoving position deterministic hitbox/timing assertions depend on.
+     */
+    CrowdSpacingExempt = 'crowdSpacingExempt',
 }
 
 const UNIT_TAG_VALUES = new Set<string>(Object.values(UnitTag));
