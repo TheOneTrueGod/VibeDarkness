@@ -15,7 +15,6 @@ import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { RESEARCH_TREES, getResearchNode } from '../../../../../researchTrees/list';
 import { isDraftResearchNode } from '../../../../../researchTrees/types';
-import { EARTH_TREE_ID, EARTH_NODE_EARTH_CORE } from '../../../../../researchTrees/trees/earth';
 import { GRAVITY_TREE_ID, GRAVITY_NODE_CORE } from '../../../../../researchTrees/trees/gravity';
 import {
     COMMAND_CORE_TREE_ID,
@@ -47,7 +46,6 @@ function coreCandidateKey(treeId: string, nodeId: string): string {
  * Keys are `${treeId}+${nodeId}` (same as candidate ids).
  */
 export const CORE_TARGET_PLAYER_IDS: Readonly<Record<string, readonly string[]>> = {
-    [coreCandidateKey(EARTH_TREE_ID, EARTH_NODE_EARTH_CORE)]: ['9'],
     [coreCandidateKey(GRAVITY_TREE_ID, GRAVITY_NODE_CORE)]: ['16', '11'],
     [coreCandidateKey(COMMAND_CORE_TREE_ID, COMMAND_CORE_NODE_LOYAL_COMPANION)]: ['8', '17'],
     [coreCandidateKey(LIGHT_TREE_ID, LIGHT_NODE_CORE)]: ['10'],

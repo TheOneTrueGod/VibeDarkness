@@ -78,20 +78,27 @@ describe('listTier10RootCoreCandidates', () => {
     });
 
     it('attaches target player IDs from CORE_TARGET_PLAYER_IDS', () => {
+        const gravity = listTier10RootCoreCandidates().find(
+            (c) => c.treeId === GRAVITY_TREE_ID && c.nodeId === GRAVITY_NODE_CORE,
+        );
+        expect(gravity?.targetPlayerIds).toEqual(CORE_TARGET_PLAYER_IDS[`${GRAVITY_TREE_ID}+${GRAVITY_NODE_CORE}`]);
+    });
+
+    it('leaves Earth Core untargeted so it is offered to any player', () => {
         const earth = listTier10RootCoreCandidates().find(
             (c) => c.treeId === EARTH_TREE_ID && c.nodeId === EARTH_NODE_EARTH_CORE,
         );
-        expect(earth?.targetPlayerIds).toEqual(CORE_TARGET_PLAYER_IDS[`${EARTH_TREE_ID}+${EARTH_NODE_EARTH_CORE}`]);
+        expect(earth?.targetPlayerIds).toEqual([]);
     });
 });
 
 describe('pickCoreAwakeningOptions', () => {
     it('places for-you cores first and keeps them in the offer', () => {
         const candidates = listTier10RootCoreCandidates();
-        const earthId = `${EARTH_TREE_ID}+${EARTH_NODE_EARTH_CORE}`;
-        const picked = pickCoreAwakeningOptions(candidates, '9', 'seed-player-9');
-        expect(picked[0]?.id).toBe(earthId);
-        expect(picked.some((c) => c.id === earthId)).toBe(true);
+        const commandId = `${COMMAND_CORE_TREE_ID}+${COMMAND_CORE_NODE_LOYAL_COMPANION}`;
+        const picked = pickCoreAwakeningOptions(candidates, '8', 'seed-player-8');
+        expect(picked[0]?.id).toBe(commandId);
+        expect(picked.some((c) => c.id === commandId)).toBe(true);
         expect(picked.length).toBeLessThanOrEqual(CORE_AWAKENING_OPTION_COUNT);
     });
 

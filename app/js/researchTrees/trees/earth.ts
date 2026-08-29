@@ -28,7 +28,7 @@ export const earthTree: ResearchTreeDef = {
             description: 'Your body resonates with the earth. You can dash through enemies with a powerful claw strike.',
             flavorText: 'The ground remembers every root that ever broke it.',
             order: 5,
-            tier: 1,
+            tier: 10,
             position: { x: 120, y: 90 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
