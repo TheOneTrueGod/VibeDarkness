@@ -8,8 +8,9 @@ import { Buff, type BuffExpireContext, type BuffSerialized } from './Buff';
 import type { Unit } from '../game/units/Unit';
 import { computeForcedDisplacement } from '../game/forceMove';
 import { knockbackCtxFromEngine, tryApplyKnockbackByTier } from '../crowdControl/knockbackKeywords';
+import { LIFTED_BUFF_TYPE } from './liftedBuffType';
 
-export const LIFTED_BUFF_TYPE = 'lifted';
+export { LIFTED_BUFF_TYPE };
 
 /** Base vertical lift cap before the +50% height stretch (UnitRenderer pixels). */
 const LIFTED_RENDER_MAX_HEIGHT_BASE_PX = 50;

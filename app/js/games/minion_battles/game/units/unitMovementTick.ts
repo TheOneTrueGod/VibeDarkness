@@ -3,7 +3,7 @@ import type { EngineContext } from '../EngineContext';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import type { TerrainLayerManager } from '../TerrainLayerManager';
 import type { UnitWalkIntent } from './unitTypes';
-import { LIFTED_BUFF_TYPE } from '../../buffs/LiftedBuff';
+import { LIFTED_BUFF_TYPE } from '../../buffs/liftedBuffType';
 import { areEnemies } from '../teams';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';

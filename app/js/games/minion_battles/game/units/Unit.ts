@@ -27,7 +27,7 @@ import {
 } from '../../abilities/abilityUses';
 import type { ResolvedTarget } from '../types';
 import type { Buff } from '../../buffs/Buff';
-import { LIFTED_BUFF_TYPE } from '../../buffs/LiftedBuff';
+import { LIFTED_BUFF_TYPE } from '../../buffs/liftedBuffType';
 import { DEFAULT_UNIT_RADIUS } from './unit_defs/unitConstants';
 import {
     getDefaultHp,

@@ -9,7 +9,7 @@ import type { Buff } from './Buff';
 import { STUNNED_BUFF_TYPE } from './StunnedBuff';
 import { BLEED_BUFF_TYPE, BleedBuff } from './BleedBuff';
 import { EXPOSED_BUFF_TYPE } from './ExposedBuff';
-import { LIFTED_BUFF_TYPE } from './LiftedBuff';
+import { LIFTED_BUFF_TYPE } from './liftedBuffType';
 import { GRAVITY_LOCUS_FIELD_BUFF_TYPE } from './GravityLocusFieldBuff';
 import { SHIELD_BUFF_TYPE, ShieldBuff } from './ShieldBuff';
 import { type ShieldShimmerFilter, tryCreateShieldShimmerFilter } from '../game/ShieldShimmerFilter';

@@ -9,7 +9,7 @@
 import type { EventBus } from '../EventBus';
 import type { TerrainLayerManager } from '../TerrainLayerManager';
 import type { Unit } from '../units/Unit';
-import { LIFTED_BUFF_TYPE } from '../../buffs/LiftedBuff';
+import { LIFTED_BUFF_TYPE } from '../../buffs/liftedBuffType';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { getCreatureType } from '../units/unit_defs/unitDef';
 

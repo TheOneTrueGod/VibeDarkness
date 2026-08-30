@@ -14,7 +14,7 @@ import {
 import { createTargetDummyAtWorld } from '../../fixtures/targetDummies';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
 import { Gravity } from '../../../resources/Gravity';
-import { LIFTED_BUFF_TYPE } from '../../../buffs/LiftedBuff';
+import { LIFTED_BUFF_TYPE } from '../../../buffs/liftedBuffType';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import {
     GRAVITY_ABILITY_MODE_PULL,

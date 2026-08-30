@@ -17,7 +17,7 @@ import { createTargetDummyAtWorld } from '../../fixtures/targetDummies';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
 import { Gravity } from '../../../resources/Gravity';
 import { Light } from '../../../resources/Light';
-import { LIFTED_BUFF_TYPE } from '../../../buffs/LiftedBuff';
+import { LIFTED_BUFF_TYPE } from '../../../buffs/liftedBuffType';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import {
     GRAVITY_INVERSION_AOE_RADIUS,
