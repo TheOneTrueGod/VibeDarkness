@@ -12,4 +12,7 @@ export const BunkerAtTheEndStoryline: StorylineDef = {
     edges: [
         { fromMissionId: 'last_holdout', result: 'victory', toMissionId: 'swarm_pressure' },
     ],
+    chapters: [
+        { id: 'bunker_ch1', numeral: 'I', missionIds: ['last_holdout', 'swarm_pressure'] },
+    ],
 };

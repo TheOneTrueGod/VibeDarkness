@@ -29,7 +29,8 @@ export class CircleArenaMission extends BaseMissionDef {
     campaignId = 'world_of_darkness';
     missionId = CircleArenaMission.missionId;
     name = CircleArenaMission.nameStr;
-    mapPosition = { x: 780, y: 550 };
+    mapPosition = { x: 320, y: 350 };
+    isSideMission = true;
     missionType = 'boss' as const;
     description = 'A dirt circle in the grass. The cave you live in sits on its eastern edge.';
 

@@ -589,6 +589,22 @@ export interface StorylineFlowEdge {
     requiresQuestBankId?: string;
 }
 
+/** An ordered stage within a campaign. The first chapter is always unlocked. */
+export interface CampaignChapterDef {
+    id: string;
+    /** Roman numeral shown on the chapter button, e.g. 'I', 'II', 'III'. */
+    numeral: string;
+    /** Longer name for tooltip / aria-label (optional). */
+    title?: string;
+    /** Mission ids in this chapter, in map display order. */
+    missionIds: string[];
+    /**
+     * Chapter unlocks once this mission has a victory result.
+     * Omit on the first chapter (always unlocked).
+     */
+    unlockAfterMissionId?: string;
+}
+
 /** Storyline definition for campaign UI and unlock logic. */
 export interface StorylineDef {
     id: string;
@@ -597,4 +613,6 @@ export interface StorylineDef {
     edges?: StorylineFlowEdge[];
     /** Campaign map quest banks (filters + required clears). */
     questSlotBanks?: QuestSlotBank[];
+    /** Ordered chapters. When present, the Mission Map shows one chapter at a time. */
+    chapters?: CampaignChapterDef[];
 }

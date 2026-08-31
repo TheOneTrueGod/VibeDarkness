@@ -170,6 +170,8 @@ export interface IBaseMissionDef extends MissionBattleConfig {
     segmentIds: string[];
     /** Position on the Mission Map canvas (pixels). */
     mapPosition?: { x: number; y: number };
+    /** Render as a side quest on the Mission Map (star / label) even without a side edge. */
+    isSideMission?: boolean;
     /** Mission Map node category (battle / story / boss icon). */
     missionType: MissionType;
     /** Optional image URL or asset path shown inside the mission circle on the Mission Map. */
@@ -235,6 +237,8 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     segmentIds: string[] = [];
     /** Position on the Mission Map canvas (pixels). If absent, a fallback grid layout is used. */
     mapPosition?: { x: number; y: number };
+    /** Render as a side quest on the Mission Map (star / label) even without a side edge. */
+    isSideMission?: boolean;
     /** Optional image URL or asset path shown inside the mission circle on the Mission Map. */
     image?: string;
     /** Short flavour description shown in the Mission Map tooltip. */

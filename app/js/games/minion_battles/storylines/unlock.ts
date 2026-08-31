@@ -3,7 +3,7 @@
  * Also: quest slot bank unlock / eligibility / join-fill placement helpers.
  */
 
-import type { StorylineDef } from './types';
+import type { CampaignChapterDef, StorylineDef } from './types';
 import type { MissionResult } from '../../../types';
 import { getQuestDef, listQuestsForCampaign } from './questRegistry';
 import type {
@@ -42,10 +42,42 @@ export function hasVictoryResult(missionId: string, missionResults: MissionResul
     return latestMissionResultsOnly(missionResults).some((r) => r.missionId === missionId && r.result !== 'defeat');
 }
 
+/** All chapters defined for a storyline (empty when none). */
+export function getCampaignChapters(storyline: StorylineDef): CampaignChapterDef[] {
+    return storyline.chapters ?? [];
+}
+
+/** The first chapter is always unlocked; others need their `unlockAfterMissionId` victory. */
+export function isChapterUnlocked(
+    chapter: CampaignChapterDef,
+    index: number,
+    missionResults: MissionResult[],
+): boolean {
+    if (index === 0 || !chapter.unlockAfterMissionId) return true;
+    return hasVictoryResult(chapter.unlockAfterMissionId, missionResults);
+}
+
+/** Highest 0-based index of an unlocked chapter (0 when none are defined). */
+export function getHighestUnlockedChapterIndex(
+    storyline: StorylineDef,
+    missionResults: MissionResult[],
+): number {
+    const chapters = getCampaignChapters(storyline);
+    let highest = 0;
+    for (let i = 0; i < chapters.length; i++) {
+        if (isChapterUnlocked(chapters[i], i, missionResults)) highest = i;
+    }
+    return highest;
+}
+
 /**
  * Return set of mission IDs that are unlocked for this storyline given campaign missionResults.
  * Unlocked = start mission + any toMissionId where fromMissionId has a matching result.
  * Edges with `requiresQuestBankId` also need that bank's requiredClears satisfied (via questResults).
+ *
+ * When the storyline defines `chapters`, unlock is additionally gated by chapter: an unlocked
+ * chapter's "entry" missions (no incoming edge from the same chapter) become available, and any
+ * mission belonging to a still-locked chapter is removed.
  */
 export function getUnlockedMissionIds(
     storyline: StorylineDef,
@@ -74,6 +106,27 @@ export function getUnlockedMissionIds(
     if (storyline.id === 'world_of_darkness' && hasVictoryResult('monster', missionResults)) {
         unlocked.add('monster');
         unlocked.add('cave_respite');
+    }
+
+    const chapters = storyline.chapters ?? [];
+    if (chapters.length > 0) {
+        const chapterIdxByMission = new Map<string, number>();
+        chapters.forEach((ch, i) => ch.missionIds.forEach((m) => chapterIdxByMission.set(m, i)));
+        for (let i = 0; i < chapters.length; i++) {
+            if (!isChapterUnlocked(chapters[i], i, missionResults)) continue;
+            for (const missionId of chapters[i].missionIds) {
+                const hasIncomingSameChapter = edges.some(
+                    (e) => e.toMissionId === missionId && chapterIdxByMission.get(e.fromMissionId) === i,
+                );
+                if (!hasIncomingSameChapter) unlocked.add(missionId);
+            }
+        }
+        for (const missionId of [...unlocked]) {
+            const idx = chapterIdxByMission.get(missionId);
+            if (idx != null && !isChapterUnlocked(chapters[idx], idx, missionResults)) {
+                unlocked.delete(missionId);
+            }
+        }
     }
 
     return unlocked;
@@ -130,17 +183,24 @@ export function isSideMissionId(missionId: string, storylines: StorylineDef[]): 
 }
 
 /**
- * Return all mission IDs for this storyline in display order (start first, then each edge's toMissionId).
- * Use this to show every mission in the storyline; pair with getUnlockedMissionIds to show locked state.
+ * Return all mission IDs for this storyline in display order.
+ *
+ * With `chapters`: chapter order first (so missions that no longer sit on an edge still appear),
+ * then the start mission and any edge targets not already listed.
+ * Without `chapters`: start mission first, then each edge's toMissionId.
+ *
+ * Pair with getUnlockedMissionIds to show locked state.
  */
 export function getAllMissionIdsInOrder(storyline: StorylineDef): string[] {
-    const ids: string[] = [storyline.startMissionId];
-    const edges = storyline.edges ?? [];
-    for (const edge of edges) {
-        if (!ids.includes(edge.toMissionId)) {
-            ids.push(edge.toMissionId);
-        }
+    const ids: string[] = [];
+    const push = (id: string) => {
+        if (!ids.includes(id)) ids.push(id);
+    };
+    for (const chapter of storyline.chapters ?? []) {
+        for (const missionId of chapter.missionIds) push(missionId);
     }
+    push(storyline.startMissionId);
+    for (const edge of storyline.edges ?? []) push(edge.toMissionId);
     return ids;
 }
 

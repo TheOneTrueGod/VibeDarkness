@@ -21,6 +21,8 @@ import {
     isMissionCompleted,
     getAllMissionIdsInOrder,
     isSideMissionId,
+    isChapterUnlocked,
+    getHighestUnlockedChapterIndex,
     getUnlockedQuestSlotBanks,
     countQuestBankClears,
     isQuestSlotBankUnlocked,
@@ -38,6 +40,7 @@ import {
     TestIds,
     missionMapNodeTestId,
     missionMapQuestBankTestId,
+    missionMapChapterTestId,
 } from '../../../../../testing/testIds';
 import QuestBanksPanel from './QuestBanksPanel';
 
@@ -306,7 +309,7 @@ function MissionTooltip({
     onDismiss: () => void;
 }) {
     const def = MISSION_MAP[data.id];
-    const isSide = isSideMissionId(data.id, STORYLINES);
+    const isSide = def?.isSideMission === true || isSideMissionId(data.id, STORYLINES);
     const status = getStatusLabel(data.id, missionResults);
     const result = missionResults.find((r) => r.missionId === data.id);
 
@@ -499,10 +502,26 @@ export default function MissionMapTab({
         [storyline, missionResults, questResults],
     );
 
-    const missionIds = useMemo(
-        () => (storyline ? getAllMissionIdsInOrder(storyline) : []),
-        [storyline],
+    const chapters = useMemo(() => storyline?.chapters ?? [], [storyline]);
+
+    const [activeChapterIndex, setActiveChapterIndex] = useState(() =>
+        storyline ? getHighestUnlockedChapterIndex(storyline, missionResults) : 0,
     );
+
+    // Re-default to the highest unlocked chapter whenever the campaign changes.
+    useEffect(() => {
+        setActiveChapterIndex(
+            storyline ? getHighestUnlockedChapterIndex(storyline, missionResults) : 0,
+        );
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [character.campaignId]);
+
+    const activeChapter = chapters[activeChapterIndex] ?? chapters[0] ?? null;
+
+    const missionIds = useMemo(() => {
+        if (chapters.length > 0) return activeChapter?.missionIds ?? [];
+        return storyline ? getAllMissionIdsInOrder(storyline) : [];
+    }, [storyline, chapters, activeChapter]);
 
     // Resolve mission defs and assign fallback grid positions for any missing mapPosition.
     const missions = useMemo(() => {
@@ -511,7 +530,8 @@ export default function MissionMapTab({
         const ROW_STEP = 200;
         return missionIds.map((id, idx) => {
             const def = MISSION_MAP[id];
-            const isSide = storyline ? isSideMissionId(id, STORYLINES) : false;
+            const isSide = def?.isSideMission === true
+                || (storyline ? isSideMissionId(id, STORYLINES) : false);
             const col = idx % COLS;
             const row = Math.floor(idx / COLS);
             const xDir = row % 2 === 0 ? 1 : -1;
@@ -524,10 +544,18 @@ export default function MissionMapTab({
         });
     }, [missionIds, storyline]);
 
+    const chapterMissionSet = useMemo(() => new Set(missionIds), [missionIds]);
+
     const questBanksOnMap = useMemo((): QuestSlotBank[] => {
         if (!storyline) return [];
-        return (storyline.questSlotBanks ?? []).filter((b) => b.mapPosition != null);
-    }, [storyline]);
+        return (storyline.questSlotBanks ?? []).filter(
+            (b) =>
+                b.mapPosition != null
+                && (chapters.length === 0
+                    || !b.unlockAfterMissionId
+                    || chapterMissionSet.has(b.unlockAfterMissionId)),
+        );
+    }, [storyline, chapters, chapterMissionSet]);
 
     const unlockedQuestBankIds = useMemo(() => {
         if (!storyline) return new Set<string>();
@@ -686,67 +714,116 @@ export default function MissionMapTab({
                 : 'text-muted hover:text-white'
         }`;
 
-    const showToolbar = usePaneTabs || Boolean(onCampaignChange);
+    const chapterBtnClass = (active: boolean, unlocked: boolean, clickable: boolean) =>
+        `flex items-center justify-center w-10 h-10 rounded-lg text-lg font-bold leading-none transition-all ${
+            active
+                ? 'bg-primary text-secondary'
+                : clickable
+                    ? 'border border-border-custom text-muted hover:text-white hover:border-primary cursor-pointer'
+                    : 'border border-border-custom text-zinc-600 opacity-50 cursor-not-allowed'
+        } ${!unlocked && clickable ? 'border-dashed border-amber-500/60' : ''}`;
+
+    // Show the chapter strip whenever the campaign defines chapters at all — a lone "I" renders
+    // too, for consistency across campaigns.
+    const showChapters = chapters.length >= 1;
+    const showToolbar = usePaneTabs || showChapters || Boolean(onCampaignChange);
 
     return (
         <div className="w-full h-full overflow-auto">
             {showToolbar && (
                 <div className="shrink-0 flex items-center gap-3 pb-2 border-b border-border-custom mb-2">
-                    {usePaneTabs && (
-                        <div
-                            className="inline-flex gap-0.5 p-0.5 rounded-full border border-border-custom bg-background/60 shrink-0"
-                            role="tablist"
-                            aria-label="Mission map panes"
-                        >
-                            <button
-                                type="button"
-                                role="tab"
-                                aria-selected={activePane === 'map'}
-                                data-testid={TestIds.missionMapSubTabMap}
-                                className={pillClass('map')}
-                                onClick={() => {
-                                    setActivePane('map');
-                                }}
+                    {/* left */}
+                    <div className="flex-1 min-w-0 flex items-center gap-3">
+                        {usePaneTabs && (
+                            <div
+                                className="inline-flex gap-0.5 p-0.5 rounded-full border border-border-custom bg-background/60 shrink-0"
+                                role="tablist"
+                                aria-label="Mission map panes"
                             >
-                                Map
-                            </button>
-                            <button
-                                type="button"
-                                role="tab"
-                                aria-selected={activePane === 'quests'}
-                                data-testid={TestIds.missionMapSubTabQuests}
-                                className={pillClass('quests')}
-                                onClick={() => {
-                                    setActivePane('quests');
-                                    setTooltip(null);
-                                    setBankTooltip(null);
-                                }}
-                            >
-                                Quests
-                            </button>
-                        </div>
-                    )}
-                    {onCampaignChange && (
-                        <div className={`flex items-center gap-2 min-w-0 ${usePaneTabs ? 'ml-auto' : ''}`}>
-                            <label className="text-xs text-muted shrink-0">Campaign:</label>
-                            <div className="relative w-44 max-w-[40vw] shrink-0">
-                                <select
-                                    value={character.campaignId}
-                                    onChange={(e) => void onCampaignChange(e.target.value)}
-                                    className="w-full appearance-none text-xs bg-surface border border-border-custom rounded pl-2 pr-7 py-1 text-white"
+                                <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={activePane === 'map'}
+                                    data-testid={TestIds.missionMapSubTabMap}
+                                    className={pillClass('map')}
+                                    onClick={() => {
+                                        setActivePane('map');
+                                    }}
                                 >
-                                    {STORYLINES.map((s) => (
-                                        <option key={s.id} value={s.id}>{s.title}</option>
-                                    ))}
-                                </select>
-                                <ChevronDown
-                                    className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white"
-                                    aria-hidden
-                                    strokeWidth={2.25}
-                                />
+                                    Map
+                                </button>
+                                <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={activePane === 'quests'}
+                                    data-testid={TestIds.missionMapSubTabQuests}
+                                    className={pillClass('quests')}
+                                    onClick={() => {
+                                        setActivePane('quests');
+                                        setTooltip(null);
+                                        setBankTooltip(null);
+                                    }}
+                                >
+                                    Quests
+                                </button>
                             </div>
+                        )}
+                    </div>
+
+                    {/* center: chapter buttons */}
+                    {showChapters && (
+                        <div
+                            className="shrink-0 flex items-center gap-2"
+                            role="tablist"
+                            aria-label="Campaign chapters"
+                        >
+                            {chapters.map((ch, i) => {
+                                const unlocked = isChapterUnlocked(ch, i, missionResults);
+                                const active = i === activeChapterIndex;
+                                const clickable = unlocked || isAdmin;
+                                return (
+                                    <button
+                                        key={ch.id}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={active}
+                                        disabled={!clickable}
+                                        data-testid={missionMapChapterTestId(ch.id)}
+                                        title={ch.title ?? `Chapter ${ch.numeral}`}
+                                        onClick={() => setActiveChapterIndex(i)}
+                                        className={chapterBtnClass(active, unlocked, clickable)}
+                                    >
+                                        {ch.numeral}
+                                    </button>
+                                );
+                            })}
                         </div>
                     )}
+
+                    {/* right */}
+                    <div className="flex-1 min-w-0 flex items-center justify-end gap-3">
+                        {onCampaignChange && (
+                            <div className="flex items-center gap-2 min-w-0">
+                                <label className="text-xs text-muted shrink-0">Campaign:</label>
+                                <div className="relative w-44 max-w-[40vw] shrink-0">
+                                    <select
+                                        value={character.campaignId}
+                                        onChange={(e) => void onCampaignChange(e.target.value)}
+                                        className="w-full appearance-none text-xs bg-surface border border-border-custom rounded pl-2 pr-7 py-1 text-white"
+                                    >
+                                        {STORYLINES.map((s) => (
+                                            <option key={s.id} value={s.id}>{s.title}</option>
+                                        ))}
+                                    </select>
+                                    <ChevronDown
+                                        className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white"
+                                        aria-hidden
+                                        strokeWidth={2.25}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
             {showQuests && onStartQuest && (

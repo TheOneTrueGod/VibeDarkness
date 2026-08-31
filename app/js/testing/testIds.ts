@@ -26,6 +26,8 @@ export const TestIds = {
     campaignDataDarknessStrengthTab: 'campaign-data-tab-darkness-strength',
     missionHost: 'mission-host',
     missionMapNodePrefix: 'mission-map-node-',
+    /** Chapter button on the Mission Map toolbar — suffix with chapter id */
+    missionMapChapterPrefix: 'mission-map-chapter-',
 
     /** Mission Map quest banks / optional / prep (Campaign Home) */
     missionMapSubTabMap: 'mission-map-subtab-map',
@@ -77,6 +79,10 @@ export function characterCardTestId(characterId: string): string {
 
 export function missionMapNodeTestId(missionId: string): string {
     return `${TestIds.missionMapNodePrefix}${missionId}`;
+}
+
+export function missionMapChapterTestId(chapterId: string): string {
+    return `${TestIds.missionMapChapterPrefix}${chapterId}`;
 }
 
 export function missionMapQuestBankTestId(bankId: string): string {

@@ -185,8 +185,8 @@ export class ThornbinderArenaMission extends BaseMissionDef {
     campaignId = 'world_of_darkness';
     missionId = ThornbinderArenaMission.missionId;
     name = ThornbinderArenaMission.nameStr;
-    /** Row 2 (R→L): after Core Awakening (610), before South Gate Swarm (270). */
-    mapPosition = { x: 440, y: 350 };
+    /** Chapter 2 grid — top row, entry mission. */
+    mapPosition = { x: 100, y: 150 };
     missionType = 'battle' as const;
     description =
         'Thornbinders hold a dirt circle east of the cave. Dark crystals mark the ring — more will come.';

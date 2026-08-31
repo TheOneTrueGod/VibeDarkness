@@ -38,19 +38,44 @@ export const WorldOfDarknessStoryline: StorylineDef = {
     title: 'A World of Darkness',
     startMissionId: 'dark_awakening',
     edges: [
+        // Chapter 1
         { fromMissionId: 'dark_awakening', result: 'victory', toMissionId: 'towards_the_light' },
         { fromMissionId: 'towards_the_light', result: 'victory', toMissionId: 'light_empowered' },
         { fromMissionId: 'light_empowered', result: 'victory', toMissionId: 'cave_respite' },
         { fromMissionId: 'cave_respite', result: 'victory', toMissionId: 'monster' },
-        { fromMissionId: 'cave_respite', result: 'victory', toMissionId: 'crystal_corruption', isSideMission: true },
-        { fromMissionId: 'cave_respite', result: 'victory', toMissionId: 'the_circle', isSideMission: true },
-        { fromMissionId: 'crystal_corruption', result: 'victory', toMissionId: 'monster' },
         { fromMissionId: 'monster', result: 'victory', toMissionId: 'core_awakening' },
-        { fromMissionId: 'core_awakening', result: 'victory', toMissionId: 'thornbinder_arena' },
+        // Chapter 2 (unlocked as a block after Core Awakening; internal chain preserved)
         { fromMissionId: 'thornbinder_arena', result: 'victory', toMissionId: 'south_gate_swarm' },
         { fromMissionId: 'south_gate_swarm', result: 'victory', toMissionId: 'ember_threshold' },
         { fromMissionId: 'ember_threshold', result: 'victory', toMissionId: 'thorn_march' },
         { fromMissionId: 'thorn_march', result: 'victory', toMissionId: 'thornling_rise' },
     ],
     questSlotBanks: [WOD_POST_CORE_QUEST_BANK],
+    chapters: [
+        {
+            id: 'wod_ch1',
+            numeral: 'I',
+            title: 'A Dark Awakening',
+            missionIds: [
+                'dark_awakening', 'towards_the_light', 'light_empowered',
+                'cave_respite', 'monster', 'core_awakening',
+            ],
+        },
+        {
+            id: 'wod_ch2',
+            numeral: 'II',
+            title: 'The Surface',
+            unlockAfterMissionId: 'core_awakening',
+            missionIds: [
+                'thornbinder_arena', 'south_gate_swarm', 'ember_threshold',
+                'thorn_march', 'thornling_rise', 'crystal_corruption', 'the_circle',
+            ],
+        },
+        {
+            id: 'wod_ch3',
+            numeral: 'III',
+            unlockAfterMissionId: 'thornling_rise',
+            missionIds: [],
+        },
+    ],
 };

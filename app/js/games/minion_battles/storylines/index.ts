@@ -59,11 +59,14 @@ export const MISSION_MAP: Record<string, IBaseMissionDef> = {
     quest_boar_herd_north: QUEST_BOAR_HERD_NORTH,
 };
 
-export type { StorylineDef, StorylineFlowEdge } from './types';
+export type { CampaignChapterDef, StorylineDef, StorylineFlowEdge } from './types';
 export {
     getUnlockedMissionIds,
     isMissionCompleted,
     getAllMissionIdsInOrder,
+    getCampaignChapters,
+    isChapterUnlocked,
+    getHighestUnlockedChapterIndex,
     hasVictoryResult,
     getNextVictoryMissionId,
     getSideMissionIds,
