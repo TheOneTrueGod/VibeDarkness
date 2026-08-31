@@ -111,6 +111,9 @@ import {
     earthCoreImpactConversionScenario,
     earthCoreBedrockScavengerScenario,
     earthCoreDeepResonanceScenario,
+    earthCoreGatherStoneRockHarvestScenario,
+    earthCoreGatherStoneRubbleStrikeScenario,
+    earthCoreGatherStoneNoRubbleStrikeWithoutResearchScenario,
 } from './abilities/earthCoreScenarios';
 import { rapidThrowComboScenario } from './abilities/rapidThrowComboScenario';
 
@@ -183,6 +186,9 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     earthCoreImpactConversionScenario,
     earthCoreBedrockScavengerScenario,
     earthCoreDeepResonanceScenario,
+    earthCoreGatherStoneRockHarvestScenario,
+    earthCoreGatherStoneRubbleStrikeScenario,
+    earthCoreGatherStoneNoRubbleStrikeWithoutResearchScenario,
     rapidThrowComboScenario,
     laserSwordHitsTwoTargetsScenario,
     throwTorchHitsDummyScenario,

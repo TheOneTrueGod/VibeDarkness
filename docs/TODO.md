@@ -19,6 +19,7 @@
 
 | Todo | Notes |
 |------|-------|
+| `TerrainGrid.get()` should return a distinct out-of-bounds result | Today `TerrainGrid.get(col,row)` (`terrain/TerrainGrid.ts:47`) returns `TerrainType.Rock` for out-of-bounds cells, so callers can't tell "real rock" from "off the map" — e.g. an area ability scanning a tile region near the edge counts void cells as rock. Introduce an explicit out-of-bounds sentinel (new `TerrainType.OutOfBounds` or a nullable return) that abilities can respond to, and update the ~12 `grid.get` callers plus pathfinding/passability so off-map still reads as impassable. Medium: touches the `TerrainType` enum, `TERRAIN_PROPERTIES`, `TerrainManager`, `Pathfinding`, and consumers. |
 | Migrate AlphaWolfSummon (0005) to castBehaviours | `doCardEffect` spawns enemy units at the prefire threshold — unique unit-spawn behavior. Needs a spawn CastBehaviour or an `ON_CAST_TICK` abilityEvents rule with a custom effect to handle the summon. |
 | Migrate EarthernPunch (0524) to castBehaviours | `doCardEffect` applies a melee hit at a threshold. Use `MeleeAttackBehaviour` on the active timing interval; earth-core flavour (stone buff) can go through an abilityEvents `ON_ATTACK_HIT` rule. |
 | Migrate ShakingGround (0525) to castBehaviours | `doCardEffect` applies an AoE ground-shake effect at a threshold. Convert to a CastBehaviour on the active timing interval for the shockwave; visual can move to `emitterDef`. |

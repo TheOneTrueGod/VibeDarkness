@@ -7,3 +7,4 @@ export { UnitRangeHitboxSpec, unitRangeHitbox } from './UnitRangeHitboxSpec';
 export { CircleAoEHitboxSpec, circleAoEHitbox, type CircleAoEPreviewStyle } from './CircleAoEHitboxSpec';
 export { TruncatedConeHitboxSpec, type TruncatedConeGeometry, type TruncatedConeMinRadiusResolver } from './TruncatedConeHitbox';
 export { ConvexQuadHitboxSpec, convexQuadHitbox } from './ConvexQuadHitbox';
+export { SquareTileAreaHitboxSpec, squareTileAreaHitbox, type SquareTileAreaPreviewStyle } from './SquareTileAreaHitboxSpec';

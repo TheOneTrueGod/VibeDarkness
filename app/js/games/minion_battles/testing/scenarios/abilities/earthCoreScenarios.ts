@@ -3,6 +3,7 @@ import type { EngineContext } from '../../../game/EngineContext';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { Resonance } from '../../../resources/Resonance';
 import { Movement } from '../../../resources/Movement';
+import { Rock } from '../../../resources/Rock';
 import {
     buildTinyBattleEngine,
     placePlayerAndDummy,
@@ -16,7 +17,11 @@ import { computeAbilityModifiersFromResearch } from '../../../../../researchTree
 import {
     EARTH_TREE_ID,
     EARTH_NODE_ROCK_SYNERGY_ENTOMBED,
+    EARTH_NODE_EARTH_CORE,
+    EARTH_NODE_GATHER_STONE,
+    EARTH_NODE_GATHER_STONE_RUBBLE_STRIKE,
 } from '../../../../../researchTrees/trees/earth';
+import { GATHER_STONE_RUBBLE_DAMAGE } from '../../../card_defs/05_earth_core/earthCoreConstants';
 import {
     grantEarthCoreArmourFromSource,
     getEarthCoreArmour as getEarthCoreArmourBySources,
@@ -730,5 +735,130 @@ export const earthCoreDeepResonanceScenario: ScenarioDefinition = {
     failureMessage(e) {
         const player = e.getLocalPlayerUnit();
         return `tremorsense radius=${player ? getTremorsenseRadiusTilesForUnit(player) : '?'}, expected 2.5`;
+    },
+};
+
+// ---------------------------------------------------------------------------
+// 0536 — Gather Stone: harvest rock tiles + (research) grind rubble
+//
+// Player at cell (3,5). Region center targeted at cell (4,5) => 3x3 covers
+// cols 3..5, rows 4..6.
+// ---------------------------------------------------------------------------
+
+const GS_PLAYER_POS = { x: 3 * CELL + CELL / 2, y: 5 * CELL + CELL / 2 }; // (140, 220)
+const GS_DUMMY_POS = { x: 4 * CELL + CELL / 2, y: 5 * CELL + CELL / 2 }; // (180, 220)
+const GS_TARGET_POS = { x: 4 * CELL + CELL / 2, y: 5 * CELL + CELL / 2 }; // region center at cell (4,5)
+const GS_ROCK_CELLS: Array<[number, number]> = [[3, 4], [4, 4], [5, 4], [4, 6]];
+
+export const earthCoreGatherStoneRockHarvestScenario: ScenarioDefinition = {
+    id: 'earth_core_0536_gather_stone_rock_harvest',
+    title: 'Gather Stone (0536) banks 1 rock per cracked tile',
+    category: 'ability',
+    maxDurationMs: 5000,
+    buildEngine() {
+        const engine = buildTinyBattleEngine({ gridW: 12, gridH: 10, localPlayerId: P, grass: true });
+        for (const [col, row] of GS_ROCK_CELLS) {
+            engine.terrainManager!.grid.set(col, row, TerrainType.Rock);
+        }
+        const { player } = placePlayerAndDummy(engine, {
+            playerId: P,
+            playerWorld: GS_PLAYER_POS,
+            dummyWorld: GS_DUMMY_POS,
+            abilities: ['0536'],
+        });
+        player.attachResource(new Rock(), engine.eventBus);
+        return engine;
+    },
+    getInitialOrders(engine) {
+        const u = engine.getLocalPlayerUnit()!;
+        return [{ unitId: u.id, abilityId: '0536', targets: [{ type: 'pixel' as const, position: GS_TARGET_POS }] }];
+    },
+    assertPass(e) {
+        const player = e.getLocalPlayerUnit();
+        return Boolean(player && player.getResource('rock')?.current === GS_ROCK_CELLS.length);
+    },
+    failureMessage(e) {
+        const player = e.getLocalPlayerUnit();
+        return `rock resource = ${player?.getResource('rock')?.current ?? '?'}, expected ${GS_ROCK_CELLS.length}`;
+    },
+};
+
+export const earthCoreGatherStoneRubbleStrikeScenario: ScenarioDefinition = {
+    id: 'earth_core_0536_gather_stone_rubble_strike',
+    title: 'Gather Stone (0536) + Grinding Debris hits an enemy on rubble for 6',
+    category: 'ability',
+    maxDurationMs: 5000,
+    buildEngine() {
+        const researchByPlayer = {
+            [P]: { [EARTH_TREE_ID]: [EARTH_NODE_EARTH_CORE, EARTH_NODE_GATHER_STONE, EARTH_NODE_GATHER_STONE_RUBBLE_STRIKE] },
+        };
+        const engine = buildTinyBattleEngine({
+            gridW: 12,
+            gridH: 10,
+            localPlayerId: P,
+            grass: true,
+            playerResearchTreesByPlayer: researchByPlayer,
+        });
+        engine.terrainManager!.grid.set(4, 5, TerrainType.Rubble);
+        placePlayerAndDummy(engine, {
+            playerId: P,
+            playerWorld: GS_PLAYER_POS,
+            dummyWorld: GS_DUMMY_POS,
+            abilities: ['0536'],
+            playerResearchTreesByPlayer: researchByPlayer,
+        });
+        return engine;
+    },
+    getInitialOrders(engine) {
+        const u = engine.getLocalPlayerUnit()!;
+        return [{ unitId: u.id, abilityId: '0536', targets: [{ type: 'pixel' as const, position: GS_TARGET_POS }] }];
+    },
+    assertPass(e) {
+        const d = e.getUnit('target_dummy');
+        return Boolean(d && d.maxHp - d.hp === GATHER_STONE_RUBBLE_DAMAGE);
+    },
+    failureMessage(e) {
+        const d = e.getUnit('target_dummy');
+        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected exactly ${GATHER_STONE_RUBBLE_DAMAGE}`;
+    },
+};
+
+export const earthCoreGatherStoneNoRubbleStrikeWithoutResearchScenario: ScenarioDefinition = {
+    id: 'earth_core_0536_gather_stone_no_rubble_without_research',
+    title: 'Gather Stone (0536) without Grinding Debris leaves rubble-standing enemies unharmed',
+    category: 'ability',
+    maxDurationMs: 5000,
+    buildEngine() {
+        const researchByPlayer = {
+            [P]: { [EARTH_TREE_ID]: [EARTH_NODE_EARTH_CORE, EARTH_NODE_GATHER_STONE] },
+        };
+        const engine = buildTinyBattleEngine({
+            gridW: 12,
+            gridH: 10,
+            localPlayerId: P,
+            grass: true,
+            playerResearchTreesByPlayer: researchByPlayer,
+        });
+        engine.terrainManager!.grid.set(4, 5, TerrainType.Rubble);
+        placePlayerAndDummy(engine, {
+            playerId: P,
+            playerWorld: GS_PLAYER_POS,
+            dummyWorld: GS_DUMMY_POS,
+            abilities: ['0536'],
+            playerResearchTreesByPlayer: researchByPlayer,
+        });
+        return engine;
+    },
+    getInitialOrders(engine) {
+        const u = engine.getLocalPlayerUnit()!;
+        return [{ unitId: u.id, abilityId: '0536', targets: [{ type: 'pixel' as const, position: GS_TARGET_POS }] }];
+    },
+    assertPass(e) {
+        const d = e.getUnit('target_dummy');
+        return Boolean(d && d.hp === d.maxHp);
+    },
+    failureMessage(e) {
+        const d = e.getUnit('target_dummy');
+        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected 0 (no Grinding Debris research)`;
     },
 };

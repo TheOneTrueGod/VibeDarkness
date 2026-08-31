@@ -55,6 +55,7 @@ import { AnchoredTremor } from '../card_defs/05_earth_core/0532_AnchoredTremor/0
 import { StoneyPunch } from '../card_defs/05_earth_core/0533_StoneyPunch/0533Ability';
 import { DiggingClawsAbility } from '../card_defs/05_earth_core/0534_DiggingClaws/0534Ability';
 import { EarthCoreThrowRock } from '../card_defs/05_earth_core/0535_EarthCoreThrowRock/0535Ability';
+import { GatherStoneAbility_0536 } from '../card_defs/05_earth_core/0536_GatherStone/0536Ability';
 import { ThornbinderBrambleAbility } from '../card_defs/0008_ThornbinderBramble/0008Ability';
 import { ThornStompAbility } from '../card_defs/0016_ThornStomp/0016Ability';
 import { HuskSeedBarrageAbility } from '../card_defs/0009_HuskSeedBarrage/0009Ability';
@@ -146,6 +147,7 @@ register(AnchoredTremor);
 register(StoneyPunch);
 register(DiggingClawsAbility);
 register(EarthCoreThrowRock);
+register(GatherStoneAbility_0536);
 register(ThornbinderBrambleAbility);
 register(ThornStompAbility);
 register(HuskSeedBarrageAbility);

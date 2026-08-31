@@ -8,6 +8,8 @@ export const EARTH_NODE_ROCK_SYNERGY_DAMAGE = 'earth_rock_damage';
 export const EARTH_NODE_ROCK_SYNERGY_ENTOMBED = 'earth_rock_entombed';
 export const EARTH_NODE_RAPID_THROW = 'rapid_throw';
 export const EARTH_NODE_EARTH_ATTUNED = 'earth_attuned';
+export const EARTH_NODE_GATHER_STONE = 'earth_gather_stone';
+export const EARTH_NODE_GATHER_STONE_RUBBLE_STRIKE = 'earth_gather_stone_rubble_strike';
 export const EARTH_RAPID_THROW_LEVELS = 3;
 export const EARTH_BURIED_ARSENAL_METAL_COST = 5;
 export const EARTH_STONE_SYNERGY_METAL_PER_LEVEL = 5;
@@ -16,6 +18,8 @@ export const EARTH_ATTUNED_LEVELS = 2;
 export const EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK = 1;
 export const EARTH_ATTUNED_MAX_MOVEMENT_ADD = EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK * EARTH_ATTUNED_LEVELS;
 export const EARTH_ATTUNED_METAL_COST = 15;
+export const EARTH_GATHER_STONE_METAL_COST = 25;
+export const EARTH_GATHER_STONE_RUBBLE_STRIKE_METAL_COST = 20;
 
 export const earthTree: ResearchTreeDef = {
     id: EARTH_TREE_ID,
@@ -138,6 +142,36 @@ export const earthTree: ResearchTreeDef = {
                 [PassiveStatKey.MaxMovementPoints]: { add: EARTH_ATTUNED_MAX_MOVEMENT_ADD },
                 [PassiveStatKey.MovementRegenPerRound]: { add: EARTH_ATTUNED_MAX_MOVEMENT_ADD },
             },
+        },
+        {
+            id: EARTH_NODE_GATHER_STONE,
+            title: 'Gather Stone',
+            description: 'Crack open a 3x3 patch of ground within 2 tiles, shattering intact rock into stockpiled pebbles ({1} rock per tile).',
+            flavorText: 'Take what the mountain already broke for you.',
+            order: 11,
+            tier: 13,
+            position: { x: 120, y: 470 },
+            prereqNodeIds: [EARTH_NODE_EARTH_CORE],
+            exclusiveWithNodeIds: [],
+            requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
+            cost: { metal: EARTH_GATHER_STONE_METAL_COST },
+            effects: [{ type: 'addCard', cardId: '0536' }],
+            modifiesAbility: { from: '0536', to: '0536' },
+        },
+        {
+            id: EARTH_NODE_GATHER_STONE_RUBBLE_STRIKE,
+            title: 'Grinding Debris',
+            description: 'Gather Stone also grinds loose rubble: enemies standing on a rubble tile in the area take {6} damage (each enemy once per cast).',
+            flavorText: 'The gravel bites back.',
+            order: 12,
+            tier: 14,
+            position: { x: 370, y: 470 },
+            prereqNodeIds: [EARTH_NODE_GATHER_STONE],
+            exclusiveWithNodeIds: [],
+            requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_GATHER_STONE] }],
+            cost: { metal: EARTH_GATHER_STONE_RUBBLE_STRIKE_METAL_COST },
+            effects: [],
+            modifiesAbility: { from: '0536', to: '0536' },
         },
     ],
 };

@@ -37,3 +37,46 @@ export const EARTH_CORE_STONE_DAMAGE_PER_INSTANCE = 20;
 
 /** Rock resource granted at mission start when Earth Core research is unlocked. */
 export const EARTH_CORE_MISSION_START_ROCK_AMOUNT = 6;
+
+// ---------------------------------------------------------------------------
+// Gather Stone (0536)
+// ---------------------------------------------------------------------------
+
+/**
+ * Durability dealt to each intact rock tile in Gather Stone's area.
+ * HARDCODED at half of EARTH_CORE_STONE_HEALTH (100) and frozen here on purpose:
+ * stone-health tuning must not silently rescale Gather Stone's harvest.
+ */
+export const GATHER_STONE_ROCK_DAMAGE = 50;
+
+/** Rock resource granted per rock tile Gather Stone damages. */
+export const GATHER_STONE_ROCK_RESOURCE_PER_TILE = 1;
+
+/** Research node 2: flat damage to an enemy standing on a rubble tile in the area. */
+export const GATHER_STONE_RUBBLE_DAMAGE = 6;
+
+/** Chebyshev tile distance Gather Stone's region center may sit from the caster tile (0..2). */
+export const GATHER_STONE_MAX_TILE_OFFSET = 2;
+
+/** Half-extent of Gather Stone's region in tiles (1 => 3x3). */
+export const GATHER_STONE_AREA_HALF_TILES = 1;
+
+/** Gather Stone total cast time; the harvest fires at the midpoint. */
+export const GATHER_STONE_CAST_TIME = 1.0;
+
+/** Seconds into the cast that Gather Stone's harvest resolves (midpoint of GATHER_STONE_CAST_TIME). */
+export const GATHER_STONE_PREFIRE = 0.5;
+
+/**
+ * Loose px tether for the select step. The authoritative range limit is
+ * GATHER_STONE_MAX_TILE_OFFSET, enforced by the shared tile-area snap helper in
+ * both the preview and doCardEffect; this value only has to be generous enough
+ * that the targeting tool's radial clamp never trims a legit far-corner pick.
+ */
+export const GATHER_STONE_CAST_RANGE = 180;
+
+/** Rounds before Gather Stone can be recast. */
+export const GATHER_STONE_RECHARGE_TURNS = 2;
+
+/** Base radius of Gather Stone's windup "pull inward" ring. */
+export const GATHER_STONE_RING_RADIUS = 24;
