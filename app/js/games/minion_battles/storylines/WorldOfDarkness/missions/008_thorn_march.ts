@@ -413,8 +413,8 @@ export class ThornMarchMission extends BaseMissionDef {
     ];
 
     missionId = ThornMarchMission.missionId;
-    /** Chapter 2 grid — top row, after Ember Threshold. */
-    mapPosition = { x: 760, y: 150 };
+    /** Chapter 2 grid — bottom-right slot, after Ember Threshold. */
+    mapPosition = { x: 760, y: 350 };
     missionType = 'battle' as const;
     description = 'March through the thornwood and dismantle the nest at its heart before the swarm spreads.';
     name = ThornMarchMission.nameStr;

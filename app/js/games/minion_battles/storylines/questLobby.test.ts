@@ -15,7 +15,10 @@ import {
     wonMissionIdsFromMissionResults,
 } from './questLobby';
 import { finalizeQuestPrepLoadout, queueCampaignReward, startQuestRun } from './questRun';
-import { FIND_THE_HERD_OF_BOARS } from './WorldOfDarkness/quests/find_the_herd_of_boars';
+import {
+    FIND_THE_HERD_OF_BOARS,
+    FIND_THE_HERD_OF_BOARS_FINALE_MISSION_ID,
+} from './WorldOfDarkness/quests/find_the_herd_of_boars';
 
 const CHARACTER = { id: 'char_q', equipment: ['004'] as const };
 const RUN_SEED = 42;
@@ -190,7 +193,7 @@ describe('questSlotMissionIds / questSlotPillStatus / questLobbyNamePrefix', () 
         expect(questSlotMissionIds(FIND_THE_HERD_OF_BOARS, null)).toEqual([
             'quest_boar_herd_north',
             'random_story',
-            'light_empowered',
+            FIND_THE_HERD_OF_BOARS_FINALE_MISSION_ID,
         ]);
     });
 

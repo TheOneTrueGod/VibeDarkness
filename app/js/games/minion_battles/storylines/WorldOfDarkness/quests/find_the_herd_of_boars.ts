@@ -1,5 +1,5 @@
 /**
- * Find the herd of boars — quest run: north push → random plains story → TBD finale.
+ * Find the herd of boars — quest run: north push → random plains story → Swarmling Nest finale.
  * Still tagged as a plumbing / optional fixture (not in the post–Core Awakening bank filters).
  */
 
@@ -10,9 +10,10 @@ import {
     PLAINS_RANDOM_STORY_CHALLENGE_MIN,
 } from '../questMissions/questMissionConstants';
 import { QUEST_BOAR_HERD_NORTH_MISSION_ID } from '../questMissions/quest_boar_herd_north';
+import { SWARMLING_NEST_MISSION_ID } from '../questMissions/swarmling_nest';
 
-/** Temporary third-slot stand-in until real herd finale content exists. */
-export const FIND_THE_HERD_OF_BOARS_SLOT3_PLACEHOLDER_MISSION_ID = 'light_empowered';
+/** Third slot: the Swarmling Nest arena finale. */
+export const FIND_THE_HERD_OF_BOARS_FINALE_MISSION_ID = SWARMLING_NEST_MISSION_ID;
 
 export const FIND_THE_HERD_OF_BOARS: QuestDef = {
     id: 'find_the_herd_of_boars',
@@ -30,6 +31,6 @@ export const FIND_THE_HERD_OF_BOARS: QuestDef = {
                 outcomeBias: 'beneficial',
             },
         },
-        { kind: 'fixed', missionId: FIND_THE_HERD_OF_BOARS_SLOT3_PLACEHOLDER_MISSION_ID },
+        { kind: 'fixed', missionId: FIND_THE_HERD_OF_BOARS_FINALE_MISSION_ID },
     ],
 };

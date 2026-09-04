@@ -11,7 +11,10 @@ import {
     startQuestRun,
     stayQuestRunOnMissionDefeat,
 } from './questRun';
-import { FIND_THE_HERD_OF_BOARS } from './WorldOfDarkness/quests/find_the_herd_of_boars';
+import {
+    FIND_THE_HERD_OF_BOARS,
+    FIND_THE_HERD_OF_BOARS_FINALE_MISSION_ID,
+} from './WorldOfDarkness/quests/find_the_herd_of_boars';
 
 const RUN_SEED_A = 42;
 const RUN_SEED_B = 99;
@@ -101,7 +104,10 @@ describe('startQuestRun', () => {
         expect(run.questCharacter.campaignRewards).toEqual([]);
         expect(run.resolvedSlots[0]).toEqual({ kind: 'fixed', missionId: 'quest_boar_herd_north' });
         expect(run.resolvedSlots[1]?.kind).toBe('generated');
-        expect(run.resolvedSlots[2]).toEqual({ kind: 'fixed', missionId: 'light_empowered' });
+        expect(run.resolvedSlots[2]).toEqual({
+            kind: 'fixed',
+            missionId: FIND_THE_HERD_OF_BOARS_FINALE_MISSION_ID,
+        });
         expect(getCurrentResolvedMission(run)?.missionId).toBe('quest_boar_herd_north');
     });
 

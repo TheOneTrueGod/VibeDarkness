@@ -74,7 +74,8 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
         expect(WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS).toBe(1);
         expect(WOD_EXAMPLE_QUEST_BANK.isSideQuest).toBe(true);
         expect(WOD_EXAMPLE_QUEST_BANK.unlockAfterMissionId).toBe('core_awakening');
-        expect(WOD_EXAMPLE_QUEST_BANK.mapPosition).toEqual({ x: 610, y: 550 });
+        // Top-left slot of the chapter 2 grid.
+        expect(WOD_EXAMPLE_QUEST_BANK.mapPosition).toEqual({ x: 100, y: 150 });
     });
 
     it('unlocks only after core_awakening victory', () => {

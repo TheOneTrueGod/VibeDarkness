@@ -8,14 +8,15 @@ export const WOD_POST_CORE_QUEST_BANK_ID = 'wod_post_core_awakening_quests';
 /** Required clears before this bank is "done" (content can raise later). */
 export const WOD_POST_CORE_QUEST_BANK_REQUIRED_CLEARS = 1;
 
-/** Core Awakening map position — bank sits directly below, same x. */
+/** Core Awakening map position (chapter 1). */
 export const CORE_AWAKENING_MAP_X = 610;
 export const CORE_AWAKENING_MAP_Y = 350;
+/** Legacy export; the bank now lives in the chapter 2 grid (top-left slot). */
 export const POST_CORE_QUEST_BANK_MAP_Y = 550;
 
 /**
- * Side-quest bank unlocked after Core Awakening.
- * Main path core_awakening → thornbinder_arena → south_gate_swarm stays ungated by this bank.
+ * Side-quest bank unlocked after Core Awakening. Sits in the top-left slot of the
+ * chapter 2 grid; the main path stays ungated by this bank.
  */
 export const WOD_POST_CORE_QUEST_BANK: QuestSlotBank = {
     id: WOD_POST_CORE_QUEST_BANK_ID,
@@ -24,7 +25,7 @@ export const WOD_POST_CORE_QUEST_BANK: QuestSlotBank = {
     requiredClears: WOD_POST_CORE_QUEST_BANK_REQUIRED_CLEARS,
     filters: { tags: [LOCATION_PLAINS_TAG, 'post_core_awakening'] },
     displaySlotCount: WOD_POST_CORE_QUEST_BANK_REQUIRED_CLEARS,
-    mapPosition: { x: CORE_AWAKENING_MAP_X, y: POST_CORE_QUEST_BANK_MAP_Y },
+    mapPosition: { x: 100, y: 150 },
     isSideQuest: true,
 };
 
@@ -66,6 +67,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
             numeral: 'II',
             title: 'The Surface',
             unlockAfterMissionId: 'core_awakening',
+            questBankIds: [WOD_POST_CORE_QUEST_BANK_ID],
             missionIds: [
                 'thornbinder_arena', 'south_gate_swarm', 'ember_threshold',
                 'thorn_march', 'thornling_rise', 'crystal_corruption', 'the_circle',

@@ -44,6 +44,7 @@ import {
     BOSS_ARENA_GRID_COL,
     BOSS_ARENA_GRID_ROW,
     ARENA_RING_SPAWN_POINTS,
+    ARENA_OUTSIDE_ROAD,
 } from './MapSegments/0_0_boss_arena';
 import {
     MAP_SEGMENT_50_51_SOUTH_GATE,
@@ -229,13 +230,22 @@ export function registerWorldOfDarknessSegments(): void {
     );
 
     // 0_0 Boss arena — encounter tile placed by layout composer, not world-grid adjacency
-    const arenaRingPOIs: MapSegmentPOI[] = ARENA_RING_SPAWN_POINTS.map((pt, index) => ({
-        id: `arena_ring_${index + 1}`,
-        label: `Arena Ring ${index + 1}`,
-        col: pt.col,
-        row: pt.row,
-        type: 'enemySpawn',
-    }));
+    const arenaRingPOIs: MapSegmentPOI[] = [
+        ...ARENA_RING_SPAWN_POINTS.map((pt, index) => ({
+            id: `arena_ring_${index + 1}`,
+            label: `Arena Ring ${index + 1}`,
+            col: pt.col,
+            row: pt.row,
+            type: 'enemySpawn' as const,
+        })),
+        {
+            id: 'outside_road',
+            label: 'Outside Road',
+            col: ARENA_OUTSIDE_ROAD.col,
+            row: ARENA_OUTSIDE_ROAD.row,
+            type: 'playerSpawn',
+        },
+    ];
     registerSegment(
         tsTerrainToSegmentData(
             BOSS_ARENA_SEGMENT_ID,

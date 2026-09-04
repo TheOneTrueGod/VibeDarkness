@@ -598,6 +598,8 @@ export interface CampaignChapterDef {
     title?: string;
     /** Mission ids in this chapter, in map display order. */
     missionIds: string[];
+    /** Quest slot bank ids shown on this chapter's Mission Map canvas. */
+    questBankIds?: string[];
     /**
      * Chapter unlocks once this mission has a victory result.
      * Omit on the first chapter (always unlocked).

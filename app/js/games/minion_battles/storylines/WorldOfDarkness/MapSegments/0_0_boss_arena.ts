@@ -20,6 +20,23 @@ export const ARENA_WEST_PATH_ROW_START = EAST_WALL_OPENING_ROW;
 export const ARENA_WEST_PATH_ROW_END = EAST_WALL_OPENING_ROW + EAST_WALL_OPENING_SIZE - 1;
 export const ARENA_WEST_PATH_COL_START = 0;
 export const ARENA_WEST_PATH_COL_END = BOSS_ARENA_CIRCLE_WEST_COL;
+/**
+ * `outside_road` point of interest: where a party walks in from the road, on the west
+ * dirt trail before it meets the ring. Missions that enter the arena from the west
+ * cluster their player spawns around this tile (see {@link ARENA_OUTSIDE_ROAD_SPAWN_POINTS}).
+ */
+export const ARENA_OUTSIDE_ROAD = { col: 1, row: ARENA_WEST_PATH_ROW_START } as const;
+/** Player spawn tiles on the west road, hugging {@link ARENA_OUTSIDE_ROAD} (all on the dirt trail). */
+export const ARENA_OUTSIDE_ROAD_SPAWN_POINTS: readonly { col: number; row: number }[] = [
+    { col: 1, row: ARENA_WEST_PATH_ROW_START },
+    { col: 2, row: ARENA_WEST_PATH_ROW_START },
+    { col: 3, row: ARENA_WEST_PATH_ROW_START },
+    { col: 4, row: ARENA_WEST_PATH_ROW_START },
+    { col: 1, row: ARENA_WEST_PATH_ROW_END },
+    { col: 2, row: ARENA_WEST_PATH_ROW_END },
+    { col: 3, row: ARENA_WEST_PATH_ROW_END },
+    { col: 4, row: ARENA_WEST_PATH_ROW_END },
+];
 /** Ring radius (tiles) for arena spawn crystals — inside the dirt disk, off the west cave mouth. */
 export const ARENA_RING_SPAWN_RADIUS = 6;
 /**

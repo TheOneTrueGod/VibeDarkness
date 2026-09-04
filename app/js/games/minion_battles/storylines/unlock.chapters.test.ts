@@ -109,6 +109,13 @@ describe('getUnlockedMissionIds — chapter gating', () => {
     });
 });
 
+describe('chapter composition', () => {
+    it('puts the Surface Quests bank in chapter 2, not chapter 1', () => {
+        expect(wodChapters[0].questBankIds ?? []).not.toContain('wod_post_core_awakening_quests');
+        expect(wodChapters[1].questBankIds).toContain('wod_post_core_awakening_quests');
+    });
+});
+
 describe('getAllMissionIdsInOrder — flat list still complete', () => {
     it('includes chapter 2 missions that no longer sit on an edge', () => {
         const ids = getAllMissionIdsInOrder(WorldOfDarknessStoryline);

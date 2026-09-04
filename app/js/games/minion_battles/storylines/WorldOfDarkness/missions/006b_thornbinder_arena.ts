@@ -185,8 +185,8 @@ export class ThornbinderArenaMission extends BaseMissionDef {
     campaignId = 'world_of_darkness';
     missionId = ThornbinderArenaMission.missionId;
     name = ThornbinderArenaMission.nameStr;
-    /** Chapter 2 grid — top row, entry mission. */
-    mapPosition = { x: 100, y: 150 };
+    /** Chapter 2 grid — top row (Surface Quests bank holds the top-left slot). */
+    mapPosition = { x: 320, y: 150 };
     missionType = 'battle' as const;
     description =
         'Thornbinders hold a dirt circle east of the cave. Dark crystals mark the ring — more will come.';

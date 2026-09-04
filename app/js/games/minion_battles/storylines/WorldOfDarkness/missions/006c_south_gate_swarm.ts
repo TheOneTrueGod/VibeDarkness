@@ -295,7 +295,7 @@ export class SouthGateSwarmMission extends BaseMissionDef {
 
     missionId = SouthGateSwarmMission.missionId;
     /** Chapter 2 grid — top row, after Thornbinder Arena. */
-    mapPosition = { x: 320, y: 150 };
+    mapPosition = { x: 540, y: 150 };
     missionType = 'battle' as const;
     description =
         'A swarm nest has taken root beyond the southern gate. Clear the opening pack and tear the nest down.';

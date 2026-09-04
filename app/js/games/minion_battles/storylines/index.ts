@@ -26,6 +26,7 @@ import { SURFACE_METAL_DEPOSIT } from './WorldOfDarkness/questMissions/surface_m
 import { QUEST_FIND_SOME_FOOD } from './WorldOfDarkness/questMissions/quest_find_some_food';
 import { QUEST_CRYSTAL_CORRUPTION } from './WorldOfDarkness/questMissions/quest_crystal_corruption';
 import { QUEST_BOAR_HERD_NORTH } from './WorldOfDarkness/questMissions/quest_boar_herd_north';
+import { SWARMLING_NEST } from './WorldOfDarkness/questMissions/swarmling_nest';
 
 /** Default mission when missionId is unknown (e.g. fallback in BattlePhase). */
 export { DARK_AWAKENING };
@@ -57,6 +58,7 @@ export const MISSION_MAP: Record<string, IBaseMissionDef> = {
     quest_find_some_food: QUEST_FIND_SOME_FOOD,
     quest_crystal_corruption: QUEST_CRYSTAL_CORRUPTION,
     quest_boar_herd_north: QUEST_BOAR_HERD_NORTH,
+    swarmling_nest: SWARMLING_NEST,
 };
 
 export type { CampaignChapterDef, StorylineDef, StorylineFlowEdge } from './types';

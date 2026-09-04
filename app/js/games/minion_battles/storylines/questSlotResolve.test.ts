@@ -6,7 +6,10 @@ import {
     resolveQuestSlots,
     slotSeedFor,
 } from './questSlotResolve';
-import { FIND_THE_HERD_OF_BOARS } from './WorldOfDarkness/quests/find_the_herd_of_boars';
+import {
+    FIND_THE_HERD_OF_BOARS,
+    FIND_THE_HERD_OF_BOARS_FINALE_MISSION_ID,
+} from './WorldOfDarkness/quests/find_the_herd_of_boars';
 import { SCAVENGE_THE_PLAINS } from './WorldOfDarkness/quests/scavenge_the_plains';
 import {
     LOCATION_PLAINS_TAG,
@@ -20,7 +23,7 @@ import { RANDOM_STORY_GENERATOR_ID } from './randomStoryResolve';
 const RUN_SEED = 42;
 
 describe('resolveQuestSlots — find_the_herd_of_boars', () => {
-    it('resolves fixed north push, generated plains story, and placeholder finale', () => {
+    it('resolves fixed north push, generated plains story, and the Swarmling Nest finale', () => {
         const resolved = resolveQuestSlots(FIND_THE_HERD_OF_BOARS, { runSeed: RUN_SEED });
         expect(resolved[0]).toEqual({ kind: 'fixed', missionId: 'quest_boar_herd_north' });
         expect(resolved[1]?.kind).toBe('generated');
@@ -30,7 +33,11 @@ describe('resolveQuestSlots — find_the_herd_of_boars', () => {
             );
             expect(resolved[1].generatorId).toBe(RANDOM_STORY_GENERATOR_ID);
         }
-        expect(resolved[2]).toEqual({ kind: 'fixed', missionId: 'light_empowered' });
+        expect(resolved[2]).toEqual({
+            kind: 'fixed',
+            missionId: FIND_THE_HERD_OF_BOARS_FINALE_MISSION_ID,
+        });
+        expect(FIND_THE_HERD_OF_BOARS_FINALE_MISSION_ID).toBe('swarmling_nest');
     });
 
     it('is stable for the same runSeed', () => {

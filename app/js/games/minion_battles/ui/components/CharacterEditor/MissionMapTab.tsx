@@ -544,18 +544,13 @@ export default function MissionMapTab({
         });
     }, [missionIds, storyline]);
 
-    const chapterMissionSet = useMemo(() => new Set(missionIds), [missionIds]);
-
     const questBanksOnMap = useMemo((): QuestSlotBank[] => {
         if (!storyline) return [];
-        return (storyline.questSlotBanks ?? []).filter(
-            (b) =>
-                b.mapPosition != null
-                && (chapters.length === 0
-                    || !b.unlockAfterMissionId
-                    || chapterMissionSet.has(b.unlockAfterMissionId)),
-        );
-    }, [storyline, chapters, chapterMissionSet]);
+        const banks = (storyline.questSlotBanks ?? []).filter((b) => b.mapPosition != null);
+        if (chapters.length === 0) return banks;
+        const bankIds = new Set(activeChapter?.questBankIds ?? []);
+        return banks.filter((b) => bankIds.has(b.id));
+    }, [storyline, chapters, activeChapter]);
 
     const unlockedQuestBankIds = useMemo(() => {
         if (!storyline) return new Set<string>();
