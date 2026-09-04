@@ -7,7 +7,7 @@ import { FIND_THE_HERD_OF_BOARS } from './WorldOfDarkness/quests/find_the_herd_o
 import { SCAVENGE_THE_PLAINS } from './WorldOfDarkness/quests/scavenge_the_plains';
 
 export const QUEST_MAP: Record<string, QuestDef> = {
-    /** Plumbing / fixed-slot fixture (not in the post-core bank filters). */
+    /** Plumbing / fixed-slot fixture; also a dedicated chapter 2 map node. */
     [FIND_THE_HERD_OF_BOARS.id]: FIND_THE_HERD_OF_BOARS,
     [SCAVENGE_THE_PLAINS.id]: SCAVENGE_THE_PLAINS,
 };

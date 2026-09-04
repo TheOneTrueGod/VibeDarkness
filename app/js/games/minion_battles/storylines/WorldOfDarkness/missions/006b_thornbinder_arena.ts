@@ -17,6 +17,7 @@ import type {
 } from '../../types';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { DarknessLevel } from '../../../game/darknessLevels';
+import { WOD_CH2_MAP_X_COL1, WOD_CH2_MAP_Y_ROW1 } from '../chapter2Map';
 import { ENEMY_DARK_WOLF, ENEMY_THORNBINDER } from '../../../constants/enemyConstants';
 import { NINJUTSU_3_FLURRY_PER_ROUND } from '../../../game/ninjutsu/ninjutsuConfig';
 import { DARK_CRYSTAL_TILE_DEFAULTS } from '../MapSegments/50_50_crystal_cave';
@@ -185,8 +186,8 @@ export class ThornbinderArenaMission extends BaseMissionDef {
     campaignId = 'world_of_darkness';
     missionId = ThornbinderArenaMission.missionId;
     name = ThornbinderArenaMission.nameStr;
-    /** Chapter 2 grid — top row (Surface Quests bank holds the top-left slot). */
-    mapPosition = { x: 320, y: 150 };
+    /** Chapter 2 grid — row 1, after Surface Quests picker. */
+    mapPosition = { x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW1 };
     missionType = 'battle' as const;
     description =
         'Thornbinders hold a dirt circle east of the cave. Dark crystals mark the ring — more will come.';

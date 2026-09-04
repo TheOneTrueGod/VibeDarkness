@@ -28,6 +28,7 @@ import { UnitTag } from '../../../game/units/unitTag';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
+import { WOD_CH2_MAP_X_COL3, WOD_CH2_MAP_Y_ROW1 } from '../chapter2Map';
 import {
 	CAVE_CAMPFIRE,
 	crystalSpecialTilesAt,
@@ -306,8 +307,8 @@ export class EmberThresholdMission extends BaseMissionDef {
 	];
 
 	missionId = EmberThresholdMission.missionId;
-	/** Chapter 2 grid — top-right slot, after South Gate Swarm. */
-	mapPosition = { x: 760, y: 150 };
+	/** Chapter 2 grid — row 1, after South Gate Swarm. */
+	mapPosition = { x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW1 };
 	missionType = 'battle' as const;
 	description = 'Hold the threshold against relentless waves of shadow creatures. The line must not break.';
 	name = EmberThresholdMission.nameStr;

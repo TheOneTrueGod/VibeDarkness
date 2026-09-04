@@ -25,6 +25,11 @@ export type QuestSlotBank = {
     mapPosition?: { x: number; y: number };
     /** When true, render like a side-mission node (dashed edge, side-quest label). */
     isSideQuest?: boolean;
+    /**
+     * When set, this map node is that specific quest (not a multi-quest picker).
+     * Eligibility and join-fill match this id instead of `filters`.
+     */
+    questDefId?: string;
 };
 
 export type QuestEligibilityFilters = {

@@ -12,6 +12,7 @@ import {
     BOSS_ARENA_SEGMENT_ID,
     BOSS_ARENA_SIZE,
 } from '../MapSegments/0_0_boss_arena';
+import { WOD_CH2_MAP_X_COL1, WOD_CH2_MAP_Y_ROW2 } from '../chapter2Map';
 
 export const CIRCLE_ARENA_LAYOUT: MissionMapLayout = [
     [{ kind: 'segment', id: BOSS_ARENA_SEGMENT_ID }, { kind: 'spawn' }],
@@ -29,7 +30,7 @@ export class CircleArenaMission extends BaseMissionDef {
     campaignId = 'world_of_darkness';
     missionId = CircleArenaMission.missionId;
     name = CircleArenaMission.nameStr;
-    mapPosition = { x: 320, y: 350 };
+    mapPosition = { x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW2 };
     isSideMission = true;
     missionType = 'boss' as const;
     description = 'A dirt circle in the grass. The cave you live in sits on its eastern edge.';

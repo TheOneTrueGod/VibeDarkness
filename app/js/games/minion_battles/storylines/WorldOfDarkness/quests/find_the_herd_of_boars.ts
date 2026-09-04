@@ -1,6 +1,6 @@
 /**
  * Find the herd of boars — quest run: north push → random plains story → Swarmling Nest finale.
- * Still tagged as a plumbing / optional fixture (not in the post–Core Awakening bank filters).
+ * Exposed as a dedicated chapter 2 map node (not in the Surface Quests picker).
  */
 
 import type { QuestDef } from '../../questTypes';
@@ -12,11 +12,13 @@ import {
 import { QUEST_BOAR_HERD_NORTH_MISSION_ID } from '../questMissions/quest_boar_herd_north';
 import { SWARMLING_NEST_MISSION_ID } from '../questMissions/swarmling_nest';
 
+export const FIND_THE_HERD_OF_BOARS_QUEST_ID = 'find_the_herd_of_boars';
+
 /** Third slot: the Swarmling Nest arena finale. */
 export const FIND_THE_HERD_OF_BOARS_FINALE_MISSION_ID = SWARMLING_NEST_MISSION_ID;
 
 export const FIND_THE_HERD_OF_BOARS: QuestDef = {
-    id: 'find_the_herd_of_boars',
+    id: FIND_THE_HERD_OF_BOARS_QUEST_ID,
     title: 'Find the herd of boars',
     campaignId: 'world_of_darkness',
     tags: ['placeholder', 'fixed_slots'],

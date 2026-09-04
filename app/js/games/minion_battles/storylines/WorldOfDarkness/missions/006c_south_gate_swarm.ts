@@ -28,6 +28,7 @@ import {
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
+import { WOD_CH2_MAP_X_COL2, WOD_CH2_MAP_Y_ROW1 } from '../chapter2Map';
 import {
     CAVE_CAMPFIRE,
     crystalSpecialTilesAt,
@@ -294,8 +295,8 @@ export class SouthGateSwarmMission extends BaseMissionDef {
     enemies: EnemySpawnDef[] = [];
 
     missionId = SouthGateSwarmMission.missionId;
-    /** Chapter 2 grid — top row, after Thornbinder Arena. */
-    mapPosition = { x: 540, y: 150 };
+    /** Chapter 2 grid — row 1, after Thornbinder Arena. */
+    mapPosition = { x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW1 };
     missionType = 'battle' as const;
     description =
         'A swarm nest has taken root beyond the southern gate. Clear the opening pack and tear the nest down.';

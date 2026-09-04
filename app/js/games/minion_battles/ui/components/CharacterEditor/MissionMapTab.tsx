@@ -29,8 +29,11 @@ import {
     getEligibleQuestsForBank,
     getOptionalEligibleQuests,
     listQuestVictoryResults,
+    isDedicatedQuestBank,
+    hasQuestVictoryResult,
 } from '../../../storylines/unlock';
 import type { QuestDef, QuestSlotBank } from '../../../storylines/questTypes';
+import { getQuestDef } from '../../../storylines/questRegistry';
 import { getResolvedMissionResearchRewards } from '../../../../../researchTrees/list';
 import ResearchRewardTinyChip from '../../../../../components/ResearchRewardTinyChip';
 import ResourcePill, { campaignResourceGains } from '../../../../../components/ResourcePill';
@@ -165,6 +168,23 @@ function QuestBankTooltip({
     const rawLeft = data.cx - TOOLTIP_W / 2;
     const left = Math.max(MARGIN, Math.min(rawLeft, window.innerWidth - TOOLTIP_W - MARGIN));
     const label = bank.title ?? bank.id.replace(/_/g, ' ');
+    const pinnedQuest = bank.questDefId ? getQuestDef(bank.questDefId) : undefined;
+    const isDedicated = isDedicatedQuestBank(bank);
+    const slotCount = pinnedQuest?.slots.length;
+
+    let description: string;
+    if (isLocked) {
+        description = isDedicated
+            ? 'This quest unlocks after Core Awakening. You can still run it from Optional / side quests.'
+            : 'This quest slot unlocks after Core Awakening. You can still run matching quests from Optional / side quests.';
+    } else if (isDedicated) {
+        const missionWord = slotCount === 1 ? 'mission' : 'missions';
+        description = slotCount != null
+            ? `${slotCount} ${missionWord}. Loadout freezes at prep for the whole run.`
+            : 'Loadout freezes at prep for the whole run.';
+    } else {
+        description = 'Choose a quest for this slot. Loadout freezes at prep for the whole run.';
+    }
 
     return createPortal(
         <div
@@ -186,15 +206,15 @@ function QuestBankTooltip({
                         )}
                         <span className="text-sm font-bold text-white leading-snug truncate">{label}</span>
                     </div>
+                    {!isDedicated && (
                     <span className="shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full border mt-0.5 text-zinc-300 border-zinc-600 bg-zinc-800/50">
                         {clears}/{bank.requiredClears}
                     </span>
+                    )}
                 </div>
                 <div className="px-4 py-2.5">
                     <p className="text-[13px] italic text-zinc-300 leading-relaxed">
-                        {isLocked
-                            ? 'This quest slot unlocks after Core Awakening. You can still run matching quests from Optional / side quests.'
-                            : 'Choose a quest for this slot. Loadout freezes at prep for the whole run.'}
+                        {description}
                     </p>
                 </div>
                 {data.pinned && (
@@ -204,10 +224,12 @@ function QuestBankTooltip({
                                 data-testid="quest-bank-tooltip-locked"
                                 className="text-[12px] text-amber-200/90"
                             >
-                                Locked — beat Core Awakening to assign a quest here.
+                                Locked — beat Core Awakening to {isDedicated ? 'start this quest' : 'assign a quest here'}.
                             </p>
                         ) : eligibleQuests.length === 0 ? (
-                            <p className="text-[12px] text-zinc-500 italic">No eligible quests left.</p>
+                            <p className="text-[12px] text-zinc-500 italic">
+                                {isDedicated ? 'Quest complete.' : 'No eligible quests left.'}
+                            </p>
                         ) : (
                             eligibleQuests.map((q) => {
                                 const isActive = activeQuestDefId === q.id;
@@ -656,16 +678,17 @@ export default function MissionMapTab({
         (bank: QuestSlotBank, svgPosX: number, svgPosY: number) => {
             setFocusedBankId(bank.id);
             setTooltip(null);
-            if (hasQuestsContent) {
-                // Quests live on a separate pane — jump there instead of a map-anchored tooltip.
+            const showOnMap = isDedicatedQuestBank(bank) || !hasQuestsContent;
+            if (showOnMap) {
+                const { x, y } = svgToViewport(svgPosX, svgPosY);
+                setBankTooltip({ bankId: bank.id, cx: x, cy: y, pinned: true });
+            } else {
+                // Picker banks live on a separate pane — jump there instead of a map-anchored tooltip.
                 setActivePane('quests');
                 setBankTooltip(null);
                 requestAnimationFrame(() => {
                     questBanksPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 });
-            } else {
-                const { x, y } = svgToViewport(svgPosX, svgPosY);
-                setBankTooltip({ bankId: bank.id, cx: x, cy: y, pinned: true });
             }
         },
         [svgToViewport, hasQuestsContent],
@@ -1046,7 +1069,9 @@ export default function MissionMapTab({
                     const isPressed = pressedId === nodeId;
                     const r = SIDE_CIRCLE_R;
                     const nodeScale = isPressed ? 0.92 : isHovered ? 1.1 : 1;
-                    const finished = clears >= bank.requiredClears;
+                    const finished = isDedicatedQuestBank(bank) && bank.questDefId
+                        ? hasQuestVictoryResult(bank.questDefId, questResults)
+                        : clears >= bank.requiredClears;
                     const label = bank.title ?? bank.id.replace(/_/g, ' ');
 
                     const isBankPinned = bankTooltip?.pinned && bankTooltip.bankId === bank.id;
@@ -1120,6 +1145,7 @@ export default function MissionMapTab({
                                 >
                                     {label}
                                 </text>
+                                {!isDedicatedQuestBank(bank) && (
                                 <text
                                     y={r + 26}
                                     textAnchor="middle"
@@ -1129,6 +1155,7 @@ export default function MissionMapTab({
                                 >
                                     {clears}/{bank.requiredClears}
                                 </text>
+                                )}
                             </g>
                         </g>
                     );

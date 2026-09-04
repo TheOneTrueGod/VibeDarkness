@@ -10,8 +10,13 @@ import {
     getUnlockedMissionIds,
     isChapterUnlocked,
 } from './unlock';
-import { WorldOfDarknessStoryline } from './WorldOfDarkness/WorldOfDarkness';
 import { BunkerAtTheEndStoryline } from './BunkerAtTheEnd/BunkerAtTheEnd';
+import {
+    WOD_FIND_THE_HERD_OF_BOARS_BANK_ID,
+    WOD_POST_CORE_QUEST_BANK_ID,
+    WOD_SCAVENGE_THE_PLAINS_BANK_ID,
+    WorldOfDarknessStoryline,
+} from './WorldOfDarkness/WorldOfDarkness';
 
 function victory(missionId: string): MissionResult {
     return { missionId, result: 'victory' };
@@ -111,8 +116,17 @@ describe('getUnlockedMissionIds — chapter gating', () => {
 
 describe('chapter composition', () => {
     it('puts the Surface Quests bank in chapter 2, not chapter 1', () => {
-        expect(wodChapters[0].questBankIds ?? []).not.toContain('wod_post_core_awakening_quests');
-        expect(wodChapters[1].questBankIds).toContain('wod_post_core_awakening_quests');
+        expect(wodChapters[0].questBankIds ?? []).not.toContain(WOD_POST_CORE_QUEST_BANK_ID);
+        expect(wodChapters[1].questBankIds).toContain(WOD_POST_CORE_QUEST_BANK_ID);
+    });
+
+    it('puts dedicated chapter 2 side-quest nodes on chapter 2 only', () => {
+        expect(wodChapters[0].questBankIds ?? []).toEqual([]);
+        expect(wodChapters[1].questBankIds).toEqual([
+            WOD_FIND_THE_HERD_OF_BOARS_BANK_ID,
+            WOD_SCAVENGE_THE_PLAINS_BANK_ID,
+            WOD_POST_CORE_QUEST_BANK_ID,
+        ]);
     });
 });
 

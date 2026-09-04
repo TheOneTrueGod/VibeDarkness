@@ -206,6 +206,19 @@ export function getAllMissionIdsInOrder(storyline: StorylineDef): string[] {
 
 // --- Quest slot banks -------------------------------------------------------
 
+/** True when the bank is a single pinned quest (not a multi-quest picker). */
+export function isDedicatedQuestBank(bank: QuestSlotBank): boolean {
+    return bank.questDefId != null && bank.questDefId !== '';
+}
+
+/** Bank accepts this quest: pinned id, or filter match for picker banks. */
+export function bankAcceptsQuest(bank: QuestSlotBank, quest: QuestDef): boolean {
+    if (isDedicatedQuestBank(bank)) {
+        return quest.id === bank.questDefId;
+    }
+    return questMatchesFilters(quest, bank.filters);
+}
+
 /** True when the bank has no mission gate, or that mission has a non-defeat result. */
 export function isQuestSlotBankUnlocked(
     bank: QuestSlotBank,
@@ -258,7 +271,8 @@ export function hasQuestVictoryResult(
 }
 
 /**
- * Eligible quests for a bank: campaign match + filters, not yet victory-cleared.
+ * Eligible quests for a bank: campaign match + accept (pinned id or filters),
+ * not yet victory-cleared.
  * Pass `quests` to override registry (tests); default uses QUEST_MAP via listQuestsForCampaign.
  */
 export function getEligibleQuestsForBank(
@@ -270,7 +284,7 @@ export function getEligibleQuestsForBank(
     return quests.filter(
         (q) =>
             q.campaignId === campaignId
-            && questMatchesFilters(q, bank.filters)
+            && bankAcceptsQuest(bank, q)
             && !hasQuestVictoryResult(q.id, questResults),
     );
 }
@@ -345,8 +359,8 @@ export type QuestMapPlacement = {
 };
 
 /**
- * Join-fill: on a new victory QuestResult, place into the first open bank whose filters
- * accept the quest; otherwise optional/side.
+ * Join-fill: on a new victory QuestResult, place into the first open bank that
+ * accepts the quest (pinned `questDefId` or filter match); otherwise optional/side.
  *
  * - If this questDefId already has a victory in existingResults, keep that placement
  *   (or optional if the prior row had none).
@@ -374,7 +388,7 @@ export function placeQuestResultOnMap(
     }
 
     for (const bank of banks) {
-        if (!questMatchesFilters(quest, bank.filters)) continue;
+        if (!bankAcceptsQuest(bank, quest)) continue;
         if (!isQuestBankOpenForJoinFill(bank, existingResults)) continue;
         return { placement: 'bank', bankId: bank.id };
     }

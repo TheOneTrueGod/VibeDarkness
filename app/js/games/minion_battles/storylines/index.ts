@@ -75,6 +75,8 @@ export {
     isSideMissionId,
     isQuestSlotBankUnlocked,
     getUnlockedQuestSlotBanks,
+    isDedicatedQuestBank,
+    bankAcceptsQuest,
     questMatchesFilters,
     hasQuestVictoryResult,
     getEligibleQuestsForBank,
