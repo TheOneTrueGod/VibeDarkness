@@ -16,6 +16,11 @@ import {
     FRAMES_PER_PIP,
     abilityDurationSecondsToTicks,
 } from './itsTimelineMath';
+import {
+    isEscapeItsUndoHotkey,
+    isItsUndoDisabled,
+    isKeyboardEventFromTextInput,
+} from './itsUndoHotkey';
 
 /** Fixed row height so the turn-indicator plaque does not grow. */
 const ITS_CONTROLS_HEIGHT_PX = 20;
@@ -34,6 +39,8 @@ interface ItsIconButtonProps {
     iconClassName: string;
     /** When true, render {@link label} as visible text beside the icon. */
     showText?: boolean;
+    tooltip?: string;
+    ariaKeyShortcuts?: string;
 }
 
 /** Compact icon control with a fast hover tooltip. */
@@ -45,6 +52,8 @@ function ItsIconButton({
     className,
     iconClassName,
     showText = false,
+    tooltip,
+    ariaKeyShortcuts,
 }: ItsIconButtonProps) {
     const [tooltipVisible, setTooltipVisible] = useState(false);
     const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -65,6 +74,7 @@ function ItsIconButton({
                 ref={buttonRef}
                 type="button"
                 aria-label={label}
+                aria-keyshortcuts={ariaKeyShortcuts}
                 disabled={disabled}
                 onClick={onClick}
                 onMouseEnter={() => {
@@ -96,7 +106,7 @@ function ItsIconButton({
                 open={tooltipVisible}
                 className="px-1.5 py-0.5 text-[10px] whitespace-nowrap"
             >
-                {label}
+                {tooltip ?? label}
             </AnchoredPortalTooltip>
         </div>
     );
@@ -320,7 +330,36 @@ export default function ITSTimelineControls({
     const isRewindCrossfade = rewinding || scrub != null || rewindToken != null;
     const doneDisabled = state !== 'done' || isRewindCrossfade;
     const hasCollectedTargets = Object.keys(sessionRef.current?.interactiveTargeting.collectedTargets ?? {}).length > 0;
-    const undoDisabled = isRewindCrossfade || (ONLY_UNDO_AT_START && hasCollectedTargets);
+    const undoDisabled = isItsUndoDisabled({
+        isRewindCrossfade,
+        onlyUndoAtStart: ONLY_UNDO_AT_START,
+        hasCollectedTargets,
+    });
+
+    const undoDisabledRef = useRef(undoDisabled);
+    undoDisabledRef.current = undoDisabled;
+
+    const performUndo = () => {
+        if (undoDisabledRef.current) return;
+        setOrderSubmitFailed(false);
+        const s = sessionRef.current;
+        if (s) void s.interactiveTargeting.reset(s);
+    };
+
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (!isEscapeItsUndoHotkey(e)) return;
+            if (isKeyboardEventFromTextInput(e)) return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            if (undoDisabledRef.current) return;
+            setOrderSubmitFailed(false);
+            const s = sessionRef.current;
+            if (s) void s.interactiveTargeting.reset(s);
+        };
+        window.addEventListener('keydown', onKeyDown, true);
+        return () => window.removeEventListener('keydown', onKeyDown, true);
+    }, [sessionRef, setOrderSubmitFailed]);
 
     return (
         <div
@@ -330,16 +369,14 @@ export default function ITSTimelineControls({
         >
             <ItsIconButton
                 label="Undo"
+                tooltip="Undo (Esc)"
+                ariaKeyShortcuts="Escape"
                 icon={Undo2}
                 showText
                 className="border-red-700 bg-red-900/60"
                 iconClassName="text-red-300"
                 disabled={undoDisabled}
-                onClick={() => {
-                    setOrderSubmitFailed(false);
-                    const s = sessionRef.current;
-                    if (s) void s.interactiveTargeting.reset(s);
-                }}
+                onClick={performUndo}
             />
             <ItsIconButton
                 label="Replay"

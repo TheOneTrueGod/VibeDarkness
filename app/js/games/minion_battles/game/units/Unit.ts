@@ -14,7 +14,7 @@ import { type TeamId } from '../teams';
 import type { ActiveAbility } from '../types';
 import type { AbilityNote } from '../AbilityNote';
 import type { Resource } from '../../resources/Resource';
-import type { EventBus } from '../EventBus';
+import type { DamageApplyOptions, EventBus } from '../EventBus';
 import { refundAbilityCost, spendAbilityCost, type AbilityStatic } from '../../abilities/Ability';
 import {
     addRecoveryChargeToUnitAbilities,
@@ -377,13 +377,18 @@ export class Unit extends GameObject {
     }
 
     /** Apply damage to this unit. Returns actual damage dealt. */
-    takeDamage(amount: number, sourceUnitId: string | null, eventBus: EventBus): number {
-        return applyDamageToUnit(this, amount, sourceUnitId, eventBus);
+    takeDamage(amount: number, sourceUnitId: string | null, eventBus: EventBus, opts?: DamageApplyOptions): number {
+        return applyDamageToUnit(this, amount, sourceUnitId, eventBus, opts);
     }
 
     /** Apply damage to this unit, returning the full shield/armour/hp breakdown. */
-    takeDamageDetailed(amount: number, sourceUnitId: string | null, eventBus: EventBus): DamageBreakdown {
-        return applyDamageToUnitDetailed(this, amount, sourceUnitId, eventBus);
+    takeDamageDetailed(
+        amount: number,
+        sourceUnitId: string | null,
+        eventBus: EventBus,
+        opts?: DamageApplyOptions,
+    ): DamageBreakdown {
+        return applyDamageToUnitDetailed(this, amount, sourceUnitId, eventBus, opts);
     }
 
     /** Set movement state with a grid-cell path. Clears movement if path is empty. Sets walkIntent; clears pathInvalidated. */

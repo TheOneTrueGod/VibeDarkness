@@ -1,5 +1,5 @@
 import type { Unit } from './Unit';
-import type { EventBus } from '../EventBus';
+import type { DamageApplyOptions, EventBus } from '../EventBus';
 import type { EngineContext } from '../EngineContext';
 import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
 import { applyDamageToEarthCoreArmour } from '../../abilities/earthCoreArmour';
@@ -23,7 +23,13 @@ const NO_DAMAGE_BREAKDOWN: DamageBreakdown = { hpDamage: 0, armourRemoved: 0, sh
  * consumed before earth-core armour (shields are per-cast/temporary; armour is longer-lived).
  * `applyDamageToUnit`/`Unit.takeDamage` remain thin wrappers around this for existing callers.
  */
-export function applyDamageToUnitDetailed(unit: Unit, amount: number, sourceUnitId: string | null, eventBus: EventBus): DamageBreakdown {
+export function applyDamageToUnitDetailed(
+    unit: Unit,
+    amount: number,
+    sourceUnitId: string | null,
+    eventBus: EventBus,
+    opts?: DamageApplyOptions,
+): DamageBreakdown {
     if (!unit.isAlive()) return NO_DAMAGE_BREAKDOWN;
     if (unit.isInvincible()) return NO_DAMAGE_BREAKDOWN;
     if (unit.isSpawning()) return NO_DAMAGE_BREAKDOWN;
@@ -68,6 +74,7 @@ export function applyDamageToUnitDetailed(unit: Unit, amount: number, sourceUnit
         hpDamage: actual,
         armourRemoved: armourDamage.armourRemoved,
         shieldAbsorbed: shieldDamage.shieldAbsorbed,
+        visualKind: opts?.visualKind,
     });
 
     if (unit.hp <= 0) {
@@ -89,8 +96,14 @@ export function applyDamageToUnitDetailed(unit: Unit, amount: number, sourceUnit
 }
 
 /** Apply damage to a unit. Returns actual hp damage dealt (thin wrapper — see `applyDamageToUnitDetailed`). */
-export function applyDamageToUnit(unit: Unit, amount: number, sourceUnitId: string | null, eventBus: EventBus): number {
-    return applyDamageToUnitDetailed(unit, amount, sourceUnitId, eventBus).hpDamage;
+export function applyDamageToUnit(
+    unit: Unit,
+    amount: number,
+    sourceUnitId: string | null,
+    eventBus: EventBus,
+    opts?: DamageApplyOptions,
+): number {
+    return applyDamageToUnitDetailed(unit, amount, sourceUnitId, eventBus, opts).hpDamage;
 }
 
 export function tickUnitDarknessCorruption(unit: Unit, dt: number, engine: EngineContext): void {

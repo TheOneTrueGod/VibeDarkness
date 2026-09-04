@@ -47,6 +47,7 @@ The code currently lives in `GameEngine.ts` and related files; this folder is th
 |------|------|
 | `game/lighting/lightTypes.ts` | `LightType`, render priority, tints, visibility helper |
 | `game/lighting/dayLightDamage.ts` | DayLight DoT constants + tick |
+| `game/lighting/dayLightVfx.ts` | DayLight combat VFX constants, disk-pulse envelope, tile collect |
 | `game/LightGrid.ts` | Stateless multi-channel math: flat zone + FireLight falloff, overlap methods, void pool |
 | `game/lightTileGrid/LightTileGrid.ts` | Persistent animated channels + void; checkpoint migrate from legacy single-channel |
 | `game/lightSources/LightSource.ts` | Runtime emitter: amount, radius, `lightType`, decay |

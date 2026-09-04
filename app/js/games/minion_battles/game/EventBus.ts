@@ -28,7 +28,16 @@ export type GameEventType =
     | 'control_released'
     | 'forced_movement_unit_collision'
     | 'forced_movement_terrain_collision'
-    | 'unit_slam_landed';
+    | 'unit_slam_landed'
+    | 'daylight_damage_pulse';
+
+/** Optional combat VFX hint — does not change damage rules. */
+export const DAMAGE_VISUAL_KIND_DAYLIGHT = 'daylight' as const;
+export type DamageVisualKind = typeof DAMAGE_VISUAL_KIND_DAYLIGHT;
+
+export interface DamageApplyOptions {
+    visualKind?: DamageVisualKind;
+}
 
 export interface DamageTakenEvent {
     unitId: string;
@@ -42,7 +51,12 @@ export interface DamageTakenEvent {
     armourRemoved?: number;
     /** Shield-buff hp absorbed by this damage instance (consumed before armour). */
     shieldAbsorbed?: number;
+    /** Renderer-only hint (e.g. DayLight gold numbers). */
+    visualKind?: DamageVisualKind;
 }
+
+/** Fired once per DayLight DoT pulse that damaged at least one unit. Not serialized. */
+export type DayLightDamagePulseEvent = Record<string, never>;
 
 export interface TurnStartEvent {
     unitId: string;
@@ -192,6 +206,7 @@ export type GameEventDataMap = {
     forced_movement_unit_collision: ForcedMovementUnitCollisionEvent;
     forced_movement_terrain_collision: ForcedMovementTerrainCollisionEvent;
     unit_slam_landed: UnitSlamLandedEvent;
+    daylight_damage_pulse: DayLightDamagePulseEvent;
 };
 
 type EventCallback<T extends GameEventType> = (data: GameEventDataMap[T]) => void;

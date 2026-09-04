@@ -8,6 +8,7 @@ import type { EngineContext } from '../EngineContext';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { isDarkCreatureCharacterId } from '../units/unit_defs/unitDef';
 import { DOT_TICKS_PER_ROUND } from '../dotTick';
+import { DAMAGE_VISUAL_KIND_DAYLIGHT } from '../EventBus';
 
 /** Damage dealt per 1.0 DayLight intensity each damage pulse. */
 export const DAYLIGHT_DAMAGE_PER_INTENSITY = 2;
@@ -31,6 +32,7 @@ export function tickDayLightDamage(
 ): void {
     if (dotMilestoneIndex % DAYLIGHT_DAMAGE_DOT_STRIDE !== 0) return;
 
+    let damagedAny = false;
     for (const unit of units) {
         if (!unit.isAlive()) continue;
         if (!isDarkCreatureCharacterId(unit.characterId)) continue;
@@ -42,6 +44,10 @@ export function tickDayLightDamage(
 
         const damage = Math.floor(DAYLIGHT_DAMAGE_PER_INTENSITY * intensity);
         if (damage <= 0) continue;
-        unit.takeDamage(damage, null, engine.eventBus);
+        unit.takeDamage(damage, null, engine.eventBus, { visualKind: DAMAGE_VISUAL_KIND_DAYLIGHT });
+        damagedAny = true;
+    }
+    if (damagedAny) {
+        engine.eventBus.emit('daylight_damage_pulse', {});
     }
 }

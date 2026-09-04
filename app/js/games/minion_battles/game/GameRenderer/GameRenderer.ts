@@ -85,6 +85,9 @@ export class GameRenderer {
 	private readonly damageTakenBound = (data: DamageTakenEvent) => this.unitRenderer.onDamageTaken(data);
 	private readonly terrainStoneDamagedBound = (e: TerrainStoneDamagedEvent) =>
 		this.terrainRenderer.invalidateTile(e.col, e.row);
+	private readonly daylightPulseBound = () => {
+		if (this.eventBusSource) this.overlayRenderer.beginDayLightDiskPulse(this.eventBusSource);
+	};
 
 	constructor() {
 		this.app = new Application();
@@ -119,6 +122,7 @@ export class GameRenderer {
 		if (!engine || this.eventBusSource !== engine) return;
 		engine.eventBus.off('damage_taken', this.damageTakenBound);
 		engine.eventBus.off('terrain_stone_damaged', this.terrainStoneDamagedBound);
+		engine.eventBus.off('daylight_damage_pulse', this.daylightPulseBound);
 		this.eventBusSource = null;
 		this.unitRenderer.clearHitFlashes();
 		this.overlayRenderer.reset();
@@ -253,11 +257,13 @@ export class GameRenderer {
 				if (this.eventBusSource) {
 					this.eventBusSource.eventBus.off('damage_taken', this.damageTakenBound);
 					this.eventBusSource.eventBus.off('terrain_stone_damaged', this.terrainStoneDamagedBound);
+					this.eventBusSource.eventBus.off('daylight_damage_pulse', this.daylightPulseBound);
 				}
 				this.eventBusSource = engine;
 				if (engine) {
 					engine.eventBus.on('damage_taken', this.damageTakenBound);
 					engine.eventBus.on('terrain_stone_damaged', this.terrainStoneDamagedBound);
+					engine.eventBus.on('daylight_damage_pulse', this.daylightPulseBound);
 				}
 				this.unitRenderer.clearHitFlashes();
 				this.overlayRenderer.reset();
@@ -281,7 +287,7 @@ export class GameRenderer {
 				const overlayVisible = isRenderLayerVisible('overlay');
 				this.overlayRenderer.setLayerVisible(overlayVisible);
 				if (overlayVisible) {
-					this.overlayRenderer.render(engine);
+					this.overlayRenderer.render(engine, realDt ?? 0);
 				}
 			});
 
@@ -367,6 +373,7 @@ export class GameRenderer {
 		if (!this.initialized) return;
 		if (this.eventBusSource) {
 			this.eventBusSource.eventBus.off('damage_taken', this.damageTakenBound);
+			this.eventBusSource.eventBus.off('daylight_damage_pulse', this.daylightPulseBound);
 			this.eventBusSource = null;
 		}
 		this.terrainRenderer.destroy();

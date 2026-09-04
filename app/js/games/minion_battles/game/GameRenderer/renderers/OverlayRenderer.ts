@@ -8,9 +8,17 @@ import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { debugSettingsSnapshot } from '../../../../../debug/debugSettingsStore';
 import { LIGHT_TYPE_OVERLAY_RGB, type LightType } from '../../lighting/lightTypes';
+import {
+    collectDayLightTiles,
+    DAYLIGHT_DAMAGE_NUMBER_COLOR,
+    dayLightDiskPulseAlpha,
+    dayLightDiskPulseDurationSec,
+    type DayLightTile,
+} from '../../lighting/dayLightVfx';
 
 const Z_CRYSTAL_AURA = 2;
 const Z_DARKNESS = 5;
+const Z_DAYLIGHT_PULSE = 6;
 const Z_FOG_TINT = 13;
 
 /** Soft typed-light wash alpha when a non-FireLight type dominates. */
@@ -22,6 +30,10 @@ export class OverlayRenderer {
     private fogFilter: FogFilter | null = null;
     private crystalAuraGraphics: Graphics = new Graphics();
     private darkCrystalAuraGraphics: Graphics = new Graphics();
+    private dayLightPulseGraphics: Graphics = new Graphics();
+    private dayLightPulseTiles: DayLightTile[] = [];
+    private dayLightPulseElapsed = 0;
+    private dayLightPulseActive = false;
 
     private lastOverlayTick: number = -1;
     private lastRenderTime: number = 0;
@@ -90,6 +102,11 @@ export class OverlayRenderer {
         if (!this.darkCrystalAuraGraphics.parent) {
             this.gameContainer.addChildAt(this.darkCrystalAuraGraphics, 1);
         }
+        this.dayLightPulseGraphics.zIndex = Z_DAYLIGHT_PULSE;
+        this.dayLightPulseGraphics.label = 'dayLightDiskPulse';
+        if (!this.dayLightPulseGraphics.parent) {
+            this.gameContainer.addChildAt(this.dayLightPulseGraphics, 1);
+        }
     }
 
     /** True when the light system is active this frame (enemies in darkness should be hidden). */
@@ -112,6 +129,7 @@ export class OverlayRenderer {
         this.lastOverlayTick = -1;
         this.lightSystemActive = false;
         this.lastRenderTime = 0;
+        this.clearDayLightDiskPulse();
     }
 
     setLayerVisible(visible: boolean): void {
@@ -120,10 +138,27 @@ export class OverlayRenderer {
         if (this.fogTintSprite) this.fogTintSprite.visible = false;
         this.crystalAuraGraphics.visible = false;
         this.darkCrystalAuraGraphics.visible = false;
+        this.dayLightPulseGraphics.visible = false;
+    }
+
+    /**
+     * Snapshot the current DayLight disk and start a fade-in/out wash.
+     * Renderer-local only — not serialized. Advanced with render-frame dt (plays while paused).
+     */
+    beginDayLightDiskPulse(engine: GameEngine): void {
+        const grid = engine.terrainManager?.grid;
+        if (!grid) return;
+        const tiles = collectDayLightTiles(grid.width, grid.height, (col, row) =>
+            engine.getLightIntensity(col, row, 'DayLight'),
+        );
+        if (tiles.length === 0) return;
+        this.dayLightPulseTiles = tiles;
+        this.dayLightPulseElapsed = 0;
+        this.dayLightPulseActive = true;
     }
 
     /** Main render call. Handles darkness overlay, fog animation, and crystal auras. */
-    render(engine: GameEngine): void {
+    render(engine: GameEngine, realDt = 0): void {
         this.currentEngine = engine;
 
         if (this.lightLevelEnabled && engine.terrainManager && debugSettingsSnapshot.darkOverlayEnabled) {
@@ -146,6 +181,7 @@ export class OverlayRenderer {
         this.crystalAuraGraphics.clear();
         this.crystalAuraGraphics.visible = false;
         this.renderDarkCrystalAura(engine);
+        this.advanceDayLightDiskPulse(realDt);
     }
 
     private updateDarknessOverlay(engine: GameEngine): void {
@@ -209,6 +245,42 @@ export class OverlayRenderer {
         ctx.fillRect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
     }
 
+    private clearDayLightDiskPulse(): void {
+        this.dayLightPulseActive = false;
+        this.dayLightPulseElapsed = 0;
+        this.dayLightPulseTiles = [];
+        this.dayLightPulseGraphics.clear();
+        this.dayLightPulseGraphics.visible = false;
+    }
+
+    private advanceDayLightDiskPulse(realDt: number): void {
+        if (!this.dayLightPulseActive) {
+            this.dayLightPulseGraphics.visible = false;
+            return;
+        }
+        this.dayLightPulseElapsed += Math.max(0, realDt);
+        const alpha = dayLightDiskPulseAlpha(this.dayLightPulseElapsed);
+        if (alpha <= 0 && this.dayLightPulseElapsed >= dayLightDiskPulseDurationSec()) {
+            this.clearDayLightDiskPulse();
+            return;
+        }
+        this.drawDayLightDiskPulse(alpha);
+    }
+
+    private drawDayLightDiskPulse(alpha: number): void {
+        const g = this.dayLightPulseGraphics;
+        g.clear();
+        if (alpha <= 0 || this.dayLightPulseTiles.length === 0) {
+            g.visible = false;
+            return;
+        }
+        g.visible = true;
+        for (const { col, row } of this.dayLightPulseTiles) {
+            g.rect(col * CELL_SIZE, row * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        }
+        g.fill({ color: DAYLIGHT_DAMAGE_NUMBER_COLOR, alpha });
+    }
+
     private renderDarkCrystalAura(engine: GameEngine): void {
         this.darkCrystalAuraGraphics.clear();
         const grid = engine.terrainManager?.grid;
@@ -270,5 +342,6 @@ export class OverlayRenderer {
         }
         this.crystalAuraGraphics.destroy();
         this.darkCrystalAuraGraphics.destroy();
+        this.dayLightPulseGraphics.destroy();
     }
 }
