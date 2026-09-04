@@ -39,9 +39,26 @@ describe('CircleAoEHitboxSpec', () => {
     it('resolveTargets includes a unit inside the AoE at clamped aim', () => {
         const caster = makeUnit('caster', 0, 0, 'player');
         const inside = makeUnit('inside', 100, 0);
-        const outside = makeUnit('outside', 100 + AOE_RADIUS + 20, 0);
+        const outside = makeUnit('outside', 100 + AOE_RADIUS + DEFAULT_UNIT_RADIUS + 5, 0);
         const targets = hitbox.resolveTargets(caster, { x: 100, y: 0 }, [caster, inside, outside]);
         expect(targets.map((u) => u.id)).toEqual(['inside']);
+    });
+
+    it('resolveTargets includes a unit whose body overlaps the AoE even if its center is outside', () => {
+        const caster = makeUnit('caster', 0, 0, 'player');
+        const overlapOffset = 5;
+        const overlapping = makeUnit('overlap', 100 + AOE_RADIUS + overlapOffset, 0);
+        const fullyOutside = makeUnit(
+            'outside',
+            100 + AOE_RADIUS + DEFAULT_UNIT_RADIUS + overlapOffset,
+            0,
+        );
+        const targets = hitbox.resolveTargets(
+            caster,
+            { x: 100, y: 0 },
+            [caster, overlapping, fullyOutside],
+        );
+        expect(targets.map((u) => u.id)).toEqual(['overlap']);
     });
 
     it('resolveTargets clamps aim to cast range before testing the AoE', () => {

@@ -1,12 +1,13 @@
 /**
  * Ground-targeted circle AoE: cast-range clamp + impact circle at clamped aim.
- * Lock-on candidates / hits are units overlapping the AoE circle (not the cast ring).
+ * Lock-on candidates / hits are units whose collision circle overlaps the AoE
+ * disk (not the cast ring). Overlap uses aoeRadius + unit.radius.
  */
 
 import type { Unit } from '../game/units/Unit';
 import type { IAbilityPreviewGraphics } from '../abilities/Ability';
 import { clampToMaxRange, drawClampedLine, drawCrosshair } from '../abilities/previewHelpers';
-import { CircleHitbox } from './CircleHitbox';
+import { CircleHitbox, unitOverlapsCircle } from './CircleHitbox';
 import type { HitboxEngineContext, HitboxPreviewCaster } from './Hitbox';
 import { HitboxSpec } from './HitboxSpec';
 
@@ -67,15 +68,12 @@ export class CircleAoEHitboxSpec extends HitboxSpec {
         units: Unit[],
         excludeId?: string,
     ): Unit[] {
-        const r = this.aoeRadius;
         const result: Unit[] = [];
         for (const unit of units) {
             if (!unit.active || !unit.isAlive()) continue;
             if (excludeId != null && unit.id === excludeId) continue;
-            // Match CircleHitbox combat geometry (center-to-center ≤ aoeRadius).
-            const dx = unit.x - center.x;
-            const dy = unit.y - center.y;
-            if (Math.hypot(dx, dy) <= r) {
+            // Match CircleHitbox combat geometry (disk overlaps unit circle).
+            if (unitOverlapsCircle(unit, center.x, center.y, this.aoeRadius)) {
                 result.push(unit);
             }
         }

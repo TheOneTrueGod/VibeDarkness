@@ -3,6 +3,16 @@ import { Hitbox, type HitboxEngineContext } from './Hitbox';
 import { areEnemies } from '../game/teams';
 import { filterCombatHitTargets } from '../abilities/combatTargetFilter';
 
+/** True when `unit`'s collision circle overlaps a disk of `radius` at (cx, cy). */
+export function unitOverlapsCircle(
+    unit: Pick<Unit, 'x' | 'y' | 'radius'>,
+    cx: number,
+    cy: number,
+    radius: number,
+): boolean {
+    return Math.hypot(unit.x - cx, unit.y - cy) <= radius + unit.radius;
+}
+
 export abstract class CircleHitbox extends Hitbox {
     static getUnitsInHitbox(
         engine: HitboxEngineContext,
@@ -16,9 +26,7 @@ export abstract class CircleHitbox extends Hitbox {
             if (!unit.active || !unit.isAlive() || unit.isSpawning()) continue;
             if (!areEnemies(caster.teamId, unit.teamId)) continue;
             if (unit.id === caster.id) continue;
-            const dx = unit.x - cx;
-            const dy = unit.y - cy;
-            if (Math.sqrt(dx * dx + dy * dy) <= range) {
+            if (unitOverlapsCircle(unit, cx, cy, range)) {
                 result.push(unit);
             }
         }

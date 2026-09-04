@@ -6,7 +6,7 @@
  */
 
 import { AbilityPhase } from '../../../abilities/abilityTimings';
-import { circleAoEHitbox } from '../../../hitboxes';
+import { circleAoEHitbox, unitOverlapsCircle } from '../../../hitboxes';
 import type { HitboxEngineContext } from '../../../hitboxes/Hitbox';
 import type { EngineWithLight } from '../../../abilities/brightKeyword';
 import { type CardDef } from '../../types';
@@ -170,9 +170,7 @@ export const LightBlastAbility = defineAbility({
                 for (const unit of eng.units) {
                     if (!unit.isAlive()) continue;
                     if (areEnemies(unit.teamId, ctx.caster.teamId)) continue;
-                    const dx = unit.x - pos.x;
-                    const dy = unit.y - pos.y;
-                    if (dx * dx + dy * dy > LIGHT_BLAST_RADIUS * LIGHT_BLAST_RADIUS) continue;
+                    if (!unitOverlapsCircle(unit, pos.x, pos.y, LIGHT_BLAST_RADIUS)) continue;
                     applyHeal(unit, LIGHT_BLAST_HEAL, healPenaltyPct);
                 }
 

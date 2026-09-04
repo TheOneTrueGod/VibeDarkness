@@ -32,6 +32,8 @@ Hitboxes live in `app/js/games/minion_battles/hitboxes/` and provide reusable hi
 
 Disk AoE around a point. Prefer this (or `damageEnemiesInCircle`) for circle combat impacts.
 
+**`getUnitsInHitbox`** — Units whose collision circle overlaps the disk (`dist ≤ aoeRadius + unit.radius`); combat filter applied at the end. Preview/lock-on for ground AoE (`CircleAoEHitboxSpec`) uses the same overlap.
+
 ### ThickLineHitbox
 
 A line segment with thickness. Use for melee swings, lunges, and linear AoE. Import from the `hitboxes/` barrel export.
