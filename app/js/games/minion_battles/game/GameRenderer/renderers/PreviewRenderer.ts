@@ -110,7 +110,9 @@ function renderSelectTargetDef(
         )
         : null;
 
-    const effectiveCaster: HitboxPreviewCaster = state ? { x: state.virtualX, y: state.virtualY } : caster;
+    const effectiveCaster: HitboxPreviewCaster = state
+        ? { x: state.virtualX, y: state.virtualY, abilityModifiers: caster.abilityModifiers }
+        : caster;
     const effectiveAim = state ? state.adjustedMouse : aimPoint;
 
     // Team/self-filter *before* the hitbox picks its nearest-candidate crosshair — hitboxes

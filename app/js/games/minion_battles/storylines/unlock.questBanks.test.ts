@@ -96,7 +96,7 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
         });
     });
 
-    it('pins Find the herd of boars and Scavenge the Plains as dedicated top-row nodes', () => {
+    it('pins Swarmling Source and Scavenge the Plains as dedicated top-row nodes', () => {
         expect(isDedicatedQuestBank(WOD_FIND_THE_HERD_OF_BOARS_BANK)).toBe(true);
         expect(WOD_FIND_THE_HERD_OF_BOARS_BANK.questDefId).toBe(FIND_THE_HERD_OF_BOARS.id);
         expect(WOD_FIND_THE_HERD_OF_BOARS_BANK.mapPosition).toEqual({

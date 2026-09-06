@@ -138,6 +138,10 @@ describe('getCrowdSpacingRole', () => {
         expect(getCrowdSpacingRole(makeUnit({ tags: [UnitTag.Boss] }))).toBe('soft');
     });
 
+    it('marks Structure-tagged units as anchors', () => {
+        expect(getCrowdSpacingRole(makeUnit({ tags: [UnitTag.Structure] }))).toBe('anchor');
+    });
+
     it('marks knockback slide and controlled units as anchors (not air)', () => {
         const slide = withKnockback(makeUnit(), KNOCKBACK_AIR_TIME + 0.05);
         expect(getCrowdSpacingRole(slide)).toBe('anchor');

@@ -1,5 +1,5 @@
 /**
- * Quest: Find the herd of boars — slot 1 smoke (map goal + cave-mouth opening pack).
+ * Swarmling Source — slot 1 smoke (map goal + cave-mouth opening pack).
  */
 
 import { describe, expect, it } from 'vitest';
@@ -13,6 +13,8 @@ import {
     QUEST_BOAR_HERD_NORTH,
     QUEST_BOAR_HERD_NORTH_GOAL_MAX_DISTANCE,
     QUEST_BOAR_HERD_NORTH_MISSION_ID,
+    QUEST_BOAR_HERD_NORTH_NAME,
+    QUEST_BOAR_HERD_NORTH_OBJECTIVE_LABEL,
     QUEST_BOAR_HERD_NORTH_SLIME_MAX_UNITS,
     QUEST_BOAR_HERD_NORTH_SLIME_SPAWN_COUNT,
     QUEST_BOAR_HERD_NORTH_SPAWN_RADIUS_TILES,
@@ -27,8 +29,10 @@ registerWorldOfDarknessSegments();
 describe('quest_boar_herd_north', () => {
     it('uses a unique quest mission id and north-reach victory', () => {
         expect(QUEST_BOAR_HERD_NORTH.missionId).toBe(QUEST_BOAR_HERD_NORTH_MISSION_ID);
+        expect(QUEST_BOAR_HERD_NORTH.name).toBe(QUEST_BOAR_HERD_NORTH_NAME);
         expect(QUEST_BOAR_HERD_NORTH.mapPosition).toBeUndefined();
         const reach = QUEST_BOAR_HERD_NORTH.battleObjectives?.find((o) => o.id === 'reach_north');
+        expect(reach?.label).toBe(QUEST_BOAR_HERD_NORTH_OBJECTIVE_LABEL);
         expect(reach?.toComplete).toEqual({
             type: 'allUnitsNearPosition',
             col: expect.any(Number),

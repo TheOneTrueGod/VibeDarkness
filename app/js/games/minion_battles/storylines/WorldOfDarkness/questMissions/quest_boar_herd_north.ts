@@ -1,5 +1,5 @@
 /**
- * Quest: Find the herd of boars — slot 1.
+ * Swarmling Source — slot 1.
  * Same stacked cliff + crystal-cave map as light_empowered, but the goal is to
  * push to the northernmost path. Opening pack waits outside the cave mouth;
  * denser wolf/slime pressure continues from the north.
@@ -30,6 +30,8 @@ import {
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 
 export const QUEST_BOAR_HERD_NORTH_MISSION_ID = 'quest_boar_herd_north';
+export const QUEST_BOAR_HERD_NORTH_NAME = 'Push North';
+export const QUEST_BOAR_HERD_NORTH_OBJECTIVE_LABEL = 'Reach the northern path';
 
 const SEGMENT_COLS = 22;
 const SEGMENT_ROWS = 22;
@@ -173,7 +175,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
 const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
     {
         id: 'reach_north',
-        label: 'Push north — reach the northernmost path with your whole party',
+        label: QUEST_BOAR_HERD_NORTH_OBJECTIVE_LABEL,
         toComplete: {
             type: 'allUnitsNearPosition',
             col: NORTH_GOAL_COL,
@@ -214,14 +216,14 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: "Tracks cut north along the cliff path—heavy, fresh, and many. If a herd is out there, that is where it went.",
+            text: "Swarmling tracks cut north along the cliff path—fresh and many. Follow them.",
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },
         {
             type: 'dialogue',
             speakerId: '1',
-            text: "The darkness between here and the northern path is thick with wolves. Push through. Reach the high trail.",
+            text: "The darkness between here and the northern path is thick. Push through.",
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },
@@ -233,7 +235,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: "You crest the northern path. The tracks keep going—but for now, you hold the high ground.",
+            text: "The high trail is yours. The swarm's trail keeps going.",
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },
@@ -246,10 +248,9 @@ export class QuestBoarHerdNorthMission extends BaseMissionDef {
     missionId = QUEST_BOAR_HERD_NORTH_MISSION_ID;
     mapPosition = undefined;
     missionType = 'battle' as const;
-    description =
-        'Fight north along the cliff path. Reach the northernmost trail while denser packs press from ahead.';
+    description = 'Follow the swarm north along the cliff path.';
     campaignId = 'world_of_darkness';
-    name = 'Quest: Push north';
+    name = QUEST_BOAR_HERD_NORTH_NAME;
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;
     /** Opening pack is filled in {@link initializeGameState} (needs battle RNG). */

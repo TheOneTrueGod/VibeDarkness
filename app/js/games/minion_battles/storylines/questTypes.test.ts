@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { getQuestDef, listQuestsForCampaign, QUEST_MAP } from './questRegistry';
 import type { MissionSlotSpec, QuestDef } from './questTypes';
-import { FIND_THE_HERD_OF_BOARS } from './WorldOfDarkness/quests/find_the_herd_of_boars';
+import {
+    FIND_THE_HERD_OF_BOARS,
+    FIND_THE_HERD_OF_BOARS_TITLE,
+} from './WorldOfDarkness/quests/find_the_herd_of_boars';
 import { SCAVENGE_THE_PLAINS } from './WorldOfDarkness/quests/scavenge_the_plains';
 
 describe('QUEST_MAP / registry', () => {
@@ -60,7 +63,7 @@ describe('QuestDef shape smoke', () => {
     it('example satisfies QuestDef fields used by the registry', () => {
         const q: QuestDef = FIND_THE_HERD_OF_BOARS;
         expect(q.campaignId).toBe('world_of_darkness');
-        expect(q.title).toBe('Find the herd of boars');
+        expect(q.title).toBe(FIND_THE_HERD_OF_BOARS_TITLE);
         expect(Array.isArray(q.slots)).toBe(true);
     });
 });

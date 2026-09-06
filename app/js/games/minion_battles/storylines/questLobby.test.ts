@@ -206,7 +206,7 @@ describe('questSlotMissionIds / questSlotPillStatus / questLobbyNamePrefix', () 
 
     it('builds the quest lobby name prefix used for teardown matching', () => {
         expect(questLobbyNamePrefix(FIND_THE_HERD_OF_BOARS.title)).toBe(
-            'Quest: Find the herd of boars',
+            `Quest: ${FIND_THE_HERD_OF_BOARS.title}`,
         );
     });
 });

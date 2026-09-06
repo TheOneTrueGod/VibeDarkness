@@ -6,6 +6,8 @@ import { TerrainType } from '../../../terrain/TerrainType';
 import { registerWorldOfDarknessSegments } from '../registerSegments';
 import { SWARM_NEST_CHARACTER_ID } from '../../../game/lanternite/swarmNestTick';
 import {
+    ARENA_DARK_CRYSTAL_LIGHT_AMOUNT,
+    ARENA_DARK_CRYSTAL_LIGHT_RADIUS,
     CENTRE_SWARMLING_COUNT,
     CENTRE_WOLF_COUNT,
     RING_BURST_WAVE_COUNT,
@@ -13,6 +15,8 @@ import {
     SWARM_NEST_SPAWN_INTERVAL_SEC,
     SWARMLING_NEST,
     SWARMLING_NEST_MISSION_ID,
+    SWARMLING_NEST_NAME,
+    SWARMLING_NEST_OBJECTIVE_LABEL,
 } from './swarmling_nest';
 import {
     ARENA_RING_SPAWN_POINTS,
@@ -41,6 +45,8 @@ function initMission(seed: number): { engine: GameEngine; cellSize: number } {
 describe('SwarmlingNestMission', () => {
     it('is registered under its mission id', () => {
         expect(SWARMLING_NEST.missionId).toBe(SWARMLING_NEST_MISSION_ID);
+        expect(SWARMLING_NEST.name).toBe(SWARMLING_NEST_NAME);
+        expect(SWARMLING_NEST.battleObjectives?.[0]?.label).toBe(SWARMLING_NEST_OBJECTIVE_LABEL);
         expect(SWARMLING_NEST_MISSION_ID).toBe('swarmling_nest');
     });
 
@@ -77,6 +83,8 @@ describe('SwarmlingNestMission', () => {
             expect(tile, `crystal at ${pt.col},${pt.row}`).toBeDefined();
             expect(tile!.defId).toBe('DarkCrystal');
             expect(tile!.emitsLight?.lightType).toBe('DarkLight');
+            expect(tile!.emitsLight?.lightAmount).toBe(ARENA_DARK_CRYSTAL_LIGHT_AMOUNT);
+            expect(tile!.emitsLight?.radius).toBe(ARENA_DARK_CRYSTAL_LIGHT_RADIUS);
         }
         engine.destroy();
     });

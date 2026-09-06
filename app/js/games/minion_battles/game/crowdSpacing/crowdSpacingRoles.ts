@@ -41,7 +41,7 @@ export function isCrowdSpacingForcedMover(unit: Unit): boolean {
  * Dead / inactive / spawning / airborne → exempt (not in the grid).
  * Mid dash/lunge (`abilityOwnsMovementThisTick`) → exempt so the caster ghosts through the pack.
  * CrowdSpacingExempt tag → exempt (fixed test-fixture probes; see UnitTag doc).
- * Players, CrowdSpacingAnchor tag, and forced-movers → anchor.
+ * Players, CrowdSpacingAnchor, Structure, and forced-movers → anchor.
  * Everyone else grounded and alive → soft.
  */
 export function getCrowdSpacingRole(unit: Unit): CrowdSpacingRole {
@@ -52,6 +52,7 @@ export function getCrowdSpacingRole(unit: Unit): CrowdSpacingRole {
     if (
         unit.isPlayerControlled() ||
         hasUnitTag(unit, UnitTag.CrowdSpacingAnchor) ||
+        hasUnitTag(unit, UnitTag.Structure) ||
         isCrowdSpacingForcedMover(unit)
     ) {
         return 'anchor';

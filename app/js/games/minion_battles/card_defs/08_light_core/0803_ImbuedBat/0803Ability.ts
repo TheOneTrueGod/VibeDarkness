@@ -16,7 +16,7 @@ import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { perpendicularSwingHitbox } from '../../../hitboxes';
 import { TruncatedConeHitboxSpec } from '../../../hitboxes/TruncatedConeHitbox';
-import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
+import { IMBUED_BAT_ABILITY_ID, LIGHT_CONE_MAX_RANGE, getImbuedBatLightConeMaxRange } from './0803Constants';
 import { DEFAULT_MELEE_LUNGE } from '../../../game/units/unit_defs/unitConstants';
 import { LIGHT_IMBUE_BUFF_TYPE } from '../../../buffs/LightImbueBuff';
 import { Effect } from '../../../game/effects/Effect';
@@ -41,7 +41,7 @@ import { areEnemies } from '../../../game/teams';
 
 // ---- Constants ----
 
-const CARD_ID = `${formatGroupId(AbilityGroupId.Light)}03`;
+const CARD_ID = IMBUED_BAT_ABILITY_ID;
 
 const BASE_MAX_RANGE = 25;
 const SWING_LENGTH = 80;
@@ -53,7 +53,7 @@ const PRIMARY_DAMAGE = 18;
 const KNOCKBACK_TIER = 3;
 
 /** Forward light burst from the caster; wide arc opens toward the bat swing. */
-export const LIGHT_CONE_MAX_RANGE = 100;
+export { LIGHT_CONE_MAX_RANGE, IMBUED_BAT_ABILITY_ID, getImbuedBatLightConeMaxRange } from './0803Constants';
 export const LIGHT_CONE_HALF_ARC_RAD = Math.PI / 4;
 export const LIGHT_CONE_DAMAGE = 12;
 const LIGHT_CONE_MAX_TARGETS = 5;
@@ -93,6 +93,7 @@ const IMBUED_BAT_LIGHT_CONE = new TruncatedConeHitboxSpec(
         const ep = IMBUED_BAT_HITBOX.getEndpoints(caster, aimX, aimY);
         return Math.atan2(ep.centerY - caster.y, ep.centerX - caster.x);
     },
+    (caster) => getImbuedBatLightConeMaxRange(caster),
 );
 
 // ---- Animation profile ----

@@ -40,6 +40,8 @@ export interface AbilityModifier {
     explosionDamageFlat?: number;
     /** Multiplier applied to the ability's lingering duration (e.g. Gravity Locus field). Merged by product. */
     durationMult?: number;
+    /** Multiplier applied to the ability's reach / cone outer radius. Merged by product. */
+    rangeMult?: number;
     /** Knockback tier granted or raised on this ability (take max when merging). */
     knockbackTier?: number;
     /** Tags to add to this ability for this unit (e.g. 'Entombed'). String to avoid circular imports — use AbilityTag values. */

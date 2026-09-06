@@ -19,7 +19,7 @@ import {
 /** Quest slot bank after Core Awakening (side-quest picker on the Mission Map). */
 export const WOD_POST_CORE_QUEST_BANK_ID = 'wod_post_core_awakening_quests';
 
-/** Dedicated map node for Find the herd of boars. */
+/** Dedicated map node for Swarmling Source. */
 export const WOD_FIND_THE_HERD_OF_BOARS_BANK_ID = 'wod_find_the_herd_of_boars';
 
 /** Dedicated map node for Scavenge the Plains. */
@@ -61,7 +61,7 @@ export const WOD_POST_CORE_QUEST_BANK: QuestSlotBank = {
     isSideQuest: true,
 };
 
-/** Map node that starts Find the herd of boars (full quest run). */
+/** Map node that starts Swarmling Source (full quest run). */
 export const WOD_FIND_THE_HERD_OF_BOARS_BANK: QuestSlotBank = {
     id: WOD_FIND_THE_HERD_OF_BOARS_BANK_ID,
     title: FIND_THE_HERD_OF_BOARS.title,

@@ -15,7 +15,7 @@ import type {
 } from './types';
 import { isDraftResearchNode } from './types';
 import { RESEARCH_TREES } from './list';
-import { getNodeLevel, getNodeMaxLevels } from './passiveBonuses';
+import { DEFAULT_PASSIVE_MULT, getMultBonusAtLevel, getNodeLevel, getNodeMaxLevels } from './passiveBonuses';
 
 export interface ResearchContext {
     account: AccountState;
@@ -565,6 +565,7 @@ function mergeModifierInto(entry: AbilityModifier, modifier: AbilityModifier): v
     if (modifier.maxUsesFlat !== undefined) entry.maxUsesFlat = (entry.maxUsesFlat ?? 0) + modifier.maxUsesFlat;
     if (modifier.explosionDamageFlat !== undefined) entry.explosionDamageFlat = (entry.explosionDamageFlat ?? 0) + modifier.explosionDamageFlat;
     if (modifier.durationMult !== undefined) entry.durationMult = (entry.durationMult ?? 1) * modifier.durationMult;
+    if (modifier.rangeMult !== undefined) entry.rangeMult = (entry.rangeMult ?? 1) * modifier.rangeMult;
     if (modifier.knockbackTier !== undefined) entry.knockbackTier = Math.max(entry.knockbackTier ?? 0, modifier.knockbackTier);
     if (modifier.addTags?.length) {
         const existing = entry.addTags ? [...entry.addTags] : [];
@@ -587,12 +588,16 @@ function mergeModifierInto(entry: AbilityModifier, modifier: AbilityModifier): v
 function scaleAbilityResearchModifierByLevel(
     modifier: AbilityResearchModifier,
     level: number,
+    maxLevels: number,
 ): AbilityModifier {
     const { abilitySpecification: _spec, ...fields } = modifier;
     const scaled: AbilityModifier = { ...fields };
     if (fields.comboMax !== undefined) {
         // Template comboMax is per-level unit (1); chain allows (level + 1) throws total.
         scaled.comboMax = fields.comboMax * (level + 1);
+    }
+    if (fields.rangeMult !== undefined) {
+        scaled.rangeMult = DEFAULT_PASSIVE_MULT + getMultBonusAtLevel(fields.rangeMult, level, maxLevels);
     }
     return scaled;
 }
@@ -621,7 +626,7 @@ export function computeAbilityModifiersFromResearch(
             const level = getNodeLevel(tree.id, node.id, trees, researchNodeLevels);
             for (const modifier of node.abilityResearchModifiers ?? []) {
                 const spec = modifier.abilitySpecification;
-                const scaled = scaleAbilityResearchModifierByLevel(modifier, level);
+                const scaled = scaleAbilityResearchModifierByLevel(modifier, level, getNodeMaxLevels(node));
                 if (spec.type === 'abilityId') {
                     const entry = result[spec.abilityId] ?? (result[spec.abilityId] = {});
                     mergeModifierInto(entry, scaled);

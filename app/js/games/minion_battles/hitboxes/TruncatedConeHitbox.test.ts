@@ -40,6 +40,21 @@ describe('TruncatedConeHitboxSpec', () => {
         expect(hits.map((u) => u.id)).toEqual(['mid']);
     });
 
+    it('uses resolveMaxR when provided', () => {
+        const scaledOuter = outerR * 2;
+        const scaled = new TruncatedConeHitboxSpec(
+            outerR,
+            halfArc,
+            () => 0,
+            3,
+            () => ({ x: originX, y: 0 }),
+            undefined,
+            () => scaledOuter,
+        );
+        const geom = scaled.getGeometry(caster, 200, 0);
+        expect(geom.maxR).toBe(scaledOuter);
+    });
+
     it('excludes units outside the arc', () => {
         const units = [makeUnit('side', 90, 90, 'enemy')];
         const hits = hitbox.resolveHits({ units } as never, caster as Unit, 200, 0);

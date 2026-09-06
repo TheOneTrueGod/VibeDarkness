@@ -16,6 +16,8 @@ export interface HitboxEngineContext {
 export interface HitboxPreviewCaster {
     x: number;
     y: number;
+    /** Copied onto lunge virtual casters so cone/range previews can read research mods. */
+    abilityModifiers?: { [abilityId: string]: { rangeMult?: number } };
 }
 
 /**

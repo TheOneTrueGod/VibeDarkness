@@ -1,5 +1,5 @@
 /**
- * Swarmling Nest — finale of the "Find the herd of boars" quest.
+ * Swarmling Nest — finale of the Swarmling Source quest.
  *
  * Arena: the 0_0 dirt circle, entered from the west road (the `outside_road` POI).
  * A swarm nest squats dead centre with a starting knot of wolves and swarmlings;
@@ -38,6 +38,8 @@ import {
 } from '../MapSegments/0_0_boss_arena';
 
 export const SWARMLING_NEST_MISSION_ID = 'swarmling_nest';
+export const SWARMLING_NEST_NAME = 'Swarmling Nest';
+export const SWARMLING_NEST_OBJECTIVE_LABEL = 'Destroy the nest';
 
 const COLS = BOSS_ARENA_SIZE;
 const ROWS = BOSS_ARENA_SIZE;
@@ -78,8 +80,8 @@ export const SWARM_NEST_SPAWN_INTERVAL_SEC = 3;
 export const SWARM_NEST_SPAWN_COUNT = 2;
 
 // --- Darklight crystals on the ring --------------------------------------
-const ARENA_DARK_CRYSTAL_LIGHT_AMOUNT = 3;
-const ARENA_DARK_CRYSTAL_LIGHT_RADIUS = 3;
+export const ARENA_DARK_CRYSTAL_LIGHT_AMOUNT = 3;
+export const ARENA_DARK_CRYSTAL_LIGHT_RADIUS = 5;
 
 const CENTRE_WORLD = gridToWorld(BOSS_ARENA_CENTER.col, BOSS_ARENA_CENTER.row);
 
@@ -173,7 +175,7 @@ const VICTORY_EVENT: LevelEvent = {
 const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
     {
         id: 'clear_arena',
-        label: 'Destroy the swarmling nest and everything it spat out',
+        label: SWARMLING_NEST_OBJECTIVE_LABEL,
         toComplete: { type: 'eliminateAllEnemies' },
         showObjectiveMarker: {
             enable: true,
@@ -188,7 +190,7 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: "The boar tracks end at a dirt circle off the road. Something else got here first—the ground is boiling with swarmlings, and a nest sits dead centre.",
+            text: "The trail ends at a dirt circle. Swarmlings boil out of a nest at the centre.",
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },
@@ -200,7 +202,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: "The nest splits open and goes still. Whatever the boars were running from will not be running after them now.",
+            text: "The nest splits open and goes still. You have a feeling that this is just the beginning.",
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },
@@ -213,10 +215,9 @@ export class SwarmlingNestMission extends BaseMissionDef {
     missionId = SWARMLING_NEST_MISSION_ID;
     mapPosition = undefined;
     missionType = 'battle' as const;
-    description =
-        'A swarmling nest has taken the dirt circle off the boar road. Clear every last one.';
+    description = 'The swarm leads here. Destroy the nest.';
     campaignId = 'world_of_darkness';
-    name = 'Swarmling Nest';
+    name = SWARMLING_NEST_NAME;
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;
     /** Centre knot + nest are filled in {@link initializeGameState} (needs battle RNG). */

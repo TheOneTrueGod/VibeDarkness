@@ -31,6 +31,13 @@ export type TruncatedConeCenterAngleResolver = (
     aimY: number,
 ) => number;
 
+/** Optional outer radius when research or other modifiers change cone reach. */
+export type TruncatedConeMaxRadiusResolver = (
+    caster: HitboxPreviewCaster,
+    aimX: number,
+    aimY: number,
+) => number;
+
 export interface TruncatedConeGeometry {
     originX: number;
     originY: number;
@@ -52,6 +59,7 @@ export class TruncatedConeHitboxSpec extends HitboxSpec {
         numTargets: number = 6,
         private readonly resolveOrigin?: TruncatedConeOriginResolver,
         private readonly resolveCenterAngle?: TruncatedConeCenterAngleResolver,
+        private readonly resolveMaxR?: TruncatedConeMaxRadiusResolver,
     ) {
         super();
         this._numTargets = numTargets;
@@ -89,7 +97,7 @@ export class TruncatedConeHitboxSpec extends HitboxSpec {
             dirY,
             centerAngle,
             minR: this.resolveMinR(caster, aimX, aimY),
-            maxR: this.outerR,
+            maxR: this.resolveMaxR?.(caster, aimX, aimY) ?? this.outerR,
             halfArcRad: this.halfArcRad,
         };
     }

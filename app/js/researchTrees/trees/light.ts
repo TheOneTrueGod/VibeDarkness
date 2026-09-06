@@ -1,10 +1,16 @@
 import type { ResearchTreeDef } from '../types';
+import { DescriptiveValue } from '../descriptiveValue';
+import { IMBUED_BAT_ABILITY_ID } from '../../games/minion_battles/card_defs/08_light_core/0803_ImbuedBat/0803Constants';
 import { STICK_SWORD_TREE_ID, STICK_SWORD_NODE_PIPE_BAT } from './stick_sword';
 
 export const LIGHT_TREE_ID = 'light_core';
 export const LIGHT_NODE_CORE = 'light_core';
 export const LIGHT_NODE_IMBUEMENT = 'light_imbuement';
 export const LIGHT_NODE_GATHER_LIGHT = 'gather_light';
+export const LIGHT_NODE_RADIANT_REACH = 'light_radiant_reach';
+export const LIGHT_RADIANT_REACH_LEVELS = 2;
+/** Cone outer radius multiplier at max rank (rank 1 is half the bonus). */
+export const LIGHT_RADIANT_REACH_RANGE_MULT = 2;
 
 export const lightTree: ResearchTreeDef = {
     id: LIGHT_TREE_ID,
@@ -66,6 +72,31 @@ export const lightTree: ResearchTreeDef = {
             effects: [
                 { type: 'addCard', cardId: '0804' },
             ],
+        },
+        {
+            id: LIGHT_NODE_RADIANT_REACH,
+            title: 'Radiant Reach',
+            description:
+                `Imbued Bat's light cone reaches {${DescriptiveValue.Huge}} farther per rank (${LIGHT_RADIANT_REACH_LEVELS} ranks; doubles at max).`,
+            flavorText: 'Light stretches until the dark has nowhere left to stand.',
+            order: 11,
+            tier: 3,
+            position: { x: 660, y: 290 },
+            prereqNodeIds: [LIGHT_NODE_IMBUEMENT],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: LIGHT_TREE_ID, nodeIds: [LIGHT_NODE_IMBUEMENT] },
+            ],
+            cost: {},
+            effects: [],
+            levels: LIGHT_RADIANT_REACH_LEVELS,
+            abilityResearchModifiers: [
+                {
+                    abilitySpecification: { type: 'abilityId', abilityId: IMBUED_BAT_ABILITY_ID },
+                    rangeMult: LIGHT_RADIANT_REACH_RANGE_MULT,
+                },
+            ],
+            modifiesAbility: { from: IMBUED_BAT_ABILITY_ID, to: IMBUED_BAT_ABILITY_ID },
         },
     ],
 };
