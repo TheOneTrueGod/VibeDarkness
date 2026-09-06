@@ -95,7 +95,6 @@ export function GameSyncProvider({
       }
       lastFullStateFetchHttpStartedAtMsRef.current = Date.now();
 
-      debugLog('sync tracking', 'info', 'fetchFullState start');
       setSyncStatus((prev) => (prev === 'loading' ? 'loading' : 'resyncing'));
       try {
         const { gameState: gs } = await lobbyClient.getLobbyState(lobbyId, playerId);

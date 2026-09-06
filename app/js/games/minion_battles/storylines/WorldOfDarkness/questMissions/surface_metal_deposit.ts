@@ -15,10 +15,12 @@ import { EARTH_TREE_ID, EARTH_NODE_EARTH_CORE } from '../../../../../researchTre
 import {
     LOCATION_PLAINS_TAG,
     PLAINS_STORY_CHALLENGE_RATING,
+    REQUIRES_EARTH_CORE_LABEL,
+    SEARCH_FOR_LOOSE_METALS_OPTION_ID,
     SURFACE_METAL_EXTRACT_OTHERS_METAL,
     SURFACE_METAL_EXTRACT_SELF_METAL,
-    SURFACE_METAL_HARVEST_METAL,
 } from './questMissionConstants';
+import { buildSearchForLooseMetalsOption } from './searchForLooseMetalsOption';
 
 function createTerrain(): TerrainGrid {
     return TerrainGrid.createTerrainFromArray(1, 1, CELL_SIZE, [[TerrainType.Grass]], TerrainType.Grass);
@@ -26,9 +28,8 @@ function createTerrain(): TerrainGrid {
 
 export const SURFACE_METAL_DEPOSIT_MISSION_ID = 'surface_metal_deposit';
 export const SURFACE_METAL_CHOICE_ID = 'surface_metal_choice';
-export const SURFACE_METAL_OPTION_HARVEST = 'harvest';
+export const SURFACE_METAL_OPTION_HARVEST = SEARCH_FOR_LOOSE_METALS_OPTION_ID;
 export const SURFACE_METAL_OPTION_EXTRACT = 'extract_metal';
-export const SURFACE_METAL_OPTION_LEAVE = 'leave_it_alone';
 
 function hasEarthCore(trees: Record<string, string[]> | undefined): boolean {
     return (trees?.[EARTH_TREE_ID] ?? []).includes(EARTH_NODE_EARTH_CORE);
@@ -37,36 +38,20 @@ function hasEarthCore(trees: Record<string, string[]> | undefined): boolean {
 function buildChoiceOptions(playerResearchTrees: Record<string, string[]> | undefined): StoryChoiceOptionRow[] {
     const canExtract = hasEarthCore(playerResearchTrees);
     return [
-        {
-            id: SURFACE_METAL_OPTION_HARVEST,
-            label: 'Investigate some interesting nearby rocks',
-            loreTitle: 'Investigate some interesting nearby rocks',
-            loreDescription: `Chip samples from the outcrop. Campaign Reward: +${SURFACE_METAL_HARVEST_METAL} Metal when the quest ends.`,
-            action: {
-                type: 'grant_resources',
-                metal: SURFACE_METAL_HARVEST_METAL,
-            },
-        },
+        buildSearchForLooseMetalsOption(),
         {
             id: SURFACE_METAL_OPTION_EXTRACT,
             label: 'Extract Metal',
             loreTitle: 'Extract Metal',
             loreDescription: canExtract
                 ? `Earth Core lets you pull deeper veins. You gain +${SURFACE_METAL_EXTRACT_SELF_METAL} Metal; each other player gains +${SURFACE_METAL_EXTRACT_OTHERS_METAL} Metal (stacks with their choice).`
-                : 'Requires Earth Core.',
-            disabledLabel: canExtract ? undefined : 'Requires Earth Core',
+                : `${REQUIRES_EARTH_CORE_LABEL}.`,
+            disabledLabel: canExtract ? undefined : REQUIRES_EARTH_CORE_LABEL,
             action: {
                 type: 'grant_resources',
                 metal: SURFACE_METAL_EXTRACT_SELF_METAL,
                 alsoGrantToOthers: { metal: SURFACE_METAL_EXTRACT_OTHERS_METAL },
             },
-        },
-        {
-            id: SURFACE_METAL_OPTION_LEAVE,
-            label: 'Leave it alone',
-            loreTitle: 'Leave it alone',
-            loreDescription: 'The deposit stays buried. No Campaign Reward.',
-            action: { type: 'grant_resources' },
         },
     ];
 }
@@ -93,7 +78,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
 export class SurfaceMetalDepositMission extends BaseMissionDef {
     missionId = SURFACE_METAL_DEPOSIT_MISSION_ID;
     missionType = 'story' as const;
-    description = 'A surface seam of metal on the plains — harvest, extract, or leave it.';
+    description = 'A surface seam of metal on the plains — harvest or extract.';
     campaignId = 'world_of_darkness';
     name = 'Surface metal deposit';
     worldWidth = CELL_SIZE;

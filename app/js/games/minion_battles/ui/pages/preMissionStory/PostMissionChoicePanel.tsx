@@ -10,6 +10,9 @@ import StoryChoiceGrid, {
     STORY_CHOICE_CELL_BUTTON_SKIP,
 } from '../../components/battleUiSlots/StoryChoiceGrid';
 import { storyChoiceTestId } from '../../../../../testing/testIds';
+import DisabledStoryChoiceTooltip, {
+    UNAVAILABLE_CHOICE_REASON,
+} from './DisabledStoryChoiceTooltip';
 import type { ResearchNodeDef } from '../../../../../researchTrees/types';
 import {
     STORY_CHOICE_SKIP_DESCRIPTION,
@@ -106,15 +109,18 @@ export default function PostMissionChoicePanel({
                             ? { disabled: false }
                             : resolveChoiceOption(opt);
                         const title = opt.loreTitle ?? opt.label;
+                        const disabledReason = resolvedOption.disabled
+                            ? (resolvedOption.disabledLabel ?? opt.disabledLabel ?? UNAVAILABLE_CHOICE_REASON)
+                            : undefined;
                         const buttonClass = `${STORY_CHOICE_CELL_BUTTON_BASE} ${
                             resolvedOption.disabled
-                                ? STORY_CHOICE_CELL_BUTTON_DISABLED
+                                ? `${STORY_CHOICE_CELL_BUTTON_DISABLED} pointer-events-none`
                                 : isSkip
                                   ? STORY_CHOICE_CELL_BUTTON_SKIP
                                   : STORY_CHOICE_CELL_BUTTON_PRIMARY
                         }`;
 
-                        return (
+                        const button = (
                             <button
                                 key={opt.id}
                                 type="button"
@@ -148,7 +154,7 @@ export default function PostMissionChoicePanel({
                                 </div>
                                 {resolvedOption.disabled ? (
                                     <span className="line-clamp-2 text-[10px] leading-snug text-zinc-500 sm:text-xs">
-                                        {resolvedOption.disabledLabel ?? opt.disabledLabel ?? 'Unavailable'}
+                                        {disabledReason}
                                     </span>
                                 ) : opt.loreDescription ? (
                                     <span className="line-clamp-2 text-[10px] leading-snug text-zinc-400 sm:text-xs">
@@ -176,6 +182,14 @@ export default function PostMissionChoicePanel({
                                     </div>
                                 ) : null}
                             </button>
+                        );
+
+                        if (!resolvedOption.disabled) return button;
+
+                        return (
+                            <DisabledStoryChoiceTooltip key={opt.id} reason={disabledReason}>
+                                {button}
+                            </DisabledStoryChoiceTooltip>
                         );
                     })}
                 />

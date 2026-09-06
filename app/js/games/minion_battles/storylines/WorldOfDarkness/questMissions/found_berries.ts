@@ -1,6 +1,7 @@
 /**
  * Quest story mission — Found Berries.
- * Random-story bag entry (plains). Individual post-mission choice; Campaign Rewards on Keep.
+ * Random-story bag entry (plains). Individual post-mission choice; Campaign Rewards on Keep
+ * and the shared Search for loose metals pick.
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
@@ -14,6 +15,7 @@ import {
     LOCATION_PLAINS_TAG,
     PLAINS_STORY_CHALLENGE_RATING,
 } from './questMissionConstants';
+import { buildSearchForLooseMetalsOption } from './searchForLooseMetalsOption';
 
 function createTerrain(): TerrainGrid {
     return TerrainGrid.createTerrainFromArray(1, 1, CELL_SIZE, [[TerrainType.Grass]], TerrainType.Grass);
@@ -21,6 +23,10 @@ function createTerrain(): TerrainGrid {
 
 export const FOUND_BERRIES_MISSION_ID = 'found_berries';
 export const FOUND_BERRIES_CHOICE_ID = 'found_berries_choice';
+export const FOUND_BERRIES_OPTION_EAT = 'eat_berries';
+export const FOUND_BERRIES_OPTION_KEEP = 'keep_berries';
+export const FOUND_BERRIES_EAT_LABEL = 'Eat the Berries';
+export const FOUND_BERRIES_KEEP_LABEL = 'Keep the Berries';
 
 const POST_MISSION_STORY: PostMissionStoryDef = {
     phrases: [
@@ -37,22 +43,23 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
             backgroundImage: STORY_BACKGROUNDS.foundBerries,
             options: [
                 {
-                    id: 'eat_berries',
-                    label: 'Eat the Berries',
-                    loreTitle: 'Eat the Berries',
+                    id: FOUND_BERRIES_OPTION_EAT,
+                    label: FOUND_BERRIES_EAT_LABEL,
+                    loreTitle: FOUND_BERRIES_EAT_LABEL,
                     loreDescription: 'A quick meal on the road. No lasting stores — just a fuller stomach.',
                     action: { type: 'grant_resources' },
                 },
                 {
-                    id: 'keep_berries',
-                    label: 'Keep the Berries',
-                    loreTitle: 'Keep the Berries',
+                    id: FOUND_BERRIES_OPTION_KEEP,
+                    label: FOUND_BERRIES_KEEP_LABEL,
+                    loreTitle: FOUND_BERRIES_KEEP_LABEL,
                     loreDescription: `Pack them carefully. Campaign Reward: +${FOUND_BERRIES_KEEP_FOOD} Food when the quest ends.`,
                     action: {
                         type: 'grant_resources',
                         food: FOUND_BERRIES_KEEP_FOOD,
                     },
                 },
+                buildSearchForLooseMetalsOption(),
             ],
         },
     ],
