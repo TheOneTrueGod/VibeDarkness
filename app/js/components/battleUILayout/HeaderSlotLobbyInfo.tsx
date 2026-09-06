@@ -5,6 +5,7 @@
 import React from 'react';
 import CiStatusPill from '../CiStatusPill';
 import LobbyIdBadge from '../LobbyIdBadge';
+import MissionIdBadge from '../MissionIdBadge';
 
 interface HeaderSlotLobbyInfoProps {
     playerName: string;
@@ -12,6 +13,7 @@ interface HeaderSlotLobbyInfoProps {
     isAdmin: boolean;
     lobbyName: string;
     lobbyId: string;
+    missionId?: string | null;
 }
 
 export default function HeaderSlotLobbyInfo({
@@ -20,6 +22,7 @@ export default function HeaderSlotLobbyInfo({
     isAdmin,
     lobbyName,
     lobbyId,
+    missionId,
 }: HeaderSlotLobbyInfoProps) {
     return (
         <div className="flex flex-wrap items-center gap-2 sm:gap-3 px-4 py-3">
@@ -36,6 +39,7 @@ export default function HeaderSlotLobbyInfo({
                     {isAdmin ? <CiStatusPill embedded /> : null}
                     <span className="text-lg sm:text-xl font-semibold truncate">{lobbyName}</span>
                     <LobbyIdBadge id={lobbyId} className="hidden sm:inline" />
+                    <MissionIdBadge missionId={missionId} className="hidden sm:inline" />
                 </div>
             </div>
             <div className="flex-1" aria-hidden />

@@ -49,7 +49,7 @@ export default function CiStatusPill({ embedded = false }: CiStatusPillProps) {
 
     return (
         <div
-            className={`relative pointer-events-auto ${embedded ? '' : '-translate-x-2 translate-y-2'}`}
+            className={`relative flex items-center pointer-events-auto ${embedded ? '' : '-translate-x-2'}`}
             onMouseEnter={() => setTooltipOpen(true)}
             onMouseLeave={() => setTooltipOpen(false)}
         >

@@ -391,6 +391,7 @@ export default function CharacterSelectPhase({
             isAdmin={isAdmin}
             lobbyName={lobbyHeaderTitle}
             lobbyId={lobbyId}
+            missionId={missionId}
         />
     ) : headerSlot;
 

@@ -5,6 +5,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo, useSyncExtern
 import Chat from './Chat';
 import CiStatusPill from './CiStatusPill';
 import LobbyIdBadge from './LobbyIdBadge';
+import MissionIdBadge, { selectedMissionIdFromGameData } from './MissionIdBadge';
 import type { MessageEntry } from './Chat';
 import PlayerList from './PlayerList';
 import GameCanvas from './GameCanvas';
@@ -230,6 +231,7 @@ export default function GameScreen({
     // Only show resyncing overlay during battle; pre-battle phases use GameSyncContext's unified
     // poll loop (full state on a phase-based cadence) and don't need to block the whole screen
     const gamePhase = effectiveLobbyGameData?.gamePhase ?? effectiveLobbyGameData?.game_phase;
+    const selectedMissionId = selectedMissionIdFromGameData(effectiveLobbyGameData);
     const inBattle = gamePhase === 'battle';
     const alwaysShowSyncStatus = useSyncExternalStore(
         subscribeAlwaysShowSyncStatus,
@@ -434,6 +436,7 @@ export default function GameScreen({
                         {isAdmin ? <CiStatusPill embedded /> : null}
                         <span className="text-lg sm:text-xl font-semibold truncate">{lobby.name}</span>
                         <LobbyIdBadge id={lobby.id} className="hidden sm:inline" />
+                        <MissionIdBadge missionId={selectedMissionId} className="hidden sm:inline" />
                     </div>
                 </div>
                 <div className="flex-1 flex justify-end items-center gap-2 sm:gap-3 min-w-0">
@@ -465,6 +468,7 @@ export default function GameScreen({
             lobby.name,
             openChat,
             player.name,
+            selectedMissionId,
             unreadCount,
         ],
     );
@@ -477,9 +481,10 @@ export default function GameScreen({
                 isAdmin={isAdmin}
                 lobbyName={lobby.name}
                 lobbyId={lobby.id}
+                missionId={selectedMissionId}
             />
         ),
-        [player.name, isHost, isAdmin, lobby.name, lobby.id],
+        [player.name, isHost, isAdmin, lobby.name, lobby.id, selectedMissionId],
     );
 
     const centralSection = useMemo(

@@ -59,6 +59,7 @@ export const TestIds = {
     storyNext: 'story-next',
     storyChoicePrefix: 'story-choice-',
     storyChoiceDisabledTooltip: 'story-choice-disabled-tooltip',
+    headerMissionId: 'header-mission-id',
 
     battleWait: 'battle-wait',
     lobbyLeave: 'lobby-leave',

@@ -17,6 +17,7 @@ This skill keeps a **list of component names** and a **one-line description** of
 | **VNTextBox** | Visual-novel style dialogue/choice box used in the pre-mission story phase. |
 | **PlayerPill** | Two-line player pill: color dot, name, HOST badge, (You); optional second line (e.g. selected character). Used in PlayerList and character select. |
 | **PlayerTile** | Battle timeline player name chip: `tiny` (coloured border/background + HOST) or `small` (full row with order-status lamp, name, optional WebRTC wifi icon). Used in `BattleTimeline` rail headers. |
+| **MissionIdBadge** | Header mono pill for `selectedMissionId`; shown only for admins or when the debug console is open. Lives in `app/js/components/`. |
 
 | **CampaignCharacterCard** | 200×200 card for a player character: portrait, name footer, delete button, disallow-reason diagonal, per-player color dots. Lives in `ui/pages/characterSelect/`. |
 | **CharacterOverview** | Left-portrait + right-ability-cards overview shown when a character is selected. Lives in `ui/pages/characterSelect/`. |
