@@ -7,7 +7,7 @@ Reusable React widgets for battle and lobby-adjacent Minion Battles UI. Paths be
 | Area | Purpose |
 |------|---------|
 | Root (`*.tsx`) | Shared battle/lobby widgets (ability slots, tooltips, timeline, portraits). |
-| `battleUiSlots/` | Fixed shell regions for the battle HUD (ability bar, etc.). |
+| `battleUiSlots/` | Fixed shell regions for the battle HUD (ability bar, canvas top-right details). |
 | `CharacterEditor/` | Campaign character editor tabs and panels. |
 | `resources/` | Resource / cost icons and unit resource panel. |
 | `boss/` | Boss fight HUD pieces. |

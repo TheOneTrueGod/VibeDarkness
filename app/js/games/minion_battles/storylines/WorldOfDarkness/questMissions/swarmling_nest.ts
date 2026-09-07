@@ -4,7 +4,7 @@
  * Arena: the 0_0 dirt circle, entered from the west road (the `outside_road` POI).
  * A swarm nest squats dead centre with a starting knot of wolves and swarmlings;
  * darklight crystals ring every Arena Ring point, and slimes / swarmlings boil out
- * of the ring for the first two seconds. Kill every enemy to win.
+ * of the ring over the first three rounds. Kill every enemy to win.
  */
 
 import type { GameEngine } from '../../../game/GameEngine';
@@ -25,6 +25,7 @@ import { ENEMY_DARK_WOLF, ENEMY_SWARMLING } from '../../../constants/enemyConsta
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
+import { ROUND_DURATION } from '../../../game/gameConstants';
 import { SWARM_NEST_CHARACTER_ID } from '../../../game/lanternite/swarmNestTick';
 import { scatterPositionsInCircle } from '../../missionSpawnHelpers';
 import { DARK_CRYSTAL_TILE_DEFAULTS } from '../MapSegments/50_50_crystal_cave';
@@ -66,11 +67,19 @@ export const CENTRE_SWARMLING_COUNT = 3;
 /** Scatter radius (tiles) for the starting knot around the ring centre. */
 export const CENTRE_SCATTER_RADIUS_TILES = 2.5;
 
-// --- Ring reinforcement burst (first two seconds) ---------------------------
+// --- Ring reinforcement burst (first three rounds) --------------------------
+/** How many rounds the ring burst is spread across. */
+export const RING_BURST_DURATION_ROUNDS = 3;
+/** Authored slime+swarmling pair count; interval is derived from the window. */
+export const RING_BURST_WAVE_COUNT = 8;
+export const RING_BURST_WINDOW_SEC = ROUND_DURATION * RING_BURST_DURATION_ROUNDS;
 /** Slimes + swarmlings spawn on this cadence for {@link RING_BURST_WINDOW_SEC}. */
-export const RING_BURST_INTERVAL_SEC = 0.25;
-export const RING_BURST_WINDOW_SEC = 2;
-export const RING_BURST_WAVE_COUNT = Math.round(RING_BURST_WINDOW_SEC / RING_BURST_INTERVAL_SEC);
+export const RING_BURST_INTERVAL_SEC = RING_BURST_WINDOW_SEC / RING_BURST_WAVE_COUNT;
+
+/** Center wave `waveIndex` (0-based) in its slice so the last fire stays inside the window. */
+export function ringBurstWaveTimeSec(waveIndex: number): number {
+    return (waveIndex + 0.5) * RING_BURST_INTERVAL_SEC;
+}
 /** Spawn radius (tiles) around the randomly chosen Arena Ring point. */
 export const RING_BURST_SPAWN_RADIUS_TILES = 2;
 
@@ -158,8 +167,8 @@ function ringBurstWave(engine: GameEngine, atSeconds: number): LevelEvent {
 
 function buildRingBurstWaves(engine: GameEngine): LevelEvent[] {
     const waves: LevelEvent[] = [];
-    for (let i = 1; i <= RING_BURST_WAVE_COUNT; i++) {
-        waves.push(ringBurstWave(engine, i * RING_BURST_INTERVAL_SEC));
+    for (let i = 0; i < RING_BURST_WAVE_COUNT; i++) {
+        waves.push(ringBurstWave(engine, ringBurstWaveTimeSec(i)));
     }
     return waves;
 }

@@ -3,7 +3,7 @@
  *
  * Self-cast with no targets. After a long windup, applies a LightImbueBuff to the caster and
  * generates Light. The buff fires the swap-network trigger which replaces Swing Bat (0115) with
- * Imbued Bat (0803) for one use. Costs Light and generates more than it spends. Recovers once per round.
+ * Imbued Bat (0803) for one use. Costs no Light. Recovers once per round.
  */
 
 import { AbilityPhase } from '../../../abilities/abilityTimings';
@@ -22,7 +22,7 @@ const MAX_USES = 1;
 const PREFIRE_TIME = 1.5;
 const ACTIVE_DURATION = 0.05;
 const COOLDOWN_DURATION = 0.05;
-export const LIGHT_IMBUEMENT_LIGHT_COST = 1;
+export const LIGHT_IMBUEMENT_LIGHT_COST = 0;
 export const LIGHT_IMBUEMENT_LIGHT_GENERATED = 2;
 const LIGHT_IMBUEMENT_MOVEMENT_PENALTY = 0.9;
 
@@ -46,7 +46,9 @@ export const LightImbuementAbility = defineAbility({
     id: CARD_ID,
     name: 'Light Imbuement',
     image: LIGHT_IMBUEMENT_IMAGE,
-    resourceCost: { resourceId: 'light', amount: LIGHT_IMBUEMENT_LIGHT_COST },
+    resourceCost: LIGHT_IMBUEMENT_LIGHT_COST > 0
+        ? { resourceId: 'light', amount: LIGHT_IMBUEMENT_LIGHT_COST }
+        : null,
     rechargeTurns: 0,
     maxUses: MAX_USES,
     recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 }],

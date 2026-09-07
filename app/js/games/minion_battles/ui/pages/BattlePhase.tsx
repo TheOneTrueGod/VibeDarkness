@@ -5,8 +5,7 @@
  * round tracking, targeting flow, order submission, and server sync.
  */
 
-import React, { useRef, useState, useCallback, useSyncExternalStore, useEffect } from 'react';
-import { useCurrentUser } from '../../../../user/useCurrentUser';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import type { PlayerState, GameSidebarInfo } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import type { BattleSession } from '../../game/BattleSession';
@@ -21,16 +20,14 @@ import TurnIndicator from '../components/TurnIndicator';
 import { useBattleAbilityBarSlots } from './battlePhase/BattleAbilityBar';
 import BattleUISlotLayout from '../../../../components/battleUILayout/BattleUISlotLayout';
 import ColumnSlotPartyAndActions from '../components/battleUiSlots/ColumnSlotPartyAndActions';
+import CornerSlotBattleDetails from '../components/battleUiSlots/CornerSlotBattleDetails';
 import type { PlayerTileOrderContext } from '../components/playerTileIndicator';
 import { WaitAbility } from '../../abilities/WaitAbility';
 import BattleSyncStatus from '../components/BattleSyncStatus';
 import BattleHostAnchorBanner from '../components/BattleHostAnchorBanner';
-import GameTickPill from '../components/GameTickPill';
 import BossFightHud from '../components/boss/BossFightHud';
-import WorldModifiersPanel from '../components/WorldModifiersPanel';
 import type { MessageEntry } from '../../../../components/Chat';
 import { useDebugConsole } from '../../../../contexts/DebugConsoleContext';
-import { getShowGameTick, subscribeShowGameTick } from '../../../../debugFlags';
 import HudEffectCanvas, { type HudEffectCanvasHandle } from '../components/HudEffectCanvas';
 import { MISSION_MAP } from '../../storylines';
 import { getAbility } from '../../abilities/AbilityRegistry';
@@ -104,7 +101,6 @@ export default function BattlePhase({
     chatSlot,
     centerOverlay,
 }: BattlePhaseProps) {
-    const { isAdmin } = useCurrentUser();
     const canSubmitOrders = true;
 
     const { setBattleBridge, adminMovePendingUnitId, setAdminMovePendingUnitId } = useDebugConsole();
@@ -263,12 +259,6 @@ export default function BattlePhase({
         onSessionEventRef: handleSessionEventRef,
         setNetSyncStatus,
     });
-
-    const showGameTick = useSyncExternalStore(
-        subscribeShowGameTick,
-        getShowGameTick,
-        getShowGameTick,
-    );
 
     const HOST_WAIT_POPOVER_AFTER_HEARTBEATS = BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS;
 
@@ -485,7 +475,11 @@ export default function BattlePhase({
                                     hudEffectCanvasRef.current?.registerHudFlightTarget('boss:cc_status', pageX, pageY);
                                 }}
                             />
-                            <WorldModifiersPanel modifiers={activeWorldModifiers} ninjutsuPools={ninjutsuPools} />
+                            <CornerSlotBattleDetails
+                                modifiers={activeWorldModifiers}
+                                ninjutsuPools={ninjutsuPools}
+                                getItsTicks={getItsPlayaheadTicks}
+                            />
                             <BattleSyncStatus
                                 variant="battle"
                                 isHost={isHost}
@@ -507,11 +501,6 @@ export default function BattlePhase({
                                 resyncInformAck={resyncInformAck}
                                 onDismissResyncInformAck={dismissResyncInformAck}
                             />
-                            {showGameTick ? (
-                                <div className="pointer-events-none absolute right-3 top-3 z-20">
-                                    <GameTickPill getItsTicks={getItsPlayaheadTicks} />
-                                </div>
-                            ) : null}
                             <BattleCanvas
                                 engine={engine}
                                 camera={camera}

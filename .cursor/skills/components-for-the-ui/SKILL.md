@@ -18,6 +18,7 @@ This skill keeps a **list of component names** and a **one-line description** of
 | **PlayerPill** | Two-line player pill: color dot, name, HOST badge, (You); optional second line (e.g. selected character). Used in PlayerList and character select. |
 | **AppTitleBar** | Fixed global title bar for logged-in users: account name top-left, admin-only **CiStatusPill** top-right. |
 | **CiStatusPill** | Small gray/green/red circle showing local CI health from `/api/admin/ci-status`; admin-only hover tooltip with pass/fail counts. |
+| **CornerSlotBattleDetails** | Top-right battle canvas rack for world modifiers, admin ninjutsu pools, and the debug game-tick pill. |
 
 ## When to use
 

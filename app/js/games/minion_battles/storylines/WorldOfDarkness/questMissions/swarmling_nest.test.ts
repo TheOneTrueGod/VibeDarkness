@@ -10,7 +10,10 @@ import {
     ARENA_DARK_CRYSTAL_LIGHT_RADIUS,
     CENTRE_SWARMLING_COUNT,
     CENTRE_WOLF_COUNT,
+    RING_BURST_INTERVAL_SEC,
     RING_BURST_WAVE_COUNT,
+    RING_BURST_WINDOW_SEC,
+    ringBurstWaveTimeSec,
     SWARM_NEST_SPAWN_COUNT,
     SWARM_NEST_SPAWN_INTERVAL_SEC,
     SWARMLING_NEST,
@@ -89,20 +92,28 @@ describe('SwarmlingNestMission', () => {
         engine.destroy();
     });
 
-    it('schedules a ring burst every 0.25s across the first 2s, each near a ring point', () => {
+    it('schedules a ring burst across the first three rounds, each near a ring point', () => {
         const { engine, cellSize } = initMission(7);
         const waves = SWARMLING_NEST.levelEvents!.filter((e) => e.type === 'spawnWave');
         expect(waves).toHaveLength(RING_BURST_WAVE_COUNT);
-        expect(RING_BURST_WAVE_COUNT).toBe(8);
+
+        const times = waves.map((wave) => {
+            if (wave.type !== 'spawnWave' || !('afterSeconds' in wave.trigger)) throw new Error('bad wave');
+            return wave.trigger.afterSeconds;
+        });
+        expect(times).toEqual(
+            Array.from({ length: RING_BURST_WAVE_COUNT }, (_, i) => ringBurstWaveTimeSec(i)),
+        );
+        expect(times[0]).toBeGreaterThan(0);
+        expect(times[times.length - 1]).toBeLessThan(RING_BURST_WINDOW_SEC);
+        expect(times[1]! - times[0]!).toBe(RING_BURST_INTERVAL_SEC);
 
         const ringWorld = ARENA_RING_SPAWN_POINTS.map((p) => ({
             x: p.col * cellSize + cellSize / 2,
             y: p.row * cellSize + cellSize / 2,
         }));
         for (const wave of waves) {
-            if (wave.type !== 'spawnWave' || !('afterSeconds' in wave.trigger)) throw new Error('bad wave');
-            expect(wave.trigger.afterSeconds).toBeGreaterThan(0);
-            expect(wave.trigger.afterSeconds).toBeLessThanOrEqual(2);
+            if (wave.type !== 'spawnWave') throw new Error('bad wave');
             const characterIds = wave.spawns.map((s) => s.characterId).sort();
             expect(characterIds).toEqual(['slime', 'swarmling']);
             for (const spawn of wave.spawns) {

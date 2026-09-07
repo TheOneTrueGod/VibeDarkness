@@ -5,7 +5,7 @@
  *   - Player (warrior) at centre-left with abilities 0115 (Swing Bat), 0802 (Light Imbuement),
  *     and 0803 (Imbued Bat, pre-loaded via swap network).
  *   - One target dummy directly in front, within melee range.
- *   - Player starts with enough Light to pay Light Imbuement's cost (the ability then generates more).
+ *   - Player starts with Light Imbuement's Light cost (currently free; the ability then generates Light).
  *
  * Order sequence:
  *   1. Use Light Imbuement (0802) — charges for 2 s then applies LightImbueBuff, triggering

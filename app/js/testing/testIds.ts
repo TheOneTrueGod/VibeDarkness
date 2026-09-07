@@ -62,6 +62,7 @@ export const TestIds = {
     headerMissionId: 'header-mission-id',
 
     battleWait: 'battle-wait',
+    battleDetails: 'battle-details',
     lobbyLeave: 'lobby-leave',
     appLogout: 'app-logout',
 

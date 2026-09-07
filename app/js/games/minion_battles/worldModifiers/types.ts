@@ -52,7 +52,7 @@ export interface WorldModifierDef {
     /** Instance starts disabled when true; can be toggled mid-battle via manager API. */
     startsDisabled?: boolean;
 
-    /** When true, this modifier is only visible in the WorldModifiersPanel for admin users. */
+    /** When true, this modifier is only visible in CornerSlotBattleDetails for admin users. */
     visible_to_admin_only?: boolean;
 
     /** Always-on effects while modifier is active. Stub in v1; full in Rainy Storm follow-up. */

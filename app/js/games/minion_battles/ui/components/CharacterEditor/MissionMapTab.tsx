@@ -25,7 +25,6 @@ import {
     getHighestUnlockedChapterIndex,
     getUnlockedQuestSlotBanks,
     countQuestBankClears,
-    isQuestSlotBankUnlocked,
     getEligibleQuestsForBank,
     getOptionalEligibleQuests,
     listQuestVictoryResults,
@@ -50,10 +49,10 @@ import QuestBanksPanel from './QuestBanksPanel';
 type MissionMapPane = 'map' | 'quests';
 
 const CIRCLE_R = 28;
-const SIDE_CIRCLE_R = 18;
 /** ViewBox inset — covers node radius, name label below, and hover rings without huge empty margins. */
 const PADDING = 48;
 const MISSION_ICON_SIZE = 22;
+const SIDE_QUEST_MARK_FONT_SIZE = 16;
 
 const MISSION_TYPE_ICONS: Record<MissionType, LucideIcon> = {
     battle: Swords,
@@ -159,7 +158,7 @@ function QuestBankTooltip({
     const TOOLTIP_W = 300;
     const TOOLTIP_APPROX_H = 200;
     const MARGIN = 12;
-    const nodeR = SIDE_CIRCLE_R;
+    const nodeR = CIRCLE_R;
     const spaceAbove = data.cy - nodeR - MARGIN;
     const placeAbove = spaceAbove > TOOLTIP_APPROX_H + 8;
     const top = placeAbove
@@ -350,7 +349,7 @@ function MissionTooltip({
     const MARGIN = 12;
 
     // Position above the node circle; flip to below if near top of viewport
-    const nodeR = isSide ? SIDE_CIRCLE_R : CIRCLE_R;
+    const nodeR = CIRCLE_R;
     const spaceAbove = data.cy - nodeR - MARGIN;
     const placeAbove = spaceAbove > TOOLTIP_APPROX_H + 8;
     const top = placeAbove
@@ -926,7 +925,7 @@ export default function MissionMapTab({
                     const isHovered = hoveredId === id;
                     const isPressed = pressedId === id;
                     const isPinned = tooltip?.pinned && tooltip.id === id;
-                    const r = isSide ? SIDE_CIRCLE_R : CIRCLE_R;
+                    const r = CIRCLE_R;
                     const MissionIcon = MISSION_TYPE_ICONS[missionType];
 
                     const nodeScale = isPressed ? 0.92 : (isHovered || isPinned) ? 1.1 : 1;
@@ -948,7 +947,7 @@ export default function MissionMapTab({
                             aria-label={clickable ? `${def?.name ?? id} — click to view details` : undefined}
                             style={{
                                 cursor: clickable ? 'pointer' : 'default',
-                                opacity: dimmed ? 0.35 : 1,
+                                opacity: isSide ? 1 : (dimmed ? 0.35 : 1),
                                 outline: 'none',
                             }}
                         >
@@ -1008,7 +1007,7 @@ export default function MissionMapTab({
                                     <text
                                         textAnchor="middle"
                                         dominantBaseline="central"
-                                        fontSize={10}
+                                        fontSize={SIDE_QUEST_MARK_FONT_SIZE}
                                         fill={finished ? '#e5e7eb' : '#a78bfa'}
                                         style={{ pointerEvents: 'none', userSelect: 'none' }}
                                     >
@@ -1058,16 +1057,10 @@ export default function MissionMapTab({
                 {questBanksOnMap.map((bank) => {
                     const pos = bank.mapPosition!;
                     const nodeId = `questBank:${bank.id}`;
-                    const unlocked =
-                        unlockedQuestBankIds.has(bank.id)
-                        || (storyline
-                            ? isQuestSlotBankUnlocked(bank, missionResults)
-                            : false);
                     const clears = countQuestBankClears(bank, questResults);
-                    const dimmed = !unlocked;
                     const isHovered = hoveredId === nodeId;
                     const isPressed = pressedId === nodeId;
-                    const r = SIDE_CIRCLE_R;
+                    const r = CIRCLE_R;
                     const nodeScale = isPressed ? 0.92 : isHovered ? 1.1 : 1;
                     const finished = isDedicatedQuestBank(bank) && bank.questDefId
                         ? hasQuestVictoryResult(bank.questDefId, questResults)
@@ -1095,7 +1088,6 @@ export default function MissionMapTab({
                             aria-expanded={isBankPinned || undefined}
                             style={{
                                 cursor: 'pointer',
-                                opacity: dimmed ? 0.45 : 1,
                                 outline: 'none',
                             }}
                         >
@@ -1130,7 +1122,7 @@ export default function MissionMapTab({
                                 <text
                                     textAnchor="middle"
                                     dominantBaseline="central"
-                                    fontSize={10}
+                                    fontSize={SIDE_QUEST_MARK_FONT_SIZE}
                                     fill={finished ? '#e5e7eb' : '#ede9fe'}
                                     style={{ pointerEvents: 'none', userSelect: 'none' }}
                                 >

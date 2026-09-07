@@ -8,17 +8,41 @@ interface WorldModifiersPanelProps {
     ninjutsuPools?: NinjutsuUIState[] | null;
 }
 
+export function getVisibleWorldModifierHud(
+    modifiers: WorldModifierDef[],
+    ninjutsuPools: NinjutsuUIState[] | null | undefined,
+    isAdmin: boolean,
+): { visibleModifiers: WorldModifierDef[]; enabledPools: NinjutsuUIState[] } {
+    return {
+        enabledPools: isAdmin ? (ninjutsuPools?.filter((p) => p.enabled) ?? []) : [],
+        visibleModifiers: isAdmin ? modifiers : modifiers.filter((m) => !m.visible_to_admin_only),
+    };
+}
+
+export function hasVisibleWorldModifierHud(
+    modifiers: WorldModifierDef[],
+    ninjutsuPools: NinjutsuUIState[] | null | undefined,
+    isAdmin: boolean,
+): boolean {
+    const { visibleModifiers, enabledPools } = getVisibleWorldModifierHud(
+        modifiers,
+        ninjutsuPools,
+        isAdmin,
+    );
+    return visibleModifiers.length > 0 || enabledPools.length > 0;
+}
+
 export default function WorldModifiersPanel({ modifiers, ninjutsuPools }: WorldModifiersPanelProps) {
     const { isAdmin } = useCurrentUser();
-    const enabledPools = isAdmin ? (ninjutsuPools?.filter(p => p.enabled) ?? []) : [];
-    const visibleModifiers = isAdmin ? modifiers : modifiers.filter(m => !m.visible_to_admin_only);
+    const { visibleModifiers, enabledPools } = getVisibleWorldModifierHud(
+        modifiers,
+        ninjutsuPools,
+        isAdmin,
+    );
     if (visibleModifiers.length === 0 && enabledPools.length === 0) return null;
 
     return (
-        <div
-            className="pointer-events-auto absolute right-2 top-2 z-20 flex flex-col gap-1"
-            aria-label="Active world modifiers"
-        >
+        <div className="flex flex-col gap-1" aria-label="Active world modifiers">
             {enabledPools.map((pool) => {
                 const pct = pool.max > 0 ? (pool.current / pool.max) * 100 : 0;
                 return (
