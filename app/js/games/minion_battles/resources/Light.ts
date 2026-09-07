@@ -3,15 +3,16 @@
  * Light is consumed when illumination-based skills are activated.
  * More light = stronger and more frequent abilities; darkness = silence.
  *
- * Recovery: at round start, gain light based on the tile the unit occupies.
+ * Recovery: at round start, gain light based on the tile the unit occupies,
+ * but only if Light Attuned research is present (`PassiveStatKey.LightRegenEnabled`).
  * Formula: max(0, ceil((tileLightLevel - LIGHT_RESOURCE_MIN_LIGHT_LEVEL) / LIGHT_RESOURCE_DIVISOR))
- * Both constants are exported so future research nodes can modify them.
  */
 
 import { Resource } from './Resource';
 import type { EventBus } from '../game/EventBus';
 import type { Unit } from '../game/units/Unit';
 import type { EngineContext } from '../game/EngineContext';
+import { PassiveStatKey, type PassiveBonuses } from '../../../researchTrees/types';
 
 /** Minimum tile light level required to gain any Light resource per round. */
 export const LIGHT_RESOURCE_MIN_LIGHT_LEVEL = 3;
@@ -19,10 +20,17 @@ export const LIGHT_RESOURCE_MIN_LIGHT_LEVEL = 3;
 export const LIGHT_RESOURCE_DIVISOR = 3;
 
 export const MAX_LIGHT_RECOVERY_PER_ROUND = 2;
+/** Binary unlock add written by Light Attuned onto `PassiveStatKey.LightRegenEnabled`. */
+export const LIGHT_REGEN_ENABLED_ADD = 1;
 /** Starting Light capacity when a unit first gains the resource (Light Core). */
 export const LIGHT_STARTING_MAX = 5;
 export const LIGHT_RESOURCE_COLOR = '#fef9c3'; // warm white-yellow
 export const LIGHT_RESOURCE_COLOR_NUMBER = 0xfff9c3; // warm white-yellow
+
+/** True when Light Attuned (or any source) has unlocked tile-based Light recovery. */
+export function unitHasLightRegen(unit: { passiveBonuses?: PassiveBonuses }): boolean {
+	return (unit.passiveBonuses?.[PassiveStatKey.LightRegenEnabled]?.add ?? 0) >= LIGHT_REGEN_ENABLED_ADD;
+}
 
 export class Light extends Resource {
 	readonly id = 'light';
@@ -40,6 +48,7 @@ export class Light extends Resource {
 	/** Live per-round gain for the unit's current tile. Used by the tooltip. */
 	get perRoundGain(): number {
 		if (!this._unit || !this._engine) return 0;
+		if (!unitHasLightRegen(this._unit)) return 0;
 		const level = this._engine.getLightLevelAt(this._unit.x, this._unit.y);
 		if (level === null) return 0;
 		return Math.min(

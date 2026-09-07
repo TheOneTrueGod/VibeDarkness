@@ -70,6 +70,8 @@ export enum PassiveStatKey {
     Ability0701Damage = 'ability_0701_damage',
     MaxMovementPoints = 'maxMovementPoints',
     MovementRegenPerRound = 'movementRegenPerRound',
+    /** Presence (add > 0) unlocks Light's tile-based per-round recovery. */
+    LightRegenEnabled = 'lightRegenEnabled',
 }
 
 /** Per-stat add/mult contribution from a passive node (totals at max level). */

@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { Light, LIGHT_RESOURCE_MIN_LIGHT_LEVEL, LIGHT_RESOURCE_DIVISOR, LIGHT_STARTING_MAX, MAX_LIGHT_RECOVERY_PER_ROUND } from './Light';
+import {
+    Light,
+    LIGHT_REGEN_ENABLED_ADD,
+    LIGHT_RESOURCE_MIN_LIGHT_LEVEL,
+    LIGHT_RESOURCE_DIVISOR,
+    LIGHT_STARTING_MAX,
+    MAX_LIGHT_RECOVERY_PER_ROUND,
+} from './Light';
 import { EventBus } from '../game/EventBus';
 import { Unit } from '../game/units/Unit';
 import type { EngineContext } from '../game/EngineContext';
+import { DEFAULT_PASSIVE_MULT } from '../../../researchTrees/passiveBonuses';
+import { PassiveStatKey } from '../../../researchTrees/types';
 
 function makeUnit(id: string): Unit {
     return new Unit({
@@ -16,6 +25,12 @@ function makeUnit(id: string): Unit {
         characterId: 'player',
         name: id,
     });
+}
+
+function grantLightRegen(unit: Unit): void {
+    unit.passiveBonuses = {
+        [PassiveStatKey.LightRegenEnabled]: { add: LIGHT_REGEN_ENABLED_ADD, mult: DEFAULT_PASSIVE_MULT },
+    };
 }
 
 /** Minimal engine context stubbing a fixed tile light level. */
@@ -39,8 +54,19 @@ describe('Light resource', () => {
         expect(light.perRoundGain).toBe(0);
     });
 
-    it('onRoundStart primes context and grants tile-based gain', () => {
+    it('onRoundStart grants no tile-based gain without Light Attuned', () => {
         const unit = makeUnit('u1');
+        const light = new Light();
+        unit.attachResource(light, new EventBus());
+
+        unit.onRoundStart(1, makeEngineContext(BRIGHT_LEVEL));
+        expect(light.perRoundGain).toBe(0);
+        expect(light.current).toBe(0);
+    });
+
+    it('onRoundStart primes context and grants tile-based gain when Light Attuned is present', () => {
+        const unit = makeUnit('u1');
+        grantLightRegen(unit);
         const light = new Light();
         unit.attachResource(light, new EventBus());
 
@@ -55,6 +81,7 @@ describe('Light resource', () => {
     // read 0 until the next round boundary — see UnitManager.ts.
     it('perRoundGain reads 0 after a bare restoreFromJSON, until primeDisplayContext is called', () => {
         const unit = makeUnit('u1');
+        grantLightRegen(unit);
         const restored = new Light();
         restored.restoreFromJSON({ current: 3, max: LIGHT_STARTING_MAX });
         unit.attachResource(restored, new EventBus());

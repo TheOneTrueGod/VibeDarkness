@@ -1,4 +1,5 @@
 import type { Unit } from './Unit';
+import { isImmuneToForcedMovement } from './unitTag';
 import type { TerrainGrid } from '../../terrain/TerrainGrid';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import { computeForcedDisplacement } from '../forceMove';
@@ -41,6 +42,9 @@ export function applyNudgeToUnit(
     vector: { x: number; y: number },
     durationSeconds: number,
 ): void {
+    if (isImmuneToForcedMovement(unit)) {
+        return;
+    }
     unit.nudge = {
         nudgeVector: { ...vector },
         nudgeDuration: durationSeconds,

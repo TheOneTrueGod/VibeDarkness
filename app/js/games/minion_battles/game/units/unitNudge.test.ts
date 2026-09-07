@@ -15,6 +15,8 @@ import { TerrainManager } from '../../terrain/TerrainManager';
 import { TerrainType } from '../../terrain/TerrainType';
 import { TerrainLayerManager } from '../TerrainLayerManager';
 import type { KnockbackSource } from './unitTypes';
+import { UnitTag } from './unitTag';
+import { applyKnockbackToUnit } from './unitKnockback';
 
 const PULL_SOURCE: KnockbackSource = { unitId: 'caster', abilityId: '0903' };
 
@@ -168,6 +170,57 @@ describe('tryApplyPullByTier', () => {
         expect(knockResult.outcome).toBe('absorbed');
         expect(unit.ccArmour.hardConsumed).toBe(2);
         expect(unit.knockback).toBeNull();
+    });
+
+    it('fully resists pull on Structure-tagged units', () => {
+        const unit = makeUnit();
+        unit.tags = [UnitTag.Structure];
+        unit.ccArmour.hardFloor = 0;
+        const { ctx, interrupt } = makeKnockbackEngine();
+
+        const result = tryApplyPullByTier(unit, PULL_TIER, PULL_SOURCE, { x: 160, y: 100 }, ctx);
+        expect(result.outcome).toBe('fully_resisted');
+        expect(unit.knockback).toBeNull();
+        expect(interrupt).not.toHaveBeenCalled();
+        expect(unit.x).toBe(100);
+        expect(unit.y).toBe(100);
+    });
+});
+
+describe('structure forced-movement immunity', () => {
+    it('does not apply a nudge to a Structure-tagged unit', () => {
+        const unit = makeUnit();
+        unit.tags = [UnitTag.Structure];
+
+        applyNudgeToUnit(unit, { x: 24, y: 0 }, 0.2);
+        expect(unit.nudge).toBeNull();
+        expect(unit.x).toBe(100);
+        expect(unit.y).toBe(100);
+    });
+
+    it('does not apply a raw knockback launch to a Structure-tagged unit', () => {
+        const unit = makeUnit();
+        unit.tags = [UnitTag.Structure];
+        const eventBus = new EventBus();
+        const tierDef = getKnockbackTierDef(PULL_TIER);
+        expect(tierDef).not.toBeNull();
+        if (!tierDef) throw new Error('expected tier def');
+
+        const applied = applyKnockbackToUnit(
+            unit,
+            {
+                knockbackVector: { x: tierDef.magnitude, y: 0 },
+                knockbackAirTime: tierDef.airTime,
+                knockbackSlideTime: tierDef.slideTime,
+                knockbackSource: PULL_SOURCE,
+            },
+            eventBus,
+        );
+
+        expect(applied).toBe(false);
+        expect(unit.knockback).toBeNull();
+        expect(unit.x).toBe(100);
+        expect(unit.y).toBe(100);
     });
 });
 

@@ -1,4 +1,5 @@
 import type { Unit } from './Unit';
+import { isImmuneToForcedMovement } from './unitTag';
 import type { ApplyKnockbackParams, KnockbackSource, KnockbackState } from './unitTypes';
 import type { EventBus } from '../EventBus';
 import type { TerrainGrid } from '../../terrain/TerrainGrid';
@@ -34,6 +35,9 @@ export function applyKnockbackToUnit(
     _eventBus: EventBus,
     onApplied?: (unit: Unit) => void,
 ): boolean {
+    if (isImmuneToForcedMovement(unit)) {
+        return false;
+    }
     unit.knockback = {
         knockbackVector: { ...params.knockbackVector },
         knockbackAirTime: params.knockbackAirTime,

@@ -1,4 +1,5 @@
 import type { Unit, KnockbackSource } from '../game/units/Unit';
+import { isImmuneToForcedMovement } from '../game/units/unitTag';
 import { ExposedBuff } from '../buffs/ExposedBuff';
 import { getDirectionFromTo } from '../abilities/targetHelpers';
 import { getEffectiveHardCcThreshold, onSuccessfulHardCcLand, recordHardCcArmourEvent } from './ccArmourState';
@@ -98,6 +99,11 @@ function _tryApplyTierForcedMovement(
 ): KnockbackAttemptResult {
     // Units in a juggernaut window are immune to knockback — no armour consumed, no launch.
     if (target.isInJuggernautWindow(engine.gameTime)) {
+        return { outcome: 'fully_resisted' };
+    }
+
+    // Nests and other structures never launch (knockback or pull).
+    if (isImmuneToForcedMovement(target)) {
         return { outcome: 'fully_resisted' };
     }
 

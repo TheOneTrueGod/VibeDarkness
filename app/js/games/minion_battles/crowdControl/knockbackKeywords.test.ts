@@ -14,6 +14,7 @@ import {
 import { Unit } from '../game/units/Unit';
 import type { KnockbackSource } from '../game/units/unitTypes';
 import { EventBus } from '../game/EventBus';
+import { UnitTag } from '../game/units/unitTag';
 
 const TIER_3 = getKnockbackTierDef(3)!;
 const IFRAME_KNOCKBACK_TIER = 3;
@@ -123,5 +124,31 @@ describe('tryApplyKnockbackByTier with iFrames', () => {
 
         expect(result.outcome).toBe('applied');
         expect(target.knockback).not.toBeNull();
+    });
+});
+
+describe('tryApplyKnockbackByTier with structures', () => {
+    it('fully resists knockback on Structure-tagged units', () => {
+        const target = makeKnockbackTarget();
+        target.tags = [UnitTag.Structure];
+        target.ccArmour.hardFloor = 0;
+        const interrupt = vi.fn();
+        const ctx = makeKnockbackCtx({ interruptUnitAndRefundAbilities: interrupt });
+
+        const result = tryApplyKnockbackByTier(
+            target,
+            IFRAME_KNOCKBACK_TIER,
+            IFRAME_KNOCKBACK_SOURCE,
+            0,
+            0,
+            ctx,
+        );
+
+        expect(result.outcome).toBe('fully_resisted');
+        expect(target.knockback).toBeNull();
+        expect(interrupt).not.toHaveBeenCalled();
+        expect(target.ccArmour.hardConsumed).toBe(0);
+        expect(target.x).toBe(100);
+        expect(target.y).toBe(100);
     });
 });

@@ -6,6 +6,7 @@
 
 import { Buff, type BuffExpireContext, type BuffSerialized } from './Buff';
 import type { Unit } from '../game/units/Unit';
+import { isImmuneToForcedMovement } from '../game/units/unitTag';
 import { computeForcedDisplacement } from '../game/forceMove';
 import { knockbackCtxFromEngine, tryApplyKnockbackByTier } from '../crowdControl/knockbackKeywords';
 import { LIFTED_BUFF_TYPE } from './liftedBuffType';
@@ -86,7 +87,7 @@ export class LiftedBuff extends Buff {
     }
 
     override onBeforeExpire(unit: Unit, ctx: BuffExpireContext): void {
-        if (this.horizontalTarget) {
+        if (this.horizontalTarget && !isImmuneToForcedMovement(unit)) {
             const tm = ctx.terrainManager;
             const grid = tm?.grid ?? null;
             const towardX = this.horizontalTarget.x;

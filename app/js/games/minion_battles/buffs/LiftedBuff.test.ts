@@ -12,6 +12,7 @@ import { TerrainManager } from '../terrain/TerrainManager';
 import { TerrainType } from '../terrain/TerrainType';
 import { TerrainLayerManager } from '../game/TerrainLayerManager';
 import type { KnockbackSource } from '../game/units/unitTypes';
+import { UnitTag } from '../game/units/unitTag';
 import type { UnitSlamLandedEvent } from '../game/EventBus';
 
 const LIFT_SOURCE: KnockbackSource = { unitId: 'caster', abilityId: '0903' };
@@ -248,5 +249,22 @@ describe('LiftedBuff', () => {
         expect(far.y).toBe(farStart.y);
         // Tier-1 air+slide times are what "magnitude 1" means in knockbackKeywords.
         expect(tier1.magnitude).toBeGreaterThan(0);
+    });
+
+    it('does not lift Structure-tagged units', () => {
+        const unit = makeUnit();
+        unit.tags = [UnitTag.Structure];
+        const engine = makeLiftEngine();
+
+        const result = applyLiftToUnit(unit, engine, {
+            slamDamage: SLAM_DAMAGE,
+            horizontalTarget: { x: 160, y: 100 },
+            sourceAbilityId: LIFT_ABILITY_ID,
+        });
+
+        expect(result.outcome).toBe('absorbed');
+        expect(unit.hasBuff(LIFTED_BUFF_TYPE)).toBe(false);
+        expect(unit.x).toBe(100);
+        expect(unit.y).toBe(100);
     });
 });

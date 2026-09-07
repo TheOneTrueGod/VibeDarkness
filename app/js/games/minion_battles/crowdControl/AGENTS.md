@@ -1,6 +1,6 @@
 # crowdControl/
 
-Hard CC application, duration resists, knockback keywords, and boss CC armour. Stun/launch/knockback entry points share the hard-CC armour gate so bosses absorb hits before a stun lands.
+Hard CC application, duration resists, knockback keywords, and boss CC armour. Stun/launch/knockback entry points share the hard-CC armour gate so bosses absorb hits before a stun lands. Units tagged `UnitTag.Structure` fully resist knockback, pull, nudge, and lift (no armour consumed).
 
 ## Folder map
 

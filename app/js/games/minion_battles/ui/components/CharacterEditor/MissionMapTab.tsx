@@ -9,7 +9,7 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { LucideIcon } from 'lucide-react';
-import { ChevronDown, Scroll, Skull, Swords } from 'lucide-react';
+import { ChevronDown, Route, Scroll, Skull, Swords } from 'lucide-react';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import type { MissionResult } from '../../../../../types';
 import type { MissionType } from '../../../storylines/types';
@@ -1119,15 +1119,28 @@ export default function MissionMapTab({
                                     stroke={finished ? '#9ca3af' : '#a78bfa'}
                                     strokeWidth={2}
                                 />
-                                <text
-                                    textAnchor="middle"
-                                    dominantBaseline="central"
-                                    fontSize={SIDE_QUEST_MARK_FONT_SIZE}
-                                    fill={finished ? '#e5e7eb' : '#ede9fe'}
-                                    style={{ pointerEvents: 'none', userSelect: 'none' }}
-                                >
-                                    {finished ? '✓' : 'Q'}
-                                </text>
+                                {finished ? (
+                                    <text
+                                        textAnchor="middle"
+                                        dominantBaseline="central"
+                                        fontSize={SIDE_QUEST_MARK_FONT_SIZE}
+                                        fill="#e5e7eb"
+                                        style={{ pointerEvents: 'none', userSelect: 'none' }}
+                                    >
+                                        ✓
+                                    </text>
+                                ) : (
+                                    <Route
+                                        width={MISSION_ICON_SIZE}
+                                        height={MISSION_ICON_SIZE}
+                                        x={-MISSION_ICON_SIZE / 2}
+                                        y={-MISSION_ICON_SIZE / 2}
+                                        color="#ede9fe"
+                                        strokeWidth={2.25}
+                                        aria-hidden
+                                        style={{ pointerEvents: 'none' }}
+                                    />
+                                )}
                                 <text
                                     y={r + 14}
                                     textAnchor="middle"

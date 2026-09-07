@@ -17,7 +17,8 @@ export enum UnitTag {
     /** Boss is enraged — triggers alternate ability set and increased aggression. */
     Enraged = 'enraged',
     /** Stationary structure (e.g. a lanternite_nest or swarm_nest) — AI targeting plus
-     *  CrowdSpacing anchor (occupies space, never displaced). */
+     *  CrowdSpacing anchor (occupies space, never displaced). Immune to knockback and
+     *  other forced movement. */
     Structure = 'structure',
     /**
      * Heavy / boss-scale unit that occupies CrowdSpacing space but is never displaced by it.
@@ -51,6 +52,11 @@ export function parseUnitTagsFromJSON(raw: unknown): UnitTag[] {
 
 export function hasUnitTag(unit: Unit, tag: UnitTag): boolean {
     return unit.tags.includes(tag);
+}
+
+/** Structures cannot be knockbacked, pulled, nudged, lifted, or otherwise forcibly displaced. */
+export function isImmuneToForcedMovement(unit: Unit): boolean {
+    return hasUnitTag(unit, UnitTag.Structure);
 }
 
 export function addUnitTag(unit: Unit, tag: UnitTag): void {

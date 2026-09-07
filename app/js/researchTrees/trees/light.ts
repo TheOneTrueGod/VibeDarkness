@@ -1,6 +1,7 @@
-import type { ResearchTreeDef } from '../types';
+import { PassiveStatKey, type ResearchTreeDef } from '../types';
 import { DescriptiveValue } from '../descriptiveValue';
 import { IMBUED_BAT_ABILITY_ID } from '../../games/minion_battles/card_defs/08_light_core/0803_ImbuedBat/0803Constants';
+import { LIGHT_REGEN_ENABLED_ADD, MAX_LIGHT_RECOVERY_PER_ROUND } from '../../games/minion_battles/resources/Light';
 import { STICK_SWORD_TREE_ID, STICK_SWORD_NODE_PIPE_BAT } from './stick_sword';
 
 export const LIGHT_TREE_ID = 'light_core';
@@ -8,7 +9,9 @@ export const LIGHT_NODE_CORE = 'light_core';
 export const LIGHT_NODE_IMBUEMENT = 'light_imbuement';
 export const LIGHT_NODE_GATHER_LIGHT = 'gather_light';
 export const LIGHT_NODE_RADIANT_REACH = 'light_radiant_reach';
+export const LIGHT_NODE_LIGHT_ATTUNED = 'light_attuned';
 export const LIGHT_RADIANT_REACH_LEVELS = 2;
+export const LIGHT_ATTUNED_TIER = 13;
 /** Cone outer radius multiplier at max rank (rank 1 is half the bonus). */
 export const LIGHT_RADIANT_REACH_RANGE_MULT = 2;
 
@@ -97,6 +100,26 @@ export const lightTree: ResearchTreeDef = {
                 },
             ],
             modifiesAbility: { from: IMBUED_BAT_ABILITY_ID, to: IMBUED_BAT_ABILITY_ID },
+        },
+        {
+            id: LIGHT_NODE_LIGHT_ATTUNED,
+            title: 'Light Attuned',
+            description:
+                `Recover Light at the start of each round from the brightness of your tile (up to {${MAX_LIGHT_RECOVERY_PER_ROUND}} per round).`,
+            flavorText: 'Stand still long enough and the light starts to stay.',
+            order: 13,
+            tier: LIGHT_ATTUNED_TIER,
+            position: { x: 20, y: 290 },
+            prereqNodeIds: [LIGHT_NODE_CORE],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: LIGHT_TREE_ID, nodeIds: [LIGHT_NODE_CORE] },
+            ],
+            cost: {},
+            effects: [],
+            passiveBonus: {
+                [PassiveStatKey.LightRegenEnabled]: { add: LIGHT_REGEN_ENABLED_ADD },
+            },
         },
     ],
 };

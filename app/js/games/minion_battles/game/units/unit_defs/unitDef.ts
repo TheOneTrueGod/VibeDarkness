@@ -351,6 +351,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         perceptionRange: 0,
         creatureType: 'beast',
         uiDescription: 'Thornling brood nest — destroyable; roots the spawn cycle while it lives.',
+        tags: [UnitTag.Structure],
     },
     swarm_nest: {
         bodyColor: 0x3d0000,
