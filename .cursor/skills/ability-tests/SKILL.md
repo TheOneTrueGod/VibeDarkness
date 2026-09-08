@@ -23,7 +23,7 @@ Deterministic **scenario** objects build a small `GameEngine`, apply one batch o
 | Headless + live stepping | `app/js/games/minion_battles/testing/runner/SimulationRunner.ts` |
 | Early stop when battle idle | `GameEngine.isScenarioRunnerBattleIdle()` in `app/js/games/minion_battles/game/GameEngine.ts` |
 | Admin UI | `app/js/components/AbilityTestPage.tsx`, `app/js/components/ability-tests/*` |
-| Campaign entry | Admin tab + route — find `AbilityTestPage` / `ability_test` in `CampaignHomeScreen` and `campaignTabPaths` |
+| Campaign entry | Admin tab + route — `CampaignHomeAbilityTestTab` and `ability_test` in `campaignTabPaths` |
 
 ## How a scenario works
 

@@ -69,6 +69,9 @@ const MISSION_NODE_FILL = {
     story: '#3b82f6', // blue-500
 } as const;
 
+/** Checkmark and node border for completed missions / quest banks. */
+const COMPLETED_MISSION_ACCENT = '#22c55e'; // green-500
+
 /** Solid accent used for boss hover glow (gradient fill cannot drive drop-shadow alone). */
 const BOSS_GLOW_COLOR = '#e11d48'; // rose-600
 const BOSS_GRADIENT_ID = 'mission-map-boss-fill';
@@ -111,7 +114,7 @@ function getMissionGlowColor(
 }
 
 function getStatusLabel(missionId: string, missionResults: MissionResult[]): { label: string; color: string } | null {
-    if (hasVictoryResult(missionId, missionResults)) return { label: 'Victory', color: '#22c55e' };
+    if (hasVictoryResult(missionId, missionResults)) return { label: 'Victory', color: COMPLETED_MISSION_ACCENT };
     if (isMissionCompleted(missionId, missionResults)) return { label: 'Defeat', color: '#ef4444' };
     return null;
 }
@@ -919,8 +922,11 @@ export default function MissionMapTab({
                     const clickable = isUnlocked || isAdmin;
                     const missionType = def?.missionType ?? DEFAULT_MISSION_TYPE;
                     const finished = isMissionCompleted(id, missionResults);
+                    const completedCombat = !isSide && finished && missionType === 'battle';
                     const color = getMissionNodeFill(id, missionType, missionResults);
-                    const glowColor = getMissionGlowColor(id, missionType, missionResults);
+                    const glowColor = completedCombat
+                        ? COMPLETED_MISSION_ACCENT
+                        : getMissionGlowColor(id, missionType, missionResults);
                     const dimmed = !isUnlocked && !isAdmin;
                     const isHovered = hoveredId === id;
                     const isPressed = pressedId === id;
@@ -997,21 +1003,23 @@ export default function MissionMapTab({
                                     r={r}
                                     fill={color}
                                     stroke={isSide
-                                        ? (finished ? '#9ca3af' : '#7c3aed')
-                                        : ((isHovered || isPinned) ? 'white' : '#1f2937')}
-                                    strokeWidth={isSide ? 2 : ((isHovered || isPinned) ? 2.5 : 2)}
+                                        ? (finished ? COMPLETED_MISSION_ACCENT : '#7c3aed')
+                                        : (completedCombat
+                                            ? COMPLETED_MISSION_ACCENT
+                                            : ((isHovered || isPinned) ? 'white' : '#1f2937'))}
+                                    strokeWidth={isSide || completedCombat ? 2 : ((isHovered || isPinned) ? 2.5 : 2)}
                                     strokeOpacity={(isHovered || isPinned) ? 0.7 : 1}
                                 />
-                                {/* Checkmark / star for side missions; type icon for main missions */}
-                                {isSide ? (
+                                {/* Checkmark / star for side missions; checkmark for completed combat; type icon otherwise */}
+                                {isSide || completedCombat ? (
                                     <text
                                         textAnchor="middle"
                                         dominantBaseline="central"
                                         fontSize={SIDE_QUEST_MARK_FONT_SIZE}
-                                        fill={finished ? '#e5e7eb' : '#a78bfa'}
+                                        fill={finished ? COMPLETED_MISSION_ACCENT : '#a78bfa'}
                                         style={{ pointerEvents: 'none', userSelect: 'none' }}
                                     >
-                                        {hasVictoryResult(id, missionResults) ? '✓' : '★'}
+                                        {isSide && !hasVictoryResult(id, missionResults) ? '★' : '✓'}
                                     </text>
                                 ) : (
                                     <MissionIcon
@@ -1115,8 +1123,8 @@ export default function MissionMapTab({
                                 )}
                                 <circle
                                     r={r}
-                                    fill={finished ? '#6b7280' : '#7c3aed'}
-                                    stroke={finished ? '#9ca3af' : '#a78bfa'}
+                                    fill={finished ? MISSION_NODE_FILL.finished : '#7c3aed'}
+                                    stroke={finished ? COMPLETED_MISSION_ACCENT : '#a78bfa'}
                                     strokeWidth={2}
                                 />
                                 {finished ? (
@@ -1124,7 +1132,7 @@ export default function MissionMapTab({
                                         textAnchor="middle"
                                         dominantBaseline="central"
                                         fontSize={SIDE_QUEST_MARK_FONT_SIZE}
-                                        fill="#e5e7eb"
+                                        fill={COMPLETED_MISSION_ACCENT}
                                         style={{ pointerEvents: 'none', userSelect: 'none' }}
                                     >
                                         ✓

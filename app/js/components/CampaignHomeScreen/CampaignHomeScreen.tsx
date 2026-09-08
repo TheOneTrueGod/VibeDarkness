@@ -1,47 +1,22 @@
 /**
- * Campaign home - tabbed view: Welcome, Mission Select, Join Mission.
- * Shown when user is logged in and on the lobby screen (no active lobby).
+ * Campaign home — tabbed view. Tab chrome and panels live in sibling files;
+ * this screen owns campaign bootstrap, URL routing, and the tab bar.
  */
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { LobbyClient } from '../LobbyClient';
-import { useUserData } from '../user/UserDataProvider';
-import { useCurrentUser } from '../user/useCurrentUser';
-import type { CampaignState } from '../types';
-import AdminPlayersHomePanel from './minionBattlesHomePage/AdminPlayersHomePanel';
-import CharactersPanel from '../games/minion_battles/ui/components/characters/CharactersPanel';
-import { MinionBattlesApi } from '../games/minion_battles/api/minionBattlesApi';
-import AbilityTestPanel from './minionBattlesHomePage/AbilityTestPanel';
-import MissionSelectPanel from './minionBattlesHomePage/MissionSelectPanel';
-import JoinMissionPanel from './minionBattlesHomePage/JoinMissionPanel';
-import TerrainEditorTab from './minionBattlesHomePage/TerrainEditor/TerrainEditorTab';
-import LobbyArchiveTab from './minionBattlesHomePage/LobbyArchive/LobbyArchiveTab';
-import BestiaryPanel from './minionBattlesHomePage/BestiaryPanel';
+import { LobbyClient } from '../../LobbyClient';
+import { useUserData } from '../../user/UserDataProvider';
+import { useCurrentUser } from '../../user/useCurrentUser';
+import type { CampaignState } from '../../types';
+import { MinionBattlesApi } from '../../games/minion_battles/api/minionBattlesApi';
 import {
     type TabId,
-    CAMPAIGN_TAB_IDS,
     tabFromCampaignSlug,
     campaignPathForTab,
-    playersListPath,
     playerCharactersPath,
-} from './ability-tests/campaignTabPaths';
-import { TestIds, campaignTabTestId } from '../testing/testIds';
-
-/** Per-tab settings: label and whether the tab is visible for the current user. */
-const TAB_SETTINGS: Record<
-    TabId,
-    { label: string; isVisible: (isAdmin: boolean) => boolean; adminTab?: boolean }
-> = {
-    welcome: { label: 'Welcome', isVisible: () => true },
-    mission_select: { label: 'Mission Select', isVisible: (isAdmin) => isAdmin, adminTab: true },
-    join_mission: { label: 'Join Mission', isVisible: () => true },
-    players: { label: 'Players', isVisible: (isAdmin) => isAdmin, adminTab: true },
-    characters: { label: 'Characters', isVisible: () => true },
-    ability_test: { label: 'Ability Test', isVisible: (isAdmin) => isAdmin, adminTab: true },
-    terrain_editor: { label: 'Terrain Editor', isVisible: (isAdmin) => isAdmin, adminTab: true },
-    lobby_archive: { label: 'Lobby Archive', isVisible: (isAdmin) => isAdmin, adminTab: true },
-    bestiary: { label: 'Bestiary', isVisible: (isAdmin) => isAdmin, adminTab: true },
-};
+} from '../ability-tests/campaignTabPaths';
+import { TestIds, campaignTabTestId } from '../../testing/testIds';
+import { CAMPAIGN_HOME_TABS, getCampaignHomeTab } from './campaignHomeTabs';
 
 /** Default tab when no tab is selected. */
 function getDefaultTab(_isAdmin: boolean): TabId {
@@ -55,20 +30,25 @@ interface CampaignHomeScreenProps {
     refetchUser: () => Promise<void>;
     onStartMissionForCharacter?: (
         missionId: string,
-        character: import('../games/minion_battles/character_defs/CampaignCharacter').CampaignCharacter,
-        ownerAccount: import('../types').AccountState,
+        character: import('../../games/minion_battles/character_defs/CampaignCharacter').CampaignCharacter,
+        ownerAccount: import('../../types').AccountState,
     ) => void;
     /** Start / continue a quest run (Mission Map banks + Quest Prep). */
     onStartQuestForCharacter?: (
         questDefId: string,
-        character: import('../games/minion_battles/character_defs/CampaignCharacter').CampaignCharacter,
-        ownerAccount: import('../types').AccountState,
+        character: import('../../games/minion_battles/character_defs/CampaignCharacter').CampaignCharacter,
+        ownerAccount: import('../../types').AccountState,
         options?: {
             mode?: 'continue' | 'start';
             assignedBankId?: string | null;
             adminSeekSlotIndex?: number;
         },
     ) => void;
+}
+
+function pathForTab(id: TabId, userId: number | string): string {
+    const tab = getCampaignHomeTab(id);
+    return tab.getPath?.(userId) ?? campaignPathForTab(id);
 }
 
 export default function CampaignHomeScreen({
@@ -86,12 +66,13 @@ export default function CampaignHomeScreen({
     const { isAdmin } = useCurrentUser();
     const defaultTab = getDefaultTab(isAdmin);
     const visibleTabs = useMemo(
-        () => CAMPAIGN_TAB_IDS.filter((id) => TAB_SETTINGS[id].isVisible(isAdmin)),
+        () => CAMPAIGN_HOME_TABS.filter((tab) => tab.isVisible(isAdmin)),
         [isAdmin]
     );
     const onPlayersListRoute = location.pathname === '/players';
     const onCharactersRoute = location.pathname.startsWith('/players/');
     const activeTab: TabId = onPlayersListRoute ? 'players' : onCharactersRoute ? 'characters' : (tabFromCampaignSlug(tabSlug) ?? defaultTab);
+    const activeTabDef = getCampaignHomeTab(activeTab);
 
     useEffect(() => {
         if (onCharactersRoute) return;
@@ -102,15 +83,15 @@ export default function CampaignHomeScreen({
             return;
         }
         const fromUrl = tabFromCampaignSlug(tabSlug);
-        if (fromUrl != null && visibleTabs.includes(fromUrl)) {
+        if (fromUrl != null && visibleTabs.some((tab) => tab.id === fromUrl)) {
             return;
         }
         const fallback =
-            (visibleTabs.includes(defaultTab) ? defaultTab : visibleTabs[0]) ?? 'welcome';
+            (visibleTabs.some((tab) => tab.id === defaultTab) ? defaultTab : visibleTabs[0]?.id) ?? 'welcome';
         if (fallback === 'characters') {
             navigate(playerCharactersPath(user?.id ?? ''), { replace: true });
         } else {
-            navigate(campaignPathForTab(fallback), { replace: true });
+            navigate(pathForTab(fallback, user?.id ?? ''), { replace: true });
         }
     }, [tabSlug, visibleTabs, defaultTab, navigate, onPlayersListRoute, onCharactersRoute, isAdmin, user]);
     const api = useMemo(() => new MinionBattlesApi(lobbyClient, '', '', ''), [lobbyClient]);
@@ -185,7 +166,7 @@ export default function CampaignHomeScreen({
             <div className="flex-1 overflow-y-auto w-full">
             <div
                 className={`mx-auto w-full px-5 py-2 max-md:px-5 max-md:py-5 ${
-                    activeTab === 'welcome' ? 'max-w-[800px]' : 'max-w-full'
+                    activeTabDef.narrowContent ? 'max-w-[800px]' : 'max-w-full'
                 }`}
             >
                 <div className="relative mb-2 flex items-center justify-center">
@@ -209,63 +190,23 @@ export default function CampaignHomeScreen({
                     <div className="text-center text-muted py-8">Loading campaign…</div>
                 )}
 
-                {hasCampaign && !campaignLoading && campaign && (
-                    <>
-                        {activeTab === 'welcome' && (
-                            <div className="flex items-center justify-center min-h-[200px]">
-                                <span className="text-2xl text-muted">Welcome</span>
-                            </div>
-                        )}
-
-                        {activeTab === 'mission_select' && (
-                            <MissionSelectPanel
-                                campaign={campaign}
-                                lobbyClient={lobbyClient}
-                                onSelectMission={onSelectMission}
-                                onCampaignUpdated={setCampaign}
-                            />
-                        )}
-
-                        {activeTab === 'join_mission' && (
-                            <JoinMissionPanel
-                                lobbyClient={lobbyClient}
-                                onJoinLobby={onJoinLobby}
-                            />
-                        )}
-
-                        {activeTab === 'players' && isAdmin && (
-                            <AdminPlayersHomePanel
-                                lobbyClient={lobbyClient}
-                            />
-                        )}
-
-                        {activeTab === 'characters' && (
-                            <CharactersPanel
-                                api={api}
-                                lobbyClient={lobbyClient}
-                                onStartMissionForCharacter={onStartMissionForCharacter}
-                                onStartQuestForCharacter={onStartQuestForCharacter}
-                            />
-                        )}
-
-                        {activeTab === 'ability_test' && isAdmin && <AbilityTestPanel />}
-
-                        {activeTab === 'terrain_editor' && isAdmin && <TerrainEditorTab />}
-
-                        {activeTab === 'lobby_archive' && isAdmin && (
-                            <LobbyArchiveTab lobbyClient={lobbyClient} onJoinLobby={onJoinLobby} />
-                        )}
-
-                        {activeTab === 'bestiary' && isAdmin && <BestiaryPanel />}
-                    </>
-                )}
+                {hasCampaign && !campaignLoading && campaign && activeTabDef.render({
+                    campaign,
+                    lobbyClient,
+                    api,
+                    onSelectMission,
+                    onJoinLobby,
+                    onCampaignUpdated: setCampaign,
+                    onStartMissionForCharacter,
+                    onStartQuestForCharacter,
+                })}
             </div>
             </div>
 
             {hasCampaign && campaign && (
                 <nav className="flex border-t border-border-custom bg-surface" aria-label="Tabs" data-testid={TestIds.campaignTabs}>
-                    {visibleTabs.map((id) => {
-                        const { label, adminTab } = TAB_SETTINGS[id];
+                    {visibleTabs.map((tab) => {
+                        const { id, label, adminTab } = tab;
                         const isActive = activeTab === id;
                         return (
                             <button
@@ -277,15 +218,7 @@ export default function CampaignHomeScreen({
                                         ? 'text-primary border-b-2 border-primary'
                                         : 'text-muted hover:text-white border-b-2 border-transparent'
                                 } ${adminTab ? 'bg-red-950/50 hover:bg-red-950/70' : ''}`}
-                                onClick={() => {
-                                    if (id === 'players') {
-                                        navigate(playersListPath());
-                                    } else if (id === 'characters') {
-                                        navigate(playerCharactersPath(user?.id ?? ''));
-                                    } else {
-                                        navigate(campaignPathForTab(id));
-                                    }
-                                }}
+                                onClick={() => navigate(pathForTab(id, user?.id ?? ''))}
                             >
                                 {label}
                             </button>

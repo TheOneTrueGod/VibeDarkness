@@ -17,40 +17,28 @@ Use when:
 
 | File | Purpose |
 |------|---------|
-| `app/js/components/CampaignHomeScreen.tsx` | Top-level component: renders the tab bar, routes `activeTab` to the correct panel. |
-| `app/js/components/ability-tests/campaignTabPaths.ts` | Canonical list of `TabId` values, URL slugs (`CAMPAIGN_TAB_SLUG`), and helpers `tabFromCampaignSlug` / `campaignPathForTab`. |
-| `app/js/components/TerrainEditor/TerrainEditorTab.tsx` | Panel rendered when `activeTab === 'terrain_editor'`. |
-| `app/js/components/TerrainEditor/AGENTS.md` | Full agent guide for the Terrain Editor tab. |
+| `app/js/components/CampaignHomeScreen/` | Shell, tab registry, and one `CampaignHome*Tab.tsx` per tab. See that folder's `AGENTS.md`. |
+| `app/js/components/ability-tests/campaignTabPaths.ts` | Canonical `TabId` union, URL slugs, and path helpers. |
+| `app/js/components/minionBattlesHomePage/` | Panel implementations composed by the tab wrappers (Mission Select, Terrain Editor, etc.). |
 
-## Tab inventory
-
-| `TabId` | URL slug | Visible to | Notes |
-|---------|----------|-----------|-------|
-| `welcome` | `welcome` | everyone | Placeholder panel. |
-| `mission_select` | `mission-select` | admin | Admin-only storyline/mission list. |
-| `join_mission` | `join-mission` | everyone | Lobby-code entry + recent lobbies. |
-| `players` | `players` | admin | Admin players panel (`AdminPlayersHomePanel`). |
-| `ability_test` | `ability-test` | admin | Headless ability-test runner (`AbilityTestPage`). |
-| `terrain_editor` | `terrain-editor` | admin | Canvas-based map segment editor (`TerrainEditorTab`). |
+Tab ids, labels, and visibility live on each `CampaignHome*Tab.tsx` export (registered in `campaignHomeTabs.ts`). Do not list them here — open those files.
 
 ## How routing works
 
 - URL pattern: `/campaign/:tabSlug`
 - `tabFromCampaignSlug(slug)` maps a URL slug to a `TabId` (returns `null` for unknown slugs).
-- `campaignPathForTab(tab)` returns the canonical path for navigation.
-- On mount, `CampaignHomeScreen` redirects to the default tab if the URL tab is missing or not visible to the current user. Admins default to `mission_select`; non-admins default to `join_mission`.
+- `campaignPathForTab(tab)` returns the canonical path. Players and Characters override via `getPath` on their tab def (`/players` and `/players/:id/characters`).
+- On mount, `CampaignHomeScreen` redirects if the URL tab is missing or not visible. Default tab is `characters`.
 
 ## How to add a new tab
 
-1. Add the new `TabId` string literal to the `TabId` union in `campaignTabPaths.ts`.
-2. Add its URL slug to `CAMPAIGN_TAB_SLUG` in the same file.
-3. Add an entry to `CAMPAIGN_TAB_IDS` (controls render order in the tab bar).
-4. Add an entry to `TAB_SETTINGS` in `CampaignHomeScreen.tsx` with a `label` and `isVisible` predicate.
-5. Add a conditional render block in `CampaignHomeScreen.tsx` (inside the `hasCampaign && !campaignLoading && campaign` block).
-6. If the tab is admin-only, set `adminTab: true` in `TAB_SETTINGS` — this gives it the red-tinted tab-bar style.
+1. Add the `TabId` and URL slug to `campaignTabPaths.ts` (`TabId`, `CAMPAIGN_TAB_SLUG`, `CAMPAIGN_TAB_IDS` — last controls bar order).
+2. Create `app/js/components/CampaignHomeScreen/CampaignHome<Name>Tab.tsx` exporting a `CampaignHomeTabDef` (`id`, `label`, `isVisible`, optional `adminTab` / `getPath` / `narrowContent`, and `render`).
+3. Register that def in `campaignHomeTabs.ts` (`TAB_DEFS` must cover every `TabId`).
+4. Put panel UI in `minionBattlesHomePage/` (or inline if it is a small placeholder). The tab file should stay a thin wrapper.
+5. For admin-only tabs set `adminTab: true` (red-tinted tab bar) and `isVisible: (isAdmin) => isAdmin`.
+6. Inside the panel, call `useCurrentUser()` for `isAdmin` — do **not** accept `isAdmin` as a prop.
 
 ## Terrain Editor tab
 
-The `terrain_editor` tab renders `<TerrainEditorTab />` (admin-only). It depends on TypeScript-registered map segments being available at render time. Segments are registered synchronously at module load via `registerWorldOfDarknessSegments()` called in `app/js/main.tsx` before `ReactDOM.createRoot(...)`.
-
-For the full Terrain Editor agent guide, see `app/js/components/TerrainEditor/AGENTS.md`.
+The terrain-editor tab wraps `minionBattlesHomePage/TerrainEditor/TerrainEditorTab`. It depends on TypeScript-registered map segments at render time. Segments are registered synchronously at module load via `registerWorldOfDarknessSegments()` in `app/js/main.tsx` before `ReactDOM.createRoot(...)`.

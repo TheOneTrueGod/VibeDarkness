@@ -10,7 +10,7 @@ import { useUserData } from './user/UserDataProvider';
 import { useCurrentUser } from './user/useCurrentUser';
 import { DebugSettingsProvider } from './contexts/DebugSettingsContext';
 import { DebugConsoleProvider } from './contexts/DebugConsoleContext';
-import CampaignHomeScreen from './components/CampaignHomeScreen';
+import CampaignHomeScreen from './components/CampaignHomeScreen/CampaignHomeScreen';
 import LoginScreen from './components/LoginScreen';
 import {
     MISSION_MAP,
