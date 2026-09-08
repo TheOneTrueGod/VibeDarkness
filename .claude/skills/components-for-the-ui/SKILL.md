@@ -19,6 +19,8 @@ This skill keeps a **list of component names** and a **one-line description** of
 | **PlayerTile** | Battle timeline player name chip: `tiny` (coloured border/background + HOST) or `small` (full row with order-status lamp, name, optional WebRTC wifi icon). Used in `BattleTimeline` rail headers. |
 | **MissionIdBadge** | Header mono pill for `selectedMissionId`; shown only for admins or when the debug console is open. Lives in `app/js/components/`. |
 | **CardWithTitle** | Full-size titled card (`title`, optional `subtitle` / `actions`, children in a vertically scrolling body). Fills its parent; white text + `bg-surface`. Max width belongs on the parent wrapper. Lives in `app/js/components/`. |
+| **CharactersTabLayerOne** | Campaign-home character chrome: name, Lucide portrait arrows, Change Characters, left-column switch, URL-owned inner-tab bar. Lives in `CampaignHomeScreen/CharactersTab/`. |
+| **CharactersTabLayerTwo** | Campaign-home character right panel; dispatches to MissionMap / Upgrades / StatBonuses / Equipment. |
 
 | **CampaignCharacterCard** | 200×200 card for a player character: portrait, name footer, delete button, disallow-reason diagonal, per-player color dots. Lives in `ui/pages/characterSelect/`. |
 | **CharacterOverview** | Left-portrait + right-ability-cards overview shown when a character is selected. Lives in `ui/pages/characterSelect/`. |

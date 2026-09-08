@@ -36,7 +36,40 @@ export function playerCharactersPath(playerId: number | string): string {
     return `/players/${playerId}/characters`;
 }
 
-export function playerCharacterPath(playerId: number | string, characterId: string): string {
+/** Inner tabs on a campaign-home character sheet. */
+export type CharacterInnerTabId = 'map' | 'upgrades' | 'bonuses' | 'equipment';
+
+export const DEFAULT_CHARACTER_INNER_TAB: CharacterInnerTabId = 'map';
+
+export const CHARACTER_INNER_TAB_SLUG: Record<CharacterInnerTabId, string> = {
+    map: 'map',
+    upgrades: 'upgrades',
+    bonuses: 'bonuses',
+    equipment: 'equipment',
+};
+
+const CHARACTER_INNER_SLUG_TO_TAB = Object.fromEntries(
+    (Object.keys(CHARACTER_INNER_TAB_SLUG) as CharacterInnerTabId[]).map((tab) => [
+        CHARACTER_INNER_TAB_SLUG[tab],
+        tab,
+    ]),
+) as Record<string, CharacterInnerTabId>;
+
+export function tabFromCharacterInnerSlug(slug: string | undefined): CharacterInnerTabId | null {
+    if (!slug) return null;
+    return CHARACTER_INNER_SLUG_TO_TAB[slug] ?? null;
+}
+
+export function playerCharacterPath(
+    playerId: number | string,
+    characterId: string,
+    tab: CharacterInnerTabId = DEFAULT_CHARACTER_INNER_TAB,
+): string {
+    return `/players/${playerId}/characters/${characterId}/${CHARACTER_INNER_TAB_SLUG[tab]}`;
+}
+
+/** Character sheet without an inner-tab segment (redirects to map). */
+export function playerCharacterRootPath(playerId: number | string, characterId: string): string {
     return `/players/${playerId}/characters/${characterId}`;
 }
 

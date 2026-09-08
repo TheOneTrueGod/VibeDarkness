@@ -18,6 +18,8 @@ import {
     playerCharacterPath,
     playerCampaignDataPath,
     isPlayerCampaignDataPath,
+    tabFromCharacterInnerSlug,
+    DEFAULT_CHARACTER_INNER_TAB,
 } from '../../../../../components/ability-tests/campaignTabPaths';
 import { TestIds } from '../../../../../testing/testIds';
 import { ItemCard } from './ItemCard';
@@ -65,7 +67,12 @@ export default function CharactersPanel({
     const isAdmin = user?.role === 'admin';
 
     // ── URL params ───────────────────────────────────────────────────────────
-    const { playerId: playerIdParam, characterId: characterIdParam } = useParams<{ playerId?: string; characterId?: string }>();
+    const { playerId: playerIdParam, characterId: characterIdParam, characterTab: characterTabParam } = useParams<{
+        playerId?: string;
+        characterId?: string;
+        characterTab?: string;
+    }>();
+    const currentInnerTab = tabFromCharacterInnerSlug(characterTabParam) ?? DEFAULT_CHARACTER_INNER_TAB;
     const navigate = useNavigate();
     const location = useLocation();
     const isCampaignDataSelected = isPlayerCampaignDataPath(location.pathname);
@@ -578,7 +585,7 @@ export default function CharactersPanel({
                                             onSelect={() => {
                                                 setCharacterListOpen(false);
                                                 if (playerIdParam != null) {
-                                                    navigate(playerCharacterPath(playerIdParam, character.id));
+                                                    navigate(playerCharacterPath(playerIdParam, character.id, currentInnerTab));
                                                 }
                                             }}
                                             onDelete={() => void handleDeleteAdminCharacter(character.id)}
@@ -624,6 +631,7 @@ export default function CharactersPanel({
                                 account={adminDetails?.account ?? null}
                                 viewerAccount={user ?? null}
                                 campaign={null}
+                                useRoutedInnerTabs
                                 onChangeCharacters={() => setCharacterListOpen(true)}
                                 onStartMission={
                                     onStartMissionForCharacter && adminDetails?.account
@@ -785,7 +793,7 @@ export default function CharactersPanel({
                     selected={c.id === characterIdParam}
                     onSelect={() => {
                         setCharacterListOpen(false);
-                        if (user) navigate(playerCharacterPath(user.id, c.id));
+                        if (user) navigate(playerCharacterPath(user.id, c.id, currentInnerTab));
                     }}
                     onDelete={() => void handleDeletePlayerCharacter(c.id)}
                 />
@@ -835,6 +843,7 @@ export default function CharactersPanel({
                     account={user ?? null}
                     viewerAccount={user ?? null}
                     campaign={null}
+                    useRoutedInnerTabs
                     onChangeCharacters={() => setCharacterListOpen(true)}
                     onStartMission={
                         onStartMissionForCharacter && user

@@ -29,6 +29,7 @@ Tab ids, labels, and visibility live on each `CampaignHome*Tab.tsx` export (regi
 - `tabFromCampaignSlug(slug)` maps a URL slug to a `TabId` (returns `null` for unknown slugs).
 - `campaignPathForTab(tab)` returns the canonical path. Players and Characters override via `getPath` on their tab def (`/players` and `/players/:id/characters`).
 - On mount, `CampaignHomeScreen` redirects if the URL tab is missing or not visible. Default tab is `characters`.
+- Character inner tabs live under `/players/:playerId/characters/:characterId/:characterTab`. Helpers and slugs are in `campaignTabPaths.ts`; chrome is `CampaignHomeScreen/CharactersTab/`. Visiting a character without a tab segment defaults to map.
 
 ## How to add a new tab
 

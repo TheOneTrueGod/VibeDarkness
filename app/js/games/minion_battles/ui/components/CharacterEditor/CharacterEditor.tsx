@@ -36,6 +36,17 @@ import ResourcePill from '../../../../../components/ResourcePill';
 import { getShowAllResearchTrees, subscribeShowAllResearchTrees } from '../../../../../debugFlags';
 import MissionMapTab from './MissionMapTab';
 import StatBonusesTab from './StatBonusesTab';
+import { PortraitCycleButtons } from './PortraitCycleButtons';
+import { CharactersTabLayerOne } from '../../../../../components/CampaignHomeScreen/CharactersTab/CharactersTabLayerOne';
+import { CharactersTabLayerTwo } from '../../../../../components/CampaignHomeScreen/CharactersTab/CharactersTabLayerTwo';
+import { useCharacterInnerTab } from '../../../../../components/CampaignHomeScreen/CharactersTab/useCharacterInnerTab';
+import {
+    editorTabFromInner,
+    innerTabFromEditor,
+    innerTabShowsPortrait,
+    type CharacterEditorTab,
+} from '../../../../../components/CampaignHomeScreen/CharactersTab/characterInnerTabMap';
+import type { CharacterInnerTabId } from '../../../../../components/ability-tests/campaignTabPaths';
 import {
     CHANGE_CHARACTERS_LABEL,
     CHARACTER_EDITOR_LEFT_WIDTH_CLASS,
@@ -82,9 +93,14 @@ interface CharacterEditorProps {
     adminKnowledgePanel?: React.ReactNode;
     /** Opens the campaign-home character-list pull-out (Mission Map / Upgrades / Stat Bonuses). */
     onChangeCharacters?: () => void;
+    /**
+     * Campaign-home layout: LayerOne/LayerTwo chrome and URL-owned inner tabs
+     * (`/players/:id/characters/:charId/:tab`). Lobby keeps local tab state.
+     */
+    useRoutedInnerTabs?: boolean;
 }
 
-type EditorTab = 'missionMap' | 'equipment' | 'research' | 'statBonuses';
+type EditorTab = CharacterEditorTab;
 const MAX_CHARACTER_NAME_LENGTH = 15;
 
 /** Slot descriptor for the doll: type and optional index for weapon/utility. */
@@ -126,6 +142,7 @@ export default function CharacterEditor({
     adminEquipmentPanel,
     adminKnowledgePanel,
     onChangeCharacters,
+    useRoutedInnerTabs = false,
 }: CharacterEditorProps) {
     const canEditName = editMode || allowNameEdit;
 
@@ -144,7 +161,15 @@ export default function CharacterEditor({
     const [nameDraft, setNameDraft] = useState(character.name);
     const [isEditingName, setIsEditingName] = useState(false);
     const [equipment, setEquipment] = useState<string[]>(() => [...character.equipment]);
-    const [activeTab, setActiveTab] = useState<EditorTab>(() => hideMissionMap ? 'research' : 'missionMap');
+    const [localTab, setLocalTab] = useState<EditorTab>(() => hideMissionMap ? 'research' : 'missionMap');
+    const { tab: routedInnerTab, setTab: setRoutedInnerTab } = useCharacterInnerTab();
+    const activeTab: EditorTab = useRoutedInnerTabs ? editorTabFromInner(routedInnerTab) : localTab;
+    const innerTab: CharacterInnerTabId = useRoutedInnerTabs ? routedInnerTab : innerTabFromEditor(localTab);
+
+    const setActiveTab = useCallback((next: EditorTab) => {
+        if (useRoutedInnerTabs) setRoutedInnerTab(innerTabFromEditor(next));
+        else setLocalTab(next);
+    }, [useRoutedInnerTabs, setRoutedInnerTab]);
     const [saving, setSaving] = useState(false);
     const [dragItemId, setDragItemId] = useState<string | null>(null);
     const [dragSlot, setDragSlot] = useState<EquipmentSlotType | null>(null);
@@ -612,6 +637,315 @@ export default function CharacterEditor({
     const selectedTree = displayResearchTrees.find((t) => t.id === (selectedTreeId ?? firstTreeId));
     const selectedTreeDimmed = selectedTree ? dimmedResearchTreeIds.has(selectedTree.id) : false;
 
+    useEffect(() => {
+        if (!useRoutedInnerTabs) return;
+        if (routedInnerTab === 'equipment' && !isAdmin) {
+            setRoutedInnerTab('map');
+        }
+    }, [useRoutedInnerTabs, routedInnerTab, isAdmin, setRoutedInnerTab]);
+
+    const visibleInnerTabs: CharacterInnerTabId[] = [
+        ...(!hideMissionMap ? (['map'] as const) : []),
+        ...(isAdmin ? (['equipment'] as const) : []),
+        'upgrades',
+        'bonuses',
+    ];
+
+    const nameSection = (
+        <>
+            {canEditName && !isEditingName && (
+                <button
+                    type="button"
+                    className="h-6 w-6 rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer shrink-0"
+                    onClick={() => {
+                        setNameDraft(name);
+                        setIsEditingName(true);
+                    }}
+                    aria-label="Edit character name"
+                    title="Edit character name"
+                >
+                    <Pencil className="h-3 w-3" aria-hidden />
+                </button>
+            )}
+            {canEditName && isEditingName ? (
+                <>
+                    <button
+                        type="button"
+                        className="h-6 w-6 rounded border border-emerald-500/70 bg-emerald-600/20 text-emerald-300 flex items-center justify-center hover:bg-emerald-600/35 cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-default"
+                        onClick={() => void saveName()}
+                        aria-label="Apply name change"
+                        title="Apply name change"
+                        disabled={saving}
+                    >
+                        <Check className="h-3 w-3" aria-hidden />
+                    </button>
+                    <input
+                        type="text"
+                        value={nameDraft}
+                        onChange={(e) => setNameDraft(sanitizeCharacterName(e.target.value))}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                void saveName();
+                            } else if (e.key === 'Escape') {
+                                e.preventDefault();
+                                cancelNameEdit();
+                            }
+                        }}
+                        className="flex-1 min-w-0 rounded border border-border-custom bg-surface px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-primary"
+                        placeholder={portrait?.name ?? 'Adventurer'}
+                        aria-label="Character name"
+                        maxLength={MAX_CHARACTER_NAME_LENGTH}
+                        pattern="[A-Za-z0-9]{1,15}"
+                        title="Use letters and numbers only (max 15 characters)."
+                        spellCheck={false}
+                        autoFocus
+                    />
+                    <button
+                        type="button"
+                        className="h-6 w-6 rounded border border-red-500/70 bg-red-600/20 text-red-300 flex items-center justify-center hover:bg-red-600/35 cursor-pointer shrink-0"
+                        onClick={cancelNameEdit}
+                        aria-label="Cancel name change"
+                        title="Cancel name change"
+                    >
+                        <X className="h-3 w-3" aria-hidden />
+                    </button>
+                </>
+            ) : (
+                <span
+                    className="text-lg font-semibold text-white truncate text-left min-w-0 flex-1"
+                    title={displayName}
+                >
+                    {displayName}
+                </span>
+            )}
+        </>
+    );
+
+    const portraitBlock = (
+        <div className="flex justify-center pt-4">
+            <CharacterPortrait
+                picture={portrait?.picture ?? ''}
+                sizePx={200}
+            />
+        </div>
+    );
+
+    const equipmentLeft = (
+        <div className="flex-1 min-h-0 overflow-auto p-3">
+            {equippedItemsDisplay === 'list' ? (
+                <EquippedItemsList
+                    equipment={equipment}
+                    slotDescriptors={getSlotDescriptors(equipment)}
+                    onDropOnSlot={handleDropOnSlot}
+                    onDragOver={handleDragOver}
+                    onDragStartSlot={handleDragStartSlot}
+                    onDragEnd={handleDragEnd}
+                    editMode={effectiveEditMode}
+                />
+            ) : (
+                <EquipmentDoll
+                    equipment={equipment}
+                    slotDescriptors={getSlotDescriptors(equipment)}
+                    onDropOnSlot={handleDropOnSlot}
+                    onDragOver={handleDragOver}
+                    onDragStartSlot={handleDragStartSlot}
+                    onDragEnd={handleDragEnd}
+                    dragItemId={dragItemId}
+                    dragSlot={dragSlot}
+                    editMode={effectiveEditMode}
+                />
+            )}
+        </div>
+    );
+
+    const researchLeft = (
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            {isAdmin && (
+                <div className="shrink-0 px-3 pt-3 pb-1">
+                    <button
+                        type="button"
+                        onClick={() => setAdminUseGridView((v) => !v)}
+                        className="w-full rounded-md border border-border-custom bg-surface-light px-2 py-1.5 text-xs font-medium text-muted hover:text-white transition-colors"
+                    >
+                        {adminUseGridView ? 'Switch to Tree View' : 'Switch to Grid View'}
+                    </button>
+                </div>
+            )}
+            <div className="flex-1 min-h-0 overflow-auto p-3 pt-2">
+                <ResearchTreeList
+                    availableTrees={displayResearchTrees}
+                    dimmedTreeIds={dimmedResearchTreeIds}
+                    selectedTreeId={selectedTreeId}
+                    onSelectTree={(id) => setSelectedTreeId(id)}
+                    researchTrees={researchTrees}
+                    canResetResearch={isAdmin && !adminUseGridView}
+                    resetSaving={saving}
+                    onResetResearchTree={(treeId) => void handleResetResearch([treeId])}
+                    showAllOption={useGridView}
+                    onSelectAll={() => setSelectedTreeId(null)}
+                />
+            </div>
+        </div>
+    );
+
+    const equipmentRight = (
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            {effectiveShowInventory && (
+                <div className="flex-1 min-h-0 overflow-auto p-4">
+                    <InventoryPanel
+                        visibleInventoryItems={visibleInventoryItems}
+                        editMode={effectiveEditMode}
+                        saving={saving}
+                        onDragStartItem={handleDragStartItem}
+                        onDragEnd={handleDragEnd}
+                    />
+                </div>
+            )}
+            {adminEquipmentPanel && (
+                <div className="shrink-0 border-t border-border-custom p-3">
+                    {adminEquipmentPanel}
+                </div>
+            )}
+        </div>
+    );
+
+    const researchRight = (
+        <div className="flex-1 min-h-0 overflow-auto p-4">
+            {!isAdmin ? (
+                <ResearchedNodesGrid
+                    availableTrees={displayResearchTrees}
+                    researchTrees={researchTrees}
+                    filterTreeId={selectedTreeId}
+                />
+            ) : (
+                <>
+                    {(resolvedCampaign?.resources || adminKnowledgePanel) && (
+                        <div className="mb-4 flex gap-3">
+                            {resolvedCampaign?.resources && permissionAccount?.role === 'admin' && (
+                                <div className="flex-1 rounded-lg border border-border-custom bg-surface-light p-3">
+                                    <p className="text-xs text-muted mb-2">Admin: grant campaign resource</p>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <select
+                                            className="rounded-md border border-border-custom bg-surface px-2 py-1 text-sm text-white"
+                                            value={grantResourceKey}
+                                            onChange={(e) => setGrantResourceKey(e.target.value as typeof grantResourceKey)}
+                                        >
+                                            <option value="food">food</option>
+                                            <option value="metal">metal</option>
+                                            <option value="population">population</option>
+                                            <option value="crystals">crystals</option>
+                                        </select>
+                                        <input
+                                            className="w-24 rounded-md border border-border-custom bg-surface px-2 py-1 text-sm text-white"
+                                            value={grantResourceAmount}
+                                            onChange={(e) => setGrantResourceAmount(e.target.value)}
+                                            inputMode="numeric"
+                                            placeholder="amount"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => void handleGrantResource()}
+                                            className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-secondary hover:bg-primary-hover"
+                                        >
+                                            Give
+                                        </button>
+                                        <span className="text-xs text-muted flex flex-wrap items-center gap-2">
+                                            <span>Current:</span>
+                                            <ResourcePill resource="food" count={resolvedCampaign.resources.food} className="text-xs" />
+                                            <ResourcePill resource="metal" count={resolvedCampaign.resources.metal} className="text-xs" />
+                                            <ResourcePill resource="population" count={resolvedCampaign.resources.population} className="text-xs" />
+                                            <ResourcePill resource="crystals" count={resolvedCampaign.resources.crystals} className="text-xs" />
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+                            {adminKnowledgePanel && (
+                                <div className="flex-1 rounded-lg border border-border-custom bg-surface-light p-3">
+                                    {adminKnowledgePanel}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    {resolvedCampaign?.resources ? (
+                        displayResearchTrees.length === 0 ? (
+                            <p className="text-sm text-muted">No research trees available.</p>
+                        ) : !useGridView ? (
+                            selectedTree ? (
+                                <ResearchTreeContent
+                                    tree={selectedTree}
+                                    dimmed={selectedTreeDimmed}
+                                    account={account ?? null}
+                                    character={character}
+                                    equipment={equipment}
+                                    researchTrees={researchTrees}
+                                    researchNodeLevels={researchNodeLevels}
+                                    campaignResources={resolvedCampaign.resources}
+                                    saving={saving}
+                                    canResetResearch
+                                    isAdmin={isAdmin}
+                                    onResearchNode={(treeId, nodeId) => void handleResearchNode(treeId, nodeId)}
+                                    onResetResearch={(treeIds) => void handleResetResearch(treeIds)}
+                                />
+                            ) : null
+                        ) : (
+                            <ResearchedNodesGrid
+                                availableTrees={displayResearchTrees}
+                                researchTrees={researchTrees}
+                                filterTreeId={selectedTreeId}
+                            />
+                        )
+                    ) : (
+                        <p className="text-sm text-muted">Campaign resources not loaded.</p>
+                    )}
+                </>
+            )}
+        </div>
+    );
+
+    const mapProps = {
+        character,
+        isAdmin,
+        onStartMission: onStartMission ?? (() => {}),
+        onStartQuest: onStartQuest ? handleMapStartQuest : undefined,
+        onAbandonQuest: onStartQuest ? handleAbandonQuest : undefined,
+        onMarkVictory: isAdmin ? handleMarkVictory : undefined,
+        onCampaignChange: isAdmin ? handleCampaignChange : undefined,
+    };
+
+    const bonusesProps = {
+        researchTrees,
+        researchNodeLevels,
+    };
+
+    if (useRoutedInnerTabs) {
+        return (
+            <CharactersTabLayerOne
+                tab={innerTab}
+                onSelectTab={setRoutedInnerTab}
+                visibleTabs={visibleInnerTabs}
+                nameSection={nameSection}
+                showPortraitArrows={!isEditingName && innerTabShowsPortrait(innerTab)}
+                onPrevPortrait={goPrevPortrait}
+                onNextPortrait={goNextPortrait}
+                onChangeCharacters={onChangeCharacters}
+                portrait={innerTabShowsPortrait(innerTab) ? portraitBlock : undefined}
+                leftByTab={{
+                    equipment: equipmentLeft,
+                    upgrades: researchLeft,
+                }}
+            >
+                <CharactersTabLayerTwo
+                    tab={innerTab}
+                    map={mapProps}
+                    bonuses={bonusesProps}
+                    upgrades={researchRight}
+                    equipment={equipmentRight}
+                />
+            </CharactersTabLayerOne>
+        );
+    }
+
     return (
         <div className="flex flex-col h-full w-full bg-surface overflow-hidden">
             {/* Tabs */}
@@ -671,96 +1005,13 @@ export default function CharacterEditor({
             <div className="flex-1 min-h-0 flex overflow-hidden">
                 {/* Left column: portrait + panel-specific sidebar */}
                 <div className={`flex ${CHARACTER_EDITOR_LEFT_WIDTH_CLASS} flex-col shrink-0 border-r border-border-custom bg-background/50`}>
-                    {/* Character portrait — 16px (p-4) inset; name row; rule; portrait */}
                     <div className="flex flex-col shrink-0 max-w-full box-border border-b border-border-custom p-4">
                         <div className="flex items-center justify-between gap-2 min-w-0 border-b border-border-custom pb-4">
                             <div className="flex items-center gap-2 min-w-0 flex-1">
-                                {canEditName && !isEditingName && (
-                                    <button
-                                        type="button"
-                                        className="h-6 w-6 rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer shrink-0"
-                                        onClick={() => {
-                                            setNameDraft(name);
-                                            setIsEditingName(true);
-                                        }}
-                                        aria-label="Edit character name"
-                                        title="Edit character name"
-                                    >
-                                        <Pencil className="h-3 w-3" aria-hidden />
-                                    </button>
-                                )}
-                                {canEditName && isEditingName ? (
-                                    <>
-                                        <button
-                                            type="button"
-                                            className="h-6 w-6 rounded border border-emerald-500/70 bg-emerald-600/20 text-emerald-300 flex items-center justify-center hover:bg-emerald-600/35 cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-default"
-                                            onClick={() => void saveName()}
-                                            aria-label="Apply name change"
-                                            title="Apply name change"
-                                            disabled={saving}
-                                        >
-                                            <Check className="h-3 w-3" aria-hidden />
-                                        </button>
-                                        <input
-                                            type="text"
-                                            value={nameDraft}
-                                            onChange={(e) => setNameDraft(sanitizeCharacterName(e.target.value))}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    e.preventDefault();
-                                                    void saveName();
-                                                } else if (e.key === 'Escape') {
-                                                    e.preventDefault();
-                                                    cancelNameEdit();
-                                                }
-                                            }}
-                                            className="flex-1 min-w-0 rounded border border-border-custom bg-surface px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                                            placeholder={portrait?.name ?? 'Adventurer'}
-                                            aria-label="Character name"
-                                            maxLength={MAX_CHARACTER_NAME_LENGTH}
-                                            pattern="[A-Za-z0-9]{1,15}"
-                                            title="Use letters and numbers only (max 15 characters)."
-                                            spellCheck={false}
-                                            autoFocus
-                                        />
-                                        <button
-                                            type="button"
-                                            className="h-6 w-6 rounded border border-red-500/70 bg-red-600/20 text-red-300 flex items-center justify-center hover:bg-red-600/35 cursor-pointer shrink-0"
-                                            onClick={cancelNameEdit}
-                                            aria-label="Cancel name change"
-                                            title="Cancel name change"
-                                        >
-                                            <X className="h-3 w-3" aria-hidden />
-                                        </button>
-                                    </>
-                                ) : (
-                                    <span
-                                        className="text-lg font-semibold text-white truncate text-left min-w-0 flex-1"
-                                        title={displayName}
-                                    >
-                                        {displayName}
-                                    </span>
-                                )}
+                                {nameSection}
                             </div>
                             {!isEditingName && activeTab !== 'research' && (
-                                <div className="flex gap-2 shrink-0">
-                                    <button
-                                        type="button"
-                                        className="w-8 h-8 rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer text-sm font-bold"
-                                        onClick={goPrevPortrait}
-                                        aria-label="Previous portrait"
-                                    >
-                                        ‹
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="w-8 h-8 rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer text-sm font-bold"
-                                        onClick={goNextPortrait}
-                                        aria-label="Next portrait"
-                                    >
-                                        ›
-                                    </button>
-                                </div>
+                                <PortraitCycleButtons onPrev={goPrevPortrait} onNext={goNextPortrait} />
                             )}
                         </div>
                         {onChangeCharacters && (activeTab === 'missionMap' || activeTab === 'research' || activeTab === 'statBonuses') && (
@@ -773,212 +1024,29 @@ export default function CharacterEditor({
                                 {CHANGE_CHARACTERS_LABEL}
                             </button>
                         )}
-                        {activeTab !== 'research' && (
-                            <div className="flex justify-center pt-4">
-                                <CharacterPortrait
-                                    picture={portrait?.picture ?? ''}
-                                    sizePx={200}
-                                />
-                            </div>
-                        )}
+                        {activeTab !== 'research' && portraitBlock}
                     </div>
 
-                    {/* Panel-specific sidebar */}
                     {activeTab === 'missionMap' || activeTab === 'statBonuses' ? null : activeTab === 'equipment' ? (
-                        <div className="flex-1 min-h-0 overflow-auto p-3">
-                            {equippedItemsDisplay === 'list' ? (
-                                <EquippedItemsList
-                                    equipment={equipment}
-                                    slotDescriptors={getSlotDescriptors(equipment)}
-                                    onDropOnSlot={handleDropOnSlot}
-                                    onDragOver={handleDragOver}
-                                    onDragStartSlot={handleDragStartSlot}
-                                    onDragEnd={handleDragEnd}
-                                    editMode={effectiveEditMode}
-                                />
-                            ) : (
-                                <EquipmentDoll
-                                    equipment={equipment}
-                                    slotDescriptors={getSlotDescriptors(equipment)}
-                                    onDropOnSlot={handleDropOnSlot}
-                                    onDragOver={handleDragOver}
-                                    onDragStartSlot={handleDragStartSlot}
-                                    onDragEnd={handleDragEnd}
-                                    dragItemId={dragItemId}
-                                    dragSlot={dragSlot}
-                                    editMode={effectiveEditMode}
-                                />
-                            )}
-                        </div>
+                        equipmentLeft
                     ) : activeTab === 'research' ? (
-                        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                            {isAdmin && (
-                                <div className="shrink-0 px-3 pt-3 pb-1">
-                                    <button
-                                        type="button"
-                                        onClick={() => setAdminUseGridView((v) => !v)}
-                                        className="w-full rounded-md border border-border-custom bg-surface-light px-2 py-1.5 text-xs font-medium text-muted hover:text-white transition-colors"
-                                    >
-                                        {adminUseGridView ? 'Switch to Tree View' : 'Switch to Grid View'}
-                                    </button>
-                                </div>
-                            )}
-                            <div className="flex-1 min-h-0 overflow-auto p-3 pt-2">
-                                <ResearchTreeList
-                                    availableTrees={displayResearchTrees}
-                                    dimmedTreeIds={dimmedResearchTreeIds}
-                                    selectedTreeId={selectedTreeId}
-                                    onSelectTree={(id) => setSelectedTreeId(id)}
-                                    researchTrees={researchTrees}
-                                    canResetResearch={isAdmin && !adminUseGridView}
-                                    resetSaving={saving}
-                                    onResetResearchTree={(treeId) => void handleResetResearch([treeId])}
-                                    showAllOption={useGridView}
-                                    onSelectAll={() => setSelectedTreeId(null)}
-                                />
-                            </div>
-                        </div>
+                        researchLeft
                     ) : null}
                 </div>
 
-                {/* Right column: panel main container */}
                 <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
                     {activeTab === 'missionMap' && (
                         <div className="flex-1 min-h-0 overflow-auto p-2 flex flex-col">
                             <div className="flex-1 min-h-0">
-                                <MissionMapTab
-                                    character={character}
-                                    isAdmin={isAdmin}
-                                    onStartMission={onStartMission ?? (() => {})}
-                                    onStartQuest={onStartQuest ? handleMapStartQuest : undefined}
-                                    onAbandonQuest={onStartQuest ? handleAbandonQuest : undefined}
-                                    onMarkVictory={isAdmin ? handleMarkVictory : undefined}
-                                    onCampaignChange={isAdmin ? handleCampaignChange : undefined}
-                                />
+                                <MissionMapTab {...mapProps} />
                             </div>
                         </div>
                     )}
-
-                    {activeTab === 'equipment' && (
-                        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                            {effectiveShowInventory && (
-                                <div className="flex-1 min-h-0 overflow-auto p-4">
-                                    <InventoryPanel
-                                        visibleInventoryItems={visibleInventoryItems}
-                                        editMode={effectiveEditMode}
-                                        saving={saving}
-                                        onDragStartItem={handleDragStartItem}
-                                        onDragEnd={handleDragEnd}
-                                    />
-                                </div>
-                            )}
-                            {adminEquipmentPanel && (
-                                <div className="shrink-0 border-t border-border-custom p-3">
-                                    {adminEquipmentPanel}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {activeTab === 'research' && (
-                        <div className="flex-1 min-h-0 overflow-auto p-4">
-                            {!isAdmin ? (
-                                <ResearchedNodesGrid
-                                    availableTrees={displayResearchTrees}
-                                    researchTrees={researchTrees}
-                                    filterTreeId={selectedTreeId}
-                                />
-                            ) : (
-                                <>
-                                    {(resolvedCampaign?.resources || adminKnowledgePanel) && (
-                                        <div className="mb-4 flex gap-3">
-                                            {resolvedCampaign?.resources && permissionAccount?.role === 'admin' && (
-                                                <div className="flex-1 rounded-lg border border-border-custom bg-surface-light p-3">
-                                                    <p className="text-xs text-muted mb-2">Admin: grant campaign resource</p>
-                                                    <div className="flex flex-wrap items-center gap-2">
-                                                        <select
-                                                            className="rounded-md border border-border-custom bg-surface px-2 py-1 text-sm text-white"
-                                                            value={grantResourceKey}
-                                                            onChange={(e) => setGrantResourceKey(e.target.value as typeof grantResourceKey)}
-                                                        >
-                                                            <option value="food">food</option>
-                                                            <option value="metal">metal</option>
-                                                            <option value="population">population</option>
-                                                            <option value="crystals">crystals</option>
-                                                        </select>
-                                                        <input
-                                                            className="w-24 rounded-md border border-border-custom bg-surface px-2 py-1 text-sm text-white"
-                                                            value={grantResourceAmount}
-                                                            onChange={(e) => setGrantResourceAmount(e.target.value)}
-                                                            inputMode="numeric"
-                                                            placeholder="amount"
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => void handleGrantResource()}
-                                                            className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-secondary hover:bg-primary-hover"
-                                                        >
-                                                            Give
-                                                        </button>
-                                                        <span className="text-xs text-muted flex flex-wrap items-center gap-2">
-                                                            <span>Current:</span>
-                                                            <ResourcePill resource="food" count={resolvedCampaign.resources.food} className="text-xs" />
-                                                            <ResourcePill resource="metal" count={resolvedCampaign.resources.metal} className="text-xs" />
-                                                            <ResourcePill resource="population" count={resolvedCampaign.resources.population} className="text-xs" />
-                                                            <ResourcePill resource="crystals" count={resolvedCampaign.resources.crystals} className="text-xs" />
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            )}
-                                            {adminKnowledgePanel && (
-                                                <div className="flex-1 rounded-lg border border-border-custom bg-surface-light p-3">
-                                                    {adminKnowledgePanel}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                    {resolvedCampaign?.resources ? (
-                                        displayResearchTrees.length === 0 ? (
-                                            <p className="text-sm text-muted">No research trees available.</p>
-                                        ) : !useGridView ? (
-                                            selectedTree ? (
-                                                <ResearchTreeContent
-                                                    tree={selectedTree}
-                                                    dimmed={selectedTreeDimmed}
-                                                    account={account ?? null}
-                                                    character={character}
-                                                    equipment={equipment}
-                                                    researchTrees={researchTrees}
-                                                    researchNodeLevels={researchNodeLevels}
-                                                    campaignResources={resolvedCampaign.resources}
-                                                    saving={saving}
-                                                    canResetResearch
-                                                    isAdmin={isAdmin}
-                                                    onResearchNode={(treeId, nodeId) => void handleResearchNode(treeId, nodeId)}
-                                                    onResetResearch={(treeIds) => void handleResetResearch(treeIds)}
-                                                />
-                                            ) : null
-                                        ) : (
-                                            <ResearchedNodesGrid
-                                                availableTrees={displayResearchTrees}
-                                                researchTrees={researchTrees}
-                                                filterTreeId={selectedTreeId}
-                                            />
-                                        )
-                                    ) : (
-                                        <p className="text-sm text-muted">Campaign resources not loaded.</p>
-                                    )}
-                                </>
-                            )}
-                        </div>
-                    )}
-
+                    {activeTab === 'equipment' && equipmentRight}
+                    {activeTab === 'research' && researchRight}
                     {activeTab === 'statBonuses' && (
                         <div className="flex-1 min-h-0 overflow-auto p-4">
-                            <StatBonusesTab
-                                researchTrees={researchTrees}
-                                researchNodeLevels={researchNodeLevels}
-                            />
+                            <StatBonusesTab {...bonusesProps} />
                         </div>
                     )}
                 </div>

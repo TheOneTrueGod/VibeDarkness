@@ -34,7 +34,7 @@ Each character has exactly one **main weapon** in the campaign sense: the focal 
 ## Frontend
 
 - **Types**: See `app/js/games/minion_battles/character_defs/campaignCharacterTypes.ts` for the serializable character shape (`CampaignCharacterData`), traits, and related types.
-- **Portraits**: See `character_defs/portraits.ts` for the portrait registry.
+- **Portraits**: See `character_defs/portraits.ts` for the portrait registry; art files live under `character_defs/portraits/`. Other media: **minion-battles-assets**.
 - **Class**: `CampaignCharacter` in `character_defs/CampaignCharacter.ts`. Create from server data with `fromCampaignCharacterData(data)`.
   - `canBeUsedOnMission(...)` — checks campaign match and trait filters.
   - `getDisallowReason(...)` — returns a reason string or null if allowed.
@@ -57,7 +57,7 @@ When building player units, the battle phase resolves character portrait/archety
 | Game state / messages | `backend/Http/Handlers/PostMessageHandler.php`, `backend/LobbyManager.php` |
 | Frontend types | `app/js/games/minion_battles/character_defs/campaignCharacterTypes.ts`, `portraits.ts` |
 | Frontend class | `app/js/games/minion_battles/character_defs/CampaignCharacter.ts` |
-| UI | `app/js/games/minion_battles/ui/pages/CharacterSelectPhase.tsx`, `ui/components/CharacterEditor/` |
+| UI | `app/js/games/minion_battles/ui/pages/CharacterSelectPhase.tsx`, `ui/components/CharacterEditor/`, campaign-home layers in `app/js/components/CampaignHomeScreen/CharactersTab/` |
 | Mission config | `app/js/games/minion_battles/storylines/types.ts` |
 | Battle | `app/js/games/minion_battles/ui/pages/BattlePhase.tsx` |
 | Client API | `app/js/LobbyClient.ts` |

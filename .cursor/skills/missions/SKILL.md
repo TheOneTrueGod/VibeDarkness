@@ -48,6 +48,7 @@ For segment file layout, POI exports, and anti-patterns, read **map-segments** e
 - Mission base: `app/js/games/minion_battles/storylines/BaseMissionDef.ts`
 - Types: `app/js/games/minion_battles/storylines/types.ts`
 - Story types: `app/js/games/minion_battles/storylines/storyTypes.ts`
+- Story background images: `assets/story/` (see **minion-battles-assets**)
 - Mission registration: `app/js/games/minion_battles/storylines/index.ts` (MISSION_MAP)
 - Storyline flow: `app/js/games/minion_battles/storylines/WorldOfDarkness/WorldOfDarkness.ts` (edges)
 - **Tests after mission edits:** co-located `missions/*.test.ts` only — never `vitest related` on a mission file (fans out via `MISSION_MAP`; see **scoped-testing**)

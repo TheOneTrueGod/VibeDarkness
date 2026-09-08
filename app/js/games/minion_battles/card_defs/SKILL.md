@@ -142,7 +142,7 @@ Both are exported from the same file. Export the ability for `AbilityRegistry` a
 2. **`renderTargetingPreview(gr, caster, currentTargets, mouseWorld, units)`**
    - Draws a hint in the targeting overlay for where the skill will affect.
 
-Implement the rest of `AbilityStatic` (`getDescription`, `getAbilityStates`, `targets`, `prefireTime`, **`abilityTimings`**, `resourceCost`, `rechargeTurns`, `image`, `aiSettings`) as needed. See existing abilities under `card_defs/` for reference.
+Implement the rest of `AbilityStatic` (`getDescription`, `getAbilityStates`, `targets`, `prefireTime`, **`abilityTimings`**, `resourceCost`, `rechargeTurns`, `image`, `aiSettings`) as needed. See existing abilities under `card_defs/` for reference. Card `image` files stay in that card's folder (see **minion-battles-assets**).
 
 ### `abilityTimings` (half-open intervals)
 

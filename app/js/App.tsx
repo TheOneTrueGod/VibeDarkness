@@ -1392,6 +1392,19 @@ function AppInner() {
                         }
                     />
                     <Route
+                        path="/players/:playerId/characters/:characterId/:characterTab"
+                        element={
+                            <CampaignHomeScreen
+                                lobbyClient={lobbyClient}
+                                onSelectMission={handleCreateLobbyForMission}
+                                onJoinLobby={handleJoinLobby}
+                                refetchUser={refetchUser}
+                                onStartMissionForCharacter={handleStartMissionForCharacter}
+                                onStartQuestForCharacter={handleStartQuestForCharacter}
+                            />
+                        }
+                    />
+                    <Route
                         path="/players/:playerId/characters/:characterId"
                         element={
                             <CampaignHomeScreen

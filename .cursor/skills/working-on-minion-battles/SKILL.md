@@ -12,7 +12,7 @@ Read `app/js/games/minion_battles/AGENTS.md` for coding conventions and folder l
 
 When working on Minion Battles (the game):
 
-1. **Primary location**: Work primarily in `app/js/games/minion_battles/`. Put new game logic, components, and assets there.
+1. **Primary location**: Work primarily in `app/js/games/minion_battles/`. Put new game logic, components, and assets there. For images, music, and other media, see **minion-battles-assets**.
 2. **Entrypoint**: The game entrypoint for the UI is `app/js/games/minion_battles/Game.tsx` (default export `MinionBattlesGame`).
 3. **Mission selection model**: Mission is selected before creating/joining the in-game Minion Battles session. Use `selectedMissionId` in game state; there is no in-game mission-voting phase. For mission definitions, objectives, and **post-mission dynamic choices** (equipment/research-dependent rows), follow the **missions** skill—post-mission choice ownership lives on the mission def (`getPostMissionChoiceOptions`), not in a shared choices file.
 4. **Integration**: If wiring to the lobby (e.g. game selection, messages), follow AGENTS.md for adding game state and message types; keep Minion Battles–specific code under `app/js/games/minion_battles/` where possible.

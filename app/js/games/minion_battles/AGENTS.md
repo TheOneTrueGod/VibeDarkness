@@ -10,7 +10,7 @@
 - Backend (PHP API, checkpoints, etc.): `backend/*`
 - HTTP helpers for this game live in `app/js/games/minion_battles/api/`, wrapping the project-wide `app/js/LobbyClient.ts`.
 
-Paths below are relative to `app/js/games/minion_battles/`. **Do not treat this guide as a complete file index**—open the folder or use search; filenames drift in a legacy codebase. Step-by-step workflows for agents live under **`.cursor/skills/`** (e.g. **working-on-minion-battles**, **creating-an-ability**, **editing-card-behaviour**, **working-with-hitboxes**, **game-engine**, **game-sync-data-flow**, **missions**, **modifying-spawn-definitions**, **narrative/narrative-hub**, **writing-style-***).
+Paths below are relative to `app/js/games/minion_battles/`. **Do not treat this guide as a complete file index**—open the folder or use search; filenames drift in a legacy codebase. Step-by-step workflows for agents live under **`.cursor/skills/`** (e.g. **working-on-minion-battles**, **minion-battles-assets**, **creating-an-ability**, **editing-card-behaviour**, **working-with-hitboxes**, **game-engine**, **game-sync-data-flow**, **missions**, **modifying-spawn-definitions**, **narrative/narrative-hub**, **writing-style-***).
 
 **Multiplayer ticks:** **`serverTick`** = heartbeat **`hostTick`** = authoritative last completed. **`clientTick`** = local **`gameTick`**. Parallel batch = **`orderBatchAtTick`** / **`pausedAtTick`** on heartbeat ( **`waitingForOrders.atTick`** ). See **`.cursor/skills/game-sync-data-flow/SKILL.md`**.
 
@@ -33,6 +33,7 @@ Paths below are relative to `app/js/games/minion_battles/`. **Do not treat this 
 | `ui/components/` | Reusable React battle UI. |
 | `ui/pages/` | Full-screen or phase-level React surfaces (lobby-adjacent flow, battle shell, editors). |
 | `api/` | Minion Battles HTTP facade and DTO-style types for lobby payloads. |
+| `assets/` | Shared game media (sprites, story art, music/sfx). See `assets/SKILL.md`. |
 | `terrain/` | Bedrock grid, pathfinding, terrain manager. See `terrain/AGENTS.md` (mutable floor/ground/air overlays live on `game/TerrainLayerManager`). |
 | `abilities/` | Ability classes, timings, targeting, CastBehaviours, previews. See `abilities/AGENTS.md`. |
 | `crowdControl/` | Hard CC apply paths, knockback keywords, boss CC armour. See `crowdControl/AGENTS.md`. |
