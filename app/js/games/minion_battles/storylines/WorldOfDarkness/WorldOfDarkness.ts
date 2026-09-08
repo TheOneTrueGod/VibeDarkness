@@ -37,15 +37,10 @@ export const CORE_AWAKENING_MAP_Y = 350;
 /** Legacy export; Surface Quests picker sits on chapter 2 row 1, col 0. */
 export const POST_CORE_QUEST_BANK_MAP_Y = WOD_CH2_MAP_Y_ROW1;
 
-const CHAPTER_2_SIDE_QUEST_IDS = [
-    FIND_THE_HERD_OF_BOARS_QUEST_ID,
-    SCAVENGE_THE_PLAINS_QUEST_ID,
-] as const;
-
 /**
  * Side-quest picker unlocked after Core Awakening. Sits on chapter 2 row 1
  * (col 0); dedicated quest nodes occupy the new top row. The main path stays
- * ungated by this bank.
+ * ungated by this bank. Plains quests (including dedicated nodes) count here.
  */
 export const WOD_POST_CORE_QUEST_BANK: QuestSlotBank = {
     id: WOD_POST_CORE_QUEST_BANK_ID,
@@ -53,8 +48,7 @@ export const WOD_POST_CORE_QUEST_BANK: QuestSlotBank = {
     unlockAfterMissionId: 'core_awakening',
     requiredClears: WOD_POST_CORE_QUEST_BANK_REQUIRED_CLEARS,
     filters: {
-        tags: [LOCATION_PLAINS_TAG, 'post_core_awakening'],
-        excludeQuestDefIds: [...CHAPTER_2_SIDE_QUEST_IDS],
+        tags: [LOCATION_PLAINS_TAG],
     },
     displaySlotCount: WOD_POST_CORE_QUEST_BANK_REQUIRED_CLEARS,
     mapPosition: { x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW1 },

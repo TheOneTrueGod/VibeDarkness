@@ -37,6 +37,7 @@ import {
     WOD_CH2_MAP_Y_ROW0,
     WOD_CH2_MAP_Y_ROW1,
 } from './WorldOfDarkness/chapter2Map';
+import { LOCATION_PLAINS_TAG } from './WorldOfDarkness/questMissions/questMissionConstants';
 
 const CAMPAIGN_ID = 'world_of_darkness';
 
@@ -109,10 +110,10 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
             x: WOD_CH2_MAP_X_COL1,
             y: WOD_CH2_MAP_Y_ROW0,
         });
-        expect(WOD_EXAMPLE_QUEST_BANK.filters.excludeQuestDefIds).toEqual([
-            FIND_THE_HERD_OF_BOARS.id,
-            SCAVENGE_THE_PLAINS.id,
-        ]);
+        expect(WOD_EXAMPLE_QUEST_BANK.filters.tags).toEqual([LOCATION_PLAINS_TAG]);
+        expect(WOD_EXAMPLE_QUEST_BANK.filters.excludeQuestDefIds).toBeUndefined();
+        expect(FIND_THE_HERD_OF_BOARS.tags).toContain(LOCATION_PLAINS_TAG);
+        expect(SCAVENGE_THE_PLAINS.tags).toContain(LOCATION_PLAINS_TAG);
     });
 
     it('unlocks only after core_awakening victory', () => {
@@ -141,6 +142,9 @@ describe('dedicated quest banks', () => {
         expect(bankAcceptsQuest(WOD_FIND_THE_HERD_OF_BOARS_BANK, SCAVENGE_THE_PLAINS)).toBe(false);
         expect(bankAcceptsQuest(WOD_SCAVENGE_THE_PLAINS_BANK, SCAVENGE_THE_PLAINS)).toBe(true);
         expect(bankAcceptsQuest(WOD_SCAVENGE_THE_PLAINS_BANK, FIND_THE_HERD_OF_BOARS)).toBe(false);
+        expect(bankAcceptsQuest(WOD_EXAMPLE_QUEST_BANK, FIND_THE_HERD_OF_BOARS)).toBe(true);
+        expect(bankAcceptsQuest(WOD_EXAMPLE_QUEST_BANK, SCAVENGE_THE_PLAINS)).toBe(true);
+        expect(bankAcceptsQuest(WOD_EXAMPLE_QUEST_BANK, OTHER_PLACEHOLDER_QUEST)).toBe(false);
     });
 
     it('lists only the pinned uncleared quest as eligible', () => {
@@ -177,6 +181,17 @@ describe('dedicated quest banks', () => {
             placement: 'bank',
             bankId: WOD_FIND_THE_HERD_OF_BOARS_BANK.id,
         });
+    });
+
+    it('credits Surface Quests when a matching quest is cleared on a dedicated node', () => {
+        const results = [bankVictory(FIND_THE_HERD_OF_BOARS.id, WOD_FIND_THE_HERD_OF_BOARS_BANK.id)];
+        expect(countQuestBankClears(WOD_EXAMPLE_QUEST_BANK, results)).toBe(1);
+        expect(isQuestBankRequiredClearsSatisfied(WOD_EXAMPLE_QUEST_BANK, results)).toBe(true);
+        expect(getQuestBankVictorySlots(WOD_EXAMPLE_QUEST_BANK, results).map((r) => r.questDefId)).toEqual([
+            FIND_THE_HERD_OF_BOARS.id,
+        ]);
+        expect(countQuestBankClears(WOD_FIND_THE_HERD_OF_BOARS_BANK, results)).toBe(1);
+        expect(countQuestBankClears(WOD_SCAVENGE_THE_PLAINS_BANK, results)).toBe(0);
     });
 });
 

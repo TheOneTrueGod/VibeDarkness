@@ -1,6 +1,6 @@
 /**
  * Swarmling Source — quest run: north push → random plains story → Swarmling Nest finale.
- * Exposed as a dedicated chapter 2 map node (not in the Surface Quests picker).
+ * Dedicated chapter 2 map node; also matches Surface Quests (`location:plains`).
  * Wire id stays `find_the_herd_of_boars` for saved runs.
  */
 
@@ -23,7 +23,7 @@ export const FIND_THE_HERD_OF_BOARS: QuestDef = {
     id: FIND_THE_HERD_OF_BOARS_QUEST_ID,
     title: FIND_THE_HERD_OF_BOARS_TITLE,
     campaignId: 'world_of_darkness',
-    tags: ['placeholder', 'fixed_slots'],
+    tags: [LOCATION_PLAINS_TAG, 'placeholder', 'fixed_slots'],
     slots: [
         { kind: 'fixed', missionId: QUEST_BOAR_HERD_NORTH_MISSION_ID },
         {

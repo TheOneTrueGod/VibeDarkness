@@ -289,17 +289,22 @@ export function getEligibleQuestsForBank(
     );
 }
 
-/** Count victory results placed into this bank (join-fill / assigned clears). */
+/** True when a bank-placed victory should fill a slot on this bank. */
+function questResultCountsTowardBank(bank: QuestSlotBank, result: QuestResult): boolean {
+    if (result.result !== 'victory' || result.placement !== 'bank') return false;
+    if (result.bankId === bank.id) return true;
+    // Picker banks also credit matching quests cleared on a dedicated node.
+    if (isDedicatedQuestBank(bank)) return false;
+    const quest = getQuestDef(result.questDefId);
+    return quest != null && bankAcceptsQuest(bank, quest);
+}
+
+/** Count victory results that fill this bank (own placements, plus matching picker credit). */
 export function countQuestBankClears(
     bank: QuestSlotBank,
     questResults: QuestResult[],
 ): number {
-    return questResults.filter(
-        (r) =>
-            r.result === 'victory'
-            && r.placement === 'bank'
-            && r.bankId === bank.id,
-    ).length;
+    return getQuestBankVictorySlots(bank, questResults).length;
 }
 
 /** True when bank has at least `requiredClears` victory placements. */
@@ -340,17 +345,20 @@ export function listQuestVictoryResults(questResults: QuestResult[]): QuestResul
         .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
 }
 
-/** Victory results placed into a specific bank (display order). */
+/** Victory results that fill this bank (display order). */
 export function getQuestBankVictorySlots(
     bank: QuestSlotBank,
     questResults: QuestResult[],
 ): QuestResult[] {
-    return questResults.filter(
-        (r) =>
-            r.result === 'victory'
-            && r.placement === 'bank'
-            && r.bankId === bank.id,
-    );
+    const slots: QuestResult[] = [];
+    const seen = new Set<string>();
+    for (const result of questResults) {
+        if (!questResultCountsTowardBank(bank, result)) continue;
+        if (seen.has(result.questDefId)) continue;
+        seen.add(result.questDefId);
+        slots.push(result);
+    }
+    return slots;
 }
 
 export type QuestMapPlacement = {
