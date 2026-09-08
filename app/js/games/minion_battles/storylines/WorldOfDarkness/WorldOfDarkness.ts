@@ -2,6 +2,10 @@ import type { StorylineDef } from '../types';
 import type { QuestSlotBank } from '../questTypes';
 import { LOCATION_PLAINS_TAG } from './questMissions/questMissionConstants';
 import {
+    WOD_CH1_MAP_X_COL0,
+    WOD_CH1_MAP_Y_ROW1,
+} from './chapter1Map';
+import {
     WOD_CH2_MAP_X_COL0,
     WOD_CH2_MAP_X_COL1,
     WOD_CH2_MAP_Y_ROW0,
@@ -31,9 +35,9 @@ export const WOD_POST_CORE_QUEST_BANK_REQUIRED_CLEARS = 1;
 /** A dedicated quest node is complete after one clear of its pinned quest. */
 export const WOD_DEDICATED_QUEST_REQUIRED_CLEARS = 1;
 
-/** Core Awakening map position (chapter 1). */
-export const CORE_AWAKENING_MAP_X = 610;
-export const CORE_AWAKENING_MAP_Y = 350;
+/** Core Awakening map position (chapter 1, bottom-left of the snake). */
+export const CORE_AWAKENING_MAP_X = WOD_CH1_MAP_X_COL0;
+export const CORE_AWAKENING_MAP_Y = WOD_CH1_MAP_Y_ROW1;
 /** Legacy export; Surface Quests picker sits on chapter 2 row 1, col 0. */
 export const POST_CORE_QUEST_BANK_MAP_Y = WOD_CH2_MAP_Y_ROW1;
 

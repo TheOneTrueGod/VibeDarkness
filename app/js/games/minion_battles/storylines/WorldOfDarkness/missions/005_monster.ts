@@ -7,6 +7,7 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
+import { WOD_CH1_MAP_X_COL1, WOD_CH1_MAP_Y_ROW1 } from '../chapter1Map';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { LevelEvent, SpecialTilePlacement } from '../../types';
 import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
@@ -142,7 +143,7 @@ export class MonsterMission extends BaseMissionDef {
     segmentIds = ['49_50_path_to_cave', '50_50_crystal_cave'];
 
     missionId = 'monster';
-    mapPosition = { x: 780, y: 350 };
+    mapPosition = { x: WOD_CH1_MAP_X_COL1, y: WOD_CH1_MAP_Y_ROW1 };
     missionType = 'boss' as const;
     description = 'The Alpha Wolf hunts these tunnels. Confront the beast directly — or be hunted forever.';
     campaignId = 'world_of_darkness';

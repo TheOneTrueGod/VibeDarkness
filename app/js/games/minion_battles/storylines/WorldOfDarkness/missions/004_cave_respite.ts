@@ -4,6 +4,7 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
+import { WOD_CH1_MAP_X_COL2, WOD_CH1_MAP_Y_ROW1 } from '../chapter1Map';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { PostMissionChoiceResolveParams } from '../../types';
 import type { PostMissionStoryDef, StoryChoiceAction, StoryChoiceOptionRow } from '../../storyTypes';
@@ -242,7 +243,7 @@ export class CaveRespiteMission extends BaseMissionDef {
     }
 
     missionId = 'cave_respite';
-    mapPosition = { x: 610, y: 150 };
+    mapPosition = { x: WOD_CH1_MAP_X_COL2, y: WOD_CH1_MAP_Y_ROW1 };
     missionType = 'story' as const;
     description = 'A rare moment of rest in a hidden alcove. Choose wisely how to spend your time.';
     campaignId = 'world_of_darkness';

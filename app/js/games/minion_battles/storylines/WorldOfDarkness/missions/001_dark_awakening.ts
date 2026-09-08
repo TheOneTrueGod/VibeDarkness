@@ -7,6 +7,7 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
+import { WOD_CH1_MAP_X_COL0, WOD_CH1_MAP_Y_ROW0 } from '../chapter1Map';
 import type { BattleObjectiveDef, LevelEvent, SpecialTilePlacement } from '../../types';
 import type { PreMissionStoryDef } from '../../storyTypes';
 import { ENEMY_DARK_WOLF } from '../../../constants/enemyConstants';
@@ -232,7 +233,7 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
 
 export class DarkAwakeningMission extends BaseMissionDef {
 	missionId = 'dark_awakening';
-	mapPosition = { x: 100, y: 150 };
+	mapPosition = { x: WOD_CH1_MAP_X_COL0, y: WOD_CH1_MAP_Y_ROW0 };
 	missionType = 'battle' as const;
 	description = 'You awaken in darkness with no memory. Survive the first night and find a way forward.';
 	campaignId = 'world_of_darkness';

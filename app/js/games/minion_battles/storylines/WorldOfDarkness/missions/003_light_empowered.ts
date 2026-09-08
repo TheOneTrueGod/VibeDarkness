@@ -6,6 +6,7 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
+import { WOD_CH1_MAP_X_COL2, WOD_CH1_MAP_Y_ROW0 } from '../chapter1Map';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { BattleObjectiveDef, LevelEvent, SpecialTilePlacement } from '../../types';
 import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
@@ -207,7 +208,7 @@ export class LightEmpoweredMission extends BaseMissionDef {
 	segmentIds = ['50_49_cliff_path_north', '50_50_crystal_cave'];
 
 	missionId = 'light_empowered';
-	mapPosition?: { x: number; y: number } = { x: 440, y: 150 };
+	mapPosition?: { x: number; y: number } = { x: WOD_CH1_MAP_X_COL2, y: WOD_CH1_MAP_Y_ROW0 };
 	missionType = 'battle' as const;
 	description = 'Forage for supplies in the lit passages. Territorial creatures guard the food sources.';
 	campaignId = 'world_of_darkness';

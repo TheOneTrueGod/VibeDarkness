@@ -9,6 +9,7 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
+import { WOD_CH1_MAP_X_COL1, WOD_CH1_MAP_Y_ROW0 } from '../chapter1Map';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import type {
     BattleObjectiveDef,
@@ -210,7 +211,7 @@ export class TowardsTheLightMission extends BaseMissionDef {
     segmentIds = ['48_50_wakeup', '49_50_path_to_cave', '50_50_crystal_cave'];
 
     missionId = 'towards_the_light';
-    mapPosition = { x: 270, y: 150 };
+    mapPosition = { x: WOD_CH1_MAP_X_COL1, y: WOD_CH1_MAP_Y_ROW0 };
     missionType = 'battle' as const;
     description = 'Push through the crystal caves toward a faint glow. Something ancient stirs in the dark.';
     campaignId = 'world_of_darkness';

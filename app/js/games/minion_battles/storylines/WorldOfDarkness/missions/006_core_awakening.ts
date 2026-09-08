@@ -8,6 +8,7 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
+import { WOD_CH1_MAP_X_COL0, WOD_CH1_MAP_Y_ROW1 } from '../chapter1Map';
 import type { PostMissionStoryDef, StoryChoiceOptionRow } from '../../storyTypes';
 import type { PostMissionChoiceResolveParams } from '../../types';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
@@ -242,7 +243,7 @@ export class CoreAwakeningMission extends BaseMissionDef {
     }
 
     missionId = 'core_awakening';
-    mapPosition = { x: 610, y: 350 };
+    mapPosition = { x: WOD_CH1_MAP_X_COL0, y: WOD_CH1_MAP_Y_ROW1 };
     missionType = 'story' as const;
     description = 'A deep resonance stirs within. An awakening that will change the path ahead.';
     campaignId = 'world_of_darkness';
