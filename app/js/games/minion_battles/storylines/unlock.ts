@@ -42,6 +42,30 @@ export function hasVictoryResult(missionId: string, missionResults: MissionResul
     return latestMissionResultsOnly(missionResults).some((r) => r.missionId === missionId && r.result !== 'defeat');
 }
 
+/** Player-facing copy when a disabled mission cannot be selected. */
+export const MISSION_DISABLED_PLAYER_NOTICE = 'This mission is currently unavailable.';
+
+/** Admin-facing copy when a disabled mission can still be hosted. */
+export const MISSION_DISABLED_ADMIN_NOTICE = 'Disabled — admins can still host.';
+
+/** True when the mission def is marked disabled for non-admin map/select. */
+export function isMissionDisabled(def: { disabled?: boolean } | undefined | null): boolean {
+    return def?.disabled === true;
+}
+
+/**
+ * Whether a player can select or host a mission from the map or Mission Select.
+ * Admins bypass lock and disabled. Non-admins need the mission unlocked and not disabled.
+ */
+export function canPlayerSelectMission(params: {
+    isAdmin: boolean;
+    isUnlocked: boolean;
+    isDisabled: boolean;
+}): boolean {
+    if (params.isAdmin) return true;
+    return params.isUnlocked && !params.isDisabled;
+}
+
 /** All chapters defined for a storyline (empty when none). */
 export function getCampaignChapters(storyline: StorylineDef): CampaignChapterDef[] {
     return storyline.chapters ?? [];

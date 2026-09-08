@@ -4,7 +4,15 @@ import type { ReactNode } from 'react';
 import type { CampaignResourceKey, CampaignState, MissionResearchRewardEntry, MissionResult } from '../../types';
 import type { LobbyClient } from '../../LobbyClient';
 import { STORYLINES, MISSION_MAP } from '../../games/minion_battles/storylines';
-import { getUnlockedMissionIds, getAllMissionIdsInOrder, hasVictoryResult } from '../../games/minion_battles/storylines/unlock';
+import {
+    getUnlockedMissionIds,
+    getAllMissionIdsInOrder,
+    hasVictoryResult,
+    isMissionDisabled,
+    canPlayerSelectMission,
+    MISSION_DISABLED_PLAYER_NOTICE,
+    MISSION_DISABLED_ADMIN_NOTICE,
+} from '../../games/minion_battles/storylines/unlock';
 import { getResolvedMissionResearchRewards, type ResolvedResearchReward } from '../../researchTrees/list';
 import ResourcePill, { campaignResourceGains } from '../ResourcePill';
 import ResearchRewardTinyChip, { MISSION_REWARD_CHIP_CLASSNAME } from '../ResearchRewardTinyChip';
@@ -213,7 +221,12 @@ export default function MissionSelectPanel({
                                         const def = MISSION_MAP[missionId];
                                         const name = def?.name ?? missionId;
                                         const isUnlocked = unlocked.has(missionId);
-                                        const canStartMission = isUnlocked || isAdmin;
+                                        const isDisabled = isMissionDisabled(def);
+                                        const canStartMission = canPlayerSelectMission({
+                                            isAdmin,
+                                            isUnlocked,
+                                            isDisabled,
+                                        });
                                         const hasVictory = hasVictoryResult(missionId, missionResults);
                                         const missionResult = latestMissionResultById.get(missionId);
                                         const gainedResources = campaignResourceGains(missionResult?.resourceDelta);
@@ -230,7 +243,13 @@ export default function MissionSelectPanel({
                                                     className="w-full text-left px-4 py-3 rounded border transition-all bg-surface border-border-custom hover:border-primary hover:bg-surface-light disabled:opacity-70 disabled:cursor-wait"
                                                     disabled={selectingMission || !canStartMission}
                                                     onClick={() => handleMissionClick(missionId)}
-                                                    title={!canStartMission ? 'Complete the previous mission to unlock' : undefined}
+                                                    title={
+                                                        !canStartMission
+                                                            ? (isDisabled
+                                                                ? MISSION_DISABLED_PLAYER_NOTICE
+                                                                : 'Complete the previous mission to unlock')
+                                                            : (isDisabled ? MISSION_DISABLED_ADMIN_NOTICE : undefined)
+                                                    }
                                                 >
                                                     <span className="flex items-start justify-between gap-3">
                                                         <span className="flex min-w-0 items-center gap-2">
@@ -240,6 +259,9 @@ export default function MissionSelectPanel({
                                                                 </svg>
                                                             )}
                                                             <span className="truncate">{name}</span>
+                                                            {isDisabled && (
+                                                                <span className="shrink-0 text-xs text-muted italic">Disabled</span>
+                                                            )}
                                                         </span>
                                                         <span className="flex shrink-0 items-center gap-2">
                                                             {missionResult ? (

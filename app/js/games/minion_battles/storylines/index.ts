@@ -65,6 +65,10 @@ export type { CampaignChapterDef, StorylineDef, StorylineFlowEdge } from './type
 export {
     getUnlockedMissionIds,
     isMissionCompleted,
+    isMissionDisabled,
+    canPlayerSelectMission,
+    MISSION_DISABLED_PLAYER_NOTICE,
+    MISSION_DISABLED_ADMIN_NOTICE,
     getAllMissionIdsInOrder,
     getCampaignChapters,
     isChapterUnlocked,

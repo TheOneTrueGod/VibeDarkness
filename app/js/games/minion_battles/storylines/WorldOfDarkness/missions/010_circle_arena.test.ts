@@ -6,6 +6,7 @@ import { TerrainType } from '../../../terrain/TerrainType';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { registerWorldOfDarknessSegments } from '../registerSegments';
 import { THE_CIRCLE } from './010_circle_arena';
+import { MISSION_MAP_DISABLED } from '../../types';
 import {
     BOSS_ARENA_SEGMENT_ID,
     BOSS_ARENA_SIZE,
@@ -76,5 +77,9 @@ describe('CircleArenaMission', () => {
         });
 
         engine.destroy();
+    });
+
+    it('is disabled on the mission map for non-admins', () => {
+        expect(THE_CIRCLE.disabled).toBe(MISSION_MAP_DISABLED);
     });
 });

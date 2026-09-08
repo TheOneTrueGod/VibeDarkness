@@ -15,6 +15,7 @@ import type {
     SpawnWaveEntry,
     SpecialTilePlacement,
 } from '../../types';
+import { MISSION_MAP_DISABLED } from '../../types';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { DarknessLevel } from '../../../game/darknessLevels';
 import { WOD_CH2_MAP_X_COL1, WOD_CH2_MAP_Y_ROW1 } from '../chapter2Map';
@@ -186,6 +187,7 @@ export class ThornbinderArenaMission extends BaseMissionDef {
     campaignId = 'world_of_darkness';
     missionId = ThornbinderArenaMission.missionId;
     name = ThornbinderArenaMission.nameStr;
+    disabled = MISSION_MAP_DISABLED;
     /** Chapter 2 grid — row 1, after Surface Quests picker. */
     mapPosition = { x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW1 };
     missionType = 'battle' as const;

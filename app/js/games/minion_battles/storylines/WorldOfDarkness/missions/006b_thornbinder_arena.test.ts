@@ -23,6 +23,7 @@ import {
     WAVE_THORNBINDER_COUNT,
     WAVE_WOLF_COUNT,
 } from './006b_thornbinder_arena';
+import { MISSION_MAP_DISABLED } from '../../types';
 import {
     ARENA_RING_SPAWN_COUNT,
     ARENA_RING_SPAWN_POINTS,
@@ -219,5 +220,9 @@ describe('ThornbinderArenaMission', () => {
         });
 
         engine.destroy();
+    });
+
+    it('is disabled on the mission map for non-admins', () => {
+        expect(THORNBINDER_ARENA.disabled).toBe(MISSION_MAP_DISABLED);
     });
 });

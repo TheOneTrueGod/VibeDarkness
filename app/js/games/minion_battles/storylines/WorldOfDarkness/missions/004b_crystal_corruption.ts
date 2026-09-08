@@ -8,6 +8,7 @@
 import { BaseMissionDef } from '../../BaseMissionDef';
 import { NINJUTSU_3_FLURRY_PER_ROUND } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { LevelEvent, SpecialTilePlacement } from '../../types';
+import { MISSION_MAP_DISABLED } from '../../types';
 import type { PreMissionStoryDef, PostMissionStoryDef } from '../../storyTypes';
 import { ENEMY_DARK_WOLF, ENEMY_SWARMLING, SLIME } from '../../../constants/enemyConstants';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
@@ -192,6 +193,7 @@ export class CrystalCorruptionMission extends BaseMissionDef {
     missionId = 'crystal_corruption';
     mapPosition?: { x: number; y: number } = { x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW2 };
     isSideMission = true;
+    disabled = MISSION_MAP_DISABLED;
     missionType = 'battle' as const;
     description = 'The crystals pulse with dark energy. Purge the corruption before it spreads beyond the cave.';
     campaignId = 'world_of_darkness';

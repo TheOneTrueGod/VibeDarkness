@@ -7,6 +7,7 @@
 import { BaseMissionDef } from '../../BaseMissionDef';
 import { DEFAULT_HOME_SEGMENT_ID, listHomeSegmentIds } from '../../homeBase';
 import type { EnemySpawnDef, MissionMapLayout } from '../../types';
+import { MISSION_MAP_DISABLED } from '../../types';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import {
     BOSS_ARENA_SEGMENT_ID,
@@ -30,6 +31,7 @@ export class CircleArenaMission extends BaseMissionDef {
     campaignId = 'world_of_darkness';
     missionId = CircleArenaMission.missionId;
     name = CircleArenaMission.nameStr;
+    disabled = MISSION_MAP_DISABLED;
     mapPosition = { x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW2 };
     isSideMission = true;
     missionType = 'boss' as const;

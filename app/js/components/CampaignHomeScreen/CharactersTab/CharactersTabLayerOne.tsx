@@ -36,7 +36,7 @@ interface CharactersTabLayerOneProps {
 
 const HEADER_SURFACE = 'bg-background/50';
 
-/** Campaign-home character chrome: name, tabs, Change Characters, and left-column switch. */
+/** Campaign-home character chrome: name, portrait, Change Characters + arrows, left-column switch. */
 export function CharactersTabLayerOne({
     tab,
     onSelectTab,
@@ -52,32 +52,33 @@ export function CharactersTabLayerOne({
 }: CharactersTabLayerOneProps) {
     const leftContent = leftByTab[tab] ?? null;
     const showChangeCharacters = Boolean(onChangeCharacters) && innerTabShowsChangeCharacters(tab);
+    const showPortraitActions = showChangeCharacters || showPortraitArrows;
 
     return (
         <div className="flex h-full w-full min-h-0 overflow-hidden bg-surface">
             <div className={`flex ${CHARACTER_EDITOR_LEFT_WIDTH_CLASS} shrink-0 flex-col border-r border-border-custom ${HEADER_SURFACE}`}>
                 <div className="flex flex-col shrink-0 max-w-full box-border border-b border-border-custom p-4">
-                    <div className="flex items-center justify-between gap-2 min-w-0">
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                            {nameSection}
-                        </div>
-                        {showPortraitArrows && (
-                            <PortraitCycleButtons onPrev={onPrevPortrait} onNext={onNextPortrait} />
-                        )}
+                    <div className="flex items-center gap-2 min-w-0 border-b border-border-custom pb-3">
+                        {nameSection}
                     </div>
-                    {showChangeCharacters && (
-                        <div className="border-t border-border-custom mt-3 pt-3">
-                            <button
-                                type="button"
-                                data-testid={TestIds.charactersChange}
-                                onClick={onChangeCharacters}
-                                className="w-full rounded-lg border border-border-custom bg-surface-light px-3 py-1.5 text-xs font-medium text-muted hover:text-white hover:border-primary transition-colors cursor-pointer"
-                            >
-                                {CHANGE_CHARACTERS_LABEL}
-                            </button>
+                    {portrait}
+                    {showPortraitActions && (
+                        <div className="mt-3 flex items-center gap-2">
+                            {showChangeCharacters && (
+                                <button
+                                    type="button"
+                                    data-testid={TestIds.charactersChange}
+                                    onClick={onChangeCharacters}
+                                    className="flex-1 min-w-0 rounded-lg border border-border-custom bg-surface-light px-3 py-1.5 text-xs font-medium text-muted hover:text-white hover:border-primary transition-colors cursor-pointer"
+                                >
+                                    {CHANGE_CHARACTERS_LABEL}
+                                </button>
+                            )}
+                            {showPortraitArrows && (
+                                <PortraitCycleButtons onPrev={onPrevPortrait} onNext={onNextPortrait} />
+                            )}
                         </div>
                     )}
-                    {portrait}
                 </div>
                 <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
                     {leftContent}

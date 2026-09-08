@@ -14,6 +14,8 @@ export class QuestCrystalCorruptionMission extends CrystalCorruptionMission {
         'Quest variant of the cave assault — purge corruption as a step in a locked run.';
     /** Not placed on the main Mission Map graph. */
     override mapPosition = undefined;
+    /** Quest runs stay playable even though the campaign map copy is disabled. */
+    override disabled = false;
 }
 
 export const QUEST_CRYSTAL_CORRUPTION = new QuestCrystalCorruptionMission();

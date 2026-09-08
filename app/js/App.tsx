@@ -14,6 +14,8 @@ import CampaignHomeScreen from './components/CampaignHomeScreen/CampaignHomeScre
 import LoginScreen from './components/LoginScreen';
 import {
     MISSION_MAP,
+    MISSION_DISABLED_PLAYER_NOTICE,
+    isMissionDisabled,
     buildQuestContinuationClaimPayload,
     getQuestDef,
     questLobbyFieldsFromRun,
@@ -777,6 +779,10 @@ function AppInner() {
             setCurrentCampaignId(character.campaignId);
             const missionDef = MISSION_MAP[missionId];
             const missionName = missionDef?.name ?? missionId;
+            if (!isAdmin && isMissionDisabled(missionDef)) {
+                showToast(MISSION_DISABLED_PLAYER_NOTICE, 'error');
+                return;
+            }
             try {
                 const result = await lobbyClient.createLobby(`Mission: ${missionName}`, user.id);
                 const lobby = result.lobby as LobbyState;
@@ -820,7 +826,7 @@ function AppInner() {
                 );
             }
         },
-        [lobbyClient, user, showToast, startInLobby, loadGameState, navigate],
+        [lobbyClient, user, showToast, startInLobby, loadGameState, navigate, isAdmin],
     );
 
     /**

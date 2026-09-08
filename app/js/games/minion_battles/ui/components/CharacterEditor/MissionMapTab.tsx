@@ -4,6 +4,7 @@
  * Shows all missions in the character's campaign as circles connected by lines.
  * Node fill: gray = finished; red = battle; blue = story; radial gradient = boss.
  * Locked missions are dimmed; admins can click them anyway.
+ * Disabled missions are dimmed for non-admins and cannot be selected; admins can still host.
  * Hovering a node shows a tooltip; clicking pins it and shows a "Host Mission" button.
  */
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
@@ -19,6 +20,10 @@ import {
     getUnlockedMissionIds,
     hasVictoryResult,
     isMissionCompleted,
+    isMissionDisabled,
+    canPlayerSelectMission,
+    MISSION_DISABLED_PLAYER_NOTICE,
+    MISSION_DISABLED_ADMIN_NOTICE,
     getAllMissionIdsInOrder,
     isSideMissionId,
     isChapterUnlocked,
@@ -74,12 +79,19 @@ const MISSION_NODE_FILL = {
     story: '#3b82f6', // blue-500
 } as const;
 
+/** Lighter red halo on battle nodes — same role as quest-bank violet-400 on violet-600. */
+const BATTLE_NODE_STROKE = '#fca5a5'; // red-300
+
 /** Checkmark and node border for completed missions / quest banks. */
 const COMPLETED_MISSION_ACCENT = '#22c55e'; // green-500
 
 /** Solid accent used for boss hover glow (gradient fill cannot drive drop-shadow alone). */
 const BOSS_GLOW_COLOR = '#e11d48'; // rose-600
 const BOSS_GRADIENT_ID = 'mission-map-boss-fill';
+/** Dashed ring when an admin can click a locked mission. */
+const LOCKED_ADMIN_RING_COLOR = '#f59e0b'; // amber-500
+/** Dashed ring when an admin can click a disabled mission. */
+const DISABLED_ADMIN_RING_COLOR = '#a1a1aa'; // zinc-400
 
 interface Props {
     character: CampaignCharacter;
@@ -325,6 +337,7 @@ function MissionTooltip({
     missionResults,
     isAdmin,
     isLocked,
+    isDisabled,
     onStartMission,
     onMarkVictory,
     onDismiss,
@@ -333,6 +346,7 @@ function MissionTooltip({
     missionResults: MissionResult[];
     isAdmin: boolean;
     isLocked: boolean;
+    isDisabled: boolean;
     onStartMission: (id: string) => void;
     onMarkVictory?: (id: string) => Promise<void>;
     onDismiss: () => void;
@@ -437,15 +451,22 @@ function MissionTooltip({
                     </div>
                 )}
 
-                {/* Locked notice */}
-                {isLocked && !isAdmin && (
+                {/* Locked / disabled notice */}
+                {isDisabled && (
+                    <div className="px-4 pb-3">
+                        <span className="text-[11px] text-zinc-500 italic">
+                            {isAdmin ? MISSION_DISABLED_ADMIN_NOTICE : MISSION_DISABLED_PLAYER_NOTICE}
+                        </span>
+                    </div>
+                )}
+                {isLocked && !isAdmin && !isDisabled && (
                     <div className="px-4 pb-3">
                         <span className="text-[11px] text-zinc-500 italic">Complete earlier missions to unlock.</span>
                     </div>
                 )}
 
                 {/* Pinned footer: Host Mission button */}
-                {data.pinned && (
+                {data.pinned && (!isDisabled || isAdmin) && (
                     <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-t border-white/8 bg-white/3">
                         <button
                             type="button"
@@ -899,7 +920,12 @@ export default function MissionMapTab({
                 {/* Mission nodes */}
                 {missions.map(({ id, def, pos, isSide }) => {
                     const isUnlocked = unlockedIds.has(id);
-                    const clickable = isUnlocked || isAdmin;
+                    const isDisabled = isMissionDisabled(def);
+                    const clickable = canPlayerSelectMission({
+                        isAdmin,
+                        isUnlocked,
+                        isDisabled,
+                    });
                     const missionType = def?.missionType ?? DEFAULT_MISSION_TYPE;
                     const finished = isMissionCompleted(id, missionResults);
                     const completedCombat = !isSide && finished && missionType === 'battle';
@@ -907,12 +933,15 @@ export default function MissionMapTab({
                     const glowColor = completedCombat
                         ? COMPLETED_MISSION_ACCENT
                         : getMissionGlowColor(id, missionType, missionResults);
-                    const dimmed = !isUnlocked && !isAdmin;
+                    const dimmedForLock = !isUnlocked && !isAdmin;
+                    const dimmedForDisabled = isDisabled && !isAdmin;
+                    const dimmed = isSide ? dimmedForDisabled : (dimmedForLock || dimmedForDisabled);
                     const isHovered = hoveredId === id;
                     const isPressed = pressedId === id;
                     const isPinned = tooltip?.pinned && tooltip.id === id;
                     const r = CIRCLE_R;
                     const MissionIcon = MISSION_TYPE_ICONS[missionType];
+                    const showBattleHalo = !isSide && missionType === 'battle' && !completedCombat;
 
                     const nodeScale = isPressed ? 0.92 : (isHovered || isPinned) ? 1.1 : 1;
 
@@ -951,11 +980,21 @@ export default function MissionMapTab({
                                 }}
                             >
                                 {/* Outer ring for locked-but-admin-accessible */}
-                                {isAdmin && !isUnlocked && (
+                                {isAdmin && !isUnlocked && !isDisabled && (
                                     <circle
                                         r={r + 3}
                                         fill="none"
-                                        stroke="#f59e0b"
+                                        stroke={LOCKED_ADMIN_RING_COLOR}
+                                        strokeWidth={1.5}
+                                        strokeDasharray="4 3"
+                                    />
+                                )}
+                                {/* Outer ring for disabled-but-admin-accessible (non-battle; battle uses the type halo) */}
+                                {isAdmin && isDisabled && !showBattleHalo && (
+                                    <circle
+                                        r={r + 3}
+                                        fill="none"
+                                        stroke={DISABLED_ADMIN_RING_COLOR}
                                         strokeWidth={1.5}
                                         strokeDasharray="4 3"
                                     />
@@ -986,9 +1025,11 @@ export default function MissionMapTab({
                                         ? (finished ? COMPLETED_MISSION_ACCENT : '#7c3aed')
                                         : (completedCombat
                                             ? COMPLETED_MISSION_ACCENT
-                                            : ((isHovered || isPinned) ? 'white' : '#1f2937'))}
-                                    strokeWidth={isSide || completedCombat ? 2 : ((isHovered || isPinned) ? 2.5 : 2)}
-                                    strokeOpacity={(isHovered || isPinned) ? 0.7 : 1}
+                                            : (showBattleHalo
+                                                ? BATTLE_NODE_STROKE
+                                                : ((isHovered || isPinned) ? 'white' : '#1f2937')))}
+                                    strokeWidth={isSide || completedCombat || showBattleHalo ? 2 : ((isHovered || isPinned) ? 2.5 : 2)}
+                                    strokeOpacity={(isHovered || isPinned) && !showBattleHalo ? 0.7 : 1}
                                 />
                                 {/* Checkmark / star for side missions; checkmark for completed combat; type icon otherwise */}
                                 {isSide || completedCombat ? (
@@ -1163,6 +1204,7 @@ export default function MissionMapTab({
                     missionResults={missionResults}
                     isAdmin={isAdmin}
                     isLocked={!unlockedIds.has(tooltip.id)}
+                    isDisabled={isMissionDisabled(MISSION_MAP[tooltip.id])}
                     onStartMission={onStartMission}
                     onMarkVictory={onMarkVictory}
                     onDismiss={dismissTooltip}

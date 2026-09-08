@@ -70,6 +70,9 @@ const PILL_STATUS_CLASS: Record<QuestSlotPillStatus, string> = {
     upcoming: 'bg-zinc-800/70 text-zinc-400 border-zinc-600/60 hover:bg-zinc-700/70',
 };
 
+const QUEST_SECTION_BOX_CLASS =
+    'flex flex-col gap-2 rounded-lg border border-border-custom bg-surface px-3 py-2.5';
+
 function AdminMissionSeekPill({
     quest,
     missionId,
@@ -450,16 +453,50 @@ export default function QuestBanksPanel({
     return (
         <div
             data-testid={TestIds.questBanksPanel}
-            className="mb-3 mx-1 flex flex-col gap-3 rounded-lg border border-border-custom bg-surface px-3 py-2.5"
+            className="mb-3 mx-1 flex flex-col gap-3"
         >
             {!hideSectionTitle && (
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center justify-between gap-2 px-0.5">
                     <h3 className="text-xs font-semibold text-white uppercase tracking-wide">Quests</h3>
                 </div>
             )}
 
+            {optionalQuests.length > 0 && (
+                <section className={QUEST_SECTION_BOX_CLASS} aria-label="Optional quests">
+                    <p className="text-[10px] font-semibold text-violet-400/90 uppercase tracking-wide">
+                        Optional / side quests
+                    </p>
+                    <ul className="flex flex-col gap-1.5">
+                        {optionalQuests.map((q) =>
+                            renderQuestRow(
+                                q,
+                                `${TestIds.questStartOptionalPrefix}${q.id}`,
+                                null,
+                            ),
+                        )}
+                    </ul>
+                </section>
+            )}
+
+            {victoryResults.length > 0 && (
+                <section className={QUEST_SECTION_BOX_CLASS} aria-label="Quest results">
+                    <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">
+                        Quest Results
+                    </p>
+                    <ul className="flex flex-col gap-1.5">
+                        {victoryResults.map((r) => (
+                            <QuestResultBadge
+                                key={`${r.questDefId}-${r.timestamp ?? r.placement ?? 'v'}`}
+                                result={r}
+                                banks={storyline.questSlotBanks ?? []}
+                            />
+                        ))}
+                    </ul>
+                </section>
+            )}
+
             {unlockedBanks.length > 0 && (
-                <section className="flex flex-col gap-2" aria-label="Quest slot banks">
+                <section className={QUEST_SECTION_BOX_CLASS} aria-label="Quest slot banks">
                     <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">
                         Quest banks
                     </p>
@@ -591,40 +628,6 @@ export default function QuestBanksPanel({
                             </div>
                         );
                     })}
-                </section>
-            )}
-
-            {optionalQuests.length > 0 && (
-                <section className="flex flex-col gap-2" aria-label="Optional quests">
-                    <p className="text-[10px] font-semibold text-violet-400/90 uppercase tracking-wide">
-                        Optional / side quests
-                    </p>
-                    <ul className="flex flex-col gap-1.5">
-                        {optionalQuests.map((q) =>
-                            renderQuestRow(
-                                q,
-                                `${TestIds.questStartOptionalPrefix}${q.id}`,
-                                null,
-                            ),
-                        )}
-                    </ul>
-                </section>
-            )}
-
-            {victoryResults.length > 0 && (
-                <section className="flex flex-col gap-2" aria-label="Quest results">
-                    <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">
-                        Quest results
-                    </p>
-                    <ul className="flex flex-col gap-1.5">
-                        {victoryResults.map((r) => (
-                            <QuestResultBadge
-                                key={`${r.questDefId}-${r.timestamp ?? r.placement ?? 'v'}`}
-                                result={r}
-                                banks={storyline.questSlotBanks ?? []}
-                            />
-                        ))}
-                    </ul>
                 </section>
             )}
         </div>

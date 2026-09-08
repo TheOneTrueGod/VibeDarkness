@@ -22,7 +22,7 @@ This skill keeps a **list of component names** and a **one-line description** of
 | **DebugConsoleToggle** | 26×26 header **Debug** control (bug icon) that opens the debug drawer. Shown only after tilde ×3 unlocks debug mode. |
 | **CornerSlotBattleDetails** | Top-right battle canvas rack for world modifiers, admin ninjutsu pools, and the debug game-tick pill. |
 | **CardWithTitle** | Full-size titled card (`title`, optional `subtitle` / `actions`, children in a vertically scrolling body). Fills its parent; white text + `bg-surface`. Max width belongs on the parent wrapper. Lives in `app/js/components/`. |
-| **CharactersTabLayerOne** | Campaign-home character chrome: name, Lucide portrait arrows, Change Characters, left-column switch, URL-owned inner-tab bar. Lives in `CampaignHomeScreen/CharactersTab/`. |
+| **CharactersTabLayerOne** | Campaign-home character chrome: name, portrait, Change Characters with cycle arrows, left-column switch, URL-owned inner-tab bar. Lives in `CampaignHomeScreen/CharactersTab/`. |
 | **CharactersTabLayerTwo** | Campaign-home character right panel; dispatches to MissionMap / Upgrades / StatBonuses / Equipment. |
 
 ## When to use

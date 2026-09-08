@@ -178,6 +178,11 @@ export interface IBaseMissionDef extends MissionBattleConfig {
     image?: string;
     /** Short flavour description shown in the Mission Map tooltip. */
     description?: string;
+    /**
+     * When true, non-admins cannot select or host this mission from the Mission Map.
+     * Admins can still select and start it.
+     */
+    disabled?: boolean;
     /** Per-pool ninjutsu configuration. Absent = NINJUTSU_DEFAULT for the 'shadow' pool. */
     ninjutsuPools?: Partial<Record<string, NinjutsuPoolConfig>>;
     /**
@@ -249,6 +254,11 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     tags?: string[];
     /** When true, eligible for `random_story` slot resolvers. */
     randomStoryPool?: boolean;
+    /**
+     * When true, non-admins cannot select or host this mission from the Mission Map.
+     * Admins can still select and start it.
+     */
+    disabled?: boolean;
     /** Mission-local tile layout for the composer path. */
     mapLayout?: MissionMapLayout;
     /** Pin spawn/home segment; omit to resolve from campaign context. */

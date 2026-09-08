@@ -477,6 +477,9 @@ export interface PostMissionChoiceResolveParams {
 /** Mission map node category — drives the Lucide icon on the Mission Map. */
 export type MissionType = 'battle' | 'story' | 'boss';
 
+/** Set on a mission def so non-admins cannot select or host it from the map. */
+export const MISSION_MAP_DISABLED = true;
+
 /** Full battle configuration for a mission. */
 export interface MissionBattleConfig {
     /** Mission ID (matches selectedMissionId in game state). */
@@ -573,6 +576,11 @@ export interface MissionBattleConfig {
      * (still must match challengeRating / tags params).
      */
     randomStoryPool?: boolean;
+    /**
+     * When true, non-admins cannot select or host this mission from the Mission Map
+     * or Mission Select. Admins can still select and start it.
+     */
+    disabled?: boolean;
 }
 
 /** Storyline flow edge: fromMissionId + result unlocks toMissionId. */

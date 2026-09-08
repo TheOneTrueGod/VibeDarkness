@@ -10,7 +10,7 @@ Campaign-home character sheet. LayerOne owns chrome and inner-tab routing; Layer
 | `Upgrades/` | Upgrades / research tab body wrapper. |
 | `StatBonuses/` | Stat Bonuses tab body. |
 | `Equipment/` | Admin Equipment tab body wrapper. |
-| `CharactersTabLayerOne.tsx` | Name, portrait arrows, Change Characters, left-column switch, inner-tab bar. |
+| `CharactersTabLayerOne.tsx` | Name, portrait, Change Characters + cycle arrows, left-column switch, inner-tab bar. |
 | `CharactersTabLayerTwo.tsx` | Right panel: switches on the routed inner tab. |
 | `useCharacterInnerTab.ts` | URL `/players/:id/characters/:charId/:tab`; missing tab defaults to map. |
 
