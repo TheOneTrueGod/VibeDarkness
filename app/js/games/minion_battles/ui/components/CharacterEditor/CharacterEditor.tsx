@@ -37,6 +37,8 @@ import { getShowAllResearchTrees, subscribeShowAllResearchTrees } from '../../..
 import MissionMapTab from './MissionMapTab';
 import StatBonusesTab from './StatBonusesTab';
 import { PortraitCycleButtons } from './PortraitCycleButtons';
+import { characterHasResearch } from '../../../../../components/CampaignHomeScreen/CharactersTab/Upgrades/Upgrades';
+import { characterHasStatBonuses } from '../../../../../components/CampaignHomeScreen/CharactersTab/StatBonuses/StatBonuses';
 import { CharactersTabLayerOne } from '../../../../../components/CampaignHomeScreen/CharactersTab/CharactersTabLayerOne';
 import { CharactersTabLayerTwo } from '../../../../../components/CampaignHomeScreen/CharactersTab/CharactersTabLayerTwo';
 import { useCharacterInnerTab } from '../../../../../components/CampaignHomeScreen/CharactersTab/useCharacterInnerTab';
@@ -161,7 +163,12 @@ export default function CharacterEditor({
     const [nameDraft, setNameDraft] = useState(character.name);
     const [isEditingName, setIsEditingName] = useState(false);
     const [equipment, setEquipment] = useState<string[]>(() => [...character.equipment]);
-    const [localTab, setLocalTab] = useState<EditorTab>(() => hideMissionMap ? 'research' : 'missionMap');
+    const [localTab, setLocalTab] = useState<EditorTab>(() => {
+        if (!hideMissionMap) return 'missionMap';
+        if (characterHasResearch(character.researchTrees)) return 'research';
+        if (characterHasStatBonuses(character.researchTrees, character.researchNodeLevels)) return 'statBonuses';
+        return 'equipment';
+    });
     const { tab: routedInnerTab, setTab: setRoutedInnerTab } = useCharacterInnerTab();
     const activeTab: EditorTab = useRoutedInnerTabs ? editorTabFromInner(routedInnerTab) : localTab;
     const innerTab: CharacterInnerTabId = useRoutedInnerTabs ? routedInnerTab : innerTabFromEditor(localTab);
@@ -637,19 +644,30 @@ export default function CharacterEditor({
     const selectedTree = displayResearchTrees.find((t) => t.id === (selectedTreeId ?? firstTreeId));
     const selectedTreeDimmed = selectedTree ? dimmedResearchTreeIds.has(selectedTree.id) : false;
 
-    useEffect(() => {
-        if (!useRoutedInnerTabs) return;
-        if (routedInnerTab === 'equipment' && !isAdmin) {
-            setRoutedInnerTab('map');
-        }
-    }, [useRoutedInnerTabs, routedInnerTab, isAdmin, setRoutedInnerTab]);
+    const showUpgradesTab = characterHasResearch(researchTrees);
+    const showStatBonusesTab = characterHasStatBonuses(researchTrees, researchNodeLevels);
 
-    const visibleInnerTabs: CharacterInnerTabId[] = [
+    const visibleInnerTabs: CharacterInnerTabId[] = useMemo(() => [
         ...(!hideMissionMap ? (['map'] as const) : []),
         ...(isAdmin ? (['equipment'] as const) : []),
-        'upgrades',
-        'bonuses',
-    ];
+        ...(showUpgradesTab ? (['upgrades'] as const) : []),
+        ...(showStatBonusesTab ? (['bonuses'] as const) : []),
+    ], [hideMissionMap, isAdmin, showUpgradesTab, showStatBonusesTab]);
+
+    useEffect(() => {
+        if (!useRoutedInnerTabs) return;
+        if (visibleInnerTabs.includes(routedInnerTab)) return;
+        const fallback = visibleInnerTabs[0];
+        if (fallback) setRoutedInnerTab(fallback);
+    }, [useRoutedInnerTabs, routedInnerTab, visibleInnerTabs, setRoutedInnerTab]);
+
+    useEffect(() => {
+        if (useRoutedInnerTabs) return;
+        const inner = innerTabFromEditor(localTab);
+        if (visibleInnerTabs.includes(inner)) return;
+        const fallback = visibleInnerTabs[0];
+        if (fallback) setLocalTab(editorTabFromInner(fallback));
+    }, [useRoutedInnerTabs, localTab, visibleInnerTabs]);
 
     const nameSection = (
         <>
@@ -977,28 +995,32 @@ export default function CharacterEditor({
                         Equipment
                     </button>
                 )}
-                <button
-                    type="button"
-                    className={`px-3 py-2 border-b-2 text-sm cursor-pointer ${
-                        activeTab === 'research'
-                            ? 'border-primary text-primary'
-                            : 'border-transparent text-muted hover:text-white'
-                    }`}
-                    onClick={() => setActiveTab('research')}
-                >
-                    Upgrades
-                </button>
-                <button
-                    type="button"
-                    className={`px-3 py-2 border-b-2 text-sm cursor-pointer ${
-                        activeTab === 'statBonuses'
-                            ? 'border-primary text-primary'
-                            : 'border-transparent text-muted hover:text-white'
-                    }`}
-                    onClick={() => setActiveTab('statBonuses')}
-                >
-                    Stat Bonuses
-                </button>
+                {showUpgradesTab && (
+                    <button
+                        type="button"
+                        className={`px-3 py-2 border-b-2 text-sm cursor-pointer ${
+                            activeTab === 'research'
+                                ? 'border-primary text-primary'
+                                : 'border-transparent text-muted hover:text-white'
+                        }`}
+                        onClick={() => setActiveTab('research')}
+                    >
+                        Upgrades
+                    </button>
+                )}
+                {showStatBonusesTab && (
+                    <button
+                        type="button"
+                        className={`px-3 py-2 border-b-2 text-sm cursor-pointer ${
+                            activeTab === 'statBonuses'
+                                ? 'border-primary text-primary'
+                                : 'border-transparent text-muted hover:text-white'
+                        }`}
+                        onClick={() => setActiveTab('statBonuses')}
+                    >
+                        Stat Bonuses
+                    </button>
+                )}
             </div>
 
             {/* Content: left (portrait + sidebar) | right (main) */}
@@ -1043,8 +1065,8 @@ export default function CharacterEditor({
                         </div>
                     )}
                     {activeTab === 'equipment' && equipmentRight}
-                    {activeTab === 'research' && researchRight}
-                    {activeTab === 'statBonuses' && (
+                    {activeTab === 'research' && showUpgradesTab && researchRight}
+                    {activeTab === 'statBonuses' && showStatBonusesTab && (
                         <div className="flex-1 min-h-0 overflow-auto p-4">
                             <StatBonusesTab {...bonusesProps} />
                         </div>
