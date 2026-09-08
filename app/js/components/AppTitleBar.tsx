@@ -1,38 +1,20 @@
 /**
- * Global title bar shown for authenticated users on campaign screens.
- * In-lobby CI status lives in GameScreen's mission header instead.
+ * Root chrome for authenticated users: starts menu music on campaign screens.
+ * Campaign home owns the music player + logout in its header. Lobby still shows
+ * the player as an overlay (Leave lives on GameScreen).
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useCurrentUser } from '../user/useCurrentUser';
-import { useUserData } from '../user/UserDataProvider';
-import { LobbyClient } from '../LobbyClient';
-import { TestIds } from '../testing/testIds';
 import { getMusicPlayer } from '../games/minion_battles/music/MusicPlayerController';
 import { MUSIC_PLAYLIST_MENU } from '../games/minion_battles/music/musicConstants';
 import MusicPlayer from '../games/minion_battles/ui/components/MusicPlayer';
-import CiStatusPill from './CiStatusPill';
+import DebugConsoleToggle from './DebugConsole/DebugConsoleToggle';
 
 const LOBBY_PATH_PATTERN = /^\/lobby\//;
 
 export default function AppTitleBar() {
     const location = useLocation();
-    const { isAdmin } = useCurrentUser();
-    const { refetch } = useUserData();
-    const lobbyClient = useMemo(() => new LobbyClient(), []);
-    const [loggingOut, setLoggingOut] = useState(false);
     const inLobby = LOBBY_PATH_PATTERN.test(location.pathname);
-
-    const handleLogout = useCallback(async () => {
-        setLoggingOut(true);
-        try {
-            await lobbyClient.logout();
-            await refetch();
-            window.location.href = '/';
-        } catch {
-            setLoggingOut(false);
-        }
-    }, [lobbyClient, refetch]);
 
     useEffect(() => {
         if (!inLobby) {
@@ -40,22 +22,15 @@ export default function AppTitleBar() {
         }
     }, [inLobby]);
 
+    if (!inLobby) {
+        return null;
+    }
+
     return (
-        <div className="pointer-events-none fixed top-0 left-0 right-0 z-[200] flex items-center justify-end px-4 py-2">
-            <div className="pointer-events-auto flex items-center gap-2">
+        <div className="pointer-events-none fixed top-0 left-0 right-0 z-[200] flex items-end justify-end px-4 py-2">
+            <div className="pointer-events-auto flex items-end gap-2">
+                <DebugConsoleToggle />
                 <MusicPlayer />
-                {!inLobby && isAdmin && <CiStatusPill />}
-                {!inLobby && (
-                    <button
-                        type="button"
-                        data-testid={TestIds.appLogout}
-                        onClick={() => void handleLogout()}
-                        disabled={loggingOut}
-                        className="px-3 py-1.5 rounded-md border border-border-custom bg-surface-light/90 text-sm text-muted hover:text-white hover:bg-border-custom transition-colors disabled:opacity-50"
-                    >
-                        {loggingOut ? 'Logging out…' : 'Log out'}
-                    </button>
-                )}
             </div>
         </div>
     );

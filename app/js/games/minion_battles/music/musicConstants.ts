@@ -15,7 +15,7 @@ export const DEFAULT_MUSIC_VOLUME = 0.7;
 export const MUSIC_PLAYER_STORAGE_KEY = 'minionBattles.musicPlayer';
 
 /** Cassette readout character width (monospace). Overflow is replaced with '...'. */
-export const MUSIC_PLAYER_READOUT_MAX_CHARS = 16;
+export const MUSIC_PLAYER_READOUT_MAX_CHARS = 22;
 
 /** Volume slider range (HTML input max). Stored volume is 0–1. */
 export const MUSIC_PLAYER_VOLUME_SLIDER_MAX = 100;

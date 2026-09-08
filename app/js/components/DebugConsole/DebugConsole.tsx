@@ -89,8 +89,7 @@ export default function DebugConsole({
 }: DebugConsoleProps) {
     const { isAdmin } = useCurrentUser();
     const { debugPauseMode, setDebugPauseMode, advanceOneDebugTick } = useDebugSettings();
-    const { setSelectedDebugUnitId, battleBridge, debugConsoleEnabled, setDebugConsoleEnabled } = useDebugConsole();
-    const [expanded, setExpanded] = useState(false);
+    const { setSelectedDebugUnitId, battleBridge, debugConsoleEnabled, setDebugConsoleEnabled, debugConsoleExpanded, setDebugConsoleExpanded } = useDebugConsole();
     const [, setTildeCount] = useState(0);
     const [activeTab, setActiveTab] = useState<TabId>(() => (inBattle && isAdmin ? 'battle-actions' : 'game-state'));
     const [dockSide, setDockSide] = useState<DebugDockSide>('bottom');
@@ -221,25 +220,22 @@ export default function DebugConsole({
             </>
     );
 
-    if (!debugConsoleEnabled) return null;
+    if (!debugConsoleEnabled || !debugConsoleExpanded) return null;
 
     return (
         <div
-            className={`fixed z-[9999] bg-surface/[0.92] backdrop-blur border border-border-custom shadow flex flex-col overflow-hidden transition-all duration-200 ${dockClass} ${
-                expanded ? 'w-[60vw] h-[60vh]' : 'w-auto h-auto max-h-[60px]'
-            }`}
+            className={`fixed z-[9999] bg-surface/[0.92] backdrop-blur border border-border-custom shadow flex flex-col overflow-hidden transition-all duration-200 ${dockClass} w-[60vw] h-[60vh]`}
         >
-            <div className={`p-2 shrink-0 flex items-center gap-4 ${expanded ? 'min-w-[260px]' : ''}`}>
+            <div className="p-2 shrink-0 flex items-center gap-4 min-w-[260px]">
                 <div>
                     <button
                         className="px-4 py-2 text-sm bg-surface-light text-white border border-border-custom rounded hover:bg-border-custom transition-colors"
-                        onClick={() => setExpanded(!expanded)}
+                        onClick={() => setDebugConsoleExpanded(false)}
                     >
                         Debug
                     </button>
                 </div>
-                {expanded && (
-                    <>
+                <>
                         <div className="flex-1 text-center text-[11px] leading-tight text-muted font-mono">
                             {mouseDebug ? (
                                 <>
@@ -310,12 +306,10 @@ export default function DebugConsole({
                                 </button>
                             </div>
                         )}
-                    </>
-                )}
+                </>
             </div>
 
-            {expanded && (
-                <div className="flex flex-col flex-1 min-h-0">
+            <div className="flex flex-col flex-1 min-h-0">
                     <div className="flex gap-1 px-2 border-b border-border-custom shrink-0">
                         {inBattle && isAdmin && (
                             <DebugTabButton
@@ -383,8 +377,7 @@ export default function DebugConsole({
                     </div>
 
                     <div className="flex-1 overflow-auto p-3 min-h-0">{debugTabs}</div>
-                </div>
-            )}
+            </div>
         </div>
     );
 }

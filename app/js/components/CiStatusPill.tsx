@@ -16,9 +16,11 @@ const PILL_COLOR_CLASS: Record<ReturnType<typeof getCiPillVariant>, string> = {
 interface CiStatusPillProps {
     /** Embedded in a page header (e.g. lobby mission bar) instead of the fixed title bar. */
     embedded?: boolean;
+    /** Match compact header chrome (music player height). */
+    compact?: boolean;
 }
 
-export default function CiStatusPill({ embedded = false }: CiStatusPillProps) {
+export default function CiStatusPill({ embedded = false, compact = false }: CiStatusPillProps) {
     const [status, setStatus] = useState<CiStatus | null>(null);
     const [tooltipOpen, setTooltipOpen] = useState(false);
 
@@ -54,12 +56,14 @@ export default function CiStatusPill({ embedded = false }: CiStatusPillProps) {
             onMouseLeave={() => setTooltipOpen(false)}
         >
             <span
-                className={`inline-block h-6 w-6 rounded-full border border-border-custom shadow-sm ${PILL_COLOR_CLASS[variant]}`}
+                className={`inline-block ${compact ? 'h-5 w-5' : 'h-6 w-6'} rounded-full border border-border-custom shadow-sm ${PILL_COLOR_CLASS[variant]}`}
                 aria-label={tooltip.replace(/\n/g, ', ')}
             />
             {tooltipOpen ? (
                 <div
-                    className="absolute right-0 top-[calc(100%+8px)] z-[300] min-w-[24rem] max-w-[36rem] -translate-x-2 translate-y-2 whitespace-pre-line rounded border border-border-custom bg-black px-6 py-4 text-sm leading-snug text-gray-100 shadow-lg"
+                    className={`absolute top-[calc(100%+8px)] z-[300] min-w-[24rem] max-w-[36rem] translate-y-2 whitespace-pre-line rounded border border-border-custom bg-black px-6 py-4 text-sm leading-snug text-gray-100 shadow-lg ${
+                        embedded ? 'left-0' : 'right-0 -translate-x-2'
+                    }`}
                     role="tooltip"
                 >
                     {tooltip}

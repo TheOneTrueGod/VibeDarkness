@@ -9,7 +9,7 @@ export function formatSongReadout(
 ): string {
     if (maxChars <= 0) return '';
     if (title.length <= maxChars) {
-        return title.padEnd(maxChars, ' ');
+        return title;
     }
     if (maxChars <= ELLIPSIS.length) {
         return ELLIPSIS.slice(0, maxChars);

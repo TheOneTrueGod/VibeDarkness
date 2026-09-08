@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import type { WorldModifierDebugEntry } from '../games/minion_battles/worldModifiers/WorldModifierManager';
 
 export type { WorldModifierDebugEntry };
@@ -41,6 +41,9 @@ interface DebugConsoleContextValue {
     setBattleBridge: (bridge: BattleDebugBridge | null) => void;
     adminMovePendingUnitId: string | null;
     setAdminMovePendingUnitId: (id: string | null) => void;
+    /** Drawer open; the header tab toggles this while debug mode is enabled. */
+    debugConsoleExpanded: boolean;
+    setDebugConsoleExpanded: (expanded: boolean) => void;
 }
 
 const DebugConsoleContext = createContext<DebugConsoleContextValue>({
@@ -52,6 +55,8 @@ const DebugConsoleContext = createContext<DebugConsoleContextValue>({
     setBattleBridge: () => {},
     adminMovePendingUnitId: null,
     setAdminMovePendingUnitId: () => {},
+    debugConsoleExpanded: false,
+    setDebugConsoleExpanded: () => {},
 });
 
 export function useDebugConsole(): DebugConsoleContextValue {
@@ -59,13 +64,20 @@ export function useDebugConsole(): DebugConsoleContextValue {
 }
 
 export function DebugConsoleProvider({ children }: { children: React.ReactNode }) {
-    const [debugConsoleEnabled, setDebugConsoleEnabled] = useState(false);
+    const [debugConsoleEnabledState, setDebugConsoleEnabledState] = useState(false);
+    const [debugConsoleExpanded, setDebugConsoleExpanded] = useState(false);
     const [selectedDebugUnitId, setSelectedDebugUnitId] = useState<string | null>(null);
     const [battleBridge, setBattleBridge] = useState<BattleDebugBridge | null>(null);
     const [adminMovePendingUnitId, setAdminMovePendingUnitId] = useState<string | null>(null);
+
+    const setDebugConsoleEnabled = useCallback((enabled: boolean) => {
+        setDebugConsoleEnabledState(enabled);
+        if (!enabled) setDebugConsoleExpanded(false);
+    }, []);
+
     const value = useMemo(
         () => ({
-            debugConsoleEnabled,
+            debugConsoleEnabled: debugConsoleEnabledState,
             setDebugConsoleEnabled,
             selectedDebugUnitId,
             setSelectedDebugUnitId,
@@ -73,8 +85,17 @@ export function DebugConsoleProvider({ children }: { children: React.ReactNode }
             setBattleBridge,
             adminMovePendingUnitId,
             setAdminMovePendingUnitId,
+            debugConsoleExpanded,
+            setDebugConsoleExpanded,
         }),
-        [debugConsoleEnabled, selectedDebugUnitId, battleBridge, adminMovePendingUnitId],
+        [
+            debugConsoleEnabledState,
+            setDebugConsoleEnabled,
+            selectedDebugUnitId,
+            battleBridge,
+            adminMovePendingUnitId,
+            debugConsoleExpanded,
+        ],
     );
     return <DebugConsoleContext.Provider value={value}>{children}</DebugConsoleContext.Provider>;
 }

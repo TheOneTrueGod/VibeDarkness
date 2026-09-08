@@ -17,6 +17,8 @@ import {
 } from '../ability-tests/campaignTabPaths';
 import { TestIds, campaignTabTestId } from '../../testing/testIds';
 import { CAMPAIGN_HOME_TABS, getCampaignHomeTab } from './campaignHomeTabs';
+import { CAMPAIGN_HOME_CARD_MAX_WIDTH_CLASS } from './CampaignHomeTabFrame';
+import CampaignHomeHeader from './CampaignHomeHeader';
 
 /** Default tab when no tab is selected. */
 function getDefaultTab(_isAdmin: boolean): TabId {
@@ -165,16 +167,8 @@ export default function CampaignHomeScreen({
         <div className="h-screen flex flex-col">
             <div className="flex-1 overflow-y-auto w-full">
             <div className="mx-auto w-full px-5 py-2 max-md:px-5 max-md:py-5 max-w-full">
-                <div className="relative mb-2 flex items-center justify-center">
-                    <h1 className="text-4xl max-md:text-3xl font-bold text-primary">
-                        Minion Battles
-                    </h1>
-                    {isAdmin && (
-                        <span className="absolute right-0 text-xs text-muted">
-                            v{import.meta.env.VITE_APP_VERSION}
-                        </span>
-                    )}
-                </div>
+                <div className={`mx-auto w-full ${CAMPAIGN_HOME_CARD_MAX_WIDTH_CLASS}`}>
+                    <CampaignHomeHeader />
 
                 {!hasCampaign && bootstrappingCampaign && (
                     <div className="bg-surface rounded-lg p-6 mb-6 text-center text-muted">
@@ -196,6 +190,7 @@ export default function CampaignHomeScreen({
                     onStartMissionForCharacter,
                     onStartQuestForCharacter,
                 })}
+                </div>
             </div>
             </div>
 

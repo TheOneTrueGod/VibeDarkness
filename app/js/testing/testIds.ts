@@ -78,6 +78,9 @@ export const TestIds = {
     musicPlayerVolume: 'music-player-volume',
     musicPlayerMute: 'music-player-mute',
 
+    /** Header tab that opens/closes the debug console drawer. */
+    debugConsoleToggle: 'debug-console-toggle',
+
     /** Root marker with data-game-phase / data-game-tick attributes */
     gameSession: 'game-session',
 } as const;

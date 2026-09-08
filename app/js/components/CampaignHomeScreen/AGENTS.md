@@ -7,6 +7,7 @@ Tabbed campaign-home shell. The screen owns campaign bootstrap, URL routing, and
 | Area | Purpose |
 |------|---------|
 | `CampaignHomeScreen.tsx` | Shell: load/create campaign, resolve `activeTab`, render the tab bar. |
+| `CampaignHomeHeader.tsx` | Title row: left-aligned name; right-aligned debug tab, CI pill, MusicPlayer, logout. Width matches the tab card. |
 | `campaignHomeTabs.ts` | Registry: every `TabId` maps to a tab def. Bar order follows `CAMPAIGN_TAB_IDS`. |
 | `campaignHomeTabDef.ts` | Shared tab-def and render-props types. |
 | `CampaignHome*Tab.tsx` | One file per tab. Each wraps its card in `CampaignHomeTabFrame` (centers + max width). |

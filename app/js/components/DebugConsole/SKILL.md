@@ -21,6 +21,7 @@ The console is implemented as a main controller component plus one component per
 1. A global `keydown` listener watches for the tilde key.
 2. Pressing tilde three times quickly enables debug mode (and resets the internal counter).
 3. Pressing tilde again disables debug mode.
+4. While enabled, a compact **Debug** tab in the campaign-home / lobby header (left of the music player) opens and closes the drawer.
 
 The debug UI is only visible while debug mode is enabled, but the component keeps its internal state while it stays mounted.
 

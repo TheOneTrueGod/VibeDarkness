@@ -16,9 +16,10 @@ This skill keeps a **list of component names** and a **one-line description** of
 | **CharacterCreator** | Modal for creating a new campaign character: portrait carousel and Create button. |
 | **VNTextBox** | Visual-novel style dialogue/choice box used in the pre-mission story phase. |
 | **PlayerPill** | Two-line player pill: color dot, name, HOST badge, (You); optional second line (e.g. selected character). Used in PlayerList and character select. |
-| **AppTitleBar** | Fixed global title bar for logged-in users: **MusicPlayer**, admin-only **CiStatusPill**, and Log out. |
-| **MusicPlayer** | Cassette-style title-bar transport (play/pause, skip, readout, volume, mute). Backed by `minion_battles/music/MusicPlayerController`. |
-| **CiStatusPill** | Small gray/green/red circle showing local CI health from `/api/admin/ci-status`; admin-only hover tooltip with pass/fail counts. |
+| **AppTitleBar** | Lobby overlay for **DebugConsoleToggle** + **MusicPlayer**. Campaign home owns those plus logout in **CampaignHomeHeader**. |
+| **MusicPlayer** | Compact cassette-style transport (play/pause, skip, readout, volume, mute) in a boxed group. Lives in the campaign-home header; lobby overlay via AppTitleBar. |
+| **CiStatusPill** | Small gray/green/red circle showing local CI health from `/api/admin/ci-status`; admin-only hover tooltip with pass/fail counts. Compact size matches the music player when embedded in CampaignHomeHeader. |
+| **DebugConsoleToggle** | 26×26 header **Debug** control (bug icon) that opens the debug drawer. Shown only after tilde ×3 unlocks debug mode. |
 | **CornerSlotBattleDetails** | Top-right battle canvas rack for world modifiers, admin ninjutsu pools, and the debug game-tick pill. |
 | **CardWithTitle** | Full-size titled card (`title`, optional `subtitle` / `actions`, children in a vertically scrolling body). Fills its parent; white text + `bg-surface`. Max width belongs on the parent wrapper. Lives in `app/js/components/`. |
 | **CharactersTabLayerOne** | Campaign-home character chrome: name, Lucide portrait arrows, Change Characters, left-column switch, URL-owned inner-tab bar. Lives in `CampaignHomeScreen/CharactersTab/`. |

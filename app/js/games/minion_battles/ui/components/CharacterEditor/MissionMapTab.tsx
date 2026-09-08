@@ -48,9 +48,8 @@ import QuestBanksPanel from './QuestBanksPanel';
 
 type MissionMapPane = 'map' | 'quests';
 
-const MAP_PANE_LABEL = 'Map';
 const SIDE_QUESTS_PANE_LABEL = 'Side Quests';
-/** Shared slot so the map title lines up with Side Quests + close button. */
+/** Shared slot so the close button keeps a stable header height. */
 const PANE_TITLE_SLOT_CLASS = 'h-7 w-7 shrink-0';
 const PANE_TITLE_TEXT_CLASS = 'text-base text-white';
 
@@ -750,26 +749,26 @@ export default function MissionMapTab({
             <div className="shrink-0 flex items-center gap-3 pb-2 border-b border-border-custom mb-2">
                 {/* left */}
                 <div className="flex-1 min-w-0 flex items-center gap-2">
-                    {showQuests ? (
-                        <button
-                            type="button"
-                            data-testid={TestIds.missionMapCloseSideQuests}
-                            onClick={() => setActivePane('map')}
-                            className={`${PANE_TITLE_SLOT_CLASS} rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer`}
-                            aria-label="Back to map"
-                            title="Back to map"
-                        >
-                            <X className="h-3.5 w-3.5" aria-hidden />
-                        </button>
-                    ) : (
-                        <div className={PANE_TITLE_SLOT_CLASS} aria-hidden />
+                    {showQuests && (
+                        <>
+                            <button
+                                type="button"
+                                data-testid={TestIds.missionMapCloseSideQuests}
+                                onClick={() => setActivePane('map')}
+                                className={`${PANE_TITLE_SLOT_CLASS} rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer`}
+                                aria-label="Back to map"
+                                title="Back to map"
+                            >
+                                <X className="h-3.5 w-3.5" aria-hidden />
+                            </button>
+                            <p
+                                className={PANE_TITLE_TEXT_CLASS}
+                                data-testid={TestIds.missionMapSubTabQuests}
+                            >
+                                {SIDE_QUESTS_PANE_LABEL}
+                            </p>
+                        </>
                     )}
-                    <p
-                        className={PANE_TITLE_TEXT_CLASS}
-                        data-testid={showQuests ? TestIds.missionMapSubTabQuests : TestIds.missionMapSubTabMap}
-                    >
-                        {showQuests ? SIDE_QUESTS_PANE_LABEL : MAP_PANE_LABEL}
-                    </p>
                 </div>
 
                 {/* center: chapter buttons */}

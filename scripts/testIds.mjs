@@ -44,6 +44,7 @@ export const TestIds = {
     musicPlayerReadout: 'music-player-readout',
     musicPlayerVolume: 'music-player-volume',
     musicPlayerMute: 'music-player-mute',
+    debugConsoleToggle: 'debug-console-toggle',
     gameSession: 'game-session',
 };
 

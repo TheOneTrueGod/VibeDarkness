@@ -1,5 +1,5 @@
 /**
- * Compact cassette-style music transport for the global title bar.
+ * Compact cassette-style music transport.
  */
 import React, { useEffect } from 'react';
 import { FastForward, Pause, Play, Volume2, VolumeX } from 'lucide-react';
@@ -10,7 +10,7 @@ import { formatSongReadout } from '../../music/songReadout';
 import { useMusicPlayerState } from '../../music/useMusicPlayerState';
 
 const ICON_BUTTON_CLASS =
-    'p-1.5 rounded-md border border-border-custom bg-surface-light/90 text-muted hover:text-white hover:bg-border-custom transition-colors disabled:opacity-40 disabled:hover:text-muted disabled:hover:bg-surface-light/90';
+    'p-0.5 rounded border border-border-custom bg-surface-light text-muted hover:text-white hover:bg-border-custom transition-colors disabled:opacity-40 disabled:hover:text-muted disabled:hover:bg-surface-light';
 
 export default function MusicPlayer() {
     const player = getMusicPlayer();
@@ -27,7 +27,7 @@ export default function MusicPlayer() {
 
     return (
         <div
-            className="flex items-center gap-1.5"
+            className="flex items-center gap-1 rounded-md border border-border-custom bg-surface px-1.5 py-0.5"
             data-testid={TestIds.musicPlayer}
             role="group"
             aria-label="Music player"
@@ -39,7 +39,7 @@ export default function MusicPlayer() {
                 aria-label={playing ? 'Pause' : 'Play'}
                 onClick={() => player.togglePlayPause()}
             >
-                <PlayPauseIcon className="w-4 h-4" aria-hidden="true" />
+                <PlayPauseIcon className="w-3 h-3" aria-hidden="true" />
             </button>
             <button
                 type="button"
@@ -49,21 +49,21 @@ export default function MusicPlayer() {
                 disabled={!state.canSkip}
                 onClick={() => player.next()}
             >
-                <FastForward className="w-4 h-4" aria-hidden="true" />
+                <FastForward className="w-3 h-3" aria-hidden="true" />
             </button>
             <div
                 data-testid={TestIds.musicPlayerReadout}
-                className="w-[11.5rem] h-8 shrink-0 overflow-hidden rounded-sm border border-dark-600 bg-black px-2 flex items-center"
+                className="w-[9.5rem] h-5 shrink-0 overflow-hidden rounded-sm border border-dark-600 bg-black px-1 flex items-center"
                 title={state.songTitle || undefined}
             >
-                <span className="font-mono text-[11px] text-primary tracking-wide whitespace-pre leading-none">
+                <span className="font-mono text-[10px] text-primary tracking-tight leading-none truncate w-full">
                     {readout}
                 </span>
             </div>
             <input
                 type="range"
                 data-testid={TestIds.musicPlayerVolume}
-                className="w-24 accent-primary"
+                className="w-16 h-4 accent-primary"
                 min={0}
                 max={MUSIC_PLAYER_VOLUME_SLIDER_MAX}
                 step={1}
@@ -80,9 +80,9 @@ export default function MusicPlayer() {
                 onClick={() => player.toggleMuted()}
             >
                 {state.muted ? (
-                    <VolumeX className="w-4 h-4" aria-hidden="true" />
+                    <VolumeX className="w-3 h-3" aria-hidden="true" />
                 ) : (
-                    <Volume2 className="w-4 h-4" aria-hidden="true" />
+                    <Volume2 className="w-3 h-3" aria-hidden="true" />
                 )}
             </button>
         </div>
