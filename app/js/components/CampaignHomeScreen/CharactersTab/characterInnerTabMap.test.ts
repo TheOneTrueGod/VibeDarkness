@@ -22,7 +22,7 @@ describe('characterInnerTabMap', () => {
         expect(innerTabShowsChangeCharacters('map')).toBe(true);
         expect(innerTabShowsChangeCharacters('upgrades')).toBe(true);
         expect(innerTabShowsChangeCharacters('bonuses')).toBe(true);
-        expect(innerTabShowsChangeCharacters('equipment')).toBe(false);
+        expect(innerTabShowsChangeCharacters('equipment')).toBe(true);
         expect(innerTabShowsPortrait('map')).toBe(true);
         expect(innerTabShowsPortrait('upgrades')).toBe(false);
         expect(innerTabShowsPortrait('bonuses')).toBe(true);

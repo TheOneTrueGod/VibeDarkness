@@ -31,7 +31,7 @@ export default function CampaignHomeHeader() {
 
     return (
         <div className="mb-2 flex items-end justify-between gap-3">
-            <h1 className="text-4xl max-md:text-3xl font-bold text-primary shrink-0">
+            <h1 className="pl-4 text-4xl max-md:text-3xl font-bold text-primary shrink-0">
                 Minion Battles
             </h1>
             <div className="flex items-end gap-2 shrink-0">

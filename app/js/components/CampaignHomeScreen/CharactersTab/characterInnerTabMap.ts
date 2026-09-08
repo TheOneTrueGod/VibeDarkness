@@ -33,7 +33,7 @@ export function innerTabFromEditor(tab: CharacterEditorTab): CharacterInnerTabId
     }
 }
 
-const CHANGE_CHARACTERS_TABS: ReadonlySet<CharacterInnerTabId> = new Set(['map', 'upgrades', 'bonuses']);
+const CHANGE_CHARACTERS_TABS: ReadonlySet<CharacterInnerTabId> = new Set(['map', 'upgrades', 'bonuses', 'equipment']);
 
 export function innerTabShowsChangeCharacters(tab: CharacterInnerTabId): boolean {
     return CHANGE_CHARACTERS_TABS.has(tab);
