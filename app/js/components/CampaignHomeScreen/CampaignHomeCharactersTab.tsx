@@ -1,6 +1,7 @@
 import CharactersPanel from '../../games/minion_battles/ui/components/characters/CharactersPanel';
 import { playerCharactersPath } from '../ability-tests/campaignTabPaths';
 import type { CampaignHomeTabDef, CampaignHomeTabRenderProps } from './campaignHomeTabDef';
+import { CampaignHomeTabFrame } from './CampaignHomeTabFrame';
 
 export function CampaignHomeCharactersTab({
     api,
@@ -9,12 +10,14 @@ export function CampaignHomeCharactersTab({
     onStartQuestForCharacter,
 }: CampaignHomeTabRenderProps) {
     return (
-        <CharactersPanel
-            api={api}
-            lobbyClient={lobbyClient}
-            onStartMissionForCharacter={onStartMissionForCharacter}
-            onStartQuestForCharacter={onStartQuestForCharacter}
-        />
+        <CampaignHomeTabFrame>
+            <CharactersPanel
+                api={api}
+                lobbyClient={lobbyClient}
+                onStartMissionForCharacter={onStartMissionForCharacter}
+                onStartQuestForCharacter={onStartQuestForCharacter}
+            />
+        </CampaignHomeTabFrame>
     );
 }
 

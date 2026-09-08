@@ -164,11 +164,7 @@ export default function CampaignHomeScreen({
     return (
         <div className="h-screen flex flex-col">
             <div className="flex-1 overflow-y-auto w-full">
-            <div
-                className={`mx-auto w-full px-5 py-2 max-md:px-5 max-md:py-5 ${
-                    activeTabDef.narrowContent ? 'max-w-[800px]' : 'max-w-full'
-                }`}
-            >
+            <div className="mx-auto w-full px-5 py-2 max-md:px-5 max-md:py-5 max-w-full">
                 <div className="relative mb-2 flex items-center justify-center">
                     <h1 className="text-4xl max-md:text-3xl font-bold text-primary">
                         Minion Battles

@@ -1,5 +1,6 @@
 import MissionSelectPanel from '../minionBattlesHomePage/MissionSelectPanel';
 import type { CampaignHomeTabDef, CampaignHomeTabRenderProps } from './campaignHomeTabDef';
+import { CampaignHomeTabFrame } from './CampaignHomeTabFrame';
 
 export function CampaignHomeMissionSelectTab({
     campaign,
@@ -8,12 +9,14 @@ export function CampaignHomeMissionSelectTab({
     onCampaignUpdated,
 }: CampaignHomeTabRenderProps) {
     return (
-        <MissionSelectPanel
-            campaign={campaign}
-            lobbyClient={lobbyClient}
-            onSelectMission={onSelectMission}
-            onCampaignUpdated={onCampaignUpdated}
-        />
+        <CampaignHomeTabFrame>
+            <MissionSelectPanel
+                campaign={campaign}
+                lobbyClient={lobbyClient}
+                onSelectMission={onSelectMission}
+                onCampaignUpdated={onCampaignUpdated}
+            />
+        </CampaignHomeTabFrame>
     );
 }
 

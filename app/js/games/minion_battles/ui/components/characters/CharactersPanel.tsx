@@ -7,6 +7,7 @@ import CharacterEditor from '../CharacterEditor/CharacterEditor';
 import CharacterCreator from '../CharacterEditor/CharacterCreator';
 import { fromCampaignCharacterData, type CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import type { CampaignCharacterData } from '../../../character_defs/campaignCharacterTypes';
+import { ensureAccountHasStarterCharacter } from '../../../character_defs/starterCharacter';
 import { ALL_PLAYER_ITEMS } from '../../../character_defs/items';
 import { useUserData } from '../../../../../user/UserDataProvider';
 import { STORYLINES } from '../../../storylines/index';
@@ -24,6 +25,7 @@ import { CharacterCard } from './CharacterCard';
 import { CharacterListCard } from './CharacterListCard';
 import { PlayerCard } from './PlayerCard';
 import { CampaignDataPanel } from './CampaignDataPanel';
+import { CHANGE_CHARACTERS_LABEL, CharacterListPulloutHost } from './CharacterListPullout';
 import { buildCounts, sortByLastUsed, sortPlayers, getItemName } from './characterUtils';
 
 function formatCountdown(seconds: number): string {
@@ -90,6 +92,7 @@ export default function CharactersPanel({
     const [playerCharacters, setPlayerCharacters] = useState<CampaignCharacter[]>([]);
     const [playerLoading, setPlayerLoading] = useState(false);
     const [creatorOpen, setCreatorOpen] = useState(false);
+    const [characterListOpen, setCharacterListOpen] = useState(false);
     const createButtonRef = useRef<HTMLButtonElement>(null);
 
     // ── Player mode: redirect guard ───────────────────────────────────────────
@@ -104,19 +107,20 @@ export default function CharactersPanel({
     const loadPlayerCharacters = useCallback(async () => {
         setPlayerLoading(true);
         try {
-            const data = await api.getMyCharacters();
+            const data = user
+                ? await ensureAccountHasStarterCharacter(api, user.id)
+                : await api.getMyCharacters();
             setPlayerCharacters((data as CampaignCharacterData[]).map((d) => fromCampaignCharacterData(d)));
         } catch (err) {
             console.error('Failed to load characters:', err);
         } finally {
             setPlayerLoading(false);
         }
-    }, [api]);
+    }, [api, user]);
 
     useEffect(() => {
-        if (!isAdmin) void loadPlayerCharacters();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+        if (!isAdmin && user) void loadPlayerCharacters();
+    }, [isAdmin, user, loadPlayerCharacters]);
 
     const sortedPlayerCharacters = useMemo(() => sortByLastUsed(playerCharacters), [playerCharacters]);
 
@@ -136,6 +140,9 @@ export default function CharactersPanel({
     const loadAdminDetails = useCallback(async (playerId: string) => {
         setAdminLoading(true);
         try {
+            if (user && String(user.id) === playerId) {
+                await ensureAccountHasStarterCharacter(api, user.id);
+            }
             const res = await api.getAdminAccountDetails(playerId);
             setAdminDetails({
                 account: res.account as AccountState,
@@ -147,7 +154,7 @@ export default function CharactersPanel({
         } finally {
             setAdminLoading(false);
         }
-    }, [api]);
+    }, [api, user]);
 
     // Lobby context: load details for the selected lobby player
     useEffect(() => {
@@ -532,63 +539,72 @@ export default function CharactersPanel({
                             </button>
                         </>
                     }
-                    left={
-                        <div className="flex flex-col gap-2 p-3">
-                            {adminDetails && (
-                                <button
-                                    type="button"
-                                    data-testid={TestIds.campaignDataRow}
-                                    data-selected={isCampaignDataSelected ? 'true' : 'false'}
-                                    onClick={() => {
-                                        if (playerIdParam != null) {
-                                            navigate(playerCampaignDataPath(playerIdParam));
-                                        }
-                                    }}
-                                    className={`w-full rounded-lg border-2 px-4 py-3 text-left transition-colors ${
-                                        isCampaignDataSelected
-                                            ? 'border-primary bg-surface-light shadow-[0_0_0_1px_rgba(78,205,196,0.2)]'
-                                            : 'border-border-custom bg-surface hover:bg-white/5'
-                                    }`}
-                                >
-                                    <p className="font-semibold text-white">Campaign data</p>
-                                    <p className="text-[10px] text-muted">DarknessStrength & more</p>
-                                </button>
-                            )}
-                            {/* Only on initial load — during refreshes the stale list stays put so it doesn't shift */}
-                            {adminLoading && !adminDetails && <p className="text-sm text-muted">Loading…</p>}
-                            {!adminLoading && sortedAdminCharacters.length === 0 && (
-                                <p className="text-sm text-muted">No characters found</p>
-                            )}
-                            {sortedAdminCharacters.map((character) => (
-                                <CharacterCard
-                                    key={character.id}
-                                    character={character}
-                                    selected={!isCampaignDataSelected && characterIdParam === character.id}
-                                    onSelect={() => playerIdParam != null && navigate(playerCharacterPath(playerIdParam, character.id))}
-                                    onDelete={() => void handleDeleteAdminCharacter(character.id)}
-                                    subtitle={character.id}
-                                />
-                            ))}
-                            {adminDetails && (
-                                <button
-                                    ref={adminCreateBtnRef}
-                                    type="button"
-                                    onClick={() => setAdminCreatorOpen(true)}
-                                    className="w-full rounded-lg border-2 border-dashed border-border-custom px-4 py-3 text-sm text-muted hover:border-primary hover:text-white transition-colors cursor-pointer text-left"
-                                >
-                                    + Create new character
-                                </button>
-                            )}
-                        </div>
-                    }
-                    leftSize="small"
                     center={
-                        isCampaignDataSelected ? (
+                        <CharacterListPulloutHost
+                            open={characterListOpen}
+                            onClose={() => setCharacterListOpen(false)}
+                            list={
+                                <div className="flex flex-col gap-2 p-3 pt-0">
+                                    {adminDetails && (
+                                        <button
+                                            type="button"
+                                            data-testid={TestIds.campaignDataRow}
+                                            data-selected={isCampaignDataSelected ? 'true' : 'false'}
+                                            onClick={() => {
+                                                setCharacterListOpen(false);
+                                                if (playerIdParam != null) {
+                                                    navigate(playerCampaignDataPath(playerIdParam));
+                                                }
+                                            }}
+                                            className={`w-full rounded-lg border-2 px-4 py-3 text-left transition-colors ${
+                                                isCampaignDataSelected
+                                                    ? 'border-primary bg-surface-light shadow-[0_0_0_1px_rgba(78,205,196,0.2)]'
+                                                    : 'border-border-custom bg-surface hover:bg-white/5'
+                                            }`}
+                                        >
+                                            <p className="font-semibold text-white">Campaign data</p>
+                                            <p className="text-[10px] text-muted">DarknessStrength & more</p>
+                                        </button>
+                                    )}
+                                    {adminLoading && !adminDetails && <p className="text-sm text-muted">Loading…</p>}
+                                    {!adminLoading && sortedAdminCharacters.length === 0 && (
+                                        <p className="text-sm text-muted">No characters found</p>
+                                    )}
+                                    {sortedAdminCharacters.map((character) => (
+                                        <CharacterCard
+                                            key={character.id}
+                                            character={character}
+                                            selected={!isCampaignDataSelected && characterIdParam === character.id}
+                                            onSelect={() => {
+                                                setCharacterListOpen(false);
+                                                if (playerIdParam != null) {
+                                                    navigate(playerCharacterPath(playerIdParam, character.id));
+                                                }
+                                            }}
+                                            onDelete={() => void handleDeleteAdminCharacter(character.id)}
+                                            subtitle={character.id}
+                                        />
+                                    ))}
+                                    {adminDetails && (
+                                        <button
+                                            ref={adminCreateBtnRef}
+                                            type="button"
+                                            onClick={() => setAdminCreatorOpen(true)}
+                                            className="w-full rounded-lg border-2 border-dashed border-border-custom px-4 py-3 text-sm text-muted hover:border-primary hover:text-white transition-colors cursor-pointer text-left"
+                                        >
+                                            + Create new character
+                                        </button>
+                                    )}
+                                </div>
+                            }
+                        >
+                        {isCampaignDataSelected ? (
                             lobbyClient ? (
                                 <CampaignDataPanel
                                     lobbyClient={lobbyClient}
                                     characters={adminDetails?.characters ?? []}
                                     account={adminDetails?.account ?? null}
+                                    onChangeCharacters={() => setCharacterListOpen(true)}
                                 />
                             ) : (
                                 <div className="flex h-full items-center justify-center p-6 text-muted">
@@ -608,6 +624,7 @@ export default function CharactersPanel({
                                 account={adminDetails?.account ?? null}
                                 viewerAccount={user ?? null}
                                 campaign={null}
+                                onChangeCharacters={() => setCharacterListOpen(true)}
                                 onStartMission={
                                     onStartMissionForCharacter && adminDetails?.account
                                         ? (missionId) => onStartMissionForCharacter(missionId, selectedAdminCharacter, adminDetails.account)
@@ -708,10 +725,21 @@ export default function CharactersPanel({
                                 }
                             />
                         ) : (
-                            <div className="flex h-full items-center justify-center p-6 text-muted">
-                                {adminLoading ? 'Loading…' : 'Select a character to edit it'}
+                            <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-muted">
+                                <span>{adminLoading ? 'Loading…' : 'Select a character to edit it'}</span>
+                                {!adminLoading && (
+                                    <button
+                                        type="button"
+                                        data-testid={TestIds.charactersChange}
+                                        onClick={() => setCharacterListOpen(true)}
+                                        className="rounded-lg border border-border-custom bg-surface-light px-3 py-1.5 text-xs font-medium text-muted hover:text-white hover:border-primary transition-colors cursor-pointer"
+                                    >
+                                        {CHANGE_CHARACTERS_LABEL}
+                                    </button>
+                                )}
                             </div>
-                        )
+                        )}
+                        </CharacterListPulloutHost>
                     }
                     centerClassName="overflow-hidden"
                 />
@@ -748,14 +776,17 @@ export default function CharactersPanel({
     const defaultCampaignId = sortedPlayerCharacters[0]?.campaignId ?? STORYLINES[0]?.id ?? 'world_of_darkness';
     const defaultMissionId = STORYLINES.find((s) => s.id === defaultCampaignId)?.startMissionId ?? STORYLINES[0]?.startMissionId ?? 'dark_awakening';
 
-    const leftPanel = playerCharacters.length > 0 ? (
-        <div className="flex flex-col gap-2 p-3">
+    const playerCharacterList = playerCharacters.length > 0 ? (
+        <div className="flex flex-col gap-2 p-3 pt-0">
             {sortedPlayerCharacters.map((c) => (
                 <CharacterCard
                     key={c.id}
                     character={c}
                     selected={c.id === characterIdParam}
-                    onSelect={() => { if (user) navigate(playerCharacterPath(user.id, c.id)); }}
+                    onSelect={() => {
+                        setCharacterListOpen(false);
+                        if (user) navigate(playerCharacterPath(user.id, c.id));
+                    }}
                     onDelete={() => void handleDeletePlayerCharacter(c.id)}
                 />
             ))}
@@ -769,7 +800,7 @@ export default function CharactersPanel({
                 + Create new character
             </button>
         </div>
-    ) : undefined;
+    ) : null;
 
     const centerPanel = (() => {
         if (playerLoading && playerCharacters.length === 0) {
@@ -804,6 +835,7 @@ export default function CharactersPanel({
                     account={user ?? null}
                     viewerAccount={user ?? null}
                     campaign={null}
+                    onChangeCharacters={() => setCharacterListOpen(true)}
                     onStartMission={
                         onStartMissionForCharacter && user
                             ? (missionId) => onStartMissionForCharacter(missionId, selectedPlayerCharacter, user)
@@ -824,8 +856,16 @@ export default function CharactersPanel({
             );
         }
         return (
-            <div className="flex h-full items-center justify-center p-6 text-muted">
-                Select a character
+            <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-muted">
+                <span>Select a character</span>
+                <button
+                    type="button"
+                    data-testid={TestIds.charactersChange}
+                    onClick={() => setCharacterListOpen(true)}
+                    className="rounded-lg border border-border-custom bg-surface-light px-3 py-1.5 text-xs font-medium text-muted hover:text-white hover:border-primary transition-colors cursor-pointer"
+                >
+                    {CHANGE_CHARACTERS_LABEL}
+                </button>
             </div>
         );
     })();
@@ -835,9 +875,15 @@ export default function CharactersPanel({
             <PanelLayout
                 title="My Characters"
                 subtitle="View your campaign progress and mission history"
-                left={leftPanel}
-                leftSize="small"
-                center={centerPanel}
+                center={
+                    <CharacterListPulloutHost
+                        open={characterListOpen}
+                        onClose={() => setCharacterListOpen(false)}
+                        list={playerCharacterList}
+                    >
+                        {centerPanel}
+                    </CharacterListPulloutHost>
+                }
                 centerClassName="overflow-hidden"
             />
 

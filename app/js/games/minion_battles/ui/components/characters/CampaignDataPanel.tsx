@@ -5,6 +5,7 @@ import type { CampaignCharacter } from '../../../character_defs/CampaignCharacte
 import { withCampaignDarknessStrengthDefaults } from '../../../../../darknessStrength/campaignFields';
 import { DarknessStrengthAdminTab } from './DarknessStrengthAdminTab';
 import { TestIds } from '../../../../../testing/testIds';
+import { CHANGE_CHARACTERS_LABEL } from './CharacterListPullout';
 
 type CampaignDataSubTab = 'darknessStrength';
 
@@ -40,10 +41,12 @@ export function CampaignDataPanel({
     lobbyClient,
     characters,
     account,
+    onChangeCharacters,
 }: {
     lobbyClient: LobbyClient;
     characters: CampaignCharacter[];
     account: AccountState | null;
+    onChangeCharacters?: () => void;
 }) {
     const campaignIds = useMemo(
         () => collectPlayerCampaignIds(characters, account),
@@ -104,6 +107,16 @@ export function CampaignDataPanel({
                     <p className="text-xs text-muted">
                         Admin tools for this player&apos;s campaign persistence
                     </p>
+                    {onChangeCharacters && (
+                        <button
+                            type="button"
+                            data-testid={TestIds.charactersChange}
+                            onClick={onChangeCharacters}
+                            className="mt-2 rounded-lg border border-border-custom bg-surface-light px-3 py-1.5 text-xs font-medium text-muted hover:text-white hover:border-primary transition-colors cursor-pointer"
+                        >
+                            {CHANGE_CHARACTERS_LABEL}
+                        </button>
+                    )}
                 </div>
                 {campaignIds.length > 1 ? (
                     <div className="flex items-center gap-2">

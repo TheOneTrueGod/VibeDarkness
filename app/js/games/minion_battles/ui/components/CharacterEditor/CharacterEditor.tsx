@@ -36,6 +36,10 @@ import ResourcePill from '../../../../../components/ResourcePill';
 import { getShowAllResearchTrees, subscribeShowAllResearchTrees } from '../../../../../debugFlags';
 import MissionMapTab from './MissionMapTab';
 import StatBonusesTab from './StatBonusesTab';
+import {
+    CHANGE_CHARACTERS_LABEL,
+    CHARACTER_EDITOR_LEFT_WIDTH_CLASS,
+} from '../characters/CharacterListPullout';
 import type { StartQuestOptions } from '../../../storylines/questLobby';
 import { abandonQuestRun } from '../../../storylines/questRun';
 
@@ -76,6 +80,8 @@ interface CharacterEditorProps {
     adminEquipmentPanel?: React.ReactNode;
     /** Admin-only content rendered next to the grant-campaign-resources block in the Upgrades tab. */
     adminKnowledgePanel?: React.ReactNode;
+    /** Opens the campaign-home character-list pull-out (Mission Map / Upgrades / Stat Bonuses). */
+    onChangeCharacters?: () => void;
 }
 
 type EditorTab = 'missionMap' | 'equipment' | 'research' | 'statBonuses';
@@ -119,6 +125,7 @@ export default function CharacterEditor({
     hideMissionMap = false,
     adminEquipmentPanel,
     adminKnowledgePanel,
+    onChangeCharacters,
 }: CharacterEditorProps) {
     const canEditName = editMode || allowNameEdit;
 
@@ -663,7 +670,7 @@ export default function CharacterEditor({
             {/* Content: left (portrait + sidebar) | right (main) */}
             <div className="flex-1 min-h-0 flex overflow-hidden">
                 {/* Left column: portrait + panel-specific sidebar */}
-                <div className="flex w-[232px] flex-col shrink-0 border-r border-border-custom bg-background/50">
+                <div className={`flex ${CHARACTER_EDITOR_LEFT_WIDTH_CLASS} flex-col shrink-0 border-r border-border-custom bg-background/50`}>
                     {/* Character portrait — 16px (p-4) inset; name row; rule; portrait */}
                     <div className="flex flex-col shrink-0 max-w-full box-border border-b border-border-custom p-4">
                         <div className="flex items-center justify-between gap-2 min-w-0 border-b border-border-custom pb-4">
@@ -756,6 +763,16 @@ export default function CharacterEditor({
                                 </div>
                             )}
                         </div>
+                        {onChangeCharacters && (activeTab === 'missionMap' || activeTab === 'research' || activeTab === 'statBonuses') && (
+                            <button
+                                type="button"
+                                data-testid={TestIds.charactersChange}
+                                onClick={onChangeCharacters}
+                                className="mt-3 w-full rounded-lg border border-border-custom bg-surface-light px-3 py-1.5 text-xs font-medium text-muted hover:text-white hover:border-primary transition-colors cursor-pointer"
+                            >
+                                {CHANGE_CHARACTERS_LABEL}
+                            </button>
+                        )}
                         {activeTab !== 'research' && (
                             <div className="flex justify-center pt-4">
                                 <CharacterPortrait

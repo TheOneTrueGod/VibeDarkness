@@ -6,6 +6,7 @@ use App\CampaignManager;
 use App\LobbyManager;
 use App\AccountService;
 use App\SessionHelper;
+use App\StarterCharacterFactory;
 
 class CreateCampaignHandler
 {
@@ -26,6 +27,9 @@ class CreateCampaignHandler
         $campaignManager = CampaignManager::getInstance();
         $campaign = $campaignManager->createCampaign((string) $accountId);
         $accountService->addCampaignToAccount($accountId, $campaign->getId());
+
+        $character = StarterCharacterFactory::create($accountId);
+        $accountService->addCharacterToAccount($accountId, $character->getId());
 
         return [
             'success' => true,

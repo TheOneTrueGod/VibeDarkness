@@ -1,11 +1,16 @@
 import JoinMissionPanel from '../minionBattlesHomePage/JoinMissionPanel';
 import type { CampaignHomeTabDef, CampaignHomeTabRenderProps } from './campaignHomeTabDef';
+import { CampaignHomeTabFrame } from './CampaignHomeTabFrame';
 
 export function CampaignHomeJoinMissionTab({
     lobbyClient,
     onJoinLobby,
 }: CampaignHomeTabRenderProps) {
-    return <JoinMissionPanel lobbyClient={lobbyClient} onJoinLobby={onJoinLobby} />;
+    return (
+        <CampaignHomeTabFrame>
+            <JoinMissionPanel lobbyClient={lobbyClient} onJoinLobby={onJoinLobby} />
+        </CampaignHomeTabFrame>
+    );
 }
 
 export const joinMissionTab: CampaignHomeTabDef = {

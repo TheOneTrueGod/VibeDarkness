@@ -101,3 +101,10 @@ export function getPortraitIdsForPlayer(playerId: number | undefined): string[] 
     if (playerId === undefined) return [...PORTRAIT_IDS];
     return PORTRAIT_IDS.filter((id) => isPortraitAllowedForPlayer(id, playerId));
 }
+
+/** Random portrait the player may select, or undefined when none are available. */
+export function pickRandomPortraitIdForPlayer(playerId: number | undefined): string | undefined {
+    const ids = getPortraitIdsForPlayer(playerId);
+    if (ids.length === 0) return undefined;
+    return ids[Math.floor(Math.random() * ids.length)];
+}

@@ -1,11 +1,16 @@
 import { useCurrentUser } from '../../user/useCurrentUser';
 import TerrainEditorTab from '../minionBattlesHomePage/TerrainEditor/TerrainEditorTab';
 import type { CampaignHomeTabDef } from './campaignHomeTabDef';
+import { CampaignHomeTabFrame } from './CampaignHomeTabFrame';
 
 export function CampaignHomeTerrainEditorTab() {
     const { isAdmin } = useCurrentUser();
     if (!isAdmin) return null;
-    return <TerrainEditorTab />;
+    return (
+        <CampaignHomeTabFrame>
+            <TerrainEditorTab />
+        </CampaignHomeTabFrame>
+    );
 }
 
 export const terrainEditorTab: CampaignHomeTabDef = {

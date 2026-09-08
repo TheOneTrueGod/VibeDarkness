@@ -93,6 +93,8 @@ class AccountService
         $campaignManager = CampaignManager::getInstance();
         $campaign = $campaignManager->createCampaign((string) $id);
         $account->addCampaignId($campaign->getId());
+        $character = StarterCharacterFactory::create($id);
+        $account->addCharacterId($character->getId());
         $this->storage->save($account);
         return $account;
     }

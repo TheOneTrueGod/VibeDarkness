@@ -15,6 +15,9 @@ export const TestIds = {
 
     charactersCreate: 'characters-create',
     charactersLoading: 'characters-loading',
+    charactersChange: 'characters-change',
+    charactersListPullout: 'characters-list-pullout',
+    charactersListClose: 'characters-list-close',
     /** Suffix with character id */
     characterCardPrefix: 'character-card-',
     characterEditorMissionMapTab: 'character-editor-tab-mission-map',

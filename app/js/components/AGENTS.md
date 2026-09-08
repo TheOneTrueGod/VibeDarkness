@@ -2,7 +2,7 @@
 
 ## CampaignHomeScreen/
 
-Tabbed campaign-home shell and one file per tab. See `CampaignHomeScreen/AGENTS.md`.
+Tabbed campaign-home shell and one file per tab. See `CampaignHomeScreen/AGENTS.md`. Shared card chrome is `CardWithTitle.tsx`.
 
 ## minionBattlesHomePage/
 

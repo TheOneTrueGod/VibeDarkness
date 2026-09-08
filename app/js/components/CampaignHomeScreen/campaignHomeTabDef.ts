@@ -36,8 +36,6 @@ export interface CampaignHomeTabDef {
     label: string;
     isVisible: (isAdmin: boolean) => boolean;
     adminTab?: boolean;
-    /** Narrower content column (welcome). */
-    narrowContent?: boolean;
     /** Override `/campaign/:slug` (players + characters use `/players/*`). */
     getPath?: (userId: number | string) => string;
     render: (props: CampaignHomeTabRenderProps) => ReactNode;

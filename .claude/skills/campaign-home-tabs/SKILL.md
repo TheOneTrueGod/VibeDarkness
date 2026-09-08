@@ -35,7 +35,7 @@ Tab ids, labels, and visibility live on each `CampaignHome*Tab.tsx` export (regi
 1. Add the `TabId` and URL slug to `campaignTabPaths.ts` (`TabId`, `CAMPAIGN_TAB_SLUG`, `CAMPAIGN_TAB_IDS` — last controls bar order).
 2. Create `app/js/components/CampaignHomeScreen/CampaignHome<Name>Tab.tsx` exporting a `CampaignHomeTabDef` (`id`, `label`, `isVisible`, optional `adminTab` / `getPath` / `narrowContent`, and `render`).
 3. Register that def in `campaignHomeTabs.ts` (`TAB_DEFS` must cover every `TabId`).
-4. Put panel UI in `minionBattlesHomePage/` (or inline if it is a small placeholder). The tab file should stay a thin wrapper.
+4. Put panel UI in `minionBattlesHomePage/` (or inline if it is a small placeholder). Wrap the card in `CampaignHomeTabFrame` so max-width and centering live on that parent, not on `CardWithTitle`. The tab file should stay a thin wrapper.
 5. For admin-only tabs set `adminTab: true` (red-tinted tab bar) and `isVisible: (isAdmin) => isAdmin`.
 6. Inside the panel, call `useCurrentUser()` for `isAdmin` — do **not** accept `isAdmin` as a prop.
 

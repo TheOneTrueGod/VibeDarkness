@@ -9,6 +9,8 @@ Tabbed campaign-home shell. The screen owns campaign bootstrap, URL routing, and
 | `CampaignHomeScreen.tsx` | Shell: load/create campaign, resolve `activeTab`, render the tab bar. |
 | `campaignHomeTabs.ts` | Registry: every `TabId` maps to a tab def. Bar order follows `CAMPAIGN_TAB_IDS`. |
 | `campaignHomeTabDef.ts` | Shared tab-def and render-props types. |
-| `CampaignHome*Tab.tsx` | One file per tab. Thin wrappers around panels in `minionBattlesHomePage/` (or the Welcome placeholder). |
+| `CampaignHome*Tab.tsx` | One file per tab. Each wraps its card in `CampaignHomeTabFrame` (centers + max width). |
+| `CampaignHomeTabFrame.tsx` | Parent box that centers the card and sets its max width. |
+| `app/js/components/CardWithTitle.tsx` | Shared titled card chrome (Welcome uses it directly; other tabs go through `PanelLayout`). |
 
 URL slugs and `TabId` live in `app/js/components/ability-tests/campaignTabPaths.ts`. Panel implementations stay under `minionBattlesHomePage/` — do not move Terrain Editor or Lobby Archive internals here.

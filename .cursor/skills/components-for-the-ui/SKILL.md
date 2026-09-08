@@ -19,6 +19,7 @@ This skill keeps a **list of component names** and a **one-line description** of
 | **AppTitleBar** | Fixed global title bar for logged-in users: account name top-left, admin-only **CiStatusPill** top-right. |
 | **CiStatusPill** | Small gray/green/red circle showing local CI health from `/api/admin/ci-status`; admin-only hover tooltip with pass/fail counts. |
 | **CornerSlotBattleDetails** | Top-right battle canvas rack for world modifiers, admin ninjutsu pools, and the debug game-tick pill. |
+| **CardWithTitle** | Full-size titled card (`title`, optional `subtitle` / `actions`, children in a vertically scrolling body). Fills its parent; white text + `bg-surface`. Max width belongs on the parent wrapper. Lives in `app/js/components/`. |
 
 ## When to use
 

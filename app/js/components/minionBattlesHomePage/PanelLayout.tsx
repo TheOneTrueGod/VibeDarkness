@@ -1,5 +1,6 @@
 import React from 'react';
 import type { ReactNode } from 'react';
+import CardWithTitle from '../CardWithTitle';
 
 type LeftSize = 'small' | 'medium';
 
@@ -61,11 +62,8 @@ interface PanelLayoutProps {
 }
 
 /**
- * Shared layout shell for full-page campaign-home panels.
- *
- * Renders a viewport-height-bounded card with a consistent max-width (matching the
- * lobby archive reference), an optional header, and up to three independently-scrolling
- * columns (left · center · right).
+ * Multi-column body inside {@link CardWithTitle}.
+ * Height and max-width come from the parent (campaign-home tab frame, or lobby slot).
  */
 export default function PanelLayout({
     title,
@@ -84,36 +82,40 @@ export default function PanelLayout({
     rightClassName,
 }: PanelLayoutProps) {
     const resolvedLeftWidth = leftSize != null ? LEFT_SIZE_CLASSES[leftSize] : leftWidth;
-    return (
-        <div className="h-[calc(100vh-140px)] min-h-[500px] w-full max-w-[min(1200px,100%)] mx-auto rounded-lg border border-border-custom bg-surface overflow-hidden flex flex-col">
-            {title != null ? (
-                <div className="px-4 py-3 border-b border-border-custom shrink-0 flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                        <h2 className="text-xl font-semibold text-white leading-tight">{title}</h2>
-                        {subtitle != null && <p className="text-sm text-muted mt-0.5">{subtitle}</p>}
-                    </div>
-                    {actions != null && <div className="flex items-center gap-2 shrink-0">{actions}</div>}
+    const columns = (
+        <>
+            {left != null && (
+                <div className={`${resolvedLeftWidth} shrink-0 border-r border-border-custom ${leftClassName ?? 'overflow-y-auto'}`}>
+                    {left}
                 </div>
-            ) : header != null ? (
+            )}
+            <div className={`flex-1 min-w-0 ${centerClassName ?? 'overflow-y-auto'}`}>
+                {center}
+            </div>
+            {right != null && (
+                <div className={`${rightWidth} shrink-0 border-l border-border-custom ${rightClassName ?? 'overflow-y-auto'}`}>
+                    {right}
+                </div>
+            )}
+        </>
+    );
+
+    if (title != null) {
+        return (
+            <CardWithTitle title={title} subtitle={subtitle} actions={actions} bodyClassName="overflow-hidden">
+                <div className="flex h-full min-h-0">{columns}</div>
+            </CardWithTitle>
+        );
+    }
+
+    return (
+        <div className="h-full w-full rounded-lg border border-border-custom bg-surface overflow-hidden flex flex-col text-white">
+            {header != null ? (
                 <div className={headerClassName ?? 'px-4 py-3 border-b border-border-custom shrink-0'}>
                     {header}
                 </div>
             ) : null}
-            <div className="flex flex-1 min-h-0">
-                {left != null && (
-                    <div className={`${resolvedLeftWidth} shrink-0 border-r border-border-custom ${leftClassName ?? 'overflow-y-auto'}`}>
-                        {left}
-                    </div>
-                )}
-                <div className={`flex-1 min-w-0 ${centerClassName ?? 'overflow-y-auto'}`}>
-                    {center}
-                </div>
-                {right != null && (
-                    <div className={`${rightWidth} shrink-0 border-l border-border-custom ${rightClassName ?? 'overflow-y-auto'}`}>
-                        {right}
-                    </div>
-                )}
-            </div>
+            <div className="flex flex-1 min-h-0">{columns}</div>
         </div>
     );
 }

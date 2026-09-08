@@ -1,11 +1,16 @@
 import { useCurrentUser } from '../../user/useCurrentUser';
 import AbilityTestPanel from '../minionBattlesHomePage/AbilityTestPanel';
 import type { CampaignHomeTabDef } from './campaignHomeTabDef';
+import { CampaignHomeTabFrame } from './CampaignHomeTabFrame';
 
 export function CampaignHomeAbilityTestTab() {
     const { isAdmin } = useCurrentUser();
     if (!isAdmin) return null;
-    return <AbilityTestPanel />;
+    return (
+        <CampaignHomeTabFrame>
+            <AbilityTestPanel />
+        </CampaignHomeTabFrame>
+    );
 }
 
 export const abilityTestTab: CampaignHomeTabDef = {
