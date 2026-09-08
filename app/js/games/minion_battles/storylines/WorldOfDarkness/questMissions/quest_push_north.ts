@@ -29,9 +29,9 @@ import {
 } from '../MapSegments/50_49_cliff_path_north';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 
-export const QUEST_BOAR_HERD_NORTH_MISSION_ID = 'quest_boar_herd_north';
-export const QUEST_BOAR_HERD_NORTH_NAME = 'Push North';
-export const QUEST_BOAR_HERD_NORTH_OBJECTIVE_LABEL = 'Reach the northern path';
+export const QUEST_PUSH_NORTH_MISSION_ID = 'quest_push_north';
+export const QUEST_PUSH_NORTH_NAME = 'Push North';
+export const QUEST_PUSH_NORTH_OBJECTIVE_LABEL = 'Reach the northern path';
 
 const SEGMENT_COLS = 22;
 const SEGMENT_ROWS = 22;
@@ -65,20 +65,20 @@ const NORTH_GOAL_ROW = cliffPathPOI.north_path.row;
 const NORTH_GOAL_WORLD = gridToWorld(NORTH_GOAL_COL, NORTH_GOAL_ROW);
 
 /** Party must reach within this Chebyshev distance of the northern path. */
-export const QUEST_BOAR_HERD_NORTH_GOAL_MAX_DISTANCE = 2;
+export const QUEST_PUSH_NORTH_GOAL_MAX_DISTANCE = 2;
 
 /** Opening pack in the outside-cave-mouth box. */
-export const QUEST_BOAR_HERD_NORTH_START_WOLF_COUNT = 2;
-export const QUEST_BOAR_HERD_NORTH_START_SWARMLING_COUNT = 4;
+export const QUEST_PUSH_NORTH_START_WOLF_COUNT = 2;
+export const QUEST_PUSH_NORTH_START_SWARMLING_COUNT = 4;
 
 /** light_empowered continuousSpawn per-wave counts / caps, doubled here. */
-export const QUEST_BOAR_HERD_NORTH_WOLF_SPAWN_COUNT = 2;
-export const QUEST_BOAR_HERD_NORTH_SLIME_SPAWN_COUNT = 2;
-export const QUEST_BOAR_HERD_NORTH_WOLF_MAX_UNITS = 12;
-export const QUEST_BOAR_HERD_NORTH_SLIME_MAX_UNITS = 20;
+export const QUEST_PUSH_NORTH_WOLF_SPAWN_COUNT = 2;
+export const QUEST_PUSH_NORTH_SLIME_SPAWN_COUNT = 2;
+export const QUEST_PUSH_NORTH_WOLF_MAX_UNITS = 12;
+export const QUEST_PUSH_NORTH_SLIME_MAX_UNITS = 20;
 
 /** Spawn / pressure radius (tiles) around the northern goal. */
-export const QUEST_BOAR_HERD_NORTH_SPAWN_RADIUS_TILES = 5;
+export const QUEST_PUSH_NORTH_SPAWN_RADIUS_TILES = 5;
 
 const OUTSIDE_CAVE_MOUTH_ZONE_ID = 'outside of cave mouth';
 
@@ -103,7 +103,7 @@ function buildOpeningPack(
     const zone = resolveOutsideCaveMouthZone(terrainSegmentZones);
     const candidates = resolveZoneTiles(zone);
     const total =
-        QUEST_BOAR_HERD_NORTH_START_WOLF_COUNT + QUEST_BOAR_HERD_NORTH_START_SWARMLING_COUNT;
+        QUEST_PUSH_NORTH_START_WOLF_COUNT + QUEST_PUSH_NORTH_START_SWARMLING_COUNT;
     const positions: { x: number; y: number }[] = [];
     for (let i = 0; i < total && candidates.length > 0; i++) {
         const idx = engine.generateRandomInteger(0, candidates.length - 1);
@@ -112,10 +112,10 @@ function buildOpeningPack(
     }
 
     const wolves = positions
-        .slice(0, QUEST_BOAR_HERD_NORTH_START_WOLF_COUNT)
+        .slice(0, QUEST_PUSH_NORTH_START_WOLF_COUNT)
         .map((position) => ({ ...ENEMY_DARK_WOLF, position, unitAITreeId: 'hunt' as const }));
     const swarmlings = positions
-        .slice(QUEST_BOAR_HERD_NORTH_START_WOLF_COUNT)
+        .slice(QUEST_PUSH_NORTH_START_WOLF_COUNT)
         .map((position) => ({ ...ENEMY_SWARMLING, position, unitAITreeId: 'hunt' as const }));
     return [...wolves, ...swarmlings];
 }
@@ -123,21 +123,21 @@ function buildOpeningPack(
 const NORTH_SPAWN_TARGET = {
     x: NORTH_GOAL_WORLD.x,
     y: NORTH_GOAL_WORLD.y,
-    radius: QUEST_BOAR_HERD_NORTH_SPAWN_RADIUS_TILES,
+    radius: QUEST_PUSH_NORTH_SPAWN_RADIUS_TILES,
 };
 
 const LEVEL_EVENTS: LevelEvent[] = [
     {
         type: 'continuousSpawn',
         trigger: { intervalRounds: 1, startRound: 1 },
-        maxUnits: QUEST_BOAR_HERD_NORTH_WOLF_MAX_UNITS,
+        maxUnits: QUEST_PUSH_NORTH_WOLF_MAX_UNITS,
         spawns: [
             {
                 characterId: 'dark_wolf',
                 spawnBehaviour: 'anywhere',
                 inDarkness: true,
                 spawnTarget: NORTH_SPAWN_TARGET,
-                spawnCount: QUEST_BOAR_HERD_NORTH_WOLF_SPAWN_COUNT,
+                spawnCount: QUEST_PUSH_NORTH_WOLF_SPAWN_COUNT,
                 unitAITreeId: 'hunt',
             },
         ],
@@ -145,14 +145,14 @@ const LEVEL_EVENTS: LevelEvent[] = [
     {
         type: 'continuousSpawn',
         trigger: { intervalRounds: 1.5, startRound: 1.5 },
-        maxUnits: QUEST_BOAR_HERD_NORTH_SLIME_MAX_UNITS,
+        maxUnits: QUEST_PUSH_NORTH_SLIME_MAX_UNITS,
         spawns: [
             {
                 characterId: 'slime',
                 spawnBehaviour: 'anywhere',
                 inDarkness: true,
                 spawnTarget: NORTH_SPAWN_TARGET,
-                spawnCount: QUEST_BOAR_HERD_NORTH_SLIME_SPAWN_COUNT,
+                spawnCount: QUEST_PUSH_NORTH_SLIME_SPAWN_COUNT,
                 unitAITreeId: 'hunt',
             },
         ],
@@ -165,7 +165,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
                 type: 'allUnitsNearPosition',
                 col: NORTH_GOAL_COL,
                 row: NORTH_GOAL_ROW,
-                maxDistance: QUEST_BOAR_HERD_NORTH_GOAL_MAX_DISTANCE,
+                maxDistance: QUEST_PUSH_NORTH_GOAL_MAX_DISTANCE,
             },
         ],
         missionResult: 'victory',
@@ -175,12 +175,12 @@ const LEVEL_EVENTS: LevelEvent[] = [
 const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
     {
         id: 'reach_north',
-        label: QUEST_BOAR_HERD_NORTH_OBJECTIVE_LABEL,
+        label: QUEST_PUSH_NORTH_OBJECTIVE_LABEL,
         toComplete: {
             type: 'allUnitsNearPosition',
             col: NORTH_GOAL_COL,
             row: NORTH_GOAL_ROW,
-            maxDistance: QUEST_BOAR_HERD_NORTH_GOAL_MAX_DISTANCE,
+            maxDistance: QUEST_PUSH_NORTH_GOAL_MAX_DISTANCE,
         },
         showObjectiveMarker: {
             enable: true,
@@ -242,15 +242,15 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
     ],
 };
 
-export class QuestBoarHerdNorthMission extends BaseMissionDef {
+export class QuestPushNorthMission extends BaseMissionDef {
     segmentIds = ['50_49_cliff_path_north', '50_50_crystal_cave'];
 
-    missionId = QUEST_BOAR_HERD_NORTH_MISSION_ID;
+    missionId = QUEST_PUSH_NORTH_MISSION_ID;
     mapPosition = undefined;
     missionType = 'battle' as const;
     description = 'Follow the swarm north along the cliff path.';
     campaignId = 'world_of_darkness';
-    name = QUEST_BOAR_HERD_NORTH_NAME;
+    name = QUEST_PUSH_NORTH_NAME;
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;
     /** Opening pack is filled in {@link initializeGameState} (needs battle RNG). */
@@ -283,4 +283,4 @@ export class QuestBoarHerdNorthMission extends BaseMissionDef {
     }
 }
 
-export const QUEST_BOAR_HERD_NORTH = new QuestBoarHerdNorthMission();
+export const QUEST_PUSH_NORTH = new QuestPushNorthMission();

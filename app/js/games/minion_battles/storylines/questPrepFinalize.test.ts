@@ -5,7 +5,7 @@ import {
     freezeQuestPrepForCharacter,
 } from './questPrepFinalize';
 import { requiredPlayersFromPartyRoster } from './questLobby';
-import { FIND_THE_HERD_OF_BOARS } from './WorldOfDarkness/quests/find_the_herd_of_boars';
+import { SWARMLING_SOURCE } from './WorldOfDarkness/quests/swarmling_source';
 import { SPECTATOR_ID } from '../state';
 
 const CHARACTER = { id: 'char_prep', equipment: ['004', '001'] as const };
@@ -13,7 +13,7 @@ const CHARACTER = { id: 'char_prep', equipment: ['004', '001'] as const };
 describe('finalizeQuestPrepLoadout', () => {
     it('freezes equipment, primaries, party roster and marks active', () => {
         const prep = startQuestRun({
-            questDef: FIND_THE_HERD_OF_BOARS,
+            questDef: SWARMLING_SOURCE,
             character: CHARACTER,
             runSeed: 7,
             runId: 'run_prep_1',
@@ -45,7 +45,7 @@ describe('finalizeQuestPrepLoadout', () => {
 describe('freezeQuestPrepForCharacter / party roster', () => {
     it('joiners can freeze against lobby stamp with matching runId', () => {
         const hostRun = startQuestRun({
-            questDef: FIND_THE_HERD_OF_BOARS,
+            questDef: SWARMLING_SOURCE,
             character: CHARACTER,
             runSeed: 11,
             runId: 'shared_run',

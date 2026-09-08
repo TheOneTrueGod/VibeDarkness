@@ -7,6 +7,7 @@ import {
     questClearMissionResultId,
     shouldApplyCampaignRewards,
 } from './questCampaignRewards';
+import { SWARMLING_SOURCE_QUEST_ID } from './WorldOfDarkness/quests/swarmling_source';
 import type { CampaignRewardsPayload } from './questRun';
 import type { QuestResult } from './questTypes';
 
@@ -28,8 +29,8 @@ const FULL_PAYLOAD: CampaignRewardsPayload = {
 
 describe('questClearMissionResultId', () => {
     it('uses the quest: prefix so grants do not clobber mission entries', () => {
-        expect(questClearMissionResultId('find_the_herd_of_boars')).toBe(
-            `${QUEST_CLEAR_MISSION_RESULT_PREFIX}find_the_herd_of_boars`,
+        expect(questClearMissionResultId(SWARMLING_SOURCE_QUEST_ID)).toBe(
+            `${QUEST_CLEAR_MISSION_RESULT_PREFIX}${SWARMLING_SOURCE_QUEST_ID}`,
         );
     });
 });
@@ -53,7 +54,7 @@ describe('isCampaignRewardsPayloadEmpty / grant args', () => {
 
 describe('shouldApplyCampaignRewards / double-apply guard', () => {
     const victory: QuestResult = {
-        questDefId: 'find_the_herd_of_boars',
+        questDefId: SWARMLING_SOURCE_QUEST_ID,
         result: 'victory',
     };
 

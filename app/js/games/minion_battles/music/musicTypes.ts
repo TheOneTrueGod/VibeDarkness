@@ -1,4 +1,4 @@
-import type { MusicPlaylistId } from './musicConstants';
+import type { MusicPlaybackPreference, MusicPlaylistId } from './musicConstants';
 
 export type MusicSongId = string;
 
@@ -24,6 +24,8 @@ export interface MusicPlaylistDef {
 export interface MusicPlayerSettings {
     volume: number;
     muted: boolean;
+    /** Manual play/pause preference applied when a playlist is requested programmatically. */
+    playbackPreference: MusicPlaybackPreference;
 }
 
 export interface MusicPlayerPublicState {

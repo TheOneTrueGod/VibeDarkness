@@ -1,7 +1,10 @@
 import {
     DEFAULT_MUSIC_VOLUME,
     MUSIC_CROSSFADE_DURATION_SEC,
+    MUSIC_PLAYBACK_PREFERENCE_AUTOPAUSE,
+    MUSIC_PLAYBACK_PREFERENCE_AUTOPLAY,
     MUSIC_PLAYLIST_MENU,
+    type MusicPlaybackPreference,
     type MusicPlaylistId,
 } from './musicConstants';
 import {
@@ -11,7 +14,7 @@ import {
     resolveCrossfadeInAtSec,
     resolveCrossfadeOutOffsetSec,
 } from './crossfadeTiming';
-import { loadMusicPlayerSettings, saveMusicPlayerSettings } from './musicPlayerSettings';
+import { loadMusicPlayerSettings, saveMusicPlayerSettings, defaultMusicPlayerSettings } from './musicPlayerSettings';
 import { getMusicPlaylist, getMusicSong, MUSIC_PLAYLISTS, MUSIC_SONGS } from './playlists';
 import type {
     MusicAudioElement,
@@ -111,6 +114,7 @@ export class MusicPlayerController {
     private activeChannelIndex = 0;
     private volume: number;
     private muted: boolean;
+    private playbackPreference: MusicPlaybackPreference;
     private status: MusicTransportStatus = 'paused';
     private mode: MusicPlaybackMode = 'stopped';
     private playlistId: MusicPlaylistId | null = null;
@@ -129,9 +133,10 @@ export class MusicPlayerController {
         this.audioFactory = options.audioFactory ?? defaultAudioFactory;
         this.nowMs = options.nowMs ?? defaultNowMs;
         this.persistSettings = options.persistSettings ?? true;
-        const settings = this.persistSettings ? loadMusicPlayerSettings() : { volume: DEFAULT_MUSIC_VOLUME, muted: false };
+        const settings = this.persistSettings ? loadMusicPlayerSettings() : defaultMusicPlayerSettings();
         this.volume = settings.volume;
         this.muted = settings.muted;
+        this.playbackPreference = settings.playbackPreference;
         this.snapshot = this.buildSnapshot();
     }
 
@@ -221,7 +226,7 @@ export class MusicPlayerController {
         this.playlistIndex = 0;
         this.mode = 'playlist';
         void this.preloadPlaylist(playlistId);
-        this.startSong(playlist.songIds[0]!, true);
+        this.startSong(playlist.songIds[0]!, this.shouldAutoPlay());
     }
 
     playSong(songId: MusicSongId): void {
@@ -234,7 +239,7 @@ export class MusicPlayerController {
         this.playlistIndex = 0;
         this.mode = 'song';
         void this.preloadSong(songId);
-        this.startSong(songId, true);
+        this.startSong(songId, this.shouldAutoPlay());
     }
 
     pause(): void {
@@ -263,9 +268,11 @@ export class MusicPlayerController {
 
     togglePlayPause(): void {
         if (this.status === 'playing') {
+            this.setPlaybackPreference(MUSIC_PLAYBACK_PREFERENCE_AUTOPAUSE);
             this.pause();
             return;
         }
+        this.setPlaybackPreference(MUSIC_PLAYBACK_PREFERENCE_AUTOPLAY);
         if (this.mode === 'stopped') {
             this.playPlaylist(this.playlistId ?? MUSIC_PLAYLIST_MENU);
             return;
@@ -332,6 +339,16 @@ export class MusicPlayerController {
         this.loadWaiters.clear();
         this.loadedSongIds.clear();
         this.audioPool.clear();
+    }
+
+    private shouldAutoPlay(): boolean {
+        return this.playbackPreference === MUSIC_PLAYBACK_PREFERENCE_AUTOPLAY;
+    }
+
+    private setPlaybackPreference(preference: MusicPlaybackPreference): void {
+        if (this.playbackPreference === preference) return;
+        this.playbackPreference = preference;
+        this.persist();
     }
 
     private modeIsActive(): boolean {
@@ -553,7 +570,11 @@ export class MusicPlayerController {
 
     private persist(): void {
         if (!this.persistSettings) return;
-        saveMusicPlayerSettings({ volume: this.volume, muted: this.muted });
+        saveMusicPlayerSettings({
+            volume: this.volume,
+            muted: this.muted,
+            playbackPreference: this.playbackPreference,
+        });
     }
 
     private buildSnapshot(): MusicPlayerPublicState {

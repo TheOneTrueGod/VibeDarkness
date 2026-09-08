@@ -12,9 +12,9 @@ import {
     WOD_CH2_MAP_Y_ROW1,
 } from './chapter2Map';
 import {
-    FIND_THE_HERD_OF_BOARS,
-    FIND_THE_HERD_OF_BOARS_QUEST_ID,
-} from './quests/find_the_herd_of_boars';
+    SWARMLING_SOURCE,
+    SWARMLING_SOURCE_QUEST_ID,
+} from './quests/swarmling_source';
 import {
     SCAVENGE_THE_PLAINS,
     SCAVENGE_THE_PLAINS_QUEST_ID,
@@ -24,7 +24,7 @@ import {
 export const WOD_POST_CORE_QUEST_BANK_ID = 'wod_post_core_awakening_quests';
 
 /** Dedicated map node for Swarmling Source. */
-export const WOD_FIND_THE_HERD_OF_BOARS_BANK_ID = 'wod_find_the_herd_of_boars';
+export const WOD_SWARMLING_SOURCE_BANK_ID = 'wod_swarmling_source';
 
 /** Dedicated map node for Scavenge the Plains. */
 export const WOD_SCAVENGE_THE_PLAINS_BANK_ID = 'wod_scavenge_the_plains';
@@ -60,16 +60,16 @@ export const WOD_POST_CORE_QUEST_BANK: QuestSlotBank = {
 };
 
 /** Map node that starts Swarmling Source (full quest run). */
-export const WOD_FIND_THE_HERD_OF_BOARS_BANK: QuestSlotBank = {
-    id: WOD_FIND_THE_HERD_OF_BOARS_BANK_ID,
-    title: FIND_THE_HERD_OF_BOARS.title,
+export const WOD_SWARMLING_SOURCE_BANK: QuestSlotBank = {
+    id: WOD_SWARMLING_SOURCE_BANK_ID,
+    title: SWARMLING_SOURCE.title,
     unlockAfterMissionId: 'core_awakening',
     requiredClears: WOD_DEDICATED_QUEST_REQUIRED_CLEARS,
     filters: {},
     displaySlotCount: WOD_DEDICATED_QUEST_REQUIRED_CLEARS,
     mapPosition: { x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW0 },
     isSideQuest: true,
-    questDefId: FIND_THE_HERD_OF_BOARS_QUEST_ID,
+    questDefId: SWARMLING_SOURCE_QUEST_ID,
 };
 
 /** Map node that starts Scavenge the Plains (full quest run). */
@@ -108,7 +108,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         { fromMissionId: 'thorn_march', result: 'victory', toMissionId: 'thornling_rise' },
     ],
     questSlotBanks: [
-        WOD_FIND_THE_HERD_OF_BOARS_BANK,
+        WOD_SWARMLING_SOURCE_BANK,
         WOD_SCAVENGE_THE_PLAINS_BANK,
         WOD_POST_CORE_QUEST_BANK,
     ],
@@ -128,7 +128,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
             title: 'The Surface',
             unlockAfterMissionId: 'core_awakening',
             questBankIds: [
-                WOD_FIND_THE_HERD_OF_BOARS_BANK_ID,
+                WOD_SWARMLING_SOURCE_BANK_ID,
                 WOD_SCAVENGE_THE_PLAINS_BANK_ID,
                 WOD_POST_CORE_QUEST_BANK_ID,
             ],

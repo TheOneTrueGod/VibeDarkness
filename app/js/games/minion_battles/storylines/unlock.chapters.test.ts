@@ -12,7 +12,7 @@ import {
 } from './unlock';
 import { BunkerAtTheEndStoryline } from './BunkerAtTheEnd/BunkerAtTheEnd';
 import {
-    WOD_FIND_THE_HERD_OF_BOARS_BANK_ID,
+    WOD_SWARMLING_SOURCE_BANK_ID,
     WOD_POST_CORE_QUEST_BANK_ID,
     WOD_SCAVENGE_THE_PLAINS_BANK_ID,
     WorldOfDarknessStoryline,
@@ -123,7 +123,7 @@ describe('chapter composition', () => {
     it('puts dedicated chapter 2 side-quest nodes on chapter 2 only', () => {
         expect(wodChapters[0].questBankIds ?? []).toEqual([]);
         expect(wodChapters[1].questBankIds).toEqual([
-            WOD_FIND_THE_HERD_OF_BOARS_BANK_ID,
+            WOD_SWARMLING_SOURCE_BANK_ID,
             WOD_SCAVENGE_THE_PLAINS_BANK_ID,
             WOD_POST_CORE_QUEST_BANK_ID,
         ]);

@@ -47,8 +47,20 @@ export interface QuestBanksPanelProps {
     isAdmin?: boolean;
 }
 
-function bankDisplayLabel(bank: QuestSlotBank): string {
+export function bankDisplayLabel(bank: QuestSlotBank): string {
     return bank.title ?? bank.id.replace(/_/g, ' ');
+}
+
+/** Player-facing placement chip on a victory row (bank title, not the wire id). */
+export function questResultPlacementLabel(
+    result: QuestResult,
+    banks: QuestSlotBank[],
+): string | null {
+    if (result.placement === 'optional') return 'optional';
+    if (result.placement !== 'bank' || !result.bankId) return null;
+    const bank = banks.find((b) => b.id === result.bankId);
+    const name = bank ? bankDisplayLabel(bank) : result.bankId.replace(/_/g, ' ');
+    return `bank · ${name}`;
 }
 
 const PILL_STATUS_CLASS: Record<QuestSlotPillStatus, string> = {
@@ -137,14 +149,15 @@ function AdminMissionSeekPill({
     );
 }
 
-function QuestResultBadge({ result }: { result: QuestResult }) {
+function QuestResultBadge({
+    result,
+    banks,
+}: {
+    result: QuestResult;
+    banks: QuestSlotBank[];
+}) {
     const def = getQuestDef(result.questDefId);
-    const placementLabel =
-        result.placement === 'bank' && result.bankId
-            ? `bank · ${result.bankId.replace(/_/g, ' ')}`
-            : result.placement === 'optional'
-                ? 'optional'
-                : null;
+    const placementLabel = questResultPlacementLabel(result, banks);
     return (
         <li className="flex items-center justify-between gap-2 rounded-md border border-green-800/50 bg-green-950/30 px-2.5 py-1.5">
             <div className="min-w-0 flex items-center gap-2">
@@ -608,6 +621,7 @@ export default function QuestBanksPanel({
                             <QuestResultBadge
                                 key={`${r.questDefId}-${r.timestamp ?? r.placement ?? 'v'}`}
                                 result={r}
+                                banks={storyline.questSlotBanks ?? []}
                             />
                         ))}
                     </ul>

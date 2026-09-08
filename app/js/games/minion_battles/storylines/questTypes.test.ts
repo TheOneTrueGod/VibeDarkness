@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { getQuestDef, listQuestsForCampaign, QUEST_MAP } from './questRegistry';
 import type { MissionSlotSpec, QuestDef } from './questTypes';
 import {
-    FIND_THE_HERD_OF_BOARS,
-    FIND_THE_HERD_OF_BOARS_TITLE,
-} from './WorldOfDarkness/quests/find_the_herd_of_boars';
+    SWARMLING_SOURCE,
+    SWARMLING_SOURCE_TITLE,
+} from './WorldOfDarkness/quests/swarmling_source';
 import { SCAVENGE_THE_PLAINS } from './WorldOfDarkness/quests/scavenge_the_plains';
 
 describe('QUEST_MAP / registry', () => {
     it('returns the World of Darkness fixture and Scavenge the Plains quests', () => {
-        expect(getQuestDef(FIND_THE_HERD_OF_BOARS.id)).toEqual(FIND_THE_HERD_OF_BOARS);
+        expect(getQuestDef(SWARMLING_SOURCE.id)).toEqual(SWARMLING_SOURCE);
         expect(getQuestDef(SCAVENGE_THE_PLAINS.id)).toEqual(SCAVENGE_THE_PLAINS);
         expect(QUEST_MAP[SCAVENGE_THE_PLAINS.id]).toBe(SCAVENGE_THE_PLAINS);
     });
@@ -23,7 +23,7 @@ describe('QUEST_MAP / registry', () => {
 
 describe('MissionSlotSpec narrowing', () => {
     it('narrows fixed slots to missionId', () => {
-        const slot: MissionSlotSpec = FIND_THE_HERD_OF_BOARS.slots[0]!;
+        const slot: MissionSlotSpec = SWARMLING_SOURCE.slots[0]!;
         expect(slot.kind).toBe('fixed');
         if (slot.kind === 'fixed') {
             expect(typeof slot.missionId).toBe('string');
@@ -32,11 +32,11 @@ describe('MissionSlotSpec narrowing', () => {
     });
 
     it('example quest mixes fixed and random_story slots', () => {
-        expect(FIND_THE_HERD_OF_BOARS.slots[0]?.kind).toBe('fixed');
-        expect(FIND_THE_HERD_OF_BOARS.slots[1]?.kind).toBe('random_story');
-        expect(FIND_THE_HERD_OF_BOARS.slots[2]?.kind).toBe('fixed');
-        expect(FIND_THE_HERD_OF_BOARS.slots.length).toBeGreaterThanOrEqual(2);
-        expect(FIND_THE_HERD_OF_BOARS.slots.length).toBeLessThanOrEqual(4);
+        expect(SWARMLING_SOURCE.slots[0]?.kind).toBe('fixed');
+        expect(SWARMLING_SOURCE.slots[1]?.kind).toBe('random_story');
+        expect(SWARMLING_SOURCE.slots[2]?.kind).toBe('fixed');
+        expect(SWARMLING_SOURCE.slots.length).toBeGreaterThanOrEqual(2);
+        expect(SWARMLING_SOURCE.slots.length).toBeLessThanOrEqual(4);
     });
 
     it('discriminates random_battle vs random_story params', () => {
@@ -61,9 +61,9 @@ describe('MissionSlotSpec narrowing', () => {
 
 describe('QuestDef shape smoke', () => {
     it('example satisfies QuestDef fields used by the registry', () => {
-        const q: QuestDef = FIND_THE_HERD_OF_BOARS;
+        const q: QuestDef = SWARMLING_SOURCE;
         expect(q.campaignId).toBe('world_of_darkness');
-        expect(q.title).toBe(FIND_THE_HERD_OF_BOARS_TITLE);
+        expect(q.title).toBe(SWARMLING_SOURCE_TITLE);
         expect(Array.isArray(q.slots)).toBe(true);
     });
 });

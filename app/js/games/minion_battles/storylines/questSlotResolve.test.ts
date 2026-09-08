@@ -7,9 +7,10 @@ import {
     slotSeedFor,
 } from './questSlotResolve';
 import {
-    FIND_THE_HERD_OF_BOARS,
-    FIND_THE_HERD_OF_BOARS_FINALE_MISSION_ID,
-} from './WorldOfDarkness/quests/find_the_herd_of_boars';
+    SWARMLING_SOURCE,
+    SWARMLING_SOURCE_FINALE_MISSION_ID,
+} from './WorldOfDarkness/quests/swarmling_source';
+import { QUEST_PUSH_NORTH_MISSION_ID } from './WorldOfDarkness/questMissions/quest_push_north';
 import { SCAVENGE_THE_PLAINS } from './WorldOfDarkness/quests/scavenge_the_plains';
 import {
     LOCATION_PLAINS_TAG,
@@ -22,10 +23,10 @@ import { RANDOM_STORY_GENERATOR_ID } from './randomStoryResolve';
 
 const RUN_SEED = 42;
 
-describe('resolveQuestSlots — find_the_herd_of_boars', () => {
+describe('resolveQuestSlots — swarmling_source', () => {
     it('resolves fixed north push, generated plains story, and the Swarmling Nest finale', () => {
-        const resolved = resolveQuestSlots(FIND_THE_HERD_OF_BOARS, { runSeed: RUN_SEED });
-        expect(resolved[0]).toEqual({ kind: 'fixed', missionId: 'quest_boar_herd_north' });
+        const resolved = resolveQuestSlots(SWARMLING_SOURCE, { runSeed: RUN_SEED });
+        expect(resolved[0]).toEqual({ kind: 'fixed', missionId: QUEST_PUSH_NORTH_MISSION_ID });
         expect(resolved[1]?.kind).toBe('generated');
         if (resolved[1]?.kind === 'generated') {
             expect([FOUND_BERRIES_MISSION_ID, SURFACE_METAL_DEPOSIT_MISSION_ID]).toContain(
@@ -35,14 +36,14 @@ describe('resolveQuestSlots — find_the_herd_of_boars', () => {
         }
         expect(resolved[2]).toEqual({
             kind: 'fixed',
-            missionId: FIND_THE_HERD_OF_BOARS_FINALE_MISSION_ID,
+            missionId: SWARMLING_SOURCE_FINALE_MISSION_ID,
         });
-        expect(FIND_THE_HERD_OF_BOARS_FINALE_MISSION_ID).toBe('swarmling_nest');
+        expect(SWARMLING_SOURCE_FINALE_MISSION_ID).toBe('swarmling_nest');
     });
 
     it('is stable for the same runSeed', () => {
-        const a = resolveQuestSlots(FIND_THE_HERD_OF_BOARS, { runSeed: RUN_SEED });
-        const b = resolveQuestSlots(FIND_THE_HERD_OF_BOARS, { runSeed: RUN_SEED });
+        const a = resolveQuestSlots(SWARMLING_SOURCE, { runSeed: RUN_SEED });
+        const b = resolveQuestSlots(SWARMLING_SOURCE, { runSeed: RUN_SEED });
         expect(a).toEqual(b);
     });
 });

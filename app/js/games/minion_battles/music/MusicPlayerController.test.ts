@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
     DEFAULT_CROSSFADE_IN_AT_SEC,
     DEFAULT_MUSIC_VOLUME,
     MUSIC_CROSSFADE_DURATION_SEC,
+    MUSIC_PLAYBACK_PREFERENCE_AUTOPAUSE,
     MUSIC_PLAYLIST_BATTLE,
     MUSIC_PLAYLIST_MENU,
+    MUSIC_PLAYER_STORAGE_KEY,
 } from './musicConstants';
 import { MusicPlayerController, type MusicPlayerCatalog } from './MusicPlayerController';
 import type {
@@ -119,6 +121,9 @@ function playingAudios(created: MockAudio[]): MockAudio[] {
 }
 
 describe('MusicPlayerController', () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
     it('plays the first playlist track and reports skip enabled', () => {
         const { player, created } = createPlayer();
         player.playPlaylist(MUSIC_PLAYLIST_MENU);
@@ -227,5 +232,58 @@ describe('MusicPlayerController', () => {
         player.setMuted(true);
         expect(created[0]?.muted).toBe(true);
         expect(player.getSnapshot().muted).toBe(true);
+    });
+
+    it('starts a programmatic playlist paused after a manual pause', () => {
+        const { player, created } = createPlayer();
+        player.playPlaylist(MUSIC_PLAYLIST_MENU);
+        player.togglePlayPause();
+        expect(player.getSnapshot().status).toBe('paused');
+        player.playPlaylist(MUSIC_PLAYLIST_BATTLE);
+        expect(player.getSnapshot().playlistId).toBe(MUSIC_PLAYLIST_BATTLE);
+        expect(player.getSnapshot().status).toBe('paused');
+        expect(created.find((audio) => audio.src === SONG_C_URL)?.paused).toBe(true);
+    });
+
+    it('starts a programmatic playlist playing after a manual play', () => {
+        const { player, created } = createPlayer();
+        player.playPlaylist(MUSIC_PLAYLIST_MENU);
+        player.togglePlayPause();
+        player.togglePlayPause();
+        expect(player.getSnapshot().status).toBe('playing');
+        player.playPlaylist(MUSIC_PLAYLIST_BATTLE);
+        expect(player.getSnapshot().status).toBe('playing');
+        expect(created.find((audio) => audio.src === SONG_C_URL)?.paused).toBe(false);
+    });
+
+    it('loads autopause from localStorage so programmatic play starts paused', () => {
+        const memory = new Map<string, string>();
+        memory.set(
+            MUSIC_PLAYER_STORAGE_KEY,
+            JSON.stringify({
+                volume: DEFAULT_MUSIC_VOLUME,
+                muted: false,
+                playbackPreference: MUSIC_PLAYBACK_PREFERENCE_AUTOPAUSE,
+            }),
+        );
+        vi.stubGlobal('localStorage', {
+            getItem: (key: string) => memory.get(key) ?? null,
+            setItem: (key: string, value: string) => {
+                memory.set(key, value);
+            },
+        });
+        const created: MockAudio[] = [];
+        const player = new MusicPlayerController({
+            catalog: testCatalog(),
+            persistSettings: true,
+            audioFactory: (url) => {
+                const audio = new MockAudio(url);
+                created.push(audio);
+                return audio;
+            },
+        });
+        player.playPlaylist(MUSIC_PLAYLIST_MENU);
+        expect(player.getSnapshot().status).toBe('paused');
+        expect(created[0]?.paused).toBe(true);
     });
 });

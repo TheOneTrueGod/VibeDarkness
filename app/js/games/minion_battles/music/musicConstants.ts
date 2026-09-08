@@ -12,6 +12,18 @@ export const DEFAULT_CROSSFADE_OUT_OFFSET_SEC = 2;
 
 export const DEFAULT_MUSIC_VOLUME = 0.7;
 
+export const MUSIC_PLAYBACK_PREFERENCE_AUTOPLAY = 'autoplay';
+export const MUSIC_PLAYBACK_PREFERENCE_AUTOPAUSE = 'autopause';
+
+export const MUSIC_PLAYBACK_PREFERENCES = [
+    MUSIC_PLAYBACK_PREFERENCE_AUTOPLAY,
+    MUSIC_PLAYBACK_PREFERENCE_AUTOPAUSE,
+] as const;
+
+export type MusicPlaybackPreference = (typeof MUSIC_PLAYBACK_PREFERENCES)[number];
+
+export const DEFAULT_MUSIC_PLAYBACK_PREFERENCE: MusicPlaybackPreference = MUSIC_PLAYBACK_PREFERENCE_AUTOPLAY;
+
 export const MUSIC_PLAYER_STORAGE_KEY = 'minionBattles.musicPlayer';
 
 /** Cassette readout character width (monospace). Overflow is replaced with '...'. */

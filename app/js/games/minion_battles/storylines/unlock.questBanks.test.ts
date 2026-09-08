@@ -25,11 +25,11 @@ import {
     WOD_EXAMPLE_QUEST_BANK,
     WOD_EXAMPLE_QUEST_BANK_ID,
     WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS,
-    WOD_FIND_THE_HERD_OF_BOARS_BANK,
+    WOD_SWARMLING_SOURCE_BANK,
     WOD_SCAVENGE_THE_PLAINS_BANK,
     WorldOfDarknessStoryline,
 } from './WorldOfDarkness/WorldOfDarkness';
-import { FIND_THE_HERD_OF_BOARS } from './WorldOfDarkness/quests/find_the_herd_of_boars';
+import { SWARMLING_SOURCE } from './WorldOfDarkness/quests/swarmling_source';
 import { SCAVENGE_THE_PLAINS } from './WorldOfDarkness/quests/scavenge_the_plains';
 import {
     WOD_CH2_MAP_X_COL0,
@@ -82,7 +82,7 @@ function bankVictory(questDefId: string, bankId: string): QuestResult {
 describe('WorldOfDarkness post–Core Awakening quest bank', () => {
     it('is attached to the storyline as a side-quest picker with requiredClears = 1', () => {
         expect(WorldOfDarknessStoryline.questSlotBanks).toEqual([
-            WOD_FIND_THE_HERD_OF_BOARS_BANK,
+            WOD_SWARMLING_SOURCE_BANK,
             WOD_SCAVENGE_THE_PLAINS_BANK,
             WOD_EXAMPLE_QUEST_BANK,
         ]);
@@ -98,9 +98,9 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
     });
 
     it('pins Swarmling Source and Scavenge the Plains as dedicated top-row nodes', () => {
-        expect(isDedicatedQuestBank(WOD_FIND_THE_HERD_OF_BOARS_BANK)).toBe(true);
-        expect(WOD_FIND_THE_HERD_OF_BOARS_BANK.questDefId).toBe(FIND_THE_HERD_OF_BOARS.id);
-        expect(WOD_FIND_THE_HERD_OF_BOARS_BANK.mapPosition).toEqual({
+        expect(isDedicatedQuestBank(WOD_SWARMLING_SOURCE_BANK)).toBe(true);
+        expect(WOD_SWARMLING_SOURCE_BANK.questDefId).toBe(SWARMLING_SOURCE.id);
+        expect(WOD_SWARMLING_SOURCE_BANK.mapPosition).toEqual({
             x: WOD_CH2_MAP_X_COL0,
             y: WOD_CH2_MAP_Y_ROW0,
         });
@@ -112,7 +112,7 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
         });
         expect(WOD_EXAMPLE_QUEST_BANK.filters.tags).toEqual([LOCATION_PLAINS_TAG]);
         expect(WOD_EXAMPLE_QUEST_BANK.filters.excludeQuestDefIds).toBeUndefined();
-        expect(FIND_THE_HERD_OF_BOARS.tags).toContain(LOCATION_PLAINS_TAG);
+        expect(SWARMLING_SOURCE.tags).toContain(LOCATION_PLAINS_TAG);
         expect(SCAVENGE_THE_PLAINS.tags).toContain(LOCATION_PLAINS_TAG);
     });
 
@@ -127,7 +127,7 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
         expect(
             getUnlockedQuestSlotBanks(WorldOfDarknessStoryline, [victoryMission('core_awakening')]),
         ).toEqual([
-            WOD_FIND_THE_HERD_OF_BOARS_BANK,
+            WOD_SWARMLING_SOURCE_BANK,
             WOD_SCAVENGE_THE_PLAINS_BANK,
             WOD_EXAMPLE_QUEST_BANK,
         ]);
@@ -135,14 +135,14 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
 });
 
 describe('dedicated quest banks', () => {
-    const pool = [FIND_THE_HERD_OF_BOARS, SCAVENGE_THE_PLAINS, OTHER_PLACEHOLDER_QUEST];
+    const pool = [SWARMLING_SOURCE, SCAVENGE_THE_PLAINS, OTHER_PLACEHOLDER_QUEST];
 
     it('accepts only the pinned quest', () => {
-        expect(bankAcceptsQuest(WOD_FIND_THE_HERD_OF_BOARS_BANK, FIND_THE_HERD_OF_BOARS)).toBe(true);
-        expect(bankAcceptsQuest(WOD_FIND_THE_HERD_OF_BOARS_BANK, SCAVENGE_THE_PLAINS)).toBe(false);
+        expect(bankAcceptsQuest(WOD_SWARMLING_SOURCE_BANK, SWARMLING_SOURCE)).toBe(true);
+        expect(bankAcceptsQuest(WOD_SWARMLING_SOURCE_BANK, SCAVENGE_THE_PLAINS)).toBe(false);
         expect(bankAcceptsQuest(WOD_SCAVENGE_THE_PLAINS_BANK, SCAVENGE_THE_PLAINS)).toBe(true);
-        expect(bankAcceptsQuest(WOD_SCAVENGE_THE_PLAINS_BANK, FIND_THE_HERD_OF_BOARS)).toBe(false);
-        expect(bankAcceptsQuest(WOD_EXAMPLE_QUEST_BANK, FIND_THE_HERD_OF_BOARS)).toBe(true);
+        expect(bankAcceptsQuest(WOD_SCAVENGE_THE_PLAINS_BANK, SWARMLING_SOURCE)).toBe(false);
+        expect(bankAcceptsQuest(WOD_EXAMPLE_QUEST_BANK, SWARMLING_SOURCE)).toBe(true);
         expect(bankAcceptsQuest(WOD_EXAMPLE_QUEST_BANK, SCAVENGE_THE_PLAINS)).toBe(true);
         expect(bankAcceptsQuest(WOD_EXAMPLE_QUEST_BANK, OTHER_PLACEHOLDER_QUEST)).toBe(false);
     });
@@ -150,12 +150,12 @@ describe('dedicated quest banks', () => {
     it('lists only the pinned uncleared quest as eligible', () => {
         expect(
             getEligibleQuestsForBank(
-                WOD_FIND_THE_HERD_OF_BOARS_BANK,
+                WOD_SWARMLING_SOURCE_BANK,
                 CAMPAIGN_ID,
                 [],
                 pool,
             ).map((q) => q.id),
-        ).toEqual([FIND_THE_HERD_OF_BOARS.id]);
+        ).toEqual([SWARMLING_SOURCE.id]);
         expect(
             getEligibleQuestsForBank(
                 WOD_SCAVENGE_THE_PLAINS_BANK,
@@ -168,43 +168,43 @@ describe('dedicated quest banks', () => {
 
     it('join-fills the dedicated bank before the Surface Quests picker', () => {
         const placement = placeQuestResultOnMap(
-            { questDefId: FIND_THE_HERD_OF_BOARS.id, result: 'victory' },
+            { questDefId: SWARMLING_SOURCE.id, result: 'victory' },
             [
-                WOD_FIND_THE_HERD_OF_BOARS_BANK,
+                WOD_SWARMLING_SOURCE_BANK,
                 WOD_SCAVENGE_THE_PLAINS_BANK,
                 WOD_EXAMPLE_QUEST_BANK,
             ],
             [],
-            FIND_THE_HERD_OF_BOARS,
+            SWARMLING_SOURCE,
         );
         expect(placement).toEqual({
             placement: 'bank',
-            bankId: WOD_FIND_THE_HERD_OF_BOARS_BANK.id,
+            bankId: WOD_SWARMLING_SOURCE_BANK.id,
         });
     });
 
     it('credits Surface Quests when a matching quest is cleared on a dedicated node', () => {
-        const results = [bankVictory(FIND_THE_HERD_OF_BOARS.id, WOD_FIND_THE_HERD_OF_BOARS_BANK.id)];
+        const results = [bankVictory(SWARMLING_SOURCE.id, WOD_SWARMLING_SOURCE_BANK.id)];
         expect(countQuestBankClears(WOD_EXAMPLE_QUEST_BANK, results)).toBe(1);
         expect(isQuestBankRequiredClearsSatisfied(WOD_EXAMPLE_QUEST_BANK, results)).toBe(true);
         expect(getQuestBankVictorySlots(WOD_EXAMPLE_QUEST_BANK, results).map((r) => r.questDefId)).toEqual([
-            FIND_THE_HERD_OF_BOARS.id,
+            SWARMLING_SOURCE.id,
         ]);
-        expect(countQuestBankClears(WOD_FIND_THE_HERD_OF_BOARS_BANK, results)).toBe(1);
+        expect(countQuestBankClears(WOD_SWARMLING_SOURCE_BANK, results)).toBe(1);
         expect(countQuestBankClears(WOD_SCAVENGE_THE_PLAINS_BANK, results)).toBe(0);
     });
 });
 
 describe('questMatchesFilters', () => {
     it('requires all filter tags and respects excludeQuestDefIds', () => {
-        expect(questMatchesFilters(FIND_THE_HERD_OF_BOARS, { tags: ['placeholder'] })).toBe(true);
-        expect(questMatchesFilters(FIND_THE_HERD_OF_BOARS, { tags: ['placeholder', 'missing'] })).toBe(
+        expect(questMatchesFilters(SWARMLING_SOURCE, { tags: ['placeholder'] })).toBe(true);
+        expect(questMatchesFilters(SWARMLING_SOURCE, { tags: ['placeholder', 'missing'] })).toBe(
             false,
         );
         expect(
-            questMatchesFilters(FIND_THE_HERD_OF_BOARS, {
+            questMatchesFilters(SWARMLING_SOURCE, {
                 tags: ['placeholder'],
-                excludeQuestDefIds: [FIND_THE_HERD_OF_BOARS.id],
+                excludeQuestDefIds: [SWARMLING_SOURCE.id],
             }),
         ).toBe(false);
     });
@@ -212,24 +212,24 @@ describe('questMatchesFilters', () => {
     it('requires overlapping regionIds when filter lists regions', () => {
         expect(questMatchesFilters(REGION_QUEST, { regionIds: ['north'] })).toBe(true);
         expect(questMatchesFilters(REGION_QUEST, { regionIds: ['south'] })).toBe(false);
-        expect(questMatchesFilters(FIND_THE_HERD_OF_BOARS, { regionIds: ['north'] })).toBe(false);
+        expect(questMatchesFilters(SWARMLING_SOURCE, { regionIds: ['north'] })).toBe(false);
     });
 });
 
 describe('getOptionalEligibleQuests / victory helpers', () => {
-    const pool = [FIND_THE_HERD_OF_BOARS, OTHER_PLACEHOLDER_QUEST, NON_MATCHING_QUEST];
+    const pool = [SWARMLING_SOURCE, OTHER_PLACEHOLDER_QUEST, NON_MATCHING_QUEST];
 
     it('lists uncleared campaign quests for the optional/side outlet', () => {
         const optional = getOptionalEligibleQuests(CAMPAIGN_ID, [], pool);
         expect(optional.map((q) => q.id).sort()).toEqual(
-            [FIND_THE_HERD_OF_BOARS.id, OTHER_PLACEHOLDER_QUEST.id, NON_MATCHING_QUEST.id].sort(),
+            [SWARMLING_SOURCE.id, OTHER_PLACEHOLDER_QUEST.id, NON_MATCHING_QUEST.id].sort(),
         );
     });
 
     it('excludes victory-cleared quests from optional list', () => {
         const optional = getOptionalEligibleQuests(
             CAMPAIGN_ID,
-            [{ questDefId: FIND_THE_HERD_OF_BOARS.id, result: 'victory', placement: 'optional' }],
+            [{ questDefId: SWARMLING_SOURCE.id, result: 'victory', placement: 'optional' }],
             pool,
         );
         expect(optional.map((q) => q.id).sort()).toEqual(
@@ -240,7 +240,7 @@ describe('getOptionalEligibleQuests / victory helpers', () => {
     it('lists bank victory slots and victory results for map markers', () => {
         const bank = WOD_EXAMPLE_QUEST_BANK;
         const results = [
-            bankVictory(FIND_THE_HERD_OF_BOARS.id, bank.id),
+            bankVictory(SWARMLING_SOURCE.id, bank.id),
             {
                 questDefId: NON_MATCHING_QUEST.id,
                 result: 'victory' as const,
@@ -248,10 +248,10 @@ describe('getOptionalEligibleQuests / victory helpers', () => {
             },
         ];
         expect(getQuestBankVictorySlots(bank, results).map((r) => r.questDefId)).toEqual([
-            FIND_THE_HERD_OF_BOARS.id,
+            SWARMLING_SOURCE.id,
         ]);
         expect(listQuestVictoryResults(results).map((r) => r.questDefId).sort()).toEqual(
-            [FIND_THE_HERD_OF_BOARS.id, NON_MATCHING_QUEST.id].sort(),
+            [SWARMLING_SOURCE.id, NON_MATCHING_QUEST.id].sort(),
         );
     });
 });
@@ -262,12 +262,12 @@ describe('getEligibleQuestsForBank / requiredClears', () => {
         requiredClears: 2,
         filters: { tags: ['placeholder'] },
     };
-    const pool = [FIND_THE_HERD_OF_BOARS, OTHER_PLACEHOLDER_QUEST, NON_MATCHING_QUEST];
+    const pool = [SWARMLING_SOURCE, OTHER_PLACEHOLDER_QUEST, NON_MATCHING_QUEST];
 
     it('lists filter-matching uncleared quests only', () => {
         const eligible = getEligibleQuestsForBank(bank, CAMPAIGN_ID, [], pool);
         expect(eligible.map((q) => q.id).sort()).toEqual(
-            [FIND_THE_HERD_OF_BOARS.id, OTHER_PLACEHOLDER_QUEST.id].sort(),
+            [SWARMLING_SOURCE.id, OTHER_PLACEHOLDER_QUEST.id].sort(),
         );
     });
 
@@ -275,7 +275,7 @@ describe('getEligibleQuestsForBank / requiredClears', () => {
         const eligible = getEligibleQuestsForBank(
             bank,
             CAMPAIGN_ID,
-            [{ questDefId: FIND_THE_HERD_OF_BOARS.id, result: 'victory', placement: 'optional' }],
+            [{ questDefId: SWARMLING_SOURCE.id, result: 'victory', placement: 'optional' }],
             pool,
         );
         expect(eligible.map((q) => q.id)).toEqual([OTHER_PLACEHOLDER_QUEST.id]);
@@ -285,18 +285,18 @@ describe('getEligibleQuestsForBank / requiredClears', () => {
         expect(isQuestBankRequiredClearsSatisfied(bank, [])).toBe(false);
         expect(
             isQuestBankRequiredClearsSatisfied(bank, [
-                bankVictory(FIND_THE_HERD_OF_BOARS.id, bank.id),
+                bankVictory(SWARMLING_SOURCE.id, bank.id),
             ]),
         ).toBe(false);
         expect(
             countQuestBankClears(bank, [
-                bankVictory(FIND_THE_HERD_OF_BOARS.id, bank.id),
+                bankVictory(SWARMLING_SOURCE.id, bank.id),
                 bankVictory(OTHER_PLACEHOLDER_QUEST.id, bank.id),
             ]),
         ).toBe(2);
         expect(
             isQuestBankRequiredClearsSatisfied(bank, [
-                bankVictory(FIND_THE_HERD_OF_BOARS.id, bank.id),
+                bankVictory(SWARMLING_SOURCE.id, bank.id),
                 bankVictory(OTHER_PLACEHOLDER_QUEST.id, bank.id),
             ]),
         ).toBe(true);
@@ -304,7 +304,7 @@ describe('getEligibleQuestsForBank / requiredClears', () => {
         expect(
             isQuestBankRequiredClearsSatisfied(bank, [
                 {
-                    questDefId: FIND_THE_HERD_OF_BOARS.id,
+                    questDefId: SWARMLING_SOURCE.id,
                     result: 'victory',
                     placement: 'optional',
                 },
@@ -332,10 +332,10 @@ describe('placeQuestResultOnMap (join-fill)', () => {
 
     it('places into the first open matching bank', () => {
         const placement = placeQuestResultOnMap(
-            { questDefId: FIND_THE_HERD_OF_BOARS.id, result: 'victory' },
+            { questDefId: SWARMLING_SOURCE.id, result: 'victory' },
             [bankA, bankB],
             [],
-            FIND_THE_HERD_OF_BOARS,
+            SWARMLING_SOURCE,
         );
         expect(placement).toEqual({ placement: 'bank', bankId: bankA.id });
     });
@@ -343,10 +343,10 @@ describe('placeQuestResultOnMap (join-fill)', () => {
     it('spills to optional when matching banks are full', () => {
         const existing = [bankVictory('already_filled', bankA.id)];
         const placement = placeQuestResultOnMap(
-            { questDefId: FIND_THE_HERD_OF_BOARS.id, result: 'victory' },
+            { questDefId: SWARMLING_SOURCE.id, result: 'victory' },
             [bankA],
             existing,
-            FIND_THE_HERD_OF_BOARS,
+            SWARMLING_SOURCE,
         );
         expect(placement).toEqual({ placement: 'optional' });
     });
@@ -364,17 +364,17 @@ describe('placeQuestResultOnMap (join-fill)', () => {
     it('keeps prior victory placement on re-clear', () => {
         const existing: QuestResult[] = [
             {
-                questDefId: FIND_THE_HERD_OF_BOARS.id,
+                questDefId: SWARMLING_SOURCE.id,
                 result: 'victory',
                 placement: 'bank',
                 bankId: WOD_EXAMPLE_QUEST_BANK_ID,
             },
         ];
         const placement = placeQuestResultOnMap(
-            { questDefId: FIND_THE_HERD_OF_BOARS.id, result: 'victory' },
+            { questDefId: SWARMLING_SOURCE.id, result: 'victory' },
             [bankA],
             existing,
-            FIND_THE_HERD_OF_BOARS,
+            SWARMLING_SOURCE,
         );
         expect(placement).toEqual({
             placement: 'bank',

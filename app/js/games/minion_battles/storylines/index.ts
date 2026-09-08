@@ -25,7 +25,7 @@ import { FOUND_BERRIES } from './WorldOfDarkness/questMissions/found_berries';
 import { SURFACE_METAL_DEPOSIT } from './WorldOfDarkness/questMissions/surface_metal_deposit';
 import { QUEST_FIND_SOME_FOOD } from './WorldOfDarkness/questMissions/quest_find_some_food';
 import { QUEST_CRYSTAL_CORRUPTION } from './WorldOfDarkness/questMissions/quest_crystal_corruption';
-import { QUEST_BOAR_HERD_NORTH } from './WorldOfDarkness/questMissions/quest_boar_herd_north';
+import { QUEST_PUSH_NORTH, QUEST_PUSH_NORTH_MISSION_ID } from './WorldOfDarkness/questMissions/quest_push_north';
 import { SWARMLING_NEST } from './WorldOfDarkness/questMissions/swarmling_nest';
 
 /** Default mission when missionId is unknown (e.g. fallback in BattlePhase). */
@@ -57,7 +57,7 @@ export const MISSION_MAP: Record<string, IBaseMissionDef> = {
     surface_metal_deposit: SURFACE_METAL_DEPOSIT,
     quest_find_some_food: QUEST_FIND_SOME_FOOD,
     quest_crystal_corruption: QUEST_CRYSTAL_CORRUPTION,
-    quest_boar_herd_north: QUEST_BOAR_HERD_NORTH,
+    [QUEST_PUSH_NORTH_MISSION_ID]: QUEST_PUSH_NORTH,
     swarmling_nest: SWARMLING_NEST,
 };
 

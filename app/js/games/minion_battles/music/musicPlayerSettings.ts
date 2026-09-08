@@ -1,4 +1,11 @@
-import { DEFAULT_MUSIC_VOLUME, MUSIC_PLAYER_STORAGE_KEY } from './musicConstants';
+import {
+    DEFAULT_MUSIC_PLAYBACK_PREFERENCE,
+    DEFAULT_MUSIC_VOLUME,
+    MUSIC_PLAYBACK_PREFERENCE_AUTOPAUSE,
+    MUSIC_PLAYBACK_PREFERENCE_AUTOPLAY,
+    MUSIC_PLAYER_STORAGE_KEY,
+    type MusicPlaybackPreference,
+} from './musicConstants';
 import type { MusicPlayerSettings } from './musicTypes';
 
 function clampVolume(value: number): number {
@@ -6,8 +13,18 @@ function clampVolume(value: number): number {
     return Math.max(0, Math.min(1, value));
 }
 
+function parsePlaybackPreference(value: unknown): MusicPlaybackPreference {
+    if (value === MUSIC_PLAYBACK_PREFERENCE_AUTOPAUSE) return MUSIC_PLAYBACK_PREFERENCE_AUTOPAUSE;
+    if (value === MUSIC_PLAYBACK_PREFERENCE_AUTOPLAY) return MUSIC_PLAYBACK_PREFERENCE_AUTOPLAY;
+    return DEFAULT_MUSIC_PLAYBACK_PREFERENCE;
+}
+
 export function defaultMusicPlayerSettings(): MusicPlayerSettings {
-    return { volume: DEFAULT_MUSIC_VOLUME, muted: false };
+    return {
+        volume: DEFAULT_MUSIC_VOLUME,
+        muted: false,
+        playbackPreference: DEFAULT_MUSIC_PLAYBACK_PREFERENCE,
+    };
 }
 
 export function parseMusicPlayerSettings(raw: string | null): MusicPlayerSettings {
@@ -18,6 +35,7 @@ export function parseMusicPlayerSettings(raw: string | null): MusicPlayerSetting
         return {
             volume: typeof parsed.volume === 'number' ? clampVolume(parsed.volume) : fallback.volume,
             muted: parsed.muted === true,
+            playbackPreference: parsePlaybackPreference(parsed.playbackPreference),
         };
     } catch {
         return fallback;
@@ -41,6 +59,7 @@ export function saveMusicPlayerSettings(settings: MusicPlayerSettings): void {
             JSON.stringify({
                 volume: clampVolume(settings.volume),
                 muted: settings.muted === true,
+                playbackPreference: parsePlaybackPreference(settings.playbackPreference),
             }),
         );
     } catch {

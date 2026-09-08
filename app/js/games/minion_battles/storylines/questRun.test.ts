@@ -12,9 +12,10 @@ import {
     stayQuestRunOnMissionDefeat,
 } from './questRun';
 import {
-    FIND_THE_HERD_OF_BOARS,
-    FIND_THE_HERD_OF_BOARS_FINALE_MISSION_ID,
-} from './WorldOfDarkness/quests/find_the_herd_of_boars';
+    SWARMLING_SOURCE,
+    SWARMLING_SOURCE_FINALE_MISSION_ID,
+} from './WorldOfDarkness/quests/swarmling_source';
+import { QUEST_PUSH_NORTH_MISSION_ID } from './WorldOfDarkness/questMissions/quest_push_north';
 
 const RUN_SEED_A = 42;
 const RUN_SEED_B = 99;
@@ -28,7 +29,7 @@ const CAMPAIGN_CHARACTER = {
 
 /** Example quest plus completion Campaign Rewards for completeQuestRun tests. */
 const QUEST_WITH_COMPLETION: QuestDef = {
-    ...FIND_THE_HERD_OF_BOARS,
+    ...SWARMLING_SOURCE,
     completionRewards: {
         resourceDelta: { food: 3 },
         unlockItemIds: ['item_completion_badge'],
@@ -49,7 +50,7 @@ function startActiveRun(params: Parameters<typeof startQuestRun>[0]): QuestRunSt
 describe('seekQuestRunToSlot', () => {
     it('jumps currentSlotIndex and leaves prep when seeking past slot 0', () => {
         const prep = startQuestRun({
-            questDef: FIND_THE_HERD_OF_BOARS,
+            questDef: SWARMLING_SOURCE,
             character: CAMPAIGN_CHARACTER,
             runSeed: RUN_SEED_A,
         });
@@ -61,7 +62,7 @@ describe('seekQuestRunToSlot', () => {
 
     it('stays in prep when seeking to slot 0 from prep', () => {
         const prep = startQuestRun({
-            questDef: FIND_THE_HERD_OF_BOARS,
+            questDef: SWARMLING_SOURCE,
             character: CAMPAIGN_CHARACTER,
             runSeed: RUN_SEED_A,
         });
@@ -72,7 +73,7 @@ describe('seekQuestRunToSlot', () => {
 
     it('rejects out-of-range and abandoned runs', () => {
         const run = startActiveRun({
-            questDef: FIND_THE_HERD_OF_BOARS,
+            questDef: SWARMLING_SOURCE,
             character: CAMPAIGN_CHARACTER,
             runSeed: RUN_SEED_A,
         });
@@ -85,7 +86,7 @@ describe('seekQuestRunToSlot', () => {
 describe('startQuestRun', () => {
     it('clones Campaign Character into Quest Character in prep and resolves fixed slots', () => {
         const run = startQuestRun({
-            questDef: FIND_THE_HERD_OF_BOARS,
+            questDef: SWARMLING_SOURCE,
             character: CAMPAIGN_CHARACTER,
             runSeed: RUN_SEED_A,
             assignedBankId: SAMPLE_BANK_ID,
@@ -93,7 +94,7 @@ describe('startQuestRun', () => {
         });
 
         expect(run.status).toBe('prep');
-        expect(run.questDefId).toBe(FIND_THE_HERD_OF_BOARS.id);
+        expect(run.questDefId).toBe(SWARMLING_SOURCE.id);
         expect(run.runSeed).toBe(RUN_SEED_A);
         expect(run.currentSlotIndex).toBe(0);
         expect(run.assignedBankId).toBe(SAMPLE_BANK_ID);
@@ -102,20 +103,20 @@ describe('startQuestRun', () => {
         expect(run.questCharacter.equipment).not.toBe(CAMPAIGN_CHARACTER.equipment);
         expect(run.questCharacter.selectedAbilityIds).toEqual([]);
         expect(run.questCharacter.campaignRewards).toEqual([]);
-        expect(run.resolvedSlots[0]).toEqual({ kind: 'fixed', missionId: 'quest_boar_herd_north' });
+        expect(run.resolvedSlots[0]).toEqual({ kind: 'fixed', missionId: QUEST_PUSH_NORTH_MISSION_ID });
         expect(run.resolvedSlots[1]?.kind).toBe('generated');
         expect(run.resolvedSlots[2]).toEqual({
             kind: 'fixed',
-            missionId: FIND_THE_HERD_OF_BOARS_FINALE_MISSION_ID,
+            missionId: SWARMLING_SOURCE_FINALE_MISSION_ID,
         });
-        expect(getCurrentResolvedMission(run)?.missionId).toBe('quest_boar_herd_north');
+        expect(getCurrentResolvedMission(run)?.missionId).toBe(QUEST_PUSH_NORTH_MISSION_ID);
     });
 
     it('does not mutate the Campaign Character equipment array', () => {
         const equipment = ['004'];
         const character = { id: 'char_a', equipment };
         const run = startQuestRun({
-            questDef: FIND_THE_HERD_OF_BOARS,
+            questDef: SWARMLING_SOURCE,
             character,
             runSeed: RUN_SEED_A,
         });
@@ -127,7 +128,7 @@ describe('startQuestRun', () => {
 describe('mission victory / defeat', () => {
     it('advances slot index on victory and keeps the same resolvedSlots on defeat retry', () => {
         let run = startActiveRun({
-            questDef: FIND_THE_HERD_OF_BOARS,
+            questDef: SWARMLING_SOURCE,
             character: CAMPAIGN_CHARACTER,
             runSeed: RUN_SEED_A,
             runId: 'run_retry',
@@ -159,11 +160,11 @@ describe('mission victory / defeat', () => {
 
     it('signals finale on the last slot victory without clearing resolvedSlots', () => {
         let run = startActiveRun({
-            questDef: FIND_THE_HERD_OF_BOARS,
+            questDef: SWARMLING_SOURCE,
             character: CAMPAIGN_CHARACTER,
             runSeed: RUN_SEED_A,
         });
-        for (let i = 0; i < FIND_THE_HERD_OF_BOARS.slots.length - 1; i++) {
+        for (let i = 0; i < SWARMLING_SOURCE.slots.length - 1; i++) {
             const step = advanceQuestRunOnMissionVictory(run);
             expect(step.kind).toBe('continued');
             if (step.kind !== 'continued') return;
@@ -172,16 +173,16 @@ describe('mission victory / defeat', () => {
         const finale = advanceQuestRunOnMissionVictory(run);
         expect(finale.kind).toBe('finale');
         if (finale.kind !== 'finale') return;
-        expect(finale.run.currentSlotIndex).toBe(FIND_THE_HERD_OF_BOARS.slots.length - 1);
+        expect(finale.run.currentSlotIndex).toBe(SWARMLING_SOURCE.slots.length - 1);
         expect(finale.run.status).toBe('active');
-        expect(finale.run.resolvedSlots.length).toBe(FIND_THE_HERD_OF_BOARS.slots.length);
+        expect(finale.run.resolvedSlots.length).toBe(SWARMLING_SOURCE.slots.length);
     });
 });
 
 describe('abandonQuestRun', () => {
     it('marks abandoned and leaves Quest Character / Campaign Rewards untouched (no campaign apply)', () => {
         let run = startActiveRun({
-            questDef: FIND_THE_HERD_OF_BOARS,
+            questDef: SWARMLING_SOURCE,
             character: CAMPAIGN_CHARACTER,
             runSeed: RUN_SEED_A,
             assignedBankId: SAMPLE_BANK_ID,
@@ -204,7 +205,7 @@ describe('abandonQuestRun', () => {
 describe('abandon then new run may re-resolve', () => {
     it('new run with a different seed gets a fresh resolve pass (and new runId)', () => {
         const first = startQuestRun({
-            questDef: FIND_THE_HERD_OF_BOARS,
+            questDef: SWARMLING_SOURCE,
             character: CAMPAIGN_CHARACTER,
             runSeed: RUN_SEED_A,
             runId: 'run_a',
@@ -212,7 +213,7 @@ describe('abandon then new run may re-resolve', () => {
         abandonQuestRun(first);
 
         const second = startQuestRun({
-            questDef: FIND_THE_HERD_OF_BOARS,
+            questDef: SWARMLING_SOURCE,
             character: CAMPAIGN_CHARACTER,
             runSeed: RUN_SEED_B,
             runId: 'run_b',

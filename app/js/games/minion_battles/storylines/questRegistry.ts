@@ -3,12 +3,12 @@
  */
 
 import type { QuestDef } from './questTypes';
-import { FIND_THE_HERD_OF_BOARS } from './WorldOfDarkness/quests/find_the_herd_of_boars';
+import { SWARMLING_SOURCE } from './WorldOfDarkness/quests/swarmling_source';
 import { SCAVENGE_THE_PLAINS } from './WorldOfDarkness/quests/scavenge_the_plains';
 
 export const QUEST_MAP: Record<string, QuestDef> = {
     /** Plumbing / fixed-slot fixture; also a dedicated chapter 2 map node. */
-    [FIND_THE_HERD_OF_BOARS.id]: FIND_THE_HERD_OF_BOARS,
+    [SWARMLING_SOURCE.id]: SWARMLING_SOURCE,
     [SCAVENGE_THE_PLAINS.id]: SCAVENGE_THE_PLAINS,
 };
 

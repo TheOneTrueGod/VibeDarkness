@@ -16,16 +16,17 @@ import {
 } from './questLobby';
 import { finalizeQuestPrepLoadout, queueCampaignReward, startQuestRun } from './questRun';
 import {
-    FIND_THE_HERD_OF_BOARS,
-    FIND_THE_HERD_OF_BOARS_FINALE_MISSION_ID,
-} from './WorldOfDarkness/quests/find_the_herd_of_boars';
+    SWARMLING_SOURCE,
+    SWARMLING_SOURCE_FINALE_MISSION_ID,
+} from './WorldOfDarkness/quests/swarmling_source';
+import { QUEST_PUSH_NORTH_MISSION_ID } from './WorldOfDarkness/questMissions/quest_push_north';
 
 const CHARACTER = { id: 'char_q', equipment: ['004'] as const };
 const RUN_SEED = 42;
 
 function startActiveRun() {
     const prep = startQuestRun({
-        questDef: FIND_THE_HERD_OF_BOARS,
+        questDef: SWARMLING_SOURCE,
         character: CHARACTER,
         runSeed: RUN_SEED,
     });
@@ -40,29 +41,29 @@ function startActiveRun() {
 describe('questLobbyFieldsFromRun / readQuestLobbyFields', () => {
     it('stamps lobby fields from the current resolved slot', () => {
         const run = startQuestRun({
-            questDef: FIND_THE_HERD_OF_BOARS,
+            questDef: SWARMLING_SOURCE,
             character: CHARACTER,
             runSeed: RUN_SEED,
         });
         const fields = questLobbyFieldsFromRun(run);
-        expect(fields.questDefId).toBe(FIND_THE_HERD_OF_BOARS.id);
+        expect(fields.questDefId).toBe(SWARMLING_SOURCE.id);
         expect(fields.questRunId).toBe(run.runId);
         expect(fields.questSlotIndex).toBe(0);
         expect(fields.questRunSeed).toBe(RUN_SEED);
-        expect(fields.selectedMissionId).toBe('quest_boar_herd_north');
-        expect(missionIdFromResolvedRef(run.resolvedSlots[0])).toBe('quest_boar_herd_north');
+        expect(fields.selectedMissionId).toBe(QUEST_PUSH_NORTH_MISSION_ID);
+        expect(missionIdFromResolvedRef(run.resolvedSlots[0])).toBe(QUEST_PUSH_NORTH_MISSION_ID);
     });
 
     it('reads valid lobby payload fields and rejects incomplete ones', () => {
         expect(
             readQuestLobbyFields({
-                questDefId: 'find_the_herd_of_boars',
+                questDefId: SWARMLING_SOURCE.id,
                 questRunId: 'run_1',
                 questSlotIndex: 1,
                 questRunSeed: 9,
             }),
         ).toEqual({
-            questDefId: 'find_the_herd_of_boars',
+            questDefId: SWARMLING_SOURCE.id,
             questRunId: 'run_1',
             questSlotIndex: 1,
             questRunSeed: 9,
@@ -73,7 +74,7 @@ describe('questLobbyFieldsFromRun / readQuestLobbyFields', () => {
 
     it('questRunMatchesLobby requires active run and matching stamp', () => {
         const prep = startQuestRun({
-            questDef: FIND_THE_HERD_OF_BOARS,
+            questDef: SWARMLING_SOURCE,
             character: CHARACTER,
             runSeed: RUN_SEED,
         });
@@ -101,19 +102,19 @@ describe('questLobbyFieldsFromRun / readQuestLobbyFields', () => {
 
     it('buildQuestContinuationClaimPayload stamps reserved party fields', () => {
         const run = startActiveRun();
-        const plan = planQuestVictoryContinue(run, FIND_THE_HERD_OF_BOARS);
+        const plan = planQuestVictoryContinue(run, SWARMLING_SOURCE);
         expect(plan.kind).toBe('continued');
         if (plan.kind !== 'continued') return;
         const requiredPlayers = requiredPlayersFromPartyRoster(plan.run.partyRoster);
         const payload = buildQuestContinuationClaimPayload({
-            questTitle: FIND_THE_HERD_OF_BOARS.title,
+            questTitle: SWARMLING_SOURCE.title,
             nextMissionId: plan.nextMissionId,
             lobbyFields: plan.lobbyFields,
             requiredPlayers,
             characterSelections: { '1': CHARACTER.id },
             questAbilityLoadoutsByCharacterId: { [CHARACTER.id]: ['0101'] },
         });
-        expect(payload.lobbyName).toContain(questLobbyNamePrefix(FIND_THE_HERD_OF_BOARS.title));
+        expect(payload.lobbyName).toContain(questLobbyNamePrefix(SWARMLING_SOURCE.title));
         expect(payload.nextMissionId).toBe(plan.nextMissionId);
         expect(payload.questRunId).toBe(plan.lobbyFields.questRunId);
         expect(payload.questSlotIndex).toBe(1);
@@ -134,7 +135,7 @@ describe('questLobbyFieldsFromRun / readQuestLobbyFields', () => {
 describe('planQuestVictoryContinue / planQuestDefeatRetry', () => {
     it('victory advances to the next resolved mission id', () => {
         const run = startActiveRun();
-        const plan = planQuestVictoryContinue(run, FIND_THE_HERD_OF_BOARS);
+        const plan = planQuestVictoryContinue(run, SWARMLING_SOURCE);
         expect(plan.kind).toBe('continued');
         if (plan.kind !== 'continued') return;
         expect(plan.nextMissionId).toBe(run.resolvedSlots[1]!.missionId);
@@ -150,7 +151,7 @@ describe('planQuestVictoryContinue / planQuestDefeatRetry', () => {
             source: 'story',
             resourceDelta: { food: 2 },
         });
-        const plan = planQuestVictoryContinue(withReward, FIND_THE_HERD_OF_BOARS);
+        const plan = planQuestVictoryContinue(withReward, SWARMLING_SOURCE);
         expect(plan.kind).toBe('continued');
         if (plan.kind !== 'continued') return;
         expect(plan.run.currentSlotIndex).toBe(1);
@@ -162,23 +163,23 @@ describe('planQuestVictoryContinue / planQuestDefeatRetry', () => {
 
     it('finale completes the quest on the last slot victory', () => {
         let run = startActiveRun();
-        for (let i = 0; i < FIND_THE_HERD_OF_BOARS.slots.length - 1; i++) {
-            const step = planQuestVictoryContinue(run, FIND_THE_HERD_OF_BOARS);
+        for (let i = 0; i < SWARMLING_SOURCE.slots.length - 1; i++) {
+            const step = planQuestVictoryContinue(run, SWARMLING_SOURCE);
             expect(step.kind).toBe('continued');
             if (step.kind !== 'continued') return;
             run = step.run;
         }
-        const finale = planQuestVictoryContinue(run, FIND_THE_HERD_OF_BOARS);
+        const finale = planQuestVictoryContinue(run, SWARMLING_SOURCE);
         expect(finale.kind).toBe('finale');
         if (finale.kind !== 'finale') return;
         expect(finale.complete.run.status).toBe('completed');
         expect(finale.complete.result.result).toBe('victory');
-        expect(finale.complete.result.questDefId).toBe(FIND_THE_HERD_OF_BOARS.id);
+        expect(finale.complete.result.questDefId).toBe(SWARMLING_SOURCE.id);
     });
 
     it('defeat retry keeps the same mission id and lobby stamp', () => {
         const run = startActiveRun();
-        const continued = planQuestVictoryContinue(run, FIND_THE_HERD_OF_BOARS);
+        const continued = planQuestVictoryContinue(run, SWARMLING_SOURCE);
         expect(continued.kind).toBe('continued');
         if (continued.kind !== 'continued') return;
         const retry = planQuestDefeatRetry(continued.run);
@@ -190,10 +191,10 @@ describe('planQuestVictoryContinue / planQuestDefeatRetry', () => {
 
 describe('questSlotMissionIds / questSlotPillStatus / questLobbyNamePrefix', () => {
     it('uses fixed slot mission ids and random_story placeholder when no active run', () => {
-        expect(questSlotMissionIds(FIND_THE_HERD_OF_BOARS, null)).toEqual([
-            'quest_boar_herd_north',
+        expect(questSlotMissionIds(SWARMLING_SOURCE, null)).toEqual([
+            QUEST_PUSH_NORTH_MISSION_ID,
             'random_story',
-            FIND_THE_HERD_OF_BOARS_FINALE_MISSION_ID,
+            SWARMLING_SOURCE_FINALE_MISSION_ID,
         ]);
     });
 
@@ -205,8 +206,8 @@ describe('questSlotMissionIds / questSlotPillStatus / questLobbyNamePrefix', () 
     });
 
     it('builds the quest lobby name prefix used for teardown matching', () => {
-        expect(questLobbyNamePrefix(FIND_THE_HERD_OF_BOARS.title)).toBe(
-            `Quest: ${FIND_THE_HERD_OF_BOARS.title}`,
+        expect(questLobbyNamePrefix(SWARMLING_SOURCE.title)).toBe(
+            `Quest: ${SWARMLING_SOURCE.title}`,
         );
     });
 });

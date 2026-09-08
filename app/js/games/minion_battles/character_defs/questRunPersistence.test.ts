@@ -2,23 +2,24 @@ import { describe, expect, it } from 'vitest';
 import { fromCampaignCharacterData } from './CampaignCharacter';
 import type { CampaignCharacterData } from './campaignCharacterTypes';
 import type { QuestResult, QuestRunState } from '../storylines/questTypes';
-import { FIND_THE_HERD_OF_BOARS } from '../storylines/WorldOfDarkness/quests/find_the_herd_of_boars';
+import { SWARMLING_SOURCE } from '../storylines/WorldOfDarkness/quests/swarmling_source';
+import { QUEST_PUSH_NORTH_MISSION_ID } from '../storylines/WorldOfDarkness/questMissions/quest_push_north';
 
-const CAMPAIGN_ID = FIND_THE_HERD_OF_BOARS.campaignId;
+const CAMPAIGN_ID = SWARMLING_SOURCE.campaignId;
 
 const SAMPLE_RUN_SEED = 42;
 const SAMPLE_CURRENT_SLOT_INDEX = 1;
 const SAMPLE_ASSIGNED_BANK_ID = 'bank_south_gate';
 
 const SAMPLE_RESOLVED_SLOTS = [
-    { kind: 'fixed' as const, missionId: 'quest_boar_herd_north' },
+    { kind: 'fixed' as const, missionId: QUEST_PUSH_NORTH_MISSION_ID },
     { kind: 'fixed' as const, missionId: 'found_berries' },
     { kind: 'fixed' as const, missionId: 'light_empowered' },
 ];
 
 const SAMPLE_RUN: QuestRunState = {
     runId: 'run_test_1',
-    questDefId: FIND_THE_HERD_OF_BOARS.id,
+    questDefId: SWARMLING_SOURCE.id,
     runSeed: SAMPLE_RUN_SEED,
     status: 'active',
     currentSlotIndex: SAMPLE_CURRENT_SLOT_INDEX,
@@ -40,7 +41,7 @@ const SAMPLE_RUN: QuestRunState = {
 };
 
 const SAMPLE_VICTORY: QuestResult = {
-    questDefId: FIND_THE_HERD_OF_BOARS.id,
+    questDefId: SWARMLING_SOURCE.id,
     result: 'victory',
     timestamp: 1_700_000_000,
     resourceDelta: { crystals: 2 },

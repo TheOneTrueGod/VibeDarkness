@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SWARMLING_NEST_MISSION_ID } from '../games/minion_battles/storylines/WorldOfDarkness/questMissions/swarmling_nest';
-import { QUEST_BOAR_HERD_NORTH_MISSION_ID } from '../games/minion_battles/storylines/WorldOfDarkness/questMissions/quest_boar_herd_north';
+import { QUEST_PUSH_NORTH_MISSION_ID } from '../games/minion_battles/storylines/WorldOfDarkness/questMissions/quest_push_north';
 import { selectedMissionIdFromGameData } from './MissionIdBadge';
 
 describe('selectedMissionIdFromGameData', () => {
@@ -8,8 +8,8 @@ describe('selectedMissionIdFromGameData', () => {
         expect(selectedMissionIdFromGameData({ selectedMissionId: SWARMLING_NEST_MISSION_ID })).toBe(
             SWARMLING_NEST_MISSION_ID,
         );
-        expect(selectedMissionIdFromGameData({ selected_mission_id: QUEST_BOAR_HERD_NORTH_MISSION_ID })).toBe(
-            QUEST_BOAR_HERD_NORTH_MISSION_ID,
+        expect(selectedMissionIdFromGameData({ selected_mission_id: QUEST_PUSH_NORTH_MISSION_ID })).toBe(
+            QUEST_PUSH_NORTH_MISSION_ID,
         );
     });
 
