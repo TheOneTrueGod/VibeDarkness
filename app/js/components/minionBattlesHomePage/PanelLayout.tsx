@@ -19,6 +19,8 @@ interface PanelLayoutProps {
     subtitle?: ReactNode;
     /** Right-side content in the structured title bar (buttons, selectors, etc). */
     actions?: ReactNode;
+    /** Overrides the default card title heading class. */
+    titleClassName?: string;
 
     /**
      * Fully custom header content. Used when `title` is not set. Kept for panels
@@ -69,6 +71,7 @@ export default function PanelLayout({
     title,
     subtitle,
     actions,
+    titleClassName,
     header,
     headerClassName,
     left,
@@ -102,7 +105,7 @@ export default function PanelLayout({
 
     if (title != null) {
         return (
-            <CardWithTitle title={title} subtitle={subtitle} actions={actions} bodyClassName="overflow-hidden">
+            <CardWithTitle title={title} subtitle={subtitle} actions={actions} titleClassName={titleClassName} bodyClassName="overflow-hidden">
                 <div className="flex h-full min-h-0">{columns}</div>
             </CardWithTitle>
         );

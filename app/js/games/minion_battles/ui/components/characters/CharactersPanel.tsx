@@ -12,6 +12,7 @@ import { ALL_PLAYER_ITEMS } from '../../../character_defs/items';
 import { useUserData } from '../../../../../user/UserDataProvider';
 import { STORYLINES } from '../../../storylines/index';
 import PanelLayout from '../../../../../components/minionBattlesHomePage/PanelLayout';
+import { CHARACTERS_CARD_TITLE_CLASS } from '../../../../../components/CardWithTitle';
 import {
     playersListPath,
     playerCharactersPath,
@@ -36,6 +37,10 @@ function formatCountdown(seconds: number): string {
     const s = seconds % 60;
     return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
+
+/** Compact header actions next to the Characters card title. */
+const CHARACTERS_HEADER_ACTION_BUTTON_CLASS =
+    'rounded-lg border border-border-custom bg-surface-light px-3 py-1.5 text-xs font-medium text-white hover:bg-border-custom disabled:opacity-60';
 
 interface CharactersPanelProps {
     api: MinionBattlesApi;
@@ -501,6 +506,7 @@ export default function CharactersPanel({
             <>
                 <PanelLayout
                     title={`${adminDetails?.account.name ?? (playerIdParam ? `Account #${playerIdParam}` : 'Loading…')}'s Characters`}
+                    titleClassName={CHARACTERS_CARD_TITLE_CLASS}
                     subtitle={inEAR ? (
                         <span className="font-semibold text-red-400">
                             Emergency Recovery: ({formatCountdown(earSecondsLeft)})
@@ -532,7 +538,7 @@ export default function CharactersPanel({
                             <button
                                 type="button"
                                 onClick={() => void refreshAdminPlayer()}
-                                className="rounded-lg border border-border-custom bg-surface-light px-4 py-2 text-sm font-medium text-white hover:bg-border-custom disabled:opacity-60"
+                                className={CHARACTERS_HEADER_ACTION_BUTTON_CLASS}
                                 disabled={adminLoading}
                             >
                                 {adminLoading ? 'Refreshing…' : 'Refresh'}
@@ -540,7 +546,7 @@ export default function CharactersPanel({
                             <button
                                 type="button"
                                 onClick={() => navigate(playersListPath())}
-                                className="rounded-lg border border-border-custom bg-surface-light px-4 py-2 text-sm font-medium text-white hover:bg-border-custom"
+                                className={CHARACTERS_HEADER_ACTION_BUTTON_CLASS}
                             >
                                 Back
                             </button>
@@ -883,6 +889,7 @@ export default function CharactersPanel({
         <>
             <PanelLayout
                 title="My Characters"
+                titleClassName={CHARACTERS_CARD_TITLE_CLASS}
                 subtitle="View your campaign progress and mission history"
                 center={
                     <CharacterListPulloutHost
