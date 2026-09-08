@@ -529,6 +529,7 @@ export default function BattlePhase({
                 }
                 bottomLeftCorner={abilityBarSlots.bottomLeftCorner}
                 bottomRow={abilityBarSlots.bottomRow}
+                bottomRowClassName="px-3 py-0"
                 bottomRightCorner={abilityBarSlots.bottomRightCorner}
             />
             <HudEffectCanvas ref={hudEffectCanvasRef} engine={engine} />

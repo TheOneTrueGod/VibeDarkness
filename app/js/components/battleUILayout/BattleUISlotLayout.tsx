@@ -8,7 +8,7 @@
 import React from 'react';
 
 /** Height of the bottom band (corners + row); fixed regardless of what's slotted in. */
-const BOTTOM_BAND_HEIGHT_PX = 238;
+export const BOTTOM_BAND_HEIGHT_PX = 238;
 
 /** Content max width on very large screens, centered with a gradient fade to the edges. */
 const MAX_CONTENT_WIDTH_PX = 1600;

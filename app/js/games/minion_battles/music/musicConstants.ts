@@ -10,8 +10,8 @@ export const DEFAULT_CROSSFADE_IN_AT_SEC = 2;
  */
 export const DEFAULT_CROSSFADE_OUT_OFFSET_SEC = 2;
 
-/** Default gain when no saved setting exists (50% on the volume slider). */
-export const DEFAULT_MUSIC_VOLUME = 0.5;
+/** Default gain when no saved setting exists (30% on the volume slider). */
+export const DEFAULT_MUSIC_VOLUME = 0.3;
 
 export const MUSIC_PLAYBACK_PREFERENCE_AUTOPLAY = 'autoplay';
 export const MUSIC_PLAYBACK_PREFERENCE_AUTOPAUSE = 'autopause';

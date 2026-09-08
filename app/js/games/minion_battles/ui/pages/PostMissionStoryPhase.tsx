@@ -40,6 +40,7 @@ import {
     eligibleStoryRewardPlayerIds,
     sumAlsoGrantToOthersFromParty,
 } from '../../storylines/partyStoryGrants';
+import { prepLoadoutPrimaryIdsForResearchGrant } from '../../storylines/questPrepLoadout';
 
 function isDialogue(phrase: PostMissionPhrase | undefined): phrase is DialoguePhrase {
     return !!phrase && phrase.type === 'dialogue';
@@ -111,6 +112,12 @@ interface PostMissionStoryPhaseProps {
     playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
     /** playerId → choiceId → optionId (lobby game state); used for alsoGrantToOthers stacking. */
     playerStoryChoices?: Record<string, Record<string, string>>;
+    /** Prepare Carefully primary picks by player id. */
+    missionPrepLoadoutsByPlayer?: Record<string, string[]>;
+    /** Quest Prep primary picks by player id. */
+    questPrepLoadoutsByPlayer?: Record<string, string[]>;
+    /** Frozen Quest Prep picks by character id. */
+    questAbilityLoadoutsByCharacterId?: Record<string, string[]>;
     onComplete: (rewards: MissionRewards) => void;
     /** Header slot content, forwarded from GameScreen via Game.tsx. */
     headerSlot?: React.ReactNode;
@@ -130,6 +137,9 @@ export default function PostMissionStoryPhase({
     playerEquipmentByPlayer = {},
     playerResearchTreesByPlayer = {},
     playerStoryChoices = {},
+    missionPrepLoadoutsByPlayer = {},
+    questPrepLoadoutsByPlayer = {},
+    questAbilityLoadoutsByCharacterId = {},
     onComplete,
     headerSlot,
     chatSlot,
@@ -229,6 +239,17 @@ export default function PostMissionStoryPhase({
             return;
         }
         const rewardId = `${phrase.treeId}+${phrase.nodeId}`;
+        const prepLoadoutPrimaryIds = prepLoadoutPrimaryIdsForResearchGrant({
+            playerId,
+            characterId: characterSelections[playerId],
+            equipment: playerEquipmentByPlayer[playerId] ?? [],
+            researchTrees: playerResearchTreesByPlayer[playerId],
+            treeId: phrase.treeId,
+            nodeId: phrase.nodeId,
+            missionPrepLoadoutsByPlayer,
+            questPrepLoadoutsByPlayer,
+            questAbilityLoadoutsByCharacterId,
+        });
         void api.sendMessage(MessageType.STORY_CHOICE, {
             choiceId: 'auto_grant_research',
             optionId: 'auto',
@@ -236,6 +257,7 @@ export default function PostMissionStoryPhase({
             treeId: phrase.treeId,
             nodeId: phrase.nodeId,
             researchRewardId: rewardId,
+            ...(prepLoadoutPrimaryIds && { prepLoadoutPrimaryIds }),
         }).catch((err) => console.error('Failed to auto-grant research:', err));
         const node = getResearchNode(phrase.treeId, phrase.nodeId);
         if (node) {
@@ -400,15 +422,30 @@ export default function PostMissionStoryPhase({
                         }
                     }
                 }
+                const researchReward = !amNpcController ? resolvedOption?.researchReward : undefined;
+                const prepLoadoutPrimaryIds = researchReward
+                    ? prepLoadoutPrimaryIdsForResearchGrant({
+                        playerId,
+                        characterId: characterSelections[playerId],
+                        equipment: currentEquipment,
+                        researchTrees: playerResearchTreesByPlayer[playerId],
+                        treeId: researchReward.treeId,
+                        nodeId: researchReward.nodeId,
+                        missionPrepLoadoutsByPlayer,
+                        questPrepLoadoutsByPlayer,
+                        questAbilityLoadoutsByCharacterId,
+                    })
+                    : undefined;
                 await api.sendMessage(MessageType.STORY_CHOICE, {
                     choiceId,
                     optionId,
                     ...(!amNpcController && itemId !== undefined && { itemId, replaceItemIds }),
-                    ...(!amNpcController && resolvedOption?.researchReward && {
+                    ...(researchReward && {
                         actionType: 'grant_research_to_player' as const,
-                        treeId: resolvedOption.researchReward.treeId,
-                        nodeId: resolvedOption.researchReward.nodeId,
-                        researchRewardId: resolvedOption.researchReward.rewardId,
+                        treeId: researchReward.treeId,
+                        nodeId: researchReward.nodeId,
+                        researchRewardId: researchReward.rewardId,
+                        ...(prepLoadoutPrimaryIds && { prepLoadoutPrimaryIds }),
                     }),
                 });
             } catch (error) {
@@ -474,10 +511,14 @@ export default function PostMissionStoryPhase({
             api,
             characterSelections,
             finishAfterChoice,
+            missionPrepLoadoutsByPlayer,
             playerEquipmentByPlayer,
             playerId,
+            playerResearchTreesByPlayer,
             playerStoryChoices,
             postMissionChoiceOptions,
+            questAbilityLoadoutsByCharacterId,
+            questPrepLoadoutsByPlayer,
             waitingForPartyChoiceId,
         ],
     );

@@ -16,6 +16,8 @@ class LobbyManager
 
     private const ACTIVE_LOBBY_TTL_SECONDS = 600; // 10 minutes
     private const ACTIVE_LOBBY_MAX = 5;
+    /** Must match `PREP_ABILITY_SLOT_COUNT` in questPrepLoadout.ts. */
+    private const PREP_ABILITY_SLOT_COUNT = 7;
 
     private function __construct() {}
 
@@ -1309,8 +1311,10 @@ class LobbyManager
      * If itemId is provided, also equips that item on the player's selected character (and removes replaceItemIds).
      * If actionType is grant_research_to_player and treeId/nodeId are provided, grants that research node on the selected character idempotently.
      * For backward compatibility, research is also granted when treeId/nodeId are provided and actionType is omitted.
+     * If prepLoadoutPrimaryIds is provided, fills that player's frozen prep loadout (empty slots after a research grant).
      *
      * @param list<string> $replaceItemIds Item IDs to unequip when equipping itemId (e.g. same-slot items)
+     * @param list<string> $prepLoadoutPrimaryIds Primary ability ids after filling empty slots
      */
     public function applyStoryChoice(
         string $lobbyId,
@@ -1322,7 +1326,8 @@ class LobbyManager
         array $replaceItemIds = [],
         ?string $actionType = null,
         ?string $treeId = null,
-        ?string $nodeId = null
+        ?string $nodeId = null,
+        array $prepLoadoutPrimaryIds = []
     ): bool {
         $lobby = $this->getLobby($lobbyId);
         if ($lobby === null) {
@@ -1418,8 +1423,106 @@ class LobbyManager
             }
         }
 
+        if (!is_string($characterId) || $characterId === '') {
+            $characterId = null;
+        }
+        $this->applyPrepLoadoutPrimaryIdsToState($currentState, $playerId, $characterId, $prepLoadoutPrimaryIds);
+
         $this->persistGameState($lobbyId, $gameId, $currentState);
         return true;
+    }
+
+    /**
+     * @param list<string> $prepLoadoutPrimaryIds
+     * @return list<string>
+     */
+    private function normalizePrepLoadoutPrimaryIds(array $prepLoadoutPrimaryIds): array
+    {
+        $out = [];
+        foreach ($prepLoadoutPrimaryIds as $id) {
+            if (!is_string($id)) {
+                continue;
+            }
+            $id = trim($id);
+            if ($id === '' || in_array($id, $out, true)) {
+                continue;
+            }
+            $out[] = $id;
+            if (count($out) >= self::PREP_ABILITY_SLOT_COUNT) {
+                break;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Persist a research-grant fill of empty prep slots onto lobby loadout maps and the character sheet.
+     *
+     * @param list<string> $prepLoadoutPrimaryIds
+     */
+    private function applyPrepLoadoutPrimaryIdsToState(
+        array &$currentState,
+        string $playerId,
+        ?string $characterId,
+        array $prepLoadoutPrimaryIds
+    ): void {
+        $ids = $this->normalizePrepLoadoutPrimaryIds($prepLoadoutPrimaryIds);
+        if ($ids === []) {
+            return;
+        }
+
+        $questByPlayer = $currentState['questPrepLoadoutsByPlayer'] ?? [];
+        $questByCharacter = $currentState['questAbilityLoadoutsByCharacterId'] ?? [];
+        $hasQuestLoadout = (is_array($questByPlayer) && isset($questByPlayer[$playerId]))
+            || (
+                $characterId !== null
+                && $characterId !== ''
+                && is_array($questByCharacter)
+                && isset($questByCharacter[$characterId])
+            );
+
+        if ($hasQuestLoadout) {
+            if (!is_array($questByPlayer)) {
+                $questByPlayer = [];
+            }
+            $questByPlayer[$playerId] = $ids;
+            $currentState['questPrepLoadoutsByPlayer'] = $questByPlayer;
+            if ($characterId !== null && $characterId !== '') {
+                if (!is_array($questByCharacter)) {
+                    $questByCharacter = [];
+                }
+                $questByCharacter[$characterId] = $ids;
+                $currentState['questAbilityLoadoutsByCharacterId'] = $questByCharacter;
+            }
+        } else {
+            $missionByPlayer = $currentState['missionPrepLoadoutsByPlayer'] ?? [];
+            if (!is_array($missionByPlayer)) {
+                $missionByPlayer = [];
+            }
+            $missionByPlayer[$playerId] = $ids;
+            $currentState['missionPrepLoadoutsByPlayer'] = $missionByPlayer;
+        }
+
+        if ($characterId === null || $characterId === '') {
+            return;
+        }
+        $characterManager = CharacterManager::getInstance();
+        $character = $characterManager->getCharacter($characterId);
+        if ($character === null) {
+            return;
+        }
+        if ($hasQuestLoadout) {
+            $run = $character->getActiveQuestRun();
+            if (is_array($run) && isset($run['questCharacter']) && is_array($run['questCharacter'])) {
+                $status = $run['status'] ?? '';
+                if ($status === 'active' || $status === 'prep') {
+                    $run['questCharacter']['selectedAbilityIds'] = $ids;
+                    $characterManager->updateCharacter($characterId, ['activeQuestRun' => $run]);
+                }
+            }
+            return;
+        }
+        $characterManager->updateCharacter($characterId, ['lastMissionAbilityIds' => $ids]);
     }
 
     /**

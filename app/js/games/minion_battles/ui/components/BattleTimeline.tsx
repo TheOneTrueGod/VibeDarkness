@@ -17,6 +17,7 @@ import { getTotalShieldHp } from '../../game/units/unitShield';
 import { SHIELD_RESOURCE_COLOR } from '../../resources/resourceDisplayDefs';
 import { TimelinePhaseSegment } from './TimelinePhaseSegment';
 import { TimelineHoverFlyout, type TimelineHoverFlyoutProps } from './TimelineHoverFlyout';
+import { ensureSvgViewBox } from './abilityIconSvg';
 import slimeIcon from '../../assets/characters/slime.svg';
 import swordwomanIcon from '../../assets/characters/swordwoman.svg';
 import wolfHeadIcon from '../../assets/characters/dark_animals/wolf-head.svg';
@@ -502,15 +503,6 @@ function renderEnemyRow(
             {track}
         </div>
     );
-}
-
-/** SVGs with width/height but no viewBox don't scale via CSS — inject the missing attribute. */
-function ensureSvgViewBox(svg: string): string {
-    if (svg.includes('viewBox')) return svg;
-    const w = svg.match(/width="(\d+(?:\.\d+)?)"/)?.[1];
-    const h = svg.match(/height="(\d+(?:\.\d+)?)"/)?.[1];
-    if (!w || !h) return svg;
-    return svg.replace('<svg ', `<svg viewBox="0 0 ${w} ${h}" `);
 }
 
 /** Inline ability art (SVG string) scaled to a fixed box; flex min-size + explicit SVG attrs can otherwise block scaling. */

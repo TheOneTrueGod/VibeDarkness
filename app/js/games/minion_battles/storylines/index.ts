@@ -146,6 +146,11 @@ export {
     isMissionPrepReadOnly,
     isMissionPrepAbilityReady,
     resolveInitialMissionSelection,
+    researchTreesWithGrantedNode,
+    fillEmptyPrepSlotsWithNewAbilities,
+    prepLoadoutAfterResearchGrant,
+    currentPrepLoadoutForPlayer,
+    prepLoadoutPrimaryIdsForResearchGrant,
 } from './questPrepLoadout';
 export {
     buildPartyRosterFromLobby,

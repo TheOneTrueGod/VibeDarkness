@@ -5,13 +5,6 @@
  * tap shows description overlay (mobile).
  */
 
-/** Fixed card width in the ability bar (must match Tailwind `w-[108px]` below). */
-export const ABILITY_SLOT_WIDTH_PX = 108;
-/** Fixed card height in the ability bar (must match Tailwind `h-[126px]` below). */
-export const ABILITY_SLOT_HEIGHT_PX = 126;
-/** Horizontal gap between ability cards in the bar (`gap-2`). */
-export const ABILITY_BAR_CARD_GAP_PX = 8;
-
 import React, { useCallback, useRef } from 'react';
 import { getAbilityResourceCosts, type AbilityModesConfig, type AbilityStatic } from '../../abilities/Ability';
 import type { UnitAbilityRuntimeState } from '../../game/units/Unit';
@@ -26,6 +19,21 @@ import {
     STACKED_ICON_OVERLAP_PX,
 } from './resources/ResourceCostIcon';
 import type { DisabledReason } from './abilityDisabledReason';
+import { ABILITY_SLOT_HEIGHT_PX } from './battleUiSlots/battleBottomBarLayout';
+import { ensureSvgViewBox } from './abilityIconSvg';
+
+/** Fixed card width in the ability bar (must match the card `width` style below). */
+export const ABILITY_SLOT_WIDTH_PX = 108;
+/** Battle card height ({@link ABILITY_SLOT_HEIGHT_PX}). */
+export { ABILITY_SLOT_HEIGHT_PX };
+export { ABILITY_SLOT_PREP_HEIGHT_PX } from './battleUiSlots/battleBottomBarLayout';
+/** Horizontal gap between ability cards in the bar (`gap-2`). */
+export const ABILITY_BAR_CARD_GAP_PX = 8;
+/** Square box for ability art so every card icon renders at the same size. */
+export const ABILITY_SLOT_ICON_SIZE_PX = 56;
+/** Reserved name block: two tight 12px lines. */
+const ABILITY_SLOT_NAME_LINE_COUNT = 2;
+const ABILITY_SLOT_NAME_LINE_HEIGHT_EM = 1.25;
 
 interface AbilitySlotProps {
     ability: AbilityStatic;
@@ -52,6 +60,8 @@ interface AbilitySlotProps {
     currentAbilityMode?: string;
     showModeToggle?: boolean;
     onCycleAbilityMode?: () => void;
+    /** Override battle card height (Quest Prep / character-select use the shorter prep size). */
+    heightPx?: number;
 }
 
 export default function AbilitySlot({
@@ -73,6 +83,7 @@ export default function AbilitySlot({
     currentAbilityMode,
     showModeToggle = false,
     onCycleAbilityMode,
+    heightPx = ABILITY_SLOT_HEIGHT_PX,
 }: AbilitySlotProps) {
     const cardRef = useRef<HTMLDivElement | null>(null);
     const isDisabled = disabledReason !== null;
@@ -138,7 +149,7 @@ export default function AbilitySlot({
             <div
                 ref={cardRef}
                 className={`
-                    relative w-[108px] h-[126px] rounded-lg border-2 transition-all duration-150
+                    relative rounded-lg border-2 transition-all duration-150
                     flex flex-col items-stretch p-1 overflow-visible pointer-events-none
                     ${isSelected
                         ? ability.actionChannel === 'special'
@@ -155,10 +166,11 @@ export default function AbilitySlot({
                                         : 'border-white bg-surface-light'
                     }
                 `}
+                style={{ width: ABILITY_SLOT_WIDTH_PX, height: heightPx }}
             >
-                {/* Uses + recovery — inset from top-left corner */}
+                {/* Uses + recovery — top of the card stack */}
                 <div
-                    className={`absolute top-1 left-1 z-10 flex max-w-[calc(100%-32px)] items-center gap-0.5 pointer-events-none ${isDisabled ? 'opacity-50' : ''}`}
+                    className={`relative z-10 flex max-w-[calc(100%-32px)] shrink-0 items-center gap-0.5 pointer-events-none ${isDisabled ? 'opacity-50' : ''}`}
                 >
                     <div
                         className="flex shrink-0 items-center rounded border border-white bg-surface px-1.5 py-0.5 text-[10px] tabular-nums leading-none text-gray-100"
@@ -237,34 +249,41 @@ export default function AbilitySlot({
                     </div>
                 )}
 
-                {showModeToggle && abilityModes && onCycleAbilityMode && (
-                    <button
-                        type="button"
-                        className="absolute bottom-2 left-1/2 z-30 flex h-6 min-w-[2.75rem] -translate-x-1/2 items-center justify-center rounded border border-violet-400/70 bg-violet-950/95 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200 shadow-sm pointer-events-auto hover:border-violet-300 hover:bg-violet-900"
-                        title={`Mode: ${modeLabel ?? currentAbilityMode} (click to cycle)`}
-                        aria-label={`Ability mode ${modeLabel ?? currentAbilityMode}, click to cycle`}
-                        onClick={handleModeToggle}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                                handleModeToggle(e);
-                            }
+                <div
+                    className={`flex min-h-0 flex-1 flex-col items-center px-0.5 ${isDisabled ? 'opacity-50' : ''}`}
+                >
+                    <div className="relative flex min-h-0 w-full flex-1 items-center justify-center">
+                        <div
+                            className="flex shrink-0 items-center justify-center overflow-hidden [&>img]:h-full [&>img]:w-full [&>img]:object-contain [&>svg]:block [&>svg]:h-full [&>svg]:w-full"
+                            style={{ width: ABILITY_SLOT_ICON_SIZE_PX, height: ABILITY_SLOT_ICON_SIZE_PX }}
+                            dangerouslySetInnerHTML={{ __html: ensureSvgViewBox(ability.image) }}
+                        />
+                        {showModeToggle && abilityModes && onCycleAbilityMode && (
+                            <button
+                                type="button"
+                                className="absolute left-1/2 top-1/2 z-30 flex h-6 min-w-[2.75rem] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded border border-violet-400/70 bg-violet-950/95 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200 shadow-sm pointer-events-auto hover:border-violet-300 hover:bg-violet-900"
+                                title={`Mode: ${modeLabel ?? currentAbilityMode} (click to cycle)`}
+                                aria-label={`Ability mode ${modeLabel ?? currentAbilityMode}, click to cycle`}
+                                onClick={handleModeToggle}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        handleModeToggle(e);
+                                    }
+                                }}
+                            >
+                                {modeLabel ?? currentAbilityMode}
+                            </button>
+                        )}
+                    </div>
+
+                    <span
+                        className="line-clamp-2 w-full shrink-0 break-words text-center text-[12px] font-medium leading-tight text-gray-100"
+                        style={{
+                            minHeight: `${ABILITY_SLOT_NAME_LINE_COUNT * ABILITY_SLOT_NAME_LINE_HEIGHT_EM}em`,
                         }}
                     >
-                        {modeLabel ?? currentAbilityMode}
-                    </button>
-                )}
-
-                <div
-                    className={`flex min-h-0 flex-1 flex-col items-center justify-start px-0.5 pt-7 pb-1.5 ${isDisabled ? 'opacity-50' : ''}`}
-                >
-                    <span className="mb-2 line-clamp-2 min-h-[2.5em] shrink-0 w-full text-center text-[12px] font-medium leading-tight text-gray-100">
                         {ability.name}
                     </span>
-
-                    <div
-                        className="flex h-12 w-full shrink-0 items-center justify-center"
-                        dangerouslySetInnerHTML={{ __html: ability.image }}
-                    />
                 </div>
             </div>
 

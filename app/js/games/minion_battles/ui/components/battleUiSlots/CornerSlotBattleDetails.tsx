@@ -6,6 +6,7 @@ import React, { useSyncExternalStore } from 'react';
 import type { WorldModifierDef } from '../../../worldModifiers/types';
 import type { NinjutsuUIState } from '../../../game/ninjutsu/NinjutsuManager';
 import { useCurrentUser } from '../../../../../user/useCurrentUser';
+import { useDebugConsole } from '../../../../../contexts/DebugConsoleContext';
 import { getShowGameTick, subscribeShowGameTick } from '../../../../../debugFlags';
 import { TestIds } from '../../../../../testing/testIds';
 import WorldModifiersPanel, { hasVisibleWorldModifierHud } from '../WorldModifiersPanel';
@@ -23,7 +24,9 @@ export default function CornerSlotBattleDetails({
     getItsTicks,
 }: CornerSlotBattleDetailsProps) {
     const { isAdmin } = useCurrentUser();
-    const showGameTick = useSyncExternalStore(subscribeShowGameTick, getShowGameTick, getShowGameTick);
+    const { debugConsoleEnabled } = useDebugConsole();
+    const showGameTickFlag = useSyncExternalStore(subscribeShowGameTick, getShowGameTick, getShowGameTick);
+    const showGameTick = showGameTickFlag && (isAdmin || debugConsoleEnabled);
     const showModifiers = hasVisibleWorldModifierHud(modifiers, ninjutsuPools, isAdmin);
     if (!showModifiers && !showGameTick) return null;
 

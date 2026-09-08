@@ -1,7 +1,7 @@
 import React from 'react';
 import BattleUISlotLayout from '../../../../../components/battleUILayout/BattleUISlotLayout';
 
-interface CharacterSelectLayoutProps {
+export interface CharacterSelectLayoutProps {
     /** Header slot content, forwarded from GameScreen via Game.tsx. */
     headerSlot?: React.ReactNode;
     /** Right column slot content (chat), forwarded from GameScreen via Game.tsx. */
@@ -21,6 +21,11 @@ interface CharacterSelectLayoutProps {
      * (keeps the shared 238px band height).
      */
     compactBottomRow?: boolean;
+    /**
+     * Full-bleed center background (same cover treatment as pre-mission story).
+     * Overlay content stays in the padded max-width column.
+     */
+    backgroundImage?: string;
     children: React.ReactNode;
 }
 
@@ -37,6 +42,7 @@ export default function CharacterSelectLayout({
     bottomRightCorner,
     centerOverlay,
     compactBottomRow = false,
+    backgroundImage,
     children,
 }: CharacterSelectLayoutProps) {
     return (
@@ -49,8 +55,14 @@ export default function CharacterSelectLayout({
             bottomRightCorner={bottomRightCorner}
             bottomRowClassName={compactBottomRow ? 'px-3 py-0' : undefined}
             center={
-                <div className="relative flex h-full w-full min-h-0 flex-col overflow-hidden">
-                    <div className="mx-auto flex h-full w-full max-w-[1200px] min-h-0 flex-col px-3 sm:px-6">
+                <div className="relative flex h-full w-full min-h-0 flex-col overflow-hidden bg-black">
+                    {backgroundImage && (
+                        <div
+                            className="absolute inset-0 z-0 bg-cover bg-center"
+                            style={{ backgroundImage: `url("${backgroundImage}")` }}
+                        />
+                    )}
+                    <div className="relative z-10 mx-auto flex h-full w-full max-w-[1200px] min-h-0 flex-col px-3 sm:px-6">
                         {children}
                     </div>
                     {centerOverlay}

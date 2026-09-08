@@ -277,6 +277,13 @@ class PostMessageHandler
             $replaceItemIds = isset($payload['replaceItemIds']) && is_array($payload['replaceItemIds'])
                 ? array_values(array_filter($payload['replaceItemIds'], static fn ($v): bool => is_string($v)))
                 : [];
+            $prepLoadoutPrimaryIds = [];
+            if (isset($payload['prepLoadoutPrimaryIds']) && is_array($payload['prepLoadoutPrimaryIds'])) {
+                $prepLoadoutPrimaryIds = array_values(array_filter(
+                    $payload['prepLoadoutPrimaryIds'],
+                    static fn ($v): bool => is_string($v)
+                ));
+            }
             $success = $manager->applyStoryChoice(
                 $lobbyId,
                 $gameId,
@@ -287,7 +294,8 @@ class PostMessageHandler
                 $replaceItemIds,
                 $actionType,
                 $treeId,
-                $nodeId
+                $nodeId,
+                $prepLoadoutPrimaryIds
             );
             if (!$success) {
                 http_response_code(400);

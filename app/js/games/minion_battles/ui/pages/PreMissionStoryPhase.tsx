@@ -6,10 +6,12 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import type { PlayerState } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import { MessageType } from '../../../../MessageTypes';
-import type { PortraitSide, PreMissionStoryDef, StoryChoiceActionEquipItem, StoryChoiceActionGrantResearchToPlayer } from '../../storylines/storyTypes';
+import type { PortraitSide, PreMissionStoryDef, StoryChoiceAction, StoryChoiceActionEquipItem } from '../../storylines/storyTypes';
 import { STORY_BACKGROUNDS } from '../../assets/story';
 import { SPECTATOR_ID } from '../../state';
 import { getItemDef } from '../../character_defs/items';
+import { prepLoadoutPrimaryIdsForResearchGrant } from '../../storylines/questPrepLoadout';
+import { researchGrantFromStoryAction } from '../../storylines/storyResearchGrant';
 import PreMissionStoryEndScreen from './preMissionStory/PreMissionStoryEndScreen';
 import PreMissionStoryLayout from './preMissionStory/PreMissionStoryLayout';
 import ColumnSlotPlayerStatuses from '../../../../components/battleUILayout/ColumnSlotPlayerStatuses';
@@ -41,6 +43,12 @@ interface PreMissionStoryPhaseProps {
     playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
     /** Votes per group vote (voteId -> playerId -> optionId); synced from server. */
     groupVoteVotes?: Record<string, Record<string, string>>;
+    /** Prepare Carefully primary picks by player id. */
+    missionPrepLoadoutsByPlayer?: Record<string, string[]>;
+    /** Quest Prep primary picks by player id. */
+    questPrepLoadoutsByPlayer?: Record<string, string[]>;
+    /** Frozen Quest Prep picks by character id. */
+    questAbilityLoadoutsByCharacterId?: Record<string, string[]>;
     onPhaseChange?: (phase: string, gameState: Record<string, unknown>) => void;
     /** Lets the lobby UI hide battle-only chrome immediately when Start Game is clicked. */
     onBattleStartStatusChange?: (starting: boolean) => void;
@@ -65,6 +73,9 @@ export default function PreMissionStoryPhase({
     playerEquipmentByPlayer,
     playerResearchTreesByPlayer = {},
     groupVoteVotes = {},
+    missionPrepLoadoutsByPlayer = {},
+    questPrepLoadoutsByPlayer = {},
+    questAbilityLoadoutsByCharacterId = {},
     onPhaseChange,
     onBattleStartStatusChange,
     headerSlot,
@@ -181,17 +192,14 @@ export default function PreMissionStoryPhase({
             : STORY_BACKGROUNDS.gatherParty;
 
     const handleChoice = useCallback(
-        async (choiceId: string, optionId: string, option?: { action?: { type: string; itemId?: string } }) => {
+        async (choiceId: string, optionId: string, option?: { action?: StoryChoiceAction }) => {
             try {
                 const currentEquipment = playerEquipmentByPlayer?.[playerId] ?? [];
                 let itemId: string | undefined;
                 const replaceItemIds: string[] = [];
-                let alsoGrantResearch: StoryChoiceActionEquipItem['alsoGrantResearch'];
-                let grantResearchAction: StoryChoiceActionGrantResearchToPlayer | undefined;
                 if (option?.action?.type === 'equip_item' && option.action.itemId) {
                     const equipAction = option.action as StoryChoiceActionEquipItem;
                     itemId = equipAction.itemId;
-                    alsoGrantResearch = equipAction.alsoGrantResearch;
                     const newItemDef = getItemDef(itemId);
                     const newSlots = new Set(newItemDef?.slots ?? []);
                     if (newSlots.size > 0) {
@@ -202,26 +210,51 @@ export default function PreMissionStoryPhase({
                             }
                         }
                     }
-                } else if (option?.action?.type === 'grant_research_to_player') {
-                    grantResearchAction = option.action as StoryChoiceActionGrantResearchToPlayer;
                 }
+                const researchGrant = researchGrantFromStoryAction(option?.action);
+                const characterId = characterSelections[playerId];
+                const prepLoadoutPrimaryIds = researchGrant
+                    ? prepLoadoutPrimaryIdsForResearchGrant({
+                        playerId,
+                        characterId,
+                        equipment: currentEquipment,
+                        researchTrees: playerResearchTreesByPlayer[playerId],
+                        treeId: researchGrant.treeId,
+                        nodeId: researchGrant.nodeId,
+                        missionPrepLoadoutsByPlayer,
+                        questPrepLoadoutsByPlayer,
+                        questAbilityLoadoutsByCharacterId,
+                    })
+                    : undefined;
                 await api.sendMessage(MessageType.STORY_CHOICE, {
                     choiceId,
                     optionId,
                     ...(itemId !== undefined && { itemId, replaceItemIds }),
-                    ...(alsoGrantResearch && { treeId: alsoGrantResearch.treeId, nodeId: alsoGrantResearch.nodeId }),
-                    ...(grantResearchAction && {
+                    ...(researchGrant && option?.action?.type === 'grant_research_to_player' && {
                         actionType: 'grant_research_to_player' as const,
-                        treeId: grantResearchAction.treeId,
-                        nodeId: grantResearchAction.nodeId,
                     }),
+                    ...(researchGrant && {
+                        treeId: researchGrant.treeId,
+                        nodeId: researchGrant.nodeId,
+                    }),
+                    ...(prepLoadoutPrimaryIds && { prepLoadoutPrimaryIds }),
                 });
             } catch (error) {
                 console.error('Failed to send story choice:', error);
             }
             advancePhrase();
         },
-        [api, playerId, playerEquipmentByPlayer, advancePhrase],
+        [
+            api,
+            playerId,
+            playerEquipmentByPlayer,
+            playerResearchTreesByPlayer,
+            characterSelections,
+            missionPrepLoadoutsByPlayer,
+            questPrepLoadoutsByPlayer,
+            questAbilityLoadoutsByCharacterId,
+            advancePhrase,
+        ],
     );
 
     const handleGroupVote = useCallback(

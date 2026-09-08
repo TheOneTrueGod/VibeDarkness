@@ -42,6 +42,9 @@ export function MissionPrepOverview({
     );
 
     if (useLayoutSlots) {
+        if (!selectionRequired) {
+            return null;
+        }
         return (
             <div className="flex min-h-0 flex-1 flex-col px-5 pb-2 pt-2">
                 {center}

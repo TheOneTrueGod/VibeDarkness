@@ -1,6 +1,6 @@
 import React from 'react';
 import type { AbilityStatic } from '../../abilities/Ability';
-import { ABILITY_SLOT_HEIGHT_PX, ABILITY_SLOT_WIDTH_PX } from './AbilitySlot';
+import { ABILITY_SLOT_PREP_HEIGHT_PX, ABILITY_SLOT_WIDTH_PX } from './AbilitySlot';
 import { AbilitySlotPreview } from './AbilitySlotPreview';
 
 /** Scale for attached/base cards floating behind the primary. */
@@ -30,7 +30,7 @@ export function AbilitySlotWithAttachedPreview({
     return (
         <div
             className="relative shrink-0 overflow-visible"
-            style={{ width: ABILITY_SLOT_WIDTH_PX, height: ABILITY_SLOT_HEIGHT_PX }}
+            style={{ width: ABILITY_SLOT_WIDTH_PX, height: ABILITY_SLOT_PREP_HEIGHT_PX }}
         >
             {attached.map((ability, index) => (
                 <div

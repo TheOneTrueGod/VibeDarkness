@@ -178,3 +178,114 @@ export function resolveInitialMissionSelection(
     }
     return remembered.slice(0, PREP_ABILITY_SLOT_COUNT);
 }
+
+/** Copy of research trees with `nodeId` present on `treeId` (idempotent). */
+export function researchTreesWithGrantedNode(
+    trees: Record<string, string[]> | undefined,
+    treeId: string,
+    nodeId: string,
+): Record<string, string[]> {
+    const next: Record<string, string[]> = { ...(trees ?? {}) };
+    const existing = next[treeId] ?? [];
+    if (!existing.includes(nodeId)) {
+        next[treeId] = [...existing, nodeId];
+    }
+    return next;
+}
+
+/**
+ * Fill empty prep slots with abilities that became selectable after a research grant.
+ * Keeps current picks that are still selectable. Does not backfill abilities the player
+ * already skipped when they built the loadout.
+ */
+export function fillEmptyPrepSlotsWithNewAbilities(
+    selectedPrimaryIds: readonly string[],
+    previousSelectableIds: readonly string[],
+    nextSelectableIds: readonly string[],
+): string[] {
+    const nextSet = new Set(nextSelectableIds);
+    const previousSet = new Set(previousSelectableIds);
+    const filled: string[] = selectedPrimaryIds.filter((id) => nextSet.has(id));
+    for (const id of nextSelectableIds) {
+        if (filled.length >= PREP_ABILITY_SLOT_COUNT) break;
+        if (previousSet.has(id) || filled.includes(id)) continue;
+        filled.push(id);
+    }
+    return filled;
+}
+
+export type PrepLoadoutAfterResearchGrantParams = {
+    selectedPrimaryIds: readonly string[];
+    equipment: readonly string[];
+    researchTrees: Record<string, string[]> | undefined;
+    treeId: string;
+    nodeId: string;
+};
+
+/**
+ * Prep loadout after granting one research node: auto-fill empty slots with newly
+ * granted primaries (same behaviour as Prepare Carefully under the slot cap).
+ */
+export function prepLoadoutAfterResearchGrant(
+    params: PrepLoadoutAfterResearchGrantParams,
+): string[] {
+    const previousSelectable = filterSelectableQuestPrepAbilityIds(
+        buildAccessibleAbilityIds(params.equipment, params.researchTrees),
+    );
+    const nextSelectable = filterSelectableQuestPrepAbilityIds(
+        buildAccessibleAbilityIds(
+            params.equipment,
+            researchTreesWithGrantedNode(params.researchTrees, params.treeId, params.nodeId),
+        ),
+    );
+    const selected =
+        params.selectedPrimaryIds.length > 0
+            ? params.selectedPrimaryIds
+            : resolveInitialMissionSelection(previousSelectable, []);
+    return fillEmptyPrepSlotsWithNewAbilities(selected, previousSelectable, nextSelectable);
+}
+
+export type CurrentPrepLoadoutParams = {
+    playerId: string;
+    characterId: string | undefined;
+    missionPrepLoadoutsByPlayer?: Record<string, string[]>;
+    questPrepLoadoutsByPlayer?: Record<string, string[]>;
+    questAbilityLoadoutsByCharacterId?: Record<string, string[]>;
+};
+
+/** Frozen Quest Prep loadout if present; otherwise Prepare Carefully picks. */
+export function currentPrepLoadoutForPlayer(params: CurrentPrepLoadoutParams): string[] {
+    const quest =
+        params.questPrepLoadoutsByPlayer?.[params.playerId]
+        ?? (params.characterId ? params.questAbilityLoadoutsByCharacterId?.[params.characterId] : undefined);
+    if (quest && quest.length > 0) {
+        return [...quest];
+    }
+    const mission = params.missionPrepLoadoutsByPlayer?.[params.playerId];
+    return mission && mission.length > 0 ? [...mission] : [];
+}
+
+function sameIdList(a: readonly string[], b: readonly string[]): boolean {
+    return a.length === b.length && a.every((id, i) => id === b[i]);
+}
+
+/**
+ * Loadout to persist with a research-granting story/quest choice, or `undefined`
+ * when empty slots do not change.
+ */
+export function prepLoadoutPrimaryIdsForResearchGrant(
+    params: CurrentPrepLoadoutParams & Omit<PrepLoadoutAfterResearchGrantParams, 'selectedPrimaryIds'>,
+): string[] | undefined {
+    const selected = currentPrepLoadoutForPlayer(params);
+    const next = prepLoadoutAfterResearchGrant({
+        selectedPrimaryIds: selected,
+        equipment: params.equipment,
+        researchTrees: params.researchTrees,
+        treeId: params.treeId,
+        nodeId: params.nodeId,
+    });
+    if (next.length === 0 || sameIdList(next, selected)) {
+        return undefined;
+    }
+    return next;
+}

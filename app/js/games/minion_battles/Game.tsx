@@ -638,6 +638,9 @@ export default function MinionBattlesGame({
                             | Record<string, Record<string, string>>
                             | undefined
                     }
+                    missionPrepLoadoutsByPlayer={missionPrepLoadoutsByPlayer}
+                    questPrepLoadoutsByPlayer={questPrepLoadoutsByPlayer}
+                    questAbilityLoadoutsByCharacterId={questAbilityLoadoutsByCharacterId}
                     onComplete={(rewards) => {
                         if (!selectedMissionId) return;
                         const missionId = selectedMissionId;
@@ -725,6 +728,9 @@ export default function MinionBattlesGame({
                             | Record<string, Record<string, string>>
                             | undefined
                     }
+                    missionPrepLoadoutsByPlayer={missionPrepLoadoutsByPlayer}
+                    questPrepLoadoutsByPlayer={questPrepLoadoutsByPlayer}
+                    questAbilityLoadoutsByCharacterId={questAbilityLoadoutsByCharacterId}
                     onPhaseChange={handlePhaseChange}
                     onBattleStartStatusChange={onBattleStartStatusChange}
                     headerSlot={headerSlot}

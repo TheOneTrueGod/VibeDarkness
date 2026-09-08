@@ -12,6 +12,11 @@ import AbilitySlot from '../AbilitySlot';
 import AbilityTooltip from '../AbilityTooltip';
 import { getAbilityUseConfig, type RecoveryChargeType } from '../../../abilities/abilityUses';
 import { getAbilityBarLayoutKey, splitAbilityRows } from '../../../abilities/abilityBarLayout';
+import {
+    ABILITY_CARD_LIFT_PADDING_Y_PX,
+    BATTLE_BOTTOM_ROW_PADDING_Y_PX,
+    TURN_INDICATOR_GAP_Y_PX,
+} from './battleBottomBarLayout';
 
 const RECOVERY_CHARGE_TYPES: RecoveryChargeType[] = ['staminaCharge', 'lightCharge', 'energyCharge', 'roundCharge'];
 
@@ -401,11 +406,22 @@ export default function RowSlotAbilities({
     };
 
     return (
-        <div className="flex h-full min-w-0 flex-col">
+        <div
+            className="flex h-full min-w-0 flex-col"
+            style={{
+                paddingTop: BATTLE_BOTTOM_ROW_PADDING_Y_PX,
+                paddingBottom: BATTLE_BOTTOM_ROW_PADDING_Y_PX,
+                gap: TURN_INDICATOR_GAP_Y_PX,
+            }}
+        >
             {turnIndicator}
             <div
                 ref={containerRef}
-                className="relative grid min-h-0 flex-1 grid-rows-[auto_auto] content-end gap-y-2 overflow-y-auto"
+                className="relative grid min-h-0 flex-1 grid-rows-[auto_auto] content-start gap-y-2 overflow-y-auto"
+                style={{
+                    paddingTop: ABILITY_CARD_LIFT_PADDING_Y_PX,
+                    paddingBottom: ABILITY_CARD_LIFT_PADDING_Y_PX,
+                }}
                 onPointerLeave={() => setHoveredCardId(null)}
             >
                 {pulseParticles.map((p) => {

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import type { AbilityStatic } from '../../abilities/Ability';
 import { getAbilityUseConfig } from '../../abilities/abilityUses';
 import type { UnitAbilityRuntimeState } from '../../game/units/Unit';
-import AbilitySlot from './AbilitySlot';
+import AbilitySlot, { ABILITY_SLOT_PREP_HEIGHT_PX } from './AbilitySlot';
 
 export interface AbilitySlotPreviewProps {
     ability: AbilityStatic;
@@ -59,6 +59,7 @@ export function AbilitySlotPreview({
                 ability={ability}
                 runtime={runtime}
                 isSelected={isSelected}
+                heightPx={ABILITY_SLOT_PREP_HEIGHT_PX}
                 disabledReason={null}
                 onSelect={disabled ? () => {} : (onSelect ?? (() => {}))}
                 isHovered={hovered}

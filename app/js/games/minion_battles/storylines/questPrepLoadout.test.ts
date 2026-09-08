@@ -11,6 +11,7 @@ import {
     addQuestPrepAbility,
     buildAccessibleAbilityIds,
     expandAttachedAbilityIds,
+    fillEmptyPrepSlotsWithNewAbilities,
     filterSelectableQuestPrepAbilityIds,
     isAttachedOnlyAbility,
     isMissionPrepAbilityReady,
@@ -18,11 +19,15 @@ import {
     isQuestPrepSlotsFull,
     isSecondaryAbility,
     needsMissionAbilitySelection,
+    prepLoadoutAfterResearchGrant,
+    prepLoadoutPrimaryIdsForResearchGrant,
     removeQuestPrepAbility,
     resolveInitialMissionSelection,
 } from './questPrepLoadout';
+import { coreBasicItem } from '../character_defs/items/core/004_core_basic';
 import { coreEarthItem } from '../character_defs/items/core/019_core_earth';
 import { resolveItemCardsToAdd } from '../character_defs/items/resolveItemCardsToAdd';
+import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
 import { STARTING_WEAPON_ROCKS_NODE_ID } from '../../../researchTrees/trees/startingWeaponNodes';
 
 describe('buildAccessibleAbilityIds', () => {
@@ -165,5 +170,75 @@ describe('mission Prepare Carefully helpers', () => {
     it('gates ready on all selectable when under/at cap', () => {
         expect(isMissionPrepAbilityReady(['a', 'b'], ['a', 'b', 'c'])).toBe(false);
         expect(isMissionPrepAbilityReady(['a', 'b', 'c'], ['a', 'b', 'c'])).toBe(true);
+    });
+});
+
+describe('fill empty prep slots after a research grant', () => {
+    it('adds Throw Rock to an open slot when the rocks node is granted', () => {
+        const selected = [...coreBasicItem.cardsToAdd];
+        const next = prepLoadoutAfterResearchGrant({
+            selectedPrimaryIds: selected,
+            equipment: [coreBasicItem.id],
+            researchTrees: {},
+            treeId: CRYSTAL_ROCKS_TREE_ID,
+            nodeId: STARTING_WEAPON_ROCKS_NODE_ID,
+        });
+        expect(next).toEqual([...selected, STARTING_WEAPON_ROCKS_NODE_ID]);
+    });
+
+    it('seeds under-cap primaries then adds the grant when no loadout is stored yet', () => {
+        const next = prepLoadoutAfterResearchGrant({
+            selectedPrimaryIds: [],
+            equipment: [coreBasicItem.id],
+            researchTrees: {},
+            treeId: CRYSTAL_ROCKS_TREE_ID,
+            nodeId: STARTING_WEAPON_ROCKS_NODE_ID,
+        });
+        expect(next).toEqual([...coreBasicItem.cardsToAdd, STARTING_WEAPON_ROCKS_NODE_ID]);
+    });
+
+    it('does not backfill abilities the player already skipped', () => {
+        expect(
+            fillEmptyPrepSlotsWithNewAbilities(
+                ['a', 'b'],
+                ['a', 'b', 'c', 'd'],
+                ['a', 'b', 'c', 'd', 'throw_rock'],
+            ),
+        ).toEqual(['a', 'b', 'throw_rock']);
+    });
+
+    it('does not exceed PREP_ABILITY_SLOT_COUNT', () => {
+        const full = Array.from({ length: PREP_ABILITY_SLOT_COUNT }, (_, i) => `abil_${i}`);
+        expect(fillEmptyPrepSlotsWithNewAbilities(full, full, [...full, 'new'])).toEqual(full);
+    });
+
+    it('returns the filled loadout from prepLoadoutPrimaryIdsForResearchGrant for a stored mission prep', () => {
+        const selected = [...coreBasicItem.cardsToAdd];
+        expect(
+            prepLoadoutPrimaryIdsForResearchGrant({
+                playerId: 'p1',
+                characterId: 'c1',
+                equipment: [coreBasicItem.id],
+                researchTrees: {},
+                treeId: CRYSTAL_ROCKS_TREE_ID,
+                nodeId: STARTING_WEAPON_ROCKS_NODE_ID,
+                missionPrepLoadoutsByPlayer: { p1: selected },
+            }),
+        ).toEqual([...selected, STARTING_WEAPON_ROCKS_NODE_ID]);
+    });
+
+    it('returns undefined from prepLoadoutPrimaryIdsForResearchGrant when slots already include the grant', () => {
+        const selected = [...coreBasicItem.cardsToAdd, STARTING_WEAPON_ROCKS_NODE_ID];
+        expect(
+            prepLoadoutPrimaryIdsForResearchGrant({
+                playerId: 'p1',
+                characterId: 'c1',
+                equipment: [coreBasicItem.id],
+                researchTrees: { [CRYSTAL_ROCKS_TREE_ID]: [STARTING_WEAPON_ROCKS_NODE_ID] },
+                treeId: CRYSTAL_ROCKS_TREE_ID,
+                nodeId: STARTING_WEAPON_ROCKS_NODE_ID,
+                missionPrepLoadoutsByPlayer: { p1: selected },
+            }),
+        ).toBeUndefined();
     });
 });

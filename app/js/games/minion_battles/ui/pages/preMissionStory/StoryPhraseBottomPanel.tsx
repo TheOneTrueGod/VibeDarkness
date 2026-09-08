@@ -1,6 +1,6 @@
 import React from 'react';
 import type { PlayerState } from '../../../../../types';
-import type { PreMissionPhrase } from '../../../storylines/storyTypes';
+import type { PreMissionPhrase, StoryChoiceAction } from '../../../storylines/storyTypes';
 import ChoicePhrasePanel from './ChoicePhrasePanel';
 import GroupVotePhrasePanel from './GroupVotePhrasePanel';
 import { isChoice, isGroupVote } from './preMissionStoryTypeGuards';
@@ -19,7 +19,7 @@ interface StoryPhraseBottomPanelProps {
     onChoose: (
         choiceId: string,
         optionId: string,
-        option?: { action?: { type: string; itemId?: string } },
+        option?: { action?: StoryChoiceAction },
     ) => void;
     onGroupVote: (voteId: string, optionId: string) => void;
     onGroupVoteNext: () => void;

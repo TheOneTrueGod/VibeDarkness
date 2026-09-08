@@ -4,7 +4,7 @@ import type { AbilityStatic } from '../../../../abilities/Ability';
 import type { CampaignCharacter } from '../../../../character_defs/CampaignCharacter';
 import { QUEST_PREP_ABILITY_SLOT_COUNT } from '../../../../storylines/questPrepLoadout';
 import { TestIds } from '../../../../../../testing/testIds';
-import { ABILITY_SLOT_HEIGHT_PX, ABILITY_SLOT_WIDTH_PX } from '../../../components/AbilitySlot';
+import { ABILITY_SLOT_PREP_HEIGHT_PX, ABILITY_SLOT_WIDTH_PX } from '../../../components/AbilitySlot';
 import { AbilitySlotPreview } from '../../../components/AbilitySlotPreview';
 
 interface QuestPrepAbilitySlotBarProps {
@@ -65,7 +65,7 @@ export function QuestPrepAbilitySlotBar({
                                     className="rounded-lg border border-dashed border-border-custom bg-surface/40 flex items-center justify-center shrink-0"
                                     style={{
                                         width: ABILITY_SLOT_WIDTH_PX,
-                                        height: ABILITY_SLOT_HEIGHT_PX,
+                                        height: ABILITY_SLOT_PREP_HEIGHT_PX,
                                     }}
                                     aria-label={`Empty ability slot ${index + 1}`}
                                 >

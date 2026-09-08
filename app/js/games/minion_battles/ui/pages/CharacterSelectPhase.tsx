@@ -38,6 +38,7 @@ import {
     useQuestPrepLoadoutContext,
 } from './characterSelect/questPrep/QuestPrepLoadoutContext';
 import { MissionPrepOverview } from './characterSelect/missionPrep/MissionPrepOverview';
+import { MissionPrepSlotLayout } from './characterSelect/missionPrep/MissionPrepSlotLayout';
 import {
     MissionPrepLoadoutProvider,
     useMissionPrepLoadoutContext,
@@ -481,34 +482,29 @@ export default function CharacterSelectPhase({
     );
 
     if (useUnifiedSlotShell) {
-        const layout = (
-            <CharacterSelectLayout
-                headerSlot={resolvedHeaderSlot}
-                chatSlot={chatSlot}
-                centerOverlay={centerOverlay}
-                leftColumn={
-                    <ColumnSlotPlayerStatuses
-                        players={players}
-                        currentPlayerId={playerId}
-                        characterSelections={characterSelections}
-                        readyPlayerIds={readyPlayerIdsForStatuses}
+        const layoutProps = {
+            headerSlot: resolvedHeaderSlot,
+            chatSlot,
+            centerOverlay,
+            leftColumn: (
+                <ColumnSlotPlayerStatuses
+                    players={players}
+                    currentPlayerId={playerId}
+                    characterSelections={characterSelections}
+                    readyPlayerIds={readyPlayerIdsForStatuses}
+                />
+            ),
+            bottomLeftCorner:
+                hasSelectedCharacterLoadout && characterToEdit ? (
+                    <CharacterSelectCornerPortrait
+                        character={characterToEdit}
+                        onChangeCharacter={() => setView('grid')}
                     />
-                }
-                bottomLeftCorner={
-                    hasSelectedCharacterLoadout && characterToEdit ? (
-                        <CharacterSelectCornerPortrait
-                            character={characterToEdit}
-                            onChangeCharacter={() => setView('grid')}
-                        />
-                    ) : undefined
-                }
-                bottomRow={bottomRowWithActions ?? undefined}
-                bottomRightCorner={adminTabsCorner}
-                compactBottomRow={footerInBottomBand}
-            >
-                {body}
-            </CharacterSelectLayout>
-        );
+                ) : undefined,
+            bottomRow: bottomRowWithActions ?? undefined,
+            bottomRightCorner: adminTabsCorner,
+            compactBottomRow: footerInBottomBand,
+        };
 
         if (hasSelectedCharacterLoadout && characterToEdit && inQuestPrep) {
             return (
@@ -520,7 +516,7 @@ export default function CharacterSelectPhase({
                     rememberedAbilityIds={questAbilityLoadoutsByCharacterId[characterToEdit.id]}
                     onSelectedPrimaryIdsChange={onSelectedPrimaryIdsChange}
                 >
-                    {layout}
+                    <CharacterSelectLayout {...layoutProps}>{body}</CharacterSelectLayout>
                 </QuestPrepLoadoutProvider>
             );
         }
@@ -534,11 +530,11 @@ export default function CharacterSelectPhase({
                     onSelectedPrimaryIdsChange={onSelectedPrimaryIdsChange}
                     onAbilityReadyChange={onMissionAbilityReadyChange}
                 >
-                    {layout}
+                    <MissionPrepSlotLayout {...layoutProps}>{body}</MissionPrepSlotLayout>
                 </MissionPrepLoadoutProvider>
             );
         }
-        return layout;
+        return <CharacterSelectLayout {...layoutProps}>{body}</CharacterSelectLayout>;
     }
 
     const classic = (

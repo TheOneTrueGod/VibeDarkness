@@ -74,6 +74,7 @@ const MessageSchema: Record<string, SchemaDef> = Object.freeze({
             'researchTreeId',
             'researchNodeId',
             'researchRewardId',
+            'prepLoadoutPrimaryIds',
         ],
     },
     [MessageType.STORY_READY]: { required: [], optional: [] },

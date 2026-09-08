@@ -3,14 +3,7 @@ import type { AbilityStatic } from '../../abilities/Ability';
 import type { Unit } from '../../game/units/Unit';
 import { getUnitUiDescription } from '../../game/units/unit_defs/unitDef';
 import { getAbilityUseConfig } from '../../abilities/abilityUses';
-
-function ensureSvgViewBox(svg: string): string {
-    if (svg.includes('viewBox')) return svg;
-    const w = svg.match(/width="(\d+(?:\.\d+)?)"/)?.[1];
-    const h = svg.match(/height="(\d+(?:\.\d+)?)"/)?.[1];
-    if (!w || !h) return svg;
-    return svg.replace('<svg ', `<svg viewBox="0 0 ${w} ${h}" `);
-}
+import { ensureSvgViewBox } from './abilityIconSvg';
 
 function AbilityIconInBox({ html, className = '' }: { html: string; className?: string }) {
     return (

@@ -12,6 +12,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import SyncStatusCard from './SyncStatusCard';
 import { pickTurnIndicatorPropsAfterUnfreeze } from './turnIndicatorPresentation';
+import {
+    PLAQUE_BORDER_THICKNESS_PX,
+    PLAQUE_INNER_MIN_HEIGHT_PX,
+    PLAQUE_INNER_PADDING_Y_PX,
+    PLAQUE_MIN_HEIGHT_PX,
+} from './battleUiSlots/battleBottomBarLayout';
 
 export type TurnIndicatorState = 'your_turn' | 'ally_turn' | 'playing';
 
@@ -47,8 +53,6 @@ interface TurnIndicatorProps {
 
 const BLINK_DURATION_MS = 220;
 
-const BORDER_THICKNESS_PX = 2;
-const PLAQUE_MIN_HEIGHT_PX = 48;
 const PLAQUE_MAX_WIDTH_PX = 760;
 
 /** Left endcap with a pointed outer edge and flat inner edge. */
@@ -183,7 +187,7 @@ export default function TurnIndicator({
     } as const;
 
     return (
-        <div className="relative w-full shrink-0 py-1">
+        <div className="relative w-full shrink-0">
             {hostCatchupPopover && (
                 <div
                     className="pointer-events-auto absolute left-1/2 bottom-full z-[70] mb-1 w-[min(17rem,calc(100vw-1.5rem))] -translate-x-1/2 backdrop-blur-[2px]"
@@ -255,7 +259,7 @@ export default function TurnIndicator({
                         <div
                             className="absolute transition-[box-shadow] duration-[220ms] ease-out bg-surface-light shadow-[inset_0_1px_0_rgba(255,255,255,0.08),inset_0_-1px_0_rgba(0,0,0,0.3)]"
                             style={{
-                                inset: `${BORDER_THICKNESS_PX}px`,
+                                inset: `${PLAQUE_BORDER_THICKNESS_PX}px`,
                                 clipPath: LEFT_PLAQUE_CLIP,
                             }}
                         />
@@ -271,10 +275,11 @@ export default function TurnIndicator({
                         style={centerTextStyle}
                     >
                         <div
-                            className="flex min-h-[48px] items-center justify-center px-5 py-3 text-center transition-opacity duration-150"
+                            className="flex items-center justify-center px-5 text-center transition-opacity duration-150"
                             style={{
-                                paddingTop: `${Math.max(12 - BORDER_THICKNESS_PX, 8)}px`,
-                                paddingBottom: `${Math.max(12 - BORDER_THICKNESS_PX, 8)}px`,
+                                minHeight: `${PLAQUE_INNER_MIN_HEIGHT_PX}px`,
+                                paddingTop: `${PLAQUE_INNER_PADDING_Y_PX}px`,
+                                paddingBottom: `${PLAQUE_INNER_PADDING_Y_PX}px`,
                                 paddingLeft: itsControls ? '12px' : undefined,
                                 paddingRight: itsControls ? '12px' : undefined,
                             }}
@@ -314,7 +319,7 @@ export default function TurnIndicator({
                         <div
                             className="absolute transition-[box-shadow] duration-[220ms] ease-out bg-surface-light shadow-[inset_0_1px_0_rgba(255,255,255,0.08),inset_0_-1px_0_rgba(0,0,0,0.3)]"
                             style={{
-                                inset: `${BORDER_THICKNESS_PX}px`,
+                                inset: `${PLAQUE_BORDER_THICKNESS_PX}px`,
                                 clipPath: RIGHT_PLAQUE_CLIP,
                             }}
                         />

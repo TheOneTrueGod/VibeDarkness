@@ -2,6 +2,7 @@ import aVeryBradySpecialUrl from '../assets/music/incompetech/A Very Brady Speci
 import theBritonsUrl from '../assets/music/incompetech/The Britons.mp3';
 import midnightTaleUrl from '../assets/music/incompetech/Midnight Tale.mp3';
 import stayTheCourseUrl from '../assets/music/incompetech/Stay the Course.mp3';
+import fantasiaFantasiaUrl from '../assets/music/incompetech/Fantasia Fantasia.mp3';
 import dentaneosuchusHuntUrl from '../assets/music/incompetech/Dentaneosuchus Hunt.mp3';
 import sauropodSpottingUrl from '../assets/music/incompetech/Sauropod Spotting.mp3';
 import {
@@ -16,6 +17,7 @@ export const MUSIC_SONG_VERY_BRADY_SPECIAL = 'a-very-brady-special';
 export const MUSIC_SONG_THE_BRITONS = 'the-britons';
 export const MUSIC_SONG_MIDNIGHT_TALE = 'midnight-tale';
 export const MUSIC_SONG_STAY_THE_COURSE = 'stay-the-course';
+export const MUSIC_SONG_FANTASIA_FANTASIA = 'fantasia-fantasia';
 export const MUSIC_SONG_DENTANEOSUCHUS_HUNT = 'dentaneosuchus-hunt';
 export const MUSIC_SONG_SAUROPOD_SPOTTING = 'sauropod-spotting';
 
@@ -40,6 +42,11 @@ export const MUSIC_SONGS: Record<MusicSongId, MusicSongDef> = {
         title: 'Stay the Course',
         url: stayTheCourseUrl,
     },
+    [MUSIC_SONG_FANTASIA_FANTASIA]: {
+        id: MUSIC_SONG_FANTASIA_FANTASIA,
+        title: 'Fantasia Fantasia',
+        url: fantasiaFantasiaUrl,
+    },
     [MUSIC_SONG_DENTANEOSUCHUS_HUNT]: {
         id: MUSIC_SONG_DENTANEOSUCHUS_HUNT,
         title: 'Dentaneosuchus Hunt',
@@ -55,11 +62,11 @@ export const MUSIC_SONGS: Record<MusicSongId, MusicSongDef> = {
 export const MUSIC_PLAYLISTS: Record<MusicPlaylistId, MusicPlaylistDef> = {
     [MUSIC_PLAYLIST_MENU]: {
         id: MUSIC_PLAYLIST_MENU,
-        songIds: [MUSIC_SONG_VERY_BRADY_SPECIAL, MUSIC_SONG_THE_BRITONS],
+        songIds: [MUSIC_SONG_VERY_BRADY_SPECIAL, MUSIC_SONG_THE_BRITONS, MUSIC_SONG_MIDNIGHT_TALE],
     },
     [MUSIC_PLAYLIST_BATTLE]: {
         id: MUSIC_PLAYLIST_BATTLE,
-        songIds: [MUSIC_SONG_MIDNIGHT_TALE, MUSIC_SONG_STAY_THE_COURSE],
+        songIds: [MUSIC_SONG_STAY_THE_COURSE, MUSIC_SONG_FANTASIA_FANTASIA],
     },
     [MUSIC_PLAYLIST_BOSS]: {
         id: MUSIC_PLAYLIST_BOSS,

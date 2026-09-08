@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import type { ChoicePhrase, StoryChoiceOptionRow } from '../../../storylines/storyTypes';
+import type { ChoicePhrase, StoryChoiceAction, StoryChoiceOptionRow } from '../../../storylines/storyTypes';
 import ResourcePill, { campaignResourceGains } from '../../../../../components/ResourcePill';
 import StoryChoiceGrid, {
     STORY_CHOICE_CELL_BUTTON_BASE,
@@ -32,7 +32,7 @@ interface ChoicePhrasePanelProps {
     onChoose: (
         choiceId: string,
         optionId: string,
-        option?: { action?: { type: string; itemId?: string } },
+        option?: { action?: StoryChoiceAction },
     ) => void;
 }
 

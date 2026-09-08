@@ -92,6 +92,7 @@ enum MessageType: string
                 'researchTreeId',
                 'researchNodeId',
                 'researchRewardId',
+                'prepLoadoutPrimaryIds',
             ],
             default => [],
         };

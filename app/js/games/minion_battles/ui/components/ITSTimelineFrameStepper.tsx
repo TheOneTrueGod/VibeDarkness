@@ -1,4 +1,6 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
+import { useCurrentUser } from '../../../../user/useCurrentUser';
+import { useDebugConsole } from '../../../../contexts/DebugConsoleContext';
 import {
     FRAMES_PER_PIP,
     OVERFLOW_LABEL_WIDTH_PX,
@@ -51,6 +53,10 @@ export default function ITSTimelineFrameStepper({
     expectedDurationTicks,
     framesPerPip = FRAMES_PER_PIP,
 }: ITSTimelineFrameStepperProps) {
+    const { isAdmin } = useCurrentUser();
+    const { debugConsoleEnabled } = useDebugConsole();
+    /** 1s/2s/3s scale marks — admin or debug console only (same gate as MissionIdBadge). */
+    const showFrameIndicator = isAdmin || debugConsoleEnabled;
     const trackRef = useRef<HTMLDivElement>(null);
     const [trackWidthPx, setTrackWidthPx] = useState(0);
 
@@ -78,7 +84,9 @@ export default function ITSTimelineFrameStepper({
         trackWidthPx: Math.max(0, trackWidthPx),
     });
 
-    const keyTickMarkers = computeItsTimelineKeyTickMarkers({ pipCount, framesPerPip });
+    const keyTickMarkers = showFrameIndicator
+        ? computeItsTimelineKeyTickMarkers({ pipCount, framesPerPip })
+        : [];
     const keyTickPipIndices = new Set(keyTickMarkers.map((m) => m.pipIndex));
 
     const leftOverflowWidthPx = window.leftOverflow > 0 ? OVERFLOW_LABEL_WIDTH_PX : 0;
