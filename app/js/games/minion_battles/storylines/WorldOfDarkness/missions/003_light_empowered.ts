@@ -18,6 +18,8 @@ import { TerrainType } from '../../../terrain/TerrainType';
 import {
 	MAP_SEGMENT_50_50_CRYSTAL_CAVE,
 	CAVE_CAMPFIRE,
+	CAVE_CAMPFIRE_LIGHT_AMOUNT,
+	CAVE_CAMPFIRE_LIGHT_RADIUS,
 	crystalSpecialTilesAt,
 } from '../MapSegments/50_50_crystal_cave';
 import {
@@ -161,7 +163,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
 		col: CAVE_CAMPFIRE.col,
 		row: CAVE_CAMPFIRE.row + BOTTOM_OFFSET_ROW,
 		hp: 5,
-		emitsLight: { lightAmount: 4, radius: 2 },
+		emitsLight: { lightAmount: CAVE_CAMPFIRE_LIGHT_AMOUNT, radius: CAVE_CAMPFIRE_LIGHT_RADIUS },
 	},
 	...crystalSpecialTilesAt(0, BOTTOM_OFFSET_ROW),
 ];

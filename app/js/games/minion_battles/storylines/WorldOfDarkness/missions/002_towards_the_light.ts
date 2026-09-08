@@ -26,6 +26,8 @@ import { MAP_SEGMENT_49_50_PATH_TO_CAVE } from '../MapSegments/49_50_path_to_cav
 import {
     MAP_SEGMENT_50_50_CRYSTAL_CAVE,
     CAVE_CAMPFIRE,
+    CAVE_CAMPFIRE_LIGHT_AMOUNT,
+    CAVE_CAMPFIRE_LIGHT_RADIUS,
     crystalSpecialTilesAt,
 } from '../MapSegments/50_50_crystal_cave';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
@@ -137,7 +139,7 @@ const SPECIAL_TILES: SpecialTilePlacement[] = [
         col: CAVE_CAMPFIRE.col + RIGHT_OFFSET_COL,
         row: CAVE_CAMPFIRE.row,
         hp: 5,
-        emitsLight: { lightAmount: 10, radius: 8 },
+        emitsLight: { lightAmount: CAVE_CAMPFIRE_LIGHT_AMOUNT, radius: CAVE_CAMPFIRE_LIGHT_RADIUS },
     },
     ...crystalSpecialTilesAt(RIGHT_OFFSET_COL),
 ];

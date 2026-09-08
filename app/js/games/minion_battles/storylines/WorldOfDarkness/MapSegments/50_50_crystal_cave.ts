@@ -58,6 +58,10 @@ export const MAP_SEGMENT_50_50_CRYSTAL_CAVE: TerrainType[][] = [
 /** Point of interest: center of cave floor (campfire location in missions 2 and 3). */
 export const CAVE_CAMPFIRE = { row: 10, col: 19 } as const;
 
+/** Cave campfire emission used from Light Empowered onward (Towards the Light matches these). */
+export const CAVE_CAMPFIRE_LIGHT_AMOUNT = 4;
+export const CAVE_CAMPFIRE_LIGHT_RADIUS = 2;
+
 /** Offsets from {@link CAVE_CAMPFIRE} for multiplayer home spawns (all on cave-floor dirt). */
 export const HOME_PLAYER_SPAWN_OFFSETS = [
     { dCol: -1, dRow: -1 },
