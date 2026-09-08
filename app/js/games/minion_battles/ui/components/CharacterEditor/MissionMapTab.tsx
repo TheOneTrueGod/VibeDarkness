@@ -9,7 +9,7 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { LucideIcon } from 'lucide-react';
-import { ChevronDown, Route, Scroll, Skull, Swords } from 'lucide-react';
+import { ChevronDown, Route, Scroll, Skull, Swords, X } from 'lucide-react';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import type { MissionResult } from '../../../../../types';
 import type { MissionType } from '../../../storylines/types';
@@ -47,6 +47,12 @@ import {
 import QuestBanksPanel from './QuestBanksPanel';
 
 type MissionMapPane = 'map' | 'quests';
+
+const MAP_PANE_LABEL = 'Map';
+const SIDE_QUESTS_PANE_LABEL = 'Side Quests';
+/** Shared slot so the map title lines up with Side Quests + close button. */
+const PANE_TITLE_SLOT_CLASS = 'h-7 w-7 shrink-0';
+const PANE_TITLE_TEXT_CLASS = 'text-base text-white';
 
 const CIRCLE_R = 28;
 /** ViewBox inset — covers node radius, name label below, and hover rings without huge empty margins. */
@@ -726,14 +732,6 @@ export default function MissionMapTab({
         );
     }
 
-    // Match Campaign select height (`text-xs` + `py-1`).
-    const pillClass = (pane: MissionMapPane) =>
-        `px-2.5 py-0.5 rounded-full text-xs font-semibold leading-5 transition-colors cursor-pointer ${
-            activePane === pane
-                ? 'bg-primary text-secondary'
-                : 'text-muted hover:text-white'
-        }`;
-
     const chapterBtnClass = (active: boolean, unlocked: boolean, clickable: boolean) =>
         `flex items-center justify-center w-10 h-10 rounded-lg text-lg font-bold leading-none transition-all ${
             active
@@ -746,106 +744,89 @@ export default function MissionMapTab({
     // Show the chapter strip whenever the campaign defines chapters at all — a lone "I" renders
     // too, for consistency across campaigns.
     const showChapters = chapters.length >= 1;
-    const showToolbar = usePaneTabs || showChapters || Boolean(onCampaignChange);
 
     return (
         <div className="w-full h-full overflow-auto">
-            {showToolbar && (
-                <div className="shrink-0 flex items-center gap-3 pb-2 border-b border-border-custom mb-2">
-                    {/* left */}
-                    <div className="flex-1 min-w-0 flex items-center gap-3">
-                        {usePaneTabs && (
-                            <div
-                                className="inline-flex gap-0.5 p-0.5 rounded-full border border-border-custom bg-background/60 shrink-0"
-                                role="tablist"
-                                aria-label="Mission map panes"
-                            >
-                                <button
-                                    type="button"
-                                    role="tab"
-                                    aria-selected={activePane === 'map'}
-                                    data-testid={TestIds.missionMapSubTabMap}
-                                    className={pillClass('map')}
-                                    onClick={() => {
-                                        setActivePane('map');
-                                    }}
-                                >
-                                    Map
-                                </button>
-                                <button
-                                    type="button"
-                                    role="tab"
-                                    aria-selected={activePane === 'quests'}
-                                    data-testid={TestIds.missionMapSubTabQuests}
-                                    className={pillClass('quests')}
-                                    onClick={() => {
-                                        setActivePane('quests');
-                                        setTooltip(null);
-                                        setBankTooltip(null);
-                                    }}
-                                >
-                                    Quests
-                                </button>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* center: chapter buttons */}
-                    {showChapters && (
-                        <div
-                            className="shrink-0 flex items-center gap-2"
-                            role="tablist"
-                            aria-label="Campaign chapters"
+            <div className="shrink-0 flex items-center gap-3 pb-2 border-b border-border-custom mb-2">
+                {/* left */}
+                <div className="flex-1 min-w-0 flex items-center gap-2">
+                    {showQuests ? (
+                        <button
+                            type="button"
+                            data-testid={TestIds.missionMapCloseSideQuests}
+                            onClick={() => setActivePane('map')}
+                            className={`${PANE_TITLE_SLOT_CLASS} rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer`}
+                            aria-label="Back to map"
+                            title="Back to map"
                         >
-                            {chapters.map((ch, i) => {
-                                const unlocked = isChapterUnlocked(ch, i, missionResults);
-                                const active = i === activeChapterIndex;
-                                const clickable = unlocked || isAdmin;
-                                return (
-                                    <button
-                                        key={ch.id}
-                                        type="button"
-                                        role="tab"
-                                        aria-selected={active}
-                                        disabled={!clickable}
-                                        data-testid={missionMapChapterTestId(ch.id)}
-                                        title={ch.title ?? `Chapter ${ch.numeral}`}
-                                        onClick={() => setActiveChapterIndex(i)}
-                                        className={chapterBtnClass(active, unlocked, clickable)}
-                                    >
-                                        {ch.numeral}
-                                    </button>
-                                );
-                            })}
+                            <X className="h-3.5 w-3.5" aria-hidden />
+                        </button>
+                    ) : (
+                        <div className={PANE_TITLE_SLOT_CLASS} aria-hidden />
+                    )}
+                    <p
+                        className={PANE_TITLE_TEXT_CLASS}
+                        data-testid={showQuests ? TestIds.missionMapSubTabQuests : TestIds.missionMapSubTabMap}
+                    >
+                        {showQuests ? SIDE_QUESTS_PANE_LABEL : MAP_PANE_LABEL}
+                    </p>
+                </div>
+
+                {/* center: chapter buttons */}
+                {showChapters && (
+                    <div
+                        className="shrink-0 flex items-center gap-2"
+                        role="tablist"
+                        aria-label="Campaign chapters"
+                    >
+                        {chapters.map((ch, i) => {
+                            const unlocked = isChapterUnlocked(ch, i, missionResults);
+                            const active = i === activeChapterIndex;
+                            const clickable = unlocked || isAdmin;
+                            return (
+                                <button
+                                    key={ch.id}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={active}
+                                    disabled={!clickable}
+                                    data-testid={missionMapChapterTestId(ch.id)}
+                                    title={ch.title ?? `Chapter ${ch.numeral}`}
+                                    onClick={() => setActiveChapterIndex(i)}
+                                    className={chapterBtnClass(active, unlocked, clickable)}
+                                >
+                                    {ch.numeral}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* right */}
+                <div className="flex-1 min-w-0 flex items-center justify-end gap-3">
+                    {onCampaignChange && (
+                        <div className="flex items-center gap-2 min-w-0">
+                            <label className="text-xs text-muted shrink-0">Campaign:</label>
+                            <div className="relative w-44 max-w-[40vw] shrink-0">
+                                <select
+                                    value={character.campaignId}
+                                    onChange={(e) => void onCampaignChange(e.target.value)}
+                                    className="w-full appearance-none text-xs bg-surface border border-border-custom rounded pl-2 pr-7 py-1 text-white"
+                                >
+                                    {STORYLINES.map((s) => (
+                                        <option key={s.id} value={s.id}>{s.title}</option>
+                                    ))}
+                                </select>
+                                <ChevronDown
+                                    className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white"
+                                    aria-hidden
+                                    strokeWidth={2.25}
+                                />
+                            </div>
                         </div>
                     )}
-
-                    {/* right */}
-                    <div className="flex-1 min-w-0 flex items-center justify-end gap-3">
-                        {onCampaignChange && (
-                            <div className="flex items-center gap-2 min-w-0">
-                                <label className="text-xs text-muted shrink-0">Campaign:</label>
-                                <div className="relative w-44 max-w-[40vw] shrink-0">
-                                    <select
-                                        value={character.campaignId}
-                                        onChange={(e) => void onCampaignChange(e.target.value)}
-                                        className="w-full appearance-none text-xs bg-surface border border-border-custom rounded pl-2 pr-7 py-1 text-white"
-                                    >
-                                        {STORYLINES.map((s) => (
-                                            <option key={s.id} value={s.id}>{s.title}</option>
-                                        ))}
-                                    </select>
-                                    <ChevronDown
-                                        className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white"
-                                        aria-hidden
-                                        strokeWidth={2.25}
-                                    />
-                                </div>
-                            </div>
-                        )}
-                    </div>
                 </div>
-            )}
+            </div>
             {showQuests && onStartQuest && (
                 <div ref={questBanksPanelRef}>
                     <QuestBanksPanel

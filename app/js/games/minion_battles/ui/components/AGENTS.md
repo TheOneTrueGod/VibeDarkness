@@ -6,7 +6,7 @@ Reusable React widgets for battle and lobby-adjacent Minion Battles UI. Paths be
 
 | Area | Purpose |
 |------|---------|
-| Root (`*.tsx`) | Shared battle/lobby widgets (ability slots, tooltips, timeline, portraits). |
+| Root (`*.tsx`) | Shared battle/lobby widgets (ability slots, tooltips, timeline, portraits). **MusicPlayer** is the global cassette-style transport in the title bar. |
 | `battleUiSlots/` | Fixed shell regions for the battle HUD (ability bar, canvas top-right details). |
 | `CharacterEditor/` | Campaign character editor tabs and panels. |
 | `characters/` | Campaign-home Characters tab: list pull-out, character cards, campaign data. |

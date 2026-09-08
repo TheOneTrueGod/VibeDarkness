@@ -41,7 +41,7 @@ export interface QuestBanksPanelProps {
     onAbandonQuest?: () => void | Promise<void>;
     /** When set (e.g. from Mission Map bank node click), expand that bank's picker. */
     focusedBankId?: string | null;
-    /** Hide the "Quests" heading (e.g. when a parent tab/pill already labels the pane). */
+    /** Hide the "Quests" heading (e.g. when a parent pane title already labels the list). */
     hideSectionTitle?: boolean;
     /** Admin-only: quest id + seek-to-mission pills. */
     isAdmin?: boolean;

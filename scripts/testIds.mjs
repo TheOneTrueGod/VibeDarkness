@@ -19,6 +19,7 @@ export const TestIds = {
     missionMapQuestBankPrefix: 'mission-map-quest-bank-',
     missionMapSubTabMap: 'mission-map-subtab-map',
     missionMapSubTabQuests: 'mission-map-subtab-quests',
+    missionMapCloseSideQuests: 'mission-map-close-side-quests',
     questBanksPanel: 'quest-banks-panel',
     questContinue: 'quest-continue',
     questAbandon: 'quest-abandon',
@@ -37,6 +38,12 @@ export const TestIds = {
     battleWait: 'battle-wait',
     lobbyLeave: 'lobby-leave',
     appLogout: 'app-logout',
+    musicPlayer: 'music-player',
+    musicPlayerPlayPause: 'music-player-play-pause',
+    musicPlayerSkip: 'music-player-skip',
+    musicPlayerReadout: 'music-player-readout',
+    musicPlayerVolume: 'music-player-volume',
+    musicPlayerMute: 'music-player-mute',
     gameSession: 'game-session',
 };
 

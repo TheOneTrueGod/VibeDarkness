@@ -34,6 +34,7 @@ Paths below are relative to `app/js/games/minion_battles/`. **Do not treat this 
 | `ui/pages/` | Full-screen or phase-level React surfaces (lobby-adjacent flow, battle shell, editors). |
 | `api/` | Minion Battles HTTP facade and DTO-style types for lobby payloads. |
 | `assets/` | Shared game media (sprites, story art, music/sfx). See `assets/SKILL.md`. |
+| `music/` | Playlist catalog, persisted volume/mute, and the dual-channel music controller. See `music/AGENTS.md`. |
 | `terrain/` | Bedrock grid, pathfinding, terrain manager. See `terrain/AGENTS.md` (mutable floor/ground/air overlays live on `game/TerrainLayerManager`). |
 | `abilities/` | Ability classes, timings, targeting, CastBehaviours, previews. See `abilities/AGENTS.md`. |
 | `crowdControl/` | Hard CC apply paths, knockback keywords, boss CC armour. See `crowdControl/AGENTS.md`. |

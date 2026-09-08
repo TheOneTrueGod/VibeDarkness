@@ -16,7 +16,8 @@ This skill keeps a **list of component names** and a **one-line description** of
 | **CharacterCreator** | Modal for creating a new campaign character: portrait carousel and Create button. |
 | **VNTextBox** | Visual-novel style dialogue/choice box used in the pre-mission story phase. |
 | **PlayerPill** | Two-line player pill: color dot, name, HOST badge, (You); optional second line (e.g. selected character). Used in PlayerList and character select. |
-| **AppTitleBar** | Fixed global title bar for logged-in users: account name top-left, admin-only **CiStatusPill** top-right. |
+| **AppTitleBar** | Fixed global title bar for logged-in users: **MusicPlayer**, admin-only **CiStatusPill**, and Log out. |
+| **MusicPlayer** | Cassette-style title-bar transport (play/pause, skip, readout, volume, mute). Backed by `minion_battles/music/MusicPlayerController`. |
 | **CiStatusPill** | Small gray/green/red circle showing local CI health from `/api/admin/ci-status`; admin-only hover tooltip with pass/fail counts. |
 | **CornerSlotBattleDetails** | Top-right battle canvas rack for world modifiers, admin ninjutsu pools, and the debug game-tick pill. |
 | **CardWithTitle** | Full-size titled card (`title`, optional `subtitle` / `actions`, children in a vertically scrolling body). Fills its parent; white text + `bg-surface`. Max width belongs on the parent wrapper. Lives in `app/js/components/`. |

@@ -2,12 +2,15 @@
  * Global title bar shown for authenticated users on campaign screens.
  * In-lobby CI status lives in GameScreen's mission header instead.
  */
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useCurrentUser } from '../user/useCurrentUser';
 import { useUserData } from '../user/UserDataProvider';
 import { LobbyClient } from '../LobbyClient';
 import { TestIds } from '../testing/testIds';
+import { getMusicPlayer } from '../games/minion_battles/music/MusicPlayerController';
+import { MUSIC_PLAYLIST_MENU } from '../games/minion_battles/music/musicConstants';
+import MusicPlayer from '../games/minion_battles/ui/components/MusicPlayer';
 import CiStatusPill from './CiStatusPill';
 
 const LOBBY_PATH_PATTERN = /^\/lobby\//;
@@ -31,24 +34,28 @@ export default function AppTitleBar() {
         }
     }, [lobbyClient, refetch]);
 
-    // Lobby chrome has its own Leave control; keep this bar for campaign screens.
-    if (inLobby) {
-        return null;
-    }
+    useEffect(() => {
+        if (!inLobby) {
+            getMusicPlayer().playPlaylist(MUSIC_PLAYLIST_MENU);
+        }
+    }, [inLobby]);
 
     return (
         <div className="pointer-events-none fixed top-0 left-0 right-0 z-[200] flex items-center justify-end px-4 py-2">
             <div className="pointer-events-auto flex items-center gap-2">
-                {isAdmin && <CiStatusPill />}
-                <button
-                    type="button"
-                    data-testid={TestIds.appLogout}
-                    onClick={() => void handleLogout()}
-                    disabled={loggingOut}
-                    className="px-3 py-1.5 rounded-md border border-border-custom bg-surface-light/90 text-sm text-muted hover:text-white hover:bg-border-custom transition-colors disabled:opacity-50"
-                >
-                    {loggingOut ? 'Logging out…' : 'Log out'}
-                </button>
+                <MusicPlayer />
+                {!inLobby && isAdmin && <CiStatusPill />}
+                {!inLobby && (
+                    <button
+                        type="button"
+                        data-testid={TestIds.appLogout}
+                        onClick={() => void handleLogout()}
+                        disabled={loggingOut}
+                        className="px-3 py-1.5 rounded-md border border-border-custom bg-surface-light/90 text-sm text-muted hover:text-white hover:bg-border-custom transition-colors disabled:opacity-50"
+                    >
+                        {loggingOut ? 'Logging out…' : 'Log out'}
+                    </button>
+                )}
             </div>
         </div>
     );

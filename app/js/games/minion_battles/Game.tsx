@@ -49,6 +49,8 @@ import { MinionBattlesApi } from './api/minionBattlesApi';
 import { TestIds } from '../../testing/testIds';
 import { useGameSyncOptional } from '../../contexts/GameSyncContext';
 import { isUnifiedSlotLayoutPhase } from '../../contexts/gameSyncOptimisticPatch';
+import { getMusicPlayer } from './music/MusicPlayerController';
+import { playlistIdForGamePhase } from './music/playlistIdForGamePhase';
 
 function getSelectedMissionId(data: Record<string, unknown>): string | null {
     const missionId = data.selectedMissionId ?? data.selected_mission_id;
@@ -230,6 +232,10 @@ export default function MinionBattlesGame({
     const missionDef = selectedMissionId ? MISSION_MAP[selectedMissionId] : undefined;
     const preMissionStory = missionDef?.preMissionStory ?? null;
     const postMissionStory = missionDef?.postMissionStory ?? null;
+
+    useEffect(() => {
+        getMusicPlayer().playPlaylist(playlistIdForGamePhase(gamePhase, missionDef?.missionType));
+    }, [gamePhase, missionDef?.missionType]);
 
     /**
      * Starting items granted via pre-mission story (choice equip_item / group vote grant_item_to_player).

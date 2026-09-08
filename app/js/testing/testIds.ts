@@ -35,6 +35,8 @@ export const TestIds = {
     /** Mission Map quest banks / optional / prep (Campaign Home) */
     missionMapSubTabMap: 'mission-map-subtab-map',
     missionMapSubTabQuests: 'mission-map-subtab-quests',
+    /** Close the side-quests list and return to the map. */
+    missionMapCloseSideQuests: 'mission-map-close-side-quests',
     questBanksPanel: 'quest-banks-panel',
     /** Inline Continue on the active quest row (Quests panel / bank tooltip). */
     questContinue: 'quest-continue',
@@ -68,6 +70,13 @@ export const TestIds = {
     battleDetails: 'battle-details',
     lobbyLeave: 'lobby-leave',
     appLogout: 'app-logout',
+
+    musicPlayer: 'music-player',
+    musicPlayerPlayPause: 'music-player-play-pause',
+    musicPlayerSkip: 'music-player-skip',
+    musicPlayerReadout: 'music-player-readout',
+    musicPlayerVolume: 'music-player-volume',
+    musicPlayerMute: 'music-player-mute',
 
     /** Root marker with data-game-phase / data-game-tick attributes */
     gameSession: 'game-session',

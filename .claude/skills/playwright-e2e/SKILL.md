@@ -42,6 +42,7 @@ Canonical ids: **`app/js/testing/testIds.ts`** (mirror for Node scripts: `script
 | `story-next` / `story-choice-{optionId}` | Pre-mission story |
 | `battle-wait` / `lobby-leave` | Battle Wait + Leave |
 | `app-logout` | Campaign chrome Log out |
+| `music-player` / `music-player-play-pause` / `music-player-skip` / `music-player-readout` / `music-player-volume` / `music-player-mute` | Title-bar music transport |
 | `game-session` | Root with `data-game-phase` + `data-game-tick` |
 
 Use `page.getByTestId(...)`. Wait accessible name is **`Wait`** (kbd is `aria-hidden`); `title` still has “Wait (Space)”.

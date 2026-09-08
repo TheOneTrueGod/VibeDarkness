@@ -94,6 +94,17 @@ test.describe('Mission Map quest bank side quest', () => {
         await expect(bankNode).toBeVisible({ timeout: 15_000 });
         await bankNode.click();
 
+        const questsPane = page.getByTestId(TestIds.missionMapSubTabQuests);
+        if (await questsPane.isVisible().catch(() => false)) {
+            const optionalStart = page.getByTestId(
+                `${TestIds.questStartOptionalPrefix}${SCAVENGE_QUEST_ID}`,
+            );
+            await optionalStart.scrollIntoViewIfNeeded();
+            await optionalStart.click();
+            await expect(page.getByTestId(TestIds.questPrepAbilityPicker)).toBeVisible({ timeout: 30_000 });
+            return;
+        }
+
         const tooltip = page.getByTestId(TestIds.questBankTooltip);
         await expect(tooltip).toBeVisible({ timeout: 10_000 });
 

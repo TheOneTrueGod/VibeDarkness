@@ -12,6 +12,7 @@ import { test, expect } from './fixtures/sandboxed';
 import {
     TestIds,
     campaignTabTestId,
+    missionMapQuestBankTestId,
 } from '../scripts/testIds.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -20,6 +21,8 @@ const ENV_PATH = path.join(rootDir, '.env.playwright.local');
 
 /** Optional quest always available from QuestBanksPanel (no bank unlock required). */
 const SCAVENGE_QUEST_ID = 'scavenge_the_plains';
+/** Picker bank node that opens the side-quests list. */
+const POST_CORE_BANK_ID = 'wod_post_core_awakening_quests';
 
 function loadEnvFile(filePath: string): Record<string, string> {
     if (!fs.existsSync(filePath)) return {};
@@ -80,10 +83,12 @@ async function openMissionMap(page: import('@playwright/test').Page) {
 }
 
 async function startOptionalQuest(page: import('@playwright/test').Page) {
-    // Prefer Quests sub-tab when present (banks/optional panel).
-    const questsSub = page.getByTestId(TestIds.missionMapSubTabQuests);
-    if (await questsSub.isVisible().catch(() => false)) {
-        await questsSub.click();
+    const questsPane = page.getByTestId(TestIds.missionMapSubTabQuests);
+    if (!(await questsPane.isVisible().catch(() => false))) {
+        const bankNode = page.getByTestId(missionMapQuestBankTestId(POST_CORE_BANK_ID));
+        if (await bankNode.isVisible().catch(() => false)) {
+            await bankNode.click();
+        }
     }
 
     const optionalStart = page.getByTestId(
