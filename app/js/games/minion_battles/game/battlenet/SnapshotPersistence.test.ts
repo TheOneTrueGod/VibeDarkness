@@ -15,6 +15,12 @@ vi.mock('../../../../lobbyLog', () => ({
 import { SnapshotPersistence } from './SnapshotPersistence';
 import { TICK_STATE_HISTORY_CAPACITY, tickStateHistory } from '../tickStateHistory';
 
+/** Lobby 97305C: completed pause tick vs Wait batch. */
+const LOBBY_97305C_PAUSE_TICK = 329;
+const LOBBY_97305C_WAIT_AT_TICK = 330;
+const LOBBY_97305C_MARK_COMPLETED_TICK = 224;
+const LOBBY_97305C_MARK_BATCH_AT_TICK = 225;
+
 function makeSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessionHandle {
     return {
         getEngineTick: () => 0,
@@ -50,6 +56,10 @@ function makeApi(overrides: Partial<BattleApi> = {}): BattleApi {
         getBattleSnapshot: vi.fn(async () => null) as unknown as BattleApi['getBattleSnapshot'],
         getBattleHeartbeat: vi.fn() as unknown as BattleApi['getBattleHeartbeat'],
         mergeBattleAppliedOrders: vi.fn(async () => ({ success: true, merged: 0 })) as unknown as BattleApi['mergeBattleAppliedOrders'],
+        persistHostCycles: vi.fn(async () => ({
+            accepted: true,
+            acceptedIdHashes: [] as string[],
+        })) as unknown as BattleApi['persistHostCycles'],
         saveBattleInitialState: vi.fn(async () => {}) as unknown as BattleApi['saveBattleInitialState'],
         getBattleInitialState: vi.fn(async () => null) as unknown as BattleApi['getBattleInitialState'],
         saveBattleSnapshot: vi.fn(async () => {}) as unknown as BattleApi['saveBattleSnapshot'],
@@ -179,6 +189,84 @@ describe('SnapshotPersistence.saveSnapshotOnPause', () => {
         await host.ctrl.saveSnapshotOnPause(10, { gameTick: 10 } as SerializedGameState);
         await host.ctrl.saveSnapshotOnPause(10, { gameTick: 10 } as SerializedGameState);
         expect(host.api.saveBattleSnapshot).toHaveBeenCalledTimes(1);
+    });
+
+    it('tracks in-flight pause snapshot; persist wait blocks until ACK when lastSnapshotTick is behind', async () => {
+        const pauseTick = LOBBY_97305C_PAUSE_TICK;
+        const waitAtTick = LOBBY_97305C_WAIT_AT_TICK;
+        let resolveSave: () => void = () => {};
+        const saveBattleSnapshot = vi.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolveSave = resolve;
+                }),
+        );
+        const { ctrl } = make({
+            api: { saveBattleSnapshot: saveBattleSnapshot as unknown as BattleApi['saveBattleSnapshot'] },
+            session: { getEngineTick: () => pauseTick, getRuntimeFingerprintHex: () => 'runtime_fp' },
+        });
+        const saveP = ctrl.saveSnapshotOnPause(pauseTick, { gameTick: pauseTick } as SerializedGameState);
+        expect(ctrl.getInFlightPauseSnapshotTick()).toBe(pauseTick);
+        let persistWaitDone = false;
+        const persistWait = ctrl.awaitPauseSnapshotBeforeHostPersist(waitAtTick).then(() => {
+            persistWaitDone = true;
+        });
+        await Promise.resolve();
+        expect(persistWaitDone).toBe(false);
+        resolveSave();
+        await saveP;
+        await persistWait;
+        expect(persistWaitDone).toBe(true);
+        expect(ctrl.getLastSnapshotTick()).toBe(pauseTick);
+        expect(ctrl.getInFlightPauseSnapshotTick()).toBeNull();
+    });
+
+    it('does not wait on snapshot for a mark-batch persist when lastSnapshotTick is already atTick-1', async () => {
+        const { ctrl } = make({
+            session: {
+                getEngineTick: () => LOBBY_97305C_MARK_COMPLETED_TICK,
+                getRuntimeFingerprintHex: () => 'runtime_fp',
+            },
+        });
+        await ctrl.saveSnapshotOnPause(LOBBY_97305C_MARK_COMPLETED_TICK, {
+            gameTick: LOBBY_97305C_MARK_COMPLETED_TICK,
+        } as SerializedGameState);
+        expect(ctrl.getLastSnapshotTick()).toBe(LOBBY_97305C_MARK_COMPLETED_TICK);
+        await ctrl.awaitPauseSnapshotBeforeHostPersist(LOBBY_97305C_MARK_BATCH_AT_TICK);
+        expect(ctrl.getInFlightPauseSnapshotTick()).toBeNull();
+    });
+
+    it('notifies onPauseSnapshotAck with hostTick when saveBattleSnapshot returns it', async () => {
+        const onPauseSnapshotAck = vi.fn();
+        const saveBattleSnapshot = vi.fn(async () => ({
+            tick: LOBBY_97305C_PAUSE_TICK,
+            hostTick: LOBBY_97305C_PAUSE_TICK,
+            orderBatchAtTick: LOBBY_97305C_WAIT_AT_TICK,
+        }));
+        const api = makeApi({
+            saveBattleSnapshot: saveBattleSnapshot as unknown as BattleApi['saveBattleSnapshot'],
+        });
+        const ctrl = new SnapshotPersistence({
+            api,
+            session: makeSession({
+                getEngineTick: () => LOBBY_97305C_PAUSE_TICK,
+                getRuntimeFingerprintHex: () => 'runtime_fp',
+            }),
+            isHost: true,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'host',
+            requestResync: vi.fn(),
+            onPauseSnapshotAck,
+        });
+        await ctrl.saveSnapshotOnPause(LOBBY_97305C_PAUSE_TICK, {
+            gameTick: LOBBY_97305C_PAUSE_TICK,
+        } as SerializedGameState);
+        expect(onPauseSnapshotAck).toHaveBeenCalledWith({
+            tick: LOBBY_97305C_PAUSE_TICK,
+            hostTick: LOBBY_97305C_PAUSE_TICK,
+            orderBatchAtTick: LOBBY_97305C_WAIT_AT_TICK,
+        });
     });
 });
 

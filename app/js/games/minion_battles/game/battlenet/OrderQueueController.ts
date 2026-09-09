@@ -351,7 +351,8 @@ export class OrderQueueController {
             this.deferredLocalOrders.length > 0
                 ? this.deferredLocalOrders.reduce((maxTick, row) => Math.max(maxTick, row.atTick), -1)
                 : null;
-        const blocking = this.deferredLocalOrders.length > 0;
+        // Host deferred rows are storage catch-up, not "waiting for another player."
+        const blocking = this.deferredLocalOrders.length > 0 && !this.ctx.isHost;
         this.ctx.events.emit('host-catchup-wait', {
             blocking,
             stuckHeartbeats: this.hostCatchupHeartbeatStreak,

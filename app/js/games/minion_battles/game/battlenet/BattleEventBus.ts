@@ -15,6 +15,7 @@ export class BattleEventBus {
         heartbeat: new Set(),
         'orders-applied': new Set(),
         'host-catchup-wait': new Set(),
+        'host-persist-backlog': new Set(),
         'waiting-for-host-poll-streak': new Set(),
     };
 

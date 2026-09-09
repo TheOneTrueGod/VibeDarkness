@@ -117,150 +117,21 @@ class AppendOrderHandler
         try {
             $storage = new BattleStorage();
             $requestedAtTick = (int) $atTick;
-            $resolved = $storage->resolveLastCompletedTickAndFingerprint($lobbyId, $gameId);
-            $pauseAtTick = $resolved['orderBatchAtTick'];
-
-            $hostTick = $resolved['lastCompleted'] !== null ? (int) $resolved['lastCompleted'] : -1;
-            $hostFingerprint = $resolved['fingerprint'];
-            $latestSnapshot = $storage->getSnapshotAtOrBefore($lobbyId, $gameId, null);
-            $hostTickOut = $hostTick >= 0 ? $hostTick : null;
-            // `getLatestFingerprint().tick` is the last completed sim tick. Valid player orders apply on a
-            // future tick (typically `atTick === hostTick + 1` while paused for that batch). Orders at or
-            // before `hostTick` target a turn the host has already finished — reject stale replays.
-            // No fingerprint file yet (`hostTick < 0`): skip past check so first battle orders can land.
-            if ($hostTick >= 0 && $requestedAtTick <= $hostTick) {
-                $minAllowed = $hostTick + 1;
-                self::logBattleAppendDiagnostic(
-                    $lobbyId,
-                    $gameId,
-                    $playerId,
-                    $requestedAtTick,
-                    $unitId,
-                    $abilityId,
-                    false,
-                    'tick_in_past',
-                    [
-                        'fpHostTickAfterClamp' => $hostTick,
-                        'pauseAtTickFromSnapshot' => $pauseAtTick,
-                        'minAllowedTick' => $minAllowed,
-                    ],
-                    $clientIdHash,
-                );
-                return [
-                    'success' => true,
-                    'appended' => false,
-                    'idHash' => $clientIdHash,
-                    'rejectedReason' => 'tick_in_past',
-                    'minAllowedTick' => $minAllowed,
-                    'hostTick' => $hostTickOut,
-                    'hostFingerprint' => $hostFingerprint,
-                ];
-            }
-            // When paused for orders atTick T, fingerprints often lag at T−1 until the next tick completes.
-            // Using hostTick+1 avoids falsely rejecting legitimate orders while async snapshot catch-up races.
-            $maxAllowedTick = max($hostTick + 1, $pauseAtTick ?? -1);
-            if ($requestedAtTick > $maxAllowedTick) {
-                self::logBattleAppendDiagnostic(
-                    $lobbyId,
-                    $gameId,
-                    $playerId,
-                    $requestedAtTick,
-                    $unitId,
-                    $abilityId,
-                    false,
-                    'tick_ahead_of_host',
-                    [
-                        'fpHostTickAfterClamp' => $hostTick,
-                        'pauseAtTickFromSnapshot' => $pauseAtTick,
-                        'maxAllowedTick' => $maxAllowedTick,
-                    ],
-                    $clientIdHash,
-                );
-                return [
-                    'success' => true,
-                    'appended' => false,
-                    'idHash' => $clientIdHash,
-                    'rejectedReason' => 'tick_ahead_of_host',
-                    'maxAllowedTick' => $maxAllowedTick,
-                    'hostTick' => $hostTickOut,
-                    'hostFingerprint' => $hostFingerprint,
-                ];
-            }
-
-            if ($latestSnapshot !== null) {
-                $stateForOwner = $latestSnapshot['state'] ?? null;
-                if (is_array($stateForOwner)) {
-                    $owner = BattleStorage::resolveUnitOwnerIdFromState($stateForOwner, $unitId, $requestedAtTick);
-                    if ($owner === null) {
-                        self::logBattleAppendDiagnostic(
-                            $lobbyId,
-                            $gameId,
-                            $playerId,
-                            $requestedAtTick,
-                            $unitId,
-                            $abilityId,
-                            false,
-                            'unknown_unit',
-                            ['resolvedOwnerId' => null],
-                            $clientIdHash,
-                        );
-                        return [
-                            'success' => true,
-                            'appended' => false,
-                            'idHash' => $clientIdHash,
-                            'rejectedReason' => 'unknown_unit',
-                            'hostTick' => $hostTickOut,
-                            'hostFingerprint' => $hostFingerprint,
-                        ];
-                    }
-                    if ($owner !== $playerId) {
-                        self::logBattleAppendDiagnostic(
-                            $lobbyId,
-                            $gameId,
-                            $playerId,
-                            $requestedAtTick,
-                            $unitId,
-                            $abilityId,
-                            false,
-                            'not_unit_owner',
-                            ['resolvedOwnerId' => $owner],
-                            $clientIdHash,
-                        );
-                        return [
-                            'success' => true,
-                            'appended' => false,
-                            'idHash' => $clientIdHash,
-                            'rejectedReason' => 'not_unit_owner',
-                            'hostTick' => $hostTickOut,
-                            'hostFingerprint' => $hostFingerprint,
-                        ];
-                    }
-                }
-            }
-
-            $record = [
+            $appendPayload = [
                 'atTick' => $requestedAtTick,
-                'playerId' => $playerId,
                 'order' => $order,
+                'idHash' => $clientIdHash,
             ];
-            if (isset($data['idHash']) && is_string($data['idHash']) && $data['idHash'] !== '') {
-                $record['idHash'] = $data['idHash'];
-            }
             if (isset($data['ts'])) {
-                $record['ts'] = (int) $data['ts'];
+                $appendPayload['ts'] = (int) $data['ts'];
             }
             if (isset($data['finalized'])) {
-                $record['finalized'] = (bool) $data['finalized'];
+                $appendPayload['finalized'] = (bool) $data['finalized'];
             }
             if (isset($data['pendingLineId']) && is_string($data['pendingLineId']) && $data['pendingLineId'] !== '') {
-                $record['pendingLineId'] = $data['pendingLineId'];
+                $appendPayload['pendingLineId'] = $data['pendingLineId'];
             }
-            if ($hostFingerprint !== null && is_string($hostFingerprint) && $hostFingerprint !== '') {
-                $record['basisFingerprint'] = $hostFingerprint;
-            }
-            $appendResult = $storage->appendOrder($lobbyId, $gameId, $record);
-            $appended = $appendResult['appended'];
-            $pendingLineId = $appendResult['pendingLineId'];
+            $result = AppendOrderAccept::tryAppend($storage, $lobbyId, $gameId, $playerId, $appendPayload);
             self::logBattleAppendDiagnostic(
                 $lobbyId,
                 $gameId,
@@ -268,14 +139,33 @@ class AppendOrderHandler
                 $requestedAtTick,
                 $unitId,
                 $abilityId,
-                $appended,
-                null,
-                [
-                    'fpHostTickAfterClamp' => $hostTick,
-                    'pauseAtTickFromSnapshot' => $pauseAtTick,
-                ],
+                $result['appended'],
+                $result['rejectedReason'],
+                $result['telemetry'],
                 $clientIdHash,
             );
+            if ($result['rejectedReason'] !== null) {
+                $out = [
+                    'success' => true,
+                    'appended' => false,
+                    'idHash' => $clientIdHash,
+                    'rejectedReason' => $result['rejectedReason'],
+                    'hostTick' => $result['hostTick'],
+                    'hostFingerprint' => $result['hostFingerprint'],
+                ];
+                if (isset($result['maxAllowedTick'])) {
+                    $out['maxAllowedTick'] = $result['maxAllowedTick'];
+                }
+                if (isset($result['minAllowedTick'])) {
+                    $out['minAllowedTick'] = $result['minAllowedTick'];
+                }
+
+                return $out;
+            }
+            $appended = $result['appended'];
+            $pendingLineId = $result['pendingLineId'];
+            $hostTickOut = $result['hostTick'];
+            $hostFingerprint = $result['hostFingerprint'];
         } catch (InvalidArgumentException $e) {
             http_response_code(400);
             return ['success' => false, 'error' => $e->getMessage()];

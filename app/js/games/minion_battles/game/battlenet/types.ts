@@ -156,6 +156,15 @@ export type BattleNetEventMap = {
         targetTick: number | null;
         queuedCount: number;
     };
+    /**
+     * Host: local sim is 10s+ ahead of the last acknowledged completed tick and paused for
+     * parallel orders — hold new orders until persist ACK catches up (plaque stays Your Turn).
+     */
+    'host-persist-backlog': {
+        blocking: boolean;
+        acknowledgedCompletedTick: number;
+        engineTick: number;
+    };
     /** Non-host: polls while paused for orders and `waiting_for_host` (battle UI gating + stall resync). */
     'waiting-for-host-poll-streak': { streak: number };
 };
@@ -167,6 +176,39 @@ export type BattleNetUnsub = () => void;
 export type SubmitOrderOptions = {
     /** Non-host in-place ITS commit: engine already reflects the order; POST/defer only. */
     skipLocalApply?: boolean;
+};
+
+export type PersistHostCyclesSnapshot = {
+    tick: number;
+    state: SerializedGameState;
+    checkpointFingerprint?: string;
+    checkpointFingerprintPaused?: boolean;
+};
+
+export type PersistHostCyclesOrder = {
+    atTick: number;
+    order: BattleOrder;
+    idHash?: string;
+};
+
+export type PersistHostCyclesBody = {
+    playerId: string;
+    snapshot?: PersistHostCyclesSnapshot;
+    orders: PersistHostCyclesOrder[];
+    mergeBatchTicks: number[];
+};
+
+export type PersistHostCyclesResult = {
+    accepted: boolean;
+    acceptedIdHashes: string[];
+    rejectedReason?: string;
+    rejectedIdHash?: string;
+    maxAllowedTick?: number;
+    minAllowedTick?: number;
+    hostTick?: number;
+    hostFingerprint?: string | null;
+    snapshotTick?: number;
+    mergedTicks?: number[];
 };
 
 export interface BattleApi {
@@ -183,6 +225,11 @@ export interface BattleApi {
         hostTick?: number;
         hostFingerprint?: string | null;
     }>;
+    persistHostCycles(
+        lobbyId: string,
+        gameId: string,
+        body: PersistHostCyclesBody,
+    ): Promise<PersistHostCyclesResult>;
     getBattleOrdersRange(
         lobbyId: string,
         gameId: string,
@@ -252,7 +299,7 @@ export interface BattleApi {
             /** Paired with `checkpointFingerprint` for the co-appended `fingerprints.jsonl` row. */
             checkpointFingerprintPaused?: boolean;
         },
-    ): Promise<void>;
+    ): Promise<void | { tick?: number; hostTick?: number; orderBatchAtTick?: number | null }>;
     appendBattleFingerprints(
         lobbyId: string,
         gameId: string,

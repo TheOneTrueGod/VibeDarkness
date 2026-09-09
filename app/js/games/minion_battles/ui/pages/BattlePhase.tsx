@@ -126,6 +126,9 @@ export default function BattlePhase({
         hostAnchorWaitElapsedMs,
         waitingForHostPollStreak,
         blockingHostPausePlane,
+        hostPersistBacklogBlocking,
+        hostPersistBacklogAcknowledgedTick,
+        hostPersistBacklogEngineTick,
         orderPipeline,
         hasReceivedInitialHeartbeat,
         wireNetEvents,
@@ -269,6 +272,7 @@ export default function BattlePhase({
         canSubmitOrders &&
         !storyPauseActive &&
         !waitingForHostCatchup &&
+        !hostPersistBacklogBlocking &&
         !blockingHostPausePlane &&
         !sessionRef.current?.isMultiplayerAwaitHostCatchup() &&
         (isHost || !fallingBehindHost);
@@ -354,6 +358,7 @@ export default function BattlePhase({
         waitingForOrders,
         storyPauseActive,
         canUseOrderUi,
+        hostPersistBacklogBlocking,
         playerId,
         players,
     });
@@ -493,6 +498,9 @@ export default function BattlePhase({
                                 deferredOrderCount={orderPipeline.queued}
                                 queuedOrders={orderPipeline.queued}
                                 sendingOrders={orderPipeline.sending}
+                                hostPersistBacklogBlocking={hostPersistBacklogBlocking}
+                                hostPersistBacklogAcknowledgedTick={hostPersistBacklogAcknowledgedTick}
+                                hostPersistBacklogEngineTick={hostPersistBacklogEngineTick}
                                 hostAnchorWaitElapsedMs={hostAnchorWaitElapsedMs}
                                 onRequestBattleReload={() =>
                                     netRef.current?.requestResync('user-reload-from-sync-box')

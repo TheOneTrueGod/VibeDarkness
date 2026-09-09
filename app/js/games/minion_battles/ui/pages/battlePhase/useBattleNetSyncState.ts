@@ -29,6 +29,9 @@ export function useBattleNetSyncState({ isHost, onBattleNetResyncingChange }: Us
     const [hostAnchorWaitElapsedMs, setHostAnchorWaitElapsedMs] = useState(0);
     const [waitingForHostPollStreak, setWaitingForHostPollStreak] = useState(0);
     const [blockingHostPausePlane, setBlockingHostPausePlane] = useState(false);
+    const [hostPersistBacklogBlocking, setHostPersistBacklogBlocking] = useState(false);
+    const [hostPersistBacklogAcknowledgedTick, setHostPersistBacklogAcknowledgedTick] = useState(0);
+    const [hostPersistBacklogEngineTick, setHostPersistBacklogEngineTick] = useState(0);
     const [orderPipeline, setOrderPipeline] = useState<{ queued: number; sending: number }>({
         queued: 0,
         sending: 0,
@@ -97,6 +100,13 @@ export function useBattleNetSyncState({ isHost, onBattleNetResyncingChange }: Us
                 setBlockingHostPausePlane((prev) => (prev === payload.blocking ? prev : payload.blocking));
             }),
         );
+        unsubs.push(
+            net.on('host-persist-backlog', (payload) => {
+                setHostPersistBacklogBlocking(payload.blocking);
+                setHostPersistBacklogAcknowledgedTick(payload.acknowledgedCompletedTick);
+                setHostPersistBacklogEngineTick(payload.engineTick);
+            }),
+        );
         unsubs.push(net.on('heartbeat', bumpOrderPipeline));
         unsubs.push(
             net.on('heartbeat', () => {
@@ -141,6 +151,9 @@ export function useBattleNetSyncState({ isHost, onBattleNetResyncingChange }: Us
         hostAnchorWaitElapsedMs,
         waitingForHostPollStreak,
         blockingHostPausePlane,
+        hostPersistBacklogBlocking,
+        hostPersistBacklogAcknowledgedTick,
+        hostPersistBacklogEngineTick,
         orderPipeline,
         hasReceivedInitialHeartbeat,
         wireNetEvents,

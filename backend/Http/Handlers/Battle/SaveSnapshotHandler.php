@@ -63,17 +63,16 @@ class SaveSnapshotHandler
         try {
             $tick = (int) $tickRaw;
             $storage = new BattleStorage();
-            $syn = $checkpointFingerprint !== '' ? $checkpointFingerprint : null;
-            $storage->saveSnapshot($lobbyId, $gameId, $tick, $state, $syn);
-            if ($checkpointFingerprint !== '') {
-                // `paused` is host-authoritative (same predicate as tick-complete `onTickComplete`); see
-                // Plans/end_of_tick_persistence_and_fingerprint_paused.md
-                $storage->appendFingerprints($lobbyId, $gameId, [
-                    ['tick' => $tick, 'fp' => $checkpointFingerprint, 'paused' => $checkpointFingerprintPaused],
-                ]);
-            }
-            $storage->prunePendingOrdersAfterSnapshot($lobbyId, $gameId, $tick);
-            BattleLobbySyncServerLog::logSaveSnapshot($lobbyId, $gameId, $playerId, $tick, $state, $storage);
+            self::writeHostSnapshot(
+                $storage,
+                $lobbyId,
+                $gameId,
+                $playerId,
+                $tick,
+                $state,
+                $checkpointFingerprint,
+                $checkpointFingerprintPaused,
+            );
         } catch (InvalidArgumentException $e) {
             http_response_code(400);
             return ['success' => false, 'error' => $e->getMessage()];
@@ -83,5 +82,38 @@ class SaveSnapshotHandler
         }
 
         return ['success' => true, 'tick' => (int) $tickRaw];
+    }
+
+    /**
+     * Persist a pause snapshot the same way as POST /snapshot (file + fingerprints + prune).
+     *
+     * @param array<string, mixed> $state
+     */
+    public static function writeHostSnapshot(
+        BattleStorage $storage,
+        string $lobbyId,
+        string $gameId,
+        string $playerId,
+        int $tick,
+        array $state,
+        string $checkpointFingerprint,
+        bool $checkpointFingerprintPaused,
+    ): int {
+        if (!array_key_exists('engineSchemaVersion', $state)) {
+            $state['engineSchemaVersion'] = 1;
+        }
+        $syn = $checkpointFingerprint !== '' ? $checkpointFingerprint : null;
+        $storage->saveSnapshot($lobbyId, $gameId, $tick, $state, $syn);
+        if ($checkpointFingerprint !== '') {
+            // `paused` is host-authoritative (same predicate as tick-complete `onTickComplete`); see
+            // Plans/end_of_tick_persistence_and_fingerprint_paused.md
+            $storage->appendFingerprints($lobbyId, $gameId, [
+                ['tick' => $tick, 'fp' => $checkpointFingerprint, 'paused' => $checkpointFingerprintPaused],
+            ]);
+        }
+        $storage->prunePendingOrdersAfterSnapshot($lobbyId, $gameId, $tick);
+        BattleLobbySyncServerLog::logSaveSnapshot($lobbyId, $gameId, $playerId, $tick, $state, $storage);
+
+        return $tick;
     }
 }

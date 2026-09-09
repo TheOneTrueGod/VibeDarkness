@@ -1,7 +1,7 @@
 import type { LobbyClient } from '../../../../LobbyClient';
 import { logToLobbyLog, logToLobbyLogForced } from '../../../../lobbyLog';
 import { sleep } from './helpers/heartbeatTiming';
-import type { BattleApi, BattleSessionHandle } from './types';
+import type { BattleApi, BattleSessionHandle, PersistHostCyclesSnapshot } from './types';
 import type { SerializedGameState } from '../types';
 import { TICK_STATE_HISTORY_CAPACITY, tickStateHistory } from '../tickStateHistory';
 
@@ -14,6 +14,15 @@ export interface SnapshotPersistenceConfig {
     playerId: string;
     /** Callback fired when `mergeAppliedOrdersForBatch` exhausts its retries and must escalate to resync. */
     requestResync: (reason: string) => void;
+    /**
+     * Host persist may update heartbeat from a snapshot ACK when the handler returns
+     * `hostTick` / `orderBatchAtTick`. Today's save handler only returns `tick`.
+     */
+    onPauseSnapshotAck?: (info: {
+        tick: number;
+        hostTick?: number;
+        orderBatchAtTick?: number | null;
+    }) => void;
 }
 
 /**
@@ -24,6 +33,10 @@ export interface SnapshotPersistenceConfig {
 export class SnapshotPersistence {
     private lastSnapshotTick: number | null = null;
     private lastBootstrapSnapshotTick: number | null = null;
+    /** In-flight `saveSnapshotOnPause` (host persist POSTs await this; the engine does not). */
+    private inFlightPauseSnapshot: { tick: number; promise: Promise<void> } | null = null;
+    /** Payload for the in-flight pause snapshot so persist-cycles can include it in one envelope. */
+    private pendingPauseSnapshotPayload: PersistHostCyclesSnapshot | null = null;
     /** Dedupes automatic diagnostic dumps for the same mismatch / stuck-pause episode. */
     private lastDetectedDesyncEpisodeKey: string | null = null;
 
@@ -31,6 +44,41 @@ export class SnapshotPersistence {
 
     getLastSnapshotTick(): number | null {
         return this.lastSnapshotTick;
+    }
+
+    getInFlightPauseSnapshotTick(): number | null {
+        return this.inFlightPauseSnapshot?.tick ?? null;
+    }
+
+    /** In-flight pause snapshot body for a host persist-cycles envelope (null if none). */
+    getPendingPauseSnapshotForEnvelope(): PersistHostCyclesSnapshot | null {
+        return this.pendingPauseSnapshotPayload;
+    }
+
+    /** Envelope already wrote this pause snapshot; keep `lastSnapshotTick` in sync with a standalone POST. */
+    noteEnvelopeSnapshotApplied(tick: number): void {
+        this.lastSnapshotTick = tick;
+    }
+
+    /**
+     * Host persist of `atTick` waits for the pause snapshot that opens the append window:
+     * `lastSnapshotTick < atTick - 1`, or the in-flight save is the completed pause (`atTick - 1`).
+     * No-ops when nothing is in flight (next heartbeat poll is enough to flush).
+     */
+    async awaitPauseSnapshotBeforeHostPersist(atTick: number): Promise<void> {
+        const completedPauseTick = atTick - 1;
+        const last = this.lastSnapshotTick;
+        const inFlight = this.inFlightPauseSnapshot;
+        const lastBehind = last == null || last < completedPauseTick;
+        const inFlightIsCompletedPause = inFlight != null && inFlight.tick === completedPauseTick;
+        if ((!lastBehind && !inFlightIsCompletedPause) || inFlight == null) {
+            return;
+        }
+        try {
+            await inFlight.promise;
+        } catch {
+            // Snapshot POST failed; persist still uses the last-seen heartbeat window.
+        }
     }
 
     getLastBootstrapSnapshotTick(): number | null {
@@ -68,32 +116,68 @@ export class SnapshotPersistence {
         if (!this.config.isHost || this.lastSnapshotTick === tick) {
             return;
         }
+        const checkpointPayload = this.buildPauseCheckpointPayload();
+        const pending: PersistHostCyclesSnapshot = { tick, state, ...checkpointPayload };
+        const run = this.performSaveSnapshotOnPause(pending);
+        this.pendingPauseSnapshotPayload = pending;
+        this.inFlightPauseSnapshot = { tick, promise: run };
+        try {
+            await run;
+        } finally {
+            if (this.inFlightPauseSnapshot?.tick === tick) {
+                this.inFlightPauseSnapshot = null;
+            }
+            if (this.pendingPauseSnapshotPayload?.tick === tick) {
+                this.pendingPauseSnapshotPayload = null;
+            }
+        }
+    }
+
+    private buildPauseCheckpointPayload(): Pick<
+        PersistHostCyclesSnapshot,
+        'checkpointFingerprint' | 'checkpointFingerprintPaused'
+    > {
         // Must match `GameEngine.getRuntimeFingerprintHex` / tick-complete host flush — not the
         // layout digest from `GameEngine.computeInitialFingerprint`, or snapshot POST can win
         // `BattleStorage::appendFingerprints` first-writer and strand the wrong tail hash on disk.
         const checkpointFp = this.config.session.getRuntimeFingerprintHex();
-        const checkpointPayload =
-            typeof checkpointFp === 'string' && checkpointFp !== ''
-                ? {
-                      checkpointFingerprint: checkpointFp,
-                      checkpointFingerprintPaused: this.config.session.getFingerprintTailPaused(),
-                  }
-                : {};
-        await this.config.api.saveBattleSnapshot(this.config.lobbyId, this.config.gameId, {
+        return typeof checkpointFp === 'string' && checkpointFp !== ''
+            ? {
+                  checkpointFingerprint: checkpointFp,
+                  checkpointFingerprintPaused: this.config.session.getFingerprintTailPaused(),
+              }
+            : {};
+    }
+
+    private async performSaveSnapshotOnPause(pending: PersistHostCyclesSnapshot): Promise<void> {
+        const { tick, state, checkpointFingerprint, checkpointFingerprintPaused } = pending;
+        const saveResult = await this.config.api.saveBattleSnapshot(this.config.lobbyId, this.config.gameId, {
             playerId: this.config.playerId,
             tick,
             state,
-            ...checkpointPayload,
+            ...(checkpointFingerprint != null && checkpointFingerprint !== ''
+                ? { checkpointFingerprint, checkpointFingerprintPaused }
+                : {}),
         });
         const engineNow = this.config.session.getEngineTick();
         if (engineNow > tick) {
             // `saveBattleSnapshot` can be slow; if the host already unpaused and simulated past
             // this checkpoint, do not append a stale `{tick}` line after higher ticks on disk.
             this.lastSnapshotTick = tick;
-            return;
+        } else {
+            // When `checkpointFingerprint` is sent, the server appends `fingerprints.jsonl` in the same request.
+            this.lastSnapshotTick = tick;
         }
-        // When `checkpointFingerprint` is sent, the server appends `fingerprints.jsonl` in the same request.
-        this.lastSnapshotTick = tick;
+        const ack =
+            saveResult != null && typeof saveResult === 'object'
+                ? (saveResult as { hostTick?: number; orderBatchAtTick?: number | null })
+                : null;
+        this.config.onPauseSnapshotAck?.({
+            tick,
+            hostTick: typeof ack?.hostTick === 'number' && !Number.isNaN(ack.hostTick) ? ack.hostTick : undefined,
+            orderBatchAtTick:
+                ack != null && 'orderBatchAtTick' in ack ? (ack.orderBatchAtTick ?? null) : undefined,
+        });
     }
 
     /**

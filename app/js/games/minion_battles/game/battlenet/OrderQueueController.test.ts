@@ -48,6 +48,7 @@ function makeApi(): BattleApi {
         getBattleSnapshot: vi.fn(async () => null) as unknown as BattleApi['getBattleSnapshot'],
         getBattleHeartbeat: vi.fn() as unknown as BattleApi['getBattleHeartbeat'],
         mergeBattleAppliedOrders: vi.fn() as unknown as BattleApi['mergeBattleAppliedOrders'],
+        persistHostCycles: vi.fn() as unknown as BattleApi['persistHostCycles'],
         saveBattleInitialState: vi.fn() as unknown as BattleApi['saveBattleInitialState'],
         getBattleInitialState: vi.fn() as unknown as BattleApi['getBattleInitialState'],
         saveBattleSnapshot: vi.fn() as unknown as BattleApi['saveBattleSnapshot'],
@@ -58,7 +59,8 @@ function makeApi(): BattleApi {
     } as BattleApi;
 }
 
-function makeCtx(): BattleNetContext & { requestResync: ReturnType<typeof vi.fn> } {
+function makeCtx(overrides: { isHost?: boolean } = {}): BattleNetContext & { requestResync: ReturnType<typeof vi.fn> } {
+    const isHost = overrides.isHost ?? false;
     const events = new BattleEventBus();
     const api = makeApi();
     const session = makeSession();
@@ -73,7 +75,7 @@ function makeCtx(): BattleNetContext & { requestResync: ReturnType<typeof vi.fn>
     const syncStatus = new SyncStatusController(events);
     const fingerprintBatcher = new FingerprintBatcher({
         api,
-        isHost: false,
+        isHost,
         lobbyId: 'l1',
         gameId: 'g1',
         playerId: 'p1',
@@ -81,7 +83,7 @@ function makeCtx(): BattleNetContext & { requestResync: ReturnType<typeof vi.fn>
     const snapshotPersistence = new SnapshotPersistence({
         api,
         session,
-        isHost: false,
+        isHost,
         lobbyId: 'l1',
         gameId: 'g1',
         playerId: 'p1',
@@ -92,7 +94,7 @@ function makeCtx(): BattleNetContext & { requestResync: ReturnType<typeof vi.fn>
     const ctx: BattleNetContext & { requestResync: ReturnType<typeof vi.fn> } = {
         api,
         session,
-        isHost: false,
+        isHost,
         lobbyId: 'l1',
         gameId: 'g1',
         playerId: 'p1',
@@ -211,6 +213,23 @@ describe('OrderQueueController.emitHostCatchupWaitState', () => {
         q.emitHostCatchupWaitState();
         expect(cb).toHaveBeenCalledWith({
             blocking: true,
+            stuckHeartbeats: 0,
+            hostTick: 0,
+            targetTick: 10,
+            queuedCount: 2,
+        });
+    });
+
+    it('reports blocking=false for host even when deferred orders exist (queuedCount/targetTick still set)', () => {
+        const ctx = makeCtx({ isHost: true });
+        const cb = vi.fn();
+        ctx.events.on('host-catchup-wait', cb);
+        const q = new OrderQueueController(ctx);
+        q.deferLocalOrder('h1', 5, makeOrder('u'), false);
+        q.deferLocalOrder('h2', 10, makeOrder('u'), false);
+        q.emitHostCatchupWaitState();
+        expect(cb).toHaveBeenCalledWith({
+            blocking: false,
             stuckHeartbeats: 0,
             hostTick: 0,
             targetTick: 10,

@@ -37,6 +37,13 @@ export interface BattleSyncStatusProps {
     /** Shown after resync when sim did not pause for ack; dismiss clears parent state. */
     resyncInformAck?: { reason: string; token: number } | null;
     onDismissResyncInformAck?: () => void;
+    /**
+     * Host: persist is 10s+ behind the local pause — quieter hold (not waiting-for-host).
+     * Cards are gated in BattlePhase; this card is informational.
+     */
+    hostPersistBacklogBlocking?: boolean;
+    hostPersistBacklogAcknowledgedTick?: number;
+    hostPersistBacklogEngineTick?: number;
 }
 
 type CardModel = {
@@ -144,11 +151,11 @@ function pickSyncCardModel(p: BattleSyncStatusProps): CardModel {
         };
     }
 
-    if (variant === 'battle' && syncStatus === 'synced') {
+    if (variant === 'battle' && syncStatus === 'synced' && !p.hostPersistBacklogBlocking) {
         return null;
     }
 
-    if (variant === 'battle' && syncStatus === 'optimistic_client_playahead') {
+    if (variant === 'battle' && syncStatus === 'optimistic_client_playahead' && !p.hostPersistBacklogBlocking) {
         return null;
     }
 
@@ -163,7 +170,7 @@ function pickSyncCardModel(p: BattleSyncStatusProps): CardModel {
         };
     }
 
-    if (variant === 'debug' && syncStatus === 'synced') {
+    if (variant === 'debug' && syncStatus === 'synced' && !p.hostPersistBacklogBlocking) {
         const backlog = p.queuedOrders > 0 || p.sendingOrders > 0 || p.deferredOrderCount > 0;
         return {
             title: 'Sync status · synced',
@@ -209,6 +216,18 @@ function pickSyncCardModel(p: BattleSyncStatusProps): CardModel {
             tone: 'success',
             summary: 'State matches the server again. Continue when everyone is ready to resume.',
             details: detailsBattleOrDebug(p, detail),
+        };
+    }
+
+    if (isHost && p.hostPersistBacklogBlocking) {
+        const ackTick = p.hostPersistBacklogAcknowledgedTick ?? 0;
+        const localTick = p.hostPersistBacklogEngineTick ?? 0;
+        return {
+            title: 'Saving progress',
+            tone: 'neutral',
+            summary: `Saved through tick ${ackTick}. Local sim is at tick ${localTick}.`,
+            details: detailsBattleOrDebug(p, detail),
+            busy: true,
         };
     }
 

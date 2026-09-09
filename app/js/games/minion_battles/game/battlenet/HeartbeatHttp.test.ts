@@ -9,6 +9,7 @@ function makeStubApi(getBattleHeartbeat: BattleApi['getBattleHeartbeat']): Battl
         getBattleSnapshot: vi.fn() as unknown as BattleApi['getBattleSnapshot'],
         getBattleHeartbeat,
         mergeBattleAppliedOrders: vi.fn() as unknown as BattleApi['mergeBattleAppliedOrders'],
+        persistHostCycles: vi.fn() as unknown as BattleApi['persistHostCycles'],
         saveBattleInitialState: vi.fn() as unknown as BattleApi['saveBattleInitialState'],
         getBattleInitialState: vi.fn() as unknown as BattleApi['getBattleInitialState'],
         saveBattleSnapshot: vi.fn() as unknown as BattleApi['saveBattleSnapshot'],

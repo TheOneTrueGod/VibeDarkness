@@ -61,6 +61,7 @@ function makeApi(overrides: Partial<Record<keyof BattleApi, unknown>> = {}): Bat
             heartbeatSeq: 0,
         })),
         mergeBattleAppliedOrders: vi.fn(async () => ({ success: true, merged: 0 })),
+        persistHostCycles: vi.fn(async () => ({ accepted: true, acceptedIdHashes: [] as string[] })),
         saveBattleInitialState: vi.fn(async () => {}),
         getBattleInitialState: vi.fn(async () => null),
         saveBattleSnapshot: vi.fn(async () => {}),

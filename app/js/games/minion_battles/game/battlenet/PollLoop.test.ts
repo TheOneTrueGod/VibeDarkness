@@ -46,6 +46,7 @@ function makeApi(): BattleApi {
         getBattleSnapshot: vi.fn(async () => null),
         getBattleHeartbeat: vi.fn(),
         mergeBattleAppliedOrders: vi.fn(),
+        persistHostCycles: vi.fn(),
         saveBattleInitialState: vi.fn(),
         getBattleInitialState: vi.fn(),
         saveBattleSnapshot: vi.fn(),

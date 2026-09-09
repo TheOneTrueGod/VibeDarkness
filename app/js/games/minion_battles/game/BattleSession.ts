@@ -250,6 +250,7 @@ export class BattleSession implements BattleSessionHandle {
         engine.setOnCheckpoint((gameTick, state) => {
             if (engine.isSequentialTargetingPreview) return;
             if (isHost) {
+                // Non-blocking for the engine; host persist POSTs await the in-flight snapshot.
                 void this.netAdapter?.saveSnapshotOnPause(gameTick, state);
             }
         });
@@ -263,15 +264,11 @@ export class BattleSession implements BattleSessionHandle {
         if (isHost) {
             engine.setOnParallelBatchResolved((batchAtTick) => {
                 if (engine.isSequentialTargetingPreview) return;
-                const merge = this.netAdapter?.mergeAppliedOrdersForBatch(batchAtTick);
-                if (merge === undefined || merge === null) {
-                    return;
-                }
-                return Promise.resolve(merge).then((ok) => {
-                    if (ok === false) {
-                        throw new Error('merge-applied-failed');
-                    }
-                });
+                // Fire-and-follow: `tryResumeParallel` stays paused while this hook returns a
+                // Promise, which blocked host local playahead. Merge HTTP still runs, but only
+                // after persist appends land (`BattleNet.mergeAppliedOrdersForBatch` no-ops while
+                // that batch still has an unacked host append).
+                void this.netAdapter?.mergeAppliedOrdersForBatch(batchAtTick);
             });
         } else {
             engine.setOnParallelBatchResolved(null);

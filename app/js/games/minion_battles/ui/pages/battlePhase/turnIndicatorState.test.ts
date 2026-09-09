@@ -81,4 +81,16 @@ describe('computeTurnIndicatorProps', () => {
         });
         expect(result).toEqual(expected);
     });
+
+    it('host persist-backlog hold keeps Your Turn while canUseOrderUi is false', () => {
+        const result = computeTurnIndicatorProps({
+            waitingForOrders: waiting([{ unitId: 'u1', ownerId: ME }]),
+            storyPauseActive: false,
+            canUseOrderUi: false,
+            hostPersistBacklogBlocking: true,
+            playerId: ME,
+            players,
+        });
+        expect(result).toEqual({ state: 'your_turn', allyName: undefined });
+    });
 });

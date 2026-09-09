@@ -1,6 +1,7 @@
 /**
  * Tracks the latest observed heartbeat values (host tick, paused-batch tick, and material change
- * detection). Updated from both `pollOnce` and `appendBattleOrder` responses.
+ * detection). Updated from `pollOnce`, `appendBattleOrder` responses, and snapshot ACK payloads
+ * that include `hostTick` / `orderBatchAtTick`.
  */
 export class HeartbeatState {
     private latestHeartbeatHostTick = 0;
@@ -18,6 +19,11 @@ export class HeartbeatState {
     private lastPollHeartbeatMaterialChanged = false;
 
     getLatestHostTick(): number {
+        return this.latestHeartbeatHostTick;
+    }
+
+    /** Last snapshot/heartbeat `hostTick` seen on disk (completed-tick ACK for the host playahead cap). */
+    getAcknowledgedCompletedTick(): number {
         return this.latestHeartbeatHostTick;
     }
 

@@ -621,6 +621,66 @@ export class LobbyClient {
         };
     }
 
+    async persistHostCycles(
+        lobbyId: string,
+        gameId: string,
+        body: {
+            playerId: string;
+            snapshot?: {
+                tick: number;
+                state: SerializedGameState;
+                checkpointFingerprint?: string;
+                checkpointFingerprintPaused?: boolean;
+            };
+            orders: Array<{ atTick: number; order: BattleOrder; idHash?: string }>;
+            mergeBatchTicks: number[];
+        },
+    ): Promise<{
+        accepted: boolean;
+        acceptedIdHashes: string[];
+        rejectedReason?: string;
+        rejectedIdHash?: string;
+        maxAllowedTick?: number;
+        minAllowedTick?: number;
+        hostTick?: number;
+        hostFingerprint?: string | null;
+        snapshotTick?: number;
+        mergedTicks?: number[];
+    }> {
+        const data = await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/persist-cycles`, {
+            method: 'POST',
+            body: JSON.stringify(body),
+        }) as unknown as {
+            acceptedIdHashes?: string[];
+            rejectedReason?: string | null;
+            rejectedIdHash?: string | null;
+            maxAllowedTick?: number;
+            minAllowedTick?: number;
+            hostTick?: number | null;
+            hostFingerprint?: string | null;
+            snapshotTick?: number;
+            mergedTicks?: number[];
+        };
+        const acceptedIdHashes = Array.isArray(data.acceptedIdHashes)
+            ? data.acceptedIdHashes.filter((h): h is string => typeof h === 'string' && h !== '')
+            : [];
+        const rejectedReason = typeof data.rejectedReason === 'string' ? data.rejectedReason : undefined;
+        return {
+            accepted: rejectedReason === undefined && acceptedIdHashes.length === body.orders.length,
+            acceptedIdHashes,
+            rejectedReason,
+            rejectedIdHash: typeof data.rejectedIdHash === 'string' ? data.rejectedIdHash : undefined,
+            maxAllowedTick: typeof data.maxAllowedTick === 'number' ? data.maxAllowedTick : undefined,
+            minAllowedTick: typeof data.minAllowedTick === 'number' ? data.minAllowedTick : undefined,
+            hostTick: typeof data.hostTick === 'number' ? data.hostTick : undefined,
+            hostFingerprint: typeof data.hostFingerprint === 'string' ? data.hostFingerprint : null,
+            snapshotTick: typeof data.snapshotTick === 'number' ? data.snapshotTick : undefined,
+            mergedTicks: Array.isArray(data.mergedTicks)
+                ? data.mergedTicks.filter((t): t is number => typeof t === 'number')
+                : undefined,
+        };
+    }
+
     async mergeBattleAppliedOrders(
         lobbyId: string,
         gameId: string,

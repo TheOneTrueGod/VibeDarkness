@@ -16,16 +16,24 @@ export function computeTurnIndicatorProps(args: {
     waitingForOrders: WaitingForOrders | null;
     storyPauseActive: boolean;
     canUseOrderUi: boolean;
+    /**
+     * Host persist-backlog hold: cards are gated via `canUseOrderUi`, but local waiters remain
+     * so the plaque stays **Your Turn** (not gray "playing" / waiting-for-host).
+     */
+    hostPersistBacklogBlocking?: boolean;
     playerId: string;
     players: Record<string, PlayerState>;
 }): TurnIndicatorProps {
-    const { waitingForOrders, storyPauseActive, canUseOrderUi, playerId, players } = args;
+    const { waitingForOrders, storyPauseActive, canUseOrderUi, hostPersistBacklogBlocking, playerId, players } = args;
+
+    const localIsWaiter = waitingForOrders?.waiters.some((w) => w.ownerId === playerId) === true;
+    const keepYourTurnForPersistHold = hostPersistBacklogBlocking === true && localIsWaiter;
 
     const state: TurnIndicatorProps['state'] = !waitingForOrders
         ? 'playing'
         : storyPauseActive
           ? 'playing'
-          : canUseOrderUi
+          : canUseOrderUi || keepYourTurnForPersistHold
             ? 'your_turn'
             : waitingForOrders.waiters.some((w) => w.ownerId !== playerId)
               ? 'ally_turn'

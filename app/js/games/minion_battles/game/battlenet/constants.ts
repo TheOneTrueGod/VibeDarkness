@@ -1,3 +1,5 @@
+import { FIXED_DT } from '../GameEngine';
+
 export const INITIAL_STATE_RETRY_DELAY_MS = 500;
 export const INITIAL_STATE_MAX_RETRIES = 20;
 
@@ -90,3 +92,8 @@ export const BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS = 2;
 
 /** Max wait for a best-effort ITS reset/replay/commit order refresh (`BattleNet.pollOnce`). */
 export const ITS_PRE_ACTION_POLL_TIMEOUT_MS = 3000;
+
+/** Host may locally play this many seconds ahead of the last acknowledged completed tick. */
+export const HOST_PLAYAHEAD_CAP_SEC = 10;
+/** Tick count for {@link HOST_PLAYAHEAD_CAP_SEC} at the engine's fixed timestep. */
+export const HOST_PLAYAHEAD_CAP_TICKS = Math.round(HOST_PLAYAHEAD_CAP_SEC / FIXED_DT);

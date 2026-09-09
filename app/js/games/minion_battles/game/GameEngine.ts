@@ -111,7 +111,7 @@ const CHARGED_ROCKS_NODE_ID = 'charged_rocks';
 const CHARGED_ROCKS_LIGHT_CHARGE_PER_ROUND = 1;
 
 /** Fixed time step (seconds): 60 ticks/second. */
-const FIXED_DT = 1 / 60;
+export const FIXED_DT = 1 / 60;
 
 /** Save a checkpoint to the server every this many game ticks. */
 export const CHECKPOINT_INTERVAL = 10;

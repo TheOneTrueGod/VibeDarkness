@@ -22,6 +22,7 @@ describe('HeartbeatState', () => {
         const s = new HeartbeatState();
         s.updateLastSeenHeartbeat(42);
         expect(s.getLatestHostTick()).toBe(42);
+        expect(s.getAcknowledgedCompletedTick()).toBe(42);
         expect(s.getLastObservedAtMs()).not.toBeNull();
     });
 

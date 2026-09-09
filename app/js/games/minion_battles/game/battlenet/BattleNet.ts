@@ -26,7 +26,9 @@ import {
 	BATTLE_NET_STUCK_PAUSED_RESYNC_POLLS,
 	ITS_PRE_ACTION_POLL_TIMEOUT_MS,
 	BATTLE_NET_STRUCTURAL_DIVERGENCE_GRACE_MS,
+	BATTLE_NET_MAX_DEFERRED_ORDERS,
 } from './constants';
+import { isAppendAtTickAccepted, isHostPlayaheadOverCap, maxAllowedAppendTick } from './hostPersistWindow';
 import type {
 	ApplyRemoteOrdersResult,
 	BattleSessionHandle,
@@ -39,6 +41,8 @@ import type {
 	BattleHeartbeatApiResult,
 	BattleNetFactoryArgs,
 	SubmitOrderOptions,
+	PersistHostCyclesSnapshot,
+	PersistHostCyclesResult,
 } from './types';
 
 export {
@@ -93,6 +97,11 @@ export class BattleNet implements BattleNetContext {
 	readonly hostAnchorWait: HostAnchorWaitController;
 	readonly recovery: RecoveryCoordinator;
 	readonly pollLoop: PollLoop;
+
+	/** Host appends not yet accepted for this `atTick` (idHash → batch tick). Merge no-ops until empty. */
+	private readonly hostUnackedAppends = new Map<string, number>();
+	/** Parallel-batch ticks whose merge was skipped until appends land. */
+	private readonly pendingMergeTicks = new Set<number>();
 
 	/** {@link BattleNetContext} requires the controllers as a public surface for siblings. */
 	get syncStatus(): SyncStatusController {
@@ -170,6 +179,15 @@ export class BattleNet implements BattleNetContext {
 			gameId: this.gameId,
 			playerId: this.playerId,
 			requestResync: (reason) => this.requestResync(reason),
+			onPauseSnapshotAck: (info) => {
+				if (typeof info.hostTick === 'number' && !Number.isNaN(info.hostTick)) {
+					this.heartbeatState.updateHeartbeatFromAppendResponse({
+						hostTick: info.hostTick,
+						orderBatchAtTick: info.orderBatchAtTick,
+					});
+				}
+				this.emitHostPersistBacklogState();
+			},
 		});
 		this.syncReconciler = new SyncReconciler(this as unknown as BattleNetContext);
 		this.heartbeatTerminalReconciler = new HeartbeatTerminalReconciler(this);
@@ -550,8 +568,8 @@ export class BattleNet implements BattleNetContext {
 
 		this.ourOrdersAwaitingServerRange.add(idHash);
 
-		// Non-host: keep optimistic local apply *before* POST deferral gates (deferred submits must still
-		// queue locally). Host defers local apply until after append so merge-applied cannot race pending JSONL.
+		// Optimistic local apply *before* POST deferral gates (deferred submits must still
+		// queue locally). Host apply-first lives in the host branch after these non-host gates.
 		// In-place ITS commit passes skipLocalApply — engine already ran the turn during preview.
 		if (!skipLocalApply && !this.appliedOrderIdHashes.has(idHash) && !this.isHost) {
 			const applyResult = this.session.applyRemoteOrders([
@@ -679,17 +697,51 @@ export class BattleNet implements BattleNetContext {
 			return;
 		}
 
-		// Host: append to pending_orders.jsonl *before* local queueOrder + tryResumeParallel → merge-applied,
-		// so merge never races ahead of the host's own pending row on disk (see mergeFinalizedPendingForBatch).
+		// Host: apply locally first so `tryResumeParallel` can unpause without waiting on persist
+		// HTTP. Persist asynchronously when the last-seen append window allows; otherwise defer.
+		// In-place ITS commit passes skipLocalApply — engine already ran the turn during preview.
 		if (this.isHost) {
-			const appended = await this.persistOrder(order, atTick, idHash, true);
-			if (appended) {
-				this.applyLocalSubmitOrderAfterAppend(order, atTick, idHash, {
+			this.hostUnackedAppends.set(idHash, atTick);
+			if (!skipLocalApply && !this.appliedOrderIdHashes.has(idHash)) {
+				this.applyLocalHostSubmitOrder(order, atTick, idHash, {
 					localEngineTick,
 					localLatestFingerprintTick,
 					effectiveHostTickCandidate,
 				});
+			} else if (skipLocalApply) {
+				this.registerSkipLocalApplyDedupe(idHash);
 			}
+			if (
+				!isAppendAtTickAccepted(
+					atTick,
+					this.latestHeartbeatHostTick,
+					this.latestHeartbeatPausedAtTick,
+				)
+			) {
+				this.deferLocalOrder(idHash, atTick, order, true);
+				this.emitHostCatchupWaitState();
+				logToLobbyLogBattleSync({
+					lobbyClient: this.api as unknown as LobbyClient,
+					lobbyId: this.lobbyId,
+					playerId: this.playerId,
+					tick: atTick,
+					severity: 'info',
+					gameId: this.gameId,
+					message: 'host submitOrder deferred POST — atTick outside last-seen append window',
+					context: {
+						idHash,
+						abilityId: order.abilityId,
+						unitId: order.unitId,
+						atTick,
+						lastSeenHeartbeatHostTick: this.latestHeartbeatHostTick,
+						latestHeartbeatPausedAtTick: this.latestHeartbeatPausedAtTick,
+						skipLocalApply,
+						queuedDeferredAfter: this.deferredLocalOrders.length,
+					},
+				});
+				return;
+			}
+			await this.persistOrder(order, atTick, idHash, true);
 			return;
 		}
 
@@ -785,20 +837,27 @@ export class BattleNet implements BattleNetContext {
 	}
 
 	async saveSnapshotOnPause(tick: number, state: SerializedGameState): Promise<void> {
+		this.emitHostPersistBacklogState();
 		return this.snapshotPersistence.saveSnapshotOnPause(tick, state);
 	}
 
 	/**
 	 * Host-only: after local parallel batch orders are satisfied, persist pending → applied on the server.
-	 * Retries up to three times; returns false on total failure (`requestResync` already armed).
+	 * No-ops (resolves true) while this batch still has an unacked host append; the persist-accept
+	 * path invokes the retry loop once those rows land. Does not stall `tryResumeParallel`.
 	 */
 	async mergeAppliedOrdersForBatch(batchAtTick: number): Promise<boolean> {
+		if (this.isHost && this.hasUnackedHostAppendForBatch(batchAtTick)) {
+			this.pendingMergeTicks.add(batchAtTick);
+			return true;
+		}
+		this.pendingMergeTicks.delete(batchAtTick);
 		return this.snapshotPersistence.mergeAppliedOrdersForBatch(batchAtTick);
 	}
 
 	/**
 	 * Host-only: persist an order that already ran locally (in-place sequential targeting commit).
-	 * Appends to `pending_orders` and merges to applied without {@link applyLocalSubmitOrderAfterAppend}
+	 * Appends to `pending_orders` and merges to applied after accept without local re-apply
 	 * — the engine state already reflects the turn.
 	 */
 	async persistCommittedOrder(order: BattleOrder, atTick: number): Promise<boolean> {
@@ -807,10 +866,10 @@ export class BattleNet implements BattleNetContext {
 		if (this.syncStatusController.isAwaitingUserAck()) return false;
 
 		const idHash = hashOrderId(this.playerId, atTick, order);
+		this.hostUnackedAppends.set(idHash, atTick);
 		const appended = await this.persistOrder(order, atTick, idHash, true);
-		if (!appended) return false;
-
-		return this.mergeAppliedOrdersForBatch(atTick);
+		if (appended) return true;
+		return this.deferredLocalOrders.some((row) => row.idHash === idHash);
 	}
 
 	/** Clears the post-recovery "Continue" UX gate (see {@link BATTLE_RESYNC_PAUSE_SIM_FOR_RESYNC_ACK} in `global_constants.js`). */
@@ -995,8 +1054,8 @@ export class BattleNet implements BattleNetContext {
 				this.session.setMultiplayerAwaitHostCatchup(false);
 			}
 
+			await this.flushDeferredOrdersUpTo(hb.hostTick);
 			if (!this.isHost) {
-				await this.flushDeferredOrdersUpTo(hb.hostTick);
 				const paused = this.session.isPausedForOrderSync();
 				const blocking = this.deferredLocalOrders.length > 0;
 				if (blocking && paused) {
@@ -1004,7 +1063,10 @@ export class BattleNet implements BattleNetContext {
 				} else {
 					this.hostCatchupHeartbeatStreak = 0;
 				}
-				this.emitHostCatchupWaitState();
+			}
+			this.emitHostCatchupWaitState();
+			this.emitHostPersistBacklogState();
+			if (!this.isHost) {
 				await this.maybeForceFlushDeferredOrder(hb.hostTick);
 			}
 
@@ -1023,6 +1085,7 @@ export class BattleNet implements BattleNetContext {
 			}
 
 			engineTick = this.session.getEngineTick();
+			this.emitHostPersistBacklogState();
 
 			if (!this.isHost) {
 				const hbTickRaw = hbRaw.hostTick;
@@ -1349,8 +1412,8 @@ export class BattleNet implements BattleNetContext {
 		return this.orderQueue.applyDeferredRowLocallyIfNeeded(item);
 	}
 
-	/** Host-only: queue locally after append so `tryResumeParallel` → merge sees the row on disk first. */
-	private applyLocalSubmitOrderAfterAppend(
+	/** Host-only: queue locally first so playahead can unpause while persist HTTP catches up. */
+	private applyLocalHostSubmitOrder(
 		order: BattleOrder,
 		atTick: number,
 		idHash: string,
@@ -1364,6 +1427,7 @@ export class BattleNet implements BattleNetContext {
 			{ atTick, order, idHash, playerId: this.playerId },
 		]);
 		this.registerAppliedOrderHashesFromRemoteApplyResult(applyResult);
+		this.appliedOrderIdHashes.add(idHash);
 		this.emit('orders-applied', { count: applyResult.newlyAppliedKeys.length, source: 'submit' });
 		logToLobbyLogBattleSync({
 			lobbyClient: this.api as unknown as LobbyClient,
@@ -1372,7 +1436,7 @@ export class BattleNet implements BattleNetContext {
 			tick: atTick,
 			severity: 'info',
 			gameId: this.gameId,
-			message: 'host order applied locally after append (append → merge chain)',
+			message: 'host order applied locally before persist (playahead; merge waits on append accept)',
 			context: {
 				idHash,
 				abilityId: order.abilityId,
@@ -1396,6 +1460,38 @@ export class BattleNet implements BattleNetContext {
 		idHash: string,
 		allowDeferralOnHostLag: boolean,
 	): Promise<boolean> {
+		if (this.isHost) {
+			this.hostUnackedAppends.set(idHash, atTick);
+			if (
+				!isAppendAtTickAccepted(
+					atTick,
+					this.latestHeartbeatHostTick,
+					this.latestHeartbeatPausedAtTick,
+				)
+			) {
+				this.deferLocalOrder(idHash, atTick, order, true);
+				this.emitHostCatchupWaitState();
+				return false;
+			}
+			const envWindow = this.getHostEnvelopeWindow(this.latestHeartbeatHostTick);
+			const envelopeRows = this.collectHostEnvelopeRows(
+				{ idHash, atTick, order },
+				envWindow.hostTick,
+				envWindow.orderBatchAtTick,
+			);
+			if (this.shouldUseHostPersistEnvelope(envelopeRows.length, envWindow.snapshot != null)) {
+				const accepted = await this.persistHostCyclesEnvelope({
+					snapshot: envWindow.snapshot,
+					rows: envelopeRows,
+				});
+				return accepted.has(idHash);
+			}
+			try {
+				await this.snapshotPersistence.awaitPauseSnapshotBeforeHostPersist(atTick);
+			} catch {
+				// Snapshot POST failed; persist still uses the last-seen heartbeat window.
+			}
+		}
 		let res: {
 			accepted: boolean;
 			idHash: string;
@@ -1476,6 +1572,7 @@ export class BattleNet implements BattleNetContext {
 			return false;
 		}
 		this.updateHeartbeatFromAppendResponse(res);
+		this.emitHostPersistBacklogState();
 		logToLobbyLogBattleSync({
 			lobbyClient: this.api as unknown as LobbyClient,
 			lobbyId: this.lobbyId,
@@ -1529,11 +1626,17 @@ export class BattleNet implements BattleNetContext {
 					serverHostFingerprintAtAppend: res.hostFingerprint ?? null,
 				},
 			});
+			this.emitHostCatchupWaitState();
+			if (this.isHost) {
+				this.hostUnackedAppends.delete(idHash);
+				await this.mergeAppliedOrdersForBatch(atTick);
+				await this.flushPendingHostMerges();
+			}
 			return true;
 		}
 		if (allowDeferralOnHostLag && res.rejectedReason === 'tick_ahead_of_host') {
 			this.deferLocalOrder(idHash, atTick, order, true);
-			if (this.session.isPausedForOrderSync()) {
+			if (!this.isHost && this.session.isPausedForOrderSync()) {
 				this.syncStatusController.presentWaitingForHostOptimisticQueued();
 			}
 			this.emitHostCatchupWaitState();
@@ -1582,6 +1685,7 @@ export class BattleNet implements BattleNetContext {
 			this.emitRejectedOrderSyncDetail(res.rejectedReason);
 			this.deferredLocalOrders = this.deferredLocalOrders.filter((item) => item.idHash !== idHash);
 			this.ourOrdersAwaitingServerRange.delete(idHash);
+			this.hostUnackedAppends.delete(idHash);
 			const hostTick = typeof res.hostTick === 'number' ? res.hostTick : this.latestHeartbeatHostTick;
 			const hostFp =
 				typeof res.hostFingerprint === 'string' && res.hostFingerprint !== ''
@@ -1622,6 +1726,7 @@ export class BattleNet implements BattleNetContext {
 		if (res.rejectedReason === 'not_unit_owner' || res.rejectedReason === 'unknown_unit') {
 			this.emitRejectedOrderSyncDetail(res.rejectedReason);
 			this.deferredLocalOrders = this.deferredLocalOrders.filter((item) => item.idHash !== idHash);
+			this.hostUnackedAppends.delete(idHash);
 			logToLobbyLog({
 				lobbyClient: this.api as unknown as LobbyClient,
 				lobbyId: this.lobbyId,
@@ -1659,7 +1764,32 @@ export class BattleNet implements BattleNetContext {
 				note: 'If server duplicate is a false positive, investigate 32-bit idHash collisions.',
 			},
 		});
+		this.hostUnackedAppends.delete(idHash);
+		if (this.isHost) {
+			await this.mergeAppliedOrdersForBatch(atTick);
+			await this.flushPendingHostMerges();
+		}
 		return false;
+	}
+
+	private hasUnackedHostAppendForBatch(batchAtTick: number): boolean {
+		for (const tick of this.hostUnackedAppends.values()) {
+			if (tick === batchAtTick) {
+				return true;
+			}
+		}
+		return this.deferredLocalOrders.some((row) => row.atTick === batchAtTick);
+	}
+
+	private async flushPendingHostMerges(): Promise<void> {
+		if (!this.isHost || this.pendingMergeTicks.size === 0) {
+			return;
+		}
+		for (const tick of [...this.pendingMergeTicks]) {
+			if (!this.hasUnackedHostAppendForBatch(tick)) {
+				await this.mergeAppliedOrdersForBatch(tick);
+			}
+		}
 	}
 
 	private get latestHeartbeatHostTick(): number {
@@ -1686,17 +1816,186 @@ export class BattleNet implements BattleNetContext {
 		return this.heartbeatState.getLastHeartbeatAgeMs();
 	}
 
+	/**
+	 * Host persist-cycles vs serial append: 2+ deferred rows, or an in-flight pause snapshot
+	 * plus at least one order. Single-row flush without a pending snapshot keeps `appendBattleOrder`.
+	 */
+	private shouldUseHostPersistEnvelope(eligibleCount: number, hasPendingSnapshot: boolean): boolean {
+		return this.isHost && (eligibleCount >= 2 || (hasPendingSnapshot && eligibleCount >= 1));
+	}
+
+	private getHostEnvelopeWindow(pollHostTick: number): {
+		hostTick: number;
+		orderBatchAtTick: number | null;
+		snapshot: PersistHostCyclesSnapshot | null;
+	} {
+		const snapshot = this.snapshotPersistence.getPendingPauseSnapshotForEnvelope();
+		if (snapshot != null) {
+			const waitAt = snapshot.state.waitingForOrders?.atTick;
+			// Pause snapshot completes tick T; parallel orders apply at waitingForOrders.atTick (typically T+1).
+			const orderBatchAtTick = typeof waitAt === 'number' && !Number.isNaN(waitAt) ? waitAt : snapshot.tick + 1;
+			return { hostTick: snapshot.tick, orderBatchAtTick, snapshot };
+		}
+		return {
+			hostTick: pollHostTick,
+			orderBatchAtTick: this.latestHeartbeatPausedAtTick,
+			snapshot: null,
+		};
+	}
+
+	private collectHostEnvelopeRows(
+		primary: { idHash: string; atTick: number; order: BattleOrder },
+		windowHostTick: number,
+		windowBatchAtTick: number | null,
+	): Array<{ idHash: string; atTick: number; order: BattleOrder }> {
+		const others = this.deferredLocalOrders.filter(
+			(row) =>
+				row.idHash !== primary.idHash &&
+				isAppendAtTickAccepted(row.atTick, windowHostTick, windowBatchAtTick),
+		);
+		const rows = [primary, ...others].sort((a, b) => a.atTick - b.atTick);
+		return rows.slice(0, BATTLE_NET_MAX_DEFERRED_ORDERS);
+	}
+
+	private async persistHostCyclesEnvelope(args: {
+		snapshot: PersistHostCyclesSnapshot | null;
+		rows: Array<{ idHash: string; atTick: number; order: BattleOrder }>;
+	}): Promise<Set<string>> {
+		const orders = args.rows.slice(0, BATTLE_NET_MAX_DEFERRED_ORDERS);
+		if (orders.length === 0) {
+			return new Set();
+		}
+		const mergeBatchTicks = [...new Set(orders.map((row) => row.atTick).filter((tick) => tick >= 1))];
+		for (const row of orders) {
+			this.hostUnackedAppends.set(row.idHash, row.atTick);
+		}
+		let res: PersistHostCyclesResult;
+		logToLobbyLogBattleSync({
+			lobbyClient: this.api as unknown as LobbyClient,
+			lobbyId: this.lobbyId,
+			playerId: this.playerId,
+			tick: orders[0]?.atTick ?? this.session.getEngineTick(),
+			severity: 'info',
+			gameId: this.gameId,
+			message: 'persistHostCycles POST attempt',
+			context: {
+				orderCount: orders.length,
+				mergeBatchTicks,
+				snapshotTick: args.snapshot?.tick ?? null,
+				idHashes: orders.map((row) => row.idHash),
+			},
+		});
+		try {
+			res = await this.api.persistHostCycles(this.lobbyId, this.gameId, {
+				playerId: this.playerId,
+				...(args.snapshot != null ? { snapshot: args.snapshot } : {}),
+				orders: orders.map((row) => ({
+					atTick: row.atTick,
+					order: row.order,
+					idHash: row.idHash,
+				})),
+				mergeBatchTicks,
+			});
+		} catch (_error) {
+			const err = _error instanceof Error ? _error.message : String(_error);
+			logToLobbyLogBattleSync({
+				lobbyClient: this.api as unknown as LobbyClient,
+				lobbyId: this.lobbyId,
+				playerId: this.playerId,
+				tick: orders[0]?.atTick ?? this.session.getEngineTick(),
+				severity: 'warn',
+				gameId: this.gameId,
+				message: 'persistHostCycles POST failed before response',
+				context: { error: err, orderCount: orders.length },
+			});
+			for (const row of orders) {
+				this.deferLocalOrder(row.idHash, row.atTick, row.order, true);
+			}
+			this.emitHostCatchupWaitState();
+			return new Set();
+		}
+		this.updateHeartbeatFromAppendResponse(res);
+		if (args.snapshot != null) {
+			this.snapshotPersistence.noteEnvelopeSnapshotApplied(args.snapshot.tick);
+		}
+		this.emitHostPersistBacklogState();
+		const acceptedSet = new Set(res.acceptedIdHashes);
+		for (const row of orders) {
+			if (acceptedSet.has(row.idHash)) {
+				this.deferredLocalOrders = this.deferredLocalOrders.filter((item) => item.idHash !== row.idHash);
+				this.hostUnackedAppends.delete(row.idHash);
+				this.pendingMergeTicks.delete(row.atTick);
+			} else {
+				this.deferLocalOrder(row.idHash, row.atTick, row.order, true);
+			}
+		}
+		this.emitHostCatchupWaitState();
+		const rejected = orders.find((row) => !acceptedSet.has(row.idHash));
+		if (res.rejectedReason === 'tick_in_past' && rejected) {
+			this.emitRejectedOrderSyncDetail(res.rejectedReason);
+			this.deferredLocalOrders = this.deferredLocalOrders.filter((item) => item.idHash !== rejected.idHash);
+			this.hostUnackedAppends.delete(rejected.idHash);
+			const hostTick = typeof res.hostTick === 'number' ? res.hostTick : this.latestHeartbeatHostTick;
+			const hostFp =
+				typeof res.hostFingerprint === 'string' && res.hostFingerprint !== ''
+					? res.hostFingerprint
+					: this.heartbeatState.getLatestHostFingerprint();
+			const localRow =
+				hostTick >= 0 ? this.session.getFingerprintRange(hostTick, hostTick)[0] : null;
+			const fingerprintsAgree = hostFp != null && localRow != null && localRow.fp === hostFp;
+			if (fingerprintsAgree) {
+				void this.softAlignAfterStaleOrderBatch('tick-in-past');
+			} else {
+				this.requestResync('tick-in-past');
+			}
+		} else if (
+			(res.rejectedReason === 'not_unit_owner' || res.rejectedReason === 'unknown_unit') &&
+			rejected
+		) {
+			this.emitRejectedOrderSyncDetail(res.rejectedReason);
+			this.deferredLocalOrders = this.deferredLocalOrders.filter((item) => item.idHash !== rejected.idHash);
+			this.hostUnackedAppends.delete(rejected.idHash);
+			this.requestResync(res.rejectedReason === 'not_unit_owner' ? 'not-unit-owner' : 'unknown-unit');
+		}
+		return acceptedSet;
+	}
+
 	private async flushDeferredOrdersUpTo(hostTick: number): Promise<void> {
 		if (this.deferredLocalOrders.length === 0) {
 			return;
 		}
 		this.deferredLocalOrders.sort((a, b) => a.atTick - b.atTick);
+		if (this.isHost) {
+			const envWindow = this.getHostEnvelopeWindow(hostTick);
+			const eligible = this.deferredLocalOrders
+				.filter((item) =>
+					isAppendAtTickAccepted(item.atTick, envWindow.hostTick, envWindow.orderBatchAtTick),
+				)
+				.slice(0, BATTLE_NET_MAX_DEFERRED_ORDERS);
+			if (this.shouldUseHostPersistEnvelope(eligible.length, envWindow.snapshot != null)) {
+				for (const item of eligible) {
+					this.applyDeferredRowLocallyIfNeeded(item);
+				}
+				await this.persistHostCyclesEnvelope({
+					snapshot: envWindow.snapshot,
+					rows: eligible,
+				});
+				await this.flushPendingHostMerges();
+				return;
+			}
+		}
 		const pending = [...this.deferredLocalOrders];
-		const maxEligibleAtTick = hostTick + 1;
+		const orderBatchHeartbeat = this.latestHeartbeatPausedAtTick;
+		const maxEligibleAtTick = this.isHost
+			? maxAllowedAppendTick(hostTick, orderBatchHeartbeat)
+			: hostTick + 1;
 		const engineTick = this.session.getEngineTick();
 		let flushAttempted = 0;
 		for (const item of pending) {
-			if (item.atTick > maxEligibleAtTick) {
+			const blocked = this.isHost
+				? !isAppendAtTickAccepted(item.atTick, hostTick, orderBatchHeartbeat)
+				: item.atTick > maxEligibleAtTick;
+			if (blocked) {
 				const blockedCount = pending.length - flushAttempted;
 				const head = item;
 				if (flushAttempted === 0) {
@@ -1801,6 +2100,9 @@ export class BattleNet implements BattleNetContext {
 				this.softAlignToHostPausePlane('deferred-past-batch-apply');
 				break;
 			}
+		}
+		if (this.isHost) {
+			await this.flushPendingHostMerges();
 		}
 	}
 
@@ -1933,12 +2235,36 @@ export class BattleNet implements BattleNetContext {
 	}
 
 	/**
+	 * Host playahead cap: at a parallel-order pause, block new orders when local tick is
+	 * {@link isHostPlayaheadOverCap} vs the last acknowledged completed tick. Under the cap
+	 * (or while still playing), `blocking` is false — cards stay usable; catchup UI stays
+	 * non-blocking from Step 2.
+	 */
+	private emitHostPersistBacklogState(): void {
+		if (!this.isHost) {
+			return;
+		}
+		const engineTick = this.session.getEngineTick();
+		const acknowledgedCompletedTick = this.heartbeatState.getAcknowledgedCompletedTick();
+		const blocking =
+			this.session.isPausedForOrderSync() &&
+			isHostPlayaheadOverCap(engineTick, acknowledgedCompletedTick);
+		this.emit('host-persist-backlog', {
+			blocking,
+			acknowledgedCompletedTick,
+			engineTick,
+		});
+	}
+
+	/**
 	 * Clears optimistic order tracking and non-host heartbeat/reconciler hint state at desync
 	 * recovery entry (matches the pre-split `runDesyncRecovery` preamble). Deferred POST rows
 	 * are preserved — see {@link OrderQueueController.resetLocalOptimisticOrdersOnResync}.
 	 */
 	resetForDesyncRecoveryEntry(): void {
 		this.nonHostPastAppliedHeartbeatLatch = false;
+		this.hostUnackedAppends.clear();
+		this.pendingMergeTicks.clear();
 		this.orderQueue.resetLocalOptimisticOrdersOnResync();
 		this.resetNonHostAheadStreak();
 		this.previouslySyncedAtTick = null;
@@ -1955,6 +2281,7 @@ export class BattleNet implements BattleNetContext {
 		this.waitingForHostUiPollStreak = 0;
 		this.emit('waiting-for-host-poll-streak', { streak: 0 });
 		this.emitHostCatchupWaitState();
+		this.emitHostPersistBacklogState();
 	}
 
 	private resetNonHostAheadStreak(): void {
