@@ -912,6 +912,7 @@ export default function CharacterEditor({
                     equipment={equipment}
                     researchNodeLevels={researchNodeLevels}
                     campaignResources={resolvedCampaign?.resources}
+                    onResearchNode={(treeId, nodeId) => void handleResearchNode(treeId, nodeId)}
                 />
             )}
         </div>

@@ -64,7 +64,7 @@ Components (all under `app/js/games/minion_battles/ui/components/`):
 `researched` · `enabled` · `blocked` · `default`
 
 ### Eligibility gating
-`eligibleResearchTrees` filters which trees are shown based on account knowledge, campaign resource minimums, equipped items, and character traits. An admin "show all" debug flag renders all trees at reduced opacity. The Upgrades grid shows **Resources** (effective campaign pills) above Eligible research.
+`eligibleResearchTrees` filters which trees are shown based on account knowledge, campaign resource minimums, equipped items, and character traits. An admin "show all" debug flag renders all trees at reduced opacity. The Upgrades grid shows **Resources** (effective campaign pills) above Eligible research. Cards the player can afford (`canResearchNode`) use a pointer cursor and click to purchase.
 
 ### Text formatting
 Use `{highlighted}` token syntax in node description strings to render magnitude words in yellow. Use `DescriptiveValue` enum values (`DescriptiveValue.Tiny`, etc.) from `researchTrees/descriptiveValue.ts` for consistent magnitude labels.

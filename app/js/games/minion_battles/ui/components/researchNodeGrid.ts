@@ -1,4 +1,5 @@
 import {
+    canResearchNode,
     collectResearchedNodeIds,
     computeEffectiveResourcesForTree,
     meetsAll,
@@ -173,4 +174,9 @@ export function excludeResearchGridEntries(
 ): ResearchGridEntry[] {
     const skipKeys = new Set(skip.map(researchGridEntryKey));
     return entries.filter((entry) => !skipKeys.has(researchGridEntryKey(entry)));
+}
+
+/** True when a click would succeed: prereqs, requirements, and next-level cost. */
+export function canPurchaseResearchGridEntry(entry: ResearchGridEntry, ctx: ResearchContext): boolean {
+    return canResearchNode(entry.tree, entry.node.id, ctx).ok;
 }

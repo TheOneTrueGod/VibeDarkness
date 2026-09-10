@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CORE_ITEM_IDS } from '../../character_defs/items';
 import { fromCampaignCharacterData } from '../../character_defs/CampaignCharacter';
 import type { ResearchContext } from '../../../../researchTrees/evaluator';
+import { DEFAULT_RESEARCH_NODE_LEVELS } from '../../../../researchTrees/passiveBonuses';
 import {
     EARTH_NODE_DIGGING_CLAWS,
     EARTH_NODE_EARTH_CORE,
@@ -16,9 +17,11 @@ import {
     TRAINING_NODE_STRONG_PUNCH,
     TRAINING_TREE_ID,
     TRAINING_HEALTHY_LEVELS,
+    TRAINING_PASSIVE_NODE_FOOD_COST,
     trainingTree,
 } from '../../../../researchTrees/trees/training';
 import {
+    canPurchaseResearchGridEntry,
     collectEligibleResearchGridEntries,
     collectResearchGridEntries,
     collectResearchRequirementEntries,
@@ -249,5 +252,38 @@ describe('excludeResearchGridEntries', () => {
         const rest = excludeResearchGridEntries(unowned, eligible);
         expect(rest.every((e) => !eligible.some((x) => x.node.id === e.node.id))).toBe(true);
         expect(unowned.length).toBeGreaterThan(rest.length);
+    });
+});
+
+describe('canPurchaseResearchGridEntry', () => {
+    it('allows a free eligible node', () => {
+        const core = trainingTree.nodes.find((n) => n.id === TRAINING_NODE_CORE);
+        expect(core).toBeDefined();
+        expect(canPurchaseResearchGridEntry({ tree: trainingTree, node: core! }, makeCtx({}))).toBe(true);
+    });
+
+    it('rejects an eligible paid node when resources are short', () => {
+        const doublePunch = trainingTree.nodes.find((n) => n.id === TRAINING_NODE_DOUBLE_PUNCH);
+        expect(doublePunch).toBeDefined();
+        const ctx = makeCtx({ [TRAINING_TREE_ID]: [TRAINING_NODE_CORE] }, { food: 0 });
+        expect(canPurchaseResearchGridEntry({ tree: trainingTree, node: doublePunch! }, ctx)).toBe(false);
+    });
+
+    it('allows an eligible paid node when resources cover the cost', () => {
+        const doublePunch = trainingTree.nodes.find((n) => n.id === TRAINING_NODE_DOUBLE_PUNCH);
+        expect(doublePunch).toBeDefined();
+        const foodCost = doublePunch!.cost?.food ?? 0;
+        const ctx = makeCtx({ [TRAINING_TREE_ID]: [TRAINING_NODE_CORE] }, { food: foodCost });
+        expect(canPurchaseResearchGridEntry({ tree: trainingTree, node: doublePunch! }, ctx)).toBe(true);
+    });
+
+    it('allows another level of possessed Healthy when remaining food covers the next purchase', () => {
+        const healthy = trainingTree.nodes.find((n) => n.id === TRAINING_NODE_HEALTHY);
+        expect(healthy).toBeDefined();
+        const ctx = makeCtx(
+            { [TRAINING_TREE_ID]: [TRAINING_NODE_HEALTHY] },
+            { food: TRAINING_PASSIVE_NODE_FOOD_COST * DEFAULT_RESEARCH_NODE_LEVELS + TRAINING_PASSIVE_NODE_FOOD_COST },
+        );
+        expect(canPurchaseResearchGridEntry({ tree: trainingTree, node: healthy! }, ctx)).toBe(true);
     });
 });

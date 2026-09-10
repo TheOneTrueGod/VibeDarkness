@@ -15,6 +15,7 @@ import ResourcePill, { RESOURCE_ORDER } from '../../../../components/ResourcePil
 import ResearchNodeCard, { type ResearchRequirementBadge } from './ResearchNodeCard';
 import { getItemDef } from '../../character_defs/items';
 import {
+	canPurchaseResearchGridEntry,
 	collectEligibleResearchGridEntries,
 	collectResearchGridEntries,
 	collectResearchRequirementEntries,
@@ -538,6 +539,7 @@ export interface ResearchedNodesGridProps {
 	equipment: string[];
 	researchNodeLevels?: ResearchNodeLevels;
 	campaignResources?: CampaignResources;
+	onResearchNode?: (treeId: string, nodeId: string) => void;
 }
 
 const EMPTY_CAMPAIGN_RESOURCES: CampaignResources = {
@@ -553,40 +555,49 @@ function ResearchGridCards({
 	state,
 	researchTrees,
 	researchNodeLevels,
+	researchCtx,
+	onResearchNode,
 }: {
 	entries: ReturnType<typeof collectResearchGridEntries>;
 	researchedByTreeId: Record<string, Set<string>>;
 	state: 'researched' | 'blocked' | 'enabled';
 	researchTrees: Record<string, string[]>;
 	researchNodeLevels?: ResearchNodeLevels;
+	researchCtx: ResearchContext;
+	onResearchNode?: (treeId: string, nodeId: string) => void;
 }) {
 	return (
 		<div className="flex flex-wrap gap-3">
-			{entries.map(({ tree, node }) => (
-				<ResearchNodeCard
-					key={`${tree.id}:${node.id}`}
-					tree={tree}
-					node={node}
-					variant="display"
-					state={state}
-					layout="comfortable"
-					showCost
-					showRequirements={false}
-					showPrereqRow
-					currentLevel={getNodeLevel(tree.id, node.id, researchTrees, researchNodeLevels)}
-					maxLevels={getNodeMaxLevels(node)}
-					researchRequirementEntries={collectResearchRequirementEntries(
-						node,
-						tree,
-						researchedByTreeId,
-					)}
-				/>
-			))}
+			{entries.map(({ tree, node }) => {
+				const purchasable =
+					onResearchNode != null && canPurchaseResearchGridEntry({ tree, node }, researchCtx);
+				return (
+					<ResearchNodeCard
+						key={`${tree.id}:${node.id}`}
+						tree={tree}
+						node={node}
+						variant={purchasable ? 'interactive' : 'display'}
+						state={purchasable ? 'enabled' : state}
+						layout="comfortable"
+						showCost
+						showRequirements={false}
+						showPrereqRow
+						currentLevel={getNodeLevel(tree.id, node.id, researchTrees, researchNodeLevels)}
+						maxLevels={getNodeMaxLevels(node)}
+						onClick={purchasable ? () => onResearchNode(tree.id, node.id) : undefined}
+						researchRequirementEntries={collectResearchRequirementEntries(
+							node,
+							tree,
+							researchedByTreeId,
+						)}
+					/>
+				);
+			})}
 		</div>
 	);
 }
 
-/** Shared read-only grid of research nodes, optionally including unowned nodes for admins. */
+/** Shared Upgrades grid of research nodes; purchasable cards click to research. */
 export function ResearchedNodesGrid({
 	availableTrees,
 	researchTrees,
@@ -597,6 +608,7 @@ export function ResearchedNodesGrid({
 	equipment,
 	researchNodeLevels,
 	campaignResources,
+	onResearchNode,
 }: ResearchedNodesGridProps) {
 	const researchedByTreeId = useMemo(() => researchedSetsByTreeId(researchTrees), [researchTrees]);
 	const researchCtx = useMemo((): ResearchContext => {
@@ -652,6 +664,8 @@ export function ResearchedNodesGrid({
 						state="enabled"
 						researchTrees={researchTrees}
 						researchNodeLevels={researchNodeLevels}
+						researchCtx={researchCtx}
+						onResearchNode={onResearchNode}
 					/>
 				</div>
 			)}
@@ -666,6 +680,8 @@ export function ResearchedNodesGrid({
 						state="researched"
 						researchTrees={researchTrees}
 						researchNodeLevels={researchNodeLevels}
+						researchCtx={researchCtx}
+						onResearchNode={onResearchNode}
 					/>
 				</div>
 			)}
@@ -680,6 +696,8 @@ export function ResearchedNodesGrid({
 						state="blocked"
 						researchTrees={researchTrees}
 						researchNodeLevels={researchNodeLevels}
+						researchCtx={researchCtx}
+						onResearchNode={onResearchNode}
 					/>
 				</div>
 			)}

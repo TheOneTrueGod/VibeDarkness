@@ -246,7 +246,8 @@ export default function ResearchNodeCard({
                 : 'w-[280px] h-[120px] shrink-0 px-3 py-2 gap-1 overflow-hidden'
             : 'w-[180px] h-[116px] shrink-0 px-3 py-2 gap-1 overflow-hidden';
 
-    const cardClasses = `relative rounded-lg border-2 text-left flex flex-col min-h-0 ${layoutClasses} ${stateClasses} ${!isInteractive ? 'cursor-default' : ''} ${className}`;
+    const isClickable = isInteractive && state === 'enabled';
+    const cardClasses = `relative rounded-lg border-2 text-left flex flex-col min-h-0 ${layoutClasses} ${stateClasses} ${isClickable ? 'cursor-pointer' : 'cursor-default'} ${className}`;
 
     const titleClass =
         layout === 'comfortable'
@@ -408,10 +409,11 @@ export default function ResearchNodeCard({
             {isInteractive ? (
                 <button
                     type="button"
-                    onClick={onClick}
+                    data-testid={`${TestIds.researchNodeCardPrefix}${node.id}`}
+                    onClick={isClickable ? onClick : undefined}
                     className={cardClasses}
                     style={{ borderColor: treeChrome.colour }}
-                    disabled={state !== 'enabled'}
+                    disabled={!isClickable}
                     aria-label={node.title}
                 >
                     {content}

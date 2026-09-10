@@ -82,7 +82,7 @@ Components (all under `app/js/games/minion_battles/ui/components/`):
 `researched` · `enabled` · `blocked` · `default`
 
 ### Upgrades grid cards
-Comfortable cards show title, a 3-line description, ResourcePill cost, then a dark **Requirements** strip (2 lines). The strip lists only unowned research prereqs (`prereqNodeIds` + `anyResearched`) and CSS-ellipsis-truncates; hover lists every required node (missing red, possessed green). The grid starts with **Resources** (effective campaign pills), then **Eligible research** (prereqs + non-cost requirements met, cost ignored), then **Possessed research**, then (admins) **Unowned research** excluding eligible. All lists sort by `tier` (then `order`).
+Comfortable cards show title, a 3-line description, ResourcePill cost, then a dark **Requirements** strip (2 lines). The strip lists only unowned research prereqs (`prereqNodeIds` + `anyResearched`) and CSS-ellipsis-truncates; hover lists every required node (missing red, possessed green). The grid starts with **Resources** (effective campaign pills), then **Eligible research** (prereqs + non-cost requirements met, cost ignored), then **Possessed research**, then (admins) **Unowned research** excluding eligible. All lists sort by `tier` (then `order`). Cards the player can afford (`canResearchNode`) use a pointer cursor and click to purchase.
 
 ### Eligibility gating
 `eligibleResearchTrees` filters which trees are shown based on account knowledge, campaign resource minimums, equipped items, and character traits. An admin "show all" debug flag renders all trees at reduced opacity.

@@ -27,6 +27,8 @@ export const TestIds = {
     researchEligibleSection: 'research-eligible-section',
     researchPossessedSection: 'research-possessed-section',
     researchUnownedSection: 'research-unowned-section',
+    /** Suffix with node id */
+    researchNodeCardPrefix: 'research-node-card-',
     researchNodeRequirements: 'research-node-requirements',
     researchNodeTreeIcon: 'research-node-tree-icon',
     researchTreeListIcon: 'research-tree-list-icon',
