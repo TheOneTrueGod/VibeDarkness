@@ -22,6 +22,13 @@ export const TestIds = {
     characterCardPrefix: 'character-card-',
     characterEditorMissionMapTab: 'character-editor-tab-mission-map',
 
+    /** Upgrades tab: possessed (and for admins, unowned) research card grid */
+    researchNodesGrid: 'research-nodes-grid',
+    researchEligibleSection: 'research-eligible-section',
+    researchPossessedSection: 'research-possessed-section',
+    researchUnownedSection: 'research-unowned-section',
+    researchNodeRequirements: 'research-node-requirements',
+
     /** Admin Players → Campaign data center */
     campaignDataPanel: 'campaign-data-panel',
     campaignDataRow: 'campaign-data-row',

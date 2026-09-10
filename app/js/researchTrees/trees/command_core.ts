@@ -103,7 +103,7 @@ export const commandCoreTree: ResearchTreeDef = {
         {
             id: COMMAND_CORE_NODE_EMPOWER_PET,
             title: 'Empower Pet',
-            description: `+{${EMPOWER_PET_MAX_HEALTH_ADD / EMPOWER_PET_LEVELS}} pet max HP and +{${EMPOWER_PET_MAX_BITE_DAMAGE_ADD / EMPOWER_PET_LEVELS}} Dog Bite damage per level (${EMPOWER_PET_LEVELS} levels).`,
+            description: `+{${EMPOWER_PET_MAX_HEALTH_ADD / EMPOWER_PET_LEVELS}} pet max HP and +{${EMPOWER_PET_MAX_BITE_DAMAGE_ADD / EMPOWER_PET_LEVELS}} Dog Bite damage per level.`,
             flavorText: 'Stronger paws. Sharper teeth.',
             order: 30,
             tier: 11,

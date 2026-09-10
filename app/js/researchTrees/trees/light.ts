@@ -80,7 +80,7 @@ export const lightTree: ResearchTreeDef = {
             id: LIGHT_NODE_RADIANT_REACH,
             title: 'Radiant Reach',
             description:
-                `Imbued Bat's light cone reaches {${DescriptiveValue.Huge}} farther per rank (${LIGHT_RADIANT_REACH_LEVELS} ranks; doubles at max).`,
+                `Imbued Bat's light cone reaches {${DescriptiveValue.Huge}} farther per rank (doubles at max).`,
             flavorText: 'Light stretches until the dark has nowhere left to stand.',
             order: 11,
             tier: 3,

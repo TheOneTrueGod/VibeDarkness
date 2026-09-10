@@ -127,7 +127,7 @@ export const trainingTree: ResearchTreeDef = {
         {
             id: TRAINING_NODE_HEALTHY,
             title: 'Healthy',
-            description: `+{${Math.floor(TRAINING_HEALTHY_MAX_HEALTH_ADD / TRAINING_HEALTHY_LEVELS)}} Max Health per level (${TRAINING_HEALTHY_LEVELS} levels).`,
+            description: `+{${Math.floor(TRAINING_HEALTHY_MAX_HEALTH_ADD / TRAINING_HEALTHY_LEVELS)}} Max Health per level.`,
             flavorText: 'Endure a little longer each outing.',
             order: 60,
             tier: 11,
@@ -148,7 +148,7 @@ export const trainingTree: ResearchTreeDef = {
         {
             id: TRAINING_NODE_MIGHTY,
             title: 'Mighty',
-            description: `+{${Math.floor(((TRAINING_MIGHTY_ALL_DAMAGE_MULT - 1) * 100) / TRAINING_MIGHTY_LEVELS)}}% all damage per level (${TRAINING_MIGHTY_LEVELS} levels).`,
+            description: `+{${Math.floor(((TRAINING_MIGHTY_ALL_DAMAGE_MULT - 1) * 100) / TRAINING_MIGHTY_LEVELS)}}% all damage per level.`,
             flavorText: 'Every blow hits a little harder.',
             order: 70,
             tier: 11,

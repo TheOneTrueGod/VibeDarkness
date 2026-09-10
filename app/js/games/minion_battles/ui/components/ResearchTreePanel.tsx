@@ -13,6 +13,18 @@ import { isDraftResearchNode } from '../../../../researchTrees/types';
 import ResourcePill, { RESOURCE_ORDER } from '../../../../components/ResourcePill';
 import ResearchNodeCard, { type ResearchRequirementBadge } from './ResearchNodeCard';
 import { getItemDef } from '../../character_defs/items';
+import {
+	collectEligibleResearchGridEntries,
+	collectResearchGridEntries,
+	collectResearchRequirementEntries,
+	ELIGIBLE_RESEARCH_HEADING,
+	excludeResearchGridEntries,
+	POSSESSED_RESEARCH_HEADING,
+	researchedSetsByTreeId,
+	UNOWNED_RESEARCH_HEADING,
+} from './researchNodeGrid';
+import { TestIds } from '../../../../testing/testIds';
+import type { ResearchContext } from '../../../../researchTrees/evaluator';
 
 function accountKnowledgeKeys(requirements: Requirement[]): string[] {
 	const keys: string[] = [];
@@ -505,51 +517,143 @@ export interface ResearchedNodesGridProps {
 	researchTrees: Record<string, string[]>;
 	/** When set, only nodes from this tree are shown. When null, all trees are shown. */
 	filterTreeId: string | null;
+	/** When true, list unowned selectable nodes below possessed ones (admin Upgrades). */
+	showUnowned?: boolean;
+	account: AccountState | null;
+	character: CampaignCharacter;
+	equipment: string[];
+	researchNodeLevels?: ResearchNodeLevels;
+	campaignResources?: CampaignResources;
 }
 
-/** Non-admin read-only grid of all researched nodes, optionally filtered by tree. */
-export function ResearchedNodesGrid({ availableTrees, researchTrees, filterTreeId }: ResearchedNodesGridProps) {
-	const groups = useMemo(() => {
-		const result: { tree: ResearchTreeDef; nodes: ResearchNodeDef[] }[] = [];
-		for (const tree of availableTrees) {
-			if (filterTreeId !== null && tree.id !== filterTreeId) continue;
-			const researched = new Set(researchTrees[tree.id] ?? []);
-			const nodes = tree.nodes.filter((n) => researched.has(n.id));
-			if (nodes.length > 0) result.push({ tree, nodes });
-		}
-		return result;
-	}, [availableTrees, filterTreeId, researchTrees]);
+const EMPTY_CAMPAIGN_RESOURCES: CampaignResources = {
+	food: 0,
+	metal: 0,
+	population: 0,
+	crystals: 0,
+};
 
-	const totalCount = groups.reduce((sum, g) => sum + g.nodes.length, 0);
+function ResearchGridCards({
+	entries,
+	researchedByTreeId,
+	state,
+	researchTrees,
+	researchNodeLevels,
+}: {
+	entries: ReturnType<typeof collectResearchGridEntries>;
+	researchedByTreeId: Record<string, Set<string>>;
+	state: 'researched' | 'blocked' | 'enabled';
+	researchTrees: Record<string, string[]>;
+	researchNodeLevels?: ResearchNodeLevels;
+}) {
+	return (
+		<div className="flex flex-wrap gap-3">
+			{entries.map(({ tree, node }) => (
+				<ResearchNodeCard
+					key={`${tree.id}:${node.id}`}
+					node={node}
+					variant="display"
+					state={state}
+					layout="comfortable"
+					showCost
+					showRequirements={false}
+					showPrereqRow
+					currentLevel={getNodeLevel(tree.id, node.id, researchTrees, researchNodeLevels)}
+					maxLevels={getNodeMaxLevels(node)}
+					researchRequirementEntries={collectResearchRequirementEntries(
+						node,
+						tree,
+						researchedByTreeId,
+					)}
+				/>
+			))}
+		</div>
+	);
+}
 
-	if (totalCount === 0) {
+/** Shared read-only grid of research nodes, optionally including unowned nodes for admins. */
+export function ResearchedNodesGrid({
+	availableTrees,
+	researchTrees,
+	filterTreeId,
+	showUnowned = false,
+	account,
+	character,
+	equipment,
+	researchNodeLevels,
+	campaignResources,
+}: ResearchedNodesGridProps) {
+	const researchedByTreeId = useMemo(() => researchedSetsByTreeId(researchTrees), [researchTrees]);
+	const researchCtx = useMemo((): ResearchContext => {
+		const safeAccount = account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 };
+		return {
+			account: safeAccount as AccountState,
+			character: { ...character, equipment, researchTrees, researchNodeLevels } as CampaignCharacter,
+			campaignResources: campaignResources ?? EMPTY_CAMPAIGN_RESOURCES,
+		};
+	}, [account, campaignResources, character, equipment, researchNodeLevels, researchTrees]);
+	const eligible = useMemo(
+		() => collectEligibleResearchGridEntries(availableTrees, filterTreeId, researchCtx),
+		[availableTrees, filterTreeId, researchCtx],
+	);
+	const possessed = useMemo(
+		() => collectResearchGridEntries(availableTrees, researchTrees, filterTreeId, true),
+		[availableTrees, filterTreeId, researchTrees],
+	);
+	const unowned = useMemo(() => {
+		if (!showUnowned) return [];
+		const allUnowned = collectResearchGridEntries(availableTrees, researchTrees, filterTreeId, false);
+		return excludeResearchGridEntries(allUnowned, eligible);
+	}, [availableTrees, eligible, filterTreeId, researchTrees, showUnowned]);
+
+	if (eligible.length === 0 && possessed.length === 0 && unowned.length === 0) {
 		return <p className="text-sm text-muted">No research unlocked yet.</p>;
 	}
 
-	const showTreeHeaders = filterTreeId === null && groups.length > 1;
-
 	return (
-		<div className="overflow-y-auto space-y-4" style={{ maxHeight: 500 }}>
-			{groups.map(({ tree, nodes }) => (
-				<div key={tree.id}>
-					{showTreeHeaders && (
-						<p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">{tree.title}</p>
-					)}
-					<div className="flex flex-wrap gap-3">
-						{nodes.map((node) => (
-							<ResearchNodeCard
-								key={node.id}
-								node={node}
-								variant="display"
-								state="researched"
-								layout="comfortable"
-								showCost={false}
-								showRequirements={false}
-							/>
-						))}
-					</div>
+		<div className="space-y-6" data-testid={TestIds.researchNodesGrid}>
+			{eligible.length > 0 && (
+				<div data-testid={TestIds.researchEligibleSection}>
+					<p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
+						{ELIGIBLE_RESEARCH_HEADING}
+					</p>
+					<ResearchGridCards
+						entries={eligible}
+						researchedByTreeId={researchedByTreeId}
+						state="enabled"
+						researchTrees={researchTrees}
+						researchNodeLevels={researchNodeLevels}
+					/>
 				</div>
-			))}
+			)}
+			{possessed.length > 0 && (
+				<div data-testid={TestIds.researchPossessedSection}>
+					<p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
+						{POSSESSED_RESEARCH_HEADING}
+					</p>
+					<ResearchGridCards
+						entries={possessed}
+						researchedByTreeId={researchedByTreeId}
+						state="researched"
+						researchTrees={researchTrees}
+						researchNodeLevels={researchNodeLevels}
+					/>
+				</div>
+			)}
+			{showUnowned && unowned.length > 0 && (
+				<div className="border-t border-border-custom pt-4" data-testid={TestIds.researchUnownedSection}>
+					<p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
+						{UNOWNED_RESEARCH_HEADING}
+					</p>
+					<ResearchGridCards
+						entries={unowned}
+						researchedByTreeId={researchedByTreeId}
+						state="blocked"
+						researchTrees={researchTrees}
+						researchNodeLevels={researchNodeLevels}
+					/>
+				</div>
+			)}
 		</div>
 	);
 }

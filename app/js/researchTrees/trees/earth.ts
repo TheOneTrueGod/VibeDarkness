@@ -105,7 +105,7 @@ export const earthTree: ResearchTreeDef = {
         {
             id: EARTH_NODE_RAPID_THROW,
             title: 'Rapid Throw',
-            description: `Rock throws gain {Combo} — chain an extra throw during cooldown each level (${EARTH_RAPID_THROW_LEVELS} levels: Combo 1 / 2 / 3).`,
+            description: `Rock throws gain {Combo} — chain an extra throw during cooldown each level (Combo 1 / 2 / 3).`,
             flavorText: 'The stone leaves your hand before the last one lands.',
             order: 9,
             tier: 13,
@@ -127,7 +127,7 @@ export const earthTree: ResearchTreeDef = {
         {
             id: EARTH_NODE_EARTH_ATTUNED,
             title: 'Earth Attuned',
-            description: `+{${EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK}} max Movement Point and +{${EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK}} Movement Point regeneration per round per rank (${EARTH_ATTUNED_LEVELS} ranks).`,
+            description: `+{${EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK}} max Movement Point and +{${EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK}} Movement Point regeneration per round per rank.`,
             flavorText: 'The stone underfoot starts giving back the steps you take.',
             order: 10,
             tier: 12,

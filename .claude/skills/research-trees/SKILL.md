@@ -71,10 +71,15 @@ Components (all under `app/js/games/minion_battles/ui/components/`):
 | `ResearchTreePanel.tsx` | Outer container for the tab content |
 | `ResearchTreeList` | Sidebar selector listing eligible trees with node-count badges |
 | `ResearchTreeContent` | SVG graph rendering nodes at their `(x, y)` positions with edges |
-| `ResearchNodeCard.tsx` | Individual node: title, description, cost pills, requirement badges, research button |
+| `ResearchedNodesGrid` | Shared Upgrades right-panel grid: eligible, possessed, and (admins) remaining unowned; sorted by node tier |
+| `researchNodeGrid.ts` | Sort-by-tier helpers, missing-prereq line text, eligible / possessed / unowned collections |
+| `ResearchNodeCard.tsx` | Individual node: title, description, cost pills, requirement badges, research button. Comfortable Upgrades cards add a 2-line description, a missing-prereq strip, and ResourcePill cost. |
 
 ### Node states
 `researched` · `enabled` · `blocked` · `default`
+
+### Upgrades grid cards
+Comfortable cards show title, a 3-line description, a dark **Requirements** strip (2 lines), then ResourcePill cost. The strip lists only unowned research prereqs (`prereqNodeIds` + `anyResearched`) and CSS-ellipsis-truncates; hover lists every required node (missing red, possessed green). The grid is **Eligible research** (prereqs + non-cost requirements met, cost ignored), then **Possessed research**, then (admins) **Unowned research** excluding eligible. All lists sort by `tier` (then `order`).
 
 ### Eligibility gating
 `eligibleResearchTrees` filters which trees are shown based on account knowledge, campaign resource minimums, equipped items, and character traits. An admin "show all" debug flag renders all trees at reduced opacity.

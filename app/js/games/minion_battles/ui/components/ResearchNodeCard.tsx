@@ -2,9 +2,18 @@ import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { ResearchNodeDef } from '../../../../researchTrees/types';
 import { getResearchNodePurchaseCost } from '../../../../researchTrees/evaluator';
+import { getNodeMaxLevels } from '../../../../researchTrees/passiveBonuses';
 import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
+import { TestIds } from '../../../../testing/testIds';
 import ResearchAbilityPreview from './ResearchAbilityPreview';
+import { AnchoredPortalTooltip } from './AnchoredPortalTooltip';
 import { useCurrentUser } from '../../../../user/useCurrentUser';
+import {
+    formatMissingRequirementsLine,
+    RESEARCH_REQUIREMENTS_NONE,
+    formatResearchLevelPill,
+    type ResearchRequirementEntry,
+} from './researchNodeGrid';
 
 export interface ResearchRequirementBadge {
     id: string;
@@ -23,7 +32,7 @@ export interface ResearchNodeCardProps {
     state?: 'researched' | 'enabled' | 'blocked' | 'default';
     /** Current purchased level (for multi-level passives). */
     currentLevel?: number;
-    /** Max purchasable levels; when &gt; 1, shows Lv X/Y badge. */
+    /** Max purchasable levels; when omitted, taken from the node def. Shown as (current/max) when &gt; 1. */
     maxLevels?: number;
     /** Muted zinc styling (e.g. post-mission / reward reveal). Default keeps existing greens/surface. */
     tone?: 'default' | 'muted';
@@ -31,6 +40,12 @@ export interface ResearchNodeCardProps {
     layout?: 'compact' | 'comfortable';
     showCost?: boolean;
     showRequirements?: boolean;
+    /**
+     * In-card dark strip listing missing research prereqs (comfortable Upgrades grid).
+     * Description is clamped to 3 lines when this is on.
+     */
+    showPrereqRow?: boolean;
+    researchRequirementEntries?: ResearchRequirementEntry[];
     /** Show the node's tier in the bottom-right corner (intended for the research tree graph view only). */
     showTier?: boolean;
     onClick?: () => void;
@@ -46,6 +61,67 @@ function resolveVariant(
     if (variant != null) return variant;
     if (interactive === false) return 'display';
     return 'interactive';
+}
+
+function ResearchRequirementsRow({
+    entries,
+    onHoverChange,
+}: {
+    entries: ResearchRequirementEntry[];
+    onHoverChange: (hovered: boolean) => void;
+}) {
+    const reqAnchorRef = useRef<HTMLDivElement>(null);
+    const [open, setOpen] = useState(false);
+    const line = formatMissingRequirementsLine(entries);
+
+    return (
+        <>
+            <div
+                ref={reqAnchorRef}
+                data-testid={TestIds.researchNodeRequirements}
+                className="box-border flex h-[3.25em] w-full shrink-0 items-center overflow-hidden rounded bg-black px-1.5 py-1 text-[10px] leading-tight text-gray-300"
+                onMouseEnter={() => {
+                    setOpen(true);
+                    onHoverChange(true);
+                }}
+                onMouseLeave={() => {
+                    setOpen(false);
+                    onHoverChange(false);
+                }}
+            >
+                <span
+                    className="line-clamp-2"
+                    style={{
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                    }}
+                >
+                    {line}
+                </span>
+            </div>
+            <AnchoredPortalTooltip
+                anchorRef={reqAnchorRef}
+                open={open}
+                placement="top"
+                className="max-w-[260px] px-2.5 py-2 text-[11px] leading-snug"
+            >
+                {entries.length === 0 ? (
+                    <span className="text-gray-300">{RESEARCH_REQUIREMENTS_NONE}</span>
+                ) : (
+                    entries.map((entry, index) => (
+                        <span key={`${entry.treeId}:${entry.nodeId}`}>
+                            {index > 0 && <span className="text-gray-100">, </span>}
+                            <span className={entry.possessed ? 'text-green-400' : 'text-red-400'}>
+                                {entry.title}
+                            </span>
+                        </span>
+                    ))
+                )}
+            </AnchoredPortalTooltip>
+        </>
+    );
 }
 
 function parseHighlightedSegments(text: string): Array<{ text: string; highlighted: boolean }> {
@@ -72,11 +148,13 @@ export default function ResearchNodeCard({
     variant,
     interactive,
     currentLevel = 0,
-    maxLevels = 1,
+    maxLevels: maxLevelsProp,
     tone = 'default',
     layout = 'compact',
     showCost = true,
     showRequirements = true,
+    showPrereqRow = false,
+    researchRequirementEntries = [],
     showTier = false,
     onClick,
     selectionReason = null,
@@ -87,8 +165,11 @@ export default function ResearchNodeCard({
 
     const mode = resolveVariant(variant, interactive);
     const isInteractive = mode === 'interactive';
+    const maxLevels = maxLevelsProp ?? getNodeMaxLevels(node);
+    const showLevelPill = maxLevels > 1;
     const costGains = campaignResourceGains(getResearchNodePurchaseCost(node, currentLevel));
     const hasReqBadges = showRequirements && requirementBadges.length > 0;
+    const [reqHover, setReqHover] = useState(false);
     const hasTooltipContent = Boolean(node.flavorText || selectionReason || node.modifiesAbility);
 
     const anchorRef = useRef<HTMLDivElement>(null);
@@ -129,6 +210,7 @@ export default function ResearchNodeCard({
     const handleFlavorLeave = useCallback(() => {
         setFlavorHover(false);
         setTipPosition(null);
+        setReqHover(false);
     }, []);
 
     const stateClasses =
@@ -151,7 +233,9 @@ export default function ResearchNodeCard({
     /** Fixed footprint so cards never grow with longer titles/descriptions (content clamps inside). */
     const layoutClasses =
         layout === 'comfortable'
-            ? 'w-[280px] h-[120px] shrink-0 px-3 py-2 gap-1 overflow-hidden'
+            ? showPrereqRow
+                ? 'w-[280px] h-[164px] shrink-0 px-3 py-2 gap-1 overflow-hidden'
+                : 'w-[280px] h-[120px] shrink-0 px-3 py-2 gap-1 overflow-hidden'
             : 'w-[180px] h-[116px] shrink-0 px-3 py-2 gap-1 overflow-hidden';
 
     const cardClasses = `relative rounded-lg border text-left flex flex-col min-h-0 ${layoutClasses} ${stateClasses} ${!isInteractive ? 'cursor-default' : ''} ${className}`;
@@ -163,7 +247,7 @@ export default function ResearchNodeCard({
 
     const descSizeClass = layout === 'comfortable' ? 'text-xs leading-snug' : 'text-[11px] leading-tight';
 
-    const descClampLines = layout === 'comfortable' ? 4 : 3;
+    const descClampLines = showPrereqRow ? 3 : layout === 'comfortable' ? 4 : 3;
 
     const tierTextClass =
         tone === 'muted'
@@ -187,23 +271,28 @@ export default function ResearchNodeCard({
     );
 
     const adminIdBadge = isAdmin && (
-        <span className="absolute top-1 right-2 text-[9px] font-mono leading-none pointer-events-none text-zinc-500 select-all">
+        <span
+            className={`absolute text-[9px] font-mono leading-none pointer-events-none text-zinc-500 select-all ${
+                showLevelPill ? 'top-1 left-2' : 'top-1 right-2'
+            }`}
+        >
             {node.id}
+        </span>
+    );
+
+    const levelPill = showLevelPill && (
+        <span className="absolute top-1 right-2 shrink-0 rounded bg-zinc-600 px-1.5 py-px text-[10px] font-semibold tabular-nums leading-none text-zinc-100 pointer-events-none">
+            {formatResearchLevelPill(currentLevel, maxLevels)}
         </span>
     );
 
     const content = (
         <div className="flex h-full min-h-0 w-full flex-col gap-1 overflow-hidden">
-            <div className={`${titleClass} shrink-0 flex items-center gap-1.5 min-w-0`}>
+            <div className={`${titleClass} shrink-0 flex items-center gap-1.5 min-w-0 ${showLevelPill ? 'pr-10' : ''}`}>
                 <span className="truncate">{node.title}</span>
-                {maxLevels > 1 && (
-                    <span className="shrink-0 rounded bg-black/30 px-1 py-px text-[9px] font-semibold tabular-nums text-amber-200/90">
-                        Lv {currentLevel}/{maxLevels}
-                    </span>
-                )}
             </div>
             <div
-                className={`${descSizeClass} min-h-0 flex-1 text-gray-300 ${layout === 'comfortable' ? 'line-clamp-4' : 'line-clamp-3'}`}
+                className={`${descSizeClass} min-h-0 ${showPrereqRow ? 'h-[3.75em] shrink-0' : 'flex-1'} text-gray-300 ${showPrereqRow ? 'line-clamp-3' : layout === 'comfortable' ? 'line-clamp-4' : 'line-clamp-3'}`}
                 style={{
                     display: '-webkit-box',
                     WebkitLineClamp: descClampLines,
@@ -220,6 +309,12 @@ export default function ResearchNodeCard({
                     </span>
                 ))}
             </div>
+            {showPrereqRow && (
+                <ResearchRequirementsRow
+                    entries={researchRequirementEntries}
+                    onHoverChange={setReqHover}
+                />
+            )}
             {showCost && (
                 <div className="shrink-0 text-[10px] text-muted flex flex-wrap items-center gap-1">
                     {costGains.length > 0 ? (
@@ -228,7 +323,7 @@ export default function ResearchNodeCard({
                                 key={`${node.id}-${resource}`}
                                 resource={resource}
                                 count={count}
-                                size={layout === 'compact' ? 'small' : 'default'}
+                                size={layout === 'compact' || showPrereqRow ? 'small' : 'default'}
                             />
                         ))
                     ) : (
@@ -243,6 +338,7 @@ export default function ResearchNodeCard({
 
     const flavorPortal =
         flavorHover &&
+        !reqHover &&
         tipPosition &&
         hasTooltipContent &&
         typeof document !== 'undefined' &&
@@ -308,12 +404,14 @@ export default function ResearchNodeCard({
                 >
                     {content}
                     {tierBadge}
+                    {levelPill}
                     {adminIdBadge}
                 </button>
             ) : (
                 <div className={cardClasses} aria-label={node.title}>
                     {content}
                     {tierBadge}
+                    {levelPill}
                     {adminIdBadge}
                 </div>
             )}
