@@ -1,5 +1,5 @@
 import type { ResearchTreeDef } from '../types';
-import { ResearchType } from '../researchType';
+import { RESEARCH_TREE_COLOUR_WEAPON, RESEARCH_TREE_ICON_WEAPON } from '../researchTreeChrome';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 import {
     STARTING_WEAPON_SHIELD_NODE_ID,
@@ -13,7 +13,8 @@ export const TECH_SHIELD_NODE_STRENGTHENING_LIGHT = 'extra_shields';
 export const techShieldTree: ResearchTreeDef = {
     id: TECH_SHIELD_TREE_ID,
     title: 'Tech Shield',
-    type: ResearchType.Weapon,
+    colour: RESEARCH_TREE_COLOUR_WEAPON,
+    icon: RESEARCH_TREE_ICON_WEAPON,
     accessRequirements: [
         { type: 'characterHasEquippedItem', itemId: '003' }, // Pot Lid (pot shield)
     ],

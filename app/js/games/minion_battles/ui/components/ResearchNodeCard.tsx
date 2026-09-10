@@ -1,10 +1,10 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { ResearchNodeDef } from '../../../../researchTrees/types';
+import type { ResearchNodeDef, ResearchTreeDef } from '../../../../researchTrees/types';
 import { getResearchNodePurchaseCost } from '../../../../researchTrees/evaluator';
 import { getNodeMaxLevels } from '../../../../researchTrees/passiveBonuses';
-import { getNodeResearchType } from '../../../../researchTrees/list';
-import { getResearchTypeDetails } from '../../../../researchTrees/researchType';
+import { getResearchTreeContainingNode } from '../../../../researchTrees/list';
+import { resolveResearchTreeChrome } from '../../../../researchTrees/researchTreeChrome';
 import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
 import { TestIds } from '../../../../testing/testIds';
 import ResearchAbilityPreview from './ResearchAbilityPreview';
@@ -27,6 +27,8 @@ export interface ResearchRequirementBadge {
 
 export interface ResearchNodeCardProps {
     node: ResearchNodeDef;
+    /** Owning tree; when omitted, looked up from the node id. */
+    tree?: ResearchTreeDef;
     /** `display` renders a non-interactive card (no button). Overrides legacy `interactive` when set. */
     variant?: 'interactive' | 'display';
     /** Prefer `variant="display"`. When omitted, treated as interactive unless explicitly `false`. */
@@ -146,6 +148,7 @@ function parseHighlightedSegments(text: string): Array<{ text: string; highlight
 
 export default function ResearchNodeCard({
     node,
+    tree: treeProp,
     state = 'default',
     variant,
     interactive,
@@ -215,8 +218,8 @@ export default function ResearchNodeCard({
         setReqHover(false);
     }, []);
 
-    const researchType = getNodeResearchType(node);
-    const typeDetails = getResearchTypeDetails(researchType);
+    const owningTree = treeProp ?? getResearchTreeContainingNode(node.id);
+    const treeChrome = resolveResearchTreeChrome(owningTree);
 
     const stateClasses =
         tone === 'muted'
@@ -291,10 +294,10 @@ export default function ResearchNodeCard({
         <div className="flex h-full min-h-0 w-full flex-col gap-1 overflow-hidden">
             <div className={`${titleClass} shrink-0 flex items-center gap-1.5 min-w-0 ${showLevelPill ? 'pr-10' : ''}`}>
                 <img
-                    src={typeDetails.icon}
+                    src={treeChrome.icon}
                     alt=""
-                    data-testid={TestIds.researchNodeTypeIcon}
-                    title={typeDetails.displayName}
+                    data-testid={TestIds.researchNodeTreeIcon}
+                    title={owningTree?.title}
                     className={`${layout === 'comfortable' ? 'h-4 w-4' : 'h-3.5 w-3.5'} shrink-0 rounded-sm object-cover`}
                 />
                 <span className="truncate">{node.title}</span>
@@ -407,7 +410,7 @@ export default function ResearchNodeCard({
                     type="button"
                     onClick={onClick}
                     className={cardClasses}
-                    style={{ borderColor: typeDetails.colour }}
+                    style={{ borderColor: treeChrome.colour }}
                     disabled={state !== 'enabled'}
                     aria-label={node.title}
                 >
@@ -417,7 +420,7 @@ export default function ResearchNodeCard({
                     {adminIdBadge}
                 </button>
             ) : (
-                <div className={cardClasses} style={{ borderColor: typeDetails.colour }} aria-label={node.title}>
+                <div className={cardClasses} style={{ borderColor: treeChrome.colour }} aria-label={node.title}>
                     {content}
                     {tierBadge}
                     {levelPill}

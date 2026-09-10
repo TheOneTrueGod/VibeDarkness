@@ -28,7 +28,8 @@ export const TestIds = {
     researchPossessedSection: 'research-possessed-section',
     researchUnownedSection: 'research-unowned-section',
     researchNodeRequirements: 'research-node-requirements',
-    researchNodeTypeIcon: 'research-node-type-icon',
+    researchNodeTreeIcon: 'research-node-tree-icon',
+    researchTreeListIcon: 'research-tree-list-icon',
     researchGridResources: 'research-grid-resources',
 
     /** Admin Players → Campaign data center */

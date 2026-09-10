@@ -1,5 +1,5 @@
 import { PassiveStatKey, type ResearchTreeDef } from '../types';
-import { ResearchType } from '../researchType';
+import { RESEARCH_TREE_COLOUR_GENERIC, RESEARCH_TREE_ICON_GENERIC } from '../researchTreeChrome';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 import { DescriptiveValue } from '../descriptiveValue';
 
@@ -26,7 +26,8 @@ export const TRAINING_PASSIVE_NODE_FOOD_COST = 15;
 export const trainingTree: ResearchTreeDef = {
     id: TRAINING_TREE_ID,
     title: 'Training',
-    type: ResearchType.Untyped,
+    colour: RESEARCH_TREE_COLOUR_GENERIC,
+    icon: RESEARCH_TREE_ICON_GENERIC,
     accessRequirements: [
         { type: 'accountKnowledge', key: 'Research' },
         { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.BasicCore },

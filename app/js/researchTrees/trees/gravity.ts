@@ -1,5 +1,5 @@
 import type { ResearchTreeDef } from '../types';
-import { ResearchType } from '../researchType';
+import { RESEARCH_TREE_COLOUR_GRAVITY, RESEARCH_TREE_ICON_GRAVITY } from '../researchTreeChrome';
 import { DescriptiveValue } from '../descriptiveValue';
 
 import {
@@ -22,7 +22,8 @@ export const GRAVITY_NODE_REPULSE = 'gravity_repulse';
 export const gravityTree: ResearchTreeDef = {
     id: GRAVITY_TREE_ID,
     title: 'Gravity',
-    type: ResearchType.Gravity,
+    colour: RESEARCH_TREE_COLOUR_GRAVITY,
+    icon: RESEARCH_TREE_ICON_GRAVITY,
     accessRequirements: [],
     nodes: [
         {

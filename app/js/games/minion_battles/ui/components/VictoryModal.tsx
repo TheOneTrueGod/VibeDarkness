@@ -6,7 +6,7 @@ import { getItemDef, ITEM_ICON_URLS } from '../../character_defs/items';
 import type { CampaignResourceKey, MissionResearchRewardEntry } from '../../../../types';
 import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
 import ResearchNodeCard from './ResearchNodeCard';
-import { getResolvedMissionResearchRewards } from '../../../../researchTrees/list';
+import { getResearchTree, getResolvedMissionResearchRewards } from '../../../../researchTrees/list';
 import type { CampaignRewardsPayload } from '../../storylines/questRun';
 import { isCampaignRewardsPayloadEmpty } from '../../storylines/questCampaignRewards';
 
@@ -134,12 +134,13 @@ export default function VictoryModal({
                                 <div className="w-full space-y-2">
                                     <p className="text-sm text-muted">Research gained:</p>
                                     <div className="flex flex-wrap justify-center gap-3">
-                                        {researchRewards.map(({ rewardId, node }) => (
+                                        {researchRewards.map(({ rewardId, treeId, node }) => (
                                             <ResearchNodeCard
                                                 key={rewardId}
                                                 variant="display"
                                                 tone="muted"
                                                 layout="comfortable"
+                                                tree={getResearchTree(treeId)}
                                                 node={node}
                                                 showCost={false}
                                                 showRequirements={false}
@@ -184,12 +185,13 @@ export default function VictoryModal({
                                 <div className="w-full space-y-2">
                                     <p className="text-sm text-muted">Research gained:</p>
                                     <div className="flex flex-wrap justify-center gap-3">
-                                        {campaignResearchRewards.map(({ rewardId, node }) => (
+                                        {campaignResearchRewards.map(({ rewardId, treeId, node }) => (
                                             <ResearchNodeCard
                                                 key={`campaign-${rewardId}`}
                                                 variant="display"
                                                 tone="muted"
                                                 layout="comfortable"
+                                                tree={getResearchTree(treeId)}
                                                 node={node}
                                                 showCost={false}
                                                 showRequirements={false}

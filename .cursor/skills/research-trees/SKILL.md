@@ -16,13 +16,13 @@ Research trees are a **meta-game** system — they belong to campaign characters
 All tree and node definitions live in `app/js/researchTrees/`:
 
 - `types.ts` — `ResearchTreeDef`, `ResearchNodeDef`, `Requirement`, `ResearchEffect`
-- `researchType.ts` — `ResearchType` enum and details catalog (display name, colour, icon); icons in `assets/`
+- `researchTreeChrome.ts` — shared tree colours and icons (`assets/tree-*.png`)
 - `list.ts` — registry of all trees
 - `evaluator.ts` — `canResearchNode`, `applyResearchEffects`, `prereqClosure`, `meetsRequirement`, `computeEffectiveResourcesForTree`, `getAvailableResearchNodes`
 - `descriptiveValue.ts` — `DescriptiveValue` magnitude labels (Tiny/Small/Medium/Large/Huge)
 - `trees/` — one file per tree; each exports its tree ID constants and a `ResearchTreeDef`
 
-Each tree has a required `type`. A node may set `type` to override the tree. Do not hard-code type colours or icons in the card — look them up from the catalog. Weapon trees, core trees, and untyped trees are assigned in the tree defs.
+Each tree has `colour` and `icon`. Cards and the Upgrades sidebar use those fields — do not keep a separate research-type enum.
 
 ### Node relationships
 - `prereqNodeIds` — nodes that must be researched before this one is available
@@ -58,7 +58,7 @@ Components (all under `app/js/games/minion_battles/ui/components/`):
 | `ResearchTreePanel.tsx` | Outer container for the tab content |
 | `ResearchTreeList` | Sidebar selector listing eligible trees with node-count badges |
 | `ResearchTreeContent` | SVG graph rendering nodes at their `(x, y)` positions with edges |
-| `ResearchNodeCard.tsx` | Individual node: type icon + title, description, cost pills, then requirements strip. Border colour comes from the node's research type. |
+| `ResearchNodeCard.tsx` | Individual node: tree icon + title, description, cost pills, then requirements strip. Border colour comes from the owning tree. |
 
 ### Node states
 `researched` · `enabled` · `blocked` · `default`

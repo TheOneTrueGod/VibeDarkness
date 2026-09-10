@@ -1,5 +1,5 @@
 import type { ResearchTreeDef } from '../types';
-import { ResearchType } from '../researchType';
+import { RESEARCH_TREE_COLOUR_WEAPON, RESEARCH_TREE_ICON_WEAPON } from '../researchTreeChrome';
 import { EARTH_TREE_ID, EARTH_NODE_ROCK_SYNERGY_DAMAGE, EARTH_NODE_ROCK_SYNERGY_ENTOMBED } from './earth';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 import {
@@ -15,7 +15,8 @@ export const CRYSTAL_ROCKS_NODE_PIERCING_KNIVES = 'piercing_knives';
 export const crystalRocksTree: ResearchTreeDef = {
     id: CRYSTAL_ROCKS_TREE_ID,
     title: 'Rocks',
-    type: ResearchType.Weapon,
+    colour: RESEARCH_TREE_COLOUR_WEAPON,
+    icon: RESEARCH_TREE_ICON_WEAPON,
     accessRequirements: [
         { type: 'accountKnowledge', key: 'Research' },
         { type: 'characterHasEquippedItem', itemId: '001' }, // Rocks

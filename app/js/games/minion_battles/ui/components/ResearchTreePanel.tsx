@@ -158,16 +158,26 @@ export function ResearchTreeList({
 						<button
 							type="button"
 							onClick={() => onSelectTree(t.id)}
-							className={`min-w-0 flex-1 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-colors ${dimmed ? 'opacity-80 ' : ''
+							style={{ borderColor: t.colour }}
+							className={`min-w-0 flex-1 rounded-lg border-2 px-3 py-2 text-left text-sm font-medium transition-colors ${dimmed ? 'opacity-80 ' : ''
 								}${isSelected
-									? 'border-primary bg-surface-light text-white'
+									? 'bg-surface-light text-white'
 									: hasPurchases
-										? 'border-border-custom bg-surface text-gray-200 hover:bg-surface-light'
-										: 'border-border-custom bg-surface text-muted hover:bg-surface-light hover:text-gray-300'
+										? 'bg-surface text-gray-200 hover:bg-surface-light'
+										: 'bg-surface text-muted hover:bg-surface-light hover:text-gray-300'
 								}`}
 						>
-							<span className="block truncate">
-								{t.title} ({purchasedCount})
+							<span className="flex min-w-0 items-center gap-2">
+								<img
+									src={t.icon}
+									alt=""
+									data-testid={TestIds.researchTreeListIcon}
+									title={t.title}
+									className="h-4 w-4 shrink-0 rounded-sm object-cover"
+								/>
+								<span className="truncate">
+									{t.title} ({purchasedCount})
+								</span>
 							</span>
 						</button>
 						{showRowReset && (
@@ -448,6 +458,7 @@ export function ResearchTreeContent({
 									style={{ left: pos.x, top: pos.y }}
 								>
 									<ResearchNodeCard
+										tree={tree}
 										node={n}
 										variant="interactive"
 										state={atMax ? 'researched' : enabled ? 'enabled' : blocked ? 'blocked' : 'default'}
@@ -490,6 +501,7 @@ export function ResearchTreeContent({
 									style={{ left: pos.x, top: pos.y }}
 								>
 									<ResearchNodeCard
+										tree={fromTree}
 										node={node}
 										variant="interactive"
 										state={atMax ? 'researched' : enabled ? 'enabled' : blocked ? 'blocked' : 'default'}
@@ -553,6 +565,7 @@ function ResearchGridCards({
 			{entries.map(({ tree, node }) => (
 				<ResearchNodeCard
 					key={`${tree.id}:${node.id}`}
+					tree={tree}
 					node={node}
 					variant="display"
 					state={state}

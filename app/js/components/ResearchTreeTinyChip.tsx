@@ -86,6 +86,7 @@ export default function ResearchTreeTinyChip({ tree }: { tree: ResearchTreeDef }
                         {rootNodes.map((node) => (
                             <ResearchNodeCard
                                 key={node.id}
+                                tree={tree}
                                 node={node}
                                 variant="display"
                                 tone="muted"
