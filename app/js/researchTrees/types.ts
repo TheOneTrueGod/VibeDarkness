@@ -1,5 +1,7 @@
 export type { CampaignResourceKey } from '../types';
 import type { CampaignResourceKey } from '../types';
+import type { ResearchType } from './researchType';
+export { ResearchType } from './researchType';
 
 export type CampaignResourceCost = Partial<Record<CampaignResourceKey, number>>;
 
@@ -96,6 +98,8 @@ export interface ResearchNodeDef {
     id: string;
     title: string;
     description: string;
+    /** Overrides the owning tree's type when set. */
+    type?: ResearchType;
     flavorText?: string;
     /** Stable ordering used for deterministic application. Lower applies first. */
     order: number;
@@ -156,6 +160,7 @@ export interface CrossTreeNodeRef {
 export interface ResearchTreeDef {
     id: string;
     title: string;
+    type: ResearchType;
     /** Tree-level requirements to show/allow (unless it has any node researched). */
     accessRequirements: Requirement[];
     nodes: ResearchNodeDef[];

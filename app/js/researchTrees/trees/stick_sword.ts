@@ -1,4 +1,5 @@
 import type { ResearchTreeDef } from '../types';
+import { ResearchType } from '../researchType';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 import {
     STARTING_WEAPON_STICK_NODE_ID,
@@ -25,6 +26,7 @@ export const STICK_SWORD_NODE_PIPE_BAT_DAMAGE = 'pipe_bat_damage';
 export const stickSwordTree: ResearchTreeDef = {
     id: STICK_SWORD_TREE_ID,
     title: 'Stick & Sword',
+    type: ResearchType.Weapon,
     accessRequirements: [
         { type: 'accountKnowledge', key: 'Research' },
         { type: 'characterHasEquippedItem', itemId: '002' },

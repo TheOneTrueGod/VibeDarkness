@@ -14,6 +14,7 @@ export const RESEARCH_NODE_TIER_FALLBACK = 0;
 
 export const RESEARCH_REQUIREMENTS_LABEL = 'Requirements';
 export const RESEARCH_REQUIREMENTS_NONE = 'None';
+export const RESEARCH_RESOURCES_HEADING = 'Resources';
 export const ELIGIBLE_RESEARCH_HEADING = 'Eligible research';
 export const POSSESSED_RESEARCH_HEADING = 'Possessed research';
 export const UNOWNED_RESEARCH_HEADING = 'Unowned research';

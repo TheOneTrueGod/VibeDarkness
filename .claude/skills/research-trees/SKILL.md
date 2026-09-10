@@ -16,10 +16,13 @@ Research trees are a **meta-game** system — they belong to campaign characters
 All tree and node definitions live in `app/js/researchTrees/`:
 
 - `types.ts` — `ResearchTreeDef`, `ResearchNodeDef`, `Requirement`, `ResearchEffect`
+- `researchType.ts` — `ResearchType` enum and details catalog (display name, colour, icon); icons in `assets/`
 - `list.ts` — registry of all trees
 - `evaluator.ts` — `canResearchNode`, `applyResearchEffects`, `prereqClosure`, `meetsRequirement`, `computeEffectiveResourcesForTree`, `getAvailableResearchNodes`
 - `descriptiveValue.ts` — `DescriptiveValue` magnitude labels (Tiny/Small/Medium/Large/Huge)
 - `trees/` — one file per tree; each exports its tree ID constants and a `ResearchTreeDef`
+
+Each tree has a required `type`. A node may set `type` to override the tree. Do not hard-code type colours or icons in the card — look them up from the catalog.
 
 ### Node relationships
 - `prereqNodeIds` — nodes that must be researched before this one is available
@@ -73,13 +76,13 @@ Components (all under `app/js/games/minion_battles/ui/components/`):
 | `ResearchTreeContent` | SVG graph rendering nodes at their `(x, y)` positions with edges |
 | `ResearchedNodesGrid` | Shared Upgrades right-panel grid: eligible, possessed, and (admins) remaining unowned; sorted by node tier |
 | `researchNodeGrid.ts` | Sort-by-tier helpers, missing-prereq line text, eligible / possessed / unowned collections |
-| `ResearchNodeCard.tsx` | Individual node: title, description, cost pills, requirement badges, research button. Comfortable Upgrades cards add a 2-line description, a missing-prereq strip, and ResourcePill cost. |
+| `ResearchNodeCard.tsx` | Individual node: type icon + title, description, cost pills, then requirements strip. Border colour comes from the node's research type. Comfortable Upgrades cards add a 3-line description, ResourcePill cost, and a missing-prereq strip. |
 
 ### Node states
 `researched` · `enabled` · `blocked` · `default`
 
 ### Upgrades grid cards
-Comfortable cards show title, a 3-line description, a dark **Requirements** strip (2 lines), then ResourcePill cost. The strip lists only unowned research prereqs (`prereqNodeIds` + `anyResearched`) and CSS-ellipsis-truncates; hover lists every required node (missing red, possessed green). The grid is **Eligible research** (prereqs + non-cost requirements met, cost ignored), then **Possessed research**, then (admins) **Unowned research** excluding eligible. All lists sort by `tier` (then `order`).
+Comfortable cards show title, a 3-line description, ResourcePill cost, then a dark **Requirements** strip (2 lines). The strip lists only unowned research prereqs (`prereqNodeIds` + `anyResearched`) and CSS-ellipsis-truncates; hover lists every required node (missing red, possessed green). The grid starts with **Resources** (effective campaign pills), then **Eligible research** (prereqs + non-cost requirements met, cost ignored), then **Possessed research**, then (admins) **Unowned research** excluding eligible. All lists sort by `tier` (then `order`).
 
 ### Eligibility gating
 `eligibleResearchTrees` filters which trees are shown based on account knowledge, campaign resource minimums, equipped items, and character traits. An admin "show all" debug flag renders all trees at reduced opacity.

@@ -1,4 +1,5 @@
 import { PassiveStatKey, type ResearchTreeDef } from '../types';
+import { ResearchType } from '../researchType';
 import { DescriptiveValue } from '../descriptiveValue';
 import { IMBUED_BAT_ABILITY_ID } from '../../games/minion_battles/card_defs/08_light_core/0803_ImbuedBat/0803Constants';
 import { LIGHT_REGEN_ENABLED_ADD, MAX_LIGHT_RECOVERY_PER_ROUND } from '../../games/minion_battles/resources/Light';
@@ -18,6 +19,7 @@ export const LIGHT_RADIANT_REACH_RANGE_MULT = 2;
 export const lightTree: ResearchTreeDef = {
     id: LIGHT_TREE_ID,
     title: 'Light',
+    type: ResearchType.Light,
     accessRequirements: [],
     nodes: [
         {

@@ -227,6 +227,18 @@ export function computeEffectiveResourcesForTree(tree: ResearchTreeDef, ctx: Res
     return subtractCosts(ctx.campaignResources, costs);
 }
 
+/** Campaign resources remaining after costs of researched nodes in every tree. */
+export function computeEffectiveResources(ctx: ResearchContext): CampaignResources {
+    const costs: CampaignResourceCost = {};
+    for (const tree of RESEARCH_TREES) {
+        addCostsInto(
+            costs,
+            sumResearchedCosts(tree, ctx.character.researchTrees, ctx.character.researchNodeLevels),
+        );
+    }
+    return subtractCosts(ctx.campaignResources, costs);
+}
+
 export function canResearchNode(tree: ResearchTreeDef, nodeId: string, ctx: ResearchContext, options: { skipCostCheck?: boolean } = {}): { ok: boolean; missing: string[] } {
     const byId = nodeById(tree);
     const node = byId[nodeId];

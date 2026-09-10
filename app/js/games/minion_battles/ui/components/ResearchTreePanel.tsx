@@ -4,6 +4,7 @@ import type { CampaignCharacter } from '../../character_defs/CampaignCharacter';
 import type { ResearchTreeDef, ResearchNodeDef, Requirement, ResearchNodeLevels } from '../../../../researchTrees/types';
 import {
 	canResearchNode,
+	computeEffectiveResources,
 	computeEffectiveResourcesForTree,
 	meetsRequirement,
 	selectableResearchNodes,
@@ -20,6 +21,7 @@ import {
 	ELIGIBLE_RESEARCH_HEADING,
 	excludeResearchGridEntries,
 	POSSESSED_RESEARCH_HEADING,
+	RESEARCH_RESOURCES_HEADING,
 	researchedSetsByTreeId,
 	UNOWNED_RESEARCH_HEADING,
 } from './researchNodeGrid';
@@ -605,13 +607,27 @@ export function ResearchedNodesGrid({
 		const allUnowned = collectResearchGridEntries(availableTrees, researchTrees, filterTreeId, false);
 		return excludeResearchGridEntries(allUnowned, eligible);
 	}, [availableTrees, eligible, filterTreeId, researchTrees, showUnowned]);
-
-	if (eligible.length === 0 && possessed.length === 0 && unowned.length === 0) {
-		return <p className="text-sm text-muted">No research unlocked yet.</p>;
-	}
+	const effectiveResources = useMemo(() => computeEffectiveResources(researchCtx), [researchCtx]);
+	const hasCards = eligible.length > 0 || possessed.length > 0 || unowned.length > 0;
 
 	return (
 		<div className="space-y-6" data-testid={TestIds.researchNodesGrid}>
+			<div data-testid={TestIds.researchGridResources}>
+				<p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
+					{RESEARCH_RESOURCES_HEADING}
+				</p>
+				<div className="flex flex-wrap items-center gap-2">
+					{RESOURCE_ORDER.map((resource) => (
+						<ResourcePill
+							key={resource}
+							resource={resource}
+							count={effectiveResources[resource]}
+							className="text-xs"
+						/>
+					))}
+				</div>
+			</div>
+			{!hasCards && <p className="text-sm text-muted">No research unlocked yet.</p>}
 			{eligible.length > 0 && (
 				<div data-testid={TestIds.researchEligibleSection}>
 					<p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">

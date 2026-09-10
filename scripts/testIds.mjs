@@ -19,6 +19,8 @@ export const TestIds = {
     researchPossessedSection: 'research-possessed-section',
     researchUnownedSection: 'research-unowned-section',
     researchNodeRequirements: 'research-node-requirements',
+    researchNodeTypeIcon: 'research-node-type-icon',
+    researchGridResources: 'research-grid-resources',
     missionHost: 'mission-host',
     missionMapNodePrefix: 'mission-map-node-',
     missionMapQuestBankPrefix: 'mission-map-quest-bank-',

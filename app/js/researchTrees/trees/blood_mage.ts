@@ -1,5 +1,6 @@
 // Design intent (visual identity, mechanical feel): see `../../games/minion_battles/card_defs/03_blood_mage/AGENTS.md`.
 import type { ResearchTreeDef } from '../types';
+import { ResearchType } from '../researchType';
 
 export const BLOOD_MAGE_TREE_ID = 'blood_mage';
 export const BLOOD_MAGE_NODE_CORE = 'blood_mage_core';
@@ -9,6 +10,7 @@ export const BLOOD_MAGE_NODE_PROTECT = 'blood_mage_protect';
 export const bloodMageTree: ResearchTreeDef = {
     id: BLOOD_MAGE_TREE_ID,
     title: 'Blood Mage',
+    type: ResearchType.BloodMage,
     accessRequirements: [],
     nodes: [
         {

@@ -1,4 +1,5 @@
 import { PassiveStatKey, type ResearchTreeDef } from '../types';
+import { ResearchType } from '../researchType';
 import { EARTH_CORE_MISSION_START_ROCK_AMOUNT } from '../../games/minion_battles/card_defs/05_earth_core/earthCoreConstants';
 
 export const EARTH_TREE_ID = 'earth';
@@ -24,6 +25,7 @@ export const EARTH_GATHER_STONE_RUBBLE_STRIKE_METAL_COST = 20;
 export const earthTree: ResearchTreeDef = {
     id: EARTH_TREE_ID,
     title: 'Earth',
+    type: ResearchType.Earth,
     accessRequirements: [],
     nodes: [
         {

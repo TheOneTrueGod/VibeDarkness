@@ -1,4 +1,5 @@
 import type { ResearchTreeDef } from '../types';
+import { ResearchType } from '../researchType';
 
 export const MISC_TREE_ID = 'lightbearer';
 export const MISC_NODE_BEAST_CORE = 'beast_core';
@@ -9,6 +10,7 @@ export const MISC_NODE_BLINK_CORE = 'blink_core';
 export const miscTree: ResearchTreeDef = {
     id: MISC_TREE_ID,
     title: 'Lightbearer',
+    type: ResearchType.Untyped,
     accessRequirements: [{ type: 'anyResearched', treeId: MISC_TREE_ID, nodeIds: [MISC_NODE_BEAST_CORE, MISC_NODE_AIR_CORE, MISC_NODE_CHARGED_CORE, MISC_NODE_BLINK_CORE] }],
     nodes: [
         {

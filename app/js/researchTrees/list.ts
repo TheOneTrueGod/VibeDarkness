@@ -1,5 +1,6 @@
 import type { ResearchNodeDef, ResearchTreeDef } from './types';
 import type { MissionResearchRewardEntry } from '../types';
+import { resolveResearchType, type ResearchType } from './researchType';
 import { techShieldTree } from './trees/tech_shield';
 import { crystalRocksTree } from './trees/crystal_rocks';
 import { trainingTree } from './trees/training';
@@ -21,6 +22,15 @@ export function getResearchNode(treeId: string, nodeId: string) {
     const tree = getResearchTree(treeId);
     if (!tree) return undefined;
     return tree.nodes.find((node) => node.id === nodeId);
+}
+
+/** Owning tree for a node id (ids are unique across the registry). */
+export function getResearchTreeContainingNode(nodeId: string): ResearchTreeDef | undefined {
+    return RESEARCH_TREES.find((tree) => tree.nodes.some((node) => node.id === nodeId));
+}
+
+export function getNodeResearchType(node: Pick<ResearchNodeDef, 'id' | 'type'>): ResearchType {
+    return resolveResearchType(node.type, getResearchTreeContainingNode(node.id)?.type);
 }
 
 export interface ResolvedResearchReward {

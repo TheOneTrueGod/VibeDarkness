@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import type { ResearchNodeDef } from '../../../../researchTrees/types';
 import { getResearchNodePurchaseCost } from '../../../../researchTrees/evaluator';
 import { getNodeMaxLevels } from '../../../../researchTrees/passiveBonuses';
+import { getNodeResearchType } from '../../../../researchTrees/list';
+import { getResearchTypeDetails } from '../../../../researchTrees/researchType';
 import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
 import { TestIds } from '../../../../testing/testIds';
 import ResearchAbilityPreview from './ResearchAbilityPreview';
@@ -213,22 +215,25 @@ export default function ResearchNodeCard({
         setReqHover(false);
     }, []);
 
+    const researchType = getNodeResearchType(node);
+    const typeDetails = getResearchTypeDetails(researchType);
+
     const stateClasses =
         tone === 'muted'
             ? state === 'researched'
-                ? 'bg-zinc-700 border-zinc-500 text-zinc-50'
+                ? 'bg-zinc-700 text-zinc-50'
                 : state === 'enabled'
-                  ? 'bg-zinc-800 border-zinc-400 text-zinc-50 hover:bg-zinc-700'
+                  ? 'bg-zinc-800 text-zinc-50 hover:bg-zinc-700'
                   : state === 'blocked'
-                    ? 'bg-zinc-900 border-zinc-600 text-zinc-300'
-                    : 'bg-zinc-800/90 border-zinc-600 text-zinc-300'
+                    ? 'bg-zinc-900 text-zinc-300'
+                    : 'bg-zinc-800/90 text-zinc-300'
             : state === 'researched'
-              ? 'bg-green-900 border-green-700 text-white'
+              ? 'bg-green-900 text-white'
               : state === 'enabled'
-                ? 'bg-surface-light border-primary text-white hover:bg-surface'
+                ? 'bg-surface-light text-white hover:bg-surface'
                 : state === 'blocked'
-                  ? 'bg-zinc-800 border-zinc-500 text-zinc-100'
-                  : 'bg-surface-light border-border-custom text-muted';
+                  ? 'bg-zinc-800 text-zinc-100'
+                  : 'bg-surface-light text-muted';
 
     /** Fixed footprint so cards never grow with longer titles/descriptions (content clamps inside). */
     const layoutClasses =
@@ -238,12 +243,12 @@ export default function ResearchNodeCard({
                 : 'w-[280px] h-[120px] shrink-0 px-3 py-2 gap-1 overflow-hidden'
             : 'w-[180px] h-[116px] shrink-0 px-3 py-2 gap-1 overflow-hidden';
 
-    const cardClasses = `relative rounded-lg border text-left flex flex-col min-h-0 ${layoutClasses} ${stateClasses} ${!isInteractive ? 'cursor-default' : ''} ${className}`;
+    const cardClasses = `relative rounded-lg border-2 text-left flex flex-col min-h-0 ${layoutClasses} ${stateClasses} ${!isInteractive ? 'cursor-default' : ''} ${className}`;
 
     const titleClass =
         layout === 'comfortable'
-            ? 'text-base font-semibold leading-snug text-left truncate'
-            : 'text-sm font-semibold truncate';
+            ? 'text-base font-semibold leading-snug text-left'
+            : 'text-sm font-semibold';
 
     const descSizeClass = layout === 'comfortable' ? 'text-xs leading-snug' : 'text-[11px] leading-tight';
 
@@ -271,11 +276,7 @@ export default function ResearchNodeCard({
     );
 
     const adminIdBadge = isAdmin && (
-        <span
-            className={`absolute text-[9px] font-mono leading-none pointer-events-none text-zinc-500 select-all ${
-                showLevelPill ? 'top-1 left-2' : 'top-1 right-2'
-            }`}
-        >
+        <span className="absolute bottom-1 left-2 text-[9px] font-mono leading-none pointer-events-none text-zinc-500 select-all">
             {node.id}
         </span>
     );
@@ -289,6 +290,13 @@ export default function ResearchNodeCard({
     const content = (
         <div className="flex h-full min-h-0 w-full flex-col gap-1 overflow-hidden">
             <div className={`${titleClass} shrink-0 flex items-center gap-1.5 min-w-0 ${showLevelPill ? 'pr-10' : ''}`}>
+                <img
+                    src={typeDetails.icon}
+                    alt=""
+                    data-testid={TestIds.researchNodeTypeIcon}
+                    title={typeDetails.displayName}
+                    className={`${layout === 'comfortable' ? 'h-4 w-4' : 'h-3.5 w-3.5'} shrink-0 rounded-sm object-cover`}
+                />
                 <span className="truncate">{node.title}</span>
             </div>
             <div
@@ -309,12 +317,6 @@ export default function ResearchNodeCard({
                     </span>
                 ))}
             </div>
-            {showPrereqRow && (
-                <ResearchRequirementsRow
-                    entries={researchRequirementEntries}
-                    onHoverChange={setReqHover}
-                />
-            )}
             {showCost && (
                 <div className="shrink-0 text-[10px] text-muted flex flex-wrap items-center gap-1">
                     {costGains.length > 0 ? (
@@ -330,6 +332,12 @@ export default function ResearchNodeCard({
                         <span>Free</span>
                     )}
                 </div>
+            )}
+            {showPrereqRow && (
+                <ResearchRequirementsRow
+                    entries={researchRequirementEntries}
+                    onHoverChange={setReqHover}
+                />
             )}
         </div>
     );
@@ -399,6 +407,7 @@ export default function ResearchNodeCard({
                     type="button"
                     onClick={onClick}
                     className={cardClasses}
+                    style={{ borderColor: typeDetails.colour }}
                     disabled={state !== 'enabled'}
                     aria-label={node.title}
                 >
@@ -408,7 +417,7 @@ export default function ResearchNodeCard({
                     {adminIdBadge}
                 </button>
             ) : (
-                <div className={cardClasses} aria-label={node.title}>
+                <div className={cardClasses} style={{ borderColor: typeDetails.colour }} aria-label={node.title}>
                     {content}
                     {tierBadge}
                     {levelPill}

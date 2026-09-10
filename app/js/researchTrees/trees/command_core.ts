@@ -1,5 +1,5 @@
-import type { ResearchTreeDef } from '../types';
-import { PassiveStatKey } from '../types';
+import { PassiveStatKey, type ResearchTreeDef } from '../types';
+import { ResearchType } from '../researchType';
 
 export const COMMAND_CORE_TREE_ID = 'command_core';
 export const COMMAND_CORE_NODE_LOYAL_COMPANION = 'loyal_companion';
@@ -17,6 +17,7 @@ export const EMPOWER_PET_MAX_BITE_DAMAGE_ADD = 10;
 export const commandCoreTree: ResearchTreeDef = {
     id: COMMAND_CORE_TREE_ID,
     title: 'Command Core',
+    type: ResearchType.Command,
     accessRequirements: [{ type: 'accountKnowledge', key: 'Research' }],
     nodes: [
         {

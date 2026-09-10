@@ -1,4 +1,5 @@
 import type { ResearchTreeDef } from '../types';
+import { ResearchType } from '../researchType';
 import { DescriptiveValue } from '../descriptiveValue';
 
 import {
@@ -21,6 +22,7 @@ export const GRAVITY_NODE_REPULSE = 'gravity_repulse';
 export const gravityTree: ResearchTreeDef = {
     id: GRAVITY_TREE_ID,
     title: 'Gravity',
+    type: ResearchType.Gravity,
     accessRequirements: [],
     nodes: [
         {
