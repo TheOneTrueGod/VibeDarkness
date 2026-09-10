@@ -1,4 +1,4 @@
-import { PassiveStatKey, type ResearchTreeDef } from '../types';
+import { MISSION_REWARD_REQUIREMENT, PassiveStatKey, type ResearchTreeDef } from '../types';
 import { RESEARCH_TREE_COLOUR_EARTH, RESEARCH_TREE_ICON_EARTH } from '../researchTreeChrome';
 import { EARTH_CORE_MISSION_START_ROCK_AMOUNT } from '../../games/minion_battles/card_defs/05_earth_core/earthCoreConstants';
 
@@ -39,7 +39,7 @@ export const earthTree: ResearchTreeDef = {
             position: { x: 120, y: 90 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
-            requirements: [],
+            requirements: [MISSION_REWARD_REQUIREMENT],
             cost: {},
             effects: [
                 { type: 'addCard', cardId: '0111' },

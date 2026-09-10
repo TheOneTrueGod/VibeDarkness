@@ -123,6 +123,7 @@ function isCoreEligible(
         } else if (req.type === 'characterHasEquippedItem') {
             if (!equippedItemIds.includes(req.itemId)) return false;
         }
+        // missionReward is satisfied — this mission is the grant path.
     }
     return true;
 }

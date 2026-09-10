@@ -10,7 +10,17 @@ export type Requirement =
     | { type: 'characterHasCore' }
     | { type: 'characterHasTrait'; trait: string }
     | { type: 'anyResearched'; treeId: string; nodeIds: string[] }
-    | { type: 'notResearched'; treeId: string; nodeId: string };
+    | { type: 'notResearched'; treeId: string; nodeId: string }
+    /** Only grantable as a quest/mission reward — not purchasable on Upgrades. */
+    | { type: 'missionReward' };
+
+export const MISSION_REWARD_REQUIREMENT: Requirement = { type: 'missionReward' };
+
+/** Player-facing label for `{ type: 'missionReward' }`. */
+export const MISSION_REWARD_REQUIREMENT_LABEL = 'Mission reward';
+
+/** `canResearchNode` missing key when a node is mission-reward-only. */
+export const MISSION_REWARD_MISSING = 'mission_reward';
 
 export type ResearchEffect =
     | { type: 'equipItem'; itemId: string }

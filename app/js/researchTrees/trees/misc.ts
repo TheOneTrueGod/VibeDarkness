@@ -1,4 +1,4 @@
-import type { ResearchTreeDef } from '../types';
+import { MISSION_REWARD_REQUIREMENT, type ResearchTreeDef } from '../types';
 import { RESEARCH_TREE_COLOUR_GENERIC, RESEARCH_TREE_ICON_GENERIC } from '../researchTreeChrome';
 
 export const MISC_TREE_ID = 'lightbearer';
@@ -24,7 +24,7 @@ export const miscTree: ResearchTreeDef = {
             position: { x: 340, y: 290 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
-            requirements: [],
+            requirements: [MISSION_REWARD_REQUIREMENT],
             cost: {},
             effects: [{ type: 'addCard', cardId: '0111' }],
             modifiesAbility: { from: '0111', to: '0111' },
@@ -39,7 +39,7 @@ export const miscTree: ResearchTreeDef = {
             position: { x: 570, y: 290 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
-            requirements: [],
+            requirements: [MISSION_REWARD_REQUIREMENT],
             cost: {},
             effects: [],
         },
@@ -53,7 +53,7 @@ export const miscTree: ResearchTreeDef = {
             position: { x: 800, y: 290 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
-            requirements: [],
+            requirements: [MISSION_REWARD_REQUIREMENT],
             cost: {},
             effects: [],
         },
@@ -67,7 +67,7 @@ export const miscTree: ResearchTreeDef = {
             position: { x: 1030, y: 290 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
-            requirements: [],
+            requirements: [MISSION_REWARD_REQUIREMENT],
             cost: {},
             effects: [],
         },

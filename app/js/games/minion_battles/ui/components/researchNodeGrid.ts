@@ -186,7 +186,7 @@ export function excludeResearchGridEntries(
 export function canPurchaseResearchGridEntry(
     entry: ResearchGridEntry,
     ctx: ResearchContext,
-    options?: { skipCostCheck?: boolean },
+    options?: { skipCostCheck?: boolean; skipMissionRewardCheck?: boolean },
 ): boolean {
     return canResearchNode(entry.tree, entry.node.id, ctx, options).ok;
 }

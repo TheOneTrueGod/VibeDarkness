@@ -14,7 +14,7 @@ import type {
     ResearchNodeLevels,
     ResearchNodeSources,
 } from './types';
-import { isDraftResearchNode, ResearchSource } from './types';
+import { isDraftResearchNode, MISSION_REWARD_MISSING, ResearchSource } from './types';
 import { RESEARCH_TREES } from './list';
 import { DEFAULT_PASSIVE_MULT, getMultBonusAtLevel, getNodeLevel, getNodeMaxLevels } from './passiveBonuses';
 import { getNodeResearchSources } from './researchSources';
@@ -206,6 +206,8 @@ export function meetsRequirement(req: Requirement, ctx: ResearchContext, researc
             const set = researched[req.treeId] ?? new Set<string>();
             return !set.has(req.nodeId);
         }
+        case 'missionReward':
+            return false;
         default:
             return false;
     }
@@ -270,7 +272,20 @@ export function computeEffectiveResources(ctx: ResearchContext): CampaignResourc
     return subtractCosts(ctx.campaignResources, costs);
 }
 
-export function canResearchNode(tree: ResearchTreeDef, nodeId: string, ctx: ResearchContext, options: { skipCostCheck?: boolean } = {}): { ok: boolean; missing: string[] } {
+function requirementsForPurchaseCheck(
+    requirements: Requirement[],
+    options: { skipMissionRewardCheck?: boolean },
+): Requirement[] {
+    if (!options.skipMissionRewardCheck) return requirements;
+    return requirements.filter((req) => req.type !== 'missionReward');
+}
+
+export function canResearchNode(
+    tree: ResearchTreeDef,
+    nodeId: string,
+    ctx: ResearchContext,
+    options: { skipCostCheck?: boolean; skipMissionRewardCheck?: boolean } = {},
+): { ok: boolean; missing: string[] } {
     const byId = nodeById(tree);
     const node = byId[nodeId];
     if (!node) return { ok: false, missing: ['unknown_node'] };
@@ -320,8 +335,19 @@ export function canResearchNode(tree: ResearchTreeDef, nodeId: string, ctx: Rese
 
     // Requirements must hold for each node to be researched (and the target node)
     for (const n of neededNodes) {
-        if (!meetsAll(n.requirements, ctxEffective, researched)) {
-            return { ok: false, missing: ['requirements_not_met'] };
+        const purchaseReqs = requirementsForPurchaseCheck(n.requirements, options);
+        if (!meetsAll(purchaseReqs, ctxEffective, researched)) {
+            const onlyMissionRewardBlocked =
+                n.requirements.some((req) => req.type === 'missionReward') &&
+                meetsAll(
+                    requirementsForPurchaseCheck(n.requirements, { skipMissionRewardCheck: true }),
+                    ctxEffective,
+                    researched,
+                );
+            return {
+                ok: false,
+                missing: [onlyMissionRewardBlocked ? MISSION_REWARD_MISSING : 'requirements_not_met'],
+            };
         }
     }
 

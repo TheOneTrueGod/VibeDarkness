@@ -20,7 +20,7 @@ import {
 export interface ResearchRequirementBadge {
     id: string;
     label: string;
-    type: 'knowledge' | 'item';
+    type: 'knowledge' | 'item' | 'missionReward';
     satisfied: boolean;
     title?: string;
 }

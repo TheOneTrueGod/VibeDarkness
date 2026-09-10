@@ -110,6 +110,7 @@ function nodeRequirementsMet(
             const researchedSet = new Set(researched[req.treeId] ?? []);
             if (!req.nodeIds.some((id) => researchedSet.has(id))) return false;
         }
+        // missionReward is satisfied here — this path is a mission reward grant.
     }
     return true;
 }

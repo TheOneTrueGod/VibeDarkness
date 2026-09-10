@@ -567,7 +567,10 @@ export default function CharacterEditor({
                 campaignResources: resolvedCampaign.resources,
             };
 
-            const check = canResearchNode(tree, nodeId, ctx, { skipCostCheck: isAdmin });
+            const check = canResearchNode(tree, nodeId, ctx, {
+                skipCostCheck: isAdmin,
+                skipMissionRewardCheck: isAdmin,
+            });
             if (!check.ok) return;
 
             const targetNode = tree.nodes.find((n) => n.id === nodeId);

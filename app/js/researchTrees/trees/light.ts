@@ -1,4 +1,4 @@
-import { PassiveStatKey, type ResearchTreeDef } from '../types';
+import { MISSION_REWARD_REQUIREMENT, PassiveStatKey, type ResearchTreeDef } from '../types';
 import { RESEARCH_TREE_COLOUR_LIGHT, RESEARCH_TREE_ICON_LIGHT } from '../researchTreeChrome';
 import { DescriptiveValue } from '../descriptiveValue';
 import { IMBUED_BAT_ABILITY_ID } from '../../games/minion_battles/card_defs/08_light_core/0803_ImbuedBat/0803Constants';
@@ -34,6 +34,7 @@ export const lightTree: ResearchTreeDef = {
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
             requirements: [
+                MISSION_REWARD_REQUIREMENT,
                 { type: 'anyResearched', treeId: STICK_SWORD_TREE_ID, nodeIds: [STICK_SWORD_NODE_PIPE_BAT] },
             ],
             cost: {},

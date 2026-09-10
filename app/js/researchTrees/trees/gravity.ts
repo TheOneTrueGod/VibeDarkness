@@ -1,4 +1,4 @@
-import type { ResearchTreeDef } from '../types';
+import { MISSION_REWARD_REQUIREMENT, type ResearchTreeDef } from '../types';
 import { RESEARCH_TREE_COLOUR_GRAVITY, RESEARCH_TREE_ICON_GRAVITY } from '../researchTreeChrome';
 import { DescriptiveValue } from '../descriptiveValue';
 
@@ -37,7 +37,7 @@ export const gravityTree: ResearchTreeDef = {
             position: { x: 180, y: 290 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
-            requirements: [],
+            requirements: [MISSION_REWARD_REQUIREMENT],
             cost: {},
             effects: [
                 { type: 'replaceEquippedItem', fromItemId: '004', toItemId: '018' },

@@ -1,5 +1,5 @@
 // Design intent (visual identity, mechanical feel): see `../../games/minion_battles/card_defs/03_blood_mage/AGENTS.md`.
-import type { ResearchTreeDef } from '../types';
+import { MISSION_REWARD_REQUIREMENT, type ResearchTreeDef } from '../types';
 import { RESEARCH_TREE_COLOUR_BLOOD_MAGE, RESEARCH_TREE_ICON_BLOOD_MAGE } from '../researchTreeChrome';
 
 export const BLOOD_MAGE_TREE_ID = 'blood_mage';
@@ -25,7 +25,7 @@ export const bloodMageTree: ResearchTreeDef = {
             position: { x: 180, y: 290 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
-            requirements: [],
+            requirements: [MISSION_REWARD_REQUIREMENT],
             cost: {},
             effects: [
                 { type: 'addCard', cardId: '0301' },

@@ -3,6 +3,8 @@ import type { AccountState, CampaignResources } from '../../../../types';
 import type { CampaignCharacter } from '../../character_defs/CampaignCharacter';
 import {
 	isDraftResearchNode,
+	MISSION_REWARD_MISSING,
+	MISSION_REWARD_REQUIREMENT_LABEL,
 	ResearchSource,
 	type ResearchTreeDef,
 	type ResearchNodeDef,
@@ -89,6 +91,7 @@ function getResearchBlockReason(missing: string[]): string | null {
 	if (first === 'unknown_node') return 'Unknown research node.';
 	if (first === 'exclusive_conflict') return 'Conflicts with another researched node.';
 	if (first === 'requirements_not_met') return 'Requirements are not met.';
+	if (first === MISSION_REWARD_MISSING) return 'Only available as a mission reward.';
 	if (first.startsWith('insufficient_')) {
 		const resource = first.replace('insufficient_', '');
 		return `Not enough ${resource}.`;
@@ -489,7 +492,10 @@ export function ResearchTreeContent({
 							const currentLevel = getNodeLevel(tree.id, n.id, researchTrees, researchNodeLevels);
 							const maxLevels = getNodeMaxLevels(n);
 							const atMax = currentLevel >= maxLevels;
-							const check = canResearchNode(tree, n.id, ctx, { skipCostCheck: isAdmin });
+							const check = canResearchNode(tree, n.id, ctx, {
+								skipCostCheck: isAdmin,
+								skipMissionRewardCheck: isAdmin,
+							});
 							const enabled = !atMax && check.ok;
 							const blocked = !atMax && !check.ok;
 							const pos = mapPos(n.position);
@@ -533,6 +539,17 @@ export function ResearchTreeContent({
 										title: `Equipped: ${label} (${itemId})${satisfied ? ' (met)' : ' (required)'}`,
 									};
 								}),
+								...n.requirements
+									.filter((req): req is Extract<Requirement, { type: 'missionReward' }> => req.type === 'missionReward')
+									.map((_, index) => ({
+										id: `${n.id}-mission-reward-${index}`,
+										label: MISSION_REWARD_REQUIREMENT_LABEL,
+										type: 'missionReward' as const,
+										satisfied: atMax || isAdmin,
+										title: atMax || isAdmin
+											? `${MISSION_REWARD_REQUIREMENT_LABEL} (met)`
+											: 'Only available as a mission reward',
+									})),
 								...crossTreeResearchBadges(n, tree.id, allTrees, researchedByTreeId),
 							];
 							return (
@@ -565,7 +582,10 @@ export function ResearchTreeContent({
 							const currentLevel = getNodeLevel(ref.fromTreeId, ref.nodeId, researchTrees, researchNodeLevels);
 							const maxLevels = getNodeMaxLevels(node);
 							const atMax = currentLevel >= maxLevels;
-							const check = canResearchNode(fromTree, ref.nodeId, ctx, { skipCostCheck: isAdmin });
+							const check = canResearchNode(fromTree, ref.nodeId, ctx, {
+								skipCostCheck: isAdmin,
+								skipMissionRewardCheck: isAdmin,
+							});
 							const enabled = !atMax && check.ok;
 							const blocked = !atMax && !check.ok;
 							const pos = mapPos(ref.position);
@@ -661,7 +681,10 @@ function ResearchGridCards({
 			{entries.map(({ tree, node }) => {
 				const purchasable =
 					onResearchNode != null &&
-					canPurchaseResearchGridEntry({ tree, node }, researchCtx, { skipCostCheck });
+					canPurchaseResearchGridEntry({ tree, node }, researchCtx, {
+						skipCostCheck,
+						skipMissionRewardCheck: skipCostCheck,
+					});
 				return (
 					<ResearchNodeCard
 						key={`${tree.id}:${node.id}`}

@@ -1,4 +1,4 @@
-import { PassiveStatKey, type ResearchTreeDef } from '../types';
+import { MISSION_REWARD_REQUIREMENT, PassiveStatKey, type ResearchTreeDef } from '../types';
 import { RESEARCH_TREE_COLOUR_COMMAND, RESEARCH_TREE_ICON_COMMAND } from '../researchTreeChrome';
 
 export const COMMAND_CORE_TREE_ID = 'command_core';
@@ -31,7 +31,7 @@ export const commandCoreTree: ResearchTreeDef = {
             position: { x: 120, y: 290 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
-            requirements: [],
+            requirements: [MISSION_REWARD_REQUIREMENT],
             cost: {},
             effects: [
                 { type: 'grantPet', petId: 'dog' },
