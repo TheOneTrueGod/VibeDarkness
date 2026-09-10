@@ -24,6 +24,11 @@ import type { AccountState, CampaignResources, CampaignState } from '../../../..
 import { TestIds } from '../../../../../testing/testIds';
 import { getCoreFromEquipment } from '../../../character_defs/items';
 import { RESEARCH_TREES } from '../../../../../researchTrees/list';
+import { buildAccessibleAbilityIds } from '../../../storylines/questPrepLoadout';
+import {
+    isPlayerVisibleResearchTree,
+    sortResearchTreesByPlayerAbilities,
+} from '../../../../../researchTrees/treeAbilities';
 import {
     canResearchNode,
     applyResearchEffects,
@@ -196,6 +201,7 @@ export default function CharacterEditor({
 
     const resolvedCampaign = campaign ?? localCampaign;
     const permissionAccount = viewerAccount ?? account ?? null;
+    const isAdmin = permissionAccount?.role === 'admin';
     const effectiveEditMode = editMode;
     const effectiveShowInventory = showInventoryPanel;
 
@@ -242,13 +248,31 @@ export default function CharacterEditor({
         });
     }, [account, character, equipment, researchTrees, researchNodeLevels, resolvedCampaign?.resources]);
 
-    const displayResearchTrees = showAllResearchTreesDebug ? RESEARCH_TREES : eligibleResearchTrees;
+    const playerAbilityIds = useMemo(
+        () => new Set(buildAccessibleAbilityIds(equipment, researchTrees)),
+        [equipment, researchTrees],
+    );
+
+    const playerVisibleResearchTrees = useMemo(
+        () =>
+            eligibleResearchTrees.filter((tree) =>
+                isPlayerVisibleResearchTree(tree, researchTrees, playerAbilityIds),
+            ),
+        [eligibleResearchTrees, playerAbilityIds, researchTrees],
+    );
+
+    const displayResearchTrees = useMemo(() => {
+        const showAll = isAdmin || showAllResearchTreesDebug;
+        const base = showAll ? RESEARCH_TREES : playerVisibleResearchTrees;
+        return sortResearchTreesByPlayerAbilities(base, playerAbilityIds);
+    }, [isAdmin, playerAbilityIds, playerVisibleResearchTrees, showAllResearchTreesDebug]);
 
     const dimmedResearchTreeIds = useMemo(() => {
-        if (!showAllResearchTreesDebug) return new Set<string>();
-        const eligibleIds = new Set(eligibleResearchTrees.map((t) => t.id));
-        return new Set(RESEARCH_TREES.filter((t) => !eligibleIds.has(t.id)).map((t) => t.id));
-    }, [showAllResearchTreesDebug, eligibleResearchTrees]);
+        const showAll = isAdmin || showAllResearchTreesDebug;
+        if (!showAll) return new Set<string>();
+        const visibleIds = new Set(playerVisibleResearchTrees.map((t) => t.id));
+        return new Set(RESEARCH_TREES.filter((t) => !visibleIds.has(t.id)).map((t) => t.id));
+    }, [isAdmin, playerVisibleResearchTrees, showAllResearchTreesDebug]);
 
     useEffect(() => {
         // In grid view null means "All trees" — don't force a selection.
@@ -585,7 +609,6 @@ export default function CharacterEditor({
         setDragSlot(null);
     }, []);
 
-    const isAdmin = permissionAccount?.role === 'admin';
     const useGridView = !isAdmin || adminUseGridView;
 
     const handleMarkVictory = useCallback(async (missionId: string) => {
