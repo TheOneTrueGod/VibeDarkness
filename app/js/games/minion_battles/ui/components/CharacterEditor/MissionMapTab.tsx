@@ -10,7 +10,7 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { LucideIcon } from 'lucide-react';
-import { ChevronDown, Route, Scroll, Skull, Swords, X } from 'lucide-react';
+import { ChevronDown, Route, Scroll, Skull, Swords } from 'lucide-react';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import type { MissionResult } from '../../../../../types';
 import type { MissionType } from '../../../storylines/types';
@@ -31,8 +31,6 @@ import {
     getUnlockedQuestSlotBanks,
     countQuestBankClears,
     getEligibleQuestsForBank,
-    getOptionalEligibleQuests,
-    listQuestVictoryResults,
     isDedicatedQuestBank,
     hasQuestVictoryResult,
 } from '../../../storylines/unlock';
@@ -49,14 +47,7 @@ import {
     missionMapQuestBankTestId,
     missionMapChapterTestId,
 } from '../../../../../testing/testIds';
-import QuestBanksPanel from './QuestBanksPanel';
-
-type MissionMapPane = 'map' | 'quests';
-
-const SIDE_QUESTS_PANE_LABEL = 'Side Quests';
-/** Shared slot so the close button keeps a stable header height. */
-const PANE_TITLE_SLOT_CLASS = 'h-7 w-7 shrink-0';
-const PANE_TITLE_TEXT_CLASS = 'text-base text-white';
+import QuestBankPickerPopup from './QuestBankPickerPopup';
 
 const CIRCLE_R = 28;
 /** ViewBox inset — covers node radius, name label below, and hover rings without huge empty margins. */
@@ -527,9 +518,7 @@ export default function MissionMapTab({
     const [pressedId, setPressedId] = useState<string | null>(null);
     const [tooltip, setTooltip] = useState<TooltipData | null>(null);
     const [bankTooltip, setBankTooltip] = useState<QuestBankTooltipData | null>(null);
-    const [focusedBankId, setFocusedBankId] = useState<string | null>(null);
-    const [activePane, setActivePane] = useState<MissionMapPane>('map');
-    const questBanksPanelRef = useRef<HTMLDivElement>(null);
+    const [pickerBank, setPickerBank] = useState<QuestSlotBank | null>(null);
     const svgRef = useRef<SVGSVGElement>(null);
 
     const storyline = useMemo(
@@ -607,35 +596,6 @@ export default function MissionMapTab({
         return new Set(getUnlockedQuestSlotBanks(storyline, missionResults).map((b) => b.id));
     }, [storyline, missionResults]);
 
-    const hasQuestsContent = useMemo(() => {
-        if (!onStartQuest || !storyline) return false;
-        const unlockedBanks = getUnlockedQuestSlotBanks(storyline, missionResults);
-        const optionalQuests = getOptionalEligibleQuests(character.campaignId, questResults);
-        const victoryResults = listQuestVictoryResults(questResults);
-        const activeQuest =
-            character.activeQuestRun?.status === 'active'
-            || character.activeQuestRun?.status === 'prep'
-                ? character.activeQuestRun
-                : null;
-        return (
-            unlockedBanks.length > 0
-            || optionalQuests.length > 0
-            || victoryResults.length > 0
-            || activeQuest != null
-        );
-    }, [
-        onStartQuest,
-        storyline,
-        missionResults,
-        questResults,
-        character.campaignId,
-        character.activeQuestRun,
-    ]);
-
-    const usePaneTabs = hasQuestsContent;
-    const showMap = !usePaneTabs || activePane === 'map';
-    const showQuests = usePaneTabs && activePane === 'quests';
-
     const posMap = useMemo(() => {
         const m = new Map<string, { x: number; y: number }>();
         for (const { id, pos } of missions) m.set(id, pos);
@@ -704,22 +664,17 @@ export default function MissionMapTab({
 
     const handleQuestBankClick = useCallback(
         (bank: QuestSlotBank, svgPosX: number, svgPosY: number) => {
-            setFocusedBankId(bank.id);
             setTooltip(null);
-            const showOnMap = isDedicatedQuestBank(bank) || !hasQuestsContent;
-            if (showOnMap) {
+            if (isDedicatedQuestBank(bank)) {
                 const { x, y } = svgToViewport(svgPosX, svgPosY);
+                setPickerBank(null);
                 setBankTooltip({ bankId: bank.id, cx: x, cy: y, pinned: true });
-            } else {
-                // Picker banks live on a separate pane — jump there instead of a map-anchored tooltip.
-                setActivePane('quests');
-                setBankTooltip(null);
-                requestAnimationFrame(() => {
-                    questBanksPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                });
+                return;
             }
+            setBankTooltip(null);
+            setPickerBank(bank);
         },
-        [svgToViewport, hasQuestsContent],
+        [svgToViewport],
     );
 
     // Dismiss pinned tooltip on Escape or outside click
@@ -769,28 +724,7 @@ export default function MissionMapTab({
         <div className="w-full h-full overflow-auto">
             <div className="shrink-0 flex items-center gap-3 pb-2 border-b border-border-custom mb-2">
                 {/* left */}
-                <div className="flex-1 min-w-0 flex items-center gap-2">
-                    {showQuests && (
-                        <>
-                            <button
-                                type="button"
-                                data-testid={TestIds.missionMapCloseSideQuests}
-                                onClick={() => setActivePane('map')}
-                                className={`${PANE_TITLE_SLOT_CLASS} rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer`}
-                                aria-label="Back to map"
-                                title="Back to map"
-                            >
-                                <X className="h-3.5 w-3.5" aria-hidden />
-                            </button>
-                            <p
-                                className={PANE_TITLE_TEXT_CLASS}
-                                data-testid={TestIds.missionMapSubTabQuests}
-                            >
-                                {SIDE_QUESTS_PANE_LABEL}
-                            </p>
-                        </>
-                    )}
-                </div>
+                <div className="flex-1 min-w-0 flex items-center gap-2" />
 
                 {/* center: chapter buttons */}
                 {showChapters && (
@@ -847,19 +781,6 @@ export default function MissionMapTab({
                     )}
                 </div>
             </div>
-            {showQuests && onStartQuest && (
-                <div ref={questBanksPanelRef}>
-                    <QuestBanksPanel
-                        character={character}
-                        onStartQuest={onStartQuest}
-                        onAbandonQuest={onAbandonQuest}
-                        focusedBankId={focusedBankId}
-                        hideSectionTitle={usePaneTabs}
-                        isAdmin={isAdmin}
-                    />
-                </div>
-            )}
-            {showMap && (
             <svg
                 ref={svgRef}
                 viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
@@ -1195,10 +1116,9 @@ export default function MissionMapTab({
                     );
                 })}
             </svg>
-            )}
 
             {/* Tooltip portal */}
-            {tooltip && showMap && (
+            {tooltip && (
                 <MissionTooltip
                     data={tooltip}
                     missionResults={missionResults}
@@ -1210,7 +1130,18 @@ export default function MissionMapTab({
                     onDismiss={dismissTooltip}
                 />
             )}
-            {bankTooltip && showMap && (() => {
+            {pickerBank && onStartQuest && (
+                <QuestBankPickerPopup
+                    character={character}
+                    bank={pickerBank}
+                    isUnlocked={unlockedQuestBankIds.has(pickerBank.id) || isAdmin}
+                    isAdmin={isAdmin}
+                    onStartQuest={onStartQuest}
+                    onAbandonQuest={onAbandonQuest}
+                    onClose={() => setPickerBank(null)}
+                />
+            )}
+            {bankTooltip && (() => {
                 const bank = questBanksOnMap.find((b) => b.id === bankTooltip.bankId);
                 if (!bank) return null;
                 const unlocked = unlockedQuestBankIds.has(bank.id);

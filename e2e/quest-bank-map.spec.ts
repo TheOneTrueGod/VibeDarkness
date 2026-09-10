@@ -1,6 +1,6 @@
 /**
- * Mission Map quest-bank side-quest node: click opens tooltip.
- * Unlocked path can Start → quest prep lobby (character select); locked path shows locked message.
+ * Mission Map picker QuestSlotBank (Surface Quests): click opens the quest picker popup.
+ * Start from the popup → quest prep lobby (character select).
  * Requires Vite :5173, PHP :8000, and .env.playwright.local credentials.
  */
 import fs from 'node:fs';
@@ -79,7 +79,7 @@ async function openMissionMap(page: import('@playwright/test').Page) {
 }
 
 test.describe('Mission Map quest bank side quest', () => {
-    test('clicking Surface Quests node opens a tooltip (locked or start)', async ({ page }) => {
+    test('clicking Surface Quests node opens a picker popup', async ({ page }) => {
         test.setTimeout(90_000);
         const env = { ...loadEnvFile(ENV_PATH), ...process.env };
         const username = env.PLAYWRIGHT_USERNAME ?? env.PLAYWRIGHT_USER;
@@ -94,42 +94,18 @@ test.describe('Mission Map quest bank side quest', () => {
         await expect(bankNode).toBeVisible({ timeout: 15_000 });
         await bankNode.click();
 
-        const questsPane = page.getByTestId(TestIds.missionMapSubTabQuests);
-        if (await questsPane.isVisible().catch(() => false)) {
-            const optionalStart = page.getByTestId(
-                `${TestIds.questStartOptionalPrefix}${SCAVENGE_QUEST_ID}`,
-            );
-            await optionalStart.scrollIntoViewIfNeeded();
-            await optionalStart.click();
-            await expect(page.getByTestId(TestIds.questPrepAbilityPicker)).toBeVisible({ timeout: 30_000 });
-            return;
-        }
+        const popup = page.getByTestId(TestIds.questBankPickerPopup);
+        await expect(popup).toBeVisible({ timeout: 10_000 });
 
-        const tooltip = page.getByTestId(TestIds.questBankTooltip);
-        await expect(tooltip).toBeVisible({ timeout: 10_000 });
-
-        const startBtn = page.getByTestId(`${TestIds.questStartPrefix}${SCAVENGE_QUEST_ID}`);
-        const lockedMsg = page.getByTestId('quest-bank-tooltip-locked');
-
-        if (await startBtn.isVisible().catch(() => false)) {
-            await startBtn.click();
-            await expect(page.getByTestId(TestIds.questPrepAbilityPicker)).toBeVisible({ timeout: 30_000 });
-            return;
-        }
-
-        // Bank still locked (no Core Awakening victory) — tooltip must explain that.
-        await expect(lockedMsg).toBeVisible();
-
-        // Dismiss tooltip so it doesn't intercept the panel Start click.
-        await page.keyboard.press('Escape');
-        await expect(tooltip).toBeHidden();
-
-        // Optional outlet still lets the player start the same quest.
+        const bankStart = page.getByTestId(`${TestIds.questStartPrefix}${SCAVENGE_QUEST_ID}`);
         const optionalStart = page.getByTestId(
             `${TestIds.questStartOptionalPrefix}${SCAVENGE_QUEST_ID}`,
         );
-        await optionalStart.scrollIntoViewIfNeeded();
-        await optionalStart.click();
+        const startBtn = (await bankStart.isVisible().catch(() => false))
+            ? bankStart
+            : optionalStart;
+        await startBtn.scrollIntoViewIfNeeded();
+        await startBtn.click();
         await expect(page.getByTestId(TestIds.questPrepAbilityPicker)).toBeVisible({ timeout: 30_000 });
     });
 });

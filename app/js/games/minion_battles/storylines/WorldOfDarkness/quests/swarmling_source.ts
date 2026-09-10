@@ -8,6 +8,8 @@ import {
     LOCATION_PLAINS_TAG,
     PLAINS_RANDOM_STORY_CHALLENGE_MAX,
     PLAINS_RANDOM_STORY_CHALLENGE_MIN,
+    SWARMLING_SOURCE_COMPLETION_CRYSTALS,
+    SWARMLING_SOURCE_COMPLETION_METAL,
 } from '../questMissions/questMissionConstants';
 import { QUEST_PUSH_NORTH_MISSION_ID } from '../questMissions/quest_push_north';
 import { SWARMLING_NEST_MISSION_ID } from '../questMissions/swarmling_nest';
@@ -36,4 +38,10 @@ export const SWARMLING_SOURCE: QuestDef = {
         },
         { kind: 'fixed', missionId: SWARMLING_SOURCE_FINALE_MISSION_ID },
     ],
+    completionRewards: {
+        resourceDelta: {
+            crystals: SWARMLING_SOURCE_COMPLETION_CRYSTALS,
+            metal: SWARMLING_SOURCE_COMPLETION_METAL,
+        },
+    },
 };

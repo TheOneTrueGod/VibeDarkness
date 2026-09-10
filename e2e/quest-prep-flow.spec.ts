@@ -19,9 +19,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
 const ENV_PATH = path.join(rootDir, '.env.playwright.local');
 
-/** Optional quest always available from QuestBanksPanel (no bank unlock required). */
+/** Plains quest listed in the Surface Quests picker (startable even if the bank is locked). */
 const SCAVENGE_QUEST_ID = 'scavenge_the_plains';
-/** Picker bank node that opens the side-quests list. */
+/** Picker bank node that opens the quest-bank popup. */
 const POST_CORE_BANK_ID = 'wod_post_core_awakening_quests';
 
 function loadEnvFile(filePath: string): Record<string, string> {
@@ -83,20 +83,24 @@ async function openMissionMap(page: import('@playwright/test').Page) {
 }
 
 async function startOptionalQuest(page: import('@playwright/test').Page) {
-    const questsPane = page.getByTestId(TestIds.missionMapSubTabQuests);
-    if (!(await questsPane.isVisible().catch(() => false))) {
+    const popup = page.getByTestId(TestIds.questBankPickerPopup);
+    if (!(await popup.isVisible().catch(() => false))) {
         const bankNode = page.getByTestId(missionMapQuestBankTestId(POST_CORE_BANK_ID));
-        if (await bankNode.isVisible().catch(() => false)) {
-            await bankNode.click();
-        }
+        await bankNode.waitFor({ state: 'visible', timeout: 15_000 });
+        await bankNode.click();
     }
 
+    await expect(popup).toBeVisible({ timeout: 15_000 });
+    const bankStart = page.getByTestId(`${TestIds.questStartPrefix}${SCAVENGE_QUEST_ID}`);
     const optionalStart = page.getByTestId(
         `${TestIds.questStartOptionalPrefix}${SCAVENGE_QUEST_ID}`,
     );
-    await optionalStart.waitFor({ state: 'visible', timeout: 30_000 });
-    await optionalStart.scrollIntoViewIfNeeded();
-    await optionalStart.click();
+    const startBtn = (await bankStart.isVisible().catch(() => false))
+        ? bankStart
+        : optionalStart;
+    await startBtn.waitFor({ state: 'visible', timeout: 15_000 });
+    await startBtn.scrollIntoViewIfNeeded();
+    await startBtn.click();
 }
 
 test.describe('Quest Prep lobby flow', () => {

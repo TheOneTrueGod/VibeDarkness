@@ -43,3 +43,7 @@ export const SURFACE_METAL_EXTRACT_OTHERS_METAL = 2;
 /** Scavenge the Plains quest completion Campaign Rewards. */
 export const SCAVENGE_THE_PLAINS_COMPLETION_CRYSTALS = 5;
 export const SCAVENGE_THE_PLAINS_COMPLETION_FOOD = 5;
+
+/** Swarmling Source quest completion Campaign Rewards. */
+export const SWARMLING_SOURCE_COMPLETION_CRYSTALS = 15;
+export const SWARMLING_SOURCE_COMPLETION_METAL = 15;

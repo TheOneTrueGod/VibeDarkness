@@ -33,11 +33,8 @@ export const TestIds = {
     missionMapChapterPrefix: 'mission-map-chapter-',
 
     /** Mission Map quest banks / optional / prep (Campaign Home) */
-    missionMapSubTabMap: 'mission-map-subtab-map',
-    missionMapSubTabQuests: 'mission-map-subtab-quests',
-    /** Close the side-quests list and return to the map. */
-    missionMapCloseSideQuests: 'mission-map-close-side-quests',
-    questBanksPanel: 'quest-banks-panel',
+    questBankPickerPopup: 'quest-bank-picker-popup',
+    questBankPickerClose: 'quest-bank-picker-close',
     /** Inline Continue on the active quest row (Quests panel / bank tooltip). */
     questContinue: 'quest-continue',
     questAbandon: 'quest-abandon',
