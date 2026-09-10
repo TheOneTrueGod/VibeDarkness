@@ -37,12 +37,18 @@ import {
     treeHasAnyResearch,
 } from '../../../../../researchTrees/evaluator';
 import { getNodeMaxLevels } from '../../../../../researchTrees/passiveBonuses';
+import { stripResearchBySource } from '../../../../../researchTrees/researchSources';
+import { ResearchSource, type ResearchNodeSources } from '../../../../../researchTrees/types';
+import {
+    RESET_ADMIN_RESEARCH_CONFIRM,
+    RESET_PURCHASED_RESEARCH_CONFIRM,
+} from '../researchNodeGrid';
 import ResourcePill from '../../../../../components/ResourcePill';
 import { getShowAllResearchTrees, subscribeShowAllResearchTrees } from '../../../../../debugFlags';
 import MissionMapTab from './MissionMapTab';
 import StatBonusesTab from './StatBonusesTab';
 import { PortraitCycleButtons } from './PortraitCycleButtons';
-import { characterHasResearch } from '../../../../../components/CampaignHomeScreen/CharactersTab/Upgrades/Upgrades';
+import { characterHasResearch, shouldShowUpgradesTab } from '../../../../../components/CampaignHomeScreen/CharactersTab/Upgrades/Upgrades';
 import { characterHasStatBonuses } from '../../../../../components/CampaignHomeScreen/CharactersTab/StatBonuses/StatBonuses';
 import { CharactersTabLayerOne } from '../../../../../components/CampaignHomeScreen/CharactersTab/CharactersTabLayerOne';
 import { CharactersTabLayerTwo } from '../../../../../components/CampaignHomeScreen/CharactersTab/CharactersTabLayerTwo';
@@ -60,6 +66,30 @@ import {
 } from '../characters/CharacterListPullout';
 import type { StartQuestOptions } from '../../../storylines/questLobby';
 import { abandonQuestRun } from '../../../storylines/questRun';
+
+function undoReplaceEquippedItemsForRemovedNodes(
+    equipment: string[],
+    removedNodeIdsByTree: Record<string, string[]>,
+): string[] {
+    let nextEquipment = [...equipment];
+    for (const [treeId, nodeIds] of Object.entries(removedNodeIdsByTree)) {
+        const tree = RESEARCH_TREES.find((t) => t.id === treeId);
+        if (!tree) continue;
+        const researchedSet = new Set(nodeIds);
+        const researchedNodes = tree.nodes.filter((n) => researchedSet.has(n.id));
+        const ordered = sortNodesDeterministic(researchedNodes);
+        for (const node of [...ordered].reverse()) {
+            for (const eff of node.effects) {
+                if (eff.type !== 'replaceEquippedItem') continue;
+                if (nextEquipment.includes(eff.toItemId)) {
+                    nextEquipment = nextEquipment.filter((id) => id !== eff.toItemId);
+                    if (!nextEquipment.includes(eff.fromItemId)) nextEquipment.push(eff.fromItemId);
+                }
+            }
+        }
+    }
+    return nextEquipment;
+}
 
 interface CharacterEditorProps {
     character: CampaignCharacter;
@@ -189,6 +219,9 @@ export default function CharacterEditor({
     const [researchNodeLevels, setResearchNodeLevels] = useState<Record<string, Record<string, number>>>(
         () => character.researchNodeLevels ?? {},
     );
+    const [researchSources, setResearchSources] = useState<ResearchNodeSources>(
+        () => character.researchSources ?? {},
+    );
     const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
     const [adminUseGridView, setAdminUseGridView] = useState(true);
     const [localCampaign, setLocalCampaign] = useState<CampaignState | null>(null);
@@ -215,7 +248,8 @@ export default function CharacterEditor({
         setEquipment([...character.equipment]);
         setResearchTrees(character.researchTrees ?? {});
         setResearchNodeLevels(character.researchNodeLevels ?? {});
-    }, [character.equipment, character.researchTrees, character.researchNodeLevels]);
+        setResearchSources(character.researchSources ?? {});
+    }, [character.equipment, character.researchTrees, character.researchNodeLevels, character.researchSources]);
 
     useEffect(() => {
         setName(character.name);
@@ -227,7 +261,7 @@ export default function CharacterEditor({
     const eligibleResearchTrees = useMemo(() => {
         const ctx = {
             account: (account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 }) as AccountState,
-            character: { ...character, equipment, researchTrees, researchNodeLevels } as CampaignCharacter,
+            character: { ...character, equipment, researchTrees, researchNodeLevels, researchSources } as CampaignCharacter,
             campaignResources: (resolvedCampaign?.resources ?? {}) as CampaignResources,
         };
         return RESEARCH_TREES.filter((t) => {
@@ -246,7 +280,7 @@ export default function CharacterEditor({
                 return false;
             });
         });
-    }, [account, character, equipment, researchTrees, researchNodeLevels, resolvedCampaign?.resources]);
+    }, [account, character, equipment, researchTrees, researchNodeLevels, researchSources, resolvedCampaign?.resources]);
 
     const playerAbilityIds = useMemo(
         () => new Set(buildAccessibleAbilityIds(equipment, researchTrees)),
@@ -433,40 +467,30 @@ export default function CharacterEditor({
                 const nextResearchNodeLevels: Record<string, Record<string, number>> = {
                     ...researchNodeLevels,
                 };
-                let nextEquipment = [...equipment];
+                const nextResearchSources: ResearchNodeSources = { ...researchSources };
+                const removedNodeIdsByTree: Record<string, string[]> = {};
 
                 for (const treeId of treeIds) {
                     const tree = RESEARCH_TREES.find((t) => t.id === treeId);
                     if (!tree) continue;
-
-                    const researchedForTree = researchTrees[treeId] ?? [];
-                    const researchedSet = new Set(researchedForTree);
+                    removedNodeIdsByTree[treeId] = [...(researchTrees[treeId] ?? [])];
                     nextResearchTrees[treeId] = [];
                     delete nextResearchNodeLevels[treeId];
-
-                    // Reverse any replaceEquippedItem operations coming from nodes we are un-researching.
-                    const researchedNodes = tree.nodes.filter((n) => researchedSet.has(n.id));
-                    const ordered = sortNodesDeterministic(researchedNodes);
-                    for (const node of [...ordered].reverse()) {
-                        for (const eff of node.effects) {
-                            if (eff.type !== 'replaceEquippedItem') continue;
-                            // Undo "from -> to" by reverting any current "to" back to "from".
-                            if (nextEquipment.includes(eff.toItemId)) {
-                                nextEquipment = nextEquipment.filter((id) => id !== eff.toItemId);
-                                if (!nextEquipment.includes(eff.fromItemId)) nextEquipment.push(eff.fromItemId);
-                            }
-                        }
-                    }
+                    delete nextResearchSources[treeId];
                 }
+
+                const nextEquipment = undoReplaceEquippedItemsForRemovedNodes(equipment, removedNodeIdsByTree);
 
                 const updatedChar = await api.updateCharacter(character.id, {
                     equipment: nextEquipment,
                     researchTrees: nextResearchTrees,
                     researchNodeLevels: nextResearchNodeLevels,
+                    researchSources: nextResearchSources,
                 });
 
                 setResearchTrees(updatedChar.researchTrees ?? nextResearchTrees);
                 setResearchNodeLevels(updatedChar.researchNodeLevels ?? nextResearchNodeLevels);
+                setResearchSources(updatedChar.researchSources ?? nextResearchSources);
                 setEquipment(updatedChar.equipment ?? nextEquipment);
                 onSaved?.({ equipment: updatedChar.equipment ?? nextEquipment, name, portraitId: selectedPortraitId });
             } catch (e) {
@@ -475,7 +499,60 @@ export default function CharacterEditor({
                 setSaving(false);
             }
         },
-        [character.id, equipment, api, name, permissionAccount?.role, researchTrees, researchNodeLevels, selectedPortraitId, onSaved]
+        [character.id, equipment, api, name, permissionAccount?.role, researchTrees, researchNodeLevels, researchSources, selectedPortraitId, onSaved]
+    );
+
+    const handleResetResearchBySource = useCallback(
+        async (source: ResearchSource) => {
+            if (source === ResearchSource.QuestReward) return;
+            if (source === ResearchSource.Admin && permissionAccount?.role !== 'admin') return;
+            const confirmMsg =
+                source === ResearchSource.Purchased
+                    ? RESET_PURCHASED_RESEARCH_CONFIRM
+                    : RESET_ADMIN_RESEARCH_CONFIRM;
+            if (!window.confirm(confirmMsg)) return;
+
+            setSaving(true);
+            try {
+                const stripped = stripResearchBySource(
+                    researchTrees,
+                    researchNodeLevels,
+                    researchSources,
+                    source,
+                );
+                const nextEquipment = undoReplaceEquippedItemsForRemovedNodes(
+                    equipment,
+                    stripped.removedNodeIdsByTree,
+                );
+                const updatedChar = await api.updateCharacter(character.id, {
+                    equipment: nextEquipment,
+                    researchTrees: stripped.researchTrees,
+                    researchNodeLevels: stripped.researchNodeLevels,
+                    researchSources: stripped.researchSources,
+                });
+                setResearchTrees(updatedChar.researchTrees ?? stripped.researchTrees);
+                setResearchNodeLevels(updatedChar.researchNodeLevels ?? stripped.researchNodeLevels);
+                setResearchSources(updatedChar.researchSources ?? stripped.researchSources);
+                setEquipment(updatedChar.equipment ?? nextEquipment);
+                onSaved?.({ equipment: updatedChar.equipment ?? nextEquipment, name, portraitId: selectedPortraitId });
+            } catch (e) {
+                console.error('Failed to reset research by source:', e);
+            } finally {
+                setSaving(false);
+            }
+        },
+        [
+            api,
+            character.id,
+            equipment,
+            name,
+            permissionAccount?.role,
+            researchNodeLevels,
+            researchSources,
+            researchTrees,
+            selectedPortraitId,
+            onSaved,
+        ],
     );
 
     const handleResearchNode = useCallback(
@@ -486,11 +563,11 @@ export default function CharacterEditor({
 
             const ctx = {
                 account: (account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 }) as AccountState,
-                character: { ...character, equipment, researchTrees, researchNodeLevels } as CampaignCharacter,
+                character: { ...character, equipment, researchTrees, researchNodeLevels, researchSources } as CampaignCharacter,
                 campaignResources: resolvedCampaign.resources,
             };
 
-            const check = canResearchNode(tree, nodeId, ctx);
+            const check = canResearchNode(tree, nodeId, ctx, { skipCostCheck: isAdmin });
             if (!check.ok) return;
 
             const targetNode = tree.nodes.find((n) => n.id === nodeId);
@@ -501,6 +578,7 @@ export default function CharacterEditor({
             const toDo = isLevelUp
                 ? [nodeId]
                 : prereqClosure(tree, nodeId).filter((id) => !already.has(id));
+            const source = isAdmin ? ResearchSource.Admin : ResearchSource.Purchased;
 
             setSaving(true);
             try {
@@ -510,15 +588,19 @@ export default function CharacterEditor({
                         treeId,
                         nodeId: nid,
                         maxLevels: nodeDef ? getNodeMaxLevels(nodeDef) : maxLevels,
+                        source,
                     });
                     setResearchTrees(updated.researchTrees ?? {});
                     setResearchNodeLevels(updated.researchNodeLevels ?? {});
+                    setResearchSources(updated.researchSources ?? {});
                 }
                 const latest = await api.getCharacter(character.id);
                 const latestTrees = latest.researchTrees ?? {};
                 const latestLevels = latest.researchNodeLevels ?? {};
+                const latestSources = latest.researchSources ?? {};
                 setResearchTrees(latestTrees);
                 setResearchNodeLevels(latestLevels);
+                setResearchSources(latestSources);
                 const ctx2 = {
                     account: ctx.account,
                     character: {
@@ -526,6 +608,7 @@ export default function CharacterEditor({
                         equipment,
                         researchTrees: latestTrees,
                         researchNodeLevels: latestLevels,
+                        researchSources: latestSources,
                     } as CampaignCharacter,
                     campaignResources: resolvedCampaign.resources,
                 };
@@ -547,8 +630,10 @@ export default function CharacterEditor({
             character,
             equipment,
             api,
+            isAdmin,
             researchTrees,
             researchNodeLevels,
+            researchSources,
             resolvedCampaign?.resources,
             selectedPortraitId,
             name,
@@ -667,7 +752,7 @@ export default function CharacterEditor({
     const selectedTree = displayResearchTrees.find((t) => t.id === (selectedTreeId ?? firstTreeId));
     const selectedTreeDimmed = selectedTree ? dimmedResearchTreeIds.has(selectedTree.id) : false;
 
-    const showUpgradesTab = characterHasResearch(researchTrees);
+    const showUpgradesTab = shouldShowUpgradesTab(isAdmin, researchTrees);
     const showStatBonusesTab = characterHasStatBonuses(researchTrees, researchNodeLevels);
 
     const visibleInnerTabs: CharacterInnerTabId[] = useMemo(() => [
@@ -913,12 +998,15 @@ export default function CharacterEditor({
                             equipment={equipment}
                             researchTrees={researchTrees}
                             researchNodeLevels={researchNodeLevels}
+                            researchSources={researchSources}
                             campaignResources={resolvedCampaign.resources}
                             saving={saving}
                             canResetResearch
                             isAdmin={isAdmin}
                             onResearchNode={(treeId, nodeId) => void handleResearchNode(treeId, nodeId)}
                             onResetResearch={(treeIds) => void handleResetResearch(treeIds)}
+                            onResetPurchasedResearch={() => void handleResetResearchBySource(ResearchSource.Purchased)}
+                            onResetAdminResearch={() => void handleResetResearchBySource(ResearchSource.Admin)}
                         />
                     ) : null
                 ) : (
@@ -934,8 +1022,15 @@ export default function CharacterEditor({
                     character={character}
                     equipment={equipment}
                     researchNodeLevels={researchNodeLevels}
+                    researchSources={researchSources}
                     campaignResources={resolvedCampaign?.resources}
                     onResearchNode={(treeId, nodeId) => void handleResearchNode(treeId, nodeId)}
+                    saving={saving}
+                    isAdmin={isAdmin}
+                    onResetPurchasedResearch={() => void handleResetResearchBySource(ResearchSource.Purchased)}
+                    onResetAdminResearch={
+                        isAdmin ? () => void handleResetResearchBySource(ResearchSource.Admin) : undefined
+                    }
                 />
             )}
         </div>

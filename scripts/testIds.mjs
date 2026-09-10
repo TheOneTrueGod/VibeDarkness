@@ -23,6 +23,8 @@ export const TestIds = {
     researchNodeTreeIcon: 'research-node-tree-icon',
     researchTreeListIcon: 'research-tree-list-icon',
     researchGridResources: 'research-grid-resources',
+    researchResetPurchased: 'research-reset-purchased',
+    researchResetAdmin: 'research-reset-admin',
     missionHost: 'mission-host',
     missionMapNodePrefix: 'mission-map-node-',
     missionMapQuestBankPrefix: 'mission-map-quest-bank-',

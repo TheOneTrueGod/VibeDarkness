@@ -92,6 +92,16 @@ export type PassiveBonuses = Partial<Record<PassiveStatKey, { add: number; mult:
 /** Per-tree map of nodeId → purchased level for multi-level (passive) nodes. */
 export type ResearchNodeLevels = Record<string, Record<string, number>>;
 
+/** How a character obtained a research node (or one of its levels). */
+export enum ResearchSource {
+    Purchased = 'Purchased',
+    Admin = 'Admin',
+    QuestReward = 'QuestReward',
+}
+
+/** Per-tree map of nodeId → source of each owned level (index 0 = level 1). */
+export type ResearchNodeSources = Record<string, Record<string, ResearchSource[]>>;
+
 export interface ResearchNodeDef {
     id: string;
     title: string;

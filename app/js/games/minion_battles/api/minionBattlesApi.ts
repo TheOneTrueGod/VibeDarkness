@@ -6,6 +6,7 @@
  */
 import type { LobbyClient } from '../../../LobbyClient';
 import type { MissionResult } from '../../../types';
+import type { ResearchSource } from '../../../researchTrees/types';
 import type {
     AdminAccountDetails,
     CampaignCharacterPayload,
@@ -79,7 +80,12 @@ export class MinionBattlesApi {
 
     async researchCharacterNode(
         characterId: string,
-        payload: { treeId: string; nodeId: string; maxLevels?: number },
+        payload: {
+            treeId: string;
+            nodeId: string;
+            maxLevels?: number;
+            source?: ResearchSource;
+        },
     ): Promise<CampaignCharacterPayload> {
         return this.lobbyClient.researchCharacterNode(characterId, payload);
     }

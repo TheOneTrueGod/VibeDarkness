@@ -4,6 +4,7 @@
 import type { CampaignCharacterPayload, CreateCharacterPayload } from '../../../LobbyClient';
 import type { AccountState, CampaignResourceKey, CampaignState, MissionResult } from '../../../types';
 import type { QuestResult, QuestRunState } from '../storylines/questTypes';
+import type { ResearchNodeSources } from '../../../researchTrees/types';
 import type { GamePhase } from '../state';
 
 export type { CampaignCharacterPayload, CreateCharacterPayload };
@@ -24,6 +25,7 @@ export interface CharacterUpdates {
     researchTrees?: Record<string, string[]>;
     /** Per-tree node level counts for multi-level (passive) research nodes. */
     researchNodeLevels?: Record<string, Record<string, number>>;
+    researchSources?: ResearchNodeSources;
     /** Per-campaign mission results; key = campaignId. */
     missionResults?: Record<string, MissionResult[]>;
     /** Per-campaign quest results; key = campaignId. */

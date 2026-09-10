@@ -1,16 +1,24 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { AccountState, CampaignResources } from '../../../../types';
 import type { CampaignCharacter } from '../../character_defs/CampaignCharacter';
-import type { ResearchTreeDef, ResearchNodeDef, Requirement, ResearchNodeLevels } from '../../../../researchTrees/types';
+import {
+	isDraftResearchNode,
+	ResearchSource,
+	type ResearchTreeDef,
+	type ResearchNodeDef,
+	type Requirement,
+	type ResearchNodeLevels,
+	type ResearchNodeSources,
+} from '../../../../researchTrees/types';
 import {
 	canResearchNode,
 	computeEffectiveResources,
 	computeEffectiveResourcesForTree,
 	meetsRequirement,
 	selectableResearchNodes,
+	type ResearchContext,
 } from '../../../../researchTrees/evaluator';
 import { getNodeLevel, getNodeMaxLevels } from '../../../../researchTrees/passiveBonuses';
-import { isDraftResearchNode } from '../../../../researchTrees/types';
 import ResourcePill, { RESOURCE_ORDER } from '../../../../components/ResourcePill';
 import ResearchNodeCard, { type ResearchRequirementBadge } from './ResearchNodeCard';
 import { getItemDef } from '../../character_defs/items';
@@ -23,11 +31,13 @@ import {
 	excludeResearchGridEntries,
 	POSSESSED_RESEARCH_HEADING,
 	RESEARCH_RESOURCES_HEADING,
+	RESET_ADMIN_RESEARCH_LABEL,
+	RESET_PURCHASED_RESEARCH_LABEL,
 	researchedSetsByTreeId,
 	UNOWNED_RESEARCH_HEADING,
 } from './researchNodeGrid';
 import { TestIds } from '../../../../testing/testIds';
-import type { ResearchContext } from '../../../../researchTrees/evaluator';
+import { hasResearchOfSource } from '../../../../researchTrees/researchSources';
 
 function accountKnowledgeKeys(requirements: Requirement[]): string[] {
 	const keys: string[] = [];
@@ -84,6 +94,65 @@ function getResearchBlockReason(missing: string[]): string | null {
 		return `Not enough ${resource}.`;
 	}
 	return 'Cannot be researched yet.';
+}
+
+const RESET_BUTTON_CLASS =
+	'shrink-0 rounded-md border border-border-custom bg-surface-light px-3 py-1.5 text-xs font-semibold text-white hover:bg-border-custom disabled:opacity-60';
+
+function ResearchResetButtons({
+	saving,
+	researchTrees,
+	researchNodeLevels,
+	researchSources,
+	onResetPurchasedResearch,
+	onResetAdminResearch,
+}: {
+	saving: boolean;
+	researchTrees: Record<string, string[]>;
+	researchNodeLevels?: ResearchNodeLevels;
+	researchSources?: ResearchNodeSources;
+	onResetPurchasedResearch?: () => void;
+	onResetAdminResearch?: () => void;
+}) {
+	if (!onResetPurchasedResearch && !onResetAdminResearch) return null;
+	const canResetPurchased = hasResearchOfSource(
+		researchTrees,
+		researchNodeLevels,
+		researchSources,
+		ResearchSource.Purchased,
+	);
+	const canResetAdmin = hasResearchOfSource(
+		researchTrees,
+		researchNodeLevels,
+		researchSources,
+		ResearchSource.Admin,
+	);
+	return (
+		<div className="flex flex-wrap items-center gap-2">
+			{onResetPurchasedResearch && (
+				<button
+					type="button"
+					onClick={onResetPurchasedResearch}
+					disabled={saving || !canResetPurchased}
+					data-testid={TestIds.researchResetPurchased}
+					className={RESET_BUTTON_CLASS}
+				>
+					{RESET_PURCHASED_RESEARCH_LABEL}
+				</button>
+			)}
+			{onResetAdminResearch && (
+				<button
+					type="button"
+					onClick={onResetAdminResearch}
+					disabled={saving || !canResetAdmin}
+					data-testid={TestIds.researchResetAdmin}
+					className={RESET_BUTTON_CLASS}
+				>
+					{RESET_ADMIN_RESEARCH_LABEL}
+				</button>
+			)}
+		</div>
+	);
 }
 
 interface ResearchTreePanelProps {
@@ -213,6 +282,7 @@ export interface ResearchTreeContentProps {
 	researchTrees: Record<string, string[]>;
 	/** Per-tree node level counts for multi-level passive nodes. */
 	researchNodeLevels?: ResearchNodeLevels;
+	researchSources?: ResearchNodeSources;
 	campaignResources: CampaignResources;
 	saving: boolean;
 	canResetResearch: boolean;
@@ -220,6 +290,8 @@ export interface ResearchTreeContentProps {
 	isAdmin?: boolean;
 	onResearchNode: (treeId: string, nodeId: string) => void;
 	onResetResearch: (treeIds: string[]) => void;
+	onResetPurchasedResearch?: () => void;
+	onResetAdminResearch?: () => void;
 }
 
 export function ResearchTreeContent({
@@ -231,21 +303,24 @@ export function ResearchTreeContent({
 	equipment,
 	researchTrees,
 	researchNodeLevels,
+	researchSources,
 	campaignResources,
 	saving,
 	canResetResearch,
 	isAdmin = false,
 	onResearchNode,
 	onResetResearch,
+	onResetPurchasedResearch,
+	onResetAdminResearch,
 }: ResearchTreeContentProps) {
 	const ctx = useMemo(() => {
 		const safeAccount = account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 };
 		return {
 			account: safeAccount as AccountState,
-			character: { ...character, equipment, researchTrees, researchNodeLevels } as CampaignCharacter,
+			character: { ...character, equipment, researchTrees, researchNodeLevels, researchSources } as CampaignCharacter,
 			campaignResources,
 		};
-	}, [account, campaignResources, character, equipment, researchTrees, researchNodeLevels]);
+	}, [account, campaignResources, character, equipment, researchTrees, researchNodeLevels, researchSources]);
 
 	const VIEW_W_MIN = 520;
 	const VIEW_H_MIN = 400;
@@ -316,6 +391,14 @@ export function ResearchTreeContent({
 									/>
 								))}
 							</div>
+							<ResearchResetButtons
+								saving={saving}
+								researchTrees={researchTrees}
+								researchNodeLevels={researchNodeLevels}
+								researchSources={researchSources}
+								onResetPurchasedResearch={onResetPurchasedResearch}
+								onResetAdminResearch={onResetAdminResearch}
+							/>
 						</div>
 					</div>
 
@@ -538,8 +621,13 @@ export interface ResearchedNodesGridProps {
 	character: CampaignCharacter;
 	equipment: string[];
 	researchNodeLevels?: ResearchNodeLevels;
+	researchSources?: ResearchNodeSources;
 	campaignResources?: CampaignResources;
 	onResearchNode?: (treeId: string, nodeId: string) => void;
+	saving?: boolean;
+	isAdmin?: boolean;
+	onResetPurchasedResearch?: () => void;
+	onResetAdminResearch?: () => void;
 }
 
 const EMPTY_CAMPAIGN_RESOURCES: CampaignResources = {
@@ -557,6 +645,7 @@ function ResearchGridCards({
 	researchNodeLevels,
 	researchCtx,
 	onResearchNode,
+	skipCostCheck = false,
 }: {
 	entries: ReturnType<typeof collectResearchGridEntries>;
 	researchedByTreeId: Record<string, Set<string>>;
@@ -565,12 +654,14 @@ function ResearchGridCards({
 	researchNodeLevels?: ResearchNodeLevels;
 	researchCtx: ResearchContext;
 	onResearchNode?: (treeId: string, nodeId: string) => void;
+	skipCostCheck?: boolean;
 }) {
 	return (
 		<div className="flex flex-wrap gap-3">
 			{entries.map(({ tree, node }) => {
 				const purchasable =
-					onResearchNode != null && canPurchaseResearchGridEntry({ tree, node }, researchCtx);
+					onResearchNode != null &&
+					canPurchaseResearchGridEntry({ tree, node }, researchCtx, { skipCostCheck });
 				return (
 					<ResearchNodeCard
 						key={`${tree.id}:${node.id}`}
@@ -607,18 +698,23 @@ export function ResearchedNodesGrid({
 	character,
 	equipment,
 	researchNodeLevels,
+	researchSources,
 	campaignResources,
 	onResearchNode,
+	saving = false,
+	isAdmin = false,
+	onResetPurchasedResearch,
+	onResetAdminResearch,
 }: ResearchedNodesGridProps) {
 	const researchedByTreeId = useMemo(() => researchedSetsByTreeId(researchTrees), [researchTrees]);
 	const researchCtx = useMemo((): ResearchContext => {
 		const safeAccount = account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 };
 		return {
 			account: safeAccount as AccountState,
-			character: { ...character, equipment, researchTrees, researchNodeLevels } as CampaignCharacter,
+			character: { ...character, equipment, researchTrees, researchNodeLevels, researchSources } as CampaignCharacter,
 			campaignResources: campaignResources ?? EMPTY_CAMPAIGN_RESOURCES,
 		};
-	}, [account, campaignResources, character, equipment, researchNodeLevels, researchTrees]);
+	}, [account, campaignResources, character, equipment, researchNodeLevels, researchSources, researchTrees]);
 	const eligible = useMemo(
 		() => collectEligibleResearchGridEntries(availableTrees, filterTreeId, researchCtx),
 		[availableTrees, filterTreeId, researchCtx],
@@ -650,6 +746,14 @@ export function ResearchedNodesGrid({
 							className="text-xs"
 						/>
 					))}
+					<ResearchResetButtons
+						saving={saving}
+						researchTrees={researchTrees}
+						researchNodeLevels={researchNodeLevels}
+						researchSources={researchSources}
+						onResetPurchasedResearch={onResetPurchasedResearch}
+						onResetAdminResearch={onResetAdminResearch}
+					/>
 				</div>
 			</div>
 			{!hasCards && <p className="text-sm text-muted">No research unlocked yet.</p>}
@@ -666,6 +770,7 @@ export function ResearchedNodesGrid({
 						researchNodeLevels={researchNodeLevels}
 						researchCtx={researchCtx}
 						onResearchNode={onResearchNode}
+						skipCostCheck={isAdmin}
 					/>
 				</div>
 			)}
@@ -682,6 +787,7 @@ export function ResearchedNodesGrid({
 						researchNodeLevels={researchNodeLevels}
 						researchCtx={researchCtx}
 						onResearchNode={onResearchNode}
+						skipCostCheck={isAdmin}
 					/>
 				</div>
 			)}
@@ -698,6 +804,7 @@ export function ResearchedNodesGrid({
 						researchNodeLevels={researchNodeLevels}
 						researchCtx={researchCtx}
 						onResearchNode={onResearchNode}
+						skipCostCheck={isAdmin}
 					/>
 				</div>
 			)}

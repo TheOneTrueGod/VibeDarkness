@@ -19,6 +19,12 @@ export const RESEARCH_RESOURCES_HEADING = 'Resources';
 export const ELIGIBLE_RESEARCH_HEADING = 'Eligible research';
 export const POSSESSED_RESEARCH_HEADING = 'Possessed research';
 export const UNOWNED_RESEARCH_HEADING = 'Unowned research';
+export const RESET_PURCHASED_RESEARCH_LABEL = 'Reset Research';
+export const RESET_ADMIN_RESEARCH_LABEL = 'Reset Admin Research';
+export const RESET_PURCHASED_RESEARCH_CONFIRM =
+    'Reset purchased research? Quest rewards and admin-granted research will be kept.';
+export const RESET_ADMIN_RESEARCH_CONFIRM =
+    'Reset admin-granted research? Purchased research and quest rewards will be kept.';
 
 export function formatResearchLevelPill(currentLevel: number, maxLevels: number): string {
     return `(${currentLevel}/${maxLevels})`;
@@ -177,6 +183,10 @@ export function excludeResearchGridEntries(
 }
 
 /** True when a click would succeed: prereqs, requirements, and next-level cost. */
-export function canPurchaseResearchGridEntry(entry: ResearchGridEntry, ctx: ResearchContext): boolean {
-    return canResearchNode(entry.tree, entry.node.id, ctx).ok;
+export function canPurchaseResearchGridEntry(
+    entry: ResearchGridEntry,
+    ctx: ResearchContext,
+    options?: { skipCostCheck?: boolean },
+): boolean {
+    return canResearchNode(entry.tree, entry.node.id, ctx, options).ok;
 }

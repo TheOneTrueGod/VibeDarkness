@@ -12,10 +12,12 @@ import type {
     AbilityModifier,
     AbilityResearchModifier,
     ResearchNodeLevels,
+    ResearchNodeSources,
 } from './types';
-import { isDraftResearchNode } from './types';
+import { isDraftResearchNode, ResearchSource } from './types';
 import { RESEARCH_TREES } from './list';
 import { DEFAULT_PASSIVE_MULT, getMultBonusAtLevel, getNodeLevel, getNodeMaxLevels } from './passiveBonuses';
+import { getNodeResearchSources } from './researchSources';
 
 export interface ResearchContext {
     account: AccountState;
@@ -114,17 +116,28 @@ function addCostsInto(target: CampaignResourceCost, add: CampaignResourceCost): 
     }
 }
 
-/** Total campaign resources spent on a node across all purchased levels. */
-export function sumNodeTotalSpentCost(node: ResearchNodeDef, purchasedLevel: number): CampaignResourceCost {
+/** Total campaign resources spent on Purchased levels of a node. */
+export function sumNodeTotalSpentCost(
+    node: ResearchNodeDef,
+    purchasedLevel: number,
+    sources?: readonly ResearchSource[],
+): CampaignResourceCost {
     const out: CampaignResourceCost = {};
     if (purchasedLevel <= 0) return out;
+    const sourceList = sources ?? Array.from({ length: purchasedLevel }, () => ResearchSource.Purchased);
+    const levelCount = Math.min(purchasedLevel, sourceList.length);
     if (node.purchaseCostMultipliesByTargetLevel) {
-        for (let level = 1; level <= purchasedLevel; level++) {
+        for (let level = 1; level <= levelCount; level++) {
+            if (sourceList[level - 1] !== ResearchSource.Purchased) continue;
             addCostsInto(out, multiplyCost(node.cost ?? {}, level));
         }
         return out;
     }
-    return multiplyCost(node.cost ?? {}, purchasedLevel);
+    for (let level = 1; level <= levelCount; level++) {
+        if (sourceList[level - 1] !== ResearchSource.Purchased) continue;
+        addCostsInto(out, node.cost ?? {});
+    }
+    return out;
 }
 
 function sumPurchaseCostsForNodes(
@@ -141,17 +154,25 @@ function sumPurchaseCostsForNodes(
     return out;
 }
 
-/** Sum researched-node costs, multiplying each leveled node's cost by its purchased level. */
+/** Sum researched-node costs, counting only Purchased levels. */
 export function sumResearchedCosts(
     tree: ResearchTreeDef,
     researchTrees: Record<string, string[]> | undefined,
     researchNodeLevels: ResearchNodeLevels | undefined,
+    researchSources?: ResearchNodeSources,
 ): CampaignResourceCost {
     const out: CampaignResourceCost = {};
     for (const node of tree.nodes) {
         const level = getNodeLevel(tree.id, node.id, researchTrees, researchNodeLevels);
         if (level <= 0) continue;
-        addCostsInto(out, sumNodeTotalSpentCost(node, level));
+        const sources = getNodeResearchSources(
+            tree.id,
+            node.id,
+            researchTrees,
+            researchNodeLevels,
+            researchSources,
+        );
+        addCostsInto(out, sumNodeTotalSpentCost(node, level, sources));
     }
     return out;
 }
@@ -223,7 +244,12 @@ export function sortNodesDeterministic(nodes: ResearchNodeDef[]): ResearchNodeDe
 }
 
 export function computeEffectiveResourcesForTree(tree: ResearchTreeDef, ctx: ResearchContext): CampaignResources {
-    const costs = sumResearchedCosts(tree, ctx.character.researchTrees, ctx.character.researchNodeLevels);
+    const costs = sumResearchedCosts(
+        tree,
+        ctx.character.researchTrees,
+        ctx.character.researchNodeLevels,
+        ctx.character.researchSources,
+    );
     return subtractCosts(ctx.campaignResources, costs);
 }
 
@@ -233,7 +259,12 @@ export function computeEffectiveResources(ctx: ResearchContext): CampaignResourc
     for (const tree of RESEARCH_TREES) {
         addCostsInto(
             costs,
-            sumResearchedCosts(tree, ctx.character.researchTrees, ctx.character.researchNodeLevels),
+            sumResearchedCosts(
+                tree,
+                ctx.character.researchTrees,
+                ctx.character.researchNodeLevels,
+                ctx.character.researchSources,
+            ),
         );
     }
     return subtractCosts(ctx.campaignResources, costs);

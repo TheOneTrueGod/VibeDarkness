@@ -6,6 +6,7 @@
 import type { CampaignResourceKey, BattleOrderRecord, HeartbeatResponse, MissionResult } from './types';
 import type { BattleOrder, SerializedGameState } from './games/minion_battles/game/types';
 import type { QuestResult, QuestRunState } from './games/minion_battles/storylines/questTypes';
+import type { ResearchNodeSources, ResearchSource } from './researchTrees/types';
 import { isBattleHeartbeatTraceEnvOn, traceBattleHeartbeatLine } from './battleHeartbeatTrace';
 
 /** Campaign character as returned from API (serializable). */
@@ -22,6 +23,7 @@ export interface CampaignCharacterPayload {
     missionId: string;
     researchTrees?: Record<string, string[]>;
     researchNodeLevels?: Record<string, Record<string, number>>;
+    researchSources?: ResearchNodeSources;
     /** Per-campaign mission results; key = campaignId. */
     missionResults?: Record<string, MissionResult[]>;
     /** Per-campaign quest results; key = campaignId. */
@@ -433,6 +435,7 @@ export class LobbyClient {
             portraitId?: string;
             researchTrees?: Record<string, string[]>;
             researchNodeLevels?: Record<string, Record<string, number>>;
+            researchSources?: ResearchNodeSources;
             missionResults?: Record<string, MissionResult[]>;
             questResults?: Record<string, QuestResult[]>;
             activeQuestRun?: QuestRunState | null;
@@ -457,7 +460,7 @@ export class LobbyClient {
 
     async researchCharacterNode(
         characterId: string,
-        payload: { treeId: string; nodeId: string; maxLevels?: number }
+        payload: { treeId: string; nodeId: string; maxLevels?: number; source?: ResearchSource }
     ): Promise<CampaignCharacterPayload> {
         const data = await this.request(`/api/characters/${encodeURIComponent(characterId)}/research`, {
             method: 'POST',

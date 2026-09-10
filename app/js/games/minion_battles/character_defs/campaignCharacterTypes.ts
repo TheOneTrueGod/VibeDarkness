@@ -4,6 +4,7 @@
  */
 
 import type { QuestResult, QuestRunState } from '../storylines/questTypes';
+import type { ResearchNodeSources } from '../../../researchTrees/types';
 
 /** Allowed trait strings for characters (extend as needed). */
 export type CharacterTrait =
@@ -48,6 +49,11 @@ export interface CampaignCharacterData {
      * (`researchTrees` for presence/prereqs, this map for the current level).
      */
     researchNodeLevels?: Record<string, Record<string, number>>;
+    /**
+     * Per-tree map of nodeId → source of each owned level.
+     * Missing entries are treated as Purchased (legacy characters).
+     */
+    researchSources?: ResearchNodeSources;
     /** Unix seconds; server sets when this character starts a mission as a playable unit. */
     lastUsed?: number;
     /**

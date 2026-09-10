@@ -9,6 +9,8 @@ import type { QuestResult, QuestRunState } from '../storylines/questTypes';
 import { getItemDef } from './items';
 import { LIGHT_TREE_ID, LIGHT_NODE_CORE } from '../../../researchTrees/trees/light';
 import { coreLightItem } from './items/core/017_core_light';
+import { normalizeResearchSources } from '../../../researchTrees/researchSources';
+import type { ResearchNodeSources } from '../../../researchTrees/types';
 
 export interface MissionTraitFilter {
     allowedTraits?: string[];
@@ -88,6 +90,8 @@ export class CampaignCharacter {
     readonly researchTrees: Record<string, string[]>;
     /** Per-tree node level counts for multi-level research nodes. */
     readonly researchNodeLevels: Record<string, Record<string, number>>;
+    /** Per-tree node sources for each owned level. */
+    readonly researchSources: ResearchNodeSources;
     /** Unix seconds; 0 if never used in a mission (per server). */
     readonly lastUsed: number;
     /** Per-campaign mission results. Key = campaignId. */
@@ -121,6 +125,7 @@ export class CampaignCharacter {
         this.missionId = typeof data.missionId === 'string' ? data.missionId : '';
         this.researchTrees = rawResearchTrees;
         this.researchNodeLevels = normalizeResearchNodeLevels(data.researchNodeLevels);
+        this.researchSources = normalizeResearchSources(data.researchSources);
         this.lastUsed =
             typeof data.lastUsed === 'number' && Number.isFinite(data.lastUsed) && data.lastUsed > 0
                 ? Math.floor(data.lastUsed)
@@ -203,6 +208,7 @@ export class CampaignCharacter {
             missionId: this.missionId,
             researchTrees: this.researchTrees,
             researchNodeLevels: this.researchNodeLevels,
+            researchSources: this.researchSources,
             lastUsed: this.lastUsed,
             missionResults: this.missionResults,
             questResults: this.questResults,

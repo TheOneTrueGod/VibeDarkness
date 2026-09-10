@@ -3,6 +3,7 @@ import { computeEffectiveResources, computeEffectiveResourcesForTree } from './e
 import { fromCampaignCharacterData } from '../games/minion_battles/character_defs/CampaignCharacter';
 import type { AccountState, CampaignResources } from '../types';
 import type { ResearchContext } from './evaluator';
+import { ResearchSource, type ResearchNodeSources } from './types';
 import {
     TRAINING_NODE_HEALTHY,
     TRAINING_PASSIVE_NODE_FOOD_COST,
@@ -15,6 +16,7 @@ const BASE_RESOURCES: CampaignResources = { food: 100, metal: 40, population: 2,
 function makeCtx(
     researchTrees: Record<string, string[]>,
     researchNodeLevels?: Record<string, Record<string, number>>,
+    researchSources?: ResearchNodeSources,
 ): ResearchContext {
     return {
         account: {
@@ -38,6 +40,7 @@ function makeCtx(
             missionId: '',
             researchTrees,
             researchNodeLevels,
+            researchSources,
         }),
         campaignResources: { ...BASE_RESOURCES },
     };
@@ -58,5 +61,32 @@ describe('computeEffectiveResources', () => {
         expect(computeEffectiveResources(ctx).food).toBe(expectedFood);
         expect(computeEffectiveResourcesForTree(trainingTree, ctx).food).toBe(expectedFood);
         expect(computeEffectiveResources(ctx).metal).toBe(BASE_RESOURCES.metal);
+    });
+
+    it('does not subtract QuestReward or Admin research costs', () => {
+        const trees = { [TRAINING_TREE_ID]: [TRAINING_NODE_HEALTHY] };
+        const levels = { [TRAINING_TREE_ID]: { [TRAINING_NODE_HEALTHY]: 2 } };
+        const sources = {
+            [TRAINING_TREE_ID]: {
+                [TRAINING_NODE_HEALTHY]: [ResearchSource.QuestReward, ResearchSource.Purchased],
+            },
+        };
+        const ctx = makeCtx(trees, levels, sources);
+        expect(computeEffectiveResources(ctx).food).toBe(
+            BASE_RESOURCES.food - TRAINING_PASSIVE_NODE_FOOD_COST,
+        );
+        expect(computeEffectiveResourcesForTree(trainingTree, ctx).food).toBe(
+            BASE_RESOURCES.food - TRAINING_PASSIVE_NODE_FOOD_COST,
+        );
+
+        const questOnly = makeCtx(trees, undefined, {
+            [TRAINING_TREE_ID]: { [TRAINING_NODE_HEALTHY]: [ResearchSource.QuestReward] },
+        });
+        expect(computeEffectiveResources(questOnly).food).toBe(BASE_RESOURCES.food);
+
+        const adminOnly = makeCtx(trees, undefined, {
+            [TRAINING_TREE_ID]: { [TRAINING_NODE_HEALTHY]: [ResearchSource.Admin] },
+        });
+        expect(computeEffectiveResources(adminOnly).food).toBe(BASE_RESOURCES.food);
     });
 });

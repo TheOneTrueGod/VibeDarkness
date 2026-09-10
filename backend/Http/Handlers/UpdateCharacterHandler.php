@@ -64,6 +64,9 @@ class UpdateCharacterHandler
         if (isset($data['researchNodeLevels']) && is_array($data['researchNodeLevels'])) {
             $updates['researchNodeLevels'] = $data['researchNodeLevels'];
         }
+        if (isset($data['researchSources']) && is_array($data['researchSources'])) {
+            $updates['researchSources'] = $data['researchSources'];
+        }
         if (isset($data['missionResults']) && is_array($data['missionResults'])) {
             $updates['missionResults'] = $data['missionResults'];
         }

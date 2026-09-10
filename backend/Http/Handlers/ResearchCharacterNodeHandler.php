@@ -4,6 +4,7 @@ namespace App\Http\Handlers;
 
 use App\AccountService;
 use App\CampaignManager;
+use App\Character;
 use App\CharacterManager;
 use App\LobbyManager;
 use App\PlayerAccount;
@@ -33,6 +34,7 @@ class ResearchCharacterNodeHandler
         if ($maxLevels < 1) {
             $maxLevels = 1;
         }
+        $requestedSource = trim((string) ($body['source'] ?? Character::RESEARCH_SOURCE_PURCHASED));
 
         if ($treeId === '' || $nodeId === '') {
             http_response_code(400);
@@ -58,39 +60,26 @@ class ResearchCharacterNodeHandler
             return ['success' => false, 'error' => 'Not your character'];
         }
 
-        // Minimal backend validation (structure): persist researched presence + level counts.
-        // Full validation against a server-side registry is added in later tasks (tree defs + evaluator mirror).
-        $existing = $character->getResearchTrees();
-        $list = $existing[$treeId] ?? [];
-        $list = is_array($list) ? $list : [];
-
-        $levels = $character->getResearchNodeLevels();
-        $treeLevels = is_array($levels[$treeId] ?? null) ? $levels[$treeId] : [];
-        $currentLevel = (int) ($treeLevels[$nodeId] ?? 0);
-        if ($currentLevel < 1 && in_array($nodeId, $list, true)) {
-            $currentLevel = 1;
+        $source = Character::RESEARCH_SOURCE_PURCHASED;
+        if ($isAdmin) {
+            $source = $requestedSource === Character::RESEARCH_SOURCE_ADMIN
+                ? Character::RESEARCH_SOURCE_ADMIN
+                : Character::RESEARCH_SOURCE_PURCHASED;
         }
 
-        if ($currentLevel >= $maxLevels) {
-            // Already at max — idempotent success with no change.
+        // Minimal backend validation (structure): persist researched presence + level counts.
+        $added = $character->addResearchLevel($treeId, $nodeId, $source, $maxLevels);
+        if (!$added) {
             return [
                 'success' => true,
                 'character' => $character->toArray(),
             ];
         }
 
-        $nextLevel = $currentLevel + 1;
-        if (!in_array($nodeId, $list, true)) {
-            $list[] = $nodeId;
-        }
-        $existing[$treeId] = array_values(array_unique(array_map('strval', $list)));
-
-        $treeLevels[$nodeId] = $nextLevel;
-        $levels[$treeId] = $treeLevels;
-
         $updated = $characterManager->updateCharacter($characterId, [
-            'researchTrees' => $existing,
-            'researchNodeLevels' => $levels,
+            'researchTrees' => $character->getResearchTrees(),
+            'researchNodeLevels' => $character->getResearchNodeLevels(),
+            'researchSources' => $character->getResearchSources(),
         ]);
         if ($updated === null) {
             http_response_code(500);

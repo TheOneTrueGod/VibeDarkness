@@ -33,6 +33,8 @@ export const TestIds = {
     researchNodeTreeIcon: 'research-node-tree-icon',
     researchTreeListIcon: 'research-tree-list-icon',
     researchGridResources: 'research-grid-resources',
+    researchResetPurchased: 'research-reset-purchased',
+    researchResetAdmin: 'research-reset-admin',
 
     /** Admin Players → Campaign data center */
     campaignDataPanel: 'campaign-data-panel',

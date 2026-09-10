@@ -1403,23 +1403,7 @@ class LobbyManager
             $selections = $currentState['characterSelections'] ?? $currentState['character_selections'] ?? [];
             $characterId = is_array($selections) ? ($selections[$playerId] ?? null) : null;
             if (is_string($characterId) && $characterId !== '') {
-                $characterManager = CharacterManager::getInstance();
-                $character = $characterManager->getCharacter($characterId);
-                if ($character !== null) {
-                    $researchTrees = $character->getResearchTrees();
-                    if (!is_array($researchTrees)) {
-                        $researchTrees = [];
-                    }
-                    $existingTreeNodes = $researchTrees[$treeId] ?? [];
-                    if (!is_array($existingTreeNodes)) {
-                        $existingTreeNodes = [];
-                    }
-                    if (!in_array($nodeId, $existingTreeNodes, true)) {
-                        $existingTreeNodes[] = $nodeId;
-                        $researchTrees[$treeId] = array_values($existingTreeNodes);
-                        $characterManager->updateCharacter($characterId, ['researchTrees' => $researchTrees]);
-                    }
-                }
+                $this->grantQuestResearchToCharacter($characterId, $treeId, $nodeId);
             }
         }
 
@@ -1782,25 +1766,7 @@ class LobbyManager
         ) {
             $characterId = $selections[$winner] ?? null;
             if (is_string($characterId) && $characterId !== '') {
-                $characterManager = CharacterManager::getInstance();
-                $character = $characterManager->getCharacter($characterId);
-                if ($character !== null) {
-                    $researchTrees = $character->getResearchTrees();
-                    if (!is_array($researchTrees)) {
-                        $researchTrees = [];
-                    }
-                    $treeId = $effect['treeId'];
-                    $nodeId = $effect['nodeId'];
-                    $existingTreeNodes = $researchTrees[$treeId] ?? [];
-                    if (!is_array($existingTreeNodes)) {
-                        $existingTreeNodes = [];
-                    }
-                    if (!in_array($nodeId, $existingTreeNodes, true)) {
-                        $existingTreeNodes[] = $nodeId;
-                        $researchTrees[$treeId] = array_values($existingTreeNodes);
-                        $characterManager->updateCharacter($characterId, ['researchTrees' => $researchTrees]);
-                    }
-                }
+                $this->grantQuestResearchToCharacter($characterId, $effect['treeId'], $effect['nodeId']);
             }
         }
 
@@ -1808,6 +1774,23 @@ class LobbyManager
         $currentState['groupVoteApplied'] = $applied;
         $this->persistGameState($lobbyId, $gameId, $currentState);
         return true;
+    }
+
+    private function grantQuestResearchToCharacter(string $characterId, string $treeId, string $nodeId): void
+    {
+        $characterManager = CharacterManager::getInstance();
+        $character = $characterManager->getCharacter($characterId);
+        if ($character === null) {
+            return;
+        }
+        if (!$character->addResearchLevel($treeId, $nodeId, Character::RESEARCH_SOURCE_QUEST_REWARD, 1)) {
+            return;
+        }
+        $characterManager->updateCharacter($characterId, [
+            'researchTrees' => $character->getResearchTrees(),
+            'researchNodeLevels' => $character->getResearchNodeLevels(),
+            'researchSources' => $character->getResearchSources(),
+        ]);
     }
 
     /**

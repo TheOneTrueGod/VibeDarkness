@@ -8,6 +8,10 @@ namespace App;
  */
 class Character
 {
+    public const RESEARCH_SOURCE_PURCHASED = 'Purchased';
+    public const RESEARCH_SOURCE_ADMIN = 'Admin';
+    public const RESEARCH_SOURCE_QUEST_REWARD = 'QuestReward';
+
     private string $id;
     private int $ownerAccountId;
     private string $name;
@@ -26,6 +30,8 @@ class Character
     private array $researchTrees;
     /** @var array<string, array<string, int>> treeId → nodeId → level */
     private array $researchNodeLevels;
+    /** @var array<string, array<string, list<string>>> treeId → nodeId → sources per level */
+    private array $researchSources;
     /** Unix timestamp when this character last started a mission (playable unit). 0 = never. */
     private int $lastUsed;
     /** Per-campaign mission results. Key = campaignId, value = list of MissionResult objects. */
@@ -54,7 +60,8 @@ class Character
         array $researchNodeLevels = [],
         array $questResults = [],
         ?array $activeQuestRun = null,
-        array $lastMissionAbilityIds = []
+        array $lastMissionAbilityIds = [],
+        array $researchSources = []
     ) {
         $this->id = $id;
         $this->ownerAccountId = $ownerAccountId;
@@ -68,6 +75,7 @@ class Character
         $this->missionId = $missionId;
         $this->researchTrees = self::normalizeResearchTrees($researchTrees);
         $this->researchNodeLevels = self::normalizeResearchNodeLevels($researchNodeLevels);
+        $this->researchSources = self::normalizeResearchSources($researchSources);
         $this->lastUsed = max(0, $lastUsed);
         $this->missionResults = is_array($missionResults) ? $missionResults : [];
         $this->questResults = is_array($questResults) ? $questResults : [];
@@ -141,6 +149,12 @@ class Character
         return $this->researchNodeLevels;
     }
 
+    /** @return array<string, array<string, list<string>>> */
+    public function getResearchSources(): array
+    {
+        return $this->researchSources;
+    }
+
     public function getLastUsed(): int
     {
         return $this->lastUsed;
@@ -182,6 +196,64 @@ class Character
         $this->researchNodeLevels = self::normalizeResearchNodeLevels($researchNodeLevels);
     }
 
+    /** @param array<string, array<string, list<string>>> $researchSources */
+    public function setResearchSources(array $researchSources): void
+    {
+        $this->researchSources = self::normalizeResearchSources($researchSources);
+    }
+
+    public static function normalizeSource(string $source): string
+    {
+        if ($source === self::RESEARCH_SOURCE_ADMIN || $source === self::RESEARCH_SOURCE_QUEST_REWARD) {
+            return $source;
+        }
+        return self::RESEARCH_SOURCE_PURCHASED;
+    }
+
+    /**
+     * Add one level of a node. Returns false when already at max (or already present when max is 1).
+     */
+    public function addResearchLevel(string $treeId, string $nodeId, string $source, int $maxLevels = 1): bool
+    {
+        $source = self::normalizeSource($source);
+        if ($maxLevels < 1) {
+            $maxLevels = 1;
+        }
+        $list = $this->researchTrees[$treeId] ?? [];
+        $list = is_array($list) ? $list : [];
+        $treeLevels = is_array($this->researchNodeLevels[$treeId] ?? null) ? $this->researchNodeLevels[$treeId] : [];
+        $currentLevel = (int) ($treeLevels[$nodeId] ?? 0);
+        if ($currentLevel < 1 && in_array($nodeId, $list, true)) {
+            $currentLevel = 1;
+        }
+        if ($currentLevel >= $maxLevels) {
+            return false;
+        }
+        if (!in_array($nodeId, $list, true)) {
+            $list[] = $nodeId;
+        }
+        $this->researchTrees[$treeId] = array_values(array_unique(array_map('strval', $list)));
+        $nextLevel = $currentLevel + 1;
+        $treeLevels[$nodeId] = $nextLevel;
+        $this->researchNodeLevels[$treeId] = $treeLevels;
+
+        $treeSources = is_array($this->researchSources[$treeId] ?? null) ? $this->researchSources[$treeId] : [];
+        $nodeSources = is_array($treeSources[$nodeId] ?? null) ? $treeSources[$nodeId] : [];
+        $cleanSources = [];
+        foreach ($nodeSources as $entry) {
+            if (is_string($entry) && ($entry === self::RESEARCH_SOURCE_ADMIN || $entry === self::RESEARCH_SOURCE_QUEST_REWARD || $entry === self::RESEARCH_SOURCE_PURCHASED)) {
+                $cleanSources[] = $entry;
+            }
+        }
+        while (count($cleanSources) < $currentLevel) {
+            $cleanSources[] = self::RESEARCH_SOURCE_PURCHASED;
+        }
+        $cleanSources[] = $source;
+        $treeSources[$nodeId] = $cleanSources;
+        $this->researchSources[$treeId] = $treeSources;
+        return true;
+    }
+
     /** API and storage array (serializable) */
     public function toArray(): array
     {
@@ -198,6 +270,7 @@ class Character
             'missionId' => $this->missionId,
             'researchTrees' => $this->researchTrees,
             'researchNodeLevels' => $this->researchNodeLevels,
+            'researchSources' => $this->researchSources,
             'lastUsed' => $this->lastUsed,
             'missionResults' => $this->missionResults,
             'questResults' => $this->questResults,
@@ -214,6 +287,7 @@ class Character
         $battleChipDetails = $data['battleChipDetails'] ?? [];
         $researchTrees = $data['researchTrees'] ?? [];
         $researchNodeLevels = $data['researchNodeLevels'] ?? [];
+        $researchSources = $data['researchSources'] ?? [];
         $missionResults = $data['missionResults'] ?? [];
         $questResults = $data['questResults'] ?? [];
         $activeQuestRun = null;
@@ -238,7 +312,8 @@ class Character
             is_array($researchNodeLevels) ? $researchNodeLevels : [],
             is_array($questResults) ? $questResults : [],
             $activeQuestRun,
-            is_array($lastMissionAbilityIds) ? $lastMissionAbilityIds : []
+            is_array($lastMissionAbilityIds) ? $lastMissionAbilityIds : [],
+            is_array($researchSources) ? $researchSources : []
         );
     }
 
@@ -296,6 +371,49 @@ class Character
                     continue;
                 }
                 $treeOut[$nodeId] = $levelInt;
+            }
+            if ($treeOut !== []) {
+                $out[$treeId] = $treeOut;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * @param mixed $researchSources
+     * @return array<string, array<string, list<string>>>
+     */
+    private static function normalizeResearchSources(mixed $researchSources): array
+    {
+        if (!is_array($researchSources)) {
+            return [];
+        }
+        $out = [];
+        foreach ($researchSources as $treeId => $nodes) {
+            if (!is_string($treeId) || $treeId === '' || !is_array($nodes)) {
+                continue;
+            }
+            $treeOut = [];
+            foreach ($nodes as $nodeId => $sources) {
+                if (!is_string($nodeId) || $nodeId === '') {
+                    continue;
+                }
+                $list = [];
+                if (is_string($sources)) {
+                    $sources = [$sources];
+                }
+                if (!is_array($sources)) {
+                    continue;
+                }
+                foreach ($sources as $entry) {
+                    if (!is_string($entry)) {
+                        continue;
+                    }
+                    $list[] = self::normalizeSource($entry);
+                }
+                if ($list !== []) {
+                    $treeOut[$nodeId] = array_values($list);
+                }
             }
             if ($treeOut !== []) {
                 $out[$treeId] = $treeOut;
