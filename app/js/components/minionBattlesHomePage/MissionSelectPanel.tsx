@@ -15,6 +15,7 @@ import {
 } from '../../games/minion_battles/storylines/unlock';
 import { getResolvedMissionResearchRewards, type ResolvedResearchReward } from '../../researchTrees/list';
 import ResourcePill, { campaignResourceGains } from '../ResourcePill';
+import { MISSION_RESULTS_LABEL } from '../missionResultCopy';
 import ResearchRewardTinyChip, { MISSION_REWARD_CHIP_CLASSNAME } from '../ResearchRewardTinyChip';
 import { ITEM_ICON_URLS, getItemDef } from '../../games/minion_battles/character_defs/items';
 import PanelLayout from './PanelLayout';
@@ -95,7 +96,7 @@ function MissionRewardsStrip({
 
     return (
         <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-2 text-sm text-muted">
-            <span className="shrink-0 font-medium">Rewards:</span>
+            <span className="shrink-0 font-medium">{MISSION_RESULTS_LABEL}:</span>
             {!hasAnyReward ? (
                 <span className="text-muted">None</span>
             ) : (

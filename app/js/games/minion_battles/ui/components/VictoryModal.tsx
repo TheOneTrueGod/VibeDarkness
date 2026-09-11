@@ -5,6 +5,7 @@ import React from 'react';
 import { getItemDef, ITEM_ICON_URLS } from '../../character_defs/items';
 import type { CampaignResourceKey, MissionResearchRewardEntry } from '../../../../types';
 import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
+import { CAMPAIGN_RESULTS_LABEL, MISSION_RESULTS_LABEL } from '../../../../components/missionResultCopy';
 import ResearchNodeCard from './ResearchNodeCard';
 import { getResearchTree, getResolvedMissionResearchRewards } from '../../../../researchTrees/list';
 import type { CampaignRewardsPayload } from '../../storylines/questRun';
@@ -18,8 +19,7 @@ interface VictoryModalProps {
         researchRewards?: MissionResearchRewardEntry[];
     } | null;
     /**
-     * Quest-clear Campaign Rewards (completion + queued). Shown under "Campaign Rewards"
-     * — not "pending meta".
+     * Quest-clear Campaign Rewards (completion + queued). Shown under Campaign Results.
      */
     campaignRewards?: CampaignRewardsPayload | null;
     onClose: () => void;
@@ -118,7 +118,7 @@ export default function VictoryModal({
                 ) : null}
                 {hasMissionRewards && (
                     <>
-                        <h3 className="text-lg font-semibold text-white mb-4">Rewards</h3>
+                        <h3 className="text-lg font-semibold text-white mb-4">{MISSION_RESULTS_LABEL}</h3>
                         <div className="flex flex-col items-center gap-4 mb-6">
                             {itemId ? (
                                 <ItemRewardCard itemId={itemId} caption="From your choice" />
@@ -155,7 +155,7 @@ export default function VictoryModal({
                 )}
                 {hasCampaignRewards && campaignRewards ? (
                     <>
-                        <h3 className="text-lg font-semibold text-white mb-4">Campaign Rewards</h3>
+                        <h3 className="text-lg font-semibold text-white mb-4">{CAMPAIGN_RESULTS_LABEL}</h3>
                         <div className="flex flex-col items-center gap-4 mb-6">
                             {campaignItemIds.map((id) => (
                                 <ItemRewardCard key={id} itemId={id} />

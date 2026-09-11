@@ -1,11 +1,12 @@
 /**
- * Compact research reward pill (mission history strip): book icon + title.
+ * Compact research reward pill (mission history strip): tree icon + title.
  * Hover opens a floating full ResearchNodeCard; flavor tooltip works on that card.
  */
 import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Book } from 'lucide-react';
-import type { ResearchNodeDef } from '../researchTrees/types';
+import type { ResearchNodeDef, ResearchTreeDef } from '../researchTrees/types';
+import { getResearchTreeContainingNode } from '../researchTrees/list';
+import { resolveResearchTreeChrome } from '../researchTrees/researchTreeChrome';
 import ResearchNodeCard from './ResearchNodeCard';
 
 /** Shared styling with item pills and ResourcePill (room for descenders; avoid fixed height + leading-none). */
@@ -14,7 +15,15 @@ export const MISSION_REWARD_CHIP_CLASSNAME =
 
 const PREVIEW_HIDE_MS = 180;
 
-export default function ResearchRewardTinyChip({ node }: { node: ResearchNodeDef }) {
+export default function ResearchRewardTinyChip({
+    node,
+    tree,
+}: {
+    node: ResearchNodeDef;
+    tree?: ResearchTreeDef;
+}) {
+    const owningTree = tree ?? getResearchTreeContainingNode(node.id);
+    const treeChrome = resolveResearchTreeChrome(owningTree);
     const anchorRef = useRef<HTMLSpanElement>(null);
     const [open, setOpen] = useState(false);
     const [previewStyle, setPreviewStyle] = useState<{ left: number; top: number } | null>(null);
@@ -78,6 +87,7 @@ export default function ResearchRewardTinyChip({ node }: { node: ResearchNodeDef
             >
                 <ResearchNodeCard
                     node={node}
+                    tree={owningTree}
                     variant="display"
                     tone="muted"
                     layout="compact"
@@ -98,7 +108,12 @@ export default function ResearchRewardTinyChip({ node }: { node: ResearchNodeDef
                 onMouseLeave={scheduleClose}
                 title={node.title}
             >
-                <Book className="h-4 w-4 shrink-0 self-center text-zinc-400" strokeWidth={2} aria-hidden />
+                <img
+                    src={treeChrome.icon}
+                    alt=""
+                    className="h-4 w-4 shrink-0 self-center rounded-sm object-cover"
+                    title={owningTree?.title}
+                />
                 <span className="min-w-0 flex-1 truncate leading-snug">{node.title}</span>
             </span>
             {portal}

@@ -5,6 +5,10 @@ import React from 'react';
 import { Heart } from 'lucide-react';
 import type { CampaignResourceKey } from '../types';
 
+export const EXHAUSTION_PILL_RED = '#ef4444';
+export const EXHAUSTION_PILL_BACKGROUND = '#b91c1c';
+export const ENDURANCE_PILL_BACKGROUND = '#000000';
+
 function ExhaustionHeartIcon({ className = 'w-[18px] h-[18px]' }: { color?: string; className?: string }) {
     return (
         <Heart
@@ -17,7 +21,28 @@ function ExhaustionHeartIcon({ className = 'w-[18px] h-[18px]' }: { color?: stri
     );
 }
 
+function EnduranceHeartIcon({ className = 'w-[18px] h-[18px]' }: { color?: string; className?: string }) {
+    return (
+        <Heart
+            className={`${className} shrink-0`}
+            fill={EXHAUSTION_PILL_RED}
+            stroke={EXHAUSTION_PILL_RED}
+            strokeWidth={2}
+            aria-hidden
+        />
+    );
+}
+
 const RESOURCE_ORDER: CampaignResourceKey[] = ['food', 'metal', 'population', 'crystals', 'exhaustion'];
+
+export const EXHAUSTION_TOOLTIP =
+    'Exhaustion: Represents how tired this mission has left you. Based on the damage you\'ve taken.';
+
+export const ENDURANCE_TOOLTIP =
+    'Endurance: The most exhaustion this character can have.';
+
+export const REMAINING_ENDURANCE_TOOLTIP =
+    'Endurance: How much more exhaustion this character can take.';
 
 const RESOURCE_META: Record<
     CampaignResourceKey,
@@ -27,6 +52,7 @@ const RESOURCE_META: Record<
         Icon: React.FC<{ color: string; className?: string }>;
         backgroundColor?: string;
         textColor?: string;
+        tooltip?: string;
     }
 > = {
     food: { label: 'Food', color: '#E67E22', Icon: FoodIcon },
@@ -35,10 +61,11 @@ const RESOURCE_META: Record<
     crystals: { label: 'Crystals', color: '#9B59B6', Icon: CrystalIcon },
     exhaustion: {
         label: 'Exhaustion',
-        color: '#ef4444',
-        backgroundColor: '#b91c1c',
+        color: EXHAUSTION_PILL_RED,
+        backgroundColor: EXHAUSTION_PILL_BACKGROUND,
         textColor: '#ffffff',
         Icon: ExhaustionHeartIcon,
+        tooltip: EXHAUSTION_TOOLTIP,
     },
 };
 
@@ -86,13 +113,34 @@ function CrystalIcon({ color, className = 'w-[18px] h-[18px]' }: { color: string
 export interface ResourcePillProps {
     resource: CampaignResourceKey;
     count: number;
+    /** When set, the pill shows `count/max` (exhaustion over endurance). */
+    max?: number;
+    /** Upgrades remaining-endurance chrome: red heart on black (inverse of exhaustion). */
+    appearance?: 'default' | 'endurance';
     size?: 'default' | 'small';
     className?: string;
 }
 
-export default function ResourcePill({ resource, count, size = 'default', className = '' }: ResourcePillProps) {
+export default function ResourcePill({
+    resource,
+    count,
+    max,
+    appearance = 'default',
+    size = 'default',
+    className = '',
+}: ResourcePillProps) {
     const meta = RESOURCE_META[resource];
-    const { color, Icon, label, backgroundColor, textColor } = meta;
+    const showEndurance = appearance === 'endurance';
+    const { color, Icon, label, backgroundColor, textColor, tooltip } = showEndurance
+        ? {
+              color: EXHAUSTION_PILL_RED,
+              Icon: EnduranceHeartIcon,
+              label: 'Endurance',
+              backgroundColor: ENDURANCE_PILL_BACKGROUND,
+              textColor: '#ffffff' as const,
+              tooltip: REMAINING_ENDURANCE_TOOLTIP,
+          }
+        : meta;
     const isNegative = count < 0;
     const displayColor = isNegative ? '#f87171' : color;
     const isSmall = size === 'small';
@@ -113,10 +161,16 @@ export default function ResourcePill({ resource, count, size = 'default', classN
                 color: filled ? (textColor ?? '#ffffff') : displayColor,
                 ...(filled ? { backgroundColor } : {}),
             }}
-            title={`${count} ${label}`}
+            title={
+                showEndurance
+                    ? tooltip
+                    : max != null && resource === 'exhaustion'
+                      ? `${EXHAUSTION_TOOLTIP} ${ENDURANCE_TOOLTIP}`
+                      : (tooltip ?? `${count} ${label}`)
+            }
         >
             <Icon color={displayColor} className={isSmall ? 'w-3 h-3' : 'w-[18px] h-[18px]'} />
-            {count}
+            {max != null ? `${count}/${max}` : count}
         </span>
     );
 }

@@ -52,6 +52,7 @@ import {
     applyMissionEndDarknessStrengthProgression,
     type DarknessStrengthDataPromotion,
 } from './darknessStrength/progression';
+import { resolveCampaignInstanceId } from './resolveCampaignInstanceId';
 
 const LOBBY_PATH_PREFIX = '/lobby/';
 
@@ -472,7 +473,7 @@ function AppInner() {
             questLobby?: QuestLobbyFields | null,
         ): Promise<boolean> => {
             if (!user?.id) return false;
-            setCurrentCampaignId(campaignId);
+            setCurrentCampaignId(resolveCampaignInstanceId(campaignId, user.campaignIds));
             try {
                 const missionDef = MISSION_MAP[missionId];
                 const missionName = missionDef?.name ?? missionId;
@@ -776,7 +777,7 @@ function AppInner() {
     const handleStartMissionForCharacter = useCallback(
         async (missionId: string, character: CampaignCharacter, ownerAccount: AccountState) => {
             if (!user?.id) return;
-            setCurrentCampaignId(character.campaignId);
+            setCurrentCampaignId(resolveCampaignInstanceId(null, user.campaignIds));
             const missionDef = MISSION_MAP[missionId];
             const missionName = missionDef?.name ?? missionId;
             if (!isAdmin && isMissionDisabled(missionDef)) {
@@ -853,7 +854,7 @@ function AppInner() {
                 showToast(`Unknown quest: ${questDefId}`, 'error');
                 return;
             }
-            setCurrentCampaignId(character.campaignId || questDef.campaignId);
+            setCurrentCampaignId(resolveCampaignInstanceId(null, user.campaignIds));
             try {
                 // Quest-page Continue must use the server run — UI character state can still
                 // hold the pre-victory slot after mission clear advances currentSlotIndex.
@@ -1176,7 +1177,7 @@ function AppInner() {
             outcome: 'victory' | 'defeat',
             promotions?: DarknessStrengthDataPromotion[]
         ) => {
-            const campaignId = currentCampaignId ?? user?.campaignIds?.[0] ?? null;
+            const campaignId = resolveCampaignInstanceId(currentCampaignId, user?.campaignIds);
             if (!campaignId) return;
             try {
                 const campaign = await lobbyClient.getCampaign(campaignId);
@@ -1210,7 +1211,7 @@ function AppInner() {
                 darknessStrengthPromotions?: DarknessStrengthDataPromotion[];
             }
         ) => {
-            const campaignId = currentCampaignId ?? user?.campaignIds?.[0] ?? null;
+            const campaignId = resolveCampaignInstanceId(currentCampaignId, user?.campaignIds);
             if (!campaignId) return;
             try {
                 let darknessStrengthInstances:
@@ -1509,7 +1510,10 @@ function AppInner() {
                         return u as Record<string, unknown> | null;
                     }}
                     fetchCampaignData={async () => {
-                        const campaignId = currentCampaignId ?? user?.campaignIds?.[0];
+                        const campaignId = resolveCampaignInstanceId(
+                            currentCampaignId,
+                            user?.campaignIds,
+                        );
                         if (!campaignId) return null;
                         return lobbyClient.getCampaign(campaignId);
                     }}
@@ -1564,7 +1568,10 @@ function DebugConsoleInGame({
                 return u as Record<string, unknown> | null;
             }}
             fetchCampaignData={async () => {
-                const campaignId = currentCampaignId ?? user?.campaignIds?.[0];
+                const campaignId = resolveCampaignInstanceId(
+                    currentCampaignId,
+                    user?.campaignIds,
+                );
                 if (!campaignId) return null;
                 return lobbyClient.getCampaign(campaignId);
             }}

@@ -17,6 +17,8 @@ import { coreWeaponsItem } from './core/006_core_weapons';
 import { coreLightItem } from './core/017_core_light';
 import { coreGravityItem } from './core/018_core_gravity';
 import { coreEarthItem } from './core/019_core_earth';
+import { coreCommandItem } from './core/020_core_command';
+import { coreBloodMageItem } from './core/022_core_blood_mage';
 import { throwTorchUtilityItem } from './utility/005_throw_torch';
 import { pistolItem } from './weapons/007_pistol';
 import { smgItem } from './weapons/008_smg';
@@ -35,6 +37,8 @@ import coreBasicIcon from './assets/004_core_basic.svg';
 import coreLightIcon from './assets/017_core_light.svg';
 import coreGravityIcon from './assets/018_core_gravity.svg';
 import coreEarthIcon from './assets/019_core_earth.svg';
+import coreCommandIcon from './assets/020_core_command.svg';
+import coreBloodMageIcon from './assets/022_core_blood_mage.svg';
 import throwTorchIcon from './assets/005_throw_torch.svg';
 import coreWeaponsIcon from './assets/006_core_weapons.svg';
 import pistolIcon from './assets/007_pistol.svg';
@@ -50,6 +54,11 @@ export type { ItemDef, EquipmentSlotType, CoreSlotLayout } from './types';
 export const CORE_ITEM_IDS = {
     BasicCore: coreBasicItem.id,
     WeaponsCore: coreWeaponsItem.id,
+    LightCore: coreLightItem.id,
+    GravityCore: coreGravityItem.id,
+    EarthCore: coreEarthItem.id,
+    CommandCore: coreCommandItem.id,
+    BloodMageCore: coreBloodMageItem.id,
 } as const;
 
 /** Icon URL per item id (for Character Editor etc.). */
@@ -65,6 +74,8 @@ export const ITEM_ICON_URLS: Record<string, string> = {
     [coreLightItem.id]: coreLightIcon,
     [coreGravityItem.id]: coreGravityIcon,
     [coreEarthItem.id]: coreEarthIcon,
+    [coreCommandItem.id]: coreCommandIcon,
+    [coreBloodMageItem.id]: coreBloodMageIcon,
     [throwTorchUtilityItem.id]: throwTorchIcon,
     [coreWeaponsItem.id]: coreWeaponsIcon,
     [pistolItem.id]: pistolIcon,
@@ -88,6 +99,8 @@ export const ALL_PLAYER_ITEMS: string[] = [
     coreLightItem.id,
     coreGravityItem.id,
     coreEarthItem.id,
+    coreCommandItem.id,
+    coreBloodMageItem.id,
     throwTorchUtilityItem.id,
     pistolItem.id,
     smgItem.id,
@@ -108,6 +121,8 @@ export const ITEMS: Record<string, ItemDef> = {
     [coreLightItem.id]: coreLightItem,
     [coreGravityItem.id]: coreGravityItem,
     [coreEarthItem.id]: coreEarthItem,
+    [coreCommandItem.id]: coreCommandItem,
+    [coreBloodMageItem.id]: coreBloodMageItem,
     [throwTorchUtilityItem.id]: throwTorchUtilityItem,
     [pistolItem.id]: pistolItem,
     [smgItem.id]: smgItem,

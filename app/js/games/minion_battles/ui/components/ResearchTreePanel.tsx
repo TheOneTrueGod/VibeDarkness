@@ -22,6 +22,8 @@ import {
 } from '../../../../researchTrees/evaluator';
 import { getNodeLevel, getNodeMaxLevels } from '../../../../researchTrees/passiveBonuses';
 import ResourcePill, { RESOURCE_ORDER } from '../../../../components/ResourcePill';
+import { getCharacterRemainingEndurance } from '../../character_defs/characterEndurance';
+import { EXHAUSTION_RESOURCE_KEY } from '../../storylines/matchExhaustion';
 import ResearchNodeCard, { type ResearchRequirementBadge } from './ResearchNodeCard';
 import { getItemDef } from '../../character_defs/items';
 import {
@@ -101,6 +103,48 @@ function getResearchBlockReason(missing: string[]): string | null {
 
 const RESET_BUTTON_CLASS =
 	'shrink-0 rounded-md border border-border-custom bg-surface-light px-3 py-1.5 text-xs font-semibold text-white hover:bg-border-custom disabled:opacity-60';
+
+function UpgradesResourcePills({
+	counts,
+	character,
+	researchTrees,
+	researchNodeLevels,
+	className,
+}: {
+	counts: CampaignResources;
+	character: CampaignCharacter;
+	researchTrees: Record<string, string[]>;
+	researchNodeLevels?: ResearchNodeLevels;
+	className?: string;
+}) {
+	const remainingEndurance = getCharacterRemainingEndurance(
+		character,
+		researchTrees,
+		researchNodeLevels,
+	);
+	return (
+		<>
+			{RESOURCE_ORDER.map((resource) =>
+				resource === EXHAUSTION_RESOURCE_KEY ? (
+					<ResourcePill
+						key={resource}
+						resource={resource}
+						appearance="endurance"
+						count={remainingEndurance}
+						className={className}
+					/>
+				) : (
+					<ResourcePill
+						key={resource}
+						resource={resource}
+						count={counts[resource]}
+						className={className}
+					/>
+				),
+			)}
+		</>
+	);
+}
 
 function ResearchResetButtons({
 	saving,
@@ -385,14 +429,13 @@ export function ResearchTreeContent({
 						<div className="flex flex-wrap items-center gap-2 text-xs text-muted">
 							<span>Effective resources:</span>
 							<div className="flex flex-wrap items-center gap-2">
-								{RESOURCE_ORDER.map((resource) => (
-									<ResourcePill
-										key={resource}
-										resource={resource}
-										count={effective[resource]}
-										className="text-xs"
-									/>
-								))}
+								<UpgradesResourcePills
+									counts={effective}
+									character={character}
+									researchTrees={researchTrees}
+									researchNodeLevels={researchNodeLevels}
+									className="text-xs"
+								/>
 							</div>
 							<ResearchResetButtons
 								saving={saving}
@@ -762,14 +805,13 @@ export function ResearchedNodesGrid({
 					{RESEARCH_RESOURCES_HEADING}
 				</p>
 				<div className="flex flex-wrap items-center gap-2">
-					{RESOURCE_ORDER.map((resource) => (
-						<ResourcePill
-							key={resource}
-							resource={resource}
-							count={effectiveResources[resource]}
-							className="text-xs"
-						/>
-					))}
+					<UpgradesResourcePills
+						counts={effectiveResources}
+						character={character}
+						researchTrees={researchTrees}
+						researchNodeLevels={researchNodeLevels}
+						className="text-xs"
+					/>
 					<ResearchResetButtons
 						saving={saving}
 						researchTrees={researchTrees}

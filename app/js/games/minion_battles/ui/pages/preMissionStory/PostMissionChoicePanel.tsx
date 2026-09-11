@@ -14,6 +14,8 @@ import DisabledStoryChoiceTooltip, {
     UNAVAILABLE_CHOICE_REASON,
 } from './DisabledStoryChoiceTooltip';
 import type { ResearchNodeDef } from '../../../../../researchTrees/types';
+import { getResearchTree } from '../../../../../researchTrees/list';
+import { TestIds } from '../../../../../testing/testIds';
 import {
     STORY_CHOICE_SKIP_DESCRIPTION,
     STORY_CHOICE_SKIP_LABEL,
@@ -108,6 +110,10 @@ export default function PostMissionChoicePanel({
                         const resolvedOption = isSkip
                             ? { disabled: false }
                             : resolveChoiceOption(opt);
+                        const researchTree =
+                            !isSkip && resolvedOption.researchReward
+                                ? getResearchTree(resolvedOption.researchReward.treeId)
+                                : undefined;
                         const title = opt.loreTitle ?? opt.label;
                         const disabledReason = resolvedOption.disabled
                             ? (resolvedOption.disabledLabel ?? opt.disabledLabel ?? UNAVAILABLE_CHOICE_REASON)
@@ -137,6 +143,15 @@ export default function PostMissionChoicePanel({
                                 className={buttonClass}
                             >
                                 <div className="flex w-full min-w-0 items-center justify-center gap-1">
+                                    {!isSkip && researchTree ? (
+                                        <img
+                                            src={researchTree.icon}
+                                            alt=""
+                                            data-testid={TestIds.storyChoiceResearchTreeIcon}
+                                            title={researchTree.title}
+                                            className="h-5 w-5 shrink-0 rounded-sm object-cover"
+                                        />
+                                    ) : null}
                                     {!isSkip && opt.forYou ? (
                                         <Star
                                             className="h-3 w-3 shrink-0 fill-amber-400 text-amber-400 sm:h-3.5 sm:w-3.5"
@@ -163,7 +178,10 @@ export default function PostMissionChoicePanel({
                                 ) : null}
                                 {!isSkip && resolvedOption.researchReward ? (
                                     <div className="flex max-w-full justify-center pt-0.5">
-                                        <ResearchRewardTinyChip node={resolvedOption.researchReward.node} />
+                                        <ResearchRewardTinyChip
+                                            node={resolvedOption.researchReward.node}
+                                            tree={researchTree}
+                                        />
                                     </div>
                                 ) : null}
                                 {!isSkip && isGrantResources(opt.action) ? (

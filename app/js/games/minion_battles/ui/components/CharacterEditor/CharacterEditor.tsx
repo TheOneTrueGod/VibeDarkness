@@ -45,6 +45,12 @@ import {
 } from '../researchNodeGrid';
 import ResourcePill, { RESOURCE_ORDER } from '../../../../../components/ResourcePill';
 import {
+    getCharacterEndurance,
+    getCharacterExhaustion,
+    getRemainingEndurance,
+} from '../../../character_defs/characterEndurance';
+import { CHARACTER_EDITOR_PORTRAIT_SIZE_PX, CharacterEnduranceBar } from './CharacterEnduranceBar';
+import {
     RESET_CAMPAIGN_RESOURCES_CONFIRM,
     RESET_CAMPAIGN_RESOURCES_LABEL,
 } from '../../../../../campaignResources';
@@ -871,11 +877,24 @@ export default function CharacterEditor({
         </>
     );
 
+    const endurance = useMemo(
+        () => getCharacterEndurance(researchTrees, researchNodeLevels),
+        [researchTrees, researchNodeLevels],
+    );
+    const exhaustion = useMemo(() => getCharacterExhaustion(character), [character]);
+    const remainingEndurance = useMemo(
+        () => getRemainingEndurance(endurance, exhaustion),
+        [endurance, exhaustion],
+    );
+    const enduranceSection = (
+        <CharacterEnduranceBar remaining={remainingEndurance} endurance={endurance} />
+    );
+
     const portraitBlock = (
         <div className="flex justify-center pt-4">
             <CharacterPortrait
                 picture={portrait?.picture ?? ''}
-                sizePx={200}
+                sizePx={CHARACTER_EDITOR_PORTRAIT_SIZE_PX}
             />
         </div>
     );
@@ -1096,6 +1115,7 @@ export default function CharacterEditor({
                 onSelectTab={setRoutedInnerTab}
                 visibleTabs={visibleInnerTabs}
                 nameSection={nameSection}
+                enduranceSection={enduranceSection}
                 showPortraitArrows={!isEditingName && innerTabShowsPortrait(innerTab)}
                 onPrevPortrait={goPrevPortrait}
                 onNextPortrait={goNextPortrait}
@@ -1182,13 +1202,13 @@ export default function CharacterEditor({
                 <div className={`flex ${CHARACTER_EDITOR_LEFT_WIDTH_CLASS} flex-col shrink-0 border-r border-border-custom bg-background/50`}>
                     <div className="flex flex-col shrink-0 max-w-full box-border border-b border-border-custom p-4">
                         <div className="flex items-center justify-between gap-2 min-w-0 border-b border-border-custom pb-4">
-                            <div className="flex items-center gap-2 min-w-0 flex-1">
-                                {nameSection}
-                            </div>
+                            <div className="flex min-w-0 flex-1 items-center gap-2">{nameSection}</div>
                             {!isEditingName && activeTab !== 'research' && (
                                 <PortraitCycleButtons onPrev={goPrevPortrait} onNext={goNextPortrait} />
                             )}
                         </div>
+                        {activeTab !== 'research' && portraitBlock}
+                        <div className="mt-3 flex justify-center">{enduranceSection}</div>
                         {onChangeCharacters && (activeTab === 'missionMap' || activeTab === 'research' || activeTab === 'statBonuses') && (
                             <button
                                 type="button"
@@ -1199,7 +1219,6 @@ export default function CharacterEditor({
                                 {CHANGE_CHARACTERS_LABEL}
                             </button>
                         )}
-                        {activeTab !== 'research' && portraitBlock}
                     </div>
 
                     {activeTab === 'missionMap' || activeTab === 'statBonuses' ? null : activeTab === 'equipment' ? (

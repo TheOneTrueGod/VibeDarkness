@@ -1,4 +1,5 @@
 import { MISSION_REWARD_REQUIREMENT, PassiveStatKey, type ResearchTreeDef } from '../types';
+import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 import { RESEARCH_TREE_COLOUR_EARTH, RESEARCH_TREE_ICON_EARTH } from '../researchTreeChrome';
 import { EARTH_CORE_MISSION_START_ROCK_AMOUNT } from '../../games/minion_battles/card_defs/05_earth_core/earthCoreConstants';
 
@@ -39,11 +40,14 @@ export const earthTree: ResearchTreeDef = {
             position: { x: 120, y: 90 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
-            requirements: [MISSION_REWARD_REQUIREMENT],
+            requirements: [
+                MISSION_REWARD_REQUIREMENT,
+                { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.EarthCore },
+            ],
             cost: {},
             effects: [
                 { type: 'addCard', cardId: '0111' },
-                { type: 'replaceEquippedItem', fromItemId: '004', toItemId: '019' },
+                { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.BasicCore, toItemId: CORE_ITEM_IDS.EarthCore },
                 { type: 'replaceCard', fromCardId: 'throw_rock', toCardId: 'earth_core_throw_rock' },
                 { type: 'grantMissionStartResource', resourceId: 'rock', amount: EARTH_CORE_MISSION_START_ROCK_AMOUNT },
             ],

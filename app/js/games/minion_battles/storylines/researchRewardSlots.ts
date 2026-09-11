@@ -2,7 +2,7 @@ import type { ResearchRewardSlot, StoryChoiceOptionRow } from './storyTypes';
 import type { ResearchNodeDef } from '../../../researchTrees/types';
 import { isDraftResearchNode } from '../../../researchTrees/types';
 import { RESEARCH_TREES } from '../../../researchTrees/list';
-import { collectResearchedNodeIds } from '../../../researchTrees/evaluator';
+import { collectResearchedNodeIds, nodeGrantsEquippedItem } from '../../../researchTrees/evaluator';
 
 interface NodeCandidate {
     treeId: string;
@@ -105,7 +105,10 @@ function nodeRequirementsMet(
     researched: Record<string, string[]>,
 ): boolean {
     for (const req of node.requirements) {
-        if (req.type === 'characterHasEquippedItem' && !equippedSet.has(req.itemId)) return false;
+        if (req.type === 'characterHasEquippedItem') {
+            if (nodeGrantsEquippedItem(node, req.itemId)) continue;
+            if (!equippedSet.has(req.itemId)) return false;
+        }
         if (req.type === 'anyResearched') {
             const researchedSet = new Set(researched[req.treeId] ?? []);
             if (!req.nodeIds.some((id) => researchedSet.has(id))) return false;

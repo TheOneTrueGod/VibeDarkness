@@ -39,6 +39,7 @@ import { getQuestDef } from '../../../storylines/questRegistry';
 import { getResolvedMissionResearchRewards } from '../../../../../researchTrees/list';
 import ResearchRewardTinyChip from '../../../../../components/ResearchRewardTinyChip';
 import ResourcePill, { campaignResourceGains } from '../../../../../components/ResourcePill';
+import { MISSION_RESULTS_LABEL } from '../../../../../components/missionResultCopy';
 import { MISSION_REWARD_CHIP_CLASSNAME } from '../../../../../components/ResearchRewardTinyChip';
 import { getItemDef } from '../../../character_defs/items';
 import {
@@ -445,7 +446,7 @@ function MissionTooltip({
                 {/* Earned rewards (only shown after completing the mission) */}
                 {result && (
                     <div className="px-4 pb-3 border-t border-white/8">
-                        <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wide mt-2.5 mb-1.5">Rewards</p>
+                        <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wide mt-2.5 mb-1.5">{MISSION_RESULTS_LABEL}</p>
                         {hasRewards ? (
                             <div className="flex flex-wrap gap-1.5">
                                 {gainedResearchRewards.map(({ treeId, nodeId, node }) => (

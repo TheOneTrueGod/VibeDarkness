@@ -1,4 +1,5 @@
 import { MISSION_REWARD_REQUIREMENT, PassiveStatKey, type ResearchTreeDef } from '../types';
+import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 import { RESEARCH_TREE_COLOUR_COMMAND, RESEARCH_TREE_ICON_COMMAND } from '../researchTreeChrome';
 
 export const COMMAND_CORE_TREE_ID = 'command_core';
@@ -31,9 +32,13 @@ export const commandCoreTree: ResearchTreeDef = {
             position: { x: 120, y: 290 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
-            requirements: [MISSION_REWARD_REQUIREMENT],
+            requirements: [
+                MISSION_REWARD_REQUIREMENT,
+                { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.CommandCore },
+            ],
             cost: {},
             effects: [
+                { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.BasicCore, toItemId: CORE_ITEM_IDS.CommandCore },
                 { type: 'grantPet', petId: 'dog' },
                 { type: 'addCard', cardId: '0708' },
                 { type: 'addCard', cardId: '0709' },

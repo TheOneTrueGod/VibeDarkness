@@ -44,6 +44,12 @@ import { SPECTATOR_ID, isControlEnemy } from './state';
 import { MessageType } from '../../MessageTypes';
 import type { CampaignResourceKey } from '../../types';
 import { withExhaustionDelta } from './storylines/matchExhaustion';
+import {
+    applyEnduranceCapToExtras,
+    upsertCharacterMissionResultList,
+    type CharacterMissionResultExtras,
+} from './character_defs/characterMissionResult';
+import { fromCampaignCharacterData } from './character_defs/CampaignCharacter';
 import type { QuestResult } from './storylines/questTypes';
 import VictoryModal from './ui/components/VictoryModal';
 import { MinionBattlesApi } from './api/minionBattlesApi';
@@ -295,28 +301,40 @@ export default function MinionBattlesGame({
      * Skips spectators and control-enemy selections.
      */
     const persistCharacterMissionResult = useCallback(
-        async (missionId: string, result: 'victory' | 'defeat') => {
+        async (
+            missionId: string,
+            result: 'victory' | 'defeat',
+            extras?: CharacterMissionResultExtras,
+        ): Promise<CharacterMissionResultExtras | undefined> => {
             const sel = (effective.characterSelections as Record<string, string>)?.[playerId];
-            if (!sel || sel === SPECTATOR_ID || isControlEnemy(sel)) return;
+            if (!sel || sel === SPECTATOR_ID || isControlEnemy(sel)) return extras;
             const campaignId = MISSION_MAP[missionId]?.campaignId;
-            if (!campaignId) return;
+            if (!campaignId) return extras;
+            let nextExtras = extras;
             try {
                 const rawChar = await api.getCharacter(sel);
+                const character = fromCampaignCharacterData(rawChar);
+                nextExtras =
+                    result === 'victory'
+                        ? applyEnduranceCapToExtras(character, missionId, extras)
+                        : extras;
                 const existingMap: Record<string, MissionResult[]> = rawChar.missionResults ?? {};
                 const existingList = existingMap[campaignId] ?? [];
-                const existingEntry = existingList.find((r) => r.missionId === missionId);
-                if (existingEntry?.result === 'victory' && result !== 'victory') return;
-                const newEntry: MissionResult = { missionId, result, timestamp: Date.now() };
-                const updatedList = [
-                    ...existingList.filter((r) => r.missionId !== missionId),
-                    newEntry,
-                ];
+                const updatedList = upsertCharacterMissionResultList(
+                    existingList,
+                    missionId,
+                    result,
+                    Date.now(),
+                    nextExtras,
+                );
+                if (!updatedList) return nextExtras;
                 await api.updateCharacter(sel, {
                     missionResults: { ...existingMap, [campaignId]: updatedList },
                 });
             } catch (e) {
                 console.warn('Failed to persist character mission result:', e);
             }
+            return nextExtras;
         },
         [api, effective.characterSelections, playerId],
     );
@@ -669,35 +687,51 @@ export default function MinionBattlesGame({
                             skipRewards || deferResourcesToQuest ? undefined : rewards.resourceDelta,
                             exhaustion,
                         );
-                        void onRecordMissionResult?.(
-                            missionId,
-                            'victory',
-                            recordedDelta,
-                            skipRewards ? undefined : grantKnowledgeKeys,
-                            skipRewards ? undefined : itemIds,
-                            skipRewards ? undefined : rewards.researchRewardIds,
-                            skipRewards ? undefined : rewards.researchRewards,
-                            {
-                                ...(amNpcController ? { controlledNpcs: true } : {}),
-                                ...(isHost ? { applyDarknessStrengthProgression: true } : {}),
-                            }
-                        );
-                        setMissionRewards(
-                            skipRewards
-                                ? null
-                                : {
-                                      ...rewards,
-                                      resourceDelta: withExhaustionDelta(rewards.resourceDelta, exhaustion),
-                                      // Still show chosen resources on the victory UI even when deferred.
-                                      itemFromFirstChoice:
-                                          rewards.itemFromFirstChoice ?? itemIds[0] ?? undefined,
-                                  }
-                        );
-                        // Serialize character PATCHes: missionResults, then queue+advance in one write.
-                        // Parallel void updates previously stomped currentSlotIndex back to the cleared mission.
+                        // Serialize character PATCHes first so endurance can cap exhaustion
+                        // before the campaign write and victory modal.
                         void (async () => {
                             try {
-                                await persistCharacterMissionResult(missionId, 'victory');
+                                const savedExtras = await persistCharacterMissionResult(
+                                    missionId,
+                                    'victory',
+                                    skipRewards
+                                        ? undefined
+                                        : {
+                                              resourceDelta: recordedDelta,
+                                              itemIds: itemIds.length > 0 ? itemIds : undefined,
+                                              researchRewardIds: rewards.researchRewardIds,
+                                              researchRewards: rewards.researchRewards,
+                                          },
+                                );
+                                const cappedDelta = skipRewards
+                                    ? recordedDelta
+                                    : (savedExtras?.resourceDelta ?? recordedDelta);
+                                void onRecordMissionResult?.(
+                                    missionId,
+                                    'victory',
+                                    cappedDelta,
+                                    skipRewards ? undefined : grantKnowledgeKeys,
+                                    skipRewards ? undefined : itemIds,
+                                    skipRewards ? undefined : rewards.researchRewardIds,
+                                    skipRewards ? undefined : rewards.researchRewards,
+                                    {
+                                        ...(amNpcController ? { controlledNpcs: true } : {}),
+                                        ...(isHost ? { applyDarknessStrengthProgression: true } : {}),
+                                    }
+                                );
+                                setMissionRewards(
+                                    skipRewards
+                                        ? null
+                                        : {
+                                              ...rewards,
+                                              resourceDelta: withExhaustionDelta(
+                                                  rewards.resourceDelta,
+                                                  cappedDelta?.exhaustion ?? 0,
+                                              ),
+                                              itemFromFirstChoice:
+                                                  rewards.itemFromFirstChoice ?? itemIds[0] ?? undefined,
+                                          }
+                                );
                                 await prepareQuestVictoryContinue(
                                     deferResourcesToQuest && rewards.resourceDelta
                                         ? { queueResourceDelta: rewards.resourceDelta }
@@ -793,30 +827,45 @@ export default function MinionBattlesGame({
                             const startingItemIds = skipRewards ? [] : getStartingItemIdsForPlayer(missionId, playerId);
                             const exhaustion = skipRewards ? 0 : matchExhaustionRef.current;
                             const recordedDelta = withExhaustionDelta(undefined, exhaustion);
-                            void onRecordMissionResult?.(
-                                missionId,
-                                missionResult,
-                                recordedDelta,
-                                skipRewards ? undefined : grantKnowledgeKeys,
-                                skipRewards ? undefined : startingItemIds,
-                                undefined,
-                                undefined,
-                                {
-                                    ...(amNpcController ? { controlledNpcs: true } : {}),
-                                    ...(isHost ? { applyDarknessStrengthProgression: true } : {}),
-                                }
-                            );
-                            setMissionRewards(
-                                skipRewards
-                                    ? null
-                                    : {
-                                          itemFromFirstChoice: startingItemIds[0] ?? undefined,
-                                          resourceDelta: recordedDelta,
-                                      }
-                            );
                             void (async () => {
                                 try {
-                                    await persistCharacterMissionResult(missionId, 'victory');
+                                    const savedExtras = await persistCharacterMissionResult(
+                                        missionId,
+                                        'victory',
+                                        skipRewards
+                                            ? undefined
+                                            : {
+                                                  resourceDelta: recordedDelta,
+                                                  itemIds:
+                                                      startingItemIds.length > 0
+                                                          ? startingItemIds
+                                                          : undefined,
+                                              },
+                                    );
+                                    const cappedDelta = skipRewards
+                                        ? recordedDelta
+                                        : (savedExtras?.resourceDelta ?? recordedDelta);
+                                    void onRecordMissionResult?.(
+                                        missionId,
+                                        missionResult,
+                                        cappedDelta,
+                                        skipRewards ? undefined : grantKnowledgeKeys,
+                                        skipRewards ? undefined : startingItemIds,
+                                        undefined,
+                                        undefined,
+                                        {
+                                            ...(amNpcController ? { controlledNpcs: true } : {}),
+                                            ...(isHost ? { applyDarknessStrengthProgression: true } : {}),
+                                        }
+                                    );
+                                    setMissionRewards(
+                                        skipRewards
+                                            ? null
+                                            : {
+                                                  itemFromFirstChoice: startingItemIds[0] ?? undefined,
+                                                  resourceDelta: cappedDelta,
+                                              }
+                                    );
                                     await prepareQuestVictoryContinue();
                                 } finally {
                                     setVictoryModalOpen(true);

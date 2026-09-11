@@ -11,6 +11,7 @@ import { PassiveStatKey, type ResearchNodeLevels } from '../../../../../research
 
 const STAT_LABELS: Record<PassiveStatKey, string> = {
     [PassiveStatKey.MaxHealth]: 'Max Health',
+    [PassiveStatKey.Endurance]: 'Endurance',
     [PassiveStatKey.AllDamage]: 'All Damage',
     [PassiveStatKey.EarthDamage]: 'Earth Damage',
     [PassiveStatKey.PetMaxHealth]: 'Pet Max Health',

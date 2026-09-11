@@ -25,6 +25,8 @@ interface CharactersTabLayerOneProps {
     onSelectTab: (tab: CharacterInnerTabId) => void;
     visibleTabs: CharacterInnerTabId[];
     nameSection: ReactNode;
+    /** Remaining endurance bar below the portrait, above Change Characters. */
+    enduranceSection?: ReactNode;
     showPortraitArrows: boolean;
     onPrevPortrait: () => void;
     onNextPortrait: () => void;
@@ -42,6 +44,7 @@ export function CharactersTabLayerOne({
     onSelectTab,
     visibleTabs,
     nameSection,
+    enduranceSection,
     showPortraitArrows,
     onPrevPortrait,
     onNextPortrait,
@@ -58,10 +61,13 @@ export function CharactersTabLayerOne({
         <div className="flex h-full w-full min-h-0 overflow-hidden bg-surface">
             <div className={`flex ${CHARACTER_EDITOR_LEFT_WIDTH_CLASS} shrink-0 flex-col border-r border-border-custom ${HEADER_SURFACE}`}>
                 <div className="flex flex-col shrink-0 max-w-full box-border border-b border-border-custom p-4">
-                    <div className="flex items-center gap-2 min-w-0 border-b border-border-custom pb-3">
-                        {nameSection}
+                    <div className="flex flex-col gap-2 min-w-0 border-b border-border-custom pb-3">
+                        <div className="flex items-center gap-2 min-w-0">{nameSection}</div>
                     </div>
                     {portrait}
+                    {enduranceSection && (
+                        <div className="mt-3 flex justify-center">{enduranceSection}</div>
+                    )}
                     {showPortraitActions && (
                         <div className="mt-3 flex items-center gap-2">
                             {showChangeCharacters && (

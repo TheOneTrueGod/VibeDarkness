@@ -13,6 +13,7 @@ import {
     pickCoreAwakeningOptions,
     seededShuffle,
 } from './006_core_awakening';
+import { getResearchTree } from '../../../../../researchTrees/list';
 import { EARTH_TREE_ID, EARTH_NODE_EARTH_CORE } from '../../../../../researchTrees/trees/earth';
 import { GRAVITY_TREE_ID, GRAVITY_NODE_CORE } from '../../../../../researchTrees/trees/gravity';
 import {
@@ -145,6 +146,17 @@ describe('CoreAwakeningMission.getPostMissionChoiceOptions', () => {
         expect(result!.filter((r) => r.forYou).every((r) => r.id === commandId)).toBe(true);
         // Non-targeted rows should not claim forYou.
         expect(result!.slice(1).every((r) => !r.forYou)).toBe(true);
+    });
+
+    it('offers cores whose research trees have an icon', () => {
+        const result = CORE_AWAKENING.getPostMissionChoiceOptions(baseParams);
+        expect(result).not.toBeNull();
+        for (const opt of result!) {
+            expect(opt.action.type).toBe('grant_research_to_player');
+            if (opt.action.type !== 'grant_research_to_player') continue;
+            const tree = getResearchTree(opt.action.treeId);
+            expect(tree?.icon, opt.action.treeId).toBeTruthy();
+        }
     });
 
     it('returns null when the player already owns a core', () => {

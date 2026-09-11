@@ -32,6 +32,7 @@ export const TestIds = {
     researchNodeRequirements: 'research-node-requirements',
     researchNodeTreeIcon: 'research-node-tree-icon',
     researchTreeListIcon: 'research-tree-list-icon',
+    storyChoiceResearchTreeIcon: 'story-choice-research-tree-icon',
     researchGridResources: 'research-grid-resources',
     researchResetPurchased: 'research-reset-purchased',
     researchResetAdmin: 'research-reset-admin',

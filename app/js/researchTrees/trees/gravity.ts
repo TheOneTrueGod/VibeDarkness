@@ -1,4 +1,5 @@
 import { MISSION_REWARD_REQUIREMENT, type ResearchTreeDef } from '../types';
+import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 import { RESEARCH_TREE_COLOUR_GRAVITY, RESEARCH_TREE_ICON_GRAVITY } from '../researchTreeChrome';
 import { DescriptiveValue } from '../descriptiveValue';
 
@@ -44,11 +45,14 @@ export const gravityTree: ResearchTreeDef = {
             position: { x: 180, y: 290 },
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
-            requirements: [MISSION_REWARD_REQUIREMENT],
+            requirements: [
+                MISSION_REWARD_REQUIREMENT,
+                { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.GravityCore },
+            ],
             cost: {},
             effects: [
-                { type: 'replaceEquippedItem', fromItemId: '004', toItemId: '018' },
-                { type: 'replaceEquippedItem', fromItemId: '017', toItemId: '018' },
+                { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.BasicCore, toItemId: CORE_ITEM_IDS.GravityCore },
+                { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.LightCore, toItemId: CORE_ITEM_IDS.GravityCore },
                 { type: 'addCard', cardId: '0902' },
                 { type: 'grantMissionStartResource', resourceId: 'gravity', amount: GRAVITY_CORE_MISSION_START_AMOUNT },
             ],

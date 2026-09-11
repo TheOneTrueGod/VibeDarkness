@@ -25,6 +25,15 @@ export interface ResearchContext {
     campaignResources: CampaignResources;
 }
 
+/** True when researching this node equips `itemId` (replace or equip effect). */
+export function nodeGrantsEquippedItem(node: ResearchNodeDef, itemId: string): boolean {
+    return node.effects.some((effect) => {
+        if (effect.type === 'equipItem') return effect.itemId === itemId;
+        if (effect.type === 'replaceEquippedItem') return effect.toItemId === itemId;
+        return false;
+    });
+}
+
 /** Nodes that may appear on research screens (excludes draft). */
 export function selectableResearchNodes(tree: ResearchTreeDef): ResearchNodeDef[] {
     return tree.nodes.filter((n) => !isDraftResearchNode(n));
@@ -275,9 +284,20 @@ export function computeEffectiveResources(ctx: ResearchContext): CampaignResourc
 function requirementsForPurchaseCheck(
     requirements: Requirement[],
     options: { skipMissionRewardCheck?: boolean },
+    node?: ResearchNodeDef,
 ): Requirement[] {
     if (!options.skipMissionRewardCheck) return requirements;
-    return requirements.filter((req) => req.type !== 'missionReward');
+    return requirements.filter((req) => {
+        if (req.type === 'missionReward') return false;
+        if (
+            node
+            && req.type === 'characterHasEquippedItem'
+            && nodeGrantsEquippedItem(node, req.itemId)
+        ) {
+            return false;
+        }
+        return true;
+    });
 }
 
 export function canResearchNode(
@@ -335,12 +355,12 @@ export function canResearchNode(
 
     // Requirements must hold for each node to be researched (and the target node)
     for (const n of neededNodes) {
-        const purchaseReqs = requirementsForPurchaseCheck(n.requirements, options);
+        const purchaseReqs = requirementsForPurchaseCheck(n.requirements, options, n);
         if (!meetsAll(purchaseReqs, ctxEffective, researched)) {
             const onlyMissionRewardBlocked =
                 n.requirements.some((req) => req.type === 'missionReward') &&
                 meetsAll(
-                    requirementsForPurchaseCheck(n.requirements, { skipMissionRewardCheck: true }),
+                    requirementsForPurchaseCheck(n.requirements, { skipMissionRewardCheck: true }, n),
                     ctxEffective,
                     researched,
                 );

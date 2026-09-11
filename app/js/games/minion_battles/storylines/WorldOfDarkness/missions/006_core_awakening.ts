@@ -15,6 +15,7 @@ import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { RESEARCH_TREES, getResearchNode } from '../../../../../researchTrees/list';
+import { nodeGrantsEquippedItem } from '../../../../../researchTrees/evaluator';
 import { isDraftResearchNode } from '../../../../../researchTrees/types';
 import { GRAVITY_TREE_ID, GRAVITY_NODE_CORE } from '../../../../../researchTrees/trees/gravity';
 import {
@@ -121,6 +122,7 @@ function isCoreEligible(
             const inTree = researchedTrees[req.treeId] ?? [];
             if (!req.nodeIds.some((id) => inTree.includes(id))) return false;
         } else if (req.type === 'characterHasEquippedItem') {
+            if (nodeGrantsEquippedItem(node, req.itemId)) continue;
             if (!equippedItemIds.includes(req.itemId)) return false;
         }
         // missionReward is satisfied — this mission is the grant path.
