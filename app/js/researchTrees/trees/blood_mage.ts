@@ -8,6 +8,18 @@ export const BLOOD_MAGE_NODE_CORE = 'blood_mage_core';
 export const BLOOD_MAGE_NODE_BURST = 'blood_mage_burst';
 export const BLOOD_MAGE_NODE_PROTECT = 'blood_mage_protect';
 
+export const BLOOD_CORE_CRYSTAL_COST = 12;
+export const BLOOD_CORE_FOOD_COST = 8;
+export const BLOOD_CORE_METAL_COST = 1;
+
+export const BLOOD_BURST_CRYSTAL_COST = 8;
+export const BLOOD_BURST_FOOD_COST = 7;
+export const BLOOD_BURST_METAL_COST = 2;
+
+export const BLOOD_WARD_CRYSTAL_COST = 9;
+export const BLOOD_WARD_FOOD_COST = 8;
+export const BLOOD_WARD_METAL_COST = 3;
+
 export const bloodMageTree: ResearchTreeDef = {
     id: BLOOD_MAGE_TREE_ID,
     title: 'Blood Mage',
@@ -30,7 +42,11 @@ export const bloodMageTree: ResearchTreeDef = {
                 MISSION_REWARD_REQUIREMENT,
                 { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.BloodMageCore },
             ],
-            cost: {},
+            cost: {
+                crystals: BLOOD_CORE_CRYSTAL_COST,
+                food: BLOOD_CORE_FOOD_COST,
+                metal: BLOOD_CORE_METAL_COST,
+            },
             effects: [
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.BasicCore, toItemId: CORE_ITEM_IDS.BloodMageCore },
                 { type: 'addCard', cardId: '0301' },
@@ -50,7 +66,11 @@ export const bloodMageTree: ResearchTreeDef = {
             requirements: [
                 { type: 'anyResearched', treeId: BLOOD_MAGE_TREE_ID, nodeIds: [BLOOD_MAGE_NODE_CORE] },
             ],
-            cost: {},
+            cost: {
+                crystals: BLOOD_BURST_CRYSTAL_COST,
+                food: BLOOD_BURST_FOOD_COST,
+                metal: BLOOD_BURST_METAL_COST,
+            },
             effects: [
                 { type: 'addCard', cardId: '0302' },
             ],
@@ -69,7 +89,11 @@ export const bloodMageTree: ResearchTreeDef = {
             requirements: [
                 { type: 'anyResearched', treeId: BLOOD_MAGE_TREE_ID, nodeIds: [BLOOD_MAGE_NODE_BURST] },
             ],
-            cost: {},
+            cost: {
+                crystals: BLOOD_WARD_CRYSTAL_COST,
+                food: BLOOD_WARD_FOOD_COST,
+                metal: BLOOD_WARD_METAL_COST,
+            },
             effects: [
                 { type: 'addCard', cardId: '0303' },
             ],

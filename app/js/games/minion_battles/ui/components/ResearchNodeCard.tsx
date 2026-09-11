@@ -16,6 +16,7 @@ import { AnchoredPortalTooltip } from './AnchoredPortalTooltip';
 import { useCurrentUser } from '../../../../user/useCurrentUser';
 import {
     formatMissingRequirementsLine,
+    formatRequirementClauseLabel,
     RESEARCH_REQUIREMENTS_NONE,
     formatResearchLevelPill,
     hasUnmetResearchRequirements,
@@ -133,10 +134,10 @@ function ResearchRequirementsRow({
                     <span className="text-gray-300">{RESEARCH_REQUIREMENTS_NONE}</span>
                 ) : (
                     entries.map((entry, index) => (
-                        <span key={`${entry.treeId}:${entry.nodeId}`}>
+                        <span key={entry.options.map((option) => `${option.treeId}:${option.nodeId}`).join('|')}>
                             {index > 0 && <span className="text-gray-100">, </span>}
-                            <span className={entry.possessed ? 'text-green-400' : 'text-red-400'}>
-                                {entry.title}
+                            <span className={entry.satisfied ? 'text-green-400' : 'text-red-400'}>
+                                {formatRequirementClauseLabel(entry)}
                             </span>
                         </span>
                     ))

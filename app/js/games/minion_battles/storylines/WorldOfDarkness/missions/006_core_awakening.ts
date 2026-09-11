@@ -29,6 +29,11 @@ import {
     MISC_NODE_BLINK_CORE,
 } from '../../../../../researchTrees/trees/misc';
 
+/** Residue from the awakening rite. */
+export const CORE_AWAKENING_FOOD_REWARD = 2;
+export const CORE_AWAKENING_METAL_REWARD = 3;
+export const CORE_AWAKENING_CRYSTAL_REWARD = 2;
+
 function createTerrain(): TerrainGrid {
     return TerrainGrid.createTerrainFromArray(1, 1, CELL_SIZE, [[TerrainType.Grass]], TerrainType.Grass);
 }
@@ -251,6 +256,13 @@ export class CoreAwakeningMission extends BaseMissionDef {
     description = 'A deep resonance stirs within. An awakening that will change the path ahead.';
     campaignId = 'world_of_darkness';
     name = 'Core Awakening';
+    completionRewards = {
+        resourceDelta: {
+            food: CORE_AWAKENING_FOOD_REWARD,
+            metal: CORE_AWAKENING_METAL_REWARD,
+            crystals: CORE_AWAKENING_CRYSTAL_REWARD,
+        },
+    };
     worldWidth = CELL_SIZE;
     worldHeight = CELL_SIZE;
     enemies = [];

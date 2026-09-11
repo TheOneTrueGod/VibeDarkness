@@ -13,15 +13,41 @@ export const EARTH_NODE_EARTH_ATTUNED = 'earth_attuned';
 export const EARTH_NODE_GATHER_STONE = 'earth_gather_stone';
 export const EARTH_NODE_GATHER_STONE_RUBBLE_STRIKE = 'earth_gather_stone_rubble_strike';
 export const EARTH_RAPID_THROW_LEVELS = 3;
-export const EARTH_BURIED_ARSENAL_METAL_COST = 5;
-export const EARTH_STONE_SYNERGY_METAL_PER_LEVEL = 5;
-export const EARTH_RAPID_THROW_METAL_COST = 30;
 export const EARTH_ATTUNED_LEVELS = 2;
 export const EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK = 1;
 export const EARTH_ATTUNED_MAX_MOVEMENT_ADD = EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK * EARTH_ATTUNED_LEVELS;
-export const EARTH_ATTUNED_METAL_COST = 15;
-export const EARTH_GATHER_STONE_METAL_COST = 25;
-export const EARTH_GATHER_STONE_RUBBLE_STRIKE_METAL_COST = 20;
+
+export const EARTH_CORE_CRYSTAL_COST = 10;
+export const EARTH_CORE_FOOD_COST = 5;
+export const EARTH_CORE_METAL_COST = 6;
+
+export const EARTH_DIGGING_CLAWS_CRYSTAL_COST = 6;
+export const EARTH_DIGGING_CLAWS_FOOD_COST = 4;
+export const EARTH_DIGGING_CLAWS_METAL_COST = 7;
+
+export const EARTH_STONE_SYNERGY_CRYSTAL_COST = 5;
+export const EARTH_STONE_SYNERGY_FOOD_COST = 4;
+export const EARTH_STONE_SYNERGY_METAL_COST = 8;
+
+export const EARTH_BURIED_ARSENAL_CRYSTAL_COST = 6;
+export const EARTH_BURIED_ARSENAL_FOOD_COST = 3;
+export const EARTH_BURIED_ARSENAL_METAL_COST = 8;
+
+export const EARTH_RAPID_THROW_CRYSTAL_COST = 11;
+export const EARTH_RAPID_THROW_FOOD_COST = 5;
+export const EARTH_RAPID_THROW_METAL_COST = 11;
+
+export const EARTH_ATTUNED_CRYSTAL_COST = 10;
+export const EARTH_ATTUNED_FOOD_COST = 5;
+export const EARTH_ATTUNED_METAL_COST = 9;
+
+export const EARTH_GATHER_STONE_CRYSTAL_COST = 11;
+export const EARTH_GATHER_STONE_FOOD_COST = 6;
+export const EARTH_GATHER_STONE_METAL_COST = 10;
+
+export const EARTH_GRINDING_DEBRIS_CRYSTAL_COST = 12;
+export const EARTH_GRINDING_DEBRIS_FOOD_COST = 5;
+export const EARTH_GRINDING_DEBRIS_METAL_COST = 12;
 
 export const earthTree: ResearchTreeDef = {
     id: EARTH_TREE_ID,
@@ -44,7 +70,11 @@ export const earthTree: ResearchTreeDef = {
                 MISSION_REWARD_REQUIREMENT,
                 { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.EarthCore },
             ],
-            cost: {},
+            cost: {
+                crystals: EARTH_CORE_CRYSTAL_COST,
+                food: EARTH_CORE_FOOD_COST,
+                metal: EARTH_CORE_METAL_COST,
+            },
             effects: [
                 { type: 'addCard', cardId: '0111' },
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.BasicCore, toItemId: CORE_ITEM_IDS.EarthCore },
@@ -63,7 +93,11 @@ export const earthTree: ResearchTreeDef = {
             prereqNodeIds: [EARTH_NODE_EARTH_CORE],
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
-            cost: {},
+            cost: {
+                crystals: EARTH_DIGGING_CLAWS_CRYSTAL_COST,
+                food: EARTH_DIGGING_CLAWS_FOOD_COST,
+                metal: EARTH_DIGGING_CLAWS_METAL_COST,
+            },
             effects: [{ type: 'replaceCard', fromCardId: '0111', toCardId: '0534' }],
             modifiesAbility: { from: '0534', to: '0534' },
         },
@@ -77,7 +111,11 @@ export const earthTree: ResearchTreeDef = {
             prereqNodeIds: [EARTH_NODE_EARTH_CORE],
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
-            cost: { metal: EARTH_STONE_SYNERGY_METAL_PER_LEVEL },
+            cost: {
+                crystals: EARTH_STONE_SYNERGY_CRYSTAL_COST,
+                food: EARTH_STONE_SYNERGY_FOOD_COST,
+                metal: EARTH_STONE_SYNERGY_METAL_COST,
+            },
             purchaseCostMultipliesByTargetLevel: true,
             effects: [],
             abilityResearchModifiers: [
@@ -99,7 +137,11 @@ export const earthTree: ResearchTreeDef = {
             prereqNodeIds: [EARTH_NODE_EARTH_CORE],
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
-            cost: { metal: EARTH_BURIED_ARSENAL_METAL_COST },
+            cost: {
+                crystals: EARTH_BURIED_ARSENAL_CRYSTAL_COST,
+                food: EARTH_BURIED_ARSENAL_FOOD_COST,
+                metal: EARTH_BURIED_ARSENAL_METAL_COST,
+            },
             effects: [],
             abilityResearchModifiers: [
                 {
@@ -120,7 +162,11 @@ export const earthTree: ResearchTreeDef = {
             prereqNodeIds: [EARTH_NODE_ROCK_SYNERGY_ENTOMBED],
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_ROCK_SYNERGY_ENTOMBED] }],
-            cost: { metal: EARTH_RAPID_THROW_METAL_COST },
+            cost: {
+                crystals: EARTH_RAPID_THROW_CRYSTAL_COST,
+                food: EARTH_RAPID_THROW_FOOD_COST,
+                metal: EARTH_RAPID_THROW_METAL_COST,
+            },
             effects: [],
             levels: EARTH_RAPID_THROW_LEVELS,
             abilityResearchModifiers: [
@@ -142,7 +188,11 @@ export const earthTree: ResearchTreeDef = {
             prereqNodeIds: [EARTH_NODE_EARTH_CORE],
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
-            cost: { metal: EARTH_ATTUNED_METAL_COST },
+            cost: {
+                crystals: EARTH_ATTUNED_CRYSTAL_COST,
+                food: EARTH_ATTUNED_FOOD_COST,
+                metal: EARTH_ATTUNED_METAL_COST,
+            },
             effects: [],
             levels: EARTH_ATTUNED_LEVELS,
             passiveBonus: {
@@ -161,7 +211,11 @@ export const earthTree: ResearchTreeDef = {
             prereqNodeIds: [EARTH_NODE_EARTH_CORE],
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
-            cost: { metal: EARTH_GATHER_STONE_METAL_COST },
+            cost: {
+                crystals: EARTH_GATHER_STONE_CRYSTAL_COST,
+                food: EARTH_GATHER_STONE_FOOD_COST,
+                metal: EARTH_GATHER_STONE_METAL_COST,
+            },
             effects: [{ type: 'addCard', cardId: '0536' }],
             modifiesAbility: { from: '0536', to: '0536' },
         },
@@ -176,7 +230,11 @@ export const earthTree: ResearchTreeDef = {
             prereqNodeIds: [EARTH_NODE_GATHER_STONE],
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_GATHER_STONE] }],
-            cost: { metal: EARTH_GATHER_STONE_RUBBLE_STRIKE_METAL_COST },
+            cost: {
+                crystals: EARTH_GRINDING_DEBRIS_CRYSTAL_COST,
+                food: EARTH_GRINDING_DEBRIS_FOOD_COST,
+                metal: EARTH_GRINDING_DEBRIS_METAL_COST,
+            },
             effects: [],
             modifiesAbility: { from: '0536', to: '0536' },
         },

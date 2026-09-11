@@ -8,7 +8,10 @@ import {
     GRAVITY_NODE_GRAVITY_INVERSION,
     GRAVITY_NODE_GRAVITY_LOCUS,
     GRAVITY_NODE_GRAVITY_SHIELD,
+    GRAVITY_LOCUS_METAL_COST,
+    GRAVITY_LIFT_METAL_COST,
     GRAVITY_SHIELD_CRYSTAL_COST,
+    GRAVITY_SHIELD_FOOD_COST,
     GRAVITY_SHIELD_METAL_COST,
     gravityTree,
 } from './trees/gravity';
@@ -21,6 +24,7 @@ describe('Gravity Shield research', () => {
         expect(node?.effects).toEqual([{ type: 'addCard', cardId: '0904' }]);
         expect(node?.cost).toEqual({
             crystals: GRAVITY_SHIELD_CRYSTAL_COST,
+            food: GRAVITY_SHIELD_FOOD_COST,
             metal: GRAVITY_SHIELD_METAL_COST,
         });
     });
@@ -43,6 +47,7 @@ describe('Gravity research copy and costs', () => {
         expect(node?.cost).toEqual({
             crystals: GRAVITY_LOCUS_CRYSTAL_COST,
             food: GRAVITY_LOCUS_FOOD_COST,
+            metal: GRAVITY_LOCUS_METAL_COST,
         });
     });
 
@@ -51,6 +56,7 @@ describe('Gravity research copy and costs', () => {
         expect(node?.cost).toEqual({
             crystals: GRAVITY_LIFT_CRYSTAL_COST,
             food: GRAVITY_LIFT_FOOD_COST,
+            metal: GRAVITY_LIFT_METAL_COST,
         });
     });
 });

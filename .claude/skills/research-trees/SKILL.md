@@ -21,8 +21,13 @@ All tree and node definitions live in `app/js/researchTrees/`:
 - `evaluator.ts` — `canResearchNode`, `applyResearchEffects`, `prereqClosure`, `meetsRequirement`, `computeEffectiveResourcesForTree`, `getAvailableResearchNodes`
 - `descriptiveValue.ts` — `DescriptiveValue` magnitude labels (Tiny/Small/Medium/Large/Huge)
 - `trees/` — one file per tree; each exports its tree ID constants and a `ResearchTreeDef`
+- `researchCostPolicy.ts` — core-tree total/floor targets (Light has its own curve)
+- `weaponResearchCosts.ts` — standard vs premium metal for starting-weapon trees
 
 Each tree has `colour` and `icon`. Cards and the Upgrades sidebar use those fields — do not keep a separate research-type enum.
+
+### Campaign costs
+Starting-weapon identity nodes stay free. Stick & Sword, Tech Shield, and Throw Rock upgrades are metal-only (standard vs premium in `weaponResearchCosts.ts`). Core trees except Light follow `researchCostPolicy.ts`: about 20 total at tier 10 and about 30 at tier 15, interpolated between, with variety; tier 10 ≥ 10 crystals and 5 food; tier 15 ≥ 15 crystals and 5 food. Remaining lean: Earth → metal, Command → food, Gravity → crystals, Blood Mage → crystals and food. **Do not retune Light.**
 
 ### Node relationships
 - `prereqNodeIds` — nodes that must be researched before this one is available
@@ -85,7 +90,7 @@ Components (all under `app/js/games/minion_battles/ui/components/`):
 `researched` · `enabled` · `blocked` · `default`
 
 ### Upgrades grid cards
-Comfortable **ResearchNodeCard**s share one height: title, a reserved 3-line description, medium ResourcePill costs, then a fixed-height requirements wrapper (dark 2-line strip while any listed prereq is missing; empty wrapper of the same height when hidden). Admin cards add an in-flow id/tier footer and are slightly taller. The strip lists unowned research prereqs (`prereqNodeIds` + `anyResearched`) with CSS ellipsis; hover lists every required node (missing red, possessed green). The grid starts with **Resources** (effective campaign pills), then **Eligible research** (prereqs + non-cost requirements met, cost ignored), then **Possessed research**, then (admins) **Unowned research** excluding eligible. All lists sort by `tier` (then `order`). Cards the player can afford (`canResearchNode`) use a pointer cursor and click to purchase.
+Comfortable **ResearchNodeCard**s share one height: title, a reserved 3-line description, medium ResourcePill costs, then a fixed-height requirements wrapper (dark 2-line strip while any listed clause is unsatisfied; empty wrapper of the same height when hidden). Admin cards add an in-flow id/tier footer and are slightly taller. The strip lists unsatisfied research clauses (`prereqNodeIds` + `anyResearched`) with CSS ellipsis; multi-node `anyResearched` is one `(A or B)` clause, green if any option is owned. Hover lists every clause (unmet red, met green). The grid starts with **Resources** (effective campaign pills), then **Eligible research** (prereqs + non-cost requirements met, cost ignored), then **Possessed research**, then (admins) **Unowned research** excluding eligible. All lists sort by `tier` (then `order`). Cards the player can afford (`canResearchNode`) use a pointer cursor and click to purchase.
 
 ### Eligibility gating
 `eligibleResearchTrees` filters which trees are shown based on account knowledge, campaign resource minimums, equipped items, and character traits. Players then only see trees they have abilities in (or already researched). Admins always see every tree, with ability-matching trees sorted first; trees the player would not see are dimmed. Tree **cores** (tier-10 nodes with no prereqs) use `{ type: 'missionReward' }` so players cannot buy them — they only come from mission/quest rewards.

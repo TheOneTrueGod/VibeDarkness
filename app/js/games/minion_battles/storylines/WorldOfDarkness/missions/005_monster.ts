@@ -23,6 +23,9 @@ import {
     darkCrystalSpecialTilesAt,
 } from '../MapSegments/50_50_crystal_cave';
 
+/** Crystals pried from the Beast's dark-crystal den. */
+export const MONSTER_CRYSTAL_REWARD = 6;
+
 const SEGMENT_COLS = 22;
 const SEGMENT_ROWS = 22;
 /** 49_50 left, 50_50 right (same horizontal layout as mission 2’s path + cave). */
@@ -148,7 +151,10 @@ export class MonsterMission extends BaseMissionDef {
     description = 'The Alpha Wolf hunts these tunnels. Confront the beast directly — or be hunted forever.';
     campaignId = 'world_of_darkness';
     name = 'Monster';
-    completionRewards = { knowledgeKeys: ['AlphaWolfDefeated'] };
+    completionRewards = {
+        knowledgeKeys: ['AlphaWolfDefeated'],
+        resourceDelta: { crystals: MONSTER_CRYSTAL_REWARD },
+    };
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;
     enemies = ENEMIES;

@@ -5,6 +5,7 @@ import {
     STARTING_WEAPON_SHIELD_NODE_ID,
     exclusiveStartingWeaponPeers,
 } from './startingWeaponNodes';
+import { WEAPON_TREE_STANDARD_METAL_COST } from '../weaponResearchCosts';
 
 export const TECH_SHIELD_TREE_ID = 'tech_shield';
 export const TECH_SHIELD_NODE_BASE = STARTING_WEAPON_SHIELD_NODE_ID;
@@ -45,7 +46,7 @@ export const techShieldTree: ResearchTreeDef = {
             prereqNodeIds: [TECH_SHIELD_NODE_BASE],
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: TECH_SHIELD_TREE_ID, nodeIds: [TECH_SHIELD_NODE_BASE] }],
-            cost: {},
+            cost: { metal: WEAPON_TREE_STANDARD_METAL_COST },
             effects: [{ type: 'replaceEquippedItem', fromItemId: '003', toItemId: '011' }],
             modifiesAbility: { from: '0104', to: '0110' },
         },
@@ -61,7 +62,7 @@ export const techShieldTree: ResearchTreeDef = {
             requirements: [
                 { type: 'notResearched', treeId: TECH_SHIELD_TREE_ID, nodeId: 'extra_shields' },
             ],
-            cost: { crystals: 30 },
+            cost: { metal: WEAPON_TREE_STANDARD_METAL_COST },
             effects: [{ type: 'replaceEquippedItem', fromItemId: '011', toItemId: '012' }],
             modifiesAbility: { from: '0110', to: '0113' },
         },
@@ -77,7 +78,7 @@ export const techShieldTree: ResearchTreeDef = {
             requirements: [
                 { type: 'notResearched', treeId: TECH_SHIELD_TREE_ID, nodeId: 'throwing_crystal_shield' },
             ],
-            cost: { crystals: 25 },
+            cost: { metal: WEAPON_TREE_STANDARD_METAL_COST },
             effects: [],
             modifiesAbility: { from: '0110', to: '0110' },
         },

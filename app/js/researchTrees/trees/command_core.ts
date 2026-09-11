@@ -15,6 +15,30 @@ export const EMPOWER_PET_LEVELS = 5;
 export const EMPOWER_PET_MAX_HEALTH_ADD = 100;
 export const EMPOWER_PET_MAX_BITE_DAMAGE_ADD = 10;
 
+export const COMMAND_LOYAL_CRYSTAL_COST = 10;
+export const COMMAND_LOYAL_FOOD_COST = 9;
+export const COMMAND_LOYAL_METAL_COST = 2;
+
+export const COMMAND_HEEL_CRYSTAL_COST = 10;
+export const COMMAND_HEEL_FOOD_COST = 8;
+export const COMMAND_HEEL_METAL_COST = 2;
+
+export const COMMAND_SIC_CRYSTAL_COST = 11;
+export const COMMAND_SIC_FOOD_COST = 8;
+export const COMMAND_SIC_METAL_COST = 2;
+
+export const COMMAND_THORN_CRYSTAL_COST = 11;
+export const COMMAND_THORN_FOOD_COST = 9;
+export const COMMAND_THORN_METAL_COST = 3;
+
+export const COMMAND_BRAMBLES_CRYSTAL_COST = 10;
+export const COMMAND_BRAMBLES_FOOD_COST = 11;
+export const COMMAND_BRAMBLES_METAL_COST = 2;
+
+export const COMMAND_EMPOWER_CRYSTAL_COST = 10;
+export const COMMAND_EMPOWER_FOOD_COST = 10;
+export const COMMAND_EMPOWER_METAL_COST = 3;
+
 export const commandCoreTree: ResearchTreeDef = {
     id: COMMAND_CORE_TREE_ID,
     title: 'Command Core',
@@ -36,7 +60,11 @@ export const commandCoreTree: ResearchTreeDef = {
                 MISSION_REWARD_REQUIREMENT,
                 { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.CommandCore },
             ],
-            cost: {},
+            cost: {
+                crystals: COMMAND_LOYAL_CRYSTAL_COST,
+                food: COMMAND_LOYAL_FOOD_COST,
+                metal: COMMAND_LOYAL_METAL_COST,
+            },
             effects: [
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.BasicCore, toItemId: CORE_ITEM_IDS.CommandCore },
                 { type: 'grantPet', petId: 'dog' },
@@ -54,7 +82,11 @@ export const commandCoreTree: ResearchTreeDef = {
             prereqNodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION],
             exclusiveWithNodeIds: [],
             requirements: [],
-            cost: {},
+            cost: {
+                crystals: COMMAND_HEEL_CRYSTAL_COST,
+                food: COMMAND_HEEL_FOOD_COST,
+                metal: COMMAND_HEEL_METAL_COST,
+            },
             effects: [{ type: 'addCard', cardId: '0703' }],
         },
         {
@@ -67,7 +99,11 @@ export const commandCoreTree: ResearchTreeDef = {
             prereqNodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION],
             exclusiveWithNodeIds: [],
             requirements: [],
-            cost: {},
+            cost: {
+                crystals: COMMAND_SIC_CRYSTAL_COST,
+                food: COMMAND_SIC_FOOD_COST,
+                metal: COMMAND_SIC_METAL_COST,
+            },
             effects: [{ type: 'addCard', cardId: '0704' }],
         },
         {
@@ -84,7 +120,11 @@ export const commandCoreTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: COMMAND_CORE_TREE_ID, nodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION] },
                 { type: 'notResearched', treeId: COMMAND_CORE_TREE_ID, nodeId: COMMAND_CORE_NODE_MIMIC_BRAMBLES },
             ],
-            cost: {},
+            cost: {
+                crystals: COMMAND_THORN_CRYSTAL_COST,
+                food: COMMAND_THORN_FOOD_COST,
+                metal: COMMAND_THORN_METAL_COST,
+            },
             effects: [{ type: 'grantPetAbility', petId: 'dog', abilityId: '0705' }],
         },
         {
@@ -101,7 +141,11 @@ export const commandCoreTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: COMMAND_CORE_TREE_ID, nodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION] },
                 { type: 'notResearched', treeId: COMMAND_CORE_TREE_ID, nodeId: COMMAND_CORE_NODE_MIMIC_THORN },
             ],
-            cost: {},
+            cost: {
+                crystals: COMMAND_BRAMBLES_CRYSTAL_COST,
+                food: COMMAND_BRAMBLES_FOOD_COST,
+                metal: COMMAND_BRAMBLES_METAL_COST,
+            },
             effects: [
                 { type: 'grantPetAbility', petId: 'dog', abilityId: '0706' },
                 { type: 'addCard', cardId: '0707' },
@@ -120,7 +164,11 @@ export const commandCoreTree: ResearchTreeDef = {
             requirements: [
                 { type: 'anyResearched', treeId: COMMAND_CORE_TREE_ID, nodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION] },
             ],
-            cost: {},
+            cost: {
+                crystals: COMMAND_EMPOWER_CRYSTAL_COST,
+                food: COMMAND_EMPOWER_FOOD_COST,
+                metal: COMMAND_EMPOWER_METAL_COST,
+            },
             effects: [],
             levels: EMPOWER_PET_LEVELS,
             passiveBonus: {

@@ -1,4 +1,4 @@
-import type { CampaignResources, MissionResult } from './types';
+import type { CampaignResourceKey, CampaignResources, MissionResult } from './types';
 
 export const RESET_CAMPAIGN_RESOURCES_LABEL = 'Reset resources';
 export const RESET_CAMPAIGN_RESOURCES_CONFIRM =
@@ -41,6 +41,24 @@ export function sumLatestMissionResourceDeltas(
         out.exhaustion += delta.exhaustion ?? 0;
     }
     return out;
+}
+
+/** Sum one or more resource deltas. Returns undefined when nothing was added. */
+export function mergeResourceDeltas(
+    ...deltas: Array<Partial<Record<CampaignResourceKey, number>> | undefined>
+): Partial<Record<CampaignResourceKey, number>> | undefined {
+    const out: Partial<Record<CampaignResourceKey, number>> = {};
+    let any = false;
+    for (const delta of deltas) {
+        if (!delta) continue;
+        for (const [key, value] of Object.entries(delta)) {
+            if (value == null) continue;
+            const resource = key as CampaignResourceKey;
+            out[resource] = (out[resource] ?? 0) + value;
+            any = true;
+        }
+    }
+    return any ? out : undefined;
 }
 
 export function campaignResourcesEqual(a: CampaignResources, b: CampaignResources): boolean {

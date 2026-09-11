@@ -11,7 +11,7 @@ import type { UnitTag } from '../game/units/unitTag';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 import type { MissionMapLayout } from '../terrain/missionLayout';
 export type { MissionMapLayout };
-import type { MissionResult } from '../../../types';
+import type { CampaignResourceKey, MissionResult } from '../../../types';
 import type {
     InBattleStoryDef,
     PostMissionStoryDef,
@@ -553,9 +553,10 @@ export interface MissionBattleConfig {
     worldWidth: number;
     /** World height in pixels (e.g. terrain rows × cell size). */
     worldHeight: number;
-    /** Rewards granted automatically on mission victory (e.g. knowledge keys for research trees). */
+    /** Rewards granted automatically on mission victory. */
     completionRewards?: {
         knowledgeKeys?: string[];
+        resourceDelta?: Partial<Record<CampaignResourceKey, number>>;
     };
     /** World modifiers active for this mission (merged with builtins and story sources at load time). */
     worldModifiers?: WorldModifierDef[];

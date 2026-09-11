@@ -10,6 +10,13 @@ import {
     earthTree,
 } from '../../../../researchTrees/trees/earth';
 import {
+    STICK_SWORD_NODE_EXTRA_USES,
+    STICK_SWORD_NODE_PIPE_BAT,
+    STICK_SWORD_TREE_ID,
+    stickSwordTree,
+} from '../../../../researchTrees/trees/stick_sword';
+import { getResearchNode } from '../../../../researchTrees/list';
+import {
     TRAINING_NODE_CORE,
     TRAINING_NODE_DOUBLE_PUNCH,
     TRAINING_NODE_HEALTHY,
@@ -28,11 +35,15 @@ import {
     compareResearchNodesByTier,
     excludeResearchGridEntries,
     formatMissingRequirementsLine,
+    formatRequirementClauseLabel,
     formatResearchLevelPill,
     hasUnmetResearchRequirements,
+    RESEARCH_REQUIREMENT_OR_WORD,
     RESEARCH_REQUIREMENTS_LABEL,
     RESEARCH_REQUIREMENTS_NONE,
     researchedSetsByTreeId,
+    type ResearchRequirementEntry,
+    type ResearchRequirementOption,
 } from './researchNodeGrid';
 
 function makeCtx(
@@ -98,6 +109,24 @@ describe('compareResearchNodesByTier', () => {
     });
 });
 
+function option(
+    treeId: string,
+    nodeId: string,
+    title: string,
+    possessed: boolean,
+): ResearchRequirementOption {
+    return { treeId, nodeId, title, possessed };
+}
+
+function singleClause(
+    treeId: string,
+    nodeId: string,
+    title: string,
+    possessed: boolean,
+): ResearchRequirementEntry {
+    return { options: [option(treeId, nodeId, title, possessed)], satisfied: possessed };
+}
+
 describe('collectResearchRequirementEntries', () => {
     it('lists same-tree prereqs and marks possession', () => {
         const doublePunch = trainingTree.nodes.find((n) => n.id === TRAINING_NODE_DOUBLE_PUNCH);
@@ -108,12 +137,7 @@ describe('collectResearchRequirementEntries', () => {
             researchedSetsByTreeId({}),
         );
         expect(missing).toEqual([
-            {
-                treeId: TRAINING_TREE_ID,
-                nodeId: TRAINING_NODE_CORE,
-                title: 'Core Training',
-                possessed: false,
-            },
+            singleClause(TRAINING_TREE_ID, TRAINING_NODE_CORE, 'Core Training', false),
         ]);
 
         const possessed = collectResearchRequirementEntries(
@@ -121,7 +145,7 @@ describe('collectResearchRequirementEntries', () => {
             trainingTree,
             researchedSetsByTreeId({ [TRAINING_TREE_ID]: [TRAINING_NODE_CORE] }),
         );
-        expect(possessed[0]?.possessed).toBe(true);
+        expect(possessed[0]?.satisfied).toBe(true);
     });
 
     it('dedupes prereqNodeIds that are also anyResearched', () => {
@@ -133,8 +157,51 @@ describe('collectResearchRequirementEntries', () => {
             researchedSetsByTreeId({ [EARTH_TREE_ID]: [EARTH_NODE_EARTH_CORE] }),
         );
         expect(entries).toHaveLength(1);
-        expect(entries[0]?.nodeId).toBe(EARTH_NODE_EARTH_CORE);
-        expect(entries[0]?.possessed).toBe(true);
+        expect(entries[0]?.options).toHaveLength(1);
+        expect(entries[0]?.options[0]?.nodeId).toBe(EARTH_NODE_EARTH_CORE);
+        expect(entries[0]?.satisfied).toBe(true);
+    });
+
+    it('groups multi-node anyResearched into one or-clause', () => {
+        const ironWrists = stickSwordTree.nodes.find((n) => n.id === STICK_SWORD_NODE_EXTRA_USES);
+        expect(ironWrists).toBeDefined();
+        const anyReq = ironWrists!.requirements.find((req) => req.type === 'anyResearched');
+        expect(anyReq?.type).toBe('anyResearched');
+        if (anyReq?.type !== 'anyResearched') return;
+
+        const expectedLabel = `(${anyReq.nodeIds
+            .map((nodeId) => getResearchNode(STICK_SWORD_TREE_ID, nodeId)?.title ?? nodeId)
+            .join(` ${RESEARCH_REQUIREMENT_OR_WORD} `)})`;
+
+        const unmet = collectResearchRequirementEntries(
+            ironWrists!,
+            stickSwordTree,
+            researchedSetsByTreeId({}),
+        );
+        expect(unmet).toHaveLength(1);
+        expect(unmet[0]?.options.map((o) => o.nodeId)).toEqual(anyReq.nodeIds);
+        expect(formatRequirementClauseLabel(unmet[0]!)).toBe(expectedLabel);
+        expect(unmet[0]?.satisfied).toBe(false);
+        expect(hasUnmetResearchRequirements(unmet)).toBe(true);
+        expect(formatMissingRequirementsLine(unmet)).toBe(
+            `${RESEARCH_REQUIREMENTS_LABEL}: ${expectedLabel}`,
+        );
+
+        const withSword = collectResearchRequirementEntries(
+            ironWrists!,
+            stickSwordTree,
+            researchedSetsByTreeId({ [STICK_SWORD_TREE_ID]: [anyReq.nodeIds[0]!] }),
+        );
+        expect(withSword[0]?.satisfied).toBe(true);
+        expect(hasUnmetResearchRequirements(withSword)).toBe(false);
+
+        const withBat = collectResearchRequirementEntries(
+            ironWrists!,
+            stickSwordTree,
+            researchedSetsByTreeId({ [STICK_SWORD_TREE_ID]: [STICK_SWORD_NODE_PIPE_BAT] }),
+        );
+        expect(withBat[0]?.satisfied).toBe(true);
+        expect(hasUnmetResearchRequirements(withBat)).toBe(false);
     });
 
     it('returns an empty list when there are no research prereqs', () => {
@@ -145,20 +212,20 @@ describe('collectResearchRequirementEntries', () => {
 });
 
 describe('formatMissingRequirementsLine', () => {
-    it('joins only unpossessed titles', () => {
+    it('joins only unsatisfied clause labels', () => {
         expect(
             formatMissingRequirementsLine([
-                { treeId: 'a', nodeId: '1', title: 'Alpha', possessed: true },
-                { treeId: 'a', nodeId: '2', title: 'Beta', possessed: false },
-                { treeId: 'a', nodeId: '3', title: 'Gamma', possessed: false },
+                singleClause('a', '1', 'Alpha', true),
+                singleClause('a', '2', 'Beta', false),
+                singleClause('a', '3', 'Gamma', false),
             ]),
         ).toBe(`${RESEARCH_REQUIREMENTS_LABEL}: Beta, Gamma`);
     });
 
-    it('uses None when every listed requirement is possessed', () => {
+    it('uses None when every listed clause is satisfied', () => {
         expect(
             formatMissingRequirementsLine([
-                { treeId: 'a', nodeId: '1', title: 'Alpha', possessed: true },
+                singleClause('a', '1', 'Alpha', true),
             ]),
         ).toBe(`${RESEARCH_REQUIREMENTS_LABEL}: ${RESEARCH_REQUIREMENTS_NONE}`);
     });
@@ -171,9 +238,9 @@ describe('formatMissingRequirementsLine', () => {
 });
 
 describe('hasUnmetResearchRequirements', () => {
-    it('is false when every listed requirement is possessed', () => {
+    it('is false when every listed clause is satisfied', () => {
         expect(hasUnmetResearchRequirements([
-            { treeId: 'a', nodeId: '1', title: 'Alpha', possessed: true },
+            singleClause('a', '1', 'Alpha', true),
         ])).toBe(false);
     });
 
@@ -181,10 +248,10 @@ describe('hasUnmetResearchRequirements', () => {
         expect(hasUnmetResearchRequirements([])).toBe(false);
     });
 
-    it('is true when any listed requirement is still missing', () => {
+    it('is true when any listed clause is still unsatisfied', () => {
         expect(hasUnmetResearchRequirements([
-            { treeId: 'a', nodeId: '1', title: 'Alpha', possessed: true },
-            { treeId: 'a', nodeId: '2', title: 'Beta', possessed: false },
+            singleClause('a', '1', 'Alpha', true),
+            singleClause('a', '2', 'Beta', false),
         ])).toBe(true);
     });
 });

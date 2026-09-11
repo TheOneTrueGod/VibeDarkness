@@ -6,6 +6,10 @@ import {
     STARTING_WEAPON_ROCKS_NODE_ID,
     exclusiveStartingWeaponPeers,
 } from './startingWeaponNodes';
+import {
+    WEAPON_TREE_PREMIUM_METAL_COST,
+    WEAPON_TREE_STANDARD_METAL_COST,
+} from '../weaponResearchCosts';
 
 export const CRYSTAL_ROCKS_TREE_ID = 'crystal_rocks';
 export const CRYSTAL_ROCKS_NODE_BASE = STARTING_WEAPON_ROCKS_NODE_ID;
@@ -48,7 +52,7 @@ export const crystalRocksTree: ResearchTreeDef = {
             prereqNodeIds: [CRYSTAL_ROCKS_NODE_BASE],
             exclusiveWithNodeIds: ['throwing_knives'],
             requirements: [{ type: 'anyResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeIds: [CRYSTAL_ROCKS_NODE_BASE] }],
-            cost: {},
+            cost: { metal: WEAPON_TREE_STANDARD_METAL_COST },
             effects: [{ type: 'replaceEquippedItem', fromItemId: '001', toItemId: '013' }],
             modifiesAbility: { from: 'throw_rock', to: 'throw_charged_rock' },
         },
@@ -62,7 +66,7 @@ export const crystalRocksTree: ResearchTreeDef = {
             prereqNodeIds: [CRYSTAL_ROCKS_NODE_BASE],
             exclusiveWithNodeIds: ['charged_rocks'],
             requirements: [{ type: 'anyResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeIds: [CRYSTAL_ROCKS_NODE_BASE] }],
-            cost: {},
+            cost: { metal: WEAPON_TREE_STANDARD_METAL_COST },
             effects: [{ type: 'replaceEquippedItem', fromItemId: '001', toItemId: '016' }],
             modifiesAbility: { from: 'throw_rock', to: 'throw_knife' },
         },
@@ -80,7 +84,7 @@ export const crystalRocksTree: ResearchTreeDef = {
                 { type: 'notResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeId: 'more_power' },
                 { type: 'notResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeId: CRYSTAL_ROCKS_NODE_PIERCING_KNIVES },
             ],
-            cost: { metal: 10, crystals: 10 },
+            cost: { metal: WEAPON_TREE_PREMIUM_METAL_COST },
             effects: [],
             modifiesAbility: { from: 'throw_rock', to: 'throw_rock' },
         },
@@ -94,7 +98,7 @@ export const crystalRocksTree: ResearchTreeDef = {
             prereqNodeIds: ['charged_rocks'],
             exclusiveWithNodeIds: ['more_rock'],
             requirements: [{ type: 'notResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeId: 'more_rock' }],
-            cost: { crystals: 30 },
+            cost: { metal: WEAPON_TREE_PREMIUM_METAL_COST },
             effects: [],
             modifiesAbility: { from: 'throw_charged_rock', to: 'throw_charged_rock' },
         },
@@ -111,7 +115,7 @@ export const crystalRocksTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeIds: ['throwing_knives'] },
                 { type: 'notResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeId: 'more_rock' },
             ],
-            cost: { metal: 10, crystals: 5 },
+            cost: { metal: WEAPON_TREE_PREMIUM_METAL_COST },
             effects: [],
             modifiesAbility: { from: 'throw_knife', to: 'throw_knife' },
         },

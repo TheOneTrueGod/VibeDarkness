@@ -31,6 +31,11 @@ import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 
+/** Forage and salvage while the party rests in the alcove. */
+export const CAVE_RESPITE_FOOD_REWARD = 3;
+export const CAVE_RESPITE_METAL_REWARD = 5;
+export const CAVE_RESPITE_CRYSTAL_REWARD = 2;
+
 function createTerrain(): TerrainGrid {
     return TerrainGrid.createTerrainFromArray(1, 1, CELL_SIZE, [[TerrainType.Grass]], TerrainType.Grass);
 }
@@ -248,6 +253,13 @@ export class CaveRespiteMission extends BaseMissionDef {
     description = 'A rare moment of rest in a hidden alcove. Choose wisely how to spend your time.';
     campaignId = 'world_of_darkness';
     name = 'Cave respite';
+    completionRewards = {
+        resourceDelta: {
+            food: CAVE_RESPITE_FOOD_REWARD,
+            metal: CAVE_RESPITE_METAL_REWARD,
+            crystals: CAVE_RESPITE_CRYSTAL_REWARD,
+        },
+    };
     worldWidth = CELL_SIZE;
     worldHeight = CELL_SIZE;
     enemies = [];

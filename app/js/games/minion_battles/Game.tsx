@@ -44,6 +44,7 @@ import { SPECTATOR_ID, isControlEnemy } from './state';
 import { MessageType } from '../../MessageTypes';
 import type { CampaignResourceKey } from '../../types';
 import { withExhaustionDelta } from './storylines/matchExhaustion';
+import { mergeResourceDeltas } from '../../campaignResources';
 import {
     applyEnduranceCapToExtras,
     upsertCharacterMissionResultList,
@@ -680,11 +681,17 @@ export default function MinionBattlesGame({
                         );
                         // Mid-quest: queue resource Campaign Rewards on the Quest Character;
                         // apply them only on quest clear (not via this mission result).
+                        const victoryResourceDelta = skipRewards
+                            ? undefined
+                            : mergeResourceDeltas(
+                                missionDef?.completionRewards?.resourceDelta,
+                                rewards.resourceDelta,
+                            );
                         const deferResourcesToQuest =
-                            !!questLobbyFields && !skipRewards && !!rewards.resourceDelta;
+                            !!questLobbyFields && !skipRewards && victoryResourceDelta != null;
                         const exhaustion = skipRewards ? 0 : matchExhaustionRef.current;
                         const recordedDelta = withExhaustionDelta(
-                            skipRewards || deferResourcesToQuest ? undefined : rewards.resourceDelta,
+                            skipRewards || deferResourcesToQuest ? undefined : victoryResourceDelta,
                             exhaustion,
                         );
                         // Serialize character PATCHes first so endurance can cap exhaustion
@@ -725,7 +732,7 @@ export default function MinionBattlesGame({
                                         : {
                                               ...rewards,
                                               resourceDelta: withExhaustionDelta(
-                                                  rewards.resourceDelta,
+                                                  victoryResourceDelta,
                                                   cappedDelta?.exhaustion ?? 0,
                                               ),
                                               itemFromFirstChoice:
@@ -733,8 +740,8 @@ export default function MinionBattlesGame({
                                           }
                                 );
                                 await prepareQuestVictoryContinue(
-                                    deferResourcesToQuest && rewards.resourceDelta
-                                        ? { queueResourceDelta: rewards.resourceDelta }
+                                    deferResourcesToQuest && victoryResourceDelta
+                                        ? { queueResourceDelta: victoryResourceDelta }
                                         : undefined,
                                 );
                             } finally {
@@ -826,7 +833,10 @@ export default function MinionBattlesGame({
                             const skipRewards = amSpectator || amNpcController;
                             const startingItemIds = skipRewards ? [] : getStartingItemIdsForPlayer(missionId, playerId);
                             const exhaustion = skipRewards ? 0 : matchExhaustionRef.current;
-                            const recordedDelta = withExhaustionDelta(undefined, exhaustion);
+                            const victoryResourceDelta = skipRewards
+                                ? undefined
+                                : missionDef?.completionRewards?.resourceDelta;
+                            const recordedDelta = withExhaustionDelta(victoryResourceDelta, exhaustion);
                             void (async () => {
                                 try {
                                     const savedExtras = await persistCharacterMissionResult(

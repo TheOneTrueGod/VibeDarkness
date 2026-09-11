@@ -77,6 +77,7 @@ Missions and quest copy can reference a character’s **main weapon** (rock / st
 ## Campaign resources and research costs
 
 - Mission rewards and story choices should treat campaign `resources` as the base earned pool.
+- Automatic victory grants live on `completionRewards` (`knowledgeKeys` and/or `resourceDelta`). `resourceDelta` is merged with story `grant_resources` in `Game.tsx`.
 - When a mission/story grants research directly, do not mutate base campaign resources just for that grant.
 - Effective resources used by research UI/checks are computed from:
   - `effective = base campaign resources - researched node costs`.

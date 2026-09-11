@@ -15,6 +15,8 @@ export const RESEARCH_NODE_TIER_FALLBACK = 0;
 
 export const RESEARCH_REQUIREMENTS_LABEL = 'Requirements';
 export const RESEARCH_REQUIREMENTS_NONE = 'None';
+/** Joins titles inside an `anyResearched` OR clause. */
+export const RESEARCH_REQUIREMENT_OR_WORD = 'or';
 export const RESEARCH_RESOURCES_HEADING = 'Resources';
 export const ELIGIBLE_RESEARCH_HEADING = 'Eligible research';
 export const POSSESSED_RESEARCH_HEADING = 'Possessed research';
@@ -30,11 +32,17 @@ export function formatResearchLevelPill(currentLevel: number, maxLevels: number)
     return `(${currentLevel}/${maxLevels})`;
 }
 
-export interface ResearchRequirementEntry {
+export interface ResearchRequirementOption {
     treeId: string;
     nodeId: string;
     title: string;
     possessed: boolean;
+}
+
+/** One AND requirement, or one `anyResearched` OR group. */
+export interface ResearchRequirementEntry {
+    options: ResearchRequirementOption[];
+    satisfied: boolean;
 }
 
 export interface ResearchGridEntry {
@@ -60,53 +68,83 @@ export function researchedSetsByTreeId(
     return out;
 }
 
+function researchRequirementOption(
+    treeId: string,
+    nodeId: string,
+    researchedByTreeId: Record<string, ReadonlySet<string>>,
+): ResearchRequirementOption {
+    const def = getResearchNode(treeId, nodeId);
+    return {
+        treeId,
+        nodeId,
+        title: def?.title ?? nodeId,
+        possessed: researchedByTreeId[treeId]?.has(nodeId) ?? false,
+    };
+}
+
+function researchRequirementClause(options: ResearchRequirementOption[]): ResearchRequirementEntry {
+    return {
+        options,
+        satisfied: options.some((option) => option.possessed),
+    };
+}
+
+export function formatRequirementClauseLabel(entry: ResearchRequirementEntry): string {
+    const titles = entry.options.map((option) => option.title);
+    if (titles.length <= 1) return titles[0] ?? '';
+    return `(${titles.join(` ${RESEARCH_REQUIREMENT_OR_WORD} `)})`;
+}
+
 /**
  * Structural research prerequisites: same-tree `prereqNodeIds` plus `anyResearched` requirements.
- * Dedupes the same tree/node pair. Account/item/cost requirements are not listed.
+ * Multi-node `anyResearched` is one OR clause. Dedupes a single node already listed as a prereq.
+ * Account/item/cost requirements are not listed.
  */
 export function collectResearchRequirementEntries(
     node: ResearchNodeDef,
     currentTree: ResearchTreeDef,
     researchedByTreeId: Record<string, ReadonlySet<string>>,
 ): ResearchRequirementEntry[] {
-    const entries: ResearchRequirementEntry[] = [];
-    const seen = new Set<string>();
+    const clauses: ResearchRequirementEntry[] = [];
+    const seenSingle = new Set<string>();
 
-    const add = (treeId: string, nodeId: string) => {
+    const addSingle = (treeId: string, nodeId: string) => {
         const key = `${treeId}:${nodeId}`;
-        if (seen.has(key)) return;
-        seen.add(key);
-        const def = getResearchNode(treeId, nodeId);
-        entries.push({
-            treeId,
-            nodeId,
-            title: def?.title ?? nodeId,
-            possessed: researchedByTreeId[treeId]?.has(nodeId) ?? false,
-        });
+        if (seenSingle.has(key)) return;
+        seenSingle.add(key);
+        clauses.push(researchRequirementClause([
+            researchRequirementOption(treeId, nodeId, researchedByTreeId),
+        ]));
     };
 
     for (const nodeId of node.prereqNodeIds) {
-        add(currentTree.id, nodeId);
+        addSingle(currentTree.id, nodeId);
     }
     for (const req of node.requirements) {
         if (req.type !== 'anyResearched') continue;
-        for (const nodeId of req.nodeIds) {
-            add(req.treeId, nodeId);
+        if (req.nodeIds.length === 1) {
+            addSingle(req.treeId, req.nodeIds[0]!);
+            continue;
         }
+        clauses.push(researchRequirementClause(
+            req.nodeIds.map((nodeId) => researchRequirementOption(req.treeId, nodeId, researchedByTreeId)),
+        ));
     }
-    return entries;
+    return clauses;
 }
 
-/** Visible requirements line: missing titles only. Overflow truncation is CSS ellipsis. */
+/** Visible requirements line: unsatisfied clauses only. Overflow truncation is CSS ellipsis. */
 export function formatMissingRequirementsLine(entries: ResearchRequirementEntry[]): string {
-    const missingTitles = entries.filter((e) => !e.possessed).map((e) => e.title);
-    const list = missingTitles.length > 0 ? missingTitles.join(', ') : RESEARCH_REQUIREMENTS_NONE;
+    const missingLabels = entries
+        .filter((entry) => !entry.satisfied)
+        .map((entry) => formatRequirementClauseLabel(entry));
+    const list = missingLabels.length > 0 ? missingLabels.join(', ') : RESEARCH_REQUIREMENTS_NONE;
     return `${RESEARCH_REQUIREMENTS_LABEL}: ${list}`;
 }
 
-/** True when any listed research prereq is still unowned. */
+/** True when any listed research clause is still unsatisfied. */
 export function hasUnmetResearchRequirements(entries: ResearchRequirementEntry[]): boolean {
-    return entries.some((entry) => !entry.possessed);
+    return entries.some((entry) => !entry.satisfied);
 }
 
 function sortResearchGridEntries(entries: ResearchGridEntry[]): ResearchGridEntry[] {

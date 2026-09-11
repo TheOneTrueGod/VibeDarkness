@@ -5,6 +5,10 @@ import {
     STARTING_WEAPON_STICK_NODE_ID,
     exclusiveStartingWeaponPeers,
 } from './startingWeaponNodes';
+import {
+    WEAPON_TREE_PREMIUM_METAL_COST,
+    WEAPON_TREE_STANDARD_METAL_COST,
+} from '../weaponResearchCosts';
 
 export const STICK_SWORD_TREE_ID = 'stick_sword';
 
@@ -59,7 +63,7 @@ export const stickSwordTree: ResearchTreeDef = {
             prereqNodeIds: [STICK_SWORD_NODE_BASE],
             exclusiveWithNodeIds: [STICK_SWORD_NODE_PIPE_BAT],
             requirements: [{ type: 'anyResearched', treeId: STICK_SWORD_TREE_ID, nodeIds: [STICK_SWORD_NODE_BASE] }],
-            cost: {},
+            cost: { metal: WEAPON_TREE_STANDARD_METAL_COST },
             effects: [{ type: 'replaceEquippedItem', fromItemId: '002', toItemId: '015' }],
             modifiesAbility: { from: '0103', to: '0112' },
         },
@@ -73,7 +77,7 @@ export const stickSwordTree: ResearchTreeDef = {
             prereqNodeIds: ['craft_sword'],
             exclusiveWithNodeIds: [],
             requirements: [],
-            cost: { metal: 20 },
+            cost: { metal: WEAPON_TREE_STANDARD_METAL_COST },
             effects: [],
             modifiesAbility: { from: '0112', to: '0112' },
         },
@@ -87,7 +91,7 @@ export const stickSwordTree: ResearchTreeDef = {
             prereqNodeIds: [STICK_SWORD_NODE_BASE],
             exclusiveWithNodeIds: ['craft_sword'],
             requirements: [{ type: 'anyResearched', treeId: STICK_SWORD_TREE_ID, nodeIds: [STICK_SWORD_NODE_BASE] }],
-            cost: {},
+            cost: { metal: WEAPON_TREE_STANDARD_METAL_COST },
             effects: [{ type: 'replaceEquippedItem', fromItemId: '002', toItemId: '021' }],
             modifiesAbility: { from: '0103', to: '0115' },
         },
@@ -103,7 +107,7 @@ export const stickSwordTree: ResearchTreeDef = {
             requirements: [
                 { type: 'anyResearched', treeId: STICK_SWORD_TREE_ID, nodeIds: ['craft_sword', STICK_SWORD_NODE_PIPE_BAT] },
             ],
-            cost: { metal: 20 },
+            cost: { metal: WEAPON_TREE_PREMIUM_METAL_COST },
             effects: [],
         },
         {
@@ -116,7 +120,7 @@ export const stickSwordTree: ResearchTreeDef = {
             prereqNodeIds: [STICK_SWORD_NODE_PIPE_BAT],
             exclusiveWithNodeIds: [],
             requirements: [],
-            cost: { metal: 20 },
+            cost: { metal: WEAPON_TREE_PREMIUM_METAL_COST },
             effects: [],
             modifiesAbility: { from: '0115', to: '0115' },
         },

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     campaignResourcesEqual,
+    mergeResourceDeltas,
     sumLatestMissionResourceDeltas,
     ZERO_CAMPAIGN_RESOURCES,
 } from './campaignResources';
@@ -33,6 +34,20 @@ describe('sumLatestMissionResourceDeltas', () => {
                 result({ missionId: 'a', timestamp: 2, resourceDelta: { food: 99 } }),
             ]),
         ).toEqual({ food: 1, metal: 0, population: 0, crystals: 0, exhaustion: 0 });
+    });
+});
+
+describe('mergeResourceDeltas', () => {
+    it('returns undefined when every input is empty', () => {
+        expect(mergeResourceDeltas(undefined, {})).toBeUndefined();
+    });
+
+    it('adds overlapping keys from completion and story grants', () => {
+        expect(mergeResourceDeltas({ food: 2, crystals: 1 }, { food: 3, metal: 4 })).toEqual({
+            food: 5,
+            crystals: 1,
+            metal: 4,
+        });
     });
 });
 

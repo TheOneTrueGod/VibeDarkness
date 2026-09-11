@@ -28,6 +28,9 @@ import {
 } from '../MapSegments/50_49_cliff_path_north';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 
+/** Meat from the cliff-inlet hunt. */
+export const LIGHT_EMPOWERED_FOOD_REWARD = 8;
+
 const SEGMENT_COLS = 22;
 const SEGMENT_ROWS = 22;
 const SEGMENTS_VERTICAL = 2;
@@ -215,7 +218,10 @@ export class LightEmpoweredMission extends BaseMissionDef {
 	description = 'Forage for supplies in the lit passages. Territorial creatures guard the food sources.';
 	campaignId = 'world_of_darkness';
 	name = 'Find some food';
-	completionRewards = { knowledgeKeys: ['Research'] };
+	completionRewards = {
+		knowledgeKeys: ['Research'],
+		resourceDelta: { food: LIGHT_EMPOWERED_FOOD_REWARD },
+	};
 	worldWidth = WORLD_WIDTH;
 	worldHeight = WORLD_HEIGHT;
 	enemies = ENEMIES;

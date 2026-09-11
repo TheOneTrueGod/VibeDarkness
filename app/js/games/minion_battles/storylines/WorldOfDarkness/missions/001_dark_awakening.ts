@@ -19,6 +19,10 @@ import { CRYSTAL_ROCKS_TREE_ID, CRYSTAL_ROCKS_NODE_BASE } from '../../../../../r
 import { STICK_SWORD_TREE_ID, STICK_SWORD_NODE_BASE } from '../../../../../researchTrees/trees/stick_sword';
 import { TECH_SHIELD_TREE_ID, TECH_SHIELD_NODE_BASE } from '../../../../../researchTrees/trees/tech_shield';
 
+/** Scraps gathered after surviving the first night. */
+export const DARK_AWAKENING_FOOD_REWARD = 2;
+export const DARK_AWAKENING_METAL_REWARD = 2;
+
 // Grid: 30 columns × 22 rows (40px cells)
 const COLS = 30;
 const ROWS = 22;
@@ -238,6 +242,12 @@ export class DarkAwakeningMission extends BaseMissionDef {
 	description = 'You awaken in darkness with no memory. Survive the first night and find a way forward.';
 	campaignId = 'world_of_darkness';
 	name = 'A Dark Awakening';
+	completionRewards = {
+		resourceDelta: {
+			food: DARK_AWAKENING_FOOD_REWARD,
+			metal: DARK_AWAKENING_METAL_REWARD,
+		},
+	};
 	worldWidth = WORLD_WIDTH;
 	worldHeight = WORLD_HEIGHT;
 	enemies = ENEMIES;

@@ -14,3 +14,8 @@ export const WOD_CH1_MAP_X_COL2 = WOD_CH1_MAP_X_ORIGIN + WOD_CH1_MAP_COL_SPACING
 
 export const WOD_CH1_MAP_Y_ROW0 = WOD_CH1_MAP_Y_ORIGIN;
 export const WOD_CH1_MAP_Y_ROW1 = WOD_CH1_MAP_Y_ORIGIN + WOD_CH1_MAP_ROW_SPACING;
+
+/** Campaign food / metal / crystals after clearing every Chapter 1 mission. */
+export const CHAPTER_1_COMPLETION_FOOD = 15;
+export const CHAPTER_1_COMPLETION_METAL = 15;
+export const CHAPTER_1_COMPLETION_CRYSTALS = 15;

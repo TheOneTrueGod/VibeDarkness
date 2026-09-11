@@ -20,11 +20,24 @@ export const GRAVITY_NODE_GRAVITY_INVERSION = 'gravity_inversion';
 export const GRAVITY_NODE_GRAVITY_SHIELD = 'gravity_shield';
 export const GRAVITY_NODE_REPULSE = 'gravity_repulse';
 
-export const GRAVITY_LOCUS_CRYSTAL_COST = 10;
+export const GRAVITY_CORE_CRYSTAL_COST = 13;
+export const GRAVITY_CORE_FOOD_COST = 5;
+export const GRAVITY_CORE_METAL_COST = 2;
+
+export const GRAVITY_LOCUS_CRYSTAL_COST = 12;
 export const GRAVITY_LOCUS_FOOD_COST = 5;
-export const GRAVITY_LIFT_CRYSTAL_COST = 15;
-export const GRAVITY_LIFT_FOOD_COST = GRAVITY_LOCUS_FOOD_COST;
-export const GRAVITY_SHIELD_CRYSTAL_COST = 20;
+export const GRAVITY_LOCUS_METAL_COST = 1;
+
+export const GRAVITY_REPULSE_CRYSTAL_COST = 13;
+export const GRAVITY_REPULSE_FOOD_COST = 5;
+export const GRAVITY_REPULSE_METAL_COST = 1;
+
+export const GRAVITY_LIFT_CRYSTAL_COST = 13;
+export const GRAVITY_LIFT_FOOD_COST = 5;
+export const GRAVITY_LIFT_METAL_COST = 1;
+
+export const GRAVITY_SHIELD_CRYSTAL_COST = 16;
+export const GRAVITY_SHIELD_FOOD_COST = 5;
 export const GRAVITY_SHIELD_METAL_COST = 5;
 
 export const gravityTree: ResearchTreeDef = {
@@ -49,7 +62,11 @@ export const gravityTree: ResearchTreeDef = {
                 MISSION_REWARD_REQUIREMENT,
                 { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.GravityCore },
             ],
-            cost: {},
+            cost: {
+                crystals: GRAVITY_CORE_CRYSTAL_COST,
+                food: GRAVITY_CORE_FOOD_COST,
+                metal: GRAVITY_CORE_METAL_COST,
+            },
             effects: [
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.BasicCore, toItemId: CORE_ITEM_IDS.GravityCore },
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.LightCore, toItemId: CORE_ITEM_IDS.GravityCore },
@@ -72,7 +89,11 @@ export const gravityTree: ResearchTreeDef = {
             requirements: [
                 { type: 'anyResearched', treeId: GRAVITY_TREE_ID, nodeIds: [GRAVITY_NODE_CORE] },
             ],
-            cost: { crystals: GRAVITY_LOCUS_CRYSTAL_COST, food: GRAVITY_LOCUS_FOOD_COST },
+            cost: {
+                crystals: GRAVITY_LOCUS_CRYSTAL_COST,
+                food: GRAVITY_LOCUS_FOOD_COST,
+                metal: GRAVITY_LOCUS_METAL_COST,
+            },
             effects: [
                 { type: 'addCard', cardId: '0901' },
             ],
@@ -92,7 +113,11 @@ export const gravityTree: ResearchTreeDef = {
             requirements: [
                 { type: 'anyResearched', treeId: GRAVITY_TREE_ID, nodeIds: [GRAVITY_NODE_GRAVITY_LOCUS] },
             ],
-            cost: {},
+            cost: {
+                crystals: GRAVITY_REPULSE_CRYSTAL_COST,
+                food: GRAVITY_REPULSE_FOOD_COST,
+                metal: GRAVITY_REPULSE_METAL_COST,
+            },
             effects: [],
             abilityResearchModifiers: [
                 {
@@ -118,7 +143,11 @@ export const gravityTree: ResearchTreeDef = {
             requirements: [
                 { type: 'anyResearched', treeId: GRAVITY_TREE_ID, nodeIds: [GRAVITY_NODE_CORE] },
             ],
-            cost: { crystals: GRAVITY_LIFT_CRYSTAL_COST, food: GRAVITY_LIFT_FOOD_COST },
+            cost: {
+                crystals: GRAVITY_LIFT_CRYSTAL_COST,
+                food: GRAVITY_LIFT_FOOD_COST,
+                metal: GRAVITY_LIFT_METAL_COST,
+            },
             effects: [
                 { type: 'addCard', cardId: '0903' },
             ],
@@ -137,7 +166,11 @@ export const gravityTree: ResearchTreeDef = {
             requirements: [
                 { type: 'anyResearched', treeId: GRAVITY_TREE_ID, nodeIds: [GRAVITY_NODE_CORE] },
             ],
-            cost: { crystals: GRAVITY_SHIELD_CRYSTAL_COST, metal: GRAVITY_SHIELD_METAL_COST },
+            cost: {
+                crystals: GRAVITY_SHIELD_CRYSTAL_COST,
+                food: GRAVITY_SHIELD_FOOD_COST,
+                metal: GRAVITY_SHIELD_METAL_COST,
+            },
             effects: [
                 { type: 'addCard', cardId: '0904' },
             ],

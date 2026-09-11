@@ -32,6 +32,10 @@ import {
 } from '../MapSegments/50_50_crystal_cave';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 
+/** Crystal-cave haul on the way to the inner campfire. */
+export const TOWARDS_THE_LIGHT_CRYSTAL_REWARD = 5;
+export const TOWARDS_THE_LIGHT_METAL_REWARD = 5;
+
 const COLS = 66;
 const ROWS = 22;
 /** Column offset for the right section (crystal cave): left 22 + middle 22. */
@@ -218,7 +222,13 @@ export class TowardsTheLightMission extends BaseMissionDef {
     description = 'Push through the crystal caves toward a faint glow. Something ancient stirs in the dark.';
     campaignId = 'world_of_darkness';
     name = 'Towards the Light';
-    completionRewards = { knowledgeKeys: ['Research'] };
+    completionRewards = {
+        knowledgeKeys: ['Research'],
+        resourceDelta: {
+            crystals: TOWARDS_THE_LIGHT_CRYSTAL_REWARD,
+            metal: TOWARDS_THE_LIGHT_METAL_REWARD,
+        },
+    };
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;
     enemies = ENEMIES;
