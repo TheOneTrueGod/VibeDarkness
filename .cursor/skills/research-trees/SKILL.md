@@ -50,6 +50,8 @@ Research effects are applied to player units in `storylines/BaseMissionDef.ts`:
 
 When adding new research effects that affect battle, wire them here — not via in-battle lookups.
 
+`AbilityModifier` fields live in `researchTrees/types.ts`. Flat cost changes use `resourceCostFlat` (added to the ability's primary resource cost at spend/display time via `getAbilityResourceCosts(ability, unit)`).
+
 ## Upgrades Tab UI
 
 Components (all under `app/js/games/minion_battles/ui/components/`):
@@ -60,7 +62,7 @@ Components (all under `app/js/games/minion_battles/ui/components/`):
 | `ResearchTreePanel.tsx` | Outer container for the tab content |
 | `ResearchTreeList` | Sidebar selector listing eligible trees with node-count badges |
 | `ResearchTreeContent` | SVG graph rendering nodes at their `(x, y)` positions with edges |
-| `ResearchNodeCard.tsx` | Individual node: tree icon + title, description, cost pills, then requirements strip. Border colour comes from the owning tree. |
+| `ResearchNodeCard.tsx` | **ResearchNodeCard** — tree icon + title, 3-line description, medium cost pills, optional requirements strip. Admin comfortable cards add an in-flow id/tier footer. |
 
 ### Node states
 `researched` · `enabled` · `blocked` · `default`

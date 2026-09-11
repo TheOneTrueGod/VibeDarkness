@@ -104,6 +104,11 @@ export function formatMissingRequirementsLine(entries: ResearchRequirementEntry[
     return `${RESEARCH_REQUIREMENTS_LABEL}: ${list}`;
 }
 
+/** True when any listed research prereq is still unowned. */
+export function hasUnmetResearchRequirements(entries: ResearchRequirementEntry[]): boolean {
+    return entries.some((entry) => !entry.possessed);
+}
+
 function sortResearchGridEntries(entries: ResearchGridEntry[]): ResearchGridEntry[] {
     entries.sort((a, b) => {
         const byTier = compareResearchNodesByTier(a.node, b.node);

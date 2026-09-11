@@ -16,6 +16,7 @@ export type AbilityTagSettingsByTag = {
     basicAttack: PriorityTagSettings;
     secondary: PriorityTagSettings;
     GravityRepulse: PriorityTagSettings;
+    LightShieldFlare: PriorityTagSettings;
 };
 
 /** Empty settings object type for tags with no catalog options yet. */
@@ -69,6 +70,7 @@ export const ABILITY_TAG_CATALOG: AbilityTagCatalog = {
         displayName: 'Secondary',
     },
     GravityRepulse: { hint: 'Detonates on field expiry' },
+    LightShieldFlare: { hint: 'Bursts darkness creatures on cast' },
 };
 
 export function getAbilityTagCatalogEntry<K extends AbilityTag>(tag: K): AbilityTagCatalogEntry<K> {

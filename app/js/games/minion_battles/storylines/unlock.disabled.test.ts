@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canPlayerSelectMission, isMissionDisabled } from './unlock';
+import { canPlayerSelectMission, canPlayerViewMission, isMissionDisabled, isQuestDisabled } from './unlock';
 import { MISSION_MAP_DISABLED } from './types';
 
 describe('isMissionDisabled', () => {
@@ -8,6 +8,15 @@ describe('isMissionDisabled', () => {
         expect(isMissionDisabled({})).toBe(false);
         expect(isMissionDisabled({ disabled: false })).toBe(false);
         expect(isMissionDisabled({ disabled: MISSION_MAP_DISABLED })).toBe(true);
+    });
+});
+
+describe('isQuestDisabled', () => {
+    it('is true only when the def sets disabled', () => {
+        expect(isQuestDisabled(undefined)).toBe(false);
+        expect(isQuestDisabled({})).toBe(false);
+        expect(isQuestDisabled({ disabled: false })).toBe(false);
+        expect(isQuestDisabled({ disabled: MISSION_MAP_DISABLED })).toBe(true);
     });
 });
 
@@ -22,5 +31,16 @@ describe('canPlayerSelectMission', () => {
         expect(canPlayerSelectMission({ isAdmin: false, isUnlocked: true, isDisabled: true })).toBe(false);
         expect(canPlayerSelectMission({ isAdmin: false, isUnlocked: false, isDisabled: false })).toBe(false);
         expect(canPlayerSelectMission({ isAdmin: false, isUnlocked: true, isDisabled: false })).toBe(true);
+    });
+});
+
+describe('canPlayerViewMission', () => {
+    it('lets admins view locked missions', () => {
+        expect(canPlayerViewMission({ isAdmin: true, isUnlocked: false })).toBe(true);
+    });
+
+    it('lets non-admins view unlocked missions, including disabled ones', () => {
+        expect(canPlayerViewMission({ isAdmin: false, isUnlocked: true })).toBe(true);
+        expect(canPlayerViewMission({ isAdmin: false, isUnlocked: false })).toBe(false);
     });
 });

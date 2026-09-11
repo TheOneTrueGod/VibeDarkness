@@ -3,7 +3,8 @@
  * Drains passively at `drainPerSecond` (can be fractional) each tick and expires once
  * `remainingHp` reaches 0 — there is no separate fixed-duration expiry.
  * See `card_defs/03_blood_mage/AGENTS.md` for the design intent behind Protect, which grants this.
- * Gravity Shield (0904) reuses the same absorb/drain rules with `theme: 'gravity'`.
+ * Gravity Shield (0904) and Shield of Light (0805) reuse the same absorb/drain rules
+ * with `theme: 'gravity'` and `theme: 'light'`.
  */
 
 import { Buff, type BuffSerialized } from './Buff';
@@ -13,7 +14,7 @@ import type { EngineContext } from '../game/EngineContext';
 export const SHIELD_BUFF_TYPE = 'shield';
 
 /** Visual palette for the shield shell. Mechanics are identical across themes. */
-export type ShieldBuffTheme = 'blood' | 'gravity';
+export type ShieldBuffTheme = 'blood' | 'gravity' | 'light';
 
 export interface ShieldBuffSerialized extends BuffSerialized {
     remainingHp: number;
@@ -59,7 +60,8 @@ export class ShieldBuff extends Buff {
         const d = data as ShieldBuffSerialized;
         const remainingHp = typeof d.remainingHp === 'number' ? d.remainingHp : 0;
         const drainPerSecond = typeof d.drainPerSecond === 'number' ? d.drainPerSecond : 0;
-        const theme: ShieldBuffTheme = d.theme === 'gravity' ? 'gravity' : 'blood';
+        const theme: ShieldBuffTheme =
+            d.theme === 'gravity' || d.theme === 'light' ? d.theme : 'blood';
         const buff = new ShieldBuff(remainingHp, drainPerSecond, theme);
         buff.appliedAtTime = data.appliedAtTime ?? 0;
         buff.appliedAtRound = data.appliedAtRound ?? 1;

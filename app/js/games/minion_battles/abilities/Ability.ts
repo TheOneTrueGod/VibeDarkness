@@ -209,6 +209,8 @@ export type AbilityTag =
     | 'basicAttack'
     /** Gravity Locus detonates its field on expiry instead of just fading (Repulse research). */
     | 'GravityRepulse'
+    /** Shield of Light burst on cast that knocks back darkness creatures (Blinding Flare research). */
+    | 'LightShieldFlare'
     /** Granted by another ability; not selectable for prep loadouts and does not occupy a slot. */
     | 'secondary';
 
@@ -659,7 +661,7 @@ export interface AttackBlockedInfo {
  * Check whether a unit can afford the resource cost for an ability.
  */
 export function canAffordAbility(unit: Unit, ability: AbilityStatic): boolean {
-    for (const cost of getAbilityResourceCosts(ability)) {
+    for (const cost of getAbilityResourceCosts(ability, unit)) {
         const resource = unit.getResource(cost.resourceId);
         if (!resource) return false;
         if (cost.allowPartialIfPositive) {
@@ -675,7 +677,7 @@ export function canAffordAbility(unit: Unit, ability: AbilityStatic): boolean {
  * Spend the resource cost for an ability. Returns false if cannot afford.
  */
 export function spendAbilityCost(unit: Unit, ability: AbilityStatic): boolean {
-    const costs = getAbilityResourceCosts(ability);
+    const costs = getAbilityResourceCosts(ability, unit);
     if (costs.length === 0) return true;
     if (!canAffordAbility(unit, ability)) return false;
     for (const cost of costs) {
@@ -697,7 +699,7 @@ export function spendAbilityCost(unit: Unit, ability: AbilityStatic): boolean {
  */
 export function refundAbilityCost(unit: Unit, ability: AbilityStatic, elapsed: number): void {
     if (elapsed >= getDoNotRefundCutoffElapsed(ability, unit)) return;
-    for (const cost of getAbilityResourceCosts(ability)) {
+    for (const cost of getAbilityResourceCosts(ability, unit)) {
         const resource = unit.getResource(cost.resourceId);
         if (resource) resource.add(cost.amount);
     }
@@ -708,8 +710,15 @@ export function getAbilityTargets(ability: AbilityStatic, caster?: Unit, gameSta
     return ability.getTargets ? ability.getTargets(caster, gameState) : ability.targets;
 }
 
-export function getAbilityResourceCosts(ability: AbilityStatic): ResourceCost[] {
-    if (ability.resourceCosts && ability.resourceCosts.length > 0) return ability.resourceCosts;
-    if (ability.resourceCost) return [ability.resourceCost];
-    return [];
+export function getAbilityResourceCosts(ability: AbilityStatic, unit?: Unit): ResourceCost[] {
+    const costs = ability.resourceCosts && ability.resourceCosts.length > 0
+        ? ability.resourceCosts.map((cost) => ({ ...cost }))
+        : ability.resourceCost
+            ? [{ ...ability.resourceCost }]
+            : [];
+    const extra = unit?.abilityModifiers?.[ability.id]?.resourceCostFlat ?? 0;
+    if (extra !== 0 && costs.length > 0) {
+        costs[0] = { ...costs[0], amount: costs[0].amount + extra };
+    }
+    return costs;
 }

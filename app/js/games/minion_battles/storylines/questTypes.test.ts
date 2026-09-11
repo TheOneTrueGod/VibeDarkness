@@ -3,10 +3,18 @@ import { getQuestDef, listQuestsForCampaign, QUEST_MAP } from './questRegistry';
 import type { MissionSlotSpec, QuestDef } from './questTypes';
 import {
     SWARMLING_SOURCE,
+    SWARMLING_SOURCE_DESCRIPTION,
     SWARMLING_SOURCE_TITLE,
 } from './WorldOfDarkness/quests/swarmling_source';
-import { SCAVENGE_THE_PLAINS } from './WorldOfDarkness/quests/scavenge_the_plains';
-import { INVESTIGATE_THE_WILDLIFE } from './WorldOfDarkness/quests/investigate_the_wildlife';
+import {
+    SCAVENGE_THE_PLAINS,
+    SCAVENGE_THE_PLAINS_DESCRIPTION,
+} from './WorldOfDarkness/quests/scavenge_the_plains';
+import {
+    INVESTIGATE_THE_WILDLIFE,
+    INVESTIGATE_THE_WILDLIFE_DESCRIPTION,
+} from './WorldOfDarkness/quests/investigate_the_wildlife';
+import { MISSION_MAP_DISABLED } from './types';
 
 describe('QUEST_MAP / registry', () => {
     it('returns the World of Darkness fixture and Scavenge the Plains quests', () => {
@@ -68,6 +76,19 @@ describe('QuestDef shape smoke', () => {
         const q: QuestDef = SWARMLING_SOURCE;
         expect(q.campaignId).toBe('world_of_darkness');
         expect(q.title).toBe(SWARMLING_SOURCE_TITLE);
+        expect(q.description).toBe(SWARMLING_SOURCE_DESCRIPTION);
         expect(Array.isArray(q.slots)).toBe(true);
+    });
+
+    it('uses flavor copy on each dedicated World of Darkness quest', () => {
+        expect(SWARMLING_SOURCE.description).toBe(SWARMLING_SOURCE_DESCRIPTION);
+        expect(INVESTIGATE_THE_WILDLIFE.description).toBe(INVESTIGATE_THE_WILDLIFE_DESCRIPTION);
+        expect(SCAVENGE_THE_PLAINS.description).toBe(SCAVENGE_THE_PLAINS_DESCRIPTION);
+    });
+
+    it('marks Scavenge the Plains as disabled', () => {
+        expect(SCAVENGE_THE_PLAINS.disabled).toBe(MISSION_MAP_DISABLED);
+        expect(SWARMLING_SOURCE.disabled).toBeUndefined();
+        expect(INVESTIGATE_THE_WILDLIFE.disabled).toBeUndefined();
     });
 });

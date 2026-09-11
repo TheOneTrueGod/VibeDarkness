@@ -110,6 +110,30 @@ function CrystalIcon({ color, className = 'w-[18px] h-[18px]' }: { color: string
     );
 }
 
+export const RESOURCE_PILL_SIZE_SMALL = 'small';
+export const RESOURCE_PILL_SIZE_MEDIUM = 'medium';
+export const RESOURCE_PILL_SIZE_DEFAULT = 'default';
+
+export type ResourcePillSize =
+    | typeof RESOURCE_PILL_SIZE_SMALL
+    | typeof RESOURCE_PILL_SIZE_MEDIUM
+    | typeof RESOURCE_PILL_SIZE_DEFAULT;
+
+export const RESOURCE_PILL_SIZE_CLASS: Record<ResourcePillSize, { pill: string; icon: string }> = {
+    [RESOURCE_PILL_SIZE_SMALL]: {
+        pill: 'gap-1 rounded px-1.5 py-[2px] text-[10px]',
+        icon: 'w-3 h-3',
+    },
+    [RESOURCE_PILL_SIZE_MEDIUM]: {
+        pill: 'min-h-6 gap-1 rounded-md px-2 py-0.5 text-[11px]',
+        icon: 'w-3.5 h-3.5',
+    },
+    [RESOURCE_PILL_SIZE_DEFAULT]: {
+        pill: 'min-h-[32px] gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px]',
+        icon: 'w-[18px] h-[18px]',
+    },
+};
+
 export interface ResourcePillProps {
     resource: CampaignResourceKey;
     count: number;
@@ -117,7 +141,7 @@ export interface ResourcePillProps {
     max?: number;
     /** Upgrades remaining-endurance chrome: red heart on black (inverse of exhaustion). */
     appearance?: 'default' | 'endurance';
-    size?: 'default' | 'small';
+    size?: ResourcePillSize;
     className?: string;
 }
 
@@ -126,7 +150,7 @@ export default function ResourcePill({
     count,
     max,
     appearance = 'default',
-    size = 'default',
+    size = RESOURCE_PILL_SIZE_DEFAULT,
     className = '',
 }: ResourcePillProps) {
     const meta = RESOURCE_META[resource];
@@ -143,17 +167,13 @@ export default function ResourcePill({
         : meta;
     const isNegative = count < 0;
     const displayColor = isNegative ? '#f87171' : color;
-    const isSmall = size === 'small';
+    const sizeClass = RESOURCE_PILL_SIZE_CLASS[size];
     const filled = backgroundColor != null;
     return (
         <span
             className={`inline-flex shrink-0 items-center font-semibold leading-snug cursor-default select-none ${
                 filled ? '' : 'bg-surface-light'
-            } ${
-                isSmall
-                    ? 'gap-1 rounded px-1.5 py-[2px] text-[10px]'
-                    : 'min-h-[32px] gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px]'
-            } ${className}`}
+            } ${sizeClass.pill} ${className}`}
             style={{
                 borderWidth: 1,
                 borderStyle: 'solid',
@@ -169,7 +189,7 @@ export default function ResourcePill({
                       : (tooltip ?? `${count} ${label}`)
             }
         >
-            <Icon color={displayColor} className={isSmall ? 'w-3 h-3' : 'w-[18px] h-[18px]'} />
+            <Icon color={displayColor} className={sizeClass.icon} />
             {max != null ? `${count}/${max}` : count}
         </span>
     );

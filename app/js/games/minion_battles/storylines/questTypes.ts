@@ -73,6 +73,10 @@ export type QuestDef = {
     /** Optional map regions for QuestSlotBank filter matching. */
     regionIds?: string[];
     slots: MissionSlotSpec[];
+    /** Player-facing map tooltip copy. */
+    description?: string;
+    /** When true, the map node is grayed out and non-admins cannot start this quest. */
+    disabled?: boolean;
     /** Campaign Rewards applied on quest clear (plus any queued Campaign Rewards from in-run picks). */
     completionRewards?: {
         resourceDelta?: Partial<Record<CampaignResourceKey, number>>;

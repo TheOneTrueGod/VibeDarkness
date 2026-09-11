@@ -81,4 +81,11 @@ describe('ShieldBuff', () => {
         expect(restored.theme).toBe('gravity');
         expect(restored.remainingHp).toBe(20);
     });
+
+    it('round-trips a light theme through toJSON/fromJSON', () => {
+        const buff = new ShieldBuff(20, 2, 'light');
+        const restored = ShieldBuff.fromJSON(buff.toJSON());
+        expect(restored.theme).toBe('light');
+        expect(restored.remainingHp).toBe(20);
+    });
 });

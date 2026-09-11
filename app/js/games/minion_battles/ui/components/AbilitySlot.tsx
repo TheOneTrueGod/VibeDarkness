@@ -7,6 +7,7 @@
 
 import React, { useCallback, useRef } from 'react';
 import { getAbilityResourceCosts, type AbilityModesConfig, type AbilityStatic } from '../../abilities/Ability';
+import { getLocalPlayerUnitFromGameState } from '../../abilities/abilityModifierHelpers';
 import type { UnitAbilityRuntimeState } from '../../game/units/Unit';
 import { getAbilityUseConfig } from '../../abilities/abilityUses';
 import { useAbilityUseChargeAnimation, type AbilityChargeAnimRule } from '../abilityUseChargeAnimation';
@@ -103,7 +104,7 @@ export default function AbilitySlot({
     // Display-only: getAbilityResourceCosts() also drives real affordability/spend/refund
     // logic (unit.getResource(...)), and HP isn't a generic Resource — append it here
     // purely for the card badge, never feed this array back into the economy pipeline.
-    const costs = getAbilityResourceCosts(ability);
+    const costs = getAbilityResourceCosts(ability, getLocalPlayerUnitFromGameState(gameState));
     const displayCosts = ability.hpCost
         ? [...costs, { resourceId: 'hp', amount: ability.hpCost }]
         : costs;

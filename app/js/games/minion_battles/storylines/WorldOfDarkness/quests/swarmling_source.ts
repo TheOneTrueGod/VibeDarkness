@@ -17,6 +17,7 @@ import { SWARMLING_NEST_MISSION_ID } from '../questMissions/swarmling_nest';
 
 export const SWARMLING_SOURCE_QUEST_ID = 'swarmling_source';
 export const SWARMLING_SOURCE_TITLE = 'Swarmling Source';
+export const SWARMLING_SOURCE_DESCRIPTION = 'Hunt down the source of the swarmlings';
 
 /** Third slot: the Swarmling Nest arena finale. */
 export const SWARMLING_SOURCE_FINALE_MISSION_ID = SWARMLING_NEST_MISSION_ID;
@@ -24,6 +25,7 @@ export const SWARMLING_SOURCE_FINALE_MISSION_ID = SWARMLING_NEST_MISSION_ID;
 export const SWARMLING_SOURCE: QuestDef = {
     id: SWARMLING_SOURCE_QUEST_ID,
     title: SWARMLING_SOURCE_TITLE,
+    description: SWARMLING_SOURCE_DESCRIPTION,
     campaignId: 'world_of_darkness',
     tags: [LOCATION_PLAINS_TAG, 'placeholder', 'fixed_slots'],
     slots: [

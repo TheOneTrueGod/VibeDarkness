@@ -17,10 +17,12 @@ import { QUEST_THORN_MARCH_MISSION_ID } from '../questMissions/quest_thorn_march
 
 export const INVESTIGATE_THE_WILDLIFE_QUEST_ID = 'investigate_the_wildlife';
 export const INVESTIGATE_THE_WILDLIFE_TITLE = 'Investigate the Wildlife';
+export const INVESTIGATE_THE_WILDLIFE_DESCRIPTION = 'Follow the local critters around and see what they do.';
 
 export const INVESTIGATE_THE_WILDLIFE: QuestDef = {
     id: INVESTIGATE_THE_WILDLIFE_QUEST_ID,
     title: INVESTIGATE_THE_WILDLIFE_TITLE,
+    description: INVESTIGATE_THE_WILDLIFE_DESCRIPTION,
     campaignId: 'world_of_darkness',
     tags: [LOCATION_PLAINS_TAG, 'post_core_awakening'],
     slots: [

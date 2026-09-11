@@ -3,6 +3,7 @@
  */
 
 import type { QuestDef } from '../../questTypes';
+import { MISSION_MAP_DISABLED } from '../../types';
 import {
     LOCATION_PLAINS_TAG,
     PLAINS_RANDOM_STORY_CHALLENGE_MAX,
@@ -15,10 +16,13 @@ import { QUEST_FIND_SOME_FOOD_MISSION_ID } from '../questMissions/quest_find_som
 import { QUEST_CRYSTAL_CORRUPTION_MISSION_ID } from '../questMissions/quest_crystal_corruption';
 
 export const SCAVENGE_THE_PLAINS_QUEST_ID = 'scavenge_the_plains';
+export const SCAVENGE_THE_PLAINS_DESCRIPTION = 'Scour the grasslands for salvage.';
 
 export const SCAVENGE_THE_PLAINS: QuestDef = {
     id: SCAVENGE_THE_PLAINS_QUEST_ID,
     title: 'Scavenge the Plains',
+    description: SCAVENGE_THE_PLAINS_DESCRIPTION,
+    disabled: MISSION_MAP_DISABLED,
     campaignId: 'world_of_darkness',
     tags: [LOCATION_PLAINS_TAG, 'post_core_awakening'],
     slots: [

@@ -75,6 +75,7 @@ import { LightBlastAbility } from '../card_defs/08_light_core/0801_LightBlast/08
 import { LightImbuementAbility } from '../card_defs/08_light_core/0802_LightImbuement/0802Ability';
 import { ImbuedBatAbility } from '../card_defs/08_light_core/0803_ImbuedBat/0803Ability';
 import { GatherLightAbility } from '../card_defs/08_light_core/0804_GatherLight/0804Ability';
+import { ShieldOfLightAbility } from '../card_defs/08_light_core/0805_ShieldOfLight/0805Ability';
 import { GravityLocusAbility } from '../card_defs/09_gravity_core/0901_GravityLocus/0901Ability';
 import { ForcePushAbility } from '../card_defs/09_gravity_core/0902_ForcePush/0902Ability';
 import { GravityInversionAbility } from '../card_defs/09_gravity_core/0903_GravityInversion/0903Ability';
@@ -167,6 +168,7 @@ register(LightBlastAbility);
 register(LightImbuementAbility);
 register(ImbuedBatAbility);
 register(GatherLightAbility);
+register(ShieldOfLightAbility);
 register(GravityLocusAbility);
 register(ForcePushAbility);
 register(GravityInversionAbility);

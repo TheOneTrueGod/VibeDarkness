@@ -5,7 +5,11 @@ import { getResearchNodePurchaseCost } from '../../../../researchTrees/evaluator
 import { getNodeMaxLevels } from '../../../../researchTrees/passiveBonuses';
 import { getResearchTreeContainingNode } from '../../../../researchTrees/list';
 import { resolveResearchTreeChrome } from '../../../../researchTrees/researchTreeChrome';
-import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
+import ResourcePill, {
+    campaignResourceGains,
+    RESOURCE_PILL_SIZE_MEDIUM,
+    RESOURCE_PILL_SIZE_SMALL,
+} from '../../../../components/ResourcePill';
 import { TestIds } from '../../../../testing/testIds';
 import ResearchAbilityPreview from './ResearchAbilityPreview';
 import { AnchoredPortalTooltip } from './AnchoredPortalTooltip';
@@ -14,8 +18,21 @@ import {
     formatMissingRequirementsLine,
     RESEARCH_REQUIREMENTS_NONE,
     formatResearchLevelPill,
+    hasUnmetResearchRequirements,
     type ResearchRequirementEntry,
 } from './researchNodeGrid';
+import {
+    RESEARCH_NODE_ADMIN_FOOTER_HEIGHT_CLASS,
+    RESEARCH_NODE_COMFORTABLE_DESC_HEIGHT_EM,
+    RESEARCH_NODE_COMFORTABLE_DESC_LINES,
+    RESEARCH_NODE_COMFORTABLE_WIDTH_CLASS,
+    RESEARCH_NODE_COMPACT_HEIGHT_CLASS,
+    RESEARCH_NODE_COMPACT_WIDTH_CLASS,
+    RESEARCH_NODE_COST_ROW_MIN_HEIGHT_CLASS,
+    RESEARCH_NODE_LEADING_TIGHT,
+    RESEARCH_NODE_REQUIREMENTS_LINES,
+    RESEARCH_NODE_REQUIREMENTS_SLOT_HEIGHT_PX,
+} from './researchNodeCardLayout';
 
 export interface ResearchRequirementBadge {
     id: string;
@@ -46,7 +63,7 @@ export interface ResearchNodeCardProps {
     showRequirements?: boolean;
     /**
      * In-card dark strip listing missing research prereqs (comfortable Upgrades grid).
-     * Description is clamped to 3 lines when this is on.
+     * Description always reserves 3 lines; the strip slot stays reserved when prereqs are met.
      */
     showPrereqRow?: boolean;
     researchRequirementEntries?: ResearchRequirementEntry[];
@@ -83,7 +100,7 @@ function ResearchRequirementsRow({
             <div
                 ref={reqAnchorRef}
                 data-testid={TestIds.researchNodeRequirements}
-                className="box-border flex h-[3.25em] w-full shrink-0 items-center overflow-hidden rounded bg-black px-1.5 py-1 text-[10px] leading-tight text-gray-300"
+                className="box-border flex h-full w-full items-start overflow-hidden rounded bg-black px-1.5 py-1 text-[10px] leading-tight text-gray-300"
                 onMouseEnter={() => {
                     setOpen(true);
                     onHoverChange(true);
@@ -94,12 +111,13 @@ function ResearchRequirementsRow({
                 }}
             >
                 <span
-                    className="line-clamp-2"
+                    className="w-full"
                     style={{
                         display: '-webkit-box',
-                        WebkitLineClamp: 2,
+                        WebkitLineClamp: RESEARCH_NODE_REQUIREMENTS_LINES,
                         WebkitBoxOrient: 'vertical',
                         overflow: 'hidden',
+                        minHeight: `${RESEARCH_NODE_REQUIREMENTS_LINES * RESEARCH_NODE_LEADING_TIGHT}em`,
                     }}
                 >
                     {line}
@@ -174,6 +192,7 @@ export default function ResearchNodeCard({
     const showLevelPill = maxLevels > 1;
     const costGains = campaignResourceGains(getResearchNodePurchaseCost(node, currentLevel));
     const hasReqBadges = showRequirements && requirementBadges.length > 0;
+    const showRequirementsStrip = showPrereqRow && hasUnmetResearchRequirements(researchRequirementEntries);
     const [reqHover, setReqHover] = useState(false);
     const hasTooltipContent = Boolean(node.flavorText || selectionReason || node.modifiesAbility);
 
@@ -241,10 +260,8 @@ export default function ResearchNodeCard({
     /** Fixed footprint so cards never grow with longer titles/descriptions (content clamps inside). */
     const layoutClasses =
         layout === 'comfortable'
-            ? showPrereqRow
-                ? 'w-[280px] h-[164px] shrink-0 px-3 py-2 gap-1 overflow-hidden'
-                : 'w-[280px] h-[120px] shrink-0 px-3 py-2 gap-1 overflow-hidden'
-            : 'w-[180px] h-[116px] shrink-0 px-3 py-2 gap-1 overflow-hidden';
+            ? `${RESEARCH_NODE_COMFORTABLE_WIDTH_CLASS} shrink-0 px-3 py-2 gap-1 overflow-hidden`
+            : `${RESEARCH_NODE_COMPACT_WIDTH_CLASS} ${RESEARCH_NODE_COMPACT_HEIGHT_CLASS} shrink-0 px-3 py-2 gap-1 overflow-hidden`;
 
     const isClickable = isInteractive && state === 'enabled';
     const cardClasses = `relative rounded-lg border-2 text-left flex flex-col min-h-0 ${layoutClasses} ${stateClasses} ${isClickable ? 'cursor-pointer' : 'cursor-default'} ${className}`;
@@ -256,7 +273,7 @@ export default function ResearchNodeCard({
 
     const descSizeClass = layout === 'comfortable' ? 'text-xs leading-snug' : 'text-[11px] leading-tight';
 
-    const descClampLines = showPrereqRow ? 3 : layout === 'comfortable' ? 4 : 3;
+    const descClampLines = layout === 'comfortable' ? RESEARCH_NODE_COMFORTABLE_DESC_LINES : 3;
 
     const tierTextClass =
         tone === 'muted'
@@ -282,13 +299,13 @@ export default function ResearchNodeCard({
         </span>
     );
 
-    const adminIdBadge = isAdmin && (
+    const adminIdBadge = isAdmin && layout !== 'comfortable' && (
         <span className={`${adminFooterBadgeClass} left-2 select-all`}>
             {node.id}
         </span>
     );
 
-    const adminTierBadge = isAdmin && node.tier != null && (
+    const adminTierBadge = isAdmin && layout !== 'comfortable' && node.tier != null && (
         <span className={`${adminFooterBadgeClass} right-2`}>
             Tier {node.tier}
         </span>
@@ -313,12 +330,18 @@ export default function ResearchNodeCard({
                 <span className="truncate">{node.title}</span>
             </div>
             <div
-                className={`${descSizeClass} min-h-0 ${showPrereqRow ? 'h-[3.75em] shrink-0' : 'flex-1'} text-gray-300 ${showPrereqRow ? 'line-clamp-3' : layout === 'comfortable' ? 'line-clamp-4' : 'line-clamp-3'}`}
+                className={`${descSizeClass} shrink-0 text-gray-300 line-clamp-3`}
                 style={{
                     display: '-webkit-box',
                     WebkitLineClamp: descClampLines,
                     WebkitBoxOrient: 'vertical',
                     overflow: 'hidden',
+                    ...(layout === 'comfortable'
+                        ? {
+                            height: `${RESEARCH_NODE_COMFORTABLE_DESC_HEIGHT_EM}em`,
+                            minHeight: `${RESEARCH_NODE_COMFORTABLE_DESC_HEIGHT_EM}em`,
+                        }
+                        : { minHeight: 0 }),
                 }}
             >
                 {parseHighlightedSegments(node.description).map((segment, idx) => (
@@ -331,14 +354,14 @@ export default function ResearchNodeCard({
                 ))}
             </div>
             {showCost && (
-                <div className="shrink-0 text-[10px] text-muted flex flex-wrap items-center gap-1">
+                <div className={`${RESEARCH_NODE_COST_ROW_MIN_HEIGHT_CLASS} shrink-0 text-[10px] text-muted flex flex-wrap items-center gap-1`}>
                     {costGains.length > 0 ? (
                         costGains.map(({ resource, count }) => (
                             <ResourcePill
                                 key={`${node.id}-${resource}`}
                                 resource={resource}
                                 count={count}
-                                size={layout === 'compact' || showPrereqRow ? 'small' : 'default'}
+                                size={layout === 'comfortable' ? RESOURCE_PILL_SIZE_MEDIUM : RESOURCE_PILL_SIZE_SMALL}
                             />
                         ))
                     ) : (
@@ -347,10 +370,25 @@ export default function ResearchNodeCard({
                 </div>
             )}
             {showPrereqRow && (
-                <ResearchRequirementsRow
-                    entries={researchRequirementEntries}
-                    onHoverChange={setReqHover}
-                />
+                <div
+                    className="box-border w-full shrink-0"
+                    style={{ height: RESEARCH_NODE_REQUIREMENTS_SLOT_HEIGHT_PX }}
+                >
+                    {showRequirementsStrip && (
+                        <ResearchRequirementsRow
+                            entries={researchRequirementEntries}
+                            onHoverChange={setReqHover}
+                        />
+                    )}
+                </div>
+            )}
+            {isAdmin && layout === 'comfortable' && (
+                <div
+                    className={`flex ${RESEARCH_NODE_ADMIN_FOOTER_HEIGHT_CLASS} shrink-0 items-center justify-between gap-2 text-[9px] font-mono leading-none text-zinc-500`}
+                >
+                    <span className="min-w-0 truncate select-all">{node.id}</span>
+                    {node.tier != null && <span className="shrink-0">Tier {node.tier}</span>}
+                </div>
             )}
         </div>
     );

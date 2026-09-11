@@ -63,6 +63,8 @@ export interface AbilityModifier {
     comboMax?: number;
     /** Flat bonus added to resources this ability grants (e.g. Gather Light). */
     resourceGainFlat?: number;
+    /** Flat bonus added to this ability's primary resource cost. */
+    resourceCostFlat?: number;
     /** Overrides DEFAULT_HEAL_PENALTY_PCT for this ability's heals, down to 0 for "no penalty". */
     healPenaltyPctOverride?: number;
 }

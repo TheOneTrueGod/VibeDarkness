@@ -30,6 +30,8 @@ export const TestIds = {
     missionMapQuestBankPrefix: 'mission-map-quest-bank-',
     questBankPickerPopup: 'quest-bank-picker-popup',
     questBankPickerClose: 'quest-bank-picker-close',
+    questBankTooltipClose: 'quest-bank-tooltip-close',
+    missionMapTooltipClose: 'mission-map-tooltip-close',
     questContinue: 'quest-continue',
     questAbandon: 'quest-abandon',
     questAbandonConfirm: 'quest-abandon-confirm',

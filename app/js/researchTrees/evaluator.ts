@@ -674,6 +674,9 @@ function mergeModifierInto(entry: AbilityModifier, modifier: AbilityModifier): v
     if (modifier.resourceGainFlat !== undefined) {
         entry.resourceGainFlat = (entry.resourceGainFlat ?? 0) + modifier.resourceGainFlat;
     }
+    if (modifier.resourceCostFlat !== undefined) {
+        entry.resourceCostFlat = (entry.resourceCostFlat ?? 0) + modifier.resourceCostFlat;
+    }
     if (modifier.knockbackTier !== undefined) entry.knockbackTier = Math.max(entry.knockbackTier ?? 0, modifier.knockbackTier);
     if (modifier.addTags?.length) {
         const existing = entry.addTags ? [...entry.addTags] : [];
@@ -709,6 +712,9 @@ function scaleAbilityResearchModifierByLevel(
     }
     if (fields.resourceGainFlat !== undefined) {
         scaled.resourceGainFlat = getAddAtLevel(fields.resourceGainFlat, level, maxLevels);
+    }
+    if (fields.resourceCostFlat !== undefined) {
+        scaled.resourceCostFlat = getAddAtLevel(fields.resourceCostFlat, level, maxLevels);
     }
     return scaled;
 }

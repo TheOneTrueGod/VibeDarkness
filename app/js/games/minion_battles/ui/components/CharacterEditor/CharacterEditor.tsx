@@ -76,6 +76,7 @@ import {
 } from '../characters/CharacterListPullout';
 import type { StartQuestOptions } from '../../../storylines/questLobby';
 import { abandonQuestRun } from '../../../storylines/questRun';
+import { getQuestDef, isQuestDisabled } from '../../../storylines/index';
 
 function undoReplaceEquippedItemsForRemovedNodes(
     equipment: string[],
@@ -756,9 +757,10 @@ export default function CharacterEditor({
     const handleMapStartQuest = useCallback(
         (questDefId: string, options?: StartQuestOptions) => {
             if (!onStartQuest) return;
+            if (!isAdmin && isQuestDisabled(getQuestDef(questDefId))) return;
             onStartQuest(questDefId, options);
         },
-        [onStartQuest],
+        [onStartQuest, isAdmin],
     );
 
     /** Clear the singular activeQuestRun after UI confirm. */

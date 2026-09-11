@@ -29,6 +29,7 @@ import {
     excludeResearchGridEntries,
     formatMissingRequirementsLine,
     formatResearchLevelPill,
+    hasUnmetResearchRequirements,
     RESEARCH_REQUIREMENTS_LABEL,
     RESEARCH_REQUIREMENTS_NONE,
     researchedSetsByTreeId,
@@ -166,6 +167,25 @@ describe('formatMissingRequirementsLine', () => {
         expect(formatMissingRequirementsLine([])).toBe(
             `${RESEARCH_REQUIREMENTS_LABEL}: ${RESEARCH_REQUIREMENTS_NONE}`,
         );
+    });
+});
+
+describe('hasUnmetResearchRequirements', () => {
+    it('is false when every listed requirement is possessed', () => {
+        expect(hasUnmetResearchRequirements([
+            { treeId: 'a', nodeId: '1', title: 'Alpha', possessed: true },
+        ])).toBe(false);
+    });
+
+    it('is false when there are no research requirements', () => {
+        expect(hasUnmetResearchRequirements([])).toBe(false);
+    });
+
+    it('is true when any listed requirement is still missing', () => {
+        expect(hasUnmetResearchRequirements([
+            { treeId: 'a', nodeId: '1', title: 'Alpha', possessed: true },
+            { treeId: 'a', nodeId: '2', title: 'Beta', possessed: false },
+        ])).toBe(true);
     });
 });
 

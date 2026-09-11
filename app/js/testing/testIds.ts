@@ -51,6 +51,8 @@ export const TestIds = {
     /** Mission Map quest banks / optional / prep (Campaign Home) */
     questBankPickerPopup: 'quest-bank-picker-popup',
     questBankPickerClose: 'quest-bank-picker-close',
+    questBankTooltipClose: 'quest-bank-tooltip-close',
+    missionMapTooltipClose: 'mission-map-tooltip-close',
     /** Inline Continue on the active quest row (Quests panel / bank tooltip). */
     questContinue: 'quest-continue',
     questAbandon: 'quest-abandon',

@@ -38,6 +38,31 @@ export function questResultPlacementLabel(
 export const QUEST_SECTION_BOX_CLASS =
     'flex flex-col gap-2 rounded-lg border border-border-custom bg-surface px-3 py-2.5';
 
+/** Map-node tooltip label when a mission or quest is disabled. */
+export const MAP_NODE_DISABLED_LABEL = 'disabled';
+
+/** Hover copy for multi-quest picker banks that are already unlocked. */
+export const QUEST_BANK_PICKER_HOVER_DESCRIPTION = 'Choose a quest for this slot.';
+
+export function questBankHoverDescription(opts: {
+    isLocked: boolean;
+    isDedicated: boolean;
+    unlockRequirementLabel: string | null;
+    questDescription?: string;
+}): string {
+    const { isLocked, isDedicated, unlockRequirementLabel, questDescription } = opts;
+    if (isLocked) {
+        const requirement = unlockRequirementLabel ?? 'the previous requirement';
+        return isDedicated
+            ? `This quest unlocks after ${requirement}. You can still run it from Optional / side quests.`
+            : `This quest slot unlocks after ${requirement}. You can still run matching quests from Optional / side quests.`;
+    }
+    if (isDedicated) {
+        return questDescription ?? '';
+    }
+    return QUEST_BANK_PICKER_HOVER_DESCRIPTION;
+}
+
 /**
  * Campaign resource grants from the quest def itself (`completionRewards`).
  * Does not include mission/slot rewards from inner quest missions.

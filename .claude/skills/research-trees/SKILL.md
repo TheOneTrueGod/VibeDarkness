@@ -65,6 +65,8 @@ Research effects are applied to player units in `storylines/BaseMissionDef.ts`:
 
 When adding new research effects that affect battle, wire them here — not via in-battle lookups.
 
+`AbilityModifier` fields live in `researchTrees/types.ts`. Flat cost changes use `resourceCostFlat` (added to the ability's primary resource cost at spend/display time via `getAbilityResourceCosts(ability, unit)`).
+
 ## Upgrades Tab UI
 
 Components (all under `app/js/games/minion_battles/ui/components/`):
@@ -77,13 +79,13 @@ Components (all under `app/js/games/minion_battles/ui/components/`):
 | `ResearchTreeContent` | SVG graph rendering nodes at their `(x, y)` positions with edges |
 | `ResearchedNodesGrid` | Shared Upgrades right-panel grid: eligible, possessed, and (admins) remaining unowned; sorted by node tier |
 | `researchNodeGrid.ts` | Sort-by-tier helpers, missing-prereq line text, eligible / possessed / unowned collections |
-| `ResearchNodeCard.tsx` | Individual node: tree icon + title, description, cost pills, then requirements strip. Border colour comes from the owning tree. Comfortable Upgrades cards add a 3-line description, ResourcePill cost, and a missing-prereq strip. |
+| `ResearchNodeCard.tsx` | **ResearchNodeCard** — tree icon + title, 3-line description, medium cost pills, optional requirements strip. Admin comfortable cards add an in-flow id/tier footer (taller than player cards). Border colour comes from the owning tree. |
 
 ### Node states
 `researched` · `enabled` · `blocked` · `default`
 
 ### Upgrades grid cards
-Comfortable cards show title, a 3-line description, ResourcePill cost, then a dark **Requirements** strip (2 lines). The strip lists only unowned research prereqs (`prereqNodeIds` + `anyResearched`) and CSS-ellipsis-truncates; hover lists every required node (missing red, possessed green). The grid starts with **Resources** (effective campaign pills), then **Eligible research** (prereqs + non-cost requirements met, cost ignored), then **Possessed research**, then (admins) **Unowned research** excluding eligible. All lists sort by `tier` (then `order`). Cards the player can afford (`canResearchNode`) use a pointer cursor and click to purchase.
+Comfortable **ResearchNodeCard**s share one height: title, a reserved 3-line description, medium ResourcePill costs, then a fixed-height requirements wrapper (dark 2-line strip while any listed prereq is missing; empty wrapper of the same height when hidden). Admin cards add an in-flow id/tier footer and are slightly taller. The strip lists unowned research prereqs (`prereqNodeIds` + `anyResearched`) with CSS ellipsis; hover lists every required node (missing red, possessed green). The grid starts with **Resources** (effective campaign pills), then **Eligible research** (prereqs + non-cost requirements met, cost ignored), then **Possessed research**, then (admins) **Unowned research** excluding eligible. All lists sort by `tier` (then `order`). Cards the player can afford (`canResearchNode`) use a pointer cursor and click to purchase.
 
 ### Eligibility gating
 `eligibleResearchTrees` filters which trees are shown based on account knowledge, campaign resource minimums, equipped items, and character traits. Players then only see trees they have abilities in (or already researched). Admins always see every tree, with ability-matching trees sorted first; trees the player would not see are dimmed. Tree **cores** (tier-10 nodes with no prereqs) use `{ type: 'missionReward' }` so players cannot buy them — they only come from mission/quest rewards.

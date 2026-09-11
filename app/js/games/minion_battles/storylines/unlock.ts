@@ -53,6 +53,11 @@ export function isMissionDisabled(def: { disabled?: boolean } | undefined | null
     return def?.disabled === true;
 }
 
+/** True when the quest def is marked disabled for non-admin map/select. */
+export function isQuestDisabled(def: { disabled?: boolean } | undefined | null): boolean {
+    return def?.disabled === true;
+}
+
 /**
  * Whether a player can select or host a mission from the map or Mission Select.
  * Admins bypass lock and disabled. Non-admins need the mission unlocked and not disabled.
@@ -64,6 +69,18 @@ export function canPlayerSelectMission(params: {
 }): boolean {
     if (params.isAdmin) return true;
     return params.isUnlocked && !params.isDisabled;
+}
+
+/**
+ * Whether a player can open a mission node's tooltip.
+ * Admins always; non-admins need it unlocked (disabled nodes are still viewable).
+ */
+export function canPlayerViewMission(params: {
+    isAdmin: boolean;
+    isUnlocked: boolean;
+}): boolean {
+    if (params.isAdmin) return true;
+    return params.isUnlocked;
 }
 
 /** All chapters defined for a storyline (empty when none). */

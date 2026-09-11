@@ -32,6 +32,8 @@ This skill keeps a **list of component names** and a **one-line description** of
 | **AbilityTooltip** | Ability name + description lines; desktop uses **AnchoredPortalTooltip** (`anchorRef` required); mobile bottom overlay. Lives in `minion_battles/ui/components/`. |
 | **AbilitySlot** | Ability bar card with uses/costs and hover tooltip. Lives in `minion_battles/ui/components/`. |
 | **AbilitySlotPreview** | Character-select / Quest Prep AbilitySlot wrapper with fake full uses + shared portaled tooltips. Lives in `minion_battles/ui/components/`. |
+| **ResearchNodeCard** | Upgrades / reward research node: tree icon, title, description, cost pills, optional requirements strip. Comfortable grid cards use a fixed 3-line description and medium ResourcePills; admin cards add an in-flow id/tier footer. Lives in `minion_battles/ui/components/`. |
+| **ResourcePill** | Campaign resource icon + count in a bordered pill (`small` / `medium` / `default`). Lives in `app/js/components/`. |
 | **MusicPlayer** | Compact cassette-style transport (play/pause, skip, readout, volume, mute) in a boxed group. Lives in the campaign-home header; lobby overlay via AppTitleBar. |
 
 ## When to use

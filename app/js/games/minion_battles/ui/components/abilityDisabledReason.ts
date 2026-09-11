@@ -42,7 +42,7 @@ export function getDisabledReasonDisplay(reason: DisabledReason): { title: strin
 }
 
 function getAffordabilityFailReason(unit: Unit, ability: AbilityStatic): DisabledReason | null {
-    for (const cost of getAbilityResourceCosts(ability)) {
+    for (const cost of getAbilityResourceCosts(ability, unit)) {
         const resource = unit.getResource(cost.resourceId);
         if (!resource) return { reason_id: 'cannot_afford', resourceId: cost.resourceId };
         if (cost.allowPartialIfPositive) {

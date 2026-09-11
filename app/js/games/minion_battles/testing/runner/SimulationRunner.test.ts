@@ -56,6 +56,7 @@ import { gravityLocusScenario } from '../scenarios/abilities/gravityLocusScenari
 import { forcePushScenario } from '../scenarios/abilities/forcePushScenario';
 import { gravityInversionScenario } from '../scenarios/abilities/gravityInversionScenario';
 import { gravityShieldScenario } from '../scenarios/abilities/gravityShieldScenario';
+import { shieldOfLightScenario } from '../scenarios/abilities/shieldOfLightScenario';
 import {
     energyBlastStrictPriorityFillScenario,
     imbuedBatConeStrictFillScenario,
@@ -470,6 +471,11 @@ describe('runScenarioHeadless', () => {
 
     it('Gravity Shield (0904): grants a high-armour shield that drains in one round', () => {
         const r = runScenarioHeadless(gravityShieldScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Shield of Light (0805): grants a high-armour shield that drains in one round', () => {
+        const r = runScenarioHeadless(shieldOfLightScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

@@ -11,6 +11,7 @@ import {
     countQuestBankClears,
     getEligibleQuestsForBank,
     getQuestDef,
+    isQuestDisabled,
 } from '../../../storylines/index';
 import { TestIds } from '../../../../../testing/testIds';
 import { QuestPickRow } from './QuestPickRow';
@@ -52,8 +53,9 @@ export default function QuestBankPickerPopup({
     );
 
     const eligible = useMemo(
-        () => getEligibleQuestsForBank(bank, character.campaignId, questResults),
-        [bank, character.campaignId, questResults],
+        () => getEligibleQuestsForBank(bank, character.campaignId, questResults)
+            .filter((q) => isAdmin || !isQuestDisabled(q)),
+        [bank, character.campaignId, questResults, isAdmin],
     );
 
     const clears = countQuestBankClears(bank, questResults);

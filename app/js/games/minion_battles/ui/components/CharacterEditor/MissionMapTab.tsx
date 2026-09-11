@@ -4,13 +4,13 @@
  * Shows all missions in the character's campaign as circles connected by lines.
  * Node fill: gray = finished; red = battle; blue = story; radial gradient = boss.
  * Locked missions are dimmed; admins can click them anyway.
- * Disabled missions are dimmed for non-admins and cannot be selected; admins can still host.
+ * Disabled nodes use a gray fill (any type) and stay viewable; only admins can host them.
  * Hovering a node shows a tooltip; clicking pins it and shows a "Host Mission" button.
  */
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { LucideIcon } from 'lucide-react';
-import { ChevronDown, Route, Scroll, Skull, Swords } from 'lucide-react';
+import { ChevronDown, Route, Scroll, Skull, Swords, X } from 'lucide-react';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import type { MissionResult } from '../../../../../types';
 import type { MissionType, StorylineDef } from '../../../storylines/types';
@@ -21,9 +21,9 @@ import {
     hasVictoryResult,
     isMissionCompleted,
     isMissionDisabled,
+    isQuestDisabled,
     canPlayerSelectMission,
-    MISSION_DISABLED_PLAYER_NOTICE,
-    MISSION_DISABLED_ADMIN_NOTICE,
+    canPlayerViewMission,
     getAllMissionIdsInOrder,
     isSideMissionId,
     isChapterUnlocked,
@@ -49,7 +49,12 @@ import {
     missionMapChapterTestId,
 } from '../../../../../testing/testIds';
 import QuestBankPickerPopup from './QuestBankPickerPopup';
-import { bankDisplayLabel, questBankUnlockRequirementLabel } from './questBankUi';
+import {
+    bankDisplayLabel,
+    MAP_NODE_DISABLED_LABEL,
+    questBankHoverDescription,
+    questBankUnlockRequirementLabel,
+} from './questBankUi';
 
 const CIRCLE_R = 28;
 /** ViewBox inset — covers node radius, name label below, and hover rings without huge empty margins. */
@@ -78,6 +83,9 @@ const BATTLE_NODE_STROKE = '#fca5a5'; // red-300
 /** Checkmark and node border for completed missions / quest banks. */
 const COMPLETED_MISSION_ACCENT = '#22c55e'; // green-500
 
+/** Gray fill for disabled map nodes of any type. */
+const DISABLED_NODE_FILL = MISSION_NODE_FILL.finished;
+
 /** Solid accent used for boss hover glow (gradient fill cannot drive drop-shadow alone). */
 const BOSS_GLOW_COLOR = '#e11d48'; // rose-600
 const BOSS_GRADIENT_ID = 'mission-map-boss-fill';
@@ -99,13 +107,14 @@ interface Props {
     onCampaignChange?: (campaignId: string) => void | Promise<void>;
 }
 
-/** SVG fill for a mission node: gray when finished, else type-based (boss uses gradient url). */
+/** SVG fill for a mission node: gray when finished or disabled, else type-based (boss uses gradient url). */
 function getMissionNodeFill(
     missionId: string,
     missionType: MissionType,
     missionResults: MissionResult[],
+    isDisabled: boolean,
 ): string {
-    if (isMissionCompleted(missionId, missionResults)) return MISSION_NODE_FILL.finished;
+    if (isMissionCompleted(missionId, missionResults) || isDisabled) return MISSION_NODE_FILL.finished;
     if (missionType === 'boss') return `url(#${BOSS_GRADIENT_ID})`;
     if (missionType === 'story') return MISSION_NODE_FILL.story;
     return MISSION_NODE_FILL.battle;
@@ -116,8 +125,9 @@ function getMissionGlowColor(
     missionId: string,
     missionType: MissionType,
     missionResults: MissionResult[],
+    isDisabled: boolean,
 ): string {
-    if (isMissionCompleted(missionId, missionResults)) return MISSION_NODE_FILL.finished;
+    if (isMissionCompleted(missionId, missionResults) || isDisabled) return MISSION_NODE_FILL.finished;
     if (missionType === 'boss') return BOSS_GLOW_COLOR;
     if (missionType === 'story') return MISSION_NODE_FILL.story;
     return MISSION_NODE_FILL.battle;
@@ -127,6 +137,34 @@ function getStatusLabel(missionId: string, missionResults: MissionResult[]): { l
     if (hasVictoryResult(missionId, missionResults)) return { label: 'Victory', color: COMPLETED_MISSION_ACCENT };
     if (isMissionCompleted(missionId, missionResults)) return { label: 'Defeat', color: '#ef4444' };
     return null;
+}
+
+function isQuestBankDisabled(bank: QuestSlotBank): boolean {
+    if (!bank.questDefId) return false;
+    return isQuestDisabled(getQuestDef(bank.questDefId));
+}
+
+function MapTooltipCloseButton({
+    onClick,
+    testId,
+    ariaLabel,
+}: {
+    onClick: () => void;
+    testId: string;
+    ariaLabel: string;
+}) {
+    return (
+        <button
+            type="button"
+            data-testid={testId}
+            onClick={onClick}
+            className="h-7 w-7 shrink-0 rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer"
+            aria-label={ariaLabel}
+            title="Close"
+        >
+            <X className="h-3.5 w-3.5" aria-hidden />
+        </button>
+    );
 }
 
 // ── Tooltip ──────────────────────────────────────────────────────────────────
@@ -198,22 +236,17 @@ function QuestBankTooltip({
     const label = bank.title ?? bank.id.replace(/_/g, ' ');
     const pinnedQuest = bank.questDefId ? getQuestDef(bank.questDefId) : undefined;
     const isDedicated = isDedicatedQuestBank(bank);
-    const slotCount = pinnedQuest?.slots.length;
-
-    let description: string;
-    if (isLocked) {
-        const requirement = unlockRequirementLabel ?? 'the previous requirement';
-        description = isDedicated
-            ? `This quest unlocks after ${requirement}. You can still run it from Optional / side quests.`
-            : `This quest slot unlocks after ${requirement}. You can still run matching quests from Optional / side quests.`;
-    } else if (isDedicated) {
-        const missionWord = slotCount === 1 ? 'mission' : 'missions';
-        description = slotCount != null
-            ? `${slotCount} ${missionWord}. Loadout freezes at prep for the whole run.`
-            : 'Loadout freezes at prep for the whole run.';
-    } else {
-        description = 'Choose a quest for this slot. Loadout freezes at prep for the whole run.';
-    }
+    const questDisabled = isQuestDisabled(pinnedQuest);
+    const description = questBankHoverDescription({
+        isLocked,
+        isDedicated,
+        unlockRequirementLabel,
+        questDescription: pinnedQuest?.description,
+    });
+    const startableQuests = eligibleQuests.filter((q) => isAdmin || !isQuestDisabled(q));
+    const showCompleteEmpty = !isLocked && startableQuests.length === 0 && !questDisabled;
+    const showQuestActions = !isLocked && startableQuests.length > 0;
+    const showFooter = data.pinned && (isLocked || showCompleteEmpty || showQuestActions);
 
     return createPortal(
         <div
@@ -242,18 +275,34 @@ function QuestBankTooltip({
                             )}
                         </span>
                     </div>
-                    {!isDedicated && (
-                    <span className="shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full border mt-0.5 text-zinc-300 border-zinc-600 bg-zinc-800/50">
-                        {clears}/{bank.requiredClears}
-                    </span>
-                    )}
+                    <div className="flex items-start gap-1.5 shrink-0">
+                        {!isDedicated && (
+                            <span className="shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full border mt-0.5 text-zinc-300 border-zinc-600 bg-zinc-800/50">
+                                {clears}/{bank.requiredClears}
+                            </span>
+                        )}
+                        {data.pinned && (
+                            <MapTooltipCloseButton
+                                onClick={onDismiss}
+                                testId={TestIds.questBankTooltipClose}
+                                ariaLabel="Close quest details"
+                            />
+                        )}
+                    </div>
                 </div>
                 <div className="px-4 py-2.5">
-                    <p className="text-[13px] italic text-zinc-300 leading-relaxed">
-                        {description}
-                    </p>
+                    {description && (
+                        <p className="text-[13px] italic text-zinc-300 leading-relaxed">
+                            {description}
+                        </p>
+                    )}
+                    {questDisabled && (
+                        <p className="text-[11px] italic text-zinc-500 mt-1">
+                            {MAP_NODE_DISABLED_LABEL}
+                        </p>
+                    )}
                 </div>
-                {data.pinned && (
+                {showFooter && (
                     <div className="flex flex-col gap-2 px-4 py-2.5 border-t border-white/8 bg-white/3">
                         {isLocked ? (
                             <p
@@ -262,12 +311,12 @@ function QuestBankTooltip({
                             >
                                 Locked — complete {unlockRequirementLabel ?? 'the previous requirement'} to {isDedicated ? 'start this quest' : 'assign a quest here'}.
                             </p>
-                        ) : eligibleQuests.length === 0 ? (
+                        ) : showCompleteEmpty ? (
                             <p className="text-[12px] text-zinc-500 italic">
                                 {isDedicated ? 'Quest complete.' : 'No eligible quests left.'}
                             </p>
                         ) : (
-                            eligibleQuests.map((q) => {
+                            startableQuests.map((q) => {
                                 const isActive = activeQuestDefId === q.id;
                                 if (isActive) {
                                     return (
@@ -334,13 +383,6 @@ function QuestBankTooltip({
                                 );
                             })
                         )}
-                        <button
-                            type="button"
-                            onClick={onDismiss}
-                            className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer self-start"
-                        >
-                            Dismiss
-                        </button>
                     </div>
                 )}
             </div>
@@ -400,6 +442,11 @@ function MissionTooltip({
     // Clamp horizontally so tooltip stays in viewport
     const rawLeft = data.cx - TOOLTIP_W / 2;
     const left = Math.max(MARGIN, Math.min(rawLeft, window.innerWidth - TOOLTIP_W - MARGIN));
+    const canStart = canPlayerSelectMission({
+        isAdmin,
+        isUnlocked: !isLocked,
+        isDisabled,
+    });
 
     return createPortal(
         <div
@@ -414,24 +461,33 @@ function MissionTooltip({
             >
                 {/* Header: name + status */}
                 <div className="flex items-start justify-between gap-2 px-4 pt-3 pb-2 border-b border-white/8">
-                    <div className="flex flex-col gap-0.5">
+                    <div className="flex flex-col gap-0.5 min-w-0">
                         {isSide && (
                             <span className="text-[10px] font-semibold text-violet-400 uppercase tracking-wide">Side Quest</span>
                         )}
                         <span className="text-sm font-bold text-white leading-snug">{def?.name ?? data.id}</span>
                     </div>
-                    {status ? (
-                        <span
-                            className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full border mt-0.5"
-                            style={{ color: status.color, borderColor: `${status.color}55`, background: `${status.color}18` }}
-                        >
-                            {status.label}
-                        </span>
-                    ) : (
-                        <span className="shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full border mt-0.5 text-zinc-400 border-zinc-600 bg-zinc-800/50">
-                            Not started
-                        </span>
-                    )}
+                    <div className="flex items-start gap-1.5 shrink-0">
+                        {status ? (
+                            <span
+                                className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full border mt-0.5"
+                                style={{ color: status.color, borderColor: `${status.color}55`, background: `${status.color}18` }}
+                            >
+                                {status.label}
+                            </span>
+                        ) : (
+                            <span className="shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full border mt-0.5 text-zinc-400 border-zinc-600 bg-zinc-800/50">
+                                Not started
+                            </span>
+                        )}
+                        {data.pinned && (
+                            <MapTooltipCloseButton
+                                onClick={onDismiss}
+                                testId={TestIds.missionMapTooltipClose}
+                                ariaLabel="Close mission details"
+                            />
+                        )}
+                    </div>
                 </div>
 
                 {/* Description */}
@@ -440,6 +496,9 @@ function MissionTooltip({
                         <p className="text-[13px] italic text-zinc-300 leading-relaxed">{def.description}</p>
                     ) : (
                         <p className="text-[13px] italic text-zinc-500">No description available.</p>
+                    )}
+                    {isDisabled && (
+                        <p className="text-[11px] italic text-zinc-500 mt-1">{MAP_NODE_DISABLED_LABEL}</p>
                     )}
                 </div>
 
@@ -470,14 +529,6 @@ function MissionTooltip({
                     </div>
                 )}
 
-                {/* Locked / disabled notice */}
-                {isDisabled && (
-                    <div className="px-4 pb-3">
-                        <span className="text-[11px] text-zinc-500 italic">
-                            {isAdmin ? MISSION_DISABLED_ADMIN_NOTICE : MISSION_DISABLED_PLAYER_NOTICE}
-                        </span>
-                    </div>
-                )}
                 {isLocked && !isAdmin && !isDisabled && (
                     <div className="px-4 pb-3">
                         <span className="text-[11px] text-zinc-500 italic">
@@ -487,35 +538,26 @@ function MissionTooltip({
                 )}
 
                 {/* Pinned footer: Host Mission button */}
-                {data.pinned && (!isDisabled || isAdmin) && (
-                    <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-t border-white/8 bg-white/3">
-                        <button
-                            type="button"
-                            onClick={onDismiss}
-                            className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
-                        >
-                            Dismiss
-                        </button>
-                        <div className="flex items-center gap-2">
-                            {isAdmin && onMarkVictory && !hasVictoryResult(data.id, missionResults) && (
-                                <button
-                                    type="button"
-                                    data-testid={TestIds.missionMarkVictory}
-                                    onClick={() => { void onMarkVictory(data.id); onDismiss(); }}
-                                    className="px-3 py-1.5 rounded-lg border border-green-700/60 bg-green-950/50 text-green-400 text-xs font-semibold hover:bg-green-900/50 active:scale-95 transition-all cursor-pointer"
-                                >
-                                    Mark Victory
-                                </button>
-                            )}
+                {data.pinned && canStart && (
+                    <div className="flex items-center justify-end gap-2 px-4 py-2.5 border-t border-white/8 bg-white/3">
+                        {isAdmin && onMarkVictory && !hasVictoryResult(data.id, missionResults) && (
                             <button
                                 type="button"
-                                data-testid={TestIds.missionHost}
-                                onClick={() => { onStartMission(data.id); onDismiss(); }}
-                                className="px-4 py-1.5 rounded-lg bg-primary text-secondary text-sm font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+                                data-testid={TestIds.missionMarkVictory}
+                                onClick={() => { void onMarkVictory(data.id); onDismiss(); }}
+                                className="px-3 py-1.5 rounded-lg border border-green-700/60 bg-green-950/50 text-green-400 text-xs font-semibold hover:bg-green-900/50 active:scale-95 transition-all cursor-pointer"
                             >
-                                Host Mission
+                                Mark Victory
                             </button>
-                        </div>
+                        )}
+                        <button
+                            type="button"
+                            data-testid={TestIds.missionHost}
+                            onClick={() => { onStartMission(data.id); onDismiss(); }}
+                            className="px-4 py-1.5 rounded-lg bg-primary text-secondary text-sm font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+                        >
+                            Host Mission
+                        </button>
                     </div>
                 )}
             </div>
@@ -913,27 +955,21 @@ export default function MissionMapTab({
                 {missions.map(({ id, def, pos, isSide }) => {
                     const isUnlocked = unlockedIds.has(id);
                     const isDisabled = isMissionDisabled(def);
-                    const clickable = canPlayerSelectMission({
-                        isAdmin,
-                        isUnlocked,
-                        isDisabled,
-                    });
+                    const viewable = canPlayerViewMission({ isAdmin, isUnlocked });
                     const missionType = def?.missionType ?? DEFAULT_MISSION_TYPE;
                     const finished = isMissionCompleted(id, missionResults);
                     const completedCombat = !isSide && finished && missionType === 'battle';
-                    const color = getMissionNodeFill(id, missionType, missionResults);
+                    const color = getMissionNodeFill(id, missionType, missionResults, isDisabled);
                     const glowColor = completedCombat
                         ? COMPLETED_MISSION_ACCENT
-                        : getMissionGlowColor(id, missionType, missionResults);
-                    const dimmedForLock = !isUnlocked && !isAdmin;
-                    const dimmedForDisabled = isDisabled && !isAdmin;
-                    const dimmed = isSide ? dimmedForDisabled : (dimmedForLock || dimmedForDisabled);
+                        : getMissionGlowColor(id, missionType, missionResults, isDisabled);
+                    const dimmed = !isSide && !isUnlocked && !isAdmin;
                     const isHovered = hoveredId === id;
                     const isPressed = pressedId === id;
                     const isPinned = tooltip?.pinned && tooltip.id === id;
                     const r = CIRCLE_R;
                     const MissionIcon = MISSION_TYPE_ICONS[missionType];
-                    const showBattleHalo = !isSide && missionType === 'battle' && !completedCombat;
+                    const showBattleHalo = !isSide && missionType === 'battle' && !completedCombat && !isDisabled;
 
                     const nodeScale = isPressed ? 0.92 : (isHovered || isPinned) ? 1.1 : 1;
 
@@ -942,18 +978,18 @@ export default function MissionMapTab({
                         <g
                             key={id}
                             transform={`translate(${pos.x}, ${pos.y})`}
-                            onClick={clickable ? () => handleNodeClick(id, pos.x, pos.y) : undefined}
-                            onMouseEnter={clickable ? () => handleNodeEnter(id, pos.x, pos.y) : undefined}
-                            onMouseLeave={clickable ? () => handleNodeLeave(id) : undefined}
-                            onMouseDown={clickable ? () => setPressedId(id) : undefined}
-                            onMouseUp={clickable ? () => setPressedId(null) : undefined}
-                            onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNodeClick(id, pos.x, pos.y); } } : undefined}
-                            tabIndex={clickable ? 0 : undefined}
-                            role={clickable ? 'button' : undefined}
-                            data-testid={clickable ? missionMapNodeTestId(id) : undefined}
-                            aria-label={clickable ? `${def?.name ?? id} — click to view details` : undefined}
+                            onClick={viewable ? () => handleNodeClick(id, pos.x, pos.y) : undefined}
+                            onMouseEnter={viewable ? () => handleNodeEnter(id, pos.x, pos.y) : undefined}
+                            onMouseLeave={viewable ? () => handleNodeLeave(id) : undefined}
+                            onMouseDown={viewable ? () => setPressedId(id) : undefined}
+                            onMouseUp={viewable ? () => setPressedId(null) : undefined}
+                            onKeyDown={viewable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleNodeClick(id, pos.x, pos.y); } } : undefined}
+                            tabIndex={viewable ? 0 : undefined}
+                            role={viewable ? 'button' : undefined}
+                            data-testid={viewable ? missionMapNodeTestId(id) : undefined}
+                            aria-label={viewable ? `${def?.name ?? id} — click to view details` : undefined}
                             style={{
-                                cursor: clickable ? 'pointer' : 'default',
+                                cursor: viewable ? 'pointer' : 'default',
                                 opacity: isSide ? 1 : (dimmed ? 0.35 : 1),
                                 outline: 'none',
                             }}
@@ -1015,11 +1051,13 @@ export default function MissionMapTab({
                                     fill={color}
                                     stroke={isSide
                                         ? (finished ? COMPLETED_MISSION_ACCENT : '#7c3aed')
-                                        : (completedCombat
-                                            ? COMPLETED_MISSION_ACCENT
-                                            : (showBattleHalo
-                                                ? BATTLE_NODE_STROKE
-                                                : ((isHovered || isPinned) ? 'white' : '#1f2937')))}
+                                        : isDisabled
+                                            ? (finished || completedCombat ? COMPLETED_MISSION_ACCENT : DISABLED_ADMIN_RING_COLOR)
+                                            : (completedCombat
+                                                ? COMPLETED_MISSION_ACCENT
+                                                : (showBattleHalo
+                                                    ? BATTLE_NODE_STROKE
+                                                    : ((isHovered || isPinned) ? 'white' : '#1f2937')))}
                                     strokeWidth={isSide || completedCombat || showBattleHalo ? 2 : ((isHovered || isPinned) ? 2.5 : 2)}
                                     strokeOpacity={(isHovered || isPinned) && !showBattleHalo ? 0.7 : 1}
                                 />
@@ -1086,7 +1124,11 @@ export default function MissionMapTab({
                     const finished = isDedicatedQuestBank(bank) && bank.questDefId
                         ? hasQuestVictoryResult(bank.questDefId, questResults)
                         : clears >= bank.requiredClears;
+                    const bankDisabled = isQuestBankDisabled(bank);
                     const label = bank.title ?? bank.id.replace(/_/g, ' ');
+                    const fill = finished || bankDisabled ? DISABLED_NODE_FILL : '#7c3aed';
+                    const stroke = finished ? COMPLETED_MISSION_ACCENT : '#a78bfa';
+                    const glow = '#7c3aed';
 
                     const isBankPinned = bankTooltip?.pinned && bankTooltip.bankId === bank.id;
 
@@ -1118,7 +1160,7 @@ export default function MissionMapTab({
                                     transformOrigin: '0px 0px',
                                     transition: 'transform 0.12s ease, filter 0.12s ease',
                                     filter: isHovered && !isPressed
-                                        ? 'brightness(1.25) drop-shadow(0 0 8px #7c3aed88)'
+                                        ? `brightness(1.25) drop-shadow(0 0 8px ${glow}88)`
                                         : undefined,
                                 }}
                             >
@@ -1134,10 +1176,19 @@ export default function MissionMapTab({
                                         side quest
                                     </text>
                                 )}
+                                {isAdmin && bankDisabled && (
+                                    <circle
+                                        r={r + 3}
+                                        fill="none"
+                                        stroke={DISABLED_ADMIN_RING_COLOR}
+                                        strokeWidth={1.5}
+                                        strokeDasharray="4 3"
+                                    />
+                                )}
                                 <circle
                                     r={r}
-                                    fill={finished ? MISSION_NODE_FILL.finished : '#7c3aed'}
-                                    stroke={finished ? COMPLETED_MISSION_ACCENT : '#a78bfa'}
+                                    fill={fill}
+                                    stroke={stroke}
                                     strokeWidth={2}
                                 />
                                 {finished ? (

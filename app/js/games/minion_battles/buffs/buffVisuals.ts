@@ -14,6 +14,7 @@ import { GRAVITY_LOCUS_FIELD_BUFF_TYPE } from './GravityLocusFieldBuff';
 import { SHIELD_BUFF_TYPE, ShieldBuff } from './ShieldBuff';
 import { type ShieldShimmerFilter, tryCreateShieldShimmerFilter } from '../game/ShieldShimmerFilter';
 import { GRAVITY_VIOLET } from '../game/effect_defs/aoeEffects';
+import { LIGHT_SHIELD_COLOR, LIGHT_SHIELD_COLOR_INNER } from '../card_defs/08_light_core/0805_ShieldOfLight/0805Constants';
 
 /** Context passed when rendering a buff visual. */
 export interface IBuffVisualContext {
@@ -126,6 +127,22 @@ const gravityShieldBuffVisual: BuffVisualRenderer = (g, unit, buff, ctx) => {
 };
 
 /**
+ * Shield of Light: a pulsing yellowish shell. Same geometry as Gravity Shield, Light palette.
+ */
+const lightShieldBuffVisual: BuffVisualRenderer = (g, unit, buff, ctx) => {
+    const shield = buff as ShieldBuff;
+    if (shield.remainingHp <= 0) return;
+
+    const pulse = 0.55 + 0.25 * Math.sin(ctx.gameTime * 5);
+    const shellRadius = unit.radius + 4;
+    g.circle(0, 0, shellRadius);
+    g.fill({ color: LIGHT_SHIELD_COLOR, alpha: 0.18 * pulse });
+    g.stroke({ color: LIGHT_SHIELD_COLOR, width: 2, alpha: 0.8 * pulse });
+    g.circle(0, 0, shellRadius * 0.7);
+    g.stroke({ color: LIGHT_SHIELD_COLOR_INNER, width: 1, alpha: 0.55 * pulse });
+};
+
+/**
  * Shield: a translucent shell around the unit's body, shimmering black/red/transparent.
  * See card_defs/03_blood_mage/AGENTS.md for the design intent behind Protect, which grants this.
  *
@@ -142,6 +159,10 @@ const shieldBuffVisual: BuffVisualRenderer = (g, unit, buff, ctx) => {
     if (shield.remainingHp <= 0) return;
     if (shield.theme === 'gravity') {
         gravityShieldBuffVisual(g, unit, buff, ctx);
+        return;
+    }
+    if (shield.theme === 'light') {
+        lightShieldBuffVisual(g, unit, buff, ctx);
         return;
     }
 

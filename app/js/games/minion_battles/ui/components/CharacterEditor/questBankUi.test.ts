@@ -6,11 +6,18 @@ import {
 } from '../../../storylines/WorldOfDarkness/WorldOfDarkness';
 import {
     SWARMLING_SOURCE,
+    SWARMLING_SOURCE_DESCRIPTION,
     SWARMLING_SOURCE_QUEST_ID,
     SWARMLING_SOURCE_TITLE,
 } from '../../../storylines/WorldOfDarkness/quests/swarmling_source';
-import { SCAVENGE_THE_PLAINS } from '../../../storylines/WorldOfDarkness/quests/scavenge_the_plains';
-import { INVESTIGATE_THE_WILDLIFE } from '../../../storylines/WorldOfDarkness/quests/investigate_the_wildlife';
+import {
+    SCAVENGE_THE_PLAINS,
+    SCAVENGE_THE_PLAINS_DESCRIPTION,
+} from '../../../storylines/WorldOfDarkness/quests/scavenge_the_plains';
+import {
+    INVESTIGATE_THE_WILDLIFE,
+    INVESTIGATE_THE_WILDLIFE_DESCRIPTION,
+} from '../../../storylines/WorldOfDarkness/quests/investigate_the_wildlife';
 import {
     SCAVENGE_THE_PLAINS_COMPLETION_CRYSTALS,
     SCAVENGE_THE_PLAINS_COMPLETION_FOOD,
@@ -24,12 +31,50 @@ import {
 } from '../../../storylines/WorldOfDarkness/questMissions/questMissionConstants';
 import {
     bankDisplayLabel,
+    MAP_NODE_DISABLED_LABEL,
+    QUEST_BANK_PICKER_HOVER_DESCRIPTION,
+    questBankHoverDescription,
     questBankUnlockRequirementLabel,
     questCompletionResourceGains,
     questResultPlacementLabel,
 } from './questBankUi';
 
 const BANKS = [WOD_SWARMLING_SOURCE_BANK, WOD_POST_CORE_QUEST_BANK];
+
+describe('questBankHoverDescription', () => {
+    it('uses dedicated quest flavor copy when unlocked', () => {
+        expect(questBankHoverDescription({
+            isLocked: false,
+            isDedicated: true,
+            unlockRequirementLabel: null,
+            questDescription: SWARMLING_SOURCE_DESCRIPTION,
+        })).toBe(SWARMLING_SOURCE_DESCRIPTION);
+        expect(questBankHoverDescription({
+            isLocked: false,
+            isDedicated: true,
+            unlockRequirementLabel: null,
+            questDescription: INVESTIGATE_THE_WILDLIFE_DESCRIPTION,
+        })).toBe(INVESTIGATE_THE_WILDLIFE_DESCRIPTION);
+        expect(questBankHoverDescription({
+            isLocked: false,
+            isDedicated: true,
+            unlockRequirementLabel: null,
+            questDescription: SCAVENGE_THE_PLAINS_DESCRIPTION,
+        })).toBe(SCAVENGE_THE_PLAINS_DESCRIPTION);
+    });
+
+    it('uses picker copy for multi-quest banks', () => {
+        expect(questBankHoverDescription({
+            isLocked: false,
+            isDedicated: false,
+            unlockRequirementLabel: null,
+        })).toBe(QUEST_BANK_PICKER_HOVER_DESCRIPTION);
+    });
+
+    it('exports the disabled map-node label', () => {
+        expect(MAP_NODE_DISABLED_LABEL).toBe('disabled');
+    });
+});
 
 describe('bankDisplayLabel', () => {
     it('uses the Surface Quests picker title', () => {
