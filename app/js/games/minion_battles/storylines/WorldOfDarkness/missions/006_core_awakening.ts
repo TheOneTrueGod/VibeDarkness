@@ -16,7 +16,7 @@ import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { RESEARCH_TREES, getResearchNode } from '../../../../../researchTrees/list';
 import { nodeGrantsEquippedItem } from '../../../../../researchTrees/evaluator';
-import { isDraftResearchNode } from '../../../../../researchTrees/types';
+import { isDisabledResearchNode, isDraftResearchNode } from '../../../../../researchTrees/types';
 import { GRAVITY_TREE_ID, GRAVITY_NODE_CORE } from '../../../../../researchTrees/trees/gravity';
 import {
     COMMAND_CORE_TREE_ID,
@@ -93,7 +93,7 @@ export function listTier10RootCoreCandidates(): CoreAwakeningCandidate[] {
     for (const tree of RESEARCH_TREES) {
         for (const node of tree.nodes) {
             if (node.tier !== CORE_AWAKENING_TIER) continue;
-            if (isDraftResearchNode(node)) continue;
+            if (isDraftResearchNode(node) || isDisabledResearchNode(node)) continue;
             if (node.prereqNodeIds.length > 0) continue;
             const id = coreCandidateKey(tree.id, node.id);
             out.push({

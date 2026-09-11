@@ -79,4 +79,20 @@ describe('CircleAoEHitboxSpec', () => {
         const targets = hitbox.resolveTargets(caster, { x: 50, y: 50 }, [caster]);
         expect(targets).toEqual([]);
     });
+
+    it('resolveTargets uses resolveAoeRadius when provided', () => {
+        const expandedRadius = AOE_RADIUS * 2;
+        const expanded = circleAoEHitbox({
+            castRange: CAST_RANGE,
+            aoeRadius: AOE_RADIUS,
+            numTargets: NUM_TARGETS,
+            resolveAoeRadius: () => expandedRadius,
+        });
+        const caster = makeUnit('caster', 0, 0, 'player');
+        const justOutsideBase = makeUnit('outsideBase', 100 + AOE_RADIUS + DEFAULT_UNIT_RADIUS + 5, 0);
+        const baseTargets = hitbox.resolveTargets(caster, { x: 100, y: 0 }, [caster, justOutsideBase]);
+        const expandedTargets = expanded.resolveTargets(caster, { x: 100, y: 0 }, [caster, justOutsideBase]);
+        expect(baseTargets.map((u) => u.id)).toEqual([]);
+        expect(expandedTargets.map((u) => u.id)).toEqual(['outsideBase']);
+    });
 });

@@ -25,17 +25,20 @@ export class CircleAoEHitboxSpec extends HitboxSpec {
     readonly aoeRadius: number;
     private readonly _numTargets: number;
     private readonly previewStyle: Required<CircleAoEPreviewStyle>;
+    private readonly resolveAoeRadius?: (caster?: HitboxPreviewCaster) => number;
 
     constructor(
         castRange: number,
         aoeRadius: number,
         numTargets: number,
         previewStyle?: CircleAoEPreviewStyle,
+        resolveAoeRadius?: (caster?: HitboxPreviewCaster) => number,
     ) {
         super();
         this.castRange = castRange;
         this.aoeRadius = aoeRadius;
         this._numTargets = numTargets;
+        this.resolveAoeRadius = resolveAoeRadius;
         this.previewStyle = {
             color: previewStyle?.color ?? 0xc0c0c0,
             lineWidth: previewStyle?.lineWidth ?? 2,
@@ -55,6 +58,10 @@ export class CircleAoEHitboxSpec extends HitboxSpec {
         return this._numTargets;
     }
 
+    aoeRadiusFor(caster?: HitboxPreviewCaster): number {
+        return this.resolveAoeRadius?.(caster) ?? this.aoeRadius;
+    }
+
     private clampAim(
         caster: { x: number; y: number },
         aim: { x: number; y: number },
@@ -67,13 +74,14 @@ export class CircleAoEHitboxSpec extends HitboxSpec {
         center: { x: number; y: number },
         units: Unit[],
         excludeId?: string,
+        aoeRadius = this.aoeRadius,
     ): Unit[] {
         const result: Unit[] = [];
         for (const unit of units) {
             if (!unit.active || !unit.isAlive()) continue;
             if (excludeId != null && unit.id === excludeId) continue;
             // Match CircleHitbox combat geometry (disk overlaps unit circle).
-            if (unitOverlapsCircle(unit, center.x, center.y, this.aoeRadius)) {
+            if (unitOverlapsCircle(unit, center.x, center.y, aoeRadius)) {
                 result.push(unit);
             }
         }
@@ -93,6 +101,7 @@ export class CircleAoEHitboxSpec extends HitboxSpec {
     ): Unit[] {
         const style = this.previewStyle;
         const impact = this.clampAim(caster, mouseWorld);
+        const aoeRadius = this.aoeRadiusFor(caster);
         drawClampedLine(gr, caster, mouseWorld, this.castRange, {
             color: style.color,
             width: style.lineWidth,
@@ -105,11 +114,11 @@ export class CircleAoEHitboxSpec extends HitboxSpec {
                 alpha: 0.95,
             });
         }
-        gr.circle(impact.x, impact.y, this.aoeRadius);
+        gr.circle(impact.x, impact.y, aoeRadius);
         gr.fill({ color: style.color, alpha: style.fillAlpha });
-        gr.circle(impact.x, impact.y, this.aoeRadius);
+        gr.circle(impact.x, impact.y, aoeRadius);
         gr.stroke({ color: style.color, width: style.lineWidth, alpha: style.strokeAlpha });
-        return this.unitsInAoe(impact, units);
+        return this.unitsInAoe(impact, units, undefined, aoeRadius);
     }
 
     resolveTargets(
@@ -118,7 +127,7 @@ export class CircleAoEHitboxSpec extends HitboxSpec {
         units: Unit[],
     ): Unit[] {
         const impact = this.clampAim(caster, aimPoint);
-        return this.unitsInAoe(impact, units, caster.id);
+        return this.unitsInAoe(impact, units, caster.id, this.aoeRadiusFor(caster));
     }
 
     resolveHits(
@@ -133,7 +142,7 @@ export class CircleAoEHitboxSpec extends HitboxSpec {
             caster,
             impact.x,
             impact.y,
-            this.aoeRadius,
+            this.aoeRadiusFor(caster),
         );
     }
 }
@@ -147,11 +156,13 @@ export function circleAoEHitbox(options: {
     aoeRadius: number;
     numTargets: number;
     previewStyle?: CircleAoEPreviewStyle;
+    resolveAoeRadius?: (caster?: HitboxPreviewCaster) => number;
 }): CircleAoEHitboxSpec {
     return new CircleAoEHitboxSpec(
         options.castRange,
         options.aoeRadius,
         options.numTargets,
         options.previewStyle,
+        options.resolveAoeRadius,
     );
 }

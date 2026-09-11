@@ -1,6 +1,6 @@
 import type { ResearchRewardSlot, StoryChoiceOptionRow } from './storyTypes';
 import type { ResearchNodeDef } from '../../../researchTrees/types';
-import { isDraftResearchNode } from '../../../researchTrees/types';
+import { isDisabledResearchNode, isDraftResearchNode } from '../../../researchTrees/types';
 import { RESEARCH_TREES } from '../../../researchTrees/list';
 import { collectResearchedNodeIds, nodeGrantsEquippedItem } from '../../../researchTrees/evaluator';
 
@@ -69,7 +69,7 @@ export function resolveResearchRewardSlots(
             if (slot.treeId && tree.id !== slot.treeId) continue;
             const researchedSet = new Set(researched[tree.id] ?? []);
             for (const node of tree.nodes) {
-                if (isDraftResearchNode(node)) continue;
+                if (isDraftResearchNode(node) || isDisabledResearchNode(node)) continue;
                 if (researchedSet.has(node.id)) continue;
                 if (slot.minTier !== undefined && (node.tier ?? 0) < slot.minTier) continue;
                 if (slot.maxTier !== undefined && (node.tier ?? 0) > slot.maxTier) continue;

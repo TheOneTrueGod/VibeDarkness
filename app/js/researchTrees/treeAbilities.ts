@@ -1,5 +1,5 @@
 import { getItemDef } from '../games/minion_battles/character_defs/items';
-import { isDraftResearchNode, type ResearchTreeDef } from './types';
+import { isDisabledResearchNode, isDraftResearchNode, type ResearchTreeDef } from './types';
 
 function accessItemAbilityIds(tree: ResearchTreeDef): Set<string> {
     const ids = new Set<string>();
@@ -21,7 +21,7 @@ export function collectResearchTreeAbilityIds(tree: ResearchTreeDef): Set<string
     const fromItems = accessItemAbilityIds(tree);
 
     for (const node of tree.nodes) {
-        if (isDraftResearchNode(node)) continue;
+        if (isDraftResearchNode(node) || isDisabledResearchNode(node)) continue;
         for (const effect of node.effects) {
             if (effect.type === 'addCard') ids.add(effect.cardId);
             if (effect.type === 'replaceCard') ids.add(effect.toCardId);
@@ -32,7 +32,7 @@ export function collectResearchTreeAbilityIds(tree: ResearchTreeDef): Set<string
     const isOwned = (abilityId: string) => fromItems.has(abilityId) || ids.has(abilityId);
 
     for (const node of tree.nodes) {
-        if (isDraftResearchNode(node)) continue;
+        if (isDraftResearchNode(node) || isDisabledResearchNode(node)) continue;
         for (const effect of node.effects) {
             if (effect.type === 'replaceCard' && isOwned(effect.fromCardId)) {
                 ids.add(effect.fromCardId);

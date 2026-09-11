@@ -596,6 +596,7 @@ export default function CharacterEditor({
             const check = canResearchNode(tree, nodeId, ctx, {
                 skipCostCheck: isAdmin,
                 skipMissionRewardCheck: isAdmin,
+                includeDisabled: isAdmin,
             });
             if (!check.ok) return;
 

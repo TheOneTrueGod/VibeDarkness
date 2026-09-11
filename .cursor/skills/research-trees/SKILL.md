@@ -27,6 +27,8 @@ Each tree has `colour` and `icon`. Cards and the Upgrades sidebar use those fiel
 ### Node relationships
 - `prereqNodeIds` — nodes that must be researched before this one is available
 - `exclusiveWithNodeIds` — nodes that conflict; only one of the group may be researched
+- `draft` — when `true`, the node is WIP: hidden from Upgrades selection UI and excluded from `getAvailableResearchNodes` / filter-style mission reward discovery
+- `disabled` — when `true`, hidden from non-admins (Upgrades graph/grid and discovery). Admins still see the node and can grant it.
 
 ### Persistence
 Research is stored on `CampaignCharacter` as `researchTrees` (node ids), `researchNodeLevels`, and `researchSources` (per-level `Purchased` / `Admin` / `QuestReward`). Missing sources on legacy characters count as Purchased. Effective resources subtract **only Purchased** costs. Mission/quest grants persist `QuestReward`; player clicks on Upgrades persist `Purchased`; admin clicks persist `Admin`. The Upgrades Resources row has **Reset Research** (strips Purchased) and an admin-only **Reset Admin Research** button.

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import type { AccountState, CampaignResources } from '../../../../types';
 import type { CampaignCharacter } from '../../character_defs/CampaignCharacter';
 import {
+	isDisabledResearchNode,
 	isDraftResearchNode,
 	MISSION_REWARD_MISSING,
 	MISSION_REWARD_REQUIREMENT_LABEL,
@@ -387,15 +388,17 @@ export function ResearchTreeContent({
 		return out;
 	}, [researchTrees]);
 
-	const nodes = useMemo(() => selectableResearchNodes(tree), [tree]);
+	const nodes = useMemo(() => selectableResearchNodes(tree, { includeDisabled: isAdmin }), [isAdmin, tree]);
 	const crossTreeRefs = useMemo(
 		() =>
 			(tree.crossTreeNodeRefs ?? []).filter((ref) => {
 				const other = allTrees.find((t) => t.id === ref.fromTreeId);
 				const node = other?.nodes.find((n) => n.id === ref.nodeId);
-				return node != null && !isDraftResearchNode(node);
+				if (node == null || isDraftResearchNode(node)) return false;
+				if (isDisabledResearchNode(node) && !isAdmin) return false;
+				return true;
 			}),
-		[tree, allTrees],
+		[isAdmin, tree, allTrees],
 	);
 
 	const allPositions = [
@@ -538,6 +541,7 @@ export function ResearchTreeContent({
 							const check = canResearchNode(tree, n.id, ctx, {
 								skipCostCheck: isAdmin,
 								skipMissionRewardCheck: isAdmin,
+								includeDisabled: isAdmin,
 							});
 							const enabled = !atMax && check.ok;
 							const blocked = !atMax && !check.ok;
@@ -628,6 +632,7 @@ export function ResearchTreeContent({
 							const check = canResearchNode(fromTree, ref.nodeId, ctx, {
 								skipCostCheck: isAdmin,
 								skipMissionRewardCheck: isAdmin,
+								includeDisabled: isAdmin,
 							});
 							const enabled = !atMax && check.ok;
 							const blocked = !atMax && !check.ok;
@@ -728,6 +733,7 @@ function ResearchGridCards({
 					canPurchaseResearchGridEntry({ tree, node }, researchCtx, {
 						skipCostCheck,
 						skipMissionRewardCheck: skipCostCheck,
+						includeDisabled: skipCostCheck,
 					});
 				return (
 					<ResearchNodeCard
@@ -783,18 +789,18 @@ export function ResearchedNodesGrid({
 		};
 	}, [account, campaignResources, character, equipment, researchNodeLevels, researchSources, researchTrees]);
 	const eligible = useMemo(
-		() => collectEligibleResearchGridEntries(availableTrees, filterTreeId, researchCtx),
-		[availableTrees, filterTreeId, researchCtx],
+		() => collectEligibleResearchGridEntries(availableTrees, filterTreeId, researchCtx, isAdmin),
+		[availableTrees, filterTreeId, isAdmin, researchCtx],
 	);
 	const possessed = useMemo(
-		() => collectResearchGridEntries(availableTrees, researchTrees, filterTreeId, true),
-		[availableTrees, filterTreeId, researchTrees],
+		() => collectResearchGridEntries(availableTrees, researchTrees, filterTreeId, true, isAdmin),
+		[availableTrees, filterTreeId, isAdmin, researchTrees],
 	);
 	const unowned = useMemo(() => {
 		if (!showUnowned) return [];
-		const allUnowned = collectResearchGridEntries(availableTrees, researchTrees, filterTreeId, false);
+		const allUnowned = collectResearchGridEntries(availableTrees, researchTrees, filterTreeId, false, isAdmin);
 		return excludeResearchGridEntries(allUnowned, eligible);
-	}, [availableTrees, eligible, filterTreeId, researchTrees, showUnowned]);
+	}, [availableTrees, eligible, filterTreeId, isAdmin, researchTrees, showUnowned]);
 	const effectiveResources = useMemo(() => computeEffectiveResources(researchCtx), [researchCtx]);
 	const hasCards = eligible.length > 0 || possessed.length > 0 || unowned.length > 0;
 

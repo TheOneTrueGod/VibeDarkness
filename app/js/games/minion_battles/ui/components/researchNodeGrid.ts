@@ -118,12 +118,13 @@ export function collectResearchGridEntries(
     researchTrees: Record<string, string[]>,
     filterTreeId: string | null,
     owned: boolean,
+    includeDisabled = false,
 ): ResearchGridEntry[] {
     const entries: ResearchGridEntry[] = [];
     for (const tree of availableTrees) {
         if (filterTreeId !== null && tree.id !== filterTreeId) continue;
         const researched = new Set(researchTrees[tree.id] ?? []);
-        for (const node of selectableResearchNodes(tree)) {
+        for (const node of selectableResearchNodes(tree, { includeDisabled })) {
             if (researched.has(node.id) === owned) {
                 entries.push({ tree, node });
             }
@@ -144,6 +145,7 @@ export function collectEligibleResearchGridEntries(
     availableTrees: ResearchTreeDef[],
     filterTreeId: string | null,
     ctx: ResearchContext,
+    includeDisabled = false,
 ): ResearchGridEntry[] {
     const allResearchedNodeIds = collectResearchedNodeIds(ctx.character.researchTrees);
     const researchedByTree = researchedSetsByTreeId(ctx.character.researchTrees ?? {});
@@ -157,7 +159,7 @@ export function collectEligibleResearchGridEntries(
             campaignResources: computeEffectiveResourcesForTree(tree, ctx),
         };
 
-        for (const node of selectableResearchNodes(tree)) {
+        for (const node of selectableResearchNodes(tree, { includeDisabled })) {
             const currentLevel = getNodeLevel(
                 tree.id,
                 node.id,
@@ -186,7 +188,7 @@ export function excludeResearchGridEntries(
 export function canPurchaseResearchGridEntry(
     entry: ResearchGridEntry,
     ctx: ResearchContext,
-    options?: { skipCostCheck?: boolean; skipMissionRewardCheck?: boolean },
+    options?: { skipCostCheck?: boolean; skipMissionRewardCheck?: boolean; includeDisabled?: boolean },
 ): boolean {
     return canResearchNode(entry.tree, entry.node.id, ctx, options).ok;
 }

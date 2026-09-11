@@ -7,7 +7,6 @@
  */
 
 import { AbilityPhase } from '../../../abilities/abilityTimings';
-import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
 import {
@@ -17,12 +16,14 @@ import {
     GATHER_LIGHT_PREFIRE_TIME,
     type EngineWithGatherLight,
 } from '../../../abilities/gatherLightHelpers';
+import { getAbilityModifier } from '../../../abilities/abilityModifierHelpers';
+import { GATHER_LIGHT_ABILITY_ID, getGatherLightAmount } from './0804Constants';
 
-const CARD_ID = `${formatGroupId(AbilityGroupId.Light)}04`;
+const CARD_ID = GATHER_LIGHT_ABILITY_ID;
 const MAX_USES = 2;
 const ACTIVE_DURATION = 0.05;
 const COOLDOWN_DURATION = 0.45;
-export const GATHER_LIGHT_AMOUNT = 4;
+export { GATHER_LIGHT_AMOUNT } from './0804Constants';
 export const GATHER_LIGHT_RING_COLOR = 0x9933cc;
 
 const GATHER_LIGHT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
@@ -74,7 +75,7 @@ export const GatherLightAbility = defineAbility({
                     timingStart: 'start',
                     behaviour: CastBehaviours.Instant((ctx) => {
                         const eng = ctx.engine as EngineWithGatherLight;
-                        ctx.caster.getResource('light')?.add(GATHER_LIGHT_AMOUNT);
+                        ctx.caster.getResource('light')?.add(getGatherLightAmount(ctx.caster));
                         const { adjacentTiles } = applyGatherLightDarkness(
                             eng,
                             ctx.caster,
@@ -95,8 +96,11 @@ export const GatherLightAbility = defineAbility({
 
     getRange: () => ({ minRange: 0, maxRange: 0 }),
 
-    getTooltipText(): string[] {
-        return [`Gather the light near you to recover {${GATHER_LIGHT_AMOUNT}} light`];
+    getTooltipText(gameState?: unknown): string[] {
+        const amount = getGatherLightAmount({
+            abilityModifiers: { [CARD_ID]: getAbilityModifier(gameState, undefined, CARD_ID) },
+        });
+        return [`Gather the light near you to recover {${amount}} light`];
     },
 
     renderTargetingPreviewSelectedTargets(): void {

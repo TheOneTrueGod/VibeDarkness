@@ -10,7 +10,6 @@ import { circleAoEHitbox, unitOverlapsCircle } from '../../../hitboxes';
 import type { HitboxEngineContext } from '../../../hitboxes/Hitbox';
 import { spawnBrightLight, type EngineWithLight } from '../../../abilities/brightKeyword';
 import { type CardDef } from '../../types';
-import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
@@ -18,6 +17,7 @@ import { createMovementPenaltyStates } from '../../../abilities/shieldHelpers';
 import { areEnemies } from '../../../game/teams';
 import type { Unit } from '../../../game/units/Unit';
 import { applyHeal, DEFAULT_HEAL_PENALTY_PCT } from '../../../game/units/unitHeal';
+import { Effect } from '../../../game/effects/Effect';
 import { EngineWithGatherLight, spawnGatherLightWindupRing } from '@/games/minion_battles/abilities/gatherLightHelpers';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import {
@@ -29,14 +29,14 @@ import {
     extractCommittedUnitIds,
 } from '../../../abilities/priorityFillHits';
 import { findMeleeAimPixelInTargets } from '../../../abilities/targeting';
-import { LIGHT_BLAST_BRIGHT_MAGNITUDE } from './0801Constants';
+import { LIGHT_BLAST_BRIGHT_MAGNITUDE, LIGHT_BLAST_ABILITY_ID, LIGHT_BLAST_RADIUS, getLightBlastRadius } from './0801Constants';
 
-const CARD_ID = `${formatGroupId(AbilityGroupId.Light)}01`;
+const CARD_ID = LIGHT_BLAST_ABILITY_ID;
 const MAX_USES = 2;
 const PREFIRE_TIME = 0.4;
 export const LIGHT_BLAST_MAX_RANGE = 200;
 const MAX_RANGE = LIGHT_BLAST_MAX_RANGE;
-export const LIGHT_BLAST_RADIUS = 40;
+export { LIGHT_BLAST_RADIUS } from './0801Constants';
 export const LIGHT_BLAST_DAMAGE = 12;
 export const LIGHT_BLAST_MAX_TARGETS = 5;
 
@@ -52,6 +52,7 @@ const LIGHT_BLAST_HITBOX = circleAoEHitbox({
         strokeAlpha: 0.3,
         showCrosshair: false,
     },
+    resolveAoeRadius: getLightBlastRadius,
 });
 const LIGHT_BLAST_HEAL = 5;
 export { LIGHT_BLAST_BRIGHT_MAGNITUDE } from './0801Constants';
@@ -127,18 +128,21 @@ export const LightBlastAbility = defineAbility({
                 allowMiss: true,
                 lockOnMode: 'strictHitbox',
             },
-            onProjectileHit: [{
-                type: 'effect',
-                effectType: 'Explosion',
-                effectProperties: { radius: LIGHT_BLAST_RADIUS, color: 0xffe066, direction: 'expand' },
-                duration: 0.35,
-                position: 'target',
-            }],
             behaviour: CastBehaviours.Instant((ctx) => {
                 const pos = findMeleeAimPixelInTargets(ctx.allTargets)
                     ?? ctx.target.position
                     ?? { x: ctx.caster.x, y: ctx.caster.y };
                 const eng = ctx.engine as EngineWithLight;
+                const blastRadius = getLightBlastRadius(ctx.caster);
+
+                eng.addEffect(new Effect({
+                    x: pos.x,
+                    y: pos.y,
+                    duration: 0.35,
+                    effectType: 'Explosion',
+                    effectRadius: blastRadius,
+                    effectProperties: { radius: blastRadius, color: 0xffe066, direction: 'expand' },
+                }));
 
                 const enemies = collectStrictAoEHits({
                     hitbox: LIGHT_BLAST_HITBOX,
@@ -168,7 +172,7 @@ export const LightBlastAbility = defineAbility({
                 for (const unit of eng.units) {
                     if (!unit.isAlive()) continue;
                     if (areEnemies(unit.teamId, ctx.caster.teamId)) continue;
-                    if (!unitOverlapsCircle(unit, pos.x, pos.y, LIGHT_BLAST_RADIUS)) continue;
+                    if (!unitOverlapsCircle(unit, pos.x, pos.y, blastRadius)) continue;
                     applyHeal(unit, LIGHT_BLAST_HEAL, healPenaltyPct);
                 }
 

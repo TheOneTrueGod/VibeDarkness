@@ -16,6 +16,7 @@ describe('Light Attuned research', () => {
         expect(node?.tier).toBe(LIGHT_ATTUNED_TIER);
         expect(node?.prereqNodeIds).toEqual([LIGHT_NODE_CORE]);
         expect(node?.passiveBonus?.[PassiveStatKey.LightRegenEnabled]?.add).toBe(LIGHT_REGEN_ENABLED_ADD);
+        expect(node?.disabled).toBe(true);
     });
 
     it('grants LightRegenEnabled when researched', () => {

@@ -22,6 +22,9 @@ export const MISSION_REWARD_REQUIREMENT_LABEL = 'Mission reward';
 /** `canResearchNode` missing key when a node is mission-reward-only. */
 export const MISSION_REWARD_MISSING = 'mission_reward';
 
+/** `canResearchNode` missing key when a node is disabled for non-admins. */
+export const DISABLED_RESEARCH_MISSING = 'disabled_node';
+
 export type ResearchEffect =
     | { type: 'equipItem'; itemId: string }
     | { type: 'replaceEquippedItem'; fromItemId: string; toItemId: string }
@@ -58,6 +61,8 @@ export interface AbilityModifier {
     addTags?: readonly string[];
     /** Max casts per Combo Cancel chain (research-granted, e.g. Rapid Throw). */
     comboMax?: number;
+    /** Flat bonus added to resources this ability grants (e.g. Gather Light). */
+    resourceGainFlat?: number;
     /** Overrides DEFAULT_HEAL_PENALTY_PCT for this ability's heals, down to 0 for "no penalty". */
     healPenaltyPctOverride?: number;
 }
@@ -128,6 +133,11 @@ export interface ResearchNodeDef {
      * excluded from available-node / mission-reward discovery.
      */
     draft?: boolean;
+    /**
+     * When true, hidden from non-admins (Upgrades graph/grid and discovery).
+     * Admins still see the node and can grant it.
+     */
+    disabled?: boolean;
     position: { x: number; y: number };
     prereqNodeIds: string[];
     exclusiveWithNodeIds: string[];
@@ -166,6 +176,11 @@ export interface ResearchNodeDef {
 /** True when the node is WIP and must not appear in research selection / discovery. */
 export function isDraftResearchNode(node: Pick<ResearchNodeDef, 'draft'>): boolean {
     return node.draft === true;
+}
+
+/** True when the node is admin-only (hidden from players). */
+export function isDisabledResearchNode(node: Pick<ResearchNodeDef, 'disabled'>): boolean {
+    return node.disabled === true;
 }
 
 /** A node from another tree shown inside this tree's panel. Purchasing stores it under fromTreeId. */

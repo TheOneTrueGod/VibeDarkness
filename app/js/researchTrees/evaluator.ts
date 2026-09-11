@@ -14,9 +14,15 @@ import type {
     ResearchNodeLevels,
     ResearchNodeSources,
 } from './types';
-import { isDraftResearchNode, MISSION_REWARD_MISSING, ResearchSource } from './types';
+import {
+    DISABLED_RESEARCH_MISSING,
+    isDisabledResearchNode,
+    isDraftResearchNode,
+    MISSION_REWARD_MISSING,
+    ResearchSource,
+} from './types';
 import { RESEARCH_TREES } from './list';
-import { DEFAULT_PASSIVE_MULT, getMultBonusAtLevel, getNodeLevel, getNodeMaxLevels } from './passiveBonuses';
+import { DEFAULT_PASSIVE_MULT, getAddAtLevel, getMultBonusAtLevel, getNodeLevel, getNodeMaxLevels } from './passiveBonuses';
 import { getNodeResearchSources } from './researchSources';
 
 export interface ResearchContext {
@@ -34,9 +40,16 @@ export function nodeGrantsEquippedItem(node: ResearchNodeDef, itemId: string): b
     });
 }
 
-/** Nodes that may appear on research screens (excludes draft). */
-export function selectableResearchNodes(tree: ResearchTreeDef): ResearchNodeDef[] {
-    return tree.nodes.filter((n) => !isDraftResearchNode(n));
+/** Nodes that may appear on research screens (excludes draft; disabled unless `includeDisabled`). */
+export function selectableResearchNodes(
+    tree: ResearchTreeDef,
+    options?: { includeDisabled?: boolean },
+): ResearchNodeDef[] {
+    return tree.nodes.filter((n) => {
+        if (isDraftResearchNode(n)) return false;
+        if (isDisabledResearchNode(n) && !options?.includeDisabled) return false;
+        return true;
+    });
 }
 
 export function getResearchedSet(character: CampaignCharacter, treeId: string): Set<string> {
@@ -304,12 +317,15 @@ export function canResearchNode(
     tree: ResearchTreeDef,
     nodeId: string,
     ctx: ResearchContext,
-    options: { skipCostCheck?: boolean; skipMissionRewardCheck?: boolean } = {},
+    options: { skipCostCheck?: boolean; skipMissionRewardCheck?: boolean; includeDisabled?: boolean } = {},
 ): { ok: boolean; missing: string[] } {
     const byId = nodeById(tree);
     const node = byId[nodeId];
     if (!node) return { ok: false, missing: ['unknown_node'] };
     if (isDraftResearchNode(node)) return { ok: false, missing: ['draft_node'] };
+    if (isDisabledResearchNode(node) && !options.includeDisabled) {
+        return { ok: false, missing: [DISABLED_RESEARCH_MISSING] };
+    }
 
     const researchedForTree = getResearchedSet(ctx.character, tree.id);
     const researched: Record<string, Set<string>> = Object.fromEntries(
@@ -617,7 +633,7 @@ export function getAvailableResearchNodes(
         const researchedSet = allResearched[tree.id];
 
         for (const node of tree.nodes) {
-            if (isDraftResearchNode(node)) continue;
+            if (isDraftResearchNode(node) || isDisabledResearchNode(node)) continue;
             const currentLevel = getNodeLevel(tree.id, node.id, trees, researchNodeLevels);
             const maxLevels = getNodeMaxLevels(node);
             if (currentLevel >= maxLevels) continue;
@@ -655,6 +671,9 @@ function mergeModifierInto(entry: AbilityModifier, modifier: AbilityModifier): v
     if (modifier.explosionDamageFlat !== undefined) entry.explosionDamageFlat = (entry.explosionDamageFlat ?? 0) + modifier.explosionDamageFlat;
     if (modifier.durationMult !== undefined) entry.durationMult = (entry.durationMult ?? 1) * modifier.durationMult;
     if (modifier.rangeMult !== undefined) entry.rangeMult = (entry.rangeMult ?? 1) * modifier.rangeMult;
+    if (modifier.resourceGainFlat !== undefined) {
+        entry.resourceGainFlat = (entry.resourceGainFlat ?? 0) + modifier.resourceGainFlat;
+    }
     if (modifier.knockbackTier !== undefined) entry.knockbackTier = Math.max(entry.knockbackTier ?? 0, modifier.knockbackTier);
     if (modifier.addTags?.length) {
         const existing = entry.addTags ? [...entry.addTags] : [];
@@ -687,6 +706,9 @@ function scaleAbilityResearchModifierByLevel(
     }
     if (fields.rangeMult !== undefined) {
         scaled.rangeMult = DEFAULT_PASSIVE_MULT + getMultBonusAtLevel(fields.rangeMult, level, maxLevels);
+    }
+    if (fields.resourceGainFlat !== undefined) {
+        scaled.resourceGainFlat = getAddAtLevel(fields.resourceGainFlat, level, maxLevels);
     }
     return scaled;
 }
