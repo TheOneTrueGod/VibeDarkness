@@ -142,7 +142,11 @@ export function getUnlockedMissionIds(
                 const hasIncomingSameChapter = edges.some(
                     (e) => e.toMissionId === missionId && chapterIdxByMission.get(e.fromMissionId) === i,
                 );
-                if (!hasIncomingSameChapter) unlocked.add(missionId);
+                // Bank-gated incoming edges (any chapter) unlock only via the edge loop.
+                const hasQuestBankGate = edges.some(
+                    (e) => e.toMissionId === missionId && e.requiresQuestBankId != null,
+                );
+                if (!hasIncomingSameChapter && !hasQuestBankGate) unlocked.add(missionId);
             }
         }
         for (const missionId of [...unlocked]) {
@@ -243,21 +247,33 @@ export function bankAcceptsQuest(bank: QuestSlotBank, quest: QuestDef): boolean 
     return questMatchesFilters(quest, bank.filters);
 }
 
-/** True when the bank has no mission gate, or that mission has a non-defeat result. */
+/** True when the bank has no mission/bank gate, or those gates are satisfied. */
 export function isQuestSlotBankUnlocked(
     bank: QuestSlotBank,
     missionResults: MissionResult[],
+    questResults: QuestResult[] = [],
+    banks: readonly QuestSlotBank[] = [],
 ): boolean {
-    if (!bank.unlockAfterMissionId) return true;
-    return hasVictoryResult(bank.unlockAfterMissionId, missionResults);
+    if (bank.unlockAfterMissionId && !hasVictoryResult(bank.unlockAfterMissionId, missionResults)) {
+        return false;
+    }
+    if (bank.unlockAfterQuestBankId) {
+        const prior = banks.find((b) => b.id === bank.unlockAfterQuestBankId);
+        if (!prior || !isQuestBankRequiredClearsSatisfied(prior, questResults)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 /** Unlocked banks on a storyline (order preserved from def). */
 export function getUnlockedQuestSlotBanks(
     storyline: StorylineDef,
     missionResults: MissionResult[],
+    questResults: QuestResult[] = [],
 ): QuestSlotBank[] {
-    return (storyline.questSlotBanks ?? []).filter((b) => isQuestSlotBankUnlocked(b, missionResults));
+    const banks = storyline.questSlotBanks ?? [];
+    return banks.filter((b) => isQuestSlotBankUnlocked(b, missionResults, questResults, banks));
 }
 
 /**

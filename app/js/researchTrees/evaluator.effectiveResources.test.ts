@@ -11,7 +11,7 @@ import {
     trainingTree,
 } from './trees/training';
 
-const BASE_RESOURCES: CampaignResources = { food: 100, metal: 40, population: 2, crystals: 8 };
+const BASE_RESOURCES: CampaignResources = { food: 100, metal: 40, population: 2, crystals: 8, exhaustion: 0 };
 
 function makeCtx(
     researchTrees: Record<string, string[]>,

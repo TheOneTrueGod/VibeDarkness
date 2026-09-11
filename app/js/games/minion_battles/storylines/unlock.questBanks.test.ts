@@ -27,13 +27,19 @@ import {
     WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS,
     WOD_SWARMLING_SOURCE_BANK,
     WOD_SCAVENGE_THE_PLAINS_BANK,
+    WOD_INVESTIGATE_THE_WILDLIFE_BANK,
+    WOD_POST_CORE_QUEST_BANK_2,
+    WOD_POST_CORE_QUEST_BANK_2_ID,
+    WOD_SURFACE_QUEST_FILTERS,
     WorldOfDarknessStoryline,
 } from './WorldOfDarkness/WorldOfDarkness';
 import { SWARMLING_SOURCE } from './WorldOfDarkness/quests/swarmling_source';
 import { SCAVENGE_THE_PLAINS } from './WorldOfDarkness/quests/scavenge_the_plains';
+import { INVESTIGATE_THE_WILDLIFE } from './WorldOfDarkness/quests/investigate_the_wildlife';
 import {
     WOD_CH2_MAP_X_COL0,
     WOD_CH2_MAP_X_COL1,
+    WOD_CH2_MAP_X_COL2,
     WOD_CH2_MAP_Y_ROW0,
     WOD_CH2_MAP_Y_ROW1,
 } from './WorldOfDarkness/chapter2Map';
@@ -84,7 +90,9 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
         expect(WorldOfDarknessStoryline.questSlotBanks).toEqual([
             WOD_SWARMLING_SOURCE_BANK,
             WOD_SCAVENGE_THE_PLAINS_BANK,
+            WOD_INVESTIGATE_THE_WILDLIFE_BANK,
             WOD_EXAMPLE_QUEST_BANK,
+            WOD_POST_CORE_QUEST_BANK_2,
         ]);
         expect(WOD_EXAMPLE_QUEST_BANK.requiredClears).toBe(WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS);
         expect(WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS).toBe(1);
@@ -97,7 +105,7 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
         });
     });
 
-    it('pins Swarmling Source and Scavenge the Plains as dedicated top-row nodes', () => {
+    it('pins Swarmling Source, Scavenge the Plains, and Investigate the Wildlife as dedicated top-row nodes', () => {
         expect(isDedicatedQuestBank(WOD_SWARMLING_SOURCE_BANK)).toBe(true);
         expect(WOD_SWARMLING_SOURCE_BANK.questDefId).toBe(SWARMLING_SOURCE.id);
         expect(WOD_SWARMLING_SOURCE_BANK.mapPosition).toEqual({
@@ -110,10 +118,17 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
             x: WOD_CH2_MAP_X_COL1,
             y: WOD_CH2_MAP_Y_ROW0,
         });
-        expect(WOD_EXAMPLE_QUEST_BANK.filters.tags).toEqual([LOCATION_PLAINS_TAG]);
-        expect(WOD_EXAMPLE_QUEST_BANK.filters.excludeQuestDefIds).toBeUndefined();
+        expect(isDedicatedQuestBank(WOD_INVESTIGATE_THE_WILDLIFE_BANK)).toBe(true);
+        expect(WOD_INVESTIGATE_THE_WILDLIFE_BANK.questDefId).toBe(INVESTIGATE_THE_WILDLIFE.id);
+        expect(WOD_INVESTIGATE_THE_WILDLIFE_BANK.mapPosition).toEqual({
+            x: WOD_CH2_MAP_X_COL2,
+            y: WOD_CH2_MAP_Y_ROW0,
+        });
+        expect(WOD_EXAMPLE_QUEST_BANK.filters).toEqual(WOD_SURFACE_QUEST_FILTERS);
+        expect(WOD_EXAMPLE_QUEST_BANK.filters.excludeQuestDefIds).toEqual([SCAVENGE_THE_PLAINS.id]);
         expect(SWARMLING_SOURCE.tags).toContain(LOCATION_PLAINS_TAG);
         expect(SCAVENGE_THE_PLAINS.tags).toContain(LOCATION_PLAINS_TAG);
+        expect(INVESTIGATE_THE_WILDLIFE.tags).toContain(LOCATION_PLAINS_TAG);
     });
 
     it('unlocks only after core_awakening victory', () => {
@@ -129,21 +144,56 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
         ).toEqual([
             WOD_SWARMLING_SOURCE_BANK,
             WOD_SCAVENGE_THE_PLAINS_BANK,
+            WOD_INVESTIGATE_THE_WILDLIFE_BANK,
             WOD_EXAMPLE_QUEST_BANK,
         ]);
+    });
+
+    it('gates the second Surface Quests picker on the first picker completing', () => {
+        expect(WOD_POST_CORE_QUEST_BANK_2.id).toBe(WOD_POST_CORE_QUEST_BANK_2_ID);
+        expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterQuestBankId).toBe(WOD_EXAMPLE_QUEST_BANK_ID);
+        expect(WOD_POST_CORE_QUEST_BANK_2.requiredClears).toBe(2);
+        expect(WOD_POST_CORE_QUEST_BANK_2.mapPosition).toEqual({
+            x: WOD_CH2_MAP_X_COL2,
+            y: WOD_CH2_MAP_Y_ROW1,
+        });
+        expect(WOD_POST_CORE_QUEST_BANK_2.filters).toEqual(WOD_SURFACE_QUEST_FILTERS);
+        const afterCore = [victoryMission('core_awakening')];
+        const banks = WorldOfDarknessStoryline.questSlotBanks ?? [];
+        expect(
+            isQuestSlotBankUnlocked(WOD_POST_CORE_QUEST_BANK_2, afterCore, [], banks),
+        ).toBe(false);
+        expect(
+            isQuestSlotBankUnlocked(
+                WOD_POST_CORE_QUEST_BANK_2,
+                afterCore,
+                [bankVictory(SWARMLING_SOURCE.id, WOD_SWARMLING_SOURCE_BANK.id)],
+                banks,
+            ),
+        ).toBe(true);
+        expect(
+            getUnlockedQuestSlotBanks(
+                WorldOfDarknessStoryline,
+                afterCore,
+                [bankVictory(SWARMLING_SOURCE.id, WOD_SWARMLING_SOURCE_BANK.id)],
+            ),
+        ).toContain(WOD_POST_CORE_QUEST_BANK_2);
     });
 });
 
 describe('dedicated quest banks', () => {
-    const pool = [SWARMLING_SOURCE, SCAVENGE_THE_PLAINS, OTHER_PLACEHOLDER_QUEST];
+    const pool = [SWARMLING_SOURCE, SCAVENGE_THE_PLAINS, INVESTIGATE_THE_WILDLIFE, OTHER_PLACEHOLDER_QUEST];
 
     it('accepts only the pinned quest', () => {
         expect(bankAcceptsQuest(WOD_SWARMLING_SOURCE_BANK, SWARMLING_SOURCE)).toBe(true);
         expect(bankAcceptsQuest(WOD_SWARMLING_SOURCE_BANK, SCAVENGE_THE_PLAINS)).toBe(false);
         expect(bankAcceptsQuest(WOD_SCAVENGE_THE_PLAINS_BANK, SCAVENGE_THE_PLAINS)).toBe(true);
         expect(bankAcceptsQuest(WOD_SCAVENGE_THE_PLAINS_BANK, SWARMLING_SOURCE)).toBe(false);
+        expect(bankAcceptsQuest(WOD_INVESTIGATE_THE_WILDLIFE_BANK, INVESTIGATE_THE_WILDLIFE)).toBe(true);
+        expect(bankAcceptsQuest(WOD_INVESTIGATE_THE_WILDLIFE_BANK, SCAVENGE_THE_PLAINS)).toBe(false);
         expect(bankAcceptsQuest(WOD_EXAMPLE_QUEST_BANK, SWARMLING_SOURCE)).toBe(true);
-        expect(bankAcceptsQuest(WOD_EXAMPLE_QUEST_BANK, SCAVENGE_THE_PLAINS)).toBe(true);
+        expect(bankAcceptsQuest(WOD_EXAMPLE_QUEST_BANK, SCAVENGE_THE_PLAINS)).toBe(false);
+        expect(bankAcceptsQuest(WOD_EXAMPLE_QUEST_BANK, INVESTIGATE_THE_WILDLIFE)).toBe(true);
         expect(bankAcceptsQuest(WOD_EXAMPLE_QUEST_BANK, OTHER_PLACEHOLDER_QUEST)).toBe(false);
     });
 
@@ -164,6 +214,22 @@ describe('dedicated quest banks', () => {
                 pool,
             ).map((q) => q.id),
         ).toEqual([SCAVENGE_THE_PLAINS.id]);
+        expect(
+            getEligibleQuestsForBank(
+                WOD_INVESTIGATE_THE_WILDLIFE_BANK,
+                CAMPAIGN_ID,
+                [],
+                pool,
+            ).map((q) => q.id),
+        ).toEqual([INVESTIGATE_THE_WILDLIFE.id]);
+        expect(
+            getEligibleQuestsForBank(
+                WOD_EXAMPLE_QUEST_BANK,
+                CAMPAIGN_ID,
+                [],
+                pool,
+            ).map((q) => q.id).sort(),
+        ).toEqual([SWARMLING_SOURCE.id, INVESTIGATE_THE_WILDLIFE.id].sort());
     });
 
     it('join-fills the dedicated bank before the Surface Quests picker', () => {
@@ -172,6 +238,7 @@ describe('dedicated quest banks', () => {
             [
                 WOD_SWARMLING_SOURCE_BANK,
                 WOD_SCAVENGE_THE_PLAINS_BANK,
+                WOD_INVESTIGATE_THE_WILDLIFE_BANK,
                 WOD_EXAMPLE_QUEST_BANK,
             ],
             [],

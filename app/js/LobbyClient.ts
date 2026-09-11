@@ -553,6 +553,14 @@ export class LobbyClient {
         return data.campaign as import('./types').CampaignState;
     }
 
+    async resetCampaignResources(campaignId: string): Promise<import('./types').CampaignState> {
+        const data = await this.request(
+            `/api/admin/campaigns/${encodeURIComponent(campaignId)}/resources/reset`,
+            { method: 'POST' },
+        );
+        return data.campaign as import('./types').CampaignState;
+    }
+
     async updateGameState(
         lobbyId: string,
         gameId: string,

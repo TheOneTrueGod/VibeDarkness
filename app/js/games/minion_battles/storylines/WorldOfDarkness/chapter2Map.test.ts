@@ -1,5 +1,5 @@
 /**
- * Chapter 2 Mission Map grid: missions moved down one row; dedicated quests occupy row 0.
+ * Chapter 2 Mission Map grid: Ember / Thorn March left the map; remaining chain slid clockwise.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -31,16 +31,19 @@ describe('chapter 2 mission map grid', () => {
         expect(WOD_CH2_MAP_Y_ROW2 - WOD_CH2_MAP_Y_ROW1).toBe(WOD_CH2_MAP_ROW_SPACING);
     });
 
-    it('places former top-row missions on row 1', () => {
-        expect(THORNBINDER_ARENA.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW1 });
-        expect(SOUTH_GATE_SWARM.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW1 });
-        expect(EMBER_THRESHOLD.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW1 });
+    it('places the remaining chain after clockwise slides into Ember and Thorn March slots', () => {
+        expect(THORNBINDER_ARENA.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW1 });
+        expect(SOUTH_GATE_SWARM.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW2 });
+        expect(THORNLING_RISE.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW2 });
     });
 
-    it('places former bottom-row missions on row 2', () => {
+    it('keeps side missions on row 2', () => {
         expect(CRYSTAL_CORRUPTION.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW2 });
         expect(THE_CIRCLE.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW2 });
-        expect(THORNLING_RISE.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW2 });
-        expect(THORN_MARCH.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW2 });
+    });
+
+    it('removes Ember at the Threshold and Thorn March from the map', () => {
+        expect(EMBER_THRESHOLD.mapPosition).toBeUndefined();
+        expect(THORN_MARCH.mapPosition).toBeUndefined();
     });
 });

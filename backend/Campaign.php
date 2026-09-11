@@ -8,6 +8,9 @@ namespace App;
  */
 class Campaign
 {
+    /** @var list<string> */
+    private const RESOURCE_KEYS = ['food', 'metal', 'population', 'crystals', 'exhaustion'];
+
     private string $id;
     private string $name;
     /** @var array<int, array{id: string, name: string, characterId: string}> */
@@ -17,14 +20,14 @@ class Campaign
      *   missionId: string,
      *   result: string,
      *   timestamp?: float,
-     *   resourceDelta?: array{food?: int, metal?: int, population?: int, crystals?: int},
+     *   resourceDelta?: array{food?: int, metal?: int, population?: int, crystals?: int, exhaustion?: int},
      *   itemIds?: array<int, string>,
      *   researchRewardIds?: array<int, string>,
      *   researchRewards?: array<int, array{treeId: string, nodeId: string}>
      * }>
      */
     private array $missionResults;
-    /** @var array{food: int, metal: int, population: int, crystals: int} */
+    /** @var array{food: int, metal: int, population: int, crystals: int, exhaustion: int} */
     private array $resources;
     /**
      * Active DarknessStrength instance crumbs (packageId + optional data).
@@ -57,7 +60,7 @@ class Campaign
         $this->campaignCharacters = $campaignCharacters;
         $this->missionResults = $missionResults;
         $this->resources = array_merge(
-            ['food' => 0, 'metal' => 0, 'population' => 0, 'crystals' => 0],
+            self::emptyResources(),
             $resources
         );
         $this->darknessStrengthInstances = self::normalizeDarknessStrengthInstances($darknessStrengthInstances);
@@ -90,7 +93,7 @@ class Campaign
         return $this->missionResults;
     }
 
-    /** @return array{food: int, metal: int, population: int, crystals: int} */
+    /** @return array{food: int, metal: int, population: int, crystals: int, exhaustion: int} */
     public function getResources(): array
     {
         return $this->resources;
@@ -109,8 +112,8 @@ class Campaign
     public function setResources(array $resources): void
     {
         $this->resources = array_merge(
-            ['food' => 0, 'metal' => 0, 'population' => 0, 'crystals' => 0],
-            array_intersect_key($resources, array_flip(['food', 'metal', 'population', 'crystals']))
+            self::emptyResources(),
+            array_intersect_key($resources, array_flip(self::RESOURCE_KEYS))
         );
     }
 
@@ -168,7 +171,7 @@ class Campaign
         if ($resourceDelta !== null) {
             $entry['resourceDelta'] = array_intersect_key(
                 array_map('intval', $resourceDelta),
-                array_flip(['food', 'metal', 'population', 'crystals'])
+                array_flip(self::RESOURCE_KEYS)
             );
         }
         if ($itemIds !== null && is_array($itemIds)) {
@@ -225,17 +228,36 @@ class Campaign
         }
     }
 
+    /** Zero the admin/base pool so effective resources equal mission reward deltas only. */
+    public function resetStoredResources(): void
+    {
+        $this->resources = self::emptyResources();
+    }
+
     /** Effective resources = stored resources + sum of mission reward deltas. Used for display and research checks. */
     public function getEffectiveResources(): array
     {
-        $out = [
-            'food' => (int) ($this->resources['food'] ?? 0),
-            'metal' => (int) ($this->resources['metal'] ?? 0),
-            'population' => (int) ($this->resources['population'] ?? 0),
-            'crystals' => (int) ($this->resources['crystals'] ?? 0),
+        $deltas = self::sumLatestMissionResourceDeltas($this->missionResults);
+        return [
+            'food' => (int) ($this->resources['food'] ?? 0) + $deltas['food'],
+            'metal' => (int) ($this->resources['metal'] ?? 0) + $deltas['metal'],
+            'population' => (int) ($this->resources['population'] ?? 0) + $deltas['population'],
+            'crystals' => (int) ($this->resources['crystals'] ?? 0) + $deltas['crystals'],
+            'exhaustion' => (int) ($this->resources['exhaustion'] ?? 0) + $deltas['exhaustion'],
         ];
+    }
+
+    /**
+     * Latest resourceDelta per missionId (highest timestamp wins), then summed.
+     *
+     * @param array<int, mixed> $missionResults
+     * @return array{food: int, metal: int, population: int, crystals: int, exhaustion: int}
+     */
+    public static function sumLatestMissionResourceDeltas(array $missionResults): array
+    {
+        $out = self::emptyResources();
         $latestByMission = [];
-        foreach ($this->missionResults as $r) {
+        foreach ($missionResults as $r) {
             if (!is_array($r)) {
                 continue;
             }
@@ -255,9 +277,31 @@ class Campaign
                 $out['metal'] += (int) ($delta['metal'] ?? 0);
                 $out['population'] += (int) ($delta['population'] ?? 0);
                 $out['crystals'] += (int) ($delta['crystals'] ?? 0);
+                $out['exhaustion'] += (int) ($delta['exhaustion'] ?? 0);
             }
         }
         return $out;
+    }
+
+    /**
+     * Disk/API `resources` are effective (stored + mission deltas).
+     * Recover the admin/base pool so getEffectiveResources() does not double-count on load.
+     *
+     * @param mixed $persisted
+     * @param array<int, mixed> $missionResults
+     * @return array{food: int, metal: int, population: int, crystals: int, exhaustion: int}
+     */
+    private static function storedResourcesFromPersistedEffective($persisted, array $missionResults): array
+    {
+        $effective = is_array($persisted) ? $persisted : [];
+        $deltas = self::sumLatestMissionResourceDeltas($missionResults);
+        return [
+            'food' => max(0, (int) ($effective['food'] ?? 0) - $deltas['food']),
+            'metal' => max(0, (int) ($effective['metal'] ?? 0) - $deltas['metal']),
+            'population' => max(0, (int) ($effective['population'] ?? 0) - $deltas['population']),
+            'crystals' => max(0, (int) ($effective['crystals'] ?? 0) - $deltas['crystals']),
+            'exhaustion' => max(0, (int) ($effective['exhaustion'] ?? 0) - $deltas['exhaustion']),
+        ];
     }
 
     /** Adjust resources by delta (can be negative). Floors each at 0. */
@@ -267,6 +311,15 @@ class Campaign
         $this->resources['metal'] = max(0, ($this->resources['metal'] ?? 0) + (int) ($resourceDelta['metal'] ?? 0));
         $this->resources['population'] = max(0, ($this->resources['population'] ?? 0) + (int) ($resourceDelta['population'] ?? 0));
         $this->resources['crystals'] = max(0, ($this->resources['crystals'] ?? 0) + (int) ($resourceDelta['crystals'] ?? 0));
+        $this->resources['exhaustion'] = max(0, ($this->resources['exhaustion'] ?? 0) + (int) ($resourceDelta['exhaustion'] ?? 0));
+    }
+
+    /**
+     * @return array{food: int, metal: int, population: int, crystals: int, exhaustion: int}
+     */
+    private static function emptyResources(): array
+    {
+        return ['food' => 0, 'metal' => 0, 'population' => 0, 'crystals' => 0, 'exhaustion' => 0];
     }
 
     /** API and storage array. resources = effective (stored + mission rewards). */
@@ -292,8 +345,8 @@ class Campaign
     public static function fromArray(array $data): self
     {
         $chars = $data['campaignCharacters'] ?? [];
-        $results = $data['missionResults'] ?? [];
-        $res = $data['resources'] ?? [];
+        $results = is_array($data['missionResults'] ?? null) ? $data['missionResults'] : [];
+        $res = self::storedResourcesFromPersistedEffective($data['resources'] ?? [], $results);
         $instances = $data['darknessStrengthInstances'] ?? [];
         $overrides = $data['adminDarknessStrengthOverrides'] ?? [];
         $regions = $data['regions'] ?? [];
@@ -301,8 +354,8 @@ class Campaign
             $data['id'],
             $data['name'] ?? '',
             is_array($chars) ? $chars : [],
-            is_array($results) ? $results : [],
-            is_array($res) ? $res : [],
+            $results,
+            $res,
             is_array($instances) ? $instances : [],
             is_array($overrides) ? $overrides : [],
             is_array($regions) ? $regions : []

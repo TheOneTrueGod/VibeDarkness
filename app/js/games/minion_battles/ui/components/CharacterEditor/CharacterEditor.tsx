@@ -20,7 +20,7 @@ import type { MinionBattlesApi } from '../../../api/minionBattlesApi';
 import CharacterPortrait from '../CharacterPortrait';
 import InventoryPanel from './InventoryPanel';
 import { ResearchTreeList, ResearchTreeContent, ResearchedNodesGrid } from '../ResearchTreePanel';
-import type { AccountState, CampaignResources, CampaignState } from '../../../../../types';
+import type { AccountState, CampaignResourceKey, CampaignResources, CampaignState } from '../../../../../types';
 import { TestIds } from '../../../../../testing/testIds';
 import { getCoreFromEquipment } from '../../../character_defs/items';
 import { RESEARCH_TREES } from '../../../../../researchTrees/list';
@@ -43,7 +43,11 @@ import {
     RESET_ADMIN_RESEARCH_CONFIRM,
     RESET_PURCHASED_RESEARCH_CONFIRM,
 } from '../researchNodeGrid';
-import ResourcePill from '../../../../../components/ResourcePill';
+import ResourcePill, { RESOURCE_ORDER } from '../../../../../components/ResourcePill';
+import {
+    RESET_CAMPAIGN_RESOURCES_CONFIRM,
+    RESET_CAMPAIGN_RESOURCES_LABEL,
+} from '../../../../../campaignResources';
 import { getShowAllResearchTrees, subscribeShowAllResearchTrees } from '../../../../../debugFlags';
 import MissionMapTab from './MissionMapTab';
 import StatBonusesTab from './StatBonusesTab';
@@ -225,7 +229,7 @@ export default function CharacterEditor({
     const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
     const [adminUseGridView, setAdminUseGridView] = useState(true);
     const [localCampaign, setLocalCampaign] = useState<CampaignState | null>(null);
-    const [grantResourceKey, setGrantResourceKey] = useState<'food' | 'metal' | 'population' | 'crystals'>('food');
+    const [grantResourceKey, setGrantResourceKey] = useState<CampaignResourceKey>('food');
     const [grantResourceAmount, setGrantResourceAmount] = useState<string>('1');
 
     const selectedPortraitId = portraitIds[portraitIndex] ?? portraitIds[0];
@@ -447,6 +451,22 @@ export default function CharacterEditor({
             setSaving(false);
         }
     }, [grantResourceAmount, grantResourceKey, api, permissionAccount?.role, resolvedCampaign?.id]);
+
+    const handleResetResources = useCallback(async () => {
+        if (permissionAccount?.role !== 'admin') return;
+        const cid = resolvedCampaign?.id ?? null;
+        if (!cid) return;
+        if (!window.confirm(RESET_CAMPAIGN_RESOURCES_CONFIRM)) return;
+        setSaving(true);
+        try {
+            const updated = await api.resetCampaignResources(cid);
+            setLocalCampaign(updated);
+        } catch (e) {
+            console.error('Failed to reset campaign resources:', e);
+        } finally {
+            setSaving(false);
+        }
+    }, [api, permissionAccount?.role, resolvedCampaign?.id]);
 
     const handleResetResearch = useCallback(
         async (treeIds: string[]) => {
@@ -950,12 +970,13 @@ export default function CharacterEditor({
                                 <select
                                     className="rounded-md border border-border-custom bg-surface px-2 py-1 text-sm text-white"
                                     value={grantResourceKey}
-                                    onChange={(e) => setGrantResourceKey(e.target.value as typeof grantResourceKey)}
+                                    onChange={(e) => setGrantResourceKey(e.target.value as CampaignResourceKey)}
                                 >
-                                    <option value="food">food</option>
-                                    <option value="metal">metal</option>
-                                    <option value="population">population</option>
-                                    <option value="crystals">crystals</option>
+                                    {RESOURCE_ORDER.map((resource) => (
+                                        <option key={resource} value={resource}>
+                                            {resource}
+                                        </option>
+                                    ))}
                                 </select>
                                 <input
                                     className="w-24 rounded-md border border-border-custom bg-surface px-2 py-1 text-sm text-white"
@@ -971,12 +992,26 @@ export default function CharacterEditor({
                                 >
                                     Give
                                 </button>
+                                <button
+                                    type="button"
+                                    data-testid={TestIds.campaignResetResources}
+                                    onClick={() => void handleResetResources()}
+                                    disabled={saving}
+                                    title="Restore counts to the sum of mission rewards"
+                                    className="rounded-md bg-red-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
+                                >
+                                    {RESET_CAMPAIGN_RESOURCES_LABEL}
+                                </button>
                                 <span className="text-xs text-muted flex flex-wrap items-center gap-2">
                                     <span>Current:</span>
-                                    <ResourcePill resource="food" count={resolvedCampaign.resources.food} className="text-xs" />
-                                    <ResourcePill resource="metal" count={resolvedCampaign.resources.metal} className="text-xs" />
-                                    <ResourcePill resource="population" count={resolvedCampaign.resources.population} className="text-xs" />
-                                    <ResourcePill resource="crystals" count={resolvedCampaign.resources.crystals} className="text-xs" />
+                                    {RESOURCE_ORDER.map((resource) => (
+                                        <ResourcePill
+                                            key={resource}
+                                            resource={resource}
+                                            count={resolvedCampaign.resources[resource] ?? 0}
+                                            className="text-xs"
+                                        />
+                                    ))}
                                 </span>
                             </div>
                         </div>

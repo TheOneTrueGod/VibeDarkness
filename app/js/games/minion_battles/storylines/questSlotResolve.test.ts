@@ -12,6 +12,9 @@ import {
 } from './WorldOfDarkness/quests/swarmling_source';
 import { QUEST_PUSH_NORTH_MISSION_ID } from './WorldOfDarkness/questMissions/quest_push_north';
 import { SCAVENGE_THE_PLAINS } from './WorldOfDarkness/quests/scavenge_the_plains';
+import { INVESTIGATE_THE_WILDLIFE } from './WorldOfDarkness/quests/investigate_the_wildlife';
+import { QUEST_EMBER_THRESHOLD_MISSION_ID } from './WorldOfDarkness/questMissions/quest_ember_threshold';
+import { QUEST_THORN_MARCH_MISSION_ID } from './WorldOfDarkness/questMissions/quest_thorn_march';
 import {
     LOCATION_PLAINS_TAG,
     PLAINS_RANDOM_STORY_CHALLENGE_MAX,
@@ -70,6 +73,19 @@ describe('resolveQuestSlots — random_story', () => {
         }
         expect(resolved[1]).toEqual({ kind: 'fixed', missionId: 'quest_find_some_food' });
         expect(resolved[2]).toEqual({ kind: 'fixed', missionId: 'quest_crystal_corruption' });
+    });
+
+    it('picks a plains bag mission for Investigate the Wildlife slot 1', () => {
+        const resolved = resolveQuestSlots(INVESTIGATE_THE_WILDLIFE, { runSeed: RUN_SEED });
+        expect(resolved[0]).toEqual({ kind: 'fixed', missionId: QUEST_EMBER_THRESHOLD_MISSION_ID });
+        expect(resolved[1]?.kind).toBe('generated');
+        if (resolved[1]?.kind === 'generated') {
+            expect([FOUND_BERRIES_MISSION_ID, SURFACE_METAL_DEPOSIT_MISSION_ID]).toContain(
+                resolved[1].missionId,
+            );
+            expect(resolved[1].generatorId).toBe(RANDOM_STORY_GENERATOR_ID);
+        }
+        expect(resolved[2]).toEqual({ kind: 'fixed', missionId: QUEST_THORN_MARCH_MISSION_ID });
     });
 
     it('is stable for the same runSeed', () => {

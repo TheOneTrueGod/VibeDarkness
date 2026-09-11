@@ -76,7 +76,7 @@ export class ThornlingRiseMission extends BaseMissionDef {
     segmentIds = ['48_52_thorn_path_2', '49_52_thorn_path'];
 
     missionId = ThornlingRiseMission.missionId;
-    /** Chapter 2 grid — row 2, after Thorn March (fills the freed middle slot). */
+    /** Chapter 2 grid — row 2, after South Gate Swarm. */
     mapPosition = { x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW2 };
     missionType = 'battle' as const;
     description = 'A thornling nest surges with new growth. Destroy it before the swarm overwhelms the region.';

@@ -273,27 +273,36 @@ export default function ResearchNodeCard({
                   ? 'text-zinc-500'
                   : 'text-border-custom';
 
-    const tierBadge = showTier && node.tier != null && (
-        <span className={`absolute bottom-1 right-2 text-[10px] font-semibold leading-none pointer-events-none ${tierTextClass}`}>
+    const adminFooterBadgeClass =
+        'absolute bottom-1.5 text-[9px] font-mono leading-none pointer-events-none text-zinc-500';
+
+    const tierBadge = !isAdmin && showTier && node.tier != null && (
+        <span className={`absolute bottom-1.5 right-2 text-[10px] font-semibold leading-none pointer-events-none ${tierTextClass}`}>
             Tier {node.tier}
         </span>
     );
 
     const adminIdBadge = isAdmin && (
-        <span className="absolute bottom-1 left-2 text-[9px] font-mono leading-none pointer-events-none text-zinc-500 select-all">
+        <span className={`${adminFooterBadgeClass} left-2 select-all`}>
             {node.id}
         </span>
     );
 
+    const adminTierBadge = isAdmin && node.tier != null && (
+        <span className={`${adminFooterBadgeClass} right-2`}>
+            Tier {node.tier}
+        </span>
+    );
+
     const levelPill = showLevelPill && (
-        <span className="absolute top-1 right-2 shrink-0 rounded bg-zinc-600 px-1.5 py-px text-[10px] font-semibold tabular-nums leading-none text-zinc-100 pointer-events-none">
+        <span className="absolute top-1 right-2 shrink-0 rounded bg-zinc-600 px-2 py-0.5 text-sm font-semibold tabular-nums leading-none text-zinc-100 pointer-events-none">
             {formatResearchLevelPill(currentLevel, maxLevels)}
         </span>
     );
 
     const content = (
         <div className="flex h-full min-h-0 w-full flex-col gap-1 overflow-hidden">
-            <div className={`${titleClass} shrink-0 flex items-center gap-1.5 min-w-0 ${showLevelPill ? 'pr-10' : ''}`}>
+            <div className={`${titleClass} shrink-0 flex items-center gap-1.5 min-w-0 ${showLevelPill ? 'pr-14' : ''}`}>
                 <img
                     src={treeChrome.icon}
                     alt=""
@@ -420,6 +429,7 @@ export default function ResearchNodeCard({
                     {tierBadge}
                     {levelPill}
                     {adminIdBadge}
+                    {adminTierBadge}
                 </button>
             ) : (
                 <div className={cardClasses} style={{ borderColor: treeChrome.colour }} aria-label={node.title}>
@@ -427,6 +437,7 @@ export default function ResearchNodeCard({
                     {tierBadge}
                     {levelPill}
                     {adminIdBadge}
+                    {adminTierBadge}
                 </div>
             )}
             {flavorPortal}

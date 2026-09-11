@@ -12,7 +12,9 @@ import {
     TRAINING_HEALTHY_LEVELS,
     TRAINING_HEALTHY_MAX_HEALTH_ADD,
     TRAINING_MIGHTY_ALL_DAMAGE_MULT,
+    TRAINING_MIGHTY_FOOD_COST,
     TRAINING_MIGHTY_LEVELS,
+    TRAINING_MIGHTY_METAL_COST,
     TRAINING_NODE_HEALTHY,
     TRAINING_NODE_MIGHTY,
     TRAINING_TREE_ID,
@@ -44,6 +46,14 @@ describe('passiveBonuses helpers', () => {
         const bonuses = computePassiveBonuses(trees, levels);
         expect(bonuses.all_damage?.mult).toBe(TRAINING_MIGHTY_ALL_DAMAGE_MULT);
         expect(bonuses.all_damage?.add).toBe(0);
+    });
+
+    it('prices Mighty in metal and food per level', () => {
+        const node = trainingTree.nodes.find((n) => n.id === TRAINING_NODE_MIGHTY);
+        expect(node?.cost).toEqual({
+            metal: TRAINING_MIGHTY_METAL_COST,
+            food: TRAINING_MIGHTY_FOOD_COST,
+        });
     });
 
     it('stacks add and mult across nodes', () => {

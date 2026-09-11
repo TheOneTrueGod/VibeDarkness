@@ -6,17 +6,21 @@ import {
     SWARMLING_SOURCE_TITLE,
 } from './WorldOfDarkness/quests/swarmling_source';
 import { SCAVENGE_THE_PLAINS } from './WorldOfDarkness/quests/scavenge_the_plains';
+import { INVESTIGATE_THE_WILDLIFE } from './WorldOfDarkness/quests/investigate_the_wildlife';
 
 describe('QUEST_MAP / registry', () => {
     it('returns the World of Darkness fixture and Scavenge the Plains quests', () => {
         expect(getQuestDef(SWARMLING_SOURCE.id)).toEqual(SWARMLING_SOURCE);
         expect(getQuestDef(SCAVENGE_THE_PLAINS.id)).toEqual(SCAVENGE_THE_PLAINS);
         expect(QUEST_MAP[SCAVENGE_THE_PLAINS.id]).toBe(SCAVENGE_THE_PLAINS);
+        expect(getQuestDef(INVESTIGATE_THE_WILDLIFE.id)).toEqual(INVESTIGATE_THE_WILDLIFE);
+        expect(QUEST_MAP[INVESTIGATE_THE_WILDLIFE.id]).toBe(INVESTIGATE_THE_WILDLIFE);
     });
 
     it('listQuestsForCampaign includes Scavenge the Plains for world_of_darkness', () => {
         const list = listQuestsForCampaign('world_of_darkness');
         expect(list.some((q) => q.id === SCAVENGE_THE_PLAINS.id)).toBe(true);
+        expect(list.some((q) => q.id === INVESTIGATE_THE_WILDLIFE.id)).toBe(true);
         expect(listQuestsForCampaign('no_such_campaign')).toEqual([]);
     });
 });

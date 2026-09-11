@@ -69,7 +69,7 @@ interface BattlePhaseProps {
     initialGameState?: Record<string, unknown> | null;
     onSidebarInfoChange?: (info: GameSidebarInfo | null) => void;
     /** Called when victory is achieved. Passes mission result from the winning victory check. */
-    onVictory?: (missionResult: string) => void;
+    onVictory?: (missionResult: string, exhaustion?: number) => void;
     /** Called when defeat is achieved (all player units dead). */
     onDefeat?: () => void;
     /** Called when host sends an emitted message (NPC or chat) so the UI can show it immediately. */

@@ -20,8 +20,12 @@ export const TRAINING_HEALTHY_MAX_HEALTH_ADD = 50;
 export const TRAINING_MIGHTY_LEVELS = 5;
 export const TRAINING_MIGHTY_ALL_DAMAGE_MULT = 2;
 
-/** Food cost per level for Healthy / Mighty dangling passives. */
+/** Food cost per level for Healthy. */
 export const TRAINING_PASSIVE_NODE_FOOD_COST = 15;
+
+/** Mighty per-level campaign resource cost. */
+export const TRAINING_MIGHTY_METAL_COST = 15;
+export const TRAINING_MIGHTY_FOOD_COST = 5;
 
 export const trainingTree: ResearchTreeDef = {
     id: TRAINING_TREE_ID,
@@ -161,7 +165,7 @@ export const trainingTree: ResearchTreeDef = {
                 { type: 'accountKnowledge', key: 'Research' },
                 { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.BasicCore },
             ],
-            cost: { food: TRAINING_PASSIVE_NODE_FOOD_COST },
+            cost: { metal: TRAINING_MIGHTY_METAL_COST, food: TRAINING_MIGHTY_FOOD_COST },
             effects: [],
             levels: TRAINING_MIGHTY_LEVELS,
             passiveBonus: {

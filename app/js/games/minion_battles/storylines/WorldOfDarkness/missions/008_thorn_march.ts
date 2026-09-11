@@ -33,7 +33,6 @@ import type { PostMissionStoryDef, PreMissionStoryDef } from '../../storyTypes';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
-import { WOD_CH2_MAP_X_COL3, WOD_CH2_MAP_Y_ROW2 } from '../chapter2Map';
 import { ENEMY_DARK_WOLF, ENEMY_SWARMLING } from '../../../constants/enemyConstants';
 import { scatterPositionsInCircle } from '../../missionSpawnHelpers';
 import {
@@ -414,8 +413,8 @@ export class ThornMarchMission extends BaseMissionDef {
     ];
 
     missionId = ThornMarchMission.missionId;
-    /** Chapter 2 grid — row 2, after Ember Threshold. */
-    mapPosition = { x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW2 };
+    /** Quest-only; not placed on the chapter 2 Mission Map. */
+    mapPosition = undefined;
     missionType = 'battle' as const;
     description = 'March through the thornwood and dismantle the nest at its heart before the swarm spreads.';
     name = ThornMarchMission.nameStr;

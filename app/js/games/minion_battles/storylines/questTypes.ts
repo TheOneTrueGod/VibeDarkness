@@ -17,6 +17,8 @@ export type QuestSlotBank = {
     title?: string;
     /** Unlocks when this mission (or prior bank) has victory — wire via storyline graph. */
     unlockAfterMissionId?: string;
+    /** Unlocks when this bank's requiredClears are satisfied. */
+    unlockAfterQuestBankId?: string;
     requiredClears: number;
     filters: QuestEligibilityFilters;
     /** Optional: max simultaneous assigned slots shown in the bank UI. */

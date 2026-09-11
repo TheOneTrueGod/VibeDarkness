@@ -18,7 +18,7 @@ interface UseBattleSessionLifecycleParams {
     players: Record<string, PlayerState>;
     characterSelections: Record<string, string>;
     initialGameState?: Record<string, unknown> | null;
-    onVictory?: (missionResult: string) => void;
+    onVictory?: (missionResult: string, exhaustion?: number) => void;
     onDefeat?: () => void;
     onEmittedChatMessage?: (entry: MessageEntry) => void;
     sessionRef: RefObject<BattleSession | null>;

@@ -2,18 +2,44 @@
  * Single campaign resource: icon + count in a rounded pill with a thin solid border.
  */
 import React from 'react';
+import { Heart } from 'lucide-react';
 import type { CampaignResourceKey } from '../types';
 
-const RESOURCE_ORDER: CampaignResourceKey[] = ['food', 'metal', 'population', 'crystals'];
+function ExhaustionHeartIcon({ className = 'w-[18px] h-[18px]' }: { color?: string; className?: string }) {
+    return (
+        <Heart
+            className={`${className} shrink-0`}
+            fill="#000000"
+            stroke="#ffffff"
+            strokeWidth={2}
+            aria-hidden
+        />
+    );
+}
+
+const RESOURCE_ORDER: CampaignResourceKey[] = ['food', 'metal', 'population', 'crystals', 'exhaustion'];
 
 const RESOURCE_META: Record<
     CampaignResourceKey,
-    { label: string; color: string; Icon: React.FC<{ color: string; className?: string }> }
+    {
+        label: string;
+        color: string;
+        Icon: React.FC<{ color: string; className?: string }>;
+        backgroundColor?: string;
+        textColor?: string;
+    }
 > = {
     food: { label: 'Food', color: '#E67E22', Icon: FoodIcon },
     metal: { label: 'Metal', color: '#95A5A6', Icon: MetalIcon },
     population: { label: 'Population', color: '#3498DB', Icon: PopulationIcon },
     crystals: { label: 'Crystals', color: '#9B59B6', Icon: CrystalIcon },
+    exhaustion: {
+        label: 'Exhaustion',
+        color: '#ef4444',
+        backgroundColor: '#b91c1c',
+        textColor: '#ffffff',
+        Icon: ExhaustionHeartIcon,
+    },
 };
 
 function FoodIcon({ color, className = 'w-[18px] h-[18px]' }: { color: string; className?: string }) {
@@ -66,13 +92,16 @@ export interface ResourcePillProps {
 
 export default function ResourcePill({ resource, count, size = 'default', className = '' }: ResourcePillProps) {
     const meta = RESOURCE_META[resource];
-    const { color, Icon, label } = meta;
+    const { color, Icon, label, backgroundColor, textColor } = meta;
     const isNegative = count < 0;
     const displayColor = isNegative ? '#f87171' : color;
     const isSmall = size === 'small';
+    const filled = backgroundColor != null;
     return (
         <span
-            className={`inline-flex shrink-0 items-center bg-surface-light font-semibold leading-snug ${
+            className={`inline-flex shrink-0 items-center font-semibold leading-snug cursor-default select-none ${
+                filled ? '' : 'bg-surface-light'
+            } ${
                 isSmall
                     ? 'gap-1 rounded px-1.5 py-[2px] text-[10px]'
                     : 'min-h-[32px] gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px]'
@@ -81,7 +110,8 @@ export default function ResourcePill({ resource, count, size = 'default', classN
                 borderWidth: 1,
                 borderStyle: 'solid',
                 borderColor: displayColor,
-                color: displayColor,
+                color: filled ? (textColor ?? '#ffffff') : displayColor,
+                ...(filled ? { backgroundColor } : {}),
             }}
             title={`${count} ${label}`}
         >

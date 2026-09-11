@@ -48,6 +48,7 @@ use App\Http\Handlers\GrantAccountItemHandler;
 use App\Http\Handlers\GrantAccountKnowledgeHandler;
 use App\Http\Handlers\GrantAccountResourceHandler;
 use App\Http\Handlers\GrantCampaignResourceHandler;
+use App\Http\Handlers\ResetCampaignResourcesHandler;
 use App\Http\Handlers\RemoveAccountItemHandler;
 use App\Http\Handlers\ListAdminAccountsHandler;
 use App\Http\Handlers\SetEmergencyRecoveryHandler;
@@ -97,6 +98,7 @@ class Router
             ['POST', '#^/api/admin/accounts/(\d+)/knowledge$#', GrantAccountKnowledgeHandler::class],
             ['POST', '#^/api/admin/accounts/(\d+)/resources$#', GrantAccountResourceHandler::class],
             ['POST', '#^/api/admin/accounts/(\d+)/emergency-recovery$#', SetEmergencyRecoveryHandler::class],
+            ['POST', '#^/api/admin/campaigns/([a-z0-9]+|[a-f0-9]{16})/resources/reset$#', ResetCampaignResourcesHandler::class],
             ['POST', '#^/api/admin/campaigns/([a-z0-9]+|[a-f0-9]{16})/resources$#', GrantCampaignResourceHandler::class],
             ['GET', '#^/api/characters/([a-zA-Z0-9_]+)$#', GetCharacterHandler::class],
             ['PATCH', '#^/api/characters/([a-zA-Z0-9_]+)$#', UpdateCharacterHandler::class],

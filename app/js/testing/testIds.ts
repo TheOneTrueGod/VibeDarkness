@@ -35,6 +35,7 @@ export const TestIds = {
     researchGridResources: 'research-grid-resources',
     researchResetPurchased: 'research-reset-purchased',
     researchResetAdmin: 'research-reset-admin',
+    campaignResetResources: 'campaign-reset-resources',
 
     /** Admin Players → Campaign data center */
     campaignDataPanel: 'campaign-data-panel',

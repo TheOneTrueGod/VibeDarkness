@@ -8,7 +8,7 @@ use App\LobbyManager;
 use App\PlayerAccount;
 use App\SessionHelper;
 
-class GrantCampaignResourceHandler
+class ResetCampaignResourcesHandler
 {
     public static function handle(LobbyManager $manager, AccountService $accountService, array $matches): array
     {
@@ -41,30 +41,7 @@ class GrantCampaignResourceHandler
             return ['success' => false, 'error' => 'Campaign not found'];
         }
 
-        $body = json_decode((string) file_get_contents('php://input'), true);
-        if (!is_array($body)) {
-            http_response_code(400);
-            return ['success' => false, 'error' => 'Invalid JSON'];
-        }
-
-        $resourceKey = trim((string) ($body['resourceKey'] ?? ''));
-        if ($resourceKey === '') {
-            http_response_code(400);
-            return ['success' => false, 'error' => 'Resource key required'];
-        }
-        $delta = (int) ($body['delta'] ?? 0);
-        if ($delta === 0) {
-            http_response_code(400);
-            return ['success' => false, 'error' => 'Delta required'];
-        }
-
-        $k = strtolower($resourceKey);
-        if (!in_array($k, ['food', 'metal', 'population', 'crystals', 'exhaustion'], true)) {
-            http_response_code(400);
-            return ['success' => false, 'error' => 'Invalid resource key'];
-        }
-
-        $campaign->adjustResources([$k => $delta]);
+        $campaign->resetStoredResources();
         $campaignManager->updateCampaign($campaign);
 
         return [
@@ -73,4 +50,3 @@ class GrantCampaignResourceHandler
         ];
     }
 }
-

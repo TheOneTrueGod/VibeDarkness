@@ -655,6 +655,7 @@ const EMPTY_CAMPAIGN_RESOURCES: CampaignResources = {
 	metal: 0,
 	population: 0,
 	crystals: 0,
+	exhaustion: 0,
 };
 
 function ResearchGridCards({

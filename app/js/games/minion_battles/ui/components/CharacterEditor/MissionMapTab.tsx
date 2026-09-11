@@ -13,7 +13,7 @@ import type { LucideIcon } from 'lucide-react';
 import { ChevronDown, Route, Scroll, Skull, Swords } from 'lucide-react';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import type { MissionResult } from '../../../../../types';
-import type { MissionType } from '../../../storylines/types';
+import type { MissionType, StorylineDef } from '../../../storylines/types';
 import type { StartQuestOptions } from '../../../storylines/questLobby';
 import { STORYLINES, MISSION_MAP } from '../../../storylines/index';
 import {
@@ -48,6 +48,7 @@ import {
     missionMapChapterTestId,
 } from '../../../../../testing/testIds';
 import QuestBankPickerPopup from './QuestBankPickerPopup';
+import { bankDisplayLabel, questBankUnlockRequirementLabel } from './questBankUi';
 
 const CIRCLE_R = 28;
 /** ViewBox inset — covers node radius, name label below, and hover rings without huge empty margins. */
@@ -144,12 +145,26 @@ interface QuestBankTooltipData {
     pinned: boolean;
 }
 
+function missionBankUnlockHint(
+    missionId: string,
+    storyline: StorylineDef | undefined,
+): string | undefined {
+    const gate = (storyline?.edges ?? []).find(
+        (e) => e.toMissionId === missionId && e.requiresQuestBankId,
+    );
+    if (!gate?.requiresQuestBankId) return undefined;
+    const bank = (storyline?.questSlotBanks ?? []).find((b) => b.id === gate.requiresQuestBankId);
+    return bank ? `Complete ${bankDisplayLabel(bank)} to unlock.` : undefined;
+}
+
 function QuestBankTooltip({
     data,
     bank,
     eligibleQuests,
     clears,
     isLocked,
+    unlockRequirementLabel,
+    isAdmin,
     activeQuestDefId,
     onStartQuest,
     onAbandonQuest,
@@ -160,6 +175,8 @@ function QuestBankTooltip({
     eligibleQuests: QuestDef[];
     clears: number;
     isLocked: boolean;
+    unlockRequirementLabel: string | null;
+    isAdmin: boolean;
     /** Singular active run's questDefId, if any. */
     activeQuestDefId?: string | null;
     onStartQuest?: (questDefId: string, options?: StartQuestOptions) => void;
@@ -184,9 +201,10 @@ function QuestBankTooltip({
 
     let description: string;
     if (isLocked) {
+        const requirement = unlockRequirementLabel ?? 'the previous requirement';
         description = isDedicated
-            ? 'This quest unlocks after Core Awakening. You can still run it from Optional / side quests.'
-            : 'This quest slot unlocks after Core Awakening. You can still run matching quests from Optional / side quests.';
+            ? `This quest unlocks after ${requirement}. You can still run it from Optional / side quests.`
+            : `This quest slot unlocks after ${requirement}. You can still run matching quests from Optional / side quests.`;
     } else if (isDedicated) {
         const missionWord = slotCount === 1 ? 'mission' : 'missions';
         description = slotCount != null
@@ -214,7 +232,14 @@ function QuestBankTooltip({
                                 Side Quest
                             </span>
                         )}
-                        <span className="text-sm font-bold text-white leading-snug truncate">{label}</span>
+                        <span className="text-sm font-bold text-white leading-snug flex items-baseline gap-1.5 min-w-0">
+                            <span className="truncate">{label}</span>
+                            {isAdmin && (
+                                <span className="shrink-0 text-[10px] font-mono font-normal text-muted">
+                                    {isDedicated ? (pinnedQuest?.id ?? bank.questDefId) : bank.id}
+                                </span>
+                            )}
+                        </span>
                     </div>
                     {!isDedicated && (
                     <span className="shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full border mt-0.5 text-zinc-300 border-zinc-600 bg-zinc-800/50">
@@ -234,7 +259,7 @@ function QuestBankTooltip({
                                 data-testid="quest-bank-tooltip-locked"
                                 className="text-[12px] text-amber-200/90"
                             >
-                                Locked — beat Core Awakening to {isDedicated ? 'start this quest' : 'assign a quest here'}.
+                                Locked — complete {unlockRequirementLabel ?? 'the previous requirement'} to {isDedicated ? 'start this quest' : 'assign a quest here'}.
                             </p>
                         ) : eligibleQuests.length === 0 ? (
                             <p className="text-[12px] text-zinc-500 italic">
@@ -329,6 +354,7 @@ function MissionTooltip({
     isAdmin,
     isLocked,
     isDisabled,
+    unlockHint,
     onStartMission,
     onMarkVictory,
     onDismiss,
@@ -338,6 +364,7 @@ function MissionTooltip({
     isAdmin: boolean;
     isLocked: boolean;
     isDisabled: boolean;
+    unlockHint?: string;
     onStartMission: (id: string) => void;
     onMarkVictory?: (id: string) => Promise<void>;
     onDismiss: () => void;
@@ -452,7 +479,9 @@ function MissionTooltip({
                 )}
                 {isLocked && !isAdmin && !isDisabled && (
                     <div className="px-4 pb-3">
-                        <span className="text-[11px] text-zinc-500 italic">Complete earlier missions to unlock.</span>
+                        <span className="text-[11px] text-zinc-500 italic">
+                            {unlockHint ?? 'Complete earlier missions to unlock.'}
+                        </span>
                     </div>
                 )}
 
@@ -593,8 +622,10 @@ export default function MissionMapTab({
 
     const unlockedQuestBankIds = useMemo(() => {
         if (!storyline) return new Set<string>();
-        return new Set(getUnlockedQuestSlotBanks(storyline, missionResults).map((b) => b.id));
-    }, [storyline, missionResults]);
+        return new Set(
+            getUnlockedQuestSlotBanks(storyline, missionResults, questResults).map((b) => b.id),
+        );
+    }, [storyline, missionResults, questResults]);
 
     const posMap = useMemo(() => {
         const m = new Map<string, { x: number; y: number }>();
@@ -817,15 +848,54 @@ export default function MissionMapTab({
                     );
                 })}
 
-                {/* Side-quest edges from unlock mission → quest bank node */}
+                {/* Side-quest edges from unlock mission or prior bank → quest bank node */}
                 {questBanksOnMap.map((bank) => {
-                    if (!bank.unlockAfterMissionId || !bank.mapPosition) return null;
-                    const from = posMap.get(bank.unlockAfterMissionId);
+                    if (!bank.mapPosition) return null;
                     const to = bank.mapPosition;
+                    if (bank.unlockAfterQuestBankId) {
+                        const from = posMap.get(`questBank:${bank.unlockAfterQuestBankId}`);
+                        if (!from) return null;
+                        return (
+                            <line
+                                key={`quest-bank-edge-${bank.id}`}
+                                x1={from.x}
+                                y1={from.y}
+                                x2={to.x}
+                                y2={to.y}
+                                stroke="#4c1d95"
+                                strokeWidth={2}
+                                strokeDasharray="5 4"
+                                strokeLinecap="round"
+                            />
+                        );
+                    }
+                    if (!bank.unlockAfterMissionId) return null;
+                    const from = posMap.get(bank.unlockAfterMissionId);
                     if (!from) return null;
                     return (
                         <line
                             key={`quest-bank-edge-${bank.id}`}
+                            x1={from.x}
+                            y1={from.y}
+                            x2={to.x}
+                            y2={to.y}
+                            stroke="#4c1d95"
+                            strokeWidth={2}
+                            strokeDasharray="5 4"
+                            strokeLinecap="round"
+                        />
+                    );
+                })}
+
+                {/* Quest-bank completion → gated mission (e.g. Surface Quests 2 → Thornbinder) */}
+                {(storyline.edges ?? []).map((edge) => {
+                    if (!edge.requiresQuestBankId) return null;
+                    const from = posMap.get(`questBank:${edge.requiresQuestBankId}`);
+                    const to = posMap.get(edge.toMissionId);
+                    if (!from || !to) return null;
+                    return (
+                        <line
+                            key={`quest-bank-gate-${edge.requiresQuestBankId}-${edge.toMissionId}`}
                             x1={from.x}
                             y1={from.y}
                             x2={to.x}
@@ -1125,6 +1195,7 @@ export default function MissionMapTab({
                     isAdmin={isAdmin}
                     isLocked={!unlockedIds.has(tooltip.id)}
                     isDisabled={isMissionDisabled(MISSION_MAP[tooltip.id])}
+                    unlockHint={missionBankUnlockHint(tooltip.id, storyline)}
                     onStartMission={onStartMission}
                     onMarkVictory={onMarkVictory}
                     onDismiss={dismissTooltip}
@@ -1134,6 +1205,7 @@ export default function MissionMapTab({
                 <QuestBankPickerPopup
                     character={character}
                     bank={pickerBank}
+                    banks={storyline?.questSlotBanks ?? []}
                     isUnlocked={unlockedQuestBankIds.has(pickerBank.id) || isAdmin}
                     isAdmin={isAdmin}
                     onStartQuest={onStartQuest}
@@ -1157,6 +1229,11 @@ export default function MissionMapTab({
                         eligibleQuests={eligible}
                         clears={countQuestBankClears(bank, questResults)}
                         isLocked={!unlocked && !isAdmin}
+                        unlockRequirementLabel={questBankUnlockRequirementLabel(
+                            bank,
+                            storyline?.questSlotBanks ?? [],
+                        )}
+                        isAdmin={isAdmin}
                         activeQuestDefId={
                             character.activeQuestRun
                             && (character.activeQuestRun.status === 'active'

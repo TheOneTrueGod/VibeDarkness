@@ -62,7 +62,7 @@ function makeCtx(
             missionId: '',
             researchTrees,
         }),
-        campaignResources: { food, metal: 0, population: 0, crystals: 0 },
+        campaignResources: { food, metal: 0, population: 0, crystals: 0, exhaustion: 0 },
     };
 }
 

@@ -77,6 +77,8 @@ export interface CampaignResources {
     metal: number;
     population: number;
     crystals: number;
+    /** Accumulated match-end exhaustion (wounds + missing HP). */
+    exhaustion: number;
 }
 
 export type CampaignResourceKey = keyof CampaignResources;

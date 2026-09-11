@@ -18,7 +18,7 @@ const rootDir = path.resolve(__dirname, '..');
 const ENV_PATH = path.join(rootDir, '.env.playwright.local');
 
 const POST_CORE_BANK_ID = 'wod_post_core_awakening_quests';
-const SCAVENGE_QUEST_ID = 'scavenge_the_plains';
+const INVESTIGATE_QUEST_ID = 'investigate_the_wildlife';
 
 function loadEnvFile(filePath: string): Record<string, string> {
     if (!fs.existsSync(filePath)) return {};
@@ -97,9 +97,9 @@ test.describe('Mission Map quest bank side quest', () => {
         const popup = page.getByTestId(TestIds.questBankPickerPopup);
         await expect(popup).toBeVisible({ timeout: 10_000 });
 
-        const bankStart = page.getByTestId(`${TestIds.questStartPrefix}${SCAVENGE_QUEST_ID}`);
+        const bankStart = page.getByTestId(`${TestIds.questStartPrefix}${INVESTIGATE_QUEST_ID}`);
         const optionalStart = page.getByTestId(
-            `${TestIds.questStartOptionalPrefix}${SCAVENGE_QUEST_ID}`,
+            `${TestIds.questStartOptionalPrefix}${INVESTIGATE_QUEST_ID}`,
         );
         const startBtn = (await bankStart.isVisible().catch(() => false))
             ? bankStart

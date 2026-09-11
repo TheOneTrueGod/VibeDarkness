@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     WOD_SWARMLING_SOURCE_BANK,
     WOD_POST_CORE_QUEST_BANK,
+    WOD_POST_CORE_QUEST_BANK_2,
 } from '../../../storylines/WorldOfDarkness/WorldOfDarkness';
 import {
     SWARMLING_SOURCE,
@@ -9,14 +10,21 @@ import {
     SWARMLING_SOURCE_TITLE,
 } from '../../../storylines/WorldOfDarkness/quests/swarmling_source';
 import { SCAVENGE_THE_PLAINS } from '../../../storylines/WorldOfDarkness/quests/scavenge_the_plains';
+import { INVESTIGATE_THE_WILDLIFE } from '../../../storylines/WorldOfDarkness/quests/investigate_the_wildlife';
 import {
     SCAVENGE_THE_PLAINS_COMPLETION_CRYSTALS,
     SCAVENGE_THE_PLAINS_COMPLETION_FOOD,
+    SCAVENGE_THE_PLAINS_COMPLETION_METAL,
+    INVESTIGATE_THE_WILDLIFE_COMPLETION_CRYSTALS,
+    INVESTIGATE_THE_WILDLIFE_COMPLETION_FOOD,
+    INVESTIGATE_THE_WILDLIFE_COMPLETION_METAL,
     SWARMLING_SOURCE_COMPLETION_CRYSTALS,
+    SWARMLING_SOURCE_COMPLETION_FOOD,
     SWARMLING_SOURCE_COMPLETION_METAL,
 } from '../../../storylines/WorldOfDarkness/questMissions/questMissionConstants';
 import {
     bankDisplayLabel,
+    questBankUnlockRequirementLabel,
     questCompletionResourceGains,
     questResultPlacementLabel,
 } from './questBankUi';
@@ -26,6 +34,23 @@ const BANKS = [WOD_SWARMLING_SOURCE_BANK, WOD_POST_CORE_QUEST_BANK];
 describe('bankDisplayLabel', () => {
     it('uses the Surface Quests picker title', () => {
         expect(bankDisplayLabel(WOD_POST_CORE_QUEST_BANK)).toBe('Surface Quests');
+    });
+});
+
+describe('questBankUnlockRequirementLabel', () => {
+    it('names the first Surface Quests bank for the second picker', () => {
+        expect(
+            questBankUnlockRequirementLabel(WOD_POST_CORE_QUEST_BANK_2, [
+                WOD_POST_CORE_QUEST_BANK,
+                WOD_POST_CORE_QUEST_BANK_2,
+            ]),
+        ).toBe('Surface Quests');
+    });
+
+    it('names Core Awakening for the first Surface Quests picker', () => {
+        expect(
+            questBankUnlockRequirementLabel(WOD_POST_CORE_QUEST_BANK, [WOD_POST_CORE_QUEST_BANK]),
+        ).toBe('Core Awakening');
     });
 });
 
@@ -63,12 +88,25 @@ describe('questCompletionResourceGains', () => {
     it('reads only QuestDef.completionRewards, not inner mission grants', () => {
         expect(questCompletionResourceGains(SCAVENGE_THE_PLAINS)).toEqual([
             { resource: 'food', count: SCAVENGE_THE_PLAINS_COMPLETION_FOOD },
+            { resource: 'metal', count: SCAVENGE_THE_PLAINS_COMPLETION_METAL },
             { resource: 'crystals', count: SCAVENGE_THE_PLAINS_COMPLETION_CRYSTALS },
         ]);
     });
 
-    it('reads Swarmling Source completion metal and crystals', () => {
+    it('copies Scavenge the Plains completion food, metal, and crystals onto Investigate the Wildlife', () => {
+        expect(questCompletionResourceGains(INVESTIGATE_THE_WILDLIFE)).toEqual([
+            { resource: 'food', count: INVESTIGATE_THE_WILDLIFE_COMPLETION_FOOD },
+            { resource: 'metal', count: INVESTIGATE_THE_WILDLIFE_COMPLETION_METAL },
+            { resource: 'crystals', count: INVESTIGATE_THE_WILDLIFE_COMPLETION_CRYSTALS },
+        ]);
+        expect(INVESTIGATE_THE_WILDLIFE_COMPLETION_FOOD).toBe(SCAVENGE_THE_PLAINS_COMPLETION_FOOD);
+        expect(INVESTIGATE_THE_WILDLIFE_COMPLETION_METAL).toBe(SCAVENGE_THE_PLAINS_COMPLETION_METAL);
+        expect(INVESTIGATE_THE_WILDLIFE_COMPLETION_CRYSTALS).toBe(SCAVENGE_THE_PLAINS_COMPLETION_CRYSTALS);
+    });
+
+    it('reads Swarmling Source completion food, metal, and crystals', () => {
         expect(questCompletionResourceGains(SWARMLING_SOURCE)).toEqual([
+            { resource: 'food', count: SWARMLING_SOURCE_COMPLETION_FOOD },
             { resource: 'metal', count: SWARMLING_SOURCE_COMPLETION_METAL },
             { resource: 'crystals', count: SWARMLING_SOURCE_COMPLETION_CRYSTALS },
         ]);

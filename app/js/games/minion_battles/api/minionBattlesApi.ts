@@ -104,6 +104,10 @@ export class MinionBattlesApi {
         return this.lobbyClient.grantCampaignResource(campaignId, resourceKey, delta);
     }
 
+    async resetCampaignResources(campaignId: string): Promise<CampaignState> {
+        return this.lobbyClient.resetCampaignResources(campaignId);
+    }
+
     /**
      * Remove mission results for a single storyline from a campaign.
      * Other mission results are preserved.

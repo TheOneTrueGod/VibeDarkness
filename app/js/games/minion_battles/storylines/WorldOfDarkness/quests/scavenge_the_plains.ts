@@ -9,6 +9,7 @@ import {
     PLAINS_RANDOM_STORY_CHALLENGE_MIN,
     SCAVENGE_THE_PLAINS_COMPLETION_CRYSTALS,
     SCAVENGE_THE_PLAINS_COMPLETION_FOOD,
+    SCAVENGE_THE_PLAINS_COMPLETION_METAL,
 } from '../questMissions/questMissionConstants';
 import { QUEST_FIND_SOME_FOOD_MISSION_ID } from '../questMissions/quest_find_some_food';
 import { QUEST_CRYSTAL_CORRUPTION_MISSION_ID } from '../questMissions/quest_crystal_corruption';
@@ -37,6 +38,7 @@ export const SCAVENGE_THE_PLAINS: QuestDef = {
         resourceDelta: {
             crystals: SCAVENGE_THE_PLAINS_COMPLETION_CRYSTALS,
             food: SCAVENGE_THE_PLAINS_COMPLETION_FOOD,
+            metal: SCAVENGE_THE_PLAINS_COMPLETION_METAL,
         },
     },
 };

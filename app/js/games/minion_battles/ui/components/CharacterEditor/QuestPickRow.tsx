@@ -147,10 +147,12 @@ export function QuestPickRow({
     return (
         <div className="flex items-start justify-between gap-2 rounded-md border border-border-custom bg-background/40 px-2.5 py-1.5 min-w-0">
             <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-white truncate">
-                    {quest.title}
+                <p className="text-xs font-medium text-white flex items-baseline gap-1.5 min-w-0">
+                    <span className="truncate">{quest.title}</span>
                     {isAdmin && (
-                        <span className="text-[10px] font-normal text-muted"> ({quest.id})</span>
+                        <span className="shrink-0 text-[10px] font-mono font-normal text-muted">
+                            {quest.id}
+                        </span>
                     )}
                 </p>
                 <p className="text-[10px] text-muted truncate">

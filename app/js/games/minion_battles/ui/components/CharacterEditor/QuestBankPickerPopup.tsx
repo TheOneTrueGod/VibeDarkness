@@ -11,7 +11,6 @@ import {
     countQuestBankClears,
     getEligibleQuestsForBank,
     getQuestDef,
-    MISSION_MAP,
 } from '../../../storylines/index';
 import { TestIds } from '../../../../../testing/testIds';
 import { QuestPickRow } from './QuestPickRow';
@@ -19,6 +18,7 @@ import {
     QUEST_SECTION_BOX_CLASS,
     bankDisplayLabel,
     confirmReplaceActiveQuest,
+    questBankUnlockRequirementLabel,
 } from './questBankUi';
 
 /** Narrower than the old full-pane side-quests menu. */
@@ -28,6 +28,7 @@ const QUEST_BANK_PICKER_LIST_MAX_HEIGHT_CLASS = 'max-h-[min(24rem,60vh)]';
 export interface QuestBankPickerPopupProps {
     character: CampaignCharacter;
     bank: QuestSlotBank;
+    banks?: readonly QuestSlotBank[];
     isUnlocked: boolean;
     isAdmin: boolean;
     onStartQuest: (questDefId: string, options?: StartQuestOptions) => void;
@@ -38,6 +39,7 @@ export interface QuestBankPickerPopupProps {
 export default function QuestBankPickerPopup({
     character,
     bank,
+    banks = [],
     isUnlocked,
     isAdmin,
     onStartQuest,
@@ -94,6 +96,11 @@ export default function QuestBankPickerPopup({
         });
     };
 
+    const unlockRequirement = questBankUnlockRequirementLabel(bank, banks);
+    const lockedCopy = unlockRequirement
+        ? `This slot unlocks after ${unlockRequirement}. You can still start matching quests.`
+        : 'This slot is locked. You can still start matching quests.';
+
     return (
         <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
@@ -110,7 +117,14 @@ export default function QuestBankPickerPopup({
             >
                 <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                        <h3 className="text-base font-bold text-white truncate">{label}</h3>
+                        <h3 className="text-base font-bold text-white flex items-baseline gap-2 min-w-0">
+                            <span className="truncate">{label}</span>
+                            {isAdmin && (
+                                <span className="shrink-0 text-[11px] font-mono font-normal text-muted">
+                                    {bank.id}
+                                </span>
+                            )}
+                        </h3>
                         <p className="text-[11px] text-muted mt-0.5">
                             Progress:{' '}
                             <span
@@ -138,9 +152,7 @@ export default function QuestBankPickerPopup({
 
                 {!isUnlocked && (
                     <p className="text-[12px] text-amber-200/90">
-                        {bank.unlockAfterMissionId
-                            ? `This slot unlocks after ${MISSION_MAP[bank.unlockAfterMissionId]?.name ?? bank.unlockAfterMissionId}. You can still start matching quests.`
-                            : 'This slot is locked. You can still start matching quests.'}
+                        {lockedCopy}
                     </p>
                 )}
 

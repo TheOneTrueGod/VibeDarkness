@@ -42,6 +42,10 @@ import {
     type ResolveActiveDarknessStrengthsInput,
 } from '../../../darknessStrength/resolve';
 import { compileWorldModifiers } from '../../../darknessStrength/compile';
+import {
+    computeMatchExhaustion,
+    findPlayerUnitForMatchExhaustion,
+} from '../storylines/matchExhaustion';
 import { InteractiveTargetingSession, type HeldRemoteOrder } from './interaction/InteractiveTargetingSession';
 import { USE_SEQUENTIAL_TARGETING } from '../featureFlags';
 import { PERF_UI, PERF_UI_REACT, tickPerformanceTracker } from './performance/tickPerformanceTracker';
@@ -65,7 +69,7 @@ export interface BattleSessionConfig {
     missionId: string;
     playerId: string;
     isHost: boolean;
-    onVictory?: (missionResult: string) => void;
+    onVictory?: (missionResult: string, exhaustion?: number) => void;
     onDefeat?: () => void;
     onEmittedChatMessage?: (entry: MessageEntry) => void;
 }
@@ -436,7 +440,7 @@ export class BattleSession implements BattleSessionHandle {
                     this.commitPreviewForTerminalOutcome(engine);
                     return;
                 }
-                onVictory(result);
+                onVictory(result, this.matchExhaustionFor(engine));
             });
         }
         if (onDefeat) {
@@ -1238,10 +1242,19 @@ export class BattleSession implements BattleSessionHandle {
             return;
         }
         if (outcome.kind === 'victory') {
-            this.config.onVictory?.(outcome.missionResult);
+            this.config.onVictory?.(outcome.missionResult, this.matchExhaustionFor(engine));
         } else {
             this.config.onDefeat?.();
         }
+    }
+
+    private matchExhaustionFor(engine: GameEngine): number {
+        const unit = findPlayerUnitForMatchExhaustion(
+            engine.units,
+            engine.localPlayerId,
+            engine.getLocalPlayerUnit(),
+        );
+        return unit ? computeMatchExhaustion(unit) : 0;
     }
 
     /** Emit an order_submit_failed event to all session listeners. */

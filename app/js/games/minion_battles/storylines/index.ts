@@ -27,6 +27,14 @@ import { QUEST_FIND_SOME_FOOD } from './WorldOfDarkness/questMissions/quest_find
 import { QUEST_CRYSTAL_CORRUPTION } from './WorldOfDarkness/questMissions/quest_crystal_corruption';
 import { QUEST_PUSH_NORTH, QUEST_PUSH_NORTH_MISSION_ID } from './WorldOfDarkness/questMissions/quest_push_north';
 import { SWARMLING_NEST } from './WorldOfDarkness/questMissions/swarmling_nest';
+import {
+    QUEST_EMBER_THRESHOLD,
+    QUEST_EMBER_THRESHOLD_MISSION_ID,
+} from './WorldOfDarkness/questMissions/quest_ember_threshold';
+import {
+    QUEST_THORN_MARCH,
+    QUEST_THORN_MARCH_MISSION_ID,
+} from './WorldOfDarkness/questMissions/quest_thorn_march';
 
 /** Default mission when missionId is unknown (e.g. fallback in BattlePhase). */
 export { DARK_AWAKENING };
@@ -59,6 +67,8 @@ export const MISSION_MAP: Record<string, IBaseMissionDef> = {
     quest_crystal_corruption: QUEST_CRYSTAL_CORRUPTION,
     [QUEST_PUSH_NORTH_MISSION_ID]: QUEST_PUSH_NORTH,
     swarmling_nest: SWARMLING_NEST,
+    [QUEST_EMBER_THRESHOLD_MISSION_ID]: QUEST_EMBER_THRESHOLD,
+    [QUEST_THORN_MARCH_MISSION_ID]: QUEST_THORN_MARCH,
 };
 
 export type { CampaignChapterDef, StorylineDef, StorylineFlowEdge } from './types';

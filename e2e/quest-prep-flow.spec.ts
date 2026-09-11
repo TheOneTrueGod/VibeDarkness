@@ -20,7 +20,7 @@ const rootDir = path.resolve(__dirname, '..');
 const ENV_PATH = path.join(rootDir, '.env.playwright.local');
 
 /** Plains quest listed in the Surface Quests picker (startable even if the bank is locked). */
-const SCAVENGE_QUEST_ID = 'scavenge_the_plains';
+const INVESTIGATE_QUEST_ID = 'investigate_the_wildlife';
 /** Picker bank node that opens the quest-bank popup. */
 const POST_CORE_BANK_ID = 'wod_post_core_awakening_quests';
 
@@ -91,9 +91,9 @@ async function startOptionalQuest(page: import('@playwright/test').Page) {
     }
 
     await expect(popup).toBeVisible({ timeout: 15_000 });
-    const bankStart = page.getByTestId(`${TestIds.questStartPrefix}${SCAVENGE_QUEST_ID}`);
+    const bankStart = page.getByTestId(`${TestIds.questStartPrefix}${INVESTIGATE_QUEST_ID}`);
     const optionalStart = page.getByTestId(
-        `${TestIds.questStartOptionalPrefix}${SCAVENGE_QUEST_ID}`,
+        `${TestIds.questStartOptionalPrefix}${INVESTIGATE_QUEST_ID}`,
     );
     const startBtn = (await bankStart.isVisible().catch(() => false))
         ? bankStart

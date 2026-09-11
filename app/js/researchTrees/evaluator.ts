@@ -740,7 +740,7 @@ export function mergeBattleEquipmentIdsFromResearch(
         const ctx: ResearchContext = {
             account: dummyAccount as AccountState,
             character,
-            campaignResources: { food: 0, metal: 0, population: 0, crystals: 0 },
+            campaignResources: { food: 0, metal: 0, population: 0, crystals: 0, exhaustion: 0 },
         };
         const applied = applyResearchEffects(tree, ctx);
         equipment = applied.equipment;

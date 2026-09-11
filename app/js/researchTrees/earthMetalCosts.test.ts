@@ -22,7 +22,7 @@ function makeCtx(metal: number, research: Record<string, string[]> = {}, levels 
             researchTrees: research,
             researchNodeLevels: levels,
         } as unknown as CampaignCharacter,
-        campaignResources: { food: 0, metal, population: 0, crystals: 0 },
+        campaignResources: { food: 0, metal, population: 0, crystals: 0, exhaustion: 0 },
     };
 }
 

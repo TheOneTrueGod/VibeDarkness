@@ -1,9 +1,25 @@
 import type { CampaignResourceKey } from '../../../../../types';
 import { campaignResourceGains } from '../../../../../components/ResourcePill';
+import { MISSION_MAP } from '../../../storylines/index';
 import type { QuestDef, QuestResult, QuestRunState, QuestSlotBank } from '../../../storylines/questTypes';
 
 export function bankDisplayLabel(bank: QuestSlotBank): string {
     return bank.title ?? bank.id.replace(/_/g, ' ');
+}
+
+/** Player-facing name of the mission or bank this slot waits on, or null if ungated. */
+export function questBankUnlockRequirementLabel(
+    bank: QuestSlotBank,
+    banks: readonly QuestSlotBank[],
+): string | null {
+    if (bank.unlockAfterQuestBankId) {
+        const prior = banks.find((b) => b.id === bank.unlockAfterQuestBankId);
+        return prior ? bankDisplayLabel(prior) : bank.unlockAfterQuestBankId;
+    }
+    if (bank.unlockAfterMissionId) {
+        return MISSION_MAP[bank.unlockAfterMissionId]?.name ?? bank.unlockAfterMissionId;
+    }
+    return null;
 }
 
 /** Player-facing placement chip on a victory row (bank title, not the wire id). */

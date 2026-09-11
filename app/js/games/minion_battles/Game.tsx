@@ -43,6 +43,7 @@ import {
 import { SPECTATOR_ID, isControlEnemy } from './state';
 import { MessageType } from '../../MessageTypes';
 import type { CampaignResourceKey } from '../../types';
+import { withExhaustionDelta } from './storylines/matchExhaustion';
 import type { QuestResult } from './storylines/questTypes';
 import VictoryModal from './ui/components/VictoryModal';
 import { MinionBattlesApi } from './api/minionBattlesApi';
@@ -332,6 +333,7 @@ export default function MinionBattlesGame({
         researchRewardIds?: string[];
         researchRewards?: MissionResearchRewardEntry[];
     } | null>(null);
+    const matchExhaustionRef = useRef(0);
 
     /**
      * Advance or complete the active quest run after mission victory.
@@ -662,10 +664,15 @@ export default function MinionBattlesGame({
                         // apply them only on quest clear (not via this mission result).
                         const deferResourcesToQuest =
                             !!questLobbyFields && !skipRewards && !!rewards.resourceDelta;
+                        const exhaustion = skipRewards ? 0 : matchExhaustionRef.current;
+                        const recordedDelta = withExhaustionDelta(
+                            skipRewards || deferResourcesToQuest ? undefined : rewards.resourceDelta,
+                            exhaustion,
+                        );
                         void onRecordMissionResult?.(
                             missionId,
                             'victory',
-                            skipRewards || deferResourcesToQuest ? undefined : rewards.resourceDelta,
+                            recordedDelta,
                             skipRewards ? undefined : grantKnowledgeKeys,
                             skipRewards ? undefined : itemIds,
                             skipRewards ? undefined : rewards.researchRewardIds,
@@ -680,6 +687,7 @@ export default function MinionBattlesGame({
                                 ? null
                                 : {
                                       ...rewards,
+                                      resourceDelta: withExhaustionDelta(rewards.resourceDelta, exhaustion),
                                       // Still show chosen resources on the victory UI even when deferred.
                                       itemFromFirstChoice:
                                           rewards.itemFromFirstChoice ?? itemIds[0] ?? undefined,
@@ -754,7 +762,8 @@ export default function MinionBattlesGame({
                     headerSlot={headerSlot}
                     chatSlot={chatSlot}
                     centerOverlay={centerOverlay}
-                    onVictory={(missionResult) => {
+                    onVictory={(missionResult, exhaustion = 0) => {
+                        matchExhaustionRef.current = exhaustion;
                         if (!selectedMissionId) return;
                         const missionId = selectedMissionId;
                         if (postMissionStory) {
@@ -782,10 +791,12 @@ export default function MinionBattlesGame({
                             const amNpcController = isControlEnemy(sel);
                             const skipRewards = amSpectator || amNpcController;
                             const startingItemIds = skipRewards ? [] : getStartingItemIdsForPlayer(missionId, playerId);
+                            const exhaustion = skipRewards ? 0 : matchExhaustionRef.current;
+                            const recordedDelta = withExhaustionDelta(undefined, exhaustion);
                             void onRecordMissionResult?.(
                                 missionId,
                                 missionResult,
-                                undefined,
+                                recordedDelta,
                                 skipRewards ? undefined : grantKnowledgeKeys,
                                 skipRewards ? undefined : startingItemIds,
                                 undefined,
@@ -800,6 +811,7 @@ export default function MinionBattlesGame({
                                     ? null
                                     : {
                                           itemFromFirstChoice: startingItemIds[0] ?? undefined,
+                                          resourceDelta: recordedDelta,
                                       }
                             );
                             void (async () => {

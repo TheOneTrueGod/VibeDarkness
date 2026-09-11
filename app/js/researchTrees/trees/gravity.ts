@@ -19,6 +19,13 @@ export const GRAVITY_NODE_GRAVITY_INVERSION = 'gravity_inversion';
 export const GRAVITY_NODE_GRAVITY_SHIELD = 'gravity_shield';
 export const GRAVITY_NODE_REPULSE = 'gravity_repulse';
 
+export const GRAVITY_LOCUS_CRYSTAL_COST = 10;
+export const GRAVITY_LOCUS_FOOD_COST = 5;
+export const GRAVITY_LIFT_CRYSTAL_COST = 15;
+export const GRAVITY_LIFT_FOOD_COST = GRAVITY_LOCUS_FOOD_COST;
+export const GRAVITY_SHIELD_CRYSTAL_COST = 20;
+export const GRAVITY_SHIELD_METAL_COST = 5;
+
 export const gravityTree: ResearchTreeDef = {
     id: GRAVITY_TREE_ID,
     title: 'Gravity',
@@ -30,7 +37,7 @@ export const gravityTree: ResearchTreeDef = {
             id: GRAVITY_NODE_CORE,
             title: 'Gravity Core',
             description:
-                'Channel proximity to danger into gravitational force. Learn to fling enemies with aimed Force Push.',
+                'Channel proximity to danger into gravitational force. Learn to fling enemies with Force Push.',
             flavorText: 'The void does not pull — you decide which way things fall.',
             order: 5,
             tier: 10,
@@ -51,7 +58,7 @@ export const gravityTree: ResearchTreeDef = {
             id: GRAVITY_NODE_GRAVITY_LOCUS,
             title: 'Gravity Locus',
             description:
-                'Deploy a sustained gravity field at a point. Nudge enemies outward or draw them inward without interrupting their actions.',
+                'Deploy a sustained gravity field at a point. Slowly pushes or pulls enemies in the gravity field.',
             flavorText: 'Bend the battlefield — one pulse at a time.',
             order: 10,
             tier: 2,
@@ -61,7 +68,7 @@ export const gravityTree: ResearchTreeDef = {
             requirements: [
                 { type: 'anyResearched', treeId: GRAVITY_TREE_ID, nodeIds: [GRAVITY_NODE_CORE] },
             ],
-            cost: {},
+            cost: { crystals: GRAVITY_LOCUS_CRYSTAL_COST, food: GRAVITY_LOCUS_FOOD_COST },
             effects: [
                 { type: 'addCard', cardId: '0901' },
             ],
@@ -107,7 +114,7 @@ export const gravityTree: ResearchTreeDef = {
             requirements: [
                 { type: 'anyResearched', treeId: GRAVITY_TREE_ID, nodeIds: [GRAVITY_NODE_CORE] },
             ],
-            cost: {},
+            cost: { crystals: GRAVITY_LIFT_CRYSTAL_COST, food: GRAVITY_LIFT_FOOD_COST },
             effects: [
                 { type: 'addCard', cardId: '0903' },
             ],
@@ -126,7 +133,7 @@ export const gravityTree: ResearchTreeDef = {
             requirements: [
                 { type: 'anyResearched', treeId: GRAVITY_TREE_ID, nodeIds: [GRAVITY_NODE_CORE] },
             ],
-            cost: {},
+            cost: { crystals: GRAVITY_SHIELD_CRYSTAL_COST, metal: GRAVITY_SHIELD_METAL_COST },
             effects: [
                 { type: 'addCard', cardId: '0904' },
             ],
