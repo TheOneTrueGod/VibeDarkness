@@ -559,6 +559,8 @@ export class BattleSession implements BattleSessionHandle {
         const missionPrepLoadoutsByPlayer =
             (snapshotRecord?.missionPrepLoadoutsByPlayer as Record<string, string[]> | undefined)
             ?? undefined;
+        const playerExhaustionByPlayer =
+            (snapshotRecord?.playerExhaustionByPlayer as Record<string, number> | undefined) ?? {};
 
         const engine = new GameEngine();
         engine.prepareForNewGame({
@@ -590,6 +592,7 @@ export class BattleSession implements BattleSessionHandle {
             questPrepLoadoutsByPlayer,
             questAbilityLoadoutsByCharacterId,
             missionPrepLoadoutsByPlayer,
+            playerExhaustionByPlayer,
             terrainSegmentPOIs,
             terrainSegmentZones,
         });

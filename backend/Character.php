@@ -172,6 +172,30 @@ class Character
         return $this->questResults;
     }
 
+    /**
+     * Current exhaustion from this character's campaign mission and quest results.
+     * Mirrors `getCharacterExhaustion` in characterEndurance.ts.
+     */
+    public function getExhaustion(): int
+    {
+        $campaignId = $this->campaignId;
+        $missionList = $this->missionResults[$campaignId] ?? [];
+        $total = Campaign::sumLatestMissionResourceDeltas(is_array($missionList) ? $missionList : [])['exhaustion'];
+        $quests = $this->questResults[$campaignId] ?? [];
+        if (is_array($quests)) {
+            foreach ($quests as $quest) {
+                if (!is_array($quest)) {
+                    continue;
+                }
+                $n = $quest['resourceDelta']['exhaustion'] ?? 0;
+                if (is_numeric($n) && (int) $n > 0) {
+                    $total += (int) $n;
+                }
+            }
+        }
+        return $total;
+    }
+
     /** @return array<string, mixed>|null */
     public function getActiveQuestRun(): ?array
     {

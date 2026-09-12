@@ -1093,6 +1093,7 @@ class LobbyManager
         $byPlayer = [];
         $researchByPlayer = [];
         $researchLevelsByPlayer = [];
+        $exhaustionByPlayer = [];
         foreach ($selections as $playerId => $characterId) {
             $playerId = is_int($playerId) ? (string) $playerId : $playerId;
             if (!is_string($playerId) || !is_string($characterId)) {
@@ -1107,6 +1108,7 @@ class LobbyManager
                 $researchByPlayer[$playerId] = is_array($trees) ? $trees : [];
                 $levels = $character->getResearchNodeLevels();
                 $researchLevelsByPlayer[$playerId] = is_array($levels) ? $levels : [];
+                $exhaustionByPlayer[$playerId] = $character->getExhaustion();
                 $tech = $trees['tech_shield'] ?? [];
                 $tech = is_array($tech) ? $tech : [];
                 $hasEmbedded = in_array('crystal_embedded_shield', $tech, true);
@@ -1188,6 +1190,9 @@ class LobbyManager
         }
         if ($researchLevelsByPlayer !== []) {
             $state['playerResearchNodeLevelsByPlayer'] = $researchLevelsByPlayer;
+        }
+        if ($exhaustionByPlayer !== []) {
+            $state['playerExhaustionByPlayer'] = $exhaustionByPlayer;
         }
         return $state;
     }

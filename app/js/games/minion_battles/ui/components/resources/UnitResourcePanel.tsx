@@ -45,6 +45,7 @@ export function UnitResourcePanel({ unit }: UnitResourcePanelProps) {
 
     const displayHp = debugEnabled ? Math.round((debugFill / 100) * unit.maxHp) : unit.hp;
     const displayHpInjury = debugEnabled ? 0 : unit.hpInjury;
+    const displayHpExhaustion = debugEnabled ? 0 : unit.hpExhaustion;
     const displayEffectiveMaxHp = Math.ceil(unit.getEffectiveMaxHp());
     const totalShieldHp = getTotalShieldHp(unit);
 
@@ -128,12 +129,21 @@ export function UnitResourcePanel({ unit }: UnitResourcePanelProps) {
                                 <div>Current Health: {Math.ceil(displayHp)}</div>
                                 <div>Max Health: {displayEffectiveMaxHp}</div>
                                 <div>Injury: {Math.ceil(displayHpInjury)}</div>
+                                {displayHpExhaustion > 0 && (
+                                    <div>Exhaustion: {Math.ceil(displayHpExhaustion)}</div>
+                                )}
                                 {totalShieldHp > 0 && <div>Shield: {Math.ceil(totalShieldHp)}</div>}
                             </div>
                         )}
                     </div>
                     <div onMouseEnter={showHpTooltip} onMouseLeave={hideHpTooltip}>
-                        <HealthSegmentBar hp={displayHp} maxHp={unit.maxHp} hpInjury={displayHpInjury} shieldHp={totalShieldHp} />
+                        <HealthSegmentBar
+                            hp={displayHp}
+                            maxHp={unit.maxHp}
+                            hpInjury={displayHpInjury}
+                            hpExhaustion={displayHpExhaustion}
+                            shieldHp={totalShieldHp}
+                        />
                     </div>
                 </div>
             </div>

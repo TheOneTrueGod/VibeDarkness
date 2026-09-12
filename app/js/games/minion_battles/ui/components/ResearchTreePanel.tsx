@@ -730,6 +730,7 @@ function ResearchGridCards({
 	researchCtx,
 	onResearchNode,
 	skipCostCheck = false,
+	showPrereqRow = true,
 }: {
 	entries: ReturnType<typeof collectResearchGridEntries>;
 	researchedByTreeId: Record<string, Set<string>>;
@@ -740,6 +741,7 @@ function ResearchGridCards({
 	researchCtx: ResearchContext;
 	onResearchNode?: (treeId: string, nodeId: string) => void;
 	skipCostCheck?: boolean;
+	showPrereqRow?: boolean;
 }) {
 	return (
 		<div className="flex flex-wrap gap-3">
@@ -761,7 +763,7 @@ function ResearchGridCards({
 						layout="comfortable"
 						showCost
 						showRequirements={false}
-						showPrereqRow
+						showPrereqRow={showPrereqRow}
 						currentLevel={getNodeLevel(tree.id, node.id, researchTrees, researchNodeLevels)}
 						maxLevels={getNodeMaxLevels(node)}
 						researchSourceLabel={formatOwnedResearchSourcesLabel(
@@ -867,6 +869,7 @@ export function ResearchedNodesGrid({
 						researchCtx={researchCtx}
 						onResearchNode={onResearchNode}
 						skipCostCheck={isAdmin}
+						showPrereqRow={false}
 					/>
 				</div>
 			)}

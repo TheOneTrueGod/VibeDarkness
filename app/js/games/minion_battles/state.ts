@@ -85,6 +85,8 @@ export interface MinionBattlesState {
     playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
     /** Multi-level research node counts (playerId → treeId → nodeId → level). */
     playerResearchNodeLevelsByPlayer?: Record<string, Record<string, Record<string, number>>>;
+    /** Current campaign exhaustion per player (from the selected character). */
+    playerExhaustionByPlayer?: Record<string, number>;
 }
 
 export interface MinionBattlesGameOptions {

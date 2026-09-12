@@ -13,15 +13,17 @@ export type MatchExhaustionUnit = {
     hp: number;
     maxHp: number;
     hpInjury: number;
+    hpExhaustion?: number;
 };
 
 /**
  * Match-end exhaustion: 1 per wound point + 0.5 per HP below wounded max, rounded up.
- * Wounded max = Max HP − wound damage; missing HP = wounded max − current HP.
+ * Wounded max = Max HP − exhaustion reserve − wound damage; missing HP = wounded max − current HP.
  */
 export function computeMatchExhaustion(unit: MatchExhaustionUnit): number {
     const woundPoints = Math.max(0, unit.hpInjury);
-    const missingHp = Math.max(0, unit.maxHp - woundPoints - unit.hp);
+    const exhaustionReserve = Math.max(0, unit.hpExhaustion ?? 0);
+    const missingHp = Math.max(0, unit.maxHp - exhaustionReserve - woundPoints - unit.hp);
     const raw =
         woundPoints * EXHAUSTION_PER_WOUND_POINT + missingHp * EXHAUSTION_PER_MISSING_HP;
     return Math.ceil(raw);

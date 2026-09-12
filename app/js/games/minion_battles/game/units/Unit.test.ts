@@ -358,6 +358,7 @@ describe('Unit', () => {
             "hardCcArmourEventSerial": 5,
             "hardCcArmourFloor": 2,
             "hp": 80,
+            "hpExhaustion": 0,
             "hpInjury": 8,
             "id": "golden_unit",
             "invulnerabilityGenerations": 2,
@@ -555,6 +556,8 @@ describe('Unit', () => {
             combatSettings: { damageModifier: { flatAmt: 2, multiplier: 1 } },
         });
         unit.active = true;
+        const fightStartExhaustionReserve = 12;
+        unit.hpExhaustion = fightStartExhaustionReserve;
         unit.waitMinEndTime = 10;
         unit.waitMaxEndTime = 20;
         unit.waitAbilityMode = WAIT_ABILITY_MODE_FAR;
@@ -570,6 +573,7 @@ describe('Unit', () => {
         expect(restored.active).toBe(unit.active);
         expect(restored.hp).toBe(unit.hp);
         expect(restored.maxHp).toBe(unit.maxHp);
+        expect(restored.hpExhaustion).toBe(unit.hpExhaustion);
         expect(restored.speed).toBe(unit.speed);
         expect(restored.teamId).toBe(unit.teamId);
         expect(restored.ownerId).toBe(unit.ownerId);

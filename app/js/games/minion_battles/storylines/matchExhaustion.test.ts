@@ -39,6 +39,10 @@ describe('computeMatchExhaustion', () => {
             Math.ceil(10 * EXHAUSTION_PER_WOUND_POINT),
         );
     });
+
+    it('does not treat fight-start exhaustion reserve as missing HP', () => {
+        expect(computeMatchExhaustion({ hp: 30, maxHp: 100, hpInjury: 0, hpExhaustion: 70 })).toBe(0);
+    });
 });
 
 describe('withExhaustionDelta', () => {

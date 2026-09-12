@@ -267,6 +267,7 @@ export class UnitRenderer {
             const hpBg = visual.children.find((c) => c.label === 'hpBg');
             const hpFill = visual.children.find((c) => c.label === 'hpFill');
             const hpInjury = visual.children.find((c) => c.label === 'hpInjury');
+            const hpExhaustion = visual.children.find((c) => c.label === 'hpExhaustion');
             const characterSprite = visual.children.find((c) => c.label === 'characterSprite');
             const label = visual.children.find((c) => c.label === 'label');
             const glow = visual.children.find((c) => c.label === 'glow');
@@ -285,6 +286,7 @@ export class UnitRenderer {
                 if (hpBg) hpBg.visible = false;
                 if (hpFill) hpFill.visible = false;
                 if (hpInjury) hpInjury.visible = false;
+                if (hpExhaustion) hpExhaustion.visible = false;
                 if (characterSprite) characterSprite.visible = false;
                 const darkTint = visual.children.find((c) => c.label === 'darkCreatureIconTint');
                 if (darkTint) darkTint.visible = false;
@@ -307,6 +309,7 @@ export class UnitRenderer {
                 if (hpBg) hpBg.visible = showHpBar;
                 if (hpFill) hpFill.visible = showHpBar;
                 if (hpInjury) hpInjury.visible = showHpBar;
+                if (hpExhaustion) hpExhaustion.visible = showHpBar;
                 if (characterSprite) characterSprite.visible = true;
                 const darkTint = visual.children.find((c) => c.label === 'darkCreatureIconTint');
                 if (darkTint) darkTint.visible = true;

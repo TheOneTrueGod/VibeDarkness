@@ -40,6 +40,8 @@ import {
     type HomeResolveContext,
 } from './homeBase';
 import type { MissionResult } from '../../../types';
+import { getCharacterEndurance } from '../character_defs/characterEndurance';
+import { applyFightStartExhaustion } from '../character_defs/exhaustionHealth';
 import { createPlayerUnit } from '../game/units/index';
 import { enemySpawnDefToSpawnDefinition } from '../game/units/spawning/adapters';
 import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
@@ -162,6 +164,8 @@ export interface InitializeGameStateParams {
     terrainSegmentZones?: MapSegmentZone[];
     /** Shared campaign results used to resolve the home/spawn tile. */
     missionResults?: MissionResult[];
+    /** Current campaign exhaustion per player (from the selected character). */
+    playerExhaustionByPlayer?: Record<string, number>;
 }
 
 /** Mission definition extending MissionBattleConfig with initializeGameState. */
@@ -445,6 +449,14 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 },
                 params.eventBus,
                 engine,
+            );
+            applyFightStartExhaustion(
+                unit,
+                params.playerExhaustionByPlayer?.[pu.playerId] ?? 0,
+                getCharacterEndurance(
+                    researchByPlayer[pu.playerId],
+                    researchLevelsByPlayer[pu.playerId],
+                ),
             );
             if (staminaRecoveryBonus > 0) {
                 unit.stamina += staminaRecoveryBonus;

@@ -64,7 +64,8 @@ export interface ResearchNodeCardProps {
     showRequirements?: boolean;
     /**
      * In-card dark strip listing missing research prereqs (comfortable Upgrades grid).
-     * Description always reserves 3 lines; the strip slot stays reserved when prereqs are met.
+     * Description always reserves 3 lines. Possessed/unowned keep the strip slot reserved
+     * when prereqs are met; Eligible cards omit the slot.
      */
     showPrereqRow?: boolean;
     researchRequirementEntries?: ResearchRequirementEntry[];
@@ -325,7 +326,7 @@ export default function ResearchNodeCard({
     );
 
     const levelPill = showLevelPill && (
-        <span className="ml-auto shrink-0 rounded bg-zinc-600 px-2 py-1 text-sm font-semibold tabular-nums leading-none text-zinc-100">
+        <span className="ml-auto shrink-0 rounded bg-zinc-600 px-2 py-1 text-xs font-semibold tabular-nums leading-none text-zinc-100">
             {formatResearchLevelPill(currentLevel, maxLevels)}
         </span>
     );

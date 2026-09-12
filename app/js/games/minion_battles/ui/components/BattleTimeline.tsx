@@ -602,12 +602,13 @@ function renderPlayerUnitTimelineUnified(
     const alive = unit.isAlive();
     const hpPct = unit.maxHp > 0 ? Math.round((unit.hp / unit.maxHp) * 100) : 0;
     const hpInjuryPct = unit.maxHp > 0 ? (unit.hpInjury / unit.maxHp) * 100 : 0;
+    const hpExhaustionPct = unit.maxHp > 0 ? (unit.hpExhaustion / unit.maxHp) * 100 : 0;
     const barClass = hpBarColorClass(unit.hp, unit.maxHp, alive);
     const effectiveMaxHp = Math.ceil(unit.getEffectiveMaxHp());
     const totalShieldHp = getTotalShieldHp(unit);
     // Shield overlay width, expressed as % of the bar's full maxHp span, capped at the
-    // non-injured capacity so it never bleeds into the (black) injury region.
-    const injuryStartGlobal = unit.maxHp - unit.hpInjury;
+    // available capacity so it never bleeds into injury or exhaustion.
+    const injuryStartGlobal = unit.maxHp - unit.hpInjury - unit.hpExhaustion;
     const shieldGlobalWidth = Math.max(0, Math.min(totalShieldHp, injuryStartGlobal));
     const shieldPct = unit.maxHp > 0 ? (shieldGlobalWidth / unit.maxHp) * 100 : 0;
 
@@ -780,7 +781,16 @@ function renderPlayerUnitTimelineUnified(
                         />
                     )}
                     {hpInjuryPct > 0 && (
-                        <div className="absolute right-0 top-0 h-full rounded-full bg-black" style={{ width: `${hpInjuryPct}%` }} />
+                        <div
+                            className="absolute top-0 h-full rounded-full bg-black"
+                            style={{ right: `${hpExhaustionPct}%`, width: `${hpInjuryPct}%` }}
+                        />
+                    )}
+                    {hpExhaustionPct > 0 && (
+                        <div
+                            className="absolute right-0 top-0 h-full rounded-full bg-gray-500"
+                            style={{ width: `${hpExhaustionPct}%` }}
+                        />
                     )}
                 </div>
                 {totalShieldHp > 0 && (

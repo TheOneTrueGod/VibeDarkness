@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { Unit } from './Unit';
 import { applyHeal, DEFAULT_HEAL_PENALTY_PCT, MIN_EFFECTIVE_MAX_HP_PCT } from './unitHeal';
+import {
+    EXHAUSTION_HEALTH_LOSS_FRACTION,
+    EXHAUSTION_MIN_AVAILABLE_HEALTH_FRACTION,
+} from '../../character_defs/exhaustionHealth';
+
+const FULL_POOL = 100;
+const FULL_EXHAUSTION_RESERVED = FULL_POOL * EXHAUSTION_HEALTH_LOSS_FRACTION;
+const FULL_EXHAUSTION_AVAILABLE = FULL_POOL * EXHAUSTION_MIN_AVAILABLE_HEALTH_FRACTION;
 
 function makeUnit(overrides: Partial<ConstructorParameters<typeof Unit>[0]> = {}): Unit {
     return new Unit({
@@ -72,6 +80,18 @@ describe('applyHeal', () => {
         }
         expect(unit.getEffectiveMaxHp()).toBeCloseTo(100 * MIN_EFFECTIVE_MAX_HP_PCT);
         expect(unit.hpInjury).toBeLessThanOrEqual(100 * (1 - MIN_EFFECTIVE_MAX_HP_PCT));
+    });
+
+    it('floors injury against the post-exhaustion pool so 100% exhaustion can stay at 30% available', () => {
+        const unit = makeUnit({ hp: FULL_EXHAUSTION_AVAILABLE, maxHp: FULL_POOL });
+        unit.hpExhaustion = FULL_EXHAUSTION_RESERVED;
+        expect(unit.getEffectiveMaxHp()).toBeCloseTo(FULL_EXHAUSTION_AVAILABLE);
+        for (let i = 0; i < 20; i++) {
+            unit.hp = 1;
+            applyHeal(unit, FULL_POOL);
+        }
+        expect(unit.getEffectiveMaxHp()).toBeCloseTo(FULL_EXHAUSTION_AVAILABLE * MIN_EFFECTIVE_MAX_HP_PCT);
+        expect(unit.hpInjury).toBeLessThanOrEqual(FULL_EXHAUSTION_AVAILABLE * (1 - MIN_EFFECTIVE_MAX_HP_PCT));
     });
 
     it('is a no-op on a dead unit', () => {

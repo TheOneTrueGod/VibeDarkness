@@ -20,7 +20,8 @@ export function applyHeal(unit: Unit, amount: number, penaltyPct: number = DEFAU
 
     unit.hp += actualHeal;
     const injuryAdded = actualHeal * penaltyPct;
-    unit.hpInjury = Math.min(unit.maxHp * (1 - MIN_EFFECTIVE_MAX_HP_PCT), unit.hpInjury + injuryAdded);
+    const postExhaustionPool = Math.max(0, unit.maxHp - unit.hpExhaustion);
+    unit.hpInjury = Math.min(postExhaustionPool * (1 - MIN_EFFECTIVE_MAX_HP_PCT), unit.hpInjury + injuryAdded);
     unit.hp = Math.min(unit.hp, unit.getEffectiveMaxHp());
     return actualHeal;
 }
