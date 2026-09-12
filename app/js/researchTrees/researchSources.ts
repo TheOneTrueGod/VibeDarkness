@@ -50,6 +50,29 @@ export function getNodeResearchSources(
     return list;
 }
 
+/** Joins distinct sources for the admin card footer. */
+export const RESEARCH_SOURCE_LABEL_JOIN = ', ';
+
+export function formatResearchSourcesLabel(sources: readonly ResearchSource[]): string {
+    const unique: ResearchSource[] = [];
+    for (const source of sources) {
+        if (!unique.includes(source)) unique.push(source);
+    }
+    return unique.join(RESEARCH_SOURCE_LABEL_JOIN);
+}
+
+export function formatOwnedResearchSourcesLabel(
+    treeId: string,
+    nodeId: string,
+    researchTrees: Record<string, string[]> | undefined,
+    researchNodeLevels: ResearchNodeLevels | undefined,
+    researchSources: ResearchNodeSources | undefined,
+): string {
+    return formatResearchSourcesLabel(
+        getNodeResearchSources(treeId, nodeId, researchTrees, researchNodeLevels, researchSources),
+    );
+}
+
 export function countResearchSourceLevels(sources: readonly ResearchSource[], source: ResearchSource): number {
     let count = 0;
     for (const entry of sources) {

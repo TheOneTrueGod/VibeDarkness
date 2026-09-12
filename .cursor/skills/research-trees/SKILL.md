@@ -67,7 +67,7 @@ Components (all under `app/js/games/minion_battles/ui/components/`):
 | `ResearchTreePanel.tsx` | Outer container for the tab content |
 | `ResearchTreeList` | Sidebar selector listing eligible trees with node-count badges |
 | `ResearchTreeContent` | SVG graph rendering nodes at their `(x, y)` positions with edges |
-| `ResearchNodeCard.tsx` | **ResearchNodeCard** — tree icon + title, 3-line description, medium cost pills, optional requirements strip. Admin comfortable cards add an in-flow id/tier footer. |
+| `ResearchNodeCard.tsx` | **ResearchNodeCard** — tree icon + title, 3-line description, medium cost pills, optional requirements strip. Admin comfortable cards add an in-flow id/source/tier footer. |
 
 ### Node states
 `researched` · `enabled` · `blocked` · `default`

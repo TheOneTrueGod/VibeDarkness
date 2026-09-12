@@ -30,6 +30,7 @@ export const TestIds = {
     /** Suffix with node id */
     researchNodeCardPrefix: 'research-node-card-',
     researchNodeRequirements: 'research-node-requirements',
+    researchNodeSource: 'research-node-source',
     researchNodeTreeIcon: 'research-node-tree-icon',
     researchTreeListIcon: 'research-tree-list-icon',
     storyChoiceResearchTreeIcon: 'story-choice-research-tree-icon',

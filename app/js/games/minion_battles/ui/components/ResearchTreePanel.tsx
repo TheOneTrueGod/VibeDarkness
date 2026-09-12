@@ -42,7 +42,7 @@ import {
 	UNOWNED_RESEARCH_HEADING,
 } from './researchNodeGrid';
 import { TestIds } from '../../../../testing/testIds';
-import { hasResearchOfSource } from '../../../../researchTrees/researchSources';
+import { formatOwnedResearchSourcesLabel, hasResearchOfSource } from '../../../../researchTrees/researchSources';
 
 function accountKnowledgeKeys(requirements: Requirement[]): string[] {
 	const keys: string[] = [];
@@ -615,6 +615,13 @@ export function ResearchTreeContent({
 										showCost
 										showRequirements
 										showTier
+										researchSourceLabel={formatOwnedResearchSourcesLabel(
+											tree.id,
+											n.id,
+											researchTrees,
+											researchNodeLevels,
+											researchSources,
+										)}
 										onClick={() => enabled && onResearchNode(tree.id, n.id)}
 										selectionReason={selectionReason}
 										requirementBadges={requirementBadges}
@@ -662,6 +669,13 @@ export function ResearchTreeContent({
 										showCost
 										showRequirements
 										showTier
+										researchSourceLabel={formatOwnedResearchSourcesLabel(
+											ref.fromTreeId,
+											ref.nodeId,
+											researchTrees,
+											researchNodeLevels,
+											researchSources,
+										)}
 										onClick={() => enabled && onResearchNode(ref.fromTreeId, ref.nodeId)}
 										selectionReason={selectionReason}
 										requirementBadges={[]}
@@ -712,6 +726,7 @@ function ResearchGridCards({
 	state,
 	researchTrees,
 	researchNodeLevels,
+	researchSources,
 	researchCtx,
 	onResearchNode,
 	skipCostCheck = false,
@@ -721,6 +736,7 @@ function ResearchGridCards({
 	state: 'researched' | 'blocked' | 'enabled';
 	researchTrees: Record<string, string[]>;
 	researchNodeLevels?: ResearchNodeLevels;
+	researchSources?: ResearchNodeSources;
 	researchCtx: ResearchContext;
 	onResearchNode?: (treeId: string, nodeId: string) => void;
 	skipCostCheck?: boolean;
@@ -748,6 +764,13 @@ function ResearchGridCards({
 						showPrereqRow
 						currentLevel={getNodeLevel(tree.id, node.id, researchTrees, researchNodeLevels)}
 						maxLevels={getNodeMaxLevels(node)}
+						researchSourceLabel={formatOwnedResearchSourcesLabel(
+							tree.id,
+							node.id,
+							researchTrees,
+							researchNodeLevels,
+							researchSources,
+						)}
 						onClick={purchasable ? () => onResearchNode(tree.id, node.id) : undefined}
 						researchRequirementEntries={collectResearchRequirementEntries(
 							node,
@@ -840,6 +863,7 @@ export function ResearchedNodesGrid({
 						state="enabled"
 						researchTrees={researchTrees}
 						researchNodeLevels={researchNodeLevels}
+						researchSources={researchSources}
 						researchCtx={researchCtx}
 						onResearchNode={onResearchNode}
 						skipCostCheck={isAdmin}
@@ -857,6 +881,7 @@ export function ResearchedNodesGrid({
 						state="researched"
 						researchTrees={researchTrees}
 						researchNodeLevels={researchNodeLevels}
+						researchSources={researchSources}
 						researchCtx={researchCtx}
 						onResearchNode={onResearchNode}
 						skipCostCheck={isAdmin}
@@ -874,6 +899,7 @@ export function ResearchedNodesGrid({
 						state="blocked"
 						researchTrees={researchTrees}
 						researchNodeLevels={researchNodeLevels}
+						researchSources={researchSources}
 						researchCtx={researchCtx}
 						onResearchNode={onResearchNode}
 						skipCostCheck={isAdmin}

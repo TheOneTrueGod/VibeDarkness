@@ -73,6 +73,8 @@ export interface ResearchNodeCardProps {
     onClick?: () => void;
     selectionReason?: string | null;
     requirementBadges?: ResearchRequirementBadge[];
+    /** Distinct owned sources for the admin footer (id · source · tier). Empty when unowned. */
+    researchSourceLabel?: string;
     className?: string;
 }
 
@@ -183,6 +185,7 @@ export default function ResearchNodeCard({
     onClick,
     selectionReason = null,
     requirementBadges = [],
+    researchSourceLabel = '',
     className = '',
 }: ResearchNodeCardProps) {
     const { isAdmin } = useCurrentUser();
@@ -312,15 +315,24 @@ export default function ResearchNodeCard({
         </span>
     );
 
+    const adminSourceBadge = isAdmin && layout !== 'comfortable' && researchSourceLabel !== '' && (
+        <span
+            data-testid={TestIds.researchNodeSource}
+            className={`${adminFooterBadgeClass} left-1/2 max-w-[40%] -translate-x-1/2 truncate text-center`}
+        >
+            {researchSourceLabel}
+        </span>
+    );
+
     const levelPill = showLevelPill && (
-        <span className="absolute top-1 right-2 shrink-0 rounded bg-zinc-600 px-2 py-0.5 text-sm font-semibold tabular-nums leading-none text-zinc-100 pointer-events-none">
+        <span className="ml-auto shrink-0 rounded bg-zinc-600 px-2 py-1 text-sm font-semibold tabular-nums leading-none text-zinc-100">
             {formatResearchLevelPill(currentLevel, maxLevels)}
         </span>
     );
 
     const content = (
         <div className="flex h-full min-h-0 w-full flex-col gap-1 overflow-hidden">
-            <div className={`${titleClass} shrink-0 flex items-center gap-1.5 min-w-0 ${showLevelPill ? 'pr-14' : ''}`}>
+            <div className="flex min-w-0 shrink-0 items-center gap-1.5">
                 <img
                     src={treeChrome.icon}
                     alt=""
@@ -328,7 +340,8 @@ export default function ResearchNodeCard({
                     title={owningTree?.title}
                     className={`${layout === 'comfortable' ? 'h-4 w-4' : 'h-3.5 w-3.5'} shrink-0 rounded-sm object-cover`}
                 />
-                <span className="truncate">{node.title}</span>
+                <span className={`${titleClass} min-w-0 truncate`}>{node.title}</span>
+                {levelPill}
             </div>
             <div
                 className={`${descSizeClass} shrink-0 text-gray-300 line-clamp-3`}
@@ -385,10 +398,18 @@ export default function ResearchNodeCard({
             )}
             {isAdmin && layout === 'comfortable' && (
                 <div
-                    className={`flex ${RESEARCH_NODE_ADMIN_FOOTER_HEIGHT_CLASS} shrink-0 items-center justify-between gap-2 text-[9px] font-mono leading-none text-zinc-500`}
+                    className={`grid ${RESEARCH_NODE_ADMIN_FOOTER_HEIGHT_CLASS} shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1 text-[9px] font-mono leading-none text-zinc-500`}
                 >
-                    <span className="min-w-0 truncate select-all">{node.id}</span>
-                    {node.tier != null && <span className="shrink-0">Tier {node.tier}</span>}
+                    <span className="min-w-0 truncate text-left select-all">{node.id}</span>
+                    <span
+                        data-testid={TestIds.researchNodeSource}
+                        className="max-w-[7rem] truncate px-1 text-center"
+                    >
+                        {researchSourceLabel}
+                    </span>
+                    <span className="min-w-0 truncate text-right">
+                        {node.tier != null ? `Tier ${node.tier}` : ''}
+                    </span>
                 </div>
             )}
         </div>
@@ -466,16 +487,16 @@ export default function ResearchNodeCard({
                 >
                     {content}
                     {tierBadge}
-                    {levelPill}
                     {adminIdBadge}
+                    {adminSourceBadge}
                     {adminTierBadge}
                 </button>
             ) : (
                 <div className={cardClasses} style={{ borderColor: treeChrome.colour }} aria-label={node.title}>
                     {content}
                     {tierBadge}
-                    {levelPill}
                     {adminIdBadge}
+                    {adminSourceBadge}
                     {adminTierBadge}
                 </div>
             )}

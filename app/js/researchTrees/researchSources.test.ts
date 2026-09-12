@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_RESEARCH_NODE_LEVELS } from './passiveBonuses';
 import {
     countResearchSourceLevels,
+    formatResearchSourcesLabel,
     getNodeResearchSources,
     hasResearchOfSource,
+    RESEARCH_SOURCE_LABEL_JOIN,
     stripResearchBySource,
 } from './researchSources';
 import { ResearchSource } from './types';
@@ -32,6 +34,22 @@ describe('getNodeResearchSources', () => {
             { [TRAINING_TREE_ID]: { [TRAINING_NODE_HEALTHY]: [ResearchSource.QuestReward] } },
         );
         expect(sources).toEqual([ResearchSource.QuestReward, ResearchSource.Purchased]);
+    });
+});
+
+describe('formatResearchSourcesLabel', () => {
+    it('returns empty when there are no sources', () => {
+        expect(formatResearchSourcesLabel([])).toBe('');
+    });
+
+    it('keeps first-seen order and drops duplicates', () => {
+        expect(formatResearchSourcesLabel([
+            ResearchSource.QuestReward,
+            ResearchSource.Purchased,
+            ResearchSource.QuestReward,
+        ])).toBe(
+            `${ResearchSource.QuestReward}${RESEARCH_SOURCE_LABEL_JOIN}${ResearchSource.Purchased}`,
+        );
     });
 });
 

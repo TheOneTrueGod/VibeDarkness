@@ -20,6 +20,7 @@ export const TestIds = {
     researchUnownedSection: 'research-unowned-section',
     researchNodeCardPrefix: 'research-node-card-',
     researchNodeRequirements: 'research-node-requirements',
+    researchNodeSource: 'research-node-source',
     researchNodeTreeIcon: 'research-node-tree-icon',
     researchTreeListIcon: 'research-tree-list-icon',
     researchGridResources: 'research-grid-resources',
