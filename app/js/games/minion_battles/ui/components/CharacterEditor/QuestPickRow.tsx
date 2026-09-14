@@ -145,7 +145,7 @@ export function QuestPickRow({
     );
 
     return (
-        <div className="flex items-start justify-between gap-2 rounded-md border border-border-custom bg-background/40 px-2.5 py-1.5 min-w-0">
+        <div className="flex w-full min-w-0 items-start justify-between gap-2 rounded-md border border-border-custom bg-background/40 px-2.5 py-1.5">
             <div className="min-w-0 flex-1">
                 <p className="text-xs font-medium text-white flex items-baseline gap-1.5 min-w-0">
                     <span className="truncate">{quest.title}</span>

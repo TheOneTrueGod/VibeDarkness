@@ -52,6 +52,11 @@ export interface ResearchNodeCardProps {
     /** Prefer `variant="display"`. When omitted, treated as interactive unless explicitly `false`. */
     interactive?: boolean;
     state?: 'researched' | 'enabled' | 'blocked' | 'default';
+    /**
+     * Keep the button enabled when blocked so an admin Shift+click can still grant.
+     * Pointer cursor stays on `enabled` only.
+     */
+    allowAdminShiftGrant?: boolean;
     /** Current purchased level (for multi-level passives). */
     currentLevel?: number;
     /** Max purchasable levels; when omitted, taken from the node def. Shown as (current/max) when &gt; 1. */
@@ -71,7 +76,7 @@ export interface ResearchNodeCardProps {
     researchRequirementEntries?: ResearchRequirementEntry[];
     /** Show the node's tier in the bottom-right corner (intended for the research tree graph view only). */
     showTier?: boolean;
-    onClick?: () => void;
+    onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
     selectionReason?: string | null;
     requirementBadges?: ResearchRequirementBadge[];
     /** Distinct owned sources for the admin footer (id · source · tier). Empty when unowned. */
@@ -172,6 +177,7 @@ export default function ResearchNodeCard({
     node,
     tree: treeProp,
     state = 'default',
+    allowAdminShiftGrant = false,
     variant,
     interactive,
     currentLevel = 0,
@@ -268,8 +274,9 @@ export default function ResearchNodeCard({
             ? `${RESEARCH_NODE_COMFORTABLE_WIDTH_CLASS} shrink-0 px-3 py-2 gap-1 overflow-hidden`
             : `${RESEARCH_NODE_COMPACT_WIDTH_CLASS} ${RESEARCH_NODE_COMPACT_HEIGHT_CLASS} shrink-0 px-3 py-2 gap-1 overflow-hidden`;
 
-    const isClickable = isInteractive && state === 'enabled';
-    const cardClasses = `relative rounded-lg border-2 text-left flex flex-col min-h-0 ${layoutClasses} ${stateClasses} ${isClickable ? 'cursor-pointer' : 'cursor-default'} ${className}`;
+    const isPointerClickable = isInteractive && state === 'enabled';
+    const acceptsClick = isPointerClickable || (isInteractive && allowAdminShiftGrant && Boolean(onClick));
+    const cardClasses = `relative rounded-lg border-2 text-left flex flex-col min-h-0 ${layoutClasses} ${stateClasses} ${isPointerClickable ? 'cursor-pointer' : 'cursor-default'} ${className}`;
 
     const titleClass =
         layout === 'comfortable'
@@ -480,10 +487,10 @@ export default function ResearchNodeCard({
                 <button
                     type="button"
                     data-testid={`${TestIds.researchNodeCardPrefix}${node.id}`}
-                    onClick={isClickable ? onClick : undefined}
+                    onClick={acceptsClick ? onClick : undefined}
                     className={cardClasses}
                     style={{ borderColor: treeChrome.colour }}
-                    disabled={!isClickable}
+                    disabled={!acceptsClick}
                     aria-label={node.title}
                 >
                     {content}

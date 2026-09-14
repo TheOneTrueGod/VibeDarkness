@@ -1,6 +1,6 @@
 /**
  * Scrollable picker for a multi-quest QuestSlotBank (e.g. Surface Quests).
- * Reuses QuestPickRow from the old side-quests menu; two quests per row.
+ * Reuses QuestPickRow from the old side-quests menu; one full-width column.
  */
 import React, { useEffect, useMemo } from 'react';
 import { X } from 'lucide-react';
@@ -168,7 +168,7 @@ export default function QuestBankPickerPopup({
                         </p>
                     ) : (
                         <div
-                            className={`grid grid-cols-2 gap-1.5 overflow-y-auto ${QUEST_BANK_PICKER_LIST_MAX_HEIGHT_CLASS} pr-0.5`}
+                            className={`flex w-full flex-col gap-1.5 overflow-y-auto ${QUEST_BANK_PICKER_LIST_MAX_HEIGHT_CLASS} pr-0.5`}
                         >
                             {eligible.map((q) => {
                                 const isActive = activeQuest?.questDefId === q.id;

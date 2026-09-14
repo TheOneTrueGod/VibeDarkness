@@ -1,14 +1,17 @@
 import {
+    ADMIN_RESEARCH_CHECK_OPTIONS,
+    canAdminGrantResearchNode,
     canResearchNode,
     collectResearchedNodeIds,
     computeEffectiveResourcesForTree,
     meetsAll,
     selectableResearchNodes,
+    type CanResearchNodeOptions,
     type ResearchContext,
 } from '../../../../researchTrees/evaluator';
 import { getResearchNode } from '../../../../researchTrees/list';
 import { getNodeLevel } from '../../../../researchTrees/passiveBonuses';
-import type { ResearchNodeDef, ResearchTreeDef } from '../../../../researchTrees/types';
+import { ResearchSource, type ResearchNodeDef, type ResearchTreeDef } from '../../../../researchTrees/types';
 
 /** Fallback when a node has no `tier` so sort order stays stable. */
 export const RESEARCH_NODE_TIER_FALLBACK = 0;
@@ -231,7 +234,76 @@ export function excludeResearchGridEntries(
 export function canPurchaseResearchGridEntry(
     entry: ResearchGridEntry,
     ctx: ResearchContext,
-    options?: { skipCostCheck?: boolean; skipMissionRewardCheck?: boolean; includeDisabled?: boolean },
+    options?: CanResearchNodeOptions,
 ): boolean {
     return canResearchNode(entry.tree, entry.node.id, ctx, options).ok;
+}
+
+export const RESEARCH_CLICK_PURCHASE = 'purchase' as const;
+export const RESEARCH_CLICK_ADMIN = 'admin' as const;
+export type ResearchNodeClickAction = typeof RESEARCH_CLICK_PURCHASE | typeof RESEARCH_CLICK_ADMIN;
+
+export type ResearchNodeClickHandler = (treeId: string, nodeId: string, asAdmin?: boolean) => void;
+
+/** Player purchase vs admin Shift+click grant. Shift is ignored for non-admins. */
+export function resolveResearchNodeClick(input: {
+    shiftKey: boolean;
+    isAdmin: boolean;
+    playerCanPurchase: boolean;
+    adminCanGrant: boolean;
+}): ResearchNodeClickAction | null {
+    if (input.isAdmin && input.shiftKey) {
+        return input.adminCanGrant ? RESEARCH_CLICK_ADMIN : null;
+    }
+    return input.playerCanPurchase ? RESEARCH_CLICK_PURCHASE : null;
+}
+
+export function researchSourceForClick(action: ResearchNodeClickAction): ResearchSource {
+    return action === RESEARCH_CLICK_ADMIN ? ResearchSource.Admin : ResearchSource.Purchased;
+}
+
+export function canResearchOptionsForClick(action: ResearchNodeClickAction): CanResearchNodeOptions {
+    return action === RESEARCH_CLICK_ADMIN ? ADMIN_RESEARCH_CHECK_OPTIONS : {};
+}
+
+export function researchNodeClickEligibility(
+    tree: ResearchTreeDef,
+    nodeId: string,
+    ctx: ResearchContext,
+    isAdmin: boolean,
+): { playerCanPurchase: boolean; adminCanGrant: boolean; playerMissing: string[] } {
+    const playerCheck = canResearchNode(tree, nodeId, ctx);
+    const adminCheck = isAdmin
+        ? canAdminGrantResearchNode(tree, nodeId, ctx)
+        : playerCheck;
+    return {
+        playerCanPurchase: playerCheck.ok,
+        adminCanGrant: adminCheck.ok,
+        playerMissing: playerCheck.missing,
+    };
+}
+
+export function researchNodeClickHandler(args: {
+    isAdmin: boolean;
+    playerCanPurchase: boolean;
+    adminCanGrant: boolean;
+    onResearchNode: ResearchNodeClickHandler;
+    treeId: string;
+    nodeId: string;
+}): (event: { shiftKey: boolean }) => void {
+    return (event) => {
+        const action = resolveResearchNodeClick({
+            shiftKey: event.shiftKey,
+            isAdmin: args.isAdmin,
+            playerCanPurchase: args.playerCanPurchase,
+            adminCanGrant: args.adminCanGrant,
+        });
+        if (action === RESEARCH_CLICK_ADMIN) {
+            args.onResearchNode(args.treeId, args.nodeId, true);
+            return;
+        }
+        if (action === RESEARCH_CLICK_PURCHASE) {
+            args.onResearchNode(args.treeId, args.nodeId, false);
+        }
+    };
 }

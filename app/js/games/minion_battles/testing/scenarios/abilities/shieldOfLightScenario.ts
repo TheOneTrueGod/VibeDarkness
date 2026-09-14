@@ -39,7 +39,7 @@ function toTick(seconds: number): number {
 
 let shieldWasApplied = false;
 
-function playerShield(engine: { getLocalPlayerUnit(): { buffs: { _type: string }[] } | null }): ShieldBuff | undefined {
+function playerShield(engine: { getLocalPlayerUnit(): { buffs: { _type: string }[] } | null | undefined }): ShieldBuff | undefined {
     const player = engine.getLocalPlayerUnit();
     return player?.buffs.find((b) => b._type === SHIELD_BUFF_TYPE) as ShieldBuff | undefined;
 }

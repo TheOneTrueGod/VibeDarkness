@@ -14,7 +14,6 @@ import {
 	type ResearchNodeSources,
 } from '../../../../researchTrees/types';
 import {
-	canResearchNode,
 	computeEffectiveResources,
 	computeEffectiveResourcesForTree,
 	meetsRequirement,
@@ -28,7 +27,6 @@ import { EXHAUSTION_RESOURCE_KEY } from '../../storylines/matchExhaustion';
 import ResearchNodeCard, { type ResearchRequirementBadge } from './ResearchNodeCard';
 import { getItemDef } from '../../character_defs/items';
 import {
-	canPurchaseResearchGridEntry,
 	collectEligibleResearchGridEntries,
 	collectResearchGridEntries,
 	collectResearchRequirementEntries,
@@ -39,7 +37,10 @@ import {
 	RESET_ADMIN_RESEARCH_LABEL,
 	RESET_PURCHASED_RESEARCH_LABEL,
 	researchedSetsByTreeId,
+	researchNodeClickEligibility,
+	researchNodeClickHandler,
 	UNOWNED_RESEARCH_HEADING,
+	type ResearchNodeClickHandler,
 } from './researchNodeGrid';
 import { TestIds } from '../../../../testing/testIds';
 import { formatOwnedResearchSourcesLabel, hasResearchOfSource } from '../../../../researchTrees/researchSources';
@@ -212,7 +213,7 @@ interface ResearchTreePanelProps {
 	campaignResources: CampaignResources;
 	saving: boolean;
 	canResetResearch: boolean;
-	onResearchNode: (treeId: string, nodeId: string) => void;
+	onResearchNode: ResearchNodeClickHandler;
 	onResetResearch: (treeIds: string[]) => void;
 }
 
@@ -334,9 +335,9 @@ export interface ResearchTreeContentProps {
 	campaignResources: CampaignResources;
 	saving: boolean;
 	canResetResearch: boolean;
-	/** When true, resource cost checks are skipped — node is enabled even if resources are insufficient. */
+	/** When true, Shift+click grants as Admin; plain click still purchases with player rules. */
 	isAdmin?: boolean;
-	onResearchNode: (treeId: string, nodeId: string) => void;
+	onResearchNode: ResearchNodeClickHandler;
 	onResetResearch: (treeIds: string[]) => void;
 	onResetPurchasedResearch?: () => void;
 	onResetAdminResearch?: () => void;
@@ -538,13 +539,14 @@ export function ResearchTreeContent({
 							const currentLevel = getNodeLevel(tree.id, n.id, researchTrees, researchNodeLevels);
 							const maxLevels = getNodeMaxLevels(n);
 							const atMax = currentLevel >= maxLevels;
-							const check = canResearchNode(tree, n.id, ctx, {
-								skipCostCheck: isAdmin,
-								skipMissionRewardCheck: isAdmin,
-								includeDisabled: isAdmin,
-							});
-							const enabled = !atMax && check.ok;
-							const blocked = !atMax && !check.ok;
+							const { playerCanPurchase, adminCanGrant, playerMissing } = researchNodeClickEligibility(
+								tree,
+								n.id,
+								ctx,
+								isAdmin,
+							);
+							const enabled = playerCanPurchase;
+							const blocked = !atMax && !playerCanPurchase;
 							const pos = mapPos(n.position);
 							const knowledgeKeys = accountKnowledgeKeys(n.requirements);
 							const itemReqs = equippedItemRequirementLabels(n.requirements);
@@ -553,7 +555,7 @@ export function ResearchTreeContent({
 									? `Fully researched (Lv ${currentLevel}/${maxLevels}).`
 									: 'Already researched.'
 								: blocked
-									? getResearchBlockReason(check.missing)
+									? getResearchBlockReason(playerMissing)
 									: currentLevel > 0
 										? `Lv ${currentLevel}/${maxLevels} — click to upgrade.`
 										: null;
@@ -592,8 +594,8 @@ export function ResearchTreeContent({
 										id: `${n.id}-mission-reward-${index}`,
 										label: MISSION_REWARD_REQUIREMENT_LABEL,
 										type: 'missionReward' as const,
-										satisfied: atMax || isAdmin,
-										title: atMax || isAdmin
+										satisfied: atMax,
+										title: atMax
 											? `${MISSION_REWARD_REQUIREMENT_LABEL} (met)`
 											: 'Only available as a mission reward',
 									})),
@@ -615,6 +617,7 @@ export function ResearchTreeContent({
 										showCost
 										showRequirements
 										showTier
+										allowAdminShiftGrant={isAdmin && adminCanGrant && !enabled}
 										researchSourceLabel={formatOwnedResearchSourcesLabel(
 											tree.id,
 											n.id,
@@ -622,7 +625,18 @@ export function ResearchTreeContent({
 											researchNodeLevels,
 											researchSources,
 										)}
-										onClick={() => enabled && onResearchNode(tree.id, n.id)}
+										onClick={
+											enabled || (isAdmin && adminCanGrant)
+												? researchNodeClickHandler({
+													isAdmin,
+													playerCanPurchase: enabled,
+													adminCanGrant,
+													onResearchNode,
+													treeId: tree.id,
+													nodeId: n.id,
+												})
+												: undefined
+										}
 										selectionReason={selectionReason}
 										requirementBadges={requirementBadges}
 									/>
@@ -636,20 +650,21 @@ export function ResearchTreeContent({
 							const currentLevel = getNodeLevel(ref.fromTreeId, ref.nodeId, researchTrees, researchNodeLevels);
 							const maxLevels = getNodeMaxLevels(node);
 							const atMax = currentLevel >= maxLevels;
-							const check = canResearchNode(fromTree, ref.nodeId, ctx, {
-								skipCostCheck: isAdmin,
-								skipMissionRewardCheck: isAdmin,
-								includeDisabled: isAdmin,
-							});
-							const enabled = !atMax && check.ok;
-							const blocked = !atMax && !check.ok;
+							const { playerCanPurchase, adminCanGrant, playerMissing } = researchNodeClickEligibility(
+								fromTree,
+								ref.nodeId,
+								ctx,
+								isAdmin,
+							);
+							const enabled = playerCanPurchase;
+							const blocked = !atMax && !playerCanPurchase;
 							const pos = mapPos(ref.position);
 							const selectionReason = atMax
 								? maxLevels > 1
 									? `Fully researched (Lv ${currentLevel}/${maxLevels}).`
 									: 'Already researched.'
 								: blocked
-									? getResearchBlockReason(check.missing)
+									? getResearchBlockReason(playerMissing)
 									: currentLevel > 0
 										? `Lv ${currentLevel}/${maxLevels} — click to upgrade.`
 										: null;
@@ -669,6 +684,7 @@ export function ResearchTreeContent({
 										showCost
 										showRequirements
 										showTier
+										allowAdminShiftGrant={isAdmin && adminCanGrant && !enabled}
 										researchSourceLabel={formatOwnedResearchSourcesLabel(
 											ref.fromTreeId,
 											ref.nodeId,
@@ -676,7 +692,18 @@ export function ResearchTreeContent({
 											researchNodeLevels,
 											researchSources,
 										)}
-										onClick={() => enabled && onResearchNode(ref.fromTreeId, ref.nodeId)}
+										onClick={
+											enabled || (isAdmin && adminCanGrant)
+												? researchNodeClickHandler({
+													isAdmin,
+													playerCanPurchase: enabled,
+													adminCanGrant,
+													onResearchNode,
+													treeId: ref.fromTreeId,
+													nodeId: ref.nodeId,
+												})
+												: undefined
+										}
 										selectionReason={selectionReason}
 										requirementBadges={[]}
 									/>
@@ -705,7 +732,7 @@ export interface ResearchedNodesGridProps {
 	researchNodeLevels?: ResearchNodeLevels;
 	researchSources?: ResearchNodeSources;
 	campaignResources?: CampaignResources;
-	onResearchNode?: (treeId: string, nodeId: string) => void;
+	onResearchNode?: ResearchNodeClickHandler;
 	saving?: boolean;
 	isAdmin?: boolean;
 	onResetPurchasedResearch?: () => void;
@@ -729,7 +756,7 @@ function ResearchGridCards({
 	researchSources,
 	researchCtx,
 	onResearchNode,
-	skipCostCheck = false,
+	isAdmin = false,
 	showPrereqRow = true,
 }: {
 	entries: ReturnType<typeof collectResearchGridEntries>;
@@ -739,31 +766,43 @@ function ResearchGridCards({
 	researchNodeLevels?: ResearchNodeLevels;
 	researchSources?: ResearchNodeSources;
 	researchCtx: ResearchContext;
-	onResearchNode?: (treeId: string, nodeId: string) => void;
-	skipCostCheck?: boolean;
+	onResearchNode?: ResearchNodeClickHandler;
+	isAdmin?: boolean;
 	showPrereqRow?: boolean;
 }) {
 	return (
 		<div className="flex flex-wrap gap-3">
 			{entries.map(({ tree, node }) => {
-				const purchasable =
-					onResearchNode != null &&
-					canPurchaseResearchGridEntry({ tree, node }, researchCtx, {
-						skipCostCheck,
-						skipMissionRewardCheck: skipCostCheck,
-						includeDisabled: skipCostCheck,
-					});
+				const { playerCanPurchase, adminCanGrant } = researchNodeClickEligibility(
+					tree,
+					node.id,
+					researchCtx,
+					isAdmin,
+				);
+				const clickHandler = onResearchNode == null
+					? undefined
+					: (playerCanPurchase || (isAdmin && adminCanGrant))
+						? researchNodeClickHandler({
+							isAdmin,
+							playerCanPurchase,
+							adminCanGrant,
+							onResearchNode,
+							treeId: tree.id,
+							nodeId: node.id,
+						})
+						: undefined;
 				return (
 					<ResearchNodeCard
 						key={`${tree.id}:${node.id}`}
 						tree={tree}
 						node={node}
-						variant={purchasable ? 'interactive' : 'display'}
-						state={purchasable ? 'enabled' : state}
+						variant={clickHandler ? 'interactive' : 'display'}
+						state={playerCanPurchase ? 'enabled' : state}
 						layout="comfortable"
 						showCost
 						showRequirements={false}
 						showPrereqRow={showPrereqRow}
+						allowAdminShiftGrant={isAdmin && adminCanGrant && !playerCanPurchase}
 						currentLevel={getNodeLevel(tree.id, node.id, researchTrees, researchNodeLevels)}
 						maxLevels={getNodeMaxLevels(node)}
 						researchSourceLabel={formatOwnedResearchSourcesLabel(
@@ -773,7 +812,7 @@ function ResearchGridCards({
 							researchNodeLevels,
 							researchSources,
 						)}
-						onClick={purchasable ? () => onResearchNode(tree.id, node.id) : undefined}
+						onClick={clickHandler}
 						researchRequirementEntries={collectResearchRequirementEntries(
 							node,
 							tree,
@@ -868,7 +907,7 @@ export function ResearchedNodesGrid({
 						researchSources={researchSources}
 						researchCtx={researchCtx}
 						onResearchNode={onResearchNode}
-						skipCostCheck={isAdmin}
+						isAdmin={isAdmin}
 						showPrereqRow={false}
 					/>
 				</div>
@@ -887,7 +926,7 @@ export function ResearchedNodesGrid({
 						researchSources={researchSources}
 						researchCtx={researchCtx}
 						onResearchNode={onResearchNode}
-						skipCostCheck={isAdmin}
+						isAdmin={isAdmin}
 					/>
 				</div>
 			)}
@@ -905,7 +944,7 @@ export function ResearchedNodesGrid({
 						researchSources={researchSources}
 						researchCtx={researchCtx}
 						onResearchNode={onResearchNode}
-						skipCostCheck={isAdmin}
+						isAdmin={isAdmin}
 					/>
 				</div>
 			)}

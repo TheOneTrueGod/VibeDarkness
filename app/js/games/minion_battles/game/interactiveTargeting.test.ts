@@ -146,7 +146,7 @@ interface LightBlastSessionFixture {
 
 /** Host session paused at a parallel batch with Light Blast on the local caster. */
 async function mountLightBlastSessionFixture(
-    opts?: { onVictory?: (missionResult: string) => void },
+    opts?: { onVictory?: (missionResult: string, exhaustion?: number) => void },
 ): Promise<LightBlastSessionFixture> {
     const session = new BattleSession({
         api: makeApiStub(),
@@ -2896,7 +2896,7 @@ describe('terminal outcome during ITS preview (auto-commit before surfacing UI)'
         // Victory UI must wait for the async auto-commit to persist the order first.
         await vi.waitFor(() => {
             expect(persistCommittedOrder).toHaveBeenCalledTimes(1);
-            expect(onVictory).toHaveBeenCalledWith('victory');
+            expect(onVictory).toHaveBeenCalledWith('victory', expect.any(Number));
         });
         const [committedOrder, committedAtTick] = persistCommittedOrder.mock.calls[0] as [BattleOrder, number];
         expect(committedOrder.unitId).toBe(casterUnitId);

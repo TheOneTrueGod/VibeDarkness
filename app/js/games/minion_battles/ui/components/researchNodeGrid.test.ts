@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CORE_ITEM_IDS } from '../../character_defs/items';
 import { fromCampaignCharacterData } from '../../character_defs/CampaignCharacter';
-import type { ResearchContext } from '../../../../researchTrees/evaluator';
+import { ADMIN_RESEARCH_CHECK_OPTIONS, type ResearchContext } from '../../../../researchTrees/evaluator';
 import { DEFAULT_RESEARCH_NODE_LEVELS } from '../../../../researchTrees/passiveBonuses';
 import {
     EARTH_NODE_DIGGING_CLAWS,
@@ -27,8 +27,10 @@ import {
     TRAINING_PASSIVE_NODE_FOOD_COST,
     trainingTree,
 } from '../../../../researchTrees/trees/training';
+import { ResearchSource } from '../../../../researchTrees/types';
 import {
     canPurchaseResearchGridEntry,
+    canResearchOptionsForClick,
     collectEligibleResearchGridEntries,
     collectResearchGridEntries,
     collectResearchRequirementEntries,
@@ -38,10 +40,16 @@ import {
     formatRequirementClauseLabel,
     formatResearchLevelPill,
     hasUnmetResearchRequirements,
+    RESEARCH_CLICK_ADMIN,
+    RESEARCH_CLICK_PURCHASE,
     RESEARCH_REQUIREMENT_OR_WORD,
     RESEARCH_REQUIREMENTS_LABEL,
     RESEARCH_REQUIREMENTS_NONE,
     researchedSetsByTreeId,
+    researchNodeClickEligibility,
+    researchNodeClickHandler,
+    researchSourceForClick,
+    resolveResearchNodeClick,
     type ResearchRequirementEntry,
     type ResearchRequirementOption,
 } from './researchNodeGrid';
@@ -372,5 +380,134 @@ describe('canPurchaseResearchGridEntry', () => {
             { food: TRAINING_PASSIVE_NODE_FOOD_COST * DEFAULT_RESEARCH_NODE_LEVELS + TRAINING_PASSIVE_NODE_FOOD_COST },
         );
         expect(canPurchaseResearchGridEntry({ tree: trainingTree, node: healthy! }, ctx)).toBe(true);
+    });
+});
+
+describe('resolveResearchNodeClick', () => {
+    it('purchases on a plain click when the player can afford the node', () => {
+        expect(resolveResearchNodeClick({
+            shiftKey: false,
+            isAdmin: true,
+            playerCanPurchase: true,
+            adminCanGrant: true,
+        })).toBe(RESEARCH_CLICK_PURCHASE);
+    });
+
+    it('does nothing on a plain click when the player cannot afford the node', () => {
+        expect(resolveResearchNodeClick({
+            shiftKey: false,
+            isAdmin: true,
+            playerCanPurchase: false,
+            adminCanGrant: true,
+        })).toBeNull();
+    });
+
+    it('admin-grants on Shift+click even when the player cannot afford the node', () => {
+        expect(resolveResearchNodeClick({
+            shiftKey: true,
+            isAdmin: true,
+            playerCanPurchase: false,
+            adminCanGrant: true,
+        })).toBe(RESEARCH_CLICK_ADMIN);
+    });
+
+    it('admin-grants on Shift+click when the player could also purchase', () => {
+        expect(resolveResearchNodeClick({
+            shiftKey: true,
+            isAdmin: true,
+            playerCanPurchase: true,
+            adminCanGrant: true,
+        })).toBe(RESEARCH_CLICK_ADMIN);
+    });
+
+    it('ignores Shift for non-admins and purchases if allowed', () => {
+        expect(resolveResearchNodeClick({
+            shiftKey: true,
+            isAdmin: false,
+            playerCanPurchase: true,
+            adminCanGrant: false,
+        })).toBe(RESEARCH_CLICK_PURCHASE);
+    });
+
+    it('does nothing on Shift+click when the admin cannot grant', () => {
+        expect(resolveResearchNodeClick({
+            shiftKey: true,
+            isAdmin: true,
+            playerCanPurchase: false,
+            adminCanGrant: false,
+        })).toBeNull();
+    });
+});
+
+describe('researchSourceForClick / canResearchOptionsForClick', () => {
+    it('maps purchase to Purchased with player checks', () => {
+        expect(researchSourceForClick(RESEARCH_CLICK_PURCHASE)).toBe(ResearchSource.Purchased);
+        expect(canResearchOptionsForClick(RESEARCH_CLICK_PURCHASE)).toEqual({});
+    });
+
+    it('maps admin to Admin with skip options', () => {
+        expect(researchSourceForClick(RESEARCH_CLICK_ADMIN)).toBe(ResearchSource.Admin);
+        expect(canResearchOptionsForClick(RESEARCH_CLICK_ADMIN)).toEqual(ADMIN_RESEARCH_CHECK_OPTIONS);
+    });
+});
+
+describe('researchNodeClickEligibility', () => {
+    it('lets an admin Shift-grant a node whose prereqs are not met', () => {
+        const ctx = makeCtx({});
+        const eligibility = researchNodeClickEligibility(
+            trainingTree,
+            TRAINING_NODE_DOUBLE_PUNCH,
+            ctx,
+            true,
+        );
+        expect(eligibility.playerCanPurchase).toBe(false);
+        expect(eligibility.adminCanGrant).toBe(true);
+    });
+
+    it('does not let a player purchase a node whose prereqs are not met', () => {
+        const eligibility = researchNodeClickEligibility(
+            trainingTree,
+            TRAINING_NODE_DOUBLE_PUNCH,
+            makeCtx({}),
+            false,
+        );
+        expect(eligibility.playerCanPurchase).toBe(false);
+        expect(eligibility.adminCanGrant).toBe(false);
+    });
+
+    it('blocks admin grant when the node is already at max level', () => {
+        const ctx = makeCtx({ [TRAINING_TREE_ID]: [TRAINING_NODE_HEALTHY] });
+        const character = fromCampaignCharacterData({
+            ...ctx.character.toJSON(),
+            researchNodeLevels: {
+                [TRAINING_TREE_ID]: { [TRAINING_NODE_HEALTHY]: TRAINING_HEALTHY_LEVELS },
+            },
+        });
+        const maxedCtx = { ...ctx, character };
+        expect(researchNodeClickEligibility(trainingTree, TRAINING_NODE_HEALTHY, maxedCtx, true).adminCanGrant)
+            .toBe(false);
+    });
+});
+
+describe('researchNodeClickHandler', () => {
+    it('forwards a plain click as purchase and Shift+click as admin', () => {
+        const calls: Array<[string, string, boolean?]> = [];
+        const onResearchNode = (treeId: string, nodeId: string, asAdmin?: boolean) => {
+            calls.push([treeId, nodeId, asAdmin]);
+        };
+        const handler = researchNodeClickHandler({
+            isAdmin: true,
+            playerCanPurchase: true,
+            adminCanGrant: true,
+            onResearchNode,
+            treeId: TRAINING_TREE_ID,
+            nodeId: TRAINING_NODE_CORE,
+        });
+        handler({ shiftKey: false });
+        handler({ shiftKey: true });
+        expect(calls).toEqual([
+            [TRAINING_TREE_ID, TRAINING_NODE_CORE, false],
+            [TRAINING_TREE_ID, TRAINING_NODE_CORE, true],
+        ]);
     });
 });

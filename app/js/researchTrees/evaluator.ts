@@ -31,6 +31,19 @@ export interface ResearchContext {
     campaignResources: CampaignResources;
 }
 
+export interface CanResearchNodeOptions {
+    skipCostCheck?: boolean;
+    skipMissionRewardCheck?: boolean;
+    includeDisabled?: boolean;
+}
+
+/** Admin Shift+click grant: skip player availability (cost, requirements, prereqs, exclusivity). */
+export const ADMIN_RESEARCH_CHECK_OPTIONS: CanResearchNodeOptions = {
+    skipCostCheck: true,
+    skipMissionRewardCheck: true,
+    includeDisabled: true,
+};
+
 /** True when researching this node equips `itemId` (replace or equip effect). */
 export function nodeGrantsEquippedItem(node: ResearchNodeDef, itemId: string): boolean {
     return node.effects.some((effect) => {
@@ -317,7 +330,7 @@ export function canResearchNode(
     tree: ResearchTreeDef,
     nodeId: string,
     ctx: ResearchContext,
-    options: { skipCostCheck?: boolean; skipMissionRewardCheck?: boolean; includeDisabled?: boolean } = {},
+    options: CanResearchNodeOptions = {},
 ): { ok: boolean; missing: string[] } {
     const byId = nodeById(tree);
     const node = byId[nodeId];
@@ -406,6 +419,27 @@ export function canResearchNode(
         }
     }
 
+    return { ok: true, missing: [] };
+}
+
+/** Admin Shift+click grant: any non-draft node below max level, ignoring availability. */
+export function canAdminGrantResearchNode(
+    tree: ResearchTreeDef,
+    nodeId: string,
+    ctx: ResearchContext,
+): { ok: boolean; missing: string[] } {
+    const node = nodeById(tree)[nodeId];
+    if (!node) return { ok: false, missing: ['unknown_node'] };
+    if (isDraftResearchNode(node)) return { ok: false, missing: ['draft_node'] };
+    const currentLevel = getNodeLevel(
+        tree.id,
+        nodeId,
+        ctx.character.researchTrees,
+        ctx.character.researchNodeLevels,
+    );
+    if (currentLevel >= getNodeMaxLevels(node)) {
+        return { ok: false, missing: ['already_researched'] };
+    }
     return { ok: true, missing: [] };
 }
 

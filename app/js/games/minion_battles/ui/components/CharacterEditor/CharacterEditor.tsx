@@ -30,6 +30,7 @@ import {
     sortResearchTreesByPlayerAbilities,
 } from '../../../../../researchTrees/treeAbilities';
 import {
+    canAdminGrantResearchNode,
     canResearchNode,
     applyResearchEffects,
     sortNodesDeterministic,
@@ -42,6 +43,10 @@ import { ResearchSource, type ResearchNodeSources } from '../../../../../researc
 import {
     RESET_ADMIN_RESEARCH_CONFIRM,
     RESET_PURCHASED_RESEARCH_CONFIRM,
+    RESEARCH_CLICK_ADMIN,
+    RESEARCH_CLICK_PURCHASE,
+    canResearchOptionsForClick,
+    researchSourceForClick,
 } from '../researchNodeGrid';
 import ResourcePill, { RESOURCE_ORDER } from '../../../../../components/ResourcePill';
 import {
@@ -583,7 +588,7 @@ export default function CharacterEditor({
     );
 
     const handleResearchNode = useCallback(
-        async (treeId: string, nodeId: string) => {
+        async (treeId: string, nodeId: string, asAdmin = false) => {
             if (!resolvedCampaign?.resources) return;
             const tree = RESEARCH_TREES.find((t) => t.id === treeId);
             if (!tree) return;
@@ -594,22 +599,21 @@ export default function CharacterEditor({
                 campaignResources: resolvedCampaign.resources,
             };
 
-            const check = canResearchNode(tree, nodeId, ctx, {
-                skipCostCheck: isAdmin,
-                skipMissionRewardCheck: isAdmin,
-                includeDisabled: isAdmin,
-            });
+            const action = isAdmin && asAdmin ? RESEARCH_CLICK_ADMIN : RESEARCH_CLICK_PURCHASE;
+            const check = action === RESEARCH_CLICK_ADMIN
+                ? canAdminGrantResearchNode(tree, nodeId, ctx)
+                : canResearchNode(tree, nodeId, ctx, canResearchOptionsForClick(action));
             if (!check.ok) return;
 
             const targetNode = tree.nodes.find((n) => n.id === nodeId);
             const maxLevels = targetNode ? getNodeMaxLevels(targetNode) : 1;
             const already = new Set(researchTrees[treeId] ?? []);
-            // Level-ups only post the target node; first unlock may auto-research prereqs.
+            // Player first unlock may auto-research prereqs. Admin Shift+click grants only this node.
             const isLevelUp = already.has(nodeId);
-            const toDo = isLevelUp
+            const toDo = action === RESEARCH_CLICK_ADMIN || isLevelUp
                 ? [nodeId]
                 : prereqClosure(tree, nodeId).filter((id) => !already.has(id));
-            const source = isAdmin ? ResearchSource.Admin : ResearchSource.Purchased;
+            const source = researchSourceForClick(action);
 
             setSaving(true);
             try {
@@ -1063,7 +1067,7 @@ export default function CharacterEditor({
                             saving={saving}
                             canResetResearch
                             isAdmin={isAdmin}
-                            onResearchNode={(treeId, nodeId) => void handleResearchNode(treeId, nodeId)}
+                            onResearchNode={(treeId, nodeId, asAdmin) => void handleResearchNode(treeId, nodeId, asAdmin)}
                             onResetResearch={(treeIds) => void handleResetResearch(treeIds)}
                             onResetPurchasedResearch={() => void handleResetResearchBySource(ResearchSource.Purchased)}
                             onResetAdminResearch={() => void handleResetResearchBySource(ResearchSource.Admin)}
@@ -1084,7 +1088,7 @@ export default function CharacterEditor({
                     researchNodeLevels={researchNodeLevels}
                     researchSources={researchSources}
                     campaignResources={resolvedCampaign?.resources}
-                    onResearchNode={(treeId, nodeId) => void handleResearchNode(treeId, nodeId)}
+                    onResearchNode={(treeId, nodeId, asAdmin) => void handleResearchNode(treeId, nodeId, asAdmin)}
                     saving={saving}
                     isAdmin={isAdmin}
                     onResetPurchasedResearch={() => void handleResetResearchBySource(ResearchSource.Purchased)}
