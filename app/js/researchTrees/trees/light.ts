@@ -113,7 +113,8 @@ export const lightTree: ResearchTreeDef = {
         {
             id: LIGHT_NODE_IMBUEMENT,
             title: 'Light Imbuement',
-            description: 'Learn to infuse your bat with light, exploding when you next strike your target.',
+            description:
+                'Gather Light also imbues your bat with light, exploding when you next strike your target.',
             order: 10,
             tier: LIGHT_CORE_FOLLOWUP_TIER,
             position: { x: 420, y: 290 },
@@ -128,8 +129,9 @@ export const lightTree: ResearchTreeDef = {
                 metal: LIGHT_IMBUEMENT_METAL_COST,
             },
             effects: [
-                { type: 'addCard', cardId: '0802' },
-                { type: 'addCard', cardId: '0803' },
+                // Imbued Bat only — Gather Light (0804) already comes from Light Core and applies
+                // the imbue buff when this node is owned. Deprecated 0802 is no longer granted.
+                { type: 'addCard', cardId: IMBUED_BAT_ABILITY_ID },
             ],
         },
         {

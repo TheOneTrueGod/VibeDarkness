@@ -80,8 +80,16 @@ describe('Quest Prep slot helpers', () => {
 });
 
 describe('attached ability expansion', () => {
-    it('expands Light Imbuement with Imbued Bat', () => {
-        expect(expandAttachedAbilityIds(['0802'])).toEqual(['0802', '0803']);
+    it('expands Gather Light with Imbued Bat when accessible', () => {
+        expect(expandAttachedAbilityIds(['0804'], ['0804', '0803'])).toEqual(['0804', '0803']);
+    });
+
+    it('does not expand Imbued Bat onto Gather Light when research has not granted it', () => {
+        expect(expandAttachedAbilityIds(['0804'], ['0804'])).toEqual(['0804']);
+    });
+
+    it('expands Gather Light with Imbued Bat when accessibility is unrestricted', () => {
+        expect(expandAttachedAbilityIds(['0804'])).toEqual(['0804', '0803']);
     });
 
     it('expands Throw Charged Rock without duplicating its nested Throw Rock slot', () => {
@@ -117,14 +125,14 @@ describe('attached ability expansion', () => {
     });
 
     it('treats attached companions as non-selectable when parent is accessible', () => {
-        const accessible = ['0802', '0803', '0115'];
+        const accessible = ['0804', '0803', '0115'];
         expect(isAttachedOnlyAbility('0803', accessible)).toBe(true);
-        expect(filterSelectableQuestPrepAbilityIds(accessible)).toEqual(['0802', '0115']);
+        expect(filterSelectableQuestPrepAbilityIds(accessible)).toEqual(['0804', '0115']);
     });
 
     it('treats secondary-tagged Imbued Bat as non-selectable', () => {
         expect(isSecondaryAbility('0803')).toBe(true);
-        expect(isSecondaryAbility('0802')).toBe(false);
+        expect(isSecondaryAbility('0804')).toBe(false);
         expect(filterSelectableQuestPrepAbilityIds(['0803', '0115'])).toEqual(['0115']);
     });
 });

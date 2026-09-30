@@ -24,7 +24,7 @@ describe('finalizeQuestPrepLoadout', () => {
         const frozen = finalizeQuestPrepLoadout({
             run: prep,
             equipment: ['004', '013'],
-            selectedAbilityIds: ['throw_charged_rock', '0802'],
+            selectedAbilityIds: ['throw_charged_rock', '0804'],
             partyRoster: [
                 { playerName: 'Alice', characterId: 'char_prep' },
                 { playerName: 'Bob', characterId: 'char_bob' },
@@ -33,7 +33,7 @@ describe('finalizeQuestPrepLoadout', () => {
 
         expect(frozen.status).toBe('active');
         expect(frozen.questCharacter.equipment).toEqual(['004', '013']);
-        expect(frozen.questCharacter.selectedAbilityIds).toEqual(['throw_charged_rock', '0802']);
+        expect(frozen.questCharacter.selectedAbilityIds).toEqual(['throw_charged_rock', '0804']);
         expect(frozen.partyRoster).toEqual([
             { playerName: 'Alice', characterId: 'char_prep' },
             { playerName: 'Bob', characterId: 'char_bob' },

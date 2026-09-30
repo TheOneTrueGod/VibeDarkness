@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { computeAbilityModifiersFromResearch } from './evaluator';
 import { GATHER_LIGHT_ABILITY_ID } from '../games/minion_battles/card_defs/08_light_core/0804_GatherLight/0804Constants';
+import { IMBUED_BAT_ABILITY_ID } from '../games/minion_battles/card_defs/08_light_core/0803_ImbuedBat/0803Constants';
 import {
     LIGHT_CORE_FOLLOWUP_TIER,
     LIGHT_GATHER_LIGHT_AMOUNT_ADD,
@@ -33,9 +34,10 @@ describe('Gather Light research', () => {
         );
     });
 
-    it('places Light Imbuement at the core follow-up tier', () => {
+    it('places Light Imbuement at the core follow-up tier and grants only Imbued Bat', () => {
         const node = lightTree.nodes.find((n) => n.id === LIGHT_NODE_IMBUEMENT);
         expect(node?.tier).toBe(LIGHT_CORE_FOLLOWUP_TIER);
+        expect(node?.effects).toEqual([{ type: 'addCard', cardId: IMBUED_BAT_ABILITY_ID }]);
     });
 
     it('scales Gather Light resourceGainFlat by rank', () => {

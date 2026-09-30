@@ -640,7 +640,7 @@ export interface AbilityStatic {
     readonly swapConfig?: AbilitySwapConfig;
     /**
      * Companion ability IDs granted free with this primary pick (do not occupy a prep slot).
-     * Companions should usually carry the `secondary` tag. Example: Light Imbuement → Imbued Bat.
+     * Companions should usually carry the `secondary` tag. Example: Gather Light → Imbued Bat.
      */
     readonly attachedAbilityIds?: readonly string[];
 }

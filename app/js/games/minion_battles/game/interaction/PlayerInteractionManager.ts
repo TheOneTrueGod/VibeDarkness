@@ -429,7 +429,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
                 this.submitOrder(ability.id, []);
                 return;
             }
-            // Self-cast abilities with no select steps submit immediately (e.g. Light Imbuement).
+            // Self-cast abilities with no select steps submit immediately (e.g. Gather Light).
             const staticTargets = getAbilityTargets(ability, caster, this.ctx.engine);
             if (staticTargets.length === 0) {
                 this.submitOrder(ability.id, []);

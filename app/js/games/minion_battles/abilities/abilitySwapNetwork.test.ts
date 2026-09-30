@@ -26,10 +26,10 @@ const PLAYER_POS = { x: 3 * CELL + CELL / 2, y: 3 * CELL + CELL / 2 };
 /**
  * All three ability IDs involved in the swap:
  *   0115 — Swing Bat (the base ability that gets replaced)
- *   0802 — Light Imbuement (casts the buff that fires the swap trigger)
+ *   0804 — Gather Light (casts LightImbueBuff when Light Imbuement is researched)
  *   0803 — Imbued Bat (the swap-network ability; starts hidden)
  */
-const ABILITIES = ['0115', '0802', '0803'] as const;
+const ABILITIES = ['0115', '0804', '0803'] as const;
 
 function buildTestEngine() {
     const engine = buildTinyBattleEngine({ gridW: 8, gridH: 8, localPlayerId: P, grass: true });
@@ -59,10 +59,10 @@ describe('Swap Network — Scenario A: hidden on init', () => {
         expect(player.abilityRuntime['0115']?.active).toBe(true);
     });
 
-    it('0802 (Light Imbuement) starts active (no swapConfig)', () => {
+    it('0804 (Gather Light) starts active (no swapConfig)', () => {
         const { player } = buildTestEngine();
-        ensureAbilityRuntimeState(player, '0802');
-        expect(player.abilityRuntime['0802']?.active).toBe(true);
+        ensureAbilityRuntimeState(player, '0804');
+        expect(player.abilityRuntime['0804']?.active).toBe(true);
     });
 });
 

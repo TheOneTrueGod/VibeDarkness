@@ -10,7 +10,7 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { LucideIcon } from 'lucide-react';
-import { ChevronDown, Route, Scroll, Skull, Swords, X } from 'lucide-react';
+import { Check, ChevronDown, Route, Scroll, Skull, Swords, X } from 'lucide-react';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import type { MissionResult } from '../../../../../types';
 import type { MissionType, StorylineDef } from '../../../storylines/types';
@@ -34,7 +34,7 @@ import {
     isDedicatedQuestBank,
     hasQuestVictoryResult,
 } from '../../../storylines/unlock';
-import type { QuestDef, QuestSlotBank } from '../../../storylines/questTypes';
+import type { QuestDef, QuestRunState, QuestSlotBank } from '../../../storylines/questTypes';
 import { getQuestDef } from '../../../storylines/questRegistry';
 import { getResolvedMissionResearchRewards } from '../../../../../researchTrees/list';
 import ResearchRewardTinyChip from '../../../../../components/ResearchRewardTinyChip';
@@ -196,6 +196,75 @@ function missionBankUnlockHint(
     return bank ? `Complete ${bankDisplayLabel(bank)} to unlock.` : undefined;
 }
 
+type QuestSlotRow = {
+    key: string;
+    done: boolean;
+    label: string;
+    /** Real mission id, shown to admins once the slot is revealed. */
+    missionId?: string;
+};
+
+const QUEST_SLOT_HIDDEN_LABEL = '????????';
+const QUEST_SLOT_RANDOM_LABEL = 'Encounter';
+
+/**
+ * One row per quest slot. Completed slots show the mission name; the first unfinished slot shows
+ * its name when fixed (or a generic label when random); later slots stay hidden.
+ */
+function buildQuestSlotRows(
+    quest: QuestDef,
+    run: QuestRunState | null | undefined,
+    questCompleted: boolean,
+): QuestSlotRow[] {
+    const activeRun = run
+        && run.questDefId === quest.id
+        && (run.status === 'prep' || run.status === 'active')
+        ? run
+        : null;
+    const currentIndex = questCompleted ? quest.slots.length : (activeRun?.currentSlotIndex ?? 0);
+    return quest.slots.map((slot, i) => {
+        const done = i < currentIndex;
+        const resolvedId = activeRun?.resolvedSlots[i]?.missionId
+            ?? (slot.kind === 'fixed' ? slot.missionId : undefined);
+        const name = resolvedId ? MISSION_MAP[resolvedId]?.name : undefined;
+        const genericLabel = slot.kind === 'fixed' ? undefined : QUEST_SLOT_RANDOM_LABEL;
+        const key = `${quest.id}-${i}`;
+        if (done || i === currentIndex) {
+            const revealed = slot.kind === 'fixed' || done;
+            if (revealed && name) return { key, done, label: name, missionId: resolvedId };
+            return { key, done, label: genericLabel ?? name ?? QUEST_SLOT_HIDDEN_LABEL };
+        }
+        return { key, done: false, label: QUEST_SLOT_HIDDEN_LABEL };
+    });
+}
+
+function QuestSlotList({ rows, isAdmin }: { rows: QuestSlotRow[]; isAdmin: boolean }) {
+    return (
+        <ul className="flex flex-col gap-1 mt-2" data-testid="quest-bank-tooltip-slots">
+            {rows.map((row) => (
+                <li key={row.key} className="flex items-center gap-2 text-[13px] text-zinc-200">
+                    {row.done ? (
+                        <Check
+                            className="h-4 w-4 shrink-0"
+                            style={{ color: COMPLETED_MISSION_ACCENT }}
+                            aria-label="Completed"
+                        />
+                    ) : (
+                        <span
+                            className="h-4 w-4 shrink-0 rounded-[3px] border border-zinc-500 bg-zinc-700/50"
+                            aria-label="To do"
+                        />
+                    )}
+                    <span className={row.done ? '' : 'text-zinc-400'}>{row.label}</span>
+                    {isAdmin && row.missionId && (
+                        <span className="text-[10px] font-mono text-muted">({row.missionId})</span>
+                    )}
+                </li>
+            ))}
+        </ul>
+    );
+}
+
 function QuestBankTooltip({
     data,
     bank,
@@ -205,6 +274,8 @@ function QuestBankTooltip({
     unlockRequirementLabel,
     isAdmin,
     activeQuestDefId,
+    activeQuestRun,
+    questCompleted,
     onStartQuest,
     onAbandonQuest,
     onDismiss,
@@ -218,6 +289,9 @@ function QuestBankTooltip({
     isAdmin: boolean;
     /** Singular active run's questDefId, if any. */
     activeQuestDefId?: string | null;
+    activeQuestRun?: QuestRunState | null;
+    /** Dedicated quest already cleared (victory recorded). */
+    questCompleted: boolean;
     onStartQuest?: (questDefId: string, options?: StartQuestOptions) => void;
     onAbandonQuest?: () => void | Promise<void>;
     onDismiss: () => void;
@@ -246,7 +320,8 @@ function QuestBankTooltip({
     const startableQuests = eligibleQuests.filter((q) => isAdmin || !isQuestDisabled(q));
     const showCompleteEmpty = !isLocked && startableQuests.length === 0 && !questDisabled;
     const showQuestActions = !isLocked && startableQuests.length > 0;
-    const showFooter = data.pinned && (isLocked || showCompleteEmpty || showQuestActions);
+    const questCompleteLabel = isDedicated && showCompleteEmpty ? 'Quest complete.' : null;
+    const showFooter = data.pinned && (isLocked || (showCompleteEmpty && !isDedicated) || showQuestActions);
 
     return createPortal(
         <div
@@ -261,9 +336,18 @@ function QuestBankTooltip({
             >
                 <div className="flex items-start justify-between gap-2 px-4 pt-3 pb-2 border-b border-white/8">
                     <div className="flex flex-col gap-0.5 min-w-0">
-                        {(bank.isSideQuest ?? true) && (
-                            <span className="text-[10px] font-semibold text-violet-400 uppercase tracking-wide">
-                                Side Quest
+                        {((bank.isSideQuest ?? true) || questCompleteLabel) && (
+                            <span className="flex items-baseline gap-1.5">
+                                {(bank.isSideQuest ?? true) && (
+                                    <span className="text-[10px] font-semibold text-violet-400 uppercase tracking-wide">
+                                        Side Quest
+                                    </span>
+                                )}
+                                {questCompleteLabel && (
+                                    <span className="text-[9px] italic text-zinc-500">
+                                        {questCompleteLabel}
+                                    </span>
+                                )}
                             </span>
                         )}
                         <span className="text-sm font-bold text-white leading-snug flex items-baseline gap-1.5 min-w-0">
@@ -296,6 +380,12 @@ function QuestBankTooltip({
                             {description}
                         </p>
                     )}
+                    {isDedicated && pinnedQuest && (
+                        <QuestSlotList
+                            rows={buildQuestSlotRows(pinnedQuest, activeQuestRun, questCompleted)}
+                            isAdmin={isAdmin}
+                        />
+                    )}
                     {questDisabled && (
                         <p className="text-[11px] italic text-zinc-500 mt-1">
                             {MAP_NODE_DISABLED_LABEL}
@@ -313,7 +403,7 @@ function QuestBankTooltip({
                             </p>
                         ) : showCompleteEmpty ? (
                             <p className="text-[12px] text-zinc-500 italic">
-                                {isDedicated ? 'Quest complete.' : 'No eligible quests left.'}
+                                No eligible quests left.
                             </p>
                         ) : (
                             startableQuests.map((q) => {
@@ -1292,6 +1382,10 @@ export default function MissionMapTab({
                                 || character.activeQuestRun.status === 'prep')
                                 ? character.activeQuestRun.questDefId
                                 : null
+                        }
+                        activeQuestRun={character.activeQuestRun}
+                        questCompleted={
+                            !!bank.questDefId && hasQuestVictoryResult(bank.questDefId, questResults)
                         }
                         onStartQuest={onStartQuest}
                         onAbandonQuest={onAbandonQuest}

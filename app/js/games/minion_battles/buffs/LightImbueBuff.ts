@@ -3,7 +3,7 @@ import { Buff, type BuffSerialized } from './Buff';
 export const LIGHT_IMBUE_BUFF_TYPE = 'light_imbue';
 
 /**
- * A very short-lived buff applied when Light Imbuement is cast.
+ * A very short-lived buff applied when Gather Light is cast with Light Imbuement researched.
  * Its only purpose is to fire the `buffApplied` swap trigger so Imbued Bat
  * activates and replaces Swing Bat. Expires almost immediately and has no
  * other gameplay effect.

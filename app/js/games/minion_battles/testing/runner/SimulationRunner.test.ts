@@ -434,7 +434,7 @@ describe('runScenarioHeadless', () => {
         expect(r.passed, r.message).toBe(true);
     });
 
-    it('Light Imbuement (0802) + Imbued Bat (0803): full cast flow deals damage', () => {
+    it('Gather Light (0804) + Light Imbuement research → Imbued Bat (0803): full cast flow deals damage', () => {
         const r = runScenarioHeadless(lightImbuementAndImbuedBatScenario);
         expect(r.passed, r.message).toBe(true);
     });
@@ -444,7 +444,7 @@ describe('runScenarioHeadless', () => {
         expect(r.passed, r.message).toBe(true);
     });
 
-    it('Gather Light (0804): grants Light and darkens caster tile by exactly one step', () => {
+    it('Gather Light (0804): grants Light and darkens a 3×3 around the caster', () => {
         const r = runScenarioHeadless(gatherLightCommittedScenario);
         expect(r.passed, r.message).toBe(true);
     });

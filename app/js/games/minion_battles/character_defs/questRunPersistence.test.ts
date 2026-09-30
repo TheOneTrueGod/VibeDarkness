@@ -27,7 +27,7 @@ const SAMPLE_RUN: QuestRunState = {
     questCharacter: {
         sourceCharacterId: 'char_test',
         equipment: ['004', '001'],
-        selectedAbilityIds: ['throw_rock', '0802'],
+        selectedAbilityIds: ['throw_rock', '0804'],
         campaignRewards: [
             {
                 source: 'draft_pick',
@@ -92,7 +92,7 @@ describe('quest run / result persistence on Campaign Character', () => {
         expect(reloaded.activeQuestRun?.questCharacter.equipment).toEqual(['004', '001']);
         expect(reloaded.activeQuestRun?.questCharacter.selectedAbilityIds).toEqual([
             'throw_rock',
-            '0802',
+            '0804',
         ]);
         expect(reloaded.activeQuestRun?.questCharacter.sourceCharacterId).toBe('char_test');
         expect(reloaded.activeQuestRun?.partyRoster).toEqual([

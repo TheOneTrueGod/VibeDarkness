@@ -1,4 +1,8 @@
 /**
+ * @deprecated Do not use for new content. Light Imbuement is no longer granted by research —
+ * bat imbuement now lives on Gather Light (0804) when the Light Imbuement research node is owned.
+ * This ability remains registered only for legacy save / loadout compatibility.
+ *
  * Light Imbuement — 2-second charge that infuses the caster's next Swing Bat with light energy.
  *
  * Self-cast with no targets. After a long windup, applies a LightImbueBuff to the caster and
@@ -108,9 +112,6 @@ export const LightImbuementAbility = defineAbility({
             `Generates {${LIGHT_IMBUEMENT_LIGHT_GENERATED} Light} and imbues your weapon with light.`,
         ];
     },
-
-    /** Prep: Imbued Bat comes free with Light Imbuement (does not occupy a slot; tagged `secondary`). */
-    attachedAbilityIds: ['0803'],
 
     renderTargetingPreviewSelectedTargets(): void {
         // No targeting preview needed for a self-cast ability.

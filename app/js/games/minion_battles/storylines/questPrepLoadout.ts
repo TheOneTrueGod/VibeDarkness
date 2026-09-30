@@ -93,8 +93,16 @@ export function filterSelectableQuestPrepAbilityIds(
     );
 }
 
-/** Expand primary slot picks to include free attached companions (deduped, primaries first). */
-export function expandAttachedAbilityIds(primaryIds: readonly string[]): string[] {
+/**
+ * Expand primary slot picks to include free attached companions (deduped, primaries first).
+ *
+ * When `accessibleAbilityIds` is provided, companions are only added if they appear in that
+ * pool (e.g. Imbued Bat after Light Imbuement research). Omit it to expand every attachment.
+ */
+export function expandAttachedAbilityIds(
+    primaryIds: readonly string[],
+    accessibleAbilityIds?: readonly string[],
+): string[] {
     const out: string[] = [];
     for (const id of primaryIds) {
         if (!out.includes(id)) out.push(id);
@@ -103,6 +111,7 @@ export function expandAttachedAbilityIds(primaryIds: readonly string[]): string[
         for (const attached of getAttachedAbilityIds(id)) {
             // In battle the nested-card parent already occupies that bar slot via fallback swap.
             if (nestedFallbackId && attached === nestedFallbackId) continue;
+            if (accessibleAbilityIds && !accessibleAbilityIds.includes(attached)) continue;
             if (!out.includes(attached)) out.push(attached);
         }
     }

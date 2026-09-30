@@ -381,6 +381,9 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             }
 
             // Quest Prep / mission Prepare Carefully: selected primaries (+ free attached companions).
+            // Pass the pre-prep accessible pool so attachments like Imbued Bat only expand when
+            // research (or equipment) actually granted them.
+            const accessibleBeforePrep = [...abilities];
             const charId = params.characterSelections?.[pu.playerId];
             const questPrimaries =
                 params.questPrepLoadoutsByPlayer?.[pu.playerId]
@@ -389,7 +392,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             const prepPrimaries = questPrimaries ?? missionPrimaries;
             if (prepPrimaries) {
                 abilities.length = 0;
-                abilities.push(...expandAttachedAbilityIds(prepPrimaries));
+                abilities.push(...expandAttachedAbilityIds(prepPrimaries, accessibleBeforePrep));
                 if (abilities.length === 0) {
                     abilities.push('0101', '0120');
                 }

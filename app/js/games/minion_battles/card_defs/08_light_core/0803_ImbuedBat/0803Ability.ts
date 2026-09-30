@@ -1,6 +1,6 @@
 /**
  * Imbued Bat — a light-infused version of Swing Bat, activated by the swap network
- * when Light Imbuement is cast.
+ * when Gather Light is cast with the Light Imbuement research node owned.
  *
  * Inherits Swing Bat's perpendicular melee swing, then releases a forward arc of
  * light damage from the caster (hollow near the unit) out to LIGHT_CONE_MAX_RANGE.
@@ -62,7 +62,7 @@ const TOOLTIP_LINES = [
     'Swing your light-imbued bat dealing {{DAMAGE}} damage to up to {{MAX_TARGETS}} enemies.',
     '{{KNOCKBACK}}.',
     'Releases an arc of light dealing {{DAMAGE_2}} damage to up to {{LIGHT_CONE_MAX_TARGETS}} enemies ahead.',
-    'Granted for one use by {Light Imbuement}.',
+    'Granted for one use by {Gather Light}.',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {

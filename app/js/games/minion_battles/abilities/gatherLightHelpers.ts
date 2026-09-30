@@ -7,13 +7,13 @@ import { Effect } from '../game/effects/Effect';
 import { StoryHomingParticleEmitter } from '../game/effects/StoryHomingParticleEmitter';
 import type { EngineContext } from '../game/EngineContext';
 import type { Unit } from '../game/units/Unit';
-import { LIGHT_RESOURCE_COLOR, LIGHT_RESOURCE_COLOR_NUMBER } from '../resources/Light';
+import { LIGHT_RESOURCE_COLOR_NUMBER } from '../resources/Light';
 
 /** Ability windup time; owned here (not `0804Ability.ts`) to avoid a circular import — this
  * file is imported by `0804Ability.ts`, so the dependency can only flow one way. */
 export const GATHER_LIGHT_PREFIRE_TIME = 0.5;
-/** One darkness step applied per Gather Light cast to each affected tile. */
-export const GATHER_LIGHT_DARKNESS_AMOUNT = -2;
+/** Radius of the permanent 3×3 base-darkness source (caster tile plus neighbors). */
+export const GATHER_LIGHT_DARKNESS_RADIUS = 1;
 /** Homing orb flight time (vs 2s story default). */
 export const GATHER_LIGHT_ORB_DURATION = 0.6;
 /** Yellow orb tint (Light palette). */
@@ -93,8 +93,8 @@ export function spawnBaseDarknessAtTile(
     col: number,
     row: number,
     roundNumber: number,
-    amount: number = GATHER_LIGHT_DARKNESS_AMOUNT,
-    radius: number = 0,
+    amount: number,
+    radius: number = GATHER_LIGHT_DARKNESS_RADIUS,
 ): void {
     const grid = engine.terrainManager?.grid;
     if (!grid) return;
@@ -183,6 +183,7 @@ export function applyGatherLightDarkness(
     engine: EngineWithGatherLight,
     caster: Unit,
     roundNumber: number,
+    darknessAmount: number,
 ): { darknessTiles: GridCell[]; adjacentTiles: GridCell[] } {
     const grid = engine.terrainManager?.grid;
     if (!grid) return { darknessTiles: [], adjacentTiles: [] };
@@ -192,11 +193,10 @@ export function applyGatherLightDarkness(
     const adjacentTiles = getAdjacentGatherLightTiles(casterCol, casterRow, grid.width, grid.height);
 
     // A single radius-1 source (not one radius-0 source per tile) covers the whole 3x3 block at a
-    // flat, un-attenuated GATHER_LIGHT_DARKNESS_AMOUNT. Nine overlapping radius-0 sources used to
+    // flat, un-attenuated darknessAmount. Nine overlapping radius-0 sources used to
     // stack (LightGrid 'base' overlap sums additively, and each source's falloff bleeds
-    // abs(amount) tiles past its radius) — the caster's own tile was getting its own -2 plus a -1
-    // bleed-through from all 8 neighbors, i.e. -10 instead of -2.
-    spawnBaseDarknessAtTile(engine, casterCol, casterRow, roundNumber, GATHER_LIGHT_DARKNESS_AMOUNT, 1);
+    // abs(amount) tiles past its radius).
+    spawnBaseDarknessAtTile(engine, casterCol, casterRow, roundNumber, darknessAmount, GATHER_LIGHT_DARKNESS_RADIUS);
 
     return { darknessTiles, adjacentTiles };
 }

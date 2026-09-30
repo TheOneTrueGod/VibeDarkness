@@ -4,6 +4,9 @@
  * A brief windup telegraphs the pull with a purple ring; on activation the caster gains Light
  * resource while a 3×3 area (self plus eight neighbors) is permanently darkened. Yellow orbs
  * fly inward from adjacent tiles as visual feedback.
+ *
+ * When the Light Imbuement research node is owned, the cast also applies LightImbueBuff so the
+ * next Swing Bat swaps to Imbued Bat (0803) for one use.
  */
 
 import { AbilityPhase } from '../../../abilities/abilityTimings';
@@ -16,15 +19,33 @@ import {
     GATHER_LIGHT_PREFIRE_TIME,
     type EngineWithGatherLight,
 } from '../../../abilities/gatherLightHelpers';
-import { getAbilityModifier } from '../../../abilities/abilityModifierHelpers';
-import { GATHER_LIGHT_ABILITY_ID, getGatherLightAmount } from './0804Constants';
+import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
+import { getAbilityModifier, hasResearchNode } from '../../../abilities/abilityModifierHelpers';
+import { LightImbueBuff } from '../../../buffs/LightImbueBuff';
+import { IMBUED_BAT_ABILITY_ID } from '../0803_ImbuedBat/0803Constants';
+import {
+    LIGHT_TREE_ID,
+    LIGHT_NODE_IMBUEMENT,
+} from '../../../../../researchTrees/trees/light';
+import { GATHER_LIGHT_ABILITY_ID, getGatherLightAmount, getGatherLightDarknessAmount } from './0804Constants';
+import type { Unit } from '../../../game/units/Unit';
 
 const CARD_ID = GATHER_LIGHT_ABILITY_ID;
 const MAX_USES = 2;
 const ACTIVE_DURATION = 0.05;
 const COOLDOWN_DURATION = 0.45;
-export { GATHER_LIGHT_AMOUNT } from './0804Constants';
+export { GATHER_LIGHT_AMOUNT, getGatherLightDarknessAmount } from './0804Constants';
 export const GATHER_LIGHT_RING_COLOR = 0x9933cc;
+
+/** True when the caster's owner has researched Light Imbuement (battle or tooltip bag). */
+export function hasLightImbuementResearch(gameState: unknown, caster?: Unit): boolean {
+    const eng = gameState as AbilityEngineContext | undefined;
+    if (hasResearchNode(eng, caster, LIGHT_TREE_ID, LIGHT_NODE_IMBUEMENT)) {
+        return true;
+    }
+    const trees = (gameState as { researchTrees?: Record<string, string[]> } | undefined)?.researchTrees;
+    return trees?.[LIGHT_TREE_ID]?.includes(LIGHT_NODE_IMBUEMENT) ?? false;
+}
 
 const GATHER_LIGHT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -49,6 +70,8 @@ export const GatherLightAbility = defineAbility({
     recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 }],
     prefireTime: GATHER_LIGHT_PREFIRE_TIME,
     targets: [],
+    /** Prep: Imbued Bat comes free when Light Imbuement research grants 0803 (tagged `secondary`). */
+    attachedAbilityIds: [IMBUED_BAT_ABILITY_ID],
     abilityTimings: [
         {
             id: 'windup',
@@ -75,13 +98,23 @@ export const GatherLightAbility = defineAbility({
                     timingStart: 'start',
                     behaviour: CastBehaviours.Instant((ctx) => {
                         const eng = ctx.engine as EngineWithGatherLight;
-                        ctx.caster.getResource('light')?.add(getGatherLightAmount(ctx.caster));
+                        const lightGained = getGatherLightAmount(ctx.caster);
+                        ctx.caster.getResource('light')?.add(lightGained);
                         const { adjacentTiles } = applyGatherLightDarkness(
                             eng,
                             ctx.caster,
                             eng.roundNumber ?? 1,
+                            getGatherLightDarknessAmount(lightGained),
                         );
                         spawnGatherLightOrbs(eng, ctx.caster, adjacentTiles);
+                        if (hasLightImbuementResearch(eng, ctx.caster)) {
+                            ctx.caster.addBuff(
+                                new LightImbueBuff(),
+                                eng.gameTime,
+                                eng.roundNumber ?? 1,
+                                eng.eventBus,
+                            );
+                        }
                     }),
                 },
             ],
@@ -100,6 +133,11 @@ export const GatherLightAbility = defineAbility({
         const amount = getGatherLightAmount({
             abilityModifiers: { [CARD_ID]: getAbilityModifier(gameState, undefined, CARD_ID) },
         });
+        if (hasLightImbuementResearch(gameState)) {
+            return [
+                `Gather the light near you to recover {${amount}} light and imbue your weapon with light.`,
+            ];
+        }
         return [`Gather the light near you to recover {${amount}} light`];
     },
 
