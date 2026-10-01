@@ -52,3 +52,20 @@ return rt.maxUses === SWORD_BASE_MAX_USES + SWING_EXTRA_USES;
 ```
 
 This applies equally to source code: if the same number appears in two files, one of them should import it from the other. The goal is that when a value changes, the compiler (or a single grep) finds every affected site rather than silent test drift.
+
+
+## Frontend: component root `data-className`
+
+When creating a React component, the top-level element it renders must have `data-className="<ComponentName>"` as its **first** attribute/prop, matching the component's name. This lets anyone inspecting the DOM trace a piece of UI back to the component that renders it.
+
+```tsx
+function QuestSlotList({ rows }: Props) {
+    return (
+        <ul data-className="QuestSlotList" className="flex flex-col gap-1">
+            ...
+        </ul>
+    );
+}
+```
+
+Apply this to new components and add it when you substantially edit an existing one; don't sweep-edit unrelated components just to add it.

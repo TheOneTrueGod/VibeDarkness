@@ -204,6 +204,8 @@ type QuestSlotRow = {
     missionId?: string;
 };
 
+/** Quest-only missions are named `Quest: …`; the list is already scoped to a quest. */
+const QUEST_MISSION_NAME_PREFIX = /^Quest:\s*/;
 const QUEST_SLOT_HIDDEN_LABEL = '????????';
 const QUEST_SLOT_RANDOM_LABEL = 'Encounter';
 
@@ -226,7 +228,9 @@ function buildQuestSlotRows(
         const done = i < currentIndex;
         const resolvedId = activeRun?.resolvedSlots[i]?.missionId
             ?? (slot.kind === 'fixed' ? slot.missionId : undefined);
-        const name = resolvedId ? MISSION_MAP[resolvedId]?.name : undefined;
+        const name = resolvedId
+            ? MISSION_MAP[resolvedId]?.name.replace(QUEST_MISSION_NAME_PREFIX, '')
+            : undefined;
         const genericLabel = slot.kind === 'fixed' ? undefined : QUEST_SLOT_RANDOM_LABEL;
         const key = `${quest.id}-${i}`;
         if (done || i === currentIndex) {
@@ -240,7 +244,7 @@ function buildQuestSlotRows(
 
 function QuestSlotList({ rows, isAdmin }: { rows: QuestSlotRow[]; isAdmin: boolean }) {
     return (
-        <ul className="flex flex-col gap-1 mt-2" data-testid="quest-bank-tooltip-slots">
+        <ul data-className="QuestSlotList" className="flex flex-col gap-1 mt-2" data-testid="quest-bank-tooltip-slots">
             {rows.map((row) => (
                 <li key={row.key} className="flex items-center gap-2 text-[13px] text-zinc-200">
                     {row.done ? (
@@ -255,10 +259,12 @@ function QuestSlotList({ rows, isAdmin }: { rows: QuestSlotRow[]; isAdmin: boole
                             aria-label="To do"
                         />
                     )}
-                    <span className={row.done ? '' : 'text-zinc-400'}>{row.label}</span>
-                    {isAdmin && row.missionId && (
-                        <span className="text-[10px] font-mono text-muted">({row.missionId})</span>
-                    )}
+                    <span className="flex flex-col min-w-0">
+                        <span className={row.done ? '' : 'text-zinc-400'}>{row.label}</span>
+                        {isAdmin && row.missionId && (
+                            <span className="text-[10px] leading-tight font-mono text-muted">{row.missionId}</span>
+                        )}
+                    </span>
                 </li>
             ))}
         </ul>
@@ -325,6 +331,7 @@ function QuestBankTooltip({
 
     return createPortal(
         <div
+            data-className="QuestBankTooltip"
             data-testid={TestIds.questBankTooltip}
             data-quest-bank-tooltip
             className="fixed z-[9999] pointer-events-none"
