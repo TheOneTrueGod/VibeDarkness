@@ -164,8 +164,14 @@ export interface VictoryConditionAllUnitsNearPosition {
     type: 'allUnitsNearPosition';
     col: number;
     row: number;
-    /** Max grid distance (Chebyshev) to count as "near". Default 1. */
+    /** Max grid distance (Chebyshev) to count as "near". Default 1. Ignored when width/height are set. */
     maxDistance?: number;
+    /**
+     * Rectangular area instead of a radius: `col`/`row` is the top-left tile and the area spans
+     * `width` columns × `height` rows (each defaults to 1 if only one is given).
+     */
+    width?: number;
+    height?: number;
 }
 
 /** Victory condition: all units with characterId are dead. */
@@ -212,6 +218,22 @@ export interface ShowObjectiveMarker {
     showOffscreen: boolean;
 }
 
+/**
+ * Faint icons drawn on the tiles an objective wants the player to occupy.
+ * Shown while the objective is revealed and incomplete.
+ */
+export interface ShowObjectiveTiles {
+    /** Key into EFFECT_IMAGE_SOURCES. */
+    image: 'footprint';
+    /** Sprite opacity, 0–1. */
+    alpha: number;
+    /**
+     * Explicit grid tiles. Omit to use every tile within `maxDistance` (Chebyshev) of an
+     * `allUnitsNearPosition` completion condition.
+     */
+    tiles?: { col: number; row: number }[];
+}
+
 /** In-battle objective shown in ObjectivePanel; evaluated each tick on the host sim. */
 export interface BattleObjectiveDef {
     id: string;
@@ -227,6 +249,8 @@ export interface BattleObjectiveDef {
     onComplete?: ObjectiveOnCompleteEffect[];
     /** When set, renders a yellow exclamation marker above the target during battle. */
     showObjectiveMarker?: ShowObjectiveMarker;
+    /** When set, draws faint icons on the tiles the objective wants the party on. */
+    showObjectiveTiles?: ShowObjectiveTiles;
 }
 
 /** When creatures enter a world-circle, run bundled effects once (fire-once keyed by level event index). */

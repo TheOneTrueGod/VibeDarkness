@@ -4,6 +4,7 @@
  */
 
 import type { EngineContext } from '../EngineContext';
+import { isTileInNearPositionArea } from '../../storylines/nearPositionArea';
 import type {
     LevelEvent,
     LevelEventSpawnWave,
@@ -383,14 +384,13 @@ export class LevelEventManager {
             return !hasEnemies;
         }
         if (cond.type === 'allUnitsNearPosition') {
-            const maxDist = cond.maxDistance ?? 1;
             const alivePlayers = this.ctx.units.filter((u) => u.isPlayerControlled() && u.isAlive());
             if (alivePlayers.length === 0) return false;
             const grid = this.ctx.terrainManager?.grid;
             if (!grid) return false;
             return alivePlayers.every((u) => {
                 const { col: uc, row: ur } = grid.worldToGrid(u.x, u.y);
-                return Math.max(Math.abs(uc - cond.col), Math.abs(ur - cond.row)) <= maxDist;
+                return isTileInNearPositionArea(cond, uc, ur);
             });
         }
         if (cond.type === 'unitDead') {

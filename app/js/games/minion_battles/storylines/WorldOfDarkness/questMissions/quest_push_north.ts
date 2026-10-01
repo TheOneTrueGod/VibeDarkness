@@ -65,8 +65,22 @@ const NORTH_GOAL_COL = cliffPathPOI.north_path.col;
 const NORTH_GOAL_ROW = cliffPathPOI.north_path.row;
 const NORTH_GOAL_WORLD = gridToWorld(NORTH_GOAL_COL, NORTH_GOAL_ROW);
 
-/** Party must reach within this Chebyshev distance of the northern path. */
-export const QUEST_PUSH_NORTH_GOAL_MAX_DISTANCE = 2;
+/** Goal area: the whole party must stand inside this 3 (cols) x 2 (rows) block of tiles. */
+export const QUEST_PUSH_NORTH_GOAL_WIDTH = 3;
+export const QUEST_PUSH_NORTH_GOAL_HEIGHT = 2;
+
+/** Top-left tile of the goal block: centred on the northern path column, starting at its row. */
+const GOAL_AREA_COL = NORTH_GOAL_COL - Math.floor(QUEST_PUSH_NORTH_GOAL_WIDTH / 2);
+const GOAL_AREA_ROW = NORTH_GOAL_ROW;
+
+/** World-space centre of the goal block (objective marker target). */
+const GOAL_AREA_CENTER_WORLD = {
+    x: (GOAL_AREA_COL + QUEST_PUSH_NORTH_GOAL_WIDTH / 2) * CELL_SIZE,
+    y: (GOAL_AREA_ROW + QUEST_PUSH_NORTH_GOAL_HEIGHT / 2) * CELL_SIZE,
+};
+
+/** Footprint hint opacity on the goal tiles — low, since all 25 tiles are marked. */
+export const QUEST_PUSH_NORTH_FOOTPRINT_ALPHA = 0.25;
 
 /** Size of each starting pack: one at the cave mouth, one per cliff-path campfire. */
 export const QUEST_PUSH_NORTH_START_WOLF_COUNT = 1;
@@ -211,9 +225,10 @@ const LEVEL_EVENTS: LevelEvent[] = [
         conditions: [
             {
                 type: 'allUnitsNearPosition',
-                col: NORTH_GOAL_COL,
-                row: NORTH_GOAL_ROW,
-                maxDistance: QUEST_PUSH_NORTH_GOAL_MAX_DISTANCE,
+                col: GOAL_AREA_COL,
+                row: GOAL_AREA_ROW,
+                width: QUEST_PUSH_NORTH_GOAL_WIDTH,
+                height: QUEST_PUSH_NORTH_GOAL_HEIGHT,
             },
         ],
         missionResult: 'victory',
@@ -226,15 +241,18 @@ const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
         label: QUEST_PUSH_NORTH_OBJECTIVE_LABEL,
         toComplete: {
             type: 'allUnitsNearPosition',
-            col: NORTH_GOAL_COL,
-            row: NORTH_GOAL_ROW,
-            maxDistance: QUEST_PUSH_NORTH_GOAL_MAX_DISTANCE,
+            col: GOAL_AREA_COL,
+            row: GOAL_AREA_ROW,
+            width: QUEST_PUSH_NORTH_GOAL_WIDTH,
+            height: QUEST_PUSH_NORTH_GOAL_HEIGHT,
         },
         showObjectiveMarker: {
             enable: true,
-            target: { type: 'position', x: NORTH_GOAL_WORLD.x, y: NORTH_GOAL_WORLD.y },
+            target: { type: 'position', x: GOAL_AREA_CENTER_WORLD.x, y: GOAL_AREA_CENTER_WORLD.y },
             showOffscreen: true,
         },
+        // Tiles default to the full goal block (every tile of the goal block).
+        showObjectiveTiles: { image: 'footprint', alpha: QUEST_PUSH_NORTH_FOOTPRINT_ALPHA },
     },
 ];
 

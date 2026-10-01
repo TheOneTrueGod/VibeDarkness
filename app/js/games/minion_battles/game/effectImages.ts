@@ -3,6 +3,8 @@ export const EFFECT_IMAGE_SOURCES = {
     rockChip: new URL('../assets/effects/rockChip.svg', import.meta.url).href,
     /** Neutral white glow — unlike `darkBlob`, this tints faithfully to any hex color. */
     glowOrb: new URL('../assets/effects/glowOrb.svg', import.meta.url).href,
+    /** Objective tile hint (see `ShowObjectiveTiles`). */
+    footprint: new URL('../assets/effects/footprint.svg', import.meta.url).href,
 } as const;
 
 export type EffectImageKey = keyof typeof EFFECT_IMAGE_SOURCES;

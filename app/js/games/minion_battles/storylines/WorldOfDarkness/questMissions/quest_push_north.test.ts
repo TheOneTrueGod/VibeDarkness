@@ -8,10 +8,12 @@ import { resetGameObjectIdCounter } from '../../../game/GameObject';
 import { TerrainManager } from '../../../terrain/TerrainManager';
 import { getMissionSegmentZones } from '../../../terrain/segmentRegistry';
 import { isTileInZone } from '../../../terrain/zones';
+import { getNearPositionAreaTiles } from '../../nearPositionArea';
 import { registerWorldOfDarknessSegments } from '../registerSegments';
 import {
     QUEST_PUSH_NORTH,
-    QUEST_PUSH_NORTH_GOAL_MAX_DISTANCE,
+    QUEST_PUSH_NORTH_GOAL_HEIGHT,
+    QUEST_PUSH_NORTH_GOAL_WIDTH,
     QUEST_PUSH_NORTH_MISSION_ID,
     QUEST_PUSH_NORTH_NAME,
     QUEST_PUSH_NORTH_OBJECTIVE_LABEL,
@@ -40,7 +42,8 @@ describe('quest_push_north', () => {
             type: 'allUnitsNearPosition',
             col: expect.any(Number),
             row: expect.any(Number),
-            maxDistance: QUEST_PUSH_NORTH_GOAL_MAX_DISTANCE,
+            width: QUEST_PUSH_NORTH_GOAL_WIDTH,
+            height: QUEST_PUSH_NORTH_GOAL_HEIGHT,
         });
     });
 
@@ -147,5 +150,32 @@ describe('quest_push_north', () => {
         expect(wolf.spawns[1]?.spawnCount).toBe(QUEST_PUSH_NORTH_SWARMLING_SPAWN_COUNT);
         expect(wolf.spawns[0]?.spawnTarget?.radius).toBe(QUEST_PUSH_NORTH_SPAWN_RADIUS_TILES);
         expect(slime.spawns[0]?.spawnTarget?.radius).toBe(QUEST_PUSH_NORTH_SPAWN_RADIUS_TILES);
+    });
+
+    it('marks all 6 goal tiles with faint footprints until the objective completes', () => {
+        const engine = new GameEngine();
+        engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 42 });
+        engine.registerBattleObjectives(QUEST_PUSH_NORTH.battleObjectives ?? []);
+
+        const markers = engine.getObjectiveTileMarkers();
+        expect(markers).toHaveLength(1);
+        const area = QUEST_PUSH_NORTH_GOAL_WIDTH * QUEST_PUSH_NORTH_GOAL_HEIGHT;
+        expect(markers[0]!.tiles).toHaveLength(area);
+        expect(markers[0]!.image).toBe('footprint');
+        expect(markers[0]!.alpha).toBeLessThan(0.5);
+
+        engine.destroy();
+    });
+
+    it('has a walkable 3x2 goal block', () => {
+        const terrainManager = new TerrainManager(QUEST_PUSH_NORTH.createTerrain());
+        const reach = QUEST_PUSH_NORTH.battleObjectives?.find((o) => o.id === 'reach_north');
+        if (reach?.toComplete.type !== 'allUnitsNearPosition') throw new Error('unexpected condition');
+        const tiles = getNearPositionAreaTiles(reach.toComplete);
+        expect(tiles).toHaveLength(6);
+        const cell = terrainManager.grid.cellSize;
+        for (const { col, row } of tiles) {
+            expect(terrainManager.isPassable(col * cell + cell / 2, row * cell + cell / 2)).toBe(true);
+        }
     });
 });

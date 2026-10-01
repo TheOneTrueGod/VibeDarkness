@@ -4,6 +4,7 @@
  */
 
 import type { EngineContext } from '../EngineContext';
+import { getNearPositionAreaTiles, isTileInNearPositionArea } from '../../storylines/nearPositionArea';
 import type {
     BattleObjectiveDef,
     ObjectiveOnCompleteEffect,
@@ -101,6 +102,21 @@ export class ObjectiveManager {
         return rows;
     }
 
+    /** Tile hints for revealed, incomplete objectives that declare `showObjectiveTiles`. */
+    getActiveTileMarkers(): { id: string; image: 'footprint'; alpha: number; tiles: { col: number; row: number }[] }[] {
+        const out: { id: string; image: 'footprint'; alpha: number; tiles: { col: number; row: number }[] }[] = [];
+        for (const d of this.defs) {
+            const cfg = d.showObjectiveTiles;
+            if (!cfg || !this.revealedIds.has(d.id) || this.completedIds.has(d.id)) continue;
+            let tiles = cfg.tiles;
+            if (!tiles && d.toComplete.type === 'allUnitsNearPosition') {
+                tiles = getNearPositionAreaTiles(d.toComplete);
+            }
+            if (tiles?.length) out.push({ id: d.id, image: cfg.image, alpha: cfg.alpha, tiles });
+        }
+        return out;
+    }
+
     /** Reveal hidden objectives mid-battle (e.g. LAN quest defend phase). Public for LevelEventManager. */
     revealObjectiveIds(ids: readonly string[]): void {
         let changed = false;
@@ -135,14 +151,13 @@ export class ObjectiveManager {
             return !hasEnemies;
         }
         if (cond.type === 'allUnitsNearPosition') {
-            const maxDist = cond.maxDistance ?? 1;
             const alivePlayers = this.ctx.units.filter((u) => u.isPlayerControlled() && u.isAlive());
             if (alivePlayers.length === 0) return false;
             const grid = this.ctx.terrainManager?.grid;
             if (!grid) return false;
             return alivePlayers.every((u) => {
                 const { col: uc, row: ur } = grid.worldToGrid(u.x, u.y);
-                return Math.max(Math.abs(uc - cond.col), Math.abs(ur - cond.row)) <= maxDist;
+                return isTileInNearPositionArea(cond, uc, ur);
             });
         }
         if (cond.type === 'unitDead') {

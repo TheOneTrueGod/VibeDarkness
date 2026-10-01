@@ -97,7 +97,7 @@ export const LightBlastAbility = defineAbility({
     resourceCost: { resourceId: 'light', amount: LIGHT_BLAST_LIGHT_COST },
     rechargeTurns: 1,
     maxUses: MAX_USES,
-    recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 }],
+    recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 2 }],
     prefireTime: PREFIRE_TIME,
     abilityTimings: [
         {

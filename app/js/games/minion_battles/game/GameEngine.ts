@@ -572,7 +572,11 @@ export class GameEngine implements EngineContext {
         return this.state.objectiveManager.getDisplayRows();
     }
 
-    getActiveWorldModifiersForUI(): import('../worldModifiers/types').WorldModifierDef[] {
+    getObjectiveTileMarkers() {
+        return this.state.objectiveManager.getActiveTileMarkers();
+    }
+
+    getActiveWorldModifiersForUI():import('../worldModifiers/types').WorldModifierDef[] {
         return this.state.worldModifierManager.getActiveModifiersForUI(this.roundNumber);
     }
 

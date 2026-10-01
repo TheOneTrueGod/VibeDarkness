@@ -21,6 +21,7 @@ import { AssetRegistry } from './AssetRegistry';
 import { UnitRenderer } from './renderers/UnitRenderer';
 import { OverlayRenderer } from './renderers/OverlayRenderer';
 import { SpecialTileRenderer } from './renderers/SpecialTileRenderer';
+import { ObjectiveTileRenderer } from './renderers/ObjectiveTileRenderer';
 import { ProjectileRenderer } from './renderers/ProjectileRenderer';
 import { EffectRenderer } from './renderers/EffectRenderer';
 import { LightSourceRenderer } from './renderers/LightSourceRenderer';
@@ -59,6 +60,7 @@ export class GameRenderer {
 	private unitRenderer!: UnitRenderer;
 	private overlayRenderer!: OverlayRenderer;
 	private specialTileRenderer!: SpecialTileRenderer;
+	private objectiveTileRenderer!: ObjectiveTileRenderer;
 	private projectileRenderer!: ProjectileRenderer;
 	private effectRenderer!: EffectRenderer;
 	private lightSourceRenderer!: LightSourceRenderer;
@@ -165,6 +167,7 @@ export class GameRenderer {
 		this.overlayRenderer = new OverlayRenderer(this.gameContainer, this.assetRegistry);
 		this.unitRenderer = new UnitRenderer(this.gameContainer, this.assetRegistry, this.overlayRenderer);
 		this.specialTileRenderer = new SpecialTileRenderer(this.gameContainer, this.assetRegistry);
+		this.objectiveTileRenderer = new ObjectiveTileRenderer(this.gameContainer, this.assetRegistry);
 		this.projectileRenderer = new ProjectileRenderer(this.gameContainer, this.assetRegistry);
 		this.effectRenderer = new EffectRenderer(this.gameContainer, this.assetRegistry);
 		this.lightSourceRenderer = new LightSourceRenderer(this.gameContainer, this.assetRegistry);
@@ -315,6 +318,8 @@ export class GameRenderer {
 				}
 			});
 
+			this.objectiveTileRenderer.render(engine);
+
 			tickPerformanceTracker.measure([PERF_UI_CANVAS_SPECIAL_TILES], () => {
 				const specialTilesVisible = isRenderLayerVisible('specialTiles');
 				this.specialTileRenderer.setLayerVisible(specialTilesVisible);
@@ -385,6 +390,7 @@ export class GameRenderer {
 		this.terrainEffectRenderer.destroy();
 		this.mapNetworkRenderer.destroy();
 		this.specialTileRenderer.destroy();
+		this.objectiveTileRenderer.destroy();
 		this.projectileRenderer.destroy();
 		this.effectRenderer.destroy();
 		this.lightSourceRenderer.destroy();
