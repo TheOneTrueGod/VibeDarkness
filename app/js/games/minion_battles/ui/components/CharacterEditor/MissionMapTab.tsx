@@ -94,6 +94,10 @@ const LOCKED_ADMIN_RING_COLOR = '#f59e0b'; // amber-500
 /** Dashed ring when an admin can click a disabled mission. */
 const DISABLED_ADMIN_RING_COLOR = '#a1a1aa'; // zinc-400
 
+/** Compact footer button used by the quest bank tooltip (Start / Continue / Abandon / Reset). */
+const QUEST_ACTION_BTN =
+    'block text-left px-2.5 py-1 rounded-md text-[11px] font-bold active:scale-95 transition-all cursor-pointer';
+
 interface Props {
     character: CampaignCharacter;
     isAdmin: boolean;
@@ -102,6 +106,8 @@ interface Props {
     onStartQuest?: (questDefId: string, options?: StartQuestOptions) => void;
     /** Clear the character's single active quest run (after confirm). */
     onAbandonQuest?: () => void | Promise<void>;
+    /** Admin-only: clear a completed quest's victory so it can be run again. */
+    onResetQuest?: (questDefId: string) => void | Promise<void>;
     onMarkVictory?: (missionId: string) => Promise<void>;
     /** Admin-only: change the character's campaign from the map toolbar. */
     onCampaignChange?: (campaignId: string) => void | Promise<void>;
@@ -288,6 +294,7 @@ function QuestBankTooltip({
     questCompleted,
     onStartQuest,
     onAbandonQuest,
+    onResetQuest,
     onDismiss,
 }: {
     data: QuestBankTooltipData;
@@ -304,6 +311,7 @@ function QuestBankTooltip({
     questCompleted: boolean;
     onStartQuest?: (questDefId: string, options?: StartQuestOptions) => void;
     onAbandonQuest?: () => void | Promise<void>;
+    onResetQuest?: (questDefId: string) => void | Promise<void>;
     onDismiss: () => void;
 }) {
     const TOOLTIP_W = 300;
@@ -331,7 +339,9 @@ function QuestBankTooltip({
     const showCompleteEmpty = !isLocked && startableQuests.length === 0 && !questDisabled;
     const showQuestActions = !isLocked && startableQuests.length > 0;
     const questCompleteLabel = isDedicated && showCompleteEmpty ? 'Quest complete.' : null;
-    const showFooter = data.pinned && (isLocked || (showCompleteEmpty && !isDedicated) || showQuestActions);
+    const showReset = isAdmin && isDedicated && questCompleted && !!pinnedQuest && !!onResetQuest;
+    const showFooter = data.pinned
+        && (isLocked || showReset || (showCompleteEmpty && !isDedicated) || showQuestActions);
 
     return createPortal(
         <div
@@ -412,6 +422,27 @@ function QuestBankTooltip({
                             >
                                 Locked — complete {unlockRequirementLabel ?? 'the previous requirement'} to {isDedicated ? 'start this quest' : 'assign a quest here'}.
                             </p>
+                        ) : showReset && pinnedQuest ? (
+                            <div className="flex justify-end">
+                                <button
+                                    type="button"
+                                    data-testid={TestIds.questReset}
+                                    onClick={() => {
+                                        if (
+                                            !window.confirm(
+                                                `Reset “${pinnedQuest.title}”? Its completion and any run for it will be cleared so it can be run again.`,
+                                            )
+                                        ) {
+                                            return;
+                                        }
+                                        void onResetQuest?.(pinnedQuest.id);
+                                        onDismiss();
+                                    }}
+                                    className={`${QUEST_ACTION_BTN} bg-red-800/90 text-red-100 border border-red-600 hover:bg-red-700`}
+                                >
+                                    Reset
+                                </button>
+                            </div>
                         ) : showCompleteEmpty ? (
                             <p className="text-[12px] text-zinc-500 italic">
                                 No eligible quests left.
@@ -421,15 +452,16 @@ function QuestBankTooltip({
                                 const isActive = activeQuestDefId === q.id;
                                 if (isActive) {
                                     return (
-                                        <div key={q.id} className="flex flex-col gap-1.5">
+                                        <div key={q.id} className="flex items-center justify-between gap-2">
                                             <button
                                                 type="button"
                                                 data-testid={TestIds.questContinue}
+                                                title={`Continue “${q.title}”`}
                                                 onClick={() => {
                                                     onStartQuest?.(q.id, { mode: 'continue' });
                                                     onDismiss();
                                                 }}
-                                                className="w-full text-left px-3 py-2 rounded-lg bg-primary text-secondary text-xs font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+                                                className={`${QUEST_ACTION_BTN} min-w-0 truncate bg-primary text-secondary hover:opacity-90`}
                                             >
                                                 Continue “{q.title}”
                                             </button>
@@ -448,7 +480,7 @@ function QuestBankTooltip({
                                                         void onAbandonQuest();
                                                         onDismiss();
                                                     }}
-                                                    className="w-full text-left px-3 py-2 rounded-lg bg-red-800/90 text-red-100 text-xs font-bold border border-red-600 hover:bg-red-700 active:scale-95 transition-all cursor-pointer"
+                                                    className={`${QUEST_ACTION_BTN} shrink-0 bg-red-800/90 text-red-100 border border-red-600 hover:bg-red-700`}
                                                 >
                                                     Abandon
                                                 </button>
@@ -477,7 +509,8 @@ function QuestBankTooltip({
                                             });
                                             onDismiss();
                                         }}
-                                        className="w-full text-left px-3 py-2 rounded-lg bg-primary text-secondary text-xs font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+                                        title={`Start “${q.title}”`}
+                                        className={`${QUEST_ACTION_BTN} self-start max-w-full truncate bg-primary text-secondary hover:opacity-90`}
                                     >
                                         Start “{q.title}”
                                     </button>
@@ -684,6 +717,7 @@ export default function MissionMapTab({
     onStartMission,
     onStartQuest,
     onAbandonQuest,
+    onResetQuest,
     onMarkVictory,
     onCampaignChange,
 }: Props) {
@@ -1400,6 +1434,7 @@ export default function MissionMapTab({
                         }
                         onStartQuest={onStartQuest}
                         onAbandonQuest={onAbandonQuest}
+                        onResetQuest={onResetQuest}
                         onDismiss={dismissBankTooltip}
                     />
                 );

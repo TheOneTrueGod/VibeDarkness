@@ -57,6 +57,7 @@ export const TestIds = {
     /** Inline Continue on the active quest row (Quests panel / bank tooltip). */
     questContinue: 'quest-continue',
     questAbandon: 'quest-abandon',
+    questReset: 'quest-reset',
     questAbandonConfirm: 'quest-abandon-confirm',
     questAbandonCancel: 'quest-abandon-cancel',
     questBankPrefix: 'quest-bank-',

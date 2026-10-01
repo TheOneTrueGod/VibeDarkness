@@ -784,6 +784,30 @@ export default function CharacterEditor({
         }
     }, [character, api, onSaved]);
 
+    /** Admin: drop a quest's recorded victories and its run so it can be run again. */
+    const handleResetQuest = useCallback(async (questDefId: string) => {
+        if (!isAdmin) return;
+        const campaignId = character.campaignId;
+        const all = character.questResults ?? {};
+        const nextList = (all[campaignId] ?? []).filter((r) => r.questDefId !== questDefId);
+        try {
+            // Also drop this quest's run (prep / active / completed) so it can't trigger
+            // the "already have an active quest" warning when starting again.
+            const clearRun = character.activeQuestRun?.questDefId === questDefId;
+            await api.updateCharacter(character.id, {
+                questResults: { ...all, [campaignId]: nextList },
+                ...(clearRun ? { activeQuestRun: null } : {}),
+            });
+            onSaved?.({
+                equipment: character.equipment,
+                name: character.name,
+                portraitId: character.portraitId,
+            });
+        } catch (e) {
+            console.warn('Failed to reset quest:', e);
+        }
+    }, [isAdmin, character, api, onSaved]);
+
     const firstTreeId = displayResearchTrees[0]?.id ?? null;
     const selectedTree = displayResearchTrees.find((t) => t.id === (selectedTreeId ?? firstTreeId));
     const selectedTreeDimmed = selectedTree ? dimmedResearchTreeIds.has(selectedTree.id) : false;
@@ -1106,6 +1130,7 @@ export default function CharacterEditor({
         onStartMission: onStartMission ?? (() => {}),
         onStartQuest: onStartQuest ? handleMapStartQuest : undefined,
         onAbandonQuest: onStartQuest ? handleAbandonQuest : undefined,
+        onResetQuest: isAdmin ? handleResetQuest : undefined,
         onMarkVictory: isAdmin ? handleMarkVictory : undefined,
         onCampaignChange: isAdmin ? handleCampaignChange : undefined,
     };
