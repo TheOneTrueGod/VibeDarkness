@@ -55,13 +55,23 @@ export function ensureQuestPrepRun(params: EnsureQuestPrepRunParams): QuestRunSt
         throw new Error(`Unknown quest for prep finalize: ${lobby.questDefId}`);
     }
     const runSeed = lobby.questRunSeed ?? existing?.runSeed ?? 1;
-    return startQuestRun({
+    const run = startQuestRun({
         questDef,
         character,
         runSeed,
         assignedBankId,
         runId: lobby.questRunId,
     });
+
+    // If lobby has stamped resolved slots (from the quest starter), use them instead of re-resolving
+    if (lobby.questResolvedSlots && lobby.questResolvedSlots.length > 0) {
+        return {
+            ...run,
+            resolvedSlots: lobby.questResolvedSlots,
+        };
+    }
+
+    return run;
 }
 
 export type FreezeQuestPrepForCharacterParams = {

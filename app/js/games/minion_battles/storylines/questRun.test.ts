@@ -317,4 +317,103 @@ describe('completeQuestRun / Campaign Rewards', () => {
         );
         expect(() => completeQuestRun(run, QUEST_WITH_COMPLETION)).toThrow(/abandoned/);
     });
+
+    it('includes locationCardIds from completion rewards in the payload and result', () => {
+        const questWithLocationCards: QuestDef = {
+            ...SWARMLING_SOURCE,
+            completionRewards: {
+                resourceDelta: { food: 3 },
+                locationCardIds: [1, 2],
+            },
+        };
+
+        let run = startActiveRun({
+            questDef: questWithLocationCards,
+            character: CAMPAIGN_CHARACTER,
+            runSeed: RUN_SEED_A,
+            runId: 'run_location_complete',
+        });
+
+        // Advance to finale
+        for (let i = 0; i < questWithLocationCards.slots.length - 1; i++) {
+            const step = advanceQuestRunOnMissionVictory(run);
+            if (step.kind !== 'continued') throw new Error('expected continued');
+            run = step.run;
+        }
+        const finale = advanceQuestRunOnMissionVictory(run);
+        if (finale.kind !== 'finale') throw new Error('expected finale');
+        run = finale.run;
+
+        const completed = completeQuestRun(run, questWithLocationCards, {
+            timestamp: SAMPLE_TIMESTAMP,
+        });
+
+        expect(completed.campaignRewardsToApply.locationCardIds).toEqual([1, 2]);
+        expect(completed.result.locationCardIds).toEqual([1, 2]);
+    });
+
+    it('merges locationCardIds from completion rewards and queued campaign rewards', () => {
+        const questWithLocationCards: QuestDef = {
+            ...SWARMLING_SOURCE,
+            completionRewards: {
+                locationCardIds: [1],
+            },
+        };
+
+        let run = startActiveRun({
+            questDef: questWithLocationCards,
+            character: CAMPAIGN_CHARACTER,
+            runSeed: RUN_SEED_A,
+            runId: 'run_location_queued',
+        });
+
+        // Queue a campaign reward with location cards
+        run = queueCampaignReward(run, {
+            source: 'other',
+            locationCardIds: [2, 1], // Note: 1 appears twice (completion + queued)
+        });
+
+        // Advance to finale
+        for (let i = 0; i < questWithLocationCards.slots.length - 1; i++) {
+            const step = advanceQuestRunOnMissionVictory(run);
+            if (step.kind !== 'continued') throw new Error('expected continued');
+            run = step.run;
+        }
+        const finale = advanceQuestRunOnMissionVictory(run);
+        if (finale.kind !== 'finale') throw new Error('expected finale');
+        run = finale.run;
+
+        const completed = completeQuestRun(run, questWithLocationCards, {
+            timestamp: SAMPLE_TIMESTAMP,
+        });
+
+        // Should not dedupe — duplicates mean multiple copies
+        expect(completed.campaignRewardsToApply.locationCardIds).toEqual([1, 2, 1]);
+        expect(completed.result.locationCardIds).toEqual([1, 2, 1]);
+    });
+
+    it('omits locationCardIds from result when empty', () => {
+        let run = startActiveRun({
+            questDef: QUEST_WITH_COMPLETION,
+            character: CAMPAIGN_CHARACTER,
+            runSeed: RUN_SEED_A,
+            runId: 'run_no_location',
+        });
+
+        // Advance to finale
+        for (let i = 0; i < QUEST_WITH_COMPLETION.slots.length - 1; i++) {
+            const step = advanceQuestRunOnMissionVictory(run);
+            if (step.kind !== 'continued') throw new Error('expected continued');
+            run = step.run;
+        }
+        const finale = advanceQuestRunOnMissionVictory(run);
+        if (finale.kind !== 'finale') throw new Error('expected finale');
+        run = finale.run;
+
+        const completed = completeQuestRun(run, QUEST_WITH_COMPLETION);
+
+        // No locationCardIds in completion or queued, so should not be on result
+        expect(completed.result.locationCardIds).toBeUndefined();
+        expect(completed.campaignRewardsToApply.locationCardIds).toEqual([]);
+    });
 });

@@ -19,6 +19,8 @@ import type {
     StoryChoiceActionGrantResearchConditional,
     StoryChoiceActionGrantResearchToPlayer,
 } from '../../storylines/storyTypes';
+import type { LocationCardModification } from '../../storylines/locationCards';
+import { applyLocationModificationsToOptions } from '../../storylines/locationCards';
 import { MISSION_MAP } from '../../storylines';
 import { resolveResearchRewardSlots } from '../../storylines/researchRewardSlots';
 import { getItemDef } from '../../character_defs/items';
@@ -71,6 +73,7 @@ export interface MissionRewards {
     itemFromFirstChoice?: string;
     researchRewardIds?: string[];
     researchRewards?: MissionResearchRewardEntry[];
+    healWounds?: number;
 }
 
 interface ResolvedChoiceResearchReward {
@@ -118,6 +121,8 @@ interface PostMissionStoryPhaseProps {
     questPrepLoadoutsByPlayer?: Record<string, string[]>;
     /** Frozen Quest Prep picks by character id. */
     questAbilityLoadoutsByCharacterId?: Record<string, string[]>;
+    /** Location card modifications to apply to choice options (choice phrases only). */
+    locationCardModifications?: LocationCardModification[];
     onComplete: (rewards: MissionRewards) => void;
     /** Header slot content, forwarded from GameScreen via Game.tsx. */
     headerSlot?: React.ReactNode;
@@ -140,6 +145,7 @@ export default function PostMissionStoryPhase({
     missionPrepLoadoutsByPlayer = {},
     questPrepLoadoutsByPlayer = {},
     questAbilityLoadoutsByCharacterId = {},
+    locationCardModifications,
     onComplete,
     headerSlot,
     chatSlot,
@@ -159,12 +165,14 @@ export default function PostMissionStoryPhase({
     const accumulatedResearchEntriesRef = useRef<MissionResearchRewardEntry[]>([]);
     const firstEquipItemRef = useRef<string | undefined>(undefined);
     const accumulatedResourceDeltaRef = useRef<Partial<Record<'food' | 'metal' | 'crystals', number>>>({});
+    const accumulatedHealWoundsRef = useRef<number>(0);
 
     useEffect(() => {
         accumulatedResearchIdsRef.current = [];
         accumulatedResearchEntriesRef.current = [];
         firstEquipItemRef.current = undefined;
         accumulatedResourceDeltaRef.current = {};
+        accumulatedHealWoundsRef.current = 0;
         setPhraseIndex(0);
         setPhantomPostChoiceStep(false);
         hasCompletedRef.current = false;
@@ -182,6 +190,7 @@ export default function PostMissionStoryPhase({
     // Content fingerprints — lobby polls often replace equal equipment/research with new object refs.
     const equipmentKey = myEquipment.join('\0');
     const researchKey = JSON.stringify(myResearchTrees ?? {});
+    const locationModificationsKey = JSON.stringify(locationCardModifications ?? []);
 
     const postMissionChoiceOptions = useMemo((): ChoicePhrase['options'] => {
         if (!currentPhrase || currentPhrase.type !== 'choice') return [];
@@ -201,10 +210,17 @@ export default function PostMissionStoryPhase({
             playerResearchTrees: myResearchTrees,
             playerId,
         });
-        return computed ?? currentPhrase.options;
+        const baseOptions = computed ?? currentPhrase.options;
+
+        // Apply location card modifications for choice phrases (non-research).
+        if (locationCardModifications && locationCardModifications.length > 0) {
+            return applyLocationModificationsToOptions(baseOptions, locationCardModifications);
+        }
+
+        return baseOptions;
         // equipmentKey / researchKey fingerprint content; omit object refs that churn every poll.
         // eslint-disable-next-line react-hooks/exhaustive-deps -- myEquipment/myResearchTrees via keys
-    }, [currentPhrase, missionId, playerId, equipmentKey, researchKey]);
+    }, [currentPhrase, missionId, playerId, equipmentKey, researchKey, locationModificationsKey]);
 
     useEffect(() => {
         if (!phraseBackgroundUrl) {
@@ -382,6 +398,7 @@ export default function PostMissionStoryPhase({
                     accumulatedResearchEntriesRef.current.length > 0
                         ? accumulatedResearchEntriesRef.current
                         : undefined,
+                ...(accumulatedHealWoundsRef.current > 0 && { healWounds: accumulatedHealWoundsRef.current }),
             });
         },
         [
@@ -477,6 +494,14 @@ export default function PostMissionStoryPhase({
                     metal: action.metal,
                     crystals: action.crystals,
                 });
+            }
+
+            if (
+                !amNpcController
+                && action?.type === 'heal_wounds'
+                && typeof (action as any).amount === 'number'
+            ) {
+                accumulatedHealWoundsRef.current += (action as any).amount;
             }
 
             const optionsForParty = postMissionChoiceOptions;

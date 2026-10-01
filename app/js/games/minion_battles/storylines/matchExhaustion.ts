@@ -55,3 +55,18 @@ export function withExhaustionDelta(
         [EXHAUSTION_RESOURCE_KEY]: exhaustion,
     };
 }
+
+/**
+ * Apply heal-wounds reduction to exhaustion.
+ * Wounds reduce exhaustion 1-to-1 (1 exhaustion per wound point).
+ * Guards against non-finite values.
+ */
+export function applyHealWoundsToExhaustion(
+    exhaustion: number,
+    healWounds: number | undefined,
+): number {
+    if (!Number.isFinite(exhaustion)) return exhaustion;
+    const heal = healWounds ?? 0;
+    if (!Number.isFinite(heal) || heal < 0) return exhaustion;
+    return Math.max(0, exhaustion - heal);
+}

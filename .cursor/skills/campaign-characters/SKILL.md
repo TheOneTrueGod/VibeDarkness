@@ -33,7 +33,7 @@ Each character has exactly one **main weapon** in the campaign sense: the focal 
 
 ## Frontend
 
-- **Types**: See `app/js/games/minion_battles/character_defs/campaignCharacterTypes.ts` for the serializable character shape (`CampaignCharacterData`), traits, and related types.
+- **Types**: See `app/js/games/minion_battles/character_defs/campaignCharacterTypes.ts` for the serializable character shape (`CampaignCharacterData`), traits, and related types. Includes `locationDeck: Record<campaignId, LocationCardInstance[]>` for per-campaign location card ownership. Location cards grant bonus story choice options during quests; see `storylines/locationCards.ts` and `storylines/WorldOfDarkness/quests/AGENTS.md` for details.
 - **Portraits**: See `character_defs/portraits.ts` for the portrait registry; art files live under `character_defs/portraits/`. Other media: **minion-battles-assets**.
 - **Class**: `CampaignCharacter` in `character_defs/CampaignCharacter.ts`. Create from server data with `fromCampaignCharacterData(data)`.
   - `canBeUsedOnMission(...)` — checks campaign match and trait filters.

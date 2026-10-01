@@ -1,5 +1,5 @@
 /**
- * First real World of Darkness quest: random plains story → hunt → crystal corruption.
+ * First real World of Darkness quest: location encounter → hunt → crystal corruption.
  */
 
 import type { QuestDef } from '../../questTypes';
@@ -27,8 +27,8 @@ export const SCAVENGE_THE_PLAINS: QuestDef = {
     tags: [LOCATION_PLAINS_TAG, 'post_core_awakening'],
     slots: [
         {
-            kind: 'random_story',
-            params: {
+            kind: 'location_encounter',
+            fallback: {
                 challengeRatingMin: PLAINS_RANDOM_STORY_CHALLENGE_MIN,
                 challengeRatingMax: PLAINS_RANDOM_STORY_CHALLENGE_MAX,
                 tags: [LOCATION_PLAINS_TAG],

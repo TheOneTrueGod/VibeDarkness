@@ -77,6 +77,11 @@ export interface CampaignCharacterData {
      * (up to PREP_ABILITY_SLOT_COUNT). Used to pre-select on the next mission lobby.
      */
     lastMissionAbilityIds?: string[];
+    /**
+     * Per-campaign location card decks. Key = campaignId, value = list of location card instances.
+     * Built from quest rewards; used to populate location_encounter slots.
+     */
+    locationDeck?: Record<string, unknown>;
 }
 
 /** One-word reason a character cannot be used on a mission. */

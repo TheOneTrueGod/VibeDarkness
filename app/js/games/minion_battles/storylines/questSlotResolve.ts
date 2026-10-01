@@ -6,6 +6,8 @@
  */
 
 import { pickRandomStoryMission, RANDOM_STORY_GENERATOR_ID } from './randomStoryResolve';
+import { LOCATION_ENCOUNTER_GENERATOR_ID, getLocationCardDef, pickLocationCardInstance } from './locationCards';
+import type { LocationCardInstance } from './locationCards';
 import type {
     MissionSlotSpec,
     QuestDef,
@@ -23,6 +25,10 @@ export type QuestSlotResolveContext = {
      * Random generators must use this (not raw runSeed alone) when they exist.
      */
     slotSeed?: number;
+    /** Location card deck for location_encounter resolution. */
+    locationDeck?: readonly LocationCardInstance[];
+    /** Instance IDs already used in earlier slots of this run. */
+    usedLocationInstanceIds?: readonly string[];
 };
 
 /** Thrown when a random_* slot kind has no real generator yet. */
@@ -82,6 +88,47 @@ function resolveRandomStory(
     };
 }
 
+function resolveLocationEncounter(
+    spec: Extract<MissionSlotSpec, { kind: 'location_encounter' }>,
+    ctx: QuestSlotResolveContext,
+): ResolvedMissionRef {
+    const slotSeed = ctx.slotSeed ?? slotSeedFor(ctx.runSeed, ctx.slotIndex ?? 0);
+    const deck = ctx.locationDeck ?? [];
+    const usedIds = ctx.usedLocationInstanceIds ?? [];
+
+    // Try to pick a location card instance.
+    const instance = pickLocationCardInstance(deck, usedIds, slotSeed);
+    if (instance) {
+        const def = getLocationCardDef(instance.location_card_id);
+        if (def) {
+            return {
+                kind: 'generated',
+                missionId: def.missionId,
+                generatorId: LOCATION_ENCOUNTER_GENERATOR_ID,
+                seed: slotSeed,
+                params: spec,
+                locationCardInstanceId: instance.instanceId,
+                locationCard: {
+                    locationCardId: instance.location_card_id,
+                    instanceId: instance.instanceId,
+                    modifications: [...instance.modifications],
+                },
+            };
+        }
+    }
+
+    // Deck empty or def unknown: fall back to random_story.
+    const fallbackParams = spec.fallback ?? {};
+    const picked = pickRandomStoryMission(fallbackParams, slotSeed);
+    return {
+        kind: 'generated',
+        missionId: picked.missionId,
+        generatorId: RANDOM_STORY_GENERATOR_ID,
+        seed: slotSeed,
+        params: fallbackParams,
+    };
+}
+
 /** Resolve a single MissionSlotSpec. */
 export function resolveMissionSlot(
     spec: MissionSlotSpec,
@@ -94,6 +141,8 @@ export function resolveMissionSlot(
             return resolveRandomBattleStub(spec, ctx);
         case 'random_story':
             return resolveRandomStory(spec, ctx);
+        case 'location_encounter':
+            return resolveLocationEncounter(spec, ctx);
         default: {
             const _exhaustive: never = spec;
             throw new Error(`Unknown mission slot kind: ${JSON.stringify(_exhaustive)}`);
@@ -104,16 +153,25 @@ export function resolveMissionSlot(
 /**
  * Resolve all slots on a QuestDef for a run.
  * Uses runSeed (+ slot index) so random resolvers stay deterministic.
+ * Accumulates location card instance ids from earlier slots as they are resolved.
  */
 export function resolveQuestSlots(
     quest: QuestDef,
-    ctx: Pick<QuestSlotResolveContext, 'runSeed'>,
+    ctx: Pick<QuestSlotResolveContext, 'runSeed' | 'locationDeck'>,
 ): ResolvedMissionRef[] {
-    return quest.slots.map((spec, slotIndex) =>
-        resolveMissionSlot(spec, {
+    const usedLocationInstanceIds: string[] = [];
+    return quest.slots.map((spec, slotIndex) => {
+        const resolved = resolveMissionSlot(spec, {
             runSeed: ctx.runSeed,
             slotIndex,
             slotSeed: slotSeedFor(ctx.runSeed, slotIndex),
-        }),
-    );
+            locationDeck: ctx.locationDeck,
+            usedLocationInstanceIds,
+        });
+        // Accumulate instance id from this slot if it was a location encounter.
+        if (resolved.kind === 'generated' && resolved.locationCardInstanceId) {
+            usedLocationInstanceIds.push(resolved.locationCardInstanceId);
+        }
+        return resolved;
+    });
 }

@@ -231,7 +231,11 @@ function buildQuestSlotRows(
         const name = resolvedId
             ? MISSION_MAP[resolvedId]?.name.replace(QUEST_MISSION_NAME_PREFIX, '')
             : undefined;
-        const genericLabel = slot.kind === 'fixed' ? undefined : QUEST_SLOT_RANDOM_LABEL;
+        const genericLabel = slot.kind === 'fixed'
+            ? undefined
+            : slot.kind === 'location_encounter'
+              ? 'Location Encounter'
+              : QUEST_SLOT_RANDOM_LABEL;
         const key = `${quest.id}-${i}`;
         if (done || i === currentIndex) {
             const revealed = slot.kind === 'fixed' || done;

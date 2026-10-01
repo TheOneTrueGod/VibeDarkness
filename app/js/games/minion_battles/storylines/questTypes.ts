@@ -9,6 +9,7 @@
  */
 
 import type { CampaignResourceKey } from '../../../types';
+import type { LocationCardModification } from './locationCards';
 
 /** Campaign map gate: N required quest clears matching filters. */
 export type QuestSlotBank = {
@@ -43,7 +44,8 @@ export type QuestEligibilityFilters = {
 export type MissionSlotSpec =
     | { kind: 'fixed'; missionId: string }
     | { kind: 'random_battle'; params: RandomBattleSlotParams }
-    | { kind: 'random_story'; params: RandomStorySlotParams };
+    | { kind: 'random_story'; params: RandomStorySlotParams }
+    | { kind: 'location_encounter'; fallback?: RandomStorySlotParams };
 
 /** Params only — resolvers implemented later. */
 export type RandomBattleSlotParams = {
@@ -82,6 +84,7 @@ export type QuestDef = {
         resourceDelta?: Partial<Record<CampaignResourceKey, number>>;
         unlockItemIds?: string[];
         knowledgeKeys?: string[];
+        locationCardIds?: number[];
     };
 };
 
@@ -112,11 +115,12 @@ export type CampaignReward = {
     unlockItemIds?: string[];
     itemCardIds?: string[];
     researchRewardIds?: string[];
+    locationCardIds?: number[];
 };
 
 export type ResolvedMissionRef =
     | { kind: 'fixed'; missionId: string }
-    | { kind: 'generated'; missionId: string; generatorId: string; seed: number; params: unknown };
+    | { kind: 'generated'; missionId: string; generatorId: string; seed: number; params: unknown; locationCardInstanceId?: string; locationCard?: { locationCardId: number; instanceId: string; modifications: LocationCardModification[] } };
 
 export type QuestRunStatus = 'prep' | 'active' | 'completed' | 'abandoned';
 
@@ -152,6 +156,7 @@ export type QuestResult = {
     resourceDelta?: Partial<Record<CampaignResourceKey, number>>;
     unlockItemIds?: string[];
     researchRewardIds?: string[];
+    locationCardIds?: number[];
     /** How it landed on the player's map. */
     placement?: QuestResultPlacement;
     bankId?: string;

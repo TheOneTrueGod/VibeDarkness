@@ -20,6 +20,7 @@ import BattlePhase from './ui/pages/BattlePhase';
 import {
     MISSION_MAP,
     STORYLINES,
+    addLocationCardsToDeck,
     getNextVictoryMissionId,
     getSideMissionIds,
     getQuestDef,
@@ -39,11 +40,13 @@ import {
     type QuestLobbyFields,
     type QuestVictoryContinuePlan,
     type CampaignRewardsPayload,
+    type LocationCardInstance,
+    type LocationCardModification,
 } from './storylines';
 import { SPECTATOR_ID, isControlEnemy } from './state';
 import { MessageType } from '../../MessageTypes';
 import type { CampaignResourceKey } from '../../types';
-import { withExhaustionDelta } from './storylines/matchExhaustion';
+import { withExhaustionDelta, applyHealWoundsToExhaustion } from './storylines/matchExhaustion';
 import { mergeResourceDeltas } from '../../campaignResources';
 import {
     applyEnduranceCapToExtras,
@@ -241,6 +244,17 @@ export default function MinionBattlesGame({
     const preMissionStory = missionDef?.preMissionStory ?? null;
     const postMissionStory = missionDef?.postMissionStory ?? null;
 
+    const locationCardModifications = useMemo((): LocationCardModification[] | undefined => {
+        if (!questLobbyFields?.questResolvedSlots || selectedMissionId === null) {
+            return undefined;
+        }
+        const ref = questLobbyFields.questResolvedSlots[questLobbyFields.questSlotIndex];
+        if (!ref || ref.kind !== 'generated' || ref.missionId !== selectedMissionId || !ref.locationCard) {
+            return undefined;
+        }
+        return ref.locationCard.modifications;
+    }, [questLobbyFields, selectedMissionId]);
+
     useEffect(() => {
         getMusicPlayer().playPlaylist(playlistIdForGamePhase(gamePhase, missionDef?.missionType));
     }, [gamePhase, missionDef?.missionType]);
@@ -351,6 +365,7 @@ export default function MinionBattlesGame({
         itemFromFirstChoice?: string;
         researchRewardIds?: string[];
         researchRewards?: MissionResearchRewardEntry[];
+        healWounds?: number;
     } | null>(null);
     const matchExhaustionRef = useRef(0);
 
@@ -389,6 +404,7 @@ export default function MinionBattlesGame({
             }
             const questDef = getQuestDef(run!.questDefId);
             if (!questDef) return null;
+
             const plan = planQuestVictoryContinue(run!, questDef);
             if (plan.kind === 'continued') {
                 await api.updateCharacter(sel, { activeQuestRun: plan.run });
@@ -446,9 +462,27 @@ export default function MinionBattlesGame({
                     ),
                     placedResult,
                 ];
+
+                // Compute new location deck if cards are being granted.
+                let locationDeckUpdate: Record<string, unknown> | undefined;
+                if (shouldGrant && payload.locationCardIds && payload.locationCardIds.length > 0) {
+                    const makeInstanceId = () =>
+                        `lc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+                    const currentDeck = Array.isArray(rawChar.locationDeck?.[campaignId])
+                        ? (rawChar.locationDeck[campaignId] as readonly unknown[])
+                        : undefined;
+                    const newDeck = addLocationCardsToDeck(
+                        currentDeck as readonly LocationCardInstance[] | undefined,
+                        payload.locationCardIds,
+                        makeInstanceId,
+                    );
+                    locationDeckUpdate = { ...(rawChar.locationDeck ?? {}), [campaignId]: newDeck };
+                }
+
                 await api.updateCharacter(sel, {
                     activeQuestRun: null,
                     questResults: { ...existingMap, [campaignId]: updatedList },
+                    ...(locationDeckUpdate ? { locationDeck: locationDeckUpdate } : {}),
                 });
                 // UI: show completionRewards + queued Campaign Rewards under "Campaign Rewards".
                 setCampaignRewards(
@@ -662,6 +696,7 @@ export default function MinionBattlesGame({
                     missionPrepLoadoutsByPlayer={missionPrepLoadoutsByPlayer}
                     questPrepLoadoutsByPlayer={questPrepLoadoutsByPlayer}
                     questAbilityLoadoutsByCharacterId={questAbilityLoadoutsByCharacterId}
+                    locationCardModifications={locationCardModifications}
                     onComplete={(rewards) => {
                         if (!selectedMissionId) return;
                         const missionId = selectedMissionId;
@@ -689,7 +724,9 @@ export default function MinionBattlesGame({
                             );
                         const deferResourcesToQuest =
                             !!questLobbyFields && !skipRewards && victoryResourceDelta != null;
-                        const exhaustion = skipRewards ? 0 : matchExhaustionRef.current;
+                        const exhaustion = skipRewards
+                            ? 0
+                            : applyHealWoundsToExhaustion(matchExhaustionRef.current, rewards.healWounds);
                         const recordedDelta = withExhaustionDelta(
                             skipRewards || deferResourcesToQuest ? undefined : victoryResourceDelta,
                             exhaustion,

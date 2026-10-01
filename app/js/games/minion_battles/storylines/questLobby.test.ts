@@ -72,6 +72,61 @@ describe('questLobbyFieldsFromRun / readQuestLobbyFields', () => {
         expect(readQuestLobbyFields(null)).toBeNull();
     });
 
+    it('round-trips questResolvedSlots through readQuestLobbyFields and validates shape', () => {
+        const run = startQuestRun({
+            questDef: SWARMLING_SOURCE,
+            character: CHARACTER,
+            runSeed: RUN_SEED,
+        });
+        const fields = questLobbyFieldsFromRun(run);
+        expect(fields.questResolvedSlots).toBeDefined();
+        expect(fields.questResolvedSlots!.length).toBeGreaterThan(0);
+
+        // Round-trip through a plain object (simulating game JSON)
+        const gameJson = {
+            questDefId: fields.questDefId,
+            questRunId: fields.questRunId,
+            questSlotIndex: fields.questSlotIndex,
+            questRunSeed: fields.questRunSeed,
+            questResolvedSlots: fields.questResolvedSlots,
+        };
+        const readBack = readQuestLobbyFields(gameJson);
+        expect(readBack?.questResolvedSlots).toEqual(fields.questResolvedSlots);
+
+        // Invalid slots are dropped, field is omitted
+        expect(
+            readQuestLobbyFields({
+                questDefId: 'q',
+                questRunId: 'r',
+                questSlotIndex: 0,
+                questResolvedSlots: [
+                    { kind: 'fixed', missionId: 'm1' },
+                    { kind: 'invalid', missionId: 'm2' }, // Invalid kind
+                ],
+            }),
+        ).toEqual({
+            questDefId: 'q',
+            questRunId: 'r',
+            questSlotIndex: 0,
+            // questResolvedSlots is omitted because it contains an invalid item
+        });
+        expect(
+            readQuestLobbyFields({
+                questDefId: 'q',
+                questRunId: 'r',
+                questSlotIndex: 0,
+                questResolvedSlots: [
+                    { kind: 'fixed', missionId: '' }, // Empty mission id
+                ],
+            }),
+        ).toEqual({
+            questDefId: 'q',
+            questRunId: 'r',
+            questSlotIndex: 0,
+            // questResolvedSlots is omitted because it contains an invalid item
+        });
+    });
+
     it('questRunMatchesLobby requires active run and matching stamp', () => {
         const prep = startQuestRun({
             questDef: SWARMLING_SOURCE,
@@ -121,6 +176,7 @@ describe('questLobbyFieldsFromRun / readQuestLobbyFields', () => {
         expect(payload.requiredPlayers).toEqual(requiredPlayers);
         expect(payload.characterSelections).toEqual({ '1': CHARACTER.id });
         expect(payload.questAbilityLoadoutsByCharacterId?.[CHARACTER.id]).toEqual(['0101']);
+        expect(payload.questResolvedSlots).toEqual(plan.lobbyFields.questResolvedSlots);
         expect(() =>
             buildQuestContinuationClaimPayload({
                 questTitle: 'x',

@@ -216,3 +216,20 @@ export type {
     ResolvedMissionRef,
     QuestPartyRosterEntry,
 } from './questTypes';
+export {
+    LocationTag,
+    addLocationCardsToDeck,
+    applyLocationModificationsToOptions,
+    createLocationCardInstance,
+    describeLocationModification,
+    getLocationCardDef,
+    LOCATION_CARD_DEFS,
+    LOCATION_REWARD_DEFS,
+} from './locationCards';
+export type {
+    LocationCardId,
+    LocationCardDef,
+    LocationCardInstance,
+    LocationCardModification,
+    LocationRewardDef,
+} from './locationCards';

@@ -30,6 +30,8 @@ export interface CampaignCharacterPayload {
     questResults?: Record<string, QuestResult[]>;
     /** Active QuestRun (includes Quest Character); null/absent when none. */
     activeQuestRun?: QuestRunState | null;
+    /** Per-campaign location card decks; key = campaignId. */
+    locationDeck?: Record<string, unknown>;
     lastUsed?: number;
 }
 

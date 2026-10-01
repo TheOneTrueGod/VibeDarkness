@@ -10,6 +10,7 @@ import ResearchNodeCard from './ResearchNodeCard';
 import { getResearchTree, getResolvedMissionResearchRewards } from '../../../../researchTrees/list';
 import type { CampaignRewardsPayload } from '../../storylines/questRun';
 import { isCampaignRewardsPayloadEmpty } from '../../storylines/questCampaignRewards';
+import LocationCardPill from './LocationCardPill';
 
 interface VictoryModalProps {
     missionRewards: {
@@ -160,6 +161,20 @@ export default function VictoryModal({
                             {campaignItemIds.map((id) => (
                                 <ItemRewardCard key={id} itemId={id} />
                             ))}
+                            {campaignRewards.locationCardIds.length > 0 ? (
+                                <div className="w-full space-y-2">
+                                    <p className="text-sm text-muted">Location cards gained:</p>
+                                    <div className="flex flex-wrap justify-center gap-3">
+                                        {campaignRewards.locationCardIds.map((id) => (
+                                            <LocationCardPill
+                                                key={`location-card-${id}`}
+                                                locationCardId={id}
+                                                size="medium"
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : null}
                             {campaignResourceGainsList.length > 0 ? (
                                 <div className="flex flex-wrap justify-center gap-3">
                                     {campaignResourceGainsList.map(({ resource, count }) => (

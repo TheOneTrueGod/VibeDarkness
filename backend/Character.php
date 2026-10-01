@@ -42,6 +42,8 @@ class Character
     private ?array $activeQuestRun;
     /** @var string[] Last Prepare Carefully primary ability picks for regular missions. */
     private array $lastMissionAbilityIds;
+    /** Per-campaign location card decks. Key = campaignId, value = list of LocationCardInstance. */
+    private array $locationDeck;
 
     public function __construct(
         string $id,
@@ -61,7 +63,8 @@ class Character
         array $questResults = [],
         ?array $activeQuestRun = null,
         array $lastMissionAbilityIds = [],
-        array $researchSources = []
+        array $researchSources = [],
+        array $locationDeck = []
     ) {
         $this->id = $id;
         $this->ownerAccountId = $ownerAccountId;
@@ -81,6 +84,7 @@ class Character
         $this->questResults = is_array($questResults) ? $questResults : [];
         $this->activeQuestRun = $activeQuestRun;
         $this->lastMissionAbilityIds = self::normalizeStringIdList($lastMissionAbilityIds);
+        $this->locationDeck = self::normalizeLocationDeck($locationDeck);
     }
 
     public function getId(): string
@@ -208,6 +212,12 @@ class Character
         return $this->lastMissionAbilityIds;
     }
 
+    /** @return array<string, list<array<string, mixed>>> */
+    public function getLocationDeck(): array
+    {
+        return $this->locationDeck;
+    }
+
     /** @param array<string, string[]> $researchTrees */
     public function setResearchTrees(array $researchTrees): void
     {
@@ -300,6 +310,7 @@ class Character
             'questResults' => $this->questResults,
             'activeQuestRun' => $this->activeQuestRun,
             'lastMissionAbilityIds' => $this->lastMissionAbilityIds,
+            'locationDeck' => $this->locationDeck,
         ];
     }
 
@@ -319,6 +330,7 @@ class Character
             $activeQuestRun = $data['activeQuestRun'];
         }
         $lastMissionAbilityIds = $data['lastMissionAbilityIds'] ?? [];
+        $locationDeck = $data['locationDeck'] ?? [];
         return new self(
             $data['id'] ?? '',
             (int) ($data['ownerAccountId'] ?? 0),
@@ -337,7 +349,8 @@ class Character
             is_array($questResults) ? $questResults : [],
             $activeQuestRun,
             is_array($lastMissionAbilityIds) ? $lastMissionAbilityIds : [],
-            is_array($researchSources) ? $researchSources : []
+            is_array($researchSources) ? $researchSources : [],
+            is_array($locationDeck) ? $locationDeck : []
         );
     }
 
@@ -464,5 +477,65 @@ class Character
             $clean[] = $id;
         }
         return array_values(array_unique($clean));
+    }
+
+    /**
+     * Normalize location deck structure.
+     * Per-campaign map where each value is a list of location card instances.
+     * Each instance must have a string instanceId and int location_card_id.
+     * @param mixed $deck
+     * @return array<string, list<array<string, mixed>>>
+     */
+    private static function normalizeLocationDeck(mixed $deck): array
+    {
+        if (!is_array($deck)) {
+            return [];
+        }
+        $out = [];
+        foreach ($deck as $campaignId => $instances) {
+            if (!is_string($campaignId) || $campaignId === '' || !is_array($instances)) {
+                continue;
+            }
+            $campaignInstances = [];
+            foreach ($instances as $instance) {
+                if (!is_array($instance)) {
+                    continue;
+                }
+                // Must have string instanceId and int location_card_id
+                $instanceId = $instance['instanceId'] ?? null;
+                $locationCardId = $instance['location_card_id'] ?? null;
+                if (!is_string($instanceId) || $instanceId === '' || !is_int($locationCardId) || $locationCardId < 1) {
+                    continue;
+                }
+                // Keep the full instance object, default modifications to empty array
+                $cleanInstance = [
+                    'instanceId' => $instanceId,
+                    'location_card_id' => $locationCardId,
+                ];
+                if (isset($instance['displayNameOverride']) && is_string($instance['displayNameOverride'])) {
+                    $cleanInstance['displayNameOverride'] = $instance['displayNameOverride'];
+                }
+                $modifications = [];
+                if (isset($instance['modifications']) && is_array($instance['modifications'])) {
+                    foreach ($instance['modifications'] as $mod) {
+                        if (is_array($mod) && ($mod['type'] ?? null) === 'add_reward' && isset($mod['slot'], $mod['reward_id'])) {
+                            if (is_int($mod['slot']) && is_int($mod['reward_id'])) {
+                                $modifications[] = [
+                                    'type' => 'add_reward',
+                                    'slot' => $mod['slot'],
+                                    'reward_id' => $mod['reward_id'],
+                                ];
+                            }
+                        }
+                    }
+                }
+                $cleanInstance['modifications'] = $modifications;
+                $campaignInstances[] = $cleanInstance;
+            }
+            if ($campaignInstances !== []) {
+                $out[$campaignId] = $campaignInstances;
+            }
+        }
+        return $out;
     }
 }

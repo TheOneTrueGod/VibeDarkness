@@ -8,6 +8,7 @@
  */
 
 import type { CampaignResourceKey } from '../../../types';
+import type { LocationCardInstance } from './locationCards';
 import { resolveQuestSlots } from './questSlotResolve';
 import type {
     CampaignReward,
@@ -35,6 +36,8 @@ export type StartQuestRunParams = {
     assignedBankId?: string | null;
     /** Optional stable id; generated if omitted. */
     runId?: string;
+    /** Location card deck for location_encounter resolution. */
+    locationDeck?: readonly LocationCardInstance[];
 };
 
 /** Flattened Campaign Rewards + QuestDef.completionRewards for grant helpers to apply. */
@@ -44,6 +47,7 @@ export type CampaignRewardsPayload = {
     knowledgeKeys: string[];
     itemCardIds: string[];
     researchRewardIds: string[];
+    locationCardIds: number[];
 };
 
 export type CompleteQuestRunOptions = {
@@ -89,6 +93,14 @@ function pushUnique(target: string[], ids: string[] | undefined): void {
     }
 }
 
+/** Concatenate location card IDs (do not dedupe; duplicates mean multiple copies). */
+function pushAllLocationCardIds(target: number[], ids: number[] | undefined): void {
+    if (!ids) return;
+    for (const id of ids) {
+        target.push(id);
+    }
+}
+
 /** Clone Campaign Character loadout into a fresh Quest Character (abilities filled at prep finalize). */
 export function cloneQuestCharacterFromCampaign(
     character: CampaignCharacterSheetSource,
@@ -107,8 +119,8 @@ export function cloneQuestCharacterFromCampaign(
  * Does not mutate the Campaign Character.
  */
 export function startQuestRun(params: StartQuestRunParams): QuestRunState {
-    const { questDef, character, runSeed, assignedBankId = null, runId } = params;
-    const resolvedSlots = resolveQuestSlots(questDef, { runSeed });
+    const { questDef, character, runSeed, assignedBankId = null, runId, locationDeck } = params;
+    const resolvedSlots = resolveQuestSlots(questDef, { runSeed, locationDeck });
     return {
         runId: runId ?? `quest_run_${questDef.id}_${runSeed}`,
         questDefId: questDef.id,
@@ -256,12 +268,14 @@ export function buildCampaignRewardsPayload(
     const knowledgeKeys: string[] = [];
     const itemCardIds: string[] = [];
     const researchRewardIds: string[] = [];
+    const locationCardIds: number[] = [];
 
     const completion = questDef.completionRewards;
     if (completion) {
         mergeResourceDelta(resourceDelta, completion.resourceDelta);
         pushUnique(unlockItemIds, completion.unlockItemIds);
         pushUnique(knowledgeKeys, completion.knowledgeKeys);
+        pushAllLocationCardIds(locationCardIds, completion.locationCardIds);
     }
 
     for (const reward of questCharacter.campaignRewards ?? []) {
@@ -269,6 +283,7 @@ export function buildCampaignRewardsPayload(
         pushUnique(unlockItemIds, reward.unlockItemIds);
         pushUnique(itemCardIds, reward.itemCardIds);
         pushUnique(researchRewardIds, reward.researchRewardIds);
+        pushAllLocationCardIds(locationCardIds, reward.locationCardIds);
     }
 
     return {
@@ -277,6 +292,7 @@ export function buildCampaignRewardsPayload(
         knowledgeKeys,
         itemCardIds,
         researchRewardIds,
+        locationCardIds,
     };
 }
 
@@ -311,6 +327,9 @@ export function completeQuestRun(
             : {}),
         ...(campaignRewardsToApply.researchRewardIds.length > 0
             ? { researchRewardIds: [...campaignRewardsToApply.researchRewardIds] }
+            : {}),
+        ...(campaignRewardsToApply.locationCardIds.length > 0
+            ? { locationCardIds: [...campaignRewardsToApply.locationCardIds] }
             : {}),
         ...(options.placement !== undefined ? { placement: options.placement } : {}),
         ...(bankId !== undefined && bankId !== null ? { bankId } : {}),

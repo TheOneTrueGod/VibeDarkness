@@ -5,6 +5,7 @@
 
 import type { QuestDef } from '../../questTypes';
 import {
+    FOUND_BERRIES_LOCATION_CARD_ID,
     INVESTIGATE_THE_WILDLIFE_COMPLETION_CRYSTALS,
     INVESTIGATE_THE_WILDLIFE_COMPLETION_FOOD,
     INVESTIGATE_THE_WILDLIFE_COMPLETION_METAL,
@@ -44,5 +45,7 @@ export const INVESTIGATE_THE_WILDLIFE: QuestDef = {
             food: INVESTIGATE_THE_WILDLIFE_COMPLETION_FOOD,
             metal: INVESTIGATE_THE_WILDLIFE_COMPLETION_METAL,
         },
+        // Grants Found Berries location card.
+        locationCardIds: [FOUND_BERRIES_LOCATION_CARD_ID],
     },
 };

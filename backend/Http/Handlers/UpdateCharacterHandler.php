@@ -79,6 +79,9 @@ class UpdateCharacterHandler
         if (array_key_exists('campaignId', $data)) {
             $updates['campaignId'] = (string) $data['campaignId'];
         }
+        if (isset($data['locationDeck']) && is_array($data['locationDeck'])) {
+            $updates['locationDeck'] = $data['locationDeck'];
+        }
 
         $updated = $characterManager->updateCharacter($characterId, $updates);
         if ($updated === null) {

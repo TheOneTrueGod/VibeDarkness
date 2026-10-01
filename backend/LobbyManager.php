@@ -73,6 +73,7 @@ class LobbyManager
      *   questRunId: string,
      *   questSlotIndex: int,
      *   questRunSeed?: int|float,
+     *   questResolvedSlots?: list<array{kind: string, missionId: string, ...}>,
      *   requiredPlayers: list<array{playerName: string, characterId: string}>,
      *   characterSelections?: array<string, string>,
      *   questAbilityLoadoutsByCharacterId?: array<string, list<string>>
@@ -235,6 +236,34 @@ class LobbyManager
             if (isset($payload['questRunSeed']) && is_numeric($payload['questRunSeed'])) {
                 $gamePatch['questRunSeed'] = (int) $payload['questRunSeed'];
             }
+
+            // Validate and include questResolvedSlots if present
+            $questResolvedSlots = $payload['questResolvedSlots'] ?? null;
+            if (is_array($questResolvedSlots) && count($questResolvedSlots) > 0 && count($questResolvedSlots) <= 20) {
+                $validatedSlots = [];
+                $isValid = true;
+                foreach ($questResolvedSlots as $slot) {
+                    if (!is_array($slot)) {
+                        $isValid = false;
+                        break;
+                    }
+                    $kind = $slot['kind'] ?? null;
+                    $missionId = $slot['missionId'] ?? null;
+                    if (!is_string($kind) || ($kind !== 'fixed' && $kind !== 'generated')) {
+                        $isValid = false;
+                        break;
+                    }
+                    if (!is_string($missionId) || trim($missionId) === '') {
+                        $isValid = false;
+                        break;
+                    }
+                    $validatedSlots[] = $slot;
+                }
+                if ($isValid && count($validatedSlots) > 0) {
+                    $gamePatch['questResolvedSlots'] = $validatedSlots;
+                }
+            }
+
             if ($abilityLoadouts !== []) {
                 $gamePatch['questAbilityLoadoutsByCharacterId'] = $abilityLoadouts;
             }
@@ -1020,7 +1049,7 @@ class LobbyManager
                                 'playerStoryChoices', 'playerEquippedItems', 'storyReadyPlayerIds',
                                 'groupVoteVotes', 'groupVoteApplied',
                                 'questDefId', 'questRunId', 'questSlotIndex', 'questRunSeed',
-                                'requiredPlayers', 'questPrepLoadoutsByPlayer',
+                                'questResolvedSlots', 'requiredPlayers', 'questPrepLoadoutsByPlayer',
                                 'questAbilityLoadoutsByCharacterId', 'missionPrepLoadoutsByPlayer',
                                 'nextLobbyId', 'battleSeed', 'storyGrantedEquipment', 'storyGrantsApplied',
                             ] as $key) {

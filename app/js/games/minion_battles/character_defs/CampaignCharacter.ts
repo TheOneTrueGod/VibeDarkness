@@ -103,6 +103,8 @@ export class CampaignCharacter {
     readonly activeQuestRun: QuestRunState | null;
     /** Last Prepare Carefully primary ability picks for regular missions. */
     readonly lastMissionAbilityIds: string[];
+    /** Per-campaign location card decks. Key = campaignId. */
+    readonly locationDeck: Record<string, unknown> | undefined;
 
     constructor(data: CampaignCharacterData) {
         this.id = data.id;
@@ -142,6 +144,8 @@ export class CampaignCharacter {
         this.lastMissionAbilityIds = Array.isArray(data.lastMissionAbilityIds)
             ? data.lastMissionAbilityIds.filter((id): id is string => typeof id === 'string')
             : [];
+        this.locationDeck =
+            data.locationDeck && typeof data.locationDeck === 'object' ? data.locationDeck : undefined;
     }
 
     /**
@@ -225,6 +229,7 @@ export class CampaignCharacter {
             questResults: this.questResults,
             activeQuestRun: this.activeQuestRun,
             lastMissionAbilityIds: this.lastMissionAbilityIds,
+            ...(this.locationDeck ? { locationDeck: this.locationDeck } : {}),
         };
     }
 }

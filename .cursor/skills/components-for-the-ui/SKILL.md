@@ -25,6 +25,7 @@ This skill keeps a **list of component names** and a **one-line description** of
 | **CharactersTabLayerOne** | Campaign-home character chrome: name, portrait, remaining-endurance bar, Change Characters with cycle arrows, left-column switch, URL-owned inner-tab bar. Lives in `CampaignHomeScreen/CharactersTab/`. |
 | **CharacterEnduranceBar** | Remaining endurance under the character portrait: red heart + borderless red rounded bar on black. Lives in `CharacterEditor/`. |
 | **CharactersTabLayerTwo** | Campaign-home character right panel; dispatches to MissionMap / Upgrades / StatBonuses / Equipment. |
+| **LocationCardPill** | Location card mountain icon + name in a bordered pill; opens a tooltip on hover showing description, flavour text, and modifications. Accepts `size` (`small` / `medium` / `default`), optional `count`, and instance data. Lives in `minion_battles/ui/components/`. |
 
 ## When to use
 

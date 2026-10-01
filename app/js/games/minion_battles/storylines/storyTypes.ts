@@ -73,12 +73,19 @@ export interface StoryChoiceActionGrantResearchConditional {
     }>;
 }
 
+/** Choice action: heal wounds on the viewing player's character this mission (reduces recorded match exhaustion). */
+export interface StoryChoiceActionHealWounds {
+    type: 'heal_wounds';
+    amount: number;
+}
+
 /** Extensible choice action union. */
 export type StoryChoiceAction =
     | StoryChoiceActionEquipItem
     | StoryChoiceActionGrantResources
     | StoryChoiceActionGrantResearchToPlayer
-    | StoryChoiceActionGrantResearchConditional;
+    | StoryChoiceActionGrantResearchConditional
+    | StoryChoiceActionHealWounds;
 
 /** One row in a choice phrase (pre- or post-mission). */
 export interface StoryChoiceOptionRow {

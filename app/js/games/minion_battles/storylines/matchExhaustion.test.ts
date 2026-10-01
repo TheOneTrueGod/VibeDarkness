@@ -4,6 +4,7 @@ import {
     EXHAUSTION_PER_WOUND_POINT,
     computeMatchExhaustion,
     withExhaustionDelta,
+    applyHealWoundsToExhaustion,
 } from './matchExhaustion';
 
 describe('computeMatchExhaustion', () => {
@@ -54,5 +55,33 @@ describe('withExhaustionDelta', () => {
     it('adds exhaustion onto an existing delta', () => {
         expect(withExhaustionDelta({ food: 2 }, 4)).toEqual({ food: 2, exhaustion: 4 });
         expect(withExhaustionDelta(undefined, 4)).toEqual({ exhaustion: 4 });
+    });
+});
+
+describe('applyHealWoundsToExhaustion', () => {
+    it('reduces exhaustion by the heal amount', () => {
+        expect(applyHealWoundsToExhaustion(10, 5)).toBe(5);
+    });
+
+    it('floors exhaustion at 0', () => {
+        expect(applyHealWoundsToExhaustion(3, 5)).toBe(0);
+    });
+
+    it('leaves exhaustion unchanged when healWounds is undefined', () => {
+        expect(applyHealWoundsToExhaustion(5, undefined)).toBe(5);
+    });
+
+    it('leaves exhaustion unchanged when healWounds is negative or NaN', () => {
+        expect(applyHealWoundsToExhaustion(5, -10)).toBe(5);
+        expect(applyHealWoundsToExhaustion(5, NaN)).toBe(5);
+    });
+
+    it('returns unchanged exhaustion when exhaustion is non-finite', () => {
+        expect(applyHealWoundsToExhaustion(Infinity, 5)).toBe(Infinity);
+        expect(applyHealWoundsToExhaustion(NaN, 5)).toBe(NaN);
+    });
+
+    it('returns 0 when both heal and exhaustion result in 0', () => {
+        expect(applyHealWoundsToExhaustion(5, 5)).toBe(0);
     });
 });

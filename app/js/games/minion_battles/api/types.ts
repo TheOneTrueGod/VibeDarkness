@@ -3,7 +3,7 @@
  */
 import type { CampaignCharacterPayload, CreateCharacterPayload } from '../../../LobbyClient';
 import type { AccountState, CampaignResourceKey, CampaignState, MissionResult } from '../../../types';
-import type { QuestResult, QuestRunState } from '../storylines/questTypes';
+import type { QuestResult, QuestRunState, ResolvedMissionRef } from '../storylines/questTypes';
 import type { ResearchNodeSources } from '../../../researchTrees/types';
 import type { GamePhase } from '../state';
 
@@ -36,6 +36,8 @@ export interface CharacterUpdates {
     campaignId?: string;
     /** Last Prepare Carefully primary ability picks for regular missions. */
     lastMissionAbilityIds?: string[];
+    /** Per-campaign location card decks; key = campaignId. */
+    locationDeck?: Record<string, unknown>;
 }
 
 export interface SendMessageResult {
@@ -101,6 +103,8 @@ export interface MinionBattlesGameStatePayload {
     questSlotIndex?: number;
     /** Seed used to resolve quest slots (joiners recreate matching prep runs). */
     questRunSeed?: number;
+    /** Starter's resolved slots stamped for deterministic multiplayer (joiners adopt these instead of re-resolving). */
+    questResolvedSlots?: ResolvedMissionRef[];
     /**
      * In-progress Quest Prep primary ability picks by player id (lobby sync during prep).
      */

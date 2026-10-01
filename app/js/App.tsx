@@ -882,6 +882,7 @@ function AppInner() {
                         && (run.status === 'active' || run.status === 'prep')
                         && run.questDefId === questDefId;
                     if (!reuseSameQuest) {
+                        const deck = character.locationDeck?.[questDef.campaignId];
                         run = startQuestRun({
                             questDef,
                             character: { id: character.id, equipment: character.equipment },
@@ -889,6 +890,7 @@ function AppInner() {
                             assignedBankId:
                                 assignedBankId
                                 ?? (run?.questDefId === questDefId ? run.assignedBankId ?? null : null),
+                            locationDeck: Array.isArray(deck) ? deck : undefined,
                         });
                     }
                 }
@@ -1009,6 +1011,9 @@ function AppInner() {
                         questRunId: lobbyStamp.questRunId,
                         questSlotIndex: lobbyStamp.questSlotIndex,
                         questRunSeed: lobbyStamp.questRunSeed,
+                        ...(lobbyStamp.questResolvedSlots
+                            ? { questResolvedSlots: lobbyStamp.questResolvedSlots }
+                            : {}),
                         questPrepLoadoutsByPlayer: {},
                         requiredPlayers,
                     });

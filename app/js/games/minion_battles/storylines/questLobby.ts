@@ -22,6 +22,8 @@ export type QuestLobbyFields = {
     questSlotIndex: number;
     /** Seed used to resolve slots — joiners recreate matching runs during Quest Prep. */
     questRunSeed?: number;
+    /** Starter's already-resolved slots stamped for deterministic multiplayer. */
+    questResolvedSlots?: ResolvedMissionRef[];
 };
 
 /** UI / App options when starting or continuing a quest from Campaign Home. */
@@ -58,6 +60,7 @@ export function questSlotMissionIds(
         if (slot.kind === 'fixed') return slot.missionId;
         if (slot.kind === 'random_story') return 'random_story';
         if (slot.kind === 'random_battle') return 'random_battle';
+        if (slot.kind === 'location_encounter') return 'location_encounter';
         return 'unknown';
     });
 }
@@ -94,6 +97,7 @@ export type QuestContinuationClaimPayload = {
     questRunId: string;
     questSlotIndex: number;
     questRunSeed?: number;
+    questResolvedSlots?: ResolvedMissionRef[];
     requiredPlayers: Array<{ playerName: string; characterId: string }>;
     characterSelections?: Record<string, string>;
     questAbilityLoadoutsByCharacterId?: Record<string, string[]>;
@@ -123,6 +127,9 @@ export function buildQuestContinuationClaimPayload(params: {
         questSlotIndex: lobbyFields.questSlotIndex,
         ...(lobbyFields.questRunSeed !== undefined
             ? { questRunSeed: lobbyFields.questRunSeed }
+            : {}),
+        ...(lobbyFields.questResolvedSlots
+            ? { questResolvedSlots: lobbyFields.questResolvedSlots }
             : {}),
         requiredPlayers,
         ...(params.characterSelections
@@ -211,6 +218,7 @@ export function questLobbyFieldsFromRun(run: QuestRunState): QuestLobbyFields & 
         questRunId: run.runId,
         questSlotIndex: run.currentSlotIndex,
         questRunSeed: run.runSeed,
+        questResolvedSlots: run.resolvedSlots,
         selectedMissionId: missionId,
     };
 }
@@ -229,12 +237,34 @@ export function readQuestLobbyFields(
         return null;
     }
     const questRunSeed = data.questRunSeed;
+
+    // Validate questResolvedSlots if present (all items must be valid, else omit field)
+    const questResolvedSlots = data.questResolvedSlots;
+    let validResolvedSlots: ResolvedMissionRef[] | undefined;
+    if (Array.isArray(questResolvedSlots) && questResolvedSlots.length > 0) {
+        const allValid = questResolvedSlots.every((item): item is ResolvedMissionRef => {
+            if (!item || typeof item !== 'object') return false;
+            const ref = item as Record<string, unknown>;
+            const kind = ref.kind;
+            const missionId = ref.missionId;
+            if (typeof kind !== 'string' || (kind !== 'fixed' && kind !== 'generated')) return false;
+            if (typeof missionId !== 'string' || missionId.trim() === '') return false;
+            return true;
+        });
+        if (allValid) {
+            validResolvedSlots = (questResolvedSlots as ResolvedMissionRef[]);
+        }
+    }
+
     return {
         questDefId,
         questRunId,
         questSlotIndex,
         ...(typeof questRunSeed === 'number' && Number.isFinite(questRunSeed)
             ? { questRunSeed }
+            : {}),
+        ...(validResolvedSlots
+            ? { questResolvedSlots: validResolvedSlots }
             : {}),
     };
 }
@@ -294,6 +324,7 @@ export function planQuestVictoryContinue(
                 questRunId: advanced.run.runId,
                 questSlotIndex: advanced.run.currentSlotIndex,
                 questRunSeed: advanced.run.runSeed,
+                questResolvedSlots: advanced.run.resolvedSlots,
             },
         };
     }
@@ -316,6 +347,8 @@ export function planQuestDefeatRetry(run: QuestRunState): {
             questDefId: fields.questDefId,
             questRunId: fields.questRunId,
             questSlotIndex: fields.questSlotIndex,
+            questRunSeed: fields.questRunSeed,
+            questResolvedSlots: fields.questResolvedSlots,
         },
     };
 }

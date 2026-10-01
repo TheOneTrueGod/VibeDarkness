@@ -22,6 +22,7 @@ export function isCampaignRewardsPayloadEmpty(payload: CampaignRewardsPayload): 
         && payload.knowledgeKeys.length === 0
         && payload.itemCardIds.length === 0
         && payload.researchRewardIds.length === 0
+        && payload.locationCardIds.length === 0
     );
 }
 

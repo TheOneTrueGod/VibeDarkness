@@ -17,6 +17,7 @@ const EMPTY_PAYLOAD: CampaignRewardsPayload = {
     knowledgeKeys: [],
     itemCardIds: [],
     researchRewardIds: [],
+    locationCardIds: [],
 };
 
 const FULL_PAYLOAD: CampaignRewardsPayload = {
@@ -25,6 +26,7 @@ const FULL_PAYLOAD: CampaignRewardsPayload = {
     knowledgeKeys: ['BoarHerdFound'],
     itemCardIds: ['card_x', 'item_a'],
     researchRewardIds: ['tree+node'],
+    locationCardIds: [],
 };
 
 describe('questClearMissionResultId', () => {
@@ -68,5 +70,19 @@ describe('shouldApplyCampaignRewards / double-apply guard', () => {
         const applied = markQuestResultCampaignRewardsApplied(victory);
         expect(applied.campaignRewardsApplied).toBe(true);
         expect(shouldApplyCampaignRewards(applied)).toBe(false);
+    });
+});
+
+describe('isCampaignRewardsPayloadEmpty with locationCardIds', () => {
+    it('detects payload with only locationCardIds as non-empty', () => {
+        const payloadWithOnlyLocationCards: CampaignRewardsPayload = {
+            resourceDelta: {},
+            unlockItemIds: [],
+            knowledgeKeys: [],
+            itemCardIds: [],
+            researchRewardIds: [],
+            locationCardIds: [1, 2],
+        };
+        expect(isCampaignRewardsPayloadEmpty(payloadWithOnlyLocationCards)).toBe(false);
     });
 });
