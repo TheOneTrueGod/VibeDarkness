@@ -38,6 +38,12 @@ export class HeartbeatTerminalReconciler {
 
     /** Host + non-host — last completed matches server tail. */
     reconcileFingerprintsEqualHostTick(engineTick: number, hb: BattleNetEventMap['heartbeat']): void {
+        // ITS preview engine is a speculative timeline, not the canonical sim (lobbies 5F8964 /
+        // FA16E1): its fingerprint ring / pause flag legitimately differ from the host tail, and a
+        // mismatch dump here would upload preview state as the host checkpoint.
+        if (this.ctx.session.isInteractiveTargetingPreviewActive()) {
+            return;
+        }
         const local = this.ctx.session.getLatestFingerprint();
         if (
             local != null &&
@@ -427,7 +433,11 @@ export class HeartbeatTerminalReconciler {
      */
     observeLocalSyncAnomalies(engineTick: number): void {
         const local = this.ctx.session.getLocalSyncAnomalyContext?.();
-        if (local == null || !isStuckPausePlane(local)) {
+        if (
+            local == null ||
+            this.ctx.session.isInteractiveTargetingPreviewActive() ||
+            !isStuckPausePlane(local)
+        ) {
             this.stuckPausePollStreak = 0;
             return;
         }

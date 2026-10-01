@@ -118,6 +118,24 @@ export class SnapshotPersistence {
         }
         const checkpointPayload = this.buildPauseCheckpointPayload();
         const pending: PersistHostCyclesSnapshot = { tick, state, ...checkpointPayload };
+        logToLobbyLog({
+            lobbyClient: this.config.api as unknown as LobbyClient,
+            lobbyId: this.config.lobbyId,
+            playerId: this.config.playerId,
+            tick,
+            severity: 'info',
+            logType: 'battleSync',
+            gameId: this.config.gameId,
+            message: 'diag: saveSnapshotOnPause (checkpoint about to POST)',
+            context: {
+                snapshotTick: tick,
+                snapshotWaitingForOrdersAtTick: state.waitingForOrders?.atTick ?? null,
+                snapshotWaiterCount: state.waitingForOrders?.waiters?.length ?? 0,
+                engineTick: this.config.session.getEngineTick(),
+                lastSnapshotTick: this.lastSnapshotTick,
+                its: this.config.session.getItsDiagState?.() ?? null,
+            },
+        });
         const run = this.performSaveSnapshotOnPause(pending);
         this.pendingPauseSnapshotPayload = pending;
         this.inFlightPauseSnapshot = { tick, promise: run };

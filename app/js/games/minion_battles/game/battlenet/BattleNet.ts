@@ -157,6 +157,7 @@ export class BattleNet implements BattleNetContext {
 		this.lobbyId = args.lobbyId;
 		this.gameId = args.gameId;
 		this.playerId = args.playerId;
+		this.heartbeatState.setHostTickChangeListener((prev, next) => this.logHostTailChange(prev, next));
 		this.heartbeatHttp = new HeartbeatHttp({
 			api: this.api,
 			lobbyId: this.lobbyId,
@@ -387,6 +388,30 @@ export class BattleNet implements BattleNetContext {
 
 	async submitOrder(order: BattleOrder, atTick: number, opts?: SubmitOrderOptions): Promise<void> {
 		const skipLocalApply = opts?.skipLocalApply === true;
+		logToLobbyLogBattleSync({
+			lobbyClient: this.api as unknown as LobbyClient,
+			lobbyId: this.lobbyId,
+			playerId: this.playerId,
+			tick: atTick,
+			severity: 'info',
+			gameId: this.gameId,
+			message: 'diag: submitOrder entry',
+			context: {
+				idHash: hashOrderId(this.playerId, atTick, order),
+				atTick,
+				abilityId: order.abilityId,
+				unitId: order.unitId,
+				endTurn: order.endTurn === true,
+				skipLocalApply,
+				isHost: this.isHost,
+				isRecovering: this.isRecovering,
+				engineTick: this.session.getEngineTick(),
+				heartbeatHostTick: this.latestHeartbeatHostTick,
+				heartbeatPausedAtTick: this.latestHeartbeatPausedAtTick,
+				deferredAtTicks: this.deferredLocalOrders.map((row) => row.atTick),
+				its: this.itsDiag(),
+			},
+		});
 		if (this.isRecovering) {
 			const idHash = hashOrderId(this.playerId, atTick, order);
 			const whyImmediateSubmitSkipped =
@@ -510,6 +535,7 @@ export class BattleNet implements BattleNetContext {
 			return;
 		}
 
+		this.noteEngineTickForDiag('submitOrder');
 		const idHash = hashOrderId(this.playerId, atTick, order);
 		const localEngineTick = this.session.getEngineTick();
 		const localLatestFingerprint = this.session.getLatestFingerprint();
@@ -729,6 +755,7 @@ export class BattleNet implements BattleNetContext {
 					gameId: this.gameId,
 					message: 'host submitOrder deferred POST — atTick outside last-seen append window',
 					context: {
+					its: this.itsDiag(),
 						idHash,
 						abilityId: order.abilityId,
 						unitId: order.unitId,
@@ -792,6 +819,7 @@ export class BattleNet implements BattleNetContext {
 				gameId: this.gameId,
 				message: 'softAlignAfterStaleOrderBatch: bootstrap from latest checkpoint',
 				context: {
+					its: this.itsDiag(),
 					reason,
 					hostTick,
 					hostFingerprintHead: hostFp?.slice(0, 12) ?? null,
@@ -866,6 +894,26 @@ export class BattleNet implements BattleNetContext {
 		if (this.syncStatusController.isAwaitingUserAck()) return false;
 
 		const idHash = hashOrderId(this.playerId, atTick, order);
+		logToLobbyLogBattleSync({
+			lobbyClient: this.api as unknown as LobbyClient,
+			lobbyId: this.lobbyId,
+			playerId: this.playerId,
+			tick: atTick,
+			severity: 'info',
+			gameId: this.gameId,
+			message: 'diag: persistCommittedOrder (ITS in-place commit persist)',
+			context: {
+				idHash,
+				atTick,
+				abilityId: order.abilityId,
+				unitId: order.unitId,
+				engineTick: this.session.getEngineTick(),
+				heartbeatHostTick: this.latestHeartbeatHostTick,
+				heartbeatPausedAtTick: this.latestHeartbeatPausedAtTick,
+				deferredAtTicks: this.deferredLocalOrders.map((row) => row.atTick),
+				its: this.itsDiag(),
+			},
+		});
 		this.hostUnackedAppends.set(idHash, atTick);
 		const appended = await this.persistOrder(order, atTick, idHash, true);
 		if (appended) return true;
@@ -952,6 +1000,7 @@ export class BattleNet implements BattleNetContext {
 			}
 
 			const hbStarted = performance.now();
+			this.noteEngineTickForDiag('pollOnce');
 			let engineTick = this.session.getEngineTick();
 			const latestHostTail = this.latestHeartbeatHostTick;
 			const includePastApplied =
@@ -1438,6 +1487,7 @@ export class BattleNet implements BattleNetContext {
 			gameId: this.gameId,
 			message: 'host order applied locally before persist (playahead; merge waits on append accept)',
 			context: {
+					its: this.itsDiag(),
 				idHash,
 				abilityId: order.abilityId,
 				unitId: order.unitId,
@@ -1454,12 +1504,96 @@ export class BattleNet implements BattleNetContext {
 		});
 	}
 
+	/** Diagnostics: ITS playahead / rollback state to attach to server-bound lobby-log lines. */
+	private itsDiag(): Record<string, unknown> | null {
+		return this.session.getItsDiagState?.() ?? null;
+	}
+
+	/** Diagnostics (lobby 965D4F): why/when the heartbeat host tail moves relative to the engine. */
+	private logHostTailChange(prev: number, next: number): void {
+		const stack = (new Error().stack ?? '').split('\n').slice(2, 6).map((l) => l.trim());
+		logToLobbyLogBattleSync({
+			lobbyClient: this.api as unknown as LobbyClient,
+			lobbyId: this.lobbyId,
+			playerId: this.playerId,
+			tick: this.session.getEngineTick(),
+			severity: 'info',
+			gameId: this.gameId,
+			message: 'diag: heartbeat host tail changed',
+			context: {
+					its: this.itsDiag(),
+				prevHostTail: prev,
+				nextHostTail: next,
+				engineTick: this.session.getEngineTick(),
+				enginePlayaheadOverTail: this.session.getEngineTick() - next,
+				pausedAtTick: this.latestHeartbeatPausedAtTick,
+				lastSnapshotTick: this.snapshotPersistence.getLastSnapshotTick(),
+				inFlightPauseSnapshotTick: this.snapshotPersistence.getInFlightPauseSnapshotTick(),
+				deferredCount: this.deferredLocalOrders.length,
+				deferredAtTicks: this.deferredLocalOrders.map((row) => row.atTick),
+				caller: stack,
+			},
+		});
+	}
+
+	/** Diagnostics (lobby 965D4F): log any observed engine tick decrease (rollback / ITS undo / bootstrap). */
+	private lastObservedEngineTickForDiag: number | null = null;
+	private noteEngineTickForDiag(source: string): void {
+		const now = this.session.getEngineTick();
+		const prev = this.lastObservedEngineTickForDiag;
+		this.lastObservedEngineTickForDiag = now;
+		if (prev == null || now >= prev) {
+			return;
+		}
+		logToLobbyLogBattleSync({
+			lobbyClient: this.api as unknown as LobbyClient,
+			lobbyId: this.lobbyId,
+			playerId: this.playerId,
+			tick: now,
+			severity: 'warn',
+			gameId: this.gameId,
+			message: 'diag: engine tick decreased between observations',
+			context: {
+					its: this.itsDiag(),
+				source,
+				prevEngineTick: prev,
+				engineTick: now,
+				lastSeenHeartbeatHostTick: this.latestHeartbeatHostTick,
+				lastSnapshotTick: this.snapshotPersistence.getLastSnapshotTick(),
+				isRecovering: this.isRecovering,
+			},
+		});
+	}
+
 	private async persistOrder(
 		order: BattleOrder,
 		atTick: number,
 		idHash: string,
 		allowDeferralOnHostLag: boolean,
 	): Promise<boolean> {
+		logToLobbyLogBattleSync({
+			lobbyClient: this.api as unknown as LobbyClient,
+			lobbyId: this.lobbyId,
+			playerId: this.playerId,
+			tick: atTick,
+			severity: 'info',
+			gameId: this.gameId,
+			message: 'diag: persistOrder entry',
+			context: {
+				idHash,
+				atTick,
+				abilityId: order.abilityId,
+				unitId: order.unitId,
+				allowDeferralOnHostLag,
+				isHost: this.isHost,
+				engineTick: this.session.getEngineTick(),
+				heartbeatHostTick: this.latestHeartbeatHostTick,
+				heartbeatPausedAtTick: this.latestHeartbeatPausedAtTick,
+				inDeferredQueue: this.deferredLocalOrders.some((row) => row.idHash === idHash),
+				caller: (new Error().stack ?? '').split('\n').slice(2, 5).map((l) => l.trim()),
+				its: this.itsDiag(),
+			},
+		});
 		if (this.isHost) {
 			this.hostUnackedAppends.set(idHash, atTick);
 			if (
@@ -1480,9 +1614,38 @@ export class BattleNet implements BattleNetContext {
 				envWindow.orderBatchAtTick,
 			);
 			if (this.shouldUseHostPersistEnvelope(envelopeRows.length, envWindow.snapshot != null)) {
+				const primaryAcceptedByEnvWindow = isAppendAtTickAccepted(
+					atTick,
+					envWindow.hostTick,
+					envWindow.orderBatchAtTick,
+				);
+				logToLobbyLogBattleSync({
+					lobbyClient: this.api as unknown as LobbyClient,
+					lobbyId: this.lobbyId,
+					playerId: this.playerId,
+					tick: atTick,
+					severity: primaryAcceptedByEnvWindow ? 'info' : 'warn',
+					gameId: this.gameId,
+					message: primaryAcceptedByEnvWindow
+						? 'diag: persistOrder using host envelope'
+						: 'diag: persistOrder primary row is BEHIND its own envelope snapshot window (will be tick_in_past)',
+					context: {
+					its: this.itsDiag(),
+						idHash,
+						atTick,
+						heartbeatHostTick: this.latestHeartbeatHostTick,
+						heartbeatPausedAtTick: this.latestHeartbeatPausedAtTick,
+						envHostTick: envWindow.hostTick,
+						envOrderBatchAtTick: envWindow.orderBatchAtTick,
+						envSnapshotTick: envWindow.snapshot?.tick ?? null,
+						primaryAcceptedByEnvWindow,
+						engineTick: this.session.getEngineTick(),
+					},
+				});
 				const accepted = await this.persistHostCyclesEnvelope({
 					snapshot: envWindow.snapshot,
 					rows: envelopeRows,
+					caller: 'persistOrder',
 				});
 				return accepted.has(idHash);
 			}
@@ -1510,6 +1673,7 @@ export class BattleNet implements BattleNetContext {
 			gameId: this.gameId,
 			message: 'appendBattleOrder POST attempt',
 			context: {
+					its: this.itsDiag(),
 				idHash,
 				atTick,
 				unitId: order.unitId,
@@ -1860,6 +2024,7 @@ export class BattleNet implements BattleNetContext {
 	private async persistHostCyclesEnvelope(args: {
 		snapshot: PersistHostCyclesSnapshot | null;
 		rows: Array<{ idHash: string; atTick: number; order: BattleOrder }>;
+		caller?: string;
 	}): Promise<Set<string>> {
 		const orders = args.rows.slice(0, BATTLE_NET_MAX_DEFERRED_ORDERS);
 		if (orders.length === 0) {
@@ -1879,10 +2044,21 @@ export class BattleNet implements BattleNetContext {
 			gameId: this.gameId,
 			message: 'persistHostCycles POST attempt',
 			context: {
+					its: this.itsDiag(),
 				orderCount: orders.length,
 				mergeBatchTicks,
 				snapshotTick: args.snapshot?.tick ?? null,
 				idHashes: orders.map((row) => row.idHash),
+				caller: args.caller ?? 'unknown',
+				orderAtTicks: orders.map((row) => row.atTick),
+				rowsBehindSnapshot:
+					args.snapshot != null
+						? orders.filter((row) => row.atTick <= args.snapshot!.tick).map((row) => row.atTick)
+						: [],
+				heartbeatHostTick: this.latestHeartbeatHostTick,
+				heartbeatPausedAtTick: this.latestHeartbeatPausedAtTick,
+				engineTick: this.session.getEngineTick(),
+				deferredAtTicks: this.deferredLocalOrders.map((row) => row.atTick),
 			},
 		});
 		try {
@@ -1914,6 +2090,27 @@ export class BattleNet implements BattleNetContext {
 			this.emitHostCatchupWaitState();
 			return new Set();
 		}
+		logToLobbyLogBattleSync({
+			lobbyClient: this.api as unknown as LobbyClient,
+			lobbyId: this.lobbyId,
+			playerId: this.playerId,
+			tick: orders[0]?.atTick ?? this.session.getEngineTick(),
+			severity: res.rejectedReason ? 'warn' : 'info',
+			gameId: this.gameId,
+			message: 'diag: persistHostCycles response',
+			context: {
+					its: this.itsDiag(),
+				caller: args.caller ?? 'unknown',
+				requestedAtTicks: orders.map((row) => row.atTick),
+				requestedSnapshotTick: args.snapshot?.tick ?? null,
+				acceptedIdHashes: res.acceptedIdHashes,
+				rejectedReason: res.rejectedReason ?? null,
+				serverHostTickAfter: res.hostTick ?? null,
+				serverSnapshotTick: res.snapshotTick ?? null,
+				minAllowedTick: res.minAllowedTick ?? null,
+				maxAllowedTick: res.maxAllowedTick ?? null,
+			},
+		});
 		this.updateHeartbeatFromAppendResponse(res);
 		if (args.snapshot != null) {
 			this.snapshotPersistence.noteEnvelopeSnapshotApplied(args.snapshot.tick);
@@ -1979,6 +2176,7 @@ export class BattleNet implements BattleNetContext {
 				await this.persistHostCyclesEnvelope({
 					snapshot: envWindow.snapshot,
 					rows: eligible,
+					caller: 'flushDeferredOrdersUpTo',
 				});
 				await this.flushPendingHostMerges();
 				return;

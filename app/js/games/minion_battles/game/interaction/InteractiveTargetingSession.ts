@@ -151,6 +151,50 @@ export class InteractiveTargetingSession {
     private assumedRemoteWaitDuringPreview = false;
     /** True while a commit is running (guards re-entry from concurrent commit triggers). */
     private _commitInFlight = false;
+    /** Diagnostics (lobbies 965D4F / 5F8964): monotonically increasing ITS run + restore counters. */
+    private diagBeginSeq = 0;
+    private diagRestoreSeq = 0;
+    private diagLastRestore: {
+        seq: number;
+        fromEngineTick: number;
+        toEngineTick: number;
+        markTick: number | null;
+        markBatchAtTick: number | null;
+        atMs: number;
+    } | null = null;
+
+    /**
+     * Compact ITS state attached to order / snapshot / persist lobby-log lines so a server write
+     * can be correlated with the preview run (and any rollback) that was in progress.
+     */
+    getDiagState(): Record<string, unknown> {
+        const markTick = this.mark != null && typeof this.mark.gameTick === 'number' ? this.mark.gameTick : null;
+        const last = this.diagLastRestore;
+        return {
+            active: this._isActive,
+            beginSeq: this.diagBeginSeq,
+            restoreSeq: this.diagRestoreSeq,
+            abilityId: this._abilityId,
+            unitId: this._unitId,
+            markTick,
+            markBatchAtTick: this.mark?.waitingForOrders?.atTick ?? null,
+            previewOrderQueued: this._previewOrderQueued,
+            assumedRemoteWait: this.assumedRemoteWaitDuringPreview,
+            heldRemoteCount: this.heldRemoteOrders.size,
+            commitInFlight: this._commitInFlight,
+            lastRestore:
+                last == null
+                    ? null
+                    : {
+                          seq: last.seq,
+                          fromEngineTick: last.fromEngineTick,
+                          toEngineTick: last.toEngineTick,
+                          markTick: last.markTick,
+                          markBatchAtTick: last.markBatchAtTick,
+                          msAgo: Date.now() - last.atMs,
+                      },
+        };
+    }
 
     // -------------------------------------------------------------------------
     // Public state
@@ -298,6 +342,12 @@ export class InteractiveTargetingSession {
         const markState = structuredClone(engine.toJSON());
         markState.checkpointRuntimeFingerprintHex = engine.getRuntimeFingerprintHex();
         this.mark = markState;
+        this.diagBeginSeq++;
+        session.postBattleSyncLobbyLog('diag: ITS begin', {
+            its: this.getDiagState(),
+            engineTick: session.getEngineTick(),
+            batchAtTick: batch.atTick,
+        });
 
         // Flag the engine so host callbacks (checkpoint, fingerprint, batch-resolved) skip
         // during the preview run. This prevents the preview state from being persisted to the server.
@@ -916,11 +966,27 @@ export class InteractiveTargetingSession {
         opts?: { applyHeldRemoteOrders?: boolean },
     ): Promise<void> {
         if (!this.mark) return;
+        const diagFromEngineTick = session.getEngineTick();
         // Capture-frame signal for the DOM rewind overlay (must fire before engine teardown).
         const presentationDone = session.emitSequentialTargetingRewind();
         // Clone again so GameEngine.fromJSON / applySerializedUnitState cannot alias or mutate
         // nested mark fields (activeAbilities, aiContext) for the next replay.
         session.restoreFromInMemorySnapshot(structuredClone(this.mark));
+        this.diagRestoreSeq++;
+        this.diagLastRestore = {
+            seq: this.diagRestoreSeq,
+            fromEngineTick: diagFromEngineTick,
+            toEngineTick: session.getEngineTick(),
+            markTick: typeof this.mark.gameTick === 'number' ? this.mark.gameTick : null,
+            markBatchAtTick: this.mark.waitingForOrders?.atTick ?? null,
+            atMs: Date.now(),
+        };
+        session.postBattleSyncLobbyLog('diag: ITS restoreToMark (engine rebuilt from mark; rollback)', {
+            its: this.getDiagState(),
+            opts: opts ?? null,
+            engineWaitingForOrdersAtTick: session.getEngine()?.waitingForOrders?.atTick ?? null,
+            enginePendingOrderCount: session.getEngine()?.pendingOrders.length ?? null,
+        });
         // Hold ticks under the fading overlay even if the mark was not order-paused.
         const engine = session.getEngine();
         if (engine) {

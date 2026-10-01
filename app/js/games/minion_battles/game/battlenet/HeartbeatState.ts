@@ -17,6 +17,7 @@ export class HeartbeatState {
     private lastHeartbeatMaterialKey: string | null = null;
     /** Non-host: previous poll's `hostTick|hostFingerprint` differed from the prior stored key. */
     private lastPollHeartbeatMaterialChanged = false;
+    private hostTickChangeListener: ((prev: number, next: number) => void) | null = null;
 
     getLatestHostTick(): number {
         return this.latestHeartbeatHostTick;
@@ -98,8 +99,17 @@ export class HeartbeatState {
         this.lastPollHeartbeatMaterialChanged = false;
     }
 
+    /** Diagnostics: fired when the host-tick tail changes value (`prev` → `next`). */
+    setHostTickChangeListener(listener: ((prev: number, next: number) => void) | null): void {
+        this.hostTickChangeListener = listener;
+    }
+
     updateLastSeenHeartbeat(hostTick: number): void {
+        const prev = this.latestHeartbeatHostTick;
         this.latestHeartbeatHostTick = hostTick;
+        if (prev !== hostTick) {
+            this.hostTickChangeListener?.(prev, hostTick);
+        }
         this.latestHeartbeatObservedAtMs = Date.now();
     }
 

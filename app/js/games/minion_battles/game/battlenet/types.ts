@@ -91,6 +91,8 @@ export interface BattleSessionHandle {
      * Optional on test doubles that do not exercise those traces.
      */
     getLocalSyncAnomalyContext?(): LocalSyncAnomalyContext;
+    /** Diagnostics: ITS run/restore state attached to server-bound lobby-log lines. */
+    getItsDiagState?(): Record<string, unknown>;
     /**
      * Non-host: optional gate on fixed-step simulation relative to heartbeat tail.
      * {@link BattleNet} normally keeps this cleared so optimistic playahead runs until a natural pause.

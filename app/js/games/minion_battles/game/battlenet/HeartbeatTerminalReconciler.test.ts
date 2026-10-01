@@ -229,6 +229,60 @@ describe('HeartbeatTerminalReconciler.reconcileFingerprintsEqualHostTick', () =>
         });
         expect(requestResync).not.toHaveBeenCalled();
     });
+
+    // Lobbies 5F8964 / FA16E1: ITS Reset runs a forced poll while the preview engine is live. The
+    // preview's fingerprint ring disagrees with the host pause flag; treating that as a host storage
+    // mismatch raised the banner and uploaded the preview state as the host checkpoint.
+    it('host: ITS preview active — pause-flag mismatch is ignored (no banner, no snapshot upload)', async () => {
+        const { reconciler, api, syncStatusSpy, requestResync } = makeHarness({
+            isHost: true,
+            session: {
+                getLatestFingerprint: () => ({ tick: 2475, fp: 'samefp', paused: false }),
+                isInteractiveTargetingPreviewActive: () => true,
+            },
+        });
+        reconciler.reconcileFingerprintsEqualHostTick(
+            2475,
+            hb({ hostTick: 2475, hostFingerprint: 'samefp', hostPaused: true, orderBatchAtTick: 2476 }),
+        );
+        await Promise.resolve();
+        const lines = await loggedLines(api.appendLobbyLogBatch);
+        expect(syncStatusSpy).not.toHaveBeenCalledWith('waiting_for_host');
+        expect(lines.some((l) => l.message === HOST_EQUAL_TICK_FINGERPRINT_MISMATCH_MESSAGE)).toBe(false);
+        expect(api.saveBattleSnapshot).not.toHaveBeenCalled();
+        expect(requestResync).not.toHaveBeenCalled();
+    });
+
+    it('host: ITS preview active — fingerprint mismatch is ignored (no banner, no snapshot upload)', async () => {
+        const { reconciler, api, syncStatusSpy } = makeHarness({
+            isHost: true,
+            session: {
+                getLatestFingerprint: () => ({ tick: 2475, fp: 'previewfp', paused: false }),
+                isInteractiveTargetingPreviewActive: () => true,
+            },
+        });
+        reconciler.reconcileFingerprintsEqualHostTick(
+            2475,
+            hb({ hostTick: 2475, hostFingerprint: 'servertail', hostPaused: true }),
+        );
+        await Promise.resolve();
+        expect(syncStatusSpy).not.toHaveBeenCalledWith('waiting_for_host');
+        expect(api.saveBattleSnapshot).not.toHaveBeenCalled();
+    });
+
+    it('non-host: ITS preview active — pause-flag mismatch does not request resync', () => {
+        const { reconciler, requestResync } = makeHarness({
+            session: {
+                getLatestFingerprint: () => ({ tick: 10, fp: 'samefp', paused: false }),
+                isInteractiveTargetingPreviewActive: () => true,
+            },
+        });
+        reconciler.reconcileFingerprintsEqualHostTick(
+            10,
+            hb({ hostTick: 10, hostFingerprint: 'samefp', hostPaused: true }),
+        );
+        expect(requestResync).not.toHaveBeenCalled();
+    });
 });
 
 function stuckPauseContext(overrides: Partial<LocalSyncAnomalyContext> = {}): LocalSyncAnomalyContext {
@@ -279,6 +333,23 @@ describe('HeartbeatTerminalReconciler.observeLocalSyncAnomalies', () => {
             pendingOrdersAtOrAfterTick: [{ gameTick: 1245, unitId: 'unit_1', abilityId: 'wait', endTurn: false }],
         });
         expect(requestResync).not.toHaveBeenCalled();
+    });
+
+    it('does not log or upload a snapshot while ITS preview is active', async () => {
+        const { reconciler, api } = makeHarness({
+            isHost: true,
+            session: {
+                getLocalSyncAnomalyContext: () => stuckPauseContext({ itsPreviewActive: false }),
+                isInteractiveTargetingPreviewActive: () => true,
+            },
+        });
+        for (let i = 0; i < STUCK_PAUSE_PLANE_LOG_POLLS + 1; i += 1) {
+            reconciler.observeLocalSyncAnomalies(1244);
+        }
+        await Promise.resolve();
+        const lines = await loggedLines(api.appendLobbyLogBatch);
+        expect(lines.some((l) => l.message === STUCK_PAUSE_PLANE_DESYNC_MESSAGE)).toBe(false);
+        expect(api.saveBattleSnapshot).not.toHaveBeenCalled();
     });
 
     it('does not log a healthy order pause', async () => {

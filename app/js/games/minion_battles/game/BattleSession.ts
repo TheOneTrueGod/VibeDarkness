@@ -869,6 +869,18 @@ export class BattleSession implements BattleSessionHandle {
         return this.interactiveTargeting.isActive;
     }
 
+    /** Diagnostics: ITS run/restore counters + engine preview flags for lobby-log correlation. */
+    getItsDiagState(): Record<string, unknown> {
+        const engine = this.engine;
+        return {
+            ...this.interactiveTargeting.getDiagState(),
+            engineTick: this.getEngineTick(),
+            enginePreviewFlag: engine?.isSequentialTargetingPreview === true,
+            engineIsPaused: engine?.isPaused === true,
+            engineWaitingForOrdersAtTick: engine?.waitingForOrders?.atTick ?? null,
+        };
+    }
+
     getLocalPlayerId(): string {
         return this.config.playerId;
     }
