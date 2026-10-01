@@ -12,7 +12,11 @@ import {
     LIGHT_SHIELD_FLARE_TAG,
     SHIELD_OF_LIGHT_ABILITY_ID,
 } from '../../games/minion_battles/card_defs/08_light_core/0805_ShieldOfLight/0805Constants';
-import { LIGHT_REGEN_ENABLED_ADD, MAX_LIGHT_RECOVERY_PER_ROUND } from '../../games/minion_battles/resources/Light';
+import {
+    LIGHT_CORE_MISSION_START_AMOUNT,
+    LIGHT_REGEN_ENABLED_ADD,
+    MAX_LIGHT_RECOVERY_PER_ROUND,
+} from '../../games/minion_battles/resources/Light';
 import { STICK_SWORD_TREE_ID, STICK_SWORD_NODE_PIPE_BAT } from './stick_sword';
 
 export const LIGHT_TREE_ID = 'light_core';
@@ -85,7 +89,7 @@ export const lightTree: ResearchTreeDef = {
         {
             id: LIGHT_NODE_CORE,
             title: 'Light Core',
-            description: 'Channel the power of light into a blast of energy.',
+            description: `Channel the power of light into a blast of energy. Start each mission with {${LIGHT_CORE_MISSION_START_AMOUNT}} Light.`,
             flavorText: 'Light does not ask permission to fill the dark.',
             order: 5,
             tier: 10,
@@ -107,6 +111,7 @@ export const lightTree: ResearchTreeDef = {
                 { type: 'removeCard', cardId: '0601' },
                 { type: 'addCard', cardId: LIGHT_BLAST_ABILITY_ID },
                 { type: 'addCard', cardId: GATHER_LIGHT_ABILITY_ID },
+                { type: 'grantMissionStartResource', resourceId: 'light', amount: LIGHT_CORE_MISSION_START_AMOUNT },
             ],
             modifiesAbility: { from: '0601', to: LIGHT_BLAST_ABILITY_ID },
         },

@@ -17,8 +17,11 @@ import {
     QUEST_PUSH_NORTH_OBJECTIVE_LABEL,
     QUEST_PUSH_NORTH_SLIME_MAX_UNITS,
     QUEST_PUSH_NORTH_SLIME_SPAWN_COUNT,
+    QUEST_PUSH_NORTH_SWARMLING_SPAWN_COUNT,
     QUEST_PUSH_NORTH_SPAWN_RADIUS_TILES,
     QUEST_PUSH_NORTH_START_SWARMLING_COUNT,
+    QUEST_PUSH_NORTH_START_PACK_COUNT,
+    QUEST_PUSH_NORTH_CAMPFIRE_PACK_RADIUS_TILES,
     QUEST_PUSH_NORTH_START_WOLF_COUNT,
     QUEST_PUSH_NORTH_WOLF_MAX_UNITS,
     QUEST_PUSH_NORTH_WOLF_SPAWN_COUNT,
@@ -61,7 +64,7 @@ describe('quest_push_north', () => {
         );
     });
 
-    it('opens with 2 wolves and 4 swarmlings in the outside-cave-mouth box', () => {
+    it('opens with three packs (1 wolf + 2 swarmlings each): cave mouth and both campfires', () => {
         resetGameObjectIdCounter(1);
         const engine = new GameEngine();
         engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 42 });
@@ -82,17 +85,40 @@ describe('quest_push_north', () => {
 
         const wolves = engine.units.filter((u) => u.characterId === 'dark_wolf');
         const swarmlings = engine.units.filter((u) => u.characterId === 'swarmling');
-        expect(wolves).toHaveLength(QUEST_PUSH_NORTH_START_WOLF_COUNT);
-        expect(swarmlings).toHaveLength(QUEST_PUSH_NORTH_START_SWARMLING_COUNT);
+        expect(wolves).toHaveLength(
+            QUEST_PUSH_NORTH_START_WOLF_COUNT * QUEST_PUSH_NORTH_START_PACK_COUNT,
+        );
+        expect(swarmlings).toHaveLength(
+            QUEST_PUSH_NORTH_START_SWARMLING_COUNT * QUEST_PUSH_NORTH_START_PACK_COUNT,
+        );
         expect(engine.units.some((u) => u.characterId === 'boar')).toBe(false);
 
         const cellSize = terrain.cellSize;
-        for (const unit of [...wolves, ...swarmlings]) {
-            const col = Math.floor(unit.x / cellSize);
-            const row = Math.floor(unit.y / cellSize);
-            expect(isTileInZone(caveMouthZone!, col, row)).toBe(true);
-            expect(unit.spawnTimer).toBe(0);
+        const packSize = QUEST_PUSH_NORTH_START_WOLF_COUNT + QUEST_PUSH_NORTH_START_SWARMLING_COUNT;
+        const all = [...wolves, ...swarmlings];
+        const tileOf = (u: { x: number; y: number }) => ({
+            col: Math.floor(u.x / cellSize),
+            row: Math.floor(u.y / cellSize),
+        });
+        const inCaveMouth = all.filter((u) => {
+            const { col, row } = tileOf(u);
+            return isTileInZone(caveMouthZone!, col, row);
+        });
+        expect(inCaveMouth).toHaveLength(packSize);
+        for (const campfire of [
+            { col: 8, row: 21 },
+            { col: 14, row: 13 },
+        ]) {
+            const near = all.filter((u) => {
+                const { col, row } = tileOf(u);
+                return (
+                    Math.max(Math.abs(col - campfire.col), Math.abs(row - campfire.row))
+                    <= QUEST_PUSH_NORTH_CAMPFIRE_PACK_RADIUS_TILES
+                );
+            });
+            expect(near).toHaveLength(packSize);
         }
+        for (const unit of all) expect(unit.spawnTimer).toBe(0);
 
         engine.destroy();
     });
@@ -117,6 +143,8 @@ describe('quest_push_north', () => {
         expect(slime.maxUnits).toBe(QUEST_PUSH_NORTH_SLIME_MAX_UNITS);
         expect(wolf.spawns[0]?.spawnCount).toBe(QUEST_PUSH_NORTH_WOLF_SPAWN_COUNT);
         expect(slime.spawns[0]?.spawnCount).toBe(QUEST_PUSH_NORTH_SLIME_SPAWN_COUNT);
+        expect(wolf.spawns[1]?.characterId).toBe('swarmling');
+        expect(wolf.spawns[1]?.spawnCount).toBe(QUEST_PUSH_NORTH_SWARMLING_SPAWN_COUNT);
         expect(wolf.spawns[0]?.spawnTarget?.radius).toBe(QUEST_PUSH_NORTH_SPAWN_RADIUS_TILES);
         expect(slime.spawns[0]?.spawnTarget?.radius).toBe(QUEST_PUSH_NORTH_SPAWN_RADIUS_TILES);
     });

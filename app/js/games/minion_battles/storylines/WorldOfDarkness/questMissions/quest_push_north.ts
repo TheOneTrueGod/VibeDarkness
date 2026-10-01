@@ -27,6 +27,7 @@ import {
     CLIFF_PATH_CAMPFIRE_POINTS,
     pointsOfInterest as cliffPathPOI,
 } from '../MapSegments/50_49_cliff_path_north';
+import type { TerrainManager } from '../../../terrain/TerrainManager';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 
 export const QUEST_PUSH_NORTH_MISSION_ID = 'quest_push_north';
@@ -67,13 +68,20 @@ const NORTH_GOAL_WORLD = gridToWorld(NORTH_GOAL_COL, NORTH_GOAL_ROW);
 /** Party must reach within this Chebyshev distance of the northern path. */
 export const QUEST_PUSH_NORTH_GOAL_MAX_DISTANCE = 2;
 
-/** Opening pack in the outside-cave-mouth box. */
-export const QUEST_PUSH_NORTH_START_WOLF_COUNT = 2;
-export const QUEST_PUSH_NORTH_START_SWARMLING_COUNT = 4;
+/** Size of each starting pack: one at the cave mouth, one per cliff-path campfire. */
+export const QUEST_PUSH_NORTH_START_WOLF_COUNT = 1;
+export const QUEST_PUSH_NORTH_START_SWARMLING_COUNT = 2;
+
+/** Number of starting packs (cave mouth + south campfire + mid campfire). */
+export const QUEST_PUSH_NORTH_START_PACK_COUNT = 3;
+
+/** Campfire packs scatter on passable tiles within this Chebyshev radius of the fire. */
+export const QUEST_PUSH_NORTH_CAMPFIRE_PACK_RADIUS_TILES = 3;
 
 /** light_empowered continuousSpawn per-wave counts / caps, doubled here. */
-export const QUEST_PUSH_NORTH_WOLF_SPAWN_COUNT = 2;
-export const QUEST_PUSH_NORTH_SLIME_SPAWN_COUNT = 2;
+export const QUEST_PUSH_NORTH_WOLF_SPAWN_COUNT = 1;
+export const QUEST_PUSH_NORTH_SWARMLING_SPAWN_COUNT = 2;
+export const QUEST_PUSH_NORTH_SLIME_SPAWN_COUNT = 1;
 export const QUEST_PUSH_NORTH_WOLF_MAX_UNITS = 12;
 export const QUEST_PUSH_NORTH_SLIME_MAX_UNITS = 20;
 
@@ -92,16 +100,48 @@ function resolveOutsideCaveMouthZone(terrainSegmentZones: MapSegmentZone[]): Map
     );
 }
 
+/** Passable tiles around a campfire (excluding the fire itself). */
+function campfireCandidates(
+    campfire: { col: number; row: number },
+    terrainManager: TerrainManager | null | undefined,
+): { col: number; row: number }[] {
+    const r = QUEST_PUSH_NORTH_CAMPFIRE_PACK_RADIUS_TILES;
+    const out: { col: number; row: number }[] = [];
+    for (let row = campfire.row - r; row <= campfire.row + r; row++) {
+        for (let col = campfire.col - r; col <= campfire.col + r; col++) {
+            if (col < 0 || row < 0 || col >= COLS || row >= ROWS) continue;
+            if (col === campfire.col && row === campfire.row) continue;
+            const { x, y } = gridToWorld(col, row);
+            if (terrainManager && !terrainManager.isPassable(x, y)) continue;
+            out.push({ col, row });
+        }
+    }
+    return out;
+}
+
 /**
- * Opening pack: 2 wolves + 4 swarmlings scattered in the outside-cave-mouth box.
+ * Starting enemies: one pack (1 wolf + 2 swarmlings) in the outside-cave-mouth box,
+ * plus an equal pack at each cliff-path campfire, further north each time.
  * Positions use the engine's seeded RNG so every client matches.
  */
-function buildOpeningPack(
+function buildOpeningPacks(
     engine: GameEngine,
     terrainSegmentZones: MapSegmentZone[],
+    terrainManager: TerrainManager | null | undefined,
 ): EnemySpawnDef[] {
-    const zone = resolveOutsideCaveMouthZone(terrainSegmentZones);
-    const candidates = resolveZoneTiles(zone);
+    const caveMouth = resolveZoneTiles(resolveOutsideCaveMouthZone(terrainSegmentZones));
+    return [
+        ...buildPack(engine, caveMouth),
+        ...CLIFF_PATH_CAMPFIRE_POINTS.flatMap((campfire) =>
+            buildPack(engine, campfireCandidates(campfire, terrainManager)),
+        ),
+    ];
+}
+
+function buildPack(
+    engine: GameEngine,
+    candidates: { col: number; row: number }[],
+): EnemySpawnDef[] {
     const total =
         QUEST_PUSH_NORTH_START_WOLF_COUNT + QUEST_PUSH_NORTH_START_SWARMLING_COUNT;
     const positions: { x: number; y: number }[] = [];
@@ -138,6 +178,14 @@ const LEVEL_EVENTS: LevelEvent[] = [
                 inDarkness: true,
                 spawnTarget: NORTH_SPAWN_TARGET,
                 spawnCount: QUEST_PUSH_NORTH_WOLF_SPAWN_COUNT,
+                unitAITreeId: 'hunt',
+            },
+            {
+                characterId: 'swarmling',
+                spawnBehaviour: 'anywhere',
+                inDarkness: true,
+                spawnTarget: NORTH_SPAWN_TARGET,
+                spawnCount: QUEST_PUSH_NORTH_SWARMLING_SPAWN_COUNT,
                 unitAITreeId: 'hunt',
             },
         ],
@@ -274,7 +322,11 @@ export class QuestPushNorthMission extends BaseMissionDef {
     ];
 
     override initializeGameState(engine: GameEngine, params: InitializeGameStateParams): void {
-        this.enemies = buildOpeningPack(engine, params.terrainSegmentZones ?? []);
+        this.enemies = buildOpeningPacks(
+            engine,
+            params.terrainSegmentZones ?? [],
+            params.terrainManager,
+        );
         super.initializeGameState(engine, params);
     }
 }

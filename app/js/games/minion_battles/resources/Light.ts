@@ -22,6 +22,8 @@ export const LIGHT_RESOURCE_DIVISOR = 3;
 export const MAX_LIGHT_RECOVERY_PER_ROUND = 2;
 /** Binary unlock add written by Light Attuned onto `PassiveStatKey.LightRegenEnabled`. */
 export const LIGHT_REGEN_ENABLED_ADD = 1;
+/** Light a unit starts each mission with once Light Core research is owned. */
+export const LIGHT_CORE_MISSION_START_AMOUNT = 2;
 /** Starting Light capacity when a unit first gains the resource (Light Core). */
 export const LIGHT_STARTING_MAX = 5;
 export const LIGHT_RESOURCE_COLOR = '#fef9c3'; // warm white-yellow
