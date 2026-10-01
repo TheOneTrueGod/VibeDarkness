@@ -166,8 +166,8 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
             type: 'dialogue',
             speakerId: '1',
             text: [
-							"You run toward the light, desperate to put distance between yourself and the wolves.",
-							"You turn, expecting to fight, but they only skulk at the entrance, eyes gleaming.",
+							"You run toward the light, desperate to get away from the flickering darkness.",
+							"You turn, expecting a fight, but they only skulk at the entrance, eyes gleaming.",
 							"They do not follow."
 						].join("\n"),
             portraitSide: 'left',
@@ -176,7 +176,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: "You take a moment to steady yourself. Inside the cave, the walls are studded with glittering crystals—the first real light you've seen in this endless darkness. They pulse softly, like distant stars.",
+            text: "You take a moment to steady yourself. Inside the cave, the walls are studded with glittering crystals. They pulse softly, like distant stars.",
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },
@@ -199,14 +199,14 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
                 {
                     minTier: 2,
                     maxTier: 2,
-                    loreTitle: 'Veins of the Hollow',
-                    loreDescription: "Trace the cave's restless gleam—shape brittle stone into a spark that refuses to gutter out.",
+                    loreTitle: 'Crystal Experimentation',
+                    loreDescription: "Use the power of the crystals to your advantage.",
                 },
                 {
                     minTier: 2,
                     maxTier: 2,
                     loreTitle: 'Iron in the Dark',
-                    loreDescription: 'Salvage edge from scrap and nerve; let the next thrown thing carry your conviction.',
+                    loreDescription: 'Salvage tools from scrap and nerve.',
                 },
             ],
         },

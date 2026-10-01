@@ -216,14 +216,10 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: "Swarmling tracks cut north along the cliff path—fresh and many. Follow them.",
-            portraitSide: 'left',
-            backgroundImage: STORY_BACKGROUNDS.campfire,
-        },
-        {
-            type: 'dialogue',
-            speakerId: '1',
-            text: "The darkness between here and the northern path is thick. Push through.",
+            text: [
+							"The Swarmlings seem to spawn repeatedly from the north.", 
+							"Fight your way through to find out where they're coming from."
+						].join("\n"),
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },
@@ -235,7 +231,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: "The high trail is yours. The swarm's trail keeps going.",
+            text: "Continue your march.",
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },
