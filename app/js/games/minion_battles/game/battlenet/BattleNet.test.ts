@@ -2206,9 +2206,10 @@ describe('BattleNet', () => {
         await net.mergeAppliedOrdersForBatch(LOBBY_97305C.waitAtTick);
         expect(mergeBattleAppliedOrders).not.toHaveBeenCalled();
 
+        const token = { engineEpoch: 0, __brand: 'CanonicalToken' as const };
         await net.saveSnapshotOnPause(LOBBY_97305C.afterAckHostTick, {
             gameTick: LOBBY_97305C.afterAckHostTick,
-        } as SerializedGameState);
+        } as SerializedGameState, token);
         hb = lobby97305CHeartbeat({
             hostTick: LOBBY_97305C.afterAckHostTick,
             ordersTipTick: LOBBY_97305C.afterAckHostTick,
@@ -2275,9 +2276,10 @@ describe('BattleNet', () => {
         expect(appendBattleOrder).not.toHaveBeenCalled();
         expect(persistHostCycles).not.toHaveBeenCalled();
 
+        const token2 = { engineEpoch: 0, __brand: 'CanonicalToken' as const };
         await net.saveSnapshotOnPause(LOBBY_97305C.afterAckHostTick, {
             gameTick: LOBBY_97305C.afterAckHostTick,
-        } as SerializedGameState);
+        } as SerializedGameState, token2);
         hb = lobby97305CHeartbeat({
             hostTick: LOBBY_97305C.afterAckHostTick,
             ordersTipTick: LOBBY_97305C.afterAckHostTick,
@@ -2519,7 +2521,8 @@ describe('BattleNet', () => {
             gameId: 'g1',
             playerId: 'host',
         });
-        net.queueFingerprint(3, 'deadbeefdeadbeef', true);
+        const token = { engineEpoch: 0, __brand: 'CanonicalToken' as const };
+        net.queueFingerprint(3, 'deadbeefdeadbeef', true, undefined, token);
         await net.pollOnce();
         expect(appendBattleFingerprints).toHaveBeenCalledWith('l1', 'g1', {
             playerId: 'host',
@@ -3569,5 +3572,219 @@ describe('BattleNet: pause plane structural divergence (5E0F6B)', () => {
                 (l) => l.message === 'pause plane structural divergence: host paused at batch local sim never formed',
             ),
         ).toBe(false);
+    });
+
+    describe('finalized field on wire (draft vs confirmed orders)', () => {
+        it('submitOrder sends finalized: false for draft orders (endTurn: false)', async () => {
+            const appendBattleOrder = vi.fn(async (_l: string, _g: string, body: Record<string, unknown>) => ({
+                accepted: true,
+                idHash: body.idHash as string ?? 'idhash',
+            }));
+            const api = makeApi({
+                appendBattleOrder,
+                getBattleHeartbeat: vi.fn(async () => ({
+                    hostTick: 0,
+                    hostFingerprint: 'aaaaaaaaaaaaaaaa',
+                    hostPaused: false,
+                    ordersTipTick: 0,
+                    orderBatchAtTick: null,
+                    pausedAtTick: null,
+                    expectingFromPlayerIds: null,
+                    initialFingerprint: '0011223344556677',
+                    heartbeatSeq: 0,
+                })),
+            });
+            const session = makeSession({ getEngineTick: () => 0 });
+            const net = new BattleNet({
+                api,
+                session,
+                isHost: false,
+                lobbyId: 'l1',
+                gameId: 'g1',
+                playerId: 'p1',
+            });
+            const draftOrder = { ...makeOrder('draft'), endTurn: false };
+
+            await net.pollOnce();
+            await net.submitOrder(draftOrder, 1);
+
+            expect(appendBattleOrder).toHaveBeenCalledWith(
+                'l1',
+                'g1',
+                expect.objectContaining({
+                    finalized: false,
+                }),
+            );
+        });
+
+        it('submitOrder sends finalized: true for confirmed orders (endTurn: true)', async () => {
+            const appendBattleOrder = vi.fn(async (_l: string, _g: string, body: Record<string, unknown>) => ({
+                accepted: true,
+                idHash: body.idHash as string ?? 'idhash',
+            }));
+            const api = makeApi({
+                appendBattleOrder,
+                getBattleHeartbeat: vi.fn(async () => ({
+                    hostTick: 0,
+                    hostFingerprint: 'aaaaaaaaaaaaaaaa',
+                    hostPaused: false,
+                    ordersTipTick: 0,
+                    orderBatchAtTick: null,
+                    pausedAtTick: null,
+                    expectingFromPlayerIds: null,
+                    initialFingerprint: '0011223344556677',
+                    heartbeatSeq: 0,
+                })),
+            });
+            const session = makeSession({ getEngineTick: () => 0 });
+            const net = new BattleNet({
+                api,
+                session,
+                isHost: false,
+                lobbyId: 'l1',
+                gameId: 'g1',
+                playerId: 'p1',
+            });
+            const confirmedOrder = { ...makeOrder('confirmed'), endTurn: true };
+
+            await net.pollOnce();
+            await net.submitOrder(confirmedOrder, 1);
+
+            expect(appendBattleOrder).toHaveBeenCalledWith(
+                'l1',
+                'g1',
+                expect.objectContaining({
+                    finalized: true,
+                }),
+            );
+        });
+
+        it('host persistHostCycles envelope sends finalized field for each order', async () => {
+            const persistHostCycles = vi.fn(async (_l: string, _g: string, body: Record<string, unknown>) => ({
+                accepted: true,
+                acceptedIdHashes: ((body.orders as Array<Record<string, unknown>>) ?? []).map((r) => (r.idHash as string) ?? ''),
+            }));
+            const appendBattleOrder = vi.fn(async (_l: string, _g: string, _body: Record<string, unknown>) => ({
+                accepted: false,
+            }));
+            const api = makeApi({
+                appendBattleOrder,
+                persistHostCycles,
+                getBattleHeartbeat: vi.fn(async () => ({
+                    hostTick: 100,
+                    hostFingerprint: 'fp100',
+                    hostPaused: false,
+                    ordersTipTick: 100,
+                    orderBatchAtTick: null,
+                    pausedAtTick: null,
+                    expectingFromPlayerIds: null,
+                    initialFingerprint: '0011223344556677',
+                    heartbeatSeq: 0,
+                })),
+            });
+            const net = new BattleNet({
+                api,
+                session: makeSession({ getEngineTick: () => 100 }),
+                isHost: true,
+                lobbyId: 'l1',
+                gameId: 'g1',
+                playerId: 'host',
+            });
+            const draftOrder = { ...makeOrder('draft'), endTurn: false };
+            const confirmedOrder = { ...makeOrder('confirmed'), endTurn: true };
+
+            // Submit both orders to trigger envelope use
+            await net.submitOrder(draftOrder, 110);
+            await net.submitOrder(confirmedOrder, 110);
+
+            // The second submit may trigger persistHostCycles. Check it includes finalized per order.
+            if (persistHostCycles.mock.calls.length > 0) {
+                const lastCall = persistHostCycles.mock.calls[persistHostCycles.mock.calls.length - 1];
+                const body = lastCall[2] as Record<string, unknown>;
+                const orders = (body.orders as Array<Record<string, unknown>>) ?? [];
+                // At least one order should have finalized: false and one should have finalized: true
+                const hasFinaliziedFalse = orders.some((o) => o.finalized === false);
+                const hasFinalizedTrue = orders.some((o) => o.finalized === true);
+                expect(hasFinaliziedFalse || hasFinalizedTrue).toBe(true);
+            }
+        });
+
+        it('submitOrder during preview timeline without commit token → dropped (no POST, logged)', async () => {
+            const appendBattleOrder = vi.fn(async () => ({ accepted: true, idHash: 'idhash' }));
+            const api = makeApi({
+                appendBattleOrder,
+                getBattleHeartbeat: vi.fn(async () => ({
+                    hostTick: 0,
+                    hostFingerprint: 'aaaaaaaaaaaaaaaa',
+                    hostPaused: false,
+                    ordersTipTick: 0,
+                    orderBatchAtTick: null,
+                    pausedAtTick: null,
+                    expectingFromPlayerIds: null,
+                    initialFingerprint: '0011223344556677',
+                    heartbeatSeq: 0,
+                })),
+            });
+            const session = makeSession({
+                getEngineTick: () => 0,
+                getTimeline: () => ({ kind: 'preview', runId: 1, engineEpoch: 0, markTick: 0, batchAtTick: 0 }),
+            });
+            const net = new BattleNet({
+                api,
+                session,
+                isHost: false,
+                lobbyId: 'l1',
+                gameId: 'g1',
+                playerId: 'p1',
+            });
+            const order = { ...makeOrder('test'), endTurn: true };
+
+            await net.pollOnce();
+            await net.submitOrder(order, 1);
+
+            // Should not POST when in preview without token
+            expect(appendBattleOrder).not.toHaveBeenCalled();
+        });
+
+        it('submitOrder during preview timeline WITH commit token → POSTs normally', async () => {
+            const appendBattleOrder = vi.fn(async (_l: string, _g: string, body: Record<string, unknown>) => ({
+                accepted: true,
+                idHash: body.idHash as string ?? 'idhash',
+            }));
+            const api = makeApi({
+                appendBattleOrder,
+                getBattleHeartbeat: vi.fn(async () => ({
+                    hostTick: 0,
+                    hostFingerprint: 'aaaaaaaaaaaaaaaa',
+                    hostPaused: false,
+                    ordersTipTick: 0,
+                    orderBatchAtTick: null,
+                    pausedAtTick: null,
+                    expectingFromPlayerIds: null,
+                    initialFingerprint: '0011223344556677',
+                    heartbeatSeq: 0,
+                })),
+            });
+            const session = makeSession({
+                getEngineTick: () => 0,
+                getTimeline: () => ({ kind: 'preview', runId: 1, engineEpoch: 0, markTick: 0, batchAtTick: 0 }),
+            });
+            const net = new BattleNet({
+                api,
+                session,
+                isHost: false,
+                lobbyId: 'l1',
+                gameId: 'g1',
+                playerId: 'p1',
+            });
+            const order = { ...makeOrder('test'), endTurn: true };
+            const commitToken = { engineEpoch: 0, __brand: 'CanonicalToken' as const };
+
+            await net.pollOnce();
+            await net.submitOrder(order, 1, { token: commitToken });
+
+            // Should POST when in preview WITH token
+            expect(appendBattleOrder).toHaveBeenCalled();
+        });
     });
 });

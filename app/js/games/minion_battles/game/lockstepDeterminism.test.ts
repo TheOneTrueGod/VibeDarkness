@@ -59,7 +59,8 @@ describe('lockstep determinism', () => {
                 const waiting = engine.waitingForOrders;
                 if (waiting) {
                     for (const waiter of waiting.waiters) {
-                        if (engine.state.orderMgr.hasPendingOrderForUnit(waiter.unitId, waiting.atTick)) continue;
+                        // Use "any" semantics: if something is queued (even a draft), skip auto-filling.
+                        if (engine.state.orderMgr.hasAnyPendingOrderForUnit(waiter.unitId, waiting.atTick)) continue;
                         const unit = engine.getUnit(waiter.unitId);
                         if (!unit) continue;
                         const baseCol = Math.floor(unit.x / 40);

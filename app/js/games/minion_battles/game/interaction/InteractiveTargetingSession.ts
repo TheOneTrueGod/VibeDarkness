@@ -151,6 +151,8 @@ export class InteractiveTargetingSession {
     private assumedRemoteWaitDuringPreview = false;
     /** True while a commit is running (guards re-entry from concurrent commit triggers). */
     private _commitInFlight = false;
+    /** The runId of the current preview (set when entering preview, cleared when exiting). Owned by this ITS. */
+    private previewRunId: number | null = null;
     /** Diagnostics (lobbies 965D4F / 5F8964): monotonically increasing ITS run + restore counters. */
     private diagBeginSeq = 0;
     private diagRestoreSeq = 0;
@@ -343,6 +345,12 @@ export class InteractiveTargetingSession {
         markState.checkpointRuntimeFingerprintHex = engine.getRuntimeFingerprintHex();
         this.mark = markState;
         this.diagBeginSeq++;
+
+        // Enter preview timeline through session.
+        session.enterItsPreview(this.diagBeginSeq, engine.gameTick, batch.atTick);
+        // Store the runId so we own it and can reject stale calls.
+        this.previewRunId = this.diagBeginSeq;
+
         session.postBattleSyncLobbyLog('diag: ITS begin', {
             its: this.getDiagState(),
             engineTick: session.getEngineTick(),
@@ -625,7 +633,7 @@ export class InteractiveTargetingSession {
         Object.keys(this.collectedTargets).forEach((k) => delete this.collectedTargets[k]);
         this.collectedMovementByLabel = {};
         this._orderPositionalTargets = [];
-        this._clearActive();
+        this._clearActive(session);
         logItsPreviewCancelled(session, logSnapshot, 'user_reset');
     }
 
@@ -641,19 +649,35 @@ export class InteractiveTargetingSession {
         this.collectedMovementByLabel = {};
         this._orderPositionalTargets = [];
         this.heldRemoteOrders.clear();
-        this._clearActive();
+        // Discard preview timeline before clearing active (engine about to be replaced).
+        if (this.previewRunId !== null) {
+            const timeline = session.getTimeline?.();
+            if (timeline?.kind === 'preview') {
+                session.discardPreview(this.previewRunId);
+            }
+        }
+        this._clearActive(session);
         logItsPreviewCancelled(session, logSnapshot, cancelReason);
     }
 
     /**
      * Ends an active preview when victory/defeat latches during playahead.
      * Keeps the live engine state — does not restore the mark snapshot.
+     * This exits the preview timeline without restoring, leaving the engine at its live tick.
      */
     endPreviewForTerminalOutcome(session: BattleSession): void {
         if (!this._isActive) return;
         const logSnapshot = this._captureLogSnapshot(session);
         this.heldRemoteOrders.clear();
-        this._clearActive();
+        // Promote preview timeline to canonical without restoring mark (engine stays live at the tick where victory/defeat latched).
+        if (this.previewRunId !== null) {
+            const timeline = session.getTimeline?.();
+            if (timeline?.kind === 'preview') {
+                // Promote flushes the buffer so the terminal outcome on the live tick is recorded.
+                session.promotePreview(this.previewRunId);
+            }
+        }
+        this._clearActive(session);
         logItsPreviewCancelled(session, logSnapshot, 'terminal_outcome_teardown');
     }
 
@@ -680,6 +704,13 @@ export class InteractiveTargetingSession {
 
         const engine = session.getEngine();
         if (!engine) return;
+
+        // After restore, the preview timeline was discarded. Re-enter preview for the replay run.
+        this.diagBeginSeq++;
+        const replayBatchAtTick = this.mark?.waitingForOrders?.atTick ?? engine.gameTick;
+        session.enterItsPreview(this.diagBeginSeq, engine.gameTick, replayBatchAtTick);
+        // Store the new runId for this replay run.
+        this.previewRunId = this.diagBeginSeq;
 
         // restoreFromInMemorySnapshot creates a fresh engine (isSequentialTargetingPreview = false
         // and onParallelBatchResolved re-bound to the real callback). Re-raise the flag and
@@ -788,7 +819,7 @@ export class InteractiveTargetingSession {
             this.heldRemoteOrders.clear();
             await this._restoreToMark(session, { applyHeldRemoteOrders: false });
             session.applyHeldRemoteOrders(heldForAbort);
-            this._clearActive();
+            this._clearActive(session);
             session.emitOrderSubmitFailed(unitId, abilityId);
             logItsPreviewEnded(session, logSnapshot, 'rejected', 'stale_batch', {
                 atTick,
@@ -845,7 +876,7 @@ export class InteractiveTargetingSession {
         // --- Phase 2 (rollback): restore, wait for crossfade, clear, release, submit ---
 
         await this._restoreToMark(session, { applyHeldRemoteOrders: false });
-        this._clearActive();
+        this._clearActive(session);
 
         const engine = session.getEngine();
         if (!engine) return;
@@ -890,7 +921,10 @@ export class InteractiveTargetingSession {
     ): Promise<void> {
         const { realOrder, atTick, unitId, abilityId, logSnapshot, actionSource } = ctx;
 
-        const persisted = await session.persistInPlaceCommittedTargetingOrder(realOrder, atTick);
+        // Mint the commit token before persisting the order. This token gates the POST during preview,
+        // signifying "this order IS the promotion's order".
+        const commitToken = this.previewRunId !== null ? session.mintCommitToken?.(this.previewRunId) : null;
+        const persisted = await session.persistInPlaceCommittedTargetingOrder(realOrder, atTick, commitToken);
         if (!persisted) {
             session.emitOrderSubmitFailed(unitId, abilityId);
             logItsPreviewEnded(session, logSnapshot, 'rejected', 'persist_failed', {
@@ -906,16 +940,20 @@ export class InteractiveTargetingSession {
 
         const preserveConditionalCancelPause = isPreviewCastConditionalCancelPaused(engine);
 
-        engine.isSequentialTargetingPreview = false;
-        engine.sequentialTargetingPreviewCast = null;
+        // Promote preview timeline to canonical (order already persisted by caller).
+        if (this.previewRunId !== null) {
+            const timeline = session.getTimeline();
+            if (timeline.kind === 'preview') {
+                session.promotePreview(this.previewRunId);
+            }
+        }
+
         engine.waitingForTargetInput = null;
         if (!preserveConditionalCancelPause) {
             engine.isPaused = false;
         }
 
-        session.rebindEngineCallbacks();
-
-        this._clearActive();
+        this._clearActive(session);
 
         if (preserveConditionalCancelPause) {
             // Playahead preview advances waitingForOrders.atTick past the mark batch (lobby EF5D0C).
@@ -969,6 +1007,14 @@ export class InteractiveTargetingSession {
         const diagFromEngineTick = session.getEngineTick();
         // Capture-frame signal for the DOM rewind overlay (must fire before engine teardown).
         const presentationDone = session.emitSequentialTargetingRewind();
+        // Discard preview timeline if one is active (use owned previewRunId, not session's current timeline).
+        if (this.previewRunId !== null) {
+            const timeline = session.getTimeline();
+            if (timeline.kind === 'preview') {
+                session.discardPreview(this.previewRunId);
+            }
+        }
+        // Always restore from mark (unconditional).
         // Clone again so GameEngine.fromJSON / applySerializedUnitState cannot alias or mutate
         // nested mark fields (activeAbilities, aiContext) for the next replay.
         session.restoreFromInMemorySnapshot(structuredClone(this.mark));
@@ -981,7 +1027,7 @@ export class InteractiveTargetingSession {
             markBatchAtTick: this.mark.waitingForOrders?.atTick ?? null,
             atMs: Date.now(),
         };
-        session.postBattleSyncLobbyLog('diag: ITS restoreToMark (engine rebuilt from mark; rollback)', {
+        session.postBattleSyncLobbyLog('diag: ITS restoreToMark', {
             its: this.getDiagState(),
             opts: opts ?? null,
             engineWaitingForOrdersAtTick: session.getEngine()?.waitingForOrders?.atTick ?? null,
@@ -1007,7 +1053,23 @@ export class InteractiveTargetingSession {
         return captureItsLogSnapshot(this, session, this.mark?.waitingForOrders?.atTick);
     }
 
-    private _clearActive(): void {
+    private _clearActive(session?: BattleSession): void {
+        // Enforce invariant: timeline must be canonical when clearing active (no preview should be orphaned).
+        // This is a safety check that must pass if all exit paths properly call promote/discard.
+        // If previewRunId is set, it means an exit path failed to call promote/discard; use the session's
+        // current timeline.runId as a fallback (the safety net, not the owned runId).
+        if (session && this.previewRunId !== null) {
+            const timeline = session.getTimeline?.();
+            if (timeline?.kind === 'preview') {
+                // Force to canonical to ensure we don't strand a preview timeline.
+                // Use timeline.runId (not previewRunId) since we're a safety net cleaning up after an error.
+                session.discardPreview(timeline.runId);
+                session.postBattleSyncLobbyLog('diag: ITS _clearActive forced preview timeline to canonical (safety net)', {
+                    previewRunId: this.previewRunId,
+                    timelineRunId: timeline.runId,
+                });
+            }
+        }
         this._isActive = false;
         this._abilityId = null;
         this._unitId = null;
@@ -1016,6 +1078,7 @@ export class InteractiveTargetingSession {
         this.mark = null;
         this.originalOrder = null;
         this._previewOrderQueued = false;
+        this.previewRunId = null;
         this.assumedWaitUnitIds = new Set();
         this.assumedRemoteWaitDuringPreview = false;
     }

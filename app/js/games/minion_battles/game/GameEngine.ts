@@ -2051,7 +2051,8 @@ export class GameEngine implements EngineContext {
                 if (!unit.active || !unit.isAlive()) continue;
                 if (!unit.isPlayerControlled() || !unit.canAct()) continue;
                 if (waiterUnitIds.has(unit.id)) continue;
-                if (!engine.state.orderMgr.hasPendingOrderForUnit(unit.id, atTick)) {
+                // Drafts don't count as having answered; only confirmed orders satisfy a waiter's pause.
+                if (!engine.state.orderMgr.hasConfirmedOrderForUnit(unit.id, atTick)) {
                     extra.push({ unitId: unit.id, ownerId: unit.ownerId });
                 }
             }
@@ -2109,10 +2110,10 @@ export class GameEngine implements EngineContext {
             }
         }
 
-        // If every waiter already has a pending order at the batch tick, clear pause.
+        // If every waiter already has a confirmed order at the batch tick, clear pause.
         if (engine.waitingForOrders) {
             const { waiters, atTick } = engine.waitingForOrders;
-            if (waiters.every((w) => engine.state.orderMgr.hasPendingOrderForUnit(w.unitId, atTick))) {
+            if (waiters.every((w) => engine.state.orderMgr.hasConfirmedOrderForUnit(w.unitId, atTick))) {
                 engine.waitingForOrders = null;
                 engine.isPaused = false;
             }
@@ -2195,7 +2196,8 @@ export class GameEngine implements EngineContext {
             for (const unit of engine.units) {
                 if (!unit.active) continue;
                 if (unit.isPlayerControlled() && unit.canAct() && unit.isAlive()) {
-                    if (!engine.state.orderMgr.hasPendingOrderForUnit(unit.id)) {
+                    // Drafts don't count as confirmed; re-infer if only drafts exist from this tick on.
+                    if (!engine.state.orderMgr.hasConfirmedOrderForUnit(unit.id, engine.gameTick)) {
                         inferredWaiters.push({ unitId: unit.id, ownerId: unit.ownerId });
                     }
                 }

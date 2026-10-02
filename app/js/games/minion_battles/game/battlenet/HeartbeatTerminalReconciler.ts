@@ -10,6 +10,7 @@ import {
     STUCK_PAUSE_PLANE_LOG_POLLS,
 } from './constants';
 import type { BattleNetEventMap, LocalSyncAnomalyContext, NonHostHbPausePlaneSnap } from './types';
+import { assertNever, getTimelineKind } from '../interaction/simTimeline';
 
 function isStuckPausePlane(local: LocalSyncAnomalyContext): boolean {
     return (
@@ -41,8 +42,14 @@ export class HeartbeatTerminalReconciler {
         // ITS preview engine is a speculative timeline, not the canonical sim (lobbies 5F8964 /
         // FA16E1): its fingerprint ring / pause flag legitimately differ from the host tail, and a
         // mismatch dump here would upload preview state as the host checkpoint.
-        if (this.ctx.session.isInteractiveTargetingPreviewActive()) {
-            return;
+        const kind = getTimelineKind(this.ctx.session);
+        switch (kind) {
+            case 'preview':
+                return;
+            case 'canonical':
+                break;
+            default:
+                assertNever(kind);
         }
         const local = this.ctx.session.getLatestFingerprint();
         if (
@@ -153,30 +160,38 @@ export class HeartbeatTerminalReconciler {
         if (engineTick >= hb.hostTick) {
             return;
         }
-        if (
-            this.ctx.session.isPausedForOrderSync()
-            && !this.ctx.session.isInteractiveTargetingPreviewActive()
-        ) {
-            if (hb.hostFingerprint == null || hb.hostFingerprint === '') {
-                return;
+        if (this.ctx.session.isPausedForOrderSync()) {
+            const kind = getTimelineKind(this.ctx.session);
+            switch (kind) {
+                case 'preview':
+                    // ITS preview has its own pause logic separate from order sync
+                    break;
+                case 'canonical': {
+                    // Canonical timeline: if paused behind host, force full resync
+                    if (hb.hostFingerprint == null || hb.hostFingerprint === '') {
+                        return;
+                    }
+                    logToLobbyLogBattleSync({
+                        lobbyClient: this.ctx.api as unknown as LobbyClient,
+                        lobbyId: this.ctx.lobbyId,
+                        playerId: this.ctx.playerId,
+                        tick: engineTick,
+                        severity: 'warn',
+                        gameId: this.ctx.gameId,
+                        message: 'paused behind host tail — forcing full resync',
+                        context: {
+                            engineTick,
+                            hostTick: hb.hostTick,
+                            hostFingerprintHead: hb.hostFingerprint.slice(0, 12),
+                            materialChanged,
+                        },
+                    });
+                    this.ctx.requestResync(RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL);
+                    return;
+                }
+                default:
+                    assertNever(kind);
             }
-            logToLobbyLogBattleSync({
-                lobbyClient: this.ctx.api as unknown as LobbyClient,
-                lobbyId: this.ctx.lobbyId,
-                playerId: this.ctx.playerId,
-                tick: engineTick,
-                severity: 'warn',
-                gameId: this.ctx.gameId,
-                message: 'paused behind host tail — forcing full resync',
-                context: {
-                    engineTick,
-                    hostTick: hb.hostTick,
-                    hostFingerprintHead: hb.hostFingerprint.slice(0, 12),
-                    materialChanged,
-                },
-            });
-            this.ctx.requestResync(RESYNC_REASON_PAUSED_BEHIND_HOST_TAIL);
-            return;
         }
         if (!materialChanged) {
             return;
@@ -433,13 +448,20 @@ export class HeartbeatTerminalReconciler {
      */
     observeLocalSyncAnomalies(engineTick: number): void {
         const local = this.ctx.session.getLocalSyncAnomalyContext?.();
-        if (
-            local == null ||
-            this.ctx.session.isInteractiveTargetingPreviewActive() ||
-            !isStuckPausePlane(local)
-        ) {
+        if (local == null || !isStuckPausePlane(local)) {
             this.stuckPausePollStreak = 0;
             return;
+        }
+        const kind = getTimelineKind(this.ctx.session);
+        switch (kind) {
+            case 'preview':
+                // ITS preview has its own pause logic; skip stuck-pause detection
+                this.stuckPausePollStreak = 0;
+                return;
+            case 'canonical':
+                break;
+            default:
+                assertNever(kind);
         }
         this.stuckPausePollStreak += 1;
         if (this.stuckPausePollStreak < STUCK_PAUSE_PLANE_LOG_POLLS) {

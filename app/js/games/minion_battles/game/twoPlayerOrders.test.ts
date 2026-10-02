@@ -305,12 +305,12 @@ describe('Two-player order turns', () => {
         engine.destroy();
     });
 
-    it('hasPendingOrderForUnit satisfies batch.atTick using clamped-later rows', () => {
+    it('hasAnyPendingOrderForUnit satisfies batch.atTick using clamped-later rows', () => {
         const { engine } = createTwoPlayerEngine();
         engine.gameTick = 100;
         engine.state.orderMgr.queueOrder(10, makeWaitOrder('unit_p2', 9, 5));
-        expect(engine.state.orderMgr.hasPendingOrderForUnit('unit_p2', 10)).toBe(true);
-        expect(engine.state.orderMgr.hasPendingOrderForUnit('unit_p2', 101)).toBe(false);
+        expect(engine.state.orderMgr.hasAnyPendingOrderForUnit('unit_p2', 10)).toBe(true);
+        expect(engine.state.orderMgr.hasAnyPendingOrderForUnit('unit_p2', 101)).toBe(false);
         engine.destroy();
     });
 });

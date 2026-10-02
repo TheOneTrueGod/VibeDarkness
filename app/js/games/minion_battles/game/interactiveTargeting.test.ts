@@ -17,6 +17,7 @@
  */
 
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
+import { bumpEpoch, enterPreview, toCanonical, type SimTimeline } from './interaction/simTimeline';
 import { resetGameObjectIdCounter } from './GameObject';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { GameEngine } from './GameEngine';
@@ -3120,6 +3121,8 @@ describe('interactive sequential targeting — conditional cancel stop point', (
         expect(persistCommittedOrder).toHaveBeenCalledWith(
             expect.objectContaining({ endTurn: false }),
             expect.any(Number),
+            // In-place commit persists with the run's commit token (Step 7).
+            expect.objectContaining({ engineEpoch: expect.any(Number) }),
         );
         const commitAtTick = persistCommittedOrder.mock.calls[0]![1] as number;
         expect(engine.waitingForOrders?.atTick).toBe(commitAtTick);
@@ -3358,6 +3361,7 @@ describe('interactive sequential targeting — Throw Rock Rapid Throw combo', ()
             isHost: () => true,
             getEngineTick: () => engine.gameTick,
             getLocalPlayerId: () => TINY_BATTLE_PLAYER_ID,
+            enterItsPreview: vi.fn(),
         } as unknown as BattleSession;
 
         const its = new InteractiveTargetingSession();
@@ -3418,6 +3422,7 @@ describe('interactive sequential targeting — Throw Rock Rapid Throw combo', ()
             isHost: () => true,
             getEngineTick: () => engine.gameTick,
             getLocalPlayerId: () => TINY_BATTLE_PLAYER_ID,
+            enterItsPreview: vi.fn(),
         } as unknown as BattleSession;
 
         const its = new InteractiveTargetingSession();
@@ -3486,6 +3491,7 @@ describe('interactive sequential targeting — Throw Rock Rapid Throw combo', ()
             isHost: () => true,
             getEngineTick: () => engine.gameTick,
             getLocalPlayerId: () => TINY_BATTLE_PLAYER_ID,
+            enterItsPreview: vi.fn(),
         } as unknown as BattleSession;
 
         const its = new InteractiveTargetingSession();
@@ -3530,5 +3536,108 @@ describe('interactive sequential targeting — Throw Rock Rapid Throw combo', ()
         expect(its.shouldForceItsCommitAtComboWindow()).toBe(true);
 
         engine.destroy();
+    });
+
+    /** Stateful session timeline stub using the real simTimeline transitions. */
+    function makeTimelineSessionStub() {
+        let timeline: SimTimeline = { kind: 'canonical', engineEpoch: 0 };
+        return {
+            getTimeline: () => timeline,
+            enterItsPreview: vi.fn((runId: number, markTick: number, batchAtTick: number) => {
+                timeline = enterPreview(timeline, { runId, markTick, batchAtTick });
+            }),
+            promotePreview: vi.fn((runId: number) => {
+                if (timeline.kind === 'preview' && timeline.runId === runId) timeline = toCanonical(timeline);
+            }),
+            discardPreview: vi.fn((runId: number) => {
+                if (timeline.kind === 'preview' && timeline.runId === runId) timeline = bumpEpoch(toCanonical(timeline));
+            }),
+        };
+    }
+
+    describe('timeline lifecycle', () => {
+        it('after abort, isInteractiveTargetingPreviewActive is false and new begin() succeeds', () => {
+            const { engine, player } = buildThrowRockComboFixture();
+            const gotWaitingForOrders = stepUntil(engine, () => engine.waitingForOrders != null);
+            expect(gotWaitingForOrders).toBe(true);
+
+            const session = {
+                getEngine: () => engine,
+                isOrderBatchTickSubmittable: () => true,
+                isLocalPlayerExpectedToAct: () => true,
+                postBattleSyncLobbyLog: vi.fn(),
+                isHost: () => true,
+                getEngineTick: () => engine.gameTick,
+                getLocalPlayerId: () => TINY_BATTLE_PLAYER_ID,
+                ...makeTimelineSessionStub(),
+            } as unknown as BattleSession;
+
+            const its = new InteractiveTargetingSession();
+            expect(its.begin(
+                {
+                    unitId: player.id,
+                    abilityId: THROW_ROCK_ABILITY_ID,
+                    targets: [],
+                    endTurn: true,
+                },
+                session,
+            )).toBe(true);
+
+            expect(session.getTimeline().kind).toBe('preview');
+            its.abort(session);
+            expect(its.isActive).toBe(false);
+            expect(session.discardPreview).toHaveBeenCalledTimes(1);
+            expect(session.getTimeline().kind).toBe('canonical');
+
+            // After abort, can begin a new preview (no "already in preview" throw)
+            expect(its.begin(
+                {
+                    unitId: player.id,
+                    abilityId: THROW_ROCK_ABILITY_ID,
+                    targets: [],
+                    endTurn: true,
+                },
+                session,
+            )).toBe(true);
+
+            engine.destroy();
+        });
+
+        it('after endPreviewForTerminalOutcome, isInteractiveTargetingPreviewActive is false', () => {
+            const { engine, player } = buildThrowRockComboFixture();
+            const gotWaitingForOrders = stepUntil(engine, () => engine.waitingForOrders != null);
+            expect(gotWaitingForOrders).toBe(true);
+
+            const session = {
+                getEngine: () => engine,
+                isOrderBatchTickSubmittable: () => true,
+                isLocalPlayerExpectedToAct: () => true,
+                postBattleSyncLobbyLog: vi.fn(),
+                isHost: () => true,
+                getEngineTick: () => engine.gameTick,
+                getLocalPlayerId: () => TINY_BATTLE_PLAYER_ID,
+                ...makeTimelineSessionStub(),
+            } as unknown as BattleSession;
+
+            const its = new InteractiveTargetingSession();
+            expect(its.begin(
+                {
+                    unitId: player.id,
+                    abilityId: THROW_ROCK_ABILITY_ID,
+                    targets: [],
+                    endTurn: true,
+                },
+                session,
+            )).toBe(true);
+
+            its.endPreviewForTerminalOutcome(session);
+            expect(its.isActive).toBe(false);
+            // Terminal teardown keeps the live engine → promotion, not discard.
+            expect(session.promotePreview).toHaveBeenCalledTimes(1);
+            expect(session.discardPreview).not.toHaveBeenCalled();
+            expect(session.getTimeline().kind).toBe('canonical');
+
+            engine.destroy();
+        });
     });
 });

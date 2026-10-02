@@ -90,7 +90,8 @@ function runScenario(
         const waiting = engine.waitingForOrders;
         if (!waiting) continue;
         for (const waiter of waiting.waiters) {
-            if (engine.state.orderMgr.hasPendingOrderForUnit(waiter.unitId, waiting.atTick)) continue;
+            // Use "any" semantics: if something is queued (even a draft), skip auto-filling.
+            if (engine.state.orderMgr.hasAnyPendingOrderForUnit(waiter.unitId, waiting.atTick)) continue;
             if (mode === 'live') {
                 const order = makeScriptedWaitOrder(engine, waiting.atTick, waiter.unitId);
                 captured.push({ atTick: waiting.atTick, order });

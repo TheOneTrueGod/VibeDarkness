@@ -55,18 +55,19 @@ export default function LocationCardPill({
     }
 
     const sizeClass = RESOURCE_PILL_SIZE_CLASS[size];
-    const color = '#8b5cf6'; // purple-500
+    const color = '#6d28d9'; // violet-700 — readable on the light gray card background
 
     return (
         <>
             <div
                 ref={anchorRef}
-                className={`inline-flex shrink-0 items-center font-semibold leading-snug cursor-default select-none bg-surface-light ${sizeClass.pill} ${className}`}
+                className={`inline-flex shrink-0 items-center font-semibold leading-snug cursor-default select-none ${sizeClass.pill} ${className}`}
                 style={{
                     borderWidth: 1,
                     borderStyle: 'solid',
                     borderColor: color,
                     color,
+                    backgroundColor: '#d1d5db', // gray-300, solid
                     gap: '0.25rem',
                 }}
                 role="button"
@@ -98,7 +99,7 @@ export default function LocationCardPill({
             >
                 <div className="flex flex-col gap-2">
                     {/* Name */}
-                    <h4 className="text-white font-bold text-sm">{pillView.name}</h4>
+                    <h4 className="text-white font-bold text-sm">Location Card: {pillView.name}</h4>
 
                     {/* Description */}
                     <p className="text-gray-200 text-xs leading-relaxed">{pillView.description}</p>

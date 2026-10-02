@@ -272,6 +272,14 @@ export interface BattleOrder {
     abilityMode?: string;
 }
 
+/** A confirmed battle order (endTurn: true) that has been finalized by the player. */
+export type ConfirmedBattleOrder = BattleOrder & { endTurn: true };
+
+/** Type guard: returns true if an order is confirmed (endTurn: true). */
+export function isConfirmedOrder(order: BattleOrder): order is ConfirmedBattleOrder {
+    return order.endTurn === true;
+}
+
 /** An order scheduled to be applied at a specific game tick. */
 export interface OrderAtTick {
     gameTick: number;

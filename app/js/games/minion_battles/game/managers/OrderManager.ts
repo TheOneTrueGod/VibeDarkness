@@ -33,10 +33,12 @@ export class OrderManager {
     }
 
     /**
-     * Returns true if `unitId` has a queued order scheduled at or after `earliestTickInclusive`.
+     * Returns true if `unitId` has a queued order (including nonconfirmed drafts) scheduled at or after `earliestTickInclusive`.
+     * Includes nonconfirmed drafts — do NOT use to decide whether a waiter has answered a batch.
+     * Use {@link hasConfirmedOrderForUnit} for pause decisions instead.
      * Omit the second arg to detect any order at the current simulation tick onward.
      */
-    hasPendingOrderForUnit(unitId: string, earliestTickInclusive = this.ctx.gameTick): boolean {
+    hasAnyPendingOrderForUnit(unitId: string, earliestTickInclusive = this.ctx.gameTick): boolean {
         return this.pendingOrders.some((o) => o.gameTick >= earliestTickInclusive && o.order.unitId === unitId);
     }
 
@@ -47,11 +49,20 @@ export class OrderManager {
 
     /**
      * Returns true if `unitId` has a confirmed (endTurn: true) pending order at or after `atTick`.
-     * Used by tryResumeParallel to decide when all waiters are ready.
+     * Same semantics as {@link hasPendingEndTurnOrderForUnit}; used by pause/waiter decisions.
      */
-    hasPendingEndTurnOrderForUnit(unitId: string, atTick: number): boolean {
+    hasConfirmedOrderForUnit(unitId: string, atTick: number): boolean {
         const order = this.getPendingOrderForUnit(unitId, atTick);
         return order !== null && order.endTurn === true;
+    }
+
+    /**
+     * Returns true if `unitId` has a confirmed (endTurn: true) pending order at or after `atTick`.
+     * Used by tryResumeParallel to decide when all waiters are ready.
+     * @deprecated Use {@link hasConfirmedOrderForUnit} instead.
+     */
+    hasPendingEndTurnOrderForUnit(unitId: string, atTick: number): boolean {
+        return this.hasConfirmedOrderForUnit(unitId, atTick);
     }
 
     /**
@@ -65,7 +76,8 @@ export class OrderManager {
      */
     shouldPauseForOrders(unit: Unit): boolean {
         if (!unit.isPlayerControlled() || !unit.canAct() || !unit.isAlive()) return false;
-        return !this.hasPendingOrderForUnit(unit.id);
+        // Use "any" semantics: if something is queued (even a draft), don't pause again.
+        return !this.hasAnyPendingOrderForUnit(unit.id);
     }
 
     /** All player units that owe orders in the current parallel slice (deterministic order). */

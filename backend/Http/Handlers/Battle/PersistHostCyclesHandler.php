@@ -94,10 +94,12 @@ class PersistHostCyclesHandler
                 isset($row['idHash']) && is_string($row['idHash']) && $row['idHash'] !== ''
                     ? $row['idHash']
                     : null;
+            $finalized = isset($row['finalized']) && is_bool($row['finalized']) ? $row['finalized'] : true;
             $parsedOrders[] = [
                 'atTick' => (int) $atTick,
                 'order' => $order,
                 'idHash' => $idHash,
+                'finalized' => $finalized,
             ];
         }
 
@@ -161,11 +163,15 @@ class PersistHostCyclesHandler
             }
 
             foreach ($parsedOrders as $row) {
-                $result = AppendOrderAccept::tryAppend($storage, $lobbyId, $gameId, $playerId, [
+                $appendPayload = [
                     'atTick' => $row['atTick'],
                     'order' => $row['order'],
                     'idHash' => $row['idHash'],
-                ]);
+                ];
+                if (isset($row['finalized'])) {
+                    $appendPayload['finalized'] = $row['finalized'];
+                }
+                $result = AppendOrderAccept::tryAppend($storage, $lobbyId, $gameId, $playerId, $appendPayload);
                 $hostTickOut = $result['hostTick'];
                 $hostFingerprintOut = $result['hostFingerprint'];
                 if (isset($result['maxAllowedTick'])) {

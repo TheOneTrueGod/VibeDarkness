@@ -55,7 +55,8 @@ function autoResolveConditionalCancel(engine: GameEngine): void {
         engine.getUnit(w.unitId)?.activeAbilities.some((a) => a.conditionalCancelPaused),
     );
     if (!pausedWaiter) return;
-    if (engine.state.orderMgr.hasPendingOrderForUnit(pausedWaiter.unitId, batch.atTick)) return;
+    // Use "any" semantics: if something is queued (even a draft), skip auto-filling.
+    if (engine.state.orderMgr.hasAnyPendingOrderForUnit(pausedWaiter.unitId, batch.atTick)) return;
     engine.state.orderMgr.applyOrder({ unitId: pausedWaiter.unitId, abilityId: 'wait', targets: [] });
 }
 

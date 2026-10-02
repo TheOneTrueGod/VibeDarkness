@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { BattleApi, BattleSessionHandle } from './types';
 import type { SerializedGameState } from '../types';
+import type { SimTimeline } from '../interaction/simTimeline';
 
 const { logToLobbyLog, logToLobbyLogForced } = vi.hoisted(() => ({
     logToLobbyLog: vi.fn(),
@@ -22,6 +23,7 @@ const LOBBY_97305C_MARK_COMPLETED_TICK = 224;
 const LOBBY_97305C_MARK_BATCH_AT_TICK = 225;
 
 function makeSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessionHandle {
+    const canonicalTimeline: SimTimeline = { kind: 'canonical', engineEpoch: 0 };
     return {
         getEngineTick: () => 0,
         getRuntimeFingerprintHex: () => 'aaaaaaaaaaaaaaaa',
@@ -45,6 +47,8 @@ function makeSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessio
         isEngineSimulationRunning: () => false,
         isInteractiveTargetingPreviewActive: () => false,
         setMultiplayerAwaitHostCatchup: () => {},
+        getTimeline: () => canonicalTimeline,
+        mintCanonicalToken: () => ({ engineEpoch: 0, __brand: 'CanonicalToken' as const }),
         ...overrides,
     };
 }
@@ -128,14 +132,16 @@ describe('SnapshotPersistence.saveInitialState', () => {
 
 describe('SnapshotPersistence.saveSnapshotOnPause', () => {
     it('sends checkpointFingerprint with snapshot when session reports a runtime hash', async () => {
+        const token = { engineEpoch: 0, __brand: 'CanonicalToken' as const };
         const { ctrl, api } = make({
             session: {
                 getEngineTick: () => 25,
                 getRuntimeFingerprintHex: () => 'runtime_checkpoint_fp',
                 getFingerprintTailPaused: () => false,
+                mintCanonicalToken: () => token,
             },
         });
-        await ctrl.saveSnapshotOnPause(25, { gameTick: 25 } as SerializedGameState);
+        await ctrl.saveSnapshotOnPause(25, { gameTick: 25 } as SerializedGameState, token);
         expect(api.saveBattleSnapshot).toHaveBeenCalledWith(
             'l1',
             'g1',
@@ -148,14 +154,16 @@ describe('SnapshotPersistence.saveSnapshotOnPause', () => {
     });
 
     it('forwards checkpointFingerprintPaused from session.getFingerprintTailPaused', async () => {
+        const token = { engineEpoch: 0, __brand: 'CanonicalToken' as const };
         const { ctrl, api } = make({
             session: {
                 getEngineTick: () => 25,
                 getRuntimeFingerprintHex: () => 'runtime_checkpoint_fp',
                 getFingerprintTailPaused: () => true,
+                mintCanonicalToken: () => token,
             },
         });
-        await ctrl.saveSnapshotOnPause(25, { gameTick: 25 } as SerializedGameState);
+        await ctrl.saveSnapshotOnPause(25, { gameTick: 25 } as SerializedGameState, token);
         expect(api.saveBattleSnapshot).toHaveBeenCalledWith(
             'l1',
             'g1',
@@ -168,26 +176,29 @@ describe('SnapshotPersistence.saveSnapshotOnPause', () => {
         const saveBattleSnapshot = vi.fn(async () => {
             engineTick = 30;
         });
+        const token = { engineEpoch: 0, __brand: 'CanonicalToken' as const };
         const { ctrl } = make({
             api: { saveBattleSnapshot: saveBattleSnapshot as unknown as BattleApi['saveBattleSnapshot'] },
             session: {
                 getEngineTick: () => engineTick,
                 getRuntimeFingerprintHex: () => 'runtime_checkpoint_fp',
+                mintCanonicalToken: () => token,
             },
         });
-        await ctrl.saveSnapshotOnPause(25, { gameTick: 25 } as SerializedGameState);
+        await ctrl.saveSnapshotOnPause(25, { gameTick: 25 } as SerializedGameState, token);
         expect(saveBattleSnapshot).toHaveBeenCalledOnce();
         expect(ctrl.getLastSnapshotTick()).toBe(25);
     });
 
     it('is a no-op for non-host clients and when called twice with the same tick', async () => {
         const { ctrl, api } = make({ isHost: false });
-        await ctrl.saveSnapshotOnPause(10, { gameTick: 10 } as SerializedGameState);
+        await ctrl.saveSnapshotOnPause(10, { gameTick: 10 } as SerializedGameState, null);
         expect(api.saveBattleSnapshot).not.toHaveBeenCalled();
 
-        const host = make({});
-        await host.ctrl.saveSnapshotOnPause(10, { gameTick: 10 } as SerializedGameState);
-        await host.ctrl.saveSnapshotOnPause(10, { gameTick: 10 } as SerializedGameState);
+        const token = { engineEpoch: 0, __brand: 'CanonicalToken' as const };
+        const host = make({ session: { mintCanonicalToken: () => token } });
+        await host.ctrl.saveSnapshotOnPause(10, { gameTick: 10 } as SerializedGameState, token);
+        await host.ctrl.saveSnapshotOnPause(10, { gameTick: 10 } as SerializedGameState, token);
         expect(host.api.saveBattleSnapshot).toHaveBeenCalledTimes(1);
     });
 
@@ -201,11 +212,12 @@ describe('SnapshotPersistence.saveSnapshotOnPause', () => {
                     resolveSave = resolve;
                 }),
         );
+        const token = { engineEpoch: 0, __brand: 'CanonicalToken' as const };
         const { ctrl } = make({
             api: { saveBattleSnapshot: saveBattleSnapshot as unknown as BattleApi['saveBattleSnapshot'] },
-            session: { getEngineTick: () => pauseTick, getRuntimeFingerprintHex: () => 'runtime_fp' },
+            session: { getEngineTick: () => pauseTick, getRuntimeFingerprintHex: () => 'runtime_fp', mintCanonicalToken: () => token },
         });
-        const saveP = ctrl.saveSnapshotOnPause(pauseTick, { gameTick: pauseTick } as SerializedGameState);
+        const saveP = ctrl.saveSnapshotOnPause(pauseTick, { gameTick: pauseTick } as SerializedGameState, token);
         expect(ctrl.getInFlightPauseSnapshotTick()).toBe(pauseTick);
         let persistWaitDone = false;
         const persistWait = ctrl.awaitPauseSnapshotBeforeHostPersist(waitAtTick).then(() => {
@@ -222,15 +234,17 @@ describe('SnapshotPersistence.saveSnapshotOnPause', () => {
     });
 
     it('does not wait on snapshot for a mark-batch persist when lastSnapshotTick is already atTick-1', async () => {
+        const token = { engineEpoch: 0, __brand: 'CanonicalToken' as const };
         const { ctrl } = make({
             session: {
                 getEngineTick: () => LOBBY_97305C_MARK_COMPLETED_TICK,
                 getRuntimeFingerprintHex: () => 'runtime_fp',
+                mintCanonicalToken: () => token,
             },
         });
         await ctrl.saveSnapshotOnPause(LOBBY_97305C_MARK_COMPLETED_TICK, {
             gameTick: LOBBY_97305C_MARK_COMPLETED_TICK,
-        } as SerializedGameState);
+        } as SerializedGameState, token);
         expect(ctrl.getLastSnapshotTick()).toBe(LOBBY_97305C_MARK_COMPLETED_TICK);
         await ctrl.awaitPauseSnapshotBeforeHostPersist(LOBBY_97305C_MARK_BATCH_AT_TICK);
         expect(ctrl.getInFlightPauseSnapshotTick()).toBeNull();
@@ -259,9 +273,10 @@ describe('SnapshotPersistence.saveSnapshotOnPause', () => {
             requestResync: vi.fn(),
             onPauseSnapshotAck,
         });
+        const token = { engineEpoch: 0, __brand: 'CanonicalToken' as const };
         await ctrl.saveSnapshotOnPause(LOBBY_97305C_PAUSE_TICK, {
             gameTick: LOBBY_97305C_PAUSE_TICK,
-        } as SerializedGameState);
+        } as SerializedGameState, token);
         expect(onPauseSnapshotAck).toHaveBeenCalledWith({
             tick: LOBBY_97305C_PAUSE_TICK,
             hostTick: LOBBY_97305C_PAUSE_TICK,
@@ -474,5 +489,26 @@ describe('SnapshotPersistence.logDetectedDesyncDiagnostic', () => {
             (call) => (call[0] as { message?: string }).message === 'desync detected: diagnostic dump (no recovery started)',
         );
         expect(markers).toHaveLength(2);
+    });
+
+    it('writeSerializedLocalState during preview posts log lines but not snapshot (FA16E1 regression)', async () => {
+        const previewTimeline: SimTimeline = { kind: 'preview', runId: 1, engineEpoch: 0, markTick: 10, batchAtTick: 11 };
+        const { ctrl, api } = make({
+            isHost: true,
+            session: {
+                getEngineTick: () => 12,
+                getSerializedSnapshot: () => ({ gameTick: 12 } as SerializedGameState),
+                getTimeline: () => previewTimeline,
+                mintCanonicalToken: () => null, // Preview mode returns null
+            },
+        });
+        await ctrl.logDetectedDesyncDiagnostic('preview-desync', 'preview:12');
+        // Verify lobby-log lines were posted (marker + serialized state)
+        expect(logToLobbyLogForced).toHaveBeenCalled();
+        const logCalls = logToLobbyLogForced.mock.calls.map((c) => (c[0] as { message?: string }).message);
+        expect(logCalls).toContain('desync detected: diagnostic dump (no recovery started)');
+        expect(logCalls).toContain('debug: local serialized game state');
+        // Verify saveBattleSnapshot was NOT called
+        expect(api.saveBattleSnapshot).not.toHaveBeenCalled();
     });
 });

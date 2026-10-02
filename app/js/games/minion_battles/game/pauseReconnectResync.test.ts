@@ -233,4 +233,136 @@ describe('Reconnect / resync during order pause', () => {
         expect(active?.conditionalCancelTagFilter).toEqual(['Entombed']);
         restored.destroy();
     });
+
+    it('(a) live engine with drafts on every waiter keeps the pause (sanity check)', () => {
+        const engine = createTwoPlayerEngine();
+        advanceUntilOrderPause(engine);
+        const _atTick = engine.waitingForOrders!.atTick; // Unused; test verifies pause state unchanged
+
+        // Queue draft orders (endTurn: false) on both waiters
+        engine.state.orderMgr.applyOrder({
+            unitId: 'unit_p1',
+            abilityId: 'wait',
+            targets: [],
+            movePath: [{ col: 6, row: 5 }],
+            endTurn: false, // Draft order
+        });
+        engine.state.orderMgr.applyOrder({
+            unitId: 'unit_p2',
+            abilityId: 'wait',
+            targets: [],
+            movePath: [{ col: 9, row: 5 }],
+            endTurn: false, // Draft order
+        });
+
+        // Pause should remain because drafts don't confirm orders
+        expect(engine.waitingForOrders).not.toBeNull();
+        expect(engine.isPaused).toBe(true);
+
+        engine.destroy();
+    });
+
+    it('(b) fromJSON of a pause snapshot with drafts applied keeps waitingForOrders + isPaused (ITS-mark Reset case)', () => {
+        const engine = createTwoPlayerEngine();
+        advanceUntilOrderPause(engine);
+        const _atTick = engine.waitingForOrders!.atTick; // Unused; test verifies pause state restored correctly
+
+        // Apply draft orders in the live engine
+        engine.state.orderMgr.applyOrder({
+            unitId: 'unit_p1',
+            abilityId: 'wait',
+            targets: [],
+            movePath: [{ col: 6, row: 5 }],
+            endTurn: false,
+        });
+        engine.state.orderMgr.applyOrder({
+            unitId: 'unit_p2',
+            abilityId: 'wait',
+            targets: [],
+            movePath: [{ col: 9, row: 5 }],
+            endTurn: false,
+        });
+
+        // Snapshot after drafts are applied
+        const snap = engine.toJSON() as SerializedGameState;
+        engine.destroy();
+
+        // Restore from snapshot: pause should stay, waiters should stay
+        const restored = GameEngine.fromJSON(snap, 'p1', null);
+        expect(restored.isPaused).toBe(true);
+        expect(restored.waitingForOrders).not.toBeNull();
+        expect(restored.waitingForOrders!.waiters).toHaveLength(2);
+
+        restored.destroy();
+    });
+
+    it('(c) fromJSON of checkpoint with waitingForOrders: null + draft rows at batch tick re-infers waiters (FA16E1 bootstrap case)', () => {
+        const engine = createTwoPlayerEngine();
+        advanceUntilOrderPause(engine);
+        const snap = engine.toJSON() as SerializedGameState;
+        const atTick = snap.waitingForOrders!.atTick;
+
+        // Simulate FA16E1 scenario: waitingForOrders was null in checkpoint, but draft orders exist at the batch tick
+        snap.waitingForOrders = null;
+        snap.orders = [
+            {
+                gameTick: atTick,
+                order: {
+                    unitId: 'unit_p1',
+                    abilityId: 'wait',
+                    targets: [],
+                    movePath: [{ col: 6, row: 5 }],
+                    endTurn: false, // Draft
+                },
+            },
+        ];
+        engine.destroy();
+
+        // Restore: draft orders should NOT count as having answered, so waiters should be re-inferred
+        const restored = GameEngine.fromJSON(snap, 'p1', null);
+        expect(restored.isPaused).toBe(true);
+        expect(restored.waitingForOrders).not.toBeNull();
+        expect(restored.waitingForOrders!.waiters.map((w) => w.unitId).sort()).toEqual(['unit_p1', 'unit_p2']);
+
+        restored.destroy();
+    });
+
+    it('(d) confirmed (endTurn: true) rows still clear the pause on restore', () => {
+        const engine = createTwoPlayerEngine();
+        advanceUntilOrderPause(engine);
+        const snap = engine.toJSON() as SerializedGameState;
+        const atTick = snap.waitingForOrders!.atTick;
+
+        // Confirmed orders (endTurn: true) at the batch tick
+        snap.orders = [
+            {
+                gameTick: atTick,
+                order: {
+                    unitId: 'unit_p1',
+                    abilityId: 'wait',
+                    targets: [],
+                    movePath: [{ col: 6, row: 5 }],
+                    endTurn: true, // Confirmed
+                },
+            },
+            {
+                gameTick: atTick,
+                order: {
+                    unitId: 'unit_p2',
+                    abilityId: 'wait',
+                    targets: [],
+                    movePath: [{ col: 9, row: 5 }],
+                    endTurn: true, // Confirmed
+                },
+            },
+        ];
+        engine.destroy();
+
+        // Restore: confirmed orders should clear the pause
+        const restored = GameEngine.fromJSON(snap, 'p1', null);
+        expect(restored.waitingForOrders).toBeNull();
+        expect(restored.isPaused).toBe(false);
+
+        restored.destroy();
+    });
 });

@@ -225,7 +225,7 @@ describe('conditional cancel', () => {
             targets: [{ type: 'pixel', position: { x: 140, y: 100 } }],
         });
 
-        expect(engine.state.orderMgr.hasPendingOrderForUnit('unit_p1', 6)).toBe(false);
+        expect(engine.state.orderMgr.hasAnyPendingOrderForUnit('unit_p1', 6)).toBe(false);
         expect(unit.activeAbilities.some((a) => a.abilityId === '0534')).toBe(true);
 
         engine.destroy();

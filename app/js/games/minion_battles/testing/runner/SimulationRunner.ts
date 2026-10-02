@@ -19,7 +19,8 @@ function maybeAutoResolveParallelOrderPause(
         engine.getUnit(w.unitId)?.activeAbilities.some((a) => a.conditionalCancelPaused),
     );
     if (pausedWaiter) {
-        if (engine.state.orderMgr.hasPendingOrderForUnit(pausedWaiter.unitId, batch.atTick)) return;
+        // Use "any" semantics: if something is queued (even a draft), skip auto-filling.
+        if (engine.state.orderMgr.hasAnyPendingOrderForUnit(pausedWaiter.unitId, batch.atTick)) return;
         if (onConditionalCancelPause) {
             onConditionalCancelPause(engine);
             return;

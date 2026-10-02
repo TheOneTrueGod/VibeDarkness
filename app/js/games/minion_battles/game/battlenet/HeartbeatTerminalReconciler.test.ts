@@ -44,6 +44,8 @@ function makeSession(overrides: Partial<BattleSessionHandle> = {}): BattleSessio
         isEngineSimulationRunning: () => false,
         isInteractiveTargetingPreviewActive: () => false,
         setMultiplayerAwaitHostCatchup: () => {},
+        getTimeline: () => ({ kind: 'canonical', engineEpoch: 0 }),
+        mintCanonicalToken: () => ({ engineEpoch: 0, __brand: 'CanonicalToken' as const }),
         ...overrides,
     };
 }

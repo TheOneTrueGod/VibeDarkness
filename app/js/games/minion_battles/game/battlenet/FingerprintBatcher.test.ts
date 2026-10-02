@@ -1,6 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FingerprintBatcher } from './FingerprintBatcher';
 import type { BattleApi } from './types';
+
+const { logToLobbyLog } = vi.hoisted(() => ({
+    logToLobbyLog: vi.fn(),
+}));
+
+vi.mock('../../../../lobbyLog', () => ({
+    logToLobbyLog,
+}));
 
 function makeApi(
     appendBattleFingerprints: BattleApi['appendBattleFingerprints'] = vi.fn(async () => ({ appended: 0 })),
@@ -28,14 +36,21 @@ function make(isHost = true): { batcher: FingerprintBatcher; api: BattleApi } {
         lobbyId: 'l1',
         gameId: 'g1',
         playerId: 'p1',
+        // Default: current epoch is 0, so pass token with epoch 0 to pass validation
+        getCurrentEngineEpoch: () => 0,
     });
     return { batcher, api };
 }
 
 describe('FingerprintBatcher', () => {
+    beforeEach(() => {
+        vi.restoreAllMocks();
+    });
+
     it('queueFingerprint is a no-op for non-host clients', async () => {
         const { batcher, api } = make(false);
-        batcher.queueFingerprint(1, 'fp1', false);
+        const token = { engineEpoch: 0, __brand: 'CanonicalToken' as const };
+        batcher.queueFingerprint(1, 'fp1', false, undefined, token);
         await batcher.flush();
         expect(api.appendBattleFingerprints).not.toHaveBeenCalled();
         expect(batcher.getPendingCount()).toBe(0);
@@ -49,8 +64,9 @@ describe('FingerprintBatcher', () => {
 
     it('flush sends all queued records as one append batch', async () => {
         const { batcher, api } = make(true);
-        batcher.queueFingerprint(1, 'a', false);
-        batcher.queueFingerprint(2, 'b', true);
+        const token = { engineEpoch: 0, __brand: 'CanonicalToken' as const };
+        batcher.queueFingerprint(1, 'a', false, undefined, token);
+        batcher.queueFingerprint(2, 'b', true, undefined, token);
         await batcher.flush();
         expect(api.appendBattleFingerprints).toHaveBeenCalledTimes(1);
         expect(api.appendBattleFingerprints).toHaveBeenCalledWith('l1', 'g1', {
@@ -74,8 +90,10 @@ describe('FingerprintBatcher', () => {
             lobbyId: 'l1',
             gameId: 'g1',
             playerId: 'p1',
+            getCurrentEngineEpoch: () => 0,
         });
-        batcher.queueFingerprint(5, 'fp', false);
+        const token = { engineEpoch: 0, __brand: 'CanonicalToken' as const };
+        batcher.queueFingerprint(5, 'fp', false, undefined, token);
         await batcher.flush();
         expect(batcher.getPendingCount()).toBe(1);
     });
@@ -84,12 +102,13 @@ describe('FingerprintBatcher', () => {
         vi.useFakeTimers();
         try {
             const { batcher, api } = make(true);
-            batcher.queueFingerprint(1, 'fp', false);
+            const token = { engineEpoch: 0, __brand: 'CanonicalToken' as const };
+            batcher.queueFingerprint(1, 'fp', false, undefined, token);
             batcher.startPeriodicFlush(100);
             await vi.advanceTimersByTimeAsync(150);
             expect(api.appendBattleFingerprints).toHaveBeenCalledTimes(1);
             batcher.stopPeriodicFlush();
-            batcher.queueFingerprint(2, 'fp2', false);
+            batcher.queueFingerprint(2, 'fp2', false, undefined, token);
             await vi.advanceTimersByTimeAsync(200);
             expect(api.appendBattleFingerprints).toHaveBeenCalledTimes(1);
         } finally {
@@ -106,5 +125,51 @@ describe('FingerprintBatcher', () => {
         } finally {
             vi.useRealTimers();
         }
+    });
+
+    it('queueFingerprint requires valid canonical token; missing/stale token → not queued + diag log', async () => {
+        const api = makeApi();
+        const batcher = new FingerprintBatcher({
+            api,
+            isHost: true,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'p1',
+            getCurrentEngineEpoch: () => 5,
+        });
+
+        // No token → not queued, diag logged
+        batcher.queueFingerprint(10, 'fp1', false, undefined, null);
+        expect(batcher.getPendingCount()).toBe(0);
+        expect(logToLobbyLog).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: 'diag: queueFingerprint skipped (stale or missing token)',
+            }),
+        );
+        logToLobbyLog.mockClear();
+
+        // Stale token (epoch 3 vs current 5) → not queued, one diag line per episode (not per tick)
+        const staleToken = { engineEpoch: 3, __brand: 'CanonicalToken' as const };
+        batcher.queueFingerprint(11, 'fp2', false, undefined, staleToken);
+        expect(logToLobbyLog).toHaveBeenCalledTimes(1);
+        batcher.queueFingerprint(12, 'fp3', false, undefined, staleToken); // Same episode, later tick: no new log
+        expect(logToLobbyLog).toHaveBeenCalledTimes(1);
+        expect(batcher.getPendingCount()).toBe(0);
+        logToLobbyLog.mockClear();
+
+        // Current token (epoch 5) → queued
+        const currentToken = { engineEpoch: 5, __brand: 'CanonicalToken' as const };
+        batcher.queueFingerprint(13, 'fp4', false, undefined, currentToken);
+        expect(batcher.getPendingCount()).toBe(1);
+        expect(logToLobbyLog).not.toHaveBeenCalled();
+
+        await batcher.flush();
+        expect(api.appendBattleFingerprints).toHaveBeenCalledWith(
+            'l1',
+            'g1',
+            expect.objectContaining({
+                records: [{ tick: 13, fp: 'fp4', paused: false }],
+            }),
+        );
     });
 });

@@ -52,6 +52,10 @@ import { PERF_UI, PERF_UI_REACT, tickPerformanceTracker } from './performance/ti
 import { getAbility } from '../abilities/AbilityRegistry';
 import { getInteractiveTargetDefsFromTimings } from '../abilities/targeting';
 import { isCasterInConditionalCancelPause } from './interaction/isITSPreviewComplete';
+import type { SimTimeline } from './interaction/simTimeline';
+import { bumpEpoch, enterPreview, toCanonical, assertNever } from './interaction/simTimeline';
+import { PreviewEmissionBuffer } from './interaction/PreviewEmissionBuffer';
+import { mintCanonicalToken, type CanonicalToken } from './battlenet/canonicalToken';
 
 function segmentRestoreOpts(
     mission: IBaseMissionDef,
@@ -136,6 +140,10 @@ export class BattleSession implements BattleSessionHandle {
     private rewindPresentationDeferred = false;
     /** Manages the local-preview run for abilities that use SelectTargetDef. */
     readonly interactiveTargeting = new InteractiveTargetingSession();
+    /** Ownership model for the interactive sequential targeting preview timeline. */
+    private timeline: SimTimeline = { kind: 'canonical', engineEpoch: 0 };
+    /** Buffer for engine emissions during ITS preview; null during canonical timeline. */
+    private previewEmissionBuffer: PreviewEmissionBuffer | null = null;
 
     constructor(private readonly config: BattleSessionConfig) {}
 
@@ -176,6 +184,136 @@ export class BattleSession implements BattleSessionHandle {
 
     getInteractionManager(): PlayerInteractionManager | null {
         return this.interactionManager;
+    }
+
+    /** Ownership model for the interactive sequential targeting preview timeline. */
+    getTimeline(): SimTimeline {
+        return this.timeline;
+    }
+
+    /** Mint a token for persisting state; null if timeline is not canonical (preview in progress). */
+    mintCanonicalToken() {
+        const timeline = this.timeline;
+        if (timeline.kind !== 'canonical') {
+            return null;
+        }
+        return mintCanonicalToken(timeline.engineEpoch);
+    }
+
+    /**
+     * Mint a token for the in-place commit path during interactive sequential targeting preview.
+     * This token is narrowly scoped: it returns a token only when the timeline is a preview
+     * with the exact runId, signifying "this order IS the promotion's order".
+     * Returns null if the timeline is not preview or the runId doesn't match.
+     * Used to allow persistCommittedOrder to POST during preview (gate: this order will promote the timeline).
+     */
+    mintCommitToken(runId: number): CanonicalToken | null {
+        const timeline = this.timeline;
+        if (timeline.kind !== 'preview' || timeline.runId !== runId) {
+            return null;
+        }
+        return mintCanonicalToken(timeline.engineEpoch);
+    }
+
+    /** Buffer for engine emissions during preview; null during canonical timeline. */
+    getPreviewEmissionBuffer(): PreviewEmissionBuffer | null {
+        return this.previewEmissionBuffer;
+    }
+
+    /**
+     * Enter an ITS preview timeline. Called by InteractiveTargetingSession.begin to transition
+     * from canonical to preview. The runId is allocated by the caller (typically diagBeginSeq).
+     */
+    enterItsPreview(runId: number, markTick: number, batchAtTick: number): void {
+        this.timeline = enterPreview(this.timeline, { runId, markTick, batchAtTick });
+        this.previewEmissionBuffer = new PreviewEmissionBuffer(runId);
+    }
+
+    /**
+     * Promote a preview timeline to canonical (in-place commit).
+     * - Asserts timeline is that preview with matching runId
+     * - Clears preview flags (isSequentialTargetingPreview, sequentialTargetingPreviewCast)
+     * - Re-binds engine callbacks
+     * - Flushes the emission buffer to the network
+     *
+     * Stale/consumed runIds are logged as diag and treated as no-op.
+     */
+    promotePreview(runId: number): void {
+        const timeline = this.timeline;
+        if (timeline.kind !== 'preview' || timeline.runId !== runId) {
+            this.postBattleSyncLobbyLog(`diag: promotePreview stale runId=${runId}, current timeline=${timeline.kind}`, {
+                runId,
+                currentTimeline: timeline.kind,
+            });
+            return;
+        }
+
+        const buffer = this.previewEmissionBuffer;
+        this.timeline = toCanonical(timeline);
+        this.previewEmissionBuffer = null;
+
+        const engine = this.engine;
+        if (engine) {
+            engine.isSequentialTargetingPreview = false;
+            engine.sequentialTargetingPreviewCast = null;
+        }
+
+        this.rebindEngineCallbacks();
+
+        // Flush buffered emissions to the network. Best-effort: the timeline is already canonical,
+        // so a network-layer failure must not abort the promotion half-way.
+        if (buffer && this.config.isHost) {
+            try {
+                // Mint token for flushed emissions (timeline is now canonical)
+                const token = this.mintCanonicalToken();
+                // Flush fingerprints in tick order.
+                for (const fp of buffer.fingerprints) {
+                    this.netAdapter?.queueFingerprint(fp.tick, fp.fp, fp.paused, fp.adminReason, token);
+                }
+                // Flush the latest checkpoint (if any).
+                if (buffer.latestCheckpoint) {
+                    void this.netAdapter?.saveSnapshotOnPause(buffer.latestCheckpoint.tick, buffer.latestCheckpoint.state, token);
+                }
+                // Flush resolved batches.
+                for (const batchAtTick of buffer.resolvedBatches) {
+                    void this.netAdapter?.mergeAppliedOrdersForBatch(batchAtTick);
+                }
+            } catch (err) {
+                console.error('[BattleSession] promotePreview flush failed', err);
+                this.postBattleSyncLobbyLog('diag: promotePreview flush failed', {
+                    runId,
+                    error: err instanceof Error ? err.message : String(err),
+                });
+            }
+        }
+    }
+
+    /**
+     * Discard a preview timeline and optionally restore to a mark snapshot.
+     * - Asserts timeline is that preview with matching runId
+     * - Drops the emission buffer
+     * - If mark is provided, restores the engine to that snapshot
+     * - Transitions timeline to canonical with bumped epoch
+     *
+     * Stale/consumed runIds are logged as diag and treated as no-op.
+     */
+    discardPreview(runId: number, mark?: SerializedGameState): void {
+        const timeline = this.timeline;
+        if (timeline.kind !== 'preview' || timeline.runId !== runId) {
+            this.postBattleSyncLobbyLog(`diag: discardPreview stale runId=${runId}, current timeline=${timeline.kind}`, {
+                runId,
+                currentTimeline: timeline.kind,
+            });
+            return;
+        }
+
+        this.previewEmissionBuffer = null;
+        this.timeline = toCanonical(timeline);
+        this.timeline = bumpEpoch(this.timeline);
+
+        if (mark) {
+            this.restoreFromInMemorySnapshot(mark);
+        }
     }
 
     /**
@@ -252,27 +390,71 @@ export class BattleSession implements BattleSessionHandle {
         // Non-host: freeze ITS at local-player parallel pauses (lobby 39E984).
         engine.freezeItsOnLocalPlayerParallelPause = !isHost;
         engine.setOnCheckpoint((gameTick, state) => {
-            if (engine.isSequentialTargetingPreview) return;
-            if (isHost) {
-                // Non-blocking for the engine; host persist POSTs await the in-flight snapshot.
-                void this.netAdapter?.saveSnapshotOnPause(gameTick, state);
+            const timeline = this.getTimeline();
+            switch (timeline.kind) {
+                case 'canonical': {
+                    if (isHost) {
+                        // Non-blocking for the engine; host persist POSTs await the in-flight snapshot.
+                        const token = this.mintCanonicalToken();
+                        void this.netAdapter?.saveSnapshotOnPause(gameTick, state, token);
+                    }
+                    break;
+                }
+                case 'preview': {
+                    const buffer = this.getPreviewEmissionBuffer();
+                    if (buffer) {
+                        buffer.recordCheckpoint(gameTick, state, timeline.runId);
+                    }
+                    break;
+                }
+                default:
+                    assertNever(timeline);
             }
         });
         engine.setOnTickComplete((gameTick, fingerprintHex, paused, adminReason) => {
-            if (engine.isSequentialTargetingPreview) return;
-            if (isHost) {
-                this.netAdapter?.queueFingerprint(gameTick, fingerprintHex, paused, adminReason);
+            const timeline = this.getTimeline();
+            switch (timeline.kind) {
+                case 'canonical': {
+                    if (isHost) {
+                        const token = this.mintCanonicalToken();
+                        this.netAdapter?.queueFingerprint(gameTick, fingerprintHex, paused, adminReason, token);
+                    }
+                    logUserState({ api, playerId: this.config.playerId, engine, fingerprintHex });
+                    break;
+                }
+                case 'preview': {
+                    const buffer = this.getPreviewEmissionBuffer();
+                    if (buffer) {
+                        buffer.recordFingerprint(gameTick, fingerprintHex, paused, adminReason, timeline.runId);
+                    }
+                    break;
+                }
+                default:
+                    assertNever(timeline);
             }
-            logUserState({ api, playerId: this.config.playerId, engine, fingerprintHex });
         });
         if (isHost) {
             engine.setOnParallelBatchResolved((batchAtTick) => {
-                if (engine.isSequentialTargetingPreview) return;
-                // Fire-and-follow: `tryResumeParallel` stays paused while this hook returns a
-                // Promise, which blocked host local playahead. Merge HTTP still runs, but only
-                // after persist appends land (`BattleNet.mergeAppliedOrdersForBatch` no-ops while
-                // that batch still has an unacked host append).
-                void this.netAdapter?.mergeAppliedOrdersForBatch(batchAtTick);
+                const timeline = this.getTimeline();
+                switch (timeline.kind) {
+                    case 'canonical': {
+                        // Fire-and-follow: `tryResumeParallel` stays paused while this hook returns a
+                        // Promise, which blocked host local playahead. Merge HTTP still runs, but only
+                        // after persist appends land (`BattleNet.mergeAppliedOrdersForBatch` no-ops while
+                        // that batch still has an unacked host append).
+                        void this.netAdapter?.mergeAppliedOrdersForBatch(batchAtTick);
+                        break;
+                    }
+                    case 'preview': {
+                        const buffer = this.getPreviewEmissionBuffer();
+                        if (buffer) {
+                            buffer.recordResolvedBatch(batchAtTick, timeline.runId);
+                        }
+                        break;
+                    }
+                    default:
+                        assertNever(timeline);
+                }
             });
         } else {
             engine.setOnParallelBatchResolved(null);
@@ -406,6 +588,8 @@ export class BattleSession implements BattleSessionHandle {
             }),
         );
         this.engine = engine;
+        // Bump epoch when engine instance is replaced.
+        this.timeline = bumpEpoch(this.timeline);
         this.emit({ type: 'round_number', roundNumber: engine.roundNumber });
         this.emit({ type: 'round_progress', progress: engine.roundProgress });
         this.emit({ type: 'pause_state', paused: !!engine.waitingForOrders, waitingForOrders: engine.waitingForOrders });
@@ -866,7 +1050,7 @@ export class BattleSession implements BattleSessionHandle {
     }
 
     isInteractiveTargetingPreviewActive(): boolean {
-        return this.interactiveTargeting.isActive;
+        return this.timeline.kind === 'preview';
     }
 
     /** Diagnostics: ITS run/restore counters + engine preview flags for lobby-log correlation. */
@@ -875,6 +1059,8 @@ export class BattleSession implements BattleSessionHandle {
         return {
             ...this.interactiveTargeting.getDiagState(),
             engineTick: this.getEngineTick(),
+            timelineKind: this.timeline.kind,
+            engineEpoch: this.timeline.engineEpoch,
             enginePreviewFlag: engine?.isSequentialTargetingPreview === true,
             engineIsPaused: engine?.isPaused === true,
             engineWaitingForOrdersAtTick: engine?.waitingForOrders?.atTick ?? null,
@@ -1222,8 +1408,9 @@ export class BattleSession implements BattleSessionHandle {
      * Host: append + merge via {@link BattleNet.persistCommittedOrder}.
      * Non-host: POST via {@link BattleNet.submitOrder} with `skipLocalApply` (deferral gates unchanged).
      * Registers the wire dedupe key in {@link appliedRemoteOrderKeys} on success.
+     * @param token Optional commit token (minted by caller during preview for in-place commit path).
      */
-    async persistInPlaceCommittedTargetingOrder(order: BattleOrder, atTick: number): Promise<boolean> {
+    async persistInPlaceCommittedTargetingOrder(order: BattleOrder, atTick: number, token?: CanonicalToken | null): Promise<boolean> {
         if (!this.netAdapter) return false;
         const pathAvailable = this.netAdapter.isOrderSubmitPathAvailable();
         if (!pathAvailable) return false;
@@ -1231,14 +1418,14 @@ export class BattleSession implements BattleSessionHandle {
         const idHash = hashOrderId(this.config.playerId, atTick, order);
 
         if (this.config.isHost) {
-            const ok = await this.netAdapter.persistCommittedOrder(order, atTick);
+            const ok = await this.netAdapter.persistCommittedOrder(order, atTick, token);
             if (ok) {
                 this.appliedRemoteOrderKeys.add(idHash);
             }
             return ok;
         }
 
-        await this.netAdapter.submitOrder(order, atTick, { skipLocalApply: true });
+        await this.netAdapter.submitOrder(order, atTick, { skipLocalApply: true, token });
         const deferred = this.netAdapter.hasDeferredOrderFor(order.unitId, atTick);
         if (deferred) {
             return false;
@@ -1324,7 +1511,8 @@ export class BattleSession implements BattleSessionHandle {
         for (const waiter of batch.waiters) {
             const unit = engine.getUnit(waiter.unitId);
             if (!unit?.isPlayerControlled()) continue;
-            if (engine.state.orderMgr.hasPendingOrderForUnit(waiter.unitId, atTick)) continue;
+            // Use "any" semantics: if something is queued (even a draft), don't override.
+            if (engine.state.orderMgr.hasAnyPendingOrderForUnit(waiter.unitId, atTick)) continue;
             engine.state.orderMgr.queueOrder(atTick, {
                 unitId: waiter.unitId,
                 abilityId: 'wait',

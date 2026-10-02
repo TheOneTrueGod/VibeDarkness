@@ -4,6 +4,8 @@ import { sleep } from './helpers/heartbeatTiming';
 import type { BattleApi, BattleSessionHandle, PersistHostCyclesSnapshot } from './types';
 import type { SerializedGameState } from '../types';
 import { TICK_STATE_HISTORY_CAPACITY, tickStateHistory } from '../tickStateHistory';
+import type { CanonicalToken } from './canonicalToken';
+import { isCanonicalTokenCurrent } from './canonicalToken';
 
 export interface SnapshotPersistenceConfig {
     api: BattleApi;
@@ -37,6 +39,8 @@ export class SnapshotPersistence {
     private inFlightPauseSnapshot: { tick: number; promise: Promise<void> } | null = null;
     /** Payload for the in-flight pause snapshot so persist-cycles can include it in one envelope. */
     private pendingPauseSnapshotPayload: PersistHostCyclesSnapshot | null = null;
+    /** Token captured at the time pendingPauseSnapshotPayload was created; checked before including snapshot in envelope. */
+    private pendingPauseSnapshotToken: CanonicalToken | null | undefined = null;
     /** Dedupes automatic diagnostic dumps for the same mismatch / stuck-pause episode. */
     private lastDetectedDesyncEpisodeKey: string | null = null;
 
@@ -53,6 +57,11 @@ export class SnapshotPersistence {
     /** In-flight pause snapshot body for a host persist-cycles envelope (null if none). */
     getPendingPauseSnapshotForEnvelope(): PersistHostCyclesSnapshot | null {
         return this.pendingPauseSnapshotPayload;
+    }
+
+    /** Token captured at snapshot creation; must be current before including snapshot in envelope POST. */
+    getPendingPauseSnapshotToken(): CanonicalToken | null | undefined {
+        return this.pendingPauseSnapshotToken;
     }
 
     /** Envelope already wrote this pause snapshot; keep `lastSnapshotTick` in sync with a standalone POST. */
@@ -112,7 +121,7 @@ export class SnapshotPersistence {
         return this.config.api.getBattleInitialState(this.config.lobbyId, this.config.gameId, this.config.playerId);
     }
 
-    async saveSnapshotOnPause(tick: number, state: SerializedGameState): Promise<void> {
+    async saveSnapshotOnPause(tick: number, state: SerializedGameState, token: CanonicalToken | null | undefined): Promise<void> {
         if (!this.config.isHost || this.lastSnapshotTick === tick) {
             return;
         }
@@ -136,8 +145,9 @@ export class SnapshotPersistence {
                 its: this.config.session.getItsDiagState?.() ?? null,
             },
         });
-        const run = this.performSaveSnapshotOnPause(pending);
+        const run = this.performSaveSnapshotOnPause(pending, token);
         this.pendingPauseSnapshotPayload = pending;
+        this.pendingPauseSnapshotToken = token;
         this.inFlightPauseSnapshot = { tick, promise: run };
         try {
             await run;
@@ -147,6 +157,7 @@ export class SnapshotPersistence {
             }
             if (this.pendingPauseSnapshotPayload?.tick === tick) {
                 this.pendingPauseSnapshotPayload = null;
+                this.pendingPauseSnapshotToken = null;
             }
         }
     }
@@ -167,8 +178,30 @@ export class SnapshotPersistence {
             : {};
     }
 
-    private async performSaveSnapshotOnPause(pending: PersistHostCyclesSnapshot): Promise<void> {
+    private async performSaveSnapshotOnPause(pending: PersistHostCyclesSnapshot, token: CanonicalToken | null | undefined): Promise<void> {
         const { tick, state, checkpointFingerprint, checkpointFingerprintPaused } = pending;
+
+        // Check token validity immediately before POST
+        const currentEngineEpoch = this.config.session.getTimeline?.()?.engineEpoch ?? 0;
+        if (!isCanonicalTokenCurrent(token, currentEngineEpoch)) {
+            logToLobbyLog({
+                lobbyClient: this.config.api as unknown as LobbyClient,
+                lobbyId: this.config.lobbyId,
+                playerId: this.config.playerId,
+                tick,
+                severity: 'warn',
+                logType: 'battleSync',
+                gameId: this.config.gameId,
+                message: 'diag: saveSnapshotOnPause skipped (stale or missing token)',
+                context: {
+                    tickRequested: tick,
+                    tokenEpoch: token?.engineEpoch ?? null,
+                    currentEpoch: currentEngineEpoch,
+                },
+            });
+            return;
+        }
+
         const saveResult = await this.config.api.saveBattleSnapshot(this.config.lobbyId, this.config.gameId, {
             playerId: this.config.playerId,
             tick,
@@ -243,10 +276,12 @@ export class SnapshotPersistence {
      * same payload through `saveBattleSnapshot` — not React/debug-buffered lobby state.
      */
     async debugLogLocalStateAndSubmitSnapshot(): Promise<void> {
+        const token = this.config.session.mintCanonicalToken?.() ?? null;
         await this.writeSerializedLocalStateToLobbyAndMaybeSnapshot({
             forceLobbyPost: true,
             immediateLobbyLog: true,
             includeTickHistory: true,
+            token,
         });
     }
 
@@ -256,9 +291,11 @@ export class SnapshotPersistence {
      * Invoked only from {@link RecoveryCoordinator.runDesyncRecovery} — not from visibility / tab focus.
      */
     async desyncRecoveryLobbyTrace(reason: string): Promise<void> {
+        const token = this.config.session.mintCanonicalToken?.() ?? null;
         await this.writeForcedDesyncDiagnostic({
             reason,
             message: 'desync recovery: pre-repair trace marker',
+            token,
         });
     }
 
@@ -272,9 +309,11 @@ export class SnapshotPersistence {
             return;
         }
         this.lastDetectedDesyncEpisodeKey = episodeKey;
+        const token = this.config.session.mintCanonicalToken?.() ?? null;
         await this.writeForcedDesyncDiagnostic({
             reason,
             message: 'desync detected: diagnostic dump (no recovery started)',
+            token,
         });
     }
 
@@ -283,7 +322,7 @@ export class SnapshotPersistence {
         this.lastDetectedDesyncEpisodeKey = null;
     }
 
-    private async writeForcedDesyncDiagnostic(args: { reason: string; message: string }): Promise<void> {
+    private async writeForcedDesyncDiagnostic(args: { reason: string; message: string; token?: CanonicalToken | null }): Promise<void> {
         const session = this.config.session;
         const tick = session.getEngineTick();
         const latestFp = session.getLatestFingerprint();
@@ -311,6 +350,7 @@ export class SnapshotPersistence {
             forceLobbyPost: true,
             immediateLobbyLog: false,
             includeTickHistory: true,
+            token: args.token,
         });
     }
 
@@ -321,11 +361,13 @@ export class SnapshotPersistence {
      *        batch queue for this line.
      * @param includeTickHistory When true, also POST the in-memory recent-tick ring
      *        (`debug: recent tick history` — same line as Debug Console «Log local state»).
+     * @param token Token for snapshot persistence; if stale or missing, snapshot POST is skipped.
      */
     private async writeSerializedLocalStateToLobbyAndMaybeSnapshot(options: {
         forceLobbyPost: boolean;
         immediateLobbyLog: boolean;
         includeTickHistory: boolean;
+        token?: CanonicalToken | null;
     }): Promise<void> {
         const state = this.config.session.getSerializedSnapshot();
         const tick = state.gameTick;
@@ -393,6 +435,27 @@ export class SnapshotPersistence {
         }
 
         if (!this.config.isHost) {
+            return;
+        }
+
+        // Check token validity immediately before snapshot POST
+        const currentEngineEpoch = this.config.session.getTimeline?.()?.engineEpoch ?? 0;
+        if (!isCanonicalTokenCurrent(options.token, currentEngineEpoch)) {
+            logToLobbyLog({
+                lobbyClient: this.config.api as unknown as LobbyClient,
+                lobbyId: this.config.lobbyId,
+                playerId: this.config.playerId,
+                tick,
+                severity: 'warn',
+                logType: 'battleSync',
+                gameId: this.config.gameId,
+                message: 'diag: writeSerializedLocalState snapshot skipped (stale or missing token)',
+                context: {
+                    tickRequested: tick,
+                    tokenEpoch: options.token?.engineEpoch ?? null,
+                    currentEpoch: currentEngineEpoch,
+                },
+            });
             return;
         }
 

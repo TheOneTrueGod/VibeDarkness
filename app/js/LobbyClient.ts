@@ -598,7 +598,7 @@ export class LobbyClient {
     async appendBattleOrder(
         lobbyId: string,
         gameId: string,
-        body: { playerId: string; atTick: number; order: BattleOrder; idHash?: string },
+        body: { playerId: string; atTick: number; order: BattleOrder; idHash?: string; finalized?: boolean },
     ): Promise<{
         accepted: boolean;
         idHash: string;
@@ -645,7 +645,7 @@ export class LobbyClient {
                 checkpointFingerprint?: string;
                 checkpointFingerprintPaused?: boolean;
             };
-            orders: Array<{ atTick: number; order: BattleOrder; idHash?: string }>;
+            orders: Array<{ atTick: number; order: BattleOrder; idHash?: string; finalized?: boolean }>;
             mergeBatchTicks: number[];
         },
     ): Promise<{

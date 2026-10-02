@@ -2,8 +2,11 @@ import type { LobbyClient } from '../../../../LobbyClient';
 import { traceBattleHeartbeatLine } from '../../../../battleHeartbeatTrace';
 import { logToLobbyLog, logToLobbyLogBattleSync } from '../../../../lobbyLog';
 import type { BattleOrder, SerializedGameState } from '../types';
+import type { CanonicalToken } from './canonicalToken';
+import { isCanonicalTokenCurrent } from './canonicalToken';
 import { hashOrderId } from './helpers/orderHashing';
 import { summarizeRemoteWireRowsForLog } from './helpers/orderWireLogSummary';
+import { assertNever, getTimelineKind } from '../interaction/simTimeline';
 import { BattleEventBus } from './BattleEventBus';
 import { SyncStatusController } from './SyncStatusController';
 import { HeartbeatHttp } from './HeartbeatHttp';
@@ -388,6 +391,8 @@ export class BattleNet implements BattleNetContext {
 
 	async submitOrder(order: BattleOrder, atTick: number, opts?: SubmitOrderOptions): Promise<void> {
 		const skipLocalApply = opts?.skipLocalApply === true;
+		const token = opts?.token ?? undefined;
+
 		logToLobbyLogBattleSync({
 			lobbyClient: this.api as unknown as LobbyClient,
 			lobbyId: this.lobbyId,
@@ -412,6 +417,31 @@ export class BattleNet implements BattleNetContext {
 				its: this.itsDiag(),
 			},
 		});
+
+		// Check if we're in preview and have no commit token — drop without POST
+		const timeline = this.session.getTimeline?.();
+		if (timeline?.kind === 'preview' && !token) {
+			const idHash = hashOrderId(this.playerId, atTick, order);
+			logToLobbyLogBattleSync({
+				lobbyClient: this.api as unknown as LobbyClient,
+				lobbyId: this.lobbyId,
+				playerId: this.playerId,
+				tick: atTick,
+				severity: 'warn',
+				gameId: this.gameId,
+				message: 'diag: submitOrder dropped (preview timeline without commit token)',
+				context: {
+					idHash,
+					atTick,
+					abilityId: order.abilityId,
+					unitId: order.unitId,
+					engineTick: this.session.getEngineTick(),
+					its: this.itsDiag(),
+				},
+			});
+			return;
+		}
+
 		if (this.isRecovering) {
 			const idHash = hashOrderId(this.playerId, atTick, order);
 			const whyImmediateSubmitSkipped =
@@ -860,13 +890,13 @@ export class BattleNet implements BattleNetContext {
 		this.recovery.setIsRecovering(false);
 	}
 
-	queueFingerprint(tick: number, fp: string, paused: boolean, adminReason?: string): void {
-		this.fingerprintBatcher.queueFingerprint(tick, fp, paused, adminReason);
+	queueFingerprint(tick: number, fp: string, paused: boolean, adminReason?: string, token?: CanonicalToken | null): void {
+		this.fingerprintBatcher.queueFingerprint(tick, fp, paused, adminReason, token);
 	}
 
-	async saveSnapshotOnPause(tick: number, state: SerializedGameState): Promise<void> {
+	async saveSnapshotOnPause(tick: number, state: SerializedGameState, token: CanonicalToken | null | undefined): Promise<void> {
 		this.emitHostPersistBacklogState();
-		return this.snapshotPersistence.saveSnapshotOnPause(tick, state);
+		return this.snapshotPersistence.saveSnapshotOnPause(tick, state, token);
 	}
 
 	/**
@@ -888,12 +918,36 @@ export class BattleNet implements BattleNetContext {
 	 * Appends to `pending_orders` and merges to applied after accept without local re-apply
 	 * — the engine state already reflects the turn.
 	 */
-	async persistCommittedOrder(order: BattleOrder, atTick: number): Promise<boolean> {
+	async persistCommittedOrder(order: BattleOrder, atTick: number, token?: CanonicalToken | null): Promise<boolean> {
 		if (!this.isHost) return false;
 		if (this.isRecovering) return false;
 		if (this.syncStatusController.isAwaitingUserAck()) return false;
 
 		const idHash = hashOrderId(this.playerId, atTick, order);
+
+		// Check if we're in preview and have no commit token — drop without POST
+		const timeline = this.session.getTimeline?.();
+		if (timeline?.kind === 'preview' && !token) {
+			logToLobbyLogBattleSync({
+				lobbyClient: this.api as unknown as LobbyClient,
+				lobbyId: this.lobbyId,
+				playerId: this.playerId,
+				tick: atTick,
+				severity: 'warn',
+				gameId: this.gameId,
+				message: 'diag: persistCommittedOrder dropped (preview timeline without commit token)',
+				context: {
+					idHash,
+					atTick,
+					abilityId: order.abilityId,
+					unitId: order.unitId,
+					engineTick: this.session.getEngineTick(),
+					its: this.itsDiag(),
+				},
+			});
+			return false;
+		}
+
 		logToLobbyLogBattleSync({
 			lobbyClient: this.api as unknown as LobbyClient,
 			lobbyId: this.lobbyId,
@@ -1694,6 +1748,7 @@ export class BattleNet implements BattleNetContext {
 				atTick,
 				order,
 				idHash,
+				finalized: order.endTurn === true,
 			});
 		} catch (_error) {
 			const err = _error instanceof Error ? _error.message : String(_error);
@@ -2061,14 +2116,38 @@ export class BattleNet implements BattleNetContext {
 				deferredAtTicks: this.deferredLocalOrders.map((row) => row.atTick),
 			},
 		});
+		// Check if the pending snapshot's token is still current before including it in the envelope
+		let snapshotToInclude: PersistHostCyclesSnapshot | null = args.snapshot;
+		if (snapshotToInclude != null) {
+			const snapshotToken = this.snapshotPersistence.getPendingPauseSnapshotToken();
+			const currentEngineEpoch = this.session.getTimeline?.()?.engineEpoch ?? 0;
+			if (!isCanonicalTokenCurrent(snapshotToken, currentEngineEpoch)) {
+				logToLobbyLogBattleSync({
+					lobbyClient: this.api as unknown as LobbyClient,
+					lobbyId: this.lobbyId,
+					playerId: this.playerId,
+					tick: snapshotToInclude.tick,
+					severity: 'warn',
+					gameId: this.gameId,
+					message: 'diag: persistHostCycles envelope skipping snapshot (stale token)',
+					context: {
+						snapshotTick: snapshotToInclude.tick,
+						tokenEpoch: snapshotToken?.engineEpoch ?? null,
+						currentEpoch: currentEngineEpoch,
+					},
+				});
+				snapshotToInclude = null;
+			}
+		}
 		try {
 			res = await this.api.persistHostCycles(this.lobbyId, this.gameId, {
 				playerId: this.playerId,
-				...(args.snapshot != null ? { snapshot: args.snapshot } : {}),
+				...(snapshotToInclude != null ? { snapshot: snapshotToInclude } : {}),
 				orders: orders.map((row) => ({
 					atTick: row.atTick,
 					order: row.order,
 					idHash: row.idHash,
+					finalized: row.order.endTurn === true,
 				})),
 				mergeBatchTicks,
 			});
@@ -2103,6 +2182,7 @@ export class BattleNet implements BattleNetContext {
 				caller: args.caller ?? 'unknown',
 				requestedAtTicks: orders.map((row) => row.atTick),
 				requestedSnapshotTick: args.snapshot?.tick ?? null,
+				sentSnapshotTick: snapshotToInclude?.tick ?? null,
 				acceptedIdHashes: res.acceptedIdHashes,
 				rejectedReason: res.rejectedReason ?? null,
 				serverHostTickAfter: res.hostTick ?? null,
@@ -2112,8 +2192,8 @@ export class BattleNet implements BattleNetContext {
 			},
 		});
 		this.updateHeartbeatFromAppendResponse(res);
-		if (args.snapshot != null) {
-			this.snapshotPersistence.noteEnvelopeSnapshotApplied(args.snapshot.tick);
+		if (snapshotToInclude != null) {
+			this.snapshotPersistence.noteEnvelopeSnapshotApplied(snapshotToInclude.tick);
 		}
 		this.emitHostPersistBacklogState();
 		const acceptedSet = new Set(res.acceptedIdHashes);
@@ -2533,14 +2613,21 @@ export class BattleNet implements BattleNetContext {
 		if (!this.syncReconciler.computeBlockingNonHostPausePlane(engineTick, hb)) {
 			return;
 		}
-		if (this.session.isInteractiveTargetingPreviewActive()) {
-			this.logImmediateAlignSkipped(
-				'its_preview',
-				engineTick,
-				hostBatch,
-				'ITS preview playahead in progress while host waits on us — not stuck',
-			);
-			return;
+		const kind = getTimelineKind(this.session);
+		switch (kind) {
+			case 'preview': {
+				this.logImmediateAlignSkipped(
+					'its_preview',
+					engineTick,
+					hostBatch,
+					'ITS preview playahead in progress while host waits on us — not stuck',
+				);
+				return;
+			}
+			case 'canonical':
+				break;
+			default:
+				assertNever(kind);
 		}
 		if (
 			this.deferredLocalOrders.some((r) => r.atTick === hostBatch) ||

@@ -1,5 +1,7 @@
 import type { LobbyClient } from '../../../../LobbyClient';
 import type { BattleOrder, SerializedGameState, WaitingForOrders } from '../types';
+import type { SimTimeline } from '../interaction/simTimeline';
+import type { CanonicalToken } from './canonicalToken';
 
 /** One remote order row for {@link BattleSessionHandle.applyRemoteOrders} (wire + optional dedupe fields). */
 export type RemoteOrderWireRow = {
@@ -93,6 +95,20 @@ export interface BattleSessionHandle {
     getLocalSyncAnomalyContext?(): LocalSyncAnomalyContext;
     /** Diagnostics: ITS run/restore state attached to server-bound lobby-log lines. */
     getItsDiagState?(): Record<string, unknown>;
+    /** Ownership model for the interactive sequential targeting preview timeline. */
+    getTimeline?(): SimTimeline;
+    /**
+     * Mint a token for persisting snapshots/fingerprints/diagnostics.
+     * Returns null if the timeline is not canonical (e.g., during ITS preview).
+     */
+    mintCanonicalToken?(): CanonicalToken | null;
+    /**
+     * Mint a token for the in-place commit path during ITS preview.
+     * Returns a token only when the timeline is preview with the exact runId;
+     * signifies "this order IS the promotion's order".
+     * Used to gate persistCommittedOrder POST during preview.
+     */
+    mintCommitToken?(runId: number): CanonicalToken | null;
     /**
      * Non-host: optional gate on fixed-step simulation relative to heartbeat tail.
      * {@link BattleNet} normally keeps this cleared so optimistic playahead runs until a natural pause.
@@ -178,6 +194,8 @@ export type BattleNetUnsub = () => void;
 export type SubmitOrderOptions = {
     /** Non-host in-place ITS commit: engine already reflects the order; POST/defer only. */
     skipLocalApply?: boolean;
+    /** Optional commit token for in-place commit path during preview. */
+    token?: CanonicalToken | null;
 };
 
 export type PersistHostCyclesSnapshot = {
@@ -191,6 +209,7 @@ export type PersistHostCyclesOrder = {
     atTick: number;
     order: BattleOrder;
     idHash?: string;
+    finalized?: boolean;
 };
 
 export type PersistHostCyclesBody = {
@@ -217,7 +236,7 @@ export interface BattleApi {
     appendBattleOrder(
         lobbyId: string,
         gameId: string,
-        body: { playerId: string; atTick: number; order: BattleOrder; idHash?: string },
+        body: { playerId: string; atTick: number; order: BattleOrder; idHash?: string; finalized?: boolean },
     ): Promise<{
         accepted: boolean;
         idHash: string;
