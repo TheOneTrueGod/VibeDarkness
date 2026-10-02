@@ -18,7 +18,6 @@ import { areEnemies } from '../../../game/teams';
 import type { Unit } from '../../../game/units/Unit';
 import { applyHeal, DEFAULT_HEAL_PENALTY_PCT } from '../../../game/units/unitHeal';
 import { Effect } from '../../../game/effects/Effect';
-import { EngineWithGatherLight, spawnGatherLightWindupRing } from '@/games/minion_battles/abilities/gatherLightHelpers';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import {
     formatTooltipLegacyLines,
@@ -109,7 +108,20 @@ export const LightBlastAbility = defineAbility({
 							{
 									timingStart: 'start',
 									behaviour: CastBehaviours.Instant((ctx) => {
-											spawnGatherLightWindupRing(ctx.engine as EngineWithGatherLight, ctx.caster);
+                // Rings converge from max range onto the caster, aligning as the windup ends.
+                (ctx.engine as EngineWithLight).addEffect(new Effect({
+                    x: ctx.caster.x,
+                    y: ctx.caster.y,
+                    duration: PREFIRE_TIME,
+                    effectType: 'Explosion',
+                    effectProperties: {
+                        direction: 'contract',
+                        shape: 'ring',
+                        color: 0xffe066,
+                        radius: MAX_RANGE,
+                        endRadius: ctx.caster.radius,
+                    },
+                }));
 									}),
 							},
 					],

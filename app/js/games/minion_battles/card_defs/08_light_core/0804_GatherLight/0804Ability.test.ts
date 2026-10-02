@@ -10,6 +10,11 @@ import {
     getGatherLightDarknessAmount,
 } from './0804Constants';
 import { GatherLightAbility, hasLightImbuementResearch } from './0804Ability';
+import {
+    GATHER_LIGHT_TILE_COUNT,
+    getGatherLightCandidateTiles,
+    pickRandomTiles,
+} from '../../../abilities/gatherLightHelpers';
 import { LIGHT_NODE_IMBUEMENT, LIGHT_TREE_ID } from '../../../../../researchTrees/trees/light';
 
 void getAbility;
@@ -62,5 +67,25 @@ describe('Gather Light Light Imbuement gating', () => {
             researchTrees: { [LIGHT_TREE_ID]: [LIGHT_NODE_IMBUEMENT] },
         });
         expect(imbued?.[0]).toContain('imbue your weapon with light');
+    });
+});
+
+describe('Gather Light tile selection', () => {
+    it('picks distinct tiles from the 5×5 and caps at the tile count', () => {
+        const candidates = getGatherLightCandidateTiles(5, 5, 12, 10);
+        expect(candidates).toHaveLength(25);
+        const rng = { generateRandomInteger: (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1)) };
+        const picked = pickRandomTiles(rng, candidates, GATHER_LIGHT_TILE_COUNT);
+        expect(picked).toHaveLength(GATHER_LIGHT_TILE_COUNT);
+        expect(new Set(picked.map((t) => `${t.col},${t.row}`)).size).toBe(GATHER_LIGHT_TILE_COUNT);
+    });
+
+    it('returns fewer tiles when fewer are eligible', () => {
+        const rng = { generateRandomInteger: (min: number) => min };
+        expect(pickRandomTiles(rng, [{ col: 0, row: 0 }, { col: 1, row: 0 }], 10)).toHaveLength(2);
+    });
+
+    it('clamps the candidate area to the grid bounds', () => {
+        expect(getGatherLightCandidateTiles(0, 0, 12, 10)).toHaveLength(9);
     });
 });

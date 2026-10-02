@@ -417,7 +417,7 @@ export default function RowSlotAbilities({
             {turnIndicator}
             <div
                 ref={containerRef}
-                className="relative grid min-h-0 flex-1 grid-rows-[auto_auto] content-start gap-y-2 overflow-y-auto"
+                className="relative grid min-h-0 flex-1 grid-rows-[auto_auto] content-start gap-y-2 overflow-y-hidden"
                 style={{
                     paddingTop: ABILITY_CARD_LIFT_PADDING_Y_PX,
                     paddingBottom: ABILITY_CARD_LIFT_PADDING_Y_PX,

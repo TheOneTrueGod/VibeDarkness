@@ -8,6 +8,8 @@ export interface ExplosionEffectProperties {
     direction?: 'expand' | 'contract';
     /** Visual silhouette. Default 'disc' preserves existing Explosion behavior. */
     shape?: 'disc' | 'ring';
+    /** Final radius for a 'contract' ring (default 4). */
+    endRadius?: number;
 }
 
 /** Union of all typed effect property shapes. Extend as new effect types need properties. */

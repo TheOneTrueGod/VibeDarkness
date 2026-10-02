@@ -41,6 +41,19 @@ export const explosionEffectDef: IEffectDef = {
                     g.stroke({ color: 0xff9900, width: 2, alpha: Math.max(0, 0.7 * (1 - p2)) });
                 }
             }
+        } else if (props.shape === 'ring') {
+            // Converging ring: starts at `base`, shrinks to `endRadius`. The echo ring trails
+            // behind (larger) and catches up so both align exactly at p = 1.
+            const endRadius = props.endRadius ?? 4;
+            const radius = base + (endRadius - base) * p;
+            g.circle(0, 0, radius);
+            g.stroke({ color, width: 3, alpha: Math.min(0.9, 0.9 * p + 0.2) });
+            if (p > 0.15) {
+                const p2 = (p - 0.15) / 0.85;
+                const echoR = base + (endRadius - base) * p2;
+                g.circle(0, 0, echoR);
+                g.stroke({ color, width: 2, alpha: Math.min(0.45, 0.45 * p2 + 0.1) });
+            }
         } else {
             g.circle(0, 0, Math.max(1, base * (1 - p * 0.5)));
             g.fill({ color, alpha: Math.max(0.2, 0.85 * (1 - p)) });

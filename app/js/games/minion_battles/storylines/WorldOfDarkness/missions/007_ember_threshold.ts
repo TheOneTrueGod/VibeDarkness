@@ -235,7 +235,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 	];
 
 	levelEvents: LevelEvent[] = [
-		// Continuous pressure near the south gate (darkness spawns).
+		// Continuous pressure near the west glade nest (darkness spawns).
 		{
 			type: 'continuousSpawn',
 			trigger: { intervalRounds: 1 },
@@ -245,7 +245,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 					name: 'Wolf',
 					spawnBehaviour: 'anywhere',
 					inDarkness: true,
-					spawnTarget: { x: NEST_50_51_WORLD.x, y: NEST_50_51_WORLD.y, radius: 14 },
+					spawnTarget: { x: NEST_49_51_WORLD.x, y: NEST_49_51_WORLD.y, radius: 14 },
 					spawnCount: 2,
 					unitAITreeId: 'hunt',
 				},
@@ -260,7 +260,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 					name: 'Wolf',
 					spawnBehaviour: 'anywhere',
 					inDarkness: true,
-					spawnTarget: { x: NEST_50_51_WORLD.x, y: NEST_50_51_WORLD.y, radius: 14 },
+					spawnTarget: { x: NEST_49_51_WORLD.x, y: NEST_49_51_WORLD.y, radius: 14 },
 					spawnCount: 2,
 					unitAITreeId: 'hunt',
 				},
@@ -275,7 +275,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 					name: 'Slime',
 					spawnBehaviour: 'anywhere',
 					inDarkness: true,
-					spawnTarget: { x: NEST_50_51_WORLD.x, y: NEST_50_51_WORLD.y, radius: 14 },
+					spawnTarget: { x: NEST_49_51_WORLD.x, y: NEST_49_51_WORLD.y, radius: 14 },
 					spawnCount: 1,
 					unitAITreeId: 'hunt',
 				},
@@ -291,7 +291,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 					name: 'Swarmling',
 					spawnBehaviour: 'anywhere',
 					inDarkness: true,
-					spawnTarget: { x: NEST_50_51_WORLD.x, y: NEST_50_51_WORLD.y, radius: 14 },
+					spawnTarget: { x: NEST_49_51_WORLD.x, y: NEST_49_51_WORLD.y, radius: 14 },
 					spawnCount: 4,
 					unitAITreeId: 'hunt',
 				},

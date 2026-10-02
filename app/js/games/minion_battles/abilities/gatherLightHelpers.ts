@@ -1,5 +1,5 @@
 /**
- * Helpers for Gather Light (0804): tile selection, permanent base darkness, and homing orb VFX.
+ * Helpers for Gather Light (0804): random tile selection, permanent base darkness, and homing orb VFX.
  */
 
 import { LightSource } from '../game/lightSources/LightSource';
@@ -12,8 +12,12 @@ import { LIGHT_RESOURCE_COLOR_NUMBER } from '../resources/Light';
 /** Ability windup time; owned here (not `0804Ability.ts`) to avoid a circular import — this
  * file is imported by `0804Ability.ts`, so the dependency can only flow one way. */
 export const GATHER_LIGHT_PREFIRE_TIME = 0.5;
-/** Radius of the permanent 3×3 base-darkness source (caster tile plus neighbors). */
-export const GATHER_LIGHT_DARKNESS_RADIUS = 1;
+/** Radius of each permanent base-darkness source (one tile). */
+export const GATHER_LIGHT_DARKNESS_RADIUS = 0;
+/** Half-width of the candidate area around the caster (2 → 5×5). */
+export const GATHER_LIGHT_AREA_RADIUS = 2;
+/** Number of tiles darkened per cast (fewer if not enough lit tiles). */
+export const GATHER_LIGHT_TILE_COUNT = 10;
 /** Homing orb flight time (vs 2s story default). */
 export const GATHER_LIGHT_ORB_DURATION = 0.6;
 /** Yellow orb tint (Light palette). */
@@ -24,18 +28,6 @@ export const GATHER_LIGHT_RING_DURATION = GATHER_LIGHT_PREFIRE_TIME;
 
 /** Permanent base-darkness sources use a very long round lifetime with noDecay. */
 export const GATHER_LIGHT_DARKNESS_ROUNDS_TOTAL = 9999;
-
-/** Eight diagonal and cardinal offsets (excludes caster tile). */
-export const ADJACENT_TILE_OFFSETS = [
-    { dCol: -1, dRow: -1 },
-    { dCol: 0, dRow: -1 },
-    { dCol: 1, dRow: -1 },
-    { dCol: -1, dRow: 0 },
-    { dCol: 1, dRow: 0 },
-    { dCol: -1, dRow: 1 },
-    { dCol: 0, dRow: 1 },
-    { dCol: 1, dRow: 1 },
-] as const;
 
 export interface GridCell {
     col: number;
@@ -52,40 +44,40 @@ function isInBounds(col: number, row: number, gridW: number, gridH: number): boo
     return col >= 0 && row >= 0 && col < gridW && row < gridH;
 }
 
-/** Caster tile plus up to eight adjacent tiles, bounds-clamped. */
-export function getGatherLightTiles(
+/** All in-bounds tiles of the (2r+1)×(2r+1) square centered on the caster, caster included. */
+export function getGatherLightCandidateTiles(
     casterCol: number,
     casterRow: number,
     gridW: number,
     gridH: number,
+    areaRadius: number = GATHER_LIGHT_AREA_RADIUS,
 ): GridCell[] {
-    const tiles: GridCell[] = [{ col: casterCol, row: casterRow }];
-    for (const { dCol, dRow } of ADJACENT_TILE_OFFSETS) {
-        const col = casterCol + dCol;
-        const row = casterRow + dRow;
-        if (isInBounds(col, row, gridW, gridH)) {
-            tiles.push({ col, row });
+    const tiles: GridCell[] = [];
+    for (let dRow = -areaRadius; dRow <= areaRadius; dRow++) {
+        for (let dCol = -areaRadius; dCol <= areaRadius; dCol++) {
+            const col = casterCol + dCol;
+            const row = casterRow + dRow;
+            if (isInBounds(col, row, gridW, gridH)) {
+                tiles.push({ col, row });
+            }
         }
     }
     return tiles;
 }
 
-/** Up to eight adjacent tiles only (no caster), bounds-clamped. */
-export function getAdjacentGatherLightTiles(
-    casterCol: number,
-    casterRow: number,
-    gridW: number,
-    gridH: number,
+/** Partial Fisher–Yates using the engine's synced RNG; returns up to `count` items. */
+export function pickRandomTiles(
+    engine: { generateRandomInteger(min: number, max: number): number },
+    tiles: readonly GridCell[],
+    count: number,
 ): GridCell[] {
-    const tiles: GridCell[] = [];
-    for (const { dCol, dRow } of ADJACENT_TILE_OFFSETS) {
-        const col = casterCol + dCol;
-        const row = casterRow + dRow;
-        if (isInBounds(col, row, gridW, gridH)) {
-            tiles.push({ col, row });
-        }
+    const pool = [...tiles];
+    const n = Math.min(count, pool.length);
+    for (let i = 0; i < n; i++) {
+        const j = engine.generateRandomInteger(i, pool.length - 1);
+        [pool[i], pool[j]] = [pool[j], pool[i]];
     }
-    return tiles;
+    return pool.slice(0, n);
 }
 
 export function spawnBaseDarknessAtTile(
@@ -146,16 +138,16 @@ function bezierControlPoint(startX: number, startY: number, endX: number, endY: 
     return { cx: midX + perpX * arcHeight, cy: midY + perpY * arcHeight };
 }
 
-/** One homing yellow orb per adjacent tile flying toward the caster. */
+/** One homing yellow orb per darkened tile flying toward the caster. */
 export function spawnGatherLightOrbs(
     engine: EngineWithGatherLight,
     caster: Unit,
-    adjacentTiles: readonly GridCell[],
+    tiles: readonly GridCell[],
 ): void {
     const grid = engine.terrainManager?.grid;
     if (!grid) return;
 
-    for (const { col, row } of adjacentTiles) {
+    for (const { col, row } of tiles) {
         const { x: startX, y: startY } = grid.gridToWorld(col, row);
         const { cx, cy } = bezierControlPoint(startX, startY, caster.x, caster.y);
         engine.addEffectEmitter(new StoryHomingParticleEmitter({
@@ -179,24 +171,28 @@ export function spawnGatherLightOrbs(
     }
 }
 
+/**
+ * Darkens up to GATHER_LIGHT_TILE_COUNT random tiles in the 5×5 around the caster. Only tiles whose
+ * current light is at least |darknessAmount| are eligible, so a tile never goes below zero light.
+ * Each tile gets its own radius-0 base source (tiles are distinct, so nothing stacks).
+ */
 export function applyGatherLightDarkness(
     engine: EngineWithGatherLight,
     caster: Unit,
     roundNumber: number,
     darknessAmount: number,
-): { darknessTiles: GridCell[]; adjacentTiles: GridCell[] } {
+): { darknessTiles: GridCell[] } {
     const grid = engine.terrainManager?.grid;
-    if (!grid) return { darknessTiles: [], adjacentTiles: [] };
+    if (!grid) return { darknessTiles: [] };
 
     const { col: casterCol, row: casterRow } = grid.worldToGrid(caster.x, caster.y);
-    const darknessTiles = getGatherLightTiles(casterCol, casterRow, grid.width, grid.height);
-    const adjacentTiles = getAdjacentGatherLightTiles(casterCol, casterRow, grid.width, grid.height);
+    const needed = Math.abs(darknessAmount);
+    const eligible = getGatherLightCandidateTiles(casterCol, casterRow, grid.width, grid.height)
+        .filter(({ col, row }) => (engine.getLightAt(col, row) ?? 0) >= needed);
+    const darknessTiles = pickRandomTiles(engine, eligible, GATHER_LIGHT_TILE_COUNT);
 
-    // A single radius-1 source (not one radius-0 source per tile) covers the whole 3x3 block at a
-    // flat, un-attenuated darknessAmount. Nine overlapping radius-0 sources used to
-    // stack (LightGrid 'base' overlap sums additively, and each source's falloff bleeds
-    // abs(amount) tiles past its radius).
-    spawnBaseDarknessAtTile(engine, casterCol, casterRow, roundNumber, darknessAmount, GATHER_LIGHT_DARKNESS_RADIUS);
-
-    return { darknessTiles, adjacentTiles };
+    for (const { col, row } of darknessTiles) {
+        spawnBaseDarknessAtTile(engine, col, row, roundNumber, darknessAmount, GATHER_LIGHT_DARKNESS_RADIUS);
+    }
+    return { darknessTiles };
 }

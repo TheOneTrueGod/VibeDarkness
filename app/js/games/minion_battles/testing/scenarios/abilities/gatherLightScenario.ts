@@ -1,8 +1,8 @@
 /**
  * Gather Light (0804) committed-run E2E contract.
  *
- * Self-cast: after windup + active, player gains Light resource and the 3×3 around
- * the caster receives permanent base darkness of −(GATHER_LIGHT_DARKNESS_PER_LIGHT_GAINED × Light gained).
+ * Self-cast: after windup + active, player gains Light resource and 10 random tiles in the 5×5 around
+ * the caster each receive permanent base darkness of −(GATHER_LIGHT_DARKNESS_PER_LIGHT_GAINED × Light gained).
  */
 
 import type { ScenarioDefinition } from '../../types';
@@ -16,7 +16,7 @@ import {
     GATHER_LIGHT_AMOUNT,
     getGatherLightDarknessAmount,
 } from '../../../card_defs/08_light_core/0804_GatherLight/0804Constants';
-import { GATHER_LIGHT_DARKNESS_RADIUS } from '../../../abilities/gatherLightHelpers';
+import { GATHER_LIGHT_DARKNESS_RADIUS, GATHER_LIGHT_TILE_COUNT } from '../../../abilities/gatherLightHelpers';
 import { Light } from '../../../resources/Light';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 
@@ -26,7 +26,7 @@ const EXPECTED_DARKNESS_AMOUNT = getGatherLightDarknessAmount(GATHER_LIGHT_AMOUN
 
 export const gatherLightCommittedScenario: ScenarioDefinition = {
     id: 'gather_light_committed_e2e',
-    title: 'Gather Light (0804): grants Light and darkens caster tile',
+    title: 'Gather Light (0804): grants Light and darkens 10 nearby tiles',
     category: 'ability',
     maxDurationMs: 4000,
     renderLighting: true,
@@ -70,14 +70,14 @@ export const gatherLightCommittedScenario: ScenarioDefinition = {
         // LightGrid eases toward its target by 10% of the remaining delta per light-tick
         // (GameEngine.runLightGameTick, ~6 ticks/s), which takes several real seconds to fully
         // converge — far longer than this scenario needs to run to prove the ability spawned the
-        // right source. (One flat radius-1 source, not nine overlapping radius-0 sources — see
-        // the comment in gatherLightHelpers.ts:applyGatherLightDarkness.)
+        // right sources (one radius-0 source per chosen tile).
         const darknessSources = engine.lightSources.filter(
             (ls) => ls.active && ls.overlapMethod?.method === 'base' && ls.lightAmount < 0,
         );
-        if (darknessSources.length !== 1) return false;
-        const [source] = darknessSources;
-        return source.lightAmount === EXPECTED_DARKNESS_AMOUNT && source.radius === GATHER_LIGHT_DARKNESS_RADIUS;
+        if (darknessSources.length !== GATHER_LIGHT_TILE_COUNT) return false;
+        return darknessSources.every(
+            (s) => s.lightAmount === EXPECTED_DARKNESS_AMOUNT && s.radius === GATHER_LIGHT_DARKNESS_RADIUS,
+        );
     },
 
     failureMessage(engine) {
@@ -88,7 +88,7 @@ export const gatherLightCommittedScenario: ScenarioDefinition = {
         );
         return [
             `light.current=${light?.current ?? 'missing'} (expected ${GATHER_LIGHT_AMOUNT})`,
-            `darkness sources=${darknessSources.length} (expected 1)`,
+            `darkness sources=${darknessSources.length} (expected ${GATHER_LIGHT_TILE_COUNT})`,
             ...darknessSources.map(
                 (s) => `source amount=${s.lightAmount} radius=${s.radius} (expected ${EXPECTED_DARKNESS_AMOUNT}/${GATHER_LIGHT_DARKNESS_RADIUS})`,
             ),

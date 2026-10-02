@@ -222,7 +222,8 @@ export default function TurnIndicator({
             )}
             {orderPipeline != null && orderPipeline.queued > 0 && (
                 <div
-                    className="flex justify-end gap-1.5 px-2 pb-0.5"
+                    // Absolutely positioned: an in-flow row exceeds the bottom band's height slack and makes the hand scroll.
+                    className="pointer-events-none absolute bottom-full right-0 flex justify-end gap-1.5 px-2 pb-0.5"
                     aria-label="Order sync status"
                 >
                     <span

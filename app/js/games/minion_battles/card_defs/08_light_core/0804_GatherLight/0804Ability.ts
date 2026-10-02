@@ -2,8 +2,8 @@
  * Gather Light — self-cast ability that drains ambient light from nearby tiles into the caster.
  *
  * A brief windup telegraphs the pull with a purple ring; on activation the caster gains Light
- * resource while a 3×3 area (self plus eight neighbors) is permanently darkened. Yellow orbs
- * fly inward from adjacent tiles as visual feedback.
+ * resource while up to 10 random lit tiles in the 5×5 around the caster are permanently
+ * darkened. Yellow orbs fly inward from those tiles as visual feedback.
  *
  * When the Light Imbuement research node is owned, the cast also applies LightImbueBuff so the
  * next Swing Bat swaps to Imbued Bat (0803) for one use.
@@ -100,13 +100,13 @@ export const GatherLightAbility = defineAbility({
                         const eng = ctx.engine as EngineWithGatherLight;
                         const lightGained = getGatherLightAmount(ctx.caster);
                         ctx.caster.getResource('light')?.add(lightGained);
-                        const { adjacentTiles } = applyGatherLightDarkness(
+                        const { darknessTiles } = applyGatherLightDarkness(
                             eng,
                             ctx.caster,
                             eng.roundNumber ?? 1,
                             getGatherLightDarknessAmount(lightGained),
                         );
-                        spawnGatherLightOrbs(eng, ctx.caster, adjacentTiles);
+                        spawnGatherLightOrbs(eng, ctx.caster, darknessTiles);
                         if (hasLightImbuementResearch(eng, ctx.caster)) {
                             ctx.caster.addBuff(
                                 new LightImbueBuff(),
