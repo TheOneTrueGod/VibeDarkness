@@ -36,23 +36,24 @@ export class LightSourceRenderer {
             g.visible = ls.active && ls.lightAmount > 0;
             if (!g.visible) continue;
             g.clear();
+            const a = ls.visualAlphaScale ?? 1;
             const typeTint = LIGHT_TYPE_TINT[ls.lightType];
             if (ls.color != null) {
                 const size = ls.radius * 3;
                 g.circle(0, 0, size);
-                g.fill({ color: ls.color, alpha: 0.35 + (ls.lightAmount / 15) * 0.3 });
+                g.fill({ color: ls.color, alpha: Math.min(1, (0.35 + (ls.lightAmount / 15) * 0.3) * a) });
                 g.circle(0, 0, size * 0.5);
-                g.fill({ color: 0xffffff, alpha: 0.4 });
-                g.stroke({ color: ls.color, width: 1, alpha: 0.7 });
+                g.fill({ color: 0xffffff, alpha: Math.min(1, 0.4 * a) });
+                g.stroke({ color: ls.color, width: 1, alpha: Math.min(1, 0.7 * a) });
             } else {
                 const size = Math.max(8, Math.min(20, ls.radius * 4));
                 const core = ls.lightType === 'FireLight' ? 0xffdd00 : 0xffffff;
                 const stroke = ls.lightType === 'FireLight' ? 0xff6600 : typeTint;
                 g.circle(0, 0, size);
-                g.fill({ color: typeTint, alpha: 0.4 + (ls.lightAmount / 15) * 0.4 });
+                g.fill({ color: typeTint, alpha: Math.min(1, (0.4 + (ls.lightAmount / 15) * 0.4) * a) });
                 g.circle(0, 0, size * 0.6);
-                g.fill({ color: core, alpha: 0.5 });
-                g.stroke({ color: stroke, width: 1, alpha: 0.8 });
+                g.fill({ color: core, alpha: Math.min(1, 0.5 * a) });
+                g.stroke({ color: stroke, width: 1, alpha: Math.min(1, 0.8 * a) });
             }
         }
 

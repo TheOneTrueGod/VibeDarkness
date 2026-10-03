@@ -33,6 +33,8 @@ export class LightSource {
     overlapMethod?: OverlapMethod;
     /** Typed light channel for positive emission. Defaults to FireLight. */
     lightType: LightType;
+    /** Render-only multiplier on the marker's alpha (does not affect emitted light). Default 1. */
+    visualAlphaScale?: number;
 
     constructor(config: {
         /**
@@ -50,6 +52,7 @@ export class LightSource {
         decay: LightSourceDecay;
         overlapMethod?: OverlapMethod;
         lightType?: LightType;
+        visualAlphaScale?: number;
     }) {
         this.id = config.id ?? '';
         this.x = config.x;
@@ -61,6 +64,7 @@ export class LightSource {
         this.decay = { ...config.decay };
         this.overlapMethod = config.overlapMethod;
         this.lightType = config.lightType ?? DEFAULT_LIGHT_TYPE;
+        this.visualAlphaScale = config.visualAlphaScale;
     }
 
     toJSON(): Record<string, unknown> {
@@ -72,6 +76,7 @@ export class LightSource {
             lightAmount: this.lightAmount,
             radius: this.radius,
             lightType: this.lightType,
+            ...(this.visualAlphaScale !== undefined ? { visualAlphaScale: this.visualAlphaScale } : {}),
             ...(this.color !== undefined ? { color: this.color } : {}),
             ...(this.followUnitId !== undefined ? { followUnitId: this.followUnitId } : {}),
             ...(this.overlapMethod !== undefined ? { overlapMethod: this.overlapMethod } : {}),
@@ -91,6 +96,7 @@ export class LightSource {
             decay: data.decay as LightSourceDecay,
             overlapMethod: data.overlapMethod as OverlapMethod | undefined,
             lightType: resolveLightType(data.lightType),
+            visualAlphaScale: data.visualAlphaScale as number | undefined,
         });
         ls.active = data.active as boolean;
         return ls;

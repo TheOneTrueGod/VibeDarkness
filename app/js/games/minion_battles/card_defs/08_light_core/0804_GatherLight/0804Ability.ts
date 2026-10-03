@@ -2,7 +2,7 @@
  * Gather Light — self-cast ability that drains ambient light from nearby tiles into the caster.
  *
  * A brief windup telegraphs the pull with a purple ring; on activation the caster gains Light
- * resource while up to 10 random lit tiles in the 5×5 around the caster are permanently
+ * resource and drops a bright light source at their feet while up to 10 random lit tiles in the 5×5 around the caster are permanently
  * darkened. Yellow orbs fly inward from those tiles as visual feedback.
  *
  * When the Light Imbuement research node is owned, the cast also applies LightImbueBuff so the
@@ -27,7 +27,14 @@ import {
     LIGHT_TREE_ID,
     LIGHT_NODE_IMBUEMENT,
 } from '../../../../../researchTrees/trees/light';
-import { GATHER_LIGHT_ABILITY_ID, getGatherLightAmount, getGatherLightDarknessAmount } from './0804Constants';
+import {
+    GATHER_LIGHT_ABILITY_ID,
+    GATHER_LIGHT_BRIGHT_MAGNITUDE,
+    GATHER_LIGHT_BRIGHT_ALPHA_SCALE,
+    getGatherLightAmount,
+    getGatherLightDarknessAmount,
+} from './0804Constants';
+import { spawnBrightLight, type EngineWithLight } from '../../../abilities/brightKeyword';
 import type { Unit } from '../../../game/units/Unit';
 
 const CARD_ID = GATHER_LIGHT_ABILITY_ID;
@@ -107,6 +114,9 @@ export const GatherLightAbility = defineAbility({
                             getGatherLightDarknessAmount(lightGained),
                         );
                         spawnGatherLightOrbs(eng, ctx.caster, darknessTiles);
+                        spawnBrightLight(eng as unknown as EngineWithLight, ctx.caster.x, ctx.caster.y, GATHER_LIGHT_BRIGHT_MAGNITUDE, {
+                            visualAlphaScale: GATHER_LIGHT_BRIGHT_ALPHA_SCALE,
+                        });
                         if (hasLightImbuementResearch(eng, ctx.caster)) {
                             ctx.caster.addBuff(
                                 new LightImbueBuff(),

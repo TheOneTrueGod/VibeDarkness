@@ -23,7 +23,7 @@ export function spawnBrightLight(
     x: number,
     y: number,
     magnitude: number,
-    colorOrOpts?: number | { color?: number; lightType?: LightType },
+    colorOrOpts?: number | { color?: number; lightType?: LightType; visualAlphaScale?: number },
 ): void {
     const def = BRIGHT_DEFS[magnitude];
     if (!def) return;
@@ -31,6 +31,7 @@ export function spawnBrightLight(
         typeof colorOrOpts === 'number'
             ? { color: colorOrOpts, lightType: DEFAULT_LIGHT_TYPE }
             : {
+                  visualAlphaScale: colorOrOpts?.visualAlphaScale,
                   color: colorOrOpts?.color,
                   lightType: colorOrOpts?.lightType ?? DEFAULT_LIGHT_TYPE,
               };
@@ -39,6 +40,7 @@ export function spawnBrightLight(
         y,
         lightAmount: def.lightAmount,
         radius: def.radius,
+        visualAlphaScale: opts.visualAlphaScale,
         color: opts.color,
         lightType: opts.lightType,
         decay: def.roundsTotal != null

@@ -20,8 +20,8 @@ import { LIGHT_NODE_IMBUEMENT, LIGHT_TREE_ID } from '../../../../../researchTree
 void getAbility;
 
 describe('Gather Light amount', () => {
-    it('starts at 1 Light with no research', () => {
-        expect(GATHER_LIGHT_AMOUNT).toBe(1);
+    it('starts at 2 Light with no research', () => {
+        expect(GATHER_LIGHT_AMOUNT).toBe(2);
         expect(getGatherLightAmount()).toBe(GATHER_LIGHT_AMOUNT);
     });
 
@@ -61,7 +61,7 @@ describe('Gather Light Light Imbuement gating', () => {
 
     it('mentions weapon imbuement in the tooltip only with Light Imbuement researched', () => {
         const base = GatherLightAbility.getTooltipText?.({});
-        expect(base?.[0]).toMatch(/recover \{1\} light$/);
+        expect(base?.[0]).toMatch(/recover \{2\} light$/);
 
         const imbued = GatherLightAbility.getTooltipText?.({
             researchTrees: { [LIGHT_TREE_ID]: [LIGHT_NODE_IMBUEMENT] },
