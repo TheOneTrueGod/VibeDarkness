@@ -15,6 +15,8 @@ import { getAbilityTargets } from '../../../abilities/Ability';
 import { getSelectTargetDefsFromTimings, buildAiSelectTargets } from '../../../abilities/targeting';
 import { UnitTag, hasUnitTag } from '../unitTag';
 import { meetsTagRequirements } from '../../../abilities/abilityUses';
+import { CELL_SIZE } from '../../../terrain/TerrainGrid';
+import { MIN_FOLLOW_RADIUS } from '../../gameConstants';
 
 export { ROUND_DURATION } from '../../gameConstants';
 
@@ -148,22 +150,29 @@ export function queueWaitAndEndTurn(unit: Unit, context: AIContext): void {
     context.emitTurnEnd(unit.id);
 }
 
-export interface ApplyAIMovementParams {
-    unit: Unit;
-    target: { x: number; y: number };
-    worldWidth: number;
-    worldHeight: number;
-    findGridPath: (fromCol: number, fromRow: number, toCol: number, toRow: number) => { col: number; row: number }[] | null;
-    worldToGrid: (x: number, y: number) => { col: number; row: number };
-    gameTick: number;
-    targetUnitId?: string;
+/** Grid cell containing a world position. */
+function cellOfPoint(x: number, y: number): { col: number; row: number } {
+    return { col: Math.floor(x / CELL_SIZE), row: Math.floor(y / CELL_SIZE) };
+}
+
+/** Back away from (fromX, fromY) by `retreatDistance` px, if there is somewhere reachable to go. */
+function retreatFrom(unit: Unit, fromX: number, fromY: number, retreatDistance: number, context: AIContext): void {
+    const dx = unit.x - fromX;
+    const dy = unit.y - fromY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist === 0) return;
+    const destX = Math.max(0, Math.min(context.WORLD_WIDTH, unit.x + (dx / dist) * retreatDistance));
+    const destY = Math.max(0, Math.min(context.WORLD_HEIGHT, unit.y + (dy / dist) * retreatDistance));
+    const dest = cellOfPoint(destX, destY);
+    if (!context.nav.isReachable(unit, dest.col, dest.row)) return;
+    context.nav.moveToCell(unit, dest.col, dest.row);
 }
 
 /**
- * Set movement on an AI unit so it stays within its preferred range of a target position.
+ * Keep an AI unit within its AISettings range of a fixed position: approach when too far, back
+ * off when too close, otherwise leave whatever it is doing alone.
  */
-export function applyAIMovementToPosition(params: ApplyAIMovementParams): void {
-    const { unit, target, worldWidth, worldHeight, findGridPath, worldToGrid, gameTick, targetUnitId } = params;
+export function applyAIMovementToPosition(unit: Unit, target: { x: number; y: number }, context: AIContext): void {
     const ai = unit.aiSettings;
     if (!ai) return;
 
@@ -172,97 +181,44 @@ export function applyAIMovementToPosition(params: ApplyAIMovementParams): void {
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist === 0) return;
 
-    const angleToTarget = Math.atan2(dy, dx);
-    const jitterOffset = ((unit.moveJitter ?? 0.5) - 0.5) * (Math.PI / 4);
-    const angledDirX = Math.cos(angleToTarget + jitterOffset);
-    const angledDirY = Math.sin(angleToTarget + jitterOffset);
-
     const idealRange = (ai.minRange + ai.maxRange) / 2;
-    let destX: number;
-    let destY: number;
-
     if (dist > ai.maxRange) {
-        const moveToDistance = dist - idealRange;
-        destX = unit.x + angledDirX * moveToDistance;
-        destY = unit.y + angledDirY * moveToDistance;
-    } else if (dist < ai.minRange) {
-        const retreatDistance = idealRange - dist;
-        destX = unit.x - angledDirX * retreatDistance;
-        destY = unit.y - angledDirY * retreatDistance;
-    } else {
-        return;
-    }
-
-    destX = Math.max(0, Math.min(worldWidth, destX));
-    destY = Math.max(0, Math.min(worldHeight, destY));
-    const destGrid = worldToGrid(destX, destY);
-
-    if (
-        !unit.pathInvalidated &&
-        unit.movement &&
-        unit.movement.targetUnitId === targetUnitId &&
-        unit.movement.path.length > 0
-    ) {
-        const pathEnd = unit.movement.path[unit.movement.path.length - 1];
-        if (pathEnd.col === destGrid.col && pathEnd.row === destGrid.row) return;
-
-        const subPath = findGridPath(pathEnd.col, pathEnd.row, destGrid.col, destGrid.row);
-        if (subPath && subPath.length > 0) {
-            let currentTrimAt = unit.movement.path.length;
-            let subPathStart = 0;
-            for (let s = 0; s < subPath.length; s++) {
-                let found = false;
-                for (let c = currentTrimAt - 1; c >= 0; c--) {
-                    if (
-                        unit.movement!.path[c].col === subPath[s].col &&
-                        unit.movement!.path[c].row === subPath[s].row
-                    ) {
-                        currentTrimAt = c;
-                        subPathStart = s + 1;
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) break;
-            }
-            unit.movement!.path.length = currentTrimAt;
-            unit.movement!.path.push(...subPath.slice(subPathStart));
-            unit.movement!.pathfindingTick = gameTick;
-            return;
+        // Already walking to a cell that puts us in range? Keep it: re-deriving the approach point
+        // every turn would flip between neighbouring cells as the unit moves.
+        const intent = unit.walkIntent;
+        if (intent?.managed && intent.targetUnitId === undefined) {
+            const destX = intent.dest.col * CELL_SIZE + CELL_SIZE / 2;
+            const destY = intent.dest.row * CELL_SIZE + CELL_SIZE / 2;
+            if (distance(destX, destY, target.x, target.y) <= ai.maxRange) return;
         }
-    }
-
-    const unitGrid = worldToGrid(unit.x, unit.y);
-    const path = findGridPath(unitGrid.col, unitGrid.row, destGrid.col, destGrid.row);
-    if (path && path.length > 0) {
-        unit.setMovement(path, targetUnitId, gameTick);
-    } else {
-        unit.clearMovement();
+        const approach = dist - idealRange;
+        context.nav.moveToPoint(unit, unit.x + (dx / dist) * approach, unit.y + (dy / dist) * approach);
+    } else if (dist < ai.minRange) {
+        retreatFrom(unit, target.x, target.y, idealRange - dist, context);
     }
 }
 
-/** Apply movement toward/away from another unit to stay in AISettings range. */
-export function applyAIMovementToUnit(
-    unit: Unit,
-    targetUnit: Unit,
-    context: {
-        findGridPath: (fromCol: number, fromRow: number, toCol: number, toRow: number) => { col: number; row: number }[] | null;
-        worldToGrid: (x: number, y: number) => { col: number; row: number };
-        gameTick: number;
-        worldWidth: number;
-        worldHeight: number;
-    },
-): void {
-    applyAIMovementToPosition({
-        unit,
-        target: { x: targetUnit.x, y: targetUnit.y },
-        worldWidth: context.worldWidth,
-        worldHeight: context.worldHeight,
-        findGridPath: context.findGridPath,
-        worldToGrid: context.worldToGrid,
-        gameTick: context.gameTick,
-        targetUnitId: targetUnit.id,
-    });
+/**
+ * Keep an AI unit within its AISettings range of another unit: chase when too far (stopping at
+ * the ideal range), back off when too close, otherwise leave whatever it is doing alone.
+ */
+export function applyAIMovementToUnit(unit: Unit, targetUnit: Unit, context: AIContext): void {
+    const ai = unit.aiSettings;
+    if (!ai) return;
+
+    const dist = distance(unit.x, unit.y, targetUnit.x, targetUnit.y);
+    if (dist === 0) return;
+
+    const idealRange = (ai.minRange + ai.maxRange) / 2;
+    if (dist > ai.maxRange) {
+        // Bodies cannot overlap, so never ask to stand closer than touching distance — but stay
+        // inside maxRange or the unit could never act.
+        const touching = unit.radius + targetUnit.radius + MIN_FOLLOW_RADIUS;
+        const stopRange = Math.min(ai.maxRange, Math.max(idealRange, touching));
+        context.nav.chaseUnit(unit, targetUnit, { stopRange });
+    } else if (dist < ai.minRange) {
+        retreatFrom(unit, targetUnit.x, targetUnit.y, idealRange - dist, context);
+    }
 }
 
 /**
@@ -369,7 +325,9 @@ export function tryQueueAbilityOrder(
     } else {
         resolvedTargets = ability.targets.length === 0 ? [] : buildResolvedTargets(ability, target);
     }
-    const movePath = unit.pathInvalidated ? undefined : (unit.movement?.path ? [...unit.movement.path] : undefined);
+    // AI orders never carry a path: `movePath: undefined` leaves the unit's walk goal untouched.
+    // (Re-applying a copy of the live path would turn a managed chase goal into a stale fixed path.)
+    const movePath = undefined;
 
     const ninjutsuCfg = ability.aiSettings?.ninjutsu;
     const mgr = context.ninjutsuManager;

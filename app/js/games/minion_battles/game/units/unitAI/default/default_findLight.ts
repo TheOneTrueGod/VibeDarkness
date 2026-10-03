@@ -39,12 +39,12 @@ export const default_findLight: AINode<'default', DefaultNodeId> = {
                 return;
             }
 
-            const unitGrid = grid.worldToGrid(unit.x, unit.y);
-            const hasPath = unit.movement?.path && unit.movement.path.length > 0;
-            if (hasPath) {
+            if (context.nav.isWalking(unit)) {
                 queueWaitAndEndTurn(unit, context);
                 return;
             }
+
+            const unitGrid = grid.worldToGrid(unit.x, unit.y);
 
             const perceptionRange = getPerceptionRange(unit.characterId);
             const enemies = findEnemies(unit, context.getUnits());
@@ -74,10 +74,7 @@ export const default_findLight: AINode<'default', DefaultNodeId> = {
 
             const dest = pickReachableTileInLightRadius(light, unitGrid, unit, context);
             if (dest) {
-                const path = context.findGridPathForUnit(unit, unitGrid.col, unitGrid.row, dest.col, dest.row);
-                if (path && path.length > 0) {
-                    unit.setMovement(path, undefined, context.gameTick);
-                }
+                context.nav.moveToCell(unit, dest.col, dest.row);
             }
             queueWaitAndEndTurn(unit, context);
         },
@@ -96,7 +93,7 @@ export const default_findLight: AINode<'default', DefaultNodeId> = {
 
 function pickReachableTileInLightRadius(
     light: AILightSource,
-    unitGrid: { col: number; row: number },
+    _unitGrid: { col: number; row: number },
     unit: Unit,
     context: AIContext,
 ): { col: number; row: number } | null {
@@ -112,8 +109,7 @@ function pickReachableTileInLightRadius(
         if (candidates.length === 0) return null;
         const idx = context.generateRandomInteger(0, candidates.length - 1);
         const c = candidates[idx]!;
-        const path = context.findGridPathForUnit(unit, unitGrid.col, unitGrid.row, c.col, c.row);
-        if (path && path.length > 0) return c;
+        if (context.nav.isReachable(unit, c.col, c.row)) return c;
     }
     return null;
 }

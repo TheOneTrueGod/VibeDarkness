@@ -24,18 +24,8 @@ export const pet_heel: AINode<'pet', PetNodeId> = {
             const owner = unit.petState.ownerUnitId ? context.getUnit(unit.petState.ownerUnitId) : null;
             const tetherRange = ctx.heelTetherRange ?? 30;
 
-            if (owner?.isAlive() && context.terrainManager) {
-                const dist = distance(unit.x, unit.y, owner.x, owner.y);
-                if (dist > tetherRange) {
-                    const grid = context.terrainManager.grid;
-                    const from = grid.worldToGrid(unit.x, unit.y);
-                    const to = grid.worldToGrid(owner.x, owner.y);
-                    const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-                    if (path && path.length > 0) {
-                        const truncated = path.length > 1 ? path.slice(0, -1) : path;
-                        unit.setMovement(truncated, owner.id, context.gameTick);
-                    }
-                }
+            if (owner?.isAlive() && distance(unit.x, unit.y, owner.x, owner.y) > tetherRange) {
+                context.nav.chaseUnit(unit, owner, { stopRange: tetherRange });
             }
 
             queueWaitAndEndTurn(unit, context);

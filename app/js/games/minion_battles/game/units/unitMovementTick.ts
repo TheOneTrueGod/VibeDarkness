@@ -2,7 +2,7 @@ import type { Unit } from './Unit';
 import type { EngineContext } from '../EngineContext';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import type { TerrainLayerManager } from '../TerrainLayerManager';
-import type { UnitWalkIntent } from './unitTypes';
+import type { UnitWalkIntent, UnitWalkGoal } from './unitTypes';
 import { LIFTED_BUFF_TYPE } from '../../buffs/liftedBuffType';
 import { areEnemies } from '../teams';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
@@ -10,11 +10,10 @@ import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
 import { PLAYER_WAIT_ENDS_ON_MOVEMENT_COMPLETE } from '../../../../gameConstants';
 import { MIN_FOLLOW_RADIUS } from '../gameConstants';
 import { WAIT_ABILITY_MODE_FAR } from '../../abilities/WaitAbility';
-import { checkNextCellOccupancy } from './unitCellSlide';
+import { checkCellCrossingOccupancy } from './unitCellSlide';
 import { updateUnitKnockback } from './unitKnockback';
 import { updateUnitNudge } from './unitNudge';
 import { tickWallUnstick } from './unitWallUnstick';
-import { buildPlayerMovePathThroughWaypoints } from '../../terrain/playerMovePath';
 
 function clearWaitLockout(unit: Unit): void {
     unit.waitMinEndTime = null;
@@ -57,6 +56,44 @@ function isValidAdjacentPathStep(
         if (!cellPassable(fromCol, fromRow + dr)) return false;
     }
     return true;
+}
+
+/**
+ * True when a step from (x0,y0) to (x1,y1) stays out of impassable terrain: the destination cell
+ * is passable and a diagonal cell change does not squeeze between two blocked cells.
+ */
+function isWalkableStep(terrainManager: TerrainManager, x0: number, y0: number, x1: number, y1: number): boolean {
+    const c0 = Math.floor(x0 / CELL_SIZE);
+    const r0 = Math.floor(y0 / CELL_SIZE);
+    const c1 = Math.floor(x1 / CELL_SIZE);
+    const r1 = Math.floor(y1 / CELL_SIZE);
+    if (c0 === c1 && r0 === r1) return true;
+    const nav = terrainManager.nav;
+    if (!nav.isPassable('default', c1, r1)) return false;
+    if (c0 !== c1 && r0 !== r1) {
+        return nav.isPassable('default', c1, r0) && nav.isPassable('default', c0, r1);
+    }
+    return true;
+}
+
+/**
+ * The step to take toward (x1,y1): unchanged when walkable, otherwise its component along one
+ * axis (the longer one first) so the unit slides along the wall. Null when both are blocked.
+ */
+function slideAlongWalls(
+    terrainManager: TerrainManager,
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+): { x: number; y: number } | null {
+    if (isWalkableStep(terrainManager, x0, y0, x1, y1)) return { x: x1, y: y1 };
+    const xFirst = Math.abs(x1 - x0) >= Math.abs(y1 - y0);
+    const candidates = xFirst ? [[x1, y0], [x0, y1]] : [[x0, y1], [x1, y0]];
+    for (const [x, y] of candidates) {
+        if ((x !== x0 || y !== y0) && isWalkableStep(terrainManager, x0, y0, x, y)) return { x, y };
+    }
+    return null;
 }
 
 /** During wait+move: true if any live enemy is within Chebyshev distance on the grid from this unit's cell. */
@@ -166,9 +203,6 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
         return;
     }
 
-    // After forced displace: rebuild path from durable walkIntent once the unit can move again.
-    tryRepathFromWalkIntent(unit, engine as EngineContext);
-
     // Move along grid path
     if (!unit.isAlive() || !unit.movement || unit.movement.path.length === 0 || unit.movementPaused) return;
 
@@ -178,13 +212,14 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
         if (pursuitTarget?.isAlive()) {
             const pdx = pursuitTarget.x - unit.x;
             const pdy = pursuitTarget.y - unit.y;
-            const stopDist = unit.radius + pursuitTarget.radius + MIN_FOLLOW_RADIUS;
+            const stopDist = unit.movement.stopRange ?? (unit.radius + pursuitTarget.radius + MIN_FOLLOW_RADIUS);
             if (pdx * pdx + pdy * pdy <= stopDist * stopDist) {
                 clearUnitMovement(unit);
                 return;
             }
         } else {
             unit.movement.targetUnitId = undefined;
+            unit.movement.stopRange = undefined;
             if (unit.walkIntent) {
                 unit.walkIntent = {
                     dest: { ...unit.walkIntent.dest },
@@ -205,20 +240,6 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
         return;
     }
 
-    const centerX = nextCell.col * CELL_SIZE + CELL_SIZE / 2;
-    const centerY = nextCell.row * CELL_SIZE + CELL_SIZE / 2;
-
-    // Movement jitter: deterministic per-unit offset so multiple units in the same tile stand on different pixels.
-    const jitterAngle = (unit.moveJitter ?? 0) * Math.PI * 2;
-    const jitterRadius = CELL_SIZE * 0.15;
-    const jitterX = Math.cos(jitterAngle) * jitterRadius;
-    const jitterY = Math.sin(jitterAngle) * jitterRadius;
-
-    // On the last path cell, an exact pixel target overrides the jittered tile centre.
-    const isLastCell = unit.movement.path.length === 1;
-    const targetX = isLastCell && unit.movement.targetPixel ? unit.movement.targetPixel.x : centerX + jitterX;
-    const targetY = isLastCell && unit.movement.targetPixel ? unit.movement.targetPixel.y : centerY + jitterY;
-
     // Compute effective speed: base × ability penalties × terrain modifier × ground effects
     let effectiveSpeed = unit.getEffectiveSpeed(gameTime);
     const terrainLayers = (engine as { terrainLayers?: TerrainLayerManager }).terrainLayers;
@@ -234,19 +255,85 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
         effectiveSpeed *= 10;
     }
 
-    // Move toward the jittered target within the tile
+    const centerX = nextCell.col * CELL_SIZE + CELL_SIZE / 2;
+    const centerY = nextCell.row * CELL_SIZE + CELL_SIZE / 2;
+
+    // Movement jitter: deterministic per-unit offset so multiple units in the same tile stand on different pixels.
+    const jitterAngle = (unit.moveJitter ?? 0) * Math.PI * 2;
+    const jitterRadius = CELL_SIZE * 0.15;
+    const jitterX = Math.cos(jitterAngle) * jitterRadius;
+    const jitterY = Math.sin(jitterAngle) * jitterRadius;
+
+    // On the last path cell, an exact pixel target overrides the jittered tile centre.
+    // For pursuit with one waypoint, use the target unit's live position if it's within adjacent cell.
+    const isLastCell = unit.movement.path.length === 1;
+    let targetX = centerX + jitterX;
+    let targetY = centerY + jitterY;
+
+    if (isLastCell) {
+        if (unit.movement.targetPixel) {
+            // Explicit pixel target takes priority
+            targetX = unit.movement.targetPixel.x;
+            targetY = unit.movement.targetPixel.y;
+        } else if (unit.movement.targetUnitId) {
+            // Pursuit on last waypoint: check if target is alive and within adjacent cell
+            const target = (engine as EngineContext).getUnit(unit.movement.targetUnitId);
+            if (target?.isAlive()) {
+                const wayCol = nextCell.col;
+                const wayRow = nextCell.row;
+                const targetCol = Math.floor(target.x / CELL_SIZE);
+                const targetRow = Math.floor(target.y / CELL_SIZE);
+                const targetChebyshev = Math.max(Math.abs(wayCol - targetCol), Math.abs(wayRow - targetRow));
+                if (targetChebyshev <= 1) {
+                    // Target is in the same or adjacent cell; steer at live position
+                    targetX = target.x;
+                    targetY = target.y;
+                }
+            }
+        }
+    }
+
+    // Move toward the target
     const dx = targetX - unit.x;
     const dy = targetY - unit.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
     const step = effectiveSpeed * dt;
+    let nextX = unit.x;
+    let nextY = unit.y;
     if (dist <= step) {
-        unit.x = targetX;
-        unit.y = targetY;
+        nextX = targetX;
+        nextY = targetY;
     } else if (dist > 0) {
-        unit.x += (dx / dist) * step;
-        unit.y += (dy / dist) * step;
+        nextX += (dx / dist) * step;
+        nextY += (dy / dist) * step;
     }
+
+    // Never walk into rock. A waypoint can have been planned from a slightly different position
+    // (crowd spacing and shoves move units), so the straight line may clip a wall corner: slide
+    // along the wall on whichever axis stays clear, or drop the path to have it re-planned.
+    if (terrainManager) {
+        const slid = slideAlongWalls(terrainManager, unit.x, unit.y, nextX, nextY);
+        if (!slid) {
+            unit.invalidateMovementPath();
+            return;
+        }
+        nextX = slid.x;
+        nextY = slid.y;
+    }
+
+    // Cell boundary check: if this move enters a full cell, slide around it instead of moving.
+    const nextCol = Math.floor(nextX / CELL_SIZE);
+    const nextRow = Math.floor(nextY / CELL_SIZE);
+    if (
+        (nextCol !== Math.floor(unit.x / CELL_SIZE) || nextRow !== Math.floor(unit.y / CELL_SIZE))
+        && checkCellCrossingOccupancy(unit, engine as EngineContext, nextCol, nextRow)
+    ) {
+        return;
+    }
+
+    unit.x = nextX;
+    unit.y = nextY;
 
     // Only advance the path when we've effectively reached the jittered target position
     const remainingDx = targetX - unit.x;
@@ -258,9 +345,6 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
         if (unit.movement.path.length === 0) {
             // Arrived at destination — drop durable intent so we do not immediately repath.
             clearUnitMovement(unit);
-        } else {
-            // Cell boundary check: can we enter the next cell?
-            checkNextCellOccupancy(unit, engine as EngineContext);
         }
     }
 }
@@ -274,11 +358,12 @@ export function tickUnitMovement(unit: Unit, dt: number, engine: EngineContext):
     }
 }
 
-/** Build walkIntent from a non-empty path's last cell (+ chase/pixel). */
+/** Build walkIntent from a non-empty path's last cell (+ chase/pixel/stopRange). */
 export function walkIntentFromPath(
     path: { col: number; row: number }[],
     targetUnitId: string | undefined,
     targetPixel?: { x: number; y: number },
+    stopRange?: number,
 ): UnitWalkIntent | null {
     if (path.length === 0) return null;
     const last = path[path.length - 1]!;
@@ -286,60 +371,8 @@ export function walkIntentFromPath(
         dest: { col: last.col, row: last.row },
         ...(targetUnitId !== undefined ? { targetUnitId } : {}),
         ...(targetPixel ? { targetPixel: { ...targetPixel } } : {}),
+        ...(stopRange !== undefined ? { stopRange } : {}),
     };
-}
-
-/**
- * When walkIntent is set and the live path is missing, rebuild a path from the current cell
- * once the unit can actually move (speed > 0, not paused).
- */
-export function tryRepathFromWalkIntent(unit: Unit, engine: EngineContext): void {
-    if (!unit.isAlive() || unit.movementPaused) return;
-    if (!unit.walkIntent) return;
-    if (unit.movement && unit.movement.path.length > 0) return;
-    if (!engine.terrainManager) return;
-
-    // Fully locked (e.g. melee movementLock amount 0) — keep intent, repath when free.
-    if (unit.getEffectiveSpeed(engine.gameTime) <= 0) return;
-
-    const intent = unit.walkIntent;
-    const from = engine.terrainManager.grid.worldToGrid(unit.x, unit.y);
-    if (from.col === intent.dest.col && from.row === intent.dest.row) {
-        if (intent.targetPixel) {
-            setUnitMovement(
-                unit,
-                [{ col: intent.dest.col, row: intent.dest.row }],
-                intent.targetUnitId,
-                engine.gameTick,
-                intent.targetPixel,
-            );
-        } else if (intent.targetUnitId) {
-            // Still pursuing — stay on dest cell with chase target.
-            setUnitMovement(
-                unit,
-                [{ col: intent.dest.col, row: intent.dest.row }],
-                intent.targetUnitId,
-                engine.gameTick,
-            );
-        } else {
-            clearUnitMovement(unit);
-        }
-        return;
-    }
-
-    const repath = buildPlayerMovePathThroughWaypoints(
-        engine.terrainManager,
-        from.col,
-        from.row,
-        [intent.dest],
-    );
-    if (repath == null || repath.length === 0) {
-        // Unreachable for now — keep intent for a later retry; leave path empty.
-        unit.movement = null;
-        unit.pathInvalidated = true;
-        return;
-    }
-    setUnitMovement(unit, repath, intent.targetUnitId, engine.gameTick, intent.targetPixel);
 }
 
 /** Set movement state with a grid-cell path. Clears movement if path is empty. Clears pathInvalidated. */
@@ -349,18 +382,21 @@ export function setUnitMovement(
     targetUnitId: string | undefined,
     pathfindingTick: number,
     targetPixel?: { x: number; y: number },
+    stopRange?: number,
 ): void {
     if (path.length === 0) {
         clearUnitMovement(unit);
         return;
     }
     unit.pathInvalidated = false;
-    unit.walkIntent = walkIntentFromPath(path, targetUnitId, targetPixel);
+    unit.pathFailedEpoch = null;
+    unit.walkIntent = walkIntentFromPath(path, targetUnitId, targetPixel, stopRange);
     unit.movement = {
         path: path.map((p) => ({ ...p })),
         targetUnitId,
         targetPixel: targetPixel ? { ...targetPixel } : undefined,
         pathfindingTick,
+        ...(stopRange !== undefined ? { stopRange } : {}),
     };
 }
 
@@ -369,6 +405,7 @@ export function clearUnitMovement(unit: Unit): void {
     unit.movement = null;
     unit.walkIntent = null;
     unit.pathInvalidated = false;
+    unit.pathFailedEpoch = null;
 }
 
 /**
@@ -378,4 +415,60 @@ export function clearUnitMovement(unit: Unit): void {
 export function invalidateUnitMovementPath(unit: Unit): void {
     unit.movement = null;
     unit.pathInvalidated = true;
+}
+
+/**
+ * Set a durable walk goal on the unit. If the goal is materially different from the current one,
+ * invalidates the path so the PathfindingManager will re-plan on the next tick.
+ */
+export function setUnitWalkGoal(unit: Unit, goal: UnitWalkGoal): void {
+    if (goal.kind === 'unit') {
+        // Unit goal: check if it's already set and identical
+        if (unit.walkIntent?.managed && unit.walkIntent.targetUnitId === goal.unitId) {
+            // SAME goal: only update stopRange (and movement.stopRange if movement exists)
+            if (goal.stopRange !== undefined) {
+                unit.walkIntent.stopRange = goal.stopRange;
+                if (unit.movement) unit.movement.stopRange = goal.stopRange;
+            } else {
+                delete unit.walkIntent.stopRange;
+                if (unit.movement) unit.movement.stopRange = undefined;
+            }
+            return;
+        }
+        // NEW goal: set intent and invalidate path
+        unit.walkIntent = {
+            dest: { col: goal.col, row: goal.row },
+            targetUnitId: goal.unitId,
+            managed: true,
+            ...(goal.stopRange !== undefined ? { stopRange: goal.stopRange } : {}),
+        };
+        unit.movement = null;
+        unit.pathInvalidated = true;
+        unit.pathFailedEpoch = null;
+    } else {
+        // Cell goal
+        const samePixel =
+            !goal.targetPixel === !unit.walkIntent?.targetPixel &&
+            (!goal.targetPixel || (goal.targetPixel.x === unit.walkIntent?.targetPixel?.x && goal.targetPixel.y === unit.walkIntent?.targetPixel?.y));
+
+        if (
+            unit.walkIntent?.managed &&
+            !unit.walkIntent.targetUnitId &&
+            unit.walkIntent.dest.col === goal.col &&
+            unit.walkIntent.dest.row === goal.row &&
+            samePixel
+        ) {
+            // SAME goal: no-op
+            return;
+        }
+        // NEW goal: set intent and invalidate path
+        unit.walkIntent = {
+            dest: { col: goal.col, row: goal.row },
+            managed: true,
+            ...(goal.targetPixel ? { targetPixel: { ...goal.targetPixel } } : {}),
+        };
+        unit.movement = null;
+        unit.pathInvalidated = true;
+        unit.pathFailedEpoch = null;
+    }
 }

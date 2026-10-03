@@ -29,30 +29,9 @@ export const default_attack: AINode<'default', DefaultNodeId> = {
                 context.emitTurnEnd(unit.id);
                 return;
             }
-            if (unit.aiSettings && context.terrainManager) {
-                applyAIMovementToUnit(unit, target, {
-                    findGridPath: (fc, fr, tc, tr) => context.findGridPathForUnit(unit, fc, fr, tc, tr),
-                    worldToGrid: context.terrainManager.grid.worldToGrid.bind(context.terrainManager.grid),
-                    gameTick: context.gameTick,
-                    worldWidth: context.WORLD_WIDTH,
-                    worldHeight: context.WORLD_HEIGHT,
-                });
-            }
+            applyAIMovementToUnit(unit, target, context);
             if (tryQueueAbilityOrder(unit, context, targetInEnemies)) return;
             context.emitTurnEnd(unit.id);
-        },
-        onPathfindingRetrigger(unit: Unit, context: AIContext): void {
-            const ctx = unit.aiContext as DefaultAITreeContext;
-            const targetId = ctx.targetUnitId;
-            const target = targetId ? context.getUnit(targetId) : null;
-            if (!target?.isAlive() || !unit.aiSettings || !context.terrainManager) return;
-            applyAIMovementToUnit(unit, target, {
-                findGridPath: (fc, fr, tc, tr) => context.findGridPathForUnit(unit, fc, fr, tc, tr),
-                worldToGrid: context.terrainManager.grid.worldToGrid.bind(context.terrainManager.grid),
-                gameTick: context.gameTick,
-                worldWidth: context.WORLD_WIDTH,
-                worldHeight: context.WORLD_HEIGHT,
-            });
         },
     },
     edges: [

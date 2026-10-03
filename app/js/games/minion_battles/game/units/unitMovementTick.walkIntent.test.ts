@@ -7,7 +7,6 @@ import {
     clearUnitMovement,
     invalidateUnitMovementPath,
     setUnitMovement,
-    tryRepathFromWalkIntent,
     updateUnit,
 } from './unitMovementTick';
 import {
@@ -60,43 +59,6 @@ describe('Unit.walkIntent', () => {
         engine.destroy();
     });
 
-    it('tryRepathFromWalkIntent rebuilds path from current cell to intent dest', () => {
-        resetGameObjectIdCounter(1);
-        const engine = buildTinyBattleEngine({
-            gridW: 12,
-            gridH: 8,
-            localPlayerId: TINY_BATTLE_PLAYER_ID,
-            grass: true,
-        });
-        const player = spawnTinyPlayerUnit(engine, {
-            playerId: TINY_BATTLE_PLAYER_ID,
-            x: 2 * CELL_SIZE + CELL_SIZE / 2,
-            y: 4 * CELL_SIZE + CELL_SIZE / 2,
-            abilities: [],
-        });
-
-        setUnitMovement(
-            player,
-            [
-                { col: 6, row: 4 },
-                { col: 8, row: 4 },
-            ],
-            undefined,
-            engine.gameTick,
-        );
-        // Simulate post-lunge / knockback: moved east, path wiped, intent kept.
-        player.x = 5 * CELL_SIZE + CELL_SIZE / 2;
-        invalidateUnitMovementPath(player);
-
-        tryRepathFromWalkIntent(player, engine);
-
-        expect(player.movement).not.toBeNull();
-        expect(player.movement!.path[player.movement!.path.length - 1]).toEqual({ col: 8, row: 4 });
-        expect(player.pathInvalidated).toBe(false);
-
-        engine.destroy();
-    });
-
     it('after knockback ends, movement tick repaths to walkIntent', () => {
         resetGameObjectIdCounter(1);
         const engine = buildTinyBattleEngine({
@@ -138,6 +100,10 @@ describe('Unit.walkIntent', () => {
             updateUnit(player, FIXED_DT, engine);
         }
         expect(player.knockback).toBeNull();
+
+        // After knockback, the PathfindingManager should have created a path on the next full engine tick
+        engine.stepSimulationFixedTicks(1);
+
         expect(player.movement).not.toBeNull();
         expect(player.movement!.path[player.movement!.path.length - 1]).toEqual({
             col: destCol,
@@ -172,7 +138,8 @@ describe('Unit.walkIntent', () => {
         player.x = 5 * CELL_SIZE + CELL_SIZE / 2;
         player.invalidateMovementPath();
 
-        updateUnit(player, FIXED_DT, engine);
+        // After invalidation, the PathfindingManager (run in the full engine tick) should replan
+        engine.stepSimulationFixedTicks(1);
 
         expect(player.movement).not.toBeNull();
         expect(player.movement!.path[player.movement!.path.length - 1]).toEqual({ col: 8, row: 4 });

@@ -179,31 +179,8 @@ export const nh_travel: AINode<'networkHunt', NetworkHuntNodeId> = {
                 return;
             }
 
-            const needsNewPath = unit.pathInvalidated || !unit.movement || unit.movement.path.length === 0;
-            if (needsNewPath) {
-                const from = grid.worldToGrid(unit.x, unit.y);
-                const to = grid.worldToGrid(step.stepTarget.x, step.stepTarget.y);
-                const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-                if (path && path.length > 0) unit.setMovement(path, undefined, context.gameTick);
-            }
-
+            context.nav.moveToPoint(unit, step.stepTarget.x, step.stepTarget.y);
             queueWaitAndEndTurn(unit, context);
-        },
-
-        onPathfindingRetrigger(unit: Unit, context: AIContext): void {
-            const ctx = unit.aiContext as NetworkHuntAITreeContext;
-            if (ctx.aiState !== 'nh_travel') return;
-            const mapNetwork = context.mapNetwork;
-            const grid = context.terrainManager?.grid;
-            if (!mapNetwork || !grid) return;
-
-            const step = resolveTravelStep(unit, context, mapNetwork);
-            if (!step) return;
-
-            const from = grid.worldToGrid(unit.x, unit.y);
-            const to = grid.worldToGrid(step.stepTarget.x, step.stepTarget.y);
-            const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-            if (path && path.length > 0) unit.setMovement(path, undefined, context.gameTick);
         },
     },
     edges: [

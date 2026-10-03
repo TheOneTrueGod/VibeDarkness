@@ -243,7 +243,6 @@ describe('Order: Attack / Order: Move abilities', () => {
                 gameTime: 1,
                 gameTick: 10,
                 cancelActiveAbility: (_id, abilityId) => { cancelled.push(abilityId); },
-                terrainManager: null,
             },
         );
         expect(cancelled).toEqual(['0701']);
@@ -252,6 +251,12 @@ describe('Order: Attack / Order: Move abilities', () => {
         expect(ctx.orderedMoveX).toBe(300);
         expect(ctx.orderedMoveY).toBe(100);
         expect(ctx.orderedFocus).toBe(false);
+        // The pet starts walking to the exact ordered pixel straight away.
+        expect(pet.walkIntent).toEqual({
+            dest: { col: 7, row: 2 },
+            managed: true,
+            targetPixel: { x: 300, y: 100 },
+        });
     });
 });
 
@@ -321,7 +326,6 @@ describe('pet_engage orderedFocus', () => {
             getUnits: () => [pet, locked, nearer, owner],
             queueOrder: () => {},
             emitTurnEnd: () => {},
-            findGridPathForUnit: () => null,
             WORLD_WIDTH: 2000,
             WORLD_HEIGHT: 2000,
             terrainManager: null,

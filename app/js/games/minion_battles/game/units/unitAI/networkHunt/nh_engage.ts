@@ -26,45 +26,13 @@ export const nh_engage: AINode<'networkHunt', NetworkHuntNodeId> = {
                 return;
             }
 
-            const grid = context.terrainManager?.grid;
-            if (grid) {
-                const needsNewPath =
-                    unit.pathInvalidated ||
-                    !unit.movement ||
-                    unit.movement.path.length === 0 ||
-                    unit.movement.targetUnitId !== target.id;
-
-                if (needsNewPath) {
-                    const from = grid.worldToGrid(unit.x, unit.y);
-                    const to = grid.worldToGrid(target.x, target.y);
-                    const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-                    if (path && path.length > 0) {
-                        unit.setMovement(path, target.id, context.gameTick);
-                    } else {
-                        unit.clearMovement();
-                    }
-                }
-            }
+            context.nav.chaseUnit(unit, target);
 
             const allEnemies = findEnemies(unit, context.getUnits());
             const targetOnly = allEnemies.filter((e) => e.id === ctx.engageTargetId);
             if (tryQueueAbilityOrder(unit, context, targetOnly)) return;
 
             context.emitTurnEnd(unit.id);
-        },
-
-        onPathfindingRetrigger(unit: Unit, context: AIContext): void {
-            const ctx = unit.aiContext as NetworkHuntAITreeContext;
-            const target = ctx.engageTargetId ? context.getUnit(ctx.engageTargetId) : null;
-            if (!target?.isAlive()) return;
-            const grid = context.terrainManager?.grid;
-            if (!grid) return;
-            const from = grid.worldToGrid(unit.x, unit.y);
-            const to = grid.worldToGrid(target.x, target.y);
-            const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-            if (path && path.length > 0) {
-                unit.setMovement(path, target.id, context.gameTick);
-            }
         },
     },
     edges: [

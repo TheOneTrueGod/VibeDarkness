@@ -62,9 +62,7 @@ export const aggroWander_wander: AINode<'aggroWander', AggroWanderNodeId> = {
             const lastMove = ctx.lastMoveTime ?? -Infinity;
             if (context.gameTime - lastMove >= WANDER_INTERVAL_ROUNDS * ROUND_DURATION) {
                 ctx.lastMoveTime = context.gameTime;
-                const unitGrid = grid.worldToGrid(unit.x, unit.y);
                 const dest = pickRandomWalkableNearStart(
-                    unitGrid,
                     ctx.startCol!,
                     ctx.startRow!,
                     MAX_WANDER_DISTANCE,
@@ -72,10 +70,7 @@ export const aggroWander_wander: AINode<'aggroWander', AggroWanderNodeId> = {
                     context,
                 );
                 if (dest) {
-                    const path = context.findGridPathForUnit(unit, unitGrid.col, unitGrid.row, dest.col, dest.row);
-                    if (path && path.length > 0) {
-                        unit.setMovement(path, undefined, context.gameTick);
-                    }
+                    context.nav.moveToCell(unit, dest.col, dest.row);
                 }
             }
 
@@ -86,13 +81,15 @@ export const aggroWander_wander: AINode<'aggroWander', AggroWanderNodeId> = {
 };
 
 function pickRandomWalkableNearStart(
-    from: { col: number; row: number },
     startCol: number,
     startRow: number,
     maxDist: number,
     unit: Unit,
     context: AIContext,
 ): { col: number; row: number } | null {
+    const grid = context.terrainManager?.grid;
+    if (!grid) return null;
+    const from = grid.worldToGrid(unit.x, unit.y);
     const candidates: { col: number; row: number }[] = [];
     for (let dc = -maxDist; dc <= maxDist; dc++) {
         for (let dr = -maxDist; dr <= maxDist; dr++) {
@@ -108,8 +105,7 @@ function pickRandomWalkableNearStart(
         if (candidates.length === 0) return null;
         const idx = context.generateRandomInteger(0, candidates.length - 1);
         const c = candidates[idx]!;
-        const path = context.findGridPathForUnit(unit, from.col, from.row, c.col, c.row);
-        if (path && path.length > 0) return c;
+        if (context.nav.isReachable(unit, c.col, c.row)) return c;
     }
     return null;
 }

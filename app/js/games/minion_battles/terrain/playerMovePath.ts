@@ -2,19 +2,14 @@
  * Player move path helpers: grid-ray check vs A* segment for order preview / movePath.
  */
 
-import type { TerrainGrid } from './TerrainGrid';
-import { TERRAIN_PROPERTIES } from './TerrainType';
 import type { TerrainManager } from './TerrainManager';
+import { hasLineOfWalkCells } from '../pathfinding/lineOfWalk';
 
 const PLAYER_MOVE_WAYPOINT_MAX = 5;
 
 export { PLAYER_MOVE_WAYPOINT_MAX };
 
 export type GridCell = { col: number; row: number };
-
-function gridCellPassable(grid: TerrainGrid, col: number, row: number): boolean {
-    return TERRAIN_PROPERTIES[grid.get(col, row)].passable;
-}
 
 /**
  * All grid cells on the integer Bresenham line between endpoints (inclusive), in traversal order.
@@ -45,17 +40,12 @@ export function bresenhamGridLine(c0: number, r0: number, c1: number, r1: number
 }
 
 /**
- * True iff every cell on the straight grid line from `from` to `to` is traversable,
- * excluding the starting cell (exclusive of `from` for blocking checks).
+ * True iff a unit can walk the straight line between the two cell centres: every cell the line
+ * touches is passable on effective terrain (bedrock + floor layer, so created rocks block it).
  */
-export function isDirectGridLineTraversable(grid: TerrainGrid, fromCol: number, fromRow: number, toCol: number, toRow: number): boolean {
+export function isDirectGridLineTraversable(terrain: TerrainManager, fromCol: number, fromRow: number, toCol: number, toRow: number): boolean {
     if (fromCol === toCol && fromRow === toRow) return true;
-    const line = bresenhamGridLine(fromCol, fromRow, toCol, toRow);
-    for (let i = 1; i < line.length; i++) {
-        const c = line[i]!;
-        if (!gridCellPassable(grid, c.col, c.row)) return false;
-    }
-    return true;
+    return hasLineOfWalkCells(terrain.nav, 'default', fromCol, fromRow, toCol, toRow);
 }
 
 /**
@@ -75,7 +65,7 @@ export function resolvePlayerMoveSegment(
 ): GridCell[] | null {
     if (fromCol === toCol && fromRow === toRow) return [];
 
-    if (isDirectGridLineTraversable(terrain.grid, fromCol, fromRow, toCol, toRow)) {
+    if (isDirectGridLineTraversable(terrain, fromCol, fromRow, toCol, toRow)) {
         return [{ col: toCol, row: toRow }];
     }
 

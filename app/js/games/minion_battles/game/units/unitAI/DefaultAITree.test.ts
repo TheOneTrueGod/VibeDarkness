@@ -10,9 +10,10 @@ import { describe, it, expect } from 'vitest';
 import { Unit } from '../Unit';
 import type { AIContext } from './types';
 import type { DefaultAITreeContext } from './default/context';
-import { isTileDefendPoint, type SpecialTile } from '../../specialTiles/SpecialTile';
+import { isTileDefendPoint } from '../../specialTiles/SpecialTile';
+import type { SpecialTile } from '../../specialTiles/SpecialTile';
 import type { BattleOrder } from '../../types';
-import { runUnitAI, DEFAULT_AI_TREE } from './index';
+import { runUnitAI, DEFAULT_AI_TREE, createAINav } from './index';
 import { TerrainGrid } from '../../../terrain/TerrainGrid';
 import { TerrainManager } from '../../../terrain/TerrainManager';
 import { TerrainType } from '../../../terrain/TerrainType';
@@ -27,7 +28,6 @@ function createAIUnit(overrides: Partial<{
     y: number;
     defensePointTargetId: string | undefined;
     targetUnitId: string | undefined;
-    pathfindingRetriggerOffset: number;
     movement: { path: { col: number; row: number }[]; targetUnitId: string | undefined; pathfindingTick: number } | null;
 }> = {}) {
     const unit = new Unit({
@@ -55,7 +55,6 @@ function createAIUnit(overrides: Partial<{
     if (overrides.targetUnitId !== undefined) {
         ctx.targetUnitId = overrides.targetUnitId;
     }
-    if (overrides.pathfindingRetriggerOffset !== undefined) unit.pathfindingRetriggerOffset = overrides.pathfindingRetriggerOffset;
     if (overrides.movement !== undefined) unit.movement = overrides.movement;
     return unit;
 }
@@ -79,7 +78,7 @@ function createPlayerUnit(id: string, x: number, y: number): Unit {
 }
 
 function createDefendPoint(id: string, col: number, row: number, hp: number): SpecialTile {
-    return { id, defId: 'Campfire', col, row, hp, maxHp: 5, defendPoint: true };
+    return { id, defId: 'Campfire', col, row, hp, maxHp: 5, defendPoint: true, destructible: true };
 }
 
 function createLitDefendPoint(id: string, col: number, row: number, hp: number, lightAmount: number): SpecialTile {
@@ -118,8 +117,7 @@ function createMockContext(options: {
         getAliveDefendPoints: () => options.aliveDefendPoints.filter(isTileDefendPoint),
         getLightSources: () => [],
         terrainManager: options.terrainManager ?? null,
-        findGridPathForUnit: (_, fromCol, fromRow, toCol, toRow) =>
-            options.terrainManager?.findGridPath(fromCol, fromRow, toCol, toRow) ?? null,
+        nav: createAINav(() => options.terrainManager ?? null),
         queueOrder: (atTick, order) => {
             orders.push(order);
         },
@@ -223,8 +221,8 @@ describe('DefaultAITree siegeDefendPoint', () => {
         });
     });
 
-    describe('step 3: recalc path when no path or retrigger', () => {
-        it('sets movement path when unit has no path and DefendPoint exists', () => {
+    describe('step 3: movement to defend point handled by nav API', () => {
+        it('queues wait when defend point target is set but no hostiles', () => {
             const grid = new TerrainGrid(30, 20, CELL_SIZE, TerrainType.Grass);
             const tm = new TerrainManager(grid);
             const unit = createAIUnit({
@@ -234,7 +232,7 @@ describe('DefaultAITree siegeDefendPoint', () => {
                 movement: null,
             });
             const dp = createDefendPoint('dp_1', 5, 10, 5);
-            const { context } = createMockContext({
+            const { context, orders, turnEnds } = createMockContext({
                 aliveDefendPoints: [dp],
                 units: [unit],
                 terrainManager: tm,
@@ -243,23 +241,34 @@ describe('DefaultAITree siegeDefendPoint', () => {
 
             runUnitAI(unit, DEFAULT_AI_TREE, context);
 
-            expect(unit.movement).not.toBeNull();
-            expect(unit.movement!.path.length).toBeGreaterThan(0);
-            expect(unit.movement!.pathfindingTick).toBe(50);
+            // Node queues wait after setting movement goal via nav API
+            expect(orders).toHaveLength(1);
+            expect(orders[0]!.abilityId).toBe('wait');
+            expect(turnEnds).toEqual([unit.id]);
         });
 
-        it('recalculates path when gameTick % pathfindingRetriggerOffset === 0', () => {
+        it('queues wait and does not corrupt if defend point is not destructible', () => {
             const grid = new TerrainGrid(30, 20, CELL_SIZE, TerrainType.Grass);
             const tm = new TerrainManager(grid);
+            // Unit at cell 5, 10 (at the defend point)
             const unit = createAIUnit({
-                x: 40,
-                y: 40,
+                x: 320,
+                y: 640,
                 defensePointTargetId: 'dp_1',
-                pathfindingRetriggerOffset: 50,
-                movement: { path: [{ col: 1, row: 1 }], targetUnitId: undefined, pathfindingTick: 0 },
+                movement: null,
             });
-            const dp = createDefendPoint('dp_1', 5, 10, 5);
-            const { context } = createMockContext({
+            // Create non-destructible defend point
+            const dp: SpecialTile = {
+                id: 'dp_1',
+                defId: 'Campfire',
+                col: 5,
+                row: 10,
+                hp: 3,
+                maxHp: 5,
+                defendPoint: true,
+                destructible: false,
+            };
+            const { context, orders, turnEnds } = createMockContext({
                 aliveDefendPoints: [dp],
                 units: [unit],
                 terrainManager: tm,
@@ -268,8 +277,12 @@ describe('DefaultAITree siegeDefendPoint', () => {
 
             runUnitAI(unit, DEFAULT_AI_TREE, context);
 
-            expect(unit.movement).not.toBeNull();
-            expect(unit.movement!.pathfindingTick).toBe(100);
+            const ctx = unit.aiContext as DefaultAITreeContext;
+            // At defend point but not destructible, so no corruption
+            expect(ctx.corruptingTargetId).toBeUndefined();
+            expect(orders).toHaveLength(1);
+            expect(orders[0]!.abilityId).toBe('wait');
+            expect(turnEnds).toEqual([unit.id]);
         });
     });
 

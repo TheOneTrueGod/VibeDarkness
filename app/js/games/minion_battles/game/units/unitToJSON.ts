@@ -36,6 +36,8 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
             targetUnitId: unit.movement.targetUnitId,
             ...(unit.movement.targetPixel ? { targetPixel: { ...unit.movement.targetPixel } } : {}),
             pathfindingTick: unit.movement.pathfindingTick,
+            ...(unit.movement.navEpoch !== undefined ? { navEpoch: unit.movement.navEpoch } : {}),
+            ...(unit.movement.stopRange !== undefined ? { stopRange: unit.movement.stopRange } : {}),
         } : null,
         ...(unit.walkIntent
             ? {
@@ -47,6 +49,10 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
                     ...(unit.walkIntent.targetPixel
                         ? { targetPixel: { ...unit.walkIntent.targetPixel } }
                         : {}),
+                    ...(unit.walkIntent.stopRange !== undefined
+                        ? { stopRange: unit.walkIntent.stopRange }
+                        : {}),
+                    ...(unit.walkIntent.managed ? { managed: true } : {}),
                 },
             }
             : {}),
@@ -77,8 +83,9 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
         aiSettings: unit.aiSettings
             ? (JSON.parse(JSON.stringify(unit.aiSettings)) as typeof unit.aiSettings)
             : null,
-        pathfindingRetriggerOffset: unit.pathfindingRetriggerOffset,
         pathInvalidated: unit.pathInvalidated,
+        nextRepathTick: unit.nextRepathTick,
+        ...(unit.pathFailedEpoch !== null ? { pathFailedEpoch: unit.pathFailedEpoch } : {}),
         aiContext: JSON.parse(JSON.stringify(unit.aiContext ?? {})) as typeof unit.aiContext,
         unitAITreeId: unit.unitAITreeId,
         moveJitter: unit.moveJitter,

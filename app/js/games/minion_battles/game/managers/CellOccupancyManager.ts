@@ -53,12 +53,4 @@ export class CellOccupancyManager {
     canEnter(col: number, row: number, maxPerTile: number): boolean {
         return this.getTotalUsage(col, row) + 1 / maxPerTile <= 1.001;
     }
-
-    /**
-     * Extra A* cost for traversing this cell (0 when empty, up to 2.5 when full).
-     * Designed so A* accepts ≤ 2.5-tile detours to avoid full cells.
-     */
-    getOccupancyCost(col: number, row: number): number {
-        return Math.min(this.getTotalUsage(col, row) * 2.5, 2.5);
-    }
 }

@@ -162,7 +162,6 @@ export const crowdSpacingPackAndAnchorsScenario: ScenarioDefinition = {
         });
         player.radius = DEFAULT_UNIT_RADIUS;
         player.unitAITreeId = 'static_test_no_ai';
-        player.pathfindingRetriggerOffset = 0;
 
         spawnStaticEnemy(engine, {
             id: SOFT_A_ID,

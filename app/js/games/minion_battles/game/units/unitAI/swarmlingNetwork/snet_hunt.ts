@@ -35,25 +35,7 @@ export const snet_hunt: AINode<'swarmlingNetwork', SwarmlingNetworkNodeId> = {
             const orbitX = target.x + Math.cos(orbitAngle) * HUNT_RING_RADIUS;
             const orbitY = target.y + Math.sin(orbitAngle) * HUNT_RING_RADIUS;
 
-            const grid = context.terrainManager?.grid;
-            if (grid) {
-                const needsNewPath =
-                    unit.pathInvalidated ||
-                    !unit.movement ||
-                    unit.movement.path.length === 0 ||
-                    unit.movement.targetUnitId !== target.id;
-
-                if (needsNewPath) {
-                    const from = grid.worldToGrid(unit.x, unit.y);
-                    const to = grid.worldToGrid(orbitX, orbitY);
-                    const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-                    if (path && path.length > 0) {
-                        unit.setMovement(path, target.id, context.gameTick);
-                    } else {
-                        unit.clearMovement();
-                    }
-                }
-            }
+            context.nav.moveToPoint(unit, orbitX, orbitY);
 
             // Attack if in range
             const allEnemies = findEnemies(unit, context.getUnits());
@@ -61,23 +43,6 @@ export const snet_hunt: AINode<'swarmlingNetwork', SwarmlingNetworkNodeId> = {
             if (tryQueueAbilityOrder(unit, context, targetOnly)) return;
 
             context.emitTurnEnd(unit.id);
-        },
-
-        onPathfindingRetrigger(unit: Unit, context: AIContext): void {
-            const ctx = unit.aiContext as SwarmlingNetworkAITreeContext;
-            const target = ctx.huntTargetId ? context.getUnit(ctx.huntTargetId) : null;
-            if (!target?.isAlive()) return;
-            const grid = context.terrainManager?.grid;
-            if (!grid) return;
-            const orbitAngle = unit.swarmState.orbitAngle ?? 0;
-            const orbitX = target.x + Math.cos(orbitAngle) * HUNT_RING_RADIUS;
-            const orbitY = target.y + Math.sin(orbitAngle) * HUNT_RING_RADIUS;
-            const from = grid.worldToGrid(unit.x, unit.y);
-            const to = grid.worldToGrid(orbitX, orbitY);
-            const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-            if (path && path.length > 0) {
-                unit.setMovement(path, target.id, context.gameTick);
-            }
         },
     },
     edges: [

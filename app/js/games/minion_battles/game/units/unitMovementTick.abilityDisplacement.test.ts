@@ -109,6 +109,9 @@ describe('ability displacement vs walkIntent', () => {
             engine.gameTime += FIXED_DT;
             player.abilityOwnsMovementThisTick = false;
             player.tickActiveAbilities(FIXED_DT, engine, () => {});
+            // Same order as UnitManager.gameTick: the pathfinding phase re-plans from the durable
+            // walkIntent before movement runs.
+            engine.pathfindingManager.tick(engine.units, engine);
             updateUnit(player, FIXED_DT, engine);
         }
 

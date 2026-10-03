@@ -63,6 +63,7 @@ import type {
     UnitConfig,
     UnitMovement,
     UnitWalkIntent,
+    UnitWalkGoal,
 } from './unitTypes';
 import { createPetState, type UnitPetState } from './unitPetState';
 import { createLanterniteState, type UnitLanterniteState } from './unitLanterniteState';
@@ -75,7 +76,7 @@ import { moveUnitToward } from './unitCellSlide';
 import { applyKnockbackToUnit } from './unitKnockback';
 import { applyNudgeToUnit } from './unitNudge';
 import { getUnitEffectiveSpeed, unitHasIFrames, isUnitInJuggernautWindow, getUnitLungeDistance } from './unitAbilityQueries';
-import { updateUnit, tickUnitMovement, setUnitMovement, clearUnitMovement, invalidateUnitMovementPath } from './unitMovementTick';
+import { updateUnit, tickUnitMovement, setUnitMovement, clearUnitMovement, invalidateUnitMovementPath, setUnitWalkGoal } from './unitMovementTick';
 import { applyDamageToUnit, applyDamageToUnitDetailed, tickUnitDarknessCorruption, type DamageBreakdown } from './unitDamage';
 import { MIN_EFFECTIVE_MAX_HP_PCT } from './unitHeal';
 
@@ -89,6 +90,7 @@ export type {
     UnitCombatSettings,
     UnitMovement,
     UnitWalkIntent,
+    UnitWalkGoal,
 } from './unitTypes';
 
 
@@ -160,11 +162,14 @@ export class Unit extends GameObject {
     /** AI behavior settings (only used for AI-controlled units). */
     aiSettings: AISettings | null = null;
 
-    /** Recalculate pathfinding every N ticks (0 = never). Set at spawn from engine RNG. */
-    pathfindingRetriggerOffset: number = 0;
-
     /** True after forced movement (knockback, ability displacement); next normal move must recalculate path. */
     pathInvalidated: boolean = false;
+
+    /** Tick at which the PathfindingManager next refreshes this unit's path (staggered by moveJitter). */
+    nextRepathTick: number = 0;
+
+    /** navEpoch at which the last plan attempt found no route; null when the last attempt succeeded. Stops unreachable goals re-searching every tick. */
+    pathFailedEpoch: number | null = null;
 
     /**
      * Runtime-only: this tick an ability is sliding this unit (dash, lunge, moveUnit).
@@ -399,13 +404,16 @@ export class Unit extends GameObject {
     }
 
     /** Set movement state with a grid-cell path. Clears movement if path is empty. Sets walkIntent; clears pathInvalidated. */
-    setMovement(path: { col: number; row: number }[], targetUnitId: string | undefined, pathfindingTick: number, targetPixel?: { x: number; y: number }): void { setUnitMovement(this, path, targetUnitId, pathfindingTick, targetPixel); }
+    setMovement(path: { col: number; row: number }[], targetUnitId: string | undefined, pathfindingTick: number, targetPixel?: { x: number; y: number }, stopRange?: number): void { setUnitMovement(this, path, targetUnitId, pathfindingTick, targetPixel, stopRange); }
 
     /** Clear live path and durable walk intent. */
     clearMovement(): void { clearUnitMovement(this); }
 
     /** Clear live path but keep walkIntent so movement can repath after forced displacement. */
     invalidateMovementPath(): void { invalidateUnitMovementPath(this); }
+
+    /** Set a durable walk goal (unit chase or cell movement). PathfindingManager will turn this into a path. */
+    setWalkGoal(goal: UnitWalkGoal): void { setUnitWalkGoal(this, goal); }
 
     /** Launch the unit with a knockback impulse. CC resistance is handled upstream by `tryApplyKnockbackByTier`. */
     applyKnockback(params: ApplyKnockbackParams, _eventBus: EventBus, onApplied?: (unit: Unit) => void): boolean {

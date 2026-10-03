@@ -92,7 +92,9 @@ import type { MapNetworkManager } from './managers/mapNetwork/MapNetworkManager'
 import { getMissionSegmentNetwork, getMissionSegmentPlacements } from '../terrain/segmentRegistry';
 import { CellOccupancyManager } from './managers/CellOccupancyManager';
 import { CrowdSpacingManager } from './crowdSpacing/CrowdSpacingManager';
-import { getUnitMaxPerTile, getUnitShovePriority, getUnitDefEntry, getBodyColorForUnit, getCharacterSpriteKey, getUnitSpawnDef, PLAYER_CHARACTER_ID, type UnitDefId } from './units/unit_defs/unitDef';
+import { PathfindingManager } from '../pathfinding/PathfindingManager';
+import { getUnitDefEntry, getBodyColorForUnit, getCharacterSpriteKey, getUnitSpawnDef, PLAYER_CHARACTER_ID, type UnitDefId } from './units/unit_defs/unitDef';
+import { createAINav } from './units/unitAI/aiNav';
 import { STACK_GHOST_DURATION } from './effect_defs/movementEffects';
 import { applyVisualEffectDefs } from './effects/applyVisualEffectDefs';
 import { NinjutsuManager, countNinjutsuEnemyUnits, type NinjutsuUIState } from './ninjutsu/NinjutsuManager';
@@ -203,6 +205,11 @@ export class GameEngine implements EngineContext {
     /** Ephemeral CrowdSpacing grid — not serialized; clear on load, sync+resolve after movement. */
     readonly crowdSpacingManager = new CrowdSpacingManager();
 
+    /** Pathfinding manager — converts walk goals to paths. Not serialized; cleared on load. */
+    readonly pathfindingManager = new PathfindingManager();
+    /** Walk-goal surface handed to AI nodes (stateless; reads the current terrain manager). */
+    private readonly aiNav = createAINav(() => this.terrainManager);
+
     /**
      * Set by unitAbilityTick when an interval with a SelectTargetDef is entered but no
      * target is yet resolved. Ephemeral — not serialized (not in toJSON/fromJSON).
@@ -303,6 +310,9 @@ export class GameEngine implements EngineContext {
     }
     set terrainManager(v: TerrainManager | null) {
         this.state.terrainManager = v;
+        if (v) {
+            v.setCrystalProtectionProvider(() => this.state.specialTileManager.getCrystalProtectionMap());
+        }
     }
 
     get mapPOIs(): import('../terrain/segmentSchema').MapSegmentPOI[] {
@@ -938,7 +948,12 @@ export class GameEngine implements EngineContext {
         this.terrainManager?.setStoneDamagedEmitter((event) => {
             this.eventBus.emit('terrain_stone_damaged', event);
         });
-        if (this.terrainManager) this.terrainManager.setTerrainLayers(this.state.terrainLayers);
+        if (this.terrainManager) {
+            this.terrainManager.setTerrainLayers(this.state.terrainLayers);
+            this.terrainManager.setCrystalProtectionProvider(
+                () => this.state.specialTileManager.getCrystalProtectionMap(),
+            );
+        }
         this.aiControllerId = config.aiControllerId ?? null;
         this.enemyScalingPlayerCount = 1;
         this.state.levelEventManager.resetTerminalState();
@@ -951,6 +966,8 @@ export class GameEngine implements EngineContext {
         this.appliedDotTicks = 0;
         clearUnitTileTransitionState();
         this.crowdSpacingManager.clear();
+        this.pathfindingManager.clear();
+        this.terrainManager?.pathQuery.clearCache();
     }
 
     setMissionLightConfig(lightLevelEnabled: boolean, globalLightLevel: number): void {
@@ -1785,26 +1802,7 @@ export class GameEngine implements EngineContext {
             getAliveDefendPoints: () => this.specialTiles.filter(isTileDefendPoint),
             getLightSources: () => this.getLightSourcesForAI(),
             terrainManager: this.terrainManager,
-            findGridPathForUnit: (unit, fromCol, fromRow, toCol, toRow) => {
-                if (!this.terrainManager) return null;
-                const maxPerTile = getUnitMaxPerTile(unit.characterId);
-                const shovePriority = getUnitShovePriority(unit.characterId);
-                const isOccupancyManaged = maxPerTile !== undefined && shovePriority === undefined;
-                const isEnemy = areEnemies(unit.teamId, 'player');
-                const blocked = isEnemy ? this.getCrystalProtectedSet() : undefined;
-                if (isOccupancyManaged) {
-                    const mgr = this.cellOccupancyManager;
-                    return this.terrainManager.findGridPathWithOccupancyCost(
-                        fromCol, fromRow, toCol, toRow,
-                        (col, row) => mgr.getOccupancyCost(col, row),
-                        blocked,
-                    );
-                }
-                if (blocked) {
-                    return this.terrainManager.findGridPathWithBlocked(fromCol, fromRow, toCol, toRow, blocked);
-                }
-                return this.terrainManager.findGridPath(fromCol, fromRow, toCol, toRow);
-            },
+            nav: this.aiNav,
             queueOrder: (atTick, order) => this.state.orderMgr.queueOrder(atTick, order),
             emitTurnEnd: (unitId) => this.eventBus.emit('turn_end', { unitId, unitIds: [unitId] }),
             generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
@@ -1925,6 +1923,7 @@ export class GameEngine implements EngineContext {
             gameTick: this.gameTick,
             roundNumber: this.roundNumber,
             snapshotIndex: this.snapshotIndex,
+            navEpoch: this.terrainManager?.navEpoch ?? 0,
             units: this.state.unitManager.toJSON(this.gameTick),
             projectiles: this.state.projectileManager.toJSON(),
             effectEmitters: this.state.effectEmitterManager.toJSON(),
@@ -2125,8 +2124,24 @@ export class GameEngine implements EngineContext {
         // Restore effect emitters (runtime-only factories are dropped; emitters are short-lived)
         engine.state.effectEmitterManager.restoreFromJSON(data.effectEmitters ?? []);
 
-        // Restore special tiles
+        // Restore terrain layers (floor/ground/air effects) BEFORE special tiles
+        // so the TerrainManager can be fully set up before crystal protection is queried.
+        engine.state.terrainLayers = TerrainLayerManager.fromJSON(data.terrainEffects ?? [], data.floorTiles ?? []);
+        if (engine.terrainManager) {
+            engine.terrainManager.setTerrainLayers(engine.state.terrainLayers);
+            engine.terrainManager.setCrystalProtectionProvider(
+                () => engine.state.specialTileManager.getCrystalProtectionMap(),
+            );
+        }
+
+        // Restore special tiles AFTER terrain layers and crystal provider setup
         engine.state.specialTileManager.restoreFromJSON(data.specialTiles ?? []);
+
+        // Restore navEpoch and mark NavGrid dirty (after special tiles are restored)
+        if (engine.terrainManager) {
+            engine.terrainManager.navEpoch = data.navEpoch ?? 0;
+            engine.terrainManager.markNavDirty();
+        }
 
         // Restore light sources
         engine.state.lightSourceManager.restoreFromJSON(data.lightSources ?? []);
@@ -2163,10 +2178,6 @@ export class GameEngine implements EngineContext {
                 engine.terrainManager.segmentPlacements = getMissionSegmentPlacements(opts.segmentIds);
             }
         }
-
-        // Restore terrain layers (floor/ground/air effects)
-        engine.state.terrainLayers = TerrainLayerManager.fromJSON(data.terrainEffects ?? [], data.floorTiles ?? []);
-        if (engine.terrainManager) engine.terrainManager.setTerrainLayers(engine.state.terrainLayers);
 
         // Restore cards + research trees
         engine.state.cardManager.restoreFromJSON(data.cards);
@@ -2218,6 +2229,9 @@ export class GameEngine implements EngineContext {
         clearUnitTileTransitionState();
         // CrowdSpacing grid is ephemeral — never restore from JSON; rebuild on first tick.
         engine.crowdSpacingManager.clear();
+        // Pathfinding manager and caches are ephemeral — never restore from JSON; rebuild on first tick.
+        engine.pathfindingManager.clear();
+        engine.terrainManager?.pathQuery.clearCache();
 
         engine.deferredOrderPause = null;
         if (engine.waitingForOrders != null) {
@@ -2270,5 +2284,6 @@ export class GameEngine implements EngineContext {
         this.state.effectManager.effects = [];
         this.state.effectEmitterManager.emitters = [];
         this.state.specialTileManager.specialTiles = [];
+        this.terrainManager?.markNavDirty();
     }
 }

@@ -3,6 +3,7 @@ import type { CellOccupancyManager } from '../managers/CellOccupancyManager';
 import type { EngineContext } from '../EngineContext';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { getUnitMaxPerTile, getUnitShovePriority } from './unit_defs/unitDef';
+import { getNavProfileForUnit } from '../../pathfinding/navProfile';
 
 /** 8-directional neighbour offsets for slide-cell search. */
 export const SLIDE_DIRS = [
@@ -13,8 +14,8 @@ export const SLIDE_DIRS = [
 /**
  * When the next path cell is full, find an adjacent cell to redirect into.
  * Candidates must be neighbours of both the current cell AND the blocked cell,
- * passable, and have capacity. Sorted by angular distance from the unit's jitter angle
- * so different units try different directions.
+ * passable, have capacity, and pass the isCellWalkable check.
+ * Sorted by angular distance from the unit's jitter angle so different units try different directions.
  */
 export function findSlideCell(
     currentCol: number,
@@ -23,6 +24,7 @@ export function findSlideCell(
     jitter: number,
     maxPerTile: number,
     mgr: CellOccupancyManager,
+    isCellWalkable: (fromCol: number, fromRow: number, toCol: number, toRow: number) => boolean,
 ): { col: number; row: number } | null {
     const jitterAngle = jitter * Math.PI * 2;
 
@@ -35,6 +37,7 @@ export function findSlideCell(
         // Must be adjacent to the blocked cell too
         if (Math.abs(nc - blockedCell.col) > 1 || Math.abs(nr - blockedCell.row) > 1) continue;
         if (!mgr.canEnter(nc, nr, maxPerTile)) continue;
+        if (!isCellWalkable(currentCol, currentRow, nc, nr)) continue;
         const angle = Math.atan2(dr, dc);
         const angularDist = Math.abs(((angle - jitterAngle + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
         candidates.push({ col: nc, row: nr, angularDist });
@@ -46,30 +49,66 @@ export function findSlideCell(
 }
 
 /**
- * After arriving at a cell, check whether the next path cell has capacity.
- * If full, try sliding to an adjacent cell. If no slide is possible, unit waits
- * at the current position and the pathfinding retrigger will replan.
+ * Called when this tick's move would carry the unit into a different cell. If that cell is full,
+ * redirect the unit to an adjacent cell with room (the "diagonal slide"). Works for dense and
+ * sparse paths alike because it looks at the cell being entered, not at the next path node.
+ *
+ * Returns true when the path was changed (the caller skips this tick's move); false when the
+ * cell can be entered, the unit is not occupancy-managed, or no slide cell exists (the caller
+ * moves as normal).
  */
-export function checkNextCellOccupancy(unit: Unit, engine: EngineContext): void {
-    if (!unit.movement) return;
+export function checkCellCrossingOccupancy(
+    unit: Unit,
+    engine: EngineContext,
+    nextCol: number,
+    nextRow: number,
+): boolean {
+    if (!unit.movement) return false;
     const maxPerTile = getUnitMaxPerTile(unit.characterId);
-    if (maxPerTile === undefined) return;
-    if (getUnitShovePriority(unit.characterId) !== undefined) return; // shovers bypass
+    if (maxPerTile === undefined) return false;
+    if (getUnitShovePriority(unit.characterId) !== undefined) return false; // shovers bypass
 
     const mgr = engine.cellOccupancyManager;
-    if (!mgr) return;
+    if (!mgr) return false;
 
-    const nextCell = unit.movement.path[0];
-    if (mgr.canEnter(nextCell.col, nextCell.row, maxPerTile)) return;
+    if (mgr.canEnter(nextCol, nextRow, maxPerTile)) return false;
 
     // Target cell is full — try to slide to an adjacent cell
     const currentCol = Math.floor(unit.x / CELL_SIZE);
     const currentRow = Math.floor(unit.y / CELL_SIZE);
-    const slide = findSlideCell(currentCol, currentRow, nextCell, unit.moveJitter, maxPerTile, mgr);
-    if (slide) {
-        unit.movement.path[0] = slide;
+
+    // A slide may only enter passable terrain, and never cuts a wall corner diagonally.
+    const nav = engine.terrainManager?.nav ?? null;
+    const profile = getNavProfileForUnit(unit);
+    const isCellWalkable = (fromCol: number, fromRow: number, toCol: number, toRow: number): boolean => {
+        if (!nav) return true;
+        if (!nav.isPassable(profile, toCol, toRow)) return false;
+        if (toCol !== fromCol && toRow !== fromRow) {
+            if (!nav.isPassable(profile, toCol, fromRow)) return false;
+            if (!nav.isPassable(profile, fromCol, toRow)) return false;
+        }
+        return true;
+    };
+
+    const slide = findSlideCell(currentCol, currentRow, { col: nextCol, row: nextRow }, unit.moveJitter, maxPerTile, mgr, isCellWalkable);
+    if (!slide) return false;
+    const path = unit.movement.path;
+    const first = path[0];
+    // Already heading for that cell: nothing to insert, and the caller must keep moving.
+    if (first.col === slide.col && first.row === slide.row) return false;
+
+    if (path.length === 1 && first.col === nextCol && first.row === nextRow) {
+        // The full cell is the destination itself. Detouring would only orbit it, so a pursuer
+        // pushes on (its stop range ends the walk) and a plain move settles for the neighbour.
+        if (unit.movement.targetUnitId) return false;
+        path[0] = slide;
+    } else {
+        // Detour waypoint in front of the existing path.
+        path.unshift(slide);
     }
-    // else: unit waits at current position until pathfinding retrigger recomputes
+    // -1 asks the PathfindingManager to re-validate the remaining path.
+    unit.movement.navEpoch = -1;
+    return true;
 }
 
 /**

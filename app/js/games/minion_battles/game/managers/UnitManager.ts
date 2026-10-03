@@ -8,7 +8,7 @@ import { UnitTag, addUnitTag, hasUnitTag } from '../units/unitTag';
 import { areAllies } from '../teams';
 import type { EngineContext } from '../EngineContext';
 import type { EventBus } from '../EventBus';
-import { runUnitAI, runPathfindingRetrigger, getUnitAITree } from '../units/unitAI';
+import { runUnitAI, getUnitAITree } from '../units/unitAI';
 import { tickSpawnAnimation } from '../units/spawnAnimation';
 import { processUnitPassives } from '../../abilities/passiveRunner';
 import type { AIContext } from '../units/unitAI';
@@ -18,7 +18,6 @@ import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { getUnitMaxPerTile, getUnitShovePriority } from '../units/unit_defs/unitDef';
 import type { CellOccupancyManager } from './CellOccupancyManager';
 import { refreshActiveTargets } from '../../abilities/targetDowngrade';
-import { MIN_FOLLOW_RADIUS } from '../gameConstants';
 import { processUnitTileTransition } from '../terrainEffects/tileTransitions';
 import {
     PERF_UNITS_ABILITIES,
@@ -28,35 +27,11 @@ import {
     PERF_UNITS_NINJUTSU,
     PERF_UNITS_OCCUPANCY,
     PERF_UNITS_PASSIVES,
+    PERF_UNITS_PATHFINDING,
     PERF_UNITS_RESOURCES,
     PERF_UNITS_TARGETS,
     tickPerformanceTracker,
 } from '../performance/tickPerformanceTracker';
-
-function refreshPlayerPursuitPath(unit: Unit, aiContext: AIContext): void {
-    const targetId = unit.movement?.targetUnitId;
-    if (!targetId) return;
-    const target = aiContext.getUnit(targetId);
-    if (!target?.isAlive()) {
-        if (unit.movement) unit.movement.targetUnitId = undefined;
-        return;
-    }
-    const stopDist = unit.radius + target.radius + MIN_FOLLOW_RADIUS;
-    const dx = target.x - unit.x;
-    const dy = target.y - unit.y;
-    if (dx * dx + dy * dy <= stopDist * stopDist) {
-        unit.clearMovement();
-        return;
-    }
-    const tm = aiContext.terrainManager;
-    if (!tm) return;
-    const unitGrid = tm.grid.worldToGrid(unit.x, unit.y);
-    const targetGrid = tm.grid.worldToGrid(target.x, target.y);
-    const path = aiContext.findGridPathForUnit(unit, unitGrid.col, unitGrid.row, targetGrid.col, targetGrid.row);
-    if (path && path.length > 0) {
-        unit.setMovement(path, targetId, aiContext.gameTick);
-    }
-}
 
 /** 8-directional neighbour offsets (cardinal first, then diagonal). */
 const NEIGHBOUR_DIRS = [
@@ -144,9 +119,6 @@ export class UnitManager {
     addUnit(unit: Unit): void {
         if (!unit.isPlayerControlled()) {
             unit.moveJitter = this.ctx.generateRandomInteger(0, 1000) / 1000;
-            unit.pathfindingRetriggerOffset = 30 + Math.floor(unit.moveJitter * 60);
-        } else {
-            unit.pathfindingRetriggerOffset = this.ctx.generateRandomInteger(30, 90);
         }
         this.units.push(unit);
     }
@@ -261,7 +233,11 @@ export class UnitManager {
             occupancyMgr?.rebuild(this.units);
             if (occupancyMgr) this.applyOccupancyDisplacement(occupancyMgr, engine);
         });
-        // Phase 2b: movement + ephemeral expiry + pathfinding retrigger
+        // Phase 2a': pathfinding — turn walk goals into paths (terrain is frozen until abilities run next tick)
+        tickPerformanceTracker.measure([PERF_UNITS_PATHFINDING], () => {
+            engine.pathfindingManager.tick(this.units, engine);
+        });
+        // Phase 2b: movement + ephemeral expiry
         tickPerformanceTracker.measure([PERF_UNITS_MOVEMENT], () => {
             for (const unit of this.units) {
                 if (!unit.active) continue;
@@ -271,17 +247,6 @@ export class UnitManager {
                 }
                 if (unit.growAnimTimer > 0) {
                     unit.growAnimTimer = Math.max(0, unit.growAnimTimer - dt);
-                }
-                if (
-                    !unit.abilityOwnsMovementThisTick
-                    && unit.pathfindingRetriggerOffset > 0
-                    && engine.gameTick % unit.pathfindingRetriggerOffset === 0
-                ) {
-                    if (unit.isPlayerControlled() && unit.movement?.targetUnitId) {
-                        refreshPlayerPursuitPath(unit, aiContext);
-                    }
-                    const tree = getUnitAITree(unit.unitAITreeId);
-                    if (tree) runPathfindingRetrigger(unit, tree, aiContext);
                 }
                 unit.tickMovement(dt, engine);
                 processUnitTileTransition(unit, engine);

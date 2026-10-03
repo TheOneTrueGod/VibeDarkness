@@ -248,6 +248,7 @@ export const PERF_UNITS_PASSIVES = 'passives' as const;
 export const PERF_UNITS_ABILITIES = 'abilities' as const;
 export const PERF_UNITS_RESOURCES = 'resources' as const;
 export const PERF_UNITS_OCCUPANCY = 'occupancy' as const;
+export const PERF_UNITS_PATHFINDING = 'pathfinding' as const;
 export const PERF_UNITS_MOVEMENT = 'movement' as const;
 export const PERF_UNITS_CROWD_SPACING = 'crowdSpacing' as const;
 export const PERF_UNITS_AI = 'ai' as const;

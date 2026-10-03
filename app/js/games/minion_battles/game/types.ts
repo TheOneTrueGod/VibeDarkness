@@ -105,6 +105,8 @@ export interface SerializedGameState {
     gameTick: number;
     roundNumber: number;
     snapshotIndex: number;
+    /** NavGrid epoch: incremented when passability or cost of any cell changes. */
+    navEpoch?: number;
     units: Record<string, unknown>[];
     projectiles: Record<string, unknown>[];
     cards: Record<string, SerializedCardInstance[]>;

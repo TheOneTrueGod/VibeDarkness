@@ -1506,9 +1506,9 @@ describe('interactive sequential targeting', () => {
             row: destRow,
         });
         // Player-move repath collapses a clear grass line to the destination cell —
-        // not the multi-cell A* path baked from the pre-lunge origin.
+        // sparse paths: even the pre-computed path from start is just the goal cell when the line is clear.
         expect(player.movement!.path).toEqual([{ col: destCol, row: destRow }]);
-        expect(stalePathFromStart!.length).toBeGreaterThan(1);
+        expect(stalePathFromStart).toEqual([{ col: destCol, row: destRow }]);
         const activeAfter = player.activeAbilities.find((a) => a.abilityId === SWING_BAT_ABILITY_ID);
         expect(activeAfter?.movementByLabel).toBeUndefined();
 

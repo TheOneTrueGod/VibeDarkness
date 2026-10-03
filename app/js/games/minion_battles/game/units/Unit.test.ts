@@ -42,7 +42,6 @@ function buildGoldenSerializationUnit(eventBus: EventBus): Unit {
 
     unit.active = true;
     unit.radius = 25;
-    unit.pathfindingRetriggerOffset = 7;
     unit.pathInvalidated = true;
     unit.aiContext = { targetUnitId: 'enemy_1', aiState: 'hunt_pursue' };
     unit.unitAITreeId = 'hunt';
@@ -430,10 +429,10 @@ describe('Unit', () => {
             },
             "movementPaused": true,
             "name": "Golden Snapshot",
+            "nextRepathTick": 0,
             "nudge": null,
             "ownerId": "p1",
             "pathInvalidated": false,
-            "pathfindingRetriggerOffset": 7,
             "petDefId": "dog",
             "petOwnerUnitId": "owner_unit_1",
             "petUnitIds": [

@@ -23,6 +23,7 @@ import type { CellOccupancyManager } from './managers/CellOccupancyManager';
 import type { CrowdSpacingManager } from './crowdSpacing/CrowdSpacingManager';
 import type { WorldModifierManager } from '../worldModifiers/WorldModifierManager';
 import type { MapNetworkManager } from './managers/mapNetwork/MapNetworkManager';
+import type { PathfindingManager } from '../pathfinding/PathfindingManager';
 
 export interface EngineContext {
     gameTime: number;
@@ -165,6 +166,9 @@ export interface EngineContext {
      * Always present; runtime-only — clear on load, never checkpointed.
      */
     readonly crowdSpacingManager: CrowdSpacingManager;
+
+    /** Pathfinding manager: converts walk goals to paths. Always present; runtime-only — cleared on load. */
+    readonly pathfindingManager: PathfindingManager;
 
     /** Mid-battle modifier API: add/remove/enable/disable world modifiers. */
     readonly worldModifierManager: WorldModifierManager;

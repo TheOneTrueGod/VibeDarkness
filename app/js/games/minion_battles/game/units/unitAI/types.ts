@@ -9,6 +9,7 @@ import type { BattleOrder } from '../../types';
 import type { MapSegmentPOI } from '../../../terrain/segmentSchema';
 import type { NinjutsuManager } from '../../ninjutsu/NinjutsuManager';
 import type { MapNetworkManager } from '../../managers/mapNetwork/MapNetworkManager';
+import type { AINav } from './aiNav';
 
 /** Light source for AI (e.g. Torch effect, crystal tile). */
 export interface AILightSource {
@@ -33,20 +34,9 @@ export interface AIContext {
             worldToGrid: (x: number, y: number) => { col: number; row: number };
             gridToWorld: (col: number, row: number) => { x: number; y: number };
         };
-        findGridPath: (
-            fromCol: number,
-            fromRow: number,
-            toCol: number,
-            toRow: number,
-        ) => { col: number; row: number }[] | null;
     } | null;
-    findGridPathForUnit(
-        unit: Unit,
-        fromCol: number,
-        fromRow: number,
-        toCol: number,
-        toRow: number,
-    ): { col: number; row: number }[] | null;
+    /** How nodes move units: set a walk goal, the PathfindingManager plans the path. See `aiNav.ts`. */
+    nav: AINav;
     queueOrder(atTick: number, order: BattleOrder): void;
     emitTurnEnd(unitId: string): void;
     generateRandomInteger(min: number, max: number): number;
@@ -96,8 +86,6 @@ export interface AIEdgeCondition<
 export interface AINodeActions {
     /** Execute this turn's actions (movement, state updates). May trigger ability selection via shared helpers. */
     execute(unit: Unit, context: AIContext): void;
-    /** Optional: refresh path when pathfinding retrigger fires. */
-    onPathfindingRetrigger?(unit: Unit, context: AIContext): void;
 }
 
 /** A single node in a UnitAITree. */

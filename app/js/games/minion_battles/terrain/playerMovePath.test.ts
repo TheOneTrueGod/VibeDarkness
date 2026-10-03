@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { TerrainGrid } from './TerrainGrid';
 import { TerrainType } from './TerrainType';
 import { TerrainManager } from './TerrainManager';
+import { TerrainLayerManager } from '../game/TerrainLayerManager';
 import {
     bresenhamGridLine,
     buildPlayerMovePathThroughWaypoints,
@@ -12,7 +13,9 @@ import {
 
 function managerFromTypes(rows: TerrainType[][]): TerrainManager {
     const grid = TerrainGrid.fromArray(rows, 40);
-    return new TerrainManager(grid);
+    const tm = new TerrainManager(grid);
+    tm.setTerrainLayers(new TerrainLayerManager());
+    return tm;
 }
 
 describe('bresenhamGridLine', () => {
@@ -35,27 +38,36 @@ describe('bresenhamGridLine', () => {
 });
 
 describe('isDirectGridLineTraversable', () => {
-    it('returns false when the line crosses rock', () => {
-        const grid = TerrainGrid.fromArray(
-            [
-                [TerrainType.Grass, TerrainType.Grass, TerrainType.Grass],
-                [TerrainType.Grass, TerrainType.Rock, TerrainType.Grass],
-                [TerrainType.Grass, TerrainType.Grass, TerrainType.Grass],
-            ],
-            40,
-        );
-        expect(isDirectGridLineTraversable(grid, 0, 1, 2, 1)).toBe(false);
+    it('returns false when the line crosses bedrock rock', () => {
+        const tm = managerFromTypes([
+            [TerrainType.Grass, TerrainType.Grass, TerrainType.Grass],
+            [TerrainType.Grass, TerrainType.Rock, TerrainType.Grass],
+            [TerrainType.Grass, TerrainType.Grass, TerrainType.Grass],
+        ]);
+        expect(isDirectGridLineTraversable(tm, 0, 1, 2, 1)).toBe(false);
     });
 
     it('returns true for clear grass line', () => {
-        const grid = TerrainGrid.fromArray(
-            [
-                [TerrainType.Grass, TerrainType.Grass, TerrainType.Grass],
-                [TerrainType.Grass, TerrainType.Grass, TerrainType.Grass],
-            ],
-            40,
-        );
-        expect(isDirectGridLineTraversable(grid, 0, 0, 2, 0)).toBe(true);
+        const tm = managerFromTypes([
+            [TerrainType.Grass, TerrainType.Grass, TerrainType.Grass],
+            [TerrainType.Grass, TerrainType.Grass, TerrainType.Grass],
+        ]);
+        expect(isDirectGridLineTraversable(tm, 0, 0, 2, 0)).toBe(true);
+    });
+
+    it('returns false when a created rock blocks the line', () => {
+        const tm = managerFromTypes([
+            [TerrainType.Grass, TerrainType.Grass, TerrainType.Grass],
+            [TerrainType.Grass, TerrainType.Grass, TerrainType.Grass],
+            [TerrainType.Grass, TerrainType.Grass, TerrainType.Grass],
+        ]);
+        // Line is clear initially.
+        expect(isDirectGridLineTraversable(tm, 0, 1, 2, 1)).toBe(true);
+        // Create a rock on the direct line.
+        tm.createOrMarkRock(1, 1);
+        tm.clearPathCache();
+        // Now the line is blocked.
+        expect(isDirectGridLineTraversable(tm, 0, 1, 2, 1)).toBe(false);
     });
 });
 

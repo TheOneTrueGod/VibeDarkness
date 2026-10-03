@@ -56,6 +56,8 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
         targetUnitId: string | undefined;
         targetPixel?: { x: number; y: number };
         pathfindingTick: number;
+        navEpoch?: number;
+        stopRange?: number;
     } | null;
     if (movementData && movementData.path && movementData.path.length > 0) {
         unit.movement = {
@@ -63,6 +65,8 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
             targetUnitId: movementData.targetUnitId,
             targetPixel: movementData.targetPixel ? { ...movementData.targetPixel } : undefined,
             pathfindingTick: movementData.pathfindingTick,
+            ...(movementData.navEpoch !== undefined ? { navEpoch: movementData.navEpoch } : {}),
+            ...(movementData.stopRange !== undefined ? { stopRange: movementData.stopRange } : {}),
         };
     }
 
@@ -70,12 +74,16 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
         dest: { col: number; row: number };
         targetUnitId?: string;
         targetPixel?: { x: number; y: number };
+        stopRange?: number;
+        managed?: boolean;
     } | null | undefined;
     if (walkIntentData?.dest) {
         unit.walkIntent = {
             dest: { ...walkIntentData.dest },
             ...(walkIntentData.targetUnitId !== undefined ? { targetUnitId: walkIntentData.targetUnitId } : {}),
             ...(walkIntentData.targetPixel ? { targetPixel: { ...walkIntentData.targetPixel } } : {}),
+            ...(walkIntentData.stopRange !== undefined ? { stopRange: walkIntentData.stopRange } : {}),
+            ...(walkIntentData.managed ? { managed: true } : {}),
         };
     } else if (unit.movement && unit.movement.path.length > 0) {
         // Legacy checkpoints: derive intent from live path.
@@ -84,6 +92,7 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
             dest: { col: last.col, row: last.row },
             ...(unit.movement.targetUnitId !== undefined ? { targetUnitId: unit.movement.targetUnitId } : {}),
             ...(unit.movement.targetPixel ? { targetPixel: { ...unit.movement.targetPixel } } : {}),
+            ...(unit.movement.stopRange !== undefined ? { stopRange: unit.movement.stopRange } : {}),
         };
     } else {
         unit.walkIntent = null;
@@ -93,8 +102,10 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
     // Legacy `data.radius` (pre-migration checkpoints) is intentionally ignored so def changes propagate.
     unit.radiusOverride = typeof data.radiusOverride === 'number' ? data.radiusOverride : undefined;
     unit.aiSettings = (data.aiSettings as AISettings | null) ?? null;
-    unit.pathfindingRetriggerOffset = (data.pathfindingRetriggerOffset as number) ?? 0;
+    // Legacy `data.pathfindingRetriggerOffset` (pre-Step10 checkpoints) is tolerated but ignored.
     unit.pathInvalidated = (data.pathInvalidated as boolean) ?? false;
+    unit.nextRepathTick = (data.nextRepathTick as number) ?? 0;
+    unit.pathFailedEpoch = (data.pathFailedEpoch as number | null) ?? null;
     const rawCtx = JSON.parse(JSON.stringify(data.aiContext ?? {})) as Record<string, unknown>;
     if (rawCtx.unitAINodeId !== undefined) { rawCtx.aiState = rawCtx.unitAINodeId; delete rawCtx.unitAINodeId; }
     if (rawCtx.aiTargetUnitId !== undefined) { rawCtx.targetUnitId = rawCtx.aiTargetUnitId; delete rawCtx.aiTargetUnitId; }

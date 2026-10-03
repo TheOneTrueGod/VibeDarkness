@@ -28,7 +28,7 @@ Plans are **lazy** — nothing recalculates every tick. Recalculation is trigger
 
 ### AINode
 - **nodeId**: Format `<tree_name>_<node_name>` (e.g. `default_idle`, `hunt_seek`).
-- **actions**: `{ execute(unit, context), onPathfindingRetrigger?(unit, context) }`.
+- **actions**: `{ execute(unit, context) }`.
 - **edges**: Array of `{ targetNodeId, evaluate(unit, context) }`. First true edge triggers transition.
 
 ### Type safety
@@ -126,7 +126,8 @@ game/units/unitAI/
 ├── contextBase.ts        # UnitAIContextBase (shared fields)
 ├── contextTypes.ts       # AITreeContextMap, UnitAIContext union, initTreeContext
 ├── utils.ts              # findEnemies, tryQueueAbilityOrder, applyAIMovementToUnit, etc.
-├── runner.ts             # runUnitAI, runPathfindingRetrigger
+├── aiNav.ts              # AINav interface, createAINav — how nodes move units
+├── runner.ts             # runUnitAI
 ├── index.ts              # Exports, getUnitAITree registry
 ├── SKILL.md              # This file
 ├── plans/                # Plan types and utilities
@@ -206,6 +207,15 @@ ctx.aiState = 'aggroWander_attack';
 - **unitAITreeId** on Unit (default `'default'`).
 - Set when spawning: `createUnitFromSpawnConfig({ ..., unitAITreeId: 'hunt' })`.
 - Can be set per-enemy via `EnemySpawnDef.unitAITreeId` or `SpawnWaveEntry.unitAITreeId`.
+
+## Moving units
+
+Nodes state a walk goal via `context.nav`; they never request or store paths. The **PathfindingManager** turns walk goals into sparse waypoint paths on the next tick's pathfinding phase.
+
+- **Setting a goal:** Call one of `context.nav.chaseUnit(unit, target, opts?)`, `context.nav.moveToCell(unit, col, row)`, or `context.nav.moveToPoint(unit, x, y)`. Goals are **idempotent** — calling the same method again with the same arguments is a free no-op, so nodes can call these every AI turn without guarding.
+- **Goal state:** A goal set during the AI phase has no path until the next pathfinding phase; inspect `context.nav.isWalking(unit)` to check if the unit is moving (never `unit.movement`).
+- **Reachability checks:** Use `context.nav.isReachable(unit, col, row)` (cheap, no search). This replaces hand-coded path requests.
+- **Line of sight:** Use `context.nav.hasLineOfWalk(unit, x, y)` to check if the unit can walk in a straight line to a world position.
 
 ## Runner flow
 

@@ -10,7 +10,7 @@
  *
  * commandPetOrderAttack — sticky focus order (Order: Attack special).
  *
- * commandPetOrderMove — path to a destination; cancel basicAttack casts (Order: Move).
+ * commandPetOrderMove — set walk goal to a destination; cancel basicAttack casts (Order: Move).
  *
  * ## Sic 'em → Pounce preview checklist
  *
@@ -38,6 +38,7 @@ import { grantRecoveryChargeToAbility } from './abilityUses';
 import { applyHeal, DEFAULT_HEAL_PENALTY_PCT } from '../game/units/unitHeal';
 import type { AbilityEngineContext } from './AbilityEngineContext';
 import { clearPetGuardWander } from '../game/units/unitAI/pet/pet_guardWander';
+import { CELL_SIZE } from '../terrain/TerrainGrid';
 export { resolveAbilitySourceUnits } from './abilitySourceUnits';
 
 // ---- resolveAbilitySourceUnits ----
@@ -201,23 +202,12 @@ export interface OrderMoveEngineCtx {
     gameTick: number;
     addEffect?(e: unknown): void;
     cancelActiveAbility?(unitId: string, abilityId: string): void;
-    terrainManager?: {
-        grid: {
-            worldToGrid(x: number, y: number): { col: number; row: number };
-        };
-        findGridPath(
-            fromCol: number,
-            fromRow: number,
-            toCol: number,
-            toRow: number,
-        ): { col: number; row: number }[] | null;
-    } | null;
 }
 
 const BASIC_ATTACK_TAG: AbilityTag = 'basicAttack';
 
 /**
- * Cancel active casts tagged `basicAttack` on each pet, then queue an ordered move
+ * Cancel active casts tagged `basicAttack` on each pet, then set the walk goal
  * to the world-pixel destination. Non-basic casts are left alone (movement queues via walkIntent).
  */
 export function commandPetOrderMove(
@@ -244,22 +234,13 @@ export function commandPetOrderMove(
         ctx.heelUntilGameTime = undefined;
         clearPetGuardWander(ctx);
 
-        const tm = engine.terrainManager;
-        if (tm) {
-            const from = tm.grid.worldToGrid(pet.x, pet.y);
-            const to = tm.grid.worldToGrid(dest.x, dest.y);
-            const path = tm.findGridPath(from.col, from.row, to.col, to.row);
-            if (path && path.length > 0) {
-                pet.setMovement(path, undefined, engine.gameTick, { x: dest.x, y: dest.y });
-            } else {
-                // Still store intent via a single-cell path if possible; AI will retry / drop.
-                pet.setMovement(
-                    [{ col: to.col, row: to.row }],
-                    undefined,
-                    engine.gameTick,
-                    { x: dest.x, y: dest.y },
-                );
-            }
-        }
+        // Start walking now rather than waiting for the pet's next AI turn. If the destination
+        // turns out to be unreachable, pet_ordered_move drops the order.
+        pet.setWalkGoal({
+            kind: 'cell',
+            col: Math.floor(dest.x / CELL_SIZE),
+            row: Math.floor(dest.y / CELL_SIZE),
+            targetPixel: { x: dest.x, y: dest.y },
+        });
     }
 }

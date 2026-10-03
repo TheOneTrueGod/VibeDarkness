@@ -69,18 +69,3 @@ export function runUnitAI<T extends UnitAITree>(
         runUnitAI(unit, tree, context);
     }
 }
-
-/**
- * Called when pathfinding retrigger fires. Runs current node's onPathfindingRetrigger if present.
- */
-export function runPathfindingRetrigger<T extends UnitAITree>(
-    unit: Unit,
-    tree: T,
-    context: AIContext,
-): void {
-    const currentNodeId = getCurrentNodeId(unit) ?? tree.entryNodeId;
-    const node = tree.nodes[currentNodeId as keyof typeof tree.nodes];
-    if (node?.actions.onPathfindingRetrigger) {
-        node.actions.onPathfindingRetrigger(unit, context);
-    }
-}

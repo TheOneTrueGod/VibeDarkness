@@ -25,6 +25,10 @@ export class SpecialTileManager {
 
     addSpecialTile(tile: SpecialTile): void {
         this.specialTiles.push(tile);
+        // Bump navEpoch if this is a crystal (blocks enemy pathfinding).
+        if (tile.defId === 'Crystal' && tile.hp > 0) {
+            this.ctx.terrainManager?.notifyNavChanged();
+        }
     }
 
     /**
@@ -35,9 +39,16 @@ export class SpecialTileManager {
         const idx = this.specialTiles.findIndex((t) => t.id === tileId);
         if (idx < 0) return false;
         const tile = this.specialTiles[idx]!;
+        const wasAlive = tile.hp > 0;
         tile.hp = Math.max(0, tile.hp - amount);
-        if (tile.hp <= 0) {
+        const isNowDead = tile.hp <= 0;
+
+        if (isNowDead) {
             this.specialTiles.splice(idx, 1);
+            // Bump navEpoch if a crystal was removed (blocks enemy pathfinding).
+            if (wasAlive && tile.defId === 'Crystal') {
+                this.ctx.terrainManager?.notifyNavChanged();
+            }
         }
         return true;
     }
@@ -231,5 +242,7 @@ export class SpecialTileManager {
                 this.specialTiles.push(specialTileFromJSON(tileData as unknown as Record<string, unknown>, def));
             }
         }
+        // Mark NavGrid dirty (no epoch bump during checkpoint restore).
+        this.ctx.terrainManager?.markNavDirty();
     }
 }

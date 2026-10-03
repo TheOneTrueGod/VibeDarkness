@@ -1,13 +1,12 @@
 /**
  * TerrainManager - High-level interface for terrain queries and pathfinding.
  *
- * Wraps a TerrainGrid (bedrock) and a Pathfinder. Sparse floor tiles from
+ * Wraps a TerrainGrid (bedrock) and the pathfinding NavGrid / PathQuery. Sparse floor tiles from
  * TerrainLayerManager override bedrock for effective terrain reads.
  */
 
 import type { TerrainGrid } from './TerrainGrid';
 import { TerrainType, TERRAIN_PROPERTIES } from './TerrainType';
-import { Pathfinder } from './Pathfinding';
 import {
     EARTH_CORE_STONE_DAMAGE_PER_INSTANCE,
     EARTH_CORE_STONE_HEALTH,
@@ -21,21 +20,67 @@ import {
     isIntactRock,
 } from './FloorTile';
 import type { TerrainLayerManager } from '../game/TerrainLayerManager';
+import { NavGrid } from '../pathfinding/NavGrid';
+import { PathQuery } from '../pathfinding/PathQuery';
 
 export type { TerrainStoneDamagedTransition as TerrainStoneDamagedEvent } from './FloorTile';
 
 export class TerrainManager {
     readonly grid: TerrainGrid;
-    readonly pathfinder: Pathfinder;
+    readonly pathQuery: PathQuery;
     private terrainLayers: TerrainLayerManager | null = null;
     private onStoneDamaged?: (event: TerrainStoneDamagedTransition) => void;
     private lastRockDamageSourceUnitId: string | null = null;
     /** Mission-global segment placement rects, for debug/tooling lookups. See `getSegmentIdAt`. */
     segmentPlacements: ResolvedSegmentPlacement[] = [];
 
+    /** NavGrid for pathfinding (lazily created). */
+    private _nav: NavGrid | null = null;
+    /** Provider for crystal protection map (called during NavGrid rebuild). */
+    private crystalProtectionProvider: () => Map<string, number> = () => new Map();
+    /** Epoch incremented whenever passability or cost for any cell changes. */
+    navEpoch: number = 0;
+
     constructor(grid: TerrainGrid) {
         this.grid = grid;
-        this.pathfinder = new Pathfinder(grid);
+        this.pathQuery = new PathQuery(this);
+    }
+
+    /** Set the provider function for crystal protection map (called when NavGrid is rebuilt). */
+    setCrystalProtectionProvider(fn: () => Map<string, number>): void {
+        this.crystalProtectionProvider = fn;
+        // Mark the existing NavGrid (if any) as all dirty since the protection map changed.
+        if (this._nav) {
+            this._nav.markAllDirty();
+        }
+    }
+
+    /** Lazily create and return the NavGrid, ensuring it's up-to-date. */
+    get nav(): NavGrid {
+        if (!this._nav) {
+            this._nav = new NavGrid(this, () => this.crystalProtectionProvider());
+        }
+        this._nav.flush();
+        return this._nav;
+    }
+
+    /** Bump navEpoch and mark the NavGrid dirty for a specific cell (or all cells if not given). */
+    notifyNavChanged(col?: number, row?: number): void {
+        this.navEpoch++;
+        if (!this._nav) return;
+
+        if (col !== undefined && row !== undefined) {
+            this._nav.markDirty(col, row);
+        } else {
+            this._nav.markAllDirty();
+        }
+    }
+
+    /** Mark NavGrid dirty without bumping the epoch (used for checkpoint restore). */
+    markNavDirty(): void {
+        if (this._nav) {
+            this._nav.markAllDirty();
+        }
     }
 
     /** Which registered map segment (if any) a grid cell belongs to. Debug/tooling use only. */
@@ -49,7 +94,10 @@ export class TerrainManager {
     /** Attach the TerrainLayerManager so floor tiles affect passability and rock queries. */
     setTerrainLayers(layers: TerrainLayerManager): void {
         this.terrainLayers = layers;
-        this.pathfinder.setPassabilityFn((col, row) => this.isCellPassableWithFloor(col, row));
+        // Invalidate NavGrid since terrain layers have changed.
+        if (this._nav) {
+            this._nav.markAllDirty();
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -101,37 +149,15 @@ export class TerrainManager {
         return { width: this.grid.width, height: this.grid.height, cellSize: this.grid.cellSize };
     }
 
-    findPath(fromX: number, fromY: number, toX: number, toY: number): { x: number; y: number }[] | null {
-        return this.pathfinder.findPath(fromX, fromY, toX, toY);
-    }
-
     findGridPath(fromCol: number, fromRow: number, toCol: number, toRow: number): { col: number; row: number }[] | null {
-        return this.pathfinder.findGridPath(fromCol, fromRow, toCol, toRow);
-    }
-
-    findGridPathWithBlocked(
-        fromCol: number,
-        fromRow: number,
-        toCol: number,
-        toRow: number,
-        blockedCells: Set<string>,
-    ): { col: number; row: number }[] | null {
-        return this.pathfinder.findGridPathWithBlocked(fromCol, fromRow, toCol, toRow, blockedCells);
-    }
-
-    findGridPathWithOccupancyCost(
-        fromCol: number,
-        fromRow: number,
-        toCol: number,
-        toRow: number,
-        occupancyCostFn: (col: number, row: number) => number,
-        blockedCells?: Set<string>,
-    ): { col: number; row: number }[] | null {
-        return this.pathfinder.findGridPathWithOccupancyCost(fromCol, fromRow, toCol, toRow, occupancyCostFn, blockedCells);
+        return this.pathQuery.findCellPath(fromCol, fromRow, toCol, toRow, 'default', 0);
     }
 
     clearPathCache(): void {
-        this.pathfinder.clearCache();
+        this.pathQuery.clearCache();
+        // Also bump navEpoch and mark the NavGrid as needing rebuild.
+        // This is a compatibility entry point for tests that mutate grid.set directly.
+        this.notifyNavChanged();
     }
 
     // -------------------------------------------------------------------------
@@ -150,12 +176,27 @@ export class TerrainManager {
     createOrMarkRock(col: number, row: number, maxHealth: number = EARTH_CORE_STONE_HEALTH): FloorTile | null {
         if (!this.terrainLayers) return null;
         if (col < 0 || col >= this.grid.width || row < 0 || row >= this.grid.height) return null;
+
+        // Check if effective passability actually changes.
+        const previousEffective = this.getEffectiveTerrainType(col, row);
+        if (previousEffective === TerrainType.Rock) {
+            // Already a rock, no change in passability.
+            const tile: FloorTile = {
+                terrainType: TerrainType.Rock,
+                destructible: { health: maxHealth, maxHealth, kind: 'rock' },
+            };
+            this.terrainLayers.setFloorTile(col, row, tile);
+            return { ...tile, destructible: { ...tile.destructible! } };
+        }
+
         const tile: FloorTile = {
             terrainType: TerrainType.Rock,
             destructible: { health: maxHealth, maxHealth, kind: 'rock' },
         };
         this.terrainLayers.setFloorTile(col, row, tile);
-        this.clearPathCache();
+
+        // Effective passability changed from passable to impassable.
+        this.notifyNavChanged(col, row);
         return { ...tile, destructible: { ...tile.destructible! } };
     }
 
@@ -195,11 +236,15 @@ export class TerrainManager {
         }
 
         this.terrainLayers.setFloorTile(col, row, floor);
-        this.clearPathCache();
+
+        // Bump navEpoch only if effective passability changed (rock destroyed).
+        const destroyed = nextTerrainType === TerrainType.Rubble;
+        if (destroyed) {
+            this.notifyNavChanged(col, row);
+        }
 
         const nextTier = nextHealth <= 0 ? DAMAGE_TIER_NONE : getDamageTier(floor.destructible);
         const tierChanged = nextTier !== previousTier;
-        const destroyed = nextTerrainType === TerrainType.Rubble;
 
         if (!destroyed && !tierChanged) return null;
 
@@ -267,7 +312,9 @@ export class TerrainManager {
         }
 
         this.terrainLayers.setFloorTile(selected.col, selected.row, { terrainType: TerrainType.Rubble });
-        this.clearPathCache();
+
+        // Bump navEpoch and mark dirty when rock is consumed (destroyed).
+        this.notifyNavChanged(selected.col, selected.row);
 
         return this.emitStoneDamaged({
             col: selected.col,

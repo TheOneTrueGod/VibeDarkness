@@ -39,19 +39,7 @@ export const lantern_patrol: AINode<'lanternitePatrol', LanternitePatrolNodeId> 
 
             const dest = unit.lanterniteState.patrolLeg === 'toFar' ? far : { x: nest.x, y: nest.y };
 
-            const grid = context.terrainManager?.grid;
-            if (!grid) {
-                queueWaitAndEndTurn(unit, context);
-                return;
-            }
-            const from = grid.worldToGrid(unit.x, unit.y);
-            const toCell = grid.worldToGrid(dest.x, dest.y);
-            const path = context.findGridPathForUnit(unit, from.col, from.row, toCell.col, toCell.row);
-
-            if (path && path.length > 0) {
-                unit.setMovement(path, undefined, context.gameTick);
-            }
-
+            context.nav.moveToPoint(unit, dest.x, dest.y);
             queueWaitAndEndTurn(unit, context);
         },
     },

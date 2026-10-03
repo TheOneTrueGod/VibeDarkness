@@ -116,15 +116,7 @@ export const pet_engage: AINode<'pet', PetNodeId> = {
             }
 
             // Chase the target
-            if (unit.aiSettings && context.terrainManager) {
-                applyAIMovementToUnit(unit, target, {
-                    findGridPath: (fc, fr, tc, tr) => context.findGridPathForUnit(unit, fc, fr, tc, tr),
-                    worldToGrid: context.terrainManager.grid.worldToGrid.bind(context.terrainManager.grid),
-                    gameTick: context.gameTick,
-                    worldWidth: context.WORLD_WIDTH,
-                    worldHeight: context.WORLD_HEIGHT,
-                });
-            }
+            applyAIMovementToUnit(unit, target, context);
 
             if (petDef) {
                 const ability = pickPetEngageAbility(unit, target, petDef.basicAttackAbilityId);
@@ -134,7 +126,6 @@ export const pet_engage: AINode<'pet', PetNodeId> = {
                         unitId: unit.id,
                         abilityId: ability.id,
                         targets,
-                        movePath: unit.pathInvalidated ? undefined : (unit.movement?.path ? [...unit.movement.path] : undefined),
                     });
                     context.emitTurnEnd(unit.id);
                     return;
@@ -142,19 +133,6 @@ export const pet_engage: AINode<'pet', PetNodeId> = {
             }
 
             context.emitTurnEnd(unit.id);
-        },
-
-        onPathfindingRetrigger(unit: Unit, context: AIContext): void {
-            const ctx = unit.aiContext as PetAITreeContext;
-            const target = ctx.targetUnitId ? context.getUnit(ctx.targetUnitId) : null;
-            if (!target?.isAlive() || !unit.aiSettings || !context.terrainManager) return;
-            applyAIMovementToUnit(unit, target, {
-                findGridPath: (fc, fr, tc, tr) => context.findGridPathForUnit(unit, fc, fr, tc, tr),
-                worldToGrid: context.terrainManager.grid.worldToGrid.bind(context.terrainManager.grid),
-                gameTick: context.gameTick,
-                worldWidth: context.WORLD_WIDTH,
-                worldHeight: context.WORLD_HEIGHT,
-            });
         },
     },
     edges: [

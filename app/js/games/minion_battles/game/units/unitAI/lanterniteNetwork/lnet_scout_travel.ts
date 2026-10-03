@@ -96,15 +96,7 @@ export const lnet_scout_travel: AINode<'lanterniteNetwork', LanterniteNetworkNod
             }
 
             // Pathfind toward stand position (not directly on top of the build site)
-            const grid = context.terrainManager?.grid;
-            if (grid) {
-                const from = grid.worldToGrid(unit.x, unit.y);
-                const to = grid.worldToGrid(standX, standY);
-                const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-                if (path && path.length > 0) {
-                    unit.setMovement(path, undefined, context.gameTick);
-                }
-            }
+            context.nav.moveToPoint(unit, standX, standY);
 
             // Opportunistic attack (do not chase; just fire if eligible and enemy in range)
             if (context.gameTime >= unit.lanterniteState.attackReadyAtGameTime) {

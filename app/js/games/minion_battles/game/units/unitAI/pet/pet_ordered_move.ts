@@ -1,5 +1,5 @@
 /**
- * pet_ordered_move — Path to a player-ordered destination; suppress auto-engage until arrival.
+ * pet_ordered_move — Walk to a player-ordered destination; suppress auto-engage until arrival.
  *
  * Entered by Order: Move. Cleared on arrival, unreachable destination, heel, or a new order.
  */
@@ -9,6 +9,7 @@ import type { AIContext, AINode } from '../types';
 import type { PetAITreeContext, PetNodeId } from './context';
 import { queueWaitAndEndTurn, distance } from '../utils';
 import { clearPetGuardWander } from './pet_guardWander';
+import { CELL_SIZE } from '../../../../terrain/TerrainGrid';
 
 /** Arrival tolerance in world pixels. */
 export const PET_ORDERED_MOVE_ARRIVAL_PX = 12;
@@ -16,22 +17,6 @@ export const PET_ORDERED_MOVE_ARRIVAL_PX = 12;
 function clearOrderedMove(ctx: PetAITreeContext): void {
     ctx.orderedMoveX = undefined;
     ctx.orderedMoveY = undefined;
-}
-
-function pathToOrderedDest(unit: Unit, context: AIContext, ctx: PetAITreeContext): boolean {
-    if (ctx.orderedMoveX === undefined || ctx.orderedMoveY === undefined) return false;
-    if (!context.terrainManager) return false;
-    const grid = context.terrainManager.grid;
-    const from = grid.worldToGrid(unit.x, unit.y);
-    const to = grid.worldToGrid(ctx.orderedMoveX, ctx.orderedMoveY);
-    if (from.col === to.col && from.row === to.row) return true;
-    const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-    if (!path || path.length === 0) return false;
-    unit.setMovement(path, undefined, context.gameTick, {
-        x: ctx.orderedMoveX,
-        y: ctx.orderedMoveY,
-    });
-    return true;
 }
 
 export const pet_ordered_move: AINode<'pet', PetNodeId> = {
@@ -56,27 +41,28 @@ export const pet_ordered_move: AINode<'pet', PetNodeId> = {
             const dist = distance(unit.x, unit.y, ctx.orderedMoveX, ctx.orderedMoveY);
             if (dist <= PET_ORDERED_MOVE_ARRIVAL_PX) {
                 clearOrderedMove(ctx);
-                unit.clearMovement();
+                context.nav.stop(unit);
                 ctx.aiState = 'pet_follow';
                 queueWaitAndEndTurn(unit, context);
                 return;
             }
 
-            const ok = pathToOrderedDest(unit, context, ctx);
-            if (!ok) {
+            const toCol = Math.floor(ctx.orderedMoveX / CELL_SIZE);
+            const toRow = Math.floor(ctx.orderedMoveY / CELL_SIZE);
+            const inDestCell = Math.floor(unit.x / CELL_SIZE) === toCol && Math.floor(unit.y / CELL_SIZE) === toRow;
+            if (!inDestCell && !context.nav.isReachable(unit, toCol, toRow)) {
                 // Unreachable — drop the order and resume follow.
                 clearOrderedMove(ctx);
-                unit.clearMovement();
+                context.nav.stop(unit);
                 ctx.aiState = 'pet_follow';
+                queueWaitAndEndTurn(unit, context);
+                return;
             }
 
-            queueWaitAndEndTurn(unit, context);
-        },
+            // Exact pixel: the arrival test above is tighter than a cell.
+            context.nav.moveToPoint(unit, ctx.orderedMoveX, ctx.orderedMoveY, { exact: true });
 
-        onPathfindingRetrigger(unit: Unit, context: AIContext): void {
-            const ctx = unit.aiContext as PetAITreeContext;
-            if (ctx.orderedMoveX === undefined || ctx.orderedMoveY === undefined) return;
-            pathToOrderedDest(unit, context, ctx);
+            queueWaitAndEndTurn(unit, context);
         },
     },
     edges: [

@@ -7,8 +7,7 @@ import { Unit } from '../../Unit';
 import type { AIContext } from '../types';
 import type { SwarmlingNetworkAITreeContext } from './context';
 import type { BattleOrder } from '../../../types';
-import { runUnitAI, SWARMLING_NETWORK_AI_TREE } from '../index';
-import { snet_seek } from './snet_seek';
+import { runUnitAI, SWARMLING_NETWORK_AI_TREE, createAINav } from '../index';
 import { TerrainGrid } from '../../../../terrain/TerrainGrid';
 import { TerrainManager } from '../../../../terrain/TerrainManager';
 import { TerrainType } from '../../../../terrain/TerrainType';
@@ -120,8 +119,7 @@ function createMockContext(options: {
         getAliveDefendPoints: () => [],
         getLightSources: () => [],
         terrainManager: options.terrainManager ?? null,
-        findGridPathForUnit: (_, fromCol, fromRow, toCol, toRow) =>
-            options.terrainManager?.findGridPath(fromCol, fromRow, toCol, toRow) ?? null,
+        nav: createAINav(() => options.terrainManager ?? null),
         queueOrder: (_atTick, order) => {
             orders.push(order);
         },
@@ -293,32 +291,35 @@ describe('snet_seek', () => {
         expect(unit.swarmState.targetNodeId).toBeNull();
     });
 
-    // Regression for a swarmling that died mid-transit with no attacker nearby: onPathfindingRetrigger
-    // recomputed a path from the unit's raw continuous (mid-cell) position, but then called
-    // `.slice(1)` on a result `findGridPathForUnit` had *already* stripped the start cell from —
-    // silently discarding the real next waypoint. Skipping straight to the following waypoint
-    // widened a single safe step into a diagonal corner-cut through a wall tile, and the unit was
-    // then killed by the wall-eject "punishment damage" from unitWallUnstick.ts.
-    it('onPathfindingRetrigger does not drop the immediate next waypoint (regression: corner-cut into a wall mid-transit)', () => {
+    // Regression (replaced after removing onPathfindingRetrigger): ensure that the walk goal's dest
+    // is exactly the committed target node's cell, not the unit's current cell or an intermediate one.
+    it('sets the walk goal to the exact destination node cell (not unit cell or intermediate)', () => {
         const mapNetwork = makeMapNetwork();
         const terrainManager = makeTerrain();
-        // Mid-transit toward 'b' (300,100) — not sitting on a cell center, mirroring the unit
-        // position captured mid-hop in the incident that produced this test.
+        // Mid-transit toward 'b' (300,100) — not sitting on a cell center
         const unit = createSwarmling('s1', 151, 103, { currentNodeId: 'a', targetNodeId: 'b' });
         const { context } = createMockContext({ units: [unit], mapNetwork, terrainManager });
 
-        const fromCol = Math.floor(unit.x / CELL_SIZE);
-        const fromRow = Math.floor(unit.y / CELL_SIZE);
-        const toCol = Math.floor(300 / CELL_SIZE);
-        const toRow = Math.floor(100 / CELL_SIZE);
-        const expectedPath = terrainManager.findGridPath(fromCol, fromRow, toCol, toRow);
-        expect(expectedPath).not.toBeNull();
-        expect(expectedPath!.length).toBeGreaterThan(0);
+        runUnitAI(unit, SWARMLING_NETWORK_AI_TREE, context);
 
-        snet_seek.actions.onPathfindingRetrigger!(unit, context);
+        // The walk goal's dest must be exactly node 'b' cell, not the unit's current cell
+        const expectedCol = Math.floor(300 / CELL_SIZE);
+        const expectedRow = Math.floor(100 / CELL_SIZE);
+        expect(unit.walkIntent?.dest).toEqual({ col: expectedCol, row: expectedRow });
+    });
 
-        // The committed movement path must be exactly what the pathfinder returned — not that
-        // result with its real first waypoint additionally sliced off.
-        expect(unit.movement?.path).toEqual(expectedPath);
+    it('goal setting is idempotent (running twice leaves walkIntent as same reference)', () => {
+        const mapNetwork = makeMapNetwork();
+        const unit = createSwarmling('s1', 100, 100, { currentNodeId: 'a', targetNodeId: 'b' });
+        const { context } = createMockContext({ units: [unit], mapNetwork, terrainManager: makeTerrain() });
+
+        runUnitAI(unit, SWARMLING_NETWORK_AI_TREE, context);
+        const firstIntent = unit.walkIntent;
+
+        runUnitAI(unit, SWARMLING_NETWORK_AI_TREE, context);
+        const secondIntent = unit.walkIntent;
+
+        // Same goal ⇒ no-op, walkIntent object reference is unchanged
+        expect(secondIntent).toBe(firstIntent);
     });
 });

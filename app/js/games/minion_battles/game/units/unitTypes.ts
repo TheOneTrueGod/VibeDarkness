@@ -31,6 +31,10 @@ export interface UnitMovement {
     targetPixel?: { x: number; y: number };
     /** The gameTick when pathfinding was last computed. */
     pathfindingTick: number;
+    /** navEpoch the path was planned/validated at; -1 forces re-validation. Optional until the PathfindingManager lands. */
+    navEpoch?: number;
+    /** Stop pursuing when within this distance of the target unit (overrides the default `radius + radius + MIN_FOLLOW_RADIUS`). */
+    stopRange?: number;
 }
 
 /**
@@ -41,7 +45,16 @@ export interface UnitWalkIntent {
     dest: { col: number; row: number };
     targetUnitId?: string;
     targetPixel?: { x: number; y: number };
+    /** Stop pursuing when within this distance of the target unit (overrides the default `radius + radius + MIN_FOLLOW_RADIUS`). */
+    stopRange?: number;
+    /** True when the goal was set through `setWalkGoal` (the PathfindingManager owns the path and keeps a chase goal on its target). Absent for intents derived from an explicit path. */
+    managed?: boolean;
 }
+
+/** Walk goal for {@link Unit.setWalkGoal}. */
+export type UnitWalkGoal =
+    | { kind: 'unit'; unitId: string; col: number; row: number; stopRange?: number }   // col/row = the target's current cell
+    | { kind: 'cell'; col: number; row: number; targetPixel?: { x: number; y: number } };
 
 /** Source of knockback (for callbacks). Serializable. */
 export interface KnockbackSource {

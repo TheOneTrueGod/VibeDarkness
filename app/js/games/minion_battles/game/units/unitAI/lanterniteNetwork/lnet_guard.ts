@@ -3,6 +3,7 @@
  * Switches to lnet_chase when an enemy gets close or deals damage.
  */
 
+import { CELL_SIZE } from '../../../../terrain/TerrainGrid';
 import type { Unit } from '../../Unit';
 import type { AIContext, AINode } from '../types';
 import {
@@ -100,26 +101,13 @@ export const lnet_guard: AINode<'lanterniteNetwork', LanterniteNetworkNodeId> = 
                         ctx.patrolTargetY = undefined;
                         ctx.dwellStartTime = undefined;
                     }
-                } else {
+                } else if (context.nav.isReachable(unit, Math.floor(ctx.patrolTargetX / CELL_SIZE), Math.floor(ctx.patrolTargetY / CELL_SIZE))) {
                     // Still travelling
-                    const from = grid.worldToGrid(unit.x, unit.y);
-                    const to = grid.worldToGrid(ctx.patrolTargetX, ctx.patrolTargetY);
-                    if (
-                        !unit.pathInvalidated &&
-                        unit.movement &&
-                        unit.movement.path.length > 0
-                    ) {
-                        // Already has a path toward this target — let it run
-                    } else {
-                        const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-                        if (path && path.length > 0) {
-                            unit.setMovement(path, undefined, context.gameTick);
-                        } else {
-                            // Unreachable — abandon and pick a new point next tick
-                            ctx.patrolTargetX = undefined;
-                            ctx.patrolTargetY = undefined;
-                        }
-                    }
+                    context.nav.moveToPoint(unit, ctx.patrolTargetX, ctx.patrolTargetY);
+                } else {
+                    // Unreachable — abandon and pick a new point next turn
+                    ctx.patrolTargetX = undefined;
+                    ctx.patrolTargetY = undefined;
                 }
 
                 queueWaitAndEndTurn(unit, context);
@@ -134,19 +122,6 @@ export const lnet_guard: AINode<'lanterniteNetwork', LanterniteNetworkNodeId> = 
             ctx.dwellStartTime = undefined;
 
             queueWaitAndEndTurn(unit, context);
-        },
-
-        onPathfindingRetrigger(unit: Unit, context: AIContext): void {
-            const ctx = unit.aiContext as LanterniteNetworkAITreeContext;
-            if (ctx.patrolTargetX == null || ctx.patrolTargetY == null) return;
-            const grid = context.terrainManager?.grid;
-            if (!grid) return;
-            const from = grid.worldToGrid(unit.x, unit.y);
-            const to = grid.worldToGrid(ctx.patrolTargetX, ctx.patrolTargetY);
-            const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-            if (path && path.length > 0) {
-                unit.setMovement(path, undefined, context.gameTick);
-            }
         },
     },
     edges: [

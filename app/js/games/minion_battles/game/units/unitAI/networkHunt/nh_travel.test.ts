@@ -7,7 +7,7 @@ import { Unit } from '../../Unit';
 import type { AIContext } from '../types';
 import type { NetworkHuntAITreeContext } from './context';
 import type { BattleOrder } from '../../../types';
-import { runUnitAI, NETWORK_HUNT_AI_TREE } from '../index';
+import { runUnitAI, NETWORK_HUNT_AI_TREE, createAINav } from '../index';
 import { TerrainGrid, CELL_SIZE } from '../../../../terrain/TerrainGrid';
 import { TerrainManager } from '../../../../terrain/TerrainManager';
 import { TerrainType } from '../../../../terrain/TerrainType';
@@ -123,8 +123,7 @@ function createMockContext(options: {
         getAliveDefendPoints: () => [],
         getLightSources: () => [],
         terrainManager: options.terrainManager ?? null,
-        findGridPathForUnit: (_, fromCol, fromRow, toCol, toRow) =>
-            options.terrainManager?.findGridPath(fromCol, fromRow, toCol, toRow) ?? null,
+        nav: createAINav(() => options.terrainManager ?? null),
         queueOrder: (_atTick, order) => {
             orders.push(order);
         },
@@ -166,12 +165,12 @@ describe('nh_travel', () => {
         const ctx = hunter.aiContext as NetworkHuntAITreeContext;
         expect(ctx.aiState).toBe('nh_travel');
         expect(ctx.targetStructureNodeId).toBe('nest_c');
-        expect(hunter.movement?.path.length ?? 0).toBeGreaterThan(0);
+        expect(hunter.walkIntent).not.toBeNull();
+        expect(hunter.walkIntent?.managed).toBe(true);
         // Next hop along a→b→c is nest_b (empty middle), not a beeline to nest_c.
-        const dest = hunter.movement!.path[hunter.movement!.path.length - 1]!;
-        const destWorld = makeTerrain().grid.gridToWorld(dest.col, dest.row);
-        expect(destWorld.x).toBe(300);
-        expect(destWorld.y).toBe(100);
+        const expectedCol = Math.floor(300 / CELL_SIZE);
+        const expectedRow = Math.floor(100 / CELL_SIZE);
+        expect(hunter.walkIntent?.dest).toEqual({ col: expectedCol, row: expectedRow });
     });
 
     it('advances to an empty nest node when no enemy structures exist yet', () => {
@@ -186,11 +185,11 @@ describe('nh_travel', () => {
 
         const ctx = hunter.aiContext as NetworkHuntAITreeContext;
         expect(ctx.targetStructureNodeId).toBe('nest_b');
-        expect(hunter.movement?.path.length ?? 0).toBeGreaterThan(0);
-        const dest = hunter.movement!.path[hunter.movement!.path.length - 1]!;
-        const destWorld = makeTerrain().grid.gridToWorld(dest.col, dest.row);
-        expect(destWorld.x).toBe(300);
-        expect(destWorld.y).toBe(100);
+        expect(hunter.walkIntent).not.toBeNull();
+        expect(hunter.walkIntent?.managed).toBe(true);
+        const expectedCol = Math.floor(300 / CELL_SIZE);
+        const expectedRow = Math.floor(100 / CELL_SIZE);
+        expect(hunter.walkIntent?.dest).toEqual({ col: expectedCol, row: expectedRow });
     });
 
     it('does not treat the ally-owned nest as a travel destination', () => {

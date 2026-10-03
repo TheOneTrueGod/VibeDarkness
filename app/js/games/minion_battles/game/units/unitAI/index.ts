@@ -16,7 +16,7 @@ import { NETWORK_HUNT_AI_TREE } from './networkHunt/index';
 
 export type { AIContext, AILightSource, UnitAITree, AINode, AIEdgeCondition, AINodeId } from './types';
 export { isNodeInTree } from './types';
-export { runUnitAI, runPathfindingRetrigger, getCurrentNodeId, setCurrentNodeId } from './runner';
+export { runUnitAI, getCurrentNodeId, setCurrentNodeId } from './runner';
 export {
     ROUND_DURATION,
     distance,
@@ -32,7 +32,9 @@ export {
     pickBestAbility,
     tryQueueAbilityOrder,
 } from './utils';
-export type { GridLike, ApplyAIMovementParams } from './utils';
+export type { GridLike } from './utils';
+export type { AINav } from './aiNav';
+export { createAINav } from './aiNav';
 
 export type {
     UnitAIContext,

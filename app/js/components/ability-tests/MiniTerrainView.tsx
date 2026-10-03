@@ -64,7 +64,8 @@ export default function MiniTerrainView({ engine, cellPx = 6, renderVersion: _rv
         const cells: { key: string; bg: string }[] = [];
         for (let row = 0; row < g.height; row++) {
             for (let col = 0; col < g.width; col++) {
-                const t = g.get(col, row);
+                // Effective terrain, so rock created during the scenario shows up.
+                const t = tm.getEffectiveTerrainType(col, row);
                 cells.push({
                     key: `${col},${row}`,
                     bg: TERRAIN_PROPERTIES[t as TerrainType]?.color ?? '#333',

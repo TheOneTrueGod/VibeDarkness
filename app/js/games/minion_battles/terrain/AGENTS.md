@@ -9,7 +9,7 @@ Mission bedrock grid, pathfinding, and the TerrainManager façade. Mutable overl
 | `TerrainGrid.ts` | Immutable mission bedrock cells after load. |
 | `TerrainManager.ts` | Rock helpers + pathfinder; delegates floor mutations to `engine.terrainLayers`. |
 | `FloorTile.ts` / related | Effective terrain = bedrock + floor-layer overrides. |
-| Pathfinding helpers | A* / occupancy used by movement and AI. |
+| `../pathfinding/AGENTS.md` | NavGrid, A*, GoalField, smoothing, and PathfindingManager. See that module for search/smoothing internals. |
 
 ## Layers (owned under `game/`)
 

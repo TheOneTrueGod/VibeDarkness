@@ -79,41 +79,11 @@ export const alphaWolfBoss_attack: AINode<'alphaWolfBoss', AlphaWolfBossNodeId> 
                 return;
             }
 
-            if (unit.aiSettings && context.terrainManager) {
-                ctx.targetUnitId = target.id;
-                applyAIMovementToUnit(unit, target, {
-                    findGridPath: (fc, fr, tc, tr) => context.findGridPathForUnit(unit, fc, fr, tc, tr),
-                    worldToGrid: context.terrainManager.grid.worldToGrid.bind(context.terrainManager.grid),
-                    gameTick: context.gameTick,
-                    worldWidth: context.WORLD_WIDTH,
-                    worldHeight: context.WORLD_HEIGHT,
-                });
-            }
+            ctx.targetUnitId = target.id;
+            applyAIMovementToUnit(unit, target, context);
 
             if (tryQueueAbilityOrder(unit, context, inSight)) return;
             queueWaitAndEndTurn(unit, context);
-        },
-        onPathfindingRetrigger(unit: Unit, context: AIContext): void {
-            const sightRadius = getSightRadius(unit);
-            const enemies = findEnemies(unit, context.getUnits());
-            const inSight = getEnemiesInPerceptionAndLOS(
-                unit,
-                enemies,
-                sightRadius,
-                context.hasLineOfSight.bind(context),
-            );
-            const target =
-                unit.characterId === 'alpha_wolf'
-                    ? pickOrGetPrey(unit, context)
-                    : inSight[0] ?? null;
-            if (!target?.isAlive() || !unit.aiSettings || !context.terrainManager) return;
-            applyAIMovementToUnit(unit, target, {
-                findGridPath: (fc, fr, tc, tr) => context.findGridPathForUnit(unit, fc, fr, tc, tr),
-                worldToGrid: context.terrainManager.grid.worldToGrid.bind(context.terrainManager.grid),
-                gameTick: context.gameTick,
-                worldWidth: context.WORLD_WIDTH,
-                worldHeight: context.WORLD_HEIGHT,
-            });
         },
     },
     edges: [

@@ -35,7 +35,8 @@ Paths below are relative to `app/js/games/minion_battles/`. **Do not treat this 
 | `api/` | Minion Battles HTTP facade and DTO-style types for lobby payloads. |
 | `assets/` | Shared game media (sprites, story art, music/sfx). See `assets/SKILL.md`. |
 | `music/` | Playlist catalog, persisted volume/mute, and the dual-channel music controller. See `music/AGENTS.md`. |
-| `terrain/` | Bedrock grid, pathfinding, terrain manager. See `terrain/AGENTS.md` (mutable floor/ground/air overlays live on `game/TerrainLayerManager`). |
+| `pathfinding/` | NavGrid, A*, GoalField, smoothing, and PathfindingManager (turns walk goals into sparse waypoint paths). See `pathfinding/AGENTS.md`. |
+| `terrain/` | Bedrock grid, terrain manager. See `terrain/AGENTS.md` (mutable floor/ground/air overlays live on `game/TerrainLayerManager`; pathfinding guide at `pathfinding/AGENTS.md`). |
 | `abilities/` | Ability classes, timings, targeting, CastBehaviours, previews. See `abilities/AGENTS.md`. |
 | `crowdControl/` | Hard CC apply paths, knockback keywords, boss CC armour. See `crowdControl/AGENTS.md`. |
 | `card_defs/` | One folder per card/ability definition asset. |

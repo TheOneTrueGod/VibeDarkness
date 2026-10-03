@@ -17,8 +17,6 @@ import {
 } from '../utils';
 import { getPerceptionRange } from '../../unit_defs/unitDef';
 
-const DEFAULT_PATH_RETRIGGER = 50;
-
 export const default_siegeDefendPoint: AINode<'default', DefaultNodeId> = {
     nodeId: 'default_siegeDefendPoint',
     actions: {
@@ -50,23 +48,16 @@ export const default_siegeDefendPoint: AINode<'default', DefaultNodeId> = {
                 return;
             }
 
-            const retrigger = unit.pathfindingRetriggerOffset ?? DEFAULT_PATH_RETRIGGER;
-            const onRetriggerTick = retrigger > 0 && context.gameTick % retrigger === 0;
-            const shouldRecalcPathToDefend =
-                (unit.pathInvalidated || !unit.movement?.path?.length || onRetriggerTick) &&
-                !ctx.targetUnitId &&
-                unit.activeAbilities.length === 0;
-            if (shouldRecalcPathToDefend && terrainManager && grid) {
+            // Move to defend point when not engaged in combat
+            if (!ctx.targetUnitId && unit.activeAbilities.length === 0 && grid) {
                 const unitGrid = grid.worldToGrid(unit.x, unit.y);
-                const path = context.findGridPathForUnit(
-                    unit,
-                    unitGrid.col,
-                    unitGrid.row,
-                    currentDefendPoint.col,
-                    currentDefendPoint.row,
-                );
-                if (path && path.length > 0) {
-                    unit.setMovement(path, undefined, context.gameTick);
+                const atDefendPoint =
+                    Math.max(
+                        Math.abs(unitGrid.col - currentDefendPoint.col),
+                        Math.abs(unitGrid.row - currentDefendPoint.row),
+                    ) <= 1;
+                if (!atDefendPoint) {
+                    context.nav.moveToCell(unit, currentDefendPoint.col, currentDefendPoint.row);
                 }
             }
 
@@ -84,15 +75,7 @@ export const default_siegeDefendPoint: AINode<'default', DefaultNodeId> = {
                 ctx.corruptingStartedAt = undefined;
                 const combatTarget = inPerceptionAndLOS[0]!;
                 ctx.targetUnitId = combatTarget.id;
-                if (unit.aiSettings && terrainManager) {
-                    applyAIMovementToUnit(unit, combatTarget, {
-                        findGridPath: (fc, fr, tc, tr) => context.findGridPathForUnit(unit, fc, fr, tc, tr),
-                        worldToGrid: grid!.worldToGrid.bind(grid!),
-                        gameTick: context.gameTick,
-                        worldWidth: context.WORLD_WIDTH,
-                        worldHeight: context.WORLD_HEIGHT,
-                    });
-                }
+                applyAIMovementToUnit(unit, combatTarget, context);
                 if (tryQueueAbilityOrder(unit, context, inPerceptionAndLOS)) return;
                 context.emitTurnEnd(unit.id);
                 return;
@@ -120,26 +103,6 @@ export const default_siegeDefendPoint: AINode<'default', DefaultNodeId> = {
             ctx.corruptingTargetId = undefined;
             ctx.corruptingStartedAt = undefined;
             queueWaitAndEndTurn(unit, context);
-        },
-        onPathfindingRetrigger(unit: Unit, context: AIContext): void {
-            const ctx = unit.aiContext as DefaultAITreeContext;
-            const defendPoints = context.getAliveDefendPoints();
-            if (defendPoints.length === 0) return;
-            if (ctx.targetUnitId || unit.activeAbilities.length > 0) return;
-            const targetTile = getDefendPointFromContext(unit, defendPoints);
-            if (!targetTile || !context.terrainManager?.grid) return;
-            const grid = context.terrainManager.grid;
-            const unitGrid = grid.worldToGrid(unit.x, unit.y);
-            const path = context.findGridPathForUnit(
-                unit,
-                unitGrid.col,
-                unitGrid.row,
-                targetTile.col,
-                targetTile.row,
-            );
-            if (path && path.length > 0) {
-                unit.setMovement(path, undefined, context.gameTick);
-            }
         },
     },
     edges: [

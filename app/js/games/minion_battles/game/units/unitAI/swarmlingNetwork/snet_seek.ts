@@ -185,34 +185,8 @@ export const snet_seek: AINode<'swarmlingNetwork', SwarmlingNetworkNodeId> = {
                 return;
             }
 
-            const needsNewPath = unit.pathInvalidated || !unit.movement || unit.movement.path.length === 0;
-            if (needsNewPath) {
-                const from = grid.worldToGrid(unit.x, unit.y);
-                const to = grid.worldToGrid(targetNode.x, targetNode.y);
-                const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-                if (path && path.length > 0) {
-                    unit.setMovement(path, undefined, context.gameTick);
-                }
-            }
-
+            context.nav.moveToPoint(unit, targetNode.x, targetNode.y);
             queueWaitAndEndTurn(unit, context);
-        },
-
-        onPathfindingRetrigger(unit: Unit, context: AIContext): void {
-            if (unit.swarmState.constructionCompleteAtGameTime != null) return;
-            const targetNodeId = unit.swarmState.targetNodeId;
-            if (!targetNodeId) return;
-            const mapNetwork = context.mapNetwork;
-            const grid = context.terrainManager?.grid;
-            if (!mapNetwork || !grid) return;
-            const targetNode = mapNetwork.getNode(targetNodeId);
-            if (!targetNode) return;
-            const from = grid.worldToGrid(unit.x, unit.y);
-            const to = grid.worldToGrid(targetNode.x, targetNode.y);
-            const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-            if (path && path.length > 0) {
-                unit.setMovement(path, undefined, context.gameTick);
-            }
         },
     },
     edges: [

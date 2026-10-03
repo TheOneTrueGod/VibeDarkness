@@ -1,7 +1,7 @@
 /**
  * pet_return — Return to the owner, ignoring enemies.
  *
- * Pathfinds directly to the owner. Transitions to pet_follow once close enough.
+ * Chases directly to the owner. Transitions to pet_follow once close enough.
  */
 
 import type { Unit } from '../../Unit';
@@ -36,31 +36,8 @@ export const pet_return: AINode<'pet', PetNodeId> = {
                 return;
             }
 
-            if (context.terrainManager) {
-                const grid = context.terrainManager.grid;
-                const from = grid.worldToGrid(unit.x, unit.y);
-                const to = grid.worldToGrid(owner.x, owner.y);
-                const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-                if (path && path.length > 0) {
-                    const truncated = path.length > 1 ? path.slice(0, -1) : path;
-                    unit.setMovement(truncated, owner.id, context.gameTick);
-                }
-            }
-
+            context.nav.chaseUnit(unit, owner, { stopRange: FOLLOW_DISTANCE });
             queueWaitAndEndTurn(unit, context);
-        },
-
-        onPathfindingRetrigger(unit: Unit, context: AIContext): void {
-            const owner = unit.petState.ownerUnitId ? context.getUnit(unit.petState.ownerUnitId) : null;
-            if (!owner?.isAlive() || !context.terrainManager) return;
-            const grid = context.terrainManager.grid;
-            const from = grid.worldToGrid(unit.x, unit.y);
-            const to = grid.worldToGrid(owner.x, owner.y);
-            const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-            if (path && path.length > 0) {
-                const truncated = path.length > 1 ? path.slice(0, -1) : path;
-                unit.setMovement(truncated, owner.id, context.gameTick);
-            }
         },
     },
     edges: [

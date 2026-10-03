@@ -2,13 +2,14 @@
  * Guard wander — pacing loop while a pet waits near its owner in pet_follow.
  *
  * Picks a random point in a ring around the owner (> 1 unit radius, < tether range),
- * paths there, dwells briefly (0.5–1 s, deterministic per stop), then repeats.
+ * walks there, dwells briefly (0.5–1 s, deterministic per stop), then repeats.
  */
 
 import type { Unit } from '../../Unit';
 import type { AIContext } from '../types';
 import type { PetAITreeContext } from './context';
 import { distance } from '../utils';
+import { CELL_SIZE } from '../../../../terrain/TerrainGrid';
 
 /** Distance to guard target considered "arrived" (px). */
 const ARRIVAL_THRESHOLD_PX = 30;
@@ -54,26 +55,17 @@ function pickNewGuardTarget(
     ctx.guardDwellUntilGameTime = undefined;
 }
 
-function pathTowardGuardTarget(unit: Unit, context: AIContext, ctx: PetAITreeContext): void {
-    const grid = context.terrainManager?.grid;
-    if (!grid || ctx.guardTargetX == null || ctx.guardTargetY == null) return;
-
-    if (!unit.pathInvalidated && unit.movement && unit.movement.path.length > 0) {
+function walkTowardGuardTarget(unit: Unit, context: AIContext, ctx: PetAITreeContext): void {
+    if (ctx.guardTargetX == null || ctx.guardTargetY == null) return;
+    const col = Math.floor(ctx.guardTargetX / CELL_SIZE);
+    const row = Math.floor(ctx.guardTargetY / CELL_SIZE);
+    const inTargetCell = Math.floor(unit.x / CELL_SIZE) === col && Math.floor(unit.y / CELL_SIZE) === row;
+    if (!inTargetCell && !context.nav.isReachable(unit, col, row)) {
+        // Unreachable — forget it; a new point is picked next turn.
+        clearPetGuardWander(ctx);
         return;
     }
-
-    const from = grid.worldToGrid(unit.x, unit.y);
-    const to = grid.worldToGrid(ctx.guardTargetX, ctx.guardTargetY);
-    const path = context.findGridPathForUnit(unit, from.col, from.row, to.col, to.row);
-    if (path && path.length > 0) {
-        unit.setMovement(path, ownerIdOrUndefined(unit), context.gameTick);
-    } else {
-        clearPetGuardWander(ctx);
-    }
-}
-
-function ownerIdOrUndefined(unit: Unit): string | undefined {
-    return unit.petState.ownerUnitId ?? undefined;
+    context.nav.moveToPoint(unit, ctx.guardTargetX, ctx.guardTargetY, { exact: true });
 }
 
 /**
@@ -91,9 +83,6 @@ export function runPetGuardWander(
     const minDist = unitSize + 1;
     const maxDist = tetherRange - 1;
     if (minDist >= maxDist) return false;
-
-    const grid = context.terrainManager?.grid;
-    if (!grid) return false;
 
     if (
         ctx.guardTargetX != null
@@ -115,20 +104,12 @@ export function runPetGuardWander(
             }
             clearPetGuardWander(ctx);
         } else {
-            pathTowardGuardTarget(unit, context, ctx);
+            walkTowardGuardTarget(unit, context, ctx);
             return true;
         }
     }
 
     pickNewGuardTarget(owner, context, ctx, minDist, maxDist);
-    pathTowardGuardTarget(unit, context, ctx);
+    walkTowardGuardTarget(unit, context, ctx);
     return true;
-}
-
-/** Retrigger pathing after a movement interrupt while heading to a guard point. */
-export function retriggerPetGuardWanderPath(unit: Unit, context: AIContext): void {
-    const ctx = unit.aiContext as PetAITreeContext;
-    if (ctx.guardTargetX == null || ctx.guardTargetY == null) return;
-    if (ctx.guardDwellUntilGameTime != null && context.gameTime < ctx.guardDwellUntilGameTime) return;
-    pathTowardGuardTarget(unit, context, ctx);
 }

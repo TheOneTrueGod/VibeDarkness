@@ -5,7 +5,14 @@ import {
     pathStraightMoveScenario,
     dodgeIFrameProtectionScenario,
     dodgeIFrameVsThornbinderScenario,
+    pathOpenFieldStraightScenario,
+    pathCornerNoBacktrackScenario,
+    pathGroupSpreadsScenario,
+    pathChokePointSlideScenario,
+    pathTerrainChangeRerouteScenario,
+    pathStress200Scenario,
 } from './general/pathfinding';
+import { MOVEMENT_SHOWCASE_SCENARIOS } from './general/movementShowcase';
 import { crowdSpacingPackAndAnchorsScenario } from './general/crowdSpacing';
 import { swingSwordAppliesBleedScenario } from './general/buffs';
 import {
@@ -122,6 +129,13 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     pathStraightMoveScenario,
     pathAroundRockScenario,
     pathShortCommuteScenario,
+    pathOpenFieldStraightScenario,
+    pathCornerNoBacktrackScenario,
+    pathGroupSpreadsScenario,
+    pathChokePointSlideScenario,
+    pathTerrainChangeRerouteScenario,
+    pathStress200Scenario,
+    ...MOVEMENT_SHOWCASE_SCENARIOS,
     dodgeIFrameProtectionScenario,
     dodgeIFrameVsThornbinderScenario,
     crowdSpacingPackAndAnchorsScenario,
