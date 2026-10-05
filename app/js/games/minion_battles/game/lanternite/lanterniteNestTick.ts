@@ -23,6 +23,7 @@ import { IntervalEmitter, type EffectEmitter } from '../effects/EffectEmitter';
 import { Effect } from '../effects/Effect';
 import { spawnUnit, type SpawnUnitContext } from '../units/spawning/spawnUnit';
 import type { SpawnAiHookup } from '../units/spawning/spawnDefinition';
+import type { LanterniteNetworkAITreeContext } from '../units/unitAI/lanterniteNetwork/context';
 
 /**
  * Golden angle in radians (~137.5°). Used to distribute scout stand angles so each
@@ -33,7 +34,7 @@ const GOLDEN_ANGLE = 2.399963229728653;
 const ROUND_DURATION_SEC = 8;
 
 /** Read-only query surface `processLanterniteNests` needs — mirrors `AIContext.mapNetwork`'s `Pick<...>` restriction (query only, no `tick`/`loadFromSegments`). */
-type MapNetworkQuery = Pick<MapNetworkManager, 'getNeighborIds' | 'getOwnerCharacterId' | 'getNode'>;
+type MapNetworkQuery = Pick<MapNetworkManager, 'getNeighborIds' | 'getNode'>;
 
 function pruneSpawnedLanternIds(nest: Unit, units: readonly Unit[]): void {
     const state = nest.lanterniteState.nestSpawnState;
@@ -327,6 +328,44 @@ export function processLanterniteNests(params: {
         }
 
         state.nextSpawnAtGameTime = params.gameTime + Math.max(0.5, cfg.spawnIntervalSec);
+    }
+
+    // --- Defender promotion: a networked nest with an unclaimed neighbor and no spare spawn
+    // capacity would otherwise never send a scout (spawns only resolve a role at spawn time, and a
+    // full nest doesn't spawn). E.g. quest_thorn_march: nest_49_52 fills with defenders while a
+    // swarm_nest's site is unreachable, then sits idle once it's freed. Promote one of its
+    // defenders per tick instead. `findUnoccupiedConnectedNestPoi` excludes nodes any living unit
+    // already targets, so this never doubles up with a freshly spawned or traveling scout.
+    if (params.mapNetwork) {
+        for (const nest of params.units) {
+            if (!nest.isAlive() || nest.characterId !== LANTERNITE_NEST_CHARACTER_ID) continue;
+            const cfg = nest.lanterniteState.nestConfig;
+            if (!cfg?.networked) continue;
+            const nestPoiId = nest.lanterniteState.homeNestPoiId ?? cfg.nestPoiId;
+            if (!nestPoiId) continue;
+
+            const defenders = params.units.filter(
+                (u) =>
+                    u.isAlive() &&
+                    u.characterId === LANTERNITE_CHARACTER_ID &&
+                    u.lanterniteState.nestOwnerUnitId === nest.id &&
+                    u.lanterniteState.role === 'defender',
+            );
+            if (defenders.length === 0) continue;
+
+            const targetNode = findUnoccupiedConnectedNestPoi(nestPoiId, params.mapNetwork, params.units);
+            if (!targetNode) continue;
+
+            // Prefer a defender that isn't mid-chase so the nest's active fight isn't abandoned.
+            const promoted =
+                defenders.find(
+                    (u) => (u.aiContext as Partial<LanterniteNetworkAITreeContext>).aiState !== 'lnet_chase',
+                ) ?? defenders[0];
+            promoted.lanterniteState.role = 'scout';
+            promoted.lanterniteState.targetNestPoiId = targetNode.id;
+            promoted.lanterniteState.patrolFarWorld = { x: targetNode.x, y: targetNode.y };
+            promoted.lanterniteState.nestConfig = cfg;
+        }
     }
 
     // --- Construction particle emitters: start once when a scout begins building ---

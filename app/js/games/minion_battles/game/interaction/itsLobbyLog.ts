@@ -12,7 +12,8 @@ export type ItsActionSource =
     | 'terminal_outcome_auto_commit'
     | 'conditional_cancel_follow_up'
     | 'conditional_cancel_continue'
-    | 'combo_window_after_assumed_pass';
+    | 'combo_window_after_assumed_pass'
+    | 'auto_cast_interrupted';
 
 /** AUTO_END_TURN refused commit because not every SelectTargetDef label was collected. */
 export const ITS_AUTO_COMMIT_BLOCK_TARGETS_INCOMPLETE = 'targets_incomplete';
@@ -21,7 +22,8 @@ export const ITS_AUTO_COMMIT_BLOCK_TARGETS_INCOMPLETE = 'targets_incomplete';
 export type ItsCancelReason =
     | 'user_reset'
     | 'resync_load_from_snapshot'
-    | 'terminal_outcome_teardown';
+    | 'terminal_outcome_teardown'
+    | 'cast_interrupted';
 
 export type ItsEndOutcome = 'submitted' | 'rejected' | 'cancelled';
 
@@ -33,7 +35,8 @@ export type ItsEndDetail =
     | 'persist_failed'
     | 'user_reset'
     | 'resync'
-    | 'terminal_outcome';
+    | 'terminal_outcome'
+    | 'cast_interrupted';
 
 export interface ItsLogSnapshot {
     abilityId: string | null;
@@ -68,6 +71,7 @@ const ITS_BUTTON_CLICK_MESSAGES: Partial<Record<ItsActionSource, string>> = {
     ui_replay: 'ITS: Replay button clicked',
     ui_done: 'ITS: Done button clicked',
     auto_end_turn: 'ITS: auto end turn commit',
+    auto_cast_interrupted: 'ITS: auto reset — preview cast interrupted before targets collected',
 };
 
 function summarizeTarget(target: ResolvedTarget): Record<string, unknown> {
@@ -253,12 +257,13 @@ export function logItsResetPausePlane(
     session: BattleSession,
     its: InteractiveTargetingSession,
     phase: 'before_restore' | 'after_restore',
+    source: ItsActionSource = 'ui_reset',
 ): void {
     const pausePlane = captureItsPausePlaneLog(session, its);
     session.postBattleSyncLobbyLog(
         phase === 'before_restore' ? 'ITS: reset pause plane before restore' : 'ITS: reset pause plane after restore',
         itsContext(session, captureItsLogSnapshot(its, session), {
-            source: 'ui_reset',
+            source,
             phase,
             pausePlane,
         }),
@@ -299,7 +304,9 @@ export function logItsPreviewCancelled(
             ? 'user_reset'
             : reason === 'resync_load_from_snapshot'
                 ? 'resync'
-                : 'terminal_outcome';
+                : reason === 'cast_interrupted'
+                    ? 'cast_interrupted'
+                    : 'terminal_outcome';
     logItsPreviewEnded(session, snapshot, 'cancelled', detail, { cancelReason: reason });
 }
 

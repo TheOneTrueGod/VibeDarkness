@@ -53,5 +53,7 @@ Effects receive `viewportWidth` and `viewportHeight` each frame via `HudEffectLa
 | `RoundStartBannerEffect` | `RoundStartBanner` | 2.0s | `round_start` event (round > 1) |
 | `ScreenFlashEffect` | `ScreenFlash` | 0.5s | manual |
 | `TeamworkTextEffect` | `TeamworkText` | 1.1s | teamwork bonus in BattlePhase |
+| `RewindingTextEffect` | `RewindingText` | 1.0s | ITS commit rollback (`useRewindOverlay`) |
+| `InterruptedTextEffect` | `InterruptedText` | 1.2s | ITS preview cast interrupted → auto-undo (`useInteractiveTargetingProgress`) |
 | `ResourceFlightEffect` | `ResourceFlight` | 0.8s | manual |
 | `ResourceArrivalPulseEffect` | `ResourceArrivalPulse` | 0.4s | auto-spawned when ResourceFlight completes |

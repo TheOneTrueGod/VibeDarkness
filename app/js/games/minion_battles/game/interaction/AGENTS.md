@@ -2,6 +2,8 @@
 
 Player-facing battle interaction: targeting tools and the **Interactive Targeting Session (ITS)** — local playahead for abilities with select `targetDef`s.
 
+**Interrupted preview cast:** if the preview cast ends before every select label is collected (knockback/stun interrupt, caster death), `isITSPreviewComplete` is true but the run can never commit and no select pause is coming. `InteractiveTargetingSession.isPreviewCastInterrupted` detects this (conditional-cancel pauses excluded); `useInteractiveTargetingProgress` then calls `cancelInterruptedPreview` (Undo path, logged as `auto_cast_interrupted` / `cast_interrupted`) and shows the `InterruptedText` HUD banner. Lobby 0AD6EA soft-locked here before this existed.
+
 **ITS commit:** at commit time, `wouldCommitInPlace` decides **in-place** (keep the playahead state) vs **rollback** (restore the mark snapshot, with a rewind overlay). Predicate and UX: [`docs/interactive-sequential-targeting.md`](../../../../../../docs/interactive-sequential-targeting.md). Plan that introduced commit-time in-place / rewind: [`docs/plans/sequential-targeting-rollback-ux.md`](../../../../../../docs/plans/sequential-targeting-rollback-ux.md).
 
 | Path | Owns |

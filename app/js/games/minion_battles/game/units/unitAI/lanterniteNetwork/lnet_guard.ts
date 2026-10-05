@@ -1,6 +1,7 @@
 /**
  * Defender guard: patrol a random zone around the home nest.
- * Switches to lnet_chase when an enemy gets close or deals damage.
+ * Switches to lnet_chase when an enemy gets close or deals damage, or to lnet_scout_travel
+ * when the nest promotes this defender to scout.
  */
 
 import { CELL_SIZE } from '../../../../terrain/TerrainGrid';
@@ -125,6 +126,13 @@ export const lnet_guard: AINode<'lanterniteNetwork', LanterniteNetworkNodeId> = 
         },
     },
     edges: [
+        {
+            // Promoted to scout by its nest (see processLanterniteNests's defender promotion).
+            targetNodeId: 'lnet_scout_travel',
+            evaluate(unit: Unit): boolean {
+                return unit.lanterniteState.role === 'scout' && unit.lanterniteState.patrolFarWorld != null;
+            },
+        },
         {
             targetNodeId: 'lnet_chase',
             evaluate(unit: Unit): boolean {

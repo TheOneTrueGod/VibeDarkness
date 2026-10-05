@@ -160,6 +160,7 @@ export default function BattlePhase({
         sessionRef,
         activeLocalWaiter,
         setOrderSubmitFailed,
+        hudEffectCanvasRef,
     });
     const itsPreviewActive = interactiveTargetingState !== 'inactive';
 

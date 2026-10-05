@@ -295,6 +295,7 @@ export class HudEffectLayer {
             case 'ScreenFlash': return new Graphics();
             case 'TeamworkText': return this.createTeamworkText();
             case 'RewindingText': return this.createRewindingText();
+            case 'InterruptedText': return this.createInterruptedText();
             case 'ResourceFlight': return this.createResourceFlight(effect);
             case 'ResourceArrivalPulse': return this.createResourceArrivalPulse(effect);
             case 'ResilientText': return this.createResilientText();
@@ -309,6 +310,8 @@ export class HudEffectLayer {
             case 'ScreenFlash': return this.updateScreenFlash(visual as Graphics, effect, vw, vh);
             case 'TeamworkText': return this.updateTeamworkText(visual, effect, vw, vh);
             case 'RewindingText': return this.updateRewindingText(visual, effect, vw, vh);
+            // Same pop-in / hold / fade-up timing and band as RewindingText.
+            case 'InterruptedText': return this.updateRewindingText(visual, effect, vw, vh);
             case 'ResourceFlight': return this.updateResourceFlight(visual, effect, vw, vh);
             case 'ResourceArrivalPulse': return this.updateResourceArrivalPulse(visual as Graphics, effect);
             case 'ResilientText': return this.updateResilientText(visual, effect);
@@ -490,6 +493,22 @@ export class HudEffectLayer {
                 fontWeight: '800',
                 fill: 0xffffff,
                 stroke: { color: 0xf59e0b, width: 4 },
+                dropShadow: { alpha: 0.7, angle: Math.PI / 2, blur: 10, color: 0x000000, distance: 4 },
+            }),
+        });
+        t.anchor.set(0.5, 0.5);
+        return t;
+    }
+
+    private createInterruptedText(): Container {
+        const t = new Text({
+            text: 'Interrupted',
+            style: new TextStyle({
+                fontFamily: 'Arial, Helvetica, sans-serif',
+                fontSize: 36,
+                fontWeight: '800',
+                fill: 0xffffff,
+                stroke: { color: 0xdc2626, width: 4 },
                 dropShadow: { alpha: 0.7, angle: Math.PI / 2, blur: 10, color: 0x000000, distance: 4 },
             }),
         });

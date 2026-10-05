@@ -9,29 +9,34 @@
 import type { MapNetworkManager } from '../managers/mapNetwork/MapNetworkManager';
 import type { NetworkNode } from '../managers/mapNetwork/types';
 import type { Unit } from '../units/Unit';
+import { LANTERNITE_NEST_CHARACTER_ID } from './lanternitePulse';
 
 /**
- * Find a connected (neighbor) nest node with no owning `characterId` (per
- * `mapNetwork.getOwnerCharacterId` — position/radius-based node membership) and no living unit
- * already traveling toward it. The "targeting" check stays unit-state-based
- * (`lanterniteState.targetNestPoiId`) rather than a manager query — "targeting" is unit-local
- * intent, not a node occupancy fact the manager tracks.
+ * Find a connected (neighbor) nest node the lanternite network has not claimed: no living
+ * `lanternite_nest` already calls it home, and no living unit is already traveling toward it.
+ *
+ * Only the lanternite network's *own* claims exclude a node — a rival faction holding it (e.g. a
+ * `swarm_nest`) does not. Scouts are meant to march on a contested site and fight for it
+ * (`isNestSiteContested` in `lnet_scout_travel.ts` holds construction until the site is clear),
+ * mirroring the swarm side's `findUnclaimedNetworkNode`. This deliberately does not use
+ * `mapNetwork.getOwnerCharacterId`: that reports a rival-held node as "owned" (blocking expansion
+ * forever) and a lanternite nest surrounded by its defenders as "contested" (unclaimed).
  */
 export function findUnoccupiedConnectedNestPoi(
     nestPoiId: string,
-    mapNetwork: Pick<MapNetworkManager, 'getNeighborIds' | 'getOwnerCharacterId' | 'getNode'>,
+    mapNetwork: Pick<MapNetworkManager, 'getNeighborIds' | 'getNode'>,
     allUnits: readonly Unit[],
 ): NetworkNode | null {
     const neighborIds = mapNetwork.getNeighborIds(nestPoiId);
 
     for (const neighborId of neighborIds) {
-        const owner = mapNetwork.getOwnerCharacterId(neighborId, allUnits);
-        if (owner != null) continue;
-
-        const alreadyTargeted = allUnits.some(
-            (u) => u.isAlive() && u.lanterniteState.targetNestPoiId === neighborId,
+        const claimed = allUnits.some(
+            (u) =>
+                u.isAlive() &&
+                (u.lanterniteState.targetNestPoiId === neighborId ||
+                    (u.characterId === LANTERNITE_NEST_CHARACTER_ID && u.lanterniteState.homeNestPoiId === neighborId)),
         );
-        if (alreadyTargeted) continue;
+        if (claimed) continue;
 
         const node = mapNetwork.getNode(neighborId);
         if (node) return node;

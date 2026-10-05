@@ -9,18 +9,22 @@ import {
     logItsAutoCommitEval,
     logItsSelectPauseEntered,
 } from '../../../game/interaction/itsLobbyLog';
+import { InterruptedTextEffect } from '../../../game/effect_defs/hudEffects';
+import type { HudEffectCanvasHandle } from '../../components/HudEffectCanvas';
 
 interface UseInteractiveTargetingProgressParams {
     sessionRef: RefObject<BattleSession | null>;
     activeLocalWaiter: OrderWaiter | null;
     setOrderSubmitFailed: (failed: boolean) => void;
+    hudEffectCanvasRef: RefObject<HudEffectCanvasHandle | null>;
 }
 
-/** 50 ms ITS poll, AUTO_END_TURN auto-commit, player-tile refresh bump. */
+/** 50 ms ITS poll, AUTO_END_TURN auto-commit, interrupted-cast auto-undo, player-tile refresh bump. */
 export function useInteractiveTargetingProgress({
     sessionRef,
     activeLocalWaiter,
     setOrderSubmitFailed,
+    hudEffectCanvasRef,
 }: UseInteractiveTargetingProgressParams) {
     const [interactiveTargetingState, setInteractiveTargetingState] = useState<
         'inactive' | 'playing' | 'paused' | 'done'
@@ -29,6 +33,8 @@ export function useInteractiveTargetingProgress({
     const prevItsStateRef = useRef<string>('inactive');
     const autoCommitItsAttemptedRef = useRef(false);
     const lastSelectPauseLabelRef = useRef<string | null>(null);
+    /** Guards the async interrupted-cast reset so the 50 ms poll doesn't fire it twice. */
+    const interruptResetInFlightRef = useRef(false);
 
     const getItsPlayaheadTicks = useCallback(() => {
         const session = sessionRef.current;
@@ -56,6 +62,21 @@ export function useInteractiveTargetingProgress({
             const eng = session?.getEngine();
             if (!eng) {
                 setInteractiveTargetingState('playing');
+                return;
+            }
+
+            // Preview cast interrupted before its targets were collected (knockback, stun, caster
+            // death): it can never commit and no select pause is coming — auto-undo to the mark
+            // instead of sitting in an uncommittable "done" state (lobby 0AD6EA).
+            if (its.isPreviewCastInterrupted(eng)) {
+                if (!interruptResetInFlightRef.current && session) {
+                    interruptResetInFlightRef.current = true;
+                    setOrderSubmitFailed(false);
+                    hudEffectCanvasRef.current?.addHudEffect(new InterruptedTextEffect());
+                    void its.cancelInterruptedPreview(session).finally(() => {
+                        interruptResetInFlightRef.current = false;
+                    });
+                }
                 return;
             }
 
@@ -98,7 +119,7 @@ export function useInteractiveTargetingProgress({
             }
         }, 50);
         return () => window.clearInterval(id);
-    }, [activeLocalWaiter, sessionRef, setOrderSubmitFailed]);
+    }, [activeLocalWaiter, sessionRef, setOrderSubmitFailed, hudEffectCanvasRef]);
 
     return {
         interactiveTargetingState,

@@ -3641,3 +3641,68 @@ describe('interactive sequential targeting — Throw Rock Rapid Throw combo', ()
         });
     });
 });
+
+describe('ITS preview cast interrupted before targets collected (lobby 0AD6EA)', () => {
+    const lightBlastOrder = (unitId: string): BattleOrder => ({
+        unitId,
+        abilityId: LIGHT_BLAST_ID,
+        targets: [],
+        endTurn: true,
+    });
+
+    it('knockback-style interrupt during windup is detected and auto-undo restores the mark', async () => {
+        const { session, engine, casterUnitId } = await mountLightBlastSessionFixture();
+        const its = session.interactiveTargeting;
+        const markTick = engine.gameTick;
+        const batchAtTick = engine.waitingForOrders!.atTick;
+
+        expect(its.begin(lightBlastOrder(casterUnitId), session)).toBe(true);
+        // Order queued for the batch tick but not applied yet — not an interruption.
+        expect(its.isPreviewCastInterrupted(engine)).toBe(false);
+
+        engine.stepSimulationFixedTicks(1);
+        const caster = engine.getUnit(casterUnitId)!;
+        expect(caster.activeAbilities.some((a) => a.abilityId === LIGHT_BLAST_ID)).toBe(true);
+        expect(its.isPreviewCastInterrupted(engine)).toBe(false);
+
+        // Same path a knockback takes (knockbackKeywords → interruptUnitAndRefundAbilities).
+        engine.interruptUnitAndRefundAbilities(caster);
+        engine.stepSimulationFixedTicks(1);
+
+        // Old soft-lock: preview reads complete, no select pause coming, targets never collected.
+        expect(isITSPreviewComplete(engine)).toBe(true);
+        expect(engine.waitingForTargetInput).toBeNull();
+        expect(its.allTargetsCollected()).toBe(false);
+        expect(its.isPreviewCastInterrupted(engine)).toBe(true);
+
+        await its.cancelInterruptedPreview(session);
+
+        expect(its.isActive).toBe(false);
+        const restored = session.getEngine()!;
+        expect(restored.isSequentialTargetingPreview).toBe(false);
+        expect(restored.gameTick).toBe(markTick);
+        expect(restored.waitingForOrders?.atTick).toBe(batchAtTick);
+        expect(restored.waitingForOrders?.waiters.some((w) => w.unitId === casterUnitId)).toBe(true);
+        session.destroy();
+    });
+
+    it('is not reported once every target is collected and the cast completes naturally', async () => {
+        const { session, engine, casterUnitId, blastPixel } = await mountLightBlastSessionFixture();
+        runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
+
+        expect(isITSPreviewComplete(engine)).toBe(true);
+        expect(session.interactiveTargeting.isPreviewCastInterrupted(engine)).toBe(false);
+        session.destroy();
+    });
+
+    it('is not reported while the preview is paused on its select', async () => {
+        const { session, engine, casterUnitId } = await mountLightBlastSessionFixture();
+        const its = session.interactiveTargeting;
+        its.begin(lightBlastOrder(casterUnitId), session);
+
+        const paused = stepUntil(engine, () => engine.waitingForTargetInput?.label === LIGHT_BLAST_TARGET_LABEL, 120);
+        expect(paused).toBe(true);
+        expect(its.isPreviewCastInterrupted(engine)).toBe(false);
+        session.destroy();
+    });
+});

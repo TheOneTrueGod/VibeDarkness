@@ -15,10 +15,11 @@
 
 import type { BattleOrder, OrderAtTick, ResolvedTarget, SerializedGameState } from '../types';
 import type { BattleSession } from '../BattleSession';
+import type { GameEngine } from '../GameEngine';
 import { getInteractiveTargetDefsFromTimings } from '../../abilities/targeting';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { findPreviewDeferredSelectLabel } from './selectTargetLookahead';
-import { isPreviewCastConditionalCancelPaused } from './isITSPreviewComplete';
+import { isITSPreviewComplete, isPreviewCastConditionalCancelPaused } from './isITSPreviewComplete';
 import {
     type ItsActionSource,
     type ItsCancelReason,
@@ -234,6 +235,20 @@ export class InteractiveTargetingSession {
     allTargetsCollected(): boolean {
         return this._selectLabels.length > 0
             && this._selectLabels.every((label) => label in this.collectedTargets);
+    }
+
+    /**
+     * True when the preview cast ended before every select label was collected — e.g. a knockback
+     * or stun interrupted the windup, or the caster died (lobby 0AD6EA: thornbinder knockback on
+     * the first preview tick). The preview reads as complete, but it can never be committed and no
+     * select pause is coming, so ITS would otherwise soft-lock. Conditional-cancel pauses are a
+     * deliberate decision point, not an interruption, and are excluded.
+     */
+    isPreviewCastInterrupted(engine: GameEngine): boolean {
+        if (!this._isActive || !this._previewOrderQueued) return false;
+        if (this.allTargetsCollected()) return false;
+        if (!isITSPreviewComplete(engine)) return false;
+        return !isPreviewCastConditionalCancelPaused(engine);
     }
 
     /** Whether a preview cast order has been queued for this ITS run. */
@@ -622,19 +637,31 @@ export class InteractiveTargetingSession {
     /**
      * Abort the preview, restore engine to the mark state, and apply held remote orders.
      */
-    async reset(session: BattleSession, actionSource: ItsActionSource = 'ui_reset'): Promise<void> {
+    async reset(
+        session: BattleSession,
+        actionSource: ItsActionSource = 'ui_reset',
+        cancelReason: ItsCancelReason = 'user_reset',
+    ): Promise<void> {
         if (!this._isActive) return;
         logItsButtonClick(session, this, actionSource);
-        logItsResetPausePlane(session, this, 'before_restore');
+        logItsResetPausePlane(session, this, 'before_restore', actionSource);
         const logSnapshot = this._captureLogSnapshot(session);
         await session.refreshRemoteOrdersBeforeInteractiveTargetingAction();
         await this._restoreToMark(session);
-        logItsResetPausePlane(session, this, 'after_restore');
+        logItsResetPausePlane(session, this, 'after_restore', actionSource);
         Object.keys(this.collectedTargets).forEach((k) => delete this.collectedTargets[k]);
         this.collectedMovementByLabel = {};
         this._orderPositionalTargets = [];
         this._clearActive(session);
-        logItsPreviewCancelled(session, logSnapshot, 'user_reset');
+        logItsPreviewCancelled(session, logSnapshot, cancelReason);
+    }
+
+    /**
+     * Auto-undo for {@link isPreviewCastInterrupted}: restore the mark so the player can pick a
+     * different action. Same path as the Undo button, logged under its own source/reason.
+     */
+    async cancelInterruptedPreview(session: BattleSession): Promise<void> {
+        await this.reset(session, 'auto_cast_interrupted', 'cast_interrupted');
     }
 
     /**

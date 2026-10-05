@@ -1,5 +1,6 @@
 /**
- * Defender chase: pursue and attack the threat until it dies, then return to guard.
+ * Defender chase: pursue and attack the threat until it dies, then return to guard — or switch
+ * to lnet_scout_travel if the nest promotes this defender to scout mid-chase.
  */
 
 import type { Unit } from '../../Unit';
@@ -37,6 +38,13 @@ export const lnet_chase: AINode<'lanterniteNetwork', LanterniteNetworkNodeId> = 
         },
     },
     edges: [
+        {
+            // Promoted to scout by its nest (see processLanterniteNests's defender promotion).
+            targetNodeId: 'lnet_scout_travel',
+            evaluate(unit: Unit): boolean {
+                return unit.lanterniteState.role === 'scout' && unit.lanterniteState.patrolFarWorld != null;
+            },
+        },
         {
             targetNodeId: 'lnet_guard',
             evaluate(unit: Unit): boolean {
