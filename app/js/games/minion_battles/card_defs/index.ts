@@ -63,6 +63,7 @@ import { LightImbuementCard } from './08_light_core/0802_LightImbuement/0802Card
 import { ImbuedBatCard } from './08_light_core/0803_ImbuedBat/0803Card';
 import { GatherLightCard } from './08_light_core/0804_GatherLight/0804Card';
 import { ShieldOfLightCard } from './08_light_core/0805_ShieldOfLight/0805Ability';
+import { LayHandsCard } from './08_light_core/0806_LayHands/0806Ability';
 import { GravityLocusCard } from './09_gravity_core/0901_GravityLocus/0901Ability';
 import { ForcePushCard } from './09_gravity_core/0902_ForcePush/0902Ability';
 import { GravityInversionCard } from './09_gravity_core/0903_GravityInversion/0903Ability';
@@ -135,6 +136,7 @@ const cardDefs: CardDef[] = [
     ImbuedBatCard,
     GatherLightCard,
     ShieldOfLightCard,
+    LayHandsCard,
     GravityLocusCard,
     ForcePushCard,
     GravityInversionCard,

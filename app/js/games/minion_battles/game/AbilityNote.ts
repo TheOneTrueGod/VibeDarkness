@@ -9,6 +9,8 @@ export interface AbilityNoteMap {
     '0002': { position: { x: number; y: number } };
     '0009': { position: { x: number; y: number } };
     '0111': { hitTargetIds: string[] };
+    /** Lay Hands: light emitter locked at cast start (null id = none in reach). */
+    '0806': { emitterId: string | null; x: number; y: number };
     '0534': {
         hitTargetIds: string[];
         wallEntryX: number | null;

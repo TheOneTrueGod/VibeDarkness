@@ -62,6 +62,11 @@ import {
     gatherLightNoDevourScenario,
 } from './abilities/gatherLightScenario';
 import { shieldOfLightScenario } from './abilities/shieldOfLightScenario';
+import {
+    layHandsPunchAndBlastScenario,
+    layHandsNoEmitterScenario,
+    layHandsMissStillDetonatesScenario,
+} from './abilities/layHandsScenarios';
 import { throwKnifePiercingBleedScenario } from './abilities/throwKnifeScenarios';
 import { clawMovementDistanceScenario } from './abilities/clawScenarios';
 import { pistolHitsDummyScenario, smgHitsDummyScenario, shotgunHitsDummyScenario } from './abilities/gunScenarios';
@@ -222,6 +227,9 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     gatherLightDevourScenario,
     gatherLightNoDevourScenario,
     shieldOfLightScenario,
+    layHandsPunchAndBlastScenario,
+    layHandsNoEmitterScenario,
+    layHandsMissStillDetonatesScenario,
     gravityGrazeScenario,
     gravityLocusScenario,
     forcePushScenario,
@@ -276,7 +284,7 @@ const ABILITY_TREE_GROUPS: AbilityTreeSidebarGroup[] = [
     { treeId: 'stick_sword',   label: 'Stick & Sword',  selectorKey: 'tree:stick_sword',   abilityIds: ['0112', '0105', '0115'] },
     { treeId: 'tech_shield',   label: 'Tech Shield',    selectorKey: 'tree:tech_shield',   abilityIds: ['0104', '0110', '0113'] },
     { treeId: 'earth_core',    label: 'Earth Core',     selectorKey: 'tree:earth_core',    abilityIds: ['earth_core'] },
-    { treeId: 'light',         label: 'Light Core',     selectorKey: 'tree:light',         abilityIds: ['0801', '0803', '0804', '0805'] },
+    { treeId: 'light',         label: 'Light Core',     selectorKey: 'tree:light',         abilityIds: ['0801', '0803', '0804', '0805', '0806'] },
     { treeId: 'gravity_core',  label: 'Gravity',        selectorKey: 'tree:gravity_core',  abilityIds: ['0901', '0902', '0903', '0904', 'gravity_core'] },
     { treeId: 'blood_mage',    label: 'Blood Mage',     selectorKey: 'tree:blood_mage',    abilityIds: ['0301', '0302', '0303'] },
 ];
@@ -345,6 +353,7 @@ export function inferScenarioAbilityId(scenario: ScenarioDefinition): string | n
     if (id.startsWith('imbued_bat_')) return '0803';
     if (id.startsWith('gather_light_')) return '0804';
     if (id.startsWith('shield_of_light_')) return '0805';
+    if (id.startsWith('lay_hands_')) return '0806';
     if (id.startsWith('throw_torch_')) return '0601';
     if (id === 'punch_research_strong') return '0117';
     if (id === 'punch_research_double' || id === 'double_punch_two_targets' || id === 'double_punch_death_fallback' || id === 'double_punch_movement_replan') return '0116';

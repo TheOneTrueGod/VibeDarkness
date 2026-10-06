@@ -430,6 +430,7 @@ export class PreviewRenderer {
                     if (!aimPoint) continue;
                     renderSelectTargetDef(previewGr, ability, unit, selectDef, aimPoint, engine);
                 }
+                ability.renderSelectTargetPreviewExtras?.(previewGr, unit, engine);
                 continue;
             }
 
@@ -662,6 +663,7 @@ export class PreviewRenderer {
                     } else {
                         renderSelectTargetDef(gr, ability, caster, interactiveDef, ts.mouseWorld, engine);
                     }
+                    ability.renderSelectTargetPreviewExtras?.(gr, caster, engine);
                 }
             }
             if (ability.renderTargetingPreviewSelectedTargets) {

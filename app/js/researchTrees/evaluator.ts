@@ -741,6 +741,10 @@ function scaleAbilityResearchModifierByLevel(
         // Template comboMax is per-level unit (1); chain allows (level + 1) throws total.
         scaled.comboMax = fields.comboMax * (level + 1);
     }
+    if (fields.maxUsesFlat !== undefined) {
+        // Template maxUsesFlat is the per-rank unit; total grows by that much each rank.
+        scaled.maxUsesFlat = fields.maxUsesFlat * level;
+    }
     if (fields.rangeMult !== undefined) {
         scaled.rangeMult = DEFAULT_PASSIVE_MULT + getMultBonusAtLevel(fields.rangeMult, level, maxLevels);
     }

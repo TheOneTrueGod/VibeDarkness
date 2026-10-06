@@ -17,6 +17,10 @@ import {
     LIGHT_REGEN_ENABLED_ADD,
     MAX_LIGHT_RECOVERY_PER_ROUND,
 } from '../../games/minion_battles/resources/Light';
+import {
+    LAY_HANDS_ABILITY_ID,
+    LAY_HANDS_EXPLOSION_DAMAGE,
+} from '../../games/minion_battles/card_defs/08_light_core/0806_LayHands/0806Constants';
 import { STICK_SWORD_TREE_ID, STICK_SWORD_NODE_PIPE_BAT } from './stick_sword';
 
 export const LIGHT_TREE_ID = 'light_core';
@@ -28,17 +32,22 @@ export const LIGHT_NODE_LIGHT_ATTUNED = 'light_attuned';
 export const LIGHT_NODE_INCREASED_RADIANCE = 'increased_radiance';
 export const LIGHT_NODE_SHIELD_OF_LIGHT = 'shield_of_light';
 export const LIGHT_NODE_BLINDING_FLARE = 'blinding_flare';
+export const LIGHT_NODE_LAY_HANDS = 'lay_hands';
 export const LIGHT_RADIANT_REACH_LEVELS = 2;
 export const LIGHT_ATTUNED_TIER = 13;
 export const LIGHT_SHIELD_TIER = 13;
 export const LIGHT_SHIELD_FLARE_TIER = 14;
 export const LIGHT_CORE_FOLLOWUP_TIER = 12;
+export const LIGHT_IMBUEMENT_TIER = 11;
+export const LIGHT_LAY_HANDS_TIER = 14;
 export const LIGHT_GATHER_LIGHT_LEVELS = 2;
 export const LIGHT_GATHER_LIGHT_AMOUNT_PER_RANK = 1;
 export const LIGHT_GATHER_LIGHT_AMOUNT_ADD = LIGHT_GATHER_LIGHT_AMOUNT_PER_RANK * LIGHT_GATHER_LIGHT_LEVELS;
 export const LIGHT_INCREASED_RADIANCE_LEVELS = 2;
 /** Light Blast radius multiplier at max rank (rank 1 is half the bonus). */
 export const LIGHT_INCREASED_RADIANCE_RANGE_MULT = 1.5;
+/** Extra Light Blast uses per Increased Radiance rank. */
+export const LIGHT_INCREASED_RADIANCE_USES_PER_RANK = 1;
 /** Cone outer radius multiplier at max rank (rank 1 is half the bonus). */
 export const LIGHT_RADIANT_REACH_RANGE_MULT = 2;
 
@@ -78,6 +87,10 @@ export const LIGHT_ATTUNED_METAL_COST = 8;
 export const LIGHT_SHIELD_FLARE_CRYSTAL_COST = 22;
 export const LIGHT_SHIELD_FLARE_FOOD_COST = 4;
 export const LIGHT_SHIELD_FLARE_METAL_COST = 10;
+
+export const LIGHT_LAY_HANDS_CRYSTAL_COST = 22;
+export const LIGHT_LAY_HANDS_FOOD_COST = 5;
+export const LIGHT_LAY_HANDS_METAL_COST = 9;
 
 export const lightTree: ResearchTreeDef = {
     id: LIGHT_TREE_ID,
@@ -121,7 +134,7 @@ export const lightTree: ResearchTreeDef = {
             description:
                 'Gather Light also imbues your bat with light, exploding when you next strike your target.',
             order: 10,
-            tier: LIGHT_CORE_FOLLOWUP_TIER,
+            tier: LIGHT_IMBUEMENT_TIER,
             position: { x: 420, y: 290 },
             prereqNodeIds: [LIGHT_NODE_CORE],
             exclusiveWithNodeIds: [],
@@ -171,7 +184,7 @@ export const lightTree: ResearchTreeDef = {
             id: LIGHT_NODE_INCREASED_RADIANCE,
             title: 'Increased Radiance',
             description:
-                `Light Blast's burst reaches a {${DescriptiveValue.Huge}} amount farther at max rank (half that bonus per rank).`,
+                `Increase Light Blast size by a {${DescriptiveValue.Huge}} amount, and get {${LIGHT_INCREASED_RADIANCE_USES_PER_RANK}} additional use of it per round.`,
             flavorText: 'The glow learns to take more of the room.',
             order: 14,
             tier: LIGHT_CORE_FOLLOWUP_TIER,
@@ -192,6 +205,7 @@ export const lightTree: ResearchTreeDef = {
                 {
                     abilitySpecification: { type: 'abilityId', abilityId: LIGHT_BLAST_ABILITY_ID },
                     rangeMult: LIGHT_INCREASED_RADIANCE_RANGE_MULT,
+                    maxUsesFlat: LIGHT_INCREASED_RADIANCE_USES_PER_RANK,
                 },
             ],
             modifiesAbility: { from: LIGHT_BLAST_ABILITY_ID, to: LIGHT_BLAST_ABILITY_ID },
@@ -303,6 +317,30 @@ export const lightTree: ResearchTreeDef = {
                 },
             ],
             modifiesAbility: { from: SHIELD_OF_LIGHT_ABILITY_ID, to: SHIELD_OF_LIGHT_ABILITY_ID },
+        },
+        {
+            id: LIGHT_NODE_LAY_HANDS,
+            title: 'Lay Hands',
+            description:
+                `Punch with a lunge three times as long, and detonate the nearest light emitter for {${LAY_HANDS_EXPLOSION_DAMAGE}} damage in an area.`,
+            flavorText: 'Touch the glow, and it remembers it was a flame.',
+            order: 17,
+            tier: LIGHT_LAY_HANDS_TIER,
+            position: { x: 180, y: 550 },
+            prereqNodeIds: [LIGHT_NODE_CORE],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: LIGHT_TREE_ID, nodeIds: [LIGHT_NODE_CORE] },
+            ],
+            cost: {
+                crystals: LIGHT_LAY_HANDS_CRYSTAL_COST,
+                food: LIGHT_LAY_HANDS_FOOD_COST,
+                metal: LIGHT_LAY_HANDS_METAL_COST,
+            },
+            effects: [
+                { type: 'addCard', cardId: LAY_HANDS_ABILITY_ID },
+            ],
+            modifiesAbility: { from: LAY_HANDS_ABILITY_ID, to: LAY_HANDS_ABILITY_ID },
         },
     ],
 };

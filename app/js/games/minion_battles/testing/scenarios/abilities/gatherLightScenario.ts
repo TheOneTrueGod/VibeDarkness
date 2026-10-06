@@ -115,7 +115,7 @@ function buildDevourEngine(seedEmitter: boolean) {
     player.attachResource(new Light(), engine.eventBus);
 
     if (seedEmitter) {
-        // Positive emitter one tile away: inside Devour's 4x4-tile square around the caster.
+        // Positive emitter one tile away: inside the shared 5x5-tile emitter reach around the caster.
         engine.addLightSource(new LightSource({
             id: DEVOUR_SEED_ID,
             x: CASTER_X + CELL_SIZE,

@@ -55,6 +55,11 @@ import {
     gatherLightDevourScenario,
     gatherLightNoDevourScenario,
 } from '../scenarios/abilities/gatherLightScenario';
+import {
+    layHandsPunchAndBlastScenario,
+    layHandsNoEmitterScenario,
+    layHandsMissStillDetonatesScenario,
+} from '../scenarios/abilities/layHandsScenarios';
 import { gravityGrazeScenario } from '../scenarios/abilities/gravityGrazeScenario';
 import { gravityLocusScenario } from '../scenarios/abilities/gravityLocusScenario';
 import { forcePushScenario } from '../scenarios/abilities/forcePushScenario';
@@ -460,6 +465,21 @@ describe('runScenarioHeadless', () => {
 
     it('Gather Light (0804): no nearby emitter grants base Light only', () => {
         const r = runScenarioHeadless(gatherLightNoDevourScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Lay Hands (0806): punches the target and detonates the nearest light emitter', () => {
+        const r = runScenarioHeadless(layHandsPunchAndBlastScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Lay Hands (0806): with no emitter in reach it only punches', () => {
+        const r = runScenarioHeadless(layHandsNoEmitterScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Lay Hands (0806): the emitter still explodes when the punch hits nothing', () => {
+        const r = runScenarioHeadless(layHandsMissStillDetonatesScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

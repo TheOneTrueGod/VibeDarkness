@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { ResearchNodeDef, ResearchTreeDef } from '../../../../researchTrees/types';
+import { isDisabledResearchNode, type ResearchNodeDef, type ResearchTreeDef } from '../../../../researchTrees/types';
 import { getResearchNodePurchaseCost } from '../../../../researchTrees/evaluator';
 import { getNodeMaxLevels } from '../../../../researchTrees/passiveBonuses';
 import { getResearchTreeContainingNode } from '../../../../researchTrees/list';
@@ -350,6 +350,11 @@ export default function ResearchNodeCard({
                 />
                 <span className={`${titleClass} min-w-0 truncate`}>{node.title}</span>
                 {levelPill}
+                {isDisabledResearchNode(node) && (
+                    <span className="ml-auto shrink-0 rounded border border-zinc-500/60 px-1 text-[9px] font-semibold uppercase tracking-wide text-zinc-400">
+                        disabled
+                    </span>
+                )}
             </div>
             <div
                 className={`${descSizeClass} shrink-0 text-gray-300 line-clamp-3`}

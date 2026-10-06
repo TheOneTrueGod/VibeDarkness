@@ -5,6 +5,7 @@ import {
     LIGHT_CORE_FOLLOWUP_TIER,
     LIGHT_INCREASED_RADIANCE_LEVELS,
     LIGHT_INCREASED_RADIANCE_RANGE_MULT,
+    LIGHT_INCREASED_RADIANCE_USES_PER_RANK,
     LIGHT_NODE_CORE,
     LIGHT_NODE_INCREASED_RADIANCE,
     LIGHT_TREE_ID,
@@ -20,7 +21,18 @@ describe('Increased Radiance research', () => {
         expect(node?.abilityResearchModifiers?.[0]).toEqual({
             abilitySpecification: { type: 'abilityId', abilityId: LIGHT_BLAST_ABILITY_ID },
             rangeMult: LIGHT_INCREASED_RADIANCE_RANGE_MULT,
+            maxUsesFlat: LIGHT_INCREASED_RADIANCE_USES_PER_RANK,
         });
+    });
+
+    it('grants 1 additional Light Blast use per rank', () => {
+        const trees = { [LIGHT_TREE_ID]: [LIGHT_NODE_INCREASED_RADIANCE] };
+        for (let rank = 1; rank <= LIGHT_INCREASED_RADIANCE_LEVELS; rank++) {
+            const mods = computeAbilityModifiersFromResearch(trees, undefined, undefined, {
+                [LIGHT_TREE_ID]: { [LIGHT_NODE_INCREASED_RADIANCE]: rank },
+            });
+            expect(mods[LIGHT_BLAST_ABILITY_ID]?.maxUsesFlat).toBe(rank * LIGHT_INCREASED_RADIANCE_USES_PER_RANK);
+        }
     });
 
     it('scales Light Blast rangeMult to half the bonus at rank 1 and 1.5 at max rank', () => {

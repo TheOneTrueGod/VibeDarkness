@@ -4,6 +4,7 @@ import { GATHER_LIGHT_ABILITY_ID } from '../games/minion_battles/card_defs/08_li
 import { IMBUED_BAT_ABILITY_ID } from '../games/minion_battles/card_defs/08_light_core/0803_ImbuedBat/0803Constants';
 import {
     LIGHT_CORE_FOLLOWUP_TIER,
+    LIGHT_IMBUEMENT_TIER,
     LIGHT_GATHER_LIGHT_AMOUNT_ADD,
     LIGHT_GATHER_LIGHT_AMOUNT_PER_RANK,
     LIGHT_GATHER_LIGHT_LEVELS,
@@ -34,9 +35,9 @@ describe('Gather Light research', () => {
         );
     });
 
-    it('places Light Imbuement at the core follow-up tier and grants only Imbued Bat', () => {
+    it('places Light Imbuement at tier 11 and grants only Imbued Bat', () => {
         const node = lightTree.nodes.find((n) => n.id === LIGHT_NODE_IMBUEMENT);
-        expect(node?.tier).toBe(LIGHT_CORE_FOLLOWUP_TIER);
+        expect(node?.tier).toBe(LIGHT_IMBUEMENT_TIER);
         expect(node?.effects).toEqual([{ type: 'addCard', cardId: IMBUED_BAT_ABILITY_ID }]);
     });
 

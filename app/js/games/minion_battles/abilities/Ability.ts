@@ -584,6 +584,16 @@ export interface AbilityStatic {
     ): void;
 
     /**
+     * Optional. Extra preview drawn after a select-target hitbox preview, both while targeting and
+     * for committed-order ghosts (e.g. Lay Hands' locked light emitter + blast radius).
+     */
+    renderSelectTargetPreviewExtras?(
+        gr: IAbilityPreviewGraphics,
+        caster: Unit,
+        gameState?: unknown,
+    ): void;
+
+    /**
      * Optional. Render additional targeting preview for already-selected targets (for multi-target abilities).
      * Called immediately after renderTargetingPreview, once per frame while selecting targets.
      */
