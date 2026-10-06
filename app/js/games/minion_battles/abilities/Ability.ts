@@ -16,6 +16,7 @@ import type { AbilityEventRule } from './events/AbilityEventRule';
 import type { UnitTag } from '../game/units/unitTag';
 import type { PassiveDef } from './passiveDef';
 import type { WindupLungeConfig } from './WindupLunge';
+import type { AbilityKeywordUse } from './keywords/keywordTypes';
 
 /** Minimal graphics interface for drawing ability previews (Pixi Graphics–compatible). */
 export interface IAbilityPreviewGraphics {
@@ -411,6 +412,11 @@ export interface AbilityStatic {
     readonly trackTargetUntilLabel?: string;
     /** Bright N tier for light-leaving abilities (see `brightKeyword.ts`). */
     readonly bright?: number;
+    /**
+     * Reusable keyword uses (see `keywords/`), resolved in order by `runAbilityKeywords`.
+     * Named `keywordUses` because `keywords` is already the nestedCard lifecycle map.
+     */
+    readonly keywordUses?: readonly AbilityKeywordUse[];
 
     /**
      * When true, the unit's movement path is cleared when this ability naturally completes.

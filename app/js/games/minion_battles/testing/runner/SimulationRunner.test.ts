@@ -50,7 +50,11 @@ import { aiSerializationRoundtripScenario } from '../scenarios/ai/ai_serializati
 import { throwTorchHitsDummyScenario } from '../scenarios/abilities/throwTorchScenario';
 import { lightImbuementAndImbuedBatScenario } from '../scenarios/abilities/lightImbuementScenario';
 import { lightBlastCommittedScenario } from '../scenarios/abilities/lightBlastScenario';
-import { gatherLightCommittedScenario } from '../scenarios/abilities/gatherLightScenario';
+import {
+    gatherLightCommittedScenario,
+    gatherLightDevourScenario,
+    gatherLightNoDevourScenario,
+} from '../scenarios/abilities/gatherLightScenario';
 import { gravityGrazeScenario } from '../scenarios/abilities/gravityGrazeScenario';
 import { gravityLocusScenario } from '../scenarios/abilities/gravityLocusScenario';
 import { forcePushScenario } from '../scenarios/abilities/forcePushScenario';
@@ -446,6 +450,16 @@ describe('runScenarioHeadless', () => {
 
     it('Gather Light (0804): grants Light and darkens a 3×3 around the caster', () => {
         const r = runScenarioHeadless(gatherLightCommittedScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Gather Light (0804): Devour Light 1 eats a nearby emitter for +1 Light', () => {
+        const r = runScenarioHeadless(gatherLightDevourScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Gather Light (0804): no nearby emitter grants base Light only', () => {
+        const r = runScenarioHeadless(gatherLightNoDevourScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

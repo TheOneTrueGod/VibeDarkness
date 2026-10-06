@@ -56,7 +56,11 @@ import { swingBatHitsThreeTargetsScenario } from './abilities/swingBatScenarios'
 import { swingBatSequentialAimPixelScenario } from './abilities/swingBatSequentialAim';
 import { lightImbuementAndImbuedBatScenario } from './abilities/lightImbuementScenario';
 import { lightBlastCommittedScenario, lightBlastRangeCapScenario, lightBlastHitCapScenario } from './abilities/lightBlastScenario';
-import { gatherLightCommittedScenario } from './abilities/gatherLightScenario';
+import {
+    gatherLightCommittedScenario,
+    gatherLightDevourScenario,
+    gatherLightNoDevourScenario,
+} from './abilities/gatherLightScenario';
 import { shieldOfLightScenario } from './abilities/shieldOfLightScenario';
 import { throwKnifePiercingBleedScenario } from './abilities/throwKnifeScenarios';
 import { clawMovementDistanceScenario } from './abilities/clawScenarios';
@@ -215,6 +219,8 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     lightBlastRangeCapScenario,
     lightBlastHitCapScenario,
     gatherLightCommittedScenario,
+    gatherLightDevourScenario,
+    gatherLightNoDevourScenario,
     shieldOfLightScenario,
     gravityGrazeScenario,
     gravityLocusScenario,

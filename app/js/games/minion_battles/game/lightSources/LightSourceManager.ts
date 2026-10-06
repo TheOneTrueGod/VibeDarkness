@@ -106,6 +106,23 @@ export class LightSourceManager {
         return inputs;
     }
 
+    /**
+     * Active, positive-emission, non-base light sources within a square of `halfExtent`
+     * (Chebyshev distance) around (x, y), sorted nearest-first with a stable tie-break by id.
+     */
+    findDevourableLightSources(x: number, y: number, halfExtent: number): LightSource[] {
+        const found: { ls: LightSource; d2: number }[] = [];
+        for (const ls of this.lightSources) {
+            if (!ls.active || ls.lightAmount <= 0 || ls.overlapMethod?.method === 'base') continue;
+            const dx = ls.x - x;
+            const dy = ls.y - y;
+            if (Math.abs(dx) > halfExtent || Math.abs(dy) > halfExtent) continue;
+            found.push({ ls, d2: dx * dx + dy * dy });
+        }
+        found.sort((a, b) => a.d2 - b.d2 || (a.ls.id < b.ls.id ? -1 : a.ls.id > b.ls.id ? 1 : 0));
+        return found.map((f) => f.ls);
+    }
+
     cleanupInactive(): void {
         this.lightSources = this.lightSources.filter((ls) => ls.active);
     }

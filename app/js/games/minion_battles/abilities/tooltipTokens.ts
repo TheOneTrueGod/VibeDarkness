@@ -7,6 +7,7 @@
 import type { Unit } from '../game/units/Unit';
 import type { DamageModifier } from '../game/units/unitTypes';
 import { getAbilityDamageForDisplay } from './damageModifiers';
+import { formatKeywordText } from './keywords/keywordRegistry';
 
 /** Parsed / resolved tooltip span for AbilityTooltip (or bridge encoding). */
 export interface TooltipSegment {
@@ -80,7 +81,7 @@ const DEFAULT_KIND_RESOLVERS: Record<TooltipTokenBinding['kind'], TooltipTokenKi
     },
     knockback: (binding) => {
         const tier = (binding as { kind: 'knockback'; tier: number }).tier;
-        return { text: `knockback ${formatTooltipNumber(tier)}`, role: 'dynamic' };
+        return { text: formatKeywordText('knockback', tier), role: 'dynamic' };
     },
 };
 

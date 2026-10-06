@@ -6,6 +6,7 @@ import {
     GATHER_LIGHT_ABILITY_ID,
     GATHER_LIGHT_AMOUNT,
     GATHER_LIGHT_DARKNESS_PER_LIGHT_GAINED,
+    GATHER_LIGHT_DEVOUR_BONUS,
     getGatherLightAmount,
     getGatherLightDarknessAmount,
 } from './0804Constants';
@@ -31,6 +32,22 @@ describe('Gather Light amount', () => {
                 abilityModifiers: { [GATHER_LIGHT_ABILITY_ID]: { resourceGainFlat: 2 } },
             }),
         ).toBe(GATHER_LIGHT_AMOUNT + 2);
+    });
+});
+
+describe('Gather Light Devour Light', () => {
+    it('grants 1 additional light and declares a devourLight keyword use', () => {
+        expect(GATHER_LIGHT_DEVOUR_BONUS).toBe(1);
+        expect(GatherLightAbility.keywordUses).toEqual([
+            expect.objectContaining({ keyword: 'devourLight', n: 1 }),
+        ]);
+    });
+
+    it('shows the Devour line in the tooltip with imbuement research too', () => {
+        const imbued = GatherLightAbility.getTooltipText?.({
+            researchTrees: { [LIGHT_TREE_ID]: [LIGHT_NODE_IMBUEMENT] },
+        });
+        expect(imbued?.[1]).toBe('{Devour Light 1}: gain {1} additional light');
     });
 });
 
@@ -62,6 +79,7 @@ describe('Gather Light Light Imbuement gating', () => {
     it('mentions weapon imbuement in the tooltip only with Light Imbuement researched', () => {
         const base = GatherLightAbility.getTooltipText?.({});
         expect(base?.[0]).toMatch(/recover \{2\} light$/);
+        expect(base?.[1]).toBe('{Devour Light 1}: gain {1} additional light');
 
         const imbued = GatherLightAbility.getTooltipText?.({
             researchTrees: { [LIGHT_TREE_ID]: [LIGHT_NODE_IMBUEMENT] },

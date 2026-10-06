@@ -96,6 +96,7 @@ Use this pattern for any stat that is set once from the def and never mutated at
 |-----------|--------|
 | Description line | Prose + inline `{dynamic stats}` (e.g. `` `Deal {${DAMAGE}} damage` ``) |
 | Keyword line | Entire line is `{Keyword value}` only (e.g. `'{Bright 3}'`, `'{knockback 1}'`) |
+| Keyword-with-effect line | `{Keyword N}: effect` — for keywords that carry an effect (e.g. `` `{Devour Light 1}: gain {1} additional light` ``). Build with `formatKeywordUseTooltip(use)` from `abilities/keywords/` |
 
 The `{...}` wrapper signals to `AbilityTooltip` that the enclosed text is highlighted in amber.
 
@@ -115,5 +116,7 @@ return [
     `{knockback 3}.`,
 ];
 ```
+
+**Keyword-with-effect lines** — a keyword that triggers an attached effect keeps the keyword as the line's lead, followed by a colon and a short effect clause. Still one keyword per line, no `On hit:`-style prefixes. See `abilities/keywords/AGENTS.md` for the keyword system.
 
 This replaces the old multi-keyword-per-line pattern (e.g. `` `{knockback 1}, {${STUN}s} stun.` `` on one entry). For tone and prose rhythm, see **writing-style-abilities** (`STYLE.md` → Keyword lines [Canon]).

@@ -3,6 +3,8 @@ import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 export const GATHER_LIGHT_ABILITY_ID = `${formatGroupId(AbilityGroupId.Light)}04`;
 
 export const GATHER_LIGHT_AMOUNT = 2;
+/** Extra Light gained when Devour Light succeeds. */
+export const GATHER_LIGHT_DEVOUR_BONUS = 1;
 /** Darkness applied per Light granted (negative light on each chosen tile). */
 export const GATHER_LIGHT_DARKNESS_PER_LIGHT_GAINED = 0.5;
 

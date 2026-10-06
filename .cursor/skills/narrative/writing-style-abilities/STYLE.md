@@ -29,6 +29,7 @@ Mechanical keywords in `getTooltipText()` use a **standalone-line** format — s
 
 - One keyword per array entry in `getTooltipText()`.
 - The entire line is `{KeywordName value}` only — e.g. `{Bright 3}`, `{knockback 1}`.
+- **Exception — keywords that carry an effect:** `{KeywordName value}: short effect clause` (e.g. `{Devour Light 1}: gain {1} additional light`). Still one keyword per line; no `On hit:`-style prefixes.
 - No trailing periods, no conditional prefixes (`On Block:`, `On hit:`), no explanatory prose on the same line.
 - Do not embed keywords inside descriptive sentences (`Leaves a {Bright 3} at the target point` is wrong).
 - Put descriptive mechanics on separate lines above or below keyword lines.
@@ -39,6 +40,7 @@ Mechanical keywords in `getTooltipText()` use a **standalone-line** format — s
 |-----------|--------|---------|
 | Description line | Prose + inline `{dynamic stats}` | `` `Deal {${DAMAGE}} damage` `` |
 | Keyword line | Entire line is `{Keyword value}` only | `'{Bright 3}'`, `'{knockback 1}'` |
+| Keyword-with-effect line | `{Keyword value}: effect` | `` `{Devour Light 1}: gain {1} additional light` `` |
 
 **Reference implementations:** see `getTooltipText` in `card_defs/08_light_core/0801_LightBlast/`, `card_defs/utility/0601_ThrowTorch/`, `card_defs/0108_ThrowChargedRock/`, and `card_defs/0110_ShiningBlock/`. For keyword mechanics, see `abilities/brightKeyword.ts` and `crowdControl/knockbackKeywords.ts` — do not paste tier enums here.
 

@@ -31,11 +31,17 @@ import {
     GATHER_LIGHT_ABILITY_ID,
     GATHER_LIGHT_BRIGHT_MAGNITUDE,
     GATHER_LIGHT_BRIGHT_ALPHA_SCALE,
+    GATHER_LIGHT_DEVOUR_BONUS,
     getGatherLightAmount,
     getGatherLightDarknessAmount,
 } from './0804Constants';
 import { spawnBrightLight, type EngineWithLight } from '../../../abilities/brightKeyword';
 import type { Unit } from '../../../game/units/Unit';
+import type { AbilityKeywordUse } from '../../../abilities/keywords/keywordTypes';
+import {
+    formatKeywordUseTooltip,
+    runAbilityKeywords,
+} from '../../../abilities/keywords/runAbilityKeywords';
 
 const CARD_ID = GATHER_LIGHT_ABILITY_ID;
 const MAX_USES = 2;
@@ -54,7 +60,16 @@ export function hasLightImbuementResearch(gameState: unknown, caster?: Unit): bo
     return trees?.[LIGHT_TREE_ID]?.includes(LIGHT_NODE_IMBUEMENT) ?? false;
 }
 
-const GATHER_LIGHT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+const GATHER_LIGHT_DEVOUR_USE: AbilityKeywordUse = {
+    keyword: 'devourLight',
+    n: 1,
+    effect: (ctx) => {
+        ctx.caster.getResource('light')?.add(GATHER_LIGHT_DEVOUR_BONUS);
+    },
+    effectText: `gain {${GATHER_LIGHT_DEVOUR_BONUS}} additional light`,
+};
+
+const GATHER_LIGHT_IMAGE =`<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <radialGradient id="gatherGlow" cx="0.5" cy="0.5" r="0.5">
       <stop offset="0%" stop-color="#ffffff"/>
@@ -77,6 +92,7 @@ export const GatherLightAbility = defineAbility({
     recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 }],
     prefireTime: GATHER_LIGHT_PREFIRE_TIME,
     targets: [],
+    keywordUses: [GATHER_LIGHT_DEVOUR_USE],
     /** Prep: Imbued Bat comes free when Light Imbuement research grants 0803 (tagged `secondary`). */
     attachedAbilityIds: [IMBUED_BAT_ABILITY_ID],
     abilityTimings: [
@@ -106,6 +122,9 @@ export const GatherLightAbility = defineAbility({
                     behaviour: CastBehaviours.Instant((ctx) => {
                         const eng = ctx.engine as EngineWithGatherLight;
                         const lightGained = getGatherLightAmount(ctx.caster);
+                        // Devour must resolve before the bright light source below is spawned.
+                        // Its effect adds the bonus light; darkness stays based on the base amount.
+                        runAbilityKeywords(ctx, [GATHER_LIGHT_DEVOUR_USE]);
                         ctx.caster.getResource('light')?.add(lightGained);
                         const { darknessTiles } = applyGatherLightDarkness(
                             eng,
@@ -143,12 +162,14 @@ export const GatherLightAbility = defineAbility({
         const amount = getGatherLightAmount({
             abilityModifiers: { [CARD_ID]: getAbilityModifier(gameState, undefined, CARD_ID) },
         });
+        const devourLine = formatKeywordUseTooltip(GATHER_LIGHT_DEVOUR_USE);
         if (hasLightImbuementResearch(gameState)) {
             return [
                 `Gather the light near you to recover {${amount}} light and imbue your weapon with light.`,
+                devourLine,
             ];
         }
-        return [`Gather the light near you to recover {${amount}} light`];
+        return [`Gather the light near you to recover {${amount}} light`, devourLine];
     },
 
     renderTargetingPreviewSelectedTargets(): void {
