@@ -44,6 +44,7 @@ import {
     WOD_CH2_MAP_X_COL3,
     WOD_CH2_MAP_Y_ROW0,
     WOD_CH2_MAP_Y_ROW1,
+    WOD_CH2_MAP_Y_ROW2,
 } from './WorldOfDarkness/chapter2Map';
 import { LOCATION_PLAINS_TAG } from './WorldOfDarkness/questMissions/questMissionConstants';
 
@@ -156,23 +157,28 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
         expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterQuestBankId).toBe(WOD_EXAMPLE_QUEST_BANK_ID);
         expect(WOD_POST_CORE_QUEST_BANK_2.requiredClears).toBe(2);
         expect(WOD_POST_CORE_QUEST_BANK_2.mapPosition).toEqual({
-            x: WOD_CH2_MAP_X_COL2,
+            x: WOD_CH2_MAP_X_COL3,
             y: WOD_CH2_MAP_Y_ROW1,
         });
         expect(WOD_POST_CORE_QUEST_BANK_2.filters).toEqual(WOD_SURFACE_QUEST_FILTERS);
         expect(WOD_POST_CORE_QUEST_BANK_3.unlockAfterQuestBankId).toBe(WOD_POST_CORE_QUEST_BANK_2_ID);
         expect(WOD_POST_CORE_QUEST_BANK_3.mapPosition).toEqual({
             x: WOD_CH2_MAP_X_COL3,
-            y: WOD_CH2_MAP_Y_ROW1,
+            y: WOD_CH2_MAP_Y_ROW2,
         });
         const afterSouthGate = [victoryMission('core_awakening'), victoryMission('south_gate_swarm')];
         const banks = WorldOfDarknessStoryline.questSlotBanks ?? [];
         expect(isQuestSlotBankUnlocked(WOD_POST_CORE_QUEST_BANK_2, afterSouthGate, [], banks)).toBe(false);
+        const bank1Cleared = [bankVictory(SWARMLING_SOURCE.id, WOD_EXAMPLE_QUEST_BANK_ID)];
+        // Needs the campsite visit as well as the first picker.
+        expect(
+            isQuestSlotBankUnlocked(WOD_POST_CORE_QUEST_BANK_2, afterSouthGate, bank1Cleared, banks),
+        ).toBe(false);
         expect(
             isQuestSlotBankUnlocked(
                 WOD_POST_CORE_QUEST_BANK_2,
-                afterSouthGate,
-                [bankVictory(SWARMLING_SOURCE.id, WOD_EXAMPLE_QUEST_BANK_ID)],
+                [...afterSouthGate, victoryMission('campsite')],
+                bank1Cleared,
                 banks,
             ),
         ).toBe(true);

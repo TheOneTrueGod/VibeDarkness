@@ -17,7 +17,7 @@ import { TerrainType } from '../../../terrain/TerrainType';
 import { MAP_SEGMENT_49_52_THORN_PATH } from '../MapSegments/49_52_thorn_path';
 import { MAP_SEGMENT_48_52_THORN_PATH_2 } from '../MapSegments/48_52_thorn_path_2';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
-import { WOD_CH2_MAP_X_COL2, WOD_CH2_MAP_Y_ROW2 } from '../chapter2Map';
+import { WOD_CH2_MAP_X_COL2, WOD_CH2_MAP_Y_ROW3 } from '../chapter2Map';
 
 // ---------------------------------------------------------------------------
 // Grid constants
@@ -79,7 +79,7 @@ export class ThornlingRiseMission extends BaseMissionDef {
     missionId = ThornlingRiseMission.missionId;
     /** Chapter 2 grid — row 2, after South Gate Swarm. */
     disabled = MISSION_MAP_DISABLED;
-    mapPosition = { x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW2 };
+    mapPosition = { x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW3 };
     missionType = 'battle' as const;
     description = 'A thornling nest surges with new growth. Destroy it before the swarm overwhelms the region.';
     name = ThornlingRiseMission.nameStr;

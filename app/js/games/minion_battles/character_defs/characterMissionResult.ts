@@ -1,7 +1,9 @@
 import type { CampaignResourceKey, MissionResearchRewardEntry, MissionResult } from '../../../types';
-import { withExhaustionDelta } from '../storylines/matchExhaustion';
+import { applyOrderedExhaustionChanges, withExhaustionDelta } from '../storylines/matchExhaustion';
 import {
     clampCharacterMatchExhaustion,
+    getCharacterEndurance,
+    getCharacterExhaustion,
     type CharacterEnduranceSource,
 } from './characterEndurance';
 
@@ -10,6 +12,12 @@ export type CharacterMissionResultExtras = {
     itemIds?: string[];
     researchRewardIds?: string[];
     researchRewards?: MissionResearchRewardEntry[];
+    /**
+     * Ordered signed exhaustion changes (gain > 0, recovery < 0) applied against the
+     * character's current exhaustion, each step clamped to [0, endurance].
+     * When set, replaces `resourceDelta.exhaustion` with the resulting net delta.
+     */
+    exhaustionChanges?: number[];
 };
 
 export function buildCharacterMissionResultEntry(
@@ -62,6 +70,20 @@ export function applyEnduranceCapToExtras(
 ): CharacterMissionResultExtras | undefined {
     if (!extras) {
         return extras;
+    }
+    if (extras.exhaustionChanges && extras.exhaustionChanges.length > 0) {
+        const { exhaustionChanges, ...rest } = extras;
+        const endurance = getCharacterEndurance(character.researchTrees, character.researchNodeLevels);
+        const start = getCharacterExhaustion(character, { excludeMissionId: missionId });
+        const ordered = [extras.resourceDelta?.exhaustion ?? 0, ...exhaustionChanges];
+        const net = Math.floor(applyOrderedExhaustionChanges(start, ordered, endurance)) - start;
+        const others = extras.resourceDelta ? { ...extras.resourceDelta } : {};
+        delete others.exhaustion;
+        const resourceDelta = net !== 0 ? { ...others, exhaustion: net } : others;
+        return {
+            ...rest,
+            resourceDelta: Object.keys(resourceDelta).length > 0 ? resourceDelta : undefined,
+        };
     }
     const computed = extras.resourceDelta?.exhaustion ?? 0;
     const capped = clampCharacterMatchExhaustion(character, missionId, computed);

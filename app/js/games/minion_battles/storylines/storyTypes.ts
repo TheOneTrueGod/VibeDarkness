@@ -211,8 +211,23 @@ export interface GrantResearchAutoPhrase {
     skipIfResearched?: { treeId: string; nodeIds: string[] }[];
 }
 
+/**
+ * Recover exhaustion for every non-spectator player at this point in the post-mission story.
+ * No UI. Exhaustion changes are applied strictly in story order (see
+ * `applyOrderedExhaustionChanges`), clamped to [0, endurance] at each step.
+ */
+export interface RecoverExhaustionAutoPhrase {
+    type: 'recover_exhaustion_auto';
+    /** Positive number of exhaustion points recovered. */
+    amount: number;
+}
+
 /** Post-mission phrase: dialogue, per-player choice, or silent auto-grant. */
-export type PostMissionPhrase = DialoguePhrase | ChoicePhrase | GrantResearchAutoPhrase;
+export type PostMissionPhrase =
+    | DialoguePhrase
+    | ChoicePhrase
+    | GrantResearchAutoPhrase
+    | RecoverExhaustionAutoPhrase;
 
 /** Post-mission story shown after victory, before the victory screen. */
 export interface PostMissionStoryDef {

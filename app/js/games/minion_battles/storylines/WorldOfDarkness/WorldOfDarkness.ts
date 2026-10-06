@@ -12,7 +12,9 @@ import {
     WOD_CH2_MAP_X_COL3,
     WOD_CH2_MAP_Y_ROW0,
     WOD_CH2_MAP_Y_ROW1,
+    WOD_CH2_MAP_Y_ROW2,
 } from './chapter2Map';
+import { CAMPSITE_MISSION_ID, CAMPSITE_2_MISSION_ID } from './questMissions/campsite';
 import {
     SWARMLING_SOURCE,
     SWARMLING_SOURCE_QUEST_ID,
@@ -88,17 +90,18 @@ export const WOD_POST_CORE_QUEST_BANK: QuestSlotBank = {
 };
 
 /**
- * Second Surface Quests picker. Unlocks after the first picker is complete;
- * needs two matching plains quest clears.
+ * Second Surface Quests picker. Unlocks after the first picker is complete and the
+ * campsite between them has been visited; needs two matching plains quest clears.
  */
 export const WOD_POST_CORE_QUEST_BANK_2: QuestSlotBank = {
     id: WOD_POST_CORE_QUEST_BANK_2_ID,
     title: SURFACE_QUEST_TITLE,
+    unlockAfterMissionId: CAMPSITE_MISSION_ID,
     unlockAfterQuestBankId: WOD_POST_CORE_QUEST_BANK_ID,
     requiredClears: WOD_POST_CORE_QUEST_BANK_2_REQUIRED_CLEARS,
     filters: WOD_SURFACE_QUEST_FILTERS,
     displaySlotCount: WOD_POST_CORE_QUEST_BANK_2_REQUIRED_CLEARS,
-    mapPosition: { x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW1 },
+    mapPosition: { x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW1 },
     isSideQuest: true,
 };
 
@@ -110,7 +113,7 @@ export const WOD_POST_CORE_QUEST_BANK_3: QuestSlotBank = {
     requiredClears: WOD_POST_CORE_QUEST_BANK_3_REQUIRED_CLEARS,
     filters: WOD_SURFACE_QUEST_FILTERS,
     displaySlotCount: WOD_POST_CORE_QUEST_BANK_3_REQUIRED_CLEARS,
-    mapPosition: { x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW1 },
+    mapPosition: { x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW2 },
     isSideQuest: true,
 };
 
@@ -169,14 +172,23 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         { fromMissionId: 'light_empowered', result: 'victory', toMissionId: 'cave_respite' },
         { fromMissionId: 'cave_respite', result: 'victory', toMissionId: 'monster' },
         { fromMissionId: 'monster', result: 'victory', toMissionId: 'core_awakening' },
-        // Chapter 2 questline: South Gate Swarm → Surface Quests ×3 → Thornbinder Arena.
+        // Chapter 2 questline: South Gate Swarm → Surface Quests 1 → Campsite → Surface Quests 2, 3 → Campsite → Thornbinder Arena.
         { fromMissionId: 'core_awakening', result: 'victory', toMissionId: 'south_gate_swarm' },
+        // Campsite sits between Surface Quests 1 and 2.
         {
             fromMissionId: 'core_awakening',
             result: 'victory',
-            toMissionId: 'thornbinder_arena',
+            toMissionId: CAMPSITE_MISSION_ID,
+            requiresQuestBankId: WOD_POST_CORE_QUEST_BANK_ID,
+        },
+        // Second campsite sits between Surface Quests 3 and Thornbinder Arena.
+        {
+            fromMissionId: 'core_awakening',
+            result: 'victory',
+            toMissionId: CAMPSITE_2_MISSION_ID,
             requiresQuestBankId: WOD_POST_CORE_QUEST_BANK_3_ID,
         },
+        { fromMissionId: CAMPSITE_2_MISSION_ID, result: 'victory', toMissionId: 'thornbinder_arena' },
     ],
     questSlotBanks: [
         WOD_SWARMLING_SOURCE_BANK,
@@ -210,7 +222,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
                 WOD_POST_CORE_QUEST_BANK_3_ID,
             ],
             missionIds: [
-                'south_gate_swarm', 'thornbinder_arena',
+                'south_gate_swarm', CAMPSITE_MISSION_ID, CAMPSITE_2_MISSION_ID, 'thornbinder_arena',
                 'thornling_rise', 'crystal_corruption', 'the_circle',
             ],
         },

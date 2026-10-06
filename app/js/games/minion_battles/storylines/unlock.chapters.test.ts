@@ -101,23 +101,28 @@ describe('getUnlockedMissionIds — chapter gating', () => {
         expect(unlocked.has('thornbinder_arena')).toBe(false);
     });
 
-    it('unlocks Thornbinder Arena only after the third Surface Quests bank is complete', () => {
+    it('unlocks the second campsite after bank 3, then Thornbinder Arena after that campsite', () => {
         const bankVictory = (questDefId: string): QuestResult => ({
             questDefId,
             result: 'victory',
             placement: 'bank',
             bankId: WOD_POST_CORE_QUEST_BANK_3_ID,
         });
+        const bank3Done = [bankVictory('a'), bankVictory('b')];
         expect(
             getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING, [bankVictory('a')]).has(
-                'thornbinder_arena',
+                'campsite_2',
             ),
         ).toBe(false);
+        const afterBank3 = getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING, bank3Done);
+        expect(afterBank3.has('campsite_2')).toBe(true);
+        expect(afterBank3.has('thornbinder_arena')).toBe(false);
         expect(
-            getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING, [
-                bankVictory('a'),
-                bankVictory('b'),
-            ]).has('thornbinder_arena'),
+            getUnlockedMissionIds(
+                WorldOfDarknessStoryline,
+                [...THROUGH_CORE_AWAKENING, victory('campsite_2')],
+                bank3Done,
+            ).has('thornbinder_arena'),
         ).toBe(true);
     });
 

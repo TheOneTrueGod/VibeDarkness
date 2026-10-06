@@ -745,6 +745,7 @@ export default function MinionBattlesGame({
                                               itemIds: itemIds.length > 0 ? itemIds : undefined,
                                               researchRewardIds: rewards.researchRewardIds,
                                               researchRewards: rewards.researchRewards,
+                                              exhaustionChanges: rewards.exhaustionChanges,
                                           },
                                 );
                                 const cappedDelta = skipRewards

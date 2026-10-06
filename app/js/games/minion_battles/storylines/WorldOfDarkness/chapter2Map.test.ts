@@ -10,9 +10,9 @@ import {
     WOD_CH2_MAP_X_COL1,
     WOD_CH2_MAP_X_COL2,
     WOD_CH2_MAP_X_COL3,
-    WOD_CH2_MAP_X_COL4,
     WOD_CH2_MAP_Y_ROW0,
     WOD_CH2_MAP_Y_ROW1,
+    WOD_CH2_MAP_Y_ROW3,
     WOD_CH2_MAP_Y_ROW2,
 } from './chapter2Map';
 import {
@@ -20,6 +20,7 @@ import {
     WOD_POST_CORE_QUEST_BANK_2,
     WOD_POST_CORE_QUEST_BANK_3,
 } from './WorldOfDarkness';
+import { CAMPSITE, CAMPSITE_2 } from './questMissions/campsite';
 import { CRYSTAL_CORRUPTION } from './missions/004b_crystal_corruption';
 import { THORNBINDER_ARENA } from './missions/006b_thornbinder_arena';
 import { SOUTH_GATE_SWARM } from './missions/006c_south_gate_swarm';
@@ -37,29 +38,32 @@ describe('chapter 2 mission map grid', () => {
         expect(WOD_CH2_MAP_Y_ROW2 - WOD_CH2_MAP_Y_ROW1).toBe(WOD_CH2_MAP_ROW_SPACING);
     });
 
-    it('lays the questline left to right on row 1', () => {
+    it('snakes the questline: row 1 left to right, then wraps to row 2 moving left', () => {
         expect(SOUTH_GATE_SWARM.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW1 });
         expect(WOD_POST_CORE_QUEST_BANK.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW1 });
-        expect(WOD_POST_CORE_QUEST_BANK_2.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW1 });
-        expect(WOD_POST_CORE_QUEST_BANK_3.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW1 });
-        expect(THORNBINDER_ARENA.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL4, y: WOD_CH2_MAP_Y_ROW1 });
+        expect(CAMPSITE.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW1 });
+        expect(WOD_POST_CORE_QUEST_BANK_2.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW1 });
+        expect(WOD_POST_CORE_QUEST_BANK_3.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW2 });
+        expect(CAMPSITE_2.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW2 });
+        expect(THORNBINDER_ARENA.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW2 });
     });
 
     it('chains each node on the previous one', () => {
         expect(WOD_POST_CORE_QUEST_BANK.unlockAfterMissionId).toBe('south_gate_swarm');
         expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterQuestBankId).toBe(WOD_POST_CORE_QUEST_BANK.id);
+        expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterMissionId).toBe('campsite');
         expect(WOD_POST_CORE_QUEST_BANK_3.unlockAfterQuestBankId).toBe(WOD_POST_CORE_QUEST_BANK_2.id);
     });
 
     it('enables Thornbinder Arena and disables Thornling Rise', () => {
         expect(THORNBINDER_ARENA.disabled).toBeUndefined();
         expect(THORNLING_RISE.disabled).toBe(true);
-        expect(THORNLING_RISE.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW2 });
+        expect(THORNLING_RISE.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW3 });
     });
 
-    it('keeps the remaining missions on row 2', () => {
-        expect(CRYSTAL_CORRUPTION.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW2 });
-        expect(THE_CIRCLE.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW2 });
+    it('keeps the remaining missions on row 3', () => {
+        expect(CRYSTAL_CORRUPTION.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW3 });
+        expect(THE_CIRCLE.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW3 });
     });
 
     it('removes Ember at the Threshold and Thorn March from the map', () => {

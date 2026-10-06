@@ -506,7 +506,7 @@ export interface PostMissionChoiceResolveParams {
 }
 
 /** Mission map node category — drives the Lucide icon on the Mission Map. */
-export type MissionType = 'battle' | 'story' | 'boss';
+export type MissionType = 'battle' | 'story' | 'boss' | 'campsite';
 
 /** Set on a mission def so non-admins cannot select or host it from the map. */
 export const MISSION_MAP_DISABLED = true;

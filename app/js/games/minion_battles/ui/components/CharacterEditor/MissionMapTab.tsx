@@ -10,7 +10,7 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { LucideIcon } from 'lucide-react';
-import { Check, ChevronDown, Route, Scroll, Skull, Swords, X } from 'lucide-react';
+import { Check, ChevronDown, Route, Scroll, Skull, Swords, Tent, X } from 'lucide-react';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import type { MissionResult } from '../../../../../types';
 import type { MissionType, StorylineDef } from '../../../storylines/types';
@@ -34,7 +34,8 @@ import {
     isDedicatedQuestBank,
     hasQuestVictoryResult,
 } from '../../../storylines/unlock';
-import type { QuestDef, QuestRunState, QuestSlotBank } from '../../../storylines/questTypes';
+import type { QuestDef, QuestResult, QuestRunState, QuestSlotBank } from '../../../storylines/questTypes';
+import { getLocationCardDef } from '../../../storylines/locationCards';
 import { getQuestDef } from '../../../storylines/questRegistry';
 import { getResolvedMissionResearchRewards } from '../../../../../researchTrees/list';
 import ResearchRewardTinyChip from '../../../../../components/ResearchRewardTinyChip';
@@ -66,6 +67,7 @@ const MISSION_TYPE_ICONS: Record<MissionType, LucideIcon> = {
     battle: Swords,
     story: Scroll,
     boss: Skull,
+    campsite: Tent,
 };
 
 const DEFAULT_MISSION_TYPE: MissionType = 'battle';
@@ -75,6 +77,7 @@ const MISSION_NODE_FILL = {
     finished: '#6b7280', // gray-500
     battle: '#ef4444', // red-500
     story: '#3b82f6', // blue-500
+    campsite: '#f59e0b', // amber-500
 } as const;
 
 /** Lighter red halo on battle nodes — same role as quest-bank violet-400 on violet-600. */
@@ -123,6 +126,7 @@ function getMissionNodeFill(
     if (isMissionCompleted(missionId, missionResults) || isDisabled) return MISSION_NODE_FILL.finished;
     if (missionType === 'boss') return `url(#${BOSS_GRADIENT_ID})`;
     if (missionType === 'story') return MISSION_NODE_FILL.story;
+    if (missionType === 'campsite') return MISSION_NODE_FILL.campsite;
     return MISSION_NODE_FILL.battle;
 }
 
@@ -136,6 +140,7 @@ function getMissionGlowColor(
     if (isMissionCompleted(missionId, missionResults) || isDisabled) return MISSION_NODE_FILL.finished;
     if (missionType === 'boss') return BOSS_GLOW_COLOR;
     if (missionType === 'story') return MISSION_NODE_FILL.story;
+    if (missionType === 'campsite') return MISSION_NODE_FILL.campsite;
     return MISSION_NODE_FILL.battle;
 }
 
@@ -281,6 +286,37 @@ function QuestSlotList({ rows, isAdmin }: { rows: QuestSlotRow[]; isAdmin: boole
     );
 }
 
+/** Chips for what a cleared quest granted (resources, research, items, location cards). */
+function QuestRewardChips({ result }: { result: QuestResult | undefined }) {
+    const resources = useMemo(() => campaignResourceGains(result?.resourceDelta), [result?.resourceDelta]);
+    const research = useMemo(() => getResolvedMissionResearchRewards(result), [result]);
+    const itemIds = result?.unlockItemIds ?? [];
+    const locationCardIds = result?.locationCardIds ?? [];
+    if (research.length + resources.length + itemIds.length + locationCardIds.length === 0) {
+        return <p className="text-[12px] text-zinc-500 italic">None</p>;
+    }
+    return (
+        <div className="flex flex-wrap gap-1.5">
+            {research.map(({ treeId, nodeId, node }) => (
+                <ResearchRewardTinyChip key={`${treeId}-${nodeId}`} node={node} />
+            ))}
+            {itemIds.map((itemId) => (
+                <span key={itemId} className={`${MISSION_REWARD_CHIP_CLASSNAME} text-white`} title={getItemDef(itemId)?.name ?? itemId}>
+                    {getItemDef(itemId)?.name ?? itemId}
+                </span>
+            ))}
+            {locationCardIds.map((cardId, idx) => (
+                <span key={`${cardId}-${idx}`} className={`${MISSION_REWARD_CHIP_CLASSNAME} text-white`}>
+                    {getLocationCardDef(cardId)?.displayName ?? `Location ${cardId}`}
+                </span>
+            ))}
+            {resources.map(({ resource, count }) => (
+                <ResourcePill key={resource} resource={resource} count={count} />
+            ))}
+        </div>
+    );
+}
+
 function QuestBankTooltip({
     data,
     bank,
@@ -292,6 +328,7 @@ function QuestBankTooltip({
     activeQuestDefId,
     activeQuestRun,
     questCompleted,
+    questResult,
     onStartQuest,
     onAbandonQuest,
     onResetQuest,
@@ -309,6 +346,8 @@ function QuestBankTooltip({
     activeQuestRun?: QuestRunState | null;
     /** Dedicated quest already cleared (victory recorded). */
     questCompleted: boolean;
+    /** Victory result of the pinned quest, used for the Rewards section. */
+    questResult?: QuestResult;
     onStartQuest?: (questDefId: string, options?: StartQuestOptions) => void;
     onAbandonQuest?: () => void | Promise<void>;
     onResetQuest?: (questDefId: string) => void | Promise<void>;
@@ -340,8 +379,9 @@ function QuestBankTooltip({
     const showQuestActions = !isLocked && startableQuests.length > 0;
     const questCompleteLabel = isDedicated && showCompleteEmpty ? 'Quest complete.' : null;
     const showReset = isAdmin && isDedicated && questCompleted && !!pinnedQuest && !!onResetQuest;
+    const showRewards = isDedicated && questCompleted && !!pinnedQuest;
     const showFooter = data.pinned
-        && (isLocked || showReset || (showCompleteEmpty && !isDedicated) || showQuestActions);
+        && (isLocked || showRewards || showReset || (showCompleteEmpty && !isDedicated) || showQuestActions);
 
     return createPortal(
         <div
@@ -422,8 +462,13 @@ function QuestBankTooltip({
                             >
                                 Locked — complete {unlockRequirementLabel ?? 'the previous requirement'} to {isDedicated ? 'start this quest' : 'assign a quest here'}.
                             </p>
-                        ) : showReset && pinnedQuest ? (
-                            <div className="flex justify-end">
+                        ) : showRewards && pinnedQuest ? (
+                            <>
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wide">
+                                        Rewards
+                                    </span>
+                                    {showReset && (
                                 <button
                                     type="button"
                                     data-testid={TestIds.questReset}
@@ -442,7 +487,10 @@ function QuestBankTooltip({
                                 >
                                     Reset
                                 </button>
-                            </div>
+                                    )}
+                                </div>
+                                <QuestRewardChips result={questResult} />
+                            </>
                         ) : showCompleteEmpty ? (
                             <p className="text-[12px] text-zinc-500 italic">
                                 No eligible quests left.
@@ -1431,6 +1479,13 @@ export default function MissionMapTab({
                         activeQuestRun={character.activeQuestRun}
                         questCompleted={
                             !!bank.questDefId && hasQuestVictoryResult(bank.questDefId, questResults)
+                        }
+                        questResult={
+                            bank.questDefId
+                                ? questResults.find(
+                                    (r) => r.questDefId === bank.questDefId && r.result === 'victory',
+                                )
+                                : undefined
                         }
                         onStartQuest={onStartQuest}
                         onAbandonQuest={onAbandonQuest}

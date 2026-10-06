@@ -1,6 +1,6 @@
 /**
  * Chapter 2 ("The Surface") Mission Map grid.
- * Five columns × three rows; row 0 is the new top row for dedicated side quests.
+ * Five columns × four rows; row 0 is the new top row for dedicated side quests.
  */
 
 export const WOD_CH2_MAP_X_ORIGIN = 100;
@@ -17,3 +17,4 @@ export const WOD_CH2_MAP_X_COL4 = WOD_CH2_MAP_X_ORIGIN + WOD_CH2_MAP_COL_SPACING
 export const WOD_CH2_MAP_Y_ROW0 = WOD_CH2_MAP_Y_ORIGIN;
 export const WOD_CH2_MAP_Y_ROW1 = WOD_CH2_MAP_Y_ORIGIN + WOD_CH2_MAP_ROW_SPACING;
 export const WOD_CH2_MAP_Y_ROW2 = WOD_CH2_MAP_Y_ORIGIN + WOD_CH2_MAP_ROW_SPACING * 2;
+export const WOD_CH2_MAP_Y_ROW3 = WOD_CH2_MAP_Y_ORIGIN + WOD_CH2_MAP_ROW_SPACING * 3;

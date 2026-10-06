@@ -57,6 +57,24 @@ export function withExhaustionDelta(
 }
 
 /**
+ * Fold signed exhaustion changes (positive = gain, negative = recovery) into `start`
+ * strictly in order, clamping to [0, cap] after every step. Order matters because of the
+ * clamp: +5, +5, −20, +5 ends at 5, not 0. Non-finite changes are skipped.
+ */
+export function applyOrderedExhaustionChanges(
+    start: number,
+    changes: readonly number[],
+    cap: number = Infinity,
+): number {
+    let value = Number.isFinite(start) ? start : 0;
+    for (const change of changes) {
+        if (!Number.isFinite(change)) continue;
+        value = Math.min(cap, Math.max(0, value + change));
+    }
+    return value;
+}
+
+/**
  * Apply heal-wounds reduction to exhaustion.
  * Wounds reduce exhaustion 1-to-1 (1 exhaustion per wound point).
  * Guards against non-finite values.

@@ -51,7 +51,7 @@ export const dsEnemyHardened: DarknessStrengthDef = {
 export const dsEnemyFierce: DarknessStrengthDef = {
     packageId: DS_ENEMY_FIERCE_ID,
     name: 'Fierce Assault',
-    description: `Enemy creatures deal {${DescriptiveValue.Small}} more damage.`,
+    description: `Enemy creatures deal a {${DescriptiveValue.Small}} amount more damage.`,
     icon: FIERCE_ICON,
     lane: 'darkness',
     compile: [

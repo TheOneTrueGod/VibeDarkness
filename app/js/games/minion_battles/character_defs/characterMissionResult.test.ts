@@ -91,4 +91,54 @@ describe('applyEnduranceCapToExtras', () => {
         );
         expect(capped?.resourceDelta).toEqual({ food: 1, exhaustion: 2 });
     });
+
+    function withExhaustion(current: number) {
+        return {
+            campaignId: CAMPAIGN_ID,
+            missionResults: {
+                [CAMPAIGN_ID]: [
+                    {
+                        missionId: OTHER_MISSION_ID,
+                        result: 'victory' as const,
+                        resourceDelta: { exhaustion: current },
+                    },
+                ],
+            },
+            questResults: {},
+            researchTrees: {},
+            researchNodeLevels: {},
+        };
+    }
+
+    it('applies match exhaustion then recovery in order, clamping at zero mid-sequence', () => {
+        // Start 10. +5 (match) -> 15, recover 20 -> 0 (clamped), +5 -> 5. Net -5.
+        const result = applyEnduranceCapToExtras(withExhaustion(10), MISSION_ID, {
+            resourceDelta: { exhaustion: 5 },
+            exhaustionChanges: [-20, 5],
+        });
+        expect(result?.resourceDelta).toEqual({ exhaustion: -5 });
+        expect(result).not.toHaveProperty('exhaustionChanges');
+    });
+
+    it('records a negative net delta when recovery exceeds nothing clamped', () => {
+        const result = applyEnduranceCapToExtras(withExhaustion(30), MISSION_ID, {
+            exhaustionChanges: [-20],
+        });
+        expect(result?.resourceDelta).toEqual({ exhaustion: -20 });
+    });
+
+    it('cannot recover below zero total exhaustion', () => {
+        const result = applyEnduranceCapToExtras(withExhaustion(8), MISSION_ID, {
+            exhaustionChanges: [-20],
+        });
+        expect(result?.resourceDelta).toEqual({ exhaustion: -8 });
+    });
+
+    it('keeps other resources and drops the delta when exhaustion is unchanged', () => {
+        const result = applyEnduranceCapToExtras(withExhaustion(0), MISSION_ID, {
+            resourceDelta: { food: 2 },
+            exhaustionChanges: [-20],
+        });
+        expect(result?.resourceDelta).toEqual({ food: 2 });
+    });
 });

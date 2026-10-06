@@ -5,7 +5,26 @@ import {
     computeMatchExhaustion,
     withExhaustionDelta,
     applyHealWoundsToExhaustion,
+    applyOrderedExhaustionChanges,
 } from './matchExhaustion';
+
+describe('applyOrderedExhaustionChanges', () => {
+    it('is deterministic by order: +5, +5, -20, +5 ends at 5', () => {
+        expect(applyOrderedExhaustionChanges(0, [5, 5, -20, 5])).toBe(5);
+    });
+
+    it('differs when the same changes are reordered', () => {
+        expect(applyOrderedExhaustionChanges(0, [-20, 5, 5, 5])).toBe(15);
+    });
+
+    it('clamps to the cap at each step', () => {
+        expect(applyOrderedExhaustionChanges(95, [10, -3], 100)).toBe(97);
+    });
+
+    it('skips non-finite changes', () => {
+        expect(applyOrderedExhaustionChanges(4, [NaN, Infinity, 1])).toBe(5);
+    });
+});
 
 describe('computeMatchExhaustion', () => {
     it('is zero when the player is at full uninjured HP', () => {

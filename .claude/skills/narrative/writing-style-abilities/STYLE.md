@@ -21,6 +21,13 @@ When a mechanic has a named keyword, prefer the keyword form (with keyword styli
 
 Tooltip arrays still follow **Keyword lines** below for standalone mechanical lines.
 
+### Size-system words (`DescriptiveValue`) [Canon]
+
+`{${DescriptiveValue.Huge}}` and friends render as an adjective-like label (`<Huge>`), not a noun, so comparatives read badly when the label sits directly in front of them ("reaches <Huge> farther", "<Small> more damage").
+
+- Write **"a {size} amount"** before the comparative: "reaches a `{Huge}` amount farther", "deal a `{Small}` amount more damage", "lasts a `{Huge}` amount less time".
+- Applies to any size label used with `farther`, `more`, `less`, `larger`, `longer`, etc. Labels that already modify a noun ("a `{Large}` radius") need no change.
+
 ### Keyword lines [Canon]
 
 Mechanical keywords in `getTooltipText()` use a **standalone-line** format — separate from descriptive prose lines.

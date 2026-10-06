@@ -99,6 +99,62 @@ export function resolveResearchRewardSlots(
     });
 }
 
+function hashSeed(seed: string): number {
+    let h = 2166136261;
+    for (let i = 0; i < seed.length; i++) {
+        h ^= seed.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+}
+
+function mulberry32(seed: number): () => number {
+    let a = seed;
+    return () => {
+        a = (a + 0x6d2b79f5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+/**
+ * Picks up to `count` distinct research nodes the player could structurally unlock right now
+ * (unresearched, prereqs met, no exclusive conflicts, requirements met) and returns one reward
+ * option per node. Selection is a seeded shuffle of a deterministically sorted pool, so the same
+ * `seed` + same research state always yields the same options. Costs are bypassed.
+ */
+export function pickRandomResearchRewardOptions(
+    count: number,
+    researchedTrees: Record<string, string[]> | undefined,
+    equippedItemIds: readonly string[],
+    seed: string,
+): StoryChoiceOptionRow[] {
+    const researched = researchedTrees ?? {};
+    const equippedSet = new Set(equippedItemIds);
+    const allResearchedNodeIds = collectResearchedNodeIds(researched);
+    const candidates: NodeCandidate[] = [];
+    for (const tree of RESEARCH_TREES) {
+        const researchedSet = new Set(researched[tree.id] ?? []);
+        for (const node of tree.nodes) {
+            if (isDraftResearchNode(node) || isDisabledResearchNode(node)) continue;
+            if (researchedSet.has(node.id)) continue;
+            if (!nodeRequirementsMet(node, equippedSet, researched)) continue;
+            if (!nodeStructurallyAvailable(node, researchedSet, allResearchedNodeIds)) continue;
+            candidates.push({ treeId: tree.id, node });
+        }
+    }
+    const pool = sortCandidatesDeterministic(candidates);
+    const rand = mulberry32(hashSeed(seed));
+    for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        [pool[i], pool[j]] = [pool[j]!, pool[i]!];
+    }
+    return pool
+        .slice(0, count)
+        .map((c, index) => buildRow(`random_${index}`, c.treeId, c.node, undefined, undefined));
+}
+
 function nodeRequirementsMet(
     node: ResearchNodeDef,
     equippedSet: Set<string>,

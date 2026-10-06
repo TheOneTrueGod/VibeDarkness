@@ -171,7 +171,7 @@ export const lightTree: ResearchTreeDef = {
             id: LIGHT_NODE_INCREASED_RADIANCE,
             title: 'Increased Radiance',
             description:
-                `Light Blast's burst reaches {${DescriptiveValue.Huge}} farther at max rank (half that bonus per rank).`,
+                `Light Blast's burst reaches a {${DescriptiveValue.Huge}} amount farther at max rank (half that bonus per rank).`,
             flavorText: 'The glow learns to take more of the room.',
             order: 14,
             tier: LIGHT_CORE_FOLLOWUP_TIER,
@@ -200,7 +200,7 @@ export const lightTree: ResearchTreeDef = {
             id: LIGHT_NODE_RADIANT_REACH,
             title: 'Radiant Reach',
             description:
-                `Imbued Bat's light cone reaches {${DescriptiveValue.Huge}} farther per rank (doubles at max).`,
+                `Imbued Bat's light cone reaches a {${DescriptiveValue.Huge}} amount farther per rank (doubles at max).`,
             flavorText: 'Light stretches until the dark has nowhere left to stand.',
             order: 11,
             tier: 3,
