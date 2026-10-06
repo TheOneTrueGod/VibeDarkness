@@ -5,10 +5,12 @@
 
 import type { EngineContext } from '../EngineContext';
 import { getNearPositionAreaTiles, isTileInNearPositionArea } from '../../storylines/nearPositionArea';
-import type {
-    BattleObjectiveDef,
-    ObjectiveOnCompleteEffect,
-    VictoryCondition,
+import {
+    DEFAULT_OBJECTIVE_TILES_ALPHA,
+    DEFAULT_OBJECTIVE_TILES_IMAGE,
+    type BattleObjectiveDef,
+    type ObjectiveOnCompleteEffect,
+    type VictoryCondition,
 } from '../../storylines/types';
 
 export interface SerializedObjectiveState {
@@ -102,17 +104,28 @@ export class ObjectiveManager {
         return rows;
     }
 
-    /** Tile hints for revealed, incomplete objectives that declare `showObjectiveTiles`. */
+    /**
+     * Tile hints for revealed, incomplete objectives. On by default (footprints); an objective
+     * opts out with `showObjectiveTiles: false`.
+     */
     getActiveTileMarkers(): { id: string; image: 'footprint'; alpha: number; tiles: { col: number; row: number }[] }[] {
         const out: { id: string; image: 'footprint'; alpha: number; tiles: { col: number; row: number }[] }[] = [];
         for (const d of this.defs) {
-            const cfg = d.showObjectiveTiles;
-            if (!cfg || !this.revealedIds.has(d.id) || this.completedIds.has(d.id)) continue;
+            if (d.showObjectiveTiles === false) continue;
+            if (!this.revealedIds.has(d.id) || this.completedIds.has(d.id)) continue;
+            const cfg = typeof d.showObjectiveTiles === 'object' ? d.showObjectiveTiles : {};
             let tiles = cfg.tiles;
             if (!tiles && d.toComplete.type === 'allUnitsNearPosition') {
                 tiles = getNearPositionAreaTiles(d.toComplete);
             }
-            if (tiles?.length) out.push({ id: d.id, image: cfg.image, alpha: cfg.alpha, tiles });
+            if (tiles?.length) {
+                out.push({
+                    id: d.id,
+                    image: cfg.image ?? DEFAULT_OBJECTIVE_TILES_IMAGE,
+                    alpha: cfg.alpha ?? DEFAULT_OBJECTIVE_TILES_ALPHA,
+                    tiles,
+                });
+            }
         }
         return out;
     }

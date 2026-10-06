@@ -9,6 +9,7 @@ import {
     WOD_CH2_MAP_X_COL0,
     WOD_CH2_MAP_X_COL1,
     WOD_CH2_MAP_X_COL2,
+    WOD_CH2_MAP_X_COL3,
     WOD_CH2_MAP_Y_ROW0,
     WOD_CH2_MAP_Y_ROW1,
 } from './chapter2Map';
@@ -31,6 +32,9 @@ export const WOD_POST_CORE_QUEST_BANK_ID = 'wod_post_core_awakening_quests';
 /** Second Surface Quests picker (two spaces right of the first). */
 export const WOD_POST_CORE_QUEST_BANK_2_ID = 'wod_post_core_awakening_quests_2';
 
+/** Third Surface Quests picker (gates Thornbinder Arena). */
+export const WOD_POST_CORE_QUEST_BANK_3_ID = 'wod_post_core_awakening_quests_3';
+
 /** Dedicated map node for Swarmling Source. */
 export const WOD_SWARMLING_SOURCE_BANK_ID = 'wod_swarmling_source';
 
@@ -45,6 +49,9 @@ export const WOD_POST_CORE_QUEST_BANK_REQUIRED_CLEARS = 1;
 
 /** Required clears for the second Surface Quests picker. */
 export const WOD_POST_CORE_QUEST_BANK_2_REQUIRED_CLEARS = 2;
+
+/** Required clears for the third Surface Quests picker. */
+export const WOD_POST_CORE_QUEST_BANK_3_REQUIRED_CLEARS = 2;
 
 /** A dedicated quest node is complete after one clear of its pinned quest. */
 export const WOD_DEDICATED_QUEST_REQUIRED_CLEARS = 1;
@@ -72,11 +79,11 @@ export const WOD_SURFACE_QUEST_FILTERS: QuestEligibilityFilters = {
 export const WOD_POST_CORE_QUEST_BANK: QuestSlotBank = {
     id: WOD_POST_CORE_QUEST_BANK_ID,
     title: SURFACE_QUEST_TITLE,
-    unlockAfterMissionId: 'core_awakening',
+    unlockAfterMissionId: 'south_gate_swarm',
     requiredClears: WOD_POST_CORE_QUEST_BANK_REQUIRED_CLEARS,
     filters: WOD_SURFACE_QUEST_FILTERS,
     displaySlotCount: WOD_POST_CORE_QUEST_BANK_REQUIRED_CLEARS,
-    mapPosition: { x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW1 },
+    mapPosition: { x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW1 },
     isSideQuest: true,
 };
 
@@ -92,6 +99,18 @@ export const WOD_POST_CORE_QUEST_BANK_2: QuestSlotBank = {
     filters: WOD_SURFACE_QUEST_FILTERS,
     displaySlotCount: WOD_POST_CORE_QUEST_BANK_2_REQUIRED_CLEARS,
     mapPosition: { x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW1 },
+    isSideQuest: true,
+};
+
+/** Third Surface Quests picker. Unlocks after the second picker; completing it unlocks Thornbinder Arena. */
+export const WOD_POST_CORE_QUEST_BANK_3: QuestSlotBank = {
+    id: WOD_POST_CORE_QUEST_BANK_3_ID,
+    title: SURFACE_QUEST_TITLE,
+    unlockAfterQuestBankId: WOD_POST_CORE_QUEST_BANK_2_ID,
+    requiredClears: WOD_POST_CORE_QUEST_BANK_3_REQUIRED_CLEARS,
+    filters: WOD_SURFACE_QUEST_FILTERS,
+    displaySlotCount: WOD_POST_CORE_QUEST_BANK_3_REQUIRED_CLEARS,
+    mapPosition: { x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW1 },
     isSideQuest: true,
 };
 
@@ -150,15 +169,14 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         { fromMissionId: 'light_empowered', result: 'victory', toMissionId: 'cave_respite' },
         { fromMissionId: 'cave_respite', result: 'victory', toMissionId: 'monster' },
         { fromMissionId: 'monster', result: 'victory', toMissionId: 'core_awakening' },
-        // Chapter 2 (unlocked as a block after Core Awakening; Ember / Thorn March moved to quests)
+        // Chapter 2 questline: South Gate Swarm → Surface Quests ×3 → Thornbinder Arena.
+        { fromMissionId: 'core_awakening', result: 'victory', toMissionId: 'south_gate_swarm' },
         {
             fromMissionId: 'core_awakening',
             result: 'victory',
             toMissionId: 'thornbinder_arena',
-            requiresQuestBankId: WOD_POST_CORE_QUEST_BANK_2_ID,
+            requiresQuestBankId: WOD_POST_CORE_QUEST_BANK_3_ID,
         },
-        { fromMissionId: 'thornbinder_arena', result: 'victory', toMissionId: 'south_gate_swarm' },
-        { fromMissionId: 'south_gate_swarm', result: 'victory', toMissionId: 'thornling_rise' },
     ],
     questSlotBanks: [
         WOD_SWARMLING_SOURCE_BANK,
@@ -166,6 +184,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         WOD_INVESTIGATE_THE_WILDLIFE_BANK,
         WOD_POST_CORE_QUEST_BANK,
         WOD_POST_CORE_QUEST_BANK_2,
+        WOD_POST_CORE_QUEST_BANK_3,
     ],
     chapters: [
         {
@@ -188,9 +207,10 @@ export const WorldOfDarknessStoryline: StorylineDef = {
                 WOD_INVESTIGATE_THE_WILDLIFE_BANK_ID,
                 WOD_POST_CORE_QUEST_BANK_ID,
                 WOD_POST_CORE_QUEST_BANK_2_ID,
+                WOD_POST_CORE_QUEST_BANK_3_ID,
             ],
             missionIds: [
-                'thornbinder_arena', 'south_gate_swarm',
+                'south_gate_swarm', 'thornbinder_arena',
                 'thornling_rise', 'crystal_corruption', 'the_circle',
             ],
         },

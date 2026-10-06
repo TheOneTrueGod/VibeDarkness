@@ -83,19 +83,10 @@ describe('bankDisplayLabel', () => {
 });
 
 describe('questBankUnlockRequirementLabel', () => {
-    it('names the first Surface Quests bank for the second picker', () => {
-        expect(
-            questBankUnlockRequirementLabel(WOD_POST_CORE_QUEST_BANK_2, [
-                WOD_POST_CORE_QUEST_BANK,
-                WOD_POST_CORE_QUEST_BANK_2,
-            ]),
-        ).toBe('Surface Quests');
-    });
-
-    it('names Core Awakening for the first Surface Quests picker', () => {
-        expect(
-            questBankUnlockRequirementLabel(WOD_POST_CORE_QUEST_BANK, [WOD_POST_CORE_QUEST_BANK]),
-        ).toBe('Core Awakening');
+    it('names the gating mission or prior picker for each Surface Quests picker', () => {
+        const banks = [WOD_POST_CORE_QUEST_BANK, WOD_POST_CORE_QUEST_BANK_2];
+        expect(questBankUnlockRequirementLabel(WOD_POST_CORE_QUEST_BANK, banks)).toBe('South Gate Swarm');
+        expect(questBankUnlockRequirementLabel(WOD_POST_CORE_QUEST_BANK_2, banks)).toBe('Surface Quests');
     });
 });
 

@@ -218,15 +218,19 @@ export interface ShowObjectiveMarker {
     showOffscreen: boolean;
 }
 
+export const DEFAULT_OBJECTIVE_TILES_IMAGE = 'footprint' as const;
+/** Low, since large goal areas mark many tiles. */
+export const DEFAULT_OBJECTIVE_TILES_ALPHA = 0.25;
+
 /**
  * Faint icons drawn on the tiles an objective wants the player to occupy.
  * Shown while the objective is revealed and incomplete.
  */
 export interface ShowObjectiveTiles {
-    /** Key into EFFECT_IMAGE_SOURCES. */
-    image: 'footprint';
-    /** Sprite opacity, 0–1. */
-    alpha: number;
+    /** Key into EFFECT_IMAGE_SOURCES. Defaults to `DEFAULT_OBJECTIVE_TILES_IMAGE`. */
+    image?: 'footprint';
+    /** Sprite opacity, 0–1. Defaults to `DEFAULT_OBJECTIVE_TILES_ALPHA`. */
+    alpha?: number;
     /**
      * Explicit grid tiles. Omit to use every tile within `maxDistance` (Chebyshev) of an
      * `allUnitsNearPosition` completion condition.
@@ -249,8 +253,11 @@ export interface BattleObjectiveDef {
     onComplete?: ObjectiveOnCompleteEffect[];
     /** When set, renders a yellow exclamation marker above the target during battle. */
     showObjectiveMarker?: ShowObjectiveMarker;
-    /** When set, draws faint icons on the tiles the objective wants the party on. */
-    showObjectiveTiles?: ShowObjectiveTiles;
+    /**
+     * Faint icons on the tiles the objective wants the party on. Default true (footprints at
+     * `DEFAULT_OBJECTIVE_TILES_ALPHA`); set false to disable, or pass an object to override.
+     */
+    showObjectiveTiles?: boolean | ShowObjectiveTiles;
 }
 
 /** When creatures enter a world-circle, run bundled effects once (fire-once keyed by level event index). */

@@ -4,6 +4,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { MissionResult } from '../../../types';
+import type { QuestResult } from './questTypes';
 import {
     getAllMissionIdsInOrder,
     getHighestUnlockedChapterIndex,
@@ -11,35 +12,19 @@ import {
     isChapterUnlocked,
 } from './unlock';
 import { BunkerAtTheEndStoryline } from './BunkerAtTheEnd/BunkerAtTheEnd';
-import type { QuestResult } from './questTypes';
 import {
     WOD_SWARMLING_SOURCE_BANK_ID,
     WOD_POST_CORE_QUEST_BANK_ID,
     WOD_POST_CORE_QUEST_BANK_2_ID,
+    WOD_POST_CORE_QUEST_BANK_3_ID,
     WOD_SCAVENGE_THE_PLAINS_BANK_ID,
     WOD_INVESTIGATE_THE_WILDLIFE_BANK_ID,
     WorldOfDarknessStoryline,
 } from './WorldOfDarkness/WorldOfDarkness';
-import { SWARMLING_SOURCE } from './WorldOfDarkness/quests/swarmling_source';
-import { INVESTIGATE_THE_WILDLIFE } from './WorldOfDarkness/quests/investigate_the_wildlife';
 
 function victory(missionId: string): MissionResult {
     return { missionId, result: 'victory' };
 }
-
-function bankVictory(questDefId: string, bankId: string): QuestResult {
-    return {
-        questDefId,
-        result: 'victory',
-        placement: 'bank',
-        bankId,
-    };
-}
-
-const SURFACE_QUESTS_2_CLEARS: QuestResult[] = [
-    bankVictory(SWARMLING_SOURCE.id, WOD_SWARMLING_SOURCE_BANK_ID),
-    bankVictory(INVESTIGATE_THE_WILDLIFE.id, WOD_INVESTIGATE_THE_WILDLIFE_BANK_ID),
-];
 
 /** Mission results for a clean run through the end of chapter 1. */
 const THROUGH_CORE_AWAKENING: MissionResult[] = [
@@ -110,45 +95,30 @@ describe('getUnlockedMissionIds — chapter gating', () => {
 
     it('unlocks chapter 2 entry missions on core_awakening, but not the chained ones', () => {
         const unlocked = getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING);
-        expect(unlocked.has('thornbinder_arena')).toBe(false);
+        expect(unlocked.has('south_gate_swarm')).toBe(true);
         expect(unlocked.has('crystal_corruption')).toBe(true);
         expect(unlocked.has('the_circle')).toBe(true);
-        expect(unlocked.has('south_gate_swarm')).toBe(false);
+        expect(unlocked.has('thornbinder_arena')).toBe(false);
     });
 
-    it('unlocks Thornbinder Arena after the second Surface Quests bank is complete', () => {
+    it('unlocks Thornbinder Arena only after the third Surface Quests bank is complete', () => {
+        const bankVictory = (questDefId: string): QuestResult => ({
+            questDefId,
+            result: 'victory',
+            placement: 'bank',
+            bankId: WOD_POST_CORE_QUEST_BANK_3_ID,
+        });
         expect(
-            getUnlockedMissionIds(
-                WorldOfDarknessStoryline,
-                THROUGH_CORE_AWAKENING,
-                [SURFACE_QUESTS_2_CLEARS[0]!],
-            ).has('thornbinder_arena'),
+            getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING, [bankVictory('a')]).has(
+                'thornbinder_arena',
+            ),
         ).toBe(false);
-        const unlocked = getUnlockedMissionIds(
-            WorldOfDarknessStoryline,
-            THROUGH_CORE_AWAKENING,
-            SURFACE_QUESTS_2_CLEARS,
-        );
-        expect(unlocked.has('thornbinder_arena')).toBe(true);
-        expect(unlocked.has('south_gate_swarm')).toBe(false);
-    });
-
-    it('unlocks the next chained mission after its predecessor victory', () => {
-        const unlocked = getUnlockedMissionIds(WorldOfDarknessStoryline, [
-            ...THROUGH_CORE_AWAKENING,
-            victory('thornbinder_arena'),
-        ]);
-        expect(unlocked.has('south_gate_swarm')).toBe(true);
-        expect(unlocked.has('thornling_rise')).toBe(false);
-    });
-
-    it('unlocks Thornling Rise after South Gate Swarm', () => {
-        const unlocked = getUnlockedMissionIds(WorldOfDarknessStoryline, [
-            ...THROUGH_CORE_AWAKENING,
-            victory('thornbinder_arena'),
-            victory('south_gate_swarm'),
-        ]);
-        expect(unlocked.has('thornling_rise')).toBe(true);
+        expect(
+            getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING, [
+                bankVictory('a'),
+                bankVictory('b'),
+            ]).has('thornbinder_arena'),
+        ).toBe(true);
     });
 
     it('keeps single-chapter campaigns behaving as before', () => {
@@ -173,6 +143,7 @@ describe('chapter composition', () => {
             WOD_INVESTIGATE_THE_WILDLIFE_BANK_ID,
             WOD_POST_CORE_QUEST_BANK_ID,
             WOD_POST_CORE_QUEST_BANK_2_ID,
+            WOD_POST_CORE_QUEST_BANK_3_ID,
         ]);
     });
 });

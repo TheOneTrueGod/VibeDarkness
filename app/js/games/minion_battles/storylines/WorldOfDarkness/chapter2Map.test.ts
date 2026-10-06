@@ -10,10 +10,16 @@ import {
     WOD_CH2_MAP_X_COL1,
     WOD_CH2_MAP_X_COL2,
     WOD_CH2_MAP_X_COL3,
+    WOD_CH2_MAP_X_COL4,
     WOD_CH2_MAP_Y_ROW0,
     WOD_CH2_MAP_Y_ROW1,
     WOD_CH2_MAP_Y_ROW2,
 } from './chapter2Map';
+import {
+    WOD_POST_CORE_QUEST_BANK,
+    WOD_POST_CORE_QUEST_BANK_2,
+    WOD_POST_CORE_QUEST_BANK_3,
+} from './WorldOfDarkness';
 import { CRYSTAL_CORRUPTION } from './missions/004b_crystal_corruption';
 import { THORNBINDER_ARENA } from './missions/006b_thornbinder_arena';
 import { SOUTH_GATE_SWARM } from './missions/006c_south_gate_swarm';
@@ -23,7 +29,7 @@ import { THORNLING_RISE } from './missions/009_thornling_rise';
 import { THE_CIRCLE } from './missions/010_circle_arena';
 
 describe('chapter 2 mission map grid', () => {
-    it('keeps 220px column spacing and 200px row spacing', () => {
+    it('keeps 220px column spacing and 150px row spacing', () => {
         expect(WOD_CH2_MAP_X_COL1 - WOD_CH2_MAP_X_COL0).toBe(WOD_CH2_MAP_COL_SPACING);
         expect(WOD_CH2_MAP_X_COL2 - WOD_CH2_MAP_X_COL1).toBe(WOD_CH2_MAP_COL_SPACING);
         expect(WOD_CH2_MAP_X_COL3 - WOD_CH2_MAP_X_COL2).toBe(WOD_CH2_MAP_COL_SPACING);
@@ -31,13 +37,27 @@ describe('chapter 2 mission map grid', () => {
         expect(WOD_CH2_MAP_Y_ROW2 - WOD_CH2_MAP_Y_ROW1).toBe(WOD_CH2_MAP_ROW_SPACING);
     });
 
-    it('places the remaining chain after clockwise slides into Ember and Thorn March slots', () => {
-        expect(THORNBINDER_ARENA.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW1 });
-        expect(SOUTH_GATE_SWARM.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW2 });
+    it('lays the questline left to right on row 1', () => {
+        expect(SOUTH_GATE_SWARM.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW1 });
+        expect(WOD_POST_CORE_QUEST_BANK.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW1 });
+        expect(WOD_POST_CORE_QUEST_BANK_2.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW1 });
+        expect(WOD_POST_CORE_QUEST_BANK_3.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW1 });
+        expect(THORNBINDER_ARENA.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL4, y: WOD_CH2_MAP_Y_ROW1 });
+    });
+
+    it('chains each node on the previous one', () => {
+        expect(WOD_POST_CORE_QUEST_BANK.unlockAfterMissionId).toBe('south_gate_swarm');
+        expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterQuestBankId).toBe(WOD_POST_CORE_QUEST_BANK.id);
+        expect(WOD_POST_CORE_QUEST_BANK_3.unlockAfterQuestBankId).toBe(WOD_POST_CORE_QUEST_BANK_2.id);
+    });
+
+    it('enables Thornbinder Arena and disables Thornling Rise', () => {
+        expect(THORNBINDER_ARENA.disabled).toBeUndefined();
+        expect(THORNLING_RISE.disabled).toBe(true);
         expect(THORNLING_RISE.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW2 });
     });
 
-    it('keeps side missions on row 2', () => {
+    it('keeps the remaining missions on row 2', () => {
         expect(CRYSTAL_CORRUPTION.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW2 });
         expect(THE_CIRCLE.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW2 });
     });

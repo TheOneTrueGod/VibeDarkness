@@ -1,5 +1,5 @@
 /**
- * South Gate Swarm — Mission 6c: fight after Thornbinder Arena.
+ * South Gate Swarm — Mission 6c: first fight of the Chapter 2 questline.
  *
  * Terrain: vertical stack of 50_50 (crystal cave) over 50_51 (south gate).
  * Opening pack in the outside-cave-mouth box; a swarm nest holds the south gate.
@@ -22,13 +22,12 @@ import type { PostMissionStoryDef, PreMissionStoryDef } from '../../storyTypes';
 import {
     ENEMY_DARK_WOLF,
     ENEMY_SWARMLING,
-    ENEMY_THORNBINDER,
     SLIME,
 } from '../../../constants/enemyConstants';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
-import { WOD_CH2_MAP_X_COL3, WOD_CH2_MAP_Y_ROW2 } from '../chapter2Map';
+import { WOD_CH2_MAP_X_COL0, WOD_CH2_MAP_Y_ROW1 } from '../chapter2Map';
 import {
     CAVE_CAMPFIRE,
     crystalSpecialTilesAt,
@@ -94,13 +93,13 @@ const NEST_50_51_WORLD = gridToWorld(NEST_50_51_COL, NEST_50_51_ROW);
 const NEST_50_51_POI_ID = 'nest_50_51';
 
 /**
- * Thornbinder immediately left of the outside-cave-mouth box
- * (box topLeft col 7 → thornbinder at col 6, vertically centered on the box).
+ * Slime immediately left of the outside-cave-mouth box
+ * (box topLeft col 7 → slime at col 6, vertically centered on the box).
  */
-const THORNBINDER_COL = OUTSIDE_CAVE_MOUTH_ZONE.topLeft.col - 1;
-const THORNBINDER_ROW =
+const SLIME_LEFT_OF_BOX_COL = OUTSIDE_CAVE_MOUTH_ZONE.topLeft.col - 1;
+const SLIME_LEFT_OF_BOX_ROW =
     Math.floor((OUTSIDE_CAVE_MOUTH_ZONE.topLeft.row + OUTSIDE_CAVE_MOUTH_ZONE.bottomRight.row) / 2);
-const THORNBINDER_WORLD = gridToWorld(THORNBINDER_COL, THORNBINDER_ROW);
+const SLIME_LEFT_OF_BOX_WORLD = gridToWorld(SLIME_LEFT_OF_BOX_COL, SLIME_LEFT_OF_BOX_ROW);
 
 /** Swarm nest: 2 swarmlings every half-round (ROUND_DURATION / 2 seconds). */
 export const SWARM_NEST_SPAWN_INTERVAL_SEC = ROUND_DURATION / 2;
@@ -177,10 +176,10 @@ function buildSwarmNest(): EnemySpawnDef {
     };
 }
 
-function buildThornbinder(): EnemySpawnDef {
+function buildSlimeLeftOfBox(): EnemySpawnDef {
     return {
-        ...ENEMY_THORNBINDER,
-        position: THORNBINDER_WORLD,
+        ...SLIME,
+        position: SLIME_LEFT_OF_BOX_WORLD,
         unitAITreeId: 'hunt',
     };
 }
@@ -296,7 +295,7 @@ export class SouthGateSwarmMission extends BaseMissionDef {
 
     missionId = SouthGateSwarmMission.missionId;
     /** Chapter 2 grid — row 2 col 3 (slid clockwise after Thorn March left the map). */
-    mapPosition = { x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW2 };
+    mapPosition = { x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW1 };
     missionType = 'battle' as const;
     description =
         'A swarm nest has taken root beyond the southern gate. Clear the opening pack and tear the nest down.';
@@ -325,7 +324,7 @@ export class SouthGateSwarmMission extends BaseMissionDef {
     override initializeGameState(engine: GameEngine, params: InitializeGameStateParams): void {
         this.enemies = [
             ...buildOpeningBoxEnemies(engine, params.terrainSegmentZones ?? []),
-            buildThornbinder(),
+            buildSlimeLeftOfBox(),
             buildSwarmNest(),
             ...buildNestGuards(engine),
         ];

@@ -21,7 +21,7 @@ import { OUTSIDE_CAVE_MOUTH_ZONE } from '../MapSegments/50_50_crystal_cave';
 registerWorldOfDarknessSegments();
 
 describe('SouthGateSwarmMission', () => {
-    it('pre-spawns opening pack in the outside-cave-mouth zone plus a thornbinder left of the box', () => {
+    it('pre-spawns opening pack in the outside-cave-mouth zone plus a slime left of the box', () => {
         resetGameObjectIdCounter(1);
         const engine = new GameEngine();
         engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 42 });
@@ -55,16 +55,18 @@ describe('SouthGateSwarmMission', () => {
         expect(wolvesInBox).toHaveLength(OPENING_WOLF_COUNT);
         expect(swarmlingsInBox).toHaveLength(OPENING_SWARMLING_COUNT);
 
-        const thornbinder = engine.units.find((u) => u.characterId === 'thornbinder');
-        expect(thornbinder).toBeDefined();
-        const tbCol = Math.floor(thornbinder!.x / terrain.cellSize);
-        const tbRow = Math.floor(thornbinder!.y / terrain.cellSize);
-        expect(tbCol).toBe(OUTSIDE_CAVE_MOUTH_ZONE.topLeft.col - 1);
-        expect(tbRow).toBe(
-            Math.floor(
-                (OUTSIDE_CAVE_MOUTH_ZONE.topLeft.row + OUTSIDE_CAVE_MOUTH_ZONE.bottomRight.row) / 2,
-            ),
+        expect(engine.units.some((u) => u.characterId === 'thornbinder')).toBe(false);
+        const slimeCol = OUTSIDE_CAVE_MOUTH_ZONE.topLeft.col - 1;
+        const slimeRow = Math.floor(
+            (OUTSIDE_CAVE_MOUTH_ZONE.topLeft.row + OUTSIDE_CAVE_MOUTH_ZONE.bottomRight.row) / 2,
         );
+        const slimeLeftOfBox = engine.units.find(
+            (u) =>
+                u.characterId === 'slime' &&
+                Math.floor(u.x / terrain.cellSize) === slimeCol &&
+                Math.floor(u.y / terrain.cellSize) === slimeRow,
+        );
+        expect(slimeLeftOfBox).toBeDefined();
 
         engine.destroy();
     });
@@ -97,7 +99,8 @@ describe('SouthGateSwarmMission', () => {
         expect(wolves.length).toBe(OPENING_WOLF_COUNT + NEST_GUARD_WOLF_COUNT);
 
         const slimes = engine.units.filter((u) => u.characterId === 'slime');
-        expect(slimes).toHaveLength(NEST_GUARD_SLIME_COUNT);
+        // Nest guards plus the one slime that replaced the opening Thornbinder.
+        expect(slimes).toHaveLength(NEST_GUARD_SLIME_COUNT + 1);
 
         engine.destroy();
     });

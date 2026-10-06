@@ -79,9 +79,6 @@ const GOAL_AREA_CENTER_WORLD = {
     y: (GOAL_AREA_ROW + QUEST_PUSH_NORTH_GOAL_HEIGHT / 2) * CELL_SIZE,
 };
 
-/** Footprint hint opacity on the goal tiles — low, since all 25 tiles are marked. */
-export const QUEST_PUSH_NORTH_FOOTPRINT_ALPHA = 0.25;
-
 /** Size of each starting pack: one at the cave mouth, one per cliff-path campfire. */
 export const QUEST_PUSH_NORTH_START_WOLF_COUNT = 1;
 export const QUEST_PUSH_NORTH_START_SWARMLING_COUNT = 2;
@@ -251,8 +248,6 @@ const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
             target: { type: 'position', x: GOAL_AREA_CENTER_WORLD.x, y: GOAL_AREA_CENTER_WORLD.y },
             showOffscreen: true,
         },
-        // Tiles default to the full goal block (every tile of the goal block).
-        showObjectiveTiles: { image: 'footprint', alpha: QUEST_PUSH_NORTH_FOOTPRINT_ALPHA },
     },
 ];
 

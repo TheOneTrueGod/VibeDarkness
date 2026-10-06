@@ -6,6 +6,9 @@ import { LIGHT_TYPE_TINT } from '../../lighting/lightTypes';
 
 const Z_LIGHT_SOURCES = 5; // below special tiles (6), same level as darkness overlay
 
+/** Global render-only opacity multiplier for light source markers (more see-through). */
+const MARKER_ALPHA_MULTIPLIER = 0.5;
+
 export class LightSourceRenderer {
     private lightSourceVisuals: Map<string, Graphics> = new Map();
 
@@ -36,7 +39,7 @@ export class LightSourceRenderer {
             g.visible = ls.active && ls.lightAmount > 0;
             if (!g.visible) continue;
             g.clear();
-            const a = ls.visualAlphaScale ?? 1;
+            const a = (ls.visualAlphaScale ?? 1) * MARKER_ALPHA_MULTIPLIER;
             const typeTint = LIGHT_TYPE_TINT[ls.lightType];
             if (ls.color != null) {
                 const size = ls.radius * 3;

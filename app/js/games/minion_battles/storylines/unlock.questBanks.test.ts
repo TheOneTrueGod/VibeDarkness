@@ -29,6 +29,7 @@ import {
     WOD_SCAVENGE_THE_PLAINS_BANK,
     WOD_INVESTIGATE_THE_WILDLIFE_BANK,
     WOD_POST_CORE_QUEST_BANK_2,
+    WOD_POST_CORE_QUEST_BANK_3,
     WOD_POST_CORE_QUEST_BANK_2_ID,
     WOD_SURFACE_QUEST_FILTERS,
     WorldOfDarknessStoryline,
@@ -40,6 +41,7 @@ import {
     WOD_CH2_MAP_X_COL0,
     WOD_CH2_MAP_X_COL1,
     WOD_CH2_MAP_X_COL2,
+    WOD_CH2_MAP_X_COL3,
     WOD_CH2_MAP_Y_ROW0,
     WOD_CH2_MAP_Y_ROW1,
 } from './WorldOfDarkness/chapter2Map';
@@ -93,14 +95,15 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
             WOD_INVESTIGATE_THE_WILDLIFE_BANK,
             WOD_EXAMPLE_QUEST_BANK,
             WOD_POST_CORE_QUEST_BANK_2,
+            WOD_POST_CORE_QUEST_BANK_3,
         ]);
         expect(WOD_EXAMPLE_QUEST_BANK.requiredClears).toBe(WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS);
         expect(WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS).toBe(1);
         expect(WOD_EXAMPLE_QUEST_BANK.isSideQuest).toBe(true);
-        expect(WOD_EXAMPLE_QUEST_BANK.unlockAfterMissionId).toBe('core_awakening');
+        expect(WOD_EXAMPLE_QUEST_BANK.unlockAfterMissionId).toBe('south_gate_swarm');
         expect(WOD_EXAMPLE_QUEST_BANK.questDefId).toBeUndefined();
         expect(WOD_EXAMPLE_QUEST_BANK.mapPosition).toEqual({
-            x: WOD_CH2_MAP_X_COL0,
+            x: WOD_CH2_MAP_X_COL1,
             y: WOD_CH2_MAP_Y_ROW1,
         });
     });
@@ -131,13 +134,13 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
         expect(INVESTIGATE_THE_WILDLIFE.tags).toContain(LOCATION_PLAINS_TAG);
     });
 
-    it('unlocks only after core_awakening victory', () => {
+    it('unlocks only after south_gate_swarm victory', () => {
         expect(isQuestSlotBankUnlocked(WOD_EXAMPLE_QUEST_BANK, [])).toBe(false);
         expect(
-            isQuestSlotBankUnlocked(WOD_EXAMPLE_QUEST_BANK, [victoryMission('monster')]),
+            isQuestSlotBankUnlocked(WOD_EXAMPLE_QUEST_BANK, [victoryMission('core_awakening')]),
         ).toBe(false);
         expect(
-            isQuestSlotBankUnlocked(WOD_EXAMPLE_QUEST_BANK, [victoryMission('core_awakening')]),
+            isQuestSlotBankUnlocked(WOD_EXAMPLE_QUEST_BANK, [victoryMission('south_gate_swarm')]),
         ).toBe(true);
         expect(
             getUnlockedQuestSlotBanks(WorldOfDarknessStoryline, [victoryMission('core_awakening')]),
@@ -145,11 +148,10 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
             WOD_SWARMLING_SOURCE_BANK,
             WOD_SCAVENGE_THE_PLAINS_BANK,
             WOD_INVESTIGATE_THE_WILDLIFE_BANK,
-            WOD_EXAMPLE_QUEST_BANK,
         ]);
     });
 
-    it('gates the second Surface Quests picker on the first picker completing', () => {
+    it('chains the second and third Surface Quests pickers on the previous picker', () => {
         expect(WOD_POST_CORE_QUEST_BANK_2.id).toBe(WOD_POST_CORE_QUEST_BANK_2_ID);
         expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterQuestBankId).toBe(WOD_EXAMPLE_QUEST_BANK_ID);
         expect(WOD_POST_CORE_QUEST_BANK_2.requiredClears).toBe(2);
@@ -158,26 +160,22 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
             y: WOD_CH2_MAP_Y_ROW1,
         });
         expect(WOD_POST_CORE_QUEST_BANK_2.filters).toEqual(WOD_SURFACE_QUEST_FILTERS);
-        const afterCore = [victoryMission('core_awakening')];
+        expect(WOD_POST_CORE_QUEST_BANK_3.unlockAfterQuestBankId).toBe(WOD_POST_CORE_QUEST_BANK_2_ID);
+        expect(WOD_POST_CORE_QUEST_BANK_3.mapPosition).toEqual({
+            x: WOD_CH2_MAP_X_COL3,
+            y: WOD_CH2_MAP_Y_ROW1,
+        });
+        const afterSouthGate = [victoryMission('core_awakening'), victoryMission('south_gate_swarm')];
         const banks = WorldOfDarknessStoryline.questSlotBanks ?? [];
-        expect(
-            isQuestSlotBankUnlocked(WOD_POST_CORE_QUEST_BANK_2, afterCore, [], banks),
-        ).toBe(false);
+        expect(isQuestSlotBankUnlocked(WOD_POST_CORE_QUEST_BANK_2, afterSouthGate, [], banks)).toBe(false);
         expect(
             isQuestSlotBankUnlocked(
                 WOD_POST_CORE_QUEST_BANK_2,
-                afterCore,
-                [bankVictory(SWARMLING_SOURCE.id, WOD_SWARMLING_SOURCE_BANK.id)],
+                afterSouthGate,
+                [bankVictory(SWARMLING_SOURCE.id, WOD_EXAMPLE_QUEST_BANK_ID)],
                 banks,
             ),
         ).toBe(true);
-        expect(
-            getUnlockedQuestSlotBanks(
-                WorldOfDarknessStoryline,
-                afterCore,
-                [bankVictory(SWARMLING_SOURCE.id, WOD_SWARMLING_SOURCE_BANK.id)],
-            ),
-        ).toContain(WOD_POST_CORE_QUEST_BANK_2);
     });
 });
 
