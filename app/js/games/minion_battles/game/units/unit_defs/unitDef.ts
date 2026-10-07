@@ -106,6 +106,7 @@ export type EnemyUnitId =
     | 'husk_artillery'
     | 'huskling'
     | 'swarmling'
+    | 'displacer_spirit'
     | 'lanternite'
     | 'lanternite_nest'
     | 'thornling'
@@ -299,6 +300,20 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         maxPerTile: 3,
         spawnDef: { type: 'burstRise', duration: 0.6, riseHeight: 24 },
         participatesInMapNetwork: true,
+    },
+    displacer_spirit: {
+        bodyColor: 0x1e3a5f,
+        characterSpriteKey: 'displacer_spirit',
+        hp: 120,
+        // Slime is 50; a bit above that (no ghost unit def exists yet — see mission notes).
+        speed: 65,
+        size: 'Medium',
+        stamina: 1,
+        perceptionRange: 400,
+        creatureType: 'dark_creature',
+        onDeathVisualEffects: darkCreatureIconFlashVFX(5),
+        uiDescription: 'Boss spirit that hurls bolts from a distance, flying twice as far as it aims.',
+        maxPerTile: 1,
     },
     lanternite: {
         bodyColor: 0x34d399,

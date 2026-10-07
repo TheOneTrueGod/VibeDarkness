@@ -14,7 +14,7 @@ import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 
 export const CAMPSITE_MISSION_ID = 'campsite';
-/** Second campsite, between Surface Quests 3 and Thornbinder Arena. */
+/** Second campsite, between Surface Quests 3 and Displacer. */
 export const CAMPSITE_2_MISSION_ID = 'campsite_2';
 export const CAMPSITE_CHOICE_ID = 'campsite_research_choice';
 export const CAMPSITE_EXHAUSTION_RECOVERY = 20;

@@ -22,6 +22,7 @@ import {
 } from './WorldOfDarkness';
 import { CAMPSITE, CAMPSITE_2 } from './questMissions/campsite';
 import { CRYSTAL_CORRUPTION } from './missions/004b_crystal_corruption';
+import { DISPLACER } from './missions/006d_displacer';
 import { THORNBINDER_ARENA } from './missions/006b_thornbinder_arena';
 import { SOUTH_GATE_SWARM } from './missions/006c_south_gate_swarm';
 import { EMBER_THRESHOLD } from './missions/007_ember_threshold';
@@ -45,7 +46,8 @@ describe('chapter 2 mission map grid', () => {
         expect(WOD_POST_CORE_QUEST_BANK_2.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW1 });
         expect(WOD_POST_CORE_QUEST_BANK_3.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW2 });
         expect(CAMPSITE_2.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW2 });
-        expect(THORNBINDER_ARENA.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW2 });
+        expect(DISPLACER.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW2 });
+        expect(THORNBINDER_ARENA.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW2 });
     });
 
     it('chains each node on the previous one', () => {

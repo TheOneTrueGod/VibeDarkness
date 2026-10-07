@@ -88,6 +88,7 @@ describe('getUnlockedMissionIds — chapter gating', () => {
     it('hides chapter 2 missions until the chapter unlocks', () => {
         const unlocked = getUnlockedMissionIds(WorldOfDarknessStoryline, []);
         expect(unlocked.has('dark_awakening')).toBe(true);
+        expect(unlocked.has('displacer')).toBe(false);
         expect(unlocked.has('thornbinder_arena')).toBe(false);
         expect(unlocked.has('crystal_corruption')).toBe(false);
         expect(unlocked.has('the_circle')).toBe(false);
@@ -101,7 +102,7 @@ describe('getUnlockedMissionIds — chapter gating', () => {
         expect(unlocked.has('thornbinder_arena')).toBe(false);
     });
 
-    it('unlocks the second campsite after bank 3, then Thornbinder Arena after that campsite', () => {
+    it('unlocks the second campsite after bank 3, then Displacer after that campsite, then Thornbinder Arena after Displacer', () => {
         const bankVictory = (questDefId: string): QuestResult => ({
             questDefId,
             result: 'victory',
@@ -116,11 +117,19 @@ describe('getUnlockedMissionIds — chapter gating', () => {
         ).toBe(false);
         const afterBank3 = getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING, bank3Done);
         expect(afterBank3.has('campsite_2')).toBe(true);
+        expect(afterBank3.has('displacer')).toBe(false);
         expect(afterBank3.has('thornbinder_arena')).toBe(false);
+        const afterCampsite2 = getUnlockedMissionIds(
+            WorldOfDarknessStoryline,
+            [...THROUGH_CORE_AWAKENING, victory('campsite_2')],
+            bank3Done,
+        );
+        expect(afterCampsite2.has('displacer')).toBe(true);
+        expect(afterCampsite2.has('thornbinder_arena')).toBe(false);
         expect(
             getUnlockedMissionIds(
                 WorldOfDarknessStoryline,
-                [...THROUGH_CORE_AWAKENING, victory('campsite_2')],
+                [...THROUGH_CORE_AWAKENING, victory('campsite_2'), victory('displacer')],
                 bank3Done,
             ).has('thornbinder_arena'),
         ).toBe(true);
@@ -156,6 +165,7 @@ describe('chapter composition', () => {
 describe('getAllMissionIdsInOrder — flat list still complete', () => {
     it('includes chapter 2 missions that no longer sit on an edge', () => {
         const ids = getAllMissionIdsInOrder(WorldOfDarknessStoryline);
+        expect(ids).toContain('displacer');
         expect(ids).toContain('thornbinder_arena');
         expect(ids).toContain('crystal_corruption');
         expect(ids).toContain('the_circle');

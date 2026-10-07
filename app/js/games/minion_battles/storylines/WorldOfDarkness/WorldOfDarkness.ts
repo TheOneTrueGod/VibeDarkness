@@ -172,7 +172,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         { fromMissionId: 'light_empowered', result: 'victory', toMissionId: 'cave_respite' },
         { fromMissionId: 'cave_respite', result: 'victory', toMissionId: 'monster' },
         { fromMissionId: 'monster', result: 'victory', toMissionId: 'core_awakening' },
-        // Chapter 2 questline: South Gate Swarm → Surface Quests 1 → Campsite → Surface Quests 2, 3 → Campsite → Thornbinder Arena.
+        // Chapter 2 questline: South Gate Swarm → Surface Quests 1 → Campsite → Surface Quests 2, 3 → Campsite → Displacer → Thornbinder Arena.
         { fromMissionId: 'core_awakening', result: 'victory', toMissionId: 'south_gate_swarm' },
         // Campsite sits between Surface Quests 1 and 2.
         {
@@ -181,14 +181,15 @@ export const WorldOfDarknessStoryline: StorylineDef = {
             toMissionId: CAMPSITE_MISSION_ID,
             requiresQuestBankId: WOD_POST_CORE_QUEST_BANK_ID,
         },
-        // Second campsite sits between Surface Quests 3 and Thornbinder Arena.
+        // Second campsite sits between Surface Quests 3 and Displacer.
         {
             fromMissionId: 'core_awakening',
             result: 'victory',
             toMissionId: CAMPSITE_2_MISSION_ID,
             requiresQuestBankId: WOD_POST_CORE_QUEST_BANK_3_ID,
         },
-        { fromMissionId: CAMPSITE_2_MISSION_ID, result: 'victory', toMissionId: 'thornbinder_arena' },
+        { fromMissionId: CAMPSITE_2_MISSION_ID, result: 'victory', toMissionId: 'displacer' },
+        { fromMissionId: 'displacer', result: 'victory', toMissionId: 'thornbinder_arena' },
     ],
     questSlotBanks: [
         WOD_SWARMLING_SOURCE_BANK,
@@ -222,7 +223,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
                 WOD_POST_CORE_QUEST_BANK_3_ID,
             ],
             missionIds: [
-                'south_gate_swarm', CAMPSITE_MISSION_ID, CAMPSITE_2_MISSION_ID, 'thornbinder_arena',
+                'south_gate_swarm', CAMPSITE_MISSION_ID, CAMPSITE_2_MISSION_ID, 'displacer', 'thornbinder_arena',
                 'thornling_rise', 'crystal_corruption', 'the_circle',
             ],
         },

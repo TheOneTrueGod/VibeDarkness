@@ -39,6 +39,7 @@ type BestiaryEntry = {
 const BESTIARY_ENTRIES: BestiaryEntry[] = [
     { id: 'dark_wolf',       name: 'Wolf',            abilityIds: ['0003'],                         faction: 'dark_creature' },
     { id: 'alpha_wolf',      name: 'Alpha Wolf',      abilityIds: ['0005', '0007', '0011', '0012'], faction: 'dark_creature' },
+    { id: 'displacer_spirit', name: 'Displacer Spirit', abilityIds: ['0017'],                         faction: 'dark_creature' },
     { id: 'thornbinder',     name: 'Thornbinder',     abilityIds: ['0008'],                         faction: 'dark_creature' },
     { id: 'husk_artillery',  name: 'Husk Artillery',  abilityIds: ['0009'],                         faction: 'dark_creature' },
     { id: 'huskling',        name: 'Huskling',        abilityIds: ['0002'],                         faction: 'dark_creature' },

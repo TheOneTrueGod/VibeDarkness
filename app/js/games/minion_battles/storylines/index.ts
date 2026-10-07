@@ -13,6 +13,7 @@ import { CAVE_RESPITE } from './WorldOfDarkness/missions/004_cave_respite';
 import { CRYSTAL_CORRUPTION } from './WorldOfDarkness/missions/004b_crystal_corruption';
 import { MONSTER } from './WorldOfDarkness/missions/005_monster';
 import { CORE_AWAKENING } from './WorldOfDarkness/missions/006_core_awakening';
+import { DISPLACER } from './WorldOfDarkness/missions/006d_displacer';
 import { THORNBINDER_ARENA } from './WorldOfDarkness/missions/006b_thornbinder_arena';
 import { SOUTH_GATE_SWARM } from './WorldOfDarkness/missions/006c_south_gate_swarm';
 import { EMBER_THRESHOLD } from './WorldOfDarkness/missions/007_ember_threshold';
@@ -53,6 +54,7 @@ export const MISSION_MAP: Record<string, IBaseMissionDef> = {
     crystal_corruption: CRYSTAL_CORRUPTION,
     monster: MONSTER,
     core_awakening: CORE_AWAKENING,
+    displacer: DISPLACER,
     thornbinder_arena: THORNBINDER_ARENA,
     south_gate_swarm: SOUTH_GATE_SWARM,
     ember_threshold: EMBER_THRESHOLD,
