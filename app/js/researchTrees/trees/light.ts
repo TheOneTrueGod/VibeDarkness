@@ -17,10 +17,7 @@ import {
     LIGHT_REGEN_ENABLED_ADD,
     MAX_LIGHT_RECOVERY_PER_ROUND,
 } from '../../games/minion_battles/resources/Light';
-import {
-    LAY_HANDS_ABILITY_ID,
-    LAY_HANDS_EXPLOSION_DAMAGE,
-} from '../../games/minion_battles/card_defs/08_light_core/0806_LayHands/0806Constants';
+import { LAY_HANDS_ABILITY_ID } from '../../games/minion_battles/card_defs/08_light_core/0806_LayHands/0806Constants';
 import { STICK_SWORD_TREE_ID, STICK_SWORD_NODE_PIPE_BAT } from './stick_sword';
 
 export const LIGHT_TREE_ID = 'light_core';
@@ -322,7 +319,7 @@ export const lightTree: ResearchTreeDef = {
             id: LIGHT_NODE_LAY_HANDS,
             title: 'Lay Hands',
             description:
-                `Punch with a lunge three times as long, and detonate the nearest light emitter for {${LAY_HANDS_EXPLOSION_DAMAGE}} damage in an area.`,
+                'Strike a target, and then cause the nearest light source to detonate.',
             flavorText: 'Touch the glow, and it remembers it was a flame.',
             order: 17,
             tier: LIGHT_LAY_HANDS_TIER,
