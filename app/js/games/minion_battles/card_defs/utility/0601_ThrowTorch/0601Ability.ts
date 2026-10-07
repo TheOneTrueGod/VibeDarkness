@@ -85,10 +85,14 @@ export const ThrowTorchAbility = defineAbility({
     clearMovementOnComplete: true,
     aiSettings: { minRange: 0, maxRange: MAX_RANGE },
 
-    onProjectileExpired(engine, _caster, projectile): void {
+    onProjectileExpired(engine, caster, projectile): void {
         const eng = engine as EngineWithLight;
         const proj = projectile as { x: number; y: number };
-        spawnBrightLight(eng, proj.x, proj.y, BRIGHT_MAGNITUDE);
+        spawnBrightLight(eng, proj.x, proj.y, BRIGHT_MAGNITUDE, undefined, {
+            unitId: caster.id,
+            abilityId: CARD_ID,
+            teamId: caster.teamId,
+        });
     },
 
     getTooltipText(_gameState?: unknown): string[] {

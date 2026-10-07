@@ -34,9 +34,17 @@ const DUMMY_HP = 500;
 
 type Engine = ReturnType<typeof buildTinyBattleEngine>;
 
-function buildEngine(options: { emitter: boolean; punchDummy: boolean }): Engine {
+/**
+ * `own`: player-team light (detonatable). `enemy`: enemy-team light. `campfire`: ownerless story special tile.
+ * Only `own` may be detonated — Lay Hands queries deployables by the caster's team.
+ */
+type EmitterKind = 'none' | 'own' | 'enemy' | 'campfire';
+
+const CAMPFIRE_ID = 'lay_hands_campfire';
+
+function buildEngine(options: { emitter: EmitterKind; punchDummy: boolean }): Engine {
     const engine = buildTinyBattleEngine({ gridW: 12, gridH: 10, localPlayerId: P, grass: true });
-    spawnTinyPlayerUnit(engine, {
+    const player = spawnTinyPlayerUnit(engine, {
         playerId: P,
         x: PLAYER.x,
         y: PLAYER.y,
@@ -49,7 +57,7 @@ function buildEngine(options: { emitter: boolean; punchDummy: boolean }): Engine
     };
     if (options.punchDummy) addDummy(PUNCH_DUMMY_ID, PUNCH_DUMMY_POS);
     addDummy(BLAST_DUMMY_ID, BLAST_DUMMY_POS);
-    if (options.emitter) {
+    if (options.emitter === 'own' || options.emitter === 'enemy') {
         engine.addLightSource(new LightSource({
             id: EMITTER_ID,
             x: EMITTER_POS.x,
@@ -57,9 +65,27 @@ function buildEngine(options: { emitter: boolean; punchDummy: boolean }): Engine
             lightAmount: 4,
             radius: 2,
             decay: { roundCreated: 0, initialLightAmount: 4, initialRadius: 2, roundsTotal: 1000 },
+            ownerUnitId: options.emitter === 'own' ? player.id : 'lay_hands_enemy_owner',
+            ownerAbilityId: '0601',
+            teamId: options.emitter === 'own' ? player.teamId : 'enemy',
         }));
+    } else if (options.emitter === 'campfire') {
+        engine.addSpecialTile({
+            id: CAMPFIRE_ID,
+            defId: 'Campfire',
+            col: Math.floor(EMITTER_POS.x / CELL_SIZE),
+            row: Math.floor(EMITTER_POS.y / CELL_SIZE),
+            hp: 5,
+            maxHp: 5,
+            emitsLight: { lightAmount: 4, radius: 2 },
+        });
     }
     return engine;
+}
+
+function campfireIntact(engine: Engine): boolean {
+    const tile = engine.specialTiles.find((t) => t.id === CAMPFIRE_ID);
+    return !!tile && tile.hp === tile.maxHp && !!tile.emitsLight;
 }
 
 function lost(engine: Engine, id: string): number {
@@ -94,7 +120,7 @@ export const layHandsPunchAndBlastScenario: ScenarioDefinition = {
     title: 'Lay Hands (0806): punches the target and detonates the nearest light emitter',
     category: 'ability',
     maxDurationMs: 4000,
-    buildEngine: () => buildEngine({ emitter: true, punchDummy: true }),
+    buildEngine: () => buildEngine({ emitter: 'own', punchDummy: true }),
     getInitialOrders: punchOrder,
     assertPass: (engine) =>
         lost(engine, PUNCH_DUMMY_ID) === LAY_HANDS_PUNCH_DAMAGE
@@ -110,7 +136,7 @@ export const layHandsNoEmitterScenario: ScenarioDefinition = {
     title: 'Lay Hands (0806): with no emitter in reach it only punches',
     category: 'ability',
     maxDurationMs: 4000,
-    buildEngine: () => buildEngine({ emitter: false, punchDummy: true }),
+    buildEngine: () => buildEngine({ emitter: 'none', punchDummy: true }),
     getInitialOrders: punchOrder,
     assertPass: (engine) =>
         lost(engine, PUNCH_DUMMY_ID) === LAY_HANDS_PUNCH_DAMAGE && lost(engine, BLAST_DUMMY_ID) === 0,
@@ -123,7 +149,7 @@ export const layHandsMissStillDetonatesScenario: ScenarioDefinition = {
     title: 'Lay Hands (0806): the emitter still explodes when the punch hits nothing',
     category: 'ability',
     maxDurationMs: 4000,
-    buildEngine: () => buildEngine({ emitter: true, punchDummy: false }),
+    buildEngine: () => buildEngine({ emitter: 'own', punchDummy: false }),
     getInitialOrders(engine) {
         const player = engine.getLocalPlayerUnit()!;
         return [{
@@ -135,5 +161,33 @@ export const layHandsMissStillDetonatesScenario: ScenarioDefinition = {
     assertPass: (engine) =>
         lost(engine, BLAST_DUMMY_ID) === LAY_HANDS_EXPLOSION_DAMAGE && !emitterActive(engine),
     failureMessage: (engine) => `${describe(engine)} (expected blast only, emitter consumed)`,
+    describeState: describe,
+};
+
+// Two extra scenarios (beyond the one-per-ability guideline): the team/ownership filter is a separate
+// contract from reach, and each ignored source (ownerless story tile vs enemy-team light) goes through a different provider.
+export const layHandsIgnoresStoryCampfireScenario: ScenarioDefinition = {
+    id: 'lay_hands_ignores_story_campfire',
+    title: 'Lay Hands (0806): an ownerless campfire special tile is never detonated',
+    category: 'ability',
+    maxDurationMs: 4000,
+    buildEngine: () => buildEngine({ emitter: 'campfire', punchDummy: true }),
+    getInitialOrders: punchOrder,
+    assertPass: (engine) =>
+        lost(engine, PUNCH_DUMMY_ID) === LAY_HANDS_PUNCH_DAMAGE && lost(engine, BLAST_DUMMY_ID) === 0 && campfireIntact(engine),
+    failureMessage: (engine) => `${describe(engine)} | campfire intact=${campfireIntact(engine)} (expected punch only, campfire untouched)`,
+    describeState: describe,
+};
+
+export const layHandsIgnoresEnemyLightScenario: ScenarioDefinition = {
+    id: 'lay_hands_ignores_enemy_light',
+    title: 'Lay Hands (0806): an enemy-team light source in reach is not detonated',
+    category: 'ability',
+    maxDurationMs: 4000,
+    buildEngine: () => buildEngine({ emitter: 'enemy', punchDummy: true }),
+    getInitialOrders: punchOrder,
+    assertPass: (engine) =>
+        lost(engine, PUNCH_DUMMY_ID) === LAY_HANDS_PUNCH_DAMAGE && lost(engine, BLAST_DUMMY_ID) === 0 && emitterActive(engine),
+    failureMessage: (engine) => `${describe(engine)} (expected punch only, enemy light still active)`,
     describeState: describe,
 };

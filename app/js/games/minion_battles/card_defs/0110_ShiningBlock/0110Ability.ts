@@ -117,7 +117,11 @@ function executeShiningBlockRetaliation(engine: unknown, defender: Unit, aimPos:
             outerR: RETALIATION_RANGE,
         },
     }));
-    spawnBrightLight(eng as EngineWithLight, defender.x, defender.y, BRIGHT_MAGNITUDE);
+    spawnBrightLight(eng as EngineWithLight, defender.x, defender.y, BRIGHT_MAGNITUDE, undefined, {
+        unitId: defender.id,
+        abilityId: CARD_ID,
+        teamId: defender.teamId,
+    });
 }
 
 function grantLightChargesToNearbyAllies(engine: unknown, defender: Unit): void {

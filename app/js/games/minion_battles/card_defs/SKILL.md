@@ -272,6 +272,10 @@ All player units have the `movement` resource attached at battle start (initial 
 
 For longer-range or more powerful repositions, use `amount: 2`. Abilities that do not move the caster (stationary attacks, buffs, summons) should use `resourceCost: null`.
 
+## Interacting with deployables
+
+To find or consume things other abilities left on the map (lights, bramble), call `findDeployables` / `consumeDeployable` on the engine instead of reading a store directly; see `game/deployables/AGENTS.md`. Always pass the caster's team (only own-team deployables match; ownerless story objects never do). Preview and cast must use identical query arguments so the previewed target is the one acted on; Lay Hands (`08_light_core/0806_LayHands/0806Ability.ts`) is the reference.
+
 ## Checklist
 
 - [ ] Design comment at the top of the file: a short prose paragraph (≤ 4 lines) covering what the ability looks like, its role in the kit, and how it plays out in battle.

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 // Registry first: it owns the module-load order for the ability <-> CastBehaviours import cycle.
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import { LayHandsAbility } from './0806Ability';
@@ -11,11 +11,10 @@ import {
 import { PunchNEWAbility } from '../../0120_PunchNEW/0120Ability';
 import { LightSource } from '../../../game/lightSources/LightSource';
 import { LightSourceManager } from '../../../game/lightSources/LightSourceManager';
-import {
-    findNearestReachableLightEmitter,
-    findReachableLightEmitters,
-    LIGHT_EMITTER_REACH_HALF_EXTENT,
-} from '../../../game/lightSources/lightEmitters';
+import { DeployableRegistry } from '../../../game/deployables/DeployableRegistry';
+import type { Deployable } from '../../../game/deployables/Deployable';
+import type { Unit } from '../../../game/units/Unit';
+import type { TeamId } from '../../../game/teams';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import {
     LIGHT_LAY_HANDS_TIER,
@@ -24,6 +23,13 @@ import {
     LIGHT_TREE_ID,
     lightTree,
 } from '../../../../../researchTrees/trees/light';
+
+const damageSpy = vi.hoisted(() => vi.fn());
+vi.mock('../../../abilities/targetHelpers', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../../../abilities/targetHelpers')>()),
+    damageEnemiesInCircle: damageSpy,
+}));
+vi.mock('./0806Vfx', () => ({ spawnLayHandsBlast: vi.fn(), spawnLayHandsMotes: vi.fn() }));
 
 describe('Lay Hands ability', () => {
     it('is registered under its id, and the typed note id matches', () => {
@@ -61,35 +67,80 @@ describe('Lay Hands research node', () => {
     });
 });
 
-describe('shared light-emitter reach', () => {
-    function manager(sources: Array<[string, number, number]>): LightSourceManager {
+describe('Lay Hands emitter selection (team-gated deployables)', () => {
+    type Timing = { id: string; castBehaviours?: Array<{ behaviour: { onTick: (c: unknown) => void } }> };
+    const timings = LayHandsAbility.abilityTimings as unknown as Timing[];
+    const lockBehaviour = timings.find((t) => t.id === 'windup')!.castBehaviours![0].behaviour;
+    const detonateBehaviour = timings.find((t) => t.id === 'strike')!.castBehaviours![1].behaviour;
+
+    function setup(sources: Array<[string, number, TeamId | undefined]>) {
         const mgr = new LightSourceManager({ getUnit: () => undefined } as never);
-        for (const [id, x, y] of sources) {
+        for (const [id, x, teamId] of sources) {
             mgr.addLightSource(new LightSource({
                 id,
                 x,
-                y,
+                y: 0,
                 lightAmount: 4,
                 radius: 2,
+                teamId,
                 decay: { roundCreated: 0, initialLightAmount: 4, initialRadius: 2, roundsTotal: 1000 },
             }));
         }
-        return mgr;
+        const registry = new DeployableRegistry();
+        registry.registerProvider(mgr);
+        let note: unknown;
+        const caster = {
+            x: 0,
+            y: 0,
+            teamId: 'player',
+            get abilityNote() {
+                return note;
+            },
+            setAbilityNote: (n: unknown) => {
+                note = n;
+            },
+        } as unknown as Unit;
+        const engine = {
+            findDeployables: (q: Parameters<DeployableRegistry['findDeployables']>[0]) => registry.findDeployables(q),
+            consumeDeployable: (d: Pick<Deployable, 'id' | 'kind'>) => registry.consumeDeployable(d),
+        };
+        const ctx = { engine, caster, isFirstTick: true };
+        const active = (id: string) => mgr.lightSources.find((l) => l.id === id)!.active;
+        return { ctx, active, note: () => note as { abilityNote: { emitterId: string | null } } };
     }
 
-    it('reaches the 5x5 tile square (2 tiles each side)', () => {
-        expect(LIGHT_EMITTER_REACH_HALF_EXTENT).toBe(2 * CELL_SIZE);
-        const mgr = manager([
-            ['edge', 2 * CELL_SIZE, 0],
-            ['outside', 2 * CELL_SIZE + 1, 0],
-        ]);
-        expect(findReachableLightEmitters(mgr, 0, 0).map((l) => l.id)).toEqual(['edge']);
+    beforeEach(() => damageSpy.mockClear());
+
+    it('locks and detonates an own-team emitter inside the 5x5, consuming it', () => {
+        const { ctx, active, note } = setup([['mine', 2 * CELL_SIZE, 'player']]);
+        lockBehaviour.onTick(ctx);
+        expect(note().abilityNote.emitterId).toBe('mine');
+        detonateBehaviour.onTick(ctx);
+        expect(active('mine')).toBe(false);
+        expect(damageSpy).toHaveBeenCalledTimes(1);
+        expect(damageSpy.mock.calls[0][0].center).toEqual({ x: 2 * CELL_SIZE, y: 0 });
     });
 
-    it('picks the nearest emitter with a stable id tie-break, and null when none', () => {
-        const mgr = manager([['b', 10, 0], ['a', -10, 0], ['far', 60, 0]]);
-        expect(findNearestReachableLightEmitter(mgr, 0, 0)?.id).toBe('a');
-        expect(findNearestReachableLightEmitter(manager([]), 0, 0)).toBeNull();
-        expect(findNearestReachableLightEmitter(undefined, 0, 0)).toBeNull();
+    it('ignores enemy-team and ownerless lights (even nearer ones) and does not detonate them', () => {
+        const { ctx, active, note } = setup([
+            ['enemy', 10, 'enemy'],
+            ['ownerless', 20, undefined],
+        ]);
+        lockBehaviour.onTick(ctx);
+        expect(note().abilityNote.emitterId).toBeNull();
+        detonateBehaviour.onTick(ctx);
+        expect(active('enemy')).toBe(true);
+        expect(active('ownerless')).toBe(true);
+        expect(damageSpy).not.toHaveBeenCalled();
+    });
+
+    it('prefers a farther own-team emitter over a nearer enemy one; respects the 5x5 edge', () => {
+        const { ctx, note } = setup([
+            ['enemyNear', 10, 'enemy'],
+            ['outside', 2 * CELL_SIZE + 1, 'player'],
+            ['mineFar', 2 * CELL_SIZE, 'player'],
+        ]);
+        lockBehaviour.onTick(ctx);
+        expect(note().abilityNote.emitterId).toBe('mineFar');
     });
 });

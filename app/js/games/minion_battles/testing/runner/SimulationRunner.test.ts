@@ -54,11 +54,18 @@ import {
     gatherLightCommittedScenario,
     gatherLightDevourScenario,
     gatherLightNoDevourScenario,
+    gatherLightDevourOwnTorchOnlyScenario,
 } from '../scenarios/abilities/gatherLightScenario';
+import {
+    deployableBrambleFoundAndConsumedScenario,
+    deployableCheckpointRoundtripScenario,
+} from '../scenarios/abilities/deployableScenarios';
 import {
     layHandsPunchAndBlastScenario,
     layHandsNoEmitterScenario,
     layHandsMissStillDetonatesScenario,
+    layHandsIgnoresStoryCampfireScenario,
+    layHandsIgnoresEnemyLightScenario,
 } from '../scenarios/abilities/layHandsScenarios';
 import { gravityGrazeScenario } from '../scenarios/abilities/gravityGrazeScenario';
 import { gravityLocusScenario } from '../scenarios/abilities/gravityLocusScenario';
@@ -480,6 +487,31 @@ describe('runScenarioHeadless', () => {
 
     it('Lay Hands (0806): the emitter still explodes when the punch hits nothing', () => {
         const r = runScenarioHeadless(layHandsMissStillDetonatesScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Lay Hands (0806): an ownerless story campfire is never detonated', () => {
+        const r = runScenarioHeadless(layHandsIgnoresStoryCampfireScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Lay Hands (0806): an enemy-team light in reach is not detonated', () => {
+        const r = runScenarioHeadless(layHandsIgnoresEnemyLightScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Gather Light (0804): Devour Light eats an own-team torch but not an ownerless light', () => {
+        const r = runScenarioHeadless(gatherLightDevourOwnTorchOnlyScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Deployables: Bramble Patch is found and consumed through findDeployables', () => {
+        const r = runScenarioHeadless(deployableBrambleFoundAndConsumedScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Deployables: owned light and bramble survive a checkpoint round trip', () => {
+        const r = runScenarioHeadless(deployableCheckpointRoundtripScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

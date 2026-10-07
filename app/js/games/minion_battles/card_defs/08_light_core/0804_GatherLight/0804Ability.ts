@@ -135,6 +135,10 @@ export const GatherLightAbility = defineAbility({
                         spawnGatherLightOrbs(eng, ctx.caster, darknessTiles);
                         spawnBrightLight(eng as unknown as EngineWithLight, ctx.caster.x, ctx.caster.y, GATHER_LIGHT_BRIGHT_MAGNITUDE, {
                             visualAlphaScale: GATHER_LIGHT_BRIGHT_ALPHA_SCALE,
+                        }, {
+                            unitId: ctx.caster.id,
+                            abilityId: CARD_ID,
+                            teamId: ctx.caster.teamId,
                         });
                         if (hasLightImbuementResearch(eng, ctx.caster)) {
                             ctx.caster.addBuff(

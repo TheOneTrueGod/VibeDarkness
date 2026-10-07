@@ -6,6 +6,7 @@
  */
 
 import type { OverlapMethod } from '../LightGrid';
+import type { TeamId } from '../teams';
 import { DEFAULT_LIGHT_TYPE, resolveLightType, type LightType } from '../lighting/lightTypes';
 
 export interface LightSourceDecay {
@@ -35,6 +36,10 @@ export class LightSource {
     lightType: LightType;
     /** Render-only multiplier on the marker's alpha (does not affect emitted light). Default 1. */
     visualAlphaScale?: number;
+    /** Deployable ownership. Undefined = ownerless (story/environment light). */
+    ownerUnitId?: string;
+    ownerAbilityId?: string;
+    teamId?: TeamId;
 
     constructor(config: {
         /**
@@ -53,6 +58,9 @@ export class LightSource {
         overlapMethod?: OverlapMethod;
         lightType?: LightType;
         visualAlphaScale?: number;
+        ownerUnitId?: string;
+        ownerAbilityId?: string;
+        teamId?: TeamId;
     }) {
         this.id = config.id ?? '';
         this.x = config.x;
@@ -65,6 +73,9 @@ export class LightSource {
         this.overlapMethod = config.overlapMethod;
         this.lightType = config.lightType ?? DEFAULT_LIGHT_TYPE;
         this.visualAlphaScale = config.visualAlphaScale;
+        this.ownerUnitId = config.ownerUnitId;
+        this.ownerAbilityId = config.ownerAbilityId;
+        this.teamId = config.teamId;
     }
 
     toJSON(): Record<string, unknown> {
@@ -80,6 +91,9 @@ export class LightSource {
             ...(this.color !== undefined ? { color: this.color } : {}),
             ...(this.followUnitId !== undefined ? { followUnitId: this.followUnitId } : {}),
             ...(this.overlapMethod !== undefined ? { overlapMethod: this.overlapMethod } : {}),
+            ...(this.ownerUnitId !== undefined ? { ownerUnitId: this.ownerUnitId } : {}),
+            ...(this.ownerAbilityId !== undefined ? { ownerAbilityId: this.ownerAbilityId } : {}),
+            ...(this.teamId !== undefined ? { teamId: this.teamId } : {}),
             decay: { ...this.decay },
         };
     }
@@ -97,6 +111,9 @@ export class LightSource {
             overlapMethod: data.overlapMethod as OverlapMethod | undefined,
             lightType: resolveLightType(data.lightType),
             visualAlphaScale: data.visualAlphaScale as number | undefined,
+            ownerUnitId: data.ownerUnitId as string | undefined,
+            ownerAbilityId: data.ownerAbilityId as string | undefined,
+            teamId: data.teamId as TeamId | undefined,
         });
         ls.active = data.active as boolean;
         return ls;

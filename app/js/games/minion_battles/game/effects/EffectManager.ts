@@ -5,6 +5,7 @@
 import { Effect } from '../effects/Effect';
 import type { EngineContext } from '../EngineContext';
 import { LightSource } from '../lightSources/LightSource';
+import type { TeamId } from '../teams';
 
 export class EffectManager {
     effects: Effect[] = [];
@@ -31,6 +32,9 @@ export class EffectManager {
                 initialLightAmount?: number;
                 initialRadius?: number;
                 roundsTotal?: number;
+                ownerUnitId?: string;
+                ownerAbilityId?: string;
+                teamId?: TeamId;
             };
             data.ticksAlive = (data.ticksAlive ?? 0) + 1;
             // FIXED_DT = 1/60, so completion = duration * 60 ticks
@@ -42,6 +46,10 @@ export class EffectManager {
                 y: effect.y,
                 lightAmount: data.initialLightAmount ?? 10,
                 radius: data.initialRadius ?? 5,
+                // Owned only when the effect's creator recorded an owner in effectData; otherwise ownerless.
+                ownerUnitId: data.ownerUnitId,
+                ownerAbilityId: data.ownerAbilityId,
+                teamId: data.teamId,
                 decay: {
                     roundCreated: data.roundCreated ?? 1,
                     initialLightAmount: data.initialLightAmount ?? 10,

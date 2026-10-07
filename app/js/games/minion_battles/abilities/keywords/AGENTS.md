@@ -9,7 +9,7 @@ Reusable ability keywords: a keyword is a named definition (`id`, display name, 
 | `keywordTypes.ts` | `KeywordId`, `KeywordDef`, `AbilityKeywordUse`, and the cast-time context/result types. Add new ids here. |
 | `keywordRegistry.ts` | Registers every keyword def; `getKeyword` / `formatKeywordText` / `formatKeywordLine` lookups. A def not registered here is invisible to tooltips and the runner. |
 | `runAbilityKeywords.ts` | `runAbilityKeywords` (resolves uses in order, runs `effect` only when triggered) and `formatKeywordUseTooltip` (`{Name N}` or `{Name N}: effect`). |
-| `devourLightKeyword.ts` | `devourLight` def: destroys the N nearest positive light sources near the caster, all-or-nothing. Uses `LightSourceManager.findDevourableLightSources`. |
+| `devourLightKeyword.ts` | `devourLight` def: destroys the N nearest positive light sources near the caster, all-or-nothing. Finds targets with `findDeployables` (own-team `lightEmitter` deployables within the 5x5 reach) and consumes them via `consumeDeployable`; see `game/deployables/AGENTS.md`. |
 
 ## Registered keywords
 
@@ -17,7 +17,7 @@ Reusable ability keywords: a keyword is a named definition (`id`, display name, 
 |----|---------------------|
 | `bright` | Spawns a bright light source via `abilities/brightKeyword.ts`. |
 | `knockback` | Tooltip only; tier logic stays in `crowdControl/knockbackKeywords.ts`. |
-| `devourLight` | Consumes nearby light emitters; triggers only if enough exist. |
+| `devourLight` | Consumes nearby own-team light-emitter deployables; triggers only if enough exist. |
 
 ## Adding a keyword
 

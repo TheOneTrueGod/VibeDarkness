@@ -14,6 +14,7 @@ import type { Projectile } from './projectiles/Projectile';
 import type { SpecialTile } from './specialTiles/SpecialTile';
 import type { LightSource as GridLightSource } from './LightGrid';
 import type { LightSource } from './lightSources/LightSource';
+import type { Deployable, DeployableQuery } from './deployables/Deployable';
 import type { LightType } from './lighting/lightTypes';
 import type { EffectEmitter } from './effects/EffectEmitter';
 import type { TerrainLayerManager } from './TerrainLayerManager';
@@ -73,6 +74,12 @@ export interface EngineContext {
 
     /** Add a persistent LightSource to the scene (e.g. TorchProjectile landing). */
     addLightSource(ls: LightSource): void;
+
+    /** Find deployables owned by `query.castingTeam` (ownerless story objects never match). */
+    findDeployables(query: DeployableQuery): Deployable[];
+
+    /** Consume a deployable returned by {@link findDeployables}. */
+    consumeDeployable(deployable: Pick<Deployable, 'id' | 'kind'>): boolean;
 
     /** Trigger a story pause: freeze the sim, grant can't-die to player units, resume after durationSeconds. */
     startStoryPause(reason: string, durationSeconds: number): void;

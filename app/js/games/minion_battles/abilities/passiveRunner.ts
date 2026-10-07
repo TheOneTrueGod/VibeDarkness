@@ -101,6 +101,7 @@ function applyEffects(caster: Unit, effects: PassiveEffect[], engine: EngineCont
                     effectType: effect.effectType,
                     placedAtGameTime: engine.gameTime,
                     ownerUnitId: caster.id,
+                    teamId: caster.teamId,
                     area: { type: 'cell', col, row },
                     params: {},
                 });

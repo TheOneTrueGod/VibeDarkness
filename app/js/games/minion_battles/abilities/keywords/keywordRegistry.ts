@@ -30,7 +30,11 @@ registerKeyword({
     displayName: 'Bright',
     formatTooltip: (n) => `Bright ${n}`,
     resolve: (ctx, n) => {
-        spawnBrightLight(ctx.engine as EngineWithLight, ctx.caster.x, ctx.caster.y, n);
+        spawnBrightLight(ctx.engine as EngineWithLight, ctx.caster.x, ctx.caster.y, n, undefined, {
+            unitId: ctx.caster.id,
+            abilityId: ctx.abilityId,
+            teamId: ctx.caster.teamId,
+        });
         return { triggered: true };
     },
 });

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { LightSource } from '../../game/lightSources/LightSource';
+import { DeployableRegistry } from '../../game/deployables/DeployableRegistry';
 import { LightSourceManager } from '../../game/lightSources/LightSourceManager';
 import type { EngineContext } from '../../game/EngineContext';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
@@ -16,6 +17,7 @@ function makeSource(id: string, dx: number, dy: number, extra: Partial<Construct
         y: CY + dy,
         lightAmount: 4,
         radius: 2,
+        teamId: 'player',
         decay: { roundCreated: 0, initialLightAmount: 4, initialRadius: 2, roundsTotal: 3 },
         ...extra,
     });
@@ -24,7 +26,13 @@ function makeSource(id: string, dx: number, dy: number, extra: Partial<Construct
 function setup(sources: LightSource[]) {
     const mgr = new LightSourceManager({} as EngineContext);
     sources.forEach((s) => mgr.addLightSource(s));
-    const ctx = { engine: { state: { lightSourceManager: mgr } }, caster: { x: CX, y: CY } } as unknown as KeywordContext;
+    const registry = new DeployableRegistry();
+    registry.registerProvider(mgr);
+    const engine = {
+        findDeployables: (q: Parameters<DeployableRegistry['findDeployables']>[0]) => registry.findDeployables(q),
+        consumeDeployable: (d: Parameters<DeployableRegistry['consumeDeployable']>[0]) => registry.consumeDeployable(d),
+    };
+    const ctx = { engine, caster: { x: CX, y: CY, teamId: 'player' } } as unknown as KeywordContext;
     return { mgr, ctx };
 }
 
@@ -91,10 +99,19 @@ describe('devourLight keyword', () => {
     it('breaks distance ties by id', () => {
         const z = makeSource('z', 10, 0);
         const m = makeSource('m', -10, 0);
-        const { mgr, ctx } = setup([z, m]);
-        expect(mgr.findDevourableLightSources(CX, CY, 2 * CELL_SIZE).map((s) => s.id)).toEqual(['m', 'z']);
+        const { ctx } = setup([z, m]);
         resolve(ctx, 1);
         expect(m.active).toBe(false);
         expect(z.active).toBe(true);
+    });
+
+    it('only devours own-team lights: enemy-team and ownerless lights survive', () => {
+        const enemy = makeSource('enemy', 10, 0, { teamId: 'enemy' });
+        const ownerless = makeSource('ownerless', 20, 0, { teamId: undefined });
+        const own = makeSource('own', 30, 0);
+        const { ctx } = setup([enemy, ownerless, own]);
+        expect(resolve(ctx, 1)).toEqual({ triggered: true });
+        expect([enemy.active, ownerless.active, own.active]).toEqual([true, true, false]);
+        expect(resolve(ctx, 1)).toEqual({ triggered: false });
     });
 });

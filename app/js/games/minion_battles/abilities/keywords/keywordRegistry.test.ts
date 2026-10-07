@@ -31,4 +31,12 @@ describe('keywordRegistry', () => {
         const segs = resolveTooltipLine('{{K}}', { K: { kind: 'knockback', tier: 1 } }, {});
         expect(segs).toEqual([{ text: 'knockback 1', role: 'dynamic' }]);
     });
+    it('bright stamps the casting unit, ability and team onto the light it spawns', () => {
+        const added: Array<{ ownerUnitId?: string; ownerAbilityId?: string; teamId?: string }> = [];
+        const engine = { roundNumber: 1, addLightSource: (ls: (typeof added)[number]) => added.push(ls) };
+        const caster = { id: 'u1', x: 10, y: 20, teamId: 'player' };
+        getKeyword('bright')!.resolve!({ engine, caster, abilityId: '0000' } as never, 3);
+        expect(added).toHaveLength(1);
+        expect(added[0]).toMatchObject({ ownerUnitId: 'u1', ownerAbilityId: '0000', teamId: 'player' });
+    });
 });

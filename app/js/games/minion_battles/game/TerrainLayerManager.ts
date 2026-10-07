@@ -8,6 +8,10 @@ import {
     EARTH_CORE_STONE_HEALTH,
 } from '../card_defs/05_earth_core/earthCoreConstants';
 
+import type { TeamId } from './teams';
+import type { Deployable, DeployableTag } from './deployables/Deployable';
+import type { DeployableProvider } from './deployables/DeployableRegistry';
+
 export type TerrainLayerName = 'floor' | 'ground' | 'air';
 
 export type TerrainEffectArea =
@@ -26,6 +30,8 @@ export interface TerrainEffectRecord {
     expiresAtGameTime?: number;
     ownerUnitId?: string;
     ownerAbilityId?: string;
+    /** Team of the owning unit; undefined = ownerless. */
+    teamId?: TeamId;
     area: TerrainEffectArea;
     /** Mutable effect-specific state (e.g. { slowMult: 0.52 }). */
     params: Record<string, unknown>;
@@ -106,6 +112,20 @@ function effectCoversCell(record: TerrainEffectRecord, col: number, row: number)
     return dx * dx + dy * dy <= area.radiusPx * area.radiusPx;
 }
 
+/** World-space center of an effect area (circle center, or mean of cell centers). */
+function effectCenter(area: TerrainEffectArea): { x: number; y: number } {
+    if (area.type === 'circle') return { x: area.x, y: area.y };
+    const cells = area.type === 'cell' ? [{ col: area.col, row: area.row }] : area.cells;
+    if (cells.length === 0) return { x: 0, y: 0 };
+    let sx = 0;
+    let sy = 0;
+    for (const c of cells) {
+        sx += c.col * CELL_SIZE + CELL_SIZE / 2;
+        sy += c.row * CELL_SIZE + CELL_SIZE / 2;
+    }
+    return { x: sx / cells.length, y: sy / cells.length };
+}
+
 function migrateLegacyRockEffect(record: TerrainEffectRecord): SerializedFloorTileEntry[] {
     if (!ROCK_FLOOR_EFFECT_TYPES.has(record.effectType)) return [];
     const cells = rasterizeArea(record.area);
@@ -138,7 +158,7 @@ function migrateLegacyRockEffect(record: TerrainEffectRecord): SerializedFloorTi
  * Layered terrain system. Floor tiles (sparse authoritative overrides) are stored
  * separately from ground/air effect overlays (e.g. bramble_slow).
  */
-export class TerrainLayerManager {
+export class TerrainLayerManager implements DeployableProvider {
     private effectRegistry = new Map<string, TerrainEffectRecord>();
     private floorCells = new Map<string, string>();   // cellKey → effectId (ground/air only in practice)
     private groundCells = new Map<string, string>();
@@ -321,6 +341,38 @@ export class TerrainLayerManager {
     }
 
     // -------------------------------------------------------------------------
+    // Deployables
+    // -------------------------------------------------------------------------
+
+    /** Ground-layer effects with an owner, as deployables. Floor (rock) and ownerless effects are excluded. */
+    listDeployables(): Deployable[] {
+        const out: Deployable[] = [];
+        for (const r of this.effectRegistry.values()) {
+            if (r.layer !== 'ground' || r.ownerUnitId === undefined) continue;
+            const pos = effectCenter(r.area);
+            const tags: DeployableTag[] = r.effectType === 'bramble_slow' ? ['bramble'] : [];
+            out.push({
+                id: r.id,
+                kind: 'terrainEffect',
+                x: pos.x,
+                y: pos.y,
+                active: true,
+                ownerUnitId: r.ownerUnitId,
+                ownerAbilityId: r.ownerAbilityId,
+                teamId: r.teamId,
+                tags,
+            });
+        }
+        return out;
+    }
+
+    consume(id: string): boolean {
+        if (!this.effectRegistry.has(id)) return false;
+        this.remove(id);
+        return true;
+    }
+
+    // -------------------------------------------------------------------------
     // Serialization
     // -------------------------------------------------------------------------
 
@@ -335,6 +387,7 @@ export class TerrainLayerManager {
                 expiresAtGameTime: r.expiresAtGameTime,
                 ownerUnitId: r.ownerUnitId,
                 ownerAbilityId: r.ownerAbilityId,
+                teamId: r.teamId,
                 area: r.area,
                 params: { ...r.params },
             }));

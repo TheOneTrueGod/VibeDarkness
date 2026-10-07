@@ -7,6 +7,8 @@ export type KeywordId = 'bright' | 'knockback' | 'devourLight';
 export interface KeywordContext {
     engine: AbilityEngineContext;
     caster: Unit;
+    /** Casting ability id (present when the context is a CastBehaviour tick context); used to stamp deployable ownership. */
+    abilityId?: string;
 }
 
 export interface KeywordResult {

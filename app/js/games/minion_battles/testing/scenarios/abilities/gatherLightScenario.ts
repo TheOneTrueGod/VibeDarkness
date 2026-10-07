@@ -102,7 +102,9 @@ const DEVOUR_SEED_ID = 'devour_seed_source';
 const CASTER_X = 5 * CELL_SIZE + CELL_SIZE / 2;
 const CASTER_Y = 5 * CELL_SIZE + CELL_SIZE / 2;
 
-function buildDevourEngine(seedEmitter: boolean) {
+const ORPHAN_LIGHT_ID = 'devour_ownerless_light';
+
+function buildDevourEngine(seedEmitter: boolean, seedOwnerlessLight = false) {
     const engine = buildTinyBattleEngine({ gridW: 12, gridH: 10, localPlayerId: P, grass: true });
     engine.setMissionLightConfig(true, BASELINE_GLOBAL_LIGHT);
 
@@ -114,8 +116,20 @@ function buildDevourEngine(seedEmitter: boolean) {
     });
     player.attachResource(new Light(), engine.eventBus);
 
+    if (seedOwnerlessLight) {
+        // Closer to the caster than the torch, so only the team filter (not sort order) can explain it surviving.
+        engine.addLightSource(new LightSource({
+            id: ORPHAN_LIGHT_ID,
+            x: CASTER_X - CELL_SIZE / 2,
+            y: CASTER_Y,
+            lightAmount: 4,
+            radius: 2,
+            decay: { roundCreated: 0, initialLightAmount: 4, initialRadius: 2, roundsTotal: 1000 },
+        }));
+    }
     if (seedEmitter) {
-        // Positive emitter one tile away: inside the shared 5x5-tile emitter reach around the caster.
+        // Positive emitter one tile away: inside the 5x5-tile reach (REACH_5X5_HALF_EXTENT) that findDeployables uses.
+        // Devour only sees emitters owned by the caster's team, so this seed carries the player's team.
         engine.addLightSource(new LightSource({
             id: DEVOUR_SEED_ID,
             x: CASTER_X + CELL_SIZE,
@@ -123,6 +137,9 @@ function buildDevourEngine(seedEmitter: boolean) {
             lightAmount: 4,
             radius: 2,
             decay: { roundCreated: 0, initialLightAmount: 4, initialRadius: 2, roundsTotal: 1000 },
+            ownerUnitId: player.id,
+            ownerAbilityId: '0601',
+            teamId: player.teamId,
         }));
     }
     return engine;
@@ -171,6 +188,37 @@ export const gatherLightDevourScenario: ScenarioDefinition = {
         ].join('; ');
     },
 };
+
+/** Extra scenario (not folded into the base devour one): the team/ownership filter is a distinct contract from reach. */
+export const gatherLightDevourOwnTorchOnlyScenario: ScenarioDefinition = {
+    id: 'gather_light_devour_own_torch_only',
+    title: 'Gather Light (0804): Devour Light eats a player-owned torch but not an ownerless light beside it',
+    category: 'ability',
+    maxDurationMs: 4000,
+    renderLighting: true,
+
+    buildEngine: () => buildDevourEngine(true, true),
+    getInitialOrders: gatherLightOrders,
+
+    assertPass(engine) {
+        const light = engine.getLocalPlayerUnit()?.getResource('light');
+        if (!light || light.current !== GATHER_LIGHT_AMOUNT + GATHER_LIGHT_DEVOUR_BONUS) return false;
+        return !devourSeedActive(engine) && orphanLightActive(engine);
+    },
+
+    failureMessage(engine) {
+        const light = engine.getLocalPlayerUnit()?.getResource('light');
+        return [
+            `light.current=${light?.current ?? 'missing'} (expected ${GATHER_LIGHT_AMOUNT + GATHER_LIGHT_DEVOUR_BONUS})`,
+            `own torch active=${devourSeedActive(engine)} (expected false)`,
+            `ownerless light active=${orphanLightActive(engine)} (expected true)`,
+        ].join('; ');
+    },
+};
+
+function orphanLightActive(engine: ReturnType<typeof buildTinyBattleEngine>): boolean {
+    return engine.lightSources.some((ls) => ls.id === ORPHAN_LIGHT_ID && ls.active);
+}
 
 export const gatherLightNoDevourScenario: ScenarioDefinition = {
     id: 'gather_light_no_devour_e2e',

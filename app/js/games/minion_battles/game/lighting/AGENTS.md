@@ -28,6 +28,10 @@ Beyond `radius`: linear falloff contributes to **FireLight** only (same falloff 
 | Typed effects (DayLight DoT, etc.) | Read that channel via `getLightIntensity` — effects stack independently of the render winner |
 | Render tint / dominant color | Priority `DayLight > LanternLight ≈ DarkLight > FireLight`; Lantern vs Dark: higher intensity, tie → LanternLight (`pickRenderLightType`) |
 
+## Light emitters are deployables
+
+A "light emitter" that abilities can target (Devour Light, Lay Hands) is a deployable tagged `lightEmitter`, found via `findDeployables` (see `game/deployables/AGENTS.md`). Light sources carry owner/team; only the caster's team can consume them. Campfires and crystals are listed by `SpecialTileManager` but are ownerless story objects, so abilities never find them. World-modifier lights are likewise ownerless.
+
 ## Two-grid design — critical distinction
 
 There are **two separate light grids** with different semantics:
@@ -51,7 +55,7 @@ The code currently lives in `GameEngine.ts` and related files; this folder is th
 | `game/LightGrid.ts` | Stateless multi-channel math: flat zone + FireLight falloff, overlap methods, void pool |
 | `game/lightTileGrid/LightTileGrid.ts` | Persistent animated channels + void; checkpoint migrate from legacy single-channel |
 | `game/lightSources/LightSource.ts` | Runtime emitter: amount, radius, `lightType`, decay |
-| `game/lightSources/LightSourceManager.ts` | Follow-unit, decays, grid inputs |
+| `game/lightSources/LightSourceManager.ts` | Follow-unit, decays, grid inputs; deployable provider for lights |
 | `game/darknessLevels.ts` | Threshold constants (FULL_DARKNESS, BRIGHT_LIGHT, SUNLIGHT, etc.) |
 | `game/lightHate.ts` | Light Hate keyword: enemies weakened when tile reaches bright light threshold |
 | `game/managers/SpecialTileManager.ts` | Campfire/crystal light decay; builds typed grid inputs |

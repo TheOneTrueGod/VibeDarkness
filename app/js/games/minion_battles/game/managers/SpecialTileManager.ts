@@ -12,10 +12,13 @@ import type { LightSource } from '../LightGrid';
 import type { SerializedSpecialTile } from '../types';
 import type { Unit } from '../units/Unit';
 import { Effect } from '../effects/Effect';
+import type { Deployable } from '../deployables/Deployable';
+import type { DeployableProvider } from '../deployables/DeployableRegistry';
+import { CELL_SIZE } from '../../terrain/TerrainGrid';
 
 const ROUND_DURATION = 10;
 
-export class SpecialTileManager {
+export class SpecialTileManager implements DeployableProvider {
     specialTiles: SpecialTile[] = [];
     private ctx: EngineContext;
 
@@ -228,6 +231,35 @@ export class SpecialTileManager {
                 engine.addEffect(orb);
             }
         }
+    }
+
+    /**
+     * Every light-emitting special tile (campfire, crystal) as a deployable. They deliberately carry
+     * no ownerUnitId/teamId, so `findDeployables` (which requires a team match) never returns them.
+     */
+    listDeployables(): Deployable[] {
+        const grid = this.ctx.terrainManager?.grid;
+        const out: Deployable[] = [];
+        for (const tile of this.specialTiles) {
+            if (tile.emitsLight == null) continue;
+            const pos = grid
+                ? grid.gridToWorld(tile.col, tile.row)
+                : { x: tile.col * CELL_SIZE + CELL_SIZE / 2, y: tile.row * CELL_SIZE + CELL_SIZE / 2 };
+            out.push({
+                id: tile.id,
+                kind: 'specialTile',
+                x: pos.x,
+                y: pos.y,
+                active: tile.hp > 0,
+                tags: ['lightEmitter'],
+            });
+        }
+        return out;
+    }
+
+    /** Story objects are never consumable by abilities; always returns false. */
+    consume(_id: string): boolean {
+        return false;
     }
 
     toJSON(): Record<string, unknown>[] {

@@ -280,6 +280,10 @@ export const ThrowChargedRock: AbilityStatic = {
         spawnBrightLight(eng as EngineWithLight, proj.x, proj.y, BRIGHT_MAGNITUDE, {
             color: PREVIEW_TEAL,
             lightType: 'FireLight',
+        }, {
+            unitId: sourceUnit.id,
+            abilityId: CARD_ID,
+            teamId: sourceUnit.teamId,
         });
 
         const matching = sourceUnit.activeAbilities.filter((a) => a.abilityId === CARD_ID);

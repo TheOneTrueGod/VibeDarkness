@@ -3,6 +3,7 @@ import type { Effect } from '../game/effects/Effect';
 import type { EventBus } from '../game/EventBus';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import type { Projectile } from '../game/projectiles/Projectile';
+import type { Deployable, DeployableQuery } from '../game/deployables/Deployable';
 import type { SpawnSource, ResolvedTarget } from '../game/types';
 
 /**
@@ -34,6 +35,9 @@ export interface AbilityEngineContext {
     getPlayerResearchNodes?(playerId: string, treeId: string): string[];
     /** Interrupt a unit mid-cast and refund any queued abilities. */
     interruptUnitAndRefundAbilities?(unit: Unit): void;
+    /** Deployable queries — available on the full GameEngine, optional for test stubs. */
+    findDeployables?(query: DeployableQuery): Deployable[];
+    consumeDeployable?(deployable: Pick<Deployable, 'id' | 'kind'>): boolean;
     /** Order queue — available on the full GameEngine, optional for test stubs. */
     state?: {
         orderMgr: {

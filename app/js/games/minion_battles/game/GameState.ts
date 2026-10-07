@@ -17,6 +17,7 @@ import { LightSourceManager } from './lightSources/LightSourceManager';
 import { EffectEmitterManager } from './effects/EffectEmitterManager';
 import { fingerprintInitial, FingerprintRing, type Fingerprint64 } from './Fingerprint';
 import { TerrainLayerManager } from './TerrainLayerManager';
+import { DeployableRegistry } from './deployables/DeployableRegistry';
 import type { MapSegmentPOI, MapSegmentZone } from '../terrain/segmentSchema';
 import { LanterniteRespawnManager } from './lanternite/LanterniteRespawnManager';
 import { OrderManager } from './managers/OrderManager';
@@ -80,6 +81,9 @@ export class GameState {
     /** Layered terrain effects: floor (rock modifications), ground (bramble, ice), air (future). */
     terrainLayers = new TerrainLayerManager();
 
+    /** Query/consume view over everything abilities leave on the map (lights, bramble, story tiles). */
+    readonly deployables = new DeployableRegistry();
+
     /** POIs from the loaded map segment(s), used for enemySpawn point lookups. */
     mapPOIs: MapSegmentPOI[] = [];
 
@@ -126,5 +130,12 @@ export class GameState {
         this.interruptSystem = new InterruptSystem(() => this.unitManager.units);
         this.worldModifierManager = new WorldModifierManager(ctx);
         this.mapNetworkManager = new MapNetworkManager();
+        this.deployables.registerProvider(this.lightSourceManager);
+        this.deployables.registerProvider(this.specialTileManager);
+        // GameEngine.fromJSON replaces `terrainLayers`, so resolve it at call time.
+        this.deployables.registerProvider({
+            listDeployables: () => this.terrainLayers.listDeployables(),
+            consume: (id) => this.terrainLayers.consume(id),
+        });
     }
 }

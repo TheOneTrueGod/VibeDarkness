@@ -60,12 +60,19 @@ import {
     gatherLightCommittedScenario,
     gatherLightDevourScenario,
     gatherLightNoDevourScenario,
+    gatherLightDevourOwnTorchOnlyScenario,
 } from './abilities/gatherLightScenario';
+import {
+    deployableBrambleFoundAndConsumedScenario,
+    deployableCheckpointRoundtripScenario,
+} from './abilities/deployableScenarios';
 import { shieldOfLightScenario } from './abilities/shieldOfLightScenario';
 import {
     layHandsPunchAndBlastScenario,
     layHandsNoEmitterScenario,
     layHandsMissStillDetonatesScenario,
+    layHandsIgnoresStoryCampfireScenario,
+    layHandsIgnoresEnemyLightScenario,
 } from './abilities/layHandsScenarios';
 import { throwKnifePiercingBleedScenario } from './abilities/throwKnifeScenarios';
 import { clawMovementDistanceScenario } from './abilities/clawScenarios';
@@ -226,10 +233,15 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     gatherLightCommittedScenario,
     gatherLightDevourScenario,
     gatherLightNoDevourScenario,
+    gatherLightDevourOwnTorchOnlyScenario,
     shieldOfLightScenario,
     layHandsPunchAndBlastScenario,
     layHandsNoEmitterScenario,
     layHandsMissStillDetonatesScenario,
+    layHandsIgnoresStoryCampfireScenario,
+    layHandsIgnoresEnemyLightScenario,
+    deployableBrambleFoundAndConsumedScenario,
+    deployableCheckpointRoundtripScenario,
     gravityGrazeScenario,
     gravityLocusScenario,
     forcePushScenario,

@@ -36,6 +36,7 @@ import { computeLightChannelGrid, type LightSource as GridLightInput } from './L
 import { LightTileGrid } from './lightTileGrid/LightTileGrid';
 import { LIGHT_TYPES, type LightType } from './lighting/lightTypes';
 import { LightSource } from './lightSources/LightSource';
+import type { Deployable, DeployableQuery } from './deployables/Deployable';
 import type { EngineContext } from './EngineContext';
 import { GameState } from './GameState';
 import type { ActiveDarknessStrength } from '../../../darknessStrength/resolve';
@@ -547,6 +548,46 @@ export class GameEngine implements EngineContext {
         }
         this.state.lightSourceManager.addLightSource(ls);
         this.mixRuntimeFingerprint(FingerprintEvent.SPAWN, this.hashString32(ls.id), Math.floor(ls.x), Math.floor(ls.y));
+        if (ls.ownerUnitId !== undefined || ls.ownerAbilityId !== undefined || ls.teamId !== undefined) {
+            this.mixRuntimeFingerprint(
+                FingerprintEvent.SPAWN,
+                this.hashString32(ls.ownerUnitId ?? ''),
+                this.hashString32(ls.ownerAbilityId ?? ''),
+                this.hashString32(ls.teamId ?? ''),
+            );
+        }
+    }
+
+    /** Find deployables on the map owned by `query.castingTeam` (see game/deployables). */
+    findDeployables(query: DeployableQuery): Deployable[] {
+        return this.state.deployables.findDeployables(query);
+    }
+
+    /** Consume a deployable found via {@link findDeployables}. Returns whether it was consumed. */
+    consumeDeployable(deployable: Pick<Deployable, 'id' | 'kind'>): boolean {
+        return this.state.deployables.consumeDeployable(deployable);
+    }
+
+    /**
+     * Hash of owner/team on every owned light source and terrain effect, so an ownership desync
+     * is detected. Returns 0 when nothing is owned (legacy fingerprints stay unchanged).
+     */
+    private deployableOwnershipHash(): number {
+        let h = 0;
+        let any = false;
+        const fold = (id: string, owner?: string, ability?: string, team?: string): void => {
+            if (owner === undefined && ability === undefined && team === undefined) return;
+            any = true;
+            // Order-independent (sum of per-entry hashes) so store iteration order cannot matter.
+            h = (h + this.hashString32(`${id}|${owner ?? ''}|${ability ?? ''}|${team ?? ''}`)) >>> 0;
+        };
+        for (const ls of this.state.lightSourceManager.lightSources) {
+            fold(ls.id, ls.ownerUnitId, ls.ownerAbilityId, ls.teamId);
+        }
+        for (const r of this.state.terrainLayers.allEffects.values()) {
+            fold(r.id, r.ownerUnitId, r.ownerAbilityId, r.teamId);
+        }
+        return any ? (h | 1) >>> 0 : 0;
     }
 
     get effectEmitterManager() { return this.state.effectEmitterManager; }
@@ -1630,6 +1671,10 @@ export class GameEngine implements EngineContext {
                 this.units.length >>> 0,
                 this.state.lightSourceManager.lightSources.length >>> 0,
             );
+            const deployableHash = this.deployableOwnershipHash();
+            if (deployableHash !== 0) {
+                this.mixRuntimeFingerprint(FingerprintEvent.EFFECT_TICK, deployableHash);
+            }
             if (!this.storyPauseActive) {
                 this.state.levelEventManager.runDefeatCheck();
                 // Mirror defeat: catch projectile/DoT kills after unitManager's per-enemy checks.

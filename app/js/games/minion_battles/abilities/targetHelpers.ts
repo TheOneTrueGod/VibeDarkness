@@ -323,6 +323,7 @@ export function placeJitteredGroundThorns(options: {
             expiresAtGameTime: baseExpiresAtGameTime + jitter,
             ownerUnitId: caster.id,
             ownerAbilityId,
+            teamId: caster.teamId,
             area: { type: 'cell', col, row },
             params,
         });

@@ -196,6 +196,7 @@ export function applyEffect(
                 }
             }
 
+            // Intentionally ownerless: world-modifier lights are story/environment, never deployables.
             const ls = new LightSource({
                 x,
                 y,

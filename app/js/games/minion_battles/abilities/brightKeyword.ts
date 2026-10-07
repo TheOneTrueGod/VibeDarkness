@@ -2,6 +2,7 @@ import { LightSource } from '../game/lightSources/LightSource';
 import type { AbilityEngineContext } from './AbilityEngineContext';
 import type { LightType } from '../game/lighting/lightTypes';
 import { DEFAULT_LIGHT_TYPE } from '../game/lighting/lightTypes';
+import type { TeamId } from '../game/teams';
 
 export type EngineWithLight = AbilityEngineContext & { addLightSource(ls: LightSource): void };
 
@@ -18,12 +19,20 @@ export const BRIGHT_DEFS: Readonly<Record<number, BrightDef>> = {
     3: { lightAmount: 4, radius: 2, roundsTotal: 3 },
 };
 
+/** Deployable ownership for a bright light. Omit for ownerless (story/environment) lights. */
+export interface BrightLightOwner {
+    unitId: string;
+    abilityId?: string;
+    teamId: TeamId;
+}
+
 export function spawnBrightLight(
     eng: EngineWithLight,
     x: number,
     y: number,
     magnitude: number,
     colorOrOpts?: number | { color?: number; lightType?: LightType; visualAlphaScale?: number },
+    owner?: BrightLightOwner,
 ): void {
     const def = BRIGHT_DEFS[magnitude];
     if (!def) return;
@@ -43,6 +52,9 @@ export function spawnBrightLight(
         visualAlphaScale: opts.visualAlphaScale,
         color: opts.color,
         lightType: opts.lightType,
+        ownerUnitId: owner?.unitId,
+        ownerAbilityId: owner?.abilityId,
+        teamId: owner?.teamId,
         decay: def.roundsTotal != null
             ? {
                 roundCreated: eng.roundNumber ?? 1,

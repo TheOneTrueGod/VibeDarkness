@@ -8,10 +8,12 @@
 import type { EngineContext } from '../EngineContext';
 import type { LightSource as GridLightInput } from '../LightGrid';
 import { LightSource } from './LightSource';
+import type { Deployable, DeployableTag } from '../deployables/Deployable';
+import type { DeployableProvider } from '../deployables/DeployableRegistry';
 
 const ROUND_DURATION = 10;
 
-export class LightSourceManager {
+export class LightSourceManager implements DeployableProvider {
     lightSources: LightSource[] = [];
     private ctx: EngineContext;
 
@@ -106,21 +108,29 @@ export class LightSourceManager {
         return inputs;
     }
 
-    /**
-     * Active, positive-emission, non-base light sources within a square of `halfExtent`
-     * (Chebyshev distance) around (x, y), sorted nearest-first with a stable tie-break by id.
-     */
-    findDevourableLightSources(x: number, y: number, halfExtent: number): LightSource[] {
-        const found: { ls: LightSource; d2: number }[] = [];
-        for (const ls of this.lightSources) {
-            if (!ls.active || ls.lightAmount <= 0 || ls.overlapMethod?.method === 'base') continue;
-            const dx = ls.x - x;
-            const dy = ls.y - y;
-            if (Math.abs(dx) > halfExtent || Math.abs(dy) > halfExtent) continue;
-            found.push({ ls, d2: dx * dx + dy * dy });
-        }
-        found.sort((a, b) => a.d2 - b.d2 || (a.ls.id < b.ls.id ? -1 : a.ls.id > b.ls.id ? 1 : 0));
-        return found.map((f) => f.ls);
+    listDeployables(): Deployable[] {
+        return this.lightSources.map((ls) => {
+            const tags: DeployableTag[] =
+                ls.active && ls.lightAmount > 0 && ls.overlapMethod?.method !== 'base' ? ['lightEmitter'] : [];
+            return {
+                id: ls.id,
+                kind: 'lightSource',
+                x: ls.x,
+                y: ls.y,
+                active: ls.active,
+                ownerUnitId: ls.ownerUnitId,
+                ownerAbilityId: ls.ownerAbilityId,
+                teamId: ls.teamId,
+                tags,
+            };
+        });
+    }
+
+    consume(id: string): boolean {
+        const ls = this.lightSources.find((l) => l.id === id);
+        if (!ls) return false;
+        ls.active = false;
+        return true;
     }
 
     cleanupInactive(): void {

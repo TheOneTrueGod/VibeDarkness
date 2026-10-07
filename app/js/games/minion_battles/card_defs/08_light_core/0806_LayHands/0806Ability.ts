@@ -15,11 +15,7 @@ import type { AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import type { CastBehaviourTickContext } from '../../../abilities/castBehaviourTypes';
 import { damageEnemiesInCircle } from '../../../abilities/targetHelpers';
-import {
-    findNearestReachableLightEmitter,
-    LIGHT_EMITTER_REACH_HALF_EXTENT,
-} from '../../../game/lightSources/lightEmitters';
-import type { LightSourceManager } from '../../../game/lightSources/LightSourceManager';
+import { REACH_5X5_HALF_EXTENT, type Deployable } from '../../../game/deployables/Deployable';
 import { isAbilityNote } from '../../../game/AbilityNote';
 import type { Unit } from '../../../game/units/Unit';
 import type { EngineContext } from '../../../game/EngineContext';
@@ -61,15 +57,28 @@ const LAY_HANDS_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="
   <path d="M32 8 L32 16 M14 20 L20 24 M50 20 L44 24" stroke="#fffbe6" stroke-width="2" stroke-linecap="round"/>
 </svg>`;
 
-type EngineWithLightManager = { state?: { lightSourceManager?: LightSourceManager } };
+type DeployableEngine = Pick<EngineContext, 'findDeployables' | 'consumeDeployable'>;
 
-function getLightManager(engine: unknown): LightSourceManager | undefined {
-    return (engine as EngineWithLightManager | undefined)?.state?.lightSourceManager;
+/**
+ * The single emitter query shared by lock, detonate and preview (they must agree): own-team light
+ * emitters in the caster's 5x5, nearest-first. Returns the nearest, or null.
+ */
+function findNearestEmitter(engine: unknown, caster: Unit): Deployable | null {
+    const eng = engine as Partial<DeployableEngine> | undefined;
+    if (!eng?.findDeployables) return null;
+    return (
+        eng.findDeployables({
+            castingTeam: caster.teamId,
+            near: { x: caster.x, y: caster.y },
+            halfExtent: REACH_5X5_HALF_EXTENT,
+            tags: ['lightEmitter'],
+        })[0] ?? null
+    );
 }
 
 /** Windup start: lock the nearest reachable emitter into the cast note and draw motes toward the fist. */
 function lockEmitter(ctx: CastBehaviourTickContext): void {
-    const emitter = findNearestReachableLightEmitter(getLightManager(ctx.engine), ctx.caster.x, ctx.caster.y);
+    const emitter = findNearestEmitter(ctx.engine, ctx.caster);
     ctx.caster.setAbilityNote({
         abilityId: NOTE_ID,
         abilityNote: { emitterId: emitter?.id ?? null, x: emitter?.x ?? 0, y: emitter?.y ?? 0 },
@@ -84,9 +93,16 @@ function detonateEmitter(ctx: CastBehaviourTickContext): void {
     const note = ctx.caster.abilityNote;
     if (!isAbilityNote(note, NOTE_ID) || note.abilityNote.emitterId == null) return;
     const { emitterId, x, y } = note.abilityNote;
-    const emitter = getLightManager(ctx.engine)?.lightSources.find((ls) => ls.id === emitterId);
-    const center = emitter?.active ? { x: emitter.x, y: emitter.y } : { x, y };
-    if (emitter) emitter.active = false;
+    const eng = ctx.engine as unknown as Partial<DeployableEngine>;
+    // Re-resolve the locked emitter by id (same team + tag filter as the lock; no reach limit, since the
+    // lunge may have carried the caster away). Gone/inactive -> blast at the frozen position.
+    const emitter = eng.findDeployables?.({
+        castingTeam: ctx.caster.teamId,
+        near: { x, y },
+        tags: ['lightEmitter'],
+    }).find((d) => d.id === emitterId);
+    const center = emitter ? { x: emitter.x, y: emitter.y } : { x, y };
+    if (emitter) eng.consumeDeployable?.(emitter);
 
     spawnLayHandsBlast(ctx.engine as unknown as LayHandsVfxEngine, center);
     damageEnemiesInCircle({
@@ -102,7 +118,7 @@ function detonateEmitter(ctx: CastBehaviourTickContext): void {
 
 /** Preview: the emitter that would lock (ring + tether) and the blast radius around it. */
 function drawLayHandsPreviewExtras(gr: IAbilityPreviewGraphics, caster: Unit, gameState?: unknown): void {
-    const half = LIGHT_EMITTER_REACH_HALF_EXTENT;
+    const half = REACH_5X5_HALF_EXTENT;
     // Faint 5×5 reach square around the caster.
     gr.moveTo(caster.x - half, caster.y - half);
     gr.lineTo(caster.x + half, caster.y - half);
@@ -111,7 +127,7 @@ function drawLayHandsPreviewExtras(gr: IAbilityPreviewGraphics, caster: Unit, ga
     gr.lineTo(caster.x - half, caster.y - half);
     gr.stroke({ color: LAY_HANDS_COLOR, width: 1, alpha: 0.2 });
 
-    const emitter = findNearestReachableLightEmitter(getLightManager(gameState), caster.x, caster.y);
+    const emitter = findNearestEmitter(gameState, caster);
     if (!emitter) return;
     gr.moveTo(caster.x, caster.y);
     gr.lineTo(emitter.x, emitter.y);
