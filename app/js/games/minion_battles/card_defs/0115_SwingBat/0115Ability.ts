@@ -42,7 +42,7 @@ import {
 import { getApproxIntegerIncrease, DescriptiveValue } from '../../../../researchTrees/descriptiveValue';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}15`;
-const MAX_USES = 2;
+const MAX_USES = 3;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 },
 ];

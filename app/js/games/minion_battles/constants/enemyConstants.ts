@@ -74,17 +74,29 @@ export const ENEMY_ALPHA_WOLF: EnemySpawnDef = {
 
 /**
  * Displacer Spirit boss: slime-style ranged bolt (0017, same targeting/AI range as the slime) that
- * flies twice as far as it aims. Baseline hp/speed in unit defs.
+ * flies twice as far as it aims, Light Eater (0018) and the super-bar Phantom Decoy (0019).
+ * Baseline hp/speed/starting super bars in unit defs. Own AI tree: kites at ~70% bolt range.
  */
 export const ENEMY_DISPLACER_SPIRIT: EnemySpawnDef = {
     characterId: 'displacer_spirit',
     name: 'Displacer Spirit',
     position: { x: 0, y: 0 },
     teamId: 'enemy',
+    abilities: ['0017', '0018', '0019'],
+    aiSettings: { minRange: 0, maxRange: 140 },
+    unitTags: [UnitTag.Boss, UnitTag.ShowHpBar],
+    unitAITreeId: 'displacerBoss',
+};
+
+/** Displacer clone: illusory copy; echoes the boss's bolts (0017). Not a boss, low hp. */
+export const ENEMY_DISPLACER_CLONE: EnemySpawnDef = {
+    characterId: 'displacer_clone',
+    name: 'Displacer Clone',
+    position: { x: 0, y: 0 },
+    teamId: 'enemy',
     abilities: ['0017'],
     aiSettings: { minRange: 0, maxRange: 140 },
-    unitTags: [UnitTag.Boss],
-    unitAITreeId: 'hunt',
+    unitAITreeId: 'displacerClone',
 };
 
 /** Thornbinder crawler — bramble AoE zoning; Light Hate. */

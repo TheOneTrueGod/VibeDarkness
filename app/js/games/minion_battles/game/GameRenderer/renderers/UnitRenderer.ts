@@ -6,7 +6,7 @@ import type { AssetRegistry } from '../AssetRegistry';
 import type { OverlayRenderer } from './OverlayRenderer';
 import type { TeamId } from '../../teams';
 import { areEnemies } from '../../teams';
-import { UnitTag } from '../../units/unitTag';
+import { UnitTag, hidesWorldHpBar } from '../../units/unitTag';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import { normalizeAbilityTimingsToIntervals, resolveAbilityTimingEntries, getEffectiveCastBehaviours } from '../../../abilities/abilityTimings';
 import { resolveBehaviourTimingRef } from '../../../abilities/castBehaviourTypes';
@@ -22,9 +22,11 @@ import {
     getBodyColorForUnit,
     syncUnitCharacterSpriteIfNeeded,
     CHARACTER_SPRITE_SCALE,
+    getUnitDisplayWiggleRadius,
     type IUnitRenderContext,
 } from '../../units/unit_defs/unitDef';
 import { getSpawnRenderState } from '../../units/spawnVisuals';
+import { DisplayWiggle } from '../displayWiggle';
 import { getBuffVisualRenderer } from '../../../buffs/buffVisuals';
 import type { DamageTakenEvent } from '../../EventBus';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
@@ -36,6 +38,10 @@ const Z_KNOCKBACK_SHADOW = 9;
 
 export class UnitRenderer {
     private unitVisuals: Map<string, Container> = new Map();
+    /** Local-only display wiggle per unit (defs with `displayWiggleRadius`); never serialized or synced. */
+    private unitWiggles: Map<string, DisplayWiggle> = new Map();
+    /** Wall-clock time (ms) of the previous renderUnits call; wiggle runs on real time so it moves while paused. */
+    private lastWiggleRealTimeMs: number | null = null;
     private knockbackShadowVisuals: Map<string, Graphics> = new Map();
     private constructionGhostVisuals: Map<string, Container> = new Map();
     private hitFlashState: Map<string, { startTime: number; rafId: number }> = new Map();
@@ -117,6 +123,13 @@ export class UnitRenderer {
         const context = this.getUnitRenderContext(localTeamId);
         const cellSize = CELL_SIZE;
         const gameTime = engine.gameTime;
+
+        // Real frame time (not tick time): the wiggle keeps easing while the game is paused.
+        const nowMs = performance.now();
+        const wiggleDt = this.lastWiggleRealTimeMs === null
+            ? 0
+            : Math.min(0.1, (nowMs - this.lastWiggleRealTimeMs) / 1000);
+        this.lastWiggleRealTimeMs = nowMs;
 
         for (const unit of units) {
             let visual = this.unitVisuals.get(unit.id);
@@ -237,9 +250,24 @@ export class UnitRenderer {
                 if (knockbackShadow) knockbackShadow.visible = false;
             }
 
+            // Display-only wiggle (def-flagged units): offsets the drawn position, not the unit.
+            let wiggleX = 0;
+            let wiggleY = 0;
+            const wiggleRadius = getUnitDisplayWiggleRadius(unit.characterId);
+            if (wiggleRadius > 0) {
+                let wiggle = this.unitWiggles.get(unit.id);
+                if (!wiggle) {
+                    wiggle = new DisplayWiggle(wiggleRadius);
+                    this.unitWiggles.set(unit.id, wiggle);
+                }
+                wiggle.update(wiggleDt);
+                wiggleX = wiggle.offsetX;
+                wiggleY = wiggle.offsetY;
+            }
+
             const spawnState = getSpawnRenderState(unit);
-            visual.x = unit.x + renderOffsetX;
-            visual.y = unit.y + renderOffsetY + knockupYOffset + (spawnState?.yOffset ?? 0);
+            visual.x = unit.x + renderOffsetX + wiggleX;
+            visual.y = unit.y + renderOffsetY + wiggleY + knockupYOffset + (spawnState?.yOffset ?? 0);
             visual.visible = unit.active && (spawnState ? spawnState.visible : true);
 
             // Grow-in animation: scale from 0 → 1 over growAnimTimer duration (nestSpawn units)
@@ -305,7 +333,7 @@ export class UnitRenderer {
                         body.stroke({ color: 0xfacc15, width: 2 });
                     }
                 }
-                const showHpBar = !unit.isInvincible() && !unit.tags.includes(UnitTag.Boss) && !unit.isSpawning();
+                const showHpBar = !unit.isInvincible() && !hidesWorldHpBar(unit) && !unit.isSpawning();
                 if (hpBg) hpBg.visible = showHpBar;
                 if (hpFill) hpFill.visible = showHpBar;
                 if (hpInjury) hpInjury.visible = showHpBar;
@@ -547,6 +575,10 @@ export class UnitRenderer {
                 visual.destroy();
                 this.unitVisuals.delete(id);
             }
+        }
+
+        for (const id of this.unitWiggles.keys()) {
+            if (!activeUnitIds.has(id)) this.unitWiggles.delete(id);
         }
 
         for (const [id, shadow] of this.knockbackShadowVisuals) {

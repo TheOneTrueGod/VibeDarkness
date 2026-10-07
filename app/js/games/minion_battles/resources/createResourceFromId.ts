@@ -7,6 +7,7 @@ import { Movement } from './Movement';
 import { Rage } from './Rage';
 import { Resonance } from './Resonance';
 import { Rock } from './Rock';
+import { SuperBar } from './SuperBar';
 import { isResourceId, type ResourceId } from './resourceIds';
 
 /**
@@ -22,6 +23,7 @@ const RESOURCE_FACTORIES: { [K in ResourceId]: () => Resource } = {
     rage: () => new Rage(),
     resonance: () => new Resonance(),
     movement_points: () => new Movement(),
+    super: () => new SuperBar(),
 };
 
 /** Instantiate a fresh resource for checkpoint restore. Returns null for unknown IDs. */

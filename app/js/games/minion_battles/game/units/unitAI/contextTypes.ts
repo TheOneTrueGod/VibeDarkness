@@ -10,6 +10,8 @@ export type { UnitAIContextBase } from './contextBase';
 import type { UnitAIContextBase } from './contextBase';
 import type { DefaultAITreeContext } from './default/context';
 import type { AlphaWolfBossAITreeContext } from './alphaWolfBoss/context';
+import type { DisplacerBossAITreeContext } from './displacerBoss/context';
+import type { DisplacerCloneAITreeContext } from './displacerClone/context';
 import type { AggroWanderAITreeContext } from './aggroWander/context';
 import type { LanternitePatrolAITreeContext } from './lanternitePatrol/context';
 import type { LanterniteNetworkAITreeContext } from './lanterniteNetwork/context';
@@ -22,6 +24,8 @@ import type { NetworkHuntAITreeContext } from './networkHunt/context';
 export interface AITreeContextMap {
     default: DefaultAITreeContext;
     alphaWolfBoss: AlphaWolfBossAITreeContext;
+    displacerBoss: DisplacerBossAITreeContext;
+    displacerClone: DisplacerCloneAITreeContext;
     aggroWander: AggroWanderAITreeContext;
     lanternitePatrol: LanternitePatrolAITreeContext;
     lanterniteNestIdle: UnitAIContextBase & { aiTree: 'lanterniteNestIdle' };

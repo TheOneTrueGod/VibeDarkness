@@ -49,7 +49,12 @@ describe('DisplacerMission', () => {
         expect(ARENA_OUTSIDE_ROAD_SPAWN_POINTS.some((p) => p.col === col && p.row === row)).toBe(true);
         expect(col).toBeLessThan(BOSS_ARENA_SIZE / 2);
 
-        expect(engine.units.filter((u) => u.characterId === 'displacer_spirit')).toHaveLength(1);
+        const bosses = engine.units.filter((u) => u.characterId === 'displacer_spirit');
+        expect(bosses).toHaveLength(1);
+        // Boss kit: own AI tree, starts with 2 super bars.
+        expect(bosses[0]!.unitAITreeId).toBe('displacerBoss');
+        expect(bosses[0]!.getResource('super')?.current).toBe(2);
+        expect(bosses[0]!.abilities).toEqual(['0017', '0018', '0019']);
         expect(engine.units.filter((u) => u.characterId === 'dark_wolf')).toHaveLength(OPENING_WOLF_COUNT);
 
         for (const pt of ARENA_RING_SPAWN_POINTS) {

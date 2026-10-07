@@ -17,7 +17,7 @@ import { DARK_CREATURE_CORRUPTION_TINT, DARK_CREATURE_ICON_TINT_ALPHA } from '..
 import { getPortrait } from '../../../character_defs/portraitLoader';
 import { DEFAULT_UNIT_SIZE, UNIT_SIZE_MAP, type UnitSize } from './unitConstants';
 import type { CcResistKey } from '../../../crowdControl/ccTypes';
-import { UnitTag } from '../unitTag';
+import { UnitTag, hidesWorldHpBar } from '../unitTag';
 import type { EnrageDef } from '../enrageDef';
 import { EXHAUSTION_HEALTH_BAR_FILL } from '../../../character_defs/exhaustionHealth';
 
@@ -45,7 +45,7 @@ export type UnitDeathBehavior =
 type HpBarSize = 'large' | 'small' | 'hidden';
 
 function getHpBarSize(unit: Unit): HpBarSize {
-    if (unit.tags.includes(UnitTag.Boss)) return 'hidden';
+    if (hidesWorldHpBar(unit)) return 'hidden';
     if (unit.teamId === 'player') return 'large';
     return 'small';
 }
@@ -107,6 +107,7 @@ export type EnemyUnitId =
     | 'huskling'
     | 'swarmling'
     | 'displacer_spirit'
+    | 'displacer_clone'
     | 'lanternite'
     | 'lanternite_nest'
     | 'thornling'
@@ -164,6 +165,16 @@ export interface UnitDefEntry {
      *  with any per-spawn `SpawnDefinition.unitTags` at construction time in
      *  `createUnitFromSpawnConfig` — additive only, never removes a tag a spawn config also sets. */
     tags?: UnitTag[];
+    /**
+     * Resources attached to every spawn of this character, with their starting `current` value
+     * (e.g. `{ super: 2 }` for the Displacer Spirit). Applied in `createUnitFromSpawnConfig`.
+     */
+    startingResources?: Partial<Record<'super', number>>;
+    /**
+     * Display-only wiggle radius (px). When set, the renderer eases the unit's sprite around a
+     * random point within this radius. Purely local presentation: never touches engine state.
+     */
+    displayWiggleRadius?: number;
 }
 
 const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
@@ -312,8 +323,27 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         perceptionRange: 400,
         creatureType: 'dark_creature',
         onDeathVisualEffects: darkCreatureIconFlashVFX(5),
-        uiDescription: 'Boss spirit that hurls bolts from a distance, flying twice as far as it aims.',
+        uiDescription:
+            'Boss spirit that hurls long-flying bolts, eats light to explode, and conjures wiggling decoys.',
         maxPerTile: 1,
+        startingResources: { super: 2 },
+        displayWiggleRadius: 10,
+    },
+    displacer_clone: {
+        bodyColor: 0x1e3a5f,
+        // Same sprite and size as the Displacer Spirit.
+        characterSpriteKey: 'displacer_spirit',
+        hp: 6,
+        speed: 65,
+        size: 'Medium',
+        stamina: 1,
+        perceptionRange: 400,
+        creatureType: 'dark_creature',
+        onDeathVisualEffects: darkCreatureIconFlashVFX(5),
+        uiDescription: 'Illusory copy of the Displacer Spirit. Mimics its bolts; fragile.',
+        maxPerTile: 1,
+        tags: [UnitTag.Clone],
+        displayWiggleRadius: 10,
     },
     lanternite: {
         bodyColor: 0x34d399,
@@ -395,6 +425,16 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         uiDescription: 'Loyal hound — fights close to its master, biting enemies that stray too near.',
     },
 };
+
+/** Display-only sprite wiggle radius (px) for a character id; 0 when it does not wiggle. */
+export function getUnitDisplayWiggleRadius(characterId: string): number {
+    return UNIT_DEFS[characterId as UnitDefId]?.displayWiggleRadius ?? 0;
+}
+
+/** Resources (and starting values) attached to every spawn of this character id. */
+export function getUnitStartingResources(characterId: string): Partial<Record<'super', number>> {
+    return UNIT_DEFS[characterId as UnitDefId]?.startingResources ?? {};
+}
 
 /** Optional CC spawn data for a character id (undefined when none). */
 export function getUnitCombatCcDef(characterId: string): UnitCombatCcDef | undefined {

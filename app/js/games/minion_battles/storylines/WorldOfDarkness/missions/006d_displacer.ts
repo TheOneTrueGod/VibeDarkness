@@ -1,7 +1,7 @@
 /**
  * Displacer — chapter 2 boss fight after the second campsite.
  * Arena: the 0_0 dirt circle (same terrain as The Circle), entered from the west road.
- * Light braziers ring the arena; the Displacer Spirit boss waits at the centre. Two wolves start
+ * Light braziers ring the arena (the Displacer Spirit eats them); the boss waits at the centre. Two wolves start
  * near the party and two more arrive every round.
  */
 
@@ -62,7 +62,8 @@ export const ROUND_WOLF_START_ROUND = 2;
 export const ROUND_WOLF_SPAWN_RADIUS_TILES = 2;
 
 /** Lights on every Arena Ring point. */
-export const ARENA_LIGHT_AMOUNT = 4;
+/** Light Eater removes 4 per bite, so 6 survives one bite (at 2) and is extinguished by the second. */
+export const ARENA_LIGHT_AMOUNT = 6;
 export const ARENA_LIGHT_RADIUS = 4;
 export const ARENA_LIGHT_HP = 5;
 

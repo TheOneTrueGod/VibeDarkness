@@ -147,6 +147,19 @@ export function consumeAbilityUse(unit: Unit, abilityId: string, eventBus?: Even
     return true;
 }
 
+/**
+ * Guarantee `unit` has at least `minUses` uses of `abilityId` right now (raising the max if needed).
+ * Used by mirroring code so a clone can echo an ability regardless of its own recharge state.
+ */
+export function grantAbilityUses(unit: Unit, abilityId: string, minUses: number = 1): void {
+    ensureAbilityRuntimeState(unit, abilityId);
+    const runtime = unit.abilityRuntime[abilityId];
+    if (!runtime) return;
+    runtime.maxUses = Math.max(runtime.maxUses, minUses);
+    runtime.currentUses = Math.max(runtime.currentUses, minUses);
+    syncNestedCardAbilityState(unit);
+}
+
 /** Restore one use when a cast is cancelled before natural completion (e.g. conditional-cancel switch). */
 export function refundAbilityUse(unit: Unit, abilityId: string): void {
     ensureAbilityRuntimeState(unit, abilityId);

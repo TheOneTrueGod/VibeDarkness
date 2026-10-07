@@ -3,6 +3,7 @@
  * continuous spawns, victory/defeat checks, and related callbacks.
  */
 
+import { UnitTag } from '../units/unitTag';
 import type { EngineContext } from '../EngineContext';
 import { isTileInNearPositionArea } from '../../storylines/nearPositionArea';
 import type {
@@ -379,7 +380,7 @@ export class LevelEventManager {
     private evaluateVictoryCondition(cond: VictoryCondition): boolean {
         if (cond.type === 'eliminateAllEnemies') {
             const hasEnemies = this.ctx.units.some(
-                (u) => u.isAlive() && u.teamId === 'enemy',
+                (u) => u.isAlive() && u.teamId === 'enemy' && !u.tags.includes(UnitTag.Clone),
             );
             return !hasEnemies;
         }

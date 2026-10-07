@@ -4,6 +4,7 @@
  */
 
 import type { EngineContext } from '../EngineContext';
+import { UnitTag } from '../units/unitTag';
 import { getNearPositionAreaTiles, isTileInNearPositionArea } from '../../storylines/nearPositionArea';
 import {
     DEFAULT_OBJECTIVE_TILES_ALPHA,
@@ -160,7 +161,7 @@ export class ObjectiveManager {
 
     private evaluateCondition(cond: VictoryCondition): boolean {
         if (cond.type === 'eliminateAllEnemies') {
-            const hasEnemies = this.ctx.units.some((u) => u.isAlive() && u.teamId === 'enemy');
+            const hasEnemies = this.ctx.units.some((u) => u.isAlive() && u.teamId === 'enemy' && !u.tags.includes(UnitTag.Clone));
             return !hasEnemies;
         }
         if (cond.type === 'allUnitsNearPosition') {

@@ -5,6 +5,8 @@
 import type { UnitAITree } from './types';
 import { DEFAULT_AI_TREE } from './default';
 import { ALPHA_WOLF_BOSS_AI_TREE } from './alphaWolfBoss';
+import { DISPLACER_BOSS_AI_TREE } from './displacerBoss';
+import { DISPLACER_CLONE_AI_TREE } from './displacerClone';
 import { AGGRO_WANDER_AI_TREE } from './aggroWander';
 import { LANTERNITE_PATROL_AI_TREE } from './lanternitePatrol/index';
 import { LANTERNITE_NEST_IDLE_TREE } from './lanterniteNestIdle/index';
@@ -49,6 +51,10 @@ export { DEFAULT_AI_TREE } from './default';
 export type { DefaultNodeId, DefaultAITreeContext } from './default';
 export { ALPHA_WOLF_BOSS_AI_TREE } from './alphaWolfBoss';
 export type { AlphaWolfBossNodeId, AlphaWolfBossAITreeContext } from './alphaWolfBoss';
+export { DISPLACER_BOSS_AI_TREE } from './displacerBoss';
+export type { DisplacerBossNodeId, DisplacerBossAITreeContext } from './displacerBoss';
+export { DISPLACER_CLONE_AI_TREE } from './displacerClone';
+export type { DisplacerCloneNodeId, DisplacerCloneAITreeContext } from './displacerClone';
 export { AGGRO_WANDER_AI_TREE } from './aggroWander';
 export type { AggroWanderNodeId, AggroWanderAITreeContext } from './aggroWander';
 
@@ -67,6 +73,8 @@ export type { NetworkHuntAITreeContext, NetworkHuntNodeId } from './networkHunt/
 const TREE_REGISTRY: Record<string, UnitAITree> = {
     default: DEFAULT_AI_TREE,
     alphaWolfBoss: ALPHA_WOLF_BOSS_AI_TREE,
+    displacerBoss: DISPLACER_BOSS_AI_TREE,
+    displacerClone: DISPLACER_CLONE_AI_TREE,
     aggroWander: AGGRO_WANDER_AI_TREE,
     lanternitePatrol: LANTERNITE_PATROL_AI_TREE,
     lanterniteNestIdle: LANTERNITE_NEST_IDLE_TREE,

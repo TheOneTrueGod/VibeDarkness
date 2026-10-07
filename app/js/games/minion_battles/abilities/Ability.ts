@@ -104,6 +104,13 @@ export interface AbilityNinjutsuConfig {
     type?: string;
 }
 
+/** Subset of the AI context available to `AbilityAISettings.canUse`. */
+export interface AIAbilityGateContext {
+    gameTime: number;
+    getUnits(): Unit[];
+    getSpecialTiles(): import('../game/specialTiles/SpecialTile').SpecialTile[];
+}
+
 /** AI-specific settings that control when the AI will use this ability. */
 export interface AbilityAISettings {
     /** Minimum distance (px) to target for the AI to consider using this ability. */
@@ -126,6 +133,22 @@ export interface AbilityAISettings {
      *   pursuit target.
      */
     candidateScope?: 'lockedTarget' | 'anyNearby';
+    /**
+     * Restricts the AI to a window of each round, as fractions of ROUND_DURATION in [0, 1)
+     * (e.g. `{ start: 0.75, end: 1 }` = last quarter). The ability is skipped outside the window.
+     */
+    roundWindow?: { start: number; end: number };
+    /**
+     * When true, the AI only picks this ability if the caster can currently afford its resource
+     * costs (`canAffordAbility`). Needed for enemy abilities that spend a resource (e.g. super bars),
+     * because the AI otherwise does not check affordability.
+     */
+    requireAffordable?: boolean;
+    /**
+     * Extra AI availability gate evaluated by `pickBestAbility` (e.g. "a light source exists").
+     * Receives the caster and the AI context; return false to skip the ability this tick.
+     */
+    canUse?: (caster: Unit, context: AIAbilityGateContext) => boolean;
     /**
      * When true, an ability with an empty `targets` array (self-cast / ground-AoE) is only a
      * valid AI choice when at least one candidate enemy is within `[minRange, maxRange]` of the

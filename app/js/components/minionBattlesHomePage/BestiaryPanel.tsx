@@ -39,11 +39,12 @@ type BestiaryEntry = {
 const BESTIARY_ENTRIES: BestiaryEntry[] = [
     { id: 'dark_wolf',       name: 'Wolf',            abilityIds: ['0003'],                         faction: 'dark_creature' },
     { id: 'alpha_wolf',      name: 'Alpha Wolf',      abilityIds: ['0005', '0007', '0011', '0012'], faction: 'dark_creature' },
-    { id: 'displacer_spirit', name: 'Displacer Spirit', abilityIds: ['0017'],                         faction: 'dark_creature' },
+    { id: 'displacer_spirit', name: 'Displacer Spirit', abilityIds: ['0017', '0018', '0019'],                         faction: 'dark_creature' },
     { id: 'thornbinder',     name: 'Thornbinder',     abilityIds: ['0008'],                         faction: 'dark_creature' },
     { id: 'husk_artillery',  name: 'Husk Artillery',  abilityIds: ['0009'],                         faction: 'dark_creature' },
     { id: 'huskling',        name: 'Huskling',        abilityIds: ['0002'],                         faction: 'dark_creature' },
     { id: 'swarmling',       name: 'Swarmling',       abilityIds: ['0013'],                         faction: 'dark_creature' },
+    { id: 'displacer_clone', name: 'Displacer Clone', abilityIds: ['0017'],                         faction: 'dark_creature' },
     { id: 'swarm_nest',      name: 'Swarm Nest',      abilityIds: [],                               faction: 'dark_creature' },
     { id: 'lanternite',      name: 'Lanternite',      abilityIds: ['0010'],                         faction: 'beast' },
     { id: 'lanternite_nest', name: 'Lanternite Nest', abilityIds: ['0014'],                         faction: 'beast' },

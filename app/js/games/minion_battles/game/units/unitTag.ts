@@ -31,6 +31,21 @@ export enum UnitTag {
      * unmoving position deterministic hitbox/timing assertions depend on.
      */
     CrowdSpacingExempt = 'crowdSpacingExempt',
+    /**
+     * Illusory copy of another unit (e.g. Displacer clones). Clones are not bosses, never count
+     * toward `eliminateAllEnemies`, and their casts never re-trigger clone-mirroring abilities.
+     */
+    Clone = 'clone',
+    /**
+     * Boss that still shows its normal (small) world health bar, overriding the usual
+     * {@link UnitTag.Boss} bar-hiding. Lets the Displacer Spirit look identical to its clones.
+     */
+    ShowHpBar = 'showHpBar',
+}
+
+/** Bosses hide their world HP bar (they use the boss HUD) unless tagged {@link UnitTag.ShowHpBar}. */
+export function hidesWorldHpBar(unit: Unit): boolean {
+    return unit.tags.includes(UnitTag.Boss) && !unit.tags.includes(UnitTag.ShowHpBar);
 }
 
 const UNIT_TAG_VALUES = new Set<string>(Object.values(UnitTag));
@@ -57,6 +72,11 @@ export function hasUnitTag(unit: Unit, tag: UnitTag): boolean {
 /** Structures cannot be knockbacked, pulled, nudged, lifted, or otherwise forcibly displaced. */
 export function isImmuneToForcedMovement(unit: Unit): boolean {
     return hasUnitTag(unit, UnitTag.Structure);
+}
+
+/** Clones are illusions: excluded from "eliminate all enemies" conditions. */
+export function isCloneUnit(unit: Unit): boolean {
+    return hasUnitTag(unit, UnitTag.Clone);
 }
 
 export function addUnitTag(unit: Unit, tag: UnitTag): void {

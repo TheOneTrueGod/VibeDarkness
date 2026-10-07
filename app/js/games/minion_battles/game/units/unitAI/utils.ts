@@ -11,14 +11,26 @@ import type { SpecialTile } from '../../specialTiles/SpecialTile';
 import type { AIContext } from './types';
 import { areEnemies } from '../../teams';
 import { getAbility } from '../../../abilities/AbilityRegistry';
-import { getAbilityTargets } from '../../../abilities/Ability';
+import { getAbilityTargets, canAffordAbility } from '../../../abilities/Ability';
 import { getSelectTargetDefsFromTimings, buildAiSelectTargets } from '../../../abilities/targeting';
 import { UnitTag, hasUnitTag } from '../unitTag';
 import { meetsTagRequirements } from '../../../abilities/abilityUses';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
-import { MIN_FOLLOW_RADIUS } from '../../gameConstants';
+import { MIN_FOLLOW_RADIUS, ROUND_DURATION } from '../../gameConstants';
 
 export { ROUND_DURATION } from '../../gameConstants';
+
+/** Fraction of the current round elapsed at `gameTime`, in [0, 1). */
+export function getRoundFraction(gameTime: number): number {
+    const t = gameTime % ROUND_DURATION;
+    return t / ROUND_DURATION;
+}
+
+/** True when `gameTime` falls inside `[window.start, window.end)` of the current round. */
+export function isInRoundWindow(gameTime: number, window: { start: number; end: number }): boolean {
+    const f = getRoundFraction(gameTime);
+    return f >= window.start && f < window.end;
+}
 
 /** Euclidean distance between two points. */
 export function distance(x1: number, y1: number, x2: number, y2: number): number {
@@ -248,6 +260,9 @@ export function pickBestAbility(
             if (used >= ai.maxUsesPerRound) continue;
         }
         if (!meetsTagRequirements(unit, ability)) continue;
+        if (ai?.roundWindow && !isInRoundWindow(context.gameTime, ai.roundWindow)) continue;
+        if (ai?.requireAffordable && !canAffordAbility(unit, ability)) continue;
+        if (ai?.canUse && !ai.canUse(unit, context)) continue;
 
         const enemyPool = ai?.candidateScope === 'anyNearby' ? nearbyEnemies : candidateEnemies;
 

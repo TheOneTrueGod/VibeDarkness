@@ -21,7 +21,8 @@ describe('DisplacerBolt', () => {
     });
 
     it('keeps the slime targeting / AI range', () => {
-        expect(DisplacerBoltAbility.aiSettings).toEqual(SlimeShotAbility.aiSettings);
+        expect(DisplacerBoltAbility.aiSettings?.minRange).toBe(SlimeShotAbility.aiSettings?.minRange);
+        expect(DisplacerBoltAbility.aiSettings?.maxRange).toBe(SlimeShotAbility.aiSettings?.maxRange);
         const caster = new Unit({ x: 0, y: 0, hp: 1, speed: 1, teamId: 'enemy', ownerId: 'ai', characterId: 'displacer_spirit', name: 'd' });
         expect(DisplacerBoltAbility.getRange!(caster)).toEqual(SlimeShotAbility.getRange!(caster));
         expect(ENEMY_DISPLACER_SPIRIT.aiSettings).toEqual(SLIME.aiSettings);
@@ -42,6 +43,6 @@ describe('displacer_spirit unit def', () => {
         expect(def).toBeDefined();
         expect(def!.size).toBe('Medium');
         expect(def!.speed!).toBeGreaterThan(slime!.speed!);
-        expect(ENEMY_DISPLACER_SPIRIT.abilities).toEqual([DISPLACER_BOLT_ID]);
+        expect(ENEMY_DISPLACER_SPIRIT.abilities).toEqual([DISPLACER_BOLT_ID, '0018', '0019']);
     });
 });

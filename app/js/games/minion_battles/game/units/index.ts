@@ -14,11 +14,13 @@ import {
     getDefaultStamina,
     resolveEnemySpawnStats,
     getUnitStaticTags,
+    getUnitStartingResources,
     PLAYER_CHARACTER_ID,
 } from './unit_defs/unitDef';
 import type { UnitTag } from './unitTag';
 import type { UnitCombatSettings } from './Unit';
 import { generateGameObjectId } from '../GameObject';
+import { createResourceFromId } from '../../resources/createResourceFromId';
 import { applyCombatCrowdControlProfile } from './combatCcSpawn';
 
 export type UnitFactoryConfig = {
@@ -148,6 +150,14 @@ export function createUnitFromSpawnConfig(
     }
     if (config.controllable !== undefined) {
         unit.controllable = config.controllable;
+    }
+
+    const startingResources = getUnitStartingResources(config.characterId);
+    for (const [resourceId, current] of Object.entries(startingResources)) {
+        const resource = createResourceFromId(resourceId);
+        if (!resource) continue;
+        resource.current = Math.min(resource.max, current ?? 0);
+        unit.attachResource(resource, _eventBus);
     }
 
     applyCombatCrowdControlProfile(unit);

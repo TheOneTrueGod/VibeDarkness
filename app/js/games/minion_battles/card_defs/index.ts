@@ -21,6 +21,8 @@ import { AlphaWolfChargeCard } from './dark_animals/0007_AlphaWolfCharge/0007Abi
 import { AlphaWolfTripleChargeCard } from './dark_animals/0011_AlphaWolfTripleCharge/0011Ability';
 import { AlphaWolfScratchCard } from './dark_animals/0012_AlphaWolfScratch/0012Ability';
 import { SwarmlingBiteCard } from './dark_animals/0013_SwarmlingBite/0013Ability';
+import { LightEaterCard } from './dark_animals/0018_LightEater/0018Ability';
+import { PhantomDecoyCard } from './dark_animals/0019_PhantomDecoy/0019Ability';
 import { DisplacerBoltCard } from './dark_animals/0017_DisplacerBolt/0017Ability';
 import { ThornlingBiteCard } from './dark_animals/0015_ThornlingBite/0015Ability';
 import { ThornStompCard } from './0016_ThornStomp/0016Ability';
@@ -97,6 +99,8 @@ const cardDefs: CardDef[] = [
     SwarmlingBiteCard,
     ThornlingBiteCard,
     DisplacerBoltCard,
+    LightEaterCard,
+    PhantomDecoyCard,
     ThornStompCard,
     RaiseShieldCard,
     LaserShieldCard,

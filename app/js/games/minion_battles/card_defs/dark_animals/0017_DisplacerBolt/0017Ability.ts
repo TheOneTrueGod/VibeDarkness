@@ -1,13 +1,18 @@
 /**
  * DisplacerBolt - Displacer Spirit ranged ability. Aims like the slime's shot (same targeting range,
  * telegraph, and AI range) but hurls a faster bolt that keeps flying to twice that range. A ranged
- * harasser that punishes players who stand just outside slime distance.
+ * harasser that punishes players who stand just outside slime distance. When the Displacer Spirit
+ * casts it, up to three of its clones echo the shot a beat apart; clones' own casts never echo.
  */
 
-import type { AbilityStatic, AttackBlockedInfo } from '../../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStatic, AttackBlockedInfo } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import type { TargetDef } from '../../../abilities/targeting';
 import type { Unit } from '../../../game/units/Unit';
+import type { ResolvedTarget } from '../../../game/types';
+import { hasUnitTag, UnitTag } from '../../../game/units/unitTag';
+import { mirrorAbilityToClones, type MirrorEngineLike } from '../../../game/displacer/mirrorToClones';
+import { DISPLACER_BOLT_USES_PER_ROUND } from '../../../game/displacer/displacerConstants';
 import { type CardDef } from '../../types';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { deactivateProjectileOnBlock } from '../../../abilities/effectHelpers';
@@ -26,7 +31,13 @@ export const DISPLACER_BOLT_ID = CARD_ID;
 
 const LOCK_TIME = 0.5;
 const PREFIRE_TIME = 1.0;
+/** Cooldown tail after the shot; with the 1s prefire a cast cycle is 2s, so ~4 bolts fit in a round. */
+const COOLDOWN_SEC = 1.0;
 const DAMAGE = 4;
+const MAX_USES = DISPLACER_BOLT_USES_PER_ROUND;
+const RECOVERIES: AbilityRecoveryRule[] = [
+    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: MAX_USES },
+];
 const PROJECTILE_RADIUS = 5;
 const PROJECTILE_SCALE = 0.5;
 
@@ -40,7 +51,10 @@ export const DISPLACER_BOLT_TRAVEL_DISTANCE = DISPLACER_BOLT_TARGET_RANGE * 2;
 /** Projectile "lifetime" in seconds (distance / speed); the projectile expires after this much flight. */
 export const DISPLACER_BOLT_LIFETIME_SEC = DISPLACER_BOLT_TRAVEL_DISTANCE / DISPLACER_BOLT_SPEED;
 
-const TOOLTIP_LINES = ['Hurls a bolt that flies twice as far as it aims, dealing {{DAMAGE}} damage to an enemy'] as const;
+const TOOLTIP_LINES = [
+    'Hurls a bolt that flies twice as far as it aims, dealing {{DAMAGE}} damage to an enemy',
+    'Up to 3 clones echo the shot in quick succession',
+] as const;
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     DAMAGE: { kind: 'damage', base: DAMAGE },
 };
@@ -67,6 +81,8 @@ const _base: AbilityStatic = defineAbility({
     image: DISPLACER_BOLT_IMAGE,
     resourceCost: null,
     rechargeTurns: 0,
+    maxUses: MAX_USES,
+    recoveries: RECOVERIES,
     prefireTime: PREFIRE_TIME,
     abilityTimings: [
         { id: 'draw', start: 0, end: LOCK_TIME, abilityPhase: AbilityPhase.Windup },
@@ -91,12 +107,23 @@ const _base: AbilityStatic = defineAbility({
         {
             id: 'cooldown',
             start: PREFIRE_TIME,
-            end: PREFIRE_TIME + 3.0,
+            end: PREFIRE_TIME + COOLDOWN_SEC,
             abilityPhase: AbilityPhase.Cooldown,
         },
     ],
     targets: [{ type: 'pixel', label: 'Target location' }] as TargetDef[],
-    aiSettings: { minRange: 0, maxRange: DISPLACER_BOLT_TARGET_RANGE },
+    aiSettings: {
+        minRange: 0,
+        maxRange: DISPLACER_BOLT_TARGET_RANGE,
+        maxUsesPerRound: MAX_USES,
+        priority: 10,
+        ninjutsu: { ignore: true },
+    },
+    beginActiveCast(engine: unknown, caster: Unit, targets: ResolvedTarget[]): void {
+        // Clone casts are echoes: skip the mirror command so they never re-trigger it.
+        if (hasUnitTag(caster, UnitTag.Clone)) return;
+        mirrorAbilityToClones(engine as MirrorEngineLike, caster, CARD_ID, targets);
+    },
     getRange: (_caster: Unit) => ({ minRange: 0, maxRange: DISPLACER_BOLT_TARGET_RANGE }),
 
     getTooltipText(gameState?: unknown): string[] {
