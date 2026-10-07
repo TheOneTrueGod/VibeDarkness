@@ -8,7 +8,7 @@ import type { Unit } from '../../Unit';
 import type { AIContext, AINode } from '../types';
 import type { DisplacerCloneAITreeContext, DisplacerCloneNodeId } from './context';
 import { applyKiteMovement } from '../displacer/displacerKite';
-import { getVisibleEnemiesNearestFirst } from '../displacer/displacerPerception';
+import { getEnemiesInRangeNearestFirst } from '../displacer/displacerPerception';
 import { despawnIfOrphaned } from '../displacer/despawnIfOrphaned';
 
 function sight(unit: Unit): number | undefined {
@@ -21,7 +21,7 @@ export const displacerClone_attack: AINode<'displacerClone', DisplacerCloneNodeI
         execute(unit: Unit, context: AIContext): void {
             if (despawnIfOrphaned(unit, context)) return;
             const ctx = unit.aiContext as DisplacerCloneAITreeContext;
-            const target = getVisibleEnemiesNearestFirst(unit, context, sight(unit))[0];
+            const target = getEnemiesInRangeNearestFirst(unit, context, sight(unit))[0];
             if (!target) {
                 ctx.aiState = 'displacerClone_idle';
                 return;
@@ -35,7 +35,7 @@ export const displacerClone_attack: AINode<'displacerClone', DisplacerCloneNodeI
         {
             targetNodeId: 'displacerClone_idle',
             evaluate(unit: Unit, context: AIContext): boolean {
-                return getVisibleEnemiesNearestFirst(unit, context, sight(unit)).length === 0;
+                return getEnemiesInRangeNearestFirst(unit, context, sight(unit)).length === 0;
             },
         },
     ],

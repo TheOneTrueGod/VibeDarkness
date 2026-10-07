@@ -24,7 +24,7 @@ const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}18`;
 export const LIGHT_EATER_ID = CARD_ID;
 
 /** Light strength removed from the devoured source; a source at or below this is extinguished. */
-export const LIGHT_EATER_LIGHT_REDUCTION = 4;
+export const LIGHT_EATER_LIGHT_REDUCTION = 3;
 /** Super bars granted on arrival. */
 export const LIGHT_EATER_SUPER_GAIN = 1;
 /** Dark explosion damage (design range 5-10). */

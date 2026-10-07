@@ -6,7 +6,7 @@ import type { AssetRegistry } from '../AssetRegistry';
 import type { OverlayRenderer } from './OverlayRenderer';
 import type { TeamId } from '../../teams';
 import { areEnemies } from '../../teams';
-import { UnitTag, hidesWorldHpBar } from '../../units/unitTag';
+import { hidesWorldHpBar } from '../../units/unitTag';
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import { normalizeAbilityTimingsToIntervals, resolveAbilityTimingEntries, getEffectiveCastBehaviours } from '../../../abilities/abilityTimings';
 import { resolveBehaviourTimingRef } from '../../../abilities/castBehaviourTypes';

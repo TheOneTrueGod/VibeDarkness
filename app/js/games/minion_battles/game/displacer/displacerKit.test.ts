@@ -165,7 +165,7 @@ describe('super resource + unit defs', () => {
 });
 
 describe('Light Eater (0018)', () => {
-    it('teleports to the nearest light, reduces it by 4, grants +1 super, then explodes for damage', () => {
+    it('teleports to the nearest light, reduces it by LIGHT_EATER_LIGHT_REDUCTION, grants +1 super, then explodes for damage', () => {
         const engine = makeEngine();
         addLight(engine, 'near', 6, 8, 12);
         addLight(engine, 'far', 20, 8, 12);
@@ -372,22 +372,52 @@ describe('Displacer boss AI round gating', () => {
     });
 });
 
+function fakeContextForLos(gameTime: number, walking: boolean, los: (x: number) => boolean) {
+    const moves: Array<[number, number]> = [];
+    const chases: unknown[] = [];
+    let rand = -1000;
+    const context = {
+        gameTime,
+        WORLD_WIDTH: 5000,
+        WORLD_HEIGHT: 5000,
+        generateRandomInteger: (min: number) => (min === -1000 ? (rand += 330) : min),
+        hasLineOfSight: (x: number) => los(x),
+        nav: {
+            isWalking: () => walking,
+            isReachable: () => true,
+            chaseUnit: (_u: unknown, t: unknown) => chases.push(t),
+            moveToPoint: (_u: unknown, x: number, y: number) => moves.push([x, y]),
+            stop: () => undefined,
+        },
+    } as unknown as AIContext;
+    return { context, moves, chases };
+}
+
 describe('continuous kiting (boss)', () => {
-    function fakeContext(gameTime: number, walking: boolean) {
+    function fakeContext(
+        gameTime: number,
+        walking: boolean,
+        opts: { los?: (x: number, y: number) => boolean } = {},
+    ) {
         const moves: Array<[number, number]> = [];
+        const chases: unknown[] = [];
         let stops = 0;
+        let rand = -1000;
         const context = {
             gameTime,
             WORLD_WIDTH: 5000,
             WORLD_HEIGHT: 5000,
-            generateRandomInteger: (min: number) => min,
+            generateRandomInteger: (min: number) => (min === -1000 ? (rand += 400) : min),
+            hasLineOfSight: (x: number) => (opts.los ? opts.los(x, 0) : true),
             nav: {
                 isWalking: () => walking,
+                isReachable: () => true,
+                chaseUnit: (_u: unknown, t: unknown) => chases.push(t),
                 moveToPoint: (_u: unknown, x: number, y: number) => moves.push([x, y]),
                 stop: () => stops++,
             },
         } as unknown as AIContext;
-        return { context, moves, stops: () => stops };
+        return { context, moves, chases, stops: () => stops };
     }
     const unit = { x: 1000, y: 1000, aiContext: {} } as unknown as Unit;
     const target = { x: 1300, y: 1000 } as unknown as Unit;
@@ -413,6 +443,36 @@ describe('continuous kiting (boss)', () => {
         applyKiteMovement(unit, target, d.context, { continuous: true });
         expect(d.moves).toHaveLength(1);
         expect(d.stops()).toBe(0);
+    });
+});
+
+describe('line-of-sight aware kiting', () => {
+    const target = { x: 1300, y: 1000 } as unknown as Unit;
+    const mk = () => ({ x: 1000, y: 1000, aiContext: {} }) as unknown as Unit;
+
+    it('skips ring points hidden from the target and uses one that can see it', () => {
+        // Only ring points to the left of the target (x < 1300) are blocked.
+        const f = fakeContextForLos(1, false, (x) => x >= 1300);
+        applyKiteMovement(mk(), target, f.context, { continuous: true });
+        expect(f.moves).toHaveLength(1);
+        expect(f.moves[0]![0]).toBeGreaterThanOrEqual(1300);
+        expect(f.chases).toHaveLength(0);
+    });
+
+    it('closes in on the target when no ring point has line of sight', () => {
+        const f = fakeContextForLos(1, false, () => false);
+        applyKiteMovement(mk(), target, f.context, { continuous: true });
+        expect(f.moves).toHaveLength(0);
+        expect(f.chases).toEqual([target]);
+    });
+
+    it('stop/start kiting (clones) also starts a fresh move when its view is blocked and idle', () => {
+        const unit = mk();
+        (unit.aiContext as KiteState).kiteMode = 'pause';
+        (unit.aiContext as KiteState).kiteUntil = 999;
+        const f = fakeContextForLos(1, false, () => false);
+        applyKiteMovement(unit, target, f.context);
+        expect(f.chases).toEqual([target]);
     });
 });
 

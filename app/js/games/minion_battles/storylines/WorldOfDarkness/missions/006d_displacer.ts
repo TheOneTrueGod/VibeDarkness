@@ -62,9 +62,9 @@ export const ROUND_WOLF_START_ROUND = 2;
 export const ROUND_WOLF_SPAWN_RADIUS_TILES = 2;
 
 /** Lights on every Arena Ring point. */
-/** Light Eater removes 4 per bite, so 6 survives one bite (at 2) and is extinguished by the second. */
-export const ARENA_LIGHT_AMOUNT = 6;
-export const ARENA_LIGHT_RADIUS = 4;
+/** Light Eater removes 3 per bite, so a strength-4 light survives one bite (at 1) and is extinguished by the second. */
+export const ARENA_LIGHT_AMOUNT = 4;
+export const ARENA_LIGHT_RADIUS = 3;
 export const ARENA_LIGHT_HP = 5;
 
 const CENTRE_WORLD = gridToWorld(BOSS_ARENA_CENTER.col, BOSS_ARENA_CENTER.row);

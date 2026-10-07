@@ -10,7 +10,7 @@ import type { AIContext, AINode } from '../types';
 import type { DisplacerBossAITreeContext, DisplacerBossNodeId } from './context';
 import { tryQueueAbilityOrder } from '../utils';
 import { applyKiteMovement } from '../displacer/displacerKite';
-import { getVisibleEnemiesNearestFirst } from '../displacer/displacerPerception';
+import { getEnemiesInRangeNearestFirst, getVisibleEnemiesNearestFirst } from '../displacer/displacerPerception';
 
 function sight(unit: Unit): number | undefined {
     return (unit.aiContext as DisplacerBossAITreeContext).sightRadius;
@@ -22,7 +22,8 @@ export const displacerBoss_attack: AINode<'displacerBoss', DisplacerBossNodeId> 
         execute(unit: Unit, context: AIContext): void {
             const ctx = unit.aiContext as DisplacerBossAITreeContext;
             const inSight = getVisibleEnemiesNearestFirst(unit, context, sight(unit));
-            const target = inSight[0];
+            // Keep hunting the nearest player even when cover blocks the view; only casting needs sight.
+            const target = inSight[0] ?? getEnemiesInRangeNearestFirst(unit, context, sight(unit))[0];
             if (!target) {
                 ctx.aiState = 'displacerBoss_idle';
                 return;
@@ -30,7 +31,7 @@ export const displacerBoss_attack: AINode<'displacerBoss', DisplacerBossNodeId> 
             ctx.targetUnitId = target.id;
 
             applyKiteMovement(unit, target, context, { continuous: true });
-            if (tryQueueAbilityOrder(unit, context, inSight)) return;
+            if (inSight.length > 0 && tryQueueAbilityOrder(unit, context, inSight)) return;
             context.emitTurnEnd(unit.id);
         },
     },
@@ -38,7 +39,7 @@ export const displacerBoss_attack: AINode<'displacerBoss', DisplacerBossNodeId> 
         {
             targetNodeId: 'displacerBoss_idle',
             evaluate(unit: Unit, context: AIContext): boolean {
-                return getVisibleEnemiesNearestFirst(unit, context, sight(unit)).length === 0;
+                return getEnemiesInRangeNearestFirst(unit, context, sight(unit)).length === 0;
             },
         },
     ],

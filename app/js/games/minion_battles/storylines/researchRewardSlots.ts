@@ -1,6 +1,12 @@
 import type { ResearchRewardSlot, StoryChoiceOptionRow } from './storyTypes';
 import type { ResearchNodeDef } from '../../../researchTrees/types';
-import { isDisabledResearchNode, isDraftResearchNode } from '../../../researchTrees/types';
+import {
+    isDisabledResearchNode,
+    isDraftResearchNode,
+    type Requirement,
+    type ResearchTreeDef,
+} from '../../../researchTrees/types';
+import { getCoreFromEquipment } from '../character_defs/items';
 import { RESEARCH_TREES } from '../../../researchTrees/list';
 import { collectResearchedNodeIds, nodeGrantsEquippedItem } from '../../../researchTrees/evaluator';
 
@@ -119,10 +125,55 @@ function mulberry32(seed: number): () => number {
 }
 
 /**
- * Picks up to `count` distinct research nodes the player could structurally unlock right now
- * (unresearched, prereqs met, no exclusive conflicts, requirements met) and returns one reward
- * option per node. Selection is a seeded shuffle of a deterministically sorted pool, so the same
- * `seed` + same research state always yields the same options. Costs are bypassed.
+ * Strict requirement check for *random* rewards, which (unlike a designer-specified slot) must only
+ * offer what the player could legitimately unlock. Differences from `nodeRequirementsMet`:
+ * - `missionReward` nodes (e.g. every alternative Core) are story-specific grants, never random picks;
+ * - `characterHasEquippedItem` must really be equipped (no exemption for nodes that grant that item);
+ * - requirements we cannot verify here (`accountKnowledge`, `characterHasTrait`) fail closed.
+ * `campaignResourceMin` is ignored: like costs, rewards bypass resource gating.
+ */
+function requirementsStrictlyMet(
+    requirements: readonly Requirement[],
+    equippedSet: Set<string>,
+    equippedItemIds: readonly string[],
+    researched: Record<string, string[]>,
+): boolean {
+    return requirements.every((req) => {
+        switch (req.type) {
+            case 'missionReward':
+                return false;
+            case 'characterHasEquippedItem':
+                return equippedSet.has(req.itemId);
+            case 'characterHasCore':
+                return getCoreFromEquipment([...equippedItemIds]) !== null;
+            case 'anyResearched':
+                return req.nodeIds.some((id) => (researched[req.treeId] ?? []).includes(id));
+            case 'notResearched':
+                return !(researched[req.treeId] ?? []).includes(req.nodeId);
+            case 'campaignResourceMin':
+                return true;
+            default:
+                return false;
+        }
+    });
+}
+
+/** Same gate the Upgrades UI uses: a tree is open once researched in, otherwise its access requirements must hold. */
+function treeOpenForRandomReward(
+    tree: ResearchTreeDef,
+    equippedSet: Set<string>,
+    equippedItemIds: readonly string[],
+    researched: Record<string, string[]>,
+): boolean {
+    if ((researched[tree.id] ?? []).length > 0) return true;
+    return requirementsStrictlyMet(tree.accessRequirements, equippedSet, equippedItemIds, researched);
+}
+
+/**
+ * Picks up to `count` distinct research nodes the player could legitimately unlock right now
+ * (tree open, unresearched, prereqs met, no exclusive conflicts, requirements strictly met) and
+ * returns one reward option per node. Selection is a seeded shuffle of a deterministically sorted
+ * pool, so the same `seed` + same research state always yields the same options. Costs are bypassed.
  */
 export function pickRandomResearchRewardOptions(
     count: number,
@@ -135,11 +186,12 @@ export function pickRandomResearchRewardOptions(
     const allResearchedNodeIds = collectResearchedNodeIds(researched);
     const candidates: NodeCandidate[] = [];
     for (const tree of RESEARCH_TREES) {
+        if (!treeOpenForRandomReward(tree, equippedSet, equippedItemIds, researched)) continue;
         const researchedSet = new Set(researched[tree.id] ?? []);
         for (const node of tree.nodes) {
             if (isDraftResearchNode(node) || isDisabledResearchNode(node)) continue;
             if (researchedSet.has(node.id)) continue;
-            if (!nodeRequirementsMet(node, equippedSet, researched)) continue;
+            if (!requirementsStrictlyMet(node.requirements, equippedSet, equippedItemIds, researched)) continue;
             if (!nodeStructurallyAvailable(node, researchedSet, allResearchedNodeIds)) continue;
             candidates.push({ treeId: tree.id, node });
         }

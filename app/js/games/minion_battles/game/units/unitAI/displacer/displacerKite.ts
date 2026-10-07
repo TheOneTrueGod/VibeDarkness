@@ -9,6 +9,7 @@
 import type { Unit } from '../../Unit';
 import type { AIContext } from '../types';
 import { distance } from '../utils';
+import { CELL_SIZE } from '../../../../terrain/TerrainGrid';
 import {
     DISPLACER_KITE_MOVE_SEC,
     DISPLACER_KITE_ORBIT_RADIANS,
@@ -80,13 +81,29 @@ export function advanceKite(
     return { mode: 'move', startedMove: false, startedPause: false };
 }
 
-/** Walk to a point on the kite ring around `target`, drifted by the current `kiteOrbit`. */
+/** Ring-point tries per move: the drifted ring point first, then random angles around the target. */
+const KITE_DESTINATION_TRIES = 10;
+
+/**
+ * Walk to a point on the kite ring around `target` (the drifted `kiteOrbit` angle first). A point is
+ * only used when it has line of sight to the target and is reachable, so the unit never parks
+ * behind cover where it can't see or shoot. With no valid point it simply closes in on the target.
+ */
 function walkToKiteDestination(unit: Unit, target: Unit, context: AIContext, state: KiteState): void {
     const baseAngle = Math.atan2(unit.y - target.y, unit.x - target.x);
-    const angle = baseAngle + (state.kiteOrbit ?? 0);
-    const destX = Math.max(0, Math.min(context.WORLD_WIDTH, target.x + Math.cos(angle) * DISPLACER_KITE_DISTANCE));
-    const destY = Math.max(0, Math.min(context.WORLD_HEIGHT, target.y + Math.sin(angle) * DISPLACER_KITE_DISTANCE));
-    context.nav.moveToPoint(unit, destX, destY);
+    for (let i = 0; i < KITE_DESTINATION_TRIES; i++) {
+        const offset =
+            i === 0 ? (state.kiteOrbit ?? 0) : (context.generateRandomInteger(-1000, 1000) / 1000) * Math.PI;
+        const angle = baseAngle + offset;
+        const destX = Math.max(0, Math.min(context.WORLD_WIDTH, target.x + Math.cos(angle) * DISPLACER_KITE_DISTANCE));
+        const destY = Math.max(0, Math.min(context.WORLD_HEIGHT, target.y + Math.sin(angle) * DISPLACER_KITE_DISTANCE));
+        if (!context.hasLineOfSight(destX, destY, target.x, target.y)) continue;
+        if (!context.nav.isReachable(unit, Math.floor(destX / CELL_SIZE), Math.floor(destY / CELL_SIZE))) continue;
+        if (i > 0) state.kiteOrbit = offset;
+        context.nav.moveToPoint(unit, destX, destY);
+        return;
+    }
+    context.nav.chaseUnit(unit, target, { stopRange: DISPLACER_KITE_DISTANCE });
 }
 
 /**
@@ -116,6 +133,10 @@ export function applyKiteMovement(
         return;
     }
 
+    // Blocked view and not walking: start a fresh move now rather than resting behind cover.
+    if (!context.hasLineOfSight(unit.x, unit.y, target.x, target.y) && !context.nav.isWalking(unit)) {
+        state.kiteMode = undefined;
+    }
     const dist = distance(unit.x, unit.y, target.x, target.y);
     const decision = advanceKite(state, context.gameTime, dist, DISPLACER_KITE_DISTANCE, randomInt);
 
