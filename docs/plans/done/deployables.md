@@ -1,6 +1,6 @@
 # Plan: Deployables — one query/contract for things abilities leave on the map
 
-> **IMPLEMENTED 2026-10-06** (steps 1-9 and automated verification of step 10). Deployable contract/registry with providers for light sources, owned ground terrain effects (bramble) and ownerless special tiles; owner/team synced via checkpoint JSON and fingerprint; Devour Light and Lay Hands now use `findDeployables` (team match required, ownerless never matches). Open: manual browser checklist in Step 10. Follow-ups: `bright` keyword and Shining Block (0110) lights are still ownerless; Torch-effect conversion only carries an owner if effectData has one.
+> **IMPLEMENTED 2026-10-06** (steps 1-9 and automated verification of step 10). Deployable contract/registry with providers for light sources, owned ground terrain effects (bramble) and ownerless special tiles; owner/team synced via checkpoint JSON and fingerprint; Devour Light and Lay Hands now use `findDeployables` (team match required, ownerless never matches). Open: manual browser checklist in Step 10. Follow-ups: `bright` keyword and Shining Block (0110) lights now carry owner/team too; Torch-effect conversion only carries an owner if effectData has one.
 
 ## Context
 

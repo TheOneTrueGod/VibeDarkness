@@ -53,7 +53,7 @@ export const WOD_POST_CORE_QUEST_BANK_REQUIRED_CLEARS = 1;
 export const WOD_POST_CORE_QUEST_BANK_2_REQUIRED_CLEARS = 2;
 
 /** Required clears for the third Surface Quests picker. */
-export const WOD_POST_CORE_QUEST_BANK_3_REQUIRED_CLEARS = 2;
+export const WOD_POST_CORE_QUEST_BANK_3_REQUIRED_CLEARS = 3;
 
 /** A dedicated quest node is complete after one clear of its pinned quest. */
 export const WOD_DEDICATED_QUEST_REQUIRED_CLEARS = 1;

@@ -6,7 +6,8 @@
 export const WOD_CH1_MAP_X_ORIGIN = 100;
 export const WOD_CH1_MAP_COL_SPACING = 170;
 export const WOD_CH1_MAP_Y_ORIGIN = 150;
-export const WOD_CH1_MAP_ROW_SPACING = 200;
+/** Tight: row 1's dashed ring sits ~8px below row 0's name labels (circle r 28, label ~45 below centre). */
+export const WOD_CH1_MAP_ROW_SPACING = 83;
 
 export const WOD_CH1_MAP_X_COL0 = WOD_CH1_MAP_X_ORIGIN;
 export const WOD_CH1_MAP_X_COL1 = WOD_CH1_MAP_X_ORIGIN + WOD_CH1_MAP_COL_SPACING;

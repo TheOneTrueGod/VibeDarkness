@@ -108,9 +108,9 @@ describe('getUnlockedMissionIds — chapter gating', () => {
             placement: 'bank',
             bankId: WOD_POST_CORE_QUEST_BANK_3_ID,
         });
-        const bank3Done = [bankVictory('a'), bankVictory('b')];
+        const bank3Done = [bankVictory('a'), bankVictory('b'), bankVictory('c')];
         expect(
-            getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING, [bankVictory('a')]).has(
+            getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING, bank3Done.slice(0, 2)).has(
                 'campsite_2',
             ),
         ).toBe(false);

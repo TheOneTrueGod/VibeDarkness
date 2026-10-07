@@ -1,5 +1,5 @@
 /**
- * Deployable scenarios (docs/plans/deployables.md): bramble is a first-class deployable, and owned
+ * Deployable scenarios (docs/plans/done/deployables.md): bramble is a first-class deployable, and owned
  * deployables survive a checkpoint round trip. Lay Hands / Gather Light ownership filtering lives in
  * layHandsScenarios.ts / gatherLightScenario.ts.
  */
