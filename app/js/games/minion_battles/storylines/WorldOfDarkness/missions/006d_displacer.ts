@@ -21,6 +21,7 @@ import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainG
 import { TerrainType } from '../../../terrain/TerrainType';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 import { WOD_CH2_MAP_X_COL1, WOD_CH2_MAP_Y_ROW2 } from '../chapter2Map';
+import { DARKNESS_UPGRADE_NODE_EMPOWERED_SPIRITS } from '../../../../../researchTrees/trees/darkness_upgrades';
 import {
     MAP_SEGMENT_0_0_BOSS_ARENA,
     BOSS_ARENA_SEGMENT_ID,
@@ -158,6 +159,8 @@ export class DisplacerMission extends BaseMissionDef {
     mapPosition = { x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW2 };
     missionType = 'boss' as const;
     description = 'A spirit flickers in the lit circle. Its bolts fly farther than they seem to aim.';
+    /** First Darkness Upgrade: the Displacer Spirit's power empowers the slimes (and sweetens future victories). */
+    completionRewards = { darknessUpgradeIds: [DARKNESS_UPGRADE_NODE_EMPOWERED_SPIRITS] };
     campaignId = 'world_of_darkness';
     name = DISPLACER_NAME;
     worldWidth = WORLD_WIDTH;

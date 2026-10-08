@@ -67,6 +67,7 @@ export interface GameComponentProps {
             /** Host-only: fold mission-end DarknessStrength progression into this PATCH. */
             applyDarknessStrengthProgression?: boolean;
             darknessStrengthPromotions?: import('../darknessStrength/progression').DarknessStrengthDataPromotion[];
+            grantDarknessUpgradeIds?: string[];
         }
     ) => Promise<void>;
     /** Host-only: mission-end DarknessStrength progression without recording a mission result (e.g. defeat). */
@@ -139,6 +140,7 @@ interface GameScreenProps {
             controlledNpcs?: boolean;
             applyDarknessStrengthProgression?: boolean;
             darknessStrengthPromotions?: import('../darknessStrength/progression').DarknessStrengthDataPromotion[];
+            grantDarknessUpgradeIds?: string[];
         }
     ) => Promise<void>;
     /** Host-only: mission-end DarknessStrength progression without addMissionResult (defeat). */

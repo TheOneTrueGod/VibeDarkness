@@ -588,6 +588,8 @@ export interface MissionBattleConfig {
     completionRewards?: {
         knowledgeKeys?: string[];
         resourceDelta?: Partial<Record<CampaignResourceKey, number>>;
+        /** Darkness Upgrade node ids (tree `darkness_upgrades`) granted to each rewarded player's campaign. */
+        darknessUpgradeIds?: string[];
     };
     /** World modifiers active for this mission (merged with builtins and story sources at load time). */
     worldModifiers?: WorldModifierDef[];

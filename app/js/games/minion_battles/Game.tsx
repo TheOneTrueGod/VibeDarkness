@@ -94,6 +94,8 @@ interface MinionBattlesGameProps extends Pick<GameComponentProps, 'minionBattles
             controlledNpcs?: boolean;
             applyDarknessStrengthProgression?: boolean;
             darknessStrengthPromotions?: import('../../darknessStrength/progression').DarknessStrengthDataPromotion[];
+            /** Darkness Upgrade node ids to grant to this client's campaign (mission completion reward). */
+            grantDarknessUpgradeIds?: string[];
         }
     ) => Promise<void>;
     /** Host-only: mission-end DarknessStrength progression without addMissionResult (defeat). */
@@ -734,6 +736,7 @@ export default function MinionBattlesGame({
                         const missionId = selectedMissionId;
                         const missionDef = MISSION_MAP[missionId];
                         const grantKnowledgeKeys = missionDef?.completionRewards?.knowledgeKeys;
+                        const grantDarknessUpgradeIds = missionDef?.completionRewards?.darknessUpgradeIds;
                         const sel = (effective.characterSelections as Record<string, string>)?.[playerId];
                         const amSpectator = sel === SPECTATOR_ID;
                         const amNpcController = isControlEnemy(sel);
@@ -799,6 +802,9 @@ export default function MinionBattlesGame({
                                     {
                                         ...(amNpcController ? { controlledNpcs: true } : {}),
                                         ...(isHost ? { applyDarknessStrengthProgression: true } : {}),
+                                        ...(!skipRewards && grantDarknessUpgradeIds?.length
+                                            ? { grantDarknessUpgradeIds }
+                                            : {}),
                                     }
                                 );
                                 setMissionRewards(
@@ -905,6 +911,7 @@ export default function MinionBattlesGame({
                         } else {
                             const missionDef = MISSION_MAP[missionId];
                             const grantKnowledgeKeys = missionDef?.completionRewards?.knowledgeKeys;
+                            const grantDarknessUpgradeIds = missionDef?.completionRewards?.darknessUpgradeIds;
                             const sel = (effective.characterSelections as Record<string, string>)?.[playerId];
                             const amSpectator = sel === SPECTATOR_ID;
                             const amNpcController = isControlEnemy(sel);
@@ -949,6 +956,9 @@ export default function MinionBattlesGame({
                                         {
                                             ...(amNpcController ? { controlledNpcs: true } : {}),
                                             ...(isHost ? { applyDarknessStrengthProgression: true } : {}),
+                                            ...(!skipRewards && grantDarknessUpgradeIds?.length
+                                                ? { grantDarknessUpgradeIds }
+                                                : {}),
                                         }
                                     );
                                     setMissionRewards(

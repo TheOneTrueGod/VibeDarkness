@@ -20,10 +20,11 @@ function emptyState(): DarknessUpgradesState {
     return { researchTrees: {}, researchNodeLevels: {}, researchNodeSources: {} };
 }
 
-/** Admin grant of one level of a darkness upgrade node (pure; never mutates input). Source is Admin. */
+/** Grant one level of a darkness upgrade node (pure; never mutates input). Source defaults to Admin. */
 export function grantDarknessUpgradeNode(
     state: DarknessUpgradesState | undefined,
     nodeId: string,
+    source: ResearchSource = ResearchSource.Admin,
 ): DarknessUpgradesState {
     const base = state ?? emptyState();
     const tree = getResearchTree(DARKNESS_UPGRADES_TREE_ID);
@@ -60,7 +61,7 @@ export function grantDarknessUpgradeNode(
             ...base.researchNodeSources,
             [DARKNESS_UPGRADES_TREE_ID]: {
                 ...(base.researchNodeSources[DARKNESS_UPGRADES_TREE_ID] ?? {}),
-                [nodeId]: [...prevSources, ResearchSource.Admin],
+                [nodeId]: [...prevSources, source],
             },
         },
     };

@@ -53,6 +53,8 @@ import {
     type DarknessStrengthDataPromotion,
 } from './darknessStrength/progression';
 import { resolveCampaignInstanceId } from './resolveCampaignInstanceId';
+import { grantDarknessUpgradeNode } from './researchTrees/darknessUpgrades';
+import { ResearchSource } from './researchTrees/types';
 
 const LOBBY_PATH_PREFIX = '/lobby/';
 
@@ -1227,6 +1229,8 @@ function AppInner() {
                 /** Host-only: fold mission-end DarknessStrength progression into this PATCH. */
                 applyDarknessStrengthProgression?: boolean;
                 darknessStrengthPromotions?: DarknessStrengthDataPromotion[];
+                /** Darkness Upgrade node ids to grant to this campaign (mission completion reward). */
+                grantDarknessUpgradeIds?: string[];
             }
         ) => {
             const campaignId = resolveCampaignInstanceId(currentCampaignId, user?.campaignIds);
@@ -1245,7 +1249,17 @@ function AppInner() {
                         }
                     );
                 }
+                let darknessUpgrades: import('./types').CampaignState['darknessUpgrades'] | undefined;
+                if (result === 'victory' && options?.grantDarknessUpgradeIds?.length) {
+                    const campaign = await lobbyClient.getCampaign(campaignId);
+                    const granted = options.grantDarknessUpgradeIds.reduce(
+                        (state, nodeId) => grantDarknessUpgradeNode(state, nodeId, ResearchSource.QuestReward),
+                        campaign.darknessUpgrades,
+                    );
+                    if (granted !== campaign.darknessUpgrades) darknessUpgrades = granted;
+                }
                 await lobbyClient.updateCampaign(campaignId, {
+                    ...(darknessUpgrades ? { darknessUpgrades } : {}),
                     addMissionResult: {
                         missionId,
                         result,
