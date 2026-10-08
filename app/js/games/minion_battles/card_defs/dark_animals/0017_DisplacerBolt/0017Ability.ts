@@ -14,11 +14,7 @@ import { Projectile } from '../../../game/projectiles/Projectile';
 import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 import { hasUnitTag, UnitTag } from '../../../game/units/unitTag';
 import { mirrorAbilityToClones, type MirrorEngineLike } from '../../../game/displacer/mirrorToClones';
-import {
-    DISPLACER_BOLT_ENRAGED_SECOND_SHOT_DELAY_SEC,
-    DISPLACER_BOLT_USES_PER_ROUND,
-} from '../../../game/displacer/displacerConstants';
-import { getDirectionFromTo, getPixelTargetPosition } from '../../../abilities/targetHelpers';
+import { DISPLACER_BOLT_USES_PER_ROUND } from '../../../game/displacer/displacerConstants';
 import { type CardDef } from '../../types';
 import { DIRECTIONAL_ORB_LOOK } from '../../../game/projectiles/projectile_defs/directionalOrb';
 import type { SpriteProjectileConfig } from '../../../game/projectiles/projectile_defs/types';
@@ -37,10 +33,13 @@ import {
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}17`;
 export const DISPLACER_BOLT_ID = CARD_ID;
 
-const LOCK_TIME = 0.5;
-const PREFIRE_TIME = 1.0;
+export const DISPLACER_BOLT_LOCK_TIME = 0.5;
+const LOCK_TIME = DISPLACER_BOLT_LOCK_TIME;
+export const DISPLACER_BOLT_PREFIRE_TIME = 1.0;
+const PREFIRE_TIME = DISPLACER_BOLT_PREFIRE_TIME;
 /** Cooldown tail after the shot; with the 1s prefire a cast cycle is 2s, so ~4 bolts fit in a round. */
-const COOLDOWN_SEC = 1.0;
+export const DISPLACER_BOLT_COOLDOWN_SEC = 1.0;
+const COOLDOWN_SEC = DISPLACER_BOLT_COOLDOWN_SEC;
 /** Bolt damage (shared with Light Eater's ring of bolts). */
 export const DISPLACER_BOLT_DAMAGE = 4;
 const DAMAGE = DISPLACER_BOLT_DAMAGE;
@@ -65,7 +64,7 @@ export const DISPLACER_BOLT_LIFETIME_SEC = DISPLACER_BOLT_TRAVEL_DISTANCE / DISP
 const TOOLTIP_LINES = [
     'Hurls a bolt that flies twice as far as it aims, dealing {{DAMAGE}} damage to an enemy',
     'Up to 3 clones echo the shot in quick succession',
-    'When enraged, a second bolt follows shortly after',
+    'Enraged, the spirit uses a faster, more frequent version',
 ] as const;
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     DAMAGE: { kind: 'damage', base: DAMAGE },
@@ -114,7 +113,7 @@ export function spawnDisplacerBoltProjectile(
     return projectile;
 }
 
-const DISPLACER_BOLT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+export const DISPLACER_BOLT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <radialGradient id="g" cx="40%" cy="35%" r="60%">
       <stop offset="0%" stop-color="#d9f0ff"/>
@@ -160,6 +159,8 @@ const _base: AbilityStatic = defineAbility({
         },
     ],
     targets: [{ type: 'pixel', label: 'Target location' }] as TargetDef[],
+    // The enraged spirit swaps to the faster Frenzied Displacer Bolt (0020).
+    forbiddenTags: [UnitTag.Enraged],
     aiSettings: {
         minRange: 0,
         maxRange: DISPLACER_BOLT_TARGET_RANGE,
@@ -190,20 +191,6 @@ const _base: AbilityStatic = defineAbility({
 export const DisplacerBoltAbility: AbilityStatic = {
     ..._base,
 
-    /**
-     * Enraged spirit double-taps: a second bolt follows a beat after the first, thrown from where the
-     * spirit now stands at the originally targeted spot. Clones (never enraged) keep single shots.
-     */
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        if (!hasUnitTag(caster, UnitTag.Enraged) || hasUnitTag(caster, UnitTag.Clone)) return;
-        const fireAt = LOCK_TIME + DISPLACER_BOLT_ENRAGED_SECOND_SHOT_DELAY_SEC;
-        if (!(prevTime < fireAt && currentTime >= fireAt)) return;
-        const aim = getPixelTargetPosition(targets, 0);
-        if (!aim) return;
-        const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, aim.x, aim.y);
-        if (dist === 0) return;
-        spawnDisplacerBoltProjectile(engine as Pick<AbilityEngineContext, 'addProjectile'>, caster, dirX, dirY);
-    },
     // Same telegraph as the slime (aim line capped at the slime's targeting range).
     renderActivePreview: SlimeShotAbility.renderActivePreview,
 };

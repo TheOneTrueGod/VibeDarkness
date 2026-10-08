@@ -50,7 +50,9 @@ export const LIGHT_EATER_ROUND_WINDOW = { start: 0.25, end: 0.75 } as const; // 
 /** Light Eater is usable only every other round (rounds 0, 2, 4, ...). */
 export const LIGHT_EATER_ROUND_INTERVAL = 2;
 export const DISPLACER_BOLT_USES_PER_ROUND = 4;
-/** Enraged spirit fires a second bolt this many seconds after the first. */
-export const DISPLACER_BOLT_ENRAGED_SECOND_SHOT_DELAY_SEC = 0.3;
+/** Enraged spirit runs its bolt cast and the clone echoes on this fraction of the normal durations (30% faster). */
+export const DISPLACER_BOLT_ENRAGED_TIME_SCALE = 0.7;
+/** Enraged bolt capacity per round (calm is DISPLACER_BOLT_USES_PER_ROUND): an extra couple of shots. */
+export const DISPLACER_BOLT_ENRAGED_USES_PER_ROUND = 6;
 /** Enraged Light Eater looses this many times the usual ring of bolts. */
 export const LIGHT_EATER_ENRAGED_RING_MULTIPLIER = 2;
