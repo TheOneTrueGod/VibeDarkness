@@ -27,6 +27,7 @@ import { InterruptSystem } from './units/unitAI/plans/InterruptSystem';
 import { WorldModifierManager } from '../worldModifiers/WorldModifierManager';
 import type { NinjutsuManager } from './ninjutsu/NinjutsuManager';
 import { MapNetworkManager } from './managers/mapNetwork/MapNetworkManager';
+import type { PassiveBonuses } from '../../../researchTrees/types';
 import type { ActiveDarknessStrength } from '../../../darknessStrength/resolve';
 
 export class GameState {
@@ -104,6 +105,18 @@ export class GameState {
      * Serialized as instance crumbs; defs reattached from the registry on restore.
      */
     activeDarknessStrengths: ActiveDarknessStrength[] = [];
+
+    /**
+     * Host's Darkness Upgrades passive bonuses (see `resolveActiveDarknessUpgrades`).
+     * Serialized in checkpoints so recovery/refresh keeps them.
+     */
+    darknessUpgradeBonuses: PassiveBonuses = {};
+
+    /**
+     * Node ids of the host's active Darkness Upgrades (see `resolveActiveDarknessUpgrades`).
+     * Every human player's victory bonus rewards derive from these. Serialized in checkpoints.
+     */
+    darknessUpgradeNodeIds: string[] = [];
 
     /** AI controller ID for enemy units. */
     aiControllerId: string | null = null;

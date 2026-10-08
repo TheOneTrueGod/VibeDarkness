@@ -91,6 +91,10 @@ export enum PassiveStatKey {
     MovementRegenPerRound = 'movementRegenPerRound',
     /** Presence (add > 0) unlocks Light's tile-based per-round recovery. */
     LightRegenEnabled = 'lightRegenEnabled',
+    /** Darkness upgrade: flat max health added to enemy slimes (`enemy_unit_<characterId>_<stat>`). */
+    EnemyUnitSlimeMaxHealthBonus = 'enemy_unit_slime_max_health_bonus',
+    /** Darkness upgrade: extra wedge projectiles fired by enemy slimes. */
+    EnemyUnitSlimeExtraProjectiles = 'enemy_unit_slime_extra_projectiles',
 }
 
 /** Per-stat add/mult contribution from a passive node (totals at max level). */
@@ -173,6 +177,11 @@ export interface ResearchNodeDef {
      * `floor(add * L / Max)` and `(mult - 1) * L / Max`.
      */
     passiveBonus?: PassiveBonusMap;
+    /**
+     * Extra resources granted at the end of a victorious mission while this node is active
+     * (darkness upgrades). Scaled per level for levelled nodes.
+     */
+    bonusRewards?: Partial<Record<CampaignResourceKey, number>>;
 }
 
 /** True when the node is WIP and must not appear in research selection / discovery. */

@@ -170,6 +170,10 @@ export interface SerializedGameState {
      * Defs are reattached from the static registry on restore.
      */
     activeDarknessStrengths?: import('../../../darknessStrength/types').DarknessStrengthInstance[];
+    /** Host's Darkness Upgrades passive bonus bag (omitted when empty). */
+    darknessUpgradeBonuses?: import('../../../researchTrees/types').PassiveBonuses;
+    /** Host's active Darkness Upgrade node ids (omitted when none). */
+    darknessUpgradeNodeIds?: string[];
     /** Serialized ninjutsu pool configs and runtime state (budget, delay). */
     ninjutsuPools?: import('./ninjutsu/NinjutsuPool').SerializedNinjutsuPool[];
     /**

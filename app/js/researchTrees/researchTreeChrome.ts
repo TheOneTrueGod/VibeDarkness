@@ -27,6 +27,8 @@ export const RESEARCH_TREE_COLOUR_GRAVITY = '#a855f7';
 export const RESEARCH_TREE_COLOUR_COMMAND = '#f59e0b';
 /** Blood red — Blood Mage. */
 export const RESEARCH_TREE_COLOUR_BLOOD_MAGE = '#f87171';
+/** Deep indigo — Darkness Upgrades (reuses the generic icon). */
+export const RESEARCH_TREE_COLOUR_DARKNESS = '#6366f1';
 /** Cool sky — Training, Lightbearer, and other generic trees. */
 export const RESEARCH_TREE_COLOUR_GENERIC = '#7dd3fc';
 

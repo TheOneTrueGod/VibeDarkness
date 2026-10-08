@@ -49,6 +49,11 @@ import type { CampaignResourceKey } from '../../types';
 import { withExhaustionDelta, applyHealWoundsToExhaustion } from './storylines/matchExhaustion';
 import { mergeResourceDeltas } from '../../campaignResources';
 import {
+    getDarknessUpgradeRewardEntriesForNodeIds,
+    mergeDarknessUpgradeRewards,
+    type DarknessUpgradeRewardLineItem,
+} from '../../researchTrees/darknessUpgradeRewards';
+import {
     applyEnduranceCapToExtras,
     upsertCharacterMissionResultList,
     type CharacterMissionResultExtras,
@@ -96,6 +101,8 @@ interface MinionBattlesGameProps extends Pick<GameComponentProps, 'minionBattles
         outcome: 'victory' | 'defeat',
         promotions?: import('../../darknessStrength/progression').DarknessStrengthDataPromotion[]
     ) => Promise<void>;
+    /** Loads this client's campaign Darkness Upgrades; only the host resolves its battle bag from it (rewards use the engine's active node ids for all players). */
+    onLoadDarknessUpgrades?: () => Promise<import('../../types').DarknessUpgradesState | undefined>;
     /** Called when user clicks Leave in the defeat modal; receives the character id they were playing (undefined for spectators). */
     onLeave?: (characterId?: string) => void;
     /** Called when the player presses Continue after a victory; passes the campaign character id they
@@ -131,6 +138,7 @@ export default function MinionBattlesGame({
     onSidebarInfoChange,
     onRecordMissionResult,
     onDarknessStrengthMissionEnd,
+    onLoadDarknessUpgrades,
     onLeave,
     onContinue,
     onTryAgain,
@@ -366,8 +374,32 @@ export default function MinionBattlesGame({
         researchRewardIds?: string[];
         researchRewards?: MissionResearchRewardEntry[];
         healWounds?: number;
+        darknessUpgradeLines?: DarknessUpgradeRewardLineItem[];
     } | null>(null);
     const matchExhaustionRef = useRef(0);
+
+    /** Host's active Darkness Upgrade node ids, reported by BattlePhase once the engine is loaded (all clients). */
+    const activeDarknessUpgradeNodeIdsRef = useRef<string[]>([]);
+    const handleActiveDarknessUpgradeNodeIds = useCallback((nodeIds: string[]) => {
+        activeDarknessUpgradeNodeIdsRef.current = nodeIds;
+    }, []);
+
+    /**
+     * Darkness Upgrade bonus rewards folded into a victory resource delta. The host's upgrades define
+     * the active set; every human player receives it (each client writes only its own campaign).
+     * Spectators/NPC controllers pass `enabled = false` and get nothing.
+     */
+    const applyDarknessUpgradeVictoryRewards = (
+        base: Partial<Record<CampaignResourceKey, number>> | undefined,
+        enabled: boolean,
+    ) => {
+        if (!enabled) return { resourceDelta: base, lineItems: [] as DarknessUpgradeRewardLineItem[] };
+        return mergeDarknessUpgradeRewards(
+            base,
+            getDarknessUpgradeRewardEntriesForNodeIds(activeDarknessUpgradeNodeIdsRef.current),
+            true,
+        );
+    };
 
     /**
      * Advance or complete the active quest run after mission victory.
@@ -716,25 +748,30 @@ export default function MinionBattlesGame({
                         );
                         // Mid-quest: queue resource Campaign Rewards on the Quest Character;
                         // apply them only on quest clear (not via this mission result).
-                        const victoryResourceDelta = skipRewards
+                        const baseVictoryResourceDelta = skipRewards
                             ? undefined
                             : mergeResourceDeltas(
                                 missionDef?.completionRewards?.resourceDelta,
                                 rewards.resourceDelta,
                             );
-                        const deferResourcesToQuest =
-                            !!questLobbyFields && !skipRewards && victoryResourceDelta != null;
                         const exhaustion = skipRewards
                             ? 0
                             : applyHealWoundsToExhaustion(matchExhaustionRef.current, rewards.healWounds);
-                        const recordedDelta = withExhaustionDelta(
-                            skipRewards || deferResourcesToQuest ? undefined : victoryResourceDelta,
-                            exhaustion,
-                        );
                         // Serialize character PATCHes first so endurance can cap exhaustion
                         // before the campaign write and victory modal.
                         void (async () => {
                             try {
+                                const { resourceDelta: victoryResourceDelta, lineItems: darknessUpgradeLines } =
+                                    applyDarknessUpgradeVictoryRewards(
+                                        baseVictoryResourceDelta,
+                                        !skipRewards,
+                                    );
+                                const deferResourcesToQuest =
+                                    !!questLobbyFields && !skipRewards && victoryResourceDelta != null;
+                                const recordedDelta = withExhaustionDelta(
+                                    skipRewards || deferResourcesToQuest ? undefined : victoryResourceDelta,
+                                    exhaustion,
+                                );
                                 const savedExtras = await persistCharacterMissionResult(
                                     missionId,
                                     'victory',
@@ -773,6 +810,7 @@ export default function MinionBattlesGame({
                                                   victoryResourceDelta,
                                                   cappedDelta?.exhaustion ?? 0,
                                               ),
+                                              darknessUpgradeLines,
                                               itemFromFirstChoice:
                                                   rewards.itemFromFirstChoice ?? itemIds[0] ?? undefined,
                                           }
@@ -836,6 +874,8 @@ export default function MinionBattlesGame({
                     missionId={selectedMissionId ?? ''}
                     initialGameState={battleInitState}
                     onSidebarInfoChange={onSidebarInfoChange}
+                    onLoadDarknessUpgrades={onLoadDarknessUpgrades}
+                    onActiveDarknessUpgradeNodeIds={handleActiveDarknessUpgradeNodeIds}
                     onEmittedChatMessage={onEmittedChatMessage}
                     onBattleNetResyncingChange={onBattleNetResyncingChange}
                     headerSlot={headerSlot}
@@ -871,12 +911,17 @@ export default function MinionBattlesGame({
                             const skipRewards = amSpectator || amNpcController;
                             const startingItemIds = skipRewards ? [] : getStartingItemIdsForPlayer(missionId, playerId);
                             const exhaustion = skipRewards ? 0 : matchExhaustionRef.current;
-                            const victoryResourceDelta = skipRewards
+                            const baseVictoryResourceDelta = skipRewards
                                 ? undefined
                                 : missionDef?.completionRewards?.resourceDelta;
-                            const recordedDelta = withExhaustionDelta(victoryResourceDelta, exhaustion);
                             void (async () => {
                                 try {
+                                    const { resourceDelta: victoryResourceDelta, lineItems: darknessUpgradeLines } =
+                                        applyDarknessUpgradeVictoryRewards(
+                                            baseVictoryResourceDelta,
+                                            !skipRewards,
+                                        );
+                                    const recordedDelta = withExhaustionDelta(victoryResourceDelta, exhaustion);
                                     const savedExtras = await persistCharacterMissionResult(
                                         missionId,
                                         'victory',
@@ -912,6 +957,7 @@ export default function MinionBattlesGame({
                                             : {
                                                   itemFromFirstChoice: startingItemIds[0] ?? undefined,
                                                   resourceDelta: cappedDelta,
+                                                  darknessUpgradeLines,
                                               }
                                     );
                                     await prepareQuestVictoryContinue();

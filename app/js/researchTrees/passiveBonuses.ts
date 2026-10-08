@@ -4,6 +4,7 @@
  */
 
 import { RESEARCH_TREES } from './list';
+import { DARKNESS_UPGRADES_TREE_ID } from './trees/darkness_upgrades';
 import type {
     PassiveBonusEntry,
     PassiveBonuses,
@@ -114,10 +115,13 @@ function contributeEntry(
 export function computePassiveBonuses(
     researchTrees: Record<string, string[]> | undefined,
     researchNodeLevels?: ResearchNodeLevels,
+    /** Which trees to aggregate. Default: every tree except Darkness Upgrades (player-level, never character). */
+    treeFilter: (treeId: string) => boolean = (treeId) => treeId !== DARKNESS_UPGRADES_TREE_ID,
 ): PassiveBonuses {
     const result: PassiveBonuses = {};
 
     for (const tree of RESEARCH_TREES) {
+        if (!treeFilter(tree.id)) continue;
         for (const node of tree.nodes) {
             if (!node.passiveBonus) continue;
             const level = getNodeLevel(tree.id, node.id, researchTrees, researchNodeLevels);

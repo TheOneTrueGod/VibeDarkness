@@ -6,6 +6,7 @@
  * Each ability class holds all its properties as statics.
  */
 
+import type { PassiveBonuses } from '../../../researchTrees/types';
 import type { TargetDef } from './targeting';
 import type { ResolvedTarget } from '../game/types';
 import type { ActiveAbility } from '../game/types';
@@ -555,6 +556,8 @@ export interface AbilityStatic {
         caster: Unit,
         activeAbility: ActiveAbility,
         gameTime: number,
+        /** Engine context for previews that depend on run-wide state (e.g. darkness upgrades). */
+        engine?: { darknessUpgradeBonuses?: PassiveBonuses },
     ): void;
 
     /**

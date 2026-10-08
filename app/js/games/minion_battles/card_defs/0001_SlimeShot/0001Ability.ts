@@ -14,6 +14,15 @@ import { isAbilityNote } from '../../game/AbilityNote';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
 import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
+import type { ProjectileLaunchBehaviour } from '../../abilities/CastBehaviours/ProjectileLaunchBehaviour';
+import type { CastBehaviour, CastBehaviourSetupContext } from '../../abilities/castBehaviourTypes';
+import { findMeleeAimPixelInTargets } from '../../abilities/targeting';
+import {
+    computeSlimeWedgeDirections,
+    getSlimeExtraProjectileCount,
+    getSlimeWedgePreviewLength,
+} from './slimeWedge';
+import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
 import { defineAbility } from '../../abilities/defineAbility';
 import { resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
 import {
@@ -67,6 +76,42 @@ function getTargetPosition(caster: Unit, active: { targets: ResolvedTarget[] }):
     return getPixelTargetPosition(active.targets, 0);
 }
 
+const WEDGE_RED = 0xff8a8a;
+
+/** Darkness-upgrade extra projectile count for this caster (enemy team only; 0 without the bag). */
+function getWedgeCount(caster: Unit, bonuses: AbilityEngineContext['darknessUpgradeBonuses']): number {
+    if (caster.teamId !== 'enemy') return 0;
+    return getSlimeExtraProjectileCount(bonuses);
+}
+
+/**
+ * Wraps the standard projectile launch: fires the main glob, then (Empowered Spirits) extra
+ * globs in a wedge around the aim direction at the same range and damage.
+ */
+class SlimeShotLaunch implements CastBehaviour {
+    readonly handlesOnProjectileHit = true as const;
+    constructor(private readonly inner: ProjectileLaunchBehaviour) {}
+
+    onSetup(ctx: CastBehaviourSetupContext): void {
+        this.inner.onSetup(ctx);
+        const extra = getWedgeCount(ctx.caster, ctx.engine.darknessUpgradeBonuses);
+        if (extra <= 0) return;
+        const aim =
+            findMeleeAimPixelInTargets(ctx.allTargets) ??
+            (ctx.target?.type === 'pixel' ? ctx.target.position : null) ??
+            getPixelTargetPosition(ctx.allTargets, 0);
+        if (!aim) return;
+        const { dist } = getDirectionFromTo(ctx.caster.x, ctx.caster.y, aim.x, aim.y);
+        if (dist === 0) return;
+        const aimAngle = Math.atan2(aim.y - ctx.caster.y, aim.x - ctx.caster.x);
+        for (const angle of computeSlimeWedgeDirections(aimAngle, extra)) {
+            const pos = { x: ctx.caster.x + Math.cos(angle) * dist, y: ctx.caster.y + Math.sin(angle) * dist };
+            const target: ResolvedTarget = { type: 'pixel', position: pos };
+            this.inner.onSetup({ ...ctx, target, allTargets: [target] });
+        }
+    }
+}
+
 const _base: AbilityStatic = defineAbility({
     id: CARD_ID,
     name: 'Slime Shot',
@@ -82,7 +127,7 @@ const _base: AbilityStatic = defineAbility({
             end: PREFIRE_TIME,
             abilityPhase: AbilityPhase.Active,
             doNotRefund: true,
-            behaviour: CastBehaviours.ProjectileLaunch()
+            behaviour: new SlimeShotLaunch(CastBehaviours.ProjectileLaunch()
                 .withSpeed(PROJECTILE_SPEED)
                 .withMaxRange(MAX_PROJECTILE_DISTANCE)
                 .withBaseDamage(DAMAGE)
@@ -90,7 +135,7 @@ const _base: AbilityStatic = defineAbility({
                 .withSpriteConfig({
                     sprite: { fps: 8, scale: PROJECTILE_SCALE, frameFiles: [SLIME_SPIT_F1_URL, SLIME_SPIT_F2_URL, SLIME_SPIT_F3_URL, SLIME_SPIT_F4_URL] },
                     loop: true,
-                }),
+                })),
         },
         {
             id: 'cooldown',
@@ -124,6 +169,7 @@ export const SlimeShotAbility: AbilityStatic = {
         caster: Unit,
         activeAbility: { startTime: number; targets: ResolvedTarget[] },
         gameTime: number,
+        engine?: { darknessUpgradeBonuses?: AbilityEngineContext['darknessUpgradeBonuses'] },
     ): void {
         const elapsed = gameTime - activeAbility.startTime;
         // The glob launches the instant the aim phase ends (the Active interval starts at LOCK_TIME),
@@ -163,6 +209,18 @@ export const SlimeShotAbility: AbilityStatic = {
             gr.moveTo(caster.x, caster.y);
             gr.lineTo(caster.x + rightX * lineLen, caster.y + rightY * lineLen);
             gr.stroke({ color: RED, width: 2, alpha: sideAlpha });
+        }
+
+        // Empowered Spirits: short, pale, non-narrowing lines for the extra wedge shots.
+        const wedgeCount = getWedgeCount(caster, engine?.darknessUpgradeBonuses);
+        if (wedgeCount > 0) {
+            const wedgeLen = getSlimeWedgePreviewLength(caster.radius);
+            const aimAngle = Math.atan2(uy, ux);
+            for (const angle of computeSlimeWedgeDirections(aimAngle, wedgeCount)) {
+                gr.moveTo(caster.x, caster.y);
+                gr.lineTo(caster.x + Math.cos(angle) * wedgeLen, caster.y + Math.sin(angle) * wedgeLen);
+                gr.stroke({ color: WEDGE_RED, width: 1.5, alpha: 0.5 });
+            }
         }
 
         gr.circle(aimEndX, aimEndY, 7);

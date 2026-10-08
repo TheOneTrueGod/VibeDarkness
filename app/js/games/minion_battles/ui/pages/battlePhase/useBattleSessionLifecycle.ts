@@ -7,6 +7,8 @@ import { BattleSession, type BattleSessionEvent } from '../../../game/BattleSess
 import { createBattleNet, type BattleNet, type BattleNetSyncTerminalStatus } from '../../../game/battlenet';
 import { runBattleBootstrap, type BattleInitPhase } from '../../../game/battleBootstrap';
 import type { BattleNetSyncWireResult } from './useBattleNetSyncState';
+import type { DarknessUpgradesState } from '../../../../../types';
+import { resolveBattleDarknessUpgrades } from '../../../../../researchTrees/darknessUpgradeRewards';
 
 export type { BattleInitPhase };
 
@@ -18,6 +20,9 @@ interface UseBattleSessionLifecycleParams {
     players: Record<string, PlayerState>;
     characterSelections: Record<string, string>;
     initialGameState?: Record<string, unknown> | null;
+    onLoadDarknessUpgrades?: () => Promise<DarknessUpgradesState | undefined>;
+    /** Reports the host's active upgrade node ids once the engine is loaded (all clients). */
+    onActiveDarknessUpgradeNodeIds?: (nodeIds: string[]) => void;
     onVictory?: (missionResult: string, exhaustion?: number) => void;
     onDefeat?: () => void;
     onEmittedChatMessage?: (entry: MessageEntry) => void;
@@ -37,6 +42,8 @@ export function useBattleSessionLifecycle({
     players,
     characterSelections,
     initialGameState,
+    onLoadDarknessUpgrades,
+    onActiveDarknessUpgradeNodeIds,
     onVictory,
     onDefeat,
     onEmittedChatMessage,
@@ -81,29 +88,53 @@ export function useBattleSessionLifecycle({
             current: () => {},
         };
 
-        void runBattleBootstrap({
-            session,
-            net,
-            netRef,
-            api,
-            missionId,
-            playerId,
-            isHost,
-            players,
-            characterSelections,
-            initialGameState,
-            isAlive: () => effectAlive,
-            onPhase: setBattleInitPhase,
-            wireNet: wireNetEvents,
-            registerCleanup: (cleanup) => {
-                const prevCleanup = cleanupRef.current;
-                cleanupRef.current = () => {
-                    cleanup();
-                    prevCleanup();
-                };
-            },
-            onFatalMissingSeed: () => setNetSyncStatus('failed'),
-        });
+        void (async () => {
+            // Host-only: resolve the host's Darkness Upgrades into the bag that lands in the initial
+            // snapshot. Non-hosts get `undefined` and read the bag from that snapshot instead.
+            let resolvedUpgrades: ReturnType<typeof resolveBattleDarknessUpgrades>;
+            if (isHost) {
+                let localDarknessUpgrades: DarknessUpgradesState | undefined;
+                try {
+                    localDarknessUpgrades = await onLoadDarknessUpgrades?.();
+                } catch {
+                    localDarknessUpgrades = undefined;
+                }
+                resolvedUpgrades = resolveBattleDarknessUpgrades({
+                    isHost,
+                    playerId,
+                    players,
+                    localDarknessUpgrades,
+                });
+            }
+            await runBattleBootstrap({
+                session,
+                net,
+                netRef,
+                api,
+                missionId,
+                playerId,
+                isHost,
+                players,
+                characterSelections,
+                initialGameState,
+                darknessUpgradeBonuses: resolvedUpgrades?.bonuses,
+                darknessUpgradeNodeIds: resolvedUpgrades?.activeNodeIds,
+                isAlive: () => effectAlive,
+                onPhase: setBattleInitPhase,
+                wireNet: wireNetEvents,
+                registerCleanup: (cleanup) => {
+                    const prevCleanup = cleanupRef.current;
+                    cleanupRef.current = () => {
+                        cleanup();
+                        prevCleanup();
+                    };
+                },
+                onFatalMissingSeed: () => setNetSyncStatus('failed'),
+            });
+            if (effectAlive) {
+                onActiveDarknessUpgradeNodeIds?.(session.getEngine()?.darknessUpgradeNodeIds ?? []);
+            }
+        })();
 
         return () => {
             effectAlive = false;

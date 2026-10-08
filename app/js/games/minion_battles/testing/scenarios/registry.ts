@@ -25,6 +25,7 @@ import {
     enemyArcherShotScenario,
 } from './general/enemies';
 import { npcControlScenario } from './general/npcControl';
+import { empoweredSpiritsScenario } from './general/darknessUpgrades';
 import {
     punchChargingScenario,
     punchDoubleScenario,
@@ -182,6 +183,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     npcControlScenario,
     exposedDurationExtensionScenario,
     enemyArcherShotScenario,
+    empoweredSpiritsScenario,
     swarmlingHuntAndBiteScenario,
     swarmlingSharedConstructionScenario,
     swarmlingContestsOccupiedNestScenario,
@@ -328,6 +330,7 @@ const GENERAL_GROUP_ORDER: { slug: string; section: string }[] = [
     { slug: 'ai', section: 'AI' },
     { slug: 'world-modifiers', section: 'World Modifiers' },
     { slug: 'darkness-strength', section: 'Darkness Strength' },
+    { slug: 'darkness-upgrades', section: 'Darkness Upgrades' },
     { slug: 'death-vfx', section: 'Death VFX' },
     { slug: 'ability-emitter-vfx', section: 'Ability Emitter VFX' },
 ];

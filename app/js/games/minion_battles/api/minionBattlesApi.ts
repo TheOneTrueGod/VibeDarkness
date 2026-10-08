@@ -108,6 +108,14 @@ export class MinionBattlesApi {
         return this.lobbyClient.resetCampaignResources(campaignId);
     }
 
+    /** Persist the player's admin-granted Darkness Upgrades (PATCH key `darknessUpgrades`). */
+    async updateCampaignDarknessUpgrades(
+        campaignId: string,
+        darknessUpgrades: NonNullable<CampaignState['darknessUpgrades']>,
+    ): Promise<CampaignState> {
+        return this.lobbyClient.updateCampaign(campaignId, { darknessUpgrades });
+    }
+
     /**
      * Remove mission results for a single storyline from a campaign.
      * Other mission results are preserved.

@@ -74,6 +74,8 @@ export interface GameComponentProps {
         outcome: 'victory' | 'defeat',
         promotions?: import('../darknessStrength/progression').DarknessStrengthDataPromotion[]
     ) => Promise<void>;
+    /** Loads this client's campaign Darkness Upgrades (only the host's are used in battle and for rewards). */
+    onLoadDarknessUpgrades?: () => Promise<import('../types').DarknessUpgradesState | undefined>;
     /** Called when user leaves (e.g. from defeat modal). */
     onLeave?: () => void;
     /** Called when the player presses Continue after a victory; passes the campaign character id they
@@ -144,6 +146,7 @@ interface GameScreenProps {
         outcome: 'victory' | 'defeat',
         promotions?: import('../darknessStrength/progression').DarknessStrengthDataPromotion[]
     ) => Promise<void>;
+    onLoadDarknessUpgrades?: () => Promise<import('../types').DarknessUpgradesState | undefined>;
     /** Create a new lobby for the given mission and navigate to it (e.g. Try Again after defeat). */
     onTryAgain?: (
         missionId: string,
@@ -182,6 +185,7 @@ export default function GameScreen({
     onSelectGame,
     onRecordMissionResult,
     onDarknessStrengthMissionEnd,
+    onLoadDarknessUpgrades,
     onTryAgain,
     onJoinNextLobby,
     onEmittedChatMessage,
@@ -524,6 +528,7 @@ export default function GameScreen({
                                     onSidebarInfoChange={setGameSidebarInfo}
                                     onRecordMissionResult={onRecordMissionResult}
                                     onDarknessStrengthMissionEnd={onDarknessStrengthMissionEnd}
+                                    onLoadDarknessUpgrades={onLoadDarknessUpgrades}
                                     onLeave={onLeave}
                                     onContinue={onContinue}
                                     onTryAgain={onTryAgain}
@@ -598,6 +603,7 @@ export default function GameScreen({
             onLeave,
             onRecordMissionResult,
             onDarknessStrengthMissionEnd,
+            onLoadDarknessUpgrades,
             onSelectGame,
             onTryAgain,
             onCanvasClick,
@@ -729,6 +735,7 @@ export default function GameScreen({
                         onSidebarInfoChange={setGameSidebarInfo}
                         onRecordMissionResult={onRecordMissionResult}
                         onDarknessStrengthMissionEnd={onDarknessStrengthMissionEnd}
+                        onLoadDarknessUpgrades={onLoadDarknessUpgrades}
                         onLeave={onLeave}
                         onContinue={onContinue}
                         onTryAgain={onTryAgain}

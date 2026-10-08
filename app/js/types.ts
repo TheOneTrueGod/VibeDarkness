@@ -2,6 +2,7 @@
  * Shared frontend types for lobby, players, and API payloads
  */
 import type { BattleOrder } from './games/minion_battles/game/types';
+import type { ResearchNodeLevels, ResearchNodeSources } from './researchTrees/types';
 import type {
     DarknessStrengthAdminOverride,
     DarknessStrengthInstance,
@@ -88,6 +89,23 @@ export interface CampaignRegionState {
     activeDomainPackageIds?: string[];
 }
 
+/**
+ * Player-level darkness upgrades (admin-granted global modifiers). Same shapes as character research,
+ * but stored on the campaign rather than on a `CampaignCharacter`.
+ */
+export interface DarknessUpgradesState {
+    researchTrees: Record<string, string[]>;
+    researchNodeLevels: ResearchNodeLevels;
+    researchNodeSources: ResearchNodeSources;
+}
+
+/** Default for legacy saves without `darknessUpgrades`. */
+export const EMPTY_DARKNESS_UPGRADES: DarknessUpgradesState = {
+    researchTrees: {},
+    researchNodeLevels: {},
+    researchNodeSources: {},
+};
+
 export interface CampaignState {
     id: string;
     name: string;
@@ -100,6 +118,11 @@ export interface CampaignState {
     adminDarknessStrengthOverrides?: Record<string, DarknessStrengthAdminOverride>;
     /** Region stub map; API defaults to `{}`. */
     regions?: Record<string, CampaignRegionState>;
+    /**
+     * Darkness upgrades owned by this campaign's player. Lives on CampaignState (the same owner level
+     * as `campaignCharacters`, not on a character); defaults to EMPTY_DARKNESS_UPGRADES when absent.
+     */
+    darknessUpgrades?: DarknessUpgradesState;
 }
 
 /** Info pushed from a game component into the chat sidebar. */

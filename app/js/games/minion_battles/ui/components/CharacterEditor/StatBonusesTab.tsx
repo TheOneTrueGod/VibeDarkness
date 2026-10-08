@@ -19,6 +19,8 @@ const STAT_LABELS: Record<PassiveStatKey, string> = {
     [PassiveStatKey.MaxMovementPoints]: 'Max Movement Points',
     [PassiveStatKey.MovementRegenPerRound]: 'Movement Regen / Round',
     [PassiveStatKey.LightRegenEnabled]: 'Light Regen',
+    [PassiveStatKey.EnemyUnitSlimeMaxHealthBonus]: 'Enemy Slime Max Health',
+    [PassiveStatKey.EnemyUnitSlimeExtraProjectiles]: 'Enemy Slime Extra Projectiles',
 };
 
 function formatAdd(add: number): string {

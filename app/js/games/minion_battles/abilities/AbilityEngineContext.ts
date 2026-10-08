@@ -5,6 +5,7 @@ import type { TerrainManager } from '../terrain/TerrainManager';
 import type { Projectile } from '../game/projectiles/Projectile';
 import type { Deployable, DeployableQuery } from '../game/deployables/Deployable';
 import type { SpawnSource, ResolvedTarget } from '../game/types';
+import type { PassiveBonuses } from '../../../researchTrees/types';
 
 /**
  * Shared engine context for ability implementations.
@@ -17,6 +18,8 @@ export interface AbilityEngineContext {
     addEffect(effect: Effect): void;
     addProjectile(projectile: Projectile): void;
     gameTime: number;
+    /** Host's active darkness-upgrade bonuses (optional on test stubs). */
+    darknessUpgradeBonuses?: PassiveBonuses;
     gameTick?: number;
     roundNumber?: number;
     /**

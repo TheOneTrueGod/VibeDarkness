@@ -41,6 +41,7 @@ import {
     resolveActiveDarknessStrengths,
     type ResolveActiveDarknessStrengthsInput,
 } from '../../../darknessStrength/resolve';
+import type { PassiveBonuses } from '../../../researchTrees/types';
 import { compileWorldModifiers } from '../../../darknessStrength/compile';
 import {
     computeMatchExhaustion,
@@ -89,6 +90,13 @@ export interface BattleSessionLoadArgs {
      * Snapshot loads restore active packages from serialized crumbs instead.
      */
     darknessStrength?: ResolveActiveDarknessStrengthsInput;
+    /**
+     * Host's Darkness Upgrades bag (from `resolveActiveDarknessUpgrades`). Falls back to the
+     * initial snapshot's bag so non-host clients get the host's value.
+     */
+    darknessUpgradeBonuses?: import('../../../researchTrees/types').PassiveBonuses;
+    /** Host's active Darkness Upgrade node ids; falls back to the initial snapshot's ids. */
+    darknessUpgradeNodeIds?: string[];
 }
 
 export type BattleSessionEvent =
@@ -684,6 +692,8 @@ export class BattleSession implements BattleSessionHandle {
         battleSeed,
         initialSnapshot,
         darknessStrength,
+        darknessUpgradeBonuses,
+        darknessUpgradeNodeIds,
     }: BattleSessionLoadArgs): Promise<void> {
         this.updateLobbyContext(players, characterSelections);
         this.appliedRemoteOrderKeys.clear();
@@ -761,6 +771,12 @@ export class BattleSession implements BattleSessionHandle {
         if (darknessStrength) {
             engine.setActiveDarknessStrengths(resolveActiveDarknessStrengths(darknessStrength));
         }
+        engine.darknessUpgradeBonuses = {
+            ...(darknessUpgradeBonuses ?? (snapshotRecord?.darknessUpgradeBonuses as PassiveBonuses | undefined) ?? {}),
+        };
+        engine.darknessUpgradeNodeIds = [
+            ...(darknessUpgradeNodeIds ?? (snapshotRecord?.darknessUpgradeNodeIds as string[] | undefined) ?? []),
+        ];
         const terrainSegmentPOIs = composed?.pois
             ?? mission.segmentIds.flatMap((id) => getSegment(id)?.pointsOfInterest ?? []);
         const terrainSegmentZones = composed?.zones ?? getMissionSegmentZones(mission.segmentIds);

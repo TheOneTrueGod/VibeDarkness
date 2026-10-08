@@ -12,6 +12,7 @@ import {
     DS_ENEMY_HARDENED_MAX_HEALTH_MULT,
 } from '../../../../../darknessStrength/packages/starters';
 import { getDefaultHp } from '../unit_defs/unitDef';
+import type { PassiveBonuses } from '../../../../../researchTrees/types';
 
 function setupEngine(gridSize = 10): GameEngine {
     resetGameObjectIdCounter(1);
@@ -329,5 +330,39 @@ describe('spawnUnit DarknessStrength statBag', () => {
         expect(spawned).toHaveLength(1);
         expect(spawned[0]!.maxHp).toBe(Math.floor(baseHp * DS_ENEMY_HARDENED_MAX_HEALTH_MULT));
         expect(spawned[0]!.passiveBonuses?.maxHealth?.mult).toBe(DS_ENEMY_HARDENED_MAX_HEALTH_MULT);
+    });
+});
+
+describe('spawnUnit darkness upgrade bonuses', () => {
+    const SLIME_BAG = { enemy_unit_slime_max_health_bonus: { add: 12, mult: 1 } } as unknown as PassiveBonuses;
+    const slimeDef = (teamId: 'enemy' | 'player'): SpawnDefinition => ({
+        characterId: 'slime',
+        teamId,
+        abilities: [],
+        placement: { kind: 'fixedWorld', x: 80, y: 80 },
+    });
+
+    it('adds max health to enemy slimes', () => {
+        const engine = setupEngine();
+        engine.darknessUpgradeBonuses = SLIME_BAG;
+        const baseHp = getDefaultHp('slime');
+        const [slime] = engine.spawnUnit(slimeDef('enemy'));
+        expect(slime!.maxHp).toBe(baseHp + 12);
+        expect(slime!.hp).toBe(baseHp + 12);
+    });
+
+    it('leaves player-team units and non-slime enemies unchanged', () => {
+        const engine = setupEngine();
+        engine.darknessUpgradeBonuses = SLIME_BAG;
+        const [allySlime] = engine.spawnUnit(slimeDef('player'));
+        expect(allySlime!.maxHp).toBe(getDefaultHp('slime'));
+        const [wolf] = engine.spawnUnit({ ...BASE, placement: { kind: 'fixedWorld', x: 80, y: 80 } });
+        expect(wolf!.maxHp).toBe(getDefaultHp('dark_wolf'));
+    });
+
+    it('does nothing with an empty bag', () => {
+        const engine = setupEngine();
+        const [slime] = engine.spawnUnit(slimeDef('enemy'));
+        expect(slime!.maxHp).toBe(getDefaultHp('slime'));
     });
 });

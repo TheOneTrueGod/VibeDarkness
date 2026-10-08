@@ -39,6 +39,15 @@ import {
 } from '../../../../../researchTrees/evaluator';
 import { getNodeMaxLevels } from '../../../../../researchTrees/passiveBonuses';
 import { stripResearchBySource } from '../../../../../researchTrees/researchSources';
+import {
+    canInteractWithDarknessUpgradeTree,
+    DARKNESS_UPGRADES_TREE_ID,
+    grantDarknessUpgradeNode,
+    isDarknessUpgradeTree,
+    mergeDarknessUpgradesIntoResearchView,
+    revokeDarknessUpgradeNode,
+} from '../../../../../researchTrees/darknessUpgrades';
+import { EMPTY_DARKNESS_UPGRADES, type DarknessUpgradesState } from '../../../../../types';
 import { ResearchSource, type ResearchNodeSources } from '../../../../../researchTrees/types';
 import {
     RESET_ADMIN_RESEARCH_CONFIRM,
@@ -251,6 +260,24 @@ export default function CharacterEditor({
     const resolvedCampaign = campaign ?? localCampaign;
     const permissionAccount = viewerAccount ?? account ?? null;
     const isAdmin = permissionAccount?.role === 'admin';
+
+    // Darkness Upgrades live on the campaign (player level), not on the character.
+    const [darknessUpgrades, setDarknessUpgrades] = useState<DarknessUpgradesState>(
+        () => resolvedCampaign?.darknessUpgrades ?? EMPTY_DARKNESS_UPGRADES,
+    );
+    useEffect(() => {
+        setDarknessUpgrades(resolvedCampaign?.darknessUpgrades ?? EMPTY_DARKNESS_UPGRADES);
+    }, [resolvedCampaign?.darknessUpgrades]);
+
+    /**
+     * Research maps used by the Upgrades UI: the character's own research with the Darkness Upgrades
+     * tree replaced by the campaign's `darknessUpgrades` (so ownership/eligibility for that tree is
+     * evaluated against the player-level data). Never used for character persistence or bonuses.
+     */
+    const viewResearch = useMemo(
+        () => mergeDarknessUpgradesIntoResearchView(researchTrees, researchNodeLevels, researchSources, darknessUpgrades),
+        [researchTrees, researchNodeLevels, researchSources, darknessUpgrades],
+    );
     const effectiveEditMode = editMode;
     const effectiveShowInventory = showInventoryPanel;
 
@@ -314,14 +341,20 @@ export default function CharacterEditor({
     const displayResearchTrees = useMemo(() => {
         const showAll = isAdmin || showAllResearchTreesDebug;
         const base = showAll ? RESEARCH_TREES : playerVisibleResearchTrees;
-        return sortResearchTreesByPlayerAbilities(base, playerAbilityIds);
+        // Darkness Upgrades is admin-only: never listed for non-admins (even with the debug "show all" flag).
+        const allowed = base.filter(
+            (t) => !isDarknessUpgradeTree(t.id) || canInteractWithDarknessUpgradeTree(isAdmin),
+        );
+        return sortResearchTreesByPlayerAbilities(allowed, playerAbilityIds);
     }, [isAdmin, playerAbilityIds, playerVisibleResearchTrees, showAllResearchTreesDebug]);
 
     const dimmedResearchTreeIds = useMemo(() => {
         const showAll = isAdmin || showAllResearchTreesDebug;
         if (!showAll) return new Set<string>();
         const visibleIds = new Set(playerVisibleResearchTrees.map((t) => t.id));
-        return new Set(RESEARCH_TREES.filter((t) => !visibleIds.has(t.id)).map((t) => t.id));
+        return new Set(
+            RESEARCH_TREES.filter((t) => !visibleIds.has(t.id) && !isDarknessUpgradeTree(t.id)).map((t) => t.id),
+        );
     }, [isAdmin, playerVisibleResearchTrees, showAllResearchTreesDebug]);
 
     useEffect(() => {
@@ -481,7 +514,8 @@ export default function CharacterEditor({
     }, [api, permissionAccount?.role, resolvedCampaign?.id]);
 
     const handleResetResearch = useCallback(
-        async (treeIds: string[]) => {
+        async (treeIdsInput: string[]) => {
+            let treeIds = treeIdsInput;
             if (permissionAccount?.role !== 'admin') return;
             if (!treeIds.length) return;
             const treeLabels = treeIds
@@ -495,6 +529,20 @@ export default function CharacterEditor({
 
             setSaving(true);
             try {
+                if (treeIds.some(isDarknessUpgradeTree)) {
+                    const cid = resolvedCampaign?.id;
+                    if (cid) {
+                        let next = darknessUpgrades;
+                        for (const nodeId of darknessUpgrades.researchTrees[DARKNESS_UPGRADES_TREE_ID] ?? []) {
+                            next = revokeDarknessUpgradeNode(next, nodeId);
+                        }
+                        const updatedCampaign = await api.updateCampaignDarknessUpgrades(cid, next);
+                        setDarknessUpgrades(updatedCampaign.darknessUpgrades ?? next);
+                        if (!campaign) setLocalCampaign(updatedCampaign);
+                    }
+                    treeIds = treeIds.filter((id) => !isDarknessUpgradeTree(id));
+                    if (treeIds.length === 0) return;
+                }
                 const nextResearchTrees: Record<string, string[]> = { ...researchTrees };
                 const nextResearchNodeLevels: Record<string, Record<string, number>> = {
                     ...researchNodeLevels,
@@ -531,7 +579,7 @@ export default function CharacterEditor({
                 setSaving(false);
             }
         },
-        [character.id, equipment, api, name, permissionAccount?.role, researchTrees, researchNodeLevels, researchSources, selectedPortraitId, onSaved]
+        [character.id, equipment, api, name, permissionAccount?.role, researchTrees, researchNodeLevels, researchSources, selectedPortraitId, onSaved, resolvedCampaign?.id, campaign, darknessUpgrades]
     );
 
     const handleResetResearchBySource = useCallback(
@@ -592,6 +640,31 @@ export default function CharacterEditor({
             if (!resolvedCampaign?.resources) return;
             const tree = RESEARCH_TREES.find((t) => t.id === treeId);
             if (!tree) return;
+
+            // Darkness Upgrades: admin-only, stored on the campaign (not the character), no cost/prereqs.
+            if (isDarknessUpgradeTree(treeId)) {
+                if (!canInteractWithDarknessUpgradeTree(isAdmin) || !asAdmin) return;
+                const cid = resolvedCampaign.id;
+                if (!cid) return;
+                const adminCtx = {
+                    account: (account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 }) as AccountState,
+                    character: { ...character, equipment, ...viewResearch } as unknown as CampaignCharacter,
+                    campaignResources: resolvedCampaign.resources,
+                };
+                if (!canAdminGrantResearchNode(tree, nodeId, adminCtx).ok) return;
+                const next = grantDarknessUpgradeNode(darknessUpgrades, nodeId);
+                setSaving(true);
+                try {
+                    const updated = await api.updateCampaignDarknessUpgrades(cid, next);
+                    setDarknessUpgrades(updated.darknessUpgrades ?? next);
+                    if (!campaign) setLocalCampaign(updated);
+                } catch (e) {
+                    console.error('Failed to grant darkness upgrade:', e);
+                } finally {
+                    setSaving(false);
+                }
+                return;
+            }
 
             const ctx = {
                 account: (account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 }) as AccountState,
@@ -670,6 +743,10 @@ export default function CharacterEditor({
             researchNodeLevels,
             researchSources,
             resolvedCampaign?.resources,
+            resolvedCampaign?.id,
+            campaign,
+            darknessUpgrades,
+            viewResearch,
             selectedPortraitId,
             name,
             onSaved,
@@ -977,7 +1054,7 @@ export default function CharacterEditor({
                     dimmedTreeIds={dimmedResearchTreeIds}
                     selectedTreeId={selectedTreeId}
                     onSelectTree={(id) => setSelectedTreeId(id)}
-                    researchTrees={researchTrees}
+                    researchTrees={viewResearch.researchTrees}
                     canResetResearch={isAdmin && !adminUseGridView}
                     resetSaving={saving}
                     onResetResearchTree={(treeId) => void handleResetResearch([treeId])}
@@ -1084,9 +1161,9 @@ export default function CharacterEditor({
                             account={account ?? null}
                             character={character}
                             equipment={equipment}
-                            researchTrees={researchTrees}
-                            researchNodeLevels={researchNodeLevels}
-                            researchSources={researchSources}
+                            researchTrees={viewResearch.researchTrees}
+                            researchNodeLevels={viewResearch.researchNodeLevels}
+                            researchSources={viewResearch.researchSources}
                             campaignResources={resolvedCampaign.resources}
                             saving={saving}
                             canResetResearch
@@ -1103,14 +1180,14 @@ export default function CharacterEditor({
             ) : (
                 <ResearchedNodesGrid
                     availableTrees={displayResearchTrees}
-                    researchTrees={researchTrees}
+                    researchTrees={viewResearch.researchTrees}
                     filterTreeId={selectedTreeId}
                     showUnowned={isAdmin}
                     account={account ?? null}
                     character={character}
                     equipment={equipment}
-                    researchNodeLevels={researchNodeLevels}
-                    researchSources={researchSources}
+                    researchNodeLevels={viewResearch.researchNodeLevels}
+                    researchSources={viewResearch.researchSources}
                     campaignResources={resolvedCampaign?.resources}
                     onResearchNode={(treeId, nodeId, asAdmin) => void handleResearchNode(treeId, nodeId, asAdmin)}
                     saving={saving}

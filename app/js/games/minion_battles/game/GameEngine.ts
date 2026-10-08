@@ -39,6 +39,7 @@ import { LightSource } from './lightSources/LightSource';
 import type { Deployable, DeployableQuery } from './deployables/Deployable';
 import type { EngineContext } from './EngineContext';
 import { GameState } from './GameState';
+import type { PassiveBonuses } from '../../../researchTrees/types';
 import type { ActiveDarknessStrength } from '../../../darknessStrength/resolve';
 import { getDarknessStrength } from '../../../darknessStrength/registry';
 import type { DarknessStrengthInstance } from '../../../darknessStrength/types';
@@ -371,6 +372,22 @@ export class GameEngine implements EngineContext {
     }
     set activeDarknessStrengths(value: ActiveDarknessStrength[]) {
         this.state.activeDarknessStrengths = value;
+    }
+
+    /** Host's Darkness Upgrades passive bonuses (global unit modifiers). */
+    get darknessUpgradeBonuses(): PassiveBonuses {
+        return this.state.darknessUpgradeBonuses;
+    }
+    set darknessUpgradeBonuses(value: PassiveBonuses) {
+        this.state.darknessUpgradeBonuses = value;
+    }
+
+    /** Host's active Darkness Upgrade node ids (reward source for all players). */
+    get darknessUpgradeNodeIds(): string[] {
+        return this.state.darknessUpgradeNodeIds;
+    }
+    set darknessUpgradeNodeIds(value: string[]) {
+        this.state.darknessUpgradeNodeIds = value;
     }
 
     /** Install resolved DarknessStrengths before mission init / late spawns. */
@@ -1999,6 +2016,12 @@ export class GameEngine implements EngineContext {
                       ),
                   }
                 : {}),
+            ...(Object.keys(this.state.darknessUpgradeBonuses).length > 0
+                ? { darknessUpgradeBonuses: structuredClone(this.state.darknessUpgradeBonuses) }
+                : {}),
+            ...(this.state.darknessUpgradeNodeIds.length > 0
+                ? { darknessUpgradeNodeIds: [...this.state.darknessUpgradeNodeIds] }
+                : {}),
             lightSources: this.state.lightSourceManager.toJSON(),
             terrainEffects: this.state.terrainLayers.toEffectsJSON(),
             floorTiles: this.state.terrainLayers.toFloorTilesJSON(),
@@ -2064,6 +2087,9 @@ export class GameEngine implements EngineContext {
                 })
                 .filter((a): a is ActiveDarknessStrength => a != null),
         );
+
+        engine.darknessUpgradeBonuses = data.darknessUpgradeBonuses ? structuredClone(data.darknessUpgradeBonuses) : {};
+        engine.darknessUpgradeNodeIds = data.darknessUpgradeNodeIds ? [...data.darknessUpgradeNodeIds] : [];
 
         engine.pendingOrders = (data.orders ?? []).map((o) => ({
             gameTick: o.gameTick,

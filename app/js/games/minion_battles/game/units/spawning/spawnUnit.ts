@@ -22,6 +22,8 @@ import type { MapNetworkManager } from '../../managers/mapNetwork/MapNetworkMana
 import type { SpawnDefinition, SpawnPlacement, SpawnAiHookup } from './spawnDefinition';
 import type { ActiveDarknessStrength } from '../../../../../darknessStrength/resolve';
 import { applyDarknessStrengthStatBuffs } from '../../../../../darknessStrength/compile';
+import type { PassiveBonuses, PassiveStatKey } from '../../../../../researchTrees/types';
+import { applyPassiveBonusToBase } from '../../../../../researchTrees/passiveBonuses';
 
 /**
  * Narrow, structural context spawnUnit needs. `GameEngine` (which implements `EngineContext`)
@@ -42,6 +44,11 @@ export interface SpawnUnitContext {
      * Optional — omitted in tiny harnesses / ability-only spawns that don't install campaign DS.
      */
     readonly activeDarknessStrengths?: readonly ActiveDarknessStrength[];
+    /**
+     * Host's Darkness Upgrades bag (`enemy_unit_<characterId>_<stat>` keys). Optional — omitted in tiny
+     * harnesses that don't install campaign upgrades.
+     */
+    readonly darknessUpgradeBonuses?: PassiveBonuses;
     addUnit(unit: Unit, spawnSource?: SpawnSource): void;
     getLightAt(col: number, row: number): number | null;
     getZoneById(id: string): MapSegmentZone | undefined;
@@ -520,6 +527,25 @@ function resolvePlacements(ctx: SpawnUnitContext, placement: SpawnPlacement, cou
     return [];
 }
 
+/**
+ * Bake `enemy_unit_<characterId>_max_health_bonus` from the Darkness Upgrades bag into an enemy
+ * unit's max health (and current HP, since fresh spawns are at full health). Runs after DarknessStrength
+ * stat buffs so the flat upgrade bonus is added on top of the DS-scaled value.
+ */
+function applyDarknessUpgradeMaxHealth(unit: Unit, bonuses: PassiveBonuses | undefined): void {
+    if (!bonuses || unit.teamId !== 'enemy') return;
+    const entry = bonuses[`enemy_unit_${unit.characterId}_max_health_bonus` as PassiveStatKey];
+    if (!entry) return;
+    const rawMaxHp = unit.maxHp;
+    const newMaxHp = applyPassiveBonusToBase(rawMaxHp, entry);
+    unit.maxHp = newMaxHp;
+    if (unit.hp >= rawMaxHp) {
+        unit.hp = newMaxHp;
+    } else if (rawMaxHp > 0) {
+        unit.hp = Math.min(newMaxHp, Math.floor((unit.hp / rawMaxHp) * newMaxHp));
+    }
+}
+
 function applyAiHookup(ctx: SpawnUnitContext, unit: Unit, hookup: SpawnAiHookup | undefined): void {
     if (!hookup || hookup.kind === 'none') return;
 
@@ -616,6 +642,8 @@ export function spawnUnit(ctx: SpawnUnitContext, def: SpawnDefinition, spawnSour
         if (activeDs && activeDs.length > 0) {
             applyDarknessStrengthStatBuffs(unit, activeDs);
         }
+
+        applyDarknessUpgradeMaxHealth(unit, ctx.darknessUpgradeBonuses);
 
         applyAiHookup(ctx, unit, def.aiHookup);
         ctx.addUnit(unit, spawnSource);

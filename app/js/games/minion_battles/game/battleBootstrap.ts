@@ -25,6 +25,10 @@ export interface RunBattleBootstrapParams {
     players: Record<string, PlayerState>;
     characterSelections: Record<string, string>;
     initialGameState?: Record<string, unknown> | null;
+    /** Host's resolved Darkness Upgrades bag; non-host clients read it from the initial snapshot. */
+    darknessUpgradeBonuses?: import('../../../researchTrees/types').PassiveBonuses;
+    /** Host's active upgrade node ids; non-host clients read them from the initial snapshot. */
+    darknessUpgradeNodeIds?: string[];
     isAlive: () => boolean;
     onPhase: (phase: BattleInitPhase) => void;
     wireNet: (net: BattleNet, session: BattleSession) => BattleBootstrapWireResult;
@@ -44,6 +48,8 @@ export async function runBattleBootstrap({
     players,
     characterSelections,
     initialGameState,
+    darknessUpgradeBonuses,
+    darknessUpgradeNodeIds,
     isAlive,
     onPhase,
     wireNet,
@@ -118,6 +124,8 @@ export async function runBattleBootstrap({
             characterSelections,
             battleSeed,
             initialSnapshot: (initialGameState as SerializedGameState | null | undefined) ?? undefined,
+            darknessUpgradeBonuses,
+            darknessUpgradeNodeIds,
         });
     }
 

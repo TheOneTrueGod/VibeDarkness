@@ -1200,6 +1200,19 @@ function AppInner() {
         [currentCampaignId, user, lobbyClient]
     );
 
+    /** Loads this client's campaign `darknessUpgrades` (host-only consumers: battle bootstrap + victory rewards). */
+    const loadDarknessUpgrades = useCallback(async () => {
+        const campaignId = resolveCampaignInstanceId(currentCampaignId, user?.campaignIds);
+        if (!campaignId) return undefined;
+        try {
+            const campaign = await lobbyClient.getCampaign(campaignId);
+            return campaign.darknessUpgrades;
+        } catch (e) {
+            console.warn('Failed to load Darkness Upgrades:', e);
+            return undefined;
+        }
+    }, [currentCampaignId, user, lobbyClient]);
+
     const recordMissionResult = useCallback(
         async (
             missionId: string,
@@ -1466,6 +1479,7 @@ function AppInner() {
                         onSelectGame={handleSelectGame}
                         onRecordMissionResult={recordMissionResult}
                         onDarknessStrengthMissionEnd={applyDarknessStrengthMissionEnd}
+                        onLoadDarknessUpgrades={loadDarknessUpgrades}
                         onTryAgain={(missionId, prevCharSel, questLobby) =>
                             handleHostContinueToNextMission(
                                 missionId,

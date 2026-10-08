@@ -11,6 +11,10 @@ import { getResearchTree, getResolvedMissionResearchRewards } from '../../../../
 import type { CampaignRewardsPayload } from '../../storylines/questRun';
 import { isCampaignRewardsPayloadEmpty } from '../../storylines/questCampaignRewards';
 import LocationCardPill from './LocationCardPill';
+import {
+    describeDarknessUpgradeDelta,
+    type DarknessUpgradeRewardLineItem,
+} from '../../../../researchTrees/darknessUpgradeRewards';
 
 interface VictoryModalProps {
     missionRewards: {
@@ -18,6 +22,8 @@ interface VictoryModalProps {
         itemFromFirstChoice?: string;
         researchRewardIds?: string[];
         researchRewards?: MissionResearchRewardEntry[];
+        /** Darkness Upgrade bonus lines (host's active set, shown for every player); already included in `resourceDelta`. */
+        darknessUpgradeLines?: DarknessUpgradeRewardLineItem[];
     } | null;
     /**
      * Quest-clear Campaign Rewards (completion + queued). Shown under Campaign Results.
@@ -92,6 +98,7 @@ export default function VictoryModal({
 
     const resourceDelta = missionRewards?.resourceDelta ?? {};
     const itemId = missionRewards?.itemFromFirstChoice;
+    const darknessUpgradeLines = missionRewards?.darknessUpgradeLines ?? [];
     const gainedResources = campaignResourceGains(
         resourceDelta as Partial<Record<CampaignResourceKey, number>>,
     );
@@ -130,6 +137,15 @@ export default function VictoryModal({
                                         <ResourcePill key={resource} resource={resource} count={count} />
                                     ))}
                                 </div>
+                            ) : null}
+                            {darknessUpgradeLines.length > 0 ? (
+                                <ul className="text-sm text-muted space-y-1" data-testid="darkness-upgrade-lines">
+                                    {darknessUpgradeLines.map((line) => (
+                                        <li key={line.nodeId}>
+                                            {line.title}: {describeDarknessUpgradeDelta(line.delta)}
+                                        </li>
+                                    ))}
+                                </ul>
                             ) : null}
                             {researchRewards.length > 0 ? (
                                 <div className="w-full space-y-2">

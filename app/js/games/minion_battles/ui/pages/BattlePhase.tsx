@@ -68,6 +68,10 @@ interface BattlePhaseProps {
     /** Initial game state from server (if reconnecting). */
     initialGameState?: Record<string, unknown> | null;
     onSidebarInfoChange?: (info: GameSidebarInfo | null) => void;
+    /** Host-only: loads the host's campaign Darkness Upgrades so their bag lands in the initial snapshot. */
+    onLoadDarknessUpgrades?: () => Promise<import('../../../../types').DarknessUpgradesState | undefined>;
+    /** Reports the host's active Darkness Upgrade node ids (all clients) once the battle is loaded. */
+    onActiveDarknessUpgradeNodeIds?: (nodeIds: string[]) => void;
     /** Called when victory is achieved. Passes mission result from the winning victory check. */
     onVictory?: (missionResult: string, exhaustion?: number) => void;
     /** Called when defeat is achieved (all player units dead). */
@@ -93,6 +97,8 @@ export default function BattlePhase({
     missionId,
     initialGameState,
     onSidebarInfoChange,
+    onLoadDarknessUpgrades,
+    onActiveDarknessUpgradeNodeIds,
     onVictory,
     onDefeat,
     onEmittedChatMessage,
@@ -254,6 +260,8 @@ export default function BattlePhase({
         players,
         characterSelections,
         initialGameState,
+        onLoadDarknessUpgrades,
+        onActiveDarknessUpgradeNodeIds,
         onVictory,
         onDefeat,
         onEmittedChatMessage,

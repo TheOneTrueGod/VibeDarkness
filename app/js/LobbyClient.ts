@@ -250,7 +250,8 @@ export class LobbyClient {
     /**
      * PATCH campaign fields. Supports DarknessStrength persistence keys:
      * `darknessStrengthInstances`, `adminDarknessStrengthOverrides`, `regions`
-     * (see `darknessStrength/campaignFields.ts`).
+     * (see `darknessStrength/campaignFields.ts`), and `darknessUpgrades`
+     * (see `darknessUpgrades/campaignFields.ts`).
      */
     async updateCampaign(
         campaignId: string,

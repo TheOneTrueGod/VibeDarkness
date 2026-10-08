@@ -44,6 +44,11 @@ class Campaign
      * @var array<string, array{activeDomainPackageIds?: array<int, string>}>
      */
     private array $regions;
+    /**
+     * Admin-granted global Darkness Upgrades (research-tree-shaped state).
+     * @var array{researchTrees: array<string, mixed>, researchNodeLevels: array<string, mixed>, researchNodeSources: array<string, mixed>}
+     */
+    private array $darknessUpgrades;
 
     public function __construct(
         string $id,
@@ -53,7 +58,8 @@ class Campaign
         array $resources = [],
         array $darknessStrengthInstances = [],
         array $adminDarknessStrengthOverrides = [],
-        array $regions = []
+        array $regions = [],
+        array $darknessUpgrades = []
     ) {
         $this->id = $id;
         $this->name = $name;
@@ -66,6 +72,7 @@ class Campaign
         $this->darknessStrengthInstances = self::normalizeDarknessStrengthInstances($darknessStrengthInstances);
         $this->adminDarknessStrengthOverrides = self::normalizeAdminDarknessStrengthOverrides($adminDarknessStrengthOverrides);
         $this->regions = self::normalizeRegions($regions);
+        $this->darknessUpgrades = self::normalizeDarknessUpgrades($darknessUpgrades);
     }
 
     public function getId(): string
@@ -148,6 +155,17 @@ class Campaign
     public function setRegions(array $regions): void
     {
         $this->regions = self::normalizeRegions($regions);
+    }
+
+    /** @return array{researchTrees: array<string, mixed>, researchNodeLevels: array<string, mixed>, researchNodeSources: array<string, mixed>} */
+    public function getDarknessUpgrades(): array
+    {
+        return $this->darknessUpgrades;
+    }
+
+    public function setDarknessUpgrades(array $darknessUpgrades): void
+    {
+        $this->darknessUpgrades = self::normalizeDarknessUpgrades($darknessUpgrades);
     }
 
     /** Add or override a mission result. Only one result per mission; new result replaces existing. Does not add resources to campaign; use getEffectiveResources() for display. */
@@ -339,6 +357,7 @@ class Campaign
             'regions' => empty($this->regions)
                 ? new \stdClass()
                 : $this->regions,
+            'darknessUpgrades' => self::darknessUpgradesForJson($this->darknessUpgrades),
         ];
     }
 
@@ -350,6 +369,7 @@ class Campaign
         $instances = $data['darknessStrengthInstances'] ?? [];
         $overrides = $data['adminDarknessStrengthOverrides'] ?? [];
         $regions = $data['regions'] ?? [];
+        $darknessUpgrades = $data['darknessUpgrades'] ?? [];
         return new self(
             $data['id'],
             $data['name'] ?? '',
@@ -358,8 +378,40 @@ class Campaign
             $res,
             is_array($instances) ? $instances : [],
             is_array($overrides) ? $overrides : [],
-            is_array($regions) ? $regions : []
+            is_array($regions) ? $regions : [],
+            is_array($darknessUpgrades) ? $darknessUpgrades : []
         );
+    }
+
+    /**
+     * Unknown-safe: missing/invalid sub-maps become empty arrays.
+     *
+     * @param mixed $raw
+     * @return array{researchTrees: array<string, mixed>, researchNodeLevels: array<string, mixed>, researchNodeSources: array<string, mixed>}
+     */
+    private static function normalizeDarknessUpgrades($raw): array
+    {
+        $raw = is_array($raw) ? $raw : [];
+        $out = [];
+        foreach (['researchTrees', 'researchNodeLevels', 'researchNodeSources'] as $key) {
+            $out[$key] = isset($raw[$key]) && is_array($raw[$key]) ? $raw[$key] : [];
+        }
+        return $out;
+    }
+
+    /**
+     * Empty maps encode as {} (not []) so the client sees Record shapes.
+     *
+     * @param array<string, array<string, mixed>> $upgrades
+     * @return array<string, mixed>
+     */
+    private static function darknessUpgradesForJson(array $upgrades): array
+    {
+        $out = [];
+        foreach ($upgrades as $key => $map) {
+            $out[$key] = empty($map) ? new \stdClass() : $map;
+        }
+        return $out;
     }
 
     /**

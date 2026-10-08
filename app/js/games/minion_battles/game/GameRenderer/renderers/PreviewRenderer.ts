@@ -532,7 +532,7 @@ export class PreviewRenderer {
                 const ability = getAbility(active.abilityId);
                 if (!ability) continue;
                 if (ability.renderActivePreview) {
-                    ability.renderActivePreview(gr, unit, active, engine.gameTime);
+                    ability.renderActivePreview(gr, unit, active, engine.gameTime, engine);
                 } else if (ability.telegraph) {
                     this.renderTelegraphPreview(gr, ability.telegraph, ability.prefireTime, unit, active, engine.gameTime);
                 }
