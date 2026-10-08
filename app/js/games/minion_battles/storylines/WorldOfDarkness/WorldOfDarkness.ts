@@ -224,14 +224,13 @@ export const WorldOfDarknessStoryline: StorylineDef = {
             ],
             missionIds: [
                 'south_gate_swarm', CAMPSITE_MISSION_ID, CAMPSITE_2_MISSION_ID, 'displacer', CAMPSITE_3_MISSION_ID,
-                'thornling_rise', 'crystal_corruption', 'the_circle',
             ],
         },
         {
             id: 'wod_ch3',
             numeral: 'III',
             unlockAfterMissionId: 'thornling_rise',
-            missionIds: ['thornbinder_arena'],
+            missionIds: ['thornbinder_arena', 'crystal_corruption', 'the_circle', 'thornling_rise'],
         },
     ],
 };

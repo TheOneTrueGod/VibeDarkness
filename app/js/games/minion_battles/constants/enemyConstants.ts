@@ -82,7 +82,7 @@ export const ENEMY_DISPLACER_SPIRIT: EnemySpawnDef = {
     name: 'Displacer Spirit',
     position: { x: 0, y: 0 },
     teamId: 'enemy',
-    abilities: ['0017', '0018', '0019'],
+    abilities: ['0017', '0018', '0019', '0020'],
     aiSettings: { minRange: 0, maxRange: 140 },
     unitTags: [UnitTag.Boss, UnitTag.ShowHpBar],
     unitAITreeId: 'displacerBoss',

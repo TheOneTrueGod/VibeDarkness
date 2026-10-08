@@ -24,6 +24,7 @@ import { SwarmlingBiteCard } from './dark_animals/0013_SwarmlingBite/0013Ability
 import { LightEaterCard } from './dark_animals/0018_LightEater/0018Ability';
 import { PhantomDecoyCard } from './dark_animals/0019_PhantomDecoy/0019Ability';
 import { DisplacerBoltCard } from './dark_animals/0017_DisplacerBolt/0017Ability';
+import { FrenziedDisplacerBoltCard } from './dark_animals/0020_FrenziedDisplacerBolt/0020Ability';
 import { ThornlingBiteCard } from './dark_animals/0015_ThornlingBite/0015Ability';
 import { ThornStompCard } from './0016_ThornStomp/0016Ability';
 import { RaiseShieldCard } from './0104_RaiseShield/0104Ability';
@@ -99,6 +100,7 @@ const cardDefs: CardDef[] = [
     SwarmlingBiteCard,
     ThornlingBiteCard,
     DisplacerBoltCard,
+    FrenziedDisplacerBoltCard,
     LightEaterCard,
     PhantomDecoyCard,
     ThornStompCard,

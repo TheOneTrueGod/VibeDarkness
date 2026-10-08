@@ -17,7 +17,7 @@ import { TerrainType } from '../../../terrain/TerrainType';
 import { MAP_SEGMENT_49_50_PATH_TO_CAVE } from '../MapSegments/49_50_path_to_cave';
 import { MAP_SEGMENT_50_50_CRYSTAL_CAVE, CAVE_CAMPFIRE, crystalSpecialTilesAt, CRYSTAL_POINTS } from '../MapSegments/50_50_crystal_cave';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
-import { WOD_CH2_MAP_X_COL0, WOD_CH2_MAP_Y_ROW3 } from '../chapter2Map';
+import { WOD_CH3_MAP_X_COL0, WOD_CH3_MAP_Y_ROW1 } from '../chapter3Map';
 
 const SEGMENT_COLS = 22;
 const SEGMENT_ROWS = 22;
@@ -191,7 +191,7 @@ export class CrystalCorruptionMission extends BaseMissionDef {
     segmentIds = ['49_50_path_to_cave', '50_50_crystal_cave'];
 
     missionId = 'crystal_corruption';
-    mapPosition?: { x: number; y: number } = { x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW3 };
+    mapPosition?: { x: number; y: number } = { x: WOD_CH3_MAP_X_COL0, y: WOD_CH3_MAP_Y_ROW1 };
     isSideMission = true;
     disabled = MISSION_MAP_DISABLED;
     missionType = 'battle' as const;

@@ -58,13 +58,16 @@ export function mirrorAbilityToClones(
     caster: Unit,
     abilityId: string,
     targets: ResolvedTarget[],
-    opts: { maxClones?: number; staggerSec?: number } = {},
+    opts: { maxClones?: number; staggerSec?: number; timeScale?: number } = {},
 ): string[] {
     // Clone casts must never re-trigger mirroring.
     if (hasUnitTag(caster, UnitTag.Clone)) return [];
 
     const maxClones = opts.maxClones ?? CLONE_MIRROR_MAX_CLONES;
-    const staggerSec = opts.staggerSec ?? CLONE_MIRROR_STAGGER_SEC;
+    // timeScale < 1 compresses both the first follow-up delay and the gaps (enraged spirit: faster echoes).
+    const timeScale = opts.timeScale ?? 1;
+    const staggerSec = (opts.staggerSec ?? CLONE_MIRROR_STAGGER_SEC) * timeScale;
+    const startDelaySec = CLONE_MIRROR_START_DELAY_SEC * timeScale;
 
     // Partial Fisher-Yates with the engine's synced RNG so every client picks the same clones.
     const pool = getMirrorCandidates(engine, caster);
@@ -77,7 +80,7 @@ export function mirrorAbilityToClones(
 
     chosen.forEach((clone, index) => {
         grantAbilityUses(clone, abilityId, 1);
-        const delayTicks = Math.max(1, Math.round((CLONE_MIRROR_START_DELAY_SEC + index * staggerSec) * TICKS_PER_SECOND));
+        const delayTicks = Math.max(1, Math.round((startDelaySec + index * staggerSec) * TICKS_PER_SECOND));
         engine.state.orderMgr.queueOrder(engine.gameTick + delayTicks, {
             unitId: clone.id,
             abilityId,

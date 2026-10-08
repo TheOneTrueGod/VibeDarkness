@@ -64,6 +64,7 @@ import { LanterniteNestAuraAbility } from '../card_defs/dark_animals/0014_Lanter
 import { LightEaterAbility } from '../card_defs/dark_animals/0018_LightEater/0018Ability';
 import { PhantomDecoyAbility } from '../card_defs/dark_animals/0019_PhantomDecoy/0019Ability';
 import { DisplacerBoltAbility } from '../card_defs/dark_animals/0017_DisplacerBolt/0017Ability';
+import { FrenziedDisplacerBoltAbility } from '../card_defs/dark_animals/0020_FrenziedDisplacerBolt/0020Ability';
 import { ThornlingBiteAbility } from '../card_defs/dark_animals/0015_ThornlingBite/0015Ability';
 import { DogBiteAbility } from '../card_defs/07_command_core/0701_DogBite/0701Ability';
 import { PounceAbility } from '../card_defs/07_command_core/0702_Pounce/0702Ability';
@@ -160,6 +161,7 @@ register(LanterniteStrikeAbility);
 register(LanterniteNestAuraAbility);
 register(ThornlingBiteAbility);
 register(DisplacerBoltAbility);
+register(FrenziedDisplacerBoltAbility);
 register(LightEaterAbility);
 register(PhantomDecoyAbility);
 register(DogBiteAbility);

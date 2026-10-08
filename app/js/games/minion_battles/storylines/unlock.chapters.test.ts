@@ -97,8 +97,8 @@ describe('getUnlockedMissionIds — chapter gating', () => {
     it('unlocks chapter 2 entry missions on core_awakening, but not the chained ones', () => {
         const unlocked = getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING);
         expect(unlocked.has('south_gate_swarm')).toBe(true);
-        expect(unlocked.has('crystal_corruption')).toBe(true);
-        expect(unlocked.has('the_circle')).toBe(true);
+        expect(unlocked.has('crystal_corruption')).toBe(false);
+        expect(unlocked.has('the_circle')).toBe(false);
         expect(unlocked.has('thornbinder_arena')).toBe(false);
     });
 
@@ -136,9 +136,12 @@ describe('getUnlockedMissionIds — chapter gating', () => {
         expect(afterDisplacer.has('thornbinder_arena')).toBe(false);
     });
 
-    it('unlocks Thornbinder Arena as a chapter 3 entry mission', () => {
+    it('unlocks the chapter 3 missions as entry missions', () => {
         const results = [...THROUGH_CORE_AWAKENING, victory('thornling_rise')];
-        expect(getUnlockedMissionIds(WorldOfDarknessStoryline, results).has('thornbinder_arena')).toBe(true);
+        const unlocked = getUnlockedMissionIds(WorldOfDarknessStoryline, results);
+        for (const id of ['thornbinder_arena', 'crystal_corruption', 'the_circle', 'thornling_rise']) {
+            expect(unlocked.has(id)).toBe(true);
+        }
     });
 
     it('keeps single-chapter campaigns behaving as before', () => {

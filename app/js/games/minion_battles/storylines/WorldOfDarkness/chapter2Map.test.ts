@@ -12,14 +12,15 @@ import {
     WOD_CH2_MAP_X_COL3,
     WOD_CH2_MAP_Y_ROW0,
     WOD_CH2_MAP_Y_ROW1,
-    WOD_CH2_MAP_Y_ROW3,
     WOD_CH2_MAP_Y_ROW2,
 } from './chapter2Map';
 import {
     WOD_POST_CORE_QUEST_BANK,
     WOD_POST_CORE_QUEST_BANK_2,
     WOD_POST_CORE_QUEST_BANK_3,
+    WorldOfDarknessStoryline,
 } from './WorldOfDarkness';
+import { WOD_CH3_MAP_X_COL0, WOD_CH3_MAP_X_COL1, WOD_CH3_MAP_X_COL2, WOD_CH3_MAP_Y_ROW0, WOD_CH3_MAP_Y_ROW1 } from './chapter3Map';
 import { CAMPSITE, CAMPSITE_2, CAMPSITE_3 } from './questMissions/campsite';
 import { CRYSTAL_CORRUPTION } from './missions/004b_crystal_corruption';
 import { DISPLACER } from './missions/006d_displacer';
@@ -57,15 +58,23 @@ describe('chapter 2 mission map grid', () => {
         expect(WOD_POST_CORE_QUEST_BANK_3.unlockAfterQuestBankId).toBe(WOD_POST_CORE_QUEST_BANK_2.id);
     });
 
-    it('disables Thornbinder Arena (moved to chapter 3) and Thornling Rise', () => {
-        expect(THORNBINDER_ARENA.disabled).toBe(true);
-        expect(THORNLING_RISE.disabled).toBe(true);
-        expect(THORNLING_RISE.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW3 });
+    it('puts Thornbinder Arena, Crystal Corruption, The Circle and Thornling Rise in chapter 3', () => {
+        const ch3 = WorldOfDarknessStoryline.chapters![2].missionIds;
+        expect(ch3).toEqual(['thornbinder_arena', 'crystal_corruption', 'the_circle', 'thornling_rise']);
+        const ch2 = WorldOfDarknessStoryline.chapters![1].missionIds;
+        for (const id of ch3) expect(ch2).not.toContain(id);
     });
 
-    it('keeps the remaining missions on row 3', () => {
-        expect(CRYSTAL_CORRUPTION.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW3 });
-        expect(THE_CIRCLE.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW3 });
+    it('lays chapter 3 out: Thornbinder on row 0, the rest in a line on row 1', () => {
+        expect(THORNBINDER_ARENA.mapPosition).toEqual({ x: WOD_CH3_MAP_X_COL0, y: WOD_CH3_MAP_Y_ROW0 });
+        expect(CRYSTAL_CORRUPTION.mapPosition).toEqual({ x: WOD_CH3_MAP_X_COL0, y: WOD_CH3_MAP_Y_ROW1 });
+        expect(THE_CIRCLE.mapPosition).toEqual({ x: WOD_CH3_MAP_X_COL1, y: WOD_CH3_MAP_Y_ROW1 });
+        expect(THORNLING_RISE.mapPosition).toEqual({ x: WOD_CH3_MAP_X_COL2, y: WOD_CH3_MAP_Y_ROW1 });
+    });
+
+    it('keeps Thornbinder Arena and Thornling Rise disabled', () => {
+        expect(THORNBINDER_ARENA.disabled).toBe(true);
+        expect(THORNLING_RISE.disabled).toBe(true);
     });
 
     it('removes Ember at the Threshold and Thorn March from the map', () => {
