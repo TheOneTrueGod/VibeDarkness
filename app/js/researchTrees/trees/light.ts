@@ -94,6 +94,7 @@ export const lightTree: ResearchTreeDef = {
     title: 'Light',
     colour: RESEARCH_TREE_COLOUR_LIGHT,
     icon: RESEARCH_TREE_ICON_LIGHT,
+    tags: ['core'],
     accessRequirements: [],
     nodes: [
         {

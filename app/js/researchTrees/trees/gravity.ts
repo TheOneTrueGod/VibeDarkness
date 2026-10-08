@@ -45,6 +45,7 @@ export const gravityTree: ResearchTreeDef = {
     title: 'Gravity',
     colour: RESEARCH_TREE_COLOUR_GRAVITY,
     icon: RESEARCH_TREE_ICON_GRAVITY,
+    tags: ['core'],
     accessRequirements: [],
     nodes: [
         {

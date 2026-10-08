@@ -1,13 +1,11 @@
 /**
- * Campsite — special story node. Skips battle, recovers exhaustion, and offers 3 free
- * research picks drawn from what the player could currently unlock.
+ * Campsite — special story node. Skips battle, recovers exhaustion, and offers six random free
+ * research picks: two weapon (left), two stat (middle), two core (right).
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
-import type { PostMissionChoiceResolveParams } from '../../types';
-import type { PostMissionStoryDef, StoryChoiceOptionRow } from '../../storyTypes';
-import { pickRandomResearchRewardOptions } from '../../researchRewardSlots';
+import type { PostMissionStoryDef, ResearchRewardSlot } from '../../storyTypes';
 import {
     WOD_CH2_MAP_X_COL0,
     WOD_CH2_MAP_X_COL2,
@@ -25,26 +23,24 @@ export const CAMPSITE_2_MISSION_ID = 'campsite_2';
 export const CAMPSITE_3_MISSION_ID = 'campsite_3';
 export const CAMPSITE_CHOICE_ID = 'campsite_research_choice';
 export const CAMPSITE_EXHAUSTION_RECOVERY = 20;
-export const CAMPSITE_RESEARCH_OPTION_COUNT = 3;
+/**
+ * Six random reward slots. The choice grid fills row-major across three columns, so this order
+ * puts the two weapon slots on the left, the two stat slots in the middle and the two core slots
+ * on the right.
+ */
+export const CAMPSITE_RESEARCH_SLOTS: ResearchRewardSlot[] = [
+    { tag: 'weapon', random: true },
+    { tag: 'stat', random: true },
+    { tag: 'core', random: true },
+    { tag: 'weapon', random: true },
+    { tag: 'stat', random: true },
+    { tag: 'core', random: true },
+];
+export const CAMPSITE_RESEARCH_OPTION_COUNT = CAMPSITE_RESEARCH_SLOTS.length;
 export const CAMPSITE_INTRO_TEXT = 'You have discovered a campsite';
 
 function createTerrain(): TerrainGrid {
     return TerrainGrid.createTerrainFromArray(1, 1, CELL_SIZE, [[TerrainType.Grass]], TerrainType.Grass);
-}
-
-/** Seed varies with research progress so back-to-back campsites do not repeat the same offer. */
-export function getCampsiteResearchChoiceRows(
-    playerResearchTrees: Record<string, string[]> | undefined,
-    equippedItemIds: readonly string[],
-    playerId: string | undefined,
-): StoryChoiceOptionRow[] {
-    const researchedCount = Object.values(playerResearchTrees ?? {}).reduce((n, ids) => n + ids.length, 0);
-    return pickRandomResearchRewardOptions(
-        CAMPSITE_RESEARCH_OPTION_COUNT,
-        playerResearchTrees,
-        equippedItemIds,
-        `${CAMPSITE_MISSION_ID}:${playerId ?? ''}:${researchedCount}`,
-    );
 }
 
 /** Order matters: recovery is applied before the research pick, in story order. */
@@ -63,20 +59,12 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
             choiceId: CAMPSITE_CHOICE_ID,
             backgroundImage: STORY_BACKGROUNDS.campfire,
             options: [],
+            researchRewardSlots: CAMPSITE_RESEARCH_SLOTS,
         },
     ],
 };
 
 export class CampsiteMission extends BaseMissionDef {
-    getPostMissionChoiceOptions(params: PostMissionChoiceResolveParams): StoryChoiceOptionRow[] | null {
-        if (params.choiceId !== CAMPSITE_CHOICE_ID) return null;
-        return getCampsiteResearchChoiceRows(
-            params.playerResearchTrees,
-            params.equippedItemIds,
-            params.playerId,
-        );
-    }
-
     missionId: string;
     mapPosition: { x: number; y: number };
 
@@ -88,7 +76,7 @@ export class CampsiteMission extends BaseMissionDef {
     }
 
     missionType = 'campsite' as const;
-    description = `A place to rest. Recover ${CAMPSITE_EXHAUSTION_RECOVERY} exhaustion and pick one of ${CAMPSITE_RESEARCH_OPTION_COUNT} free research options.`;
+    description = `A place to rest. Recover ${CAMPSITE_EXHAUSTION_RECOVERY} exhaustion and pick one of ${CAMPSITE_RESEARCH_OPTION_COUNT} free upgrades (weapon, stat or core).`;
     campaignId = 'world_of_darkness';
     name = 'Campsite';
     worldWidth = CELL_SIZE;

@@ -54,6 +54,7 @@ export const earthTree: ResearchTreeDef = {
     title: 'Earth',
     colour: RESEARCH_TREE_COLOUR_EARTH,
     icon: RESEARCH_TREE_ICON_EARTH,
+    tags: ['core'],
     accessRequirements: [],
     nodes: [
         {

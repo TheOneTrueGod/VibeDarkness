@@ -21,6 +21,7 @@ export const crystalRocksTree: ResearchTreeDef = {
     title: 'Rocks',
     colour: RESEARCH_TREE_COLOUR_WEAPON,
     icon: RESEARCH_TREE_ICON_WEAPON,
+    tags: ['weapon'],
     accessRequirements: [
         { type: 'accountKnowledge', key: 'Research' },
         { type: 'characterHasEquippedItem', itemId: '001' }, // Rocks

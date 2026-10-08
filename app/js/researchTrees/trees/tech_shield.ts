@@ -16,6 +16,7 @@ export const techShieldTree: ResearchTreeDef = {
     title: 'Tech Shield',
     colour: RESEARCH_TREE_COLOUR_WEAPON,
     icon: RESEARCH_TREE_ICON_WEAPON,
+    tags: ['weapon'],
     accessRequirements: [
         { type: 'characterHasEquippedItem', itemId: '003' }, // Pot Lid (pot shield)
     ],

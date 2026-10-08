@@ -5,15 +5,34 @@ import {
     CAMPSITE_EXHAUSTION_RECOVERY,
     CAMPSITE_INTRO_TEXT,
     CAMPSITE_RESEARCH_OPTION_COUNT,
-    getCampsiteResearchChoiceRows,
+    CAMPSITE_RESEARCH_SLOTS,
 } from './campsite';
 import { MISSION_MAP } from '../../index';
-import { RESEARCH_TREES } from '../../../../../researchTrees/list';
+import { resolveResearchRewardSlots } from '../../researchRewardSlots';
+import { RESEARCH_TREES, getResearchTree } from '../../../../../researchTrees/list';
+import { getResearchNodeTags } from '../../../../../researchTrees/types';
 import { LIGHT_NODE_CORE, LIGHT_TREE_ID } from '../../../../../researchTrees/trees/light';
+import { STICK_SWORD_NODE_BASE, STICK_SWORD_TREE_ID } from '../../../../../researchTrees/trees/stick_sword';
+import { TRAINING_NODE_CORE, TRAINING_TREE_ID } from '../../../../../researchTrees/trees/training';
 import { CORE_ITEM_IDS } from '../../../character_defs/items';
 
-const WITH_LIGHT_CORE = { [LIGHT_TREE_ID]: [LIGHT_NODE_CORE] };
-const LIGHT_EQUIPMENT = [CORE_ITEM_IDS.LightCore];
+/** A player who is in a weapon tree, the stat tree and a core tree. */
+const RESEARCHED = {
+    [LIGHT_TREE_ID]: [LIGHT_NODE_CORE],
+    [STICK_SWORD_TREE_ID]: [STICK_SWORD_NODE_BASE],
+    [TRAINING_TREE_ID]: [TRAINING_NODE_CORE],
+};
+const EQUIPMENT = [CORE_ITEM_IDS.LightCore];
+
+function offer(seed: string) {
+    return resolveResearchRewardSlots(CAMPSITE_RESEARCH_SLOTS, RESEARCHED, EQUIPMENT, seed);
+}
+
+function tagsOf(row: { action: unknown }): string[] {
+    const a = row.action as { treeId: string; nodeId: string };
+    const tree = getResearchTree(a.treeId)!;
+    return getResearchNodeTags(tree, tree.nodes.find((n) => n.id === a.nodeId)!);
+}
 
 describe('campsite mission', () => {
     it('is registered as a campsite-type, battle-less node', () => {
@@ -22,36 +41,43 @@ describe('campsite mission', () => {
         expect(CAMPSITE.skipBattle).toBe(true);
     });
 
-    it('opens with a single intro line, then recovers 20 exhaustion, then offers research', () => {
+    it('opens with a single intro line, then recovers 20 exhaustion, then offers research slots', () => {
         const phrases = CAMPSITE.postMissionStory!.phrases;
         expect(phrases[0]).toMatchObject({ type: 'dialogue', text: 'You have discovered a campsite' });
         expect(CAMPSITE_INTRO_TEXT).toBe('You have discovered a campsite');
         expect(phrases[1]).toEqual({ type: 'recover_exhaustion_auto', amount: 20 });
         expect(CAMPSITE_EXHAUSTION_RECOVERY).toBe(20);
-        expect(phrases[2]).toMatchObject({ type: 'choice', choiceId: CAMPSITE_CHOICE_ID });
+        expect(phrases[2]).toMatchObject({
+            type: 'choice',
+            choiceId: CAMPSITE_CHOICE_ID,
+            researchRewardSlots: CAMPSITE_RESEARCH_SLOTS,
+        });
         expect(phrases).toHaveLength(3);
     });
 
-    it('offers 3 distinct research grants, deterministically per player/state', () => {
-        const rows = getCampsiteResearchChoiceRows(WITH_LIGHT_CORE, LIGHT_EQUIPMENT, 'p1');
-        expect(rows).toHaveLength(CAMPSITE_RESEARCH_OPTION_COUNT);
+    it('lays slots out so the grid shows weapon (left), stat (middle), core (right), two rows deep', () => {
+        // The choice grid fills row-major across 3 columns: columns are index % 3.
+        expect(CAMPSITE_RESEARCH_OPTION_COUNT).toBe(6);
+        expect(CAMPSITE_RESEARCH_SLOTS.map((s) => (s as { tag?: string }).tag)).toEqual([
+            'weapon', 'stat', 'core', 'weapon', 'stat', 'core',
+        ]);
+        for (const slot of CAMPSITE_RESEARCH_SLOTS) expect((slot as { random?: boolean }).random).toBe(true);
+    });
+
+    it('offers two distinct upgrades of each type, deterministically', () => {
+        const rows = offer('p1');
+        expect(rows).toHaveLength(6);
         const keys = rows.map((r) => JSON.stringify(r.action));
-        expect(new Set(keys).size).toBe(rows.length);
-        for (const row of rows) expect(row.action.type).toBe('grant_research_to_player');
-        expect(getCampsiteResearchChoiceRows(WITH_LIGHT_CORE, LIGHT_EQUIPMENT, 'p1')).toEqual(rows);
-    });
-
-    it('resolves choice options through the mission hook', () => {
-        const rows = CAMPSITE.getPostMissionChoiceOptions({
-            choiceId: CAMPSITE_CHOICE_ID,
-            equippedItemIds: LIGHT_EQUIPMENT,
-            playerResearchTrees: WITH_LIGHT_CORE,
-            playerId: 'p1',
+        expect(new Set(keys).size).toBe(6);
+        const expected = ['weapon', 'stat', 'core', 'weapon', 'stat', 'core'];
+        rows.forEach((row, i) => {
+            expect(row.disabledLabel).toBeUndefined();
+            expect(tagsOf(row)).toContain(expected[i]);
         });
-        expect(rows).toEqual(getCampsiteResearchChoiceRows(WITH_LIGHT_CORE, LIGHT_EQUIPMENT, 'p1'));
+        expect(offer('p1')).toEqual(rows);
     });
 
-    it('never offers mission-reward-only nodes (e.g. alternative Cores) or nodes from locked trees', () => {
+    it('never offers mission-reward-only nodes (e.g. alternative Cores)', () => {
         const missionRewardOnly = new Set(
             RESEARCH_TREES.flatMap((t) =>
                 t.nodes.filter((n) => n.requirements.some((r) => r.type === 'missionReward')).map((n) => `${t.id}:${n.id}`),
@@ -59,16 +85,16 @@ describe('campsite mission', () => {
         );
         expect(missionRewardOnly.has('blood_mage:blood_mage_core')).toBe(true);
         for (let i = 0; i < 25; i++) {
-            const rows = getCampsiteResearchChoiceRows(WITH_LIGHT_CORE, LIGHT_EQUIPMENT, `p${i}`);
-            for (const row of rows) {
+            for (const row of offer(`p${i}`)) {
                 const a = row.action as { treeId: string; nodeId: string };
                 expect(missionRewardOnly.has(`${a.treeId}:${a.nodeId}`)).toBe(false);
-                expect(a.treeId).toBe(LIGHT_TREE_ID);
             }
         }
     });
 
-    it('offers nothing for a fresh character (no core nodes, no locked trees)', () => {
-        expect(getCampsiteResearchChoiceRows({}, [], 'p1')).toEqual([]);
+    it('offers nothing selectable for a fresh character', () => {
+        const rows = resolveResearchRewardSlots(CAMPSITE_RESEARCH_SLOTS, {}, [], 'p1');
+        expect(rows).toHaveLength(6);
+        for (const row of rows) expect(row.disabledLabel).toBeDefined();
     });
 });

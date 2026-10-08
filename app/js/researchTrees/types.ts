@@ -144,6 +144,8 @@ export interface ResearchNodeDef {
      * Admins still see the node and can grant it.
      */
     disabled?: boolean;
+    /** Extra tags for this node, added to its tree's tags (see {@link ResearchTag}). */
+    tags?: ResearchTag[];
     position: { x: number; y: number };
     prereqNodeIds: string[];
     exclusiveWithNodeIds: string[];
@@ -184,6 +186,14 @@ export interface ResearchNodeDef {
     bonusRewards?: Partial<Record<CampaignResourceKey, number>>;
 }
 
+/** Tags of a node: its tree's tags plus any it declares itself. */
+export function getResearchNodeTags(
+    tree: Pick<ResearchTreeDef, 'tags'>,
+    node: Pick<ResearchNodeDef, 'tags'>,
+): ResearchTag[] {
+    return [...new Set([...(tree.tags ?? []), ...(node.tags ?? [])])];
+}
+
 /** True when the node is WIP and must not appear in research selection / discovery. */
 export function isDraftResearchNode(node: Pick<ResearchNodeDef, 'draft'>): boolean {
     return node.draft === true;
@@ -201,6 +211,14 @@ export interface CrossTreeNodeRef {
     position: { x: number; y: number };
 }
 
+/**
+ * Category tags used to target research (e.g. campsite reward slots).
+ * - `weapon`: weapon upgrades (Throw Rock, Swing Bat, Raise Shield and everything in their trees)
+ * - `stat`: stat upgrades (the Training tree)
+ * - `core`: trees tied to a core item (Light, Earth, Command, Gravity, Blood Mage)
+ */
+export type ResearchTag = 'weapon' | 'stat' | 'core';
+
 export interface ResearchTreeDef {
     id: string;
     title: string;
@@ -210,6 +228,8 @@ export interface ResearchTreeDef {
     icon: string;
     /** Tree-level requirements to show/allow (unless it has any node researched). */
     accessRequirements: Requirement[];
+    /** Tags inherited by every node in this tree (see {@link ResearchTag}). */
+    tags?: ResearchTag[];
     nodes: ResearchNodeDef[];
     /** Nodes owned by other trees that are also displayed in this tree's panel. */
     crossTreeNodeRefs?: CrossTreeNodeRef[];

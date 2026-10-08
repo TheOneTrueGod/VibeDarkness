@@ -44,6 +44,7 @@ export const commandCoreTree: ResearchTreeDef = {
     title: 'Command Core',
     colour: RESEARCH_TREE_COLOUR_COMMAND,
     icon: RESEARCH_TREE_ICON_COMMAND,
+    tags: ['core'],
     accessRequirements: [{ type: 'accountKnowledge', key: 'Research' }],
     nodes: [
         {

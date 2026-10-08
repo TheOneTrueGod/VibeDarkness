@@ -215,6 +215,8 @@ export default function PostMissionStoryPhase({
                 currentPhrase.researchRewardSlots,
                 myResearchTrees,
                 myEquipment,
+                // Stable until the player researches something, so the offer does not reshuffle on re-render.
+                `${missionId}:${playerId}:${Object.values(myResearchTrees ?? {}).reduce((n, ids) => n + ids.length, 0)}`,
             );
         }
 

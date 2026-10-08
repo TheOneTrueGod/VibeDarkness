@@ -32,6 +32,7 @@ export const trainingTree: ResearchTreeDef = {
     title: 'Training',
     colour: RESEARCH_TREE_COLOUR_GENERIC,
     icon: RESEARCH_TREE_ICON_GENERIC,
+    tags: ['stat'],
     accessRequirements: [
         { type: 'accountKnowledge', key: 'Research' },
         { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.BasicCore },

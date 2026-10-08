@@ -25,6 +25,7 @@ export const bloodMageTree: ResearchTreeDef = {
     title: 'Blood Mage',
     colour: RESEARCH_TREE_COLOUR_BLOOD_MAGE,
     icon: RESEARCH_TREE_ICON_BLOOD_MAGE,
+    tags: ['core'],
     accessRequirements: [],
     nodes: [
         {

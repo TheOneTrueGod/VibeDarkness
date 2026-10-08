@@ -3,6 +3,8 @@
  * Strongly typed phrase union; choice actions are extensible.
  */
 
+import type { ResearchTag } from '../../../researchTrees/types';
+
 /** Which side the speaker's portrait appears on. */
 export type PortraitSide = 'left' | 'right';
 
@@ -117,7 +119,23 @@ export interface StoryChoiceOptionRow {
  */
 export type ResearchRewardSlot =
     | { treeId: string; nodeId: string; loreTitle?: string; loreDescription?: string }
-    | { nodeId?: never; treeId?: string; minTier?: number; maxTier?: number; loreTitle?: string; loreDescription?: string; respectRequirements?: boolean };
+    | {
+        nodeId?: never;
+        treeId?: string;
+        /** Only nodes carrying this tag (tree tags + node tags), e.g. `'weapon'`. */
+        tag?: ResearchTag;
+        /**
+         * Pick a seeded-random matching node instead of the first one. Random slots only offer
+         * what the player could legitimately unlock: tree open, prereqs met, requirements truly
+         * met (no `missionReward`-only nodes such as alternative Cores).
+         */
+        random?: boolean;
+        minTier?: number;
+        maxTier?: number;
+        loreTitle?: string;
+        loreDescription?: string;
+        respectRequirements?: boolean;
+    };
 
 /** Choice phrase: player selects one option; action is applied (e.g. equip item). */
 export interface ChoicePhrase {
