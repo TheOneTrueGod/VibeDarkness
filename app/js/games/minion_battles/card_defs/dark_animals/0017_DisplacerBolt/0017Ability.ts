@@ -14,7 +14,11 @@ import { Projectile } from '../../../game/projectiles/Projectile';
 import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 import { hasUnitTag, UnitTag } from '../../../game/units/unitTag';
 import { mirrorAbilityToClones, type MirrorEngineLike } from '../../../game/displacer/mirrorToClones';
-import { DISPLACER_BOLT_USES_PER_ROUND } from '../../../game/displacer/displacerConstants';
+import {
+    DISPLACER_BOLT_ENRAGED_SECOND_SHOT_DELAY_SEC,
+    DISPLACER_BOLT_USES_PER_ROUND,
+} from '../../../game/displacer/displacerConstants';
+import { getDirectionFromTo, getPixelTargetPosition } from '../../../abilities/targetHelpers';
 import { type CardDef } from '../../types';
 import { DIRECTIONAL_ORB_LOOK } from '../../../game/projectiles/projectile_defs/directionalOrb';
 import type { SpriteProjectileConfig } from '../../../game/projectiles/projectile_defs/types';
@@ -61,6 +65,7 @@ export const DISPLACER_BOLT_LIFETIME_SEC = DISPLACER_BOLT_TRAVEL_DISTANCE / DISP
 const TOOLTIP_LINES = [
     'Hurls a bolt that flies twice as far as it aims, dealing {{DAMAGE}} damage to an enemy',
     'Up to 3 clones echo the shot in quick succession',
+    'When enraged, a second bolt follows shortly after',
 ] as const;
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     DAMAGE: { kind: 'damage', base: DAMAGE },
@@ -184,6 +189,21 @@ const _base: AbilityStatic = defineAbility({
 
 export const DisplacerBoltAbility: AbilityStatic = {
     ..._base,
+
+    /**
+     * Enraged spirit double-taps: a second bolt follows a beat after the first, thrown from where the
+     * spirit now stands at the originally targeted spot. Clones (never enraged) keep single shots.
+     */
+    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
+        if (!hasUnitTag(caster, UnitTag.Enraged) || hasUnitTag(caster, UnitTag.Clone)) return;
+        const fireAt = LOCK_TIME + DISPLACER_BOLT_ENRAGED_SECOND_SHOT_DELAY_SEC;
+        if (!(prevTime < fireAt && currentTime >= fireAt)) return;
+        const aim = getPixelTargetPosition(targets, 0);
+        if (!aim) return;
+        const { dirX, dirY, dist } = getDirectionFromTo(caster.x, caster.y, aim.x, aim.y);
+        if (dist === 0) return;
+        spawnDisplacerBoltProjectile(engine as Pick<AbilityEngineContext, 'addProjectile'>, caster, dirX, dirY);
+    },
     // Same telegraph as the slime (aim line capped at the slime's targeting range).
     renderActivePreview: SlimeShotAbility.renderActivePreview,
 };

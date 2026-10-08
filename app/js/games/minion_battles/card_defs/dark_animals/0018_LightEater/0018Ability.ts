@@ -22,7 +22,12 @@ import { ROUND_DURATION } from '../../../game/gameConstants';
 import { type CardDef } from '../../types';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { spawnDisplacerBoltProjectile } from '../0017_DisplacerBolt/0017Ability';
-import { LIGHT_EATER_ROUND_INTERVAL, LIGHT_EATER_ROUND_WINDOW } from '../../../game/displacer/displacerConstants';
+import {
+    LIGHT_EATER_ENRAGED_RING_MULTIPLIER,
+    LIGHT_EATER_ROUND_INTERVAL,
+    LIGHT_EATER_ROUND_WINDOW,
+} from '../../../game/displacer/displacerConstants';
+import { hasUnitTag, UnitTag } from '../../../game/units/unitTag';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}18`;
 export const LIGHT_EATER_ID = CARD_ID;
@@ -179,7 +184,7 @@ const _base: AbilityStatic = defineAbility({
         return [
             `Fly over the terrain to the nearest light and devour ${LIGHT_EATER_LIGHT_REDUCTION} of its strength (extinguishing weak lights)`,
             `Heal ${LIGHT_EATER_HEAL} and gain ${LIGHT_EATER_SUPER_GAIN} super bar on landing, then detonate for ${LIGHT_EATER_EXPLOSION_DAMAGE} damage and heal ${LIGHT_EATER_HEAL} again`,
-            `The blast also looses a ring of ${LIGHT_EATER_RING_PROJECTILES} Displacer Bolts`,
+            `The blast also looses a ring of ${LIGHT_EATER_RING_PROJECTILES} Displacer Bolts (${LIGHT_EATER_RING_PROJECTILES * LIGHT_EATER_ENRAGED_RING_MULTIPLIER} when enraged)`,
             'The blast area is shown at the light as soon as the cast begins',
             'Used every other round, in the middle of the round',
         ];
@@ -254,8 +259,11 @@ export const LightEaterAbility: AbilityStatic = {
             // Heal and ring of Displacer Bolts, only when this cast actually devoured a light.
             if (payload?.tileId) {
                 applyHeal(caster, LIGHT_EATER_HEAL, 0);
-                const step = (Math.PI * 2) / LIGHT_EATER_RING_PROJECTILES;
-                for (let i = 0; i < LIGHT_EATER_RING_PROJECTILES; i++) {
+                const ringCount = hasUnitTag(caster, UnitTag.Enraged)
+                    ? LIGHT_EATER_RING_PROJECTILES * LIGHT_EATER_ENRAGED_RING_MULTIPLIER
+                    : LIGHT_EATER_RING_PROJECTILES;
+                const step = (Math.PI * 2) / ringCount;
+                for (let i = 0; i < ringCount; i++) {
                     const angle = LIGHT_EATER_RING_ROTATION + i * step;
                     spawnDisplacerBoltProjectile(eng, caster, Math.cos(angle), Math.sin(angle));
                 }

@@ -315,7 +315,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     displacer_spirit: {
         bodyColor: 0x1e3a5f,
         characterSpriteKey: 'displacer_spirit',
-        hp: 150,
+        hp: 120,
         // Slime is 50; a bit above that (no ghost unit def exists yet — see mission notes).
         speed: 65,
         size: 'Small',
@@ -328,6 +328,13 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         maxPerTile: 1,
         startingResources: { super: 2 },
         displayWiggleRadius: 10,
+        // Enrages at half health, like the alpha wolf: bigger decoys, a double-tap bolt, a denser light-eater ring.
+        enrageDef: {
+            conditionType: 'health_below_percent',
+            threshold: 0.5,
+            tag: UnitTag.Enraged,
+            oneShot: true,
+        },
     },
     displacer_clone: {
         bodyColor: 0x1e3a5f,

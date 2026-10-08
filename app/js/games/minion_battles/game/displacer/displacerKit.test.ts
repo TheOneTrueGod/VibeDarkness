@@ -22,7 +22,12 @@ import { ENEMY_DISPLACER_CLONE, ENEMY_DISPLACER_SPIRIT } from '../../constants/e
 import { initializeAbilityRuntimeForUnit } from '../../abilities/abilityUses';
 import { pickBestAbility, getRoundFraction, isInRoundWindow } from '../units/unitAI/utils';
 import type { AIContext } from '../units/unitAI/types';
-import { UnitTag } from '../units/unitTag';
+import { addUnitTag, hasUnitTag, UnitTag } from '../units/unitTag';
+import {
+    DISPLACER_BOLT_ENRAGED_SECOND_SHOT_DELAY_SEC,
+    LIGHT_EATER_ENRAGED_RING_MULTIPLIER,
+    PHANTOM_DECOY_ENRAGED_CLONE_COUNT,
+} from './displacerConstants';
 import {
     LIGHT_EATER_EXPLOSION_DAMAGE,
     LIGHT_EATER_EXPLOSION_RADIUS,
@@ -307,7 +312,7 @@ describe('Light Eater (0018)', () => {
         step(engine, LIGHT_EATER_LANDING_TIME + 0.1);
         expect(engine.specialTiles.find((t) => t.id === 'dim')).toBeUndefined();
         expect(boss.hp).toBe(boss.maxHp);
-        expect(boss.maxHp).toBe(150);
+        expect(boss.maxHp).toBe(120);
         engine.destroy();
     });
 
@@ -777,5 +782,82 @@ describe('DisplayWiggle', () => {
         const w = new DisplayWiggle(20, seededRand(11));
         w.update(30);
         expect(Math.hypot(w.offsetX, w.offsetY)).toBeLessThanOrEqual(20 + 1e-6);
+    });
+});
+
+describe('Displacer Spirit enrage (half health)', () => {
+    function castBolt(engine: GameEngine, boss: Unit, player: Unit, seconds: number): number {
+        engine.state.orderMgr.applyOrder({
+            unitId: boss.id,
+            abilityId: DISPLACER_BOLT_ID,
+            targets: [{ type: 'pixel', position: { x: player.x, y: player.y } }],
+        });
+        step(engine, seconds);
+        return engine.projectiles.filter((p) => p.sourceUnitId === boss.id && p.sourceAbilityId === DISPLACER_BOLT_ID).length;
+    }
+
+    it('enrages once, below half health, and not before', () => {
+        const engine = makeEngine();
+        const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
+        expect(boss.enrageDef).toMatchObject({ conditionType: 'health_below_percent', threshold: 0.5, tag: UnitTag.Enraged });
+        boss.takeDamage(boss.maxHp * 0.4, null, engine.eventBus);
+        expect(hasUnitTag(boss, UnitTag.Enraged)).toBe(false);
+        boss.takeDamage(boss.maxHp * 0.15, null, engine.eventBus);
+        expect(hasUnitTag(boss, UnitTag.Enraged)).toBe(true);
+        engine.destroy();
+    });
+
+    it('Phantom Decoy conjures 6 clones calm and 12 enraged', () => {
+        expect(PHANTOM_DECOY_CLONE_COUNT).toBe(6);
+        expect(PHANTOM_DECOY_ENRAGED_CLONE_COUNT).toBe(12);
+        const engine = makeEngine();
+        const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
+        const player = spawnPlayerTarget(engine, cell(8), cell(8));
+        addUnitTag(boss, UnitTag.Enraged);
+        engine.state.orderMgr.applyOrder({
+            unitId: boss.id,
+            abilityId: PHANTOM_DECOY_ID,
+            targets: [{ type: 'unit', unitId: player.id }],
+        });
+        step(engine, PHANTOM_DECOY_WINDUP + 0.2);
+        const clones = engine.units.filter((u) => u.characterId === DISPLACER_CLONE_ID && u.isAlive());
+        expect(clones).toHaveLength(PHANTOM_DECOY_ENRAGED_CLONE_COUNT);
+        engine.destroy();
+    });
+
+    it('Displacer Bolt fires one bolt calm and a second after a short delay when enraged', () => {
+        const calm = makeEngine();
+        const calmBoss = spawnEnemy(calm, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
+        const calmPlayer = spawnPlayerTarget(calm, cell(6), cell(8));
+        expect(castBolt(calm, calmBoss, calmPlayer, 1.2)).toBe(1);
+        calm.destroy();
+
+        const enraged = makeEngine();
+        const boss = spawnEnemy(enraged, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
+        const player = spawnPlayerTarget(enraged, cell(6), cell(8));
+        addUnitTag(boss, UnitTag.Enraged);
+        // Just after the first bolt leaves (aim lock ends at 0.5s): still one.
+        expect(castBolt(enraged, boss, player, 0.5 + DISPLACER_BOLT_ENRAGED_SECOND_SHOT_DELAY_SEC / 2)).toBe(1);
+        step(enraged, DISPLACER_BOLT_ENRAGED_SECOND_SHOT_DELAY_SEC);
+        const bolts = enraged.projectiles.filter((p) => p.sourceUnitId === boss.id && p.sourceAbilityId === DISPLACER_BOLT_ID);
+        expect(bolts).toHaveLength(2);
+        // Both head the same way (toward the targeted spot).
+        const [a, b] = bolts;
+        expect(Math.sign(a!.velocityX)).toBe(Math.sign(b!.velocityX));
+        expect(Math.hypot(b!.velocityX, b!.velocityY)).toBeCloseTo(DISPLACER_BOLT_SPEED);
+        enraged.destroy();
+    });
+
+    it('Light Eater looses twice as many ring bolts when enraged', () => {
+        const engine = makeEngine();
+        addLight(engine, 'near', 6, 8, 12);
+        const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(10), cell(8));
+        spawnPlayerTarget(engine, cell(22), cell(1));
+        addUnitTag(boss, UnitTag.Enraged);
+        engine.state.orderMgr.applyOrder({ unitId: boss.id, abilityId: LIGHT_EATER_ID, targets: [] });
+        step(engine, LIGHT_EATER_EXPLODE_TIME + 0.1);
+        const ring = engine.projectiles.filter((p) => p.sourceUnitId === boss.id && p.sourceAbilityId === DISPLACER_BOLT_ID);
+        expect(ring).toHaveLength(LIGHT_EATER_RING_PROJECTILES * LIGHT_EATER_ENRAGED_RING_MULTIPLIER);
+        engine.destroy();
     });
 });

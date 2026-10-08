@@ -19,7 +19,9 @@ export const CLONE_MIRROR_START_DELAY_SEC = 0.2;
 export const CLONE_MIRROR_STAGGER_SEC = 0.28;
 
 // --- Phantom Decoy placement ----------------------------------------------
-export const PHANTOM_DECOY_CLONE_COUNT = 10;
+/** Clones conjured per Phantom Decoy while calm; the enraged spirit conjures more. */
+export const PHANTOM_DECOY_CLONE_COUNT = 6;
+export const PHANTOM_DECOY_ENRAGED_CLONE_COUNT = 12;
 /** Clones appear within this many px of the targeted player. */
 export const PHANTOM_DECOY_SPAWN_RADIUS = 160;
 /** Clones keep at least this far from the targeted player so they don't land on top of them. */
@@ -48,3 +50,7 @@ export const LIGHT_EATER_ROUND_WINDOW = { start: 0.25, end: 0.75 } as const; // 
 /** Light Eater is usable only every other round (rounds 0, 2, 4, ...). */
 export const LIGHT_EATER_ROUND_INTERVAL = 2;
 export const DISPLACER_BOLT_USES_PER_ROUND = 4;
+/** Enraged spirit fires a second bolt this many seconds after the first. */
+export const DISPLACER_BOLT_ENRAGED_SECOND_SHOT_DELAY_SEC = 0.3;
+/** Enraged Light Eater looses this many times the usual ring of bolts. */
+export const LIGHT_EATER_ENRAGED_RING_MULTIPLIER = 2;

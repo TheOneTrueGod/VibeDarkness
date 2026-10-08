@@ -19,6 +19,7 @@ import { ENEMY_DISPLACER_CLONE } from '../../../constants/enemyConstants';
 import { pickCloneSpawnPositions } from '../../../game/displacer/clonePlacement';
 import {
     PHANTOM_DECOY_CLONE_COUNT,
+    PHANTOM_DECOY_ENRAGED_CLONE_COUNT,
     PHANTOM_DECOY_ROUND_INTERVAL,
     PHANTOM_DECOY_ROUND_WINDOW,
 } from '../../../game/displacer/displacerConstants';
@@ -95,7 +96,7 @@ const _base: AbilityStatic = defineAbility({
 
     getTooltipText(): string[] {
         return [
-            `Spend ${PHANTOM_DECOY_SUPER_COST} super bar to conjure ${PHANTOM_DECOY_CLONE_COUNT} clones around a player`,
+            `Spend ${PHANTOM_DECOY_SUPER_COST} super bar to conjure ${PHANTOM_DECOY_CLONE_COUNT} clones around a player (${PHANTOM_DECOY_ENRAGED_CLONE_COUNT} when enraged)`,
             'Clones echo Displacer Bolts and fade when the Displacer Spirit falls',
         ];
     },
@@ -126,7 +127,9 @@ export const PhantomDecoyAbility: AbilityStatic = {
         }
 
         const occupied = eng.units.filter((u) => u.isAlive()).map((u) => ({ x: u.x, y: u.y }));
+        const enraged = hasUnitTag(caster, UnitTag.Enraged);
         const positions = pickCloneSpawnPositions(center, {
+            count: enraged ? PHANTOM_DECOY_ENRAGED_CLONE_COUNT : PHANTOM_DECOY_CLONE_COUNT,
             isFree: (x, y) => eng.terrainManager?.isPassable(x, y) ?? true,
             occupied,
             randomInt: (min, max) => eng.generateRandomInteger(min, max),
