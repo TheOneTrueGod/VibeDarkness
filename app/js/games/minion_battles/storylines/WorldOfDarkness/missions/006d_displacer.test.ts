@@ -86,7 +86,7 @@ describe('DisplacerMission', () => {
         // Boss kit: own AI tree, starts with 2 super bars.
         expect(bosses[0]!.unitAITreeId).toBe('displacerBoss');
         expect(bosses[0]!.getResource('super')?.current).toBe(2);
-        expect(bosses[0]!.abilities).toEqual(['0017', '0018', '0019']);
+        expect(bosses[0]!.abilities).toEqual(['0017', '0018', '0019', '0020']);
         expect(engine.units.filter((u) => u.characterId === 'dark_wolf')).toHaveLength(OPENING_WOLF_COUNT);
 
         for (const pt of ARENA_RING_SPAWN_POINTS) {

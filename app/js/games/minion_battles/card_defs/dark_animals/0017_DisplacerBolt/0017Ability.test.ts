@@ -43,6 +43,6 @@ describe('displacer_spirit unit def', () => {
         expect(def).toBeDefined();
         expect(def!.size).toBe('Small');
         expect(def!.speed!).toBeGreaterThan(slime!.speed!);
-        expect(ENEMY_DISPLACER_SPIRIT.abilities).toEqual([DISPLACER_BOLT_ID, '0018', '0019']);
+        expect(ENEMY_DISPLACER_SPIRIT.abilities).toEqual([DISPLACER_BOLT_ID, '0018', '0019', '0020']);
     });
 });

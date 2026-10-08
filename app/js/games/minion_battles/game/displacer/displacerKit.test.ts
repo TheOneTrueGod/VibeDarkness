@@ -24,7 +24,14 @@ import { pickBestAbility, getRoundFraction, isInRoundWindow } from '../units/uni
 import type { AIContext } from '../units/unitAI/types';
 import { addUnitTag, hasUnitTag, UnitTag } from '../units/unitTag';
 import {
-    DISPLACER_BOLT_ENRAGED_SECOND_SHOT_DELAY_SEC,
+    FRENZIED_BOLT_LOCK_TIME,
+    FRENZIED_BOLT_PREFIRE_TIME,
+    FRENZIED_DISPLACER_BOLT_ID,
+} from '../../card_defs/dark_animals/0020_FrenziedDisplacerBolt/0020Ability';
+import {
+    DISPLACER_BOLT_ENRAGED_TIME_SCALE,
+    DISPLACER_BOLT_ENRAGED_USES_PER_ROUND,
+    DISPLACER_BOLT_USES_PER_ROUND,
     LIGHT_EATER_ENRAGED_RING_MULTIPLIER,
     PHANTOM_DECOY_ENRAGED_CLONE_COUNT,
 } from './displacerConstants';
@@ -825,27 +832,90 @@ describe('Displacer Spirit enrage (half health)', () => {
         engine.destroy();
     });
 
-    it('Displacer Bolt fires one bolt calm and a second after a short delay when enraged', () => {
+    it('swaps to the Frenzied Displacer Bolt when enraged: 30% faster, more uses per round', () => {
+        expect(DISPLACER_BOLT_ENRAGED_TIME_SCALE).toBeCloseTo(0.7);
+        expect(DISPLACER_BOLT_ENRAGED_USES_PER_ROUND).toBeGreaterThan(DISPLACER_BOLT_USES_PER_ROUND);
+        expect(FRENZIED_BOLT_LOCK_TIME).toBeCloseTo(0.5 * 0.7);
+        expect(FRENZIED_BOLT_PREFIRE_TIME).toBeCloseTo(1.0 * 0.7);
+
+        const engine = makeEngine();
+        const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
+        const player = spawnPlayerTarget(engine, boss.x - 150, boss.y);
+        const pickId = () =>
+            pickBestAbility(boss, [player], {
+                gameTime: ROUND_DURATION * 0.1,
+                gameTick: 1,
+                getAbilityUsesThisRound: () => 0,
+                getSpecialTiles: () => [],
+                getUnits: () => [],
+                generateRandomInteger: (min: number) => min,
+            } as unknown as AIContext)?.ability.id;
+        expect(pickId()).toBe(DISPLACER_BOLT_ID);
+        addUnitTag(boss, UnitTag.Enraged);
+        expect(pickId()).toBe(FRENZIED_DISPLACER_BOLT_ID);
+        expect(boss.abilityRuntime[FRENZIED_DISPLACER_BOLT_ID]!.maxUses).toBe(DISPLACER_BOLT_ENRAGED_USES_PER_ROUND);
+        engine.destroy();
+    });
+
+    it('the enraged bolt leaves sooner than the calm one, and only one bolt is fired per cast', () => {
         const calm = makeEngine();
         const calmBoss = spawnEnemy(calm, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
         const calmPlayer = spawnPlayerTarget(calm, cell(6), cell(8));
-        expect(castBolt(calm, calmBoss, calmPlayer, 1.2)).toBe(1);
+        // 0.4s in: past the enraged lock time (0.35s) but before the calm one (0.5s).
+        expect(castBolt(calm, calmBoss, calmPlayer, 0.4)).toBe(0);
+        step(calm, 1.0);
+        expect(
+            calm.projectiles.filter((p) => p.sourceUnitId === calmBoss.id && p.sourceAbilityId === DISPLACER_BOLT_ID),
+        ).toHaveLength(1);
         calm.destroy();
 
         const enraged = makeEngine();
         const boss = spawnEnemy(enraged, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
         const player = spawnPlayerTarget(enraged, cell(6), cell(8));
         addUnitTag(boss, UnitTag.Enraged);
-        // Just after the first bolt leaves (aim lock ends at 0.5s): still one.
-        expect(castBolt(enraged, boss, player, 0.5 + DISPLACER_BOLT_ENRAGED_SECOND_SHOT_DELAY_SEC / 2)).toBe(1);
-        step(enraged, DISPLACER_BOLT_ENRAGED_SECOND_SHOT_DELAY_SEC);
-        const bolts = enraged.projectiles.filter((p) => p.sourceUnitId === boss.id && p.sourceAbilityId === DISPLACER_BOLT_ID);
-        expect(bolts).toHaveLength(2);
-        // Both head the same way (toward the targeted spot).
-        const [a, b] = bolts;
-        expect(Math.sign(a!.velocityX)).toBe(Math.sign(b!.velocityX));
-        expect(Math.hypot(b!.velocityX, b!.velocityY)).toBeCloseTo(DISPLACER_BOLT_SPEED);
+        enraged.state.orderMgr.applyOrder({
+            unitId: boss.id,
+            abilityId: FRENZIED_DISPLACER_BOLT_ID,
+            targets: [{ type: 'pixel', position: { x: player.x, y: player.y } }],
+        });
+        step(enraged, 0.4);
+        const out = () =>
+            enraged.projectiles.filter((p) => p.sourceUnitId === boss.id && p.sourceAbilityId === FRENZIED_DISPLACER_BOLT_ID);
+        expect(out()).toHaveLength(1);
+        step(enraged, 1.2);
+        expect(out()).toHaveLength(1); // no second bolt
         enraged.destroy();
+    });
+
+    it('clone echoes follow up faster when the spirit is enraged', () => {
+        const timesFor = (enragedBoss: boolean): number[] => {
+            const engine = makeEngine();
+            const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
+            const player = spawnPlayerTarget(engine, cell(6), cell(8));
+            const clones: Unit[] = [];
+            for (let i = 0; i < 4; i++) clones.push(spawnEnemy(engine, ENEMY_DISPLACER_CLONE, cell(16), cell(2 + i * 2)));
+            if (enragedBoss) addUnitTag(boss, UnitTag.Enraged);
+            const times: number[] = [];
+            engine.eventBus.on('ability_used', (e: { unitId: string; abilityId: string }) => {
+                if (clones.some((c) => c.id === e.unitId) && e.abilityId === DISPLACER_BOLT_ID) times.push(engine.gameTime);
+            });
+            engine.state.orderMgr.applyOrder({
+                unitId: boss.id,
+                abilityId: enragedBoss ? FRENZIED_DISPLACER_BOLT_ID : DISPLACER_BOLT_ID,
+                targets: [{ type: 'pixel', position: { x: player.x, y: player.y } }],
+            });
+            step(engine, 2.5);
+            engine.destroy();
+            return times.sort((a, b) => a - b);
+        };
+        const calm = timesFor(false);
+        const enraged = timesFor(true);
+        expect(calm).toHaveLength(CLONE_MIRROR_MAX_CLONES);
+        expect(enraged).toHaveLength(CLONE_MIRROR_MAX_CLONES);
+        // Compare spacing between successive echoes: ~30% tighter when enraged.
+        const gap = (t: number[]) => t[t.length - 1]! - t[0]!;
+        expect(gap(enraged)).toBeLessThan(gap(calm));
+        expect(gap(enraged)).toBeCloseTo(gap(calm) * DISPLACER_BOLT_ENRAGED_TIME_SCALE, 0);
     });
 
     it('Light Eater looses twice as many ring bolts when enraged', () => {
