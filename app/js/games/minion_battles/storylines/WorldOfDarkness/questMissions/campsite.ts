@@ -8,7 +8,12 @@ import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { PostMissionChoiceResolveParams } from '../../types';
 import type { PostMissionStoryDef, StoryChoiceOptionRow } from '../../storyTypes';
 import { pickRandomResearchRewardOptions } from '../../researchRewardSlots';
-import { WOD_CH2_MAP_X_COL2, WOD_CH2_MAP_Y_ROW1, WOD_CH2_MAP_Y_ROW2 } from '../chapter2Map';
+import {
+    WOD_CH2_MAP_X_COL0,
+    WOD_CH2_MAP_X_COL2,
+    WOD_CH2_MAP_Y_ROW1,
+    WOD_CH2_MAP_Y_ROW2,
+} from '../chapter2Map';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
@@ -16,6 +21,8 @@ import { TerrainType } from '../../../terrain/TerrainType';
 export const CAMPSITE_MISSION_ID = 'campsite';
 /** Second campsite, between Surface Quests 3 and Displacer. */
 export const CAMPSITE_2_MISSION_ID = 'campsite_2';
+/** Third campsite, right after Displacer. */
+export const CAMPSITE_3_MISSION_ID = 'campsite_3';
 export const CAMPSITE_CHOICE_ID = 'campsite_research_choice';
 export const CAMPSITE_EXHAUSTION_RECOVERY = 20;
 export const CAMPSITE_RESEARCH_OPTION_COUNT = 3;
@@ -103,5 +110,11 @@ export const CAMPSITE = new CampsiteMission(CAMPSITE_MISSION_ID, {
 /** Chapter 2 row 2, between Surface Quests 3 and Thornbinder Arena. */
 export const CAMPSITE_2 = new CampsiteMission(CAMPSITE_2_MISSION_ID, {
     x: WOD_CH2_MAP_X_COL2,
+    y: WOD_CH2_MAP_Y_ROW2,
+});
+
+/** Chapter 2 row 2, right after Displacer. */
+export const CAMPSITE_3 = new CampsiteMission(CAMPSITE_3_MISSION_ID, {
+    x: WOD_CH2_MAP_X_COL0,
     y: WOD_CH2_MAP_Y_ROW2,
 });

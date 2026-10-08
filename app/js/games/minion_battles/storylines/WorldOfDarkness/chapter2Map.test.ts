@@ -20,7 +20,7 @@ import {
     WOD_POST_CORE_QUEST_BANK_2,
     WOD_POST_CORE_QUEST_BANK_3,
 } from './WorldOfDarkness';
-import { CAMPSITE, CAMPSITE_2 } from './questMissions/campsite';
+import { CAMPSITE, CAMPSITE_2, CAMPSITE_3 } from './questMissions/campsite';
 import { CRYSTAL_CORRUPTION } from './missions/004b_crystal_corruption';
 import { DISPLACER } from './missions/006d_displacer';
 import { THORNBINDER_ARENA } from './missions/006b_thornbinder_arena';
@@ -47,7 +47,7 @@ describe('chapter 2 mission map grid', () => {
         expect(WOD_POST_CORE_QUEST_BANK_3.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW2 });
         expect(CAMPSITE_2.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW2 });
         expect(DISPLACER.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW2 });
-        expect(THORNBINDER_ARENA.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW2 });
+        expect(CAMPSITE_3.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW2 });
     });
 
     it('chains each node on the previous one', () => {
@@ -57,8 +57,8 @@ describe('chapter 2 mission map grid', () => {
         expect(WOD_POST_CORE_QUEST_BANK_3.unlockAfterQuestBankId).toBe(WOD_POST_CORE_QUEST_BANK_2.id);
     });
 
-    it('enables Thornbinder Arena and disables Thornling Rise', () => {
-        expect(THORNBINDER_ARENA.disabled).toBeUndefined();
+    it('disables Thornbinder Arena (moved to chapter 3) and Thornling Rise', () => {
+        expect(THORNBINDER_ARENA.disabled).toBe(true);
         expect(THORNLING_RISE.disabled).toBe(true);
         expect(THORNLING_RISE.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW3 });
     });

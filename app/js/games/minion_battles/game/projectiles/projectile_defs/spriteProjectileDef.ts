@@ -1,6 +1,16 @@
 import { Assets, AnimatedSprite, Container, Texture } from 'pixi.js';
 import type { IProjectileDef, SpriteFramesDef, SpriteProjectileConfig } from './types';
 import type { Projectile } from '../Projectile';
+import { stepTrailBlob, type TrailBlobState } from './directionalOrb';
+
+/** Per-visual blob bookkeeping (render-only, never serialized or synced). */
+interface BlobRuntime extends TrailBlobState {
+    lastMs: number;
+    dirX: number;
+    dirY: number;
+    initialised: boolean;
+}
+const blobRuntime = new WeakMap<Container, BlobRuntime>();
 
 type TextureCacheEntry = Texture[] | 'loading' | 'failed';
 const textureCache: Map<string, TextureCacheEntry> = new Map();
@@ -56,8 +66,54 @@ function buildAnimatedSprite(textures: Texture[], config: SpriteProjectileConfig
     anim.animationSpeed = (config.sprite.fps ?? 8) / 60;
     if (config.sprite.scale !== undefined) anim.scale.set(config.sprite.scale);
     if (config.loop === false) anim.loop = false;
+    if (config.spriteAlpha !== undefined) anim.alpha = config.spriteAlpha;
     anim.play();
     return anim;
+}
+
+/** Smaller translucent twin of the main sprite; starts on a different frame so it pulses out of step. */
+function buildDirectionBlob(textures: Texture[], config: SpriteProjectileConfig): AnimatedSprite {
+    const def = config.directionBlob!;
+    const blob = buildAnimatedSprite(textures, config);
+    blob.label = 'directionBlob';
+    blob.alpha = def.alpha;
+    blob.scale.set((config.sprite.scale ?? 1) * def.scale);
+    blob.gotoAndPlay(Math.floor(textures.length / 2) % textures.length);
+    return blob;
+}
+
+/** Keep the rear-edge blob easing behind the projectile (visual position is already set). */
+function updateDirectionBlob(visual: Container, proj: Projectile, config: SpriteProjectileConfig): void {
+    const def = config.directionBlob;
+    if (!def) return;
+    const blob = visual.children.find((c) => c.label === 'directionBlob');
+    const main = visual.children[visual.children.length - 1];
+    if (!blob || !main || main === blob) return;
+
+    let rt = blobRuntime.get(visual);
+    if (!rt) {
+        rt = { x: proj.x, y: proj.y, lastMs: performance.now(), dirX: 1, dirY: 0, initialised: false };
+        blobRuntime.set(visual, rt);
+    }
+    const speed = Math.hypot(proj.velocityX, proj.velocityY);
+    if (speed > 0) {
+        rt.dirX = proj.velocityX / speed;
+        rt.dirY = proj.velocityY / speed;
+    }
+    const offset = def.edgeFraction * (main.width / 2);
+    const targetX = proj.x - rt.dirX * offset;
+    const targetY = proj.y - rt.dirY * offset;
+    const nowMs = performance.now();
+    const dt = Math.min(0.1, (nowMs - rt.lastMs) / 1000);
+    rt.lastMs = nowMs;
+    if (!rt.initialised) {
+        rt.x = targetX;
+        rt.y = targetY;
+        rt.initialised = true;
+    } else {
+        stepTrailBlob(rt, targetX, targetY, dt, def.followRate);
+    }
+    blob.position.set(rt.x - visual.x, rt.y - visual.y);
 }
 
 function ensureSprite(container: Container, config: SpriteProjectileConfig): void {
@@ -69,6 +125,8 @@ function ensureSprite(container: Container, config: SpriteProjectileConfig): voi
     }
     if (entry === 'loading' || entry === 'failed') return;
     if (container.children.length === 0) {
+        // Blob first so it draws underneath the main sprite.
+        if (config.directionBlob) container.addChild(buildDirectionBlob(entry, config));
         container.addChild(buildAnimatedSprite(entry, config));
     }
 }
@@ -99,5 +157,6 @@ export const spriteProjectileDef: IProjectileDef = {
         const config = proj.spriteConfig!;
         ensureSprite(visual, config);
         applyAnimations(visual, proj, config, gameTime);
+        updateDirectionBlob(visual, proj, config);
     },
 };

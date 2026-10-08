@@ -9,6 +9,7 @@ import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
 import { type CardDef } from '../types';
+import { DIRECTIONAL_ORB_LOOK } from '../../game/projectiles/projectile_defs/directionalOrb';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { isAbilityNote } from '../../game/AbilityNote';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
@@ -135,6 +136,7 @@ const _base: AbilityStatic = defineAbility({
                 .withSpriteConfig({
                     sprite: { fps: 8, scale: PROJECTILE_SCALE, frameFiles: [SLIME_SPIT_F1_URL, SLIME_SPIT_F2_URL, SLIME_SPIT_F3_URL, SLIME_SPIT_F4_URL] },
                     loop: true,
+                    ...DIRECTIONAL_ORB_LOOK,
                 })),
         },
         {

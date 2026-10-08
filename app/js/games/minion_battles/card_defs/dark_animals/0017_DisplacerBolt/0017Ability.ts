@@ -16,6 +16,8 @@ import { hasUnitTag, UnitTag } from '../../../game/units/unitTag';
 import { mirrorAbilityToClones, type MirrorEngineLike } from '../../../game/displacer/mirrorToClones';
 import { DISPLACER_BOLT_USES_PER_ROUND } from '../../../game/displacer/displacerConstants';
 import { type CardDef } from '../../types';
+import { DIRECTIONAL_ORB_LOOK } from '../../../game/projectiles/projectile_defs/directionalOrb';
+import type { SpriteProjectileConfig } from '../../../game/projectiles/projectile_defs/types';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { deactivateProjectileOnBlock } from '../../../abilities/effectHelpers';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
@@ -69,9 +71,11 @@ const SPIT_URLS = [1, 2, 3, 4].map(
 );
 
 /** Sprite config shared by the cast bolt and Light Eater's ring bolts. */
-export const DISPLACER_BOLT_SPRITE_CONFIG = {
+/** Slightly translucent spit orb with a lagging rear-edge circle that shows its heading. */
+export const DISPLACER_BOLT_SPRITE_CONFIG: SpriteProjectileConfig = {
     sprite: { fps: 8, scale: PROJECTILE_SCALE, frameFiles: SPIT_URLS },
     loop: true,
+    ...DIRECTIONAL_ORB_LOOK,
 };
 
 /**

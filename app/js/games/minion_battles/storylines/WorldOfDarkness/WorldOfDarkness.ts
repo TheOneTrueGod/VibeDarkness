@@ -14,7 +14,7 @@ import {
     WOD_CH2_MAP_Y_ROW1,
     WOD_CH2_MAP_Y_ROW2,
 } from './chapter2Map';
-import { CAMPSITE_MISSION_ID, CAMPSITE_2_MISSION_ID } from './questMissions/campsite';
+import { CAMPSITE_MISSION_ID, CAMPSITE_2_MISSION_ID, CAMPSITE_3_MISSION_ID } from './questMissions/campsite';
 import {
     SWARMLING_SOURCE,
     SWARMLING_SOURCE_QUEST_ID,
@@ -172,7 +172,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         { fromMissionId: 'light_empowered', result: 'victory', toMissionId: 'cave_respite' },
         { fromMissionId: 'cave_respite', result: 'victory', toMissionId: 'monster' },
         { fromMissionId: 'monster', result: 'victory', toMissionId: 'core_awakening' },
-        // Chapter 2 questline: South Gate Swarm → Surface Quests 1 → Campsite → Surface Quests 2, 3 → Campsite → Displacer → Thornbinder Arena.
+        // Chapter 2 questline: South Gate Swarm → Surface Quests 1 → Campsite → Surface Quests 2, 3 → Campsite → Displacer → Campsite. Thornbinder Arena moved to chapter 3.
         { fromMissionId: 'core_awakening', result: 'victory', toMissionId: 'south_gate_swarm' },
         // Campsite sits between Surface Quests 1 and 2.
         {
@@ -189,7 +189,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
             requiresQuestBankId: WOD_POST_CORE_QUEST_BANK_3_ID,
         },
         { fromMissionId: CAMPSITE_2_MISSION_ID, result: 'victory', toMissionId: 'displacer' },
-        { fromMissionId: 'displacer', result: 'victory', toMissionId: 'thornbinder_arena' },
+        { fromMissionId: 'displacer', result: 'victory', toMissionId: CAMPSITE_3_MISSION_ID },
     ],
     questSlotBanks: [
         WOD_SWARMLING_SOURCE_BANK,
@@ -223,7 +223,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
                 WOD_POST_CORE_QUEST_BANK_3_ID,
             ],
             missionIds: [
-                'south_gate_swarm', CAMPSITE_MISSION_ID, CAMPSITE_2_MISSION_ID, 'displacer', 'thornbinder_arena',
+                'south_gate_swarm', CAMPSITE_MISSION_ID, CAMPSITE_2_MISSION_ID, 'displacer', CAMPSITE_3_MISSION_ID,
                 'thornling_rise', 'crystal_corruption', 'the_circle',
             ],
         },
@@ -231,7 +231,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
             id: 'wod_ch3',
             numeral: 'III',
             unlockAfterMissionId: 'thornling_rise',
-            missionIds: [],
+            missionIds: ['thornbinder_arena'],
         },
     ],
 };

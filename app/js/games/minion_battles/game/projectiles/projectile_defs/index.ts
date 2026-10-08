@@ -23,4 +23,4 @@ export function getProjectileDef(type: string): IProjectileDef {
     return registry[type] ?? defaultProjectileDef;
 }
 
-export type { IProjectileDef, SpriteProjectileConfig, SpriteFramesDef, TrailDef, AnimationDef } from './types';
+export type { IProjectileDef, SpriteProjectileConfig, DirectionBlobDef, SpriteFramesDef, TrailDef, AnimationDef } from './types';

@@ -102,7 +102,7 @@ describe('getUnlockedMissionIds — chapter gating', () => {
         expect(unlocked.has('thornbinder_arena')).toBe(false);
     });
 
-    it('unlocks the second campsite after bank 3, then Displacer after that campsite, then Thornbinder Arena after Displacer', () => {
+    it('unlocks the second campsite after bank 3, then Displacer after that campsite, then the third campsite after Displacer', () => {
         const bankVictory = (questDefId: string): QuestResult => ({
             questDefId,
             result: 'victory',
@@ -126,13 +126,19 @@ describe('getUnlockedMissionIds — chapter gating', () => {
         );
         expect(afterCampsite2.has('displacer')).toBe(true);
         expect(afterCampsite2.has('thornbinder_arena')).toBe(false);
-        expect(
-            getUnlockedMissionIds(
-                WorldOfDarknessStoryline,
-                [...THROUGH_CORE_AWAKENING, victory('campsite_2'), victory('displacer')],
-                bank3Done,
-            ).has('thornbinder_arena'),
-        ).toBe(true);
+        expect(afterCampsite2.has('campsite_3')).toBe(false);
+        const afterDisplacer = getUnlockedMissionIds(
+            WorldOfDarknessStoryline,
+            [...THROUGH_CORE_AWAKENING, victory('campsite_2'), victory('displacer')],
+            bank3Done,
+        );
+        expect(afterDisplacer.has('campsite_3')).toBe(true);
+        expect(afterDisplacer.has('thornbinder_arena')).toBe(false);
+    });
+
+    it('unlocks Thornbinder Arena as a chapter 3 entry mission', () => {
+        const results = [...THROUGH_CORE_AWAKENING, victory('thornling_rise')];
+        expect(getUnlockedMissionIds(WorldOfDarknessStoryline, results).has('thornbinder_arena')).toBe(true);
     });
 
     it('keeps single-chapter campaigns behaving as before', () => {
@@ -166,6 +172,7 @@ describe('getAllMissionIdsInOrder — flat list still complete', () => {
     it('includes chapter 2 missions that no longer sit on an edge', () => {
         const ids = getAllMissionIdsInOrder(WorldOfDarknessStoryline);
         expect(ids).toContain('displacer');
+        expect(ids).toContain('campsite_3');
         expect(ids).toContain('thornbinder_arena');
         expect(ids).toContain('crystal_corruption');
         expect(ids).toContain('the_circle');

@@ -23,6 +23,8 @@ import {
     WAVE_THORNBINDER_COUNT,
     WAVE_WOLF_COUNT,
 } from './006b_thornbinder_arena';
+import { MISSION_MAP_DISABLED } from '../../types';
+import { WOD_CH3_MAP_X_COL0, WOD_CH3_MAP_Y_ROW0 } from '../chapter3Map';
 import {
     ARENA_RING_SPAWN_COUNT,
     ARENA_RING_SPAWN_POINTS,
@@ -221,7 +223,8 @@ describe('ThornbinderArenaMission', () => {
         engine.destroy();
     });
 
-    it('is enabled on the mission map', () => {
-        expect(THORNBINDER_ARENA.disabled).toBeUndefined();
+    it('is disabled on the mission map and sits in chapter 3', () => {
+        expect(THORNBINDER_ARENA.disabled).toBe(MISSION_MAP_DISABLED);
+        expect(THORNBINDER_ARENA.mapPosition).toEqual({ x: WOD_CH3_MAP_X_COL0, y: WOD_CH3_MAP_Y_ROW0 });
     });
 });
