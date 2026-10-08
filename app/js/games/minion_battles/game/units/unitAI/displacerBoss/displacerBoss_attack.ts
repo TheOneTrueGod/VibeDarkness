@@ -1,8 +1,8 @@
 /**
  * displacerBoss_attack - Flit around the nearest player at ~70% bolt range without pausing (it only
  * stands still while casting), and cast the best eligible ability. Ability priority (set on the abilities) resolves
- * conflicts: Light Eater (last quarter of the round) > Phantom Decoy (second half, needs a super
- * bar) > Displacer Bolt (up to 4 per round).
+ * conflicts: Phantom Decoy (second half, needs a super bar) > Light Eater (second or third quarter, every
+ * other round) > Displacer Bolt (up to 4 per round).
  */
 
 import type { Unit } from '../../Unit';

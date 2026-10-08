@@ -512,8 +512,8 @@ describe('Displacer boss AI round gating', () => {
 
     it('round window helpers use fractions of the round', () => {
         expect(getRoundFraction(ROUND_DURATION * 2.25)).toBeCloseTo(0.25);
-        expect(isInRoundWindow(ROUND_DURATION * 0.8, LIGHT_EATER_ROUND_WINDOW)).toBe(true);
-        expect(isInRoundWindow(ROUND_DURATION * 0.7, LIGHT_EATER_ROUND_WINDOW)).toBe(false);
+        expect(isInRoundWindow(ROUND_DURATION * 0.3, LIGHT_EATER_ROUND_WINDOW)).toBe(true);
+        expect(isInRoundWindow(ROUND_DURATION * 0.8, LIGHT_EATER_ROUND_WINDOW)).toBe(false);
         expect(isInRoundWindow(ROUND_DURATION * 0.5, PHANTOM_DECOY_ROUND_WINDOW)).toBe(true);
         expect(isInRoundWindow(ROUND_DURATION * 0.4, PHANTOM_DECOY_ROUND_WINDOW)).toBe(false);
     });
@@ -525,14 +525,15 @@ describe('Displacer boss AI round gating', () => {
 
         // First half: only the bolt is eligible.
         expect(pick(boss, player, ROUND_DURATION * 0.2, true)).toBe(DISPLACER_BOLT_ID);
-        // Second half (before the last quarter): Decoy outranks the bolt.
+        // Third quarter: Decoy and Light Eater are both eligible; Decoy outranks both the bolt and Light Eater.
         expect(pick(boss, player, ROUND_DURATION * 0.6, true)).toBe(PHANTOM_DECOY_ID);
-        // Last quarter of a round where both are eligible: Decoy outranks Light Eater.
+        // Last quarter: Light Eater's window has closed, so Decoy is still the pick.
         expect(pick(boss, player, ROUND_DURATION * 0.8, true)).toBe(PHANTOM_DECOY_ID);
-        // No super bars: Decoy is unaffordable, so Light Eater (last quarter) and then the bolt follow.
+        // No super bars: Decoy is unaffordable, so Light Eater (second or third quarter) and then the bolt follow.
         boss.getResource('super')!.current = 0;
-        expect(pick(boss, player, ROUND_DURATION * 0.8, true)).toBe(LIGHT_EATER_ID);
-        expect(pick(boss, player, ROUND_DURATION * 0.6, true)).toBe(DISPLACER_BOLT_ID);
+        expect(pick(boss, player, ROUND_DURATION * 0.6, true)).toBe(LIGHT_EATER_ID);
+        expect(pick(boss, player, ROUND_DURATION * 0.8, true)).toBe(DISPLACER_BOLT_ID);
+        expect(pick(boss, player, ROUND_DURATION * 0.3, true)).toBe(LIGHT_EATER_ID);
         // No light left to eat: only the bolt remains.
         expect(pick(boss, player, ROUND_DURATION * 0.8, false)).toBe(DISPLACER_BOLT_ID);
         engine.destroy();
@@ -544,10 +545,10 @@ describe('Displacer boss AI round gating', () => {
         const player = spawnPlayerTarget(engine, boss.x - 150, boss.y);
         boss.getResource('super')!.current = 0; // keep Decoy out of the way
         for (const round of [0, 2, 4]) {
-            expect(pick(boss, player, ROUND_DURATION * (round + 0.8), true)).toBe(LIGHT_EATER_ID);
+            expect(pick(boss, player, ROUND_DURATION * (round + 0.6), true)).toBe(LIGHT_EATER_ID);
         }
         for (const round of [1, 3, 5]) {
-            expect(pick(boss, player, ROUND_DURATION * (round + 0.8), true)).toBe(DISPLACER_BOLT_ID);
+            expect(pick(boss, player, ROUND_DURATION * (round + 0.6), true)).toBe(DISPLACER_BOLT_ID);
         }
         engine.destroy();
     });

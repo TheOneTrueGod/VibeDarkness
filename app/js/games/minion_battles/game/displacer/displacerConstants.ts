@@ -44,7 +44,7 @@ export const DISPLACER_KITE_ORBIT_RADIANS = 0.9;
 /** Decoy opens at the halfway point of round 0 (t = 0.5 rounds), then every `PHANTOM_DECOY_ROUND_INTERVAL` rounds (3.5, 6.5, ...). */
 export const PHANTOM_DECOY_ROUND_WINDOW = { start: 0.5, end: 1 } as const;
 export const PHANTOM_DECOY_ROUND_INTERVAL = 3;
-export const LIGHT_EATER_ROUND_WINDOW = { start: 0.75, end: 1 } as const;
+export const LIGHT_EATER_ROUND_WINDOW = { start: 0.25, end: 0.75 } as const; // second or third quarter
 /** Light Eater is usable only every other round (rounds 0, 2, 4, ...). */
 export const LIGHT_EATER_ROUND_INTERVAL = 2;
 export const DISPLACER_BOLT_USES_PER_ROUND = 4;

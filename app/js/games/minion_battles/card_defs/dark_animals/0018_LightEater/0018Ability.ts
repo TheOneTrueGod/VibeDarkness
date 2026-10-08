@@ -3,7 +3,7 @@
  * (over rocks and walls, using the knockback airborne mechanism) to the nearest light source, lands
  * exactly on it and devours part of it (extinguishing it if it is already dim), healing and gaining
  * a super bar. The dark explosion is forecast with a circle at the light from the moment the cast
- * starts; it detonates a moment after landing. The AI casts it every other round (rounds 0, 2, 4, ...), last quarter only.
+ * starts; it detonates a moment after landing. The AI casts it every other round (rounds 0, 2, 4, ...), second or third quarter of the round only.
  */
 
 import type { AbilityRecoveryRule, AbilityStatic, IAbilityPreviewGraphics } from '../../../abilities/Ability';
@@ -181,7 +181,7 @@ const _base: AbilityStatic = defineAbility({
             `Heal ${LIGHT_EATER_HEAL} and gain ${LIGHT_EATER_SUPER_GAIN} super bar on landing, then detonate for ${LIGHT_EATER_EXPLOSION_DAMAGE} damage and heal ${LIGHT_EATER_HEAL} again`,
             `The blast also looses a ring of ${LIGHT_EATER_RING_PROJECTILES} Displacer Bolts`,
             'The blast area is shown at the light as soon as the cast begins',
-            'Used every other round, late in the round',
+            'Used every other round, in the middle of the round',
         ];
     },
 });
