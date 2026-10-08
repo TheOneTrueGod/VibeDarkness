@@ -19,6 +19,6 @@ export function getGatherLightDarknessAmount(lightGained: number): number {
 }
 
 /** Bright magnitude of the light source dropped at the caster (same preset as Light Blast). */
-export const GATHER_LIGHT_BRIGHT_MAGNITUDE = 3;
+export const GATHER_LIGHT_BRIGHT_MAGNITUDE = 1;
 /** Marker alpha multiplier for the dropped light source (+50%); render-only. */
 export const GATHER_LIGHT_BRIGHT_ALPHA_SCALE = 1.5;

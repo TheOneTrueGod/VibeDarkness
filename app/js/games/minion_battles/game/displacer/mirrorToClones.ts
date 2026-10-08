@@ -11,7 +11,12 @@ import { grantAbilityUses } from '../../abilities/abilityUses';
 import type { ResolvedTarget } from '../types';
 import type { Unit } from '../units/Unit';
 import { hasUnitTag, UnitTag } from '../units/unitTag';
-import { CLONE_MIRROR_MAX_CLONES, CLONE_MIRROR_STAGGER_SEC, DISPLACER_CLONE_ID } from './displacerConstants';
+import {
+    CLONE_MIRROR_MAX_CLONES,
+    CLONE_MIRROR_STAGGER_SEC,
+    CLONE_MIRROR_START_DELAY_SEC,
+    DISPLACER_CLONE_ID,
+} from './displacerConstants';
 
 /** Engine tick rate (60 Hz fixed step); duplicated to avoid importing GameEngine from ability code. */
 const TICKS_PER_SECOND = 60;
@@ -72,7 +77,7 @@ export function mirrorAbilityToClones(
 
     chosen.forEach((clone, index) => {
         grantAbilityUses(clone, abilityId, 1);
-        const delayTicks = Math.max(1, Math.round((index + 1) * staggerSec * TICKS_PER_SECOND));
+        const delayTicks = Math.max(1, Math.round((CLONE_MIRROR_START_DELAY_SEC + index * staggerSec) * TICKS_PER_SECOND));
         engine.state.orderMgr.queueOrder(engine.gameTick + delayTicks, {
             unitId: clone.id,
             abilityId,

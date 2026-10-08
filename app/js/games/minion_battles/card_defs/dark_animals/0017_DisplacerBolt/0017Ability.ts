@@ -10,6 +10,8 @@ import { AbilityPhase } from '../../../abilities/abilityTimings';
 import type { TargetDef } from '../../../abilities/targeting';
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget } from '../../../game/types';
+import { Projectile } from '../../../game/projectiles/Projectile';
+import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 import { hasUnitTag, UnitTag } from '../../../game/units/unitTag';
 import { mirrorAbilityToClones, type MirrorEngineLike } from '../../../game/displacer/mirrorToClones';
 import { DISPLACER_BOLT_USES_PER_ROUND } from '../../../game/displacer/displacerConstants';
@@ -33,12 +35,15 @@ const LOCK_TIME = 0.5;
 const PREFIRE_TIME = 1.0;
 /** Cooldown tail after the shot; with the 1s prefire a cast cycle is 2s, so ~4 bolts fit in a round. */
 const COOLDOWN_SEC = 1.0;
-const DAMAGE = 4;
+/** Bolt damage (shared with Light Eater's ring of bolts). */
+export const DISPLACER_BOLT_DAMAGE = 4;
+const DAMAGE = DISPLACER_BOLT_DAMAGE;
 const MAX_USES = DISPLACER_BOLT_USES_PER_ROUND;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: MAX_USES },
 ];
-const PROJECTILE_RADIUS = 5;
+export const DISPLACER_BOLT_PROJECTILE_RADIUS = 5;
+const PROJECTILE_RADIUS = DISPLACER_BOLT_PROJECTILE_RADIUS;
 const PROJECTILE_SCALE = 0.5;
 
 /** Targeting / use / AI range: identical to the slime's. */
@@ -62,6 +67,43 @@ const TOOLTIP_BINDINGS: TooltipTokenBindings = {
 const SPIT_URLS = [1, 2, 3, 4].map(
     (n) => new URL(`../../../assets/projectiles/slime_spit_f${n}.svg`, import.meta.url).href,
 );
+
+/** Sprite config shared by the cast bolt and Light Eater's ring bolts. */
+export const DISPLACER_BOLT_SPRITE_CONFIG = {
+    sprite: { fps: 8, scale: PROJECTILE_SCALE, frameFiles: SPIT_URLS },
+    loop: true,
+};
+
+/**
+ * Spawn one Displacer Bolt projectile directly (no telegraph, no cast, no clone mirroring) heading
+ * along the unit vector (dirX, dirY). Identical to what the ProjectileLaunch behaviour builds for
+ * the cast bolt: same speed, radius, damage, full-range travel, sprite, and owning ability id, so the
+ * ability's `onAttackBlocked` (deactivate on block) applies to it too.
+ */
+export function spawnDisplacerBoltProjectile(
+    engine: Pick<AbilityEngineContext, 'addProjectile'>,
+    caster: Unit,
+    dirX: number,
+    dirY: number,
+): Projectile {
+    const projectile = new Projectile({
+        x: caster.x,
+        y: caster.y,
+        velocityX: dirX * DISPLACER_BOLT_SPEED,
+        velocityY: dirY * DISPLACER_BOLT_SPEED,
+        damage: DISPLACER_BOLT_DAMAGE,
+        sourceTeamId: caster.teamId,
+        sourceUnitId: caster.id,
+        sourceAbilityId: CARD_ID,
+        maxDistance: DISPLACER_BOLT_TRAVEL_DISTANCE,
+        // Same visual type withSpriteConfig() gives the cast bolt (the purple spit sprite).
+        projectileType: 'sprite_projectile',
+        spriteConfig: DISPLACER_BOLT_SPRITE_CONFIG,
+    });
+    projectile.radius = DISPLACER_BOLT_PROJECTILE_RADIUS;
+    engine.addProjectile(projectile);
+    return projectile;
+}
 
 const DISPLACER_BOLT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -99,10 +141,7 @@ const _base: AbilityStatic = defineAbility({
                 .withTravelFullRange()
                 .withBaseDamage(DAMAGE)
                 .withRadius(PROJECTILE_RADIUS)
-                .withSpriteConfig({
-                    sprite: { fps: 8, scale: PROJECTILE_SCALE, frameFiles: SPIT_URLS },
-                    loop: true,
-                }),
+                .withSpriteConfig(DISPLACER_BOLT_SPRITE_CONFIG),
         },
         {
             id: 'cooldown',

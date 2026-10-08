@@ -15,6 +15,7 @@ export interface BrightDef {
 }
 
 export const BRIGHT_DEFS: Readonly<Record<number, BrightDef>> = {
+    1: { lightAmount: 4, radius: 2, roundsTotal: 1 },
     2: { lightAmount: 10, radius: 2, decayRate: 1, decayInterval: 0.08 },
     3: { lightAmount: 4, radius: 2, roundsTotal: 3 },
 };

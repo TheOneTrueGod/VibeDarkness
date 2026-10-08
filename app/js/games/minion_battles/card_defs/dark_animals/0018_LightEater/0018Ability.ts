@@ -1,8 +1,9 @@
 /**
- * LightEater - Displacer Spirit boss ability. The spirit vanishes, reappears on the nearest light
- * source and devours part of it (extinguishing it if it is already dim), gaining a super bar.
- * Arrival is telegraphed with a red circle; a moment later it detonates in a dark explosion that
- * hurts anyone caught in it. The AI casts it once per round, only in the round's last quarter.
+ * LightEater - Displacer Spirit boss ability. The spirit crouches, then flies fast and straight
+ * (over rocks and walls, using the knockback airborne mechanism) to the nearest light source, lands
+ * exactly on it and devours part of it (extinguishing it if it is already dim), healing and gaining
+ * a super bar. The dark explosion is forecast with a circle at the light from the moment the cast
+ * starts; it detonates a moment after landing. The AI casts it every other round (rounds 0, 2, 4, ...), last quarter only.
  */
 
 import type { AbilityRecoveryRule, AbilityStatic, IAbilityPreviewGraphics } from '../../../abilities/Ability';
@@ -14,28 +15,41 @@ import { Effect } from '../../../game/effects/Effect';
 import type { EventBus } from '../../../game/EventBus';
 import type { SpecialTile } from '../../../game/specialTiles/SpecialTile';
 import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
+import { applyHeal } from '../../../game/units/unitHeal';
 import type { Unit } from '../../../game/units/Unit';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
+import { ROUND_DURATION } from '../../../game/gameConstants';
 import { type CardDef } from '../../types';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
-import { LIGHT_EATER_ROUND_WINDOW } from '../../../game/displacer/displacerConstants';
+import { spawnDisplacerBoltProjectile } from '../0017_DisplacerBolt/0017Ability';
+import { LIGHT_EATER_ROUND_INTERVAL, LIGHT_EATER_ROUND_WINDOW } from '../../../game/displacer/displacerConstants';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}18`;
 export const LIGHT_EATER_ID = CARD_ID;
 
 /** Light strength removed from the devoured source; a source at or below this is extinguished. */
-export const LIGHT_EATER_LIGHT_REDUCTION = 3;
-/** Super bars granted on arrival. */
+export const LIGHT_EATER_LIGHT_REDUCTION = 4;
+/** Super bars granted on landing. */
 export const LIGHT_EATER_SUPER_GAIN = 1;
+/** HP restored on landing (whether the light is reduced or extinguished). */
+export const LIGHT_EATER_HEAL = 10;
+/** Displacer Bolt projectiles fired in an evenly spaced ring at the explosion (only if a light was devoured). */
+export const LIGHT_EATER_RING_PROJECTILES = 12;
+/** Fixed (deterministic) rotation of the ring, radians. */
+export const LIGHT_EATER_RING_ROTATION = 0;
 /** Dark explosion damage (design range 5-10). */
 export const LIGHT_EATER_EXPLOSION_DAMAGE = 8;
 export const LIGHT_EATER_EXPLOSION_RADIUS = 100;
 
-/** Seconds spent vanishing before the teleport. */
-export const LIGHT_EATER_TELEPORT_TIME = 0.6;
-/** Seconds the arrival telegraph is visible before the explosion. */
+/** Seconds of crouch before takeoff. */
+export const LIGHT_EATER_WINDUP_TIME = 0.3;
+/** Seconds of constant-speed straight-line flight to the light (airborne, ignores terrain). */
+export const LIGHT_EATER_FLIGHT_TIME = 0.5;
+/** Cast-relative time of landing (devour, heal and +super happen here). */
+export const LIGHT_EATER_LANDING_TIME = LIGHT_EATER_WINDUP_TIME + LIGHT_EATER_FLIGHT_TIME;
+/** Seconds between landing and the explosion. */
 export const LIGHT_EATER_TELEGRAPH_SEC = 1.2;
-export const LIGHT_EATER_EXPLODE_TIME = LIGHT_EATER_TELEPORT_TIME + LIGHT_EATER_TELEGRAPH_SEC;
+export const LIGHT_EATER_EXPLODE_TIME = LIGHT_EATER_LANDING_TIME + LIGHT_EATER_TELEGRAPH_SEC;
 const STRIKE_END = LIGHT_EATER_EXPLODE_TIME + 1 / 60;
 const COOLDOWN_END = STRIKE_END + 0.6;
 
@@ -52,6 +66,20 @@ const LIGHT_EATER_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/
   <path d="M32 6 L32 16 M32 48 L32 58 M6 32 L16 32 M48 32 L58 32" stroke="#9933cc" stroke-width="3"/>
 </svg>`;
 
+/** Destination resolved at cast start and stored in the active ability castPayload (serialized). */
+export interface LightEaterPayload {
+    /** Light tile to devour; null when no light existed at cast start (explodes in place). */
+    tileId: string | null;
+    x: number;
+    y: number;
+}
+
+export function readLightEaterPayload(active: { castPayload?: unknown } | undefined): LightEaterPayload | null {
+    const p = active?.castPayload as Partial<LightEaterPayload> | undefined;
+    if (!p || typeof p.x !== 'number' || typeof p.y !== 'number') return null;
+    return { tileId: p.tileId ?? null, x: p.x, y: p.y };
+}
+
 interface LightEaterEngine {
     units: Unit[];
     gameTime: number;
@@ -59,6 +87,7 @@ interface LightEaterEngine {
     specialTiles: SpecialTile[];
     damageSpecialTile(tileId: string, amount: number): boolean;
     addEffect(effect: Effect): void;
+    addProjectile(projectile: import('../../../game/projectiles/Projectile').Projectile): void;
 }
 
 /** True for tiles the spirit can devour: still burning, emitting visible (non-dark) light. */
@@ -126,8 +155,9 @@ const _base: AbilityStatic = defineAbility({
     recoveries: RECOVERIES,
     prefireTime: LIGHT_EATER_EXPLODE_TIME,
     abilityTimings: [
-        { id: 'vanish', start: 0, end: LIGHT_EATER_TELEPORT_TIME, abilityPhase: AbilityPhase.Windup },
-        { id: 'telegraph', start: LIGHT_EATER_TELEPORT_TIME, end: LIGHT_EATER_EXPLODE_TIME, abilityPhase: AbilityPhase.Windup },
+        { id: 'crouch', start: 0, end: LIGHT_EATER_WINDUP_TIME, abilityPhase: AbilityPhase.Windup },
+        { id: 'flight', start: LIGHT_EATER_WINDUP_TIME, end: LIGHT_EATER_LANDING_TIME, abilityPhase: AbilityPhase.Windup },
+        { id: 'telegraph', start: LIGHT_EATER_LANDING_TIME, end: LIGHT_EATER_EXPLODE_TIME, abilityPhase: AbilityPhase.Windup },
         { id: 'explode', start: LIGHT_EATER_EXPLODE_TIME, end: STRIKE_END, abilityPhase: AbilityPhase.Active, doNotRefund: true },
         { id: 'cooldown', start: STRIKE_END, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
     ],
@@ -136,18 +166,22 @@ const _base: AbilityStatic = defineAbility({
         minRange: 0,
         maxRange: 0,
         maxUsesPerRound: 1,
-        priority: 30,
+        priority: 30, // below Phantom Decoy (40) when both are eligible
         ninjutsu: { ignore: true },
         roundWindow: LIGHT_EATER_ROUND_WINDOW,
-        canUse: (_caster, ctx) => anyDevourableLight(ctx.getSpecialTiles()),
+        canUse: (_caster, ctx) =>
+            Math.floor(ctx.gameTime / ROUND_DURATION) % LIGHT_EATER_ROUND_INTERVAL === 0 &&
+            anyDevourableLight(ctx.getSpecialTiles()),
     },
     getRange: (_caster: Unit) => ({ minRange: 0, maxRange: 0 }),
 
     getTooltipText(): string[] {
         return [
-            `Teleport to the nearest light and devour ${LIGHT_EATER_LIGHT_REDUCTION} of its strength (extinguishing weak lights)`,
-            `Gain ${LIGHT_EATER_SUPER_GAIN} super bar, then detonate for ${LIGHT_EATER_EXPLOSION_DAMAGE} damage`,
-            'Used once per round, late in the round',
+            `Fly over the terrain to the nearest light and devour ${LIGHT_EATER_LIGHT_REDUCTION} of its strength (extinguishing weak lights)`,
+            `Heal ${LIGHT_EATER_HEAL} and gain ${LIGHT_EATER_SUPER_GAIN} super bar on landing, then detonate for ${LIGHT_EATER_EXPLOSION_DAMAGE} damage and heal ${LIGHT_EATER_HEAL} again`,
+            `The blast also looses a ring of ${LIGHT_EATER_RING_PROJECTILES} Displacer Bolts`,
+            'The blast area is shown at the light as soon as the cast begins',
+            'Used every other round, late in the round',
         ];
     },
 });
@@ -155,28 +189,55 @@ const _base: AbilityStatic = defineAbility({
 export const LightEaterAbility: AbilityStatic = {
     ..._base,
 
+    /** Resolve the destination once, at cast start, so the forecast and flight agree on every client. */
+    beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], active: ActiveAbility): void {
+        const eng = engine as LightEaterEngine;
+        const tile = findNearestLightTile(eng.specialTiles, caster);
+        const dest = tile ? lightTileCenter(tile) : { x: caster.x, y: caster.y };
+        const payload: LightEaterPayload = { tileId: tile?.id ?? null, x: dest.x, y: dest.y };
+        active.castPayload = payload;
+    },
+
     doCardEffect(
         engine: unknown,
         caster: Unit,
         _targets: ResolvedTarget[],
         prevTime: number,
         currentTime: number,
+        active?: ActiveAbility,
     ): void {
         const eng = engine as LightEaterEngine;
+        const payload = readLightEaterPayload(active);
+        const pulse = { colors: [DARK_PURPLE, 0x330055, 0x110022] };
 
-        if (prevTime < LIGHT_EATER_TELEPORT_TIME && currentTime >= LIGHT_EATER_TELEPORT_TIME) {
-            const tile = findNearestLightTile(eng.specialTiles, caster);
-            if (tile) {
-                const dest = lightTileCenter(tile);
-                const pulse = { colors: [DARK_PURPLE, 0x330055, 0x110022] };
-                eng.addEffect(new Effect({ x: caster.x, y: caster.y, duration: 0.5, effectType: 'Pulse', effectData: pulse }));
-                caster.x = dest.x;
-                caster.y = dest.y;
-                caster.clearMovement();
-                devourLight(eng, tile);
-                caster.getResource('super')?.add(LIGHT_EATER_SUPER_GAIN);
-                eng.addEffect(new Effect({ x: dest.x, y: dest.y, duration: 0.5, effectType: 'Pulse', effectData: pulse }));
-            }
+        // Takeoff: reuse the knockback airborne mechanism (straight line, constant speed, arc and
+        // ground shadow rendering, terrain-ignoring) aimed at the pre-resolved light.
+        if (prevTime < LIGHT_EATER_WINDUP_TIME && currentTime >= LIGHT_EATER_WINDUP_TIME && payload?.tileId) {
+            eng.addEffect(new Effect({ x: caster.x, y: caster.y, duration: 0.5, effectType: 'Pulse', effectData: pulse }));
+            caster.applyKnockback(
+                {
+                    knockbackVector: { x: payload.x - caster.x, y: payload.y - caster.y },
+                    knockbackAirTime: LIGHT_EATER_FLIGHT_TIME,
+                    knockbackSlideTime: 0,
+                    knockbackSource: { unitId: caster.id, abilityId: CARD_ID },
+                    passThroughTerrain: true,
+                },
+                eng.eventBus,
+            );
+        }
+
+        // Landing: land exactly on the light, then devour it, heal, and gain super.
+        if (prevTime < LIGHT_EATER_LANDING_TIME && currentTime >= LIGHT_EATER_LANDING_TIME && payload?.tileId) {
+            caster.knockback = null;
+            caster.x = payload.x;
+            caster.y = payload.y;
+            caster.clearMovement();
+            const tile = eng.specialTiles.find((t) => t.id === payload.tileId);
+            if (tile) devourLight(eng, tile);
+            // Boss self-heal: no heal-penalty injury (penalty 0). Heals again when the blast fires.
+            applyHeal(caster, LIGHT_EATER_HEAL, 0);
+            caster.getResource('super')?.add(LIGHT_EATER_SUPER_GAIN);
+            eng.addEffect(new Effect({ x: payload.x, y: payload.y, duration: 0.5, effectType: 'Pulse', effectData: pulse }));
         }
 
         if (prevTime < LIGHT_EATER_EXPLODE_TIME && currentTime >= LIGHT_EATER_EXPLODE_TIME) {
@@ -190,6 +251,15 @@ export const LightEaterAbility: AbilityStatic = {
                 abilityId: CARD_ID,
                 attackType: 'melee',
             });
+            // Heal and ring of Displacer Bolts, only when this cast actually devoured a light.
+            if (payload?.tileId) {
+                applyHeal(caster, LIGHT_EATER_HEAL, 0);
+                const step = (Math.PI * 2) / LIGHT_EATER_RING_PROJECTILES;
+                for (let i = 0; i < LIGHT_EATER_RING_PROJECTILES; i++) {
+                    const angle = LIGHT_EATER_RING_ROTATION + i * step;
+                    spawnDisplacerBoltProjectile(eng, caster, Math.cos(angle), Math.sin(angle));
+                }
+            }
             eng.addEffect(new Effect({
                 x: center.x,
                 y: center.y,
@@ -201,6 +271,7 @@ export const LightEaterAbility: AbilityStatic = {
         }
     },
 
+    /** Forecast circle at the light, from cast start until the explosion fires. */
     renderActivePreview(
         gr: IAbilityPreviewGraphics,
         caster: Unit,
@@ -208,12 +279,15 @@ export const LightEaterAbility: AbilityStatic = {
         gameTime: number,
     ): void {
         const elapsed = gameTime - activeAbility.startTime;
-        // Nothing to show while the spirit is still vanishing (its arrival point is not yet fixed).
-        if (elapsed < LIGHT_EATER_TELEPORT_TIME || elapsed >= LIGHT_EATER_EXPLODE_TIME) return;
-        const t = (elapsed - LIGHT_EATER_TELEPORT_TIME) / LIGHT_EATER_TELEGRAPH_SEC;
-        gr.circle(caster.x, caster.y, LIGHT_EATER_EXPLOSION_RADIUS);
-        gr.stroke({ color: TELEGRAPH_RED, width: 2, alpha: 0.25 + 0.55 * t });
-        gr.circle(caster.x, caster.y, Math.max(2, t * LIGHT_EATER_EXPLOSION_RADIUS));
+        if (elapsed < 0 || elapsed >= LIGHT_EATER_EXPLODE_TIME) return;
+        const payload = readLightEaterPayload(activeAbility) ?? { tileId: null, x: caster.x, y: caster.y };
+        const t = elapsed / LIGHT_EATER_EXPLODE_TIME;
+        const fillRadius = Math.max(2, t * LIGHT_EATER_EXPLOSION_RADIUS);
+        gr.circle(payload.x, payload.y, LIGHT_EATER_EXPLOSION_RADIUS);
+        gr.stroke({ color: TELEGRAPH_RED, width: 2, alpha: 0.35 + 0.55 * t });
+        gr.circle(payload.x, payload.y, fillRadius);
+        gr.fill({ color: DARK_PURPLE, alpha: 0.25 + 0.3 * t });
+        gr.circle(payload.x, payload.y, fillRadius);
         gr.stroke({ color: DARK_PURPLE, width: 3, alpha: 0.45 + 0.45 * t });
     },
 };

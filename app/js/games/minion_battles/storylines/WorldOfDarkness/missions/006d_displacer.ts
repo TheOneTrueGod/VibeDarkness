@@ -28,7 +28,7 @@ import {
     BOSS_ARENA_CENTER,
     BOSS_ARENA_CIRCLE_WEST_COL,
     ARENA_RING_SPAWN_POINTS,
-    ARENA_OUTSIDE_ROAD_SPAWN_POINTS,
+    ARENA_OUTSIDE_ROAD,
     rightmostArenaRingSpawnPoints,
 } from '../MapSegments/0_0_boss_arena';
 
@@ -67,6 +67,21 @@ export const ARENA_LIGHT_AMOUNT = 4;
 export const ARENA_LIGHT_RADIUS = 3;
 export const ARENA_LIGHT_HP = 5;
 
+/**
+ * Player spawn: the arena's west-road entrance shifted 2 tiles right and 2 down. Player 1 takes the
+ * anchor tile; players 2-8 fill the neighbouring tiles (a 4x2 block of open grass/dirt, nearest first).
+ */
+export const DISPLACER_PLAYER_SPAWN_ANCHOR = {
+    col: ARENA_OUTSIDE_ROAD.col + 2,
+    row: ARENA_OUTSIDE_ROAD.row + 2,
+} as const;
+export const DISPLACER_PLAYER_SPAWN_POINTS: readonly { col: number; row: number }[] = [
+    [0, 0], [1, 0], [0, 1], [1, 1], [-1, 0], [-1, 1], [2, 0], [2, 1],
+].map(([dc, dr]) => ({
+    col: DISPLACER_PLAYER_SPAWN_ANCHOR.col + dc!,
+    row: DISPLACER_PLAYER_SPAWN_ANCHOR.row + dr!,
+}));
+
 const CENTRE_WORLD = gridToWorld(BOSS_ARENA_CENTER.col, BOSS_ARENA_CENTER.row);
 
 /** Two wolves just inside the west edge of the circle, next to where the party arrives. */
@@ -87,10 +102,14 @@ const DISPLACER_BOSS: EnemySpawnDef = {
 };
 
 const LIGHT_TILES: SpecialTilePlacement[] = ARENA_RING_SPAWN_POINTS.map((pt) => ({
-    defId: 'Campfire',
+    // Dark crystal graphic only: no colorFilter and normal light, so Light Eater can still devour it.
+    defId: 'DarkCrystal',
     col: pt.col,
     row: pt.row,
+    // Explicit maxHp: BaseMissionDef only defaults it to 5 for Campfires, and hp > maxHp inflates the
+    // emitted light (scale = 0.5 + 0.5 * hp/maxHp, i.e. 3x for hp 5 / maxHp 1 -> strength 12).
     hp: ARENA_LIGHT_HP,
+    maxHp: ARENA_LIGHT_HP,
     emitsLight: { lightAmount: ARENA_LIGHT_AMOUNT, radius: ARENA_LIGHT_RADIUS },
 }));
 
@@ -152,7 +171,7 @@ export class DisplacerMission extends BaseMissionDef {
     globalLightLevel = DarknessLevel.FULL_DARKNESS;
     ninjutsuPools = { shadow: NINJUTSU_DISABLED };
     /** Party arrives on the west road, left of the circle. */
-    playerSpawnPoints: PlayerSpawnPoint[] = ARENA_OUTSIDE_ROAD_SPAWN_POINTS.map((p) => ({ ...p }));
+    playerSpawnPoints: PlayerSpawnPoint[] = DISPLACER_PLAYER_SPAWN_POINTS.map((p) => ({ ...p }));
 }
 
 export const DISPLACER = new DisplacerMission();

@@ -13,6 +13,9 @@ import {
 import { createUnitFromSpawnConfig } from '../units/index';
 import type { GameEngine } from '../GameEngine';
 import type { Unit } from '../units/Unit';
+import type { IAbilityPreviewGraphics } from '../../abilities/Ability';
+import { isUnitAirborne } from '../terrainEffects/tileTransitions';
+import { TerrainType } from '../../terrain/TerrainType';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { enemySpawnDefToSpawnDefinition } from '../units/spawning/adapters';
 import { ENEMY_DISPLACER_CLONE, ENEMY_DISPLACER_SPIRIT } from '../../constants/enemyConstants';
@@ -27,16 +30,30 @@ import {
     LIGHT_EATER_ID,
     LIGHT_EATER_LIGHT_REDUCTION,
     LIGHT_EATER_SUPER_GAIN,
-    LIGHT_EATER_TELEPORT_TIME,
+    LIGHT_EATER_FLIGHT_TIME,
+    LIGHT_EATER_HEAL,
+    LIGHT_EATER_RING_PROJECTILES,
+    LIGHT_EATER_LANDING_TIME,
+    LIGHT_EATER_TELEGRAPH_SEC,
+    LIGHT_EATER_WINDUP_TIME,
+    LightEaterAbility,
+    readLightEaterPayload,
     devourLight,
     findNearestLightTile,
     lightTileCenter,
 } from '../../card_defs/dark_animals/0018_LightEater/0018Ability';
 import { PHANTOM_DECOY_ID, PHANTOM_DECOY_WINDUP } from '../../card_defs/dark_animals/0019_PhantomDecoy/0019Ability';
-import { DISPLACER_BOLT_ID } from '../../card_defs/dark_animals/0017_DisplacerBolt/0017Ability';
+import {
+    DISPLACER_BOLT_DAMAGE,
+    DISPLACER_BOLT_ID,
+    DISPLACER_BOLT_PROJECTILE_RADIUS,
+    DISPLACER_BOLT_SPEED,
+    DISPLACER_BOLT_TRAVEL_DISTANCE,
+} from '../../card_defs/dark_animals/0017_DisplacerBolt/0017Ability';
 import {
     CLONE_MIRROR_MAX_CLONES,
     CLONE_MIRROR_STAGGER_SEC,
+    CLONE_MIRROR_START_DELAY_SEC,
     DISPLACER_CLONE_ID,
     DISPLACER_STARTING_SUPER_BARS,
     DISPLACER_SPIRIT_ID,
@@ -165,32 +182,155 @@ describe('super resource + unit defs', () => {
 });
 
 describe('Light Eater (0018)', () => {
-    it('teleports to the nearest light, reduces it by LIGHT_EATER_LIGHT_REDUCTION, grants +1 super, then explodes for damage', () => {
+    /** Full-height rock wall between the boss and the light: flight must ignore it. */
+    function wallOff(engine: GameEngine, col: number): void {
+        const grid = engine.terrainManager!.grid;
+        for (let row = 0; row < 16; row++) grid.set(col, row, TerrainType.Rock);
+    }
+
+    function fakeGraphics() {
+        const circles: { x: number; y: number; r: number }[] = [];
+        const gr = {
+            circles,
+            moveTo: () => {},
+            lineTo: () => {},
+            circle: (x: number, y: number, r: number) => { circles.push({ x, y, r }); },
+            stroke: () => {},
+            fill: () => {},
+        };
+        return gr as unknown as IAbilityPreviewGraphics & { circles: typeof circles };
+    }
+
+    it('flies over rocks to the nearest light, lands on it, devours (-4), heals, +1 super, then explodes', () => {
         const engine = makeEngine();
         addLight(engine, 'near', 6, 8, 12);
         addLight(engine, 'far', 20, 8, 12);
-        const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(8), cell(8));
+        wallOff(engine, 9);
+        const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(12), cell(8));
         const nearCenter = lightTileCenter({ col: 6, row: 8 });
         const player = spawnPlayerTarget(engine, nearCenter.x + 40, nearCenter.y);
         const superBefore = boss.getResource('super')!.current;
         const playerHp = player.hp;
+        boss.hp = boss.maxHp - 50;
 
         expect(findNearestLightTile(engine.specialTiles, boss)?.id).toBe('near');
 
         engine.state.orderMgr.applyOrder({ unitId: boss.id, abilityId: LIGHT_EATER_ID, targets: [] });
-        step(engine, LIGHT_EATER_TELEPORT_TIME + 0.1);
+        step(engine, 0.05);
+        // Destination is resolved at cast start and stored in the serialized cast payload.
+        expect(readLightEaterPayload(boss.activeAbilities[0])).toEqual({ tileId: 'near', x: nearCenter.x, y: nearCenter.y });
+        expect(isUnitAirborne(boss)).toBe(false);
 
+        // Mid-flight: airborne, moving toward the light, still hasn't devoured anything.
+        step(engine, LIGHT_EATER_WINDUP_TIME + LIGHT_EATER_FLIGHT_TIME / 2);
+        expect(isUnitAirborne(boss)).toBe(true);
+        expect(boss.x).toBeLessThan(cell(12));
+        expect(boss.x).toBeGreaterThan(nearCenter.x);
+        expect(engine.specialTiles.find((t) => t.id === 'near')!.emitsLight!.lightAmount).toBe(12);
+
+        // Landed exactly on the light, grounded, devoured, healed, +super.
+        step(engine, LIGHT_EATER_FLIGHT_TIME / 2 + 0.1);
+        expect(isUnitAirborne(boss)).toBe(false);
         expect(boss.x).toBeCloseTo(nearCenter.x);
         expect(boss.y).toBeCloseTo(nearCenter.y);
         expect(engine.specialTiles.find((t) => t.id === 'near')!.emitsLight!.lightAmount).toBe(12 - LIGHT_EATER_LIGHT_REDUCTION);
         expect(engine.specialTiles.find((t) => t.id === 'far')!.emitsLight!.lightAmount).toBe(12);
         expect(boss.getResource('super')!.current).toBe(superBefore + LIGHT_EATER_SUPER_GAIN);
+        expect(boss.hp).toBe(boss.maxHp - 50 + LIGHT_EATER_HEAL);
         // Telegraphed: no damage yet.
         expect(player.hp).toBe(playerHp);
 
-        step(engine, LIGHT_EATER_EXPLODE_TIME - LIGHT_EATER_TELEPORT_TIME + 0.1);
-        expect(player.hp).toBe(playerHp - LIGHT_EATER_EXPLOSION_DAMAGE);
+        step(engine, LIGHT_EATER_TELEGRAPH_SEC + 0.1);
+        // The explosion hurts; the ring bolts may add more because the player stands close.
+        expect(player.hp).toBeLessThanOrEqual(playerHp - LIGHT_EATER_EXPLOSION_DAMAGE);
         expect(40).toBeLessThan(LIGHT_EATER_EXPLOSION_RADIUS);
+        // A second heal fires with the explosion.
+        expect(boss.hp).toBe(boss.maxHp - 50 + 2 * LIGHT_EATER_HEAL);
+        engine.destroy();
+    });
+
+    function boltsOf(engine: GameEngine, boss: Unit) {
+        return engine.projectiles.filter((p) => p.sourceUnitId === boss.id && p.sourceAbilityId === DISPLACER_BOLT_ID);
+    }
+
+    it('looses a ring of 12 Displacer Bolts at the explosion (none before), 30 degrees apart', () => {
+        const engine = makeEngine();
+        addLight(engine, 'near', 6, 8, 12);
+        const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(10), cell(8));
+        spawnPlayerTarget(engine, cell(22), cell(1));
+        engine.state.orderMgr.applyOrder({ unitId: boss.id, abilityId: LIGHT_EATER_ID, targets: [] });
+
+        step(engine, LIGHT_EATER_EXPLODE_TIME - 0.1);
+        expect(boltsOf(engine, boss)).toHaveLength(0);
+
+        step(engine, 0.2);
+        const bolts = boltsOf(engine, boss);
+        expect(bolts).toHaveLength(LIGHT_EATER_RING_PROJECTILES);
+        expect(LIGHT_EATER_RING_PROJECTILES).toBe(12);
+        for (const p of bolts) {
+            expect(p.sourceTeamId).toBe(boss.teamId);
+            expect(p.damage).toBe(DISPLACER_BOLT_DAMAGE);
+            expect(Math.hypot(p.velocityX, p.velocityY)).toBeCloseTo(DISPLACER_BOLT_SPEED);
+            expect(p.maxDistance).toBe(DISPLACER_BOLT_TRAVEL_DISTANCE);
+            expect(p.radius).toBe(DISPLACER_BOLT_PROJECTILE_RADIUS);
+            // Same purple spit-sprite visual as the cast bolt (not the plain default projectile).
+            expect(p.projectileType).toBe('sprite_projectile');
+        }
+        const headings = bolts
+            .map((p) => ((Math.atan2(p.velocityY, p.velocityX) * 180) / Math.PI + 360) % 360)
+            .sort((a, b) => a - b);
+        for (let i = 1; i < headings.length; i++) {
+            expect(headings[i]! - headings[i - 1]!).toBeCloseTo(30, 0);
+        }
+        // Clone mirroring is not involved: no clone casts, boss only used Light Eater.
+        expect(boss.abilityRuntime[DISPLACER_BOLT_ID]!.currentUses).toBe(4);
+        engine.destroy();
+    });
+
+    it('fires no ring when there was no light to devour', () => {
+        const engine = makeEngine();
+        const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(10), cell(8));
+        spawnPlayerTarget(engine, cell(22), cell(1));
+        engine.state.orderMgr.applyOrder({ unitId: boss.id, abilityId: LIGHT_EATER_ID, targets: [] });
+        step(engine, LIGHT_EATER_EXPLODE_TIME + 0.2);
+        expect(boltsOf(engine, boss)).toHaveLength(0);
+        engine.destroy();
+    });
+
+    it('heals (capped at max hp), including when the light is extinguished', () => {
+        const engine = makeEngine();
+        addLight(engine, 'dim', 6, 8, LIGHT_EATER_LIGHT_REDUCTION);
+        const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(10), cell(8));
+        spawnPlayerTarget(engine, cell(20), cell(2));
+        boss.hp = boss.maxHp - 5;
+        engine.state.orderMgr.applyOrder({ unitId: boss.id, abilityId: LIGHT_EATER_ID, targets: [] });
+        step(engine, LIGHT_EATER_LANDING_TIME + 0.1);
+        expect(engine.specialTiles.find((t) => t.id === 'dim')).toBeUndefined();
+        expect(boss.hp).toBe(boss.maxHp);
+        expect(boss.maxHp).toBe(150);
+        engine.destroy();
+    });
+
+    it('forecasts the blast circle at the light from cast start until the explosion', () => {
+        const engine = makeEngine();
+        addLight(engine, 'near', 6, 8, 12);
+        const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(12), cell(8));
+        spawnPlayerTarget(engine, cell(20), cell(2));
+        const lightCenter = lightTileCenter({ col: 6, row: 8 });
+        engine.state.orderMgr.applyOrder({ unitId: boss.id, abilityId: LIGHT_EATER_ID, targets: [] });
+        step(engine, 0.1);
+
+        const active = boss.activeAbilities[0]!;
+        const early = fakeGraphics();
+        LightEaterAbility.renderActivePreview!(early, boss, active, engine.gameTime);
+        // Before arrival the circle is already at the light, not on the boss.
+        expect(early.circles.length).toBeGreaterThan(0);
+        expect(early.circles[0]).toEqual({ x: lightCenter.x, y: lightCenter.y, r: LIGHT_EATER_EXPLOSION_RADIUS });
+        expect(boss.x).toBeGreaterThan(lightCenter.x);
+
+        const gone = fakeGraphics();
+        LightEaterAbility.renderActivePreview!(gone, boss, active, active.startTime + LIGHT_EATER_EXPLODE_TIME);
+        expect(gone.circles).toHaveLength(0);
         engine.destroy();
     });
 
@@ -215,6 +355,7 @@ describe('Phantom Decoy (0019)', () => {
         const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
         const player = spawnPlayerTarget(engine, cell(8), cell(8));
         expect(boss.getResource('super')!.current).toBe(2);
+        const bossStart = { x: boss.x, y: boss.y };
 
         engine.state.orderMgr.applyOrder({
             unitId: boss.id,
@@ -227,10 +368,12 @@ describe('Phantom Decoy (0019)', () => {
         const clones = engine.units.filter((u) => u.characterId === DISPLACER_CLONE_ID && u.isAlive());
         expect(clones).toHaveLength(PHANTOM_DECOY_CLONE_COUNT);
         for (const c of clones) {
+            expect(c.tags).toContain(UnitTag.Clone);
+            // One clone swapped into the boss's starting spot (see the swap test); skip its distance check.
+            if (Math.hypot(c.x - bossStart.x, c.y - bossStart.y) < 60) continue;
             const d = Math.hypot(c.x - player.x, c.y - player.y);
             expect(d).toBeGreaterThanOrEqual(PHANTOM_DECOY_MIN_DISTANCE_FROM_TARGET - 1);
             expect(d).toBeLessThanOrEqual(PHANTOM_DECOY_SPAWN_RADIUS + 1);
-            expect(c.tags).toContain(UnitTag.Clone);
         }
         for (let i = 0; i < clones.length; i++) {
             for (let j = i + 1; j < clones.length; j++) {
@@ -240,6 +383,42 @@ describe('Phantom Decoy (0019)', () => {
                 expect(d).toBeGreaterThanOrEqual(2 * clones[i]!.radius - 2);
             }
         }
+        engine.destroy();
+    });
+
+    it('spawns clones at the same health fraction as the spirit', () => {
+        const engine = makeEngine();
+        const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
+        const player = spawnPlayerTarget(engine, cell(8), cell(8));
+        boss.hp = boss.maxHp * 0.4;
+        engine.state.orderMgr.applyOrder({
+            unitId: boss.id,
+            abilityId: PHANTOM_DECOY_ID,
+            targets: [{ type: 'unit', unitId: player.id }],
+        });
+        step(engine, PHANTOM_DECOY_WINDUP + 0.2);
+        const clones = engine.units.filter((u) => u.characterId === DISPLACER_CLONE_ID && u.isAlive());
+        expect(clones).toHaveLength(PHANTOM_DECOY_CLONE_COUNT);
+        for (const c of clones) expect(c.hp / c.maxHp).toBeCloseTo(0.4, 5);
+        engine.destroy();
+    });
+
+    it('swaps places with one of the new clones', () => {
+        const engine = makeEngine();
+        const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
+        const player = spawnPlayerTarget(engine, cell(8), cell(8));
+        const before = { x: boss.x, y: boss.y };
+        engine.state.orderMgr.applyOrder({
+            unitId: boss.id,
+            abilityId: PHANTOM_DECOY_ID,
+            targets: [{ type: 'unit', unitId: player.id }],
+        });
+        step(engine, PHANTOM_DECOY_WINDUP + 0.2);
+
+        // The boss now stands among the clones near the player, and a clone took its old spot.
+        expect(Math.hypot(boss.x - player.x, boss.y - player.y)).toBeLessThanOrEqual(PHANTOM_DECOY_SPAWN_RADIUS + 50);
+        const clones = engine.units.filter((u) => u.characterId === DISPLACER_CLONE_ID && u.isAlive());
+        expect(clones.some((c) => Math.hypot(c.x - before.x, c.y - before.y) < 60)).toBe(true);
         engine.destroy();
     });
 
@@ -282,7 +461,7 @@ describe('Displacer Bolt clone mirroring (0017)', () => {
             abilityId: DISPLACER_BOLT_ID,
             targets: [{ type: 'pixel', position: { x: player.x, y: player.y } }],
         });
-        step(engine, CLONE_MIRROR_MAX_CLONES * CLONE_MIRROR_STAGGER_SEC + 1.5);
+        step(engine, CLONE_MIRROR_START_DELAY_SEC + CLONE_MIRROR_MAX_CLONES * CLONE_MIRROR_STAGGER_SEC + 1.5);
 
         const bossCasts = casts.filter((c) => c.unitId === boss.id);
         const cloneCasts = casts.filter((c) => clones.some((cl) => cl.id === c.unitId));
@@ -339,7 +518,7 @@ describe('Displacer boss AI round gating', () => {
         expect(isInRoundWindow(ROUND_DURATION * 0.4, PHANTOM_DECOY_ROUND_WINDOW)).toBe(false);
     });
 
-    it('Light Eater > Decoy > Bolt, each only inside its round window', () => {
+    it('Decoy > Light Eater > Bolt, each only inside its round window', () => {
         const engine = makeEngine();
         const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
         const player = spawnPlayerTarget(engine, boss.x - 150, boss.y);
@@ -348,13 +527,28 @@ describe('Displacer boss AI round gating', () => {
         expect(pick(boss, player, ROUND_DURATION * 0.2, true)).toBe(DISPLACER_BOLT_ID);
         // Second half (before the last quarter): Decoy outranks the bolt.
         expect(pick(boss, player, ROUND_DURATION * 0.6, true)).toBe(PHANTOM_DECOY_ID);
-        // Last quarter: Light Eater outranks Decoy and Bolt.
-        expect(pick(boss, player, ROUND_DURATION * 0.8, true)).toBe(LIGHT_EATER_ID);
-        // No light left to eat: falls back to Decoy.
-        expect(pick(boss, player, ROUND_DURATION * 0.8, false)).toBe(PHANTOM_DECOY_ID);
-        // No super bars: Decoy is unaffordable, so the bolt is used.
+        // Last quarter of a round where both are eligible: Decoy outranks Light Eater.
+        expect(pick(boss, player, ROUND_DURATION * 0.8, true)).toBe(PHANTOM_DECOY_ID);
+        // No super bars: Decoy is unaffordable, so Light Eater (last quarter) and then the bolt follow.
         boss.getResource('super')!.current = 0;
+        expect(pick(boss, player, ROUND_DURATION * 0.8, true)).toBe(LIGHT_EATER_ID);
         expect(pick(boss, player, ROUND_DURATION * 0.6, true)).toBe(DISPLACER_BOLT_ID);
+        // No light left to eat: only the bolt remains.
+        expect(pick(boss, player, ROUND_DURATION * 0.8, false)).toBe(DISPLACER_BOLT_ID);
+        engine.destroy();
+    });
+
+    it('Light Eater is only used every other round (rounds 0, 2, 4, ...)', () => {
+        const engine = makeEngine();
+        const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
+        const player = spawnPlayerTarget(engine, boss.x - 150, boss.y);
+        boss.getResource('super')!.current = 0; // keep Decoy out of the way
+        for (const round of [0, 2, 4]) {
+            expect(pick(boss, player, ROUND_DURATION * (round + 0.8), true)).toBe(LIGHT_EATER_ID);
+        }
+        for (const round of [1, 3, 5]) {
+            expect(pick(boss, player, ROUND_DURATION * (round + 0.8), true)).toBe(DISPLACER_BOLT_ID);
+        }
         engine.destroy();
     });
 

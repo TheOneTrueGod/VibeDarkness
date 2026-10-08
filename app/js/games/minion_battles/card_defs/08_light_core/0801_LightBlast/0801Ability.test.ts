@@ -10,7 +10,7 @@ import {
 import { LIGHT_INCREASED_RADIANCE_RANGE_MULT } from '../../../../../researchTrees/trees/light';
 
 describe('Light Blast leftover light', () => {
-    it('uses Bright 3 FireLight, stronger than the old DayLight amount of 1', () => {
+    it('uses Bright 1 FireLight, stronger than the old DayLight amount of 1', () => {
         const def = BRIGHT_DEFS[LIGHT_BLAST_BRIGHT_MAGNITUDE];
         expect(def).toBeDefined();
         expect(def!.lightAmount).toBeGreaterThan(1);

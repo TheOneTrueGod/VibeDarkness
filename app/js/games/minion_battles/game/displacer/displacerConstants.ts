@@ -13,8 +13,10 @@ export const DISPLACER_STARTING_SUPER_BARS = 2;
 // --- Clone mirroring -------------------------------------------------------
 /** At most this many clones echo each Displacer Bolt. */
 export const CLONE_MIRROR_MAX_CLONES = 3;
-/** Seconds between each mirrored clone's cast (clone i fires i * stagger after the boss starts). */
-export const CLONE_MIRROR_STAGGER_SEC = 0.4;
+/** Seconds after the boss starts its bolt before the first clone follows up. */
+export const CLONE_MIRROR_START_DELAY_SEC = 0.2;
+/** Seconds between each successive mirrored clone's cast (clone i fires start + i * stagger). */
+export const CLONE_MIRROR_STAGGER_SEC = 0.28;
 
 // --- Phantom Decoy placement ----------------------------------------------
 export const PHANTOM_DECOY_CLONE_COUNT = 10;
@@ -43,4 +45,6 @@ export const DISPLACER_KITE_ORBIT_RADIANS = 0.9;
 export const PHANTOM_DECOY_ROUND_WINDOW = { start: 0.5, end: 1 } as const;
 export const PHANTOM_DECOY_ROUND_INTERVAL = 3;
 export const LIGHT_EATER_ROUND_WINDOW = { start: 0.75, end: 1 } as const;
+/** Light Eater is usable only every other round (rounds 0, 2, 4, ...). */
+export const LIGHT_EATER_ROUND_INTERVAL = 2;
 export const DISPLACER_BOLT_USES_PER_ROUND = 4;

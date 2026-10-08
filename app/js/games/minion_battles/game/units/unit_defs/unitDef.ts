@@ -315,10 +315,10 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     displacer_spirit: {
         bodyColor: 0x1e3a5f,
         characterSpriteKey: 'displacer_spirit',
-        hp: 240,
+        hp: 150,
         // Slime is 50; a bit above that (no ghost unit def exists yet — see mission notes).
         speed: 65,
-        size: 'Medium',
+        size: 'Small',
         stamina: 1,
         perceptionRange: 400,
         creatureType: 'dark_creature',
@@ -335,7 +335,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         characterSpriteKey: 'displacer_spirit',
         hp: 6,
         speed: 65,
-        size: 'Medium',
+        size: 'Small',
         stamina: 1,
         perceptionRange: 400,
         creatureType: 'dark_creature',

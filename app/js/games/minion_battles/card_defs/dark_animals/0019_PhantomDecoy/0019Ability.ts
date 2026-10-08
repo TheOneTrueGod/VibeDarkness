@@ -1,7 +1,8 @@
 /**
  * PhantomDecoy - Displacer Spirit super ability (costs 1 super bar). The spirit conjures a ring of
  * illusory copies of itself around a player, hiding among them while the clones echo its bolts.
- * Any clones from an earlier decoy fade first. Used in the second half of every third round (rounds 0, 3, 6, ...), i.e. at 0.5, 3.5, 6.5 rounds.
+ * Any clones from an earlier decoy fade first, and the spirit then swaps places with one random new
+ * clone. Used in the second half of every third round (rounds 0, 3, 6, ...), i.e. at 0.5, 3.5, 6.5 rounds.
  */
 
 import type { AbilityRecoveryRule, AbilityStatic } from '../../../abilities/Ability';
@@ -83,7 +84,7 @@ const _base: AbilityStatic = defineAbility({
         minRange: 0,
         maxRange: PHANTOM_DECOY_AI_RANGE,
         maxUsesPerRound: 1,
-        priority: 20,
+        priority: 40, // above Light Eater (30)
         ninjutsu: { ignore: true },
         roundWindow: PHANTOM_DECOY_ROUND_WINDOW,
         requireAffordable: true,
@@ -131,8 +132,11 @@ export const PhantomDecoyAbility: AbilityStatic = {
             randomInt: (min, max) => eng.generateRandomInteger(min, max),
         });
 
+        const spawned: Unit[] = [];
+        // Clones start at the same health fraction as the spirit (fractional hp is fine).
+        const hpFraction = caster.maxHp > 0 ? Math.max(0, Math.min(1, caster.hp / caster.maxHp)) : 1;
         for (const pos of positions) {
-            eng.spawnUnit(
+            const made = eng.spawnUnit(
                 {
                     ...enemySpawnDefToSpawnDefinition(ENEMY_DISPLACER_CLONE, 'ai'),
                     teamId: caster.teamId,
@@ -142,6 +146,8 @@ export const PhantomDecoyAbility: AbilityStatic = {
                 },
                 'abilitySpawn',
             );
+            for (const clone of made) clone.hp = clone.maxHp * hpFraction;
+            spawned.push(...made);
             eng.addEffect(new Effect({
                 x: pos.x,
                 y: pos.y,
@@ -149,6 +155,27 @@ export const PhantomDecoyAbility: AbilityStatic = {
                 effectType: 'Pulse',
                 effectData: { colors: [SPIRIT_BLUE, 0x9fc2ff, 0x112244] },
             }));
+        }
+
+        // The spirit hides among its copies: swap places with one of them at random.
+        if (spawned.length > 0) {
+            const clone = spawned[eng.generateRandomInteger(0, spawned.length - 1)]!;
+            const { x, y } = caster;
+            caster.x = clone.x;
+            caster.y = clone.y;
+            clone.x = x;
+            clone.y = y;
+            caster.clearMovement();
+            clone.clearMovement();
+            for (const at of [{ x, y }, { x: caster.x, y: caster.y }]) {
+                eng.addEffect(new Effect({
+                    x: at.x,
+                    y: at.y,
+                    duration: 0.5,
+                    effectType: 'Pulse',
+                    effectData: { colors: [SPIRIT_BLUE, 0x9fc2ff, 0x112244] },
+                }));
+            }
         }
     },
 };

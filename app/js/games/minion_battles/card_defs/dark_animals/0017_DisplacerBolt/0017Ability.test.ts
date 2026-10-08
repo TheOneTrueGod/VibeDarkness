@@ -37,11 +37,11 @@ describe('DisplacerBolt', () => {
 });
 
 describe('displacer_spirit unit def', () => {
-    it('exists, is medium sized, and moves faster than the slime', () => {
+    it('exists, is small sized, and moves faster than the slime', () => {
         const def = getUnitDefEntry('displacer_spirit');
         const slime = getUnitDefEntry('slime');
         expect(def).toBeDefined();
-        expect(def!.size).toBe('Medium');
+        expect(def!.size).toBe('Small');
         expect(def!.speed!).toBeGreaterThan(slime!.speed!);
         expect(ENEMY_DISPLACER_SPIRIT.abilities).toEqual([DISPLACER_BOLT_ID, '0018', '0019']);
     });

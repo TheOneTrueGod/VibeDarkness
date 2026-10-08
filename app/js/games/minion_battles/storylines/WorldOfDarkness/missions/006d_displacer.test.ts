@@ -6,12 +6,15 @@ import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { registerWorldOfDarknessSegments } from '../registerSegments';
 import {
     DISPLACER,
+    ARENA_LIGHT_AMOUNT,
+    ARENA_LIGHT_RADIUS,
     DISPLACER_MISSION_ID,
+    DISPLACER_PLAYER_SPAWN_ANCHOR,
+    DISPLACER_PLAYER_SPAWN_POINTS,
     OPENING_WOLF_COUNT,
     ROUND_WOLF_COUNT,
 } from './006d_displacer';
 import {
-    ARENA_OUTSIDE_ROAD_SPAWN_POINTS,
     ARENA_RING_SPAWN_POINTS,
     BOSS_ARENA_SIZE,
 } from '../MapSegments/0_0_boss_arena';
@@ -34,6 +37,35 @@ function initMission(): GameEngine {
 }
 
 describe('DisplacerMission', () => {
+    it('has 8 distinct, passable player spawn tiles around the anchor (2 right, 2 down of the road entrance)', () => {
+        expect(DISPLACER_PLAYER_SPAWN_ANCHOR).toEqual({ col: 3, row: 11 });
+        expect(DISPLACER_PLAYER_SPAWN_POINTS[0]).toEqual(DISPLACER_PLAYER_SPAWN_ANCHOR);
+        expect(DISPLACER_PLAYER_SPAWN_POINTS).toHaveLength(8);
+        expect(new Set(DISPLACER_PLAYER_SPAWN_POINTS.map((p) => `${p.col},${p.row}`)).size).toBe(8);
+        const terrain = DISPLACER.createTerrain();
+        for (const p of DISPLACER_PLAYER_SPAWN_POINTS) {
+            expect(terrain.isPassable((p.col + 0.5) * CELL_SIZE, (p.row + 0.5) * CELL_SIZE)).toBe(true);
+            // Every spawn stays near the anchor and well left of the circle.
+            expect(Math.abs(p.col - DISPLACER_PLAYER_SPAWN_ANCHOR.col)).toBeLessThanOrEqual(2);
+            expect(Math.abs(p.row - DISPLACER_PLAYER_SPAWN_ANCHOR.row)).toBeLessThanOrEqual(1);
+        }
+    });
+
+    it('ring lights emit exactly the configured strength (maxHp matches hp, so no light inflation)', () => {
+        const engine = initMission();
+        const tiles = engine.specialTiles.filter((t) => t.defId === 'DarkCrystal');
+        expect(tiles).toHaveLength(ARENA_RING_SPAWN_POINTS.length);
+        for (const t of tiles) {
+            expect(t.hp).toBe(t.maxHp);
+            expect(t.emitsLight!.lightAmount).toBe(ARENA_LIGHT_AMOUNT);
+            expect(t.emitsLight!.radius).toBe(ARENA_LIGHT_RADIUS);
+        }
+        const sources = engine.state.specialTileManager.buildLightSourcesFromSpecialTiles();
+        expect(sources).toHaveLength(tiles.length);
+        for (const s of sources) expect(s.emission).toBe(ARENA_LIGHT_AMOUNT);
+        engine.destroy();
+    });
+
     it('uses the circle arena terrain', () => {
         expect(DISPLACER.missionId).toBe(DISPLACER_MISSION_ID);
         const terrain = DISPLACER.createTerrain();
@@ -46,7 +78,7 @@ describe('DisplacerMission', () => {
         const player = engine.units.find((u) => u.teamId === 'player')!;
         const col = Math.floor(player.x / CELL_SIZE);
         const row = Math.floor(player.y / CELL_SIZE);
-        expect(ARENA_OUTSIDE_ROAD_SPAWN_POINTS.some((p) => p.col === col && p.row === row)).toBe(true);
+        expect(DISPLACER_PLAYER_SPAWN_POINTS.some((p) => p.col === col && p.row === row)).toBe(true);
         expect(col).toBeLessThan(BOSS_ARENA_SIZE / 2);
 
         const bosses = engine.units.filter((u) => u.characterId === 'displacer_spirit');

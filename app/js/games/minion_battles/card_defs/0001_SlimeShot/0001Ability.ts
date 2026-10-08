@@ -126,6 +126,9 @@ export const SlimeShotAbility: AbilityStatic = {
         gameTime: number,
     ): void {
         const elapsed = gameTime - activeAbility.startTime;
+        // The glob launches the instant the aim phase ends (the Active interval starts at LOCK_TIME),
+        // so the telegraph must vanish then rather than linger through the rest of the cast.
+        if (elapsed >= LOCK_TIME) return;
         const target = getTargetPosition(caster, activeAbility);
         if (!target) return;
 
@@ -135,7 +138,7 @@ export const SlimeShotAbility: AbilityStatic = {
         const aimEndX = caster.x + ux * lineLen;
         const aimEndY = caster.y + uy * lineLen;
 
-        if (elapsed < LOCK_TIME) {
+        {
             const progress = elapsed / LOCK_TIME;
             const angleDeg = 30 * (1 - progress);
             const angleRad = (angleDeg * Math.PI) / 180;
@@ -160,18 +163,12 @@ export const SlimeShotAbility: AbilityStatic = {
             gr.moveTo(caster.x, caster.y);
             gr.lineTo(caster.x + rightX * lineLen, caster.y + rightY * lineLen);
             gr.stroke({ color: RED, width: 2, alpha: sideAlpha });
-        } else if (elapsed < PREFIRE_TIME) {
-            gr.moveTo(caster.x, caster.y);
-            gr.lineTo(aimEndX, aimEndY);
-            gr.stroke({ color: RED, width: 3, alpha: 1 });
         }
 
-        if (elapsed < PREFIRE_TIME) {
-            gr.circle(aimEndX, aimEndY, 7);
-            gr.stroke({ color: RED, width: 2, alpha: 0.85 });
-            gr.circle(aimEndX, aimEndY, 2.5);
-            gr.fill({ color: RED, alpha: 0.95 });
-        }
+        gr.circle(aimEndX, aimEndY, 7);
+        gr.stroke({ color: RED, width: 2, alpha: 0.85 });
+        gr.circle(aimEndX, aimEndY, 2.5);
+        gr.fill({ color: RED, alpha: 0.95 });
     },
 };
 
