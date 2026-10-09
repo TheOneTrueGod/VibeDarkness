@@ -111,3 +111,54 @@ export const STONE_TOMB_CAST_TIME = 1.5;
 
 /** Rounds before Stone Tomb can be recast. */
 export const STONE_TOMB_RECHARGE_TURNS = 1;
+
+// ---------------------------------------------------------------------------
+// Rock Slide (0537)
+// ---------------------------------------------------------------------------
+
+/** One engine tick of the 60 Hz sim; select intervals last a single tick. */
+const ROCK_SLIDE_TICK = 1 / 60;
+
+/** Chebyshev tile distance within which the rock to rip up must sit. */
+export const ROCK_SLIDE_ROCK_MAX_TILE_OFFSET = 2;
+
+/** Loose px tether for both select steps; the tile-snap helpers are the authoritative limits. */
+export const ROCK_SLIDE_CAST_RANGE = 160;
+
+/** Tick-long interactive select at t=0 that picks the rock. */
+export const ROCK_SLIDE_PICK_END = ROCK_SLIDE_TICK;
+
+/**
+ * The aim (direction) select happens at ROCK_SLIDE_AIM_START; the rock is destroyed two ticks
+ * earlier so the aim pick already sees the post-destruction terrain (the rubble tile is a legal
+ * spawn tile).
+ */
+export const ROCK_SLIDE_AIM_START = 0.4;
+export const ROCK_SLIDE_DESTROY_TIME = ROCK_SLIDE_AIM_START - 2 * ROCK_SLIDE_TICK;
+export const ROCK_SLIDE_AIM_END = ROCK_SLIDE_AIM_START + ROCK_SLIDE_TICK;
+
+/** Rock projectile appears (end of the 0.3s outward-particle beat). */
+export const ROCK_SLIDE_SPAWN_TIME = 0.7;
+
+/** Slide-in ends and the projectile starts flying. */
+export const ROCK_SLIDE_LAUNCH_TIME = 0.85;
+
+/** Slide-out ends; cooldown starts. */
+export const ROCK_SLIDE_SLIDE_END_TIME = 1.0;
+
+/** Total cast time (0.4s cooldown). */
+export const ROCK_SLIDE_CAST_TIME = 1.4;
+
+/** Px the caster lunges toward the rock during the punch. */
+export const ROCK_SLIDE_PUNCH_DISTANCE = 14;
+
+export const ROCK_SLIDE_DAMAGE = 12;
+/** Enemies damaged per flight; further enemies are still knocked back. */
+export const ROCK_SLIDE_MAX_DAMAGE_TARGETS = 5;
+export const ROCK_SLIDE_KNOCKBACK_TIER = 3;
+export const ROCK_SLIDE_TRAVEL_TILES = 10;
+export const ROCK_SLIDE_PROJECTILE_SPEED = 900;
+export const ROCK_SLIDE_PROJECTILE_RADIUS = 18;
+
+/** Rounds before Rock Slide can be recast. */
+export const ROCK_SLIDE_RECHARGE_TURNS = 2;

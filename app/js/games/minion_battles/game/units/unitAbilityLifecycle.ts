@@ -122,7 +122,23 @@ export function interruptAndRefundUnitAbilities(unit: Unit, engine: EngineContex
         );
         const phase = getCoveringAbilityPhaseAtElapsed(elapsed, intervals);
 
+        ability.onCastInterrupted?.(engine, unit, active, elapsed);
+
         if (isCooldownPhase(phase)) {
+            if (ability.interruptEndsCooldown) {
+                triggerAbilityEvent({
+                    engine,
+                    caster: unit,
+                    ability,
+                    activeAbility: active,
+                    targets: active.targets,
+                    eventType: AbilityEventType.ON_CAST_END,
+                    prevTime: elapsed,
+                    currentTime: elapsed,
+                });
+                cleanupCastBehavioursForAbility(unit, active, engine);
+                continue;
+            }
             kept.push(active);
             continue;
         }

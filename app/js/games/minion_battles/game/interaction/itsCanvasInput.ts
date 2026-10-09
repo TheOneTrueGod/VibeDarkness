@@ -74,6 +74,9 @@ export function resolveItsSelectTargetForClick(
         resolved,
         engine,
     );
+    if (selectDef.validatePick && !selectDef.validatePick({ caster, engine, pick: resolved, collectedTargets })) {
+        return null;
+    }
     const numTargets = selectDef.numTargets ?? selectDef.hitbox.numTargets;
     const lockOnCandidates = candidates.map((u) => ({ unitId: u.id }));
     const companionCandidates = companionUnits.map((u) => ({ unitId: u.id }));

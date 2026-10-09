@@ -50,6 +50,7 @@ import { ShatterCard } from './05_earth_core/0526_Shatter/0526Ability';
 import { FaultHarvestCard } from './05_earth_core/0528_FaultHarvest/0528Ability';
 import { SeismicGuardCard } from './05_earth_core/0529_SeismicGuard/0529Ability';
 import { StoneTombCard } from './05_earth_core/0530_StoneTomb/0530Ability';
+import { RockSlideCard } from './05_earth_core/0537_RockSlide/0537Ability';
 import { KnockCard } from './05_earth_core/0531_Knock/0531Ability';
 import { AnchoredTremorCard } from './05_earth_core/0532_AnchoredTremor/0532Ability';
 import { StoneyPunchCard } from './05_earth_core/0533_StoneyPunch/0533Ability';
@@ -127,6 +128,7 @@ const cardDefs: CardDef[] = [
     FaultHarvestCard,
     SeismicGuardCard,
     StoneTombCard,
+    RockSlideCard,
     KnockCard,
     AnchoredTremorCard,
     StoneyPunchCard,

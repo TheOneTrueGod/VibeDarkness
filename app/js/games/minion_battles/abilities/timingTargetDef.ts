@@ -1,4 +1,6 @@
 import type { HitboxSpec } from '../hitboxes/HitboxSpec';
+import type { Unit } from '../game/units/Unit';
+import type { ResolvedTarget } from '../game/types';
 
 /** AI auto-resolution for a select step (see `buildAiSelectTargets`). */
 export type SelectTargetAiHint =
@@ -64,6 +66,17 @@ export interface SelectTargetDef {
     minRangeFromAnchor?: number;
     /** Optional AI auto-resolution for this select step. */
     aiHint?: SelectTargetAiHint;
+    /**
+     * Rejects a player pick that is illegal for reasons the hitbox cannot see (e.g. terrain).
+     * Called with the pick after range clamping; returning false ignores the click and keeps
+     * the targeting cursor active. Must be a pure function of `engine` state and the arguments.
+     */
+    validatePick?(ctx: {
+        caster: Unit;
+        engine: unknown;
+        pick: ResolvedTarget;
+        collectedTargets: Record<string, ResolvedTarget>;
+    }): boolean;
 }
 
 /**

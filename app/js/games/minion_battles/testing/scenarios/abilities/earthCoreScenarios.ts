@@ -866,3 +866,69 @@ export const earthCoreGatherStoneNoRubbleStrikeWithoutResearchScenario: Scenario
         return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected 0 (no Grinding Debris research)`;
     },
 };
+
+// ---------------------------------------------------------------------------
+// 0537 - Rock Slide (rip up a rock, punch it east along row 5 into a wall)
+// ---------------------------------------------------------------------------
+
+export const ROCK_SLIDE_SCENARIO_ROCK_TILE = { col: 3, row: 3 };
+export const ROCK_SLIDE_SCENARIO_WALL_TILE = { col: 9, row: 5 };
+export const ROCK_SLIDE_SCENARIO_LANDING_TILE = { col: 8, row: 5 };
+const RS_PLAYER_POS = { x: 3 * CELL + CELL / 2, y: 5 * CELL + CELL / 2 };
+const RS_DUMMY_POS = { x: 7 * CELL + CELL / 2, y: 5 * CELL + CELL / 2 };
+const RS_ROCK_PICK = {
+    x: ROCK_SLIDE_SCENARIO_ROCK_TILE.col * CELL + CELL / 2,
+    y: ROCK_SLIDE_SCENARIO_ROCK_TILE.row * CELL + CELL / 2,
+};
+const RS_EAST_PICK = { x: 4 * CELL + CELL / 2, y: 5 * CELL + CELL / 2 };
+
+export const earthCoreRockSlideScenario: ScenarioDefinition = {
+    id: 'earth_core_0537_rock_slide',
+    title: 'Rock Slide (0537) destroys the rock, hits the dummy for 12, and lands as rock at the wall',
+    category: 'ability',
+    maxDurationMs: 6000,
+    buildEngine() {
+        const engine = buildTinyBattleEngine({ gridW: 12, gridH: 10, localPlayerId: P, grass: true });
+        const grid = engine.terrainManager!.grid;
+        grid.set(ROCK_SLIDE_SCENARIO_ROCK_TILE.col, ROCK_SLIDE_SCENARIO_ROCK_TILE.row, TerrainType.Rock);
+        grid.set(ROCK_SLIDE_SCENARIO_WALL_TILE.col, ROCK_SLIDE_SCENARIO_WALL_TILE.row, TerrainType.Rock);
+        placePlayerAndDummy(engine, {
+            playerId: P,
+            playerWorld: RS_PLAYER_POS,
+            dummyWorld: RS_DUMMY_POS,
+            abilities: ['0537'],
+        });
+        return engine;
+    },
+    getInitialOrders(engine) {
+        const u = engine.getLocalPlayerUnit()!;
+        return [{
+            unitId: u.id,
+            abilityId: '0537',
+            targets: [
+                { type: 'pixel' as const, position: RS_ROCK_PICK },
+                { type: 'pixel' as const, position: RS_EAST_PICK },
+            ],
+        }];
+    },
+    assertPass(e) {
+        const tm = e.terrainManager!;
+        const d = e.getUnit('target_dummy');
+        const { col: rc, row: rr } = ROCK_SLIDE_SCENARIO_ROCK_TILE;
+        const { col: lc, row: lr } = ROCK_SLIDE_SCENARIO_LANDING_TILE;
+        return Boolean(
+            d
+            && d.maxHp - d.hp === 12
+            && tm.getEffectiveTerrainType(rc, rr) === TerrainType.Rubble
+            && tm.getEffectiveTerrainType(lc, lr) === TerrainType.Rock
+            && e.projectiles.every((p) => !p.active),
+        );
+    },
+    failureMessage(e) {
+        const tm = e.terrainManager!;
+        const d = e.getUnit('target_dummy');
+        const { col: rc, row: rr } = ROCK_SLIDE_SCENARIO_ROCK_TILE;
+        const { col: lc, row: lr } = ROCK_SLIDE_SCENARIO_LANDING_TILE;
+        return `dummy lost ${d ? d.maxHp - d.hp : '?'} hp (want 12); source tile=${tm.getEffectiveTerrainType(rc, rr)} (want Rubble); landing tile=${tm.getEffectiveTerrainType(lc, lr)} (want Rock); live projectiles=${e.projectiles.filter((p) => p.active).length}`;
+    },
+};

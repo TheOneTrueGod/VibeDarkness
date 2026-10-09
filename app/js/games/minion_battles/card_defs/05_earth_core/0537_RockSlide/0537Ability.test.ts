@@ -1,0 +1,284 @@
+import '../../../abilities/AbilityRegistry';
+import { describe, expect, it } from 'vitest';
+import { RockSlideAbility_0537 } from './0537Ability';
+import type { GameEngine } from '../../../game/GameEngine';
+import type { Unit } from '../../../game/units/Unit';
+import { TerrainType } from '../../../terrain/TerrainType';
+import { CELL_SIZE } from '../../../terrain/TerrainGrid';
+import { createTargetDummyAtWorld } from '../../../testing/fixtures/targetDummies';
+import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
+import {
+    earthCoreRockSlideScenario,
+    ROCK_SLIDE_SCENARIO_ROCK_TILE,
+    ROCK_SLIDE_SCENARIO_LANDING_TILE,
+} from '../../../testing/scenarios/abilities/earthCoreScenarios';
+import {
+    ROCK_SLIDE_DESTROY_TIME,
+    ROCK_SLIDE_SPAWN_TIME,
+    ROCK_SLIDE_LAUNCH_TIME,
+    ROCK_SLIDE_CAST_TIME,
+    ROCK_SLIDE_DAMAGE,
+} from '../earthCoreConstants';
+import {
+    isRockTile,
+    isSlideSpawnTile,
+    resolveRockTile,
+    resolveSlideDirection,
+} from './rockSlideHelpers';
+import { snapAdjacentCardinalTile } from '../../../abilities/tileAreaHelpers';
+
+const SPAWN_TILE = { col: 4, row: 5 };
+
+function setup(): { engine: GameEngine; player: Unit; start: number } {
+    const engine = earthCoreRockSlideScenario.buildEngine() as GameEngine;
+    for (const order of earthCoreRockSlideScenario.getInitialOrders(engine)) {
+        engine.state.orderMgr.applyOrder(order);
+    }
+    // The order starts the cast on the first stepped tick.
+    engine.stepSimulationFixedTicks(1);
+    const player = engine.getLocalPlayerUnit()!;
+    const active = player.activeAbilities.find((a) => a.abilityId === '0537');
+    expect(active).toBeTruthy();
+    return { engine, player, start: active!.startTime };
+}
+
+/** Mirrors the headless runner: once nobody is mid-cast the engine waits for orders, so answer with a wait. */
+function resolveOrderPause(engine: GameEngine): void {
+    const batch = engine.waitingForOrders;
+    if (!batch) return;
+    for (const waiter of batch.waiters) {
+        engine.state.orderMgr.applyOrder({ unitId: waiter.unitId, abilityId: 'wait', targets: [], endTurn: true });
+    }
+    engine.tryResumeParallel();
+}
+
+function tick(engine: GameEngine): void {
+    resolveOrderPause(engine);
+    engine.stepSimulationFixedTicks(1);
+}
+
+/** Step until the cast has run for `seconds`. */
+function stepToElapsed(engine: GameEngine, start: number, seconds: number): void {
+    let guard = 0;
+    while (engine.gameTime - start < seconds && guard++ < 1000) tick(engine);
+}
+
+function liveProjectiles(engine: GameEngine) {
+    return engine.projectiles.filter((p) => p.active);
+}
+
+function terrain(engine: GameEngine, col: number, row: number): TerrainType {
+    return engine.terrainManager!.getEffectiveTerrainType(col, row);
+}
+
+describe('Rock Slide (0537) timeline', () => {
+    it('plays the steps in order and the caster stays put until the slide', () => {
+        const { engine, player, start } = setup();
+        const startPos = { x: player.x, y: player.y };
+        const { col, row } = ROCK_SLIDE_SCENARIO_ROCK_TILE;
+
+        stepToElapsed(engine, start, ROCK_SLIDE_DESTROY_TIME - 0.05);
+        expect(terrain(engine, col, row)).toBe(TerrainType.Rock);
+        expect(liveProjectiles(engine)).toHaveLength(0);
+
+        stepToElapsed(engine, start, ROCK_SLIDE_DESTROY_TIME + 0.05);
+        expect(terrain(engine, col, row)).toBe(TerrainType.Rubble);
+        expect(liveProjectiles(engine)).toHaveLength(0);
+
+        stepToElapsed(engine, start, ROCK_SLIDE_SPAWN_TIME + 0.05);
+        const dormant = liveProjectiles(engine);
+        expect(dormant).toHaveLength(1);
+        expect(dormant[0]!.projectileType).toBe('rock_slide');
+        expect(dormant[0]!.velocityX).toBe(0);
+        expect(dormant[0]!.x).toBeCloseTo((SPAWN_TILE.col + 0.5) * CELL_SIZE);
+        expect(dormant[0]!.y).toBeCloseTo((SPAWN_TILE.row + 0.5) * CELL_SIZE);
+        expect(player.x).toBe(startPos.x);
+        expect(player.y).toBe(startPos.y);
+
+        stepToElapsed(engine, start, ROCK_SLIDE_LAUNCH_TIME + 0.05);
+        const flying = liveProjectiles(engine)[0]!;
+        expect(flying.velocityX).toBeGreaterThan(0);
+        expect(flying.x).toBeGreaterThan((SPAWN_TILE.col + 0.5) * CELL_SIZE);
+        expect(flying.velocityY).toBe(0);
+    });
+
+    it('finishes after ~1.4s with the rock landed against the wall and the dummy hit once', () => {
+        const { engine, start } = setup();
+        stepToElapsed(engine, start, ROCK_SLIDE_CAST_TIME + 0.2);
+        const dummy = engine.getUnit('target_dummy')!;
+        expect(dummy.maxHp - dummy.hp).toBe(ROCK_SLIDE_DAMAGE);
+        expect(terrain(engine, ROCK_SLIDE_SCENARIO_LANDING_TILE.col, ROCK_SLIDE_SCENARIO_LANDING_TILE.row)).toBe(TerrainType.Rock);
+        expect(liveProjectiles(engine)).toHaveLength(0);
+        expect(engine.getLocalPlayerUnit()!.activeAbilities.some((a) => a.abilityId === '0537')).toBe(false);
+    });
+});
+
+describe('Rock Slide (0537) interrupts', () => {
+    it('interrupted after the rock is destroyed (before the projectile): rock stays destroyed, nothing spawns', () => {
+        const { engine, player, start } = setup();
+        stepToElapsed(engine, start, ROCK_SLIDE_DESTROY_TIME + 0.1);
+        engine.interruptUnitAndRefundAbilities(player);
+        stepToElapsed(engine, start, ROCK_SLIDE_CAST_TIME);
+        const { col, row } = ROCK_SLIDE_SCENARIO_ROCK_TILE;
+        expect(terrain(engine, col, row)).toBe(TerrainType.Rubble);
+        expect(engine.projectiles).toHaveLength(0);
+        const dummy = engine.getUnit('target_dummy')!;
+        expect(dummy.hp).toBe(dummy.maxHp);
+    });
+
+    it('interrupted after the projectile spawns but before it launches: tile becomes rock, projectile deleted and never moves', () => {
+        const { engine, player, start } = setup();
+        stepToElapsed(engine, start, ROCK_SLIDE_SPAWN_TIME + 0.05);
+        expect(liveProjectiles(engine)).toHaveLength(1);
+        expect(terrain(engine, SPAWN_TILE.col, SPAWN_TILE.row)).not.toBe(TerrainType.Rock);
+
+        engine.interruptUnitAndRefundAbilities(player);
+        expect(liveProjectiles(engine)).toHaveLength(0);
+        expect(terrain(engine, SPAWN_TILE.col, SPAWN_TILE.row)).toBe(TerrainType.Rock);
+
+        stepToElapsed(engine, start, ROCK_SLIDE_CAST_TIME + 0.3);
+        expect(engine.projectiles.filter((p) => p.active)).toHaveLength(0);
+        const dummy = engine.getUnit('target_dummy')!;
+        expect(dummy.hp).toBe(dummy.maxHp);
+    });
+
+    it('interrupted after launch: the projectile still flies, hits and lands', () => {
+        const { engine, player, start } = setup();
+        stepToElapsed(engine, start, ROCK_SLIDE_LAUNCH_TIME + 0.05);
+        engine.interruptUnitAndRefundAbilities(player);
+        stepToElapsed(engine, start, ROCK_SLIDE_CAST_TIME + 0.3);
+        const dummy = engine.getUnit('target_dummy')!;
+        expect(dummy.maxHp - dummy.hp).toBe(ROCK_SLIDE_DAMAGE);
+        expect(terrain(engine, ROCK_SLIDE_SCENARIO_LANDING_TILE.col, ROCK_SLIDE_SCENARIO_LANDING_TILE.row)).toBe(TerrainType.Rock);
+    });
+
+    it('interrupted during cooldown: the cast ends immediately instead of running out the cooldown', () => {
+        const { engine, player, start } = setup();
+        stepToElapsed(engine, start, 1.1);
+        expect(player.activeAbilities.some((a) => a.abilityId === '0537')).toBe(true);
+        engine.interruptUnitAndRefundAbilities(player);
+        expect(player.activeAbilities.some((a) => a.abilityId === '0537')).toBe(false);
+    });
+});
+
+describe('Rock Slide (0537) projectile hits', () => {
+    function addDummy(engine: GameEngine, id: string, x: number, y: number): Unit {
+        const dummy = createTargetDummyAtWorld(engine, x, y, { id });
+        initializeAbilityRuntimeForUnit(dummy);
+        engine.addUnit(dummy, 'initialGameSpawn');
+        return dummy;
+    }
+
+    it('knocks units 45 degrees toward the side of the projectile they are on', () => {
+        const { engine, start } = setup();
+        const rowY = 5 * CELL_SIZE + CELL_SIZE / 2;
+        const above = addDummy(engine, 'above', 5 * CELL_SIZE + 20, rowY - 8);
+        const below = addDummy(engine, 'below', 6 * CELL_SIZE + 20, rowY + 8);
+        const seen: Record<string, { x: number; y: number }> = {};
+        let guard = 0;
+        while (engine.gameTime - start < ROCK_SLIDE_CAST_TIME && guard++ < 400) {
+            tick(engine);
+            for (const u of [above, below]) {
+                if (u.knockback && !seen[u.id]) seen[u.id] = { ...u.knockback.knockbackVector };
+            }
+        }
+        const a = seen['above']!;
+        const b = seen['below']!;
+        expect(a).toBeTruthy();
+        expect(b).toBeTruthy();
+        // Travelling east: the unit above (smaller y) goes up-and-forward, the one below down-and-forward.
+        expect(a.x).toBeGreaterThan(0);
+        expect(a.y).toBeLessThan(0);
+        expect(Math.abs(a.x)).toBeCloseTo(Math.abs(a.y), 3);
+        expect(b.x).toBeGreaterThan(0);
+        expect(b.y).toBeGreaterThan(0);
+        expect(Math.abs(b.x)).toBeCloseTo(Math.abs(b.y), 3);
+    });
+
+    it('damages only the first 5 enemies but knocks back every enemy it touches', () => {
+        const { engine, start } = setup();
+        // The scenario dummy sits at tile 7; add six more in a column on tiles 5..8 so seven total are hit.
+        const rowY = 5 * CELL_SIZE + CELL_SIZE / 2;
+        const extras: Unit[] = [];
+        for (let i = 0; i < 6; i++) {
+            extras.push(addDummy(engine, `extra${i}`, (5 + (i % 4)) * CELL_SIZE + 5 + i, rowY + (i % 2 === 0 ? -6 : 6)));
+        }
+        const everyone = [engine.getUnit('target_dummy')!, ...extras];
+        const knocked = new Set<string>();
+        const hits: Array<{ targetUnitId: string; damage: number }> = [];
+        engine.eventBus.on('projectile_hit', (d) => hits.push(d as { targetUnitId: string; damage: number }));
+        let guard = 0;
+        while (engine.gameTime - start < ROCK_SLIDE_CAST_TIME + 0.2 && guard++ < 500) {
+            tick(engine);
+            for (const u of everyone) if (u.knockback) knocked.add(u.id);
+        }
+        // Exactly five damaging hits (units may also take incidental knockback-collision damage).
+        expect(hits).toHaveLength(5);
+        for (const h of hits) expect(h.damage).toBe(ROCK_SLIDE_DAMAGE);
+        expect(new Set(hits.map((h) => h.targetUnitId)).size).toBe(5);
+        // ...but all seven units in the path were knocked back, including the two past the limit.
+        expect(knocked.size).toBe(everyone.length);
+    });
+});
+
+describe('Rock Slide (0537) pick validation', () => {
+    const pickRockDef = RockSlideAbility_0537.abilityTimings
+        .map((t) => ('targetDef' in t ? t.targetDef : undefined))
+        .filter((d) => d?.kind === 'select');
+    const rockDef = pickRockDef[0]!;
+    const dirDef = pickRockDef[1]!;
+    if (rockDef.kind !== 'select' || dirDef.kind !== 'select') throw new Error('expected select defs');
+
+    function world() {
+        const engine = earthCoreRockSlideScenario.buildEngine() as GameEngine;
+        return { engine, caster: engine.getLocalPlayerUnit()! };
+    }
+    const px = (col: number, row: number) => ({
+        type: 'pixel' as const,
+        position: { x: (col + 0.5) * CELL_SIZE, y: (row + 0.5) * CELL_SIZE },
+    });
+
+    it('declares the two interactive picks in order', () => {
+        expect(rockDef.label).toBe('Rock');
+        expect(dirDef.label).toBe('Direction');
+    });
+
+    it('rock pick: accepts rock tiles within 2, rejects empty ground', () => {
+        const { engine, caster } = world();
+        const ctx = (pick: ReturnType<typeof px>) => ({ caster, engine, pick, collectedTargets: {} });
+        expect(rockDef.validatePick!(ctx(px(3, 3)))).toBe(true); // rock, 2 tiles up
+        expect(rockDef.validatePick!(ctx(px(4, 5)))).toBe(false); // grass
+    });
+
+    it('rock pick: a player-made rock (floor layer) counts', () => {
+        const { engine, caster } = world();
+        engine.terrainManager!.createOrMarkRock(2, 5);
+        expect(rockDef.validatePick!({ caster, engine, pick: px(2, 5), collectedTargets: {} })).toBe(true);
+    });
+
+    it('rock pick: far clicks clamp to within 2 tiles of the caster', () => {
+        const tile = resolveRockTile({ x: 3.5 * CELL_SIZE, y: 5.5 * CELL_SIZE }, { x: 11.5 * CELL_SIZE, y: 5.5 * CELL_SIZE });
+        expect(tile).toEqual({ col: 5, row: 5 });
+    });
+
+    it('direction pick: snaps to a cardinal neighbour and must not be rock', () => {
+        const { engine, caster } = world();
+        const ctx = (pick: ReturnType<typeof px>) => ({ caster, engine, pick, collectedTargets: {} });
+        expect(dirDef.validatePick!(ctx(px(4, 5)))).toBe(true); // east, grass
+        engine.terrainManager!.createOrMarkRock(4, 5);
+        expect(dirDef.validatePick!(ctx(px(4, 5)))).toBe(false); // east now rock
+        // A diagonal click snaps to the dominant axis (north here), which is still free.
+        expect(resolveSlideDirection({ x: 3.5 * CELL_SIZE, y: 5.5 * CELL_SIZE }, { x: 4.4 * CELL_SIZE, y: 3.6 * CELL_SIZE }))
+            .toMatchObject({ tile: { col: 3, row: 4 }, dirCol: 0, dirRow: -1 });
+    });
+
+    it('geometry helpers', () => {
+        expect(snapAdjacentCardinalTile(100, 100, 100, 100)).toBeNull();
+        const { engine } = world();
+        const tm = engine.terrainManager!;
+        expect(isRockTile(tm, { col: 3, row: 3 })).toBe(true);
+        expect(isRockTile(tm, { col: -1, row: 3 })).toBe(false);
+        expect(isSlideSpawnTile(tm, { col: 4, row: 5 })).toBe(true);
+        expect(isSlideSpawnTile(tm, { col: 3, row: 3 })).toBe(false);
+    });
+});

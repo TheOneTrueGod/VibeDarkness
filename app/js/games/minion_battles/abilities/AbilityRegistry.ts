@@ -50,6 +50,7 @@ import { ShatterAbility } from '../card_defs/05_earth_core/0526_Shatter/0526Abil
 import { FaultHarvest } from '../card_defs/05_earth_core/0528_FaultHarvest/0528Ability';
 import { SeismicGuard } from '../card_defs/05_earth_core/0529_SeismicGuard/0529Ability';
 import { StoneTomb } from '../card_defs/05_earth_core/0530_StoneTomb/0530Ability';
+import { RockSlideAbility_0537 } from '../card_defs/05_earth_core/0537_RockSlide/0537Ability';
 import { KnockAbility } from '../card_defs/05_earth_core/0531_Knock/0531Ability';
 import { AnchoredTremor } from '../card_defs/05_earth_core/0532_AnchoredTremor/0532Ability';
 import { StoneyPunch } from '../card_defs/05_earth_core/0533_StoneyPunch/0533Ability';
@@ -148,6 +149,7 @@ register(ShatterAbility);
 register(FaultHarvest);
 register(SeismicGuard);
 register(StoneTomb);
+register(RockSlideAbility_0537);
 register(KnockAbility);
 register(AnchoredTremor);
 register(StoneyPunch);

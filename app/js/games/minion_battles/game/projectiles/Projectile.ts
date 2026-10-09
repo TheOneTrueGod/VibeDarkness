@@ -104,6 +104,28 @@ export class Projectile extends GameObject {
      */
     continueAfterMaxHits: boolean;
 
+    /**
+     * When true the projectile stops at the last passable position before impassable terrain
+     * (walls, rock, map edge) and expires there, instead of flying through it.
+     */
+    stopAtImpassable: boolean;
+
+    /**
+     * Direction of per-hit knockback. 'forward' (default) pushes along the direction of travel.
+     * 'side45' pushes 45 degrees away from the travel direction, toward whichever side of the
+     * projectile the victim is on (exactly centred victims go to the projectile's left).
+     */
+    knockbackMode: 'forward' | 'side45';
+
+    /**
+     * When true, enemies the projectile overlaps after it has spent all its damaging hits
+     * (`pierce + 1`) still receive knockback, but no damage. Pair with `continueAfterMaxHits`.
+     */
+    knockbackBeyondMaxHits: boolean;
+
+    /** Unit IDs that got a knockback-only hit this flight (not serialized, like `hitUnitIds`). */
+    private readonly knockbackOnlyUnitIds: Set<string> = new Set();
+
     constructor(config: {
         id?: string;
         x: number;
@@ -129,6 +151,9 @@ export class Projectile extends GameObject {
         rectEndWidth?: number;
         knockbackTier?: number;
         continueAfterMaxHits?: boolean;
+        stopAtImpassable?: boolean;
+        knockbackMode?: 'forward' | 'side45';
+        knockbackBeyondMaxHits?: boolean;
     }) {
         super(config.id ?? generateGameObjectId('proj'), config.x, config.y);
         this.velocityX = config.velocityX;
@@ -152,6 +177,9 @@ export class Projectile extends GameObject {
         this.rectEndWidth = config.rectEndWidth;
         this.knockbackTier = config.knockbackTier;
         this.continueAfterMaxHits = config.continueAfterMaxHits ?? false;
+        this.stopAtImpassable = config.stopAtImpassable ?? false;
+        this.knockbackMode = config.knockbackMode ?? 'forward';
+        this.knockbackBeyondMaxHits = config.knockbackBeyondMaxHits ?? false;
         this.frameStartX = config.x;
         this.frameStartY = config.y;
     }
@@ -172,6 +200,16 @@ export class Projectile extends GameObject {
             this.rotation = (this.rotation + this.rotationSpeed * dt) % 360;
         }
         const terrainManager = (engine as { terrainManager?: TerrainManager | null })?.terrainManager ?? null;
+        if (this.stopAtImpassable && terrainManager && (moveX !== 0 || moveY !== 0)
+            && !terrainManager.isPassable(this.x, this.y)) {
+            // Hit a wall: rest at the centre of the last passable tile we were in.
+            const cell = terrainManager.getGridSize().cellSize;
+            this.x = (Math.floor(prevX / cell) + 0.5) * cell;
+            this.y = (Math.floor(prevY / cell) + 0.5) * cell;
+            this.triggerExpireEffect(engine);
+            this.active = false;
+            return;
+        }
         this.distanceTraveled += this.calculateDistanceContribution(prevX, prevY, this.x, this.y, terrainManager);
 
         if (this.trailType === 'bullet' || this.spriteConfig?.trail) {
@@ -216,7 +254,7 @@ export class Projectile extends GameObject {
 
         const maxHits = this.pierce + 1;
         const hitsRemaining = maxHits - this.hitUnitIds.size;
-        if (hitsRemaining <= 0) {
+        if (hitsRemaining <= 0 && !this.knockbackBeyondMaxHits) {
             if (!this.continueAfterMaxHits) this.active = false;
             return null;
         }
@@ -239,7 +277,7 @@ export class Projectile extends GameObject {
             for (const unit of units) {
                 if (!unit.isAlive()) continue;
                 if (!areEnemies(this.sourceTeamId, unit.teamId)) continue;
-                if (this.hitUnitIds.has(unit.id)) continue;
+                if (this.hitUnitIds.has(unit.id) || this.knockbackOnlyUnitIds.has(unit.id)) continue;
                 const relX = unit.x - this.frameStartX;
                 const relY = unit.y - this.frameStartY;
                 const along = relX * dirX + relY * dirY;
@@ -253,7 +291,7 @@ export class Projectile extends GameObject {
             for (const unit of units) {
                 if (!unit.isAlive()) continue;
                 if (!areEnemies(this.sourceTeamId, unit.teamId)) continue;
-                if (this.hitUnitIds.has(unit.id)) continue;
+                if (this.hitUnitIds.has(unit.id) || this.knockbackOnlyUnitIds.has(unit.id)) continue;
                 const dx = unit.x - this.x;
                 const dy = unit.y - this.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
@@ -266,8 +304,17 @@ export class Projectile extends GameObject {
         if (candidates.length === 0) return null;
         candidates.sort((a, b) => a.dist - b.dist);
 
-        const toHit = candidates.slice(0, hitsRemaining);
+        const toHit = candidates.slice(0, Math.max(0, hitsRemaining));
         let lastHit: Unit | null = null;
+
+        // Overflow targets: knocked back but not damaged (see `knockbackBeyondMaxHits`).
+        if (this.knockbackBeyondMaxHits && engine) {
+            for (const { unit } of candidates.slice(toHit.length)) {
+                if (unit.hasIFrames(gameTime)) continue;
+                this.knockbackOnlyUnitIds.add(unit.id);
+                this.applyHitKnockback(unit, engine, this.knockbackTier);
+            }
+        }
 
         for (const { unit } of toHit) {
             if (unit.hasIFrames(gameTime)) {
@@ -326,19 +373,7 @@ export class Projectile extends GameObject {
                 applyBleedStack(unit, e.gameTime, e.roundNumber, 5);
             }
             if (this.knockbackTier && engine) {
-                const travelLen = Math.hypot(this.velocityX, this.velocityY) || 1;
-                applyDirectionalKnockback(
-                    unit,
-                    this.knockbackTier,
-                    { x: this.velocityX / travelLen, y: this.velocityY / travelLen },
-                    { unitId: this.sourceUnitId, abilityId: this.sourceAbilityId },
-                    knockbackCtxFromEngine(engine as {
-                        gameTime: number;
-                        roundNumber?: number;
-                        eventBus: EventBus;
-                        interruptUnitAndRefundAbilities?: (unit: Unit) => void;
-                    }),
-                );
+                this.applyHitKnockback(unit, engine, this.knockbackTier);
             }
             eventBus.emit('projectile_hit', {
                 projectileId: this.id,
@@ -359,6 +394,36 @@ export class Projectile extends GameObject {
         }
 
         return lastHit;
+    }
+
+    /** Knock `unit` back per `knockbackMode` (travel direction, or 45 degrees off it toward the victim's side). */
+    private applyHitKnockback(unit: Unit, engine: unknown, tier: number | undefined): void {
+        if (!tier) return;
+        const travelLen = Math.hypot(this.velocityX, this.velocityY) || 1;
+        const dirX = this.velocityX / travelLen;
+        const dirY = this.velocityY / travelLen;
+        let kx = dirX;
+        let ky = dirY;
+        if (this.knockbackMode === 'side45') {
+            // perp = travel rotated 90 degrees (screen y-down); the victim's side is its sign.
+            const perpX = -dirY;
+            const perpY = dirX;
+            const side = (unit.x - this.x) * perpX + (unit.y - this.y) * perpY >= 0 ? 1 : -1;
+            kx = (dirX + side * perpX) * Math.SQRT1_2;
+            ky = (dirY + side * perpY) * Math.SQRT1_2;
+        }
+        applyDirectionalKnockback(
+            unit,
+            tier,
+            { x: kx, y: ky },
+            { unitId: this.sourceUnitId, abilityId: this.sourceAbilityId },
+            knockbackCtxFromEngine(engine as {
+                gameTime: number;
+                roundNumber?: number;
+                eventBus: EventBus;
+                interruptUnitAndRefundAbilities?: (unit: Unit) => void;
+            }),
+        );
     }
 
     toJSON(): Record<string, unknown> {
@@ -388,6 +453,9 @@ export class Projectile extends GameObject {
             rectEndWidth: this.rectEndWidth,
             knockbackTier: this.knockbackTier,
             continueAfterMaxHits: this.continueAfterMaxHits,
+            stopAtImpassable: this.stopAtImpassable,
+            knockbackMode: this.knockbackMode,
+            knockbackBeyondMaxHits: this.knockbackBeyondMaxHits,
             ...(this.summonSeedWeak !== undefined ? { summonSeedWeak: this.summonSeedWeak } : {}),
             ...(this.arcHeight !== undefined ? { arcHeight: this.arcHeight } : {}),
             ...(this.rotationSpeed !== undefined ? { rotationSpeed: this.rotationSpeed, rotation: this.rotation } : {}),
@@ -421,6 +489,9 @@ export class Projectile extends GameObject {
         proj.rectEndWidth = data.rectEndWidth as number | undefined;
         proj.knockbackTier = data.knockbackTier as number | undefined;
         proj.continueAfterMaxHits = (data.continueAfterMaxHits as boolean | undefined) ?? false;
+        proj.stopAtImpassable = (data.stopAtImpassable as boolean | undefined) ?? false;
+        proj.knockbackMode = (data.knockbackMode as 'forward' | 'side45' | undefined) ?? 'forward';
+        proj.knockbackBeyondMaxHits = (data.knockbackBeyondMaxHits as boolean | undefined) ?? false;
         if (data.summonSeedWeak !== undefined) proj.summonSeedWeak = data.summonSeedWeak as boolean;
         if (data.arcHeight !== undefined) proj.arcHeight = data.arcHeight as number;
         if (data.rotationSpeed !== undefined) proj.rotationSpeed = data.rotationSpeed as number;

@@ -456,6 +456,21 @@ export interface AbilityStatic {
     readonly skipToCooldownOnInterrupt?: boolean;
 
     /**
+     * When true, interrupting this cast during its Cooldown phase ends the cast immediately
+     * instead of letting the cooldown run out (default: cooldown-phase interrupts are ignored).
+     * Effects the cast already launched (projectiles, terrain) are unaffected.
+     */
+    readonly interruptEndsCooldown?: boolean;
+
+    /**
+     * Optional. Called when a stun / hard CC / interrupt hits a unit that is mid-cast of this
+     * ability, in every phase (including Cooldown), before the cast is kept or removed. Use to
+     * unwind transient world state (e.g. a not-yet-launched projectile). `elapsed` is seconds
+     * since the cast began.
+     */
+    onCastInterrupted?(engine: unknown, caster: Unit, active: ActiveAbility, elapsed: number): void;
+
+    /**
      * Optional per-cast mode toggle (e.g. push/pull). Mode is committed on the BattleOrder and
      * copied to ActiveAbility at cast start — behaviours read `ctx.abilityMode`, not UI state.
      */

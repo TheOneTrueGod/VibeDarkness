@@ -9,3 +9,4 @@ export { TruncatedConeHitboxSpec, type TruncatedConeGeometry, type TruncatedCone
 export { ConvexQuadHitboxSpec, convexQuadHitbox } from './ConvexQuadHitbox';
 export { SquareTileAreaHitboxSpec, squareTileAreaHitbox, type SquareTileAreaPreviewStyle } from './SquareTileAreaHitboxSpec';
 export { PlusTileAreaHitboxSpec, plusTileAreaHitbox, type PlusTileAreaPreviewStyle } from './PlusTileAreaHitboxSpec';
+export { TileSelectHitboxSpec, tileSelectHitbox, type TileSelectMode, type TileSelectPreviewStyle } from './TileSelectHitboxSpec';

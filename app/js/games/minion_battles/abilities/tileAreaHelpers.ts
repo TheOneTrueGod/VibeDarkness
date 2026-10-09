@@ -133,3 +133,47 @@ export function drawPlusTileArea(
     gr.lineTo(outline[0].x, outline[0].y);
     gr.stroke({ color: style.color, width: style.lineWidth, alpha: style.strokeAlpha });
 }
+
+/**
+ * The orthogonal neighbour of the caster's tile that `aim` points at, chosen by the dominant axis
+ * of (aim - caster centre). Returns null when the aim sits exactly on the caster.
+ */
+export function snapAdjacentCardinalTile(
+    casterX: number,
+    casterY: number,
+    aimX: number,
+    aimY: number,
+): TileCoord | null {
+    const dx = aimX - casterX;
+    const dy = aimY - casterY;
+    if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) return null;
+    const caster = worldToTile(casterX, casterY);
+    if (Math.abs(dx) >= Math.abs(dy)) return { col: caster.col + (dx > 0 ? 1 : -1), row: caster.row };
+    return { col: caster.col, row: caster.row + (dy > 0 ? 1 : -1) };
+}
+
+/** Translucent fill plus outline over a single tile. */
+export function drawTileHighlight(
+    gr: {
+        moveTo(x: number, y: number): unknown;
+        lineTo(x: number, y: number): unknown;
+        fill(style: { color: number; alpha?: number }): unknown;
+        stroke(style: { color: number; width: number; alpha?: number }): unknown;
+    },
+    tile: TileCoord,
+    style: { color: number; fillAlpha: number; strokeAlpha: number; lineWidth: number },
+): void {
+    const minX = tile.col * CELL_SIZE;
+    const minY = tile.row * CELL_SIZE;
+    const path = (): void => {
+        gr.moveTo(minX, minY);
+        gr.lineTo(minX + CELL_SIZE, minY);
+        gr.lineTo(minX + CELL_SIZE, minY + CELL_SIZE);
+        gr.lineTo(minX, minY + CELL_SIZE);
+        gr.lineTo(minX, minY);
+    };
+    path();
+    gr.fill({ color: style.color, alpha: style.fillAlpha });
+    path();
+    gr.stroke({ color: style.color, width: style.lineWidth, alpha: style.strokeAlpha });
+}

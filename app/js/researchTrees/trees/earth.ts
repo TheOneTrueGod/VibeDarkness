@@ -13,6 +13,7 @@ export const EARTH_NODE_EARTH_ATTUNED = 'earth_attuned';
 export const EARTH_NODE_GATHER_STONE = 'earth_gather_stone';
 export const EARTH_NODE_GATHER_STONE_RUBBLE_STRIKE = 'earth_gather_stone_rubble_strike';
 export const EARTH_NODE_STONE_TOMB = 'earth_stone_tomb';
+export const EARTH_NODE_ROCK_SLIDE = 'earth_rock_slide';
 export const EARTH_RAPID_THROW_LEVELS = 3;
 export const EARTH_ATTUNED_LEVELS = 2;
 export const EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK = 1;
@@ -53,6 +54,10 @@ export const EARTH_GRINDING_DEBRIS_METAL_COST = 12;
 export const EARTH_STONE_TOMB_CRYSTAL_COST = 10;
 export const EARTH_STONE_TOMB_FOOD_COST = 5;
 export const EARTH_STONE_TOMB_METAL_COST = 9;
+
+export const EARTH_ROCK_SLIDE_CRYSTAL_COST = 11;
+export const EARTH_ROCK_SLIDE_FOOD_COST = 6;
+export const EARTH_ROCK_SLIDE_METAL_COST = 10;
 
 export const earthTree: ResearchTreeDef = {
     id: EARTH_TREE_ID,
@@ -262,6 +267,25 @@ export const earthTree: ResearchTreeDef = {
             },
             effects: [{ type: 'addCard', cardId: '0530' }],
             modifiesAbility: { from: '0530', to: '0530' },
+        },
+        {
+            id: EARTH_NODE_ROCK_SLIDE,
+            title: 'Rock Slide',
+            description: 'Rip up a rock within 2 tiles and punch it down a straight line. It flies up to 10 tiles, dealing {12} damage to the first 5 enemies and knocking every enemy aside, then lands as a new rock.',
+            flavorText: 'Why climb the mountain when it will come to you?',
+            order: 14,
+            tier: 13,
+            position: { x: 620, y: 660 },
+            prereqNodeIds: [EARTH_NODE_EARTH_CORE],
+            exclusiveWithNodeIds: [],
+            requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
+            cost: {
+                crystals: EARTH_ROCK_SLIDE_CRYSTAL_COST,
+                food: EARTH_ROCK_SLIDE_FOOD_COST,
+                metal: EARTH_ROCK_SLIDE_METAL_COST,
+            },
+            effects: [{ type: 'addCard', cardId: '0537' }],
+            modifiesAbility: { from: '0537', to: '0537' },
         },
     ],
 };

@@ -7,6 +7,7 @@ import { throwingKnifeDef } from './throwingKnifeDef';
 import { torchDef } from './torchDef';
 import { spriteProjectileDef } from './spriteProjectileDef';
 import { bloodWaveDef } from './bloodWaveDef';
+import { rockSlideDef } from './rockSlideDef';
 
 const registry: Record<string, IProjectileDef> = {
     default: defaultProjectileDef,
@@ -17,6 +18,7 @@ const registry: Record<string, IProjectileDef> = {
     torch: torchDef,
     sprite_projectile: spriteProjectileDef,
     blood_wave: bloodWaveDef,
+    rock_slide: rockSlideDef,
 };
 
 export function getProjectileDef(type: string): IProjectileDef {

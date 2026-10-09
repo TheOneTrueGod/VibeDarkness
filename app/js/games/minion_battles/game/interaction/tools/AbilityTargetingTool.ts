@@ -79,6 +79,14 @@ export class AbilityTargetingTool implements InteractionTool {
                 );
             }
 
+            if (
+                caster
+                && selectDef.validatePick
+                && !selectDef.validatePick({ caster, engine, pick: resolved, collectedTargets: this.targetsByLabel })
+            ) {
+                return true;
+            }
+
             // `newTargets` tracks one entry per click step so the next targetIndex is correct.
             const newTargets = [...this.currentTargets, resolved];
             const labelTarget: ResolvedTarget = allCandidates.length > 0
