@@ -1,3 +1,4 @@
+import { Moon, type LucideIcon } from 'lucide-react';
 import type { CampaignResourceKey, DarknessUpgradesState } from '../types';
 import { getNodeLevel, getNodeMaxLevels, computePassiveBonuses } from './passiveBonuses';
 import { getResearchTree } from './list';
@@ -6,6 +7,9 @@ import { getNodeResearchSources } from './researchSources';
 import { ResearchSource, type PassiveBonuses, type ResearchNodeLevels, type ResearchNodeSources } from './types';
 
 export { DARKNESS_UPGRADES_TREE_ID };
+
+/** One icon shared by every Darkness Upgrade (shown beside its title in cards). */
+export const DARKNESS_UPGRADE_ICON: LucideIcon = Moon;
 
 export function isDarknessUpgradeTree(treeId: string): boolean {
     return treeId === DARKNESS_UPGRADES_TREE_ID;

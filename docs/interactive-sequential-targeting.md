@@ -131,7 +131,7 @@ Abilities without windup lunge (e.g. Double Punch, Light Blast) keep using pre-t
 
 ### Rewind overlay
 
-On every rollback restore (`commit` rollback path, `reset`, `replay`), ITS emits `sequential_targeting_rewind` **before** `_restoreToMark`. `BattlePhase` captures the canvas frame into a DOM overlay (not Pixi — the renderer is torn down), shows "⏪ Rewind", and fades it out (~500 ms) while the engine rebuilds underneath. In-place commit never restores and never emits.
+On every rollback restore (`commit` rollback path, `reset`, `replay`), ITS emits `sequential_targeting_rewind` **before** `_restoreToMark`. `BattlePhase` captures the canvas frame into a DOM overlay (not Pixi — the renderer is torn down), shows "⏪ Rewind", and fades it out over `REWIND_OVERLAY_FADE_MS` (1000 ms, `useRewindOverlay.ts`) while the engine rebuilds underneath. The capture is a synchronous `canvas.toDataURL('image/png')`. `BattlePhase` calls `deferRewindPresentationUntilNotified()`, so `_restoreToMark` does not resolve — and the ITS chrome (`itsControls`) stays mounted while `rewindOverlay != null` — until the fade timer fires: every rollback commit/reset/replay therefore takes at least ~1 s end to end. In-place commit never restores and never emits.
 
 ### Reset / Replay / commit pre-restore refresh
 

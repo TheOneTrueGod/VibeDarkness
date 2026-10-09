@@ -82,16 +82,6 @@ export function mergeDarknessUpgradeRewards(
     return { resourceDelta: merged, lineItems };
 }
 
-/** Short text for a victory-modal line, e.g. "+2 each resource" or "+2 wood, +1 stone". */
-export function describeDarknessUpgradeDelta(delta: ResourceDelta): string {
-    const entries = Object.entries(delta).filter(([, v]) => v != null && v !== 0) as Array<[string, number]>;
-    if (entries.length === 0) return '';
-    if (entries.length > 1 && entries.every(([, v]) => v === entries[0][1])) {
-        return `${entries[0][1] > 0 ? '+' : ''}${entries[0][1]} each resource`;
-    }
-    return entries.map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${k}`).join(', ');
-}
-
 /**
  * Bag to pass to `runBattleBootstrap` / `BattleSession.load` for this client.
  * Host: resolves from its own campaign `darknessUpgrades` (via the host-only resolver).

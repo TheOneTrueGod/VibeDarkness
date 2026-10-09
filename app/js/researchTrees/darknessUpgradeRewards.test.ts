@@ -5,15 +5,13 @@ import {
     resolveBattleDarknessUpgradeBonuses,
     resolveBattleDarknessUpgrades,
     getDarknessUpgradeRewardEntriesForNodeIds,
-    describeDarknessUpgradeDelta,
 } from './darknessUpgradeRewards';
 import { grantDarknessUpgradeNode } from './darknessUpgrades';
-import { DARKNESS_UPGRADE_NODE_EMPOWERED_SPIRITS } from './trees/darkness_upgrades';
-import { ZERO_CAMPAIGN_RESOURCES } from '../campaignResources';
+import { DARKNESS_UPGRADE_NODE_EMPOWERED_SPIRITS, DARKNESS_UPGRADE_REWARD_RESOURCE_KEYS } from './trees/darkness_upgrades';
 import type { CampaignResourceKey } from '../types';
 
 const owned = grantDarknessUpgradeNode(undefined, 'empowered_spirits');
-const keys = Object.keys(ZERO_CAMPAIGN_RESOURCES).filter((k) => k !== 'exhaustion') as CampaignResourceKey[];
+const keys: CampaignResourceKey[] = DARKNESS_UPGRADE_REWARD_RESOURCE_KEYS;
 
 describe('mergeDarknessUpgradeRewards', () => {
     it('Empowered Spirits yields +2 for every resource key', () => {
@@ -31,7 +29,6 @@ describe('mergeDarknessUpgradeRewards', () => {
         expect(lineItems[0].nodeId).toBe('empowered_spirits');
         expect(lineItems[0].title).toBe('Empowered Spirits');
         expect(lineItems[0].delta[keys[0]]).toBe(2);
-        expect(describeDarknessUpgradeDelta(lineItems[0].delta)).toBe('+2 each resource');
     });
 
     it('handles an undefined base delta', () => {

@@ -17,7 +17,6 @@ import {
     LIGHT_SHIELD_DURATION_ROUNDS,
     LIGHT_SHIELD_FLARE_DAMAGE,
     LIGHT_SHIELD_FLARE_KNOCKBACK_TIER,
-    LIGHT_SHIELD_FLARE_RESOURCE_COST_ADD,
     LIGHT_SHIELD_FLARE_TAG,
     LIGHT_SHIELD_HP,
     LIGHT_SHIELD_LIGHT_COST,
@@ -29,7 +28,6 @@ import { ShieldOfLightAbility } from './0805Ability';
 const CARD_ID = SHIELD_OF_LIGHT_ABILITY_ID;
 const TICK_DT = 0.01;
 const ACTIVE_TICK_ADVANCE = LIGHT_SHIELD_PREFIRE_TIME + 0.02;
-const FLARE_LIGHT_COST = LIGHT_SHIELD_LIGHT_COST + LIGHT_SHIELD_FLARE_RESOURCE_COST_ADD;
 const DARK_CREATURE_CHARACTER_ID = 'slime';
 const BEAST_CHARACTER_ID = 'thornling';
 
@@ -57,7 +55,6 @@ function makeCaster(initialLight: number, withFlare = false): Unit {
     };
     if (withFlare) {
         unit.abilityModifiers[CARD_ID] = {
-            resourceCostFlat: LIGHT_SHIELD_FLARE_RESOURCE_COST_ADD,
             explosionDamageFlat: LIGHT_SHIELD_FLARE_DAMAGE,
             knockbackTier: LIGHT_SHIELD_FLARE_KNOCKBACK_TIER,
             addTags: [LIGHT_SHIELD_FLARE_TAG],
@@ -170,18 +167,15 @@ describe('ShieldOfLightAbility', () => {
         })).toBeNull();
     });
 
-    it('adds resourceCostFlat from research onto the displayed Light cost', () => {
-        const caster = makeCaster(FLARE_LIGHT_COST, true);
-        expect(getAbilityResourceCosts(ShieldOfLightAbility)).toEqual([
-            { resourceId: 'light', amount: LIGHT_SHIELD_LIGHT_COST },
-        ]);
+    it('Blinding Flare does not change the Light cost', () => {
+        const caster = makeCaster(LIGHT_SHIELD_LIGHT_COST, true);
         expect(getAbilityResourceCosts(ShieldOfLightAbility, caster)).toEqual([
-            { resourceId: 'light', amount: FLARE_LIGHT_COST },
+            { resourceId: 'light', amount: LIGHT_SHIELD_LIGHT_COST },
         ]);
     });
 
     it('Blinding Flare damages and knocks back darkness creatures only', () => {
-        const caster = makeCaster(FLARE_LIGHT_COST, true);
+        const caster = makeCaster(LIGHT_SHIELD_LIGHT_COST, true);
         const dark = makeEnemy('dark', DARK_CREATURE_CHARACTER_ID, 80);
         const beast = makeEnemy('beast', BEAST_CHARACTER_ID, 90);
         const engine = makeEngine([caster, dark, beast]);
@@ -199,28 +193,4 @@ describe('ShieldOfLightAbility', () => {
         expect(casterShield(caster)?.theme).toBe('light');
     });
 
-    it('Blinding Flare raises the Light cost by the research add', () => {
-        const broke = makeCaster(LIGHT_SHIELD_LIGHT_COST, true);
-        const funded = makeCaster(FLARE_LIGHT_COST, true);
-
-        expect(getAbilityDisabledReason({
-            playerUnit: broke,
-            ability: ShieldOfLightAbility,
-            abilityId: CARD_ID,
-            currentUses: 1,
-            isMyTurn: true,
-            allUnits: [broke, funded],
-            conditionalCancelContext: null,
-        })).toEqual({ reason_id: 'cannot_afford', resourceId: 'light' });
-
-        expect(getAbilityDisabledReason({
-            playerUnit: funded,
-            ability: ShieldOfLightAbility,
-            abilityId: CARD_ID,
-            currentUses: 1,
-            isMyTurn: true,
-            allUnits: [broke, funded],
-            conditionalCancelContext: null,
-        })).toBeNull();
-    });
 });

@@ -16,8 +16,6 @@ export const LIGHT_SHIELD_LIGHT_COST = 2;
 export const LIGHT_SHIELD_COLOR = 0xffe066;
 export const LIGHT_SHIELD_COLOR_INNER = 0xfff1a8;
 
-/** Blinding Flare research — extra Light on the primary cost. */
-export const LIGHT_SHIELD_FLARE_RESOURCE_COST_ADD = 1;
 export const LIGHT_SHIELD_FLARE_DAMAGE = 8;
 export const LIGHT_SHIELD_FLARE_KNOCKBACK_TIER = 2;
 export const LIGHT_SHIELD_FLARE_RADIUS = 55;

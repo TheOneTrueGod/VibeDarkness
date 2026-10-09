@@ -10,11 +10,12 @@ export const DARKNESS_UPGRADE_NODE_EMPOWERED_SPIRITS = 'empowered_spirits';
 export const EMPOWERED_SPIRITS_BONUS_PER_RESOURCE = 2;
 
 /**
- * Every spendable resource key. `exhaustion` is a penalty accumulator, not a reward, so it is excluded.
+ * Resources Empowered Spirits grants: food, metal and crystals. `exhaustion` is a penalty accumulator and
+ * `population` is intentionally not granted as a mission bonus.
  */
 export const DARKNESS_UPGRADE_REWARD_RESOURCE_KEYS: CampaignResourceKey[] = (
     Object.keys(ZERO_CAMPAIGN_RESOURCES) as CampaignResourceKey[]
-).filter((key) => key !== 'exhaustion');
+).filter((key) => key !== 'exhaustion' && key !== 'population');
 
 function bonusPerResource(amount: number): Partial<Record<CampaignResourceKey, number>> {
     const out: Partial<Record<CampaignResourceKey, number>> = {};
@@ -44,7 +45,8 @@ export const darknessUpgradesTree: ResearchTreeDef = {
             id: DARKNESS_UPGRADE_NODE_EMPOWERED_SPIRITS,
             title: 'Empowered Spirits',
             description:
-                'Slimes gain +12 max health and fire 2 additional projectiles in a wedge. Victorious missions grant +2 of each resource.',
+                'Slimes gain +12 max health and fire 2 additional projectiles in a wedge. Victorious missions grant +2 food, metal and crystals.',
+            summary: 'Tougher Ghosts',
             flavorText: 'The darkness feeds, and what it feeds grows.',
             order: 10,
             tier: 1,

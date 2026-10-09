@@ -11,10 +11,13 @@
  * the built frontend (dist/) and the API.
  */
 
+$scriptStart = microtime(true);
+
 require __DIR__ . '/vendor/autoload.php';
 require __DIR__ . '/backend/Http/helpers.php';
 
 use App\AccountService;
+use App\RequestTimingLog;
 use App\SessionHelper;
 
 SessionHelper::start();
@@ -25,7 +28,7 @@ use App\Storage\FlatFilePlayerAccountStorage;
 // CORS
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PATCH, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, X-Lobby-Debug-Token');
+header('Access-Control-Allow-Headers: Content-Type, X-Lobby-Debug-Token, X-Client-Sent-At');
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -107,6 +110,9 @@ $lobbyManager = LobbyManager::getInstance();
 $accountStorage = new FlatFilePlayerAccountStorage();
 $accountService = new AccountService($accountStorage);
 $router = new Router();
+
+// Development only (APP_ENV=development): one timing line per API request, hourly log files.
+RequestTimingLog::begin($scriptStart, $method, $path);
 
 try {
     $response = $router->dispatch($method, $path, $lobbyManager, $accountService);

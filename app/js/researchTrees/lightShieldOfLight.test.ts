@@ -3,7 +3,6 @@ import { computeAbilityModifiersFromResearch } from './evaluator';
 import {
     LIGHT_SHIELD_FLARE_DAMAGE,
     LIGHT_SHIELD_FLARE_KNOCKBACK_TIER,
-    LIGHT_SHIELD_FLARE_RESOURCE_COST_ADD,
     LIGHT_SHIELD_FLARE_TAG,
     SHIELD_OF_LIGHT_ABILITY_ID,
 } from '../games/minion_battles/card_defs/08_light_core/0805_ShieldOfLight/0805Constants';
@@ -51,13 +50,12 @@ describe('Shield of Light research', () => {
         });
     });
 
-    it('Blinding Flare upgrades Shield of Light with extra Light cost and a darkness burst', () => {
+    it('Blinding Flare upgrades Shield of Light with a darkness burst', () => {
         const node = lightTree.nodes.find((n) => n.id === LIGHT_NODE_BLINDING_FLARE);
         expect(node?.tier).toBe(LIGHT_SHIELD_FLARE_TIER);
         expect(node?.prereqNodeIds).toEqual([LIGHT_NODE_SHIELD_OF_LIGHT]);
         expect(node?.abilityResearchModifiers?.[0]).toEqual({
             abilitySpecification: { type: 'abilityId', abilityId: SHIELD_OF_LIGHT_ABILITY_ID },
-            resourceCostFlat: LIGHT_SHIELD_FLARE_RESOURCE_COST_ADD,
             explosionDamageFlat: LIGHT_SHIELD_FLARE_DAMAGE,
             knockbackTier: LIGHT_SHIELD_FLARE_KNOCKBACK_TIER,
             addTags: [LIGHT_SHIELD_FLARE_TAG],
@@ -74,7 +72,6 @@ describe('Shield of Light research', () => {
             [LIGHT_TREE_ID]: [LIGHT_NODE_BLINDING_FLARE],
         });
         expect(mods[SHIELD_OF_LIGHT_ABILITY_ID]).toEqual({
-            resourceCostFlat: LIGHT_SHIELD_FLARE_RESOURCE_COST_ADD,
             explosionDamageFlat: LIGHT_SHIELD_FLARE_DAMAGE,
             knockbackTier: LIGHT_SHIELD_FLARE_KNOCKBACK_TIER,
             addTags: [LIGHT_SHIELD_FLARE_TAG],

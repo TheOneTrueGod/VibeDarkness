@@ -130,6 +130,8 @@ export interface ResearchNodeDef {
     title: string;
     description: string;
     flavorText?: string;
+    /** One-line plain summary (e.g. hover text for Darkness Upgrade reward cards). */
+    summary?: string;
     /** Stable ordering used for deterministic application. Lower applies first. */
     order: number;
     /** Display tier shown in the research tree view (1 = base, 2 = first upgrade, etc.). */

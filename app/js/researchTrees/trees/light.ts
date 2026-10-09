@@ -8,7 +8,6 @@ import { IMBUED_BAT_ABILITY_ID } from '../../games/minion_battles/card_defs/08_l
 import {
     LIGHT_SHIELD_FLARE_DAMAGE,
     LIGHT_SHIELD_FLARE_KNOCKBACK_TIER,
-    LIGHT_SHIELD_FLARE_RESOURCE_COST_ADD,
     LIGHT_SHIELD_FLARE_TAG,
     SHIELD_OF_LIGHT_ABILITY_ID,
 } from '../../games/minion_battles/card_defs/08_light_core/0805_ShieldOfLight/0805Constants';
@@ -289,7 +288,7 @@ export const lightTree: ResearchTreeDef = {
             id: LIGHT_NODE_BLINDING_FLARE,
             title: 'Blinding Flare',
             description:
-                `Shield of Light costs {+${LIGHT_SHIELD_FLARE_RESOURCE_COST_ADD}} Light and explodes around you, dealing {${LIGHT_SHIELD_FLARE_DAMAGE}} damage and {knockback ${LIGHT_SHIELD_FLARE_KNOCKBACK_TIER}} to nearby darkness creatures.`,
+                `Shield of Light explodes around you, dealing {${LIGHT_SHIELD_FLARE_DAMAGE}} damage and {knockback ${LIGHT_SHIELD_FLARE_KNOCKBACK_TIER}} to nearby darkness creatures.`,
             flavorText: 'The shield does not only hold. It shoves the dark away.',
             order: 16,
             tier: LIGHT_SHIELD_FLARE_TIER,
@@ -308,7 +307,6 @@ export const lightTree: ResearchTreeDef = {
             abilityResearchModifiers: [
                 {
                     abilitySpecification: { type: 'abilityId', abilityId: SHIELD_OF_LIGHT_ABILITY_ID },
-                    resourceCostFlat: LIGHT_SHIELD_FLARE_RESOURCE_COST_ADD,
                     explosionDamageFlat: LIGHT_SHIELD_FLARE_DAMAGE,
                     knockbackTier: LIGHT_SHIELD_FLARE_KNOCKBACK_TIER,
                     addTags: [LIGHT_SHIELD_FLARE_TAG],

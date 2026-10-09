@@ -1,7 +1,7 @@
 /**
  * Victory modal - shows mission victory with optional rewards.
  */
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { getItemDef, ITEM_ICON_URLS } from '../../character_defs/items';
 import type { CampaignResourceKey, MissionResearchRewardEntry } from '../../../../types';
 import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
@@ -11,10 +11,10 @@ import { getResearchTree, getResolvedMissionResearchRewards } from '../../../../
 import type { CampaignRewardsPayload } from '../../storylines/questRun';
 import { isCampaignRewardsPayloadEmpty } from '../../storylines/questCampaignRewards';
 import LocationCardPill from './LocationCardPill';
-import {
-    describeDarknessUpgradeDelta,
-    type DarknessUpgradeRewardLineItem,
-} from '../../../../researchTrees/darknessUpgradeRewards';
+import { DARKNESS_UPGRADES_TREE_ID, DARKNESS_UPGRADE_ICON } from '../../../../researchTrees/darknessUpgrades';
+import { Coins, type LucideIcon } from 'lucide-react';
+import { AnchoredPortalTooltip, PORTAL_TOOLTIP_SURFACE_CLASS } from './AnchoredPortalTooltip';
+import type { DarknessUpgradeRewardLineItem } from '../../../../researchTrees/darknessUpgradeRewards';
 
 interface VictoryModalProps {
     missionRewards: {
@@ -49,6 +49,55 @@ interface VictoryModalProps {
     questBanner?: string | null;
     /** Host Continue button label override. */
     continueLabel?: string;
+}
+
+interface RewardCardData {
+    key: string;
+    title: string;
+    Icon?: LucideIcon;
+    /** Hover description (basic tooltip). */
+    tooltip?: string;
+    gains: ReturnType<typeof campaignResourceGains>;
+}
+
+/** Bordered reward card (title flanked by its icon, then resource pills); optional hover tooltip. */
+function RewardCard({ card, wide }: { card: RewardCardData; wide: boolean }) {
+    const ref = useRef<HTMLDivElement | null>(null);
+    const [hovered, setHovered] = useState(false);
+    const { Icon } = card;
+    return (
+        <div
+            ref={ref}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            // One card: centred at natural width; two or more: two per row.
+            className={`flex flex-col items-center gap-2 rounded-lg border border-border-custom bg-surface px-3 py-2 ${
+                wide ? 'w-[calc(50%-0.375rem)]' : ''
+            }`}
+        >
+            <span className="flex items-center gap-1.5 text-sm font-medium text-white">
+                {Icon ? <Icon className="h-4 w-4 shrink-0" aria-hidden /> : null}
+                {card.title}
+                {Icon ? <Icon className="h-4 w-4 shrink-0" aria-hidden /> : null}
+            </span>
+            <div className="flex flex-wrap justify-center gap-2">
+                {card.gains.map(({ resource, count }) => (
+                    <ResourcePill key={resource} resource={resource} count={count} />
+                ))}
+            </div>
+            {card.tooltip ? (
+                <AnchoredPortalTooltip anchorRef={ref} open={hovered} className={`${PORTAL_TOOLTIP_SURFACE_CLASS} px-3 py-2 text-sm`}>
+                    {card.tooltip}
+                </AnchoredPortalTooltip>
+            ) : null}
+        </div>
+    );
+}
+
+/** Short hover text for a Darkness Upgrade: its `summary`, else its full description. */
+function getDarknessUpgradeTooltip(nodeId: string): string | undefined {
+    const node = getResearchTree(DARKNESS_UPGRADES_TREE_ID)?.nodes.find((n) => n.id === nodeId);
+    return node?.summary ?? node?.description;
 }
 
 function ItemRewardCard({ itemId, caption }: { itemId: string; caption?: string }) {
@@ -99,9 +148,24 @@ export default function VictoryModal({
     const resourceDelta = missionRewards?.resourceDelta ?? {};
     const itemId = missionRewards?.itemFromFirstChoice;
     const darknessUpgradeLines = missionRewards?.darknessUpgradeLines ?? [];
-    const gainedResources = campaignResourceGains(
-        resourceDelta as Partial<Record<CampaignResourceKey, number>>,
-    );
+    // Core mission rewards: the total minus what each Darkness Upgrade contributed (shown in its own card).
+    const coreResourceDelta: Partial<Record<CampaignResourceKey, number>> = { ...resourceDelta };
+    for (const line of darknessUpgradeLines) {
+        for (const [key, amount] of Object.entries(line.delta) as Array<[CampaignResourceKey, number]>) {
+            coreResourceDelta[key] = (coreResourceDelta[key] ?? 0) - amount;
+        }
+    }
+    // Every reward source is a card of the same look: "Mission Rewards" first, then one per Darkness Upgrade.
+    const rewardCards: RewardCardData[] = [
+        { key: 'mission', title: 'Mission Rewards', Icon: Coins, gains: campaignResourceGains(coreResourceDelta) },
+        ...darknessUpgradeLines.map((line) => ({
+            key: line.nodeId,
+            title: line.title,
+            Icon: DARKNESS_UPGRADE_ICON,
+            tooltip: getDarknessUpgradeTooltip(line.nodeId),
+            gains: campaignResourceGains(line.delta),
+        })),
+    ].filter((card) => card.gains.length > 0);
 
     const campaignResourceGainsList = hasCampaignRewards
         ? campaignResourceGains(campaignRewards.resourceDelta)
@@ -131,21 +195,15 @@ export default function VictoryModal({
                             {itemId ? (
                                 <ItemRewardCard itemId={itemId} caption="From your choice" />
                             ) : null}
-                            {gainedResources.length > 0 ? (
-                                <div className="flex flex-wrap justify-center gap-3">
-                                    {gainedResources.map(({ resource, count }) => (
-                                        <ResourcePill key={resource} resource={resource} count={count} />
+                            {rewardCards.length > 0 ? (
+                                <div
+                                    className="flex w-full flex-wrap justify-center gap-3"
+                                    data-testid="reward-cards"
+                                >
+                                    {rewardCards.map((card) => (
+                                        <RewardCard key={card.key} card={card} wide={rewardCards.length > 1} />
                                     ))}
                                 </div>
-                            ) : null}
-                            {darknessUpgradeLines.length > 0 ? (
-                                <ul className="text-sm text-muted space-y-1" data-testid="darkness-upgrade-lines">
-                                    {darknessUpgradeLines.map((line) => (
-                                        <li key={line.nodeId}>
-                                            {line.title}: {describeDarknessUpgradeDelta(line.delta)}
-                                        </li>
-                                    ))}
-                                </ul>
                             ) : null}
                             {researchRewards.length > 0 ? (
                                 <div className="w-full space-y-2">
