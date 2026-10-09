@@ -78,6 +78,21 @@ The current mechanism runs **`findImpendingSelectTargetNeed`** at the top of `fi
 
 After `resolveTarget` injects the label into `active.targetsByLabel` and unpauses, the interval enters through the normal `entered` path in `unitAbilityTick.ts` on the **same tick** as a prefilled committed order. If a select interval ever enters during preview without a resolved label, `unitAbilityTick` logs `console.error` and skips firing (parity is already broken).
 
+### Select gate (same-tick effects before the pause)
+
+Before the gate, a pause taken before a tick withheld every effect that tick scheduled at the select's start. Intervals ending exactly at the start, and their `isLastTick` hooks, were skipped until after the player picked.
+
+The rule is:
+
+- When a cast's tick window `(prev, next]` contains the start `s` of an interactive select (`start > 0`), `findSelectGateSplit` (`game/interaction/selectTargetLookahead.ts`) cuts that cast's processing at `s`. Effects scheduled at or before `s` run on that tick.
+- The cast stores `processedElapsed = s` and `pendingSelectGate = <select interval id>` on its `ActiveAbility`. Both are serialized.
+- The next tick resumes from `s` via `computeTickElapsed(..., resumeFrom)`. The select enters on that tick, and it is not split again because its start is no longer inside the window.
+- The resumed tick **force-enters** the gated select (and any interval declared after it that starts at `s`; see `selectGateDeferredIds`). That tick's window can end up to two ticks after `s`, so a short select such as a one-tick `[s, s + FIXED_DT)` is no longer active at its end and `enteredTimingIds` alone would miss it. A forced interval that has already ended also exits on the same tick, like any one-shot entry.
+- The lookahead pauses only for that pending entry, on the tick after the gate tick, and applies the same forced-entry rule. The gate tick itself never pauses.
+- Snapping a cast to cooldown (`skipToCooldown`) clears `processedElapsed` and `pendingSelectGate`, since the resume point no longer belongs to the cast's timeline.
+
+The split depends only on the timing structure, never on whether a label is resolved. Preview and committed runs therefore split on the same tick. A select's entry is one tick later than before. Selects at `start = 0` are not gated and keep the original pre-tick pause, because `findPreviewDeferredSelectLabel` already handles them.
+
 Abilities whose first target must be known **before any cast ticks** defer queueing the preview order until that target is collected (`begin()` signals the pause up front via `findPreviewDeferredSelectLabel`):
 
 | Condition | Why defer |

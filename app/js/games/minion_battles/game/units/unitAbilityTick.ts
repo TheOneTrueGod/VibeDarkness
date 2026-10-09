@@ -31,7 +31,15 @@ import {
 } from '../../abilities/castBehaviourTypes';
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
 import type { ActiveAbility, ResolvedTarget } from '../types';
-import { isSelectTargetDef, isHitTargetDef, isInteractiveTargetDef } from '../../abilities/timingTargetDef';
+import {
+    isSelectTargetDef,
+    isHitTargetDef,
+    isInteractiveTargetDef,
+    type SelectTargetDef,
+} from '../../abilities/timingTargetDef';
+import { getSelectTargetDefsFromTimings } from '../../abilities/targeting';
+import { findSelectGateSplit, selectGateDeferredIds } from '../interaction/selectTargetLookahead';
+import { fizzleUnitActiveAbility } from './unitAbilityLifecycle';
 import { resolveCastBehaviourTarget } from '../../abilities/resolveCastBehaviourTarget';
 import { resolveActiveAbilityMode } from '../../abilities/resolveAbilityMode';
 import { triggerAbilityEvent } from '../../abilities/events';
@@ -221,6 +229,39 @@ function fireIntervalEntry(
 }
 
 /**
+ * Re-runs `validatePick` for each select interval entering on this tick, against the pick the cast
+ * holds (`targetsByLabel`, or the positional target for legacy orders). A pick can become illegal
+ * between ordering and entry, for example when the rock it targets has been removed. Returns true if
+ * any entering pick is now rejected. A pick that is absent is skipped here; the entry invariant
+ * check in the tick loop reports that case.
+ */
+function hasRejectedEnteringSelectPick(
+    intervals: AbilityTimingInterval[],
+    entered: ReadonlySet<string>,
+    active: ActiveAbility,
+    unit: Unit,
+    ability: AbilityStatic,
+    engine: EngineContext,
+): boolean {
+    let selectDefs: SelectTargetDef[] | null = null;
+    for (const interval of intervals) {
+        if (!entered.has(interval.id)) continue;
+        const def = interval.targetDef;
+        if (!def || !isSelectTargetDef(def) || !def.validatePick) continue;
+        const collected = active.targetsByLabel ?? {};
+        let pick: ResolvedTarget | undefined = collected[def.label];
+        if (pick === undefined) {
+            if (selectDefs === null) selectDefs = getSelectTargetDefsFromTimings(ability, unit, engine);
+            const idx = selectDefs.findIndex((d) => d.label === def.label);
+            pick = idx >= 0 ? active.targets[idx] : undefined;
+        }
+        if (pick === undefined) continue;
+        if (!def.validatePick({ caster: unit, engine, pick, collectedTargets: collected })) return true;
+    }
+    return false;
+}
+
+/**
  * Advance all active abilities for `unit` by `dt` seconds.
  * Invokes cast behaviour hooks, emitter lifecycle, evade-break notifications,
  * and fires ON_CAST_TICK / ON_CAST_END ability events.
@@ -236,6 +277,8 @@ export function tickUnitActiveAbilities(
     if (unit.activeAbilities.length === 0) return;
 
     const completed: number[] = [];
+    // Casts that fizzled this tick. They are removed after the loop, so indices stay valid until then.
+    const fizzled: ActiveAbility[] = [];
 
     for (let i = 0; i < unit.activeAbilities.length; i++) {
         const active = unit.activeAbilities[i];
@@ -245,15 +288,57 @@ export function tickUnitActiveAbilities(
             continue;
         }
 
-        const { prevElapsed: prevTime, nextElapsed: currentTime } = computeTickElapsed(engine.gameTime, dt, active.startTime);
+        const intervals = normalizeAbilityTimingsToIntervals(resolveAbilityTimingEntries(ability, unit, engine));
+
+        // Select gate (see findSelectGateSplit). A tick resumes from the split point left by the
+        // previous tick, if any. It is cut short at the start of the next interactive select, so that
+        // effects scheduled at or before that start run first. The select enters on the following tick.
+        const resumedFromGate = active.processedElapsed !== undefined;
+        // Captured before the gate fields are rewritten below: the select the previous tick held back.
+        const resumedGateId = active.pendingSelectGate;
+        const { prevElapsed: prevTime, nextElapsed: realNextTime } = computeTickElapsed(
+            engine.gameTime,
+            dt,
+            active.startTime,
+            active.processedElapsed,
+        );
+        const gateSplit = findSelectGateSplit(intervals, prevTime, realNextTime);
+        const currentTime = gateSplit ? gateSplit.elapsed : realNextTime;
+        // Duration of this cast's processed window. It equals dt except on split and resumed ticks.
+        const windowDt = gateSplit !== null || resumedFromGate ? currentTime - prevTime : dt;
+        if (gateSplit) {
+            active.processedElapsed = gateSplit.elapsed;
+            active.pendingSelectGate = gateSplit.intervalId;
+        } else {
+            delete active.processedElapsed;
+            delete active.pendingSelectGate;
+        }
         const safePrevTime = Math.max(0, prevTime);
 
-        const intervals = normalizeAbilityTimingsToIntervals(resolveAbilityTimingEntries(ability, unit, engine));
         // Use unclamped prevTime for entry/exit detection so intervals starting at t=0
         // are correctly detected as "entered" on the first tick (safePrevTime would be 0,
         // making a [0, end) interval appear already active and suppressing emitter creation).
         const entered = enteredTimingIds(prevTime, currentTime, intervals);
+        if (resumedGateId !== undefined) {
+            // Resumed tick: the intervals held back on the gate tick enter now. A short one (a one-tick
+            // select) is no longer active at currentTime, so enteredTimingIds misses it; force it. It is
+            // active at prevTime and not at currentTime, so it also exits on this tick, like a one-shot entry.
+            for (const id of selectGateDeferredIds(intervals, resumedGateId)) entered.add(id);
+        }
+        if (gateSplit) {
+            // Gate tick: the split point is the gated select's start, so that select (and anything declared
+            // after it that starts at the same elapsed time) is active here. It must not enter on this tick,
+            // because the lookahead has not paused for it yet. It enters on the resumed tick instead.
+            for (const id of selectGateDeferredIds(intervals, gateSplit.intervalId)) entered.delete(id);
+        }
         const exited = exitedTimingIds(prevTime, currentTime, intervals);
+
+        // A select pick that is no longer legal fizzles the whole cast. Nothing from this tick applies,
+        // and the cast is removed after the loop (fizzleUnitActiveAbility).
+        if (hasRejectedEnteringSelectPick(intervals, entered, active, unit, ability, engine)) {
+            fizzled.push(active);
+            continue;
+        }
 
         // Emitter entry/exit loop + castBehaviour entry (via fireIntervalEntry).
         for (const interval of intervals) {
@@ -325,7 +410,7 @@ export function tickUnitActiveAbilities(
                     setBehaviourPayload: (data) => { if (!active.castBehaviourPayloads) active.castBehaviourPayloads = {}; active.castBehaviourPayloads[behaviourKey] = data; },
                     engine,
                     windowProgress: 1,
-                    prevWindowProgress: Math.max(0, Math.min(1, (rec.intervalEnd - rec.intervalStart) > 0 ? ((currentTime - rec.intervalStart) / (rec.intervalEnd - rec.intervalStart) - dt / (rec.intervalEnd - rec.intervalStart)) : 1)),
+                    prevWindowProgress: Math.max(0, Math.min(1, (rec.intervalEnd - rec.intervalStart) > 0 ? ((currentTime - rec.intervalStart) / (rec.intervalEnd - rec.intervalStart) - windowDt / (rec.intervalEnd - rec.intervalStart)) : 1)),
                     isFirstTick: false,
                     isLastTick: true,
                 };
@@ -491,6 +576,10 @@ export function tickUnitActiveAbilities(
             const windowLen = rec.intervalEnd - rec.intervalStart;
             const rawProgress = windowLen > 0 ? (currentTime - rec.intervalStart) / windowLen : 1;
             const rawPrevProgress = windowLen > 0 ? (safePrevTime - rec.intervalStart) / windowLen : 0;
+            // A windowed behaviour whose own window ends inside its interval (a numeric timingEnd) gets its
+            // last tick here, on the tick its window ends. Windows that end with the interval are finalized
+            // by the interval-exit loop above, which has already removed their record by this point.
+            const windowEnded = windowLen > 0 && rawProgress >= 1;
             const fallbackTarget =
                 active.targets[rec.entry.targetIndex ?? 0] ??
                 active.targets[0] ??
@@ -517,9 +606,10 @@ export function tickUnitActiveAbilities(
                 windowProgress: Math.max(0, Math.min(1, rawProgress)),
                 prevWindowProgress: Math.max(0, Math.min(1, rawPrevProgress)),
                 isFirstTick: rawPrevProgress <= 0 && rawProgress > 0,
-                isLastTick: false,
+                isLastTick: windowEnded,
             };
             rec.entry.behaviour.onTick?.(tickCtx);
+            if (windowEnded) unit.activeCastBehaviours.delete(behaviourKey);
             if (rec.fireOnHitAtFirstTick && tickCtx.isFirstTick && rec.onProjectileHit?.length) {
                 const contextTargetUnit =
                     target.type === 'unit' ? engine.getUnit(target.unitId!) : undefined;
@@ -594,5 +684,9 @@ export function tickUnitActiveAbilities(
         }
         onNaturalCompletion();
         unit.activeAbilities.splice(completedIndex, 1);
+    }
+
+    for (const fizzledCast of fizzled) {
+        fizzleUnitActiveAbility(unit, fizzledCast, engine);
     }
 }

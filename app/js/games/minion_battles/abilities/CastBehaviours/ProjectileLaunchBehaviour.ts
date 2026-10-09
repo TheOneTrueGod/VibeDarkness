@@ -1,10 +1,12 @@
 import type {
     CastBehaviour,
+    CastBehaviourInterruptContext,
     CastBehaviourSetupContext,
+    CastBehaviourTickContext,
 } from '../castBehaviourTypes';
 import type { AbilityEngineContext } from '../AbilityEngineContext';
 import type { ResolvedTarget } from '../../game/types';
-import { Projectile } from '../../game/projectiles/Projectile';
+import { Projectile, type ProjectileHitPolicy } from '../../game/projectiles/Projectile';
 import { clampToMaxRange } from '../previewHelpers';
 import { getDirectionFromTo, getPixelTargetPosition } from '../targetHelpers';
 import { findMeleeAimPixelInTargets } from '../targeting';
@@ -12,6 +14,15 @@ import type { ProjectileModifierId } from '../../game/projectiles/ProjectileTrav
 import type { SpriteProjectileConfig } from '../../game/projectiles/projectile_defs';
 
 type DamageResolver = (ctx: CastBehaviourSetupContext) => number;
+type Point = { x: number; y: number };
+
+/** Plain JSON so it survives cast snapshots. Only written when the launch is held. */
+interface ProjectileLaunchPayload {
+    projectileId?: string;
+    /** Unit direction the projectile is released along. */
+    dirX?: number;
+    dirY?: number;
+}
 
 function resolveLaunchTarget(ctx: CastBehaviourSetupContext): { x: number; y: number } | null {
     // Prefer trailing aim pixel so AoE lock-on unit entries do not redirect the projectile.
@@ -27,10 +38,17 @@ function resolveLaunchTarget(ctx: CastBehaviourSetupContext): { x: number; y: nu
     return getPixelTargetPosition(ctx.allTargets, 0);
 }
 
+function findProjectile(engine: AbilityEngineContext, id: string): Projectile | undefined {
+    return engine.projectiles?.find((p) => p.id === id);
+}
+
 /**
- * Fires a projectile toward a pixel target when its timing window opens (onSetup).
+ * Fires a projectile when its timing window opens (onSetup).
  * Pair with `ability.onProjectileExpired` or `abilityEvents[ON_PROJECTILE_EXPIRED]` for
  * impact / AoE effects at max range or on hit.
+ *
+ * By default the projectile flies from the caster toward the target. `withOrigin`, `withDirection`
+ * and `withHold` change where it starts, which way it flies, and whether it waits for release.
  */
 export class ProjectileLaunchBehaviour implements CastBehaviour {
     readonly handlesOnProjectileHit = true as const;
@@ -42,11 +60,16 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
     private baseDamage: number = 0;
     private resolveDamage: DamageResolver | null = null;
     private pierce: number = 0;
+    /** When set, replaces `pierce` as the projectile's hit policy (damaging hits, overflow, knockback). */
+    private hitPolicy?: ProjectileHitPolicy;
     private passThroughEnemies: boolean = false;
     private modifiers: ProjectileModifierId[] = [];
     private travelFullRange: boolean = false;
     private arcHeight?: number;
     private rotationSpeed?: number;
+    private originFn: ((ctx: CastBehaviourSetupContext) => Point) | null = null;
+    private directionFn: ((ctx: CastBehaviourSetupContext) => Point | null) | null = null;
+    private hold: { onCancelled?: (ctx: CastBehaviourInterruptContext, projectile: Projectile) => void } | null = null;
 
     withSpeed(speed: number): this {
         this.speed = speed;
@@ -91,11 +114,18 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
         return this;
     }
 
+    /** Hit policy forwarded to the spawned Projectile. Takes precedence over `withPierce`. */
+    withHitPolicy(policy: ProjectileHitPolicy): this {
+        this.hitPolicy = policy;
+        return this;
+    }
+
     withPassThroughEnemies(): this {
         this.passThroughEnemies = true;
         return this;
     }
 
+    /** Travel modifiers (e.g. `'stopsAtWalls'`, stonephase) forwarded to the spawned Projectile. */
     withModifiers(modifiers: ProjectileModifierId[]): this {
         this.modifiers = modifiers;
         return this;
@@ -118,23 +148,65 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
         return this;
     }
 
+    /** Spawn point of the projectile. Default: the caster's position. */
+    withOrigin(fn: (ctx: CastBehaviourSetupContext) => Point): this {
+        this.originFn = fn;
+        return this;
+    }
+
+    /**
+     * Fixed unit direction for the projectile. Replaces aiming at the target: the projectile flies
+     * `maxRange` along it. Returning null (or a zero vector) skips the launch.
+     * Default: toward the target.
+     */
+    withDirection(fn: (ctx: CastBehaviourSetupContext) => Point | null): this {
+        this.directionFn = fn;
+        return this;
+    }
+
+    /**
+     * Holds the projectile at its origin (not moving, not colliding) until the window's last tick,
+     * when it is released along its direction. If the cast is interrupted while it is held, the
+     * projectile is cancelled and `onCancelled` runs, so the ability can settle what it left behind.
+     */
+    withHold(opts?: { onCancelled?: (ctx: CastBehaviourInterruptContext, projectile: Projectile) => void }): this {
+        this.hold = { onCancelled: opts?.onCancelled };
+        return this;
+    }
+
     onSetup(ctx: CastBehaviourSetupContext): void {
-        const targetPos = resolveLaunchTarget(ctx);
-        if (!targetPos) return;
-
         const engine = ctx.engine as AbilityEngineContext;
-        const clamped = clampToMaxRange(ctx.caster, targetPos, this.maxRange);
-        const { dirX, dirY, dist } = getDirectionFromTo(ctx.caster.x, ctx.caster.y, clamped.endX, clamped.endY);
-        if (dist === 0) return;
+        const origin = this.originFn ? this.originFn(ctx) : { x: ctx.caster.x, y: ctx.caster.y };
 
-        const travelDistance = this.travelFullRange ? this.maxRange : Math.min(dist, this.maxRange);
+        let dirX: number;
+        let dirY: number;
+        let travelDistance: number;
+        if (this.directionFn) {
+            const fixed = this.directionFn(ctx);
+            if (!fixed || (fixed.x === 0 && fixed.y === 0)) return;
+            dirX = fixed.x;
+            dirY = fixed.y;
+            travelDistance = this.maxRange;
+        } else {
+            const targetPos = resolveLaunchTarget(ctx);
+            if (!targetPos) return;
+            const clamped = clampToMaxRange(origin, targetPos, this.maxRange);
+            const toTarget = getDirectionFromTo(origin.x, origin.y, clamped.endX, clamped.endY);
+            if (toTarget.dist === 0) return;
+            dirX = toTarget.dirX;
+            dirY = toTarget.dirY;
+            travelDistance = this.travelFullRange ? this.maxRange : Math.min(toTarget.dist, this.maxRange);
+        }
+
         const damage = this.resolveDamage ? this.resolveDamage(ctx) : this.baseDamage;
+        const held = this.hold !== null;
 
         const projectile = new Projectile({
-            x: ctx.caster.x,
-            y: ctx.caster.y,
-            velocityX: dirX * this.speed,
-            velocityY: dirY * this.speed,
+            x: origin.x,
+            y: origin.y,
+            // A held projectile sits still until released; its direction is kept in the payload.
+            velocityX: held ? 0 : dirX * this.speed,
+            velocityY: held ? 0 : dirY * this.speed,
             damage,
             sourceTeamId: ctx.caster.teamId,
             sourceUnitId: ctx.caster.id,
@@ -146,12 +218,40 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
             spriteConfig: this.spriteConfig,
             passThroughEnemies: this.passThroughEnemies,
             pierce: this.pierce,
+            hitPolicy: this.hitPolicy,
             modifiers: this.modifiers.length > 0 ? this.modifiers : undefined,
+            heldBy: held ? { unitId: ctx.caster.id, abilityId: ctx.abilityId } : undefined,
         });
         projectile.radius = this.radius;
         if (ctx.onProjectileHit?.length) {
             projectile.onHitEffects = ctx.onProjectileHit;
         }
+        // The engine assigns the projectile's id when it is added, so the payload must be written after that.
         engine.addProjectile(projectile);
+        if (held) {
+            const payload: ProjectileLaunchPayload = { projectileId: projectile.id, dirX, dirY };
+            ctx.setBehaviourPayload(payload);
+        }
+    }
+
+    /** Held launches release on the window's last tick (windows with a `timingEnd` exit with `isLastTick`). */
+    onTick(ctx: CastBehaviourTickContext): void {
+        if (!this.hold || !ctx.isLastTick) return;
+        const payload = ctx.behaviourPayload as ProjectileLaunchPayload | undefined;
+        if (!payload?.projectileId || payload.dirX == null || payload.dirY == null) return;
+        const projectile = findProjectile(ctx.engine, payload.projectileId);
+        if (!projectile?.isHeld) return;
+        projectile.release(payload.dirX * this.speed, payload.dirY * this.speed);
+    }
+
+    /** Cancels a still-held projectile, then runs the hold's `onCancelled`. No-op once released. */
+    onInterrupt(ctx: CastBehaviourInterruptContext): void {
+        if (!this.hold) return;
+        const payload = ctx.behaviourPayload as ProjectileLaunchPayload | undefined;
+        if (!payload?.projectileId) return;
+        const projectile = findProjectile(ctx.engine, payload.projectileId);
+        if (!projectile?.isHeld) return;
+        projectile.cancelHeld();
+        this.hold.onCancelled?.(ctx, projectile);
     }
 }

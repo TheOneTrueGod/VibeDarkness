@@ -19,20 +19,7 @@ import { getLockOnRange as getLockOnRangeFromMax } from '../targetLockTracking';
 import { resolveMeleeSlideDirection } from '../meleeSlideDirection';
 import { findMeleeAimPixelInTargets } from '../targeting';
 import { assignHitSlots, priorityFillHits } from '../priorityFillHits';
-
-// ---- Easing (melee lunge slide) ----
-
-function easeOutCubic(t: number): number {
-    const clamped = Math.max(0, Math.min(1, t));
-    return 1 - (1 - clamped) ** 3;
-}
-
-function easeInOutQuad(t: number): number {
-    const clamped = Math.max(0, Math.min(1, t));
-    return clamped < 0.5
-        ? 2 * clamped * clamped
-        : 1 - ((-2 * clamped + 2) ** 2) / 2;
-}
+import { casterSlideMagnitude } from './CasterSlideBehaviour';
 
 /**
  * Returns the effective max range for pixel-target clamping.
@@ -445,21 +432,13 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         if (!payload || payload.interrupted) return { x: 0, y: 0 };
 
         const { dirX, dirY } = this.resolveSlideDirection(ctx);
-        const p = ctx.windowProgress;
-
-        if (p <= this.impactAt) {
-            const t = this.impactAt > 0 ? p / this.impactAt : 1;
-            const forward = easeOutCubic(t) * this.slideConfig.forwardDistance;
-            return { x: dirX * forward, y: dirY * forward };
-        }
-
-        // Backstep: interpolate from +forwardDistance (at impact) → -backwardDistance (end of window).
-        // Starting from +forwardDistance ensures continuity with the forward phase so there
-        // is no position snap at impact, even when impactAt = 0.
-        const remaining = 1 - this.impactAt;
-        const t = remaining > 0 ? (p - this.impactAt) / remaining : 1;
-        const totalSlide = this.slideConfig.forwardDistance + this.slideConfig.backwardDistance;
-        const offsetMagnitude = this.slideConfig.forwardDistance - easeInOutQuad(t) * totalSlide;
+        // Same curve as CastBehaviours.CasterSlide (shared maths in CasterSlideBehaviour.ts).
+        const offsetMagnitude = casterSlideMagnitude(
+            ctx.windowProgress,
+            this.impactAt,
+            this.slideConfig.forwardDistance,
+            this.slideConfig.backwardDistance,
+        );
         return { x: dirX * offsetMagnitude, y: dirY * offsetMagnitude };
     }
 }

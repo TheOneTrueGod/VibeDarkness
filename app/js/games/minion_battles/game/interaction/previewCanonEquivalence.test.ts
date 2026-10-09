@@ -39,6 +39,8 @@ import { Movement } from '../../resources/Movement';
 import { createResourceFromId } from '../../resources/createResourceFromId';
 import { hashOrderId } from '../battlenet/helpers/orderHashing';
 import { buildFinalizedSequentialTargetingOrder } from './InteractiveTargetingSession';
+import { tileCentre, worldToTile } from '../../abilities/tileAreaHelpers';
+import { TerrainType } from '../../terrain/TerrainType';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 
 /** PunchNEW — single melee strike, implicated in the 5E0F6B incident (plan Context). */
@@ -51,6 +53,10 @@ const DOUBLE_PUNCH_TARGET_2_LABEL = 'Target 2';
 /** Digging Claws — wall-penetrating dash; earlier preview/canon offender (commit 36cfe8a). */
 const DIGGING_CLAWS_ABILITY_ID = '0534';
 const DIGGING_CLAWS_DASH_LABEL = 'Direction to dash';
+/** Rock Slide — two gated selects (Rock at t=0, Direction mid-cast) and a held projectile. */
+const ROCK_SLIDE_ABILITY_ID = '0537';
+const ROCK_SLIDE_ROCK_LABEL = 'Rock';
+const ROCK_SLIDE_DIRECTION_LABEL = 'Direction';
 
 const SOLO_PLAYER_ID = 'p1';
 
@@ -317,6 +323,30 @@ describe('preview/canon execution equivalence (Step 5)', () => {
         engineA.destroy();
         engineB.destroy();
     });
+
+    it('Rock Slide (0537): rollback-committed ITS run matches the canonical wire-order run', async () => {
+        const { engineA, engineB } = await runPreviewCanonEquivalence({
+            abilityId: ROCK_SLIDE_ABILITY_ID,
+            setup: (caster, engine) => {
+                const tm = engine.terrainManager!;
+                const c = worldToTile(caster.x, caster.y);
+                // Rock one tile up and left (within the 2-tile pick range); punch east onto open ground.
+                const rock = { col: c.col - 1, row: c.row - 1 };
+                const east = { col: c.col + 1, row: c.row };
+                tm.grid.set(rock.col, rock.row, TerrainType.Rock);
+                tm.grid.set(east.col, east.row, TerrainType.Grass);
+                return {
+                    [ROCK_SLIDE_ROCK_LABEL]: { type: 'pixel', position: tileCentre(rock) },
+                    [ROCK_SLIDE_DIRECTION_LABEL]: { type: 'pixel', position: tileCentre(east) },
+                };
+            },
+        });
+
+        assertPreviewCanonEquivalence(engineA, engineB);
+
+        engineA.destroy();
+        engineB.destroy();
+    });
 });
 
 /**
@@ -330,6 +360,9 @@ const GENERIC_HARNESS_UNSUPPORTED_ABILITY_IDS: Record<string, string> = {
     '0611': "Beast Claw declares two separate 'Target' select windows (slash1/slash2) sharing one "
         + "label; the harness's single label->pause->resolve loop can't disambiguate the second "
         + "window from the first (see card_defs/utility/0611_BeastClaw/0611Ability.ts).",
+    [ROCK_SLIDE_ABILITY_ID]: 'Rock Slide needs an intact rock tile for its first pick (validatePick); '
+        + 'the generic harness aims at a dummy on open ground, so the cast fizzles. Covered by the '
+        + 'dedicated Rock Slide case above.',
 };
 
 describe('preview/canon execution equivalence — all registered abilities (Step 5, generalized)', () => {

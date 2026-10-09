@@ -85,7 +85,9 @@ import {
     earthCoreShakingGroundScenario,
     earthCoreShatterScenario,
     earthCoreStoneTombScenario,
+    earthCoreStoneTombCentreEscapeScenario,
     earthCoreRockSlideScenario,
+    earthCoreRockSlideLandsOnEnemyScenario,
     earthCoreKnockScenario,
     earthCoreAnchoredTremorScenario,
     earthCoreStoneyPunchBaselineScenario,
@@ -282,6 +284,16 @@ describe('runScenarioHeadless', () => {
 
     it('passes earth core rock slide scenario', () => {
         const r = runScenarioHeadless(earthCoreRockSlideScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes earth core rock slide lands on enemy scenario', () => {
+        const r = runScenarioHeadless(earthCoreRockSlideLandsOnEnemyScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes earth core stone tomb centre escape scenario', () => {
+        const r = runScenarioHeadless(earthCoreStoneTombCentreEscapeScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

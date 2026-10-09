@@ -1,3 +1,13 @@
+/** Fixed time step (seconds): 60 ticks/second. Re-exported from GameEngine for existing imports. */
+export const FIXED_DT = 1 / 60;
+
+/**
+ * Orphan safeguard for held projectiles (see `Projectile` held state), not a gameplay timer.
+ * A projectile held longer than this is deleted with a warning. Cast cleanup should release or
+ * cancel held projectiles first, so reaching this limit means a holder was lost somewhere.
+ */
+export const MAX_HELD_PROJECTILE_SECONDS = 5;
+
 /** Seconds of game time per round. */
 export const ROUND_DURATION = 10;
 

@@ -107,4 +107,24 @@ describe('computeForcedDisplacement', () => {
         );
         expect(clamped.x).toBeGreaterThan(0);
     });
+
+    it('gives zero displacement for a start inside a wall (dashes, lunges and nudges cannot start in rock)', () => {
+        const terrainManager = makeGrassManager(12, 4);
+        terrainManager.grid.set(3, 2, TerrainType.Rock);
+        terrainManager.grid.set(4, 2, TerrainType.Rock);
+
+        const startX = CELL_SIZE * 3.5;
+        const startY = CELL_SIZE * 2.5;
+
+        const { distance } = computeForcedDisplacement(
+            startX,
+            startY,
+            startX + CELL_SIZE * 3,
+            startY,
+            CELL_SIZE * 3,
+            { terrainManager },
+        );
+
+        expect(distance).toBe(0);
+    });
 });

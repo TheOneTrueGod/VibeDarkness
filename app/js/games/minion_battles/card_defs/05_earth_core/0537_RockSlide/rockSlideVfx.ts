@@ -6,7 +6,8 @@ import { Effect } from '../../../game/effects/Effect';
 import { StoryHomingParticleEmitter } from '../../../game/effects/StoryHomingParticleEmitter';
 import type { Unit } from '../../../game/units/Unit';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
-import { ROCK_SLIDE_DESTROY_TIME, ROCK_SLIDE_SPAWN_TIME, ROCK_SLIDE_AIM_START } from '../earthCoreConstants';
+import { FIXED_DT } from '../../../game/gameConstants';
+import { ROCK_SLIDE_SPAWN_TIME, ROCK_SLIDE_AIM_START } from '../earthCoreConstants';
 
 const CHIP_COUNT = 4;
 const CHIP_TINTS = [0x9ca3af, 0x757575, 0xb0b0b0, 0x6b5b4f];
@@ -16,8 +17,11 @@ export interface RockSlideVfxEngine {
     addEffectEmitter(emitter: StoryHomingParticleEmitter): void;
 }
 
-/** Flight time of the chips that fly from the ripped-up rock into the caster. */
-const INWARD_FLIGHT = ROCK_SLIDE_DESTROY_TIME - 0.05;
+/**
+ * Flight time of the chips that fly from the ripped-up rock into the caster. They start on the first
+ * windup tick and land 0.05s before the rock is destroyed at the end of the windup.
+ */
+const INWARD_FLIGHT = ROCK_SLIDE_AIM_START - FIXED_DT - 0.05;
 /** Flight time of the chips that fly out of the caster along the slide direction. */
 const OUTWARD_FLIGHT = ROCK_SLIDE_SPAWN_TIME - ROCK_SLIDE_AIM_START;
 

@@ -6,35 +6,37 @@
  * undamaged) are knocked back away from the centre of that tile, then a rock is raised there.
  * Stage 2 (0.25s later, no new target): enemies in any tile of the plus take 6 damage, then
  * rocks are raised on the four outer tiles (the centre rock is not respawned).
+ *
+ * Timeline (seconds):
+ *   0.00-0.50   windup
+ *   0.50-0.517  pick the tomb tile (one-tick interactive select; enters on the tick after the gate tick)
+ *   0.517-0.75  stage 1: damage, knockback and the centre rock (one-shot on entry)
+ *   0.75-0.85   stage 2: damage and the outer rocks (one-shot on entry)
+ *   0.85-1.50   cooldown
  */
 
-import {
-    AbilityState,
-    type AbilityStatic,
-    type AbilityStateEntry,
-    type IAbilityPreviewGraphics,
-} from '../../../abilities/Ability';
+import type { AbilityStatic, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
+import { defineAbility } from '../../../abilities/defineAbility';
+import { CastBehaviours } from '../../../abilities/CastBehaviours';
+import type { CastBehaviourTickContext } from '../../../abilities/castBehaviourTypes';
+import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget, ActiveAbility } from '../../../game/types';
-import type { EventBus } from '../../../game/EventBus';
 import { Effect } from '../../../game/effects/Effect';
 import { areEnemies } from '../../../game/teams';
 import { type CardDef } from '../../types';
-import { plusTileAreaHitbox } from '../../../hitboxes/PlusTileAreaHitboxSpec';
-import {
-    snapSquareTileAreaCenter,
-    getPlusTileAreaCells,
-    drawPlusTileArea,
-    worldToTile,
-    type TileCoord,
-} from '../../../abilities/tileAreaHelpers';
+import { tileAreaHitbox, tileShapes } from '../../../hitboxes/TileAreaHitboxSpec';
+import { getUnitsInTiles, tileCentre, type TileCoord } from '../../../abilities/tileAreaHelpers';
+import { drawTileAreaTelegraph } from '../../../abilities/previewHelpers';
+import { TELEGRAPH_STYLES } from '../../../abilities/telegraphStyles';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
-import { tryApplyKnockbackByTier } from '../../../crowdControl/knockbackKeywords';
+import { knockbackCtxFromEngine, tryApplyKnockbackByTier } from '../../../crowdControl/knockbackKeywords';
 import {
     STONE_TOMB_MAX_TILE_OFFSET,
     STONE_TOMB_CAST_RANGE,
     STONE_TOMB_STAGE1_TIME,
+    STONE_TOMB_AIM_END,
     STONE_TOMB_STAGE_GAP,
     STONE_TOMB_STAGE1_DAMAGE,
     STONE_TOMB_STAGE2_DAMAGE,
@@ -44,16 +46,17 @@ import {
 } from '../earthCoreConstants';
 
 const ABILITY_ID = '0530';
+const TOMB_LABEL = 'Tomb location';
 const STAGE2_TIME = STONE_TOMB_STAGE1_TIME + STONE_TOMB_STAGE_GAP;
 const STAGE_ACTIVE_DURATION = 0.1;
 
-const PREVIEW_STYLE = { color: 0xff2a2a, lineWidth: 2, fillAlpha: 0.12, strokeAlpha: 0.9 } as const;
 const IMPACT_COLOR = 0x27d3c8;
 
-const STONE_TOMB_HITBOX = plusTileAreaHitbox({
-    maxTileOffset: STONE_TOMB_MAX_TILE_OFFSET,
+const STONE_TOMB_HITBOX = tileAreaHitbox({
+    anchor: { kind: 'chebyshev', maxTileOffset: STONE_TOMB_MAX_TILE_OFFSET },
+    shape: tileShapes.plus(),
     castRange: STONE_TOMB_CAST_RANGE,
-    previewStyle: PREVIEW_STYLE,
+    style: TELEGRAPH_STYLES.danger,
 });
 
 const STONE_TOMB_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
@@ -61,72 +64,27 @@ const STONE_TOMB_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2
   <path d="M10 14 L30 14 M10 20 L30 20 M10 26 L30 26" stroke="#bdbdbd" stroke-width="2"/>
 </svg>`;
 
-const TIMINGS: AbilityTimingInterval[] = [
-    { id: 'windup', start: 0, end: STONE_TOMB_STAGE1_TIME, abilityPhase: AbilityPhase.Windup },
-    {
-        // Stage 1. The plus-sign target is chosen here (deferred select at windup end).
-        id: 'stage1',
-        start: STONE_TOMB_STAGE1_TIME,
-        end: STAGE2_TIME,
-        abilityPhase: AbilityPhase.Active,
-        doNotRefund: true,
-        targetDef: {
-            kind: 'select',
-            label: 'Tomb location',
-            hitbox: STONE_TOMB_HITBOX,
-            filter: 'any',
-            allowMiss: true,
-        },
-    },
-    {
-        id: 'stage2',
-        start: STAGE2_TIME,
-        end: STAGE2_TIME + STAGE_ACTIVE_DURATION,
-        abilityPhase: AbilityPhase.Active,
-        doNotRefund: true,
-    },
-    { id: 'cooldown', start: STAGE2_TIME + STAGE_ACTIVE_DURATION, end: STONE_TOMB_CAST_TIME, abilityPhase: AbilityPhase.Cooldown },
-];
+type Point = { x: number; y: number };
 
-interface EngineLike {
-    units: Unit[];
-    gameTime: number;
-    roundNumber?: number;
-    eventBus: EventBus;
-    getUnit(id: string): Unit | undefined;
-    addEffect(effect: unknown): void;
-    terrainManager?: {
-        createOrMarkRock(col: number, row: number): unknown;
-    } | null;
+function pixelOf(target: ResolvedTarget | undefined): Point | null {
+    return target?.type === 'pixel' && target.position ? target.position : null;
 }
 
-function getPixelTargetPosition(targets: ResolvedTarget[], index: number = 0): { x: number; y: number } | null {
-    const target = targets[index];
-    if (!target || target.type !== 'pixel' || !target.position) return null;
-    return target.position;
+/** The tomb pick: by label (interactive runs), falling back to its positional slot (committed runs). */
+function tombPickPosition(active: ActiveAbility): Point | null {
+    return pixelOf(active.targetsByLabel?.[TOMB_LABEL] ?? active.targets[0]);
 }
 
-function tileCenterWorld(tile: TileCoord): { x: number; y: number } {
-    return { x: (tile.col + 0.5) * CELL_SIZE, y: (tile.row + 0.5) * CELL_SIZE };
+/** Enemies (or allies, when `enemies` is false) standing on any of `tiles`, alive only. */
+function unitsOnTiles(engine: AbilityEngineContext, caster: Unit, tiles: TileCoord[], enemies: boolean): Unit[] {
+    return getUnitsInTiles(engine.units, tiles, (unit) =>
+        unit.isAlive() && areEnemies(caster.teamId, unit.teamId) === enemies,
+    );
 }
 
-function resolveCenter(caster: Unit, targets: ResolvedTarget[]): TileCoord | null {
-    const pixel = getPixelTargetPosition(targets, 0);
-    if (!pixel) return null;
-    return snapSquareTileAreaCenter(caster.x, caster.y, pixel.x, pixel.y, STONE_TOMB_MAX_TILE_OFFSET);
-}
-
-function unitsInTiles(eng: EngineLike, caster: Unit, tiles: TileCoord[], enemies: boolean): Unit[] {
-    return eng.units.filter((unit) => {
-        if (!unit.isAlive() || areEnemies(caster.teamId, unit.teamId) !== enemies) return false;
-        const ut = worldToTile(unit.x, unit.y);
-        return tiles.some((t) => t.col === ut.col && t.row === ut.row);
-    });
-}
-
-function spawnTileImpact(eng: EngineLike, tile: TileCoord): void {
-    const { x, y } = tileCenterWorld(tile);
-    eng.addEffect(new Effect({
+function spawnTileImpact(engine: AbilityEngineContext, tile: TileCoord): void {
+    const { x, y } = tileCentre(tile);
+    engine.addEffect(new Effect({
         x,
         y,
         duration: 0.2,
@@ -136,40 +94,94 @@ function spawnTileImpact(eng: EngineLike, tile: TileCoord): void {
     }));
 }
 
-function stage1(eng: EngineLike, caster: Unit, center: TileCoord): void {
-    const centerWorld = tileCenterWorld(center);
+/** Stage 1: centre-tile damage and knockback for everyone there, then the centre rock. */
+function stageOne(ctx: CastBehaviourTickContext): void {
+    const aim = pixelOf(ctx.target);
+    if (!aim) return;
+    const center = STONE_TOMB_HITBOX.resolveAnchor(ctx.caster, aim);
+    if (!center) return;
+
+    const engine = ctx.engine;
+    const caster = ctx.caster;
+    const centerWorld = tileCentre(center);
+    // knockbackCtxFromEngine carries the engine's interrupt hook, so knocked-back units lose their casts.
+    const knockbackCtx = knockbackCtxFromEngine(engine);
     const knockback = (unit: Unit): void => {
         tryApplyKnockbackByTier(
             unit, STONE_TOMB_KNOCKBACK_TIER,
             { unitId: caster.id, abilityId: ABILITY_ID },
             centerWorld.x, centerWorld.y,
-            { gameTime: eng.gameTime, roundNumber: eng.roundNumber ?? 1, eventBus: eng.eventBus },
+            knockbackCtx,
         );
     };
-    for (const unit of unitsInTiles(eng, caster, [center], true)) {
+    for (const unit of unitsOnTiles(engine, caster, [center], true)) {
         // Flat, unblockable environment-style hit; return value unused (see 0532).
-        unit.takeDamage(STONE_TOMB_STAGE1_DAMAGE, caster.id, eng.eventBus);
+        unit.takeDamage(STONE_TOMB_STAGE1_DAMAGE, caster.id, engine.eventBus);
         knockback(unit);
     }
     // Allies (and the caster) standing in the centre tile are shoved clear too, undamaged.
-    for (const unit of unitsInTiles(eng, caster, [center], false)) knockback(unit);
-    eng.terrainManager?.createOrMarkRock(center.col, center.row);
-    spawnTileImpact(eng, center);
+    for (const unit of unitsOnTiles(engine, caster, [center], false)) knockback(unit);
+    engine.terrainManager?.createOrMarkRock(center.col, center.row);
+    spawnTileImpact(engine, center);
 }
 
-function stage2(eng: EngineLike, caster: Unit, center: TileCoord): void {
-    const cells = getPlusTileAreaCells(center);
-    for (const unit of unitsInTiles(eng, caster, cells, true)) {
-        unit.takeDamage(STONE_TOMB_STAGE2_DAMAGE, caster.id, eng.eventBus);
+/** Stage 2: damage across the plus, then the four outer rocks. The centre rock came from stage 1. */
+function stageTwo(ctx: CastBehaviourTickContext): void {
+    const aim = pixelOf(ctx.target);
+    if (!aim) return;
+    const cells = STONE_TOMB_HITBOX.resolveCells(ctx.caster, aim);
+    if (cells.length === 0) return;
+
+    const engine = ctx.engine;
+    for (const unit of unitsOnTiles(engine, ctx.caster, cells, true)) {
+        unit.takeDamage(STONE_TOMB_STAGE2_DAMAGE, ctx.caster.id, engine.eventBus);
     }
-    // cells[0] is the centre, whose rock was already raised in stage 1.
+    // cells[0] is the centre (plus() puts it first), whose rock was already raised in stage 1.
     for (const cell of cells.slice(1)) {
-        eng.terrainManager?.createOrMarkRock(cell.col, cell.row);
-        spawnTileImpact(eng, cell);
+        engine.terrainManager?.createOrMarkRock(cell.col, cell.row);
+        spawnTileImpact(engine, cell);
     }
 }
 
-export const StoneTomb: AbilityStatic = {
+const TIMINGS: AbilityTimingInterval[] = [
+    { id: 'windup', start: 0, end: STONE_TOMB_STAGE1_TIME, abilityPhase: AbilityPhase.Windup },
+    {
+        // The plus-sign target is chosen here. Gated: it enters one tick after the gate tick.
+        id: 'pickTomb',
+        start: STONE_TOMB_STAGE1_TIME,
+        end: STONE_TOMB_AIM_END,
+        abilityPhase: AbilityPhase.Active,
+        doNotRefund: true,
+        targetDef: {
+            kind: 'select',
+            label: TOMB_LABEL,
+            hitbox: STONE_TOMB_HITBOX,
+            filter: 'any',
+            allowMiss: true,
+        },
+    },
+    {
+        id: 'stage1',
+        start: STONE_TOMB_AIM_END,
+        end: STAGE2_TIME,
+        abilityPhase: AbilityPhase.Active,
+        doNotRefund: true,
+        targetDef: { kind: 'hit', labels: [TOMB_LABEL] },
+        castBehaviours: [{ timingStart: 'start', behaviour: CastBehaviours.Instant(stageOne) }],
+    },
+    {
+        id: 'stage2',
+        start: STAGE2_TIME,
+        end: STAGE2_TIME + STAGE_ACTIVE_DURATION,
+        abilityPhase: AbilityPhase.Active,
+        doNotRefund: true,
+        targetDef: { kind: 'hit', labels: [TOMB_LABEL] },
+        castBehaviours: [{ timingStart: 'start', behaviour: CastBehaviours.Instant(stageTwo) }],
+    },
+    { id: 'cooldown', start: STAGE2_TIME + STAGE_ACTIVE_DURATION, end: STONE_TOMB_CAST_TIME, abilityPhase: AbilityPhase.Cooldown },
+];
+
+export const StoneTomb: AbilityStatic = defineAbility({
     id: ABILITY_ID,
     name: 'Stone Tomb',
     image: STONE_TOMB_IMAGE,
@@ -179,6 +191,7 @@ export const StoneTomb: AbilityStatic = {
     prefireTime: STONE_TOMB_STAGE1_TIME,
     abilityTimings: TIMINGS,
     targets: [],
+    movementLock: { until: STAGE2_TIME },
     aiSettings: { minRange: 0, maxRange: STONE_TOMB_CAST_RANGE },
 
     getRange(): { minRange: number; maxRange: number } {
@@ -193,24 +206,6 @@ export const StoneTomb: AbilityStatic = {
         ];
     },
 
-    getAbilityStates(currentTime: number): AbilityStateEntry[] {
-        if (currentTime < STAGE2_TIME) {
-            return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0 } }];
-        }
-        return [];
-    },
-
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        const crossedStage1 = prevTime < STONE_TOMB_STAGE1_TIME && currentTime >= STONE_TOMB_STAGE1_TIME;
-        const crossedStage2 = prevTime < STAGE2_TIME && currentTime >= STAGE2_TIME;
-        if (!crossedStage1 && !crossedStage2) return;
-        const center = resolveCenter(caster, targets);
-        if (!center) return;
-        const eng = engine as EngineLike;
-        if (crossedStage1) stage1(eng, caster, center);
-        if (crossedStage2) stage2(eng, caster, center);
-    },
-
     renderActivePreview(
         gr: IAbilityPreviewGraphics,
         caster: Unit,
@@ -219,11 +214,11 @@ export const StoneTomb: AbilityStatic = {
     ): void {
         const elapsed = gameTime - activeAbility.startTime;
         if (elapsed >= STAGE2_TIME) return;
-        const center = resolveCenter(caster, activeAbility.targets);
-        if (!center) return;
-        drawPlusTileArea(gr, center, PREVIEW_STYLE);
+        const aim = tombPickPosition(activeAbility);
+        if (!aim) return;
+        drawTileAreaTelegraph(gr, STONE_TOMB_HITBOX.resolveCells(caster, aim), TELEGRAPH_STYLES.danger);
     },
-};
+});
 
 export const StoneTombCard: CardDef = {
     abilityId: ABILITY_ID,

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Unit } from './Unit';
-import { interruptAllUnitAbilities, interruptAndRefundUnitAbilities } from './unitAbilityLifecycle';
+import { interruptUnitAbilities } from './unitAbilityLifecycle';
 import { DarkWolfBiteAbility } from '../../card_defs/dark_animals/0003_DarkWolfBite/0003Ability';
 import {
     AbilityPhase,
@@ -67,7 +67,7 @@ describe('charge interrupt during windup', () => {
         const unit = makeWolf(gameTime);
         const usesBefore = unit.abilityRuntime[DarkWolfBiteAbility.id]!.currentUses;
 
-        interruptAllUnitAbilities(unit, { gameTime });
+        interruptUnitAbilities(unit, { gameTime } as EngineContext);
 
         expect(unit.activeAbilities).toHaveLength(1);
         expect(unit.activeAbilities[0]!.abilityId).toBe(DarkWolfBiteAbility.id);
@@ -90,7 +90,7 @@ describe('charge interrupt during windup', () => {
         const usesBefore = unit.abilityRuntime[DarkWolfBiteAbility.id]!.currentUses;
         const engine = { gameTime } as EngineContext;
 
-        interruptAndRefundUnitAbilities(unit, engine);
+        interruptUnitAbilities(unit, engine);
 
         expect(unit.activeAbilities).toHaveLength(1);
         expect(phaseAt(unit, gameTime)).toBe(AbilityPhase.Cooldown);

@@ -291,6 +291,26 @@ export interface AbilitySwapConfig {
     deactivateTrigger: DeactivateTrigger;
 }
 
+/** Interrupt handling for an ability's active cast. See `AbilityStatic.interruptPolicy`. */
+export interface AbilityInterruptPolicy {
+    beforeCooldown?: 'cancel' | 'skipToCooldown';
+    duringCooldown?: 'ignore' | 'end';
+}
+
+/** Used for every field an ability's `interruptPolicy` leaves out. */
+export const DEFAULT_ABILITY_INTERRUPT_POLICY: Required<AbilityInterruptPolicy> = {
+    beforeCooldown: 'cancel',
+    duringCooldown: 'ignore',
+};
+
+/** Merges an ability's `interruptPolicy` over the defaults. */
+export function resolveAbilityInterruptPolicy(ability: Pick<AbilityStatic, 'interruptPolicy'>): Required<AbilityInterruptPolicy> {
+    return {
+        beforeCooldown: ability.interruptPolicy?.beforeCooldown ?? DEFAULT_ABILITY_INTERRUPT_POLICY.beforeCooldown,
+        duringCooldown: ability.interruptPolicy?.duringCooldown ?? DEFAULT_ABILITY_INTERRUPT_POLICY.duringCooldown,
+    };
+}
+
 /** The shape every static ability class must implement. */
 export interface AbilityStatic {
     /** Unique ability ID. */
@@ -449,26 +469,19 @@ export interface AbilityStatic {
     readonly clearMovementOnComplete?: boolean;
 
     /**
-     * When true, interrupting this cast (stun / hard CC / interrupt effects) before cooldown
-     * snaps the active entry to the start of its Cooldown/CoopCooldown interval instead of
-     * removing it — so the full cooldown still runs. No resource refund is applied on that path.
+     * How an interrupt (stun, knockback, wall-unstick) treats this cast. Applied by
+     * `interruptUnitAbilities` in `game/units/unitAbilityLifecycle.ts`.
+     * Omitted fields use `DEFAULT_ABILITY_INTERRUPT_POLICY` (see `resolveAbilityInterruptPolicy`).
+     *
+     * - `beforeCooldown: 'cancel'` (default): refund the cost and remove the cast.
+     * - `beforeCooldown: 'skipToCooldown'`: no refund; snap the cast to the start of its
+     *   Cooldown/CoopCooldown interval so the full cooldown still runs. Falls back to `cancel`
+     *   when the ability has no cooldown interval.
+     * - `duringCooldown: 'ignore'` (default): the cooldown runs out and the cast is kept.
+     * - `duringCooldown: 'end'`: end the cast immediately (no refund). Effects the cast already
+     *   launched (projectiles, terrain) are unaffected.
      */
-    readonly skipToCooldownOnInterrupt?: boolean;
-
-    /**
-     * When true, interrupting this cast during its Cooldown phase ends the cast immediately
-     * instead of letting the cooldown run out (default: cooldown-phase interrupts are ignored).
-     * Effects the cast already launched (projectiles, terrain) are unaffected.
-     */
-    readonly interruptEndsCooldown?: boolean;
-
-    /**
-     * Optional. Called when a stun / hard CC / interrupt hits a unit that is mid-cast of this
-     * ability, in every phase (including Cooldown), before the cast is kept or removed. Use to
-     * unwind transient world state (e.g. a not-yet-launched projectile). `elapsed` is seconds
-     * since the cast began.
-     */
-    onCastInterrupted?(engine: unknown, caster: Unit, active: ActiveAbility, elapsed: number): void;
+    readonly interruptPolicy?: AbilityInterruptPolicy;
 
     /**
      * Optional per-cast mode toggle (e.g. push/pull). Mode is committed on the BattleOrder and

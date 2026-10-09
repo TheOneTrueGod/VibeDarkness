@@ -308,6 +308,16 @@ function getCastElapsed(engine: GameEngine, player: Unit, abilityId: string): nu
     return engine.gameTime - active.startTime;
 }
 
+/**
+ * A select at cast time `selectStart` pauses at the end of the gate tick. That tick processes the
+ * cast up to `selectStart` (so effects at or before it are already applied), and the select enters on
+ * the following tick. The global clock at the pause is therefore within one fixed tick after the start.
+ */
+function expectSelectPausedAtGate(elapsed: number, selectStart: number): void {
+    expect(elapsed).toBeGreaterThanOrEqual(selectStart - 1e-9);
+    expect(elapsed).toBeLessThanOrEqual(selectStart + FIXED_DT + 1e-9);
+}
+
 interface LightBlastFixture {
     engine: ReturnType<typeof buildTinyBattleEngine>;
     player: Unit;
@@ -1272,7 +1282,9 @@ describe('interactive sequential targeting', () => {
         );
         expect(paused).toBe(true);
         expect(engine.waitingForTargetInput!.label).toBe('Target');
-        expect(getCastElapsed(engine, player, LIGHT_BLAST_ID)).toBeLessThan(LIGHT_BLAST_PREFIRE);
+        // Select gate: the world has processed everything up to the select's start, and the select enters
+        // on the next tick. The pause sits at the end of the gate tick, so elapsed is in [s, s + FIXED_DT].
+        expectSelectPausedAtGate(getCastElapsed(engine, player, LIGHT_BLAST_ID), LIGHT_BLAST_PREFIRE);
 
         const active = player.activeAbilities.find(a => a.abilityId === LIGHT_BLAST_ID);
         expect(active).not.toBeUndefined();
@@ -3186,7 +3198,7 @@ describe('interactive sequential targeting — conditional cancel stop point', (
             60,
         );
         expect(paused).toBe(true);
-        expect(getCastElapsed(engine, player, PROTECT_ABILITY_ID)).toBeLessThan(PROTECT_WINDUP_DURATION);
+        expectSelectPausedAtGate(getCastElapsed(engine, player, PROTECT_ABILITY_ID), PROTECT_WINDUP_DURATION);
 
         const active = player.activeAbilities.find((a) => a.abilityId === PROTECT_ABILITY_ID);
         expect(active).not.toBeUndefined();

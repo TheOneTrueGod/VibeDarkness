@@ -1,19 +1,34 @@
 /**
- * Square tile-area targeting geometry.
+ * Tile-area targeting geometry.
  *
- * A "square tile-area" is an (2*half+1) x (2*half+1) block of grid cells whose
- * center cell is chosen by the player, tile-snapped, and clamped so its Chebyshev
- * (chessboard) distance from the caster's cell is 0..maxTileOffset.
+ * A tile area is a set of grid cells anchored to a tile the player picks. The anchor is either
+ * chosen with a Chebyshev clamp around the caster (`snapSquareTileAreaCenter`) or taken from the
+ * cardinal neighbour the aim points at (`snapAdjacentCardinalTile`). The cells themselves are
+ * derived by `TileAreaHitboxSpec` (`hitboxes/TileAreaHitboxSpec.ts`), which is the single source of
+ * geometry for the preview and for ability effects.
  *
- * Pure module: depends only on CELL_SIZE so the hitbox preview, renderActivePreview,
- * and doCardEffect all snap identically (none of them can be allowed to drift).
+ * Pure module: depends only on CELL_SIZE and the Unit type, so the hitbox preview, the active preview
+ * and effects all snap identically.
  */
 
 import { CELL_SIZE } from '../terrain/TerrainGrid';
+import type { Unit } from '../game/units/Unit';
 
 export interface TileCoord {
     col: number;
     row: number;
+}
+
+/** A corner of the grid. Corner (col, row) is the top-left corner of cell (col, row). */
+export interface TileCorner {
+    col: number;
+    row: number;
+}
+
+/** A directed boundary edge between two grid corners. */
+export interface TileEdge {
+    from: TileCorner;
+    to: TileCorner;
 }
 
 /** Cell a world point falls in. Matches `TerrainGrid.worldToGrid`. */
@@ -21,15 +36,39 @@ export function worldToTile(x: number, y: number): TileCoord {
     return { col: Math.floor(x / CELL_SIZE), row: Math.floor(y / CELL_SIZE) };
 }
 
+/** World-space centre of a tile. */
+export function tileCentre(tile: TileCoord): { x: number; y: number } {
+    return { x: (tile.col + 0.5) * CELL_SIZE, y: (tile.row + 0.5) * CELL_SIZE };
+}
+
+/**
+ * Units whose centre sits in one of `tiles` (and that pass `predicate`, when given), in `units` order.
+ *
+ * Deliberately not `CellOccupancyManager`: that manager only tracks units with `maxPerTile`, and it
+ * reads a snapshot taken once per tick, so it cannot answer "who is standing in these tiles right now".
+ */
+export function getUnitsInTiles(
+    units: readonly Unit[],
+    tiles: readonly TileCoord[],
+    predicate?: (unit: Unit) => boolean,
+): Unit[] {
+    if (tiles.length === 0) return [];
+    const wanted = new Set(tiles.map((t) => `${t.col},${t.row}`));
+    return units.filter((unit) => {
+        const tile = worldToTile(unit.x, unit.y);
+        if (!wanted.has(`${tile.col},${tile.row}`)) return false;
+        return predicate ? predicate(unit) : true;
+    });
+}
+
 function clampInt(v: number, min: number, max: number): number {
     return v < min ? min : v > max ? max : v;
 }
 
 /**
- * Center cell of a square tile-area: the aim cell clamped so each axis offset from
- * the caster cell is within [-maxTileOffset, +maxTileOffset] (true Chebyshev — axes
- * clamped independently). `maxTileOffset` 0 => region centered on the caster;
- * 2 => the region sits adjacent to but not overlapping the caster.
+ * Anchor tile of a Chebyshev-clamped tile area: the aim tile clamped so each axis offset from
+ * the caster tile is within [-maxTileOffset, +maxTileOffset] (true Chebyshev — axes
+ * clamped independently). `maxTileOffset` 0 => anchor is the caster's tile.
  */
 export function snapSquareTileAreaCenter(
     casterX: number,
@@ -43,95 +82,6 @@ export function snapSquareTileAreaCenter(
     const dCol = clampInt(aim.col - caster.col, -maxTileOffset, maxTileOffset);
     const dRow = clampInt(aim.row - caster.row, -maxTileOffset, maxTileOffset);
     return { col: caster.col + dCol, row: caster.row + dRow };
-}
-
-/**
- * The (2*half+1)^2 cells around `center`, in deterministic row-major order.
- * No bounds filtering — callers with grid access must skip out-of-bounds cells.
- */
-export function getSquareTileAreaCells(center: TileCoord, half: number = 1): TileCoord[] {
-    const cells: TileCoord[] = [];
-    for (let dRow = -half; dRow <= half; dRow++) {
-        for (let dCol = -half; dCol <= half; dCol++) {
-            cells.push({ col: center.col + dCol, row: center.row + dRow });
-        }
-    }
-    return cells;
-}
-
-/** Outer world-space rectangle of the square, for drawing (moveTo + 4x lineTo). */
-export function squareTileAreaWorldRect(
-    center: TileCoord,
-    half: number = 1,
-): { minX: number; minY: number; maxX: number; maxY: number } {
-    return {
-        minX: (center.col - half) * CELL_SIZE,
-        minY: (center.row - half) * CELL_SIZE,
-        maxX: (center.col + half + 1) * CELL_SIZE,
-        maxY: (center.row + half + 1) * CELL_SIZE,
-    };
-}
-
-/**
- * The five cells of a plus sign: `center` then its N/E/S/W neighbours (fixed order, center first).
- * No bounds filtering — callers with grid access must skip out-of-bounds cells.
- */
-export function getPlusTileAreaCells(center: TileCoord): TileCoord[] {
-    return [
-        { col: center.col, row: center.row },
-        { col: center.col, row: center.row - 1 },
-        { col: center.col + 1, row: center.row },
-        { col: center.col, row: center.row + 1 },
-        { col: center.col - 1, row: center.row },
-    ];
-}
-
-/** Closed 12-vertex perimeter (world px, clockwise from the top arm) of the plus sign around `center`. */
-export function plusTileAreaPerimeter(center: TileCoord): { x: number; y: number }[] {
-    const x0 = (center.col - 1) * CELL_SIZE;
-    const x1 = center.col * CELL_SIZE;
-    const x2 = (center.col + 1) * CELL_SIZE;
-    const x3 = (center.col + 2) * CELL_SIZE;
-    const y0 = (center.row - 1) * CELL_SIZE;
-    const y1 = center.row * CELL_SIZE;
-    const y2 = (center.row + 1) * CELL_SIZE;
-    const y3 = (center.row + 2) * CELL_SIZE;
-    return [
-        { x: x1, y: y0 }, { x: x2, y: y0 }, { x: x2, y: y1 }, { x: x3, y: y1 },
-        { x: x3, y: y2 }, { x: x2, y: y2 }, { x: x2, y: y3 }, { x: x1, y: y3 },
-        { x: x1, y: y2 }, { x: x0, y: y2 }, { x: x0, y: y1 }, { x: x1, y: y1 },
-    ];
-}
-
-/**
- * Draws the plus-sign telegraph: a translucent fill over each of the five tiles and a solid
- * outline around the shape's perimeter only (no lines between tiles).
- */
-export function drawPlusTileArea(
-    gr: {
-        moveTo(x: number, y: number): unknown;
-        lineTo(x: number, y: number): unknown;
-        fill(style: { color: number; alpha?: number }): unknown;
-        stroke(style: { color: number; width: number; alpha?: number }): unknown;
-    },
-    center: TileCoord,
-    style: { color: number; fillAlpha: number; strokeAlpha: number; lineWidth: number },
-): void {
-    for (const cell of getPlusTileAreaCells(center)) {
-        const minX = cell.col * CELL_SIZE;
-        const minY = cell.row * CELL_SIZE;
-        gr.moveTo(minX, minY);
-        gr.lineTo(minX + CELL_SIZE, minY);
-        gr.lineTo(minX + CELL_SIZE, minY + CELL_SIZE);
-        gr.lineTo(minX, minY + CELL_SIZE);
-        gr.lineTo(minX, minY);
-        gr.fill({ color: style.color, alpha: style.fillAlpha });
-    }
-    const outline = plusTileAreaPerimeter(center);
-    gr.moveTo(outline[0].x, outline[0].y);
-    for (let i = 1; i < outline.length; i++) gr.lineTo(outline[i].x, outline[i].y);
-    gr.lineTo(outline[0].x, outline[0].y);
-    gr.stroke({ color: style.color, width: style.lineWidth, alpha: style.strokeAlpha });
 }
 
 /**
@@ -152,28 +102,82 @@ export function snapAdjacentCardinalTile(
     return { col: caster.col, row: caster.row + (dy > 0 ? 1 : -1) };
 }
 
-/** Translucent fill plus outline over a single tile. */
-export function drawTileHighlight(
-    gr: {
-        moveTo(x: number, y: number): unknown;
-        lineTo(x: number, y: number): unknown;
-        fill(style: { color: number; alpha?: number }): unknown;
-        stroke(style: { color: number; width: number; alpha?: number }): unknown;
-    },
-    tile: TileCoord,
-    style: { color: number; fillAlpha: number; strokeAlpha: number; lineWidth: number },
-): void {
-    const minX = tile.col * CELL_SIZE;
-    const minY = tile.row * CELL_SIZE;
-    const path = (): void => {
-        gr.moveTo(minX, minY);
-        gr.lineTo(minX + CELL_SIZE, minY);
-        gr.lineTo(minX + CELL_SIZE, minY + CELL_SIZE);
-        gr.lineTo(minX, minY + CELL_SIZE);
-        gr.lineTo(minX, minY);
-    };
-    path();
-    gr.fill({ color: style.color, alpha: style.fillAlpha });
-    path();
-    gr.stroke({ color: style.color, width: style.lineWidth, alpha: style.strokeAlpha });
+function cornerKey(c: TileCorner): string {
+    return `${c.col},${c.row}`;
+}
+
+function edgeKey(e: TileEdge): string {
+    return `${cornerKey(e.from)}>${cornerKey(e.to)}`;
+}
+
+/**
+ * Boundary of a set of cells as clockwise (screen space) directed edges. An edge shared by two
+ * cells appears once in each direction and cancels, so:
+ *   - `outer` is the outline of the union of the cells;
+ *   - `interior` is the set of boundaries between neighbouring cells (one entry per shared edge).
+ * Duplicate input cells are ignored.
+ */
+export function getTileAreaEdges(cells: readonly TileCoord[]): { outer: TileEdge[]; interior: TileEdge[] } {
+    const directed = new Map<string, TileEdge>();
+    for (const cell of cells) {
+        const tl: TileCorner = { col: cell.col, row: cell.row };
+        const tr: TileCorner = { col: cell.col + 1, row: cell.row };
+        const br: TileCorner = { col: cell.col + 1, row: cell.row + 1 };
+        const bl: TileCorner = { col: cell.col, row: cell.row + 1 };
+        const edges: TileEdge[] = [
+            { from: tl, to: tr },
+            { from: tr, to: br },
+            { from: br, to: bl },
+            { from: bl, to: tl },
+        ];
+        for (const edge of edges) directed.set(edgeKey(edge), edge);
+    }
+
+    const outer: TileEdge[] = [];
+    const interior: TileEdge[] = [];
+    const seenInterior = new Set<string>();
+    for (const [key, edge] of directed) {
+        const reverseKey = `${cornerKey(edge.to)}>${cornerKey(edge.from)}`;
+        if (!directed.has(reverseKey)) {
+            outer.push(edge);
+            continue;
+        }
+        const canonical = key < reverseKey ? key : reverseKey;
+        if (seenInterior.has(canonical)) continue;
+        seenInterior.add(canonical);
+        interior.push(edge);
+    }
+    return { outer, interior };
+}
+
+/**
+ * Closed outline loops of a cell set, as corner points in grid units (multiply by CELL_SIZE to draw).
+ * Outer edges are chained head to tail, so a single stroke over a loop gets proper joins at the
+ * corners. Each loop lists its points once (the closing point is not repeated).
+ */
+export function getTileAreaOutlineLoops(cells: readonly TileCoord[]): TileCorner[][] {
+    const { outer } = getTileAreaEdges(cells);
+    const outgoing = new Map<string, TileEdge[]>();
+    for (const edge of outer) {
+        const key = cornerKey(edge.from);
+        const list = outgoing.get(key);
+        if (list) list.push(edge);
+        else outgoing.set(key, [edge]);
+    }
+
+    const used = new Set<TileEdge>();
+    const loops: TileCorner[][] = [];
+    for (const start of outer) {
+        if (used.has(start)) continue;
+        const points: TileCorner[] = [start.from];
+        let current: TileEdge | undefined = start;
+        while (current && !used.has(current)) {
+            used.add(current);
+            points.push(current.to);
+            current = (outgoing.get(cornerKey(current.to)) ?? []).find((e) => !used.has(e));
+        }
+        // The last point closes the loop back onto the first.
+        loops.push(points.slice(0, -1));
+    }
+    return loops;
 }

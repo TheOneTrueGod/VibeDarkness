@@ -145,6 +145,22 @@ export class TerrainManager {
         return TERRAIN_PROPERTIES[this.getEffectiveTerrainType(col, row)].projectilePassable;
     }
 
+    /**
+     * Terrain a projectile sees at a world position, using effective terrain (floor layer included).
+     * Outside the grid is reported as Impassable, not as the Rock fallback of `grid.get`, so a
+     * projectile cannot "stonephase" its way off the edge of the map.
+     */
+    getProjectileTerrainAt(worldX: number, worldY: number): TerrainType {
+        const { col, row } = this.grid.worldToGrid(worldX, worldY);
+        if (!this.isInBounds(col, row)) return TerrainType.Impassable;
+        return this.getEffectiveTerrainType(col, row);
+    }
+
+    /** True if a projectile is stopped at this world position unless a travel modifier traverses it. */
+    isProjectileObstructedAt(worldX: number, worldY: number): boolean {
+        return TERRAIN_PROPERTIES[this.getProjectileTerrainAt(worldX, worldY)].blocksProjectiles;
+    }
+
     getGridSize(): { width: number; height: number; cellSize: number } {
         return { width: this.grid.width, height: this.grid.height, cellSize: this.grid.cellSize };
     }
@@ -302,29 +318,52 @@ export class TerrainManager {
         });
 
         const selected = candidates[0]!;
-        const previousHealth = this.implicitRockHealth(selected.col, selected.row);
-        const floor = this.terrainLayers.ensureFloorFromBedrock(selected.col, selected.row, this.grid);
-        const maxHealth = floor.destructible?.maxHealth ?? EARTH_CORE_STONE_HEALTH;
-        const previousTerrainType = getEffectiveTerrain(floor, this.grid.get(selected.col, selected.row));
+        return this.destroyRock(selected.col, selected.row, sourceUnitId);
+    }
+
+    /** True when (col, row) is inside the grid. Out-of-bounds cells read as Rock from `grid.get`, so check first. */
+    isInBounds(col: number, row: number): boolean {
+        return col >= 0 && row >= 0 && col < this.grid.width && row < this.grid.height;
+    }
+
+    /** True when (col, row) is in bounds and its effective terrain is intact rock (see `isIntactRock`). */
+    isIntactRockAt(col: number, row: number): boolean {
+        if (!this.isInBounds(col, row)) return false;
+        return isIntactRock(this.getEffectiveTerrainType(col, row), this.getFloorTile(col, row)?.destructible);
+    }
+
+    /**
+     * Destroy one intact rock tile (bedrock or player-made) and leave Rubble behind. Emits the same
+     * stone-damaged transition a destroying `damageRock` emits (health 0, tier DAMAGE_TIER_NONE).
+     * Returns null when the tile is not intact rock, so callers can treat it as a no-op.
+     */
+    destroyRock(col: number, row: number, sourceUnitId?: string | null): TerrainStoneDamagedTransition | null {
+        if (!this.terrainLayers) return null;
+        if (!this.isIntactRockAt(col, row)) return null;
+
+        const previousFloor = this.getFloorTile(col, row);
+        const previousHealth = this.implicitRockHealth(col, row);
+        const maxHealth = previousFloor?.destructible?.maxHealth ?? EARTH_CORE_STONE_HEALTH;
+        const previousTerrainType = this.getEffectiveTerrainType(col, row);
 
         if (sourceUnitId !== undefined) {
             this.lastRockDamageSourceUnitId = sourceUnitId;
         }
 
-        this.terrainLayers.setFloorTile(selected.col, selected.row, { terrainType: TerrainType.Rubble });
+        this.terrainLayers.setFloorTile(col, row, { terrainType: TerrainType.Rubble });
 
-        // Bump navEpoch and mark dirty when rock is consumed (destroyed).
-        this.notifyNavChanged(selected.col, selected.row);
+        // Destroyed rock changes effective passability, so bump navEpoch and mark the cell dirty.
+        this.notifyNavChanged(col, row);
 
         return this.emitStoneDamaged({
-            col: selected.col,
-            row: selected.row,
+            col,
+            row,
             previousHealth,
             health: 0,
             maxHealth,
             previousTerrainType,
             terrainType: TerrainType.Rubble,
-            tier: 3,
+            tier: DAMAGE_TIER_NONE,
             sourceUnitId: sourceUnitId ?? this.lastRockDamageSourceUnitId,
         });
     }

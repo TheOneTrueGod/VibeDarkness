@@ -8,6 +8,7 @@ import { AbilityEventType } from '../../abilities/Ability';
 import type { AbilityRecoveryRule } from '../../abilities/Ability';
 import { defineDirectionalShield } from '../../abilities/archetypes/defineDirectionalShield';
 import { spawnBrightLight, type EngineWithLight } from '../../abilities/brightKeyword';
+import type { EngineContext } from '../../game/EngineContext';
 import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { getDirectionFromTo, pointInCone } from '../../abilities/targetHelpers';
@@ -100,7 +101,7 @@ function executeShiningBlockRetaliation(engine: unknown, defender: Unit, aimPos:
         unit.takeDamage(modifiedDamage, defender.id, eng.eventBus);
         const stunResult = tryApplyHardCcStun(unit, STUN_DURATION, eng.gameTime, eng.roundNumber, eng.eventBus);
         if (stunResult.outcome === 'applied') {
-            unit.interruptAllAbilities(eng);
+            unit.interruptAllAbilities(engine as EngineContext);
         }
     }
 

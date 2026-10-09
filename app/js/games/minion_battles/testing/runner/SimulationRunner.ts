@@ -4,6 +4,19 @@ import type { ScenarioDefinition } from '../types';
 const FIXED_STEP_SEC = 1 / 60;
 
 /**
+ * Answers a parallel-order pause by submitting a wait (end turn) for every waiter, then resumes.
+ * Use it in tests that step the engine by hand once no unit is mid-cast and it waits for orders.
+ */
+export function resolveParallelOrderPause(engine: GameEngine): void {
+    const batch = engine.waitingForOrders;
+    if (!batch) return;
+    for (const waiter of batch.waiters) {
+        engine.state.orderMgr.applyOrder({ unitId: waiter.unitId, abilityId: 'wait', targets: [], endTurn: true });
+    }
+    engine.tryResumeParallel();
+}
+
+/**
  * Headless scenarios: when the engine pauses for parallel orders, resolve waiters so the
  * sim can continue. Conditional-cancel pauses use the scenario hook (or auto-wait);
  * ordinary pauses auto-submit wait+endTurn (move-only / AI scenarios are not order-UI tests).

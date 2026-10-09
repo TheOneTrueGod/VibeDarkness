@@ -1,7 +1,16 @@
 import { MISSION_REWARD_REQUIREMENT, PassiveStatKey, type ResearchTreeDef } from '../types';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 import { RESEARCH_TREE_COLOUR_EARTH, RESEARCH_TREE_ICON_EARTH } from '../researchTreeChrome';
-import { EARTH_CORE_MISSION_START_ROCK_AMOUNT } from '../../games/minion_battles/card_defs/05_earth_core/earthCoreConstants';
+import {
+    EARTH_CORE_MISSION_START_ROCK_AMOUNT,
+    ROCK_SLIDE_DAMAGE,
+    ROCK_SLIDE_MAX_DAMAGE_TARGETS,
+    ROCK_SLIDE_ROCK_MAX_TILE_OFFSET,
+    ROCK_SLIDE_TRAVEL_TILES,
+    STONE_TOMB_STAGE1_DAMAGE,
+    STONE_TOMB_STAGE2_DAMAGE,
+    STONE_TOMB_STAGE_GAP,
+} from '../../games/minion_battles/card_defs/05_earth_core/earthCoreConstants';
 
 export const EARTH_TREE_ID = 'earth';
 export const EARTH_NODE_EARTH_CORE = 'earth_core';
@@ -252,7 +261,7 @@ export const earthTree: ResearchTreeDef = {
         {
             id: EARTH_NODE_STONE_TOMB,
             title: 'Stone Tomb',
-            description: 'Mark a plus of 5 tiles. Enemies in the centre take {10} damage and are knocked back as a rock rises; 0.25s later all marked tiles deal {6} damage and fill with rock.',
+            description: `Mark a plus of 5 tiles. Enemies in the centre take {${STONE_TOMB_STAGE1_DAMAGE}} damage and are knocked back as a rock rises; ${STONE_TOMB_STAGE_GAP}s later all marked tiles deal {${STONE_TOMB_STAGE2_DAMAGE}} damage and fill with rock.`,
             flavorText: 'The ground closes like a fist.',
             order: 13,
             tier: 12,
@@ -271,7 +280,7 @@ export const earthTree: ResearchTreeDef = {
         {
             id: EARTH_NODE_ROCK_SLIDE,
             title: 'Rock Slide',
-            description: 'Rip up a rock within 2 tiles and punch it down a straight line. It flies up to 10 tiles, dealing {12} damage to the first 5 enemies and knocking every enemy aside, then lands as a new rock.',
+            description: `Rip up a rock within ${ROCK_SLIDE_ROCK_MAX_TILE_OFFSET} tiles and punch it down a straight line. It flies up to ${ROCK_SLIDE_TRAVEL_TILES} tiles, dealing {${ROCK_SLIDE_DAMAGE}} damage to the first ${ROCK_SLIDE_MAX_DAMAGE_TARGETS} enemies and knocking every enemy aside, then lands as a new rock.`,
             flavorText: 'Why climb the mountain when it will come to you?',
             order: 14,
             tier: 13,

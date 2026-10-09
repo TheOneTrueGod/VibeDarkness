@@ -4,8 +4,21 @@ import { StoneTomb } from './0530Ability';
 import { Unit } from '../../../game/units/Unit';
 import { EventBus } from '../../../game/EventBus';
 import type { ResolvedTarget } from '../../../game/types';
-import { plusTileAreaPerimeter, getPlusTileAreaCells } from '../../../abilities/tileAreaHelpers';
-import { STONE_TOMB_STAGE1_DAMAGE, STONE_TOMB_STAGE2_DAMAGE } from '../earthCoreConstants';
+import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
+import type { CastBehaviourTickContext } from '../../../abilities/castBehaviourTypes';
+import {
+    getEffectiveCastBehaviours,
+    isAbilityTimingInterval,
+    type AbilityTimingInterval,
+} from '../../../abilities/abilityTimings';
+import { getTileAreaEdges } from '../../../abilities/tileAreaHelpers';
+import { tileAreaHitbox, tileShapes } from '../../../hitboxes/TileAreaHitboxSpec';
+import {
+    STONE_TOMB_STAGE1_DAMAGE,
+    STONE_TOMB_STAGE2_DAMAGE,
+    STONE_TOMB_STAGE1_TIME,
+    STONE_TOMB_AIM_END,
+} from '../earthCoreConstants';
 
 const CELL = 40;
 const center = (col: number, row: number) => ({ x: col * CELL + CELL / 2, y: row * CELL + CELL / 2 });
@@ -31,7 +44,7 @@ function setup(units: Unit[]) {
         getUnit: (id: string) => units.find((u) => u.id === id),
         addEffect: () => {},
         terrainManager: { createOrMarkRock },
-    };
+    } as unknown as AbilityEngineContext;
     return { engine, createOrMarkRock };
 }
 
@@ -39,10 +52,58 @@ const target = (col: number, row: number): ResolvedTarget[] => [
     { type: 'pixel', position: center(col, row) } as ResolvedTarget,
 ];
 
+function intervalById(id: string): AbilityTimingInterval {
+    const found = StoneTomb.abilityTimings.find(
+        (e): e is AbilityTimingInterval => isAbilityTimingInterval(e) && e.id === id,
+    );
+    if (!found) throw new Error(`Stone Tomb has no interval "${id}"`);
+    return found;
+}
+
+/** Runs an interval's cast behaviours on its first tick, as the engine does when the window is entered. */
+function enterInterval(id: string, engine: AbilityEngineContext, caster: Unit, targets: ResolvedTarget[]): void {
+    for (const entry of getEffectiveCastBehaviours(intervalById(id)) ?? []) {
+        const ctx: CastBehaviourTickContext = {
+            caster,
+            abilityId: '0530',
+            target: targets[0],
+            allTargets: targets,
+            castPayload: {},
+            behaviourPayload: undefined,
+            setBehaviourPayload: () => {},
+            engine,
+            windowProgress: 0,
+            prevWindowProgress: 0,
+            isFirstTick: true,
+            isLastTick: false,
+        };
+        entry.behaviour.onTick?.(ctx);
+    }
+}
+
 describe('Stone Tomb (0530)', () => {
-    it('plus geometry: 5 cells and a 12-vertex perimeter', () => {
-        expect(getPlusTileAreaCells({ col: 5, row: 5 })).toHaveLength(5);
-        expect(plusTileAreaPerimeter({ col: 5, row: 5 })).toHaveLength(12);
+    it('plus geometry: 5 cells and a 12-edge perimeter', () => {
+        const plus = tileAreaHitbox({
+            anchor: { kind: 'chebyshev', maxTileOffset: 4 },
+            shape: tileShapes.plus(),
+            castRange: 220,
+        });
+        const cells = plus.cellsAround({ col: 5, row: 5 });
+        expect(cells).toHaveLength(5);
+        expect(cells[0]).toEqual({ col: 5, row: 5 });
+        expect(getTileAreaEdges(cells).outer).toHaveLength(12);
+    });
+
+    it('the tomb select is gated at the windup end and stage 1 waits for its pick', () => {
+        const pick = intervalById('pickTomb');
+        expect(pick.start).toBe(STONE_TOMB_STAGE1_TIME);
+        expect(pick.end).toBe(STONE_TOMB_AIM_END);
+        expect(pick.targetDef).toMatchObject({ kind: 'select', label: 'Tomb location' });
+        expect(getEffectiveCastBehaviours(pick)).toBeUndefined();
+
+        const stage1 = intervalById('stage1');
+        expect(stage1.start).toBe(STONE_TOMB_AIM_END);
+        expect(stage1.targetDef).toEqual({ kind: 'hit', labels: ['Tomb location'] });
     });
 
     it('stage 1 damages only centre-tile enemies and raises only the centre rock', () => {
@@ -50,7 +111,7 @@ describe('Stone Tomb (0530)', () => {
         const inCenter = makeUnit('a', 'enemy', 5, 5);
         const inArm = makeUnit('b', 'enemy', 6, 5);
         const { engine, createOrMarkRock } = setup([caster, inCenter, inArm]);
-        StoneTomb.doCardEffect!(engine, caster, target(5, 5), 0.49, 0.5);
+        enterInterval('stage1', engine, caster, target(5, 5));
         expect(inCenter.hp).toBe(100 - STONE_TOMB_STAGE1_DAMAGE);
         expect(inArm.hp).toBe(100);
         expect(createOrMarkRock).toHaveBeenCalledTimes(1);
@@ -64,7 +125,7 @@ describe('Stone Tomb (0530)', () => {
         enemy.x += 10;
         ally.x -= 10;
         const { engine } = setup([caster, ally, enemy]);
-        StoneTomb.doCardEffect!(engine, caster, target(5, 5), 0.49, 0.5);
+        enterInterval('stage1', engine, caster, target(5, 5));
         expect(ally.hp).toBe(100);
         expect(ally.knockback).not.toBeNull();
         expect(enemy.hp).toBe(100 - STONE_TOMB_STAGE1_DAMAGE);
@@ -76,7 +137,7 @@ describe('Stone Tomb (0530)', () => {
         const inArm = makeUnit('b', 'enemy', 6, 5);
         const outside = makeUnit('d', 'enemy', 6, 6);
         const { engine, createOrMarkRock } = setup([caster, inCenter, inArm, outside]);
-        StoneTomb.doCardEffect!(engine, caster, target(5, 5), 0.74, 0.75);
+        enterInterval('stage2', engine, caster, target(5, 5));
         expect(inCenter.hp).toBe(100 - STONE_TOMB_STAGE2_DAMAGE);
         expect(inArm.hp).toBe(100 - STONE_TOMB_STAGE2_DAMAGE);
         expect(outside.hp).toBe(100);
@@ -84,19 +145,10 @@ describe('Stone Tomb (0530)', () => {
         expect(cells).toEqual(['4,5', '5,4', '5,6', '6,5']);
     });
 
-    it('does nothing between stages', () => {
-        const caster = makeUnit('c', 'player', 5, 9);
-        const enemy = makeUnit('a', 'enemy', 5, 5);
-        const { engine, createOrMarkRock } = setup([caster, enemy]);
-        StoneTomb.doCardEffect!(engine, caster, target(5, 5), 0.5, 0.6);
-        expect(enemy.hp).toBe(100);
-        expect(createOrMarkRock).not.toHaveBeenCalled();
-    });
-
     it('clamps an out-of-range pick to 4 tiles from the caster', () => {
         const caster = makeUnit('c', 'player', 5, 9);
         const { engine, createOrMarkRock } = setup([caster]);
-        StoneTomb.doCardEffect!(engine, caster, target(5, 0), 0.49, 0.5);
+        enterInterval('stage1', engine, caster, target(5, 0));
         expect(createOrMarkRock).toHaveBeenCalledWith(5, 5);
     });
 });

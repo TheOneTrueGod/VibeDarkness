@@ -234,6 +234,23 @@ export function applyAIMovementToUnit(unit: Unit, targetUnit: Unit, context: AIC
 }
 
 /**
+ * Engine view handed to `buildAiSelectTargets`: the unit lookup, plus the terrain that
+ * `SelectTargetDef.validatePick` reads. AI contexts provide the real TerrainManager at runtime.
+ */
+function aiSelectEngine(context: AIContext): { getUnit(id: string): Unit | undefined; terrainManager: unknown } {
+    return { getUnit: context.getUnit, terrainManager: context.terrainManager };
+}
+
+/**
+ * True when the AI's select picks for `ability` against `target` all pass `validatePick`. Abilities
+ * without select steps are always usable. A rejected plan is not a candidate, so the AI can use a
+ * different ability instead.
+ */
+function aiSelectPlanIsUsable(unit: Unit, ability: AbilityStatic, target: Unit, context: AIContext): boolean {
+    return buildAiSelectTargets(unit, ability, target, aiSelectEngine(context)).valid;
+}
+
+/**
  * Pick the best ability to use from unit.abilities based on AISettings (priority, range).
  * Returns { ability, target } or null if no valid ability.
  *
@@ -269,19 +286,19 @@ export function pickBestAbility(
         if (ability.targets.length === 0) {
             if (ai?.enforceRangeWhenUntargeted) {
                 const validTarget = findAIAbilityTarget(unit, ability, enemyPool, randomInt);
-                if (validTarget) {
+                if (validTarget && aiSelectPlanIsUsable(unit, ability, validTarget, context)) {
                     candidates.push({ ability, target: validTarget, priority: ai?.priority ?? 0 });
                 }
                 continue;
             }
-            if (enemyPool.length > 0) {
+            if (enemyPool.length > 0 && aiSelectPlanIsUsable(unit, ability, enemyPool[0]!, context)) {
                 candidates.push({ ability, target: enemyPool[0]!, priority: ai?.priority ?? 0 });
             }
             continue;
         }
 
         const validTarget = findAIAbilityTarget(unit, ability, enemyPool, randomInt);
-        if (validTarget) {
+        if (validTarget && aiSelectPlanIsUsable(unit, ability, validTarget, context)) {
             candidates.push({ ability, target: validTarget, priority: ai?.priority ?? 0 });
         }
     }
@@ -334,7 +351,9 @@ export function tryQueueAbilityOrder(
     let resolvedTargets: ResolvedTarget[];
     let targetsByLabel: Record<string, ResolvedTarget> | undefined;
     if (selectDefs.length > 0) {
-        const built = buildAiSelectTargets(unit, ability, target, { getUnit: context.getUnit });
+        const built = buildAiSelectTargets(unit, ability, target, aiSelectEngine(context));
+        // pickBestAbility filters rejected plans already; this guards any other caller.
+        if (!built.valid) return false;
         resolvedTargets = built.targets;
         targetsByLabel = built.targetsByLabel;
     } else {

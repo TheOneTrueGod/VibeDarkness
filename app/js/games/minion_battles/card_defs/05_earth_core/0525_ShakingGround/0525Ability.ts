@@ -5,7 +5,7 @@ import type { ResolvedTarget } from '../../../game/types';
 import { type CardDef } from '../../types';
 import { SHAKING_GROUND_ABILITY_ID } from '../../../abilities/earthCoreMeleePassives';
 import { damageEnemiesInCircle } from '../../../abilities/targetHelpers';
-import type { EventBus } from '../../../game/EventBus';
+import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 
@@ -24,16 +24,6 @@ const TIMINGS: AbilityTimingInterval[] = [
     { id: 'quake', start: 0.35, end: 0.45, abilityPhase: AbilityPhase.Active, doNotRefund: true },
     { id: 'recover', start: 0.45, end: 1.5, abilityPhase: AbilityPhase.Cooldown },
 ];
-
-interface EngineLike {
-    units: Unit[];
-    gameTime: number;
-    eventBus: EventBus;
-    terrainManager?: {
-        grid: { worldToGrid(x: number, y: number): { col: number; row: number } };
-        damageRock(col: number, row: number, damage?: number, sourceUnitId?: string | null): unknown;
-    } | null;
-}
 
 export const ShakingGroundAbility: AbilityStatic = {
     id: SHAKING_GROUND_ABILITY_ID,
@@ -57,7 +47,7 @@ export const ShakingGroundAbility: AbilityStatic = {
     },
     doCardEffect(engine: unknown, caster: Unit, _targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
         if (!(prevTime < 0.35 && currentTime >= 0.35)) return;
-        const eng = engine as EngineLike;
+        const eng = engine as AbilityEngineContext;
         damageEnemiesInCircle({
             engine: eng,
             caster,

@@ -93,7 +93,7 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 	readonly forbiddenTags?: readonly UnitTag[];
 	readonly maxUses: number;
 	readonly recoveries?: readonly AbilityRecoveryRule[];
-	readonly skipToCooldownOnInterrupt = true;
+	readonly interruptPolicy = { beforeCooldown: 'skipToCooldown' as const };
 
 	private readonly config: MultiChargeAttackConfig;
 	private readonly dashPhases: DashPhase[];

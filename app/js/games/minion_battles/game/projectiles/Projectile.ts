@@ -15,19 +15,100 @@ import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../../a
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { AbilityEventType } from '../../abilities/Ability';
 import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
-import { applyBleedStack } from '../../buffs/bleedRuntime';
 import { triggerAbilityEventFromAttack, triggerAbilityEventFromProjectileExpiry } from '../../abilities/events';
-import { applyDirectionalKnockback, knockbackCtxFromEngine } from '../../crowdControl/knockbackKeywords';
+import {
+    applyDirectionalKnockback,
+    knockbackCtxFromEngine,
+    resolveHitKnockbackDirection,
+    type KnockbackDirectionStrategy,
+} from '../../crowdControl/knockbackKeywords';
 import { TerrainType } from '../../terrain/TerrainType';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import type { ProjectileModifierId } from './ProjectileTravelModifiers';
-import { shouldCountTraversalDistance } from './ProjectileTravelModifiers';
+import { isTraversableByModifiers, shouldCountTraversalDistance } from './ProjectileTravelModifiers';
 import type { SpriteProjectileConfig } from './projectile_defs';
 import type { VisualEffectDef } from '../effects/visualEffectDef';
 import type { EngineContext } from '../EngineContext';
 import { applyVisualEffectDefs } from '../effects/applyVisualEffectDefs';
+import { MAX_HELD_PROJECTILE_SECONDS } from '../gameConstants';
 
-const THROW_KNIFE_ABILITY_ID = 'throw_knife';
+/** Identifies the cast that is holding a projectile before launch. */
+export interface ProjectileHolder {
+    unitId: string;
+    abilityId: string;
+}
+
+/**
+ * What happens to a projectile once it has used up its damaging hits.
+ * - `stop`: deactivates on the hit that uses the last damaging hit.
+ * - `passThrough`: keeps flying, no longer collides with anything, until max distance.
+ * - `knockbackOnly`: keeps flying, and knocks back (no damage) every further unit it overlaps.
+ */
+export type ProjectileOverflowPolicy = 'stop' | 'passThrough' | 'knockbackOnly';
+
+/** How a projectile hits: how many units take damage, what happens after, and the hit knockback. */
+export interface ProjectileHitPolicy {
+    /** Units that take damage before overflow applies. */
+    damagingHits: number;
+    overflow: ProjectileOverflowPolicy;
+    /** Knockback applied to every unit the projectile hits (damaging or overflow). */
+    knockback?: { tier: number; direction: KnockbackDirectionStrategy };
+}
+
+/** Legacy constructor options that `hitPolicy` replaces. See `hitPolicyFromLegacyOptions`. */
+export interface LegacyProjectileHitOptions {
+    /** Maps to `damagingHits = pierce + 1`. */
+    pierce?: number;
+    /** Maps to `overflow: 'passThrough'` (when `knockbackBeyondMaxHits` is not set). */
+    continueAfterMaxHits?: boolean;
+    /** Maps to `overflow: 'knockbackOnly'`. Overrides `continueAfterMaxHits`. */
+    knockbackBeyondMaxHits?: boolean;
+    /** Maps to `knockback.tier`. Ignored when 0 or unset (no knockback). */
+    knockbackTier?: number;
+    /** Maps to `knockback.direction`: 'side45' becomes `sideOfTravel` at 45 degrees; 'forward' is `travel`. */
+    knockbackMode?: 'forward' | 'side45';
+}
+
+/**
+ * Deprecated mapping from the old boolean/number constructor options onto a `ProjectileHitPolicy`.
+ * Every existing projectile keeps its behaviour through this mapping.
+ *
+ * - `damagingHits` = `pierce + 1`.
+ * - `overflow` = `knockbackOnly` if `knockbackBeyondMaxHits`, else `passThrough` if
+ *   `continueAfterMaxHits`, else `stop`.
+ * - `knockback` is set only when `knockbackTier` is truthy. The direction is `sideOfTravel` 45 for
+ *   `knockbackMode: 'side45'`, and `travel` otherwise.
+ */
+export function hitPolicyFromLegacyOptions(options: LegacyProjectileHitOptions): ProjectileHitPolicy {
+    const overflow: ProjectileOverflowPolicy = options.knockbackBeyondMaxHits
+        ? 'knockbackOnly'
+        : options.continueAfterMaxHits
+            ? 'passThrough'
+            : 'stop';
+    const policy: ProjectileHitPolicy = {
+        damagingHits: (options.pierce ?? 0) + 1,
+        overflow,
+    };
+    if (options.knockbackTier) {
+        policy.knockback = {
+            tier: options.knockbackTier,
+            direction: options.knockbackMode === 'side45'
+                ? { kind: 'sideOfTravel', angleDeg: 45 }
+                : { kind: 'travel' },
+        };
+    }
+    return policy;
+}
+
+function cloneHitPolicy(policy: ProjectileHitPolicy): ProjectileHitPolicy {
+    return {
+        damagingHits: policy.damagingHits,
+        overflow: policy.overflow,
+        ...(policy.knockback
+            ? { knockback: { tier: policy.knockback.tier, direction: { ...policy.knockback.direction } } }
+            : {}),
+    };
+}
 
 export class Projectile extends GameObject {
     velocityX: number;
@@ -53,8 +134,6 @@ export class Projectile extends GameObject {
     /** For hitShape 'rect': position at the start of the current tick's movement (set each update()). */
     frameStartX: number;
     frameStartY: number;
-    /** When set, each unit hit is knocked back at this tier in the projectile's direction of travel. */
-    knockbackTier?: number;
     /** Optional visual trail type (e.g. 'bullet'). When set, update() will spawn matching effects as the projectile moves. */
     trailType?: 'bullet';
     /** Projectile look variant — key into the projectile def registry. */
@@ -79,52 +158,36 @@ export class Projectile extends GameObject {
     passThroughEnemies: boolean;
 
     /**
-     * How many targets the projectile passes through before stopping.
-     * 0 = normal (stops on first hit). 1 = pierces 1, stops on 2nd. Etc.
-     * Total hits allowed = pierce + 1.
+     * Damaging hits, overflow behaviour and hit knockback. Serialized as-is. The deprecated
+     * `pierce` / `continueAfterMaxHits` / `knockbackBeyondMaxHits` / `knockbackTier` /
+     * `knockbackMode` constructor options map onto this (see `hitPolicyFromLegacyOptions`).
      */
-    pierce: number;
+    hitPolicy: ProjectileHitPolicy;
 
     /**
      * Unit IDs already hit this flight. Used to prevent re-hitting a unit on
      * consecutive frames while the projectile is still overlapping it.
-     * Not serialized — resets on deserialization (harmless mid-flight).
+     * Serialized (as an array) so a checkpoint restored mid-flight does not re-hit units.
      */
     readonly hitUnitIds: Set<string> = new Set();
+
+    /**
+     * Held state: set while the launching cast has not released the projectile yet. A held
+     * projectile does not move, count distance, or collide. `null` once released or cancelled.
+     */
+    heldBy: ProjectileHolder | null;
+
+    /**
+     * Seconds spent held (counts up with game time while `heldBy` is set). Past
+     * `MAX_HELD_PROJECTILE_SECONDS` the projectile is deleted with a warning as an orphan safeguard.
+     */
+    heldTime: number = 0;
 
     /** Optional summons metadata (seed pods). */
     summonSeedWeak?: boolean;
 
-    /**
-     * When true, the projectile keeps flying after using up all its pierce hits instead of
-     * deactivating — it simply stops colliding with anything further. Only meant for abilities
-     * whose visual is expected to keep animating out to `maxDistance` regardless of how many
-     * targets it actually hit (e.g. Burst's blood wave); defaults to the normal stop-on-max-hits
-     * behavior for every other projectile.
-     */
-    continueAfterMaxHits: boolean;
-
-    /**
-     * When true the projectile stops at the last passable position before impassable terrain
-     * (walls, rock, map edge) and expires there, instead of flying through it.
-     */
-    stopAtImpassable: boolean;
-
-    /**
-     * Direction of per-hit knockback. 'forward' (default) pushes along the direction of travel.
-     * 'side45' pushes 45 degrees away from the travel direction, toward whichever side of the
-     * projectile the victim is on (exactly centred victims go to the projectile's left).
-     */
-    knockbackMode: 'forward' | 'side45';
-
-    /**
-     * When true, enemies the projectile overlaps after it has spent all its damaging hits
-     * (`pierce + 1`) still receive knockback, but no damage. Pair with `continueAfterMaxHits`.
-     */
-    knockbackBeyondMaxHits: boolean;
-
-    /** Unit IDs that got a knockback-only hit this flight (not serialized, like `hitUnitIds`). */
-    private readonly knockbackOnlyUnitIds: Set<string> = new Set();
+    /** Unit IDs that got a knockback-only hit this flight (overflow `knockbackOnly`). Serialized like `hitUnitIds`. */
+    readonly knockbackOnlyUnitIds: Set<string> = new Set();
 
     constructor(config: {
         id?: string;
@@ -149,11 +212,18 @@ export class Projectile extends GameObject {
         hitShape?: 'circle' | 'rect';
         rectStartWidth?: number;
         rectEndWidth?: number;
+        /** Damage/overflow/knockback policy. When set, the legacy hit options below are ignored. */
+        hitPolicy?: ProjectileHitPolicy;
+        /** @deprecated Use `hitPolicy`. Still accepted; see `hitPolicyFromLegacyOptions`. */
         knockbackTier?: number;
+        /** @deprecated Use `hitPolicy.overflow: 'passThrough'`. */
         continueAfterMaxHits?: boolean;
-        stopAtImpassable?: boolean;
+        /** @deprecated Use `hitPolicy.knockback.direction`. */
         knockbackMode?: 'forward' | 'side45';
+        /** @deprecated Use `hitPolicy.overflow: 'knockbackOnly'`. */
         knockbackBeyondMaxHits?: boolean;
+        /** Start held by a cast (not moving or colliding) until `release()` or `cancelHeld()`. */
+        heldBy?: ProjectileHolder;
     }) {
         super(config.id ?? generateGameObjectId('proj'), config.x, config.y);
         this.velocityX = config.velocityX;
@@ -168,24 +238,51 @@ export class Projectile extends GameObject {
         this.arcHeight = config.arcHeight;
         this.rotationSpeed = config.rotationSpeed;
         this.spriteConfig = config.spriteConfig;
-        this.modifiers = config.modifiers ?? [];
+        this.modifiers = [...(config.modifiers ?? [])];
         this.passThroughEnemies = config.passThroughEnemies ?? false;
-        this.pierce = config.pierce ?? 0;
         this.summonSeedWeak = config.summonSeedWeak;
         this.hitShape = config.hitShape ?? 'circle';
         this.rectStartWidth = config.rectStartWidth;
         this.rectEndWidth = config.rectEndWidth;
-        this.knockbackTier = config.knockbackTier;
-        this.continueAfterMaxHits = config.continueAfterMaxHits ?? false;
-        this.stopAtImpassable = config.stopAtImpassable ?? false;
-        this.knockbackMode = config.knockbackMode ?? 'forward';
-        this.knockbackBeyondMaxHits = config.knockbackBeyondMaxHits ?? false;
+        this.hitPolicy = cloneHitPolicy(config.hitPolicy ?? hitPolicyFromLegacyOptions(config));
+        this.heldBy = config.heldBy ? { unitId: config.heldBy.unitId, abilityId: config.heldBy.abilityId } : null;
         this.frameStartX = config.x;
         this.frameStartY = config.y;
     }
 
+    /** True while the launching cast still holds this projectile (before release). */
+    get isHeld(): boolean {
+        return this.heldBy !== null;
+    }
+
+    /**
+     * Launch a held projectile with the given velocity. It moves and collides from the next
+     * `update()` / `checkCollision()`. No-op when the projectile is not held.
+     */
+    release(velocityX: number, velocityY: number): void {
+        if (!this.heldBy) return;
+        this.heldBy = null;
+        this.velocityX = velocityX;
+        this.velocityY = velocityY;
+    }
+
+    /**
+     * Remove a held projectile without any expire effect or `onProjectileExpired` (the cast's
+     * interrupt handler is responsible for any replacement, such as a rock). No-op when not held.
+     */
+    cancelHeld(): void {
+        if (!this.heldBy) return;
+        this.heldBy = null;
+        this.active = false;
+    }
+
     update(dt: number, engine: unknown): void {
         if (!this.active) return;
+
+        if (this.heldBy) {
+            this.updateHeld(dt, engine);
+            return;
+        }
 
         const prevX = this.x;
         const prevY = this.y;
@@ -200,15 +297,18 @@ export class Projectile extends GameObject {
             this.rotation = (this.rotation + this.rotationSpeed * dt) % 360;
         }
         const terrainManager = (engine as { terrainManager?: TerrainManager | null })?.terrainManager ?? null;
-        if (this.stopAtImpassable && terrainManager && (moveX !== 0 || moveY !== 0)
-            && !terrainManager.isPassable(this.x, this.y)) {
-            // Hit a wall: rest at the centre of the last passable tile we were in.
-            const cell = terrainManager.getGridSize().cellSize;
-            this.x = (Math.floor(prevX / cell) + 0.5) * cell;
-            this.y = (Math.floor(prevY / cell) + 0.5) * cell;
-            this.triggerExpireEffect(engine);
-            this.active = false;
-            return;
+        if (terrainManager && this.modifiers.includes('stopsAtWalls') && (moveX !== 0 || moveY !== 0)) {
+            const stop = this.findWallStop(prevX, prevY, this.x, this.y, terrainManager);
+            if (stop) {
+                // Stops at the last sample before the obstruction: the resting position is
+                // decided by the ability's onProjectileExpired, not snapped here.
+                this.x = stop.x;
+                this.y = stop.y;
+                this.distanceTraveled += this.calculateDistanceContribution(prevX, prevY, stop.x, stop.y, terrainManager);
+                this.triggerExpireEffect(engine);
+                this.active = false;
+                return;
+            }
         }
         this.distanceTraveled += this.calculateDistanceContribution(prevX, prevY, this.x, this.y, terrainManager);
 
@@ -239,23 +339,105 @@ export class Projectile extends GameObject {
     }
 
     /**
+     * For `stopsAtWalls`: sample the swept segment from `from` to `to` one pixel at a time (so no
+     * wall is skipped, however fast the projectile moves). Returns the last sample before the first
+     * sample that is obstructed and not traversed by another modifier, or null if the segment is
+     * clear. Stonephase therefore flies through rock, and stops at the first obstruction it does
+     * not cover.
+     */
+    private findWallStop(
+        fromX: number,
+        fromY: number,
+        toX: number,
+        toY: number,
+        terrainManager: TerrainManager,
+    ): { x: number; y: number } | null {
+        const dx = toX - fromX;
+        const dy = toY - fromY;
+        const totalDistance = Math.sqrt(dx * dx + dy * dy);
+        if (totalDistance === 0) return null;
+
+        const steps = Math.max(1, Math.ceil(totalDistance));
+        let prevSampleX = fromX;
+        let prevSampleY = fromY;
+        for (let i = 1; i <= steps; i++) {
+            const t = i / steps;
+            const sampleX = fromX + dx * t;
+            const sampleY = fromY + dy * t;
+            if (terrainManager.isProjectileObstructedAt(sampleX, sampleY)) {
+                const terrainType = terrainManager.getProjectileTerrainAt(sampleX, sampleY);
+                if (!isTraversableByModifiers(terrainType, this.modifiers)) {
+                    return { x: prevSampleX, y: prevSampleY };
+                }
+            }
+            prevSampleX = sampleX;
+            prevSampleY = sampleY;
+        }
+        return null;
+    }
+
+    /** Held tick: no movement, no distance, no trail. Deletes the projectile past the orphan limit. */
+    private updateHeld(dt: number, engine: unknown): void {
+        this.frameStartX = this.x;
+        this.frameStartY = this.y;
+        this.heldTime += dt;
+        if (this.heldTime <= MAX_HELD_PROJECTILE_SECONDS) return;
+        this.warnOrphaned(engine);
+        this.heldBy = null;
+        this.active = false;
+    }
+
+    /** Logs the diagnostics needed to find the cast that lost its held projectile. */
+    private warnOrphaned(engine: unknown): void {
+        const holder = this.heldBy;
+        if (!holder) return;
+        const eng = engine as {
+            gameTick?: number;
+            gameTime?: number;
+            getUnit?: (id: string) => Unit | undefined;
+        } | null | undefined;
+        const holderUnit = eng?.getUnit?.(holder.unitId);
+        console.warn(
+            `[Projectile] held projectile orphaned: projectile=${this.id} heldBy=${holder.unitId}/${holder.abilityId} heldTime=${this.heldTime.toFixed(2)}s`,
+            {
+                projectileId: this.id,
+                projectileType: this.projectileType,
+                sourceAbilityId: this.sourceAbilityId,
+                sourceUnitId: this.sourceUnitId,
+                heldBy: { ...holder },
+                heldTime: this.heldTime,
+                x: this.x,
+                y: this.y,
+                gameTick: eng?.gameTick,
+                gameTime: eng?.gameTime,
+                holderExists: holderUnit !== undefined,
+                holderAlive: holderUnit?.isAlive() ?? false,
+                holderHasActiveCast: holderUnit?.activeAbilities.some((a) => a.abilityId === holder.abilityId) ?? false,
+            },
+        );
+    }
+
+    /**
      * Check collision against a list of units and deal damage to hit enemies.
      *
-     * For pierce > 0 the projectile passes through `pierce` targets before stopping on the next,
-     * hitting each one. When multiple units overlap the projectile in a single frame, only
-     * `pierce + 1 - already_hit` of them are processed, choosing the closest first.
+     * The projectile damages up to `hitPolicy.damagingHits` units, then applies `hitPolicy.overflow`.
+     * When multiple units overlap the projectile in a single frame, only
+     * `damagingHits - already_hit` of them take damage, choosing the closest first.
      *
      * Units with IFrames or an active block immediately consume the projectile.
      * Returns the last unit hit this frame, or null.
      */
     checkCollision(units: Unit[], eventBus: EventBus, gameTime: number, engine?: unknown): Unit | null {
         if (!this.active) return null;
+        if (this.heldBy) return null;
         if (this.passThroughEnemies) return null;
 
-        const maxHits = this.pierce + 1;
+        const maxHits = this.hitPolicy.damagingHits;
+        const knockbackOverflow = this.hitPolicy.overflow === 'knockbackOnly';
+        const continuesAfterMaxHits = this.hitPolicy.overflow !== 'stop';
         const hitsRemaining = maxHits - this.hitUnitIds.size;
-        if (hitsRemaining <= 0 && !this.knockbackBeyondMaxHits) {
-            if (!this.continueAfterMaxHits) this.active = false;
+        if (hitsRemaining <= 0 && !knockbackOverflow) {
+            if (!continuesAfterMaxHits) this.active = false;
             return null;
         }
 
@@ -307,12 +489,12 @@ export class Projectile extends GameObject {
         const toHit = candidates.slice(0, Math.max(0, hitsRemaining));
         let lastHit: Unit | null = null;
 
-        // Overflow targets: knocked back but not damaged (see `knockbackBeyondMaxHits`).
-        if (this.knockbackBeyondMaxHits && engine) {
+        // Overflow targets: knocked back but not damaged (overflow `knockbackOnly`).
+        if (knockbackOverflow && engine) {
             for (const { unit } of candidates.slice(toHit.length)) {
                 if (unit.hasIFrames(gameTime)) continue;
                 this.knockbackOnlyUnitIds.add(unit.id);
-                this.applyHitKnockback(unit, engine, this.knockbackTier);
+                this.applyHitKnockback(unit, engine);
             }
         }
 
@@ -368,12 +550,8 @@ export class Projectile extends GameObject {
                     primaryTarget: unit,
                 });
             }
-            if (this.sourceAbilityId === THROW_KNIFE_ABILITY_ID && engine) {
-                const e = engine as { gameTime: number; roundNumber: number };
-                applyBleedStack(unit, e.gameTime, e.roundNumber, 5);
-            }
-            if (this.knockbackTier && engine) {
-                this.applyHitKnockback(unit, engine, this.knockbackTier);
+            if (engine) {
+                this.applyHitKnockback(unit, engine);
             }
             eventBus.emit('projectile_hit', {
                 projectileId: this.id,
@@ -385,10 +563,10 @@ export class Projectile extends GameObject {
             lastHit = unit;
         }
 
-        // Deactivate when all pierce hits are spent — unless this projectile is meant to keep
-        // flying past max hits, in which case it stops colliding but its expire effect/visual
+        // Deactivate when all damaging hits are spent — unless the overflow policy keeps the
+        // projectile flying, in which case it stops colliding but its expire effect/visual
         // still waits for the real end of flight (maxDistance, handled in update()).
-        if (this.hitUnitIds.size >= maxHits && !this.continueAfterMaxHits) {
+        if (this.hitUnitIds.size >= maxHits && !continuesAfterMaxHits) {
             if (engine) this.triggerExpireEffect(engine, lastHit?.id);
             this.active = false;
         }
@@ -396,26 +574,21 @@ export class Projectile extends GameObject {
         return lastHit;
     }
 
-    /** Knock `unit` back per `knockbackMode` (travel direction, or 45 degrees off it toward the victim's side). */
-    private applyHitKnockback(unit: Unit, engine: unknown, tier: number | undefined): void {
-        if (!tier) return;
+    /** Knock `unit` back per `hitPolicy.knockback` (no-op when the policy has no knockback). */
+    private applyHitKnockback(unit: Unit, engine: unknown): void {
+        const knockback = this.hitPolicy.knockback;
+        if (!knockback || !knockback.tier) return;
         const travelLen = Math.hypot(this.velocityX, this.velocityY) || 1;
-        const dirX = this.velocityX / travelLen;
-        const dirY = this.velocityY / travelLen;
-        let kx = dirX;
-        let ky = dirY;
-        if (this.knockbackMode === 'side45') {
-            // perp = travel rotated 90 degrees (screen y-down); the victim's side is its sign.
-            const perpX = -dirY;
-            const perpY = dirX;
-            const side = (unit.x - this.x) * perpX + (unit.y - this.y) * perpY >= 0 ? 1 : -1;
-            kx = (dirX + side * perpX) * Math.SQRT1_2;
-            ky = (dirY + side * perpY) * Math.SQRT1_2;
-        }
+        const direction = resolveHitKnockbackDirection(
+            knockback.direction,
+            { x: this.velocityX / travelLen, y: this.velocityY / travelLen },
+            { x: this.x, y: this.y },
+            { x: unit.x, y: unit.y },
+        );
         applyDirectionalKnockback(
             unit,
-            tier,
-            { x: kx, y: ky },
+            knockback.tier,
+            direction,
             { unitId: this.sourceUnitId, abilityId: this.sourceAbilityId },
             knockbackCtxFromEngine(engine as {
                 gameTime: number;
@@ -447,15 +620,14 @@ export class Projectile extends GameObject {
             spriteConfig: this.spriteConfig,
             modifiers: this.modifiers,
             passThroughEnemies: this.passThroughEnemies,
-            pierce: this.pierce,
+            hitPolicy: cloneHitPolicy(this.hitPolicy),
             hitShape: this.hitShape,
             rectStartWidth: this.rectStartWidth,
             rectEndWidth: this.rectEndWidth,
-            knockbackTier: this.knockbackTier,
-            continueAfterMaxHits: this.continueAfterMaxHits,
-            stopAtImpassable: this.stopAtImpassable,
-            knockbackMode: this.knockbackMode,
-            knockbackBeyondMaxHits: this.knockbackBeyondMaxHits,
+            heldBy: this.heldBy ? { ...this.heldBy } : null,
+            heldTime: this.heldTime,
+            hitUnitIds: [...this.hitUnitIds],
+            knockbackOnlyUnitIds: [...this.knockbackOnlyUnitIds],
             ...(this.summonSeedWeak !== undefined ? { summonSeedWeak: this.summonSeedWeak } : {}),
             ...(this.arcHeight !== undefined ? { arcHeight: this.arcHeight } : {}),
             ...(this.rotationSpeed !== undefined ? { rotationSpeed: this.rotationSpeed, rotation: this.rotation } : {}),
@@ -463,6 +635,7 @@ export class Projectile extends GameObject {
     }
 
     static fromJSON(data: Record<string, unknown>): Projectile {
+        const heldBy = data.heldBy as ProjectileHolder | null | undefined;
         const proj = new Projectile({
             id: data.id as string,
             x: data.x as number,
@@ -475,7 +648,18 @@ export class Projectile extends GameObject {
             sourceAbilityId: (data.sourceAbilityId as string) ?? 'throw_knife',
             maxDistance: data.maxDistance as number,
             modifiers: (data.modifiers as ProjectileModifierId[] | undefined) ?? [],
+            heldBy: heldBy ?? undefined,
+            // Saves from before `hitPolicy` carry the legacy fields, which the constructor maps.
+            hitPolicy: (data.hitPolicy as ProjectileHitPolicy | undefined) ?? undefined,
+            pierce: data.pierce as number | undefined,
+            knockbackTier: data.knockbackTier as number | undefined,
+            continueAfterMaxHits: data.continueAfterMaxHits as boolean | undefined,
+            knockbackBeyondMaxHits: data.knockbackBeyondMaxHits as boolean | undefined,
+            knockbackMode: data.knockbackMode as 'forward' | 'side45' | undefined,
         });
+        proj.heldTime = (data.heldTime as number | undefined) ?? 0;
+        for (const id of (data.hitUnitIds as string[] | undefined) ?? []) proj.hitUnitIds.add(id);
+        for (const id of (data.knockbackOnlyUnitIds as string[] | undefined) ?? []) proj.knockbackOnlyUnitIds.add(id);
         proj.active = data.active as boolean;
         proj.distanceTraveled = data.distanceTraveled as number;
         proj.radius = (data.radius as number) ?? 5;
@@ -483,15 +667,9 @@ export class Projectile extends GameObject {
         proj.projectileType = (data.projectileType as string | undefined) ?? 'default';
         proj.spriteConfig = data.spriteConfig as SpriteProjectileConfig | undefined;
         proj.passThroughEnemies = (data.passThroughEnemies as boolean | undefined) ?? false;
-        proj.pierce = (data.pierce as number | undefined) ?? 0;
         proj.hitShape = (data.hitShape as 'circle' | 'rect' | undefined) ?? 'circle';
         proj.rectStartWidth = data.rectStartWidth as number | undefined;
         proj.rectEndWidth = data.rectEndWidth as number | undefined;
-        proj.knockbackTier = data.knockbackTier as number | undefined;
-        proj.continueAfterMaxHits = (data.continueAfterMaxHits as boolean | undefined) ?? false;
-        proj.stopAtImpassable = (data.stopAtImpassable as boolean | undefined) ?? false;
-        proj.knockbackMode = (data.knockbackMode as 'forward' | 'side45' | undefined) ?? 'forward';
-        proj.knockbackBeyondMaxHits = (data.knockbackBeyondMaxHits as boolean | undefined) ?? false;
         if (data.summonSeedWeak !== undefined) proj.summonSeedWeak = data.summonSeedWeak as boolean;
         if (data.arcHeight !== undefined) proj.arcHeight = data.arcHeight as number;
         if (data.rotationSpeed !== undefined) proj.rotationSpeed = data.rotationSpeed as number;

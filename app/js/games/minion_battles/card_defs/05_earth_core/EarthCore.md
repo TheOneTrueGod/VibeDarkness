@@ -28,6 +28,15 @@ Abilities are generally **usable off stone** but **stronger on or through stone*
 | **Armour (Rock / Earth)** | Multiple abilities grant or spend armour; some paths use **per-source caps and diminishing returns** (see below). **Armour break** and **armour lost to damage** feed **Resonance** in some passives. |
 | **Tremor / pulse effects** | Field and pulse skills (e.g. **Anchored Tremor**, **Shaking Ground**) build on the same “stone matters” and shared-radius vocabulary. |
 
+## Abilities on the shared systems
+
+These two were ported off one-off code onto the shared cast pipeline. Timings and numbers live in `earthCoreConstants.ts`. Tests are `0530Ability.test.ts` and `0537Ability.test.ts` beside each ability, and `abilities/validatePick.test.ts`. AbilityTest scenarios are in `testing/scenarios/abilities/earthCoreScenarios.ts`.
+
+- **Stone Tomb (0530)**: a windup, then a gated select for a plus-shaped tile area (`TileAreaHitboxSpec`, chebyshev anchor). Stage 1 is an Instant on entry. It deals damage to enemies in the centre tile, knocks back every unit there (allies undamaged), then raises rock on the centre. The knockback is applied before the rock. A unit standing in the centre is pushed out through the new rock by the knockback escape (see `abilities/AGENTS.md`). Stage 2 is an Instant after a short gap. It deals damage across the plus and raises the four outer rocks. Movement is locked until stage 2.
+- **Rock Slide (0537)**: a select for an intact rock (validated with `TerrainManager.isIntactRockAt`), a windup that shakes the caster, and the rock is destroyed at the end of the windup (`destroyRock`). Then a select for a cardinal direction from a spawn tile next to the caster (validated as a spawn tile). The punch slides the caster, and a held projectile carries the rock. It is released at the end of the punch's launch window and flies with `stopsAtWalls` and a `hitPolicy` with a fixed number of damaging hits, a side knockback on every hit, and knockback-only overflow after the damaging hits run out. On expiry it raises rock on its resting tile. If the cast is interrupted during the punch, the held rock settles on the spawn tile instead. An interrupt that lands during the cooldown ends the cooldown.
+- **Shared terrain helpers**: `TerrainManager` gained `isInBounds`, `isIntactRockAt`, `destroyRock` and a projectile obstruction query (floor layer included). Earth abilities should use these instead of local bounds or rock checks. `getUnitsInTiles` is the tile-area occupancy query. Do not use `CellOccupancyManager` for it.
+- **Stuck units**: the rock raised under a unit is handled by the existing Entombed and wall-unstick systems (`game/units/unitWallUnstick.ts`). Earth abilities do not add their own escape logic.
+
 ## Resources
 
 ### Resonance (`resourceId: 'resonance'`)

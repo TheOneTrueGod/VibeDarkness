@@ -57,6 +57,8 @@ export function applyKnockbackToUnit(
 /**
  * Advance knockback state: apply push (full vector during air, half during slide).
  * When opt-in collision flags are set, emits typed events and may reflect off terrain.
+ * A segment that starts inside a wall ignores terrain, so a knockback can carry a unit out of rock
+ * raised under it; see the wall-escape note in the body.
  */
 export function updateUnitKnockback(
     unit: Unit,
@@ -125,11 +127,19 @@ export function updateUnitKnockback(
     const newX = startX + pushX;
     const newY = startY + pushY;
 
-    if (segmentLength > 0 && !k.passThroughTerrain && (terrainManager || grid)) {
-        const passable: PassableFn = terrainManager
-            ? (x, y) => terrainManager.isPassable(x, y)
-            : (x, y) => grid!.isPassable(x, y);
+    const passable: PassableFn | null = terrainManager
+        ? (x, y) => terrainManager.isPassable(x, y)
+        : grid
+            ? (x, y) => grid.isPassable(x, y)
+            : null;
 
+    // Wall escape: a unit whose segment starts inside a wall (e.g. a rock raised under it this tick)
+    // moves the full segment without terrain collision, as passThroughTerrain does, and the knockback
+    // stays alive. Collision resumes on the first segment that starts on passable ground. If the
+    // knockback ends while the unit is still inside the wall, it stays there and tickWallUnstick takes over.
+    const escapingWall = segmentLength > 0 && !k.passThroughTerrain && passable !== null && !passable(startX, startY);
+
+    if (segmentLength > 0 && !k.passThroughTerrain && passable && !escapingWall) {
         const { distance } = computeForcedDisplacement(
             startX,
             startY,

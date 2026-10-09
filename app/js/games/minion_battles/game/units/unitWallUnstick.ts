@@ -14,14 +14,7 @@ import {
     snapToCardinal,
 } from './slingshotHelpers';
 import { CONTROLLED_SLINGSHOT } from '../gameConstants';
-import { getAbility } from '../../abilities/AbilityRegistry';
-import { refundAbilityCost } from '../../abilities/Ability';
-import {
-    AbilityPhase,
-    getCoveringAbilityPhaseAtElapsed,
-    normalizeAbilityTimingsToIntervals,
-    resolveAbilityTimingEntries,
-} from '../../abilities/abilityTimings';
+import { interruptUnitAbilities } from './unitAbilityLifecycle';
 import { getUnitEffectiveSpeed, isEntombedProtectionActive } from './unitAbilityQueries';
 
 /** Seconds a unit must spend in a wall before being snapped to the nearest passable cell. */
@@ -57,26 +50,10 @@ export function tickWallUnstick(unit: Unit, dt: number, engine: EngineContext): 
     if (CONTROLLED_SLINGSHOT) {
         if (!unit.controlled) {
             unit.controlled = true;
-            // Interrupt active abilities that are not in a cooldown phase.
-            // Cooldown/CoopCooldown are designed to coexist with the slingshot
+            // Interrupt through the shared pipeline (ON_CAST_END + behaviour cleanup + interrupt policy).
+            // Default policy keeps Cooldown/CoopCooldown casts, which coexist with the slingshot
             // (e.g. DiggingClaws waits out the slingshot window during its cooldown).
-            const kept = unit.activeAbilities.filter((active) => {
-                const ability = getAbility(active.abilityId);
-                if (!ability) return false;
-                const elapsed = engine.gameTime - active.startTime;
-                const entries = resolveAbilityTimingEntries(ability, unit, engine);
-                const intervals = normalizeAbilityTimingsToIntervals(entries);
-                const phase = getCoveringAbilityPhaseAtElapsed(elapsed, intervals);
-                if (phase === AbilityPhase.Cooldown || phase === AbilityPhase.CoopCooldown) {
-                    return true;
-                }
-                refundAbilityCost(unit, ability, elapsed);
-                return false;
-            });
-            unit.activeAbilities = kept;
-            if (unit.activeAbilities.length === 0) {
-                unit.clearAbilityNote();
-            }
+            interruptUnitAbilities(unit, engine);
         }
         tickControlledSlingshot(unit, engine);
         return;
@@ -98,8 +75,10 @@ export function tickWallUnstick(unit: Unit, dt: number, engine: EngineContext): 
         if (dir) {
             // Flat punishment damage; return value unused, so no need for the shield/armour breakdown.
             unit.takeDamage(5, null, engine.eventBus);
-            // Snap to nearest passable cell first; knockback starting inside a wall is immediately
-            // cancelled by computeForcedDisplacement (distance = 0 when first step is also in wall).
+            // Snap to the nearest passable cell centre first so the launch arc starts on passable
+            // ground. (A knockback that starts inside a wall would also carry the unit out, since
+            // updateUnitKnockback ignores terrain until the unit is on passable ground, but snapping
+            // keeps the eject arc predictable.)
             unit.x = targetX;
             unit.y = targetY;
             applySlingshotLaunch(

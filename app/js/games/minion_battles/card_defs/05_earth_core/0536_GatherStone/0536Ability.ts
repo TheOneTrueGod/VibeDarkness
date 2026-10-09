@@ -16,18 +16,14 @@ import {
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget, ActiveAbility } from '../../../game/types';
-import type { EventBus } from '../../../game/EventBus';
+import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 import { type CardDef } from '../../types';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { areEnemies } from '../../../game/teams';
-import { squareTileAreaHitbox } from '../../../hitboxes/SquareTileAreaHitboxSpec';
-import {
-    snapSquareTileAreaCenter,
-    getSquareTileAreaCells,
-    squareTileAreaWorldRect,
-    worldToTile,
-    type TileCoord,
-} from '../../../abilities/tileAreaHelpers';
+import { tileAreaHitbox, tileShapes } from '../../../hitboxes/TileAreaHitboxSpec';
+import { getUnitsInTiles, type TileCoord } from '../../../abilities/tileAreaHelpers';
+import { drawTileAreaTelegraph } from '../../../abilities/previewHelpers';
+import { TELEGRAPH_STYLES } from '../../../abilities/telegraphStyles';
 import { EARTH_TREE_ID, EARTH_NODE_GATHER_STONE_RUBBLE_STRIKE } from '../../../../../researchTrees/trees/earth';
 import {
     GATHER_STONE_ROCK_DAMAGE,
@@ -48,13 +44,13 @@ import {
 
 const ABILITY_ID = '0536';
 
-const GATHER_STONE_HITBOX = squareTileAreaHitbox({
-    maxTileOffset: GATHER_STONE_MAX_TILE_OFFSET,
-    areaHalfTiles: GATHER_STONE_AREA_HALF_TILES,
+const GATHER_STONE_HITBOX = tileAreaHitbox({
+    anchor: { kind: 'chebyshev', maxTileOffset: GATHER_STONE_MAX_TILE_OFFSET },
+    shape: tileShapes.square(GATHER_STONE_AREA_HALF_TILES),
     castRange: GATHER_STONE_CAST_RANGE,
+    style: TELEGRAPH_STYLES.earth,
+    gridLines: true,
 });
-
-const PREVIEW_COLOR = 0xb45309;
 
 const GATHER_STONE_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
   <rect x="6" y="6" width="28" height="28" rx="3" fill="#3f2d1a" stroke="#b45309" stroke-width="2"/>
@@ -101,22 +97,6 @@ const TIMINGS: AbilityTimingInterval[] = [
     },
 ];
 
-interface EngineLike {
-    units: Unit[];
-    gameTime: number;
-    eventBus: EventBus;
-    localPlayerId?: string;
-    getPlayerResearchNodes?(playerId: string, treeId: string): string[];
-    addEffect(effect: unknown): void;
-    addEffectEmitter(emitter: unknown): void;
-    terrainManager?: {
-        getEffectiveTerrainType(col: number, row: number): TerrainType;
-        getGridSize(): { width: number; height: number; cellSize: number };
-        damageRock(col: number, row: number, damage?: number, sourceUnitId?: string | null): unknown;
-        grid: { gridToWorld(col: number, row: number): { x: number; y: number } };
-    } | null;
-}
-
 /** Pixel target position from resolved targets (mirrors the local helper in 0532). */
 function getPixelTargetPosition(targets: ResolvedTarget[], index: number = 0): { x: number; y: number } | null {
     const target = targets[index];
@@ -125,30 +105,10 @@ function getPixelTargetPosition(targets: ResolvedTarget[], index: number = 0): {
 }
 
 /** Inline research check (avoids importing abilityModifierHelpers -> AbilityRegistry). */
-function casterHasResearchNode(eng: EngineLike, caster: Unit, nodeId: string): boolean {
+function casterHasResearchNode(eng: AbilityEngineContext, caster: Unit, nodeId: string): boolean {
     const ownerId = caster.ownerId ?? eng.localPlayerId ?? '';
     if (!ownerId || !eng.getPlayerResearchNodes) return false;
     return eng.getPlayerResearchNodes(ownerId, EARTH_TREE_ID).includes(nodeId);
-}
-
-function drawAreaSquare(
-    gr: IAbilityPreviewGraphics,
-    center: TileCoord,
-    fillAlpha: number,
-    strokeAlpha: number,
-): void {
-    const rect = squareTileAreaWorldRect(center, GATHER_STONE_AREA_HALF_TILES);
-    const outline = (): void => {
-        gr.moveTo(rect.minX, rect.minY);
-        gr.lineTo(rect.maxX, rect.minY);
-        gr.lineTo(rect.maxX, rect.maxY);
-        gr.lineTo(rect.minX, rect.maxY);
-        gr.lineTo(rect.minX, rect.minY);
-    };
-    outline();
-    gr.fill({ color: PREVIEW_COLOR, alpha: fillAlpha });
-    outline();
-    gr.stroke({ color: PREVIEW_COLOR, width: 2, alpha: strokeAlpha });
 }
 
 export const GatherStoneAbility_0536: AbilityStatic = {
@@ -182,32 +142,27 @@ export const GatherStoneAbility_0536: AbilityStatic = {
     },
 
     beginActiveCast(engine: unknown, caster: Unit): void {
-        spawnGatherStonePullRing(engine as EngineLike, caster);
+        spawnGatherStonePullRing(engine as AbilityEngineContext, caster);
     },
 
     doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
         if (!(prevTime < GATHER_STONE_PREFIRE && currentTime >= GATHER_STONE_PREFIRE)) return;
-        const eng = engine as EngineLike;
+        const eng = engine as AbilityEngineContext;
         const tm = eng.terrainManager;
         if (!tm) return;
         const pixel = getPixelTargetPosition(targets, 0);
         if (!pixel) return;
 
-        const center = snapSquareTileAreaCenter(caster.x, caster.y, pixel.x, pixel.y, GATHER_STONE_MAX_TILE_OFFSET);
-        const cells = getSquareTileAreaCells(center, GATHER_STONE_AREA_HALF_TILES);
-        const { width, height } = tm.getGridSize();
-        const inBounds = (c: TileCoord): boolean => c.col >= 0 && c.row >= 0 && c.col < width && c.row < height;
+        const cells = GATHER_STONE_HITBOX.resolveCells(caster, pixel);
 
         // --- Rock harvest -----------------------------------------------------
-        // Pre-check the terrain type: damageRock's return value is null unless a
+        // Pre-check intact rock: damageRock's return value is null unless a
         // crack-tier change or destroy happens, so it can't tell us "was damaged".
-        // Out-of-bounds cells read as Rock from TerrainGrid.get, so the inBounds
-        // guard keeps edge-of-map voids from granting phantom rock.
+        // isIntactRockAt is false out of bounds, so edge-of-map voids grant no phantom rock.
         const rockResource = caster.getResource('rock');
         const damagedRockCells: TileCoord[] = [];
         for (const cell of cells) {
-            if (!inBounds(cell)) continue;
-            if (tm.getEffectiveTerrainType(cell.col, cell.row) !== TerrainType.Rock) continue;
+            if (!tm.isIntactRockAt(cell.col, cell.row)) continue;
             tm.damageRock(cell.col, cell.row, GATHER_STONE_ROCK_DAMAGE, caster.id);
             damagedRockCells.push(cell);
             rockResource?.add(GATHER_STONE_ROCK_RESOURCE_PER_TILE);
@@ -215,16 +170,13 @@ export const GatherStoneAbility_0536: AbilityStatic = {
 
         // --- Grinding Debris (research node 2) -------------------------------
         if (casterHasResearchNode(eng, caster, EARTH_NODE_GATHER_STONE_RUBBLE_STRIKE)) {
-            const hitIds = new Set<string>();
+            const isEnemyOfCaster = (unit: Unit): boolean => unit.isAlive() && areEnemies(caster.teamId, unit.teamId);
             for (const cell of cells) {
-                if (!inBounds(cell)) continue;
+                if (!tm.isInBounds(cell.col, cell.row)) continue;
                 if (tm.getEffectiveTerrainType(cell.col, cell.row) !== TerrainType.Rubble) continue;
-                for (const unit of eng.units) {
-                    if (!unit.isAlive() || !areEnemies(caster.teamId, unit.teamId)) continue;
-                    if (hitIds.has(unit.id)) continue;
-                    const ut = worldToTile(unit.x, unit.y);
-                    if (ut.col !== cell.col || ut.row !== cell.row) continue;
-                    hitIds.add(unit.id);
+                // Per cell, in cell order, so hits land in the same order as before. A unit's
+                // centre sits in exactly one tile, so no unit is hit twice.
+                for (const unit of getUnitsInTiles(eng.units, [cell], isEnemyOfCaster)) {
                     // Flat, unblockable environment-style hit; return value unused (see 0532).
                     unit.takeDamage(GATHER_STONE_RUBBLE_DAMAGE, caster.id, eng.eventBus);
                     spawnGatherStoneRubbleClash(eng, unit.x, unit.y);
@@ -241,8 +193,8 @@ export const GatherStoneAbility_0536: AbilityStatic = {
         _currentTargets: ResolvedTarget[],
         mouseWorld: { x: number; y: number },
     ): void {
-        const center = snapSquareTileAreaCenter(caster.x, caster.y, mouseWorld.x, mouseWorld.y, GATHER_STONE_MAX_TILE_OFFSET);
-        drawAreaSquare(gr, center, 0.14, 0.6);
+        const cells = GATHER_STONE_HITBOX.resolveCells(caster, mouseWorld);
+        drawTileAreaTelegraph(gr, cells, TELEGRAPH_STYLES.earth);
     },
 
     renderActivePreview(
@@ -255,9 +207,9 @@ export const GatherStoneAbility_0536: AbilityStatic = {
         if (elapsed >= GATHER_STONE_PREFIRE) return;
         const pixel = getPixelTargetPosition(activeAbility.targets, 0);
         if (!pixel) return;
-        const center = snapSquareTileAreaCenter(caster.x, caster.y, pixel.x, pixel.y, GATHER_STONE_MAX_TILE_OFFSET);
+        const cells = GATHER_STONE_HITBOX.resolveCells(caster, pixel);
         const t = Math.min(1, elapsed / GATHER_STONE_PREFIRE);
-        drawAreaSquare(gr, center, 0.2 + 0.6 * t, 0.85);
+        drawTileAreaTelegraph(gr, cells, { ...TELEGRAPH_STYLES.earth, fillAlpha: 0.2 + 0.6 * t, strokeAlpha: 0.85 });
     },
 };
 

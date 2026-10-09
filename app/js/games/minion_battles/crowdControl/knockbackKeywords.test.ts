@@ -3,7 +3,9 @@ import {
     computeAimedKnockbackParams,
     getKnockbackTierDef,
     KNOCKBACK_TOTAL_DISPLACEMENT_FACTOR,
+    resolveHitKnockbackDirection,
     tryApplyKnockbackByTier,
+    type KnockbackDirectionStrategy,
     type KnockbackEngineCtx,
 } from './knockbackKeywords';
 import {
@@ -18,6 +20,48 @@ import { UnitTag } from '../game/units/unitTag';
 
 const TIER_3 = getKnockbackTierDef(3)!;
 const IFRAME_KNOCKBACK_TIER = 3;
+
+describe('resolveHitKnockbackDirection', () => {
+    const TRAVEL_RIGHT = { x: 1, y: 0 };
+    const ORIGIN = { x: 0, y: 0 };
+    const SIDE_45: KnockbackDirectionStrategy = { kind: 'sideOfTravel', angleDeg: 45 };
+    const HALF_ROOT_2 = Math.SQRT1_2;
+
+    it('travel returns the direction of travel unchanged, whatever the victim position', () => {
+        const dir = resolveHitKnockbackDirection({ kind: 'travel' }, TRAVEL_RIGHT, ORIGIN, { x: 0, y: 5 });
+        expect(dir.x).toBeCloseTo(1, 10);
+        expect(dir.y).toBeCloseTo(0, 10);
+    });
+
+    it('sideOfTravel pushes toward the victim side (+perpendicular, which is the projectile left)', () => {
+        // Travelling right, the left perpendicular is +y (screen y-down).
+        const dir = resolveHitKnockbackDirection(SIDE_45, TRAVEL_RIGHT, ORIGIN, { x: 0, y: 5 });
+        expect(dir.x).toBeCloseTo(HALF_ROOT_2, 10);
+        expect(dir.y).toBeCloseTo(HALF_ROOT_2, 10);
+    });
+
+    it('sideOfTravel pushes toward the right side for a victim on the -perpendicular side', () => {
+        const dir = resolveHitKnockbackDirection(SIDE_45, TRAVEL_RIGHT, ORIGIN, { x: 0, y: -5 });
+        expect(dir.x).toBeCloseTo(HALF_ROOT_2, 10);
+        expect(dir.y).toBeCloseTo(-HALF_ROOT_2, 10);
+    });
+
+    it('a victim exactly on the centre line takes the left side (+perpendicular)', () => {
+        const dir = resolveHitKnockbackDirection(SIDE_45, TRAVEL_RIGHT, ORIGIN, { x: 10, y: 0 });
+        expect(dir.x).toBeCloseTo(HALF_ROOT_2, 10);
+        expect(dir.y).toBeCloseTo(HALF_ROOT_2, 10);
+    });
+
+    it('angleDeg sets how far off the travel direction the knockback points', () => {
+        const at90 = resolveHitKnockbackDirection({ kind: 'sideOfTravel', angleDeg: 90 }, TRAVEL_RIGHT, ORIGIN, { x: 0, y: 5 });
+        expect(at90.x).toBeCloseTo(0, 10);
+        expect(at90.y).toBeCloseTo(1, 10);
+
+        const at0 = resolveHitKnockbackDirection({ kind: 'sideOfTravel', angleDeg: 0 }, TRAVEL_RIGHT, ORIGIN, { x: 0, y: -5 });
+        expect(at0.x).toBeCloseTo(1, 10);
+        expect(at0.y).toBeCloseTo(0, 10);
+    });
+});
 const IFRAME_KNOCKBACK_SOURCE: KnockbackSource = { unitId: 'caster', abilityId: 'test_kb' };
 
 function makeKnockbackTarget(): Unit {

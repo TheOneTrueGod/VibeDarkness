@@ -5,6 +5,8 @@
  * abilities, passives, and runtime hooks share one source of truth.
  */
 
+import { FIXED_DT } from '../../game/gameConstants';
+
 /** Shared diameter used by Tremorsense and nearby stone-damage checks. */
 export const EARTH_CORE_SHARED_DIAMETER = 3;
 
@@ -91,8 +93,17 @@ export const STONE_TOMB_MAX_TILE_OFFSET = 4;
 /** Loose px tether for the select step; STONE_TOMB_MAX_TILE_OFFSET is the authoritative limit. */
 export const STONE_TOMB_CAST_RANGE = 220;
 
-/** Seconds of windup before stage 1 lands (this is also when the target is chosen). */
+/**
+ * Seconds of windup before stage 1 lands. The target is chosen from this moment: the tomb select
+ * starts here (a gated select, so it enters one tick later).
+ */
 export const STONE_TOMB_STAGE1_TIME = 0.5;
+
+/**
+ * The tomb select lasts one tick. As a gated select it enters on the tick after the gate tick, which
+ * force-enters it even though it has already ended by then (see `selectGateDeferredIds`).
+ */
+export const STONE_TOMB_AIM_END = STONE_TOMB_STAGE1_TIME + FIXED_DT;
 
 /** Seconds between stage 1 and stage 2. */
 export const STONE_TOMB_STAGE_GAP = 0.25;
@@ -103,8 +114,12 @@ export const STONE_TOMB_STAGE1_DAMAGE = 10;
 /** Stage 2: damage to enemies in any tile of the plus. */
 export const STONE_TOMB_STAGE2_DAMAGE = 6;
 
-/** Knockback tier applied to stage 1 victims, away from the centre of the centre tile. */
-export const STONE_TOMB_KNOCKBACK_TIER = 1;
+/**
+ * Knockback tier applied to stage 1 victims, away from the centre of the centre tile. The rock rises
+ * on the same tick, so the push must carry a unit from the tile centre past the tile edge (half a
+ * tile). Tier 2 travels about 42px; tier 1 (about 18px) would leave it in the rock for wall-unstick.
+ */
+export const STONE_TOMB_KNOCKBACK_TIER = 2;
 
 /** Total cast time including recovery. */
 export const STONE_TOMB_CAST_TIME = 1.5;
@@ -116,26 +131,32 @@ export const STONE_TOMB_RECHARGE_TURNS = 1;
 // Rock Slide (0537)
 // ---------------------------------------------------------------------------
 
-/** One engine tick of the 60 Hz sim; select intervals last a single tick. */
-const ROCK_SLIDE_TICK = 1 / 60;
-
 /** Chebyshev tile distance within which the rock to rip up must sit. */
 export const ROCK_SLIDE_ROCK_MAX_TILE_OFFSET = 2;
 
 /** Loose px tether for both select steps; the tile-snap helpers are the authoritative limits. */
 export const ROCK_SLIDE_CAST_RANGE = 160;
 
-/** Tick-long interactive select at t=0 that picks the rock. */
-export const ROCK_SLIDE_PICK_END = ROCK_SLIDE_TICK;
+/**
+ * The rock pick is an interactive select at t=0. It lasts two ticks: a one-tick interval is active
+ * on no tick (the first tick's elapsed time already equals its end), so it would never enter, and
+ * its pick would never be validated. Start-0 selects are not gated, so the gate's forced entry
+ * (which lets ROCK_SLIDE_AIM_END stay one tick) does not apply here.
+ */
+export const ROCK_SLIDE_PICK_END = 2 * FIXED_DT;
 
 /**
- * The aim (direction) select happens at ROCK_SLIDE_AIM_START; the rock is destroyed two ticks
- * earlier so the aim pick already sees the post-destruction terrain (the rubble tile is a legal
- * spawn tile).
+ * The windup ends here: the picked rock is destroyed at this moment, and the aim (direction) select
+ * starts here. The select gate (see `findSelectGateSplit`) processes everything scheduled at or
+ * before this time before the player is asked for the direction, so the rubble is already there.
  */
 export const ROCK_SLIDE_AIM_START = 0.4;
-export const ROCK_SLIDE_DESTROY_TIME = ROCK_SLIDE_AIM_START - 2 * ROCK_SLIDE_TICK;
-export const ROCK_SLIDE_AIM_END = ROCK_SLIDE_AIM_START + ROCK_SLIDE_TICK;
+
+/**
+ * The direction select lasts one tick. As a gated select it enters on the tick after the gate tick,
+ * which force-enters it even though it has already ended by then (see `selectGateDeferredIds`).
+ */
+export const ROCK_SLIDE_AIM_END = ROCK_SLIDE_AIM_START + FIXED_DT;
 
 /** Rock projectile appears (end of the 0.3s outward-particle beat). */
 export const ROCK_SLIDE_SPAWN_TIME = 0.7;

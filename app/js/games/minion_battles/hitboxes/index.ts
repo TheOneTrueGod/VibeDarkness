@@ -7,6 +7,11 @@ export { UnitRangeHitboxSpec, unitRangeHitbox } from './UnitRangeHitboxSpec';
 export { CircleAoEHitboxSpec, circleAoEHitbox, type CircleAoEPreviewStyle } from './CircleAoEHitboxSpec';
 export { TruncatedConeHitboxSpec, type TruncatedConeGeometry, type TruncatedConeMinRadiusResolver } from './TruncatedConeHitbox';
 export { ConvexQuadHitboxSpec, convexQuadHitbox } from './ConvexQuadHitbox';
-export { SquareTileAreaHitboxSpec, squareTileAreaHitbox, type SquareTileAreaPreviewStyle } from './SquareTileAreaHitboxSpec';
-export { PlusTileAreaHitboxSpec, plusTileAreaHitbox, type PlusTileAreaPreviewStyle } from './PlusTileAreaHitboxSpec';
-export { TileSelectHitboxSpec, tileSelectHitbox, type TileSelectMode, type TileSelectPreviewStyle } from './TileSelectHitboxSpec';
+export {
+    TileAreaHitboxSpec,
+    tileAreaHitbox,
+    tileShapes,
+    type TileAreaAnchor,
+    type TileAreaHitboxOptions,
+    type TileOffset,
+} from './TileAreaHitboxSpec';

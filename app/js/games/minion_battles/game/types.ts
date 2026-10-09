@@ -419,4 +419,16 @@ export interface ActiveAbility {
      * Combo Cancel chain depth for this cast (starts at 1 on a fresh cast). Serialized.
      */
     comboCount?: number;
+    /**
+     * Select-gate split state (see `findSelectGateSplit` in selectTargetLookahead.ts). Set when a
+     * tick was cut short at an interactive select interval's start so that effects scheduled at or
+     * before that start run first; the select itself enters on the next tick. Holds the elapsed
+     * time the cast was processed up to. Cleared by the tick that resumes from it. Serialized.
+     */
+    processedElapsed?: number;
+    /**
+     * Interval id of the select whose entry is pending on the next tick (set with
+     * `processedElapsed`). The pre-tick lookahead pauses only for this interval. Serialized.
+     */
+    pendingSelectGate?: string;
 }

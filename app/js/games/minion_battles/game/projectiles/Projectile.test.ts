@@ -1,11 +1,31 @@
 /**
- * Projectile serialization tests: toJSON round-trip restores all saveable properties.
+ * Projectile tests: toJSON round-trip (saveable properties, held state, hit sets), held-projectile
+ * lifecycle (hold, release, cancel, orphan limit) and terrain distance accounting.
  */
-import { describe, it, expect } from 'vitest';
-import { Projectile } from './Projectile';
+import { describe, it, expect, vi } from 'vitest';
+import { Projectile, hitPolicyFromLegacyOptions } from './Projectile';
 import { TerrainGrid } from '../../terrain/TerrainGrid';
 import { TerrainType } from '../../terrain/TerrainType';
 import { TerrainManager } from '../../terrain/TerrainManager';
+import { MAX_HELD_PROJECTILE_SECONDS } from '../gameConstants';
+import type { Unit } from '../units/Unit';
+import type { EventBus } from '../EventBus';
+
+/** Minimal unit stand-in: only the members Projectile.checkCollision reads. */
+function makeUnit(id: string, x: number, y: number) {
+    return {
+        id,
+        x,
+        y,
+        radius: 10,
+        teamId: 'enemy',
+        isAlive: () => true,
+        hasIFrames: () => false,
+        takeDamage: vi.fn(),
+    };
+}
+
+const eventBus = { emit: vi.fn() } as unknown as EventBus;
 
 describe('Projectile', () => {
     it('serializes and restores to an equivalent object', () => {
@@ -113,5 +133,277 @@ describe('Projectile', () => {
         proj.update(1, { terrainManager });
 
         expect(proj.distanceTraveled).toBeCloseTo(20, 5);
+    });
+
+    it('held projectile round-trips its holder and held time through JSON', () => {
+        const proj = new Projectile({
+            x: 100,
+            y: 100,
+            velocityX: 0,
+            velocityY: 0,
+            damage: 10,
+            sourceTeamId: 'player',
+            sourceUnitId: 'caster_1',
+            sourceAbilityId: 'rock_slide',
+            maxDistance: 500,
+            heldBy: { unitId: 'caster_1', abilityId: 'rock_slide' },
+        });
+        proj.update(0.5, {});
+
+        const restored = Projectile.fromJSON(JSON.parse(JSON.stringify(proj.toJSON())));
+
+        expect(restored.isHeld).toBe(true);
+        expect(restored.heldBy).toEqual({ unitId: 'caster_1', abilityId: 'rock_slide' });
+        expect(restored.heldTime).toBeCloseTo(0.5, 5);
+    });
+
+    it('a unit already hit before a checkpoint is not hit again after fromJSON', () => {
+        const unit = makeUnit('enemy_1', 110, 100);
+        const proj = new Projectile({
+            id: 'proj_hits',
+            x: 100,
+            y: 100,
+            velocityX: 0,
+            velocityY: 0,
+            damage: 10,
+            sourceTeamId: 'player',
+            sourceUnitId: 'caster_1',
+            sourceAbilityId: 'throw_rock',
+            maxDistance: 500,
+            pierce: 1,
+        });
+        proj.checkCollision([unit as unknown as Unit], eventBus, 0);
+        expect(unit.takeDamage).toHaveBeenCalledTimes(1);
+
+        const restored = Projectile.fromJSON(JSON.parse(JSON.stringify(proj.toJSON())));
+        expect(restored.hitUnitIds.has('enemy_1')).toBe(true);
+
+        restored.checkCollision([unit as unknown as Unit], eventBus, 0);
+        expect(unit.takeDamage).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('held projectiles', () => {
+    it('a held projectile does not move or hit until released', () => {
+        const proj = new Projectile({
+            x: 100,
+            y: 100,
+            velocityX: 600,
+            velocityY: 0,
+            damage: 10,
+            sourceTeamId: 'player',
+            sourceUnitId: 'caster_1',
+            sourceAbilityId: 'rock_slide',
+            maxDistance: 500,
+            heldBy: { unitId: 'caster_1', abilityId: 'rock_slide' },
+        });
+        const unit = makeUnit('enemy_1', 110, 100);
+
+        expect(proj.isHeld).toBe(true);
+        proj.update(1 / 60, {});
+        expect(proj.x).toBe(100);
+        expect(proj.distanceTraveled).toBe(0);
+        expect(proj.checkCollision([unit as unknown as Unit], eventBus, 0)).toBeNull();
+        expect(unit.takeDamage).not.toHaveBeenCalled();
+    });
+
+    it('release launches the projectile, which then moves and hits', () => {
+        const proj = new Projectile({
+            x: 100,
+            y: 100,
+            velocityX: 600,
+            velocityY: 0,
+            damage: 10,
+            sourceTeamId: 'player',
+            sourceUnitId: 'caster_1',
+            sourceAbilityId: 'rock_slide',
+            maxDistance: 500,
+            heldBy: { unitId: 'caster_1', abilityId: 'rock_slide' },
+        });
+        const unit = makeUnit('enemy_1', 110, 100);
+
+        proj.release(600, 0);
+        expect(proj.isHeld).toBe(false);
+        proj.update(1 / 60, {});
+        expect(proj.x).toBeCloseTo(110, 5);
+
+        const hit = proj.checkCollision([unit as unknown as Unit], eventBus, 0);
+        expect(hit).toBe(unit);
+        expect(unit.takeDamage).toHaveBeenCalledTimes(1);
+    });
+
+    it('cancelHeld deactivates the projectile without an expire effect', () => {
+        const proj = new Projectile({
+            x: 100,
+            y: 100,
+            velocityX: 600,
+            velocityY: 0,
+            damage: 10,
+            sourceTeamId: 'player',
+            sourceUnitId: 'caster_1',
+            sourceAbilityId: 'rock_slide',
+            maxDistance: 500,
+            heldBy: { unitId: 'caster_1', abilityId: 'rock_slide' },
+        });
+
+        proj.cancelHeld();
+
+        expect(proj.isHeld).toBe(false);
+        expect(proj.active).toBe(false);
+    });
+
+    it('a held projectile past the limit is deleted with a warning naming the holder', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        try {
+            const proj = new Projectile({
+                x: 100,
+                y: 100,
+                velocityX: 600,
+                velocityY: 0,
+                damage: 10,
+                sourceTeamId: 'player',
+                sourceUnitId: 'caster_1',
+                sourceAbilityId: 'rock_slide',
+                maxDistance: 500,
+                heldBy: { unitId: 'caster_1', abilityId: 'rock_slide' },
+            });
+            const engine = { gameTick: 42, gameTime: 7.5, getUnit: () => undefined };
+
+            proj.update(MAX_HELD_PROJECTILE_SECONDS, engine);
+            expect(proj.active).toBe(true);
+
+            proj.update(1 / 60, engine);
+            expect(proj.active).toBe(false);
+            expect(warn).toHaveBeenCalledTimes(1);
+
+            const [message, details] = warn.mock.calls[0];
+            expect(String(message)).toContain('[Projectile] held projectile orphaned');
+            expect(String(message)).toContain('caster_1');
+            expect(String(message)).toContain('rock_slide');
+            expect(details).toMatchObject({
+                projectileId: proj.id,
+                heldBy: { unitId: 'caster_1', abilityId: 'rock_slide' },
+                holderExists: false,
+                gameTick: 42,
+            });
+        } finally {
+            warn.mockRestore();
+        }
+    });
+});
+
+describe('projectile wall stops and stonephase', () => {
+    it('stopsAtWalls does not tunnel through a rock cell it crosses within a single update', () => {
+        // Cells are 10px. Rock occupies x in [20, 30); the projectile starts at x=5 and moves 60px,
+        // so its end point (x=65) is clear. A single end-point test would miss the wall.
+        const grid = TerrainGrid.createFilledTerrain(10, 1, 10, TerrainType.Grass);
+        grid.set(2, 0, TerrainType.Rock);
+        const terrainManager = new TerrainManager(grid);
+
+        const proj = new Projectile({
+            x: 5,
+            y: 5,
+            velocityX: 600,
+            velocityY: 0,
+            damage: 10,
+            sourceTeamId: 'player',
+            sourceUnitId: 'unit_1',
+            sourceAbilityId: 'rock_slide',
+            maxDistance: 1000,
+            modifiers: ['stopsAtWalls'],
+        });
+
+        proj.update(0.1, { terrainManager });
+
+        expect(proj.active).toBe(false);
+        expect(proj.x).toBeGreaterThanOrEqual(19 - 1e-6);
+        expect(proj.x).toBeLessThan(20);
+    });
+
+    it('stonephase flies through rock and stops at the first Impassable cell it cannot cross', () => {
+        // Rock at cols 2 and 3 (x in [20, 40)), Impassable at col 4 (x in [40, 50)).
+        const grid = TerrainGrid.createFilledTerrain(10, 1, 10, TerrainType.Grass);
+        grid.set(2, 0, TerrainType.Rock);
+        grid.set(3, 0, TerrainType.Rock);
+        grid.set(4, 0, TerrainType.Impassable);
+        const terrainManager = new TerrainManager(grid);
+
+        const proj = new Projectile({
+            x: 5,
+            y: 5,
+            velocityX: 600,
+            velocityY: 0,
+            damage: 10,
+            sourceTeamId: 'player',
+            sourceUnitId: 'unit_1',
+            sourceAbilityId: 'rock_slide',
+            maxDistance: 1000,
+            modifiers: ['stonephase', 'stopsAtWalls'],
+        });
+
+        proj.update(0.1, { terrainManager });
+
+        expect(proj.active).toBe(false);
+        expect(proj.x).toBeGreaterThanOrEqual(39 - 1e-6);
+        expect(proj.x).toBeLessThan(40);
+    });
+
+    it('stonephase reaching max distance inside rock expires there', () => {
+        // Cols 0-1 are grass (x < 20), everything from col 2 onward is rock. Only the grass part
+        // counts toward distance, so 15px of grass exhausts maxDistance 15 at x = 35, inside rock.
+        const grid = TerrainGrid.createFilledTerrain(20, 1, 10, TerrainType.Rock);
+        grid.set(0, 0, TerrainType.Grass);
+        grid.set(1, 0, TerrainType.Grass);
+        const terrainManager = new TerrainManager(grid);
+
+        const proj = new Projectile({
+            x: 5,
+            y: 5,
+            velocityX: 300,
+            velocityY: 0,
+            damage: 10,
+            sourceTeamId: 'player',
+            sourceUnitId: 'unit_1',
+            sourceAbilityId: 'rock_slide',
+            maxDistance: 15,
+            modifiers: ['stonephase', 'stopsAtWalls'],
+        });
+
+        proj.update(0.1, { terrainManager });
+
+        expect(proj.active).toBe(false);
+        expect(proj.x).toBeCloseTo(35, 5);
+        expect(terrainManager.getProjectileTerrainAt(proj.x, proj.y)).toBe(TerrainType.Rock);
+    });
+
+    it('the stopsAtWalls modifier is passed through the constructor and the default hit policy is a single stop', () => {
+        const proj = new Projectile({
+            x: 0,
+            y: 0,
+            velocityX: 0,
+            velocityY: 0,
+            damage: 0,
+            sourceTeamId: 'player',
+            sourceUnitId: 'unit_1',
+            sourceAbilityId: 'rock_slide',
+            maxDistance: 100,
+            modifiers: ['stopsAtWalls'],
+        });
+
+        expect(proj.modifiers).toEqual(['stopsAtWalls']);
+        expect(proj.hitPolicy).toEqual({ damagingHits: 1, overflow: 'stop' });
+    });
+
+    it('legacy hit options map onto a hitPolicy', () => {
+        expect(hitPolicyFromLegacyOptions({ pierce: 4, knockbackBeyondMaxHits: true, continueAfterMaxHits: true, knockbackTier: 2, knockbackMode: 'side45' })).toEqual({
+            damagingHits: 5,
+            overflow: 'knockbackOnly',
+            knockback: { tier: 2, direction: { kind: 'sideOfTravel', angleDeg: 45 } },
+        });
+        expect(hitPolicyFromLegacyOptions({ continueAfterMaxHits: true })).toEqual({
+            damagingHits: 1,
+            overflow: 'passThrough',
+        });
+        expect(hitPolicyFromLegacyOptions({ knockbackTier: 0 })).toEqual({ damagingHits: 1, overflow: 'stop' });
     });
 });

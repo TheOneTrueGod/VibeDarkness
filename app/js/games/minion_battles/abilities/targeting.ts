@@ -499,15 +499,78 @@ export function clampSelectTarget(
     return clampResolvedTargetToAbilityRange(ability, caster, target, engine);
 }
 
+/** A select pick as a click would commit it, before `validatePick` runs. */
+export interface SelectPickResolution {
+    /** The primary pick: the highlighted lock-on unit, or the clamped ground point. */
+    resolved: ResolvedTarget;
+    lockOnCandidates: Unit[];
+    companionUnits: Unit[];
+}
+
+/**
+ * What a click at `aimPoint` would commit for a select step: lock-on candidates first, then a
+ * ground fallback when `allowMiss` permits, then range clamping. Returns null when the click cannot
+ * resolve. Pure and shared by the click handler and the preview, so both see the same pick.
+ * Does not run `validatePick`; callers decide what a rejected pick means.
+ *
+ * `clickWorldPos` is the raw click point used for a ground pick. Pass the cursor point for previews.
+ */
+export function resolveSelectPickForAim(
+    ability: AbilityStatic,
+    caster: Unit,
+    selectDef: SelectTargetDef,
+    aimPoint: { x: number; y: number },
+    clickWorldPos: { x: number; y: number },
+    collectedTargets: Record<string, ResolvedTarget>,
+    engine: SelectLockOnEngine & { getUnit(id: string): Unit | undefined | null },
+): SelectPickResolution | null {
+    const candidates = resolveSelectTargetLockOnCandidates(ability, caster, selectDef, aimPoint, engine);
+    const companionUnits = resolveSelectTargetCompanionLockOns(
+        ability,
+        caster,
+        selectDef,
+        aimPoint,
+        engine,
+        candidates,
+    );
+    let resolved: ResolvedTarget | null = null;
+    if (candidates.length > 0) {
+        resolved = { type: 'unit', unitId: candidates[0]!.id };
+    } else if (selectDef.allowMiss !== false) {
+        resolved = { type: 'pixel', position: clickWorldPos };
+    }
+    if (!resolved) {
+        return null;
+    }
+    const selectDefs = getSelectTargetDefsFromTimings(ability, caster, engine);
+    const collectedOrdered = selectDefs
+        .map((d) => collectedTargets[d.label])
+        .filter((t): t is ResolvedTarget => t != null);
+    resolved = clampSelectTarget(
+        ability,
+        caster,
+        selectDef,
+        collectedTargets,
+        collectedOrdered,
+        resolved,
+        engine,
+    );
+    return { resolved, lockOnCandidates: candidates, companionUnits };
+}
+
 /**
  * Build AI order targets for abilities with per-timing `SelectTargetDef` entries.
+ *
+ * `valid` is false when any built pick fails that step's `validatePick`. Such a plan must not be
+ * queued: the ability is unusable against this target. `engine.terrainManager` is passed through to
+ * `validatePick` (AI engines provide it).
  */
 export function buildAiSelectTargets(
     caster: Unit,
     ability: AbilityStatic,
     enemyUnit: Unit,
-    engine: { getUnit(id: string): Unit | undefined | null },
-): { targets: ResolvedTarget[]; targetsByLabel: Record<string, ResolvedTarget> } {
+    engine: { getUnit(id: string): Unit | undefined | null; terrainManager?: unknown },
+): { targets: ResolvedTarget[]; targetsByLabel: Record<string, ResolvedTarget>; valid: boolean } {
     const selectDefs = getSelectTargetDefsFromTimings(ability, caster, engine);
     const targets: ResolvedTarget[] = [];
     const targetsByLabel: Record<string, ResolvedTarget> = {};
@@ -553,5 +616,15 @@ export function buildAiSelectTargets(
         targetsByLabel[selectDef.label] = fallback;
     }
 
-    return { targets, targetsByLabel };
+    let valid = true;
+    for (const selectDef of selectDefs) {
+        const pick = targetsByLabel[selectDef.label];
+        if (!selectDef.validatePick || !pick) continue;
+        if (!selectDef.validatePick({ caster, engine, pick, collectedTargets: targetsByLabel })) {
+            valid = false;
+            break;
+        }
+    }
+
+    return { targets, targetsByLabel, valid };
 }

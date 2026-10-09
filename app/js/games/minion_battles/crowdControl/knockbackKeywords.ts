@@ -207,6 +207,44 @@ export function applyDirectionalKnockback(
     return tryApplyKnockbackByTier(target, tier, source, synthX, synthY, engine, collisionOpts);
 }
 
+/**
+ * Where a projectile's hit knockback points, relative to its direction of travel.
+ * - `travel`: along the direction of travel.
+ * - `sideOfTravel`: `angleDeg` off the travel direction, toward the victim's side of the projectile.
+ */
+export type KnockbackDirectionStrategy =
+    | { kind: 'travel' }
+    | { kind: 'sideOfTravel'; angleDeg: number };
+
+/**
+ * Resolve a knockback direction (unit vector) for a victim hit by a projectile. Pure: no engine
+ * state. `travelDir` is the projectile's unit direction of travel.
+ *
+ * For `sideOfTravel`, the side is the sign of the victim's offset along the projectile's left
+ * perpendicular (travel rotated 90 degrees, screen y-down). A victim exactly on the projectile's
+ * centre line takes the left side (+perpendicular), matching the historical tie-break.
+ */
+export function resolveHitKnockbackDirection(
+    strategy: KnockbackDirectionStrategy,
+    travelDir: { x: number; y: number },
+    projectilePos: { x: number; y: number },
+    victimPos: { x: number; y: number },
+): { x: number; y: number } {
+    if (strategy.kind === 'travel') {
+        return { x: travelDir.x, y: travelDir.y };
+    }
+    const perpX = -travelDir.y;
+    const perpY = travelDir.x;
+    const side = (victimPos.x - projectilePos.x) * perpX + (victimPos.y - projectilePos.y) * perpY >= 0 ? 1 : -1;
+    const angle = (strategy.angleDeg * Math.PI) / 180;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    return {
+        x: travelDir.x * cos + side * perpX * sin,
+        y: travelDir.y * cos + side * perpY * sin,
+    };
+}
+
 export interface AimedKnockbackOptions {
     landingMinDistance: number;
     landingMaxDistance: number;

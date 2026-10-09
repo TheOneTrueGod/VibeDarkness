@@ -12,6 +12,7 @@ import type { HitboxEngineContext, HitboxPreviewCaster } from './Hitbox';
 import { ThickLineHitbox } from './ThickLineHitbox';
 import { resolveHitbox } from '../abilities/hitboxDef';
 import { DEFAULT_UNIT_RADIUS } from '../game/units/unit_defs/unitConstants';
+import { drawInvalidPickCross } from './invalidPickPreview';
 
 export abstract class HitboxSpec {
     /** Effective max range in px (already includes any unit-radius padding). */
@@ -34,6 +35,18 @@ export abstract class HitboxSpec {
         mouseWorld: { x: number; y: number },
         units: Unit[],
     ): Unit[];
+
+    /**
+     * Preview for a pick the ability would reject (`SelectTargetDef.validatePick` returned false).
+     * Default: a grey cross at the aim point. Must not clear `gr`: ghost previews share a layer.
+     */
+    renderInvalidPreview(
+        gr: IAbilityPreviewGraphics,
+        _caster: HitboxPreviewCaster,
+        aim: { x: number; y: number },
+    ): void {
+        drawInvalidPickCross(gr, aim.x, aim.y);
+    }
 
     /**
      * Resolve which units are in the hitbox at click/commit time (lock-on candidates).

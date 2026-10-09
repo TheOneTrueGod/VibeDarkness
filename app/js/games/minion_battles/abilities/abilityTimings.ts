@@ -400,14 +400,18 @@ export function activeTimingIds(elapsed: number, intervals: AbilityTimingInterva
  * @param gameTimeAfterTick - the value `engine.gameTime` has (or will have) once this
  *   tick's `+= dt` applies. Lookahead callers (pre-increment) pass `engine.gameTime + dt`;
  *   real-tick callers (post-increment) pass `engine.gameTime` as-is.
+ * @param resumeFrom - `ActiveAbility.processedElapsed` when the previous tick was split at a
+ *   select gate (see `findSelectGateSplit`). The window then starts there instead of at
+ *   `nextElapsed - dt`. Both call sites must pass the same value.
  */
 export function computeTickElapsed(
     gameTimeAfterTick: number,
     dt: number,
     startTime: number,
+    resumeFrom?: number,
 ): { prevElapsed: number; nextElapsed: number } {
     const nextElapsed = gameTimeAfterTick - startTime;
-    const prevElapsed = nextElapsed - dt;
+    const prevElapsed = resumeFrom !== undefined ? resumeFrom : nextElapsed - dt;
     return { prevElapsed, nextElapsed };
 }
 

@@ -17,6 +17,10 @@ export interface AbilityEngineContext {
     units: Unit[];
     addEffect(effect: Effect): void;
     addProjectile(projectile: Projectile): void;
+    /** Projectiles in flight (read-only view; mutate through `addProjectile` or the projectile itself). */
+    readonly projectiles?: readonly Projectile[];
+    /** Imperative effect emitter (`EffectEmitter` on the full GameEngine). */
+    addEffectEmitter(emitter: unknown): void;
     gameTime: number;
     /** Host's active darkness-upgrade bonuses (optional on test stubs). */
     darknessUpgradeBonuses?: PassiveBonuses;

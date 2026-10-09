@@ -23,6 +23,95 @@ import { getDistanceBasedInaccuracy } from './gunInaccuracy';
 import { computeForcedDisplacement, type ForcedDisplacement } from '../game/forceMove';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import { resolveAbilitySourceUnits } from './abilitySourceUnits';
+import { CELL_SIZE } from '../terrain/TerrainGrid';
+import { getTileAreaEdges, getTileAreaOutlineLoops, type TileCoord } from './tileAreaHelpers';
+import type { TelegraphStyle } from './telegraphStyles';
+
+/**
+ * Fills each cell and strokes only the outer outline of the union of cells (shared edges cancel),
+ * so a plus reads as one perimeter. `gridLines` also strokes the internal boundaries between
+ * neighbouring cells at half the outline alpha.
+ */
+export function drawTileAreaTelegraph(
+    gr: IAbilityPreviewGraphics,
+    cells: readonly TileCoord[],
+    style: TelegraphStyle,
+    opts?: { gridLines?: boolean },
+): void {
+    if (cells.length === 0) return;
+    const { color, lineWidth, fillAlpha, strokeAlpha } = style;
+
+    for (const cell of cells) {
+        const x0 = cell.col * CELL_SIZE;
+        const y0 = cell.row * CELL_SIZE;
+        gr.moveTo(x0, y0);
+        gr.lineTo(x0 + CELL_SIZE, y0);
+        gr.lineTo(x0 + CELL_SIZE, y0 + CELL_SIZE);
+        gr.lineTo(x0, y0 + CELL_SIZE);
+        gr.lineTo(x0, y0);
+        gr.fill({ color, alpha: fillAlpha });
+    }
+
+    for (const loop of getTileAreaOutlineLoops(cells)) {
+        const first = loop[0];
+        if (!first) continue;
+        gr.moveTo(first.col * CELL_SIZE, first.row * CELL_SIZE);
+        for (let i = 1; i < loop.length; i++) {
+            const p = loop[i]!;
+            gr.lineTo(p.col * CELL_SIZE, p.row * CELL_SIZE);
+        }
+        gr.lineTo(first.col * CELL_SIZE, first.row * CELL_SIZE);
+    }
+    gr.stroke({ color, width: lineWidth, alpha: strokeAlpha });
+
+    if (opts?.gridLines) {
+        for (const edge of getTileAreaEdges(cells).interior) {
+            gr.moveTo(edge.from.col * CELL_SIZE, edge.from.row * CELL_SIZE);
+            gr.lineTo(edge.to.col * CELL_SIZE, edge.to.row * CELL_SIZE);
+        }
+        gr.stroke({ color, width: 1, alpha: strokeAlpha * 0.5 });
+    }
+}
+
+/**
+ * Filled arrow centred on `center` (world px) pointing along the unit direction (dirCol, dirRow).
+ * Used by direction picks to show where a slide or punch will go.
+ */
+export function drawArrow(
+    gr: IAbilityPreviewGraphics,
+    center: { x: number; y: number },
+    dirCol: number,
+    dirRow: number,
+    color: number,
+): void {
+    const length = 24;
+    const headLen = 11;
+    const headHalf = 10;
+    const shaftHalf = 3.5;
+    const px = -dirRow;
+    const py = dirCol;
+    const tail = { x: center.x - dirCol * length / 2, y: center.y - dirRow * length / 2 };
+    const tip = { x: center.x + dirCol * length / 2, y: center.y + dirRow * length / 2 };
+    const base = { x: tip.x - dirCol * headLen, y: tip.y - dirRow * headLen };
+    const pts = [
+        { x: tail.x + px * shaftHalf, y: tail.y + py * shaftHalf },
+        { x: base.x + px * shaftHalf, y: base.y + py * shaftHalf },
+        { x: base.x + px * headHalf, y: base.y + py * headHalf },
+        tip,
+        { x: base.x - px * headHalf, y: base.y - py * headHalf },
+        { x: base.x - px * shaftHalf, y: base.y - py * shaftHalf },
+        { x: tail.x - px * shaftHalf, y: tail.y - py * shaftHalf },
+    ];
+    const path = (): void => {
+        gr.moveTo(pts[0]!.x, pts[0]!.y);
+        for (let i = 1; i < pts.length; i++) gr.lineTo(pts[i]!.x, pts[i]!.y);
+        gr.lineTo(pts[0]!.x, pts[0]!.y);
+    };
+    path();
+    gr.fill({ color, alpha: 0.85 });
+    path();
+    gr.stroke({ color: 0xffffff, width: 1.5, alpha: 0.9 });
+}
 
 /** Result of clamping a target position to max range from caster. */
 export interface ClampedRangeResult {

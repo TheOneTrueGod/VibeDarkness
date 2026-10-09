@@ -36,6 +36,12 @@ export interface TerrainProperties {
     pathfindingWeight: number;
     /** Whether ranged attacks (projectiles) can pass over this terrain. */
     projectilePassable: boolean;
+    /**
+     * Whether a projectile is stopped by this terrain unless a travel modifier traverses it
+     * (e.g. stonephase). Rock and Impassable block, mirroring `TerrainGrid.hasLineOfSight`.
+     * Read through `TerrainManager.isProjectileObstructedAt`, which uses effective terrain.
+     */
+    blocksProjectiles: boolean;
     /** Which layer renderer to use for this terrain type. */
     renderStrategy: TerrainRenderStrategy;
     /** If true, soft-terrain (marching-squares) layers must not bleed into cells of this type. */
@@ -52,6 +58,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         speedMultiplier: 1.0,
         pathfindingWeight: 1.0,
         projectilePassable: true,
+        blocksProjectiles: false,
         renderStrategy: 'marching-squares',
         blocksBleed: false,
         hardEdgeFamily: [],
@@ -63,6 +70,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         speedMultiplier: 1.0,
         pathfindingWeight: 1.0,
         projectilePassable: true,
+        blocksProjectiles: false,
         renderStrategy: 'marching-squares',
         blocksBleed: false,
         hardEdgeFamily: [],
@@ -74,6 +82,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         speedMultiplier: 0.75,
         pathfindingWeight: 1.5,
         projectilePassable: true,
+        blocksProjectiles: false,
         renderStrategy: 'marching-squares',
         blocksBleed: false,
         hardEdgeFamily: [],
@@ -85,6 +94,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         speedMultiplier: 0,
         pathfindingWeight: Infinity,
         projectilePassable: true,
+        blocksProjectiles: true,
         renderStrategy: 'hard-edge',
         blocksBleed: true,
         hardEdgeFamily: [],
@@ -96,6 +106,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         speedMultiplier: 0.85,
         pathfindingWeight: 1.2,
         projectilePassable: true,
+        blocksProjectiles: false,
         renderStrategy: 'hard-edge',
         blocksBleed: true,
         hardEdgeFamily: [TerrainType.Rock],
@@ -110,6 +121,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         speedMultiplier: 0,
         pathfindingWeight: Infinity,
         projectilePassable: true,
+        blocksProjectiles: true,
         // Unused: excluded from TerrainRenderer's LAYER_ORDER, so no layer renderer ever runs for it.
         renderStrategy: 'hard-edge',
         blocksBleed: true,

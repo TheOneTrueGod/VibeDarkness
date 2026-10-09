@@ -19,6 +19,7 @@ import {
     extractCommittedUnitIds,
 } from '../priorityFillHits';
 import type { HitboxEngineContext } from '../../hitboxes/Hitbox';
+import type { EngineContext } from '../../game/EngineContext';
 
 type CustomConditionHandler = (
     params: Record<string, unknown> | undefined,
@@ -290,7 +291,7 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
             return;
         }
         case 'interruptPrimaryTargetAbilities':
-            context.primaryTarget?.interruptAllAbilities(context.engine);
+            context.primaryTarget?.interruptAllAbilities(context.engine as EngineContext);
             return;
         case 'setAbilityNote':
             context.caster.setAbilityNote({ abilityId: effect.abilityId, abilityNote: effect.note });

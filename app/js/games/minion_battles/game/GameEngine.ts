@@ -108,14 +108,12 @@ import { isITSPreviewComplete } from './interaction/isITSPreviewComplete';
 export type { CardInstance } from './managers/CardManager';
 export { MAX_HAND_SIZE, CARDS_PER_ROUND } from './managers/CardManager';
 
-import { ROUND_DURATION } from './gameConstants';
+import { FIXED_DT, ROUND_DURATION } from './gameConstants';
+export { FIXED_DT };
 /** Matches default player stamina in unit defs; each ability receives this many stamina charges per surge unless overridden by unit stamina. */
 export const DEFAULT_PLAYER_ROUND_STAMINA_SURGE = 2;
 const CHARGED_ROCKS_NODE_ID = 'charged_rocks';
 const CHARGED_ROCKS_LIGHT_CHARGE_PER_ROUND = 1;
-
-/** Fixed time step (seconds): 60 ticks/second. */
-export const FIXED_DT = 1 / 60;
 
 /** Save a checkpoint to the server every this many game ticks. */
 export const CHECKPOINT_INTERVAL = 10;
@@ -1525,8 +1523,9 @@ export class GameEngine implements EngineContext {
             return;
         }
 
-        // Interactive select-target lookahead: pause before advancing time so entry-tick
-        // cast behaviour fires on the tick after the player picks (see select-target-lookahead plan).
+        // Interactive select-target lookahead: pause before advancing time for a gated select's entry tick.
+        // The tick that reaches a select's start is cut short there (findSelectGateSplit), so effects
+        // scheduled at or before the start run first. The pause is then taken before the select enters.
         if (this.waitingForTargetInput != null) return;
 
         const impendingSelectTarget = findImpendingSelectTargetNeed(this, dt);

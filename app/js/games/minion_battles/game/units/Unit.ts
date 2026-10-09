@@ -47,8 +47,7 @@ import type { Plan, TacticalPlan, InterruptFlag } from './unitAI/plans/types';
 import {
     cancelUnitActiveAbility,
     executeUnitAbility,
-    interruptAllUnitAbilities,
-    interruptAndRefundUnitAbilities,
+    interruptUnitAbilities,
     unitRoundStart,
 } from './unitAbilityLifecycle';
 import type {
@@ -529,7 +528,8 @@ export class Unit extends GameObject {
     }
 
     /** Interrupt all active abilities (e.g. when stunned). Refunds unless skip-to-cooldown. */
-    interruptAllAbilities(engine: { gameTime: number }): void { interruptAllUnitAbilities(this, engine); }
+    /** Stun / hard-CC interrupt. Same pipeline as knockback interrupts (see `interruptUnitAbilities`). */
+    interruptAllAbilities(engine: EngineContext): void { interruptUnitAbilities(this, engine); }
 
     tickActiveAbilities(dt: number, engine: EngineContext, onNaturalCompletion: () => void): void {
         tickUnitActiveAbilities(this, dt, engine, onNaturalCompletion);
@@ -559,7 +559,8 @@ export class Unit extends GameObject {
 
     cancelActiveAbility(abilityId: string, engine: EngineContext): void { cancelUnitActiveAbility(this, abilityId, engine); }
 
-    interruptAndRefundAbilities(engine: EngineContext): void { interruptAndRefundUnitAbilities(this, engine); }
+    /** Knockback interrupt. Same pipeline as stun interrupts (see `interruptUnitAbilities`). */
+    interruptAndRefundAbilities(engine: EngineContext): void { interruptUnitAbilities(this, engine); }
 
     executeAbility(
         ability: AbilityStatic,

@@ -2,12 +2,9 @@ import type { AbilityStatic } from '../../abilities/Ability';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import {
     resolveClick,
-    getSelectTargetDefsFromTimings,
     getInteractiveTargetDefsFromTimings,
     buildMeleeSelectOrderTargets,
-    clampSelectTarget,
-    resolveSelectTargetCompanionLockOns,
-    resolveSelectTargetLockOnCandidates,
+    resolveSelectPickForAim,
 } from '../../abilities/targeting';
 import type { InteractiveTargetDef, SelectTargetDef } from '../../abilities/timingTargetDef';
 import { isConfirmRadiusTargetDef, isSelectTargetDef } from '../../abilities/timingTargetDef';
@@ -37,43 +34,19 @@ export function resolveItsSelectTargetForClick(
     collectedTargets: Record<string, ResolvedTarget>,
     engine: GameEngine,
 ): ItsSelectTargetResolution | null {
-    const candidates = resolveSelectTargetLockOnCandidates(
+    const pick = resolveSelectPickForAim(
         abilityDef,
         caster,
         selectDef,
         mouseWorld,
+        clickWorldPos,
+        collectedTargets,
         engine,
     );
-    const companionUnits = resolveSelectTargetCompanionLockOns(
-        abilityDef,
-        caster,
-        selectDef,
-        mouseWorld,
-        engine,
-        candidates,
-    );
-    let resolved: ResolvedTarget | null = null;
-    if (candidates.length > 0) {
-        resolved = { type: 'unit', unitId: candidates[0]!.id };
-    } else if (selectDef.allowMiss !== false) {
-        resolved = { type: 'pixel', position: clickWorldPos };
-    }
-    if (!resolved) {
+    if (!pick) {
         return null;
     }
-    const selectDefs = getSelectTargetDefsFromTimings(abilityDef, caster, engine);
-    const collectedOrdered = selectDefs
-        .map((d) => collectedTargets[d.label])
-        .filter((t): t is ResolvedTarget => t != null);
-    resolved = clampSelectTarget(
-        abilityDef,
-        caster,
-        selectDef,
-        collectedTargets,
-        collectedOrdered,
-        resolved,
-        engine,
-    );
+    const { resolved, lockOnCandidates: candidates, companionUnits } = pick;
     if (selectDef.validatePick && !selectDef.validatePick({ caster, engine, pick: resolved, collectedTargets })) {
         return null;
     }

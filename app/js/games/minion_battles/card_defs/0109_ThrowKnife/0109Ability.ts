@@ -5,7 +5,8 @@
  * If both Throwing Knives and More Rock are researched, throws a second knife.
  */
 
-import type { AbilityRecoveryRule, AbilityStatic, AttackBlockedInfo } from '../../abilities/Ability';
+import { AbilityEventType, type AbilityRecoveryRule, type AbilityStatic, type AttackBlockedInfo } from '../../abilities/Ability';
+import { applyBleedStack } from '../../buffs/bleedRuntime';
 import { getAbilityModifier, resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
 import {
     formatTooltipLegacyLines,
@@ -41,8 +42,19 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 export const THROW_KNIFE_BASE_DAMAGE = 7;
 const BASE_DAMAGE = THROW_KNIFE_BASE_DAMAGE;
 const MULTI_THROW_HIT_COUNT = 2;
+/** Bleed stacks applied to the unit a knife hits. */
+const BLEED_STACKS_ON_HIT = 5;
 
 const THROW_KNIFE_PROJECTILE_URL = new URL('../../assets/projectiles/knife.svg', import.meta.url).href;
+
+/** Custom effect: a knife hit applies bleed to the primary target (the unit the projectile struck). */
+function applyKnifeBleedOnHit(params: Record<string, unknown> | undefined, context: unknown): void {
+    const ctx = context as { primaryTarget?: Unit; engine: { gameTime: number; roundNumber: number } };
+    const target = ctx.primaryTarget;
+    if (!target) return;
+    const stacks = typeof params?.stacks === 'number' ? params.stacks : BLEED_STACKS_ON_HIT;
+    applyBleedStack(target, ctx.engine.gameTime, ctx.engine.roundNumber, stacks);
+}
 
 function hasKnifeMultiThrow(research: Set<string>): boolean {
     return research.has('throwing_knives') && hasMoreRockResearch(research);
@@ -108,6 +120,26 @@ export const ThrowKnife: AbilityStatic = {
         return hasKnifeMultiThrow(research) ? TWO_PIXEL_TARGETS : ONE_PIXEL_TARGET;
     },
     aiSettings: { minRange: 0, maxRange: THROW_RANGE },
+
+    // A knife that hits applies bleed. The projectile fires ON_ATTACK_HIT for every hit it lands.
+    abilityEvents: {
+        [AbilityEventType.ON_ATTACK_HIT]: [
+            {
+                conditions: [{ type: 'hitResultIs', result: 'hit' }],
+                effects: [
+                    {
+                        type: 'custom',
+                        effectId: 'throwKnifeBleed',
+                        comment: 'Bleed stacks on the struck unit',
+                        params: { stacks: BLEED_STACKS_ON_HIT },
+                    },
+                ],
+            },
+        ],
+    },
+    customEffectHandlers: {
+        throwKnifeBleed: applyKnifeBleedOnHit,
+    },
 
     getTooltipText(gameState?: unknown): string[] {
         const eng = gameState as AbilityEngineContext | undefined;

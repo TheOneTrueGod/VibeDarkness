@@ -21,7 +21,11 @@ import {
     EARTH_NODE_GATHER_STONE,
     EARTH_NODE_GATHER_STONE_RUBBLE_STRIKE,
 } from '../../../../../researchTrees/trees/earth';
-import { GATHER_STONE_RUBBLE_DAMAGE } from '../../../card_defs/05_earth_core/earthCoreConstants';
+import {
+    GATHER_STONE_RUBBLE_DAMAGE,
+    ROCK_SLIDE_DAMAGE,
+    STONE_TOMB_STAGE1_DAMAGE,
+} from '../../../card_defs/05_earth_core/earthCoreConstants';
 import {
     grantEarthCoreArmourFromSource,
     getEarthCoreArmour as getEarthCoreArmourBySources,
@@ -201,6 +205,61 @@ export const earthCoreStoneTombScenario: ScenarioDefinition = {
     failureMessage(e) {
         const d = e.getUnit('target_dummy');
         return `dummy lost ${d ? d.maxHp - d.hp : 0} hp (expected >=10); centre rock=${e.terrainManager?.getEffectiveTerrainType(5, 5)}`;
+    },
+};
+
+// ---------------------------------------------------------------------------
+// 0530 - Stone Tomb centre escape (a unit in the centre tile is knocked out of the rock that rises under it)
+// ---------------------------------------------------------------------------
+
+// South-east of the centre of tomb tile (5, 5), so the knockback (away from the tile centre) is
+// diagonal and lands on tile (6, 6). That tile is outside the plus, so stage 2 neither damages the
+// dummy nor raises rock under it.
+const TOMB_ESCAPE_DUMMY_POS = { x: DUMMY_POS.x + 10, y: DUMMY_POS.y + 10 };
+
+export const earthCoreStoneTombCentreEscapeScenario: ScenarioDefinition = {
+    id: 'earth_core_0530_stone_tomb_centre_escape',
+    title: 'Stone Tomb (0530) knocks a centre-tile dummy out of its rock, with no wall-unstick slingshot',
+    category: 'ability',
+    maxDurationMs: 5000,
+    buildEngine() {
+        const engine = buildTinyBattleEngine({ gridW: 12, gridH: 10, localPlayerId: P, grass: true });
+        placePlayerAndDummy(engine, {
+            playerId: P,
+            playerWorld: PLAYER_POS,
+            dummyWorld: TOMB_ESCAPE_DUMMY_POS,
+            abilities: ['0530'],
+        });
+        return engine;
+    },
+    getInitialOrders(engine) {
+        const u = engine.getLocalPlayerUnit()!;
+        const d = engine.getUnit('target_dummy')!;
+        return [{ unitId: u.id, abilityId: '0530', targets: [{ type: 'pixel' as const, position: { x: d.x, y: d.y } }] }];
+    },
+    assertPass(e) {
+        const d = e.getUnit('target_dummy');
+        const tm = e.terrainManager;
+        if (!d || !tm || !d.isAlive()) return false;
+        const centreCol = 5;
+        const centreRow = 5;
+        const dCol = Math.floor(d.x / CELL);
+        const dRow = Math.floor(d.y / CELL);
+        const centreIsRock = tm.getEffectiveTerrainType(centreCol, centreRow) === TerrainType.Rock;
+        const leftCentre = dCol !== centreCol || dRow !== centreRow;
+        // Exactly the stage-1 damage: a wall-unstick slingshot would add 5 per bounce, and landing
+        // back inside the plus would add the stage-2 damage.
+        return centreIsRock
+            && leftCentre
+            && tm.isPassable(d.x, d.y)
+            && d.maxHp - d.hp === STONE_TOMB_STAGE1_DAMAGE;
+    },
+    failureMessage(e) {
+        const d = e.getUnit('target_dummy');
+        const tm = e.terrainManager;
+        const dCol = d ? Math.floor(d.x / CELL) : '?';
+        const dRow = d ? Math.floor(d.y / CELL) : '?';
+        return `dummy at tile (${dCol}, ${dRow}) lost ${d ? d.maxHp - d.hp : 0} hp (want exactly ${STONE_TOMB_STAGE1_DAMAGE}: more means a slingshot or stage 2 hit it); centre tile=${tm?.getEffectiveTerrainType(5, 5)} (want Rock)`;
     },
 };
 
@@ -930,5 +989,85 @@ export const earthCoreRockSlideScenario: ScenarioDefinition = {
         const { col: rc, row: rr } = ROCK_SLIDE_SCENARIO_ROCK_TILE;
         const { col: lc, row: lr } = ROCK_SLIDE_SCENARIO_LANDING_TILE;
         return `dummy lost ${d ? d.maxHp - d.hp : '?'} hp (want 12); source tile=${tm.getEffectiveTerrainType(rc, rr)} (want Rubble); landing tile=${tm.getEffectiveTerrainType(lc, lr)} (want Rock); live projectiles=${e.projectiles.filter((p) => p.active).length}`;
+    },
+};
+
+// ---------------------------------------------------------------------------
+// 0537 - Rock Slide lands on an enemy (the wall stop raises rock under a dummy, which is then freed)
+// ---------------------------------------------------------------------------
+
+// The dummy stands on the resting tile, one tile short of the wall at (9, 5).
+const RS_LANDING_DUMMY_POS = {
+    x: ROCK_SLIDE_SCENARIO_LANDING_TILE.col * CELL + CELL / 2,
+    y: ROCK_SLIDE_SCENARIO_LANDING_TILE.row * CELL + CELL / 2,
+};
+
+/**
+ * Rock boxing in the resting tile's north and south sides and its eastern diagonals. The rock's
+ * side knockback (45 degrees off its travel, to either side) is blocked, so the dummy is still on
+ * the resting tile when the rock settles there. Only the west side (7, 5) is open.
+ */
+const RS_LANDING_BOX_TILES = [
+    { col: 8, row: 4 },
+    { col: 8, row: 6 },
+    { col: 9, row: 4 },
+    { col: 9, row: 6 },
+];
+
+/** Damage from one controlled wall-unstick bounce (`tickControlledSlingshot`) or generic eject. */
+const WALL_UNSTICK_BOUNCE_DAMAGE = 5;
+
+export const earthCoreRockSlideLandsOnEnemyScenario: ScenarioDefinition = {
+    id: 'earth_core_0537_rock_slide_lands_on_enemy',
+    title: 'Rock Slide (0537) settles as rock under a dummy on its resting tile, and wall-unstick frees the dummy',
+    category: 'ability',
+    maxDurationMs: 6000,
+    buildEngine() {
+        const engine = buildTinyBattleEngine({ gridW: 12, gridH: 10, localPlayerId: P, grass: true });
+        const grid = engine.terrainManager!.grid;
+        grid.set(ROCK_SLIDE_SCENARIO_ROCK_TILE.col, ROCK_SLIDE_SCENARIO_ROCK_TILE.row, TerrainType.Rock);
+        grid.set(ROCK_SLIDE_SCENARIO_WALL_TILE.col, ROCK_SLIDE_SCENARIO_WALL_TILE.row, TerrainType.Rock);
+        for (const t of RS_LANDING_BOX_TILES) grid.set(t.col, t.row, TerrainType.Rock);
+        placePlayerAndDummy(engine, {
+            playerId: P,
+            playerWorld: RS_PLAYER_POS,
+            dummyWorld: RS_LANDING_DUMMY_POS,
+            abilities: ['0537'],
+        });
+        return engine;
+    },
+    getInitialOrders(engine) {
+        const u = engine.getLocalPlayerUnit()!;
+        return [{
+            unitId: u.id,
+            abilityId: '0537',
+            targets: [
+                { type: 'pixel' as const, position: RS_ROCK_PICK },
+                { type: 'pixel' as const, position: RS_EAST_PICK },
+            ],
+        }];
+    },
+    assertPass(e) {
+        const tm = e.terrainManager;
+        const d = e.getUnit('target_dummy');
+        if (!tm || !d || !d.isAlive()) return false;
+        const { col: lc, row: lr } = ROCK_SLIDE_SCENARIO_LANDING_TILE;
+        const dCol = Math.floor(d.x / CELL);
+        const dRow = Math.floor(d.y / CELL);
+        // The rock's hit plus at least one wall-unstick bounce: proves the dummy was inside the
+        // settled rock and the unstick hand-off freed it.
+        return d.maxHp - d.hp >= ROCK_SLIDE_DAMAGE + WALL_UNSTICK_BOUNCE_DAMAGE
+            && tm.getEffectiveTerrainType(lc, lr) === TerrainType.Rock
+            && tm.isPassable(d.x, d.y)
+            && (dCol !== lc || dRow !== lr)
+            && e.projectiles.every((p) => !p.active);
+    },
+    failureMessage(e) {
+        const tm = e.terrainManager;
+        const d = e.getUnit('target_dummy');
+        const { col: lc, row: lr } = ROCK_SLIDE_SCENARIO_LANDING_TILE;
+        const dCol = d ? Math.floor(d.x / CELL) : '?';
+        const dRow = d ? Math.floor(d.y / CELL) : '?';
+        return `dummy alive=${d?.isAlive() ?? false} lost ${d ? d.maxHp - d.hp : '?'} hp (want >=${ROCK_SLIDE_DAMAGE + WALL_UNSTICK_BOUNCE_DAMAGE}: the hit plus a wall-unstick bounce) tile=(${dCol}, ${dRow}) terrain=${d ? tm?.getEffectiveTerrainType(Number(dCol), Number(dRow)) : '?'} (want passable, off the resting tile); resting tile=${tm?.getEffectiveTerrainType(lc, lr)} (want Rock); live projectiles=${e.projectiles.filter((p) => p.active).length}`;
     },
 };

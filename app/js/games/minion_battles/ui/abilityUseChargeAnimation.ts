@@ -7,6 +7,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { RecoveryChargeType } from '../abilities/abilityUses';
 import type { UnitAbilityRuntimeState } from '../game/units/Unit';
+import { easeOutCubic } from '../abilities/easing';
 
 export const ABILITY_USE_CHARGE_ANIM_MS = 1000;
 
@@ -128,11 +129,6 @@ export function getChargeTransitionKind(from: ChargeAnimState, to: ChargeAnimSta
     if (to.charge === from.charge + 1 && to.uses === from.uses) return 'fill';
     if (from.charge === n && to.charge === 0 && to.uses > from.uses) return 'rollover';
     return 'snap';
-}
-
-function easeOutCubic(t: number): number {
-    const x = Math.max(0, Math.min(1, t));
-    return 1 - (1 - x) ** 3;
 }
 
 /** When an ability has no recovery row, animate use count changes only. */

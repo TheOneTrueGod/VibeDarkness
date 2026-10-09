@@ -42,9 +42,23 @@ A line segment with thickness. Use for melee swings, lunges, and linear AoE. Imp
 
 **`renderTargetingPreview`** — Thick rectangle from caster to clamped mouse for the targeting overlay.
 
+**`renderInvalidPreview`** — Shown instead of the normal preview when the select step's `validatePick` rejects the aim. The default is a grey cross at the aim point; `TileAreaHitboxSpec` greys its cells and draws the cross on the anchor tile. It must not clear the graphics, because ghost previews share a layer.
+
 **Line / capsule previews** — Support clear **wind-up timing** in `renderActivePreview` (e.g. aim lines that tighten, `ChargeAttack`’s shrinking capsule). **Do not** replace that pattern with the generic area telegraph.
 
 **Non-line enemy hit previews** — For **cone, quad, circle, or other filled region** in `renderActivePreview`, use `abilities/previewHelpers.ts` (`drawEnemyConeHitboxTelegraph`, `drawEnemyConvexQuadHitboxTelegraph`, etc.). If the shape does not map cleanly, confirm the telegraph with the player.
+
+### TileAreaHitboxSpec
+
+Ground-only select for tile areas (`hitboxes/TileAreaHitboxSpec.ts`). It never locks on to a unit and never hits; the committed order is the pixel. The ability derives its cells from that pixel with `resolveCells`, the same call the preview uses.
+
+- **Anchor:** `{ kind: 'chebyshev', maxTileOffset }` (aim clamped around the caster) or `{ kind: 'adjacentCardinal' }` (the caster-adjacent tile on the dominant aim axis; null when aimed at the caster).
+- **Shape:** `tileShapes.single()`, `tileShapes.square(half)`, `tileShapes.plus()` (centre first), or any list of `{ dCol, dRow }`.
+- **Style:** `style` takes a `TELEGRAPH_STYLES` palette (`abilities/telegraphStyles.ts`, `danger` or `earth`). `gridLines: true` strokes the internal cell boundaries. `directionArrow: true` (adjacentCardinal only) draws the arrow from the caster toward the anchor.
+- **Preview:** `drawTileAreaTelegraph` (`abilities/previewHelpers.ts`) fills each cell and strokes only the outer outline of the union, so a plus reads as one perimeter.
+- **Validity:** `resolveAnchor` and `resolveCells` are the geometry for `validatePick` and effects. Use `abilities/tileAreaHelpers.ts` helpers for the rest (`snapSquareTileAreaCenter`, `getUnitsInTiles`, `getTileAreaEdges`).
+
+Do not add a second tile-area hitbox. Add a shape preset or an option instead.
 
 ### `resolveHitbox`
 

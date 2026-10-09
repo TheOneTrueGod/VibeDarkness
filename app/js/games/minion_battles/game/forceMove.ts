@@ -101,6 +101,7 @@ export function computeForcedDisplacement(
     }
 
     const step = Math.max(1, Math.min(options.step ?? 4, desired));
+
     let safeDistance = 0;
 
     let wallHit = false;

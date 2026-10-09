@@ -18,7 +18,8 @@ import { getPixelTargetPosition, getDirectionFromTo, damageEnemiesTouchingCaster
 import { getBodyColorForUnit, getCharacterSpriteKey } from '../../../game/units/unit_defs/unitDef';
 import { isAbilityNote } from '../../../game/AbilityNote';
 import { ContinuousEmitter, IntervalEmitter } from '../../../game/effects/EffectEmitter';
-import type { EngineContext } from '../../../game/EngineContext';
+import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
+import type { TerrainManager } from '../../../terrain/TerrainManager';
 import { TerrainType } from '../../../terrain/TerrainType';
 import {
 	applySlingshotLaunch,
@@ -60,14 +61,6 @@ const SLINGSHOT_LAUNCH_SLIDE_TIME = 0.2;
 // ^ These remain intentionally distinct from GENERIC_* in slingshotHelpers — tune independently.
 const AFTERIMAGE_DURATION = 6 / 60;
 
-interface TerrainManagerLike {
-	grid: { worldToGrid(x: number, y: number): { col: number; row: number } };
-	isPassable(x: number, y: number): boolean;
-	damageRock(col: number, row: number, damage?: number, sourceUnitId?: string | null): unknown;
-}
-
-type GameEngineLike = EngineContext;
-
 const DIGGING_CLAWS_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <circle cx="32" cy="32" r="28" fill="#3a3028" stroke="#1a1a1a"/>
   <path d="M18 46 L28 28 M24 48 L34 30 M30 46 L40 28"
@@ -83,7 +76,7 @@ function initSlingshotDirectionIfStuck(
 		slingshotDirX: number | null;
 		slingshotDirY: number | null;
 	},
-	tm: TerrainManagerLike,
+	tm: TerrainManager,
 ): void {
 	if (note.slingshotDirX !== null || note.slingshotDirY !== null) return;
 	if (tm.isPassable(caster.x, caster.y)) return;
@@ -97,7 +90,7 @@ function initSlingshotDirectionIfStuck(
 /** Damage a rock tile at the caster's current position (once per unique tile per cast). */
 function maybeDamageCurrentTile(
 	caster: Unit,
-	tm: TerrainManagerLike,
+	tm: TerrainManager,
 	damagedTileKeys: string[],
 ): void {
 	if (tm.isPassable(caster.x, caster.y)) return;
@@ -163,7 +156,7 @@ export const DiggingClawsAbility: AbilityStatic = {
 	},
 
 	beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], active: ActiveAbility): void {
-		const eng = engine as GameEngineLike;
+		const eng = engine as AbilityEngineContext;
 		const bodyColor = getBodyColorForUnit(caster);
 		const radius = caster.radius;
 		const characterSpriteKey = getCharacterSpriteKey(caster.characterId);
@@ -229,8 +222,8 @@ export const DiggingClawsAbility: AbilityStatic = {
 	},
 
 	doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-		const eng = engine as GameEngineLike;
-		const tm = (eng.terrainManager as TerrainManagerLike | null) ?? null;
+		const eng = engine as AbilityEngineContext;
+		const tm: TerrainManager | null = eng.terrainManager ?? null;
 
 		// ── Init ──────────────────────────────────────────────────────────────────────
 		if (prevTime < 0.05 && currentTime >= 0.05) {

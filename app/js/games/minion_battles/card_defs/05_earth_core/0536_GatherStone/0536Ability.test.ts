@@ -7,11 +7,9 @@ import { TerrainType } from '../../../terrain/TerrainType';
 import type { ResolvedTarget } from '../../../game/types';
 import {
     snapSquareTileAreaCenter,
-    getSquareTileAreaCells,
-    squareTileAreaWorldRect,
     worldToTile,
 } from '../../../abilities/tileAreaHelpers';
-import { SquareTileAreaHitboxSpec } from '../../../hitboxes/SquareTileAreaHitboxSpec';
+import { tileAreaHitbox, tileShapes } from '../../../hitboxes/TileAreaHitboxSpec';
 import {
     EARTH_TREE_ID,
     EARTH_NODE_GATHER_STONE_RUBBLE_STRIKE,
@@ -71,6 +69,9 @@ function makeEngine(opts: {
             getEffectiveTerrainType: (col: number, row: number) =>
                 types.get(`${col},${row}`) ?? TerrainType.Grass,
             getGridSize: () => ({ width, height, cellSize: CELL }),
+            isInBounds: (col: number, row: number) => col >= 0 && row >= 0 && col < width && row < height,
+            isIntactRockAt: (col: number, row: number) =>
+                col >= 0 && row >= 0 && col < width && row < height && types.get(`${col},${row}`) === TerrainType.Rock,
             damageRock,
             grid: { gridToWorld: (col: number, row: number) => center(col, row) },
         },
@@ -95,17 +96,16 @@ describe('tileAreaHelpers', () => {
     });
 
     it('returns 9 row-major cells for a half=1 area', () => {
-        const cells = getSquareTileAreaCells({ col: 7, row: 5 }, 1);
+        const square = tileAreaHitbox({
+            anchor: { kind: 'chebyshev', maxTileOffset: 2 },
+            shape: tileShapes.square(1),
+            castRange: 180,
+        });
+        const cells = square.cellsAround({ col: 7, row: 5 });
         expect(cells).toHaveLength(9);
         expect(cells[0]).toEqual({ col: 6, row: 4 });
         expect(cells[4]).toEqual({ col: 7, row: 5 });
         expect(cells[8]).toEqual({ col: 8, row: 6 });
-    });
-
-    it('produces a 3-tile world rectangle aligned to the grid', () => {
-        expect(squareTileAreaWorldRect({ col: 5, row: 5 }, 1)).toEqual({
-            minX: 160, minY: 160, maxX: 280, maxY: 280,
-        });
     });
 
     it('worldToTile matches floor(x / CELL_SIZE)', () => {
@@ -118,9 +118,13 @@ function axis(col: number, row: number): [number, number] {
     return [x, y];
 }
 
-describe('SquareTileAreaHitboxSpec', () => {
+describe('TileAreaHitboxSpec (square preset)', () => {
     it('is ground-only and never a lock-on', () => {
-        const hb = new SquareTileAreaHitboxSpec({ castRange: 180 });
+        const hb = tileAreaHitbox({
+            anchor: { kind: 'chebyshev', maxTileOffset: 2 },
+            shape: tileShapes.square(1),
+            castRange: 180,
+        });
         expect(hb.numTargets).toBe(0);
         expect(hb.maxRange).toBe(180);
         expect(hb.resolveTargets({} as Unit, { x: 0, y: 0 }, [])).toEqual([]);
@@ -128,7 +132,11 @@ describe('SquareTileAreaHitboxSpec', () => {
     });
 
     it('draws a closed square and returns no candidates', () => {
-        const hb = new SquareTileAreaHitboxSpec();
+        const hb = tileAreaHitbox({
+            anchor: { kind: 'chebyshev', maxTileOffset: 2 },
+            shape: tileShapes.square(1),
+            castRange: 180,
+        });
         const calls: string[] = [];
         const gr = {
             clear: () => calls.push('clear'),

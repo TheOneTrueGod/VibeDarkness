@@ -13,6 +13,7 @@ import {
     resolveTargetToPoint,
     computeLungeAimState,
     resolveAnchorPointFromCollected,
+    resolveSelectPickForAim,
 } from '../../../abilities/targeting';
 import { drawClampedLine } from '../../../abilities/previewHelpers';
 import { resolveAbilitySourceUnits } from '../../../abilities/abilitySourceUnits';
@@ -169,6 +170,68 @@ function renderSelectTargetDef(
     }
 
     // Lunge indicator on top (must come after hitbox draw).
+    if (state) {
+        renderLungeIndicator(gr, caster, state.virtualX, state.virtualY);
+    }
+}
+
+/**
+ * Committed picks so far, keyed by the label of the select step each one answers. `defs` must be the
+ * list the cursor counts through, so index i of `targets` belongs to `defs[i]`.
+ */
+function collectedTargetsByLabel(
+    defs: ReadonlyArray<{ label: string }>,
+    targets: ResolvedTarget[],
+): Record<string, ResolvedTarget> {
+    const byLabel: Record<string, ResolvedTarget> = {};
+    for (let i = 0; i < targets.length; i++) {
+        const def = defs[i];
+        const target = targets[i];
+        if (def && target) byLabel[def.label] = target;
+    }
+    return byLabel;
+}
+
+/**
+ * True when `validatePick` rejects the pick a click at `aim` would commit. Uses the same resolution
+ * as the click (`resolveSelectPickForAim`). A pick that cannot resolve at all is not rejected here;
+ * it keeps the normal preview.
+ */
+function isSelectAimRejected(
+    ability: AbilityStatic,
+    caster: Unit,
+    selectDef: SelectTargetDef,
+    aim: { x: number; y: number },
+    collectedTargets: Record<string, ResolvedTarget>,
+    engine: GameEngine,
+): boolean {
+    if (!selectDef.validatePick) return false;
+    const pick = resolveSelectPickForAim(ability, caster, selectDef, aim, aim, collectedTargets, engine);
+    if (!pick) return false;
+    return !selectDef.validatePick({ caster, engine, pick: pick.resolved, collectedTargets });
+}
+
+/** Preview for an aim the ability would reject: the hitbox's invalid drawing instead of its normal one. */
+function renderInvalidSelectTargetDef(
+    gr: IAbilityPreviewGraphics,
+    ability: AbilityStatic,
+    caster: Unit,
+    selectDef: SelectTargetDef,
+    aimPoint: { x: number; y: number },
+    engine: GameEngine,
+): void {
+    const state = ability.lunge
+        ? computeLungePreviewState(
+            caster,
+            aimPoint,
+            selectDef.hitbox.maxRange,
+            caster.getLungeDistance(engine, ability.lunge.distance),
+        )
+        : null;
+    const effectiveCaster: HitboxPreviewCaster = state
+        ? { x: state.virtualX, y: state.virtualY, abilityModifiers: caster.abilityModifiers }
+        : caster;
+    selectDef.hitbox.renderInvalidPreview(gr, effectiveCaster, state ? state.adjustedMouse : aimPoint);
     if (state) {
         renderLungeIndicator(gr, caster, state.virtualX, state.virtualY);
     }
@@ -650,20 +713,25 @@ export class PreviewRenderer {
                 if (isConfirmRadiusTargetDef(interactiveDef)) {
                     renderConfirmRadiusTargetDef(gr, ability, caster, interactiveDef, engine);
                 } else if (isSelectTargetDef(interactiveDef)) {
-                    const selectTargetDefs = getSelectTargetDefsFromTimings(ability, caster, engine);
-                    if (interactiveDef.anchorLabel && interactiveDef.maxRangeFromAnchor != null) {
-                        renderAnchoredSelectTargetDef(
-                            gr,
-                            interactiveDef,
-                            ts.currentTargets,
-                            selectTargetDefs,
-                            ts.mouseWorld,
-                            engine,
-                        );
+                    const collected = collectedTargetsByLabel(interactiveDefs, ts.currentTargets);
+                    if (isSelectAimRejected(ability, caster, interactiveDef, ts.mouseWorld, collected, engine)) {
+                        renderInvalidSelectTargetDef(gr, ability, caster, interactiveDef, ts.mouseWorld, engine);
                     } else {
-                        renderSelectTargetDef(gr, ability, caster, interactiveDef, ts.mouseWorld, engine);
+                        const selectTargetDefs = getSelectTargetDefsFromTimings(ability, caster, engine);
+                        if (interactiveDef.anchorLabel && interactiveDef.maxRangeFromAnchor != null) {
+                            renderAnchoredSelectTargetDef(
+                                gr,
+                                interactiveDef,
+                                ts.currentTargets,
+                                selectTargetDefs,
+                                ts.mouseWorld,
+                                engine,
+                            );
+                        } else {
+                            renderSelectTargetDef(gr, ability, caster, interactiveDef, ts.mouseWorld, engine);
+                        }
+                        ability.renderSelectTargetPreviewExtras?.(gr, caster, engine);
                     }
-                    ability.renderSelectTargetPreviewExtras?.(gr, caster, engine);
                 }
             }
             if (ability.renderTargetingPreviewSelectedTargets) {
@@ -735,7 +803,10 @@ export class PreviewRenderer {
                 // Render in-progress cursor for the next un-confirmed target (mirrors live targeting)
                 const nextSelectDef = selectTargetDefs[plan.currentTargets.length];
                 if (nextSelectDef) {
-                    if (nextSelectDef.anchorLabel && nextSelectDef.maxRangeFromAnchor != null) {
+                    const collected = collectedTargetsByLabel(selectTargetDefs, plan.currentTargets);
+                    if (isSelectAimRejected(ability, caster, nextSelectDef, plan.mouseWorld, collected, engine)) {
+                        renderInvalidSelectTargetDef(gr, ability, caster, nextSelectDef, plan.mouseWorld, engine);
+                    } else if (nextSelectDef.anchorLabel && nextSelectDef.maxRangeFromAnchor != null) {
                         renderAnchoredSelectTargetDef(
                             gr,
                             nextSelectDef,

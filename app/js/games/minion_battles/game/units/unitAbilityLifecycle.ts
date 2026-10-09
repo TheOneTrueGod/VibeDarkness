@@ -10,7 +10,13 @@ import {
     type AbilityTimingInterval,
 } from '../../abilities/abilityTimings';
 import { getAbility } from '../../abilities/AbilityRegistry';
-import { refundAbilityCost, spendAbilityCost, AbilityEventType, type AbilityStatic } from '../../abilities/Ability';
+import {
+    refundAbilityCost,
+    resolveAbilityInterruptPolicy,
+    spendAbilityCost,
+    AbilityEventType,
+    type AbilityStatic,
+} from '../../abilities/Ability';
 import { triggerAbilityEvent } from '../../abilities/events';
 import { resolveCastBehaviourTarget } from '../../abilities/resolveCastBehaviourTarget';
 import {
@@ -32,28 +38,43 @@ function isCooldownPhase(phase: AbilityPhase | null): boolean {
     return phase === AbilityPhase.Cooldown || phase === AbilityPhase.CoopCooldown;
 }
 
+/** Fires ON_CAST_END for a cast that is being ended early (cancel, skip-to-cooldown or end). */
+function fireCastEndEarly(unit: Unit, active: ActiveAbility, ability: AbilityStatic, engine: EngineContext): void {
+    const elapsed = Math.max(0, engine.gameTime - active.startTime);
+    triggerAbilityEvent({
+        engine,
+        caster: unit,
+        ability,
+        activeAbility: active,
+        targets: active.targets,
+        eventType: AbilityEventType.ON_CAST_END,
+        prevTime: elapsed,
+        currentTime: elapsed,
+    });
+}
+
 /**
  * Snap an in-progress cast to the start of its cooldown interval (no refund).
- * Clears cast payload / behaviours so windup/active effects do not continue.
+ * Runs behaviour cleanup first, then clears cast payload / behaviours so windup/active effects
+ * do not continue.
  */
 function skipActiveAbilityToCooldown(
     unit: Unit,
     active: ActiveAbility,
     ability: AbilityStatic,
-    engine: { gameTime: number },
-    engineForCleanup?: EngineContext,
+    engine: EngineContext,
 ): boolean {
-    const intervals = normalizeAbilityTimingsToIntervals(
-        resolveAbilityTimingEntries(ability, unit, engineForCleanup ?? engine),
-    );
+    const intervals = normalizeAbilityTimingsToIntervals(resolveAbilityTimingEntries(ability, unit, engine));
     const cooldown = findCooldownInterval(intervals);
     if (!cooldown) return false;
-    if (engineForCleanup) {
-        cleanupCastBehavioursForAbility(unit, active, engineForCleanup);
-    }
+    cleanupCastBehavioursForAbility(unit, active, engine);
     active.startTime = engine.gameTime - cooldown.start;
     active.castPayload = undefined;
     active.castBehaviourPayloads = {};
+    // The timeline moved, so any select-gate resume point is stale. Left set, the next tick would
+    // process (processedElapsed, cooldown start + dt] and fire every interval in between.
+    delete active.processedElapsed;
+    delete active.pendingSelectGate;
     return true;
 }
 
@@ -111,8 +132,26 @@ export function cancelUnitActiveAbility(unit: Unit, abilityId: string, engine: E
     unit.activeAbilities.splice(idx, 1);
 }
 
-export function interruptAndRefundUnitAbilities(unit: Unit, engine: EngineContext): void {
+/**
+ * The single interrupt pipeline. Used by stun (`Unit.interruptAllAbilities`), knockback
+ * (`Unit.interruptAndRefundAbilities`, via `engine.interruptUnitAndRefundAbilities`) and the
+ * controlled wall-unstick slingshot. For each active cast:
+ *
+ * 1. Cooldown phase: `duringCooldown: 'ignore'` keeps the cast; `'end'` ends it (no refund).
+ * 2. Before cooldown, `beforeCooldown: 'skipToCooldown'` (when the ability has a cooldown
+ *    interval) snaps it to cooldown with no refund.
+ * 3. Otherwise `beforeCooldown: 'cancel'`: refund the cost and remove the cast.
+ *
+ * World-state cleanup (such as a held projectile) belongs to the cast behaviours' `onInterrupt`,
+ * which `cleanupCastBehavioursForAbility` runs on every removal or snap.
+ *
+ * Every cast that is removed or snapped fires `ON_CAST_END` and runs
+ * `cleanupCastBehavioursForAbility` (so behaviour `onInterrupt` always fires). The ability note is
+ * cleared when at least one cast was interrupted.
+ */
+export function interruptUnitAbilities(unit: Unit, engine: EngineContext): void {
     const kept: ActiveAbility[] = [];
+    let interruptedAny = false;
     for (const active of unit.activeAbilities) {
         const ability = getAbility(active.abilityId);
         if (!ability) continue;
@@ -121,61 +160,64 @@ export function interruptAndRefundUnitAbilities(unit: Unit, engine: EngineContex
             resolveAbilityTimingEntries(ability, unit, engine),
         );
         const phase = getCoveringAbilityPhaseAtElapsed(elapsed, intervals);
-
-        ability.onCastInterrupted?.(engine, unit, active, elapsed);
+        const policy = resolveAbilityInterruptPolicy(ability);
 
         if (isCooldownPhase(phase)) {
-            if (ability.interruptEndsCooldown) {
-                triggerAbilityEvent({
-                    engine,
-                    caster: unit,
-                    ability,
-                    activeAbility: active,
-                    targets: active.targets,
-                    eventType: AbilityEventType.ON_CAST_END,
-                    prevTime: elapsed,
-                    currentTime: elapsed,
-                });
-                cleanupCastBehavioursForAbility(unit, active, engine);
+            if (policy.duringCooldown === 'ignore') {
+                kept.push(active);
                 continue;
             }
-            kept.push(active);
+            interruptedAny = true;
+            fireCastEndEarly(unit, active, ability, engine);
+            cleanupCastBehavioursForAbility(unit, active, engine);
             continue;
         }
 
-        if (
-            ability.skipToCooldownOnInterrupt
-            && findCooldownInterval(intervals)
-        ) {
-            triggerAbilityEvent({
-                engine,
-                caster: unit,
-                ability,
-                activeAbility: active,
-                targets: active.targets,
-                eventType: AbilityEventType.ON_CAST_END,
-                prevTime: elapsed,
-                currentTime: elapsed,
-            });
-            skipActiveAbilityToCooldown(unit, active, ability, engine, engine);
+        interruptedAny = true;
+        if (policy.beforeCooldown === 'skipToCooldown' && findCooldownInterval(intervals)) {
+            fireCastEndEarly(unit, active, ability, engine);
+            skipActiveAbilityToCooldown(unit, active, ability, engine);
             kept.push(active);
             continue;
         }
 
         refundAbilityCost(unit, ability, elapsed);
-        triggerAbilityEvent({
-            engine,
-            caster: unit,
-            ability,
-            activeAbility: active,
-            targets: active.targets,
-            eventType: AbilityEventType.ON_CAST_END,
-            prevTime: elapsed,
-            currentTime: elapsed,
-        });
+        fireCastEndEarly(unit, active, ability, engine);
         cleanupCastBehavioursForAbility(unit, active, engine);
     }
     unit.activeAbilities = kept;
+    if (interruptedAny) unit.clearAbilityNote();
+}
+
+/**
+ * Ends a cast whose select pick became illegal before its interval entered (a fizzle, detected by
+ * `validatePick` in the tick). It follows the before-cooldown rules of the interrupt pipeline:
+ * `beforeCooldown: 'skipToCooldown'` (when the ability has a cooldown) snaps the cast to cooldown with
+ * no refund; otherwise the cost is refunded and the cast is removed. `ON_CAST_END` and behaviour
+ * cleanup always run. A snap to cooldown clears the gate state (see `skipActiveAbilityToCooldown`).
+ *
+ * Removes the cast from `unit.activeAbilities`, so call it only after the tick loop has finished.
+ */
+export function fizzleUnitActiveAbility(unit: Unit, active: ActiveAbility, engine: EngineContext): void {
+    const ability = getAbility(active.abilityId);
+    if (!ability) {
+        const idx = unit.activeAbilities.indexOf(active);
+        if (idx >= 0) unit.activeAbilities.splice(idx, 1);
+        return;
+    }
+    const elapsed = Math.max(0, engine.gameTime - active.startTime);
+    const intervals = normalizeAbilityTimingsToIntervals(resolveAbilityTimingEntries(ability, unit, engine));
+    const policy = resolveAbilityInterruptPolicy(ability);
+    if (policy.beforeCooldown === 'skipToCooldown' && findCooldownInterval(intervals)) {
+        fireCastEndEarly(unit, active, ability, engine);
+        skipActiveAbilityToCooldown(unit, active, ability, engine);
+        return;
+    }
+    refundAbilityCost(unit, ability, elapsed);
+    fireCastEndEarly(unit, active, ability, engine);
+    cleanupCastBehavioursForAbility(unit, active, engine);
+    const idx = unit.activeAbilities.indexOf(active);
+    if (idx >= 0) unit.activeAbilities.splice(idx, 1);
     unit.clearAbilityNote();
 }
 
@@ -207,6 +249,7 @@ export function executeUnitAbility(
                 prevTime: existingElapsed,
                 currentTime: existingElapsed,
             });
+            cleanupCastBehavioursForAbility(unit, existingActive, engine);
         }
         unit.activeAbilities.splice(existing, 1);
         unit.clearAbilityNote();
@@ -246,34 +289,6 @@ export function executeUnitAbility(
 
     engine.trackAbilityUse(unit.id, ability.id);
     engine.eventBus.emit('ability_used', { unitId: unit.id, abilityId: ability.id });
-}
-
-/** Interrupt all active abilities (e.g. when stunned). Refunds resource costs unless skipped to cooldown. */
-export function interruptAllUnitAbilities(unit: Unit, engine: { gameTime: number }): void {
-    const kept: ActiveAbility[] = [];
-    for (const active of unit.activeAbilities) {
-        const ability = getAbility(active.abilityId);
-        if (!ability) continue;
-        const elapsed = Math.max(0, engine.gameTime - active.startTime);
-        const intervals = normalizeAbilityTimingsToIntervals(
-            resolveAbilityTimingEntries(ability, unit, engine),
-        );
-        const phase = getCoveringAbilityPhaseAtElapsed(elapsed, intervals);
-
-        if (isCooldownPhase(phase)) {
-            kept.push(active);
-            continue;
-        }
-
-        if (ability.skipToCooldownOnInterrupt && skipActiveAbilityToCooldown(unit, active, ability, engine)) {
-            kept.push(active);
-            continue;
-        }
-
-        refundAbilityCost(unit, ability, elapsed);
-    }
-    unit.activeAbilities = kept;
-    unit.clearAbilityNote();
 }
 
 export function unitRoundStart(unit: Unit, engine: EngineContext): void {

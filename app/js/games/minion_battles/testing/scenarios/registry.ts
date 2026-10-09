@@ -140,6 +140,8 @@ import {
     earthCoreGatherStoneRockHarvestScenario,
     earthCoreGatherStoneRubbleStrikeScenario,
     earthCoreGatherStoneNoRubbleStrikeWithoutResearchScenario,
+    earthCoreStoneTombCentreEscapeScenario,
+    earthCoreRockSlideLandsOnEnemyScenario,
 } from './abilities/earthCoreScenarios';
 import { rapidThrowComboScenario } from './abilities/rapidThrowComboScenario';
 
@@ -211,7 +213,9 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     earthCoreShakingGroundScenario,
     earthCoreShatterScenario,
     earthCoreStoneTombScenario,
+    earthCoreStoneTombCentreEscapeScenario,
     earthCoreRockSlideScenario,
+    earthCoreRockSlideLandsOnEnemyScenario,
     earthCoreKnockScenario,
     earthCoreAnchoredTremorScenario,
     earthCoreStoneyPunchBaselineScenario,
