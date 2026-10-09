@@ -22,7 +22,8 @@ const RESEARCHED = {
     [STICK_SWORD_TREE_ID]: [STICK_SWORD_NODE_BASE],
     [TRAINING_TREE_ID]: [TRAINING_NODE_CORE],
 };
-const EQUIPMENT = [CORE_ITEM_IDS.LightCore];
+// Stick (002) is equipped so the stored stick_sword research is part of the player's active research.
+const EQUIPMENT = [CORE_ITEM_IDS.LightCore, '002'];
 
 function offer(seed: string) {
     return resolveResearchRewardSlots(CAMPSITE_RESEARCH_SLOTS, RESEARCHED, EQUIPMENT, seed);

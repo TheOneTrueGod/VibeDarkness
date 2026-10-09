@@ -47,7 +47,11 @@ import { enemySpawnDefToSpawnDefinition } from '../game/units/spawning/adapters'
 import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
 import { getSpecialTileDef } from './specialTileDefs';
 import { getItemDef } from '../character_defs/items';
-import { resolveItemCardsToAdd } from '../character_defs/items/resolveItemCardsToAdd';
+import {
+    activeResearchByPlayer,
+    activeResearchNodeLevelsByPlayer,
+    resolveCharacterLoadout,
+} from '../character_defs/characterLoadout';
 import { getDefaultHp, PLAYER_CHARACTER_ID, resolveEnemySpawnStats } from '../game/units/unit_defs/unitDef';
 import {
     getDamageBonusFromResearch,
@@ -66,7 +70,7 @@ import {
     applyAbilityResearchModifiersToRuntime,
     initializeAbilityRuntimeForUnit,
 } from '../abilities/abilityUses';
-import { mergeBattleEquipmentIdsFromResearch, getCardReplacementsFromResearch, getDirectCardsFromResearch, getRemovedCardsFromResearch, computeAbilityModifiersFromResearch, getPetsFromResearch, getPetAbilitiesFromResearch, getMissionStartResourcesFromResearch } from '../../../researchTrees/evaluator';
+import { computeAbilityModifiersFromResearch, getPetsFromResearch, getPetAbilitiesFromResearch, getMissionStartResourcesFromResearch } from '../../../researchTrees/evaluator';
 import { expandAttachedAbilityIds } from './questPrepLoadout';
 import { PassiveStatKey } from '../../../researchTrees/types';
 import { getPetDef } from '../game/units/pet_defs/petDef';
@@ -298,8 +302,18 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     initializeGameState(engine: GameEngine, params: InitializeGameStateParams): void {
         engine.localPlayerId = params.localPlayerId;
         engine.terrainManager = params.terrainManager ?? null;
+        // Every research reader below (terrain, abilities, modifiers, passives, pets, resources)
+        // must see ACTIVE research. Idempotent if the caller (BattleSession) already filtered.
+        const activeResearchByPlayerMap = activeResearchByPlayer(
+            params.equippedItemsByPlayer,
+            params.playerResearchTreesByPlayer,
+        );
+        const activeResearchLevelsByPlayerMap = activeResearchNodeLevelsByPlayer(
+            params.equippedItemsByPlayer,
+            params.playerResearchNodeLevelsByPlayer,
+        );
         const composed = this.composeMap({
-            researchTrees: mergePartyResearch(params.playerResearchTreesByPlayer),
+            researchTrees: mergePartyResearch(activeResearchByPlayerMap),
             missionResults: params.missionResults,
         });
         if (composed) {
@@ -333,52 +347,17 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
         const worldH = grid ? grid.worldHeight : this.worldHeight;
         const playerSpacing = worldH / (playerCount + 1);
         const spawnPoints = this.playerSpawnPoints ?? composed?.playerSpawnPoints;
-        const researchByPlayer = params.playerResearchTreesByPlayer ?? {};
-        const researchLevelsByPlayer = params.playerResearchNodeLevelsByPlayer ?? {};
+        const researchByPlayer = activeResearchByPlayerMap;
+        const researchLevelsByPlayer = activeResearchLevelsByPlayerMap;
         for (let i = 0; i < playerCount; i++) {
             const pu = params.playerUnits[i];
-            const mergedEquip = mergeBattleEquipmentIdsFromResearch(
+            // Abilities come only from equipment + research (see resolveCharacterLoadout).
+            const loadout = resolveCharacterLoadout(
                 params.equippedItemsByPlayer?.[pu.playerId] ?? [],
                 researchByPlayer[pu.playerId],
             );
-            const equippedIds = [...mergedEquip.equipmentIds, ...mergedEquip.extraEquippedItemIds];
-            // Abilities and cards come only from equipment (e.g. core + weapon/utility items).
-            const abilities: string[] = [];
-            for (const itemId of equippedIds) {
-                const itemDef = getItemDef(itemId);
-                if (!itemDef) continue;
-                for (const cardId of resolveItemCardsToAdd(itemDef, researchByPlayer[pu.playerId])) {
-                    if (!abilities.includes(cardId)) {
-                        abilities.push(cardId);
-                    }
-                }
-            }
-            // Fallback if no equipment (should not happen if new characters get a core).
-            if (abilities.length === 0) {
-                abilities.push('0101', '0120');
-            }
-
-            // Add cards granted directly by research (bypasses item system).
-            for (const cardId of getDirectCardsFromResearch(researchByPlayer[pu.playerId])) {
-                if (!abilities.includes(cardId)) abilities.push(cardId);
-            }
-
-            // Strip cards research says to remove (e.g. Light Core removing Throw Torch).
-            const removedCardIds = getRemovedCardsFromResearch(researchByPlayer[pu.playerId]);
-            if (removedCardIds.size > 0) {
-                for (let j = abilities.length - 1; j >= 0; j--) {
-                    if (removedCardIds.has(abilities[j]!)) abilities.splice(j, 1);
-                }
-            }
-
-            // Apply card-level replacements from research (e.g. Double Punch replaces Punch).
-            const cardReplacements = getCardReplacementsFromResearch(researchByPlayer[pu.playerId]);
-            if (cardReplacements.size > 0) {
-                for (let j = 0; j < abilities.length; j++) {
-                    const replacement = cardReplacements.get(abilities[j]!);
-                    if (replacement) abilities[j] = replacement;
-                }
-            }
+            const equippedIds = [...loadout.battleEquipmentIds];
+            const abilities = [...loadout.abilityIds];
 
             // Quest Prep / mission Prepare Carefully: selected primaries (+ free attached companions).
             // Pass the pre-prep accessible pool so attachments like Imbued Bat only expand when

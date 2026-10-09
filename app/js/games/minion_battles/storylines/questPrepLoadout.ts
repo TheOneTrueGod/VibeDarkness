@@ -5,14 +5,7 @@
 
 import { abilityHasTag } from '../abilities/Ability';
 import { getAbility } from '../abilities/AbilityRegistry';
-import { getItemDef } from '../character_defs/items';
-import { resolveItemCardsToAdd } from '../character_defs/items/resolveItemCardsToAdd';
-import {
-    getCardReplacementsFromResearch,
-    getDirectCardsFromResearch,
-    getRemovedCardsFromResearch,
-    mergeBattleEquipmentIdsFromResearch,
-} from '../../../researchTrees/evaluator';
+import { resolveCharacterLoadout } from '../character_defs/characterLoadout';
 
 /** Max primary ability slots a player may fill during Quest Prep / mission ability selection. */
 export const PREP_ABILITY_SLOT_COUNT = 7;
@@ -28,33 +21,7 @@ export function buildAccessibleAbilityIds(
     equipment: readonly string[],
     researchTrees: Record<string, string[]> | undefined,
 ): string[] {
-    const merged = mergeBattleEquipmentIdsFromResearch([...equipment], researchTrees);
-    const equippedIds = [...merged.equipmentIds, ...merged.extraEquippedItemIds];
-    const abilities: string[] = [];
-    for (const itemId of equippedIds) {
-        const item = getItemDef(itemId);
-        if (!item) continue;
-        for (const cardId of resolveItemCardsToAdd(item, researchTrees)) {
-            if (!abilities.includes(cardId)) abilities.push(cardId);
-        }
-    }
-    for (const cardId of getDirectCardsFromResearch(researchTrees)) {
-        if (!abilities.includes(cardId)) abilities.push(cardId);
-    }
-    const removedCardIds = getRemovedCardsFromResearch(researchTrees);
-    if (removedCardIds.size > 0) {
-        for (let i = abilities.length - 1; i >= 0; i--) {
-            if (removedCardIds.has(abilities[i]!)) abilities.splice(i, 1);
-        }
-    }
-    const replacements = getCardReplacementsFromResearch(researchTrees);
-    if (replacements.size > 0) {
-        for (let i = 0; i < abilities.length; i++) {
-            const r = replacements.get(abilities[i]!);
-            if (r) abilities[i] = r;
-        }
-    }
-    return abilities;
+    return resolveCharacterLoadout(equipment, researchTrees).abilityIds;
 }
 
 /**

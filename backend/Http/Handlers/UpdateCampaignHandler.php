@@ -72,6 +72,12 @@ class UpdateCampaignHandler
         if (array_key_exists('darknessUpgrades', $data) && is_array($data['darknessUpgrades'])) {
             $campaign->setDarknessUpgrades($data['darknessUpgrades']);
         }
+        if (isset($data['unlockItemIds']) && is_array($data['unlockItemIds'])) {
+            $campaign->unlockItems($data['unlockItemIds']);
+        }
+        if ($isAdmin && isset($data['relockItemIds']) && is_array($data['relockItemIds'])) {
+            $campaign->relockItems($data['relockItemIds']);
+        }
         if (isset($data['addMissionResult']) && is_array($data['addMissionResult'])) {
             $mr = $data['addMissionResult'];
             $missionId = $mr['missionId'] ?? '';

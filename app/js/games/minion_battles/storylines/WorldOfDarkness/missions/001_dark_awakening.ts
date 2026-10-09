@@ -15,9 +15,6 @@ import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
-import { CRYSTAL_ROCKS_TREE_ID, CRYSTAL_ROCKS_NODE_BASE } from '../../../../../researchTrees/trees/crystal_rocks';
-import { STICK_SWORD_TREE_ID, STICK_SWORD_NODE_BASE } from '../../../../../researchTrees/trees/stick_sword';
-import { TECH_SHIELD_TREE_ID, TECH_SHIELD_NODE_BASE } from '../../../../../researchTrees/trees/tech_shield';
 
 /** Scraps gathered after surviving the first night. */
 export const DARK_AWAKENING_FOOD_REWARD = 2;
@@ -218,17 +215,17 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
 				{
 					id: 'rocks',
 					label: 'Grab some nearby rocks',
-					action: { type: 'grant_research_to_player' as const, treeId: CRYSTAL_ROCKS_TREE_ID, nodeId: CRYSTAL_ROCKS_NODE_BASE },
+					action: { type: 'equip_item' as const, itemId: '001' },
 				},
 				{
 					id: 'torch',
 					label: 'Grab a thick branch',
-					action: { type: 'grant_research_to_player' as const, treeId: STICK_SWORD_TREE_ID, nodeId: STICK_SWORD_NODE_BASE },
+					action: { type: 'equip_item' as const, itemId: '002' },
 				},
 				{
 					id: 'pot_shield',
 					label: 'Pick up the lid of a pot from the campfire',
-					action: { type: 'grant_research_to_player' as const, treeId: TECH_SHIELD_TREE_ID, nodeId: TECH_SHIELD_NODE_BASE },
+					action: { type: 'equip_item' as const, itemId: '003' },
 				},
 			],
 		},

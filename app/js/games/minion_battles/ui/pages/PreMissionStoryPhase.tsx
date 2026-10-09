@@ -10,6 +10,7 @@ import type { PortraitSide, PreMissionStoryDef, StoryChoiceAction, StoryChoiceAc
 import { STORY_BACKGROUNDS } from '../../assets/story';
 import { SPECTATOR_ID } from '../../state';
 import { getItemDef } from '../../character_defs/items';
+import { getActiveResearchTrees } from '../../../../researchTrees/activeResearch';
 import { prepLoadoutPrimaryIdsForResearchGrant } from '../../storylines/questPrepLoadout';
 import { researchGrantFromStoryAction } from '../../storylines/storyResearchGrant';
 import PreMissionStoryEndScreen from './preMissionStory/PreMissionStoryEndScreen';
@@ -326,7 +327,10 @@ export default function PreMissionStoryPhase({
             allPlayerIds={allPlayerIds}
             playerId={playerId}
             amSpectator={amSpectator}
-            playerResearchTrees={playerResearchTreesByPlayer[playerId]}
+            playerResearchTrees={getActiveResearchTrees(
+                playerResearchTreesByPlayer[playerId] ?? {},
+                playerEquipmentByPlayer?.[playerId] ?? [],
+            )}
             groupVoteVotes={groupVoteVotes}
             isApplyingGroupVote={isApplyingGroupVote}
             onAdvance={advancePhrase}

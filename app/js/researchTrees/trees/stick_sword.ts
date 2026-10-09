@@ -1,10 +1,6 @@
 import type { ResearchTreeDef } from '../types';
 import { RESEARCH_TREE_COLOUR_WEAPON, RESEARCH_TREE_ICON_WEAPON } from '../researchTreeChrome';
-import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
-import {
-    STARTING_WEAPON_STICK_NODE_ID,
-    exclusiveStartingWeaponPeers,
-} from './startingWeaponNodes';
+import { STARTING_WEAPON_STICK_NODE_ID } from './startingWeaponNodes';
 import {
     WEAPON_TREE_PREMIUM_METAL_COST,
     WEAPON_TREE_STANDARD_METAL_COST,
@@ -33,6 +29,7 @@ export const stickSwordTree: ResearchTreeDef = {
     colour: RESEARCH_TREE_COLOUR_WEAPON,
     icon: RESEARCH_TREE_ICON_WEAPON,
     tags: ['weapon'],
+    boundItem: { itemId: '002', rootNodeId: STICK_SWORD_NODE_BASE },
     accessRequirements: [
         { type: 'accountKnowledge', key: 'Research' },
         { type: 'characterHasEquippedItem', itemId: '002' },
@@ -47,11 +44,10 @@ export const stickSwordTree: ResearchTreeDef = {
             tier: 1,
             position: { x: 180, y: 290 },
             prereqNodeIds: [],
-            exclusiveWithNodeIds: exclusiveStartingWeaponPeers(STICK_SWORD_NODE_BASE),
-            requirements: [{ type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.BasicCore }],
+            exclusiveWithNodeIds: [],
+            requirements: [],
             cost: {},
-            effects: [{ type: 'equipItem', itemId: '002' }],
-            overrideCurrentEquipment: true,
+            effects: [],
             modifiesAbility: { from: '0103', to: '0103' },
         },
         {
@@ -65,7 +61,7 @@ export const stickSwordTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [STICK_SWORD_NODE_PIPE_BAT],
             requirements: [{ type: 'anyResearched', treeId: STICK_SWORD_TREE_ID, nodeIds: [STICK_SWORD_NODE_BASE] }],
             cost: { metal: WEAPON_TREE_STANDARD_METAL_COST },
-            effects: [{ type: 'replaceEquippedItem', fromItemId: '002', toItemId: '015' }],
+            effects: [{ type: 'replaceCard', fromCardId: '0103', toCardId: '0112' }],
             modifiesAbility: { from: '0103', to: '0112' },
         },
         {
@@ -93,7 +89,7 @@ export const stickSwordTree: ResearchTreeDef = {
             exclusiveWithNodeIds: ['craft_sword'],
             requirements: [{ type: 'anyResearched', treeId: STICK_SWORD_TREE_ID, nodeIds: [STICK_SWORD_NODE_BASE] }],
             cost: { metal: WEAPON_TREE_STANDARD_METAL_COST },
-            effects: [{ type: 'replaceEquippedItem', fromItemId: '002', toItemId: '021' }],
+            effects: [{ type: 'replaceCard', fromCardId: '0103', toCardId: '0115' }],
             modifiesAbility: { from: '0103', to: '0115' },
         },
         {

@@ -44,6 +44,8 @@ class Character
     private array $lastMissionAbilityIds;
     /** Per-campaign location card decks. Key = campaignId, value = list of LocationCardInstance. */
     private array $locationDeck;
+    /** Save-data schema version (see App\SaveData\CharacterMigrations). */
+    private int $version;
 
     public function __construct(
         string $id,
@@ -64,7 +66,8 @@ class Character
         ?array $activeQuestRun = null,
         array $lastMissionAbilityIds = [],
         array $researchSources = [],
-        array $locationDeck = []
+        array $locationDeck = [],
+        int $version = 0
     ) {
         $this->id = $id;
         $this->ownerAccountId = $ownerAccountId;
@@ -85,6 +88,12 @@ class Character
         $this->activeQuestRun = $activeQuestRun;
         $this->lastMissionAbilityIds = self::normalizeStringIdList($lastMissionAbilityIds);
         $this->locationDeck = self::normalizeLocationDeck($locationDeck);
+        $this->version = max(0, $version);
+    }
+
+    public function getVersion(): int
+    {
+        return $this->version;
     }
 
     public function getId(): string
@@ -311,6 +320,7 @@ class Character
             'activeQuestRun' => $this->activeQuestRun,
             'lastMissionAbilityIds' => $this->lastMissionAbilityIds,
             'locationDeck' => $this->locationDeck,
+            'version' => $this->version,
         ];
     }
 
@@ -350,7 +360,8 @@ class Character
             $activeQuestRun,
             is_array($lastMissionAbilityIds) ? $lastMissionAbilityIds : [],
             is_array($researchSources) ? $researchSources : [],
-            is_array($locationDeck) ? $locationDeck : []
+            is_array($locationDeck) ? $locationDeck : [],
+            (int) ($data['version'] ?? 0)
         );
     }
 

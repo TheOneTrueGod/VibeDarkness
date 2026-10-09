@@ -10,6 +10,7 @@ import {
 import { getCoreFromEquipment } from '../character_defs/items';
 import { RESEARCH_TREES } from '../../../researchTrees/list';
 import { collectResearchedNodeIds, nodeGrantsEquippedItem } from '../../../researchTrees/evaluator';
+import { getActiveResearchTrees, isResearchTreeActive } from '../../../researchTrees/activeResearch';
 
 interface NodeCandidate {
     treeId: string;
@@ -48,7 +49,9 @@ export function resolveResearchRewardSlots(
     equippedItemIds: readonly string[],
     randomSeed = '',
 ): StoryChoiceOptionRow[] {
-    const researched = researchedTrees ?? {};
+    // Active research: inactive bound (weapon) trees dropped, virtual roots of active ones added.
+    // Idempotent, so callers may pass either stored or already-active research.
+    const researched = getActiveResearchTrees(researchedTrees ?? {}, equippedItemIds);
     const equippedSet = new Set(equippedItemIds);
     const claimedKeys = new Set<string>(); // "treeId:nodeId"
 
@@ -178,6 +181,8 @@ function treeOpenForRandomReward(
     equippedItemIds: readonly string[],
     researched: Record<string, string[]>,
 ): boolean {
+    // Inactive bound (weapon) trees are closed even if they hold stored research.
+    if (!isResearchTreeActive(tree, equippedItemIds)) return false;
     if ((researched[tree.id] ?? []).length > 0) return true;
     return requirementsStrictlyMet(tree.accessRequirements, equippedSet, equippedItemIds, researched);
 }

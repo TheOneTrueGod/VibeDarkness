@@ -3,6 +3,7 @@
 namespace App\Storage;
 
 use App\PlayerAccount;
+use App\SaveData\StorageRoot;
 
 /**
  * Flat-file implementation of player account storage.
@@ -23,7 +24,7 @@ class FlatFilePlayerAccountStorage implements PlayerAccountStorageInterface
 
     private function defaultStoragePath(): string
     {
-        $path = dirname(dirname(__DIR__)) . '/storage/accounts';
+        $path = StorageRoot::path('accounts');
         if (!is_dir($path)) {
             mkdir($path, 0755, true);
         }

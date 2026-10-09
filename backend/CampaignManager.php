@@ -2,6 +2,10 @@
 
 namespace App;
 
+use App\SaveData\CampaignMigrations;
+use App\SaveData\MigrationLookups;
+use App\SaveData\StorageRoot;
+
 /**
  * Manages campaign storage. One file per campaign at storage/campaigns/<id>.json (O(1) lookup by id).
  */
@@ -33,7 +37,7 @@ class CampaignManager
     public function createCampaign(string $ownerAccountId): Campaign
     {
         $id = $this->generateCampaignId();
-        $campaign = new Campaign($id, '', [], [], ['food' => 0, 'metal' => 0, 'population' => 0, 'crystals' => 0, 'exhaustion' => 0]);
+        $campaign = new Campaign($id, '', [], [], ['food' => 0, 'metal' => 0, 'population' => 0, 'crystals' => 0, 'exhaustion' => 0], [], [], [], [], [], CampaignMigrations::CURRENT_VERSION);
         $this->persistCampaign($campaign);
         $this->cache[$id] = $campaign;
         return $campaign;
@@ -45,9 +49,50 @@ class CampaignManager
         $this->cache[$campaign->getId()] = $campaign;
     }
 
+    /**
+     * Campaign for a character: character -> ownerAccountId -> account campaignIds[0]
+     * (campaignCharacters is always empty on disk, so the owner's default campaign is used).
+     */
+    public function getCampaignForCharacter(string $characterId, ?AccountService $accountService = null): ?Campaign
+    {
+        $character = CharacterManager::getInstance()->getCharacter($characterId);
+        if ($character === null) {
+            return null;
+        }
+        $accountService ??= new AccountService(new \App\Storage\FlatFilePlayerAccountStorage());
+        $account = $accountService->getAccountById($character->getOwnerAccountId());
+        if ($account === null) {
+            return null;
+        }
+        $campaignIds = $account->getCampaignIds();
+        if ($campaignIds === []) {
+            return null;
+        }
+        return $this->getCampaign((string) $campaignIds[0]);
+    }
+
+    /**
+     * Unlock items on the character's campaign. Persists only when something changed.
+     *
+     * @param array<int, string> $itemIds
+     */
+    public function unlockItemsForCharacter(string $characterId, array $itemIds, ?AccountService $accountService = null): void
+    {
+        if ($itemIds === []) {
+            return;
+        }
+        $campaign = $this->getCampaignForCharacter($characterId, $accountService);
+        if ($campaign === null) {
+            return;
+        }
+        if ($campaign->unlockItems($itemIds)) {
+            $this->updateCampaign($campaign);
+        }
+    }
+
     private function getStoragePath(): string
     {
-        $path = dirname(__DIR__) . '/storage/campaigns';
+        $path = StorageRoot::path('campaigns');
         if (!is_dir($path)) {
             mkdir($path, 0755, true);
         }
@@ -81,7 +126,16 @@ class CampaignManager
             return null;
         }
         $data['id'] = $id;
-        $campaign = Campaign::fromArray($data);
+        $lookups = new MigrationLookups(StorageRoot::get());
+        $migrated = CampaignMigrations::migrate(
+            $data,
+            static fn (string $cid): array => $lookups->ownerCharacterIds($cid),
+            static fn (string $charId): ?array => $lookups->loadCharacter($charId)
+        );
+        $campaign = Campaign::fromArray($migrated['data']);
+        if ($migrated['changed']) {
+            $this->persistCampaign($campaign);
+        }
         $this->cache[$id] = $campaign;
         return $campaign;
     }

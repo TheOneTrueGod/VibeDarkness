@@ -11,13 +11,21 @@ import { LIGHT_CORE_MISSION_START_AMOUNT } from '../games/minion_battles/resourc
 import { GRAVITY_CORE_MISSION_START_AMOUNT } from '../games/minion_battles/card_defs/09_gravity_core/gravityConstants';
 
 describe('mergeBattleEquipmentIdsFromResearch', () => {
-    it('replaces stick (002) with crafted sword (015) when craft_sword is researched', () => {
+    it('weapon research never changes equipment (craft_sword leaves stick 002 alone)', () => {
         const out = mergeBattleEquipmentIdsFromResearch(['004', '002'], {
-            stick_sword: ['craft_sword'],
+            stick_sword: ['swing_stick', 'craft_sword'],
+            crystal_rocks: ['throw_rock', 'charged_rocks'],
         });
-        expect(out.equipmentIds).toContain('015');
-        expect(out.equipmentIds).not.toContain('002');
-        expect(out.equipmentIds).toContain('004');
+        expect(out.equipmentIds).toEqual(['004', '002']);
+    });
+
+    it('still applies core replaceEquippedItem swaps', () => {
+        const out = mergeBattleEquipmentIdsFromResearch(['004', '002'], {
+            [LIGHT_TREE_ID]: [LIGHT_NODE_CORE],
+        });
+        expect(out.equipmentIds).toContain('017');
+        expect(out.equipmentIds).not.toContain('004');
+        expect(out.equipmentIds).toContain('002');
     });
 });
 

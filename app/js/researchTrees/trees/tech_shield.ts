@@ -1,10 +1,6 @@
 import type { ResearchTreeDef } from '../types';
 import { RESEARCH_TREE_COLOUR_WEAPON, RESEARCH_TREE_ICON_WEAPON } from '../researchTreeChrome';
-import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
-import {
-    STARTING_WEAPON_SHIELD_NODE_ID,
-    exclusiveStartingWeaponPeers,
-} from './startingWeaponNodes';
+import { STARTING_WEAPON_SHIELD_NODE_ID } from './startingWeaponNodes';
 import { WEAPON_TREE_STANDARD_METAL_COST } from '../weaponResearchCosts';
 
 export const TECH_SHIELD_TREE_ID = 'tech_shield';
@@ -17,6 +13,7 @@ export const techShieldTree: ResearchTreeDef = {
     colour: RESEARCH_TREE_COLOUR_WEAPON,
     icon: RESEARCH_TREE_ICON_WEAPON,
     tags: ['weapon'],
+    boundItem: { itemId: '003', rootNodeId: TECH_SHIELD_NODE_BASE },
     accessRequirements: [
         { type: 'characterHasEquippedItem', itemId: '003' }, // Pot Lid (pot shield)
     ],
@@ -30,11 +27,10 @@ export const techShieldTree: ResearchTreeDef = {
             tier: 1,
             position: { x: 160, y: 100 },
             prereqNodeIds: [],
-            exclusiveWithNodeIds: exclusiveStartingWeaponPeers(TECH_SHIELD_NODE_BASE),
-            requirements: [{ type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.BasicCore }],
+            exclusiveWithNodeIds: [],
+            requirements: [],
             cost: {},
-            effects: [{ type: 'equipItem', itemId: '003' }],
-            overrideCurrentEquipment: true,
+            effects: [],
             modifiesAbility: { from: '0104', to: '0104' },
         },
         {
@@ -48,7 +44,7 @@ export const techShieldTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: TECH_SHIELD_TREE_ID, nodeIds: [TECH_SHIELD_NODE_BASE] }],
             cost: { metal: WEAPON_TREE_STANDARD_METAL_COST },
-            effects: [{ type: 'replaceEquippedItem', fromItemId: '003', toItemId: '011' }],
+            effects: [{ type: 'replaceCard', fromCardId: '0104', toCardId: '0110' }],
             modifiesAbility: { from: '0104', to: '0110' },
         },
         {
@@ -64,7 +60,10 @@ export const techShieldTree: ResearchTreeDef = {
                 { type: 'notResearched', treeId: TECH_SHIELD_TREE_ID, nodeId: 'extra_shields' },
             ],
             cost: { metal: WEAPON_TREE_STANDARD_METAL_COST },
-            effects: [{ type: 'replaceEquippedItem', fromItemId: '011', toItemId: '012' }],
+            effects: [
+                { type: 'replaceCard', fromCardId: '0110', toCardId: '0113' },
+                { type: 'addCard', cardId: '0121' },
+            ],
             modifiesAbility: { from: '0110', to: '0113' },
         },
         {

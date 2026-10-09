@@ -17,6 +17,8 @@ import {
 } from '../../../character_defs/items';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import type { MinionBattlesApi } from '../../../api/minionBattlesApi';
+import type { CharacterUpdates } from '../../../api/types';
+import { getUnlockedItemIds } from '../../../character_defs/items/unlockedItems';
 import CharacterPortrait from '../CharacterPortrait';
 import InventoryPanel from './InventoryPanel';
 import { ResearchTreeList, ResearchTreeContent, ResearchedNodesGrid } from '../ResearchTreePanel';
@@ -24,6 +26,11 @@ import type { AccountState, CampaignResourceKey, CampaignResources, CampaignStat
 import { TestIds } from '../../../../../testing/testIds';
 import { getCoreFromEquipment } from '../../../character_defs/items';
 import { RESEARCH_TREES } from '../../../../../researchTrees/list';
+import {
+    getActiveResearchNodeLevels,
+    getActiveResearchTrees,
+    isResearchTreeActive,
+} from '../../../../../researchTrees/activeResearch';
 import { buildAccessibleAbilityIds } from '../../../storylines/questPrepLoadout';
 import {
     isPlayerVisibleResearchTree,
@@ -129,8 +136,6 @@ interface CharacterEditorProps {
      * “Edit character” can rename while inventory stays view-only when `editMode` is false.
      */
     allowNameEdit?: boolean;
-    /** Optional inventory to display and drag from; defaults to the standard player inventory. */
-    inventoryItems?: string[];
     /** Whether to render the inventory sidebar. Defaults to true. */
     showInventoryPanel?: boolean;
     /** Target account (used for research knowledge gating, optional). */
@@ -191,7 +196,6 @@ export default function CharacterEditor({
     onClose: _onClose,
     editMode = false,
     allowNameEdit = true,
-    inventoryItems,
     showInventoryPanel = true,
     account,
     viewerAccount,
@@ -274,11 +278,28 @@ export default function CharacterEditor({
      * tree replaced by the campaign's `darknessUpgrades` (so ownership/eligibility for that tree is
      * evaluated against the player-level data). Never used for character persistence or bonuses.
      */
-    const viewResearch = useMemo(
-        () => mergeDarknessUpgradesIntoResearchView(researchTrees, researchNodeLevels, researchSources, darknessUpgrades),
-        [researchTrees, researchNodeLevels, researchSources, darknessUpgrades],
+    // Active research: stored research minus inactive weapon trees, plus virtual roots. Never persisted.
+    const activeResearchTrees = useMemo(
+        () => getActiveResearchTrees(researchTrees, equipment),
+        [researchTrees, equipment],
     );
-    const effectiveEditMode = editMode;
+    const activeResearchNodeLevels = useMemo(
+        () => getActiveResearchNodeLevels(researchNodeLevels, equipment),
+        [researchNodeLevels, equipment],
+    );
+    const viewResearch = useMemo(
+        () =>
+            mergeDarknessUpgradesIntoResearchView(
+                activeResearchTrees,
+                activeResearchNodeLevels,
+                researchSources,
+                darknessUpgrades,
+            ),
+        [activeResearchTrees, activeResearchNodeLevels, researchSources, darknessUpgrades],
+    );
+    // Equipment is frozen for the whole quest: non-admins get read-only slots while a run is active.
+    const equipmentLockedByQuest = !isAdmin && !!character.activeQuestRun;
+    const effectiveEditMode = editMode && !equipmentLockedByQuest;
     const effectiveShowInventory = showInventoryPanel;
 
     const showAllResearchTreesDebug = useSyncExternalStore(
@@ -304,10 +325,18 @@ export default function CharacterEditor({
     const eligibleResearchTrees = useMemo(() => {
         const ctx = {
             account: (account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 }) as AccountState,
-            character: { ...character, equipment, researchTrees, researchNodeLevels, researchSources } as CampaignCharacter,
+            character: {
+                ...character,
+                equipment,
+                researchTrees: activeResearchTrees,
+                researchNodeLevels: activeResearchNodeLevels,
+                researchSources,
+            } as CampaignCharacter,
             campaignResources: (resolvedCampaign?.resources ?? {}) as CampaignResources,
         };
         return RESEARCH_TREES.filter((t) => {
+            // Weapon trees are hidden while their weapon is not equipped, even if they hold research.
+            if (!isResearchTreeActive(t, equipment)) return false;
             const any = treeHasAnyResearch(ctx.character, t.id);
             if (any) return true;
             return t.accessRequirements.every((req) => {
@@ -323,7 +352,7 @@ export default function CharacterEditor({
                 return false;
             });
         });
-    }, [account, character, equipment, researchTrees, researchNodeLevels, researchSources, resolvedCampaign?.resources]);
+    }, [account, character, equipment, activeResearchTrees, activeResearchNodeLevels, researchSources, resolvedCampaign?.resources]);
 
     const playerAbilityIds = useMemo(
         () => new Set(buildAccessibleAbilityIds(equipment, researchTrees)),
@@ -333,9 +362,9 @@ export default function CharacterEditor({
     const playerVisibleResearchTrees = useMemo(
         () =>
             eligibleResearchTrees.filter((tree) =>
-                isPlayerVisibleResearchTree(tree, researchTrees, playerAbilityIds),
+                isPlayerVisibleResearchTree(tree, activeResearchTrees, playerAbilityIds),
             ),
-        [eligibleResearchTrees, playerAbilityIds, researchTrees],
+        [eligibleResearchTrees, playerAbilityIds, activeResearchTrees],
     );
 
     const displayResearchTrees = useMemo(() => {
@@ -373,7 +402,7 @@ export default function CharacterEditor({
             setLocalCampaign(null);
             return;
         }
-        if (activeTab !== 'research') {
+        if (activeTab !== 'research' && activeTab !== 'equipment') {
             return;
         }
         const isInstanceId = (id: string) => /^[a-f0-9]{16}$/.test(id);
@@ -397,11 +426,27 @@ export default function CharacterEditor({
         };
     }, [account?.campaignIds, activeTab, campaign, character.campaignId, api]);
 
+    /**
+     * Character update payload for an equipment change. During an active quest the same equipment is
+     * also written to the quest snapshot (`activeQuestRun.questCharacter.equipment`), which battles read.
+     */
+    const buildEquipmentUpdate = useCallback(
+        (newEquipment: string[]): CharacterUpdates => {
+            const run = character.activeQuestRun;
+            if (!run) return { equipment: newEquipment };
+            return {
+                equipment: newEquipment,
+                activeQuestRun: { ...run, questCharacter: { ...run.questCharacter, equipment: newEquipment } },
+            };
+        },
+        [character.activeQuestRun],
+    );
+
     const saveEquipment = useCallback(
         async (newEquipment: string[]) => {
             setSaving(true);
             try {
-                const updated = await api.updateCharacter(character.id, { equipment: newEquipment });
+                const updated = await api.updateCharacter(character.id, buildEquipmentUpdate(newEquipment));
                 setEquipment(updated.equipment ?? newEquipment);
                 onSaved?.({ equipment: updated.equipment ?? newEquipment, name, portraitId: selectedPortraitId });
             } catch (e) {
@@ -410,7 +455,7 @@ export default function CharacterEditor({
                 setSaving(false);
             }
         },
-        [character.id, api, name, onSaved, selectedPortraitId]
+        [character.id, api, name, onSaved, selectedPortraitId, buildEquipmentUpdate]
     );
 
     const savePortrait = useCallback(
@@ -473,11 +518,9 @@ export default function CharacterEditor({
 
     const visibleInventoryItems = useMemo(() => {
         const isAdminViewer = permissionAccount?.role === 'admin';
-        const base = isAdminViewer
-            ? ALL_PLAYER_ITEMS
-            : (inventoryItems ?? account?.inventoryItemIds ?? []);
+        const base = isAdminViewer ? ALL_PLAYER_ITEMS : getUnlockedItemIds(resolvedCampaign);
         return base.filter((id) => !equipment.includes(id));
-    }, [permissionAccount?.role, equipment, inventoryItems, account?.inventoryItemIds]);
+    }, [permissionAccount?.role, equipment, resolvedCampaign]);
 
 
     const handleGrantResource = useCallback(async () => {
@@ -562,7 +605,7 @@ export default function CharacterEditor({
                 const nextEquipment = undoReplaceEquippedItemsForRemovedNodes(equipment, removedNodeIdsByTree);
 
                 const updatedChar = await api.updateCharacter(character.id, {
-                    equipment: nextEquipment,
+                    ...buildEquipmentUpdate(nextEquipment),
                     researchTrees: nextResearchTrees,
                     researchNodeLevels: nextResearchNodeLevels,
                     researchSources: nextResearchSources,
@@ -579,7 +622,7 @@ export default function CharacterEditor({
                 setSaving(false);
             }
         },
-        [character.id, equipment, api, name, permissionAccount?.role, researchTrees, researchNodeLevels, researchSources, selectedPortraitId, onSaved, resolvedCampaign?.id, campaign, darknessUpgrades]
+        [character.id, buildEquipmentUpdate, equipment, api, name, permissionAccount?.role, researchTrees, researchNodeLevels, researchSources, selectedPortraitId, onSaved, resolvedCampaign?.id, campaign, darknessUpgrades]
     );
 
     const handleResetResearchBySource = useCallback(
@@ -668,7 +711,13 @@ export default function CharacterEditor({
 
             const ctx = {
                 account: (account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 }) as AccountState,
-                character: { ...character, equipment, researchTrees, researchNodeLevels, researchSources } as CampaignCharacter,
+                character: {
+                    ...character,
+                    equipment,
+                    researchTrees: activeResearchTrees,
+                    researchNodeLevels: activeResearchNodeLevels,
+                    researchSources,
+                } as CampaignCharacter,
                 campaignResources: resolvedCampaign.resources,
             };
 
@@ -680,7 +729,8 @@ export default function CharacterEditor({
 
             const targetNode = tree.nodes.find((n) => n.id === nodeId);
             const maxLevels = targetNode ? getNodeMaxLevels(targetNode) : 1;
-            const already = new Set(researchTrees[treeId] ?? []);
+            // Active view: the virtual root counts as owned, so it is never researched/persisted.
+            const already = new Set(activeResearchTrees[treeId] ?? []);
             // Player first unlock may auto-research prereqs. Admin Shift+click grants only this node.
             const isLevelUp = already.has(nodeId);
             const toDo = action === RESEARCH_CLICK_ADMIN || isLevelUp
@@ -723,7 +773,7 @@ export default function CharacterEditor({
                 const applied = applyResearchEffects(tree, ctx2);
                 const newEquipment = applied.equipment;
                 if (JSON.stringify(newEquipment) !== JSON.stringify(equipment)) {
-                    const updatedChar = await api.updateCharacter(character.id, { equipment: newEquipment });
+                    const updatedChar = await api.updateCharacter(character.id, buildEquipmentUpdate(newEquipment));
                     setEquipment(updatedChar.equipment ?? newEquipment);
                     onSaved?.({ equipment: updatedChar.equipment ?? newEquipment, name, portraitId: selectedPortraitId });
                 }
@@ -739,8 +789,8 @@ export default function CharacterEditor({
             equipment,
             api,
             isAdmin,
-            researchTrees,
-            researchNodeLevels,
+            activeResearchTrees,
+            activeResearchNodeLevels,
             researchSources,
             resolvedCampaign?.resources,
             resolvedCampaign?.id,
@@ -750,6 +800,7 @@ export default function CharacterEditor({
             selectedPortraitId,
             name,
             onSaved,
+            buildEquipmentUpdate,
         ],
     );
 
@@ -1009,6 +1060,11 @@ export default function CharacterEditor({
 
     const equipmentLeft = (
         <div className="flex-1 min-h-0 overflow-auto p-3">
+            {equipmentLockedByQuest && (
+                <p className="mb-2 rounded-md border border-border-custom bg-surface-light px-2 py-1.5 text-xs text-muted">
+                    Equipment is locked for the active quest
+                </p>
+            )}
             {equippedItemsDisplay === 'list' ? (
                 <EquippedItemsList
                     equipment={equipment}

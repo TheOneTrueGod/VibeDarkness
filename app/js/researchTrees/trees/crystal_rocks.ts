@@ -1,11 +1,7 @@
 import type { ResearchTreeDef } from '../types';
 import { RESEARCH_TREE_COLOUR_WEAPON, RESEARCH_TREE_ICON_WEAPON } from '../researchTreeChrome';
 import { EARTH_TREE_ID, EARTH_NODE_ROCK_SYNERGY_DAMAGE, EARTH_NODE_ROCK_SYNERGY_ENTOMBED } from './earth';
-import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
-import {
-    STARTING_WEAPON_ROCKS_NODE_ID,
-    exclusiveStartingWeaponPeers,
-} from './startingWeaponNodes';
+import { STARTING_WEAPON_ROCKS_NODE_ID } from './startingWeaponNodes';
 import {
     WEAPON_TREE_PREMIUM_METAL_COST,
     WEAPON_TREE_STANDARD_METAL_COST,
@@ -22,6 +18,7 @@ export const crystalRocksTree: ResearchTreeDef = {
     colour: RESEARCH_TREE_COLOUR_WEAPON,
     icon: RESEARCH_TREE_ICON_WEAPON,
     tags: ['weapon'],
+    boundItem: { itemId: '001', rootNodeId: CRYSTAL_ROCKS_NODE_BASE },
     accessRequirements: [
         { type: 'accountKnowledge', key: 'Research' },
         { type: 'characterHasEquippedItem', itemId: '001' }, // Rocks
@@ -36,11 +33,10 @@ export const crystalRocksTree: ResearchTreeDef = {
             tier: 1,
             position: { x: 180, y: 280 },
             prereqNodeIds: [],
-            exclusiveWithNodeIds: exclusiveStartingWeaponPeers(CRYSTAL_ROCKS_NODE_BASE),
-            requirements: [{ type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.BasicCore }],
+            exclusiveWithNodeIds: [],
+            requirements: [],
             cost: {},
-            effects: [{ type: 'equipItem', itemId: '001' }],
-            overrideCurrentEquipment: true,
+            effects: [],
             modifiesAbility: { from: 'throw_rock', to: 'throw_rock' },
         },
         {
@@ -54,7 +50,7 @@ export const crystalRocksTree: ResearchTreeDef = {
             exclusiveWithNodeIds: ['throwing_knives'],
             requirements: [{ type: 'anyResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeIds: [CRYSTAL_ROCKS_NODE_BASE] }],
             cost: { metal: WEAPON_TREE_STANDARD_METAL_COST },
-            effects: [{ type: 'replaceEquippedItem', fromItemId: '001', toItemId: '013' }],
+            effects: [{ type: 'replaceCard', fromCardId: 'throw_rock', toCardId: 'throw_charged_rock' }],
             modifiesAbility: { from: 'throw_rock', to: 'throw_charged_rock' },
         },
         {
@@ -68,7 +64,7 @@ export const crystalRocksTree: ResearchTreeDef = {
             exclusiveWithNodeIds: ['charged_rocks'],
             requirements: [{ type: 'anyResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeIds: [CRYSTAL_ROCKS_NODE_BASE] }],
             cost: { metal: WEAPON_TREE_STANDARD_METAL_COST },
-            effects: [{ type: 'replaceEquippedItem', fromItemId: '001', toItemId: '016' }],
+            effects: [{ type: 'replaceCard', fromCardId: 'throw_rock', toCardId: 'throw_knife' }],
             modifiesAbility: { from: 'throw_rock', to: 'throw_knife' },
         },
         {

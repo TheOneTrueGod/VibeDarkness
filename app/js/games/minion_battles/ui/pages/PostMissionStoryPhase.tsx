@@ -27,6 +27,7 @@ import { resolveResearchRewardSlots } from '../../storylines/researchRewardSlots
 import { getItemDef } from '../../character_defs/items';
 import { SPECTATOR_ID, isControlEnemy } from '../../state';
 import { getResearchNode } from '../../../../researchTrees/list';
+import { getActiveResearchTrees } from '../../../../researchTrees/activeResearch';
 import type { ResearchNodeDef } from '../../../../researchTrees/types';
 import PreMissionStoryLayout from './preMissionStory/PreMissionStoryLayout';
 import PostMissionChoicePanel from './preMissionStory/PostMissionChoicePanel';
@@ -263,7 +264,11 @@ export default function PostMissionStoryPhase({
             return;
         }
         const phrase = currentPhrase;
-        const myResearch = playerResearchTreesByPlayer[playerId] ?? {};
+        // Eligibility reads active research (inactive weapon trees ignored, virtual roots included).
+        const myResearch = getActiveResearchTrees(
+            playerResearchTreesByPlayer[playerId] ?? {},
+            playerEquipmentByPlayer[playerId] ?? [],
+        );
         const shouldSkip = (phrase.skipIfResearched ?? []).some(({ treeId, nodeIds }) =>
             (myResearch[treeId] ?? []).some((id) => nodeIds.includes(id))
         );

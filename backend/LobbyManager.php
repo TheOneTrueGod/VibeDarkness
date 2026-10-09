@@ -1109,6 +1109,11 @@ class LobbyManager
     /**
      * Merge each selected character's equipment into state as playerEquipmentByPlayer.
      *
+     * Equipment comes from the character, or from the active quest snapshot
+     * (activeQuestRun.questCharacter.equipment) when this lobby's questRunId matches the
+     * character's active run (equipment is frozen for the whole quest). Research never
+     * grants equipment, so no research-derived swaps are applied here.
+     *
      * This also layers in any story-granted equipment from storyGrantedEquipment so that
      * mission/story effects that equip items are reflected in the derived map.
      */
@@ -1132,58 +1137,28 @@ class LobbyManager
             if ($character !== null) {
                 $equipment = $character->getEquipment();
 
-                // Apply research-derived equipment changes deterministically (Tech Shield).
+                // Equipment is frozen for a quest: while this lobby is on the character's active quest run,
+                // use the quest snapshot rather than the (possibly since-edited) base character.
+                $run = $character->getActiveQuestRun();
+                $lobbyRunId = $state['questRunId'] ?? null;
+                if (is_array($run)
+                    && is_string($lobbyRunId) && $lobbyRunId !== ''
+                    && ($run['runId'] ?? null) === $lobbyRunId
+                    && isset($run['questCharacter']['equipment'])
+                    && is_array($run['questCharacter']['equipment'])
+                ) {
+                    $equipment = array_values(array_filter(
+                        $run['questCharacter']['equipment'],
+                        static fn ($id): bool => is_string($id) && $id !== ''
+                    ));
+                }
+
+                // Research never grants equipment (core swaps are applied client-side in the loadout resolver).
                 $trees = $character->getResearchTrees();
                 $researchByPlayer[$playerId] = is_array($trees) ? $trees : [];
                 $levels = $character->getResearchNodeLevels();
                 $researchLevelsByPlayer[$playerId] = is_array($levels) ? $levels : [];
                 $exhaustionByPlayer[$playerId] = $character->getExhaustion();
-                $tech = $trees['tech_shield'] ?? [];
-                $tech = is_array($tech) ? $tech : [];
-                $hasEmbedded = in_array('crystal_embedded_shield', $tech, true);
-                $hasThrowing = in_array('throwing_crystal_shield', $tech, true);
-                $hasExtra = in_array('extra_shields', $tech, true);
-                $crystalRocks = $trees['crystal_rocks'] ?? [];
-                $crystalRocks = is_array($crystalRocks) ? $crystalRocks : [];
-                $hasChargedRocks = in_array('charged_rocks', $crystalRocks, true);
-
-                if ($hasEmbedded) {
-                    // Replace pot lid (003) with crystal embedded (011)
-                    if (in_array('003', $equipment, true) && !in_array('011', $equipment, true)) {
-                        $equipment = array_values(array_filter($equipment, static fn (string $id): bool => $id !== '003'));
-                        $equipment[] = '011';
-                    }
-                }
-                if ($hasThrowing) {
-                    // Replace embedded (011) with throwing (012)
-                    if (in_array('011', $equipment, true) && !in_array('012', $equipment, true)) {
-                        $equipment = array_values(array_filter($equipment, static fn (string $id): bool => $id !== '011'));
-                        $equipment[] = '012';
-                    }
-                }
-                if ($hasExtra && !$hasThrowing) {
-                    // Extra Shields: add one extra copy of the embedded shield cards by duplicating the item id.
-                    if (in_array('011', $equipment, true)) {
-                        $equipment[] = '011';
-                    }
-                }
-                if ($hasChargedRocks) {
-                    // Crystal Rocks: replace rocks (001) with charged rocks (013).
-                    if (in_array('001', $equipment, true) && !in_array('013', $equipment, true)) {
-                        $equipment = array_values(array_filter($equipment, static fn (string $id): bool => $id !== '001'));
-                        $equipment[] = '013';
-                    }
-                }
-                $stickSword = $trees['stick_sword'] ?? [];
-                $stickSword = is_array($stickSword) ? $stickSword : [];
-                $hasCraftSword = in_array('craft_sword', $stickSword, true);
-                if ($hasCraftSword && in_array('002', $equipment, true)) {
-                    // Stick & Sword: Craft Sword replaces stick (002) with crafted sword (015); mirrors researchTrees evaluator.
-                    $equipment = array_values(array_filter($equipment, static fn (string $id): bool => $id !== '002'));
-                    if (!in_array('015', $equipment, true)) {
-                        $equipment[] = '015';
-                    }
-                }
 
                 $byPlayer[$playerId] = $equipment;
             }
@@ -1411,6 +1386,8 @@ class LobbyManager
         if ($itemId !== null && $itemId !== '') {
             if ($characterId !== null && $characterId !== '') {
                 CharacterManager::getInstance()->equipItem($characterId, $itemId, $replaceItemIds);
+                // Invariant: an equipped story item is always unlocked on the campaign.
+                CampaignManager::getInstance()->unlockItemsForCharacter($characterId, [$itemId]);
             }
         }
 
@@ -1623,6 +1600,12 @@ class LobbyManager
         }
         $currentState['storyGrantedEquipment'] = $granted;
 
+        // Invariant: a granted story item is always unlocked on the campaign.
+        $targetCharacterId = $selections[$targetPlayerId] ?? null;
+        if (is_string($targetCharacterId) && $targetCharacterId !== '' && !$this->isNonCharacterSelection($targetCharacterId)) {
+            CampaignManager::getInstance()->unlockItemsForCharacter($targetCharacterId, [$itemId]);
+        }
+
         $applied[$missionId][$phraseIndex] = true;
         $currentState['storyGrantsApplied'] = $applied;
 
@@ -1790,6 +1773,7 @@ class LobbyManager
             $characterId = $selections[$winner] ?? null;
             if (is_string($characterId) && $characterId !== '') {
                 CharacterManager::getInstance()->equipItem($characterId, $effect['itemId'], []);
+                CampaignManager::getInstance()->unlockItemsForCharacter($characterId, [$effect['itemId']]);
             }
         }
 

@@ -107,6 +107,7 @@ import {
 } from './general/darknessStrength';
 import { deathVfxUnitDefEffectsFireScenario, deathVfxAlphaWolfUnchangedScenario } from './general/deathVfx';
 import { abilityTimingEmitterVisualEffectsFireScenario } from './general/abilityTimingEmitterVfx';
+import { EQUIPMENT_LOADOUT_SCENARIOS } from './general/equipmentLoadout';
 import { directEffectVfxDefTargetPositionScenario } from './general/directEffectVfxDefPosition';
 import { gravityGrazeScenario } from './abilities/gravityGrazeScenario';
 import { gravityLocusScenario } from './abilities/gravityLocusScenario';
@@ -283,6 +284,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     deathVfxAlphaWolfUnchangedScenario,
     abilityTimingEmitterVisualEffectsFireScenario,
     directEffectVfxDefTargetPositionScenario,
+    ...EQUIPMENT_LOADOUT_SCENARIOS,
 ];
 
 export function getScenarioById(id: string): ScenarioDefinition | undefined {
@@ -339,6 +341,7 @@ const GENERAL_GROUP_ORDER: { slug: string; section: string }[] = [
     { slug: 'darkness-upgrades', section: 'Darkness Upgrades' },
     { slug: 'death-vfx', section: 'Death VFX' },
     { slug: 'ability-emitter-vfx', section: 'Ability Emitter VFX' },
+    { slug: 'equipment', section: 'Equipment' },
 ];
 
 export interface GeneralTestSidebarGroup {

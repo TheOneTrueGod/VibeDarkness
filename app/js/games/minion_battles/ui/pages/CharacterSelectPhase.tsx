@@ -11,7 +11,7 @@ import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import type { PreMissionStoryDef } from '../../storylines/storyTypes';
 import type { IBaseMissionDef } from '../../storylines/BaseMissionDef';
 import type { QuestLobbyFields } from '../../storylines/questLobby';
-import { ALL_PLAYER_ITEMS } from '../../character_defs/items';
+import { getUnlockedItemIds } from '../../character_defs/items/unlockedItems';
 import { isControlEnemy, SPECTATOR_ID } from '../../state';
 import CharacterCreator from '../components/CharacterEditor/CharacterCreator';
 import CharacterEditor from '../components/CharacterEditor/CharacterEditor';
@@ -423,8 +423,7 @@ export default function CharacterSelectPhase({
                         onSaved={chars.handleEditorSaved}
                         onClose={() => { setEditorOpen(false); setEditorForceEditable(false); }}
                         editMode={isAdmin || editorForceEditable || debugConsoleEnabled}
-                        inventoryItems={isAdmin ? ALL_PLAYER_ITEMS : user?.inventoryItemIds ?? []}
-                        showInventoryPanel={(isAdmin ? ALL_PLAYER_ITEMS : user?.inventoryItemIds ?? []).length > 0}
+                        showInventoryPanel={isAdmin || getUnlockedItemIds(campaign).length > 0}
                         account={user}
                         campaign={campaign}
                         equippedItemsDisplay="list"

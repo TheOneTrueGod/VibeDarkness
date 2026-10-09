@@ -11,6 +11,10 @@ import { SPECTATOR_ID, isControlEnemy } from '../state';
 import { TerrainManager } from '../terrain/TerrainManager';
 import { getSegment, getMissionSegmentZones } from '../terrain/segmentRegistry';
 import { mergePartyResearch, terrainContextFromSnapshot } from '../storylines/homeBase';
+import {
+    activeResearchByPlayer,
+    activeResearchNodeLevelsByPlayer,
+} from '../character_defs/characterLoadout';
 import type { HomeResolveContext } from '../storylines/homeBase';
 import type { IBaseMissionDef } from '../storylines/BaseMissionDef';
 import type { BattleOrder, GameEngineFromJSONOpts, SerializedGameState, WaitingForOrders } from './types';
@@ -707,8 +711,13 @@ export class BattleSession implements BattleSessionHandle {
         }
         const mission = MISSION_MAP[missionId] ?? DARK_AWAKENING;
         const snapshotRecord = (initialSnapshot ?? null) as Record<string, unknown> | null;
-        const playerResearchTreesByPlayer =
-            (snapshotRecord?.playerResearchTreesByPlayer as Record<string, Record<string, string[]>> | undefined) ?? {};
+        const equippedItemsByPlayer = (snapshotRecord?.playerEquipmentByPlayer as Record<string, string[]> | undefined) ?? {};
+        // Active research only (inactive weapon trees dropped, virtual roots added). Idempotent, so
+        // it is safe whether the snapshot holds raw or already-active research.
+        const playerResearchTreesByPlayer = activeResearchByPlayer(
+            equippedItemsByPlayer,
+            snapshotRecord?.playerResearchTreesByPlayer as Record<string, Record<string, string[]>> | undefined,
+        );
         const terrainCtx = { researchTrees: mergePartyResearch(playerResearchTreesByPlayer) };
         const composed = mission.composeMap(terrainCtx);
         const terrainGrid = mission.createTerrain(terrainCtx);
@@ -740,11 +749,12 @@ export class BattleSession implements BattleSessionHandle {
                     portraitId: portraitIds?.[pid],
                 };
             });
-        const equippedItemsByPlayer = (snapshotRecord?.playerEquipmentByPlayer as Record<string, string[]> | undefined) ?? {};
-        const playerResearchNodeLevelsByPlayer =
-            (snapshotRecord?.playerResearchNodeLevelsByPlayer as
+        const playerResearchNodeLevelsByPlayer = activeResearchNodeLevelsByPlayer(
+            equippedItemsByPlayer,
+            snapshotRecord?.playerResearchNodeLevelsByPlayer as
                 | Record<string, Record<string, Record<string, number>>>
-                | undefined) ?? {};
+                | undefined,
+        );
         const questPrepLoadoutsByPlayer =
             (snapshotRecord?.questPrepLoadoutsByPlayer as Record<string, string[]> | undefined) ?? undefined;
         const questAbilityLoadoutsByCharacterId =

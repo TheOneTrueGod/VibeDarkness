@@ -173,13 +173,17 @@ export const ROCK_SLIDE_CAST_TIME = 1.4;
 /** Px the caster lunges toward the rock during the punch. */
 export const ROCK_SLIDE_PUNCH_DISTANCE = 14;
 
-export const ROCK_SLIDE_DAMAGE = 12;
+export const ROCK_SLIDE_DAMAGE = 10;
 /** Enemies damaged per flight; further enemies are still knocked back. */
 export const ROCK_SLIDE_MAX_DAMAGE_TARGETS = 5;
 export const ROCK_SLIDE_KNOCKBACK_TIER = 3;
 export const ROCK_SLIDE_TRAVEL_TILES = 10;
-export const ROCK_SLIDE_PROJECTILE_SPEED = 900;
+/** Px/s; slow enough to dodge. The projectile still travels the full ROCK_SLIDE_TRAVEL_TILES. */
+export const ROCK_SLIDE_PROJECTILE_SPEED = 270;
 export const ROCK_SLIDE_PROJECTILE_RADIUS = 18;
+
+/** Uses of Rock Slide per round. */
+export const ROCK_SLIDE_MAX_USES = 2;
 
 /** Rounds before Rock Slide can be recast. */
 export const ROCK_SLIDE_RECHARGE_TURNS = 2;

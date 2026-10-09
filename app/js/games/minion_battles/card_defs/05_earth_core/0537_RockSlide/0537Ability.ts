@@ -58,6 +58,7 @@ import {
     ROCK_SLIDE_PROJECTILE_SPEED,
     ROCK_SLIDE_PROJECTILE_RADIUS,
     ROCK_SLIDE_RECHARGE_TURNS,
+    ROCK_SLIDE_MAX_USES,
 } from '../earthCoreConstants';
 import {
     ROCK_PICK_HITBOX,
@@ -291,6 +292,7 @@ export const RockSlideAbility_0537: AbilityStatic = defineAbility({
     image: ROCK_SLIDE_IMAGE,
     resourceCost: null, // TODO: Earth Core resonance cost pending balance pass.
     rechargeTurns: ROCK_SLIDE_RECHARGE_TURNS,
+    maxUses: ROCK_SLIDE_MAX_USES,
     prefireTime: ROCK_SLIDE_AIM_START,
     abilityTimings: TIMINGS,
     targets: [],

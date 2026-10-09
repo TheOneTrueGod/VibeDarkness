@@ -24,6 +24,24 @@ Each character has exactly one **main weapon** in the campaign sense: the focal 
 - **Purpose**: Narrative branching, inventory / character-sheet presentation, research and quest rewards that “upgrade” or transform the weapon over time—not the primary driver of in-battle card mechanics unless a feature explicitly links them.
 - **Implementation sketch** (when wiring data/UI): Persist a stable field on campaign character data (e.g. `mainWeaponKind` and later a tier or cosmetic/transform id); show a dedicated row or slot on character and inventory screens (“Main weapon: …”); gate or flavor story choices with templates that resolve to the current main-weapon label. Keep battle spawning and ability decks orthogonal unless intentionally connected.
 
+## Equipment unlocks and freezing
+
+- **Unlocks are campaign-level.** `Campaign.unlockedItemIds` (TS: `CampaignState.unlockedItemIds`, read via `getUnlockedItemIds` in `character_defs/items/unlockedItems.ts`) is a deduplicated list; unlocking twice is a no-op. It grows from mission-result `itemIds` (`Campaign::addMissionResult`) and from story `equip_item` on the server. **A story `equip_item` always unlocks** (also the deterministic equipment grant and group-vote `grant_item_to_player`), via `CampaignManager::unlockItemsForCharacter`. Admin tools unlock/relock through `updateCampaign` (`unlockItemIds` / admin-only `relockItemIds`). The Character Editor inventory reads campaign unlocks for non-admins; account `inventoryItemIds` is legacy and no longer written.
+- **Character to campaign lookup:** owner account's `campaignIds[0]` (`CampaignManager::getCampaignForCharacter`), because `campaignCharacters` is empty on disk.
+- **Research never grants equipment** (except core swaps); see the **research-trees** skill. Abilities come only from `resolveCharacterLoadout`.
+- **Quest equipment freeze:** between missions equipment can change; once a quest starts, battles use `activeQuestRun.questCharacter.equipment` (`LobbyManager::mergePlayerEquipmentIntoState`). `CharacterManager::equipItem` writes both the character and the quest snapshot, so a mission that changes gear mid-quest still works. The editor locks equipment for non-admins during a quest; admin edits write both.
+
+## Save data versions and migrations
+
+Characters and campaigns store a `version`. On load, `CharacterManager::loadFromStorage` / `CampaignManager::loadCampaignFromStorage` run every migration from the stored version (missing = 0) up to current, in order, and persist if anything changed. New entities start at the current version.
+
+- Framework and recipe: `backend/SaveData/SaveMigrator.php`; per-entity migrations in `CharacterMigrations.php` and `CampaignMigrations.php` (same folder).
+- To change stored shape: bump `CURRENT_VERSION`, add a pure migration for the previous version, add a self-test fixture.
+- Deploy-time migrations sweep all stored data once: numbered `backend/Migrations/Versions/M<NNNN>*.php` classes listed in `MigrationRegistry`, run by `backend/scripts/migrate.php` (`npm run migrate`; `--status`, `--dry-run`, `--self-test`, `--storage <dir>`).
+  - The applied version lives in `storage/_migrations/ledger.json`; only newer migrations run, so `npm run deploy` runs it on every deploy and it is a no-op unless a new migration shipped.
+  - Each migration's `touchedDirs()` are backed up to `storage/_migration_backup/` first; the first failure stops the run and is not recorded. Runs hold a lock; the runner refuses when storage is ahead of the code (rolled-back deploy).
+  - Forward-only and immutable: never edit or renumber a shipped migration (checksums are recorded and drift is warned); `up()` must be idempotent.
+
 ## Backend
 
 - **Storage**: Characters live in `storage/characters/` as JSON files named by character ID.

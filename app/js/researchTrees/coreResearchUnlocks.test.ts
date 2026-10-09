@@ -74,6 +74,17 @@ describe('core research unlocks', () => {
         }
     });
 
+    it('weapon nodes no longer grant equipment', () => {
+        for (const treeId of ['crystal_rocks', 'stick_sword', 'tech_shield']) {
+            const tree = getResearchTree(treeId)!;
+            for (const node of tree.nodes) {
+                for (const itemId of ['001', '002', '003', '011', '012', '013', '015', '016', '021']) {
+                    expect(nodeGrantsEquippedItem(node, itemId), `${treeId}/${node.id}/${itemId}`).toBe(false);
+                }
+            }
+        }
+    });
+
     it('lets admins grant a core without already wearing that core', () => {
         const result = canResearchNode(earthTree, EARTH_NODE_EARTH_CORE, makeCtx([CORE_ITEM_IDS.BasicCore]), {
             skipMissionRewardCheck: true,

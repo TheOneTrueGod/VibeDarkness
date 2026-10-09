@@ -26,9 +26,11 @@ export const MISSION_REWARD_MISSING = 'mission_reward';
 export const DISABLED_RESEARCH_MISSING = 'disabled_node';
 
 export type ResearchEffect =
-    | { type: 'equipItem'; itemId: string }
+    /**
+     * CORE-ONLY: swaps an equipped core item (e.g. BasicCore → EarthCore) when the node is researched.
+     * Research never grants or swaps weapons; weapon trees change abilities via `replaceCard` / `addCard`.
+     */
     | { type: 'replaceEquippedItem'; fromItemId: string; toItemId: string }
-    | { type: 'addExtraCardsFromItem'; itemId: string; cardId: string; count: number }
     | { type: 'replaceCard'; fromCardId: string; toCardId: string }
     | { type: 'addCard'; cardId: string }
     | { type: 'removeCard'; cardId: string }
@@ -162,11 +164,6 @@ export interface ResearchNodeDef {
     /** Ability parameter modifications granted by this node. Merged additively across all researched nodes. */
     abilityResearchModifiers?: AbilityResearchModifier[];
     /**
-     * When true, `equipItem` effects on this node replace any conflicting same-slot items
-     * instead of skipping. Use for starting-weapon nodes where research defines the item.
-     */
-    overrideCurrentEquipment?: boolean;
-    /**
      * Ability IDs to show a before/after card preview in the tooltip.
      * Use the same ID for both when the node modifies rather than replaces an ability.
      */
@@ -233,6 +230,12 @@ export interface ResearchTreeDef {
     /** Tags inherited by every node in this tree (see {@link ResearchTag}). */
     tags?: ResearchTag[];
     nodes: ResearchNodeDef[];
+    /**
+     * Marks this as a weapon tree, active only while `itemId` is equipped.
+     * `rootNodeId` counts as researched automatically (a "virtual" root, never persisted)
+     * while the tree is active. Research stored for an inactive bound tree is kept but ignored.
+     */
+    boundItem?: { itemId: string; rootNodeId: string };
     /** Nodes owned by other trees that are also displayed in this tree's panel. */
     crossTreeNodeRefs?: CrossTreeNodeRef[];
 }

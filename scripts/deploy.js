@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 /**
- * Deploy script: bump version, build, zip production files, upload via SFTP, unzip on server.
- * Usage: npm run deploy
+ * Deploy script: bump version, build, zip production files, upload via SFTP, unzip on server,
+ * then apply any pending data migrations on the server (backend/scripts/migrate.php — only
+ * migrations newer than the server's recorded version run).
+ * Usage: npm run deploy [-- --no-build] [-- --no-migrate]
+ * Optional .env.deploy key: DEPLOY_PHP_BIN (server PHP CLI path; default `php`).
  *
  * Requires `.env.deploy` placed ONE LEVEL ABOVE the project root (i.e. alongside VibeDarkness/,
  * not inside it). This keeps secrets out of the repo directory entirely.
@@ -90,6 +93,8 @@ function requireDeployConfig(env) {
     privateKeyPath: keyPath,
     passphrase: env.DEPLOY_SSH_PASSPHRASE || undefined,
     remotePath: env.DEPLOY_REMOTE_PATH || DEFAULT_REMOTE_PATH,
+    /** PHP CLI on the server (override if `php` is not on the SSH PATH). */
+    phpBin: env.DEPLOY_PHP_BIN || 'php',
   };
 }
 
@@ -207,7 +212,51 @@ function sshExec(conn, command) {
   });
 }
 
-async function uploadAndExtract(config) {
+/** Like sshExec, but streams the remote output to the console and resolves with the exit code. */
+function sshExecStreamed(conn, command) {
+  return new Promise((resolve, reject) => {
+    conn.exec(command, (err, stream) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      stream.on('close', (code) => resolve(code ?? 0));
+      stream.on('data', (chunk) => process.stdout.write(`  [server] ${chunk}`));
+      stream.stderr.on('data', (chunk) => process.stderr.write(`  [server] ${chunk}`));
+    });
+  });
+}
+
+/** Exit code from backend/scripts/migrate.php when another run holds the lock. */
+const MIGRATE_EXIT_LOCKED = 3;
+
+/**
+ * Applies pending data migrations on the server (backend/scripts/migrate.php). The server
+ * tracks the applied version in storage/_migrations/ledger.json, so this is a no-op unless
+ * this deploy ships a new migration. The code is already live at this point, so a failure
+ * does not abort the deploy; it is reported loudly and the process exits non-zero.
+ */
+async function runRemoteMigrations(conn, quotedDir, phpBin) {
+  console.log('Deploy: applying pending data migrations on server...');
+  try {
+    const code = await sshExecStreamed(conn, `cd ${quotedDir} && ${phpBin} backend/scripts/migrate.php`);
+    if (code === 0) {
+      console.log('Deploy: migrations up to date.');
+      return;
+    }
+    process.exitCode = 1;
+    const reason = code === MIGRATE_EXIT_LOCKED ? 'another migration run is in progress' : `exit code ${code}`;
+    console.error(
+      `Deploy: MIGRATION FAILED (${reason}). The new code is live; check the output above, fix, `
+      + `then rerun on the server: cd <deploy dir> && ${phpBin} backend/scripts/migrate.php`,
+    );
+  } catch (e) {
+    process.exitCode = 1;
+    console.error(`Deploy: MIGRATION NOT RUN — could not execute on server: ${e.message}`);
+  }
+}
+
+async function uploadAndExtract(config, { migrate }) {
   const zipBytes = fs.statSync(zipPath).size;
   const conn = await sshConnect(config);
   try {
@@ -221,6 +270,11 @@ async function uploadAndExtract(config) {
     const quotedZip = `'${remoteZip.replace(/'/g, `'\\''`)}'`;
     await sshExec(conn, `cd ${quotedDir} && unzip -o ${quotedZip}`);
     console.log('Deploy: remote extract complete.');
+    if (migrate) {
+      await runRemoteMigrations(conn, quotedDir, config.phpBin);
+    } else {
+      console.log('Deploy: skipping migration (--no-migrate).');
+    }
   } finally {
     conn.end();
   }
@@ -255,6 +309,7 @@ async function createDeployZip() {
 }
 
 const noBuild = process.argv.includes('--no-build');
+const noMigrate = process.argv.includes('--no-migrate');
 
 const deployConfig = requireDeployConfig(loadDeployEnv());
 
@@ -271,7 +326,7 @@ if (noBuild) {
 }
 
 await createDeployZip();
-await uploadAndExtract(deployConfig);
+await uploadAndExtract(deployConfig, { migrate: !noMigrate });
 
 console.log('Deploy: done.');
 

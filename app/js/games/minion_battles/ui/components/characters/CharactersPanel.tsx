@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import type { AccountState, PlayerState } from '../../../../../types';
+import type { AccountState, CampaignState, PlayerState } from '../../../../../types';
+import { getUnlockedItemIds } from '../../../character_defs/items/unlockedItems';
 import type { MinionBattlesApi } from '../../../api/minionBattlesApi';
 import type { LobbyClient } from '../../../../../LobbyClient';
 import CharacterEditor from '../CharacterEditor/CharacterEditor';
@@ -253,9 +254,31 @@ export default function CharactersPanel({
         isCampaignDataSelected,
     ]);
 
+    // Equipment unlocks live on the target account's campaign (campaignIds[0], like resolveCampaignInstanceId).
+    const adminCampaignId = adminDetails?.account.campaignIds?.[0] ?? null;
+    const [adminCampaign, setAdminCampaign] = useState<CampaignState | null>(null);
+    useEffect(() => {
+        if (!isAdmin || !adminCampaignId) {
+            setAdminCampaign(null);
+            return;
+        }
+        let cancelled = false;
+        api
+            .getCampaign(adminCampaignId)
+            .then((c) => {
+                if (!cancelled) setAdminCampaign(c);
+            })
+            .catch(() => {
+                if (!cancelled) setAdminCampaign(null);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [api, isAdmin, adminCampaignId]);
+
     const inventoryCounts = useMemo(
-        () => buildCounts(adminDetails?.account.inventoryItemIds ?? []),
-        [adminDetails],
+        () => buildCounts(getUnlockedItemIds(adminCampaign)),
+        [adminCampaign],
     );
 
     const expiresAt = adminDetails?.account.emergencyRecoveryExpiresAt;
@@ -269,24 +292,22 @@ export default function CharactersPanel({
     }, [loadAdminDetails, playerIdParam]);
 
     const handleGrantItem = useCallback(async () => {
-        if (!playerIdParam || !grantItemId) return;
+        if (!adminCampaignId || !grantItemId) return;
         try {
-            await api.grantAccountItem(playerIdParam, grantItemId);
-            await refreshAdminPlayer();
+            setAdminCampaign(await api.unlockCampaignItems(adminCampaignId, [grantItemId]));
         } catch (error) {
-            console.error('Failed to grant item:', error);
+            console.error('Failed to unlock item:', error);
         }
-    }, [grantItemId, api, refreshAdminPlayer, playerIdParam]);
+    }, [grantItemId, api, adminCampaignId]);
 
     const handleRemoveItem = useCallback(async (itemId: string) => {
-        if (!playerIdParam) return;
+        if (!adminCampaignId) return;
         try {
-            await api.removeAccountItem(playerIdParam, itemId);
-            await refreshAdminPlayer();
+            setAdminCampaign(await api.relockCampaignItems(adminCampaignId, [itemId]));
         } catch (error) {
-            console.error('Failed to remove item:', error);
+            console.error('Failed to relock item:', error);
         }
-    }, [api, refreshAdminPlayer, playerIdParam]);
+    }, [api, adminCampaignId]);
 
     const handleInventoryDragStart = useCallback((itemId: string, event: React.DragEvent<HTMLDivElement>) => {
         event.dataTransfer.setData('text/plain', itemId);
@@ -364,7 +385,7 @@ export default function CharactersPanel({
         }
 
         const selectedLobbyPlayer = players[lobbySelectedPlayerId] ?? null;
-        const lobbyInventoryCounts = buildCounts(adminDetails?.account.inventoryItemIds ?? []);
+        const lobbyInventoryCounts = inventoryCounts;
 
         return (
             <div className="w-full h-full overflow-hidden p-5">
@@ -481,7 +502,6 @@ export default function CharactersPanel({
                                     onSaved={() => void refreshAdminPlayer()}
                                     onClose={() => {}}
                                     editMode
-                                    inventoryItems={adminDetails?.account.inventoryItemIds ?? []}
                                     showInventoryPanel
                                     account={adminDetails?.account ?? null}
                                     viewerAccount={user ?? null}
@@ -632,7 +652,6 @@ export default function CharactersPanel({
                                 onSaved={() => void refreshAdminPlayer()}
                                 onClose={() => {}}
                                 editMode
-                                inventoryItems={adminDetails?.account.inventoryItemIds ?? []}
                                 showInventoryPanel
                                 account={adminDetails?.account ?? null}
                                 viewerAccount={user ?? null}

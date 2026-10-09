@@ -40,7 +40,7 @@ Paths below are relative to `app/js/games/minion_battles/`. **Do not treat this 
 | `abilities/` | Ability classes, timings, targeting, CastBehaviours, previews. See `abilities/AGENTS.md`. |
 | `crowdControl/` | Hard CC apply paths, knockback keywords, boss CC armour. See `crowdControl/AGENTS.md`. |
 | `card_defs/` | One folder per card/ability definition asset. |
-| `character_defs/` | Playable character definitions, portraits, items. |
+| `character_defs/` | Playable character definitions, portraits, items, loadout resolver. See `character_defs/AGENTS.md`. |
 | `constants/` | Shared numeric/template constants (enemy templates re-export from `game/` where appropriate). |
 | `buffs/` | Buff defs and runtime buff logic. |
 | `storylines/` | Campaign storyline modules and per-line `missions/`. |

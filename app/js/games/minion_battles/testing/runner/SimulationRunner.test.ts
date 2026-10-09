@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { runScenarioHeadless } from './SimulationRunner';
+import {
+    loadoutRocksChargedRockHitsScenario,
+    loadoutSwappedWeaponIgnoresOldResearchScenario,
+    loadoutShieldResearchChainScenario,
+    loadoutEarthCoreKeepsChargedRockScenario,
+    loadoutEarthCoreNoBonusRockScenario,
+} from '../scenarios/general/equipmentLoadout';
 import { getScenarioById } from '../scenarios/registry';
 import { pathShortCommuteScenario, dodgeIFrameProtectionScenario } from '../scenarios/general/pathfinding';
 import {
@@ -595,6 +602,31 @@ describe('runScenarioHeadless', () => {
 
     it('Shotgun (0205): dummy at close range takes damage from the pellet blast', () => {
         const r = runScenarioHeadless(shotgunHitsDummyScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('loadout_rocks_charged_rock_hits: Rocks + Charged Rocks research casts Throw Charged Rock and hits', () => {
+        const r = runScenarioHeadless(loadoutRocksChargedRockHitsScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('loadout_swapped_weapon_ignores_old_research: Stick equipped with stored rocks research ignores it (no rock throw, no light pulse)', () => {
+        const r = runScenarioHeadless(loadoutSwappedWeaponIgnoresOldResearchScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('loadout_shield_research_chain: shield research chain gives 0113 + 0121 and 0113 resolves', () => {
+        const r = runScenarioHeadless(loadoutShieldResearchChainScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('loadout_earth_core_keeps_charged_rock: Earth Core + Rocks + Charged Rocks keeps the Charged Rock throw', () => {
+        const r = runScenarioHeadless(loadoutEarthCoreKeepsChargedRockScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('loadout_earth_core_no_bonus_rock: Earth Core + Stick has no bonus rock throw and Swing Stick hits', () => {
+        const r = runScenarioHeadless(loadoutEarthCoreNoBonusRockScenario);
         expect(r.passed, r.message).toBe(true);
     });
 });

@@ -137,10 +137,22 @@ export class MinionBattlesApi {
         return this.lobbyClient.getAdminAccountDetails(accountId) as Promise<AdminAccountDetails>;
     }
 
+    /** Unlock equipment items for a campaign (idempotent; any owner). */
+    async unlockCampaignItems(campaignId: string, itemIds: string[]): Promise<CampaignState> {
+        return this.lobbyClient.updateCampaign(campaignId, { unlockItemIds: itemIds });
+    }
+
+    /** Admin only: remove equipment items from a campaign's unlocks. */
+    async relockCampaignItems(campaignId: string, itemIds: string[]): Promise<CampaignState> {
+        return this.lobbyClient.updateCampaign(campaignId, { relockItemIds: itemIds });
+    }
+
+    /** @deprecated Equipment is unlocked per campaign; use {@link unlockCampaignItems}. */
     async grantAccountItem(accountId: number | string, itemId: string): Promise<AdminAccountDetails> {
         return this.lobbyClient.grantAccountItem(accountId, itemId) as Promise<AdminAccountDetails>;
     }
 
+    /** @deprecated Equipment is unlocked per campaign; use {@link relockCampaignItems}. */
     async removeAccountItem(accountId: number | string, itemId: string): Promise<AdminAccountDetails> {
         return this.lobbyClient.removeAccountItem(accountId, itemId) as Promise<AdminAccountDetails>;
     }

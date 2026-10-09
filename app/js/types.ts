@@ -123,6 +123,11 @@ export interface CampaignState {
      * as `campaignCharacters`, not on a character); defaults to EMPTY_DARKNESS_UPGRADES when absent.
      */
     darknessUpgrades?: DarknessUpgradesState;
+    /**
+     * Campaign-level equipment unlocks (deduplicated item ids). Grown by mission-result `itemIds`
+     * and story `equip_item`; defaults to `[]` when absent (legacy saves).
+     */
+    unlockedItemIds?: string[];
 }
 
 /** Info pushed from a game component into the chat sidebar. */

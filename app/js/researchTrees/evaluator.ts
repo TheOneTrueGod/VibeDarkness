@@ -1,7 +1,7 @@
 import type { AccountState, CampaignResources } from '../types';
 import type { CampaignCharacter } from '../games/minion_battles/character_defs/CampaignCharacter';
 import { fromCampaignCharacterData } from '../games/minion_battles/character_defs/CampaignCharacter';
-import { getCoreFromEquipment, getItemDef } from '../games/minion_battles/character_defs/items';
+import { getCoreFromEquipment } from '../games/minion_battles/character_defs/items';
 import type {
     ResearchTreeDef,
     ResearchNodeDef,
@@ -44,13 +44,11 @@ export const ADMIN_RESEARCH_CHECK_OPTIONS: CanResearchNodeOptions = {
     includeDisabled: true,
 };
 
-/** True when researching this node equips `itemId` (replace or equip effect). */
+/** True when researching this node swaps in `itemId` (core `replaceEquippedItem` effects only). */
 export function nodeGrantsEquippedItem(node: ResearchNodeDef, itemId: string): boolean {
-    return node.effects.some((effect) => {
-        if (effect.type === 'equipItem') return effect.itemId === itemId;
-        if (effect.type === 'replaceEquippedItem') return effect.toItemId === itemId;
-        return false;
-    });
+    return node.effects.some(
+        (effect) => effect.type === 'replaceEquippedItem' && effect.toItemId === itemId,
+    );
 }
 
 /** Nodes that may appear on research screens (excludes draft; disabled unless `includeDisabled`). */
@@ -443,49 +441,57 @@ export function canAdminGrantResearchNode(
     return { ok: true, missing: [] };
 }
 
-export function applyResearchEffects(tree: ResearchTreeDef, ctx: ResearchContext): { equipment: string[]; extraEquippedItemIds: string[] } {
+/**
+ * Applies a tree's researched `replaceEquippedItem` effects (core swaps only) to the character's equipment.
+ * Research never grants or swaps weapons.
+ */
+export function applyResearchEffects(tree: ResearchTreeDef, ctx: ResearchContext): { equipment: string[] } {
     const researchedSet = getResearchedSet(ctx.character, tree.id);
     const researchedNodes = sortNodesDeterministic(tree.nodes.filter((n) => researchedSet.has(n.id)));
 
     let equipment = [...ctx.character.equipment];
-    const extraEquippedItemIds: string[] = [];
 
-    const applyEffect = (effect: ResearchEffect, overrideCurrentEquipment: boolean) => {
-        if (effect.type === 'equipItem') {
-            const newDef = getItemDef(effect.itemId);
-            const newSlots = new Set(newDef?.slots ?? []);
-            if (overrideCurrentEquipment && newSlots.size > 0) {
-                equipment = equipment.filter((id) => {
-                    const def = getItemDef(id);
-                    return !def?.slots.some((s) => newSlots.has(s));
-                });
-            }
-            if (!equipment.includes(effect.itemId)) equipment.push(effect.itemId);
-        } else if (effect.type === 'replaceEquippedItem') {
+    const applyEffect = (effect: ResearchEffect) => {
+        if (effect.type === 'replaceEquippedItem') {
             const hasFrom = equipment.includes(effect.fromItemId);
             if (hasFrom) {
                 equipment = equipment.filter((id) => id !== effect.fromItemId);
                 if (!equipment.includes(effect.toItemId)) equipment.push(effect.toItemId);
-            }
-        } else if (effect.type === 'addExtraCardsFromItem') {
-            // Implemented by duplicating the item id into extraEquippedItemIds; the ability
-            // assembly loop in BaseMissionDef treats extra items the same as equipped items.
-            if (equipment.includes(effect.itemId)) {
-                for (let i = 0; i < effect.count; i++) {
-                    extraEquippedItemIds.push(effect.itemId);
-                }
             }
         }
     };
 
     for (const node of researchedNodes) {
         for (const eff of node.effects) {
-            applyEffect(eff, node.overrideCurrentEquipment ?? false);
+            applyEffect(eff);
         }
     }
 
-    return { equipment, extraEquippedItemIds };
+    return { equipment };
 }
+
+/**
+ * Follows `from → to` replacements until a fixed point (e.g. `0104→0110→0113` resolves to `0113`).
+ * Cycle-guarded; result is deduplicated, preserving first-seen order.
+ */
+export function applyCardReplacements(cards: string[], replacements: Map<string, string>): string[] {
+    const out: string[] = [];
+    for (const card of cards) {
+        let current = card;
+        const seen = new Set<string>([current]);
+        while (replacements.has(current)) {
+            const next = replacements.get(current)!;
+            if (seen.has(next)) break;
+            seen.add(next);
+            current = next;
+        }
+        if (!out.includes(current)) out.push(current);
+    }
+    return out;
+}
+
+/** Optional filter so card-effect helpers can run per phase (e.g. bound weapon trees vs the rest). */
+export type TreePredicate = (tree: ResearchTreeDef) => boolean;
 
 /**
  * Returns card IDs to add directly to the unit's ability list from `addCard` effects in researched nodes.
@@ -493,10 +499,12 @@ export function applyResearchEffects(tree: ResearchTreeDef, ctx: ResearchContext
  */
 export function getDirectCardsFromResearch(
     researchTrees: Record<string, string[]> | undefined,
+    treePredicate?: TreePredicate,
 ): string[] {
     const trees = researchTrees ?? {};
     const cards: string[] = [];
     for (const tree of RESEARCH_TREES) {
+        if (treePredicate && !treePredicate(tree)) continue;
         const researchedSet = new Set(trees[tree.id] ?? []);
         const researchedNodes = sortNodesDeterministic(tree.nodes.filter((n) => researchedSet.has(n.id)));
         for (const node of researchedNodes) {
@@ -516,10 +524,12 @@ export function getDirectCardsFromResearch(
  */
 export function getRemovedCardsFromResearch(
     researchTrees: Record<string, string[]> | undefined,
+    treePredicate?: TreePredicate,
 ): Set<string> {
     const trees = researchTrees ?? {};
     const cardIds = new Set<string>();
     for (const tree of RESEARCH_TREES) {
+        if (treePredicate && !treePredicate(tree)) continue;
         const researchedSet = new Set(trees[tree.id] ?? []);
         const researchedNodes = sortNodesDeterministic(tree.nodes.filter((n) => researchedSet.has(n.id)));
         for (const node of researchedNodes) {
@@ -614,10 +624,12 @@ export function getMissionStartResourcesFromResearch(
  */
 export function getCardReplacementsFromResearch(
     researchTrees: Record<string, string[]> | undefined,
+    treePredicate?: TreePredicate,
 ): Map<string, string> {
     const trees = researchTrees ?? {};
     const replacements = new Map<string, string>();
     for (const tree of RESEARCH_TREES) {
+        if (treePredicate && !treePredicate(tree)) continue;
         const researchedSet = new Set(trees[tree.id] ?? []);
         const researchedNodes = sortNodesDeterministic(tree.nodes.filter((n) => researchedSet.has(n.id)));
         for (const node of researchedNodes) {
@@ -800,16 +812,16 @@ export function computeAbilityModifiersFromResearch(
 }
 
 /**
- * Applies all trees' deterministic equipment mutations (matches Character Editor layered research effects).
+ * Applies all trees' core `replaceEquippedItem` swaps (matches Character Editor layered research effects).
  * Use when building battle deck item lists from persisted equipment plus `researchTrees`.
+ * Weapon research never changes equipment.
  */
 export function mergeBattleEquipmentIdsFromResearch(
     equipmentIds: string[],
     researchTrees: Record<string, string[]> | undefined,
-): { equipmentIds: string[]; extraEquippedItemIds: string[] } {
+): { equipmentIds: string[] } {
     const trees = researchTrees ?? {};
     let equipment = [...equipmentIds];
-    const extraEquippedItemIds: string[] = [];
     const dummyAccount = { id: 0, name: '', role: 'user' as const, fire: 0, water: 0, earth: 0, air: 0 };
     for (const tree of RESEARCH_TREES) {
         const character = fromCampaignCharacterData({
@@ -830,8 +842,7 @@ export function mergeBattleEquipmentIdsFromResearch(
         };
         const applied = applyResearchEffects(tree, ctx);
         equipment = applied.equipment;
-        extraEquippedItemIds.push(...applied.extraEquippedItemIds);
     }
-    return { equipmentIds: equipment, extraEquippedItemIds };
+    return { equipmentIds: equipment };
 }
 

@@ -256,6 +256,10 @@ export class LobbyClient {
     async updateCampaign(
         campaignId: string,
         payload: Partial<import('./types').CampaignState> & {
+            /** Unlock equipment items on this campaign (any owner). */
+            unlockItemIds?: string[];
+            /** Remove unlocked items (admin only). */
+            relockItemIds?: string[];
             addMissionResult?: {
                 missionId: string;
                 result: string;
@@ -485,6 +489,7 @@ export class LobbyClient {
         return (data.accounts as AccountInfo[]) ?? [];
     }
 
+    /** @deprecated Equipment is unlocked per campaign; use `updateCampaign` with `unlockItemIds`. */
     async grantAccountItem(accountId: number | string, itemId: string): Promise<AdminAccountDetailsResponse> {
         const data = await this.request(`/api/admin/accounts/${encodeURIComponent(String(accountId))}/items`, {
             method: 'POST',
@@ -496,6 +501,7 @@ export class LobbyClient {
         };
     }
 
+    /** @deprecated Equipment is unlocked per campaign; use `updateCampaign` with `relockItemIds`. */
     async removeAccountItem(accountId: number | string, itemId: string): Promise<AdminAccountDetailsResponse> {
         const data = await this.request(`/api/admin/accounts/${encodeURIComponent(String(accountId))}/items/remove`, {
             method: 'POST',

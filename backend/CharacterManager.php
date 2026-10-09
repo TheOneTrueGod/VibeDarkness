@@ -2,6 +2,9 @@
 
 namespace App;
 
+use App\SaveData\CharacterMigrations;
+use App\SaveData\StorageRoot;
+
 /**
  * Manages campaign character storage. One file per character at storage/characters/<id>.json.
  */
@@ -36,6 +39,7 @@ class CharacterManager
         $character = Character::fromArray(array_merge($data, [
             'id' => $id,
             'ownerAccountId' => $ownerAccountId,
+            'version' => $data['version'] ?? CharacterMigrations::CURRENT_VERSION,
         ]));
         $this->persist($character);
         $this->cache[$id] = $character;
@@ -44,7 +48,7 @@ class CharacterManager
 
     private function getStoragePath(): string
     {
-        $path = dirname(__DIR__) . '/storage/characters';
+        $path = StorageRoot::path('characters');
         if (!is_dir($path)) {
             mkdir($path, 0755, true);
         }
@@ -78,7 +82,11 @@ class CharacterManager
             return null;
         }
         $data['id'] = $id;
-        $character = Character::fromArray($data);
+        $migrated = CharacterMigrations::migrate($data);
+        $character = Character::fromArray($migrated['data']);
+        if ($migrated['changed']) {
+            $this->persist($character);
+        }
         $this->cache[$id] = $character;
         return $character;
     }
@@ -199,7 +207,27 @@ class CharacterManager
         if (!in_array($itemId, $equipment, true)) {
             $equipment[] = $itemId;
         }
-        $updated = Character::fromArray(array_merge($character->toArray(), ['equipment' => $equipment]));
+        $data = array_merge($character->toArray(), ['equipment' => $equipment]);
+
+        // Equipment is frozen for a quest via the snapshot; a mission that equips mid-quest
+        // must also change the snapshot (same replace / append logic).
+        $run = $data['activeQuestRun'] ?? null;
+        if (is_array($run) && isset($run['questCharacter']) && is_array($run['questCharacter'])) {
+            $questEquipment = $run['questCharacter']['equipment'] ?? [];
+            $questEquipment = is_array($questEquipment)
+                ? array_values(array_filter($questEquipment, static fn ($e): bool => is_string($e)))
+                : [];
+            foreach ($replaceItemIds as $rid) {
+                $questEquipment = array_values(array_filter($questEquipment, static fn (string $e): bool => $e !== $rid));
+            }
+            if (!in_array($itemId, $questEquipment, true)) {
+                $questEquipment[] = $itemId;
+            }
+            $run['questCharacter']['equipment'] = $questEquipment;
+            $data['activeQuestRun'] = $run;
+        }
+
+        $updated = Character::fromArray($data);
         $this->persist($updated);
         $this->cache[$characterId] = $updated;
         return true;

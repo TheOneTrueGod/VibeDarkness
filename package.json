@@ -8,6 +8,7 @@
     "watch": "vite",
     "build": "vite build",
     "deploy": "node scripts/deploy.js",
+    "migrate": "php backend/scripts/migrate.php",
     "preview": "vite preview",
     "php": "nodemon --watch backend --watch index.php --ext php --exec \"php -S localhost:8000 index.php\"",
     "lint": "eslint .",

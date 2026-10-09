@@ -7,11 +7,6 @@ import type { ItemDef, EquipmentSlotType, CoreSlotLayout } from './types';
 import { rocksItem } from './hands/001_rocks';
 import { torchItem } from './hands/002_torch';
 import { potShieldItem } from './hands/003_pot_shield';
-import { crystalEmbeddedShieldItem } from './hands/011_crystal_embedded_shield';
-import { throwingCrystalShieldItem } from './hands/012_throwing_crystal_shield';
-import { chargedRocksItem } from './hands/013_charged_rocks';
-import { throwingKnivesItem } from './hands/016_throwing_knives';
-import { pipeBatItem } from './hands/021_pipe_bat';
 import { coreBasicItem } from './core/004_core_basic';
 import { coreWeaponsItem } from './core/006_core_weapons';
 import { coreLightItem } from './core/017_core_light';
@@ -24,15 +19,10 @@ import { pistolItem } from './weapons/007_pistol';
 import { smgItem } from './weapons/008_smg';
 import { shotgunItem } from './weapons/009_shotgun';
 import { laserSwordItem } from './weapons/010_laser_sword';
-import { craftedSwordItem } from './weapons/015_crafted_sword';
 
 import rocksIcon from './assets/001_rocks.svg';
 import torchIcon from './assets/002_torch.svg';
 import potShieldIcon from './assets/003_pot_shield.svg';
-import crystalEmbeddedShieldIcon from './assets/011_crystal_embedded_shield.svg';
-import throwingCrystalShieldIcon from './assets/012_throwing_crystal_shield.svg';
-import chargedRocksIcon from './assets/013_charged_rocks.svg';
-import throwingKnivesIcon from './assets/016_throwing_knives.svg';
 import coreBasicIcon from './assets/004_core_basic.svg';
 import coreLightIcon from './assets/017_core_light.svg';
 import coreGravityIcon from './assets/018_core_gravity.svg';
@@ -45,8 +35,6 @@ import pistolIcon from './assets/007_pistol.svg';
 import smgIcon from './assets/008_smg.svg';
 import shotgunIcon from './assets/009_shotgun.svg';
 import laserSwordIcon from './assets/010_laser_sword.svg';
-import craftedSwordIcon from './assets/015_crafted_sword.svg';
-import pipeBatIcon from './assets/002_torch.svg';
 
 export type { ItemDef, EquipmentSlotType, CoreSlotLayout } from './types';
 
@@ -66,10 +54,6 @@ export const ITEM_ICON_URLS: Record<string, string> = {
     [rocksItem.id]: rocksIcon,
     [torchItem.id]: torchIcon,
     [potShieldItem.id]: potShieldIcon,
-    [crystalEmbeddedShieldItem.id]: crystalEmbeddedShieldIcon,
-    [throwingCrystalShieldItem.id]: throwingCrystalShieldIcon,
-    [chargedRocksItem.id]: chargedRocksIcon,
-    [throwingKnivesItem.id]: throwingKnivesIcon,
     [coreBasicItem.id]: coreBasicIcon,
     [coreLightItem.id]: coreLightIcon,
     [coreGravityItem.id]: coreGravityIcon,
@@ -82,8 +66,6 @@ export const ITEM_ICON_URLS: Record<string, string> = {
     [smgItem.id]: smgIcon,
     [shotgunItem.id]: shotgunIcon,
     [laserSwordItem.id]: laserSwordIcon,
-    [craftedSwordItem.id]: craftedSwordIcon,
-    [pipeBatItem.id]: pipeBatIcon,
 };
 
 /** Default core for World of Darkness (1 weapon, 1 utility). */
@@ -112,10 +94,6 @@ export const ITEMS: Record<string, ItemDef> = {
     [rocksItem.id]: rocksItem,
     [torchItem.id]: torchItem,
     [potShieldItem.id]: potShieldItem,
-    [crystalEmbeddedShieldItem.id]: crystalEmbeddedShieldItem,
-    [throwingCrystalShieldItem.id]: throwingCrystalShieldItem,
-    [chargedRocksItem.id]: chargedRocksItem,
-    [throwingKnivesItem.id]: throwingKnivesItem,
     [coreBasicItem.id]: coreBasicItem,
     [coreWeaponsItem.id]: coreWeaponsItem,
     [coreLightItem.id]: coreLightItem,
@@ -128,8 +106,6 @@ export const ITEMS: Record<string, ItemDef> = {
     [smgItem.id]: smgItem,
     [shotgunItem.id]: shotgunItem,
     [laserSwordItem.id]: laserSwordItem,
-    [craftedSwordItem.id]: craftedSwordItem,
-    [pipeBatItem.id]: pipeBatItem,
 };
 
 export function getItemDef(id: string): ItemDef | undefined {

@@ -49,6 +49,13 @@ class Campaign
      * @var array{researchTrees: array<string, mixed>, researchNodeLevels: array<string, mixed>, researchNodeSources: array<string, mixed>}
      */
     private array $darknessUpgrades;
+    /**
+     * Campaign-level equipment unlocks (deduplicated item ids). Unlocking twice is a no-op.
+     * @var list<string>
+     */
+    private array $unlockedItemIds;
+    /** Save-data schema version (see App\SaveData\CampaignMigrations). */
+    private int $version;
 
     public function __construct(
         string $id,
@@ -59,7 +66,9 @@ class Campaign
         array $darknessStrengthInstances = [],
         array $adminDarknessStrengthOverrides = [],
         array $regions = [],
-        array $darknessUpgrades = []
+        array $darknessUpgrades = [],
+        array $unlockedItemIds = [],
+        int $version = 0
     ) {
         $this->id = $id;
         $this->name = $name;
@@ -73,6 +82,74 @@ class Campaign
         $this->adminDarknessStrengthOverrides = self::normalizeAdminDarknessStrengthOverrides($adminDarknessStrengthOverrides);
         $this->regions = self::normalizeRegions($regions);
         $this->darknessUpgrades = self::normalizeDarknessUpgrades($darknessUpgrades);
+        $this->unlockedItemIds = self::normalizeItemIds($unlockedItemIds);
+        $this->version = max(0, $version);
+    }
+
+    public function getVersion(): int
+    {
+        return $this->version;
+    }
+
+    /** @return list<string> */
+    public function getUnlockedItemIds(): array
+    {
+        return $this->unlockedItemIds;
+    }
+
+    /**
+     * Unlock equipment items for this campaign. Duplicates and blanks are ignored.
+     *
+     * @param array<int, mixed> $ids
+     * @return bool true if anything changed
+     */
+    public function unlockItems(array $ids): bool
+    {
+        $merged = self::normalizeItemIds(array_merge($this->unlockedItemIds, $ids));
+        if ($merged === $this->unlockedItemIds) {
+            return false;
+        }
+        $this->unlockedItemIds = $merged;
+        return true;
+    }
+
+    /**
+     * Remove unlocked items (admin tooling).
+     *
+     * @param array<int, mixed> $ids
+     * @return bool true if anything changed
+     */
+    public function relockItems(array $ids): bool
+    {
+        $remove = self::normalizeItemIds($ids);
+        $kept = array_values(array_diff($this->unlockedItemIds, $remove));
+        if ($kept === $this->unlockedItemIds) {
+            return false;
+        }
+        $this->unlockedItemIds = $kept;
+        return true;
+    }
+
+    /**
+     * @param mixed $raw
+     * @return list<string>
+     */
+    private static function normalizeItemIds($raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+        $out = [];
+        foreach ($raw as $id) {
+            if (!is_string($id)) {
+                continue;
+            }
+            $t = trim($id);
+            if ($t !== '' && !in_array($t, $out, true)) {
+                $out[] = $t;
+            }
+        }
+        return $out;
     }
 
     public function getId(): string
@@ -203,6 +280,7 @@ class Campaign
             );
             if ($filtered !== []) {
                 $entry['itemIds'] = $filtered;
+                $this->unlockItems($filtered);
             }
         }
         if ($researchRewardIds !== null && is_array($researchRewardIds)) {
@@ -358,6 +436,8 @@ class Campaign
                 ? new \stdClass()
                 : $this->regions,
             'darknessUpgrades' => self::darknessUpgradesForJson($this->darknessUpgrades),
+            'unlockedItemIds' => array_values($this->unlockedItemIds),
+            'version' => $this->version,
         ];
     }
 
@@ -370,6 +450,7 @@ class Campaign
         $overrides = $data['adminDarknessStrengthOverrides'] ?? [];
         $regions = $data['regions'] ?? [];
         $darknessUpgrades = $data['darknessUpgrades'] ?? [];
+        $unlocked = $data['unlockedItemIds'] ?? [];
         return new self(
             $data['id'],
             $data['name'] ?? '',
@@ -379,7 +460,9 @@ class Campaign
             is_array($instances) ? $instances : [],
             is_array($overrides) ? $overrides : [],
             is_array($regions) ? $regions : [],
-            is_array($darknessUpgrades) ? $darknessUpgrades : []
+            is_array($darknessUpgrades) ? $darknessUpgrades : [],
+            is_array($unlocked) ? $unlocked : [],
+            (int) ($data['version'] ?? 0)
         );
     }
 
