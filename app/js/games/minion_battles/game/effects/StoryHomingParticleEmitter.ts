@@ -20,6 +20,8 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
     private readonly particleTint: number;
     private readonly particleImageKey: EffectImageKey;
     private readonly pulseColors: number[];
+    private readonly pulseScale: number;
+    private readonly pulseAlpha: number;
     private startX: number;
     private startY: number;
     private controlX: number;
@@ -53,6 +55,10 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
         imageKey?: EffectImageKey;
         /** Pulse colors on arrival. Default purple story palette. */
         pulseColors?: number[];
+        /** Arrival pulse radius multiplier. Default 1. */
+        pulseScale?: number;
+        /** Arrival pulse opacity multiplier. Default 1. */
+        pulseAlpha?: number;
         /** Restore elapsed (used by restoreFromJSON). */
         elapsed?: number;
         pulseSpawned?: boolean;
@@ -63,6 +69,8 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
         this.particleTint = config.tint ?? 0xa855f7;
         this.particleImageKey = config.imageKey ?? 'darkBlob';
         this.pulseColors = config.pulseColors ?? [0xa855f7, 0x7e22ce, 0x581c87];
+        this.pulseScale = config.pulseScale ?? 1;
+        this.pulseAlpha = config.pulseAlpha ?? 1;
         this.startX = config.startX;
         this.startY = config.startY;
         this.controlX = config.controlX;
@@ -116,7 +124,7 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
                     y: ty,
                     duration: 0.45,
                     effectType: 'Pulse',
-                    effectData: { colors: this.pulseColors },
+                    effectData: { colors: this.pulseColors, scale: this.pulseScale, alpha: this.pulseAlpha },
                 }),
             );
             this.active = false;
@@ -144,6 +152,8 @@ export class StoryHomingParticleEmitter extends EffectEmitter {
             particleTint: this.particleTint,
             particleImageKey: this.particleImageKey,
             pulseColors: this.pulseColors,
+            pulseScale: this.pulseScale,
+            pulseAlpha: this.pulseAlpha,
         };
     }
 

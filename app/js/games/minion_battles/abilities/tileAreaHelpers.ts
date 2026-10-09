@@ -71,3 +71,65 @@ export function squareTileAreaWorldRect(
         maxY: (center.row + half + 1) * CELL_SIZE,
     };
 }
+
+/**
+ * The five cells of a plus sign: `center` then its N/E/S/W neighbours (fixed order, center first).
+ * No bounds filtering — callers with grid access must skip out-of-bounds cells.
+ */
+export function getPlusTileAreaCells(center: TileCoord): TileCoord[] {
+    return [
+        { col: center.col, row: center.row },
+        { col: center.col, row: center.row - 1 },
+        { col: center.col + 1, row: center.row },
+        { col: center.col, row: center.row + 1 },
+        { col: center.col - 1, row: center.row },
+    ];
+}
+
+/** Closed 12-vertex perimeter (world px, clockwise from the top arm) of the plus sign around `center`. */
+export function plusTileAreaPerimeter(center: TileCoord): { x: number; y: number }[] {
+    const x0 = (center.col - 1) * CELL_SIZE;
+    const x1 = center.col * CELL_SIZE;
+    const x2 = (center.col + 1) * CELL_SIZE;
+    const x3 = (center.col + 2) * CELL_SIZE;
+    const y0 = (center.row - 1) * CELL_SIZE;
+    const y1 = center.row * CELL_SIZE;
+    const y2 = (center.row + 1) * CELL_SIZE;
+    const y3 = (center.row + 2) * CELL_SIZE;
+    return [
+        { x: x1, y: y0 }, { x: x2, y: y0 }, { x: x2, y: y1 }, { x: x3, y: y1 },
+        { x: x3, y: y2 }, { x: x2, y: y2 }, { x: x2, y: y3 }, { x: x1, y: y3 },
+        { x: x1, y: y2 }, { x: x0, y: y2 }, { x: x0, y: y1 }, { x: x1, y: y1 },
+    ];
+}
+
+/**
+ * Draws the plus-sign telegraph: a translucent fill over each of the five tiles and a solid
+ * outline around the shape's perimeter only (no lines between tiles).
+ */
+export function drawPlusTileArea(
+    gr: {
+        moveTo(x: number, y: number): unknown;
+        lineTo(x: number, y: number): unknown;
+        fill(style: { color: number; alpha?: number }): unknown;
+        stroke(style: { color: number; width: number; alpha?: number }): unknown;
+    },
+    center: TileCoord,
+    style: { color: number; fillAlpha: number; strokeAlpha: number; lineWidth: number },
+): void {
+    for (const cell of getPlusTileAreaCells(center)) {
+        const minX = cell.col * CELL_SIZE;
+        const minY = cell.row * CELL_SIZE;
+        gr.moveTo(minX, minY);
+        gr.lineTo(minX + CELL_SIZE, minY);
+        gr.lineTo(minX + CELL_SIZE, minY + CELL_SIZE);
+        gr.lineTo(minX, minY + CELL_SIZE);
+        gr.lineTo(minX, minY);
+        gr.fill({ color: style.color, alpha: style.fillAlpha });
+    }
+    const outline = plusTileAreaPerimeter(center);
+    gr.moveTo(outline[0].x, outline[0].y);
+    for (let i = 1; i < outline.length; i++) gr.lineTo(outline[i].x, outline[i].y);
+    gr.lineTo(outline[0].x, outline[0].y);
+    gr.stroke({ color: style.color, width: style.lineWidth, alpha: style.strokeAlpha });
+}

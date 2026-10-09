@@ -167,12 +167,12 @@ export const earthCoreShatterScenario: ScenarioDefinition = {
 };
 
 // ---------------------------------------------------------------------------
-// 0530 â€” Stone Tomb (projectile deals 5 damage on hit)
+// 0530 - Stone Tomb (stage 1: 10 damage + centre rock; stage 2: 6 damage + 4 outer rocks)
 // ---------------------------------------------------------------------------
 
 export const earthCoreStoneTombScenario: ScenarioDefinition = {
     id: 'earth_core_0530_stone_tomb',
-    title: 'Stone Tomb (0530) projectile deals 5 damage',
+    title: 'Stone Tomb (0530) hits the centre tile, then raises a plus of rock',
     category: 'ability',
     maxDurationMs: 5000,
     buildEngine() {
@@ -192,11 +192,15 @@ export const earthCoreStoneTombScenario: ScenarioDefinition = {
     },
     assertPass(e) {
         const d = e.getUnit('target_dummy');
-        return Boolean(d && d.maxHp - d.hp >= 5);
+        const tm = e.terrainManager;
+        if (!d || !tm) return false;
+        const plus = [[5, 5], [5, 4], [6, 5], [5, 6], [4, 5]];
+        const allRock = plus.every(([c, r]) => tm.getEffectiveTerrainType(c, r) === TerrainType.Rock);
+        return d.maxHp - d.hp >= 10 && allRock;
     },
     failureMessage(e) {
         const d = e.getUnit('target_dummy');
-        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp, expected â‰¥5`;
+        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp (expected >=10); centre rock=${e.terrainManager?.getEffectiveTerrainType(5, 5)}`;
     },
 };
 

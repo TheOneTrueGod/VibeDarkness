@@ -12,6 +12,7 @@ export const EARTH_NODE_RAPID_THROW = 'rapid_throw';
 export const EARTH_NODE_EARTH_ATTUNED = 'earth_attuned';
 export const EARTH_NODE_GATHER_STONE = 'earth_gather_stone';
 export const EARTH_NODE_GATHER_STONE_RUBBLE_STRIKE = 'earth_gather_stone_rubble_strike';
+export const EARTH_NODE_STONE_TOMB = 'earth_stone_tomb';
 export const EARTH_RAPID_THROW_LEVELS = 3;
 export const EARTH_ATTUNED_LEVELS = 2;
 export const EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK = 1;
@@ -48,6 +49,10 @@ export const EARTH_GATHER_STONE_METAL_COST = 10;
 export const EARTH_GRINDING_DEBRIS_CRYSTAL_COST = 12;
 export const EARTH_GRINDING_DEBRIS_FOOD_COST = 5;
 export const EARTH_GRINDING_DEBRIS_METAL_COST = 12;
+
+export const EARTH_STONE_TOMB_CRYSTAL_COST = 10;
+export const EARTH_STONE_TOMB_FOOD_COST = 5;
+export const EARTH_STONE_TOMB_METAL_COST = 9;
 
 export const earthTree: ResearchTreeDef = {
     id: EARTH_TREE_ID,
@@ -238,6 +243,25 @@ export const earthTree: ResearchTreeDef = {
             },
             effects: [],
             modifiesAbility: { from: '0536', to: '0536' },
+        },
+        {
+            id: EARTH_NODE_STONE_TOMB,
+            title: 'Stone Tomb',
+            description: 'Mark a plus of 5 tiles. Enemies in the centre take {10} damage and are knocked back as a rock rises; 0.25s later all marked tiles deal {6} damage and fill with rock.',
+            flavorText: 'The ground closes like a fist.',
+            order: 13,
+            tier: 12,
+            position: { x: 620, y: 470 },
+            prereqNodeIds: [EARTH_NODE_EARTH_CORE],
+            exclusiveWithNodeIds: [],
+            requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
+            cost: {
+                crystals: EARTH_STONE_TOMB_CRYSTAL_COST,
+                food: EARTH_STONE_TOMB_FOOD_COST,
+                metal: EARTH_STONE_TOMB_METAL_COST,
+            },
+            effects: [{ type: 'addCard', cardId: '0530' }],
+            modifiesAbility: { from: '0530', to: '0530' },
         },
     ],
 };

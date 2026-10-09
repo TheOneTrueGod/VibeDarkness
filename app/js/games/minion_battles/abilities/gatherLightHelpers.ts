@@ -20,6 +20,11 @@ export const GATHER_LIGHT_AREA_RADIUS = 2;
 export const GATHER_LIGHT_TILE_COUNT = 10;
 /** Homing orb flight time (vs 2s story default). */
 export const GATHER_LIGHT_ORB_DURATION = 0.6;
+/** Per-orb flight time varies by ±this fraction so orbs land (and pulse) at staggered times. */
+export const GATHER_LIGHT_ORB_DURATION_SPREAD = 0.25;
+/** Arrival pulse: small and faint — a subtle shimmer on the caster. */
+export const GATHER_LIGHT_PULSE_SCALE = 0.35;
+export const GATHER_LIGHT_PULSE_ALPHA = 0.25;
 /** Yellow orb tint (Light palette). */
 export const GATHER_LIGHT_ORB_TINT = 0xffe066;
 /** Purple windup ring color. */
@@ -147,8 +152,12 @@ export function spawnGatherLightOrbs(
     const grid = engine.terrainManager?.grid;
     if (!grid) return;
 
-    for (const { col, row } of tiles) {
+    for (let i = 0; i < tiles.length; i++) {
+        const { col, row } = tiles[i]!;
         const { x: startX, y: startY } = grid.gridToWorld(col, row);
+        // Deterministic per-index spread in [-1, 1] (visual only; no RNG needed).
+        const spread = ((i * 5) % 7) / 3 - 1;
+        const duration = GATHER_LIGHT_ORB_DURATION * (1 + spread * GATHER_LIGHT_ORB_DURATION_SPREAD);
         const { cx, cy } = bezierControlPoint(startX, startY, caster.x, caster.y);
         engine.addEffectEmitter(new StoryHomingParticleEmitter({
             x: startX,
@@ -160,13 +169,15 @@ export function spawnGatherLightOrbs(
             targetUnitId: caster.id,
             targetX: caster.x,
             targetY: caster.y,
-            duration: GATHER_LIGHT_ORB_DURATION,
+            duration,
             tint: GATHER_LIGHT_ORB_TINT,
             // 'darkBlob' (the emitter's default) has a saturated purple fill; multiplicative
             // tint can only darken it, never recolor it to yellow. 'glowOrb' is neutral white
             // so GATHER_LIGHT_ORB_TINT renders faithfully.
             imageKey: 'glowOrb',
             pulseColors: [0xffe066, 0xfcd34d, 0xfbbf24],
+            pulseScale: GATHER_LIGHT_PULSE_SCALE,
+            pulseAlpha: GATHER_LIGHT_PULSE_ALPHA,
         }));
     }
 }

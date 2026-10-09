@@ -80,3 +80,34 @@ export const GATHER_STONE_RECHARGE_TURNS = 2;
 
 /** Base radius of Gather Stone's windup "pull inward" ring. */
 export const GATHER_STONE_RING_RADIUS = 24;
+
+// ---------------------------------------------------------------------------
+// Stone Tomb (0530)
+// ---------------------------------------------------------------------------
+
+/** Chebyshev tile distance Stone Tomb's plus-sign centre may sit from the caster tile. */
+export const STONE_TOMB_MAX_TILE_OFFSET = 4;
+
+/** Loose px tether for the select step; STONE_TOMB_MAX_TILE_OFFSET is the authoritative limit. */
+export const STONE_TOMB_CAST_RANGE = 220;
+
+/** Seconds of windup before stage 1 lands (this is also when the target is chosen). */
+export const STONE_TOMB_STAGE1_TIME = 0.5;
+
+/** Seconds between stage 1 and stage 2. */
+export const STONE_TOMB_STAGE_GAP = 0.25;
+
+/** Stage 1: damage to enemies in the centre tile. */
+export const STONE_TOMB_STAGE1_DAMAGE = 10;
+
+/** Stage 2: damage to enemies in any tile of the plus. */
+export const STONE_TOMB_STAGE2_DAMAGE = 6;
+
+/** Knockback tier applied to stage 1 victims, away from the centre of the centre tile. */
+export const STONE_TOMB_KNOCKBACK_TIER = 1;
+
+/** Total cast time including recovery. */
+export const STONE_TOMB_CAST_TIME = 1.5;
+
+/** Rounds before Stone Tomb can be recast. */
+export const STONE_TOMB_RECHARGE_TURNS = 1;

@@ -127,7 +127,10 @@ function drawLiftColumn(
     g.fill({ color, alpha: 0.22 });
 }
 
-/** Pulse effect: three waves of colored circles expanding and fading at different speeds. */
+/**
+ * Pulse effect: three waves of colored circles expanding and fading at different speeds.
+ * Optional `effectData.scale` shrinks/grows the radii and `effectData.alpha` multiplies opacity (both default 1).
+ */
 export const pulseEffectDef: IEffectDef = {
     createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
         return new Graphics();
@@ -136,8 +139,10 @@ export const pulseEffectDef: IEffectDef = {
         const g = visual as Graphics;
         g.clear();
         const progress = effect.progress;
-        const data = (effect.effectData ?? {}) as { colors?: number[] };
+        const data = (effect.effectData ?? {}) as { colors?: number[]; scale?: number; alpha?: number };
         const colors = data.colors ?? [0x8b5a2b, 0x5d4e37, 0x2d2d2d];
+        const scale = data.scale ?? 1;
+        const alphaMul = data.alpha ?? 1;
 
         // Three waves: different start phases and growth rates
         const waves = [
@@ -149,8 +154,8 @@ export const pulseEffectDef: IEffectDef = {
         for (let i = 0; i < 3; i++) {
             const w = waves[i]!;
             const effectiveProgress = progress <= w.startPhase ? 0 : Math.min(1, (progress - w.startPhase) / (1 - w.startPhase));
-            const radius = 10 + effectiveProgress * w.growthRate;
-            const alpha = Math.max(0, 0.9 - effectiveProgress * w.opacityRate);
+            const radius = (10 + effectiveProgress * w.growthRate) * scale;
+            const alpha = Math.max(0, 0.9 - effectiveProgress * w.opacityRate) * alphaMul;
             const color = colors[i] ?? 0x5d4e37;
             g.circle(0, 0, radius);
             g.stroke({ color, width: 2, alpha });

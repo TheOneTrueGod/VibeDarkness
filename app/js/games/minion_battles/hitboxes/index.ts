@@ -8,3 +8,4 @@ export { CircleAoEHitboxSpec, circleAoEHitbox, type CircleAoEPreviewStyle } from
 export { TruncatedConeHitboxSpec, type TruncatedConeGeometry, type TruncatedConeMinRadiusResolver } from './TruncatedConeHitbox';
 export { ConvexQuadHitboxSpec, convexQuadHitbox } from './ConvexQuadHitbox';
 export { SquareTileAreaHitboxSpec, squareTileAreaHitbox, type SquareTileAreaPreviewStyle } from './SquareTileAreaHitboxSpec';
+export { PlusTileAreaHitboxSpec, plusTileAreaHitbox, type PlusTileAreaPreviewStyle } from './PlusTileAreaHitboxSpec';
