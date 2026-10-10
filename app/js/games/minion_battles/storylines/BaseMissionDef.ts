@@ -182,6 +182,16 @@ export interface IBaseMissionDef extends MissionBattleConfig {
     isSideMission?: boolean;
     /** Mission Map node category (battle / story / boss icon). */
     missionType: MissionType;
+    /**
+     * Fewest Darkness Upgrades the host must apply (capped by how many they own). Absent = 0.
+     * See `researchTrees/darknessUpgradeSelection.ts`.
+     */
+    minimumDarknessUpgrades?: number;
+    /**
+     * Most Darkness Upgrades the host may apply. Absent = no cap; 0 = upgrades disabled
+     * (and the "Edit Modifiers" button is hidden).
+     */
+    maximumDarknessUpgrades?: number;
     /** Optional image URL or asset path shown inside the mission circle on the Mission Map. */
     image?: string;
     /** Short flavour description shown in the Mission Map tooltip. */
@@ -223,6 +233,10 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
     abstract enemies: EnemySpawnDef[];
     /** Mission Map node category (battle / story / boss icon). */
     abstract missionType: MissionType;
+    /** Fewest Darkness Upgrades the host must apply (capped by owned count). Absent = 0. */
+    minimumDarknessUpgrades?: number;
+    /** Most Darkness Upgrades the host may apply. Absent = no cap; 0 = disabled. */
+    maximumDarknessUpgrades?: number;
     /** World width in pixels (e.g. terrain columns × cell size). */
     abstract worldWidth: number;
     /** World height in pixels (e.g. terrain rows × cell size). */

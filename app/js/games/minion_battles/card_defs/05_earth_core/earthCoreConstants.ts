@@ -186,7 +186,8 @@ export const ROCK_SLIDE_DAMAGE = 10;
 /** Enemies damaged per flight; further enemies are still knocked back. */
 export const ROCK_SLIDE_MAX_DAMAGE_TARGETS = 5;
 export const ROCK_SLIDE_KNOCKBACK_TIER = 3;
-export const ROCK_SLIDE_TRAVEL_TILES = 10;
+/** Max tiles the rock flies from its spawn tile before it settles (if no wall stops it first). */
+export const ROCK_SLIDE_TRAVEL_TILES = 6;
 /** Px/s; slow enough to dodge. The projectile still travels the full ROCK_SLIDE_TRAVEL_TILES. */
 export const ROCK_SLIDE_PROJECTILE_SPEED = 270;
 export const ROCK_SLIDE_PROJECTILE_RADIUS = 18;

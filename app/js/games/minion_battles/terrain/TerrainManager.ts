@@ -368,6 +368,23 @@ export class TerrainManager {
         });
     }
 
+    /**
+     * Lay Rubble (gravel) on open ground, the same floor tile a destroyed rock leaves behind. Rock and
+     * Impassable tiles are left alone (this never breaks rock), as are tiles that are already Rubble.
+     * Returns true when the tile changed.
+     */
+    createRubble(col: number, row: number): boolean {
+        if (!this.terrainLayers) return false;
+        if (!this.isInBounds(col, row)) return false;
+        const current = this.getEffectiveTerrainType(col, row);
+        if (current === TerrainType.Rubble || !TERRAIN_PROPERTIES[current].passable) return false;
+
+        this.terrainLayers.setFloorTile(col, row, { terrainType: TerrainType.Rubble });
+        // The effective terrain type changed (movement cost, and the terrain sprite repaints on navEpoch).
+        this.notifyNavChanged(col, row);
+        return true;
+    }
+
     setStoneDamagedEmitter(emitter: ((event: TerrainStoneDamagedTransition) => void) | undefined): void {
         this.onStoneDamaged = emitter;
     }

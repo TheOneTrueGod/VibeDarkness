@@ -10,6 +10,8 @@ import type { BattleNetSyncWireResult } from './useBattleNetSyncState';
 import type { DarknessUpgradesState } from '../../../../../types';
 import { resolveBattleDarknessUpgrades } from '../../../../../researchTrees/darknessUpgradeRewards';
 import { getCompletedMissionIds } from '../../../../../researchTrees/darknessUpgrades';
+import { getMissionDarknessUpgradeLimits } from '../../../../../researchTrees/darknessUpgradeSelection';
+import { MISSION_MAP } from '../../../storylines';
 import { SPECTATOR_ID, isControlEnemy } from '../../../state';
 
 export type { BattleInitPhase };
@@ -118,6 +120,7 @@ export function useBattleSessionLifecycle({
                     players,
                     localDarknessUpgrades,
                     completedMissionIds,
+                    maximumDarknessUpgrades: getMissionDarknessUpgradeLimits(MISSION_MAP[missionId]).max,
                 });
             }
             await runBattleBootstrap({

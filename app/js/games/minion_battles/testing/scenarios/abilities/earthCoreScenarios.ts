@@ -185,7 +185,7 @@ function giveStoneTombRock(engine: ReturnType<typeof buildTinyBattleEngine>): vo
 
 export const earthCoreStoneTombScenario: ScenarioDefinition = {
     id: 'earth_core_0530_stone_tomb',
-    title: 'Stone Tomb (0530) hits the centre tile, then raises a plus of rock',
+    title: 'Stone Tomb (0530) hits the centre tile and raises rock there, then leaves gravel on the outer tiles',
     category: 'ability',
     maxDurationMs: 5000,
     buildEngine() {
@@ -208,15 +208,18 @@ export const earthCoreStoneTombScenario: ScenarioDefinition = {
         const d = e.getUnit('target_dummy');
         const tm = e.terrainManager;
         if (!d || !tm) return false;
-        const plus = [[5, 5], [5, 4], [6, 5], [5, 6], [4, 5]];
-        const allRock = plus.every(([c, r]) => tm.getEffectiveTerrainType(c, r) === TerrainType.Rock);
+        const outer = [[5, 4], [6, 5], [5, 6], [4, 5]];
+        const centreRock = tm.getEffectiveTerrainType(5, 5) === TerrainType.Rock;
+        const outerGravel = outer.every(([c, r]) => tm.getEffectiveTerrainType(c, r) === TerrainType.Rubble);
         const rockLeft = e.getLocalPlayerUnit()?.getResource('rock')?.current;
-        return d.maxHp - d.hp >= 10 && allRock && rockLeft === 0;
+        return d.maxHp - d.hp >= 10 && centreRock && outerGravel && rockLeft === 0;
     },
     failureMessage(e) {
         const d = e.getUnit('target_dummy');
+        const tm = e.terrainManager;
         const rockLeft = e.getLocalPlayerUnit()?.getResource('rock')?.current;
-        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp (expected >=10); centre rock=${e.terrainManager?.getEffectiveTerrainType(5, 5)}; player rock=${rockLeft} (want 0 after the ${STONE_TOMB_ROCK_COST}-rock cost)`;
+        const outer = [[5, 4], [6, 5], [5, 6], [4, 5]].map(([c, r]) => tm?.getEffectiveTerrainType(c!, r!));
+        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp (expected >=10); centre=${tm?.getEffectiveTerrainType(5, 5)} (want Rock); outer=${outer.join(',')} (want all Rubble); player rock=${rockLeft} (want 0 after the ${STONE_TOMB_ROCK_COST}-rock cost)`;
     },
 };
 

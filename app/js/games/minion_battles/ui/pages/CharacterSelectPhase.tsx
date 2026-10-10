@@ -49,6 +49,8 @@ import {
     freezeQuestPrepForCharacter,
 } from '../../storylines/questPrepFinalize';
 import { PREP_ABILITY_SLOT_COUNT } from '../../storylines/questPrepLoadout';
+import { useDarknessModifiers } from './characterSelect/useDarknessModifiers';
+import { DarknessModifiersModal } from './characterSelect/DarknessModifiersModal';
 
 interface CharacterSelectPhaseProps {
     api: MinionBattlesApi;
@@ -331,6 +333,11 @@ export default function CharacterSelectPhase({
               : undefined,
     });
 
+    const modifiers = useDarknessModifiers({
+        api, campaignId, isHost, missionDef, character: characterToEdit,
+    });
+    const [modifiersOpen, setModifiersOpen] = useState(false);
+
     const readyPlayerIdsForStatuses = effectivelyReady && !characterSelectReadyPlayerIds.includes(playerId)
         ? [...characterSelectReadyPlayerIds, playerId]
         : characterSelectReadyPlayerIds;
@@ -385,6 +392,10 @@ export default function CharacterSelectPhase({
         resolvedRequiredPlayers,
         characterToEdit,
         abilityLoadoutReady: !hasSelectedCharacterLoadout || inQuestPrep || missionAbilityReady,
+        onEditModifiers: hasSelectedCharacterLoadout && modifiers.available
+            ? () => setModifiersOpen(true)
+            : undefined,
+        modifiersBlockReason: hasSelectedCharacterLoadout ? modifiers.blockReason : null,
         onSetReady: phase.handleSetReady,
         onOpenEditor: () => setEditorOpen(true),
         onCloseEditor: () => { setEditorOpen(false); setEditorForceEditable(false); },
@@ -509,6 +520,10 @@ export default function CharacterSelectPhase({
                     anchorRef={{ current: createCardRef }}
                     localPlayerId={user?.id}
                 />
+            )}
+
+            {modifiersOpen && modifiers.available && (
+                <DarknessModifiersModal modifiers={modifiers} onClose={() => setModifiersOpen(false)} />
             )}
 
             {!footerInBottomBand && <CharacterSelectFooter {...footerProps} />}

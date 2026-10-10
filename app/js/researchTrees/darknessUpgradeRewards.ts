@@ -4,6 +4,7 @@ import { getNodeLevel, getNodeMaxLevels } from './passiveBonuses';
 import { getResearchTree } from './list';
 import { DARKNESS_UPGRADES_TREE_ID } from './trees/darkness_upgrades';
 import { filterDarknessUpgradesByCompletedMissions, resolveActiveDarknessUpgrades } from './darknessUpgrades';
+import { filterDarknessUpgradesBySelection } from './darknessUpgradeSelection';
 
 type ResourceDelta = Partial<Record<CampaignResourceKey, number>>;
 
@@ -106,17 +107,20 @@ export function resolveBattleDarknessUpgrades(params: {
     localDarknessUpgrades: DarknessUpgradesState | undefined;
     /** Missions the host's character has won; upgrades earned from other missions stay disabled. */
     completedMissionIds?: ReadonlySet<string>;
+    /** Mission cap (`maximumDarknessUpgrades`); only the host's selected upgrades, up to this many, apply. */
+    maximumDarknessUpgrades?: number;
 }): { bonuses: PassiveBonuses; activeNodeIds: string[] } | undefined {
     if (!params.isHost) return undefined;
     // The local client is the host; make sure the resolver sees it as such even if the roster lags.
     const players = { ...params.players, [params.playerId]: { ...params.players[params.playerId], isHost: true } };
+    const earned = filterDarknessUpgradesByCompletedMissions(
+        params.localDarknessUpgrades,
+        params.completedMissionIds ?? new Set<string>(),
+    );
     return resolveActiveDarknessUpgrades({
         players,
         darknessUpgradesByPlayer: {
-            [params.playerId]: filterDarknessUpgradesByCompletedMissions(
-                params.localDarknessUpgrades,
-                params.completedMissionIds ?? new Set<string>(),
-            ),
+            [params.playerId]: filterDarknessUpgradesBySelection(earned, params.maximumDarknessUpgrades),
         },
     });
 }

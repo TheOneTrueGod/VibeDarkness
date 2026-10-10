@@ -101,3 +101,38 @@ describe('TerrainManager.destroyRock', () => {
         expect(manager.getEffectiveTerrainType(0, 0)).toBe(TerrainType.Grass);
     });
 });
+
+describe('TerrainManager.createRubble', () => {
+    it('lays rubble on open ground, bumps navEpoch and emits no stone-damaged event', () => {
+        const grid = TerrainGrid.createFilledTerrain(3, 3, CELL_SIZE, TerrainType.Grass);
+        const manager = makeManager(grid);
+        const emitter = vi.fn();
+        manager.setStoneDamagedEmitter(emitter);
+        const epoch = manager.navEpoch;
+
+        expect(manager.createRubble(1, 1)).toBe(true);
+
+        expect(manager.getEffectiveTerrainType(1, 1)).toBe(TerrainType.Rubble);
+        expect(manager.isPassable(grid.gridToWorld(1, 1).x, grid.gridToWorld(1, 1).y)).toBe(true);
+        expect(manager.navEpoch).toBeGreaterThan(epoch);
+        expect(emitter).not.toHaveBeenCalled();
+    });
+
+    it('leaves rock, impassable, existing rubble and out-of-bounds tiles alone', () => {
+        const grid = TerrainGrid.createFilledTerrain(4, 3, CELL_SIZE, TerrainType.Grass);
+        grid.set(0, 0, TerrainType.Rock);
+        grid.set(1, 0, TerrainType.Impassable);
+        const manager = makeManager(grid);
+        manager.createOrMarkRock(2, 0);
+        manager.createRubble(3, 0);
+
+        expect(manager.createRubble(0, 0)).toBe(false);
+        expect(manager.createRubble(1, 0)).toBe(false);
+        expect(manager.createRubble(2, 0)).toBe(false);
+        expect(manager.createRubble(3, 0)).toBe(false);
+        expect(manager.createRubble(-1, 0)).toBe(false);
+        expect(manager.getEffectiveTerrainType(0, 0)).toBe(TerrainType.Rock);
+        expect(manager.getEffectiveTerrainType(1, 0)).toBe(TerrainType.Impassable);
+        expect(manager.getEffectiveTerrainType(2, 0)).toBe(TerrainType.Rock);
+    });
+});

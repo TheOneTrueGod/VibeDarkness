@@ -479,6 +479,13 @@ class Campaign
         foreach (['researchTrees', 'researchNodeLevels', 'researchNodeSources', 'sourceMissions'] as $key) {
             $out[$key] = isset($raw[$key]) && is_array($raw[$key]) ? $raw[$key] : [];
         }
+        // Optional list: absent (null) means "every owned upgrade selected"; [] means none selected.
+        if (isset($raw['selectedNodeIds']) && is_array($raw['selectedNodeIds'])) {
+            $out['selectedNodeIds'] = array_values(array_filter(
+                $raw['selectedNodeIds'],
+                static fn ($id) => is_string($id) && $id !== ''
+            ));
+        }
         return $out;
     }
 
@@ -492,6 +499,10 @@ class Campaign
     {
         $out = [];
         foreach ($upgrades as $key => $map) {
+            if ($key === 'selectedNodeIds') {
+                $out[$key] = array_values($map); // list, so an empty selection stays []
+                continue;
+            }
             $out[$key] = empty($map) ? new \stdClass() : $map;
         }
         return $out;

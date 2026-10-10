@@ -102,6 +102,11 @@ export interface DarknessUpgradesState {
      * have completed that mission; nodes without an entry (e.g. admin grants) are always active.
      */
     sourceMissions?: Record<string, string>;
+    /**
+     * Node ids the player last chose to apply on missions (auto-applied when hosting). Absent = every
+     * owned upgrade is selected; upgrades earned later are not in a stored list until the player opts in.
+     */
+    selectedNodeIds?: string[];
 }
 
 /** Default for legacy saves without `darknessUpgrades`. */

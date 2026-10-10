@@ -78,6 +78,7 @@ export function grantDarknessUpgradeNode(
                   },
               }
             : {}),
+        ...(base.selectedNodeIds ? { selectedNodeIds: base.selectedNodeIds } : {}),
     };
 }
 
@@ -107,6 +108,7 @@ export function revokeDarknessUpgradeNode(
         researchNodeLevels,
         researchNodeSources,
         ...(Object.keys(sourceMissions).length > 0 ? { sourceMissions } : {}),
+        ...(base.selectedNodeIds ? { selectedNodeIds: base.selectedNodeIds.filter((id) => id !== nodeId) } : {}),
     };
 }
 

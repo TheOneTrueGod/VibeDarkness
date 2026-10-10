@@ -5,7 +5,6 @@ import {
     EARTH_CORE_MISSION_START_ROCK_AMOUNT,
     STONE_TOMB_STAGE1_DAMAGE,
     STONE_TOMB_STAGE2_DAMAGE,
-    STONE_TOMB_STAGE_GAP,
 } from '../../games/minion_battles/card_defs/05_earth_core/earthCoreConstants';
 
 export const EARTH_TREE_ID = 'earth';
@@ -253,7 +252,7 @@ export const earthTree: ResearchTreeDef = {
         {
             id: EARTH_NODE_STONE_TOMB,
             title: 'Stone Tomb',
-            description: `Mark a plus of 5 tiles. Enemies in the centre take {${STONE_TOMB_STAGE1_DAMAGE}} damage and are knocked back as a rock rises; ${STONE_TOMB_STAGE_GAP}s later all marked tiles deal {${STONE_TOMB_STAGE2_DAMAGE}} damage and fill with rock.`,
+            description: `Stones erupt out of the ground, dealing {${STONE_TOMB_STAGE1_DAMAGE}} damage to enemies in the centre, and {${STONE_TOMB_STAGE2_DAMAGE}} to enemies farther away.`,
             flavorText: 'The ground closes like a fist.',
             order: 13,
             tier: 12,

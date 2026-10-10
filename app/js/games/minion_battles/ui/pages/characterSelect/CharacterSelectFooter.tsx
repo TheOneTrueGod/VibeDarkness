@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
+import { AnchoredPortalTooltip } from '../../components/AnchoredPortalTooltip';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import { SPECTATOR_ID, isControlEnemy } from '../../../state';
 import { TestIds } from '../../../../../testing/testIds';
@@ -27,6 +28,10 @@ interface CharacterSelectFooterProps {
     onEditAbilities?: () => void;
     /** True while the ability picker is open (button becomes a "Hide Abilities" toggle). */
     abilityPickerOpen?: boolean;
+    /** When set, an "Edit Modifiers" button (Darkness Upgrades) is shown. */
+    onEditModifiers?: () => void;
+    /** Why Ready is blocked by the modifier selection (shown as a tooltip and message), or null. */
+    modifiersBlockReason?: string | null;
     onSetReady: () => void;
     onOpenEditor: () => void;
     onCloseEditor: () => void;
@@ -50,11 +55,15 @@ export function CharacterSelectFooter({
     compact = false,
     onEditAbilities,
     abilityPickerOpen = false,
+    onEditModifiers,
+    modifiersBlockReason = null,
     onSetReady,
     onOpenEditor,
     onCloseEditor,
 }: CharacterSelectFooterProps) {
     const { debugConsoleEnabled } = useDebugConsole();
+    const readyAnchorRef = useRef<HTMLDivElement>(null);
+    const [readyTipOpen, setReadyTipOpen] = useState(false);
     if (activeTab === 'players') return null;
 
     const showReady = view !== 'grid';
@@ -64,7 +73,7 @@ export function CharacterSelectFooter({
         && mySelection !== SPECTATOR_ID
         && !isControlEnemy(mySelection)
         && !!characterToEdit;
-    const readyBlocked = effectivelyReady || setReadyLoading || !abilityLoadoutReady;
+    const readyBlocked = effectivelyReady || setReadyLoading || !abilityLoadoutReady || modifiersBlockReason != null;
     const secondaryBtnClass = compact
         ? 'px-3 py-1 text-xs font-medium rounded-md border border-border-custom bg-surface-light text-white hover:bg-border-custom transition-colors cursor-pointer'
         : 'px-6 py-3 text-sm font-medium rounded-lg border border-border-custom bg-surface-light text-white hover:bg-border-custom transition-colors cursor-pointer';
@@ -121,7 +130,35 @@ export function CharacterSelectFooter({
                             Edit Character
                         </button>
                     )}
-                    {readyBtn}
+                    {onEditModifiers && (
+                        <button
+                            type="button"
+                            className={secondaryBtnClass}
+                            onClick={onEditModifiers}
+                        >
+                            Edit Modifiers
+                        </button>
+                    )}
+                    {modifiersBlockReason && readyBtn ? (
+                        <div
+                            ref={readyAnchorRef}
+                            onMouseEnter={() => setReadyTipOpen(true)}
+                            onMouseLeave={() => setReadyTipOpen(false)}
+                        >
+                            {readyBtn}
+                            <AnchoredPortalTooltip
+                                anchorRef={readyAnchorRef}
+                                open={readyTipOpen}
+                                placement="top"
+                                className="max-w-[240px] px-2.5 py-1.5 text-left"
+                            >
+                                <p className="text-xs leading-snug">{modifiersBlockReason}</p>
+                            </AnchoredPortalTooltip>
+                        </div>
+                    ) : readyBtn}
+                    {modifiersBlockReason && !effectivelyReady && (
+                        <p className="text-yellow-400/80 py-1 text-sm">{modifiersBlockReason}</p>
+                    )}
                     {showReady && mySelection && !abilityLoadoutReady && !effectivelyReady && (
                         <p className="text-yellow-400/80 py-1 text-sm">
                             Select 7 abilities to continue

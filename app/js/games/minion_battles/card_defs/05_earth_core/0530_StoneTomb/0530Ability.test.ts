@@ -40,6 +40,7 @@ function makeUnit(id: string, teamId: 'player' | 'enemy', col: number, row: numb
 
 function setup(units: Unit[]) {
     const createOrMarkRock = vi.fn();
+    const createRubble = vi.fn();
     const engine = {
         units,
         gameTime: 0,
@@ -47,9 +48,9 @@ function setup(units: Unit[]) {
         eventBus: new EventBus(),
         getUnit: (id: string) => units.find((u) => u.id === id),
         addEffect: () => {},
-        terrainManager: { createOrMarkRock },
+        terrainManager: { createOrMarkRock, createRubble },
     } as unknown as AbilityEngineContext;
-    return { engine, createOrMarkRock };
+    return { engine, createOrMarkRock, createRubble };
 }
 
 const target = (col: number, row: number): ResolvedTarget[] => [
@@ -179,17 +180,18 @@ describe('Stone Tomb (0530)', () => {
         expect(enemy.hp).toBe(100 - STONE_TOMB_STAGE1_DAMAGE);
     });
 
-    it('stage 2 damages every plus tile (centre included) and raises the 4 outer rocks only', () => {
+    it('stage 2 damages every plus tile (centre included) and turns the 4 outer tiles to gravel, not rock', () => {
         const caster = makeUnit('c', 'player', 5, 9);
         const inCenter = makeUnit('a', 'enemy', 5, 5);
         const inArm = makeUnit('b', 'enemy', 6, 5);
         const outside = makeUnit('d', 'enemy', 6, 6);
-        const { engine, createOrMarkRock } = setup([caster, inCenter, inArm, outside]);
+        const { engine, createOrMarkRock, createRubble } = setup([caster, inCenter, inArm, outside]);
         enterInterval('stage2', engine, caster, target(5, 5));
         expect(inCenter.hp).toBe(100 - STONE_TOMB_STAGE2_DAMAGE);
         expect(inArm.hp).toBe(100 - STONE_TOMB_STAGE2_DAMAGE);
         expect(outside.hp).toBe(100);
-        const cells = createOrMarkRock.mock.calls.map(([c, r]) => `${c},${r}`).sort();
+        expect(createOrMarkRock).not.toHaveBeenCalled();
+        const cells = createRubble.mock.calls.map(([c, r]) => `${c},${r}`).sort();
         expect(cells).toEqual(['4,5', '5,4', '5,6', '6,5']);
     });
 

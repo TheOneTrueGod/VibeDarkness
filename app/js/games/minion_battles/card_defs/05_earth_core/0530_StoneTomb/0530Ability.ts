@@ -5,8 +5,8 @@
  *
  * Stage 1 (first punch): enemies in the centre tile take 10 damage and all units there (allies
  * undamaged) are knocked back away from the centre of that tile, then a rock is raised there.
- * Stage 2 (second punch, 0.3s later): enemies in any tile of the plus take 6 damage, then rocks are
- * raised on the four outer tiles (the centre rock is not respawned).
+ * Stage 2 (second punch, 0.3s later): enemies in any tile of the plus take 6 damage, then the four
+ * outer tiles become gravel (Rubble). Only the centre is rock.
  *
  * Costs 3 rock; 2 uses per round.
  *
@@ -16,7 +16,7 @@
  *   0.55-0.70   punch 1 slide-in
  *   0.70        stage 1: damage, knockback and the centre rock; punch 1 slide-out to 0.85
  *   0.85-1.00   punch 2 slide-in
- *   1.00        stage 2: damage and the outer rocks; punch 2 slide-out to 1.15
+ *   1.00        stage 2: damage and the outer gravel; punch 2 slide-out to 1.15
  *   1.15-1.70   cooldown
  */
 
@@ -142,7 +142,10 @@ function stageOne(ctx: CastBehaviourTickContext): void {
     spawnTileImpact(engine, center);
 }
 
-/** Stage 2: damage across the plus, then the four outer rocks. The centre rock came from stage 1. */
+/**
+ * Stage 2: damage across the plus, then gravel (Rubble) on the four outer tiles. Only the centre is
+ * rock, raised in stage 1. Outer tiles that are already rock or impassable are left as they are.
+ */
 function stageTwo(ctx: CastBehaviourTickContext): void {
     const aim = pixelOf(ctx.target);
     if (!aim) return;
@@ -153,9 +156,9 @@ function stageTwo(ctx: CastBehaviourTickContext): void {
     for (const unit of unitsOnTiles(engine, ctx.caster, cells, true)) {
         unit.takeDamage(STONE_TOMB_STAGE2_DAMAGE, ctx.caster.id, engine.eventBus);
     }
-    // cells[0] is the centre (plus() puts it first), whose rock was already raised in stage 1.
+    // cells[0] is the centre (plus() puts it first), whose rock was raised in stage 1.
     for (const cell of cells.slice(1)) {
-        engine.terrainManager?.createOrMarkRock(cell.col, cell.row);
+        engine.terrainManager?.createRubble(cell.col, cell.row);
         spawnTileImpact(engine, cell);
     }
 }
@@ -295,9 +298,7 @@ export const StoneTomb: AbilityStatic = defineAbility({
 
     getTooltipText(): string[] {
         return [
-            `Mark a plus-shaped patch of 5 tiles within ${STONE_TOMB_MAX_TILE_OFFSET} tiles`,
-            `Stage 1: enemies in the centre tile take {${STONE_TOMB_STAGE1_DAMAGE}} damage and all units there are knocked back; a rock rises there`,
-            `${STONE_TOMB_STAGE_GAP}s later, stage 2: enemies in any marked tile take {${STONE_TOMB_STAGE2_DAMAGE}} damage; rocks rise on the other 4 tiles`,
+            `Stones erupt out of the ground, dealing {${STONE_TOMB_STAGE1_DAMAGE}} damage to enemies in the centre, and {${STONE_TOMB_STAGE2_DAMAGE}} to enemies farther away`,
         ];
     },
 

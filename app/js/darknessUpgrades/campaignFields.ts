@@ -32,6 +32,7 @@ export function withDarknessUpgradesDefaults<T extends { darknessUpgrades?: Dark
             researchNodeLevels: existing.researchNodeLevels ?? {},
             researchNodeSources: existing.researchNodeSources ?? {},
             ...(existing.sourceMissions ? { sourceMissions: existing.sourceMissions } : {}),
+            ...(existing.selectedNodeIds ? { selectedNodeIds: existing.selectedNodeIds } : {}),
         },
     };
 }
