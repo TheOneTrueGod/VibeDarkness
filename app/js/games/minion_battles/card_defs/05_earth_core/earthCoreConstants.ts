@@ -94,19 +94,22 @@ export const STONE_TOMB_MAX_TILE_OFFSET = 4;
 export const STONE_TOMB_CAST_RANGE = 220;
 
 /**
- * Seconds of windup before stage 1 lands. The target is chosen from this moment: the tomb select
- * starts here (a gated select, so it enters one tick later).
+ * The tomb is picked at t=0, so the windup can rumble on the marked tiles. A start-0 select is not
+ * gated and needs two ticks to enter (see ROCK_SLIDE_PICK_END).
  */
-export const STONE_TOMB_STAGE1_TIME = 0.5;
+export const STONE_TOMB_PICK_END = 2 * FIXED_DT;
 
-/**
- * The tomb select lasts one tick. As a gated select it enters on the tick after the gate tick, which
- * force-enters it even though it has already ended by then (see `selectGateDeferredIds`).
- */
-export const STONE_TOMB_AIM_END = STONE_TOMB_STAGE1_TIME + FIXED_DT;
+/** Seconds into the cast that stage 1 lands (the first punch's impact). */
+export const STONE_TOMB_STAGE1_TIME = 0.7;
 
-/** Seconds between stage 1 and stage 2. */
-export const STONE_TOMB_STAGE_GAP = 0.25;
+/** Seconds between stage 1 and stage 2 (the second punch's impact). */
+export const STONE_TOMB_STAGE_GAP = 0.3;
+
+/** Each punch: the caster slides in for this long before its impact, then back out for as long. */
+export const STONE_TOMB_PUNCH_LEAD = 0.15;
+
+/** Px the caster lunges toward the tomb on each punch. */
+export const STONE_TOMB_PUNCH_DISTANCE = 12;
 
 /** Stage 1: damage to enemies in the centre tile. */
 export const STONE_TOMB_STAGE1_DAMAGE = 10;
@@ -122,10 +125,16 @@ export const STONE_TOMB_STAGE2_DAMAGE = 6;
 export const STONE_TOMB_KNOCKBACK_TIER = 2;
 
 /** Total cast time including recovery. */
-export const STONE_TOMB_CAST_TIME = 1.5;
+export const STONE_TOMB_CAST_TIME = 1.7;
 
 /** Rounds before Stone Tomb can be recast. */
 export const STONE_TOMB_RECHARGE_TURNS = 1;
+
+/** Uses of Stone Tomb per round. */
+export const STONE_TOMB_MAX_USES = 2;
+
+/** Rock resource spent per cast. */
+export const STONE_TOMB_ROCK_COST = 3;
 
 // ---------------------------------------------------------------------------
 // Rock Slide (0537)

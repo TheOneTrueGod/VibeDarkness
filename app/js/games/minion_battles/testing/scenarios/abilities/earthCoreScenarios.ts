@@ -25,6 +25,7 @@ import {
     GATHER_STONE_RUBBLE_DAMAGE,
     ROCK_SLIDE_DAMAGE,
     STONE_TOMB_STAGE1_DAMAGE,
+    STONE_TOMB_ROCK_COST,
 } from '../../../card_defs/05_earth_core/earthCoreConstants';
 import {
     grantEarthCoreArmourFromSource,
@@ -174,6 +175,14 @@ export const earthCoreShatterScenario: ScenarioDefinition = {
 // 0530 - Stone Tomb (stage 1: 10 damage + centre rock; stage 2: 6 damage + 4 outer rocks)
 // ---------------------------------------------------------------------------
 
+/** Stone Tomb costs rock: give the local player a stocked rock resource. */
+function giveStoneTombRock(engine: ReturnType<typeof buildTinyBattleEngine>): void {
+    const player = engine.getLocalPlayerUnit()!;
+    const rock = new Rock();
+    player.attachResource(rock, engine.eventBus);
+    rock.add(STONE_TOMB_ROCK_COST);
+}
+
 export const earthCoreStoneTombScenario: ScenarioDefinition = {
     id: 'earth_core_0530_stone_tomb',
     title: 'Stone Tomb (0530) hits the centre tile, then raises a plus of rock',
@@ -187,6 +196,7 @@ export const earthCoreStoneTombScenario: ScenarioDefinition = {
             dummyWorld: DUMMY_POS,
             abilities: ['0530'],
         });
+        giveStoneTombRock(engine);
         return engine;
     },
     getInitialOrders(engine) {
@@ -200,11 +210,13 @@ export const earthCoreStoneTombScenario: ScenarioDefinition = {
         if (!d || !tm) return false;
         const plus = [[5, 5], [5, 4], [6, 5], [5, 6], [4, 5]];
         const allRock = plus.every(([c, r]) => tm.getEffectiveTerrainType(c, r) === TerrainType.Rock);
-        return d.maxHp - d.hp >= 10 && allRock;
+        const rockLeft = e.getLocalPlayerUnit()?.getResource('rock')?.current;
+        return d.maxHp - d.hp >= 10 && allRock && rockLeft === 0;
     },
     failureMessage(e) {
         const d = e.getUnit('target_dummy');
-        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp (expected >=10); centre rock=${e.terrainManager?.getEffectiveTerrainType(5, 5)}`;
+        const rockLeft = e.getLocalPlayerUnit()?.getResource('rock')?.current;
+        return `dummy lost ${d ? d.maxHp - d.hp : 0} hp (expected >=10); centre rock=${e.terrainManager?.getEffectiveTerrainType(5, 5)}; player rock=${rockLeft} (want 0 after the ${STONE_TOMB_ROCK_COST}-rock cost)`;
     },
 };
 
@@ -230,6 +242,7 @@ export const earthCoreStoneTombCentreEscapeScenario: ScenarioDefinition = {
             dummyWorld: TOMB_ESCAPE_DUMMY_POS,
             abilities: ['0530'],
         });
+        giveStoneTombRock(engine);
         return engine;
     },
     getInitialOrders(engine) {
@@ -943,7 +956,7 @@ const RS_EAST_PICK = { x: 4 * CELL + CELL / 2, y: 5 * CELL + CELL / 2 };
 
 export const earthCoreRockSlideScenario: ScenarioDefinition = {
     id: 'earth_core_0537_rock_slide',
-    title: 'Rock Slide (0537) destroys the rock, hits the dummy for 12, and lands as rock at the wall',
+    title: `Rock Slide (0537) destroys the rock, hits the dummy for ${ROCK_SLIDE_DAMAGE}, and lands as rock at the wall`,
     category: 'ability',
     maxDurationMs: 6000,
     buildEngine() {
@@ -977,7 +990,7 @@ export const earthCoreRockSlideScenario: ScenarioDefinition = {
         const { col: lc, row: lr } = ROCK_SLIDE_SCENARIO_LANDING_TILE;
         return Boolean(
             d
-            && d.maxHp - d.hp === 12
+            && d.maxHp - d.hp === ROCK_SLIDE_DAMAGE
             && tm.getEffectiveTerrainType(rc, rr) === TerrainType.Rubble
             && tm.getEffectiveTerrainType(lc, lr) === TerrainType.Rock
             && e.projectiles.every((p) => !p.active),
@@ -988,7 +1001,7 @@ export const earthCoreRockSlideScenario: ScenarioDefinition = {
         const d = e.getUnit('target_dummy');
         const { col: rc, row: rr } = ROCK_SLIDE_SCENARIO_ROCK_TILE;
         const { col: lc, row: lr } = ROCK_SLIDE_SCENARIO_LANDING_TILE;
-        return `dummy lost ${d ? d.maxHp - d.hp : '?'} hp (want 12); source tile=${tm.getEffectiveTerrainType(rc, rr)} (want Rubble); landing tile=${tm.getEffectiveTerrainType(lc, lr)} (want Rock); live projectiles=${e.projectiles.filter((p) => p.active).length}`;
+        return `dummy lost ${d ? d.maxHp - d.hp : '?'} hp (want ${ROCK_SLIDE_DAMAGE}); source tile=${tm.getEffectiveTerrainType(rc, rr)} (want Rubble); landing tile=${tm.getEffectiveTerrainType(lc, lr)} (want Rock); live projectiles=${e.projectiles.filter((p) => p.active).length}`;
     },
 };
 

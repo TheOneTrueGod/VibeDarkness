@@ -17,8 +17,12 @@ import {
     STONE_TOMB_STAGE1_DAMAGE,
     STONE_TOMB_STAGE2_DAMAGE,
     STONE_TOMB_STAGE1_TIME,
-    STONE_TOMB_AIM_END,
+    STONE_TOMB_PICK_END,
+    STONE_TOMB_PUNCH_LEAD,
+    STONE_TOMB_STAGE_GAP,
+    STONE_TOMB_ROCK_COST,
 } from '../earthCoreConstants';
+import type { Effect } from '../../../game/effects/Effect';
 
 const CELL = 40;
 const center = (col: number, row: number) => ({ x: col * CELL + CELL / 2, y: row * CELL + CELL / 2 });
@@ -94,16 +98,60 @@ describe('Stone Tomb (0530)', () => {
         expect(getTileAreaEdges(cells).outer).toHaveLength(12);
     });
 
-    it('the tomb select is gated at the windup end and stage 1 waits for its pick', () => {
+    it('picks the tomb first, then winds up, then lands two punches 0.3s apart', () => {
         const pick = intervalById('pickTomb');
-        expect(pick.start).toBe(STONE_TOMB_STAGE1_TIME);
-        expect(pick.end).toBe(STONE_TOMB_AIM_END);
+        expect(pick.start).toBe(0);
+        expect(pick.end).toBe(STONE_TOMB_PICK_END);
         expect(pick.targetDef).toMatchObject({ kind: 'select', label: 'Tomb location' });
-        expect(getEffectiveCastBehaviours(pick)).toBeUndefined();
+
+        const windup = intervalById('windup');
+        expect(windup.start).toBe(STONE_TOMB_PICK_END);
+        expect(windup.end).toBeCloseTo(STONE_TOMB_STAGE1_TIME - STONE_TOMB_PUNCH_LEAD);
 
         const stage1 = intervalById('stage1');
-        expect(stage1.start).toBe(STONE_TOMB_AIM_END);
-        expect(stage1.targetDef).toEqual({ kind: 'hit', labels: ['Tomb location'] });
+        const stage2 = intervalById('stage2');
+        expect(stage1.start).toBe(STONE_TOMB_STAGE1_TIME);
+        expect(stage2.start - stage1.start).toBeCloseTo(0.3);
+        expect(STONE_TOMB_STAGE_GAP).toBe(0.3);
+        for (const id of ['windup', 'punch1', 'stage1', 'punch2', 'stage2']) {
+            expect(intervalById(id).targetDef).toEqual({ kind: 'hit', labels: ['Tomb location'] });
+        }
+        // Each strike's interval is preceded by a slide-in that ends exactly at the strike.
+        expect(intervalById('punch1').end).toBe(stage1.start);
+        expect(intervalById('punch2').end).toBe(stage2.start);
+    });
+
+    it('costs 3 rock and has 2 uses', () => {
+        expect(StoneTomb.resourceCost).toEqual({ resourceId: 'rock', amount: STONE_TOMB_ROCK_COST });
+        expect(STONE_TOMB_ROCK_COST).toBe(3);
+        expect(StoneTomb.maxUses).toBe(2);
+    });
+
+    it('windup rumble spawns small rock chips on every marked tile', () => {
+        const caster = makeUnit('c', 'player', 5, 9);
+        const effects: Effect[] = [];
+        const { engine } = setup([caster]);
+        (engine as unknown as { addEffect: (e: Effect) => void }).addEffect = (e) => effects.push(e);
+        const rumble = getEffectiveCastBehaviours(intervalById('windup'))![1]!.behaviour;
+        const targets = target(5, 5);
+        rumble.onTick!({
+            caster,
+            abilityId: '0530',
+            target: targets[0]!,
+            allTargets: targets,
+            castPayload: {},
+            behaviourPayload: undefined,
+            setBehaviourPayload: () => {},
+            engine,
+            windowProgress: 0.01,
+            prevWindowProgress: 0,
+            isFirstTick: true,
+            isLastTick: false,
+        });
+        expect(effects.length).toBeGreaterThan(0);
+        expect(effects.every((e) => e.effectType === 'RockChipParticle')).toBe(true);
+        const tiles = new Set(effects.map((e) => `${Math.floor(e.x / CELL)},${Math.floor(e.y / CELL)}`));
+        expect([...tiles].sort()).toEqual(['4,5', '5,4', '5,5', '5,6', '6,5']);
     });
 
     it('stage 1 damages only centre-tile enemies and raises only the centre rock', () => {
