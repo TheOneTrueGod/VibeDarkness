@@ -172,6 +172,7 @@ function buildSwarmNest(): EnemySpawnDef {
             spawnIntervalSec: SWARM_NEST_SPAWN_INTERVAL_SEC,
             spawnCount: SWARM_NEST_SPAWN_COUNT,
             nestPoiId: NEST_50_51_POI_ID,
+            spawnAITreeId: 'hunt',
         },
     };
 }

@@ -35,6 +35,8 @@ export interface SwarmNestMissionConfig {
     scoutConstructionSec?: number;
     /** `nest` POI id this swarm nest occupies (mission-defined starting nests only). */
     nestPoiId?: string;
+    /** AI tree for spawned swarmlings (default 'swarmlingNetwork'). */
+    spawnAITreeId?: string;
 }
 
 /** Patrol endpoint for Lanternites spawned from a {@link LanterniteNestMissionConfig} nest. */

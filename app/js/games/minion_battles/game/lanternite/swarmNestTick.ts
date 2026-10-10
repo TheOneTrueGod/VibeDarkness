@@ -291,7 +291,7 @@ export function processSwarmNests(params: {
                 name: 'Swarmling',
                 abilities: [SWARMLING_BITE_ABILITY_ID],
                 teamId: nest.teamId,
-                unitAITreeId: SWARMLING_AI_TREE_ID,
+                unitAITreeId: cfg.spawnAITreeId ?? SWARMLING_AI_TREE_ID,
                 aiSettings: { minRange: 0, maxRange: 70 },
                 placement: {
                     kind: 'relativeToUnit',
