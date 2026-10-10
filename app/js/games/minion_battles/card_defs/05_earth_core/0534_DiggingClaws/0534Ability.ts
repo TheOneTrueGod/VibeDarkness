@@ -1,12 +1,13 @@
 /**
  * Digging Claws – Earth Core card. Wall-penetrating dash that damages rock tiles in transit.
- * If the dash ends inside a wall, the unit is steadily pushed out and launched (slingshot).
+ * The cast ends as soon as the dash does (no cooldown). If the dash ends inside a wall, the dash's
+ * conditional cancel lets the player chain another Entombed ability; otherwise the shared
+ * wall-unstick system (`tickWallUnstick`) pushes the unit out.
  */
 
 import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry } from '../../../abilities/Ability';
 import { AbilityState, AbilityEventType } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
-import { CONTROLLED_SLINGSHOT } from '../../../game/gameConstants';
 import { createPixelTargetPreview } from '../../../abilities/previewHelpers';
 import { nullHitbox } from '../../../hitboxes';
 import type { ResolvedTarget, ActiveAbility } from '../../../game/types';
@@ -21,11 +22,6 @@ import { ContinuousEmitter, IntervalEmitter } from '../../../game/effects/Effect
 import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 import type { TerrainManager } from '../../../terrain/TerrainManager';
 import { TerrainType } from '../../../terrain/TerrainType';
-import {
-	applySlingshotLaunch,
-	computeSlingshotDirection,
-	findNearestPassableDirection,
-} from '../../../game/units/slingshotHelpers';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import {
 	formatTooltipLegacyLines,
@@ -37,9 +33,8 @@ const MAX_USES = 2;
 const RECOVERIES: AbilityRecoveryRule[] = [
 	{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
+/** The whole cast: it ends as soon as the dash movement finishes. */
 const DASH_DURATION = 0.4;
-const SLINGSHOT_PHASE = 0.3;
-const COOLDOWN_DURATION = 0.8;
 const MAX_DISTANCE = 160;
 const UNIT_DAMAGE = 6;
 export const DIGGING_CLAWS_MAX_TARGETS = 5;
@@ -54,11 +49,6 @@ const TOOLTIP_BINDINGS: TooltipTokenBindings = {
 	DAMAGE: { kind: 'damage', base: UNIT_DAMAGE },
 	MAX_TARGETS: { kind: 'plain', value: DIGGING_CLAWS_MAX_TARGETS },
 };
-const SLINGSHOT_SPEED = 400; // px/s
-const SLINGSHOT_LAUNCH_MAGNITUDE = 160;
-const SLINGSHOT_LAUNCH_AIR_TIME = 0.4;
-const SLINGSHOT_LAUNCH_SLIDE_TIME = 0.2;
-// ^ These remain intentionally distinct from GENERIC_* in slingshotHelpers — tune independently.
 const AFTERIMAGE_DURATION = 6 / 60;
 
 const DIGGING_CLAWS_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
@@ -66,26 +56,6 @@ const DIGGING_CLAWS_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.or
   <path d="M18 46 L28 28 M24 48 L34 30 M30 46 L40 28"
         stroke="#a07840" stroke-width="3.5" fill="none" stroke-linecap="round"/>
 </svg>`;
-
-/** Set slingshotDirX/Y on the ability note when the caster is stuck inside rock. */
-function initSlingshotDirectionIfStuck(
-	caster: Unit,
-	note: {
-		wallEntryX: number | null;
-		wallEntryY: number | null;
-		slingshotDirX: number | null;
-		slingshotDirY: number | null;
-	},
-	tm: TerrainManager,
-): void {
-	if (note.slingshotDirX !== null || note.slingshotDirY !== null) return;
-	if (tm.isPassable(caster.x, caster.y)) return;
-	const dir = computeSlingshotDirection(note.wallEntryX, note.wallEntryY, caster.x, caster.y, tm);
-	if (dir) {
-		note.slingshotDirX = dir.x;
-		note.slingshotDirY = dir.y;
-	}
-}
 
 /** Damage a rock tile at the caster's current position (once per unique tile per cast). */
 function maybeDamageCurrentTile(
@@ -128,8 +98,6 @@ export const DiggingClawsAbility: AbilityStatic = {
 				abilityTagFilter: ['Entombed'],
 			},
 		},
-		{ id: 'slingshot', start: DASH_DURATION, end: DASH_DURATION + SLINGSHOT_PHASE, abilityPhase: AbilityPhase.Active },
-		{ id: 'cooldown', start: DASH_DURATION + SLINGSHOT_PHASE, end: DASH_DURATION + SLINGSHOT_PHASE + COOLDOWN_DURATION, abilityPhase: AbilityPhase.Cooldown },
 	],
 	targets: [],
 	aiSettings: { minRange: 0, maxRange: MAX_DISTANCE },
@@ -189,7 +157,7 @@ export const DiggingClawsAbility: AbilityStatic = {
 			x: caster.x,
 			y: caster.y,
 			attachedToUnitId: caster.id,
-			lifetime: DASH_DURATION + SLINGSHOT_PHASE,
+			lifetime: DASH_DURATION,
 			intervalSeconds: 0.08,
 			fireImmediately: true,
 			terrainCondition: [TerrainType.Rock],
@@ -231,91 +199,15 @@ export const DiggingClawsAbility: AbilityStatic = {
 				abilityId: CARD_ID,
 				abilityNote: {
 					hitTargetIds: [],
-					wallEntryX: null,
-					wallEntryY: null,
-					slingshotDirX: null,
-					slingshotDirY: null,
 					damagedTileKeys: [],
 				},
 			});
 		}
 
-		// ── Slingshot phase ────────────────────────────────────────────────────────────
+		// ── Dash over: the cast ends on this tick ─────────────────────────────────────
+		// A unit left inside rock is pushed out by the shared wall-unstick system.
 		if (currentTime >= DASH_DURATION) {
-			if (!isAbilityNote(caster.abilityNote, CARD_ID)) {
-				return;
-			}
-
-			if (!CONTROLLED_SLINGSHOT) {
-				const note = caster.abilityNote.abilityNote;
-
-				// Init slingshot direction when stuck (also runs after conditional-cancel "wait" resume).
-				if (tm) {
-					initSlingshotDirectionIfStuck(caster, note, tm);
-				}
-
-				// Active slingshot: push caster out each tick
-				if (note.slingshotDirX !== null && note.slingshotDirY !== null) {
-					const dt = currentTime - prevTime;
-					const movePerTick = SLINGSHOT_SPEED * dt;
-					caster.invalidateMovementPath();
-					// Move a fixed distance in slingshot direction, bypassing terrain
-					caster.moveUnit(
-						caster.x + note.slingshotDirX * 10000,
-						caster.y + note.slingshotDirY * 10000,
-						movePerTick,
-					);
-
-					if (tm) {
-						maybeDamageCurrentTile(caster, tm, note.damagedTileKeys);
-					}
-
-					if (!tm || tm.isPassable(caster.x, caster.y)) {
-						// Exited wall — launch!
-						applySlingshotLaunch(caster, note.slingshotDirX, note.slingshotDirY,
-							SLINGSHOT_LAUNCH_MAGNITUDE, SLINGSHOT_LAUNCH_AIR_TIME, SLINGSHOT_LAUNCH_SLIDE_TIME,
-							eng.eventBus, caster.id, CARD_ID);
-						caster.clearAbilityNote();
-						return;
-					}
-				}
-
-				// Slingshot phase expired but unit still stuck: force out via nearest direction
-				if (currentTime >= DASH_DURATION + SLINGSHOT_PHASE && isAbilityNote(caster.abilityNote, CARD_ID)) {
-					if (tm && !tm.isPassable(caster.x, caster.y)) {
-						const dir = findNearestPassableDirection(tm, caster.x, caster.y);
-						if (dir) {
-							let exitX = caster.x;
-							let exitY = caster.y;
-							for (let d = 4; d <= 800; d += 4) {
-								const tx = caster.x + dir.x * d;
-								const ty = caster.y + dir.y * d;
-								if (tm.isPassable(tx, ty)) {
-									exitX = tx;
-									exitY = ty;
-									break;
-								}
-							}
-							const distToExit = Math.sqrt((exitX - caster.x) ** 2 + (exitY - caster.y) ** 2);
-							if (distToExit > 0) {
-								caster.invalidateMovementPath();
-								caster.moveUnit(exitX, exitY, distToExit);
-								applySlingshotLaunch(caster, dir.x, dir.y,
-									SLINGSHOT_LAUNCH_MAGNITUDE, SLINGSHOT_LAUNCH_AIR_TIME, SLINGSHOT_LAUNCH_SLIDE_TIME,
-									eng.eventBus, caster.id, CARD_ID);
-							}
-						}
-					}
-					caster.clearAbilityNote();
-				}
-			} else {
-				// CONTROLLED_SLINGSHOT active: skip DiggingClaws' own push and force-exit.
-				// tickControlledSlingshot handles wall exit via tile-by-tile bouncing.
-				// Just wait out the slingshot-phase window then clear the note so cooldown begins.
-				if (currentTime >= DASH_DURATION + SLINGSHOT_PHASE) {
-					caster.clearAbilityNote();
-				}
-			}
+			if (isAbilityNote(caster.abilityNote, CARD_ID)) caster.clearAbilityNote();
 			return;
 		}
 
@@ -333,28 +225,12 @@ export const DiggingClawsAbility: AbilityStatic = {
 
 		// Wall-penetrating movement: bypass terrain check, call moveUnit directly
 		if (pos && distToTarget > 0 && moveDistance > 0) {
-			const prevX = caster.x;
-			const prevY = caster.y;
-
 			caster.invalidateMovementPath();
 			caster.moveUnit(pos.x, pos.y, moveDistance);
 
-			// Wall entry/exit tracking and rock tile damage
-			if (tm) {
-				const wasPassable = tm.isPassable(prevX, prevY);
-				const nowPassable = tm.isPassable(caster.x, caster.y);
-
-				if (isAbilityNote(caster.abilityNote, CARD_ID)) {
-					const note = caster.abilityNote.abilityNote;
-					if (wasPassable && !nowPassable) {
-						note.wallEntryX = prevX;
-						note.wallEntryY = prevY;
-					} else if (!wasPassable && nowPassable) {
-						note.wallEntryX = null;
-						note.wallEntryY = null;
-					}
-					maybeDamageCurrentTile(caster, tm, note.damagedTileKeys);
-				}
+			// Rock tile damage in transit
+			if (tm && isAbilityNote(caster.abilityNote, CARD_ID)) {
+				maybeDamageCurrentTile(caster, tm, caster.abilityNote.abilityNote.damagedTileKeys);
 			}
 		}
 

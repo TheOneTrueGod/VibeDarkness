@@ -13,10 +13,6 @@ export interface AbilityNoteMap {
     '0806': { emitterId: string | null; x: number; y: number };
     '0534': {
         hitTargetIds: string[];
-        wallEntryX: number | null;
-        wallEntryY: number | null;
-        slingshotDirX: number | null;
-        slingshotDirY: number | null;
         damagedTileKeys: string[];
     };
 }

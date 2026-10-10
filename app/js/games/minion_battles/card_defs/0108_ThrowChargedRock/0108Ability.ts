@@ -155,8 +155,6 @@ export const ThrowChargedRock: AbilityStatic = {
     image: THROW_CHARGED_ROCK_IMAGE,
     tags: ['RockThrow'],
     resourceCost: null,
-    /** Spends rocks to recover the use immediately (when the caster has them). */
-    recoverUseResourceCost: { resourceId: 'rock', amount: 3 },
     rechargeTurns: 1,
     maxUses: MAX_USES,
     recoveries: RECOVERIES,

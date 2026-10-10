@@ -1,6 +1,6 @@
 /**
  * Shared slingshot utilities — wall-exit direction finding and launch impulse.
- * Used by DiggingClaws and the generic tickWallUnstick slingshot path.
+ * Used by the generic tickWallUnstick slingshot path.
  */
 
 import type { Unit } from './Unit';

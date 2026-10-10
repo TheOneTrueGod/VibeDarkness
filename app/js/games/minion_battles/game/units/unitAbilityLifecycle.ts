@@ -14,7 +14,6 @@ import {
     refundAbilityCost,
     resolveAbilityInterruptPolicy,
     spendAbilityCost,
-    trySpendRecoverUseResource,
     AbilityEventType,
     type AbilityStatic,
 } from '../../abilities/Ability';
@@ -232,8 +231,7 @@ export function executeUnitAbility(
     ensureAbilityRuntimeState(unit, ability.id);
     if (!canUseAbilityNow(unit, ability)) return;
     if (!spendAbilityCost(unit, ability)) return;
-    // Paying `recoverUseResourceCost` keeps the use (net zero), so skip consuming it entirely.
-    if (!trySpendRecoverUseResource(unit, ability) && !consumeAbilityUse(unit, ability.id, engine.eventBus)) return;
+    if (!consumeAbilityUse(unit, ability.id, engine.eventBus)) return;
     syncNestedCardAbilityState(unit);
 
     const existing = unit.activeAbilities.findIndex((a) => a.abilityId === ability.id);

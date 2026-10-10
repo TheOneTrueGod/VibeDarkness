@@ -1,7 +1,8 @@
 /**
- * Stone Tomb — Earth Core two-stage ground ability. The caster picks a tile; the target tile and its
- * four orthogonal neighbours (a plus sign) are telegraphed in red while the caster shakes and the
- * marked ground rumbles. Then the caster punches twice, once per stage.
+ * Stone Tomb — Earth Core two-stage ground ability. The caster winds up, shaking, with rock chips
+ * hopping at their feet. Just before the first punch lands they pick a tile: the target tile and its
+ * four orthogonal neighbours (a plus sign) are telegraphed in red and rumble. Then the caster punches
+ * twice, once per stage.
  *
  * Stage 1 (first punch): enemies in the centre tile take 10 damage and all units there (allies
  * undamaged) are knocked back away from the centre of that tile, then a rock is raised there.
@@ -11,9 +12,9 @@
  * Costs 3 rock; 2 uses per round.
  *
  * Timeline (seconds):
- *   0.00-0.033  pick the tomb tile (interactive select at t=0, deferred before any cast time)
- *   0.033-0.55  windup: caster shakes, rock chips hop on the marked tiles
- *   0.55-0.70   punch 1 slide-in
+ *   0.00-0.55   windup: caster shakes, rock chips hop on the caster's tile
+ *   0.55-0.567  pick the tomb tile (gated one-tick select: ITS pauses here, as late as possible)
+ *   0.567-0.70  punch 1 slide-in; the marked tiles rumble
  *   0.70        stage 1: damage, knockback and the centre rock; punch 1 slide-out to 0.85
  *   0.85-1.00   punch 2 slide-in
  *   1.00        stage 2: damage and the outer gravel; punch 2 slide-out to 1.15
@@ -36,7 +37,7 @@ import { Effect } from '../../../game/effects/Effect';
 import { areEnemies } from '../../../game/teams';
 import { type CardDef } from '../../types';
 import { tileAreaHitbox, tileShapes } from '../../../hitboxes/TileAreaHitboxSpec';
-import { getUnitsInTiles, tileCentre, type TileCoord } from '../../../abilities/tileAreaHelpers';
+import { getUnitsInTiles, tileCentre, worldToTile, type TileCoord } from '../../../abilities/tileAreaHelpers';
 import { drawTileAreaTelegraph } from '../../../abilities/previewHelpers';
 import { TELEGRAPH_STYLES } from '../../../abilities/telegraphStyles';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
@@ -44,6 +45,7 @@ import { knockbackCtxFromEngine, tryApplyKnockbackByTier } from '../../../crowdC
 import {
     STONE_TOMB_MAX_TILE_OFFSET,
     STONE_TOMB_CAST_RANGE,
+    STONE_TOMB_PICK_TIME,
     STONE_TOMB_PICK_END,
     STONE_TOMB_STAGE1_TIME,
     STONE_TOMB_STAGE_GAP,
@@ -62,8 +64,6 @@ import { stoneTombRumble } from './stoneTombVfx';
 const ABILITY_ID = '0530';
 const TOMB_LABEL = 'Tomb location';
 const STAGE2_TIME = STONE_TOMB_STAGE1_TIME + STONE_TOMB_STAGE_GAP;
-/** Windup ends when the first punch starts sliding in. */
-const WINDUP_END = STONE_TOMB_STAGE1_TIME - STONE_TOMB_PUNCH_LEAD;
 /** End of the second punch's slide-out; cooldown starts here. */
 const PUNCHES_END = STAGE2_TIME + STONE_TOMB_PUNCH_LEAD;
 
@@ -169,6 +169,11 @@ function tombCellsOf(ctx: CastBehaviourTickContext): TileCoord[] {
     return aim ? STONE_TOMB_HITBOX.resolveCells(ctx.caster, aim) : [];
 }
 
+/** The caster's own tile: where the windup rumbles, since the tomb is not picked yet. */
+function casterTileOf(ctx: CastBehaviourTickContext): TileCoord[] {
+    return [worldToTile(ctx.caster.x, ctx.caster.y)];
+}
+
 /** Render-only punch direction: from the caster toward the centre of the tomb tile. */
 function punchDirection(ctx: CastBehaviourBaseContext): Point | null {
     const aim = pixelOf(ctx.target);
@@ -210,10 +215,25 @@ const TOMB_HIT: AbilityTimingInterval['targetDef'] = { kind: 'hit', labels: [TOM
 
 const TIMINGS: AbilityTimingInterval[] = [
     {
-        // The plus-sign target is chosen before any cast time elapses (deferred first select), so the
-        // windup can rumble on it. Two ticks, like every start-0 select (see STONE_TOMB_PICK_END).
-        id: 'pickTomb',
+        // No target yet: the tomb is picked at the end of the windup.
+        id: 'windup',
         start: 0,
+        end: STONE_TOMB_PICK_TIME,
+        abilityPhase: AbilityPhase.Windup,
+        castBehaviours: [
+            { timingStart: 'start', timingEnd: 'end', behaviour: CastBehaviours.CasterShake({ from: 1, to: 3 }) },
+            {
+                timingStart: 'start',
+                timingEnd: 'end',
+                behaviour: stoneTombRumble(STONE_TOMB_PICK_TIME, casterTileOf),
+            },
+        ],
+    },
+    {
+        // The plus-sign target is chosen as late as possible, just before stage 1 (STONE_TOMB_PICK_TIME).
+        // Gated: the cast is processed up to here first, then ITS pauses before the select enters.
+        id: 'pickTomb',
+        start: STONE_TOMB_PICK_TIME,
         end: STONE_TOMB_PICK_END,
         abilityPhase: AbilityPhase.Active,
         targetDef: {
@@ -225,28 +245,20 @@ const TIMINGS: AbilityTimingInterval[] = [
         },
     },
     {
-        id: 'windup',
-        start: STONE_TOMB_PICK_END,
-        end: WINDUP_END,
-        abilityPhase: AbilityPhase.Windup,
-        targetDef: TOMB_HIT,
-        castBehaviours: [
-            { timingStart: 'start', timingEnd: 'end', behaviour: CastBehaviours.CasterShake({ from: 1, to: 3 }) },
-            {
-                timingStart: 'start',
-                timingEnd: 'end',
-                behaviour: stoneTombRumble(WINDUP_END - STONE_TOMB_PICK_END, tombCellsOf),
-            },
-        ],
-    },
-    {
         // Nothing has landed yet, so an interrupt here still refunds (no doNotRefund).
         id: 'punch1',
-        start: WINDUP_END,
+        start: STONE_TOMB_PICK_END,
         end: STONE_TOMB_STAGE1_TIME,
         abilityPhase: AbilityPhase.Active,
         targetDef: TOMB_HIT,
-        castBehaviours: [punchIn()],
+        castBehaviours: [
+            punchIn(),
+            {
+                timingStart: 'start',
+                timingEnd: 'end',
+                behaviour: stoneTombRumble(STONE_TOMB_STAGE1_TIME - STONE_TOMB_PICK_END, tombCellsOf),
+            },
+        ],
     },
     {
         id: 'stage1',

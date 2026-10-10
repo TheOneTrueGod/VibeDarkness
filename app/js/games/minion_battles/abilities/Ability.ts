@@ -354,12 +354,6 @@ export interface AbilityStatic {
     readonly startingUses?: number;
     /** Recovery rules restoring uses. Default: 1 staminaCharge -> 1 use. */
     readonly recoveries?: readonly AbilityRecoveryRule[];
-    /**
-     * Optional resource sink that keeps a use: when the caster can afford it at cast time, the
-     * resource is spent and the cast does not consume a use (i.e. the use is recovered immediately).
-     * Otherwise the cast consumes a use as normal.
-     */
-    readonly recoverUseResourceCost?: ResourceCost;
     /** Max-uses lookup. Default implementation returns this.maxUses; override for dynamic values. */
     getMaxUses?(): number;
     /** Ordered list of targets the player must select. */
@@ -775,18 +769,6 @@ export function spendAbilityCost(unit: Unit, ability: AbilityStatic): boolean {
         if (!resource.spend(cost.amount)) return false;
     }
     return true;
-}
-
-/**
- * Spend `recoverUseResourceCost` if the unit can afford it. Returns true when paid, meaning the
- * cast should not consume an ability use.
- */
-export function trySpendRecoverUseResource(unit: Unit, ability: AbilityStatic): boolean {
-    const cost = ability.recoverUseResourceCost;
-    if (!cost) return false;
-    const resource = unit.getResource(cost.resourceId);
-    if (!resource || !resource.canAfford(cost.amount)) return false;
-    return resource.spend(cost.amount);
 }
 
 /**

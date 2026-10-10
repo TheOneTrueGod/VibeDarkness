@@ -93,12 +93,6 @@ export const STONE_TOMB_MAX_TILE_OFFSET = 4;
 /** Loose px tether for the select step; STONE_TOMB_MAX_TILE_OFFSET is the authoritative limit. */
 export const STONE_TOMB_CAST_RANGE = 220;
 
-/**
- * The tomb is picked at t=0, so the windup can rumble on the marked tiles. A start-0 select is not
- * gated and needs two ticks to enter (see ROCK_SLIDE_PICK_END).
- */
-export const STONE_TOMB_PICK_END = 2 * FIXED_DT;
-
 /** Seconds into the cast that stage 1 lands (the first punch's impact). */
 export const STONE_TOMB_STAGE1_TIME = 0.7;
 
@@ -107,6 +101,16 @@ export const STONE_TOMB_STAGE_GAP = 0.3;
 
 /** Each punch: the caster slides in for this long before its impact, then back out for as long. */
 export const STONE_TOMB_PUNCH_LEAD = 0.15;
+
+/**
+ * The tomb is picked as late as possible: when the first punch starts sliding in, just before stage 1
+ * lands. The slide-in needs a direction, so the pick cannot be later than this. It is a gated
+ * one-tick select (see `findSelectGateSplit`), so ITS pauses for it mid-cast.
+ */
+export const STONE_TOMB_PICK_TIME = STONE_TOMB_STAGE1_TIME - STONE_TOMB_PUNCH_LEAD;
+
+/** End of the one-tick tomb select. */
+export const STONE_TOMB_PICK_END = STONE_TOMB_PICK_TIME + FIXED_DT;
 
 /** Px the caster lunges toward the tomb on each punch. */
 export const STONE_TOMB_PUNCH_DISTANCE = 12;

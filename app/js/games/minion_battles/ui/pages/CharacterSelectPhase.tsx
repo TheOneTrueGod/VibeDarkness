@@ -49,6 +49,7 @@ import {
     freezeQuestPrepForCharacter,
 } from '../../storylines/questPrepFinalize';
 import { PREP_ABILITY_SLOT_COUNT } from '../../storylines/questPrepLoadout';
+import { resolveCampaignInstanceId } from '../../../../resolveCampaignInstanceId';
 import { useDarknessModifiers } from './characterSelect/useDarknessModifiers';
 import { DarknessModifiersModal } from './characterSelect/DarknessModifiersModal';
 
@@ -333,8 +334,10 @@ export default function CharacterSelectPhase({
               : undefined,
     });
 
+    // `campaignId` is the storyline id; darkness upgrades live on the account's campaign instance.
+    const campaignInstanceId = resolveCampaignInstanceId(campaignId, user?.campaignIds) ?? '';
     const modifiers = useDarknessModifiers({
-        api, campaignId, isHost, missionDef, character: characterToEdit,
+        api, campaignId: campaignInstanceId, isHost, missionDef, character: characterToEdit,
     });
     const [modifiersOpen, setModifiersOpen] = useState(false);
 

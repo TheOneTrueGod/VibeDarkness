@@ -52,7 +52,7 @@ export function tickWallUnstick(unit: Unit, dt: number, engine: EngineContext): 
             unit.controlled = true;
             // Interrupt through the shared pipeline (ON_CAST_END + behaviour cleanup + interrupt policy).
             // Default policy keeps Cooldown/CoopCooldown casts, which coexist with the slingshot
-            // (e.g. DiggingClaws waits out the slingshot window during its cooldown).
+            // (e.g. an Entombed Throw Rock finishing its cooldown while the unit bounces out).
             interruptUnitAbilities(unit, engine);
         }
         tickControlledSlingshot(unit, engine);
