@@ -182,6 +182,9 @@ export const ROCK_SLIDE_TRAVEL_TILES = 10;
 export const ROCK_SLIDE_PROJECTILE_SPEED = 270;
 export const ROCK_SLIDE_PROJECTILE_RADIUS = 18;
 
+/** Rock resource granted when Rock Slide destroys the picked rock (end of the windup). */
+export const ROCK_SLIDE_ROCK_RESOURCE_GAIN = 2;
+
 /** Uses of Rock Slide per round. */
 export const ROCK_SLIDE_MAX_USES = 2;
 

@@ -20,7 +20,9 @@ import {
     ROCK_SLIDE_LAUNCH_TIME,
     ROCK_SLIDE_CAST_TIME,
     ROCK_SLIDE_DAMAGE,
+    ROCK_SLIDE_ROCK_RESOURCE_GAIN,
 } from '../earthCoreConstants';
+import { Rock } from '../../../resources/Rock';
 import {
     isSlideSpawnTile,
     resolveRockTile,
@@ -106,6 +108,25 @@ describe('Rock Slide (0537) timeline', () => {
         expect(flying.velocityX).toBeGreaterThan(0);
         expect(flying.x).toBeGreaterThan((SPAWN_TILE.col + 0.5) * CELL_SIZE);
         expect(flying.velocityY).toBe(0);
+    });
+
+    it('grants the caster rock when the picked rock is destroyed at the end of the windup', () => {
+        const { engine, player, start } = setup();
+        const rock = new Rock();
+        player.attachResource(rock, engine.eventBus);
+        const { col, row } = ROCK_SLIDE_SCENARIO_ROCK_TILE;
+
+        stepToElapsed(engine, start, ROCK_SLIDE_AIM_START - 0.05);
+        expect(terrain(engine, col, row)).toBe(TerrainType.Rock);
+        expect(rock.current).toBe(0);
+
+        stepToElapsed(engine, start, ROCK_SLIDE_AIM_START + 0.05);
+        expect(terrain(engine, col, row)).toBe(TerrainType.Rubble);
+        expect(rock.current).toBe(ROCK_SLIDE_ROCK_RESOURCE_GAIN);
+
+        // Granted once, not again later in the cast.
+        stepToElapsed(engine, start, ROCK_SLIDE_CAST_TIME + 0.2);
+        expect(rock.current).toBe(ROCK_SLIDE_ROCK_RESOURCE_GAIN);
     });
 
     it('finishes after ~1.4s with the rock landed against the wall and the dummy hit once', () => {

@@ -7,7 +7,7 @@
  * Timeline (seconds):
  *   0.00        pick the rock (interactive select; the shake starts on the windup)
  *   0.00-0.40   windup: caster shakes, chips fly from the rock into the caster
- *   0.40        the rock is destroyed (becomes rubble); the direction select starts here
+ *   0.40        the rock is destroyed (becomes rubble, caster gains 2 rock); the direction select starts here
  *   0.40-0.417  pick the direction (one-tick interactive select, entered on the tick after the gate
  *               tick; chips fly out of the caster)
  *   0.70        the rock projectile appears, held, on the picked tile
@@ -41,7 +41,6 @@ import { drawArrow, drawTileAreaTelegraph } from '../../../abilities/previewHelp
 import { TELEGRAPH_STYLES } from '../../../abilities/telegraphStyles';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import {
-    ROCK_SLIDE_ROCK_MAX_TILE_OFFSET,
     ROCK_SLIDE_CAST_RANGE,
     ROCK_SLIDE_PICK_END,
     ROCK_SLIDE_AIM_START,
@@ -59,6 +58,7 @@ import {
     ROCK_SLIDE_PROJECTILE_RADIUS,
     ROCK_SLIDE_RECHARGE_TURNS,
     ROCK_SLIDE_MAX_USES,
+    ROCK_SLIDE_ROCK_RESOURCE_GAIN,
 } from '../earthCoreConstants';
 import {
     ROCK_PICK_HITBOX,
@@ -134,12 +134,13 @@ function settleRockAt(engine: AbilityEngineContext, x: number, y: number): void 
     spawnRockSlideSettle(engine, centre.x, centre.y);
 }
 
-/** Step 2: the picked rock becomes rubble at the end of the windup. */
+/** Step 2: the picked rock becomes rubble at the end of the windup, banking rock for the caster. */
 function destroyPickedRock(ctx: CastBehaviourTickContext): void {
     const tile = rockTileOf(ctx.caster, ctx.target);
     const tm = ctx.engine.terrainManager;
     if (!tile || !tm) return;
     if (tm.destroyRock(tile.col, tile.row, ctx.caster.id)) {
+        ctx.caster.getResource('rock')?.add(ROCK_SLIDE_ROCK_RESOURCE_GAIN);
         const c = tileCentre(tile);
         spawnRockSlideBreak(ctx.engine, c.x, c.y);
     }
@@ -311,10 +312,7 @@ export const RockSlideAbility_0537: AbilityStatic = defineAbility({
 
     getTooltipText(): string[] {
         return [
-            `Rip up a rock within ${ROCK_SLIDE_ROCK_MAX_TILE_OFFSET} tiles, then punch it along a straight line`,
-            `The rock flies up to ${ROCK_SLIDE_TRAVEL_TILES} tiles, dealing {${ROCK_SLIDE_DAMAGE}} damage to the first ${ROCK_SLIDE_MAX_DAMAGE_TARGETS} enemies`,
-            'Every enemy it touches is knocked off to the side',
-            'It lands as a new rock when it hits a wall or runs out of range',
+            `Rip up a nearby rocky surface and launch it, dealing {${ROCK_SLIDE_DAMAGE}} damage to each enemy in the way`,
         ];
     },
 

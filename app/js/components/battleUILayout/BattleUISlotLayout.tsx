@@ -11,7 +11,7 @@ import React from 'react';
 export const BOTTOM_BAND_HEIGHT_PX = 238;
 
 /** Content max width on very large screens, centered with a gradient fade to the edges. */
-const MAX_CONTENT_WIDTH_PX = 1600;
+export const MAX_CONTENT_WIDTH_PX = 1600;
 
 /** How far inside the content edges the gradient's flat center zone stops, on each side. */
 const GRADIENT_INSET_PX = 100;
