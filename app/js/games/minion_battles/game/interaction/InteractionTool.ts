@@ -9,6 +9,7 @@ export interface PlayerInteractionSession {
     /** ITS preview gate — used to block wait/end-turn while a local preview is active. */
     readonly interactiveTargeting: {
         readonly isActive: boolean;
+        readonly previewOrderQueued: boolean;
         shouldForceItsCommitAtComboWindow(): boolean;
         commit(session: PlayerInteractionSession, actionSource?: string): Promise<void>;
     };

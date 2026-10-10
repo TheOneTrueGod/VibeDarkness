@@ -3054,7 +3054,8 @@ describe('interactive sequential targeting — conditional cancel stop point', (
         engine.destroy();
     });
 
-    it('host BattleSession ITS Done then commit when Digging Claws triggers conditional cancel in rock', async () => {
+    /** Host session in ITS preview, frozen at Digging Claws' conditional-cancel pause in rock. */
+    async function mountDiggingClawsConditionalCancelPreview() {
         const session = new BattleSession({
             api: makeApiStub(),
             missionId: 'dark_awakening',
@@ -3121,6 +3122,13 @@ describe('interactive sequential targeting — conditional cancel stop point', (
         expect(its.isActive).toBe(true);
         expect(engine.isSequentialTargetingPreview).toBe(true);
 
+        return { session, engine, player, its };
+    }
+
+    it('host BattleSession ITS Done then commit when Digging Claws triggers conditional cancel in rock', async () => {
+        const { session, engine, player, its } = await mountDiggingClawsConditionalCancelPreview();
+        const markBatchAtTick = its.getDiagState().markBatchAtTick;
+
         const persistCommittedOrder = vi.fn().mockResolvedValue(true);
         session.setNetAdapter({
             isOrderSubmitPathAvailable: () => true,
@@ -3129,21 +3137,61 @@ describe('interactive sequential targeting — conditional cancel stop point', (
 
         await its.commit(session);
 
+        // The cast is finalized for the mark batch; the conditional-cancel pause is a new batch
+        // at the preview's own pause plane (same as a non-ITS cast reaching the pause).
         expect(persistCommittedOrder).toHaveBeenCalledTimes(1);
         expect(persistCommittedOrder).toHaveBeenCalledWith(
-            expect.objectContaining({ endTurn: false }),
-            expect.any(Number),
+            expect.objectContaining({ endTurn: true }),
+            markBatchAtTick,
             // In-place commit persists with the run's commit token (Step 7).
             expect.objectContaining({ engineEpoch: expect.any(Number) }),
         );
-        const commitAtTick = persistCommittedOrder.mock.calls[0]![1] as number;
-        expect(engine.waitingForOrders?.atTick).toBe(commitAtTick);
+        expect(engine.waitingForOrders?.atTick).toBe(engine.gameTick + 1);
         expect(its.isActive).toBe(false);
         expect(engine.isSequentialTargetingPreview).toBe(false);
         expect(engine.isPaused).toBe(true);
         expect(player.activeAbilities.some((a) => a.conditionalCancelPaused)).toBe(true);
         expect(engine.state.orderMgr.getActiveOrderWaiterForPlayer(TINY_BATTLE_PLAYER_ID)).not.toBeNull();
 
+        session.destroy();
+    });
+
+    it('host follow-up at conditional-cancel pause is accepted after promotion flushes the preview checkpoint (lobby E27AE2)', async () => {
+        const { session, engine, player, its } = await mountDiggingClawsConditionalCancelPreview();
+
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            persistCommittedOrder: vi.fn().mockResolvedValue(true),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        await its.commit(session);
+
+        // promotePreview flushes the preview's latest checkpoint, so the heartbeat host tick
+        // jumps to the engine tick; batches at or before it are stale (BattleNet.isOrderBatchTickSubmittable).
+        const hostTickAfterFlush = engine.gameTick;
+        const submitOrder = vi.fn().mockResolvedValue(undefined);
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            isOrderBatchTickSubmittable: (atTick: number) => atTick > hostTickAfterFlush,
+            isLocalPlayerExpectedToAct: () => true,
+            submitOrder,
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        const failures: unknown[] = [];
+        const unsub = session.subscribe((ev) => {
+            if (ev.type === 'order_submit_failed') failures.push(ev);
+        });
+
+        await session.submitPlayerOrder(
+            { unitId: player.id, abilityId: 'wait', targets: [], endTurn: true },
+            { canSubmitOrders: true },
+        );
+
+        expect(failures).toHaveLength(0);
+        expect(submitOrder).toHaveBeenCalledWith(
+            expect.objectContaining({ abilityId: 'wait' }),
+            hostTickAfterFlush + 1,
+        );
+
+        unsub();
         session.destroy();
     });
 
@@ -3419,6 +3467,89 @@ describe('interactive sequential targeting — Throw Rock Rapid Throw combo', ()
         expect(isITSPreviewComplete(engine)).toBe(true);
 
         engine.destroy();
+    });
+
+    it('host combo follow-up enters its own ITS preview and commits at the combo pause batch (lobby E27AE2)', async () => {
+        const session = new BattleSession({
+            api: makeApiStub(),
+            missionId: 'dark_awakening',
+            playerId: TINY_BATTLE_PLAYER_ID,
+            isHost: true,
+        });
+        await session.load({
+            players: { [TINY_BATTLE_PLAYER_ID]: { id: TINY_BATTLE_PLAYER_ID, name: 'P1', color: '#fff' } },
+            characterSelections: { [TINY_BATTLE_PLAYER_ID]: 'warrior' },
+            battleSeed: 1,
+        });
+        const engine = session.getEngine()!;
+        engine.stop();
+
+        const player = engine.getLocalPlayerUnit()!;
+        player.abilities = [THROW_ROCK_ABILITY_ID];
+        player.abilityModifiers = computeAbilityModifiersFromResearch(
+            { [EARTH_TREE_ID]: [EARTH_NODE_RAPID_THROW] },
+            getAbilityTagsForId,
+            player.abilities,
+            { [EARTH_TREE_ID]: { [EARTH_NODE_RAPID_THROW]: RAPID_THROW_LEVEL_ONE } },
+        );
+        initializeAbilityRuntimeForUnit(player);
+        const aimPixel = { x: player.x + 160, y: player.y };
+
+        const persistCommittedOrder = vi.fn().mockResolvedValue(true);
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            persistCommittedOrder,
+            queueFingerprint: vi.fn(),
+            saveSnapshotOnPause: vi.fn(),
+            mergeAppliedOrdersForBatch: vi.fn(),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        stepUntil(engine, () => engine.waitingForOrders?.waiters.some((w) => w.unitId === player.id) ?? false);
+        const its = session.interactiveTargeting;
+        const throwRockOrder: BattleOrder = { unitId: player.id, abilityId: THROW_ROCK_ABILITY_ID, targets: [], endTurn: true };
+        let lastComboCount: number | undefined;
+        const pickTargetAndPlayOut = () => {
+            expect(engine.waitingForTargetInput?.label).toBe(THROW_ROCK_TARGET_LABEL);
+            its.resolveTarget(THROW_ROCK_TARGET_LABEL, { type: 'pixel', position: aimPixel }, session);
+            return stepUntil(engine, () => {
+                const active = player.activeAbilities.find((a) => a.abilityId === THROW_ROCK_ABILITY_ID);
+                if (active) lastComboCount = active.comboCount;
+                return isITSPreviewComplete(engine);
+            }, 400);
+        };
+
+        // Throw 1: ITS preview runs to the Combo window.
+        const throwOneBatchAtTick = engine.waitingForOrders!.atTick;
+        await session.submitPlayerOrder(throwRockOrder, { canSubmitOrders: true });
+        expect(its.isActive).toBe(true);
+        expect(pickTargetAndPlayOut()).toBe(true);
+        expect(player.activeAbilities.some((a) => a.conditionalCancelPaused)).toBe(true);
+
+        // Combo card: commits throw 1 in place, then the follow-up begins its own ITS preview.
+        await session.submitPlayerOrder(throwRockOrder, { canSubmitOrders: true });
+        expect(persistCommittedOrder).toHaveBeenCalledTimes(1);
+        expect(persistCommittedOrder.mock.calls[0]![1]).toBe(throwOneBatchAtTick);
+        const comboBatchAtTick = engine.waitingForOrders!.atTick;
+        expect(comboBatchAtTick).toBeGreaterThan(throwOneBatchAtTick);
+        expect(its.isActive).toBe(true);
+        expect(its.abilityId).toBe(THROW_ROCK_ABILITY_ID);
+        // Throw 1 is still parked on its pause until the follow-up's first pick — not a combo window.
+        expect(isITSPreviewComplete(engine)).toBe(false);
+
+        // Throw 2: chain ends at comboMax, so the preview completes without another pause.
+        expect(pickTargetAndPlayOut()).toBe(true);
+        expect(lastComboCount).toBe(RAPID_THROW_LEVEL_ONE + 1);
+        await its.commit(session);
+
+        expect(persistCommittedOrder).toHaveBeenCalledTimes(2);
+        expect(persistCommittedOrder.mock.calls[1]![0]).toMatchObject({
+            abilityId: THROW_ROCK_ABILITY_ID,
+            endTurn: true,
+        });
+        expect(persistCommittedOrder.mock.calls[1]![1]).toBe(comboBatchAtTick);
+        expect(its.isActive).toBe(false);
+
+        session.destroy();
     });
 
     it('does not force ITS commit at combo when playahead assumed no remote pass', () => {

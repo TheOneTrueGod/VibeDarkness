@@ -13,7 +13,7 @@ import type { Unit } from '../units/Unit';
 import type { ResolvedTarget } from '../types';
 import type { GameEngine } from '../GameEngine';
 import type { BattleSession } from '../BattleSession';
-import { isCasterInConditionalCancelPause } from './isITSPreviewComplete';
+import { isAtConditionalCancelDecision } from './isITSPreviewComplete';
 
 export interface ItsSelectTargetResolution {
     labelTarget: ResolvedTarget;
@@ -82,7 +82,12 @@ export function resolveItsConfirmRadiusForClick(
  */
 export function shouldDeferItsCanvasInputToOrderUi(
     engine: GameEngine | null | undefined,
-    its: { isActive: boolean; unitId: string | null; shouldForceItsCommitAtComboWindow?: () => boolean },
+    its: {
+        isActive: boolean;
+        unitId: string | null;
+        previewOrderQueued: boolean;
+        shouldForceItsCommitAtComboWindow?: () => boolean;
+    },
 ): boolean {
     if (!its.isActive || !engine || engine.waitingForTargetInput != null) {
         return false;
@@ -91,7 +96,7 @@ export function shouldDeferItsCanvasInputToOrderUi(
     if (its.shouldForceItsCommitAtComboWindow?.()) {
         return false;
     }
-    return isCasterInConditionalCancelPause(engine.getUnit(its.unitId));
+    return isAtConditionalCancelDecision(engine, its.unitId, its);
 }
 
 /** Returns true iff ITS is active (swallows the click even when engine/camera/waitingSignal are missing). */

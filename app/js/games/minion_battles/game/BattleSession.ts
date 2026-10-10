@@ -55,8 +55,9 @@ import { InteractiveTargetingSession, type HeldRemoteOrder } from './interaction
 import { USE_SEQUENTIAL_TARGETING } from '../featureFlags';
 import { PERF_UI, PERF_UI_REACT, tickPerformanceTracker } from './performance/tickPerformanceTracker';
 import { getAbility } from '../abilities/AbilityRegistry';
+import { canUseAbilityNow } from '../abilities/abilityUses';
 import { getInteractiveTargetDefsFromTimings } from '../abilities/targeting';
-import { isCasterInConditionalCancelPause } from './interaction/isITSPreviewComplete';
+import { isAtConditionalCancelDecision } from './interaction/isITSPreviewComplete';
 import type { SimTimeline } from './interaction/simTimeline';
 import { bumpEpoch, enterPreview, toCanonical, assertNever } from './interaction/simTimeline';
 import { PreviewEmissionBuffer } from './interaction/PreviewEmissionBuffer';
@@ -1360,7 +1361,7 @@ export class BattleSession implements BattleSessionHandle {
         if (!batch.waiters.some((w) => w.unitId === order.unitId)) return;
 
         const caster = engine.getUnit(order.unitId);
-        const conditionalCancelFollowUp = isCasterInConditionalCancelPause(caster);
+        const conditionalCancelFollowUp = isAtConditionalCancelDecision(engine, order.unitId, this.interactiveTargeting);
 
         // Defense in depth: deferred-first-select ITS leaves waitingForOrders set, so Wait/Space
         // could otherwise POST a wait for the open batch (lobby 10EA88). Commit uses
@@ -1382,19 +1383,52 @@ export class BattleSession implements BattleSessionHandle {
             }
             await this.interactiveTargeting.commit(this, 'conditional_cancel_follow_up');
             if (this.interactiveTargeting.isActive) return;
-            // In-place commit replaces waitingForOrders when realigning atTick (lobby C9D014).
+            // In-place commit leaves the follow-up on the preview's own pause plane (lobby E27AE2).
             batch = engine.waitingForOrders;
             if (!batch || !batch.waiters.some((w) => w.unitId === order.unitId)) return;
         }
 
         // Stale pause plane (lobby F6E500): do not start ITS or POST on a completed batch.
-        if (!this.isOrderBatchTickSubmittable(batch.atTick) || !this.isLocalPlayerExpectedToAct()) {
+        const batchSubmittable = this.isOrderBatchTickSubmittable(batch.atTick);
+        const expectedToAct = this.isLocalPlayerExpectedToAct();
+        if (!batchSubmittable || !expectedToAct) {
+            this.postBattleSyncLobbyLog('submitPlayerOrder rejected: stale pause plane', {
+                abilityId: order.abilityId,
+                unitId: order.unitId,
+                batchAtTick: batch.atTick,
+                engineTick: engine.gameTick,
+                heartbeatOrderBatchAtTick: this.getHeartbeatOrderBatchAtTick(),
+                batchSubmittable,
+                expectedToAct,
+                conditionalCancelFollowUp,
+            });
             this.emitOrderSubmitFailed(order.unitId, order.abilityId);
             return;
         }
 
-        if (USE_SEQUENTIAL_TARGETING && !conditionalCancelFollowUp) {
-            const ability = getAbility(order.abilityId);
+        // A new cast executeUnitAbility would refuse (no uses) must not start ITS or reach the
+        // network: at a combo pause it would cancel the paused cast, then do nothing (lobby E27AE2).
+        // Confirming / updating an already-pending order for the same ability spent its use already.
+        const ability = order.abilityId !== 'wait' ? getAbility(order.abilityId) : undefined;
+        const pendingForUnit = engine.state.orderMgr.getPendingOrderForUnit(order.unitId, batch.atTick);
+        if (
+            ability
+            && caster
+            && pendingForUnit?.abilityId !== order.abilityId
+            && !canUseAbilityNow(caster, ability)
+        ) {
+            this.postBattleSyncLobbyLog('submitPlayerOrder rejected: ability not castable', {
+                abilityId: order.abilityId,
+                unitId: order.unitId,
+                batchAtTick: batch.atTick,
+                conditionalCancelFollowUp,
+            });
+            this.emitOrderSubmitFailed(order.unitId, order.abilityId);
+            return;
+        }
+
+        // Combo / Entombed follow-ups enter ITS too; the preview order resolves the paused cast.
+        if (USE_SEQUENTIAL_TARGETING) {
             if (ability && caster && getInteractiveTargetDefsFromTimings(ability, caster, engine).length > 0) {
                 if (this.interactiveTargeting.begin(order, this)) {
                     return;

@@ -18,6 +18,7 @@ import type { BattleSession } from '../BattleSession';
 import type { GameEngine } from '../GameEngine';
 import { getInteractiveTargetDefsFromTimings } from '../../abilities/targeting';
 import { getAbility } from '../../abilities/AbilityRegistry';
+import { unitAbilityHasTag } from '../../abilities/abilityUses';
 import { findPreviewDeferredSelectLabel } from './selectTargetLookahead';
 import { isITSPreviewComplete, isPreviewCastConditionalCancelPaused } from './isITSPreviewComplete';
 import {
@@ -331,6 +332,13 @@ export class InteractiveTargetingSession {
         const ability = getAbility(abilityId);
         const caster = engine.getUnit(unitId);
         if (!ability || !caster) return false;
+
+        // Combo / Entombed follow-up: applyOrder rejects tag-ineligible abilities, which would
+        // leave the preview with no cast queued.
+        const pausedCast = caster.activeAbilities.find((a) => a.conditionalCancelPaused);
+        if (pausedCast?.conditionalCancelTagFilter?.some((tag) => !unitAbilityHasTag(caster, abilityId, tag))) {
+            return false;
+        }
 
         const interactiveDefs = getInteractiveTargetDefsFromTimings(ability, caster, engine);
         if (interactiveDefs.length === 0) return false;
@@ -871,18 +879,14 @@ export class InteractiveTargetingSession {
         const heldRows = [...this.heldRemoteOrders.values()];
         this.heldRemoteOrders.clear();
 
-        const engineForCommit = session.getEngine();
-        const endTurnOnCommit =
-            engineForCommit != null && isPreviewCastConditionalCancelPaused(engineForCommit)
-                ? false
-                : true;
+        // Always finalized: a conditional-cancel pause reached during preview is its own later
+        // batch, so the follow-up never shares the mark batch (lobby E27AE2).
         const realOrder = buildFinalizedSequentialTargetingOrder(
             selectLabels,
             collected,
             baseOrder,
             movementByLabel,
             positionalTargetsOverride,
-            { endTurn: endTurnOnCommit },
         );
 
         if (inPlace) {
@@ -983,13 +987,8 @@ export class InteractiveTargetingSession {
         this._clearActive(session);
 
         if (preserveConditionalCancelPause) {
-            // Playahead preview advances waitingForOrders.atTick past the mark batch (lobby EF5D0C).
-            if (engine.waitingForOrders != null) {
-                engine.waitingForOrders = {
-                    ...engine.waitingForOrders,
-                    atTick,
-                };
-            }
+            // Keep the preview's own pause plane (gameTick + 1). Promotion flushes the preview
+            // checkpoint, so the host tail is already past the mark batch (lobby E27AE2).
             session.emitWaitingForOrdersIfPaused();
         }
 

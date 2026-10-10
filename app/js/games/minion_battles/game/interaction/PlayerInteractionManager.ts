@@ -16,13 +16,8 @@ import { getAbility } from '../../abilities/AbilityRegistry';
 import { resolveModeAbilityId } from '../../abilities/resolveAbilityMode';
 import { TERRAIN_PROPERTIES } from '../../terrain/TerrainType';
 import { logOrderUiKeyAction } from './itsLobbyLog';
-import { isCasterInConditionalCancelPause } from './isITSPreviewComplete';
-import {
-    resolveComboCancelBarAbilityId,
-    resolveComboCancelBarCardIndex,
-} from './comboCancelBarSelection';
-
-const COMBO_CANCEL_TAG = 'Combo';
+import { isAtConditionalCancelDecision } from './isITSPreviewComplete';
+import { canUseAbilityNow } from '../../abilities/abilityUses';
 
 declare global {
     interface Window {
@@ -60,8 +55,6 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
     private myAbilityIds: string[] = [];
     private resolveAbilityMode: ((abilityId: string) => string | undefined) | null = null;
     private readonly listeners = new Set<UIListener>();
-    /** Dedupes auto-select when the ITS poll re-runs on the same combo pause. */
-    private lastComboAutoSelectKey: string | null = null;
 
     // -------------------------------------------------------------------------
     // IPlayerInteractionManager — public read-only accessors
@@ -129,72 +122,6 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
 
     setMyAbilityIds(ids: string[]): void {
         this.myAbilityIds = ids;
-    }
-
-    /**
-     * When combo cancel pauses, pre-select the bar card for the cast in progress (including
-     * nested fallback after exhaust) so the player can chain immediately.
-     */
-    tryAutoSelectComboCancelPause(): void {
-        if (!this._canUseOrderUi || !this._waitingForOrders || !this.ctx) {
-            this.lastComboAutoSelectKey = null;
-            return;
-        }
-        if (this.ctx.session.interactiveTargeting.shouldForceItsCommitAtComboWindow()) {
-            this.lastComboAutoSelectKey = null;
-            return;
-        }
-        const active = this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId);
-        if (!active) {
-            this.lastComboAutoSelectKey = null;
-            return;
-        }
-        const unit = this.ctx.engine.getUnit(active.unitId);
-        if (!unit) {
-            this.lastComboAutoSelectKey = null;
-            return;
-        }
-        const paused = unit.activeAbilities.find(
-            (a) =>
-                a.conditionalCancelPaused
-                && a.conditionalCancelTagFilter?.includes(COMBO_CANCEL_TAG),
-        );
-        if (!paused) {
-            this.lastComboAutoSelectKey = null;
-            return;
-        }
-
-        const pauseKey = `${active.unitId}:${paused.abilityId}:${paused.comboCount ?? 1}:${this._waitingForOrders.atTick}`;
-        if (this.lastComboAutoSelectKey === pauseKey) return;
-
-        const cardIndex = resolveComboCancelBarCardIndex(unit, this.myAbilityIds, paused.abilityId);
-        if (cardIndex == null) return;
-
-        const barAbilityId = resolveComboCancelBarAbilityId(unit, this.myAbilityIds, paused.abilityId);
-        const ability = barAbilityId ? getAbility(barAbilityId) : null;
-        if (!ability) return;
-
-        if (
-            this.uiState.selectedCardIndex === cardIndex
-            && this.activeTool instanceof AbilityTargetingTool
-            && this.activeTool.cardIndex === cardIndex
-        ) {
-            this.lastComboAutoSelectKey = pauseKey;
-            return;
-        }
-
-        this.lastComboAutoSelectKey = pauseKey;
-        this.selectAbilityCardForCombo(cardIndex, ability, active.unitId);
-    }
-
-    private selectAbilityCardForCombo(cardIndex: number, ability: AbilityStatic, unitId: string): void {
-        this.uiState = {
-            ...this.uiState,
-            selectedAbility: ability,
-            selectedCardIndex: cardIndex,
-        };
-        this.activateTool(new AbilityTargetingTool(ability, cardIndex, unitId));
-        this.emitChange();
     }
 
     /** BattlePhase supplies per-ability mode selection for order submission. */
@@ -401,17 +328,25 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         const active = this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId);
         if (!active) return;
         const caster = this.ctx.engine.getUnit(active.unitId) ?? undefined;
-        const comboCancelPause = isCasterInConditionalCancelPause(caster);
+        const comboCancelPause = isAtConditionalCancelDecision(
+            this.ctx.engine,
+            active.unitId,
+            this.ctx.session.interactiveTargeting,
+        );
         if (comboCancelPause && this.ctx.session.interactiveTargeting.shouldForceItsCommitAtComboWindow()) {
             return;
         }
-
-        if (this.activeTool instanceof AbilityTargetingTool && this.activeTool.cardIndex === cardIndex) {
-            if (comboCancelPause) {
-                return;
-            }
-            this.deactivateTool();
+        // Mirrors executeUnitAbility's gate (e.g. Charged Rock out of uses while its card shows
+        // Throw Rock); an uncastable order would only start a preview that is instantly interrupted.
+        if (caster && ability.actionChannel !== 'special' && !canUseAbilityNow(caster, ability)) {
             return;
+        }
+
+        // Same card again: toggle off, unless a mode toggle swapped the card to another ability.
+        if (this.activeTool instanceof AbilityTargetingTool && this.activeTool.cardIndex === cardIndex) {
+            const sameAbility = this.activeTool.ability.id === ability.id;
+            this.deactivateTool();
+            if (sameAbility) return;
         }
 
         // Toggle-off: re-selecting the same special clears it from the nonconfirmed order.
@@ -424,11 +359,9 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
             return;
         }
 
-        // Combo / Entombed follow-ups submit at the open batch tick — not a new ITS playahead (lobby EF5D0C).
-        const skipItsForConditionalCancelFollowUp = comboCancelPause;
-
-        // Specials never enter ITS (zero-frame; no select timings).
-        if (!skipItsForConditionalCancelFollowUp && ability.actionChannel !== 'special' && USE_SEQUENTIAL_TARGETING) {
+        // Specials never enter ITS (zero-frame; no select timings). Combo / Entombed follow-ups do:
+        // submitPlayerOrder commits any open ITS at its pause, then begins a new preview.
+        if (ability.actionChannel !== 'special' && USE_SEQUENTIAL_TARGETING) {
             const interactiveDefs = getInteractiveTargetDefsFromTimings(ability, caster, this.ctx.engine);
             if (interactiveDefs.length > 0) {
                 this.submitOrder(ability.id, []);
@@ -562,8 +495,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         };
         if (this.ctx?.session.interactiveTargeting.isActive) {
             const active = this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId);
-            const caster = active ? this.ctx.engine.getUnit(active.unitId) : undefined;
-            if (isCasterInConditionalCancelPause(caster)) {
+            if (isAtConditionalCancelDecision(this.ctx.engine, active?.unitId, this.ctx.session.interactiveTargeting)) {
                 if (this.ctx.session.interactiveTargeting.shouldForceItsCommitAtComboWindow()) {
                     logWait(true, 'its_combo_after_assumed_pass');
                     void this.ctx.session.interactiveTargeting.commit(

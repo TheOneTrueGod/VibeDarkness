@@ -51,6 +51,8 @@ export type AbilitySpecification =
 export interface AbilityModifier {
     damageFlat?: number;
     maxUsesFlat?: number;
+    /** Uses restored at the start of each round (capped at max uses), on top of the ability's own recoveries. */
+    roundRecoveryFlat?: number;
     /** Flat bonus added to explosion/AOE damage (e.g. throw_charged_rock splash). */
     explosionDamageFlat?: number;
     /** Multiplier applied to the ability's lingering duration (e.g. Gravity Locus field). Merged by product. */

@@ -251,13 +251,58 @@ describe('shouldDeferItsCanvasInputToOrderUi', () => {
             conditionalCancelTagFilter: ['Combo'],
         }];
         engine.waitingForTargetInput = null;
+        engine.sequentialTargetingPreviewCast = {
+            unitId: player.id,
+            abilityId: 'throw_charged_rock',
+            startRound: engine.roundNumber,
+        };
 
         expect(
             shouldDeferItsCanvasInputToOrderUi(engine, {
                 isActive: true,
                 unitId: player.id,
+                previewOrderQueued: true,
             }),
         ).toBe(true);
+
+        engine.destroy();
+    });
+
+    it('returns false while a combo follow-up preview order has not applied yet (previous cast still paused)', () => {
+        resetGameObjectIdCounter(1);
+        const engine = buildTinyBattleEngine({
+            gridW: 12,
+            gridH: 8,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: 120,
+            y: 160,
+            abilities: ['throw_charged_rock'],
+        });
+        player.activeAbilities = [{
+            abilityId: 'throw_charged_rock',
+            startTime: engine.gameTime,
+            targets: [],
+            conditionalCancelPaused: true,
+            conditionalCancelTagFilter: ['Combo'],
+        }];
+        engine.waitingForTargetInput = null;
+        engine.sequentialTargetingPreviewCast = {
+            unitId: player.id,
+            abilityId: 'throw_charged_rock',
+            startRound: engine.roundNumber,
+        };
+
+        expect(
+            shouldDeferItsCanvasInputToOrderUi(engine, {
+                isActive: true,
+                unitId: player.id,
+                previewOrderQueued: false,
+            }),
+        ).toBe(false);
 
         engine.destroy();
     });
@@ -289,6 +334,7 @@ describe('shouldDeferItsCanvasInputToOrderUi', () => {
             shouldDeferItsCanvasInputToOrderUi(engine, {
                 isActive: true,
                 unitId: player.id,
+                previewOrderQueued: true,
                 shouldForceItsCommitAtComboWindow: () => true,
             }),
         ).toBe(false);
@@ -327,6 +373,7 @@ describe('shouldDeferItsCanvasInputToOrderUi', () => {
             shouldDeferItsCanvasInputToOrderUi(engine, {
                 isActive: true,
                 unitId: player.id,
+                previewOrderQueued: true,
             }),
         ).toBe(false);
 

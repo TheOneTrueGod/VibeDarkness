@@ -45,22 +45,36 @@ export function isITSPreviewComplete(engine: GameEngine): boolean {
         return !isPreviewCastOrderStillPending(engine, cast);
     }
 
-    const conditionalCancelActive = caster.activeAbilities.some(
-        (a) => a.abilityId === castAbilityId && a.conditionalCancelPaused,
-    );
-    if (conditionalCancelActive) {
-        return true;
-    }
-
-    return false;
+    return isPreviewCastConditionalCancelPaused(engine);
 }
 
-/** True when the ITS preview cast is paused on a conditional-cancel decision (e.g. Entombed). */
+/**
+ * True when the ITS preview cast is paused on a conditional-cancel decision (e.g. Entombed).
+ * A Combo follow-up preview of the same ability starts on the previous cast's pause; that
+ * paused cast is not the preview cast until the queued preview order applies and cancels it.
+ */
 export function isPreviewCastConditionalCancelPaused(engine: GameEngine): boolean {
     const cast = engine.sequentialTargetingPreviewCast;
     if (!cast) return false;
+    if (isPreviewCastOrderStillPending(engine, cast)) return false;
     const caster = engine.getUnit(cast.unitId);
     return isCasterInConditionalCancelPause(caster, cast.abilityId);
+}
+
+/**
+ * True when the local order UI is at a Combo / Entombed decision point for `unitId`.
+ * While ITS is active only the preview cast's own pause counts: a follow-up preview begins
+ * on the previous cast's pause, which stays flagged until the preview order applies.
+ */
+export function isAtConditionalCancelDecision(
+    engine: GameEngine,
+    unitId: string | null | undefined,
+    its: { isActive: boolean; previewOrderQueued: boolean },
+): boolean {
+    if (its.isActive) {
+        return its.previewOrderQueued && isPreviewCastConditionalCancelPaused(engine);
+    }
+    return isCasterInConditionalCancelPause(unitId ? engine.getUnit(unitId) : undefined);
 }
 
 /** True when a unit is mid conditional-cancel and awaiting a follow-up or wait. */

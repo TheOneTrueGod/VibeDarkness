@@ -714,6 +714,9 @@ export function getAvailableResearchNodes(
 function mergeModifierInto(entry: AbilityModifier, modifier: AbilityModifier): void {
     if (modifier.damageFlat !== undefined) entry.damageFlat = (entry.damageFlat ?? 0) + modifier.damageFlat;
     if (modifier.maxUsesFlat !== undefined) entry.maxUsesFlat = (entry.maxUsesFlat ?? 0) + modifier.maxUsesFlat;
+    if (modifier.roundRecoveryFlat !== undefined) {
+        entry.roundRecoveryFlat = (entry.roundRecoveryFlat ?? 0) + modifier.roundRecoveryFlat;
+    }
     if (modifier.explosionDamageFlat !== undefined) entry.explosionDamageFlat = (entry.explosionDamageFlat ?? 0) + modifier.explosionDamageFlat;
     if (modifier.durationMult !== undefined) entry.durationMult = (entry.durationMult ?? 1) * modifier.durationMult;
     if (modifier.rangeMult !== undefined) entry.rangeMult = (entry.rangeMult ?? 1) * modifier.rangeMult;
@@ -756,6 +759,10 @@ function scaleAbilityResearchModifierByLevel(
     if (fields.maxUsesFlat !== undefined) {
         // Template maxUsesFlat is the per-rank unit; total grows by that much each rank.
         scaled.maxUsesFlat = fields.maxUsesFlat * level;
+    }
+    if (fields.roundRecoveryFlat !== undefined) {
+        // Per-rank unit, like maxUsesFlat.
+        scaled.roundRecoveryFlat = fields.roundRecoveryFlat * level;
     }
     if (fields.rangeMult !== undefined) {
         scaled.rangeMult = DEFAULT_PASSIVE_MULT + getMultBonusAtLevel(fields.rangeMult, level, maxLevels);

@@ -171,11 +171,16 @@ describe('conditional cancel', () => {
         expect(player.activeAbilities.some((a) => a.abilityId === '0534')).toBe(true);
         expect(player.activeAbilities[0]?.conditionalCancelPaused).toBe(false);
 
+        // Digging Claws ends right after its dash, so wall-unstick ejects the unit after the cast is over:
+        // step until both have happened.
         for (let i = 0; i < 180; i++) {
             engine.stepSimulationFixedTicks(1);
-            if (player.activeAbilities.length === 0) break;
+            if (player.activeAbilities.length === 0 && engine.terrainManager!.isPassable(player.x, player.y) && !player.knockback) {
+                break;
+            }
         }
 
+        expect(player.activeAbilities.some((a) => a.abilityId === '0534')).toBe(false);
         expect(player.isInWaitLockout()).toBe(false);
         expect(engine.terrainManager!.isPassable(player.x, player.y)).toBe(true);
 

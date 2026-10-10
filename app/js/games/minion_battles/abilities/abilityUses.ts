@@ -426,13 +426,29 @@ export function getStaminaSurgeEligibleAbilityIds(unit: Unit): string[] {
     );
 }
 
-/** One roundCharge per eligible ability at round start (not random pool distribution). */
+/**
+ * One roundCharge per eligible ability at round start (not random pool distribution), then the
+ * research `roundRecoveryFlat` uses (e.g. Earth Attuned on the claws), capped at max uses.
+ */
 export function grantRoundChargesToEligibleAbilities(unit: Unit): void {
     const roundChargeAbilityIds = getRoundChargeEligibleAbilityIds(unit);
     for (const abilityId of roundChargeAbilityIds) {
         applyRecoveryChargeToAbility(unit, abilityId, 'roundCharge', 1);
     }
+    applyResearchRoundRecovery(unit);
     syncNestedCardAbilityState(unit);
+}
+
+/** Restores `roundRecoveryFlat` uses (from research modifiers) to each of the unit's abilities. */
+function applyResearchRoundRecovery(unit: Unit): void {
+    for (const abilityId of unit.abilities) {
+        const flat = unit.abilityModifiers[abilityId]?.roundRecoveryFlat ?? 0;
+        if (flat <= 0) continue;
+        ensureAbilityRuntimeState(unit, abilityId);
+        const runtime = unit.abilityRuntime[abilityId];
+        if (!runtime) continue;
+        runtime.currentUses = Math.min(runtime.maxUses, runtime.currentUses + flat);
+    }
 }
 
 function canAbilityAppearAsNestedParent(unit: Unit, abilityId: string): boolean {

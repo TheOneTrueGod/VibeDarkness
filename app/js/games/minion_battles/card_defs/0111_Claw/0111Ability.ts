@@ -20,9 +20,11 @@ import { nullHitbox } from '../../hitboxes';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}11` as '0111';
 const MAX_USES = 2;
-const RECOVERIES: AbilityRecoveryRule[] = [
-	{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
-];
+/**
+ * No stamina (or other) recovery: uses come back only through research `roundRecoveryFlat`
+ * (Earth Attuned). Must stay an explicit empty array; an omitted `recoveries` defaults to stamina.
+ */
+const RECOVERIES: AbilityRecoveryRule[] = [];
 export const CLAW_DURATION = 0.4;
 export const CLAW_MAX_DISTANCE = 100;
 export const CLAW_COLLISION_STEP = 4;

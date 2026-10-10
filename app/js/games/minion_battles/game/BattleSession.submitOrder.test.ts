@@ -20,6 +20,7 @@ import type { MinionBattlesApi } from '../api/minionBattlesApi';
 import type { PlayerState } from '../../../types';
 import { BattleSession } from './BattleSession';
 import type { BattleOrder } from './types';
+import { ensureAbilityRuntimeState } from '../abilities/abilityUses';
 
 const FIXED_DT = 1 / 60;
 
@@ -139,19 +140,12 @@ describe('BattleSession submitPlayerOrder + BattleNet', () => {
         session.destroy();
     });
 
-    it('combo follow-up POST uses realigned batch atTick after ITS commit (lobby C9D014)', async () => {
-        const { session, unitId } = await mountSessionAtLocalPlayerTurn();
+    /** Local unit paused on throw 1's Combo window, inside an ITS preview of throw 1. */
+    function enterThrowOneComboWindowPreview(session: BattleSession, unitId: string) {
         const engine = session.getEngine()!;
-        const canonicalAtTick = engine.waitingForOrders?.atTick;
-        if (typeof canonicalAtTick !== 'number') throw new Error('expected waitingForOrders.atTick');
-        const playaheadAtTick = canonicalAtTick + 27;
-
-        engine.waitingForOrders = {
-            ...engine.waitingForOrders!,
-            atTick: playaheadAtTick,
-        };
         const unit = engine.getUnit(unitId);
         if (!unit) throw new Error('missing unit');
+        unit.abilityModifiers = { throw_rock: { comboMax: 2 }, throw_charged_rock: { comboMax: 2 } };
         unit.activeAbilities = [{
             abilityId: 'throw_charged_rock',
             startTime: engine.gameTime,
@@ -159,54 +153,25 @@ describe('BattleSession submitPlayerOrder + BattleNet', () => {
             conditionalCancelPaused: true,
             conditionalCancelTagFilter: ['Combo'],
         }];
-
-        const staleBatchAtTick = engine.waitingForOrders.atTick;
-        expect(staleBatchAtTick).toBe(playaheadAtTick);
-
-        const netSubmitOrder = vi.fn(async () => {});
-        session.setNetAdapter({
-            submitOrder: netSubmitOrder,
-        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
-
-        const commitSpy = vi.spyOn(session.interactiveTargeting, 'commit').mockImplementation(async (_sess) => {
-            engine.waitingForOrders = {
-                ...engine.waitingForOrders!,
-                atTick: canonicalAtTick,
-            };
-            (session.interactiveTargeting as unknown as { _isActive: boolean })._isActive = false;
-        });
-
-        (session.interactiveTargeting as unknown as { _isActive: boolean })._isActive = true;
-
-        const followUpOrder: BattleOrder = {
+        engine.sequentialTargetingPreviewCast = {
             unitId,
-            abilityId: 'throw_rock',
-            targets: [{ type: 'pixel', position: { x: 100, y: 100 } }],
-            endTurn: true,
-        };
-        await session.submitPlayerOrder(followUpOrder, { canSubmitOrders: true });
-
-        expect(commitSpy).toHaveBeenCalledTimes(1);
-        expect(netSubmitOrder).toHaveBeenCalledTimes(1);
-        expect(netSubmitOrder).toHaveBeenCalledWith(followUpOrder, canonicalAtTick);
-        expect(netSubmitOrder).not.toHaveBeenCalledWith(expect.anything(), playaheadAtTick);
-
-        commitSpy.mockRestore();
-        session.destroy();
-    });
-
-    it('combo follow-up after an assumed remote pass commits throw 1 only', async () => {
-        const { session, unitId } = await mountSessionAtLocalPlayerTurn();
-        const engine = session.getEngine()!;
-        const unit = engine.getUnit(unitId);
-        if (!unit) throw new Error('missing unit');
-        unit.activeAbilities = [{
             abilityId: 'throw_charged_rock',
-            startTime: engine.gameTime,
-            targets: [],
-            conditionalCancelPaused: true,
-            conditionalCancelTagFilter: ['Combo'],
-        }];
+            startRound: engine.roundNumber,
+        };
+        const its = session.interactiveTargeting as unknown as {
+            _isActive: boolean;
+            _previewOrderQueued: boolean;
+            assumedRemoteWaitDuringPreview: boolean;
+        };
+        its._isActive = true;
+        its._previewOrderQueued = true;
+        return { engine, its };
+    }
+
+    it('combo follow-up commits throw 1 then begins ITS on the open pause plane (lobby E27AE2)', async () => {
+        const { session, unitId } = await mountSessionAtLocalPlayerTurn();
+        const { engine, its } = enterThrowOneComboWindowPreview(session, unitId);
+        const pauseAtTick = engine.waitingForOrders!.atTick;
 
         const netSubmitOrder = vi.fn(async () => {});
         session.setNetAdapter({
@@ -214,14 +179,142 @@ describe('BattleSession submitPlayerOrder + BattleNet', () => {
         } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
 
         const commitSpy = vi.spyOn(session.interactiveTargeting, 'commit').mockImplementation(async () => {
-            (session.interactiveTargeting as unknown as { _isActive: boolean })._isActive = false;
+            its._isActive = false;
+            its._previewOrderQueued = false;
+            engine.isSequentialTargetingPreview = false;
+            engine.sequentialTargetingPreviewCast = null;
         });
 
-        const its = session.interactiveTargeting as unknown as {
-            _isActive: boolean;
-            assumedRemoteWaitDuringPreview: boolean;
+        await session.submitPlayerOrder(
+            { unitId, abilityId: 'throw_rock', targets: [], endTurn: true },
+            { canSubmitOrders: true },
+        );
+
+        expect(commitSpy).toHaveBeenCalledWith(session, 'conditional_cancel_follow_up');
+        expect(netSubmitOrder).not.toHaveBeenCalled();
+        expect(session.interactiveTargeting.isActive).toBe(true);
+        expect(session.interactiveTargeting.abilityId).toBe('throw_rock');
+        expect(engine.waitingForOrders?.atTick).toBe(pauseAtTick);
+
+        commitSpy.mockRestore();
+        session.destroy();
+    });
+
+    it('combo follow-up at a canonical combo pause begins ITS instead of POSTing', async () => {
+        const { session, unitId } = await mountSessionAtLocalPlayerTurn();
+        const engine = session.getEngine()!;
+        const unit = engine.getUnit(unitId)!;
+        unit.abilityModifiers = { throw_rock: { comboMax: 2 } };
+        unit.activeAbilities = [{
+            abilityId: 'throw_rock',
+            startTime: engine.gameTime,
+            targets: [],
+            conditionalCancelPaused: true,
+            conditionalCancelTagFilter: ['Combo'],
+        }];
+
+        const netSubmitOrder = vi.fn(async () => {});
+        session.setNetAdapter({
+            submitOrder: netSubmitOrder,
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        await session.submitPlayerOrder(
+            { unitId, abilityId: 'throw_rock', targets: [], endTurn: true },
+            { canSubmitOrders: true },
+        );
+
+        expect(netSubmitOrder).not.toHaveBeenCalled();
+        expect(session.interactiveTargeting.isActive).toBe(true);
+        expect(session.interactiveTargeting.abilityId).toBe('throw_rock');
+
+        session.destroy();
+    });
+
+    it('rejects a Charged Rock follow-up with no uses left instead of cancelling the paused throw (lobby E27AE2)', async () => {
+        const { session, unitId } = await mountSessionAtLocalPlayerTurn();
+        const engine = session.getEngine()!;
+        const unit = engine.getUnit(unitId)!;
+        unit.abilityModifiers = { throw_rock: { comboMax: 2 }, throw_charged_rock: { comboMax: 2 } };
+        ensureAbilityRuntimeState(unit, 'throw_charged_rock');
+        unit.abilityRuntime['throw_charged_rock']!.currentUses = 0;
+        const pausedThrow = {
+            abilityId: 'throw_rock',
+            startTime: engine.gameTime,
+            targets: [],
+            conditionalCancelPaused: true,
+            conditionalCancelTagFilter: ['Combo'],
         };
-        its._isActive = true;
+        unit.activeAbilities = [pausedThrow];
+
+        const netSubmitOrder = vi.fn(async () => {});
+        session.setNetAdapter({
+            submitOrder: netSubmitOrder,
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        const failures: unknown[] = [];
+        const unsub = session.subscribe((ev) => {
+            if (ev.type === 'order_submit_failed') failures.push(ev);
+        });
+
+        await session.submitPlayerOrder(
+            {
+                unitId,
+                abilityId: 'throw_charged_rock',
+                targets: [{ type: 'pixel', position: { x: 100, y: 100 } }],
+                abilityMode: 'basic',
+                endTurn: true,
+            },
+            { canSubmitOrders: true },
+        );
+
+        expect(session.interactiveTargeting.isActive).toBe(false);
+        expect(netSubmitOrder).not.toHaveBeenCalled();
+        expect(failures).toHaveLength(1);
+        expect(unit.activeAbilities).toEqual([pausedThrow]);
+
+        unsub();
+        session.destroy();
+    });
+
+    it('combo-ineligible follow-up does not enter ITS at a combo pause', async () => {
+        const { session, unitId } = await mountSessionAtLocalPlayerTurn();
+        const engine = session.getEngine()!;
+        const unit = engine.getUnit(unitId)!;
+        unit.abilityModifiers = {};
+        unit.activeAbilities = [{
+            abilityId: 'throw_rock',
+            startTime: engine.gameTime,
+            targets: [],
+            conditionalCancelPaused: true,
+            conditionalCancelTagFilter: ['Combo'],
+        }];
+
+        session.setNetAdapter({
+            submitOrder: vi.fn(async () => {}),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        await session.submitPlayerOrder(
+            { unitId, abilityId: 'throw_rock', targets: [], endTurn: true },
+            { canSubmitOrders: true },
+        );
+
+        expect(session.interactiveTargeting.isActive).toBe(false);
+
+        session.destroy();
+    });
+
+    it('combo follow-up after an assumed remote pass commits throw 1 only', async () => {
+        const { session, unitId } = await mountSessionAtLocalPlayerTurn();
+        const { its } = enterThrowOneComboWindowPreview(session, unitId);
+
+        const netSubmitOrder = vi.fn(async () => {});
+        session.setNetAdapter({
+            submitOrder: netSubmitOrder,
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+
+        const commitSpy = vi.spyOn(session.interactiveTargeting, 'commit').mockImplementation(async () => {
+            its._isActive = false;
+        });
+
         its.assumedRemoteWaitDuringPreview = true;
 
         const followUpOrder: BattleOrder = {

@@ -25,6 +25,8 @@ import {
     TINY_BATTLE_PLAYER_ID,
 } from '../../testing/harness/buildTinyBattleEngine';
 import type { DefaultTool } from './tools/DefaultTool';
+import { AbilityTargetingTool } from './tools/AbilityTargetingTool';
+import { ensureAbilityRuntimeState } from '../../abilities/abilityUses';
 import type { GameEngine } from '../GameEngine';
 
 const GRID_W = 10;
@@ -102,6 +104,7 @@ describe('PlayerInteractionManager wait confirms client-side move', () => {
                 },
                 interactiveTargeting: {
                     isActive: false,
+                    previewOrderQueued: false,
                     shouldForceItsCommitAtComboWindow: () => false,
                     commit: async () => {},
                 },
@@ -223,6 +226,11 @@ describe('PlayerInteractionManager combo follow-up after assumed ITS pass', () =
             atTick: engine.gameTick,
             waiters: [{ unitId: player.id, ownerId: TINY_BATTLE_PLAYER_ID }],
         };
+        engine.sequentialTargetingPreviewCast = {
+            unitId: player.id,
+            abilityId: THROW_CHARGED_ROCK_ABILITY_ID,
+            startRound: engine.roundNumber,
+        };
 
         const camera = new Camera(800, 600, engine.getWorldWidth(), engine.getWorldHeight());
         const manager = new PlayerInteractionManager();
@@ -234,6 +242,7 @@ describe('PlayerInteractionManager combo follow-up after assumed ITS pass', () =
                 submitPlayerOrder: async () => {},
                 interactiveTargeting: {
                     isActive: true,
+                    previewOrderQueued: true,
                     shouldForceItsCommitAtComboWindow: () => forceItsCommit,
                     commit: async () => {},
                 },
@@ -248,19 +257,111 @@ describe('PlayerInteractionManager combo follow-up after assumed ITS pass', () =
         return { manager, player, engine };
     }
 
-    it('does not auto-select the combo bar when ITS must commit throw 1', () => {
-        const { manager } = mountComboPauseManager(true);
-        manager.tryAutoSelectComboCancelPause();
-        expect(manager.getUIState().selectedCardIndex).toBeNull();
-        expect(manager.getUIState().selectedAbility).toBeNull();
-    });
-
     it('ignores combo card clicks when ITS must commit throw 1', () => {
         const { manager } = mountComboPauseManager(true);
         const ability = getAbility(THROW_ROCK_ABILITY_ID);
         expect(ability).toBeDefined();
         manager.activateAbilityTargeting(0, ability!);
         expect(manager.getUIState().selectedCardIndex).toBeNull();
+    });
+
+    /**
+     * Lobby E27AE2 shape: Charged Rock card (toggled to Basic = Throw Rock) with no Charged Rock
+     * uses left, paused on a Throw Rock combo window outside ITS.
+     */
+    function mountCanonicalThrowRockComboPause(): {
+        manager: PlayerInteractionManager;
+        submitted: BattleOrder[];
+        player: ReturnType<typeof spawnTinyPlayerUnit>;
+    } {
+        const submitted: BattleOrder[] = [];
+        const engine = buildTinyBattleEngine({
+            gridW: GRID_W,
+            gridH: GRID_H,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+        const start = playerCellCenter(2, 4);
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: start.x,
+            y: start.y,
+            abilities: [THROW_CHARGED_ROCK_ABILITY_ID],
+        });
+        ensureAbilityRuntimeState(player, THROW_CHARGED_ROCK_ABILITY_ID);
+        ensureAbilityRuntimeState(player, THROW_ROCK_ABILITY_ID);
+        player.abilityRuntime[THROW_CHARGED_ROCK_ABILITY_ID]!.currentUses = 0;
+        player.activeAbilities = [{
+            abilityId: THROW_ROCK_ABILITY_ID,
+            startTime: engine.gameTime,
+            targets: [],
+            conditionalCancelPaused: true,
+            conditionalCancelTagFilter: ['Combo'],
+        }];
+        engine.waitingForOrders = {
+            atTick: engine.gameTick + 1,
+            waiters: [{ unitId: player.id, ownerId: TINY_BATTLE_PLAYER_ID }],
+        };
+        const camera = new Camera(800, 600, engine.getWorldWidth(), engine.getWorldHeight());
+        const manager = new PlayerInteractionManager();
+        manager.setContext({
+            engine,
+            camera,
+            renderer: { setDebugUnitOutline: () => {} } as unknown as GameRenderer,
+            session: {
+                submitPlayerOrder: async (order: BattleOrder) => {
+                    submitted.push(order);
+                },
+                interactiveTargeting: {
+                    isActive: false,
+                    previewOrderQueued: false,
+                    shouldForceItsCommitAtComboWindow: () => false,
+                    commit: async () => {},
+                },
+            },
+            playerId: TINY_BATTLE_PLAYER_ID,
+        });
+        manager.setCanUseOrderUi(true);
+        manager.setMyAbilityIds([THROW_CHARGED_ROCK_ABILITY_ID]);
+        manager.setWaitingForOrders(engine.waitingForOrders);
+        engineToDestroy = engine;
+        managerToDestroy = manager;
+        return { manager, submitted, player };
+    }
+
+    it('combo card click (Basic mode = Throw Rock) routes into ITS, not the upfront targeting tool', async () => {
+        const { manager, submitted } = mountCanonicalThrowRockComboPause();
+
+        manager.activateAbilityTargeting(0, getAbility(THROW_ROCK_ABILITY_ID)!);
+        await Promise.resolve();
+
+        expect(submitted).toHaveLength(1);
+        expect(submitted[0]).toMatchObject({ abilityId: THROW_ROCK_ABILITY_ID, targets: [] });
+        expect(manager.getUIState().selectedAbility).toBeNull();
+    });
+
+    it('ignores the card in Charged mode when Charged Rock has no uses left', async () => {
+        const { manager, submitted } = mountCanonicalThrowRockComboPause();
+
+        manager.activateAbilityTargeting(0, getAbility(THROW_CHARGED_ROCK_ABILITY_ID)!);
+        await Promise.resolve();
+
+        expect(submitted).toHaveLength(0);
+        expect(manager.getUIState().selectedAbility).toBeNull();
+    });
+
+    it('clicking the same card after a mode flip switches ability instead of toggling off', async () => {
+        const { manager, submitted, player } = mountCanonicalThrowRockComboPause();
+        player.abilityRuntime[THROW_CHARGED_ROCK_ABILITY_ID]!.currentUses = 1;
+        manager.activateTool(new AbilityTargetingTool(getAbility(THROW_CHARGED_ROCK_ABILITY_ID)!, 0, player.id));
+        expect(manager.getUIState().selectedCardIndex).toBe(0);
+
+        manager.activateAbilityTargeting(0, getAbility(THROW_ROCK_ABILITY_ID)!);
+        await Promise.resolve();
+
+        expect(submitted).toHaveLength(1);
+        expect(submitted[0]).toMatchObject({ abilityId: THROW_ROCK_ABILITY_ID });
+        expect(manager.getUIState().selectedAbility).toBeNull();
     });
 
     it('Wait at the combo window commits throw 1 only after an assumed pass', async () => {
@@ -290,6 +391,11 @@ describe('PlayerInteractionManager combo follow-up after assumed ITS pass', () =
             atTick: engine.gameTick,
             waiters: [{ unitId: player.id, ownerId: TINY_BATTLE_PLAYER_ID }],
         };
+        engine.sequentialTargetingPreviewCast = {
+            unitId: player.id,
+            abilityId: THROW_CHARGED_ROCK_ABILITY_ID,
+            startRound: engine.roundNumber,
+        };
         const camera = new Camera(800, 600, engine.getWorldWidth(), engine.getWorldHeight());
         const manager = new PlayerInteractionManager();
         manager.setContext({
@@ -302,6 +408,7 @@ describe('PlayerInteractionManager combo follow-up after assumed ITS pass', () =
                 },
                 interactiveTargeting: {
                     isActive: true,
+                    previewOrderQueued: true,
                     shouldForceItsCommitAtComboWindow: () => true,
                     commit,
                 },

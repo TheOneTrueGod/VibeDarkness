@@ -8,6 +8,7 @@
 import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry } from '../../../abilities/Ability';
 import { AbilityState, AbilityEventType } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
+import { FIXED_DT } from '../../../game/gameConstants';
 import { createPixelTargetPreview } from '../../../abilities/previewHelpers';
 import { nullHitbox } from '../../../hitboxes';
 import type { ResolvedTarget, ActiveAbility } from '../../../game/types';
@@ -30,10 +31,12 @@ import {
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Earth)}34` as '0534';
 const MAX_USES = 2;
-const RECOVERIES: AbilityRecoveryRule[] = [
-	{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
-];
-/** The whole cast: it ends as soon as the dash movement finishes. */
+/**
+ * No stamina (or other) recovery: uses come back only through research `roundRecoveryFlat`
+ * (Earth Attuned). Must stay an explicit empty array; an omitted `recoveries` defaults to stamina.
+ */
+const RECOVERIES: AbilityRecoveryRule[] = [];
+/** The dash movement. The cast ends one tick after it (see the `dashEnd` interval); no cooldown. */
 const DASH_DURATION = 0.4;
 const MAX_DISTANCE = 160;
 const UNIT_DAMAGE = 6;
@@ -97,6 +100,16 @@ export const DiggingClawsAbility: AbilityStatic = {
 				},
 				abilityTagFilter: ['Entombed'],
 			},
+		},
+		{
+			// One tick past the dash, so the cast still covers the tick the dash ends on. Wall-unstick runs
+			// before the ability tick and holds off only while an Entombed cast is in a non-cooldown phase;
+			// without this, it would interrupt the cast before the dash's conditional cancel can pause.
+			id: 'dashEnd',
+			start: DASH_DURATION,
+			end: DASH_DURATION + FIXED_DT,
+			abilityPhase: AbilityPhase.Active,
+			doNotRefund: true,
 		},
 	],
 	targets: [],

@@ -21,6 +21,10 @@ export const EARTH_RAPID_THROW_LEVELS = 3;
 export const EARTH_ATTUNED_LEVELS = 2;
 export const EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK = 1;
 export const EARTH_ATTUNED_MAX_MOVEMENT_ADD = EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK * EARTH_ATTUNED_LEVELS;
+/** Per rank: extra max uses and uses restored each round for Bone Claws (0111) and Digging Claws (0534). */
+export const EARTH_ATTUNED_CLAW_USES_PER_RANK = 1;
+/** Card ids Earth Attuned boosts: Bone Claws and its Digging Claws upgrade. */
+export const EARTH_ATTUNED_CLAW_ABILITY_IDS = ['0111', '0534'] as const;
 
 export const EARTH_CORE_CRYSTAL_COST = 10;
 export const EARTH_CORE_FOOD_COST = 5;
@@ -191,7 +195,7 @@ export const earthTree: ResearchTreeDef = {
         {
             id: EARTH_NODE_EARTH_ATTUNED,
             title: 'Earth Attuned',
-            description: `+{${EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK}} max Movement Point and +{${EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK}} Movement Point regeneration per round per rank.`,
+            description: `+{${EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK}} movement point per round, and +{${EARTH_ATTUNED_CLAW_USES_PER_RANK}} uses to bone claws`,
             flavorText: 'The stone underfoot starts giving back the steps you take.',
             order: 10,
             tier: 12,
@@ -206,6 +210,11 @@ export const earthTree: ResearchTreeDef = {
             },
             effects: [],
             levels: EARTH_ATTUNED_LEVELS,
+            abilityResearchModifiers: EARTH_ATTUNED_CLAW_ABILITY_IDS.map((abilityId) => ({
+                abilitySpecification: { type: 'abilityId' as const, abilityId },
+                maxUsesFlat: EARTH_ATTUNED_CLAW_USES_PER_RANK,
+                roundRecoveryFlat: EARTH_ATTUNED_CLAW_USES_PER_RANK,
+            })),
             passiveBonus: {
                 [PassiveStatKey.MaxMovementPoints]: { add: EARTH_ATTUNED_MAX_MOVEMENT_ADD },
                 [PassiveStatKey.MovementRegenPerRound]: { add: EARTH_ATTUNED_MAX_MOVEMENT_ADD },
