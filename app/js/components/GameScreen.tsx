@@ -169,7 +169,6 @@ export default function GameScreen({
     lobbyClient,
     lobby,
     player,
-    account,
     players,
     chatMessages,
     connectionStatus,
@@ -232,7 +231,6 @@ export default function GameScreen({
     const [battleNetResyncing, setBattleNetResyncing] = useState(false);
 
     const isLoading = gameSync?.syncStatus === 'loading';
-    const isResyncing = gameSync?.syncStatus === 'resyncing';
 
     // Only show resyncing overlay during battle; pre-battle phases use GameSyncContext's unified
     // poll loop (full state on a phase-based cadence) and don't need to block the whole screen
@@ -611,6 +609,7 @@ export default function GameScreen({
             onCanvasClick,
             player.id,
             showResyncOverlay,
+            onContinue,
         ],
     );
 

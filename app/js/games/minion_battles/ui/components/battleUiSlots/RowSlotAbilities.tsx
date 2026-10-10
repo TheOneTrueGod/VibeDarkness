@@ -132,6 +132,7 @@ export default function RowSlotAbilities({
             });
         },
         // layoutKey tracks in-place swap-network mutations that keep the same unit reference.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         [layoutKey],
     );
 

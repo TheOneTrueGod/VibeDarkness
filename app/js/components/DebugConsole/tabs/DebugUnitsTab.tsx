@@ -97,7 +97,7 @@ export default function DebugUnitsTab({ isActive, inBattle, gameState }: DebugUn
             setHoveredUnitId(null);
             battleBridge?.setUnitHover(null);
         }
-    }, [inBattle, isActive, battleBridge]);
+    }, [inBattle, isActive, battleBridge, setSelectedUnitId]);
 
     useEffect(() => {
         if (!isActive || !inBattle || getPortraitFn) return;

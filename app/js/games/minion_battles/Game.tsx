@@ -7,7 +7,6 @@
  * for the server round-trip.
  */
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useCurrentUser } from '../../user/useCurrentUser';
 import type { MissionResearchRewardEntry, MissionResult, PlayerState, GameSidebarInfo } from '../../types';
 import type { LobbyClient } from '../../LobbyClient';
 import type { GameComponentProps } from '../../components/GameScreen';
@@ -152,7 +151,6 @@ export default function MinionBattlesGame({
     chatSlot,
     centerOverlay,
 }: MinionBattlesGameProps) {
-    const { isAdmin } = useCurrentUser();
     const gameSync = useGameSyncOptional();
     const applyOptimisticGamePatch = gameSync?.applyOptimisticGamePatch;
     const api = useMemo(

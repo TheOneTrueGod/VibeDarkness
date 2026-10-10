@@ -24,7 +24,6 @@ export function resolveMeleeSlideDirection(args: {
     getUnit: (id: string) => { x: number; y: number } | null | undefined;
 }): { dirX: number; dirY: number } {
     const { caster, target, allTargets, numLockOns, getUnit } = args;
-    const startIdx = Math.max(0, allTargets.indexOf(target));
 
     if (numLockOns > 1) {
         const aimPixelPos = findMeleeAimPixelInTargets(allTargets);

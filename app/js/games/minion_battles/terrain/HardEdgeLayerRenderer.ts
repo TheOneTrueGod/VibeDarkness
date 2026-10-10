@@ -253,7 +253,6 @@ export class HardEdgeLayerRenderer extends TerrainLayerRenderer {
         southWest: TerrainType,
         southEast: TerrainType,
     ): void {
-        const rock = this.terrainType;
         const b = ROCK_BLEED_PX;
         const wrap = ROCK_CHAMFER_PX;
         ctx.fillStyle = color;

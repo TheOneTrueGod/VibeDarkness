@@ -72,7 +72,7 @@ export class Effect extends GameObject {
         // ParticleImage / RockChipParticle / SpriteEffect: velocity + optional acceleration and damping
         if (this.effectType === 'ParticleImage' || this.effectType === 'RockChipParticle' || this.effectType === 'SpriteEffect') {
             const data = this.effectData as { vx?: number; vy?: number; ay?: number; dampingK?: number };
-            let vx = data.vx ?? 0;
+            const vx = data.vx ?? 0;
             let vy = data.vy ?? 0;
             vy += (data.ay ?? 0) * realDt;
             this.x += vx * realDt;
@@ -93,8 +93,8 @@ export class Effect extends GameObject {
         // StackGhost: drifts up and sideways with light damping
         if (this.effectType === 'StackGhost') {
             const data = this.effectData as { vx?: number; vy?: number };
-            let vx = data.vx ?? 0;
-            let vy = data.vy ?? 0;
+            const vx = data.vx ?? 0;
+            const vy = data.vy ?? 0;
             this.x += vx * realDt;
             this.y += vy * realDt;
             const dampingK = 2;

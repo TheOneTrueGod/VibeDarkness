@@ -4,7 +4,7 @@ import {
     placePlayerAndDummy,
     TINY_BATTLE_PLAYER_ID,
 } from '../../testing/harness/buildTinyBattleEngine';
-import { initializeAbilityRuntimeForUnit, syncNestedCardAbilityState } from '../../abilities/abilityUses';
+import { initializeAbilityRuntimeForUnit } from '../../abilities/abilityUses';
 import {
     resolveComboCancelBarAbilityId,
     resolveComboCancelBarCardIndex,

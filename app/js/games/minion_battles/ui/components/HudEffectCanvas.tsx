@@ -142,7 +142,6 @@ const HudEffectCanvas = forwardRef<HudEffectCanvasHandle, HudEffectCanvasProps>(
                 }
                 // If init is still in flight, .then() will clean up the canvas when it resolves.
             };
-            // eslint-disable-next-line react-hooks/exhaustive-deps
         }, []);
 
         return (

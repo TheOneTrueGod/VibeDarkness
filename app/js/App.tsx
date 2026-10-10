@@ -1112,7 +1112,7 @@ function AppInner() {
                 'error'
             );
         }
-    }, [currentLobby, currentPlayer, lobbyClient, showToast, refetchUser, navigate, isAdmin]);
+    }, [currentLobby, currentPlayer, lobbyClient, showToast, refetchUser, navigate, isAdmin, user?.id]);
 
     const handleContinueFromMission = useCallback((characterId: string | undefined) => {
         if (!currentLobby || !currentPlayer) return;

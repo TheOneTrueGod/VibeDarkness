@@ -46,7 +46,7 @@ export function dispatchAbilityEventRules<TContext>(
     const processedRuleKeys = new Set<string>();
 
     const normalized: DispatchableRule<AbilityCondition, AbilityEffect>[] = rules.map(
-        (rule, index) => ({
+        (rule) => ({
             id: rule.id,
             priority: rule.priority,
             maxTriggers: getMaxTriggersPerCast(rule),

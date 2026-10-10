@@ -64,7 +64,7 @@ function createSwarmling(id: string, x: number, y: number, overrides: Partial<{ 
     return unit;
 }
 
-function createSwarmNestHome(id: string, x: number, y: number, homeNestPoiId: string): Unit {
+function createSwarmNestHome(id: string, x: number, y: number, _homeNestPoiId: string): Unit {
     return new Unit({
         id,
         x,
