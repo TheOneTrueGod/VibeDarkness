@@ -1253,7 +1253,7 @@ function AppInner() {
                 if (result === 'victory' && options?.grantDarknessUpgradeIds?.length) {
                     const campaign = await lobbyClient.getCampaign(campaignId);
                     const granted = options.grantDarknessUpgradeIds.reduce(
-                        (state, nodeId) => grantDarknessUpgradeNode(state, nodeId, ResearchSource.QuestReward),
+                        (state, nodeId) => grantDarknessUpgradeNode(state, nodeId, ResearchSource.QuestReward, missionId),
                         campaign.darknessUpgrades,
                     );
                     if (granted !== campaign.darknessUpgrades) darknessUpgrades = granted;

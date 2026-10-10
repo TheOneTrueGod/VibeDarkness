@@ -122,11 +122,16 @@ function pickPosition(active: ActiveAbility, label: string, index: number): Poin
     return pixelOf(active.targetsByLabel?.[label] ?? active.targets[index]);
 }
 
-/** Rock settling into the ground at a point, used when a held projectile is cancelled or lands. */
+/**
+ * Rock settling into the tile under a point, used when a held projectile is cancelled or lands.
+ * A projectile stopped by a wall rests on the last free point before it, so this is the tile in
+ * front of the wall. The settle effect is centred on that tile, not on the wall face.
+ */
 function settleRockAt(engine: AbilityEngineContext, x: number, y: number): void {
     const tile = worldToTile(x, y);
     engine.terrainManager?.createOrMarkRock(tile.col, tile.row);
-    spawnRockSlideSettle(engine, x, y);
+    const centre = tileCentre(tile);
+    spawnRockSlideSettle(engine, centre.x, centre.y);
 }
 
 /** Step 2: the picked rock becomes rubble at the end of the windup. */

@@ -29,6 +29,8 @@ export function grantDarknessUpgradeNode(
     state: DarknessUpgradesState | undefined,
     nodeId: string,
     source: ResearchSource = ResearchSource.Admin,
+    /** Mission this upgrade was earned from; kept if the node already has one. */
+    sourceMissionId?: string,
 ): DarknessUpgradesState {
     const base = state ?? emptyState();
     const tree = getResearchTree(DARKNESS_UPGRADES_TREE_ID);
@@ -68,6 +70,14 @@ export function grantDarknessUpgradeNode(
                 [nodeId]: [...prevSources, source],
             },
         },
+        ...(base.sourceMissions || sourceMissionId
+            ? {
+                  sourceMissions: {
+                      ...(base.sourceMissions ?? {}),
+                      ...(sourceMissionId && !base.sourceMissions?.[nodeId] ? { [nodeId]: sourceMissionId } : {}),
+                  },
+              }
+            : {}),
     };
 }
 
@@ -91,7 +101,13 @@ export function revokeDarknessUpgradeNode(
         if (Object.keys(rest).length === 0) delete map[DARKNESS_UPGRADES_TREE_ID];
         else map[DARKNESS_UPGRADES_TREE_ID] = rest;
     }
-    return { researchTrees, researchNodeLevels, researchNodeSources };
+    const { [nodeId]: _src, ...sourceMissions } = base.sourceMissions ?? {};
+    return {
+        researchTrees,
+        researchNodeLevels,
+        researchNodeSources,
+        ...(Object.keys(sourceMissions).length > 0 ? { sourceMissions } : {}),
+    };
 }
 
 /**
@@ -180,4 +196,46 @@ export function resolveActiveDarknessUpgrades(lobby: DarknessUpgradesLobby): Res
               .filter((n) => getNodeLevel(tree.id, n.id, state.researchTrees, state.researchNodeLevels) > 0)
               .map((n) => n.id);
     return { bonuses: computeDarknessUpgradeBonuses(state ?? undefined), activeNodeIds, state, hostPlayerId };
+}
+
+/** Mission ids a character has won, across all campaigns (from its per-campaign `missionResults`). */
+export function getCompletedMissionIds(
+    missionResults: Record<string, Array<{ missionId: string; result: string }>> | undefined,
+): Set<string> {
+    const out = new Set<string>();
+    for (const list of Object.values(missionResults ?? {})) {
+        for (const r of list ?? []) {
+            if (r.result === 'victory') out.add(r.missionId);
+        }
+    }
+    return out;
+}
+
+/**
+ * Drops upgrades earned from a mission this character has not completed. Nodes without a recorded
+ * source mission (admin grants, legacy saves) are always kept. Pure; never mutates input.
+ */
+export function filterDarknessUpgradesByCompletedMissions(
+    state: DarknessUpgradesState | undefined,
+    completedMissionIds: ReadonlySet<string>,
+): DarknessUpgradesState | undefined {
+    if (!state?.sourceMissions) return state;
+    const blocked = new Set(
+        Object.entries(state.sourceMissions)
+            .filter(([, missionId]) => !completedMissionIds.has(missionId))
+            .map(([nodeId]) => nodeId),
+    );
+    if (blocked.size === 0) return state;
+    const id = DARKNESS_UPGRADES_TREE_ID;
+    const omit = <T,>(map: Record<string, T> | undefined) =>
+        Object.fromEntries(Object.entries(map ?? {}).filter(([k]) => !blocked.has(k)));
+    return {
+        ...state,
+        researchTrees: {
+            ...state.researchTrees,
+            [id]: (state.researchTrees[id] ?? []).filter((n) => !blocked.has(n)),
+        },
+        researchNodeLevels: { ...state.researchNodeLevels, [id]: omit(state.researchNodeLevels[id]) },
+        researchNodeSources: { ...state.researchNodeSources, [id]: omit(state.researchNodeSources[id]) },
+    };
 }

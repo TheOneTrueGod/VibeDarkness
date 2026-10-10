@@ -133,6 +133,26 @@ export default function AbilitySlot({
         onCycleAbilityMode?.();
     }, [onCycleAbilityMode]);
 
+    const modeToggleAtBottom = abilityModes?.togglePosition === 'bottom';
+    const modeToggleButton = abilityModes && onCycleAbilityMode ? (
+        <button
+            type="button"
+            className={`absolute left-1/2 z-30 flex min-w-[2.75rem] -translate-x-1/2 items-center justify-center rounded border border-violet-400/70 bg-violet-950/95 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200 shadow-sm pointer-events-auto hover:border-violet-300 hover:bg-violet-900 ${
+                modeToggleAtBottom ? 'bottom-1.5 h-5' : 'top-1/2 h-6 -translate-y-1/2'
+            }`}
+            title={`Mode: ${modeLabel ?? currentAbilityMode} (click to cycle)`}
+            aria-label={`Ability mode ${modeLabel ?? currentAbilityMode}, click to cycle`}
+            onClick={handleModeToggle}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    handleModeToggle(e);
+                }
+            }}
+        >
+            {modeLabel ?? currentAbilityMode}
+        </button>
+    ) : null;
+
     return (
         <div
             className={`relative ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
@@ -261,22 +281,7 @@ export default function AbilitySlot({
                             style={{ width: ABILITY_SLOT_ICON_SIZE_PX, height: ABILITY_SLOT_ICON_SIZE_PX }}
                             dangerouslySetInnerHTML={{ __html: ensureSvgViewBox(ability.image) }}
                         />
-                        {showModeToggle && abilityModes && onCycleAbilityMode && (
-                            <button
-                                type="button"
-                                className="absolute left-1/2 top-1/2 z-30 flex h-6 min-w-[2.75rem] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded border border-violet-400/70 bg-violet-950/95 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200 shadow-sm pointer-events-auto hover:border-violet-300 hover:bg-violet-900"
-                                title={`Mode: ${modeLabel ?? currentAbilityMode} (click to cycle)`}
-                                aria-label={`Ability mode ${modeLabel ?? currentAbilityMode}, click to cycle`}
-                                onClick={handleModeToggle}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                        handleModeToggle(e);
-                                    }
-                                }}
-                            >
-                                {modeLabel ?? currentAbilityMode}
-                            </button>
-                        )}
+                        {showModeToggle && !modeToggleAtBottom && modeToggleButton}
                     </div>
 
                     <span
@@ -288,6 +293,8 @@ export default function AbilitySlot({
                         {ability.name}
                     </span>
                 </div>
+
+                {showModeToggle && modeToggleAtBottom && modeToggleButton}
             </div>
 
             {/* Desktop hover tooltip (portaled above card) */}

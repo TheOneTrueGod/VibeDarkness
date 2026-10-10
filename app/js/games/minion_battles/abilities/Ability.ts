@@ -178,6 +178,8 @@ export interface AbilityModesConfig {
      * - `segmentedAbove`: discrete buttons rendered above the card (e.g. Wait S/M/F).
      */
     toggleStyle?: AbilityModeToggleStyle;
+    /** Where the `cycle` button sits on the card: over the icon (default) or straddling the bottom edge. */
+    togglePosition?: 'center' | 'bottom';
     /** Optional short labels for segmented toggles (mode id → label, e.g. short → S). */
     modeLabels?: Readonly<Record<string, string>>;
     /**

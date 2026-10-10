@@ -26,7 +26,12 @@ import {
     resolveRockTile,
     resolveSlideDirection,
 } from './rockSlideHelpers';
-import { snapAdjacentCardinalTile } from '../../../abilities/tileAreaHelpers';
+import { snapAdjacentCardinalTile, tileCentre } from '../../../abilities/tileAreaHelpers';
+import {
+    buildTinyBattleEngine,
+    placePlayerAndDummy,
+    TINY_BATTLE_PLAYER_ID,
+} from '../../../testing/harness/buildTinyBattleEngine';
 
 const SPAWN_TILE = { col: 4, row: 5 };
 
@@ -264,6 +269,54 @@ describe('Rock Slide (0537) projectile hits', () => {
         // ...but all seven units in the path were knocked back, including the two past the limit.
         expect(knocked.size).toBe(everyone.length);
     });
+});
+
+describe('Rock Slide (0537) wall landing', () => {
+    const DIRS = [
+        { name: 'east', dc: 1, dr: 0 },
+        { name: 'west', dc: -1, dr: 0 },
+        { name: 'south', dc: 0, dr: 1 },
+        { name: 'north', dc: 0, dr: -1 },
+    ];
+    const CASTER_TILE = { col: 10, row: 10 };
+    const WALL_DISTANCE = 4;
+
+    for (const dir of DIRS) {
+        it(`punched ${dir.name} into a wall, it lands as rock on the tile in front of the wall`, () => {
+            const engine = buildTinyBattleEngine({ gridW: 21, gridH: 21, localPlayerId: TINY_BATTLE_PLAYER_ID, grass: true });
+            const grid = engine.terrainManager!.grid;
+            const rock = { col: CASTER_TILE.col - 1, row: CASTER_TILE.row - 1 };
+            grid.set(rock.col, rock.row, TerrainType.Rock);
+            const wall = { col: CASTER_TILE.col + dir.dc * WALL_DISTANCE, row: CASTER_TILE.row + dir.dr * WALL_DISTANCE };
+            // A wall line across the path, three tiles either side.
+            for (let k = -3; k <= 3; k++) {
+                grid.set(wall.col + (dir.dr !== 0 ? k : 0), wall.row + (dir.dc !== 0 ? k : 0), TerrainType.Rock);
+            }
+            placePlayerAndDummy(engine, {
+                playerId: TINY_BATTLE_PLAYER_ID,
+                playerWorld: tileCentre(CASTER_TILE),
+                dummyWorld: tileCentre({ col: 1, row: 1 }),
+                abilities: ['0537'],
+            });
+            const player = engine.getLocalPlayerUnit()!;
+            engine.state.orderMgr.applyOrder({
+                unitId: player.id,
+                abilityId: '0537',
+                targets: [
+                    pixelAt(rock.col, rock.row),
+                    pixelAt(CASTER_TILE.col + dir.dc, CASTER_TILE.row + dir.dr),
+                ],
+                endTurn: true,
+            });
+            for (let i = 0; i < 240; i++) tick(engine);
+
+            const inFront = { col: wall.col - dir.dc, row: wall.row - dir.dr };
+            expect(liveProjectiles(engine)).toHaveLength(0);
+            expect(terrain(engine, inFront.col, inFront.row)).toBe(TerrainType.Rock);
+            // The tile before that is still open: the rock rested against the wall, not short of it.
+            expect(terrain(engine, inFront.col - dir.dc, inFront.row - dir.dr)).not.toBe(TerrainType.Rock);
+        });
+    }
 });
 
 describe('Rock Slide (0537) pick validation', () => {

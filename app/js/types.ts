@@ -97,6 +97,11 @@ export interface DarknessUpgradesState {
     researchTrees: Record<string, string[]>;
     researchNodeLevels: ResearchNodeLevels;
     researchNodeSources: ResearchNodeSources;
+    /**
+     * nodeId -> missionId the upgrade was earned from. The upgrade is only active for characters who
+     * have completed that mission; nodes without an entry (e.g. admin grants) are always active.
+     */
+    sourceMissions?: Record<string, string>;
 }
 
 /** Default for legacy saves without `darknessUpgrades`. */

@@ -46,7 +46,7 @@ class Campaign
     private array $regions;
     /**
      * Admin-granted global Darkness Upgrades (research-tree-shaped state).
-     * @var array{researchTrees: array<string, mixed>, researchNodeLevels: array<string, mixed>, researchNodeSources: array<string, mixed>}
+     * @var array{researchTrees: array<string, mixed>, researchNodeLevels: array<string, mixed>, researchNodeSources: array<string, mixed>, sourceMissions: array<string, mixed>}
      */
     private array $darknessUpgrades;
     /**
@@ -476,7 +476,7 @@ class Campaign
     {
         $raw = is_array($raw) ? $raw : [];
         $out = [];
-        foreach (['researchTrees', 'researchNodeLevels', 'researchNodeSources'] as $key) {
+        foreach (['researchTrees', 'researchNodeLevels', 'researchNodeSources', 'sourceMissions'] as $key) {
             $out[$key] = isset($raw[$key]) && is_array($raw[$key]) ? $raw[$key] : [];
         }
         return $out;

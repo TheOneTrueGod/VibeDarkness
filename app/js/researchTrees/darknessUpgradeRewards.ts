@@ -3,7 +3,7 @@ import type { PassiveBonuses } from './types';
 import { getNodeLevel, getNodeMaxLevels } from './passiveBonuses';
 import { getResearchTree } from './list';
 import { DARKNESS_UPGRADES_TREE_ID } from './trees/darkness_upgrades';
-import { resolveActiveDarknessUpgrades } from './darknessUpgrades';
+import { filterDarknessUpgradesByCompletedMissions, resolveActiveDarknessUpgrades } from './darknessUpgrades';
 
 type ResourceDelta = Partial<Record<CampaignResourceKey, number>>;
 
@@ -92,6 +92,8 @@ export function resolveBattleDarknessUpgradeBonuses(params: {
     playerId: string;
     players: Record<string, { isHost?: boolean }>;
     localDarknessUpgrades: DarknessUpgradesState | undefined;
+    /** Missions the host's character has won; upgrades earned from other missions stay disabled. */
+    completedMissionIds?: ReadonlySet<string>;
 }): PassiveBonuses | undefined {
     return resolveBattleDarknessUpgrades(params)?.bonuses;
 }
@@ -102,12 +104,19 @@ export function resolveBattleDarknessUpgrades(params: {
     playerId: string;
     players: Record<string, { isHost?: boolean }>;
     localDarknessUpgrades: DarknessUpgradesState | undefined;
+    /** Missions the host's character has won; upgrades earned from other missions stay disabled. */
+    completedMissionIds?: ReadonlySet<string>;
 }): { bonuses: PassiveBonuses; activeNodeIds: string[] } | undefined {
     if (!params.isHost) return undefined;
     // The local client is the host; make sure the resolver sees it as such even if the roster lags.
     const players = { ...params.players, [params.playerId]: { ...params.players[params.playerId], isHost: true } };
     return resolveActiveDarknessUpgrades({
         players,
-        darknessUpgradesByPlayer: { [params.playerId]: params.localDarknessUpgrades },
+        darknessUpgradesByPlayer: {
+            [params.playerId]: filterDarknessUpgradesByCompletedMissions(
+                params.localDarknessUpgrades,
+                params.completedMissionIds ?? new Set<string>(),
+            ),
+        },
     });
 }

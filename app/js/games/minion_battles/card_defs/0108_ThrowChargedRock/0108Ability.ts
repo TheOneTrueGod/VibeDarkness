@@ -173,6 +173,7 @@ export const ThrowChargedRock: AbilityStatic = {
     abilityModes: {
         modes: ['charged', 'basic'],
         defaultMode: 'charged',
+        togglePosition: 'bottom',
         modeAbilityIds: { basic: 'throw_rock' },
         modeLabels: { charged: 'Charged', basic: 'Basic' },
     },

@@ -31,6 +31,7 @@ export function withDarknessUpgradesDefaults<T extends { darknessUpgrades?: Dark
             researchTrees: existing.researchTrees ?? {},
             researchNodeLevels: existing.researchNodeLevels ?? {},
             researchNodeSources: existing.researchNodeSources ?? {},
+            ...(existing.sourceMissions ? { sourceMissions: existing.sourceMissions } : {}),
         },
     };
 }

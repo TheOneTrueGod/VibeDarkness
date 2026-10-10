@@ -9,6 +9,8 @@ import { runBattleBootstrap, type BattleInitPhase } from '../../../game/battleBo
 import type { BattleNetSyncWireResult } from './useBattleNetSyncState';
 import type { DarknessUpgradesState } from '../../../../../types';
 import { resolveBattleDarknessUpgrades } from '../../../../../researchTrees/darknessUpgradeRewards';
+import { getCompletedMissionIds } from '../../../../../researchTrees/darknessUpgrades';
+import { SPECTATOR_ID, isControlEnemy } from '../../../state';
 
 export type { BattleInitPhase };
 
@@ -99,11 +101,23 @@ export function useBattleSessionLifecycle({
                 } catch {
                     localDarknessUpgrades = undefined;
                 }
+                // Upgrades earned from a mission only apply for a character who has completed that mission.
+                let completedMissionIds: Set<string> = new Set();
+                const characterId = characterSelections[playerId];
+                if (characterId && characterId !== SPECTATOR_ID && !isControlEnemy(characterId)) {
+                    try {
+                        const rawChar = await api.getCharacter(characterId);
+                        completedMissionIds = getCompletedMissionIds(rawChar.missionResults);
+                    } catch {
+                        completedMissionIds = new Set();
+                    }
+                }
                 resolvedUpgrades = resolveBattleDarknessUpgrades({
                     isHost,
                     playerId,
                     players,
                     localDarknessUpgrades,
+                    completedMissionIds,
                 });
             }
             await runBattleBootstrap({

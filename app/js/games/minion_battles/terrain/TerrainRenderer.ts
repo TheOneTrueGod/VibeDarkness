@@ -5,9 +5,12 @@
  * the correct TerrainLayerRenderer via getRenderer() and delegates all drawing to it. The
  * result is baked into an offscreen canvas and converted to a PixiJS Sprite once per battle.
  *
- * Dynamic updates: call `invalidateTile(col, row)` when a floor tile changes effective terrain
- * (e.g. rock → rubble), then `update(tm)` each frame to repaint dirty cells using effective
- * terrain (floor + bedrock).
+ * Dynamic updates: `update(tm)` runs each frame and repaints dirty cells using effective terrain
+ * (floor + bedrock). Cells become dirty through `invalidateTile(col, row)` (wired to
+ * `terrain_stone_damaged`), and also when `update` finds a cell whose effective terrain differs
+ * from what was last painted. That scan runs only when `tm.navEpoch` (bumped on every passability
+ * change) or the TerrainManager instance changes, so rock raised with `createOrMarkRock` (which
+ * emits no event) and rock removed by a checkpoint restore are drawn too.
  */
 
 import { Sprite, Texture } from 'pixi.js';
@@ -42,6 +45,11 @@ export class TerrainRenderer {
     private gridHeight: number = 0;
     private cellSize: number = 0;
     private dirtyTiles: Set<string> = new Set();
+    /** Effective terrain of each cell as last painted, row-major. */
+    private paintedTypes: TerrainType[] = [];
+    /** TerrainManager and navEpoch at the last change scan (see `update`). */
+    private scannedTm: TerrainManager | null = null;
+    private scannedNavEpoch: number = -1;
 
     private readonly layerRenderers = new Map<TerrainType, TerrainLayerRenderer>();
 
@@ -102,7 +110,32 @@ export class TerrainRenderer {
         this.gridWidth = grid.width;
         this.gridHeight = grid.height;
         this.cellSize = grid.cellSize;
+        this.paintedTypes = new Array<TerrainType>(grid.width * grid.height);
+        for (let row = 0; row < grid.height; row++) {
+            for (let col = 0; col < grid.width; col++) {
+                this.paintedTypes[row * grid.width + col] = getTypeAt(col, row);
+            }
+        }
+        this.scannedTm = tm;
+        this.scannedNavEpoch = tm.navEpoch;
         return sprite;
+    }
+
+    /**
+     * Marks every cell whose effective terrain differs from what was last painted. Skipped unless the
+     * TerrainManager or its navEpoch changed since the last scan, so it costs nothing on most frames.
+     */
+    private invalidateChangedCells(tm: TerrainManager): void {
+        if (tm === this.scannedTm && tm.navEpoch === this.scannedNavEpoch) return;
+        this.scannedTm = tm;
+        this.scannedNavEpoch = tm.navEpoch;
+        for (let row = 0; row < this.gridHeight; row++) {
+            for (let col = 0; col < this.gridWidth; col++) {
+                if (tm.getEffectiveTerrainType(col, row) !== this.paintedTypes[row * this.gridWidth + col]) {
+                    this.invalidateTile(col, row);
+                }
+            }
+        }
     }
 
     /**
@@ -126,11 +159,14 @@ export class TerrainRenderer {
      * Call once per render frame after the engine has ticked.
      */
     update(tm: TerrainManager): void {
-        if (this.dirtyTiles.size === 0 || !this.canvas || !this.ctx || !this.cachedSprite) return;
+        if (!this.canvas || !this.ctx || !this.cachedSprite) return;
+        this.invalidateChangedCells(tm);
+        if (this.dirtyTiles.size === 0) return;
 
         for (const key of this.dirtyTiles) {
             const [col, row] = key.split(',').map(Number);
             this.repaintCell(this.ctx, tm, col, row);
+            this.paintedTypes[row * this.gridWidth + col] = tm.getEffectiveTerrainType(col, row);
         }
         this.dirtyTiles.clear();
 
@@ -299,6 +335,9 @@ export class TerrainRenderer {
         this.canvas = null;
         this.ctx = null;
         this.dirtyTiles.clear();
+        this.paintedTypes = [];
+        this.scannedTm = null;
+        this.scannedNavEpoch = -1;
         this.layerRenderers.clear();
     }
 }
