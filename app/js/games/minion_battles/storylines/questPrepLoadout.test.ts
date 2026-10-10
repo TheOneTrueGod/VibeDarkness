@@ -174,7 +174,7 @@ describe('mission Prepare Carefully helpers', () => {
 
 const EARTH_EQUIPMENT = [coreEarthItem.id];
 const EARTH_RESEARCH = { [EARTH_TREE_ID]: [EARTH_NODE_EARTH_CORE] };
-const EARTH_CARDS = [...coreEarthItem.cardsToAdd, '0111'];
+const EARTH_CARDS = [...coreEarthItem.cardsToAdd, '0111', '0537'];
 
 describe('fill empty prep slots after a research grant', () => {
     it('adds the granted card to an open slot', () => {

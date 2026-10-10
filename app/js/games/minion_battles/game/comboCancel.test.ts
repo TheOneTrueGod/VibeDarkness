@@ -214,7 +214,8 @@ describe('Combo Cancel runtime', () => {
         player.abilityRuntime[THROW_CHARGED_ROCK_ABILITY_ID]!.currentUses = 0;
         syncNestedCardAbilityState(player);
 
-        expect(player.abilities[0]).toBe(THROW_ROCK_ABILITY_ID);
+        // Throw Rock is reached through the Charged Rock slot's toggle, not by exhausting into it.
+        expect(player.abilities[0]).toBe(THROW_CHARGED_ROCK_ABILITY_ID);
         expect(unitAbilityHasTag(player, THROW_ROCK_ABILITY_ID, 'Combo')).toBe(true);
         expect(player.abilityRuntime[THROW_ROCK_ABILITY_ID]?.currentUses ?? 0).toBeGreaterThan(0);
 

@@ -5,6 +5,7 @@
  */
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { getAbility } from '../../../abilities/AbilityRegistry';
+import { resolveModeAbilityId } from '../../../abilities/resolveAbilityMode';
 import type { AbilityStatic } from '../../../abilities/Ability';
 import type { Unit, UnitAbilityRuntimeState } from '../../../game/units/Unit';
 import { getAbilityDisabledReason } from '../abilityDisabledReason';
@@ -137,14 +138,35 @@ export default function RowSlotAbilities({
     const handCards = useMemo(() => {
         return visibleAbilityIds
             .map((abilityId) => {
-                const ability = getAbility(abilityId);
-                if (!ability || !playerUnit) return null;
-                const runtime = playerUnit.abilityRuntime[abilityId] as UnitAbilityRuntimeState | undefined;
+                const slotAbility = getAbility(abilityId);
+                if (!slotAbility || !playerUnit) return null;
+                // A mode toggle can swap the slot to another ability (Charged Rock and Throw Rock).
+                const slotMode = slotAbility.abilityModes
+                    ? (abilityModeByAbilityId[abilityId] ?? slotAbility.abilityModes.defaultMode)
+                    : undefined;
+                const shownId = resolveModeAbilityId(slotAbility, slotMode);
+                const ability = getAbility(shownId) ?? slotAbility;
+                const runtime = (playerUnit.abilityRuntime[ability.id] ?? playerUnit.abilityRuntime[abilityId]) as
+                    UnitAbilityRuntimeState | undefined;
                 if (!runtime) return null;
-                return { abilityId, ability, runtime };
+                return {
+                    abilityId: ability.id,
+                    slotAbilityId: abilityId,
+                    slotAbility,
+                    slotMode,
+                    ability,
+                    runtime,
+                };
             })
-            .filter((entry): entry is { abilityId: string; ability: AbilityStatic; runtime: UnitAbilityRuntimeState } => Boolean(entry));
-    }, [visibleAbilityIds, playerUnit]);
+            .filter((entry): entry is {
+                abilityId: string;
+                slotAbilityId: string;
+                slotAbility: AbilityStatic;
+                slotMode: string | undefined;
+                ability: AbilityStatic;
+                runtime: UnitAbilityRuntimeState;
+            } => Boolean(entry));
+    }, [visibleAbilityIds, playerUnit, abilityModeByAbilityId]);
 
     const [firstRowCount, setFirstRowCount] = useState(() => handCards.length);
 
@@ -352,10 +374,9 @@ export default function RowSlotAbilities({
             selectedCardIndex === index
             || (specialActionAbilityId != null && card.abilityId === specialActionAbilityId);
         const isActive = activeHandIndex >= 0 && index === activeHandIndex && !isMyTurn;
-        const abilityModes = card.ability.abilityModes;
-        const currentAbilityMode = abilityModes
-            ? (abilityModeByAbilityId[card.abilityId] ?? abilityModes.defaultMode)
-            : undefined;
+        // Mode config lives on the slot's own ability (it stays put while the shown ability swaps).
+        const abilityModes = card.slotAbility.abilityModes;
+        const currentAbilityMode = card.slotMode;
         const showModeToggle = Boolean(
             abilityModes &&
             isMyTurn &&
@@ -397,7 +418,7 @@ export default function RowSlotAbilities({
                     showModeToggle={showModeToggle}
                     onCycleAbilityMode={
                         abilityModes && onCycleAbilityMode
-                            ? () => onCycleAbilityMode(card.abilityId, abilityModes.modes)
+                            ? () => onCycleAbilityMode(card.slotAbilityId, abilityModes.modes)
                             : undefined
                     }
                 />

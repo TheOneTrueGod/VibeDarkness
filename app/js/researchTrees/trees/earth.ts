@@ -3,10 +3,6 @@ import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 import { RESEARCH_TREE_COLOUR_EARTH, RESEARCH_TREE_ICON_EARTH } from '../researchTreeChrome';
 import {
     EARTH_CORE_MISSION_START_ROCK_AMOUNT,
-    ROCK_SLIDE_DAMAGE,
-    ROCK_SLIDE_MAX_DAMAGE_TARGETS,
-    ROCK_SLIDE_ROCK_MAX_TILE_OFFSET,
-    ROCK_SLIDE_TRAVEL_TILES,
     STONE_TOMB_STAGE1_DAMAGE,
     STONE_TOMB_STAGE2_DAMAGE,
     STONE_TOMB_STAGE_GAP,
@@ -22,7 +18,6 @@ export const EARTH_NODE_EARTH_ATTUNED = 'earth_attuned';
 export const EARTH_NODE_GATHER_STONE = 'earth_gather_stone';
 export const EARTH_NODE_GATHER_STONE_RUBBLE_STRIKE = 'earth_gather_stone_rubble_strike';
 export const EARTH_NODE_STONE_TOMB = 'earth_stone_tomb';
-export const EARTH_NODE_ROCK_SLIDE = 'earth_rock_slide';
 export const EARTH_RAPID_THROW_LEVELS = 3;
 export const EARTH_ATTUNED_LEVELS = 2;
 export const EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK = 1;
@@ -64,10 +59,6 @@ export const EARTH_STONE_TOMB_CRYSTAL_COST = 10;
 export const EARTH_STONE_TOMB_FOOD_COST = 5;
 export const EARTH_STONE_TOMB_METAL_COST = 9;
 
-export const EARTH_ROCK_SLIDE_CRYSTAL_COST = 11;
-export const EARTH_ROCK_SLIDE_FOOD_COST = 6;
-export const EARTH_ROCK_SLIDE_METAL_COST = 10;
-
 export const earthTree: ResearchTreeDef = {
     id: EARTH_TREE_ID,
     title: 'Earth',
@@ -97,6 +88,7 @@ export const earthTree: ResearchTreeDef = {
             },
             effects: [
                 { type: 'addCard', cardId: '0111' },
+                { type: 'addCard', cardId: '0537' },
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.BasicCore, toItemId: CORE_ITEM_IDS.EarthCore },
                 { type: 'replaceCard', fromCardId: 'throw_rock', toCardId: 'earth_core_throw_rock' },
                 { type: 'grantMissionStartResource', resourceId: 'rock', amount: EARTH_CORE_MISSION_START_ROCK_AMOUNT },
@@ -179,9 +171,9 @@ export const earthTree: ResearchTreeDef = {
             order: 9,
             tier: 13,
             position: { x: 620, y: 280 },
-            prereqNodeIds: [EARTH_NODE_ROCK_SYNERGY_ENTOMBED],
+            prereqNodeIds: [EARTH_NODE_EARTH_CORE],
             exclusiveWithNodeIds: [],
-            requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_ROCK_SYNERGY_ENTOMBED] }],
+            requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
             cost: {
                 crystals: EARTH_RAPID_THROW_CRYSTAL_COST,
                 food: EARTH_RAPID_THROW_FOOD_COST,
@@ -276,25 +268,6 @@ export const earthTree: ResearchTreeDef = {
             },
             effects: [{ type: 'addCard', cardId: '0530' }],
             modifiesAbility: { from: '0530', to: '0530' },
-        },
-        {
-            id: EARTH_NODE_ROCK_SLIDE,
-            title: 'Rock Slide',
-            description: `Rip up a rock within ${ROCK_SLIDE_ROCK_MAX_TILE_OFFSET} tiles and punch it down a straight line. It flies up to ${ROCK_SLIDE_TRAVEL_TILES} tiles, dealing {${ROCK_SLIDE_DAMAGE}} damage to the first ${ROCK_SLIDE_MAX_DAMAGE_TARGETS} enemies and knocking every enemy aside, then lands as a new rock.`,
-            flavorText: 'Why climb the mountain when it will come to you?',
-            order: 14,
-            tier: 13,
-            position: { x: 620, y: 660 },
-            prereqNodeIds: [EARTH_NODE_EARTH_CORE],
-            exclusiveWithNodeIds: [],
-            requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
-            cost: {
-                crystals: EARTH_ROCK_SLIDE_CRYSTAL_COST,
-                food: EARTH_ROCK_SLIDE_FOOD_COST,
-                metal: EARTH_ROCK_SLIDE_METAL_COST,
-            },
-            effects: [{ type: 'addCard', cardId: '0537' }],
-            modifiesAbility: { from: '0537', to: '0537' },
         },
     ],
 };

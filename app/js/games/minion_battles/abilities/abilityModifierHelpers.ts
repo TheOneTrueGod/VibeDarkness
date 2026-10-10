@@ -132,6 +132,9 @@ export function expandAbilityIdsForResearchModifiers(unitAbilityIds: readonly st
         }
         const fallbackId = ability.keywords?.nestedCard?.fallbackAbilityId;
         if (fallbackId && !out.includes(fallbackId)) out.push(fallbackId);
+        for (const swappedId of Object.values(ability.abilityModes?.modeAbilityIds ?? {})) {
+            if (!out.includes(swappedId)) out.push(swappedId);
+        }
     }
     return out;
 }

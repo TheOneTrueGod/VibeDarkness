@@ -123,7 +123,9 @@ export default function AbilitySlot({
     const maxUses = Math.max(1, anim.maxUses);
     const isAtFullUses = usesLeft >= maxUses;
     const showRecovery = hasRecovery && !isAtFullUses;
-    const modeLabel = currentAbilityMode === 'pull' ? 'Pull' : currentAbilityMode === 'push' ? 'Push' : currentAbilityMode;
+    const modeLabel = currentAbilityMode !== undefined && abilityModes?.modeLabels?.[currentAbilityMode]
+        ? abilityModes.modeLabels[currentAbilityMode]
+        : currentAbilityMode === 'pull' ? 'Pull' : currentAbilityMode === 'push' ? 'Push' : currentAbilityMode;
 
     const handleModeToggle = useCallback((e: React.MouseEvent | React.KeyboardEvent) => {
         e.stopPropagation();

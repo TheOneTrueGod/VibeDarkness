@@ -75,9 +75,12 @@ export function expandAttachedAbilityIds(
         if (!out.includes(id)) out.push(id);
         const primaryAbility = getAbility(id);
         const nestedFallbackId = primaryAbility?.keywords?.nestedCard?.fallbackAbilityId;
+        const modeSwapIds = Object.values(primaryAbility?.abilityModes?.modeAbilityIds ?? {});
         for (const attached of getAttachedAbilityIds(id)) {
             // In battle the nested-card parent already occupies that bar slot via fallback swap.
             if (nestedFallbackId && attached === nestedFallbackId) continue;
+            // Mode-swap abilities share the parent's bar slot (toggle button) - no slot of their own.
+            if (modeSwapIds.includes(attached)) continue;
             if (accessibleAbilityIds && !accessibleAbilityIds.includes(attached)) continue;
             if (!out.includes(attached)) out.push(attached);
         }

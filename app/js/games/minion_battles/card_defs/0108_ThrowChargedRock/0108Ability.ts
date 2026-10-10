@@ -155,6 +155,8 @@ export const ThrowChargedRock: AbilityStatic = {
     image: THROW_CHARGED_ROCK_IMAGE,
     tags: ['RockThrow'],
     resourceCost: null,
+    /** Spends rocks to recover the use immediately (when the caster has them). */
+    recoverUseResourceCost: { resourceId: 'rock', amount: 3 },
     rechargeTurns: 1,
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
@@ -167,10 +169,12 @@ export const ThrowChargedRock: AbilityStatic = {
         return buildChargedRockTimings(research, comboCancelPhase);
     },
     targets: TWO_PIXEL_TARGETS,
-    keywords: {
-        nestedCard: {
-            fallbackAbilityId: 'throw_rock',
-        },
+    /** Toggle button swaps this card with Throw Rock (shown only while Charged Rock is unlocked). */
+    abilityModes: {
+        modes: ['charged', 'basic'],
+        defaultMode: 'charged',
+        modeAbilityIds: { basic: 'throw_rock' },
+        modeLabels: { charged: 'Charged', basic: 'Basic' },
     },
     /** Quest Prep: the attached Throw Rock does not occupy a slot. */
     attachedAbilityIds: ['throw_rock'],
@@ -213,7 +217,6 @@ export const ThrowChargedRock: AbilityStatic = {
                 firstLine,
                 'Explodes, dealing {{DAMAGE_EXPLOSION}} to up to {{MAX_TARGETS}} enemies.',
                 '{Bright 2}',
-                'Exhaust into {Throw Rock}',
             ],
             bindings,
             resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),

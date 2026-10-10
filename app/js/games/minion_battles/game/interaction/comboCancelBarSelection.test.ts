@@ -36,7 +36,7 @@ describe('resolveComboCancelBarCardIndex', () => {
         engine.destroy();
     });
 
-    it('maps exhausted throw_charged_rock to the throw_rock fallback slot', () => {
+    it('maps a throw_rock cast (via the Charged Rock toggle) to the throw_charged_rock slot', () => {
         const engine = buildTinyBattleEngine({
             gridW: 12,
             gridH: 8,
@@ -50,13 +50,11 @@ describe('resolveComboCancelBarCardIndex', () => {
             abilities: [THROW_CHARGED_ROCK_ABILITY_ID],
         });
         initializeAbilityRuntimeForUnit(player);
-        player.abilityRuntime[THROW_CHARGED_ROCK_ABILITY_ID]!.currentUses = 0;
-        syncNestedCardAbilityState(player);
 
-        expect(player.abilities[0]).toBe(THROW_ROCK_ABILITY_ID);
-        expect(resolveComboCancelBarCardIndex(player, player.abilities, THROW_CHARGED_ROCK_ABILITY_ID)).toBe(0);
-        expect(resolveComboCancelBarAbilityId(player, player.abilities, THROW_CHARGED_ROCK_ABILITY_ID)).toBe(
-            THROW_ROCK_ABILITY_ID,
+        expect(player.abilities[0]).toBe(THROW_CHARGED_ROCK_ABILITY_ID);
+        expect(resolveComboCancelBarCardIndex(player, player.abilities, THROW_ROCK_ABILITY_ID)).toBe(0);
+        expect(resolveComboCancelBarAbilityId(player, player.abilities, THROW_ROCK_ABILITY_ID)).toBe(
+            THROW_CHARGED_ROCK_ABILITY_ID,
         );
 
         engine.destroy();

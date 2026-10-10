@@ -115,9 +115,17 @@ export function unitAbilityHasTag(unit: Unit, abilityId: string, tag: string): b
     return false;
 }
 
+/** Abilities a slot can swap to via `abilityModes.modeAbilityIds` (they never occupy a slot themselves). */
+function getModeSwapAbilityIds(abilityId: string): string[] {
+    return Object.values(getAbility(abilityId)?.abilityModes?.modeAbilityIds ?? {});
+}
+
 export function initializeAbilityRuntimeForUnit(unit: Unit): void {
     for (const abilityId of unit.abilities) {
         ensureAbilityRuntimeState(unit, abilityId);
+        for (const swappedId of getModeSwapAbilityIds(abilityId)) {
+            ensureAbilityRuntimeState(unit, swappedId);
+        }
     }
     syncNestedCardAbilityState(unit);
 }
@@ -394,6 +402,7 @@ function getAbilityIdsEligibleForRecovery(unit: Unit): string[] {
     const allAbilityIds = new Set<string>(visibleAbilityIds);
     const parentAbilityIds = Object.keys(unit.abilityRuntime);
     for (const abilityId of visibleAbilityIds) {
+        for (const swappedId of getModeSwapAbilityIds(abilityId)) allAbilityIds.add(swappedId);
         for (const parentAbilityId of parentAbilityIds) {
             const parentAbility = getAbility(parentAbilityId);
             if (parentAbility?.keywords?.nestedCard?.fallbackAbilityId !== abilityId) continue;

@@ -117,6 +117,8 @@ export interface ThrowRockVariantConfig {
     resourceCost: ResourceCost | null;
     maxUses: number;
     recoveries?: readonly AbilityRecoveryRule[];
+    /** Spend this resource at cast time to recover the use immediately (when affordable). */
+    recoverUseResourceCost?: ResourceCost;
 }
 
 /**
@@ -125,7 +127,7 @@ export interface ThrowRockVariantConfig {
  * Earth Core Throw Rock) — targeting, timings, damage, and tooltip logic are fully shared.
  */
 export function buildThrowRockAbility(config: ThrowRockVariantConfig): AbilityStatic & { range: number } {
-    const { id, name, tags, resourceCost, maxUses, recoveries } = config;
+    const { id, name, tags, resourceCost, maxUses, recoveries, recoverUseResourceCost } = config;
 
     const baseTimings = buildThrowBaseTimings({
         launchBehaviour: rockLaunchBehaviour(id),
@@ -139,6 +141,7 @@ export function buildThrowRockAbility(config: ThrowRockVariantConfig): AbilitySt
         image: THROW_ROCK_IMAGE,
         tags,
         resourceCost,
+        recoverUseResourceCost,
         rechargeTurns: 1,
         maxUses,
         recoveries: recoveries ?? RECOVERIES,
@@ -239,6 +242,7 @@ export const ThrowRock = buildThrowRockAbility({
     name: 'Throw Rock',
     tags: ['RockThrow'],
     resourceCost: null,
+    recoverUseResourceCost: { resourceId: 'rock', amount: 1 },
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
 });

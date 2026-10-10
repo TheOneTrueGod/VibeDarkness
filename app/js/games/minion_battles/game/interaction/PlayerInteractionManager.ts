@@ -13,6 +13,7 @@ import { resolveClick, getInteractiveTargetDefsFromTimings } from '../../abiliti
 import { getAutoEndTurn } from '../autoEndTurnSetting';
 import { USE_SEQUENTIAL_TARGETING } from '../../featureFlags';
 import { getAbility } from '../../abilities/AbilityRegistry';
+import { resolveModeAbilityId } from '../../abilities/resolveAbilityMode';
 import { TERRAIN_PROPERTIES } from '../../terrain/TerrainType';
 import { logOrderUiKeyAction } from './itsLobbyLog';
 import { isCasterInConditionalCancelPause } from './isITSPreviewComplete';
@@ -348,8 +349,12 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         if (digit > 0 && this._canUseOrderUi) {
             const index = digit - 1;
             if (index < this.myAbilityIds.length) {
-                const abilityId = this.myAbilityIds[index];
-                const ability = abilityId ? getAbility(abilityId) : null;
+                const slotAbilityId = this.myAbilityIds[index];
+                const slotAbility = slotAbilityId ? getAbility(slotAbilityId) : null;
+                // Honour a mode toggle that swaps the slot to another ability.
+                const ability = slotAbility
+                    ? (getAbility(resolveModeAbilityId(slotAbility, this.resolveAbilityMode?.(slotAbility.id))) ?? slotAbility)
+                    : null;
                 if (ability) {
                     e.preventDefault();
                     this.activateAbilityTargeting(index, ability);

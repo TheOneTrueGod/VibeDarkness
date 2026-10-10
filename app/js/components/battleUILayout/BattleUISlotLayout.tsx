@@ -61,10 +61,18 @@ export default function BattleUISlotLayout({
             }}
         >
             <div className="flex h-full min-h-0 w-full flex-col" style={{ maxWidth: MAX_CONTENT_WIDTH_PX }}>
-                <div className="shrink-0 border-b border-l border-r border-border-custom">{header}</div>
+                <div
+                    className="shrink-0 border-b border-l border-r border-border-custom"
+                    style={{ backgroundColor: GRADIENT_CENTER_COLOR }}
+                >
+                    {header}
+                </div>
 
                 <div className="flex min-h-0 flex-1 flex-row">
-                    <div className="flex w-80 shrink-0 min-h-0 flex-col overflow-hidden border-l border-r border-border-custom">
+                    <div
+                        className="flex w-80 shrink-0 min-h-0 flex-col overflow-hidden border-l border-r border-border-custom"
+                        style={{ backgroundColor: GRADIENT_CENTER_COLOR }}
+                    >
                         {leftColumn}
                     </div>
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{center}</div>

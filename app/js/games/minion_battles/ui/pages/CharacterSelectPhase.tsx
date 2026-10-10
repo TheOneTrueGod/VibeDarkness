@@ -141,8 +141,10 @@ function QuestPrepBottomRow() {
 function MissionPrepCenter({
     useLayoutSlots,
     onChangeCharacter,
+    pickerOpen,
 }: {
     useLayoutSlots: boolean;
+    pickerOpen: boolean;
     onChangeCharacter: () => void;
 }) {
     const loadout = useMissionPrepLoadoutContext();
@@ -152,10 +154,30 @@ function MissionPrepCenter({
             onChangeCharacter={onChangeCharacter}
             useLayoutSlots={useLayoutSlots}
             selectionRequired={loadout.selectionRequired}
+            pickerOpen={pickerOpen}
             selectableIds={loadout.selectableIds}
             selectedPrimaryIds={loadout.selectedPrimaryIds}
             slotsFull={loadout.slotsFull}
             onAdd={loadout.addAbility}
+        />
+    );
+}
+
+/** Footer inside MissionPrepLoadoutProvider: offers "Edit Abilities" only when over the slot cap. */
+function MissionPrepFooter({
+    pickerOpen,
+    onTogglePicker,
+    ...footerProps
+}: React.ComponentProps<typeof CharacterSelectFooter> & {
+    pickerOpen: boolean;
+    onTogglePicker: () => void;
+}) {
+    const loadout = useMissionPrepLoadoutContext();
+    return (
+        <CharacterSelectFooter
+            {...footerProps}
+            abilityPickerOpen={pickerOpen}
+            onEditAbilities={loadout.selectionRequired ? onTogglePicker : undefined}
         />
     );
 }
@@ -238,6 +260,9 @@ export default function CharacterSelectPhase({
     const onSelectedPrimaryIdsChange = useCallback((ids: string[]) => {
         localPrimariesRef.current = ids;
     }, []);
+
+    const [abilityPickerOpen, setAbilityPickerOpen] = useState(false);
+    const toggleAbilityPicker = useCallback(() => setAbilityPickerOpen((open) => !open), []);
 
     const [missionAbilityReady, setMissionAbilityReady] = useState(true);
     const onMissionAbilityReadyChange = useCallback((ready: boolean) => {
@@ -376,7 +401,16 @@ export default function CharacterSelectPhase({
         <div className="flex h-full w-full min-h-0 flex-col">
             {/* Equal flex spacers: padding above buttons, between buttons/cards, and below cards */}
             <div className="min-h-0 flex-1" aria-hidden />
-            <CharacterSelectFooter {...footerProps} compact />
+            {inQuestPrep ? (
+                <CharacterSelectFooter {...footerProps} compact />
+            ) : (
+                <MissionPrepFooter
+                    {...footerProps}
+                    compact
+                    pickerOpen={abilityPickerOpen}
+                    onTogglePicker={toggleAbilityPicker}
+                />
+            )}
             <div className="min-h-0 flex-1" aria-hidden />
             <div className="flex shrink-0 justify-center">
                 {abilityBottomRow}
@@ -438,6 +472,7 @@ export default function CharacterSelectPhase({
                 />
             ) : isLoadoutOverview && characterToEdit ? (
                 <MissionPrepCenter
+                    pickerOpen={abilityPickerOpen}
                     useLayoutSlots={useUnifiedSlotShell}
                     onChangeCharacter={() => setView('grid')}
                 />

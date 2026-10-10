@@ -12,6 +12,12 @@ export function resolveComboCancelBarCardIndex(
     const directIdx = ordered.indexOf(castAbilityId);
     if (directIdx >= 0) return directIdx;
 
+    // Cast was a mode-swapped ability (Throw Rock via the Charged Rock toggle): use the owning slot.
+    const swapOwnerIdx = ordered.findIndex((id) =>
+        Object.values(getAbility(id)?.abilityModes?.modeAbilityIds ?? {}).includes(castAbilityId),
+    );
+    if (swapOwnerIdx >= 0) return swapOwnerIdx;
+
     const castDef = getAbility(castAbilityId);
     const nestedFallbackId = castDef?.keywords?.nestedCard?.fallbackAbilityId;
     if (nestedFallbackId) {

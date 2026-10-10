@@ -23,6 +23,10 @@ interface CharacterSelectFooterProps {
     abilityLoadoutReady?: boolean;
     /** Compact padding when rendered above the bottom ability band. */
     compact?: boolean;
+    /** When set, an "Edit Abilities" button is shown left of "Edit Character". */
+    onEditAbilities?: () => void;
+    /** True while the ability picker is open (button becomes a "Hide Abilities" toggle). */
+    abilityPickerOpen?: boolean;
     onSetReady: () => void;
     onOpenEditor: () => void;
     onCloseEditor: () => void;
@@ -44,6 +48,8 @@ export function CharacterSelectFooter({
     characterToEdit,
     abilityLoadoutReady = true,
     compact = false,
+    onEditAbilities,
+    abilityPickerOpen = false,
     onSetReady,
     onOpenEditor,
     onCloseEditor,
@@ -97,6 +103,15 @@ export function CharacterSelectFooter({
                 </>
             ) : (
                 <>
+                    {onEditAbilities && (
+                        <button
+                            type="button"
+                            className={secondaryBtnClass}
+                            onClick={onEditAbilities}
+                        >
+                            {abilityPickerOpen ? 'Hide Abilities' : 'Edit Abilities'}
+                        </button>
+                    )}
                     {showEditCharacter && (
                         <button
                             type="button"
