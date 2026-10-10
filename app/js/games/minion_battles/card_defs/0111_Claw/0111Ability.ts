@@ -21,7 +21,7 @@ import { nullHitbox } from '../../hitboxes';
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}11` as '0111';
 const MAX_USES = 2;
 const RECOVERIES: AbilityRecoveryRule[] = [
-	{ chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 },
+	{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
 export const CLAW_DURATION = 0.4;
 export const CLAW_MAX_DISTANCE = 100;

@@ -35,7 +35,7 @@ import {
 const CARD_ID = `${formatGroupId(AbilityGroupId.Earth)}34` as '0534';
 const MAX_USES = 2;
 const RECOVERIES: AbilityRecoveryRule[] = [
-	{ chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 },
+	{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
 const DASH_DURATION = 0.4;
 const SLINGSHOT_PHASE = 0.3;
