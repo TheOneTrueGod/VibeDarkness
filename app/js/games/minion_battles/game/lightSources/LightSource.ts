@@ -19,6 +19,12 @@ export interface LightSourceDecay {
     lightDecayNextAtRound?: number;
     /** If true, skip linear fade — source holds full emission/radius until roundsTotal, then vanishes. */
     noDecay?: boolean;
+    /**
+     * Bright lights: emission lost at every round end, including the round the source was
+     * created in. Radius holds; the source is removed when emission reaches 0.
+     * Takes precedence over the roundsTotal fade.
+     */
+    roundStepDecay?: number;
 }
 
 export class LightSource {

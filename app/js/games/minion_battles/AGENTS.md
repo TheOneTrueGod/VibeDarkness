@@ -4,6 +4,19 @@
 
 - This is a legacy project, so not everything will follow the conventions listed here. These are not instructions on where to find files. They are instructions on where to put them.
 
+## Build the engine, not the feature
+
+Minion Battles is a game engine with content on top. Every gameplay request is a chance to add or extend a reusable system; never ship a one-off.
+
+- **Properties over code.** Express behaviour as data on a definition or instance (e.g. `hitPolicy`, projectile travel modifiers, terrain clear specs), not as special cases inside an ability or manager.
+- **Generalize the request.** Before implementing "X does Y", ask what family Y belongs to and who else will want it (e.g. "Rock Slide clears ground effects" implies wind clearing air, explosions clearing both, and non-grid-aligned projectiles). Design the system for the family; ship the requested case as its first user.
+- **Reuse before adding.** Extend existing building blocks (CastBehaviours, hitbox specs, `abilityEvents` effects and presets, tile helpers) before writing new ones. A new building block must be usable by a second ability without changes.
+- **Definitions and presets.** Static rules live in `*_defs` / registries (with flags rather than special cases); common configurations get named presets.
+- **One entry point per system,** with an EventBus event for side effects (VFX, AI, reactions) instead of every caller doing its own follow-up.
+- **Deterministic and serializable.** New state round-trips `toJSON`/`fromJSON` and behaves identically in preview (ITS) and committed runs.
+- **Cost-aware, not premature.** Prefer indexed lookups on hot paths, and instrument new systems with `tickPerformanceTracker` rather than guessing.
+- **When a request reads as a one-off,** propose the general version (and its extension points) before implementing; ask if the generalization is unclear.
+
 ## Folder structure
 
 - Frontend for this game: `app/js/games/minion_battles/*`

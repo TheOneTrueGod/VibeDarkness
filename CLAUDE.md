@@ -1,5 +1,9 @@
 # Project Notes for Claude
 
+## Minion Battles: build the engine, not the feature
+
+Treat every Minion Battles gameplay change as engine work: reusable properties, definitions, presets and building blocks rather than one-off behaviour. Read "Build the engine, not the feature" in `app/js/games/minion_battles/AGENTS.md` before designing, planning or implementing a change.
+
 ## Testing
 
 Tests use **Vitest**, not Jest. Never use `npx jest` — it will fail.

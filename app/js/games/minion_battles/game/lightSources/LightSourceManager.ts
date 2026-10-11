@@ -73,6 +73,11 @@ export class LightSourceManager implements DeployableProvider {
             if (!ls.active) continue;
             const d = ls.decay;
             if (d.decayRate != null && d.decayInterval != null) continue;
+            if (d.roundStepDecay != null) {
+                ls.lightAmount = Math.max(0, ls.lightAmount - d.roundStepDecay);
+                if (ls.lightAmount <= 0) ls.active = false;
+                continue;
+            }
             const roundsLived = roundNumber - d.roundCreated;
             if (roundsLived >= d.roundsTotal) {
                 ls.active = false;

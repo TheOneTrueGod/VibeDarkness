@@ -14,6 +14,7 @@ import { damageEnemiesInCircle } from '../../../abilities/targetHelpers';
 import { Effect } from '../../../game/effects/Effect';
 import type { EventBus } from '../../../game/EventBus';
 import type { SpecialTile } from '../../../game/specialTiles/SpecialTile';
+import type { LightSource } from '../../../game/lightSources/LightSource';
 import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
 import { applyHeal } from '../../../game/units/unitHeal';
 import type { Unit } from '../../../game/units/Unit';
@@ -90,6 +91,7 @@ interface LightEaterEngine {
     gameTime: number;
     eventBus: EventBus;
     specialTiles: SpecialTile[];
+    lightSources: LightSource[];
     damageSpecialTile(tileId: string, amount: number): boolean;
     addEffect(effect: Effect): void;
     addProjectile(projectile: import('../../../game/projectiles/Projectile').Projectile): void;
@@ -150,6 +152,55 @@ export function devourLight(
     return 'reduced';
 }
 
+/** True for free-standing light sources (torches, deployables, ...) that still emit visible light. */
+function isDevourableLightSource(ls: LightSource): boolean {
+    return ls.active && ls.lightAmount > 0 && ls.lightType !== 'DarkLight';
+}
+
+/**
+ * Damage a free-standing LightSource by `LIGHT_EATER_LIGHT_REDUCTION`; one already at or below that is
+ * put out. The source's decay baseline is lowered too, otherwise round-end decay would recompute its
+ * strength from the original value and quietly undo the damage.
+ */
+export function devourLightSource(ls: LightSource): 'reduced' | 'eliminated' {
+    if (ls.lightAmount <= LIGHT_EATER_LIGHT_REDUCTION) {
+        ls.lightAmount = 0;
+        ls.active = false;
+        return 'eliminated';
+    }
+    ls.lightAmount -= LIGHT_EATER_LIGHT_REDUCTION;
+    ls.decay.initialLightAmount = Math.max(0, ls.decay.initialLightAmount - LIGHT_EATER_LIGHT_REDUCTION);
+    return 'reduced';
+}
+
+/**
+ * The explosion damages every light in its radius: map light tiles (campfires, crystals, ...) and
+ * free-standing light sources alike, including ones the players placed (torches, deployables).
+ * `excludeTileId` skips the tile the spirit already devoured on landing so it is not bitten twice.
+ */
+export function devourLightsInRadius(
+    engine: Pick<LightEaterEngine, 'specialTiles' | 'lightSources' | 'damageSpecialTile'>,
+    center: { x: number; y: number },
+    radius: number,
+    excludeTileId: string | null = null,
+): { reduced: number; eliminated: number } {
+    const result = { reduced: 0, eliminated: 0 };
+    const rSq = radius * radius;
+    // Snapshot: eliminating a tile can mutate the engine's list.
+    for (const tile of [...engine.specialTiles]) {
+        if (tile.id === excludeTileId || !isDevourableLight(tile)) continue;
+        const c = lightTileCenter(tile);
+        if ((c.x - center.x) ** 2 + (c.y - center.y) ** 2 > rSq) continue;
+        result[devourLight(engine, tile)]++;
+    }
+    for (const ls of engine.lightSources) {
+        if (!isDevourableLightSource(ls)) continue;
+        if ((ls.x - center.x) ** 2 + (ls.y - center.y) ** 2 > rSq) continue;
+        result[devourLightSource(ls)]++;
+    }
+    return result;
+}
+
 const _base: AbilityStatic = defineAbility({
     id: CARD_ID,
     name: 'Light Eater',
@@ -186,6 +237,7 @@ const _base: AbilityStatic = defineAbility({
             `Heal ${LIGHT_EATER_HEAL} and gain ${LIGHT_EATER_SUPER_GAIN} super bar on landing, then detonate for ${LIGHT_EATER_EXPLOSION_DAMAGE} damage and heal ${LIGHT_EATER_HEAL} again`,
             `The blast also looses a ring of ${LIGHT_EATER_RING_PROJECTILES} Displacer Bolts (${LIGHT_EATER_RING_PROJECTILES * LIGHT_EATER_ENRAGED_RING_MULTIPLIER} when enraged)`,
             'The blast area is shown at the light as soon as the cast begins',
+            `The blast also damages every other light in its radius by ${LIGHT_EATER_LIGHT_REDUCTION}, including ones the players placed`,
             'Used every other round, in the middle of the round',
         ];
     },
@@ -256,6 +308,8 @@ export const LightEaterAbility: AbilityStatic = {
                 abilityId: CARD_ID,
                 attackType: 'melee',
             });
+            // The blast also eats every other light in its radius, player-placed ones included.
+            devourLightsInRadius(eng, center, LIGHT_EATER_EXPLOSION_RADIUS, payload?.tileId ?? null);
             // Heal and ring of Displacer Bolts, only when this cast actually devoured a light.
             if (payload?.tileId) {
                 applyHeal(caster, LIGHT_EATER_HEAL, 0);

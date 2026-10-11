@@ -23,6 +23,7 @@ import { initializeAbilityRuntimeForUnit } from '../../abilities/abilityUses';
 import { pickBestAbility, getRoundFraction, isInRoundWindow } from '../units/unitAI/utils';
 import type { AIContext } from '../units/unitAI/types';
 import { addUnitTag, hasUnitTag, UnitTag } from '../units/unitTag';
+import { LightSource } from '../lightSources/LightSource';
 import {
     FRENZIED_BOLT_LOCK_TIME,
     FRENZIED_BOLT_PREFIRE_TIME,
@@ -51,6 +52,7 @@ import {
     LightEaterAbility,
     readLightEaterPayload,
     devourLight,
+    devourLightsInRadius,
     findNearestLightTile,
     lightTileCenter,
 } from '../../card_defs/dark_animals/0018_LightEater/0018Ability';
@@ -927,6 +929,71 @@ describe('Displacer Spirit enrage (half health)', () => {
         step(engine, LIGHT_EATER_EXPLODE_TIME + 0.1);
         const ring = engine.projectiles.filter((p) => p.sourceUnitId === boss.id && p.sourceAbilityId === DISPLACER_BOLT_ID);
         expect(ring).toHaveLength(LIGHT_EATER_RING_PROJECTILES * LIGHT_EATER_ENRAGED_RING_MULTIPLIER);
+        engine.destroy();
+    });
+});
+
+describe('Light Eater explosion damages every light in its radius (including player-placed)', () => {
+    function playerTorch(engine: GameEngine, x: number, y: number, amount: number): LightSource {
+        const ls = new LightSource({
+            x,
+            y,
+            lightAmount: amount,
+            radius: 3,
+            teamId: 'player',
+            ownerUnitId: 'player_target',
+            ownerAbilityId: 'test_torch',
+            decay: { roundCreated: 0, initialLightAmount: amount, initialRadius: 3, roundsTotal: 5 },
+        });
+        engine.addLightSource(ls);
+        return ls;
+    }
+
+    it('hits other tiles and free-standing player lights inside the blast, not ones outside', () => {
+        const engine = makeEngine();
+        addLight(engine, 'target', 8, 8, 12);
+        addLight(engine, 'neighbour', 7, 8, 12); // 40px from the target: inside radius 100 (and farther from the boss than the target)
+        addLight(engine, 'far', 14, 8, 12); // far outside
+        const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(10), cell(8));
+        spawnPlayerTarget(engine, cell(22), cell(1));
+        const target = engine.specialTiles.find((t) => t.id === 'target')!;
+        const c = lightTileCenter(target);
+        const nearTorch = playerTorch(engine, c.x + 30, c.y + 20, 8);
+        const dimTorch = playerTorch(engine, c.x - 40, c.y, LIGHT_EATER_LIGHT_REDUCTION);
+        const farTorch = playerTorch(engine, c.x + 400, c.y, 8);
+
+        engine.state.orderMgr.applyOrder({ unitId: boss.id, abilityId: LIGHT_EATER_ID, targets: [] });
+        step(engine, LIGHT_EATER_LANDING_TIME + 0.1);
+        // Landing only bit the target tile.
+        expect(engine.specialTiles.find((t) => t.id === 'neighbour')!.emitsLight!.lightAmount).toBe(12);
+        expect(nearTorch.lightAmount).toBe(8);
+
+        step(engine, LIGHT_EATER_TELEGRAPH_SEC + 0.1);
+        // Target tile: bitten once on landing (12 -> 9), not again by the blast.
+        expect(engine.specialTiles.find((t) => t.id === 'target')!.emitsLight!.lightAmount).toBe(12 - LIGHT_EATER_LIGHT_REDUCTION);
+        expect(engine.specialTiles.find((t) => t.id === 'neighbour')!.emitsLight!.lightAmount).toBe(12 - LIGHT_EATER_LIGHT_REDUCTION);
+        expect(engine.specialTiles.find((t) => t.id === 'far')!.emitsLight!.lightAmount).toBe(12);
+        // Player torches: damaged (and the decay baseline too), a dim one is put out, a far one untouched.
+        expect(nearTorch.lightAmount).toBe(8 - LIGHT_EATER_LIGHT_REDUCTION);
+        expect(nearTorch.decay.initialLightAmount).toBe(8 - LIGHT_EATER_LIGHT_REDUCTION);
+        expect(nearTorch.active).toBe(true);
+        expect(dimTorch.active).toBe(false);
+        expect(farTorch.lightAmount).toBe(8);
+        expect(farTorch.active).toBe(true);
+        engine.destroy();
+    });
+
+    it('devourLightsInRadius skips dark-light tiles and spent sources', () => {
+        const engine = makeEngine();
+        addLight(engine, 'dark', 6, 8, 12);
+        const dark = engine.specialTiles.find((t) => t.id === 'dark')!;
+        dark.emitsLight = { ...dark.emitsLight!, lightType: 'DarkLight' };
+        const c = lightTileCenter(dark);
+        const spent = playerTorch(engine, c.x, c.y, 8);
+        spent.active = false;
+        const res = devourLightsInRadius(engine as never, c, LIGHT_EATER_EXPLOSION_RADIUS);
+        expect(res).toEqual({ reduced: 0, eliminated: 0 });
+        expect(dark.emitsLight!.lightAmount).toBe(12);
         engine.destroy();
     });
 });

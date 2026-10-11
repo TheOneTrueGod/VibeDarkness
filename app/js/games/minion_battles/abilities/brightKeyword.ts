@@ -9,16 +9,21 @@ export type EngineWithLight = AbilityEngineContext & { addLightSource(ls: LightS
 export interface BrightDef {
     lightAmount: number;
     radius: number;
-    roundsTotal?: number;
-    decayRate?: number;
-    decayInterval?: number;
 }
 
+/**
+ * Bright N: brightness N + 1 at radius 2. Every Bright light loses
+ * {@link BRIGHT_ROUND_END_DECAY} brightness at each round end (starting with the round it
+ * was created in), keeps its radius, and is removed when brightness reaches 0.
+ */
 export const BRIGHT_DEFS: Readonly<Record<number, BrightDef>> = {
-    1: { lightAmount: 4, radius: 2, roundsTotal: 1 },
-    2: { lightAmount: 10, radius: 2, decayRate: 1, decayInterval: 0.08 },
-    3: { lightAmount: 4, radius: 2, roundsTotal: 3 },
+    1: { lightAmount: 2, radius: 2 },
+    2: { lightAmount: 3, radius: 2 },
+    3: { lightAmount: 4, radius: 2 },
 };
+
+/** Brightness a Bright light loses at each round end. */
+export const BRIGHT_ROUND_END_DECAY = 1;
 
 /** Deployable ownership for a bright light. Omit for ownerless (story/environment) lights. */
 export interface BrightLightOwner {
@@ -56,20 +61,13 @@ export function spawnBrightLight(
         ownerUnitId: owner?.unitId,
         ownerAbilityId: owner?.abilityId,
         teamId: owner?.teamId,
-        decay: def.roundsTotal != null
-            ? {
-                roundCreated: eng.roundNumber ?? 1,
-                initialLightAmount: def.lightAmount,
-                initialRadius: def.radius,
-                roundsTotal: def.roundsTotal,
-            }
-            : {
-                roundCreated: 0,
-                initialLightAmount: def.lightAmount,
-                initialRadius: def.radius,
-                roundsTotal: 999,
-                decayRate: def.decayRate ?? 1,
-                decayInterval: def.decayInterval ?? 0.25,
-            },
+        decay: {
+            roundCreated: eng.roundNumber ?? 1,
+            initialLightAmount: def.lightAmount,
+            initialRadius: def.radius,
+            // Round ends survived before reaching 0 (informational; roundStepDecay drives removal).
+            roundsTotal: Math.ceil(def.lightAmount / BRIGHT_ROUND_END_DECAY),
+            roundStepDecay: BRIGHT_ROUND_END_DECAY,
+        },
     }));
 }
