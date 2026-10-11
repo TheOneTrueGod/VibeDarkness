@@ -16,7 +16,7 @@ import {
 import type { AbilityStatic } from '../../abilities/Ability';
 import BattleCanvas from '../components/BattleCanvas';
 import ObjectiveMarkerOverlay from '../components/ObjectiveMarkerOverlay';
-import TurnIndicator from '../components/TurnIndicator';
+import TurnIndicator, { type TurnIndicatorSideControls } from '../components/TurnIndicator';
 import { useBattleAbilityBarSlots } from './battlePhase/BattleAbilityBar';
 import BattleUISlotLayout from '../../../../components/battleUILayout/BattleUISlotLayout';
 import ColumnSlotPartyAndActions from '../components/battleUiSlots/ColumnSlotPartyAndActions';
@@ -371,11 +371,12 @@ export default function BattlePhase({
         players,
     });
 
-    const turnIndicatorElement = (
+    const renderTurnIndicator = (sideControls: TurnIndicatorSideControls) => (
         <TurnIndicator
             state={turnIndicatorState.state}
             allyName={turnIndicatorState.allyName}
             freezePresentation={rewindOverlay != null}
+            sideControls={sideControls}
             hostCatchupPopover={
                 showHostCatchupPopover
                     ? {
@@ -428,7 +429,7 @@ export default function BattlePhase({
         handleSetAbilityMode,
         setIsWaitHovered,
         setHoveredAbility,
-        turnIndicator: turnIndicatorElement,
+        renderTurnIndicator,
     });
 
     if (!isHost && !hasReceivedInitialHeartbeat) {

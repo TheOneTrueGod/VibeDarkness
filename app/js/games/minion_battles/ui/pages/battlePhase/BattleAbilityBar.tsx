@@ -9,6 +9,7 @@ import CornerSlotPlayerStats from '../../components/battleUiSlots/CornerSlotPlay
 import RowSlotAbilities from '../../components/battleUiSlots/RowSlotAbilities';
 import CornerSlotMiscControls from '../../components/battleUiSlots/CornerSlotMiscControls';
 import type { HudEffectCanvasHandle } from '../../components/HudEffectCanvas';
+import type { TurnIndicatorPassAction, TurnIndicatorSideControls } from '../../components/TurnIndicator';
 
 interface BattleAbilityBarProps {
     sessionRef: RefObject<BattleSession | null>;
@@ -29,8 +30,11 @@ interface BattleAbilityBarProps {
     handleSetAbilityMode: (abilityId: string, mode: string) => void;
     setIsWaitHovered: (hovered: boolean) => void;
     setHoveredAbility: (ability: AbilityStatic | null) => void;
-    /** The turn indicator plaque (and ITS playahead controls); pinned to the top of the ability row. */
-    turnIndicator?: React.ReactNode;
+    /**
+     * Renders the turn indicator plaque (and ITS playahead controls), pinned to the top of the
+     * ability row. Receives the plaque's round pill and Pass action (which mirrors the Wait button).
+     */
+    renderTurnIndicator?: (sideControls: TurnIndicatorSideControls) => React.ReactNode;
 }
 
 interface BattleAbilityBarSlots {
@@ -58,7 +62,7 @@ export function useBattleAbilityBarSlots({
     handleSetAbilityMode,
     setIsWaitHovered,
     setHoveredAbility,
-    turnIndicator,
+    renderTurnIndicator,
 }: BattleAbilityBarProps): BattleAbilityBarSlots {
     const autoEndTurn = useAutoEndTurn();
 
@@ -85,6 +89,24 @@ export function useBattleAbilityBarSlots({
     const onWait = nonconfirmedOrder && !autoEndTurn
         ? () => sessionRef.current?.getInteractionManager()?.handleEndTurn()
         : () => sessionRef.current?.getInteractionManager()?.handleWait();
+    const waitDisabledReason = isItsPreviewActive && !conditionalCancelContext ? 'its_preview_active' : null;
+    const passAction: TurnIndicatorPassAction = {
+        onPass: onWait,
+        disabled: !isMyTurn,
+        title: !isMyTurn
+            ? waitDisabledReason === 'its_preview_active'
+                ? 'Pass unavailable during targeting preview (Undo to cancel)'
+                : 'Not your turn'
+            : conditionalCancelContext
+              ? 'Pass: continue current ability (Space)'
+              : nonconfirmedOrder && !autoEndTurn
+                ? 'Pass: end turn (Space)'
+                : 'Pass: wait (Space)',
+    };
+    const sideControls: TurnIndicatorSideControls = {
+        passAction,
+        roundInfo: { roundNumber, progress: roundProgress, isPaused },
+    };
 
     return {
         bottomLeftCorner: <CornerSlotPlayerStats unit={playerUnit} />,
@@ -108,14 +130,14 @@ export function useBattleAbilityBarSlots({
                     hudEffectCanvasRef.current?.registerHudFlightTarget(key, pageX, pageY);
                 }}
                 onHoverAbility={setHoveredAbility}
-                turnIndicator={turnIndicator}
+                turnIndicator={renderTurnIndicator?.(sideControls)}
             />
         ),
         bottomRightCorner: (
             <CornerSlotMiscControls
                 playerUnit={playerUnit}
                 isMyTurn={isMyTurn}
-                waitDisabledReason={isItsPreviewActive && !conditionalCancelContext ? 'its_preview_active' : null}
+                waitDisabledReason={waitDisabledReason}
                 roundNumber={roundNumber}
                 roundProgress={roundProgress}
                 isPaused={isPaused}

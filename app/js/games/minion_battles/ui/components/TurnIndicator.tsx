@@ -10,7 +10,11 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { Clock } from 'lucide-react';
 import SyncStatusCard from './SyncStatusCard';
+import { AnchoredPortalTooltip } from './AnchoredPortalTooltip';
+import { ROUND_DURATION } from '../../game/gameConstants';
+import { TestIds } from '../../../../testing/testIds';
 import { pickTurnIndicatorPropsAfterUnfreeze } from './turnIndicatorPresentation';
 import {
     PLAQUE_BORDER_THICKNESS_PX,
@@ -20,6 +24,30 @@ import {
 } from './battleUiSlots/battleBottomBarLayout';
 
 export type TurnIndicatorState = 'your_turn' | 'ally_turn' | 'playing';
+
+/** Plaque "Pass" button — same action as the Wait / Continue / End Turn button and Space. */
+export interface TurnIndicatorPassAction {
+    onPass: () => void;
+    disabled: boolean;
+    title: string;
+}
+
+/** Plaque "Rd #" pill — current round with a progress-bar fill for time elapsed in it. */
+export interface TurnIndicatorRoundInfo {
+    roundNumber: number;
+    /** 0–1 share of the round elapsed. */
+    progress: number;
+    isPaused: boolean;
+}
+
+/** Controls flanking the plaque text while it reads Your Turn. */
+export interface TurnIndicatorSideControls {
+    passAction: TurnIndicatorPassAction;
+    roundInfo: TurnIndicatorRoundInfo;
+}
+
+/** Shared width so the round pill and Pass balance either side of the plaque text. */
+const SIDE_CONTROL_WIDTH_CLASS = 'w-16';
 
 export interface HostCatchupPopoverProps {
     hostTick: number;
@@ -49,6 +77,11 @@ interface TurnIndicatorProps {
      * When this flips back to false, the current live props are applied (not a mid-freeze stash).
      */
     freezePresentation?: boolean;
+    /**
+     * Round pill (left) and Pass (right), shown while the plaque reads Your Turn (incl. ITS
+     * controls); null hides both.
+     */
+    sideControls?: TurnIndicatorSideControls | null;
 }
 
 const BLINK_DURATION_MS = 220;
@@ -67,6 +100,7 @@ export default function TurnIndicator({
     orderPipeline = null,
     itsControls = null,
     freezePresentation = false,
+    sideControls = null,
 }: TurnIndicatorProps) {
     const [phase, setPhase] = useState<'open' | 'closing' | 'closed' | 'opening'>(() =>
         state === 'playing' ? 'closed' : 'open',
@@ -76,6 +110,8 @@ export default function TurnIndicator({
     const [displayState, setDisplayState] = useState<TurnIndicatorState>(state);
     const [displayAllyName, setDisplayAllyName] = useState(allyName);
     const prevStateRef = useRef(state);
+    const roundPillRef = useRef<HTMLDivElement | null>(null);
+    const [showRoundTooltip, setShowRoundTooltip] = useState(false);
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const clearTimer = () => {
         if (timeoutRef.current) {
@@ -178,16 +214,85 @@ export default function TurnIndicator({
             : displayState === 'ally_turn'
               ? `${displayAllyName}'s Turn`
               : '';
+    const sides = sideControls != null && effectiveDisplayState === 'your_turn' && !isCollapsed
+        ? sideControls
+        : null;
     const plaqueStyle = {
         maxWidth: 'calc(100vw - 8rem)',
     } as const;
     const centerTextStyle = {
-        width: itsControls ? 'min(28rem, calc(100vw - 10rem))' : 'fit-content',
+        width: itsControls
+            ? `min(${sides ? 38 : 28}rem, calc(100vw - 10rem))`
+            : sides
+              ? 'min(19rem, calc(100vw - 10rem))'
+              : 'fit-content',
         maxWidth: `min(${PLAQUE_MAX_WIDTH_PX}px, calc(100vw - 10rem))`,
     } as const;
+    const roundProgress = sides ? Math.min(1, Math.max(0, sides.roundInfo.progress)) : 0;
+    const roundSecondsLeft = (1 - roundProgress) * ROUND_DURATION;
+    const roundPill = sides ? (
+        <div
+            ref={roundPillRef}
+            className={`pointer-events-auto relative flex h-6 flex-none cursor-default items-center justify-center overflow-hidden rounded-full border border-emerald-500/60 bg-dark-800 ${SIDE_CONTROL_WIDTH_CLASS}`}
+            onMouseEnter={() => setShowRoundTooltip(true)}
+            onMouseLeave={() => setShowRoundTooltip(false)}
+            role="progressbar"
+            aria-label={`Round ${sides.roundInfo.roundNumber}, ${roundSecondsLeft.toFixed(1)}s left`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(roundProgress * 100)}
+        >
+            <div
+                className={`absolute inset-y-0 left-0 transition-[width] duration-200 ease-linear ${
+                    sides.roundInfo.isPaused ? 'bg-yellow-600/40' : 'bg-emerald-600/40'
+                }`}
+                style={{ width: `${roundProgress * 100}%` }}
+                aria-hidden="true"
+            />
+            <span className="relative flex items-center gap-1 text-xs font-bold tracking-wide text-emerald-100">
+                {sides.roundInfo.roundNumber}
+                <Clock className="h-3 w-3" strokeWidth={2.5} aria-hidden="true" />
+            </span>
+        </div>
+    ) : null;
+    const roundTooltip = sides ? (
+        <AnchoredPortalTooltip
+            anchorRef={roundPillRef}
+            open={showRoundTooltip}
+            className="rounded-lg border border-dark-600 bg-black/95 px-3 py-2 text-xs text-gray-200 shadow-lg"
+        >
+            <div className="font-semibold">Round: {sides.roundInfo.roundNumber}</div>
+            <div className="text-gray-400">
+                {roundSecondsLeft.toFixed(1)}s to next round {sides.roundInfo.roundNumber + 1}
+            </div>
+        </AnchoredPortalTooltip>
+    ) : null;
+    // The pill unmounts without a mouseleave when the plaque leaves Your Turn.
+    const hasSides = sides != null;
+    useEffect(() => {
+        if (!hasSides) setShowRoundTooltip(false);
+    }, [hasSides]);
+    const passButton = sides ? (
+        <button
+            type="button"
+            data-testid={TestIds.battlePass}
+            onClick={sides.passAction.onPass}
+            disabled={sides.passAction.disabled}
+            title={sides.passAction.title}
+            aria-keyshortcuts="Space"
+            className={`flex h-6 flex-none items-center justify-center rounded-full border text-xs font-bold uppercase tracking-wide transition-colors ${SIDE_CONTROL_WIDTH_CLASS} ${
+                sides.passAction.disabled
+                    ? 'cursor-not-allowed border-dark-600 bg-dark-800 text-gray-500'
+                    : 'cursor-pointer border-emerald-500/80 bg-emerald-900/60 text-emerald-200 hover:bg-emerald-800/80'
+            }`}
+        >
+            Pass
+        </button>
+    ) : null;
 
     return (
         <div className="relative w-full shrink-0">
+            {roundTooltip}
             {hostCatchupPopover && (
                 <div
                     className="pointer-events-auto absolute left-1/2 bottom-full z-[70] mb-1 w-[min(17rem,calc(100vw-1.5rem))] -translate-x-1/2 backdrop-blur-[2px]"
@@ -276,7 +381,7 @@ export default function TurnIndicator({
                         style={centerTextStyle}
                     >
                         <div
-                            className="flex items-center justify-center px-5 text-center transition-opacity duration-150"
+                            className="relative flex items-center justify-center gap-2 px-5 text-center transition-opacity duration-150"
                             style={{
                                 minHeight: `${PLAQUE_INNER_MIN_HEIGHT_PX}px`,
                                 paddingTop: `${PLAQUE_INNER_PADDING_Y_PX}px`,
@@ -286,13 +391,25 @@ export default function TurnIndicator({
                             }}
                         >
                             {itsControls ? (
-                                <div
-                                    className="w-full min-w-0"
-                                    style={{ opacity: isExpanded ? 1 : 0 }}
-                                >
-                                    {itsControls}
-                                </div>
+                                <>
+                                    {roundPill}
+                                    <div
+                                        className="min-w-0 flex-1"
+                                        style={{ opacity: isExpanded ? 1 : 0 }}
+                                    >
+                                        {itsControls}
+                                    </div>
+                                    {passButton}
+                                </>
                             ) : (
+                                <>
+                                {sides && (
+                                    // Absolute so "Your Turn" stays centred on the plaque.
+                                    <div className="pointer-events-none absolute inset-y-0 left-2 right-2 flex items-center justify-between">
+                                        {roundPill}
+                                        <div className="pointer-events-auto">{passButton}</div>
+                                    </div>
+                                )}
                                 <span
                                     className={`
                                         block max-w-full text-sm font-bold tracking-wide uppercase leading-5 whitespace-pre-wrap break-words
@@ -304,6 +421,7 @@ export default function TurnIndicator({
                                 >
                                     {text || (isCollapsed ? '' : '—')}
                                 </span>
+                                </>
                             )}
                         </div>
                     </div>
