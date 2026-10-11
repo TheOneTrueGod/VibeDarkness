@@ -19,7 +19,8 @@ import {
     getEffectiveTerrain,
     isIntactRock,
 } from './FloorTile';
-import type { TerrainLayerManager } from '../game/TerrainLayerManager';
+import type { ClearedTerrainEffect, TerrainLayerManager } from '../game/TerrainLayerManager';
+import { TERRAIN_CLEARS, matchesClearSpec } from '../game/terrainEffects/terrainClearing';
 import { NavGrid } from '../pathfinding/NavGrid';
 import { PathQuery } from '../pathfinding/PathQuery';
 
@@ -30,6 +31,7 @@ export class TerrainManager {
     readonly pathQuery: PathQuery;
     private terrainLayers: TerrainLayerManager | null = null;
     private onStoneDamaged?: (event: TerrainStoneDamagedTransition) => void;
+    private onTerrainEffectsCleared?: (cleared: ClearedTerrainEffect[]) => void;
     private lastRockDamageSourceUnitId: string | null = null;
     /** Mission-global segment placement rects, for debug/tooling lookups. See `getSegmentIdAt`. */
     segmentPlacements: ResolvedSegmentPlacement[] = [];
@@ -202,6 +204,7 @@ export class TerrainManager {
                 destructible: { health: maxHealth, maxHealth, kind: 'rock' },
             };
             this.terrainLayers.setFloorTile(col, row, tile);
+            this.scourGroundEffects(col, row);
             return { ...tile, destructible: { ...tile.destructible! } };
         }
 
@@ -210,10 +213,24 @@ export class TerrainManager {
             destructible: { health: maxHealth, maxHealth, kind: 'rock' },
         };
         this.terrainLayers.setFloorTile(col, row, tile);
+        this.scourGroundEffects(col, row);
 
         // Effective passability changed from passable to impassable.
         this.notifyNavChanged(col, row);
         return { ...tile, destructible: { ...tile.destructible! } };
+    }
+
+    /** Rock rule: raising rock on a tile clears that tile's ground effects. */
+    private scourGroundEffects(col: number, row: number): void {
+        if (!this.terrainLayers) return;
+        const cleared = this.terrainLayers.clearCells([{ col, row }], (record) =>
+            matchesClearSpec(record, TERRAIN_CLEARS.scour),
+        );
+        if (cleared.length > 0) this.onTerrainEffectsCleared?.(cleared);
+    }
+
+    setTerrainEffectsClearedEmitter(emitter: ((cleared: ClearedTerrainEffect[]) => void) | undefined): void {
+        this.onTerrainEffectsCleared = emitter;
     }
 
     damageRock(

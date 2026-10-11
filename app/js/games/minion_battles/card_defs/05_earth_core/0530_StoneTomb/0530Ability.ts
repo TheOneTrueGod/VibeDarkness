@@ -41,6 +41,7 @@ import { getUnitsInTiles, tileCentre, worldToTile, type TileCoord } from '../../
 import { drawTileAreaTelegraph } from '../../../abilities/previewHelpers';
 import { TELEGRAPH_STYLES } from '../../../abilities/telegraphStyles';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
+import { TERRAIN_CLEARS, clearTerrainEffects } from '../../../game/terrainEffects/terrainClearing';
 import { knockbackCtxFromEngine, tryApplyKnockbackByTier } from '../../../crowdControl/knockbackKeywords';
 import {
     STONE_TOMB_MAX_TILE_OFFSET,
@@ -111,6 +112,17 @@ function spawnTileImpact(engine: AbilityEngineContext, tile: TileCoord): void {
     }));
 }
 
+/** Erases ground effects (any team) from the struck tiles. No-op on engine stubs without terrain layers. */
+function scourTiles(engine: AbilityEngineContext, caster: Unit, tiles: TileCoord[]): void {
+    if (!engine.terrainLayers) return;
+    clearTerrainEffects(
+        { terrainLayers: engine.terrainLayers, eventBus: engine.eventBus },
+        tiles,
+        TERRAIN_CLEARS.scour,
+        { unitId: caster.id, abilityId: ABILITY_ID },
+    );
+}
+
 /** Stage 1: centre-tile damage and knockback for everyone there, then the centre rock. */
 function stageOne(ctx: CastBehaviourTickContext): void {
     const aim = pixelOf(ctx.target);
@@ -138,6 +150,7 @@ function stageOne(ctx: CastBehaviourTickContext): void {
     }
     // Allies (and the caster) standing in the centre tile are shoved clear too, undamaged.
     for (const unit of unitsOnTiles(engine, caster, [center], false)) knockback(unit);
+    scourTiles(engine, caster, [center]);
     engine.terrainManager?.createOrMarkRock(center.col, center.row);
     spawnTileImpact(engine, center);
 }
@@ -156,6 +169,7 @@ function stageTwo(ctx: CastBehaviourTickContext): void {
     for (const unit of unitsOnTiles(engine, ctx.caster, cells, true)) {
         unit.takeDamage(STONE_TOMB_STAGE2_DAMAGE, ctx.caster.id, engine.eventBus);
     }
+    scourTiles(engine, ctx.caster, cells);
     // cells[0] is the centre (plus() puts it first), whose rock was raised in stage 1.
     for (const cell of cells.slice(1)) {
         engine.terrainManager?.createRubble(cell.col, cell.row);

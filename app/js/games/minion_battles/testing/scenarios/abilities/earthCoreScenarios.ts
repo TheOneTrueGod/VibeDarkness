@@ -4,6 +4,7 @@ import { TerrainType } from '../../../terrain/TerrainType';
 import { Resonance } from '../../../resources/Resonance';
 import { Movement } from '../../../resources/Movement';
 import { Rock } from '../../../resources/Rock';
+import { BRAMBLE_SLOW_EFFECT_TYPE } from '../../../game/terrainEffects/terrainEffectDefs';
 import {
     buildTinyBattleEngine,
     placePlayerAndDummy,
@@ -276,6 +277,159 @@ export const earthCoreStoneTombCentreEscapeScenario: ScenarioDefinition = {
         const dCol = d ? Math.floor(d.x / CELL) : '?';
         const dRow = d ? Math.floor(d.y / CELL) : '?';
         return `dummy at tile (${dCol}, ${dRow}) lost ${d ? d.maxHp - d.hp : 0} hp (want exactly ${STONE_TOMB_STAGE1_DAMAGE}: more means a slingshot or stage 2 hit it); centre tile=${tm?.getEffectiveTerrainType(5, 5)} (want Rock)`;
+    },
+};
+
+// ---------------------------------------------------------------------------
+// Terrain clearing helpers (docs/plans/terrain-clearing-system.md)
+// ---------------------------------------------------------------------------
+
+type EarthEngine = ReturnType<typeof buildTinyBattleEngine>;
+
+/**
+ * Places a one-cell ground bramble owned by the enemy team, so the scenarios prove clearing ignores
+ * team. Ids are unique per cell.
+ */
+function placeEnemyBramble(engine: EarthEngine, col: number, row: number): void {
+    engine.terrainLayers.add({
+        id: `scour_bramble_${col}_${row}`,
+        layer: 'ground',
+        effectType: BRAMBLE_SLOW_EFFECT_TYPE,
+        placedAtGameTime: 0,
+        teamId: 'enemy',
+        area: { type: 'cell', col, row },
+        params: { slowMult: 0.52 },
+    });
+}
+
+function hasGroundEffect(engine: EarthEngine, col: number, row: number): boolean {
+    return engine.terrainLayers.getGroundEffectAt(col, row) !== null;
+}
+
+// ---------------------------------------------------------------------------
+// 0537 - Rock Slide scours the ground layer along its path (projectile sweep + scour preset + layer filter)
+//
+// Same geometry as earthCoreRockSlideScenario: the rock flies east along row 5 from (4, 5) and rests
+// at (8, 5). Brambles sit on the spawn tile and two path tiles; one more sits on (6, 6), whose nearest
+// edge is 20px from the path centre line (rock radius 18), so the sweep must not reach it.
+// ---------------------------------------------------------------------------
+
+const RS_SCOUR_PATH_TILES = [
+    { col: 4, row: 5 },
+    { col: 5, row: 5 },
+    { col: 6, row: 5 },
+];
+const RS_SCOUR_SIDE_TILE = { col: 6, row: 6 };
+/** Air-layer marker on a path tile: the scour preset must leave the air layer alone. */
+const RS_SCOUR_AIR_TILE = { col: 6, row: 5 };
+const RS_SCOUR_AIR_EFFECT_ID = 'scour_air_marker';
+
+export const earthCoreRockSlideScoursGroundScenario: ScenarioDefinition = {
+    id: 'earth_core_0537_rock_slide_scours_ground',
+    title: 'Rock Slide (0537) erases ground effects along its path, leaving a side tile and the air layer alone',
+    category: 'ability',
+    maxDurationMs: 6000,
+    buildEngine() {
+        const engine = buildTinyBattleEngine({ gridW: 12, gridH: 10, localPlayerId: P, grass: true });
+        const grid = engine.terrainManager!.grid;
+        grid.set(ROCK_SLIDE_SCENARIO_ROCK_TILE.col, ROCK_SLIDE_SCENARIO_ROCK_TILE.row, TerrainType.Rock);
+        grid.set(ROCK_SLIDE_SCENARIO_WALL_TILE.col, ROCK_SLIDE_SCENARIO_WALL_TILE.row, TerrainType.Rock);
+        for (const t of RS_SCOUR_PATH_TILES) placeEnemyBramble(engine, t.col, t.row);
+        placeEnemyBramble(engine, RS_SCOUR_SIDE_TILE.col, RS_SCOUR_SIDE_TILE.row);
+        engine.terrainLayers.add({
+            id: RS_SCOUR_AIR_EFFECT_ID,
+            layer: 'air',
+            effectType: 'scour_test_air_marker',
+            placedAtGameTime: 0,
+            area: { type: 'cell', col: RS_SCOUR_AIR_TILE.col, row: RS_SCOUR_AIR_TILE.row },
+            params: {},
+        });
+        placePlayerAndDummy(engine, {
+            playerId: P,
+            playerWorld: RS_PLAYER_POS,
+            dummyWorld: RS_DUMMY_POS,
+            abilities: ['0537'],
+        });
+        return engine;
+    },
+    getInitialOrders(engine) {
+        const u = engine.getLocalPlayerUnit()!;
+        return [{
+            unitId: u.id,
+            abilityId: '0537',
+            targets: [
+                { type: 'pixel' as const, position: RS_ROCK_PICK },
+                { type: 'pixel' as const, position: RS_EAST_PICK },
+            ],
+        }];
+    },
+    assertPass(e) {
+        const tm = e.terrainManager!;
+        const { col: lc, row: lr } = ROCK_SLIDE_SCENARIO_LANDING_TILE;
+        return RS_SCOUR_PATH_TILES.every((t) => !hasGroundEffect(e, t.col, t.row))
+            && hasGroundEffect(e, RS_SCOUR_SIDE_TILE.col, RS_SCOUR_SIDE_TILE.row)
+            && e.terrainLayers.getAirEffectAt(RS_SCOUR_AIR_TILE.col, RS_SCOUR_AIR_TILE.row)?.id === RS_SCOUR_AIR_EFFECT_ID
+            && tm.getEffectiveTerrainType(lc, lr) === TerrainType.Rock
+            && e.projectiles.every((p) => !p.active);
+    },
+    failureMessage(e) {
+        const tm = e.terrainManager!;
+        const { col: lc, row: lr } = ROCK_SLIDE_SCENARIO_LANDING_TILE;
+        const path = RS_SCOUR_PATH_TILES.map((t) => `(${t.col},${t.row})=${hasGroundEffect(e, t.col, t.row) ? 'bramble' : 'clear'}`).join(' ');
+        return `path tiles (want all clear): ${path}; side tile (${RS_SCOUR_SIDE_TILE.col},${RS_SCOUR_SIDE_TILE.row}) bramble=${hasGroundEffect(e, RS_SCOUR_SIDE_TILE.col, RS_SCOUR_SIDE_TILE.row)} (want true); air marker kept=${e.terrainLayers.getAirEffectAt(RS_SCOUR_AIR_TILE.col, RS_SCOUR_AIR_TILE.row)?.id === RS_SCOUR_AIR_EFFECT_ID} (want true); landing tile=${tm.getEffectiveTerrainType(lc, lr)} (want Rock); live projectiles=${e.projectiles.filter((p) => p.active).length}`;
+    },
+};
+
+// ---------------------------------------------------------------------------
+// 0530 - Stone Tomb scours the ground layer on every tile it affects (ability clear + rock rule)
+//
+// Same layout as earthCoreStoneTombScenario: the plus is centred on (5, 5). Brambles sit on all five
+// plus tiles and on the diagonal tile (6, 6), which is outside the plus.
+// ---------------------------------------------------------------------------
+
+const TOMB_SCOUR_PLUS_TILES = [
+    { col: 5, row: 5 },
+    { col: 5, row: 4 },
+    { col: 6, row: 5 },
+    { col: 5, row: 6 },
+    { col: 4, row: 5 },
+];
+const TOMB_SCOUR_OUTSIDE_TILE = { col: 6, row: 6 };
+
+export const earthCoreStoneTombScoursGroundScenario: ScenarioDefinition = {
+    id: 'earth_core_0530_stone_tomb_scours_ground',
+    title: 'Stone Tomb (0530) erases ground effects on its plus and leaves the centre as rock; a tile outside keeps its effect',
+    category: 'ability',
+    maxDurationMs: 5000,
+    buildEngine() {
+        const engine = buildTinyBattleEngine({ gridW: 12, gridH: 10, localPlayerId: P, grass: true });
+        for (const t of TOMB_SCOUR_PLUS_TILES) placeEnemyBramble(engine, t.col, t.row);
+        placeEnemyBramble(engine, TOMB_SCOUR_OUTSIDE_TILE.col, TOMB_SCOUR_OUTSIDE_TILE.row);
+        placePlayerAndDummy(engine, {
+            playerId: P,
+            playerWorld: PLAYER_POS,
+            dummyWorld: DUMMY_POS,
+            abilities: ['0530'],
+        });
+        giveStoneTombRock(engine);
+        return engine;
+    },
+    getInitialOrders(engine) {
+        const u = engine.getLocalPlayerUnit()!;
+        const d = engine.getUnit('target_dummy')!;
+        return [{ unitId: u.id, abilityId: '0530', targets: [{ type: 'pixel' as const, position: { x: d.x, y: d.y } }] }];
+    },
+    assertPass(e) {
+        const tm = e.terrainManager;
+        if (!tm) return false;
+        return TOMB_SCOUR_PLUS_TILES.every((t) => !hasGroundEffect(e, t.col, t.row))
+            && hasGroundEffect(e, TOMB_SCOUR_OUTSIDE_TILE.col, TOMB_SCOUR_OUTSIDE_TILE.row)
+            && tm.getEffectiveTerrainType(5, 5) === TerrainType.Rock;
+    },
+    failureMessage(e) {
+        const tm = e.terrainManager;
+        const plus = TOMB_SCOUR_PLUS_TILES.map((t) => `(${t.col},${t.row})=${hasGroundEffect(e, t.col, t.row) ? 'bramble' : 'clear'}`).join(' ');
+        return `plus tiles (want all clear): ${plus}; outside tile (${TOMB_SCOUR_OUTSIDE_TILE.col},${TOMB_SCOUR_OUTSIDE_TILE.row}) bramble=${hasGroundEffect(e, TOMB_SCOUR_OUTSIDE_TILE.col, TOMB_SCOUR_OUTSIDE_TILE.row)} (want true); centre=${tm?.getEffectiveTerrainType(5, 5)} (want Rock)`;
     },
 };
 

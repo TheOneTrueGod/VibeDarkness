@@ -96,6 +96,46 @@ describe('TickPerformanceTracker', () => {
         expect(tracker.getHistory()).toHaveLength(0);
     });
 
+    it('records verbose measurements only at the verbose log level', () => {
+        const tracker = new TickPerformanceTracker();
+        tracker.setEnabled(true);
+
+        let now = 0;
+        vi.spyOn(performance, 'now').mockImplementation(() => now);
+
+        tracker.setLogLevel('verbose');
+        const result = tracker.measure(
+            ['engine', 'terrainClear'],
+            () => {
+                now += 4;
+                return 'ran';
+            },
+            { level: 'verbose' },
+        );
+        expect(result).toBe('ran');
+        const verboseLog = tracker.finalizeLastGameTick();
+        expect(verboseLog!.engine).toMatchObject({ terrainClear: { totalTimeTaken: 4 } });
+
+        tracker.setLogLevel('standard');
+        const skipped = tracker.measure(
+            ['engine', 'terrainClear'],
+            () => {
+                now += 4;
+                return 'ran';
+            },
+            { level: 'verbose' },
+        );
+        expect(skipped).toBe('ran');
+        const standardLog = tracker.finalizeLastGameTick();
+        expect(standardLog!.engine).toBeUndefined();
+
+        // Standard-level measurements are unaffected by the log level.
+        tracker.measure(['engine', 'units'], () => {
+            now += 2;
+        });
+        expect(tracker.finalizeLastGameTick()!.engine).toMatchObject({ units: { totalTimeTaken: 2 } });
+    });
+
     it('keeps a ring buffer of the last PERFORMANCE_HISTORY_CAPACITY ticks', () => {
         const tracker = new TickPerformanceTracker();
         tracker.setEnabled(true);

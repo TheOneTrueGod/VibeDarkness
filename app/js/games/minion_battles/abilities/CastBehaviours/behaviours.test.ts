@@ -10,6 +10,7 @@ import { describe, it, expect, vi } from 'vitest';
 import '../AbilityRegistry';
 import { CastBehaviours } from './index';
 import { ProjectileLaunchBehaviour } from './ProjectileLaunchBehaviour';
+import { TERRAIN_CLEARS } from '../../game/terrainEffects/terrainClearing';
 import { casterSlideMagnitude } from './CasterSlideBehaviour';
 import type {
     CastBehaviourInterruptContext,
@@ -332,5 +333,46 @@ describe('ProjectileLaunch held state', () => {
         expect(projectile.velocityX).toBe(400);
         expect(projectile.velocityY).toBe(0);
         expect(getPayload()).toBeUndefined();
+    });
+});
+
+describe('ProjectileLaunch terrain clearing', () => {
+    it('forwards withTerrainClear to the launched projectile', () => {
+        const { engine, projectiles } = makeEngine();
+        const { ctx } = makeSetupCtx(engine);
+        const behaviour = new ProjectileLaunchBehaviour()
+            .withSpeed(400)
+            .withMaxRange(200)
+            .withTerrainClear(TERRAIN_CLEARS.scour, { sweepWidth: 14 });
+
+        behaviour.onSetup(ctx);
+
+        expect(projectiles[0]!.clearsTerrainEffects).toEqual({ spec: { layers: ['ground'] }, sweepWidth: 14 });
+    });
+
+    it('leaves sweepWidth unset by default', () => {
+        const { engine, projectiles } = makeEngine();
+        const { ctx } = makeSetupCtx(engine);
+        new ProjectileLaunchBehaviour().withMaxRange(200).withTerrainClear(TERRAIN_CLEARS.blast).onSetup(ctx);
+
+        expect(projectiles[0]!.clearsTerrainEffects).toEqual({ spec: { layers: ['ground', 'air'] } });
+    });
+
+    it('a held projectile carries the property through release', () => {
+        const { engine, projectiles } = makeEngine();
+        const { ctx, getPayload } = makeSetupCtx(engine);
+        const behaviour = new ProjectileLaunchBehaviour()
+            .withOrigin(() => ({ x: 100, y: 50 }))
+            .withDirection(() => ({ x: 1, y: 0 }))
+            .withSpeed(400)
+            .withHold()
+            .withTerrainClear(TERRAIN_CLEARS.scour);
+        behaviour.onSetup(ctx);
+        expect(projectiles[0]!.clearsTerrainEffects).toEqual({ spec: { layers: ['ground'] } });
+
+        behaviour.onTick!(makeTickCtx(engine, getPayload(), { windowProgress: 1, isLastTick: true }));
+
+        expect(projectiles[0]!.isHeld).toBe(false);
+        expect(projectiles[0]!.clearsTerrainEffects).toEqual({ spec: { layers: ['ground'] } });
     });
 });

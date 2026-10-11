@@ -40,6 +40,7 @@ import { tileCentre, worldToTile, type TileCoord } from '../../../abilities/tile
 import { drawArrow, drawTileAreaTelegraph } from '../../../abilities/previewHelpers';
 import { TELEGRAPH_STYLES } from '../../../abilities/telegraphStyles';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
+import { TERRAIN_CLEARS } from '../../../game/terrainEffects/terrainClearing';
 import {
     ROCK_SLIDE_CAST_RANGE,
     ROCK_SLIDE_PICK_END,
@@ -160,6 +161,7 @@ function rockLaunch(): ProjectileLaunchBehaviour {
             knockback: { tier: ROCK_SLIDE_KNOCKBACK_TIER, direction: { kind: 'sideOfTravel', angleDeg: 45 } },
         })
         .withModifiers(['stopsAtWalls'])
+        .withTerrainClear(TERRAIN_CLEARS.scour)
         .withOrigin((ctx: CastBehaviourSetupContext) => {
             const dir = directionOf(ctx.caster, ctx.target);
             return dir ? tileCentre(dir.tile) : { x: ctx.caster.x, y: ctx.caster.y };

@@ -136,3 +136,60 @@ describe('TerrainManager.createRubble', () => {
         expect(manager.getEffectiveTerrainType(2, 0)).toBe(TerrainType.Rock);
     });
 });
+
+describe('TerrainManager.createOrMarkRock rock rule', () => {
+    function addBramble(layers: TerrainLayerManager, id: string, col: number, row: number): void {
+        layers.add({
+            id,
+            layer: 'ground',
+            effectType: 'bramble_slow',
+            placedAtGameTime: 0,
+            area: { type: 'cell', col, row },
+            params: {},
+        });
+    }
+
+    it('clears ground effects on the raised tile, keeps neighbours, and fires the emitter', () => {
+        const grid = TerrainGrid.createFilledTerrain(4, 3, CELL_SIZE, TerrainType.Grass);
+        const manager = new TerrainManager(grid);
+        const layers = new TerrainLayerManager();
+        manager.setTerrainLayers(layers);
+        addBramble(layers, 'on-tile', 1, 1);
+        addBramble(layers, 'neighbour', 2, 1);
+        const emitter = vi.fn();
+        manager.setTerrainEffectsClearedEmitter(emitter);
+
+        manager.createOrMarkRock(1, 1);
+
+        expect(layers.getGroundEffectAt(1, 1)).toBeNull();
+        expect(layers.getGroundEffectAt(2, 1)?.id).toBe('neighbour');
+        expect(emitter).toHaveBeenCalledTimes(1);
+        const cleared = emitter.mock.calls[0]?.[0];
+        expect(cleared).toHaveLength(1);
+        expect(cleared[0]).toMatchObject({ id: 'on-tile', layer: 'ground', col: 1, row: 1 });
+    });
+
+    it('also clears when re-marking tile that is already rock', () => {
+        const grid = TerrainGrid.createFilledTerrain(3, 3, CELL_SIZE, TerrainType.Grass);
+        grid.set(1, 1, TerrainType.Rock);
+        const manager = new TerrainManager(grid);
+        const layers = new TerrainLayerManager();
+        manager.setTerrainLayers(layers);
+        addBramble(layers, 'on-rock', 1, 1);
+
+        manager.createOrMarkRock(1, 1);
+
+        expect(layers.getGroundEffectAt(1, 1)).toBeNull();
+    });
+
+    it('does not fire the emitter when there is nothing to clear', () => {
+        const grid = TerrainGrid.createFilledTerrain(3, 3, CELL_SIZE, TerrainType.Grass);
+        const manager = makeManager(grid);
+        const emitter = vi.fn();
+        manager.setTerrainEffectsClearedEmitter(emitter);
+
+        manager.createOrMarkRock(1, 1);
+
+        expect(emitter).not.toHaveBeenCalled();
+    });
+});

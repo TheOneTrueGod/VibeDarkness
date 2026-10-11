@@ -28,13 +28,15 @@ export class TerrainEffectRenderer {
         for (const [id, record] of activeEffects) {
             const def = TERRAIN_EFFECT_VISUAL_DEFS[record.effectType];
             if (!def) continue;
-            activeIds.add(id);
+            // Key by revision so a carved record's stale sprites are dropped and rebuilt.
+            const visualKey = `${id}@${record.revision ?? 0}`;
+            activeIds.add(visualKey);
 
-            if (this.effectVisuals.has(id)) continue;
+            if (this.effectVisuals.has(visualKey)) continue;
 
             const texture = this.textureCache.get(record.effectType);
             if (texture) {
-                this.createEffectVisual(id, record, def.layer, texture);
+                this.createEffectVisual(visualKey, record, def.layer, texture);
             } else if (!this.pendingLoads.has(record.effectType)) {
                 const dataUrl = 'data:image/svg+xml;base64,' + btoa(def.svgString);
                 const load = (Assets.load(dataUrl) as Promise<Texture>).then((tex) => {

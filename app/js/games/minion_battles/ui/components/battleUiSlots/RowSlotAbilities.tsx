@@ -470,7 +470,7 @@ export default function RowSlotAbilities({
                     );
                 })}
 
-                <div className="flex min-w-0 flex-wrap content-end gap-2">
+                <div className="flex min-w-0 flex-wrap content-end justify-center gap-2">
                     {playerUnit ? (
                         firstRowCards.length > 0 ? (
                             firstRowCards.map((card, i) => renderHandCard(card, i))
@@ -481,7 +481,7 @@ export default function RowSlotAbilities({
                         <p className="text-muted w-full py-4 text-center text-sm">No cards in hand</p>
                     )}
                 </div>
-                <div className="flex min-w-0 flex-wrap content-end gap-2">
+                <div className="flex min-w-0 flex-wrap content-end justify-center gap-2">
                     {hasSecondAbilityRow &&
                         secondRowCards.map((card, i) => renderHandCard(card, firstRowCount + i))}
                 </div>

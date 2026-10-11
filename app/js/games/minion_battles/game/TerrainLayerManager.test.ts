@@ -56,6 +56,90 @@ describe('TerrainLayerManager cell precedence', () => {
     });
 });
 
+describe('TerrainLayerManager reverse index', () => {
+    const ids = (records: TerrainEffectRecord[]) => records.map((r) => r.id).sort();
+
+    it('removing the newer of two overlapping records reclaims the older', () => {
+        const mgr = new TerrainLayerManager();
+        mgr.add(record({ id: 'old', placedAtGameTime: 0 }));
+        mgr.add(record({ id: 'new', placedAtGameTime: 10 }));
+        mgr.remove('new');
+        expect(mgr.getGroundEffectAt(0, 0)?.id).toBe('old');
+        expect(ids(mgr.getEffectsCoveringCell('ground', 0, 0))).toEqual(['old']);
+    });
+
+    it('cleanupExpired reclaims the cell for the older effect', () => {
+        const mgr = new TerrainLayerManager();
+        mgr.add(record({ id: 'old', placedAtGameTime: 0 }));
+        mgr.add(record({ id: 'new', placedAtGameTime: 10, expiresAtGameTime: 100 }));
+        mgr.cleanupExpired(100);
+        expect(mgr.getGroundEffectAt(0, 0)?.id).toBe('old');
+        expect(ids(mgr.getEffectsCoveringCell('ground', 0, 0))).toEqual(['old']);
+        mgr.remove('old');
+        expect(mgr.getGroundEffectAt(0, 0)).toBeNull();
+        expect(mgr.getEffectsCoveringCell('ground', 0, 0)).toEqual([]);
+    });
+
+    it('getEffectsCoveringCell returns every covering record, including non-owners', () => {
+        const mgr = new TerrainLayerManager();
+        mgr.add(record({ id: 'a', placedAtGameTime: 0 }));
+        mgr.add(record({ id: 'b', placedAtGameTime: 10 }));
+        expect(mgr.getGroundEffectAt(0, 0)?.id).toBe('b');
+        expect(ids(mgr.getEffectsCoveringCell('ground', 0, 0))).toEqual(['a', 'b']);
+    });
+
+    it('indexes multi-cell and circle areas', () => {
+        const mgr = new TerrainLayerManager();
+        mgr.add(
+            record({
+                id: 'multi',
+                placedAtGameTime: 0,
+                area: { type: 'cells', cells: [{ col: 3, row: 3 }, { col: 4, row: 3 }] },
+            }),
+        );
+        mgr.add(
+            record({
+                id: 'circle',
+                placedAtGameTime: 1,
+                area: { type: 'circle', x: 3.5 * CELL_SIZE, y: 3.5 * CELL_SIZE, radiusPx: CELL_SIZE * 1.1 },
+            }),
+        );
+        expect(ids(mgr.getEffectsCoveringCell('ground', 3, 3))).toEqual(['circle', 'multi']);
+        expect(ids(mgr.getEffectsCoveringCell('ground', 4, 3))).toEqual(['circle', 'multi']);
+        expect(ids(mgr.getEffectsCoveringCell('ground', 3, 2))).toEqual(['circle']);
+        expect(mgr.getEffectsCoveringCell('ground', 4, 4)).toEqual([]);
+    });
+
+    it('keeps ground and air layers separate', () => {
+        const mgr = new TerrainLayerManager();
+        mgr.add(record({ id: 'g', placedAtGameTime: 0 }));
+        mgr.add(record({ id: 'a', placedAtGameTime: 0, layer: 'air' }));
+        expect(ids(mgr.getEffectsCoveringCell('ground', 0, 0))).toEqual(['g']);
+        expect(ids(mgr.getEffectsCoveringCell('air', 0, 0))).toEqual(['a']);
+        expect(mgr.getEffectsCoveringCell('floor', 0, 0)).toEqual([]);
+    });
+
+    it('round-trips through JSON with the same ownership and coverage', () => {
+        const mgr = new TerrainLayerManager();
+        mgr.add(record({ id: 'old', placedAtGameTime: 0 }));
+        mgr.add(record({ id: 'new', placedAtGameTime: 10 }));
+        mgr.add(
+            record({
+                id: 'circle',
+                placedAtGameTime: 5,
+                area: { type: 'circle', x: 6.5 * CELL_SIZE, y: 6.5 * CELL_SIZE, radiusPx: CELL_SIZE * 1.1 },
+            }),
+        );
+        const restored = TerrainLayerManager.fromJSON(mgr.toEffectsJSON());
+        for (const [col, row] of [[0, 0], [6, 6], [7, 6], [6, 5], [9, 9]] as const) {
+            expect(restored.getGroundEffectAt(col, row)?.id).toBe(mgr.getGroundEffectAt(col, row)?.id);
+            expect(ids(restored.getEffectsCoveringCell('ground', col, row))).toEqual(
+                ids(mgr.getEffectsCoveringCell('ground', col, row)),
+            );
+        }
+    });
+});
+
 describe('TerrainLayerManager deployables', () => {
     const bramble = (overrides: Partial<TerrainEffectRecord> = {}): TerrainEffectRecord =>
         record({

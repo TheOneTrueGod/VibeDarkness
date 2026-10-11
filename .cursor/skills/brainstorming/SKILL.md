@@ -11,6 +11,10 @@ Use this when the user wants to shape a new system, feature, class fantasy, abil
 
 Move from rough idea -> refined concept -> explicit decisions -> implementation-ready plan.
 
+## Build the engine, not the feature
+
+For Minion Battles, follow "Build the engine, not the feature" in `app/js/games/minion_battles/AGENTS.md` throughout. While diverging and converging, treat each requested mechanic as the first member of a family: name the reusable system (properties, definitions, presets, building blocks) it belongs to, and note the likely future users that system should serve.
+
 ## Mandatory pauses (do not skip)
 
 The agent must **stop and wait for the user’s reply** at these points unless the user has already given a clear “continue / you choose” instruction for that phase.
@@ -90,6 +94,7 @@ Deliverable:
 ### 7) Convert into a staged plan
 
 - Break work into implementation slices.
+- Lead with the reusable system pieces (properties, definitions, presets, entry points), then the slices that apply them to the requested content.
 - For each slice, include:
   - target systems/files
   - success criteria

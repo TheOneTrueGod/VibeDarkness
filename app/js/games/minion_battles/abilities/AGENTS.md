@@ -51,4 +51,17 @@ Declarative cast timing, targeting, hitboxes, and reusable cast behaviours for M
 - Stonephase has priority. It traverses Rock, so the projectile keeps flying through rock, and `stopsAtWalls` stops it at the first obstruction that no modifier traverses. Stonephase is granted only to Knock (0531) today.
 - Knockback that starts inside a wall escapes it (`updateUnitKnockback` in `game/units/unitKnockback.ts`). While a tick's segment starts inside a wall, the unit moves the full segment without terrain collision and the knockback stays alive. Collision resumes once the unit is on passable ground. A knockback that ends inside the wall leaves the unit there for `tickWallUnstick`. The push must be long enough to clear the tile: from a tile centre that is half a tile. Dashes, lunges, nudges and Lifted still cannot start moving from inside a wall (`computeForcedDisplacement` returns zero).
 
+## Terrain clearing
+
+Erases ground and air layer effects (bramble, thorns, ...) from tiles. It is an engine system so wind (air), explosions (both) and projectiles that are not grid-aligned can reuse it. The floor layer (rock, rubble) is never touched. Code is in `game/terrainEffects/terrainClearing.ts` and `game/TerrainLayerManager.ts`.
+
+- **Specs:** a `TerrainClearSpec` names the layers and can filter by effect type and team. `TERRAIN_CLEARS` has the presets: `scour` (ground), `gust` (air) and `blast` (both). Rock Slide and Stone Tomb use `scour` with no team filter.
+- **Entry point:** `clearTerrainEffects` clears a list of tiles or an area. It clears every matching record on a cell, not just the visible one, so an older overlapping effect cannot show through. Multi-cell records are carved: the record keeps its id and loses only the cleared cells. The call is timed in the performance tracker.
+- **Projectiles:** `ProjectileLaunchBehaviour.withTerrainClear(spec)` sweeps the tiles along each tick's path. The sweep width defaults to the projectile radius, so projectiles do not have to be grid-aligned. A held projectile clears nothing until it is released.
+- **Declarative effect:** the `clearTerrainEffects` ability-event effect clears a circle, for explosion and wind abilities.
+- **Rock rule:** `TerrainManager.createOrMarkRock` scours the ground effects on any tile where rock is raised.
+- **`clearResistant`:** a flag on the effect type's gameplay def (`game/terrainEffects/terrainEffectDefs.ts`). A resistant effect survives every clear, including `blast`. Nothing sets it yet.
+- **Event:** `terrain_effects_cleared` on the EventBus carries what was cleared and the source, as the hook for visuals.
+- **Verbose perf flag:** clear timings are verbose-level measurements. They record only while JS performance tracking is on and `PERFORMANCE_LOG_LEVEL` in `game/performance/tickPerformanceTracker.ts` is `'verbose'`.
+
 Authoring workflow and registration checklist: `card_defs/SKILL.md` and the **creating-an-ability** skill.

@@ -6,7 +6,12 @@ import type {
 } from '../castBehaviourTypes';
 import type { AbilityEngineContext } from '../AbilityEngineContext';
 import type { ResolvedTarget } from '../../game/types';
-import { Projectile, type ProjectileHitPolicy } from '../../game/projectiles/Projectile';
+import {
+    Projectile,
+    type ProjectileHitPolicy,
+    type ProjectileTerrainClear,
+} from '../../game/projectiles/Projectile';
+import type { TerrainClearSpec } from '../../game/terrainEffects/terrainClearing';
 import { clampToMaxRange } from '../previewHelpers';
 import { getDirectionFromTo, getPixelTargetPosition } from '../targetHelpers';
 import { findMeleeAimPixelInTargets } from '../targeting';
@@ -64,6 +69,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
     private hitPolicy?: ProjectileHitPolicy;
     private passThroughEnemies: boolean = false;
     private modifiers: ProjectileModifierId[] = [];
+    private terrainClear?: ProjectileTerrainClear;
     private travelFullRange: boolean = false;
     private arcHeight?: number;
     private rotationSpeed?: number;
@@ -128,6 +134,15 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
     /** Travel modifiers (e.g. `'stopsAtWalls'`, stonephase) forwarded to the spawned Projectile. */
     withModifiers(modifiers: ProjectileModifierId[]): this {
         this.modifiers = modifiers;
+        return this;
+    }
+
+    /**
+     * Erases ground/air effects matching `spec` from the tiles the projectile flies over, forwarded to the
+     * spawned Projectile. `sweepWidth` (px) defaults to the projectile's radius.
+     */
+    withTerrainClear(spec: TerrainClearSpec, opts?: { sweepWidth?: number }): this {
+        this.terrainClear = { spec, ...(opts?.sweepWidth !== undefined ? { sweepWidth: opts.sweepWidth } : {}) };
         return this;
     }
 
@@ -221,6 +236,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
             hitPolicy: this.hitPolicy,
             modifiers: this.modifiers.length > 0 ? this.modifiers : undefined,
             heldBy: held ? { unitId: ctx.caster.id, abilityId: ctx.abilityId } : undefined,
+            clearsTerrainEffects: this.terrainClear,
         });
         projectile.radius = this.radius;
         if (ctx.onProjectileHit?.length) {

@@ -2,6 +2,7 @@ import type { Unit } from '../game/units/Unit';
 import type { Effect } from '../game/effects/Effect';
 import type { EventBus } from '../game/EventBus';
 import type { TerrainManager } from '../terrain/TerrainManager';
+import type { TerrainLayerManager } from '../game/TerrainLayerManager';
 import type { Projectile } from '../game/projectiles/Projectile';
 import type { Deployable, DeployableQuery } from '../game/deployables/Deployable';
 import type { SpawnSource, ResolvedTarget } from '../game/types';
@@ -35,6 +36,8 @@ export interface AbilityEngineContext {
     generateRandomInteger(min: number, max: number): number;
     requestHitPause?(frames: number): void;
     terrainManager?: TerrainManager | null;
+    /** Ground/air effect layers — available on the full GameEngine, optional for test stubs. */
+    terrainLayers?: TerrainLayerManager;
     addUnit?(unit: Unit, spawnSource?: SpawnSource): void;
     /** The local player's id — used by tooltip helpers that have no caster. */
     localPlayerId?: string;

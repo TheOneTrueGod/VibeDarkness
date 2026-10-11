@@ -31,6 +31,9 @@ import type { VisualEffectDef } from '../effects/visualEffectDef';
 import type { EngineContext } from '../EngineContext';
 import { applyVisualEffectDefs } from '../effects/applyVisualEffectDefs';
 import { MAX_HELD_PROJECTILE_SECONDS } from '../gameConstants';
+import { cellsAlongSegment } from '../../abilities/tileAreaHelpers';
+import { clearTerrainEffects, type TerrainClearSpec } from '../terrainEffects/terrainClearing';
+import type { TerrainLayerManager } from '../TerrainLayerManager';
 
 /** Identifies the cast that is holding a projectile before launch. */
 export interface ProjectileHolder {
@@ -107,6 +110,33 @@ function cloneHitPolicy(policy: ProjectileHitPolicy): ProjectileHitPolicy {
         ...(policy.knockback
             ? { knockback: { tier: policy.knockback.tier, direction: { ...policy.knockback.direction } } }
             : {}),
+    };
+}
+
+/** Ground/air effects a projectile erases from the tiles it sweeps over. */
+export interface ProjectileTerrainClear {
+    spec: TerrainClearSpec;
+    /** Sweep half-width in px. Default: the projectile's `radius`. */
+    sweepWidth?: number;
+}
+
+function cloneTerrainClear(clear: ProjectileTerrainClear): ProjectileTerrainClear {
+    const { spec } = clear;
+    return {
+        spec: {
+            layers: [...spec.layers],
+            ...(spec.effectTypes ? { effectTypes: [...spec.effectTypes] } : {}),
+            ...(spec.excludeEffectTypes ? { excludeEffectTypes: [...spec.excludeEffectTypes] } : {}),
+            ...(spec.teams
+                ? {
+                    teams: {
+                        ...(spec.teams.include ? { include: [...spec.teams.include] } : {}),
+                        ...(spec.teams.exclude ? { exclude: [...spec.teams.exclude] } : {}),
+                    },
+                }
+                : {}),
+        },
+        ...(clear.sweepWidth !== undefined ? { sweepWidth: clear.sweepWidth } : {}),
     };
 }
 
@@ -189,6 +219,12 @@ export class Projectile extends GameObject {
     /** Unit IDs that got a knockback-only hit this flight (overflow `knockbackOnly`). Serialized like `hitUnitIds`. */
     readonly knockbackOnlyUnitIds: Set<string> = new Set();
 
+    /** When set, erases matching ground/air effects from tiles along the flight path. Serialized. */
+    clearsTerrainEffects?: ProjectileTerrainClear;
+
+    /** Tile keys (`col,row`) already swept for terrain clearing this flight. Serialized as an array. */
+    readonly clearedTerrainCells: Set<string> = new Set();
+
     constructor(config: {
         id?: string;
         x: number;
@@ -224,6 +260,8 @@ export class Projectile extends GameObject {
         knockbackBeyondMaxHits?: boolean;
         /** Start held by a cast (not moving or colliding) until `release()` or `cancelHeld()`. */
         heldBy?: ProjectileHolder;
+        /** Erase ground/air effects from tiles along the flight path. */
+        clearsTerrainEffects?: ProjectileTerrainClear;
     }) {
         super(config.id ?? generateGameObjectId('proj'), config.x, config.y);
         this.velocityX = config.velocityX;
@@ -246,6 +284,9 @@ export class Projectile extends GameObject {
         this.rectEndWidth = config.rectEndWidth;
         this.hitPolicy = cloneHitPolicy(config.hitPolicy ?? hitPolicyFromLegacyOptions(config));
         this.heldBy = config.heldBy ? { unitId: config.heldBy.unitId, abilityId: config.heldBy.abilityId } : null;
+        this.clearsTerrainEffects = config.clearsTerrainEffects
+            ? cloneTerrainClear(config.clearsTerrainEffects)
+            : undefined;
         this.frameStartX = config.x;
         this.frameStartY = config.y;
     }
@@ -305,12 +346,14 @@ export class Projectile extends GameObject {
                 this.x = stop.x;
                 this.y = stop.y;
                 this.distanceTraveled += this.calculateDistanceContribution(prevX, prevY, stop.x, stop.y, terrainManager);
+                this.clearTerrainAlongPath(prevX, prevY, engine);
                 this.triggerExpireEffect(engine);
                 this.active = false;
                 return;
             }
         }
         this.distanceTraveled += this.calculateDistanceContribution(prevX, prevY, this.x, this.y, terrainManager);
+        this.clearTerrainAlongPath(prevX, prevY, engine);
 
         if (this.trailType === 'bullet' || this.spriteConfig?.trail) {
             const eng = engine as { addEffect?: (effect: Effect) => void };
@@ -336,6 +379,33 @@ export class Projectile extends GameObject {
             this.triggerExpireEffect(engine);
             this.active = false;
         }
+    }
+
+    /**
+     * Erases terrain effects on tiles within the sweep width of the segment from (`fromX`, `fromY`) to the
+     * current position. Tiles already swept this flight are skipped. Does nothing when the projectile has no
+     * `clearsTerrainEffects`, or when the engine lacks `terrainLayers` / `eventBus` (stub engines in tests).
+     */
+    private clearTerrainAlongPath(fromX: number, fromY: number, engine: unknown): void {
+        const clear = this.clearsTerrainEffects;
+        if (!clear) return;
+        const eng = engine as { terrainLayers?: TerrainLayerManager | null; eventBus?: EventBus | null } | null | undefined;
+        const terrainLayers = eng?.terrainLayers;
+        const bus = eng?.eventBus;
+        if (!terrainLayers || !bus) return;
+
+        const swept = cellsAlongSegment({ x: fromX, y: fromY }, { x: this.x, y: this.y }, clear.sweepWidth ?? this.radius);
+        const fresh = swept.filter((cell) => {
+            const key = `${cell.col},${cell.row}`;
+            if (this.clearedTerrainCells.has(key)) return false;
+            this.clearedTerrainCells.add(key);
+            return true;
+        });
+        if (fresh.length === 0) return;
+        clearTerrainEffects({ terrainLayers, eventBus: bus }, fresh, clear.spec, {
+            unitId: this.sourceUnitId,
+            abilityId: this.sourceAbilityId,
+        });
     }
 
     /**
@@ -628,6 +698,12 @@ export class Projectile extends GameObject {
             heldTime: this.heldTime,
             hitUnitIds: [...this.hitUnitIds],
             knockbackOnlyUnitIds: [...this.knockbackOnlyUnitIds],
+            ...(this.clearsTerrainEffects
+                ? {
+                    clearsTerrainEffects: cloneTerrainClear(this.clearsTerrainEffects),
+                    clearedTerrainCells: [...this.clearedTerrainCells],
+                }
+                : {}),
             ...(this.summonSeedWeak !== undefined ? { summonSeedWeak: this.summonSeedWeak } : {}),
             ...(this.arcHeight !== undefined ? { arcHeight: this.arcHeight } : {}),
             ...(this.rotationSpeed !== undefined ? { rotationSpeed: this.rotationSpeed, rotation: this.rotation } : {}),
@@ -649,6 +725,7 @@ export class Projectile extends GameObject {
             maxDistance: data.maxDistance as number,
             modifiers: (data.modifiers as ProjectileModifierId[] | undefined) ?? [],
             heldBy: heldBy ?? undefined,
+            clearsTerrainEffects: data.clearsTerrainEffects as ProjectileTerrainClear | undefined,
             // Saves from before `hitPolicy` carry the legacy fields, which the constructor maps.
             hitPolicy: (data.hitPolicy as ProjectileHitPolicy | undefined) ?? undefined,
             pierce: data.pierce as number | undefined,
@@ -660,6 +737,7 @@ export class Projectile extends GameObject {
         proj.heldTime = (data.heldTime as number | undefined) ?? 0;
         for (const id of (data.hitUnitIds as string[] | undefined) ?? []) proj.hitUnitIds.add(id);
         for (const id of (data.knockbackOnlyUnitIds as string[] | undefined) ?? []) proj.knockbackOnlyUnitIds.add(id);
+        for (const key of (data.clearedTerrainCells as string[] | undefined) ?? []) proj.clearedTerrainCells.add(key);
         proj.active = data.active as boolean;
         proj.distanceTraveled = data.distanceTraveled as number;
         proj.radius = (data.radius as number) ?? 5;

@@ -9,6 +9,7 @@
 import type { EventBus } from '../EventBus';
 import type { TerrainLayerManager } from '../TerrainLayerManager';
 import type { Unit } from '../units/Unit';
+import { BRAMBLE_SLOW_EFFECT_TYPE, DARK_THORN_EFFECT_TYPE } from './terrainEffectDefs';
 import { LIFTED_BUFF_TYPE } from '../../buffs/liftedBuffType';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { getCreatureType } from '../units/unit_defs/unitDef';
@@ -22,8 +23,7 @@ export const DARK_THORN_LAND_DAMAGE = THORN_LAND_DAMAGE * 2;
 /** How long Thornbinder ground thorns last, in rounds (before jitter). */
 export const DARK_THORN_DURATION_ROUNDS = 2;
 
-export const BRAMBLE_SLOW_EFFECT_TYPE = 'bramble_slow';
-export const DARK_THORN_EFFECT_TYPE = 'dark_thorn';
+export { BRAMBLE_SLOW_EFFECT_TYPE, DARK_THORN_EFFECT_TYPE };
 
 export interface TileTransitionEngine {
     terrainLayers: TerrainLayerManager;

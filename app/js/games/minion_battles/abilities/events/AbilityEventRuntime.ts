@@ -20,6 +20,8 @@ import {
 } from '../priorityFillHits';
 import type { HitboxEngineContext } from '../../hitboxes/Hitbox';
 import type { EngineContext } from '../../game/EngineContext';
+import type { TerrainLayerManager } from '../../game/TerrainLayerManager';
+import { TERRAIN_CLEARS, clearTerrainEffects } from '../../game/terrainEffects/terrainClearing';
 
 type CustomConditionHandler = (
     params: Record<string, unknown> | undefined,
@@ -60,6 +62,8 @@ interface GameEngineLike {
     /** Returns alive allies of `caster`, excluding the caster itself. */
     getAllies?(caster: Unit): Unit[];
     addEffect?(effect: Effect): void;
+    /** Required by the 'clearTerrainEffects' effect. */
+    terrainLayers?: TerrainLayerManager;
 }
 
 interface CastPayloadWithAbilityEvents {
@@ -341,6 +345,22 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
                     );
                 }
             }
+            return;
+        }
+        case 'clearTerrainEffects': {
+            const terrainLayers = context.engine.terrainLayers;
+            if (!terrainLayers) return;
+            const origin =
+                effect.at === 'caster'
+                    ? context.caster
+                    : (context.primaryTarget ?? context.projectile ?? context.caster);
+            const spec = typeof effect.clear === 'string' ? TERRAIN_CLEARS[effect.clear] : effect.clear;
+            clearTerrainEffects(
+                { terrainLayers, eventBus: context.engine.eventBus },
+                { type: 'circle', x: origin.x, y: origin.y, radiusPx: effect.radiusPx },
+                spec,
+                { unitId: context.caster.id, abilityId: context.ability.id },
+            );
             return;
         }
         case 'custom':

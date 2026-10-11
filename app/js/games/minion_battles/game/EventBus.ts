@@ -1,5 +1,6 @@
 import type { TerrainType } from '../terrain/TerrainType';
 import type { KnockbackSource } from './units/unitTypes';
+import type { ClearedTerrainEffect } from './TerrainLayerManager';
 
 /**
  * EventBus - Typed pub/sub event system for the battle engine.
@@ -29,7 +30,8 @@ export type GameEventType =
     | 'forced_movement_unit_collision'
     | 'forced_movement_terrain_collision'
     | 'unit_slam_landed'
-    | 'daylight_damage_pulse';
+    | 'daylight_damage_pulse'
+    | 'terrain_effects_cleared';
 
 /** Optional combat VFX hint — does not change damage rules. */
 export const DAMAGE_VISUAL_KIND_DAYLIGHT = 'daylight' as const;
@@ -185,6 +187,12 @@ export interface UnitSlamLandedEvent {
     sourceAbilityId: string;
 }
 
+/** Fired when terrain clearing (scour / gust / blast) removed ground/air effects from cells. */
+export interface TerrainEffectsClearedEvent {
+    cleared: ClearedTerrainEffect[];
+    source?: { unitId?: string; abilityId?: string };
+}
+
 export type GameEventDataMap = {
     damage_taken: DamageTakenEvent;
     round_start: RoundStartEvent;
@@ -207,6 +215,7 @@ export type GameEventDataMap = {
     forced_movement_terrain_collision: ForcedMovementTerrainCollisionEvent;
     unit_slam_landed: UnitSlamLandedEvent;
     daylight_damage_pulse: DayLightDamagePulseEvent;
+    terrain_effects_cleared: TerrainEffectsClearedEvent;
 };
 
 type EventCallback<T extends GameEventType> = (data: GameEventDataMap[T]) => void;

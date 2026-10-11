@@ -9,6 +9,15 @@
 
 import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
 
+/** `'verbose'` measurements are only recorded when {@link PERFORMANCE_LOG_LEVEL} is `'verbose'`. */
+export type PerformanceLogLevel = 'standard' | 'verbose';
+
+/**
+ * Detail level for performance timings. Set to `'standard'` to silence verbose timings
+ * (e.g. terrain clearing) without removing the instrumentation.
+ */
+export const PERFORMANCE_LOG_LEVEL: PerformanceLogLevel = 'verbose';
+
 /** Description attached to every finalized performanceLog root. */
 export const PERFORMANCE_LOG_DESCRIPTION = 'time taken for the last gameTick';
 
@@ -101,6 +110,7 @@ export class TickPerformanceTracker {
     private lastLog: PerformanceLog | null = null;
     /** Test override; when null, follows {@link debugSettingsSnapshot.jsPerformanceTracking}. */
     private enabledOverride: boolean | null = null;
+    private logLevel: PerformanceLogLevel = PERFORMANCE_LOG_LEVEL;
     private stack: StackFrame[] = [];
     private history: PerformanceTickRecord[] = [];
     private listeners = new Set<() => void>();
@@ -119,6 +129,16 @@ export class TickPerformanceTracker {
 
     isEnabled(): boolean {
         return this.enabledOverride ?? debugSettingsSnapshot.jsPerformanceTracking;
+    }
+
+    /** Test override for the log level; defaults to {@link PERFORMANCE_LOG_LEVEL}. */
+    setLogLevel(level: PerformanceLogLevel): void {
+        this.logLevel = level;
+    }
+
+    /** True while a timing scope is open (new scopes then nest under it instead of the root). */
+    isInScope(): boolean {
+        return this.isEnabled() && this.stack.length > 0;
     }
 
     /** Subscribe to history / last-log updates (Debug Console Performance tab). */
@@ -165,8 +185,9 @@ export class TickPerformanceTracker {
      * Measure wall time of `fn` under `segments` (same path rules as {@link begin}).
      * Always runs `fn`; timing cost is skipped when disabled.
      */
-    measure<T>(segments: readonly string[], fn: () => T): T {
+    measure<T>(segments: readonly string[], fn: () => T, options?: { level?: PerformanceLogLevel }): T {
         if (!this.isEnabled()) return fn();
+        if ((options?.level ?? 'standard') === 'verbose' && this.logLevel !== 'verbose') return fn();
         this.begin(...segments);
         try {
             return fn();
@@ -260,6 +281,8 @@ export const PERF_ENGINE_LIGHTING = 'lighting' as const;
 export const PERF_ENGINE_NESTS = 'nests' as const;
 export const PERF_ENGINE_CLEANUP = 'cleanup' as const;
 export const PERF_ENGINE_RENDER_TICK = 'renderTick' as const;
+/** Terrain clearing (verbose); nests under the caller's scope, e.g. `engine.projectiles`. */
+export const PERF_TERRAIN_CLEAR = 'terrainClear' as const;
 
 export const PERF_UI = 'ui' as const;
 export const PERF_UI_REACT = 'react' as const;

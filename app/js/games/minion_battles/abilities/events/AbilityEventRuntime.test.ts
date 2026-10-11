@@ -5,6 +5,8 @@ import { Unit } from '../../game/units/Unit';
 import { EventBus } from '../../game/EventBus';
 import { triggerAbilityEvent, type AbilityEventRuntimeContext } from './AbilityEventRuntime';
 import { AbilityPhase } from '../abilityTimings';
+import { TerrainLayerManager } from '../../game/TerrainLayerManager';
+import { CELL_SIZE } from '../../terrain/TerrainGrid';
 
 function createUnit(config?: Partial<{ id: string; ownerId: string; abilities: string[]; hp: number; maxHp: number }>): Unit {
     return new Unit({
@@ -268,5 +270,77 @@ describe('AbilityEventRuntime', () => {
         const matchedRuleIds = triggerAbilityEvent(context);
         expect(matchedRuleIds).toEqual(['first_declared', 'second_declared']);
         expect(appliedFlags).toEqual(['first', 'second']);
+    });
+
+    it('clearTerrainEffects clears a circle of ground effects around the caster and emits an event', () => {
+        const caster = createUnit({ id: 'caster' });
+        caster.x = CELL_SIZE * 2.5;
+        caster.y = CELL_SIZE * 2.5;
+        const terrainLayers = new TerrainLayerManager();
+        for (const [id, col, row, layer] of [
+            ['near', 2, 2, 'ground'],
+            ['far', 6, 6, 'ground'],
+            ['air-near', 2, 2, 'air'],
+        ] as const) {
+            terrainLayers.add({
+                id,
+                layer,
+                effectType: 'bramble_slow',
+                placedAtGameTime: 0,
+                area: { type: 'cell', col, row },
+                params: {},
+            });
+        }
+        const eventBus = new EventBus();
+        const events: unknown[] = [];
+        eventBus.on('terrain_effects_cleared', (e) => events.push(e));
+        const activeAbility = { abilityId: 'test_ability', startTime: 0, targets: [] };
+        const ability = {
+            id: 'test_ability',
+            name: 'Test',
+            image: '',
+            resourceCost: null,
+            rechargeTurns: 0,
+            prefireTime: 0,
+            targets: [],
+            abilityTimings: [{ id: 'x', start: 0, end: 1, abilityPhase: AbilityPhase.Active }],
+            getTooltipText: () => [''],
+            doCardEffect: () => {},
+            getAbilityStates: () => [],
+            onAttackBlocked: () => {},
+            abilityEvents: {
+                [AbilityEventType.ON_ATTACK_HIT]: [
+                    {
+                        id: 'scour_rule',
+                        conditions: [{ type: 'always' }],
+                        effects: [{ type: 'clearTerrainEffects', clear: 'scour', radiusPx: 5, at: 'caster' }],
+                    },
+                ],
+            },
+        } as AbilityStatic;
+
+        triggerAbilityEvent({
+            engine: {
+                gameTime: 1,
+                roundNumber: 1,
+                getUnit: () => caster,
+                eventBus,
+                generateRandomInteger: (min) => min,
+                terrainLayers,
+            },
+            caster,
+            ability,
+            activeAbility,
+            targets: [],
+            eventType: AbilityEventType.ON_ATTACK_HIT,
+            currentTime: 1,
+            prevTime: 0.5,
+            hitResult: 'hit',
+        });
+
+        expect(terrainLayers.getGroundEffectAt(2, 2)).toBeNull();
+        expect(terrainLayers.getGroundEffectAt(6, 6)?.id).toBe('far');
+        expect(terrainLayers.getEffectsCoveringCell('air', 2, 2)).toHaveLength(1);
+        expect(events).toHaveLength(1);
     });
 });

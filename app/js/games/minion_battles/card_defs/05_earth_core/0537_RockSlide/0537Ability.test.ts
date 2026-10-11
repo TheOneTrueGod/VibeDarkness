@@ -292,6 +292,34 @@ describe('Rock Slide (0537) projectile hits', () => {
     });
 });
 
+describe('Rock Slide (0537) terrain clearing', () => {
+    it('scours ground effects on the spawn tile and along its path, but not beside it', () => {
+        const { engine, start } = setup();
+        const place = (id: string, col: number, row: number): void => {
+            engine.terrainLayers.add({
+                id,
+                layer: 'ground',
+                effectType: 'bramble_slow',
+                placedAtGameTime: engine.gameTime,
+                area: { type: 'cell', col, row },
+                params: { slowMult: 0.5 },
+            });
+        };
+        place('spawn', SPAWN_TILE.col, SPAWN_TILE.row);
+        place('path-a', 6, 5);
+        place('path-b', 7, 5);
+        place('side', 6, 6);
+
+        stepToElapsed(engine, start, ROCK_SLIDE_CAST_TIME + 0.2);
+
+        const ground = (col: number, row: number) => engine.terrainLayers.getGroundEffectAt(col, row);
+        expect(ground(SPAWN_TILE.col, SPAWN_TILE.row)).toBeNull();
+        expect(ground(6, 5)).toBeNull();
+        expect(ground(7, 5)).toBeNull();
+        expect(ground(6, 6)?.id).toBe('side');
+    });
+});
+
 describe('Rock Slide (0537) wall landing', () => {
     const DIRS = [
         { name: 'east', dc: 1, dr: 0 },

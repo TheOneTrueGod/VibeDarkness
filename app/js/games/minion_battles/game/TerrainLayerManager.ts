@@ -35,6 +35,17 @@ export interface TerrainEffectRecord {
     area: TerrainEffectArea;
     /** Mutable effect-specific state (e.g. { slowMult: 0.52 }). */
     params: Record<string, unknown>;
+    /** Render-only counter bumped when a record is carved in place (never serialized). */
+    revision?: number;
+}
+
+/** One (record, cell) removal performed by {@link TerrainLayerManager.clearCells}. */
+export interface ClearedTerrainEffect {
+    id: string;
+    effectType: string;
+    layer: TerrainLayerName;
+    col: number;
+    row: number;
 }
 
 export interface SerializedFloorTileEntry {
@@ -164,6 +175,20 @@ export class TerrainLayerManager implements DeployableProvider {
     private groundCells = new Map<string, string>();
     private airCells = new Map<string, string>();
     private floorTiles = new Map<string, FloorTile>();
+    /**
+     * Reverse index per layer: cellKey → ids of EVERY record covering the cell (not just the owner).
+     * Ground/air only; the floor layer is not indexed.
+     */
+    private coverage: Record<'ground' | 'air', Map<string, Set<string>>> = {
+        ground: new Map(),
+        air: new Map(),
+    };
+
+    private getCoverageMap(layer: TerrainLayerName): Map<string, Set<string>> | null {
+        if (layer === 'ground') return this.coverage.ground;
+        if (layer === 'air') return this.coverage.air;
+        return null;
+    }
 
     private getCellMap(layer: TerrainLayerName): Map<string, string> {
         if (layer === 'floor') return this.floorCells;
@@ -224,8 +249,17 @@ export class TerrainLayerManager implements DeployableProvider {
     add(record: TerrainEffectRecord): void {
         const cells = rasterizeArea(record.area);
         const layerMap = this.getCellMap(record.layer);
+        const coverageMap = this.getCoverageMap(record.layer);
         for (const { col, row } of cells) {
             const key = cellKey(col, row);
+            if (coverageMap) {
+                let ids = coverageMap.get(key);
+                if (!ids) {
+                    ids = new Set<string>();
+                    coverageMap.set(key, ids);
+                }
+                ids.add(record.id);
+            }
             const existingId = layerMap.get(key);
             if (existingId !== undefined) {
                 const existing = this.effectRegistry.get(existingId);
@@ -250,10 +284,18 @@ export class TerrainLayerManager implements DeployableProvider {
 
         const cells = rasterizeArea(record.area);
         const layerMap = this.getCellMap(record.layer);
+        const coverageMap = this.getCoverageMap(record.layer);
 
         const vacated: Array<{ col: number; row: number }> = [];
         for (const { col, row } of cells) {
             const key = cellKey(col, row);
+            if (coverageMap) {
+                const ids = coverageMap.get(key);
+                if (ids) {
+                    ids.delete(id);
+                    if (ids.size === 0) coverageMap.delete(key);
+                }
+            }
             if (layerMap.get(key) === id) {
                 layerMap.delete(key);
                 vacated.push({ col, row });
@@ -265,11 +307,87 @@ export class TerrainLayerManager implements DeployableProvider {
         for (const { col, row } of vacated) {
             const key = cellKey(col, row);
             let winner: TerrainEffectRecord | null = null;
-            for (const e of this.effectRegistry.values()) {
-                if (e.layer !== record.layer) continue;
-                if (!effectCoversCell(e, col, row)) continue;
-                if (!winner || effectTakesPrecedence(e, winner)) {
-                    winner = e;
+            if (coverageMap) {
+                const ids = coverageMap.get(key);
+                if (ids) {
+                    for (const otherId of ids) {
+                        const e = this.effectRegistry.get(otherId);
+                        if (!e) continue;
+                        if (!winner || effectTakesPrecedence(e, winner)) {
+                            winner = e;
+                        }
+                    }
+                }
+            } else {
+                // Floor layer is not indexed; fall back to a registry scan.
+                for (const e of this.effectRegistry.values()) {
+                    if (e.layer !== record.layer) continue;
+                    if (!effectCoversCell(e, col, row)) continue;
+                    if (!winner || effectTakesPrecedence(e, winner)) {
+                        winner = e;
+                    }
+                }
+            }
+            if (winner) layerMap.set(key, winner.id);
+        }
+    }
+
+    /**
+     * Clear ground/air effects from the given cells. For each cell and each ground/air layer, EVERY
+     * covering record accepted by `predicate` (not just the owner) is removed from that cell, so an
+     * older effect underneath cannot reclaim it. Single-cell records are removed; multi-cell records
+     * are carved in place (converted to a `cells` area without the cell, same id, `revision` bumped).
+     * The floor layer is never touched. The predicate carries all filtering (see matchesClearSpec).
+     */
+    clearCells(
+        cells: ReadonlyArray<{ col: number; row: number }>,
+        predicate: (record: TerrainEffectRecord) => boolean,
+    ): ClearedTerrainEffect[] {
+        const cleared: ClearedTerrainEffect[] = [];
+        const layers: Array<'ground' | 'air'> = ['ground', 'air'];
+        for (const { col, row } of cells) {
+            for (const layer of layers) {
+                for (const record of this.getEffectsCoveringCell(layer, col, row)) {
+                    if (record.layer !== layer || !predicate(record)) continue;
+                    this.carveCell(record, col, row);
+                    cleared.push({ id: record.id, effectType: record.effectType, layer, col, row });
+                }
+            }
+        }
+        return cleared;
+    }
+
+    /** Remove one cell from a ground/air record, removing the whole record if it was its last cell. */
+    private carveCell(record: TerrainEffectRecord, col: number, row: number): void {
+        const remaining = rasterizeArea(record.area).filter((c) => c.col !== col || c.row !== row);
+        if (remaining.length === 0) {
+            this.remove(record.id);
+            return;
+        }
+
+        const key = cellKey(col, row);
+        const layerMap = this.getCellMap(record.layer);
+        const coverageMap = this.getCoverageMap(record.layer);
+        if (coverageMap) {
+            const ids = coverageMap.get(key);
+            if (ids) {
+                ids.delete(record.id);
+                if (ids.size === 0) coverageMap.delete(key);
+            }
+        }
+
+        record.area = { type: 'cells', cells: remaining };
+        record.revision = (record.revision ?? 0) + 1;
+
+        if (layerMap.get(key) === record.id) {
+            layerMap.delete(key);
+            let winner: TerrainEffectRecord | null = null;
+            const ids = coverageMap?.get(key);
+            if (ids) {
+                for (const otherId of ids) {
+                    const e = this.effectRegistry.get(otherId);
+                    if (!e) continue;
+                    if (!winner || effectTakesPrecedence(e, winner)) winner = e;
                 }
             }
             if (winner) layerMap.set(key, winner.id);
@@ -306,6 +424,21 @@ export class TerrainLayerManager implements DeployableProvider {
     getAirEffectAt(col: number, row: number): TerrainEffectRecord | null {
         const id = this.airCells.get(cellKey(col, row));
         return id !== undefined ? (this.effectRegistry.get(id) ?? null) : null;
+    }
+
+    /**
+     * Every record on `layer` covering the cell (not just the owner), via the reverse index.
+     * Ground/air only; the floor layer returns an empty list.
+     */
+    getEffectsCoveringCell(layer: TerrainLayerName, col: number, row: number): TerrainEffectRecord[] {
+        const ids = this.getCoverageMap(layer)?.get(cellKey(col, row));
+        if (!ids) return [];
+        const out: TerrainEffectRecord[] = [];
+        for (const id of ids) {
+            const record = this.effectRegistry.get(id);
+            if (record) out.push(record);
+        }
+        return out;
     }
 
     /**

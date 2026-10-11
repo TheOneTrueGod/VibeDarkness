@@ -28,6 +28,7 @@ import type { GameEngine } from '../../../game/GameEngine';
 import { executeUnitAbility } from '../../../game/units/unitAbilityLifecycle';
 import { FIXED_DT } from '../../../game/gameConstants';
 import { TerrainType } from '../../../terrain/TerrainType';
+import { TerrainLayerManager } from '../../../game/TerrainLayerManager';
 import { resolveParallelOrderPause } from '../../../testing/runner/SimulationRunner';
 import { earthCoreStoneTombScenario } from '../../../testing/scenarios/abilities/earthCoreScenarios';
 
@@ -45,10 +46,11 @@ function makeUnit(id: string, teamId: 'player' | 'enemy', col: number, row: numb
     return u;
 }
 
-function setup(units: Unit[]) {
+function setup(units: Unit[], terrainLayers?: TerrainLayerManager) {
     const createOrMarkRock = vi.fn();
     const createRubble = vi.fn();
     const engine = {
+        terrainLayers,
         units,
         gameTime: 0,
         roundNumber: 1,
@@ -241,6 +243,56 @@ describe('Stone Tomb (0530)', () => {
         expect(createOrMarkRock).not.toHaveBeenCalled();
         const cells = createRubble.mock.calls.map(([c, r]) => `${c},${r}`).sort();
         expect(cells).toEqual(['4,5', '5,4', '5,6', '6,5']);
+    });
+
+    describe('terrain clearing', () => {
+        const PLUS = [[5, 5], [4, 5], [6, 5], [5, 4], [5, 6]] as const;
+
+        function layersWithEffects(): TerrainLayerManager {
+            const layers = new TerrainLayerManager();
+            for (const [col, row] of PLUS) {
+                layers.add({
+                    id: `ground-${col}-${row}`,
+                    layer: 'ground',
+                    effectType: 'dark_thorn',
+                    placedAtGameTime: 0,
+                    area: { type: 'cell', col, row },
+                    params: {},
+                });
+            }
+            layers.add({
+                id: 'ground-outside',
+                layer: 'ground',
+                effectType: 'dark_thorn',
+                placedAtGameTime: 0,
+                area: { type: 'cell', col: 6, row: 6 },
+                params: {},
+            });
+            layers.add({
+                id: 'air-arm',
+                layer: 'air',
+                effectType: 'dark_thorn',
+                placedAtGameTime: 0,
+                area: { type: 'cell', col: 6, row: 5 },
+                params: {},
+            });
+            return layers;
+        }
+
+        it('stage 1 clears only the centre tile, stage 2 the rest of the plus; air and outside tiles survive', () => {
+            const caster = makeUnit('c', 'player', 5, 9);
+            const layers = layersWithEffects();
+            const { engine } = setup([caster], layers);
+
+            enterInterval('stage1', engine, caster, target(5, 5));
+            expect(layers.getGroundEffectAt(5, 5)).toBeNull();
+            expect(layers.getGroundEffectAt(6, 5)?.id).toBe('ground-6-5');
+
+            enterInterval('stage2', engine, caster, target(5, 5));
+            for (const [col, row] of PLUS) expect(layers.getGroundEffectAt(col, row)).toBeNull();
+            expect(layers.getGroundEffectAt(6, 6)?.id).toBe('ground-outside');
+            expect(layers.getEffectsCoveringCell('air', 6, 5)).toHaveLength(1);
+        });
     });
 
     it('clamps an out-of-range pick to 4 tiles from the caster', () => {

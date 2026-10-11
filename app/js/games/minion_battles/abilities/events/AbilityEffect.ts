@@ -1,5 +1,6 @@
 import type { RecoveryChargeType } from '../abilityUses';
 import type { ExplosionEffectProperties } from '../../game/effects/effectProperties';
+import type { TerrainClearPresetName, TerrainClearSpec } from '../../game/terrainEffects/terrainClearing';
 
 /**
  * Declarative effect variants for ability event rules.
@@ -70,6 +71,15 @@ export type AbilityEffect =
         effectDuration?: number;
         /** Typed visual properties forwarded to the spawned explosion Effect. */
         effectProperties?: ExplosionEffectProperties;
+    }
+    | {
+        type: 'clearTerrainEffects';
+        /** A `TERRAIN_CLEARS` preset name, or an explicit spec. */
+        clear: TerrainClearPresetName | TerrainClearSpec;
+        /** Radius (px) of the circle cleared. */
+        radiusPx: number;
+        /** Circle centre. Default 'primaryTarget' (falls back to the projectile, then the caster). */
+        at?: 'primaryTarget' | 'caster';
     }
     | AbilityCustomEffect;
 

@@ -61,6 +61,144 @@ export function getUnitsInTiles(
     });
 }
 
+const SEGMENT_EPS = 1e-9;
+
+/** Distance from point (px, py) to the segment (ax, ay)-(bx, by). */
+function distPointToSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
+    const dx = bx - ax;
+    const dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+    return Math.hypot(px - (ax + dx * t), py - (ay + dy * t));
+}
+
+/** Distance from point (px, py) to an axis-aligned rect (0 when inside). */
+function distPointToRect(px: number, py: number, minX: number, minY: number, maxX: number, maxY: number): number {
+    const dx = Math.max(minX - px, 0, px - maxX);
+    const dy = Math.max(minY - py, 0, py - maxY);
+    return Math.hypot(dx, dy);
+}
+
+/** True when the segment (ax, ay)-(bx, by) overlaps the axis-aligned rect (Liang-Barsky clip). */
+function segmentIntersectsRect(
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    minX: number,
+    minY: number,
+    maxX: number,
+    maxY: number,
+): boolean {
+    let t0 = 0;
+    let t1 = 1;
+    const dx = bx - ax;
+    const dy = by - ay;
+    const p = [-dx, dx, -dy, dy];
+    const q = [ax - minX, maxX - ax, ay - minY, maxY - ay];
+    for (let i = 0; i < 4; i++) {
+        if (p[i] === 0) {
+            if (q[i]! < 0) return false;
+            continue;
+        }
+        const r = q[i]! / p[i]!;
+        if (p[i]! < 0) {
+            if (r > t1) return false;
+            if (r > t0) t0 = r;
+        } else {
+            if (r < t0) return false;
+            if (r < t1) t1 = r;
+        }
+    }
+    return true;
+}
+
+/**
+ * Tiles touched by the world-space segment `from` -> `to`.
+ *
+ * - `width` 0: supercover line. Every tile the centre line passes through, including both diagonal
+ *   neighbours at an exact corner crossing. Ordered along the segment. A segment that ends exactly on a
+ *   tile boundary does not include the tile it only touches.
+ * - `width` > 0: every tile within `width` px of the segment (a capsule), in row-major order.
+ *
+ * Deterministic, no duplicates. A zero-length segment gives the tile of `from` (capsule: tiles within `width`).
+ */
+export function cellsAlongSegment(
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+    width: number = 0,
+): TileCoord[] {
+    if (width > 0) {
+        const minCol = Math.floor((Math.min(from.x, to.x) - width) / CELL_SIZE);
+        const maxCol = Math.floor((Math.max(from.x, to.x) + width) / CELL_SIZE);
+        const minRow = Math.floor((Math.min(from.y, to.y) - width) / CELL_SIZE);
+        const maxRow = Math.floor((Math.max(from.y, to.y) + width) / CELL_SIZE);
+        const out: TileCoord[] = [];
+        for (let row = minRow; row <= maxRow; row++) {
+            for (let col = minCol; col <= maxCol; col++) {
+                const x0 = col * CELL_SIZE;
+                const y0 = row * CELL_SIZE;
+                const x1 = x0 + CELL_SIZE;
+                const y1 = y0 + CELL_SIZE;
+                let dist: number;
+                if (segmentIntersectsRect(from.x, from.y, to.x, to.y, x0, y0, x1, y1)) {
+                    dist = 0;
+                } else {
+                    dist = Math.min(
+                        distPointToRect(from.x, from.y, x0, y0, x1, y1),
+                        distPointToRect(to.x, to.y, x0, y0, x1, y1),
+                        distPointToSegment(x0, y0, from.x, from.y, to.x, to.y),
+                        distPointToSegment(x1, y0, from.x, from.y, to.x, to.y),
+                        distPointToSegment(x0, y1, from.x, from.y, to.x, to.y),
+                        distPointToSegment(x1, y1, from.x, from.y, to.x, to.y),
+                    );
+                }
+                if (dist <= width) out.push({ col, row });
+            }
+        }
+        return out;
+    }
+
+    // Supercover grid walk (Amanatides-Woo) in cell units.
+    const x0 = from.x / CELL_SIZE;
+    const y0 = from.y / CELL_SIZE;
+    const dx = (to.x - from.x) / CELL_SIZE;
+    const dy = (to.y - from.y) / CELL_SIZE;
+    let col = Math.floor(x0);
+    let row = Math.floor(y0);
+    const out: TileCoord[] = [{ col, row }];
+    if (dx === 0 && dy === 0) return out;
+
+    const stepX = dx > 0 ? 1 : -1;
+    const stepY = dy > 0 ? 1 : -1;
+    const tDeltaX = dx === 0 ? Infinity : Math.abs(1 / dx);
+    const tDeltaY = dy === 0 ? Infinity : Math.abs(1 / dy);
+    let tMaxX = dx === 0 ? Infinity : dx > 0 ? (col + 1 - x0) / dx : (x0 - col) / -dx;
+    let tMaxY = dy === 0 ? Infinity : dy > 0 ? (row + 1 - y0) / dy : (y0 - row) / -dy;
+
+    // Each iteration crosses at least one cell edge inside the segment, so this always terminates.
+    for (;;) {
+        const tMin = Math.min(tMaxX, tMaxY);
+        if (tMin >= 1 - SEGMENT_EPS) break;
+        if (Math.abs(tMaxX - tMaxY) <= SEGMENT_EPS) {
+            // Exact corner crossing: both orthogonal neighbours are touched, then the diagonal cell.
+            out.push({ col: col + stepX, row }, { col, row: row + stepY });
+            col += stepX;
+            row += stepY;
+            tMaxX += tDeltaX;
+            tMaxY += tDeltaY;
+        } else if (tMaxX < tMaxY) {
+            col += stepX;
+            tMaxX += tDeltaX;
+        } else {
+            row += stepY;
+            tMaxY += tDeltaY;
+        }
+        out.push({ col, row });
+    }
+    return out;
+}
+
 function clampInt(v: number, min: number, max: number): number {
     return v < min ? min : v > max ? max : v;
 }

@@ -1004,6 +1004,9 @@ export class GameEngine implements EngineContext {
         this.terrainManager?.setStoneDamagedEmitter((event) => {
             this.eventBus.emit('terrain_stone_damaged', event);
         });
+        this.terrainManager?.setTerrainEffectsClearedEmitter((cleared) => {
+            this.eventBus.emit('terrain_effects_cleared', { cleared });
+        });
         if (this.terrainManager) {
             this.terrainManager.setTerrainLayers(this.state.terrainLayers);
             this.terrainManager.setCrystalProtectionProvider(
@@ -2056,6 +2059,9 @@ export class GameEngine implements EngineContext {
         engine.terrainManager?.setStoneDamagedEmitter((event) => {
             engine.eventBus.emit('terrain_stone_damaged', event);
         });
+        engine.terrainManager?.setTerrainEffectsClearedEmitter((cleared) => {
+            engine.eventBus.emit('terrain_effects_cleared', { cleared });
+        });
         engine.randomSeed = data.randomSeed ?? 0;
         engine.gameTime = data.gameTime;
         engine.gameTick = data.gameTick ?? 0;
@@ -2345,6 +2351,7 @@ export class GameEngine implements EngineContext {
         this.stop();
         this.deferredOrderPause = null;
         this.terrainManager?.setStoneDamagedEmitter(undefined);
+        this.terrainManager?.setTerrainEffectsClearedEmitter(undefined);
         for (const unit of this.units) {
             unit.detachAllResources(this.eventBus);
         }

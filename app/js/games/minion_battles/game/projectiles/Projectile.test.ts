@@ -9,7 +9,9 @@ import { TerrainType } from '../../terrain/TerrainType';
 import { TerrainManager } from '../../terrain/TerrainManager';
 import { MAX_HELD_PROJECTILE_SECONDS } from '../gameConstants';
 import type { Unit } from '../units/Unit';
-import type { EventBus } from '../EventBus';
+import { EventBus as RealEventBus, type EventBus } from '../EventBus';
+import { TerrainLayerManager, type TerrainEffectRecord } from '../TerrainLayerManager';
+import { TERRAIN_CLEARS } from '../terrainEffects/terrainClearing';
 
 /** Minimal unit stand-in: only the members Projectile.checkCollision reads. */
 function makeUnit(id: string, x: number, y: number) {
@@ -405,5 +407,142 @@ describe('projectile wall stops and stonephase', () => {
             overflow: 'passThrough',
         });
         expect(hitPolicyFromLegacyOptions({ knockbackTier: 0 })).toEqual({ damagingHits: 1, overflow: 'stop' });
+    });
+});
+
+describe('projectile terrain clearing', () => {
+    function brambleAt(id: string, col: number, row: number, layer: 'ground' | 'air' = 'ground'): TerrainEffectRecord {
+        return {
+            id,
+            layer,
+            effectType: 'bramble_slow',
+            placedAtGameTime: 0,
+            area: { type: 'cell', col, row },
+            params: {},
+        };
+    }
+
+    function makeStubEngine() {
+        const terrainLayers = new TerrainLayerManager();
+        const bus = new RealEventBus();
+        const clearedEvents: unknown[] = [];
+        bus.on('terrain_effects_cleared', (e) => clearedEvents.push(e));
+        return { engine: { terrainLayers, eventBus: bus }, terrainLayers, clearedEvents };
+    }
+
+    function makeClearingProjectile(y: number, extra: Partial<ConstructorParameters<typeof Projectile>[0]> = {}) {
+        return new Projectile({
+            x: 20,
+            y,
+            velocityX: 400,
+            velocityY: 0,
+            damage: 0,
+            sourceTeamId: 'player',
+            sourceUnitId: 'caster_1',
+            sourceAbilityId: 'rock_slide',
+            maxDistance: 10000,
+            clearsTerrainEffects: { spec: TERRAIN_CLEARS.scour },
+            ...extra,
+        });
+    }
+
+    it('clears only cells within its width of the path', () => {
+        const { engine, terrainLayers, clearedEvents } = makeStubEngine();
+        terrainLayers.add(brambleAt('spawn', 0, 0));
+        terrainLayers.add(brambleAt('path', 2, 0));
+        terrainLayers.add(brambleAt('beside', 2, 1));
+        terrainLayers.add(brambleAt('air', 1, 0, 'air'));
+        const proj = makeClearingProjectile(20);
+        proj.radius = 5;
+
+        // 400 px/s * 0.3 s = 120 px: crosses tiles 0..3 of row 0.
+        for (let i = 0; i < 18; i++) proj.update(1 / 60, engine);
+
+        expect(terrainLayers.getGroundEffectAt(0, 0)).toBeNull();
+        expect(terrainLayers.getGroundEffectAt(2, 0)).toBeNull();
+        expect(terrainLayers.getGroundEffectAt(2, 1)?.id).toBe('beside');
+        expect(terrainLayers.getAirEffectAt(1, 0)?.id).toBe('air');
+        expect(clearedEvents.length).toBeGreaterThan(0);
+        expect(clearedEvents[0]).toMatchObject({ source: { unitId: 'caster_1', abilityId: 'rock_slide' } });
+    });
+
+    it('a wide sweep on an off-grid path reaches tiles a narrow one misses', () => {
+        // Path along y = 38: inside row 0, 2 px from the row 1 boundary.
+        const run = (sweepWidth: number) => {
+            const { engine, terrainLayers } = makeStubEngine();
+            terrainLayers.add(brambleAt('below', 2, 1));
+            const proj = makeClearingProjectile(38, {
+                clearsTerrainEffects: { spec: TERRAIN_CLEARS.scour, sweepWidth },
+            });
+            for (let i = 0; i < 18; i++) proj.update(1 / 60, engine);
+            return terrainLayers.getGroundEffectAt(2, 1);
+        };
+        expect(run(1)?.id).toBe('below');
+        expect(run(10)).toBeNull();
+    });
+
+    it('defaults the sweep width to the projectile radius', () => {
+        const { engine, terrainLayers } = makeStubEngine();
+        terrainLayers.add(brambleAt('below', 2, 1));
+        const proj = makeClearingProjectile(38);
+        proj.radius = 10;
+        for (let i = 0; i < 18; i++) proj.update(1 / 60, engine);
+        expect(terrainLayers.getGroundEffectAt(2, 1)).toBeNull();
+    });
+
+    it('clears nothing while held, then clears once released', () => {
+        const { engine, terrainLayers } = makeStubEngine();
+        terrainLayers.add(brambleAt('spawn', 0, 0));
+        const proj = makeClearingProjectile(20, {
+            velocityX: 0,
+            heldBy: { unitId: 'caster_1', abilityId: 'rock_slide' },
+        });
+
+        proj.update(1 / 60, engine);
+        expect(terrainLayers.getGroundEffectAt(0, 0)?.id).toBe('spawn');
+
+        proj.release(400, 0);
+        proj.update(1 / 60, engine);
+        expect(terrainLayers.getGroundEffectAt(0, 0)).toBeNull();
+    });
+
+    it('does nothing when the engine has no terrainLayers or eventBus', () => {
+        const proj = makeClearingProjectile(20);
+        expect(() => proj.update(1 / 60, {})).not.toThrow();
+        expect(proj.clearedTerrainCells.size).toBe(0);
+    });
+
+    it('does not re-clear tiles it already swept', () => {
+        const { engine, terrainLayers } = makeStubEngine();
+        const proj = makeClearingProjectile(20);
+        for (let i = 0; i < 3; i++) proj.update(1 / 60, engine);
+        // An effect placed behind the projectile on an already-swept tile survives.
+        terrainLayers.add(brambleAt('late', 0, 0));
+        proj.update(1 / 60, engine);
+        expect(terrainLayers.getGroundEffectAt(0, 0)?.id).toBe('late');
+    });
+
+    it('survives a JSON round-trip with the property and the cleared set', () => {
+        const { engine } = makeStubEngine();
+        const proj = makeClearingProjectile(20, {
+            clearsTerrainEffects: { spec: TERRAIN_CLEARS.blast, sweepWidth: 12 },
+        });
+        for (let i = 0; i < 6; i++) proj.update(1 / 60, engine);
+        expect(proj.clearedTerrainCells.size).toBeGreaterThan(0);
+
+        const restored = Projectile.fromJSON(JSON.parse(JSON.stringify(proj.toJSON())));
+
+        expect(restored.clearsTerrainEffects).toEqual({
+            spec: { layers: ['ground', 'air'] },
+            sweepWidth: 12,
+        });
+        expect([...restored.clearedTerrainCells]).toEqual([...proj.clearedTerrainCells]);
+    });
+
+    it('a projectile without the property serializes without it', () => {
+        const proj = makeClearingProjectile(20, { clearsTerrainEffects: undefined });
+        const json = proj.toJSON();
+        expect(json.clearsTerrainEffects).toBeUndefined();
+        expect(Projectile.fromJSON(json).clearsTerrainEffects).toBeUndefined();
     });
 });
