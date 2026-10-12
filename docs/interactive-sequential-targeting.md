@@ -174,7 +174,8 @@ The **targeting cursor** (hitbox preview overlay) is only rendered when the stat
 An interrupted cast is a valid game state, so the preview does not rewind when it happens. The interrupt and fizzle pipelines emit `cast_ended_early`; the engine records the first such event for the preview cast as `endedEarly` (matching by `isPreviewCastInstance`, so a Combo follow-up's recast of the previous cast is ignored). While `endedEarly` is set, `isITSPreviewComplete` is `getEndedEarlyPreviewStop(engine) != null` instead of "cast left active".
 
 - Stops: caster dead, `engine.waitingForOrders` set (frozen local parallel pause), `orderMgr.shouldPauseForOrders(caster)` (the caster can act again), or `ITS_ENDED_EARLY_PLAYAHEAD_MAX_TICKS` after the interrupt (chained stuns).
-- Until it stops, cards and hotkeys stay locked. Undo (button or Esc) works the whole time. Done commits; with Auto End it is pressed automatically (`shouldAutoCommitItsPreview`).
+- Until it stops, cards and hotkeys stay locked. Undo (button or Esc) works the whole time.
+- At the stop, the Undo rule decides, not Auto End (`shouldAutoCommitItsPreview`). If Undo is not allowed at that point (`isItsUndoDisabled`, driven by `ONLY_UNDO_AT_START`), the timeline commits automatically. If Undo is allowed, the player commits with **Pass** (button or Space) or Done.
 - Commit: the order carries `missingSelectLabels`, the select labels never collected. In place vs rollback is decided as usual.
 - A notice ("Interrupted", "Fizzled", "Defeated") shows above the Your Turn plaque through the battle notice store, with a minimum visible time.
 

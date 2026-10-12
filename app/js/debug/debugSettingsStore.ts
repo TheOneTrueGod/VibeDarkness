@@ -1,4 +1,24 @@
+/**
+ * How much of an enemy unit's movement trail preview to render: `'disabled'` (none), `'full'`
+ * (whole path), a pixel length (`'100px'`) or a percentage of the path's length (`'50%'`).
+ */
+export type EnemyMovementTrailLimit = 'disabled' | 'full' | `${number}px` | `${number}%`;
+
+export const DEFAULT_ENEMY_MOVEMENT_TRAIL_LIMIT: EnemyMovementTrailLimit = '100px';
+
+/** Resolve a limit to the number of pixels to render for a path of `totalLength` pixels. */
+export function resolveEnemyMovementTrailLength(limit: EnemyMovementTrailLimit, totalLength: number): number {
+    if (limit === 'disabled') return 0;
+    if (limit === 'full') return totalLength;
+    const value = parseFloat(limit);
+    if (!Number.isFinite(value)) return totalLength;
+    if (limit.endsWith('%')) return (totalLength * Math.max(0, value)) / 100;
+    return Math.max(0, value);
+}
+
 export interface DebugSettingsSnapshot {
+    /** Maximum rendered length of enemy movement trail previews. */
+    enemyMovementTrailLimit: EnemyMovementTrailLimit;
     /** When false, darkness overlay on the battle map is disabled. */
     darkOverlayEnabled: boolean;
     /** When true, player-controlled units do not lose HP. */
@@ -19,6 +39,7 @@ export interface DebugSettingsSnapshot {
 }
 
 export const debugSettingsSnapshot: DebugSettingsSnapshot = {
+    enemyMovementTrailLimit: DEFAULT_ENEMY_MOVEMENT_TRAIL_LIMIT,
     darkOverlayEnabled: true,
     godModeEnabled: false,
     superSpeedEnabled: false,

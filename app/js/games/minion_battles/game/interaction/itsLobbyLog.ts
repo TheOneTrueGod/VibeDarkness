@@ -14,10 +14,14 @@ export type ItsActionSource =
     | 'terminal_outcome_auto_commit'
     | 'conditional_cancel_follow_up'
     | 'conditional_cancel_continue'
-    | 'combo_window_after_assumed_pass';
+    | 'combo_window_after_assumed_pass'
+    | 'pass_ended_early';
 
 /** AUTO_END_TURN refused commit because not every SelectTargetDef label was collected. */
 export const ITS_AUTO_COMMIT_BLOCK_TARGETS_INCOMPLETE = 'targets_incomplete';
+
+/** An ended-early preview did not auto-commit because Undo is allowed: the player commits with Pass / Done. */
+export const ITS_AUTO_COMMIT_BLOCK_UNDO_ALLOWED = 'undo_allowed_wait_for_pass';
 
 /** Non-user ITS cancellation (resync, terminal teardown). */
 export type ItsCancelReason =

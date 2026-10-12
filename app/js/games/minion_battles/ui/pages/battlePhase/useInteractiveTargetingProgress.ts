@@ -10,8 +10,11 @@ import {
     isITSPreviewComplete,
     shouldAutoCommitItsPreview,
 } from '../../../game/interaction/isITSPreviewComplete';
+import { ONLY_UNDO_AT_START } from '../../../game/gameConstants';
+import { isItsUndoDisabled } from '../../components/itsUndoHotkey';
 import {
     ITS_AUTO_COMMIT_BLOCK_TARGETS_INCOMPLETE,
+    ITS_AUTO_COMMIT_BLOCK_UNDO_ALLOWED,
     logItsAutoCommitEval,
     logItsEndedEarlyStop,
     logItsPreviewEndedEarly,
@@ -181,21 +184,37 @@ export function useInteractiveTargetingProgress({
                 logItsEndedEarlyStop(session, its, getEndedEarlyPreviewStop(eng));
             }
 
-            if (nextState === 'done' && getAutoEndTurn() && !autoCommitItsAttemptedRef.current && session) {
+            const endedEarlyNow = endedEarly != null;
+            // Ended-early previews follow the Undo rule (commit when Undo is not allowed, otherwise wait for
+            // Pass / Done); everything else follows Auto End. See shouldAutoCommitItsPreview.
+            if (
+                nextState === 'done'
+                && (getAutoEndTurn() || endedEarlyNow)
+                && !autoCommitItsAttemptedRef.current
+                && session
+            ) {
                 const allTargetsCollected = its.allTargetsCollected();
-                const endedEarlyNow = endedEarly != null;
-                // Incomplete selects must not auto-commit unless the cast ended early
-                // (lobbies 12D040 / 10EA88; ended-early commits carry missingSelectLabels).
+                const undoAllowed = !isItsUndoDisabled({
+                    isRewindCrossfade: false,
+                    onlyUndoAtStart: ONLY_UNDO_AT_START,
+                    hasCollectedTargets: Object.keys(its.collectedTargets).length > 0,
+                });
                 const willCommit = shouldAutoCommitItsPreview({
                     previewComplete: true,
                     allTargetsCollected,
                     endedEarly: endedEarlyNow,
+                    autoEndTurn: getAutoEndTurn(),
+                    undoAllowed,
                 });
                 logItsAutoCommitEval(session, its, {
                     previewComplete: true,
                     allTargetsCollected,
                     willCommit,
-                    blockReason: willCommit ? null : ITS_AUTO_COMMIT_BLOCK_TARGETS_INCOMPLETE,
+                    blockReason: willCommit
+                        ? null
+                        : endedEarlyNow
+                          ? ITS_AUTO_COMMIT_BLOCK_UNDO_ALLOWED
+                          : ITS_AUTO_COMMIT_BLOCK_TARGETS_INCOMPLETE,
                     endedEarly: endedEarlyNow,
                 });
                 autoCommitItsAttemptedRef.current = true;

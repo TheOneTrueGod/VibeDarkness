@@ -549,3 +549,90 @@ describe('PlayerInteractionManager at a missing-pick decision', () => {
         expect(activate).toHaveBeenCalledTimes(1);
     });
 });
+
+describe('PlayerInteractionManager Pass at an ended-early preview stop (Undo allowed)', () => {
+    let engineToDestroy: GameEngine | null = null;
+    let managerToDestroy: PlayerInteractionManager | null = null;
+
+    afterEach(() => {
+        managerToDestroy?.destroy();
+        managerToDestroy = null;
+        engineToDestroy?.destroy();
+        engineToDestroy = null;
+    });
+
+    /** ITS preview whose cast ended early and has reached its stop (the caster can act again). */
+    function mountEndedEarlyDone(opts: { endedEarly: boolean }) {
+        const commit = vi.fn(async (_session: unknown, _actionSource?: string) => {});
+        const engine = buildTinyBattleEngine({
+            gridW: GRID_W,
+            gridH: GRID_H,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+        const start = playerCellCenter(2, 4);
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: start.x,
+            y: start.y,
+            abilities: ['0120'],
+        });
+        engine.waitingForOrders = null;
+        engine.isSequentialTargetingPreview = true;
+        engine.sequentialTargetingPreviewCast = {
+            unitId: player.id,
+            abilityId: '0120',
+            startRound: engine.roundNumber,
+            beganAtGameTime: engine.gameTime,
+            ...(opts.endedEarly ? { endedEarly: { atTick: engine.gameTick, reason: 'interrupted' as const } } : {}),
+        };
+        const camera = new Camera(800, 600, engine.getWorldWidth(), engine.getWorldHeight());
+        const manager = new PlayerInteractionManager();
+        manager.setContext({
+            engine,
+            camera,
+            renderer: { setDebugUnitOutline: () => {} } as unknown as GameRenderer,
+            session: {
+                submitPlayerOrder: async () => {},
+                interactiveTargeting: {
+                    isActive: true,
+                    isResumeMode: false,
+                    previewOrderQueued: true,
+                    shouldForceItsCommitAtComboWindow: () => false,
+                    commit,
+                    reset: async () => {},
+                    getPreviewCastEndedEarly: () => (opts.endedEarly ? { reason: 'interrupted' } : null),
+                },
+            },
+            playerId: TINY_BATTLE_PLAYER_ID,
+        });
+        // No active order waiter during the preview, so the order UI is off.
+        manager.setCanUseOrderUi(false);
+        engineToDestroy = engine;
+        managerToDestroy = manager;
+        return { manager, commit };
+    }
+
+    const spaceKey = (): KeyboardEvent =>
+        ({ code: 'Space', key: ' ', repeat: false, preventDefault: () => {} }) as unknown as KeyboardEvent;
+
+    it('the Pass button commits the ended-early timeline', () => {
+        const { manager, commit } = mountEndedEarlyDone({ endedEarly: true });
+        manager.handleWait();
+        expect(commit).toHaveBeenCalledTimes(1);
+        expect(commit.mock.calls[0]![1]).toBe('pass_ended_early');
+    });
+
+    it('Space commits it too, even though the order UI is off', () => {
+        const { manager, commit } = mountEndedEarlyDone({ endedEarly: true });
+        manager.onKeyDown(spaceKey());
+        expect(commit).toHaveBeenCalledTimes(1);
+    });
+
+    it('Pass does nothing during an ordinary preview that did not end early', () => {
+        const { manager, commit } = mountEndedEarlyDone({ endedEarly: false });
+        manager.handleWait();
+        manager.onKeyDown(spaceKey());
+        expect(commit).not.toHaveBeenCalled();
+    });
+});

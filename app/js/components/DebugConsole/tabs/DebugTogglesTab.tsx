@@ -3,6 +3,7 @@
  */
 import React, { useCallback, useSyncExternalStore } from 'react';
 import { useDebugSettings } from '../../../contexts/DebugSettingsContext';
+import type { EnemyMovementTrailLimit } from '../../../debug/debugSettingsStore';
 import DebugOnOffButton from '../DebugOnOffButton';
 import {
     DEBUG_TYPES,
@@ -48,6 +49,16 @@ interface DebugTogglesTabProps {
     isActive: boolean;
 }
 
+const ENEMY_TRAIL_LIMIT_PRESETS: { value: EnemyMovementTrailLimit; label: string }[] = [
+    { value: 'disabled', label: 'Disabled' },
+    { value: '50px', label: '50px' },
+    { value: '100px', label: '100px' },
+    { value: '200px', label: '200px' },
+    { value: '10%', label: '10%' },
+    { value: '50%', label: '50%' },
+    { value: '100%', label: '100%' },
+];
+
 const THRESHOLD_OPTIONS = (
     Object.keys(DEBUG_LOG_THRESHOLD_LABELS) as DebugLogThreshold[]
 ).map((value) => ({ value, label: DEBUG_LOG_THRESHOLD_LABELS[value] }));
@@ -60,6 +71,8 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
         setJsPerformanceTracking,
         darkOverlayEnabled,
         setDarkOverlayEnabled,
+        enemyMovementTrailLimit,
+        setEnemyMovementTrailLimit,
     } = useDebugSettings();
 
     const showAllResearchTrees = useSyncExternalStore(
@@ -194,6 +207,30 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
                     tick) on serialized game state when logging ticks or saving snapshots.
                 </p>
             )}
+
+            <h3 className="text-xs font-semibold text-muted uppercase tracking-wide mt-8 mb-2">
+                Enemy movement trails
+            </h3>
+            <p className="text-xs text-muted mb-3 max-w-xl">
+                Maximum length of enemy movement trail previews, measured from the unit. Percentages are of the full
+                path length.
+            </p>
+            <div className="flex flex-wrap gap-2">
+                {ENEMY_TRAIL_LIMIT_PRESETS.map((preset) => (
+                    <button
+                        key={preset.value}
+                        type="button"
+                        onClick={() => setEnemyMovementTrailLimit(preset.value)}
+                        className={`rounded-full border px-3 py-1 text-xs ${
+                            enemyMovementTrailLimit === preset.value
+                                ? 'border-primary bg-primary/20 text-white'
+                                : 'border-border-custom bg-surface text-muted hover:text-white'
+                        }`}
+                    >
+                        {preset.label}
+                    </button>
+                ))}
+            </div>
 
             <h3 className="text-xs font-semibold text-muted uppercase tracking-wide mt-8 mb-2">
                 Resource bars

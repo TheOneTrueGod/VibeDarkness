@@ -307,31 +307,30 @@ describe('isITSPreviewComplete', () => {
     });
 
     describe('shouldAutoCommitItsPreview', () => {
+        const base = { previewComplete: true, allTargetsCollected: false, endedEarly: false, autoEndTurn: true, undoAllowed: true };
+
         it('does not commit an incomplete preview, whatever else is true', () => {
-            expect(
-                shouldAutoCommitItsPreview({ previewComplete: false, allTargetsCollected: true, endedEarly: true }),
-            ).toBe(false);
-            expect(
-                shouldAutoCommitItsPreview({ previewComplete: false, allTargetsCollected: false, endedEarly: false }),
-            ).toBe(false);
+            expect(shouldAutoCommitItsPreview({ ...base, previewComplete: false, allTargetsCollected: true })).toBe(false);
+            expect(shouldAutoCommitItsPreview({ ...base, previewComplete: false, endedEarly: true, undoAllowed: false })).toBe(false);
         });
 
         it('does not commit a complete preview with missing targets that did not end early (12D040 / 10EA88)', () => {
-            expect(
-                shouldAutoCommitItsPreview({ previewComplete: true, allTargetsCollected: false, endedEarly: false }),
-            ).toBe(false);
+            expect(shouldAutoCommitItsPreview(base)).toBe(false);
         });
 
-        it('commits a complete preview with every target collected', () => {
-            expect(
-                shouldAutoCommitItsPreview({ previewComplete: true, allTargetsCollected: true, endedEarly: false }),
-            ).toBe(true);
+        it('commits a complete preview with every target collected only when Auto End is on', () => {
+            expect(shouldAutoCommitItsPreview({ ...base, allTargetsCollected: true })).toBe(true);
+            expect(shouldAutoCommitItsPreview({ ...base, allTargetsCollected: true, autoEndTurn: false })).toBe(false);
         });
 
-        it('commits a complete preview that ended early even with targets missing', () => {
-            expect(
-                shouldAutoCommitItsPreview({ previewComplete: true, allTargetsCollected: false, endedEarly: true }),
-            ).toBe(true);
+        it('commits an ended-early preview when Undo is not allowed, whatever Auto End says', () => {
+            expect(shouldAutoCommitItsPreview({ ...base, endedEarly: true, undoAllowed: false })).toBe(true);
+            expect(shouldAutoCommitItsPreview({ ...base, endedEarly: true, undoAllowed: false, autoEndTurn: false })).toBe(true);
+        });
+
+        it('leaves an ended-early preview for Pass when Undo is allowed, even with Auto End on', () => {
+            expect(shouldAutoCommitItsPreview({ ...base, endedEarly: true, undoAllowed: true })).toBe(false);
+            expect(shouldAutoCommitItsPreview({ ...base, endedEarly: true, allTargetsCollected: true })).toBe(false);
         });
     });
 

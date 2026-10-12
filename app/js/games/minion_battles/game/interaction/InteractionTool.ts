@@ -15,6 +15,8 @@ export interface PlayerInteractionSession {
         shouldForceItsCommitAtComboWindow(): boolean;
         commit(session: PlayerInteractionSession, actionSource?: string): Promise<void>;
         reset(session: PlayerInteractionSession, actionSource?: string): Promise<void>;
+        /** Non-null when the preview cast ended early (interrupt / fizzle / death); Pass then commits at Done. */
+        getPreviewCastEndedEarly?(engine: GameEngine): unknown;
     };
 }
 

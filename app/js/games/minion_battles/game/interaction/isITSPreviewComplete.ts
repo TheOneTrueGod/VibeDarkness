@@ -95,17 +95,24 @@ export function isITSPreviewComplete(engine: GameEngine): boolean {
 }
 
 /**
- * Whether Auto End should commit a finished ITS preview. True when the preview is complete and either
- * every target was collected or the cast ended early (interrupt / fizzle / death: the picks it never
- * reached are committed as `missingSelectLabels`). An incomplete preview that did NOT end early must
- * not auto-commit (lobbies 12D040 / 10EA88).
+ * Whether a finished ITS preview commits automatically.
+ * - **Ended early** (interrupt / fizzle / death; the picks it never reached are committed as
+ *   `missingSelectLabels`): decided by the Undo rule, not Auto End. When Undo is not allowed there is
+ *   nothing left to decide, so it commits; when Undo is allowed the player commits with Pass (or Done).
+ * - **Otherwise:** Auto End commits only when every target was collected. An incomplete preview that did
+ *   NOT end early must not auto-commit (lobbies 12D040 / 10EA88).
  */
 export function shouldAutoCommitItsPreview(params: {
     previewComplete: boolean;
     allTargetsCollected: boolean;
     endedEarly: boolean;
+    autoEndTurn: boolean;
+    /** Whether Undo is currently allowed (`isItsUndoDisabled` is false). */
+    undoAllowed: boolean;
 }): boolean {
-    return params.previewComplete && (params.allTargetsCollected || params.endedEarly);
+    if (!params.previewComplete) return false;
+    if (params.endedEarly) return !params.undoAllowed;
+    return params.autoEndTurn && params.allTargetsCollected;
 }
 
 /**

@@ -94,8 +94,13 @@ export function useBattleAbilityBarSlots({
             || sessionRef.current?.interactiveTargeting.isResumeMode === true);
     const isMyTurn =
         canUseOrderUi && !atMissingPickDecision && (!isItsPreviewActive || isConditionalCancelPause);
-    const passEnabled = isMyTurn || atMissingPickDecision;
-    const onWait = nonconfirmedOrder && !autoEndTurn
+    // Ended-early preview at its stop point (Done): Pass commits that timeline. It only waits here when
+    // Undo is allowed; otherwise it already auto-committed (shouldAutoCommitItsPreview).
+    const atEndedEarlyDone =
+        interactiveTargetingState === 'done'
+        && sessionRef.current?.interactiveTargeting.getPreviewCastEndedEarly(engine) != null;
+    const passEnabled = isMyTurn || atMissingPickDecision || atEndedEarlyDone;
+    const onWait = nonconfirmedOrder && !autoEndTurn && !atEndedEarlyDone
         ? () => sessionRef.current?.getInteractionManager()?.handleEndTurn()
         : () => sessionRef.current?.getInteractionManager()?.handleWait();
     const waitDisabledReason =
@@ -103,7 +108,9 @@ export function useBattleAbilityBarSlots({
     const passAction: TurnIndicatorPassAction = {
         onPass: onWait,
         disabled: !passEnabled,
-        title: atMissingPickDecision
+        title: atEndedEarlyDone
+            ? 'Pass: commit this timeline (Space)'
+            : atMissingPickDecision
             ? 'Pass: skip the pick (the ability fizzles)'
             : !isMyTurn
               ? waitDisabledReason === 'its_preview_active'

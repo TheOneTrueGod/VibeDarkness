@@ -16,7 +16,7 @@ import { getAbility } from '../../abilities/AbilityRegistry';
 import { resolveModeAbilityId } from '../../abilities/resolveAbilityMode';
 import { TERRAIN_PROPERTIES } from '../../terrain/TerrainType';
 import { logOrderUiKeyAction } from './itsLobbyLog';
-import { isAtConditionalCancelDecision, isAtMissingPickDecision } from './isITSPreviewComplete';
+import { isAtConditionalCancelDecision, isAtMissingPickDecision, isITSPreviewComplete } from './isITSPreviewComplete';
 import { canUseAbilityNow } from '../../abilities/abilityUses';
 
 declare global {
@@ -228,6 +228,11 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         // Space — confirm/wait
         if (e.code === 'Space' && !e.repeat) {
             e.preventDefault();
+            // An ended-early preview at Done has no active order waiter (so no order UI), but Pass commits it.
+            if (this.isAtEndedEarlyDone()) {
+                this.handleWait();
+                return;
+            }
             if (!this._canUseOrderUi) {
                 if (this.ctx) {
                     logOrderUiKeyAction(this.ctx.session as BattleSession, {
@@ -491,6 +496,18 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         return isAtMissingPickDecision(this.ctx.engine, active?.unitId);
     }
 
+    /**
+     * True when an ITS preview whose cast ended early (interrupt / fizzle / death) has reached its stop
+     * point (Done). Pass then commits that timeline (used when Undo is allowed, so it did not auto-commit).
+     */
+    private isAtEndedEarlyDone(): boolean {
+        if (!this.ctx) return false;
+        const its = this.ctx.session.interactiveTargeting;
+        if (!its.isActive) return false;
+        if (its.getPreviewCastEndedEarly?.(this.ctx.engine) == null) return false;
+        return isITSPreviewComplete(this.ctx.engine);
+    }
+
     handleWait(): void {
         const logWait = (blocked: boolean, blockReason: string | null): void => {
             if (!this.ctx) return;
@@ -519,6 +536,12 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
             void session.interactiveTargeting.reset(session, 'ui_reset').then(() => {
                 this.submitOrder('wait', []);
             });
+            return;
+        }
+        // Pass at the stop point of an ended-early preview commits that timeline.
+        if (this.ctx && this.isAtEndedEarlyDone()) {
+            logWait(false, 'ended_early_pass_commit');
+            void this.ctx.session.interactiveTargeting.commit(this.ctx.session, 'pass_ended_early');
             return;
         }
         if (this.ctx?.session.interactiveTargeting.isActive) {

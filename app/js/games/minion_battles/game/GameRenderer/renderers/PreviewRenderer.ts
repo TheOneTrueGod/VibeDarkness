@@ -1,6 +1,6 @@
 import { Graphics } from 'pixi.js';
 import type { Container } from 'pixi.js';
-import { debugSettingsSnapshot } from '../../../../../debug/debugSettingsStore';
+import { debugSettingsSnapshot, resolveEnemyMovementTrailLength } from '../../../../../debug/debugSettingsStore';
 import { DarknessLevel } from '../../darknessLevels';
 import type { GameEngine } from '../../GameEngine';
 import type { Unit } from '../../units/Unit';
@@ -511,34 +511,54 @@ export class PreviewRenderer {
         originY: number,
         path: { col: number; row: number }[],
     ): void {
+        if (path.length === 0) return;
         const cs = CELL_SIZE;
-        const center = (col: number, row: number) => ({ x: col * cs + cs / 2, y: row * cs + cs / 2 });
 
-        const n = path.length;
-        if (n === 0) return;
+        // Polyline in world px: origin followed by each path cell centre.
+        let pts: { x: number; y: number }[] = [{ x: originX, y: originY }];
+        for (const cell of path) pts.push({ x: cell.col * cs + cs / 2, y: cell.row * cs + cs / 2 });
 
+        let fullLen = 0;
+        for (let i = 0; i < pts.length - 1; i++) {
+            fullLen += Math.hypot(pts[i + 1]!.x - pts[i]!.x, pts[i + 1]!.y - pts[i]!.y);
+        }
+        const maxLen = resolveEnemyMovementTrailLength(debugSettingsSnapshot.enemyMovementTrailLimit, fullLen);
+        if (maxLen <= 0) return;
+        if (maxLen < fullLen) {
+            const clipped: { x: number; y: number }[] = [pts[0]!];
+            let remaining = maxLen;
+            for (let i = 0; i < pts.length - 1 && remaining > 0; i++) {
+                const a = pts[i]!;
+                const b = pts[i + 1]!;
+                const len = Math.hypot(b.x - a.x, b.y - a.y);
+                if (len <= remaining) {
+                    clipped.push(b);
+                    remaining -= len;
+                } else {
+                    const t = remaining / len;
+                    clipped.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+                    remaining = 0;
+                }
+            }
+            pts = clipped;
+        }
+        if (pts.length < 2) return;
+
+        const n = pts.length - 1; // path points remaining after clipping
         const solidCellCount = Math.min(2, n);
-        g.moveTo(originX, originY);
-        for (let i = 0; i < solidCellCount; i++) {
-            const p = center(path[i]!.col, path[i]!.row);
-            g.lineTo(p.x, p.y);
+        for (const [color, width, alpha] of [
+            [MOVE_TARGET_PATH_BG_COLOR, 3, 0.7],
+            [MOVE_TARGET_COLOR, 2, 1],
+        ] as const) {
+            g.moveTo(originX, originY);
+            for (let i = 1; i <= solidCellCount; i++) g.lineTo(pts[i]!.x, pts[i]!.y);
+            g.stroke({ color, width, alpha });
         }
-        g.stroke({ color: MOVE_TARGET_PATH_BG_COLOR, width: 3, alpha: 0.7 });
-
-        g.moveTo(originX, originY);
-        for (let i = 0; i < solidCellCount; i++) {
-            const p = center(path[i]!.col, path[i]!.row);
-            g.lineTo(p.x, p.y);
-        }
-        g.stroke({ color: MOVE_TARGET_COLOR, width: 2 });
 
         if (n < 3) return;
 
-        const tailPoints: { x: number; y: number }[] = [];
-        for (let i = 1; i < n; i++) {
-            tailPoints.push(center(path[i]!.col, path[i]!.row));
-        }
-
+        // Fading tail runs from the second path point (pts[2]) onwards.
+        const tailPoints = pts.slice(2);
         let totalLen = 0;
         const segLens: number[] = [];
         for (let i = 0; i < tailPoints.length - 1; i++) {
