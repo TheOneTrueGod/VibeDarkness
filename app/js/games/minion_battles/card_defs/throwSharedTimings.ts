@@ -138,7 +138,8 @@ export function buildThrowBaseTimings(opts: BuildThrowBaseTimingsOpts = {}): Abi
             doNotRefund: true,
             timelineLabel: opts.activeLabel ?? 'Active',
             timelineDescription: 'Release frame — projectile is thrown.',
-            targetDef: throwSelectTargetDef('Target location', opts),
+            // Picked right before the throw (same as More Rock), not up front at cast start.
+            targetDef: { ...throwSelectTargetDef('Target location', opts), pickAtEntry: true },
             ...(launch ? { castBehaviours: throwLaunchAtWindowStart(launch, 0) } : {}),
         },
         {
@@ -204,7 +205,8 @@ export function buildMoreRockTimings(opts: BuildMoreRockTimingsOpts): AbilityTim
             doNotRefund: true,
             timelineLabel: 'First throw',
             timelineDescription: 'First projectile is in flight.',
-            targetDef: throwSelectTargetDef('Target location', selectOpts),
+            // Picked right before the throw, like the second target, not up front at cast start.
+            targetDef: { ...throwSelectTargetDef('Target location', selectOpts), pickAtEntry: true },
             castBehaviours: throwLaunchAtWindowStart(launchBehaviour, 0),
         },
         {

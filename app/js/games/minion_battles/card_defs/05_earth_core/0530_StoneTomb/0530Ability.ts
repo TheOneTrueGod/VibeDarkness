@@ -2,11 +2,11 @@
  * Stone Tomb — Earth Core two-stage ground ability. The caster winds up, shaking, with rock chips
  * hopping at their feet. Just before the first punch lands they pick a tile: the target tile and its
  * four orthogonal neighbours (a plus sign) are telegraphed in red and rumble. Then the caster punches
- * twice, once per stage.
+ * once, for the centre hit.
  *
- * Stage 1 (first punch): enemies in the centre tile take 10 damage and all units there (allies
+ * Stage 1 (the punch): enemies in the centre tile take 10 damage and all units there (allies
  * undamaged) are knocked back away from the centre of that tile, then a rock is raised there.
- * Stage 2 (second punch, 0.3s later): enemies in any tile of the plus take 6 damage, then the four
+ * Stage 2 (0.3s later, no punch): enemies in any tile of the plus take 6 damage, then the four
  * outer tiles become gravel (Rubble). Only the centre is rock.
  *
  * Costs 3 rock; 2 uses per round.
@@ -16,8 +16,8 @@
  *   0.55-0.567  pick the tomb tile (gated one-tick select: ITS pauses here, as late as possible)
  *   0.567-0.70  punch 1 slide-in; the marked tiles rumble
  *   0.70        stage 1: damage, knockback and the centre rock; punch 1 slide-out to 0.85
- *   0.85-1.00   punch 2 slide-in
- *   1.00        stage 2: damage and the outer gravel; punch 2 slide-out to 1.15
+ *   0.85-1.00   pause (the caster stays still)
+ *   1.00        stage 2: damage and the outer gravel (no punch)
  *   1.15-1.70   cooldown
  */
 
@@ -65,7 +65,7 @@ import { stoneTombRumble } from './stoneTombVfx';
 const ABILITY_ID = '0530';
 const TOMB_LABEL = 'Tomb location';
 const STAGE2_TIME = STONE_TOMB_STAGE1_TIME + STONE_TOMB_STAGE_GAP;
-/** End of the second punch's slide-out; cooldown starts here. */
+/** End of the stage-2 window (the caster stays planted until here); cooldown starts here. */
 const PUNCHES_END = STAGE2_TIME + STONE_TOMB_PUNCH_LEAD;
 
 const IMPACT_COLOR = 0x27d3c8;
@@ -284,13 +284,13 @@ const TIMINGS: AbilityTimingInterval[] = [
         castBehaviours: [{ timingStart: 'start', behaviour: CastBehaviours.Instant(stageOne) }, punchOut()],
     },
     {
+        // The gap before stage 2. The caster stays put: only the centre hit (stage 1) has a punch.
         id: 'punch2',
         start: STONE_TOMB_STAGE1_TIME + STONE_TOMB_PUNCH_LEAD,
         end: STAGE2_TIME,
         abilityPhase: AbilityPhase.Active,
         doNotRefund: true,
         targetDef: TOMB_HIT,
-        castBehaviours: [punchIn()],
     },
     {
         id: 'stage2',
@@ -299,7 +299,7 @@ const TIMINGS: AbilityTimingInterval[] = [
         abilityPhase: AbilityPhase.Active,
         doNotRefund: true,
         targetDef: TOMB_HIT,
-        castBehaviours: [{ timingStart: 'start', behaviour: CastBehaviours.Instant(stageTwo) }, punchOut()],
+        castBehaviours: [{ timingStart: 'start', behaviour: CastBehaviours.Instant(stageTwo) }],
     },
     { id: 'cooldown', start: PUNCHES_END, end: STONE_TOMB_CAST_TIME, abilityPhase: AbilityPhase.Cooldown },
 ];

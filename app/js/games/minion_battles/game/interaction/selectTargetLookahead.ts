@@ -133,7 +133,8 @@ function findImpendingNeedForCast(
  * - the ability has windup `lunge` (beginActiveCast needs a target before windup movement), or
  * - the first select is a pixel-aim `nullHitbox` pick (Throw Rock, Dodge, Claw). Lookahead
  *   pause at the later Active frame playaheads through windup with no line preview and
- *   swallows canvas clicks until React observes `waitingForTargetInput`.
+ *   swallows canvas clicks until React observes `waitingForTargetInput`. A select with
+ *   `pickAtEntry` opts out and is picked by the lookahead right before it enters (More Rock).
  *
  * Otherwise returns null and pre-tick lookahead handles the first pause.
  */
@@ -149,7 +150,11 @@ export function findPreviewDeferredSelectLabel(
         if (!interval.targetDef || !isInteractiveTargetDef(interval.targetDef)) continue;
         if (interval.start === 0) return interval.targetDef.label;
         if (ability.lunge != null) return interval.targetDef.label;
-        if (isSelectTargetDef(interval.targetDef) && interval.targetDef.hitbox === nullHitbox) {
+        if (
+            isSelectTargetDef(interval.targetDef)
+            && interval.targetDef.hitbox === nullHitbox
+            && !interval.targetDef.pickAtEntry
+        ) {
             return interval.targetDef.label;
         }
         return null;

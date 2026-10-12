@@ -14,6 +14,12 @@ export interface SelectTargetDef {
     filter: 'enemy' | 'ally' | 'any';
     allowMiss?: boolean;
     /**
+     * Ask for this pick when the select's interval is about to enter, even when it is the cast's
+     * first select. By default a first pixel-aim (`nullHitbox`) pick is collected up front, before
+     * the cast starts (see `findPreviewDeferredSelectLabel`). Only affects selects with `start > 0`.
+     */
+    pickAtEntry?: boolean;
+    /**
      * Let the caster be a valid candidate for this select step (e.g. a self-castable
      * `filter: 'ally'` heal). Requires the paired hitbox to also opt in (e.g.
      * `unitRangeHitbox(range, minRange, true)`) — this flag alone does not surface the

@@ -3327,6 +3327,15 @@ describe('interactive sequential targeting — Throw Rock Rapid Throw combo', ()
         return { engine, player, dummy, aimPixel: { x: dummy.x, y: dummy.y } };
     }
 
+    /** The pick is requested by the pre-tick lookahead right before the throw, not at ITS begin. */
+    function stepToThrowRockPick(engine: GameEngine): void {
+        expect(stepUntil(
+            engine,
+            () => engine.waitingForTargetInput?.label === THROW_ROCK_TARGET_LABEL,
+            200,
+        )).toBe(true);
+    }
+
     function queueThrowRockPreview(engine: GameEngine, player: Unit): void {
         engine.isSequentialTargetingPreview = true;
         engine.sequentialTargetingPreviewCast = {
@@ -3417,13 +3426,13 @@ describe('interactive sequential targeting — Throw Rock Rapid Throw combo', ()
         engine.destroy();
     });
 
-    it('ITS begin defers the first Throw Rock pick so the line preview is available immediately', () => {
+    it('ITS begin does not defer the first Throw Rock pick: it is requested just before the throw', () => {
         const { engine, player, aimPixel } = buildThrowRockComboFixture();
         expect(findPreviewDeferredSelectLabel(
             getAbility(THROW_ROCK_ABILITY_ID)!,
             player,
             engine,
-        )).toBe(THROW_ROCK_TARGET_LABEL);
+        )).toBeNull();
 
         const gotWaitingForOrders = stepUntil(engine, () => engine.waitingForOrders != null);
         expect(gotWaitingForOrders).toBe(true);
@@ -3450,8 +3459,10 @@ describe('interactive sequential targeting — Throw Rock Rapid Throw combo', ()
             session,
         );
         expect(began).toBe(true);
-        expect(engine.waitingForTargetInput?.label).toBe(THROW_ROCK_TARGET_LABEL);
-        expect(player.activeAbilities.some((a) => a.abilityId === THROW_ROCK_ABILITY_ID)).toBe(false);
+        // The cast starts (windup plays) and only pauses once the throw is about to happen.
+        expect(engine.waitingForTargetInput).toBeNull();
+        stepToThrowRockPick(engine);
+        expect(player.activeAbilities.some((a) => a.abilityId === THROW_ROCK_ABILITY_ID)).toBe(true);
 
         const ability = getAbility(THROW_ROCK_ABILITY_ID)!;
         const selectDef = getSelectTargetDefsFromTimings(ability, player, engine)[0]!;
@@ -3524,7 +3535,7 @@ describe('interactive sequential targeting — Throw Rock Rapid Throw combo', ()
         const throwRockOrder: BattleOrder = { unitId: player.id, abilityId: THROW_ROCK_ABILITY_ID, targets: [], endTurn: true };
         let lastComboCount: number | undefined;
         const pickTargetAndPlayOut = () => {
-            expect(engine.waitingForTargetInput?.label).toBe(THROW_ROCK_TARGET_LABEL);
+            stepToThrowRockPick(engine);
             its.resolveTarget(THROW_ROCK_TARGET_LABEL, { type: 'pixel', position: aimPixel }, session);
             return stepUntil(engine, () => {
                 const active = player.activeAbilities.find((a) => a.abilityId === THROW_ROCK_ABILITY_ID);
@@ -3541,10 +3552,10 @@ describe('interactive sequential targeting — Throw Rock Rapid Throw combo', ()
         expect(player.activeAbilities.some((a) => a.conditionalCancelPaused)).toBe(true);
 
         // Combo card: commits throw 1 in place, then the follow-up begins its own ITS preview.
+        const comboBatchAtTick = engine.waitingForOrders!.atTick;
         await session.submitPlayerOrder(throwRockOrder, { canSubmitOrders: true });
         expect(persistCommittedOrder).toHaveBeenCalledTimes(1);
         expect(persistCommittedOrder.mock.calls[0]![1]).toBe(throwOneBatchAtTick);
-        const comboBatchAtTick = engine.waitingForOrders!.atTick;
         expect(comboBatchAtTick).toBeGreaterThan(throwOneBatchAtTick);
         expect(its.isActive).toBe(true);
         expect(its.abilityId).toBe(THROW_ROCK_ABILITY_ID);
@@ -3594,6 +3605,7 @@ describe('interactive sequential targeting — Throw Rock Rapid Throw combo', ()
             session,
         )).toBe(true);
         expect(its.shouldForceItsCommitAtComboWindow()).toBe(false);
+        stepToThrowRockPick(engine);
 
         const ability = getAbility(THROW_ROCK_ABILITY_ID)!;
         const selectDef = getSelectTargetDefsFromTimings(ability, player, engine)[0]!;
@@ -3664,6 +3676,7 @@ describe('interactive sequential targeting — Throw Rock Rapid Throw combo', ()
         )).toBe(true);
         expect(its.hasAssumedRemoteWaitDuringPreview).toBe(true);
         expect(its.shouldForceItsCommitAtComboWindow()).toBe(true);
+        stepToThrowRockPick(engine);
 
         const ability = getAbility(THROW_ROCK_ABILITY_ID)!;
         const selectDef = getSelectTargetDefsFromTimings(ability, player, engine)[0]!;
@@ -3715,12 +3728,13 @@ describe('interactive sequential targeting — Throw Rock Rapid Throw combo', ()
 
     describe('timeline lifecycle', () => {
         it('after abort, isInteractiveTargetingPreviewActive is false and new begin() succeeds', () => {
-            const { engine, player } = buildThrowRockComboFixture();
+            const fixture = buildThrowRockComboFixture();
+            let { engine, player } = fixture;
             const gotWaitingForOrders = stepUntil(engine, () => engine.waitingForOrders != null);
             expect(gotWaitingForOrders).toBe(true);
 
             const session = {
-                getEngine: () => engine,
+                getEngine: () => engine, // abort() leaves the engine as is; resync replaces it
                 isOrderBatchTickSubmittable: () => true,
                 isLocalPlayerExpectedToAct: () => true,
                 postBattleSyncLobbyLog: vi.fn(),
@@ -3746,6 +3760,12 @@ describe('interactive sequential targeting — Throw Rock Rapid Throw combo', ()
             expect(its.isActive).toBe(false);
             expect(session.discardPreview).toHaveBeenCalledTimes(1);
             expect(session.getTimeline().kind).toBe('canonical');
+
+            // abort() does not restore the engine (it is replaced on resync), so the aborted preview's
+            // order stays queued on the old one. Continue on a freshly built engine.
+            engine.destroy();
+            ({ engine, player } = buildThrowRockComboFixture());
+            expect(stepUntil(engine, () => engine.waitingForOrders != null)).toBe(true);
 
             // After abort, can begin a new preview (no "already in preview" throw)
             expect(its.begin(

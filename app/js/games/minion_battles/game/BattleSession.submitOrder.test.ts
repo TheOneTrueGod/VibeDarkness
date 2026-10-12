@@ -194,7 +194,10 @@ describe('BattleSession submitPlayerOrder + BattleNet', () => {
         expect(netSubmitOrder).not.toHaveBeenCalled();
         expect(session.interactiveTargeting.isActive).toBe(true);
         expect(session.interactiveTargeting.abilityId).toBe('throw_rock');
-        expect(engine.waitingForOrders?.atTick).toBe(pauseAtTick);
+        // The follow-up's preview order is queued on the open pause plane (it is no longer held for a
+        // deferred first pick), which resolves that batch and lets the cast run to its pick pause.
+        expect(session.interactiveTargeting.previewOrderQueued).toBe(true);
+        expect(engine.waitingForOrders?.atTick ?? pauseAtTick).toBe(pauseAtTick);
 
         commitSpy.mockRestore();
         session.destroy();
