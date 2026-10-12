@@ -83,8 +83,8 @@ export const ThornStompAbility: AbilityStatic = {
     aiSettings: {
         minRange: 0,
         maxRange: AI_TRIGGER_RANGE,
-        // Wins the priority tie-break over Bramble (priority 0) whenever both are valid.
-        priority: 1,
+        // Wins over Bramble (priority 1) and the Slime Shot fallback whenever it is valid.
+        priority: 2,
         // React to any nearby threat, not just the unit's locked hunt target.
         candidateScope: 'anyNearby',
         // This is a self-cast (targets: []); without this the AI would treat it as always valid.

@@ -26,10 +26,10 @@ import { DARK_THORN_DURATION_ROUNDS } from '../../game/terrainEffects/tileTransi
 
 export const THORNBINDER_ABILITY_ID = `${formatGroupId(AbilityGroupId.Enemy)}08`;
 
-const MAX_USES = 2;
-// 2 uses banked at once, so the ability can burst-cast twice before needing a fresh round of recovery.
+// Once per round: the AI falls back to Slime Shot (0001) the rest of the time.
+const MAX_USES = 1;
 const RECOVERIES: AbilityRecoveryRule[] = [
-    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 2 },
+    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
 /** Base windup before the +50% reactability stretch. */
 const THORNBINDER_BASE_WINDUP = 1.3;
@@ -121,6 +121,10 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
     aiSettings: {
         minRange: 0,
         maxRange: TARGETING_RANGE,
+        // Beats the Slime Shot fallback (priority 0) while it has a use left; Thorn Stomp (2) still wins.
+        priority: 1,
+        // One bramble per round; once spent the AI picks the fallback instead of re-queueing this.
+        maxUsesPerRound: 1,
         // This is a ground-target cast (targets: []); without this the AI would treat it as
         // always valid regardless of distance to the locked pursuit target.
         enforceRangeWhenUntargeted: true,

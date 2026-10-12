@@ -99,13 +99,13 @@ export const ENEMY_DISPLACER_CLONE: EnemySpawnDef = {
     unitAITreeId: 'displacerClone',
 };
 
-/** Thornbinder crawler — bramble AoE zoning; Light Hate. */
+/** Thornbinder crawler — one bramble AoE per round, Slime Shot (0001) fallback; Light Hate. */
 export const ENEMY_THORNBINDER: EnemySpawnDef = {
     characterId: 'thornbinder',
     name: 'Thornbinder',
     position: { x: 0, y: 0 },
     teamId: 'enemy',
-    abilities: ['0008', '0016'],
+    abilities: ['0008', '0016', '0001'],
     aiSettings: { minRange: 80, maxRange: 320 },
     unitAITreeId: 'hunt',
 };

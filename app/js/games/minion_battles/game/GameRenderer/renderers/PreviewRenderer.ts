@@ -544,6 +544,38 @@ export class PreviewRenderer {
         }
         if (pts.length < 2) return;
 
+        const limit = debugSettingsSnapshot.enemyMovementTrailLimit;
+        if (limit !== 'full' && limit !== '100%') {
+            // Limited trail: one continuous fade from full alpha at the unit down to 25% at the end.
+            const shownLen = Math.min(maxLen, fullLen);
+            if (shownLen <= 0) return;
+            let traveled = 0;
+            for (let i = 0; i < pts.length - 1; i++) {
+                const a = pts[i]!;
+                const b = pts[i + 1]!;
+                const len = Math.hypot(b.x - a.x, b.y - a.y);
+                const steps = Math.max(1, Math.ceil(len / 8));
+                for (let s = 0; s < steps; s++) {
+                    const t0 = s / steps;
+                    const t1 = (s + 1) / steps;
+                    const mid = traveled + len * ((t0 + t1) / 2);
+                    const alpha = 1 - 0.75 * Math.min(1, mid / shownLen);
+                    const x0 = a.x + (b.x - a.x) * t0;
+                    const y0 = a.y + (b.y - a.y) * t0;
+                    const x1 = a.x + (b.x - a.x) * t1;
+                    const y1 = a.y + (b.y - a.y) * t1;
+                    g.moveTo(x0, y0);
+                    g.lineTo(x1, y1);
+                    g.stroke({ color: MOVE_TARGET_PATH_BG_COLOR, width: 3, alpha: alpha * 0.7 });
+                    g.moveTo(x0, y0);
+                    g.lineTo(x1, y1);
+                    g.stroke({ color: MOVE_TARGET_COLOR, width: 2, alpha });
+                }
+                traveled += len;
+            }
+            return;
+        }
+
         const n = pts.length - 1; // path points remaining after clipping
         const solidCellCount = Math.min(2, n);
         for (const [color, width, alpha] of [
