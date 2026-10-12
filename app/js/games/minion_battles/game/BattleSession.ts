@@ -483,11 +483,15 @@ export class BattleSession implements BattleSessionHandle {
                 api.sendMessage(MessageType.CHAT, { message: text }).then(onSent).catch(() => {});
             }
         });
-        engine.setOnItsParallelPauseDecision((decision, waiters, gameTick) => {
+        engine.setOnItsParallelPauseDecision((decision, waiters, gameTick, info) => {
             const localPlayerId = this.config.playerId;
+            const missingPick = info?.missingPick === true;
+            // A dropped missing-pick waiter is an automatic pass-and-fizzle: always mark the preview as
+            // depending on another player (even for a local waiter), so the commit rewinds and the real
+            // timeline asks for the real pick.
             const newlyUncertain =
                 this.interactiveTargeting.isActive
-                && waiters.some((w) => w.ownerId !== localPlayerId)
+                && (missingPick || waiters.some((w) => w.ownerId !== localPlayerId))
                 && this.interactiveTargeting.noteMultiplayerUncertaintyDuringPreview();
             const lobbyClient = typeof api.getLobbyClient === 'function' ? api.getLobbyClient() : null;
             if (!lobbyClient) return;
@@ -505,9 +509,12 @@ export class BattleSession implements BattleSessionHandle {
                 message:
                     decision === 'freeze'
                         ? 'ITS: freezing at parallel pause (local player is waiter)'
-                        : 'ITS: dropping ally-only parallel pause (preview continues)',
+                        : missingPick
+                            ? 'ITS: auto pass-and-fizzle at a missing-pick pause'
+                            : 'ITS: dropping ally-only parallel pause (preview continues)',
                 context: {
                     decision,
+                    missingPick,
                     isHost,
                     waiterOwnerIds: waiters.map((w) => w.ownerId),
                     waiterUnitIds: waiters.map((w) => w.unitId),

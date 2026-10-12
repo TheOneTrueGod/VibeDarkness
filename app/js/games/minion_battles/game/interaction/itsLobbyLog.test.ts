@@ -5,8 +5,10 @@ import {
     ITS_AUTO_COMMIT_BLOCK_TARGETS_INCOMPLETE,
     captureItsLogSnapshot,
     captureItsPausePlaneLog,
+    logItsEndedEarlyStop,
     logItsPreviewCancelled,
     logItsPreviewEnded,
+    logItsPreviewEndedEarly,
     logItsPreviewStarted,
     logItsTargetAdded,
     logItsButtonClick,
@@ -160,6 +162,47 @@ describe('itsLobbyLog', () => {
                 willCommit: false,
                 blockReason: ITS_AUTO_COMMIT_BLOCK_TARGETS_INCOMPLETE,
             }),
+        );
+    });
+
+    it('logItsAutoCommitEval records the endedEarly flag', () => {
+        const session = makeSessionMock();
+        logItsAutoCommitEval(session, makeItsMock(), {
+            previewComplete: true,
+            allTargetsCollected: false,
+            willCommit: true,
+            blockReason: null,
+            endedEarly: true,
+        });
+        expect(session.postBattleSyncLobbyLog).toHaveBeenCalledWith(
+            'ITS: auto end turn eval',
+            expect.objectContaining({ endedEarly: true, willCommit: true }),
+        );
+    });
+
+    it('logItsPreviewEndedEarly records reason, source and tick', () => {
+        const session = makeSessionMock();
+        logItsPreviewEndedEarly(session, makeItsMock(), {
+            reason: 'interrupted',
+            source: { unitId: 'thornbinder', abilityId: '0008' },
+            atTick: 984,
+        });
+        expect(session.postBattleSyncLobbyLog).toHaveBeenCalledWith(
+            'ITS: preview cast ended early — playing forward',
+            expect.objectContaining({
+                reason: 'interrupted',
+                source: { unitId: 'thornbinder', abilityId: '0008' },
+                atTick: 984,
+            }),
+        );
+    });
+
+    it('logItsEndedEarlyStop records the stop reason', () => {
+        const session = makeSessionMock();
+        logItsEndedEarlyStop(session, makeItsMock(), 'cap');
+        expect(session.postBattleSyncLobbyLog).toHaveBeenCalledWith(
+            'ITS: ended-early playahead stopped',
+            expect.objectContaining({ stop: 'cap' }),
         );
     });
 

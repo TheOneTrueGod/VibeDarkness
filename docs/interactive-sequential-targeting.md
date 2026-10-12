@@ -163,10 +163,32 @@ The pill in the bottom-centre of the canvas reflects the current state of the pr
 | **Playing** | Green / Play icon | Engine is running the preview animation (no input needed right now) |
 | **Paused** | Amber / Pause icon | Engine is stopped waiting for the player to click a target |
 | **Done** | Sky-blue / Stop icon | Preview complete (`isITSPreviewComplete`); player can Confirm or Replay |
+| **Done (ended early)** | Sky-blue / Stop icon | The preview cast was interrupted, fizzled or its caster died; the preview played forward and stopped when the caster could act again, at a frozen parallel pause, on death, or at the frame cap (`getEndedEarlyPreviewStop`) |
 
 Preview completion (`isITSPreviewComplete` in `game/interaction/isITSPreviewComplete.ts`) is true when the preview cast has finished naturally, the round advanced, or the cast entered **conditional cancel** (e.g. Entombed in-wall). While `waitingForTargetInput` is set, completion is false.
 
 The **targeting cursor** (hitbox preview overlay) is only rendered when the state is **Paused**. During the Playing phase between target selections no cursor is shown.
+
+## Ended-early preview
+
+An interrupted cast is a valid game state, so the preview does not rewind when it happens. The interrupt and fizzle pipelines emit `cast_ended_early`; the engine records the first such event for the preview cast as `endedEarly` (matching by `isPreviewCastInstance`, so a Combo follow-up's recast of the previous cast is ignored). While `endedEarly` is set, `isITSPreviewComplete` is `getEndedEarlyPreviewStop(engine) != null` instead of "cast left active".
+
+- Stops: caster dead, `engine.waitingForOrders` set (frozen local parallel pause), `orderMgr.shouldPauseForOrders(caster)` (the caster can act again), or `ITS_ENDED_EARLY_PLAYAHEAD_MAX_TICKS` after the interrupt (chained stuns).
+- Until it stops, cards and hotkeys stay locked. Undo (button or Esc) works the whole time. Done commits; with Auto End it is pressed automatically (`shouldAutoCommitItsPreview`).
+- Commit: the order carries `missingSelectLabels`, the select labels never collected. In place vs rollback is decided as usual.
+- A notice ("Interrupted", "Fizzled", "Defeated") shows above the Your Turn plaque through the battle notice store, with a minimum visible time.
+
+## Missing-pick pause and resume
+
+A committed order with `missingSelectLabels` may reach one of those selects in the real timeline (the real run can differ from the preview). The cast copies the list, and:
+
+- Real timeline, player-controlled caster: at the select gate the cast sets `awaitingPickLabel` and the caster becomes a waiter in a normal order batch (like conditional cancel). Only an `updateTargets` order for that ability or `wait` is accepted there.
+- `updateTargets` fills the pick into the cast's positional `targets` (and `targetsByLabel`), narrows `missingSelectLabels`, and spends no cost or use. `wait` (Pass) keeps the cast; the select enters with the label still missing and fizzles it through the interrupt policy.
+- Inside any preview, the pause is dropped (host and non-host): an automatic pass-and-fizzle. A drop always marks the preview as depending on another player, so the commit rewinds and the real timeline asks for the real pick.
+- Not player-controlled: no pause; the select fizzles on entry. The lookahead (`signalWaitingForTarget`) never pauses for a missing label.
+- The owner's UI calls `beginResume`: the cursor appears for the missing pick, later picks are collected while the cast plays ahead, and Done sends one `updateTargets` order (with any labels still missing if the resumed preview ended early). Undo returns to the pause; Pass sends `wait`.
+
+**Saved-data-only rule:** every "pause here" and "which target" decision for missing picks reads only serialized cast data: `missingSelectLabels`, `awaitingPickLabel` and positional `targets`. It never reads `targetsByLabel`, which does not survive `toJSON` / `fromJSON` (checkpoints, resync, the ITS mark). Otherwise a client rebuilt from a snapshot would not pause where the others do and would desync.
 
 ---
 

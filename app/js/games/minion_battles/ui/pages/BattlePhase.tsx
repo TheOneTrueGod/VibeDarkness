@@ -17,6 +17,12 @@ import type { AbilityStatic } from '../../abilities/Ability';
 import BattleCanvas from '../components/BattleCanvas';
 import ObjectiveMarkerOverlay from '../components/ObjectiveMarkerOverlay';
 import TurnIndicator, { type TurnIndicatorSideControls } from '../components/TurnIndicator';
+import BattleNoticeSlot from '../components/BattleNoticeSlot';
+import {
+    createBattleNoticeStore,
+    type BattleNotice,
+    type BattleNoticeStore,
+} from '../components/battleNotices';
 import { useBattleAbilityBarSlots } from './battlePhase/BattleAbilityBar';
 import BattleUISlotLayout from '../../../../components/battleUILayout/BattleUISlotLayout';
 import ColumnSlotPartyAndActions from '../components/battleUiSlots/ColumnSlotPartyAndActions';
@@ -115,6 +121,19 @@ export default function BattlePhase({
     const netRef = useRef<BattleNet | null>(null);
     const hudEffectCanvasRef = useRef<HudEffectCanvasHandle | null>(null);
     const battleCanvasAreaRef = useRef<HTMLDivElement>(null);
+    // One notice store per mount; useInteractiveTargetingProgress shows ended-early / missing-pick notices in it.
+    const battleNoticeStoreRef = useRef<BattleNoticeStore | null>(null);
+    if (battleNoticeStoreRef.current == null) {
+        battleNoticeStoreRef.current = createBattleNoticeStore();
+    }
+    const battleNoticeStore = battleNoticeStoreRef.current;
+    const [battleNotices, setBattleNotices] = useState<readonly BattleNotice[]>(() =>
+        battleNoticeStore.getNotices(),
+    );
+    useEffect(() => {
+        setBattleNotices(battleNoticeStore.getNotices());
+        return battleNoticeStore.subscribe(() => setBattleNotices(battleNoticeStore.getNotices()));
+    }, [battleNoticeStore]);
 
     const {
         netSyncStatus,
@@ -166,7 +185,7 @@ export default function BattlePhase({
         sessionRef,
         activeLocalWaiter,
         setOrderSubmitFailed,
-        hudEffectCanvasRef,
+        battleNoticeStore,
     });
     const itsPreviewActive = interactiveTargetingState !== 'inactive';
 
@@ -377,6 +396,7 @@ export default function BattlePhase({
             allyName={turnIndicatorState.allyName}
             freezePresentation={rewindOverlay != null}
             sideControls={sideControls}
+            noticeSlot={<BattleNoticeSlot notices={battleNotices} />}
             hostCatchupPopover={
                 showHostCatchupPopover
                     ? {

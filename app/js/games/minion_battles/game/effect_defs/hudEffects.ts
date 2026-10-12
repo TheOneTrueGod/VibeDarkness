@@ -58,19 +58,6 @@ export class RewindingTextEffect extends HudEffect {
     }
 }
 
-// ─── InterruptedText ──────────────────────────────────────────────────────────
-// "Interrupted" banner, same band as RewindingText. Triggered when an ITS preview cast is
-// interrupted before its targets are collected and the preview auto-undoes.
-
-/** Seconds — a touch longer than RewindingText so the player registers why the preview vanished. */
-export const INTERRUPTED_TEXT_DURATION_SEC = 1.2;
-
-export class InterruptedTextEffect extends HudEffect {
-    constructor() {
-        super('InterruptedText', INTERRUPTED_TEXT_DURATION_SEC);
-    }
-}
-
 // ─── ResourceFlight ───────────────────────────────────────────────────────────
 // Stream of particles arcing from source to destination (screen coords).
 // Particles clamp to canvas bounds if dest is outside canvas area.

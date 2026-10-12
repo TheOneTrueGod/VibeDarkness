@@ -67,7 +67,7 @@ describe('charge interrupt during windup', () => {
         const unit = makeWolf(gameTime);
         const usesBefore = unit.abilityRuntime[DarkWolfBiteAbility.id]!.currentUses;
 
-        interruptUnitAbilities(unit, { gameTime } as EngineContext);
+        interruptUnitAbilities(unit, { gameTime, gameTick: 0, eventBus: { emit: () => {} } } as unknown as EngineContext);
 
         expect(unit.activeAbilities).toHaveLength(1);
         expect(unit.activeAbilities[0]!.abilityId).toBe(DarkWolfBiteAbility.id);
@@ -88,7 +88,7 @@ describe('charge interrupt during windup', () => {
         const gameTime = 12;
         const unit = makeWolf(gameTime);
         const usesBefore = unit.abilityRuntime[DarkWolfBiteAbility.id]!.currentUses;
-        const engine = { gameTime } as EngineContext;
+        const engine = { gameTime, gameTick: 0, eventBus: { emit: () => {} } } as unknown as EngineContext;
 
         interruptUnitAbilities(unit, engine);
 

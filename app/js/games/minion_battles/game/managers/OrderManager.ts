@@ -4,9 +4,17 @@
  */
 
 import type { EngineContext } from '../EngineContext';
-import type { BattleOrder, BattleOrderSpecialAction, OrderAtTick, WaitingForOrders, OrderWaiter } from '../types';
+import type {
+    BattleOrder,
+    BattleOrderSpecialAction,
+    OrderAtTick,
+    WaitingForOrders,
+    OrderWaiter,
+    ResolvedTarget,
+} from '../types';
 import type { Unit } from '../units/Unit';
 import { getAbility } from '../../abilities/AbilityRegistry';
+import { getSelectTargetDefsFromTimings } from '../../abilities/targeting';
 import { refundAbilityCost } from '../../abilities/Ability';
 import { unitAbilityHasTag } from '../../abilities/abilityUses';
 import { resolveWaitOrderWindow } from '../../abilities/WaitAbility';
@@ -117,6 +125,15 @@ export class OrderManager {
                 // TODO [rollback]: Support transactional batch apply—snapshot pre-batch, validate all orders, rollback state if any reject; or buffer commits until atomic apply.
                 return;
             }
+        }
+        // Missing-pick pause: accept only the decisions it allows. Checked before any state is touched
+        // below (replacing a draft cancels a cast). Validation only; the order is applied in applyOrderLogic.
+        const missingPickUnit = this.ctx.getUnit(order.unitId);
+        if (missingPickUnit && !this.isMissingPickOrderAcceptable(missingPickUnit, order)) {
+            return;
+        }
+        if (this.waitingForOrders) {
+            const batch = this.waitingForOrders;
 
             const existing = this.getPendingOrderForUnit(order.unitId, batch.atTick);
             if (existing) {
@@ -126,7 +143,8 @@ export class OrderManager {
                     return;
                 }
 
-                if (existing.abilityId === order.abilityId && order.endTurn === true) {
+                // An updateTargets order carries picks, so it always replaces a draft instead of merging flags.
+                if (existing.abilityId === order.abilityId && order.endTurn === true && !order.updateTargets) {
                     // Same ability, just confirming turn end — mutate the flag in place, skip cancel/re-exec.
                     // Preserve specialAction from the existing entry (confirm payloads often omit it).
                     const entry = this.pendingOrders.find(
@@ -149,7 +167,7 @@ export class OrderManager {
                     return;
                 }
 
-                if (existing.abilityId === order.abilityId && !order.endTurn) {
+                if (existing.abilityId === order.abilityId && !order.endTurn && !order.updateTargets) {
                     // Same primary, still nonconfirmed — update move / special in place without
                     // re-executing the primary ability.
                     const entry = this.pendingOrders.find(
@@ -203,7 +221,9 @@ export class OrderManager {
                 }
                 const unit = this.ctx.getUnit(order.unitId);
                 if (unit) {
-                    if (existing.abilityId !== 'wait') {
+                    if (existing.updateTargets) {
+                        // A draft updateTargets order is not a cast: the running cast must survive its replacement.
+                    } else if (existing.abilityId !== 'wait') {
                         this.ctx.cancelActiveAbility(unit.id, existing.abilityId);
                     } else {
                         unit.waitMinEndTime = null;
@@ -296,6 +316,88 @@ export class OrderManager {
         return this.applyConditionalCancelDecision(order, unit, pausedAbility);
     }
 
+    /** The unit's cast that is paused at a missing-pick pause, if any. */
+    private findAwaitingPickCast(unit: Unit): Unit['activeAbilities'][number] | undefined {
+        return unit.activeAbilities.find((a) => a.awaitingPickLabel !== undefined);
+    }
+
+    /**
+     * Missing-pick decision rules (the sibling of the conditional-cancel decision):
+     * - A unit whose cast has `awaitingPickLabel` accepts only an `updateTargets` order for that cast's ability,
+     *   or `wait` (Pass: the cast fizzles). Anything else, including a plain recast, is rejected.
+     * - An `updateTargets` order for a unit with no such cast is rejected (stale or misdirected).
+     * Pure; reads only serialized cast state.
+     */
+    private isMissingPickOrderAcceptable(unit: Unit, order: BattleOrder): boolean {
+        const awaiting = this.findAwaitingPickCast(unit);
+        if (order.updateTargets) {
+            return awaiting !== undefined && awaiting.abilityId === order.abilityId;
+        }
+        if (awaiting === undefined) return true;
+        return order.abilityId === 'wait';
+    }
+
+    /**
+     * Applies an accepted `updateTargets` order to the cast paused at a missing pick: writes the picks into
+     * positional `targets` (at each label's select-def position) and `targetsByLabel`, narrows
+     * `missingSelectLabels`, and clears `awaitingPickLabel`. No recast, cost or use. Positional `targets` is the
+     * saved-data record of the pick (`targetsByLabel` does not survive a snapshot).
+     */
+    private applyUpdateTargetsOrder(
+        unit: Unit,
+        active: Unit['activeAbilities'][number],
+        order: BattleOrder,
+    ): void {
+        const ability = getAbility(active.abilityId);
+        const selectDefs = ability ? getSelectTargetDefsFromTimings(ability, unit, this.ctx) : [];
+        const picks = order.targetsByLabel ?? {};
+        const orderTargets = order.targets ?? [];
+
+        const remapped: Record<string, ResolvedTarget> = {};
+        if (selectDefs.length === 1 && orderTargets.length > 0) {
+            // Single-select melee lock-on: the positional array is the whole pick (see
+            // buildFinalizedSequentialTargetingOrder). Shallow copies, like executeAbility.
+            active.targets = orderTargets.map((t) => ({ ...t }));
+            for (const [label, orderTarget] of Object.entries(picks)) {
+                const idx = orderTargets.indexOf(orderTarget);
+                remapped[label] = idx >= 0 ? active.targets[idx]! : orderTarget;
+            }
+            if (Object.keys(remapped).length === 0) {
+                const only = selectDefs[0]!.label;
+                if (active.awaitingPickLabel === only) remapped[only] = active.targets[0]!;
+            }
+        } else {
+            selectDefs.forEach((def, idx) => {
+                const pick = picks[def.label];
+                if (pick === undefined) return;
+                const copy: ResolvedTarget = { ...pick };
+                // Keep positional targets compact: replace an existing slot, otherwise append.
+                if (idx < active.targets.length) active.targets[idx] = copy;
+                else active.targets.push(copy);
+                remapped[def.label] = copy;
+            });
+            // A label the order picked that is not a known select def still lands in targetsByLabel.
+            for (const [label, pick] of Object.entries(picks)) {
+                if (remapped[label] === undefined) remapped[label] = pick;
+            }
+        }
+        active.targetsByLabel = { ...(active.targetsByLabel ?? {}), ...remapped };
+
+        if (order.movementByLabel) {
+            active.movementByLabel = {
+                ...(active.movementByLabel ?? {}),
+                ...(JSON.parse(JSON.stringify(order.movementByLabel)) as NonNullable<typeof order.movementByLabel>),
+            };
+        }
+
+        const stillMissing = (order.missingSelectLabels ?? active.missingSelectLabels ?? []).filter(
+            (label) => remapped[label] === undefined,
+        );
+        if (stillMissing.length > 0) active.missingSelectLabels = stillMissing;
+        else delete active.missingSelectLabels;
+        delete active.awaitingPickLabel;
+    }
+
     /** Apply a special action without touching movement or the primary cast. */
     private applySpecialActionOnly(unitId: string, special: BattleOrderSpecialAction): void {
         const unit = this.ctx.getUnit(unitId);
@@ -315,6 +417,23 @@ export class OrderManager {
         const unit = this.ctx.getUnit(order.unitId);
         if (!unit || !unit.isAlive()) return;
         if (!this.resolveConditionalCancelIfNeeded(unit, order)) return;
+
+        // Missing-pick decision (see isMissingPickOrderAcceptable). Resolved here, at the top of the batch
+        // tick, on every client, so it never depends on which client accepted the order first.
+        if (!this.isMissingPickOrderAcceptable(unit, order)) return;
+        const awaitingPickCast = this.findAwaitingPickCast(unit);
+        if (order.updateTargets) {
+            // Fills in picks on the running cast; not a recast, so no cost, use or movement handling.
+            if (!awaitingPickCast) return;
+            this.ctx.mixOrderFingerprint(order.unitId, `updateTargets:${order.abilityId}`);
+            this.applyUpdateTargetsOrder(unit, awaitingPickCast, order);
+            return;
+        }
+        if (awaitingPickCast && !(order.abilityId === 'wait' && order.endTurn === false)) {
+            // Pass: the cast keeps running, the select enters with its label still missing and fizzles.
+            delete awaitingPickCast.awaitingPickLabel;
+        }
+
         this.ctx.mixOrderFingerprint(order.unitId, order.abilityId);
 
         unit.waitMinEndTime = null;
@@ -361,9 +480,13 @@ export class OrderManager {
         // Re-map each value to the corresponding entry in active.targets (which are shallow
         // copies of order.targets), so that indexOf() in MeleeAttackBehaviour.onSetup returns
         // the correct index via reference equality rather than -1.
-        if (order.targetsByLabel || order.movementByLabel) {
+        if (order.targetsByLabel || order.movementByLabel || order.missingSelectLabels) {
             const active = unit.activeAbilities.find((a) => a.abilityId === ability.id);
             if (active) {
+                // Serialized marker for picks this order lacks (see BattleOrder.missingSelectLabels).
+                if (order.missingSelectLabels && order.missingSelectLabels.length > 0) {
+                    active.missingSelectLabels = [...order.missingSelectLabels];
+                }
                 if (order.targetsByLabel) {
                     const remapped: Record<string, import('../types').ResolvedTarget> = {};
                     for (const [label, orderTarget] of Object.entries(order.targetsByLabel)) {

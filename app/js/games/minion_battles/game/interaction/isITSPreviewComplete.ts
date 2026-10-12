@@ -1,4 +1,44 @@
 import type { GameEngine } from '../GameEngine';
+import type { KnockbackSource } from '../units/unitTypes';
+import { ITS_ENDED_EARLY_PLAYAHEAD_MAX_TICKS } from '../gameConstants';
+
+/**
+ * The cast an interactive targeting preview is running (see `GameEngine.sequentialTargetingPreviewCast`).
+ * Ephemeral: never serialized.
+ */
+export interface SequentialTargetingPreviewCast {
+    unitId: string;
+    abilityId: string;
+    startRound: number;
+    /** `engine.gameTime` when the preview began (set by ITS `begin()` / `replay()`). */
+    beganAtGameTime: number;
+    /**
+     * Resume mode (a preview that starts at a missing-pick pause): `startTime` of the paused cast the
+     * preview continues. Set by `beginResume`.
+     */
+    resumeCastStartTime?: number;
+    /** Set once (first `cast_ended_early` event for this preview cast); the preview then plays forward to a stop point. */
+    endedEarly?: { atTick: number; reason: 'interrupted' | 'fizzled'; source?: KnockbackSource };
+}
+
+/**
+ * True when a cast instance (`castStartTime`) belongs to the preview cast. Unit and ability must
+ * match, and the cast must have started inside this preview: either it is the resume cast (when
+ * `resumeCastStartTime` is set) or it started at or after the preview began. This ignores a Combo
+ * follow-up's same-id recast of the **previous** cast, which started before the preview.
+ */
+export function isPreviewCastInstance(
+    previewCast: SequentialTargetingPreviewCast,
+    unitId: string,
+    abilityId: string,
+    castStartTime: number,
+): boolean {
+    if (previewCast.unitId !== unitId || previewCast.abilityId !== abilityId) return false;
+    if (previewCast.resumeCastStartTime != null && castStartTime === previewCast.resumeCastStartTime) {
+        return true;
+    }
+    return castStartTime >= previewCast.beganAtGameTime;
+}
 
 /**
  * True while the preview cast order is queued but has not been applied yet (e.g. ITS began
@@ -40,12 +80,69 @@ export function isITSPreviewComplete(engine: GameEngine): boolean {
         return true;
     }
 
+    // The cast ended early (interrupt / fizzle): keep playing forward and stop at the ended-early
+    // stop point instead of the "cast left active" rule.
+    if (cast.endedEarly != null) {
+        return getEndedEarlyPreviewStop(engine) != null;
+    }
+
     const abilityStillActive = caster.activeAbilities.some((a) => a.abilityId === castAbilityId);
     if (!abilityStillActive) {
         return !isPreviewCastOrderStillPending(engine, cast);
     }
 
     return isPreviewCastConditionalCancelPaused(engine);
+}
+
+/**
+ * Whether Auto End should commit a finished ITS preview. True when the preview is complete and either
+ * every target was collected or the cast ended early (interrupt / fizzle / death: the picks it never
+ * reached are committed as `missingSelectLabels`). An incomplete preview that did NOT end early must
+ * not auto-commit (lobbies 12D040 / 10EA88).
+ */
+export function shouldAutoCommitItsPreview(params: {
+    previewComplete: boolean;
+    allTargetsCollected: boolean;
+    endedEarly: boolean;
+}): boolean {
+    return params.previewComplete && (params.allTargetsCollected || params.endedEarly);
+}
+
+/**
+ * True when `unitId` has a cast paused at a missing-pick pause (`awaitingPickLabel` set): the owner
+ * must pick, or Pass (the cast fizzles). Reads only the serialized cast marker.
+ */
+export function isAtMissingPickDecision(
+    engine: Pick<GameEngine, 'getUnit'>,
+    unitId: string | null | undefined,
+): boolean {
+    if (!unitId) return false;
+    const unit = engine.getUnit(unitId);
+    return unit?.activeAbilities.some((a) => a.awaitingPickLabel !== undefined) ?? false;
+}
+
+/** Why an ended-early preview stopped playing forward (see {@link getEndedEarlyPreviewStop}). */
+export type EndedEarlyPreviewStop = 'caster_died' | 'caster_ready' | 'parallel_pause' | 'cap';
+
+/**
+ * Stop point for a preview whose cast ended early. Null while the preview should keep playing (or
+ * when the preview cast has not ended early). Checked in order:
+ * - caster dead
+ * - a non-host freeze on a local parallel pause (`engine.waitingForOrders` set during the preview)
+ * - the caster can act again (`orderMgr.shouldPauseForOrders`, the predicate that forms the real
+ *   order pause, so the preview stops where natural completion would)
+ * - the playahead reached {@link ITS_ENDED_EARLY_PLAYAHEAD_MAX_TICKS} ticks after the early end
+ */
+export function getEndedEarlyPreviewStop(engine: GameEngine): EndedEarlyPreviewStop | null {
+    const cast = engine.sequentialTargetingPreviewCast;
+    const endedEarly = cast?.endedEarly;
+    if (!cast || !endedEarly) return null;
+    const caster = engine.getUnit(cast.unitId);
+    if (!caster?.isAlive()) return 'caster_died';
+    if (engine.waitingForOrders != null) return 'parallel_pause';
+    if (engine.state.orderMgr.shouldPauseForOrders(caster)) return 'caster_ready';
+    if (engine.gameTick - endedEarly.atTick >= ITS_ENDED_EARLY_PLAYAHEAD_MAX_TICKS) return 'cap';
+    return null;
 }
 
 /**

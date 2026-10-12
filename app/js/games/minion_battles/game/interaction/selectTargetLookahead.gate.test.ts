@@ -224,6 +224,68 @@ function stepRecording(
 }
 
 describe.each([
+    ['not in a preview', false],
+    ['in a preview', true],
+])('missing gated select (%s)', (_name, previewFlag) => {
+    beforeAll(() => {
+        if (globalThis.requestAnimationFrame === undefined) {
+            vi.stubGlobal(
+                'requestAnimationFrame',
+                (cb: FrameRequestCallback) => setTimeout(() => cb(performance.now()), 0) as unknown as number,
+            );
+            vi.stubGlobal('cancelAnimationFrame', (id: number) =>
+                clearTimeout(id as unknown as ReturnType<typeof setTimeout>),
+            );
+        }
+        registerGateTestAbility(0.3);
+    });
+
+    afterAll(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it('never pauses the lookahead and fizzles the cast on the select entry tick', () => {
+        const { engine, player } = buildGateTestEngine();
+        engine.isSequentialTargetingPreview = previewFlag;
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: GATE_TEST_ABILITY_ID,
+            targets: [],
+            targetsByLabel: {},
+            missingSelectLabels: [GATE_TEST_LABEL],
+            endTurn: true,
+        });
+        engine.stepSimulationFixedTicks(1);
+        const active = player.activeAbilities.find((a) => a.abilityId === GATE_TEST_ABILITY_ID);
+        expect(active?.missingSelectLabels).toEqual([GATE_TEST_LABEL]);
+
+        let missingPickPauses = 0;
+        for (let i = 0; i < 120; i++) {
+            engine.stepSimulationFixedTicks(1);
+            expect(engine.waitingForTargetInput).toBeNull();
+            // Outside a preview the real timeline asks the owner for the pick (Step 3): pass it.
+            if (engine.waitingForOrders?.waiters.some((w) => w.unitId === player.id)) {
+                // A pause while the cast still runs is the missing-pick pause; later ones are ordinary.
+                if (castActive(player)) missingPickPauses++;
+                engine.state.orderMgr.applyOrder({
+                    unitId: player.id,
+                    abilityId: 'wait',
+                    targets: [],
+                    endTurn: true,
+                });
+            }
+        }
+        // In a preview the missing-pick pause is dropped (automatic pass-and-fizzle); otherwise it forms once.
+        expect(missingPickPauses).toBe(previewFlag ? 0 : 1);
+        expect(castActive(player)).toBe(false);
+        // The windup ran up to the gate; the select itself never entered.
+        expect(logFor(engine).windupEnd).toHaveLength(1);
+        expect(logFor(engine).selectEntry).toHaveLength(0);
+        engine.destroy();
+    });
+});
+
+describe.each([
     ['mid-tick', 0.31],
     ['on a tick boundary', 0.3],
 ])('one-tick gated select starting %s', (_name, selectStart) => {
@@ -251,7 +313,7 @@ describe.each([
         engine.sequentialTargetingPreviewCast = {
             unitId: player.id,
             abilityId: GATE_TEST_ABILITY_ID,
-            startRound: engine.roundNumber,
+            startRound: engine.roundNumber, beganAtGameTime: engine.gameTime,
         };
         engine.state.orderMgr.applyOrder({
             unitId: player.id,

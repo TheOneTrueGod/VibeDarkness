@@ -6,7 +6,7 @@
  * preserving the existing public API via facade methods/getters.
  */
 
-import { EventBus, type DamageTakenEvent, type NearbyStoneDamagedEvent } from './EventBus';
+import { EventBus, type CastEndedEarlyEvent, type DamageTakenEvent, type NearbyStoneDamagedEvent } from './EventBus';
 import {
     normalizeWaitingForOrdersFromJSON,
     type OrderWaiter,
@@ -102,7 +102,11 @@ import { applyVisualEffectDefs } from './effects/applyVisualEffectDefs';
 import { NinjutsuManager, countNinjutsuEnemyUnits, type NinjutsuUIState } from './ninjutsu/NinjutsuManager';
 import { NINJUTSU_DEFAULT, type NinjutsuPoolConfig } from './ninjutsu/ninjutsuConfig';
 import { findImpendingSelectTargetNeed } from './interaction/selectTargetLookahead';
-import { isITSPreviewComplete } from './interaction/isITSPreviewComplete';
+import {
+    isITSPreviewComplete,
+    isPreviewCastInstance,
+    type SequentialTargetingPreviewCast,
+} from './interaction/isITSPreviewComplete';
 
 // Re-exports for backward compatibility
 export type { CardInstance } from './managers/CardManager';
@@ -185,7 +189,12 @@ export class GameEngine implements EngineContext {
      * frozen (local player is a waiter). Wired by BattleSession for lobby-log observability (lobby 39E984).
      */
     private onItsParallelPauseDecision:
-        | ((decision: 'drop' | 'freeze', waiters: readonly OrderWaiter[], gameTick: number) => void)
+        | ((
+              decision: 'drop' | 'freeze',
+              waiters: readonly OrderWaiter[],
+              gameTick: number,
+              info?: { missingPick: true },
+          ) => void)
         | null = null;
     private pendingAdminReason: string | null = null;
     private appliedRoundStartRecovery = false;
@@ -221,12 +230,30 @@ export class GameEngine implements EngineContext {
      * Identifies the caster, ability, and starting round number being previewed in an interactive
      * sequential targeting session. Set alongside `isSequentialTargetingPreview`; dies with the
      * preview engine on restore. Ephemeral — not serialized.
+     *
+     * `endedEarly` is recorded from the `cast_ended_early` event (first event only) so ITS keeps
+     * playing forward past an interrupt / fizzle instead of rewinding.
      */
-    sequentialTargetingPreviewCast: { unitId: string; abilityId: string; startRound: number } | null = null;
+    sequentialTargetingPreviewCast: SequentialTargetingPreviewCast | null = null;
 
     constructor() {
         registerLateBuiltinHandlers(this.state.worldModifierManager, this);
+        // Also re-subscribed in registerCoreEventListeners, which clears the bus on prepare / fromJSON.
+        this.eventBus.on('cast_ended_early', this.recordPreviewCastEndedEarly);
     }
+
+    /** Records the first `cast_ended_early` for the ITS preview cast (see `sequentialTargetingPreviewCast`). */
+    private readonly recordPreviewCastEndedEarly = (event: CastEndedEarlyEvent): void => {
+        const previewCast = this.sequentialTargetingPreviewCast;
+        if (!this.isSequentialTargetingPreview || previewCast == null) return;
+        if (previewCast.endedEarly != null) return;
+        if (!isPreviewCastInstance(previewCast, event.unitId, event.abilityId, event.castStartTime)) return;
+        previewCast.endedEarly = {
+            atTick: event.gameTick,
+            reason: event.reason,
+            ...(event.source ? { source: event.source } : {}),
+        };
+    };
 
     get randomSeed(): number {
         return this.state.randomSeed;
@@ -845,6 +872,7 @@ export class GameEngine implements EngineContext {
         this.state.unitManager.registerListeners();
         this.state.interruptSystem.registerListeners(this.eventBus);
         this.state.worldModifierManager.registerListeners(this.eventBus);
+        this.eventBus.on('cast_ended_early', this.recordPreviewCastEndedEarly);
 
         // unit_died: apply onDeathVisualEffects and onDeathBehaviors from the unit def directly.
         // Alpha wolf has no onDeathVisualEffects — its death is handled by _builtin_alpha_wolf_death.
@@ -1045,7 +1073,15 @@ export class GameEngine implements EngineContext {
     }
 
     setOnItsParallelPauseDecision(
-        cb: ((decision: 'drop' | 'freeze', waiters: readonly OrderWaiter[], gameTick: number) => void) | null,
+        cb:
+            | ((
+                  decision: 'drop' | 'freeze',
+                  waiters: readonly OrderWaiter[],
+                  gameTick: number,
+                  /** Set when the waiters were missing-pick waiters dropped as an automatic pass-and-fizzle. */
+                  info?: { missingPick: true },
+              ) => void)
+            | null,
     ): void {
         this.onItsParallelPauseDecision = cb;
     }
@@ -1403,9 +1439,46 @@ export class GameEngine implements EngineContext {
         );
     }
 
+    /** True when any waiter unit has an active ability paused at a missing pick (`awaitingPickLabel`). */
+    private waitersIncludeMissingPickPause(waiters: readonly OrderWaiter[]): boolean {
+        return waiters.some((w) => this.waiterHasMissingPickPause(w));
+    }
+
+    private waiterHasMissingPickPause(waiter: OrderWaiter): boolean {
+        return this.getUnit(waiter.unitId)?.activeAbilities.some((a) => a.awaitingPickLabel !== undefined) ?? false;
+    }
+
     private commitDeferredOrderPauseAfterCompletedTick(): boolean {
         if (this.deferredOrderPause == null || this.deferredOrderPause.waiters.length === 0) {
             return false;
+        }
+        // Interactive targeting preview: a missing-pick waiter is always dropped, on host and non-host
+        // (automatic pass-and-fizzle, so the previewing player's playahead keeps moving). Clearing
+        // `awaitingPickLabel` leaves the label in `missingSelectLabels`, so the select fizzles the cast
+        // on entry next tick. The hook always marks the preview as depending on another player, so the
+        // commit rewinds and the real timeline asks the owner for the real pick. This deliberately
+        // bypasses the non-host freeze rule (lobby 39E984): the forced rollback is what prevents the
+        // sim from running past the host's order batch and deadlocking on submit.
+        if (this.isSequentialTargetingPreview) {
+            const missingPickWaiters = this.deferredOrderPause.waiters.filter((w) =>
+                this.waiterHasMissingPickPause(w),
+            );
+            if (missingPickWaiters.length > 0) {
+                for (const w of missingPickWaiters) {
+                    for (const cast of this.getUnit(w.unitId)?.activeAbilities ?? []) {
+                        delete cast.awaitingPickLabel;
+                    }
+                }
+                this.onItsParallelPauseDecision?.('drop', missingPickWaiters, this.gameTick, { missingPick: true });
+                const remaining = this.deferredOrderPause.waiters.filter(
+                    (w) => !missingPickWaiters.some((m) => m.unitId === w.unitId),
+                );
+                if (remaining.length === 0) {
+                    this.deferredOrderPause = null;
+                    return false;
+                }
+                this.deferredOrderPause.waiters = remaining;
+            }
         }
         const previewWaiters = this.deferredOrderPause.waiters;
         const isConditionalCancelPause = this.waitersIncludeConditionalCancelPause(previewWaiters);
@@ -1434,7 +1507,9 @@ export class GameEngine implements EngineContext {
         const naturalSet = new Set(naturalCompletionUnitIds);
         // Conditional cancel is not a natural completion — suppress coop cancel to avoid
         // unrelated team-ability interruptions during a single-unit decision.
-        const hadNaturalWaiter = !isConditionalCancelPause && initialWaiters.some((w) => naturalSet.has(w.unitId));
+        // A missing-pick pause is likewise not a natural completion.
+        const isMidCastPause = isConditionalCancelPause || this.waitersIncludeMissingPickPause(initialWaiters);
+        const hadNaturalWaiter = !isMidCastPause && initialWaiters.some((w) => naturalSet.has(w.unitId));
 
         let teamworkCancelledOwnerIds: string[] | undefined;
         let waiters = [...initialWaiters];
@@ -1604,10 +1679,35 @@ export class GameEngine implements EngineContext {
                                 this.deferredPauseIncludesLocalPlayer(waiters)));
                     if (schedulePause) {
                         this.state.levelEventManager.runVictoryChecks();
-                        this.deferredOrderPause = {
-                            waiters,
-                            naturalCompletionUnitIds: [...this.naturalAbilityCompletionUnitIdsThisTick],
-                        };
+                        // A mid-cast request made earlier this tick (conditional cancel, missing pick) already
+                        // holds a deferred pause. Merge into it instead of replacing it, or its waiter is lost
+                        // and the cast stays paused with no order batch to answer it.
+                        const earlier = this.deferredOrderPause;
+                        if (earlier != null) {
+                            const merged = [...earlier.waiters];
+                            for (const w of waiters) {
+                                if (!merged.some((m) => m.unitId === w.unitId)) merged.push(w);
+                            }
+                            merged.sort((a, b) =>
+                                a.ownerId !== b.ownerId
+                                    ? a.ownerId.localeCompare(b.ownerId)
+                                    : a.unitId.localeCompare(b.unitId),
+                            );
+                            this.deferredOrderPause = {
+                                waiters: merged,
+                                naturalCompletionUnitIds: [
+                                    ...new Set([
+                                        ...earlier.naturalCompletionUnitIds,
+                                        ...this.naturalAbilityCompletionUnitIdsThisTick,
+                                    ]),
+                                ],
+                            };
+                        } else {
+                            this.deferredOrderPause = {
+                                waiters,
+                                naturalCompletionUnitIds: [...this.naturalAbilityCompletionUnitIdsThisTick],
+                            };
+                        }
                         this.naturalAbilityCompletionUnitIdsThisTick.clear();
                     } else if (
                         waiters.length > 0
@@ -1826,6 +1926,20 @@ export class GameEngine implements EngineContext {
     }
 
     requestConditionalCancelPause(unit: Unit): void {
+        this.requestMidCastOrderPause(unit);
+    }
+
+    /**
+     * Missing-pick pause: the cast (`awaitingPickLabel` set by the caller) reached a select whose pick its
+     * order lacks. Same deferred-pause mechanics as a conditional cancel; the order resolver is
+     * `OrderManager`'s missing-pick decision (an `updateTargets` order, or `wait` to fizzle).
+     */
+    requestMissingPickPause(unit: Unit): void {
+        this.requestMidCastOrderPause(unit);
+    }
+
+    /** Shared body: make `unit` a waiter in the deferred order pause committed at the end of this tick. */
+    private requestMidCastOrderPause(unit: Unit): void {
         const waiter: OrderWaiter = { unitId: unit.id, ownerId: unit.ownerId };
         if (this.deferredOrderPause) {
             if (!this.deferredOrderPause.waiters.some((w) => w.unitId === unit.id)) {

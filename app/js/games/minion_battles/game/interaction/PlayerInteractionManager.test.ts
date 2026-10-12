@@ -106,6 +106,8 @@ describe('PlayerInteractionManager wait confirms client-side move', () => {
                     isActive: false,
                     previewOrderQueued: false,
                     shouldForceItsCommitAtComboWindow: () => false,
+                    isResumeMode: false,
+                    reset: async () => {},
                     commit: async () => {},
                 },
             },
@@ -229,7 +231,7 @@ describe('PlayerInteractionManager combo follow-up after assumed ITS pass', () =
         engine.sequentialTargetingPreviewCast = {
             unitId: player.id,
             abilityId: THROW_CHARGED_ROCK_ABILITY_ID,
-            startRound: engine.roundNumber,
+            startRound: engine.roundNumber, beganAtGameTime: engine.gameTime,
         };
 
         const camera = new Camera(800, 600, engine.getWorldWidth(), engine.getWorldHeight());
@@ -244,6 +246,8 @@ describe('PlayerInteractionManager combo follow-up after assumed ITS pass', () =
                     isActive: true,
                     previewOrderQueued: true,
                     shouldForceItsCommitAtComboWindow: () => forceItsCommit,
+                    isResumeMode: false,
+                    reset: async () => {},
                     commit: async () => {},
                 },
             },
@@ -316,6 +320,8 @@ describe('PlayerInteractionManager combo follow-up after assumed ITS pass', () =
                     isActive: false,
                     previewOrderQueued: false,
                     shouldForceItsCommitAtComboWindow: () => false,
+                    isResumeMode: false,
+                    reset: async () => {},
                     commit: async () => {},
                 },
             },
@@ -394,7 +400,7 @@ describe('PlayerInteractionManager combo follow-up after assumed ITS pass', () =
         engine.sequentialTargetingPreviewCast = {
             unitId: player.id,
             abilityId: THROW_CHARGED_ROCK_ABILITY_ID,
-            startRound: engine.roundNumber,
+            startRound: engine.roundNumber, beganAtGameTime: engine.gameTime,
         };
         const camera = new Camera(800, 600, engine.getWorldWidth(), engine.getWorldHeight());
         const manager = new PlayerInteractionManager();
@@ -410,6 +416,8 @@ describe('PlayerInteractionManager combo follow-up after assumed ITS pass', () =
                     isActive: true,
                     previewOrderQueued: true,
                     shouldForceItsCommitAtComboWindow: () => true,
+                    isResumeMode: false,
+                    reset: async () => {},
                     commit,
                 },
             },
@@ -425,5 +433,119 @@ describe('PlayerInteractionManager combo follow-up after assumed ITS pass', () =
 
         expect(commit).toHaveBeenCalledTimes(1);
         expect(submitted).toHaveLength(0);
+    });
+});
+
+describe('PlayerInteractionManager at a missing-pick decision', () => {
+    let engineToDestroy: GameEngine | null = null;
+    let managerToDestroy: PlayerInteractionManager | null = null;
+
+    afterEach(() => {
+        managerToDestroy?.destroy();
+        managerToDestroy = null;
+        engineToDestroy?.destroy();
+        engineToDestroy = null;
+    });
+
+    function mountMissingPick(opts: { awaiting: boolean; resumeActive: boolean }) {
+        const submitted: BattleOrder[] = [];
+        const reset = vi.fn(async () => {});
+        const engine = buildTinyBattleEngine({
+            gridW: GRID_W,
+            gridH: GRID_H,
+            localPlayerId: TINY_BATTLE_PLAYER_ID,
+            grass: true,
+        });
+        const start = playerCellCenter(2, 4);
+        const player = spawnTinyPlayerUnit(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            x: start.x,
+            y: start.y,
+            abilities: ['0120'],
+        });
+        player.activeAbilities = [{
+            abilityId: '0120',
+            startTime: engine.gameTime,
+            targets: [],
+            ...(opts.awaiting ? { awaitingPickLabel: 'Target 1', missingSelectLabels: ['Target 1'] } : {}),
+        } as never];
+        engine.waitingForOrders = {
+            atTick: engine.gameTick,
+            waiters: [{ unitId: player.id, ownerId: TINY_BATTLE_PLAYER_ID }],
+        };
+        const camera = new Camera(800, 600, engine.getWorldWidth(), engine.getWorldHeight());
+        const manager = new PlayerInteractionManager();
+        manager.setContext({
+            engine,
+            camera,
+            renderer: { setDebugUnitOutline: () => {} } as unknown as GameRenderer,
+            session: {
+                submitPlayerOrder: async (order: BattleOrder) => {
+                    submitted.push(order);
+                },
+                interactiveTargeting: {
+                    isActive: opts.resumeActive,
+                    isResumeMode: opts.resumeActive,
+                    previewOrderQueued: opts.resumeActive,
+                    shouldForceItsCommitAtComboWindow: () => false,
+                    commit: async () => {},
+                    reset,
+                },
+            },
+            playerId: TINY_BATTLE_PLAYER_ID,
+        });
+        manager.setCanUseOrderUi(true);
+        manager.setWaitingForOrders(engine.waitingForOrders);
+        manager.setMyAbilityIds(['0120']);
+        engineToDestroy = engine;
+        managerToDestroy = manager;
+        return { manager, submitted, reset, player };
+    }
+
+    const digitKey = (): KeyboardEvent =>
+        ({ code: 'Digit1', key: '1', repeat: false, preventDefault: () => {} }) as unknown as KeyboardEvent;
+
+    it('Pass resets the resume preview and submits wait for the batch', async () => {
+        const { manager, submitted, reset, player } = mountMissingPick({ awaiting: true, resumeActive: true });
+
+        manager.handleWait();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(reset).toHaveBeenCalledTimes(1);
+        expect(submitted).toHaveLength(1);
+        expect(submitted[0]).toMatchObject({ unitId: player.id, abilityId: 'wait', endTurn: true });
+    });
+
+    it('Pass works before the resume preview is armed (no ITS yet)', async () => {
+        const { manager, submitted } = mountMissingPick({ awaiting: true, resumeActive: false });
+
+        manager.handleWait();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(submitted).toHaveLength(1);
+        expect(submitted[0]).toMatchObject({ abilityId: 'wait', endTurn: true });
+    });
+
+    it('ability hotkeys and cards are ignored', async () => {
+        const { manager, submitted } = mountMissingPick({ awaiting: true, resumeActive: true });
+        const activate = vi.spyOn(manager, 'activateAbilityTargeting');
+
+        manager.onKeyDown(digitKey());
+        manager.activateAbilityTargeting(0, getAbility('0120')!);
+        await Promise.resolve();
+
+        // The hotkey never reached activateAbilityTargeting; the direct call returned without acting.
+        expect(activate).toHaveBeenCalledTimes(1);
+        expect(submitted).toHaveLength(0);
+        expect(manager.getUIState().selectedAbility).toBeNull();
+    });
+
+    it('ability hotkeys still work when no cast is waiting on a pick', () => {
+        const { manager } = mountMissingPick({ awaiting: false, resumeActive: false });
+        const activate = vi.spyOn(manager, 'activateAbilityTargeting').mockImplementation(() => {});
+
+        manager.onKeyDown(digitKey());
+
+        expect(activate).toHaveBeenCalledTimes(1);
     });
 });

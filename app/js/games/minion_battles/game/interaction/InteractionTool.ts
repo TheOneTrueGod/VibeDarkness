@@ -10,8 +10,11 @@ export interface PlayerInteractionSession {
     readonly interactiveTargeting: {
         readonly isActive: boolean;
         readonly previewOrderQueued: boolean;
+        /** True while a resume preview (picking at a missing-pick pause) is running. */
+        readonly isResumeMode: boolean;
         shouldForceItsCommitAtComboWindow(): boolean;
         commit(session: PlayerInteractionSession, actionSource?: string): Promise<void>;
+        reset(session: PlayerInteractionSession, actionSource?: string): Promise<void>;
     };
 }
 

@@ -51,7 +51,9 @@ Snapshot envelope **`tick`** is **not** interchangeable with **`orderBatchAtTick
 
 2. **Host**, when **`GameEngine`** satisfies a parallel batch (`tryResumeParallel`), **`BattleSession`** calls **`BattleNet.mergeAppliedOrdersForBatch(batchAtTick)`** → **`mergeBattleAppliedOrders`** (**`MergeAppliedOrdersHandler`**) moves **finalized** rows for that tick into **`applied_orders.jsonl`** (with retries; failures → **`requestResync('merge-applied-failed')`**).
 
-3. **`GET …/orders`** returns **`orders`** (applied overlay pending for the same `(playerId, unitId, atTick)` keys) plus raw **`pendingOrders`** / **`appliedOrders`**.
+3. **`updateTargets` orders** are ordinary orders in the same batch pipeline (no separate endpoint). They fill in picks on a running cast that is paused at a missing-pick pause (`awaitingPickLabel`), and spend no cost or use.
+
+4. **`GET …/orders`** returns **`orders`** (applied overlay pending for the same `(playerId, unitId, atTick)` keys) plus raw **`pendingOrders`** / **`appliedOrders`**.
 
 ## Heartbeat (**`GET …/heartbeat`**)
 

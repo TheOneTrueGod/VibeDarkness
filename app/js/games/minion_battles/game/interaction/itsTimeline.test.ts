@@ -77,7 +77,7 @@ describe('ITS timeline promotion & discard (Step 5)', () => {
         const runId = 1;
         session.enterItsPreview(runId, engine.gameTick, engine.gameTick);
         engine.isSequentialTargetingPreview = true;
-        engine.sequentialTargetingPreviewCast = { unitId: 'test', abilityId: PUNCH_ABILITY_ID, startRound: 1 };
+        engine.sequentialTargetingPreviewCast = { unitId: 'test', abilityId: PUNCH_ABILITY_ID, startRound: 1, beganAtGameTime: 0 };
 
         // Timeline should be preview
         const timelineInPreview = session.getTimeline();

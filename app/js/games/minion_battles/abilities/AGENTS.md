@@ -32,12 +32,14 @@ Declarative cast timing, targeting, hitboxes, and reusable cast behaviours for M
 - Every early end of a cast goes through `interruptUnitAbilities` (`game/units/unitAbilityLifecycle.ts`): knockback, stun, wall-unstick removal and a same-id recast. Per cast it fires `ON_CAST_END`, runs behaviour cleanup (`onInterrupt` on the live behaviours), then applies the ability's policy. Do not add a new ad-hoc end path or interrupt hook.
 - `interruptPolicy` on `AbilityStatic` decides the outcome. `beforeCooldown` is `cancel` (refund) or `skipToCooldown`. `duringCooldown` is `ignore` (keep the cast) or `end`. The defaults are cancel and ignore. Rock Slide ends during cooldown, and ChargeAttack and MultiChargeAttack skip to cooldown.
 - A rejected select pick ends the cast through `fizzleUnitActiveAbility`, which applies the same policy. It does not use `cancelUnitActiveAbility`, because that path does not refund.
+- The pipeline and the fizzle both emit `cast_ended_early` on the engine EventBus (`CastEndedEarlyEvent` in `game/EventBus.ts`), with the cause derived from unit state. It is the single hook for UI, logs and ITS; do not add per-call-site notifications.
 
 ## Select gate and `validatePick`
 
 - A select with `start > 0` that begins inside a tick splits that tick. The cast is processed up to the start, and `processedElapsed` and `pendingSelectGate` are saved. The select enters on the next tick, and the ITS lookahead pauses before that tick. That tick force-enters the select even if it has already ended (`selectGateDeferredIds`), so a one-tick select is fine. The decision depends only on timing structure, so preview and committed runs match. Start-0 selects are not gated (`findSelectGateSplit` in `game/interaction/selectTargetLookahead.ts`), so a start-0 select still needs two ticks.
 - Snapping to cooldown clears the gate fields. Any new path that rewrites `active.startTime` must clear them too.
 - `validatePick` is checked in three places. The preview draws `renderInvalidPreview` (grey, with a cross) instead of the normal telegraph. AI `buildAiSelectTargets` returns `valid: false`, so the plan is dropped. When a select enters, a rejected pick fizzles the cast.
+- Missing select labels: a committed order lists the labels it lacks in `missingSelectLabels`, saved on the cast. At the select gate the owner is paused in the real timeline (`awaitingPickLabel`) and answers with an `updateTargets` order. Inside other players' previews the pause is dropped (automatic pass-and-fizzle). Pass, no pick, or a non-player-controlled caster fizzles the select on entry. The ITS lookahead never pauses for a missing label. These checks read only saved cast data, never `targetsByLabel`.
 
 ## Held projectiles
 

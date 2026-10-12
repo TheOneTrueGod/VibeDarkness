@@ -74,6 +74,10 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
             ...(a.comboCount !== undefined && a.comboCount !== 1 ? { comboCount: a.comboCount } : {}),
             ...(a.processedElapsed !== undefined ? { processedElapsed: a.processedElapsed } : {}),
             ...(a.pendingSelectGate !== undefined ? { pendingSelectGate: a.pendingSelectGate } : {}),
+            ...(a.missingSelectLabels !== undefined && a.missingSelectLabels.length > 0
+                ? { missingSelectLabels: [...a.missingSelectLabels] }
+                : {}),
+            ...(a.awaitingPickLabel !== undefined ? { awaitingPickLabel: a.awaitingPickLabel } : {}),
             ...(a.movementByLabel !== undefined
                 ? { movementByLabel: JSON.parse(JSON.stringify(a.movementByLabel)) as typeof a.movementByLabel }
                 : {}),

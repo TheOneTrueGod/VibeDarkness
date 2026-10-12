@@ -31,7 +31,8 @@ export type GameEventType =
     | 'forced_movement_terrain_collision'
     | 'unit_slam_landed'
     | 'daylight_damage_pulse'
-    | 'terrain_effects_cleared';
+    | 'terrain_effects_cleared'
+    | 'cast_ended_early';
 
 /** Optional combat VFX hint — does not change damage rules. */
 export const DAMAGE_VISUAL_KIND_DAYLIGHT = 'daylight' as const;
@@ -193,6 +194,25 @@ export interface TerrainEffectsClearedEvent {
     source?: { unitId?: string; abilityId?: string };
 }
 
+/**
+ * The single "cast ended early" hook for UI, logs and interactive targeting (ITS). Emitted by the
+ * interrupt pipeline (`interruptUnitAbilities`) and by `fizzleUnitActiveAbility` for every cast that
+ * is removed or snapped to cooldown before it finished. Not emitted for a cast kept under
+ * `duringCooldown: 'ignore'`, for natural completion, or for a same-id recast.
+ */
+export interface CastEndedEarlyEvent {
+    unitId: string;
+    abilityId: string;
+    /** `ActiveAbility.startTime` of the cast that ended (identifies the cast instance). */
+    castStartTime: number;
+    reason: 'interrupted' | 'fizzled';
+    /** What happened to the cast: removed (`cancelled`), snapped to cooldown, or a cooldown-phase cast ended. */
+    outcome: 'cancelled' | 'skippedToCooldown' | 'ended';
+    /** Derived from unit state at emit time (knockback source while in knockback); omitted otherwise. */
+    source?: KnockbackSource;
+    gameTick: number;
+}
+
 export type GameEventDataMap = {
     damage_taken: DamageTakenEvent;
     round_start: RoundStartEvent;
@@ -216,6 +236,7 @@ export type GameEventDataMap = {
     unit_slam_landed: UnitSlamLandedEvent;
     daylight_damage_pulse: DayLightDamagePulseEvent;
     terrain_effects_cleared: TerrainEffectsClearedEvent;
+    cast_ended_early: CastEndedEarlyEvent;
 };
 
 type EventCallback<T extends GameEventType> = (data: GameEventDataMap[T]) => void;

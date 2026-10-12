@@ -160,6 +160,7 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
             ? { conditionalCancelTagFilter: [...a.conditionalCancelTagFilter] }
             : {}),
         ...(a.comboCount !== undefined ? { comboCount: a.comboCount } : {}),
+        ...(a.missingSelectLabels !== undefined ? { missingSelectLabels: [...a.missingSelectLabels] } : {}),
         ...(a.movementByLabel !== undefined
             ? { movementByLabel: JSON.parse(JSON.stringify(a.movementByLabel)) as typeof a.movementByLabel }
             : {}),

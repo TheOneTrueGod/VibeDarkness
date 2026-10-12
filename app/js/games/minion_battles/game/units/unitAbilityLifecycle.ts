@@ -1,6 +1,8 @@
 import type { Unit } from './Unit';
 import type { ActiveAbility, ResolvedTarget } from '../types';
 import type { EngineContext } from '../EngineContext';
+import type { CastEndedEarlyEvent } from '../EventBus';
+import type { KnockbackSource } from './unitTypes';
 import type { CastBehaviourInterruptContext } from '../../abilities/castBehaviourTypes';
 import {
     AbilityPhase,
@@ -38,8 +40,28 @@ function isCooldownPhase(phase: AbilityPhase | null): boolean {
     return phase === AbilityPhase.Cooldown || phase === AbilityPhase.CoopCooldown;
 }
 
-/** Fires ON_CAST_END for a cast that is being ended early (cancel, skip-to-cooldown or end). */
-function fireCastEndEarly(unit: Unit, active: ActiveAbility, ability: AbilityStatic, engine: EngineContext): void {
+/**
+ * Why a cast ended early, derived from unit state at the moment of the end. Today only knockback
+ * carries a source (`unit.knockback.knockbackSource`); stun and lift causes have none yet, so the
+ * source is omitted for them.
+ */
+function deriveCastEndSource(unit: Unit): KnockbackSource | undefined {
+    const source = unit.knockback?.knockbackSource;
+    return source ? { ...source } : undefined;
+}
+
+/**
+ * Fires ON_CAST_END for a cast that is being ended early (cancel, skip-to-cooldown or end), then
+ * emits `cast_ended_early` on the EventBus: the single "cast ended early" hook for UI, logs and ITS.
+ */
+function fireCastEndEarly(
+    unit: Unit,
+    active: ActiveAbility,
+    ability: AbilityStatic,
+    engine: EngineContext,
+    reason: CastEndedEarlyEvent['reason'],
+    outcome: CastEndedEarlyEvent['outcome'],
+): void {
     const elapsed = Math.max(0, engine.gameTime - active.startTime);
     triggerAbilityEvent({
         engine,
@@ -50,6 +72,16 @@ function fireCastEndEarly(unit: Unit, active: ActiveAbility, ability: AbilitySta
         eventType: AbilityEventType.ON_CAST_END,
         prevTime: elapsed,
         currentTime: elapsed,
+    });
+    const source = deriveCastEndSource(unit);
+    engine.eventBus.emit('cast_ended_early', {
+        unitId: unit.id,
+        abilityId: active.abilityId,
+        castStartTime: active.startTime,
+        reason,
+        outcome,
+        ...(source ? { source } : {}),
+        gameTick: engine.gameTick,
     });
 }
 
@@ -147,7 +179,9 @@ export function cancelUnitActiveAbility(unit: Unit, abilityId: string, engine: E
  *
  * Every cast that is removed or snapped fires `ON_CAST_END` and runs
  * `cleanupCastBehavioursForAbility` (so behaviour `onInterrupt` always fires). The ability note is
- * cleared when at least one cast was interrupted.
+ * cleared when at least one cast was interrupted. Each of those also emits `cast_ended_early`
+ * (see `CastEndedEarlyEvent`), the single hook for UI, logs and ITS; a cast kept under
+ * `duringCooldown: 'ignore'` emits nothing.
  */
 export function interruptUnitAbilities(unit: Unit, engine: EngineContext): void {
     const kept: ActiveAbility[] = [];
@@ -168,21 +202,21 @@ export function interruptUnitAbilities(unit: Unit, engine: EngineContext): void 
                 continue;
             }
             interruptedAny = true;
-            fireCastEndEarly(unit, active, ability, engine);
+            fireCastEndEarly(unit, active, ability, engine, 'interrupted', 'ended');
             cleanupCastBehavioursForAbility(unit, active, engine);
             continue;
         }
 
         interruptedAny = true;
         if (policy.beforeCooldown === 'skipToCooldown' && findCooldownInterval(intervals)) {
-            fireCastEndEarly(unit, active, ability, engine);
+            fireCastEndEarly(unit, active, ability, engine, 'interrupted', 'skippedToCooldown');
             skipActiveAbilityToCooldown(unit, active, ability, engine);
             kept.push(active);
             continue;
         }
 
         refundAbilityCost(unit, ability, elapsed);
-        fireCastEndEarly(unit, active, ability, engine);
+        fireCastEndEarly(unit, active, ability, engine, 'interrupted', 'cancelled');
         cleanupCastBehavioursForAbility(unit, active, engine);
     }
     unit.activeAbilities = kept;
@@ -209,12 +243,12 @@ export function fizzleUnitActiveAbility(unit: Unit, active: ActiveAbility, engin
     const intervals = normalizeAbilityTimingsToIntervals(resolveAbilityTimingEntries(ability, unit, engine));
     const policy = resolveAbilityInterruptPolicy(ability);
     if (policy.beforeCooldown === 'skipToCooldown' && findCooldownInterval(intervals)) {
-        fireCastEndEarly(unit, active, ability, engine);
+        fireCastEndEarly(unit, active, ability, engine, 'fizzled', 'skippedToCooldown');
         skipActiveAbilityToCooldown(unit, active, ability, engine);
         return;
     }
     refundAbilityCost(unit, ability, elapsed);
-    fireCastEndEarly(unit, active, ability, engine);
+    fireCastEndEarly(unit, active, ability, engine, 'fizzled', 'cancelled');
     cleanupCastBehavioursForAbility(unit, active, engine);
     const idx = unit.activeAbilities.indexOf(active);
     if (idx >= 0) unit.activeAbilities.splice(idx, 1);

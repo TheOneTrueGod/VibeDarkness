@@ -28,6 +28,7 @@ This skill keeps a **list of component names** and a **one-line description** of
 | **CharacterGrid** | Auto-fill grid of 200px character/option cards for the character-select screen. Lives in `ui/pages/characterSelect/`. |
 | **ITSTimelineControls** | Fixed-height ITS Reset / Replay / Done icon row with a live frame-stepper; replaces “Your Turn” text in the turn indicator during playahead. |
 | **ITSTimelineFrameStepper** | Compact passed / current / future pip bar for ITS playahead progress. |
+| **BattleNoticeSlot** | Reusable notice container above the "Your Turn" plaque: renders nothing unless a notice exists, then blue starburst badges with a red border (title + optional detail). Fed by `createBattleNoticeStore` / `BATTLE_NOTICE_PRESETS` in `battleNotices.ts`; passed to `TurnIndicator` via `noticeSlot`. Lives in `minion_battles/ui/components/`. |
 | **AnchoredPortalTooltip** | Portaled tooltip from an anchor; auto-flips / clamps to stay in the viewport; always includes opaque `bg-black` surface chrome via `PORTAL_TOOLTIP_SURFACE_CLASS`. Lives in `minion_battles/ui/components/`. |
 | **AbilityTooltip** | Ability name + description lines; desktop uses **AnchoredPortalTooltip** (`anchorRef` required); mobile bottom overlay. Lives in `minion_battles/ui/components/`. |
 | **AbilitySlot** | Ability bar card with uses/costs and hover tooltip. Lives in `minion_battles/ui/components/`. |

@@ -82,6 +82,11 @@ interface TurnIndicatorProps {
      * controls); null hides both.
      */
     sideControls?: TurnIndicatorSideControls | null;
+    /**
+     * Reusable notice container (BattleNoticeSlot) rendered just above the plaque, stacked with
+     * the host catch-up popover in one absolute column. Pass null/undefined for nothing.
+     */
+    noticeSlot?: React.ReactNode;
 }
 
 const BLINK_DURATION_MS = 220;
@@ -101,6 +106,7 @@ export default function TurnIndicator({
     itsControls = null,
     freezePresentation = false,
     sideControls = null,
+    noticeSlot = null,
 }: TurnIndicatorProps) {
     const [phase, setPhase] = useState<'open' | 'closing' | 'closed' | 'opening'>(() =>
         state === 'playing' ? 'closed' : 'open',
@@ -293,9 +299,14 @@ export default function TurnIndicator({
     return (
         <div className="relative w-full shrink-0">
             {roundTooltip}
-            {hostCatchupPopover && (
+            {(hostCatchupPopover || noticeSlot) && (
+                // One absolute column (not an in-flow row: the bottom band has a fixed height) so
+                // the notice slot and the host catch-up popover stack instead of overlapping.
+                <div className="pointer-events-none absolute left-1/2 bottom-full z-[70] mb-1 flex -translate-x-1/2 flex-col items-center gap-1">
+                    {noticeSlot}
+                    {hostCatchupPopover && (
                 <div
-                    className="pointer-events-auto absolute left-1/2 bottom-full z-[70] mb-1 w-[min(17rem,calc(100vw-1.5rem))] -translate-x-1/2 backdrop-blur-[2px]"
+                    className="pointer-events-auto w-[min(17rem,calc(100vw-1.5rem))] backdrop-blur-[2px]"
                     role="status"
                 >
                     <div className="flex items-start gap-2">
@@ -323,6 +334,8 @@ export default function TurnIndicator({
                             }
                         />
                     </div>
+                </div>
+                    )}
                 </div>
             )}
             {orderPipeline != null && orderPipeline.queued > 0 && (

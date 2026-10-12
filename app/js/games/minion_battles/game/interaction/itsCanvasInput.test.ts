@@ -254,7 +254,7 @@ describe('shouldDeferItsCanvasInputToOrderUi', () => {
         engine.sequentialTargetingPreviewCast = {
             unitId: player.id,
             abilityId: 'throw_charged_rock',
-            startRound: engine.roundNumber,
+            startRound: engine.roundNumber, beganAtGameTime: engine.gameTime,
         };
 
         expect(
@@ -293,7 +293,7 @@ describe('shouldDeferItsCanvasInputToOrderUi', () => {
         engine.sequentialTargetingPreviewCast = {
             unitId: player.id,
             abilityId: 'throw_charged_rock',
-            startRound: engine.roundNumber,
+            startRound: engine.roundNumber, beganAtGameTime: engine.gameTime,
         };
 
         expect(

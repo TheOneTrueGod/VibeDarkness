@@ -41,6 +41,7 @@ import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanternit
 import { lanterniteDeathBehaviorsScenario, lanterniteNestOwnedNoRespawnScenario } from '../scenarios/general/lanterniteDeath';
 import { alphaWolfEnrageTriggersScenario, alphaWolfSummonScenario } from '../scenarios/general/enemies';
 import { npcControlScenario } from '../scenarios/general/npcControl';
+import { castMissingPickPassFizzlesScenario } from '../scenarios/general/castEndedEarly';
 import {
     swarmlingHuntAndBiteScenario,
     swarmlingSharedConstructionScenario,
@@ -379,6 +380,11 @@ describe('runScenarioHeadless', () => {
 
     it('passes NPC control scenario (player-owned wolf scratches team-player dummy)', () => {
         const r = runScenarioHeadless(npcControlScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('pauses for a missing Stone Tomb pick and fizzles the cast with a refund when passed', () => {
+        const r = runScenarioHeadless(castMissingPickPassFizzlesScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

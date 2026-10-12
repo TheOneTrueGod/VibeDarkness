@@ -20,7 +20,8 @@ import { getInteractiveTargetDefsFromTimings } from '../../abilities/targeting';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { unitAbilityHasTag } from '../../abilities/abilityUses';
 import { findPreviewDeferredSelectLabel } from './selectTargetLookahead';
-import { isITSPreviewComplete, isPreviewCastConditionalCancelPaused } from './isITSPreviewComplete';
+import { isPreviewCastConditionalCancelPaused } from './isITSPreviewComplete';
+import type { KnockbackSource } from '../units/unitTypes';
 import {
     type ItsActionSource,
     type ItsCancelReason,
@@ -103,7 +104,7 @@ export function buildFinalizedSequentialTargetingOrder(
     baseOrder: BattleOrder,
     movementByLabel?: Record<string, MovementReInput>,
     positionalTargetsOverride?: ResolvedTarget[],
-    opts?: { endTurn?: boolean },
+    opts?: { endTurn?: boolean; missingSelectLabels?: readonly string[] },
 ): BattleOrder {
     // Melee multi-lock override is only valid for a single select label. Multi-select
     // abilities (e.g. Double Punch) must use per-label collected targets.
@@ -120,6 +121,11 @@ export function buildFinalizedSequentialTargetingOrder(
         targetsByLabel: buildTargetsByLabelFromPositional(selectLabels, collectedTargets, targets),
         endTurn: opts?.endTurn ?? true,
         ...(movementByLabel && Object.keys(movementByLabel).length > 0 ? { movementByLabel } : {}),
+        // Picks the previewed cast never reached (it ended early). Reaching one in the real timeline
+        // pauses the owner for the pick; otherwise the cast fizzles.
+        ...(opts?.missingSelectLabels && opts.missingSelectLabels.length > 0
+            ? { missingSelectLabels: [...opts.missingSelectLabels] }
+            : {}),
     };
 }
 
@@ -144,6 +150,13 @@ export class InteractiveTargetingSession {
     private _selectLabels: readonly string[] = [];
     /** False until the preview order is queued (deferred for t=0 first-select abilities). */
     private _previewOrderQueued = false;
+    /**
+     * True when this run started at a missing-pick pause ({@link beginResume}). The preview "order" is then
+     * an `updateTargets` order filling picks on the paused cast, not a cast of its own.
+     */
+    private _resumeMode = false;
+    /** `startTime` of the paused cast a resume run continues (null outside resume mode). */
+    private _resumeCastStartTime: number | null = null;
     /** Other batch waiters that received an assumed wait at begin() (not already confirmed). */
     private assumedWaitUnitIds: Set<string> = new Set();
     /**
@@ -220,6 +233,11 @@ export class InteractiveTargetingSession {
         return this._unitId;
     }
 
+    /** True while the run started at a missing-pick pause ({@link beginResume}). */
+    get isResumeMode(): boolean {
+        return this._isActive && this._resumeMode;
+    }
+
     /** Engine tick captured in the mark snapshot when preview began; null when preview inactive. */
     get savedLocalTick(): number | null {
         if (!this._isActive || this.mark == null) return null;
@@ -239,17 +257,36 @@ export class InteractiveTargetingSession {
     }
 
     /**
-     * True when the preview cast ended before every select label was collected — e.g. a knockback
-     * or stun interrupted the windup, or the caster died (lobby 0AD6EA: thornbinder knockback on
-     * the first preview tick). The preview reads as complete, but it can never be committed and no
-     * select pause is coming, so ITS would otherwise soft-lock. Conditional-cancel pauses are a
-     * deliberate decision point, not an interruption, and are excluded.
+     * Describes how the preview cast ended early (interrupt, fizzle or caster death), or null when
+     * it has not (or ITS is inactive / the preview order is not queued yet). An ended-early preview
+     * is NOT rewound (lobby 0AD6EA / 3B8D37): it plays forward to the ended-early stop point
+     * ({@link getEndedEarlyPreviewStop}), then the player can Undo or commit that timeline. Picks the
+     * cast never reached are committed as `missingSelectLabels`.
+     *
+     * Reads `engine.sequentialTargetingPreviewCast.endedEarly` (recorded from the `cast_ended_early`
+     * event), or a dead caster.
      */
-    isPreviewCastInterrupted(engine: GameEngine): boolean {
-        if (!this._isActive || !this._previewOrderQueued) return false;
-        if (this.allTargetsCollected()) return false;
-        if (!isITSPreviewComplete(engine)) return false;
-        return !isPreviewCastConditionalCancelPaused(engine);
+    getPreviewCastEndedEarly(engine: GameEngine): {
+        reason: 'interrupted' | 'fizzled' | 'caster_died';
+        atTick: number | null;
+        source?: KnockbackSource;
+    } | null {
+        if (!this._isActive || !this._previewOrderQueued) return null;
+        const cast = engine.sequentialTargetingPreviewCast;
+        if (cast == null) return null;
+        const endedEarly = cast.endedEarly;
+        if (endedEarly != null) {
+            return {
+                reason: endedEarly.reason,
+                atTick: endedEarly.atTick,
+                ...(endedEarly.source != null ? { source: endedEarly.source } : {}),
+            };
+        }
+        const caster = engine.getUnit(cast.unitId);
+        if (!caster?.isAlive()) {
+            return { reason: 'caster_died', atTick: null };
+        }
+        return null;
     }
 
     /** Whether a preview cast order has been queued for this ITS run. */
@@ -346,6 +383,8 @@ export class InteractiveTargetingSession {
         this._selectLabels = interactiveDefs.map((def) => def.label);
 
         this._isActive = true;
+        this._resumeMode = false;
+        this._resumeCastStartTime = null;
         this._abilityId = abilityId;
         this._unitId = unitId;
         this.originalOrder = order;
@@ -383,7 +422,12 @@ export class InteractiveTargetingSession {
         // Flag the engine so host callbacks (checkpoint, fingerprint, batch-resolved) skip
         // during the preview run. This prevents the preview state from being persisted to the server.
         engine.isSequentialTargetingPreview = true;
-        engine.sequentialTargetingPreviewCast = { unitId, abilityId, startRound: engine.roundNumber };
+        engine.sequentialTargetingPreviewCast = {
+            unitId,
+            abilityId,
+            startRound: engine.roundNumber,
+            beganAtGameTime: engine.gameTime,
+        };
 
         engine.setOnParallelBatchResolved(null);
 
@@ -437,6 +481,113 @@ export class InteractiveTargetingSession {
         return true;
     }
 
+    /**
+     * Resume mode: start a preview at a missing-pick pause (the way a Combo follow-up preview starts at a
+     * conditional-cancel pause). The unit's running cast has `awaitingPickLabel`; the cursor appears for that
+     * pick immediately (no ticks run first). The first pick queues a preview `updateTargets` order for the
+     * batch tick; later missing picks are collected through the normal local lookahead while the rest of the
+     * cast plays ahead. Done sends one `updateTargets` order. Undo ({@link reset}) returns to the pause.
+     * Pass is not handled here: the UI resets and submits `wait` (fizzle).
+     *
+     * @returns false when the preconditions fail (no waiter / no awaiting cast / stale batch / not our turn).
+     */
+    beginResume(unitId: string, session: BattleSession): boolean {
+        const engine = session.getEngine();
+        if (!engine) return false;
+        const batch = engine.state.orderMgr.waitingForOrders;
+        if (!batch) return false;
+        if (!session.isOrderBatchTickSubmittable(batch.atTick) || !session.isLocalPlayerExpectedToAct()) {
+            return false;
+        }
+        if (!batch.waiters.some((w) => w.unitId === unitId)) return false;
+        if (engine.state.orderMgr.hasPendingEndTurnOrderForUnit(unitId, batch.atTick)) return false;
+
+        const caster = engine.getUnit(unitId);
+        if (!caster) return false;
+        const active = caster.activeAbilities.find((a) => a.awaitingPickLabel !== undefined);
+        if (!active || active.awaitingPickLabel === undefined) return false;
+        const ability = getAbility(active.abilityId);
+        if (!ability) return false;
+        const awaitingLabel = active.awaitingPickLabel;
+
+        // Missing labels in timing order. Falls back to the awaited label alone.
+        const missing = active.missingSelectLabels ?? [awaitingLabel];
+        const labels = getInteractiveTargetDefsFromTimings(ability, caster, engine)
+            .map((def) => def.label)
+            .filter((label) => missing.includes(label));
+        this._selectLabels = labels.length > 0 ? labels : [awaitingLabel];
+
+        this._isActive = true;
+        this._resumeMode = true;
+        this._resumeCastStartTime = active.startTime;
+        this._abilityId = active.abilityId;
+        this._unitId = unitId;
+        this.originalOrder = {
+            unitId,
+            abilityId: active.abilityId,
+            targets: [],
+            endTurn: true,
+            updateTargets: true,
+        };
+        Object.keys(this.collectedTargets).forEach((k) => delete this.collectedTargets[k]);
+        this.collectedMovementByLabel = {};
+        this._orderPositionalTargets = [];
+        this.heldRemoteOrders.clear();
+        this._currentLabel = null;
+        this._previewOrderQueued = false;
+        this.assumedWaitUnitIds = new Set();
+        this.assumedRemoteWaitDuringPreview = false;
+
+        // Same mark + preview timeline setup as begin().
+        const markState = structuredClone(engine.toJSON());
+        markState.checkpointRuntimeFingerprintHex = engine.getRuntimeFingerprintHex();
+        this.mark = markState;
+        this.diagBeginSeq++;
+        session.enterItsPreview(this.diagBeginSeq, engine.gameTick, batch.atTick);
+        this.previewRunId = this.diagBeginSeq;
+
+        session.postBattleSyncLobbyLog('diag: ITS beginResume', {
+            its: this.getDiagState(),
+            engineTick: session.getEngineTick(),
+            batchAtTick: batch.atTick,
+            awaitingLabel,
+        });
+
+        engine.isSequentialTargetingPreview = true;
+        engine.sequentialTargetingPreviewCast = {
+            unitId,
+            abilityId: active.abilityId,
+            startRound: engine.roundNumber,
+            beganAtGameTime: engine.gameTime,
+            resumeCastStartTime: active.startTime,
+        };
+        engine.setOnParallelBatchResolved(null);
+
+        // Other waiters get an assumed wait so the preview can advance (commit then rolls back).
+        for (const waiter of batch.waiters) {
+            if (waiter.unitId === unitId) continue;
+            if (engine.state.orderMgr.hasPendingEndTurnOrderForUnit(waiter.unitId, batch.atTick)) continue;
+            engine.state.orderMgr.applyOrder({
+                unitId: waiter.unitId,
+                abilityId: 'wait',
+                targets: [],
+                endTurn: true,
+            });
+            this.assumedWaitUnitIds.add(waiter.unitId);
+            this.assumedRemoteWaitDuringPreview = true;
+        }
+
+        // Ask for the awaited pick up front; no ticks run before it.
+        engine.signalWaitingForTarget(awaitingLabel, unitId, active.abilityId);
+        engine.isPaused = true;
+        this._currentLabel = awaitingLabel;
+        logItsPreviewStarted(session, this, {
+            batchAtTick: batch.atTick,
+            deferredFirstLabel: awaitingLabel,
+        });
+        return true;
+    }
+
     private _buildPreviewOrder(): BattleOrder {
         const movementByLabel = Object.keys(this.collectedMovementByLabel).length > 0
             ? { ...this.collectedMovementByLabel }
@@ -456,6 +607,9 @@ export class InteractiveTargetingSession {
             ),
             endTurn: true,
             ...(movementByLabel ? { movementByLabel } : {}),
+            // Resume mode: an empty list clears the cast's remaining missing labels, so later picks use the
+            // local lookahead (`targetsByLabel` is defined once this update applies).
+            ...(this._resumeMode ? { missingSelectLabels: [] } : {}),
         };
     }
 
@@ -665,14 +819,6 @@ export class InteractiveTargetingSession {
     }
 
     /**
-     * Auto-undo for {@link isPreviewCastInterrupted}: restore the mark so the player can pick a
-     * different action. Same path as the Undo button, logged under its own source/reason.
-     */
-    async cancelInterruptedPreview(session: BattleSession): Promise<void> {
-        await this.reset(session, 'auto_cast_interrupted', 'cast_interrupted');
-    }
-
-    /**
      * Abort the session without restoring engine state. Used when the engine is about to
      * be replaced externally (e.g. loadFromSnapshot during resync) — the preview is
      * already invalid, so there is nothing to restore.
@@ -751,7 +897,15 @@ export class InteractiveTargetingSession {
         // and onParallelBatchResolved re-bound to the real callback). Re-raise the flag and
         // suppress the batch callback so the replay run doesn't persist state to the server.
         engine.isSequentialTargetingPreview = true;
-        engine.sequentialTargetingPreviewCast = { unitId, abilityId: baseOrder.abilityId, startRound: engine.roundNumber };
+        engine.sequentialTargetingPreviewCast = {
+            unitId,
+            abilityId: baseOrder.abilityId,
+            startRound: engine.roundNumber,
+            beganAtGameTime: engine.gameTime,
+            ...(this._resumeMode && this._resumeCastStartTime != null
+                ? { resumeCastStartTime: this._resumeCastStartTime }
+                : {}),
+        };
         engine.setOnParallelBatchResolved(null);
 
         // Re-queue wait for other players' units (restore wiped the auto-queued waits from begin()).
@@ -770,6 +924,19 @@ export class InteractiveTargetingSession {
             }
         }
 
+        // Resume mode with nothing collected yet: return to the pause and ask for the awaited pick again.
+        if (this._resumeMode && Object.keys(targets).length === 0) {
+            const awaiting = engine.getUnit(unitId)?.activeAbilities.find((a) => a.awaitingPickLabel !== undefined);
+            const awaitingLabel = awaiting?.awaitingPickLabel;
+            if (awaitingLabel !== undefined) {
+                this._previewOrderQueued = false;
+                engine.signalWaitingForTarget(awaitingLabel, unitId, baseOrder.abilityId);
+                engine.isPaused = true;
+                this._currentLabel = awaitingLabel;
+                return;
+            }
+        }
+
         // Re-queue with targets pre-filled — no blocking will occur.
         // Spread originalOrder so movement fields (movePath etc.) are preserved.
         // Include movementByLabel so per-label movement fires at interval entry.
@@ -781,6 +948,8 @@ export class InteractiveTargetingSession {
             targetsByLabel: buildTargetsByLabelFromPositional(this._selectLabels, targets, replayTargets),
             endTurn: true,
             ...(movementByLabel ? { movementByLabel } : {}),
+            // Resume mode: re-queue the preview updateTargets order; the empty list hands later picks to the lookahead.
+            ...(this._resumeMode ? { missingSelectLabels: [] } : {}),
         };
         engine.state.orderMgr.applyOrder(replayOrder);
     }
@@ -867,6 +1036,13 @@ export class InteractiveTargetingSession {
 
         const collected = { ...this.collectedTargets };
         const selectLabels = [...this._selectLabels];
+        // The preview cast ended early (interrupt / fizzle / death): commit that timeline, listing
+        // the picks it never reached. Read before any rollback restore replaces the engine.
+        const endedEarlyEngine = session.getEngine();
+        const missingSelectLabels =
+            endedEarlyEngine != null && this.getPreviewCastEndedEarly(endedEarlyEngine) != null
+                ? selectLabels.filter((label) => !(label in collected))
+                : [];
         const movementByLabel = Object.keys(this.collectedMovementByLabel).length > 0
             ? { ...this.collectedMovementByLabel }
             : undefined;
@@ -887,6 +1063,7 @@ export class InteractiveTargetingSession {
             baseOrder,
             movementByLabel,
             positionalTargetsOverride,
+            { missingSelectLabels },
         );
 
         if (inPlace) {
@@ -1104,6 +1281,8 @@ export class InteractiveTargetingSession {
         this.mark = null;
         this.originalOrder = null;
         this._previewOrderQueued = false;
+        this._resumeMode = false;
+        this._resumeCastStartTime = null;
         this.previewRunId = null;
         this.assumedWaitUnitIds = new Set();
         this.assumedRemoteWaitDuringPreview = false;

@@ -147,6 +147,7 @@ import {
     earthCoreStoneTombScoursGroundScenario,
 } from './abilities/earthCoreScenarios';
 import { rapidThrowComboScenario } from './abilities/rapidThrowComboScenario';
+import { CAST_ENDED_EARLY_SCENARIOS } from './general/castEndedEarly';
 
 export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     pathStraightMoveScenario,
@@ -289,6 +290,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     abilityTimingEmitterVisualEffectsFireScenario,
     directEffectVfxDefTargetPositionScenario,
     ...EQUIPMENT_LOADOUT_SCENARIOS,
+    ...CAST_ENDED_EARLY_SCENARIOS,
 ];
 
 export function getScenarioById(id: string): ScenarioDefinition | undefined {
@@ -346,6 +348,7 @@ const GENERAL_GROUP_ORDER: { slug: string; section: string }[] = [
     { slug: 'death-vfx', section: 'Death VFX' },
     { slug: 'ability-emitter-vfx', section: 'Ability Emitter VFX' },
     { slug: 'equipment', section: 'Equipment' },
+    { slug: 'cast-ended-early', section: 'Cast Ended Early' },
 ];
 
 export interface GeneralTestSidebarGroup {

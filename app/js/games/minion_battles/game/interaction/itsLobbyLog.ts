@@ -1,6 +1,8 @@
 import type { BattleSession } from '../BattleSession';
 import type { InteractiveTargetingSession } from './InteractiveTargetingSession';
 import type { ResolvedTarget } from '../types';
+import type { KnockbackSource } from '../units/unitTypes';
+import type { EndedEarlyPreviewStop } from './isITSPreviewComplete';
 import { STUCK_PAUSE_PLANE_DESYNC_MESSAGE } from '../battlenet/constants';
 
 /** User-initiated ITS control (UI buttons or AUTO_END_TURN). */
@@ -12,8 +14,7 @@ export type ItsActionSource =
     | 'terminal_outcome_auto_commit'
     | 'conditional_cancel_follow_up'
     | 'conditional_cancel_continue'
-    | 'combo_window_after_assumed_pass'
-    | 'auto_cast_interrupted';
+    | 'combo_window_after_assumed_pass';
 
 /** AUTO_END_TURN refused commit because not every SelectTargetDef label was collected. */
 export const ITS_AUTO_COMMIT_BLOCK_TARGETS_INCOMPLETE = 'targets_incomplete';
@@ -22,8 +23,7 @@ export const ITS_AUTO_COMMIT_BLOCK_TARGETS_INCOMPLETE = 'targets_incomplete';
 export type ItsCancelReason =
     | 'user_reset'
     | 'resync_load_from_snapshot'
-    | 'terminal_outcome_teardown'
-    | 'cast_interrupted';
+    | 'terminal_outcome_teardown';
 
 export type ItsEndOutcome = 'submitted' | 'rejected' | 'cancelled';
 
@@ -35,8 +35,7 @@ export type ItsEndDetail =
     | 'persist_failed'
     | 'user_reset'
     | 'resync'
-    | 'terminal_outcome'
-    | 'cast_interrupted';
+    | 'terminal_outcome';
 
 export interface ItsLogSnapshot {
     abilityId: string | null;
@@ -71,7 +70,6 @@ const ITS_BUTTON_CLICK_MESSAGES: Partial<Record<ItsActionSource, string>> = {
     ui_replay: 'ITS: Replay button clicked',
     ui_done: 'ITS: Done button clicked',
     auto_end_turn: 'ITS: auto end turn commit',
-    auto_cast_interrupted: 'ITS: auto reset — preview cast interrupted before targets collected',
 };
 
 function summarizeTarget(target: ResolvedTarget): Record<string, unknown> {
@@ -240,6 +238,8 @@ export function logItsAutoCommitEval(
         allTargetsCollected: boolean;
         willCommit: boolean;
         blockReason: string | null;
+        /** True when the preview cast ended early (interrupt / fizzle / death). */
+        endedEarly?: boolean;
     },
 ): void {
     session.postBattleSyncLobbyLog(
@@ -247,6 +247,42 @@ export function logItsAutoCommitEval(
         itsContext(session, captureItsLogSnapshot(its, session), {
             source: 'auto_end_turn',
             ...extra,
+            pausePlane: captureItsPausePlaneLog(session, its),
+        }),
+    );
+}
+
+/** The preview cast ended early (interrupt / fizzle / death); the preview keeps playing forward. */
+export function logItsPreviewEndedEarly(
+    session: BattleSession,
+    its: InteractiveTargetingSession,
+    extra: {
+        reason: 'interrupted' | 'fizzled' | 'caster_died';
+        source?: KnockbackSource;
+        atTick: number | null;
+    },
+): void {
+    session.postBattleSyncLobbyLog(
+        'ITS: preview cast ended early — playing forward',
+        itsContext(session, captureItsLogSnapshot(its, session), {
+            reason: extra.reason,
+            source: extra.source ?? null,
+            atTick: extra.atTick,
+            pausePlane: captureItsPausePlaneLog(session, its),
+        }),
+    );
+}
+
+/** The ended-early playahead stopped (see `getEndedEarlyPreviewStop`); Done / Undo are now available. */
+export function logItsEndedEarlyStop(
+    session: BattleSession,
+    its: InteractiveTargetingSession,
+    stop: EndedEarlyPreviewStop | null,
+): void {
+    session.postBattleSyncLobbyLog(
+        'ITS: ended-early playahead stopped',
+        itsContext(session, captureItsLogSnapshot(its, session), {
+            stop,
             pausePlane: captureItsPausePlaneLog(session, its),
         }),
     );
@@ -304,9 +340,7 @@ export function logItsPreviewCancelled(
             ? 'user_reset'
             : reason === 'resync_load_from_snapshot'
                 ? 'resync'
-                : reason === 'cast_interrupted'
-                    ? 'cast_interrupted'
-                    : 'terminal_outcome';
+                : 'terminal_outcome';
     logItsPreviewEnded(session, snapshot, 'cancelled', detail, { cancelReason: reason });
 }
 

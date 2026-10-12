@@ -25,6 +25,13 @@ export const AUTO_END_TURN = false;
 export const ONLY_UNDO_AT_START = false;
 
 /**
+ * Frames (ticks) of interactive targeting preview that keep playing after the preview cast ended
+ * early (interrupt / fizzle) before ITS stops for Done. Caps the playahead when the caster is hit by
+ * several stuns in a row.
+ */
+export const ITS_ENDED_EARLY_PLAYAHEAD_MAX_TICKS = 100;
+
+/**
  * When true, units stuck in walls bounce tile-by-tile in a cardinal direction instead of
  * being ejected in one shot. Each bounce: 5 damage, 0.2 s arc, same direction persists
  * through walls, reverses at map edges. Direction can be preset by abilities via

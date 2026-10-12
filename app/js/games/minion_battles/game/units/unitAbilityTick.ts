@@ -229,11 +229,32 @@ function fireIntervalEntry(
 }
 
 /**
+ * The first label in `missingLabels` among the select intervals a select gate defers (the gated select
+ * and any later interval starting at the same time), in interval order. Undefined when none is missing.
+ */
+function findMissingGatedSelectLabel(
+    intervals: AbilityTimingInterval[],
+    gatedIntervalId: string,
+    missingLabels: readonly string[],
+): string | undefined {
+    for (const id of selectGateDeferredIds(intervals, gatedIntervalId)) {
+        const def = intervals.find((i) => i.id === id)?.targetDef;
+        if (def && isSelectTargetDef(def) && missingLabels.includes(def.label)) return def.label;
+    }
+    return undefined;
+}
+
+/**
  * Re-runs `validatePick` for each select interval entering on this tick, against the pick the cast
  * holds (`targetsByLabel`, or the positional target for legacy orders). A pick can become illegal
  * between ordering and entry, for example when the rock it targets has been removed. Returns true if
  * any entering pick is now rejected. A pick that is absent is skipped here; the entry invariant
  * check in the tick loop reports that case.
+ *
+ * An entering select whose label is in `active.missingSelectLabels` (the order lacks that pick and
+ * none arrived at the missing-pick pause) also returns true, for selects with or without
+ * `validatePick`. That check reads only the serialized `missingSelectLabels`, never `targetsByLabel`,
+ * which does not survive a snapshot.
  */
 function hasRejectedEnteringSelectPick(
     intervals: AbilityTimingInterval[],
@@ -247,7 +268,9 @@ function hasRejectedEnteringSelectPick(
     for (const interval of intervals) {
         if (!entered.has(interval.id)) continue;
         const def = interval.targetDef;
-        if (!def || !isSelectTargetDef(def) || !def.validatePick) continue;
+        if (!def || !isSelectTargetDef(def)) continue;
+        if (active.missingSelectLabels?.includes(def.label)) return true;
+        if (!def.validatePick) continue;
         const collected = active.targetsByLabel ?? {};
         let pick: ResolvedTarget | undefined = collected[def.label];
         if (pick === undefined) {
@@ -330,6 +353,28 @@ export function tickUnitActiveAbilities(
             // after it that starts at the same elapsed time) is active here. It must not enter on this tick,
             // because the lookahead has not paused for it yet. It enters on the resumed tick instead.
             for (const id of selectGateDeferredIds(intervals, gateSplit.intervalId)) entered.delete(id);
+
+            // Missing-pick pause: the gated select's pick is not in the order (the previewed cast ended before
+            // reaching it). Ask the owner now, before the select enters on the next tick; the order batch
+            // commits at the end of this tick, so an `updateTargets` order applies at the top of the next one.
+            // A caster nobody controls gets no pause: the select fizzles the cast on entry instead.
+            // Reads only the serialized `missingSelectLabels`, never `targetsByLabel`.
+            if (
+                active.missingSelectLabels !== undefined
+                && active.awaitingPickLabel === undefined
+                && unit.isAlive()
+                && unit.isPlayerControlled()
+            ) {
+                const missingLabel = findMissingGatedSelectLabel(
+                    intervals,
+                    gateSplit.intervalId,
+                    active.missingSelectLabels,
+                );
+                if (missingLabel !== undefined) {
+                    active.awaitingPickLabel = missingLabel;
+                    engine.requestMissingPickPause(unit);
+                }
+            }
         }
         const exited = exitedTimingIds(prevTime, currentTime, intervals);
 

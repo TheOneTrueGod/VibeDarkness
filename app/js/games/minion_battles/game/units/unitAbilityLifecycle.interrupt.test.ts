@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Unit } from './Unit';
-import { executeUnitAbility, interruptUnitAbilities } from './unitAbilityLifecycle';
+import { executeUnitAbility, fizzleUnitActiveAbility, interruptUnitAbilities } from './unitAbilityLifecycle';
 import { tickWallUnstick } from './unitWallUnstick';
 import { tickUnitActiveAbilities } from './unitAbilityTick';
 import { AbilityPhase } from '../../abilities/abilityTimings';
@@ -70,6 +70,7 @@ function makeUnit(): Unit {
 function makeEngine(gameTime: number): EngineContext {
     return {
         gameTime,
+        gameTick: 42,
         eventBus: { emit: vi.fn() },
         trackAbilityUse: vi.fn(),
         // Every tile is solid: used by the wall-unstick path.
@@ -171,6 +172,146 @@ describe('interrupt pipeline runs the same steps on every path', () => {
         expect(unit.activeAbilities).toHaveLength(1);
         expect(unit.activeAbilities[0]).not.toBe(old);
         expect(unit.activeAbilities[0]!.startTime).toBe(0.5);
+    });
+});
+
+/** Payloads of every `cast_ended_early` emit on a mock engine from {@link makeEngine}. */
+function castEndedEarlyEvents(engine: EngineContext): unknown[] {
+    return vi.mocked(engine.eventBus.emit).mock.calls
+        .filter(([name]) => name === 'cast_ended_early')
+        .map(([, payload]) => payload);
+}
+
+describe('cast_ended_early event', () => {
+    it('cancel emits reason interrupted / outcome cancelled with the cast identity and tick', () => {
+        const { ability } = makeAbility('test_event_cancel');
+        const unit = makeUnit();
+        startCast(unit, ability.id, 0.25);
+        const engine = makeEngine(0.5);
+
+        interruptUnitAbilities(unit, engine);
+
+        expect(castEndedEarlyEvents(engine)).toEqual([
+            {
+                unitId: 'unit',
+                abilityId: ability.id,
+                castStartTime: 0.25,
+                reason: 'interrupted',
+                outcome: 'cancelled',
+                gameTick: 42,
+            },
+        ]);
+    });
+
+    it('skipToCooldown emits outcome skippedToCooldown', () => {
+        const { ability } = makeAbility('test_event_skip', {
+            interruptPolicy: { beforeCooldown: 'skipToCooldown' },
+        });
+        const unit = makeUnit();
+        startCast(unit, ability.id, 0);
+        const engine = makeEngine(0.5);
+
+        interruptUnitAbilities(unit, engine);
+
+        expect(castEndedEarlyEvents(engine)).toEqual([
+            expect.objectContaining({ reason: 'interrupted', outcome: 'skippedToCooldown', castStartTime: 0 }),
+        ]);
+    });
+
+    it('duringCooldown end emits outcome ended', () => {
+        const { ability } = makeAbility('test_event_end', {
+            interruptPolicy: { duringCooldown: 'end' },
+        });
+        const unit = makeUnit();
+        startCast(unit, ability.id, 0);
+        const engine = makeEngine(1.5);
+
+        interruptUnitAbilities(unit, engine);
+
+        expect(castEndedEarlyEvents(engine)).toEqual([
+            expect.objectContaining({ reason: 'interrupted', outcome: 'ended' }),
+        ]);
+    });
+
+    it('duringCooldown ignore emits nothing', () => {
+        const { ability } = makeAbility('test_event_ignore');
+        const unit = makeUnit();
+        startCast(unit, ability.id, 0);
+        const engine = makeEngine(1.5);
+
+        interruptUnitAbilities(unit, engine);
+
+        expect(castEndedEarlyEvents(engine)).toEqual([]);
+    });
+
+    it('emits once per interrupted cast', () => {
+        const a = makeAbility('test_event_multi_a').ability;
+        const b = makeAbility('test_event_multi_b').ability;
+        const unit = makeUnit();
+        startCast(unit, a.id, 0);
+        startCast(unit, b.id, 0);
+        const engine = makeEngine(0.5);
+
+        interruptUnitAbilities(unit, engine);
+
+        expect(castEndedEarlyEvents(engine)).toHaveLength(2);
+    });
+
+    it('fizzle emits reason fizzled (cancelled) and, with skipToCooldown, outcome skippedToCooldown', () => {
+        const plain = makeAbility('test_event_fizzle').ability;
+        const skip = makeAbility('test_event_fizzle_skip', {
+            interruptPolicy: { beforeCooldown: 'skipToCooldown' },
+        }).ability;
+        const unit = makeUnit();
+        const plainActive = startCast(unit, plain.id, 0);
+        const skipActive = startCast(unit, skip.id, 0);
+        const engine = makeEngine(0.5);
+
+        fizzleUnitActiveAbility(unit, plainActive, engine);
+        fizzleUnitActiveAbility(unit, skipActive, engine);
+
+        expect(castEndedEarlyEvents(engine)).toEqual([
+            expect.objectContaining({ abilityId: plain.id, reason: 'fizzled', outcome: 'cancelled' }),
+            expect.objectContaining({ abilityId: skip.id, reason: 'fizzled', outcome: 'skippedToCooldown' }),
+        ]);
+    });
+
+    it('a tier knockback interrupt carries the knockback source; no knockback omits it', () => {
+        const { ability } = makeAbility('test_event_source');
+        const unit = makeUnit();
+        startCast(unit, ability.id, 0);
+        unit.knockback = {
+            knockbackVector: { x: 10, y: 0 },
+            knockbackAirTime: 0.3,
+            knockbackSlideTime: 0.1,
+            knockbackSource: { unitId: 'thornbinder', abilityId: '0008' },
+            knockbackElapsed: 0,
+        };
+        const engine = makeEngine(0.5);
+
+        interruptUnitAbilities(unit, engine);
+
+        const [event] = castEndedEarlyEvents(engine) as Array<{ source?: unknown }>;
+        expect(event?.source).toEqual({ unitId: 'thornbinder', abilityId: '0008' });
+
+        const plainUnit = makeUnit();
+        startCast(plainUnit, ability.id, 0);
+        const plainEngine = makeEngine(0.5);
+        interruptUnitAbilities(plainUnit, plainEngine);
+        const [plainEvent] = castEndedEarlyEvents(plainEngine) as Array<{ source?: unknown }>;
+        expect(plainEvent).toBeDefined();
+        expect('source' in plainEvent!).toBe(false);
+    });
+
+    it('a same-id recast does not emit', () => {
+        const { ability } = makeAbility('test_event_recast');
+        const unit = makeUnit();
+        startCast(unit, ability.id, 0);
+        const engine = makeEngine(0.5);
+
+        executeUnitAbility(unit, ability, [], engine);
+
+        expect(castEndedEarlyEvents(engine)).toEqual([]);
     });
 });
 

@@ -257,6 +257,20 @@ export interface BattleOrder {
      */
     targetsByLabel?: Record<string, ResolvedTarget>;
     /**
+     * Select labels this order does not contain, because the previewed cast ended before they were
+     * picked. Reaching one in the real timeline pauses the owner for the pick; if no pick arrives,
+     * the cast fizzles. Copied onto the cast ({@link ActiveAbility.missingSelectLabels}).
+     */
+    missingSelectLabels?: string[];
+    /**
+     * "Update order targets": fills in picks on the unit's running cast of `abilityId` that is waiting at a
+     * missing-pick pause ({@link ActiveAbility.awaitingPickLabel}). Not a cast: no recast, cost or use.
+     * Carries `targetsByLabel` (the new picks), `targets` (positional), optional `missingSelectLabels`
+     * (labels still missing after it) and `endTurn: true`. Rejected unless the unit's cast of `abilityId`
+     * is awaiting a pick. A `wait` order at the same pause is a Pass: the cast fizzles.
+     */
+    updateTargets?: true;
+    /**
      * Per-label movement re-input collected during interactive preview.
      * Keyed by `SelectTargetDef.label`. Non-lunge: applied when that select interval
      * fires. Lunge: held until cooldown entry, then repathed from the post-lunge cell.
@@ -431,4 +445,15 @@ export interface ActiveAbility {
      * `processedElapsed`). The pre-tick lookahead pauses only for this interval. Serialized.
      */
     pendingSelectGate?: string;
+    /**
+     * Copied from {@link BattleOrder.missingSelectLabels}: select labels the cast's order does not
+     * contain. Missing-pick decisions read only this and `awaitingPickLabel` (never the
+     * non-serialized `targetsByLabel`), so they survive `toJSON` / `fromJSON`. Serialized when non-empty.
+     */
+    missingSelectLabels?: string[];
+    /**
+     * Label of the missing select the cast is paused at, waiting for the owner's pick (set by the
+     * missing-pick pause, Step 3). Cleared when the pick arrives or the owner passes. Serialized.
+     */
+    awaitingPickLabel?: string;
 }

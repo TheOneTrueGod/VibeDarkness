@@ -31,8 +31,14 @@ import {
 } from './interaction/InteractiveTargetingSession';
 import { spawnBrightLight } from '../abilities/brightKeyword';
 import { findPreviewDeferredSelectLabel } from './interaction/selectTargetLookahead';
-import { isITSPreviewComplete } from './interaction/isITSPreviewComplete';
-import { getAbility } from '../abilities/AbilityRegistry';
+import { getEndedEarlyPreviewStop, isITSPreviewComplete } from './interaction/isITSPreviewComplete';
+import { knockbackCtxFromEngine, tryApplyKnockbackByTier } from '../crowdControl/knockbackKeywords';
+import { ITS_ENDED_EARLY_PLAYAHEAD_MAX_TICKS } from './gameConstants';
+import { getAbility, registerAbilityForTest } from '../abilities/AbilityRegistry';
+import { AbilityPhase } from '../abilities/abilityTimings';
+import { defineAbility } from '../abilities/defineAbility';
+import { CastBehaviours } from '../abilities/CastBehaviours';
+import { nullHitbox } from '../hitboxes';
 import { SwingBatCard } from '../card_defs/0115_SwingBat/0115Ability';
 import { LIGHT_BLAST_DAMAGE, LIGHT_BLAST_LIGHT_COST } from '../card_defs/08_light_core/0801_LightBlast/0801Ability';
 import { ProtectAbility_0303, PROTECT_WINDUP_DURATION } from '../card_defs/03_blood_mage/0303_Protect/0303Ability';
@@ -62,6 +68,7 @@ import { OrderManager } from './managers/OrderManager';
 import { hashOrderId } from './battlenet/helpers/orderHashing';
 import { TerrainType } from '../terrain/TerrainType';
 import { Movement } from '../resources/Movement';
+import { WAIT_ABILITY_MODE_MEDIUM } from '../abilities/WaitAbility';
 import { ONE_PIXEL_TARGET } from '../card_defs/throwSharedTimings';
 import { computeAbilityModifiersFromResearch } from '../../../researchTrees/evaluator';
 import { getAbilityTagsForId } from '../abilities/Ability';
@@ -125,6 +132,14 @@ function makeApiStub(): MinionBattlesApi {
         setCurrentPlayerId: vi.fn(),
         sendMessage: vi.fn().mockResolvedValue({ messageId: 1 }),
     } as unknown as MinionBattlesApi;
+}
+
+/**
+ * A teammate pass with the fixed 2 s (medium) wait, which outlasts a short preview, so the teammate cannot join a parallel pause during the
+ * playahead (which would correctly force a rollback commit).
+ */
+function makeLongPassOrder(unitId: string): BattleOrder {
+    return { ...makePurePassOrder(unitId), abilityMode: WAIT_ABILITY_MODE_MEDIUM };
 }
 
 function makePurePassOrder(unitId: string): BattleOrder {
@@ -556,7 +571,7 @@ function runInteractiveDoublePunch(
     engine.sequentialTargetingPreviewCast = {
         unitId: player.id,
         abilityId: DOUBLE_PUNCH_ABILITY_ID,
-        startRound: engine.roundNumber,
+        startRound: engine.roundNumber, beganAtGameTime: engine.gameTime,
     };
 
     engine.state.orderMgr.applyOrder({
@@ -1210,7 +1225,7 @@ describe('interactive sequential targeting', () => {
 
         // Mark the preview cast so the Step-5 stop condition activates.
         engine.isSequentialTargetingPreview = true;
-        engine.sequentialTargetingPreviewCast = { unitId: player.id, abilityId: '0116', startRound: engine.roundNumber };
+        engine.sequentialTargetingPreviewCast = { unitId: player.id, abilityId: '0116', startRound: engine.roundNumber, beganAtGameTime: engine.gameTime };
 
         engine.state.orderMgr.applyOrder({
             unitId: player.id,
@@ -1769,7 +1784,7 @@ describe('interactive sequential targeting in-place commit', () => {
         engine.sequentialTargetingPreviewCast = {
             unitId: player.id,
             abilityId: DOUBLE_PUNCH_ABILITY_ID,
-            startRound: engine.roundNumber,
+            startRound: engine.roundNumber, beganAtGameTime: engine.gameTime,
         };
 
         engine.state.orderMgr.applyOrder({
@@ -3024,7 +3039,7 @@ describe('interactive sequential targeting — conditional cancel stop point', (
         engine.sequentialTargetingPreviewCast = {
             unitId: player.id,
             abilityId: DIGGING_CLAWS_ABILITY_ID,
-            startRound: engine.roundNumber,
+            startRound: engine.roundNumber, beganAtGameTime: engine.gameTime,
         };
 
         engine.state.orderMgr.applyOrder({
@@ -3229,7 +3244,7 @@ describe('interactive sequential targeting — conditional cancel stop point', (
         engine.sequentialTargetingPreviewCast = {
             unitId: player.id,
             abilityId: PROTECT_ABILITY_ID,
-            startRound: engine.roundNumber,
+            startRound: engine.roundNumber, beganAtGameTime: engine.gameTime,
         };
 
         engine.state.orderMgr.applyOrder({
@@ -3317,7 +3332,7 @@ describe('interactive sequential targeting — Throw Rock Rapid Throw combo', ()
         engine.sequentialTargetingPreviewCast = {
             unitId: player.id,
             abilityId: THROW_ROCK_ABILITY_ID,
-            startRound: engine.roundNumber,
+            startRound: engine.roundNumber, beganAtGameTime: engine.gameTime,
         };
         engine.state.orderMgr.applyOrder({
             unitId: player.id,
@@ -3785,7 +3800,7 @@ describe('interactive sequential targeting — Throw Rock Rapid Throw combo', ()
     });
 });
 
-describe('ITS preview cast interrupted before targets collected (lobby 0AD6EA)', () => {
+describe('ITS preview cast ended early before targets collected (lobbies 0AD6EA / 3B8D37)', () => {
     const lightBlastOrder = (unitId: string): BattleOrder => ({
         unitId,
         abilityId: LIGHT_BLAST_ID,
@@ -3793,32 +3808,144 @@ describe('ITS preview cast interrupted before targets collected (lobby 0AD6EA)',
         endTurn: true,
     });
 
-    it('knockback-style interrupt during windup is detected and auto-undo restores the mark', async () => {
+    /** A real tier knockback (same path a Bramble Spike takes): launches the unit and interrupts its casts. */
+    function knockCasterWithTier(eng: GameEngine, caster: Unit, tier = 4): void {
+        const result = tryApplyKnockbackByTier(
+            caster,
+            tier,
+            { unitId: 'thornbinder', abilityId: '0008' },
+            caster.x - 30,
+            caster.y,
+            knockbackCtxFromEngine(eng),
+        );
+        expect(result.outcome).toBe('applied');
+    }
+
+    /** Begin the Light Blast preview, tick once so the cast is active, then knock the caster back. */
+    function beginAndKnockCaster(session: BattleSession, casterUnitId: string): Unit {
+        const eng = session.getEngine()!;
+        expect(session.interactiveTargeting.begin(lightBlastOrder(casterUnitId), session)).toBe(true);
+        eng.stepSimulationFixedTicks(1);
+        const caster = eng.getUnit(casterUnitId)!;
+        expect(caster.activeAbilities.some((a) => a.abilityId === LIGHT_BLAST_ID)).toBe(true);
+        knockCasterWithTier(eng, caster);
+        return caster;
+    }
+
+    it('an interrupt during windup does not rewind: the preview plays on while knocked back, then is done once the caster can act', async () => {
+        const { session, engine, casterUnitId } = await mountLightBlastSessionFixture();
+        const its = session.interactiveTargeting;
+        const restoreSpy = vi.spyOn(session, 'restoreFromInMemorySnapshot');
+
+        expect(its.begin(lightBlastOrder(casterUnitId), session)).toBe(true);
+        // Order queued for the batch tick but not applied yet: not ended early.
+        expect(its.getPreviewCastEndedEarly(engine)).toBeNull();
+
+        engine.stepSimulationFixedTicks(1);
+        const caster = engine.getUnit(casterUnitId)!;
+        expect(caster.activeAbilities.some((a) => a.abilityId === LIGHT_BLAST_ID)).toBe(true);
+        expect(its.getPreviewCastEndedEarly(engine)).toBeNull();
+
+        knockCasterWithTier(engine, caster);
+        engine.stepSimulationFixedTicks(1);
+
+        const ended = its.getPreviewCastEndedEarly(engine);
+        expect(ended?.reason).toBe('interrupted');
+        expect(ended?.source).toEqual({ unitId: 'thornbinder', abilityId: '0008' });
+        expect(its.allTargetsCollected()).toBe(false);
+        expect(engine.waitingForTargetInput).toBeNull();
+        // Knocked back: the cast left activeAbilities but the preview is not complete.
+        expect(caster.knockback).not.toBeNull();
+        expect(isITSPreviewComplete(engine)).toBe(false);
+        expect(its.isActive).toBe(true);
+
+        // Plays forward until the caster can act again (well inside the 100-tick cap for tier 4).
+        expect(stepUntil(engine, () => isITSPreviewComplete(engine), 200)).toBe(true);
+        expect(['caster_ready', 'parallel_pause']).toContain(getEndedEarlyPreviewStop(engine));
+        expect(caster.knockback).toBeNull();
+        expect(its.isActive).toBe(true);
+        expect(restoreSpy).not.toHaveBeenCalled();
+
+        restoreSpy.mockRestore();
+        session.destroy();
+    });
+
+    it('commit in place persists an order listing the missing label, unpauses, and the caster gets its next order pause', async () => {
+        const { session, engine, casterUnitId, remoteUnitId, atTick } = await mountLightBlastSessionFixture();
+        // Other waiter confirmed before begin with a wait that outlasts the preview: no assumed waits and no
+        // teammate pause during the playahead, so the commit stays in place.
+        engine.state.orderMgr.applyOrder(makeLongPassOrder(remoteUnitId));
+        const persistCommittedOrder = vi.fn().mockResolvedValue(true);
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            persistCommittedOrder,
+            // The host checkpoints and fingerprints at the caster's next order pause after the commit.
+            saveSnapshotOnPause: vi.fn().mockResolvedValue(undefined),
+            queueFingerprint: vi.fn(),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        const restoreSpy = vi.spyOn(session, 'restoreFromInMemorySnapshot');
+        const its = session.interactiveTargeting;
+
+        beginAndKnockCaster(session, casterUnitId);
+        expect(stepUntil(engine, () => isITSPreviewComplete(engine), 200)).toBe(true);
+        expect(its.wouldCommitInPlace(session)).toBe(true);
+
+        await its.commit(session, 'ui_done');
+
+        expect(restoreSpy).not.toHaveBeenCalled();
+        expect(persistCommittedOrder).toHaveBeenCalledTimes(1);
+        const [committed, committedAtTick] = persistCommittedOrder.mock.calls[0] as [BattleOrder, number];
+        expect(committed.unitId).toBe(casterUnitId);
+        expect(committed.abilityId).toBe(LIGHT_BLAST_ID);
+        expect(committedAtTick).toBe(atTick);
+        expect(committed.missingSelectLabels).toEqual([LIGHT_BLAST_TARGET_LABEL]);
+        expect(committed.targets).toEqual([]);
+
+        expect(its.isActive).toBe(false);
+        expect(session.getEngine()).toBe(engine);
+        expect(engine.isSequentialTargetingPreview).toBe(false);
+        expect(engine.isPaused).toBe(false);
+
+        // The next order pause forms for the caster.
+        const paused = stepUntil(
+            engine,
+            () => engine.waitingForOrders?.waiters.some((w) => w.unitId === casterUnitId) === true,
+            60,
+        );
+        expect(paused).toBe(true);
+        session.destroy();
+    });
+
+    it('a long stun stops at the 100-tick playahead cap', async () => {
+        const { session, engine, casterUnitId } = await mountLightBlastSessionFixture();
+        const its = session.interactiveTargeting;
+        const caster = beginAndKnockCaster(session, casterUnitId);
+        // Keep the real interrupt (and its source) but stay stunned far past the cap, without drifting.
+        caster.knockback!.knockbackVector = { x: 0, y: 0 };
+        caster.knockback!.knockbackSlideTime = 30;
+        const endedAtTick = engine.gameTick;
+
+        expect(stepUntil(engine, () => isITSPreviewComplete(engine), ITS_ENDED_EARLY_PLAYAHEAD_MAX_TICKS + 40)).toBe(true);
+        expect(getEndedEarlyPreviewStop(engine)).toBe('cap');
+        expect(caster.knockback).not.toBeNull();
+        const atTick = its.getPreviewCastEndedEarly(engine)?.atTick;
+        expect(atTick).not.toBeNull();
+        expect(engine.gameTick - atTick!).toBe(ITS_ENDED_EARLY_PLAYAHEAD_MAX_TICKS);
+        expect(atTick!).toBeGreaterThanOrEqual(endedAtTick);
+        session.destroy();
+    });
+
+    it('reset during the ended-early playahead restores the mark', async () => {
         const { session, engine, casterUnitId } = await mountLightBlastSessionFixture();
         const its = session.interactiveTargeting;
         const markTick = engine.gameTick;
         const batchAtTick = engine.waitingForOrders!.atTick;
 
-        expect(its.begin(lightBlastOrder(casterUnitId), session)).toBe(true);
-        // Order queued for the batch tick but not applied yet — not an interruption.
-        expect(its.isPreviewCastInterrupted(engine)).toBe(false);
+        beginAndKnockCaster(session, casterUnitId);
+        engine.stepSimulationFixedTicks(5);
+        expect(its.getPreviewCastEndedEarly(engine)).not.toBeNull();
 
-        engine.stepSimulationFixedTicks(1);
-        const caster = engine.getUnit(casterUnitId)!;
-        expect(caster.activeAbilities.some((a) => a.abilityId === LIGHT_BLAST_ID)).toBe(true);
-        expect(its.isPreviewCastInterrupted(engine)).toBe(false);
-
-        // Same path a knockback takes (knockbackKeywords → interruptUnitAndRefundAbilities).
-        engine.interruptUnitAndRefundAbilities(caster);
-        engine.stepSimulationFixedTicks(1);
-
-        // Old soft-lock: preview reads complete, no select pause coming, targets never collected.
-        expect(isITSPreviewComplete(engine)).toBe(true);
-        expect(engine.waitingForTargetInput).toBeNull();
-        expect(its.allTargetsCollected()).toBe(false);
-        expect(its.isPreviewCastInterrupted(engine)).toBe(true);
-
-        await its.cancelInterruptedPreview(session);
+        await its.reset(session);
 
         expect(its.isActive).toBe(false);
         const restored = session.getEngine()!;
@@ -3829,12 +3956,27 @@ describe('ITS preview cast interrupted before targets collected (lobby 0AD6EA)',
         session.destroy();
     });
 
+    it('caster death completes the preview and is reported as caster_died', async () => {
+        const { session, engine, casterUnitId } = await mountLightBlastSessionFixture();
+        const its = session.interactiveTargeting;
+        expect(its.begin(lightBlastOrder(casterUnitId), session)).toBe(true);
+        engine.stepSimulationFixedTicks(1);
+        const caster = engine.getUnit(casterUnitId)!;
+        expect(its.getPreviewCastEndedEarly(engine)).toBeNull();
+
+        caster.hp = 0;
+
+        expect(isITSPreviewComplete(engine)).toBe(true);
+        expect(its.getPreviewCastEndedEarly(engine)).toEqual({ reason: 'caster_died', atTick: null });
+        session.destroy();
+    });
+
     it('is not reported once every target is collected and the cast completes naturally', async () => {
         const { session, engine, casterUnitId, blastPixel } = await mountLightBlastSessionFixture();
         runLightBlastPreviewToDone(session, casterUnitId, blastPixel);
 
         expect(isITSPreviewComplete(engine)).toBe(true);
-        expect(session.interactiveTargeting.isPreviewCastInterrupted(engine)).toBe(false);
+        expect(session.interactiveTargeting.getPreviewCastEndedEarly(engine)).toBeNull();
         session.destroy();
     });
 
@@ -3845,7 +3987,278 @@ describe('ITS preview cast interrupted before targets collected (lobby 0AD6EA)',
 
         const paused = stepUntil(engine, () => engine.waitingForTargetInput?.label === LIGHT_BLAST_TARGET_LABEL, 120);
         expect(paused).toBe(true);
-        expect(its.isPreviewCastInterrupted(engine)).toBe(false);
+        expect(its.getPreviewCastEndedEarly(engine)).toBeNull();
+        session.destroy();
+    });
+});
+
+describe('ITS missing-pick resume (beginResume at a missing-pick pause)', () => {
+    const TWO_PICK_ID = 'test_resume_two_pick';
+    const PICK_1 = 'Pick 1';
+    const PICK_2 = 'Pick 2';
+    const PICK_1_START = 0.3;
+    const PICK_2_START = 0.5;
+
+    beforeAll(() => {
+        registerAbilityForTest(defineAbility({
+            id: TWO_PICK_ID,
+            name: 'Resume Two Pick Test',
+            image: '',
+            resourceCost: null,
+            rechargeTurns: 0,
+            prefireTime: PICK_1_START,
+            targets: [],
+            getRange: () => ({ minRange: 0, maxRange: 200 }),
+            getTooltipText: () => [],
+            abilityTimings: [
+                { id: 'windup', start: 0, end: PICK_1_START, abilityPhase: AbilityPhase.Windup },
+                {
+                    id: 'pick1',
+                    start: PICK_1_START,
+                    end: PICK_1_START + FIXED_DT,
+                    abilityPhase: AbilityPhase.Active,
+                    targetDef: { kind: 'select', label: PICK_1, hitbox: nullHitbox, filter: 'any', allowMiss: true },
+                    castBehaviours: [{ timingStart: 'start', behaviour: CastBehaviours.Instant(() => {}) }],
+                },
+                { id: 'between', start: PICK_1_START + FIXED_DT, end: PICK_2_START, abilityPhase: AbilityPhase.Windup },
+                {
+                    id: 'pick2',
+                    start: PICK_2_START,
+                    end: PICK_2_START + FIXED_DT,
+                    abilityPhase: AbilityPhase.Active,
+                    targetDef: { kind: 'select', label: PICK_2, hitbox: nullHitbox, filter: 'any', allowMiss: true },
+                    castBehaviours: [{ timingStart: 'start', behaviour: CastBehaviours.Instant(() => {}) }],
+                },
+                { id: 'cooldown', start: PICK_2_START + FIXED_DT, end: PICK_2_START + 0.3, abilityPhase: AbilityPhase.Cooldown },
+            ],
+        }));
+    });
+
+    /** Steps until the caster's cast is paused at a missing-pick pause. Other waiters are passed. */
+    function driveToMissingPickPause(eng: GameEngine, casterUnitId: string): boolean {
+        for (let i = 0; i < 400; i++) {
+            const caster = eng.getUnit(casterUnitId)!;
+            const batch = eng.waitingForOrders;
+            const awaiting = caster.activeAbilities.some((a) => a.awaitingPickLabel !== undefined);
+            if (batch && awaiting) return true;
+            if (batch) {
+                for (const waiter of batch.waiters) {
+                    if (waiter.unitId !== casterUnitId) eng.state.orderMgr.applyOrder(makeLongPassOrder(waiter.unitId));
+                }
+            }
+            eng.stepSimulationFixedTicks(1);
+        }
+        return false;
+    }
+
+    /** Light Blast (or the two-pick test ability) committed without its picks, driven to the missing-pick pause. */
+    async function mountMissingPickFixture(
+        abilityId: string,
+        missingSelectLabels: string[],
+    ): Promise<LightBlastSessionFixture> {
+        const fixture = await mountLightBlastSessionFixture();
+        const { engine, casterUnitId, remoteUnitId } = fixture;
+        const caster = engine.getUnit(casterUnitId)!;
+        if (abilityId !== LIGHT_BLAST_ID) {
+            caster.abilities = [abilityId];
+            initializeAbilityRuntimeForUnit(caster);
+        }
+        engine.state.orderMgr.applyOrder(makeLongPassOrder(remoteUnitId));
+        engine.state.orderMgr.applyOrder({
+            unitId: casterUnitId,
+            abilityId,
+            targets: [],
+            targetsByLabel: {},
+            missingSelectLabels,
+            endTurn: true,
+        });
+        expect(driveToMissingPickPause(engine, casterUnitId)).toBe(true);
+        // Confirm any other waiter so the resumed preview needs no assumed wait (commit stays in place).
+        for (const waiter of engine.waitingForOrders!.waiters) {
+            if (waiter.unitId !== casterUnitId
+                && !engine.state.orderMgr.hasPendingEndTurnOrderForUnit(waiter.unitId, engine.waitingForOrders!.atTick)) {
+                engine.state.orderMgr.applyOrder(makeLongPassOrder(waiter.unitId));
+            }
+        }
+        // The teammate's wait started earlier and could end mid-preview, which would (correctly) force a rollback
+        // commit. Keep it busy for the whole resumed preview so these tests exercise the in-place path.
+        const remote = engine.getUnit(remoteUnitId)!;
+        if (remote.isInWaitLockout()) {
+            remote.waitMinEndTime = engine.gameTime + 10;
+            remote.waitMaxEndTime = engine.gameTime + 10;
+        }
+        return fixture;
+    }
+
+    function installPersistAdapter(session: BattleSession) {
+        const persistCommittedOrder = vi.fn().mockResolvedValue(true);
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            persistCommittedOrder,
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        return persistCommittedOrder;
+    }
+
+    function knockCaster(eng: GameEngine, caster: Unit): void {
+        const result = tryApplyKnockbackByTier(
+            caster,
+            4,
+            { unitId: 'thornbinder', abilityId: '0008' },
+            caster.x - 30,
+            caster.y,
+            knockbackCtxFromEngine(eng),
+        );
+        expect(result.outcome).toBe('applied');
+    }
+
+    it('resume at a pause shows the cursor immediately, without ticking', async () => {
+        const { session, engine, casterUnitId } = await mountMissingPickFixture(LIGHT_BLAST_ID, [LIGHT_BLAST_TARGET_LABEL]);
+        const its = session.interactiveTargeting;
+        const tickBefore = engine.gameTick;
+
+        expect(its.beginResume(casterUnitId, session)).toBe(true);
+
+        expect(its.isActive).toBe(true);
+        expect(its.isResumeMode).toBe(true);
+        expect(its.selectLabels).toEqual([LIGHT_BLAST_TARGET_LABEL]);
+        expect(its.currentLabel).toBe(LIGHT_BLAST_TARGET_LABEL);
+        expect(its.previewOrderQueued).toBe(false);
+        expect(engine.waitingForTargetInput?.label).toBe(LIGHT_BLAST_TARGET_LABEL);
+        expect(engine.isPaused).toBe(true);
+        expect(engine.gameTick).toBe(tickBefore);
+        expect(engine.sequentialTargetingPreviewCast?.resumeCastStartTime).toBeDefined();
+        session.destroy();
+    });
+
+    it('beginResume is refused when no cast is awaiting a pick', async () => {
+        const { session, casterUnitId } = await mountLightBlastSessionFixture();
+        expect(session.interactiveTargeting.beginResume(casterUnitId, session)).toBe(false);
+        expect(session.interactiveTargeting.isActive).toBe(false);
+        session.destroy();
+    });
+
+    it('picking and committing in place persists an updateTargets order and the cast completes with the pick', async () => {
+        const { session, engine, casterUnitId, blastPixel } = await mountMissingPickFixture(
+            LIGHT_BLAST_ID,
+            [LIGHT_BLAST_TARGET_LABEL],
+        );
+        const persistCommittedOrder = installPersistAdapter(session);
+        const its = session.interactiveTargeting;
+        const restoreSpy = vi.spyOn(session, 'restoreFromInMemorySnapshot');
+
+        expect(its.beginResume(casterUnitId, session)).toBe(true);
+        its.resolveTarget(LIGHT_BLAST_TARGET_LABEL, { type: 'pixel', position: blastPixel }, session);
+        expect(its.previewOrderQueued).toBe(true);
+        expect(stepUntil(engine, () => isITSPreviewComplete(engine), 300)).toBe(true);
+        expect(its.getPreviewCastEndedEarly(engine)).toBeNull();
+        expect(its.wouldCommitInPlace(session)).toBe(true);
+
+        await its.commit(session, 'ui_done');
+
+        expect(restoreSpy).not.toHaveBeenCalled();
+        expect(persistCommittedOrder).toHaveBeenCalledTimes(1);
+        const [committed] = persistCommittedOrder.mock.calls[0] as [BattleOrder, number];
+        expect(committed.updateTargets).toBe(true);
+        expect(committed.unitId).toBe(casterUnitId);
+        expect(committed.abilityId).toBe(LIGHT_BLAST_ID);
+        expect(committed.targetsByLabel?.[LIGHT_BLAST_TARGET_LABEL]).toEqual({ type: 'pixel', position: blastPixel });
+        expect(committed.missingSelectLabels).toBeUndefined();
+        expect(its.isActive).toBe(false);
+        expect(engine.isSequentialTargetingPreview).toBe(false);
+
+        // The cast used the pick: it hit the dummy standing at the picked pixel.
+        const enemy = engine.getUnit('enemy_commit_test')!;
+        expect(enemy.hp).toBeLessThan(100);
+        session.destroy();
+    });
+
+    it('a two-missing-pick cast collects the second pick through the local lookahead and commits both in one order', async () => {
+        const { session, engine, casterUnitId } = await mountMissingPickFixture(TWO_PICK_ID, [PICK_1, PICK_2]);
+        const persistCommittedOrder = installPersistAdapter(session);
+        const its = session.interactiveTargeting;
+        const caster = engine.getUnit(casterUnitId)!;
+        const pixel1 = { x: caster.x + 20, y: caster.y };
+        const pixel2 = { x: caster.x + 40, y: caster.y };
+
+        expect(its.beginResume(casterUnitId, session)).toBe(true);
+        expect(its.selectLabels).toEqual([PICK_1, PICK_2]);
+        expect(engine.waitingForTargetInput?.label).toBe(PICK_1);
+
+        its.resolveTarget(PICK_1, { type: 'pixel', position: pixel1 }, session);
+        // The preview update order cleared the cast's missing labels, so Pick 2 pauses locally.
+        expect(stepUntil(engine, () => engine.waitingForTargetInput?.label === PICK_2, 120)).toBe(true);
+        const cast = caster.activeAbilities.find((a) => a.abilityId === TWO_PICK_ID);
+        expect(cast?.missingSelectLabels).toBeUndefined();
+        expect(cast?.awaitingPickLabel).toBeUndefined();
+
+        its.resolveTarget(PICK_2, { type: 'pixel', position: pixel2 }, session);
+        expect(stepUntil(engine, () => isITSPreviewComplete(engine), 300)).toBe(true);
+        expect(its.getPreviewCastEndedEarly(engine)).toBeNull();
+
+        await its.commit(session, 'ui_done');
+
+        expect(persistCommittedOrder).toHaveBeenCalledTimes(1);
+        const [committed] = persistCommittedOrder.mock.calls[0] as [BattleOrder, number];
+        expect(committed.updateTargets).toBe(true);
+        expect(Object.keys(committed.targetsByLabel ?? {}).sort()).toEqual([PICK_1, PICK_2]);
+        expect(committed.missingSelectLabels).toBeUndefined();
+        session.destroy();
+    });
+
+    it('a resumed preview that ends early commits the still-missing label', async () => {
+        const { session, engine, casterUnitId } = await mountMissingPickFixture(TWO_PICK_ID, [PICK_1, PICK_2]);
+        const persistCommittedOrder = installPersistAdapter(session);
+        const its = session.interactiveTargeting;
+        const caster = engine.getUnit(casterUnitId)!;
+
+        expect(its.beginResume(casterUnitId, session)).toBe(true);
+        its.resolveTarget(PICK_1, { type: 'pixel', position: { x: caster.x + 20, y: caster.y } }, session);
+        // Pick 1 enters, then the caster is knocked back before the Pick 2 gate.
+        engine.stepSimulationFixedTicks(2);
+        expect(caster.activeAbilities.some((a) => a.abilityId === TWO_PICK_ID)).toBe(true);
+        knockCaster(engine, caster);
+        engine.stepSimulationFixedTicks(1);
+
+        const ended = its.getPreviewCastEndedEarly(engine);
+        expect(ended?.reason).toBe('interrupted');
+        expect(stepUntil(engine, () => isITSPreviewComplete(engine), 200)).toBe(true);
+        expect(its.wouldCommitInPlace(session)).toBe(true);
+
+        await its.commit(session, 'ui_done');
+
+        expect(persistCommittedOrder).toHaveBeenCalledTimes(1);
+        const [committed] = persistCommittedOrder.mock.calls[0] as [BattleOrder, number];
+        expect(committed.updateTargets).toBe(true);
+        expect(Object.keys(committed.targetsByLabel ?? {})).toEqual([PICK_1]);
+        expect(committed.missingSelectLabels).toEqual([PICK_2]);
+        session.destroy();
+    });
+
+    it('reset lands back at the pause with awaitingPickLabel intact', async () => {
+        const { session, engine, casterUnitId, blastPixel } = await mountMissingPickFixture(
+            LIGHT_BLAST_ID,
+            [LIGHT_BLAST_TARGET_LABEL],
+        );
+        const its = session.interactiveTargeting;
+        const markTick = engine.gameTick;
+        const batchAtTick = engine.waitingForOrders!.atTick;
+
+        expect(its.beginResume(casterUnitId, session)).toBe(true);
+        its.resolveTarget(LIGHT_BLAST_TARGET_LABEL, { type: 'pixel', position: blastPixel }, session);
+        engine.stepSimulationFixedTicks(5);
+
+        await its.reset(session);
+
+        expect(its.isActive).toBe(false);
+        expect(its.isResumeMode).toBe(false);
+        const restored = session.getEngine()!;
+        expect(restored.isSequentialTargetingPreview).toBe(false);
+        expect(restored.gameTick).toBe(markTick);
+        expect(restored.waitingForOrders?.atTick).toBe(batchAtTick);
+        expect(restored.waitingForOrders?.waiters.some((w) => w.unitId === casterUnitId)).toBe(true);
+        const cast = restored.getUnit(casterUnitId)!.activeAbilities.find((a) => a.abilityId === LIGHT_BLAST_ID);
+        expect(cast?.awaitingPickLabel).toBe(LIGHT_BLAST_TARGET_LABEL);
+        expect(cast?.missingSelectLabels).toEqual([LIGHT_BLAST_TARGET_LABEL]);
         session.destroy();
     });
 });

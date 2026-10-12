@@ -42,6 +42,10 @@ import { buildFinalizedSequentialTargetingOrder } from './InteractiveTargetingSe
 import { tileCentre, worldToTile } from '../../abilities/tileAreaHelpers';
 import { TerrainType } from '../../terrain/TerrainType';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
+import { Light } from '../../resources/Light';
+import { LIGHT_BLAST_LIGHT_COST } from '../../card_defs/08_light_core/0801_LightBlast/0801Ability';
+import { knockbackCtxFromEngine, tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
+import { isITSPreviewComplete } from './isITSPreviewComplete';
 
 /** PunchNEW — single melee strike, implicated in the 5E0F6B incident (plan Context). */
 const PUNCH_ABILITY_ID = '0120';
@@ -112,13 +116,13 @@ function stepUntil(engine: GameEngine, predicate: () => boolean, maxTicks = 300)
     return predicate();
 }
 
-async function mountSoloSession(): Promise<BattleSession> {
+async function mountSoloSession(isHost = false): Promise<BattleSession> {
     resetGameObjectIdCounter(1);
     const session = new BattleSession({
         api: makeApiStub(),
         missionId: 'dark_awakening',
         playerId: SOLO_PLAYER_ID,
-        isHost: false,
+        isHost,
     });
     await session.load({
         players: { [SOLO_PLAYER_ID]: { id: SOLO_PLAYER_ID, name: 'P1', color: '#fff' } },
@@ -343,6 +347,187 @@ describe('preview/canon execution equivalence (Step 5)', () => {
         });
 
         assertPreviewCanonEquivalence(engineA, engineB);
+
+        engineA.destroy();
+        engineB.destroy();
+    });
+});
+
+describe('preview/canon equivalence — ended-early (interrupted) preview cast', () => {
+    const LIGHT_BLAST_ID = '0801';
+    const KNOCK_SOURCE = { unitId: 'thornbinder', abilityId: '0008' };
+
+    /** Same tier knockback in both engines (the preview and the canonical replay), at the same tick. */
+    function knockCaster(engine: GameEngine, casterId: string): void {
+        const caster = engine.getUnit(casterId)!;
+        const result = tryApplyKnockbackByTier(
+            caster,
+            4,
+            KNOCK_SOURCE,
+            caster.x - 30,
+            caster.y,
+            knockbackCtxFromEngine(engine),
+        );
+        expect(result.outcome).toBe('applied');
+    }
+
+    // it.fails: a host in-place commit forms the caster's next order pause one tick later than the
+    // canonical replay (pre-existing for every in-place commit; see "Host in-place ITS commit pauses one
+    // tick later" in docs/TODO.md). Drop `.fails` once that is fixed.
+    it.fails('Light Blast: in-place commit of an interrupted preview matches a canonical replay of the finalized order (with missing labels)', async () => {
+        const session = await mountSoloSession(true);
+        const engine = session.getEngine()!;
+        const caster = engine.getLocalPlayerUnit()!;
+        caster.abilities = [LIGHT_BLAST_ID];
+        initializeAbilityRuntimeForUnit(caster);
+        const light = new Light();
+        caster.attachResource(light, engine.eventBus);
+        light.add(LIGHT_BLAST_LIGHT_COST);
+
+        expect(stepUntil(engine, () => engine.waitingForOrders != null, 400)).toBe(true);
+        const casterId = caster.id;
+        const baseOrder: BattleOrder = { unitId: casterId, abilityId: LIGHT_BLAST_ID, targets: [], endTurn: true };
+
+        const mark = engine.toJSON();
+        mark.checkpointRuntimeFingerprintHex = engine.getRuntimeFingerprintHex();
+
+        // --- Engine B: ITS preview, interrupted before the pick, committed in place. ---
+        const persistCommittedOrder = vi.fn().mockResolvedValue(true);
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            persistCommittedOrder,
+            // The host checkpoints and fingerprints at the next order pause after the commit.
+            saveSnapshotOnPause: vi.fn().mockResolvedValue(undefined),
+            queueFingerprint: vi.fn(),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        const its = session.interactiveTargeting;
+        expect(its.begin(baseOrder, session)).toBe(true);
+        engine.stepSimulationFixedTicks(1);
+        expect(engine.getUnit(casterId)!.activeAbilities.some((a) => a.abilityId === LIGHT_BLAST_ID)).toBe(true);
+        knockCaster(engine, casterId);
+        expect(stepUntil(engine, () => isITSPreviewComplete(engine), 200)).toBe(true);
+        expect(its.getPreviewCastEndedEarly(engine)).not.toBeNull();
+        expect(its.wouldCommitInPlace(session)).toBe(true);
+
+        await its.commit(session);
+
+        expect(persistCommittedOrder).toHaveBeenCalledTimes(1);
+        const finalized = persistCommittedOrder.mock.calls[0]![0] as BattleOrder;
+        expect(finalized.missingSelectLabels).toEqual(['Target']);
+        const engineB = session.getEngine()!;
+        expect(engineB).toBe(engine);
+        engineB.stop();
+        expect(stepUntil(engineB, () => engineB.waitingForOrders != null, 600)).toBe(true);
+
+        // --- Engine A: canonical replay of the finalized order from the mark. ---
+        const sessionA = new BattleSession({
+            api: makeApiStub(),
+            missionId: 'dark_awakening',
+            playerId: SOLO_PLAYER_ID,
+            isHost: false,
+        });
+        sessionA.restoreFromInMemorySnapshot(mark);
+        const engineA = sessionA.getEngine()!;
+        engineA.stop();
+        engineA.state.orderMgr.applyOrder(finalized);
+        engineA.stepSimulationFixedTicks(1);
+        knockCaster(engineA, casterId);
+        expect(stepUntil(engineA, () => engineA.waitingForOrders != null, 600)).toBe(true);
+
+        assertPreviewCanonEquivalence(engineA, engineB);
+        const casterA = engineA.getUnit(casterId)!;
+        const casterB = engineB.getUnit(casterId)!;
+        expect(casterB.x).toBe(casterA.x);
+        expect(casterB.y).toBe(casterA.y);
+        expect(casterB.hp).toBe(casterA.hp);
+
+        engineA.destroy();
+        engineB.destroy();
+    });
+});
+
+describe('preview/canon equivalence — missing-pick resume (updateTargets order)', () => {
+    const LIGHT_BLAST_ID = '0801';
+
+    // it.fails: same pre-existing one-tick in-place pause offset as the ended-early case above
+    // (docs/TODO.md). Drop `.fails` once that is fixed.
+    it.fails('Light Blast: an in-place resume commit matches a canonical replay of the committed updateTargets order from the mark', async () => {
+        const session = await mountSoloSession(true);
+        const engine = session.getEngine()!;
+        const caster = engine.getLocalPlayerUnit()!;
+        caster.abilities = [LIGHT_BLAST_ID];
+        initializeAbilityRuntimeForUnit(caster);
+        const light = new Light();
+        caster.attachResource(light, engine.eventBus);
+        light.add(LIGHT_BLAST_LIGHT_COST);
+
+        expect(stepUntil(engine, () => engine.waitingForOrders != null, 400)).toBe(true);
+        const casterId = caster.id;
+        const blastPixel = { x: caster.x + 30, y: caster.y };
+
+        // Committed without its pick: the cast pauses its owner at the select gate.
+        engine.state.orderMgr.applyOrder({
+            unitId: casterId,
+            abilityId: LIGHT_BLAST_ID,
+            targets: [],
+            targetsByLabel: {},
+            missingSelectLabels: ['Target'],
+            endTurn: true,
+        });
+        expect(stepUntil(
+            engine,
+            () => engine.waitingForOrders != null
+                && caster.activeAbilities.some((a) => a.awaitingPickLabel !== undefined),
+            400,
+        )).toBe(true);
+
+        const mark = engine.toJSON();
+        mark.checkpointRuntimeFingerprintHex = engine.getRuntimeFingerprintHex();
+
+        // --- Engine B: resume ITS at the pause, pick, commit in place. ---
+        const persistCommittedOrder = vi.fn().mockResolvedValue(true);
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            persistCommittedOrder,
+            // The host checkpoints and fingerprints at the next order pause after the commit.
+            saveSnapshotOnPause: vi.fn().mockResolvedValue(undefined),
+            queueFingerprint: vi.fn(),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        const its = session.interactiveTargeting;
+        expect(its.beginResume(casterId, session)).toBe(true);
+        its.resolveTarget('Target', { type: 'pixel', position: blastPixel }, session);
+        expect(stepUntil(engine, () => isITSPreviewComplete(engine), 300)).toBe(true);
+        expect(its.wouldCommitInPlace(session)).toBe(true);
+
+        await its.commit(session);
+
+        expect(persistCommittedOrder).toHaveBeenCalledTimes(1);
+        const finalized = persistCommittedOrder.mock.calls[0]![0] as BattleOrder;
+        expect(finalized.updateTargets).toBe(true);
+        const engineB = session.getEngine()!;
+        expect(engineB).toBe(engine);
+        engineB.stop();
+        expect(stepUntil(engineB, () => engineB.waitingForOrders != null, 600)).toBe(true);
+
+        // --- Engine A: canonical replay of the committed updateTargets order from the mark. ---
+        const sessionA = new BattleSession({
+            api: makeApiStub(),
+            missionId: 'dark_awakening',
+            playerId: SOLO_PLAYER_ID,
+            isHost: false,
+        });
+        sessionA.restoreFromInMemorySnapshot(mark);
+        const engineA = sessionA.getEngine()!;
+        engineA.stop();
+        engineA.state.orderMgr.applyOrder(finalized);
+        expect(stepUntil(engineA, () => engineA.waitingForOrders != null, 600)).toBe(true);
+
+        assertPreviewCanonEquivalence(engineA, engineB);
+        const casterA = engineA.getUnit(casterId)!;
+        const casterB = engineB.getUnit(casterId)!;
+        expect(casterB.x).toBe(casterA.x);
+        expect(casterB.y).toBe(casterA.y);
+        expect(casterB.hp).toBe(casterA.hp);
 
         engineA.destroy();
         engineB.destroy();

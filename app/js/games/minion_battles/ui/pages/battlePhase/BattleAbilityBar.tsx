@@ -4,6 +4,7 @@ import type { AbilityStatic } from '../../../abilities/Ability';
 import type { BattleSession } from '../../../game/BattleSession';
 import type { GameEngine } from '../../../game/GameEngine';
 import type { BattleOrder, OrderWaiter } from '../../../game/types';
+import { isAtMissingPickDecision } from '../../../game/interaction/isITSPreviewComplete';
 import { useAutoEndTurn } from '../../components/useAutoEndTurn';
 import CornerSlotPlayerStats from '../../components/battleUiSlots/CornerSlotPlayerStats';
 import RowSlotAbilities from '../../components/battleUiSlots/RowSlotAbilities';
@@ -85,23 +86,34 @@ export function useBattleAbilityBarSlots({
             : engine.getLocalPlayerUnit()) ?? null;
     const isItsPreviewActive = interactiveTargetingState !== 'inactive';
     const isConditionalCancelPause = conditionalCancelContext != null;
-    const isMyTurn = canUseOrderUi && (!isItsPreviewActive || isConditionalCancelPause);
+    // Missing-pick pause (or its ITS resume preview): ability cards stay locked, but Pass is enabled and
+    // fizzles the cast. The pick itself is made on the canvas through ITS resume mode.
+    const atMissingPickDecision =
+        canUseOrderUi
+        && ((activeLocalWaiter != null && isAtMissingPickDecision(engine, activeLocalWaiter.unitId))
+            || sessionRef.current?.interactiveTargeting.isResumeMode === true);
+    const isMyTurn =
+        canUseOrderUi && !atMissingPickDecision && (!isItsPreviewActive || isConditionalCancelPause);
+    const passEnabled = isMyTurn || atMissingPickDecision;
     const onWait = nonconfirmedOrder && !autoEndTurn
         ? () => sessionRef.current?.getInteractionManager()?.handleEndTurn()
         : () => sessionRef.current?.getInteractionManager()?.handleWait();
-    const waitDisabledReason = isItsPreviewActive && !conditionalCancelContext ? 'its_preview_active' : null;
+    const waitDisabledReason =
+        isItsPreviewActive && !conditionalCancelContext && !atMissingPickDecision ? 'its_preview_active' : null;
     const passAction: TurnIndicatorPassAction = {
         onPass: onWait,
-        disabled: !isMyTurn,
-        title: !isMyTurn
-            ? waitDisabledReason === 'its_preview_active'
-                ? 'Pass unavailable during targeting preview (Undo to cancel)'
-                : 'Not your turn'
-            : conditionalCancelContext
-              ? 'Pass: continue current ability (Space)'
-              : nonconfirmedOrder && !autoEndTurn
-                ? 'Pass: end turn (Space)'
-                : 'Pass: wait (Space)',
+        disabled: !passEnabled,
+        title: atMissingPickDecision
+            ? 'Pass: skip the pick (the ability fizzles)'
+            : !isMyTurn
+              ? waitDisabledReason === 'its_preview_active'
+                  ? 'Pass unavailable during targeting preview (Undo to cancel)'
+                  : 'Not your turn'
+              : conditionalCancelContext
+                ? 'Pass: continue current ability (Space)'
+                : nonconfirmedOrder && !autoEndTurn
+                  ? 'Pass: end turn (Space)'
+                  : 'Pass: wait (Space)',
     };
     const sideControls: TurnIndicatorSideControls = {
         passAction,
@@ -136,7 +148,7 @@ export function useBattleAbilityBarSlots({
         bottomRightCorner: (
             <CornerSlotMiscControls
                 playerUnit={playerUnit}
-                isMyTurn={isMyTurn}
+                isMyTurn={passEnabled}
                 waitDisabledReason={waitDisabledReason}
                 roundNumber={roundNumber}
                 roundProgress={roundProgress}
@@ -149,7 +161,9 @@ export function useBattleAbilityBarSlots({
                     abilityModeByAbilityId.wait
                     ?? undefined
                 }
-                onSetWaitAbilityMode={(mode) => handleSetAbilityMode('wait', mode)}
+                onSetWaitAbilityMode={
+                    atMissingPickDecision ? undefined : (mode) => handleSetAbilityMode('wait', mode)
+                }
             />
         ),
     };

@@ -16,7 +16,7 @@ import { getAbility } from '../../abilities/AbilityRegistry';
 import { resolveModeAbilityId } from '../../abilities/resolveAbilityMode';
 import { TERRAIN_PROPERTIES } from '../../terrain/TerrainType';
 import { logOrderUiKeyAction } from './itsLobbyLog';
-import { isAtConditionalCancelDecision } from './isITSPreviewComplete';
+import { isAtConditionalCancelDecision, isAtMissingPickDecision } from './isITSPreviewComplete';
 import { canUseAbilityNow } from '../../abilities/abilityUses';
 
 declare global {
@@ -273,7 +273,8 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
 
         // 1-9 — select ability by index
         const digit = e.key >= '1' && e.key <= '9' ? parseInt(e.key, 10) : 0;
-        if (digit > 0 && this._canUseOrderUi) {
+        // Locked at a missing-pick decision: the owner picks on the canvas or passes (the cast fizzles).
+        if (digit > 0 && this._canUseOrderUi && !this.isAtMissingPickPause()) {
             const index = digit - 1;
             if (index < this.myAbilityIds.length) {
                 const slotAbilityId = this.myAbilityIds[index];
@@ -327,6 +328,7 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         if (!this._waitingForOrders || !this.ctx) return;
         const active = this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId);
         if (!active) return;
+        if (this.isAtMissingPickPause()) return;
         const caster = this.ctx.engine.getUnit(active.unitId) ?? undefined;
         const comboCancelPause = isAtConditionalCancelDecision(
             this.ctx.engine,
@@ -478,6 +480,17 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
         this.emitChange();
     }
 
+    /**
+     * True when the local player's active waiter is at a missing-pick pause (its cast has
+     * `awaitingPickLabel`), or its ITS resume preview is running. Abilities are locked there; Pass fizzles.
+     */
+    private isAtMissingPickPause(): boolean {
+        if (!this.ctx) return false;
+        if (this.ctx.session.interactiveTargeting.isResumeMode) return true;
+        const active = this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId);
+        return isAtMissingPickDecision(this.ctx.engine, active?.unitId);
+    }
+
     handleWait(): void {
         const logWait = (blocked: boolean, blockReason: string | null): void => {
             if (!this.ctx) return;
@@ -493,6 +506,21 @@ export class PlayerInteractionManager implements IPlayerInteractionManager {
                 blockReason,
             });
         };
+        // Pass at a missing-pick decision: end any resume preview (back to the pause), then submit `wait`
+        // for the batch. The cast keeps running, enters the select with the pick still missing and fizzles.
+        if (this.ctx && this.isAtMissingPickPause()) {
+            if (!this._canUseOrderUi || !this._waitingForOrders) {
+                logWait(true, !this._canUseOrderUi ? 'can_use_order_ui_false' : 'no_waiting_for_orders_ui');
+                return;
+            }
+            logWait(false, 'missing_pick_pass');
+            const session = this.ctx.session;
+            this.deactivateTool();
+            void session.interactiveTargeting.reset(session, 'ui_reset').then(() => {
+                this.submitOrder('wait', []);
+            });
+            return;
+        }
         if (this.ctx?.session.interactiveTargeting.isActive) {
             const active = this.ctx.engine.state.orderMgr.getActiveOrderWaiterForPlayer(this.ctx.playerId);
             if (isAtConditionalCancelDecision(this.ctx.engine, active?.unitId, this.ctx.session.interactiveTargeting)) {

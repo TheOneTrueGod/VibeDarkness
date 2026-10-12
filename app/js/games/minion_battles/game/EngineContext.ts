@@ -123,6 +123,14 @@ export interface EngineContext {
     requestConditionalCancelPause(unit: Unit): void;
 
     /**
+     * Called from unitAbilityTick on the gate tick of a select whose label is in the cast's
+     * `missingSelectLabels`, for an alive player-controlled caster (the cast has `awaitingPickLabel` set).
+     * Schedules the same kind of deferred order pause as {@link requestConditionalCancelPause}, scoped to
+     * that unit, so the owner can supply the pick (an `updateTargets` order) or pass (the cast fizzles).
+     */
+    requestMissingPickPause(unit: Unit): void;
+
+    /**
      * Called from unitAbilityTick when an interval with a SelectTargetDef is entered but no
      * target is yet resolved. Freezes gameTime until the target is provided via the UI.
      */

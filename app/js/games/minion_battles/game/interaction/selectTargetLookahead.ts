@@ -111,6 +111,10 @@ function findImpendingNeedForCast(
         if (interval.start > 0 && active.pendingSelectGate !== interval.id) continue;
 
         const label = interval.targetDef.label;
+        // A label the order is known to lack never pauses the lookahead: the real timeline handles it
+        // (missing-pick pause, or fizzle on entry). Reads only the serialized `missingSelectLabels`,
+        // never `targetsByLabel`, which does not survive a snapshot.
+        if (active.missingSelectLabels?.includes(label)) continue;
         if (active.targetsByLabel[label] !== undefined) continue;
         if (active.setupFiredBehaviourKeys?.has(`${interval.id}_0`)) continue;
 

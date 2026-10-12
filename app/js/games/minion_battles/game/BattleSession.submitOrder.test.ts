@@ -156,7 +156,7 @@ describe('BattleSession submitPlayerOrder + BattleNet', () => {
         engine.sequentialTargetingPreviewCast = {
             unitId,
             abilityId: 'throw_charged_rock',
-            startRound: engine.roundNumber,
+            startRound: engine.roundNumber, beganAtGameTime: engine.gameTime,
         };
         const its = session.interactiveTargeting as unknown as {
             _isActive: boolean;

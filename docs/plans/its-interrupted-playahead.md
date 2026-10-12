@@ -1,5 +1,22 @@
 # Plan: Interrupted ITS playahead and the missing-pick pause
 
+> **Implemented 2026-10-11** (manual browser checklist pending). Steps 1–8 were done by Sonnet workers verifying by inspection only (user override); the orchestrator ran every check once in Step 9 and fixed what it found. What shipped:
+> - **No rewind on an early end:** an interrupted, fizzled or killed preview cast plays forward. It stops when the caster can act again, at a frozen parallel pause, or 100 frames after the interrupt. Then the player can Undo or press Done (Auto End presses Done).
+> - **Missing picks:** commits carry `missingSelectLabels`. In the real timeline a missing pick is a networked pause plane with an `updateTargets` order, picked through an ITS resume preview. Inside another player's preview it is an automatic pass-and-fizzle that forces a rollback commit. Pass fizzles with a refund. All of it reads only serialized cast data.
+> - **Engine hook:** `cast_ended_early` is emitted by the interrupt and fizzle pipelines.
+> - **UI:** a reusable starburst notice container sits above the Your Turn plaque, and the canvas "Interrupted" banner is gone.
+>
+> **Results:** lint and `tsc` clean; targeted tests 254 passing; AbilityTests 107/107, with the new scenario proven to fail without the pause; full suite 2875 passing.
+>
+> **Notable fixes in Step 9:**
+> - The early-end listener was being wiped by `registerCoreEventListeners`, so live games would never have recorded early ends.
+> - The deferred-pause overwrite found in Step 3 also affected conditional cancel; Step 3 made the scheduling merge instead.
+>
+> **Follow-ups:**
+> - The pre-existing one-tick pause offset on host in-place ITS commits (`docs/TODO.md`; two `it.fails` cases).
+> - Pass at a missing-pick pause runs a full mark restore, with its ~1 s rewind overlay, even when no preview ticks ran.
+> - The manual browser checklist in Step 9.
+
 ## Context
 
 When an interactive targeting (ITS) preview cast is interrupted before all of its targets are picked, the preview currently **auto-rewinds** to the mark and shows a canvas "Interrupted" banner.
@@ -83,7 +100,7 @@ This plan is executed by `/jp-implement-plan`. Read `.claude/skills/jp-implement
 - The **invoking agent is the sole orchestrator**. It spawns **one worker per step, synchronously** (never `run_in_background`), waits for each to finish, verifies the plan file, and reports plan completion to the user at the end.
 - Each **worker implements exactly one step**. It checks off each `- [ ]` item with a one-line summary of what actually changed, then **stops without spawning the next agent**.
 - **Read every file in an item's "Touches" line before editing.** Do not guess signatures (EventBus `on`, `EngineContext` members, `Unit.fromJSON` handling of `activeAbilities`, `getSelectTargetDefsFromTimings`, test fixtures).
-- **Per-step verification:** `npm run lint`, then `npx tsc --noEmit` (every step crosses an interface boundary), then **only** the test files listed on that step. No full suite, no directory runs and no AbilityTest/SimulationRunner runs before Step 9. (If the user repeats the "verify by inspection only" override when invoking, it supersedes this line.)
+- **Per-step verification — USER OVERRIDE (2026-10-11): verify by inspection only.** Workers in Steps 1–8 must **not** run lint, `tsc` or any tests. Write the listed tests, then re-read the changed code and tests carefully (types, imports, call sites, signatures, serialization round trips) and fix anything wrong by inspection. All lint, `tsc` and test runs happen once in Step 9, which is run by the orchestrator, who fixes the failures it finds there. The "Run …" notes on individual items below are superseded by this rule.
 - **Behaviour must stay the same unless an item says otherwise.** Natural completion, select pauses, the select gate, conditional-cancel pauses, commit in place vs rollback, Replay, held remote orders and terminal outcomes during preview must be unchanged. **Orders that have every pick behave exactly as today.**
 - **Pause and ask** (return the question as your final output) if a step conflicts with existing ITS or sync behaviour, in particular the non-host freeze rule (lobby 39E984) in Step 3.
 - **Bash note:** on this machine the Bash tool can lose its PATH, and heredocs containing apostrophes fail to parse. Prefer Read/Edit/Write, and PowerShell for `git`/`npm`/`npx`.
@@ -133,13 +150,15 @@ All paths below are relative to `app/js/games/minion_battles/` unless they start
 
 ### Step 1 — Engine: `cast_ended_early` event and the ended-early preview stop
 
-- [ ] Emit `cast_ended_early` from the interrupt and fizzle pipelines.
+- [x] Emit `cast_ended_early` from the interrupt and fizzle pipelines.
+  - Done: added `CastEndedEarlyEvent` and `'cast_ended_early'` to `EventBus.ts`; `fireCastEndEarly` in `unitAbilityLifecycle.ts` now takes `reason`/`outcome`, derives `source` from `unit.knockback.knockbackSource` and emits (ignored cooldown casts and recasts emit nothing). `unitAbilityLifecycle.chargeInterrupt.test.ts` mock engines gained `eventBus`/`gameTick`.
   - Touches: `game/EventBus.ts`, `game/units/unitAbilityLifecycle.ts`.
   - Add `'cast_ended_early'` to `GameEventType` and the event map: `CastEndedEarlyEvent { unitId; abilityId; castStartTime: number; reason: 'interrupted' | 'fizzled'; outcome: 'cancelled' | 'skippedToCooldown' | 'ended'; source?: KnockbackSource; gameTick: number }`.
   - `interruptUnitAbilities`: emit once per cast that is removed or snapped. Outcomes: `'ended'` when a cooldown-phase cast is ended, `'skippedToCooldown'`, and `'cancelled'`. A cast kept under `duringCooldown: 'ignore'` emits nothing. `fizzleUnitActiveAbility` emits `reason: 'fizzled'` with the matching outcome.
   - Derive `source` from unit state in one small helper: `unit.knockback?.knockbackSource` while the unit is in knockback; otherwise omit it.
   - Doc comment: this is the single "cast ended early" hook for UI, logs and ITS.
-- [ ] Record the early end on the preview cast, and add the stop rule.
+- [x] Record the early end on the preview cast, and add the stop rule.
+  - Done: `ITS_ENDED_EARLY_PLAYAHEAD_MAX_TICKS = 100` in `gameConstants.ts`; the preview cast type moved to exported `SequentialTargetingPreviewCast` in `isITSPreviewComplete.ts` (with `beganAtGameTime`, `resumeCastStartTime?`, `endedEarly?`), plus `isPreviewCastInstance`, `getEndedEarlyPreviewStop` and the new `isITSPreviewComplete` branch. `GameEngine` constructor records `endedEarly` (first event only). `begin()`/`replay()` set `beganAtGameTime`; all existing test sites that assign the cast got `beganAtGameTime`.
   - Touches: `game/GameEngine.ts`, `game/gameConstants.ts`, `game/interaction/isITSPreviewComplete.ts`, `game/interaction/InteractiveTargetingSession.ts` (only the two places that set `sequentialTargetingPreviewCast`).
   - Add `ITS_ENDED_EARLY_PLAYAHEAD_MAX_TICKS = 100` to `gameConstants.ts`, with a doc comment ("frames of preview after an interrupt before ITS stops for Done").
   - Extend the `sequentialTargetingPreviewCast` type:
@@ -155,7 +174,8 @@ All paths below are relative to `app/js/games/minion_battles/` unless they start
     - `gameTick - endedEarly.atTick >= ITS_ENDED_EARLY_PLAYAHEAD_MAX_TICKS` → `'cap'`
     - otherwise `null`
   - `isITSPreviewComplete`: keep the `waitingForTargetInput` and dead-caster checks first. Then, when `endedEarly` is set, return `getEndedEarlyPreviewStop(engine) != null` **instead of** the "cast left active" rule. Otherwise keep the current logic.
-- [ ] Tests.
+- [x] Tests.
+  - Done (verified by inspection only, nothing run): new `cast_ended_early event` describe in `unitAbilityLifecycle.interrupt.test.ts`; ended-early and `isPreviewCastInstance` describes in `isITSPreviewComplete.test.ts`.
   - `game/units/unitAbilityLifecycle.interrupt.test.ts`: the event fires with the right `reason` and `outcome` for cancel, skip-to-cooldown and cooldown end, and does not fire for `ignore`. The fizzle emits `'fizzled'`. A tier knockback interrupt carries `source` = the knockback source.
   - `game/interaction/isITSPreviewComplete.test.ts`, with an ended-early preview cast:
     - not complete while the caster is in knockback
@@ -167,17 +187,20 @@ All paths below are relative to `app/js/games/minion_battles/` unless they start
 
 ### Step 2 — Engine: missing select labels (serialized marker; a missing pick fizzles on entry)
 
-- [ ] Carry `missingSelectLabels` from the order onto the cast, and serialize it.
+- [x] Carry `missingSelectLabels` from the order onto the cast, and serialize it.
+  - Done: added `BattleOrder.missingSelectLabels`, `ActiveAbility.missingSelectLabels` and `awaitingPickLabel` in `types.ts`; `applyOrderLogic` copies the labels onto the cast; `unitToJSON` serializes both (non-empty / defined only); `unitFromJSON` copies the array (`awaitingPickLabel` already round-trips through its `...a` spread).
   - Touches: `game/types.ts`, `game/managers/OrderManager.ts`, `game/units/unitToJSON.ts`, and the restore path for `activeAbilities` (find it from `Unit.fromJSON`).
   - `BattleOrder.missingSelectLabels?: string[]`. Doc: select labels this order does not contain, because the previewed cast ended before they were picked. Reaching one in the real timeline pauses the owner for the pick (Step 3); if no pick arrives, the cast fizzles.
   - `ActiveAbility.missingSelectLabels?: string[]` and `ActiveAbility.awaitingPickLabel?: string` (set in Step 3). Both are **serialized** like `pendingSelectGate`, only when non-empty or defined.
   - `applyOrderLogic` copies `missingSelectLabels` onto the new cast next to the `targetsByLabel` copy.
-- [ ] The lookahead never pauses for a missing label, and a missing pick fizzles on entry.
+- [x] The lookahead never pauses for a missing label, and a missing pick fizzles on entry.
+  - Done: `findImpendingNeedForCast` skips labels in `active.missingSelectLabels`; `hasRejectedEnteringSelectPick` returns true for an entering select whose label is missing, checked before the `validatePick` filter; both read only the serialized marker (commented), doc comment updated.
   - Touches: `game/interaction/selectTargetLookahead.ts`, `game/units/unitAbilityTick.ts`.
   - `findImpendingNeedForCast`: skip intervals whose label is in `active.missingSelectLabels`.
   - `hasRejectedEnteringSelectPick`: an entering interactive select whose label is still in `active.missingSelectLabels` returns `true`, so it takes the existing fizzle path. Check this **before** the `validatePick`-only filter, so it also applies to selects without `validatePick`. A missing select at `start = 0` (never gated) is handled the same way. Update the doc comment.
   - These checks read only `missingSelectLabels`, never `targetsByLabel`. Say so in a comment.
-- [ ] Tests.
+- [x] Tests.
+  - Done (inspection only, nothing run): new `missing gated select` describe in `selectTargetLookahead.gate.test.ts` (preview flag on/off); new `game/units/missingSelect.test.ts` using a registered test ability with a Movement cost (not Light Blast / Stone Tomb) covering fizzle + refund, caster becoming an order waiter, and the `toJSON`/`fromJSON` round trip with same-tick fizzle.
   - `game/interaction/selectTargetLookahead.gate.test.ts`: a cast with a missing gated select does not pause, preview flag set or not.
   - New `game/units/missingSelect.test.ts`, using Light Blast (as in the ITS tests) or Stone Tomb in a tiny battle and a committed order with `missingSelectLabels`:
     - the cast fizzles on the select's entry tick, the cost or use is refunded per the interrupt policy, and `waitingForTargetInput` stays null
@@ -187,7 +210,8 @@ All paths below are relative to `app/js/games/minion_battles/` unless they start
 
 ### Step 3 — Engine: missing-pick pause plane and the "update order targets" order
 
-- [ ] Form the missing-pick pause in the real timeline.
+- [x] Form the missing-pick pause in the real timeline.
+  - Done: on the gate tick in `unitAbilityTick.ts`, an alive player-controlled caster whose gated (or same-start deferred) select label is in `missingSelectLabels` gets `awaitingPickLabel` set and `engine.requestMissingPickPause(unit)` (new on `EngineContext` and `GameEngine`; shares `requestMidCastOrderPause` with `requestConditionalCancelPause`). The `fixedUpdate` waiter scheduling now MERGES into an existing `deferredOrderPause` (union of waiters sorted by owner/unit, union of natural-completion ids) instead of replacing it. Conditional cancel had the same exposure (a natural completion in the same tick as a conditional-cancel request dropped its waiter, leaving the cast paused with no batch); the merge fixes both. Commit treats a missing-pick waiter like conditional cancel for the teamwork-cancel suppression. Existing `missingSelect.test.ts` and the `missing gated select` describe in `selectTargetLookahead.gate.test.ts` were updated to answer the new pause with `wait`.
   - Touches: `game/units/unitAbilityTick.ts`, `game/GameEngine.ts`, `game/EngineContext.ts`.
   - When a cast's tick is cut at a select gate (`findSelectGateSplit`) for a select whose label is in `active.missingSelectLabels`, and the caster is alive and player-controlled: set `active.awaitingPickLabel = label` and call a new `engine.requestMissingPickPause(unit)`.
     - Share the body with `requestConditionalCancelPause` through a private helper.
@@ -195,20 +219,23 @@ All paths below are relative to `app/js/games/minion_battles/` unless they start
   - Not player-controlled → no pause; the select fizzles on entry (Step 2).
   - **Verify** how a mid-cast request survives the per-tick waiter scheduling in `fixedUpdate` (~L1596–1611 assigns a fresh `deferredOrderPause` when it finds other waiters). Make the scheduling **merge** waiters into an existing deferred pause instead of replacing it, and note in the summary whether conditional cancel had the same exposure.
   - Rules copied from conditional cancel: not a natural completion (no teamwork cancel), and merged into a same-tick batch like any other waiter.
-- [ ] Previews drop missing-pick waiters (automatic pass-and-fizzle).
+- [x] Previews drop missing-pick waiters (automatic pass-and-fizzle).
+  - Done: `commitDeferredOrderPauseAfterCompletedTick` strips missing-pick waiters first while a preview runs (host and non-host), clears their casts' `awaitingPickLabel`, reports `onItsParallelPauseDecision('drop', waiters, tick, { missingPick: true })` (hook type and setter gained the optional 4th arg) and continues with the remaining waiters under the unchanged drop/freeze rules. No conflict with the non-host freeze rule (lobby 39E984) needing a question: the forced rollback commit (Step 4) is what prevents running past the host batch; noted in a code comment.
   - Touches: `game/GameEngine.ts`.
   - In `commitDeferredOrderPauseAfterCompletedTick`, while a preview is running, remove waiters whose cast has `awaitingPickLabel` from the batch, **on host and non-host**. Clear `awaitingPickLabel` on those casts so the select enters with the label still missing and fizzles on the next tick. Report them through `onItsParallelPauseDecision('drop', …)` with a new optional fourth argument `{ missingPick: true }`.
   - The remaining waiters follow the existing drop/freeze rules unchanged.
   - The preview cast never has `missingSelectLabels` when this runs: new previews start without it, and resume mode clears it (Step 5). Its own picks stay local ITS pauses.
   - If keeping the non-host freeze rule (lobby 39E984) appears to require freezing here instead, **pause and ask**.
-- [ ] Add the "update order targets" order.
+- [x] Add the "update order targets" order.
+  - Done: `BattleOrder.updateTargets`; `OrderManager` gained `isMissingPickOrderAcceptable` (validation only, called at the top of `applyOrder` before any draft replacement and again in `applyOrderLogic`) and `applyUpdateTargetsOrder` (applied only at the top-of-tick `applyOrderLogic`, so every client resolves it identically): writes picks into positional `targets` at each select def index (single-select with non-empty `targets` replaces the array), merges `targetsByLabel` and `movementByLabel`, narrows/deletes `missingSelectLabels`, clears `awaitingPickLabel`, fingerprint key `updateTargets:<abilityId>`, no recast/cost/use. `wait` at the pause clears `awaitingPickLabel` and keeps the cast. Draft handling: an `updateTargets` order never merges into a same-ability draft, and replacing an `updateTargets` draft does not cancel the cast.
   - Touches: `game/types.ts`, `game/managers/OrderManager.ts`.
   - `BattleOrder.updateTargets?: true`. Doc: fills in picks on the unit's running cast of `abilityId` that is waiting at a missing-pick pause. It carries `targetsByLabel` (the new picks), `targets` (positional), optional `missingSelectLabels` (labels still missing after it), and `endTurn: true`.
   - Add a missing-pick decision resolver next to the conditional-cancel one, used in `applyOrder` (batch acceptance) and `applyOrderLogic`. At a waiter whose cast has `awaitingPickLabel`:
     - accept only an `updateTargets` order for that cast's ability, or `wait`; reject anything else (a different ability, or a plain recast of the same ability)
     - **`updateTargets`:** for each label in `targetsByLabel`, write the pick into `active.targets` at that label's position in `getSelectTargetDefsFromTimings` order, and into `active.targetsByLabel`. For a single-select ability with a non-empty `targets` array, replace `active.targets` with it (the melee lock-on rule in `buildFinalizedSequentialTargetingOrder`). Set `active.missingSelectLabels` to the order's list (minus anything picked). Clear `awaitingPickLabel`. **No recast, no cost, no use.** Fingerprint with a distinct key (`mixOrderFingerprint(unitId, 'updateTargets:' + abilityId)`).
     - **`wait` (Pass):** clear `awaitingPickLabel` and keep the cast (the existing `wait`-with-active-cast path). The select enters with the label still missing and fizzles.
-- [ ] Tests.
+- [x] Tests.
+  - Done (inspection only, nothing run): new `game/units/missingPickPause.test.ts` covers items 1-8 below (item 6 compares an original engine with rebuilds before the pause and after the select entered, via gameTick, atTick, waiters, picks and runtime fingerprint).
   - New `game/units/missingPickPause.test.ts`, with a tiny battle and a committed order with `missingSelectLabels`:
     1. At the gate tick the battle forms an order pause with the caster as waiter and `awaitingPickLabel` set; `waitingForTargetInput` stays null.
     2. An `updateTargets` order at the pause makes the select enter with the pick on the next tick, and the cast uses it (for example the projectile's direction). No extra use or cost is spent.
@@ -225,23 +252,27 @@ All paths below are relative to `app/js/games/minion_battles/` unless they start
 
 ### Step 4 — ITS session: keep playing, commit the ended-early timeline
 
-- [ ] Replace the auto-rewind API with an ended-early query, and commit missing labels.
+- [x] Replace the auto-rewind API with an ended-early query, and commit missing labels.
+  - Done: removed `isPreviewCastInterrupted` / `cancelInterruptedPreview` (and the now-unused `isITSPreviewComplete` import); added `getPreviewCastEndedEarly` (reads `endedEarly` or a dead caster); `buildFinalizedSequentialTargetingOrder` takes `opts.missingSelectLabels` (set only when non-empty); `_commitImpl` computes the uncollected labels when the preview ended early (before any rollback restore) and passes them. To keep the code compiling, `ui/pages/battlePhase/useInteractiveTargetingProgress.ts` had only the auto-rewind branch, `InterruptedTextEffect` import and the in-flight ref dropped (`hudEffectCanvasRef` is now an optional, unused param; the rest of the hook, including auto-commit still gated on all targets collected, is left for Step 7).
   - Touches: `game/interaction/InteractiveTargetingSession.ts`.
   - Remove `isPreviewCastInterrupted` and `cancelInterruptedPreview`.
   - Add `getPreviewCastEndedEarly(engine): { reason: 'interrupted' | 'fizzled' | 'caster_died'; atTick: number | null; source?: KnockbackSource } | null`. It reads `engine.sequentialTargetingPreviewCast.endedEarly`, or a dead caster; it is null when ITS is inactive or the preview order is not queued.
   - `buildFinalizedSequentialTargetingOrder`: add `opts.missingSelectLabels` and set it on the order only when non-empty.
   - `commit()`: when the preview ended early, pass the labels not in `collectedTargets`. Nothing else in commit changes: in place vs rollback, persistence and held rows stay as they are.
   - Update the class and method doc comments that mention the lobby 0AD6EA auto-undo.
-- [ ] A dropped missing-pick waiter always forces a rollback commit.
+- [x] A dropped missing-pick waiter always forces a rollback commit.
+  - Done: the `onItsParallelPauseDecision` handler in `BattleSession` takes the 4th `info` arg; with `{ missingPick: true }` it calls `noteMultiplayerUncertaintyDuringPreview()` even for local-only waiters and logs "ITS: auto pass-and-fizzle at a missing-pick pause" (context also carries `missingPick`).
   - Touches: `game/BattleSession.ts` (handler ~L486).
   - When the decision carries `{ missingPick: true }`, call `interactiveTargeting.noteMultiplayerUncertaintyDuringPreview()` even if every waiter is local. Log it as "ITS: auto pass-and-fizzle at a missing-pick pause".
-- [ ] ITS lobby log lines.
+- [x] ITS lobby log lines.
+  - Done: removed `auto_cast_interrupted` / `cast_interrupted`; added `logItsPreviewEndedEarly` and `logItsEndedEarlyStop` (takes `EndedEarlyPreviewStop | null`); `logItsAutoCommitEval` has an optional `endedEarly` field (optional so existing callers compile until Step 7).
   - Touches: `game/interaction/itsLobbyLog.ts`.
   - Replace the `auto_cast_interrupted` source and `cast_interrupted` cancel reason with two new lines:
     - `logItsPreviewEndedEarly` — "ITS: preview cast ended early — playing forward", with reason, source and atTick
     - `logItsEndedEarlyStop` — "ITS: ended-early playahead stopped", with the `getEndedEarlyPreviewStop` value
   - Add an `endedEarly` field to `logItsAutoCommitEval`.
-- [ ] Tests.
+- [x] Tests.
+  - Done (inspection only, nothing run): rewrote the 0AD6EA describe in `interactiveTargeting.test.ts` (real `tryApplyKnockbackByTier`; no-rewind, in-place commit with `missingSelectLabels`, 100-tick cap, reset, death, two ported cases); added an interrupted Light Blast case to `previewCanonEquivalence.test.ts` (host solo, in-place commit vs canonical replay; the same tier knockback is injected at the same tick in both engines since the test has no real enemy source); added three cases to `itsLobbyLog.test.ts`. If the equivalence case shows a one-tick pause offset, report it, do not patch.
   - `game/interactiveTargeting.test.ts`: rewrite the lobby 0AD6EA describe to the new behaviour, using `mountLightBlastSessionFixture` and a real tier knockback, not the bare `interruptUnitAndRefundAbilities` call:
     - interrupt during windup → no restore, preview not complete while knocked back
     - Done once the caster can act
@@ -256,7 +287,8 @@ All paths below are relative to `app/js/games/minion_battles/` unless they start
 
 ### Step 5 — ITS resume mode: picking at a missing-pick pause
 
-- [ ] `InteractiveTargetingSession.beginResume(unitId, session)`.
+- [x] `InteractiveTargetingSession.beginResume(unitId, session)`.
+  - Done: added `beginResume` (preconditions, mark + preview timeline like `begin()`, `sequentialTargetingPreviewCast` with `resumeCastStartTime`, assumed waits, up-front `signalWaitingForTarget(awaitingPickLabel)`), plus `isResumeMode`, `_resumeMode`/`_resumeCastStartTime` (cleared in `begin`/`_clearActive`). The preview order is an `updateTargets` base order (`_buildPreviewOrder`/`replay` add `missingSelectLabels: []`); `commit()` needs no change (base order carries `updateTargets`; ended-early resume sends the still-missing labels). `replay()` keeps `resumeCastStartTime` and, with nothing collected, re-signals the pause instead of queuing. OrderManager needed no change: `order.missingSelectLabels ?? ...` treats `[]` as defined, so it clears the list; `targetsByLabel` is defined after the update applies so the lookahead pauses for later labels.
   - Touches: `game/interaction/InteractiveTargetingSession.ts`.
   - **Preconditions:** `engine.waitingForOrders` includes the unit, the batch tick is submittable, the local player is expected to act, and the unit's cast has `awaitingPickLabel`.
   - **Setup**, the same as `begin()`:
@@ -269,7 +301,8 @@ All paths below are relative to `app/js/games/minion_battles/` unless they start
   - On the first `resolveTarget`, queue a **preview** `updateTargets` order for the batch tick: `{ targetsByLabel: { label: pick }, targets, missingSelectLabels: [] }`. With the list empty and `targetsByLabel` defined, later labels pause through the normal local lookahead. Later picks use the existing `resolveTarget` path on the live cast.
   - `commit()` in resume mode builds one `updateTargets` order with every pick collected in this session, plus `missingSelectLabels` = labels still uncollected if this resumed preview ended early. In place vs rollback is decided as today.
   - `reset()` returns to the pause. `replay()` re-queues the preview update order with the collected picks.
-- [ ] Tests.
+- [x] Tests.
+  - Done (inspection only, nothing run): new "ITS missing-pick resume" describe at the end of `interactiveTargeting.test.ts` (Light Blast plus a registered two-pick test ability; also a refused-resume case); new missing-pick resume case in `previewCanonEquivalence.test.ts`.
   - `game/interactiveTargeting.test.ts`, new "missing-pick resume" describe:
     - resume at a pause shows the cursor immediately, without ticking
     - picking and committing in place persists an `updateTargets` order, and the cast completes with the pick
@@ -281,7 +314,8 @@ All paths below are relative to `app/js/games/minion_battles/` unless they start
 
 ### Step 6 — Reusable battle notice container (UI)
 
-- [ ] Notice store, presets and shape helper (plain TS, testable).
+- [x] Notice store, presets and shape helper (plain TS, testable).
+  - Done: new `ui/components/battleNotices.ts` with `createBattleNoticeStore` (injectable `now`/`setTimer`/`clearTimer`), `BATTLE_NOTICE_PRESETS` (4 presets, 1500 ms), `buildPresetNotice` (fills `{Ability}`) and `starburstClipPath`.
   - Touches: new `ui/components/battleNotices.ts`.
   - `createBattleNoticeStore({ now?, setTimer? })`, with `show(notice)`, `release(id)`, `subscribe`, `getNotices()`.
   - `BattleNotice { id; title; detail?; minVisibleMs }`. `show` replaces a notice with the same id. `release` removes it once `minVisibleMs` since it was shown has elapsed (it schedules the removal if not).
@@ -292,7 +326,8 @@ All paths below are relative to `app/js/games/minion_battles/` unless they start
     - `pick_required` ("Target needed", detail "{Ability} reached a point that needs a target it doesn't have")
   - Presets are data, so later uses add an entry.
   - `starburstClipPath(spikes, innerRatio)` returns a CSS `polygon(...)` string with points alternating between the outer edge and `innerRatio` (default ~12 spikes, ~0.85).
-- [ ] `BattleNoticeSlot` component, placed above the plaque.
+- [x] `BattleNoticeSlot` component, placed above the plaque.
+  - Done: new `BattleNoticeSlot.tsx` (null when empty; red outer / blue inner clipped starburst, pointer-events-none, role=status); `TurnIndicator` gained `noticeSlot` and now renders it with the host popover in one absolute `bottom-full` column; `BattlePhase` creates the store per mount (`battleNoticeStoreRef`, local variable `battleNoticeStore`, not yet passed anywhere for Step 7) and subscribes via state; row added to `components-for-the-ui` skill.
   - Touches: new `ui/components/BattleNoticeSlot.tsx`, `ui/components/TurnIndicator.tsx`, `ui/pages/BattlePhase.tsx`.
   - Renders `null` when there are no notices. Otherwise it renders a centred stack of starburst badges:
     - an outer red layer and an inner blue layer inset by the border width, both clipped with `starburstClipPath` (the same two-layer technique as the plaque endcaps)
@@ -300,7 +335,8 @@ All paths below are relative to `app/js/games/minion_battles/` unless they start
     - `pointer-events-none`, `role="status"`, `aria-live="polite"`, and a short scale/fade-in
   - `TurnIndicator`: add a `noticeSlot?: React.ReactNode` prop. Render it in **one** absolute `bottom-full` centred column together with the existing host catch-up popover, so the two stack instead of overlapping. The popover stays clickable. Do not add an in-flow row: the bottom band has a fixed height.
   - `BattlePhase`: create one store per mount (`useRef`), subscribe for re-render, and pass `<BattleNoticeSlot … />` through `renderTurnIndicator`. Expose the store for Step 7.
-- [ ] Tests.
+- [x] Tests.
+  - Done (inspection only, nothing run): new `battleNotices.test.ts` with fake timers covering min-visible release, replace by id, empty store, preset detail and the 24-point clip path.
   - New `ui/components/battleNotices.test.ts`, with fake timers:
     - show and release honour `minVisibleMs`
     - showing the same id replaces the notice
@@ -310,7 +346,8 @@ All paths below are relative to `app/js/games/minion_battles/` unless they start
 
 ### Step 7 — Wire the UI: ended-early playahead and the missing-pick pause
 
-- [ ] Play forward, notify, and auto-commit an ended-early preview.
+- [x] Play forward, notify, and auto-commit an ended-early preview.
+  - Done: added pure `shouldAutoCommitItsPreview` to `isITSPreviewComplete.ts`; the hook (now taking `battleNoticeStore`, `BattlePhase` passes it and no longer passes `hudEffectCanvasRef`) shows the cast_interrupted / cast_fizzled / caster_defeated preset once per early end (detail = knockback source ability name), logs `logItsPreviewEndedEarly` and (once, on `done`) `logItsEndedEarlyStop`, auto-commits via `shouldAutoCommitItsPreview` (logging `endedEarly`), and releases the notice when ITS goes inactive. Confirmed by inspection, no code change: `BattleAbilityBar` `isMyTurn` is false whenever ITS is active (outside conditional-cancel), so cards stay locked through the playahead and Done; Esc Undo is unchanged (`ONLY_UNDO_AT_START = false`).
   - Touches: `ui/pages/battlePhase/useInteractiveTargetingProgress.ts`, `ui/pages/BattlePhase.tsx`, `game/interaction/isITSPreviewComplete.ts`.
   - Add a pure `shouldAutoCommitItsPreview({ previewComplete, allTargetsCollected, endedEarly })` to `isITSPreviewComplete.ts`. It is true when complete and (all targets collected **or** ended early). The 12D040 / 10EA88 guard is otherwise unchanged.
   - In the hook:
@@ -320,7 +357,8 @@ All paths below are relative to `app/js/games/minion_battles/` unless they start
     - Auto-commit through `shouldAutoCommitItsPreview`.
     - `release` the notice when ITS becomes inactive (commit or Undo).
   - Confirm, without changing code, that cards stay locked through the ended-early playahead and Done (`BattleAbilityBar` `isMyTurn`), and that Esc Undo stays enabled while playing. Note the result in the item summary.
-- [ ] The missing-pick pause in the UI.
+- [x] The missing-pick pause in the UI.
+  - Done: `isAtMissingPickDecision(engine, unitId)` added next to the conditional-cancel helpers. The hook's idle poll calls `beginResume` when the local waiter's cast has `awaitingPickLabel` (re-arms after Undo; `beginResume` refuses stale waiters), and shows/releases the `pick_required` notice while `isResumeMode`. `BattleAbilityBar` locks cards (`isMyTurn` false) and enables Pass with the title "Pass: skip the pick (the ability fizzles)" (mode toggle hidden); `PlayerInteractionManager` ignores `1`-`9` and `activateAbilityTargeting` there, and `handleWait` resets any resume preview then submits `wait` (new private `isAtMissingPickPause`, true for the marker or `isResumeMode`, so Pass also works after the first pick).
   - Touches: `ui/pages/battlePhase/useInteractiveTargetingProgress.ts`, `ui/pages/battlePhase/BattleAbilityBar.tsx`, `game/interaction/PlayerInteractionManager.ts`, and a small pure helper (for example `isAtMissingPickDecision(engine, unitId)` next to `isAtConditionalCancelDecision` in `isITSPreviewComplete.ts`).
   - When the local active waiter's cast has `awaitingPickLabel` and no ITS is active:
     - call `beginResume` (this also re-arms after Undo)
@@ -329,10 +367,12 @@ All paths below are relative to `app/js/games/minion_battles/` unless they start
   - Cards and the `1`–`9` hotkeys are locked at a missing-pick decision. Extend `isMyTurn` in `BattleAbilityBar`, and guard `activateAbilityTargeting` / `onKeyDown`. `OrderManager` already rejects other orders (Step 3).
   - **Pass / Space** at a missing-pick decision: end any resume preview (`reset`), then submit `wait` for the batch, which fizzles the cast. Handle it in `handleWait` next to the conditional-cancel branch. Pass is enabled and titled "Pass: skip the pick (the ability fizzles)".
   - Other players see the normal "<Ally>'s Turn" plaque.
-- [ ] Remove the canvas "Interrupted" banner.
+- [x] Remove the canvas "Interrupted" banner.
+  - Done: Grep confirmed no other users; deleted `InterruptedTextEffect`, `INTERRUPTED_TEXT_DURATION_SEC` and the two `HudEffectLayer` cases plus `createInterruptedText`; `RewindingText` kept.
   - Touches: `game/effect_defs/hudEffects.ts`, `game/GameRenderer/renderers/HudEffectLayer.ts`.
   - Delete `InterruptedTextEffect`, `INTERRUPTED_TEXT_DURATION_SEC` and the two `HudEffectLayer` cases plus `createInterruptedText`, after confirming with Grep that nothing else uses them. Keep `RewindingText`.
-- [ ] Tests.
+- [x] Tests.
+  - Done (inspection only, nothing run): `isITSPreviewComplete.test.ts` gained `shouldAutoCommitItsPreview` truth-table and `isAtMissingPickDecision` describes; `PlayerInteractionManager.test.ts` gained a "missing-pick decision" describe (Pass resets + submits wait, with and without a resume preview; hotkeys/cards ignored; hotkeys still work otherwise).
   - `game/interaction/isITSPreviewComplete.test.ts`:
     - `shouldAutoCommitItsPreview` truth table (incomplete without an early end → false, ended early → true, not complete → false)
     - `isAtMissingPickDecision`
@@ -341,14 +381,16 @@ All paths below are relative to `app/js/games/minion_battles/` unless they start
 
 ### Step 8 — AbilityTest scenario and docs
 
-- [ ] AbilityTest: a missing pick pauses the battle, and Pass fizzles the cast safely.
+- [x] AbilityTest: a missing pick pauses the battle, and Pass fizzles the cast safely.
+  - Done (inspection only, nothing run): new `testing/scenarios/general/castEndedEarly.ts` (`castMissingPickPassFizzlesScenario`, section "Cast Ended Early"; latches the missing-pick pause, no target input, a later ordinary pause via a per-engine `WeakMap` in `assertPass`; checks the cast is gone, rock refunded to 3 (Stone Tomb uses the default `cancel` policy), no new rock tiles, dummy unhurt). Registered in `registry.ts` (`CAST_ENDED_EARLY_SCENARIOS`, `cast-ended-early` group) and given a case in `SimulationRunner.test.ts`. Correction to the plan text: the interrupt pipeline refunds only the resource cost, not the ability use (`refundAbilityCost`), so the use is not asserted.
   - Touches: new `testing/scenarios/general/castEndedEarly.ts`, `testing/scenarios/registry.ts` (append to `ALL_ABILITY_TEST_SCENARIOS`, add a `GENERAL_GROUP_ORDER` entry for section `'Cast Ended Early'`), and the scenario list in `testing/runner/SimulationRunner.test.ts` if scenarios are listed there.
   - One scenario: the player casts Stone Tomb (reuse the setup from `earthCoreStoneTombScenario`, including rock) with no target and `missingSelectLabels: ['Tomb location']`, so nothing interrupts it.
     - The runner's ordinary pause resolution answers the missing-pick pause with `wait`, which is a Pass.
     - Latch, in a per-engine `WeakMap` from `assertPass`, that the battle paused for the player with `awaitingPickLabel` set.
     - Pass when, after that: the cast fizzled (no active `0530`), rock and the use are refunded per Stone Tomb's interrupt policy (confirm it), no tile became rock, `waitingForTargetInput` was never set, and the battle carried on to a later normal pause.
   - The ITS preview and resume paths stay covered in `game/interactiveTargeting.test.ts`, per the `ability-tests` skill.
-- [ ] Docs.
+- [x] Docs.
+  - Done: rewrote the interrupted-preview paragraph in `game/interaction/AGENTS.md` (ended-early playahead and resume mode); added "Ended-early preview" and "Missing-pick pause and resume" sections plus a Done row in `docs/interactive-sequential-targeting.md`; `abilities/AGENTS.md` got the `cast_ended_early` and missing-select-label lines; `updateTargets` line added to both `game-sync-data-flow` SKILL.md copies (`.claude` and `.cursor`).
   - Touches: `game/interaction/AGENTS.md`, `docs/interactive-sequential-targeting.md`, `abilities/AGENTS.md`, `.claude/skills/game-sync-data-flow/SKILL.md` and its `.cursor/skills/` mirror.
   - `interaction/AGENTS.md`: replace the "Interrupted preview cast" paragraph with:
     - the ended-early playahead: stop rule, 100-frame cap, Undo and Done, Auto End, missing labels on commit, notice
@@ -362,11 +404,19 @@ All paths below are relative to `app/js/games/minion_battles/` unless they start
 
 ### Step 9 — Final verification (orchestrator)
 
-- [ ] `npm run lint` and `npx tsc --noEmit`: zero errors.
-- [ ] Targeted tests in one run: every test file listed in Steps 1–8.
-- [ ] AbilityTests: `npx vitest run app/js/games/minion_battles/testing/runner/SimulationRunner.test.ts`, all passing, including the new scenario. Briefly stub the missing-pick pause request in `unitAbilityTick.ts` and confirm the new scenario fails, then restore it.
-- [ ] Broad run: `npx vitest run --changed`, then `npm run test`. Fix failures, re-running only the affected files.
+- [x] `npm run lint` and `npx tsc --noEmit`: zero errors.
+  - Lint was clean first time. `tsc` had 3 errors: `PlayerInteractionManager` used `isResumeMode` / `reset`, which the narrow `PlayerInteractionSession.interactiveTargeting` type (`InteractionTool.ts`) lacked. Added both, plus the members to four test mocks.
+- [x] Targeted tests in one run: every test file listed in Steps 1–8.
+  - Final: 14 files, 254 passed, 2 skipped (existing). Fixes:
+    - **Engine bug:** the `cast_ended_early` listener was added in the `GameEngine` constructor, but `registerCoreEventListeners` (prepare / `fromJSON`) clears the bus, so live games would never record `endedEarly`. It is now a bound handler subscribed in both places.
+    - **Test fixtures:** the new suites imported `AbilityRegistry` first, to avoid a circular-import crash. The AI-caster test no longer turns the only player into AI, which had ended the battle. Rebuilds pass `checkpointRuntimeFingerprintHex`. The two-player in-place tests give the teammate a wait that outlasts the preview: a short wait correctly forced rollback by crossing the teammate's pause. The adapters gained the `saveSnapshotOnPause` / `queueFingerprint` stubs.
+    - **Pre-existing offset found:** a host in-place ITS commit forms the caster's next order pause one tick later than a canonical replay (118 vs 117). It reproduces at HEAD 178cd1c3 with an ordinary natural-completion commit (probe run in a clean worktree), so it is not caused by this plan. The two new in-place equivalence cases are `it.fails` per the file's convention, and it is tracked in `docs/TODO.md` ("Host in-place ITS commit pauses one tick later than a canonical replay").
+- [x] AbilityTests: `npx vitest run app/js/games/minion_battles/testing/runner/SimulationRunner.test.ts`, all passing, including the new scenario. Briefly stub the missing-pick pause request in `unitAbilityTick.ts` and confirm the new scenario fails, then restore it.
+  - 107/107 passed. With `requestMissingPickPause` stubbed out the new scenario failed, and it passes again after restoring.
+- [x] Broad run: `npx vitest run --changed`, then `npm run test`. Fix failures, re-running only the affected files.
+  - Ran the full suite directly (a superset of `--changed`): 352 files, 2875 passed, 2 skipped. No further fixes.
 - [ ] Manual browser checklist (for the user):
+  - Not run by agents; handed to the user.
   1. **Solo, Thornbinder mission:** pick Rock Slide's rock while a Thornbinder Bramble Spike is about to land on you.
      - The preview plays through the knockback, and the starburst "Interrupted" notice (blue fill, red border) appears just above Your Turn.
      - The preview stops once you can move again. Cards stay locked.
