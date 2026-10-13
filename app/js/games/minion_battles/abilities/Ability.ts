@@ -241,6 +241,8 @@ export type AbilityTag =
     | 'RockThrow'
     | 'free'
     | 'basicAttack'
+    /** Melee weapon strike; eligible follow-up for "Combos to melee" conditional cancels. */
+    | 'melee'
     /** Gravity Locus detonates its field on expiry instead of just fading (Repulse research). */
     | 'GravityRepulse'
     /** Shield of Light burst on cast that knocks back darkness creatures (Blinding Flare research). */

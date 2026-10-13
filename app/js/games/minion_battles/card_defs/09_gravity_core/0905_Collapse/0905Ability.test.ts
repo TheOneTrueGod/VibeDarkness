@@ -1,9 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
+import { resetGameObjectIdCounter } from '../../../game/GameObject';
+import {
+    buildTinyBattleEngine,
+    placePlayerAndDummy,
+    TINY_BATTLE_PLAYER_ID,
+} from '../../../testing/harness/buildTinyBattleEngine';
 import { EventBus } from '../../../game/EventBus';
 import { Unit } from '../../../game/units/Unit';
 import type { EngineContext } from '../../../game/EngineContext';
 import { executeUnitAbility, interruptUnitAbilities } from '../../../game/units/unitAbilityLifecycle';
 import { tickUnitActiveAbilities } from '../../../game/units/unitAbilityTick';
+import { getUnitEffectiveSpeed } from '../../../game/units/unitAbilityQueries';
 import { updateUnit } from '../../../game/units/unitMovementTick';
 import { DEFAULT_UNIT_RADIUS } from '../../../game/units/unit_defs/unitConstants';
 import type { TeamId } from '../../../game/teams';
@@ -13,6 +20,8 @@ import { Gravity } from '../../../resources/Gravity';
 import type { Effect } from '../../../game/effects/Effect';
 import {
     COLLAPSE_ARC_SPACING,
+    COLLAPSE_COMBO_COOLDOWN,
+    COLLAPSE_COMBO_COOLDOWN_MOVE_MULT,
     COLLAPSE_COOLDOWN_DURATION,
     COLLAPSE_DAMAGE,
     COLLAPSE_FLING_DURATION,
@@ -76,6 +85,7 @@ function makeEngine(units: Unit[]): { engine: EngineContext; effects: Effect[] }
         trackAbilityUse: vi.fn(),
         addEffectEmitter: vi.fn(),
         addEffect: (e: Effect) => { effects.push(e); },
+        requestConditionalCancelPause: vi.fn(),
         interruptUnitAndRefundAbilities: (u: Unit) => interruptUnitAbilities(u, engine as unknown as EngineContext),
     } as unknown as EngineContext;
     return { engine, effects };
@@ -96,6 +106,8 @@ function cast(caster: Unit, engine: EngineContext): void {
 
 /** Pre-landing: release has fired, flung enemies are airborne. */
 const AFTER_RELEASE = COLLAPSE_PREFIRE_TIME + COLLAPSE_RELEASE_DURATION + 0.01;
+const COMBO_POINT = COLLAPSE_PREFIRE_TIME + COLLAPSE_RELEASE_DURATION + COLLAPSE_COOLDOWN_DURATION;
+const CAST_END = COMBO_POINT + COLLAPSE_COMBO_COOLDOWN;
 const AFTER_LANDING = COLLAPSE_PREFIRE_TIME + COLLAPSE_FLING_DURATION + 0.1;
 
 describe('CollapseAbility', () => {
@@ -104,10 +116,12 @@ describe('CollapseAbility', () => {
         expect(CollapseAbility.resourceCost).toEqual({ resourceId: 'gravity', amount: COLLAPSE_GRAVITY_COST });
     });
 
-    it('timing: the cast ends exactly the follow-up overlap before the fling lands', () => {
-        const castEnd = COLLAPSE_PREFIRE_TIME + COLLAPSE_RELEASE_DURATION + COLLAPSE_COOLDOWN_DURATION;
+    it('timing: the combo decision point is exactly the follow-up overlap before the fling lands', () => {
+        const comboPoint = COLLAPSE_PREFIRE_TIME + COLLAPSE_RELEASE_DURATION + COLLAPSE_COOLDOWN_DURATION;
         const landing = COLLAPSE_PREFIRE_TIME + COLLAPSE_FLING_DURATION;
-        expect(landing - castEnd).toBeCloseTo(COLLAPSE_FOLLOW_UP_OVERLAP, 10);
+        expect(landing - comboPoint).toBeCloseTo(COLLAPSE_FOLLOW_UP_OVERLAP, 10);
+        expect(comboPoint).toBeCloseTo(0.4, 10);
+        expect(comboPoint + COLLAPSE_COMBO_COOLDOWN).toBeCloseTo(0.8, 10);
     });
 
     it('pulls only the 3 enemies nearest the cursor, ignoring allies and out-of-cone enemies', () => {
@@ -174,21 +188,69 @@ describe('CollapseAbility', () => {
         expect(a.canAct()).toBe(false);
     });
 
-    it('ends the cast before the pulled enemy lands', () => {
+    it('on a hit, pauses at the 0.40s decision point offering only melee abilities', () => {
         const caster = makeCaster();
         const a = makeUnit('a', 130, SHARED_Y, 'enemy');
         const units = [caster, a];
         const { engine } = makeEngine(units);
         cast(caster, engine);
 
-        const castEnd = COLLAPSE_PREFIRE_TIME + COLLAPSE_RELEASE_DURATION + COLLAPSE_COOLDOWN_DURATION;
-        advance(units, engine, castEnd - 0.03, [caster]);
-        expect(caster.activeAbilities).toHaveLength(1);
+        advance(units, engine, COMBO_POINT - 0.03, [caster]);
+        expect(caster.activeAbilities[0]?.conditionalCancelPaused).toBeFalsy();
 
-        advance(units, engine, 0.06, [caster]);
-        expect(caster.activeAbilities).toHaveLength(0);
+        advance(units, engine, 0.05, [caster]);
+        const active = caster.activeAbilities[0]!;
+        expect(active.conditionalCancelPaused).toBe(true);
+        expect(active.conditionalCancelTagFilter).toEqual(['melee']);
+        expect(engine.requestConditionalCancelPause).toHaveBeenCalledTimes(1);
         // Landing is still ~0.1s away.
         expect(a.knockback).toBeTruthy();
+    });
+
+    it('on a miss, never pauses and the cast lasts the full 0.80s', () => {
+        const caster = makeCaster();
+        const units = [caster];
+        const { engine } = makeEngine(units);
+        cast(caster, engine);
+
+        advance(units, engine, COMBO_POINT + 0.05, [caster]);
+        expect(caster.activeAbilities[0]?.conditionalCancelPaused).toBeFalsy();
+        expect(engine.requestConditionalCancelPause).not.toHaveBeenCalled();
+
+        advance(units, engine, CAST_END - 0.03 - (COMBO_POINT + 0.05), [caster]);
+        expect(caster.activeAbilities).toHaveLength(1);
+        advance(units, engine, 0.06, [caster]);
+        expect(caster.activeAbilities).toHaveLength(0);
+    });
+
+    it('Wait resumes into the 0.4s slow recovery at 0.8x speed, ending at 0.80s', () => {
+        const caster = makeCaster();
+        const a = makeUnit('a', 130, SHARED_Y, 'enemy');
+        const units = [caster, a];
+        const { engine } = makeEngine(units);
+        cast(caster, engine);
+        advance(units, engine, COMBO_POINT + 0.03, [caster]);
+        const active = caster.activeAbilities[0]!;
+        expect(active.conditionalCancelPaused).toBe(true);
+        // Wait order handling (OrderManager) clears the pause flag.
+        active.conditionalCancelPaused = false;
+        active.conditionalCancelTagFilter = undefined;
+
+        expect(getUnitEffectiveSpeed(caster, engine.gameTime)).toBeCloseTo(caster.speed * COLLAPSE_COMBO_COOLDOWN_MOVE_MULT, 5);
+        advance(units, engine, CAST_END - COMBO_POINT - 0.06, [caster]);
+        expect(caster.activeAbilities).toHaveLength(1);
+        advance(units, engine, 0.06, [caster]);
+        expect(caster.activeAbilities).toHaveLength(0);
+        expect(getUnitEffectiveSpeed(caster, engine.gameTime)).toBe(caster.speed);
+    });
+
+    it('has no movement penalty before the combo decision point', () => {
+        const caster = makeCaster();
+        const units = [caster];
+        const { engine } = makeEngine(units);
+        cast(caster, engine);
+        advance(units, engine, COMBO_POINT - 0.05, [caster]);
+        expect(getUnitEffectiveSpeed(caster, engine.gameTime)).toBe(caster.speed);
     });
 
     it('spawns delayed arrival effects at each landing slot', () => {
@@ -260,5 +322,59 @@ describe('CollapseAbility', () => {
         expect(a.x).toBeCloseTo(130, 5);
         expect(a.hasBuff(STAGGERED_BUFF_TYPE)).toBe(false);
         expect(effects).toHaveLength(0);
+    });
+
+    describe('Combos to melee (real order flow)', () => {
+        function setup(withTarget: boolean) {
+            resetGameObjectIdCounter(1);
+            const engine = buildTinyBattleEngine({ gridW: 12, gridH: 12, localPlayerId: TINY_BATTLE_PLAYER_ID, grass: true });
+            const y = 6 * 32 + 16;
+            const { player } = placePlayerAndDummy(engine, {
+                playerId: TINY_BATTLE_PLAYER_ID,
+                playerWorld: { x: 100, y },
+                dummyWorld: withTarget ? { x: 180, y } : { x: 100, y: y + 300 },
+                abilities: [CARD_ID, '0115'],
+            });
+            const gravity = new Gravity();
+            player.attachResource(gravity, engine.eventBus);
+            gravity.add(START_GRAVITY);
+            engine.state.orderMgr.applyOrder({
+                unitId: player.id,
+                abilityId: CARD_ID,
+                targets: [{ type: 'pixel', position: { x: 180, y } }],
+            });
+            let paused = false;
+            for (let i = 0; i < 90 && !paused; i++) {
+                engine.stepSimulationFixedTicks(1);
+                paused = player.activeAbilities.some((a) => a.conditionalCancelPaused);
+            }
+            return { engine, player, paused, y };
+        }
+
+        it('picking a melee ability at the decision point cancels Collapse and starts the melee', () => {
+            const { engine, player, paused, y } = setup(true);
+            expect(paused).toBe(true);
+            expect(player.activeAbilities.find((a) => a.abilityId === CARD_ID)?.conditionalCancelTagFilter).toEqual(['melee']);
+            engine.state.orderMgr.applyOrder({
+                unitId: player.id,
+                abilityId: '0115',
+                targets: [{ type: 'pixel', position: { x: 180, y } }],
+                endTurn: true,
+            });
+            for (let i = 0; i < 10 && !player.activeAbilities.some((a) => a.abilityId === '0115'); i++) {
+                engine.stepSimulationFixedTicks(1);
+            }
+            expect(player.activeAbilities.some((a) => a.abilityId === CARD_ID)).toBe(false);
+            expect(player.activeAbilities.some((a) => a.abilityId === '0115')).toBe(true);
+            engine.destroy();
+        });
+
+        it('a miss never pauses', () => {
+            const { engine, player, paused } = setup(false);
+            expect(paused).toBe(false);
+            expect(engine.gameTime).toBeGreaterThan(COMBO_POINT);
+            expect(player.activeAbilities.some((a) => a.abilityId === CARD_ID)).toBe(false);
+            engine.destroy();
+        });
     });
 });

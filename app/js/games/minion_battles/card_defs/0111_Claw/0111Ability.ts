@@ -48,6 +48,7 @@ const CLAW_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/sv
 
 export const ClawAbility: AbilityStatic = {
 	id: CARD_ID,
+	tags: ['melee'],
 	name: 'Claw',
 	image: CLAW_IMAGE,
 	resourceCost: { resourceId: 'movement_points', amount: 1 },

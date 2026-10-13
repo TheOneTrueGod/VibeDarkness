@@ -12,12 +12,14 @@
  *  - Supports an optional `onDamage` per-hit rider (bleed, bonus-damage, etc.).
  *  - Forwards `telegraph`, `abilityEvents`, `maxHits`, and all standard AbilityStatic meta.
  *  - Defaults `movementLock.until` to `windupEnd + activeDuration` when not supplied.
+ *  - Tags the ability `'melee'` by default (opt out with `melee: false`); caller `tags` are merged.
  *  - Passes through aiSettings; auto-derives maxRange from the hitbox when not provided.
  */
 
 import type {
     AbilityRecoveryRule,
     AbilityStatic,
+    AbilityTag,
     AbilityTelegraph,
     AbilityEventType,
     AbilityNinjutsuConfig,
@@ -95,6 +97,13 @@ export interface MeleeStrikeConfig {
     cooldownDuration?: number;
 
     // ---- Ability meta ----
+    /** Extra ability tags, merged (deduplicated) with the default `'melee'` tag. */
+    tags?: readonly AbilityTag[];
+    /**
+     * Archetype default: the ability is tagged `'melee'` (eligible follow-up for "Combos to melee").
+     * Set `false` for enemy-only / non-weapon strikes that must not be a combo follow-up.
+     */
+    melee?: boolean;
     resourceCost?: AbilityStatic['resourceCost'];
     rechargeTurns?: number;
     maxUses?: number;
@@ -246,6 +255,7 @@ export function defineMeleeStrike(config: MeleeStrikeConfig): AbilityStatic {
         rechargeTurns: config.rechargeTurns ?? 0,
         maxUses: config.maxUses,
         recoveries: config.recoveries,
+        tags: [...new Set<AbilityTag>([...(config.melee === false ? [] : ['melee' as const]), ...(config.tags ?? [])])],
         prefireTime: windupEnd,
         targets: config.targets ?? [{ type: 'unit', label: 'Target' }],
         abilityTimings: ABILITY_TIMINGS,

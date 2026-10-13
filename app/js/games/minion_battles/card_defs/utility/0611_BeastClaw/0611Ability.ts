@@ -110,6 +110,7 @@ const CLAW_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/sv
 
 export const BeastClawAbility = defineAbility({
     id: CARD_ID,
+    tags: ['melee'],
     name: 'Beast Claw',
     image: CLAW_IMAGE,
     resourceCost: null,

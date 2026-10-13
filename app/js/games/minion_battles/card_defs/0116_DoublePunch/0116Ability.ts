@@ -92,6 +92,7 @@ const PUNCH_IMAGE = `<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http
 
 export const DoublePunchAbility = defineAbility({
     id: CARD_ID,
+    tags: ['melee'],
     name: 'Double Punch',
     image: PUNCH_IMAGE,
     resourceCost: null,

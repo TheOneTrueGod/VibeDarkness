@@ -9,10 +9,11 @@
  * aimed knockback with `durationOverride`, `tryApplyStagger`, and the ConeCollapse / TetherRibbon effects.
  */
 
-import type { IAbilityPreviewGraphics } from '../../../abilities/Ability';
+import { AbilityState, type AbilityStateEntry, type IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
+import { buildComboToTagCancelDef, castHitAtLeast, recordCastHits } from '../../../abilities/comboCancel/comboToTagCancel';
 import { computeArcLandingSlots, selectNearestToPointInCone } from '../../../abilities/gatherHelpers';
 import { drawConeSlice } from '../../../abilities/previewHelpers';
 import { getDirectionFromTo } from '../../../abilities/targetHelpers';
@@ -41,6 +42,9 @@ import { type CardDef } from '../../types';
 import {
     COLLAPSE_ARC_SPACING,
     COLLAPSE_ARC_SPREAD_DEG,
+    COLLAPSE_COMBO_COOLDOWN,
+    COLLAPSE_COMBO_COOLDOWN_MOVE_MULT,
+    COLLAPSE_COMBO_MIN_HITS,
     COLLAPSE_CONE_LENGTH,
     COLLAPSE_CONE_WIDTH_DEG,
     COLLAPSE_COOLDOWN_DURATION,
@@ -67,11 +71,14 @@ const RELEASE_EFFECT_DURATION = 0.2;
 const COLLAPSE_HALF_ARC_RAD = ((COLLAPSE_CONE_WIDTH_DEG / 2) * Math.PI) / 180;
 const RELEASE_START = COLLAPSE_PREFIRE_TIME;
 const RELEASE_END = RELEASE_START + COLLAPSE_RELEASE_DURATION;
-const COOLDOWN_END = RELEASE_END + COLLAPSE_COOLDOWN_DURATION;
+/** Combo decision point: where the cast used to end (0.1s before the pulled enemies land). */
+const COMBO_POINT = RELEASE_END + COLLAPSE_COOLDOWN_DURATION;
+const CAST_END = COMBO_POINT + COLLAPSE_COMBO_COOLDOWN;
 
 const TOOLTIP_LINES = [
     'Crush a cone inward, pulling up to {{MAX_TARGETS}} enemies nearest your cursor into an arc in front of you.',
     'Deals {{DAMAGE}} damage and briefly staggers them.',
+    'Combos to melee: if it pulls an enemy, you can cancel into a melee attack as the enemies land. Otherwise, recover slowly.',
     '{knockback 3}',
 ] as const;
 
@@ -192,6 +199,7 @@ function spawnArrivalEffects(engine: EngineContext, slot: { x: number; y: number
  * Slot spacing uses the largest selected target's radius so differently sized units do not overlap.
  */
 function releaseCollapse(engine: EngineContext, caster: Unit, aim: { x: number; y: number }, abilityId: string): void {
+    let pulled = 0;
     spawnReleaseEffects(engine, caster, aim);
 
     const targets = selectNearestToPointInCone({
@@ -238,6 +246,7 @@ function releaseCollapse(engine: EngineContext, caster: Unit, aim: { x: number; 
         );
         // Juggernaut/structure/iFrames fully resist the pull: no damage, no stagger.
         if (result.outcome === 'fully_resisted') return;
+        pulled++;
 
         target.takeDamage(COLLAPSE_DAMAGE, caster.id, engine.eventBus);
         tryApplyStagger(
@@ -249,6 +258,8 @@ function releaseCollapse(engine: EngineContext, caster: Unit, aim: { x: number; 
         spawnFlingTrail(engine, from, slot);
         spawnArrivalEffects(engine, slot);
     });
+    // Feeds the "Combos to melee" cancel condition (serialized on the cast).
+    recordCastHits(caster, abilityId, pulled);
 }
 
 export const CollapseAbility = defineAbility({
@@ -283,8 +294,35 @@ export const CollapseAbility = defineAbility({
                 releaseCollapse(eng, ctx.caster, aim, ctx.abilityId);
             }),
         },
-        { id: 'cooldown', start: RELEASE_END, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
+        {
+            // Combo window, the Collapse analogue of withComboCancelAtPhaseStart's linger: it must be Active, not
+            // Cooldown, because applyCoopTailSplit rebuilds every interval past the last non-cooldown one and
+            // drops `conditionalCancel`. Exiting it is the decision point: if Collapse pulled a target the player
+            // may cancel into a melee ability; Wait / no pick falls through to the slow recovery below.
+            id: 'combo_window',
+            start: RELEASE_END,
+            end: COMBO_POINT,
+            abilityPhase: AbilityPhase.Active,
+            timelineLabel: 'Combo window',
+            conditionalCancel: buildComboToTagCancelDef({
+                tag: 'melee',
+                condition: castHitAtLeast(COLLAPSE_COMBO_MIN_HITS),
+            }),
+        },
+        {
+            id: 'cooldown',
+            start: COMBO_POINT,
+            end: CAST_END,
+            abilityPhase: AbilityPhase.Cooldown,
+            timelineLabel: 'Slow recovery',
+        },
     ],
+    getAbilityStates(currentTime: number): AbilityStateEntry[] {
+        if (currentTime >= COMBO_POINT && currentTime < CAST_END) {
+            return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: COLLAPSE_COMBO_COOLDOWN_MOVE_MULT } }];
+        }
+        return [];
+    },
     targets: [],
     clearMovementOnComplete: true,
     aiSettings: { minRange: 0, maxRange: COLLAPSE_CONE_LENGTH },

@@ -3,8 +3,8 @@
  *
  * Beat 1 (east): four enemies in the cone around the cursor. Only the 3 nearest the cursor are pulled into an
  * arc in front of the caster, take damage, and are staggered (cannot act) just after landing. The 4th is untouched.
- * Beat 2: a follow-up Strong Punch order issued right after Collapse's cooldown ends is accepted while the pulled
- * enemies are still airborne (validates the follow-up overlap window).
+ * Beat 2: Collapse "combos to melee": when the hit cast reaches its 0.40s decision point the scenario picks Strong Punch
+ * (needs the `melee` tag), which cancels Collapse and starts while the pulled enemies are still airborne.
  * Beat 3 (north): a second Collapse over two bosses (one armoured, one pre-Exposed). Neither ever gains `staggered`;
  * the armoured boss's CC armour is not consumed and the Exposed boss stays Exposed.
  *
@@ -53,11 +53,10 @@ const FAR_D = { x: EAST_CURSOR.x + 26, y: EAST_CURSOR.y + 10 };
 const ARMOURED_BOSS_POS = { x: NORTH_CURSOR.x, y: NORTH_CURSOR.y };
 const EXPOSED_BOSS_POS = { x: NORTH_CURSOR.x + 20, y: NORTH_CURSOR.y + 10 };
 
-const CAST_END = COLLAPSE_PREFIRE_TIME + COLLAPSE_RELEASE_DURATION + COLLAPSE_COOLDOWN_DURATION;
+const COMBO_POINT = COLLAPSE_PREFIRE_TIME + COLLAPSE_RELEASE_DURATION + COLLAPSE_COOLDOWN_DURATION;
 const LANDING = COLLAPSE_PREFIRE_TIME + COLLAPSE_FLING_DURATION;
-/** Follow-up punch is queued one tick after the cast ends (before landing). */
-const FOLLOW_UP_TICK = Math.ceil(CAST_END * 60) + 1;
-const FOLLOW_UP_CHECK_START = (FOLLOW_UP_TICK + 3) / 60;
+/** The follow-up punch is picked at the combo decision point (before landing) and must be active shortly after. */
+const FOLLOW_UP_CHECK_START = COMBO_POINT + 3 / 60;
 const STAGGER_CHECK_START = LANDING + 0.04;
 const STAGGER_CHECK_END = LANDING + 0.2;
 const SECOND_CAST_TICK = 120;
@@ -70,6 +69,7 @@ interface CollapseProbe {
     staggerOkAtLanding: boolean;
     sawStaggerCheck: boolean;
     bossStaggered: boolean;
+    secondCastIssued: boolean;
 }
 
 const probes = new WeakMap<GameEngine, CollapseProbe>();
@@ -77,7 +77,7 @@ const probes = new WeakMap<GameEngine, CollapseProbe>();
 function getProbe(engine: GameEngine): CollapseProbe {
     let p = probes.get(engine);
     if (!p) {
-        p = { followUpAcceptedBeforeLanding: false, staggerOkAtLanding: false, sawStaggerCheck: false, bossStaggered: false };
+        p = { followUpAcceptedBeforeLanding: false, staggerOkAtLanding: false, sawStaggerCheck: false, bossStaggered: false, secondCastIssued: false };
         probes.set(engine, p);
     }
     return p;
@@ -102,6 +102,17 @@ function updateProbe(engine: GameEngine): CollapseProbe {
         if (!probe.sawStaggerCheck) probe.staggerOkAtLanding = ok;
         else probe.staggerOkAtLanding = probe.staggerOkAtLanding && ok;
         probe.sawStaggerCheck = true;
+    }
+
+    // The second Collapse is issued here rather than pre-queued: a queued future order for the caster would stop the
+    // headless runner from auto-answering Collapse's combo pause.
+    if (!probe.secondCastIssued && t >= SECOND_CAST_TIME && player && player.activeAbilities.length === 0) {
+        probe.secondCastIssued = true;
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: COLLAPSE_ID,
+            targets: [{ type: 'pixel', position: NORTH_CURSOR }],
+        });
     }
 
     if (t >= SECOND_CAST_TIME) {
@@ -173,19 +184,20 @@ export const gravityCollapseScenario: ScenarioDefinition = {
         const exposedBoss = spawnBoss(engine, 'boss_exposed', EXPOSED_BOSS_POS);
         exposedBoss.addBuff(new ExposedBuff(30), 0, 1);
 
-        // Follow-up attack: only accepted if Collapse's cast has already ended (before the fling lands).
-        engine.state.orderMgr.queueOrder(FOLLOW_UP_TICK, {
-            unitId: player.id,
-            abilityId: PUNCH_ID,
-            targets: [{ type: 'pixel', position: PUNCH_AIM_WEST }],
-        });
-        engine.state.orderMgr.queueOrder(SECOND_CAST_TICK, {
-            unitId: player.id,
-            abilityId: COLLAPSE_ID,
-            targets: [{ type: 'pixel', position: NORTH_CURSOR }],
-        });
-
         return engine;
+    },
+
+    onConditionalCancelPause(engine) {
+        const player = engine.getLocalPlayerUnit();
+        if (!player) return;
+        // First Collapse (hit): combo into Strong Punch. Later pauses (bosses): decline with Wait.
+        const abilityId = engine.gameTime < SECOND_CAST_TIME ? PUNCH_ID : 'wait';
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId,
+            targets: abilityId === 'wait' ? [] : [{ type: 'pixel', position: PUNCH_AIM_WEST }],
+            endTurn: true,
+        });
     },
 
     getInitialOrders(engine) {

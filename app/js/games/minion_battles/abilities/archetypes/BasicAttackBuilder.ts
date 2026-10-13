@@ -60,6 +60,7 @@ class BasicAttackBuilderInstance {
         const { config } = this;
         const base = defineMeleeStrike({
             id: config.id,
+            melee: false,
             name: config.name,
             image: config.image ?? '',
             resourceCost: null,

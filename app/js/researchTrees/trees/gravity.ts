@@ -186,7 +186,7 @@ export const gravityTree: ResearchTreeDef = {
             id: GRAVITY_NODE_COLLAPSE,
             title: 'Collapse',
             description:
-                `Crush a cone of space inward. Pulls up to {${COLLAPSE_MAX_TARGETS}} enemies nearest your cursor into a tight arc in front of you, dealing damage and leaving them briefly staggered.`,
+                `Crush a cone of space inward. Pulls up to {${COLLAPSE_MAX_TARGETS}} enemies nearest your cursor into a tight arc in front of you, dealing damage and leaving them briefly staggered. Combos to melee: if it pulls an enemy, cancel into a melee attack as they land; otherwise recover slowly.`,
             flavorText: 'Everything leans toward you — and then it lands.',
             order: 13,
             tier: 2,

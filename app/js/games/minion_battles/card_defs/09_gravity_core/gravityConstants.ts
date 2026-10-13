@@ -121,6 +121,12 @@ export const COLLAPSE_RELEASE_DURATION = 0.02;
 /** Post-release recovery. Release + cooldown = fling - overlap, so the cast ends `overlap` before landing. */
 export const COLLAPSE_COOLDOWN_DURATION =
     COLLAPSE_FLING_DURATION - COLLAPSE_FOLLOW_UP_OVERLAP - COLLAPSE_RELEASE_DURATION;
+/** Extra cooldown after the combo decision point (cast end otherwise). Skipped by cancelling into a melee. */
+export const COLLAPSE_COMBO_COOLDOWN = 0.4;
+/** Movement speed multiplier while that extra cooldown runs. */
+export const COLLAPSE_COMBO_COOLDOWN_MOVE_MULT = 0.8;
+/** Targets the cast must pull for the "Combos to melee" cancel to be offered. */
+export const COLLAPSE_COMBO_MIN_HITS = 1;
 export const COLLAPSE_DAMAGE = 8;
 export const COLLAPSE_GRAVITY_COST = 10;
 export const COLLAPSE_MAX_TARGETS = 3;

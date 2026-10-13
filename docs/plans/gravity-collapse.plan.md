@@ -5,6 +5,8 @@
 > - Cone-gather helpers, aimed-knockback `durationOverride`, and the ConeCollapse / TetherRibbon / FlingTrail effects with windup converge streams.
 > - The Collapse ability (0905) and the `gravity_collapse` research node.
 >
+> **Addendum (Steps 8–9) also complete.** Added the `melee` tag, the "Combos to melee" cancel preset, and the Collapse combo window plus a 0.4s recovery at 0.8× speed. Final check: lint and tsc clean; `vitest --changed` 252 files / 2138 tests pass.
+>
 > Outstanding: the manual browser checklist. Follow-up decision: `EXPOSED_DURATION_INCREASES_FROM_CC` is `false`, so Stagger (like stun/lift) does not currently lengthen Exposed.
 
 Adds the **Collapse** research node and ability to the Gravity tree, plus the engine pieces it needs: a weak-stun **Stagger** status and a reusable **cone-gather** targeting/landing preset.
@@ -190,3 +192,58 @@ Files (expected): new `testing/scenarios/abilities/gravityCollapseScenario.ts`, 
 - Added reusable `FlingTrail` effect def (violet tapering streak from -> to, duration = fling 0.2s, camera untouched), spawned per pulled enemy at release. Registered in effect_defs/index.ts.
 - Targeting preview now returns only the nearest-`COLLAPSE_MAX_TARGETS` units to the cursor (same tie-break as the real selection).
 - Fixed stale "motion streak" wording in GravityCore.md (and a movementEffects.ts comment).
+
+---
+
+## Addendum (2026-10-12): Collapse combos to melee
+
+User request: Collapse should feel like part of a combo. A hit followed by a melee follow-up cancels early; a miss, a Wait, or no follow-up eats a longer cooldown.
+
+Locked design:
+
+| Aspect | Decision |
+|---|---|
+| Cancel point | The current cast end at 0.40s (0.1s before targets land at 0.50s). Implemented as a `conditionalCancel` on the interval that exits at 0.40s, using the existing system that pauses with "pick an eligible ability" or "Wait". |
+| Condition | Only if the cast pulled **at least one** target |
+| Eligible follow-ups | Abilities with the new **`melee`** `AbilityTag`. The keyword phrase is "Combos to melee". |
+| After the cancel point | **+0.4s cooldown** (0.40 → 0.80s), during which the caster moves at **80%** speed (`AbilityState.MOVEMENT_PENALTY { amount: 0.8 }`). A miss, a Wait, or no eligible ability means the full 0.80s cast. |
+| `melee` tag on | Player melee weapons: Swing Stick (0103), Laser Sword (0105), Claw (0111), Swing Sword (0112), Swing Bat (0115), Double Punch (0116), Strong Punch (0117), Sneaky Punch (0118), Charging Punch (0119), Punch (0120), Earthern Punch (0524), Imbued Bat (0803), Beast Claw (0611). Also auto-added by `defineMeleeStrike` (archetype default). |
+
+Engine-not-feature: the cancel must be a reusable preset next to `abilities/comboCancel/`, for example `buildComboToTagCancelDef({ tag, condition })` with a reusable "cast hit at least N targets" condition. "Combos to melee" should be expressible on any future ability in one line.
+
+### Step 8: `melee` AbilityTag
+
+Files (expected): `abilities/Ability.ts` (AbilityTag union), `abilities/abilityTagCatalog.ts` (if it needs an entry), `abilities/archetypes/defineMeleeStrike.ts`, the card files listed above, and any tag-catalog/UI test that enumerates tags.
+
+- [x] Add `'melee'` to `AbilityTag` with a doc comment ("Melee weapon strike; eligible follow-up for 'Combos to melee' cancels"), plus a catalog entry if the catalog requires one.
+  - Done: union entry + doc comment in Ability.ts (orchestrator); added required `melee` entry to abilityTagCatalog.ts (type + catalog, hint 'Melee weapon strike', no auto description line).
+- [x] Make `defineMeleeStrike` include `'melee'` in the produced ability's tags by default (merged with caller tags, deduplicated).
+  - `MeleeStrikeConfig` gained `tags?` and `melee?` (default true); output tags = deduped union of 'melee' + caller tags. `melee: false` opt-out set on 0002, 0806 and BasicAttackBuilder (enemy/pet bites).
+- [x] Add `'melee'` to the listed player melee abilities that don't already get it via `defineMeleeStrike`. Do NOT tag enemy-only abilities (0002, 0004, 0018), Shatter, Thorn Stomp, Digging Claws, Cone of Light, Light Blast, Shield of Light or Lay Hands.
+  - Explicit `tags: ['melee']` on 0103, 0105, 0111, 0112, 0115, 0116, 0524, 0611; 0803 became ['secondary', 'melee']. 0117/0118/0119/0120 get it via the archetype.
+- [x] Add a small test (e.g. `abilities/meleeTag.test.ts`) asserting the listed ids carry `melee` via `getAbilityTagsForId`/`abilityHasTag` after registry load, and that 0002 does not.
+  - abilities/meleeTag.test.ts: 13 ids carry melee; 0002, 0004, 0018, 0526, 0016, 0534, 0121, 0801, 0805, 0806 do not (23 tests pass).
+- [x] Run `npm run lint`, `npx tsc --noEmit`, and only the test file(s) created or touched.
+  - lint clean (1 pre-existing warning), tsc clean, meleeTag.test.ts + meleeStrikeTooltip.test.ts pass.
+
+### Step 9: Collapse "combos to melee" cancel + post-cancel cooldown
+
+Files (expected): new `abilities/comboCancel/comboToTagCancel.ts` (+ `.test.ts`), `card_defs/09_gravity_core/gravityConstants.ts`, `0905_Collapse/0905Ability.ts`, `0905Ability.test.ts`, `GravityCore.md`, `testing/scenarios/abilities/gravityCollapseScenario.ts` (only if the follow-up beat needs updating), and the Collapse research node description in `app/js/researchTrees/trees/gravity.ts` plus the tooltip.
+
+- [x] Add a reusable `comboToTag` conditional-cancel preset, with a "cast hit ≥ N targets" condition helper. Collapse records its pulled-target count on its active cast (`castPayload` or a generic field) so the condition can read it.
+    - New `abilities/comboCancel/comboToTagCancel.ts`: `buildComboToTagCancelDef({ tag, condition })`, `castHitAtLeast(n)`, `recordCastHits(caster, abilityId, n)` / `getCastHitCount`; count lives in serialized `castPayload.castHitCount`; `comboToTagCancel.test.ts` (3 tests).
+- [x] Collapse timings: keep windup, release and the 0.32 → 0.40 segment. Attach the conditional cancel so it is evaluated when the interval ending at 0.40s exits. Then add a 0.4s cooldown interval (0.40 → 0.80) with `MOVEMENT_PENALTY 0.8` via `getAbilityStates` during it. Add constants such as `COLLAPSE_COMBO_COOLDOWN = 0.4` and `COLLAPSE_COMBO_COOLDOWN_MOVE_MULT = 0.8`. Check that the existing `withComboCancelAtPhaseStart` linger trick isn't needed for the pause to fire before the cooldown phase starts; reuse it if it is.
+    - Timings: windup 0-0.30, release 0.30-0.32, Active `combo_window` 0.32-0.40 (carries the conditionalCancel), Cooldown 0.40-0.80 with `MOVEMENT_PENALTY 0.8` via `getAbilityStates`; constants `COLLAPSE_COMBO_COOLDOWN`/`_MOVE_MULT`/`_MIN_HITS`. The window had to be Active (linger-trick equivalent) because `applyCoopTailSplit` drops `conditionalCancel` from Cooldown intervals past the last non-cooldown one; pause timing itself needed no linger.
+- [x] Update the tooltip and research node text to say "Combos to melee" (hit required). Note the change in `GravityCore.md`.
+    - Tooltip line, research node description and `GravityCore.md` Collapse row now describe Combos to melee (hit required) and the slow recovery.
+- [x] Tests in `0905Ability.test.ts`:
+    - `0905Ability.test.ts` (15 tests): decision-point pause with `['melee']` filter on a hit, no pause on a miss + 0.80s cast, Wait resumes into 0.8x-speed recovery ending 0.80s, real-order-flow melee pick (0115) cancels Collapse and starts the melee, miss never pauses; old timing assertions updated.
+  - On a hit, the cancel triggers at 0.40s with the `melee` tag filter.
+  - On a miss, it doesn't trigger and the cast lasts 0.80s.
+  - Picking Wait resumes into the 0.4s cooldown, with effective speed 0.8× during it.
+  - Picking a melee ability cancels Collapse and starts the melee.
+  - Update the existing timing assertions (cast end is now 0.80s when there's no cancel).
+- [x] If `gravityCollapseScenario`'s follow-up beat (Strong Punch queued after cast end) no longer fits, change it to the cancel flow: on a hit, pick Strong Punch at the 0.40s decision. Keep it deterministic. Run that scenario once headlessly via `SimulationRunner.test.ts -t Collapse`.
+    - Scenario now answers the pause via `onConditionalCancelPause` (Strong Punch pick, Wait for the boss casts); the second Collapse is issued from `updateProbe` instead of pre-queued (a queued future order stops the headless runner auto-answering the pause).
+- [x] Run `npm run lint`, `npx tsc --noEmit`, `0905Ability.test.ts`, the new `comboToTagCancel.test.ts`, and the Collapse scenario test only.
+    - Lint (only the known warning), tsc clean, 0905 + comboToTagCancel + gravity/researchTree tests (203) green, `SimulationRunner.test.ts -t Collapse` passes (Strong Punch carries `melee` via `defineMeleeStrike`).

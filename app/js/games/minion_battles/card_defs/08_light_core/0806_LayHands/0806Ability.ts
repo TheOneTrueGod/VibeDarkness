@@ -142,6 +142,7 @@ function drawLayHandsPreviewExtras(gr: IAbilityPreviewGraphics, caster: Unit, ga
 }
 
 const base = defineMeleeStrike({
+    melee: false,
     id: CARD_ID,
     name: 'Lay Hands',
     image: LAY_HANDS_IMAGE,

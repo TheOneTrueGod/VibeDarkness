@@ -142,6 +142,7 @@ const SWING_SWORD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/
 
 export const SwingSwordAbility = defineAbility({
     id: CARD_ID,
+    tags: ['melee'],
     name: 'Swing Sword',
     image: SWING_SWORD_IMAGE,
     resourceCost: null,

@@ -123,6 +123,7 @@ const SWING_BAT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/20
 
 export const SwingStickAbility_0103: AbilityStatic = {
     id: CARD_ID,
+    tags: ['melee'],
     name: 'Swing Stick',
     image: SWING_BAT_IMAGE,
     resourceCost: null,

@@ -42,6 +42,7 @@ function getTargetPosition(caster: Unit, active: { targets: ResolvedTarget[] }):
 }
 
 const _base = defineMeleeStrike({
+    melee: false,
     id: CARD_ID,
     name: 'Enemy Melee Attack',
     image: ENEMY_MELEE_ATTACK_IMAGE,

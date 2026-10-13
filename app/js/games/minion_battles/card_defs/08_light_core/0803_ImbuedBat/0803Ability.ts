@@ -196,7 +196,7 @@ export const ImbuedBatAbility = defineAbility({
     id: CARD_ID,
     name: 'Imbued Bat',
     image: IMBUED_BAT_IMAGE,
-    tags: ['secondary'],
+    tags: ['secondary', 'melee'],
     resourceCost: null,
     rechargeTurns: 0,
     maxUses: 1,
