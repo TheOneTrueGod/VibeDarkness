@@ -18,6 +18,7 @@ import BattleCanvas from '../components/BattleCanvas';
 import ObjectiveMarkerOverlay from '../components/ObjectiveMarkerOverlay';
 import TurnIndicator, { type TurnIndicatorSideControls } from '../components/TurnIndicator';
 import BattleNoticeSlot from '../components/BattleNoticeSlot';
+import ComboMeter from '../components/ComboMeter';
 import {
     createBattleNoticeStore,
     type BattleNotice,
@@ -134,6 +135,8 @@ export default function BattlePhase({
         setBattleNotices(battleNoticeStore.getNotices());
         return battleNoticeStore.subscribe(() => setBattleNotices(battleNoticeStore.getNotices()));
     }, [battleNoticeStore]);
+    /** Stable engine accessor for self-polling HUD widgets (ComboMeter). */
+    const getBattleEngine = useCallback(() => sessionRef.current?.getEngine() ?? null, []);
 
     const {
         netSyncStatus,
@@ -396,7 +399,12 @@ export default function BattlePhase({
             allyName={turnIndicatorState.allyName}
             freezePresentation={rewindOverlay != null}
             sideControls={sideControls}
-            noticeSlot={<BattleNoticeSlot notices={battleNotices} />}
+            noticeSlot={
+                <>
+                    <BattleNoticeSlot notices={battleNotices} />
+                    <ComboMeter getEngine={getBattleEngine} />
+                </>
+            }
             hostCatchupPopover={
                 showHostCatchupPopover
                     ? {

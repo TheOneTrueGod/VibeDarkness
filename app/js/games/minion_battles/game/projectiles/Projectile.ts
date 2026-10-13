@@ -22,7 +22,7 @@ import {
     resolveHitKnockbackDirection,
     type KnockbackDirectionStrategy,
 } from '../../crowdControl/knockbackKeywords';
-import { TerrainType } from '../../terrain/TerrainType';
+import { TERRAIN_PROPERTIES, TerrainType } from '../../terrain/TerrainType';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import type { ProjectileModifierId } from './ProjectileTravelModifiers';
 import { isTraversableByModifiers, shouldCountTraversalDistance } from './ProjectileTravelModifiers';
@@ -178,6 +178,12 @@ export class Projectile extends GameObject {
     spriteConfig?: SpriteProjectileConfig;
     /** Optional behavior modifiers (e.g. stonephase terrain traversal rules). */
     modifiers: ProjectileModifierId[];
+    /**
+     * Terrain types this projectile collides with and stops at (e.g. `[TerrainType.Rock]`), independent of
+     * `TerrainProperties.blocksProjectiles`. Travel modifiers that traverse a type (stonephase) still win.
+     * Empty = no per-type collision. Serialized.
+     */
+    collidesWithTerrain: TerrainType[];
     /** Runtime-only: visual effects fired when the projectile reaches its target. Not serialized. */
     onHitEffects?: VisualEffectDef[];
 
@@ -242,6 +248,8 @@ export class Projectile extends GameObject {
         rotationSpeed?: number;
         spriteConfig?: SpriteProjectileConfig;
         modifiers?: ProjectileModifierId[];
+        /** Terrain types the projectile stops at; see `Projectile.collidesWithTerrain`. */
+        collidesWithTerrain?: TerrainType[];
         passThroughEnemies?: boolean;
         pierce?: number;
         summonSeedWeak?: boolean;
@@ -277,6 +285,7 @@ export class Projectile extends GameObject {
         this.rotationSpeed = config.rotationSpeed;
         this.spriteConfig = config.spriteConfig;
         this.modifiers = [...(config.modifiers ?? [])];
+        this.collidesWithTerrain = [...(config.collidesWithTerrain ?? [])];
         this.passThroughEnemies = config.passThroughEnemies ?? false;
         this.summonSeedWeak = config.summonSeedWeak;
         this.hitShape = config.hitShape ?? 'circle';
@@ -338,7 +347,8 @@ export class Projectile extends GameObject {
             this.rotation = (this.rotation + this.rotationSpeed * dt) % 360;
         }
         const terrainManager = (engine as { terrainManager?: TerrainManager | null })?.terrainManager ?? null;
-        if (terrainManager && this.modifiers.includes('stopsAtWalls') && (moveX !== 0 || moveY !== 0)) {
+        const stopsAtTerrain = this.modifiers.includes('stopsAtWalls') || this.collidesWithTerrain.length > 0;
+        if (terrainManager && stopsAtTerrain && (moveX !== 0 || moveY !== 0)) {
             const stop = this.findWallStop(prevX, prevY, this.x, this.y, terrainManager);
             if (stop) {
                 // Stops at the last sample before the obstruction: the resting position is
@@ -409,7 +419,7 @@ export class Projectile extends GameObject {
     }
 
     /**
-     * For `stopsAtWalls`: sample the swept segment from `from` to `to` one pixel at a time (so no
+     * For `stopsAtWalls` / `collidesWithTerrain`: sample the swept segment from `from` to `to` one pixel at a time (so no
      * wall is skipped, however fast the projectile moves). Returns the last sample before the first
      * sample that is obstructed and not traversed by another modifier, or null if the segment is
      * clear. Stonephase therefore flies through rock, and stops at the first obstruction it does
@@ -428,17 +438,19 @@ export class Projectile extends GameObject {
         if (totalDistance === 0) return null;
 
         const steps = Math.max(1, Math.ceil(totalDistance));
+        const stopsAtWalls = this.modifiers.includes('stopsAtWalls');
         let prevSampleX = fromX;
         let prevSampleY = fromY;
         for (let i = 1; i <= steps; i++) {
             const t = i / steps;
             const sampleX = fromX + dx * t;
             const sampleY = fromY + dy * t;
-            if (terrainManager.isProjectileObstructedAt(sampleX, sampleY)) {
-                const terrainType = terrainManager.getProjectileTerrainAt(sampleX, sampleY);
-                if (!isTraversableByModifiers(terrainType, this.modifiers)) {
-                    return { x: prevSampleX, y: prevSampleY };
-                }
+            const terrainType = terrainManager.getProjectileTerrainAt(sampleX, sampleY);
+            const obstructs =
+                (stopsAtWalls && TERRAIN_PROPERTIES[terrainType].blocksProjectiles) ||
+                this.collidesWithTerrain.includes(terrainType);
+            if (obstructs && !isTraversableByModifiers(terrainType, this.modifiers)) {
+                return { x: prevSampleX, y: prevSampleY };
             }
             prevSampleX = sampleX;
             prevSampleY = sampleY;
@@ -689,6 +701,7 @@ export class Projectile extends GameObject {
             projectileType: this.projectileType,
             spriteConfig: this.spriteConfig,
             modifiers: this.modifiers,
+            ...(this.collidesWithTerrain.length > 0 ? { collidesWithTerrain: [...this.collidesWithTerrain] } : {}),
             passThroughEnemies: this.passThroughEnemies,
             hitPolicy: cloneHitPolicy(this.hitPolicy),
             hitShape: this.hitShape,
@@ -724,6 +737,7 @@ export class Projectile extends GameObject {
             sourceAbilityId: (data.sourceAbilityId as string) ?? 'throw_knife',
             maxDistance: data.maxDistance as number,
             modifiers: (data.modifiers as ProjectileModifierId[] | undefined) ?? [],
+            collidesWithTerrain: data.collidesWithTerrain as TerrainType[] | undefined,
             heldBy: heldBy ?? undefined,
             clearsTerrainEffects: data.clearsTerrainEffects as ProjectileTerrainClear | undefined,
             // Saves from before `hitPolicy` carry the legacy fields, which the constructor maps.

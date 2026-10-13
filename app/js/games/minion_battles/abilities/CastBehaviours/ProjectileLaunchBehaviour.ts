@@ -15,6 +15,7 @@ import type { TerrainClearSpec } from '../../game/terrainEffects/terrainClearing
 import { clampToMaxRange } from '../previewHelpers';
 import { getDirectionFromTo, getPixelTargetPosition } from '../targetHelpers';
 import { findMeleeAimPixelInTargets } from '../targeting';
+import type { TerrainType } from '../../terrain/TerrainType';
 import type { ProjectileModifierId } from '../../game/projectiles/ProjectileTravelModifiers';
 import type { SpriteProjectileConfig } from '../../game/projectiles/projectile_defs';
 
@@ -69,6 +70,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
     private hitPolicy?: ProjectileHitPolicy;
     private passThroughEnemies: boolean = false;
     private modifiers: ProjectileModifierId[] = [];
+    private collidesWithTerrain: TerrainType[] = [];
     private terrainClear?: ProjectileTerrainClear;
     private travelFullRange: boolean = false;
     private arcHeight?: number;
@@ -134,6 +136,15 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
     /** Travel modifiers (e.g. `'stopsAtWalls'`, stonephase) forwarded to the spawned Projectile. */
     withModifiers(modifiers: ProjectileModifierId[]): this {
         this.modifiers = modifiers;
+        return this;
+    }
+
+    /**
+     * Terrain types the projectile collides with and stops at (e.g. `[TerrainType.Rock]`), expiring
+     * like `stopsAtWalls` does. Travel modifiers that traverse a type (stonephase) still pass over it.
+     */
+    withCollidesWithTerrain(types: TerrainType[]): this {
+        this.collidesWithTerrain = [...types];
         return this;
     }
 
@@ -235,6 +246,7 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
             pierce: this.pierce,
             hitPolicy: this.hitPolicy,
             modifiers: this.modifiers.length > 0 ? this.modifiers : undefined,
+            collidesWithTerrain: this.collidesWithTerrain.length > 0 ? this.collidesWithTerrain : undefined,
             heldBy: held ? { unitId: ctx.caster.id, abilityId: ctx.abilityId } : undefined,
             clearsTerrainEffects: this.terrainClear,
         });

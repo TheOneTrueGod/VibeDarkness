@@ -322,6 +322,38 @@ describe('projectile wall stops and stonephase', () => {
         expect(proj.x).toBeLessThan(20);
     });
 
+    it('collidesWithTerrain stops at a listed terrain type without stopsAtWalls, and ignores unlisted ones', () => {
+        const grid = TerrainGrid.createFilledTerrain(10, 1, 10, TerrainType.Grass);
+        grid.set(2, 0, TerrainType.Rock);
+        const terrainManager = new TerrainManager(grid);
+        const make = (collidesWithTerrain: TerrainType[]) =>
+            new Projectile({
+                x: 5,
+                y: 5,
+                velocityX: 600,
+                velocityY: 0,
+                damage: 10,
+                sourceTeamId: 'player',
+                sourceUnitId: 'unit_1',
+                sourceAbilityId: 'x',
+                maxDistance: 1000,
+                collidesWithTerrain,
+            });
+
+        const blocked = make([TerrainType.Rock]);
+        blocked.update(0.1, { terrainManager });
+        expect(blocked.active).toBe(false);
+        expect(blocked.x).toBeLessThan(20);
+
+        const free = make([TerrainType.Impassable]);
+        free.update(0.1, { terrainManager });
+        expect(free.active).toBe(true);
+        expect(free.x).toBeCloseTo(65);
+
+        const restored = Projectile.fromJSON(JSON.parse(JSON.stringify(blocked.toJSON())));
+        expect(restored.collidesWithTerrain).toEqual([TerrainType.Rock]);
+    });
+
     it('stonephase flies through rock and stops at the first Impassable cell it cannot cross', () => {
         // Rock at cols 2 and 3 (x in [20, 40)), Impassable at col 4 (x in [40, 50)).
         const grid = TerrainGrid.createFilledTerrain(10, 1, 10, TerrainType.Grass);

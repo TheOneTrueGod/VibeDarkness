@@ -8,6 +8,7 @@ import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { TargetDef } from '../../abilities/targeting';
 import type { ResolvedTarget } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
+import { TerrainType } from '../../terrain/TerrainType';
 import { type CardDef } from '../types';
 import { DIRECTIONAL_ORB_LOOK } from '../../game/projectiles/projectile_defs/directionalOrb';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
@@ -133,6 +134,7 @@ const _base: AbilityStatic = defineAbility({
                 .withMaxRange(MAX_PROJECTILE_DISTANCE)
                 .withBaseDamage(DAMAGE)
                 .withRadius(PROJECTILE_RADIUS)
+                .withCollidesWithTerrain([TerrainType.Rock])
                 .withSpriteConfig({
                     sprite: { fps: 8, scale: PROJECTILE_SCALE, frameFiles: [SLIME_SPIT_F1_URL, SLIME_SPIT_F2_URL, SLIME_SPIT_F3_URL, SLIME_SPIT_F4_URL] },
                     loop: true,
