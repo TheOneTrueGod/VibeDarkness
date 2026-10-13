@@ -120,6 +120,8 @@ export const earthTree: ResearchTreeDef = {
             id: EARTH_NODE_ROCK_SYNERGY_DAMAGE,
             title: 'Stone Synergy',
             description: 'Earth resonance strengthens your throws. Rock throws deal {+4} damage; charged rock explosions deal {+2} damage.',
+            // Also a stat upgrade (on top of the tree's `core` tag), e.g. for campsite stat slots.
+            tags: ['stat'],
             order: 7,
             tier: 2,
             position: { x: 120, y: 280 },
@@ -197,6 +199,8 @@ export const earthTree: ResearchTreeDef = {
             title: 'Earth Attuned',
             description: `+{${EARTH_ATTUNED_MOVEMENT_ADD_PER_RANK}} movement point per round, and +{${EARTH_ATTUNED_CLAW_USES_PER_RANK}} uses to bone claws`,
             flavorText: 'The stone underfoot starts giving back the steps you take.',
+            // Also a stat upgrade (on top of the tree's `core` tag), e.g. for campsite stat slots.
+            tags: ['stat'],
             order: 10,
             tier: 12,
             position: { x: 620, y: 90 },

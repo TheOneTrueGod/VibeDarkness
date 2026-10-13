@@ -1,5 +1,5 @@
 import type { ResearchRewardSlot, StoryChoiceOptionRow } from './storyTypes';
-import type { ResearchNodeDef } from '../../../researchTrees/types';
+import type { ResearchNodeDef, ResearchNodeLevels } from '../../../researchTrees/types';
 import {
     isDisabledResearchNode,
     isDraftResearchNode,
@@ -10,7 +10,20 @@ import {
 import { getCoreFromEquipment } from '../character_defs/items';
 import { RESEARCH_TREES } from '../../../researchTrees/list';
 import { collectResearchedNodeIds, nodeGrantsEquippedItem } from '../../../researchTrees/evaluator';
-import { getActiveResearchTrees, isResearchTreeActive } from '../../../researchTrees/activeResearch';
+import {
+    getActiveResearchNodeLevels,
+    getActiveResearchTrees,
+    isResearchTreeActive,
+} from '../../../researchTrees/activeResearch';
+import { canLevelUpNode } from '../../../researchTrees/passiveBonuses';
+
+/** Player data the strict (random-slot) checks need beyond research and equipment. */
+export interface ResearchRewardContext {
+    /** The player's account knowledge keys; without it `accountKnowledge` requirements fail closed. */
+    accountKnowledge?: Record<string, unknown>;
+    /** Stored levels of multi-level nodes; a researched node stays offerable until it is maxed. */
+    researchNodeLevels?: ResearchNodeLevels;
+}
 
 interface NodeCandidate {
     treeId: string;
@@ -42,17 +55,27 @@ function sortCandidatesDeterministic(candidates: NodeCandidate[]): NodeCandidate
  *
  * Non-random slots check `node.requirements` loosely (e.g. characterHasEquippedItem, anyResearched).
  * No slot type checks costs — mission rewards intentionally bypass cost gating.
+ *
+ * Filter slots offer a researched multi-level node (e.g. Healthy) again until it reaches its max level
+ * (from `context.researchNodeLevels`); granting it adds one level.
  */
 export function resolveResearchRewardSlots(
     slots: ResearchRewardSlot[],
     researchedTrees: Record<string, string[]> | undefined,
     equippedItemIds: readonly string[],
     randomSeed = '',
+    context: ResearchRewardContext = {},
 ): StoryChoiceOptionRow[] {
     // Active research: inactive bound (weapon) trees dropped, virtual roots of active ones added.
     // Idempotent, so callers may pass either stored or already-active research.
     const researched = getActiveResearchTrees(researchedTrees ?? {}, equippedItemIds);
-    const equippedSet = new Set(equippedItemIds);
+    const researchNodeLevels = getActiveResearchNodeLevels(context.researchNodeLevels ?? {}, equippedItemIds);
+    const strict: StrictContext = {
+        equippedSet: new Set(equippedItemIds),
+        equippedItemIds,
+        researched,
+        accountKnowledge: context.accountKnowledge,
+    };
     const claimedKeys = new Set<string>(); // "treeId:nodeId"
 
     return slots.map((slot, index) => {
@@ -82,18 +105,18 @@ export function resolveResearchRewardSlots(
         const allResearchedNodeIds = collectResearchedNodeIds(researched);
         for (const tree of RESEARCH_TREES) {
             if (slot.treeId && tree.id !== slot.treeId) continue;
-            if (slot.random && !treeOpenForRandomReward(tree, equippedSet, equippedItemIds, researched)) continue;
+            if (slot.random && !treeOpenForRandomReward(tree, strict)) continue;
             const researchedSet = new Set(researched[tree.id] ?? []);
             for (const node of tree.nodes) {
                 if (isDraftResearchNode(node) || isDisabledResearchNode(node)) continue;
-                if (researchedSet.has(node.id)) continue;
+                if (researchedSet.has(node.id) && !canLevelUpNode(node, tree.id, researched, researchNodeLevels)) continue;
                 if (slot.tag && !getResearchNodeTags(tree, node).includes(slot.tag)) continue;
                 if (slot.minTier !== undefined && (node.tier ?? 0) < slot.minTier) continue;
                 if (slot.maxTier !== undefined && (node.tier ?? 0) > slot.maxTier) continue;
                 if (claimedKeys.has(`${tree.id}:${node.id}`)) continue;
                 const requirementsMet = slot.random
-                    ? requirementsStrictlyMet(node.requirements, equippedSet, equippedItemIds, researched)
-                    : nodeRequirementsMet(node, equippedSet, researched);
+                    ? requirementsStrictlyMet(node.requirements, strict)
+                    : nodeRequirementsMet(node, strict.equippedSet, researched);
                 if (!requirementsMet) continue;
                 if ((slot.random || checkStructural) && !nodeStructurallyAvailable(node, researchedSet, allResearchedNodeIds)) continue;
                 candidates.push({ treeId: tree.id, node });
@@ -145,15 +168,19 @@ function mulberry32(seed: number): () => number {
  * offer what the player could legitimately unlock. Differences from `nodeRequirementsMet`:
  * - `missionReward` nodes (e.g. every alternative Core) are story-specific grants, never random picks;
  * - `characterHasEquippedItem` must really be equipped (no exemption for nodes that grant that item);
- * - requirements we cannot verify here (`accountKnowledge`, `characterHasTrait`) fail closed.
+ * - `accountKnowledge` needs the caller's `accountKnowledge`, and fails closed without it;
+ * - requirements we cannot verify here (`characterHasTrait`) fail closed.
  * `campaignResourceMin` is ignored: like costs, rewards bypass resource gating.
  */
-function requirementsStrictlyMet(
-    requirements: readonly Requirement[],
-    equippedSet: Set<string>,
-    equippedItemIds: readonly string[],
-    researched: Record<string, string[]>,
-): boolean {
+interface StrictContext {
+    equippedSet: Set<string>;
+    equippedItemIds: readonly string[];
+    researched: Record<string, string[]>;
+    accountKnowledge: Record<string, unknown> | undefined;
+}
+
+function requirementsStrictlyMet(requirements: readonly Requirement[], ctx: StrictContext): boolean {
+    const { equippedSet, equippedItemIds, researched, accountKnowledge } = ctx;
     return requirements.every((req) => {
         switch (req.type) {
             case 'missionReward':
@@ -168,6 +195,8 @@ function requirementsStrictlyMet(
                 return !(researched[req.treeId] ?? []).includes(req.nodeId);
             case 'campaignResourceMin':
                 return true;
+            case 'accountKnowledge':
+                return !!accountKnowledge?.[req.key];
             default:
                 return false;
         }
@@ -175,16 +204,11 @@ function requirementsStrictlyMet(
 }
 
 /** Same gate the Upgrades UI uses: a tree is open once researched in, otherwise its access requirements must hold. */
-function treeOpenForRandomReward(
-    tree: ResearchTreeDef,
-    equippedSet: Set<string>,
-    equippedItemIds: readonly string[],
-    researched: Record<string, string[]>,
-): boolean {
+function treeOpenForRandomReward(tree: ResearchTreeDef, ctx: StrictContext): boolean {
     // Inactive bound (weapon) trees are closed even if they hold stored research.
-    if (!isResearchTreeActive(tree, equippedItemIds)) return false;
-    if ((researched[tree.id] ?? []).length > 0) return true;
-    return requirementsStrictlyMet(tree.accessRequirements, equippedSet, equippedItemIds, researched);
+    if (!isResearchTreeActive(tree, ctx.equippedItemIds)) return false;
+    if ((ctx.researched[tree.id] ?? []).length > 0) return true;
+    return requirementsStrictlyMet(tree.accessRequirements, ctx);
 }
 
 function nodeRequirementsMet(

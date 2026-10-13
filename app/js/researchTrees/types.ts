@@ -231,6 +231,11 @@ export interface ResearchTreeDef {
     accessRequirements: Requirement[];
     /** Tags inherited by every node in this tree (see {@link ResearchTag}). */
     tags?: ResearchTag[];
+    /**
+     * Abilities this tree owns without needing an access item (e.g. Training owns Punch). Used to
+     * show and sort trees by the player's abilities; see `collectResearchTreeAbilityIds`.
+     */
+    ownedAbilityIds?: string[];
     nodes: ResearchNodeDef[];
     /**
      * Marks this as a weapon tree, active only while `itemId` is equipped.

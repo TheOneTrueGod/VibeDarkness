@@ -32,7 +32,7 @@ function lightCoreAbilityId(): string {
 }
 
 describe('collectResearchTreeAbilityIds', () => {
-    it('includes punch from Training via the BasicCore access item', () => {
+    it('includes punch from Training via its owned abilities', () => {
         expect(CORE_ITEM_IDS.BasicCore).toBe(coreBasicItem.id);
         const punchId = punchAbilityId();
         expect(punchId).toBeTruthy();

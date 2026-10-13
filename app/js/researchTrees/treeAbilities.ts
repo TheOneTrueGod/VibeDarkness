@@ -1,8 +1,9 @@
 import { getItemDef } from '../games/minion_battles/character_defs/items';
 import { isDisabledResearchNode, isDraftResearchNode, type ResearchTreeDef } from './types';
 
-function accessItemAbilityIds(tree: ResearchTreeDef): Set<string> {
-    const ids = new Set<string>();
+/** Abilities the tree owns outright: `ownedAbilityIds` plus the cards of its access items. */
+function ownedBaseAbilityIds(tree: ResearchTreeDef): Set<string> {
+    const ids = new Set<string>(tree.ownedAbilityIds ?? []);
     for (const req of tree.accessRequirements) {
         if (req.type !== 'characterHasEquippedItem') continue;
         const item = getItemDef(req.itemId);
@@ -12,13 +13,13 @@ function accessItemAbilityIds(tree: ResearchTreeDef): Set<string> {
 }
 
 /**
- * Ability IDs this tree owns or upgrades from its required items.
+ * Ability IDs this tree owns (`ownedAbilityIds`, required items) or upgrades from them.
  * Cross-tree synergies (e.g. Earth modifying throw_rock) are excluded so a
  * rocks loadout does not surface the Earth tree.
  */
 export function collectResearchTreeAbilityIds(tree: ResearchTreeDef): Set<string> {
     const ids = new Set<string>();
-    const fromItems = accessItemAbilityIds(tree);
+    const fromItems = ownedBaseAbilityIds(tree);
 
     for (const node of tree.nodes) {
         if (isDraftResearchNode(node) || isDisabledResearchNode(node)) continue;

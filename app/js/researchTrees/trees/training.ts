@@ -1,6 +1,5 @@
 import { PassiveStatKey, type ResearchTreeDef } from '../types';
 import { RESEARCH_TREE_COLOUR_GENERIC, RESEARCH_TREE_ICON_GENERIC } from '../researchTreeChrome';
-import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 import { DescriptiveValue } from '../descriptiveValue';
 
 export const TRAINING_TREE_ID = 'training';
@@ -33,9 +32,10 @@ export const trainingTree: ResearchTreeDef = {
     colour: RESEARCH_TREE_COLOUR_GENERIC,
     icon: RESEARCH_TREE_ICON_GENERIC,
     tags: ['stat'],
+    // Punch comes from most cores; Training upgrades it whichever core is equipped.
+    ownedAbilityIds: ['0120'],
     accessRequirements: [
         { type: 'accountKnowledge', key: 'Research' },
-        { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.BasicCore },
     ],
     nodes: [
         {
@@ -50,7 +50,6 @@ export const trainingTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [],
             requirements: [
                 { type: 'accountKnowledge', key: 'Research' },
-                { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.BasicCore },
             ],
             cost: {},
             effects: [],
@@ -143,7 +142,6 @@ export const trainingTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [],
             requirements: [
                 { type: 'accountKnowledge', key: 'Research' },
-                { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.BasicCore },
             ],
             cost: { food: TRAINING_PASSIVE_NODE_FOOD_COST },
             effects: [],
@@ -164,7 +162,6 @@ export const trainingTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [],
             requirements: [
                 { type: 'accountKnowledge', key: 'Research' },
-                { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.BasicCore },
             ],
             cost: { metal: TRAINING_MIGHTY_METAL_COST, food: TRAINING_MIGHTY_FOOD_COST },
             effects: [],

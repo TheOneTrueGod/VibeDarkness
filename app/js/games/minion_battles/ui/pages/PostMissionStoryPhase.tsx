@@ -123,6 +123,10 @@ interface PostMissionStoryPhaseProps {
     playerEquipmentByPlayer?: Record<string, string[]>;
     /** Per-player research node ids by tree (lobby game state); used when a mission computes post-mission research options. */
     playerResearchTreesByPlayer?: Record<string, Record<string, string[]>>;
+    /** Per-player levels of multi-level research nodes (lobby game state); random research rewards offer a node until it is maxed. */
+    playerResearchNodeLevelsByPlayer?: Record<string, Record<string, Record<string, number>>>;
+    /** This viewer's account knowledge keys; random research rewards check `accountKnowledge` requirements against it. */
+    accountKnowledge?: Record<string, unknown>;
     /** playerId → choiceId → optionId (lobby game state); used for alsoGrantToOthers stacking. */
     playerStoryChoices?: Record<string, Record<string, string>>;
     /** Prepare Carefully primary picks by player id. */
@@ -151,6 +155,8 @@ export default function PostMissionStoryPhase({
     postMissionStory,
     playerEquipmentByPlayer = {},
     playerResearchTreesByPlayer = {},
+    playerResearchNodeLevelsByPlayer = {},
+    accountKnowledge,
     playerStoryChoices = {},
     missionPrepLoadoutsByPlayer = {},
     questPrepLoadoutsByPlayer = {},
@@ -203,9 +209,12 @@ export default function PostMissionStoryPhase({
 
     const myEquipment = playerEquipmentByPlayer[playerId] ?? [];
     const myResearchTrees = playerResearchTreesByPlayer[playerId];
+    const myResearchNodeLevels = playerResearchNodeLevelsByPlayer[playerId];
     // Content fingerprints — lobby polls often replace equal equipment/research with new object refs.
     const equipmentKey = myEquipment.join('\0');
     const researchKey = JSON.stringify(myResearchTrees ?? {});
+    const researchLevelsKey = JSON.stringify(myResearchNodeLevels ?? {});
+    const accountKnowledgeKey = Object.keys(accountKnowledge ?? {}).sort().join(' ');
     const locationModificationsKey = JSON.stringify(locationCardModifications ?? []);
 
     const postMissionChoiceOptions = useMemo((): ChoicePhrase['options'] => {
@@ -218,6 +227,7 @@ export default function PostMissionStoryPhase({
                 myEquipment,
                 // Stable until the player researches something, so the offer does not reshuffle on re-render.
                 `${missionId}:${playerId}:${Object.values(myResearchTrees ?? {}).reduce((n, ids) => n + ids.length, 0)}`,
+                { accountKnowledge, researchNodeLevels: myResearchNodeLevels },
             );
         }
 
@@ -236,9 +246,18 @@ export default function PostMissionStoryPhase({
         }
 
         return baseOptions;
-        // equipmentKey / researchKey fingerprint content; omit object refs that churn every poll.
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- myEquipment/myResearchTrees via keys
-    }, [currentPhrase, missionId, playerId, equipmentKey, researchKey, locationModificationsKey]);
+        // equipmentKey / researchKey / researchLevelsKey / accountKnowledgeKey fingerprint content; omit object refs that churn every poll.
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- myEquipment/myResearchTrees/myResearchNodeLevels/accountKnowledge via keys
+    }, [
+        currentPhrase,
+        missionId,
+        playerId,
+        equipmentKey,
+        researchKey,
+        researchLevelsKey,
+        accountKnowledgeKey,
+        locationModificationsKey,
+    ]);
 
     useEffect(() => {
         if (!phraseBackgroundUrl) {

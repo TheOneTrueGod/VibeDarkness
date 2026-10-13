@@ -63,6 +63,7 @@ import VictoryModal from './ui/components/VictoryModal';
 import { MinionBattlesApi } from './api/minionBattlesApi';
 import { TestIds } from '../../testing/testIds';
 import { useGameSyncOptional } from '../../contexts/GameSyncContext';
+import { useCurrentUser } from '../../user/useCurrentUser';
 import { isUnifiedSlotLayoutPhase } from '../../contexts/gameSyncOptimisticPatch';
 import { getMusicPlayer } from './music/MusicPlayerController';
 import { playlistIdForGamePhase } from './music/playlistIdForGamePhase';
@@ -152,6 +153,7 @@ export default function MinionBattlesGame({
     centerOverlay,
 }: MinionBattlesGameProps) {
     const gameSync = useGameSyncOptional();
+    const { knowledge: accountKnowledge } = useCurrentUser();
     const applyOptimisticGamePatch = gameSync?.applyOptimisticGamePatch;
     const api = useMemo(
         () =>
@@ -719,6 +721,13 @@ export default function MinionBattlesGame({
                             | Record<string, Record<string, string[]>>
                             | undefined
                     }
+                    playerResearchNodeLevelsByPlayer={
+                        ((lastGameStateFromServer ?? raw) as Record<string, unknown>)
+                            .playerResearchNodeLevelsByPlayer as
+                            | Record<string, Record<string, Record<string, number>>>
+                            | undefined
+                    }
+                    accountKnowledge={accountKnowledge}
                     playerStoryChoices={
                         ((lastGameStateFromServer ?? raw) as Record<string, unknown>)
                             .playerStoryChoices as
