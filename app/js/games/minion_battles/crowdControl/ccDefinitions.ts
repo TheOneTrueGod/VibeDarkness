@@ -53,6 +53,14 @@ export const CC_DEFINITIONS: Record<CcType, CcDefinition> = {
         description: 'Reduced movement speed.',
         iconId: 'slow',
     },
+    STAGGER: {
+        id: 'STAGGER',
+        tier: 'soft',
+        color: '#c4b5fd',
+        displayName: 'Stagger',
+        description: 'Briefly unable to act. Bosses with CC armour shrug it off.',
+        iconId: 'stun',
+    },
     CURSE: {
         id: 'CURSE',
         tier: 'soft',

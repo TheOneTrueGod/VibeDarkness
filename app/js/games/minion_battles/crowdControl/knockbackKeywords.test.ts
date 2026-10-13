@@ -128,6 +128,27 @@ describe('computeAimedKnockbackParams', () => {
     });
 });
 
+describe('computeAimedKnockbackParams durationOverride', () => {
+    const base = { landingMinDistance: 0, landingMaxDistance: 100, distanceScale: 1.25 };
+
+    it('makes total flight time (air + slide) equal the override regardless of distance', () => {
+        for (const d of [20, 60, 100]) {
+            const p = computeAimedKnockbackParams({ x: 0, y: 0 }, { x: d, y: 0 }, TIER_3, {
+                ...base,
+                durationOverride: 0.2,
+            });
+            expect(p.knockbackAirTime + p.knockbackSlideTime).toBeCloseTo(0.2, 6);
+            const disp = Math.hypot(p.knockbackVector.x, p.knockbackVector.y) * KNOCKBACK_TOTAL_DISPLACEMENT_FACTOR;
+            expect(disp).toBeCloseTo(d, 3);
+        }
+    });
+
+    it('is unchanged when durationOverride is omitted', () => {
+        const p = computeAimedKnockbackParams({ x: 0, y: 0 }, { x: 100, y: 0 }, TIER_3, base);
+        expect(p.knockbackAirTime).toBeCloseTo(TIER_3.airTime * 1.25, 6);
+    });
+});
+
 describe('tryApplyKnockbackByTier with iFrames', () => {
     it('fully resists knockback when target has iFrames', () => {
         const target = makeKnockbackTarget();

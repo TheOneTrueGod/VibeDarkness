@@ -86,6 +86,7 @@ import { GravityLocusAbility } from '../card_defs/09_gravity_core/0901_GravityLo
 import { ForcePushAbility } from '../card_defs/09_gravity_core/0902_ForcePush/0902Ability';
 import { GravityInversionAbility } from '../card_defs/09_gravity_core/0903_GravityInversion/0903Ability';
 import { GravityShieldAbility } from '../card_defs/09_gravity_core/0904_GravityShield/0904Ability';
+import { CollapseAbility } from '../card_defs/09_gravity_core/0905_Collapse/0905Ability';
 import { BloodMendAbility_0301 } from '../card_defs/03_blood_mage/0301_BloodMend/0301Ability';
 import { BurstAbility_0302 } from '../card_defs/03_blood_mage/0302_Burst/0302Ability';
 import { ProtectAbility_0303 } from '../card_defs/03_blood_mage/0303_Protect/0303Ability';
@@ -185,6 +186,7 @@ register(GravityLocusAbility);
 register(ForcePushAbility);
 register(GravityInversionAbility);
 register(GravityShieldAbility);
+register(CollapseAbility);
 register(BloodMendAbility_0301);
 register(BurstAbility_0302);
 register(ProtectAbility_0303);

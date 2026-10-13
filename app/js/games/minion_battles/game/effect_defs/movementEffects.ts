@@ -104,7 +104,7 @@ export const stackGhostEffectDef: IEffectDef = {
     },
 };
 
-/** Faint directional ghost-arrow for non-interrupting nudges — no motion streak. */
+/** Faint directional ghost-arrow for non-interrupting nudges — no trail. */
 export const nudgeArrowEffectDef: IEffectDef = {
     createVisual(_effect: Effect, _context: IEffectRenderContext): Graphics {
         return new Graphics();

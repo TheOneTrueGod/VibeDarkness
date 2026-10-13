@@ -108,3 +108,33 @@ export const GRAVITY_INVERSION_PULL_SLAM_SPACING = 20;
 export const GRAVITY_INVERSION_SHOCKWAVE_COLORS = [0xc084fc, 0xa855f7, 0x6b21a8] as const;
 /** Visual scale for the slam shockwave rings (1 = default HowlShockwave size). */
 export const GRAVITY_INVERSION_SLAM_SHOCKWAVE_SCALE = 0.5;
+
+/** Collapse (0905) — cone gather: pulls the enemies nearest the cursor into an arc in front of the caster. */
+export const COLLAPSE_ABILITY_ID = '0905';
+export const COLLAPSE_PREFIRE_TIME = 0.3;
+/** Total flight time (air + slide) of each pulled enemy. */
+export const COLLAPSE_FLING_DURATION = 0.2;
+/** The cast ends this long before the flung enemies land, so a follow-up can start while they arrive. */
+export const COLLAPSE_FOLLOW_UP_OVERLAP = 0.1;
+/** Width of the instant release beat (the Instant behaviour fires on entering it). */
+export const COLLAPSE_RELEASE_DURATION = 0.02;
+/** Post-release recovery. Release + cooldown = fling - overlap, so the cast ends `overlap` before landing. */
+export const COLLAPSE_COOLDOWN_DURATION =
+    COLLAPSE_FLING_DURATION - COLLAPSE_FOLLOW_UP_OVERLAP - COLLAPSE_RELEASE_DURATION;
+export const COLLAPSE_DAMAGE = 8;
+export const COLLAPSE_GRAVITY_COST = 10;
+export const COLLAPSE_MAX_TARGETS = 3;
+export const COLLAPSE_MAX_USES = 3;
+export const COLLAPSE_CONE_LENGTH = 110;
+export const COLLAPSE_CONE_WIDTH_DEG = 70;
+/** Gap (px) between the caster's and a pulled enemy's edges once landed. */
+export const COLLAPSE_ARC_SPACING = GRAVITY_INVERSION_PULL_SLAM_SPACING;
+/** Angular offset of the outermost landing slots from the aim line. */
+export const COLLAPSE_ARC_SPREAD_DEG = 25;
+export const COLLAPSE_KNOCKBACK_TIER = 3;
+/** Stagger lingers this long after the enemy lands (total stagger = fling + linger). */
+export const COLLAPSE_STAGGER_LINGER = 0.4;
+/** Landing pixel distance clamps for the aimed pull (cone length plus slack). */
+export const COLLAPSE_LANDING_MIN_DISTANCE = 1;
+export const COLLAPSE_LANDING_MAX_DISTANCE = COLLAPSE_CONE_LENGTH + 40;
+export const COLLAPSE_TARGET_LABEL = 'Cone';

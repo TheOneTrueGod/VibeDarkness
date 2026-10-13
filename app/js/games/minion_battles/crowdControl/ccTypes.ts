@@ -11,6 +11,7 @@ export type CcType =
     | 'CRIPPLE'
     | 'DISARM'
     | 'SLOW'
+    | 'STAGGER'
     | 'CURSE';
 
 /** Keys for per-type CC resist maps (specific overrides ALL). */

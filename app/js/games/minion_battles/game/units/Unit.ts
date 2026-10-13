@@ -505,6 +505,7 @@ export class Unit extends GameObject {
             !this.hasBuff('stunned') &&
             !this.hasBuff(LIFTED_BUFF_TYPE) &&
             !this.hasBuff('exposed') &&
+            !this.hasActingBlockingBuff() &&
             !this.controlled &&
             this.activeAbilities.length === 0 &&
             !this.isInWaitLockout()
@@ -513,6 +514,11 @@ export class Unit extends GameObject {
 
     /** True while the unit is executing a timing interval tagged 'juggernaut' (immune to CC interruption). */
     isInJuggernautWindow(gameTime: number): boolean { return isUnitInJuggernautWindow(this, gameTime); }
+
+    /** True while any buff with {@link Buff.blocksActing} is on this unit. */
+    hasActingBlockingBuff(): boolean {
+        return this.buffs.some((b) => b.blocksActing);
+    }
 
     /** Fast check: does this unit have a buff of the given type? */
     hasBuff(buffType: string): boolean {

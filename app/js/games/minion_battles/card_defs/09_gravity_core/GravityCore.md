@@ -21,6 +21,7 @@ The tree ships four abilities on a simple spine, plus one tier-3 upgrade node (R
 | **0901** | **Gravity Locus + Repulse** | **Repulse** node (tier 3, requires Gravity Locus) | Shortens the field (`durationMult`) and detonates it on expiry (`explosionDamageFlat` + `knockbackTier`, gated by the `GravityRepulse` ability tag) — see `buffs/GravityLocusFieldBuff.ts` |
 | **0903** | **Lift** | **Lift** node (tier 2) | **Lift** + hard CC + slam; mode changes horizontal landing only |
 | **0904** | **Gravity Shield** | **Gravity Shield** node (tier 13) | Ally (or self) **absorb shield** — `GRAVITY_SHIELD_HP` armour that drains over `GRAVITY_SHIELD_DURATION_ROUNDS` round via `ShieldBuff` |
+| **0905** | **Collapse** | **Collapse** node (tier 2) | Single-click **cone gather** — pulls up to 3 enemies nearest the cursor into an arc in front of the caster (aimed knockback), flat damage, then brief **Stagger** |
 
 Force Push, Gravity Locus, and Lift share the same **Ability Mode** toggle (`'push' | 'pull'`), set per cast during targeting — distinct from static research `AbilityModifier` tweaks. Gravity Shield has no mode toggle.
 
@@ -30,11 +31,12 @@ Force Push, Gravity Locus, and Lift share the same **Ability Mode** toggle (`'pu
 |--------|----------------------|
 | **Grazing resource** | Proximity to enemy units and projectiles fills **gravity** continuously; projectiles pay out more than units. Constants in `gravityConstants.ts`; logic in `resources/Gravity.ts` via `Resource.onTick`. |
 | **Ability Mode** | Per-cast Push ↔ Pull on abilities that declare `abilityModes`. Behaviours read mode from the **order/active ability**, never live UI state — deterministic for multiplayer replay. |
-| **Nudge** | Subtle reposition via `applyNudgeToUnit` — **not CC**: no path clear, no ability interrupt, no CC-armour gate. Visual: faint `NudgeArrowEffectDef`, **no motion streak**. |
+| **Nudge** | Subtle reposition via `applyNudgeToUnit` — **not CC**: no path clear, no ability interrupt, no CC-armour gate. Visual: faint `NudgeArrowEffectDef`, **no trail**. |
 | **Repulse (Gravity Locus upgrade)** | With the `GravityRepulse` tag active, the field radius starts small and widens outward over its (shortened) lifetime — a growing ring — then `GravityLocusFieldBuff.onBeforeExpire` detonates: flat damage + knockback (tier from research) for every enemy still inside the original radius, plus a violet ring `Explosion` effect. |
-| **Launch / knockback** | Force Push uses **aimed** knockback (tier-3 CC gate, custom vector/air-time to reach the chosen landing pixel, capped at ~1.25× tier-3 displacement) with opt-in unit collision + terrain bounce events. Visual: motion streak on launches; clash spark vs wall dust/crack for collision types. |
+| **Launch / knockback** | Force Push uses **aimed** knockback (tier-3 CC gate, custom vector/air-time to reach the chosen landing pixel, capped at ~1.25× tier-3 displacement) with opt-in unit collision + terrain bounce events. Visual: no generic motion-streak def exists (Collapse flings use the violet `FlingTrail` effect + tether ribbon; other launches use their own effects); clash spark vs wall dust/crack for collision types. |
 | **Lift** | Lift applies `LiftedBuff` (hard CC, suspended airborne) then slam damage, nearby magnitude-1 knockback, and `unit_slam_landed`. Visual: `LiftColumnEffectDef` telegraph; violet `howlShockwaveEffectDef` on landing. |
 | **Gravity Shield** | Ally-targeted `ShieldBuff` (`theme: 'gravity'`) with a high starting absorb pool that drains to 0 in one round. Visual: violet pulse shell (not the blood-mage shimmer); apply burst uses violet `howlShockwaveEffectDef`. |
+| **Collapse** | Single-click cone gather (0905). Timing: windup 0.3s, release beat 0.02s (Instant), cooldown 0.08s, so the cast ends 0.1s before the 0.2s fling lands. Targets: `selectNearestToPointInCone` (3 nearest the cursor), landing: `computeArcLandingSlots` (centre slot for the nearest), movement: tier-3 aimed knockback with `durationOverride`, no unit collision, 8 flat damage, then `tryApplyStagger` (fling + 0.4s; armoured bosses absorb it, Exposed bosses extend Exposed). Visual language (all `GRAVITY_VIOLET`, no camera effects): windup cone telegraph tightens inward; release = `ConeCollapse` wave + `TetherRibbon` per target; arrival = delayed small `HowlShockwave` + `TerrainImpact` dust at each slot. |
 
 ### Push vs Pull semantics (reference point per ability)
 
@@ -52,7 +54,7 @@ Force Push, Gravity Locus, and Lift share the same **Ability Mode** toggle (`'pu
 
 ## Visual language (violet `#a855f7`)
 
-- **Nudge vs launch**: nudges use understated `NudgeArrowEffectDef` (ghost arrow, no streak); launches use motion streak — the absent streak signals “not real CC.”
+- **Nudge vs launch**: nudges use understated `NudgeArrowEffectDef` (ghost arrow, no trail); launches get real trails/impact visuals — the absent trail signals “not real CC.”
 - **Locus field**: `GravityFieldEffectDef` — inward spirals for Pull, outward rings/cracks for Push.
 - **Collisions** (Force Push only): `CollisionClashEffectDef` for unit-vs-unit; `TerrainImpactEffectDef` for wall hits.
 - **Lift**: `LiftColumnEffectDef` under lifted units for the full float window.

@@ -80,6 +80,7 @@ import { gravityLocusScenario } from '../scenarios/abilities/gravityLocusScenari
 import { forcePushScenario } from '../scenarios/abilities/forcePushScenario';
 import { gravityInversionScenario } from '../scenarios/abilities/gravityInversionScenario';
 import { gravityShieldScenario } from '../scenarios/abilities/gravityShieldScenario';
+import { gravityCollapseScenario } from '../scenarios/abilities/gravityCollapseScenario';
 import { shieldOfLightScenario } from '../scenarios/abilities/shieldOfLightScenario';
 import {
     energyBlastStrictPriorityFillScenario,
@@ -580,6 +581,11 @@ describe('runScenarioHeadless', () => {
 
     it('Gravity Shield (0904): grants a high-armour shield that drains in one round', () => {
         const r = runScenarioHeadless(gravityShieldScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('Collapse (0905): gathers the 3 nearest enemies into an arc, staggers them, bosses resist', () => {
+        const r = runScenarioHeadless(gravityCollapseScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

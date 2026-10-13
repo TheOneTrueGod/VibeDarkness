@@ -31,6 +31,14 @@ import { daylightSearEffectDef, DAYLIGHT_SEAR_EFFECT_TYPE } from './dayLightEffe
 import { brambleExplosionEffectDef } from './brambleEffects';
 import { spriteEffectDef } from './spriteEffectDefs';
 import {
+    coneCollapseEffectDef,
+    tetherRibbonEffectDef,
+    flingTrailEffectDef,
+    CONE_COLLAPSE_EFFECT_TYPE,
+    TETHER_RIBBON_EFFECT_TYPE,
+    FLING_TRAIL_EFFECT_TYPE,
+} from './collapseEffects';
+import {
     bloodMistBurstEffectDef,
     bloodMistImpactEffectDef,
     bloodConeFlashEffectDef,
@@ -91,6 +99,9 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     CollisionClash: collisionClashEffectDef,
     TerrainImpact: terrainImpactEffectDef,
     LiftColumn: liftColumnEffectDef,
+    [CONE_COLLAPSE_EFFECT_TYPE]: coneCollapseEffectDef,
+    [TETHER_RIBBON_EFFECT_TYPE]: tetherRibbonEffectDef,
+    [FLING_TRAIL_EFFECT_TYPE]: flingTrailEffectDef,
     [BLOOD_MIST_BURST_EFFECT_TYPE]: bloodMistBurstEffectDef,
     [BLOOD_MIST_IMPACT_EFFECT_TYPE]: bloodMistImpactEffectDef,
     [BLOOD_CONE_FLASH_EFFECT_TYPE]: bloodConeFlashEffectDef,

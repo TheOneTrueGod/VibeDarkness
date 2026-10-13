@@ -11,6 +11,7 @@ import { CantDieBuff, CANT_DIE_BUFF_TYPE } from './CantDieBuff';
 import { ExposedBuff, EXPOSED_BUFF_TYPE } from './ExposedBuff';
 import { DoubleDamageBuff, DOUBLE_DAMAGE_BUFF_TYPE } from './DoubleDamageBuff';
 import { LightImbueBuff, LIGHT_IMBUE_BUFF_TYPE } from './LightImbueBuff';
+import { StaggeredBuff, STAGGERED_BUFF_TYPE } from './StaggeredBuff';
 import { LiftedBuff, LIFTED_BUFF_TYPE } from './LiftedBuff';
 import { GravityLocusFieldBuff, GRAVITY_LOCUS_FIELD_BUFF_TYPE } from './GravityLocusFieldBuff';
 import { ShieldBuff, SHIELD_BUFF_TYPE } from './ShieldBuff';
@@ -19,6 +20,7 @@ type BuffDeserializer = (data: BuffSerialized) => Buff;
 
 const registry: Record<string, BuffDeserializer> = {
     [STUNNED_BUFF_TYPE]: StunnedBuff.fromJSON as BuffDeserializer,
+    [STAGGERED_BUFF_TYPE]: StaggeredBuff.fromJSON as BuffDeserializer,
     [BLEED_BUFF_TYPE]: BleedBuff.fromJSON as BuffDeserializer,
     [CANT_DIE_BUFF_TYPE]: CantDieBuff.fromJSON as BuffDeserializer,
     [EXPOSED_BUFF_TYPE]: ExposedBuff.fromSerialized as BuffDeserializer,

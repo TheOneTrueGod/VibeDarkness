@@ -73,6 +73,7 @@ import { GravityLocusCard } from './09_gravity_core/0901_GravityLocus/0901Abilit
 import { ForcePushCard } from './09_gravity_core/0902_ForcePush/0902Ability';
 import { GravityInversionCard } from './09_gravity_core/0903_GravityInversion/0903Ability';
 import { GravityShieldCard } from './09_gravity_core/0904_GravityShield/0904Ability';
+import { CollapseCard } from './09_gravity_core/0905_Collapse/0905Ability';
 import { BloodMendCard_0301 } from './03_blood_mage/0301_BloodMend/0301Ability';
 import { BurstCard_0302 } from './03_blood_mage/0302_Burst/0302Ability';
 import { ProtectCard_0303 } from './03_blood_mage/0303_Protect/0303Ability';
@@ -151,6 +152,7 @@ const cardDefs: CardDef[] = [
     ForcePushCard,
     GravityInversionCard,
     GravityShieldCard,
+    CollapseCard,
     BloodMendCard_0301,
     BurstCard_0302,
     ProtectCard_0303,

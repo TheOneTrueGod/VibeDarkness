@@ -9,6 +9,12 @@ export {
     type HardCcStunAttemptResult,
 } from './tryApplyHardCcStun';
 export {
+    tryApplyStagger,
+    type StaggerAttemptOutcome,
+    type StaggerAttemptResult,
+} from './tryApplyStagger';
+export { STAGGER_DEFAULT_DURATION_SEC, STAGGER_MIN_POTENCY_SEC } from './ccConstants';
+export {
     tryApplyLift,
     type LiftAttemptOutcome,
     type LiftAttemptResult,

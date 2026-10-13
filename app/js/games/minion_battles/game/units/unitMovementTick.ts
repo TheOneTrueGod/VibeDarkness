@@ -194,7 +194,7 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
     }
 
     // Stunned/exposed/controlled units must not advance along a movement path (canAct already blocks new orders).
-    if (unit.hasBuff('stunned') || unit.hasBuff(LIFTED_BUFF_TYPE) || unit.hasBuff('exposed') || unit.controlled) {
+    if (unit.hasBuff('stunned') || unit.hasBuff(LIFTED_BUFF_TYPE) || unit.hasBuff('exposed') || unit.hasActingBlockingBuff() || unit.controlled) {
         return;
     }
 

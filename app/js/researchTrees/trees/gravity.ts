@@ -4,6 +4,7 @@ import { RESEARCH_TREE_COLOUR_GRAVITY, RESEARCH_TREE_ICON_GRAVITY } from '../res
 import { DescriptiveValue } from '../descriptiveValue';
 
 import {
+    COLLAPSE_MAX_TARGETS,
     GRAVITY_CORE_MISSION_START_AMOUNT,
     GRAVITY_LOCUS_ABILITY_ID,
     GRAVITY_LOCUS_REPULSE_DURATION_MULT,
@@ -19,6 +20,7 @@ export const GRAVITY_NODE_GRAVITY_LOCUS = 'gravity_locus';
 export const GRAVITY_NODE_GRAVITY_INVERSION = 'gravity_inversion';
 export const GRAVITY_NODE_GRAVITY_SHIELD = 'gravity_shield';
 export const GRAVITY_NODE_REPULSE = 'gravity_repulse';
+export const GRAVITY_NODE_COLLAPSE = 'gravity_collapse';
 
 export const GRAVITY_CORE_CRYSTAL_COST = 13;
 export const GRAVITY_CORE_FOOD_COST = 5;
@@ -39,6 +41,10 @@ export const GRAVITY_LIFT_METAL_COST = 1;
 export const GRAVITY_SHIELD_CRYSTAL_COST = 16;
 export const GRAVITY_SHIELD_FOOD_COST = 5;
 export const GRAVITY_SHIELD_METAL_COST = 5;
+
+export const GRAVITY_COLLAPSE_CRYSTAL_COST = 14;
+export const GRAVITY_COLLAPSE_FOOD_COST = 5;
+export const GRAVITY_COLLAPSE_METAL_COST = 1;
 
 export const gravityTree: ResearchTreeDef = {
     id: GRAVITY_TREE_ID,
@@ -174,6 +180,29 @@ export const gravityTree: ResearchTreeDef = {
             },
             effects: [
                 { type: 'addCard', cardId: '0904' },
+            ],
+        },
+        {
+            id: GRAVITY_NODE_COLLAPSE,
+            title: 'Collapse',
+            description:
+                `Crush a cone of space inward. Pulls up to {${COLLAPSE_MAX_TARGETS}} enemies nearest your cursor into a tight arc in front of you, dealing damage and leaving them briefly staggered.`,
+            flavorText: 'Everything leans toward you — and then it lands.',
+            order: 13,
+            tier: 2,
+            position: { x: 420, y: 420 },
+            prereqNodeIds: [GRAVITY_NODE_CORE],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: GRAVITY_TREE_ID, nodeIds: [GRAVITY_NODE_CORE] },
+            ],
+            cost: {
+                crystals: GRAVITY_COLLAPSE_CRYSTAL_COST,
+                food: GRAVITY_COLLAPSE_FOOD_COST,
+                metal: GRAVITY_COLLAPSE_METAL_COST,
+            },
+            effects: [
+                { type: 'addCard', cardId: '0905' },
             ],
         },
     ],

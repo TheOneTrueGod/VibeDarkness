@@ -53,6 +53,14 @@ export abstract class Buff {
     /** Duration of the buff. */
     readonly duration: BuffDuration;
 
+    /**
+     * When true, a unit carrying this buff cannot take new orders or advance along a movement
+     * path (read by `Unit.canAct()` and the `unitMovementTick` guard). Subclasses override.
+     * Stunned / exposed / lifted still use their hardcoded checks; new blocking buffs should
+     * set this instead of growing those type-string lists.
+     */
+    readonly blocksActing: boolean = false;
+
     /** Game time (seconds) when buff was applied. Set by Unit when adding. */
     appliedAtTime: number = 0;
 

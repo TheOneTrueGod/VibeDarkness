@@ -7,6 +7,7 @@ import { Graphics } from 'pixi.js';
 import type { Unit } from '../game/units/Unit';
 import type { Buff } from './Buff';
 import { STUNNED_BUFF_TYPE } from './StunnedBuff';
+import { STAGGERED_BUFF_TYPE } from './StaggeredBuff';
 import { BLEED_BUFF_TYPE, BleedBuff } from './BleedBuff';
 import { EXPOSED_BUFF_TYPE } from './ExposedBuff';
 import { LIFTED_BUFF_TYPE } from './liftedBuffType';
@@ -87,6 +88,35 @@ const stunnedBuffVisual: BuffVisualRenderer = (g, unit, _buff, ctx) => {
 
     drawFivePointedStar(g, x1, y1, starSize, angle * 0.5, fillColor, strokeColor);
     drawFivePointedStar(g, x2, y2, starSize, angle * 0.5 + Math.PI / 2, fillColor, strokeColor);
+};
+
+/**
+ * Staggered: a lighter, violet-tinged cousin of the stunned stars so it reads as a "weak stun".
+ * One smaller star orbiting faster, in pale violet.
+ */
+const staggeredBuffVisual: BuffVisualRenderer = (g, unit, _buff, ctx) => {
+    const orbitCenterY = -unit.radius * 0.75;
+    const orbitRadius = unit.radius * 0.3;
+    const starSize = Math.max(2.5, unit.radius * 0.15);
+    const angle = ctx.gameTime * 4;
+    drawFivePointedStar(
+        g,
+        Math.cos(angle) * orbitRadius,
+        orbitCenterY + Math.sin(angle) * orbitRadius,
+        starSize,
+        angle * 0.5,
+        0xd8b4fe,
+        0x7e22ce,
+    );
+    drawFivePointedStar(
+        g,
+        Math.cos(angle + Math.PI) * orbitRadius,
+        orbitCenterY + Math.sin(angle + Math.PI) * orbitRadius,
+        starSize * 0.8,
+        angle * 0.5 + Math.PI / 2,
+        0xc4b5fd,
+        0x6d28d9,
+    );
 };
 
 /** Bleed: small red droplets above the unit; stack count scales dot size slightly. */
@@ -194,6 +224,7 @@ export function getBuffVisualRenderer(buffType: string): BuffVisualRenderer {
 
 // Register built-in buff visuals
 registerBuffVisual(STUNNED_BUFF_TYPE, stunnedBuffVisual);
+registerBuffVisual(STAGGERED_BUFF_TYPE, staggeredBuffVisual);
 registerBuffVisual(BLEED_BUFF_TYPE, bleedBuffVisual);
 registerBuffVisual(EXPOSED_BUFF_TYPE, stunnedBuffVisual);
 registerBuffVisual(LIFTED_BUFF_TYPE, (g, unit, _buff, _ctx) => {

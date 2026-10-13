@@ -250,6 +250,12 @@ export interface AimedKnockbackOptions {
     landingMaxDistance: number;
     /** Air-time multiplier at max landing distance relative to tier baseline (e.g. 1.25). */
     distanceScale: number;
+    /**
+     * Optional fixed flight time in seconds (air + slide combined, so the target lands exactly this
+     * long after launch regardless of distance). The air/slide split keeps the tier's ratio.
+     * When omitted, air time scales with distance as before.
+     */
+    durationOverride?: number;
 }
 
 /**
@@ -273,8 +279,11 @@ export function computeAimedKnockbackParams(
 
     const magnitude = dist / KNOCKBACK_TOTAL_DISPLACEMENT_FACTOR;
     const t = options.landingMaxDistance > 0 ? dist / options.landingMaxDistance : 0;
-    const airTime = tierDef.airTime * (1 + (options.distanceScale - 1) * t);
     const slideRatio = tierDef.airTime > 0 ? tierDef.slideTime / tierDef.airTime : 0;
+    const airTime =
+        options.durationOverride != null
+            ? options.durationOverride / (1 + slideRatio)
+            : tierDef.airTime * (1 + (options.distanceScale - 1) * t);
     const slideTime = airTime * slideRatio;
 
     return {
