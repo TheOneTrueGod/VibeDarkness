@@ -10,10 +10,10 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { LucideIcon } from 'lucide-react';
-import { Check, ChevronDown, Route, Scroll, Skull, Swords, Tent, X } from 'lucide-react';
+import { Check, ChevronDown, FastForward, Route, Scroll, Skull, Swords, Tent, X } from 'lucide-react';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import type { MissionResult } from '../../../../../types';
-import type { MissionType, StorylineDef } from '../../../storylines/types';
+import type { CampaignChapterDef, MissionType, StorylineDef } from '../../../storylines/types';
 import type { StartQuestOptions } from '../../../storylines/questLobby';
 import { STORYLINES, MISSION_MAP } from '../../../storylines/index';
 import {
@@ -114,6 +114,8 @@ interface Props {
     onMarkVictory?: (missionId: string) => Promise<void>;
     /** Admin-only: change the character's campaign from the map toolbar. */
     onCampaignChange?: (campaignId: string) => void | Promise<void>;
+    /** Admin-only: open the Skip Chapter wizard for an `adminSkippable` chapter. */
+    onSkipChapter?: (chapter: CampaignChapterDef) => void;
 }
 
 /** SVG fill for a mission node: gray when finished or disabled, else type-based (boss uses gradient url). */
@@ -768,6 +770,7 @@ export default function MissionMapTab({
     onResetQuest,
     onMarkVictory,
     onCampaignChange,
+    onSkipChapter,
 }: Props) {
     const [hoveredId, setHoveredId] = useState<string | null>(null);
     const [pressedId, setPressedId] = useState<string | null>(null);
@@ -981,7 +984,20 @@ export default function MissionMapTab({
         <div className="w-full h-full overflow-auto">
             <div className="shrink-0 flex items-center gap-3 pb-2 border-b border-border-custom mb-2">
                 {/* left */}
-                <div className="flex-1 min-w-0 flex items-center gap-2" />
+                <div className="flex-1 min-w-0 flex items-center gap-2">
+                    {isAdmin && onSkipChapter && activeChapter?.adminSkippable && (
+                        <button
+                            type="button"
+                            data-testid={TestIds.missionMapSkipChapter}
+                            onClick={() => onSkipChapter(activeChapter)}
+                            title={`Admin: pick this chapter's rewards and mark every mission won`}
+                            className="flex items-center gap-1.5 text-xs px-2 py-1 rounded border border-dashed border-amber-500/60 text-amber-200 hover:bg-amber-500/10 cursor-pointer"
+                        >
+                            <FastForward className="h-3.5 w-3.5" aria-hidden />
+                            Skip Chapter
+                        </button>
+                    )}
+                </div>
 
                 {/* center: chapter buttons */}
                 {showChapters && (

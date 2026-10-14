@@ -16,13 +16,8 @@ import DisabledStoryChoiceTooltip, {
 import type { ResearchNodeDef } from '../../../../../researchTrees/types';
 import { getResearchTree } from '../../../../../researchTrees/list';
 import { TestIds } from '../../../../../testing/testIds';
-import {
-    STORY_CHOICE_SKIP_DESCRIPTION,
-    STORY_CHOICE_SKIP_LABEL,
-    STORY_CHOICE_SKIP_OPTION_ID,
-    arrangeStoryChoiceGridSlots,
-    isStoryChoiceSkipOption,
-} from './storyChoiceGrid';
+import { arrangeStoryChoiceGridSlots, isStoryChoiceSkipOption } from './storyChoiceGrid';
+import { createStoryChoiceSkipOption } from '../../../storylines/storyChoiceOptions';
 import { isGrantResources } from './preMissionStoryTypeGuards';
 
 /** Badge on reward options flagged {@link StoryChoiceOptionRow.forYou}. */
@@ -55,14 +50,9 @@ interface PostMissionChoicePanelProps {
     onSpectatorComplete: () => void;
 }
 
+/** Post-mission choices always offer a skip row (shared with the Skip Chapter wizard). */
 function syntheticPostMissionSkipOption(): StoryChoiceOptionRow {
-    return {
-        id: STORY_CHOICE_SKIP_OPTION_ID,
-        label: STORY_CHOICE_SKIP_LABEL,
-        loreTitle: STORY_CHOICE_SKIP_LABEL,
-        loreDescription: STORY_CHOICE_SKIP_DESCRIPTION,
-        action: { type: 'grant_resources' },
-    };
+    return createStoryChoiceSkipOption();
 }
 
 export default function PostMissionChoicePanel({

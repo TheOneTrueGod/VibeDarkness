@@ -52,6 +52,9 @@ export const TestIds = {
     /** Mission Map quest banks / optional / prep (Campaign Home) */
     questBankPickerPopup: 'quest-bank-picker-popup',
     questBankPickerClose: 'quest-bank-picker-close',
+    missionMapSkipChapter: 'mission-map-skip-chapter',
+    chapterSkipWizard: 'chapter-skip-wizard',
+    chapterSkipApply: 'chapter-skip-apply',
     questBankTooltipClose: 'quest-bank-tooltip-close',
     missionMapTooltipClose: 'mission-map-tooltip-close',
     /** Inline Continue on the active quest row (Quests panel / bank tooltip). */

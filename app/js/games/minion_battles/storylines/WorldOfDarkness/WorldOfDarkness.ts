@@ -204,6 +204,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
             id: 'wod_ch1',
             numeral: 'I',
             title: 'A Dark Awakening',
+            adminSkippable: true,
             missionIds: [
                 'dark_awakening', 'towards_the_light', 'light_empowered',
                 'cave_respite', 'monster', 'core_awakening',

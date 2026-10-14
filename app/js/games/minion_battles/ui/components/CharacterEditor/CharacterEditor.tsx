@@ -4,6 +4,7 @@
  * Equipment sidebar: paper doll or horizontal equipped-items list; inventory grid; drag to equip.
  */
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, Pencil, X } from 'lucide-react';
 import { getPortraitIdsForPlayer, getPortrait } from '../../../character_defs/portraits';
 import {
@@ -77,6 +78,14 @@ import {
 } from '../../../../../campaignResources';
 import { getShowAllResearchTrees, subscribeShowAllResearchTrees } from '../../../../../debugFlags';
 import MissionMapTab from './MissionMapTab';
+import ChapterSkipWizard from './ChapterSkipWizard';
+import {
+    stripChapterResearchRewards,
+    type ChapterSkipCharacterState,
+    type ChapterSkipContext,
+    type ChapterSkipPlan,
+} from '../../../storylines/chapterSkip';
+import type { CampaignChapterDef } from '../../../storylines/types';
 import StatBonusesTab from './StatBonusesTab';
 import { PortraitCycleButtons } from './PortraitCycleButtons';
 import { characterHasResearch, shouldShowUpgradesTab } from '../../../../../components/CampaignHomeScreen/CharactersTab/Upgrades/Upgrades';
@@ -912,6 +921,73 @@ export default function CharacterEditor({
         }
     }, [character, api, onSaved]);
 
+    /** Admin: chapter whose Skip Chapter wizard is open. */
+    const [skipChapter, setSkipChapter] = useState<CampaignChapterDef | null>(null);
+
+    /** Wizard start: the character with research from this chapter's earlier results removed ("replace"). */
+    const chapterSkipStart = useMemo((): ChapterSkipCharacterState | null => {
+        if (!skipChapter) return null;
+        return stripChapterResearchRewards(
+            {
+                equipment: [...character.equipment],
+                researchTrees: character.researchTrees ?? {},
+                researchNodeLevels: character.researchNodeLevels ?? {},
+                researchSources: character.researchSources ?? {},
+            },
+            character.missionResults?.[character.campaignId] ?? [],
+            skipChapter.missionIds,
+        );
+    }, [skipChapter, character]);
+
+    const ownerAccountId = character.ownerAccountId ?? account?.id;
+    const chapterSkipCtx = useMemo(
+        (): ChapterSkipContext => ({
+            playerId: ownerAccountId != null ? String(ownerAccountId) : '',
+            accountKnowledge: account?.knowledge ?? {},
+        }),
+        [ownerAccountId, account?.knowledge],
+    );
+
+    /** Admin: persist a Skip Chapter plan like a real playthrough (character, campaign, account knowledge). */
+    const handleApplyChapterSkip = useCallback(async (plan: ChapterSkipPlan) => {
+        if (!isAdmin || !skipChapter) return;
+        const isInstanceId = (id: string) => /^[a-f0-9]{16}$/.test(id);
+        const campaignInstanceId =
+            resolvedCampaign?.id
+            ?? (isInstanceId(character.campaignId) ? character.campaignId : account?.campaignIds?.[0]);
+        if (!campaignInstanceId) throw new Error('No campaign found for this character.');
+
+        const storylineId = character.campaignId;
+        const now = Date.now();
+        const chapterIds = new Set(skipChapter.missionIds);
+        const existingMap = character.missionResults ?? {};
+        const keptResults = (existingMap[storylineId] ?? []).filter((r) => !chapterIds.has(r.missionId));
+        const newResults = plan.missionResults.map((r, i) => ({ ...r, timestamp: now + i }));
+
+        await api.updateCharacter(character.id, {
+            equipment: plan.state.equipment,
+            researchTrees: plan.state.researchTrees,
+            researchNodeLevels: plan.state.researchNodeLevels,
+            researchSources: plan.state.researchSources,
+            missionResults: { ...existingMap, [storylineId]: [...keptResults, ...newResults] },
+        });
+        for (const r of plan.missionResults) {
+            await api.recordCampaignMissionResult(campaignInstanceId, {
+                missionId: r.missionId,
+                result: r.result,
+                resourceDelta: r.resourceDelta,
+                itemIds: r.itemIds,
+                researchRewards: r.researchRewards,
+            });
+        }
+        if (ownerAccountId != null) {
+            for (const key of plan.knowledgeKeys) {
+                if (!account?.knowledge?.[key]) await api.grantAccountKnowledge(ownerAccountId, key);
+            }
+        }
+        onSaved?.({ equipment: plan.state.equipment, name: character.name, portraitId: character.portraitId });
+    }, [isAdmin, skipChapter, resolvedCampaign?.id, character, account?.campaignIds, account?.knowledge, ownerAccountId, api, onSaved]);
+
     /** Admin: drop a quest's recorded victories and its run so it can be run again. */
     const handleResetQuest = useCallback(async (questDefId: string) => {
         if (!isAdmin) return;
@@ -1266,7 +1342,22 @@ export default function CharacterEditor({
         onResetQuest: isAdmin ? handleResetQuest : undefined,
         onMarkVictory: isAdmin ? handleMarkVictory : undefined,
         onCampaignChange: isAdmin ? handleCampaignChange : undefined,
+        onSkipChapter: isAdmin ? setSkipChapter : undefined,
     };
+
+    const chapterSkipModal =
+        skipChapter && chapterSkipStart
+            ? createPortal(
+                <ChapterSkipWizard
+                    chapter={skipChapter}
+                    start={chapterSkipStart}
+                    ctx={chapterSkipCtx}
+                    onApply={(_picks, plan) => handleApplyChapterSkip(plan)}
+                    onClose={() => setSkipChapter(null)}
+                />,
+                document.body,
+            )
+            : null;
 
     const bonusesProps = {
         researchTrees,
@@ -1298,12 +1389,14 @@ export default function CharacterEditor({
                     upgrades={researchRight}
                     equipment={equipmentRight}
                 />
+                {chapterSkipModal}
             </CharactersTabLayerOne>
         );
     }
 
     return (
         <div className="flex flex-col h-full w-full bg-surface overflow-hidden">
+            {chapterSkipModal}
             {/* Tabs */}
             <div className="flex gap-1 px-2 pt-2 border-b border-border-custom shrink-0">
                 {!hideMissionMap && (

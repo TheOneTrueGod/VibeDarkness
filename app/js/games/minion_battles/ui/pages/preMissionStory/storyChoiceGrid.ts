@@ -8,9 +8,15 @@ export const STORY_CHOICE_GRID_SLOT_COUNT = STORY_CHOICE_GRID_COLS * STORY_CHOIC
 /** Bottom-right cell index in row-major order (0-based). */
 export const STORY_CHOICE_GRID_BOTTOM_RIGHT_SLOT = STORY_CHOICE_GRID_SLOT_COUNT - 1;
 
-export const STORY_CHOICE_SKIP_OPTION_ID = 'skip';
-export const STORY_CHOICE_SKIP_LABEL = 'Leave nothing but footprints';
-export const STORY_CHOICE_SKIP_DESCRIPTION = 'Take no upgrade and move on.';
+import {
+    STORY_CHOICE_SKIP_DESCRIPTION,
+    STORY_CHOICE_SKIP_LABEL,
+    STORY_CHOICE_SKIP_OPTION_ID,
+    isStoryChoiceSkipOption,
+} from '../../../storylines/storyChoiceOptions';
+
+// Skip-row rules live in the storylines layer (shared with the admin Skip Chapter wizard).
+export { STORY_CHOICE_SKIP_DESCRIPTION, STORY_CHOICE_SKIP_LABEL, STORY_CHOICE_SKIP_OPTION_ID, isStoryChoiceSkipOption };
 
 /** @deprecated Use {@link STORY_CHOICE_SKIP_OPTION_ID}. */
 export const PRE_MISSION_SKIP_OPTION_ID = STORY_CHOICE_SKIP_OPTION_ID;
@@ -19,20 +25,7 @@ export const PRE_MISSION_SKIP_LABEL = STORY_CHOICE_SKIP_LABEL;
 /** @deprecated Use {@link STORY_CHOICE_SKIP_DESCRIPTION}. */
 export const PRE_MISSION_SKIP_DESCRIPTION = STORY_CHOICE_SKIP_DESCRIPTION;
 
-const SKIP_LABEL_PATTERNS = [
-    /^leave nothing but footprints$/i,
-    /^leave only footprints$/i,
-    /^do nothing$/i,
-    /^cancel$/i,
-];
-
 type ChoiceLike = Pick<StoryChoiceOptionRow, 'id' | 'label' | 'loreTitle'>;
-
-export function isStoryChoiceSkipOption(option: ChoiceLike): boolean {
-    if (option.id === STORY_CHOICE_SKIP_OPTION_ID) return true;
-    const heading = (option.loreTitle ?? option.label).trim();
-    return SKIP_LABEL_PATTERNS.some((pattern) => pattern.test(heading));
-}
 
 /**
  * Place options in a fixed 3×3 grid. Skip / cancel / do-nothing options always occupy the

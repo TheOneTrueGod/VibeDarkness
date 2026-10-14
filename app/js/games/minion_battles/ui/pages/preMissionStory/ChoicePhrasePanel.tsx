@@ -8,7 +8,7 @@ import StoryChoiceGrid, {
 } from '../../components/battleUiSlots/StoryChoiceGrid';
 import { isGrantResources } from './preMissionStoryTypeGuards';
 import { TestIds, storyChoiceTestId } from '../../../../../testing/testIds';
-import { isResearchNodeBlockedByOwnershipOrExclusivity } from '../../../../../researchTrees/evaluator';
+import { filterChoiceOptionsByResearch, needsPreMissionSkipOption } from '../../../storylines/storyChoiceOptions';
 import {
     STORY_CHOICE_SKIP_DESCRIPTION,
     STORY_CHOICE_SKIP_LABEL,
@@ -36,26 +36,7 @@ interface ChoicePhrasePanelProps {
     ) => void;
 }
 
-function isGrantResearchOption(opt: StoryChoiceOptionRow): boolean {
-    return opt.action?.type === 'grant_research_to_player';
-}
-
-/** Options still available given researched trees (drops owned / exclusive conflicts). */
-export function filterChoiceOptionsByResearch(
-    options: readonly StoryChoiceOptionRow[],
-    playerResearchTrees: Record<string, string[]> | undefined,
-): StoryChoiceOptionRow[] {
-    return options.filter((opt) => {
-        if (!isGrantResearchOption(opt)) return true;
-        const action = opt.action;
-        if (action.type !== 'grant_research_to_player') return true;
-        return !isResearchNodeBlockedByOwnershipOrExclusivity(
-            action.treeId,
-            action.nodeId,
-            playerResearchTrees,
-        );
-    });
-}
+export { filterChoiceOptionsByResearch } from '../../../storylines/storyChoiceOptions';
 
 function syntheticFootprintsSkipOption(): StoryChoiceOptionRow {
     return {
@@ -77,10 +58,7 @@ export default function ChoicePhrasePanel({
         () => filterChoiceOptionsByResearch(phrase.options, playerResearchTrees),
         [phrase.options, playerResearchTrees],
     );
-    const showFootprintsSkip =
-        visibleOptions.length === 0 &&
-        phrase.options.length > 0 &&
-        phrase.options.every(isGrantResearchOption);
+    const showFootprintsSkip = needsPreMissionSkipOption(phrase.options, visibleOptions);
 
     const gridSlots = useMemo(() => {
         const syntheticSkip = showFootprintsSkip ? syntheticFootprintsSkipOption() : null;

@@ -647,6 +647,11 @@ export interface CampaignChapterDef {
      * Omit on the first chapter (always unlocked).
      */
     unlockAfterMissionId?: string;
+    /**
+     * Admins may skip this chapter from the Mission Map: a wizard asks for each story choice,
+     * then records every mission as a victory (see `chapterSkip.ts`).
+     */
+    adminSkippable?: boolean;
 }
 
 /** Storyline definition for campaign UI and unlock logic. */

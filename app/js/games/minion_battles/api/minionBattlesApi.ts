@@ -117,6 +117,22 @@ export class MinionBattlesApi {
     }
 
     /**
+     * Add or replace one mission result on a campaign (unlocks its `itemIds`). Knowledge is not
+     * granted here: the campaign PATCH grants it to the caller, so pass it to `grantAccountKnowledge`.
+     */
+    async recordCampaignMissionResult(
+        campaignId: string,
+        result: Pick<MissionResult, 'missionId' | 'result' | 'resourceDelta' | 'itemIds' | 'researchRewards'>,
+    ): Promise<CampaignState> {
+        return this.lobbyClient.updateCampaign(campaignId, { addMissionResult: result });
+    }
+
+    /** Admin: grant an account knowledge key (e.g. 'Research') to any account. */
+    async grantAccountKnowledge(accountId: number | string, key: string): Promise<void> {
+        await this.lobbyClient.grantAccountKnowledge(accountId, key);
+    }
+
+    /**
      * Remove mission results for a single storyline from a campaign.
      * Other mission results are preserved.
      */
