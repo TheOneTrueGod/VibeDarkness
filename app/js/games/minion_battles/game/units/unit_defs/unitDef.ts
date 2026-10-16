@@ -171,6 +171,13 @@ export interface UnitDefEntry {
      */
     startingResources?: Partial<Record<'super', number>>;
     /**
+     * One-time damage a unit that cannot be pushed out of a wall (`UnitTag.Structure`) takes when
+     * rock rises on its tile. Instead of being slingshotted out (or bouncing for repeated wall
+     * damage), the structure shatters the rock (it becomes rubble) and takes this damage once.
+     * Defaults to `DEFAULT_STRUCTURE_TERRAIN_CRUSH_DAMAGE`. See `unitWallUnstick.ts`.
+     */
+    terrainCrushDamage?: number;
+    /**
      * Display-only wiggle radius (px). When set, the renderer eases the unit's sprite around a
      * random point within this radius. Purely local presentation: never touches engine state.
      */
@@ -372,7 +379,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     lanternite_nest: {
         bodyColor: 0x065f46,
         characterSpriteKey: 'lanternite_nest',
-        hp: 20,
+        hp: 16, // playtest: -20% (was 20)
         speed: 0,
         size: 'Extra Large',
         stamina: 1,
@@ -397,7 +404,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     thornling_nest: {
         bodyColor: 0x1e3d0f,
         characterSpriteKey: 'lanternite_nest',
-        hp: 80,
+        hp: 64, // playtest: -20% (was 80)
         speed: 0,
         size: 'Large',
         stamina: 1,
@@ -409,7 +416,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     swarm_nest: {
         bodyColor: 0x3d0000,
         characterSpriteKey: 'lanternite_nest',
-        hp: 100,
+        hp: 80, // playtest: -20% (was 100)
         speed: 0,
         size: 'Large',
         stamina: 1,
@@ -743,6 +750,14 @@ export function getUnitMaxPerTile(characterId: string): number | undefined {
 /** Whether this character type opts into `MapNetworkManager` node-membership tracking. Defaults to false. */
 export function getUnitParticipatesInMapNetwork(characterId: string): boolean {
     return UNIT_DEFS[characterId as UnitDefId]?.participatesInMapNetwork ?? false;
+}
+
+/** Default one-time damage a structure takes when it shatters rock raised on its tile. */
+export const DEFAULT_STRUCTURE_TERRAIN_CRUSH_DAMAGE = 10;
+
+/** Per-character `terrainCrushDamage`, falling back to `DEFAULT_STRUCTURE_TERRAIN_CRUSH_DAMAGE`. */
+export function getUnitTerrainCrushDamage(characterId: string): number {
+    return UNIT_DEFS[characterId as UnitDefId]?.terrainCrushDamage ?? DEFAULT_STRUCTURE_TERRAIN_CRUSH_DAMAGE;
 }
 
 /** Static per-characterId tags (e.g. `UnitTag.Structure`). Defaults to `[]`. */

@@ -5,7 +5,9 @@ import {
     addQuestPrepAbility,
     buildAccessibleAbilityIds,
     filterSelectableQuestPrepAbilityIds,
+    isMissionPrepReadOnly,
     isQuestPrepSlotsFull,
+    needsMissionAbilitySelection,
     removeQuestPrepAbility,
     resolveInitialMissionSelection,
     QUEST_PREP_ABILITY_SLOT_COUNT,
@@ -27,6 +29,8 @@ interface UseQuestPrepLoadoutParams {
 /**
  * Local + lobby sync for Quest Prep primary ability slots.
  * Empty lobby + no remembered picks → first {@link QUEST_PREP_ABILITY_SLOT_COUNT} selectable.
+ * Under/at the cap it is read-only (every ability brought), matching Prepare Carefully, since the
+ * shared deck selector shows "Not unlocked yet" there and could not re-add a removed ability.
  */
 export function useQuestPrepLoadout({
     api,
@@ -45,6 +49,9 @@ export function useQuestPrepLoadout({
         [accessibleIds],
     );
 
+    const readOnly = isMissionPrepReadOnly(selectableIds.length);
+    const selectionRequired = needsMissionAbilitySelection(selectableIds.length);
+
     const defaultSelection = useMemo(
         () => resolveInitialMissionSelection(selectableIds, rememberedAbilityIds),
         [selectableIds, rememberedAbilityIds],
@@ -61,7 +68,8 @@ export function useQuestPrepLoadout({
     const seededRef = useRef(false);
 
     const pushLoadout = useCallback(
-        async (next: string[]) => {
+        async (requested: string[]) => {
+            const next = readOnly ? [...selectableIds] : requested;
             const key = JSON.stringify(next);
             if (key === lastPushedRef.current && key === JSON.stringify(localPrimaries)) {
                 return;
@@ -82,7 +90,7 @@ export function useQuestPrepLoadout({
                 syncingRef.current = false;
             }
         },
-        [api, playerId, questPrepLoadoutsByPlayer, localPrimaries],
+        [api, playerId, questPrepLoadoutsByPlayer, localPrimaries, readOnly, selectableIds],
     );
 
     // Seed lobby once when empty (first 7 / remembered picks).
@@ -93,6 +101,13 @@ export function useQuestPrepLoadout({
         if (defaultSelection.length === 0) return;
         void pushLoadout(defaultSelection);
     }, [serverPrimaries, defaultSelection, pushLoadout]);
+
+    // When under/at cap, keep selection locked to the full selectable set.
+    useEffect(() => {
+        if (!readOnly) return;
+        if (JSON.stringify(localPrimaries) === JSON.stringify(selectableIds)) return;
+        void pushLoadout(selectableIds);
+    }, [readOnly, selectableIds, localPrimaries, pushLoadout]);
 
     // Pull remote updates when not mid-push.
     useEffect(() => {
@@ -111,20 +126,22 @@ export function useQuestPrepLoadout({
 
     const addAbility = useCallback(
         (abilityId: string) => {
+            if (readOnly) return;
             const next = addQuestPrepAbility(localPrimaries, abilityId);
             if (next.length === localPrimaries.length) return;
             void pushLoadout(next);
         },
-        [localPrimaries, pushLoadout],
+        [localPrimaries, pushLoadout, readOnly],
     );
 
     const removeAbility = useCallback(
         (abilityId: string) => {
+            if (readOnly) return;
             const next = removeQuestPrepAbility(localPrimaries, abilityId);
             if (next.length === localPrimaries.length) return;
             void pushLoadout(next);
         },
-        [localPrimaries, pushLoadout],
+        [localPrimaries, pushLoadout, readOnly],
     );
 
     return {
@@ -133,6 +150,8 @@ export function useQuestPrepLoadout({
         accessibleIds,
         slotsFull,
         slotCount: QUEST_PREP_ABILITY_SLOT_COUNT,
+        readOnly,
+        selectionRequired,
         addAbility,
         removeAbility,
     };

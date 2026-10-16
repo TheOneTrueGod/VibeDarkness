@@ -15,6 +15,7 @@ import { CircleHitbox } from '../hitboxes/CircleHitbox';
 import type { HitboxEngineContext } from '../hitboxes/Hitbox';
 import { rasterizeArea, type TerrainLayerManager, type TerrainLayerName } from '../game/TerrainLayerManager';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
+import { getUnitsInTiles, type TileCoord } from './tileAreaHelpers';
 
 export { pointInCone } from './coneGeometry';
 
@@ -77,6 +78,54 @@ function toHitboxEngine(eng: AoEEngine): HitboxEngineContext {
         gameTime: eng.gameTime,
         getUnit: (id) => eng.getUnit?.(id) ?? eng.units.find((u) => u.id === id),
     };
+}
+
+/**
+ * Tile-based twin of {@link damageEnemiesInCircle}: damages enemies standing on any of `tiles`
+ * (hostile to caster, alive, not spawning; combat iFrames filtered). Pair with `cellsAroundPoint` /
+ * `tileShapes` so the effect and its tile telegraph share one footprint. `onHit` replaces the
+ * standard `tryDamageOrBlock` call.
+ */
+export function damageEnemiesInTiles(options: {
+    engine: AoEEngine;
+    caster: Unit;
+    /** Cells of the AoE; a unit is hit when its centre is on one of them (same rule the preview shows). */
+    tiles: readonly TileCoord[];
+    /** Attack origin for blocking / knockback direction (usually the impact tile centre). */
+    origin: { x: number; y: number };
+    damage: number;
+    abilityId: string;
+    attackType?: string;
+    onHit?: (unit: Unit) => void;
+}): void {
+    const { engine: eng, caster, tiles, origin, damage, abilityId, attackType = 'melee', onHit } = options;
+    const candidates = filterCombatHitTargets(
+        getUnitsInTiles(eng.units, tiles, (unit) =>
+            unit.active
+            && unit.isAlive()
+            && !unit.isSpawning()
+            && unit.id !== caster.id
+            && areEnemies(caster.teamId, unit.teamId),
+        ),
+        eng.gameTime,
+    );
+    for (const unit of candidates) {
+        if (onHit) {
+            onHit(unit);
+            continue;
+        }
+        tryDamageOrBlock(unit, {
+            engine: eng,
+            gameTime: eng.gameTime,
+            eventBus: eng.eventBus,
+            attackerX: origin.x,
+            attackerY: origin.y,
+            attackerId: caster.id,
+            abilityId,
+            damage,
+            attackType: attackType as 'melee' | 'charging',
+        });
+    }
 }
 
 /**
@@ -292,6 +341,11 @@ export function placeJitteredGroundThorns(options: {
     params: Record<string, unknown>;
     /** Unique per placement (e.g. `bramble-${caster.id}-${gameTime}`); cell coords are appended. */
     idPrefix: string;
+    /**
+     * Explicit cells to cover (tile-based AoE). When omitted, the circle `center`/`radius` is
+     * rasterized. `center`/`radius` still drive the edge-first expiry jitter.
+     */
+    cells?: readonly TileCoord[];
 }): void {
     const {
         engine,
@@ -306,9 +360,11 @@ export function placeJitteredGroundThorns(options: {
         ownerAbilityId,
         params,
         idPrefix,
+        cells,
     } = options;
     const jitterHalf = durationJitterInSeconds / 2;
-    for (const { col, row } of rasterizeArea({ type: 'circle', x: center.x, y: center.y, radiusPx: radius })) {
+    const covered = cells ?? rasterizeArea({ type: 'circle', x: center.x, y: center.y, radiusPx: radius });
+    for (const { col, row } of covered) {
         const dx = (col * CELL_SIZE + CELL_SIZE / 2) - center.x;
         const dy = (row * CELL_SIZE + CELL_SIZE / 2) - center.y;
         const t = Math.min(1, Math.sqrt(dx * dx + dy * dy) / radius);

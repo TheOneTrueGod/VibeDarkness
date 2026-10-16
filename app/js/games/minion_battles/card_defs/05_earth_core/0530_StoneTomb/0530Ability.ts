@@ -4,21 +4,21 @@
  * four orthogonal neighbours (a plus sign) are telegraphed in red and rumble. Then the caster punches
  * once, for the centre hit.
  *
- * Stage 1 (the punch): enemies in the centre tile take 10 damage and all units there (allies
+ * Stage 1 (the punch): enemies in the centre tile take 15 damage and all units there (allies
  * undamaged) are knocked back away from the centre of that tile, then a rock is raised there.
- * Stage 2 (0.3s later, no punch): enemies in any tile of the plus take 6 damage, then the four
+ * Stage 2 (0.3s later, no punch): enemies in any tile of the plus take 9 damage, then the four
  * outer tiles become gravel (Rubble). Only the centre is rock.
  *
- * Costs 3 rock; 2 uses per round.
+ * Costs 2 rock; 2 uses per round. Centre may sit up to 6 tiles (Chebyshev) from the caster.
  *
  * Timeline (seconds):
- *   0.00-0.55   windup: caster shakes, rock chips hop on the caster's tile
- *   0.55-0.567  pick the tomb tile (gated one-tick select: ITS pauses here, as late as possible)
- *   0.567-0.70  punch 1 slide-in; the marked tiles rumble
- *   0.70        stage 1: damage, knockback and the centre rock; punch 1 slide-out to 0.85
- *   0.85-1.00   pause (the caster stays still)
- *   1.00        stage 2: damage and the outer gravel (no punch)
- *   1.15-1.70   cooldown
+ *   0.00-0.85   windup: caster shakes, rock chips hop on the caster's tile
+ *   0.85-0.867  pick the tomb tile (gated one-tick select: ITS pauses here, as late as possible)
+ *   0.867-1.00  punch 1 slide-in; the marked tiles rumble
+ *   1.00        stage 1: damage, knockback and the centre rock; punch 1 slide-out to 1.15
+ *   1.15-1.30   pause (the caster stays still)
+ *   1.30        stage 2: damage and the outer gravel (no punch)
+ *   1.45-2.00   cooldown
  */
 
 import type { AbilityStatic, IAbilityPreviewGraphics } from '../../../abilities/Ability';

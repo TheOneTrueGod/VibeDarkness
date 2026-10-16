@@ -106,6 +106,7 @@ import {
 } from '../characters/CharacterListPullout';
 import type { StartQuestOptions } from '../../../storylines/questLobby';
 import { abandonQuestRun } from '../../../storylines/questRun';
+import type { QuestResult } from '../../../storylines/questTypes';
 import { getQuestDef, isQuestDisabled } from '../../../storylines/index';
 
 function undoReplaceEquippedItemsForRemovedNodes(
@@ -884,6 +885,34 @@ export default function CharacterEditor({
         }
     }, [isAdmin, character, api, onSaved]);
 
+    /** Admin: record a quest victory in `bankId` with no rewards (mirrors Mark Victory on missions). */
+    const handleMarkQuestVictory = useCallback(async (questDefId: string, bankId: string) => {
+        if (!isAdmin) return;
+        const campaignId = character.campaignId;
+        const all = character.questResults ?? {};
+        const existingList = all[campaignId] ?? [];
+        if (existingList.some((r) => r.questDefId === questDefId && r.result === 'victory')) return;
+        const newEntry: QuestResult = {
+            questDefId,
+            result: 'victory',
+            timestamp: Date.now(),
+            placement: 'bank',
+            bankId,
+            adminGranted: true,
+            campaignRewardsApplied: true,
+        };
+        const clearRun = character.activeQuestRun?.questDefId === questDefId;
+        try {
+            await api.updateCharacter(character.id, {
+                questResults: { ...all, [campaignId]: [...existingList, newEntry] },
+                ...(clearRun ? { activeQuestRun: null } : {}),
+            });
+            onSaved?.({ equipment: character.equipment, name: character.name, portraitId: character.portraitId });
+        } catch (e) {
+            console.warn('Failed to mark quest victory:', e);
+        }
+    }, [isAdmin, character, api, onSaved]);
+
     const handleCampaignChange = useCallback(async (newCampaignId: string) => {
         if (!isAdmin || newCampaignId === character.campaignId) return;
         try {
@@ -1341,6 +1370,7 @@ export default function CharacterEditor({
         onAbandonQuest: onStartQuest ? handleAbandonQuest : undefined,
         onResetQuest: isAdmin ? handleResetQuest : undefined,
         onMarkVictory: isAdmin ? handleMarkVictory : undefined,
+        onMarkQuestVictory: isAdmin ? handleMarkQuestVictory : undefined,
         onCampaignChange: isAdmin ? handleCampaignChange : undefined,
         onSkipChapter: isAdmin ? setSkipChapter : undefined,
     };

@@ -278,7 +278,7 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
             type: 'dialogue',
             speakerId: '1',
             text: [
-							"The Swarmlings seem to spawn repeatedly from the north.", 
+							"The skittering swarm keeps pouring in from the north.", 
 							"Fight your way through to find out where they're coming from."
 						].join("\n"),
             portraitSide: 'left',

@@ -4,8 +4,6 @@ import { resetGameObjectIdCounter } from '../../../game/GameObject';
 import {
     OPENING_SWARMLING_COUNT,
     OPENING_WOLF_COUNT,
-    NEST_GUARD_SLIME_COUNT,
-    NEST_GUARD_WOLF_COUNT,
     SOUTH_GATE_SWARM,
     SWARM_NEST_SPAWN_COUNT,
     SWARM_NEST_SPAWN_INTERVAL_SEC,
@@ -71,7 +69,7 @@ describe('SouthGateSwarmMission', () => {
         engine.destroy();
     });
 
-    it('pre-spawns a swarm nest with half-round swarmling pacing and nest-side guards', () => {
+    it('pre-spawns a swarm nest with three-quarter-round swarmling pacing and no nest guards', () => {
         resetGameObjectIdCounter(1);
         const engine = new GameEngine();
         engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 7 });
@@ -92,15 +90,18 @@ describe('SouthGateSwarmMission', () => {
         expect(nest).toBeDefined();
         expect(nest!.swarmState.nestConfig?.spawnCount).toBe(SWARM_NEST_SPAWN_COUNT);
         expect(nest!.swarmState.nestConfig?.spawnIntervalSec).toBe(SWARM_NEST_SPAWN_INTERVAL_SEC);
-        expect(SWARM_NEST_SPAWN_INTERVAL_SEC).toBe(ROUND_DURATION / 2);
+        expect(SWARM_NEST_SPAWN_INTERVAL_SEC).toBe(ROUND_DURATION * 0.75);
 
-        // Opening box wolves + nest-guard wolves
+        // Only the opening box wolves — no nest-side guards.
         const wolves = engine.units.filter((u) => u.characterId === 'dark_wolf');
-        expect(wolves.length).toBe(OPENING_WOLF_COUNT + NEST_GUARD_WOLF_COUNT);
+        expect(wolves.length).toBe(OPENING_WOLF_COUNT);
 
+        // Only the one slime that replaced the opening Thornbinder.
         const slimes = engine.units.filter((u) => u.characterId === 'slime');
-        // Nest guards plus the one slime that replaced the opening Thornbinder.
-        expect(slimes).toHaveLength(NEST_GUARD_SLIME_COUNT + 1);
+        expect(slimes).toHaveLength(1);
+
+        // The nest is the only reinforcement source: no continuous wolf/slime spawns.
+        expect(SOUTH_GATE_SWARM.levelEvents.some((e) => e.type === 'continuousSpawn')).toBe(false);
 
         engine.destroy();
     });

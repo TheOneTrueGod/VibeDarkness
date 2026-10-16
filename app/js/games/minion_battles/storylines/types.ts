@@ -219,8 +219,11 @@ export interface ShowObjectiveMarker {
 }
 
 export const DEFAULT_OBJECTIVE_TILES_IMAGE = 'footprint' as const;
-/** Low, since large goal areas mark many tiles. */
-export const DEFAULT_OBJECTIVE_TILES_ALPHA = 0.25;
+/**
+ * Low, since large goal areas mark many tiles, and so the hint never reads as a unit token
+ * (the footprint has no background disc or border). Playtest: was 0.25.
+ */
+export const DEFAULT_OBJECTIVE_TILES_ALPHA = 0.18;
 
 /**
  * Faint icons drawn on the tiles an objective wants the player to occupy.

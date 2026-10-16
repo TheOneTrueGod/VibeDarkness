@@ -36,6 +36,12 @@ import {
 } from '../../../storylines/unlock';
 import type { QuestDef, QuestResult, QuestRunState, QuestSlotBank } from '../../../storylines/questTypes';
 import { getLocationCardDef } from '../../../storylines/locationCards';
+import {
+    isQuestBankFinished,
+    missionMapEdgeStroke,
+    MISSION_MAP_COMPLETED_EDGE_COLOR,
+    questBankMapNodeKey,
+} from './questBankUi';
 import { getQuestDef } from '../../../storylines/questRegistry';
 import { getResolvedMissionResearchRewards } from '../../../../../researchTrees/list';
 import ResearchRewardTinyChip from '../../../../../components/ResearchRewardTinyChip';
@@ -83,8 +89,8 @@ const MISSION_NODE_FILL = {
 /** Lighter red halo on battle nodes — same role as quest-bank violet-400 on violet-600. */
 const BATTLE_NODE_STROKE = '#fca5a5'; // red-300
 
-/** Checkmark and node border for completed missions / quest banks. */
-const COMPLETED_MISSION_ACCENT = '#22c55e'; // green-500
+/** Checkmark and node border for completed missions / quest banks (and lines between them). */
+const COMPLETED_MISSION_ACCENT = MISSION_MAP_COMPLETED_EDGE_COLOR;
 
 /** Gray fill for disabled map nodes of any type. */
 const DISABLED_NODE_FILL = MISSION_NODE_FILL.finished;
@@ -112,6 +118,8 @@ interface Props {
     /** Admin-only: clear a completed quest's victory so it can be run again. */
     onResetQuest?: (questDefId: string) => void | Promise<void>;
     onMarkVictory?: (missionId: string) => Promise<void>;
+    /** Admin: record a quest as won in a bank with no rewards. */
+    onMarkQuestVictory?: (questDefId: string, bankId: string) => Promise<void>;
     /** Admin-only: change the character's campaign from the map toolbar. */
     onCampaignChange?: (campaignId: string) => void | Promise<void>;
     /** Admin-only: open the Skip Chapter wizard for an `adminSkippable` chapter. */
@@ -334,6 +342,7 @@ function QuestBankTooltip({
     onStartQuest,
     onAbandonQuest,
     onResetQuest,
+    onMarkQuestVictory,
     onDismiss,
 }: {
     data: QuestBankTooltipData;
@@ -353,6 +362,7 @@ function QuestBankTooltip({
     onStartQuest?: (questDefId: string, options?: StartQuestOptions) => void;
     onAbandonQuest?: () => void | Promise<void>;
     onResetQuest?: (questDefId: string) => void | Promise<void>;
+    onMarkQuestVictory?: (questDefId: string, bankId: string) => Promise<void>;
     onDismiss: () => void;
 }) {
     const TOOLTIP_W = 300;
@@ -539,8 +549,21 @@ function QuestBankTooltip({
                                     );
                                 }
                                 return (
+                                    <div key={q.id} className="flex items-center justify-between gap-2">
+                                    {isAdmin && onMarkQuestVictory ? (
+                                        <button
+                                            type="button"
+                                            data-testid={TestIds.questMarkVictory}
+                                            onClick={() => {
+                                                void onMarkQuestVictory(q.id, bank.id);
+                                                onDismiss();
+                                            }}
+                                            className={`${QUEST_ACTION_BTN} shrink-0 border border-green-700/60 bg-green-950/50 text-green-400 hover:bg-green-900/50`}
+                                        >
+                                            Mark Victory
+                                        </button>
+                                    ) : <span />}
                                     <button
-                                        key={q.id}
                                         type="button"
                                         data-testid={`${TestIds.questStartPrefix}${q.id}`}
                                         onClick={() => {
@@ -560,10 +583,11 @@ function QuestBankTooltip({
                                             onDismiss();
                                         }}
                                         title={`Start “${q.title}”`}
-                                        className={`${QUEST_ACTION_BTN} self-start max-w-full truncate bg-primary text-secondary hover:opacity-90`}
+                                        className={`${QUEST_ACTION_BTN} min-w-0 truncate bg-primary text-secondary hover:opacity-90`}
                                     >
                                         Start “{q.title}”
                                     </button>
+                                    </div>
                                 );
                             })
                         )}
@@ -769,6 +793,7 @@ export default function MissionMapTab({
     onAbandonQuest,
     onResetQuest,
     onMarkVictory,
+    onMarkQuestVictory,
     onCampaignChange,
     onSkipChapter,
 }: Props) {
@@ -856,11 +881,24 @@ export default function MissionMapTab({
         );
     }, [storyline, missionResults, questResults]);
 
+    /** Map node keys (mission ids and `questBank:<id>`) that are complete; drives green outlines/lines. */
+    const completedNodeKeys = useMemo(() => {
+        const done = new Set<string>();
+        for (const { id } of missions) {
+            if (isMissionCompleted(id, missionResults)) done.add(id);
+        }
+        for (const bank of questBanksOnMap) {
+            if (isQuestBankFinished(bank, questResults)) done.add(questBankMapNodeKey(bank.id));
+        }
+        return done;
+    }, [missions, questBanksOnMap, missionResults, questResults]);
+    const edgeDone = (a: string, b: string): boolean => completedNodeKeys.has(a) && completedNodeKeys.has(b);
+
     const posMap = useMemo(() => {
         const m = new Map<string, { x: number; y: number }>();
         for (const { id, pos } of missions) m.set(id, pos);
         for (const bank of questBanksOnMap) {
-            if (bank.mapPosition) m.set(`questBank:${bank.id}`, bank.mapPosition);
+            if (bank.mapPosition) m.set(questBankMapNodeKey(bank.id), bank.mapPosition);
         }
         return m;
     }, [missions, questBanksOnMap]);
@@ -1075,6 +1113,11 @@ export default function MissionMapTab({
                     const from = posMap.get(edge.fromMissionId);
                     const to = posMap.get(edge.toMissionId);
                     if (!from || !to) return null;
+                    const style = missionMapEdgeStroke(edgeDone(edge.fromMissionId, edge.toMissionId), {
+                        stroke: edge.isSideMission ? '#4c1d95' : '#374151',
+                        strokeWidth: edge.isSideMission ? 2 : 3,
+                        strokeDasharray: edge.isSideMission ? '5 4' : undefined,
+                    });
                     return (
                         <line
                             key={`${edge.fromMissionId}-${edge.toMissionId}`}
@@ -1082,9 +1125,9 @@ export default function MissionMapTab({
                             y1={from.y}
                             x2={to.x}
                             y2={to.y}
-                            stroke={edge.isSideMission ? '#4c1d95' : '#374151'}
-                            strokeWidth={edge.isSideMission ? 2 : 3}
-                            strokeDasharray={edge.isSideMission ? '5 4' : undefined}
+                            stroke={style.stroke}
+                            strokeWidth={style.strokeWidth}
+                            strokeDasharray={style.strokeDasharray}
                             strokeLinecap="round"
                         />
                     );
@@ -1094,26 +1137,18 @@ export default function MissionMapTab({
                 {questBanksOnMap.map((bank) => {
                     if (!bank.mapPosition) return null;
                     const to = bank.mapPosition;
-                    if (bank.unlockAfterQuestBankId) {
-                        const from = posMap.get(`questBank:${bank.unlockAfterQuestBankId}`);
-                        if (!from) return null;
-                        return (
-                            <line
-                                key={`quest-bank-edge-${bank.id}`}
-                                x1={from.x}
-                                y1={from.y}
-                                x2={to.x}
-                                y2={to.y}
-                                stroke="#4c1d95"
-                                strokeWidth={2}
-                                strokeDasharray="5 4"
-                                strokeLinecap="round"
-                            />
-                        );
-                    }
-                    if (!bank.unlockAfterMissionId) return null;
-                    const from = posMap.get(bank.unlockAfterMissionId);
+                    const bankKey = questBankMapNodeKey(bank.id);
+                    const fromKey = bank.unlockAfterQuestBankId
+                        ? questBankMapNodeKey(bank.unlockAfterQuestBankId)
+                        : bank.unlockAfterMissionId;
+                    if (!fromKey) return null;
+                    const from = posMap.get(fromKey);
                     if (!from) return null;
+                    const style = missionMapEdgeStroke(edgeDone(fromKey, bankKey), {
+                        stroke: '#4c1d95',
+                        strokeWidth: 2,
+                        strokeDasharray: '5 4',
+                    });
                     return (
                         <line
                             key={`quest-bank-edge-${bank.id}`}
@@ -1121,9 +1156,9 @@ export default function MissionMapTab({
                             y1={from.y}
                             x2={to.x}
                             y2={to.y}
-                            stroke="#4c1d95"
-                            strokeWidth={2}
-                            strokeDasharray="5 4"
+                            stroke={style.stroke}
+                            strokeWidth={style.strokeWidth}
+                            strokeDasharray={style.strokeDasharray}
                             strokeLinecap="round"
                         />
                     );
@@ -1132,9 +1167,15 @@ export default function MissionMapTab({
                 {/* Quest-bank completion → gated mission (e.g. Surface Quests 2 → Thornbinder) */}
                 {(storyline.edges ?? []).map((edge) => {
                     if (!edge.requiresQuestBankId) return null;
-                    const from = posMap.get(`questBank:${edge.requiresQuestBankId}`);
+                    const fromKey = questBankMapNodeKey(edge.requiresQuestBankId);
+                    const from = posMap.get(fromKey);
                     const to = posMap.get(edge.toMissionId);
                     if (!from || !to) return null;
+                    const style = missionMapEdgeStroke(edgeDone(fromKey, edge.toMissionId), {
+                        stroke: '#4c1d95',
+                        strokeWidth: 2,
+                        strokeDasharray: '5 4',
+                    });
                     return (
                         <line
                             key={`quest-bank-gate-${edge.requiresQuestBankId}-${edge.toMissionId}`}
@@ -1142,9 +1183,9 @@ export default function MissionMapTab({
                             y1={from.y}
                             x2={to.x}
                             y2={to.y}
-                            stroke="#4c1d95"
-                            strokeWidth={2}
-                            strokeDasharray="5 4"
+                            stroke={style.stroke}
+                            strokeWidth={style.strokeWidth}
+                            strokeDasharray={style.strokeDasharray}
                             strokeLinecap="round"
                         />
                     );
@@ -1157,9 +1198,11 @@ export default function MissionMapTab({
                     const viewable = canPlayerViewMission({ isAdmin, isUnlocked });
                     const missionType = def?.missionType ?? DEFAULT_MISSION_TYPE;
                     const finished = isMissionCompleted(id, missionResults);
-                    const completedCombat = !isSide && finished && missionType === 'battle';
+                    // Every completed main-path node (battle, boss, story, campsite) gets the green outline.
+                    const completedNode = !isSide && finished;
+                    const completedCombat = completedNode && missionType === 'battle';
                     const color = getMissionNodeFill(id, missionType, missionResults, isDisabled);
-                    const glowColor = completedCombat
+                    const glowColor = completedNode
                         ? COMPLETED_MISSION_ACCENT
                         : getMissionGlowColor(id, missionType, missionResults, isDisabled);
                     const dimmed = !isSide && !isUnlocked && !isAdmin;
@@ -1251,13 +1294,13 @@ export default function MissionMapTab({
                                     stroke={isSide
                                         ? (finished ? COMPLETED_MISSION_ACCENT : '#7c3aed')
                                         : isDisabled
-                                            ? (finished || completedCombat ? COMPLETED_MISSION_ACCENT : DISABLED_ADMIN_RING_COLOR)
-                                            : (completedCombat
+                                            ? (finished ? COMPLETED_MISSION_ACCENT : DISABLED_ADMIN_RING_COLOR)
+                                            : (completedNode
                                                 ? COMPLETED_MISSION_ACCENT
                                                 : (showBattleHalo
                                                     ? BATTLE_NODE_STROKE
                                                     : ((isHovered || isPinned) ? 'white' : '#1f2937')))}
-                                    strokeWidth={isSide || completedCombat || showBattleHalo ? 2 : ((isHovered || isPinned) ? 2.5 : 2)}
+                                    strokeWidth={isSide || completedNode || showBattleHalo ? 2 : ((isHovered || isPinned) ? 2.5 : 2)}
                                     strokeOpacity={(isHovered || isPinned) && !showBattleHalo ? 0.7 : 1}
                                 />
                                 {/* Checkmark / star for side missions; checkmark for completed combat; type icon otherwise */}
@@ -1314,15 +1357,13 @@ export default function MissionMapTab({
                 {/* Quest slot bank nodes (side-quest style) */}
                 {questBanksOnMap.map((bank) => {
                     const pos = bank.mapPosition!;
-                    const nodeId = `questBank:${bank.id}`;
+                    const nodeId = questBankMapNodeKey(bank.id);
                     const clears = countQuestBankClears(bank, questResults);
                     const isHovered = hoveredId === nodeId;
                     const isPressed = pressedId === nodeId;
                     const r = CIRCLE_R;
                     const nodeScale = isPressed ? 0.92 : isHovered ? 1.1 : 1;
-                    const finished = isDedicatedQuestBank(bank) && bank.questDefId
-                        ? hasQuestVictoryResult(bank.questDefId, questResults)
-                        : clears >= bank.requiredClears;
+                    const finished = completedNodeKeys.has(nodeId);
                     const bankDisabled = isQuestBankDisabled(bank);
                     const label = bank.title ?? bank.id.replace(/_/g, ' ');
                     const fill = finished || bankDisabled ? DISABLED_NODE_FILL : '#7c3aed';
@@ -1506,6 +1547,7 @@ export default function MissionMapTab({
                         onStartQuest={onStartQuest}
                         onAbandonQuest={onAbandonQuest}
                         onResetQuest={onResetQuest}
+                        onMarkQuestVictory={onMarkQuestVictory}
                         onDismiss={dismissBankTooltip}
                     />
                 );

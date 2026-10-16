@@ -21,7 +21,10 @@ import {
     ROCK_SLIDE_CAST_TIME,
     ROCK_SLIDE_DAMAGE,
     ROCK_SLIDE_ROCK_RESOURCE_GAIN,
+    ROCK_SLIDE_TRAVEL_TILES,
+    ROCK_SLIDE_SLIDE_END_TIME,
 } from '../earthCoreConstants';
+import { getUnitEffectiveSpeed } from '../../../game/units/unitAbilityQueries';
 import { Rock } from '../../../resources/Rock';
 import {
     isSlideSpawnTile,
@@ -129,7 +132,7 @@ describe('Rock Slide (0537) timeline', () => {
         expect(rock.current).toBe(ROCK_SLIDE_ROCK_RESOURCE_GAIN);
     });
 
-    it('finishes after ~1.4s with the rock landed against the wall and the dummy hit once', () => {
+    it('finishes after ~1.7s with the rock landed against the wall and the dummy hit once', () => {
         const { engine, start } = setup();
         stepToElapsed(engine, start, ROCK_SLIDE_CAST_TIME + 0.2);
         const dummy = engine.getUnit('target_dummy')!;
@@ -423,5 +426,68 @@ describe('Rock Slide (0537) pick validation', () => {
         expect(tm.isIntactRockAt(-1, 3)).toBe(false);
         expect(isSlideSpawnTile(tm, { col: 4, row: 5 })).toBe(true);
         expect(isSlideSpawnTile(tm, { col: 3, row: 3 })).toBe(false);
+    });
+});
+
+describe('Rock Slide (0537) range, damage and recovery tuning', () => {
+    it('flies 5 tiles in the open, deals 12, and the cooldown ends shortly after it lands while the caster can move', () => {
+        expect(ROCK_SLIDE_TRAVEL_TILES).toBe(5);
+        expect(ROCK_SLIDE_DAMAGE).toBe(12);
+
+        const engine = buildTinyBattleEngine({ gridW: 24, gridH: 21, localPlayerId: TINY_BATTLE_PLAYER_ID, grass: true });
+        const casterTile = { col: 5, row: 10 };
+        const rock = { col: casterTile.col - 1, row: casterTile.row - 1 };
+        engine.terrainManager!.grid.set(rock.col, rock.row, TerrainType.Rock);
+        placePlayerAndDummy(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            playerWorld: tileCentre(casterTile),
+            dummyWorld: tileCentre({ col: casterTile.col + 3, row: casterTile.row }),
+            abilities: ['0537'],
+        });
+        const player = engine.getLocalPlayerUnit()!;
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: '0537',
+            targets: [pixelAt(rock.col, rock.row), pixelAt(casterTile.col + 1, casterTile.row)],
+            endTurn: true,
+        });
+        engine.stepSimulationFixedTicks(1);
+        const start = player.activeAbilities.find((a) => a.abilityId === '0537')!.startTime;
+
+        let landedAt: number | null = null;
+        let castEndedAt: number | null = null;
+        let sawFullSpeedInCooldown = false;
+        let guard = 0;
+        while (castEndedAt === null && guard++ < 600) {
+            tick(engine);
+            const elapsed = engine.gameTime - start;
+            const casting = player.activeAbilities.some((a) => a.abilityId === '0537');
+            if (landedAt === null && elapsed > ROCK_SLIDE_LAUNCH_TIME && liveProjectiles(engine).length === 0) {
+                landedAt = elapsed;
+            }
+            if (casting && elapsed > ROCK_SLIDE_SLIDE_END_TIME + 0.05) {
+                if (getUnitEffectiveSpeed(player, engine.gameTime) === player.speed) sawFullSpeedInCooldown = true;
+            }
+            if (!casting) castEndedAt = elapsed;
+        }
+
+        // Spawn tile is next to the caster; the rock settles 5 tiles further on.
+        const landing = { col: casterTile.col + 1 + ROCK_SLIDE_TRAVEL_TILES, row: casterTile.row };
+        expect(terrain(engine, landing.col, landing.row)).toBe(TerrainType.Rock);
+        expect(terrain(engine, landing.col + 1, landing.row)).not.toBe(TerrainType.Rock);
+
+        const dummy = engine.getUnit('target_dummy')!;
+        expect(dummy.maxHp - dummy.hp).toBe(12);
+
+        // Recovery ends slightly after the full-range flight, not before it.
+        expect(landedAt).not.toBeNull();
+        expect(castEndedAt).not.toBeNull();
+        expect(castEndedAt!).toBeGreaterThanOrEqual(landedAt!);
+        expect(castEndedAt! - landedAt!).toBeLessThan(0.3);
+        expect(castEndedAt!).toBeCloseTo(ROCK_SLIDE_CAST_TIME, 1);
+
+        // The caster is free to move during the cooldown.
+        expect(sawFullSpeedInCooldown).toBe(true);
+        engine.destroy();
     });
 });

@@ -28,9 +28,17 @@ export function getNearPositionAreaTiles(
         }
         return tiles;
     }
-    const d = cond.maxDistance ?? 1;
-    for (let r = -d; r <= d; r++) {
-        for (let c = -d; c <= d; c++) tiles.push({ col: cond.col + c, row: cond.row + r });
+    return getTilesAroundTile(cond.col, cond.row, cond.maxDistance ?? 1);
+}
+
+/**
+ * Every grid tile within `radius` (Chebyshev) of (col, row). Use for `ShowObjectiveTiles.tiles` on
+ * "go to this spot" objectives whose completion is not an `allUnitsNearPosition` condition.
+ */
+export function getTilesAroundTile(col: number, row: number, radius: number): { col: number; row: number }[] {
+    const tiles: { col: number; row: number }[] = [];
+    for (let r = -radius; r <= radius; r++) {
+        for (let c = -radius; c <= radius; c++) tiles.push({ col: col + c, row: row + r });
     }
     return tiles;
 }

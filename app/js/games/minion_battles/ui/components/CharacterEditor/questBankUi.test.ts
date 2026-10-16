@@ -37,6 +37,10 @@ import {
     questBankUnlockRequirementLabel,
     questCompletionResourceGains,
     questResultPlacementLabel,
+    isQuestBankFinished,
+    missionMapEdgeStroke,
+    MISSION_MAP_COMPLETED_EDGE_COLOR,
+    questBankMapNodeKey,
 } from './questBankUi';
 
 const BANKS = [WOD_SWARMLING_SOURCE_BANK, WOD_POST_CORE_QUEST_BANK];
@@ -146,5 +150,23 @@ describe('questCompletionResourceGains', () => {
             { resource: 'metal', count: SWARMLING_SOURCE_COMPLETION_METAL },
             { resource: 'crystals', count: SWARMLING_SOURCE_COMPLETION_CRYSTALS },
         ]);
+    });
+});
+
+describe('mission map completion styling', () => {
+    it('draws an edge green only when both ends are complete', () => {
+        const base = { stroke: '#374151', strokeWidth: 3 };
+        expect(missionMapEdgeStroke(false, base)).toEqual(base);
+        expect(missionMapEdgeStroke(true, base).stroke).toBe(MISSION_MAP_COMPLETED_EDGE_COLOR);
+        expect(missionMapEdgeStroke(true, { ...base, strokeDasharray: '5 4' }).strokeDasharray).toBeUndefined();
+    });
+
+    it('a quest bank with no clears is not finished', () => {
+        expect(isQuestBankFinished(WOD_POST_CORE_QUEST_BANK, [])).toBe(false);
+        expect(isQuestBankFinished(WOD_SWARMLING_SOURCE_BANK, [])).toBe(false);
+    });
+
+    it('quest bank map keys are namespaced', () => {
+        expect(questBankMapNodeKey('abc')).toBe('questBank:abc');
     });
 });

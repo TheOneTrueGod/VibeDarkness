@@ -14,7 +14,12 @@ const ICON_HALF_W = 6;  // approx half-width of "!" at 36px bold
 const ICON_HALF_H = 18; // approx half-height
 const FADE_START_PX = 200;
 const FADE_END_PX = 150;
-const EDGE_PADDING = 28;
+/** Leaves room between the clamped "!" and the screen edge for the direction arrow. */
+const EDGE_PADDING = 44;
+/** Distance from the "!" centre to the direction arrow's centre. */
+const ARROW_RADIUS = 26;
+const ARROW_SIZE = 12;
+const MARKER_COLOR = '#facc15';
 
 export default function ObjectiveMarkerOverlay({
     engine,
@@ -27,6 +32,7 @@ export default function ObjectiveMarkerOverlay({
     );
 
     const markerRefs = useRef<Map<string, HTMLDivElement | null>>(new Map());
+    const arrowRefs = useRef<Map<string, SVGSVGElement | null>>(new Map());
 
     useEffect(() => {
         if (markersWithConfig.length === 0) return;
@@ -44,6 +50,8 @@ export default function ObjectiveMarkerOverlay({
             for (const obj of markersWithConfig) {
                 const el = markerRefs.current.get(obj.id);
                 if (!el) continue;
+                const arrow = arrowRefs.current.get(obj.id);
+                if (arrow) arrow.style.display = 'none';
 
                 if (completedIds.has(obj.id)) {
                     el.style.display = 'none';
@@ -123,6 +131,19 @@ export default function ObjectiveMarkerOverlay({
                         finalX = cx + dx * scale - ICON_HALF_W;
                         finalY = cy + dy * scale - ICON_HALF_H;
                     }
+                    if (arrow) {
+                        // Point from the clamped icon centre towards the real target.
+                        const angle = Math.atan2(
+                            screen.y - (finalY + ICON_HALF_H),
+                            screen.x - (finalX + ICON_HALF_W),
+                        );
+                        const ax = ICON_HALF_W + Math.cos(angle) * ARROW_RADIUS - ARROW_SIZE / 2;
+                        const ay = ICON_HALF_H + Math.sin(angle) * ARROW_RADIUS - ARROW_SIZE / 2;
+                        arrow.style.display = '';
+                        arrow.style.left = `${ax}px`;
+                        arrow.style.top = `${ay}px`;
+                        arrow.style.transform = `rotate(${angle}rad)`;
+                    }
                 } else {
                     el.style.display = 'none';
                     continue;
@@ -153,7 +174,7 @@ export default function ObjectiveMarkerOverlay({
                     className="absolute animate-pulse select-none"
                     style={{
                         willChange: 'left, top, opacity',
-                        color: '#facc15',
+                        color: MARKER_COLOR,
                         fontSize: '36px',
                         fontWeight: 900,
                         lineHeight: 1,
@@ -162,6 +183,22 @@ export default function ObjectiveMarkerOverlay({
                     }}
                 >
                     !
+                    <svg
+                        ref={(svg) => {
+                            arrowRefs.current.set(obj.id, svg);
+                        }}
+                        width={ARROW_SIZE}
+                        height={ARROW_SIZE}
+                        viewBox="0 0 12 12"
+                        className="absolute"
+                        style={{
+                            display: 'none',
+                            filter: 'drop-shadow(0 0 4px rgba(250, 204, 21, 0.9))',
+                        }}
+                    >
+                        {/* Points right (+x); rotated towards the target. */}
+                        <polygon points="12,6 1,0.5 1,11.5" fill={MARKER_COLOR} />
+                    </svg>
                 </div>
             ))}
         </div>

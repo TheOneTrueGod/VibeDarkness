@@ -3,7 +3,8 @@
  *
  * Terrain: vertical stack of 50_50 (crystal cave) over 50_51 (south gate).
  * Opening pack in the outside-cave-mouth box; a swarm nest holds the south gate.
- * Continuous wolves/slimes reinforce from the nearest swarm-owned nest leaf.
+ * The nest is the only reinforcement source (no nest guards or extra continuous spawns —
+ * this is the first chapter-2 fight, tuned gentler after playtest).
  */
 
 import type { GameEngine } from '../../../game/GameEngine';
@@ -41,7 +42,6 @@ import {
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 import { SWARM_NEST_CHARACTER_ID } from '../../../game/lanternite/swarmNestTick';
 import { NINJUTSU_3_FLURRY_PER_ROUND } from '../../../game/ninjutsu/ninjutsuConfig';
-import { scatterPositionsInCircle } from '../../missionSpawnHelpers';
 
 // ---------------------------------------------------------------------------
 // Grid constants — vertical stack: 50_50 (north) over 50_51 (south)
@@ -77,10 +77,6 @@ function gridToWorld(col: number, row: number): { x: number; y: number } {
 // ---------------------------------------------------------------------------
 export const OPENING_WOLF_COUNT = 2;
 export const OPENING_SWARMLING_COUNT = 4;
-export const NEST_GUARD_WOLF_COUNT = 2;
-export const NEST_GUARD_SLIME_COUNT = 1;
-/** Scatter radius (tiles) for wolves/slime initialized around the south-gate nest. */
-export const NEST_GUARD_SCATTER_RADIUS = 2.5;
 
 const OUTSIDE_CAVE_MOUTH_ZONE_ID = 'outside of cave mouth';
 /** Mission-global coords for the 50_50 outside-cave-mouth box (fallback if registry zones are missing). */
@@ -101,8 +97,11 @@ const SLIME_LEFT_OF_BOX_ROW =
     Math.floor((OUTSIDE_CAVE_MOUTH_ZONE.topLeft.row + OUTSIDE_CAVE_MOUTH_ZONE.bottomRight.row) / 2);
 const SLIME_LEFT_OF_BOX_WORLD = gridToWorld(SLIME_LEFT_OF_BOX_COL, SLIME_LEFT_OF_BOX_ROW);
 
-/** Swarm nest: 2 swarmlings every half-round (ROUND_DURATION / 2 seconds). */
-export const SWARM_NEST_SPAWN_INTERVAL_SEC = ROUND_DURATION / 2;
+/**
+ * Swarm nest: 2 swarmlings every three-quarters of a round (playtest: was every half-round;
+ * slowed so players get a breather between waves on the first chapter-2 mission).
+ */
+export const SWARM_NEST_SPAWN_INTERVAL_SEC = ROUND_DURATION * 0.75;
 export const SWARM_NEST_SPAWN_COUNT = 2;
 export const SWARM_NEST_MAX_SWARMLINGS = 10;
 
@@ -133,29 +132,6 @@ function buildOpeningBoxEnemies(
         }
     }
     return out;
-}
-
-/** 2 wolves + 1 slime scattered around the south-gate nest. */
-function buildNestGuards(engine: GameEngine): EnemySpawnDef[] {
-    const target = {
-        x: NEST_50_51_WORLD.x,
-        y: NEST_50_51_WORLD.y,
-        radius: NEST_GUARD_SCATTER_RADIUS,
-    };
-    const wolfPositions = scatterPositionsInCircle(engine, target, NEST_GUARD_WOLF_COUNT);
-    const slimePositions = scatterPositionsInCircle(engine, target, NEST_GUARD_SLIME_COUNT);
-    return [
-        ...wolfPositions.map((position) => ({
-            ...ENEMY_DARK_WOLF,
-            position,
-            unitAITreeId: 'hunt' as const,
-        })),
-        ...slimePositions.map((position) => ({
-            ...SLIME,
-            position,
-            unitAITreeId: 'hunt' as const,
-        })),
-    ];
 }
 
 function buildSwarmNest(): EnemySpawnDef {
@@ -226,44 +202,6 @@ const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
 ];
 
 const LEVEL_EVENTS: LevelEvent[] = [
-    // 1 wolf every half-round from the nearest swarm-owned nest leaf, starting at round 0.25
-    {
-        type: 'continuousSpawn',
-        trigger: { intervalRounds: 0.5, startRound: 0.25 },
-        spawns: [
-            {
-                characterId: 'dark_wolf',
-                name: 'Wolf',
-                spawnBehaviour: 'network_nearest_owned_leaf',
-                networkNearestOwnedLeafConfig: {
-                    ownerCharacterIds: [SWARM_NEST_CHARACTER_ID, 'swarmling'],
-                    radius: 3,
-                    inDarkness: true,
-                },
-                spawnCount: 1,
-                unitAITreeId: 'hunt',
-            },
-        ],
-    },
-    // 1 slime every round from the nearest swarm-owned nest leaf
-    {
-        type: 'continuousSpawn',
-        trigger: { intervalRounds: 1, startRound: 1 },
-        spawns: [
-            {
-                characterId: 'slime',
-                name: 'Slime',
-                spawnBehaviour: 'network_nearest_owned_leaf',
-                networkNearestOwnedLeafConfig: {
-                    ownerCharacterIds: [SWARM_NEST_CHARACTER_ID, 'swarmling'],
-                    radius: 3,
-                    inDarkness: true,
-                },
-                spawnCount: 1,
-                unitAITreeId: 'hunt',
-            },
-        ],
-    },
     {
         type: 'victoryCheck',
         trigger: { afterRound: 0 },
@@ -299,7 +237,7 @@ export class SouthGateSwarmMission extends BaseMissionDef {
     mapPosition = { x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW1 };
     missionType = 'battle' as const;
     description =
-        'A swarm nest has taken root beyond the southern gate. Clear the opening pack and tear the nest down.';
+        'Something has nested beyond the southern gate. Clear the opening pack and tear the nest down.';
     name = SouthGateSwarmMission.nameStr;
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;
@@ -327,7 +265,6 @@ export class SouthGateSwarmMission extends BaseMissionDef {
             ...buildOpeningBoxEnemies(engine, params.terrainSegmentZones ?? []),
             buildSlimeLeftOfBox(),
             buildSwarmNest(),
-            ...buildNestGuards(engine),
         ];
         super.initializeGameState(engine, params);
     }

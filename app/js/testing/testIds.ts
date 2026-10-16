@@ -61,6 +61,7 @@ export const TestIds = {
     questContinue: 'quest-continue',
     questAbandon: 'quest-abandon',
     questReset: 'quest-reset',
+    questMarkVictory: 'quest-mark-victory',
     questAbandonConfirm: 'quest-abandon-confirm',
     questAbandonCancel: 'quest-abandon-cancel',
     questBankPrefix: 'quest-bank-',
@@ -77,6 +78,8 @@ export const TestIds = {
     questPrepSubtitle: 'quest-prep-subtitle',
     /** Character-select Quest Prep ability picker root. */
     questPrepAbilityPicker: 'quest-prep-ability-picker',
+    /** Shared deck selector (Quest Prep + Prepare Carefully) "Not unlocked yet" notice. */
+    prepDeckSelectorLocked: 'prep-deck-selector-locked',
     questPrepAbilitySlotBar: 'quest-prep-ability-slot-bar',
     missionMarkVictory: 'mission-mark-victory',
 

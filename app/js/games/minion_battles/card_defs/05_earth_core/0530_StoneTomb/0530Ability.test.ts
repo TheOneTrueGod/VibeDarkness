@@ -22,6 +22,7 @@ import {
     STONE_TOMB_PUNCH_LEAD,
     STONE_TOMB_STAGE_GAP,
     STONE_TOMB_ROCK_COST,
+    STONE_TOMB_MAX_TILE_OFFSET,
 } from '../earthCoreConstants';
 import type { Effect } from '../../../game/effects/Effect';
 import type { GameEngine } from '../../../game/GameEngine';
@@ -137,7 +138,7 @@ describe('Stone Tomb (0530)', () => {
 
     it('costs 3 rock and has 2 uses', () => {
         expect(StoneTomb.resourceCost).toEqual({ resourceId: 'rock', amount: STONE_TOMB_ROCK_COST });
-        expect(STONE_TOMB_ROCK_COST).toBe(3);
+        expect(STONE_TOMB_ROCK_COST).toBe(2);
         expect(StoneTomb.maxUses).toBe(2);
     });
 
@@ -295,10 +296,11 @@ describe('Stone Tomb (0530)', () => {
         });
     });
 
-    it('clamps an out-of-range pick to 4 tiles from the caster', () => {
-        const caster = makeUnit('c', 'player', 5, 9);
+    it('clamps an out-of-range pick to STONE_TOMB_MAX_TILE_OFFSET (6) tiles from the caster', () => {
+        expect(STONE_TOMB_MAX_TILE_OFFSET).toBe(6);
+        const caster = makeUnit('c', 'player', 5, 12);
         const { engine, createOrMarkRock } = setup([caster]);
         enterInterval('stage1', engine, caster, target(5, 0));
-        expect(createOrMarkRock).toHaveBeenCalledWith(5, 5);
+        expect(createOrMarkRock).toHaveBeenCalledWith(5, 12 - STONE_TOMB_MAX_TILE_OFFSET);
     });
 });

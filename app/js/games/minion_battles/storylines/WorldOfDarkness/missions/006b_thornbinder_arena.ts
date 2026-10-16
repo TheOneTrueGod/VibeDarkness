@@ -192,7 +192,7 @@ export class ThornbinderArenaMission extends BaseMissionDef {
     mapPosition = { x: WOD_CH3_MAP_X_COL0, y: WOD_CH3_MAP_Y_ROW0 };
     missionType = 'battle' as const;
     description =
-        'Thornbinders hold a dirt circle east of the cave. Dark crystals mark the ring — more will come.';
+        'Bramble-weaving creatures hold a dirt circle east of the cave. Dark crystals mark the ring — more will come.';
 
     mapLayout = THORNBINDER_ARENA_LAYOUT;
     spawnSegmentId = EAST_CAVE_SEGMENT_ID;

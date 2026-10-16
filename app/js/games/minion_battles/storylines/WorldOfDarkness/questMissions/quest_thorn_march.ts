@@ -11,7 +11,7 @@ export class QuestThornMarchMission extends ThornMarchMission {
     override missionId = QUEST_THORN_MARCH_MISSION_ID;
     override name = 'Quest: Thorn March';
     override description =
-        'Quest variant of the thornwood march — hold the lanternite nests as a step in a locked run.';
+        'Quest variant of the thornwood march — hold the glowing nests as a step in a locked run.';
     /** Not placed on the main Mission Map graph. */
     override mapPosition = undefined;
 }

@@ -2,6 +2,7 @@ import type { CampaignResourceKey } from '../../../../../types';
 import { campaignResourceGains } from '../../../../../components/ResourcePill';
 import { MISSION_MAP } from '../../../storylines/index';
 import type { QuestDef, QuestResult, QuestRunState, QuestSlotBank } from '../../../storylines/questTypes';
+import { countQuestBankClears, hasQuestVictoryResult, isDedicatedQuestBank } from '../../../storylines/unlock';
 
 export function bankDisplayLabel(bank: QuestSlotBank): string {
     return bank.title ?? bank.id.replace(/_/g, ' ');
@@ -88,3 +89,26 @@ export function confirmReplaceActiveQuest(
         + 'Starting this quest abandons the current run. Continue?',
     );
 }
+
+/** A quest bank node counts as complete: its pinned quest won (dedicated) or enough clears (picker). */
+export function isQuestBankFinished(bank: QuestSlotBank, questResults: QuestResult[]): boolean {
+    if (isDedicatedQuestBank(bank) && bank.questDefId) return hasQuestVictoryResult(bank.questDefId, questResults);
+    return countQuestBankClears(bank, questResults) >= bank.requiredClears;
+}
+
+/** Map key for a quest bank node in the mission map's position / completion maps. */
+export function questBankMapNodeKey(bankId: string): string {
+    return `questBank:${bankId}`;
+}
+
+/** Connection line drawn between two map nodes; green once both ends are complete. */
+export function missionMapEdgeStroke(
+    bothComplete: boolean,
+    base: { stroke: string; strokeWidth: number; strokeDasharray?: string },
+): { stroke: string; strokeWidth: number; strokeDasharray?: string } {
+    if (!bothComplete) return base;
+    return { stroke: MISSION_MAP_COMPLETED_EDGE_COLOR, strokeWidth: 3, strokeDasharray: undefined };
+}
+
+/** Green used for completed map nodes (outline / checkmark) and the lines between them. */
+export const MISSION_MAP_COMPLETED_EDGE_COLOR = '#22c55e'; // green-500

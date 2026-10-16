@@ -148,7 +148,7 @@ export class MonsterMission extends BaseMissionDef {
     missionId = 'monster';
     mapPosition = { x: WOD_CH1_MAP_X_COL1, y: WOD_CH1_MAP_Y_ROW1 };
     missionType = 'boss' as const;
-    description = 'The Alpha Wolf hunts these tunnels. Confront the beast directly — or be hunted forever.';
+    description = 'The pack leader hunts these tunnels. Confront the beast directly — or be hunted forever.';
     campaignId = 'world_of_darkness';
     name = 'Monster';
     completionRewards = {

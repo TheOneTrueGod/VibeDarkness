@@ -23,6 +23,10 @@ Mark **every major section** in lore and style docs with one suffix on the headi
 
 Promotion is intentional: **Open → Draft** when you need to build on it; **Draft → Canon** when shipped or explicitly locked. Demoting **Canon** is rare and only with explicit user approval.
 
+## Non-negotiable: no enemy names in story text [Canon]
+
+Narrative (story phrases, dialogue, mission/quest descriptions, flavor text) uses generic descriptors such as "glowing insects" or "the nest", never enemy unit names like Lanternite or Swarmling. Enemy names are fine in UI labels (card titles, objectives panel, nameplates, bestiary). Details and examples: `writing-style-enemies/STYLE.md`.
+
 ## Where to read next
 
 Use the **Read** tool on these paths from the repo root (not optional for the task at hand):

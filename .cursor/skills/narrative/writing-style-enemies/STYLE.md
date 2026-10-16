@@ -7,6 +7,15 @@ Append **`[Canon]`**, **`[Draft]`**, or **`[Open]`** to each **section heading**
 - **Pattern:** (e.g. concrete vs abstract, threat level in the name or not, faction prefixes.)
 - **Avoid:** (e.g. joke names in horror zones—tune to your game.)
 
+## No enemy names in narrative text [Canon]
+
+Story text never names enemy unit types. The characters do not know what the game calls these creatures, so narrative describes what they see.
+
+- **Applies to:** pre/post-mission story phrases, dialogue, mission `description`s, quest descriptions, location-card and random-story text, research `flavorText`, and any other in-world prose.
+- **Use generic descriptors instead:** "glowing insects" / "the little lights" (not Lanternites), "the nest" (not Swarm Nest / Lanternite Nest), "skittering things" / "the swarm" (not Swarmlings), "bramble-weaving creatures" (not Thornbinders), "thorny creatures" (not Thornlings), "the pack leader" (not Alpha Wolf). Plain animal words that are also unit names ("wolves", "a boar") are fine.
+- **Allowed:** UI labels that exist to identify a unit or system — card and ability titles, unit nameplates, objective labels in the objectives panel, mission and quest titles, `uiDescription`, world-modifier/tooltips text, and the bestiary.
+- **When in doubt:** if a line is spoken, narrated, or read as story, use a descriptor.
+
 ## Short descriptions (UI / codex) [Draft]
 
 - **Length:** target word count or line budget.

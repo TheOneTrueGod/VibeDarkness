@@ -8,6 +8,7 @@ import { charactersTab } from './CampaignHomeCharactersTab';
 import { abilityTestTab } from './CampaignHomeAbilityTestTab';
 import { terrainEditorTab } from './CampaignHomeTerrainEditorTab';
 import { lobbyArchiveTab } from './CampaignHomeLobbyArchiveTab';
+import { ideasTab } from './CampaignHomeIdeasTab';
 import { bestiaryTab } from './CampaignHomeBestiaryTab';
 
 const TAB_DEFS: Record<TabId, CampaignHomeTabDef> = {
@@ -19,6 +20,7 @@ const TAB_DEFS: Record<TabId, CampaignHomeTabDef> = {
     ability_test: abilityTestTab,
     terrain_editor: terrainEditorTab,
     lobby_archive: lobbyArchiveTab,
+    ideas: ideasTab,
     bestiary: bestiaryTab,
 };
 

@@ -6,8 +6,8 @@ import type { AssetRegistry } from '../AssetRegistry';
 /** Above the darkness overlay (5) so hints stay readable, below special tiles (6) and units. */
 const Z_OBJECTIVE_TILES = 5.5;
 
-/** Footprint fills this fraction of the tile. */
-const ICON_SCALE = 0.8;
+/** Footprint fills this fraction of the tile (smaller than a unit token; playtest: was 0.8). */
+const ICON_SCALE = 0.65;
 
 /** Footprints tilt at most this far (either direction) from the icon's default orientation. */
 export const OBJECTIVE_TILE_MAX_TILT_RAD = (15 * Math.PI) / 180;

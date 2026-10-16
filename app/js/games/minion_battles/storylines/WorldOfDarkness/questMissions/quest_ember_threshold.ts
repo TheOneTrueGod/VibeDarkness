@@ -11,7 +11,7 @@ export class QuestEmberThresholdMission extends EmberThresholdMission {
     override missionId = QUEST_EMBER_THRESHOLD_MISSION_ID;
     override name = 'Quest: Ember at the Threshold';
     override description =
-        'Quest variant of the lanternite threshold — follow the scouts while the run is locked.';
+        'Quest variant of the threshold — follow the glowing scouts while the run is locked.';
     /** Not placed on the main Mission Map graph. */
     override mapPosition = undefined;
 }

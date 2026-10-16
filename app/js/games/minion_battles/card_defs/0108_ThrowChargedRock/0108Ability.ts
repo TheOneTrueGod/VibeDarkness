@@ -26,6 +26,7 @@ import {
     ONE_PIXEL_TARGET,
     THROW_PROJECTILE_SPEED,
     THROW_RANGE,
+    ROCK_THROW_PROFILE,
     throwMovementPenaltyStates,
     throwMovementPenaltyStatesForActive,
     TWO_PIXEL_TARGETS,
@@ -139,6 +140,7 @@ function buildChargedRockTimings(research: Set<string>, comboCancelPhase?: Abili
         });
     }
     return buildThrowBaseTimings({
+        profile: ROCK_THROW_PROFILE,
         launchBehaviour: chargedRockLaunchBehaviour(),
         entombed: ENTOMBED_OPTS,
         ...selectOpts,
@@ -158,7 +160,7 @@ export const ThrowChargedRock: AbilityStatic = {
     rechargeTurns: 1,
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
-    prefireTime: 0.3,
+    prefireTime: ROCK_THROW_PROFILE.prefireTime,
     abilityTimings: THROW_CHARGED_ROCK_BASE_TIMINGS,
     getAbilityTimings(caster, gameState) {
         const research = getCrystalRocksResearch(gameState as AbilityEngineContext | undefined, caster);
@@ -233,7 +235,7 @@ export const ThrowChargedRock: AbilityStatic = {
 
     beginActiveCast(engine, caster, _targets, active) {
         const research = getCrystalRocksResearch(engine as AbilityEngineContext, caster);
-        active.castPayload = beginThrowCastPayload(hasMoreRockResearch(research));
+        active.castPayload = beginThrowCastPayload(hasMoreRockResearch(research), ROCK_THROW_PROFILE);
     },
 
     getAbilityStatesForActive(currentTime, active) {
@@ -241,7 +243,7 @@ export const ThrowChargedRock: AbilityStatic = {
     },
 
     getAbilityStates(currentTime) {
-        return throwMovementPenaltyStates(currentTime);
+        return throwMovementPenaltyStates(currentTime, ROCK_THROW_PROFILE);
     },
 
     onAttackBlocked(_engine, _defender, attackInfo: AttackBlockedInfo): void {

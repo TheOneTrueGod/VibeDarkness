@@ -32,10 +32,13 @@ import {
 const CARD_ID = `${formatGroupId(AbilityGroupId.Earth)}34` as '0534';
 const MAX_USES = 2;
 /**
- * No stamina (or other) recovery: uses come back only through research `roundRecoveryFlat`
- * (Earth Attuned). Must stay an explicit empty array; an omitted `recoveries` defaults to stamina.
+ * Restores 2 uses at round start (no stamina recovery). Earth Attuned's research `roundRecoveryFlat`
+ * adds to this per rank.
  */
-const RECOVERIES: AbilityRecoveryRule[] = [];
+const ROUND_USES_RECOVERED = 2;
+const RECOVERIES: AbilityRecoveryRule[] = [
+	{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: ROUND_USES_RECOVERED },
+];
 /** The dash movement. The cast ends one tick after it (see the `dashEnd` interval); no cooldown. */
 const DASH_DURATION = 0.4;
 const MAX_DISTANCE = 160;

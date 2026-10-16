@@ -81,7 +81,7 @@ export class ThornlingRiseMission extends BaseMissionDef {
     disabled = MISSION_MAP_DISABLED;
     mapPosition = { x: WOD_CH3_MAP_X_COL2, y: WOD_CH3_MAP_Y_ROW1 };
     missionType = 'battle' as const;
-    description = 'A thornling nest surges with new growth. Destroy it before the swarm overwhelms the region.';
+    description = 'A nest of thorny creatures surges with new growth. Destroy it before the swarm overwhelms the region.';
     name = ThornlingRiseMission.nameStr;
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;

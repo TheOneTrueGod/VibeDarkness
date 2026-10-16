@@ -199,7 +199,7 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: "The trail ends at a dirt circle. Swarmlings boil out of a nest at the centre.",
+            text: "The trail ends at a dirt circle. Skittering things boil out of a nest at the centre.",
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },

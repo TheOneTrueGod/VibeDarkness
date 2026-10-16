@@ -1,8 +1,7 @@
 import React from 'react';
 import type { CampaignCharacter } from '../../../../character_defs/CampaignCharacter';
 import { CharacterSelectCornerPortrait } from '../CharacterSelectCornerPortrait';
-import { CharacterSelectLoadoutSelector } from '../CharacterSelectLoadoutSelector';
-import { QuestPrepAbilityPicker } from '../questPrep/QuestPrepAbilityPicker';
+import { PrepDeckSelector } from '../PrepDeckSelector';
 
 interface MissionPrepOverviewProps {
     character: CampaignCharacter;
@@ -19,7 +18,8 @@ interface MissionPrepOverviewProps {
 
 /**
  * Center segment for regular-mission Prepare Carefully.
- * Under ability cap: campfire empty state. Over cap: ability picker (same as Quest Prep).
+ * Uses the shared `PrepDeckSelector` (same component and show/hide rule as Quest Prep):
+ * under the ability cap it shows "Not unlocked yet"; over it, the ability picker.
  */
 export function MissionPrepOverview({
     character,
@@ -32,33 +32,27 @@ export function MissionPrepOverview({
     slotsFull,
     onAdd,
 }: MissionPrepOverviewProps) {
-    const center = selectionRequired ? (
-        <QuestPrepAbilityPicker
+    const deckSelector = (open: boolean) => (
+        <PrepDeckSelector
             character={character}
             selectableIds={selectableIds}
             selectedPrimaryIds={selectedPrimaryIds}
             slotsFull={slotsFull}
             onAdd={onAdd}
+            open={open}
         />
-    ) : (
-        <CharacterSelectLoadoutSelector selectionRequired={false} />
     );
+    const center = deckSelector(true);
 
     if (useLayoutSlots) {
-        // Only needed when there are more abilities than slots, and only once opened.
-        if (!selectionRequired || !pickerOpen) {
+        // Unlocked: the picker only appears once "Edit Abilities" opens it. Locked: the notice shows.
+        if (selectionRequired && !pickerOpen) {
             return null;
         }
         return (
             <div className="flex min-h-0 flex-1 flex-col justify-center px-5 py-4">
                 <div className="flex min-h-0 max-h-full flex-col rounded-xl bg-black/50 p-3 backdrop-blur-sm">
-                    <QuestPrepAbilityPicker
-                        character={character}
-                        selectableIds={selectableIds}
-                        selectedPrimaryIds={selectedPrimaryIds}
-                        slotsFull={slotsFull}
-                        onAdd={onAdd}
-                    />
+                    {deckSelector(pickerOpen)}
                 </div>
             </div>
         );

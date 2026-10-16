@@ -1,6 +1,11 @@
-﻿/**
- * Thornbinder â€” AoE bramble slam: damage + a slowing patch that persists on the terrain
+/**
+ * Thornbinder - AoE bramble slam: damage + a slowing patch that persists on the terrain
  * layer (owned by the terrain system, not this unit) until it naturally expires.
+ *
+ * Tile-based: the impact snaps to the tile the projectile lands on, and the footprint is a fixed
+ * tile disc around it (`THORNBINDER_IMPACT_SHAPE`). Damage, thorns and both previews (windup and
+ * in-flight) all read `resolveThornbinderImpactCells`, so the telegraph shows exactly the tiles that
+ * get thorns. Light Hate weakens damage and slow, not the footprint, so the preview stays exact.
  */
 
 import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../abilities/Ability';
@@ -14,7 +19,12 @@ import { HitboxSpec } from '../../hitboxes';
 import type { HitboxEngineContext, HitboxPreviewCaster } from '../../hitboxes';
 import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { getPixelTargetPosition, damageEnemiesInCircle, placeJitteredGroundThorns } from '../../abilities/targetHelpers';
+import { getPixelTargetPosition, damageEnemiesInTiles, placeJitteredGroundThorns } from '../../abilities/targetHelpers';
+import { cellsAroundPoint, tileShapes } from '../../hitboxes/TileAreaHitboxSpec';
+import { tileCentre, worldToTile, type TileCoord } from '../../abilities/tileAreaHelpers';
+import { clampToMaxRange, drawTileAreaTelegraph } from '../../abilities/previewHelpers';
+import { TELEGRAPH_STYLES } from '../../abilities/telegraphStyles';
+import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { knockbackCtxFromEngine, tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
 import type { KnockbackSource } from '../../game/units/unitTypes';
@@ -46,10 +56,22 @@ export const THORNBINDER_FLIGHT_DURATION =
 const STRIKE_TIME = LOCK_TIME + THORNBINDER_FLIGHT_DURATION;
 // A tiny amount over half a round, so back-to-back banked uses land just past the round midpoint.
 const COOLDOWN_END = ROUND_DURATION / 2 + 0.1;
-/** Impact AoE radius (normal light); used by expiration + projectile preview. */
+/** Impact AoE radius in px (VFX size + the tile disc radius below). */
 export const THORNBINDER_BASE_RADIUS = 95;
 const BASE_RADIUS = THORNBINDER_BASE_RADIUS;
-const WEAKENED_RADIUS = 72;
+/**
+ * Tile footprint of the impact: every tile whose centre is within BASE_RADIUS of the landing tile's
+ * centre (95px / 40px = 2.375 tiles -> 5x5 minus the corners, 21 tiles). Same cells the old circle
+ * covered when it landed on a tile centre.
+ */
+export const THORNBINDER_IMPACT_SHAPE = tileShapes.disc(BASE_RADIUS / CELL_SIZE);
+
+/** The tiles a bramble landing at `landing` covers (damage, thorns and previews share this). */
+export function resolveThornbinderImpactCells(landing: { x: number; y: number }): TileCoord[] {
+    return cellsAroundPoint(landing, THORNBINDER_IMPACT_SHAPE);
+}
+
+const THORN_TELEGRAPH = TELEGRAPH_STYLES.danger;
 const BASE_DAMAGE = 3;
 const WEAKENED_DAMAGE = 2;
 const SLOW_MULT_NORMAL = 0.52;
@@ -71,7 +93,7 @@ class ThornbinderHitboxSpec extends HitboxSpec {
         return [];
     }
     resolveTargets(_caster: Unit, _aimPoint: { x: number; y: number }, _units: Unit[]): Unit[] { return []; }
-    // Targeting range only — impact combat hits use damageEnemiesInCircle → CircleHitbox.
+    // Targeting range only - impact hits use the tile footprint (damageEnemiesInTiles).
     resolveHits(_engine: HitboxEngineContext, _caster: Unit, _aimX: number, _aimY: number): Unit[] { return []; }
 }
 const THORNBINDER_HITBOX = new ThornbinderHitboxSpec();
@@ -142,21 +164,23 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
 
     onProjectileExpired(engine: unknown, caster: Unit, projectile: Projectile): void {
         const eng = engine as EngineLike;
-        const pos = { x: projectile.x, y: projectile.y };
+        // Snap the impact to the landing tile: everything below is tile-based.
+        const pos = tileCentre(worldToTile(projectile.x, projectile.y));
+        const cells = resolveThornbinderImpactCells(pos);
 
         const weakened = isLightHateWeakened(caster, eng);
-        const radius = weakened ? WEAKENED_RADIUS : BASE_RADIUS;
+        const radius = BASE_RADIUS;
         const damage = weakened ? WEAKENED_DAMAGE : BASE_DAMAGE;
         const slowMult = weakened ? SLOW_MULT_WEAKENED : SLOW_MULT_NORMAL;
 
         const knockbackCtx = knockbackCtxFromEngine(eng);
         const knockbackSource: KnockbackSource = { unitId: caster.id, abilityId: THORNBINDER_ABILITY_ID };
-        // Impact discovery via CircleHitbox (damageEnemiesInCircle); env thorns below ignore iframes.
-        damageEnemiesInCircle({
+        // Impact discovery by tile (damageEnemiesInTiles); env thorns below ignore iframes.
+        damageEnemiesInTiles({
             engine: eng,
             caster,
-            center: pos,
-            radius,
+            tiles: cells,
+            origin: pos,
             damage,
             abilityId: THORNBINDER_ABILITY_ID,
             attackType: 'melee',
@@ -192,6 +216,7 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
             ownerAbilityId: THORNBINDER_ABILITY_ID,
             params: { slowMult },
             idPrefix: `bramble-${caster.id}-${eng.gameTime}`,
+            cells,
         });
 
         eng.addEffect(new Effect({
@@ -216,8 +241,11 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
         const elapsed = gameTime - activeAbility.startTime;
         if (elapsed >= LOCK_TIME) return;
 
-        const target = getPixelTargetPosition(activeAbility.targets, 0);
-        if (!target) return;
+        const aim = getPixelTargetPosition(activeAbility.targets, 0);
+        if (!aim) return;
+        // The projectile is capped at TARGETING_RANGE, so the landing is the clamped aim.
+        const clamped = clampToMaxRange(caster, aim, TARGETING_RANGE);
+        const target = { x: clamped.endX, y: clamped.endY };
 
         const lineFadeT = elapsed / LOCK_TIME;
         const dx = target.x - caster.x;
@@ -237,13 +265,16 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
         }
         gr.stroke({ color: 0xef4444, width: 2, alpha: 0.25 + 0.45 * lineFadeT });
 
-        // Impact-radius ring at the landing spot, fading in over the windup — mirrors the
-        // projectile-driven ring below so the danger zone is visible before launch too.
-        gr.circle(target.x, target.y, BASE_RADIUS);
-        gr.stroke({ color: 0xef4444, width: 2, alpha: 0.25 + 0.55 * lineFadeT });
+        // Exact impact tiles at the landing spot, fading in over the windup - mirrors the
+        // projectile-driven telegraph below so the danger zone is visible before launch too.
+        drawTileAreaTelegraph(gr, resolveThornbinderImpactCells(target), {
+            ...THORN_TELEGRAPH,
+            strokeAlpha: 0.25 + 0.55 * lineFadeT,
+            fillAlpha: THORN_TELEGRAPH.fillAlpha * lineFadeT,
+        });
     },
 
-    // Post-launch: the impact-radius ring, driven by the projectile itself so it keeps
+    // Post-launch: the exact impact tiles, driven by the projectile itself so it keeps
     // rendering (and lands in sync with the real impact) even if the caster is interrupted or
     // killed while the projectile is still in flight.
     projectileRendersActivePreview: true,
@@ -260,17 +291,12 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
         const targetY = proj.y + (proj.velocityY / speed) * remaining;
         const progress = Math.min(1, proj.distanceTraveled / proj.maxDistance);
 
-        // Outer boundary circle: shows full impact radius, brightens as impact nears
-        const borderAlpha = 0.25 + 0.55 * progress;
-        gr.circle(targetX, targetY, BASE_RADIUS);
-        gr.stroke({ color: 0xef4444, width: 2, alpha: borderAlpha });
-
-        // Expanding inner ring: grows from 0 to BASE_RADIUS as the projectile closes in
-        const ringRadius = progress * BASE_RADIUS;
-        if (ringRadius > 2) {
-            gr.circle(targetX, targetY, ringRadius);
-            gr.stroke({ color: 0xfca5a5, width: 3, alpha: 0.45 + 0.45 * progress });
-        }
+        // Exact tiles that will get thorns; brightens and fills in as impact nears.
+        drawTileAreaTelegraph(gr, resolveThornbinderImpactCells({ x: targetX, y: targetY }), {
+            ...THORN_TELEGRAPH,
+            strokeAlpha: 0.25 + 0.65 * progress,
+            fillAlpha: 0.08 + 0.22 * progress,
+        });
     },
 };
 

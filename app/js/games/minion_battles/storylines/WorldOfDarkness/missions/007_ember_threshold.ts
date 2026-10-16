@@ -38,6 +38,7 @@ import { MAP_SEGMENT_49_50_PATH_TO_CAVE } from '../MapSegments/49_50_path_to_cav
 import { MAP_SEGMENT_49_51_WEST_GLADE } from '../MapSegments/49_51_west_glade';
 import { MAP_SEGMENT_50_51_SOUTH_GATE } from '../MapSegments/50_51_south_gate';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
+import { getTilesAroundTile } from '../../nearPositionArea';
 import { NINJUTSU_3_FLURRY_PER_ROUND } from '../../../game/ninjutsu/ninjutsuConfig';
 
 const COLS = 44;
@@ -181,7 +182,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
 		{
 			type: 'dialogue',
 			speakerId: '1',
-			text: 'The lanternites have made their home. Two nests now glow in the dark—small fires of life holding back the shadow.',
+			text: 'The glowing insects have made their home. Two nests now glow in the dark—small fires of life holding back the shadow.',
 			portraitSide: 'left',
 			backgroundImage: STORY_BACKGROUNDS.campfire,
 		},
@@ -206,6 +207,8 @@ export class EmberThresholdMission extends BaseMissionDef {
 				target: { type: 'position', x: NEST_50_51_WORLD.x, y: NEST_50_51_WORLD.y },
 				showOffscreen: true,
 			},
+			// Movement target: where the scouts will build (completion is the nest, not position).
+			showObjectiveTiles: { tiles: getTilesAroundTile(NEST_50_51_COL, NEST_50_51_ROW, 1) },
 		},
 		{
 			id: 'find_second_nest',
@@ -218,6 +221,7 @@ export class EmberThresholdMission extends BaseMissionDef {
 				target: { type: 'position', x: NEST_49_51_WORLD.x, y: NEST_49_51_WORLD.y },
 				showOffscreen: true,
 			},
+			showObjectiveTiles: { tiles: getTilesAroundTile(NEST_49_51_COL, NEST_49_51_ROW, 1) },
 		},
 		{
 			id: 'survive_1_round',

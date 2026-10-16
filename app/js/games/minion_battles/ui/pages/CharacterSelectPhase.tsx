@@ -132,11 +132,16 @@ function QuestPrepCenter({
 
 function QuestPrepBottomRow() {
     const loadout = useQuestPrepLoadoutContext();
+    const slotCount = loadout.readOnly
+        ? Math.max(loadout.selectableIds.length, loadout.selectedPrimaryIds.length)
+        : loadout.slotCount;
     return (
         <QuestPrepAbilitySlotBar
             character={loadout.character}
             selectedPrimaryIds={loadout.selectedPrimaryIds}
+            slotCount={slotCount > 0 ? slotCount : loadout.slotCount}
             onRemove={loadout.removeAbility}
+            readOnly={loadout.readOnly}
         />
     );
 }

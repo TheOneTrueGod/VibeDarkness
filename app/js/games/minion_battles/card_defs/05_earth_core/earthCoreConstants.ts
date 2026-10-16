@@ -88,13 +88,13 @@ export const GATHER_STONE_RING_RADIUS = 24;
 // ---------------------------------------------------------------------------
 
 /** Chebyshev tile distance Stone Tomb's plus-sign centre may sit from the caster tile. */
-export const STONE_TOMB_MAX_TILE_OFFSET = 4;
+export const STONE_TOMB_MAX_TILE_OFFSET = 6; // playtest: +50% (was 4)
 
 /** Loose px tether for the select step; STONE_TOMB_MAX_TILE_OFFSET is the authoritative limit. */
-export const STONE_TOMB_CAST_RANGE = 220;
+export const STONE_TOMB_CAST_RANGE = 330; // playtest: +50% (was 220)
 
 /** Seconds into the cast that stage 1 lands (the first punch's impact). */
-export const STONE_TOMB_STAGE1_TIME = 0.7;
+export const STONE_TOMB_STAGE1_TIME = 1.0; // playtest: longer windup (was 0.7)
 
 /** Seconds between stage 1 and stage 2 (the second punch's impact). */
 export const STONE_TOMB_STAGE_GAP = 0.3;
@@ -116,10 +116,10 @@ export const STONE_TOMB_PICK_END = STONE_TOMB_PICK_TIME + FIXED_DT;
 export const STONE_TOMB_PUNCH_DISTANCE = 12;
 
 /** Stage 1: damage to enemies in the centre tile. */
-export const STONE_TOMB_STAGE1_DAMAGE = 10;
+export const STONE_TOMB_STAGE1_DAMAGE = 15; // playtest: +50% (was 10)
 
 /** Stage 2: damage to enemies in any tile of the plus. */
-export const STONE_TOMB_STAGE2_DAMAGE = 6;
+export const STONE_TOMB_STAGE2_DAMAGE = 9; // playtest: +50% (was 6)
 
 /**
  * Knockback tier applied to stage 1 victims, away from the centre of the centre tile. The rock rises
@@ -129,7 +129,7 @@ export const STONE_TOMB_STAGE2_DAMAGE = 6;
 export const STONE_TOMB_KNOCKBACK_TIER = 2;
 
 /** Total cast time including recovery. */
-export const STONE_TOMB_CAST_TIME = 1.7;
+export const STONE_TOMB_CAST_TIME = 2.0; // playtest: was 1.7 (cooldown length unchanged)
 
 /** Rounds before Stone Tomb can be recast. */
 export const STONE_TOMB_RECHARGE_TURNS = 1;
@@ -138,7 +138,7 @@ export const STONE_TOMB_RECHARGE_TURNS = 1;
 export const STONE_TOMB_MAX_USES = 2;
 
 /** Rock resource spent per cast. */
-export const STONE_TOMB_ROCK_COST = 3;
+export const STONE_TOMB_ROCK_COST = 2; // playtest: was 3
 
 // ---------------------------------------------------------------------------
 // Rock Slide (0537)
@@ -180,18 +180,26 @@ export const ROCK_SLIDE_LAUNCH_TIME = 0.85;
 /** Slide-out ends; cooldown starts. */
 export const ROCK_SLIDE_SLIDE_END_TIME = 1.0;
 
-/** Total cast time (0.4s cooldown). */
-export const ROCK_SLIDE_CAST_TIME = 1.4;
+/**
+ * Total cast time. The cooldown (from ROCK_SLIDE_SLIDE_END_TIME) runs until slightly after a
+ * full-range flight lands: launch 0.85s + 5 tiles (200px) / 270px/s ~= 1.59s, so 1.7s.
+ * Movement is free during the cooldown (`movementLock` ends at launch). Approximate on purpose:
+ * not derived from the travel constants. (playtest: was 1.4)
+ */
+export const ROCK_SLIDE_CAST_TIME = 1.7;
 
 /** Px the caster lunges toward the rock during the punch. */
 export const ROCK_SLIDE_PUNCH_DISTANCE = 14;
 
-export const ROCK_SLIDE_DAMAGE = 10;
+export const ROCK_SLIDE_DAMAGE = 12; // playtest: was 10
 /** Enemies damaged per flight; further enemies are still knocked back. */
 export const ROCK_SLIDE_MAX_DAMAGE_TARGETS = 5;
 export const ROCK_SLIDE_KNOCKBACK_TIER = 3;
-/** Max tiles the rock flies from its spawn tile before it settles (if no wall stops it first). */
-export const ROCK_SLIDE_TRAVEL_TILES = 6;
+/**
+ * Max tiles the rock flies from its spawn tile before it settles (if no wall stops it first).
+ * playtest: was 6. A future upgrade is expected to extend it.
+ */
+export const ROCK_SLIDE_TRAVEL_TILES = 5;
 /** Px/s; slow enough to dodge. The projectile still travels the full ROCK_SLIDE_TRAVEL_TILES. */
 export const ROCK_SLIDE_PROJECTILE_SPEED = 270;
 export const ROCK_SLIDE_PROJECTILE_RADIUS = 18;

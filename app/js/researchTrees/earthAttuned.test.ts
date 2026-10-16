@@ -80,20 +80,25 @@ describe('Earth Attuned research', () => {
 });
 
 describe('Bone Claws / Digging Claws recovery', () => {
-    it('have no stamina (or any) recovery of their own', () => {
-        for (const id of CLAW_IDS) expect(getAbilityUseConfig(id).recoveries).toEqual([]);
+    it('Bone Claws has no recovery of its own; Digging Claws recovers 2 uses per round', () => {
+        expect(getAbilityUseConfig('0111').recoveries).toEqual([]);
+        expect(getAbilityUseConfig('0534').recoveries).toEqual([
+            { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 2 },
+        ]);
     });
 
-    it('recover nothing at round start without Earth Attuned', () => {
+    it('without Earth Attuned, Bone Claws recovers nothing and Digging Claws recovers 2 at round start', () => {
+        const expected: Record<string, number> = { '0111': 0, '0534': 2 };
         for (const id of CLAW_IDS) {
             const unit = makeClawUnit(id, {});
             unit.abilityRuntime[id]!.currentUses = 0;
             grantRoundChargesToEligibleAbilities(unit);
-            expect(unit.abilityRuntime[id]!.currentUses).toBe(0);
+            expect(unit.abilityRuntime[id]!.currentUses).toBe(expected[id]);
         }
     });
 
-    it('with Earth Attuned, gain a max use and restore uses each round, capped at max', () => {
+    it('with Earth Attuned, gain a max use and +1 use recovered each round, capped at max', () => {
+        const expected: Record<string, number> = { '0111': 1, '0534': 3 };
         for (const id of CLAW_IDS) {
             const baseMax = getAbilityUseConfig(id).maxUses;
             const unit = makeClawUnit(id, { [id]: { maxUsesFlat: 1, roundRecoveryFlat: 1 } });
@@ -102,7 +107,7 @@ describe('Bone Claws / Digging Claws recovery', () => {
 
             runtime.currentUses = 0;
             grantRoundChargesToEligibleAbilities(unit);
-            expect(runtime.currentUses).toBe(1);
+            expect(runtime.currentUses).toBe(expected[id]);
 
             runtime.currentUses = runtime.maxUses;
             grantRoundChargesToEligibleAbilities(unit);

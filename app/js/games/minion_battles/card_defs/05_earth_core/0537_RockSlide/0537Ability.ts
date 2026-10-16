@@ -12,8 +12,8 @@
  *               tick; chips fly out of the caster)
  *   0.70        the rock projectile appears, held, on the picked tile
  *   0.70-1.00   punch: slide-in, then slide-out at launch
- *   0.85        the held projectile is released and flies
- *   1.00-1.40   cooldown
+ *   0.85        the held projectile is released and flies (up to 5 tiles, ~0.74s)
+ *   1.00-1.70   cooldown: ends just after a full-range flight lands; the caster can move
  *
  * Interrupts run through `interruptUnitAbilities`. The destroyed rock stays destroyed. A held
  * projectile is cancelled and its tile becomes rock (`withHold.onCancelled`). Once released it flies

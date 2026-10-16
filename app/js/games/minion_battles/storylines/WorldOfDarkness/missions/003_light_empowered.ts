@@ -156,6 +156,16 @@ const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
 			row: CAVE_CAMPFIRE.row + BOTTOM_OFFSET_ROW,
 			maxDistance: 2,
 		},
+		// Footprint tiles come from the allUnitsNearPosition area by default; add the "!" marker too.
+		showObjectiveMarker: {
+			enable: true,
+			target: {
+				type: 'position',
+				x: CAVE_CAMPFIRE.col * CELL_SIZE + CELL_SIZE / 2,
+				y: (CAVE_CAMPFIRE.row + BOTTOM_OFFSET_ROW) * CELL_SIZE + CELL_SIZE / 2,
+			},
+			showOffscreen: true,
+		},
 	},
 ];
 

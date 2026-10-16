@@ -29,6 +29,7 @@ import {
     getCrystalRocksResearch,
     hasMoreRockResearch,
     ONE_PIXEL_TARGET,
+    ROCK_THROW_PROFILE,
     THROW_PROJECTILE_SPEED,
     THROW_RANGE,
     throwMovementPenaltyStates,
@@ -128,6 +129,7 @@ export function buildThrowRockAbility(config: ThrowRockVariantConfig): AbilitySt
     const { id, name, tags, resourceCost, maxUses, recoveries } = config;
 
     const baseTimings = buildThrowBaseTimings({
+        profile: ROCK_THROW_PROFILE,
         launchBehaviour: rockLaunchBehaviour(id),
         entombed: ENTOMBED_OPTS,
     });
@@ -142,7 +144,7 @@ export function buildThrowRockAbility(config: ThrowRockVariantConfig): AbilitySt
         rechargeTurns: 1,
         maxUses,
         recoveries: recoveries ?? RECOVERIES,
-        prefireTime: 0.3,
+        prefireTime: ROCK_THROW_PROFILE.prefireTime,
         abilityTimings: baseTimings,
         getAbilityTimings(caster, gameState) {
             const research = getCrystalRocksResearch(gameState as import('../../abilities/AbilityEngineContext').AbilityEngineContext | undefined, caster);
@@ -156,6 +158,7 @@ export function buildThrowRockAbility(config: ThrowRockVariantConfig): AbilitySt
                     ...opts,
                 })
                 : buildThrowBaseTimings({
+                    profile: ROCK_THROW_PROFILE,
                     launchBehaviour: rockLaunchBehaviour(id),
                     entombed: ENTOMBED_OPTS,
                     ...opts,
@@ -194,7 +197,7 @@ export function buildThrowRockAbility(config: ThrowRockVariantConfig): AbilitySt
 
         beginActiveCast(engine, caster, _targets, active) {
             const research = getCrystalRocksResearch(engine as import('../../abilities/AbilityEngineContext').AbilityEngineContext | undefined, caster);
-            active.castPayload = beginThrowCastPayload(hasMoreRockResearch(research));
+            active.castPayload = beginThrowCastPayload(hasMoreRockResearch(research), ROCK_THROW_PROFILE);
         },
 
         getAbilityStatesForActive(currentTime, active) {
@@ -202,7 +205,7 @@ export function buildThrowRockAbility(config: ThrowRockVariantConfig): AbilitySt
         },
 
         getAbilityStates(currentTime) {
-            return throwMovementPenaltyStates(currentTime);
+            return throwMovementPenaltyStates(currentTime, ROCK_THROW_PROFILE);
         },
 
         onAttackBlocked(_engine, _defender, attackInfo: AttackBlockedInfo): void {

@@ -173,7 +173,7 @@ export const earthCoreShatterScenario: ScenarioDefinition = {
 };
 
 // ---------------------------------------------------------------------------
-// 0530 - Stone Tomb (stage 1: 10 damage + centre rock; stage 2: 6 damage + 4 outer rocks)
+// 0530 - Stone Tomb (stage 1: centre damage + centre rock; stage 2: plus damage + outer gravel)
 // ---------------------------------------------------------------------------
 
 /** Stone Tomb costs rock: give the local player a stocked rock resource. */

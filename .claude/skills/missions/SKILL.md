@@ -53,6 +53,11 @@ When instructed to have enemies "start spawned" or "spawn at the start", both ph
   - Circle-based: `scatterPositionsInCircle` in `storylines/missionSpawnHelpers.ts`.
   - Zone-based: `buildOpeningWolves` in `WorldOfDarkness/missions/007_ember_threshold.ts` (uses `resolveZoneTiles` + `engine.generateRandomInteger`).
 
+## Movement targets and story text
+
+- **Movement targets:** an objective whose `toComplete` is `allUnitsNearPosition` shows faint footprint tiles over its area by default (`showObjectiveTiles`). For a "go here" objective with a different completion condition, pass explicit tiles, e.g. `showObjectiveTiles: { tiles: getTilesAroundTile(col, row, 1) }` (`storylines/nearPositionArea.ts`). Pair with `showObjectiveMarker` for the off-screen arrow.
+- **No enemy names in story text:** story phrases, mission/quest `description`s and other narrative use descriptors ("glowing insects", "the nest"), not unit names. Objective labels and titles may name enemies. See `narrative/writing-style-enemies/STYLE.md`.
+
 ## Key types and locations
 
 - Mission base: `app/js/games/minion_battles/storylines/BaseMissionDef.ts`

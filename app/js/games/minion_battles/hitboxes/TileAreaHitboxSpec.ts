@@ -11,7 +11,9 @@
  * - `adjacentCardinal`: the caster-adjacent tile the aim points at, by dominant axis. Null when the
  *   aim sits exactly on the caster.
  *
- * Shapes (`tileShapes`): `single()`, `square(half)`, `plus()`. A custom shape is a list of offsets.
+ * Shapes (`tileShapes`): `single()`, `square(half)`, `plus()`, `disc(radiusTiles)`. A custom shape is a
+ * list of offsets. `cellsAroundTile` applies a shape to any anchor tile (e.g. a projectile's landing
+ * tile), so non-select effects share the same tile footprint as their previews.
  * Cell order is shape order, so `plus()` puts the centre first.
  */
 
@@ -50,6 +52,23 @@ export const tileShapes = {
         const offsets: TileOffset[] = [];
         for (let dRow = -half; dRow <= half; dRow++) {
             for (let dCol = -half; dCol <= half; dCol++) offsets.push({ dCol, dRow });
+        }
+        return offsets;
+    },
+    /**
+     * Every cell whose centre lies within `radiusTiles` (in tiles, centre to centre) of the anchor
+     * tile's centre: the tile-snapped equivalent of a circle AoE centred on a tile. Centre first.
+     * e.g. disc(1.5) = 3x3, disc(2) = 13-cell diamond, disc(2.375) = 5x5 minus corners.
+     */
+    disc(radiusTiles: number): TileOffset[] {
+        const r = Math.max(0, radiusTiles);
+        const span = Math.floor(r);
+        const offsets: TileOffset[] = [{ dCol: 0, dRow: 0 }];
+        for (let dRow = -span; dRow <= span; dRow++) {
+            for (let dCol = -span; dCol <= span; dCol++) {
+                if (dCol === 0 && dRow === 0) continue;
+                if (dCol * dCol + dRow * dRow <= r * r) offsets.push({ dCol, dRow });
+            }
         }
         return offsets;
     },
@@ -131,7 +150,7 @@ export class TileAreaHitboxSpec extends HitboxSpec {
 
     /** The cells the shape covers around `anchor`. Not bounds-filtered: callers with grid access skip out-of-bounds cells. */
     cellsAround(anchor: TileCoord): TileCoord[] {
-        return this.shape.map((o) => ({ col: anchor.col + o.dCol, row: anchor.row + o.dRow }));
+        return cellsAroundTile(anchor, this.shape);
     }
 
     /** Cells covered for an aim point, or an empty list when there is no anchor. */
@@ -189,6 +208,16 @@ export class TileAreaHitboxSpec extends HitboxSpec {
     ): Unit[] {
         return [];
     }
+}
+
+/** The cells `shape` covers around `anchor` (not bounds-filtered). */
+export function cellsAroundTile(anchor: TileCoord, shape: readonly TileOffset[]): TileCoord[] {
+    return shape.map((o) => ({ col: anchor.col + o.dCol, row: anchor.row + o.dRow }));
+}
+
+/** The cells `shape` covers around the tile containing world point `point`. */
+export function cellsAroundPoint(point: { x: number; y: number }, shape: readonly TileOffset[]): TileCoord[] {
+    return cellsAroundTile(worldToTile(point.x, point.y), shape);
 }
 
 export function tileAreaHitbox(opts: TileAreaHitboxOptions): TileAreaHitboxSpec {

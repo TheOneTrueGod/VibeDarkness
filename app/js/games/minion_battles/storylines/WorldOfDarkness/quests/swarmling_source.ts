@@ -18,7 +18,7 @@ import { SWARMLING_NEST_MISSION_ID } from '../questMissions/swarmling_nest';
 
 export const SWARMLING_SOURCE_QUEST_ID = 'swarmling_source';
 export const SWARMLING_SOURCE_TITLE = 'Swarmling Source';
-export const SWARMLING_SOURCE_DESCRIPTION = 'Hunt down the source of the swarmlings';
+export const SWARMLING_SOURCE_DESCRIPTION = 'Hunt down the source of the skittering swarm';
 
 /** Third slot: the Swarmling Nest arena finale. */
 export const SWARMLING_SOURCE_FINALE_MISSION_ID = SWARMLING_NEST_MISSION_ID;

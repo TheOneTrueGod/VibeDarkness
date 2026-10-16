@@ -31,6 +31,57 @@ export const BASE_THROW_WINDUP_END = 0.3;
 export const BASE_THROW_ACTIVE_END = 0.4;
 export const BASE_THROW_COOLDOWN_END = 1.6;
 export const BASE_MOVEMENT_PENALTY_UNTIL = 0.6;
+/** Speed multiplier while a throw is winding up / recovering (0.3 = 30% speed). */
+export const BASE_THROW_MOVEMENT_PENALTY = 0.3;
+
+/**
+ * Data-driven throw timeline + movement penalty. Throws never stop movement; instead the
+ * caster is slowed to `windupMovementPenalty` during the windup and to `movementPenalty`
+ * until `movementPenaltyUntil`. Presets below; new throw families add their own preset.
+ */
+export interface ThrowTimingProfile {
+    windupEnd: number;
+    activeEnd: number;
+    cooldownEnd: number;
+    /** Seconds after cast start until the post-windup slow ends. */
+    movementPenaltyUntil: number;
+    /** Speed multiplier during the windup (lower = slower). */
+    windupMovementPenalty: number;
+    /** Speed multiplier after the windup until `movementPenaltyUntil`. */
+    movementPenalty: number;
+    /** Ability `prefireTime` (tracking cutoff) - matches `windupEnd`. */
+    prefireTime: number;
+}
+
+/** Default throw (Throw Knife): uniform 30% speed until 0.6s. */
+export const BASE_THROW_PROFILE: ThrowTimingProfile = {
+    windupEnd: BASE_THROW_WINDUP_END,
+    activeEnd: BASE_THROW_ACTIVE_END,
+    cooldownEnd: BASE_THROW_COOLDOWN_END,
+    movementPenaltyUntil: BASE_MOVEMENT_PENALTY_UNTIL,
+    windupMovementPenalty: BASE_THROW_MOVEMENT_PENALTY,
+    movementPenalty: BASE_THROW_MOVEMENT_PENALTY,
+    prefireTime: BASE_THROW_WINDUP_END,
+};
+
+/** Rock throws take 20% longer to wind up than the base throw. */
+export const ROCK_THROW_WINDUP_SCALE = 1.2;
+const ROCK_THROW_WINDUP_EXTRA = BASE_THROW_WINDUP_END * (ROCK_THROW_WINDUP_SCALE - 1);
+
+/**
+ * Rock throws (Throw Rock, Earth Core Throw Rock, Throw Charged Rock): windup is 20% longer
+ * (0.3s -> 0.36s, rest of the timeline shifted) and the windup slow is heavier (15% speed
+ * instead of 30%). Movement is never stopped outright.
+ */
+export const ROCK_THROW_PROFILE: ThrowTimingProfile = {
+    windupEnd: BASE_THROW_WINDUP_END + ROCK_THROW_WINDUP_EXTRA,
+    activeEnd: BASE_THROW_ACTIVE_END + ROCK_THROW_WINDUP_EXTRA,
+    cooldownEnd: BASE_THROW_COOLDOWN_END + ROCK_THROW_WINDUP_EXTRA,
+    movementPenaltyUntil: BASE_MOVEMENT_PENALTY_UNTIL + ROCK_THROW_WINDUP_EXTRA,
+    windupMovementPenalty: 0.15,
+    movementPenalty: BASE_THROW_MOVEMENT_PENALTY,
+    prefireTime: BASE_THROW_WINDUP_END + ROCK_THROW_WINDUP_EXTRA,
+};
 
 export const ONE_PIXEL_TARGET: TargetDef[] = [{ type: 'pixel', label: 'Target location' }];
 export const TWO_PIXEL_TARGETS: TargetDef[] = [
@@ -40,6 +91,10 @@ export const TWO_PIXEL_TARGETS: TargetDef[] = [
 
 export type ThrowCastPayload = {
     movementPenaltyUntil: number;
+    /** Optional heavier slow while winding up (until `windupPenaltyUntil`). */
+    windupPenaltyUntil?: number;
+    windupMovementPenalty?: number;
+    movementPenalty?: number;
 };
 
 export interface EntombedTimingOpts {
@@ -84,6 +139,8 @@ export function throwLaunchAtWindowStart(
 }
 
 export interface BuildThrowBaseTimingsOpts {
+    /** Timeline preset; explicit `windupEnd`/`activeEnd`/`cooldownEnd` override it. */
+    profile?: ThrowTimingProfile;
     windupEnd?: number;
     activeEnd?: number;
     cooldownEnd?: number;
@@ -116,9 +173,10 @@ function throwSelectTargetDef(
 }
 
 export function buildThrowBaseTimings(opts: BuildThrowBaseTimingsOpts = {}): AbilityTimingInterval[] {
-    const windupEnd = opts.windupEnd ?? BASE_THROW_WINDUP_END;
-    const activeEnd = opts.activeEnd ?? BASE_THROW_ACTIVE_END;
-    const cooldownEnd = opts.cooldownEnd ?? BASE_THROW_COOLDOWN_END;
+    const profile = opts.profile ?? BASE_THROW_PROFILE;
+    const windupEnd = opts.windupEnd ?? profile.windupEnd;
+    const activeEnd = opts.activeEnd ?? profile.activeEnd;
+    const cooldownEnd = opts.cooldownEnd ?? profile.cooldownEnd;
     const launch = opts.launchBehaviour;
 
     const raw: AbilityTimingInterval[] = [
@@ -246,10 +304,20 @@ export function buildMoreRockTimings(opts: BuildMoreRockTimingsOpts): AbilityTim
     return applyThrowComboCancel(raw, opts);
 }
 
-export function beginThrowCastPayload(hasMoreRock: boolean): ThrowCastPayload {
+export function beginThrowCastPayload(
+    hasMoreRock: boolean,
+    profile: ThrowTimingProfile = BASE_THROW_PROFILE,
+): ThrowCastPayload {
     return {
-        movementPenaltyUntil: hasMoreRock ? MORE_ROCK_SECOND_THROW : BASE_MOVEMENT_PENALTY_UNTIL,
+        movementPenaltyUntil: hasMoreRock ? MORE_ROCK_SECOND_THROW : profile.movementPenaltyUntil,
+        windupPenaltyUntil: hasMoreRock ? MORE_ROCK_FIRST_THROW : profile.windupEnd,
+        windupMovementPenalty: profile.windupMovementPenalty,
+        movementPenalty: profile.movementPenalty,
     };
+}
+
+function penaltyEntry(amount: number): AbilityStateEntry[] {
+    return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount } }];
 }
 
 export function throwMovementPenaltyStatesForActive(
@@ -258,15 +326,24 @@ export function throwMovementPenaltyStatesForActive(
 ): AbilityStateEntry[] {
     const payload = active.castPayload as ThrowCastPayload | undefined;
     const until = payload?.movementPenaltyUntil ?? BASE_MOVEMENT_PENALTY_UNTIL;
-    if (currentTime < until) {
-        return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0.3 } }];
+    const amount = payload?.movementPenalty ?? BASE_THROW_MOVEMENT_PENALTY;
+    if (
+        payload?.windupPenaltyUntil !== undefined
+        && payload.windupMovementPenalty !== undefined
+        && currentTime < payload.windupPenaltyUntil
+    ) {
+        return penaltyEntry(payload.windupMovementPenalty);
     }
+    if (currentTime < until) return penaltyEntry(amount);
     return [];
 }
 
-export function throwMovementPenaltyStates(currentTime: number): AbilityStateEntry[] {
-    if (currentTime < BASE_MOVEMENT_PENALTY_UNTIL) {
-        return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: 0.3 } }];
-    }
+/** Movement-penalty states for a throw at `currentTime` under `profile` (no per-cast payload). */
+export function throwMovementPenaltyStates(
+    currentTime: number,
+    profile: ThrowTimingProfile = BASE_THROW_PROFILE,
+): AbilityStateEntry[] {
+    if (currentTime < profile.windupEnd) return penaltyEntry(profile.windupMovementPenalty);
+    if (currentTime < profile.movementPenaltyUntil) return penaltyEntry(profile.movementPenalty);
     return [];
 }

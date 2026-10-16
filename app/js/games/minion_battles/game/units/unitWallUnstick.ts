@@ -16,6 +16,32 @@ import {
 import { CONTROLLED_SLINGSHOT } from '../gameConstants';
 import { interruptUnitAbilities } from './unitAbilityLifecycle';
 import { getUnitEffectiveSpeed, isEntombedProtectionActive } from './unitAbilityQueries';
+import { isImmuneToForcedMovement } from './unitTag';
+
+/**
+ * Structures (units immune to forced movement, e.g. nests) cannot be pushed out of a wall. When rock
+ * rises on a structure's tile it shatters instead: the rock becomes rubble (via `destroyRock`, which
+ * emits the usual stone-damaged transition) and the structure takes its def-level
+ * `terrainCrushDamage` once. Non-rock impassable terrain (map walls) is left alone and deals no
+ * damage. Returns true when the unit is a structure (the slingshot path never runs for it).
+ */
+export function resolveStructureInTerrain(unit: Unit, engine: EngineContext): boolean {
+    if (!isImmuneToForcedMovement(unit)) return false;
+    const tm = engine.terrainManager;
+    if (!tm) return true;
+    const col = Math.floor(unit.x / CELL_SIZE);
+    const row = Math.floor(unit.y / CELL_SIZE);
+    if (tm.destroyRock(col, row, unit.id)) {
+        // Flat one-time crush damage; return value unused.
+        unit.takeDamage(unit.terrainCrushDamage, null, engine.eventBus);
+    }
+    unit.wallStuckTime = 0;
+    unit.wallEntryPoint = { x: unit.x, y: unit.y };
+    unit.controlledSlingshotDir = null;
+    unit.controlled = false;
+    unit.controlledUntilTime = null;
+    return true;
+}
 
 /** Seconds a unit must spend in a wall before being snapped to the nearest passable cell. */
 export const WALL_SNAP_DELAY = 0.1;
@@ -36,6 +62,9 @@ export function tickWallUnstick(unit: Unit, dt: number, engine: EngineContext): 
         unit.controlledUntilTime = null;
         return;
     }
+
+    // Structures shatter the rock instead of being ejected (they are immune to forced movement).
+    if (resolveStructureInTerrain(unit, engine)) return;
 
     unit.wallStuckTime += dt;
 

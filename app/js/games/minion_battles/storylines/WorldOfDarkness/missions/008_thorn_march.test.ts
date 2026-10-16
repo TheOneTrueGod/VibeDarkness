@@ -1,14 +1,19 @@
 import { describe, it, expect } from 'vitest';
 import { GameEngine } from '../../../game/GameEngine';
 import { resetGameObjectIdCounter } from '../../../game/GameObject';
-import { THORN_MARCH } from './008_thorn_march';
+import {
+    THORN_MARCH,
+    THORN_MARCH_AMBUSH_SWARMLING_COUNT,
+    THORN_MARCH_AMBUSH_WOLF_COUNT,
+    THORN_MARCH_THORNBINDER_INTERVAL_ROUNDS,
+} from './008_thorn_march';
 import { TerrainManager } from '../../../terrain/TerrainManager';
 import { registerWorldOfDarknessSegments } from '../registerSegments';
 
 registerWorldOfDarknessSegments();
 
 describe('ThornMarchMission initial ambush', () => {
-    it('pre-places 3 wolves and 3 swarmlings with no spawn-in animation', () => {
+    it('pre-places a trimmed wolf/swarmling ambush with no spawn-in animation', () => {
         resetGameObjectIdCounter(1);
         const engine = new GameEngine();
         engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 42 });
@@ -25,8 +30,10 @@ describe('ThornMarchMission initial ambush', () => {
 
         const wolves = engine.units.filter((u) => u.characterId === 'dark_wolf');
         const swarmlings = engine.units.filter((u) => u.characterId === 'swarmling');
-        expect(wolves).toHaveLength(3);
-        expect(swarmlings).toHaveLength(3);
+        expect(THORN_MARCH_AMBUSH_WOLF_COUNT).toBe(2);
+        expect(THORN_MARCH_AMBUSH_SWARMLING_COUNT).toBe(2);
+        expect(wolves).toHaveLength(THORN_MARCH_AMBUSH_WOLF_COUNT);
+        expect(swarmlings).toHaveLength(THORN_MARCH_AMBUSH_SWARMLING_COUNT);
 
         // 'initialGameSpawn' units get no spawnTimer, so they appear instantly (no animation).
         for (const unit of [...wolves, ...swarmlings]) {
@@ -34,5 +41,15 @@ describe('ThornMarchMission initial ambush', () => {
         }
 
         engine.destroy();
+    });
+
+    it('spawns Thornbinder reinforcements at most once during the 8-round hold', () => {
+        const thornbinderEvents = THORN_MARCH.levelEvents.filter(
+            (e) =>
+                e.type === 'continuousSpawn' &&
+                e.spawns.some((sp) => sp.characterId === 'thornbinder'),
+        );
+        expect(thornbinderEvents).toHaveLength(1);
+        expect(THORN_MARCH_THORNBINDER_INTERVAL_ROUNDS).toBe(5);
     });
 });

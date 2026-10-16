@@ -135,15 +135,27 @@ const PLAYER_SPAWN_CENTER_COL = NEST_49_51_COL;
 const PLAYER_SPAWN_CENTER_ROW = NEST_49_51_ROW + 3;
 const AMBUSH_BOX_WORLD = gridToWorld(PLAYER_SPAWN_CENTER_COL, PLAYER_SPAWN_CENTER_ROW + 6);
 
+/** Initial ambush size (playtest: was 3 + 3, trimmed to soften the opening). */
+export const THORN_MARCH_AMBUSH_WOLF_COUNT = 2;
+export const THORN_MARCH_AMBUSH_SWARMLING_COUNT = 2;
+
+/** Continuous Thornbinder reinforcement cadence (playtest: was every 3 rounds from round 3). */
+export const THORN_MARCH_THORNBINDER_INTERVAL_ROUNDS = 5;
+export const THORN_MARCH_THORNBINDER_START_ROUND = 4;
+
 /**
- * Initial ambush — 3 wolves and 3 swarmlings scattered in a small box south of the player
+ * Initial ambush — wolves and swarmlings scattered in a small box south of the player
  * spawn cluster. Pre-placed (not a `spawnWave` level event) so they appear instantly at
  * mission start with no spawn-in animation, like every other unit in `enemies`.
  */
 function buildInitialAmbush(engine: GameEngine): EnemySpawnDef[] {
     const ambushTarget = { x: AMBUSH_BOX_WORLD.x, y: AMBUSH_BOX_WORLD.y, radius: 1.5 };
-    const wolfPositions = scatterPositionsInCircle(engine, ambushTarget, 3);
-    const swarmlingPositions = scatterPositionsInCircle(engine, ambushTarget, 3);
+    const wolfPositions = scatterPositionsInCircle(engine, ambushTarget, THORN_MARCH_AMBUSH_WOLF_COUNT);
+    const swarmlingPositions = scatterPositionsInCircle(
+        engine,
+        ambushTarget,
+        THORN_MARCH_AMBUSH_SWARMLING_COUNT,
+    );
     return [
         ...wolfPositions.map((position) => ({ ...ENEMY_DARK_WOLF, position, unitAITreeId: 'hunt' })),
         ...swarmlingPositions.map((position) => ({ ...ENEMY_SWARMLING, position, unitAITreeId: 'hunt' })),
@@ -191,7 +203,7 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: 'The nest in the glade still pulses with light—untouchable. But the lanternites are not staying. Small flames drift south into the thorns. Whatever they are building, they need you to follow.',
+            text: 'The nest in the glade still pulses with light—untouchable. But the glowing insects are not staying. Small flames drift south into the thorns. Whatever they are building, they need you to follow.',
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },
@@ -203,7 +215,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: 'Three nests. Three lights in the dark. The lanternites have driven roots deep into the thorn path—and the darkness has not snuffed them out.',
+            text: 'Three nests. Three lights in the dark. The little lights have driven roots deep into the thorn path—and the darkness has not snuffed them out.',
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },
@@ -385,10 +397,13 @@ export class ThornMarchMission extends BaseMissionDef {
                 },
             ],
         },
-        // 1 thornbinder every 2 rounds — zone controller that slows player movement with bramble
+        // Occasional thornbinder — zone controller that slows player movement with bramble
         {
             type: 'continuousSpawn',
-            trigger: { intervalRounds: 3, startRound: 3 },
+            trigger: {
+                intervalRounds: THORN_MARCH_THORNBINDER_INTERVAL_ROUNDS,
+                startRound: THORN_MARCH_THORNBINDER_START_ROUND,
+            },
             spawns: [
                 {
                     characterId: 'thornbinder',

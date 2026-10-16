@@ -34,6 +34,7 @@ import {
     getDefaultRadius,
     getUnitCombatCcDef,
     getUnitEnrageDef,
+    getUnitTerrainCrushDamage,
     PLAYER_CHARACTER_ID,
     resolvePlayerUnitRadius,
 } from './unit_defs/unitDef';
@@ -249,6 +250,11 @@ export class Unit extends GameObject {
     /** Reduces effective tier of incoming tier-based knockback (see tryApplyKnockbackByTier). Def-sourced; no backing field. */
     get knockbackResistance(): number {
         return getUnitCombatCcDef(this.characterId)?.knockbackResistance ?? 0;
+    }
+
+    /** One-time damage when a structure shatters rock raised on its tile (see unitWallUnstick). Def-sourced. */
+    get terrainCrushDamage(): number {
+        return getUnitTerrainCrushDamage(this.characterId);
     }
 
     ccArmour: UnitCcArmourState = createCcArmourState();

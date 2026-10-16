@@ -1,7 +1,7 @@
 import React from 'react';
 import type { CampaignCharacter } from '../../../../character_defs/CampaignCharacter';
 import { CharacterSelectCornerPortrait } from '../CharacterSelectCornerPortrait';
-import { QuestPrepAbilityPicker } from './QuestPrepAbilityPicker';
+import { PrepDeckSelector } from '../PrepDeckSelector';
 
 interface QuestPrepOverviewProps {
     character: CampaignCharacter;
@@ -15,6 +15,8 @@ interface QuestPrepOverviewProps {
 
 /**
  * Center segment for Quest Prep (separate from normal Prepare Carefully / CharacterOverview).
+ * Uses the shared `PrepDeckSelector`, so it shows "Not unlocked yet" under the ability cap exactly
+ * like Prepare Carefully.
  */
 export function QuestPrepOverview({
     character,
@@ -28,7 +30,7 @@ export function QuestPrepOverview({
     if (useLayoutSlots) {
         return (
             <div className="flex min-h-0 flex-1 flex-col px-5 pb-2 pt-2">
-                <QuestPrepAbilityPicker
+                <PrepDeckSelector
                     character={character}
                     selectableIds={selectableIds}
                     selectedPrimaryIds={selectedPrimaryIds}
@@ -48,7 +50,7 @@ export function QuestPrepOverview({
                 />
             </div>
             <div className="min-h-0 flex-1">
-                <QuestPrepAbilityPicker
+                <PrepDeckSelector
                     character={character}
                     selectableIds={selectableIds}
                     selectedPrimaryIds={selectedPrimaryIds}
