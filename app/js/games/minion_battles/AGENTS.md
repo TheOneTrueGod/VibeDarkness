@@ -34,6 +34,7 @@ Paths below are relative to `app/js/games/minion_battles/`. **Do not treat this 
 | `game/` | Simulation and presentation: engine, state, renderer, camera, events, light grid, shared wire/runtime types, `GameObject`, and subfolders. |
 | `game/managers/` | Slices of battle state (units, cards, projectiles, level events, special tiles). (`EffectManager` and `EffectEmitterManager` moved to `game/effects/`.) |
 | `game/deathEffects/` | Death VFX; standard purple Darkness dissolution is centralized in `darkCreatureDissolutionDef.ts` (see **writing-style-enemies** / **working-on-minion-battles** skills). |
+| `game/deathSequences/` | Cinematic (boss) deaths: pause → animation → resume, attached via `UnitDefEntry.deathSequence`. See its `AGENTS.md`. |
 | `game/units/` | Unit model, factories, `GenericEnemy`, AI under `unitAI/`, optional enemy archetype helpers under `dark_animals/`. |
 | `game/units/unit_defs/` | Per-`characterId` baselines (`unitDef.ts`, `unitConstants.ts`), including optional **`creatureType`**. |
 | `game/units/dark_animals/` | Darkness-flavoured enemy factories or spawn templates co-located with that theme. |

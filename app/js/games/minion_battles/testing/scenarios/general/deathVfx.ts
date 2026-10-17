@@ -7,8 +7,7 @@
  *   Boar death should produce ParticleImage effects (particleRing VFX).
  *
  * Scenario B — death_vfx_alpha_wolf_unchanged:
- *   Kill an alpha wolf (hp=1). The _builtin_alpha_wolf_death world modifier
- *   should fire the story pause (exclusive rule, no onDeathVisualEffects on the unit def).
+ *   Kill an alpha wolf (hp=1). Its unit-def deathSequence should fire the story pause.
  *   Assert engine.storyPauseActive === true after the kill.
  */
 
@@ -153,7 +152,7 @@ const WOLF_POS        = { x: WOLF_PLAYER_POS.x + 40, y: WOLF_PLAYER_POS.y }; // 
 
 export const deathVfxAlphaWolfUnchangedScenario: ScenarioDefinition = {
     id: 'death_vfx_alpha_wolf_unchanged',
-    title: 'Death VFX: alpha wolf death triggers story pause (world modifier path unchanged)',
+    title: 'Death VFX: alpha wolf death sequence triggers story pause',
     category: 'general',
     generalSection: 'Death VFX',
     maxDurationMs: 5000,
@@ -161,7 +160,7 @@ export const deathVfxAlphaWolfUnchangedScenario: ScenarioDefinition = {
     buildEngine() {
         const engine = buildTinyBattleEngine({ gridW: 8, gridH: 8, localPlayerId: P });
 
-        // Install builtins so _builtin_alpha_wolf_death fires on unit_died.
+        // Builtins no longer drive the alpha wolf death; installed to prove it doesn't depend on them.
         installWorldModifiersForTest(engine);
 
         const player = spawnTinyPlayerUnit(engine, {
@@ -206,7 +205,9 @@ export const deathVfxAlphaWolfUnchangedScenario: ScenarioDefinition = {
     },
 
     assertPass(engine) {
-        return engine.storyPauseActive === true;
+        return engine.storyPauseActive === true
+            && engine.storyPauseReason === 'alpha_wolf_death'
+            && engine.effects.some((e) => e.effectType === 'DeathRemnant');
     },
 
     failureMessage(engine) {

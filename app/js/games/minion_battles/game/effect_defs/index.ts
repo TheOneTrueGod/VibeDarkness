@@ -20,7 +20,7 @@ import { casterChargeUpEffectDef, CASTER_CHARGE_UP_EFFECT_TYPE } from './casterC
 import { pulseEffectDef, howlShockwaveEffectDef, critShockwaveEffectDef, enrageBurstEffectDef, gravityFieldEffectDef, liftColumnEffectDef } from './aoeEffects';
 import {
     darkCreatureIconDeathEffectDef,
-    alphaWolfStoryRemnantEffectDef,
+    deathRemnantEffectDef,
     storyHomingParticleEffectDef,
     particleImageEffectDef,
 } from './deathEffects';
@@ -74,7 +74,7 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     EnrageBurst: enrageBurstEffectDef,
     ChargeUpEffect: chargeUpEffectDef,
     [CASTER_CHARGE_UP_EFFECT_TYPE]: casterChargeUpEffectDef,
-    AlphaWolfStoryRemnant: alphaWolfStoryRemnantEffectDef,
+    DeathRemnant: deathRemnantEffectDef,
     DarkCreatureIconDeath: darkCreatureIconDeathEffectDef,
     StoryHomingParticle: storyHomingParticleEffectDef,
     bite: biteEffectDef,

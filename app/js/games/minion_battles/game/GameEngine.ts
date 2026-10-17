@@ -88,7 +88,6 @@ import { TerrainLayerManager } from './TerrainLayerManager';
 import { isWithinEarthCoreNearbyStoneDamagedRange } from '../abilities/earthCoreHelpers';
 import { resetGameObjectIdCounter } from './GameObject';
 import type { EffectEmitter } from './effects/EffectEmitter';
-import { registerLateBuiltinHandlers } from '../worldModifiers/builtinHandlers';
 import type { WorldModifierManager } from '../worldModifiers/WorldModifierManager';
 import type { MapNetworkManager } from './managers/mapNetwork/MapNetworkManager';
 import { getMissionSegmentNetwork, getMissionSegmentPlacements } from '../terrain/segmentRegistry';
@@ -99,6 +98,7 @@ import { getUnitDefEntry, getBodyColorForUnit, getCharacterSpriteKey, getUnitSpa
 import { createAINav } from './units/unitAI/aiNav';
 import { STACK_GHOST_DURATION } from './effect_defs/movementEffects';
 import { applyVisualEffectDefs } from './effects/applyVisualEffectDefs';
+import { applyDeathSequence } from './deathSequences/applyDeathSequence';
 import { NinjutsuManager, countNinjutsuEnemyUnits, type NinjutsuUIState } from './ninjutsu/NinjutsuManager';
 import { NINJUTSU_DEFAULT, type NinjutsuPoolConfig } from './ninjutsu/ninjutsuConfig';
 import { findImpendingSelectTargetNeed } from './interaction/selectTargetLookahead';
@@ -237,7 +237,6 @@ export class GameEngine implements EngineContext {
     sequentialTargetingPreviewCast: SequentialTargetingPreviewCast | null = null;
 
     constructor() {
-        registerLateBuiltinHandlers(this.state.worldModifierManager, this);
         // Also re-subscribed in registerCoreEventListeners, which clears the bus on prepare / fromJSON.
         this.eventBus.on('cast_ended_early', this.recordPreviewCastEndedEarly);
     }
@@ -874,13 +873,13 @@ export class GameEngine implements EngineContext {
         this.state.worldModifierManager.registerListeners(this.eventBus);
         this.eventBus.on('cast_ended_early', this.recordPreviewCastEndedEarly);
 
-        // unit_died: apply onDeathVisualEffects and onDeathBehaviors from the unit def directly.
-        // Alpha wolf has no onDeathVisualEffects — its death is handled by _builtin_alpha_wolf_death.
+        // unit_died: apply deathSequence (or onDeathVisualEffects) and onDeathBehaviors from the unit def directly.
         this.eventBus.on('unit_died', (data) => {
             const unit = this.getUnit(data.unitId);
             if (!unit) return;
             const def = getUnitDefEntry(unit.characterId as UnitDefId);
-            if (def?.onDeathVisualEffects?.length) applyVisualEffectDefs(def.onDeathVisualEffects, unit, this);
+            if (def?.deathSequence) applyDeathSequence(def.deathSequence, unit, this);
+            else if (def?.onDeathVisualEffects?.length) applyVisualEffectDefs(def.onDeathVisualEffects, unit, this);
             if (def?.onDeathBehaviors?.length) {
                 for (const b of def.onDeathBehaviors) {
                     if (b.type === 'removesOwnedLightSources') {

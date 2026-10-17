@@ -76,11 +76,25 @@ export const darkCreatureIconDeathEffectDef: IEffectDef = {
     },
 };
 
-/** Alpha wolf story remnant: boss icon with corruption tint, shakes and wipes top-to-bottom. */
-export const alphaWolfStoryRemnantEffectDef: IEffectDef = {
+/** effectData for `DeathRemnant` (the dying unit's sprite shaking and dissolving in place). */
+export interface DeathRemnantEffectData {
+    remnantCharacterKey?: string;
+    shakeFrequencyHz?: number;
+    shakeAmplitudePx?: number;
+    /** Shake amplitude at the end of the effect (lerped from `shakeAmplitudePx`). Default: same. */
+    shakeAmplitudeEndPx?: number;
+    /** 'wipe' = top-down mask wipe (alpha wolf); 'fade' = fade + shrink (spirits). Default 'wipe'. */
+    dissolve?: 'wipe' | 'fade';
+    /** Drawn sprite size in px. Default 42. */
+    sizePx?: number;
+}
+
+/** Dying unit's sprite shaking and dissolving in place; used by death sequences. */
+export const deathRemnantEffectDef: IEffectDef = {
     createVisual(effect: Effect, context: IEffectRenderContext): Container {
-        const data = effect.effectData as { remnantCharacterKey?: string };
+        const data = effect.effectData as DeathRemnantEffectData;
         const key = data.remnantCharacterKey ?? 'alpha_wolf';
+        const size = data.sizePx ?? 42;
         const texture = context.getCharacterTexture?.(key) ?? Texture.EMPTY;
         const root = new Container();
         root.label = 'storyRemnantRoot';
@@ -90,13 +104,13 @@ export const alphaWolfStoryRemnantEffectDef: IEffectDef = {
         masked.label = 'storyRemnantMasked';
         const base = new Sprite(texture);
         base.anchor.set(0.5, 0.5);
-        base.width = 42;
-        base.height = 42;
+        base.width = size;
+        base.height = size;
         base.label = 'storyRemnantBase';
         const tint = new Sprite(texture);
         tint.anchor.set(0.5, 0.5);
-        tint.width = 42;
-        tint.height = 42;
+        tint.width = size;
+        tint.height = size;
         tint.blendMode = 'multiply';
         tint.tint = DARK_CREATURE_CORRUPTION_TINT;
         tint.alpha = DARK_CREATURE_ICON_TINT_ALPHA;
@@ -110,7 +124,7 @@ export const alphaWolfStoryRemnantEffectDef: IEffectDef = {
         return root;
     },
     updateVisual(visual: Container, effect: Effect, context: IEffectRenderContext): void {
-        const data = effect.effectData as { remnantCharacterKey?: string; shakeFrequencyHz?: number; shakeAmplitudePx?: number };
+        const data = effect.effectData as DeathRemnantEffectData;
         const key = data.remnantCharacterKey ?? 'alpha_wolf';
         const tex = context.getCharacterTexture?.(key);
         const shake = visual.children.find((c) => c.label === 'storyRemnantShake') as Container | undefined;
@@ -122,17 +136,29 @@ export const alphaWolfStoryRemnantEffectDef: IEffectDef = {
             base.texture = tex;
             if (tint) tint.texture = tex;
         }
-        const hz = data.shakeFrequencyHz ?? 7;
-        const amp = data.shakeAmplitudePx ?? 2;
-        if (shake) shake.x = Math.sin(effect.elapsed * Math.PI * 2 * hz) * amp;
         const p = effect.progress;
-        const h = base?.height ?? 42;
-        const w = base?.width ?? 42;
+        const hz = data.shakeFrequencyHz ?? 7;
+        const ampStart = data.shakeAmplitudePx ?? 2;
+        const amp = ampStart + ((data.shakeAmplitudeEndPx ?? ampStart) - ampStart) * p;
+        if (shake) shake.x = Math.sin(effect.elapsed * Math.PI * 2 * hz) * amp;
+        const size = data.sizePx ?? 42;
+        if (data.dissolve === 'fade') {
+            if (masked) {
+                masked.alpha = Math.max(0, 1 - p);
+                masked.scale.set(1 - 0.35 * p);
+            }
+            if (maskG) {
+                maskG.clear();
+                maskG.rect(-size, -size, size * 2, size * 2);
+                maskG.fill({ color: 0xffffff });
+            }
+            return;
+        }
         if (maskG) {
             maskG.clear();
-            const top = -h / 2 + h * p;
-            const visH = Math.max(0.5, h * (1 - p));
-            maskG.rect(-w / 2, top, w, visH);
+            const top = -size / 2 + size * p;
+            const visH = Math.max(0.5, size * (1 - p));
+            maskG.rect(-size / 2, top, size, visH);
             maskG.fill({ color: 0xffffff });
         }
     },

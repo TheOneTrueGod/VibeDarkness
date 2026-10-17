@@ -470,7 +470,7 @@ export class UnitRenderer {
                 ghost = new Container();
                 ghost.label = 'constructionGhost';
 
-                const lanterniteNestTexture = this.assets.getCharacterTexture('lanternite_nest');
+                const lanterniteNestTexture = this.assets.getCharacterTexture('curling_vines');
                 const nestSprite = new Sprite(lanterniteNestTexture ?? Texture.EMPTY);
                 nestSprite.label = 'ghostNestSprite';
                 nestSprite.anchor.set(0.5, 0.5);
@@ -494,7 +494,7 @@ export class UnitRenderer {
             ghost.y = targetPos.y;
 
             // Sync texture in case it loaded after the ghost was created
-            const lanterniteNestTexture = this.assets.getCharacterTexture('lanternite_nest');
+            const lanterniteNestTexture = this.assets.getCharacterTexture('curling_vines');
             const nestSprite = ghost.children.find((c) => c.label === 'ghostNestSprite') as Sprite | undefined;
             if (nestSprite && lanterniteNestTexture && nestSprite.texture !== lanterniteNestTexture) {
                 nestSprite.texture = lanterniteNestTexture;

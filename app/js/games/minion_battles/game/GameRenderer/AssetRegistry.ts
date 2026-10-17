@@ -11,6 +11,7 @@ const WOLF_HOWL_SVG_URL = new URL('../../assets/characters/dark_animals/wolf-how
 const BOAR_SVG_URL = new URL('../../assets/characters/dark_animals/boar.svg', import.meta.url).href;
 const LANTERNITE_SVG_URL = new URL('../../assets/characters/lanternite.svg', import.meta.url).href;
 const LANTERNITE_NEST_SVG_URL = new URL('../../assets/characters/lanternite_nest.svg', import.meta.url).href;
+const CURLING_VINES_SVG_URL = new URL('../../assets/characters/curling_vines.svg', import.meta.url).href;
 const SWARMLING_SVG_URL = new URL('../../assets/characters/dark_animals/swarmling.svg', import.meta.url).href;
 const DISPLACER_SPIRIT_SVG_URL = new URL('../../assets/characters/dark_animals/displacer_spirit.svg', import.meta.url).href;
 const THORNBINDER_SVG_URL = new URL('../../assets/characters/thornbinder.svg', import.meta.url).href;
@@ -24,6 +25,7 @@ export class AssetRegistry {
     private boarTexture: Texture | null = null;
     private lanterniteTexture: Texture | null = null;
     private lanterniteNestTexture: Texture | null = null;
+    private curlingVinesTexture: Texture | null = null;
     private swarmlingTexture: Texture | null = null;
     private displacerSpiritTexture: Texture | null = null;
     private thornbinderTexture: Texture | null = null;
@@ -43,6 +45,7 @@ export class AssetRegistry {
         if (characterId === 'boar') return this.boarTexture;
         if (characterId === 'lanternite') return this.lanterniteTexture;
         if (characterId === 'lanternite_nest') return this.lanterniteNestTexture;
+        if (characterId === 'curling_vines') return this.curlingVinesTexture;
         if (characterId === 'swarmling') return this.swarmlingTexture;
         if (characterId === 'displacer_spirit') return this.displacerSpiritTexture;
         if (characterId === 'thornbinder') return this.thornbinderTexture;
@@ -78,6 +81,7 @@ export class AssetRegistry {
         await loadOne('boar SVG', BOAR_SVG_URL, (t) => { this.boarTexture = t; });
         await loadOne('lanternite SVG', LANTERNITE_SVG_URL, (t) => { this.lanterniteTexture = t; });
         await loadOne('lanternite_nest SVG', LANTERNITE_NEST_SVG_URL, (t) => { this.lanterniteNestTexture = t; });
+        await loadOne('curling_vines SVG', CURLING_VINES_SVG_URL, (t) => { this.curlingVinesTexture = t; });
         await loadOne('swarmling SVG', SWARMLING_SVG_URL, (t) => { this.swarmlingTexture = t; });
         await loadOne('displacer_spirit SVG', DISPLACER_SPIRIT_SVG_URL, (t) => { this.displacerSpiritTexture = t; });
         await loadOne('thornbinder SVG', THORNBINDER_SVG_URL, (t) => { this.thornbinderTexture = t; });
@@ -118,6 +122,7 @@ export class AssetRegistry {
         this.boarTexture = null;
         this.lanterniteTexture = null;
         this.lanterniteNestTexture = null;
+        this.curlingVinesTexture = null;
         this.displacerSpiritTexture = null;
         this.dogTexture = null;
         this.campfireTexture = null;

@@ -13,6 +13,8 @@ import {
     darkCreatureIconFlashVFX,
 } from '../../deathEffects/darkCreatureDissolutionDef';
 import type { VisualEffectDef } from '../../effects/visualEffectDef';
+import type { DeathSequenceDef } from '../../deathSequences/deathSequenceDef';
+import { ALPHA_WOLF_DEATH_SEQUENCE, DISPLACER_SPIRIT_DEATH_SEQUENCE } from '../../deathSequences/deathSequencePresets';
 import { DARK_CREATURE_CORRUPTION_TINT, DARK_CREATURE_ICON_TINT_ALPHA } from '../../deathEffects/darkCreatureVisualConstants';
 import { getPortrait } from '../../../character_defs/portraitLoader';
 import { DEFAULT_UNIT_SIZE, UNIT_SIZE_MAP, type UnitSize } from './unitConstants';
@@ -143,6 +145,8 @@ export interface UnitDefEntry {
     perceptionRange?: number;
     onDeathVisualEffects?: VisualEffectDef[];
     onDeathBehaviors?: UnitDeathBehavior[];
+    /** Cinematic death (pause → animation → resume), e.g. bosses. Replaces onDeathVisualEffects. */
+    deathSequence?: DeathSequenceDef;
     /** Darkness vs natural beast; drives expectations for death/damage presentation and copy. */
     creatureType?: CreatureType;
     /** Short flavor text for battle UI (e.g. timeline hover). */
@@ -254,6 +258,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
             tag: UnitTag.Enraged,
             oneShot: true,
         },
+        deathSequence: ALPHA_WOLF_DEATH_SEQUENCE,
     },
     boar: {
         bodyColor: 0x4a3728,
@@ -329,7 +334,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 400,
         creatureType: 'dark_creature',
-        onDeathVisualEffects: darkCreatureIconFlashVFX(5),
+        deathSequence: DISPLACER_SPIRIT_DEATH_SEQUENCE,
         uiDescription:
             'Boss spirit that hurls long-flying bolts, eats light to explode, and conjures wiggling decoys.',
         maxPerTile: 1,
@@ -378,7 +383,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     },
     lanternite_nest: {
         bodyColor: 0x065f46,
-        characterSpriteKey: 'lanternite_nest',
+        characterSpriteKey: 'curling_vines',
         hp: 16, // playtest: -20% (was 20)
         speed: 0,
         size: 'Extra Large',
@@ -418,7 +423,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         characterSpriteKey: 'lanternite_nest',
         hp: 80, // playtest: -20% (was 100)
         speed: 0,
-        size: 'Large',
+        size: 'Extra Large',
         stamina: 1,
         perceptionRange: 0,
         creatureType: 'dark_creature',

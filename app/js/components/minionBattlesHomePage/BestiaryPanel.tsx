@@ -11,6 +11,7 @@ import swarmNestIcon from '../../games/minion_battles/assets/characters/dark_ani
 import thornbinderIcon from '../../games/minion_battles/assets/characters/thornbinder.svg';
 import lanterniteIcon from '../../games/minion_battles/assets/characters/lanternite.svg';
 import lanterniteNestIcon from '../../games/minion_battles/assets/characters/lanternite_nest.svg';
+import curlingVinesIcon from '../../games/minion_battles/assets/characters/curling_vines.svg';
 import dogIcon from '../../games/minion_battles/assets/characters/dog.png';
 import PanelLayout from './PanelLayout';
 
@@ -24,6 +25,7 @@ const SPRITE_ICONS: Record<string, string> = {
     thornbinder: thornbinderIcon,
     lanternite: lanterniteIcon,
     lanternite_nest: lanterniteNestIcon,
+    curling_vines: curlingVinesIcon,
     dog: dogIcon,
 };
 

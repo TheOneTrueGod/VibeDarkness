@@ -71,16 +71,18 @@ export class Effect extends GameObject {
 
         // ParticleImage / RockChipParticle / SpriteEffect: velocity + optional acceleration and damping
         if (this.effectType === 'ParticleImage' || this.effectType === 'RockChipParticle' || this.effectType === 'SpriteEffect') {
-            const data = this.effectData as { vx?: number; vy?: number; ay?: number; dampingK?: number };
+            const data = this.effectData as {
+                vx?: number; vy?: number; ay?: number; dampingK?: number; dampingKx?: number; dampingKy?: number;
+            };
             const vx = data.vx ?? 0;
             let vy = data.vy ?? 0;
             vy += (data.ay ?? 0) * realDt;
             this.x += vx * realDt;
             this.y += vy * realDt;
+            // Per-axis damping overrides the shared dampingK (e.g. flame-like motion: damp x, let ay build vy).
             const dampingK = data.dampingK ?? 8;
-            const factor = Math.exp(-dampingK * realDt);
-            data.vx = vx * factor;
-            data.vy = vy * factor;
+            data.vx = vx * Math.exp(-(data.dampingKx ?? dampingK) * realDt);
+            data.vy = vy * Math.exp(-(data.dampingKy ?? dampingK) * realDt);
         }
         // Afterimage: optional drift when unit was standing still (no damping; constant drift)
         if (this.effectType === 'Afterimage') {

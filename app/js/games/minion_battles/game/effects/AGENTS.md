@@ -43,6 +43,7 @@ This directory contains two distinct classes of objects that both produce visual
 | `IntervalEmitter` | Fires every `intervalSeconds` over a fixed `lifetime`. |
 | `ContinuousEmitter` | Fires every render frame (or every N frames) via `renderUpdate`. Supports `emitWhilePaused`. |
 | `AlphaWolfStoryEmitter` | Custom emitter: drives the alpha wolf death particle sequence (radial burst + homing particles). |
+| `SpriteFountainEmitter` | Data-driven emitter streaming named `SpriteEffect`s from a point with angle bias, horizontal-only launch, per-axis damping and upward accel (flame-like plumes). Config: `SpriteFountainConfig`. |
 | `StoryHomingParticleEmitter` | Custom emitter: tracks one homing particle along a bezier path to a target unit. |
 
 ### emitWhilePaused

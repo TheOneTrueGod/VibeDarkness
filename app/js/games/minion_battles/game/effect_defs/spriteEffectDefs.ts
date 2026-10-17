@@ -24,6 +24,8 @@ export interface SpriteEffectDef {
      * requested, then cached. Returns empty texture on the first frame until loading completes.
      */
     svg?: string;
+    /** Character sprite key (e.g. 'displacer_spirit') rendered via the character texture atlas. */
+    characterSprite?: string;
     /** Duration in seconds. */
     duration: number;
     /**
@@ -34,6 +36,8 @@ export interface SpriteEffectDef {
     scale?: number | { from: number; to: number };
     /** When true, alpha fades from 1 to 0 over the lifetime. Default: false. */
     fadeOut?: boolean;
+    /** Peak alpha (before fadeOut is applied). Default: 1. */
+    alpha?: number;
     /**
      * Rotation in radians. 'aim' uses the aimAngle stored in effectData (set via spawnSpriteEffect's
      * aimX/aimY params). A numeric value is a fixed angle. Default: 0.
@@ -74,6 +78,18 @@ export const SPRITE_EFFECT_DEFS: Record<string, SpriteEffectDef> = {
         scale: { from: 8, to: 20 },
         fadeOut: true,
         tint: 0xcceeff,
+    },
+    /**
+     * Spirit clone peeling off a dying Displacer Spirit: translucent spirit sprite that shrinks
+     * and fades. Motion comes from the spawning emitter (see SpriteFountainEmitter).
+     */
+    displacerCloneWisp: {
+        characterSprite: 'displacer_spirit',
+        duration: 1.4,
+        scale: { from: 22, to: 8 },
+        fadeOut: true,
+        alpha: 0.75,
+        tint: 0x9fc4ff,
     },
 };
 
@@ -148,7 +164,8 @@ export const spriteEffectDef: IEffectDef = {
 
         // Alpha: fade-out if requested.
         const fadeOut = data.fadeOutOverride ?? def.fadeOut ?? false;
-        sprite.alpha = fadeOut ? Math.max(0, 1 - p) : 1;
+        const peakAlpha = def.alpha ?? 1;
+        sprite.alpha = fadeOut ? peakAlpha * Math.max(0, 1 - p) : peakAlpha;
 
         // Tint: per-call override beats def default.
         const tint: number = data.tintOverride ?? def.tint ?? 0xffffff;
@@ -179,11 +196,14 @@ interface SpriteEffectData {
     vy?: number;
     ay?: number;
     dampingK?: number;
+    dampingKx?: number;
+    dampingKy?: number;
 }
 
 function resolveTexture(def: SpriteEffectDef | undefined, context: IEffectRenderContext): Texture | null {
     if (!def) return null;
     if (def.texture) return context.getEffectTexture(def.texture as EffectImageKey);
     if (def.svg) return getSvgTexture(def.svg);
+    if (def.characterSprite) return context.getCharacterTexture?.(def.characterSprite) ?? null;
     return null;
 }

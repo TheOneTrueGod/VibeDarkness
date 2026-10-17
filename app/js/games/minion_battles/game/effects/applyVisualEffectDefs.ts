@@ -2,8 +2,7 @@
  * applyVisualEffectDefs — converts VisualEffectDef[] into runtime Effect objects
  * via EngineContext.addEffect.
  *
- * Extracted from worldModifiers/builtinHandlers.ts so the executor can be shared
- * by the engine's unit_died listener (Step 5) and any other caller.
+ * Shared by the engine's unit_died listener, death sequences and any other caller.
  */
 
 import type { EngineContext } from '../EngineContext';

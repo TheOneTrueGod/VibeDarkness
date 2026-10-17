@@ -484,7 +484,7 @@ describe('runScenarioHeadless', () => {
         expect(r.passed, r.message).toBe(true);
     });
 
-    it('Death VFX: alpha wolf death triggers story pause (world modifier path unchanged)', () => {
+    it('Death VFX: alpha wolf death sequence triggers story pause', () => {
         const r = runScenarioHeadless(deathVfxAlphaWolfUnchangedScenario);
         expect(r.passed, r.message).toBe(true);
     });

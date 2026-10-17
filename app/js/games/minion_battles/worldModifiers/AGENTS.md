@@ -222,27 +222,11 @@ Add a `setWorldModifiers` event to a mission's `levelEvents` array:
 
 ---
 
-## Built-in modifier migration pattern
+## Built-in modifiers
 
-GameEngine death handlers that need to become data-driven modifiers follow this pattern:
-
-1. Add a `WorldModifierDef` with `id: '_builtin_<name>'` and a `custom` effect to `builtins/index.ts`.
-2. Register the handler in `builtinHandlers.ts` via `manager.registerCustomEffectHandler(effectId, fn)`.
-3. Remove the equivalent block from `GameEngine.registerCoreEventListeners()`.
-
-The `custom` escape hatch (`WorldEffect.type === 'custom'`) exists specifically for this migration; prefer declarative effects for new modifiers.
-
-### Reserved `_builtin_` id prefix
+`builtins/index.ts` (`BUILTIN_WORLD_MODIFIERS`) is currently empty. Per-character death behaviour does **not** belong here — built-ins run in every mission. Use the unit def instead: `onDeathVisualEffects`, `onDeathBehaviors`, or `deathSequence` for cinematic boss deaths (see `game/deathSequences/AGENTS.md`).
 
 Ids starting with `_builtin_` are reserved for built-in world modifiers defined in `builtins/index.ts`. Do not use this prefix for mission or story defs.
-
-### Priority conventions for built-ins
-
-| id | priority | Notes |
-|----|----------|-------|
-| `_builtin_lanternite_death` | 900 | Lanternite custom VFX; planned migration |
-| `_builtin_alpha_wolf_death` | 800 | `exclusive: true`; story sequence owns alpha wolf VFX |
-| `_builtin_default_death_vfx` | −100 | Runs last; handles all other enemies |
 
 Mission defs use default priority (0) or low positive values. High-priority slots (> 100) are reserved for built-ins.
 
@@ -297,4 +281,3 @@ Every `WorldEffect` variant has an optional `visualEffects?: VisualEffectDef[]` 
 | `buildWorldModifiers.ts` | `buildWorldModifiersFromSources` merge helper |
 | `presets/` | Typed preset builders (`darkSwarmModifier`, `rainyStormModifier`) |
 | `builtins/index.ts` | `BUILTIN_WORLD_MODIFIERS` array |
-| `builtinHandlers.ts` | `registerBuiltinHandlers` — custom effect handlers for built-ins |
