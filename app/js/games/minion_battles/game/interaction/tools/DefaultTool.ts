@@ -61,8 +61,16 @@ export class DefaultTool implements InteractionTool {
         const unit = engine.getUnit(active.unitId);
         if (!unit) return false;
 
-        // Guard: unit has conditionalCancelPaused active ability
-        if (unit.activeAbilities.some((a) => a.conditionalCancelPaused)) return false;
+        // At a Combo / Entombed decision any submitted order resolves the pause (a `wait` = Pass), so the
+        // move stays local here; Pass or the combo card's order picks up `pendingMovePath` (submitOrder).
+        const atConditionalCancelDecision = unit.activeAbilities.some((a) => a.conditionalCancelPaused);
+        const publishMovement = (
+            path: { col: number; row: number }[],
+            targetUnitId: string | undefined,
+            targetPixel: { x: number; y: number } | undefined,
+        ): void => {
+            if (!atConditionalCancelDecision) manager.updateNonconfirmedMovement(path, targetUnitId, targetPixel);
+        };
 
         const grid = engine.terrainManager.grid;
         const worldPos = camera.screenToWorld(screenX, screenY);
@@ -90,7 +98,7 @@ export class DefaultTool implements InteractionTool {
             this.pendingMoveTargetUnitId = null;
             this.pendingMoveTargetPixel = targetPixel;
             unit.setMovement(fullPath, undefined, engine.gameTick, targetPixel);
-            manager.updateNonconfirmedMovement(fullPath, undefined, targetPixel);
+            publishMovement(fullPath, undefined, targetPixel);
             return true;
         }
 
@@ -116,7 +124,7 @@ export class DefaultTool implements InteractionTool {
             this.pendingMoveTargetUnitId = clickedUnit.id;
             this.pendingMoveTargetPixel = null;
             unit.setMovement(fullPath, clickedUnit.id, engine.gameTick);
-            manager.updateNonconfirmedMovement(fullPath, clickedUnit.id, undefined);
+            publishMovement(fullPath, clickedUnit.id, undefined);
             return true;
         }
 
@@ -138,7 +146,7 @@ export class DefaultTool implements InteractionTool {
             this.pendingMoveTargetUnitId = null;
             this.pendingMoveTargetPixel = null;
             unit.setMovement(fullPath, undefined, engine.gameTick);
-            manager.updateNonconfirmedMovement(fullPath, undefined, undefined);
+            publishMovement(fullPath, undefined, undefined);
             return true;
         }
 
@@ -157,7 +165,7 @@ export class DefaultTool implements InteractionTool {
         this.pendingMoveTargetUnitId = null;
         this.pendingMoveTargetPixel = null;
         unit.setMovement(fullPath, undefined, engine.gameTick);
-        manager.updateNonconfirmedMovement(fullPath, undefined, undefined);
+        publishMovement(fullPath, undefined, undefined);
         return true;
     }
 }

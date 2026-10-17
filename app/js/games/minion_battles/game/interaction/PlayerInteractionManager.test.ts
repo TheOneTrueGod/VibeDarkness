@@ -277,6 +277,7 @@ describe('PlayerInteractionManager combo follow-up after assumed ITS pass', () =
         manager: PlayerInteractionManager;
         submitted: BattleOrder[];
         player: ReturnType<typeof spawnTinyPlayerUnit>;
+        rightClickToward: (col: number, row: number) => void;
     } {
         const submitted: BattleOrder[] = [];
         const engine = buildTinyBattleEngine({
@@ -332,8 +333,49 @@ describe('PlayerInteractionManager combo follow-up after assumed ITS pass', () =
         manager.setWaitingForOrders(engine.waitingForOrders);
         engineToDestroy = engine;
         managerToDestroy = manager;
-        return { manager, submitted, player };
+        camera.x = player.x;
+        camera.y = player.y;
+        const rightClickToward = (col: number, row: number): void => {
+            const dest = playerCellCenter(col, row);
+            const screen = camera.worldToScreen(dest.x, dest.y);
+            manager.onCanvasRightClick(screen.x, screen.y, false, false);
+        };
+        return { manager, submitted, player, rightClickToward };
     }
+
+    it('right-click at the combo window plans a move without submitting (an order would resolve the pause)', () => {
+        const { submitted, player, rightClickToward } = mountCanonicalThrowRockComboPause();
+
+        rightClickToward(6, 4);
+
+        expect(submitted).toHaveLength(0);
+        expect(player.movement?.path.length ?? 0).toBeGreaterThan(0);
+        expect(player.activeAbilities[0]?.conditionalCancelPaused).toBe(true);
+    });
+
+    it('Pass at the combo window carries the right-click move', async () => {
+        const { manager, submitted, rightClickToward } = mountCanonicalThrowRockComboPause();
+
+        rightClickToward(6, 4);
+        manager.handleWait();
+        await Promise.resolve();
+
+        expect(submitted).toHaveLength(1);
+        expect(submitted[0]).toMatchObject({ abilityId: 'wait', endTurn: true });
+        expect(submitted[0]!.movePath?.at(-1)).toEqual({ col: 6, row: 4 });
+    });
+
+    it('combo card at the combo window carries the right-click move', async () => {
+        const { manager, submitted, rightClickToward } = mountCanonicalThrowRockComboPause();
+
+        rightClickToward(6, 4);
+        manager.activateAbilityTargeting(0, getAbility(THROW_ROCK_ABILITY_ID)!);
+        await Promise.resolve();
+
+        expect(submitted).toHaveLength(1);
+        expect(submitted[0]).toMatchObject({ abilityId: THROW_ROCK_ABILITY_ID });
+        expect(submitted[0]!.movePath?.at(-1)).toEqual({ col: 6, row: 4 });
+    });
 
     it('combo card click (Basic mode = Throw Rock) routes into ITS, not the upfront targeting tool', async () => {
         const { manager, submitted } = mountCanonicalThrowRockComboPause();
