@@ -6,6 +6,7 @@
  */
 
 import type { GameEngine } from '../../../game/GameEngine';
+import { ObjectiveType } from '../../objectiveTypes';
 import { BaseMissionDef, type InitializeGameStateParams } from '../../BaseMissionDef';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { BattleObjectiveDef, EnemySpawnDef, LevelEvent, SpecialTilePlacement } from '../../types';
@@ -235,6 +236,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
 const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
     {
         id: 'reach_north',
+        objectiveType: ObjectiveType.ReachLocation,
         label: QUEST_PUSH_NORTH_OBJECTIVE_LABEL,
         toComplete: {
             type: 'allUnitsNearPosition',

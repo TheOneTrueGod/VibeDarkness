@@ -6,6 +6,11 @@
  * nudges on enemies inside the field radius and re-emitting the field visual each
  * game tick. Serialized with the unit so the field survives checkpoint restore.
  *
+ * Field damage: when `fieldDamage` is set, enemies inside the field take `perTick` damage on
+ * every few pulses, spaced so `total` lands within the buff's duration (see
+ * `getSpreadDamageForPulse`). The schedule is derived from elapsed time, so it survives
+ * checkpoint restore without extra counters.
+ *
  * Repulse upgrade: when `repulse` is set (Gravity Locus research modifier), the field
  * radius starts small and expands outward over the (shortened) buff duration — a
  * widening ring — then detonates on expiry via `onBeforeExpire`, damaging and knocking
@@ -39,6 +44,29 @@ import { NUDGE_ARROW_EFFECT_TYPE } from '../game/effect_defs/movementEffects';
 
 export const GRAVITY_LOCUS_FIELD_BUFF_TYPE = 'gravity_locus_field';
 
+/** Damage spread across the field's pulses: `total` damage in `perTick` increments. */
+export interface FieldPulseDamageConfig {
+    total: number;
+    perTick: number;
+}
+
+/**
+ * Damage to deal on 1-based pulse `pulseIndex` of `totalPulses` so that `config.total` lands in
+ * `config.perTick` increments across the pulses. Ticks start on pulse 1 and are evenly spaced;
+ * when they don't divide the pulses evenly, the final tick lands before the final pulse.
+ */
+export function getSpreadDamageForPulse(
+    config: FieldPulseDamageConfig,
+    pulseIndex: number,
+    totalPulses: number,
+): number {
+    if (config.perTick <= 0 || totalPulses <= 0) return 0;
+    if (pulseIndex < 1 || pulseIndex > totalPulses) return 0;
+    const ticks = Math.round(config.total / config.perTick);
+    const ticksBy = (n: number) => Math.min(ticks, Math.ceil((n * ticks) / totalPulses - 1e-9));
+    return (ticksBy(pulseIndex) - ticksBy(pulseIndex - 1)) * config.perTick;
+}
+
 /** Repulse upgrade parameters — set when Gravity Locus research grants the detonation. */
 export interface GravityLocusRepulseConfig {
     explosionDamage: number;
@@ -51,6 +79,8 @@ interface GravityLocusFieldBuffSerialized extends BuffSerialized {
     mode: string;
     repulseExplosionDamage?: number;
     repulseKnockbackTier?: number;
+    fieldDamageTotal?: number;
+    fieldDamagePerTick?: number;
 }
 
 export class GravityLocusFieldBuff extends Buff {
@@ -62,18 +92,27 @@ export class GravityLocusFieldBuff extends Buff {
     readonly mode: string;
     /** Set when the Repulse research modifier is active on this cast. */
     readonly repulse?: GravityLocusRepulseConfig;
+    /** Damage the field deals to enemies inside it, spread across its pulses. */
+    readonly fieldDamage?: FieldPulseDamageConfig;
 
     constructor(
         locus: { x: number; y: number },
         mode: string,
         durationSeconds: number = GRAVITY_LOCUS_FIELD_DURATION,
         repulse?: GravityLocusRepulseConfig,
+        fieldDamage?: FieldPulseDamageConfig,
     ) {
         super({ value: durationSeconds, unit: 'seconds' });
         this.locusX = locus.x;
         this.locusY = locus.y;
         this.mode = mode;
         this.repulse = repulse;
+        this.fieldDamage = fieldDamage;
+    }
+
+    /** Number of pulses the field fires over its full duration. */
+    private getTotalPulses(): number {
+        return Math.max(1, Math.floor(this.duration.value / GRAVITY_LOCUS_PULSE_INTERVAL + 1e-9));
     }
 
     /** Current field radius — fixed unless Repulse is expanding it toward detonation. */
@@ -108,15 +147,18 @@ export class GravityLocusFieldBuff extends Buff {
 
         const elapsed = engine.gameTime - this.appliedAtTime;
         const prevElapsed = Math.max(0, elapsed - dt);
-        const pulses =
-            Math.floor(elapsed / GRAVITY_LOCUS_PULSE_INTERVAL) -
-            Math.floor(prevElapsed / GRAVITY_LOCUS_PULSE_INTERVAL);
-        for (let p = 0; p < pulses; p++) {
-            this.applyPulse(unit, engine, radius);
+        const firstPulse = Math.floor(prevElapsed / GRAVITY_LOCUS_PULSE_INTERVAL) + 1;
+        const lastPulse = Math.floor(elapsed / GRAVITY_LOCUS_PULSE_INTERVAL);
+        const totalPulses = this.getTotalPulses();
+        for (let pulseIndex = firstPulse; pulseIndex <= lastPulse; pulseIndex++) {
+            const damage = this.fieldDamage
+                ? getSpreadDamageForPulse(this.fieldDamage, pulseIndex, totalPulses)
+                : 0;
+            this.applyPulse(unit, engine, radius, damage);
         }
     }
 
-    private applyPulse(caster: Unit, engine: EngineContext, radius: number): void {
+    private applyPulse(caster: Unit, engine: EngineContext, radius: number, damage: number): void {
         const radiusSq = radius * radius;
 
         for (const target of engine.units) {
@@ -127,6 +169,11 @@ export class GravityLocusFieldBuff extends Buff {
             const dy = target.y - this.locusY;
             const distSq = dx * dx + dy * dy;
             if (distSq > radiusSq) continue;
+
+            if (damage > 0) {
+                target.takeDamage(damage, caster.id, engine.eventBus);
+                if (!target.isAlive()) continue;
+            }
 
             const dist = Math.sqrt(distSq);
             let nudgeX: number;
@@ -227,6 +274,8 @@ export class GravityLocusFieldBuff extends Buff {
             mode: this.mode,
             repulseExplosionDamage: this.repulse?.explosionDamage,
             repulseKnockbackTier: this.repulse?.knockbackTier,
+            fieldDamageTotal: this.fieldDamage?.total,
+            fieldDamagePerTick: this.fieldDamage?.perTick,
         };
     }
 
@@ -236,11 +285,16 @@ export class GravityLocusFieldBuff extends Buff {
             d.repulseExplosionDamage !== undefined && d.repulseKnockbackTier !== undefined
                 ? { explosionDamage: d.repulseExplosionDamage, knockbackTier: d.repulseKnockbackTier }
                 : undefined;
+        const fieldDamage: FieldPulseDamageConfig | undefined =
+            d.fieldDamageTotal !== undefined && d.fieldDamagePerTick !== undefined
+                ? { total: d.fieldDamageTotal, perTick: d.fieldDamagePerTick }
+                : undefined;
         const buff = new GravityLocusFieldBuff(
             { x: d.locusX, y: d.locusY },
             d.mode,
             data.durationValue,
             repulse,
+            fieldDamage,
         );
         buff.appliedAtTime = data.appliedAtTime ?? 0;
         buff.appliedAtRound = data.appliedAtRound ?? 1;

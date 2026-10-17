@@ -6,6 +6,7 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
+import { ObjectiveType } from '../../objectiveTypes';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import { DarknessLevel } from '../../../game/darknessLevels';
 import type {
@@ -20,7 +21,7 @@ import { ENEMY_DARK_WOLF, ENEMY_DISPLACER_SPIRIT } from '../../../constants/enem
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
-import { WOD_CH2_MAP_X_COL1, WOD_CH2_MAP_Y_ROW2 } from '../chapter2Map';
+import { WOD_CH2_MAP_X_COL1, WOD_CH2_MAP_Y_ROW1 } from '../chapter2Map';
 import { DARKNESS_UPGRADE_NODE_EMPOWERED_SPIRITS } from '../../../../../researchTrees/trees/darkness_upgrades';
 import {
     MAP_SEGMENT_0_0_BOSS_ARENA,
@@ -146,6 +147,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
 const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
     {
         id: 'defeat_displacer',
+        objectiveType: ObjectiveType.KillTarget,
         label: 'Defeat the Displacer Spirit',
         toComplete: { type: 'unitDead', unitCharacterId: ENEMY_DISPLACER_SPIRIT.characterId },
     },
@@ -155,8 +157,8 @@ export class DisplacerMission extends BaseMissionDef {
     segmentIds = [BOSS_ARENA_SEGMENT_ID];
 
     missionId = DISPLACER_MISSION_ID;
-    /** Chapter 2 grid — row 2 col 1, right after the second campsite. */
-    mapPosition = { x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW2 };
+    /** Chapter 2 grid — row 1 col 1, right after the third campsite on the path. */
+    mapPosition = { x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW1 };
     missionType = 'boss' as const;
     description = 'A spirit flickers in the lit circle. Its bolts fly farther than they seem to aim.';
     /** First Darkness Upgrade: the Displacer Spirit's power empowers the slimes (and sweetens future victories). */

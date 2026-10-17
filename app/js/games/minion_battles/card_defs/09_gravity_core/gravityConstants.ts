@@ -39,6 +39,10 @@ export const GRAVITY_LOCUS_FIELD_DURATION = 4;
 export const GRAVITY_LOCUS_PULSE_INTERVAL = 0.25;
 export const GRAVITY_LOCUS_NUDGE_DISTANCE = 14;
 export const GRAVITY_LOCUS_NUDGE_DURATION = 0.2;
+/** Total damage the field deals to each enemy kept inside it, spread across the field's pulses. */
+export const GRAVITY_LOCUS_FIELD_TOTAL_DAMAGE = 6;
+/** Damage per field damage tick — ticks land on every few pulses so the total arrives within the duration. */
+export const GRAVITY_LOCUS_FIELD_DAMAGE_PER_TICK = 1;
 export const GRAVITY_LOCUS_GRAVITY_COST = 5;
 /** Visual alpha multiplier for the sustained field emitter (lower = less distracting). */
 export const GRAVITY_LOCUS_FIELD_ALPHA = 0.4;

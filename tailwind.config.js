@@ -39,12 +39,17 @@ export default {
             animation: {
                 'slide-in': 'slideIn 0.3s ease',
                 'fade-out': 'fadeOut 0.3s ease forwards',
+                'fade-in': 'fadeIn 0.4s ease both',
                 'story-title-bounce': 'storyTitleBounce 2.5s ease-in-out infinite',
             },
             keyframes: {
                 slideIn: {
                     from: { transform: 'translateX(100%)', opacity: '0' },
                     to: { transform: 'translateX(0)', opacity: '1' },
+                },
+                fadeIn: {
+                    from: { opacity: '0' },
+                    to: { opacity: '1' },
                 },
                 fadeOut: {
                     to: { transform: 'translateX(100%)', opacity: '0' },

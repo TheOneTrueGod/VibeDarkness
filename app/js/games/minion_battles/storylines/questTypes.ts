@@ -79,6 +79,8 @@ export type QuestDef = {
     description?: string;
     /** When true, the map node is grayed out and non-admins cannot start this quest. */
     disabled?: boolean;
+    /** Static background filling the Quest Prep center slot (falls back to the campfire). */
+    prepBackgroundImage?: string;
     /** Campaign Rewards applied on quest clear (plus any queued Campaign Rewards from in-run picks). */
     completionRewards?: {
         resourceDelta?: Partial<Record<CampaignResourceKey, number>>;

@@ -29,7 +29,6 @@ import {
     WOD_SCAVENGE_THE_PLAINS_BANK,
     WOD_INVESTIGATE_THE_WILDLIFE_BANK,
     WOD_POST_CORE_QUEST_BANK_2,
-    WOD_POST_CORE_QUEST_BANK_3,
     WOD_POST_CORE_QUEST_BANK_2_ID,
     WOD_SURFACE_QUEST_FILTERS,
     WorldOfDarknessStoryline,
@@ -44,7 +43,7 @@ import {
     WOD_CH2_MAP_X_COL3,
     WOD_CH2_MAP_Y_ROW0,
     WOD_CH2_MAP_Y_ROW1,
-    WOD_CH2_MAP_Y_ROW2,
+    WOD_CH2_MAP_Y_SIDE_QUEST_ROW,
 } from './WorldOfDarkness/chapter2Map';
 import { LOCATION_PLAINS_TAG } from './WorldOfDarkness/questMissions/questMissionConstants';
 
@@ -96,37 +95,36 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
             WOD_INVESTIGATE_THE_WILDLIFE_BANK,
             WOD_EXAMPLE_QUEST_BANK,
             WOD_POST_CORE_QUEST_BANK_2,
-            WOD_POST_CORE_QUEST_BANK_3,
         ]);
         expect(WOD_EXAMPLE_QUEST_BANK.requiredClears).toBe(WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS);
         expect(WOD_EXAMPLE_QUEST_BANK_REQUIRED_CLEARS).toBe(1);
         expect(WOD_EXAMPLE_QUEST_BANK.isSideQuest).toBe(true);
-        expect(WOD_EXAMPLE_QUEST_BANK.unlockAfterMissionId).toBe('south_gate_swarm');
+        expect(WOD_EXAMPLE_QUEST_BANK.unlockAfterMissionId).toBe('campsite_4');
         expect(WOD_EXAMPLE_QUEST_BANK.questDefId).toBeUndefined();
         expect(WOD_EXAMPLE_QUEST_BANK.mapPosition).toEqual({
-            x: WOD_CH2_MAP_X_COL1,
-            y: WOD_CH2_MAP_Y_ROW1,
+            x: WOD_CH2_MAP_X_COL2,
+            y: WOD_CH2_MAP_Y_ROW0,
         });
     });
 
-    it('pins Swarmling Source, Scavenge the Plains, and Investigate the Wildlife as dedicated top-row nodes', () => {
+    it('pins Swarmling Source, Scavenge the Plains, and Investigate the Wildlife as dedicated side-quest-row nodes', () => {
         expect(isDedicatedQuestBank(WOD_SWARMLING_SOURCE_BANK)).toBe(true);
         expect(WOD_SWARMLING_SOURCE_BANK.questDefId).toBe(SWARMLING_SOURCE.id);
         expect(WOD_SWARMLING_SOURCE_BANK.mapPosition).toEqual({
             x: WOD_CH2_MAP_X_COL0,
-            y: WOD_CH2_MAP_Y_ROW0,
+            y: WOD_CH2_MAP_Y_SIDE_QUEST_ROW,
         });
         expect(isDedicatedQuestBank(WOD_SCAVENGE_THE_PLAINS_BANK)).toBe(true);
         expect(WOD_SCAVENGE_THE_PLAINS_BANK.questDefId).toBe(SCAVENGE_THE_PLAINS.id);
         expect(WOD_SCAVENGE_THE_PLAINS_BANK.mapPosition).toEqual({
             x: WOD_CH2_MAP_X_COL1,
-            y: WOD_CH2_MAP_Y_ROW0,
+            y: WOD_CH2_MAP_Y_SIDE_QUEST_ROW,
         });
         expect(isDedicatedQuestBank(WOD_INVESTIGATE_THE_WILDLIFE_BANK)).toBe(true);
         expect(WOD_INVESTIGATE_THE_WILDLIFE_BANK.questDefId).toBe(INVESTIGATE_THE_WILDLIFE.id);
         expect(WOD_INVESTIGATE_THE_WILDLIFE_BANK.mapPosition).toEqual({
             x: WOD_CH2_MAP_X_COL2,
-            y: WOD_CH2_MAP_Y_ROW0,
+            y: WOD_CH2_MAP_Y_SIDE_QUEST_ROW,
         });
         expect(WOD_EXAMPLE_QUEST_BANK.filters).toEqual(WOD_SURFACE_QUEST_FILTERS);
         expect(WOD_EXAMPLE_QUEST_BANK.filters.excludeQuestDefIds).toEqual([SCAVENGE_THE_PLAINS.id]);
@@ -135,13 +133,16 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
         expect(INVESTIGATE_THE_WILDLIFE.tags).toContain(LOCATION_PLAINS_TAG);
     });
 
-    it('unlocks only after south_gate_swarm victory', () => {
+    it('unlocks only after the campsite that follows south_gate_swarm', () => {
         expect(isQuestSlotBankUnlocked(WOD_EXAMPLE_QUEST_BANK, [])).toBe(false);
         expect(
             isQuestSlotBankUnlocked(WOD_EXAMPLE_QUEST_BANK, [victoryMission('core_awakening')]),
         ).toBe(false);
         expect(
             isQuestSlotBankUnlocked(WOD_EXAMPLE_QUEST_BANK, [victoryMission('south_gate_swarm')]),
+        ).toBe(false);
+        expect(
+            isQuestSlotBankUnlocked(WOD_EXAMPLE_QUEST_BANK, [victoryMission('campsite_4')]),
         ).toBe(true);
         expect(
             getUnlockedQuestSlotBanks(WorldOfDarknessStoryline, [victoryMission('core_awakening')]),
@@ -152,25 +153,26 @@ describe('WorldOfDarkness post–Core Awakening quest bank', () => {
         ]);
     });
 
-    it('chains the second and third Surface Quests pickers on the previous picker', () => {
+    it('chains the second Surface Quests picker on the campsite after the first', () => {
         expect(WOD_POST_CORE_QUEST_BANK_2.id).toBe(WOD_POST_CORE_QUEST_BANK_2_ID);
-        expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterQuestBankId).toBe(WOD_EXAMPLE_QUEST_BANK_ID);
+        // Chained through the campsite (which is gated on the first picker), so the map line runs campsite → picker.
+        expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterQuestBankId).toBeUndefined();
+        expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterMissionId).toBe('campsite');
         expect(WOD_POST_CORE_QUEST_BANK_2.requiredClears).toBe(2);
         expect(WOD_POST_CORE_QUEST_BANK_2.mapPosition).toEqual({
             x: WOD_CH2_MAP_X_COL3,
             y: WOD_CH2_MAP_Y_ROW1,
         });
         expect(WOD_POST_CORE_QUEST_BANK_2.filters).toEqual(WOD_SURFACE_QUEST_FILTERS);
-        expect(WOD_POST_CORE_QUEST_BANK_3.unlockAfterQuestBankId).toBe(WOD_POST_CORE_QUEST_BANK_2_ID);
-        expect(WOD_POST_CORE_QUEST_BANK_3.mapPosition).toEqual({
-            x: WOD_CH2_MAP_X_COL3,
-            y: WOD_CH2_MAP_Y_ROW2,
-        });
-        const afterSouthGate = [victoryMission('core_awakening'), victoryMission('south_gate_swarm')];
+        const afterSouthGate = [
+            victoryMission('core_awakening'),
+            victoryMission('south_gate_swarm'),
+            victoryMission('campsite_4'),
+        ];
         const banks = WorldOfDarknessStoryline.questSlotBanks ?? [];
         expect(isQuestSlotBankUnlocked(WOD_POST_CORE_QUEST_BANK_2, afterSouthGate, [], banks)).toBe(false);
         const bank1Cleared = [bankVictory(SWARMLING_SOURCE.id, WOD_EXAMPLE_QUEST_BANK_ID)];
-        // Needs the campsite visit as well as the first picker.
+        // The first picker alone is not enough; the campsite after it must be visited.
         expect(
             isQuestSlotBankUnlocked(WOD_POST_CORE_QUEST_BANK_2, afterSouthGate, bank1Cleared, banks),
         ).toBe(false);

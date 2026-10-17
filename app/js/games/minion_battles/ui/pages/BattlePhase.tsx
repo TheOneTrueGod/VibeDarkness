@@ -56,6 +56,8 @@ import { useBattleNetSyncState } from './battlePhase/useBattleNetSyncState';
 import { useBattleRoundState } from './battlePhase/useBattleRoundState';
 import { useBattleSessionLifecycle } from './battlePhase/useBattleSessionLifecycle';
 import { useLobbyHostChangeLog } from './battlePhase/useLobbyHostChangeLog';
+import ObjectivesPopover from '../components/objectivesPopover/ObjectivesPopover';
+import { useObjectivesPresenter } from './battlePhase/useObjectivesPresenter';
 import { useBattleSidebarPolling } from './battlePhase/useBattleSidebarPolling';
 import { useBattleHudPanelsPolling } from './battlePhase/useBattleHudPanelsPolling';
 import { useHudEffectCanvasBridge } from './battlePhase/useHudEffectCanvasBridge';
@@ -93,6 +95,13 @@ interface BattlePhaseProps {
     chatSlot?: React.ReactNode;
     /** Loading/resync overlay, built by GameScreen; rendered absolutely within the center slot. */
     centerOverlay?: React.ReactNode;
+}
+
+/** Fly-to fallback for the objectives popover when the sidebar panel is not mounted (chat closed). */
+function getCanvasTopRightRect(el: HTMLElement | null) {
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return { left: r.right - 240, top: r.top + 8, width: 240, height: 80 };
 }
 
 export default function BattlePhase({
@@ -274,6 +283,20 @@ export default function BattlePhase({
     });
     const { activeWorldModifiers, ninjutsuPools } = useBattleHudPanelsPolling(sessionRef);
 
+    // BattleSession captures `onVictory` once at creation (mount-once lifecycle), so hand it a stable wrapper
+    // that reads the latest presenter / prop through refs. Victory waits for the objectives sequence first.
+    const playVictoryRef = useRef<() => Promise<void>>(() => Promise.resolve());
+    const onVictoryPropRef = useRef(onVictory);
+    onVictoryPropRef.current = onVictory;
+    const victoryForwardedRef = useRef(false);
+    const handleVictoryAfterObjectives = useCallback((missionResult: string, exhaustion?: number) => {
+        void playVictoryRef.current().then(() => {
+            if (victoryForwardedRef.current) return;
+            victoryForwardedRef.current = true;
+            onVictoryPropRef.current?.(missionResult, exhaustion);
+        });
+    }, []);
+
     const { battleInitPhase } = useBattleSessionLifecycle({
         api,
         missionId,
@@ -284,7 +307,7 @@ export default function BattlePhase({
         initialGameState,
         onLoadDarknessUpgrades,
         onActiveDarknessUpgradeNodeIds,
-        onVictory,
+        onVictory: handleVictoryAfterObjectives,
         onDefeat,
         onEmittedChatMessage,
         sessionRef,
@@ -293,6 +316,17 @@ export default function BattlePhase({
         onSessionEventRef: handleSessionEventRef,
         setNetSyncStatus,
     });
+
+    const objectivesPresenter = useObjectivesPresenter({
+        sessionRef,
+        engine: sessionRef.current?.getEngine() ?? null,
+        missionId,
+        lobbyId: api.getLobbyId(),
+        storyPauseActive,
+        suppress: itsPreviewActive || rewindOverlay != null,
+        objectivesIntro: MISSION_MAP[missionId]?.objectivesIntro,
+    });
+    playVictoryRef.current = objectivesPresenter.playVictory;
 
     const HOST_WAIT_POPOVER_AFTER_HEARTBEATS = BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS;
 
@@ -578,6 +612,12 @@ export default function BattlePhase({
                 bottomRightCorner={abilityBarSlots.bottomRightCorner}
             />
             <HudEffectCanvas ref={hudEffectCanvasRef} engine={engine} />
+            <ObjectivesPopover
+                state={objectivesPresenter.state}
+                onStart={objectivesPresenter.onStart}
+                onPhaseAnimationEnd={objectivesPresenter.onPhaseAnimationEnd}
+                fallbackAnchorRect={getCanvasTopRightRect(battleCanvasAreaRef.current)}
+            />
         </>
     );
 }

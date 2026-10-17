@@ -89,8 +89,8 @@ describe('bankDisplayLabel', () => {
 describe('questBankUnlockRequirementLabel', () => {
     it('names the gating mission or prior picker for each Surface Quests picker', () => {
         const banks = [WOD_POST_CORE_QUEST_BANK, WOD_POST_CORE_QUEST_BANK_2];
-        expect(questBankUnlockRequirementLabel(WOD_POST_CORE_QUEST_BANK, banks)).toBe('South Gate Swarm');
-        expect(questBankUnlockRequirementLabel(WOD_POST_CORE_QUEST_BANK_2, banks)).toBe('Surface Quests');
+        expect(questBankUnlockRequirementLabel(WOD_POST_CORE_QUEST_BANK, banks)).toBe('Campsite');
+        expect(questBankUnlockRequirementLabel(WOD_POST_CORE_QUEST_BANK_2, banks)).toBe('Campsite');
     });
 });
 

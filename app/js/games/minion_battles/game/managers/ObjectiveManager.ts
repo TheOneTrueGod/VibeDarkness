@@ -8,11 +8,30 @@ import { UnitTag } from '../units/unitTag';
 import { getNearPositionAreaTiles, isTileInNearPositionArea } from '../../storylines/nearPositionArea';
 import {
     DEFAULT_OBJECTIVE_TILES_ALPHA,
-    DEFAULT_OBJECTIVE_TILES_IMAGE,
     type BattleObjectiveDef,
     type ObjectiveOnCompleteEffect,
     type VictoryCondition,
 } from '../../storylines/types';
+import { getObjectiveTypeDef } from '../../storylines/objectiveTypes';
+import type { EffectImageKey } from '../effectImages';
+
+export interface ObjectiveTileMarker {
+    id: string;
+    image: EffectImageKey;
+    alpha: number;
+    tiles: { col: number; row: number }[];
+}
+
+/**
+ * Image for an objective's tile hints, or null when it draws none. An explicit
+ * `showObjectiveTiles.image` wins; otherwise the objective type's `tileImage` (footprints only
+ * for `ReachLocation`).
+ */
+export function getObjectiveTilesImage(def: BattleObjectiveDef): EffectImageKey | null {
+    if (def.showObjectiveTiles === false) return null;
+    const cfg = typeof def.showObjectiveTiles === 'object' ? def.showObjectiveTiles : {};
+    return cfg.image ?? getObjectiveTypeDef(def.objectiveType).tileImage;
+}
 
 export interface SerializedObjectiveState {
     completedIds: string[];
@@ -106,14 +125,15 @@ export class ObjectiveManager {
     }
 
     /**
-     * Tile hints for revealed, incomplete objectives. On by default (footprints); an objective
-     * opts out with `showObjectiveTiles: false`.
+     * Tile hints for revealed, incomplete objectives whose type (or explicit config) has a tile
+     * image — see {@link getObjectiveTilesImage}.
      */
-    getActiveTileMarkers(): { id: string; image: 'footprint'; alpha: number; tiles: { col: number; row: number }[] }[] {
-        const out: { id: string; image: 'footprint'; alpha: number; tiles: { col: number; row: number }[] }[] = [];
+    getActiveTileMarkers(): ObjectiveTileMarker[] {
+        const out: ObjectiveTileMarker[] = [];
         for (const d of this.defs) {
-            if (d.showObjectiveTiles === false) continue;
             if (!this.revealedIds.has(d.id) || this.completedIds.has(d.id)) continue;
+            const image = getObjectiveTilesImage(d);
+            if (!image) continue;
             const cfg = typeof d.showObjectiveTiles === 'object' ? d.showObjectiveTiles : {};
             let tiles = cfg.tiles;
             if (!tiles && d.toComplete.type === 'allUnitsNearPosition') {
@@ -122,7 +142,7 @@ export class ObjectiveManager {
             if (tiles?.length) {
                 out.push({
                     id: d.id,
-                    image: cfg.image ?? DEFAULT_OBJECTIVE_TILES_IMAGE,
+                    image,
                     alpha: cfg.alpha ?? DEFAULT_OBJECTIVE_TILES_ALPHA,
                     tiles,
                 });

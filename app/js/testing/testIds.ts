@@ -78,8 +78,6 @@ export const TestIds = {
     questPrepSubtitle: 'quest-prep-subtitle',
     /** Character-select Quest Prep ability picker root. */
     questPrepAbilityPicker: 'quest-prep-ability-picker',
-    /** Shared deck selector (Quest Prep + Prepare Carefully) "Not unlocked yet" notice. */
-    prepDeckSelectorLocked: 'prep-deck-selector-locked',
     questPrepAbilitySlotBar: 'quest-prep-ability-slot-bar',
     missionMarkVictory: 'mission-mark-victory',
 
@@ -107,6 +105,11 @@ export const TestIds = {
 
     /** Root marker with data-game-phase / data-game-tick attributes */
     gameSession: 'game-session',
+
+    /** Mission objectives popover card (portaled to document.body) */
+    objectivesPopover: 'objectives-popover',
+    /** "Start" button on the intro objectives popover */
+    objectivesPopoverStart: 'objectives-popover-start',
 } as const;
 
 export type TestId = (typeof TestIds)[keyof typeof TestIds];

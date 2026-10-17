@@ -48,6 +48,8 @@ export const TestIds = {
     storyNext: 'story-next',
     storyChoicePrefix: 'story-choice-',
     battleWait: 'battle-wait',
+    objectivesPopover: 'objectives-popover',
+    objectivesPopoverStart: 'objectives-popover-start',
     lobbyLeave: 'lobby-leave',
     appLogout: 'app-logout',
     musicPlayer: 'music-player',

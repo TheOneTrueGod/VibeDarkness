@@ -6,6 +6,7 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
+import { ObjectiveType } from '../../objectiveTypes';
 import { WOD_CH1_MAP_X_COL2, WOD_CH1_MAP_Y_ROW0 } from '../chapter1Map';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { BattleObjectiveDef, LevelEvent, SpecialTilePlacement } from '../../types';
@@ -138,6 +139,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
 const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
 	{
 		id: 'kill_boar',
+		objectiveType: ObjectiveType.KillTarget,
 		label: 'Hunt and kill the boar',
 		toComplete: { type: 'unitDead', unitCharacterId: 'boar' },
 		showObjectiveMarker: {
@@ -148,6 +150,7 @@ const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
 	},
 	{
 		id: 'return_cave',
+		objectiveType: ObjectiveType.ReachLocation,
 		label: 'Return to the cave with your party',
 		requiresCompletedId: 'kill_boar',
 		toComplete: {

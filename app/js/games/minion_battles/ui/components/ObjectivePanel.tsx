@@ -1,4 +1,5 @@
 import React from 'react';
+import { useHudAnchorRef } from './hudAnchors';
 
 export interface ObjectivePanelRow {
     id: string;
@@ -14,9 +15,13 @@ interface ObjectivePanelProps {
  * Todo-style list of current battle objectives (mission-driven).
  */
 export default function ObjectivePanel({ objectives }: ObjectivePanelProps) {
+    const anchorRef = useHudAnchorRef('objectives');
     if (objectives.length === 0) {
         return (
-            <div className="rounded-lg border border-white bg-dark-800/60 px-3 py-2 text-center text-xs text-gray-500">
+            <div
+                ref={anchorRef}
+                className="rounded-lg border border-white bg-dark-800/60 px-3 py-2 text-center text-xs text-gray-500"
+            >
                 No objectives for this mission.
             </div>
         );
@@ -24,6 +29,7 @@ export default function ObjectivePanel({ objectives }: ObjectivePanelProps) {
 
     return (
         <div
+            ref={anchorRef}
             className="flex flex-col gap-1.5 rounded-lg border border-white bg-dark-800/80 px-2 py-2"
             aria-label="Mission objectives"
         >

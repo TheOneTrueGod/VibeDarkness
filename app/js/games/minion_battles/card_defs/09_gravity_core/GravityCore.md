@@ -17,7 +17,7 @@ The tree ships four abilities on a simple spine, plus one tier-3 upgrade node (R
 | Card id | Ability | Research unlock | Role |
 |---------|---------|-----------------|------|
 | **0902** | **Force Push** | **Gravity Core** (tier 1) | Two-step **aimed fling** — pick enemy, then landing pixel — with unit/wall collision damage (only ability with collision damage) |
-| **0901** | **Gravity Locus** | **Gravity Locus** node (tier 2) | Non-interrupting **nudge** field at a point (short ~1s cast deploys a field that pulses for `GRAVITY_LOCUS_FIELD_DURATION`s after the cast ends); Push/Pull via Ability Mode |
+| **0901** | **Gravity Locus** | **Gravity Locus** node (tier 2) | Non-interrupting **nudge** field at a point (short ~1s cast deploys a field that pulses for `GRAVITY_LOCUS_FIELD_DURATION`s after the cast ends); Push/Pull via Ability Mode; deals `GRAVITY_LOCUS_FIELD_TOTAL_DAMAGE` (6) to enemies inside, in 1-damage ticks every few pulses |
 | **0901** | **Gravity Locus + Repulse** | **Repulse** node (tier 3, requires Gravity Locus) | Shortens the field (`durationMult`) and detonates it on expiry (`explosionDamageFlat` + `knockbackTier`, gated by the `GravityRepulse` ability tag) — see `buffs/GravityLocusFieldBuff.ts` |
 | **0903** | **Lift** | **Lift** node (tier 2) | **Lift** + hard CC + slam; mode changes horizontal landing only |
 | **0904** | **Gravity Shield** | **Gravity Shield** node (tier 13) | Ally (or self) **absorb shield** — `GRAVITY_SHIELD_HP` armour that drains over `GRAVITY_SHIELD_DURATION_ROUNDS` round via `ShieldBuff` |
@@ -72,7 +72,7 @@ Force Push, Gravity Locus, and Lift share the same **Ability Mode** toggle (`'pu
 - **Collision damage is event-authored**: Force Push listens to `forced_movement_unit_collision` / `forced_movement_terrain_collision` — the engine emits events only when the cast opts in; other knockbacks never deal collision damage implicitly.
 - **Nudge is not knockback**: use `applyNudgeToUnit`, not a smaller knockback tier.
 - **Pull at locus**: locus pull clamps at the reference point; Force Push uses anchored pixel aim, not a global Push/Pull toggle.
-- **Locus field outlives its cast**: the ~1s cast applies `GravityLocusFieldBuff` (`buffs/`) to the caster; the buff's `onGameTick` drives the pulses and field visual for the remaining field duration and is serialized with the unit.
+- **Locus field outlives its cast**: the ~1s cast applies `GravityLocusFieldBuff` (`buffs/`) to the caster; the buff's `onGameTick` drives the pulses and field visual for the remaining field duration and is serialized with the unit. Field damage is spread across pulses by `getSpreadDamageForPulse` (ticks start on pulse 1; the last tick usually lands before the last pulse), derived from elapsed time so it needs no extra serialized counter.
 
 ## Pattern for other skill trees
 

@@ -5,33 +5,23 @@ import { Unit } from '../units/Unit';
 import { DEFAULT_UNIT_RADIUS } from '../units/unit_defs/unitConstants';
 import type { TeamId } from '../teams';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
-import {
-    DOT_TICKS_PER_ROUND,
-    DARK_THORN_DOT_DAMAGE_PER_HIT,
-    THORN_DOT_DAMAGE_PER_HIT,
-    THORN_DOT_DAMAGE_PER_ROUND,
-    tickAllDots,
-} from '../dotTick';
+import { DOT_TICKS_PER_ROUND, tickAllDots } from '../dotTick';
 import {
     BRAMBLE_SLOW_EFFECT_TYPE,
     DARK_THORN_EFFECT_TYPE,
     DARK_THORN_ENTER_DAMAGE,
     DARK_THORN_LAND_DAMAGE,
     THORN_ENTER_DAMAGE,
+    THORN_LAND_DAMAGE,
+} from './terrainEffectDefs';
+import {
     clearUnitTileTransitionState,
     getOnLeaveInvocationCount,
     processUnitTileTransition,
     resetOnLeaveInvocationCount,
 } from './tileTransitions';
 
-function makeUnit(opts: {
-    id: string;
-    characterId: string;
-    x: number;
-    y: number;
-    hp?: number;
-    teamId?: TeamId;
-}): Unit {
+function makeUnit(opts: { id: string; characterId: string; x: number; y: number; hp?: number }): Unit {
     return new Unit({
         id: opts.id,
         x: opts.x,
@@ -39,7 +29,7 @@ function makeUnit(opts: {
         hp: opts.hp ?? 100,
         maxHp: opts.hp ?? 100,
         speed: 100,
-        teamId: opts.teamId ?? ('enemy' as TeamId),
+        teamId: 'enemy' as TeamId,
         ownerId: 'ai',
         characterId: opts.characterId,
         name: opts.id,
@@ -72,72 +62,113 @@ function makeEngine(units: Unit[], terrainLayers: TerrainLayerManager) {
     };
 }
 
-describe('tileTransitions thorn enter/land', () => {
+function putAirborne(unit: Unit, elapsed = 0.1): void {
+    unit.knockback = {
+        knockbackVector: { x: CELL_SIZE, y: 0 },
+        knockbackAirTime: 0.5,
+        knockbackSlideTime: 0.2,
+        knockbackSource: { unitId: 'src', abilityId: 'test' },
+        knockbackElapsed: elapsed,
+    };
+}
+
+interface ThornCase {
+    effectType: string;
+    /** characterId the thorns hurt. */
+    victim: string;
+    /** characterId the thorns ignore. */
+    immune: string;
+    enter: number;
+    land: number;
+}
+
+// `player` has no creatureType (not a dark_creature); `dark_wolf` is a dark_creature.
+const CASES: ThornCase[] = [
+    {
+        effectType: BRAMBLE_SLOW_EFFECT_TYPE,
+        victim: 'dark_wolf',
+        immune: 'player',
+        enter: THORN_ENTER_DAMAGE,
+        land: THORN_LAND_DAMAGE,
+    },
+    {
+        effectType: DARK_THORN_EFFECT_TYPE,
+        victim: 'player',
+        immune: 'dark_wolf',
+        enter: DARK_THORN_ENTER_DAMAGE,
+        land: DARK_THORN_LAND_DAMAGE,
+    },
+];
+
+describe.each(CASES)('thorns: $effectType', (c) => {
     beforeEach(() => {
         clearUnitTileTransitionState();
         resetOnLeaveInvocationCount();
     });
 
-    it('deals enter damage when a grounded unit walks onto dark_thorn, then destroys that cell', () => {
+    const spawn = (characterId: string) =>
+        makeUnit({ id: 'u1', characterId, x: CELL_SIZE * 0.5, y: CELL_SIZE * 0.5 });
+
+    it('damages its target class on enter and is consumed', () => {
         const terrainLayers = new TerrainLayerManager();
-        placeThorn(terrainLayers, DARK_THORN_EFFECT_TYPE, 1, 0);
-        // player characterId has no creatureType → not dark_creature → takes dark_thorn
-        const unit = makeUnit({
-            id: 'u1',
-            characterId: 'player',
-            x: CELL_SIZE * 0.5,
-            y: CELL_SIZE * 0.5,
-            teamId: 'player' as TeamId,
-        });
+        placeThorn(terrainLayers, c.effectType, 1, 0);
+        const unit = spawn(c.victim);
         const engine = makeEngine([unit], terrainLayers);
 
         processUnitTileTransition(unit, engine); // seed
         unit.x = CELL_SIZE * 1.5;
         processUnitTileTransition(unit, engine);
 
-        expect(unit.hp).toBe(100 - DARK_THORN_ENTER_DAMAGE);
+        expect(unit.hp).toBe(100 - c.enter);
         expect(terrainLayers.getGroundEffectAt(1, 0)).toBeNull();
         expect(getOnLeaveInvocationCount()).toBe(1);
     });
 
-    it('deals enter damage when a dark_creature walks onto bramble_slow', () => {
+    it('deals land damage (not enter + land) and is consumed', () => {
         const terrainLayers = new TerrainLayerManager();
-        placeThorn(terrainLayers, BRAMBLE_SLOW_EFFECT_TYPE, 1, 0);
-        const unit = makeUnit({
-            id: 'wolf',
-            characterId: 'dark_wolf',
-            x: CELL_SIZE * 0.5,
-            y: CELL_SIZE * 0.5,
-        });
+        placeThorn(terrainLayers, c.effectType, 1, 0);
+        const unit = spawn(c.victim);
+        putAirborne(unit);
+        const engine = makeEngine([unit], terrainLayers);
+
+        processUnitTileTransition(unit, engine); // seed airborne at col 0
+        unit.x = CELL_SIZE * 1.5;
+        unit.knockback!.knockbackElapsed = 0.6; // past airTime -> grounded
+        processUnitTileTransition(unit, engine);
+
+        expect(unit.hp).toBe(100 - c.land);
+        expect(terrainLayers.getGroundEffectAt(1, 0)).toBeNull();
+    });
+
+    it('ignores its immune class on enter and land, and is not consumed', () => {
+        const terrainLayers = new TerrainLayerManager();
+        placeThorn(terrainLayers, c.effectType, 1, 0);
+        placeThorn(terrainLayers, c.effectType, 3, 0);
+        const unit = spawn(c.immune);
         const engine = makeEngine([unit], terrainLayers);
 
         processUnitTileTransition(unit, engine);
         unit.x = CELL_SIZE * 1.5;
         processUnitTileTransition(unit, engine);
+        expect(unit.hp).toBe(100);
+        expect(terrainLayers.getGroundEffectAt(1, 0)).not.toBeNull();
 
-        expect(unit.hp).toBe(100 - THORN_ENTER_DAMAGE);
-        // Player bramble thorns persist after dealing damage.
-        expect(terrainLayers.getGroundEffectAt(1, 0)?.effectType).toBe(BRAMBLE_SLOW_EFFECT_TYPE);
+        putAirborne(unit);
+        unit.x = CELL_SIZE * 2.5;
+        processUnitTileTransition(unit, engine); // now airborne
+        unit.x = CELL_SIZE * 3.5;
+        unit.knockback!.knockbackElapsed = 0.6;
+        processUnitTileTransition(unit, engine); // lands on col 3
+        expect(unit.hp).toBe(100);
+        expect(terrainLayers.getGroundEffectAt(3, 0)).not.toBeNull();
     });
 
-    it('skips enter damage while in knockback air phase over thorns', () => {
+    it('does not trigger while airborne over the cell', () => {
         const terrainLayers = new TerrainLayerManager();
-        placeThorn(terrainLayers, DARK_THORN_EFFECT_TYPE, 1, 0);
-        placeThorn(terrainLayers, DARK_THORN_EFFECT_TYPE, 2, 0);
-        const unit = makeUnit({
-            id: 'u1',
-            characterId: 'player',
-            x: CELL_SIZE * 0.5,
-            y: CELL_SIZE * 0.5,
-            teamId: 'player' as TeamId,
-        });
-        unit.knockback = {
-            knockbackVector: { x: CELL_SIZE * 2, y: 0 },
-            knockbackAirTime: 0.5,
-            knockbackSlideTime: 0.2,
-            knockbackSource: { unitId: 'src', abilityId: 'test' },
-            knockbackElapsed: 0.1,
-        };
+        placeThorn(terrainLayers, c.effectType, 1, 0);
+        placeThorn(terrainLayers, c.effectType, 2, 0);
+        const unit = spawn(c.victim);
+        putAirborne(unit);
         const engine = makeEngine([unit], terrainLayers);
 
         processUnitTileTransition(unit, engine); // seed airborne
@@ -147,125 +178,21 @@ describe('tileTransitions thorn enter/land', () => {
         processUnitTileTransition(unit, engine);
 
         expect(unit.hp).toBe(100);
+        expect(terrainLayers.getGroundEffectAt(1, 0)).not.toBeNull();
         expect(getOnLeaveInvocationCount()).toBe(2);
     });
 
-    it('deals land damage (not enter+land) when leaving knockback air on a thorn cell', () => {
+    it('deals no damage to a unit standing on it across DoT milestones', () => {
         const terrainLayers = new TerrainLayerManager();
-        placeThorn(terrainLayers, DARK_THORN_EFFECT_TYPE, 1, 0);
-        const unit = makeUnit({
-            id: 'u1',
-            characterId: 'player',
-            x: CELL_SIZE * 0.5,
-            y: CELL_SIZE * 0.5,
-            teamId: 'player' as TeamId,
-        });
-        unit.knockback = {
-            knockbackVector: { x: CELL_SIZE, y: 0 },
-            knockbackAirTime: 0.5,
-            knockbackSlideTime: 0.2,
-            knockbackSource: { unitId: 'src', abilityId: 'test' },
-            knockbackElapsed: 0.1,
-        };
-        const engine = makeEngine([unit], terrainLayers);
+        placeThorn(terrainLayers, c.effectType, 0, 0);
+        const unit = spawn(c.victim);
+        const eventBus = new EventBus();
 
-        processUnitTileTransition(unit, engine); // seed airborne at col 0
-        unit.x = CELL_SIZE * 1.5;
-        unit.knockback.knockbackElapsed = 0.6; // past airTime → grounded
-        processUnitTileTransition(unit, engine);
+        for (let i = 0; i < DOT_TICKS_PER_ROUND; i++) {
+            tickAllDots([unit], terrainLayers, eventBus, undefined, i);
+        }
 
-        expect(unit.hp).toBe(100 - DARK_THORN_LAND_DAMAGE);
-        expect(unit.hp).not.toBe(100 - DARK_THORN_ENTER_DAMAGE - DARK_THORN_LAND_DAMAGE);
-        expect(terrainLayers.getGroundEffectAt(1, 0)).toBeNull();
-    });
-
-    it('does not damage immune creature types on enter or land', () => {
-        const terrainLayers = new TerrainLayerManager();
-        placeThorn(terrainLayers, BRAMBLE_SLOW_EFFECT_TYPE, 1, 0);
-        // player is not dark_creature → immune to bramble_slow
-        const unit = makeUnit({
-            id: 'player',
-            characterId: 'player',
-            x: CELL_SIZE * 0.5,
-            y: CELL_SIZE * 0.5,
-            teamId: 'player' as TeamId,
-        });
-        const engine = makeEngine([unit], terrainLayers);
-
-        processUnitTileTransition(unit, engine);
-        unit.x = CELL_SIZE * 1.5;
-        processUnitTileTransition(unit, engine);
         expect(unit.hp).toBe(100);
-
-        // Land on bramble as dark_creature-immune (nature lanternite) on dark_thorn
-        clearUnitTileTransitionState();
-        const terrain2 = new TerrainLayerManager();
-        placeThorn(terrain2, DARK_THORN_EFFECT_TYPE, 0, 0);
-        const wolf = makeUnit({
-            id: 'wolf',
-            characterId: 'dark_wolf',
-            x: CELL_SIZE * 0.5,
-            y: CELL_SIZE * 0.5,
-            hp: 50,
-        });
-        wolf.knockback = {
-            knockbackVector: { x: 0, y: 0 },
-            knockbackAirTime: 0.3,
-            knockbackSlideTime: 0.1,
-            knockbackSource: { unitId: 'src', abilityId: 'test' },
-            knockbackElapsed: 0.05,
-        };
-        const eng2 = makeEngine([wolf], terrain2);
-        processUnitTileTransition(wolf, eng2);
-        wolf.knockback.knockbackElapsed = 0.4;
-        processUnitTileTransition(wolf, eng2);
-        expect(wolf.hp).toBe(50); // dark_creature immune to dark_thorn
-    });
-});
-
-describe('thorn DoT', () => {
-    it('deals THORN_DOT_DAMAGE_PER_ROUND from bramble_slow over a full set of milestones', () => {
-        expect(THORN_DOT_DAMAGE_PER_ROUND).toBe(
-            THORN_DOT_DAMAGE_PER_HIT * (DOT_TICKS_PER_ROUND / 2),
-        );
-
-        const terrainLayers = new TerrainLayerManager();
-        placeThorn(terrainLayers, BRAMBLE_SLOW_EFFECT_TYPE, 0, 0);
-        const unit = makeUnit({
-            id: 'wolf',
-            characterId: 'dark_wolf',
-            x: CELL_SIZE * 0.5,
-            y: CELL_SIZE * 0.5,
-        });
-        const eventBus = new EventBus();
-        const startHp = unit.hp;
-
-        for (let i = 0; i < DOT_TICKS_PER_ROUND; i++) {
-            tickAllDots([unit], terrainLayers, eventBus, undefined, i);
-        }
-
-        expect(startHp - unit.hp).toBe(THORN_DOT_DAMAGE_PER_ROUND);
-        expect(terrainLayers.getGroundEffectAt(0, 0)?.effectType).toBe(BRAMBLE_SLOW_EFFECT_TYPE);
-    });
-
-    it('deals one doubled dark_thorn DoT hit then destroys that cell', () => {
-        const terrainLayers = new TerrainLayerManager();
-        placeThorn(terrainLayers, DARK_THORN_EFFECT_TYPE, 0, 0);
-        const unit = makeUnit({
-            id: 'u1',
-            characterId: 'player',
-            x: CELL_SIZE * 0.5,
-            y: CELL_SIZE * 0.5,
-            teamId: 'player' as TeamId,
-        });
-        const eventBus = new EventBus();
-        const startHp = unit.hp;
-
-        for (let i = 0; i < DOT_TICKS_PER_ROUND; i++) {
-            tickAllDots([unit], terrainLayers, eventBus, undefined, i);
-        }
-
-        expect(startHp - unit.hp).toBe(DARK_THORN_DOT_DAMAGE_PER_HIT);
-        expect(terrainLayers.getGroundEffectAt(0, 0)).toBeNull();
+        expect(terrainLayers.getGroundEffectAt(0, 0)).not.toBeNull();
     });
 });

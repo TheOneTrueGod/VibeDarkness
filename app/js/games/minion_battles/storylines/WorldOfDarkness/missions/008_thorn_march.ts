@@ -21,6 +21,7 @@
  */
 
 import type { GameEngine } from '../../../game/GameEngine';
+import { ObjectiveType } from '../../objectiveTypes';
 import { BaseMissionDef, type InitializeGameStateParams } from '../../BaseMissionDef';
 import type {
     BattleObjectiveDef,
@@ -235,6 +236,7 @@ export class ThornMarchMission extends BaseMissionDef {
     battleObjectives: BattleObjectiveDef[] = [
         {
             id: 'establish_all_nests',
+            objectiveType: ObjectiveType.Protect,
             label: 'Protect the lanternites as they build their network',
             toComplete: { type: 'aliveUnitCount', characterId: LANTERNITE_NEST_CHARACTER_ID, minCount: 3 },
             onComplete: [{ type: 'revealObjective', id: 'hold_the_line' }],
@@ -246,6 +248,7 @@ export class ThornMarchMission extends BaseMissionDef {
         },
         {
             id: 'hold_the_line',
+            objectiveType: ObjectiveType.Protect,
             label: 'Hold all three nests for 2 more rounds',
             revealedInitially: false,
             requiresCompletedId: 'establish_all_nests',

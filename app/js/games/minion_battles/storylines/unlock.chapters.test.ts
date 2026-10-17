@@ -16,7 +16,6 @@ import {
     WOD_SWARMLING_SOURCE_BANK_ID,
     WOD_POST_CORE_QUEST_BANK_ID,
     WOD_POST_CORE_QUEST_BANK_2_ID,
-    WOD_POST_CORE_QUEST_BANK_3_ID,
     WOD_SCAVENGE_THE_PLAINS_BANK_ID,
     WOD_INVESTIGATE_THE_WILDLIFE_BANK_ID,
     WorldOfDarknessStoryline,
@@ -102,27 +101,35 @@ describe('getUnlockedMissionIds — chapter gating', () => {
         expect(unlocked.has('thornbinder_arena')).toBe(false);
     });
 
-    it('unlocks the second campsite after bank 3, then Displacer after that campsite, then the third campsite after Displacer', () => {
+    it('unlocks the first campsite right after South Gate Swarm', () => {
+        expect(getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING).has('campsite_4')).toBe(false);
+        expect(
+            getUnlockedMissionIds(WorldOfDarknessStoryline, [...THROUGH_CORE_AWAKENING, victory('south_gate_swarm')])
+                .has('campsite_4'),
+        ).toBe(true);
+    });
+
+    it('unlocks the campsite before Displacer after bank 2, then Displacer after that campsite, then the last campsite after Displacer', () => {
         const bankVictory = (questDefId: string): QuestResult => ({
             questDefId,
             result: 'victory',
             placement: 'bank',
-            bankId: WOD_POST_CORE_QUEST_BANK_3_ID,
+            bankId: WOD_POST_CORE_QUEST_BANK_2_ID,
         });
-        const bank3Done = [bankVictory('a'), bankVictory('b'), bankVictory('c')];
+        const bank2Done = [bankVictory('a'), bankVictory('b')];
         expect(
-            getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING, bank3Done.slice(0, 2)).has(
+            getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING, bank2Done.slice(0, 1)).has(
                 'campsite_2',
             ),
         ).toBe(false);
-        const afterBank3 = getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING, bank3Done);
-        expect(afterBank3.has('campsite_2')).toBe(true);
-        expect(afterBank3.has('displacer')).toBe(false);
-        expect(afterBank3.has('thornbinder_arena')).toBe(false);
+        const afterBank2 = getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING, bank2Done);
+        expect(afterBank2.has('campsite_2')).toBe(true);
+        expect(afterBank2.has('displacer')).toBe(false);
+        expect(afterBank2.has('thornbinder_arena')).toBe(false);
         const afterCampsite2 = getUnlockedMissionIds(
             WorldOfDarknessStoryline,
             [...THROUGH_CORE_AWAKENING, victory('campsite_2')],
-            bank3Done,
+            bank2Done,
         );
         expect(afterCampsite2.has('displacer')).toBe(true);
         expect(afterCampsite2.has('thornbinder_arena')).toBe(false);
@@ -130,7 +137,7 @@ describe('getUnlockedMissionIds — chapter gating', () => {
         const afterDisplacer = getUnlockedMissionIds(
             WorldOfDarknessStoryline,
             [...THROUGH_CORE_AWAKENING, victory('campsite_2'), victory('displacer')],
-            bank3Done,
+            bank2Done,
         );
         expect(afterDisplacer.has('campsite_3')).toBe(true);
         expect(afterDisplacer.has('thornbinder_arena')).toBe(false);
@@ -166,7 +173,6 @@ describe('chapter composition', () => {
             WOD_INVESTIGATE_THE_WILDLIFE_BANK_ID,
             WOD_POST_CORE_QUEST_BANK_ID,
             WOD_POST_CORE_QUEST_BANK_2_ID,
-            WOD_POST_CORE_QUEST_BANK_3_ID,
         ]);
     });
 });

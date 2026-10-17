@@ -9,6 +9,7 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
+import { ObjectiveType } from '../../objectiveTypes';
 import { WOD_CH1_MAP_X_COL1, WOD_CH1_MAP_Y_ROW0 } from '../chapter1Map';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import type {
@@ -108,6 +109,7 @@ const LEVEL_EVENTS: LevelEvent[] = [
 const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
     {
         id: 'find_safety',
+        objectiveType: ObjectiveType.ReachLocation,
         label: 'Find safety — reach the light in the cave to the east with your whole party',
         toComplete: {
             type: 'allUnitsNearPosition',

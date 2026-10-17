@@ -6,6 +6,7 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
+import { ObjectiveType } from '../../objectiveTypes';
 import { NINJUTSU_3_FLURRY_PER_ROUND } from '../../../game/ninjutsu/ninjutsuConfig';
 import type { LevelEvent, SpecialTilePlacement } from '../../types';
 import { MISSION_MAP_DISABLED } from '../../types';
@@ -214,12 +215,14 @@ export class CrystalCorruptionMission extends BaseMissionDef {
     battleObjectives = [
         {
             id: 'survive',
+            objectiveType: ObjectiveType.Survive,
             label: 'Survive the assault',
             toComplete: { type: 'atLeastRound' as const, round: 7 },
             onComplete: [{ type: 'revealObjective' as const, id: 'eliminate' }],
         },
         {
             id: 'eliminate',
+            objectiveType: ObjectiveType.EliminateAll,
             label: 'Kill the remaining enemies',
             requiresCompletedId: 'survive',
             toComplete: { type: 'eliminateAllEnemies' as const },

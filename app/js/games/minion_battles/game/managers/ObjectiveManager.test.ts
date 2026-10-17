@@ -9,6 +9,9 @@ import { createUnitFromSpawnConfig } from '../units';
 import { TerrainGrid, CELL_SIZE } from '../../terrain/TerrainGrid';
 import { TerrainManager } from '../../terrain/TerrainManager';
 import { TerrainType } from '../../terrain/TerrainType';
+import { ObjectiveType } from '../../storylines/objectiveTypes';
+import { getObjectiveTilesImage } from './ObjectiveManager';
+import type { BattleObjectiveDef } from '../../storylines/types';
 
 describe('ObjectiveManager', () => {
     it('hides chained objective until prerequisite completes, then completes when condition is met', () => {
@@ -37,11 +40,13 @@ describe('ObjectiveManager', () => {
         engine.registerBattleObjectives([
             {
                 id: 'kill_boar',
+                objectiveType: ObjectiveType.KillTarget,
                 label: 'Hunt the boar',
                 toComplete: { type: 'unitDead', unitCharacterId: 'boar' },
             },
             {
                 id: 'mop_up',
+                objectiveType: ObjectiveType.EliminateAll,
                 label: 'Clear remaining threats',
                 requiresCompletedId: 'kill_boar',
                 toComplete: { type: 'eliminateAllEnemies' },
@@ -88,11 +93,13 @@ describe('ObjectiveManager', () => {
         engine.registerBattleObjectives([
             {
                 id: 'survive',
+                objectiveType: ObjectiveType.Survive,
                 label: 'Survive',
                 toComplete: { type: 'atLeastRound', round: 3 },
             },
             {
                 id: 'clear',
+                objectiveType: ObjectiveType.EliminateAll,
                 label: 'Clear',
                 requiresCompletedId: 'survive',
                 toComplete: { type: 'eliminateAllEnemies' },
@@ -123,16 +130,61 @@ describe('ObjectiveManager', () => {
         resetGameObjectIdCounter(1);
         const engine = new GameEngine();
         engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
-        engine.registerBattleObjectives([{ id: 'a', label: 'A', toComplete: { type: 'eliminateAllEnemies' } }]);
+        engine.registerBattleObjectives([{ id: 'a', label: 'A', objectiveType: ObjectiveType.EliminateAll, toComplete: { type: 'eliminateAllEnemies' } }]);
         engine.state.objectiveManager.processObjectives();
 
         const json = engine.toJSON();
         expect(json.objectives?.completedIds).toContain('a');
 
         const restored = GameEngine.fromJSON(json, 'p1', null);
-        restored.registerBattleObjectives([{ id: 'a', label: 'A', toComplete: { type: 'eliminateAllEnemies' } }]);
+        restored.registerBattleObjectives([{ id: 'a', label: 'A', objectiveType: ObjectiveType.EliminateAll, toComplete: { type: 'eliminateAllEnemies' } }]);
         expect(restored.getBattleObjectiveRows().find((r) => r.id === 'a')?.completed).toBe(true);
         restored.destroy();
+        engine.destroy();
+    });
+});
+
+describe('objective tile markers by objectiveType', () => {
+    const area = { type: 'allUnitsNearPosition' as const, col: 5, row: 5, maxDistance: 1 };
+    const tiles = [{ col: 2, row: 2 }];
+
+    it('uses footprints only for ReachLocation by default', () => {
+        const def = (objectiveType: ObjectiveType): BattleObjectiveDef => ({
+            id: 'x',
+            label: 'X',
+            objectiveType,
+            toComplete: area,
+        });
+        expect(getObjectiveTilesImage(def(ObjectiveType.ReachLocation))).toBe('footprint');
+        for (const t of Object.values(ObjectiveType)) {
+            if (t === ObjectiveType.ReachLocation) continue;
+            expect(getObjectiveTilesImage(def(t))).toBeNull();
+        }
+    });
+
+    it('showObjectiveTiles: false disables hints and an explicit image overrides the type default', () => {
+        const base: BattleObjectiveDef = { id: 'x', label: 'X', objectiveType: ObjectiveType.ReachLocation, toComplete: area };
+        expect(getObjectiveTilesImage({ ...base, showObjectiveTiles: false })).toBeNull();
+        expect(getObjectiveTilesImage({ ...base, showObjectiveTiles: { image: 'glowOrb' } })).toBe('glowOrb');
+    });
+
+    it('draws no tiles for a non-move objective even when it lists explicit tiles', () => {
+        const engine = new GameEngine();
+        engine.prepareForNewGame({ localPlayerId: 'p1', randomSeed: 1 });
+        engine.registerBattleObjectives([
+            { id: 'go', label: 'Go', objectiveType: ObjectiveType.ReachLocation, toComplete: area },
+            {
+                id: 'guard',
+                label: 'Guard',
+                objectiveType: ObjectiveType.Protect,
+                toComplete: { type: 'atLeastRound', round: 9 },
+                showObjectiveTiles: { tiles },
+            },
+        ]);
+        const markers = engine.getObjectiveTileMarkers();
+        expect(markers.map((m) => m.id)).toEqual(['go']);
+        expect(markers[0]!.image).toBe('footprint');
+        expect(markers[0]!.tiles).toHaveLength(9);
         engine.destroy();
     });
 });

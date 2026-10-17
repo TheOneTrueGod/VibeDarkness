@@ -55,7 +55,7 @@ When instructed to have enemies "start spawned" or "spawn at the start", both ph
 
 ## Movement targets and story text
 
-- **Movement targets:** an objective whose `toComplete` is `allUnitsNearPosition` shows faint footprint tiles over its area by default (`showObjectiveTiles`). For a "go here" objective with a different completion condition, pass explicit tiles, e.g. `showObjectiveTiles: { tiles: getTilesAroundTile(col, row, 1) }` (`storylines/nearPositionArea.ts`). Pair with `showObjectiveMarker` for the off-screen arrow.
+- **Objective types:** every `BattleObjectiveDef` sets `objectiveType` (`storylines/objectiveTypes.ts`: `ReachLocation`, `EliminateAll`, `KillTarget`, `Survive`, `Protect`). `OBJECTIVE_TYPE_DEFS` picks the default hints: only `ReachLocation` draws faint footprint tiles (`showObjectiveTiles`), over the `allUnitsNearPosition` area by default or explicit `tiles` (e.g. `getTilesAroundTile(col, row, 1)`). Other types show the `showObjectiveMarker` "!" alone. `storylines/objectiveTypes.test.ts` audits every mission's objectives.
 - **No enemy names in story text:** story phrases, mission/quest `description`s and other narrative use descriptors ("glowing insects", "the nest"), not unit names. Objective labels and titles may name enemies. See `narrative/writing-style-enemies/STYLE.md`.
 
 ## Key types and locations
@@ -68,6 +68,7 @@ When instructed to have enemies "start spawned" or "spawn at the start", both ph
 - Storyline flow: `app/js/games/minion_battles/storylines/WorldOfDarkness/WorldOfDarkness.ts` (edges)
 - **Tests after mission edits:** co-located `missions/*.test.ts` only — never `vitest related` on a mission file (fans out via `MISSION_MAP`; see **scoped-testing**)
 - **`disabled`:** Optional on the mission def (`MISSION_MAP_DISABLED`). Non-admins cannot select or host it from the Mission Map or Mission Select; admins still can. Quest copies that subclass a disabled map mission must override `disabled` back to false if they should stay playable.
+- **`objectivesIntro`:** Optional on the mission def (`storylines/types.ts`, next to `battleObjectives`). Set `false` to skip the centred objectives popover shown at mission start (the popover also never shows for missions with no objectives). Mid-mission and victory popover animations are unaffected. See `ui/components/AGENTS.md` (objectivesPopover).
 
 ## Post-mission choice options (dynamic rewards)
 

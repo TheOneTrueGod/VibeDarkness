@@ -30,7 +30,7 @@ interface UseQuestPrepLoadoutParams {
  * Local + lobby sync for Quest Prep primary ability slots.
  * Empty lobby + no remembered picks → first {@link QUEST_PREP_ABILITY_SLOT_COUNT} selectable.
  * Under/at the cap it is read-only (every ability brought), matching Prepare Carefully, since the
- * shared deck selector shows "Not unlocked yet" there and could not re-add a removed ability.
+ * shared deck selector is hidden there and could not re-add a removed ability.
  */
 export function useQuestPrepLoadout({
     api,

@@ -67,6 +67,8 @@ const CIRCLE_R = 28;
 /** ViewBox inset — covers node radius, name label below, and hover rings without huge empty margins. */
 const PADDING = 48;
 const MISSION_ICON_SIZE = 22;
+/** Horizontal inset of chapter map dividers from the viewBox edges. */
+const MAP_DIVIDER_INSET = 16;
 const SIDE_QUEST_MARK_FONT_SIZE = 16;
 
 const MISSION_TYPE_ICONS: Record<MissionType, LucideIcon> = {
@@ -874,6 +876,8 @@ export default function MissionMapTab({
         return banks.filter((b) => bankIds.has(b.id));
     }, [storyline, chapters, activeChapter]);
 
+    const mapDividers = useMemo(() => activeChapter?.mapDividers ?? [], [activeChapter]);
+
     const unlockedQuestBankIds = useMemo(() => {
         if (!storyline) return new Set<string>();
         return new Set(
@@ -909,6 +913,7 @@ export default function MissionMapTab({
             ...missions.map((m) => m.pos),
             ...questBanksOnMap.map((b) => b.mapPosition!).filter(Boolean),
         ];
+        const dividerYs = mapDividers.map((d) => d.y);
         if (points.length === 0) return { minX: 0, minY: 0, maxX: 400, maxY: 300 };
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         for (const pos of points) {
@@ -917,8 +922,12 @@ export default function MissionMapTab({
             if (pos.x > maxX) maxX = pos.x;
             if (pos.y > maxY) maxY = pos.y;
         }
+        for (const y of dividerYs) {
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+        }
         return { minX, minY, maxX, maxY };
-    }, [missions, questBanksOnMap]);
+    }, [missions, questBanksOnMap, mapDividers]);
 
     const vbX = minX - PADDING;
     const vbY = minY - PADDING;
@@ -1107,6 +1116,33 @@ export default function MissionMapTab({
                         <stop offset="100%" stopColor="#7f1d1d" />
                     </radialGradient>
                 </defs>
+
+                {/* Chapter section dividers (e.g. "Side Quests") */}
+                {mapDividers.map((divider) => (
+                    <g key={`map-divider-${divider.y}`} style={{ pointerEvents: 'none' }}>
+                        <line
+                            x1={vbX + MAP_DIVIDER_INSET}
+                            y1={divider.y}
+                            x2={vbX + vbW - MAP_DIVIDER_INSET}
+                            y2={divider.y}
+                            stroke="#7c3aed"
+                            strokeWidth={1.5}
+                            strokeOpacity={0.8}
+                        />
+                        {divider.label && (
+                            <text
+                                x={vbX + MAP_DIVIDER_INSET}
+                                y={divider.y + 16}
+                                fontSize={11}
+                                fontWeight={600}
+                                fill="#a78bfa"
+                                style={{ userSelect: 'none' }}
+                            >
+                                {divider.label}
+                            </text>
+                        )}
+                    </g>
+                ))}
 
                 {/* Connection lines */}
                 {(storyline.edges ?? []).map((edge) => {

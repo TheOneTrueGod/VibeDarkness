@@ -19,7 +19,7 @@ interface MissionPrepOverviewProps {
 /**
  * Center segment for regular-mission Prepare Carefully.
  * Uses the shared `PrepDeckSelector` (same component and show/hide rule as Quest Prep):
- * under the ability cap it shows "Not unlocked yet"; over it, the ability picker.
+ * under the ability cap it renders nothing (the campfire shows); over it, the ability picker.
  */
 export function MissionPrepOverview({
     character,
@@ -45,8 +45,9 @@ export function MissionPrepOverview({
     const center = deckSelector(true);
 
     if (useLayoutSlots) {
-        // Unlocked: the picker only appears once "Edit Abilities" opens it. Locked: the notice shows.
-        if (selectionRequired && !pickerOpen) {
+        // The picker only appears once unlocked and "Edit Abilities" opens it; otherwise the
+        // campfire background shows on its own.
+        if (!selectionRequired || !pickerOpen) {
             return null;
         }
         return (

@@ -3,6 +3,7 @@
  */
 
 import type { QuestDef } from '../../questTypes';
+import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { MISSION_MAP_DISABLED } from '../../types';
 import {
     LOCATION_PLAINS_TAG,
@@ -24,6 +25,7 @@ export const SCAVENGE_THE_PLAINS: QuestDef = {
     description: SCAVENGE_THE_PLAINS_DESCRIPTION,
     disabled: MISSION_MAP_DISABLED,
     campaignId: 'world_of_darkness',
+    prepBackgroundImage: STORY_BACKGROUNDS.campfire,
     tags: [LOCATION_PLAINS_TAG, 'post_core_awakening'],
     slots: [
         {

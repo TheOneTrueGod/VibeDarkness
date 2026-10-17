@@ -4,7 +4,8 @@
  * The cast itself is short (~1s); the field is carried by GravityLocusFieldBuff on the
  * caster and keeps pulsing for GRAVITY_LOCUS_FIELD_DURATION seconds after the cast.
  * Push mode repels enemies from the locus; Pull mode draws them inward (stopping at the center).
- * Uses non-interrupting nudges — enemy windups are unaffected.
+ * Uses non-interrupting nudges — enemy windups are unaffected. Enemies inside the field
+ * also take GRAVITY_LOCUS_FIELD_TOTAL_DAMAGE spread across the field's pulses.
  */
 
 import { AbilityPhase } from '../../../abilities/abilityTimings';
@@ -21,6 +22,8 @@ import {
     GRAVITY_ABILITY_MODE_PUSH,
     GRAVITY_LOCUS_CAST_ACTIVE_DURATION,
     GRAVITY_LOCUS_COOLDOWN_DURATION,
+    GRAVITY_LOCUS_FIELD_DAMAGE_PER_TICK,
+    GRAVITY_LOCUS_FIELD_TOTAL_DAMAGE,
     GRAVITY_LOCUS_FIELD_DURATION,
     GRAVITY_LOCUS_FIELD_RADIUS,
     GRAVITY_LOCUS_GRAVITY_COST,
@@ -109,6 +112,7 @@ export const GravityLocusAbility = defineAbility({
         const duration = GRAVITY_LOCUS_FIELD_DURATION * (mod.durationMult ?? 1);
         const lines = [
             `Deploy a gravity field for ${duration}s, nudging enemies within {${GRAVITY_LOCUS_FIELD_RADIUS}} each pulse.`,
+            `Deals {${GRAVITY_LOCUS_FIELD_TOTAL_DAMAGE}} damage across its duration to enemies inside.`,
             'Pull draws inward; Push repels from the locus.',
         ];
         if (mod.addTags?.includes('GravityRepulse')) {
@@ -143,7 +147,13 @@ export const GravityLocusAbility = defineAbility({
             : undefined;
 
         caster.addBuff(
-            new GravityLocusFieldBuff(locus, active?.abilityMode ?? GRAVITY_ABILITY_MODE_PULL, duration, repulse),
+            new GravityLocusFieldBuff(
+                locus,
+                active?.abilityMode ?? GRAVITY_ABILITY_MODE_PULL,
+                duration,
+                repulse,
+                { total: GRAVITY_LOCUS_FIELD_TOTAL_DAMAGE, perTick: GRAVITY_LOCUS_FIELD_DAMAGE_PER_TICK },
+            ),
             ctx.gameTime,
             ctx.roundNumber,
             ctx.eventBus,

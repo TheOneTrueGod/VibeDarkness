@@ -28,9 +28,11 @@ import {
     CAMPSITE,
     CAMPSITE_2,
     CAMPSITE_3,
+    CAMPSITE_4,
     CAMPSITE_MISSION_ID,
     CAMPSITE_2_MISSION_ID,
     CAMPSITE_3_MISSION_ID,
+    CAMPSITE_4_MISSION_ID,
 } from './WorldOfDarkness/questMissions/campsite';
 import { QUEST_FIND_SOME_FOOD } from './WorldOfDarkness/questMissions/quest_find_some_food';
 import { QUEST_CRYSTAL_CORRUPTION } from './WorldOfDarkness/questMissions/quest_crystal_corruption';
@@ -76,6 +78,7 @@ export const MISSION_MAP: Record<string, IBaseMissionDef> = {
     [CAMPSITE_MISSION_ID]: CAMPSITE,
     [CAMPSITE_2_MISSION_ID]: CAMPSITE_2,
     [CAMPSITE_3_MISSION_ID]: CAMPSITE_3,
+    [CAMPSITE_4_MISSION_ID]: CAMPSITE_4,
     quest_find_some_food: QUEST_FIND_SOME_FOOD,
     quest_crystal_corruption: QUEST_CRYSTAL_CORRUPTION,
     [QUEST_PUSH_NORTH_MISSION_ID]: QUEST_PUSH_NORTH,

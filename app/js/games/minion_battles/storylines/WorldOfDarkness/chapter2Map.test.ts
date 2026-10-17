@@ -12,16 +12,19 @@ import {
     WOD_CH2_MAP_X_COL3,
     WOD_CH2_MAP_Y_ROW0,
     WOD_CH2_MAP_Y_ROW1,
-    WOD_CH2_MAP_Y_ROW2,
+    WOD_CH2_MAP_Y_SIDE_QUEST_DIVIDER,
+    WOD_CH2_MAP_Y_SIDE_QUEST_ROW,
 } from './chapter2Map';
 import {
+    WOD_INVESTIGATE_THE_WILDLIFE_BANK,
     WOD_POST_CORE_QUEST_BANK,
     WOD_POST_CORE_QUEST_BANK_2,
-    WOD_POST_CORE_QUEST_BANK_3,
+    WOD_SCAVENGE_THE_PLAINS_BANK,
+    WOD_SWARMLING_SOURCE_BANK,
     WorldOfDarknessStoryline,
 } from './WorldOfDarkness';
 import { WOD_CH3_MAP_X_COL0, WOD_CH3_MAP_X_COL1, WOD_CH3_MAP_X_COL2, WOD_CH3_MAP_Y_ROW0, WOD_CH3_MAP_Y_ROW1 } from './chapter3Map';
-import { CAMPSITE, CAMPSITE_2, CAMPSITE_3 } from './questMissions/campsite';
+import { CAMPSITE, CAMPSITE_2, CAMPSITE_3, CAMPSITE_4 } from './questMissions/campsite';
 import { CRYSTAL_CORRUPTION } from './missions/004b_crystal_corruption';
 import { DISPLACER } from './missions/006d_displacer';
 import { THORNBINDER_ARENA } from './missions/006b_thornbinder_arena';
@@ -37,25 +40,38 @@ describe('chapter 2 mission map grid', () => {
         expect(WOD_CH2_MAP_X_COL2 - WOD_CH2_MAP_X_COL1).toBe(WOD_CH2_MAP_COL_SPACING);
         expect(WOD_CH2_MAP_X_COL3 - WOD_CH2_MAP_X_COL2).toBe(WOD_CH2_MAP_COL_SPACING);
         expect(WOD_CH2_MAP_Y_ROW1 - WOD_CH2_MAP_Y_ROW0).toBe(WOD_CH2_MAP_ROW_SPACING);
-        expect(WOD_CH2_MAP_Y_ROW2 - WOD_CH2_MAP_Y_ROW1).toBe(WOD_CH2_MAP_ROW_SPACING);
     });
 
-    it('snakes the questline: row 1 left to right, then wraps to row 2 moving left', () => {
-        expect(SOUTH_GATE_SWARM.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW1 });
-        expect(WOD_POST_CORE_QUEST_BANK.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW1 });
-        expect(CAMPSITE.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW1 });
+    it('snakes the questline: row 0 left to right, then wraps to row 1 moving left', () => {
+        expect(SOUTH_GATE_SWARM.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW0 });
+        expect(CAMPSITE_4.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW0 });
+        expect(WOD_POST_CORE_QUEST_BANK.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW0 });
+        expect(CAMPSITE.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW0 });
         expect(WOD_POST_CORE_QUEST_BANK_2.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW1 });
-        expect(WOD_POST_CORE_QUEST_BANK_3.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL3, y: WOD_CH2_MAP_Y_ROW2 });
-        expect(CAMPSITE_2.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW2 });
-        expect(DISPLACER.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW2 });
-        expect(CAMPSITE_3.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW2 });
+        expect(CAMPSITE_2.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL2, y: WOD_CH2_MAP_Y_ROW1 });
+        expect(DISPLACER.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL1, y: WOD_CH2_MAP_Y_ROW1 });
+        expect(CAMPSITE_3.mapPosition).toEqual({ x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW1 });
+    });
+
+    it('puts dedicated side quests below a "Side Quests" divider', () => {
+        for (const bank of [WOD_SWARMLING_SOURCE_BANK, WOD_SCAVENGE_THE_PLAINS_BANK, WOD_INVESTIGATE_THE_WILDLIFE_BANK]) {
+            expect(bank.mapPosition!.y).toBe(WOD_CH2_MAP_Y_SIDE_QUEST_ROW);
+        }
+        expect(WOD_CH2_MAP_Y_SIDE_QUEST_DIVIDER).toBeGreaterThan(WOD_CH2_MAP_Y_ROW1);
+        expect(WOD_CH2_MAP_Y_SIDE_QUEST_DIVIDER).toBeLessThan(WOD_CH2_MAP_Y_SIDE_QUEST_ROW);
+        expect(WorldOfDarknessStoryline.chapters![1].mapDividers).toEqual([
+            { y: WOD_CH2_MAP_Y_SIDE_QUEST_DIVIDER, label: 'Side Quests' },
+        ]);
     });
 
     it('chains each node on the previous one', () => {
-        expect(WOD_POST_CORE_QUEST_BANK.unlockAfterMissionId).toBe('south_gate_swarm');
-        expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterQuestBankId).toBe(WOD_POST_CORE_QUEST_BANK.id);
+        expect(WOD_POST_CORE_QUEST_BANK.unlockAfterMissionId).toBe('campsite_4');
+        expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterQuestBankId).toBeUndefined();
+        expect((WorldOfDarknessStoryline.edges ?? []).find((e) => e.toMissionId === 'campsite')?.requiresQuestBankId).toBe(WOD_POST_CORE_QUEST_BANK.id);
         expect(WOD_POST_CORE_QUEST_BANK_2.unlockAfterMissionId).toBe('campsite');
-        expect(WOD_POST_CORE_QUEST_BANK_3.unlockAfterQuestBankId).toBe(WOD_POST_CORE_QUEST_BANK_2.id);
+        const edges = WorldOfDarknessStoryline.edges ?? [];
+        expect(edges).toContainEqual({ fromMissionId: 'south_gate_swarm', result: 'victory', toMissionId: 'campsite_4' });
+        expect(edges.find((e) => e.toMissionId === 'campsite_2')?.requiresQuestBankId).toBe(WOD_POST_CORE_QUEST_BANK_2.id);
     });
 
     it('puts Thornbinder Arena, Crystal Corruption, The Circle and Thornling Rise in chapter 3', () => {

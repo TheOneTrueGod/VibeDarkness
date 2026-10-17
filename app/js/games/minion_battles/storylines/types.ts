@@ -28,6 +28,8 @@ import type {
     LanterniteNestMissionConfig,
 } from '../game/units/spawning/nestMissionConfigs';
 import type { QuestSlotBank } from './questTypes';
+import type { ObjectiveType } from './objectiveTypes';
+import type { EffectImageKey } from '../game/effectImages';
 
 /** Trigger for level events: at round, after round (checks start), or after seconds. */
 export type LevelEventTrigger =
@@ -218,7 +220,6 @@ export interface ShowObjectiveMarker {
     showOffscreen: boolean;
 }
 
-export const DEFAULT_OBJECTIVE_TILES_IMAGE = 'footprint' as const;
 /**
  * Low, since large goal areas mark many tiles, and so the hint never reads as a unit token
  * (the footprint has no background disc or border). Playtest: was 0.25.
@@ -226,12 +227,12 @@ export const DEFAULT_OBJECTIVE_TILES_IMAGE = 'footprint' as const;
 export const DEFAULT_OBJECTIVE_TILES_ALPHA = 0.18;
 
 /**
- * Faint icons drawn on the tiles an objective wants the player to occupy.
+ * Faint icons drawn on the tiles an objective cares about.
  * Shown while the objective is revealed and incomplete.
  */
 export interface ShowObjectiveTiles {
-    /** Key into EFFECT_IMAGE_SOURCES. Defaults to `DEFAULT_OBJECTIVE_TILES_IMAGE`. */
-    image?: 'footprint';
+    /** Key into EFFECT_IMAGE_SOURCES. Defaults to the objective type's `tileImage`. */
+    image?: EffectImageKey;
     /** Sprite opacity, 0–1. Defaults to `DEFAULT_OBJECTIVE_TILES_ALPHA`. */
     alpha?: number;
     /**
@@ -247,6 +248,11 @@ export interface BattleObjectiveDef {
     /** Player-facing line in the objectives list. */
     label: string;
     /**
+     * What the objective asks the player to do. Picks the default hints via `OBJECTIVE_TYPE_DEFS`
+     * (only `ReachLocation` draws footprint tiles).
+     */
+    objectiveType: ObjectiveType;
+    /**
      * When false (default true), stays hidden until `revealObjective` / proximity bundle reveals this id.
      */
     revealedInitially?: boolean;
@@ -257,8 +263,9 @@ export interface BattleObjectiveDef {
     /** When set, renders a yellow exclamation marker above the target during battle. */
     showObjectiveMarker?: ShowObjectiveMarker;
     /**
-     * Faint icons on the tiles the objective wants the party on. Default true (footprints at
-     * `DEFAULT_OBJECTIVE_TILES_ALPHA`); set false to disable, or pass an object to override.
+     * Faint icons on the objective's tiles. Default true: drawn when the objective type has a
+     * `tileImage` (footprints for `ReachLocation`) at `DEFAULT_OBJECTIVE_TILES_ALPHA`; set false to
+     * disable, or pass an object to override.
      */
     showObjectiveTiles?: boolean | ShowObjectiveTiles;
 }
@@ -531,6 +538,11 @@ export interface MissionBattleConfig {
     /** Optional battle objectives (ObjectivePanel); state is checkpointed. */
     battleObjectives?: BattleObjectiveDef[];
     /**
+     * Set `false` to skip the centred objectives popover shown at mission start.
+     * Objective-change and victory animations are unaffected. Defaults to enabled.
+     */
+    objectivesIntro?: boolean;
+    /**
      * Optional mission-local layout (destination tiles + spawn slot). When set, `createTerrain`
      * may be omitted — {@link BaseMissionDef} composes from this via `composeMissionMap`.
      */
@@ -655,6 +667,16 @@ export interface CampaignChapterDef {
      * then records every mission as a victory (see `chapterSkip.ts`).
      */
     adminSkippable?: boolean;
+    /** Horizontal section dividers drawn across this chapter's Mission Map (e.g. above side quests). */
+    mapDividers?: CampaignMapDividerDef[];
+}
+
+/** A full-width purple rule on the Mission Map, with an optional small subheader beneath it. */
+export interface CampaignMapDividerDef {
+    /** Map-space y of the rule (same coordinate space as `mapPosition`). */
+    y: number;
+    /** Subheader shown just under the rule, left-aligned. */
+    label?: string;
 }
 
 /** Storyline definition for campaign UI and unlock logic. */

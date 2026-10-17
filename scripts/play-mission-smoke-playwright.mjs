@@ -317,6 +317,13 @@ async function advancePreMissionStory(page) {
 }
 
 async function trySubmitWait(page) {
+    // Mission-start objectives popover is modal until Start is pressed.
+    const objectivesStart = page.getByTestId(TestIds.objectivesPopoverStart);
+    if (await objectivesStart.isVisible().catch(() => false)) {
+        await objectivesStart.click();
+        return 'objectives-start';
+    }
+
     const chat = page.getByPlaceholder(/Type a message/i);
     if (await chat.isVisible().catch(() => false)) {
         await page.locator('canvas').first().click({ position: { x: 40, y: 40 } }).catch(() => undefined);

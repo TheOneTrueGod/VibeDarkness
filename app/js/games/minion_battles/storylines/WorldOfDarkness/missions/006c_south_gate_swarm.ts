@@ -8,6 +8,7 @@
  */
 
 import type { GameEngine } from '../../../game/GameEngine';
+import { ObjectiveType } from '../../objectiveTypes';
 import { ROUND_DURATION } from '../../../game/gameConstants';
 import { BaseMissionDef, type InitializeGameStateParams } from '../../BaseMissionDef';
 import type {
@@ -28,7 +29,7 @@ import {
 import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE, stitchTerrain } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
-import { WOD_CH2_MAP_X_COL0, WOD_CH2_MAP_Y_ROW1 } from '../chapter2Map';
+import { WOD_CH2_MAP_X_COL0, WOD_CH2_MAP_Y_ROW0 } from '../chapter2Map';
 import {
     CAVE_CAMPFIRE,
     crystalSpecialTilesAt,
@@ -191,6 +192,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
 const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
     {
         id: 'destroy_nest',
+        objectiveType: ObjectiveType.KillTarget,
         label: 'Destroy the swarm nest',
         toComplete: { type: 'unitDead', unitCharacterId: SWARM_NEST_CHARACTER_ID },
         showObjectiveMarker: {
@@ -233,8 +235,8 @@ export class SouthGateSwarmMission extends BaseMissionDef {
     enemies: EnemySpawnDef[] = [];
 
     missionId = SouthGateSwarmMission.missionId;
-    /** Chapter 2 grid — row 2 col 3 (slid clockwise after Thorn March left the map). */
-    mapPosition = { x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW1 };
+    /** Chapter 2 grid — row 0 col 0, start of the questline snake. */
+    mapPosition = { x: WOD_CH2_MAP_X_COL0, y: WOD_CH2_MAP_Y_ROW0 };
     missionType = 'battle' as const;
     description =
         'Something has nested beyond the southern gate. Clear the opening pack and tear the nest down.';

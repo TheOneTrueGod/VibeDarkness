@@ -12,7 +12,7 @@ export function CharacterSelectLoadoutSelector({
         return <CharacterSelectLoadoutEmptyState />;
     }
 
-    // Interactive picker (or its "Not unlocked yet" notice) is the shared PrepDeckSelector,
+    // Interactive picker (nothing while locked) is the shared PrepDeckSelector,
     // rendered by MissionPrepOverview / QuestPrepOverview.
     return null;
 }

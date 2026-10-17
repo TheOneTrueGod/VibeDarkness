@@ -38,7 +38,8 @@ import {
     useQuestPrepLoadoutContext,
 } from './characterSelect/questPrep/QuestPrepLoadoutContext';
 import { MissionPrepOverview } from './characterSelect/missionPrep/MissionPrepOverview';
-import { MissionPrepSlotLayout } from './characterSelect/missionPrep/MissionPrepSlotLayout';
+import { MissionPrepSlotLayout, questPrepBackgroundImage } from './characterSelect/missionPrep/MissionPrepSlotLayout';
+import { getQuestDef } from '../../storylines/questRegistry';
 import {
     MissionPrepLoadoutProvider,
     useMissionPrepLoadoutContext,
@@ -573,7 +574,14 @@ export default function CharacterSelectPhase({
                     rememberedAbilityIds={questAbilityLoadoutsByCharacterId[characterToEdit.id]}
                     onSelectedPrimaryIdsChange={onSelectedPrimaryIdsChange}
                 >
-                    <CharacterSelectLayout {...layoutProps}>{body}</CharacterSelectLayout>
+                    <CharacterSelectLayout
+                        {...layoutProps}
+                        backgroundImage={questPrepBackgroundImage(
+                            questLobbyFields ? getQuestDef(questLobbyFields.questDefId) : undefined,
+                        )}
+                    >
+                        {body}
+                    </CharacterSelectLayout>
                 </QuestPrepLoadoutProvider>
             );
         }

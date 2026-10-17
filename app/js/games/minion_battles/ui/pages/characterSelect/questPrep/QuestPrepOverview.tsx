@@ -15,8 +15,8 @@ interface QuestPrepOverviewProps {
 
 /**
  * Center segment for Quest Prep (separate from normal Prepare Carefully / CharacterOverview).
- * Uses the shared `PrepDeckSelector`, so it shows "Not unlocked yet" under the ability cap exactly
- * like Prepare Carefully.
+ * Uses the shared `PrepDeckSelector`, so under the ability cap it renders nothing and the quest's
+ * prep background shows, exactly like Prepare Carefully.
  */
 export function QuestPrepOverview({
     character,

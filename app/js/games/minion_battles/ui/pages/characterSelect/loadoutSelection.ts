@@ -3,7 +3,7 @@ import { needsMissionAbilitySelection } from '../../../storylines/questPrepLoado
 /**
  * Whether the prep deck selector (Quest Prep and Prepare Carefully) is relevant: only once the
  * character has more selectable abilities than prep slots. Below that every ability is brought
- * and the selector shows "Not unlocked yet". Shared so both prep flows use one rule.
+ * and the selector renders nothing. Shared so both prep flows use one rule.
  */
 export function isPrepDeckSelectorUnlocked(selectableCount: number): boolean {
     return needsMissionAbilitySelection(selectableCount);

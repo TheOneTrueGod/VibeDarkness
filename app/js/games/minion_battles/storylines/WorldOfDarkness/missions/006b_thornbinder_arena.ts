@@ -5,6 +5,7 @@
  */
 
 import type { GameEngine } from '../../../game/GameEngine';
+import { ObjectiveType } from '../../objectiveTypes';
 import { BaseMissionDef, type InitializeGameStateParams } from '../../BaseMissionDef';
 import { HOME_CAMPFIRE_MAX_HP } from '../../homeBase';
 import type {
@@ -120,11 +121,13 @@ const VICTORY_EVENT: LevelEvent = {
 const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
     {
         id: 'survive_waves',
+        objectiveType: ObjectiveType.Survive,
         label: 'Survive the arena waves',
         toComplete: { type: 'atLeastRound', round: THORNBINDER_ARENA_LAST_WAVE_ROUND },
     },
     {
         id: 'clear_arena',
+        objectiveType: ObjectiveType.EliminateAll,
         label: 'Defeat the remaining creatures',
         revealedInitially: false,
         requiresCompletedId: 'survive_waves',

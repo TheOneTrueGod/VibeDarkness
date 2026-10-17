@@ -9,9 +9,12 @@ import { Gravity } from '../../../resources/Gravity';
 import {
     GRAVITY_ABILITY_MODE_PULL,
     GRAVITY_ABILITY_MODE_PUSH,
+    GRAVITY_LOCUS_FIELD_DAMAGE_PER_TICK,
     GRAVITY_LOCUS_FIELD_DURATION,
+    GRAVITY_LOCUS_FIELD_TOTAL_DAMAGE,
     GRAVITY_LOCUS_GRAVITY_COST,
     GRAVITY_LOCUS_PREFIRE_TIME,
+    GRAVITY_LOCUS_PULSE_INTERVAL,
     GRAVITY_LOCUS_REPULSE_DURATION_MULT,
     GRAVITY_LOCUS_REPULSE_EXPLOSION_DAMAGE,
     GRAVITY_LOCUS_REPULSE_KNOCKBACK_TIER,
@@ -21,6 +24,7 @@ import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainManager } from '../../../terrain/TerrainManager';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { GravityLocusAbility } from './0901Ability';
+import { GravityLocusFieldBuff, getSpreadDamageForPulse } from '../../../buffs/GravityLocusFieldBuff';
 
 const CARD_ID = GravityLocusAbility.id;
 const LOCUS = { x: 100, y: 100 };
@@ -224,21 +228,85 @@ describe('GravityLocusAbility', () => {
         const shortenedDuration = GRAVITY_LOCUS_FIELD_DURATION * GRAVITY_LOCUS_REPULSE_DURATION_MULT;
         const startHp = enemy.hp;
 
-        // Just before the shortened field ends: pulled in, not yet detonated.
+        // Just before the shortened field ends: pulled in, not yet detonated (field damage only).
         advanceSimulation(
             [caster, enemy],
             engine,
             GRAVITY_LOCUS_PREFIRE_TIME + shortenedDuration - 0.05,
             [caster],
         );
-        expect(enemy.hp).toBe(startHp);
+        expect(startHp - enemy.hp).toBeLessThanOrEqual(GRAVITY_LOCUS_FIELD_TOTAL_DAMAGE);
+        const hpBeforeExplosion = enemy.hp;
         const distBeforeExplosion = Math.hypot(enemy.x - LOCUS.x, enemy.y - LOCUS.y);
 
         // Push past expiry: detonation damages and knocks the enemy away from the locus.
         advanceSimulation([caster, enemy], engine, 0.2, [caster]);
 
-        expect(enemy.hp).toBe(startHp - GRAVITY_LOCUS_REPULSE_EXPLOSION_DAMAGE);
+        expect(enemy.hp).toBe(hpBeforeExplosion - GRAVITY_LOCUS_REPULSE_EXPLOSION_DAMAGE);
         expect(Math.hypot(enemy.x - LOCUS.x, enemy.y - LOCUS.y)).toBeGreaterThan(distBeforeExplosion + 5);
+    });
+
+    it('field deals its total damage in 1-damage ticks across the duration', () => {
+        const caster = makeCaster(100);
+        const enemy = makeEnemy('enemy', 105, 100);
+        const engine = makeEngine([caster, enemy]);
+        const startHp = enemy.hp;
+
+        executeUnitAbility(
+            caster,
+            GravityLocusAbility,
+            [{ type: 'pixel', position: { ...LOCUS } }],
+            engine,
+            GRAVITY_ABILITY_MODE_PULL,
+        );
+
+        // First pulse: a single tick, not the whole total.
+        advanceSimulation([caster, enemy], engine, GRAVITY_LOCUS_PREFIRE_TIME + GRAVITY_LOCUS_PULSE_INTERVAL + 0.02, [caster]);
+        expect(enemy.hp).toBe(startHp - GRAVITY_LOCUS_FIELD_DAMAGE_PER_TICK);
+
+        // Halfway: partway through the total.
+        advanceSimulation([caster, enemy], engine, GRAVITY_LOCUS_FIELD_DURATION / 2 - GRAVITY_LOCUS_PULSE_INTERVAL, [caster]);
+        const midDamage = startHp - enemy.hp;
+        expect(midDamage).toBeGreaterThan(GRAVITY_LOCUS_FIELD_DAMAGE_PER_TICK);
+        expect(midDamage).toBeLessThan(GRAVITY_LOCUS_FIELD_TOTAL_DAMAGE);
+
+        // After the field ends: exactly the total, and no more.
+        advanceSimulation([caster, enemy], engine, GRAVITY_LOCUS_FIELD_DURATION, [caster]);
+        expect(enemy.hp).toBe(startHp - GRAVITY_LOCUS_FIELD_TOTAL_DAMAGE);
+    });
+
+    it('does not damage enemies outside the field', () => {
+        const caster = makeCaster(100);
+        const enemy = makeEnemy('enemy', 300, 100);
+        const engine = makeEngine([caster, enemy]);
+
+        executeUnitAbility(
+            caster,
+            GravityLocusAbility,
+            [{ type: 'pixel', position: { ...LOCUS } }],
+            engine,
+        );
+        advanceSimulation([caster, enemy], engine, GRAVITY_LOCUS_PREFIRE_TIME + GRAVITY_LOCUS_FIELD_DURATION + 0.5, [caster]);
+
+        expect(enemy.hp).toBe(enemy.maxHp);
+    });
+
+    it('getSpreadDamageForPulse spreads the total across pulses, finishing before the last pulse', () => {
+        const config = { total: GRAVITY_LOCUS_FIELD_TOTAL_DAMAGE, perTick: GRAVITY_LOCUS_FIELD_DAMAGE_PER_TICK };
+        const totalPulses = Math.round(GRAVITY_LOCUS_FIELD_DURATION / GRAVITY_LOCUS_PULSE_INTERVAL);
+        const perPulse = Array.from({ length: totalPulses }, (_, i) => getSpreadDamageForPulse(config, i + 1, totalPulses));
+
+        expect(perPulse.reduce((a, b) => a + b, 0)).toBe(GRAVITY_LOCUS_FIELD_TOTAL_DAMAGE);
+        expect(perPulse.every((d) => d === 0 || d === GRAVITY_LOCUS_FIELD_DAMAGE_PER_TICK)).toBe(true);
+        expect(perPulse[0]).toBe(GRAVITY_LOCUS_FIELD_DAMAGE_PER_TICK);
+        expect(perPulse[totalPulses - 1]).toBe(0);
+        expect(getSpreadDamageForPulse(config, totalPulses + 1, totalPulses)).toBe(0);
+    });
+
+    it('field damage config round-trips through serialization', () => {
+        const buff = new GravityLocusFieldBuff(LOCUS, GRAVITY_ABILITY_MODE_PULL, 4, undefined, { total: 6, perTick: 1 });
+        const restored = GravityLocusFieldBuff.fromSerialized(buff.toJSON());
+        expect(restored.fieldDamage).toEqual({ total: 6, perTick: 1 });
     });
 
     it('casting spends gravity', () => {

@@ -7,6 +7,7 @@
  */
 
 import { BaseMissionDef } from '../../BaseMissionDef';
+import { ObjectiveType } from '../../objectiveTypes';
 import { WOD_CH1_MAP_X_COL0, WOD_CH1_MAP_Y_ROW0 } from '../chapter1Map';
 import type { BattleObjectiveDef, LevelEvent, SpecialTilePlacement } from '../../types';
 import type { PreMissionStoryDef } from '../../storyTypes';
@@ -157,11 +158,13 @@ const LEVEL_EVENTS: LevelEvent[] = [
 const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
 	{
 		id: 'survive_wolves',
+		objectiveType: ObjectiveType.Survive,
 		label: 'Survive the wolves',
 		toComplete: { type: 'atLeastRound', round: 3 },
 	},
 	{
 		id: 'eliminate_enemies',
+		objectiveType: ObjectiveType.EliminateAll,
 		label: 'Eliminate all enemies to win',
 		requiresCompletedId: 'survive_wolves',
 		toComplete: { type: 'eliminateAllEnemies' },

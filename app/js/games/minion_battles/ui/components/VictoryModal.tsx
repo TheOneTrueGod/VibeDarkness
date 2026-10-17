@@ -182,7 +182,7 @@ export default function VictoryModal({
         : [];
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 animate-fade-in">
             <div className="bg-surface-light border border-border-custom rounded-lg shadow-xl p-10 mx-4 text-center min-h-[33vh] min-w-[33vw] w-[33vw] flex flex-col justify-center">
                 <h2 className="text-2xl font-bold text-success mb-2">Victory!</h2>
                 {questBanner ? (

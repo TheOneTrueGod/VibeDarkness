@@ -8,6 +8,7 @@
  */
 
 import type { GameEngine } from '../../../game/GameEngine';
+import { ObjectiveType } from '../../objectiveTypes';
 import { BaseMissionDef, type InitializeGameStateParams } from '../../BaseMissionDef';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
 import { DarknessLevel } from '../../../game/darknessLevels';
@@ -184,6 +185,7 @@ const VICTORY_EVENT: LevelEvent = {
 const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
     {
         id: 'clear_arena',
+        objectiveType: ObjectiveType.EliminateAll,
         label: SWARMLING_NEST_OBJECTIVE_LABEL,
         toComplete: { type: 'eliminateAllEnemies' },
         showObjectiveMarker: {

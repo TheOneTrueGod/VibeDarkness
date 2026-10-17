@@ -4,6 +4,7 @@
  */
 
 import type { QuestDef } from '../../questTypes';
+import { STORY_BACKGROUNDS } from '../../../assets/story';
 import {
     FOUND_BERRIES_LOCATION_CARD_ID,
     INVESTIGATE_THE_WILDLIFE_COMPLETION_CRYSTALS,
@@ -25,6 +26,7 @@ export const INVESTIGATE_THE_WILDLIFE: QuestDef = {
     title: INVESTIGATE_THE_WILDLIFE_TITLE,
     description: INVESTIGATE_THE_WILDLIFE_DESCRIPTION,
     campaignId: 'world_of_darkness',
+    prepBackgroundImage: STORY_BACKGROUNDS.campfire,
     tags: [LOCATION_PLAINS_TAG, 'post_core_awakening'],
     slots: [
         { kind: 'fixed', missionId: QUEST_EMBER_THRESHOLD_MISSION_ID },

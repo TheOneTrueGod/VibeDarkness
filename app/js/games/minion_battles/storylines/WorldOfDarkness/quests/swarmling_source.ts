@@ -4,6 +4,7 @@
  */
 
 import type { QuestDef } from '../../questTypes';
+import { STORY_BACKGROUNDS } from '../../../assets/story';
 import {
     LOCATION_PLAINS_TAG,
     PLAINS_RANDOM_STORY_CHALLENGE_MAX,
@@ -28,6 +29,7 @@ export const SWARMLING_SOURCE: QuestDef = {
     title: SWARMLING_SOURCE_TITLE,
     description: SWARMLING_SOURCE_DESCRIPTION,
     campaignId: 'world_of_darkness',
+    prepBackgroundImage: STORY_BACKGROUNDS.campfire,
     tags: [LOCATION_PLAINS_TAG, 'placeholder', 'fixed_slots'],
     slots: [
         { kind: 'fixed', missionId: QUEST_PUSH_NORTH_MISSION_ID },
