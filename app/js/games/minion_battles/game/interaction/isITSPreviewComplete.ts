@@ -158,27 +158,47 @@ export function getEndedEarlyPreviewStop(engine: GameEngine): EndedEarlyPreviewS
  * paused cast is not the preview cast until the queued preview order applies and cancels it.
  */
 export function isPreviewCastConditionalCancelPaused(engine: GameEngine): boolean {
+    return findPreviewCastConditionalCancelPause(engine) !== undefined;
+}
+
+type ActiveCastEntry = NonNullable<ReturnType<GameEngine['getUnit']>>['activeAbilities'][number];
+
+function findPreviewCastConditionalCancelPause(engine: GameEngine): ActiveCastEntry | undefined {
     const cast = engine.sequentialTargetingPreviewCast;
-    if (!cast) return false;
-    if (isPreviewCastOrderStillPending(engine, cast)) return false;
-    const caster = engine.getUnit(cast.unitId);
-    return isCasterInConditionalCancelPause(caster, cast.abilityId);
+    if (!cast) return undefined;
+    if (isPreviewCastOrderStillPending(engine, cast)) return undefined;
+    return engine
+        .getUnit(cast.unitId)
+        ?.activeAbilities.find((a) => a.conditionalCancelPaused && a.abilityId === cast.abilityId);
 }
 
 /**
- * True when the local order UI is at a Combo / Entombed decision point for `unitId`.
+ * The cast whose Combo / Entombed decision the local order UI is at for `unitId`, if any.
  * While ITS is active only the preview cast's own pause counts: a follow-up preview begins
  * on the previous cast's pause, which stays flagged until the preview order applies.
+ *
+ * Single source of truth for "Pass continues the paused ability": the Pass button
+ * (`BattleAbilityBar`) and `PlayerInteractionManager.handleWait` must both resolve through this,
+ * so the button can never be enabled for a decision the handler then ignores (lobby 810373).
  */
+export function getConditionalCancelDecisionCast(
+    engine: GameEngine,
+    unitId: string | null | undefined,
+    its: { isActive: boolean; previewOrderQueued: boolean },
+): ActiveCastEntry | undefined {
+    if (its.isActive) {
+        return its.previewOrderQueued ? findPreviewCastConditionalCancelPause(engine) : undefined;
+    }
+    return unitId ? engine.getUnit(unitId)?.activeAbilities.find((a) => a.conditionalCancelPaused) : undefined;
+}
+
+/** True when the local order UI is at a Combo / Entombed decision point for `unitId` (see {@link getConditionalCancelDecisionCast}). */
 export function isAtConditionalCancelDecision(
     engine: GameEngine,
     unitId: string | null | undefined,
     its: { isActive: boolean; previewOrderQueued: boolean },
 ): boolean {
-    if (its.isActive) {
-        return its.previewOrderQueued && isPreviewCastConditionalCancelPaused(engine);
-    }
-    return isCasterInConditionalCancelPause(unitId ? engine.getUnit(unitId) : undefined);
+    return getConditionalCancelDecisionCast(engine, unitId, its) !== undefined;
 }
 
 /** True when a unit is mid conditional-cancel and awaiting a follow-up or wait. */

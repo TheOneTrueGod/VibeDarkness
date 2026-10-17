@@ -253,7 +253,7 @@ describe('RecoveryCoordinator.tryBootstrapFromLatestCheckpoint', () => {
         expect(result).toBe(true);
         expect(loadFromSnapshot).toHaveBeenCalledWith(
             { gameTick: 5 } as SerializedGameState,
-            { checkpointRuntimeFingerprintHex: 'snap_fp' },
+            { ordersBakedThroughTick: 5, checkpointRuntimeFingerprintHex: 'snap_fp' },
         );
         expect(getBattleOrdersRange).toHaveBeenNthCalledWith(1, 'l1', 'g1', {
             playerId: 'p1',

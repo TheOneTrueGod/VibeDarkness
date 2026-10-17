@@ -143,4 +143,46 @@ describe('BattleSession.applyRemoteOrders', () => {
 
         session.destroy();
     });
+
+    // Lobby 810373: loadFromSnapshot cleared the dedupe keys; a poll applied every historical order
+    // (clamped to the checkpoint tick) before the async seedAppliedHashesForMergedOrdersThroughTick landed.
+    it('host never re-applies orders at or before the loaded checkpoint tick, even before keys are seeded', async () => {
+        const { session, unitId } = await mountSessionAtLocalPlayerTurn();
+        const engine = session.getEngine()!;
+        const checkpointTick = engine.gameTick;
+        const nextBatchAtTick = engine.waitingForOrders?.atTick;
+        if (typeof nextBatchAtTick !== 'number') throw new Error('expected waitingForOrders.atTick');
+        const unit = engine.getUnit(unitId);
+        if (!unit) throw new Error('missing unit');
+        const col = Math.floor(unit.x / 40);
+        const row = Math.floor(unit.y / 40);
+
+        const store = new Map<string, string>();
+        vi.stubGlobal('localStorage', {
+            getItem: (k: string) => store.get(k) ?? null,
+            setItem: (k: string, v: string) => void store.set(k, v),
+            removeItem: (k: string) => void store.delete(k),
+        });
+        session.loadFromSnapshot(engine.toJSON(), { ordersBakedThroughTick: checkpointTick });
+        session.getEngine()!.stop();
+
+        const spy = vi.spyOn(OrderManager.prototype, 'queueOrder');
+        const historical = makeWaitOrder(unitId, col + 1, row);
+        const atCheckpoint = makeWaitOrder(unitId, col + 2, row);
+        const r = session.applyRemoteOrders([
+            { atTick: Math.max(0, checkpointTick - 50), order: historical, idHash: 'historical', playerId: 'p1' },
+            { atTick: checkpointTick, order: atCheckpoint, idHash: 'at-checkpoint', playerId: 'p1' },
+        ]);
+        expect(spy).not.toHaveBeenCalled();
+        expect(r.newlyAppliedKeys).toEqual([]);
+        expect(r.skippedKeys).toEqual(['historical', 'at-checkpoint']);
+
+        const next = session.applyRemoteOrders([
+            { atTick: nextBatchAtTick, order: makeWaitOrder(unitId, col + 3, row), idHash: 'next', playerId: 'p1' },
+        ]);
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(next.newlyAppliedKeys).toEqual(['next']);
+
+        session.destroy();
+    });
 });

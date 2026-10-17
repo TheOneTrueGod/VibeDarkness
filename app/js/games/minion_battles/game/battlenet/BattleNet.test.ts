@@ -2308,6 +2308,53 @@ describe('BattleNet', () => {
         expect(mergeBattleAppliedOrders).not.toHaveBeenCalled();
     });
 
+    it('810373: deferred draft + confirm left behind the host tail are dropped together, never POSTed', async () => {
+        // Host deferred a draft wait and its confirm for one batch, then snapshotted past that batch.
+        // The server can never accept them (tick_in_past); before the fix one was rejected and dropped
+        // while the other stayed queued and blocked every flush forever.
+        const persistHostCycles = vi.fn();
+        const appendBattleOrder = vi.fn();
+        let hb = lobby97305CHeartbeat();
+        const api = makeApi({
+            persistHostCycles,
+            appendBattleOrder,
+            getBattleHeartbeat: vi.fn(async () => hb),
+        });
+        const net = new BattleNet({
+            api,
+            session: makeSession({
+                getEngineTick: () => LOBBY_97305C.waitAtTick - 1,
+                isPausedForOrderSync: () => true,
+                applyRemoteOrders: vi.fn().mockReturnValue({ newlyAppliedKeys: ['k'], skippedKeys: [] }),
+            }),
+            isHost: true,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'host',
+        });
+        await net.pollOnce();
+        await net.submitOrder({ ...makeOrder('draft'), endTurn: false }, LOBBY_97305C.waitAtTick);
+        await net.submitOrder({ ...makeOrder('draft'), endTurn: true }, LOBBY_97305C.waitAtTick);
+        expect(net.getOrderSyncSummary().queued).toBe(2);
+
+        const resync = vi.spyOn(net, 'requestResync');
+        const passedTail = LOBBY_97305C.waitAtTick + 60;
+        hb = lobby97305CHeartbeat({
+            hostTick: passedTail,
+            ordersTipTick: passedTail,
+            orderBatchAtTick: passedTail + 1,
+            pausedAtTick: passedTail + 1,
+            heartbeatSeq: 2,
+        });
+        await net.pollOnce({ forceHttp: true });
+
+        expect(persistHostCycles).not.toHaveBeenCalled();
+        expect(appendBattleOrder).not.toHaveBeenCalled();
+        expect(net.getOrderSyncSummary().queued).toBe(0);
+        // Local ring has no fingerprint at the host tail here, so recovery is a full resync.
+        expect(resync).toHaveBeenCalledWith('deferred-behind-host-tail');
+    });
+
     it('97305C: in-place skipLocalApply at mark batch still POSTs inside the append window', async () => {
         const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
         const appendBattleOrder = vi.fn(async (_l: string, _g: string, body: { idHash?: string }) => ({

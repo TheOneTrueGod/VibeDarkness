@@ -4,7 +4,7 @@ import type { AbilityStatic } from '../../../abilities/Ability';
 import type { BattleSession } from '../../../game/BattleSession';
 import type { GameEngine } from '../../../game/GameEngine';
 import type { BattleOrder, OrderWaiter } from '../../../game/types';
-import { isAtMissingPickDecision } from '../../../game/interaction/isITSPreviewComplete';
+import { getConditionalCancelDecisionCast, isAtMissingPickDecision } from '../../../game/interaction/isITSPreviewComplete';
 import { useAutoEndTurn } from '../../components/useAutoEndTurn';
 import CornerSlotPlayerStats from '../../components/battleUiSlots/CornerSlotPlayerStats';
 import RowSlotAbilities from '../../components/battleUiSlots/RowSlotAbilities';
@@ -71,11 +71,16 @@ export function useBattleAbilityBarSlots({
         return { bottomLeftCorner: null, bottomRow: null, bottomRightCorner: null };
     }
 
+    const its = sessionRef.current?.interactiveTargeting;
+    // Same resolver as PlayerInteractionManager.handleWait, so Pass is only enabled when it will act.
     const pausedAbility = activeLocalWaiter != null
-        ? engine.getUnit(activeLocalWaiter.unitId)?.activeAbilities.find((a) => a.conditionalCancelPaused)
+        ? getConditionalCancelDecisionCast(
+              engine,
+              activeLocalWaiter.unitId,
+              its ?? { isActive: false, previewOrderQueued: false },
+          )
         : undefined;
-    const forceItsCommitAtCombo =
-        sessionRef.current?.interactiveTargeting.shouldForceItsCommitAtComboWindow() === true;
+    const forceItsCommitAtCombo = its?.shouldForceItsCommitAtComboWindow() === true;
     const conditionalCancelContext = pausedAbility != null && !forceItsCommitAtCombo
         ? { activeAbilityId: pausedAbility.abilityId, abilityTagFilter: pausedAbility.conditionalCancelTagFilter }
         : undefined;

@@ -31,6 +31,7 @@ import type {
     ApplyRemoteOrdersResult,
     BattleNet,
     BattleSessionHandle,
+    LoadFromSnapshotOpts,
     LocalSyncAnomalyContext,
     RemoteOrderWireRow,
 } from './battlenet';
@@ -145,6 +146,13 @@ export class BattleSession implements BattleSessionHandle {
     private readonly listeners = new Set<BattleSessionListener>();
     /** Dedupe keys for remote rows applied this engine lifetime (cleared when the engine is torn down or replaced from snapshot). */
     private appliedRemoteOrderKeys = new Set<string>();
+    /**
+     * Every order with `atTick <= ordersBakedThroughTick` is already part of the loaded engine state
+     * (checkpoint envelope tick, or -1 for a fresh tick-0 load). Remote rows in that range are skipped by
+     * tick, not by key, so there is no window between `loadFromSnapshot` clearing the keys and the async
+     * key seed landing in which a poll could clamp and re-run history (lobby 810373).
+     */
+    private ordersBakedThroughTick = -1;
     /**
      * When the UI claims a rewind presentation (DOM crossfade), ITS awaits this before
      * applying orders / unpausing. Headless callers that never defer resolve immediately.
@@ -709,6 +717,7 @@ export class BattleSession implements BattleSessionHandle {
     }: BattleSessionLoadArgs): Promise<void> {
         this.updateLobbyContext(players, characterSelections);
         this.appliedRemoteOrderKeys.clear();
+        this.ordersBakedThroughTick = -1;
         this.teardownEngineAndRendererOnly();
         const { api, playerId, missionId, isHost } = this.config;
         api.setCurrentPlayerId();
@@ -846,10 +855,14 @@ export class BattleSession implements BattleSessionHandle {
 
     private static readonly RESYNC_CAMERA_KEY = 'mb_camera_resync_state';
 
-    /** Replace simulation from a full serialized snapshot (host resync / reconnect). */
+    /**
+     * Replace simulation from a full serialized snapshot (host resync / reconnect).
+     * `ordersBakedThroughTick` is required: the caller must say which orders the snapshot already contains
+     * (checkpoint envelope tick `T` → `T`; tick-0 initial state → -1).
+     */
     loadFromSnapshot(
         gameState: SerializedGameState,
-        opts?: { checkpointRuntimeFingerprintHex?: string | null },
+        opts: LoadFromSnapshotOpts,
     ): void {
         const raw = gameState as unknown as Record<string, unknown>;
         debugLog('sync tracking', 'warn', 'BattleSession.loadFromSnapshot', {
@@ -884,9 +897,10 @@ export class BattleSession implements BattleSessionHandle {
         this.camera = camera;
         renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
         const engine = GameEngine.fromJSON(gameState, playerId, terrainManager, {
-            ...opts,
+            checkpointRuntimeFingerprintHex: opts.checkpointRuntimeFingerprintHex,
             ...segmentRestoreOpts(mission, terrainCtx),
         });
+        this.ordersBakedThroughTick = opts.ordersBakedThroughTick;
         renderer.setTerrain(terrainManager);
         // Fallback for snapshots predating ninjutsu serialization: re-init from mission config.
         if (!engine.state.ninjutsuManager) {
@@ -1210,6 +1224,11 @@ export class BattleSession implements BattleSessionHandle {
         };
     }
 
+    /** True when an order at `atTick` is already contained in the loaded engine state. */
+    private isBakedIntoLoadedState(atTick: number): boolean {
+        return atTick <= this.ordersBakedThroughTick;
+    }
+
     /**
      * Align {@link BattleSession.appliedRemoteOrderKeys} with {@link OrderQueueController.seedAppliedHashesForMergedOrdersThroughTick}.
      */
@@ -1233,6 +1252,10 @@ export class BattleSession implements BattleSessionHandle {
         for (const { atTick, order, key } of rows) {
             if (key != null && this.appliedRemoteOrderKeys.has(key)) {
                 // Already applied before or during the preview — skip to prevent double-application.
+                continue;
+            }
+            if (this.isBakedIntoLoadedState(atTick)) {
+                if (key != null) this.appliedRemoteOrderKeys.add(key);
                 continue;
             }
             engine.state.orderMgr.queueOrder(atTick, order);
@@ -1264,8 +1287,9 @@ export class BattleSession implements BattleSessionHandle {
                 const key =
                     keyFromWire ??
                     (playerId != null ? hashOrderId(playerId, atTick, order) : null);
-                if (key != null && this.appliedRemoteOrderKeys.has(key)) {
-                    // Already applied before the preview started — skip entirely.
+                if (key != null && (this.appliedRemoteOrderKeys.has(key) || this.isBakedIntoLoadedState(atTick))) {
+                    // Already applied before the preview started (or baked into the checkpoint) — skip entirely.
+                    this.appliedRemoteOrderKeys.add(key);
                     skippedKeys.push(key);
                     continue;
                 }
@@ -1293,6 +1317,11 @@ export class BattleSession implements BattleSessionHandle {
                 continue;
             }
             if (this.appliedRemoteOrderKeys.has(key)) {
+                skippedKeys.push(key);
+                continue;
+            }
+            if (this.isBakedIntoLoadedState(atTick)) {
+                this.appliedRemoteOrderKeys.add(key);
                 skippedKeys.push(key);
                 continue;
             }

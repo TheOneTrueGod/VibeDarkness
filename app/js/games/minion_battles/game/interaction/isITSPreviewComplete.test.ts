@@ -8,6 +8,7 @@ import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { resetGameObjectIdCounter } from '../GameObject';
 import { ITS_ENDED_EARLY_PLAYAHEAD_MAX_TICKS } from '../gameConstants';
 import {
+    getConditionalCancelDecisionCast,
     getEndedEarlyPreviewStop,
     isAtMissingPickDecision,
     isITSPreviewComplete,
@@ -120,7 +121,8 @@ describe('isITSPreviewComplete', () => {
         engine.sequentialTargetingPreviewCast = {
             unitId: player.id,
             abilityId: DOUBLE_PUNCH_ABILITY_ID,
-            startRound,            beganAtGameTime: engine.gameTime,
+            startRound,
+            beganAtGameTime: engine.gameTime,
         };
         player.activeAbilities = [{
             abilityId: DOUBLE_PUNCH_ABILITY_ID,
@@ -390,11 +392,55 @@ describe('isITSPreviewComplete', () => {
         engine.sequentialTargetingPreviewCast = {
             unitId: player.id,
             abilityId: DOUBLE_PUNCH_ABILITY_ID,
-            startRound,            beganAtGameTime: engine.gameTime,
+            startRound,
+            beganAtGameTime: engine.gameTime,
         };
         player.activeAbilities = [];
         engine.roundNumber = startRound + 1;
         expect(isITSPreviewComplete(engine)).toBe(true);
+        engine.destroy();
+    });
+});
+
+describe('getConditionalCancelDecisionCast', () => {
+    const ITS_QUEUED = { isActive: true, previewOrderQueued: true };
+
+    it('returns the preview cast when it is the paused cast', () => {
+        const { engine, player } = buildPreviewEngine();
+        player.activeAbilities = [{
+            abilityId: DOUBLE_PUNCH_ABILITY_ID,
+            startTime: engine.gameTime,
+            targets: [],
+            conditionalCancelPaused: true,
+        }];
+        expect(getConditionalCancelDecisionCast(engine, player.id, ITS_QUEUED)?.abilityId).toBe(DOUBLE_PUNCH_ABILITY_ID);
+        engine.destroy();
+    });
+
+    // Lobby 810373: a different cast was paused during the preview; the Pass button counted it, handleWait did not.
+    it('ignores a paused cast that is not the preview cast while ITS is active', () => {
+        const { engine, player } = buildPreviewEngine();
+        player.activeAbilities = [{
+            abilityId: 'some_other_ability',
+            startTime: engine.gameTime,
+            targets: [],
+            conditionalCancelPaused: true,
+        }];
+        expect(getConditionalCancelDecisionCast(engine, player.id, ITS_QUEUED)).toBeUndefined();
+        expect(getConditionalCancelDecisionCast(engine, player.id, { isActive: false, previewOrderQueued: false })?.abilityId)
+            .toBe('some_other_ability');
+        engine.destroy();
+    });
+
+    it('returns nothing while ITS is active but the preview order is not queued yet', () => {
+        const { engine, player } = buildPreviewEngine();
+        player.activeAbilities = [{
+            abilityId: DOUBLE_PUNCH_ABILITY_ID,
+            startTime: engine.gameTime,
+            targets: [],
+            conditionalCancelPaused: true,
+        }];
+        expect(getConditionalCancelDecisionCast(engine, player.id, { isActive: true, previewOrderQueued: false })).toBeUndefined();
         engine.destroy();
     });
 });

@@ -3,6 +3,16 @@ import type { BattleOrder, SerializedGameState, WaitingForOrders } from '../type
 import type { SimTimeline } from '../interaction/simTimeline';
 import type { CanonicalToken } from './canonicalToken';
 
+/**
+ * Options for {@link BattleSessionHandle.loadFromSnapshot}. `ordersBakedThroughTick` is required so no caller can
+ * load a checkpoint without saying which orders it already contains (the session then refuses to re-apply them).
+ */
+export type LoadFromSnapshotOpts = {
+    /** Highest order `atTick` already applied in this snapshot: checkpoint envelope tick, or -1 for tick-0 state. */
+    ordersBakedThroughTick: number;
+    checkpointRuntimeFingerprintHex?: string | null;
+};
+
 /** One remote order row for {@link BattleSessionHandle.applyRemoteOrders} (wire + optional dedupe fields). */
 export type RemoteOrderWireRow = {
     gameTick?: number;
@@ -63,10 +73,7 @@ export interface BattleSessionHandle {
         initialFingerprint: string;
     } | null;
     startEngine(): void;
-    loadFromSnapshot(
-        state: SerializedGameState,
-        opts?: { checkpointRuntimeFingerprintHex?: string | null },
-    ): void;
+    loadFromSnapshot(state: SerializedGameState, opts: LoadFromSnapshotOpts): void;
     /**
      * Marks server `idHash` keys as already consumed by {@link applyRemoteOrders} without touching the engine.
      * {@link OrderQueueController.seedAppliedHashesForMergedOrdersThroughTick} must call this in lockstep so a

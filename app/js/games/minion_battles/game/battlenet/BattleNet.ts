@@ -70,6 +70,7 @@ export type {
 	BattleNetSyncTerminalStatus,
 	BattleNetPollOnceOptions,
 	BattleNetFactoryArgs,
+	LoadFromSnapshotOpts,
 	LocalSyncAnomalyContext,
 	RemoteOrderWireRow,
 	SubmitOrderOptions,
@@ -1902,10 +1903,8 @@ export class BattleNet implements BattleNetContext {
 		}
 		if (res.rejectedReason === 'tick_in_past') {
 			this.emitRejectedOrderSyncDetail(res.rejectedReason);
-			this.deferredLocalOrders = this.deferredLocalOrders.filter((item) => item.idHash !== idHash);
-			this.ourOrdersAwaitingServerRange.delete(idHash);
-			this.hostUnackedAppends.delete(idHash);
 			const hostTick = typeof res.hostTick === 'number' ? res.hostTick : this.latestHeartbeatHostTick;
+			this.removeUnpostableDeferredRows(hostTick, idHash);
 			const hostFp =
 				typeof res.hostFingerprint === 'string' && res.hostFingerprint !== ''
 					? res.hostFingerprint
@@ -2210,9 +2209,8 @@ export class BattleNet implements BattleNetContext {
 		const rejected = orders.find((row) => !acceptedSet.has(row.idHash));
 		if (res.rejectedReason === 'tick_in_past' && rejected) {
 			this.emitRejectedOrderSyncDetail(res.rejectedReason);
-			this.deferredLocalOrders = this.deferredLocalOrders.filter((item) => item.idHash !== rejected.idHash);
-			this.hostUnackedAppends.delete(rejected.idHash);
 			const hostTick = typeof res.hostTick === 'number' ? res.hostTick : this.latestHeartbeatHostTick;
+			this.removeUnpostableDeferredRows(hostTick, rejected.idHash);
 			const hostFp =
 				typeof res.hostFingerprint === 'string' && res.hostFingerprint !== ''
 					? res.hostFingerprint
@@ -2237,8 +2235,76 @@ export class BattleNet implements BattleNetContext {
 		return acceptedSet;
 	}
 
+	/**
+	 * Removes every deferred row the server can never append: `atTick <= hostTick` (the append window is
+	 * `hostTick < atTick`, see {@link isAppendAtTickAccepted}), plus `alsoIdHash` (a row the server just rejected).
+	 * Rows for one unit and tick (draft + confirm) leave the queue together, never one at a time: in lobby
+	 * 810373 the draft was rejected and dropped while its confirm stayed queued forever, blocking every flush.
+	 */
+	private removeUnpostableDeferredRows(
+		hostTick: number,
+		alsoIdHash?: string,
+	): Array<{ idHash: string; atTick: number }> {
+		const removed = this.deferredLocalOrders.filter(
+			(item) => item.idHash === alsoIdHash || (hostTick >= 0 && item.atTick <= hostTick),
+		);
+		if (removed.length === 0) {
+			if (alsoIdHash != null) {
+				this.ourOrdersAwaitingServerRange.delete(alsoIdHash);
+				this.hostUnackedAppends.delete(alsoIdHash);
+			}
+			return [];
+		}
+		const removedIds = new Set(removed.map((item) => item.idHash));
+		if (alsoIdHash != null) removedIds.add(alsoIdHash);
+		this.deferredLocalOrders = this.deferredLocalOrders.filter((item) => !removedIds.has(item.idHash));
+		for (const id of removedIds) {
+			this.ourOrdersAwaitingServerRange.delete(id);
+			this.hostUnackedAppends.delete(id);
+		}
+		return removed.map((item) => ({ idHash: item.idHash, atTick: item.atTick }));
+	}
+
+	/**
+	 * Same recovery as an append `tick_in_past` rejection: soft-align when the local sim agrees with the host
+	 * at `hostTick`, otherwise full resync.
+	 */
+	private realignAfterStaleOrderRows(reason: string, hostTick: number): void {
+		const hostFp = this.heartbeatState.getLatestHostFingerprint();
+		const localRow = hostTick >= 0 ? this.session.getFingerprintRange(hostTick, hostTick)[0] : null;
+		const fingerprintsAgree = hostFp != null && localRow != null && localRow.fp === hostFp;
+		if (fingerprintsAgree) {
+			void this.softAlignAfterStaleOrderBatch(reason);
+		} else {
+			this.requestResync(reason);
+		}
+	}
+
 	private async flushDeferredOrdersUpTo(hostTick: number): Promise<void> {
 		if (this.deferredLocalOrders.length === 0) {
+			return;
+		}
+		// Host only: the host flush never POSTs rows behind the tail (isAppendAtTickAccepted), so without this they
+		// would stay queued forever. A non-host POSTs them and handles the server's tick_in_past rejection.
+		const unpostable = this.isHost ? this.removeUnpostableDeferredRows(hostTick) : [];
+		if (unpostable.length > 0) {
+			logToLobbyLogBattleSync({
+				lobbyClient: this.api as unknown as LobbyClient,
+				lobbyId: this.lobbyId,
+				playerId: this.playerId,
+				tick: this.session.getEngineTick(),
+				severity: 'warn',
+				gameId: this.gameId,
+				message: 'flushDeferredOrdersUpTo dropped deferred rows at or before host tail (server would reject tick_in_past)',
+				context: {
+					heartbeatHostTick: hostTick,
+					droppedRows: unpostable,
+					remainingDeferredCount: this.deferredLocalOrders.length,
+				},
+			});
+			this.emitRejectedOrderSyncDetail('tick_in_past');
+			this.emitHostCatchupWaitState();
+			this.realignAfterStaleOrderRows('deferred-behind-host-tail', hostTick);
 			return;
 		}
 		this.deferredLocalOrders.sort((a, b) => a.atTick - b.atTick);
@@ -2278,7 +2344,7 @@ export class BattleNet implements BattleNetContext {
 				const head = item;
 				if (flushAttempted === 0) {
 					const whyFlushSkipped =
-						`no deferred POST this poll: earliest queued row is atTick=${head.atTick} but heartbeat hostTick=${hostTick} only allows POST for atTick<=${maxEligibleAtTick}`;
+						`no deferred POST this poll: earliest queued row is atTick=${head.atTick} but heartbeat hostTick=${hostTick} only allows POST for ${hostTick} < atTick <= ${maxEligibleAtTick}`;
 					console.info('[BattleNet] flushDeferredOrdersUpTo skipped posting (all rows blocked)', {
 						why: whyFlushSkipped,
 						lobbyId: this.lobbyId,
@@ -2322,7 +2388,7 @@ export class BattleNet implements BattleNetContext {
 					});
 				} else if (blockedCount > 0) {
 					const whyFlushSkippedPartial =
-						`posted ${flushAttempted} deferred row(s); ${blockedCount} still blocked (need atTick<=${maxEligibleAtTick}, next atTick=${head.atTick})`;
+						`posted ${flushAttempted} deferred row(s); ${blockedCount} still blocked (need ${hostTick} < atTick <= ${maxEligibleAtTick}, next atTick=${head.atTick})`;
 					console.info('[BattleNet] flushDeferredOrdersUpTo left rows blocked after partial flush', {
 						why: whyFlushSkippedPartial,
 						lobbyId: this.lobbyId,

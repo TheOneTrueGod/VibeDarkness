@@ -85,6 +85,7 @@ export class RecoveryCoordinator {
         orderQueue.getOurOrdersAwaitingServerRange().clear();
         orderQueue.getServerRangeConfirmedOurOrderHashes().clear();
         this.ctx.session.loadFromSnapshot(snapshot.state, {
+            ordersBakedThroughTick: snapshot.tick,
             checkpointRuntimeFingerprintHex: snapshot.synchash,
         });
         await orderQueue.seedAppliedHashesForMergedOrdersThroughTick(snapshot.tick);
@@ -124,7 +125,10 @@ export class RecoveryCoordinator {
         const { orderQueue, syncReconciler } = this.requireSiblings();
         orderQueue.getOurOrdersAwaitingServerRange().clear();
         orderQueue.getServerRangeConfirmedOurOrderHashes().clear();
-        this.ctx.session.loadFromSnapshot(state, { checkpointRuntimeFingerprintHex });
+        this.ctx.session.loadFromSnapshot(state, {
+            ordersBakedThroughTick: replaySinceTick - 1,
+            checkpointRuntimeFingerprintHex,
+        });
         if (replaySinceTick > 0) {
             await orderQueue.seedAppliedHashesForMergedOrdersThroughTick(replaySinceTick - 1);
         }
@@ -410,6 +414,7 @@ export class RecoveryCoordinator {
                 }
                 if (snapshot != null) {
                     this.ctx.session.loadFromSnapshot(snapshot.state, {
+                        ordersBakedThroughTick: snapshot.tick,
                         checkpointRuntimeFingerprintHex: snapshot.synchash,
                     });
                     await orderQueue.seedAppliedHashesForMergedOrdersThroughTick(snapshot.tick);

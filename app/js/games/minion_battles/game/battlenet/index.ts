@@ -21,6 +21,7 @@ export type {
     BattleNetSyncTerminalStatus,
     BattleNetPollOnceOptions,
     BattleNetFactoryArgs,
+    LoadFromSnapshotOpts,
     LocalSyncAnomalyContext,
 	RemoteOrderWireRow,
 	SubmitOrderOptions,
