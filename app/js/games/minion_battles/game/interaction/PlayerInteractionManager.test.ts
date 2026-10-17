@@ -362,7 +362,7 @@ describe('PlayerInteractionManager combo follow-up after assumed ITS pass', () =
 
         expect(submitted).toHaveLength(1);
         expect(submitted[0]).toMatchObject({ abilityId: 'wait', endTurn: true });
-        expect(submitted[0]!.movePath?.at(-1)).toEqual({ col: 6, row: 4 });
+        expect(submitted[0]!.movePath?.[submitted[0]!.movePath.length - 1]).toEqual({ col: 6, row: 4 });
     });
 
     it('combo card at the combo window carries the right-click move', async () => {
@@ -374,7 +374,7 @@ describe('PlayerInteractionManager combo follow-up after assumed ITS pass', () =
 
         expect(submitted).toHaveLength(1);
         expect(submitted[0]).toMatchObject({ abilityId: THROW_ROCK_ABILITY_ID });
-        expect(submitted[0]!.movePath?.at(-1)).toEqual({ col: 6, row: 4 });
+        expect(submitted[0]!.movePath?.[submitted[0]!.movePath.length - 1]).toEqual({ col: 6, row: 4 });
     });
 
     it('combo card click (Basic mode = Throw Rock) routes into ITS, not the upfront targeting tool', async () => {

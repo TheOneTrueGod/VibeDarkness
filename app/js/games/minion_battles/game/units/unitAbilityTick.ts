@@ -40,6 +40,7 @@ import {
 import { getSelectTargetDefsFromTimings } from '../../abilities/targeting';
 import { findSelectGateSplit, selectGateDeferredIds } from '../interaction/selectTargetLookahead';
 import { fizzleUnitActiveAbility } from './unitAbilityLifecycle';
+import { hasConditionalCancelFollowUp } from './unitAbilityQueries';
 import { resolveCastBehaviourTarget } from '../../abilities/resolveCastBehaviourTarget';
 import { resolveActiveAbilityMode } from '../../abilities/resolveAbilityMode';
 import { triggerAbilityEvent } from '../../abilities/events';
@@ -476,6 +477,8 @@ export function tickUnitActiveAbilities(
                     targets: active.targets,
                     abilityId: active.abilityId,
                 })) {
+                    // No eligible follow-up: skip the pause (same outcome as Pass).
+                    if (!hasConditionalCancelFollowUp(unit, active, cc.abilityTagFilter, engine)) break;
                     active.conditionalCancelPaused = true;
                     active.conditionalCancelTagFilter = cc.abilityTagFilter ? [...cc.abilityTagFilter] : undefined;
                     engine.requestConditionalCancelPause(unit);

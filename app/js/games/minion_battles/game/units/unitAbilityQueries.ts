@@ -3,14 +3,17 @@ import type { EngineContext } from '../EngineContext';
 import type { TerrainLayerManager } from '../TerrainLayerManager';
 import type { TerrainManager } from '../../terrain/TerrainManager';
 import { getAbility } from '../../abilities/AbilityRegistry';
-import { AbilityState } from '../../abilities/Ability';
-import { unitAbilityHasTag } from '../../abilities/abilityUses';
+import { AbilityState, getAbilityResourceCosts, type AbilityStatic } from '../../abilities/Ability';
+import { canUseAbilityNow, unitAbilityHasTag } from '../../abilities/abilityUses';
+import type { ActiveAbility } from '../types';
+import { getLivingPetsOfUnit } from './petHelpers';
 import {
     AbilityPhase,
     getCoveringAbilityPhaseAtElapsed,
     getTotalAbilityDurationForCast,
     normalizeAbilityTimingsToIntervals,
     resolveAbilityTimingEntries,
+    getDoNotRefundCutoffElapsed,
 } from '../../abilities/abilityTimings';
 
 /**
@@ -111,6 +114,59 @@ export function isEntombedProtectionActive(unit: Unit, engine: EngineContext): b
         ) {
             continue;
         }
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Whether `unit` has any ability it could choose at a conditional-cancel (Combo / Entombed) pause of
+ * `paused`: carries every tag in `tagFilter` (any ability when empty), has a use left, is affordable once
+ * the paused cast's cost is refunded (as OrderManager does before the follow-up casts), and has a living
+ * pet when it is pet-sourced. When false the pause has no real choice and the cast just continues (Pass).
+ */
+export function hasConditionalCancelFollowUp(
+    unit: Unit,
+    paused: ActiveAbility,
+    tagFilter: readonly string[] | undefined,
+    engine: EngineContext,
+): boolean {
+    const refund = new Map<string, number>();
+    const pausedAbility = getAbility(paused.abilityId);
+    if (pausedAbility) {
+        const elapsed = Math.max(0, engine.gameTime - paused.startTime);
+        if (elapsed < getDoNotRefundCutoffElapsed(pausedAbility, unit)) {
+            for (const cost of getAbilityResourceCosts(pausedAbility, unit)) {
+                refund.set(cost.resourceId, (refund.get(cost.resourceId) ?? 0) + cost.amount);
+            }
+        }
+    }
+    const canAffordAfterRefund = (ability: AbilityStatic): boolean => {
+        for (const cost of getAbilityResourceCosts(ability, unit)) {
+            const resource = unit.getResource(cost.resourceId);
+            if (!resource) return false;
+            const available = Math.min(resource.max, resource.current + (refund.get(cost.resourceId) ?? 0));
+            if (cost.allowPartialIfPositive ? available <= 0 : available < cost.amount) return false;
+        }
+        if (ability.hpCost != null && (ability.hpCostGate ?? 'requireSurplus') === 'requireSurplus') {
+            if (unit.hp <= ability.hpCost) return false;
+        }
+        return true;
+    };
+
+    const candidateIds = new Set<string>();
+    for (const abilityId of unit.abilities) {
+        candidateIds.add(abilityId);
+        const modeIds = getAbility(abilityId)?.abilityModes?.modeAbilityIds;
+        for (const modeId of Object.values(modeIds ?? {})) candidateIds.add(modeId);
+    }
+    for (const abilityId of candidateIds) {
+        const ability = getAbility(abilityId);
+        if (!ability) continue;
+        if (tagFilter?.some((tag) => !unitAbilityHasTag(unit, abilityId, tag))) continue;
+        if (!canUseAbilityNow(unit, ability)) continue;
+        if (!canAffordAfterRefund(ability)) continue;
+        if (ability.abilitySource?.type === 'pet' && getLivingPetsOfUnit(unit, engine.units).length === 0) continue;
         return true;
     }
     return false;

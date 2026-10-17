@@ -32,6 +32,7 @@ import {
     COLLAPSE_RELEASE_DURATION,
 } from '../gravityConstants';
 import { CollapseAbility } from './0905Ability';
+import { ensureAbilityRuntimeState } from '../../../abilities/abilityUses';
 
 const CARD_ID = CollapseAbility.id;
 const TICK_DT = 0.01;
@@ -69,6 +70,14 @@ function makeCaster(): Unit {
     gravity.add(START_GRAVITY);
     gravity.attach(unit, new EventBus());
     unit.resources.push(gravity);
+    return unit;
+}
+
+/** A melee follow-up (0115) so the combo decision point has a real choice and pauses. */
+const MELEE_FOLLOW_UP_ID = '0115';
+function makeCasterWithMeleeFollowUp(): Unit {
+    const unit = makeCaster();
+    unit.abilities.push(MELEE_FOLLOW_UP_ID);
     return unit;
 }
 
@@ -189,7 +198,7 @@ describe('CollapseAbility', () => {
     });
 
     it('on a hit, pauses at the 0.40s decision point offering only melee abilities', () => {
-        const caster = makeCaster();
+        const caster = makeCasterWithMeleeFollowUp();
         const a = makeUnit('a', 130, SHARED_Y, 'enemy');
         const units = [caster, a];
         const { engine } = makeEngine(units);
@@ -205,6 +214,37 @@ describe('CollapseAbility', () => {
         expect(engine.requestConditionalCancelPause).toHaveBeenCalledTimes(1);
         // Landing is still ~0.1s away.
         expect(a.knockback).toBeTruthy();
+    });
+
+    it('on a hit with no usable melee ability, auto-passes the decision point and runs the full 0.80s', () => {
+        const caster = makeCaster();
+        const a = makeUnit('a', 130, SHARED_Y, 'enemy');
+        const units = [caster, a];
+        const { engine } = makeEngine(units);
+        cast(caster, engine);
+
+        advance(units, engine, COMBO_POINT + 0.05, [caster]);
+        expect(caster.activeAbilities[0]?.conditionalCancelPaused).toBeFalsy();
+        expect(engine.requestConditionalCancelPause).not.toHaveBeenCalled();
+
+        advance(units, engine, CAST_END - 0.03 - (COMBO_POINT + 0.05), [caster]);
+        expect(caster.activeAbilities).toHaveLength(1);
+        advance(units, engine, 0.06, [caster]);
+        expect(caster.activeAbilities).toHaveLength(0);
+    });
+
+    it('on a hit, auto-passes when the melee ability has no uses left', () => {
+        const caster = makeCasterWithMeleeFollowUp();
+        ensureAbilityRuntimeState(caster, MELEE_FOLLOW_UP_ID);
+        caster.abilityRuntime[MELEE_FOLLOW_UP_ID]!.currentUses = 0;
+        const a = makeUnit('a', 130, SHARED_Y, 'enemy');
+        const units = [caster, a];
+        const { engine } = makeEngine(units);
+        cast(caster, engine);
+
+        advance(units, engine, COMBO_POINT + 0.05, [caster]);
+        expect(caster.activeAbilities[0]?.conditionalCancelPaused).toBeFalsy();
+        expect(engine.requestConditionalCancelPause).not.toHaveBeenCalled();
     });
 
     it('on a miss, never pauses and the cast lasts the full 0.80s', () => {
@@ -224,7 +264,7 @@ describe('CollapseAbility', () => {
     });
 
     it('Wait resumes into the 0.4s slow recovery at 0.8x speed, ending at 0.80s', () => {
-        const caster = makeCaster();
+        const caster = makeCasterWithMeleeFollowUp();
         const a = makeUnit('a', 130, SHARED_Y, 'enemy');
         const units = [caster, a];
         const { engine } = makeEngine(units);
