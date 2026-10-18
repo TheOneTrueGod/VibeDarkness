@@ -102,6 +102,7 @@ import { applyDeathSequence } from './deathSequences/applyDeathSequence';
 import { NinjutsuManager, countNinjutsuEnemyUnits, type NinjutsuUIState } from './ninjutsu/NinjutsuManager';
 import { NINJUTSU_DEFAULT, type NinjutsuPoolConfig } from './ninjutsu/ninjutsuConfig';
 import { findImpendingSelectTargetNeed } from './interaction/selectTargetLookahead';
+import { BuffParticleAuraSystem } from './effects/buffParticleAura';
 import { advanceUnitLocalClocks, collectUnitFocalRequests, getCastElapsed } from './time/actorClock';
 import {
     isITSPreviewComplete,
@@ -159,6 +160,8 @@ export class GameEngine implements EngineContext {
     // Client-side only — never serialized, never synchronized between host and non-host.
     // Use this (not allocateObjectId) for visual Effect IDs.
     private effectIdSeq = 0;
+    /** Render-only buff particle auras (not serialized). */
+    private readonly buffParticleAuras = new BuffParticleAuraSystem();
 
     /**
      * Parallel order pause scheduled during a tick; committed in the **same** `fixedUpdate` after
@@ -1241,6 +1244,10 @@ export class GameEngine implements EngineContext {
                 fx.id = this.allocateEffectObjectId('fx');
                 this.state.effectManager.addEffect(fx);
             }
+            this.buffParticleAuras.update(this.units, realDt, (fx) => {
+                fx.id = this.allocateEffectObjectId('fx');
+                this.state.effectManager.addEffect(fx);
+            });
         });
     }
 

@@ -46,6 +46,8 @@ import {
     BLOOD_MIST_IMPACT_EFFECT_TYPE,
     BLOOD_CONE_FLASH_EFFECT_TYPE,
 } from './bloodMageEffects';
+import { tempoOrbEffectDef, tempoSpeedLineEffectDef } from './tempoAuraEffects';
+import { TEMPO_ORB_EFFECT_TYPE, TEMPO_SPEED_LINE_EFFECT_TYPE } from '../effects/buffParticleAura';
 
 /** Default effect: expanding ring that fades out. */
 const defaultEffectDef: IEffectDef = {
@@ -105,6 +107,8 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     [BLOOD_MIST_BURST_EFFECT_TYPE]: bloodMistBurstEffectDef,
     [BLOOD_MIST_IMPACT_EFFECT_TYPE]: bloodMistImpactEffectDef,
     [BLOOD_CONE_FLASH_EFFECT_TYPE]: bloodConeFlashEffectDef,
+    [TEMPO_ORB_EFFECT_TYPE]: tempoOrbEffectDef,
+    [TEMPO_SPEED_LINE_EFFECT_TYPE]: tempoSpeedLineEffectDef,
 };
 
 /** Get the effect def for an effect type. Falls back to default. */

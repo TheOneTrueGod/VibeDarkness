@@ -239,18 +239,13 @@ registerBuffVisual(LIFTED_BUFF_TYPE, (g, unit, _buff, _ctx) => {
 registerBuffVisual(GRAVITY_LOCUS_FIELD_BUFF_TYPE, () => {});
 registerBuffVisual(SHIELD_BUFF_TYPE, shieldBuffVisual);
 
-/** Time dilation: faint gravity-violet speed streaks trailing behind the unit plus a soft ring. */
+/**
+ * Time dilation: soft gravity-violet ring. The orbs / speed lines come from the buff's `particleAura`
+ * (`game/effects/buffParticleAura.ts`), which also animates while paused.
+ */
 const timeDilationBuffVisual: BuffVisualRenderer = (g, unit, _buff, ctx) => {
-    const r = unit.radius;
     const pulse = 0.5 + 0.5 * Math.sin(ctx.gameTime * 8);
-    g.circle(0, 0, r * 1.15);
+    g.circle(0, 0, unit.radius * 1.15);
     g.stroke({ color: GRAVITY_VIOLET, width: 1, alpha: 0.2 + 0.15 * pulse });
-    for (let i = 0; i < 3; i++) {
-        const y = (i - 1) * r * 0.55;
-        const len = r * (0.9 + 0.5 * ((i + pulse) % 1));
-        g.moveTo(-r * 0.6, y);
-        g.lineTo(-r * 0.6 - len, y);
-        g.stroke({ color: GRAVITY_VIOLET, width: 1.5, alpha: 0.3 - i * 0.05 });
-    }
 };
 registerBuffVisual(TIME_DILATION_BUFF_TYPE, timeDilationBuffVisual);

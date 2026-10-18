@@ -11,6 +11,11 @@ import { Buff, type BuffSerialized } from './Buff';
 import type { TimeModifier } from '../game/time/TimeModifier';
 import type { Unit } from '../game/units/Unit';
 import type { EventBus } from '../game/EventBus';
+import { BUFF_PARTICLE_AURA_PRESETS, type BuffParticleAuraDef } from '../game/effects/buffParticleAura';
+import { GRAVITY_VIOLET } from '../game/effect_defs/aoeEffects';
+
+/** Purple tempo aura: orbs while standing, speed lines while moving (render-only). */
+const TIME_DILATION_PARTICLE_AURA: BuffParticleAuraDef = BUFF_PARTICLE_AURA_PRESETS.tempo(GRAVITY_VIOLET);
 
 export const TIME_DILATION_BUFF_TYPE = 'time_dilation';
 
@@ -43,6 +48,7 @@ interface TimeDilationBuffSerialized extends BuffSerialized {
 export class TimeDilationBuff extends Buff {
     readonly _type = TIME_DILATION_BUFF_TYPE;
     override readonly timeModifier: TimeModifier;
+    override readonly particleAura = TIME_DILATION_PARTICLE_AURA;
 
     constructor(config: TimeDilationConfig) {
         super({ value: config.durationSeconds, unit: 'seconds' });

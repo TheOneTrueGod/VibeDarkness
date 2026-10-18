@@ -16,6 +16,7 @@ import type { TerrainManager } from '../terrain/TerrainManager';
 import type { EngineContext } from '../game/EngineContext';
 import type { Effect } from '../game/effects/Effect';
 import type { TimeModifier } from '../game/time/TimeModifier';
+import type { BuffParticleAuraDef } from '../game/effects/buffParticleAura';
 
 /**
  * Which clock a timed buff's duration runs on. `'world'` (default): `engine.gameTime`. `'owner'`: the
@@ -80,6 +81,12 @@ export abstract class Buff {
      * `getActorTempo` multiplies it in and focal requests feed world pace. See `game/time/AGENTS.md`.
      */
     readonly timeModifier?: TimeModifier;
+
+    /**
+     * Render-only particles emitted from the holder (idle / moving states). Default none. Emitted on wall time by
+     * `BuffParticleAuraSystem`, so they keep animating while paused. See `game/effects/buffParticleAura.ts`.
+     */
+    readonly particleAura?: BuffParticleAuraDef;
 
     /** Game time (seconds) when buff was applied (local time when `clock === 'owner'`). Set by Unit when adding. */
     appliedAtTime: number = 0;
