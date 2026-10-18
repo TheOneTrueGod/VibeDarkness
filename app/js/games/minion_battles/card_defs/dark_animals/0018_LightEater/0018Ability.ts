@@ -29,6 +29,7 @@ import {
     LIGHT_EATER_ROUND_WINDOW,
 } from '../../../game/displacer/displacerConstants';
 import { hasUnitTag, UnitTag } from '../../../game/units/unitTag';
+import { getCastElapsedAt } from '../../../game/time/actorClock';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}18`;
 export const LIGHT_EATER_ID = CARD_ID;
@@ -340,7 +341,7 @@ export const LightEaterAbility: AbilityStatic = {
         activeAbility: ActiveAbility,
         gameTime: number,
     ): void {
-        const elapsed = gameTime - activeAbility.startTime;
+        const elapsed = getCastElapsedAt(activeAbility, gameTime);
         if (elapsed < 0 || elapsed >= LIGHT_EATER_EXPLODE_TIME) return;
         const payload = readLightEaterPayload(activeAbility) ?? { tileId: null, x: caster.x, y: caster.y };
         const t = elapsed / LIGHT_EATER_EXPLODE_TIME;

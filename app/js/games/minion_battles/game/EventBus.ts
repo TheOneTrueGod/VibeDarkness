@@ -32,7 +32,10 @@ export type GameEventType =
     | 'unit_slam_landed'
     | 'daylight_damage_pulse'
     | 'terrain_effects_cleared'
-    | 'cast_ended_early';
+    | 'cast_ended_early'
+    | 'time_stop_started'
+    | 'time_stop_ended'
+    | 'world_pace_changed';
 
 /** Optional combat VFX hint — does not change damage rules. */
 export const DAMAGE_VISUAL_KIND_DAYLIGHT = 'daylight' as const;
@@ -40,6 +43,11 @@ export type DamageVisualKind = typeof DAMAGE_VISUAL_KIND_DAYLIGHT;
 
 export interface DamageApplyOptions {
     visualKind?: DamageVisualKind;
+    /**
+     * What this hit does if the target is frozen (tempo 0). A Time Stop def's own policy wins over this;
+     * this wins over the engine default (`DEFAULT_FROZEN_HIT_POLICY`). See `game/time/AGENTS.md`.
+     */
+    frozenHitPolicy?: import('./time/timeConstants').FrozenHitPolicy;
 }
 
 export interface DamageTakenEvent {
@@ -213,6 +221,31 @@ export interface CastEndedEarlyEvent {
     gameTick: number;
 }
 
+/** A Time Stop began (`engine.startTimeStop`). For VFX/UI. */
+export interface TimeStopStartedEvent {
+    id: string;
+    sourceActorId: string | null;
+    durationTicks: number;
+    exemptActorIds: string[];
+    exemptRate: number;
+    gameTick: number;
+}
+
+/** A Time Stop ended: it ran its tick-time duration (`expired`) or was ended early (`ended`). */
+export interface TimeStopEndedEvent {
+    id: string;
+    sourceActorId: string | null;
+    reason: 'expired' | 'ended';
+    gameTick: number;
+}
+
+/** World pace changed value at a tick boundary (focal dilation start/stop, Time Stop start/stop). */
+export interface WorldPaceChangedEvent {
+    previousPace: number;
+    worldPace: number;
+    gameTick: number;
+}
+
 export type GameEventDataMap = {
     damage_taken: DamageTakenEvent;
     round_start: RoundStartEvent;
@@ -237,6 +270,9 @@ export type GameEventDataMap = {
     daylight_damage_pulse: DayLightDamagePulseEvent;
     terrain_effects_cleared: TerrainEffectsClearedEvent;
     cast_ended_early: CastEndedEarlyEvent;
+    time_stop_started: TimeStopStartedEvent;
+    time_stop_ended: TimeStopEndedEvent;
+    world_pace_changed: WorldPaceChangedEvent;
 };
 
 type EventCallback<T extends GameEventType> = (data: GameEventDataMap[T]) => void;

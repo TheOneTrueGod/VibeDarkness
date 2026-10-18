@@ -102,6 +102,7 @@ import { applyDeathSequence } from './deathSequences/applyDeathSequence';
 import { NinjutsuManager, countNinjutsuEnemyUnits, type NinjutsuUIState } from './ninjutsu/NinjutsuManager';
 import { NINJUTSU_DEFAULT, type NinjutsuPoolConfig } from './ninjutsu/ninjutsuConfig';
 import { findImpendingSelectTargetNeed } from './interaction/selectTargetLookahead';
+import { advanceUnitLocalClocks, collectUnitFocalRequests, getCastElapsed } from './time/actorClock';
 import {
     isITSPreviewComplete,
     isPreviewCastInstance,
@@ -113,6 +114,7 @@ export type { CardInstance } from './managers/CardManager';
 export { MAX_HAND_SIZE, CARDS_PER_ROUND } from './managers/CardManager';
 
 import { FIXED_DT, ROUND_DURATION } from './gameConstants';
+import type { StartTimeStopSpec, TimeManager, TimeStop } from './time/TimeManager';
 export { FIXED_DT };
 /** Matches default player stamina in unit defs; each ability receives this many stamina charges per surge unless overridden by unit stamina. */
 export const DEFAULT_PLAYER_ROUND_STAMINA_SURGE = 2;
@@ -266,6 +268,20 @@ export class GameEngine implements EngineContext {
     }
     set gameTime(v: number) {
         this.state.gameTime = v;
+    }
+
+    /** World seconds per tick / FIXED_DT (1 normal, 0 Time Stop). Resolved at the start of each tick. */
+    get worldPace(): number {
+        return this.state.timeManager.worldPace;
+    }
+
+    /** `gameTick * FIXED_DT`: always advances, even during Time Stop. */
+    get tickTime(): number {
+        return this.state.gameTick * FIXED_DT;
+    }
+
+    get timeManager(): TimeManager {
+        return this.state.timeManager;
     }
 
     get gameTick(): number {
@@ -1219,7 +1235,7 @@ export class GameEngine implements EngineContext {
             this.state.effectManager.renderUpdate(realDt);
             const posSnapshot = this.getUnitPositionSnapshot();
             const emitterVisualEffects = this.state.effectEmitterManager.renderUpdate(
-                realDt, posSnapshot, this.isPaused,
+                realDt, posSnapshot, this.isPaused, this,
             );
             for (const fx of emitterVisualEffects) {
                 fx.id = this.allocateEffectObjectId('fx');
@@ -1533,7 +1549,7 @@ export class GameEngine implements EngineContext {
                     if (!ability) continue;
                     const entries = resolveAbilityTimingEntries(ability, unit, this);
                     const intervals = normalizeAbilityTimingsToIntervals(entries);
-                    const elapsed = Math.max(0, this.gameTime - active.startTime);
+                    const elapsed = Math.max(0, getCastElapsed(unit, active, this));
                     if (elapsedIsInCoopCooldown(elapsed, intervals)) {
                         this.cancelActiveAbility(unit.id, active.abilityId);
                         cancelledOwners.add(unit.ownerId);
@@ -1582,6 +1598,47 @@ export class GameEngine implements EngineContext {
         return true;
     }
 
+    /**
+     * Start a Time Stop: the single engine entry point. World pace is 0 from the next tick for `durationTickSeconds`
+     * of TICK time (clamped to `MAX_TIME_STOP_TICK_SECONDS`); exempt actors keep stepping at `exemptRate`.
+     * `frozenHitPolicy` is the stop's own policy for hits on frozen actors (wins over a per-hit option).
+     * Emits `time_stop_started`; `time_stop_ended` and `world_pace_changed` follow when pace resolves.
+     * See `game/time/AGENTS.md`.
+     */
+    startTimeStop(spec: StartTimeStopSpec): TimeStop {
+        const stop = this.state.timeManager.startTimeStop(spec, this.gameTick);
+        this.eventBus.emit('time_stop_started', {
+            id: stop.id,
+            sourceActorId: stop.sourceActorId,
+            durationTicks: stop.durationTicks,
+            exemptActorIds: [...stop.exemptActorIds],
+            exemptRate: stop.exemptRate,
+            gameTick: this.gameTick,
+        });
+        return stop;
+    }
+
+    /** End a Time Stop early (it also ends by itself on its tick-time duration). Returns false for an unknown id. */
+    endTimeStop(id: string): boolean {
+        const stop = this.state.timeManager.endTimeStop(id);
+        if (!stop) return false;
+        this.eventBus.emit('time_stop_ended', {
+            id: stop.id,
+            sourceActorId: stop.sourceActorId,
+            reason: 'ended',
+            gameTick: this.gameTick,
+        });
+        return true;
+    }
+
+    /**
+     * Focal world-pace requests from actors (each in `[WORLD_PACE_MIN, 1]`): one per living unit buff whose
+     * `timeModifier.focal` is set. Projectile buffs join in Step 6.
+     */
+    private collectFocalRequests(): number[] {
+        return collectUnitFocalRequests(this.state.unitManager.getUnits());
+    }
+
     private fixedUpdate(dt: number): void {
         if (this.state.levelEventManager.isTerminal) {
             return;
@@ -1605,6 +1662,24 @@ export class GameEngine implements EngineContext {
         // scheduled at or before the start run first. The pause is then taken before the select enters.
         if (this.waitingForTargetInput != null) return;
 
+        // Resolve world pace for this tick (Time Stops, then focal requests), then derive world dt.
+        // Pace-1 invariance: when pace is exactly 1, worldDt === dt (no multiply, no float drift).
+        const previousPace = this.state.timeManager.worldPace;
+        const endedStops = this.state.timeManager.resolveWorldPace(this.collectFocalRequests(), this.gameTick + 1);
+        const worldPace = this.state.timeManager.worldPace;
+        for (const stop of endedStops) {
+            this.eventBus.emit('time_stop_ended', {
+                id: stop.id,
+                sourceActorId: stop.sourceActorId,
+                reason: 'expired',
+                gameTick: this.gameTick + 1,
+            });
+        }
+        if (worldPace !== previousPace) {
+            this.eventBus.emit('world_pace_changed', { previousPace, worldPace, gameTick: this.gameTick + 1 });
+        }
+        const worldDt = worldPace === 1 ? dt : dt * worldPace;
+
         const impendingSelectTarget = findImpendingSelectTargetNeed(this, dt);
         if (impendingSelectTarget != null) {
             const { label, unitId, abilityId } = impendingSelectTarget;
@@ -1612,7 +1687,17 @@ export class GameEngine implements EngineContext {
             return;
         }
 
-        this.gameTime += dt;
+        // Clock audit for `dt` in this method (see game/time/AGENTS.md):
+        //  - WORLD (`worldDt`): gameTime/round progress, DoTs/regen/passives/buffs/units/projectiles (interim:
+        //    Steps 5-6 move unit/projectile steps to per-actor local time), darkness corruption, light source
+        //    decay, nests, select-target lookahead.
+        //  - TICK (`gameTick`): AI cadence (`everyAITicks`, group manager), LIGHT_TICK_INTERVAL, orders.
+        //  - WALL (`dt`): visual effects and emitters (unaffected by pace unless a `timeDomain` opt-in).
+        const prevGameTime = this.gameTime;
+        this.gameTime += worldDt;
+        // Local clocks advance right after gameTime and before orders apply (a cast started this tick stamps its
+        // local startTime after the advance, exactly like startTime = gameTime at pace 1). Step 5 may restructure.
+        advanceUnitLocalClocks(this.state.unitManager.getUnits(), this, dt, prevGameTime);
         this.gameTick++;
         this.naturalAbilityCompletionUnitIdsThisTick.clear();
 
@@ -1657,7 +1742,7 @@ export class GameEngine implements EngineContext {
                 this.state.groupManager.tick(this.gameTick, aiCtx);
                 tickPerformanceTracker.measure([PERF_ENGINE_UNITS], () => {
                     this.state.unitManager.gameTick(
-                        dt,
+                        worldDt,
                         this,
                         (unitId: string) => this.naturalAbilityCompletionUnitIdsThisTick.add(unitId),
                         aiCtx,
@@ -1721,10 +1806,10 @@ export class GameEngine implements EngineContext {
                 this.state.unitManager.processCrystalAura();
                 this.state.specialTileManager.gameTick(this.units, this);
             }
-            this.state.unitManager.tickDarknessCorruption(dt, this);
+            this.state.unitManager.tickDarknessCorruption(worldDt, this);
             if (!this.storyPauseActive) {
                 tickPerformanceTracker.measure([PERF_ENGINE_PROJECTILES], () => {
-                    this.state.projectileManager.update(dt);
+                    this.state.projectileManager.update(this.state.timeManager);
                 });
             }
             tickPerformanceTracker.measure([PERF_ENGINE_EFFECTS], () => {
@@ -1736,13 +1821,13 @@ export class GameEngine implements EngineContext {
                 this.state.effectManager.gameUpdate(dt);
             });
             tickPerformanceTracker.measure([PERF_ENGINE_LIGHTING], () => {
-                this.state.lightSourceManager.update(dt);
+                this.state.lightSourceManager.update(worldDt);
                 if (this.gameTick % LIGHT_TICK_INTERVAL === 0) this.runLightGameTick();
             });
             tickPerformanceTracker.measure([PERF_ENGINE_NESTS], () => {
                 processLanterniteNests({
                     gameTime: this.gameTime,
-                    dt,
+                    dt: worldDt,
                     units: this.units,
                     eventBus: this.eventBus,
                     addUnit: (u, src) => this.addUnit(u, src),
@@ -1765,7 +1850,7 @@ export class GameEngine implements EngineContext {
                 });
                 processSwarmNests({
                     gameTime: this.gameTime,
-                    dt,
+                    dt: worldDt,
                     units: this.units,
                     mapPOIs: this.mapPOIs,
                     mapNetwork: this.state.mapNetworkManager,
@@ -1804,6 +1889,14 @@ export class GameEngine implements EngineContext {
             tickPerformanceTracker.end();
             // Finalize before checkpoint / tick-log toJSON so performanceLog is attached.
             tickPerformanceTracker.finalizeLastGameTick(this.gameTick);
+        }
+        if (!this.state.timeManager.isDefault()) {
+            // Only while non-default so pace-1 fingerprints stay byte-identical.
+            this.mixRuntimeFingerprint(
+                FingerprintEvent.TIME_STATE,
+                Math.round(this.state.timeManager.worldPace * 1e6),
+                this.state.timeManager.timeStops.length,
+            );
         }
         this.mixRuntimeFingerprint(FingerprintEvent.TICK_END, this.gameTick >>> 0, Math.floor(this.gameTime * 1000));
         const committedParallelPause = this.commitDeferredOrderPauseAfterCompletedTick();
@@ -2100,6 +2193,7 @@ export class GameEngine implements EngineContext {
             gameTick: this.gameTick,
             roundNumber: this.roundNumber,
             snapshotIndex: this.snapshotIndex,
+            ...(this.state.timeManager.isDefault() ? {} : { timeManager: this.state.timeManager.toJSON() }),
             navEpoch: this.terrainManager?.navEpoch ?? 0,
             units: this.state.unitManager.toJSON(this.gameTick),
             projectiles: this.state.projectileManager.toJSON(),
@@ -2180,6 +2274,7 @@ export class GameEngine implements EngineContext {
         engine.gameTick = data.gameTick ?? 0;
         engine.roundNumber = data.roundNumber;
         engine.snapshotIndex = data.snapshotIndex;
+        engine.state.timeManager.restoreFromJSON(data.timeManager);
         engine.waitingForOrders = normalizeWaitingForOrdersFromJSON(data.waitingForOrders, engine.gameTick);
         engine.aiControllerId = data.aiControllerId ?? null;
         engine.storyPauseActive = data.storyPauseActive ?? false;
@@ -2454,9 +2549,14 @@ export class GameEngine implements EngineContext {
         return engine;
     }
 
-    /** Pause game simulation for approximately `frames` game ticks (hitpause). */
+    /**
+     * Pause game simulation for approximately `frames` game ticks (hitpause).
+     *
+     * PLACEHOLDER (no-op). See `HIT_STOP_DEFAULTS` in `game/time/timeConstants.ts`: a future
+     * implementation applies a short tick-time `freeze` TimeModifier to attacker and victim (not
+     * world pace), so the rest of the world keeps moving and stored momentum resumes afterwards.
+     */
     requestHitPause(frames: number): void {
-        // Stub: no-op for MVP. Future implementation would freeze dt for N frames.
         void frames;
     }
 

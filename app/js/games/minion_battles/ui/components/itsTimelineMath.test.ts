@@ -18,6 +18,23 @@ describe('abilityDurationSecondsToTicks', () => {
         expect(abilityDurationSecondsToTicks(0.5)).toBe(ENGINE_TICKS_PER_SECOND / 2);
     });
 
+    it('uses step rate 1 by default and when given explicitly (pace-1 invariance)', () => {
+        expect(abilityDurationSecondsToTicks(1, 1)).toBe(abilityDurationSecondsToTicks(1));
+        expect(abilityDurationSecondsToTicks(0.35, 1)).toBe(Math.ceil(0.35 * ENGINE_TICKS_PER_SECOND));
+    });
+
+    it('halves the ticks at step rate 2 and doubles them at step rate 0.5', () => {
+        expect(abilityDurationSecondsToTicks(1, 2)).toBe(30);
+        expect(abilityDurationSecondsToTicks(1, 0.5)).toBe(120);
+        expect(abilityDurationSecondsToTicks(0.5, 2)).toBe(15);
+    });
+
+    it('rounds partial ticks up and rejects invalid rates', () => {
+        expect(abilityDurationSecondsToTicks(1 / 60, 2)).toBe(1);
+        expect(abilityDurationSecondsToTicks(1, 0)).toBe(0);
+        expect(abilityDurationSecondsToTicks(1, Number.NaN)).toBe(0);
+    });
+
     it('returns 0 for non-positive or non-finite durations', () => {
         expect(abilityDurationSecondsToTicks(0)).toBe(0);
         expect(abilityDurationSecondsToTicks(-1)).toBe(0);

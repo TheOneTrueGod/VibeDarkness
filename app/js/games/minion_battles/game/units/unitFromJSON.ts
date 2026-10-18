@@ -16,6 +16,7 @@ import { applyLanterniteStateFromJSON } from './unitLanterniteState';
 import { applyThornlingStateFromJSON } from './unitThornlingState';
 import { applySwarmStateFromJSON } from './unitSwarmState';
 import { applyCcArmourStateFromJSON } from '../../crowdControl/ccArmourState';
+import type { PendingFrozenHit } from './unitDamage';
 
 /** Old unit.characterId values for player units before unified `player` id. */
 const LEGACY_PLAYER_CHARACTER_IDS = new Set([
@@ -171,6 +172,14 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
 
     const buffsData = (data.buffs as BuffSerialized[] | undefined) ?? [];
     unit.buffs = buffsData.map((b) => buffFromJSON(b));
+    if (typeof data.localTime === 'number') {
+        unit.localTime = data.localTime;
+        unit.localClockActive = true;
+    }
+    unit.timeDebt = typeof data.timeDebt === 'number' ? data.timeDebt : 0;
+    unit.pendingFrozenHits = Array.isArray(data.pendingFrozenHits)
+        ? (data.pendingFrozenHits as PendingFrozenHit[]).map((h) => ({ ...h }))
+        : [];
     unit.tags = parseUnitTagsFromJSON(data.tags);
     if (data.controllable === false) {
         unit.controllable = false;

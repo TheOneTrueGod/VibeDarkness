@@ -29,6 +29,15 @@ import type { PathfindingManager } from '../pathfinding/PathfindingManager';
 export interface EngineContext {
     gameTime: number;
     gameTick: number;
+    /**
+     * World seconds per tick divided by FIXED_DT: 1 normal, 0.5 slow-mo, 0 Time Stop.
+     * `gameTime` advances by `worldPace * FIXED_DT` per tick. See `game/time/AGENTS.md`.
+     */
+    readonly worldPace: number;
+    /** Per-actor step rates (see `game/time`). Optional so lightweight test contexts can omit it. */
+    readonly timeManager?: Pick<import('./time/TimeManager').TimeManager, 'getStepRate'>;
+    /** `gameTick * FIXED_DT`. Always advances, even during Time Stop. */
+    readonly tickTime: number;
     roundNumber: number;
     storyPauseActive: boolean;
 

@@ -11,6 +11,7 @@ import { grantAbilityUses } from '../../abilities/abilityUses';
 import type { ResolvedTarget } from '../types';
 import type { Unit } from '../units/Unit';
 import { hasUnitTag, UnitTag } from '../units/unitTag';
+import { getActorStepRate, type ActorClockEngine } from '../time/actorClock';
 import {
     CLONE_MIRROR_MAX_CLONES,
     CLONE_MIRROR_STAGGER_SEC,
@@ -25,6 +26,9 @@ const TICKS_PER_SECOND = 60;
 export interface MirrorEngineLike {
     units: Unit[];
     gameTick: number;
+    /** Present on the real engine; used to scale echo delays to the caster's clock. */
+    gameTime?: number;
+    timeManager?: ActorClockEngine['timeManager'];
     generateRandomInteger(min: number, max: number): number;
     state: {
         orderMgr: {
@@ -78,9 +82,14 @@ export function mirrorAbilityToClones(
     }
     const chosen = pool.slice(0, count);
 
+    // Echo delays are measured on the caster's clock (owner clock): a hasted caster's echoes arrive in fewer ticks.
+    // Exactly 1 at pace 1 with no tempo, so the delay is unchanged there.
+    const casterRate = getActorStepRate(caster, { gameTime: engine.gameTime ?? 0, timeManager: engine.timeManager });
+    const delayScale = casterRate > 0 && casterRate !== 1 ? 1 / casterRate : 1;
+
     chosen.forEach((clone, index) => {
         grantAbilityUses(clone, abilityId, 1);
-        const delayTicks = Math.max(1, Math.round((startDelaySec + index * staggerSec) * TICKS_PER_SECOND));
+        const delayTicks = Math.max(1, Math.round((startDelaySec + index * staggerSec) * TICKS_PER_SECOND * delayScale));
         engine.state.orderMgr.queueOrder(engine.gameTick + delayTicks, {
             unitId: clone.id,
             abilityId,

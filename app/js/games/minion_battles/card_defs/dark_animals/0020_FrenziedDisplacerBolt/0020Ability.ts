@@ -35,6 +35,7 @@ import {
     DISPLACER_BOLT_TARGET_RANGE,
     DISPLACER_BOLT_TRAVEL_DISTANCE,
 } from '../0017_DisplacerBolt/0017Ability';
+import { getCastElapsedAt } from '../../../game/time/actorClock';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}20`;
 export const FRENZIED_DISPLACER_BOLT_ID = CARD_ID;
@@ -128,7 +129,7 @@ export const FrenziedDisplacerBoltAbility: AbilityStatic = {
         gameTime: number,
         engine?: Parameters<NonNullable<AbilityStatic['renderActivePreview']>>[4],
     ): void {
-        const slimeScaleTime = activeAbility.startTime + (gameTime - activeAbility.startTime) / SCALE;
+        const slimeScaleTime = activeAbility.startTime + (getCastElapsedAt(activeAbility, gameTime)) / SCALE;
         SlimeShotAbility.renderActivePreview!(gr, caster, activeAbility, slimeScaleTime, engine);
     },
 };

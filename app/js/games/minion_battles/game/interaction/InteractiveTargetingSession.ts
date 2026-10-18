@@ -16,6 +16,7 @@
 import type { BattleOrder, OrderAtTick, ResolvedTarget, SerializedGameState } from '../types';
 import type { BattleSession } from '../BattleSession';
 import type { GameEngine } from '../GameEngine';
+import { localNow } from '../time/actorClock';
 import { getInteractiveTargetDefsFromTimings } from '../../abilities/targeting';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { unitAbilityHasTag } from '../../abilities/abilityUses';
@@ -127,6 +128,12 @@ export function buildFinalizedSequentialTargetingOrder(
             ? { missingSelectLabels: [...opts.missingSelectLabels] }
             : {}),
     };
+}
+
+/** The caster's local "now" (cast `startTime` clock); the world clock when the unit is missing or has no local clock. */
+function casterLocalNow(engine: GameEngine, unitId: string): number {
+    const unit = engine.getUnit(unitId);
+    return unit ? localNow(unit, engine.gameTime) : engine.gameTime;
 }
 
 export class InteractiveTargetingSession {
@@ -427,6 +434,7 @@ export class InteractiveTargetingSession {
             abilityId,
             startRound: engine.roundNumber,
             beganAtGameTime: engine.gameTime,
+            beganAtLocalTime: casterLocalNow(engine, unitId),
         };
 
         engine.setOnParallelBatchResolved(null);
@@ -559,6 +567,7 @@ export class InteractiveTargetingSession {
             abilityId: active.abilityId,
             startRound: engine.roundNumber,
             beganAtGameTime: engine.gameTime,
+            beganAtLocalTime: casterLocalNow(engine, unitId),
             resumeCastStartTime: active.startTime,
         };
         engine.setOnParallelBatchResolved(null);
@@ -902,6 +911,7 @@ export class InteractiveTargetingSession {
             abilityId: baseOrder.abilityId,
             startRound: engine.roundNumber,
             beganAtGameTime: engine.gameTime,
+            beganAtLocalTime: casterLocalNow(engine, unitId),
             ...(this._resumeMode && this._resumeCastStartTime != null
                 ? { resumeCastStartTime: this._resumeCastStartTime }
                 : {}),

@@ -14,6 +14,7 @@ Minion Battles is a game engine with content on top. Every gameplay request is a
 - **Definitions and presets.** Static rules live in `*_defs` / registries (with flags rather than special cases); common configurations get named presets.
 - **One entry point per system,** with an EventBus event for side effects (VFX, AI, reactions) instead of every caller doing its own follow-up.
 - **Deterministic and serializable.** New state round-trips `toJSON`/`fromJSON` and behaves identically in preview (ITS) and committed runs.
+- **Name the clock.** Time-dependent gameplay uses world, local, tick or wall time deliberately (cast elapsed via `getCastElapsed`; haste/slow via `TimeDilationBuff` / `Buff.timeModifier`, never in ability code). See `game/time/AGENTS.md`.
 - **Cost-aware, not premature.** Prefer indexed lookups on hot paths, and instrument new systems with `tickPerformanceTracker` rather than guessing.
 - **When a request reads as a one-off,** propose the general version (and its extension points) before implementing; ask if the generalization is unclear.
 
@@ -41,6 +42,7 @@ Paths below are relative to `app/js/games/minion_battles/`. **Do not treat this 
 | `game/units/unitAI/` | AI runner, trees, and behaviour modules (grouped subfolders by tree/archetype). |
 | `game/effects/` | In-battle effect runtime objects: `Effect.ts`, `EffectManager.ts`, `EffectEmitter.ts`, `EffectEmitterManager.ts`. See `game/effects/AGENTS.md` for the Effect/EffectEmitter system. |
 | `game/effect_defs/` | Visual effect definitions (replaced the old `game/effectDef.ts`). |
+| `game/time/` | Time dilation: tempo, local clocks, world pace, step pieces, Time Stop. Read `game/time/AGENTS.md` (and the **time-dilation** skill) before touching any clock, `gameTime`, or cast elapsed. |
 | `game/lightSources/` | Light source runtime objects. |
 | `game/projectiles/` | Projectile runtime objects. |
 | `game/specialTiles/` | Special tile runtime objects. |

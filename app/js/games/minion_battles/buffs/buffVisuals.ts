@@ -13,6 +13,7 @@ import { EXPOSED_BUFF_TYPE } from './ExposedBuff';
 import { LIFTED_BUFF_TYPE } from './liftedBuffType';
 import { GRAVITY_LOCUS_FIELD_BUFF_TYPE } from './GravityLocusFieldBuff';
 import { SHIELD_BUFF_TYPE, ShieldBuff } from './ShieldBuff';
+import { TIME_DILATION_BUFF_TYPE } from './TimeDilationBuff';
 import { type ShieldShimmerFilter, tryCreateShieldShimmerFilter } from '../game/ShieldShimmerFilter';
 import { GRAVITY_VIOLET } from '../game/effect_defs/aoeEffects';
 import { LIGHT_SHIELD_COLOR, LIGHT_SHIELD_COLOR_INNER } from '../card_defs/08_light_core/0805_ShieldOfLight/0805Constants';
@@ -237,3 +238,19 @@ registerBuffVisual(LIFTED_BUFF_TYPE, (g, unit, _buff, _ctx) => {
 // The field draws itself at the locus each tick; no marker on the caster.
 registerBuffVisual(GRAVITY_LOCUS_FIELD_BUFF_TYPE, () => {});
 registerBuffVisual(SHIELD_BUFF_TYPE, shieldBuffVisual);
+
+/** Time dilation: faint gravity-violet speed streaks trailing behind the unit plus a soft ring. */
+const timeDilationBuffVisual: BuffVisualRenderer = (g, unit, _buff, ctx) => {
+    const r = unit.radius;
+    const pulse = 0.5 + 0.5 * Math.sin(ctx.gameTime * 8);
+    g.circle(0, 0, r * 1.15);
+    g.stroke({ color: GRAVITY_VIOLET, width: 1, alpha: 0.2 + 0.15 * pulse });
+    for (let i = 0; i < 3; i++) {
+        const y = (i - 1) * r * 0.55;
+        const len = r * (0.9 + 0.5 * ((i + pulse) % 1));
+        g.moveTo(-r * 0.6, y);
+        g.lineTo(-r * 0.6 - len, y);
+        g.stroke({ color: GRAVITY_VIOLET, width: 1.5, alpha: 0.3 - i * 0.05 });
+    }
+};
+registerBuffVisual(TIME_DILATION_BUFF_TYPE, timeDilationBuffVisual);

@@ -61,6 +61,7 @@ import {
     STONE_TOMB_ROCK_COST,
 } from '../earthCoreConstants';
 import { stoneTombRumble } from './stoneTombVfx';
+import { getCastElapsedAt } from '../../../game/time/actorClock';
 
 const ABILITY_ID = '0530';
 const TOMB_LABEL = 'Tomb location';
@@ -334,7 +335,7 @@ export const StoneTomb: AbilityStatic = defineAbility({
         activeAbility: ActiveAbility,
         gameTime: number,
     ): void {
-        const elapsed = gameTime - activeAbility.startTime;
+        const elapsed = getCastElapsedAt(activeAbility, gameTime);
         if (elapsed >= STAGE2_TIME) return;
         const aim = tombPickPosition(activeAbility);
         if (!aim) return;

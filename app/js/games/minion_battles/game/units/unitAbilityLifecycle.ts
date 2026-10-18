@@ -1,4 +1,5 @@
 import type { Unit } from './Unit';
+import { getCastElapsed, localNow } from '../time/actorClock';
 import type { ActiveAbility, ResolvedTarget } from '../types';
 import type { EngineContext } from '../EngineContext';
 import type { CastEndedEarlyEvent } from '../EventBus';
@@ -62,7 +63,7 @@ function fireCastEndEarly(
     reason: CastEndedEarlyEvent['reason'],
     outcome: CastEndedEarlyEvent['outcome'],
 ): void {
-    const elapsed = Math.max(0, engine.gameTime - active.startTime);
+    const elapsed = Math.max(0, getCastElapsed(unit, active, engine));
     triggerAbilityEvent({
         engine,
         caster: unit,
@@ -100,7 +101,7 @@ function skipActiveAbilityToCooldown(
     const cooldown = findCooldownInterval(intervals);
     if (!cooldown) return false;
     cleanupCastBehavioursForAbility(unit, active, engine);
-    active.startTime = engine.gameTime - cooldown.start;
+    active.startTime = localNow(unit, engine.gameTime) - cooldown.start;
     active.castPayload = undefined;
     active.castBehaviourPayloads = {};
     // The timeline moved, so any select-gate resume point is stale. Left set, the next tick would
@@ -148,7 +149,7 @@ export function cancelUnitActiveAbility(unit: Unit, abilityId: string, engine: E
     if (!active) return;
     const ability = getAbility(active.abilityId);
     if (ability) {
-        const elapsed = Math.max(0, engine.gameTime - active.startTime);
+        const elapsed = Math.max(0, getCastElapsed(unit, active, engine));
         triggerAbilityEvent({
             engine,
             caster: unit,
@@ -189,7 +190,7 @@ export function interruptUnitAbilities(unit: Unit, engine: EngineContext): void 
     for (const active of unit.activeAbilities) {
         const ability = getAbility(active.abilityId);
         if (!ability) continue;
-        const elapsed = Math.max(0, engine.gameTime - active.startTime);
+        const elapsed = Math.max(0, getCastElapsed(unit, active, engine));
         const intervals = normalizeAbilityTimingsToIntervals(
             resolveAbilityTimingEntries(ability, unit, engine),
         );
@@ -239,7 +240,7 @@ export function fizzleUnitActiveAbility(unit: Unit, active: ActiveAbility, engin
         if (idx >= 0) unit.activeAbilities.splice(idx, 1);
         return;
     }
-    const elapsed = Math.max(0, engine.gameTime - active.startTime);
+    const elapsed = Math.max(0, getCastElapsed(unit, active, engine));
     const intervals = normalizeAbilityTimingsToIntervals(resolveAbilityTimingEntries(ability, unit, engine));
     const policy = resolveAbilityInterruptPolicy(ability);
     if (policy.beforeCooldown === 'skipToCooldown' && findCooldownInterval(intervals)) {
@@ -272,7 +273,7 @@ export function executeUnitAbility(
     if (existing >= 0) {
         const existingActive = unit.activeAbilities[existing];
         if (existingActive) {
-            const existingElapsed = Math.max(0, engine.gameTime - existingActive.startTime);
+            const existingElapsed = Math.max(0, getCastElapsed(unit, existingActive, engine));
             triggerAbilityEvent({
                 engine,
                 caster: unit,
@@ -291,7 +292,7 @@ export function executeUnitAbility(
 
     const active: ActiveAbility = {
         abilityId: ability.id,
-        startTime: engine.gameTime,
+        startTime: localNow(unit, engine.gameTime),
         targets: targets.map((t) => ({ ...t })),
         castBehaviourPayloads: {},
         evadeFired: false,

@@ -6,6 +6,7 @@ import { ONLY_UNDO_AT_START } from '../../game/gameConstants';
 import { setAutoEndTurn } from '../../game/autoEndTurnSetting';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { getTotalAbilityDurationForCast } from '../../abilities/abilityTimings';
+import { getActorStepRate } from '../../game/time/actorClock';
 import type { ItsPlayaheadTicks } from './GameTickPill';
 import ITSTimelineFrameStepper from './ITSTimelineFrameStepper';
 import { useAutoEndTurn } from './useAutoEndTurn';
@@ -174,7 +175,7 @@ function readAbilityTimelineMeta(sessionRef: React.RefObject<BattleSession | nul
     try {
         const durationSec = getTotalAbilityDurationForCast(ability, caster, engine);
         return {
-            expectedDurationTicks: abilityDurationSecondsToTicks(durationSec),
+            expectedDurationTicks: abilityDurationSecondsToTicks(durationSec, getActorStepRate(caster, engine)),
         };
     } catch {
         return { expectedDurationTicks: 0 };

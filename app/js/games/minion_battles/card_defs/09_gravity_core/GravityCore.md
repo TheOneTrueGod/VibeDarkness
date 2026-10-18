@@ -12,7 +12,7 @@ Gravity is a **control kit**, not a primary damage kit. Damage exists to punish 
 
 ## Ability spine
 
-The tree ships four abilities on a simple spine, plus one tier-3 upgrade node (Repulse) that modifies an existing ability via `AbilityModifier` instead of adding a new card:
+The tree ships six abilities on a simple spine, plus one tier-3 upgrade node (Repulse) that modifies an existing ability via `AbilityModifier` instead of adding a new card:
 
 | Card id | Ability | Research unlock | Role |
 |---------|---------|-----------------|------|
@@ -21,6 +21,7 @@ The tree ships four abilities on a simple spine, plus one tier-3 upgrade node (R
 | **0901** | **Gravity Locus + Repulse** | **Repulse** node (tier 3, requires Gravity Locus) | Shortens the field (`durationMult`) and detonates it on expiry (`explosionDamageFlat` + `knockbackTier`, gated by the `GravityRepulse` ability tag) — see `buffs/GravityLocusFieldBuff.ts` |
 | **0903** | **Lift** | **Lift** node (tier 2) | **Lift** + hard CC + slam; mode changes horizontal landing only |
 | **0904** | **Gravity Shield** | **Gravity Shield** node (tier 13) | Ally (or self) **absorb shield** — `GRAVITY_SHIELD_HP` armour that drains over `GRAVITY_SHIELD_DURATION_ROUNDS` round via `ShieldBuff` |
+| **0906** | **Ease Burdens** | **Ease Burdens** node (tier 13, requires Gravity Core) | Ally (or self) **focal haste**: applies `TimeDilationBuff` (`TIME_DILATION_PRESETS.focalHaste2x`: tempo 2, 3 s world time), costs `EASE_BURDENS_GRAVITY_COST` (2) Gravity, 1 use per round. The ally acts twice as fast and world pace drops to 0.5 while it lasts. The ability only applies the buff; everything else is the time system (`game/time/AGENTS.md`). Re-applying from the same source refreshes rather than stacks |
 | **0905** | **Collapse** | **Collapse** node (tier 2) | Single-click **cone gather** — pulls up to 3 enemies nearest the cursor into an arc in front of the caster (aimed knockback), flat damage, then brief **Stagger** |
 
 Force Push, Gravity Locus, and Lift share the same **Ability Mode** toggle (`'push' | 'pull'`), set per cast during targeting — distinct from static research `AbilityModifier` tweaks. Gravity Shield has no mode toggle.

@@ -49,6 +49,8 @@ type EmitterDefShared = {
      * Use this instead of hardcoding duration inside effectData.
      */
     effectDuration?: number;
+    /** Clock for spawned effects and the emitter cadence/lifetime: 'wall' (default), 'world' or 'owner' (the caster). */
+    timeDomain?: 'wall' | 'world' | 'owner';
     /**
      * When true, the engine merges { bodyColor, radius, characterSpriteKey } from the
      * caster unit into effectData at window-open time. Useful for afterimage-style trails

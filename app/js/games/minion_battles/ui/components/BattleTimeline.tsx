@@ -37,6 +37,7 @@ import {
 } from '../../abilities/abilityTimings';
 import { WaitAbility } from '../../abilities/WaitAbility';
 import { EXPOSED_BUFF_TYPE } from '../../buffs/ExposedBuff';
+import { getCastElapsed } from '../../game/time/actorClock';
 
 /** Character icon URLs for enemy timeline markers. Fallback to letter if unknown. */
 const ENEMY_CHARACTER_ICONS: Record<string, string> = {
@@ -421,7 +422,6 @@ function collectEnemyMarkers(
     cooldownStartFromNow: number | null;
     cooldownEndFromNow: number | null;
 }[] {
-    const now = engine.gameTime;
     const markers: {
         unit: Unit;
         ability: AbilityStatic;
@@ -438,7 +438,7 @@ function collectEnemyMarkers(
             if (!ability) continue;
             const { actionStart, actionEnd, cooldownStart, cooldownEnd } = enemyWindowsForAbility(ability, unit, engine);
             if (actionEnd <= actionStart) continue;
-            const elapsed = now - active.startTime;
+            const elapsed = getCastElapsed(unit, active, engine);
             const startFromNow = actionStart - elapsed;
             const endFromNow = actionEnd - elapsed;
             const cooldownStartFromNow = cooldownStart !== null ? cooldownStart - elapsed : null;
@@ -644,7 +644,7 @@ function renderPlayerUnitTimelineUnified(
         // order-submission preview — the engine state is live and must drive the timeline.
         const intervals = intervalsForAbility(ability, unit, engine);
         const merged = buildPrimaryTimelineSegments(intervals);
-        const elapsed = now - active.startTime;
+        const elapsed = getCastElapsed(unit, active, engine);
         segments = computeVisiblePrimarySegments(merged, elapsed, windowSeconds);
     } else if (showPreview && previewAbility) {
         const intervals = intervalsForAbility(previewAbility, unit, engine);
@@ -897,7 +897,7 @@ function renderPlayerRow(
         // order-submission preview — the engine state is live and must drive the timeline.
         const intervals = intervalsForAbility(ability, unit, engine);
         const merged = buildPrimaryTimelineSegments(intervals);
-        const elapsed = now - active.startTime;
+        const elapsed = getCastElapsed(unit, active, engine);
         segments = computeVisiblePrimarySegments(merged, elapsed, windowSeconds);
     } else if (showPreview && previewAbility) {
         const intervals = intervalsForAbility(previewAbility, unit, engine);

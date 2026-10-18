@@ -19,6 +19,7 @@ import { tryDamageOrBlock } from '../blockingHelpers';
 import { createChargeCapsuleTargetPreview, drawChargeCapsuleTimingTelegraph } from '../previewHelpers';
 import { getDirectionFromTo } from '../targetHelpers';
 import { resolveChargeAimPoint } from './ChargeAttack';
+import { getCastElapsedAt } from '../../game/time/actorClock';
 
 export interface DashNote extends LungeTarget {
 	hitTargetIds: string[];
@@ -255,7 +256,7 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 		activeAbility: ActiveAbility,
 		gameTime: number,
 	): void {
-		const elapsed = gameTime - activeAbility.startTime;
+		const elapsed = getCastElapsedAt(activeAbility, gameTime);
 		if (elapsed < 0 || elapsed >= this.activeEnd) return;
 
 		const note = this.getChargeNote(caster, activeAbility);

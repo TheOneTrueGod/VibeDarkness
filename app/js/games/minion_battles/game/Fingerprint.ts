@@ -36,6 +36,8 @@ export const FingerprintEvent = {
     EFFECT_TICK: 7,
     TICK_END: 8,
     ADMIN_STATE_CHANGE: 9,
+    /** World pace / Time Stop state; mixed only while non-default (pace-1 fingerprints unchanged). */
+    TIME_STATE: 10,
 } as const;
 
 export type FingerprintEvent = (typeof FingerprintEvent)[keyof typeof FingerprintEvent];

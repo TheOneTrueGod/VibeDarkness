@@ -379,6 +379,14 @@ describe('isITSPreviewComplete', () => {
             expect(isPreviewCastInstance(base, 'u1', 'a1', 7.5)).toBe(true);
         });
 
+        it('compares against the caster local time when pace differs from 1', () => {
+            // World time 5, but the caster's local clock only reached 2.5 (tempo 0.5).
+            const dilated = { ...base, beganAtLocalTime: 2.5 };
+            expect(isPreviewCastInstance(dilated, 'u1', 'a1', 2.4)).toBe(false);
+            expect(isPreviewCastInstance(dilated, 'u1', 'a1', 2.5)).toBe(true);
+            expect(isPreviewCastInstance(dilated, 'u1', 'a1', 3)).toBe(true);
+        });
+
         it('accepts the resume cast by its start time even though it started before the preview', () => {
             const resume = { ...base, resumeCastStartTime: 3 };
             expect(isPreviewCastInstance(resume, 'u1', 'a1', 3)).toBe(true);

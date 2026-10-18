@@ -6,6 +6,7 @@
  */
 
 import type { Unit } from './Unit';
+import { getCastElapsed, localNow } from '../time/actorClock';
 import type { EngineContext } from '../EngineContext';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import {
@@ -286,6 +287,34 @@ function hasRejectedEnteringSelectPick(
 }
 
 /**
+ * Timeline boundaries inside a step window, for `planStepPieces`. Returns offsets (local seconds from
+ * `windowStartLocalTime`, ascending, strictly inside `(0, windowLength)`) at which any of the unit's active casts
+ * enters or leaves a timing interval. Pure read; a cast whose ability is unknown contributes nothing.
+ */
+export function collectAbilityBoundaryOffsets(
+    unit: Unit,
+    engine: EngineContext,
+    windowStartLocalTime: number,
+    windowLength: number,
+): number[] {
+    const out: number[] = [];
+    for (const active of unit.activeAbilities) {
+        const ability = getAbility(active.abilityId);
+        if (!ability) continue;
+        const elapsedAtStart = windowStartLocalTime - active.startTime;
+        const intervals = normalizeAbilityTimingsToIntervals(resolveAbilityTimingEntries(ability, unit, engine));
+        for (const interval of intervals) {
+            for (const edge of [interval.start, interval.end]) {
+                const offset = edge - elapsedAtStart;
+                if (offset > 0 && offset < windowLength) out.push(offset);
+            }
+        }
+    }
+    out.sort((a, b) => a - b);
+    return out;
+}
+
+/**
  * Advance all active abilities for `unit` by `dt` seconds.
  * Invokes cast behaviour hooks, emitter lifecycle, evade-break notifications,
  * and fires ON_CAST_TICK / ON_CAST_END ability events.
@@ -299,6 +328,11 @@ export function tickUnitActiveAbilities(
     onNaturalCompletion: () => void,
 ): void {
     if (unit.activeAbilities.length === 0) return;
+
+    // Local step: the cast timeline runs on the unit's own clock (see game/time/AGENTS.md). Stub engines whose
+    // unit clock was never started keep the caller's `dt`. A frozen unit (step 0) does not advance its casts.
+    const stepDt = unit.localClockActive ? unit.localStep : dt;
+    if (unit.localClockActive && !(stepDt > 0)) return;
 
     const completed: number[] = [];
     // Casts that fizzled this tick. They are removed after the loop, so indices stay valid until then.
@@ -321,15 +355,15 @@ export function tickUnitActiveAbilities(
         // Captured before the gate fields are rewritten below: the select the previous tick held back.
         const resumedGateId = active.pendingSelectGate;
         const { prevElapsed: prevTime, nextElapsed: realNextTime } = computeTickElapsed(
-            engine.gameTime,
-            dt,
+            localNow(unit, engine.gameTime),
+            stepDt,
             active.startTime,
             active.processedElapsed,
         );
         const gateSplit = findSelectGateSplit(intervals, prevTime, realNextTime);
         const currentTime = gateSplit ? gateSplit.elapsed : realNextTime;
         // Duration of this cast's processed window. It equals dt except on split and resumed ticks.
-        const windowDt = gateSplit !== null || resumedFromGate ? currentTime - prevTime : dt;
+        const windowDt = gateSplit !== null || resumedFromGate ? currentTime - prevTime : stepDt;
         if (gateSplit) {
             active.processedElapsed = gateSplit.elapsed;
             active.pendingSelectGate = gateSplit.intervalId;
@@ -422,7 +456,7 @@ export function tickUnitActiveAbilities(
                 ) {
                     flushMovementByLabel(unit, active, engine, { repathFromCurrent: true });
                 }
-                fireIntervalEntry(interval, active, unit, ability, engine, dt);
+                fireIntervalEntry(interval, active, unit, ability, engine, stepDt);
             }
             if (interval.emitterDef && exited.has(interval.id)) {
                 const key = interval.id;
@@ -611,7 +645,7 @@ export function tickUnitActiveAbilities(
                         otherAbility,
                         unit.id,
                         snapshot,
-                        engine.gameTime - otherActive.startTime,
+                        getCastElapsed(otherUnit, otherActive, engine),
                         engine,
                     );
                 }
@@ -655,6 +689,7 @@ export function tickUnitActiveAbilities(
                 prevWindowProgress: Math.max(0, Math.min(1, rawPrevProgress)),
                 isFirstTick: rawPrevProgress <= 0 && rawProgress > 0,
                 isLastTick: windowEnded,
+                localDt: windowDt,
             };
             rec.entry.behaviour.onTick?.(tickCtx);
             if (windowEnded) unit.activeCastBehaviours.delete(behaviourKey);
@@ -711,7 +746,7 @@ export function tickUnitActiveAbilities(
         if (!active) continue;
         const ability = getAbility(active.abilityId);
         if (ability) {
-            const elapsed = Math.max(0, engine.gameTime - active.startTime);
+            const elapsed = Math.max(0, getCastElapsed(unit, active, engine));
             triggerAbilityEvent({
                 engine,
                 caster: unit,

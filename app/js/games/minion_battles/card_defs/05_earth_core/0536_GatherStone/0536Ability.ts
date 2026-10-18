@@ -41,6 +41,7 @@ import {
     spawnGatherStoneRockImpacts,
     spawnGatherStoneRubbleClash,
 } from './gatherStoneVfx';
+import { getCastElapsedAt } from '../../../game/time/actorClock';
 
 const ABILITY_ID = '0536';
 
@@ -203,7 +204,7 @@ export const GatherStoneAbility_0536: AbilityStatic = {
         activeAbility: ActiveAbility,
         gameTime: number,
     ): void {
-        const elapsed = gameTime - activeAbility.startTime;
+        const elapsed = getCastElapsedAt(activeAbility, gameTime);
         if (elapsed >= GATHER_STONE_PREFIRE) return;
         const pixel = getPixelTargetPosition(activeAbility.targets, 0);
         if (!pixel) return;

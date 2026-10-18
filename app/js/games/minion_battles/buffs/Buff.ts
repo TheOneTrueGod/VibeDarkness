@@ -15,6 +15,14 @@ import type { EventBus } from '../game/EventBus';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import type { EngineContext } from '../game/EngineContext';
 import type { Effect } from '../game/effects/Effect';
+import type { TimeModifier } from '../game/time/TimeModifier';
+
+/**
+ * Which clock a timed buff's duration runs on. `'world'` (default): `engine.gameTime`. `'owner'`: the
+ * buff holder's `unit.localTime`, so the buff pauses while the unit is frozen and follows its tempo
+ * (use for buffs that represent motion, e.g. `LiftedBuff`).
+ */
+export type BuffClock = 'world' | 'owner';
 
 /** Context passed to {@link Buff.onBeforeExpire} when a timed buff is removed. */
 export interface BuffExpireContext {
@@ -61,7 +69,19 @@ export abstract class Buff {
      */
     readonly blocksActing: boolean = false;
 
-    /** Game time (seconds) when buff was applied. Set by Unit when adding. */
+    /**
+     * Clock the duration runs on (def-pattern property; subclasses override). Default `'world'`.
+     * With `'owner'`, `appliedAtTime` is a local-time timestamp on the holder (see `Unit.addBuff`).
+     */
+    readonly clock: BuffClock = 'world';
+
+    /**
+     * Tempo source carried by this buff (tempo / focal / freeze). Default none. Subclasses set it;
+     * `getActorTempo` multiplies it in and focal requests feed world pace. See `game/time/AGENTS.md`.
+     */
+    readonly timeModifier?: TimeModifier;
+
+    /** Game time (seconds) when buff was applied (local time when `clock === 'owner'`). Set by Unit when adding. */
     appliedAtTime: number = 0;
 
     /** Round number when buff was applied. Set by Unit when adding. */
@@ -84,10 +104,14 @@ export abstract class Buff {
      */
     onGameTick?(_unit: Unit, _engine: EngineContext, _dt: number): void;
 
-    /** Check if this buff has expired at the given game state. */
-    isExpired(gameTime: number, roundNumber: number): boolean {
+    /**
+     * Check if this buff has expired at the given game state.
+     * @param ownerLocalTime - the holder's local time; used instead of `gameTime` when `clock === 'owner'`.
+     */
+    isExpired(gameTime: number, roundNumber: number, ownerLocalTime?: number): boolean {
         if (this.duration.unit === 'seconds') {
-            return gameTime - this.appliedAtTime >= this.duration.value;
+            const now = this.clock === 'owner' && ownerLocalTime !== undefined ? ownerLocalTime : gameTime;
+            return now - this.appliedAtTime >= this.duration.value;
         }
         return roundNumber - this.appliedAtRound >= this.duration.value;
     }

@@ -100,3 +100,4 @@ Scenario harnesses cover the **committed** order path only (orders applied, then
 - **`working-on-minion-battles`** — overall Minion Battles layout.
 - **`creating-an-ability`** / **`editing-card-behaviour`** — real card/ability behaviour under test.
 - **`game-engine`** — tick loop and managers if scenarios need new engine surface area.
+- **`time-dilation`** - the **Time Dilation** general section (slug `time-dilation`, `testing/scenarios/general/timeDilation.ts`) covers haste, projectile tempo, Time Stop and extreme tempo. Write dilation scenarios with `category: 'general'`, `generalSection: 'Time Dilation'`, and extra `maxDurationMs` headroom (pace 0.5 needs about twice the ticks); assert on `engine.worldPace`, `gameTime` vs `gameTick`, and per-unit distance vs a control unit.

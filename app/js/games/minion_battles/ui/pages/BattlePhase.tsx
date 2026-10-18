@@ -51,6 +51,7 @@ import { useBattleGhostPlans } from './battlePhase/useBattleGhostPlans';
 import { useRewindOverlay, REWIND_OVERLAY_FADE_MS } from './battlePhase/useRewindOverlay';
 import ITSTimelineControls from '../components/ITSTimelineControls';
 import { abilityDurationSecondsToTicks } from '../components/itsTimelineMath';
+import { getActorStepRate } from '../../game/time/actorClock';
 import { useInteractionManagerBridge } from './battlePhase/useInteractionManagerBridge';
 import { useBattleNetSyncState } from './battlePhase/useBattleNetSyncState';
 import { useBattleRoundState } from './battlePhase/useBattleRoundState';
@@ -237,7 +238,7 @@ export default function BattlePhase({
                     if (ability && caster) {
                         try {
                             const durationSec = getTotalAbilityDurationForCast(ability, caster, eng);
-                            expectedDurationTicks = abilityDurationSecondsToTicks(durationSec);
+                            expectedDurationTicks = abilityDurationSecondsToTicks(durationSec, getActorStepRate(caster, eng));
                         } catch {
                             // keep defaults
                         }

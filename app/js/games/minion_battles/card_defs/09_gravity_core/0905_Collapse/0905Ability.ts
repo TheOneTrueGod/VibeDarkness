@@ -61,6 +61,7 @@ import {
     COLLAPSE_STAGGER_LINGER,
     COLLAPSE_TARGET_LABEL,
 } from '../gravityConstants';
+import { getCastElapsedAt } from '../../../game/time/actorClock';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Gravity)}05`;
 const HOWL_SHOCKWAVE_EFFECT_TYPE = 'HowlShockwave';
@@ -346,7 +347,7 @@ export const CollapseAbility = defineAbility({
         activeAbility: ActiveAbility,
         gameTime: number,
     ): void {
-        const elapsed = gameTime - activeAbility.startTime;
+        const elapsed = getCastElapsedAt(activeAbility, gameTime);
         if (elapsed >= RELEASE_START) return;
         const target = activeAbility.targets[0];
         if (!target || target.type !== 'pixel' || !target.position) return;

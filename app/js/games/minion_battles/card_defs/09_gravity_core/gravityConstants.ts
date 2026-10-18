@@ -73,6 +73,17 @@ export const GRAVITY_SHIELD_TARGET_LABEL = 'Ally';
 /** Visual scale for the apply-burst shockwave on the shielded ally. */
 export const GRAVITY_SHIELD_IMPACT_SHOCKWAVE_SCALE = 0.55;
 
+/** Ease Burdens (0906) — ally focal haste (tempo 2, world slows to 0.5). The speed-up comes from the time system. */
+export const EASE_BURDENS_MAX_RANGE = 160;
+export const EASE_BURDENS_PREFIRE_TIME = 0.25;
+export const EASE_BURDENS_ACTIVE_DURATION = 0.05;
+export const EASE_BURDENS_COOLDOWN_DURATION = 0.4;
+export const EASE_BURDENS_GRAVITY_COST = 2;
+export const EASE_BURDENS_MAX_USES = 1;
+export const EASE_BURDENS_TARGET_LABEL = 'Ally';
+/** Stacking key for the buff: re-casting on the same target refreshes instead of stacking. */
+export const EASE_BURDENS_SOURCE_ID = 'ease_burdens';
+
 /** Force Push (0902) — aimed fling with collision damage. */
 export const FORCE_PUSH_MAX_RANGE = 160;
 export const FORCE_PUSH_PREFIRE_TIME = 0.25;

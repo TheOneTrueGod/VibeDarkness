@@ -21,6 +21,7 @@ import {
     formatTooltipLegacyLines,
     type TooltipTokenBindings,
 } from '../../../abilities/tooltipTokens';
+import { getCastElapsedAt } from '../../../game/time/actorClock';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}04`;
 const PREFIRE_TIME = 0.8;
@@ -120,7 +121,7 @@ export const AlphaWolfClawAbility = defineAbility({
         activeAbility: ActiveAbility,
         gameTime: number,
     ): void {
-        const elapsed = gameTime - activeAbility.startTime;
+        const elapsed = getCastElapsedAt(activeAbility, gameTime);
         const pos = getPixelTargetPosition(activeAbility.targets, 0);
         if (!pos) return;
         const { corners, centerX, centerY } = HITBOX.getQuadGeometry(caster, pos);

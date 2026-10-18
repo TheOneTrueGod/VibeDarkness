@@ -149,6 +149,7 @@ import {
 } from './abilities/earthCoreScenarios';
 import { rapidThrowComboScenario } from './abilities/rapidThrowComboScenario';
 import { CAST_ENDED_EARLY_SCENARIOS } from './general/castEndedEarly';
+import { TIME_DILATION_SCENARIOS } from './general/timeDilation';
 
 export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     pathStraightMoveScenario,
@@ -293,6 +294,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     directEffectVfxDefTargetPositionScenario,
     ...EQUIPMENT_LOADOUT_SCENARIOS,
     ...CAST_ENDED_EARLY_SCENARIOS,
+    ...TIME_DILATION_SCENARIOS,
 ];
 
 export function getScenarioById(id: string): ScenarioDefinition | undefined {
@@ -351,6 +353,7 @@ const GENERAL_GROUP_ORDER: { slug: string; section: string }[] = [
     { slug: 'ability-emitter-vfx', section: 'Ability Emitter VFX' },
     { slug: 'equipment', section: 'Equipment' },
     { slug: 'cast-ended-early', section: 'Cast Ended Early' },
+    { slug: 'time-dilation', section: 'Time Dilation' },
 ];
 
 export interface GeneralTestSidebarGroup {

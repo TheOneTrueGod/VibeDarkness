@@ -60,6 +60,11 @@ export interface CastBehaviourTickContext extends CastBehaviourBaseContext {
     prevWindowProgress: number; // 0→1, CLAMPED
     isFirstTick: boolean;
     isLastTick: boolean;
+    /**
+     * Local seconds this tick advanced the cast (the caster's step, or the processed window on a gate split).
+     * Use it, not a tick count, for cadence inside a behaviour. Absent in hand-built test contexts (treat as FIXED_DT).
+     */
+    localDt?: number;
 }
 
 export interface CastBehaviourInterruptContext extends CastBehaviourBaseContext {

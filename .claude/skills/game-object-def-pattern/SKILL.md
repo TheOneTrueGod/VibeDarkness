@@ -68,4 +68,6 @@ static fromSerialized(data: SomeSerialized): SomeClass { … }
 **Pre-existing examples:**
 - `ExposedBuff.fromSerialized` (`app/js/games/minion_battles/buffs/ExposedBuff.ts`) — restores `maxExposedDuration` and `exposedResistance` from the serialized buff payload.
 
+Time-dilation properties on buffs: `Buff.timeModifier` (tempo/focal/freeze carried by the buff; use or extend `TimeDilationBuff` presets) and `Buff.clock` (`'world'` default, `'owner'` for buffs that represent motion). Projectiles carry a generic `ProjectileBuff` list (`projectiles/ProjectileBuff.ts`) for the same purpose. See `game/time/AGENTS.md`.
+
 Existing buffs (`StunnedBuff`, `BleedBuff`, `CantDieBuff`) still use `fromJSON`; migrate them to `fromSerialized` when touched.

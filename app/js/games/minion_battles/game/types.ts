@@ -105,6 +105,8 @@ export interface SerializedGameState {
     gameTick: number;
     roundNumber: number;
     snapshotIndex: number;
+    /** World pace / Time Stops. Omitted while default (pace 1, no stops). */
+    timeManager?: import('./time/TimeManager').SerializedTimeManager;
     /** NavGrid epoch: incremented when passability or cost of any cell changes. */
     navEpoch?: number;
     units: Record<string, unknown>[];
@@ -369,7 +371,10 @@ export type UnitSpawnConfig = EnemySpawnDef & { ownerId: string };
 export interface ActiveAbility {
     /** The ability being used. */
     abilityId: string;
-    /** Game time when the ability was activated. */
+    /**
+     * **Local time** (`unit.localTime`, not `engine.gameTime`) when the ability was activated. Cast elapsed is
+     * `getCastElapsed(unit, active, engine)`; never subtract it from `engine.gameTime`. See `game/time/AGENTS.md`.
+     */
     startTime: number;
     /** Resolved targets for this ability. */
     targets: ResolvedTarget[];

@@ -133,6 +133,7 @@ export function applyVisualEffectDefs(
                     effectType: def.effectType,
                     effectData: def.effectData,
                     effectProperties: def.effectProperties,
+                    timeDomain: def.timeDomain,
                 }));
                 break;
             }

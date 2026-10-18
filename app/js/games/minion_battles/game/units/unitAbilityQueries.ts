@@ -1,4 +1,5 @@
 import type { Unit } from './Unit';
+import { getCastElapsed, localNow } from '../time/actorClock';
 import type { EngineContext } from '../EngineContext';
 import type { TerrainLayerManager } from '../TerrainLayerManager';
 import type { TerrainManager } from '../../terrain/TerrainManager';
@@ -27,7 +28,7 @@ export function getUnitEffectiveSpeed(unit: Unit, gameTime: number): number {
         const ability = getAbility(active.abilityId);
         if (!ability) continue;
 
-        const currentTime = gameTime - active.startTime;
+        const currentTime = localNow(unit, gameTime) - active.startTime;
         const states =
             ability.getAbilityStatesForActive?.(currentTime, active) ??
             ability.getAbilityStates(currentTime);
@@ -51,7 +52,7 @@ export function unitHasIFrames(unit: Unit, gameTime: number): boolean {
         const ability = getAbility(active.abilityId);
         if (!ability) continue;
 
-        const currentTime = gameTime - active.startTime;
+        const currentTime = localNow(unit, gameTime) - active.startTime;
         const states =
             ability.getAbilityStatesForActive?.(currentTime, active) ??
             ability.getAbilityStates(currentTime);
@@ -68,7 +69,7 @@ export function isUnitInJuggernautWindow(unit: Unit, gameTime: number): boolean 
     for (const active of unit.activeAbilities) {
         const ability = getAbility(active.abilityId);
         if (!ability) continue;
-        const elapsed = gameTime - active.startTime;
+        const elapsed = localNow(unit, gameTime) - active.startTime;
         const intervals = normalizeAbilityTimingsToIntervals(ability.abilityTimings);
         if (intervals.some((it) => it.start <= elapsed && elapsed < it.end && it.tags?.includes('juggernaut'))) {
             return true;
@@ -102,7 +103,7 @@ export function isEntombedProtectionActive(unit: Unit, engine: EngineContext): b
         if (!ability) continue;
         const entries = resolveAbilityTimingEntries(ability, unit, engine);
         const intervals = normalizeAbilityTimingsToIntervals(entries);
-        const elapsed = engine.gameTime - active.startTime;
+        const elapsed = getCastElapsed(unit, active, engine);
         const totalDuration = getTotalAbilityDurationForCast(ability, unit, engine);
         if (elapsed >= totalDuration) continue;
         const phase = getCoveringAbilityPhaseAtElapsed(elapsed, intervals);
@@ -134,7 +135,7 @@ export function hasConditionalCancelFollowUp(
     const refund = new Map<string, number>();
     const pausedAbility = getAbility(paused.abilityId);
     if (pausedAbility) {
-        const elapsed = Math.max(0, engine.gameTime - paused.startTime);
+        const elapsed = Math.max(0, getCastElapsed(unit, paused, engine));
         if (elapsed < getDoNotRefundCutoffElapsed(pausedAbility, unit)) {
             for (const cost of getAbilityResourceCosts(pausedAbility, unit)) {
                 refund.set(cost.resourceId, (refund.get(cost.resourceId) ?? 0) + cost.amount);

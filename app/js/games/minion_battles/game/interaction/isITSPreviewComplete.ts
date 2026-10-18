@@ -13,6 +13,12 @@ export interface SequentialTargetingPreviewCast {
     /** `engine.gameTime` when the preview began (set by ITS `begin()` / `replay()`). */
     beganAtGameTime: number;
     /**
+     * The caster's **local** time when the preview began. `ActiveAbility.startTime` is a local-time
+     * stamp, so {@link isPreviewCastInstance} compares against this (falls back to `beganAtGameTime`,
+     * identical at pace 1 / no tempo).
+     */
+    beganAtLocalTime?: number;
+    /**
      * Resume mode (a preview that starts at a missing-pick pause): `startTime` of the paused cast the
      * preview continues. Set by `beginResume`.
      */
@@ -37,7 +43,7 @@ export function isPreviewCastInstance(
     if (previewCast.resumeCastStartTime != null && castStartTime === previewCast.resumeCastStartTime) {
         return true;
     }
-    return castStartTime >= previewCast.beganAtGameTime;
+    return castStartTime >= (previewCast.beganAtLocalTime ?? previewCast.beganAtGameTime);
 }
 
 /**

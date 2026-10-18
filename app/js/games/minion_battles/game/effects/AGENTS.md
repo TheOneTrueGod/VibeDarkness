@@ -119,6 +119,19 @@ GameEngine.fixedUpdate() (game tick, FIXED_DT = 1/60 s; pauses on regular pause 
 
 ---
 
+## timeDomain (time dilation override)
+
+See also `game/time/AGENTS.md` (vocabulary, which-clock list) and the **time-dilation** skill.
+
+Effects and emitters ignore tempo and world pace by default (`timeDomain` undefined or `'wall'`, identical to pre-dilation behaviour). Opt in with `timeDomain: 'world' | 'owner'` on `Effect`, `EffectEmitter`, `DirectEffectVFXDef` or `AbilityTimingEmitterDef` (`createEmitterFromDef` passes it through and sets the owner to the caster).
+
+- `'world'`: elapsed time, `TorchProjectile` `ticksAlive`, emitter `dt` and `ContinuousEmitter.emitIntervalFrames` cadence scale by `engine.worldPace`.
+- `'owner'`: scale by `timeManager.getStepRate(owner, tempo)`. Owner = `ownerActorId` (emitters fall back to `attachedToUnitId`, torch effects to `effectData.ownerUnitId`); no owner resolves to world pace. Per-unit tempo comes from `EffectManager.ownerTempoResolver` / `EffectEmitterManager.ownerTempoResolver`, which `GameState` wires to `getActorTempo(owner)`.
+- Rate math lives in `timeDomain.ts` (`resolveTimeDomainRate`); the managers scale `dt` before calling `renderUpdate` / `update`, so effects themselves stay engine-free. Time Stop (pace 0) pauses non-wall effects.
+- Serialized on emitters only when non-default. Effects are not serialized.
+
+---
+
 ## Phase notes
 
 - **Phase 2**: Added `renderUpdate` / `isGameDriven` separation and `EffectEmitter` infrastructure.

@@ -14,6 +14,7 @@ import { checkCellCrossingOccupancy } from './unitCellSlide';
 import { updateUnitKnockback } from './unitKnockback';
 import { updateUnitNudge } from './unitNudge';
 import { tickWallUnstick } from './unitWallUnstick';
+import { localNow } from '../time/actorClock';
 
 function clearWaitLockout(unit: Unit): void {
     unit.waitMinEndTime = null;
@@ -114,7 +115,19 @@ export function hasEnemyWithinWaitProximityFailsafe(unit: Unit, engine: unknown,
     return false;
 }
 
-export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
+/** Options for a movement tick that is one piece of a longer step (see `game/time/stepPieces.ts`). */
+export interface UnitMovementTickOptions {
+    /** dt handed to buff `onGameTick` hooks (world dt). Defaults to the piece dt. */
+    upkeepDt?: number;
+    /** Skip buff hooks, buff expiry and the wait lockout: an earlier piece of this tick already ran them. */
+    skipUpkeep?: boolean;
+}
+
+/**
+ * Per-tick upkeep that runs on world time, not on the unit's step: buff `onGameTick` hooks, buff expiry and the
+ * wait lockout. Runs once per tick, including for frozen units (a `freeze` buff must still be able to expire).
+ */
+export function tickUnitUpkeep(unit: Unit, dt: number, engine: unknown): void {
     const eng = engine as { gameTime: number; roundNumber: number };
     const gameTime = eng.gameTime;
     const roundNumber = eng.roundNumber ?? 1;
@@ -127,7 +140,7 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
 
     // Expire buffs — optional teardown hooks run before removal
     for (const b of unit.buffs) {
-        if (b.isExpired(gameTime, roundNumber)) {
+        if (b.isExpired(gameTime, roundNumber, localNow(unit, gameTime))) {
             b.onBeforeExpire?.(unit, {
                 gameTime,
                 roundNumber,
@@ -139,7 +152,7 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
             });
         }
     }
-    unit.buffs = unit.buffs.filter((b) => !b.isExpired(gameTime, roundNumber));
+    unit.buffs = unit.buffs.filter((b) => !b.isExpired(gameTime, roundNumber, localNow(unit, gameTime)));
 
     // Wait action: enforce min/max duration. Fixed modes end at max; far ends on arrival (after min),
     // enemy damage (handled elsewhere), max safety cap, or (non-far) enemy proximity failsafe.
@@ -164,6 +177,13 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
             }
         }
     }
+}
+
+export function updateUnit(unit: Unit, dt: number, engine: unknown, opts?: UnitMovementTickOptions): void {
+    const eng = engine as { gameTime: number; roundNumber: number };
+    const gameTime = eng.gameTime;
+
+    if (!opts?.skipUpkeep) tickUnitUpkeep(unit, opts?.upkeepDt ?? dt, engine);
 
     const terrainManager = (engine as { terrainManager?: TerrainManager }).terrainManager ?? null;
     const grid = terrainManager?.grid ?? null;
@@ -349,13 +369,45 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown): void {
     }
 }
 
-export function tickUnitMovement(unit: Unit, dt: number, engine: EngineContext): void {
-    updateUnit(unit, dt, engine);
+export function tickUnitMovement(unit: Unit, dt: number, engine: EngineContext, opts?: UnitMovementTickOptions): void {
+    updateUnit(unit, dt, engine, opts);
+    tickUnitEphemeralExpiry(unit, engine);
+}
+
+/** Frozen (tempo 0) units skip movement and knockback but still run world-clock upkeep and ephemeral expiry. */
+export function tickUnitFrozenUpkeep(unit: Unit, worldDt: number, engine: EngineContext): void {
+    tickUnitUpkeep(unit, worldDt, engine);
+    tickUnitEphemeralExpiry(unit, engine);
+}
+
+function tickUnitEphemeralExpiry(unit: Unit, engine: EngineContext): void {
     if (unit.ephemeralDespawnAtGameTime != null && engine.gameTime >= unit.ephemeralDespawnAtGameTime) {
         unit.hp = 0;
         unit.active = false;
         engine.eventBus.emit('unit_died', { unitId: unit.id, killerUnitId: null });
     }
+}
+
+/**
+ * Fastest speed (px per local second) this unit may cover this tick, for step-piece travel splitting: the
+ * knockback's peak speed while knocked back, else its walking speed while it has a path. 0 when it is still.
+ * An upper-bound estimate: it only decides how finely a long step is cut.
+ */
+export function getUnitTravelSpeedPx(unit: Unit, engine: EngineContext): number {
+    const k = unit.knockback;
+    if (k) {
+        const len = Math.hypot(k.knockbackVector.x, k.knockbackVector.y);
+        const air = k.knockbackAirTime > 0 ? len / k.knockbackAirTime : 0;
+        const slide = k.knockbackSlideTime > 0 ? (0.5 * len) / k.knockbackSlideTime : 0;
+        return Math.max(air, slide);
+    }
+    if (!unit.movement || unit.movement.path.length === 0) return 0;
+    let speed = unit.getEffectiveSpeed(engine.gameTime);
+    const layers = (engine as { terrainLayers?: TerrainLayerManager }).terrainLayers;
+    if (layers) speed *= layers.getGroundMovementMultiplier(unit.x, unit.y);
+    if (engine.terrainManager) speed *= engine.terrainManager.getSpeedMultiplier(unit.x, unit.y);
+    if (debugSettingsSnapshot.superSpeedEnabled && unit.isPlayerControlled()) speed *= 10;
+    return Math.max(0, speed);
 }
 
 /** Build walkIntent from a non-empty path's last cell (+ chase/pixel/stopRange). */

@@ -140,6 +140,10 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
         abilityModifiers: unit.abilityModifiers,
         stamina: unit.stamina,
         buffs: unit.buffs.map((b) => b.toJSON()),
+        // Local clock (see game/time/AGENTS.md). Omitted until the engine starts it, and timeDebt when 0.
+        ...(unit.localClockActive ? { localTime: unit.localTime } : {}),
+        ...(unit.timeDebt !== 0 ? { timeDebt: unit.timeDebt } : {}),
+        ...(unit.pendingFrozenHits.length > 0 ? { pendingFrozenHits: unit.pendingFrozenHits.map((h) => ({ ...h })) } : {}),
         combatSettings: unit.combatSettings,
         ...(unit.passiveBonuses && Object.keys(unit.passiveBonuses).length > 0
             ? { passiveBonuses: unit.passiveBonuses }

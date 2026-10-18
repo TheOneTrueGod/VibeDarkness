@@ -3,6 +3,7 @@
  * Handles order scheduling, application, and parallel-batch readiness checks.
  */
 
+import { getCastElapsed } from '../time/actorClock';
 import type { EngineContext } from '../EngineContext';
 import type {
     BattleOrder,
@@ -84,6 +85,8 @@ export class OrderManager {
      */
     shouldPauseForOrders(unit: Unit): boolean {
         if (!unit.isPlayerControlled() || !unit.canAct() || !unit.isAlive()) return false;
+        // A frozen unit (tempo 0) cannot act, so it never owes an order (see game/time/AGENTS.md).
+        if (unit.localFrozen) return false;
         // Use "any" semantics: if something is queued (even a draft), don't pause again.
         return !this.hasAnyPendingOrderForUnit(unit.id);
     }
@@ -275,7 +278,7 @@ export class OrderManager {
         const cancelledAbilityId = pausedAbility.abilityId;
         const cancelledAbility = getAbility(cancelledAbilityId);
         if (cancelledAbility) {
-            const elapsed = Math.max(0, this.ctx.gameTime - pausedAbility.startTime);
+            const elapsed = Math.max(0, getCastElapsed(unit, pausedAbility, this.ctx));
             refundAbilityCost(unit, cancelledAbility, elapsed);
         }
         this.ctx.cancelActiveAbility(unit.id, cancelledAbilityId);
@@ -416,6 +419,13 @@ export class OrderManager {
     applyOrderLogic(order: BattleOrder): void {
         const unit = this.ctx.getUnit(order.unitId);
         if (!unit || !unit.isAlive()) return;
+        // Held order: a frozen unit (tempo 0) cannot act, so the order stays pending and is re-queued for the next
+        // tick until the unit thaws (same-unit order of a later tick replaces it as usual). Deterministic: every
+        // client sees the same frozen state, and pending orders are already part of checkpoints.
+        if (unit.localFrozen) {
+            this.queueOrder(this.ctx.gameTick + 1, order);
+            return;
+        }
         if (!this.resolveConditionalCancelIfNeeded(unit, order)) return;
 
         // Missing-pick decision (see isMissingPickOrderAcceptable). Resolved here, at the top of the batch

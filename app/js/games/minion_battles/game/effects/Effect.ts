@@ -8,6 +8,7 @@
 import { GameObject, generateGameObjectId } from '../GameObject';
 import { computeDamageNumberWorldPosition, type DamageNumberMotionData } from './damageNumberMotion';
 import type { EffectProperties } from './effectProperties';
+import type { EffectTimeDomain } from './timeDomain';
 
 export class Effect extends GameObject {
     /** Total duration in seconds. */
@@ -22,6 +23,10 @@ export class Effect extends GameObject {
     effectRadius?: number;
     /** Typed per-instance visual properties; read by the effect def for rendering. */
     effectProperties?: EffectProperties;
+    /** Clock this effect runs on. Undefined = 'wall' (default): ignores tempo/world pace. */
+    timeDomain?: EffectTimeDomain;
+    /** Actor whose step rate drives a 'owner' effect (falls back to effectData.ownerUnitId). */
+    ownerActorId?: string;
     /** When set, effect travels from (startX, startY) to (endX, endY) over its duration. */
     private startX?: number;
     private endX: number;
@@ -47,6 +52,10 @@ export class Effect extends GameObject {
         effectData?: Record<string, unknown>;
         /** Optional delay before effect starts. */
         delay?: number;
+        /** Clock override; default 'wall'. */
+        timeDomain?: EffectTimeDomain;
+        /** Owner actor for timeDomain 'owner'. */
+        ownerActorId?: string;
     }) {
         super(config.id ?? generateGameObjectId('fx'), config.x, config.y);
         this.duration = config.duration;
@@ -54,6 +63,8 @@ export class Effect extends GameObject {
         this.effectType = config.effectType;
         this.effectRadius = config.effectRadius;
         if (config.effectProperties) this.effectProperties = config.effectProperties;
+        if (config.timeDomain && config.timeDomain !== 'wall') this.timeDomain = config.timeDomain;
+        if (config.ownerActorId) this.ownerActorId = config.ownerActorId;
         this.endX = config.x;
         this.endY = config.y;
         this.startX = config.startX;

@@ -19,6 +19,7 @@ import { nullHitbox } from '../../hitboxes';
 import type { EngineContext } from '../EngineContext';
 import type { ActiveAbility } from '../types';
 import type { Unit } from '../units/Unit';
+import { projectNextLocalTime } from '../time/actorClock';
 
 export interface ImpendingSelectTargetNeed {
     label: string;
@@ -180,14 +181,17 @@ export function findFirstSelectTargetLabelAtElapsedZero(
 
 export function findImpendingSelectTargetNeed(
     engine: EngineContext,
+    /** Base tick dt (FIXED_DT); each unit's local step is derived from it (world pace, tempo). */
     dt: number,
 ): ImpendingSelectTargetNeed | null {
     for (const unit of engine.units) {
+        if (unit.activeAbilities.length === 0) continue;
+        const { next: localAfterTick, step } = projectNextLocalTime(unit, engine, dt);
         for (const active of unit.activeAbilities) {
             // See computeTickElapsed's doc comment for why this must not be reimplemented inline.
             const { prevElapsed, nextElapsed } = computeTickElapsed(
-                engine.gameTime + dt,
-                dt,
+                localAfterTick,
+                step,
                 active.startTime,
                 active.processedElapsed,
             );

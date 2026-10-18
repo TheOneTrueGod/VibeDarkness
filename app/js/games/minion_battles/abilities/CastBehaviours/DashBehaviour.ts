@@ -11,6 +11,7 @@
  */
 
 import type { Unit } from '../../game/units/Unit';
+import { FIXED_DT } from '../../game/gameConstants';
 import type {
     CastBehaviour,
     CastBehaviourSetupContext,
@@ -181,8 +182,11 @@ export class DashBehaviour implements CastBehaviour {
         }
 
         if (payload.afterimage) {
-            payload.afterimage.tickCount++;
-            if (payload.afterimage.tickCount % this._afterimageEveryNTicks === 0) {
+            // tickCount counts local ticks (FIXED_DT of the caster's local time), so the trail spacing follows tempo.
+            // At pace 1 localDt === FIXED_DT, so this is the old integer count and every Nth tick spawns.
+            const prevTicks = payload.afterimage.tickCount;
+            payload.afterimage.tickCount += (ctx.localDt ?? FIXED_DT) / FIXED_DT;
+            if (Math.floor(payload.afterimage.tickCount / this._afterimageEveryNTicks) > Math.floor(prevTicks / this._afterimageEveryNTicks)) {
                 this._spawnAfterimage(ctx, payload.afterimage);
             }
             ctx.setBehaviourPayload(payload);

@@ -20,6 +20,7 @@ import {
     formatTooltipLegacyLines,
     type TooltipTokenBindings,
 } from '../../../abilities/tooltipTokens';
+import { getCastElapsedAt } from '../../../game/time/actorClock';
 
 export const FLING_THORN_ABILITY_ID = `${formatGroupId(AbilityGroupId.Command)}05`;
 
@@ -93,7 +94,7 @@ export const FlingThornAbility_0705: AbilityStatic = defineAbility({
         activeAbility: ActiveAbility,
         gameTime: number,
     ): void {
-        const elapsed = gameTime - activeAbility.startTime;
+        const elapsed = getCastElapsedAt(activeAbility, gameTime);
         if (elapsed >= PREFIRE_TIME) return;
 
         const payload = asTelegraphPayload(activeAbility.castPayload);

@@ -10,6 +10,10 @@ import type { EngineContext } from '../EngineContext';
 import type { EventBus } from '../EventBus';
 import { runUnitAI, getUnitAITree } from '../units/unitAI';
 import { tickSpawnAnimation } from '../units/spawnAnimation';
+import { getUnitTravelSpeedPx, tickUnitFrozenUpkeep } from '../units/unitMovementTick';
+import { collectAbilityBoundaryOffsets } from '../units/unitAbilityTick';
+import { resolvePendingFrozenHits } from '../units/unitDamage';
+import { isSinglePieceStep, planStepPieces } from '../time/stepPieces';
 import { processUnitPassives } from '../../abilities/passiveRunner';
 import type { AIContext } from '../units/unitAI';
 import { createResourceFromId } from '../../resources/createResourceFromId';
@@ -32,6 +36,16 @@ import {
     PERF_UNITS_TARGETS,
     tickPerformanceTracker,
 } from '../performance/tickPerformanceTracker';
+
+/** One unit's step cut into pieces for this tick (see `game/time/stepPieces.ts`). */
+interface UnitStepPlan {
+    pieces: number[];
+    /** Local time at the end of each piece. */
+    ends: number[];
+    originalLocalStep: number;
+    /** Local time to leave on the unit after all pieces ran. */
+    finalLocalTime: number;
+}
 
 /** 8-directional neighbour offsets (cardinal first, then diagonal). */
 const NEIGHBOUR_DIRS = [
@@ -194,6 +208,81 @@ export class UnitManager {
         }
     }
 
+    /**
+     * Cut each unit's step into pieces when it is longer than one tick (hasted unit or carried `timeDebt`).
+     * Returns plans only for such units; everyone else takes the single-call path (exactly the pre-dilation behaviour).
+     * Debt is consumed into the plan here and the leftover written back to `unit.timeDebt`.
+     */
+    private planUnitSteps(engine: EngineContext): Map<Unit, UnitStepPlan> | null {
+        let plans: Map<Unit, UnitStepPlan> | null = null;
+        for (const unit of this.units) {
+            if (!unit.active || !unit.localClockActive || unit.localFrozen) continue;
+            if (unit.timeDebt === 0 && isSinglePieceStep(unit.localStep)) continue;
+            const total = unit.localStep + unit.timeDebt;
+            if (!(total > 0)) continue;
+            const base = unit.localTime - unit.localStep;
+            const plan = planStepPieces({
+                stepDt: total,
+                nextEventIn: unit.activeAbilities.length > 0 ? collectAbilityBoundaryOffsets(unit, engine, base, total) : undefined,
+                speedPx: getUnitTravelSpeedPx(unit, engine),
+            });
+            if (plan.pieces.length === 0) continue;
+            let executed = 0;
+            const ends = plan.pieces.map((p) => {
+                executed += p;
+                return base + executed;
+            });
+            (plans ??= new Map()).set(unit, {
+                pieces: plan.pieces,
+                ends,
+                originalLocalStep: unit.localStep,
+                finalLocalTime: plan.debt === 0 && unit.timeDebt === 0 ? unit.localTime : base + executed,
+            });
+            unit.timeDebt = plan.debt;
+        }
+        return plans;
+    }
+
+    /** Point the unit's local clock at the end of piece `k` (so cast elapsed and owner buffs read piece time). */
+    private beginPiece(unit: Unit, plan: UnitStepPlan | undefined, k: number): void {
+        if (!plan) return;
+        unit.localStep = plan.pieces[k]!;
+        unit.localTime = plan.ends[k]!;
+    }
+
+    /** Local seconds the movement/knockback piece `k` covers. */
+    private pieceDt(unit: Unit, plan: UnitStepPlan | undefined, k: number, worldDt: number): number {
+        if (plan) return plan.pieces[k]!;
+        return unit.localClockActive && unit.localStep > 0 ? unit.localStep : worldDt;
+    }
+
+    /** One movement piece: spawn animation (first piece), movement/knockback, tile transition, map node. */
+    private runMovementPiece(unit: Unit, pieceDt: number, worldDt: number, first: boolean, engine: EngineContext): void {
+        if (unit.isSpawning()) {
+            if (first) tickSpawnAnimation(unit, worldDt, engine);
+            return;
+        }
+        if (first && unit.growAnimTimer > 0) {
+            unit.growAnimTimer = Math.max(0, unit.growAnimTimer - worldDt);
+        }
+        unit.tickMovement(pieceDt, engine, first ? { upkeepDt: worldDt } : { skipUpkeep: true });
+        processUnitTileTransition(unit, engine);
+        // Incremental map-network membership update — the unit "notifies" the manager of a
+        // node change right after its position is finalized for this piece, instead of the
+        // manager rescanning every participating unit every tick. See MapNetworkManager.updateUnitNode.
+        engine.mapNetworkManager.updateUnitNode(unit);
+    }
+
+    /**
+     * One engine tick of unit simulation.
+     *
+     * `dt` is WORLD dt (`worldPace x FIXED_DT`): passives and resource `onTick` run on it. Abilities, movement and
+     * knockback run on each unit's own local step (`unit.localStep`, from `advanceUnitLocalClocks`). A step of at
+     * most one tick is a single piece, the same single call as before time dilation. A longer step is cut into
+     * pieces (`planStepPieces`): piece 0 runs in the normal phases below, pieces 1.. run (ability then movement,
+     * per unit) right after the movement phase. Global phases (occupancy, pathfinding, crowd spacing, AI) run once
+     * per tick. Frozen units (tempo 0) run no abilities, movement, knockback or AI, only world-clock upkeep.
+     */
     gameTick(
         dt: number,
         engine: EngineContext,
@@ -203,22 +292,26 @@ export class UnitManager {
         // Ephemeral ability-movement claim — dash/lunge/moveUnit re-claim while still sliding.
         for (const unit of this.units) {
             unit.abilityOwnsMovementThisTick = false;
+            // Hits held by the 'onResume' frozen-hit policy land, in order, on the first tick the unit thaws.
+            if (unit.pendingFrozenHits.length > 0) resolvePendingFrozenHits(unit, engine.eventBus);
         }
-        // Phase 1a: passive ability tick (all alive units, no cast required)
+        const plans = this.planUnitSteps(engine);
+        // Phase 1a: passive ability tick (all alive units, no cast required) — world clock
         tickPerformanceTracker.measure([PERF_UNITS_PASSIVES], () => {
             for (const unit of this.units) {
                 if (!unit.active) continue;
                 processUnitPassives(unit, dt, engine);
             }
         });
-        // Phase 1b: active ability tick
+        // Phase 1b: active ability tick (piece 0)
         tickPerformanceTracker.measure([PERF_UNITS_ABILITIES], () => {
             for (const unit of this.units) {
-                if (!unit.active || unit.activeAbilities.length === 0) continue;
+                if (!unit.active || unit.activeAbilities.length === 0 || unit.localFrozen) continue;
+                this.beginPiece(unit, plans?.get(unit), 0);
                 unit.tickActiveAbilities(dt, engine, () => onNaturalAbilityCompletion(unit.id));
             }
         });
-        // Phase 1c: per-tick resource hooks (e.g. gravity grazing)
+        // Phase 1c: per-tick resource hooks (e.g. gravity grazing) — world clock
         tickPerformanceTracker.measure([PERF_UNITS_RESOURCES], () => {
             for (const unit of this.units) {
                 if (!unit.active || !unit.isAlive()) continue;
@@ -237,33 +330,48 @@ export class UnitManager {
         tickPerformanceTracker.measure([PERF_UNITS_PATHFINDING], () => {
             engine.pathfindingManager.tick(this.units, engine);
         });
-        // Phase 2b: movement + ephemeral expiry
+        // Phase 2b: movement + ephemeral expiry (piece 0), then any further pieces
         tickPerformanceTracker.measure([PERF_UNITS_MOVEMENT], () => {
             for (const unit of this.units) {
                 if (!unit.active) continue;
-                if (unit.isSpawning()) {
-                    tickSpawnAnimation(unit, dt, engine);
+                if (unit.localFrozen) {
+                    tickUnitFrozenUpkeep(unit, dt, engine);
                     continue;
                 }
-                if (unit.growAnimTimer > 0) {
-                    unit.growAnimTimer = Math.max(0, unit.growAnimTimer - dt);
+                const plan = plans?.get(unit);
+                this.beginPiece(unit, plan, 0);
+                this.runMovementPiece(unit, this.pieceDt(unit, plan, 0, dt), dt, true, engine);
+            }
+            if (plans) {
+                const planned = [...plans.keys()];
+                let maxPieces = 0;
+                for (const plan of plans.values()) maxPieces = Math.max(maxPieces, plan.pieces.length);
+                for (let k = 1; k < maxPieces; k++) {
+                    for (const unit of planned) {
+                        const plan = plans.get(unit)!;
+                        if (!unit.active || k >= plan.pieces.length) continue;
+                        this.beginPiece(unit, plan, k);
+                        if (unit.activeAbilities.length > 0) {
+                            unit.tickActiveAbilities(dt, engine, () => onNaturalAbilityCompletion(unit.id));
+                        }
+                        if (!unit.active) continue;
+                        this.runMovementPiece(unit, plan.pieces[k]!, dt, false, engine);
+                    }
                 }
-                unit.tickMovement(dt, engine);
-                processUnitTileTransition(unit, engine);
-                // Incremental map-network membership update — the unit "notifies" the manager of a
-                // node change right after its position is finalized for this tick, instead of the
-                // manager rescanning every participating unit every tick. See MapNetworkManager.updateUnitNode.
-                engine.mapNetworkManager.updateUnitNode(unit);
+                for (const [unit, plan] of plans) {
+                    unit.localTime = plan.finalLocalTime;
+                    unit.localStep = plan.originalLocalStep;
+                }
             }
         });
         // Phase 2c: CrowdSpacing — soft radius pack after positions settle for the tick
         tickPerformanceTracker.measure([PERF_UNITS_CROWD_SPACING], () => {
             engine.crowdSpacingManager.tick(this.units, engine.terrainManager);
         });
-        // Phase 3: AI decisions (all positions settled)
+        // Phase 3: AI decisions (all positions settled). Once per tick; frozen units do not think.
         tickPerformanceTracker.measure([PERF_UNITS_AI], () => {
             for (const unit of this.units) {
-                if (!unit.active || unit.isPlayerControlled() || !unit.canAct() || !unit.isAlive() || unit.isSpawning()) continue;
+                if (!unit.active || unit.localFrozen || unit.isPlayerControlled() || !unit.canAct() || !unit.isAlive() || unit.isSpawning()) continue;
                 const tree = getUnitAITree(unit.unitAITreeId);
                 if (tree) runUnitAI(unit, tree, aiContext);
                 unit.pendingInterrupts.clear();

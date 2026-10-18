@@ -6,10 +6,14 @@ import { Effect } from '../effects/Effect';
 import type { EngineContext } from '../EngineContext';
 import { LightSource } from '../lightSources/LightSource';
 import type { TeamId } from '../teams';
+import { FIXED_DT } from '../gameConstants';
+import { resolveTimeDomainRate, type OwnerTempoResolver } from './timeDomain';
 
 export class EffectManager {
     effects: Effect[] = [];
     private ctx: EngineContext;
+    /** Hook: per-actor tempo for 'owner' time-domain effects (default tempo 1). */
+    ownerTempoResolver?: OwnerTempoResolver;
 
     constructor(ctx: EngineContext) {
         this.ctx = ctx;
@@ -17,6 +21,13 @@ export class EffectManager {
 
     addEffect(effect: Effect): void {
         this.effects.push(effect);
+    }
+
+    /** Elapsed-time multiplier for an effect this step; exactly 1 for the default 'wall' domain. */
+    private rateFor(effect: Effect): number {
+        if (effect.timeDomain === undefined) return 1;
+        const ownerId = effect.ownerActorId ?? (effect.effectData.ownerUnitId as string | undefined);
+        return resolveTimeDomainRate(effect.timeDomain, ownerId, this.ctx, this.ownerTempoResolver);
     }
 
     /**
@@ -36,9 +47,9 @@ export class EffectManager {
                 ownerAbilityId?: string;
                 teamId?: TeamId;
             };
-            data.ticksAlive = (data.ticksAlive ?? 0) + 1;
-            // FIXED_DT = 1/60, so completion = duration * 60 ticks
-            if (data.ticksAlive < Math.round(effect.duration * 60)) continue;
+            // 'wall' (default) adds exactly 1 per tick; 'world'/'owner' add the domain's step rate.
+            data.ticksAlive = (data.ticksAlive ?? 0) + this.rateFor(effect);
+            if (data.ticksAlive < Math.round(effect.duration / FIXED_DT)) continue;
             data.ticksAlive = undefined;
             effect.active = false;
             this.ctx.addLightSource(new LightSource({
@@ -66,7 +77,8 @@ export class EffectManager {
     renderUpdate(realDt: number): void {
         for (const effect of this.effects) {
             if (!effect.active) continue;
-            effect.renderUpdate(realDt);
+            const rate = this.rateFor(effect);
+            effect.renderUpdate(rate === 1 ? realDt : realDt * rate);
         }
     }
 

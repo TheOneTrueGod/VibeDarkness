@@ -1,3 +1,4 @@
+import { getCastElapsed } from '../../game/time/actorClock';
 import { grantRecoveryChargeToRandomAbility, applyChargeSurgeToUnit } from '../abilityUses';
 import { getAbility } from '../AbilityRegistry';
 import { AbilityEventType } from '../Ability';
@@ -116,8 +117,8 @@ export function triggerAbilityEventFromAttack(params: {
         activeAbility,
         targets: activeAbility?.targets ?? [],
         eventType,
-        currentTime: activeAbility ? Math.max(0, engine.gameTime - activeAbility.startTime) : 0,
-        prevTime: activeAbility ? Math.max(0, engine.gameTime - activeAbility.startTime) : 0,
+        currentTime: activeAbility ? Math.max(0, getCastElapsed(caster, activeAbility, engine)) : 0,
+        prevTime: activeAbility ? Math.max(0, getCastElapsed(caster, activeAbility, engine)) : 0,
         primaryTarget,
         attackInfo,
         hitResult,
@@ -144,8 +145,8 @@ export function triggerAbilityEventFromProjectileExpiry(params: {
         activeAbility,
         targets: activeAbility?.targets ?? [],
         eventType: AbilityEventType.ON_PROJECTILE_EXPIRED,
-        currentTime: activeAbility ? Math.max(0, eng.gameTime - activeAbility.startTime) : 0,
-        prevTime: activeAbility ? Math.max(0, eng.gameTime - activeAbility.startTime) : 0,
+        currentTime: activeAbility ? Math.max(0, getCastElapsed(caster, activeAbility, eng)) : 0,
+        prevTime: activeAbility ? Math.max(0, getCastElapsed(caster, activeAbility, eng)) : 0,
         projectile,
         hitUnit,
     });

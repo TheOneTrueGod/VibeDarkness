@@ -28,6 +28,7 @@ import {
     formatTooltipLegacyLines,
     type TooltipTokenBindings,
 } from '../../../abilities/tooltipTokens';
+import { getCastElapsedAt } from '../../../game/time/actorClock';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}02`;
 
@@ -200,7 +201,7 @@ export const PounceAbility: AbilityStatic = {
         } | undefined;
         if (!payload) return;
 
-        const elapsed = gameTime - activeAbility.startTime;
+        const elapsed = getCastElapsedAt(activeAbility, gameTime);
         if (elapsed >= WINDUP_TIME + DASH_DURATION) return;
 
         const startX = payload.startX ?? caster.x;

@@ -44,6 +44,7 @@ import { UnitTag } from './unitTag';
 import type { EnrageDef } from './enrageDef';
 import type { EngineContext } from '../EngineContext';
 import { tickUnitActiveAbilities } from './unitAbilityTick';
+import { localNow } from '../time/actorClock';
 import type { Plan, TacticalPlan, InterruptFlag } from './unitAI/plans/types';
 import {
     cancelUnitActiveAbility,
@@ -76,8 +77,9 @@ import { moveUnitToward } from './unitCellSlide';
 import { applyKnockbackToUnit } from './unitKnockback';
 import { applyNudgeToUnit } from './unitNudge';
 import { getUnitEffectiveSpeed, unitHasIFrames, isUnitInJuggernautWindow, getUnitLungeDistance } from './unitAbilityQueries';
-import { updateUnit, tickUnitMovement, setUnitMovement, clearUnitMovement, invalidateUnitMovementPath, setUnitWalkGoal } from './unitMovementTick';
-import { applyDamageToUnit, applyDamageToUnitDetailed, tickUnitDarknessCorruption, type DamageBreakdown } from './unitDamage';
+import { updateUnit, tickUnitMovement, type UnitMovementTickOptions, setUnitMovement, clearUnitMovement, invalidateUnitMovementPath, setUnitWalkGoal } from './unitMovementTick';
+import { applyDamageToUnit, applyDamageToUnitDetailed, tickUnitDarknessCorruption, type DamageBreakdown, type PendingFrozenHit } from './unitDamage';
+import type { FrozenHitPolicy } from '../time/timeConstants';
 import { MIN_EFFECTIVE_MAX_HP_PCT } from './unitHeal';
 
 export type {
@@ -281,6 +283,32 @@ export class Unit extends GameObject {
 
     /** Active buffs/debuffs on this unit. Serialized for checkpoints. */
     buffs: Buff[] = [];
+
+    /**
+     * Local time (seconds): time this unit has experienced. Ability timelines (`ActiveAbility.startTime`),
+     * movement and owner-clock buffs run on it. Advances per tick by `getUnitLocalStep`; equals
+     * `engine.gameTime` exactly while pace and tempo are 1. Only meaningful once `localClockActive`.
+     * Serialized (when active). See `game/time/AGENTS.md`.
+     */
+    localTime: number = 0;
+    /** True once the engine has started this unit's local clock; until then readers use world time. */
+    localClockActive: boolean = false;
+    /** Local seconds this unit stepped on the current tick (transient; set by `advanceUnitLocalClocks`). */
+    localStep: number = 0;
+    /** Local seconds owed to this unit by a capped step (carried to the next tick). Serialized when non-zero. */
+    timeDebt: number = 0;
+    /**
+     * True while this unit's tempo is 0 this tick (Time Stop, `freeze` modifier). Transient: set by
+     * `advanceUnitLocalClocks` each tick. A frozen unit runs no abilities, movement, knockback or AI.
+     */
+    localFrozen: boolean = false;
+    /** Frozen-hit policy of the Time Stop currently freezing this unit, if that stop defines one (transient). */
+    frozenHitPolicyFromStop: FrozenHitPolicy | undefined;
+    /**
+     * Hits queued by the `'onResume'` frozen-hit policy, resolved in order on the first tick this unit's tempo
+     * is above 0. Serialized when non-empty.
+     */
+    pendingFrozenHits: PendingFrozenHit[] = [];
     /** Per-unit combat tuning values (optional, serialized). */
     combatSettings: UnitCombatSettings | undefined;
     /** Aggregated passive research bonuses (computed at mission start). Serialized. */
@@ -533,7 +561,8 @@ export class Unit extends GameObject {
 
     /** Add a buff to this unit. Caller sets appliedAtTime/appliedAtRound on the buff. */
     addBuff(buff: Buff, gameTime: number, roundNumber: number, eventBus?: import('../../game/EventBus').EventBus): void {
-        buff.appliedAtTime = gameTime;
+        // Owner-clock buffs measure their duration on this unit's local time (see `Buff.clock`).
+        buff.appliedAtTime = buff.clock === 'owner' ? localNow(this, gameTime) : gameTime;
         buff.appliedAtRound = roundNumber;
         this.buffs.push(buff);
         evaluateSwapTriggers(this, { type: 'buffApplied', buffType: buff._type }, eventBus);
@@ -555,7 +584,9 @@ export class Unit extends GameObject {
 
     tickDarknessCorruption(dt: number, engine: EngineContext): void { tickUnitDarknessCorruption(this, dt, engine); }
 
-    tickMovement(dt: number, engine: EngineContext): void { tickUnitMovement(this, dt, engine); }
+    tickMovement(dt: number, engine: EngineContext, opts?: UnitMovementTickOptions): void {
+        tickUnitMovement(this, dt, engine, opts);
+    }
 
     // ---- Ability management OOP wrappers ----
 

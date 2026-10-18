@@ -20,6 +20,7 @@ import { defineAbility } from '../../../abilities/defineAbility';
 import type { AbilityRecoveryRule, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 import type { ActiveAbility, ResolvedTarget } from '../../../game/types';
+import { getCastElapsedAt } from '../../../game/time/actorClock';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Command)}07`;
 const MAX_USES = 1;
@@ -130,7 +131,7 @@ export const BramblePatchCommandAbility_0707 = defineAbility({
         } | undefined;
         const ox = payload?.previewX ?? caster.x;
         const oy = payload?.previewY ?? caster.y;
-        const elapsed = gameTime - activeAbility.startTime;
+        const elapsed = getCastElapsedAt(activeAbility, gameTime);
         if (elapsed >= BRAMBLE_PATCH_WINDUP) {
             gr.circle(ox, oy, BRAMBLE_PATCH_RADIUS);
             gr.stroke({ color: 0x86efac, width: 2, alpha: 0.85 });

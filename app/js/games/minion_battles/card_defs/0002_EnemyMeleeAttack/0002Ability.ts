@@ -12,6 +12,7 @@ import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { isAbilityNote } from '../../game/AbilityNote';
 import { getPixelTargetPosition, getDirectionFromTo } from '../../abilities/targetHelpers';
 import { drawEnemyConeHitboxTelegraph } from '../../abilities/previewHelpers';
+import { getCastElapsedAt } from '../../game/time/actorClock';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}02`;
 const LOCK_TIME = 0.5;
@@ -78,7 +79,7 @@ export const EnemyMeleeAttackAbility = {
         activeAbility: { startTime: number; targets: ResolvedTarget[] },
         gameTime: number,
     ): void {
-        const elapsed = gameTime - activeAbility.startTime;
+        const elapsed = getCastElapsedAt(activeAbility, gameTime);
         const target = getTargetPosition(caster, activeAbility);
         if (!target) return;
 

@@ -1,3 +1,4 @@
+import { getCastElapsedAt, localNow } from '../../time/actorClock';
 import { Graphics } from 'pixi.js';
 import type { Container } from 'pixi.js';
 import { debugSettingsSnapshot, resolveEnemyMovementTrailLength } from '../../../../../debug/debugSettingsStore';
@@ -647,9 +648,9 @@ export class PreviewRenderer {
                 const ability = getAbility(active.abilityId);
                 if (!ability) continue;
                 if (ability.renderActivePreview) {
-                    ability.renderActivePreview(gr, unit, active, engine.gameTime, engine);
+                    ability.renderActivePreview(gr, unit, active, localNow(unit, engine.gameTime), engine);
                 } else if (ability.telegraph) {
-                    this.renderTelegraphPreview(gr, ability.telegraph, ability.prefireTime, unit, active, engine.gameTime);
+                    this.renderTelegraphPreview(gr, ability.telegraph, ability.prefireTime, unit, active, localNow(unit, engine.gameTime));
                 }
             }
         }
@@ -694,7 +695,7 @@ export class PreviewRenderer {
         const targetX = payload.telegraphTargetX;
         const targetY = payload.telegraphTargetY;
 
-        const elapsed = gameTime - active.startTime;
+        const elapsed = getCastElapsedAt(active, gameTime);
         const progress = prefireTime > 0 ? Math.min(1, elapsed / prefireTime) : 1;
         const telegraphAlpha = telegraph.alpha ?? 1;
 

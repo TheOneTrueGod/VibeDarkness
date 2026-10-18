@@ -17,6 +17,7 @@ import { createChargeCapsuleTargetPreview, drawChargeCapsuleTimingTelegraph } fr
 import { getDirectionFromTo } from '../targetHelpers';
 import { formatTooltipLegacyLines } from '../tooltipTokens';
 import { resolveTooltipContext } from '../abilityModifierHelpers';
+import { getCastElapsedAt } from '../../game/time/actorClock';
 
 export interface ChargeNote {
 	targetId: string;
@@ -181,7 +182,7 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 		activeAbility: ActiveAbility,
 		gameTime: number,
 	): void {
-		const elapsed = gameTime - activeAbility.startTime;
+		const elapsed = getCastElapsedAt(activeAbility, gameTime);
 		if (elapsed < 0 || elapsed >= this.prefireTime) return;
 
 		const note = this.getChargeNote(caster, activeAbility);

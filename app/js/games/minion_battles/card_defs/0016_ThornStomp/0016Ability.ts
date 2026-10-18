@@ -22,6 +22,7 @@ import { isLightHateWeakened } from '../../game/lightHate';
 import type { TerrainLayerManager } from '../../game/TerrainLayerManager';
 import { ROUND_DURATION } from '../../game/gameConstants';
 import { DARK_THORN_DURATION_ROUNDS } from '../../game/terrainEffects/tileTransitions';
+import { getCastElapsedAt } from '../../game/time/actorClock';
 
 export const THORN_STOMP_ABILITY_ID = `${formatGroupId(AbilityGroupId.Enemy)}16`;
 
@@ -177,7 +178,7 @@ export const ThornStompAbility: AbilityStatic = {
         activeAbility: ActiveAbility,
         gameTime: number,
     ): void {
-        const elapsed = gameTime - activeAbility.startTime;
+        const elapsed = getCastElapsedAt(activeAbility, gameTime);
         if (elapsed >= WINDUP_TIME) return;
 
         // Outer boundary circle: shows full impact radius, brightens as impact nears

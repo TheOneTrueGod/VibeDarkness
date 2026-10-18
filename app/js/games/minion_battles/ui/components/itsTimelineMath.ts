@@ -1,3 +1,5 @@
+import { FIXED_DT } from '../../game/gameConstants';
+
 /** Engine ticks represented by each timeline pip. */
 export const FRAMES_PER_PIP = 2;
 
@@ -164,10 +166,18 @@ export function computeItsTimelineWindowForWidth(args: {
     return { ...window, maxVisiblePips: maxVisible };
 }
 
-/** Convert ability duration (seconds) to engine ticks. */
-export function abilityDurationSecondsToTicks(durationSec: number): number {
+/**
+ * Convert ability duration (local seconds) to engine ticks at the caster's current step rate
+ * (`getActorStepRate`: world pace x tempo). A rate-2 caster spends half the ticks; rate 0.5 twice as many.
+ * `stepRate` 1 (the default) is exactly today's `ceil(sec * 60)`. Tick caps stay in ticks.
+ */
+export function abilityDurationSecondsToTicks(durationSec: number, stepRate = 1): number {
     if (!Number.isFinite(durationSec) || durationSec <= 0) return 0;
-    return Math.ceil(durationSec * ENGINE_TICKS_PER_SECOND);
+    if (stepRate === 1) return Math.ceil(durationSec * ENGINE_TICKS_PER_SECOND);
+    if (!Number.isFinite(stepRate) || stepRate <= 0) return 0;
+    // Round away float noise (e.g. 1 / (2 * (1/60)) = 30.000000000000004) before the ceil.
+    const ticks = durationSec / (stepRate * FIXED_DT);
+    return Math.ceil(Math.round(ticks * 1e6) / 1e6);
 }
 
 /** Real-time offsets (seconds from mark start) called out as scale markers on the pip bar. */

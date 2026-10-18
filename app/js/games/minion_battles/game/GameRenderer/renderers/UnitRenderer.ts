@@ -1,3 +1,4 @@
+import { getCastElapsed } from '../../time/actorClock';
 import { Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { debugSettingsSnapshot } from '../../../../../debug/debugSettingsStore';
 import { DarknessLevel } from '../../darknessLevels';
@@ -164,7 +165,7 @@ export class UnitRenderer {
                     for (let bIdx = 0; bIdx < effectiveBehaviours.length; bIdx++) {
                         const entry = effectiveBehaviours[bIdx]!;
                         if (!entry.behaviour.getCasterRenderOffset) continue;
-                        const elapsed = engine.gameTime - activeAbility.startTime;
+                        const elapsed = getCastElapsed(unit, activeAbility, engine);
                         const windowStart = resolveBehaviourTimingRef(entry.timingStart, interval.start, interval.end);
                         const windowEnd = entry.timingEnd !== undefined
                             ? resolveBehaviourTimingRef(entry.timingEnd, interval.start, interval.end)

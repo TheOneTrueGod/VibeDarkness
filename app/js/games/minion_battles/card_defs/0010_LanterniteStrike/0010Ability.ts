@@ -20,6 +20,7 @@ import {
     formatTooltipLegacyLines,
     type TooltipTokenBindings,
 } from '../../abilities/tooltipTokens';
+import { getCastElapsedAt } from '../../game/time/actorClock';
 
 export const LANTERNITE_STRIKE_ID = `${formatGroupId(AbilityGroupId.Enemy)}10`;
 
@@ -95,7 +96,7 @@ export const LanterniteStrikeAbility: AbilityStatic = defineAbility({
         activeAbility: ActiveAbility,
         gameTime: number,
     ): void {
-        const elapsed = gameTime - activeAbility.startTime;
+        const elapsed = getCastElapsedAt(activeAbility, gameTime);
         if (elapsed >= PREFIRE_TIME) return;
 
         const payload = asTelegraphPayload(activeAbility.castPayload);

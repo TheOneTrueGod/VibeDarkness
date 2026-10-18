@@ -594,6 +594,7 @@ export interface AbilityStatic {
         gr: IAbilityPreviewGraphics,
         caster: Unit,
         activeAbility: ActiveAbility,
+        /** Cast "now" on the caster's clock (`localNow(caster, engine.gameTime)`), NOT world time. Use `getCastElapsedAt(activeAbility, gameTime)`. */
         gameTime: number,
         /** Engine context for previews that depend on run-wide state (e.g. darkness upgrades). */
         engine?: { darknessUpgradeBonuses?: PassiveBonuses },

@@ -33,6 +33,7 @@ import { isLightHateWeakened } from '../../game/lightHate';
 import type { TerrainLayerManager } from '../../game/TerrainLayerManager';
 import { ROUND_DURATION } from '../../game/gameConstants';
 import { DARK_THORN_DURATION_ROUNDS } from '../../game/terrainEffects/tileTransitions';
+import { getCastElapsedAt } from '../../game/time/actorClock';
 
 export const THORNBINDER_ABILITY_ID = `${formatGroupId(AbilityGroupId.Enemy)}08`;
 
@@ -238,7 +239,7 @@ export const ThornbinderBrambleAbility: AbilityStatic = {
         activeAbility: ActiveAbility,
         gameTime: number,
     ): void {
-        const elapsed = gameTime - activeAbility.startTime;
+        const elapsed = getCastElapsedAt(activeAbility, gameTime);
         if (elapsed >= LOCK_TIME) return;
 
         const aim = getPixelTargetPosition(activeAbility.targets, 0);

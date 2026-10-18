@@ -30,7 +30,14 @@ import type { SpriteProjectileConfig } from './projectile_defs';
 import type { VisualEffectDef } from '../effects/visualEffectDef';
 import type { EngineContext } from '../EngineContext';
 import { applyVisualEffectDefs } from '../effects/applyVisualEffectDefs';
-import { MAX_HELD_PROJECTILE_SECONDS } from '../gameConstants';
+import { FIXED_DT, MAX_HELD_PROJECTILE_SECONDS } from '../gameConstants';
+import { resolveTempo, type TimeModifier } from '../time/TimeModifier';
+import { MAX_PIECE_TRAVEL_PX, MAX_STEP_PIECES_PER_TICK } from '../time/timeConstants';
+import {
+    cloneProjectileBuff,
+    isProjectileBuffExpired,
+    type ProjectileBuff,
+} from './ProjectileBuff';
 import { cellsAlongSegment } from '../../abilities/tileAreaHelpers';
 import { clearTerrainEffects, type TerrainClearSpec } from '../terrainEffects/terrainClearing';
 import type { TerrainLayerManager } from '../TerrainLayerManager';
@@ -219,6 +226,21 @@ export class Projectile extends GameObject {
      */
     heldTime: number = 0;
 
+    /**
+     * Local time (seconds) this projectile has experienced. Advances by each piece's dt; flight,
+     * held time and rotation run on it. Serialized only when non-zero.
+     */
+    localTime: number = 0;
+
+    /** Local seconds owed from a previous tick (step-piece budget hit). Serialized only when non-zero. */
+    timeDebt: number = 0;
+
+    /** Projectile buffs (tempo modifiers, ...). Durations are in world time. Serialized when non-empty. */
+    buffs: ProjectileBuff[] = [];
+
+    /** Counter for generated buff ids; serialized with the buffs. */
+    private nextBuffSeq: number = 0;
+
     /** Optional summons metadata (seed pods). */
     summonSeedWeak?: boolean;
 
@@ -324,6 +346,90 @@ export class Projectile extends GameObject {
         if (!this.heldBy) return;
         this.heldBy = null;
         this.active = false;
+    }
+
+    /**
+     * Add a buff. `appliedAtTime` is world time (`engine.gameTime`); `duration` is world seconds
+     * (`null` = until removed). Returns the stored buff.
+     */
+    addBuff(input: {
+        sourceId: string;
+        appliedAtTime: number;
+        duration: number | null;
+        timeModifier?: TimeModifier;
+        id?: string;
+    }): ProjectileBuff {
+        const buff: ProjectileBuff = cloneProjectileBuff({
+            id: input.id ?? `${this.id}_pbuff_${this.nextBuffSeq++}`,
+            sourceId: input.sourceId,
+            appliedAtTime: input.appliedAtTime,
+            duration: input.duration,
+            ...(input.timeModifier ? { timeModifier: input.timeModifier } : {}),
+        });
+        this.buffs.push(buff);
+        return buff;
+    }
+
+    /** Remove every buff applied by `sourceId`. Returns how many were removed. */
+    removeBuffsFromSource(sourceId: string): number {
+        const before = this.buffs.length;
+        this.buffs = this.buffs.filter((b) => b.sourceId !== sourceId);
+        return before - this.buffs.length;
+    }
+
+    /** Drop buffs whose world-time duration has elapsed at `gameTime`. */
+    expireBuffs(gameTime: number): void {
+        if (this.buffs.length === 0) return;
+        this.buffs = this.buffs.filter((b) => !isProjectileBuffExpired(b, gameTime));
+    }
+
+    /** Time modifiers carried by this projectile's buffs (projectiles start at tempo 1, not the caster's). */
+    getTimeModifiers(): TimeModifier[] {
+        const mods: TimeModifier[] = [];
+        for (const b of this.buffs) if (b.timeModifier) mods.push(b.timeModifier);
+        return mods;
+    }
+
+    /** Product of the projectile's tempo modifiers, clamped; 0 while frozen. 1 with no buffs. */
+    getTempo(): number {
+        return this.buffs.length === 0 ? 1 : resolveTempo(this.getTimeModifiers());
+    }
+
+    /**
+     * Advance this projectile by `stepDt` local seconds (plus carried `timeDebt`), cutting the step
+     * into pieces of at most `MAX_PIECE_TRAVEL_PX` of travel. Wall stop and unit collision run per
+     * piece, so a fast projectile cannot tunnel. A step of at most `FIXED_DT` with no debt is a single
+     * piece (pace-1 invariance). Leftover beyond `MAX_STEP_PIECES_PER_TICK` becomes `timeDebt`.
+     */
+    advance(stepDt: number, ctx: EngineContext): void {
+        if (!this.active) return;
+        const total = stepDt + this.timeDebt;
+        this.timeDebt = 0;
+        if (total <= 0) return;
+
+        let pieces = 1;
+        let pieceDt = total;
+        if (total > FIXED_DT && !this.heldBy) {
+            const speed = Math.hypot(this.velocityX, this.velocityY);
+            const maxPieceDt = speed > 0 ? MAX_PIECE_TRAVEL_PX / speed : total;
+            const needed = Math.max(1, Math.ceil(total / maxPieceDt));
+            if (needed > MAX_STEP_PIECES_PER_TICK) {
+                pieces = MAX_STEP_PIECES_PER_TICK;
+                pieceDt = maxPieceDt;
+                this.timeDebt = total - pieceDt * pieces;
+            } else {
+                pieces = needed;
+                pieceDt = needed === 1 ? total : total / needed;
+            }
+        }
+
+        for (let i = 0; i < pieces; i++) {
+            if (!this.active) break;
+            this.localTime += pieceDt;
+            this.update(pieceDt, ctx);
+            this.checkCollision(ctx.units, ctx.eventBus, ctx.gameTime, ctx);
+        }
+        if (!this.active) this.timeDebt = 0;
     }
 
     update(dt: number, engine: unknown): void {
@@ -709,6 +815,11 @@ export class Projectile extends GameObject {
             rectEndWidth: this.rectEndWidth,
             heldBy: this.heldBy ? { ...this.heldBy } : null,
             heldTime: this.heldTime,
+            ...(this.localTime !== 0 ? { localTime: this.localTime } : {}),
+            ...(this.timeDebt !== 0 ? { timeDebt: this.timeDebt } : {}),
+            ...(this.buffs.length > 0
+                ? { buffs: this.buffs.map(cloneProjectileBuff), nextBuffSeq: this.nextBuffSeq }
+                : this.nextBuffSeq > 0 ? { nextBuffSeq: this.nextBuffSeq } : {}),
             hitUnitIds: [...this.hitUnitIds],
             knockbackOnlyUnitIds: [...this.knockbackOnlyUnitIds],
             ...(this.clearsTerrainEffects
@@ -749,6 +860,10 @@ export class Projectile extends GameObject {
             knockbackMode: data.knockbackMode as 'forward' | 'side45' | undefined,
         });
         proj.heldTime = (data.heldTime as number | undefined) ?? 0;
+        proj.localTime = (data.localTime as number | undefined) ?? 0;
+        proj.timeDebt = (data.timeDebt as number | undefined) ?? 0;
+        proj.buffs = ((data.buffs as ProjectileBuff[] | undefined) ?? []).map(cloneProjectileBuff);
+        proj.nextBuffSeq = (data.nextBuffSeq as number | undefined) ?? 0;
         for (const id of (data.hitUnitIds as string[] | undefined) ?? []) proj.hitUnitIds.add(id);
         for (const id of (data.knockbackOnlyUnitIds as string[] | undefined) ?? []) proj.knockbackOnlyUnitIds.add(id);
         for (const key of (data.clearedTerrainCells as string[] | undefined) ?? []) proj.clearedTerrainCells.add(key);

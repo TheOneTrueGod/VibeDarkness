@@ -3,6 +3,7 @@
  * (e.g. Raise Shield) and for notifying the attacking ability via onAttackBlocked.
  */
 
+import { getCastElapsed } from '../game/time/actorClock';
 import type { Unit } from '../game/units/Unit';
 import type { EventBus } from '../game/EventBus';
 import { getAbility } from './AbilityRegistry';
@@ -36,7 +37,7 @@ export function getBlockingArcForUnit(unit: Unit, gameTime: number): BlockingArc
         const ability = getAbility(active.abilityId);
         if (!ability?.getBlockingArc) continue;
 
-        const currentTime = gameTime - active.startTime;
+        const currentTime = getCastElapsed(unit, active, { gameTime });
         const arc = ability.getBlockingArc(unit, active, currentTime);
         if (arc) {
             return {
@@ -158,8 +159,8 @@ export function executeBlock(
             activeAbility: blockingActive,
             targets: blockingActive?.targets ?? [],
             eventType: AbilityEventType.ON_BLOCK_SUCCESS,
-            currentTime: blockingActive ? Math.max(0, eng.gameTime - blockingActive.startTime) : 0,
-            prevTime:    blockingActive ? Math.max(0, eng.gameTime - blockingActive.startTime) : 0,
+            currentTime: blockingActive ? Math.max(0, getCastElapsed(defender, blockingActive, eng)) : 0,
+            prevTime:    blockingActive ? Math.max(0, getCastElapsed(defender, blockingActive, eng)) : 0,
             primaryTarget: undefined,
             attackInfo,
             hitResult: 'blocked',

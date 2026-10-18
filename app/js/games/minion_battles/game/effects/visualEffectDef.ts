@@ -22,6 +22,8 @@ export interface DirectEffectVFXDef {
     /** Typed visual properties passed through to the spawned Effect. */
     effectProperties?: EffectProperties;
     duration: number;
+    /** Clock override for the spawned Effect; default 'wall'. */
+    timeDomain?: import('./timeDomain').EffectTimeDomain;
     offsetX?: number;
     offsetY?: number;
     /** Spawn position relative to context. Defaults to 'caster' for backward compat. */

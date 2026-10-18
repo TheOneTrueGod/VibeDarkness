@@ -54,6 +54,8 @@ export function createEmitterFromDef(
             x: config.x,
             y: config.y,
             attachedToUnitId: config.attachedToUnitId,
+            timeDomain: def.timeDomain,
+            ownerActorId: config.attachedToUnitId,
             factory: (emitter) => {
                 const effects: Effect[] = [];
                 for (let i = 0; i < count; i++) {
@@ -64,6 +66,8 @@ export function createEmitterFromDef(
                         effectType,
                         effectData: { ...effectData },
                         effectProperties: def.effectProperties,
+                        timeDomain: def.timeDomain,
+                        ownerActorId: config.attachedToUnitId,
                     }));
                 }
                 return effects;
@@ -80,6 +84,8 @@ export function createEmitterFromDef(
             lifetime: config.lifetime,
             intervalSeconds: def.intervalSeconds,
             fireImmediately: def.fireImmediately,
+            timeDomain: def.timeDomain,
+            ownerActorId: config.attachedToUnitId,
             factory: (emitter) => [
                 new Effect({
                     x: emitter.x,
@@ -89,6 +95,8 @@ export function createEmitterFromDef(
                     effectRadius: def.effectRadius,
                     effectData: { ...effectData },
                     effectProperties: def.effectProperties,
+                    timeDomain: def.timeDomain,
+                    ownerActorId: config.attachedToUnitId,
                 }),
             ],
         });
@@ -111,7 +119,11 @@ export function createEmitterFromDef(
                 effectType,
                 effectData: { ...effectData },
                 effectProperties: def.effectProperties,
+                timeDomain: def.timeDomain,
+                ownerActorId: config.attachedToUnitId,
             }),
         ],
+        timeDomain: def.timeDomain,
+        ownerActorId: config.attachedToUnitId,
     });
 }

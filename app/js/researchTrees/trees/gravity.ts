@@ -19,6 +19,7 @@ export const GRAVITY_NODE_CORE = 'gravity_core';
 export const GRAVITY_NODE_GRAVITY_LOCUS = 'gravity_locus';
 export const GRAVITY_NODE_GRAVITY_INVERSION = 'gravity_inversion';
 export const GRAVITY_NODE_GRAVITY_SHIELD = 'gravity_shield';
+export const GRAVITY_NODE_EASE_BURDENS = 'gravity_ease_burdens';
 export const GRAVITY_NODE_REPULSE = 'gravity_repulse';
 export const GRAVITY_NODE_COLLAPSE = 'gravity_collapse';
 
@@ -41,6 +42,10 @@ export const GRAVITY_LIFT_METAL_COST = 1;
 export const GRAVITY_SHIELD_CRYSTAL_COST = 16;
 export const GRAVITY_SHIELD_FOOD_COST = 5;
 export const GRAVITY_SHIELD_METAL_COST = 5;
+
+export const GRAVITY_EASE_BURDENS_CRYSTAL_COST = 16;
+export const GRAVITY_EASE_BURDENS_FOOD_COST = 5;
+export const GRAVITY_EASE_BURDENS_METAL_COST = 5;
 
 export const GRAVITY_COLLAPSE_CRYSTAL_COST = 14;
 export const GRAVITY_COLLAPSE_FOOD_COST = 5;
@@ -180,6 +185,28 @@ export const gravityTree: ResearchTreeDef = {
             },
             effects: [
                 { type: 'addCard', cardId: '0904' },
+            ],
+        },
+        {
+            id: GRAVITY_NODE_EASE_BURDENS,
+            title: 'Ease Burdens',
+            description: 'Target ally moves and acts twice as fast for 3 seconds, while the rest of the world slows to match.',
+            flavorText: 'Lift the weight from one pair of shoulders and the whole world feels heavier.',
+            order: 15,
+            tier: 13,
+            position: { x: 180, y: 160 },
+            prereqNodeIds: [GRAVITY_NODE_CORE],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: GRAVITY_TREE_ID, nodeIds: [GRAVITY_NODE_CORE] },
+            ],
+            cost: {
+                crystals: GRAVITY_EASE_BURDENS_CRYSTAL_COST,
+                food: GRAVITY_EASE_BURDENS_FOOD_COST,
+                metal: GRAVITY_EASE_BURDENS_METAL_COST,
+            },
+            effects: [
+                { type: 'addCard', cardId: '0906' },
             ],
         },
         {

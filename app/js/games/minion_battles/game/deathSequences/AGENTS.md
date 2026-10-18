@@ -11,4 +11,6 @@ Cinematic unit deaths (usually bosses): gameplay pauses (story pause), the anima
   - `visualEffects` → any `VisualEffectDef`s.
 - **Presets:** `deathSequencePresets.ts` (`ALPHA_WOLF_DEATH_SEQUENCE`, `DISPLACER_SPIRIT_DEATH_SEQUENCE`).
 
+- **Time Stop TODO:** `pauseSeconds` uses the story pause. Expressing it as a Time Stop (`engine.startTimeStop`, see `game/time/AGENTS.md`) is tracked in `docs/TODO.md`; until then death sequences pause the whole engine rather than using world pace.
+
 Do not put per-character death behaviour in `worldModifiers/builtins` — built-ins run in every mission.

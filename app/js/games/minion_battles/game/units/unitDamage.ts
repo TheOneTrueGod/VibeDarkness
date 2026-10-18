@@ -5,6 +5,38 @@ import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
 import { applyDamageToEarthCoreArmour } from '../../abilities/earthCoreArmour';
 import { applyDamageToShields } from './unitShield';
 import { DarknessLevel } from '../darknessLevels';
+import { DEFAULT_FROZEN_HIT_POLICY, type FrozenHitPolicy } from '../time/timeConstants';
+
+/** A hit held on a frozen unit by the `'onResume'` frozen-hit policy. Serialized with the unit. */
+export interface PendingFrozenHit {
+    amount: number;
+    sourceUnitId: string | null;
+    visualKind?: DamageApplyOptions['visualKind'];
+}
+
+/**
+ * Policy for a hit on a frozen unit: the active Time Stop def's policy, then the per-hit option, then
+ * `DEFAULT_FROZEN_HIT_POLICY`. (Time Stop def wins so a stop can make everything land on resume.)
+ */
+export function resolveFrozenHitPolicy(unit: Pick<Unit, 'frozenHitPolicyFromStop'>, opts?: DamageApplyOptions): FrozenHitPolicy {
+    return unit.frozenHitPolicyFromStop ?? opts?.frozenHitPolicy ?? DEFAULT_FROZEN_HIT_POLICY;
+}
+
+/**
+ * Resolve hits queued on a unit that is no longer frozen, in the order they were queued. They land as plain
+ * `'immediate'` hits (so a unit frozen again meanwhile re-queues nothing: the caller only resolves when thawed).
+ */
+export function resolvePendingFrozenHits(unit: Unit, eventBus: EventBus): void {
+    if (unit.pendingFrozenHits.length === 0 || unit.localFrozen) return;
+    const hits = unit.pendingFrozenHits;
+    unit.pendingFrozenHits = [];
+    for (const hit of hits) {
+        applyDamageToUnitDetailed(unit, hit.amount, hit.sourceUnitId, eventBus, {
+            ...(hit.visualKind !== undefined ? { visualKind: hit.visualKind } : {}),
+            frozenHitPolicy: 'immediate',
+        });
+    }
+}
 
 /** Full accounting of a single damage application, split by absorption layer. */
 export interface DamageBreakdown {
@@ -31,6 +63,15 @@ export function applyDamageToUnitDetailed(
     opts?: DamageApplyOptions,
 ): DamageBreakdown {
     if (!unit.isAlive()) return NO_DAMAGE_BREAKDOWN;
+    // Frozen-hit policy: 'onResume' holds the hit on the frozen unit; 'immediate' (default) falls through.
+    if (unit.localFrozen && resolveFrozenHitPolicy(unit, opts) === 'onResume') {
+        unit.pendingFrozenHits.push({
+            amount,
+            sourceUnitId,
+            ...(opts?.visualKind !== undefined ? { visualKind: opts.visualKind } : {}),
+        });
+        return NO_DAMAGE_BREAKDOWN;
+    }
     if (unit.isInvincible()) return NO_DAMAGE_BREAKDOWN;
     if (unit.isSpawning()) return NO_DAMAGE_BREAKDOWN;
 

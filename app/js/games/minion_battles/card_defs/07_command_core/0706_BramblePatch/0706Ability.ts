@@ -19,6 +19,7 @@ import type { TerrainLayerManager } from '../../../game/TerrainLayerManager';
 import { ROUND_DURATION } from '../../../game/gameConstants';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import { defineAbility } from '../../../abilities/defineAbility';
+import { getCastElapsedAt } from '../../../game/time/actorClock';
 
 export const BRAMBLE_PATCH_STRIKE_ID = `${formatGroupId(AbilityGroupId.Command)}06`;
 
@@ -168,7 +169,7 @@ export const BramblePatchStrikeAbility_0706: AbilityStatic = defineAbility({
         activeAbility: ActiveAbility,
         gameTime: number,
     ): void {
-        const elapsed = gameTime - activeAbility.startTime;
+        const elapsed = getCastElapsedAt(activeAbility, gameTime);
         if (elapsed >= WINDUP) {
             gr.circle(caster.x, caster.y, BRAMBLE_PATCH_RADIUS);
             gr.stroke({ color: 0x86efac, width: 2, alpha: 0.5 });

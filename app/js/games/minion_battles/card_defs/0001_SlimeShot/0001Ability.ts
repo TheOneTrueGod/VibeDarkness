@@ -31,6 +31,7 @@ import {
     formatTooltipLegacyLines,
     type TooltipTokenBindings,
 } from '../../abilities/tooltipTokens';
+import { getCastElapsedAt } from '../../game/time/actorClock';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Enemy)}01`;
 const LOCK_TIME = 0.5;
@@ -175,7 +176,7 @@ export const SlimeShotAbility: AbilityStatic = {
         gameTime: number,
         engine?: { darknessUpgradeBonuses?: AbilityEngineContext['darknessUpgradeBonuses'] },
     ): void {
-        const elapsed = gameTime - activeAbility.startTime;
+        const elapsed = getCastElapsedAt(activeAbility, gameTime);
         // The glob launches the instant the aim phase ends (the Active interval starts at LOCK_TIME),
         // so the telegraph must vanish then rather than linger through the rest of the cast.
         if (elapsed >= LOCK_TIME) return;

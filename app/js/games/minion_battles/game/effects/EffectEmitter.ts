@@ -14,6 +14,7 @@
 import type { Effect } from './Effect';
 import type { EngineContext } from '../EngineContext';
 import { generateGameObjectId } from '../GameObject';
+import type { EffectTimeDomain } from './timeDomain';
 import { type TerrainType } from '../../terrain/TerrainType';
 
 export interface Vec2 { x: number; y: number; }
@@ -29,6 +30,12 @@ export abstract class EffectEmitter {
     active: boolean = true;
     /** When true, renderUpdate() is called even while the game is paused. */
     emitWhilePaused: boolean = false;
+    /** Clock override; default 'wall' (unchanged). EffectEmitterManager scales dt by the domain rate. */
+    timeDomain: EffectTimeDomain = 'wall';
+    /** Actor whose step rate drives an 'owner' emitter; falls back to attachedToUnitId. */
+    ownerActorId?: string;
+    /** Transient: this step's time-domain rate, set by the manager before update/renderUpdate. Not serialized. */
+    timeRate: number = 1;
 
     constructor(config: {
         id?: string;
@@ -37,6 +44,8 @@ export abstract class EffectEmitter {
         attachedToUnitId?: string;
         lifetime?: number;
         emitWhilePaused?: boolean;
+        timeDomain?: EffectTimeDomain;
+        ownerActorId?: string;
     }) {
         this.id = config.id ?? generateGameObjectId('emitter');
         this.x = config.x;
@@ -44,6 +53,8 @@ export abstract class EffectEmitter {
         this.attachedToUnitId = config.attachedToUnitId;
         this.lifetime = config.lifetime ?? Infinity;
         this.emitWhilePaused = config.emitWhilePaused ?? false;
+        this.timeDomain = config.timeDomain ?? 'wall';
+        this.ownerActorId = config.ownerActorId;
     }
 
     /** Game tick — return any new Effects to add. Called by EffectEmitterManager.update(). */
@@ -55,6 +66,11 @@ export abstract class EffectEmitter {
      */
     renderUpdate(_realDt: number, _posSnapshot: Map<string, Vec2>): Effect[] {
         return [];
+    }
+
+    /** Shared serialized fields; timeDomain is only written when non-default. */
+    protected timeDomainJSON(): Record<string, unknown> {
+        return this.timeDomain === 'wall' ? {} : { timeDomain: this.timeDomain, ownerActorId: this.ownerActorId };
     }
 
     abstract toJSON(): Record<string, unknown>;
@@ -86,7 +102,7 @@ export class OneShotEmitter extends EffectEmitter {
     }
 
     toJSON(): Record<string, unknown> {
-        return { _type: 'OneShotEmitter', id: this.id, x: this.x, y: this.y, fired: this.fired };
+        return { _type: 'OneShotEmitter', id: this.id, x: this.x, y: this.y, fired: this.fired, ...this.timeDomainJSON() };
     }
 
     restoreFromJSON(_d: Record<string, unknown>): void {
@@ -168,6 +184,7 @@ export class IntervalEmitter extends EffectEmitter {
             elapsed: this.elapsed,
             accumulator: this.accumulator,
             lifetime: this.lifetime,
+            ...this.timeDomainJSON(),
         };
     }
 
@@ -190,6 +207,8 @@ export class ContinuousEmitter extends EffectEmitter {
     /** Emit every this many render frames (default 1 = every frame). */
     emitIntervalFrames: number;
     private frameCount = 0;
+    /** Fractional frame accumulator for non-wall time domains. */
+    private frameAccum = 0;
     private factory: (emitter: ContinuousEmitter, posSnapshot: Map<string, Vec2>) => Effect[];
 
     constructor(config: ConstructorParameters<typeof EffectEmitter>[0] & {
@@ -219,8 +238,15 @@ export class ContinuousEmitter extends EffectEmitter {
             const pos = posSnapshot.get(this.attachedToUnitId);
             if (pos) { this.x = pos.x; this.y = pos.y; }
         }
-        this.frameCount++;
-        if (this.frameCount % this.emitIntervalFrames !== 0) return [];
+        if (this.timeDomain === 'wall') {
+            this.frameCount++;
+            if (this.frameCount % this.emitIntervalFrames !== 0) return [];
+        } else {
+            // 'world' / 'owner': cadence counts frames scaled by the domain rate (slow-mo => fewer emits).
+            this.frameAccum += this.timeRate;
+            if (this.frameAccum < this.emitIntervalFrames) return [];
+            this.frameAccum -= this.emitIntervalFrames;
+        }
         return this.factory(this, posSnapshot);
     }
 
@@ -232,6 +258,7 @@ export class ContinuousEmitter extends EffectEmitter {
             y: this.y,
             elapsed: this.elapsed,
             lifetime: this.lifetime,
+            ...this.timeDomainJSON(),
         };
     }
 

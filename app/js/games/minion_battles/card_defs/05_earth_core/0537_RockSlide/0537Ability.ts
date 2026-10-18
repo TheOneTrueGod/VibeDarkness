@@ -74,6 +74,7 @@ import {
     spawnRockSlideBreak,
     spawnRockSlideSettle,
 } from './rockSlideVfx';
+import { getCastElapsedAt } from '../../../game/time/actorClock';
 
 const ABILITY_ID = '0537';
 const ROCK_LABEL = 'Rock';
@@ -330,7 +331,7 @@ export const RockSlideAbility_0537: AbilityStatic = defineAbility({
         active: ActiveAbility,
         gameTime: number,
     ): void {
-        const elapsed = gameTime - active.startTime;
+        const elapsed = getCastElapsedAt(active, gameTime);
         if (elapsed < ROCK_SLIDE_AIM_START) {
             const rockPos = pickPosition(active, ROCK_LABEL, 0);
             const rockTile = rockPos ? resolveRockTile(caster, rockPos) : null;

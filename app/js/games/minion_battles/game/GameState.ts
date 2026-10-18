@@ -27,6 +27,8 @@ import { InterruptSystem } from './units/unitAI/plans/InterruptSystem';
 import { WorldModifierManager } from '../worldModifiers/WorldModifierManager';
 import type { NinjutsuManager } from './ninjutsu/NinjutsuManager';
 import { MapNetworkManager } from './managers/mapNetwork/MapNetworkManager';
+import { TimeManager } from './time/TimeManager';
+import { getActorTempo } from './time/actorClock';
 import type { PassiveBonuses } from '../../../researchTrees/types';
 import type { ActiveDarknessStrength } from '../../../darknessStrength/resolve';
 
@@ -70,6 +72,8 @@ export class GameState {
     readonly interruptSystem: InterruptSystem;
     readonly worldModifierManager: WorldModifierManager;
     readonly mapNetworkManager: MapNetworkManager;
+    /** World pace + Time Stops (see `game/time/AGENTS.md`). */
+    readonly timeManager = new TimeManager();
 
     terrainManager: TerrainManager | null = null;
 
@@ -130,6 +134,13 @@ export class GameState {
         this.projectileManager = new ProjectileManager(ctx);
         this.effectManager = new EffectManager(ctx);
         this.effectEmitterManager = new EffectEmitterManager();
+        // 'owner'-domain effects/emitters follow their owner unit's tempo (world pace / Time Stop come from getStepRate).
+        const ownerTempo = (ownerId: string): number => {
+            const owner = this.unitManager.getUnit(ownerId);
+            return owner ? getActorTempo(owner) : 1;
+        };
+        this.effectManager.ownerTempoResolver = ownerTempo;
+        this.effectEmitterManager.ownerTempoResolver = ownerTempo;
         this.cardManager = new CardManager(ctx);
         this.abilityUseTracker = new AbilityUseTracker();
         this.researchManager = new ResearchManager();

@@ -8,6 +8,7 @@ import { AbilityState } from './Ability';
 import type { AbilityStateEntry, AbilityStatic } from './Ability';
 import { drawArcWedge } from './previewHelpers';
 import { getDirectionFromTo } from './targetHelpers';
+import { getCastElapsedAt } from '../game/time/actorClock';
 
 /** Default half-arc in radians: 60° → 120° total blocking arc. */
 export const STANDARD_SHIELD_HALF_ARC_RAD = Math.PI / 3;
@@ -95,7 +96,7 @@ export function createShieldActivePreview(
     } = options;
 
     return (gr, caster, activeAbility, gameTime) => {
-        const elapsed = gameTime - activeAbility.startTime;
+        const elapsed = getCastElapsedAt(activeAbility, gameTime);
         if (elapsed < blockStart || elapsed >= blockDuration) return;
         const pos = activeAbility.targets[0]?.position;
         if (!pos) return;

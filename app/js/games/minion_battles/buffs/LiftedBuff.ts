@@ -10,6 +10,7 @@ import { isImmuneToForcedMovement } from '../game/units/unitTag';
 import { computeForcedDisplacement } from '../game/forceMove';
 import { knockbackCtxFromEngine, tryApplyKnockbackByTier } from '../crowdControl/knockbackKeywords';
 import { LIFTED_BUFF_TYPE } from './liftedBuffType';
+import { localNow } from '../game/time/actorClock';
 
 export { LIFTED_BUFF_TYPE };
 
@@ -53,7 +54,8 @@ export function getLiftedRenderState(unit: Unit, gameTime: number): LiftedRender
     if (!buff || buff.duration.unit !== 'seconds') return null;
 
     const maxHeight = getLiftedMaxRenderHeightPx(unit.radius);
-    const progress = getLiftedRenderProgress(buff.appliedAtTime, buff.duration.value, gameTime);
+    const now = buff.clock === 'owner' ? localNow(unit, gameTime) : gameTime;
+    const progress = getLiftedRenderProgress(buff.appliedAtTime, buff.duration.value, now);
     return { yOffset: -maxHeight * progress, maxHeight };
 }
 
@@ -72,6 +74,8 @@ interface LiftedBuffSerialized extends BuffSerialized {
 
 export class LiftedBuff extends Buff {
     readonly _type = LIFTED_BUFF_TYPE;
+    /** Lift is motion: its duration follows the unit's local time, so it pauses while the unit is frozen. */
+    override readonly clock = 'owner' as const;
 
     readonly slamDamage: number;
     readonly horizontalTarget?: { x: number; y: number };
