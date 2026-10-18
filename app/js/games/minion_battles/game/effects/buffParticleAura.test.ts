@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BuffParticleAuraSystem, resolveAuraMotion, TEMPO_ORB_EFFECT_TYPE, TEMPO_SPEED_LINE_EFFECT_TYPE } from './buffParticleAura';
+import { BuffRenderEmitterSystem, resolveAuraMotion, TEMPO_ORB_EFFECT_TYPE, TEMPO_SPEED_LINE_EFFECT_TYPE } from './buffParticleAura';
 import { TimeDilationBuff, TIME_DILATION_PRESETS } from '../../buffs/TimeDilationBuff';
 import type { Effect } from './Effect';
 import type { Unit } from '../units/Unit';
@@ -19,7 +19,7 @@ function fakeUnit(over: Partial<Record<string, unknown>> = {}): Unit {
     } as unknown as Unit;
 }
 
-function run(system: BuffParticleAuraSystem, unit: Unit, frames: number, move?: (u: Unit) => void): Effect[] {
+function run(system: BuffRenderEmitterSystem, unit: Unit, frames: number, move?: (u: Unit) => void): Effect[] {
     const out: Effect[] = [];
     for (let i = 0; i < frames; i++) {
         move?.(unit);
@@ -51,10 +51,10 @@ describe('resolveAuraMotion', () => {
     });
 });
 
-describe('BuffParticleAuraSystem', () => {
+describe('BuffRenderEmitterSystem', () => {
     it('emits orbs just inside the radius while idle', () => {
         const unit = fakeUnit();
-        const fx = run(new BuffParticleAuraSystem(), unit, 60);
+        const fx = run(new BuffRenderEmitterSystem(), unit, 60);
         expect(fx.length).toBeGreaterThan(5);
         expect(fx.every((e) => e.effectType === TEMPO_ORB_EFFECT_TYPE)).toBe(true);
         for (const e of fx) {
@@ -66,7 +66,7 @@ describe('BuffParticleAuraSystem', () => {
 
     it('emits speed lines behind the unit while moving, drifting backward', () => {
         const unit = fakeUnit();
-        const system = new BuffParticleAuraSystem();
+        const system = new BuffRenderEmitterSystem();
         const lines: { fx: Effect; unitX: number }[] = [];
         for (let i = 0; i < 60; i++) {
             (unit as { x: number }).x += 2;
@@ -84,7 +84,7 @@ describe('BuffParticleAuraSystem', () => {
     });
 
     it('emits nothing for units without an aura buff', () => {
-        const fx = run(new BuffParticleAuraSystem(), fakeUnit({ buffs: [] }), 60);
+        const fx = run(new BuffRenderEmitterSystem(), fakeUnit({ buffs: [] }), 60);
         expect(fx).toHaveLength(0);
     });
 });

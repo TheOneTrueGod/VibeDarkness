@@ -2,8 +2,8 @@
  * EffectEmitterManager — owns the list of active EffectEmitters and drives their lifecycle.
  *
  * Game tick (update): runs all emitters unconditionally; collects returned Effects.
- * Render tick (renderUpdate): runs continuous/emitWhilePaused emitters during pause;
- *   runs all active emitters when not paused.
+ * Render tick (renderUpdate): runs all active emitters' render emission; while the simulation is halted each
+ *   emitter follows its `pauseBehaviour` ('continue' keeps emitting on wall time, 'hold' waits, 'stop' ends).
  */
 
 import type { Effect } from './Effect';
@@ -46,14 +46,21 @@ export class EffectEmitterManager {
     }
 
     /**
-     * Render tick — ticks continuous emitters (respecting emitWhilePaused during pause).
+     * Render tick — render-time emission. While `halted` (pause plane), emitters follow their `pauseBehaviour`.
      * Returns Effects produced; caller adds them to EffectManager.
      */
-    renderUpdate(realDt: number, posSnapshot: Map<string, Vec2>, isPaused: boolean, engine?: EngineContext): Effect[] {
+    renderUpdate(realDt: number, posSnapshot: Map<string, Vec2>, halted: boolean, engine?: EngineContext): Effect[] {
         const newEffects: Effect[] = [];
         for (const emitter of this.emitters) {
             if (!emitter.active) continue;
-            if (isPaused && !emitter.emitWhilePaused) continue;
+            if (halted) {
+                if (emitter.pauseBehaviour === 'hold') continue;
+                if (emitter.pauseBehaviour === 'stop') { emitter.active = false; continue; }
+                // 'continue': emit on wall time. World/owner rates are not applied (no world time passes while halted).
+                emitter.timeRate = 1;
+                newEffects.push(...emitter.renderUpdateWhileHalted(realDt, posSnapshot, engine));
+                continue;
+            }
             const rate = this.applyRate(emitter, engine);
             newEffects.push(...emitter.renderUpdate(rate === 1 ? realDt : realDt * rate, posSnapshot));
         }

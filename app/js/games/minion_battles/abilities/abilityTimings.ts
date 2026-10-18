@@ -12,6 +12,7 @@ import type { EngineContext } from '../game/EngineContext';
 import type { ResolvedTarget } from '../game/types';
 import type { VisualEffectDef } from '../game/effects/visualEffectDef';
 import type { EffectProperties } from '../game/effects/effectProperties';
+import type { PauseBehaviour } from '../game/effects/pauseBehaviour';
 
 /** Phase of an ability's execution (for segment coloring). */
 export enum AbilityPhase {
@@ -51,6 +52,11 @@ type EmitterDefShared = {
     effectDuration?: number;
     /** Clock for spawned effects and the emitter cadence/lifetime: 'wall' (default), 'world' or 'owner' (the caster). */
     timeDomain?: 'wall' | 'world' | 'owner';
+    /**
+     * While the simulation is halted (pause plane). Default `'continue'` for ability-timing emitters, so windups
+     * and channels stay readable while paused. See `game/effects/pauseBehaviour.ts`.
+     */
+    pauseBehaviour?: PauseBehaviour;
     /**
      * When true, the engine merges { bodyColor, radius, characterSpriteKey } from the
      * caster unit into effectData at window-open time. Useful for afterimage-style trails
@@ -110,6 +116,7 @@ export type AbilityTimingEmitterDef = EmitterDefShared & (
         /** effectType string matching an effectDefRegistry key. Omit when spriteEffectId is set. */
         effectType?: string;
         effectData?: Record<string, unknown>;
+        /** Legacy: `false` means `pauseBehaviour: 'hold'`. Prefer `pauseBehaviour`. */
         emitWhilePaused?: boolean;
         /** Emit every N render frames. Default 1. */
         emitIntervalFrames?: number;

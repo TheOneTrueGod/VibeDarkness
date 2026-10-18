@@ -15,6 +15,7 @@ import type { Effect } from './Effect';
 import type { EngineContext } from '../EngineContext';
 import { generateGameObjectId } from '../GameObject';
 import type { EffectTimeDomain } from './timeDomain';
+import type { PauseBehaviour } from './pauseBehaviour';
 import { type TerrainType } from '../../terrain/TerrainType';
 
 export interface Vec2 { x: number; y: number; }
@@ -28,8 +29,11 @@ export abstract class EffectEmitter {
     lifetime: number;
     elapsed: number = 0;
     active: boolean = true;
-    /** When true, renderUpdate() is called even while the game is paused. */
-    emitWhilePaused: boolean = false;
+    /**
+     * While the simulation is halted (pause plane): 'continue' keeps emitting from the render loop, 'hold' (default)
+     * stops emitting with timers frozen, 'stop' deactivates the emitter. See `./pauseBehaviour.ts`.
+     */
+    pauseBehaviour: PauseBehaviour = 'hold';
     /** Clock override; default 'wall' (unchanged). EffectEmitterManager scales dt by the domain rate. */
     timeDomain: EffectTimeDomain = 'wall';
     /** Actor whose step rate drives an 'owner' emitter; falls back to attachedToUnitId. */
@@ -43,6 +47,9 @@ export abstract class EffectEmitter {
         y: number;
         attachedToUnitId?: string;
         lifetime?: number;
+        /** While the simulation is halted. Default 'hold' ('continue' when `emitWhilePaused`). */
+        pauseBehaviour?: PauseBehaviour;
+        /** Legacy alias for `pauseBehaviour: 'continue'`. */
         emitWhilePaused?: boolean;
         timeDomain?: EffectTimeDomain;
         ownerActorId?: string;
@@ -52,7 +59,7 @@ export abstract class EffectEmitter {
         this.y = config.y;
         this.attachedToUnitId = config.attachedToUnitId;
         this.lifetime = config.lifetime ?? Infinity;
-        this.emitWhilePaused = config.emitWhilePaused ?? false;
+        this.pauseBehaviour = config.pauseBehaviour ?? (config.emitWhilePaused ? 'continue' : 'hold');
         this.timeDomain = config.timeDomain ?? 'wall';
         this.ownerActorId = config.ownerActorId;
     }
@@ -66,6 +73,20 @@ export abstract class EffectEmitter {
      */
     renderUpdate(_realDt: number, _posSnapshot: Map<string, Vec2>): Effect[] {
         return [];
+    }
+
+    /** Legacy view of `pauseBehaviour === 'continue'`. */
+    get emitWhilePaused(): boolean {
+        return this.pauseBehaviour === 'continue';
+    }
+
+    /**
+     * Render tick while the simulation is halted, for `pauseBehaviour: 'continue'` emitters. Default: the normal
+     * render-tick emission (ContinuousEmitter). Game-tick emitters override this to keep emitting on wall time
+     * WITHOUT touching their serialized timers (lifetime / accumulator), which only advance on game ticks.
+     */
+    renderUpdateWhileHalted(realDt: number, posSnapshot: Map<string, Vec2>, _engine: EngineContext | undefined): Effect[] {
+        return this.renderUpdate(realDt, posSnapshot);
     }
 
     /** Shared serialized fields; timeDomain is only written when non-default. */
@@ -124,6 +145,8 @@ export class IntervalEmitter extends EffectEmitter {
      */
     terrainCondition?: TerrainType[];
     private accumulator = 0;
+    /** Transient cadence while the simulation is halted ('continue'). Not serialized; never touches `accumulator`. */
+    private haltedAccumulator = 0;
     private factory: (emitter: IntervalEmitter, engine: EngineContext) => Effect[];
 
     constructor(config: ConstructorParameters<typeof EffectEmitter>[0] & {
@@ -172,6 +195,30 @@ export class IntervalEmitter extends EffectEmitter {
         if (this.lifetime !== Infinity && this.elapsed >= this.lifetime) {
             this.active = false;
         }
+        return results;
+    }
+
+    /** Keep the interval cadence on wall time while halted, without advancing lifetime or the game accumulator. */
+    override renderUpdateWhileHalted(realDt: number, posSnapshot: Map<string, Vec2>, engine: EngineContext | undefined): Effect[] {
+        if (!engine || this.intervalSeconds <= 0) return [];
+        if (this.attachedToUnitId) {
+            const pos = posSnapshot.get(this.attachedToUnitId);
+            if (pos) { this.x = pos.x; this.y = pos.y; }
+        }
+        if (this.terrainCondition && this.terrainCondition.length > 0
+            && (engine.terrainManager === null || !this.terrainCondition.includes(engine.terrainManager.getTerrainAt(this.x, this.y)))) {
+            return [];
+        }
+        this.haltedAccumulator += realDt;
+        const results: Effect[] = [];
+        // Cap per frame so a long frame (tab refocus) does not dump a burst.
+        let fired = 0;
+        while (this.haltedAccumulator >= this.intervalSeconds && fired < 4) {
+            this.haltedAccumulator -= this.intervalSeconds;
+            fired++;
+            results.push(...this.factory(this, engine));
+        }
+        if (this.haltedAccumulator >= this.intervalSeconds) this.haltedAccumulator %= this.intervalSeconds;
         return results;
     }
 

@@ -102,7 +102,7 @@ import { applyDeathSequence } from './deathSequences/applyDeathSequence';
 import { NinjutsuManager, countNinjutsuEnemyUnits, type NinjutsuUIState } from './ninjutsu/NinjutsuManager';
 import { NINJUTSU_DEFAULT, type NinjutsuPoolConfig } from './ninjutsu/ninjutsuConfig';
 import { findImpendingSelectTargetNeed } from './interaction/selectTargetLookahead';
-import { BuffParticleAuraSystem } from './effects/buffParticleAura';
+import { BuffRenderEmitterSystem } from './effects/buffParticleAura';
 import { advanceUnitLocalClocks, collectUnitFocalRequests, getCastElapsed } from './time/actorClock';
 import {
     isITSPreviewComplete,
@@ -160,8 +160,8 @@ export class GameEngine implements EngineContext {
     // Client-side only — never serialized, never synchronized between host and non-host.
     // Use this (not allocateObjectId) for visual Effect IDs.
     private effectIdSeq = 0;
-    /** Render-only buff particle auras (not serialized). */
-    private readonly buffParticleAuras = new BuffParticleAuraSystem();
+    /** Render-only buff visuals: particle auras and `Buff.renderEmit` (not serialized). */
+    private readonly buffRenderEmitters = new BuffRenderEmitterSystem();
 
     /**
      * Parallel order pause scheduled during a tick; committed in the **same** `fixedUpdate` after
@@ -1220,6 +1220,19 @@ export class GameEngine implements EngineContext {
         }
     }
 
+    /**
+     * True while game ticks are not running: explicit pause, a parallel order batch (pause plane), waiting for
+     * target input, host catch-up, or a finished level. Effects and emitters use it for their `pauseBehaviour`.
+     * Story pauses are not halts (game ticks keep running through them).
+     */
+    get isSimulationHalted(): boolean {
+        return this.isPaused
+            || this.waitingForOrders != null
+            || this.waitingForTargetInput != null
+            || this.state.multiplayerAwaitHostCatchup
+            || this.state.levelEventManager.isTerminal;
+    }
+
     /** True while `start()` has been called and `stop()` / `destroy()` has not. */
     get isRunningLoop(): boolean {
         return this.running;
@@ -1235,19 +1248,20 @@ export class GameEngine implements EngineContext {
      */
     doRenderTick(realDt: number): void {
         tickPerformanceTracker.measure([PERF_ENGINE, PERF_ENGINE_RENDER_TICK], () => {
-            this.state.effectManager.renderUpdate(realDt);
+            const halted = this.isSimulationHalted;
+            this.state.effectManager.renderUpdate(realDt, halted);
             const posSnapshot = this.getUnitPositionSnapshot();
             const emitterVisualEffects = this.state.effectEmitterManager.renderUpdate(
-                realDt, posSnapshot, this.isPaused, this,
+                realDt, posSnapshot, halted, this,
             );
             for (const fx of emitterVisualEffects) {
                 fx.id = this.allocateEffectObjectId('fx');
                 this.state.effectManager.addEffect(fx);
             }
-            this.buffParticleAuras.update(this.units, realDt, (fx) => {
+            this.buffRenderEmitters.update(this.units, realDt, (fx) => {
                 fx.id = this.allocateEffectObjectId('fx');
                 this.state.effectManager.addEffect(fx);
-            });
+            }, { gameTime: this.gameTime, halted });
         });
     }
 

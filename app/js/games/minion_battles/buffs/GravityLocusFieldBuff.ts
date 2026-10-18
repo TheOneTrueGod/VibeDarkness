@@ -18,6 +18,7 @@
  */
 
 import { Buff, type BuffExpireContext, type BuffSerialized } from './Buff';
+import type { BuffRenderEmitContext } from '../game/effects/buffParticleAura';
 import type { Unit } from '../game/units/Unit';
 import type { KnockbackSource } from '../game/units/unitTypes';
 import type { EngineContext } from '../game/EngineContext';
@@ -83,6 +84,9 @@ interface GravityLocusFieldBuffSerialized extends BuffSerialized {
     fieldDamagePerTick?: number;
 }
 
+/** Wall seconds between field visual effects (one per frame at 60 fps, as when it was emitted per tick). */
+const FIELD_VISUAL_INTERVAL_SEC = 1 / 60;
+
 export class GravityLocusFieldBuff extends Buff {
     readonly _type = GRAVITY_LOCUS_FIELD_BUFF_TYPE;
 
@@ -125,25 +129,41 @@ export class GravityLocusFieldBuff extends Buff {
         return minRadius + (GRAVITY_LOCUS_FIELD_RADIUS - minRadius) * progress;
     }
 
+    /** Transient render cadence for the field visual (not serialized). */
+    private fieldVisualAccum = 0;
+
+    /**
+     * Field visual: one short-lived effect every 1/60 s of wall time, emitted from the render loop so the field
+     * keeps animating at a pause plane. Reconnect-safe: driven by the buff's serialized state.
+     */
+    override renderEmit(_unit: Unit, ctx: BuffRenderEmitContext): void {
+        this.fieldVisualAccum += ctx.realDt;
+        const radius = this.getFieldRadius(ctx.gameTime);
+        let n = 0;
+        while (this.fieldVisualAccum >= FIELD_VISUAL_INTERVAL_SEC && n < 4) {
+            this.fieldVisualAccum -= FIELD_VISUAL_INTERVAL_SEC;
+            n++;
+            ctx.emit(new Effect({
+                x: this.locusX,
+                y: this.locusY,
+                duration: 1,
+                effectType: GRAVITY_FIELD_EFFECT_TYPE,
+                pauseBehaviour: 'continue',
+                effectData: {
+                    color: GRAVITY_VIOLET,
+                    radius,
+                    alpha: GRAVITY_LOCUS_FIELD_ALPHA,
+                    direction: this.mode === GRAVITY_ABILITY_MODE_PULL ? 'in' : 'out',
+                },
+            }));
+        }
+        if (this.fieldVisualAccum >= FIELD_VISUAL_INTERVAL_SEC) this.fieldVisualAccum %= FIELD_VISUAL_INTERVAL_SEC;
+    }
+
     override onGameTick(unit: Unit, engine: EngineContext, dt: number): void {
         if (!unit.isAlive()) return;
 
         const radius = this.getFieldRadius(engine.gameTime);
-
-        // Field visual: one short-lived effect per tick, matching the old
-        // continuous-emitter look but reconnect-safe (driven by serialized state).
-        engine.addEffect(new Effect({
-            x: this.locusX,
-            y: this.locusY,
-            duration: 1,
-            effectType: GRAVITY_FIELD_EFFECT_TYPE,
-            effectData: {
-                color: GRAVITY_VIOLET,
-                radius,
-                alpha: GRAVITY_LOCUS_FIELD_ALPHA,
-                direction: this.mode === GRAVITY_ABILITY_MODE_PULL ? 'in' : 'out',
-            },
-        }));
 
         const elapsed = engine.gameTime - this.appliedAtTime;
         const prevElapsed = Math.max(0, elapsed - dt);

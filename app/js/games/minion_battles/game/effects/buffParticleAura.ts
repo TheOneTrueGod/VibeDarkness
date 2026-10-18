@@ -9,6 +9,9 @@
  * paused (order phases, ITS). "Moving" also counts a unit that still has a movement path, so a paused unit with
  * a queued move keeps showing speed lines in its travel direction.
  *
+ * The same system also calls each buff's optional `renderEmit` hook (state visuals such as Gravity Locus's field),
+ * so every buff-driven visual shares one render-time, pause-readable path.
+ *
  * Purely visual: nothing here is serialized or touches engine RNG. Spawn jitter uses a small per-unit hash RNG
  * (Math.random is not used in game/). State is derived from buffs every frame, so it is reconnect-safe.
  */
@@ -92,6 +95,17 @@ const WAYPOINT_MIN_DIST_PX = 3;
 /** Never emit more than this many particles of one aura per frame (long frames / tab refocus). */
 const MAX_EMITS_PER_FRAME = 4;
 
+/** Context for `Buff.renderEmit`. */
+export interface BuffRenderEmitContext {
+    /** Wall seconds since the last render frame. */
+    realDt: number;
+    /** Current world time (read-only; frozen while halted). */
+    gameTime: number;
+    /** True at a pause plane (`GameEngine.isSimulationHalted`). */
+    halted: boolean;
+    emit(fx: Effect): void;
+}
+
 export interface AuraMotion {
     moving: boolean;
     dirX: number;
@@ -171,16 +185,27 @@ function firstAura(unit: Unit): BuffParticleAuraDef | undefined {
     return undefined;
 }
 
-/** Per-engine render-side system. Owned by `GameEngine`; never serialized. */
-export class BuffParticleAuraSystem {
+/** Per-engine render-side system for buff visuals (particle auras + `renderEmit`). Owned by `GameEngine`; never serialized. */
+export class BuffRenderEmitterSystem {
     private readonly states = new Map<string, AuraState>();
     private frame = 0;
 
-    update(units: readonly Unit[], realDt: number, emit: (fx: Effect) => void): void {
+    update(
+        units: readonly Unit[],
+        realDt: number,
+        emit: (fx: Effect) => void,
+        world: { gameTime: number; halted: boolean } = { gameTime: 0, halted: false },
+    ): void {
         this.frame++;
         if (realDt <= 0) return;
+        let ctx: BuffRenderEmitContext | undefined;
         for (const unit of units) {
             if (!unit.active || !unit.isAlive() || unit.buffs.length === 0) continue;
+            for (const b of unit.buffs) {
+                if (!b.renderEmit) continue;
+                ctx ??= { realDt, gameTime: world.gameTime, halted: world.halted, emit };
+                b.renderEmit(unit, ctx);
+            }
             const aura = firstAura(unit);
             if (!aura) continue;
             let state = this.states.get(unit.id);
@@ -226,6 +251,7 @@ export class BuffParticleAuraSystem {
             y: unit.y + sin * r1,
             duration: spec.durationSec * (0.8 + 0.4 * nextRandom(state)),
             effectType: TEMPO_ORB_EFFECT_TYPE,
+            pauseBehaviour: 'continue',
             effectData: { ...data },
         }), unit.x + cos * r0, unit.y + sin * r0);
     }
@@ -259,6 +285,7 @@ export class BuffParticleAuraSystem {
             y: sy - dirY * travel,
             duration: spec.durationSec * (0.8 + 0.4 * nextRandom(state)),
             effectType: TEMPO_SPEED_LINE_EFFECT_TYPE,
+            pauseBehaviour: 'continue',
             effectData: { ...data },
         }), sx, sy);
     }

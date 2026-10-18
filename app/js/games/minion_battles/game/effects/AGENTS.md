@@ -46,9 +46,30 @@ This directory contains two distinct classes of objects that both produce visual
 | `SpriteFountainEmitter` | Data-driven emitter streaming named `SpriteEffect`s from a point with angle bias, horizontal-only launch, per-axis damping and upward accel (flame-like plumes). Config: `SpriteFountainConfig`. |
 | `StoryHomingParticleEmitter` | Custom emitter: tracks one homing particle along a bezier path to a target unit. |
 
-### emitWhilePaused
+### pauseBehaviour (readability at a pause plane)
 
-When `emitter.emitWhilePaused = true`, `EffectEmitterManager.renderUpdate` calls the emitter's `renderUpdate()` even while the game is paused. Use this for ambient particle effects that should animate during the pause screen or story pause sequences.
+`GameEngine.isSimulationHalted` is true while game ticks are not running: explicit pause, a parallel order batch (pause plane), waiting for target input, host catch-up, or a finished level. Story pauses are not halts. While halted, every effect and emitter follows its `pauseBehaviour` (`pauseBehaviour.ts`):
+
+| Value | Effect | Emitter |
+|---|---|---|
+| `'continue'` | keeps ageing on wall time | keeps emitting from the render loop (`renderUpdateWhileHalted`) |
+| `'hold'` | freezes in its current pose | stops emitting; timers frozen |
+| `'stop'` | removed | deactivated |
+
+Defaults keep older behaviour: effects `'continue'` (but `timeDomain` `'world'`/`'owner'` effects `'hold'`), emitters `'hold'`. Ability-timing emitters from `createEmitterFromDef` default to `'continue'` so windups and channels stay readable; a def can set `pauseBehaviour` to opt out. The legacy `emitWhilePaused` flag maps to `'continue'`.
+
+Pick the value by what the visual means:
+- State that is still true while paused (fields, auras, windups, channels): `'continue'`.
+- A snapshot of motion (dash / dig afterimages): `'hold'`, so the trail stays visible instead of fading to nothing or stacking on a stopped unit.
+- Nothing useful to show while paused: `'stop'`.
+
+`IntervalEmitter.renderUpdateWhileHalted` keeps its cadence on a transient accumulator and never touches the serialized `elapsed` / `accumulator`, so checkpoints stay identical across clients. Factories that run while halted run a frame-rate-dependent number of times, so they must never use engine RNG or change game state.
+
+### Buff render emission
+
+Buff-driven visuals go through `BuffRenderEmitterSystem` (`buffParticleAura.ts`), called from `GameEngine.doRenderTick` on wall time, including while halted:
+- `Buff.particleAura` (def property): idle orbs / moving speed lines (preset `BUFF_PARTICLE_AURA_PRESETS.tempo`, used by `TimeDilationBuff`). "Moving" also counts a unit that still has a movement path, so a paused unit with a queued move keeps its speed lines.
+- `Buff.renderEmit(unit, ctx)`: free-form visual emission for the state a buff represents (Gravity Locus's field uses it). Derived from serialized buff state every frame, so it is reconnect-safe. Prefer this over emitting visuals from `onGameTick`, which goes blank at a pause plane.
 
 ### posSnapshot pattern
 
@@ -65,7 +86,7 @@ Custom subclasses (`AlphaWolfStoryEmitter`, `StoryHomingParticleEmitter`) do ser
 1. Create an emitter instance (e.g. `new IntervalEmitter({ x, y, lifetime: 2, intervalSeconds: 0.1, factory: (em, engine) => [...] })`).
 2. Register it: `engine.addEffectEmitter(emitter)` (available on `EngineContext`).
 3. The `EffectEmitterManager` will tick it during game ticks and collect produced Effects.
-4. For render-tick emission (particles through pause), use `ContinuousEmitter` with `emitWhilePaused: true`.
+4. Choose a `pauseBehaviour` (see below). For a visual tied to a buff, use `Buff.renderEmit` / `Buff.particleAura` instead of an emitter.
 5. To tie the emitter's lifetime to an ability timing window, set `lifetime: Infinity` and call `emitter.active = false` from the ability's completion callback.
 
 ---

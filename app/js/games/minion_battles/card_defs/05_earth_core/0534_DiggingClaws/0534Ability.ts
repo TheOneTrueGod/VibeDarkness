@@ -161,6 +161,8 @@ export const DiggingClawsAbility: AbilityStatic = {
 					x: em.x,
 					y: em.y,
 					duration: AFTERIMAGE_DURATION,
+					// Hold the trail snapshot at a pause plane instead of letting it fade to nothing.
+					pauseBehaviour: 'hold',
 					effectType: 'Afterimage',
 					effectData,
 				})];

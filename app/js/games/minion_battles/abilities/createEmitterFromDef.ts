@@ -15,6 +15,14 @@ import {
     type Vec2,
 } from '../game/effects/EffectEmitter';
 import type { AbilityTimingEmitterDef } from './abilityTimings';
+import type { PauseBehaviour } from '../game/effects/pauseBehaviour';
+
+/** Ability-timing emitters keep emitting while paused unless the def says otherwise. */
+function resolveEmitterPauseBehaviour(def: AbilityTimingEmitterDef): PauseBehaviour {
+    if (def.pauseBehaviour) return def.pauseBehaviour;
+    if (def.mode === 'continuous' && def.emitWhilePaused === false) return 'hold';
+    return 'continue';
+}
 
 /**
  * Resolve the effectType and effectData for an emitter def, applying spriteEffectId shorthand
@@ -56,6 +64,7 @@ export function createEmitterFromDef(
             attachedToUnitId: config.attachedToUnitId,
             timeDomain: def.timeDomain,
             ownerActorId: config.attachedToUnitId,
+            pauseBehaviour: resolveEmitterPauseBehaviour(def),
             factory: (emitter) => {
                 const effects: Effect[] = [];
                 for (let i = 0; i < count; i++) {
@@ -86,6 +95,7 @@ export function createEmitterFromDef(
             fireImmediately: def.fireImmediately,
             timeDomain: def.timeDomain,
             ownerActorId: config.attachedToUnitId,
+            pauseBehaviour: resolveEmitterPauseBehaviour(def),
             factory: (emitter) => [
                 new Effect({
                     x: emitter.x,
@@ -109,7 +119,7 @@ export function createEmitterFromDef(
         y: config.y,
         attachedToUnitId: config.attachedToUnitId,
         lifetime: config.lifetime,
-        emitWhilePaused: def.emitWhilePaused ?? false,
+        pauseBehaviour: resolveEmitterPauseBehaviour(def),
         emitIntervalFrames: def.emitIntervalFrames ?? 1,
         factory: (emitter: ContinuousEmitter, _posSnapshot: Map<string, Vec2>) => [
             new Effect({

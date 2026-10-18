@@ -8,6 +8,7 @@ import { LightSource } from '../lightSources/LightSource';
 import type { TeamId } from '../teams';
 import { FIXED_DT } from '../gameConstants';
 import { resolveTimeDomainRate, type OwnerTempoResolver } from './timeDomain';
+import { resolveEffectPauseBehaviour } from './pauseBehaviour';
 
 export class EffectManager {
     effects: Effect[] = [];
@@ -72,11 +73,17 @@ export class EffectManager {
     }
 
     /**
-     * Called every render frame — advances purely visual effects.
+     * Called every render frame — advances purely visual effects. While `halted` (pause plane), each effect
+     * follows its pause behaviour: 'continue' ages as normal, 'hold' freezes, 'stop' is removed.
      */
-    renderUpdate(realDt: number): void {
+    renderUpdate(realDt: number, halted = false): void {
         for (const effect of this.effects) {
             if (!effect.active) continue;
+            if (halted) {
+                const behaviour = resolveEffectPauseBehaviour(effect);
+                if (behaviour === 'hold') continue;
+                if (behaviour === 'stop') { effect.active = false; continue; }
+            }
             const rate = this.rateFor(effect);
             effect.renderUpdate(rate === 1 ? realDt : realDt * rate);
         }

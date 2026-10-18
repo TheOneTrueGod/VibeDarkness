@@ -247,6 +247,8 @@ export class DashBehaviour implements CastBehaviour {
             x: ctx.caster.x,
             y: ctx.caster.y,
             duration: AFTERIMAGE_DURATION,
+            // Hold the trail snapshot at a pause plane instead of letting it fade to nothing.
+            pauseBehaviour: 'hold',
             effectType: 'Afterimage',
             effectData: {
                 bodyColor: ai.bodyColor,

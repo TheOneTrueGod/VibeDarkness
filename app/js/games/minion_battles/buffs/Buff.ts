@@ -16,7 +16,7 @@ import type { TerrainManager } from '../terrain/TerrainManager';
 import type { EngineContext } from '../game/EngineContext';
 import type { Effect } from '../game/effects/Effect';
 import type { TimeModifier } from '../game/time/TimeModifier';
-import type { BuffParticleAuraDef } from '../game/effects/buffParticleAura';
+import type { BuffParticleAuraDef, BuffRenderEmitContext } from '../game/effects/buffParticleAura';
 
 /**
  * Which clock a timed buff's duration runs on. `'world'` (default): `engine.gameTime`. `'owner'`: the
@@ -87,6 +87,13 @@ export abstract class Buff {
      * `BuffParticleAuraSystem`, so they keep animating while paused. See `game/effects/buffParticleAura.ts`.
      */
     readonly particleAura?: BuffParticleAuraDef;
+
+    /**
+     * Optional render-time visual emission for state the buff represents (e.g. a field). Called every render frame
+     * on wall time, including while the simulation is halted, so the state stays readable at a pause plane.
+     * Purely visual: must not change game state or use engine RNG. Default none.
+     */
+    renderEmit?(unit: Unit, ctx: BuffRenderEmitContext): void;
 
     /** Game time (seconds) when buff was applied (local time when `clock === 'owner'`). Set by Unit when adding. */
     appliedAtTime: number = 0;

@@ -9,6 +9,7 @@ import { GameObject, generateGameObjectId } from '../GameObject';
 import { computeDamageNumberWorldPosition, type DamageNumberMotionData } from './damageNumberMotion';
 import type { EffectProperties } from './effectProperties';
 import type { EffectTimeDomain } from './timeDomain';
+import type { PauseBehaviour } from './pauseBehaviour';
 
 export class Effect extends GameObject {
     /** Total duration in seconds. */
@@ -27,6 +28,8 @@ export class Effect extends GameObject {
     timeDomain?: EffectTimeDomain;
     /** Actor whose step rate drives a 'owner' effect (falls back to effectData.ownerUnitId). */
     ownerActorId?: string;
+    /** While the simulation is halted (pause plane). Undefined = default (see `resolveEffectPauseBehaviour`). */
+    pauseBehaviour?: PauseBehaviour;
     /** When set, effect travels from (startX, startY) to (endX, endY) over its duration. */
     private startX?: number;
     private endX: number;
@@ -56,6 +59,8 @@ export class Effect extends GameObject {
         timeDomain?: EffectTimeDomain;
         /** Owner actor for timeDomain 'owner'. */
         ownerActorId?: string;
+        /** While the simulation is halted: 'continue' | 'hold' | 'stop'. See pauseBehaviour.ts. */
+        pauseBehaviour?: PauseBehaviour;
     }) {
         super(config.id ?? generateGameObjectId('fx'), config.x, config.y);
         this.duration = config.duration;
@@ -65,6 +70,7 @@ export class Effect extends GameObject {
         if (config.effectProperties) this.effectProperties = config.effectProperties;
         if (config.timeDomain && config.timeDomain !== 'wall') this.timeDomain = config.timeDomain;
         if (config.ownerActorId) this.ownerActorId = config.ownerActorId;
+        if (config.pauseBehaviour) this.pauseBehaviour = config.pauseBehaviour;
         this.endX = config.x;
         this.endY = config.y;
         this.startX = config.startX;
