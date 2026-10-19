@@ -21,6 +21,7 @@ cost, only clamped so it can't kill the caster).
 | `0302_Burst/` | Cone damage costing HP, modeled on `card_defs/0121_ConeOfLight/` |
 | `0303_Protect/` | Ally shield buff (`buffs/ShieldBuff.ts`) costing HP + ally-centered splash |
 | `0304_BloodShard/` | Quick-throw blood projectile costing a little HP; 2 uses per round (`roundCharge`) |
+| `0305_BloodPact/` | Links an ally to the caster for 2 rounds (`buffs/DamageLinkBuff.ts`): half the ally's life loss moves to the caster. HP cost paid over time (`buffs/HpDrainBuff.ts`); tether drawn by `buffs/tetherVisual.ts` |
 | `../../abilities/bloodMageAllySplash.ts` | Shared ally-target splash (radius / damage / max targets, hover preview hitbox, active-frame damage) for Mend + Protect |
 | `../../abilities/bloodMageVfx.ts` | Shared blood-mist VFX helpers (windup burst, travel, impact flash) — reused by every Blood Mage ability instead of bespoke one-offs |
 | `../../game/effect_defs/bloodMageEffects.ts` | Effect visuals the helpers above spawn (`BloodMistBurst`, `BloodMistImpact`, `BloodConeFlash`) |

@@ -4,6 +4,7 @@ import type { EngineContext } from '../EngineContext';
 import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
 import { applyDamageToEarthCoreArmour } from '../../abilities/earthCoreArmour';
 import { applyDamageToShields } from './unitShield';
+import { applyDamageLinks } from './unitDamageLinks';
 import { DarknessLevel } from '../darknessLevels';
 import { DEFAULT_FROZEN_HIT_POLICY, type FrozenHitPolicy } from '../time/timeConstants';
 
@@ -80,10 +81,20 @@ export function applyDamageToUnitDetailed(
         return NO_DAMAGE_BREAKDOWN;
     }
     const incomingAmount = unit.hasBuff('exposed') ? Math.round(amount * 1.2) : amount;
-    const shieldDamage = applyDamageToShields(unit, incomingAmount);
-    const armourDamage = applyDamageToEarthCoreArmour(unit, shieldDamage.remainingDamage);
+    // `shieldShare` < 1 lets part of the hit bypass shields (e.g. Blood Pact's redirected damage).
+    const shieldShare = Math.min(1, Math.max(0, opts?.shieldShare ?? 1));
+    const shieldable = incomingAmount * shieldShare;
+    const shieldDamage = applyDamageToShields(unit, shieldable);
+    const armourDamage = applyDamageToEarthCoreArmour(
+        unit,
+        shieldDamage.remainingDamage + (incomingAmount - shieldable),
+    );
+    // Damage links move part of the remaining HP loss onto the linked unit.
+    const hpLoss = opts?.skipDamageLinks
+        ? armourDamage.remainingDamage
+        : applyDamageLinks(unit, armourDamage.remainingDamage, sourceUnitId, eventBus, opts?.visualKind);
 
-    let remaining = armourDamage.remainingDamage;
+    let remaining = hpLoss;
     const prevStackSize = unit.stackSize;
     if (unit.stackSize > 1 && remaining >= unit.hp) {
         remaining -= unit.hp;
@@ -98,7 +109,7 @@ export function applyDamageToUnitDetailed(
     } else {
         unit.hp = Math.max(0, unit.hp - remaining);
     }
-    const actual = armourDamage.remainingDamage;
+    const actual = hpLoss;
     const membersKilled = prevStackSize - Math.max(0, unit.stackSize);
     if (membersKilled > 0 && unit.hp > 0) {
         eventBus.emit('stack_members_died', { unitId: unit.id, count: membersKilled });

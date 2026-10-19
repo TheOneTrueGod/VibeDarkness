@@ -407,7 +407,7 @@ export class UnitRenderer {
                 // .clear() resets drawing commands but not .filters — reset explicitly each
                 // frame so a shield shimmer (buffVisuals.ts) doesn't linger after it expires.
                 buffEffects.filters = null;
-                const buffCtx = { gameTime };
+                const buffCtx = { gameTime, wallTime: nowMs / 1000, getUnit: (id: string) => engine.getUnit(id) };
                 for (const buff of unit.buffs) {
                     const renderer = getBuffVisualRenderer(buff._type);
                     renderer(buffEffects, unit, buff, buffCtx);

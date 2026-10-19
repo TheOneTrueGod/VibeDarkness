@@ -16,6 +16,8 @@ import { LiftedBuff, LIFTED_BUFF_TYPE } from './LiftedBuff';
 import { GravityLocusFieldBuff, GRAVITY_LOCUS_FIELD_BUFF_TYPE } from './GravityLocusFieldBuff';
 import { ShieldBuff, SHIELD_BUFF_TYPE } from './ShieldBuff';
 import { TimeDilationBuff, TIME_DILATION_BUFF_TYPE } from './TimeDilationBuff';
+import { DamageLinkBuff, DAMAGE_LINK_BUFF_TYPE } from './DamageLinkBuff';
+import { HpDrainBuff, HP_DRAIN_BUFF_TYPE } from './HpDrainBuff';
 
 type BuffDeserializer = (data: BuffSerialized) => Buff;
 
@@ -31,6 +33,8 @@ const registry: Record<string, BuffDeserializer> = {
     [GRAVITY_LOCUS_FIELD_BUFF_TYPE]: GravityLocusFieldBuff.fromSerialized as BuffDeserializer,
     [SHIELD_BUFF_TYPE]: ShieldBuff.fromJSON as BuffDeserializer,
     [TIME_DILATION_BUFF_TYPE]: TimeDilationBuff.fromJSON as BuffDeserializer,
+    [DAMAGE_LINK_BUFF_TYPE]: DamageLinkBuff.fromJSON as BuffDeserializer,
+    [HP_DRAIN_BUFF_TYPE]: HpDrainBuff.fromJSON as BuffDeserializer,
 };
 
 /** Deserialize a buff from JSON. Returns the buff instance or throws if type unknown. */

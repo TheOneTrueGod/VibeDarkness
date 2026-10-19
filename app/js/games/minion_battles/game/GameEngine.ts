@@ -75,6 +75,7 @@ import {
 import { tickAllDots, DOT_TICKS_PER_ROUND } from './dotTick';
 import { tickDayLightDamage } from './lighting/dayLightDamage';
 import { clearUnitTileTransitionState } from './terrainEffects/tileTransitions';
+import { registerDamageLinkListeners } from './units/unitDamageLinks';
 import { createDamageTakenEffect } from './createDamageTakenEffect';
 import { CantDieBuff } from '../buffs/CantDieBuff';
 import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
@@ -891,6 +892,11 @@ export class GameEngine implements EngineContext {
         this.state.interruptSystem.registerListeners(this.eventBus);
         this.state.worldModifierManager.registerListeners(this.eventBus);
         this.eventBus.on('cast_ended_early', this.recordPreviewCastEndedEarly);
+        registerDamageLinkListeners({
+            eventBus: this.eventBus,
+            getUnit: (id) => this.getUnit(id),
+            getUnits: () => this.units,
+        });
 
         // unit_died: apply deathSequence (or onDeathVisualEffects) and onDeathBehaviors from the unit def directly.
         this.eventBus.on('unit_died', (data) => {

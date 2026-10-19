@@ -11,6 +11,7 @@ import type { ClearedTerrainEffect } from './TerrainLayerManager';
 
 export type GameEventType =
     | 'damage_taken'
+    | 'damage_redirected'
     | 'round_start'
     | 'turn_start'
     | 'turn_end'
@@ -48,6 +49,35 @@ export interface DamageApplyOptions {
      * this wins over the engine default (`DEFAULT_FROZEN_HIT_POLICY`). See `game/time/AGENTS.md`.
      */
     frozenHitPolicy?: import('./time/timeConstants').FrozenHitPolicy;
+    /**
+     * Fraction (0-1) of this hit that shield buffs may absorb; the rest bypasses shields and
+     * continues to armour/HP. Default 1 (shields absorb everything they can).
+     */
+    shieldShare?: number;
+    /** When true, damage links (`DamageLinkBuff`) on the target do not redirect this hit. Set on redirected hits so links never chain. */
+    skipDamageLinks?: boolean;
+}
+
+/**
+ * Fired by the damage pipeline when a `DamageLinkBuff` moves part of a unit's HP loss onto the
+ * linked unit. Handled synchronously by `registerDamageLinkListeners`, which applies the damage.
+ */
+export interface DamageRedirectedEvent {
+    /** Unit whose HP loss was reduced. */
+    fromUnitId: string;
+    /** Unit that takes the redirected amount. */
+    toUnitId: string;
+    amount: number;
+    /** `shieldShare` for the redirected hit on `toUnitId`. */
+    shieldShare: number;
+    /** Original attacker, kept so kill credit and reactions stay correct. */
+    sourceUnitId: string | null;
+    visualKind?: DamageVisualKind;
+    /**
+     * Set to true by the listener that applied the redirect. When nobody handles it (no listener,
+     * or the linked unit is gone) the original unit keeps the share.
+     */
+    handled: boolean;
 }
 
 export interface DamageTakenEvent {
@@ -248,6 +278,7 @@ export interface WorldPaceChangedEvent {
 
 export type GameEventDataMap = {
     damage_taken: DamageTakenEvent;
+    damage_redirected: DamageRedirectedEvent;
     round_start: RoundStartEvent;
     turn_start: TurnStartEvent;
     turn_end: TurnEndEvent;

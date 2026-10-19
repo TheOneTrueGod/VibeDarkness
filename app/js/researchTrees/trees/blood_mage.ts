@@ -8,6 +8,7 @@ export const BLOOD_MAGE_NODE_CORE = 'blood_mage_core';
 export const BLOOD_MAGE_NODE_BURST = 'blood_mage_burst';
 export const BLOOD_MAGE_NODE_PROTECT = 'blood_mage_protect';
 export const BLOOD_MAGE_NODE_SHARD = 'blood_mage_shard';
+export const BLOOD_MAGE_NODE_PACT = 'blood_mage_pact';
 
 export const BLOOD_CORE_CRYSTAL_COST = 12;
 export const BLOOD_CORE_FOOD_COST = 8;
@@ -24,6 +25,10 @@ export const BLOOD_WARD_METAL_COST = 3;
 export const BLOOD_SHARD_CRYSTAL_COST = 12;
 export const BLOOD_SHARD_FOOD_COST = 8;
 export const BLOOD_SHARD_METAL_COST = 2;
+
+export const BLOOD_PACT_CRYSTAL_COST = 13;
+export const BLOOD_PACT_FOOD_COST = 8;
+export const BLOOD_PACT_METAL_COST = 3;
 
 export const bloodMageTree: ResearchTreeDef = {
     id: BLOOD_MAGE_TREE_ID,
@@ -125,6 +130,29 @@ export const bloodMageTree: ResearchTreeDef = {
             },
             effects: [
                 { type: 'addCard', cardId: '0304' },
+            ],
+        },
+        {
+            id: BLOOD_MAGE_NODE_PACT,
+            title: 'Blood Pact',
+            description:
+                "Bind your life to an ally's, taking half of their wounds as your own.",
+            flavorText: 'What is shared in blood is halved in death.',
+            order: 25,
+            tier: 12,
+            position: { x: 660, y: 430 },
+            prereqNodeIds: [BLOOD_MAGE_NODE_CORE],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: BLOOD_MAGE_TREE_ID, nodeIds: [BLOOD_MAGE_NODE_CORE] },
+            ],
+            cost: {
+                crystals: BLOOD_PACT_CRYSTAL_COST,
+                food: BLOOD_PACT_FOOD_COST,
+                metal: BLOOD_PACT_METAL_COST,
+            },
+            effects: [
+                { type: 'addCard', cardId: '0305' },
             ],
         },
     ],

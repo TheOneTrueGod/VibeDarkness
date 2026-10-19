@@ -14,6 +14,9 @@ import { LIFTED_BUFF_TYPE } from './liftedBuffType';
 import { GRAVITY_LOCUS_FIELD_BUFF_TYPE } from './GravityLocusFieldBuff';
 import { SHIELD_BUFF_TYPE, ShieldBuff } from './ShieldBuff';
 import { TIME_DILATION_BUFF_TYPE } from './TimeDilationBuff';
+import { DAMAGE_LINK_BUFF_TYPE, type DamageLinkBuff } from './DamageLinkBuff';
+import { HP_DRAIN_BUFF_TYPE } from './HpDrainBuff';
+import { drawSnakingTether, TETHER_STYLE_PRESETS } from './tetherVisual';
 import { type ShieldShimmerFilter, tryCreateShieldShimmerFilter } from '../game/ShieldShimmerFilter';
 import { GRAVITY_VIOLET } from '../game/effect_defs/aoeEffects';
 import { LIGHT_SHIELD_COLOR, LIGHT_SHIELD_COLOR_INNER } from '../card_defs/08_light_core/0805_ShieldOfLight/0805Constants';
@@ -21,6 +24,10 @@ import { LIGHT_SHIELD_COLOR, LIGHT_SHIELD_COLOR_INNER } from '../card_defs/08_li
 /** Context passed when rendering a buff visual. */
 export interface IBuffVisualContext {
     gameTime: number;
+    /** Wall-clock seconds; keeps state visuals (e.g. tethers) animating while the game is paused. */
+    wallTime?: number;
+    /** Live unit lookup for visuals that reach another unit (e.g. damage-link tethers). */
+    getUnit?(id: string): Unit | undefined;
 }
 
 /** Renders a buff's visual into the given Graphics (in unit-local coordinates). */
@@ -141,6 +148,35 @@ const bleedBuffVisual: BuffVisualRenderer = (g, unit, buff, _ctx) => {
 };
 
 /**
+ * Damage link: snaking tether from the linked (protected) unit to the unit taking the redirected
+ * share, flowing toward the latter. Drawn in the protected unit's local space.
+ */
+const damageLinkBuffVisual: BuffVisualRenderer = (g, unit, buff, ctx) => {
+    const link = buff as DamageLinkBuff;
+    const linked = ctx.getUnit?.(link.linkedUnitId);
+    if (!linked?.isAlive()) return;
+    drawSnakingTether(
+        g,
+        {
+            from: { x: 0, y: 0 },
+            to: { x: linked.x - unit.x, y: linked.y - unit.y },
+            fromInset: unit.radius,
+            toInset: linked.radius,
+        },
+        TETHER_STYLE_PRESETS[link.theme],
+        ctx.wallTime ?? ctx.gameTime,
+    );
+};
+
+/** HP drain: a slow blood drip below the unit. */
+const hpDrainBuffVisual: BuffVisualRenderer = (g, unit, _buff, ctx) => {
+    const cycle = ((ctx.wallTime ?? ctx.gameTime) * 0.8) % 1;
+    const y = unit.radius * 0.6 + cycle * 8;
+    g.ellipse(unit.radius * 0.5, y, 1.8, 2.4);
+    g.fill({ color: 0xb91c1c, alpha: 0.85 * (1 - cycle) });
+};
+
+/**
  * Gravity Shield: a pulsing violet crush-shell. No blood shimmer — Gravity's palette is
  * `#a855f7`, and the blood shader would read as Protect on a gravity cast.
  */
@@ -249,3 +285,5 @@ const timeDilationBuffVisual: BuffVisualRenderer = (g, unit, _buff, ctx) => {
     g.stroke({ color: GRAVITY_VIOLET, width: 1, alpha: 0.2 + 0.15 * pulse });
 };
 registerBuffVisual(TIME_DILATION_BUFF_TYPE, timeDilationBuffVisual);
+registerBuffVisual(DAMAGE_LINK_BUFF_TYPE, damageLinkBuffVisual);
+registerBuffVisual(HP_DRAIN_BUFF_TYPE, hpDrainBuffVisual);
