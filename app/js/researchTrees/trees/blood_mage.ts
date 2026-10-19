@@ -7,6 +7,7 @@ export const BLOOD_MAGE_TREE_ID = 'blood_mage';
 export const BLOOD_MAGE_NODE_CORE = 'blood_mage_core';
 export const BLOOD_MAGE_NODE_BURST = 'blood_mage_burst';
 export const BLOOD_MAGE_NODE_PROTECT = 'blood_mage_protect';
+export const BLOOD_MAGE_NODE_SHARD = 'blood_mage_shard';
 
 export const BLOOD_CORE_CRYSTAL_COST = 12;
 export const BLOOD_CORE_FOOD_COST = 8;
@@ -19,6 +20,10 @@ export const BLOOD_BURST_METAL_COST = 2;
 export const BLOOD_WARD_CRYSTAL_COST = 9;
 export const BLOOD_WARD_FOOD_COST = 8;
 export const BLOOD_WARD_METAL_COST = 3;
+
+export const BLOOD_SHARD_CRYSTAL_COST = 12;
+export const BLOOD_SHARD_FOOD_COST = 8;
+export const BLOOD_SHARD_METAL_COST = 2;
 
 export const bloodMageTree: ResearchTreeDef = {
     id: BLOOD_MAGE_TREE_ID,
@@ -97,6 +102,29 @@ export const bloodMageTree: ResearchTreeDef = {
             },
             effects: [
                 { type: 'addCard', cardId: '0303' },
+            ],
+        },
+        {
+            id: BLOOD_MAGE_NODE_SHARD,
+            title: 'Blood Shard',
+            description:
+                'Harden a drop of your blood into a sharp shard and fling it at a foe.',
+            flavorText: 'A small cut, a quick answer.',
+            order: 20,
+            tier: 11,
+            position: { x: 420, y: 430 },
+            prereqNodeIds: [BLOOD_MAGE_NODE_CORE],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: BLOOD_MAGE_TREE_ID, nodeIds: [BLOOD_MAGE_NODE_CORE] },
+            ],
+            cost: {
+                crystals: BLOOD_SHARD_CRYSTAL_COST,
+                food: BLOOD_SHARD_FOOD_COST,
+                metal: BLOOD_SHARD_METAL_COST,
+            },
+            effects: [
+                { type: 'addCard', cardId: '0304' },
             ],
         },
     ],

@@ -5,6 +5,7 @@
 
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
+import { payHpCost } from '../../../abilities/hpCost';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { resolveTargetToPoint } from '../../../abilities/targeting';
 import type { AbilityRecoveryRule } from '../../../abilities/Ability';
@@ -130,9 +131,7 @@ export const ProtectAbility_0303 = defineAbility({
                     : null;
                 if (!targetUnit?.isAlive()) return;
 
-                // Gated by hpCost's default 'requireSurplus' (hp > HP_COST to cast), so a flat
-                // deduction is safe — no floorAtOne clamp needed (contrast with Blood Mend 0301).
-                ctx.caster.hp -= HP_COST;
+                payHpCost(ctx.caster, HP_COST);
                 targetUnit.addBuff(
                     new ShieldBuff(SHIELD_HP, SHIELD_DRAIN_PER_SECOND),
                     eng.gameTime,

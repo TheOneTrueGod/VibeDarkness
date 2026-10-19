@@ -17,6 +17,7 @@
 import type { AbilityRecoveryRule, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
+import { payHpCost } from '../../../abilities/hpCost';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { HitboxSpec } from '../../../hitboxes/HitboxSpec';
 import type { HitboxEngineContext, HitboxPreviewCaster } from '../../../hitboxes';
@@ -212,10 +213,7 @@ export const BurstAbility_0302 = defineAbility({
                     // (keyed by behaviour index), so no separate leading interval is needed.
                     timingStart: 'start',
                     behaviour: CastBehaviours.Instant((ctx) => {
-                        // Gated by hpCost's default 'requireSurplus' (hp > HP_COST to cast),
-                        // so a flat deduction is safe — no floorAtOne clamp needed here
-                        // (contrast with Blood Mend 0301's payHpCostFloorAtOne).
-                        ctx.caster.hp -= HP_COST;
+                        payHpCost(ctx.caster, HP_COST);
                     }),
                 },
                 {

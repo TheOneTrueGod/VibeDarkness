@@ -1,6 +1,6 @@
 /**
- * Shared "blood mist" VFX helpers reused by all three Blood Mage abilities (Blood Mend 0301,
- * Burst 0302, Protect 0303) instead of bespoke one-offs per ability. See
+ * Shared "blood mist" VFX helpers reused by the Blood Mage abilities (Blood Mend 0301,
+ * Burst 0302, Protect 0303, Blood Shard 0304) instead of bespoke one-offs per ability. See
  * `card_defs/03_blood_mage/AGENTS.md` for the visual-identity intent (black+red, always
  * blended/misty, never a stark split) these helpers exist to serve. Placement precedent:
  * `abilities/gatherLightHelpers.ts`.
@@ -15,7 +15,7 @@ import {
     BLOOD_MIST_RED,
 } from '../game/effect_defs/bloodMageEffects';
 
-export type BloodMistVariant = 'heal' | 'burst' | 'shield';
+export type BloodMistVariant = 'heal' | 'burst' | 'shield' | 'shard';
 
 /** Per-variant accent tint layered over the shared black mist base (see the effect defs) —
  * keeps all three abilities visually related while still reading as distinct casts. */
@@ -23,9 +23,11 @@ const BLOOD_MIST_VARIANT_COLOR: Record<BloodMistVariant, number> = {
     heal: 0xb91c1c,
     burst: 0x991b1b,
     shield: 0x7f1d1d,
+    shard: 0xdc2626,
 };
 
-function variantColor(variant?: BloodMistVariant): number {
+/** Accent tint for `variant` — also used by declarative VFX defs (e.g. Blood Shard's impact). */
+export function bloodMistVariantColor(variant?: BloodMistVariant): number {
     return variant ? BLOOD_MIST_VARIANT_COLOR[variant] : BLOOD_MIST_RED;
 }
 
@@ -52,7 +54,7 @@ export function spawnBloodMistWindupBurst(
         duration: opts.duration ?? BLOOD_MIST_WINDUP_DURATION,
         effectType: BLOOD_MIST_BURST_EFFECT_TYPE,
         effectRadius: opts.radius ?? caster.radius + 14,
-        effectData: { color: variantColor(opts.variant) },
+        effectData: { color: bloodMistVariantColor(opts.variant) },
     }));
 }
 
@@ -89,7 +91,7 @@ export function spawnBloodMistTravel(
         duration: opts.flightDuration ?? BLOOD_MIST_TRAVEL_DEFAULT_DURATION,
         effectType: BLOOD_MIST_BURST_EFFECT_TYPE,
         effectRadius: opts.radius ?? 10,
-        effectData: { color: variantColor(opts.variant) },
+        effectData: { color: bloodMistVariantColor(opts.variant) },
     }));
 }
 
@@ -111,6 +113,6 @@ export function spawnBloodMistImpactFlash(
         duration: opts.duration ?? BLOOD_MIST_IMPACT_DURATION,
         effectType: BLOOD_MIST_IMPACT_EFFECT_TYPE,
         effectRadius: opts.radius ?? 18,
-        effectData: { variant: opts.variant, color: variantColor(opts.variant) },
+        effectData: { variant: opts.variant, color: bloodMistVariantColor(opts.variant) },
     }));
 }

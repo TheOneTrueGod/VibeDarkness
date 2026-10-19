@@ -15,6 +15,7 @@ import type { SelectTargetDef } from '../abilities/timingTargetDef';
 import { nullHitbox, type HitboxSpec } from '../hitboxes';
 import type { ActiveAbility } from '../game/types';
 import type { Unit } from '../game/units/Unit';
+import type { VisualEffectDef } from '../game/effects/visualEffectDef';
 import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
 
 export const THROW_RANGE = 200;
@@ -83,6 +84,26 @@ export const ROCK_THROW_PROFILE: ThrowTimingProfile = {
     prefireTime: BASE_THROW_WINDUP_END + ROCK_THROW_WINDUP_EXTRA,
 };
 
+/** Quick throws take a third less windup than the base throw and recover sooner. */
+export const QUICK_THROW_WINDUP_SCALE = 2 / 3;
+const QUICK_THROW_WINDUP_SAVED = BASE_THROW_WINDUP_END * (1 - QUICK_THROW_WINDUP_SCALE);
+/** Extra recovery trimmed off quick throws on top of the shorter windup. */
+const QUICK_THROW_COOLDOWN_TRIM = 0.3;
+
+/**
+ * Quick throws (Blood Shard): a flick rather than a wind-up throw. Windup 0.3s -> 0.2s with the
+ * rest of the timeline shifted earlier, a shorter recovery, and the standard 30% slow.
+ */
+export const QUICK_THROW_PROFILE: ThrowTimingProfile = {
+    windupEnd: BASE_THROW_WINDUP_END - QUICK_THROW_WINDUP_SAVED,
+    activeEnd: BASE_THROW_ACTIVE_END - QUICK_THROW_WINDUP_SAVED,
+    cooldownEnd: BASE_THROW_COOLDOWN_END - QUICK_THROW_WINDUP_SAVED - QUICK_THROW_COOLDOWN_TRIM,
+    movementPenaltyUntil: BASE_MOVEMENT_PENALTY_UNTIL - QUICK_THROW_WINDUP_SAVED,
+    windupMovementPenalty: BASE_THROW_MOVEMENT_PENALTY,
+    movementPenalty: BASE_THROW_MOVEMENT_PENALTY,
+    prefireTime: BASE_THROW_WINDUP_END - QUICK_THROW_WINDUP_SAVED,
+};
+
 export const ONE_PIXEL_TARGET: TargetDef[] = [{ type: 'pixel', label: 'Target location' }];
 export const TWO_PIXEL_TARGETS: TargetDef[] = [
     { type: 'pixel', label: 'Target location' },
@@ -148,6 +169,12 @@ export interface BuildThrowBaseTimingsOpts {
     activeLabel?: string;
     cooldownLabel?: string;
     launchBehaviour?: CastBehaviour;
+    /** Extra one-shot behaviours when the windup starts (e.g. a windup VFX). */
+    windupBehaviours?: CastBehaviour[];
+    /** Extra one-shot behaviours at the release frame alongside the launch (e.g. paying an HP cost). */
+    releaseBehaviours?: CastBehaviour[];
+    /** Visual effects at the projectile's hit / expiry point. */
+    onProjectileHit?: VisualEffectDef[];
     entombed?: EntombedTimingOpts;
     /** When set, pipe timings through Combo Cancel at this phase entry (after entombed). */
     comboCancelPhase?: AbilityPhase;
@@ -178,6 +205,12 @@ export function buildThrowBaseTimings(opts: BuildThrowBaseTimingsOpts = {}): Abi
     const activeEnd = opts.activeEnd ?? profile.activeEnd;
     const cooldownEnd = opts.cooldownEnd ?? profile.cooldownEnd;
     const launch = opts.launchBehaviour;
+    const windupEntries: CastBehaviourEntry[] = (opts.windupBehaviours ?? [])
+        .map((behaviour): CastBehaviourEntry => ({ timingStart: 'start', behaviour }));
+    const releaseEntries: CastBehaviourEntry[] = [
+        ...(launch ? throwLaunchAtWindowStart(launch, 0) : []),
+        ...(opts.releaseBehaviours ?? []).map((behaviour): CastBehaviourEntry => ({ timingStart: 'start', behaviour })),
+    ];
 
     const raw: AbilityTimingInterval[] = [
         {
@@ -187,6 +220,7 @@ export function buildThrowBaseTimings(opts: BuildThrowBaseTimingsOpts = {}): Abi
             abilityPhase: AbilityPhase.Windup,
             timelineLabel: opts.windupLabel ?? 'Startup',
             timelineDescription: 'Winding up to throw.',
+            ...(windupEntries.length > 0 ? { castBehaviours: windupEntries } : {}),
         },
         {
             id: 'active',
@@ -198,7 +232,8 @@ export function buildThrowBaseTimings(opts: BuildThrowBaseTimingsOpts = {}): Abi
             timelineDescription: 'Release frame — projectile is thrown.',
             // Picked right before the throw (same as More Rock), not up front at cast start.
             targetDef: { ...throwSelectTargetDef('Target location', opts), pickAtEntry: true },
-            ...(launch ? { castBehaviours: throwLaunchAtWindowStart(launch, 0) } : {}),
+            ...(releaseEntries.length > 0 ? { castBehaviours: releaseEntries } : {}),
+            ...(opts.onProjectileHit ? { onProjectileHit: opts.onProjectileHit } : {}),
         },
         {
             id: 'cooldown',

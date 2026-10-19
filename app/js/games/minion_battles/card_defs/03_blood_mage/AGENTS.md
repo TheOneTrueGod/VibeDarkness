@@ -1,13 +1,17 @@
 # Blood Mage (Ability group 03)
 
 Ranged/mid-range archetype that spends its own HP as a resource to heal, hit, and shield allies.
-All three abilities cost HP to cast — see `abilities/Ability.ts`'s `hpCost`/`hpCostGate`.
+Every ability costs HP to cast — see `abilities/Ability.ts`'s `hpCost`/`hpCostGate`; deduct it with
+`abilities/hpCost.ts` (`payHpCost` / `payHpCostBehaviour`), never by hand.
 
 **Visual identity:** black + red, always **blended/misty** — never a stark two-tone split. The
 mist reads as life, blood, and death together, not "good half / bad half."
 
 **Mechanical feel:** deliberately risky — longer windups than the typical ~0.2-0.4s norm, so
-casting exposes the Blood Mage. Blood Mend's `floorAtOne` HP gate exists specifically so a
+casting exposes the Blood Mage. Blood Shard is the deliberate exception: a cheap, quick poke
+(`QUICK_THROW_PROFILE`) that fills the gaps between the slow, risky casts.
+
+Blood Mend's `floorAtOne` HP gate exists specifically so a
 dying Blood Mage can still land one last desperate save (it can never be blocked by the HP
 cost, only clamped so it can't kill the caster).
 
@@ -16,7 +20,8 @@ cost, only clamped so it can't kill the caster).
 | `0301_BloodMend/` | Ally heal costing HP (`hpCostGate: 'floorAtOne'`) + ally-centered splash |
 | `0302_Burst/` | Cone damage costing HP, modeled on `card_defs/0121_ConeOfLight/` |
 | `0303_Protect/` | Ally shield buff (`buffs/ShieldBuff.ts`) costing HP + ally-centered splash |
+| `0304_BloodShard/` | Quick-throw blood projectile costing a little HP; 2 uses per round (`roundCharge`) |
 | `../../abilities/bloodMageAllySplash.ts` | Shared ally-target splash (radius / damage / max targets, hover preview hitbox, active-frame damage) for Mend + Protect |
-| `../../abilities/bloodMageVfx.ts` | Shared blood-mist VFX helpers (windup burst, travel, impact flash) — reused by all three abilities instead of bespoke one-offs |
+| `../../abilities/bloodMageVfx.ts` | Shared blood-mist VFX helpers (windup burst, travel, impact flash) — reused by every Blood Mage ability instead of bespoke one-offs |
 | `../../game/effect_defs/bloodMageEffects.ts` | Effect visuals the helpers above spawn (`BloodMistBurst`, `BloodMistImpact`, `BloodConeFlash`) |
 | `../../game/ShieldShimmerFilter.ts` | Shield shimmer visual filter (black/red/transparent) rendered on units carrying a `ShieldBuff` |

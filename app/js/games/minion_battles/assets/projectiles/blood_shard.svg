@@ -1,0 +1,12 @@
+<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bloodShardBody" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fca5a5"/>
+      <stop offset="45%" stop-color="#dc2626"/>
+      <stop offset="100%" stop-color="#450a0a"/>
+    </linearGradient>
+  </defs>
+  <polygon points="32,4 41,30 32,60 23,30" fill="url(#bloodShardBody)" stroke="#1a0508" stroke-width="1.5"/>
+  <polyline points="32,4 32,60" stroke="#7f1d1d" stroke-width="1" fill="none" opacity="0.7"/>
+  <polygon points="32,8 37,29 32,30" fill="#fecaca" opacity="0.55"/>
+</svg>

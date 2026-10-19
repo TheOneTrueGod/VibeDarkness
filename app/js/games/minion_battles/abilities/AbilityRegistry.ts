@@ -91,6 +91,7 @@ import { CollapseAbility } from '../card_defs/09_gravity_core/0905_Collapse/0905
 import { BloodMendAbility_0301 } from '../card_defs/03_blood_mage/0301_BloodMend/0301Ability';
 import { BurstAbility_0302 } from '../card_defs/03_blood_mage/0302_Burst/0302Ability';
 import { ProtectAbility_0303 } from '../card_defs/03_blood_mage/0303_Protect/0303Ability';
+import { BloodShardAbility_0304 } from '../card_defs/03_blood_mage/0304_BloodShard/0304Ability';
 import { WaitAbility } from './WaitAbility';
 
 const ABILITY_MAP: Map<string, AbilityStatic> = new Map();
@@ -192,6 +193,7 @@ register(CollapseAbility);
 register(BloodMendAbility_0301);
 register(BurstAbility_0302);
 register(ProtectAbility_0303);
+register(BloodShardAbility_0304);
 
 setAbilityTagResolver((id) => ABILITY_MAP.get(id)?.tags ?? []);
 

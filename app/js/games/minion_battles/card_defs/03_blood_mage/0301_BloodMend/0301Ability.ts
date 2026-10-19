@@ -5,10 +5,10 @@
 
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
+import { payHpCost } from '../../../abilities/hpCost';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { resolveTargetToPoint } from '../../../abilities/targeting';
 import type { AbilityRecoveryRule } from '../../../abilities/Ability';
-import type { Unit } from '../../../game/units/Unit';
 import type { EngineContext } from '../../../game/EngineContext';
 import { applyHeal } from '../../../game/units/unitHeal';
 import {
@@ -69,16 +69,6 @@ const BLOOD_MEND_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2
   <path d="M32 24 L32 44 M23 34 L41 34" stroke="#fff5f5" stroke-width="3" stroke-linecap="round"/>
 </svg>`;
 
-/**
- * Deducts `hpCost` from the caster, clamped so it can never drop them below 1 HP (this
- * ability's `hpCostGate: 'floorAtOne'`). Must run *before* the heal so a full-HP self-cast
- * still nets the intended amount, rather than the cost being wasted by applyHeal's max-HP clamp.
- */
-function payHpCostFloorAtOne(caster: Unit, cost: number): void {
-    const deduction = Math.max(0, Math.min(cost, caster.hp - 1));
-    caster.hp -= deduction;
-}
-
 export const BloodMendAbility_0301 = defineAbility({
     id: CARD_ID,
     name: 'Blood Mend',
@@ -137,8 +127,9 @@ export const BloodMendAbility_0301 = defineAbility({
                     : null;
                 if (!targetUnit?.isAlive()) return;
 
-                // Order matters: pay the HP cost before healing (see payHpCostFloorAtOne doc).
-                payHpCostFloorAtOne(ctx.caster, HP_COST);
+                // Order matters: pay the HP cost before healing so a full-HP self-cast still nets the
+                // intended amount, rather than the cost being wasted by applyHeal's max-HP clamp.
+                payHpCost(ctx.caster, HP_COST, 'floorAtOne');
                 applyHeal(targetUnit, HEAL_AMOUNT);
                 dealBloodMageAllySplash(eng, ctx.caster, { x: targetUnit.x, y: targetUnit.y }, CARD_ID);
                 spawnBloodMistImpactFlash(eng, { x: targetUnit.x, y: targetUnit.y }, {
