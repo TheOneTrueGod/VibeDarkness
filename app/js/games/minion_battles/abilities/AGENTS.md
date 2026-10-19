@@ -16,6 +16,11 @@ Declarative cast timing, targeting, hitboxes, and reusable cast behaviours for M
 | `targetDowngrade.ts` | Freezes unit targets to pixels when they die (pair with evade/tether handling in the ability tick). |
 | `keywords/` | Reusable ability keywords (`bright`, `knockback`, `devourLight`), registry, and cast-time runner. See `keywords/AGENTS.md`. |
 
+## Per-cast ability modes
+
+- `abilityModes` (`AbilityModesConfig` in `Ability.ts`) declares per-cast modes. Cards with modes show an always-visible `AbilityModeStrip` under the card (card shrinks so card + gap + strip = `ABILITY_SLOT_HEIGHT_PX`); `toggleStyle: 'segmentedAbove'` (Wait) is separate.
+- New abilities with modes must supply `modeLabels` (short, fits 3 segments in a 108px card) **and** `modeDescriptions` (one terse sentence per mode, used as the segment tooltip). Shared label sets live next to the family constants (e.g. `GRAVITY_ABILITY_MODE_LABELS`).
+
 ## CastBehaviours — load-bearing rules
 
 - **Coexistence:** `doCardEffect` remains an escape hatch. New declarative abilities omit it. Ability-level `getCasterRenderOffset` and behaviour offsets are summed. `beginActiveCast` is still for cast-start setup; behaviour `onSetup` runs when that behaviour’s timing window opens.

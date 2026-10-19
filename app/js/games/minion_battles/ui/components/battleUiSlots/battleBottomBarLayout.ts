@@ -10,6 +10,10 @@ export const PLAQUE_INNER_MIN_HEIGHT_PX = PLAQUE_MIN_HEIGHT_PX - PLAQUE_BORDER_T
 
 /** Battle ability-card height. Must fit under the plaque + 8px indicator gaps in the bottom band. */
 export const ABILITY_SLOT_HEIGHT_PX = 150;
+/** Always-visible per-cast mode strip rendered under cards that declare `abilityModes`. */
+export const ABILITY_MODE_STRIP_HEIGHT_PX = 18;
+/** Gap between a mode card's body and its mode strip. */
+export const ABILITY_MODE_STRIP_GAP_PX = 4;
 /**
  * Padding above and below the card row so hover (`-translate-y-1`) and select
  * (`-translate-y-2`) lifts are not clipped by the hand scroller.

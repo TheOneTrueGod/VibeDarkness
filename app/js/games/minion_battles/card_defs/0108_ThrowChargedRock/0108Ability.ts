@@ -173,9 +173,12 @@ export const ThrowChargedRock: AbilityStatic = {
     abilityModes: {
         modes: ['charged', 'basic'],
         defaultMode: 'charged',
-        togglePosition: 'bottom',
         modeAbilityIds: { basic: 'throw_rock' },
         modeLabels: { charged: 'Charged', basic: 'Basic' },
+        modeDescriptions: {
+            charged: 'Throw an explosive charged rock',
+            basic: 'Throw a plain rock',
+        },
     },
     /** Quest Prep: the attached Throw Rock does not occupy a slot. */
     attachedAbilityIds: ['throw_rock'],

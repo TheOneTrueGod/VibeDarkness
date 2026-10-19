@@ -18,6 +18,7 @@ import type { ResolvedTarget, ActiveAbility } from '../../../game/types';
 import type { EngineContext } from '../../../game/EngineContext';
 import { GravityLocusFieldBuff, type GravityLocusRepulseConfig } from '../../../buffs/GravityLocusFieldBuff';
 import {
+    GRAVITY_ABILITY_MODE_LABELS,
     GRAVITY_ABILITY_MODE_PULL,
     GRAVITY_ABILITY_MODE_PUSH,
     GRAVITY_LOCUS_CAST_ACTIVE_DURATION,
@@ -70,6 +71,11 @@ export const GravityLocusAbility = defineAbility({
     abilityModes: {
         modes: [GRAVITY_ABILITY_MODE_PUSH, GRAVITY_ABILITY_MODE_PULL],
         defaultMode: GRAVITY_ABILITY_MODE_PULL,
+        modeLabels: GRAVITY_ABILITY_MODE_LABELS,
+        modeDescriptions: {
+            [GRAVITY_ABILITY_MODE_PULL]: 'Pull enemies towards the center',
+            [GRAVITY_ABILITY_MODE_PUSH]: 'Push enemies from the center',
+        },
     },
     abilityTimings: [
         {

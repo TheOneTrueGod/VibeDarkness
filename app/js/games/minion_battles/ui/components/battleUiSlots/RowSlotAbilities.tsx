@@ -75,7 +75,7 @@ interface RowSlotAbilitiesProps {
     };
     /** Per-ability committed cast mode (BattlePhase-owned, persists for the battle). */
     abilityModeByAbilityId?: Record<string, string>;
-    onCycleAbilityMode?: (abilityId: string, modes: readonly string[]) => void;
+    onSetAbilityMode?: (abilityId: string, mode: string) => void;
     /** Called with the hovered card's ability, or null on unhover — only fires while the card is selectable. */
     onHoverAbility?: (ability: AbilityStatic | null) => void;
     /** The turn indicator plaque (and ITS playahead controls); pinned to the top of this slot. */
@@ -95,7 +95,7 @@ export default function RowSlotAbilities({
     onRegisterCardTarget,
     conditionalCancelContext,
     abilityModeByAbilityId = {},
-    onCycleAbilityMode,
+    onSetAbilityMode,
     onHoverAbility,
     turnIndicator,
 }: RowSlotAbilitiesProps) {
@@ -378,11 +378,6 @@ export default function RowSlotAbilities({
         // Mode config lives on the slot's own ability (it stays put while the shown ability swaps).
         const abilityModes = card.slotAbility.abilityModes;
         const currentAbilityMode = card.slotMode;
-        const showModeToggle = Boolean(
-            abilityModes &&
-            isMyTurn &&
-            (isSelected || isHovered),
-        );
 
         return (
             <div
@@ -416,12 +411,12 @@ export default function RowSlotAbilities({
                     }}
                     abilityModes={abilityModes}
                     currentAbilityMode={currentAbilityMode}
-                    showModeToggle={showModeToggle}
-                    onCycleAbilityMode={
-                        abilityModes && onCycleAbilityMode
-                            ? () => onCycleAbilityMode(card.slotAbilityId, abilityModes.modes)
+                    onSetAbilityMode={
+                        abilityModes && onSetAbilityMode
+                            ? (mode) => onSetAbilityMode(card.slotAbilityId, mode)
                             : undefined
                     }
+                    modeStripInteractive={isMyTurn}
                 />
             </div>
         );

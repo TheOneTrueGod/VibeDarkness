@@ -24,6 +24,7 @@ import type { KnockbackSource } from '../../../game/units/unitTypes';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { type CardDef } from '../../types';
 import {
+    GRAVITY_ABILITY_MODE_LABELS,
     GRAVITY_ABILITY_MODE_PULL,
     GRAVITY_ABILITY_MODE_PUSH,
     GRAVITY_INVERSION_ACTIVE_DURATION,
@@ -254,6 +255,11 @@ export const GravityInversionAbility = defineAbility({
     abilityModes: {
         modes: [GRAVITY_ABILITY_MODE_PUSH, GRAVITY_ABILITY_MODE_PULL],
         defaultMode: GRAVITY_ABILITY_MODE_PUSH,
+        modeLabels: GRAVITY_ABILITY_MODE_LABELS,
+        modeDescriptions: {
+            [GRAVITY_ABILITY_MODE_PUSH]: 'Slam enemies straight down',
+            [GRAVITY_ABILITY_MODE_PULL]: 'Slam enemies in front of you',
+        },
     },
     abilityTimings: [
         {

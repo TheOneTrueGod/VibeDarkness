@@ -25,6 +25,11 @@ export const GRAVITY_GRAZE_MAX_DISTANCE = 50;
 /** Ability Mode values shared by all Gravity Core cards. */
 export const GRAVITY_ABILITY_MODE_PUSH = 'push';
 export const GRAVITY_ABILITY_MODE_PULL = 'pull';
+/** Mode-strip labels shared by all Gravity Core cards (`AbilityModesConfig.modeLabels`). */
+export const GRAVITY_ABILITY_MODE_LABELS: Readonly<Record<string, string>> = {
+    [GRAVITY_ABILITY_MODE_PUSH]: 'Push',
+    [GRAVITY_ABILITY_MODE_PULL]: 'Pull',
+};
 
 /** Gravity Locus (0901) — point-target field tuning. */
 export const GRAVITY_LOCUS_ABILITY_ID = '0901';

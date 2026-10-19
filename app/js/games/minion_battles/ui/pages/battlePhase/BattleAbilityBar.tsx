@@ -27,7 +27,6 @@ interface BattleAbilityBarProps {
     selectedCardIndex: number | null;
     nonconfirmedOrder: BattleOrder | null;
     abilityModeByAbilityId: Record<string, string>;
-    handleCycleAbilityMode: (abilityId: string, modes: readonly string[]) => void;
     handleSetAbilityMode: (abilityId: string, mode: string) => void;
     setIsWaitHovered: (hovered: boolean) => void;
     setHoveredAbility: (ability: AbilityStatic | null) => void;
@@ -59,7 +58,6 @@ export function useBattleAbilityBarSlots({
     selectedCardIndex,
     nonconfirmedOrder,
     abilityModeByAbilityId,
-    handleCycleAbilityMode,
     handleSetAbilityMode,
     setIsWaitHovered,
     setHoveredAbility,
@@ -149,7 +147,7 @@ export function useBattleAbilityBarSlots({
                 allUnits={engine.units}
                 conditionalCancelContext={conditionalCancelContext}
                 abilityModeByAbilityId={abilityModeByAbilityId}
-                onCycleAbilityMode={handleCycleAbilityMode}
+                onSetAbilityMode={handleSetAbilityMode}
                 onRegisterCardTarget={(key, pageX, pageY) => {
                     hudEffectCanvasRef.current?.registerHudFlightTarget(key, pageX, pageY);
                 }}

@@ -28,6 +28,7 @@ For hover help elsewhere, prefer **AnchoredPortalTooltip** (or **AbilityTooltip*
 | Component | Role |
 |-----------|------|
 | **AbilitySlot** | Full ability bar card (uses, costs, hover tooltip via AbilityTooltip). |
+| **AbilityModeStrip** | Mode buttons under a hand card (see `abilityModes` in `abilities/AGENTS.md`); rendered by AbilitySlot when `onSetAbilityMode` is passed. |
 | **AbilitySlotPreview** | Character-select / Quest Prep wrapper around AbilitySlot with fake full uses; pass `tooltipContext` for research-aware tooltips. |
 
 ## HUD anchors and the objectives popover

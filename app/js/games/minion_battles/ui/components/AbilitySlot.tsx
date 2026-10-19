@@ -20,7 +20,12 @@ import {
     STACKED_ICON_OVERLAP_PX,
 } from './resources/ResourceCostIcon';
 import type { DisabledReason } from './abilityDisabledReason';
-import { ABILITY_SLOT_HEIGHT_PX } from './battleUiSlots/battleBottomBarLayout';
+import {
+    ABILITY_MODE_STRIP_GAP_PX,
+    ABILITY_MODE_STRIP_HEIGHT_PX,
+    ABILITY_SLOT_HEIGHT_PX,
+} from './battleUiSlots/battleBottomBarLayout';
+import { AbilityModeStrip } from './AbilityModeStrip';
 import { ensureSvgViewBox } from './abilityIconSvg';
 
 /** Fixed card width in the ability bar (must match the card `width` style below). */
@@ -56,11 +61,13 @@ interface AbilitySlotProps {
     gameState?: unknown;
     /** Optional ref to the primary recovery pill row for external effects. */
     onPrimaryRecoveryPillRef?: (el: HTMLDivElement | null) => void;
-    /** When set, show a per-cast mode toggle during ability selection/targeting. */
+    /** Per-cast modes; with `onSetAbilityMode` an always-visible mode strip is shown under the card. */
     abilityModes?: AbilityModesConfig;
     currentAbilityMode?: string;
-    showModeToggle?: boolean;
-    onCycleAbilityMode?: () => void;
+    /** Select a mode from the strip (never selects the card). Omit to render the card without a strip. */
+    onSetAbilityMode?: (mode: string) => void;
+    /** Strip buttons are only clickable when true (the player's turn); otherwise shown dimmed. */
+    modeStripInteractive?: boolean;
     /** Override battle card height (Quest Prep / character-select use the shorter prep size). */
     heightPx?: number;
 }
@@ -82,8 +89,8 @@ export default function AbilitySlot({
     onPrimaryRecoveryPillRef,
     abilityModes,
     currentAbilityMode,
-    showModeToggle = false,
-    onCycleAbilityMode,
+    onSetAbilityMode,
+    modeStripInteractive = false,
     heightPx = ABILITY_SLOT_HEIGHT_PX,
 }: AbilitySlotProps) {
     const cardRef = useRef<HTMLDivElement | null>(null);
@@ -123,39 +130,18 @@ export default function AbilitySlot({
     const maxUses = Math.max(1, anim.maxUses);
     const isAtFullUses = usesLeft >= maxUses;
     const showRecovery = hasRecovery && !isAtFullUses;
-    const modeLabel = currentAbilityMode !== undefined && abilityModes?.modeLabels?.[currentAbilityMode]
-        ? abilityModes.modeLabels[currentAbilityMode]
-        : currentAbilityMode === 'pull' ? 'Pull' : currentAbilityMode === 'push' ? 'Push' : currentAbilityMode;
-
-    const handleModeToggle = useCallback((e: React.MouseEvent | React.KeyboardEvent) => {
-        e.stopPropagation();
-        e.preventDefault();
-        onCycleAbilityMode?.();
-    }, [onCycleAbilityMode]);
-
-    const modeToggleAtBottom = abilityModes?.togglePosition === 'bottom';
-    const modeToggleButton = abilityModes && onCycleAbilityMode ? (
-        <button
-            type="button"
-            className={`absolute left-1/2 z-30 flex min-w-[2.75rem] -translate-x-1/2 items-center justify-center rounded border border-violet-400/70 bg-violet-950/95 px-1.5 text-[10px] font-semibold uppercase tracking-wide text-violet-200 shadow-sm pointer-events-auto hover:border-violet-300 hover:bg-violet-900 ${
-                modeToggleAtBottom ? 'bottom-1.5 h-5' : 'top-1/2 h-6 -translate-y-1/2'
-            }`}
-            title={`Mode: ${modeLabel ?? currentAbilityMode} (click to cycle)`}
-            aria-label={`Ability mode ${modeLabel ?? currentAbilityMode}, click to cycle`}
-            onClick={handleModeToggle}
-            onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    handleModeToggle(e);
-                }
-            }}
-        >
-            {modeLabel ?? currentAbilityMode}
-        </button>
-    ) : null;
+    const showModeStrip = Boolean(
+        abilityModes
+        && abilityModes.toggleStyle !== 'segmentedAbove'
+        && onSetAbilityMode,
+    );
+    const cardHeightPx = showModeStrip
+        ? heightPx - ABILITY_MODE_STRIP_HEIGHT_PX - ABILITY_MODE_STRIP_GAP_PX
+        : heightPx;
 
     return (
         <div
-            className={`relative ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+            className={`relative flex flex-col ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
             role="button"
             tabIndex={0}
             onClick={handleClick}
@@ -173,7 +159,7 @@ export default function AbilitySlot({
                 ref={cardRef}
                 className={`
                     relative rounded-lg border-2 transition-all duration-150
-                    flex flex-col items-stretch p-1 overflow-visible pointer-events-none
+                    flex shrink-0 flex-col items-stretch p-1 overflow-visible pointer-events-none
                     ${isSelected
                         ? ability.actionChannel === 'special'
                             ? 'border-cyan-400 bg-surface-light -translate-y-2 shadow-lg shadow-cyan-400/25'
@@ -189,7 +175,7 @@ export default function AbilitySlot({
                                         : 'border-white bg-surface-light'
                     }
                 `}
-                style={{ width: ABILITY_SLOT_WIDTH_PX, height: heightPx }}
+                style={{ width: ABILITY_SLOT_WIDTH_PX, height: cardHeightPx }}
             >
                 {/* Uses + recovery — top of the card stack */}
                 <div
@@ -281,7 +267,6 @@ export default function AbilitySlot({
                             style={{ width: ABILITY_SLOT_ICON_SIZE_PX, height: ABILITY_SLOT_ICON_SIZE_PX }}
                             dangerouslySetInnerHTML={{ __html: ensureSvgViewBox(ability.image) }}
                         />
-                        {showModeToggle && !modeToggleAtBottom && modeToggleButton}
                     </div>
 
                     <span
@@ -293,9 +278,21 @@ export default function AbilitySlot({
                         {ability.name}
                     </span>
                 </div>
-
-                {showModeToggle && modeToggleAtBottom && modeToggleButton}
             </div>
+
+            {showModeStrip && abilityModes && onSetAbilityMode && (
+                <div style={{ width: ABILITY_SLOT_WIDTH_PX, marginTop: ABILITY_MODE_STRIP_GAP_PX }}>
+                    <AbilityModeStrip
+                        modes={abilityModes.modes}
+                        currentMode={currentAbilityMode}
+                        labels={abilityModes.modeLabels}
+                        descriptions={abilityModes.modeDescriptions}
+                        onSelectMode={onSetAbilityMode}
+                        interactive={modeStripInteractive}
+                        testIdSuffix={ability.id}
+                    />
+                </div>
+            )}
 
             {/* Desktop hover tooltip (portaled above card) */}
             {!isMobile && (

@@ -174,14 +174,18 @@ export interface AbilityModesConfig {
     defaultMode: string;
     /**
      * UI presentation for the mode control.
-     * - `cycle` (default): single button that cycles modes (e.g. Lift push/pull).
+     * - `cycle` (default): always-visible strip of mode buttons directly under the hand card
+     *   (e.g. Lift push/pull); the card shrinks to leave room for it.
      * - `segmentedAbove`: discrete buttons rendered above the card (e.g. Wait S/M/F).
      */
     toggleStyle?: AbilityModeToggleStyle;
-    /** Where the `cycle` button sits on the card: over the icon (default) or straddling the bottom edge. */
-    togglePosition?: 'center' | 'bottom';
-    /** Optional short labels for segmented toggles (mode id → label, e.g. short → S). */
+    /** Optional short labels for mode toggles (mode id → label, e.g. short → S, pull → Pull). */
     modeLabels?: Readonly<Record<string, string>>;
+    /**
+     * Optional one-sentence descriptions (mode id → text), shown as the tooltip on each segment of
+     * the hand mode strip (`AbilityModeStrip`). Cards with modes should supply labels + descriptions.
+     */
+    modeDescriptions?: Readonly<Record<string, string>>;
     /**
      * Modes that swap the whole card for another ability (mode id to ability id). While such a mode
      * is selected the bar slot shows and casts that ability instead (e.g. Throw Charged Rock and

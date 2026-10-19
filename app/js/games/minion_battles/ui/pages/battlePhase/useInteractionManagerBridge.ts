@@ -70,16 +70,6 @@ export function useInteractionManagerBridge({
         return () => window.removeEventListener('keydown', onKeyDown);
     }, [battleInitPhase, sessionRef]);
 
-    const handleCycleAbilityMode = (abilityId: string, modes: readonly string[]) => {
-        setAbilityModeByAbilityId((prev) => {
-            const current = prev[abilityId] ?? modes[0];
-            const idx = modes.indexOf(current);
-            const next = modes[(idx + 1) % modes.length]!;
-            return { ...prev, [abilityId]: next };
-        });
-        sessionRef.current?.getInteractionManager()?.refreshNonconfirmedAbilityMode(abilityId);
-    };
-
     const handleSetAbilityMode = (abilityId: string, mode: string) => {
         setAbilityModeByAbilityId((prev) => {
             if (prev[abilityId] === mode) return prev;
@@ -93,7 +83,6 @@ export function useInteractionManagerBridge({
         selectedAbility,
         nonconfirmedOrder,
         abilityModeByAbilityId,
-        handleCycleAbilityMode,
         handleSetAbilityMode,
     };
 }
