@@ -30,7 +30,7 @@ export const BLOODY_CLAWS_HITBOX_COUNT = 4;
 export const BLOODY_CLAWS_TARGETS_PER_CLAW = 3;
 export const BLOODY_CLAWS_BLEED_STACKS = 1;
 export const BLOODY_CLAWS_HP_COST = 3;
-export const BLOODY_CLAWS_MAX_USES = 2;
+export const BLOODY_CLAWS_MAX_USES = 3;
 /** Strikes two and three may turn this far either side of the previous strike's aim. */
 export const BLOODY_CLAWS_MAX_TURN_DEGREES = 30;
 
@@ -52,7 +52,7 @@ export const BLOODY_CLAWS_TIMINGS = {
     swipeRightEnd: 0.45,
     xStrikeStart: 0.6,
     xStrikeEnd: 0.7,
-    cooldownEnd: 1.1,
+    cooldownEnd: 1.5,
 } as const;
 const T = BLOODY_CLAWS_TIMINGS;
 
