@@ -59,7 +59,7 @@ export function resolveItsSelectTargetForClick(
     const orderTargets = buildMeleeSelectOrderTargets(
         resolved,
         lockOnCandidates,
-        clickWorldPos,
+        pick.clickWorldPos,
         numTargets,
         companionCandidates,
     );

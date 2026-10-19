@@ -1,21 +1,21 @@
 /**
- * Shared ally-target splash used by Blood Mend (0301) and Protect (0303): a circular AoE
- * centered on the selected ally that damages nearby enemies when the cast becomes active.
+ * Shared ally-target splash used by Blood Mend (0301) and Protect (0303): when the cast becomes
+ * active they Rend around the selected ally (keyword `rend`: damage to nearby bleeding enemies).
  * Preview geometry lives on the hitbox so hover targeting and hit resolution stay aligned.
  * See `card_defs/03_blood_mage/AGENTS.md`.
  */
 
 import type { IAbilityPreviewGraphics } from './Ability';
-import { damageEnemiesInCircle } from './targetHelpers';
+import { applyRend, REND_RADIUS } from './keywords/rendKeyword';
 import type { EngineContext } from '../game/EngineContext';
 import type { Unit } from '../game/units/Unit';
 import type { HitboxPreviewCaster } from '../hitboxes';
 import { UnitRangeHitboxSpec } from '../hitboxes/UnitRangeHitboxSpec';
 
-/** Splash circle radius around the targeted ally (px). */
-export const BLOOD_MAGE_ALLY_SPLASH_RADIUS = 70;
-export const BLOOD_MAGE_ALLY_SPLASH_DAMAGE = 2;
-export const BLOOD_MAGE_ALLY_SPLASH_MAX_TARGETS = 4;
+/** Rend circle radius around the targeted ally (px); drawn while hovering an ally. */
+export const BLOOD_MAGE_ALLY_SPLASH_RADIUS = REND_RADIUS;
+/** Rend N applied around the targeted ally by Blood Mend and Protect. */
+export const BLOOD_MAGE_REND = 2;
 
 const PREVIEW_FILL_COLOR = 0x8b1220;
 const PREVIEW_STROKE_COLOR = 0xfca5a5;
@@ -72,21 +72,12 @@ export function unitRangeWithAllySplashHitbox(
     return new UnitRangeWithAllySplashHitboxSpec(maxRange, splashRadius, 0, includeCaster);
 }
 
-/** Deal splash damage to the closest enemies in the circle around `center`. */
-export function dealBloodMageAllySplash(
+/** Rend around the targeted ally (`center`). */
+export function dealBloodMageRend(
     engine: EngineContext,
     caster: Unit,
     center: { x: number; y: number },
     abilityId: string,
 ): void {
-    damageEnemiesInCircle({
-        engine,
-        caster,
-        center,
-        radius: BLOOD_MAGE_ALLY_SPLASH_RADIUS,
-        damage: BLOOD_MAGE_ALLY_SPLASH_DAMAGE,
-        abilityId,
-        attackType: 'ranged',
-        maxTargets: BLOOD_MAGE_ALLY_SPLASH_MAX_TARGETS,
-    });
+    applyRend(engine, caster, center, BLOOD_MAGE_REND, abilityId);
 }

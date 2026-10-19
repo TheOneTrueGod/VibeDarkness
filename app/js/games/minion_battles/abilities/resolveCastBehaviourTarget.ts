@@ -1,7 +1,13 @@
 import type { AbilityStatic } from './Ability';
 import type { AbilityTimingInterval } from './abilityTimings';
 import type { CastBehaviourEntry } from './castBehaviourTypes';
-import { clampResolvedTargetToAbilityRange, clampSelectTarget, getSelectTargetDefsFromTimings } from './targeting';
+import {
+    clampResolvedTargetToAbilityRange,
+    clampSelectTarget,
+    constrainSelectAim,
+    getSelectTargetDefsFromTimings,
+    resolveTargetToPoint,
+} from './targeting';
 import { isSelectTargetDef, isHitTargetDef } from './timingTargetDef';
 import type { ActiveAbility, ResolvedTarget } from '../game/types';
 import type { Unit } from '../game/units/Unit';
@@ -70,6 +76,16 @@ export function resolveCastBehaviourTarget(
                 result,
                 eng,
             );
+        }
+        if (targetDef && isSelectTargetDef(targetDef) && targetDef.turnLimit) {
+            // Backstop for committed picks: a target outside the allowed turn becomes the arc-edge point.
+            const point = resolveTargetToPoint(result, eng);
+            if (point) {
+                const constrained = constrainSelectAim(unit, targetDef, point, active.targetsByLabel ?? {}, eng);
+                if (constrained.x !== point.x || constrained.y !== point.y) {
+                    result = { type: 'pixel', position: constrained };
+                }
+            }
         }
         return clampResolvedTargetToAbilityRange(ability, unit, result, eng);
     }

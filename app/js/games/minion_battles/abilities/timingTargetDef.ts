@@ -83,6 +83,21 @@ export interface SelectTargetDef {
         pick: ResolvedTarget;
         collectedTargets: Record<string, ResolvedTarget>;
     }): boolean;
+    /**
+     * Limits how far this pick may turn from an earlier pick (e.g. combo follow-ups that can
+     * only swing slightly further round). The aim direction from the caster is clamped to within
+     * `maxDegrees` either side of the direction to the target committed for `fromLabel`; the clamp
+     * applies to lock-on, preview and the committed aim alike (`constrainSelectAim`).
+     */
+    turnLimit?: SelectTurnLimit;
+}
+
+/** See `SelectTargetDef.turnLimit`. */
+export interface SelectTurnLimit {
+    /** `label` of an earlier select step on the same ability. */
+    fromLabel: string;
+    /** Max turn either side of that step's aim, in degrees. */
+    maxDegrees: number;
 }
 
 /**

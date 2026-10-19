@@ -15,8 +15,10 @@ import {
     computeLungeAimState,
     resolveAnchorPointFromCollected,
     resolveSelectPickForAim,
+    constrainSelectAim,
+    resolveTurnLimitReference,
 } from '../../../abilities/targeting';
-import { drawClampedLine } from '../../../abilities/previewHelpers';
+import { drawClampedLine, drawConeSlice } from '../../../abilities/previewHelpers';
 import { resolveAbilitySourceUnits } from '../../../abilities/abilitySourceUnits';
 import { areEnemies } from '../../teams';
 import type { TeamId } from '../../teams';
@@ -174,6 +176,34 @@ function renderSelectTargetDef(
     if (state) {
         renderLungeIndicator(gr, caster, state.virtualX, state.virtualY);
     }
+}
+
+/** Extra radius (px) past the hitbox reach for the turn-limit arc, so it frames the strike. */
+const TURN_LIMIT_ARC_PADDING = 24;
+
+/**
+ * Select step with aim constraints (`turnLimit`): draws the clamped hitbox preview, then the
+ * allowed turn arc on top (after the hitbox, since some hitboxes clear the layer).
+ */
+function renderConstrainedSelectTargetDef(
+    gr: IAbilityPreviewGraphics,
+    ability: AbilityStatic,
+    caster: Unit,
+    selectDef: SelectTargetDef,
+    mouseWorld: { x: number; y: number },
+    collectedTargets: Record<string, ResolvedTarget>,
+    engine: GameEngine,
+): void {
+    const aim = constrainSelectAim(caster, selectDef, mouseWorld, collectedTargets, engine);
+    renderSelectTargetDef(gr, ability, caster, selectDef, aim, engine);
+    const ref = resolveTurnLimitReference(caster, selectDef, collectedTargets, engine);
+    if (!ref) return;
+    drawConeSlice(gr, caster.x, caster.y, ref.angle, ref.maxRad, 0, selectDef.hitbox.maxRange + TURN_LIMIT_ARC_PADDING, {
+        fillColor: 0xef9f27,
+        fillAlpha: 0.1,
+        strokeColor: 0xba7517,
+        strokeAlpha: 0.6,
+    });
 }
 
 /**
@@ -781,7 +811,7 @@ export class PreviewRenderer {
                                 engine,
                             );
                         } else {
-                            renderSelectTargetDef(gr, ability, caster, interactiveDef, ts.mouseWorld, engine);
+                            renderConstrainedSelectTargetDef(gr, ability, caster, interactiveDef, ts.mouseWorld, collected, engine);
                         }
                         ability.renderSelectTargetPreviewExtras?.(gr, caster, engine);
                     }
@@ -869,7 +899,7 @@ export class PreviewRenderer {
                             engine,
                         );
                     } else {
-                        renderSelectTargetDef(gr, ability, caster, nextSelectDef, plan.mouseWorld, engine);
+                        renderConstrainedSelectTargetDef(gr, ability, caster, nextSelectDef, plan.mouseWorld, collected, engine);
                     }
                 }
                 if (ability.renderTargetingPreviewSelectedTargets) {

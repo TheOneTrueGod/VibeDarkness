@@ -499,12 +499,62 @@ export function clampSelectTarget(
     return clampResolvedTargetToAbilityRange(ability, caster, target, engine);
 }
 
+/**
+ * Reference direction for a `turnLimit` select step: the unit vector from the caster to the target
+ * committed for `turnLimit.fromLabel`. Null when the step has no turn limit or that pick is missing.
+ */
+export function resolveTurnLimitReference(
+    caster: { x: number; y: number },
+    selectDef: SelectTargetDef,
+    collectedTargets: Record<string, ResolvedTarget>,
+    engine: { getUnit(id: string): { x: number; y: number } | undefined | null },
+): { angle: number; maxRad: number } | null {
+    const limit = selectDef.turnLimit;
+    if (!limit) return null;
+    const prior = collectedTargets[limit.fromLabel];
+    const point = prior ? resolveTargetToPoint(prior, engine) : null;
+    if (!point) return null;
+    const dx = point.x - caster.x;
+    const dy = point.y - caster.y;
+    if (Math.hypot(dx, dy) < 1e-6) return null;
+    return { angle: Math.atan2(dy, dx), maxRad: (Math.max(0, limit.maxDegrees) * Math.PI) / 180 };
+}
+
+/**
+ * Apply a select step's aim constraints to a raw aim point. Today that is `turnLimit`: the
+ * direction from the caster is clamped to the allowed arc (distance is kept). Returns `aim`
+ * unchanged when the step has no constraint.
+ */
+export function constrainSelectAim(
+    caster: { x: number; y: number },
+    selectDef: SelectTargetDef,
+    aim: { x: number; y: number },
+    collectedTargets: Record<string, ResolvedTarget>,
+    engine: { getUnit(id: string): { x: number; y: number } | undefined | null },
+): { x: number; y: number } {
+    const ref = resolveTurnLimitReference(caster, selectDef, collectedTargets, engine);
+    if (!ref) return aim;
+    const dx = aim.x - caster.x;
+    const dy = aim.y - caster.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < 1e-6) {
+        return { x: caster.x + Math.cos(ref.angle), y: caster.y + Math.sin(ref.angle) };
+    }
+    let delta = Math.atan2(dy, dx) - ref.angle;
+    delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+    if (Math.abs(delta) <= ref.maxRad) return aim;
+    const angle = ref.angle + Math.sign(delta) * ref.maxRad;
+    return { x: caster.x + Math.cos(angle) * dist, y: caster.y + Math.sin(angle) * dist };
+}
+
 /** A select pick as a click would commit it, before `validatePick` runs. */
 export interface SelectPickResolution {
     /** The primary pick: the highlighted lock-on unit, or the clamped ground point. */
     resolved: ResolvedTarget;
     lockOnCandidates: Unit[];
     companionUnits: Unit[];
+    /** The click point after aim constraints (`constrainSelectAim`); use it as the order's aim pixel. */
+    clickWorldPos: { x: number; y: number };
 }
 
 /**
@@ -524,6 +574,8 @@ export function resolveSelectPickForAim(
     collectedTargets: Record<string, ResolvedTarget>,
     engine: SelectLockOnEngine & { getUnit(id: string): Unit | undefined | null },
 ): SelectPickResolution | null {
+    aimPoint = constrainSelectAim(caster, selectDef, aimPoint, collectedTargets, engine);
+    clickWorldPos = constrainSelectAim(caster, selectDef, clickWorldPos, collectedTargets, engine);
     const candidates = resolveSelectTargetLockOnCandidates(ability, caster, selectDef, aimPoint, engine);
     const companionUnits = resolveSelectTargetCompanionLockOns(
         ability,
@@ -555,7 +607,7 @@ export function resolveSelectPickForAim(
         resolved,
         engine,
     );
-    return { resolved, lockOnCandidates: candidates, companionUnits };
+    return { resolved, lockOnCandidates: candidates, companionUnits, clickWorldPos };
 }
 
 /**

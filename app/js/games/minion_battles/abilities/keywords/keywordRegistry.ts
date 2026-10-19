@@ -1,6 +1,7 @@
 import { formatTooltipNumber } from '../tooltipTokens';
 import { spawnBrightLight, type EngineWithLight } from '../brightKeyword';
 import { devourLightKeyword } from './devourLightKeyword';
+import { rendKeyword } from './rendKeyword';
 import type { AbilityKeywordUse, KeywordDef, KeywordId } from './keywordTypes';
 
 const registry = new Map<KeywordId, KeywordDef>();
@@ -18,6 +19,28 @@ export function formatKeywordText(id: KeywordId, n: number): string {
     const def = registry.get(id);
     if (!def) throw new Error(`Unknown keyword: ${id}`);
     return def.formatTooltip(n);
+}
+
+/**
+ * Glossary lines for described keywords that appear in a tooltip. `keywordTexts` are the tooltip's
+ * dynamic segment texts (e.g. `Rend 2`); each described keyword found returns one legacy-encoded
+ * line (`{Rend 2}: Deals {2} damage ...`), in first-seen order without duplicates.
+ */
+export function keywordGlossaryLines(keywordTexts: readonly string[]): string[] {
+    const lines: string[] = [];
+    const seen = new Set<string>();
+    for (const text of keywordTexts) {
+        for (const def of registry.values()) {
+            if (!def.describe) continue;
+            const prefix = `${def.displayName} `;
+            if (!text.startsWith(prefix)) continue;
+            const n = Number(text.slice(prefix.length));
+            if (!Number.isFinite(n) || seen.has(text)) continue;
+            seen.add(text);
+            lines.push(`{${text}}: ${def.describe(n)}`);
+        }
+    }
+    return lines;
 }
 
 /** Legacy-encoded tooltip line for a keyword use (e.g. `{Bright 3}`). */
@@ -46,3 +69,4 @@ registerKeyword({
 });
 
 registerKeyword(devourLightKeyword);
+registerKeyword(rendKeyword);

@@ -44,6 +44,8 @@ export type AbilityEffect =
         sourceAbilityId: string;
     }
     | { type: 'applyStunnedToPrimaryTarget'; duration: number; ccCharges?: number }
+    /** Adds `stacks` bleed stacks to the unit that was hit. */
+    | { type: 'applyBleedToPrimaryTarget'; stacks: number }
     | { type: 'interruptPrimaryTargetAbilities' }
     | { type: 'setAbilityNote'; abilityId: string; note: Record<string, unknown> }
     | {

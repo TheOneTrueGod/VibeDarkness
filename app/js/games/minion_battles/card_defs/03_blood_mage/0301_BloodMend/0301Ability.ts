@@ -12,10 +12,9 @@ import type { AbilityRecoveryRule } from '../../../abilities/Ability';
 import type { EngineContext } from '../../../game/EngineContext';
 import { applyHeal } from '../../../game/units/unitHeal';
 import {
-    BLOOD_MAGE_ALLY_SPLASH_DAMAGE,
-    BLOOD_MAGE_ALLY_SPLASH_MAX_TARGETS,
     BLOOD_MAGE_ALLY_SPLASH_RADIUS,
-    dealBloodMageAllySplash,
+    BLOOD_MAGE_REND,
+    dealBloodMageRend,
     unitRangeWithAllySplashHitbox,
 } from '../../../abilities/bloodMageAllySplash';
 import {
@@ -24,6 +23,7 @@ import {
     spawnBloodMistTravel,
     spawnBloodMistWindupBurst,
 } from '../../../abilities/bloodMageVfx';
+import { formatKeywordLine } from '../../../abilities/keywords/keywordRegistry';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { type CardDef } from '../../types';
 
@@ -131,7 +131,7 @@ export const BloodMendAbility_0301 = defineAbility({
                 // intended amount, rather than the cost being wasted by applyHeal's max-HP clamp.
                 payHpCost(ctx.caster, HP_COST, 'floorAtOne');
                 applyHeal(targetUnit, HEAL_AMOUNT);
-                dealBloodMageAllySplash(eng, ctx.caster, { x: targetUnit.x, y: targetUnit.y }, CARD_ID);
+                dealBloodMageRend(eng, ctx.caster, { x: targetUnit.x, y: targetUnit.y }, CARD_ID);
                 spawnBloodMistImpactFlash(eng, { x: targetUnit.x, y: targetUnit.y }, {
                     variant: 'heal',
                     radius: BLOOD_MAGE_ALLY_SPLASH_RADIUS,
@@ -151,7 +151,7 @@ export const BloodMendAbility_0301 = defineAbility({
         return [
             'Channel a wave of blood magic into an ally, mending their wounds at your own expense.',
             `Heals the target for {${HEAL_AMOUNT}} HP.`,
-            `Deals {${BLOOD_MAGE_ALLY_SPLASH_DAMAGE}} damage to up to {${BLOOD_MAGE_ALLY_SPLASH_MAX_TARGETS}} enemies near the target.`,
+            formatKeywordLine({ keyword: 'rend', n: BLOOD_MAGE_REND }),
             `Costs {${HP_COST}} HP to cast — can never drop you below 1 HP.`,
         ];
     },

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { applyBleedStack } from '../../../buffs/bleedRuntime';
 import { EventBus } from '../../../game/EventBus';
 import { Unit } from '../../../game/units/Unit';
 import type { EngineContext } from '../../../game/EngineContext';
@@ -11,9 +12,8 @@ import { getSelectTargetDefsFromTimings, resolveSelectTargetLockOnCandidates } f
 import type { TeamId } from '../../../game/teams';
 import type { ResolvedTarget } from '../../../game/types';
 import {
-    BLOOD_MAGE_ALLY_SPLASH_DAMAGE,
-    BLOOD_MAGE_ALLY_SPLASH_MAX_TARGETS,
     BLOOD_MAGE_ALLY_SPLASH_RADIUS,
+    BLOOD_MAGE_REND,
 } from '../../../abilities/bloodMageAllySplash';
 import {
     BLOOD_MEND_HEAL_AMOUNT,
@@ -142,30 +142,37 @@ describe('BloodMendAbility_0301', () => {
         expect(ally.hpInjury).toBeCloseTo(BLOOD_MEND_HEAL_AMOUNT * DEFAULT_HEAL_PENALTY_PCT);
     });
 
-    it('active frame deals splash damage to up to 4 nearest enemies around the ally', () => {
+    it('active frame Rends: damages every nearby bleeding enemy around the ally, and no one else', () => {
         const caster = makeCaster(100);
         const ally = makeAlly('ally', 50);
-        // Ally at (100,100). Four near enemies + one farther-in-circle + one outside radius.
-        const near = [
-            makeEnemy('e1', 120, 100), // 20px
-            makeEnemy('e2', 100, 130), // 30px
-            makeEnemy('e3', 140, 100), // 40px
-            makeEnemy('e4', 100, 150), // 50px
+        // Ally at (100,100). Five bleeding enemies in the radius (no target cap), one healthy
+        // enemy in the radius, and one bleeding enemy outside it.
+        const bleedingNear = [
+            makeEnemy('e1', 120, 100),
+            makeEnemy('e2', 100, 130),
+            makeEnemy('e3', 140, 100),
+            makeEnemy('e4', 100, 150),
+            makeEnemy('e5', 160, 100),
         ];
-        const fifthInCircle = makeEnemy('e5', 160, 100); // 60px — in radius but 5th-closest
-        const outside = makeEnemy('far', 100 + BLOOD_MAGE_ALLY_SPLASH_RADIUS + 20, 100);
-        const engine = makeEngine([caster, ally, ...near, fifthInCircle, outside]);
+        const notBleeding = makeEnemy('clean', 80, 100);
+        // Rend counts body overlap, so keep the far enemy's whole body outside the circle.
+        const bleedingFar = makeEnemy('far', 100 + BLOOD_MAGE_ALLY_SPLASH_RADIUS + 60, 100);
+        for (const enemy of [...bleedingNear, bleedingFar]) applyBleedStack(enemy, 0, 1, 1);
+        const engine = makeEngine([caster, ally, ...bleedingNear, notBleeding, bleedingFar]);
 
         executeUnitAbility(caster, BloodMendAbility_0301, targetsFor(ally), engine);
         advanceSimulation(caster, engine, ACTIVE_TICK_ADVANCE);
 
-        for (const enemy of near) {
-            expect(enemy.hp).toBe(100 - BLOOD_MAGE_ALLY_SPLASH_DAMAGE);
+        for (const enemy of bleedingNear) {
+            expect(enemy.hp).toBe(100 - BLOOD_MAGE_REND);
         }
-        expect(fifthInCircle.hp).toBe(100);
-        expect(outside.hp).toBe(100);
+        expect(notBleeding.hp).toBe(100);
+        expect(bleedingFar.hp).toBe(100);
         expect(ally.hp).toBe(50 + BLOOD_MEND_HEAL_AMOUNT);
-        expect(BLOOD_MAGE_ALLY_SPLASH_MAX_TARGETS).toBe(4);
+    });
+
+    it('shows Rend as a keyword line', () => {
+        expect(BloodMendAbility_0301.getTooltipText()).toContain(`{Rend ${BLOOD_MAGE_REND}}`);
     });
 
     it("floorAtOne: casting at hp<=5 still succeeds and clamps the caster at exactly 1 HP", () => {

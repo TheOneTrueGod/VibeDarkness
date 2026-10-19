@@ -17,12 +17,13 @@ cost, only clamped so it can't kill the caster).
 
 | Path | Purpose |
 |---|---|
-| `0301_BloodMend/` | Ally heal costing HP (`hpCostGate: 'floorAtOne'`) + ally-centered splash |
+| `0301_BloodMend/` | Ally heal costing HP (`hpCostGate: 'floorAtOne'`) + Rend around the ally |
 | `0302_Burst/` | Cone damage costing HP, modeled on `card_defs/0121_ConeOfLight/` |
-| `0303_Protect/` | Ally shield buff (`buffs/ShieldBuff.ts`) costing HP + ally-centered splash |
+| `0303_Protect/` | Ally shield buff (`buffs/ShieldBuff.ts`) costing HP + Rend around the ally |
 | `0304_BloodShard/` | Quick-throw blood projectile costing a little HP; 2 uses per round (`roundCharge`) |
 | `0305_BloodPact/` | Links an ally to the caster for 2 rounds (`buffs/DamageLinkBuff.ts`): half the ally's life loss moves to the caster. HP cost paid over time (`buffs/HpDrainBuff.ts`); tether drawn by `buffs/tetherVisual.ts` |
-| `../../abilities/bloodMageAllySplash.ts` | Shared ally-target splash (radius / damage / max targets, hover preview hitbox, active-frame damage) for Mend + Protect |
+| `0306_BloodyClaws/` | Three-strike melee combo (left, right, X) built from `hitboxes/AimFrameSegmentHitbox.ts` claws; strikes 2-3 use `SelectTargetDef.turnLimit`; each claw hit adds bleed (`applyBleedToPrimaryTarget`) |
+| `../../abilities/bloodMageAllySplash.ts` | Shared ally-target Rend (keyword `rend`, `abilities/keywords/rendKeyword.ts`: damage to nearby bleeding enemies) + hover preview hitbox for Mend + Protect |
 | `../../abilities/bloodMageVfx.ts` | Shared blood-mist VFX helpers (windup burst, travel, impact flash) — reused by every Blood Mage ability instead of bespoke one-offs |
 | `../../game/effect_defs/bloodMageEffects.ts` | Effect visuals the helpers above spawn (`BloodMistBurst`, `BloodMistImpact`, `BloodConeFlash`) |
 | `../../game/ShieldShimmerFilter.ts` | Shield shimmer visual filter (black/red/transparent) rendered on units carrying a `ShieldBuff` |

@@ -4,6 +4,7 @@ import {
     buildMeleeSelectOrderTargets,
     clampSelectTarget,
     clampResolvedTargetToAbilityRange,
+    constrainSelectAim,
     resolveSelectTargetCompanionLockOns,
     resolveSelectTargetLockOnCandidates,
 } from '../../../abilities/targeting';
@@ -57,12 +58,15 @@ export class AbilityTargetingTool implements InteractionTool {
             const allCandidates = cache?.targetIdx === targetIndex ? (cache.allCandidates ?? []) : [];
             const companionCandidates = cache?.targetIdx === targetIndex ? (cache.companionCandidates ?? []) : [];
             const numTargets = selectDef.numTargets ?? selectDef.hitbox.numTargets;
+            const clickAim = caster
+                ? constrainSelectAim(caster, selectDef, clickResult.worldPosition, this.targetsByLabel, engine)
+                : clickResult.worldPosition;
 
             let resolved: ResolvedTarget;
             if (allCandidates.length > 0) {
                 resolved = { type: 'unit', unitId: allCandidates[0]!.unitId };
             } else if (selectDef.allowMiss !== false) {
-                resolved = { type: 'pixel', position: clickResult.worldPosition };
+                resolved = { type: 'pixel', position: clickAim };
             } else {
                 return true;
             }
@@ -101,7 +105,7 @@ export class AbilityTargetingTool implements InteractionTool {
                 const orderTargets = buildMeleeSelectOrderTargets(
                     resolved,
                     allCandidates,
-                    clickResult.worldPosition,
+                    clickAim,
                     numTargets,
                     companionCandidates,
                 );
@@ -185,18 +189,19 @@ export class AbilityTargetingTool implements InteractionTool {
                     ) > 2;
                 if (cacheStale) {
                     if (caster) {
+                        const aim = constrainSelectAim(caster, selectDef, worldPos, this.targetsByLabel, engine);
                         const hitUnits = resolveSelectTargetLockOnCandidates(
                             this.ability,
                             caster,
                             selectDef,
-                            worldPos,
+                            aim,
                             engine,
                         );
                         const companionUnits = resolveSelectTargetCompanionLockOns(
                             this.ability,
                             caster,
                             selectDef,
-                            worldPos,
+                            aim,
                             engine,
                             hitUnits,
                         );

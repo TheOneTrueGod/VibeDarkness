@@ -144,9 +144,11 @@ export function damageEnemiesInCircle(options: {
     attackType?: string;
     /** When set, only the closest `maxTargets` enemies in the circle are damaged. */
     maxTargets?: number;
+    /** When set, only enemies passing this check are candidates (applied before `maxTargets`). */
+    filter?: (unit: Unit) => boolean;
     onHit?: (unit: Unit) => void;
 }): void {
-    const { engine: eng, caster, center, radius, damage, abilityId, attackType = 'melee', maxTargets, onHit } = options;
+    const { engine: eng, caster, center, radius, damage, abilityId, attackType = 'melee', maxTargets, filter, onHit } = options;
     let candidates = CircleHitbox.getUnitsInHitbox(
         toHitboxEngine(eng),
         caster,
@@ -154,6 +156,7 @@ export function damageEnemiesInCircle(options: {
         center.y,
         radius,
     );
+    if (filter) candidates = candidates.filter(filter);
     if (maxTargets != null && candidates.length > maxTargets) {
         candidates = candidates
             .map((unit) => ({

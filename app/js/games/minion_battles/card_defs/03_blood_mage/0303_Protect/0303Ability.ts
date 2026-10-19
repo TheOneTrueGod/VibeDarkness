@@ -12,10 +12,9 @@ import type { AbilityRecoveryRule } from '../../../abilities/Ability';
 import type { EngineContext } from '../../../game/EngineContext';
 import { ShieldBuff } from '../../../buffs/ShieldBuff';
 import {
-    BLOOD_MAGE_ALLY_SPLASH_DAMAGE,
-    BLOOD_MAGE_ALLY_SPLASH_MAX_TARGETS,
     BLOOD_MAGE_ALLY_SPLASH_RADIUS,
-    dealBloodMageAllySplash,
+    BLOOD_MAGE_REND,
+    dealBloodMageRend,
     unitRangeWithAllySplashHitbox,
 } from '../../../abilities/bloodMageAllySplash';
 import {
@@ -24,6 +23,7 @@ import {
     spawnBloodMistTravel,
     spawnBloodMistWindupBurst,
 } from '../../../abilities/bloodMageVfx';
+import { formatKeywordLine } from '../../../abilities/keywords/keywordRegistry';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { type CardDef } from '../../types';
 
@@ -138,7 +138,7 @@ export const ProtectAbility_0303 = defineAbility({
                     eng.roundNumber,
                     eng.eventBus,
                 );
-                dealBloodMageAllySplash(eng, ctx.caster, { x: targetUnit.x, y: targetUnit.y }, CARD_ID);
+                dealBloodMageRend(eng, ctx.caster, { x: targetUnit.x, y: targetUnit.y }, CARD_ID);
                 spawnBloodMistImpactFlash(eng, { x: targetUnit.x, y: targetUnit.y }, {
                     variant: 'shield',
                     radius: BLOOD_MAGE_ALLY_SPLASH_RADIUS,
@@ -158,7 +158,7 @@ export const ProtectAbility_0303 = defineAbility({
         return [
             'Weave a shielding lattice of blood magic over an ally at your own expense.',
             `Grants a shield absorbing the next {${SHIELD_HP}} damage. Fades over time if not fully used.`,
-            `Deals {${BLOOD_MAGE_ALLY_SPLASH_DAMAGE}} damage to up to {${BLOOD_MAGE_ALLY_SPLASH_MAX_TARGETS}} enemies near the target.`,
+            formatKeywordLine({ keyword: 'rend', n: BLOOD_MAGE_REND }),
             `Costs {${HP_COST}} HP to cast.`,
         ];
     },

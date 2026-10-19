@@ -9,6 +9,7 @@ export const BLOOD_MAGE_NODE_BURST = 'blood_mage_burst';
 export const BLOOD_MAGE_NODE_PROTECT = 'blood_mage_protect';
 export const BLOOD_MAGE_NODE_SHARD = 'blood_mage_shard';
 export const BLOOD_MAGE_NODE_PACT = 'blood_mage_pact';
+export const BLOOD_MAGE_NODE_CLAWS = 'blood_mage_claws';
 
 export const BLOOD_CORE_CRYSTAL_COST = 12;
 export const BLOOD_CORE_FOOD_COST = 8;
@@ -29,6 +30,10 @@ export const BLOOD_SHARD_METAL_COST = 2;
 export const BLOOD_PACT_CRYSTAL_COST = 13;
 export const BLOOD_PACT_FOOD_COST = 8;
 export const BLOOD_PACT_METAL_COST = 3;
+
+export const BLOODY_CLAWS_CRYSTAL_COST = 12;
+export const BLOODY_CLAWS_FOOD_COST = 7;
+export const BLOODY_CLAWS_METAL_COST = 1;
 
 export const bloodMageTree: ResearchTreeDef = {
     id: BLOOD_MAGE_TREE_ID,
@@ -153,6 +158,29 @@ export const bloodMageTree: ResearchTreeDef = {
             },
             effects: [
                 { type: 'addCard', cardId: '0305' },
+            ],
+        },
+        {
+            id: BLOOD_MAGE_NODE_CLAWS,
+            title: 'Bloody Claws',
+            description:
+                'Harden your blood into claws and rake your foes left, right, and across.',
+            flavorText: 'Every wound it leaves keeps weeping.',
+            order: 30,
+            tier: 10,
+            position: { x: 420, y: 150 },
+            prereqNodeIds: [BLOOD_MAGE_NODE_CORE],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: BLOOD_MAGE_TREE_ID, nodeIds: [BLOOD_MAGE_NODE_CORE] },
+            ],
+            cost: {
+                crystals: BLOODY_CLAWS_CRYSTAL_COST,
+                food: BLOODY_CLAWS_FOOD_COST,
+                metal: BLOODY_CLAWS_METAL_COST,
+            },
+            effects: [
+                { type: 'addCard', cardId: '0306' },
             ],
         },
     ],

@@ -46,6 +46,7 @@ import {
     BLOOD_MIST_IMPACT_EFFECT_TYPE,
     BLOOD_CONE_FLASH_EFFECT_TYPE,
 } from './bloodMageEffects';
+import { CLAW_SLASH_EFFECT_TYPE, clawSlashEffectDef } from './clawSlashEffects';
 import { tempoOrbEffectDef, tempoSpeedLineEffectDef } from './tempoAuraEffects';
 import { TEMPO_ORB_EFFECT_TYPE, TEMPO_SPEED_LINE_EFFECT_TYPE } from '../effects/buffParticleAura';
 
@@ -107,6 +108,7 @@ export const effectDefRegistry: Record<string, IEffectDef> = {
     [BLOOD_MIST_BURST_EFFECT_TYPE]: bloodMistBurstEffectDef,
     [BLOOD_MIST_IMPACT_EFFECT_TYPE]: bloodMistImpactEffectDef,
     [BLOOD_CONE_FLASH_EFFECT_TYPE]: bloodConeFlashEffectDef,
+    [CLAW_SLASH_EFFECT_TYPE]: clawSlashEffectDef,
     [TEMPO_ORB_EFFECT_TYPE]: tempoOrbEffectDef,
     [TEMPO_SPEED_LINE_EFFECT_TYPE]: tempoSpeedLineEffectDef,
 };

@@ -7,6 +7,7 @@ export { UnitRangeHitboxSpec, unitRangeHitbox } from './UnitRangeHitboxSpec';
 export { CircleAoEHitboxSpec, circleAoEHitbox, type CircleAoEPreviewStyle } from './CircleAoEHitboxSpec';
 export { TruncatedConeHitboxSpec, type TruncatedConeGeometry, type TruncatedConeMinRadiusResolver } from './TruncatedConeHitbox';
 export { ConvexQuadHitboxSpec, convexQuadHitbox } from './ConvexQuadHitbox';
+export { AimFrameSegmentHitboxSpec, aimFrameSegmentHitbox, type AimFramePoint, type AimFrameSegmentConfig } from './AimFrameSegmentHitbox';
 export {
     TileAreaHitboxSpec,
     tileAreaHitbox,

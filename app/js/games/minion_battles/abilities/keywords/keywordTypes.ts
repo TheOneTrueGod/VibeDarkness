@@ -1,7 +1,7 @@
 import type { Unit } from '../../game/units/Unit';
 import type { AbilityEngineContext } from '../AbilityEngineContext';
 
-export type KeywordId = 'bright' | 'knockback' | 'devourLight';
+export type KeywordId = 'bright' | 'knockback' | 'devourLight' | 'rend';
 
 /** Cast-time context for keyword resolution (subset of the CastBehaviour context). */
 export interface KeywordContext {
@@ -20,6 +20,11 @@ export interface KeywordDef {
     readonly displayName: string;
     /** Returns the tooltip keyword text, e.g. `Bright 3` (no braces). */
     formatTooltip(n: number): string;
+    /**
+     * Optional reminder text for tooltips (legacy-encoded, e.g. `Deals {2} damage to ...`).
+     * Tooltips that show this keyword add it as a glossary line (`keywordGlossaryLines`).
+     */
+    describe?(n: number): string;
     /** Optional cast-time trigger. Keywords without one are tooltip-only. */
     resolve?(ctx: KeywordContext, n: number): KeywordResult;
 }

@@ -91,6 +91,12 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
      * and uses priority fill against in-shape units only.
      */
     private lockOnMode: 'tether' | 'strictHitbox' = 'tether';
+    /**
+     * When true, lock-on and aim come only from this window's own resolved target, never from the
+     * shared positional `order.targets` (which describe only the last select step of a
+     * multi-select ability). Use for each strike of a combo with several select steps.
+     */
+    private ownTargetOnly = false;
 
     withHitbox(def: HitboxDef | HitboxSpec): this {
         this.hitboxDef = def;
@@ -149,6 +155,17 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         return this;
     }
 
+    /** See {@link MeleeAttackBehaviour.ownTargetOnly}. */
+    withOwnTargetOnly(): this {
+        this.ownTargetOnly = true;
+        return this;
+    }
+
+    /** The targets this strike may read lock-ons and the aim pixel from. */
+    private stepTargets(ctx: { target: ResolvedTarget; allTargets: ResolvedTarget[] }): ResolvedTarget[] {
+        return this.ownTargetOnly ? [ctx.target] : ctx.allTargets;
+    }
+
     /** See {@link MeleeAttackBehaviour.lockOnMode}. */
     withLockOnMode(mode: 'tether' | 'strictHitbox'): this {
         this.lockOnMode = mode;
@@ -174,7 +191,7 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         return resolveMeleeSlideDirection({
             caster: ctx.caster,
             target: ctx.target,
-            allTargets: ctx.allTargets,
+            allTargets: this.stepTargets(ctx),
             numLockOns: this.getNumLockOns(),
             getUnit: (id) => ctx.engine.getUnit(id),
         });
@@ -182,13 +199,14 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
 
     onSetup(ctx: CastBehaviourSetupContext): void {
         const numLockOns = this.getNumLockOns();
+        const allTargets = this.stepTargets(ctx);
 
         // Collect locked units starting at the primary target's slot, up to numLockOns.
         // Skip companion lock-ons (`lockRole: 'companion'`) from SelectTargetDef.companionHitboxes.
-        const startIdx = Math.max(0, ctx.allTargets.indexOf(ctx.target));
+        const startIdx = Math.max(0, allTargets.indexOf(ctx.target));
         const lockedUnits: LockedUnit[] = [];
-        for (let i = startIdx; i < ctx.allTargets.length && lockedUnits.length < numLockOns; i++) {
-            const t = ctx.allTargets[i];
+        for (let i = startIdx; i < allTargets.length && lockedUnits.length < numLockOns; i++) {
+            const t = allTargets[i];
             if (t?.type === 'unit' && t.unitId != null && t.lockRole !== 'companion') {
                 lockedUnits.push({ unitId: t.unitId });
             }
@@ -201,9 +219,9 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         // Uses findMeleeAimPixelInTargets (last pixel) so fewer-than-numLockOns cases
         // (e.g. 1 enemy in a 3-slot hitbox → [unit, pixel]) are handled correctly.
         let aimPixel: { x: number; y: number } | null = null;
-        const hasCompanionLock = ctx.allTargets.some((t) => t.type === 'unit' && t.lockRole === 'companion');
+        const hasCompanionLock = allTargets.some((t) => t.type === 'unit' && t.lockRole === 'companion');
         if (numLockOns > 1 || hasCompanionLock) {
-            aimPixel = findMeleeAimPixelInTargets(ctx.allTargets);
+            aimPixel = findMeleeAimPixelInTargets(allTargets);
         }
 
         const { dirX: aimDirX, dirY: aimDirY } = this.resolveSlideDirection(ctx);

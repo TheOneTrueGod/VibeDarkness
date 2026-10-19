@@ -9,6 +9,7 @@
 import React from 'react';
 import type { TooltipSegment } from '../../abilities/tooltipTokens';
 import { AnchoredPortalTooltip } from './AnchoredPortalTooltip';
+import { keywordGlossaryLines } from '../../abilities/keywords/keywordRegistry';
 import { getDisabledReasonDisplay, type DisabledReason } from './abilityDisabledReason';
 
 /** Unified render shape (legacy parse + TooltipSegment). */
@@ -123,6 +124,10 @@ export default function AbilityTooltip({
 }: AbilityTooltipProps) {
     const reasonDisplay = disabledReason ? getDisabledReasonDisplay(disabledReason) : null;
     const renderedLines = resolveLinesForRender(lines, segmentLines);
+    // Reminder text for described keywords used above (e.g. Rend).
+    const glossaryLines = keywordGlossaryLines(
+        renderedLines.flatMap((segs) => segs.filter((seg) => seg.dynamic).map((seg) => seg.text)),
+    ).map(parseTooltipLine);
 
     if (isMobileOverlay) {
         return (
@@ -142,6 +147,11 @@ export default function AbilityTooltip({
                 <div className="text-gray-200 text-xs leading-relaxed space-y-1">
                     {renderedLines.map((segs, i) => (
                         <div key={i} style={{ lineHeight: LINE_HEIGHT }}>
+                            {renderSegmentSpans(segs, 'text-muted')}
+                        </div>
+                    ))}
+                    {glossaryLines.map((segs, i) => (
+                        <div key={`g${i}`} className="italic opacity-80" style={{ lineHeight: LINE_HEIGHT }}>
                             {renderSegmentSpans(segs, 'text-muted')}
                         </div>
                     ))}
@@ -165,6 +175,15 @@ export default function AbilityTooltip({
                         {renderSegmentSpans(segs, 'text-gray-200')}
                     </div>
                 ))}
+                {glossaryLines.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-dark-600 space-y-1 italic">
+                        {glossaryLines.map((segs, i) => (
+                            <div key={`g${i}`}>
+                                {renderSegmentSpans(segs, 'text-gray-400')}
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
             {reasonDisplay && (
                 <div className="mt-auto">
