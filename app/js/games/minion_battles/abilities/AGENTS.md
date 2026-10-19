@@ -55,6 +55,27 @@ Declarative cast timing, targeting, hitboxes, and reusable cast behaviours for M
 - Structures (`UnitTag.Structure`, e.g. nests) cannot be pushed out of rock raised on their tile. `tickWallUnstick` calls `resolveStructureInTerrain` (`game/units/unitWallUnstick.ts`): the rock is destroyed (`TerrainManager.destroyRock`, leaving rubble) and the structure takes its def-level `terrainCrushDamage` once (default `DEFAULT_STRUCTURE_TERRAIN_CRUSH_DAMAGE` = 10 in `unitDef.ts`). Non-rock walls are left alone and deal no damage.
 - Knockback that starts inside a wall escapes it (`updateUnitKnockback` in `game/units/unitKnockback.ts`). While a tick's segment starts inside a wall, the unit moves the full segment without terrain collision and the knockback stays alive. Collision resumes once the unit is on passable ground. A knockback that ends inside the wall leaves the unit there for `tickWallUnstick`. The push must be long enough to clear the tile: from a tile centre that is half a tile. Dashes, lunges, nudges and Lifted still cannot start moving from inside a wall (`computeForcedDisplacement` returns zero).
 
+## Visuals at a pause plane (`pauseBehaviour`)
+
+At a pause plane (waiting for orders or target input, or an explicit pause), game ticks stop but the render loop keeps running. Every effect and emitter an ability creates says what it does then through `pauseBehaviour`. The engine side is in `game/effects/pauseBehaviour.ts` and `game/effects/AGENTS.md`. The goal is a paused battlefield that still shows what is happening.
+
+| Setting | While paused | Use it for | Examples |
+|---|---|---|---|
+| `'continue'` | Keeps animating, and emitters keep emitting, on real time. | State that is still true while paused: windups, channels, fields, auras, charge-ups, anything telling the player "this is in progress". | Ability-timing emitters (the default), the Gravity Locus field, the Ease Burdens tempo particles. |
+| `'hold'` | Freezes in its current pose; emitters stop with their timers frozen. | A snapshot of motion. It would mislead if it kept animating on a stopped unit, or vanish if it kept fading. | Dash and Digging Claws afterimages. |
+| `'stop'` | Removed as soon as the game pauses. | Visuals that mean nothing out of motion and would only clutter a paused frame. | Nothing yet. Prefer `'hold'` unless the frozen frame is actually confusing. |
+
+Rules of thumb:
+
+- Ask what the player should read from a frozen frame. If the visual describes current state, use `'continue'`. If it records movement that has stopped, use `'hold'`.
+- Defaults:
+    - Ability-timing emitters (`emitterDef` via `createEmitterFromDef`) are `'continue'`. Set `pauseBehaviour` on the def to opt out.
+    - Hand-built `Effect`s are `'continue'`, except `timeDomain` `'world'` / `'owner'` ones, which are `'hold'`.
+    - Hand-built emitters are `'hold'`. The legacy `emitWhilePaused: true` means `'continue'`.
+- Set the effect and its emitter separately. A dash trail's emitter must not keep stamping afterimages on a stationary caster, while the afterimages already on screen should stay (`'hold'`).
+- A visual for a buff's state belongs in `Buff.renderEmit` or `Buff.particleAura`, not in `onGameTick`. `onGameTick` does not run at a pause plane, so the visual goes blank. Both hooks run on the render loop and are rebuilt from serialized buff state, so they survive reconnects.
+- Anything that emits while paused runs a frame-rate-dependent number of times on each client. Emitter factories and `renderEmit` must stay purely visual: no engine RNG, no game-state changes. Spawn jitter should use precomputed values or a local hash RNG, as `buffParticleAura.ts` does.
+
 ## Terrain clearing
 
 Erases ground and air layer effects (bramble, thorns, ...) from tiles. It is an engine system so wind (air), explosions (both) and projectiles that are not grid-aligned can reuse it. The floor layer (rock, rubble) is never touched. Code is in `game/terrainEffects/terrainClearing.ts` and `game/TerrainLayerManager.ts`.
