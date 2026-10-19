@@ -56,7 +56,13 @@ describe('resolveItsSelectTargetForClick', () => {
         );
 
         expect(resolution).not.toBeNull();
-        expect(resolution!.labelTarget).toEqual({ type: 'unit', unitId: enemy.id });
+        // The label target is the step's primary lock-on, carrying the step's clicked aim.
+        expect(resolution!.labelTarget).toEqual({
+            type: 'unit',
+            unitId: enemy.id,
+            lockRole: 'primary',
+            stepAim: clickWorld,
+        });
         expect(resolution!.resolved.type).toBe('unit');
         engine.destroy();
     });
@@ -221,7 +227,7 @@ describe('resolveItsSelectTargetForClick', () => {
 
         expect(resolution).not.toBeNull();
         expect(resolution!.orderTargets).toEqual([
-            { type: 'unit', unitId: enemy.id, lockRole: 'primary' },
+            { type: 'unit', unitId: enemy.id, lockRole: 'primary', stepAim: clickWorld },
             { type: 'pixel', position: clickWorld },
         ]);
         engine.destroy();

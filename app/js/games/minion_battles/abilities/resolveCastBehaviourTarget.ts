@@ -87,6 +87,9 @@ export function resolveCastBehaviourTarget(
                 }
             }
         }
+        // Melee lock-ons are picked by body contact, so a locked unit's centre can be past the
+        // ability's range; behaviours with their own lock-on range keep the unit (lobby F2DDA5).
+        if (result.type === 'unit' && entry.behaviour.keepsUnitTargetsBeyondRange) return result;
         return clampResolvedTargetToAbilityRange(ability, unit, result, eng);
     }
     return result;

@@ -21,13 +21,21 @@ export function formatKeywordText(id: KeywordId, n: number): string {
     return def.formatTooltip(n);
 }
 
+/** Reminder card for a described keyword shown in a tooltip. */
+export interface KeywordGlossaryEntry {
+    /** Keyword text as shown, e.g. `Rend 2`. */
+    title: string;
+    /** Legacy-encoded reminder text, e.g. `Deals {2} damage to nearby bleeding enemies.` */
+    description: string;
+}
+
 /**
- * Glossary lines for described keywords that appear in a tooltip. `keywordTexts` are the tooltip's
- * dynamic segment texts (e.g. `Rend 2`); each described keyword found returns one legacy-encoded
- * line (`{Rend 2}: Deals {2} damage ...`), in first-seen order without duplicates.
+ * Reminder entries for described keywords that appear in a tooltip. `keywordTexts` are the
+ * tooltip's dynamic segment texts (e.g. `Rend 2`); each described keyword found yields one entry,
+ * in first-seen order without duplicates.
  */
-export function keywordGlossaryLines(keywordTexts: readonly string[]): string[] {
-    const lines: string[] = [];
+export function keywordGlossaryEntries(keywordTexts: readonly string[]): KeywordGlossaryEntry[] {
+    const entries: KeywordGlossaryEntry[] = [];
     const seen = new Set<string>();
     for (const text of keywordTexts) {
         for (const def of registry.values()) {
@@ -37,10 +45,10 @@ export function keywordGlossaryLines(keywordTexts: readonly string[]): string[] 
             const n = Number(text.slice(prefix.length));
             if (!Number.isFinite(n) || seen.has(text)) continue;
             seen.add(text);
-            lines.push(`{${text}}: ${def.describe(n)}`);
+            entries.push({ title: text, description: def.describe(n) });
         }
     }
-    return lines;
+    return entries;
 }
 
 /** Legacy-encoded tooltip line for a keyword use (e.g. `{Bright 3}`). */

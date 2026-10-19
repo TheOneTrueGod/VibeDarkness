@@ -9,7 +9,7 @@
 import React from 'react';
 import type { TooltipSegment } from '../../abilities/tooltipTokens';
 import { AnchoredPortalTooltip } from './AnchoredPortalTooltip';
-import { keywordGlossaryLines } from '../../abilities/keywords/keywordRegistry';
+import { keywordGlossaryEntries, type KeywordGlossaryEntry } from '../../abilities/keywords/keywordRegistry';
 import { getDisabledReasonDisplay, type DisabledReason } from './abilityDisabledReason';
 
 /** Unified render shape (legacy parse + TooltipSegment). */
@@ -110,6 +110,7 @@ export interface AbilityTooltipProps {
 
 const TOOLTIP_WIDTH = 180;
 const TOOLTIP_HEIGHT = 200;
+const KEYWORD_CARD_WIDTH = 150;
 const LINE_HEIGHT = 1.35;
 
 export default function AbilityTooltip({
@@ -124,10 +125,10 @@ export default function AbilityTooltip({
 }: AbilityTooltipProps) {
     const reasonDisplay = disabledReason ? getDisabledReasonDisplay(disabledReason) : null;
     const renderedLines = resolveLinesForRender(lines, segmentLines);
-    // Reminder text for described keywords used above (e.g. Rend).
-    const glossaryLines = keywordGlossaryLines(
+    // Reminder cards for described keywords used above (e.g. Rend), shown beside the tooltip.
+    const keywordEntries = keywordGlossaryEntries(
         renderedLines.flatMap((segs) => segs.filter((seg) => seg.dynamic).map((seg) => seg.text)),
-    ).map(parseTooltipLine);
+    );
 
     if (isMobileOverlay) {
         return (
@@ -150,12 +151,14 @@ export default function AbilityTooltip({
                             {renderSegmentSpans(segs, 'text-muted')}
                         </div>
                     ))}
-                    {glossaryLines.map((segs, i) => (
-                        <div key={`g${i}`} className="italic opacity-80" style={{ lineHeight: LINE_HEIGHT }}>
-                            {renderSegmentSpans(segs, 'text-muted')}
-                        </div>
-                    ))}
                 </div>
+                {keywordEntries.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        {keywordEntries.map((entry) => (
+                            <KeywordCard key={entry.title} entry={entry} className="flex-1 min-w-[140px]" />
+                        ))}
+                    </div>
+                )}
                 {reasonDisplay && (
                     <div className="mt-3 pt-3 border-t border-rose-900">
                         <p className="text-rose-300 font-bold text-xs">{reasonDisplay.title}</p>
@@ -175,15 +178,6 @@ export default function AbilityTooltip({
                         {renderSegmentSpans(segs, 'text-gray-200')}
                     </div>
                 ))}
-                {glossaryLines.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-dark-600 space-y-1 italic">
-                        {glossaryLines.map((segs, i) => (
-                            <div key={`g${i}`}>
-                                {renderSegmentSpans(segs, 'text-gray-400')}
-                            </div>
-                        ))}
-                    </div>
-                )}
             </div>
             {reasonDisplay && (
                 <div className="mt-auto">
@@ -203,19 +197,41 @@ export default function AbilityTooltip({
         return null;
     }
 
+    const mainCard = (
+        <div className={desktopClassName} style={{ width: TOOLTIP_WIDTH, minHeight: TOOLTIP_HEIGHT }}>
+            {body}
+        </div>
+    );
+
     return (
         <AnchoredPortalTooltip
             anchorRef={anchorRef}
             open={open}
             placement="top"
             autoFlip
-            className={desktopClassName}
-            style={{
-                width: TOOLTIP_WIDTH,
-                minHeight: TOOLTIP_HEIGHT,
-            }}
+            bare
+            className="flex items-start gap-2"
         >
-            {body}
+            {mainCard}
+            {keywordEntries.length > 0 && (
+                <div className="flex flex-col gap-2" style={{ width: KEYWORD_CARD_WIDTH }}>
+                    {keywordEntries.map((entry) => (
+                        <KeywordCard key={entry.title} entry={entry} />
+                    ))}
+                </div>
+            )}
         </AnchoredPortalTooltip>
+    );
+}
+
+/** A Slay-the-Spire-style reminder card for one keyword (title + description). */
+function KeywordCard({ entry, className = '' }: { entry: KeywordGlossaryEntry; className?: string }) {
+    return (
+        <div className={`rounded-lg border border-white bg-black p-2 shadow-lg ${className}`}>
+            <h4 className="text-amber-300 font-bold text-xs mb-1">{entry.title}</h4>
+            <div className="text-xs" style={{ lineHeight: LINE_HEIGHT }}>
+                {renderSegmentSpans(parseTooltipLine(entry.description), 'text-gray-200')}
+            </div>
+        </div>
     );
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { Unit } from '../game/units/Unit';
 import { EventBus } from '../game/EventBus';
-import { applyBleedStack, tickBleedForRoundMilestone } from './bleedRuntime';
+import { applyBleedStack, consumeBleedStacks, isBleeding, tickBleedForRoundMilestone } from './bleedRuntime';
 import { BleedBuff } from './BleedBuff';
 
 function makeUnit(hp = 100): Unit {
@@ -54,5 +54,28 @@ describe('bleedRuntime', () => {
         expect(u.hp).toBe(999);
         const expired = u.buffs[0]?.isExpired(99, 99) ?? false;
         expect(expired).toBe(true);
+    });
+
+    it('consumeBleedStacks removes exactly max stacks when more are present', () => {
+        const u = makeUnit();
+        applyBleedStack(u, 0, 1, 6);
+
+        expect(consumeBleedStacks(u, 4)).toBe(4);
+        expect(u.buffs.find((b): b is BleedBuff => b instanceof BleedBuff)?.stacks).toBe(2);
+        expect(isBleeding(u)).toBe(true);
+    });
+
+    it('consumeBleedStacks removes every stack when fewer than max remain', () => {
+        const u = makeUnit();
+        applyBleedStack(u, 0, 1, 2);
+
+        expect(consumeBleedStacks(u, 4)).toBe(2);
+        expect(isBleeding(u)).toBe(false);
+    });
+
+    it('consumeBleedStacks returns 0 for a non-bleeding unit', () => {
+        const u = makeUnit();
+        expect(consumeBleedStacks(u, 4)).toBe(0);
+        expect(isBleeding(u)).toBe(false);
     });
 });

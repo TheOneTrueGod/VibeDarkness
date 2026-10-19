@@ -52,6 +52,12 @@ export interface SelectTargetDef {
         hitbox: HitboxSpec;
         numTargets?: number;
         filter?: SelectTargetDef['filter'];
+        /**
+         * True when this companion strikes even if the primary hitbox has no target (e.g. Bloody
+         * Claws' second claw). The preview then always draws it. Default false: drawn only when the
+         * primary would connect (e.g. Imbued Bat's light cone).
+         */
+        independent?: boolean;
     }>;
     /**
      * Extra px beyond (caster.radius + target.radius) at which the windup telegraph tether breaks.

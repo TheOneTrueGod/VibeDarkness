@@ -54,6 +54,24 @@ function findBleedBuff(unit: Unit): BleedBuff | undefined {
     return undefined;
 }
 
+/** True only while the unit carries a BleedBuff with at least one stack. */
+export function isBleeding(unit: Unit): boolean {
+    const bleed = findBleedBuff(unit);
+    return bleed !== undefined && bleed.stacks > 0;
+}
+
+/**
+ * Removes up to `max` bleed stacks from the unit and returns how many were removed (0 when not
+ * bleeding). A buff left at 0 stacks expires through the normal buff sweep.
+ */
+export function consumeBleedStacks(unit: Unit, max: number): number {
+    const bleed = findBleedBuff(unit);
+    if (!bleed || bleed.stacks <= 0 || max <= 0) return 0;
+    const removed = Math.min(bleed.stacks, max);
+    bleed.stacks -= removed;
+    return removed;
+}
+
 /** Add bleed stacks to the unit (merges into a single BleedBuff). */
 export function applyBleedStack(unit: Unit, gameTime: number, roundNumber: number, count = 1): void {
     if (!unit.isAlive()) return;

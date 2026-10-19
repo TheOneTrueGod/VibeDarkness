@@ -53,9 +53,6 @@ export function resolveItsSelectTargetForClick(
     const numTargets = selectDef.numTargets ?? selectDef.hitbox.numTargets;
     const lockOnCandidates = candidates.map((u) => ({ unitId: u.id }));
     const companionCandidates = companionUnits.map((u) => ({ unitId: u.id }));
-    const labelTarget: ResolvedTarget = lockOnCandidates.length > 0
-        ? { type: 'unit', unitId: lockOnCandidates[0]!.unitId }
-        : resolved;
     const orderTargets = buildMeleeSelectOrderTargets(
         resolved,
         lockOnCandidates,
@@ -63,6 +60,8 @@ export function resolveItsSelectTargetForClick(
         numTargets,
         companionCandidates,
     );
+    // With lock-ons, the label target is the step's primary (it carries the step's aim and lock-ons).
+    const labelTarget: ResolvedTarget = lockOnCandidates.length > 0 ? orderTargets[0]! : resolved;
     return { labelTarget, resolved, orderTargets };
 }
 

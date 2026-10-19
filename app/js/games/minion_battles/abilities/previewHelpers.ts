@@ -754,6 +754,32 @@ export function drawArcWedge(
 /**
  * Draw a cone slice (wedge between min and max radius) for active previews (e.g. enemy melee telegraph).
  */
+/**
+ * Small outward-pointing triangle beside a unit showing which way it faces: base corners at
+ * `innerR` and +/-`halfSpreadRad` around `angleRad`, apex at `outerR` along it.
+ */
+export function drawFacingIndicator(
+    gr: IAbilityPreviewGraphics,
+    centerX: number,
+    centerY: number,
+    angleRad: number,
+    halfSpreadRad: number,
+    innerR: number,
+    outerR: number,
+    style: { fillColor: number; fillAlpha: number; strokeColor: number; strokeAlpha: number },
+): void {
+    const at = (angle: number, r: number) => ({ x: centerX + Math.cos(angle) * r, y: centerY + Math.sin(angle) * r });
+    const left = at(angleRad - halfSpreadRad, innerR);
+    const right = at(angleRad + halfSpreadRad, innerR);
+    const apex = at(angleRad, outerR);
+    gr.moveTo(left.x, left.y);
+    gr.lineTo(apex.x, apex.y);
+    gr.lineTo(right.x, right.y);
+    gr.lineTo(left.x, left.y);
+    gr.fill({ color: style.fillColor, alpha: style.fillAlpha });
+    gr.stroke({ color: style.strokeColor, width: 1.5, alpha: style.strokeAlpha });
+}
+
 export function drawConeSlice(
     gr: IAbilityPreviewGraphics,
     centerX: number,

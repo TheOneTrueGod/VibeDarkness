@@ -36,14 +36,14 @@ export const BLOODY_CLAWS_MAX_TURN_DEGREES = 30;
 
 /**
  * Left claw ("/") in the caster's aim frame (px from caster centre; side < 0 is the caster's left).
- * The base sits just beside the caster; the tip reaches forward across the aim line, so the left
+ * The base sits beside the caster, clear of its body; the tip reaches forward across the aim line, so the left
  * and right claws cross just in front of the caster with their tips pointing outward. Everything
  * stays within two body lengths (`BLOODY_CLAWS_MAX_REACH`) of the caster's centre so it reads as melee.
  */
 export const BLOODY_CLAWS_MAX_REACH = 4 * DEFAULT_UNIT_RADIUS;
-export const BLOODY_CLAWS_CLAW_BASE = { forward: 0, side: -29 };
+export const BLOODY_CLAWS_CLAW_BASE = { forward: 12, side: -48 };
 export const BLOODY_CLAWS_CLAW_TIP = { forward: 62, side: 18 };
-export const BLOODY_CLAWS_CLAW_HALF_THICKNESS = 4;
+export const BLOODY_CLAWS_CLAW_HALF_THICKNESS = 8;
 
 export const BLOODY_CLAWS_TIMINGS = {
     windupEnd: 0.15,
@@ -113,7 +113,8 @@ function clawSelect(
         filter: 'enemy',
         allowMiss: true,
         ...(opts.turnFrom ? { turnLimit: { fromLabel: opts.turnFrom, maxDegrees: BLOODY_CLAWS_MAX_TURN_DEGREES } } : {}),
-        ...(opts.companion ? { companionHitboxes: [{ hitbox: opts.companion }] } : {}),
+        // The second claw strikes whether or not the first finds a target.
+        ...(opts.companion ? { companionHitboxes: [{ hitbox: opts.companion, independent: true }] } : {}),
     };
 }
 
@@ -150,8 +151,9 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
         abilityPhase: AbilityPhase.Active,
         timelineLabel: 'X strike',
         targetDef: clawSelect(LABEL_X_STRIKE, LEFT_CLAW_HITBOX, { turnFrom: LABEL_SWIPE_RIGHT, companion: RIGHT_CLAW_HITBOX }),
-        // Two independent claws: a unit where they cross is hit by both.
-        castBehaviours: strike(claw(LEFT_CLAW_HITBOX), claw(RIGHT_CLAW_HITBOX)),
+        // Two independent claws: a unit where they cross is hit by both. The right claw is the
+        // select's companion hitbox, so it tethers the companion lock-ons, not the left claw's.
+        castBehaviours: strike(claw(LEFT_CLAW_HITBOX), claw(RIGHT_CLAW_HITBOX).withLockOnRole('companion')),
     },
     { id: 'cooldown', start: T.xStrikeEnd, end: T.cooldownEnd, abilityPhase: AbilityPhase.Cooldown },
 ];

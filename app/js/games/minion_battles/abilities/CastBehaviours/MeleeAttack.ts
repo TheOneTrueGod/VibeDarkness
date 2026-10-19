@@ -72,6 +72,8 @@ interface MeleeAttackPayload {
 // ---- Behaviour class ----
 
 export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBehaviour {
+    /** Lock-ons are judged by the tether (lock-on range), not the ability's centre-distance range. */
+    readonly keepsUnitTargetsBeyondRange = true;
     private hitboxDef: HitboxDef | HitboxSpec | null = null;
     private impactEffectType: string = 'punch';
     private impactVFXCallback: ((ctx: CastBehaviourTickContext, hitUnits: Unit[], aimX: number, aimY: number) => void) | null = null;
@@ -97,6 +99,11 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
      * multi-select ability). Use for each strike of a combo with several select steps.
      */
     private ownTargetOnly = false;
+    /**
+     * Which lock-ons this behaviour tethers: the select's primary hitbox lock-ons (default) or its
+     * `companionHitboxes` lock-ons. Set `'companion'` on the behaviour that resolves a companion hitbox.
+     */
+    private lockOnRole: 'primary' | 'companion' = 'primary';
 
     withHitbox(def: HitboxDef | HitboxSpec): this {
         this.hitboxDef = def;
@@ -155,15 +162,32 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         return this;
     }
 
+    /** See {@link MeleeAttackBehaviour.lockOnRole}. */
+    withLockOnRole(role: 'primary' | 'companion'): this {
+        this.lockOnRole = role;
+        return this;
+    }
+
     /** See {@link MeleeAttackBehaviour.ownTargetOnly}. */
     withOwnTargetOnly(): this {
         this.ownTargetOnly = true;
         return this;
     }
 
-    /** The targets this strike may read lock-ons and the aim pixel from. */
+    /**
+     * The targets this strike may read lock-ons and the aim pixel from. With `ownTargetOnly`, they are
+     * rebuilt from the window's own target: its primary, the step's other lock-ons, then its aim
+     * (`ResolvedTarget.stepLockOnUnitIds` / `stepAim`, recorded when the step was picked).
+     */
     private stepTargets(ctx: { target: ResolvedTarget; allTargets: ResolvedTarget[] }): ResolvedTarget[] {
-        return this.ownTargetOnly ? [ctx.target] : ctx.allTargets;
+        if (!this.ownTargetOnly) return ctx.allTargets;
+        const own = ctx.target;
+        const extraLockOns: ResolvedTarget[] = (own.stepLockOnUnitIds ?? [])
+            .map((unitId) => ({ type: 'unit', unitId, lockRole: 'primary' }));
+        const companionLockOns: ResolvedTarget[] = (own.stepCompanionLockOnUnitIds ?? [])
+            .map((unitId) => ({ type: 'unit', unitId, lockRole: 'companion' }));
+        const aim: ResolvedTarget[] = own.stepAim ? [{ type: 'pixel', position: own.stepAim }] : [];
+        return [own, ...extraLockOns, ...companionLockOns, ...aim];
     }
 
     /** See {@link MeleeAttackBehaviour.lockOnMode}. */
@@ -201,13 +225,15 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         const numLockOns = this.getNumLockOns();
         const allTargets = this.stepTargets(ctx);
 
-        // Collect locked units starting at the primary target's slot, up to numLockOns.
-        // Skip companion lock-ons (`lockRole: 'companion'`) from SelectTargetDef.companionHitboxes.
+        // Collect locked units starting at the primary target's slot, up to numLockOns. Only lock-ons
+        // of this behaviour's role count: primary hitbox lock-ons by default, companion lock-ons
+        // (`lockRole: 'companion'`, from SelectTargetDef.companionHitboxes) with withLockOnRole('companion').
         const startIdx = Math.max(0, allTargets.indexOf(ctx.target));
         const lockedUnits: LockedUnit[] = [];
         for (let i = startIdx; i < allTargets.length && lockedUnits.length < numLockOns; i++) {
             const t = allTargets[i];
-            if (t?.type === 'unit' && t.unitId != null && t.lockRole !== 'companion') {
+            const isCompanion = t?.lockRole === 'companion';
+            if (t?.type === 'unit' && t.unitId != null && isCompanion === (this.lockOnRole === 'companion')) {
                 lockedUnits.push({ unitId: t.unitId });
             }
         }

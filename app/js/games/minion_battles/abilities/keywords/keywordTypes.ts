@@ -22,7 +22,7 @@ export interface KeywordDef {
     formatTooltip(n: number): string;
     /**
      * Optional reminder text for tooltips (legacy-encoded, e.g. `Deals {2} damage to ...`).
-     * Tooltips that show this keyword add it as a glossary line (`keywordGlossaryLines`).
+     * Tooltips that show this keyword add a reminder card for it (`keywordGlossaryEntries`).
      */
     describe?(n: number): string;
     /** Optional cast-time trigger. Keywords without one are tooltip-only. */

@@ -343,7 +343,6 @@ export function buildMeleeSelectOrderTargets(
     // Lock-on geometry can include units slightly beyond getAbilityMaxRange center distance
     // (thick-line tolerance). clampSelectTarget may downgrade labelResolved to a range pixel —
     // always prefer the highlighted lock-on unit as primary so MeleeAttack.onSetup records it.
-    const primary: ResolvedTarget = { type: 'unit', unitId: lockOnCandidates[0]!.unitId, lockRole: 'primary' };
     const additionalLockOns: ResolvedTarget[] = lockOnCandidates
         .slice(1, numTargets)
         .map((c) => ({ type: 'unit' as const, unitId: c.unitId, lockRole: 'primary' as const }));
@@ -352,6 +351,16 @@ export function buildMeleeSelectOrderTargets(
         unitId: c.unitId,
         lockRole: 'companion' as const,
     }));
+    // The primary also records this step's aim and lock-ons (see ResolvedTarget.stepAim), so a later
+    // step's order.targets cannot overwrite them for multi-select abilities.
+    const primary: ResolvedTarget = {
+        type: 'unit',
+        unitId: lockOnCandidates[0]!.unitId,
+        lockRole: 'primary',
+        stepAim: { x: clickWorldPosition.x, y: clickWorldPosition.y },
+        ...(additionalLockOns.length > 0 ? { stepLockOnUnitIds: additionalLockOns.map((t) => t.unitId!) } : {}),
+        ...(companionLockOns.length > 0 ? { stepCompanionLockOnUnitIds: companionLockOns.map((t) => t.unitId!) } : {}),
+    };
     const aimPixel: ResolvedTarget = { type: 'pixel', position: clickWorldPosition };
     return [primary, ...additionalLockOns, ...companionLockOns, aimPixel];
 }

@@ -362,6 +362,17 @@ export interface ResolvedTarget {
      * Omitted / `'primary'` = primary; `'companion'` is ignored by MeleeAttack tether.
      */
     lockRole?: 'primary' | 'companion';
+    /**
+     * Select-step context carried on a step's primary lock-on (`buildMeleeSelectOrderTargets`).
+     * `order.targets` only describes the last select step of a multi-select ability, so each step's
+     * label target keeps its own clicked aim and extra lock-ons here (read by `MeleeAttack`'s
+     * `withOwnTargetOnly`). Plain JSON, so it survives the order round-trip.
+     */
+    stepAim?: { x: number; y: number };
+    /** See {@link ResolvedTarget.stepAim}: this step's other primary lock-ons (not companions). */
+    stepLockOnUnitIds?: string[];
+    /** See {@link ResolvedTarget.stepAim}: this step's companion-hitbox lock-ons. */
+    stepCompanionLockOnUnitIds?: string[];
 }
 
 /** Enemy placement at battle start: mission `EnemySpawnDef` plus owner. Baseline hp/speed resolved from unit defs when omitted. */

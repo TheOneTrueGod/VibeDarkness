@@ -91,25 +91,24 @@ export class AbilityTargetingTool implements InteractionTool {
                 return true;
             }
 
+            const stepOrderTargets = buildMeleeSelectOrderTargets(
+                resolved,
+                allCandidates,
+                clickAim,
+                numTargets,
+                companionCandidates,
+            );
             // `newTargets` tracks one entry per click step so the next targetIndex is correct.
             const newTargets = [...this.currentTargets, resolved];
-            const labelTarget: ResolvedTarget = allCandidates.length > 0
-                ? { type: 'unit', unitId: allCandidates[0]!.unitId }
-                : resolved;
+            // With lock-ons, the label target is the step's primary (it carries the step's aim and lock-ons).
+            const labelTarget: ResolvedTarget = allCandidates.length > 0 ? stepOrderTargets[0]! : resolved;
             const newTargetsByLabel = { ...this.targetsByLabel, [selectDef.label]: labelTarget };
             this.currentTargets = newTargets;
             this.targetsByLabel = newTargetsByLabel;
             manager.setCurrentTargets(newTargets);
 
             if (newTargets.length >= selectTargetDefs.length) {
-                const orderTargets = buildMeleeSelectOrderTargets(
-                    resolved,
-                    allCandidates,
-                    clickAim,
-                    numTargets,
-                    companionCandidates,
-                );
-                manager.submitOrder(this.ability.id, orderTargets, newTargetsByLabel);
+                manager.submitOrder(this.ability.id, stepOrderTargets, newTargetsByLabel);
                 manager.deactivateTool();
             }
             return true;

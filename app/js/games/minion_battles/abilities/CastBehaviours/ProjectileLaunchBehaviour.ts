@@ -18,6 +18,7 @@ import { findMeleeAimPixelInTargets } from '../targeting';
 import type { TerrainType } from '../../terrain/TerrainType';
 import type { ProjectileModifierId } from '../../game/projectiles/ProjectileTravelModifiers';
 import type { SpriteProjectileConfig } from '../../game/projectiles/projectile_defs';
+import type { Unit } from '../../game/units/Unit';
 
 type DamageResolver = (ctx: CastBehaviourSetupContext) => number;
 type Point = { x: number; y: number };
@@ -77,6 +78,10 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
     private rotationSpeed?: number;
     private originFn: ((ctx: CastBehaviourSetupContext) => Point) | null = null;
     private directionFn: ((ctx: CastBehaviourSetupContext) => Point | null) | null = null;
+    private emerge: {
+        select: (ctx: CastBehaviourSetupContext) => Unit[];
+        onEmerge?: (ctx: CastBehaviourSetupContext, host: Unit) => void;
+    } | null = null;
     private hold: { onCancelled?: (ctx: CastBehaviourInterruptContext, projectile: Projectile) => void } | null = null;
 
     withSpeed(speed: number): this {
@@ -200,7 +205,52 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
         return this;
     }
 
+    /**
+     * Launches one projectile out of each unit `select` returns (in that order) instead of one from
+     * the caster. Each starts at its host and flies host -> launch target, clamped to `maxRange` from
+     * the host. The host is pre-marked in `hitUnitIds`, so the flight never hits the unit it emerged
+     * from. `onEmerge` runs per host before its projectile launches (host damage, consuming a buff...);
+     * it also runs when host and target coincide, in which case nothing launches.
+     * Not supported together with `withHold`, `withOrigin` or `withDirection`.
+     */
+    withEmergeFrom(
+        select: (ctx: CastBehaviourSetupContext) => Unit[],
+        onEmerge?: (ctx: CastBehaviourSetupContext, host: Unit) => void,
+    ): this {
+        this.emerge = { select, onEmerge };
+        return this;
+    }
+
+    private launchFromHosts(ctx: CastBehaviourSetupContext, emerge: NonNullable<typeof this.emerge>): void {
+        const engine = ctx.engine as AbilityEngineContext;
+        const targetPos = resolveLaunchTarget(ctx);
+        for (const host of emerge.select(ctx)) {
+            emerge.onEmerge?.(ctx, host);
+            if (!targetPos) continue;
+            const origin = { x: host.x, y: host.y };
+            const clamped = clampToMaxRange(origin, targetPos, this.maxRange);
+            // clampToMaxRange turns a zero-length aim into a full-range line, so test the raw distance.
+            if (clamped.dist === 0) continue;
+            const toTarget = getDirectionFromTo(origin.x, origin.y, clamped.endX, clamped.endY);
+            const travelDistance = this.travelFullRange ? this.maxRange : Math.min(toTarget.dist, this.maxRange);
+            const projectile = this.createProjectile(ctx, origin, {
+                velocityX: toTarget.dirX * this.speed,
+                velocityY: toTarget.dirY * this.speed,
+                travelDistance,
+                held: false,
+            });
+            // The host counts against the hit budget, so grant one extra damaging hit to keep the flight's own.
+            projectile.hitUnitIds.add(host.id);
+            projectile.hitPolicy.damagingHits += 1;
+            engine.addProjectile(projectile);
+        }
+    }
+
     onSetup(ctx: CastBehaviourSetupContext): void {
+        if (this.emerge) {
+            this.launchFromHosts(ctx, this.emerge);
+            return;
+        }
         const engine = ctx.engine as AbilityEngineContext;
         const origin = this.originFn ? this.originFn(ctx) : { x: ctx.caster.x, y: ctx.caster.y };
 
@@ -224,20 +274,38 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
             travelDistance = this.travelFullRange ? this.maxRange : Math.min(toTarget.dist, this.maxRange);
         }
 
-        const damage = this.resolveDamage ? this.resolveDamage(ctx) : this.baseDamage;
         const held = this.hold !== null;
-
-        const projectile = new Projectile({
-            x: origin.x,
-            y: origin.y,
+        const projectile = this.createProjectile(ctx, origin, {
             // A held projectile sits still until released; its direction is kept in the payload.
             velocityX: held ? 0 : dirX * this.speed,
             velocityY: held ? 0 : dirY * this.speed,
+            travelDistance,
+            held,
+        });
+        // The engine assigns the projectile's id when it is added, so the payload must be written after that.
+        engine.addProjectile(projectile);
+        if (held) {
+            const payload: ProjectileLaunchPayload = { projectileId: projectile.id, dirX, dirY };
+            ctx.setBehaviourPayload(payload);
+        }
+    }
+
+    private createProjectile(
+        ctx: CastBehaviourSetupContext,
+        origin: Point,
+        flight: { velocityX: number; velocityY: number; travelDistance: number; held: boolean },
+    ): Projectile {
+        const damage = this.resolveDamage ? this.resolveDamage(ctx) : this.baseDamage;
+        const projectile = new Projectile({
+            x: origin.x,
+            y: origin.y,
+            velocityX: flight.velocityX,
+            velocityY: flight.velocityY,
             damage,
             sourceTeamId: ctx.caster.teamId,
             sourceUnitId: ctx.caster.id,
             sourceAbilityId: ctx.abilityId,
-            maxDistance: travelDistance,
+            maxDistance: flight.travelDistance,
             projectileType: this.projectileType,
             arcHeight: this.arcHeight,
             rotationSpeed: this.rotationSpeed,
@@ -247,19 +315,14 @@ export class ProjectileLaunchBehaviour implements CastBehaviour {
             hitPolicy: this.hitPolicy,
             modifiers: this.modifiers.length > 0 ? this.modifiers : undefined,
             collidesWithTerrain: this.collidesWithTerrain.length > 0 ? this.collidesWithTerrain : undefined,
-            heldBy: held ? { unitId: ctx.caster.id, abilityId: ctx.abilityId } : undefined,
+            heldBy: flight.held ? { unitId: ctx.caster.id, abilityId: ctx.abilityId } : undefined,
             clearsTerrainEffects: this.terrainClear,
         });
         projectile.radius = this.radius;
         if (ctx.onProjectileHit?.length) {
             projectile.onHitEffects = ctx.onProjectileHit;
         }
-        // The engine assigns the projectile's id when it is added, so the payload must be written after that.
-        engine.addProjectile(projectile);
-        if (held) {
-            const payload: ProjectileLaunchPayload = { projectileId: projectile.id, dirX, dirY };
-            ctx.setBehaviourPayload(payload);
-        }
+        return projectile;
     }
 
     /** Held launches release on the window's last tick (windows with a `timingEnd` exit with `isLastTick`). */

@@ -18,7 +18,7 @@ import {
     constrainSelectAim,
     resolveTurnLimitReference,
 } from '../../../abilities/targeting';
-import { drawClampedLine, drawConeSlice } from '../../../abilities/previewHelpers';
+import { drawClampedLine, drawFacingIndicator } from '../../../abilities/previewHelpers';
 import { resolveAbilitySourceUnits } from '../../../abilities/abilitySourceUnits';
 import { areEnemies } from '../../teams';
 import type { TeamId } from '../../teams';
@@ -97,7 +97,7 @@ function renderConfirmRadiusTargetDef(
     gr.fill({ color: 0x22c55e, alpha: 0.12 });
 }
 
-function renderSelectTargetDef(
+export function renderSelectTargetDef(
     gr: IAbilityPreviewGraphics,
     ability: AbilityStatic,
     caster: Unit,
@@ -136,35 +136,35 @@ function renderSelectTargetDef(
         highlightUnits.push(...candidates.slice(0, maxHighlights));
     }
 
-    // Companion hitboxes (e.g. Imbued Bat light cone): only when primary would connect,
-    // matching commit rules (companions are not committed on a primary miss).
-    if (highlightUnits.length > 0) {
-        const takenIds = new Set(highlightUnits.map((u) => u.id));
-        for (const companion of selectDef.companionHitboxes ?? []) {
-            const companionFilter = companion.filter ?? selectDef.filter;
-            const companionPool = filterSelectTargetCandidates(
-                engine.units,
-                caster,
-                companionFilter,
-                selectDef.includeSelf,
-            );
-            const companionCandidates = companion.hitbox.renderTargetingPreview(
-                gr,
-                effectiveCaster,
-                effectiveAim,
-                companionPool,
-            );
-            companionCandidates.sort(
-                (a, b) =>
-                    (a.x - effectiveAim.x) ** 2 + (a.y - effectiveAim.y) ** 2
-                    - ((b.x - effectiveAim.x) ** 2 + (b.y - effectiveAim.y) ** 2),
-            );
-            const maxCompanion = companion.numTargets ?? companion.hitbox.numTargets;
-            for (const u of companionCandidates.slice(0, maxCompanion)) {
-                if (takenIds.has(u.id)) continue;
-                takenIds.add(u.id);
-                highlightUnits.push(u);
-            }
+    // Companion hitboxes: dependent ones (e.g. Imbued Bat light cone) only when the primary would
+    // connect, matching commit rules; `independent` ones (e.g. Bloody Claws' second claw) always.
+    const primaryConnects = highlightUnits.length > 0;
+    const takenIds = new Set(highlightUnits.map((u) => u.id));
+    for (const companion of selectDef.companionHitboxes ?? []) {
+        if (!primaryConnects && !companion.independent) continue;
+        const companionFilter = companion.filter ?? selectDef.filter;
+        const companionPool = filterSelectTargetCandidates(
+            engine.units,
+            caster,
+            companionFilter,
+            selectDef.includeSelf,
+        );
+        const companionCandidates = companion.hitbox.renderTargetingPreview(
+            gr,
+            effectiveCaster,
+            effectiveAim,
+            companionPool,
+        );
+        companionCandidates.sort(
+            (a, b) =>
+                (a.x - effectiveAim.x) ** 2 + (a.y - effectiveAim.y) ** 2
+                - ((b.x - effectiveAim.x) ** 2 + (b.y - effectiveAim.y) ** 2),
+        );
+        const maxCompanion = companion.numTargets ?? companion.hitbox.numTargets;
+        for (const u of companionCandidates.slice(0, maxCompanion)) {
+            if (takenIds.has(u.id)) continue;
+            takenIds.add(u.id);
+            highlightUnits.push(u);
         }
     }
 
@@ -178,12 +178,14 @@ function renderSelectTargetDef(
     }
 }
 
-/** Extra radius (px) past the hitbox reach for the turn-limit arc, so it frames the strike. */
-const TURN_LIMIT_ARC_PADDING = 24;
+/** Turn-limit facing indicator: base corners this far outside the caster's body, apex further out. */
+const TURN_LIMIT_INDICATOR_INNER_GAP = 6;
+const TURN_LIMIT_INDICATOR_LENGTH = 16;
 
 /**
- * Select step with aim constraints (`turnLimit`): draws the clamped hitbox preview, then the
- * allowed turn arc on top (after the hitbox, since some hitboxes clear the layer).
+ * Select step with aim constraints (`turnLimit`): draws the clamped hitbox preview, then a small
+ * facing indicator for the previous aim (its base spans the allowed turn) on top, after the hitbox,
+ * since some hitboxes clear the layer.
  */
 function renderConstrainedSelectTargetDef(
     gr: IAbilityPreviewGraphics,
@@ -198,11 +200,12 @@ function renderConstrainedSelectTargetDef(
     renderSelectTargetDef(gr, ability, caster, selectDef, aim, engine);
     const ref = resolveTurnLimitReference(caster, selectDef, collectedTargets, engine);
     if (!ref) return;
-    drawConeSlice(gr, caster.x, caster.y, ref.angle, ref.maxRad, 0, selectDef.hitbox.maxRange + TURN_LIMIT_ARC_PADDING, {
+    const innerR = caster.radius + TURN_LIMIT_INDICATOR_INNER_GAP;
+    drawFacingIndicator(gr, caster.x, caster.y, ref.angle, ref.maxRad, innerR, innerR + TURN_LIMIT_INDICATOR_LENGTH, {
         fillColor: 0xef9f27,
-        fillAlpha: 0.1,
+        fillAlpha: 0.55,
         strokeColor: 0xba7517,
-        strokeAlpha: 0.6,
+        strokeAlpha: 0.9,
     });
 }
 

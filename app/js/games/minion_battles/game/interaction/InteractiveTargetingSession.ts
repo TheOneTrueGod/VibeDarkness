@@ -92,7 +92,10 @@ function buildTargetsByLabelFromPositional(
     for (const label of selectLabels) {
         const collected = collectedTargets[label];
         if (!collected) continue;
-        const idx = targets.findIndex((t) => resolvedTargetMatches(t, collected));
+        // Prefer the pick itself: when several labels lock the same unit, a value match would hand
+        // every label the first step's entry (and its stepAim / lock-ons) - lobby F2DDA5.
+        const own = targets.indexOf(collected);
+        const idx = own >= 0 ? own : targets.findIndex((t) => resolvedTargetMatches(t, collected));
         targetsByLabel[label] = idx >= 0 ? targets[idx]! : collected;
     }
     return targetsByLabel;

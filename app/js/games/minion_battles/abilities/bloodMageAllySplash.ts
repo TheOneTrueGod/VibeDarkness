@@ -6,7 +6,8 @@
  */
 
 import type { IAbilityPreviewGraphics } from './Ability';
-import { applyRend, REND_RADIUS } from './keywords/rendKeyword';
+import { REND_RADIUS } from './keywords/rendKeyword';
+import { applyRend } from './keywords/rendRuntime';
 import type { EngineContext } from '../game/EngineContext';
 import type { Unit } from '../game/units/Unit';
 import type { HitboxPreviewCaster } from '../hitboxes';

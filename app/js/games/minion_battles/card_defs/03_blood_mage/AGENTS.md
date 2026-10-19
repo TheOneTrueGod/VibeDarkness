@@ -20,7 +20,7 @@ cost, only clamped so it can't kill the caster).
 | `0301_BloodMend/` | Ally heal costing HP (`hpCostGate: 'floorAtOne'`) + Rend around the ally |
 | `0302_Burst/` | Cone damage costing HP, modeled on `card_defs/0121_ConeOfLight/` |
 | `0303_Protect/` | Ally shield buff (`buffs/ShieldBuff.ts`) costing HP + Rend around the ally |
-| `0304_BloodShard/` | Quick-throw blood projectile costing a little HP; 2 uses per round (`roundCharge`) |
+| `0304_BloodShard/` | Quick-throw blood projectile costing a little HP; 2 uses per round (`roundCharge`). Research "Blood Splinters" (tier 13, `blood_mage_shard_splinters`, via `getAbilityTimings`): on release, each bleeding enemy within range bursts a shard (`ProjectileLaunch.withEmergeFrom`): 4 damage to it, `consumeBleedStacks` up to 4, then the shard flies at the cursor for 4. Hosts come from `findBloodSplinterHosts`, shared with the aim preview |
 | `0305_BloodPact/` | Links an ally to the caster for 2 rounds (`buffs/DamageLinkBuff.ts`): half the ally's life loss moves to the caster. HP cost paid over time (`buffs/HpDrainBuff.ts`); tether drawn by `buffs/tetherVisual.ts` |
 | `0306_BloodyClaws/` | Three-strike melee combo (left, right, X) built from `hitboxes/AimFrameSegmentHitbox.ts` claws; strikes 2-3 use `SelectTargetDef.turnLimit`; each claw hit adds bleed (`applyBleedToPrimaryTarget`) |
 | `../../abilities/bloodMageAllySplash.ts` | Shared ally-target Rend (keyword `rend`, `abilities/keywords/rendKeyword.ts`: damage to nearby bleeding enemies) + hover preview hitbox for Mend + Protect |

@@ -123,6 +123,8 @@ import {
 } from './abilities/strictLockOnScenarios';
 import { bloodMendScenario } from './abilities/bloodMendScenario';
 import { burstScenario } from './abilities/burstScenario';
+import { bloodShardSplintersScenario } from './abilities/bloodShardScenarios';
+import { bloodyClawsEdgeLockOnScenario, bloodyClawsFarCentreLockOnScenario } from './abilities/bloodyClawsScenarios';
 import { protectShieldAbsorptionScenario } from './abilities/protectScenario';
 import {
     earthCoreEarthernPunchScenario,
@@ -270,6 +272,9 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     imbuedBatConeStrictFillScenario,
     bloodMendScenario,
     burstScenario,
+    bloodShardSplintersScenario,
+    bloodyClawsEdgeLockOnScenario,
+    bloodyClawsFarCentreLockOnScenario,
     protectShieldAbsorptionScenario,
     throwKnifePiercingBleedScenario,
     clawMovementDistanceScenario,
@@ -417,6 +422,8 @@ export function inferScenarioAbilityId(scenario: ScenarioDefinition): string | n
     if (id.startsWith('gravity_collapse_')) return '0905';
     if (id.startsWith('blood_mend_')) return '0301';
     if (id.startsWith('burst_')) return '0302';
+    if (id.startsWith('blood_shard_')) return '0304';
+    if (id.startsWith('bloody_claws_')) return '0306';
     if (id.startsWith('protect_')) return '0303';
     return null;
 }

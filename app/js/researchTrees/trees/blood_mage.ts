@@ -10,6 +10,7 @@ export const BLOOD_MAGE_NODE_PROTECT = 'blood_mage_protect';
 export const BLOOD_MAGE_NODE_SHARD = 'blood_mage_shard';
 export const BLOOD_MAGE_NODE_PACT = 'blood_mage_pact';
 export const BLOOD_MAGE_NODE_CLAWS = 'blood_mage_claws';
+export const BLOOD_MAGE_NODE_SPLINTERS = 'blood_mage_shard_splinters';
 
 export const BLOOD_CORE_CRYSTAL_COST = 12;
 export const BLOOD_CORE_FOOD_COST = 8;
@@ -34,6 +35,10 @@ export const BLOOD_PACT_METAL_COST = 3;
 export const BLOODY_CLAWS_CRYSTAL_COST = 12;
 export const BLOODY_CLAWS_FOOD_COST = 7;
 export const BLOODY_CLAWS_METAL_COST = 1;
+
+export const BLOOD_SPLINTERS_CRYSTAL_COST = 14;
+export const BLOOD_SPLINTERS_FOOD_COST = 9;
+export const BLOOD_SPLINTERS_METAL_COST = 3;
 
 export const bloodMageTree: ResearchTreeDef = {
     id: BLOOD_MAGE_TREE_ID,
@@ -182,6 +187,27 @@ export const bloodMageTree: ResearchTreeDef = {
             effects: [
                 { type: 'addCard', cardId: '0306' },
             ],
+        },
+        {
+            id: BLOOD_MAGE_NODE_SPLINTERS,
+            title: 'Blood Splinters',
+            description:
+                'Every shard you fling also bursts a shard out of each bleeding foe nearby, spending their bleeding to send it flying at your target.',
+            flavorText: 'An open wound is just another way to throw.',
+            order: 35,
+            tier: 13,
+            position: { x: 420, y: 570 },
+            prereqNodeIds: [BLOOD_MAGE_NODE_SHARD],
+            exclusiveWithNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: BLOOD_MAGE_TREE_ID, nodeIds: [BLOOD_MAGE_NODE_SHARD] },
+            ],
+            cost: {
+                crystals: BLOOD_SPLINTERS_CRYSTAL_COST,
+                food: BLOOD_SPLINTERS_FOOD_COST,
+                metal: BLOOD_SPLINTERS_METAL_COST,
+            },
+            effects: [],
         },
     ],
 };

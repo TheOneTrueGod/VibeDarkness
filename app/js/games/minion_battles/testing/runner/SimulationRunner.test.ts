@@ -25,6 +25,8 @@ import { swingSwordExtraUsesScenario } from '../scenarios/abilities/swingSwordRe
 import { swingBatHitsThreeTargetsScenario } from '../scenarios/abilities/swingBatScenarios';
 import { swingBatSequentialAimPixelScenario } from '../scenarios/abilities/swingBatSequentialAim';
 import { beastClawFrontHitBackMissScenario } from '../scenarios/abilities/beastClawScenarios';
+import { bloodShardSplintersScenario } from '../scenarios/abilities/bloodShardScenarios';
+import { bloodyClawsEdgeLockOnScenario, bloodyClawsFarCentreLockOnScenario } from '../scenarios/abilities/bloodyClawsScenarios';
 import { throwKnifePiercingBleedScenario } from '../scenarios/abilities/throwKnifeScenarios';
 import { throwRockExactlyOnceScenario } from '../scenarios/abilities/throwRockResearch';
 import { clawMovementDistanceScenario } from '../scenarios/abilities/clawScenarios';
@@ -421,6 +423,21 @@ describe('runScenarioHeadless', () => {
 
     it('passes throw knife piercing bleed scenario', () => {
         const r = runScenarioHeadless(throwKnifePiercingBleedScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes Blood Shard splinters scenario (bleeding enemy bursts a shard that hits the target)', () => {
+        const r = runScenarioHeadless(bloodShardSplintersScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes Bloody Claws edge lock-on scenario (edge enemies hit along the clicked aim)', () => {
+        const r = runScenarioHeadless(bloodyClawsEdgeLockOnScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes Bloody Claws far-centre lock-on scenario (lobby F2DDA5: locked enemy past claw reach)', () => {
+        const r = runScenarioHeadless(bloodyClawsFarCentreLockOnScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

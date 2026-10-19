@@ -81,6 +81,14 @@ export interface CastBehaviourRenderContext extends CastBehaviourBaseContext {
 // ---- Behaviour interface ----
 export interface CastBehaviour {
     /**
+     * When true, a unit target is passed to this behaviour as-is even if the unit's centre is beyond
+     * the ability's max range (`resolveCastBehaviourTarget` skips the range clamp for units). Set by
+     * behaviours that apply their own lock-on range (MeleeAttack's tether), where a downgrade to a
+     * ground point would silently drop the lock-on.
+     */
+    readonly keepsUnitTargetsBeyondRange?: boolean;
+
+    /**
      * When true, this behaviour reads ctx.onProjectileHit in onSetup and forwards it to the
      * projectile. unitAbilityTick will NOT fire onProjectileHit at the first tick of the window.
      */
