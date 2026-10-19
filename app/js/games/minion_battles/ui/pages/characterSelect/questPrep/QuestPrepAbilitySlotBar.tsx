@@ -47,7 +47,7 @@ export function QuestPrepAbilitySlotBar({
             className="flex w-full min-h-0 items-center justify-center"
         >
             <div className="max-w-full overflow-x-auto overflow-y-hidden">
-                <div className="mx-auto flex w-max items-center gap-2">
+                <div className="mx-auto flex w-max items-start gap-2">
                     {slots.map((ability, index) => (
                         <div key={`quest-prep-slot-${index}`} className="shrink-0">
                             {ability ? (

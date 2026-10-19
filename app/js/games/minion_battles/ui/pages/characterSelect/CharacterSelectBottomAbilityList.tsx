@@ -33,7 +33,7 @@ export function CharacterSelectBottomAbilityList({ character }: CharacterSelectB
                 <p className="text-muted text-sm italic">No ability cards</p>
             ) : (
                 <div className="overflow-x-auto max-w-full">
-                    <div className="flex gap-3 w-max mx-auto items-center">
+                    <div className="flex gap-3 w-max mx-auto items-start">
                         {abilityCards.map((ability) => (
                             <AbilitySlotPreview
                                 key={ability.id}

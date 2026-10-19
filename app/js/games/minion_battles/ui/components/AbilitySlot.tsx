@@ -41,6 +41,14 @@ export const ABILITY_SLOT_ICON_SIZE_PX = 56;
 const ABILITY_SLOT_NAME_LINE_COUNT = 2;
 const ABILITY_SLOT_NAME_LINE_HEIGHT_EM = 1.25;
 
+/** True when these modes render as the {@link AbilityModeStrip} under the card (not Wait's segmented-above style). */
+export function usesHandModeStrip(abilityModes: AbilityModesConfig | undefined): boolean {
+    return Boolean(abilityModes && abilityModes.toggleStyle !== 'segmentedAbove');
+}
+
+/** Extra height the mode strip (and its gap) adds below a card. */
+export const ABILITY_MODE_STRIP_TOTAL_HEIGHT_PX = ABILITY_MODE_STRIP_HEIGHT_PX + ABILITY_MODE_STRIP_GAP_PX;
+
 interface AbilitySlotProps {
     ability: AbilityStatic;
     runtime: UnitAbilityRuntimeState;
@@ -70,6 +78,8 @@ interface AbilitySlotProps {
     modeStripInteractive?: boolean;
     /** Override battle card height (Quest Prep / character-select use the shorter prep size). */
     heightPx?: number;
+    /** Slide the card up on hover/select (battle hand). Off for Quest Prep / character-select previews. */
+    liftOnHover?: boolean;
 }
 
 export default function AbilitySlot({
@@ -92,6 +102,7 @@ export default function AbilitySlot({
     onSetAbilityMode,
     modeStripInteractive = false,
     heightPx = ABILITY_SLOT_HEIGHT_PX,
+    liftOnHover = true,
 }: AbilitySlotProps) {
     const cardRef = useRef<HTMLDivElement | null>(null);
     const isDisabled = disabledReason !== null;
@@ -130,11 +141,9 @@ export default function AbilitySlot({
     const maxUses = Math.max(1, anim.maxUses);
     const isAtFullUses = usesLeft >= maxUses;
     const showRecovery = hasRecovery && !isAtFullUses;
-    const showModeStrip = Boolean(
-        abilityModes
-        && abilityModes.toggleStyle !== 'segmentedAbove'
-        && onSetAbilityMode,
-    );
+    const showModeStrip = usesHandModeStrip(abilityModes) && Boolean(onSetAbilityMode);
+    const selectLift = liftOnHover ? '-translate-y-2' : '';
+    const hoverLift = liftOnHover ? '-translate-y-1' : '';
     const cardHeightPx = showModeStrip
         ? heightPx - ABILITY_MODE_STRIP_HEIGHT_PX - ABILITY_MODE_STRIP_GAP_PX
         : heightPx;
@@ -162,10 +171,10 @@ export default function AbilitySlot({
                     flex shrink-0 flex-col items-stretch p-1 overflow-visible pointer-events-none
                     ${isSelected
                         ? ability.actionChannel === 'special'
-                            ? 'border-cyan-400 bg-surface-light -translate-y-2 shadow-lg shadow-cyan-400/25'
-                            : 'border-yellow-400 bg-surface-light -translate-y-2 shadow-lg shadow-yellow-400/25'
+                            ? `border-cyan-400 bg-surface-light ${selectLift} shadow-lg shadow-cyan-400/25`
+                            : `border-yellow-400 bg-surface-light ${selectLift} shadow-lg shadow-yellow-400/25`
                         : isHovered && !isDisabled
-                            ? 'border-white bg-[#283a56] -translate-y-1'
+                            ? `border-white bg-[#283a56] ${hoverLift}`
                             : isActive
                                 ? 'border-green-500 bg-surface-light shadow-lg shadow-green-500/25'
                                 : isDisabled

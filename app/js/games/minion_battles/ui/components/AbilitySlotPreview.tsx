@@ -2,7 +2,13 @@ import React, { useMemo, useState } from 'react';
 import type { AbilityStatic } from '../../abilities/Ability';
 import { getAbilityUseConfig } from '../../abilities/abilityUses';
 import type { UnitAbilityRuntimeState } from '../../game/units/Unit';
-import AbilitySlot, { ABILITY_SLOT_PREP_HEIGHT_PX } from './AbilitySlot';
+import { getAbility } from '../../abilities/AbilityRegistry';
+import { resolveModeAbilityId } from '../../abilities/resolveAbilityMode';
+import AbilitySlot, {
+    ABILITY_MODE_STRIP_TOTAL_HEIGHT_PX,
+    ABILITY_SLOT_PREP_HEIGHT_PX,
+    usesHandModeStrip,
+} from './AbilitySlot';
 
 export interface AbilitySlotPreviewProps {
     ability: AbilityStatic;
@@ -36,7 +42,13 @@ export function AbilitySlotPreview({
     compact = false,
 }: AbilitySlotPreviewProps) {
     const [hovered, setHovered] = useState(false);
-    const useConfig = getAbilityUseConfig(ability.id);
+    // Display-only mode: previews the mode's card/tooltip (with research upgrades from tooltipContext);
+    // never saved and never carried into battle, which always starts at `defaultMode`.
+    const abilityModes = ability.abilityModes;
+    const showModeStrip = usesHandModeStrip(abilityModes);
+    const [previewMode, setPreviewMode] = useState<string | undefined>(abilityModes?.defaultMode);
+    const shownAbility = getAbility(resolveModeAbilityId(ability, previewMode)) ?? ability;
+    const useConfig = getAbilityUseConfig(shownAbility.id);
     const runtime = useMemo((): UnitAbilityRuntimeState => ({
         currentUses: useConfig.maxUses,
         maxUses: useConfig.maxUses,
@@ -56,10 +68,16 @@ export function AbilitySlotPreview({
             title={disabled && disabledTitle ? disabledTitle : undefined}
         >
             <AbilitySlot
-                ability={ability}
+                ability={shownAbility}
                 runtime={runtime}
                 isSelected={isSelected}
-                heightPx={ABILITY_SLOT_PREP_HEIGHT_PX}
+                // Prep cards keep their full body height; the mode strip adds height below.
+                heightPx={ABILITY_SLOT_PREP_HEIGHT_PX + (showModeStrip ? ABILITY_MODE_STRIP_TOTAL_HEIGHT_PX : 0)}
+                abilityModes={abilityModes}
+                currentAbilityMode={previewMode}
+                onSetAbilityMode={showModeStrip ? setPreviewMode : undefined}
+                modeStripInteractive
+                liftOnHover={false}
                 disabledReason={null}
                 onSelect={disabled ? () => {} : (onSelect ?? (() => {}))}
                 isHovered={hovered}
