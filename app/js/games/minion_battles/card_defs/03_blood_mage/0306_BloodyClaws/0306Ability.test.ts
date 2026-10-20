@@ -8,6 +8,7 @@ import { DEFAULT_UNIT_RADIUS } from '../../../game/units/unit_defs/unitConstants
 import { BLEED_BUFF_TYPE, type BleedBuff } from '../../../buffs/BleedBuff';
 import type { TeamId } from '../../../game/teams';
 import type { ResolvedTarget } from '../../../game/types';
+import { getEffectiveCastBehaviours, normalizeAbilityTimingsToIntervals } from '../../../abilities/abilityTimings';
 import {
     BLOODY_CLAWS_CLAW_BASE,
     BLOODY_CLAWS_CLAW_TIP,
@@ -167,6 +168,52 @@ describe('BloodyClawsAbility_0306', () => {
             expect(Math.hypot(p.forward, p.side)).toBeLessThanOrEqual(BLOODY_CLAWS_MAX_REACH);
         }
         expect(BloodyClawsAbility_0306.aiSettings?.maxRange).toBeLessThanOrEqual(BLOODY_CLAWS_MAX_REACH);
+    });
+
+    it('lands each strike at its impact moment, not when its window opens', () => {
+        const onLeftClaw = enemyAt('left', clawPoint(0.1, 'left'));
+        const { caster, engine } = setup([onLeftClaw]);
+        cast(caster, engine, UP);
+        advanceTo(caster, engine, T.swipeLeftImpact - 0.02);
+        expect(onLeftClaw.hp).toBe(100);
+        advanceTo(caster, engine, T.swipeLeftImpact + 0.02);
+        expect(onLeftClaw.hp).toBe(100 - BLOODY_CLAWS_DAMAGE);
+    });
+
+    it('lunges forward a short way into every strike, once even for the two-claw X strike', () => {
+        const { caster, engine } = setup([]);
+        cast(caster, engine, UP);
+        const active = caster.activeAbilities.find((a) => a.abilityId === CARD_ID)!;
+        const intervals = normalizeAbilityTimingsToIntervals(BloodyClawsAbility_0306.abilityTimings);
+        const impacts: Record<string, number> = {
+            swipe_left: T.swipeLeftImpact,
+            swipe_right: T.swipeRightImpact,
+            x_strike: T.xStrikeImpact,
+        };
+        for (const [intervalId, impactTime] of Object.entries(impacts)) {
+            advanceTo(caster, engine, impactTime);
+            const interval = intervals.find((i) => i.id === intervalId)!;
+            const progress = (impactTime - interval.start) / (interval.end - interval.start);
+            // Sum every behaviour's render offset, the way UnitRenderer does.
+            let offsetY = 0;
+            getEffectiveCastBehaviours(interval)!.forEach((entry, bIdx) => {
+                const offset = entry.behaviour.getCasterRenderOffset?.({
+                    caster,
+                    abilityId: CARD_ID,
+                    target: active.targetsByLabel![interval.targetDef!.kind === 'select' ? interval.targetDef!.label : '']!,
+                    allTargets: active.targets,
+                    castPayload: active.castPayload,
+                    behaviourPayload: active.castBehaviourPayloads?.[`${interval.id}_${bIdx}`],
+                    setBehaviourPayload: () => {},
+                    engine,
+                    gameTime: engine.gameTime,
+                    windowProgress: progress,
+                });
+                offsetY += offset?.y ?? 0;
+            });
+            // Aiming up: a forward lunge is negative y. 10px, not 20px for the X strike.
+            expect(offsetY, intervalId).toBeCloseTo(-10, 0);
+        }
     });
 
     it('pays its HP cost on the first swipe', () => {
