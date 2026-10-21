@@ -41,7 +41,7 @@ const CARD_ID = `${formatGroupId(AbilityGroupId.Mage)}04`;
 
 export const BLOOD_SHARD_DAMAGE = 10;
 export const BLOOD_SHARD_HP_COST = 2;
-export const BLOOD_SHARD_MAX_USES = 2;
+export const BLOOD_SHARD_MAX_USES = 3;
 export const BLOOD_SHARD_RANGE = THROW_RANGE;
 /** A third faster than thrown rocks and knives. */
 export const BLOOD_SHARD_PROJECTILE_SPEED = THROW_PROJECTILE_SPEED * (4 / 3);

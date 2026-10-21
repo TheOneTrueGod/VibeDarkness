@@ -15,6 +15,7 @@ import {
     BURST_HP_COST,
     BURST_KNOCKBACK_TIER,
     BURST_MAX_TARGETS,
+    BURST_MAX_USES,
     BURST_WAVE_TRAVEL_DURATION,
     BURST_WINDUP_DURATION,
     BurstAbility_0302,
@@ -52,8 +53,8 @@ function makeCaster(hp: number): Unit {
         radius: DEFAULT_UNIT_RADIUS,
     });
     unit.abilityRuntime[CARD_ID] = {
-        currentUses: 3,
-        maxUses: 3,
+        currentUses: 2,
+        maxUses: 2,
         recoveryChargesByType: {},
         active: true,
         replacedAbilityId: null,
@@ -177,7 +178,7 @@ describe('BurstAbility_0302', () => {
             playerUnit: lowHpCaster,
             ability: BurstAbility_0302,
             abilityId: CARD_ID,
-            currentUses: 3,
+            currentUses: 2,
             isMyTurn: true,
             allUnits: [lowHpCaster, okCaster],
             conditionalCancelContext: null,
@@ -187,7 +188,7 @@ describe('BurstAbility_0302', () => {
             playerUnit: okCaster,
             ability: BurstAbility_0302,
             abilityId: CARD_ID,
-            currentUses: 3,
+            currentUses: 2,
             isMyTurn: true,
             allUnits: [lowHpCaster, okCaster],
             conditionalCancelContext: null,
@@ -207,6 +208,16 @@ describe('BurstAbility_0302', () => {
 
         advanceSimulation(caster, engine, projectiles, 0.12);
         expect(caster.hp).toBe(100 - BURST_HP_COST);
+    });
+});
+
+describe('Burst uses', () => {
+    it('has 2 uses that fully refill each round', () => {
+        expect(BurstAbility_0302.maxUses).toBe(BURST_MAX_USES);
+        expect(BURST_MAX_USES).toBe(2);
+        expect(BurstAbility_0302.recoveries).toEqual([
+            { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: BURST_MAX_USES },
+        ]);
     });
 });
 

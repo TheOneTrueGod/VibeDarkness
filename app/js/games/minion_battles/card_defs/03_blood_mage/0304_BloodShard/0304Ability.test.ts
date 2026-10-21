@@ -172,8 +172,8 @@ describe('BloodShardAbility_0304', () => {
         expect(shardDuration).toBeLessThan(getTotalAbilityDuration(ThrowRock));
     });
 
-    it('has 2 uses that fully refill each round', () => {
-        expect(BloodShardAbility_0304.maxUses).toBe(2);
+    it('has 3 uses that fully refill each round', () => {
+        expect(BloodShardAbility_0304.maxUses).toBe(3);
         expect(BloodShardAbility_0304.recoveries).toEqual([
             { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: BLOOD_SHARD_MAX_USES },
         ]);

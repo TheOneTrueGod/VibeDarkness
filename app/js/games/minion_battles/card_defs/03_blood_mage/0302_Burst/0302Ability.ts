@@ -41,7 +41,7 @@ const CARD_ID = `${formatGroupId(AbilityGroupId.Mage)}02`;
 
 // Own range/angle constants — deliberately not shared with 0121_ConeOfLight's, per the
 // "don't touch or parametrize the original" instruction in the Burst plan step.
-export const BURST_RANGE = 200;
+export const BURST_RANGE = 160;
 export const BURST_HALF_ANGLE_RAD = Math.PI / 6; // 60 degree total arc.
 export const BURST_DAMAGE = 10; // Matches Cone of Light's own damage value — see plan-level decisions.
 export const BURST_MAX_TARGETS = 4;
@@ -70,8 +70,10 @@ const KNOCKBACK_TIER = BURST_KNOCKBACK_TIER;
 const PREVIEW_FILL_COLOR = 0x8b1220;
 const PREVIEW_STROKE_COLOR = 0x1a0508;
 
+export const BURST_MAX_USES = 2;
+// Refills fully every round (like Blood Shard), not from stamina charges.
 const RECOVERIES: AbilityRecoveryRule[] = [
-    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+    { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: BURST_MAX_USES },
 ];
 
 class BurstHitboxSpec extends HitboxSpec {
@@ -173,7 +175,7 @@ export const BurstAbility_0302 = defineAbility({
     hpCost: HP_COST,
     // No hpCostGate override — default 'requireSurplus' (must have hp > HP_COST to cast).
     rechargeTurns: 1,
-    maxUses: 3,
+    maxUses: BURST_MAX_USES,
     recoveries: RECOVERIES,
     prefireTime: WINDUP_DURATION,
     aiSettings: { minRange: 0, maxRange: RANGE },
