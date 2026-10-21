@@ -41,7 +41,7 @@ import { CastBehaviours } from '../abilities/CastBehaviours';
 import { nullHitbox } from '../hitboxes';
 import { SwingBatCard } from '../card_defs/0115_SwingBat/0115Ability';
 import { LIGHT_BLAST_DAMAGE, LIGHT_BLAST_LIGHT_COST } from '../card_defs/08_light_core/0801_LightBlast/0801Ability';
-import { ProtectAbility_0303, PROTECT_WINDUP_DURATION } from '../card_defs/03_blood_mage/0303_Protect/0303Ability';
+import { BloodMendAbility_0301, BLOOD_MEND_WINDUP_DURATION } from '../card_defs/03_blood_mage/0301_BloodMend/0301Ability';
 import { SHIELD_BUFF_TYPE } from '../buffs/ShieldBuff';
 import type { WindupLungePayload } from '../abilities/WindupLunge';
 import { DEFAULT_MELEE_LUNGE, DEFAULT_UNIT_RADIUS } from './units/unit_defs/unitConstants';
@@ -107,9 +107,9 @@ const LIGHT_BLAST_ID = '0801';
 const LIGHT_BLAST_PREFIRE = 0.4;
 /** SelectTargetDef label on Light Blast timings. */
 const LIGHT_BLAST_TARGET_LABEL = 'Target';
-/** Protect (0303) ability id and its SelectTargetDef label — matches `0303Ability.ts`. */
-const PROTECT_ABILITY_ID = ProtectAbility_0303.id;
-const PROTECT_TARGET_LABEL = 'Ally';
+/** Blood Mend (0301) ability id and its SelectTargetDef label — matches `0301Ability.ts`. */
+const BLOOD_MEND_ABILITY_ID = BloodMendAbility_0301.id;
+const BLOOD_MEND_TARGET_LABEL = 'Ally';
 
 beforeAll(() => {
     if (globalThis.requestAnimationFrame === undefined) {
@@ -3211,13 +3211,13 @@ describe('interactive sequential targeting — conditional cancel stop point', (
     });
 
     /**
-     * Scenario L — Protect (0303) self-cast preview: with the current very short
-     * windup (0.1 s = 6 ticks) the pre-tick lookahead must still pause for the
+     * Scenario L — Blood Mend (0301) self-cast preview: the pre-tick lookahead
+     * must pause for the
      * 'Ally' SelectTargetDef before the 'active' interval enters. Reproduces the
      * live-lobby report of "Select-target interval entered without resolved
      * label during interactive preview" (unitAbilityTick.ts console.error).
      */
-    it('Scenario L: Protect (0303) self-cast preview pauses before active interval; invariant never violated', () => {
+    it('Scenario L: Blood Mend (0301) self-cast preview pauses before active interval; invariant never violated', () => {
         resetGameObjectIdCounter(1);
 
         const engine = buildTinyBattleEngine({
@@ -3233,7 +3233,7 @@ describe('interactive sequential targeting — conditional cancel stop point', (
             playerId: TINY_BATTLE_PLAYER_ID,
             x: playerX,
             y: playerY,
-            abilities: [PROTECT_ABILITY_ID],
+            abilities: [BLOOD_MEND_ABILITY_ID],
         });
 
         const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -3243,13 +3243,13 @@ describe('interactive sequential targeting — conditional cancel stop point', (
         engine.isSequentialTargetingPreview = true;
         engine.sequentialTargetingPreviewCast = {
             unitId: player.id,
-            abilityId: PROTECT_ABILITY_ID,
+            abilityId: BLOOD_MEND_ABILITY_ID,
             startRound: engine.roundNumber, beganAtGameTime: engine.gameTime,
         };
 
         engine.state.orderMgr.applyOrder({
             unitId: player.id,
-            abilityId: PROTECT_ABILITY_ID,
+            abilityId: BLOOD_MEND_ABILITY_ID,
             targets: [],
             targetsByLabel: {},
             endTurn: true,
@@ -3257,13 +3257,13 @@ describe('interactive sequential targeting — conditional cancel stop point', (
 
         const paused = stepUntil(
             engine,
-            () => engine.waitingForTargetInput?.label === PROTECT_TARGET_LABEL,
-            60,
+            () => engine.waitingForTargetInput?.label === BLOOD_MEND_TARGET_LABEL,
+            120,
         );
         expect(paused).toBe(true);
-        expectSelectPausedAtGate(getCastElapsed(engine, player, PROTECT_ABILITY_ID), PROTECT_WINDUP_DURATION);
+        expectSelectPausedAtGate(getCastElapsed(engine, player, BLOOD_MEND_ABILITY_ID), BLOOD_MEND_WINDUP_DURATION);
 
-        const active = player.activeAbilities.find((a) => a.abilityId === PROTECT_ABILITY_ID);
+        const active = player.activeAbilities.find((a) => a.abilityId === BLOOD_MEND_ABILITY_ID);
         expect(active).not.toBeUndefined();
         active!.targetsByLabel!['Ally'] = { type: 'unit', unitId: player.id };
         engine.waitingForTargetInput = null;

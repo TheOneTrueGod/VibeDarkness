@@ -1,22 +1,18 @@
 /**
- * Shared ally-target splash used by Blood Mend (0301) and Protect (0303): when the cast becomes
- * active they Rend around the selected ally (keyword `rend`: damage to nearby bleeding enemies).
- * Preview geometry lives on the hitbox so hover targeting and hit resolution stay aligned.
+ * Shared ally-target hover preview used by Blood Mend (0301): draws Rend's area (keyword `rend`)
+ * around the hovered ally. Preview geometry lives on the hitbox so hover targeting and hit
+ * resolution stay aligned.
  * See `card_defs/03_blood_mage/AGENTS.md`.
  */
 
 import type { IAbilityPreviewGraphics } from './Ability';
 import { REND_RADIUS } from './keywords/rendKeyword';
-import { applyRend } from './keywords/rendRuntime';
-import type { EngineContext } from '../game/EngineContext';
 import type { Unit } from '../game/units/Unit';
 import type { HitboxPreviewCaster } from '../hitboxes';
 import { UnitRangeHitboxSpec } from '../hitboxes/UnitRangeHitboxSpec';
 
 /** Rend circle radius around the targeted ally (px); drawn while hovering an ally. */
 export const BLOOD_MAGE_ALLY_SPLASH_RADIUS = REND_RADIUS;
-/** Rend N applied around the targeted ally by Blood Mend and Protect. */
-export const BLOOD_MAGE_REND = 2;
 
 const PREVIEW_FILL_COLOR = 0x8b1220;
 const PREVIEW_STROKE_COLOR = 0xfca5a5;
@@ -71,14 +67,4 @@ export function unitRangeWithAllySplashHitbox(
     includeCaster = true,
 ): UnitRangeWithAllySplashHitboxSpec {
     return new UnitRangeWithAllySplashHitboxSpec(maxRange, splashRadius, 0, includeCaster);
-}
-
-/** Rend around the targeted ally (`center`). */
-export function dealBloodMageRend(
-    engine: EngineContext,
-    caster: Unit,
-    center: { x: number; y: number },
-    abilityId: string,
-): void {
-    applyRend(engine, caster, center, BLOOD_MAGE_REND, abilityId);
 }

@@ -77,7 +77,6 @@ import { EaseBurdensCard } from './09_gravity_core/0906_EaseBurdens/0906Ability'
 import { CollapseCard } from './09_gravity_core/0905_Collapse/0905Ability';
 import { BloodMendCard_0301 } from './03_blood_mage/0301_BloodMend/0301Ability';
 import { BurstCard_0302 } from './03_blood_mage/0302_Burst/0302Ability';
-import { ProtectCard_0303 } from './03_blood_mage/0303_Protect/0303Ability';
 import { BloodShardCard_0304 } from './03_blood_mage/0304_BloodShard/0304Ability';
 import { BloodPactCard_0305 } from './03_blood_mage/0305_BloodPact/0305Ability';
 import { BloodyClawsCard_0306 } from './03_blood_mage/0306_BloodyClaws/0306Ability';
@@ -160,7 +159,6 @@ const cardDefs: CardDef[] = [
     CollapseCard,
     BloodMendCard_0301,
     BurstCard_0302,
-    ProtectCard_0303,
     BloodShardCard_0304,
     BloodPactCard_0305,
     BloodyClawsCard_0306,

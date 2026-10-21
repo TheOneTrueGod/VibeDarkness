@@ -7,17 +7,24 @@ import { executeUnitAbility } from '../../../game/units/unitAbilityLifecycle';
 import { tickUnitActiveAbilities } from '../../../game/units/unitAbilityTick';
 import { DEFAULT_UNIT_RADIUS } from '../../../game/units/unit_defs/unitConstants';
 import { DEFAULT_HEAL_PENALTY_PCT } from '../../../game/units/unitHeal';
+import { applyDamageToShields, getTotalShieldHp } from '../../../game/units/unitShield';
+import { SHIELD_BUFF_TYPE, type ShieldBuff } from '../../../buffs/ShieldBuff';
+import type { Effect } from '../../../game/effects/Effect';
+import { bloodMistBurstEffectDef, bloodMistImpactEffectDef } from '../../../game/effect_defs/bloodMageEffects';
+import type { IEffectDef } from '../../../game/effect_defs/types';
+import { BLOOD_MIST_SUBDUED_REACH } from '../../../abilities/bloodMageVfx';
 import { getAbilityDisabledReason } from '../../../ui/components/abilityDisabledReason';
 import { getSelectTargetDefsFromTimings, resolveSelectTargetLockOnCandidates } from '../../../abilities/targeting';
 import type { TeamId } from '../../../game/teams';
 import type { ResolvedTarget } from '../../../game/types';
+import { BLOOD_MAGE_ALLY_SPLASH_RADIUS } from '../../../abilities/bloodMageAllySplash';
 import {
-    BLOOD_MAGE_ALLY_SPLASH_RADIUS,
-    BLOOD_MAGE_REND,
-} from '../../../abilities/bloodMageAllySplash';
-import {
-    BLOOD_MEND_HEAL_AMOUNT,
+    BLOOD_MEND_DECAY_HEAL_FRACTION,
     BLOOD_MEND_HP_COST,
+    BLOOD_MEND_REND,
+    BLOOD_MEND_SHIELD_DRAIN_PER_SECOND,
+    BLOOD_MEND_SHIELD_HP,
+    BLOOD_MEND_SHIELD_PER_REND_HIT,
     BLOOD_MEND_WINDUP_DURATION,
     BloodMendAbility_0301,
 } from './0301Ability';
@@ -108,28 +115,36 @@ function advanceSimulation(caster: Unit, engine: EngineContext, totalSeconds: nu
     for (let i = 0; i < steps; i++) {
         engine.gameTime += TICK_DT;
         tickUnitActiveAbilities(caster, TICK_DT, engine, vi.fn());
+        // The engine ticks buffs through the unit; do it directly so shields fade here too.
+        for (const unit of engine.units) {
+            for (const buff of unit.buffs) buff.onGameTick?.(unit, engine, TICK_DT);
+        }
     }
 }
 
+function shieldOf(unit: Unit): ShieldBuff | undefined {
+    return unit.buffs.find((b) => b._type === SHIELD_BUFF_TYPE) as ShieldBuff | undefined;
+}
+
+/** Furthest distance from the effect origin any circle drawn by `def` reaches, over its animation. */
+function maxDrawnReach(def: IEffectDef, effectRadius: number): number {
+    let reach = 0;
+    for (let i = 0; i <= 100; i++) {
+        const circles: { x: number; y: number; r: number }[] = [];
+        const visual = {
+            clear: () => undefined,
+            fill: () => undefined,
+            circle: (x: number, y: number, r: number) => circles.push({ x, y, r }),
+        };
+        const effect = { progress: i / 100, effectRadius, effectData: {} } as unknown as Effect;
+        def.updateVisual!(visual as never, effect, {} as never);
+        for (const c of circles) reach = Math.max(reach, Math.hypot(c.x, c.y) + c.r);
+    }
+    return reach;
+}
+
 describe('BloodMendAbility_0301', () => {
-    it('self-cast nets +15 HP, with the HP cost paid before the heal lands (same tick)', () => {
-        // Started well below max so the heal's own hpInjury max-HP clamp doesn't shave off
-        // any of the healed amount (see unitHeal.test.ts) — isolates the cost/heal ordering.
-        const caster = makeCaster(50);
-        const engine = makeEngine([caster]);
-
-        executeUnitAbility(caster, BloodMendAbility_0301, targetsFor(caster), engine);
-
-        // Nothing happens during windup — cost + heal are both deferred to the active frame.
-        advanceSimulation(caster, engine, BLOOD_MEND_WINDUP_DURATION - 0.1);
-        expect(caster.hp).toBe(50);
-
-        advanceSimulation(caster, engine, 0.12);
-        // -5 (hpCost) then +20 (heal), applied in the same active-frame tick.
-        expect(caster.hp).toBe(50 + BLOOD_MEND_HEAL_AMOUNT - BLOOD_MEND_HP_COST);
-    });
-
-    it('ally-cast heals the ally for +20 (banking hpInjury) and costs the caster -5 HP', () => {
+    it('grants a 30 HP blood shield with no bleeding enemies, and no direct heal', () => {
         const caster = makeCaster(100);
         const ally = makeAlly('ally', 50);
         const engine = makeEngine([caster, ally]);
@@ -138,11 +153,30 @@ describe('BloodMendAbility_0301', () => {
         advanceSimulation(caster, engine, ACTIVE_TICK_ADVANCE);
 
         expect(caster.hp).toBe(100 - BLOOD_MEND_HP_COST);
-        expect(ally.hp).toBe(50 + BLOOD_MEND_HEAL_AMOUNT);
-        expect(ally.hpInjury).toBeCloseTo(BLOOD_MEND_HEAL_AMOUNT * DEFAULT_HEAL_PENALTY_PCT);
+        const shield = shieldOf(ally)!;
+        expect(shield.theme).toBe('blood');
+        expect(shield.remainingHp).toBeCloseTo(BLOOD_MEND_SHIELD_HP, 0);
+        expect(shield.drainPerSecond).toBeCloseTo(BLOOD_MEND_SHIELD_DRAIN_PER_SECOND, 10);
+        // Only the ~0.02s of decay since the active frame can have healed anything.
+        expect(ally.hp).toBeLessThan(50.1);
     });
 
-    it('active frame Rends: damages every nearby bleeding enemy around the ally, and no one else', () => {
+    it('self-cast pays the HP cost at the active frame and shields the caster', () => {
+        const caster = makeCaster(50);
+        const engine = makeEngine([caster]);
+
+        executeUnitAbility(caster, BloodMendAbility_0301, targetsFor(caster), engine);
+        advanceSimulation(caster, engine, BLOOD_MEND_WINDUP_DURATION - 0.1);
+        expect(shieldOf(caster)).toBeUndefined();
+        expect(caster.hp).toBe(50);
+
+        advanceSimulation(caster, engine, 0.12);
+        expect(caster.hp).toBeGreaterThanOrEqual(50 - BLOOD_MEND_HP_COST);
+        expect(caster.hp).toBeLessThan(50 - BLOOD_MEND_HP_COST + 0.2);
+        expect(shieldOf(caster)).toBeDefined();
+    });
+
+    it('Rends around the ally: bleeding enemies in range take 4 and each adds 4 shield', () => {
         const caster = makeCaster(100);
         const ally = makeAlly('ally', 50);
         // Ally at (100,100). Five bleeding enemies in the radius (no target cap), one healthy
@@ -164,15 +198,92 @@ describe('BloodMendAbility_0301', () => {
         advanceSimulation(caster, engine, ACTIVE_TICK_ADVANCE);
 
         for (const enemy of bleedingNear) {
-            expect(enemy.hp).toBe(100 - BLOOD_MAGE_REND);
+            expect(enemy.hp).toBe(100 - BLOOD_MEND_REND);
         }
         expect(notBleeding.hp).toBe(100);
         expect(bleedingFar.hp).toBe(100);
-        expect(ally.hp).toBe(50 + BLOOD_MEND_HEAL_AMOUNT);
+        expect(getTotalShieldHp(ally)).toBeCloseTo(
+            BLOOD_MEND_SHIELD_HP + BLOOD_MEND_SHIELD_PER_REND_HIT * bleedingNear.length,
+            0,
+        );
     });
 
-    it('shows Rend as a keyword line', () => {
-        expect(BloodMendAbility_0301.getTooltipText()).toContain(`{Rend ${BLOOD_MAGE_REND}}`);
+    it('Rend resolves around the ally, not the caster', () => {
+        const caster = makeCaster(100);
+        const ally = makeAlly('ally', 50);
+        const nearCasterOnly = makeEnemy('nearCaster', 50, 20);
+        applyBleedStack(nearCasterOnly, 0, 1, 1);
+        const engine = makeEngine([caster, ally, nearCasterOnly]);
+
+        executeUnitAbility(caster, BloodMendAbility_0301, targetsFor(ally), engine);
+        advanceSimulation(caster, engine, ACTIVE_TICK_ADVANCE);
+
+        expect(nearCasterOnly.hp).toBe(100);
+        expect(getTotalShieldHp(ally)).toBeCloseTo(BLOOD_MEND_SHIELD_HP, 0);
+    });
+
+    it('the shield heals half of what fades, banking injury', () => {
+        const caster = makeCaster(100);
+        const ally = makeAlly('ally', 50);
+        const engine = makeEngine([caster, ally]);
+
+        executeUnitAbility(caster, BloodMendAbility_0301, targetsFor(ally), engine);
+        advanceSimulation(caster, engine, ACTIVE_TICK_ADVANCE);
+        const shield = shieldOf(ally)!;
+        const shieldBefore = shield.remainingHp;
+        const hpBefore = ally.hp;
+        const injuryBefore = ally.hpInjury;
+
+        advanceSimulation(caster, engine, 1);
+
+        const decayed = shieldBefore - shield.remainingHp;
+        expect(decayed).toBeGreaterThan(4);
+        const healed = ally.hp - hpBefore;
+        expect(healed).toBeCloseTo(decayed * BLOOD_MEND_DECAY_HEAL_FRACTION, 1);
+        expect(ally.hpInjury - injuryBefore).toBeCloseTo(healed * DEFAULT_HEAL_PENALTY_PCT, 1);
+    });
+
+    it('damage absorbed by the shield heals nothing', () => {
+        const caster = makeCaster(100);
+        const ally = makeAlly('ally', 50);
+        const engine = makeEngine([caster, ally]);
+
+        executeUnitAbility(caster, BloodMendAbility_0301, targetsFor(ally), engine);
+        advanceSimulation(caster, engine, ACTIVE_TICK_ADVANCE);
+        const hpBefore = ally.hp;
+        const injuryBefore = ally.hpInjury;
+
+        const result = applyDamageToShields(ally, 10);
+
+        expect(result.shieldAbsorbed).toBe(10);
+        expect(ally.hp).toBe(hpBefore);
+        expect(ally.hpInjury).toBe(injuryBefore);
+    });
+
+    it('shows Rend as a keyword line with its shield effect, and a brief tooltip', () => {
+        const lines = BloodMendAbility_0301.getTooltipText();
+        expect(lines).toContain(`{Rend ${BLOOD_MEND_REND}}: +{${BLOOD_MEND_SHIELD_PER_REND_HIT}} shield per enemy hit`);
+        expect(lines.some((l) => l.includes(`{${BLOOD_MEND_SHIELD_HP}} blood shield`))).toBe(true);
+        expect(lines.length).toBeLessThanOrEqual(4);
+    });
+
+    it('keeps its blood-mist circles within unit radius + 20 px', () => {
+        const limit = DEFAULT_UNIT_RADIUS + BLOOD_MIST_SUBDUED_REACH + 1e-6;
+        const caster = makeCaster(100);
+        const ally = makeAlly('ally', 50);
+        const engine = makeEngine([caster, ally]);
+        executeUnitAbility(caster, BloodMendAbility_0301, targetsFor(ally), engine);
+        advanceSimulation(caster, engine, ACTIVE_TICK_ADVANCE);
+
+        const spawned = (engine.addEffect as ReturnType<typeof vi.fn>).mock.calls.map(
+            (c) => c[0] as Effect,
+        );
+        // windup burst, travel mist, impact flash
+        expect(spawned).toHaveLength(3);
+        for (const effect of spawned) {
+            const def = effect.effectType === 'BloodMistImpact' ? bloodMistImpactEffectDef : bloodMistBurstEffectDef;
+            expect(maxDrawnReach(def, effect.effectRadius ?? 0)).toBeLessThanOrEqual(limit);
+        }
     });
 
     it("floorAtOne: casting at hp<=5 still succeeds and clamps the caster at exactly 1 HP", () => {
@@ -187,7 +298,7 @@ describe('BloodMendAbility_0301', () => {
         advanceSimulation(caster, engine, ACTIVE_TICK_ADVANCE);
 
         expect(caster.hp).toBe(1);
-        expect(ally.hp).toBe(50 + BLOOD_MEND_HEAL_AMOUNT);
+        expect(shieldOf(ally)).toBeDefined();
     });
 
     it('click-based targeting lets the caster select themselves and other allies, never enemies', () => {

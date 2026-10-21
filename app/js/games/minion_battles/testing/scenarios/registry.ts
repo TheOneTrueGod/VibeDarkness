@@ -129,7 +129,6 @@ import {
     bloodyClawsFarCentreLockOnScenario,
     bloodyClawsStepLungesScenario,
 } from './abilities/bloodyClawsScenarios';
-import { protectShieldAbsorptionScenario } from './abilities/protectScenario';
 import {
     earthCoreEarthernPunchScenario,
     earthCoreShakingGroundScenario,
@@ -280,7 +279,6 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     bloodyClawsEdgeLockOnScenario,
     bloodyClawsFarCentreLockOnScenario,
     bloodyClawsStepLungesScenario,
-    protectShieldAbsorptionScenario,
     throwKnifePiercingBleedScenario,
     clawMovementDistanceScenario,
     pistolHitsDummyScenario,
@@ -328,7 +326,7 @@ const ABILITY_TREE_GROUPS: AbilityTreeSidebarGroup[] = [
     { treeId: 'earth_core',    label: 'Earth Core',     selectorKey: 'tree:earth_core',    abilityIds: ['earth_core'] },
     { treeId: 'light',         label: 'Light Core',     selectorKey: 'tree:light',         abilityIds: ['0801', '0803', '0804', '0805', '0806'] },
     { treeId: 'gravity_core',  label: 'Gravity',        selectorKey: 'tree:gravity_core',  abilityIds: ['0901', '0902', '0903', '0904', '0905', 'gravity_core'] },
-    { treeId: 'blood_mage',    label: 'Blood Mage',     selectorKey: 'tree:blood_mage',    abilityIds: ['0301', '0302', '0303'] },
+    { treeId: 'blood_mage',    label: 'Blood Mage',     selectorKey: 'tree:blood_mage',    abilityIds: ['0301', '0302'] },
 ];
 
 export function getAbilityTreeSidebarGroups(): AbilityTreeSidebarGroup[] {
@@ -429,7 +427,6 @@ export function inferScenarioAbilityId(scenario: ScenarioDefinition): string | n
     if (id.startsWith('burst_')) return '0302';
     if (id.startsWith('blood_shard_')) return '0304';
     if (id.startsWith('bloody_claws_')) return '0306';
-    if (id.startsWith('protect_')) return '0303';
     return null;
 }
 

@@ -211,7 +211,7 @@ const lightShieldBuffVisual: BuffVisualRenderer = (g, unit, buff, ctx) => {
 
 /**
  * Shield: a translucent shell around the unit's body, shimmering black/red/transparent.
- * See card_defs/03_blood_mage/AGENTS.md for the design intent behind Protect, which grants this.
+ * See card_defs/03_blood_mage/AGENTS.md for the design intent behind Blood Mend, which grants this.
  *
  * The filter is applied to the shared `buffEffects` Graphics (see UnitRenderer), so while a
  * shield is up, any other buff icons on the same unit are also rendered through the shimmer

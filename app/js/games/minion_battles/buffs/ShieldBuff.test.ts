@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { ShieldBuff, SHIELD_BUFF_TYPE } from './ShieldBuff';
 import type { Unit } from '../game/units/Unit';
 import type { EngineContext } from '../game/EngineContext';
+import { Unit as UnitClass } from '../game/units/Unit';
+import { applyDamageToShields } from '../game/units/unitShield';
+import { DEFAULT_HEAL_PENALTY_PCT } from '../game/units/unitHeal';
+import type { TeamId } from '../game/teams';
 
 // onGameTick's unit/engine params are unused by ShieldBuff's drain logic — safe stand-ins.
 const FAKE_UNIT = {} as Unit;
@@ -87,5 +91,58 @@ describe('ShieldBuff', () => {
         const restored = ShieldBuff.fromJSON(buff.toJSON());
         expect(restored.theme).toBe('light');
         expect(restored.remainingHp).toBe(20);
+    });
+
+    describe('decayHealFraction', () => {
+        function makeUnit(hp: number): UnitClass {
+            return new UnitClass({
+                id: 'u', x: 0, y: 0, hp, maxHp: 100, speed: 100, teamId: 'player' as TeamId,
+                ownerId: 'p1', characterId: 'player', name: 'u',
+            });
+        }
+
+        it('heals the unit for the given fraction of the drained amount, banking injury', () => {
+            const unit = makeUnit(50);
+            const buff = new ShieldBuff(10, 2, 'blood', 0.5);
+
+            buff.onGameTick(unit, FAKE_ENGINE, 1); // drains 2 -> heals 1
+
+            expect(buff.remainingHp).toBe(8);
+            expect(unit.hp).toBeCloseTo(51);
+            expect(unit.hpInjury).toBeCloseTo(DEFAULT_HEAL_PENALTY_PCT);
+        });
+
+        it('only heals for what was actually drained (clamped by remaining shield)', () => {
+            const unit = makeUnit(50);
+            const buff = new ShieldBuff(1, 4, 'blood', 0.5);
+
+            buff.onGameTick(unit, FAKE_ENGINE, 1); // only 1 left to drain
+
+            expect(unit.hp).toBeCloseTo(50.5);
+        });
+
+        it('never heals from damage absorbed by the shield', () => {
+            const unit = makeUnit(50);
+            const buff = new ShieldBuff(10, 0, 'blood', 0.5);
+            unit.buffs.push(buff);
+
+            const result = applyDamageToShields(unit, 6);
+
+            expect(result.shieldAbsorbed).toBe(6);
+            expect(buff.remainingHp).toBe(4);
+            expect(unit.hp).toBe(50);
+        });
+
+        it('defaults to no healing', () => {
+            const unit = makeUnit(50);
+            new ShieldBuff(10, 2).onGameTick(unit, FAKE_ENGINE, 1);
+            expect(unit.hp).toBe(50);
+        });
+
+        it('round-trips through toJSON/fromJSON', () => {
+            const restored = ShieldBuff.fromJSON(new ShieldBuff(10, 2, 'blood', 0.5).toJSON());
+            expect(restored.decayHealFraction).toBe(0.5);
+            expect(ShieldBuff.fromJSON(new ShieldBuff(10, 2).toJSON()).decayHealFraction).toBe(0);
+        });
     });
 });

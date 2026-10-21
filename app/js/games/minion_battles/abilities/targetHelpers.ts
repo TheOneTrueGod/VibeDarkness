@@ -133,6 +133,7 @@ export function damageEnemiesInTiles(options: {
  * Candidates come from `CircleHitbox.getUnitsInHitbox` (hostile to caster; combat iFrames filtered).
  * When `onHit` is provided it replaces the standard damage call, allowing custom
  * damage types (e.g. un-blockable `unit.takeDamage`) or per-unit side effects.
+ * Returns the units that were targeted.
  */
 export function damageEnemiesInCircle(options: {
     engine: AoEEngine;
@@ -147,7 +148,7 @@ export function damageEnemiesInCircle(options: {
     /** When set, only enemies passing this check are candidates (applied before `maxTargets`). */
     filter?: (unit: Unit) => boolean;
     onHit?: (unit: Unit) => void;
-}): void {
+}): Unit[] {
     const { engine: eng, caster, center, radius, damage, abilityId, attackType = 'melee', maxTargets, filter, onHit } = options;
     let candidates = CircleHitbox.getUnitsInHitbox(
         toHitboxEngine(eng),
@@ -184,6 +185,7 @@ export function damageEnemiesInCircle(options: {
             });
         }
     }
+    return candidates;
 }
 
 /**

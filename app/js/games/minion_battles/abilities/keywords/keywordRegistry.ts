@@ -2,12 +2,23 @@ import { formatTooltipNumber } from '../tooltipTokens';
 import { spawnBrightLight, type EngineWithLight } from '../brightKeyword';
 import { devourLightKeyword } from './devourLightKeyword';
 import { rendKeyword } from './rendKeyword';
-import type { AbilityKeywordUse, KeywordDef, KeywordId } from './keywordTypes';
+import type { AbilityKeywordUse, KeywordDef, KeywordId, KeywordResolve } from './keywordTypes';
 
 const registry = new Map<KeywordId, KeywordDef>();
 
 export function registerKeyword(def: KeywordDef): void {
     registry.set(def.id, def);
+}
+
+/**
+ * Attach a cast-time `resolve` to an already-registered keyword. Lets a keyword whose def must stay
+ * import-light (loaded by tooltip UI) get its runtime behaviour from a separate runtime module
+ * (e.g. `rendRuntime.ts`) without the def importing it.
+ */
+export function registerKeywordResolver(id: KeywordId, resolve: KeywordResolve): void {
+    const def = registry.get(id);
+    if (!def) throw new Error(`Unknown keyword: ${id}`);
+    registry.set(id, { ...def, resolve });
 }
 
 export function getKeyword(id: KeywordId): KeywordDef | undefined {

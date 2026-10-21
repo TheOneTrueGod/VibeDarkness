@@ -4,12 +4,13 @@ import type { KeywordDef } from './keywordTypes';
 export const REND_RADIUS = 70;
 
 /**
- * Rend N: deals N damage to nearby bleeding enemies. Tooltip/glossary def only; the centre is
- * ability-specific (e.g. Blood Mend / Protect rend around the targeted ally), so abilities call
- * `applyRend` (`rendRuntime.ts`) from their own cast timing.
+ * Rend N: deals N damage to nearby bleeding enemies. Tooltip/glossary def only; the cast-time
+ * `resolve` is attached by `rendRuntime.ts` via `registerKeywordResolver`, and the centre comes from
+ * `KeywordContext.center` (e.g. Blood Mend rends around the targeted ally).
  *
- * Keep this module free of game-runtime imports: the keyword registry (and so tooltip UI) loads it,
- * and pulling in combat helpers here creates an import cycle through the ability registry.
+ * Keep this module free of runtime imports (type imports only): the keyword registry (and so tooltip
+ * UI) loads it, and pulling in combat helpers here creates an import cycle through the ability
+ * registry ("Cannot access 'REND_RADIUS' before initialization").
  */
 export const rendKeyword: KeywordDef = {
     id: 'rend',

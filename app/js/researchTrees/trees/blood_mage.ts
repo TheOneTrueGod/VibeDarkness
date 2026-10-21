@@ -6,7 +6,6 @@ import { RESEARCH_TREE_COLOUR_BLOOD_MAGE, RESEARCH_TREE_ICON_BLOOD_MAGE } from '
 export const BLOOD_MAGE_TREE_ID = 'blood_mage';
 export const BLOOD_MAGE_NODE_CORE = 'blood_mage_core';
 export const BLOOD_MAGE_NODE_BURST = 'blood_mage_burst';
-export const BLOOD_MAGE_NODE_PROTECT = 'blood_mage_protect';
 export const BLOOD_MAGE_NODE_SHARD = 'blood_mage_shard';
 export const BLOOD_MAGE_NODE_PACT = 'blood_mage_pact';
 export const BLOOD_MAGE_NODE_CLAWS = 'blood_mage_claws';
@@ -19,10 +18,6 @@ export const BLOOD_CORE_METAL_COST = 1;
 export const BLOOD_BURST_CRYSTAL_COST = 8;
 export const BLOOD_BURST_FOOD_COST = 7;
 export const BLOOD_BURST_METAL_COST = 2;
-
-export const BLOOD_WARD_CRYSTAL_COST = 9;
-export const BLOOD_WARD_FOOD_COST = 8;
-export const BLOOD_WARD_METAL_COST = 3;
 
 export const BLOOD_SHARD_CRYSTAL_COST = 12;
 export const BLOOD_SHARD_FOOD_COST = 8;
@@ -94,29 +89,6 @@ export const bloodMageTree: ResearchTreeDef = {
             },
             effects: [
                 { type: 'addCard', cardId: '0302' },
-            ],
-        },
-        {
-            id: BLOOD_MAGE_NODE_PROTECT,
-            title: 'Blood Ward',
-            description:
-                'Bind a measure of your own vitality into a ward around an ally, absorbing the next wounds meant for them.',
-            flavorText: 'A little death, lent, so another may keep living.',
-            order: 15,
-            tier: 3,
-            position: { x: 660, y: 290 },
-            prereqNodeIds: [BLOOD_MAGE_NODE_BURST],
-            exclusiveWithNodeIds: [],
-            requirements: [
-                { type: 'anyResearched', treeId: BLOOD_MAGE_TREE_ID, nodeIds: [BLOOD_MAGE_NODE_BURST] },
-            ],
-            cost: {
-                crystals: BLOOD_WARD_CRYSTAL_COST,
-                food: BLOOD_WARD_FOOD_COST,
-                metal: BLOOD_WARD_METAL_COST,
-            },
-            effects: [
-                { type: 'addCard', cardId: '0303' },
             ],
         },
         {

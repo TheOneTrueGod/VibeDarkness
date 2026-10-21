@@ -10,11 +10,9 @@ import { defineAbility } from '../../../abilities/defineAbility';
 import { resolveTargetToPoint } from '../../../abilities/targeting';
 import type { AbilityRecoveryRule } from '../../../abilities/Ability';
 import type { EngineContext } from '../../../game/EngineContext';
-import { applyHeal } from '../../../game/units/unitHeal';
+import { ShieldBuff } from '../../../buffs/ShieldBuff';
 import {
     BLOOD_MAGE_ALLY_SPLASH_RADIUS,
-    BLOOD_MAGE_REND,
-    dealBloodMageRend,
     unitRangeWithAllySplashHitbox,
 } from '../../../abilities/bloodMageAllySplash';
 import {
@@ -22,22 +20,36 @@ import {
     spawnBloodMistImpactFlash,
     spawnBloodMistTravel,
     spawnBloodMistWindupBurst,
+    subduedBurstRadius,
+    subduedImpactRadius,
 } from '../../../abilities/bloodMageVfx';
-import { formatKeywordLine } from '../../../abilities/keywords/keywordRegistry';
+import type { AbilityKeywordUse } from '../../../abilities/keywords/keywordTypes';
+import { perRendHit } from '../../../abilities/keywords/rendRuntime';
+import {
+    formatKeywordUseTooltip,
+    runAbilityKeywords,
+} from '../../../abilities/keywords/runAbilityKeywords';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { type CardDef } from '../../types';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Mage)}01`;
 
 export const BLOOD_MEND_HEAL_RANGE = 250;
-export const BLOOD_MEND_HEAL_AMOUNT = 20;
+export const BLOOD_MEND_SHIELD_HP = 30;
+// Fades at the rate the old Protect did: an undamaged shield lasts ~7s, regardless of bonus shield.
+export const BLOOD_MEND_SHIELD_DRAIN_PER_SECOND = 30 / 7;
+export const BLOOD_MEND_REND = 4;
+export const BLOOD_MEND_SHIELD_PER_REND_HIT = 4;
+/** Fraction of shield lost to fading (not to damage) that heals the target. */
+export const BLOOD_MEND_DECAY_HEAL_FRACTION = 0.5;
 export const BLOOD_MEND_HP_COST = 5;
 // Longer than the ~0.2-0.4s norm — this ability's windup is meant to expose the caster (see AGENTS.md).
 export const BLOOD_MEND_WINDUP_DURATION = 1.0;
 export const BLOOD_MEND_ACTIVE_DURATION = 0.05;
 export const BLOOD_MEND_COOLDOWN_DURATION = 0.5;
 const HEAL_RANGE = BLOOD_MEND_HEAL_RANGE;
-const HEAL_AMOUNT = BLOOD_MEND_HEAL_AMOUNT;
+const SHIELD_HP = BLOOD_MEND_SHIELD_HP;
+const SHIELD_DRAIN_PER_SECOND = BLOOD_MEND_SHIELD_DRAIN_PER_SECOND;
 const HP_COST = BLOOD_MEND_HP_COST;
 const WINDUP_DURATION = BLOOD_MEND_WINDUP_DURATION;
 const ACTIVE_DURATION = BLOOD_MEND_ACTIVE_DURATION;
@@ -51,9 +63,24 @@ const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
 
-// includeCaster: Blood Mend can heal the caster themselves, not just other allies.
-// Splash circle is drawn around the hovered ally during targeting.
+// includeCaster: Blood Mend can shield the caster themselves, not just other allies.
+// The circle drawn around the hovered ally is Rend's area.
 const BLOOD_MEND_HITBOX = unitRangeWithAllySplashHitbox(HEAL_RANGE, BLOOD_MAGE_ALLY_SPLASH_RADIUS, true);
+
+/**
+ * Rend around the target; each enemy hit adds shield to `shield`. A factory because the effect needs
+ * the buff granted this cast (the tooltip passes null).
+ */
+function rendShieldUse(shield: ShieldBuff | null): AbilityKeywordUse {
+    return {
+        keyword: 'rend',
+        n: BLOOD_MEND_REND,
+        effectText: `+{${BLOOD_MEND_SHIELD_PER_REND_HIT}} shield per enemy hit`,
+        effect: perRendHit(BLOOD_MEND_SHIELD_PER_REND_HIT, (total) => {
+            if (shield) shield.remainingHp += total;
+        }),
+    };
+}
 
 const BLOOD_MEND_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -93,14 +120,17 @@ export const BloodMendAbility_0301 = defineAbility({
                     timingStart: 'start',
                     behaviour: CastBehaviours.Instant((ctx) => {
                         const eng = ctx.engine as EngineContext;
-                        spawnBloodMistWindupBurst(eng, ctx.caster, { variant: 'heal' });
+                        spawnBloodMistWindupBurst(eng, ctx.caster, {
+                            variant: 'shield',
+                            radius: subduedBurstRadius(ctx.caster.radius),
+                        });
 
                         const fromPos = { x: ctx.caster.x, y: ctx.caster.y };
                         const toPos = resolveTargetToPoint(ctx.target, eng) ?? fromPos;
                         spawnBloodMistTravel(eng, fromPos, toPos, {
                             hangTime: TRAVEL_HANG_TIME,
                             flightDuration: TRAVEL_FLIGHT_DURATION,
-                            variant: 'heal',
+                            variant: 'shield',
                         });
                     }),
                 },
@@ -127,14 +157,21 @@ export const BloodMendAbility_0301 = defineAbility({
                     : null;
                 if (!targetUnit?.isAlive()) return;
 
-                // Order matters: pay the HP cost before healing so a full-HP self-cast still nets the
-                // intended amount, rather than the cost being wasted by applyHeal's max-HP clamp.
                 payHpCost(ctx.caster, HP_COST, 'floorAtOne');
-                applyHeal(targetUnit, HEAL_AMOUNT);
-                dealBloodMageRend(eng, ctx.caster, { x: targetUnit.x, y: targetUnit.y }, CARD_ID);
+                const shield = new ShieldBuff(
+                    SHIELD_HP,
+                    SHIELD_DRAIN_PER_SECOND,
+                    'blood',
+                    BLOOD_MEND_DECAY_HEAL_FRACTION,
+                );
+                targetUnit.addBuff(shield, eng.gameTime, eng.roundNumber, eng.eventBus);
+                runAbilityKeywords(
+                    { engine: ctx.engine, caster: ctx.caster, abilityId: CARD_ID, center: { x: targetUnit.x, y: targetUnit.y } },
+                    [rendShieldUse(shield)],
+                );
                 spawnBloodMistImpactFlash(eng, { x: targetUnit.x, y: targetUnit.y }, {
-                    variant: 'heal',
-                    radius: BLOOD_MAGE_ALLY_SPLASH_RADIUS,
+                    variant: 'shield',
+                    radius: subduedImpactRadius(targetUnit.radius),
                 });
             }),
         },
@@ -149,9 +186,9 @@ export const BloodMendAbility_0301 = defineAbility({
 
     getTooltipText(): string[] {
         return [
-            'Channel a wave of blood magic into an ally, mending their wounds at your own expense.',
-            `Heals the target for {${HEAL_AMOUNT}} HP.`,
-            formatKeywordLine({ keyword: 'rend', n: BLOOD_MAGE_REND }),
+            `Grant an ally a {${SHIELD_HP}} blood shield.`,
+            formatKeywordUseTooltip(rendShieldUse(null)),
+            'As it fades, heal half the lost shield.',
             `Costs {${HP_COST}} HP to cast — can never drop you below 1 HP.`,
         ];
     },

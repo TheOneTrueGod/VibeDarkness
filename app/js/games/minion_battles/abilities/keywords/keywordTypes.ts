@@ -9,11 +9,21 @@ export interface KeywordContext {
     caster: Unit;
     /** Casting ability id (present when the context is a CastBehaviour tick context); used to stamp deployable ownership. */
     abilityId?: string;
+    /**
+     * Where an area keyword (e.g. Rend) resolves; defaults to the caster's position. Abilities set it
+     * to the point they act on (e.g. the targeted ally).
+     */
+    center?: { x: number; y: number };
 }
 
 export interface KeywordResult {
     triggered: boolean;
+    /** Units the keyword affected, when it has a notion of "hits" (e.g. Rend). Drives per-hit follow-ups. */
+    count?: number;
 }
+
+/** Cast-time keyword trigger. */
+export type KeywordResolve = (ctx: KeywordContext, n: number) => KeywordResult;
 
 export interface KeywordDef {
     readonly id: KeywordId;
@@ -26,7 +36,7 @@ export interface KeywordDef {
      */
     describe?(n: number): string;
     /** Optional cast-time trigger. Keywords without one are tooltip-only. */
-    resolve?(ctx: KeywordContext, n: number): KeywordResult;
+    resolve?: KeywordResolve;
 }
 
 /** An ability's use of a keyword, with an optional effect run only when the keyword triggers. */

@@ -35,6 +35,26 @@ export const BLOOD_MIST_WINDUP_DURATION = 0.5;
 export const BLOOD_MIST_TRAVEL_DEFAULT_DURATION = 0.35;
 export const BLOOD_MIST_IMPACT_DURATION = 0.3;
 
+/**
+ * Subdued sizing: how far (px) beyond a unit's body a blood-mist circle may reach. The effect defs
+ * draw wider than `effectRadius` (see `bloodMageEffects.ts`), so these helpers divide the budget by
+ * each def's growth factor: burst blobs reach about `effectRadius * 1.3`, the impact flash grows to
+ * `effectRadius * 1.4`.
+ */
+export const BLOOD_MIST_SUBDUED_REACH = 20;
+const BLOOD_MIST_BURST_REACH_FACTOR = 1.3;
+const BLOOD_MIST_IMPACT_REACH_FACTOR = 1.4;
+
+/** `effectRadius` for a windup burst / travel mist that stays within the subdued reach of a body. */
+export function subduedBurstRadius(unitRadius: number): number {
+    return (unitRadius + BLOOD_MIST_SUBDUED_REACH) / BLOOD_MIST_BURST_REACH_FACTOR;
+}
+
+/** `effectRadius` for an impact flash that stays within the subdued reach of a body. */
+export function subduedImpactRadius(unitRadius: number): number {
+    return (unitRadius + BLOOD_MIST_SUBDUED_REACH) / BLOOD_MIST_IMPACT_REACH_FACTOR;
+}
+
 export interface BloodMistWindupOpts {
     /** Swirl radius; defaults to caster.radius + 14. */
     radius?: number;

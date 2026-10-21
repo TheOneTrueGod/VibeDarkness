@@ -25,6 +25,7 @@ import { swingSwordExtraUsesScenario } from '../scenarios/abilities/swingSwordRe
 import { swingBatHitsThreeTargetsScenario } from '../scenarios/abilities/swingBatScenarios';
 import { swingBatSequentialAimPixelScenario } from '../scenarios/abilities/swingBatSequentialAim';
 import { beastClawFrontHitBackMissScenario } from '../scenarios/abilities/beastClawScenarios';
+import { bloodMendScenario } from '../scenarios/abilities/bloodMendScenario';
 import { bloodShardSplintersScenario } from '../scenarios/abilities/bloodShardScenarios';
 import {
     bloodyClawsEdgeLockOnScenario,
@@ -427,6 +428,11 @@ describe('runScenarioHeadless', () => {
 
     it('passes throw knife piercing bleed scenario', () => {
         const r = runScenarioHeadless(throwKnifePiercingBleedScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes Blood Mend scenario (blood shield, +4 per Rend hit, heals as it fades)', () => {
+        const r = runScenarioHeadless(bloodMendScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

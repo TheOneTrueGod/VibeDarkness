@@ -90,7 +90,6 @@ import { EaseBurdensAbility } from '../card_defs/09_gravity_core/0906_EaseBurden
 import { CollapseAbility } from '../card_defs/09_gravity_core/0905_Collapse/0905Ability';
 import { BloodMendAbility_0301 } from '../card_defs/03_blood_mage/0301_BloodMend/0301Ability';
 import { BurstAbility_0302 } from '../card_defs/03_blood_mage/0302_Burst/0302Ability';
-import { ProtectAbility_0303 } from '../card_defs/03_blood_mage/0303_Protect/0303Ability';
 import { BloodShardAbility_0304 } from '../card_defs/03_blood_mage/0304_BloodShard/0304Ability';
 import { BloodPactAbility_0305 } from '../card_defs/03_blood_mage/0305_BloodPact/0305Ability';
 import { BloodyClawsAbility_0306 } from '../card_defs/03_blood_mage/0306_BloodyClaws/0306Ability';
@@ -194,7 +193,6 @@ register(EaseBurdensAbility);
 register(CollapseAbility);
 register(BloodMendAbility_0301);
 register(BurstAbility_0302);
-register(ProtectAbility_0303);
 register(BloodShardAbility_0304);
 register(BloodPactAbility_0305);
 register(BloodyClawsAbility_0306);

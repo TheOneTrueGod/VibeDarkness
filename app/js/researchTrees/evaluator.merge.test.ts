@@ -6,6 +6,7 @@ import {
     mergeBattleEquipmentIdsFromResearch,
 } from './evaluator';
 import { LIGHT_TREE_ID, LIGHT_NODE_CORE } from './trees/light';
+import { BLOOD_MAGE_TREE_ID, BLOOD_MAGE_NODE_CORE } from './trees/blood_mage';
 import { GRAVITY_TREE_ID, GRAVITY_NODE_CORE, GRAVITY_NODE_GRAVITY_LOCUS } from './trees/gravity';
 import { LIGHT_CORE_MISSION_START_AMOUNT } from '../games/minion_battles/resources/Light';
 import { GRAVITY_CORE_MISSION_START_AMOUNT } from '../games/minion_battles/card_defs/09_gravity_core/gravityConstants';
@@ -83,5 +84,13 @@ describe('getDirectCardsFromResearch', () => {
         });
         expect(cards).toContain('0901');
         expect(cards).toContain('0902');
+    });
+
+    it('ignores stored research node ids that no longer exist (removed Blood Ward)', () => {
+        const cards = getDirectCardsFromResearch({
+            [BLOOD_MAGE_TREE_ID]: [BLOOD_MAGE_NODE_CORE, 'blood_mage_protect'],
+        });
+        expect(cards).toContain('0301');
+        expect(cards).not.toContain('0303');
     });
 });
