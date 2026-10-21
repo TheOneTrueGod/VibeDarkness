@@ -85,6 +85,16 @@ function findFirstHitboxMaxRange(timings: AbilityTimingEntry[]): number | null {
     return null;
 }
 
+/** Largest `SelectTargetDef.lunge.distance` among the ability's select steps (0 when none). */
+function findMaxStepLungeDistance(timings: AbilityDefInput['abilityTimings']): number {
+    let max = 0;
+    for (const entry of timings) {
+        const targetDef = (entry as { targetDef?: { kind?: string; lunge?: { distance: number } } }).targetDef;
+        if (targetDef?.kind === 'select' && targetDef.lunge) max = Math.max(max, targetDef.lunge.distance);
+    }
+    return max;
+}
+
 // ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
@@ -127,9 +137,12 @@ export function defineAbility(def: AbilityDefInput): AbilityStatic {
         getAbilityStates = (_currentTime: number): AbilityStateEntry[] => [];
     }
 
-    // --- lunge: extend getRange and auto-generate beginActiveCast ---
-    if (def.lunge) {
-        const lungeDistance = def.lunge.distance;
+    // --- lunge: extend getRange by the windup lunge, else by the largest select-step lunge ---
+    // (advanceWindupLunge recovers the hitbox reach as getRange - lunge.distance, so an ability with
+    // a windup lunge keeps exactly that extension.)
+    const lungeExtension = def.lunge ? def.lunge.distance : findMaxStepLungeDistance(def.abilityTimings);
+    if (lungeExtension > 0) {
+        const lungeDistance = lungeExtension;
         const baseGetRange = getRange;
         getRange = (caster: Unit): { minRange: number; maxRange: number } | null => {
             const r = baseGetRange(caster);

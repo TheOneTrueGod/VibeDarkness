@@ -17,6 +17,7 @@ import {
     resolveSelectPickForAim,
     constrainSelectAim,
     resolveTurnLimitReference,
+    getSelectStepLungeDistance,
 } from '../../../abilities/targeting';
 import { drawClampedLine, drawFacingIndicator } from '../../../abilities/previewHelpers';
 import { resolveAbilitySourceUnits } from '../../../abilities/abilitySourceUnits';
@@ -105,12 +106,13 @@ export function renderSelectTargetDef(
     aimPoint: { x: number; y: number },
     engine: GameEngine,
 ): void {
-    const state = ability.lunge
+    const lungeDistance = getSelectStepLungeDistance(ability, caster, selectDef, engine);
+    const state = lungeDistance != null
         ? computeLungePreviewState(
             caster,
             aimPoint,
             selectDef.hitbox.maxRange,
-            caster.getLungeDistance(engine, ability.lunge.distance),
+            caster.getLungeDistance(engine, lungeDistance),
         )
         : null;
 
@@ -254,12 +256,13 @@ function renderInvalidSelectTargetDef(
     aimPoint: { x: number; y: number },
     engine: GameEngine,
 ): void {
-    const state = ability.lunge
+    const lungeDistance = getSelectStepLungeDistance(ability, caster, selectDef, engine);
+    const state = lungeDistance != null
         ? computeLungePreviewState(
             caster,
             aimPoint,
             selectDef.hitbox.maxRange,
-            caster.getLungeDistance(engine, ability.lunge.distance),
+            caster.getLungeDistance(engine, lungeDistance),
         )
         : null;
     const effectiveCaster: HitboxPreviewCaster = state

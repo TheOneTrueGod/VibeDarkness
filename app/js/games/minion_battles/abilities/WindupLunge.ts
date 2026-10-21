@@ -1,3 +1,4 @@
+import { lungeStepDistance } from './stepLunge';
 import type { Unit } from '../game/units/Unit';
 import type { AbilityStatic } from './Ability';
 import type { ActiveAbility, ResolvedTarget } from '../game/types';
@@ -57,9 +58,15 @@ export function setupWindupLungePayload(
     let ty: number | undefined;
     let unitId: string | undefined;
 
-    // If the targets array carries a trailing aim pixel (appended by buildMeleeSelectOrderTargets),
-    // use it as a fixed-position lunge destination so the player lunges toward their click, not the unit.
-    const aimPixel = findMeleeAimPixelInTargets(targets);
+    // The lunge belongs to the first select step. Prefer that step's own clicked aim (`stepAim` on
+    // its primary lock-on) or its own ground pick, so a multi-select ability (e.g. Bloody Claws)
+    // lunges toward its first strike rather than toward a later step's pixel.
+    // Otherwise, if the targets array carries a trailing aim pixel (appended by
+    // buildMeleeSelectOrderTargets), use it as a fixed-position lunge destination so the player
+    // lunges toward their click, not the unit.
+    const aimPixel = primary?.stepAim
+        ?? (primary?.type === 'pixel' ? primary.position ?? null : null)
+        ?? findMeleeAimPixelInTargets(targets);
     if (aimPixel != null) {
         tx = aimPixel.x;
         ty = aimPixel.y;
@@ -80,8 +87,7 @@ export function setupWindupLungePayload(
     const dx = tx - caster.x;
     const dy = ty - caster.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    const needed = Math.max(0, dist - (hitboxMaxRange ?? 0));
-    const effective = Math.min(maxDist, needed);
+    const effective = lungeStepDistance(dist, hitboxMaxRange ?? 0, maxDist);
 
     const payload: WindupLungePayload = {
         lungeStartX: caster.x,
@@ -132,8 +138,7 @@ export function advanceWindupLunge(
 
     // The current gap between lunge origin and target, minus the hitbox reach.
     // If the target moved closer the lunge shortens; it never exceeds the committed max.
-    const currentNeeded = Math.max(0, dist - hitboxRange);
-    const actualLunge = Math.min(payload.effectiveLungeDistance, currentNeeded);
+    const actualLunge = lungeStepDistance(dist, hitboxRange, payload.effectiveLungeDistance);
 
     // Linear interpolation over the windup duration.
     const progress = windupEnd > 0 ? Math.min(1, currentTime / windupEnd) : 1;

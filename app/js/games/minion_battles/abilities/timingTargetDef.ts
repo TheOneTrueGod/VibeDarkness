@@ -1,6 +1,7 @@
 import type { HitboxSpec } from '../hitboxes/HitboxSpec';
 import type { Unit } from '../game/units/Unit';
 import type { ResolvedTarget } from '../game/types';
+import type { SelectStepLunge } from './stepLunge';
 
 /** AI auto-resolution for a select step (see `buildAiSelectTargets`). */
 export type SelectTargetAiHint =
@@ -96,6 +97,13 @@ export interface SelectTargetDef {
      * applies to lock-on, preview and the committed aim alike (`constrainSelectAim`).
      */
     turnLimit?: SelectTurnLimit;
+    /**
+     * Step lunge: at the start of this step's interval the caster physically steps toward this step's
+     * own target (up to `distance` px, over `duration` s, only as far as needed to bring it within the
+     * hitbox's reach). For multi-strike abilities; single-strike abilities use the ability-level
+     * windup lunge (`AbilityStatic.lunge`). See `abilities/stepLunge.ts`.
+     */
+    lunge?: SelectStepLunge;
 }
 
 /** See `SelectTargetDef.turnLimit`. */

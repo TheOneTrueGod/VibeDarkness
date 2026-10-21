@@ -124,7 +124,11 @@ import {
 import { bloodMendScenario } from './abilities/bloodMendScenario';
 import { burstScenario } from './abilities/burstScenario';
 import { bloodShardSplintersScenario } from './abilities/bloodShardScenarios';
-import { bloodyClawsEdgeLockOnScenario, bloodyClawsFarCentreLockOnScenario } from './abilities/bloodyClawsScenarios';
+import {
+    bloodyClawsEdgeLockOnScenario,
+    bloodyClawsFarCentreLockOnScenario,
+    bloodyClawsStepLungesScenario,
+} from './abilities/bloodyClawsScenarios';
 import { protectShieldAbsorptionScenario } from './abilities/protectScenario';
 import {
     earthCoreEarthernPunchScenario,
@@ -275,6 +279,7 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     bloodShardSplintersScenario,
     bloodyClawsEdgeLockOnScenario,
     bloodyClawsFarCentreLockOnScenario,
+    bloodyClawsStepLungesScenario,
     protectShieldAbsorptionScenario,
     throwKnifePiercingBleedScenario,
     clawMovementDistanceScenario,

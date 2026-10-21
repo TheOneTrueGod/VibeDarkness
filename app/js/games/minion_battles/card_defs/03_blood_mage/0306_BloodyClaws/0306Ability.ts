@@ -46,9 +46,10 @@ export const BLOODY_CLAWS_CLAW_TIP = { forward: 62, side: 18 };
 export const BLOODY_CLAWS_CLAW_HALF_THICKNESS = 8;
 
 /**
- * Each strike window opens 0.1s before its impact so the caster visibly lunges into the swipe
- * (`BLOODY_CLAWS_STRIKE_LUNGE`), then eases back over the rest of the window. A shorter lead
- * (a few frames) makes the lunge unreadable, especially under the impact hit-pause.
+ * Each strike window opens 0.1s before its impact. In that lead the caster takes a real step toward
+ * the strike's own target (a step lunge, `SelectTargetDef.lunge`), and a small drawn slide
+ * (`BLOODY_CLAWS_STRIKE_SLIDE`) adds weight, easing back after the hit. A shorter lead (a few frames)
+ * makes the motion unreadable, especially under the impact hit-pause.
  */
 export const BLOODY_CLAWS_TIMINGS = {
     windupEnd: 0.05,
@@ -63,11 +64,18 @@ export const BLOODY_CLAWS_TIMINGS = {
     cooldownEnd: 1.5,
 } as const;
 const T = BLOODY_CLAWS_TIMINGS;
-/** Impact point within each strike window (all three windows share the same shape). */
-const STRIKE_IMPACT_AT = (T.swipeLeftImpact - T.windupEnd) / (T.swipeLeftEnd - T.windupEnd);
-/** Short Punch / Swing Sword-style lunge: ease forward into the impact, settle a little behind. */
-export const BLOODY_CLAWS_STRIKE_LUNGE = { forwardDistance: 14, backwardDistance: 3 };
-const NO_LUNGE = { forwardDistance: 0, backwardDistance: 0 };
+/** Where `impact` falls within the strike window `[start, end)`, as window progress (0-1). */
+function impactProgress(start: number, impact: number, end: number): number {
+    return (impact - start) / (end - start);
+}
+/** Step lunges (real movement, px): the first swipe closes more distance than the follow-ups. */
+export const BLOODY_CLAWS_FIRST_STRIKE_LUNGE = 20;
+export const BLOODY_CLAWS_FOLLOW_UP_LUNGE = 15;
+/** Each step lunge finishes just before its strike's impact (0.1s lead). */
+export const BLOODY_CLAWS_LUNGE_DURATION = 0.08;
+/** Small drawn slide on top of the step (no movement): ease forward into the hit, settle behind. */
+export const BLOODY_CLAWS_STRIKE_SLIDE = { forwardDistance: 6, backwardDistance: 2 };
+const NO_SLIDE = { forwardDistance: 0, backwardDistance: 0 };
 
 const LABEL_SWIPE_LEFT = 'Swipe left';
 const LABEL_SWIPE_RIGHT = 'Swipe right';
@@ -100,15 +108,18 @@ function spawnClawSlash(hitbox: AimFrameSegmentHitboxSpec) {
     };
 }
 
-/** `lunge: false` for a second claw in the same window, so the caster's lunge is not doubled. */
-function claw(hitbox: AimFrameSegmentHitboxSpec, opts: { lunge?: boolean } = {}) {
+/**
+ * `impactAt`: where the hit lands within the strike window. `slide: false` for a second claw in the
+ * same window, so the caster's drawn slide is not doubled.
+ */
+function claw(hitbox: AimFrameSegmentHitboxSpec, opts: { impactAt: number; slide?: boolean }) {
     return CastBehaviours.MeleeAttack()
         .withHitbox(hitbox)
         .withDamage(BLOODY_CLAWS_DAMAGE)
         // Each strike has its own select step; never borrow another strike's lock-ons or aim.
         .withOwnTargetOnly()
-        .withImpactAt(STRIKE_IMPACT_AT)
-        .withSlide(opts.lunge === false ? NO_LUNGE : BLOODY_CLAWS_STRIKE_LUNGE)
+        .withImpactAt(opts.impactAt)
+        .withSlide(opts.slide === false ? NO_SLIDE : BLOODY_CLAWS_STRIKE_SLIDE)
         .withImpactVFX(spawnClawSlash(hitbox));
 }
 
@@ -119,7 +130,7 @@ function strike(...behaviours: ReturnType<typeof claw>[]): CastBehaviourEntry[] 
 function clawSelect(
     label: string,
     hitbox: AimFrameSegmentHitboxSpec,
-    opts: { turnFrom?: string; companion?: AimFrameSegmentHitboxSpec } = {},
+    opts: { lunge: number; turnFrom?: string; companion?: AimFrameSegmentHitboxSpec },
 ): SelectTargetDef {
     return {
         kind: 'select',
@@ -127,11 +138,14 @@ function clawSelect(
         hitbox,
         filter: 'enemy',
         allowMiss: true,
+        lunge: { distance: opts.lunge, duration: BLOODY_CLAWS_LUNGE_DURATION },
         ...(opts.turnFrom ? { turnLimit: { fromLabel: opts.turnFrom, maxDegrees: BLOODY_CLAWS_MAX_TURN_DEGREES } } : {}),
         // The second claw strikes whether or not the first finds a target.
         ...(opts.companion ? { companionHitboxes: [{ hitbox: opts.companion, independent: true }] } : {}),
     };
 }
+
+const X_STRIKE_IMPACT_AT = impactProgress(T.xStrikeStart, T.xStrikeImpact, T.xStrikeEnd);
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup', start: 0, end: T.windupEnd, abilityPhase: AbilityPhase.Windup },
@@ -142,10 +156,10 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
         abilityPhase: AbilityPhase.Active,
         doNotRefund: true,
         timelineLabel: 'Swipe left',
-        targetDef: clawSelect(LABEL_SWIPE_LEFT, LEFT_CLAW_HITBOX),
+        targetDef: clawSelect(LABEL_SWIPE_LEFT, LEFT_CLAW_HITBOX, { lunge: BLOODY_CLAWS_FIRST_STRIKE_LUNGE }),
         castBehaviours: [
             { timingStart: 'start', behaviour: payHpCostBehaviour(BLOODY_CLAWS_HP_COST) },
-            ...strike(claw(LEFT_CLAW_HITBOX)),
+            ...strike(claw(LEFT_CLAW_HITBOX, { impactAt: impactProgress(T.windupEnd, T.swipeLeftImpact, T.swipeLeftEnd) })),
         ],
     },
     { id: 'gap_1', start: T.swipeLeftEnd, end: T.swipeRightStart, abilityPhase: AbilityPhase.Waiting, timelineLabel: 'Between swipes' },
@@ -155,8 +169,13 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
         end: T.swipeRightEnd,
         abilityPhase: AbilityPhase.Active,
         timelineLabel: 'Swipe right',
-        targetDef: clawSelect(LABEL_SWIPE_RIGHT, RIGHT_CLAW_HITBOX, { turnFrom: LABEL_SWIPE_LEFT }),
-        castBehaviours: strike(claw(RIGHT_CLAW_HITBOX)),
+        targetDef: clawSelect(LABEL_SWIPE_RIGHT, RIGHT_CLAW_HITBOX, {
+            lunge: BLOODY_CLAWS_FOLLOW_UP_LUNGE,
+            turnFrom: LABEL_SWIPE_LEFT,
+        }),
+        castBehaviours: strike(
+            claw(RIGHT_CLAW_HITBOX, { impactAt: impactProgress(T.swipeRightStart, T.swipeRightImpact, T.swipeRightEnd) }),
+        ),
     },
     { id: 'gap_2', start: T.swipeRightEnd, end: T.xStrikeStart, abilityPhase: AbilityPhase.Waiting, timelineLabel: 'Between swipes' },
     {
@@ -165,12 +184,16 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
         end: T.xStrikeEnd,
         abilityPhase: AbilityPhase.Active,
         timelineLabel: 'X strike',
-        targetDef: clawSelect(LABEL_X_STRIKE, LEFT_CLAW_HITBOX, { turnFrom: LABEL_SWIPE_RIGHT, companion: RIGHT_CLAW_HITBOX }),
+        targetDef: clawSelect(LABEL_X_STRIKE, LEFT_CLAW_HITBOX, {
+            lunge: BLOODY_CLAWS_FOLLOW_UP_LUNGE,
+            turnFrom: LABEL_SWIPE_RIGHT,
+            companion: RIGHT_CLAW_HITBOX,
+        }),
         // Two independent claws: a unit where they cross is hit by both. The right claw is the
         // select's companion hitbox, so it tethers the companion lock-ons, not the left claw's.
         castBehaviours: strike(
-            claw(LEFT_CLAW_HITBOX),
-            claw(RIGHT_CLAW_HITBOX, { lunge: false }).withLockOnRole('companion'),
+            claw(LEFT_CLAW_HITBOX, { impactAt: X_STRIKE_IMPACT_AT }),
+            claw(RIGHT_CLAW_HITBOX, { impactAt: X_STRIKE_IMPACT_AT, slide: false }).withLockOnRole('companion'),
         ),
     },
     { id: 'cooldown', start: T.xStrikeEnd, end: T.cooldownEnd, abilityPhase: AbilityPhase.Cooldown },
@@ -207,7 +230,8 @@ export const BloodyClawsAbility_0306 = defineAbility({
     targets: [],
     abilityTimings: ABILITY_TIMINGS,
     movementLock: { until: T.xStrikeEnd },
-    aiSettings: { minRange: 0, maxRange: LEFT_CLAW_HITBOX.maxRange },
+    // Step lunges extend each strike's reach (defineAbility adds the largest to getRange too).
+    aiSettings: { minRange: 0, maxRange: LEFT_CLAW_HITBOX.maxRange + BLOODY_CLAWS_FIRST_STRIKE_LUNGE },
     abilityEvents: {
         [AbilityEventType.ON_ATTACK_HIT]: [
             {

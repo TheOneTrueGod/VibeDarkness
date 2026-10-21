@@ -10,6 +10,7 @@ import type { Camera } from '../game/Camera';
 import type { ResolvedTarget } from '../game/types';
 import type { AbilityStatic, IAbilityPreviewGraphics } from './Ability';
 import type { InteractiveTargetDef, SelectTargetDef } from './timingTargetDef';
+import { lungeStepDistance } from './stepLunge';
 import { isInteractiveTargetDef, isSelectTargetDef } from './timingTargetDef';
 import { isAbilityTimingInterval } from './abilityTimings';
 import { areEnemies, areAllies } from '../game/teams';
@@ -178,8 +179,7 @@ export function computeLungeAimState(
     const dist = Math.sqrt(dx * dx + dy * dy);
     if (dist < 0.5) return null;
 
-    const neededLunge = Math.max(0, dist - hitboxMax);
-    const actualLunge = Math.min(lungeMax, neededLunge);
+    const actualLunge = lungeStepDistance(dist, hitboxMax, lungeMax);
     if (actualLunge <= 0) return null;
 
     const dirX = dx / dist;
@@ -218,8 +218,9 @@ export function resolveSelectTargetLockOnCandidates(
     let originY = caster.y;
     let effectiveAim = aimPoint;
 
-    if (ability.lunge != null) {
-        const lungeMax = caster.getLungeDistance(engine, ability.lunge.distance);
+    const lungeDistance = getSelectStepLungeDistance(ability, caster, selectDef, engine);
+    if (lungeDistance != null) {
+        const lungeMax = caster.getLungeDistance(engine, lungeDistance);
         const state = computeLungeAimState(caster, aimPoint, selectDef.hitbox.maxRange, lungeMax);
         if (state) {
             originX = state.virtualX;
@@ -264,8 +265,9 @@ export function resolveSelectTargetCompanionLockOns(
     let originY = caster.y;
     let effectiveAim = aimPoint;
 
-    if (ability.lunge != null) {
-        const lungeMax = caster.getLungeDistance(engine, ability.lunge.distance);
+    const lungeDistance = getSelectStepLungeDistance(ability, caster, selectDef, engine);
+    if (lungeDistance != null) {
+        const lungeMax = caster.getLungeDistance(engine, lungeDistance);
         const state = computeLungeAimState(caster, aimPoint, selectDef.hitbox.maxRange, lungeMax);
         if (state) {
             originX = state.virtualX;
@@ -297,6 +299,24 @@ export function resolveSelectTargetCompanionLockOns(
         }
     }
     return result;
+}
+
+/**
+ * Base lunge distance (px, before `Unit.getLungeDistance` modifiers) that moves the caster before
+ * this select step strikes, or null. A step's own lunge (`SelectTargetDef.lunge`) wins; otherwise
+ * the ability's windup lunge (`AbilityStatic.lunge`) applies to its first select step only (it
+ * happens during the windup). Lock-on and previews resolve the step from the post-lunge position.
+ */
+export function getSelectStepLungeDistance(
+    ability: AbilityStatic,
+    caster: Unit,
+    selectDef: SelectTargetDef,
+    engine: unknown,
+): number | null {
+    if (selectDef.lunge) return selectDef.lunge.distance;
+    if (ability.lunge == null) return null;
+    const isFirstStep = getSelectTargetDefsFromTimings(ability, caster, engine)[0]?.label === selectDef.label;
+    return isFirstStep ? ability.lunge.distance : null;
 }
 
 /**

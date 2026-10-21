@@ -14,7 +14,9 @@ import {
     BLOODY_CLAWS_CLAW_TIP,
     BLOODY_CLAWS_DAMAGE,
     BLOODY_CLAWS_MAX_REACH,
-    BLOODY_CLAWS_STRIKE_LUNGE,
+    BLOODY_CLAWS_STRIKE_SLIDE,
+    BLOODY_CLAWS_FIRST_STRIKE_LUNGE,
+    BLOODY_CLAWS_FOLLOW_UP_LUNGE,
     BLOODY_CLAWS_HP_COST,
     BLOODY_CLAWS_MAX_USES,
     BLOODY_CLAWS_TIMINGS,
@@ -73,7 +75,7 @@ const px = (x: number, y: number): ResolvedTarget => ({ type: 'pixel', position:
 
 /** Cast with each strike aimed at its own pixel (no lock-ons, so hits are purely geometric). */
 function cast(caster: Unit, engine: EngineContext, aims: { left: ResolvedTarget; right: ResolvedTarget; x: ResolvedTarget }) {
-    executeUnitAbility(caster, BloodyClawsAbility_0306, [aims.x], engine);
+    executeUnitAbility(caster, BloodyClawsAbility_0306, [aims.left, aims.right, aims.x], engine);
     const active = caster.activeAbilities.find((a) => a.abilityId === CARD_ID)!;
     active.targetsByLabel = { 'Swipe left': aims.left, 'Swipe right': aims.right, 'X strike': aims.x };
 }
@@ -104,7 +106,8 @@ const CROSS_T = -BLOODY_CLAWS_CLAW_BASE.side / (BLOODY_CLAWS_CLAW_TIP.side - BLO
 const enemyAt = (id: string, p: { x: number; y: number }) => makeUnit(id, p.x, p.y, 'enemy');
 
 const bleedStacks = (u: Unit) => (u.buffs.find((b) => b._type === BLEED_BUFF_TYPE) as BleedBuff | undefined)?.stacks ?? 0;
-const UP = { left: px(0, -100), right: px(0, -100), x: px(0, -100) };
+// Aimed within the claws' reach, so no step lunge moves the caster: these tests are about claw shape.
+const UP = { left: px(0, -60), right: px(0, -60), x: px(0, -60) };
 
 describe('BloodyClawsAbility_0306', () => {
     it('swipes left, then right: each claw only hits its own side', () => {
@@ -146,7 +149,7 @@ describe('BloodyClawsAbility_0306', () => {
         const rotatedLeftClaw = enemyAt('rotated', clawPoint(0.1, 'left', 90));
         const unrotatedSpot = enemyAt('unrotated', clawPoint(0.1, 'left', 0));
         const { caster, engine } = setup([rotatedLeftClaw, unrotatedSpot]);
-        cast(caster, engine, { left: px(100, 0), right: px(100, 0), x: px(100, 0) });
+        cast(caster, engine, { left: px(60, 0), right: px(60, 0), x: px(60, 0) });
         advanceTo(caster, engine, T.swipeLeftEnd);
         expect(rotatedLeftClaw.hp).toBe(100 - BLOODY_CLAWS_DAMAGE);
         expect(unrotatedSpot.hp).toBe(100);
@@ -156,7 +159,7 @@ describe('BloodyClawsAbility_0306', () => {
         // Swipe right aimed straight right (90 degrees off) is clamped to 30 degrees off "up".
         const at30Degrees = enemyAt('at30', clawPoint(CROSS_T, 'right', 30));
         const { caster, engine } = setup([at30Degrees]);
-        cast(caster, engine, { left: px(0, -100), right: px(100, 0), x: px(100, 0) });
+        cast(caster, engine, { left: px(0, -60), right: px(60, 0), x: px(60, 0) });
         advanceTo(caster, engine, T.swipeLeftEnd);
         const afterLeft = at30Degrees.hp;
         advanceTo(caster, engine, T.swipeRightEnd);
@@ -168,7 +171,10 @@ describe('BloodyClawsAbility_0306', () => {
         for (const p of [BLOODY_CLAWS_CLAW_BASE, BLOODY_CLAWS_CLAW_TIP]) {
             expect(Math.hypot(p.forward, p.side)).toBeLessThanOrEqual(BLOODY_CLAWS_MAX_REACH);
         }
-        expect(BloodyClawsAbility_0306.aiSettings?.maxRange).toBeLessThanOrEqual(BLOODY_CLAWS_MAX_REACH);
+        // The AI's reach adds the windup lunge (a real step) on top of the claws themselves.
+        expect(BloodyClawsAbility_0306.aiSettings?.maxRange).toBeLessThanOrEqual(
+            BLOODY_CLAWS_MAX_REACH + BLOODY_CLAWS_FIRST_STRIKE_LUNGE,
+        );
     });
 
     it('lands each strike at its impact moment, not when its window opens', () => {
@@ -187,7 +193,7 @@ describe('BloodyClawsAbility_0306', () => {
         expect(T.xStrikeImpact - T.xStrikeStart).toBeGreaterThanOrEqual(0.1 - 1e-9);
     });
 
-    it('lunges forward a short way into every strike, once even for the two-claw X strike', () => {
+    it('slides forward a short way into every strike, once even for the two-claw X strike', () => {
         const { caster, engine } = setup([]);
         cast(caster, engine, UP);
         const active = caster.activeAbilities.find((a) => a.abilityId === CARD_ID)!;
@@ -201,7 +207,7 @@ describe('BloodyClawsAbility_0306', () => {
             advanceTo(caster, engine, impactTime);
             const interval = intervals.find((i) => i.id === intervalId)!;
             const progress = (impactTime - interval.start) / (interval.end - interval.start);
-            // Sum every behaviour's render offset, the way UnitRenderer does.
+            // Sum every behaviour's render offset, the way UnitRenderer does (the step lunge draws none).
             let offsetY = 0;
             getEffectiveCastBehaviours(interval)!.forEach((entry, bIdx) => {
                 const offset = entry.behaviour.getCasterRenderOffset?.({
@@ -218,9 +224,38 @@ describe('BloodyClawsAbility_0306', () => {
                 });
                 offsetY += offset?.y ?? 0;
             });
-            // Aiming up: a forward lunge is negative y. One lunge, not doubled for the X strike.
-            expect(offsetY, intervalId).toBeCloseTo(-BLOODY_CLAWS_STRIKE_LUNGE.forwardDistance, 0);
+            // Aiming up: a forward slide is negative y. One slide, not doubled for the X strike.
+            expect(offsetY, intervalId).toBeCloseTo(-BLOODY_CLAWS_STRIKE_SLIDE.forwardDistance, 0);
         }
+    });
+
+    it('steps toward each strike\'s own aim before it lands (step lunges)', () => {
+        const { caster, engine } = setup([]);
+        // Swipe left far up, swipe right far right (clamped to the 30 degree turn), X strike far up.
+        cast(caster, engine, { left: px(0, -300), right: px(300, 0), x: px(0, -300) });
+        advanceTo(caster, engine, T.swipeLeftImpact);
+        expect(caster.x).toBeCloseTo(0, 5);
+        expect(caster.y).toBeCloseTo(-BLOODY_CLAWS_FIRST_STRIKE_LUNGE, 0);
+
+        const beforeRight = { x: caster.x, y: caster.y };
+        advanceTo(caster, engine, T.swipeRightImpact);
+        const right = { x: caster.x - beforeRight.x, y: caster.y - beforeRight.y };
+        expect(Math.hypot(right.x, right.y)).toBeCloseTo(BLOODY_CLAWS_FOLLOW_UP_LUNGE, 0);
+        // Turned 30 degrees right of "up": the turn limit applies to where it steps, too.
+        expect(Math.atan2(right.x, -right.y)).toBeCloseTo(Math.PI / 6, 1);
+
+        const beforeX = { x: caster.x, y: caster.y };
+        advanceTo(caster, engine, T.xStrikeImpact);
+        // The X strike steps once (not once per claw).
+        expect(Math.hypot(caster.x - beforeX.x, caster.y - beforeX.y)).toBeCloseTo(BLOODY_CLAWS_FOLLOW_UP_LUNGE, 0);
+    });
+
+    it('does not step when a strike\'s target is already within reach', () => {
+        const { caster, engine } = setup([]);
+        cast(caster, engine, { left: px(0, -40), right: px(0, -40), x: px(0, -40) });
+        advanceTo(caster, engine, T.cooldownEnd);
+        expect(caster.x).toBe(0);
+        expect(caster.y).toBe(0);
     });
 
     it('pays its HP cost on the first swipe', () => {

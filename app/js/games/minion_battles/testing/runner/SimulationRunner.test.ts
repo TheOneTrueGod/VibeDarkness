@@ -26,7 +26,11 @@ import { swingBatHitsThreeTargetsScenario } from '../scenarios/abilities/swingBa
 import { swingBatSequentialAimPixelScenario } from '../scenarios/abilities/swingBatSequentialAim';
 import { beastClawFrontHitBackMissScenario } from '../scenarios/abilities/beastClawScenarios';
 import { bloodShardSplintersScenario } from '../scenarios/abilities/bloodShardScenarios';
-import { bloodyClawsEdgeLockOnScenario, bloodyClawsFarCentreLockOnScenario } from '../scenarios/abilities/bloodyClawsScenarios';
+import {
+    bloodyClawsEdgeLockOnScenario,
+    bloodyClawsFarCentreLockOnScenario,
+    bloodyClawsStepLungesScenario,
+} from '../scenarios/abilities/bloodyClawsScenarios';
 import { throwKnifePiercingBleedScenario } from '../scenarios/abilities/throwKnifeScenarios';
 import { throwRockExactlyOnceScenario } from '../scenarios/abilities/throwRockResearch';
 import { clawMovementDistanceScenario } from '../scenarios/abilities/clawScenarios';
@@ -438,6 +442,11 @@ describe('runScenarioHeadless', () => {
 
     it('passes Bloody Claws far-centre lock-on scenario (lobby F2DDA5: locked enemy past claw reach)', () => {
         const r = runScenarioHeadless(bloodyClawsFarCentreLockOnScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('passes Bloody Claws step lunges scenario (each strike steps toward its target)', () => {
+        const r = runScenarioHeadless(bloodyClawsStepLungesScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

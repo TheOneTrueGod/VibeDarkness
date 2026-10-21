@@ -6,6 +6,8 @@
 
 import type { CastBehaviourEntry, CastBehaviour } from './castBehaviourTypes';
 import type { TimingTargetDef } from './timingTargetDef';
+import { isSelectTargetDef } from './timingTargetDef';
+import { getStepLungeBehaviour } from './stepLunge';
 import type { AbilityTag } from './Ability';
 import type { Unit } from '../game/units/Unit';
 import type { EngineContext } from '../game/EngineContext';
@@ -764,15 +766,19 @@ export function elapsedIsInCoopCooldown(elapsed: number, intervals: AbilityTimin
  * Handles both the explicit `castBehaviours` array and the single-behaviour
  * `behaviour` shorthand (which is treated as a full-window entry at bIdx=0).
  *
+ * A select step with `lunge` gets its step-lunge behaviour first (`abilities/stepLunge.ts`), so the
+ * caster has stepped before the interval's own behaviours act in the same tick.
+ *
  * The returned indices (bIdx) correspond 1-to-1 with the behaviour payload keys
  * used by unitAbilityTick: `${interval.id}_${bIdx}`.
  */
 export function getEffectiveCastBehaviours(
     interval: AbilityTimingInterval,
 ): CastBehaviourEntry[] | undefined {
-    if (interval.castBehaviours) return interval.castBehaviours;
-    if (interval.behaviour) {
-        return [{ timingStart: 'start', timingEnd: 'end', behaviour: interval.behaviour }];
-    }
-    return undefined;
+    const own: CastBehaviourEntry[] | undefined = interval.castBehaviours
+        ?? (interval.behaviour ? [{ timingStart: 'start', timingEnd: 'end', behaviour: interval.behaviour }] : undefined);
+    const targetDef = interval.targetDef;
+    if (!targetDef || !isSelectTargetDef(targetDef) || !targetDef.lunge) return own;
+    const lunge = getStepLungeBehaviour(targetDef)!;
+    return [{ timingStart: 'start', timingEnd: targetDef.lunge.duration, behaviour: lunge }, ...(own ?? [])];
 }
