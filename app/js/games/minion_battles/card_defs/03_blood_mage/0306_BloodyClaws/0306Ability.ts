@@ -46,26 +46,27 @@ export const BLOODY_CLAWS_CLAW_TIP = { forward: 62, side: 18 };
 export const BLOODY_CLAWS_CLAW_HALF_THICKNESS = 8;
 
 /**
- * Each strike window opens a beat before its impact so the caster can lunge into the swipe
- * (`STRIKE_LUNGE`), then eases back over the rest of the window.
+ * Each strike window opens 0.1s before its impact so the caster visibly lunges into the swipe
+ * (`BLOODY_CLAWS_STRIKE_LUNGE`), then eases back over the rest of the window. A shorter lead
+ * (a few frames) makes the lunge unreadable, especially under the impact hit-pause.
  */
 export const BLOODY_CLAWS_TIMINGS = {
-    windupEnd: 0.1,
+    windupEnd: 0.05,
     swipeLeftImpact: 0.15,
-    swipeLeftEnd: 0.25,
-    swipeRightStart: 0.3,
+    swipeLeftEnd: 0.23,
+    swipeRightStart: 0.25,
     swipeRightImpact: 0.35,
-    swipeRightEnd: 0.45,
-    xStrikeStart: 0.55,
+    swipeRightEnd: 0.43,
+    xStrikeStart: 0.5,
     xStrikeImpact: 0.6,
-    xStrikeEnd: 0.7,
+    xStrikeEnd: 0.68,
     cooldownEnd: 1.5,
 } as const;
 const T = BLOODY_CLAWS_TIMINGS;
 /** Impact point within each strike window (all three windows share the same shape). */
 const STRIKE_IMPACT_AT = (T.swipeLeftImpact - T.windupEnd) / (T.swipeLeftEnd - T.windupEnd);
-/** Short Swing Sword-style lunge: ease forward into the impact, settle a little behind. */
-const STRIKE_LUNGE = { forwardDistance: 10, backwardDistance: 3 };
+/** Short Punch / Swing Sword-style lunge: ease forward into the impact, settle a little behind. */
+export const BLOODY_CLAWS_STRIKE_LUNGE = { forwardDistance: 14, backwardDistance: 3 };
 const NO_LUNGE = { forwardDistance: 0, backwardDistance: 0 };
 
 const LABEL_SWIPE_LEFT = 'Swipe left';
@@ -107,7 +108,7 @@ function claw(hitbox: AimFrameSegmentHitboxSpec, opts: { lunge?: boolean } = {})
         // Each strike has its own select step; never borrow another strike's lock-ons or aim.
         .withOwnTargetOnly()
         .withImpactAt(STRIKE_IMPACT_AT)
-        .withSlide(opts.lunge === false ? NO_LUNGE : STRIKE_LUNGE)
+        .withSlide(opts.lunge === false ? NO_LUNGE : BLOODY_CLAWS_STRIKE_LUNGE)
         .withImpactVFX(spawnClawSlash(hitbox));
 }
 

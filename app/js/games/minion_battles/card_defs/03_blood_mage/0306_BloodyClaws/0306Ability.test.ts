@@ -14,6 +14,7 @@ import {
     BLOODY_CLAWS_CLAW_TIP,
     BLOODY_CLAWS_DAMAGE,
     BLOODY_CLAWS_MAX_REACH,
+    BLOODY_CLAWS_STRIKE_LUNGE,
     BLOODY_CLAWS_HP_COST,
     BLOODY_CLAWS_MAX_USES,
     BLOODY_CLAWS_TIMINGS,
@@ -180,6 +181,12 @@ describe('BloodyClawsAbility_0306', () => {
         expect(onLeftClaw.hp).toBe(100 - BLOODY_CLAWS_DAMAGE);
     });
 
+    it('gives every strike a lead long enough to see the lunge (at least 0.1s before impact)', () => {
+        expect(T.swipeLeftImpact - T.windupEnd).toBeGreaterThanOrEqual(0.1 - 1e-9);
+        expect(T.swipeRightImpact - T.swipeRightStart).toBeGreaterThanOrEqual(0.1 - 1e-9);
+        expect(T.xStrikeImpact - T.xStrikeStart).toBeGreaterThanOrEqual(0.1 - 1e-9);
+    });
+
     it('lunges forward a short way into every strike, once even for the two-claw X strike', () => {
         const { caster, engine } = setup([]);
         cast(caster, engine, UP);
@@ -211,8 +218,8 @@ describe('BloodyClawsAbility_0306', () => {
                 });
                 offsetY += offset?.y ?? 0;
             });
-            // Aiming up: a forward lunge is negative y. 10px, not 20px for the X strike.
-            expect(offsetY, intervalId).toBeCloseTo(-10, 0);
+            // Aiming up: a forward lunge is negative y. One lunge, not doubled for the X strike.
+            expect(offsetY, intervalId).toBeCloseTo(-BLOODY_CLAWS_STRIKE_LUNGE.forwardDistance, 0);
         }
     });
 
