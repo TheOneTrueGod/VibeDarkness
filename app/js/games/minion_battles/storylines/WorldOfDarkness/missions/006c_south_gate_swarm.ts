@@ -3,8 +3,8 @@
  *
  * Terrain: vertical stack of 50_50 (crystal cave) over 50_51 (south gate).
  * Opening pack in the outside-cave-mouth box; a swarm nest holds the south gate.
- * The nest is the only reinforcement source (no nest guards or extra continuous spawns —
- * this is the first chapter-2 fight, tuned gentler after playtest).
+ * Reinforcements: the nest's swarmlings, plus continuous wolf (2/round) and slime (1 per 2 rounds)
+ * spawns near the nest. No nest guards.
  */
 
 import type { GameEngine } from '../../../game/GameEngine';
@@ -16,6 +16,7 @@ import type {
     EnemySpawnDef,
     LevelEvent,
     PlayerSpawnPoint,
+    SpawnWaveEntry,
     SpecialTilePlacement,
 } from '../../types';
 import type { MapSegmentZone } from '../../../terrain/segmentSchema';
@@ -203,7 +204,35 @@ const BATTLE_OBJECTIVES: BattleObjectiveDef[] = [
     },
 ];
 
+/** Reinforcements emerge in darkness close to the swarm-held nest (nearest owned leaf node). */
+function nestReinforcementEntry(characterId: string, name: string): SpawnWaveEntry {
+    return {
+        characterId,
+        name,
+        spawnBehaviour: 'network_nearest_owned_leaf',
+        networkNearestOwnedLeafConfig: {
+            ownerCharacterIds: [SWARM_NEST_CHARACTER_ID, 'swarmling'],
+            radius: 3,
+            inDarkness: true,
+        },
+        spawnCount: 1,
+        unitAITreeId: 'hunt',
+    };
+}
+
 const LEVEL_EVENTS: LevelEvent[] = [
+    // 2 wolves every round, close to the nest
+    {
+        type: 'continuousSpawn',
+        trigger: { intervalRounds: 1, startRound: 1.5 },
+        spawns: [nestReinforcementEntry('dark_wolf', 'Wolf'), nestReinforcementEntry('dark_wolf', 'Wolf')],
+    },
+    // 1 slime every 2 rounds, close to the nest
+    {
+        type: 'continuousSpawn',
+        trigger: { intervalRounds: 2, startRound: 3 },
+        spawns: [nestReinforcementEntry('slime', 'Slime')],
+    },
     {
         type: 'victoryCheck',
         trigger: { afterRound: 0 },

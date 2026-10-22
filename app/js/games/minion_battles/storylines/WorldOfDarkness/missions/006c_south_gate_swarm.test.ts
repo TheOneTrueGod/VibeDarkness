@@ -100,8 +100,24 @@ describe('SouthGateSwarmMission', () => {
         const slimes = engine.units.filter((u) => u.characterId === 'slime');
         expect(slimes).toHaveLength(1);
 
-        // The nest is the only reinforcement source: no continuous wolf/slime spawns.
-        expect(SOUTH_GATE_SWARM.levelEvents.some((e) => e.type === 'continuousSpawn')).toBe(false);
+        // Continuous reinforcements near the nest: 2 wolves per round, 1 slime every 2 rounds.
+        const continuous = SOUTH_GATE_SWARM.levelEvents.filter((e) => e.type === 'continuousSpawn');
+        expect(continuous).toHaveLength(2);
+        for (const event of continuous) {
+            if (event.type !== 'continuousSpawn') continue;
+            for (const spawn of event.spawns) {
+                expect(spawn.spawnBehaviour).toBe('network_nearest_owned_leaf');
+                expect(spawn.networkNearestOwnedLeafConfig?.inDarkness).toBe(true);
+            }
+        }
+        const [wolfEvent, slimeEvent] = continuous;
+        if (wolfEvent?.type !== 'continuousSpawn' || slimeEvent?.type !== 'continuousSpawn') {
+            throw new Error('expected continuousSpawn events');
+        }
+        expect(wolfEvent.trigger.intervalRounds).toBe(1);
+        expect(wolfEvent.spawns.map((s) => s.characterId)).toEqual(['dark_wolf', 'dark_wolf']);
+        expect(slimeEvent.trigger.intervalRounds).toBe(2);
+        expect(slimeEvent.spawns.map((s) => s.characterId)).toEqual(['slime']);
 
         engine.destroy();
     });
