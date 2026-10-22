@@ -25,6 +25,8 @@ import {
 
 /** Crystals pried from the Beast's dark-crystal den. */
 export const MONSTER_CRYSTAL_REWARD = 6;
+/** Exhaustion each player's character recovers on defeating the Alpha Wolf (clamped at 0 by the story's ordered exhaustion changes). */
+export const MONSTER_EXHAUSTION_RECOVERY = 100;
 
 const SEGMENT_COLS = 22;
 const SEGMENT_ROWS = 22;
@@ -138,7 +140,8 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
             text: "TO DO: POST MISSION STORY.",
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
-        }
+        },
+        { type: 'recover_exhaustion_auto', amount: MONSTER_EXHAUSTION_RECOVERY },
     ],
 };
 

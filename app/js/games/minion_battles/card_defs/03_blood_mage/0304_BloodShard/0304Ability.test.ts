@@ -30,7 +30,6 @@ import { applyBleedStack, isBleeding } from '../../../buffs/bleedRuntime';
 import { BleedBuff } from '../../../buffs/BleedBuff';
 import {
     BLOOD_MAGE_NODE_CORE,
-    BLOOD_MAGE_NODE_SHARD,
     BLOOD_MAGE_NODE_SPLINTERS,
     BLOOD_MAGE_TREE_ID,
     bloodMageTree,
@@ -180,24 +179,22 @@ describe('BloodShardAbility_0304', () => {
     });
 });
 
-describe('Blood Shard research node', () => {
-    it('is a tier-11 node requiring Blood Mage Core that grants card 0304', () => {
-        const node = bloodMageTree.nodes.find((n) => n.id === BLOOD_MAGE_NODE_SHARD);
-        expect(node?.tier).toBe(11);
-        expect(node?.prereqNodeIds).toEqual([BLOOD_MAGE_NODE_CORE]);
-        expect(node?.effects).toContainEqual({ type: 'addCard', cardId: CARD_ID });
+describe('Blood Shard research', () => {
+    it('is granted by the Blood Mage Core node rather than its own node', () => {
+        const core = bloodMageTree.nodes.find((n) => n.id === BLOOD_MAGE_NODE_CORE);
+        expect(core?.effects).toContainEqual({ type: 'addCard', cardId: CARD_ID });
+        expect(bloodMageTree.nodes.find((n) => n.id === 'blood_mage_shard')).toBeUndefined();
     });
 });
 
 describe('Blood Splinters research node', () => {
-    it('is a tier-13 node requiring the Blood Shard node', () => {
+    it('requires the Blood Mage Core node', () => {
         const node = bloodMageTree.nodes.find((n) => n.id === BLOOD_MAGE_NODE_SPLINTERS);
-        expect(node?.tier).toBe(13);
-        expect(node?.prereqNodeIds).toEqual([BLOOD_MAGE_NODE_SHARD]);
+        expect(node?.prereqNodeIds).toEqual([BLOOD_MAGE_NODE_CORE]);
         expect(node?.requirements).toContainEqual({
             type: 'anyResearched',
             treeId: BLOOD_MAGE_TREE_ID,
-            nodeIds: [BLOOD_MAGE_NODE_SHARD],
+            nodeIds: [BLOOD_MAGE_NODE_CORE],
         });
     });
 });

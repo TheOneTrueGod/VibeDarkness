@@ -1327,11 +1327,13 @@ export default function CharacterEditor({
                             researchSources={viewResearch.researchSources}
                             campaignResources={resolvedCampaign.resources}
                             saving={saving}
-                            canResetResearch
+                            canResetResearch={isAdmin}
                             isAdmin={isAdmin}
                             onResearchNode={(treeId, nodeId, asAdmin) => void handleResearchNode(treeId, nodeId, asAdmin)}
                             onResetResearch={(treeIds) => void handleResetResearch(treeIds)}
-                            onResetPurchasedResearch={() => void handleResetResearchBySource(ResearchSource.Purchased)}
+                            onResetPurchasedResearch={
+                                isAdmin ? () => void handleResetResearchBySource(ResearchSource.Purchased) : undefined
+                            }
                             onResetAdminResearch={() => void handleResetResearchBySource(ResearchSource.Admin)}
                         />
                     ) : null
@@ -1353,7 +1355,9 @@ export default function CharacterEditor({
                     onResearchNode={(treeId, nodeId, asAdmin) => void handleResearchNode(treeId, nodeId, asAdmin)}
                     saving={saving}
                     isAdmin={isAdmin}
-                    onResetPurchasedResearch={() => void handleResetResearchBySource(ResearchSource.Purchased)}
+                    onResetPurchasedResearch={
+                        isAdmin ? () => void handleResetResearchBySource(ResearchSource.Purchased) : undefined
+                    }
                     onResetAdminResearch={
                         isAdmin ? () => void handleResetResearchBySource(ResearchSource.Admin) : undefined
                     }

@@ -86,7 +86,8 @@ export const RING_BURST_SPAWN_RADIUS_TILES = 2;
 
 // --- Swarm nest ------------------------------------------------------------
 export const SWARM_NEST_MAX_SWARMLINGS = 8;
-export const SWARM_NEST_SPAWN_INTERVAL_SEC = 3;
+/** The nest triggers twice per round. */
+export const SWARM_NEST_SPAWN_INTERVAL_SEC = ROUND_DURATION / 2;
 export const SWARM_NEST_SPAWN_COUNT = 2;
 
 // --- Darklight crystals on the ring --------------------------------------

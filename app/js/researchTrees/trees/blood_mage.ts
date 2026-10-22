@@ -6,7 +6,6 @@ import { RESEARCH_TREE_COLOUR_BLOOD_MAGE, RESEARCH_TREE_ICON_BLOOD_MAGE } from '
 export const BLOOD_MAGE_TREE_ID = 'blood_mage';
 export const BLOOD_MAGE_NODE_CORE = 'blood_mage_core';
 export const BLOOD_MAGE_NODE_BURST = 'blood_mage_burst';
-export const BLOOD_MAGE_NODE_SHARD = 'blood_mage_shard';
 export const BLOOD_MAGE_NODE_PACT = 'blood_mage_pact';
 export const BLOOD_MAGE_NODE_CLAWS = 'blood_mage_claws';
 export const BLOOD_MAGE_NODE_SPLINTERS = 'blood_mage_shard_splinters';
@@ -18,10 +17,6 @@ export const BLOOD_CORE_METAL_COST = 1;
 export const BLOOD_BURST_CRYSTAL_COST = 8;
 export const BLOOD_BURST_FOOD_COST = 7;
 export const BLOOD_BURST_METAL_COST = 2;
-
-export const BLOOD_SHARD_CRYSTAL_COST = 12;
-export const BLOOD_SHARD_FOOD_COST = 8;
-export const BLOOD_SHARD_METAL_COST = 2;
 
 export const BLOOD_PACT_CRYSTAL_COST = 13;
 export const BLOOD_PACT_FOOD_COST = 8;
@@ -66,6 +61,7 @@ export const bloodMageTree: ResearchTreeDef = {
             effects: [
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.BasicCore, toItemId: CORE_ITEM_IDS.BloodMageCore },
                 { type: 'addCard', cardId: '0301' },
+                { type: 'addCard', cardId: '0304' },
             ],
         },
         {
@@ -89,29 +85,6 @@ export const bloodMageTree: ResearchTreeDef = {
             },
             effects: [
                 { type: 'addCard', cardId: '0302' },
-            ],
-        },
-        {
-            id: BLOOD_MAGE_NODE_SHARD,
-            title: 'Blood Shard',
-            description:
-                'Harden a drop of your blood into a sharp shard and fling it at a foe.',
-            flavorText: 'A small cut, a quick answer.',
-            order: 20,
-            tier: 11,
-            position: { x: 420, y: 430 },
-            prereqNodeIds: [BLOOD_MAGE_NODE_CORE],
-            exclusiveWithNodeIds: [],
-            requirements: [
-                { type: 'anyResearched', treeId: BLOOD_MAGE_TREE_ID, nodeIds: [BLOOD_MAGE_NODE_CORE] },
-            ],
-            cost: {
-                crystals: BLOOD_SHARD_CRYSTAL_COST,
-                food: BLOOD_SHARD_FOOD_COST,
-                metal: BLOOD_SHARD_METAL_COST,
-            },
-            effects: [
-                { type: 'addCard', cardId: '0304' },
             ],
         },
         {
@@ -168,11 +141,11 @@ export const bloodMageTree: ResearchTreeDef = {
             flavorText: 'An open wound is just another way to throw.',
             order: 35,
             tier: 13,
-            position: { x: 420, y: 570 },
-            prereqNodeIds: [BLOOD_MAGE_NODE_SHARD],
+            position: { x: 420, y: 430 },
+            prereqNodeIds: [BLOOD_MAGE_NODE_CORE],
             exclusiveWithNodeIds: [],
             requirements: [
-                { type: 'anyResearched', treeId: BLOOD_MAGE_TREE_ID, nodeIds: [BLOOD_MAGE_NODE_SHARD] },
+                { type: 'anyResearched', treeId: BLOOD_MAGE_TREE_ID, nodeIds: [BLOOD_MAGE_NODE_CORE] },
             ],
             cost: {
                 crystals: BLOOD_SPLINTERS_CRYSTAL_COST,

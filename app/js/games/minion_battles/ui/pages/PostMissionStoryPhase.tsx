@@ -565,6 +565,13 @@ export default function PostMissionStoryPhase({
                 accumulatedHealWoundsRef.current += (action as any).amount;
             }
 
+            if (!amNpcController && action?.type === 'recover_exhaustion') {
+                const recovered = Math.abs(action.amount);
+                if (Number.isFinite(recovered) && recovered > 0) {
+                    accumulatedExhaustionChangesRef.current.push(-recovered);
+                }
+            }
+
             const optionsForParty = postMissionChoiceOptions;
             const needsPartyWait =
                 !amSpectator

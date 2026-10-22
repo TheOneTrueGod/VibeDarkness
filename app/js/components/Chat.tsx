@@ -83,8 +83,8 @@ export default function Chat({
         <div
             className={
                 isSlideOver
-                    ? 'flex flex-col h-full bg-surface'
-                    : 'flex h-full min-h-0 w-80 flex-col bg-surface border-l border-border-custom max-md:w-full max-md:h-[300px] max-md:border-l-0 max-md:border-t max-md:border-border-custom'
+                    ? 'flex flex-col h-full bg-surface select-text'
+                    : 'flex h-full min-h-0 w-80 select-text flex-col bg-surface border-l border-border-custom max-md:w-full max-md:h-[300px] max-md:border-l-0 max-md:border-t max-md:border-border-custom'
             }
         >
             {/* Header */}

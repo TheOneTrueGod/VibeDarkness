@@ -1,5 +1,5 @@
 import { formatTooltipNumber } from '../tooltipTokens';
-import { spawnBrightLight, type EngineWithLight } from '../brightKeyword';
+import { BRIGHT_DEFS, BRIGHT_ROUND_END_DECAY, spawnBrightLight, type EngineWithLight } from '../brightKeyword';
 import { devourLightKeyword } from './devourLightKeyword';
 import { rendKeyword } from './rendKeyword';
 import type { AbilityKeywordUse, KeywordDef, KeywordId, KeywordResolve } from './keywordTypes';
@@ -71,6 +71,11 @@ registerKeyword({
     id: 'bright',
     displayName: 'Bright',
     formatTooltip: (n) => `Bright ${n}`,
+    describe: (n) => {
+        const def = BRIGHT_DEFS[n];
+        const brightness = def ? def.lightAmount : n + 1;
+        return `Creates a light of brightness {${brightness}} here. It loses {${BRIGHT_ROUND_END_DECAY}} brightness at the end of each round.`;
+    },
     resolve: (ctx, n) => {
         spawnBrightLight(ctx.engine as EngineWithLight, ctx.caster.x, ctx.caster.y, n, undefined, {
             unitId: ctx.caster.id,

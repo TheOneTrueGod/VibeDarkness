@@ -51,13 +51,13 @@ function hasResearched(trees: Record<string, string[]> | undefined, treeId: stri
     return (trees?.[treeId] ?? []).includes(nodeId);
 }
 
-function getCaveRespitePunchChoiceRows(): StoryChoiceOptionRow[] {
+function getCaveRespitePunchChoiceRows(playerResearchTrees: Record<string, string[]> | undefined): StoryChoiceOptionRow[] {
     const grantPunch = (nodeId: string): StoryChoiceAction => ({
         type: 'grant_research_to_player',
         treeId: TRAINING_TREE_ID,
         nodeId,
     });
-    return [
+    const rows: StoryChoiceOptionRow[] = [
         {
             id: TRAINING_NODE_CHARGING_PUNCH,
             label: 'Charging Punch',
@@ -91,6 +91,11 @@ function getCaveRespitePunchChoiceRows(): StoryChoiceOptionRow[] {
             action: grantPunch(TRAINING_NODE_DOUBLE_PUNCH),
         },
     ];
+    // Charging Punch feeds Throw Charged Rock; hide it unless that is researched (mirrors the tree requirement).
+    if (!hasResearched(playerResearchTrees, CRYSTAL_ROCKS_TREE_ID, NODE_CHARGED_ROCKS)) {
+        return rows.filter((row) => row.id !== TRAINING_NODE_CHARGING_PUNCH);
+    }
+    return rows;
 }
 
 function getCaveRespiteResearchFallbackRows(): StoryChoiceOptionRow[] {
@@ -239,7 +244,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
 export class CaveRespiteMission extends BaseMissionDef {
     getPostMissionChoiceOptions(params: PostMissionChoiceResolveParams): StoryChoiceOptionRow[] | null {
         if (params.choiceId === 'cave_respite_punch_choice') {
-            return getCaveRespitePunchChoiceRows();
+            return getCaveRespitePunchChoiceRows(params.playerResearchTrees);
         }
         if (params.choiceId === 'cave_respite_research_choice') {
             return getCaveRespiteResearchChoiceRows(params.playerResearchTrees, params.playerId);

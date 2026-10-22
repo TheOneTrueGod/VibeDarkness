@@ -141,4 +141,13 @@ describe('applyEnduranceCapToExtras', () => {
         });
         expect(result?.resourceDelta).toEqual({ food: 2 });
     });
+
+    it('a -100 completion recovery floors a character at 0 exhaustion (30 -> 0, full endurance -> 0)', () => {
+        const low = applyEnduranceCapToExtras(withExhaustion(30), MISSION_ID, { exhaustionChanges: [-100] });
+        expect(low?.resourceDelta).toEqual({ exhaustion: -30 });
+        const full = applyEnduranceCapToExtras(withExhaustion(DEFAULT_CHARACTER_ENDURANCE), MISSION_ID, {
+            exhaustionChanges: [-100],
+        });
+        expect(full?.resourceDelta).toEqual({ exhaustion: -DEFAULT_CHARACTER_ENDURANCE });
+    });
 });

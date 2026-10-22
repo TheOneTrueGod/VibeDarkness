@@ -81,13 +81,25 @@ export interface StoryChoiceActionHealWounds {
     amount: number;
 }
 
+/**
+ * Choice action: recover exhaustion on the choosing player's character. Applied in story order with
+ * `recover_exhaustion_auto` phrases (see `applyOrderedExhaustionChanges`), clamped to [0, endurance].
+ * Unlike `heal_wounds` this reaches the saved character even when the mission has no fight.
+ */
+export interface StoryChoiceActionRecoverExhaustion {
+    type: 'recover_exhaustion';
+    /** Positive number of exhaustion points recovered. */
+    amount: number;
+}
+
 /** Extensible choice action union. */
 export type StoryChoiceAction =
     | StoryChoiceActionEquipItem
     | StoryChoiceActionGrantResources
     | StoryChoiceActionGrantResearchToPlayer
     | StoryChoiceActionGrantResearchConditional
-    | StoryChoiceActionHealWounds;
+    | StoryChoiceActionHealWounds
+    | StoryChoiceActionRecoverExhaustion;
 
 /** One row in a choice phrase (pre- or post-mission). */
 export interface StoryChoiceOptionRow {

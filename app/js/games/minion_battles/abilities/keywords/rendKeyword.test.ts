@@ -13,6 +13,16 @@ describe('rend keyword', () => {
     });
 
     it('has no glossary entry when no described keyword is shown', () => {
-        expect(keywordGlossaryEntries(['Bright 3', '10'])).toEqual([]);
+        expect(keywordGlossaryEntries(['knockback 1', '10'])).toEqual([]);
+    });
+
+    it('adds a Bright glossary entry from the Bright defs', () => {
+        expect(keywordGlossaryEntries(['Bright 3', '10'])).toEqual([
+            {
+                title: 'Bright 3',
+                description:
+                    'Creates a light of brightness {4} here. It loses {1} brightness at the end of each round.',
+            },
+        ]);
     });
 });

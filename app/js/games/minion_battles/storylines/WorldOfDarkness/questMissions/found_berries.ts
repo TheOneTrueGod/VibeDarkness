@@ -11,6 +11,7 @@ import { STORY_BACKGROUNDS } from '../../../assets/story';
 import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import {
+    FOUND_BERRIES_EAT_EXHAUSTION_RECOVERY,
     FOUND_BERRIES_KEEP_FOOD,
     LOCATION_PLAINS_TAG,
     PLAINS_STORY_CHALLENGE_RATING,
@@ -46,8 +47,8 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
                     id: FOUND_BERRIES_OPTION_EAT,
                     label: FOUND_BERRIES_EAT_LABEL,
                     loreTitle: FOUND_BERRIES_EAT_LABEL,
-                    loreDescription: 'A quick meal on the road. No lasting stores — just a fuller stomach.',
-                    action: { type: 'grant_resources' },
+                    loreDescription: `A quick meal on the road. No lasting stores — just a fuller stomach. Recover ${FOUND_BERRIES_EAT_EXHAUSTION_RECOVERY} exhaustion.`,
+                    action: { type: 'recover_exhaustion', amount: FOUND_BERRIES_EAT_EXHAUSTION_RECOVERY },
                 },
                 {
                     id: FOUND_BERRIES_OPTION_KEEP,

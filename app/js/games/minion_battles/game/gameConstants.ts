@@ -14,8 +14,8 @@ export const ROUND_DURATION = 10;
 /** Extra gap (px) between two units when a player pursues a unit target before stopping. */
 export const MIN_FOLLOW_RADIUS = 5;
 
-/** When true, ability orders immediately end the turn (legacy behaviour). When false, the player must explicitly confirm with End Turn. */
-export const AUTO_END_TURN = false;
+/** When true, ability orders immediately end the turn. When false, the player must explicitly confirm with End Turn. Always on in the live game (no UI toggle). */
+export const AUTO_END_TURN = true;
 
 /**
  * When true, the ITS "Undo" control only works before any target has been selected for the

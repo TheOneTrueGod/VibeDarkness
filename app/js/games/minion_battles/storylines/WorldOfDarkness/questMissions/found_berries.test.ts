@@ -8,6 +8,7 @@ import {
     FOUND_BERRIES_OPTION_KEEP,
 } from './found_berries';
 import {
+    FOUND_BERRIES_EAT_EXHAUSTION_RECOVERY,
     FOUND_BERRIES_KEEP_FOOD,
     SEARCH_FOR_LOOSE_METALS_LABEL,
     SEARCH_FOR_LOOSE_METALS_OPTION_ID,
@@ -35,6 +36,12 @@ describe('Found Berries choices', () => {
             FOUND_BERRIES_KEEP_LABEL,
             SEARCH_FOR_LOOSE_METALS_LABEL,
         ]);
+    });
+
+    it('recovers 10 exhaustion when eating the berries', () => {
+        const eat = foundBerriesChoiceOptions().find((o) => o.id === FOUND_BERRIES_OPTION_EAT);
+        expect(FOUND_BERRIES_EAT_EXHAUSTION_RECOVERY).toBe(10);
+        expect(eat?.action).toEqual({ type: 'recover_exhaustion', amount: FOUND_BERRIES_EAT_EXHAUSTION_RECOVERY });
     });
 
     it('grants keep-food and harvest-metal Campaign Rewards', () => {

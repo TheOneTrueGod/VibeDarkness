@@ -3,7 +3,6 @@ import type { LucideIcon } from 'lucide-react';
 import { Undo2, RotateCw, Check } from 'lucide-react';
 import type { BattleSession } from '../../game/BattleSession';
 import { ONLY_UNDO_AT_START } from '../../game/gameConstants';
-import { setAutoEndTurn } from '../../game/autoEndTurnSetting';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import { getTotalAbilityDurationForCast } from '../../abilities/abilityTimings';
 import { getActorStepRate } from '../../game/time/actorClock';
@@ -110,24 +109,6 @@ function ItsIconButton({
                 {tooltip ?? label}
             </AnchoredPortalTooltip>
         </div>
-    );
-}
-
-/** Session-only toggle for {@link setAutoEndTurn}; unchecked shows the manual Done button. */
-function AutoEndCheckbox({ checked }: { checked: boolean }) {
-    return (
-        <label
-            className="flex h-5 shrink-0 cursor-pointer items-center gap-1 rounded-sm border border-dark-600 bg-dark-800 px-1 text-[10px] font-medium text-gray-300 hover:bg-dark-700"
-            title="Automatically end your turn once orders are submitted (this session only)"
-        >
-            <input
-                type="checkbox"
-                checked={checked}
-                onChange={(e) => setAutoEndTurn(e.target.checked)}
-                className="h-3 w-3 accent-emerald-500"
-            />
-            Auto End
-        </label>
     );
 }
 
@@ -418,7 +399,6 @@ export default function ITSTimelineControls({
                     }}
                 />
             ) : null}
-            <AutoEndCheckbox checked={autoEndTurn} />
         </div>
     );
 }

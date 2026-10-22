@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Game-like UI: page text is not selectable by default. Re-enabled for text entry and for
+   areas where copying is useful (chat, debug console) via the `select-text` utility. */
+body {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+input,
+textarea,
+[contenteditable],
+[contenteditable] * {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
 /* Scrollbar Styling */
 ::-webkit-scrollbar {
     width: 8px;

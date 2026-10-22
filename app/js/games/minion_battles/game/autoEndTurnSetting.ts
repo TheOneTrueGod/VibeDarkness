@@ -2,20 +2,12 @@ import { AUTO_END_TURN } from './gameConstants';
 
 type Listener = () => void;
 
-const AUTO_END_TURN_STORAGE_KEY = 'minionBattles.autoEndTurn';
-
-function loadStoredAutoEndTurn(): boolean {
-    if (typeof localStorage === 'undefined') return AUTO_END_TURN;
-    const stored = localStorage.getItem(AUTO_END_TURN_STORAGE_KEY);
-    return stored === null ? AUTO_END_TURN : stored === 'true';
-}
-
 /**
- * Runtime override for {@link AUTO_END_TURN}, toggleable via the ITS timeline "Auto End"
- * checkbox. Persisted to localStorage once the user changes it; until then it falls back to
- * the {@link AUTO_END_TURN} default on page refresh.
+ * Runtime value of {@link AUTO_END_TURN}. There is no player-facing toggle any more (Auto End is
+ * always on); the setter remains for tests and debug tooling and is intentionally not persisted,
+ * so a value stored by the old checkbox can never switch it off again.
  */
-let autoEndTurn: boolean = loadStoredAutoEndTurn();
+let autoEndTurn: boolean = AUTO_END_TURN;
 const listeners = new Set<Listener>();
 
 export function getAutoEndTurn(): boolean {
@@ -25,7 +17,6 @@ export function getAutoEndTurn(): boolean {
 export function setAutoEndTurn(value: boolean): void {
     if (autoEndTurn === value) return;
     autoEndTurn = value;
-    if (typeof localStorage !== 'undefined') localStorage.setItem(AUTO_END_TURN_STORAGE_KEY, String(value));
     listeners.forEach((listener) => listener());
 }
 

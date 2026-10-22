@@ -4,28 +4,46 @@ Light investigation only (code located, nothing changed). Each item has a size, 
 involved, and notes for the agent that picks it up. Follow `CLAUDE.md` (engine-first design,
 scoped Vitest runs, `npx tsc --noEmit` after interface changes).
 
-Heads-up: the working tree has **uncommitted changes** in `006c_south_gate_swarm.ts` / `.test.ts`
-and `package.json` (version bump). See item 8.
-
 Clarifications from the user (2026-10-21) are folded into items 2, 3, 5, 8 and 15.
 
-| # | Item | Size |
-|---|------|------|
-| 1 | Throw Charged Rock required for Charging Punch | Easy |
-| 2 | Alpha wolf not using charge / basic attack | Medium (needs a failing test) |
-| 3 | Blood Shard as a second starting ability for Blood Mage Core | Easy |
-| 4 | Auto End always on, removed from UI | Easy |
-| 5 | Slimes attack twice per round, once per half | Medium (new AI setting) |
-| 6 | "Bright" has no keyword tooltip | Easy |
-| 7 | Blue hit flash when a shield absorbs the hit | Easy |
-| 8 | South Gate Swarm wolves spawn in light | Deferred |
-| 9 | Hide Reset Research for non-admins | Easy |
-| 10 | Spinner instead of ITS buttons while waiting on server | Medium |
-| 11 | Skip "Prepare Carefully" for campfires / events | Medium |
-| 12 | "Eat the Berries" recovers 10 exhaustion | Easy |
-| 13 | Swarmling Source nest spawns twice per round | Easy |
-| 14 | Page text can be highlighted | Easy |
-| 15 | Monster mission reduces exhaustion by 100 | Easy |
+## Status
+
+### Done (uncommitted, in the working tree)
+
+Implemented 2026-10-21, then reviewed by reading the diff. Scoped Vitest runs pass and
+`npx tsc --noEmit` is clean. The full suite has not been run, and nothing has been checked in
+the browser.
+
+| # | Item | What changed |
+|---|------|--------------|
+| 1 | Throw Charged Rock required for Charging Punch | `training.ts` node requires `charged_rocks`; Cave Respite hides the Charging Punch choice without it |
+| 3 | Blood Shard as a starting Blood Mage ability | Core node grants `0304`; Shard node and its costs deleted; Blood Splinters now requires the core node (moved to the old Shard position, tier kept at 13 for the cost-curve test) |
+| 4 | Auto End always on, removed from UI | `AUTO_END_TURN = true`; localStorage override removed; checkbox removed. Setter kept, in memory only, for tests |
+| 6 | "Bright" keyword tooltip | `describe` added to the Bright keyword; glossary tests updated |
+| 7 | Blue hit flash on shield absorb | `UnitRenderer` flashes blue when a shield buff absorbed the whole hit; partial absorbs stay red |
+| 9 | Hide Reset Research for non-admins | `CharacterEditor.tsx` gates both reset paths on `isAdmin` |
+| 12 | "Eat the Berries" recovers 10 exhaustion | New reusable `recover_exhaustion` choice action (`storyTypes.ts`, handled in `PostMissionStoryPhase.tsx`). `heal_wounds` couldn't be used: it only affects a live match |
+| 13 | Swarmling Source nest twice per round | `SWARM_NEST_SPAWN_INTERVAL_SEC = ROUND_DURATION / 2` |
+| 14 | Page text highlightable | `app.css` disables selection on `body`, re-enables it for inputs, textareas and contenteditable; `select-text` added to Chat and DebugConsole |
+| 15 | Monster mission −100 exhaustion | `recover_exhaustion_auto` phrase (100) added to the Monster post-mission story. It applies per character, clamped at 0, the same way Campsite does it |
+
+Follow-ups noticed during review:
+- `AUTO_END_TURN` now defaults to `true` everywhere, including tests. Only the interaction tests
+  were run, so `npm run ci` / the full suite is the backstop for any test that assumed `false`.
+- Chapter skip ignores both exhaustion-recovery actions, the same as it ignores `heal_wounds`.
+- No dedicated test covers the Cave Respite Charging Punch filter.
+- Lobby logs and other copyable areas weren't checked for item 14; add `select-text` where
+  copying is wanted.
+
+### Not done
+
+| # | Item | Size | State |
+|---|------|------|-------|
+| 2 | Alpha wolf not using Charge / basic attack | Medium | Ready to hand off; needs a failing test first |
+| 5 | Slimes attack twice per round, once per half | Medium | Ready to hand off; needs a new reusable AI setting |
+| 8 | South Gate Swarm wolves spawn in light | — | Deferred by user (likely an undeployed build) |
+| 10 | Spinner instead of ITS buttons while waiting on server | Medium | Ready to hand off |
+| 11 | Skip "Prepare Carefully" for campfires / events | Medium | Needs one answer: every `skipBattle` mission, or only random-story / quest ones? |
 
 ---
 

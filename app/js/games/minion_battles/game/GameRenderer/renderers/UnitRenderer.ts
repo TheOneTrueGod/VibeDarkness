@@ -33,6 +33,9 @@ import type { DamageTakenEvent } from '../../EventBus';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 
 const HIT_FLASH_DURATION = 0.3;
+const HIT_FLASH_COLOR = 0xff0000;
+/** Flash colour when a shield buff soaked the whole hit (no HP lost). */
+const SHIELD_HIT_FLASH_COLOR = 0x3b82f6;
 
 const Z_UNITS = 10;
 const Z_KNOCKBACK_SHADOW = 9;
@@ -87,7 +90,9 @@ export class UnitRenderer {
         const container = this.unitVisuals.get(data.unitId);
         const unit = this.currentEngine?.getUnit(data.unitId);
         if (!container || !unit || unit.isInvincible()) return;
-        this.startHitFlash(data.unitId, container, unit.radius);
+        // Shield buff soaked the hit with no HP loss -> blue; partial absorbs stay red.
+        const shieldSoaked = (data.shieldAbsorbed ?? 0) > 0 && (data.hpDamage ?? 0) <= 0;
+        this.startHitFlash(data.unitId, container, unit.radius, shieldSoaked ? SHIELD_HIT_FLASH_COLOR : HIT_FLASH_COLOR);
     }
 
     clearHitFlashes(): void {
@@ -526,7 +531,7 @@ export class UnitRenderer {
         }
     }
 
-    private startHitFlash(unitId: string, container: Container, radius: number): void {
+    private startHitFlash(unitId: string, container: Container, radius: number, color: number): void {
         const existing = this.hitFlashState.get(unitId);
         if (existing) {
             cancelAnimationFrame(existing.rafId);
@@ -559,7 +564,7 @@ export class UnitRenderer {
                 : (1 - (elapsed - HIT_FLASH_DURATION / 2) / (HIT_FLASH_DURATION / 2));
             hitFlash!.clear();
             hitFlash!.circle(0, 0, radius);
-            hitFlash!.fill({ color: 0xff0000, alpha: 1 });
+            hitFlash!.fill({ color, alpha: 1 });
             hitFlash!.alpha = alpha;
             state.rafId = requestAnimationFrame(tick);
         };

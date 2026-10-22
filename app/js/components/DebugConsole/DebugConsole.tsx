@@ -224,7 +224,7 @@ export default function DebugConsole({
 
     return (
         <div
-            className={`fixed z-[9999] bg-surface/[0.92] backdrop-blur border border-border-custom shadow flex flex-col overflow-hidden transition-all duration-200 ${dockClass} w-[60vw] h-[60vh]`}
+            className={`fixed z-[9999] select-text bg-surface/[0.92] backdrop-blur border border-border-custom shadow flex flex-col overflow-hidden transition-all duration-200 ${dockClass} w-[60vw] h-[60vh]`}
         >
             <div className="p-2 shrink-0 flex items-center gap-4 min-w-[260px]">
                 <div>
