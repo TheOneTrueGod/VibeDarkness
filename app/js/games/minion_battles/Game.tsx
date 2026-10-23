@@ -46,6 +46,8 @@ import { SPECTATOR_ID, isControlEnemy } from './state';
 import { MessageType } from '../../MessageTypes';
 import type { CampaignResourceKey } from '../../types';
 import { withHungerDelta, applyHealWoundsToHungerLoss } from './storylines/matchHunger';
+import { computeVictoryHealthConversion, type VictoryHealthConversion, type VictorySnapshot } from './storylines/victoryHealthConversion';
+import { getCharacterHunger, getCharacterMaxHunger } from './character_defs/characterHunger';
 import { mergeResourceDeltas } from '../../campaignResources';
 import {
     getDarknessUpgradeRewardEntriesForNodeIds,
@@ -60,7 +62,7 @@ import {
 import { fromCampaignCharacterData } from './character_defs/CampaignCharacter';
 import type { QuestResult } from './storylines/questTypes';
 import { resolveUnlockedTierItemIds } from './storylines/unlockItemTiers';
-import VictoryModal from './ui/components/VictoryModal';
+import VictoryPopover from './ui/components/victoryPopover/VictoryPopover';
 import { MinionBattlesApi } from './api/minionBattlesApi';
 import { TestIds } from '../../testing/testIds';
 import { useGameSyncOptional } from '../../contexts/GameSyncContext';
@@ -164,6 +166,10 @@ export default function MinionBattlesGame({
     );
     const [defeatModalOpen, setDefeatModalOpen] = useState(false);
     const [victoryModalOpen, setVictoryModalOpen] = useState(false);
+    /** False until the async persist / quest-plan work behind the victory popover finishes. */
+    const [victoryResultsReady, setVictoryResultsReady] = useState(false);
+    /** Hunger to HP conversion for the victory popover; null when nothing converts. */
+    const [victoryConversion, setVictoryConversion] = useState<VictoryHealthConversion | null>(null);
     /** Set when this lobby is part of a quest chain and victory advanced/completed the run. */
     const [questVictoryPlan, setQuestVictoryPlan] = useState<QuestVictoryContinuePlan | null>(null);
     /** Quest-clear Campaign Rewards for the victory modal (completion + queued). */
@@ -326,6 +332,8 @@ export default function MinionBattlesGame({
      * Win always replaces; loss only persists if no existing victory for this mission.
      * Skips spectators and control-enemy selections.
      */
+    /** Hunger the local character had before this victory's loss (set by `persistCharacterMissionResult`). */
+    const victoryHungerRef = useRef<{ hungerBefore: number; maxHunger: number } | null>(null);
     const persistCharacterMissionResult = useCallback(
         async (
             missionId: string,
@@ -340,6 +348,12 @@ export default function MinionBattlesGame({
             try {
                 const rawChar = await api.getCharacter(sel);
                 const character = fromCampaignCharacterData(rawChar);
+                if (result === 'victory') {
+                    victoryHungerRef.current = {
+                        hungerBefore: getCharacterHunger(character, { excludeMissionId: missionId }),
+                        maxHunger: getCharacterMaxHunger(character.researchTrees, character.researchNodeLevels),
+                    };
+                }
                 nextExtras =
                     result === 'victory'
                         ? applyHungerCapToExtras(character, missionId, extras)
@@ -383,6 +397,22 @@ export default function MinionBattlesGame({
     } | null>(null);
     /** Positive Hunger the local player lost in the last match (before heal-wounds and caps). */
     const matchHungerLossRef = useRef(0);
+    /** Objective rows and player HP captured at victory (survives the post-mission story phase). */
+    const victorySnapshotRef = useRef<VictorySnapshot | null>(null);
+    const [victoryObjectives, setVictoryObjectives] = useState<Array<{ id: string; label: string }>>([]);
+
+    /** Builds the Hunger to HP conversion once the capped Hunger change is known. */
+    const resolveVictoryConversion = (uncappedLoss: number, cappedHungerDelta: number) => {
+        const hunger = victoryHungerRef.current;
+        if (!hunger) return null;
+        return computeVictoryHealthConversion({
+            playerHp: victorySnapshotRef.current?.playerHp ?? null,
+            hungerBefore: hunger.hungerBefore,
+            hungerAfter: Math.max(0, hunger.hungerBefore + Math.min(0, cappedHungerDelta)),
+            maxHunger: hunger.maxHunger,
+            uncappedLoss,
+        });
+    };
 
     /** Host's active Darkness Upgrade node ids, reported by BattlePhase once the engine is loaded (all clients). */
     const activeDarknessUpgradeNodeIdsRef = useRef<string[]>([]);
@@ -809,6 +839,9 @@ export default function MinionBattlesGame({
                                 const cappedDelta = skipRewards
                                     ? recordedDelta
                                     : (savedExtras?.resourceDelta ?? recordedDelta);
+                                setVictoryConversion(
+                                    skipRewards ? null : resolveVictoryConversion(hungerLoss, cappedDelta?.hunger ?? 0),
+                                );
                                 void onRecordMissionResult?.(
                                     missionId,
                                     'victory',
@@ -848,6 +881,7 @@ export default function MinionBattlesGame({
                                         : undefined,
                                 );
                             } finally {
+                                setVictoryResultsReady(true);
                                 setVictoryModalOpen(true);
                             }
                         })();
@@ -908,8 +942,12 @@ export default function MinionBattlesGame({
                     headerSlot={headerSlot}
                     chatSlot={chatSlot}
                     centerOverlay={centerOverlay}
-                    onVictory={(missionResult, hungerLoss = 0) => {
+                    onVictory={(missionResult, hungerLoss = 0, snapshot) => {
                         matchHungerLossRef.current = hungerLoss;
+                        victorySnapshotRef.current = snapshot ?? null;
+                        victoryHungerRef.current = null;
+                        setVictoryConversion(null);
+                        setVictoryObjectives(snapshot?.objectives.map(({ id, label }) => ({ id, label })) ?? []);
                         if (!selectedMissionId) return;
                         const missionId = selectedMissionId;
                         if (postMissionStory) {
@@ -949,6 +987,9 @@ export default function MinionBattlesGame({
                             const baseVictoryResourceDelta = skipRewards
                                 ? undefined
                                 : missionDef?.completionRewards?.resourceDelta;
+                            // Open the popover now; the persist / quest work below flips `victoryResultsReady`.
+                            setVictoryResultsReady(false);
+                            setVictoryModalOpen(true);
                             void (async () => {
                                 try {
                                     const { resourceDelta: victoryResourceDelta, lineItems: darknessUpgradeLines } =
@@ -970,6 +1011,11 @@ export default function MinionBattlesGame({
                                     const cappedDelta = skipRewards
                                         ? recordedDelta
                                         : (savedExtras?.resourceDelta ?? recordedDelta);
+                                    setVictoryConversion(
+                                        skipRewards
+                                            ? null
+                                            : resolveVictoryConversion(hungerLoss, cappedDelta?.hunger ?? 0),
+                                    );
                                     void onRecordMissionResult?.(
                                         missionId,
                                         missionResult,
@@ -1000,7 +1046,7 @@ export default function MinionBattlesGame({
                                     );
                                     await prepareQuestVictoryContinue();
                                 } finally {
-                                    setVictoryModalOpen(true);
+                                    setVictoryResultsReady(true);
                                 }
                             })();
                         }
@@ -1104,13 +1150,16 @@ export default function MinionBattlesGame({
                 </div>
             )}
             {victoryModalOpen && (
-                <VictoryModal
+                <VictoryPopover
                     isHost={isHost}
                     nextLobbyId={nextLobbyId}
                     onJoinNextLobby={onJoinNextLobby}
                     questContinuation={questVictoryPlan?.kind === 'continued'}
                     missionRewards={missionRewards}
                     campaignRewards={campaignRewards}
+                    resultsReady={victoryResultsReady}
+                    objectives={victoryObjectives}
+                    conversion={victoryConversion}
                     questBanner={
                         questVictoryPlan?.kind === 'finale'
                             ? `Quest complete: ${getQuestDef(questVictoryPlan.complete.result.questDefId)?.title ?? questVictoryPlan.complete.result.questDefId}`
@@ -1139,6 +1188,9 @@ export default function MinionBattlesGame({
                     }
                     onStartSideMission={async (sideMissionId) => {
                         setVictoryModalOpen(false);
+                        setVictoryResultsReady(false);
+                        setVictoryConversion(null);
+                        setVictoryObjectives([]);
                         setMissionRewards(null);
                         setCampaignRewards(null);
                         setQuestVictoryPlan(null);
@@ -1157,6 +1209,9 @@ export default function MinionBattlesGame({
                     }}
                     onClose={async () => {
                         setVictoryModalOpen(false);
+                        setVictoryResultsReady(false);
+                        setVictoryConversion(null);
+                        setVictoryObjectives([]);
                         setMissionRewards(null);
                         setCampaignRewards(null);
                         const plan = questVictoryPlan;

@@ -1,56 +1,39 @@
 /**
- * Victory modal - shows mission victory with optional rewards.
+ * Reward sections of the victory popover: Mission Results (items, resource cards, research) and
+ * Campaign Results (quest-clear rewards), or the "You have prevailed." fallback when there is nothing to show.
  */
 import React, { useRef, useState } from 'react';
-import { getItemDef, ITEM_ICON_URLS } from '../../character_defs/items';
-import type { CampaignResourceKey, MissionResearchRewardEntry } from '../../../../types';
-import ResourcePill, { campaignResourceGains } from '../../../../components/ResourcePill';
-import { CAMPAIGN_RESULTS_LABEL, MISSION_RESULTS_LABEL } from '../../../../components/missionResultCopy';
-import ResearchNodeCard from './ResearchNodeCard';
-import { getResearchTree, getResolvedMissionResearchRewards } from '../../../../researchTrees/list';
-import type { CampaignRewardsPayload } from '../../storylines/questRun';
-import { isCampaignRewardsPayloadEmpty } from '../../storylines/questCampaignRewards';
-import LocationCardPill from './LocationCardPill';
-import { DARKNESS_UPGRADES_TREE_ID, DARKNESS_UPGRADE_ICON } from '../../../../researchTrees/darknessUpgrades';
+import { getItemDef, ITEM_ICON_URLS } from '../../../character_defs/items';
+import type { CampaignResourceKey, MissionResearchRewardEntry } from '../../../../../types';
+import ResourcePill, { campaignResourceGains } from '../../../../../components/ResourcePill';
+import { CAMPAIGN_RESULTS_LABEL, MISSION_RESULTS_LABEL } from '../../../../../components/missionResultCopy';
+import ResearchNodeCard from '../ResearchNodeCard';
+import { getResearchTree, getResolvedMissionResearchRewards } from '../../../../../researchTrees/list';
+import type { CampaignRewardsPayload } from '../../../storylines/questRun';
+import { isCampaignRewardsPayloadEmpty } from '../../../storylines/questCampaignRewards';
+import LocationCardPill from '../LocationCardPill';
+import { DARKNESS_UPGRADES_TREE_ID, DARKNESS_UPGRADE_ICON } from '../../../../../researchTrees/darknessUpgrades';
 import { Coins, type LucideIcon } from 'lucide-react';
-import { AnchoredPortalTooltip, PORTAL_TOOLTIP_SURFACE_CLASS } from './AnchoredPortalTooltip';
-import type { DarknessUpgradeRewardLineItem } from '../../../../researchTrees/darknessUpgradeRewards';
+import { AnchoredPortalTooltip, PORTAL_TOOLTIP_SURFACE_CLASS } from '../AnchoredPortalTooltip';
+import type { DarknessUpgradeRewardLineItem } from '../../../../../researchTrees/darknessUpgradeRewards';
 
-interface VictoryModalProps {
-    missionRewards: {
-        resourceDelta?: Partial<Record<CampaignResourceKey, number>>;
-        itemFromFirstChoice?: string;
-        /** Items unlocked for the campaign by the mission's `unlockItemTiers` reward. */
-        unlockedItemIds?: string[];
-        researchRewardIds?: string[];
-        researchRewards?: MissionResearchRewardEntry[];
-        /** Darkness Upgrade bonus lines (host's active set, shown for every player); already included in `resourceDelta`. */
-        darknessUpgradeLines?: DarknessUpgradeRewardLineItem[];
-    } | null;
-    /**
-     * Quest-clear Campaign Rewards (completion + queued). Shown under Campaign Results.
-     */
+export interface VictoryMissionRewards {
+    resourceDelta?: Partial<Record<CampaignResourceKey, number>>;
+    itemFromFirstChoice?: string;
+    /** Items unlocked for the campaign by the mission's `unlockItemTiers` reward. */
+    unlockedItemIds?: string[];
+    researchRewardIds?: string[];
+    researchRewards?: MissionResearchRewardEntry[];
+    /** Darkness Upgrade bonus lines (host's active set, shown for every player); already included in `resourceDelta`. */
+    darknessUpgradeLines?: DarknessUpgradeRewardLineItem[];
+}
+
+interface VictoryRewardSectionsProps {
+    missionRewards: VictoryMissionRewards | null;
+    /** Quest-clear Campaign Rewards (completion + queued). Shown under Campaign Results. */
     campaignRewards?: CampaignRewardsPayload | null;
-    onClose: () => void;
-    /** Optional side missions branching off the completed mission. */
-    sideMissions?: Array<{ missionId: string; name: string }>;
-    /** Called when the player chooses to start a side mission instead of continuing. */
-    onStartSideMission?: (missionId: string) => void;
-    /** Whether the current player is the host. Controls which Continue UI is shown. */
-    isHost?: boolean;
-    /** Lobby ID the host created for the next mission (clients poll for this). */
-    nextLobbyId?: string | null;
-    /** Client-only: join the next lobby that the host created. */
-    onJoinNextLobby?: (lobbyId: string) => Promise<void>;
-    /**
-     * When true, every player gets an active Continue (race-safe quest claim on the server).
-     * Skips the host-only / waiting-for-host split used for normal mission continue.
-     */
-    questContinuation?: boolean;
-    /** Quest chain banner (e.g. progress or quest-complete). */
-    questBanner?: string | null;
-    /** Host Continue button label override. */
-    continueLabel?: string;
+    /** Show "You have prevailed." when there are no rewards at all (only once results are final). */
+    showFallback: boolean;
 }
 
 interface RewardCardData {
@@ -122,19 +105,11 @@ function ItemRewardCard({ itemId, caption }: { itemId: string; caption?: string 
     );
 }
 
-export default function VictoryModal({
+export default function VictoryRewardSections({
     missionRewards,
     campaignRewards = null,
-    onClose,
-    sideMissions,
-    onStartSideMission,
-    isHost,
-    nextLobbyId,
-    onJoinNextLobby,
-    questContinuation = false,
-    questBanner,
-    continueLabel = 'Continue',
-}: VictoryModalProps) {
+    showFallback,
+}: VictoryRewardSectionsProps) {
     const researchRewards = getResolvedMissionResearchRewards(missionRewards);
     const hasMissionRewards =
         missionRewards &&
@@ -185,12 +160,7 @@ export default function VictoryModal({
         : [];
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 animate-fade-in">
-            <div className="bg-surface-light border border-border-custom rounded-lg shadow-xl p-10 mx-4 text-center min-h-[33vh] min-w-[33vw] w-[33vw] flex flex-col justify-center">
-                <h2 className="text-2xl font-bold text-success mb-2">Victory!</h2>
-                {questBanner ? (
-                    <p className="text-sm text-primary mb-3">{questBanner}</p>
-                ) : null}
+        <>
                 {hasMissionRewards && (
                     <>
                         <h3 className="text-lg font-semibold text-white mb-4">{MISSION_RESULTS_LABEL}</h3>
@@ -299,72 +269,9 @@ export default function VictoryModal({
                         </div>
                     </>
                 ) : null}
-                {!hasMissionRewards && !hasCampaignRewards && (
-                    <p className="text-muted mb-6">You have prevailed.</p>
-                )}
-                {sideMissions && sideMissions.length > 0 && (
-                    <div className="mb-4">
-                        <p className="text-xs text-muted mb-2">Optional side quests available:</p>
-                        <div className="flex flex-wrap justify-center gap-2">
-                            {sideMissions.map((sm) => (
-                                <button
-                                    key={sm.missionId}
-                                    type="button"
-                                    className="px-4 py-2 bg-violet-800 hover:bg-violet-700 text-violet-100 font-medium rounded transition-colors border border-violet-600"
-                                    onClick={() => onStartSideMission?.(sm.missionId)}
-                                >
-                                    {sm.name}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                )}
-                <div className="flex justify-center">
-                    {/* Quest continuation: any party member claims the same next lobby. */}
-                    {questContinuation ? (
-                        <button
-                            type="button"
-                            className="px-6 py-2 bg-primary hover:bg-primary-hover text-secondary font-medium rounded transition-colors"
-                            onClick={onClose}
-                        >
-                            {continueLabel}
-                        </button>
-                    ) : (
-                        <>
-                            {/* Host (or solo play): existing continue flow */}
-                            {(isHost === true || isHost === undefined) && (
-                                <button
-                                    type="button"
-                                    className="px-6 py-2 bg-primary hover:bg-primary-hover text-secondary font-medium rounded transition-colors"
-                                    onClick={onClose}
-                                >
-                                    {continueLabel}
-                                </button>
-                            )}
-                            {/* Client, waiting for host to choose next mission */}
-                            {isHost === false && !nextLobbyId && (
-                                <button
-                                    type="button"
-                                    className="px-6 py-2 bg-gray-600 text-gray-400 font-medium rounded cursor-not-allowed"
-                                    disabled
-                                >
-                                    Waiting for host…
-                                </button>
-                            )}
-                            {/* Client, host has created next lobby */}
-                            {isHost === false && nextLobbyId && (
-                                <button
-                                    type="button"
-                                    className="px-6 py-2 bg-primary hover:bg-primary-hover text-secondary font-medium rounded transition-colors"
-                                    onClick={() => onJoinNextLobby?.(nextLobbyId)}
-                                >
-                                    {continueLabel}
-                                </button>
-                            )}
-                        </>
-                    )}
-                </div>
-            </div>
-        </div>
+            {showFallback && !hasMissionRewards && !hasCampaignRewards && (
+                <p className="text-muted mb-6">You have prevailed.</p>
+            )}
+        </>
     );
 }

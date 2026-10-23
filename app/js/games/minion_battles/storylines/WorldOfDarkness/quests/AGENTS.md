@@ -49,4 +49,4 @@ Per-character "location decks" built from quest rewards. A `location_encounter` 
 ### UI
 
 - `LocationCardPill` component with Mountain icon, hover tooltip (name, description, italic flavour text, mission badge, modifications list with descriptions from `describeLocationModification`).
-- Wired into: `VictoryModal` (Campaign Results row), `CampaignDataPanel` (Location Deck section showing grouped instances + counts), `MissionMapTab` (quest panel slot pills labeling `location_encounter`).
+- Wired into: `VictoryPopover` (Campaign Results row), `CampaignDataPanel` (Location Deck section showing grouped instances + counts), `MissionMapTab` (quest panel slot pills labeling `location_encounter`).

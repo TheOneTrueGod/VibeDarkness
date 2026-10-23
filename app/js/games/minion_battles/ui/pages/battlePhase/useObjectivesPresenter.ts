@@ -8,7 +8,6 @@ import {
     diffObjectiveRows,
     initialObjectivesPopoverState,
     objectivesPopoverReducer,
-    victorySequenceDurationMs,
 } from '../../components/objectivesPopover/objectivePresentation';
 import type {
     ObjectivePresentationRow,
@@ -17,7 +16,6 @@ import type {
 } from '../../components/objectivesPopover/objectivePresentation';
 
 const POLL_INTERVAL_MS = 250;
-const VICTORY_TIMEOUT_SLACK_MS = 1000;
 
 export interface UseObjectivesPresenterInput {
     sessionRef: RefObject<BattleSession | null>;
@@ -35,8 +33,8 @@ export interface UseObjectivesPresenterResult {
     state: ObjectivesPopoverState;
     onStart: () => void;
     onPhaseAnimationEnd: (phase: ObjectivesPopoverPhase) => void;
-    /** Resolves when the victory sequence has finished (immediately when the popover is disabled or idle). */
-    playVictory: () => Promise<void>;
+    /** Mission won: hide the objectives card now; the victory popover takes over. */
+    hideForVictory: () => void;
 }
 
 export function objectivesIntroStorageKey(
@@ -76,16 +74,8 @@ export function useObjectivesPresenter(input: UseObjectivesPresenterInput): UseO
     const lastEngineRef = useRef<GameEngine | null>(null);
     const lastRowsRef = useRef<ObjectivePresentationRow[] | null>(null);
     const introHandledRef = useRef(false);
-    const victoryWaitersRef = useRef<Array<() => void>>([]);
-    const victoryStartedRef = useRef(false);
 
     const storageKey = objectivesIntroStorageKey(lobbyId, missionId);
-
-    const resolveVictoryWaiters = useCallback(() => {
-        const waiters = victoryWaitersRef.current;
-        victoryWaitersRef.current = [];
-        for (const w of waiters) w();
-    }, []);
 
     // Poll the engine for objective rows.
     useEffect(() => {
@@ -143,15 +133,6 @@ export function useObjectivesPresenter(input: UseObjectivesPresenterInput): UseO
         return () => clearTimeout(t);
     }, [state.phase, state.activeDiff]);
 
-    // Resolve victory waiters once the sequence is over.
-    useEffect(() => {
-        if (victoryStartedRef.current && state.phase === 'hidden') {
-            resolveVictoryWaiters();
-        }
-    }, [state.phase, resolveVictoryWaiters]);
-
-    useEffect(() => () => resolveVictoryWaiters(), [resolveVictoryWaiters]);
-
     const onStart = useCallback(() => {
         writeDismissed(storageKey);
         dispatch({ type: 'start' });
@@ -164,24 +145,9 @@ export function useObjectivesPresenter(input: UseObjectivesPresenterInput): UseO
         }
     }, []);
 
-    const playVictory = useCallback((): Promise<void> => {
-        if (!OBJECTIVES_POPOVER_ENABLED) return Promise.resolve();
-        // No objectives known (or mission has none): nothing to present.
-        if (!lastRowsRef.current || lastRowsRef.current.length === 0) return Promise.resolve();
-        return new Promise<void>((resolve) => {
-            let settled = false;
-            const done = () => {
-                if (settled) return;
-                settled = true;
-                clearTimeout(timeout);
-                resolve();
-            };
-            const timeout = setTimeout(done, victorySequenceDurationMs() + VICTORY_TIMEOUT_SLACK_MS);
-            victoryWaitersRef.current.push(done);
-            victoryStartedRef.current = true;
-            dispatch({ type: 'victory' });
-        });
+    const hideForVictory = useCallback(() => {
+        dispatch({ type: 'victory' });
     }, []);
 
-    return { state, onStart, onPhaseAnimationEnd, playVictory };
+    return { state, onStart, onPhaseAnimationEnd, hideForVictory };
 }

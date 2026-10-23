@@ -114,6 +114,11 @@ export const TestIds = {
     objectivesPopover: 'objectives-popover',
     /** "Start" button on the intro objectives popover */
     objectivesPopoverStart: 'objectives-popover-start',
+
+    /** Centred victory popover (objectives, Hunger to HP, rewards) */
+    victoryPopover: 'victory-popover',
+    /** Continue / Finish Quest button in the victory popover */
+    victoryPopoverContinue: 'victory-popover-continue',
 } as const;
 
 export type TestId = (typeof TestIds)[keyof typeof TestIds];

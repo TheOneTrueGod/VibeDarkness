@@ -5,6 +5,7 @@
 const SHOW_ALL_RESEARCH_TREES_KEY = 'vibedarkness.debug.showAllResearchTrees';
 const ALWAYS_SHOW_SYNC_STATUS_KEY = 'vibedarkness.debug.alwaysShowSyncStatus';
 const SHOW_GAME_TICK_KEY = 'vibedarkness.debug.showGameTick';
+const FAST_VICTORY_SEQUENCE_KEY = 'vibedarkness.debug.fastVictorySequence';
 
 export function getShowAllResearchTrees(): boolean {
     try {
@@ -159,6 +160,34 @@ export function setUserStateLogging(value: boolean): void {
 }
 
 export function subscribeUserStateLogging(onStoreChange: () => void): () => void {
+    const handler = () => onStoreChange();
+    window.addEventListener('vd-debug-flags-changed', handler);
+    window.addEventListener('storage', handler);
+    return () => {
+        window.removeEventListener('vd-debug-flags-changed', handler);
+        window.removeEventListener('storage', handler);
+    };
+}
+
+/** Plays the victory popover sequence at 3x speed. */
+export function getFastVictorySequence(): boolean {
+    try {
+        return localStorage.getItem(FAST_VICTORY_SEQUENCE_KEY) === '1';
+    } catch {
+        return false;
+    }
+}
+
+export function setFastVictorySequence(value: boolean): void {
+    try {
+        localStorage.setItem(FAST_VICTORY_SEQUENCE_KEY, value ? '1' : '0');
+    } catch {
+        /* ignore */
+    }
+    window.dispatchEvent(new Event('vd-debug-flags-changed'));
+}
+
+export function subscribeFastVictorySequence(onStoreChange: () => void): () => void {
     const handler = () => onStoreChange();
     window.addEventListener('vd-debug-flags-changed', handler);
     window.addEventListener('storage', handler);

@@ -61,6 +61,7 @@ import ObjectivesPopover from '../components/objectivesPopover/ObjectivesPopover
 import { useObjectivesPresenter } from './battlePhase/useObjectivesPresenter';
 import { useBattleSidebarPolling } from './battlePhase/useBattleSidebarPolling';
 import { useBattleHudPanelsPolling } from './battlePhase/useBattleHudPanelsPolling';
+import type { VictorySnapshot } from '../../storylines/victoryHealthConversion';
 import { useHudEffectCanvasBridge } from './battlePhase/useHudEffectCanvasBridge';
 import {
     createEmptyTargetingState,
@@ -83,7 +84,7 @@ interface BattlePhaseProps {
     /** Reports the host's active Darkness Upgrade node ids (all clients) once the battle is loaded. */
     onActiveDarknessUpgradeNodeIds?: (nodeIds: string[]) => void;
     /** Called when victory is achieved. Passes mission result from the winning victory check. */
-    onVictory?: (missionResult: string, hungerLoss?: number) => void;
+    onVictory?: (missionResult: string, hungerLoss?: number, snapshot?: VictorySnapshot) => void;
     /** Called when defeat is achieved (all player units dead). */
     onDefeat?: () => void;
     /** Called when host sends an emitted message (NPC or chat) so the UI can show it immediately. */
@@ -286,18 +287,29 @@ export default function BattlePhase({
     const { activeWorldModifiers, ninjutsuPools } = useBattleHudPanelsPolling(sessionRef);
 
     // BattleSession captures `onVictory` once at creation (mount-once lifecycle), so hand it a stable wrapper
-    // that reads the latest presenter / prop through refs. Victory waits for the objectives sequence first.
-    const playVictoryRef = useRef<() => Promise<void>>(() => Promise.resolve());
+    // that reads the latest prop through a ref. The victory popover plays the objectives cross-off itself, so
+    // the snapshot only carries the rows still on the list (not the ones the objectives card already dismissed).
     const onVictoryPropRef = useRef(onVictory);
     onVictoryPropRef.current = onVictory;
+    const dismissedObjectiveIdsRef = useRef<string[]>([]);
+    const hideObjectivesForVictoryRef = useRef<() => void>(() => undefined);
     const victoryForwardedRef = useRef(false);
-    const handleVictoryAfterObjectives = useCallback((missionResult: string, hungerLoss?: number) => {
-        void playVictoryRef.current().then(() => {
+    const handleVictory = useCallback(
+        (missionResult: string, hungerLoss?: number, snapshot?: VictorySnapshot) => {
             if (victoryForwardedRef.current) return;
             victoryForwardedRef.current = true;
-            onVictoryPropRef.current?.(missionResult, hungerLoss);
-        });
-    }, []);
+            hideObjectivesForVictoryRef.current();
+            const dismissed = new Set(dismissedObjectiveIdsRef.current);
+            onVictoryPropRef.current?.(
+                missionResult,
+                hungerLoss,
+                snapshot
+                    ? { ...snapshot, objectives: snapshot.objectives.filter((r) => !dismissed.has(r.id)) }
+                    : undefined,
+            );
+        },
+        [],
+    );
 
     const { battleInitPhase } = useBattleSessionLifecycle({
         api,
@@ -309,7 +321,7 @@ export default function BattlePhase({
         initialGameState,
         onLoadDarknessUpgrades,
         onActiveDarknessUpgradeNodeIds,
-        onVictory: handleVictoryAfterObjectives,
+        onVictory: handleVictory,
         onDefeat,
         onEmittedChatMessage,
         sessionRef,
@@ -328,7 +340,8 @@ export default function BattlePhase({
         suppress: itsPreviewActive || rewindOverlay != null,
         objectivesIntro: MISSION_MAP[missionId]?.objectivesIntro,
     });
-    playVictoryRef.current = objectivesPresenter.playVictory;
+    dismissedObjectiveIdsRef.current = objectivesPresenter.state.dismissedIds;
+    hideObjectivesForVictoryRef.current = objectivesPresenter.hideForVictory;
 
     const HOST_WAIT_POPOVER_AFTER_HEARTBEATS = BATTLE_NET_WAITING_HOST_UI_SHOW_POLLS;
 

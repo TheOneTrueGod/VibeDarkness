@@ -2924,7 +2924,7 @@ describe('terminal outcome during ITS preview (auto-commit before surfacing UI)'
         // Victory UI must wait for the async auto-commit to persist the order first.
         await vi.waitFor(() => {
             expect(persistCommittedOrder).toHaveBeenCalledTimes(1);
-            expect(onVictory).toHaveBeenCalledWith('victory', expect.any(Number));
+            expect(onVictory).toHaveBeenCalledWith('victory', expect.any(Number), expect.objectContaining({ objectives: expect.any(Array) }));
         });
         const [committedOrder, committedAtTick] = persistCommittedOrder.mock.calls[0] as [BattleOrder, number];
         expect(committedOrder.unitId).toBe(casterUnitId);

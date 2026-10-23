@@ -14,7 +14,7 @@ import { centeredRect, computeFlightTransform, flightTransformToCss, type RectLi
 export interface ObjectivesPopoverProps {
     state: ObjectivesPopoverState;
     onStart: () => void;
-    /** Fired once per phase entry when the card's flight/fade transition ends (docking, expanding, fadingOut). */
+    /** Fired once per phase entry when the card's flight/fade transition ends (docking, expanding). */
     onPhaseAnimationEnd?: (phase: ObjectivesPopoverPhase) => void;
     /** Used as the fly target when the `objectives` HUD anchor is not mounted (e.g. chat column closed). */
     fallbackAnchorRect: RectLike | null;
@@ -147,23 +147,18 @@ export default function ObjectivesPopover({
     }
 
     const modal = phase === 'intro';
-    const victoryText = phase === 'victoryText' || phase === 'fadingOut';
     const atAnchor = pose === 'anchor';
     // Reduced motion: no travel, just fade (docking fades out in place; expanding fades in in place).
     const transform = atAnchor && !reduced ? anchorTransform : 'none';
-    const opacity = phase === 'fadingOut' || (atAnchor && reduced) ? 0 : 1;
+    const opacity = atAnchor && reduced ? 0 : 1;
     const flightCss = reduced ? 'opacity 350ms ease-out' : 'transform 450ms ease-in-out, opacity 450ms ease-in-out';
-    const transitionCss = !transition
-        ? 'none'
-        : phase === 'fadingOut'
-          ? `opacity ${OBJECTIVES_POPOVER_TIMINGS.fadingOut}ms ease-out`
-          : flightCss;
+    const transitionCss = transition ? flightCss : 'none';
 
     const handleTransitionEnd = (e: React.TransitionEvent<HTMLDivElement>) => {
         if (e.target !== e.currentTarget || !onPhaseAnimationEnd) {
             return;
         }
-        if (phase !== 'docking' && phase !== 'expanding' && phase !== 'fadingOut') {
+        if (phase !== 'docking' && phase !== 'expanding') {
             return;
         }
         if (endedPhaseRef.current === phase) {
@@ -192,30 +187,14 @@ export default function ObjectivesPopover({
                 className="relative w-[min(420px,90vw)] rounded-lg border border-white bg-dark-800 px-4 py-3 shadow-2xl"
                 style={{ transform, opacity, transition: transitionCss, transformOrigin: 'top left' }}
             >
-                <div className="relative mb-2 h-5 text-xs font-semibold uppercase tracking-wide">
-                    <span
-                        className="absolute inset-0 text-gray-500"
-                        style={{ opacity: victoryText ? 0 : 1, transition: 'opacity 300ms ease-out' }}
-                    >
-                        Objectives
-                    </span>
-                    <span
-                        className="absolute inset-0 text-base text-amber-300"
-                        style={{ opacity: victoryText ? 1 : 0, transition: 'opacity 400ms ease-out' }}
-                    >
-                        Victory
-                    </span>
-                </div>
+                <div className="mb-2 h-5 text-xs font-semibold uppercase tracking-wide text-gray-500">Objectives</div>
                 <ul className="flex flex-col gap-1">
-                    {state.displayRows.map((row, i) => (
+                    {state.displayRows.map((row) => (
                         <PopoverRow
                             key={row.id}
                             row={row}
-                            animateCheck={
-                                ((phase === 'checking' || phase === 'sliding') && completedNow.has(row.id)) ||
-                                phase === 'victoryCrossing'
-                            }
-                            checkDelayMs={phase === 'victoryCrossing' ? i * 120 : 0}
+                            animateCheck={(phase === 'checking' || phase === 'sliding') && completedNow.has(row.id)}
+                            checkDelayMs={0}
                             sliding={phase === 'sliding' && completedNow.has(row.id)}
                             fadeIn={phase === 'revealing' && revealedNow.has(row.id)}
                             reduced={reduced}

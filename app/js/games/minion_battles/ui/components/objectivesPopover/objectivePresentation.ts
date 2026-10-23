@@ -7,7 +7,7 @@
 
 /**
  * Set false to disable the objectives popover entirely; battle UI falls back to the plain sidebar panel.
- * When false the reducer never leaves `hidden`, `playVictory()` resolves immediately and nothing is portaled.
+ * When false the reducer never leaves `hidden` and nothing is portaled.
  */
 export const OBJECTIVES_POPOVER_ENABLED = true;
 
@@ -31,10 +31,7 @@ export type ObjectivesPopoverPhase =
     | 'expanding'
     | 'checking'
     | 'sliding'
-    | 'revealing'
-    | 'victoryCrossing'
-    | 'victoryText'
-    | 'fadingOut';
+    | 'revealing';
 
 /** Duration (ms) of each phase before `phaseElapsed` should be dispatched. `hidden`/`intro`/`docked` are untimed. */
 export const OBJECTIVES_POPOVER_TIMINGS: Record<ObjectivesPopoverPhase, number> = {
@@ -46,9 +43,6 @@ export const OBJECTIVES_POPOVER_TIMINGS: Record<ObjectivesPopoverPhase, number> 
     checking: 500,
     sliding: 450,
     revealing: 450,
-    victoryCrossing: 900,
-    victoryText: 900,
-    fadingOut: 700,
 };
 
 export interface ObjectivesPopoverState {
@@ -63,7 +57,7 @@ export interface ObjectivesPopoverState {
     pendingDiff: ObjectiveRowsDiff | null;
     /**
      * Rows already taken off the list: slid out by a finished sequence, or already complete when the popover first
-     * saw them. They never come back, so the victory cross-off only shows what is still open.
+     * saw them. They never come back, so the victory popover only crosses off what is still open.
      */
     dismissedIds: string[];
 }
@@ -74,6 +68,7 @@ export type ObjectivesPopoverAction =
     /** Intro not shown (resumed battle, already dismissed, opted out): go straight to docked. */
     | { type: 'skipIntro'; rows: ObjectivePresentationRow[] }
     | { type: 'objectivesChanged'; diff: ObjectiveRowsDiff; rows: ObjectivePresentationRow[] }
+    /** Mission won: the victory popover takes over, so the objectives card disappears at once. */
     | { type: 'victory' }
     | { type: 'phaseElapsed' }
     | { type: 'rebaseline'; rows: ObjectivePresentationRow[] };
@@ -139,12 +134,6 @@ function completedIdsOf(rows: ObjectivePresentationRow[]): string[] {
 }
 
 const SEQUENCE_PHASES: ObjectivesPopoverPhase[] = ['expanding', 'checking', 'sliding', 'revealing'];
-const VICTORY_PHASES: ObjectivesPopoverPhase[] = ['victoryCrossing', 'victoryText', 'fadingOut'];
-
-export function isVictoryPhase(phase: ObjectivesPopoverPhase): boolean {
-    return VICTORY_PHASES.includes(phase);
-}
-
 export function isSequencePhase(phase: ObjectivesPopoverPhase): boolean {
     return SEQUENCE_PHASES.includes(phase);
 }
@@ -247,9 +236,6 @@ export function objectivesPopoverReducer(
             return state.phase === 'intro' ? { ...state, phase: 'docking' } : state;
 
         case 'rebaseline': {
-            if (isVictoryPhase(state.phase)) {
-                return state;
-            }
             const keepPhase =
                 state.phase === 'intro' || state.phase === 'docking' || state.phase === 'hidden'
                     ? state.phase
@@ -267,7 +253,7 @@ export function objectivesPopoverReducer(
         }
 
         case 'objectivesChanged': {
-            if (isDiffEmpty(action.diff) || isVictoryPhase(state.phase)) {
+            if (isDiffEmpty(action.diff)) {
                 return { ...state, latestRows: action.rows };
             }
             if (state.phase === 'hidden' || state.phase === 'intro') {
@@ -289,23 +275,8 @@ export function objectivesPopoverReducer(
             };
         }
 
-        case 'victory': {
-            if (isVictoryPhase(state.phase)) {
-                return state;
-            }
-            // Only rows still on the list: the last open objective(s), even if the engine already completed them.
-            const rows = withoutDismissed(
-                state.latestRows.length > 0 ? state.latestRows : state.displayRows,
-                state.dismissedIds,
-            );
-            return {
-                ...state,
-                phase: 'victoryCrossing',
-                displayRows: rows.map((r) => ({ ...r, completed: true })),
-                activeDiff: null,
-                pendingDiff: null,
-            };
-        }
+        case 'victory':
+            return { ...state, phase: 'hidden', displayRows: [], activeDiff: null, pendingDiff: null };
 
         case 'phaseElapsed': {
             switch (state.phase) {
@@ -347,24 +318,9 @@ export function objectivesPopoverReducer(
                             : state.displayRows,
                     };
                 }
-                case 'victoryCrossing':
-                    return { ...state, phase: 'victoryText' };
-                case 'victoryText':
-                    return { ...state, phase: 'fadingOut' };
-                case 'fadingOut':
-                    return { ...state, phase: 'hidden' };
                 default:
                     return state;
             }
         }
     }
-}
-
-/** Total victory sequence length (ms), used by callers for timeout fallbacks. */
-export function victorySequenceDurationMs(): number {
-    return (
-        OBJECTIVES_POPOVER_TIMINGS.victoryCrossing +
-        OBJECTIVES_POPOVER_TIMINGS.victoryText +
-        OBJECTIVES_POPOVER_TIMINGS.fadingOut
-    );
 }

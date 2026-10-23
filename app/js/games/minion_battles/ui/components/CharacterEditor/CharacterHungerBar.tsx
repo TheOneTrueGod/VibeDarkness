@@ -36,10 +36,12 @@ export interface CharacterHungerBarProps {
     hunger: number;
     maxHunger: number;
     className?: string;
+    /** Stretch to the parent's width instead of the character-sheet portrait width. */
+    fullWidth?: boolean;
 }
 
 /** Current Hunger: orange Ham + orange fill on black with an orange outline, and a tick at the 15% penalty threshold. */
-export function CharacterHungerBar({ hunger, maxHunger, className = '' }: CharacterHungerBarProps) {
+export function CharacterHungerBar({ hunger, maxHunger, className = '', fullWidth = false }: CharacterHungerBarProps) {
     const fillPercent = hungerBarFillPercent(hunger, maxHunger);
     const { leadingZeros, significant } = formatHungerBarDigits(hunger);
     return (
@@ -48,7 +50,7 @@ export function CharacterHungerBar({ hunger, maxHunger, className = '' }: Charac
             style={{
                 backgroundColor: HUNGER_BLACK,
                 borderColor: HUNGER_ORANGE,
-                width: CHARACTER_EDITOR_PORTRAIT_SIZE_PX,
+                width: fullWidth ? '100%' : CHARACTER_EDITOR_PORTRAIT_SIZE_PX,
                 maxWidth: '100%',
             }}
             title={HUNGER_BAR_TOOLTIP}

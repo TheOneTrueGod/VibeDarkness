@@ -16,6 +16,9 @@ import {
     getShowAllResearchTrees,
     getAlwaysShowSyncStatus,
     getShowGameTick,
+    getFastVictorySequence,
+    setFastVictorySequence,
+    subscribeFastVictorySequence,
     setShowAllResearchTrees,
     setAlwaysShowSyncStatus,
     setShowGameTick,
@@ -91,6 +94,12 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
         subscribeShowGameTick,
         getShowGameTick,
         getShowGameTick,
+    );
+
+    const fastVictorySequence = useSyncExternalStore(
+        subscribeFastVictorySequence,
+        getFastVictorySequence,
+        getFastVictorySequence,
     );
 
     const userStateLogging = useSyncExternalStore(
@@ -172,6 +181,15 @@ export default function DebugTogglesTab({ isActive }: DebugTogglesTabProps) {
                         onChange={(e) => setShowGameTick(e.target.checked)}
                     />
                     <span className="leading-snug">Show game tick</span>
+                </label>
+                <label className="flex items-start gap-2 cursor-pointer select-none">
+                    <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 rounded border border-border-custom bg-surface text-primary focus:ring-primary shrink-0"
+                        checked={fastVictorySequence}
+                        onChange={(e) => setFastVictorySequence(e.target.checked)}
+                    />
+                    <span className="leading-snug">Fast victory sequence (3x)</span>
                 </label>
                 <label className="flex items-start gap-2 cursor-pointer select-none">
                     <input

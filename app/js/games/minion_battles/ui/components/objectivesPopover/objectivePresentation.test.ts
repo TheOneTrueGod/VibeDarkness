@@ -105,30 +105,23 @@ describe('objectivesPopoverReducer', () => {
         expect(s.activeDiff?.newlyRevealed).toEqual(['c']);
     });
 
-    it('victory crosses off only the rows still on the list and ends hidden after fadingOut', () => {
+    it('victory hides the objectives card at once (the victory popover plays the cross-off)', () => {
         let s = docked([row('a', true), row('b')]);
         s = run(s, { type: 'victory' });
-        expect(s.phase).toBe('victoryCrossing');
-        expect(s.displayRows).toEqual([row('b', true)]);
-        s = run(s, elapsed);
-        expect(s.phase).toBe('victoryText');
-        s = run(s, elapsed);
-        expect(s.phase).toBe('fadingOut');
-        s = run(s, elapsed);
         expect(s.phase).toBe('hidden');
+        expect(s.displayRows).toEqual([]);
+        expect(s.dismissedIds).toEqual(['a']);
     });
 
-    it('victory after a finished sequence does not bring slid-off rows back', () => {
+    it('victory mid-sequence drops the running sequence', () => {
         const next = [row('a', true), row('b')];
         let s = docked([row('a')]);
         s = run(s, { type: 'objectivesChanged', diff: diffObjectiveRows([row('a')], next), rows: next });
-        s = run(s, elapsed, elapsed, elapsed, elapsed, elapsed);
-        expect(s.phase).toBe('docked');
-        // Final objective completes on the same tick victory fires: still shown and crossed off.
-        const final = [row('a', true), row('b', true)];
-        s = run(s, { type: 'objectivesChanged', diff: diffObjectiveRows(next, final), rows: final }, { type: 'victory' });
-        expect(s.phase).toBe('victoryCrossing');
-        expect(s.displayRows).toEqual([row('b', true)]);
+        expect(s.phase).toBe('expanding');
+        s = run(s, { type: 'victory' });
+        expect(s.phase).toBe('hidden');
+        expect(s.activeDiff).toBeNull();
+        expect(s.pendingDiff).toBeNull();
     });
 
     it('rebaseline while docked does not animate and drops rows that are already complete', () => {

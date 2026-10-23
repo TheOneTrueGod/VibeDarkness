@@ -52,6 +52,7 @@ import {
     computeMatchHungerLoss,
     findPlayerUnitForMatchHunger,
 } from '../storylines/matchHunger';
+import type { VictorySnapshot } from '../storylines/victoryHealthConversion';
 import { InteractiveTargetingSession, type HeldRemoteOrder } from './interaction/InteractiveTargetingSession';
 import { USE_SEQUENTIAL_TARGETING } from '../featureFlags';
 import { PERF_UI, PERF_UI_REACT, tickPerformanceTracker } from './performance/tickPerformanceTracker';
@@ -80,7 +81,7 @@ export interface BattleSessionConfig {
     missionId: string;
     playerId: string;
     isHost: boolean;
-    onVictory?: (missionResult: string, hungerLoss?: number) => void;
+    onVictory?: (missionResult: string, hungerLoss?: number, snapshot?: VictorySnapshot) => void;
     onDefeat?: () => void;
     onEmittedChatMessage?: (entry: MessageEntry) => void;
 }
@@ -652,7 +653,7 @@ export class BattleSession implements BattleSessionHandle {
                     this.commitPreviewForTerminalOutcome(engine);
                     return;
                 }
-                onVictory(result, this.matchHungerLossFor(engine));
+                onVictory(result, this.matchHungerLossFor(engine), this.victorySnapshotFor(engine));
             });
         }
         if (onDefeat) {
@@ -1540,10 +1541,27 @@ export class BattleSession implements BattleSessionHandle {
             return;
         }
         if (outcome.kind === 'victory') {
-            this.config.onVictory?.(outcome.missionResult, this.matchHungerLossFor(engine));
+            this.config.onVictory?.(
+                outcome.missionResult,
+                this.matchHungerLossFor(engine),
+                this.victorySnapshotFor(engine),
+            );
         } else {
             this.config.onDefeat?.();
         }
+    }
+
+    /** Objective rows and the local player's HP at match end, for the victory popover. */
+    private victorySnapshotFor(engine: GameEngine): VictorySnapshot {
+        const unit = findPlayerUnitForMatchHunger(
+            engine.units,
+            engine.localPlayerId,
+            engine.getLocalPlayerUnit(),
+        );
+        return {
+            objectives: engine.getBattleObjectiveRows(),
+            playerHp: unit ? { hp: unit.hp, maxHp: unit.maxHp } : null,
+        };
     }
 
     /** Positive Hunger lost by the local player this match (see `computeMatchHungerLoss`). */
