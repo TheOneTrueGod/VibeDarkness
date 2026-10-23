@@ -13,6 +13,30 @@ import {
     saveMusicPlayerSettings,
 } from './musicPlayerSettings';
 
+describe('audio muted by default (VITE_AUDIO_MUTED_BY_DEFAULT)', () => {
+    afterEach(() => {
+        vi.unstubAllEnvs();
+    });
+
+    it('starts unmuted when the flag is unset (prod build)', () => {
+        vi.stubEnv('VITE_AUDIO_MUTED_BY_DEFAULT', undefined);
+        expect(defaultMusicPlayerSettings().muted).toBe(false);
+        expect(parseMusicPlayerSettings(null).muted).toBe(false);
+    });
+
+    it('starts muted when the flag is true (dev server)', () => {
+        vi.stubEnv('VITE_AUDIO_MUTED_BY_DEFAULT', 'true');
+        expect(defaultMusicPlayerSettings().muted).toBe(true);
+        expect(parseMusicPlayerSettings(null).muted).toBe(true);
+        expect(parseMusicPlayerSettings(JSON.stringify({ volume: 0.5 })).muted).toBe(true);
+    });
+
+    it('keeps a saved mute choice over the default', () => {
+        vi.stubEnv('VITE_AUDIO_MUTED_BY_DEFAULT', 'true');
+        expect(parseMusicPlayerSettings(JSON.stringify({ volume: 0.5, muted: false })).muted).toBe(false);
+    });
+});
+
 describe('parseMusicPlayerSettings', () => {
     it('returns defaults for missing or invalid storage', () => {
         expect(parseMusicPlayerSettings(null)).toEqual(defaultMusicPlayerSettings());

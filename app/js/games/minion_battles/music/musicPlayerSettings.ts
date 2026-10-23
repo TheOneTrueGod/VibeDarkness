@@ -19,10 +19,19 @@ function parsePlaybackPreference(value: unknown): MusicPlaybackPreference {
     return DEFAULT_MUSIC_PLAYBACK_PREFERENCE;
 }
 
+/**
+ * Whether audio starts muted when nothing is saved: `VITE_AUDIO_MUTED_BY_DEFAULT=true` in
+ * .env.development mutes the dev server; prod builds leave it unset, so audio starts on.
+ */
+export function isAudioMutedByDefault(): boolean {
+    const flag = import.meta.env.VITE_AUDIO_MUTED_BY_DEFAULT;
+    return flag === 'true' || flag === '1';
+}
+
 export function defaultMusicPlayerSettings(): MusicPlayerSettings {
     return {
         volume: DEFAULT_MUSIC_VOLUME,
-        muted: false,
+        muted: isAudioMutedByDefault(),
         playbackPreference: DEFAULT_MUSIC_PLAYBACK_PREFERENCE,
     };
 }
@@ -34,7 +43,7 @@ export function parseMusicPlayerSettings(raw: string | null): MusicPlayerSetting
         const parsed = JSON.parse(raw) as Record<string, unknown>;
         return {
             volume: typeof parsed.volume === 'number' ? clampVolume(parsed.volume) : fallback.volume,
-            muted: parsed.muted === true,
+            muted: typeof parsed.muted === 'boolean' ? parsed.muted : fallback.muted,
             playbackPreference: parsePlaybackPreference(parsed.playbackPreference),
         };
     } catch {

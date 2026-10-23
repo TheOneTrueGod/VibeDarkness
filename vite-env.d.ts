@@ -5,4 +5,6 @@ interface ImportMetaEnv {
     readonly VITE_APP_VERSION: string;
     /** Deprecated for client lobby_log POST gating: use Debug Console → Debug Toggles → Persisted lobby log. */
     readonly VITE_LOBBY_LOG_THRESHOLD?: string;
+    /** `true` → game audio starts muted unless the player saved a setting (set in .env.development). */
+    readonly VITE_AUDIO_MUTED_BY_DEFAULT?: string;
 }
