@@ -5,6 +5,7 @@ import React from 'react';
 import { Ham } from 'lucide-react';
 import type { CampaignResourceKey } from '../types';
 import { HUNGER_BAR_TOOLTIP } from '../games/minion_battles/character_defs/hungerHealth';
+import { HUNGER_PER_MISSING_HP } from '../games/minion_battles/storylines/matchHunger';
 
 /** Tailwind orange-500: the Hunger colour everywhere (pills, character bar). */
 export const HUNGER_ORANGE = '#f97316';
@@ -17,7 +18,9 @@ function HungerIcon({ color, className = 'w-[18px] h-[18px]' }: { color: string;
 
 const RESOURCE_ORDER: CampaignResourceKey[] = ['food', 'metal', 'population', 'crystals', 'hunger'];
 
-export const HUNGER_LOSS_TOOLTIP = 'Hunger lost this mission, based on the damage you took.';
+/** HP of missing health that costs 1 Hunger at match end (derived from the loss rule). */
+const HP_PER_HUNGER = 1 / HUNGER_PER_MISSING_HP;
+export const HUNGER_LOSS_TOOLTIP = `Hunger lost.  ${HP_PER_HUNGER}HP = 1 Hunger`;
 export const HUNGER_RECOVERY_TOOLTIP = 'Hunger recovered.';
 export const MAX_HUNGER_TOOLTIP = 'Max Hunger: The most Hunger this character can store.';
 
