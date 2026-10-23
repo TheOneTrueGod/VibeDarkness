@@ -41,8 +41,8 @@ const ENDED_EARLY_NOTICE_PRESET: Record<'interrupted' | 'fizzled' | 'caster_died
 };
 
 /**
- * 50 ms ITS poll, AUTO_END_TURN auto-commit, player-tile refresh bump, ended-early notices, and
- * re-arming ITS resume mode at a missing-pick pause.
+ * 50 ms ITS poll, AUTO_END_TURN auto-commit, commit-in-flight mirror, player-tile refresh bump,
+ * ended-early notices, and re-arming ITS resume mode at a missing-pick pause.
  */
 export function useInteractiveTargetingProgress({
     sessionRef,
@@ -54,6 +54,8 @@ export function useInteractiveTargetingProgress({
         'inactive' | 'playing' | 'paused' | 'done'
     >('inactive');
     const [playerTileRefresh, setPlayerTileRefresh] = useState(0);
+    /** Mirrors `interactiveTargeting.isCommitInFlight`, sampled on the same poll as the ITS state. */
+    const [itsCommitInFlight, setItsCommitInFlight] = useState(false);
     const prevItsStateRef = useRef<string>('inactive');
     const autoCommitItsAttemptedRef = useRef(false);
     const lastSelectPauseLabelRef = useRef<string | null>(null);
@@ -90,7 +92,7 @@ export function useInteractiveTargetingProgress({
             }
         };
 
-        const id = window.setInterval(() => {
+        const pollIts = (): void => {
             const session = sessionRef.current;
             const its = session?.interactiveTargeting;
             if (!its?.isActive) {
@@ -228,12 +230,21 @@ export function useInteractiveTargetingProgress({
             if (prevItsStateRef.current !== nextState) {
                 prevItsStateRef.current = nextState;
             }
+        };
+
+        const id = window.setInterval(() => {
+            pollIts();
+            // Sampled after pollIts (which may start the auto-commit) and in the same batch as the
+            // ITS state, so the spinner appears on the commit poll and the ITS controls never flash
+            // back between the commit finishing and ITS reading inactive.
+            setItsCommitInFlight(sessionRef.current?.interactiveTargeting.isCommitInFlight ?? false);
         }, 50);
         return () => window.clearInterval(id);
     }, [activeLocalWaiter, sessionRef, setOrderSubmitFailed, battleNoticeStore]);
 
     return {
         interactiveTargetingState,
+        itsCommitInFlight,
         playerTileRefresh,
         getItsPlayaheadTicks,
         autoCommitItsAttemptedRef,

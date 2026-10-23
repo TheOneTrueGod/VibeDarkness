@@ -8,6 +8,18 @@ export interface TurnIndicatorProps {
 }
 
 /**
+ * True while the plaque should swap its ITS controls for the "waiting for server" spinner: the
+ * local turn's commit is running (awaiting the network) and has not reported a submit failure.
+ * A failure drops the spinner at once so the normal controls return beside the error notice.
+ */
+export function computeAwaitingServerAfterSubmit(args: {
+    itsCommitInFlight: boolean;
+    orderSubmitFailed: boolean;
+}): boolean {
+    return args.itsCommitInFlight && !args.orderSubmitFailed;
+}
+
+/**
  * Computes the `TurnIndicator` state + ally name from the current pause/turn state.
  * Pulled verbatim out of BattlePhase's JSX ternaries — `allyName` is resolved independently
  * of `state` (it does not gate on `storyPauseActive`/`canUseOrderUi`), matching the original.

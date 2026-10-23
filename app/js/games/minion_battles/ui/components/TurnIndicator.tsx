@@ -5,6 +5,7 @@
  * - Your turn: "Your Turn", green embossed border
  * - Ally's turn: "<AllyName>'s Turn", yellow embossed border
  * - Playing (no one's turn): plaque shrinks, no text
+ * - Awaiting server after submit: round pill, a centred spinner, and an empty slot where Pass sits
  *
  * On state change, the plaque "blinks" closed then opens to the new text.
  */
@@ -72,6 +73,12 @@ interface TurnIndicatorProps {
      */
     itsControls?: React.ReactNode;
     /**
+     * True once the local turn is submitted and the client is waiting on the server. Replaces the
+     * ITS controls (or the plaque text) with a spinner, keeping the round pill and Pass's width
+     * so the plaque does not change size.
+     */
+    awaitingServerAfterSubmit?: boolean;
+    /**
      * When true, ignore `state` / `allyName` changes (no shrink/grow blink).
      * Used to hold the plaque steady through an ITS rewind crossfade.
      * When this flips back to false, the current live props are applied (not a mid-freeze stash).
@@ -104,6 +111,7 @@ export default function TurnIndicator({
     hostCatchupPopover = null,
     orderPipeline = null,
     itsControls = null,
+    awaitingServerAfterSubmit = false,
     freezePresentation = false,
     sideControls = null,
     noticeSlot = null,
@@ -180,7 +188,9 @@ export default function TurnIndicator({
 
     useEffect(() => clearTimer, []);
 
-    const forceOpenForIts = itsControls != null;
+    // The waiting spinner sits in the ITS controls' slot, so it shares their layout and sizing.
+    const showItsSlot = itsControls != null || awaitingServerAfterSubmit;
+    const forceOpenForIts = showItsSlot;
     const isExpanded = forceOpenForIts || phase === 'open' || phase === 'opening';
     const isCollapsed = !forceOpenForIts && (phase === 'closing' || phase === 'closed');
 
@@ -227,7 +237,7 @@ export default function TurnIndicator({
         maxWidth: 'calc(100vw - 8rem)',
     } as const;
     const centerTextStyle = {
-        width: itsControls
+        width: showItsSlot
             ? `min(${sides ? 38 : 28}rem, calc(100vw - 10rem))`
             : sides
               ? 'min(19rem, calc(100vw - 10rem))'
@@ -295,6 +305,22 @@ export default function TurnIndicator({
             Pass
         </button>
     ) : null;
+    // Holds Pass's width (and height) while waiting, so nothing shifts when Pass returns.
+    const passPlaceholder = sides ? (
+        <div className={`h-6 flex-none ${SIDE_CONTROL_WIDTH_CLASS}`} aria-hidden="true" />
+    ) : null;
+    const awaitingServerSpinner = (
+        <div
+            className="flex min-w-0 flex-1 items-center justify-center"
+            role="status"
+            aria-label="Turn submitted, waiting for the server"
+        >
+            <div
+                className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-400/90 border-t-transparent"
+                aria-hidden="true"
+            />
+        </div>
+    );
 
     return (
         <div className="relative w-full shrink-0">
@@ -399,11 +425,17 @@ export default function TurnIndicator({
                                 minHeight: `${PLAQUE_INNER_MIN_HEIGHT_PX}px`,
                                 paddingTop: `${PLAQUE_INNER_PADDING_Y_PX}px`,
                                 paddingBottom: `${PLAQUE_INNER_PADDING_Y_PX}px`,
-                                paddingLeft: itsControls ? '12px' : undefined,
-                                paddingRight: itsControls ? '12px' : undefined,
+                                paddingLeft: showItsSlot ? '12px' : undefined,
+                                paddingRight: showItsSlot ? '12px' : undefined,
                             }}
                         >
-                            {itsControls ? (
+                            {awaitingServerAfterSubmit ? (
+                                <>
+                                    {roundPill}
+                                    {awaitingServerSpinner}
+                                    {passPlaceholder}
+                                </>
+                            ) : itsControls ? (
                                 <>
                                     {roundPill}
                                     <div

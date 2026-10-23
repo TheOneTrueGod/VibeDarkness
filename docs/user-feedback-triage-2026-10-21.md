@@ -27,6 +27,25 @@ the browser.
 | 14 | Page text highlightable | `app.css` disables selection on `body`, re-enables it for inputs, textareas and contenteditable; `select-text` added to Chat and DebugConsole |
 | 15 | Monster mission −100 exhaustion | `recover_exhaustion_auto` phrase (100) added to the Monster post-mission story. It applies per character, clamped at 0, the same way Campsite does it |
 
+#### Item 10, spinner while waiting on the server (uncommitted)
+
+Built after the batch above, to the approved mockup: the same plaque and side lines, the round
+pill on the left, a centred spinner with no text, and an empty slot sized for Pass on the right.
+- "Waiting" means `InteractiveTargetingSession.isCommitInFlight`: it's set when the commit
+  starts and cleared in a `finally`. It's sampled on the 50 ms ITS poll (`itsCommitInFlight` in
+  `useInteractiveTargetingProgress.ts`).
+- The state is derived by `computeAwaitingServerAfterSubmit` in `turnIndicatorState.ts`, which is
+  tested, and passed to `TurnIndicator` as `awaitingServerAfterSubmit`.
+- A submit failure (`orderSubmitFailed`) hides the spinner straight away, so the controls come
+  back beside the error banner.
+
+Known gaps:
+- If BattleNet accepts the order but holds it back (client ahead of host), the commit finishes
+  and the spinner goes. The plaque then shows what it shows today, plus the "Queued N" chip.
+- On a rollback commit, the spinner also replaces the frame stepper during the rewind crossfade.
+- A network call that never settles keeps the spinner up until the HTTP timeout.
+- Not checked in the browser.
+
 Follow-ups noticed during review:
 - `AUTO_END_TURN` now defaults to `true` everywhere, including tests. Only the interaction tests
   were run, so `npm run ci` / the full suite is the backstop for any test that assumed `false`.
@@ -42,7 +61,6 @@ Follow-ups noticed during review:
 | 2 | Alpha wolf not using Charge / basic attack | Medium | Ready to hand off; needs a failing test first |
 | 5 | Slimes attack twice per round, once per half | Medium | Ready to hand off; needs a new reusable AI setting |
 | 8 | South Gate Swarm wolves spawn in light | — | Deferred by user (likely an undeployed build) |
-| 10 | Spinner instead of ITS buttons while waiting on server | Medium | Ready to hand off |
 | 11 | Skip "Prepare Carefully" for campfires / events | Medium | Needs one answer: every `skipBattle` mission, or only random-story / quest ones? |
 
 ---

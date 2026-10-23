@@ -231,6 +231,14 @@ export class InteractiveTargetingSession {
         return this._isActive;
     }
 
+    /**
+     * True while {@link commit} is running (validating, awaiting the network, applying). Cleared
+     * in a `finally`, so it drops on every success, rejection, failure and early return.
+     */
+    get isCommitInFlight(): boolean {
+        return this._commitInFlight;
+    }
+
     get currentLabel(): string | null {
         return this._currentLabel;
     }

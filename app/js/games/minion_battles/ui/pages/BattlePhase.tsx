@@ -43,7 +43,7 @@ import { handleItsCanvasClick, handleItsCanvasRightClick } from '../../game/inte
 import BattleLoadingScreen from './battlePhase/BattleLoadingScreen';
 import OrderSubmitFailedBanner from './battlePhase/OrderSubmitFailedBanner';
 import RewindOverlay from './battlePhase/RewindOverlay';
-import { computeTurnIndicatorProps } from './battlePhase/turnIndicatorState';
+import { computeAwaitingServerAfterSubmit, computeTurnIndicatorProps } from './battlePhase/turnIndicatorState';
 import { useBossHudPolling } from './battlePhase/useBossHudPolling';
 import { useBattleDebugBridge } from './battlePhase/useBattleDebugBridge';
 import { useInteractiveTargetingProgress } from './battlePhase/useInteractiveTargetingProgress';
@@ -191,6 +191,7 @@ export default function BattlePhase({
 
     const {
         interactiveTargetingState,
+        itsCommitInFlight,
         playerTileRefresh,
         getItsPlayaheadTicks,
         autoCommitItsAttemptedRef,
@@ -427,6 +428,12 @@ export default function BattlePhase({
         players,
     });
 
+    // Turn submitted, waiting on the server: the plaque shows a spinner instead of the ITS controls.
+    const awaitingServerAfterSubmit = computeAwaitingServerAfterSubmit({
+        itsCommitInFlight,
+        orderSubmitFailed,
+    });
+
     const renderTurnIndicator = (sideControls: TurnIndicatorSideControls) => (
         <TurnIndicator
             state={turnIndicatorState.state}
@@ -450,6 +457,7 @@ export default function BattlePhase({
                     : null
             }
             orderPipeline={orderPipeline}
+            awaitingServerAfterSubmit={awaitingServerAfterSubmit}
             itsControls={
                 interactiveTargetingState !== 'inactive' || rewindOverlay != null
                     ? (

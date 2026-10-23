@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeTurnIndicatorProps } from './turnIndicatorState';
+import { computeAwaitingServerAfterSubmit, computeTurnIndicatorProps } from './turnIndicatorState';
 import type { WaitingForOrders } from '../../../game/types';
 import type { PlayerState } from '../../../../../types';
 
@@ -92,5 +92,17 @@ describe('computeTurnIndicatorProps', () => {
             players,
         });
         expect(result).toEqual({ state: 'your_turn', allyName: undefined });
+    });
+});
+
+describe('computeAwaitingServerAfterSubmit', () => {
+    it.each([
+        { itsCommitInFlight: false, orderSubmitFailed: false, expected: false },
+        { itsCommitInFlight: true, orderSubmitFailed: false, expected: true },
+        // A submit failure drops the spinner even before the commit finishes.
+        { itsCommitInFlight: true, orderSubmitFailed: true, expected: false },
+        { itsCommitInFlight: false, orderSubmitFailed: true, expected: false },
+    ])('commit in flight $itsCommitInFlight, failed $orderSubmitFailed -> $expected', ({ expected, ...args }) => {
+        expect(computeAwaitingServerAfterSubmit(args)).toBe(expected);
     });
 });
