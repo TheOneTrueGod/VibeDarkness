@@ -1,11 +1,12 @@
 /**
  * Equipment slot helpers shared by every equip UI (Character Editor, Prepare screen):
  * which slots a character has (in a chosen display order), which slots the player's knowledge
- * unlocks, which items fit them, item search, the quest equipment lock, and the save payload for
+ * hides or locks, which items fit them and appear in menus, item search, the quest equipment lock, and the save payload for
  * an equipment change.
  */
 import {
     hasAccountKnowledge,
+    KNOWLEDGE_EQUIPMENT_SLOT_CUSTOMIZATION_CORE,
     KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1,
     type AccountKnowledgeMap,
 } from '../../../../accountKnowledge';
@@ -49,33 +50,72 @@ export function getSlotDescriptors(
     return out;
 }
 
-/** Slots that only exist once the player has an account knowledge key. */
+/** What a knowledge-gated slot does while the player lacks the knowledge. */
+export type SlotKnowledgeGate =
+    /** The slot doesn't appear at all. */
+    | 'hidden'
+    /** The slot appears with a lock and can't be changed; its items leave the equipment menus. */
+    | 'locked';
+
+/** Slots gated by account knowledge. `index` omitted = every slot of that type. */
 export const SLOT_KNOWLEDGE_REQUIREMENTS: readonly {
     type: EquipmentSlotType;
-    index: number;
+    index?: number;
     knowledgeKey: string;
+    whenMissing: SlotKnowledgeGate;
 }[] = [
-    { type: 'utility', index: 0, knowledgeKey: KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1 },
+    { type: 'utility', index: 0, knowledgeKey: KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1, whenMissing: 'hidden' },
+    { type: 'core', knowledgeKey: KNOWLEDGE_EQUIPMENT_SLOT_CUSTOMIZATION_CORE, whenMissing: 'locked' },
 ];
 
-/** Whether the player's knowledge unlocks this slot (slots with no requirement are always open). */
-export function isSlotUnlocked(slot: EquipmentSlotDescriptor, knowledge: AccountKnowledgeMap): boolean {
+/** `open` when no requirement applies or the player has it; otherwise the requirement's gate. */
+export function getSlotKnowledgeState(
+    slot: Pick<EquipmentSlotDescriptor, 'type' | 'index'>,
+    knowledge: AccountKnowledgeMap,
+): 'open' | SlotKnowledgeGate {
     const requirement = SLOT_KNOWLEDGE_REQUIREMENTS.find(
-        (r) => r.type === slot.type && r.index === (slot.index ?? 0),
+        (r) => r.type === slot.type && (r.index === undefined || r.index === (slot.index ?? 0)),
     );
-    return !requirement || hasAccountKnowledge(knowledge, requirement.knowledgeKey);
+    if (!requirement || hasAccountKnowledge(knowledge, requirement.knowledgeKey)) return 'open';
+    return requirement.whenMissing;
+}
+
+/** A slot the player can see; `locked` slots show a lock and accept no changes. */
+export interface VisibleEquipmentSlot extends EquipmentSlotDescriptor {
+    locked: boolean;
 }
 
 /**
- * Slots the player can see and equip into: the core's slots minus those their knowledge hasn't
- * unlocked. A locked slot is UI-only: an item already in it stays equipped and works in battle.
+ * Slots the player can see: the core's slots minus knowledge-hidden ones, each flagged when
+ * knowledge-locked. Gating is UI-only: an item already in a hidden or locked slot stays equipped
+ * and works in battle.
  */
-export function getUnlockedSlotDescriptors(
+export function getVisibleSlotDescriptors(
     equipment: string[],
     knowledge: AccountKnowledgeMap,
     order: readonly EquipmentSlotType[] = CORE_FIRST_SLOT_ORDER,
-): EquipmentSlotDescriptor[] {
-    return getSlotDescriptors(equipment, order).filter((slot) => isSlotUnlocked(slot, knowledge));
+): VisibleEquipmentSlot[] {
+    const out: VisibleEquipmentSlot[] = [];
+    for (const slot of getSlotDescriptors(equipment, order)) {
+        const state = getSlotKnowledgeState(slot, knowledge);
+        if (state !== 'hidden') out.push({ ...slot, locked: state === 'locked' });
+    }
+    return out;
+}
+
+/** Whether the player may customize slots of this type (false while any of them is knowledge-locked). */
+export function isSlotTypeCustomizable(type: EquipmentSlotType, knowledge: AccountKnowledgeMap): boolean {
+    return !SLOT_KNOWLEDGE_REQUIREMENTS.some(
+        (r) => r.type === type && r.whenMissing === 'locked' && !hasAccountKnowledge(knowledge, r.knowledgeKey),
+    );
+}
+
+/** Items to list in equipment menus: drops items that only fit slot types the player can't customize. */
+export function filterEquipmentMenuItemIds(itemIds: readonly string[], knowledge: AccountKnowledgeMap): string[] {
+    return itemIds.filter((id) => {
+        const slots = getItemDef(id)?.slots ?? [];
+        return slots.some((type) => isSlotTypeCustomizable(type, knowledge));
+    });
 }
 
 /** Whether `itemId` may be equipped into a slot of `slotType`. */
@@ -101,12 +141,18 @@ export function filterItemIdsByName(itemIds: readonly string[], query: string): 
 /** Equipment list filters (the Prepare drawer's filter buttons). */
 export type EquipmentFilterId = 'melee' | 'ranged' | 'utility' | 'core';
 
-export const EQUIPMENT_FILTERS: readonly { id: EquipmentFilterId; label: string }[] = [
+/** `slotType` filters match items by slot; the rest match weapons by `attackRange`. */
+export const EQUIPMENT_FILTERS: readonly { id: EquipmentFilterId; label: string; slotType?: EquipmentSlotType }[] = [
     { id: 'melee', label: 'Melee' },
     { id: 'ranged', label: 'Ranged' },
-    { id: 'utility', label: 'Utility' },
-    { id: 'core', label: 'Core' },
+    { id: 'utility', label: 'Utility', slotType: 'utility' },
+    { id: 'core', label: 'Core', slotType: 'core' },
 ];
+
+/** Filters to offer: slot-type filters disappear while that slot type can't be customized. */
+export function getEquipmentFilters(knowledge: AccountKnowledgeMap): typeof EQUIPMENT_FILTERS {
+    return EQUIPMENT_FILTERS.filter((f) => !f.slotType || isSlotTypeCustomizable(f.slotType, knowledge));
+}
 
 /** Whether an item belongs under one equipment filter. */
 export function itemMatchesFilter(itemId: string, filter: EquipmentFilterId): boolean {

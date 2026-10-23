@@ -7,30 +7,38 @@ import { setEquipmentInSlot } from '../../../../character_defs/items';
 import {
     buildEquipmentUpdate,
     canItemFillSlot,
+    filterEquipmentMenuItemIds,
+    getEquipmentFilters,
     getInventoryItemIds,
-    getUnlockedSlotDescriptors,
+    getVisibleSlotDescriptors,
     isEquipmentLockedByQuest,
     WEAPON_FIRST_SLOT_ORDER,
-    type EquipmentSlotDescriptor,
+    type EQUIPMENT_FILTERS,
+    type VisibleEquipmentSlot,
 } from '../../../../character_defs/items/equipmentSlots';
 import type { EquipmentSlotType } from '../../../../character_defs/items/types';
 
 /** Prepare-screen equipment: slots beside the portrait and the equipment drawer share this. */
 interface PrepEquipmentValue {
     equipment: string[];
-    /** Slots the equipped core grants that the player's knowledge unlocks, weapons first (Prepare order). */
-    slots: EquipmentSlotDescriptor[];
-    /** Items the player owns (equipped ones included; the drawer greys those out). */
+    /** Slots the player can see (knowledge-locked ones flagged), weapons first (Prepare order). */
+    slots: VisibleEquipmentSlot[];
+    /**
+     * Items the player owns that equipment menus list (equipped ones included; the drawer greys
+     * those out). Items for slot types the player can't customize are left out.
+     */
     inventoryItemIds: string[];
+    /** Drawer filter buttons to offer (slot-type filters drop while that type is locked). */
+    filters: typeof EQUIPMENT_FILTERS;
     /** False while the quest lock applies; slots and drawer become read-only. */
     canEdit: boolean;
     saving: boolean;
-    /** Whether some visible slot accepts `itemId` (otherwise the drawer greys it out). */
+    /** Whether some visible, unlocked slot accepts `itemId` (otherwise the drawer greys it out). */
     hasSlotFor: (itemId: string) => boolean;
     /** Item currently being dragged from the drawer (lights up slots that accept it). */
     draggingItemId: string | null;
     setDraggingItemId: (itemId: string | null) => void;
-    /** Equip `itemId` into a visible slot; ignored when it doesn't fit or editing is locked. */
+    /** Equip `itemId` into a visible, unlocked slot; ignored when it doesn't fit or editing is locked. */
     equip: (slot: EquipmentSlotType, itemId: string, slotIndex?: number) => void;
 }
 
@@ -48,7 +56,7 @@ export function PrepEquipmentProvider({
     api: MinionBattlesApi;
     character: CampaignCharacter;
     campaign: CampaignState | null | undefined;
-    /** The local player's account knowledge (unlocks knowledge-gated slots). */
+    /** The local player's account knowledge (unlocks knowledge-gated slots and menu items). */
     knowledge: AccountKnowledgeMap;
     isAdmin: boolean;
     /** Called after a successful save so the lobby refreshes the character (and its abilities). */
@@ -65,19 +73,23 @@ export function PrepEquipmentProvider({
 
     const canEdit = !isEquipmentLockedByQuest(character, isAdmin);
     const slots = useMemo(
-        () => getUnlockedSlotDescriptors(equipment, knowledge, WEAPON_FIRST_SLOT_ORDER),
+        () => getVisibleSlotDescriptors(equipment, knowledge, WEAPON_FIRST_SLOT_ORDER),
         [equipment, knowledge],
     );
     const hasSlotFor = useCallback(
-        (itemId: string) => slots.some((slot) => canItemFillSlot(itemId, slot.type)),
+        (itemId: string) => slots.some((slot) => !slot.locked && canItemFillSlot(itemId, slot.type)),
         [slots],
     );
-    const inventoryItemIds = useMemo(() => getInventoryItemIds(campaign, isAdmin), [campaign, isAdmin]);
+    const inventoryItemIds = useMemo(
+        () => filterEquipmentMenuItemIds(getInventoryItemIds(campaign, isAdmin), knowledge),
+        [campaign, isAdmin, knowledge],
+    );
+    const filters = useMemo(() => getEquipmentFilters(knowledge), [knowledge]);
 
     const equip = useCallback(
         (slot: EquipmentSlotType, itemId: string, slotIndex?: number) => {
             if (!canEdit || !canItemFillSlot(itemId, slot)) return;
-            if (!slots.some((s) => s.type === slot && (s.index ?? 0) === (slotIndex ?? 0))) return;
+            if (!slots.some((s) => !s.locked && s.type === slot && (s.index ?? 0) === (slotIndex ?? 0))) return;
             const previous = equipment;
             const next = setEquipmentInSlot(equipment, slot, itemId, slotIndex);
             if (JSON.stringify(next) === JSON.stringify(previous)) return;
@@ -102,6 +114,7 @@ export function PrepEquipmentProvider({
             equipment,
             slots,
             inventoryItemIds,
+            filters,
             canEdit,
             saving,
             hasSlotFor,
@@ -109,7 +122,7 @@ export function PrepEquipmentProvider({
             setDraggingItemId,
             equip,
         }),
-        [equipment, slots, inventoryItemIds, canEdit, saving, hasSlotFor, draggingItemId, equip],
+        [equipment, slots, inventoryItemIds, filters, canEdit, saving, hasSlotFor, draggingItemId, equip],
     );
 
     return <PrepEquipmentContext.Provider value={value}>{children}</PrepEquipmentContext.Provider>;

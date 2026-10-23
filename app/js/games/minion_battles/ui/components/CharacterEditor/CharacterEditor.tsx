@@ -5,7 +5,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Pencil, X } from 'lucide-react';
+import { Check, Lock, Pencil, X } from 'lucide-react';
 import { getPortraitIdsForPlayer, getPortrait } from '../../../character_defs/portraits';
 import {
     getItemDef,
@@ -26,9 +26,10 @@ import { getCoreFromEquipment } from '../../../character_defs/items';
 import {
     buildEquipmentUpdate as buildQuestAwareEquipmentUpdate,
     getInventoryItemIds,
-    getUnlockedSlotDescriptors,
+    filterEquipmentMenuItemIds,
+    getVisibleSlotDescriptors,
     isEquipmentLockedByQuest,
-    type EquipmentSlotDescriptor,
+    type VisibleEquipmentSlot,
 } from '../../../character_defs/items/equipmentSlots';
 import { RESEARCH_TREES } from '../../../../../researchTrees/list';
 import {
@@ -185,7 +186,7 @@ type EditorTab = CharacterEditorTab;
 const MAX_CHARACTER_NAME_LENGTH = 15;
 
 /** Slot descriptor for the doll: type and optional index for weapon/utility. */
-export type SlotDescriptor = EquipmentSlotDescriptor;
+export type SlotDescriptor = VisibleEquipmentSlot;
 
 export default function CharacterEditor({
     character,
@@ -299,9 +300,10 @@ export default function CharacterEditor({
     const equipmentLockedByQuest = isEquipmentLockedByQuest(character, isAdmin);
     const effectiveEditMode = editMode && !equipmentLockedByQuest;
     const effectiveShowInventory = showInventoryPanel;
-    // Knowledge-gated slots (e.g. Utility 1) are hidden until the character's account has learned them.
+    // Knowledge-gated slots: Utility 1 is hidden and the core slot locked until the character's
+    // account has learned them.
     const unlockedSlots = useMemo(
-        () => getUnlockedSlotDescriptors(equipment, account?.knowledge),
+        () => getVisibleSlotDescriptors(equipment, account?.knowledge),
         [equipment, account?.knowledge],
     );
 
@@ -515,8 +517,9 @@ export default function CharacterEditor({
 
     const visibleInventoryItems = useMemo(() => {
         const base = getInventoryItemIds(resolvedCampaign, permissionAccount?.role === 'admin');
-        return base.filter((id) => !equipment.includes(id));
-    }, [permissionAccount?.role, equipment, resolvedCampaign]);
+        // Items for slot types the account can't customize (e.g. cores) stay out of the menu.
+        return filterEquipmentMenuItemIds(base, account?.knowledge).filter((id) => !equipment.includes(id));
+    }, [permissionAccount?.role, equipment, resolvedCampaign, account?.knowledge]);
 
 
     const handleGrantResource = useCallback(async () => {
@@ -1562,18 +1565,19 @@ function EquippedItemsList({
                 const def = itemId ? getItemDef(itemId) : null;
                 const iconUrl = itemId ? ITEM_ICON_URLS[itemId] : null;
                 const key = desc.index !== undefined ? `${desc.type}_${desc.index}` : desc.type;
+                const slotEditable = editMode && !desc.locked;
                 return (
                     <div
                         key={key}
-                        className={`flex shrink-0 w-16 h-16 flex-col items-center justify-center rounded border-2 border-dashed border-border-custom bg-surface/80 p-1 ${
-                            editMode ? 'cursor-pointer hover:border-primary' : 'cursor-default'
+                        className={`relative flex shrink-0 w-16 h-16 flex-col items-center justify-center rounded border-2 border-dashed border-border-custom bg-surface/80 p-1 ${
+                            slotEditable ? 'cursor-pointer hover:border-primary' : 'cursor-default'
                         } transition-colors`}
-                        onDrop={editMode ? (e) => onDropOnSlot(e, desc.type, desc.index) : undefined}
-                        onDragOver={editMode ? onDragOver : undefined}
-                        onDragStart={editMode && itemId ? (e) => onDragStartSlot(e, desc.type, desc.index) : undefined}
-                        draggable={editMode && !!itemId}
-                        onDragEnd={editMode ? onDragEnd : undefined}
-                        title={def?.name ?? desc.label}
+                        onDrop={slotEditable ? (e) => onDropOnSlot(e, desc.type, desc.index) : undefined}
+                        onDragOver={slotEditable ? onDragOver : undefined}
+                        onDragStart={slotEditable && itemId ? (e) => onDragStartSlot(e, desc.type, desc.index) : undefined}
+                        draggable={slotEditable && !!itemId}
+                        onDragEnd={slotEditable ? onDragEnd : undefined}
+                        title={`${def?.name ?? desc.label}${desc.locked ? ' (locked)' : ''}`}
                     >
                         {iconUrl ? (
                             <img
@@ -1583,6 +1587,9 @@ function EquippedItemsList({
                             />
                         ) : (
                             <span className="text-[10px] text-muted text-center leading-tight px-0.5">{desc.label}</span>
+                        )}
+                        {desc.locked && (
+                            <Lock className="pointer-events-none absolute h-5 w-5 text-white drop-shadow" aria-hidden />
                         )}
                     </div>
                 );
@@ -1639,24 +1646,28 @@ function EquipmentDoll({
                     top: `calc(${base.top} + ${offset}%)`,
                 };
                 const key = desc.index !== undefined ? `${desc.type}_${desc.index}` : desc.type;
+                const slotEditable = editMode && !desc.locked;
                 return (
                     <div
                         key={key}
                         className={`absolute w-12 h-12 flex items-center justify-center rounded border-2 border-dashed border-border-custom bg-surface/80 ${
-                            editMode ? 'cursor-pointer hover:border-primary' : 'cursor-default'
+                            slotEditable ? 'cursor-pointer hover:border-primary' : 'cursor-default'
                         } transition-colors`}
                         style={{ left: pos.left, top: pos.top }}
-                        onDrop={editMode ? (e) => onDropOnSlot(e, desc.type, desc.index) : undefined}
-                        onDragOver={editMode ? onDragOver : undefined}
-                        onDragStart={editMode && itemId ? (e) => onDragStartSlot(e, desc.type, desc.index) : undefined}
-                        draggable={editMode && !!itemId}
-                        onDragEnd={editMode ? onDragEnd : undefined}
-                        title={def?.name ?? desc.label}
+                        onDrop={slotEditable ? (e) => onDropOnSlot(e, desc.type, desc.index) : undefined}
+                        onDragOver={slotEditable ? onDragOver : undefined}
+                        onDragStart={slotEditable && itemId ? (e) => onDragStartSlot(e, desc.type, desc.index) : undefined}
+                        draggable={slotEditable && !!itemId}
+                        onDragEnd={slotEditable ? onDragEnd : undefined}
+                        title={`${def?.name ?? desc.label}${desc.locked ? ' (locked)' : ''}`}
                     >
                         {iconUrl ? (
                             <img src={iconUrl} alt={def?.name ?? desc.label} className="w-8 h-8 object-contain pointer-events-none" />
                         ) : (
                             <span className="text-xs text-muted">{desc.label}</span>
+                        )}
+                        {desc.locked && (
+                            <Lock className="pointer-events-none absolute h-5 w-5 text-white drop-shadow" aria-hidden />
                         )}
                     </div>
                 );

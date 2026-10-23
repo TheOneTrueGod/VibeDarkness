@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BowArrow, CircleDot, PanelLeftClose, PanelLeftOpen, Search, Sword, Wrench, type LucideIcon } from 'lucide-react';
 import { getItemDef, ITEM_ICON_URLS } from '../../../../character_defs/items';
 import {
-    EQUIPMENT_FILTERS,
     filterItemIdsByFilters,
     filterItemIdsByName,
     type EquipmentFilterId,
@@ -10,7 +9,7 @@ import {
 import { TestIds } from '../../../../../../testing/testIds';
 import { PREP_EQUIPMENT_DRAG_TYPE, usePrepEquipmentContext } from './PrepEquipmentContext';
 
-/** Icon for each equipment filter button (order and labels come from `EQUIPMENT_FILTERS`). */
+/** Icon for each equipment filter button (order and labels come from `getEquipmentFilters`). */
 const FILTER_ICONS: Record<EquipmentFilterId, LucideIcon> = {
     melee: Sword,
     ranged: BowArrow,
@@ -68,7 +67,8 @@ function DrawerPanel({ open, onClose }: { open: boolean; onClose: () => void }) 
         if (open) searchRef.current?.focus();
     }, [open]);
 
-    const { equipment, inventoryItemIds, canEdit, saving, hasSlotFor, setDraggingItemId } = usePrepEquipmentContext();
+    const { equipment, inventoryItemIds, filters: filterDefs, canEdit, saving, hasSlotFor, setDraggingItemId } =
+        usePrepEquipmentContext();
     const [query, setQuery] = useState('');
     const [filters, setFilters] = useState<ReadonlySet<EquipmentFilterId>>(() => new Set());
     const items = useMemo(
@@ -112,7 +112,7 @@ function DrawerPanel({ open, onClose }: { open: boolean; onClose: () => void }) 
                         />
                     </label>
                     <div className="flex shrink-0 items-center gap-1" role="group" aria-label="Filter items">
-                        {EQUIPMENT_FILTERS.map(({ id, label }) => {
+                        {filterDefs.map(({ id, label }) => {
                             const Icon = FILTER_ICONS[id];
                             const active = filters.has(id);
                             return (

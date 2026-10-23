@@ -3,10 +3,12 @@ import type { QuestRunState } from '../../storylines/questTypes';
 import {
     buildEquipmentUpdate,
     canItemFillSlot,
+    filterEquipmentMenuItemIds,
     filterItemIdsByFilters,
     filterItemIdsByName,
+    getEquipmentFilters,
     getSlotDescriptors,
-    getUnlockedSlotDescriptors,
+    getVisibleSlotDescriptors,
     isEquipmentLockedByQuest,
     itemMatchesFilter,
     WEAPON_FIRST_SLOT_ORDER,
@@ -18,7 +20,10 @@ import { maceItem } from './weapons/014_mace';
 import { throwTorchUtilityItem } from './utility/005_throw_torch';
 import { pistolItem } from './weapons/007_pistol';
 import { ALL_PLAYER_ITEMS, getItemDef } from './index';
-import { KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1 } from '../../../../accountKnowledge';
+import {
+    KNOWLEDGE_EQUIPMENT_SLOT_CUSTOMIZATION_CORE,
+    KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1,
+} from '../../../../accountKnowledge';
 
 describe('getSlotDescriptors', () => {
     it('lists core first by default (Character Editor)', () => {
@@ -111,16 +116,40 @@ describe('equipment filters', () => {
 });
 
 describe('slot knowledge', () => {
+    const visible = (equipment: string[], knowledge: Record<string, unknown> | undefined) =>
+        getVisibleSlotDescriptors(equipment, knowledge, WEAPON_FIRST_SLOT_ORDER).map(
+            (d) => `${d.label}${d.locked ? ' (locked)' : ''}`,
+        );
+
     it('hides Utility 1 until the player has its knowledge', () => {
-        const types = (knowledge: Record<string, unknown> | undefined) =>
-            getUnlockedSlotDescriptors([coreEarthItem.id], knowledge, WEAPON_FIRST_SLOT_ORDER).map((d) => d.type);
-        expect(types(undefined)).toEqual(['weapon', 'core']);
-        expect(types({})).toEqual(['weapon', 'core']);
-        expect(types({ [KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1]: {} })).toEqual(['weapon', 'core', 'utility']);
+        const all = { [KNOWLEDGE_EQUIPMENT_SLOT_CUSTOMIZATION_CORE]: {} };
+        expect(visible([coreEarthItem.id], all)).toEqual(['weapon', 'core']);
+        expect(visible([coreEarthItem.id], { ...all, [KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1]: {} })).toEqual([
+            'weapon',
+            'core',
+            'utility',
+        ]);
     });
 
-    it('leaves slots without a knowledge requirement open', () => {
-        const labels = getUnlockedSlotDescriptors([coreWeaponsItem.id], {}, WEAPON_FIRST_SLOT_ORDER).map((d) => d.label);
-        expect(labels).toEqual(['weapon 1', 'weapon 2', 'weapon 3', 'core']);
+    it('shows the core slot locked until the player has core customization knowledge', () => {
+        expect(visible([coreEarthItem.id], undefined)).toEqual(['weapon', 'core (locked)']);
+        expect(visible([coreEarthItem.id], { [KNOWLEDGE_EQUIPMENT_SLOT_CUSTOMIZATION_CORE]: {} })).toEqual([
+            'weapon',
+            'core',
+        ]);
+    });
+
+    it('leaves weapon slots ungated', () => {
+        expect(visible([coreWeaponsItem.id], {})).toEqual(['weapon 1', 'weapon 2', 'weapon 3', 'core (locked)']);
+    });
+
+    it('drops core items and the Core filter from menus without core customization', () => {
+        const ids = [swordItem.id, coreEarthItem.id, throwTorchUtilityItem.id];
+        expect(filterEquipmentMenuItemIds(ids, {})).toEqual([swordItem.id, throwTorchUtilityItem.id]);
+        expect(getEquipmentFilters({}).map((f) => f.id)).toEqual(['melee', 'ranged', 'utility']);
+
+        const known = { [KNOWLEDGE_EQUIPMENT_SLOT_CUSTOMIZATION_CORE]: {} };
+        expect(filterEquipmentMenuItemIds(ids, known)).toEqual(ids);
+        expect(getEquipmentFilters(known).map((f) => f.id)).toEqual(['melee', 'ranged', 'utility', 'core']);
     });
 });

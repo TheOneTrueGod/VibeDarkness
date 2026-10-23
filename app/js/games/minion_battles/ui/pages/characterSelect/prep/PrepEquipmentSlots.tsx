@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
+import { Lock } from 'lucide-react';
 import { getEquippedForSlot, getItemDef, ITEM_ICON_URLS } from '../../../../character_defs/items';
-import { canItemFillSlot, type EquipmentSlotDescriptor } from '../../../../character_defs/items/equipmentSlots';
+import { canItemFillSlot, type VisibleEquipmentSlot } from '../../../../character_defs/items/equipmentSlots';
 import { TestIds } from '../../../../../../testing/testIds';
 import { PREP_EQUIPMENT_DRAG_TYPE, usePrepEquipmentContext } from './PrepEquipmentContext';
 
 /** The grid always reserves 3 columns x 2 rows; slots fill row by row (1-3, then 4-6). */
 const GRID_CELLS = 6;
 
-/** Equipment slots beside the Prepare portrait; drop an item from the equipment drawer to equip it. */
+/**
+ * Equipment slots beside the Prepare portrait; drop an item from the equipment drawer to equip it.
+ * Knowledge-locked slots show a lock and take no drops, but keep their tooltip.
+ */
 export function PrepEquipmentSlots() {
     const { equipment, slots, canEdit, draggingItemId, equip } = usePrepEquipmentContext();
 
@@ -42,7 +46,7 @@ function SlotCell({
     accepts,
     onDropItem,
 }: {
-    slot: EquipmentSlotDescriptor;
+    slot: VisibleEquipmentSlot;
     itemId: string | null;
     canEdit: boolean;
     /** An item that fits this slot is being dragged. */
@@ -52,7 +56,7 @@ function SlotCell({
     const [hovered, setHovered] = useState(false);
     const def = itemId ? getItemDef(itemId) : null;
     const iconUrl = itemId ? ITEM_ICON_URLS[itemId] : null;
-    const isDropTarget = canEdit && accepts;
+    const isDropTarget = canEdit && accepts && !slot.locked;
 
     const ringClass = isDropTarget
         ? hovered
@@ -65,7 +69,7 @@ function SlotCell({
     return (
         <div
             className="flex min-h-0 w-12 flex-col items-center justify-center gap-1"
-            title={def?.name ?? slot.label}
+            title={`${def?.name ?? slot.label}${slot.locked ? ' (locked)' : ''}`}
             onDragOver={
                 isDropTarget
                     ? (e) => {
@@ -92,11 +96,20 @@ function SlotCell({
                 {slot.label}
             </span>
             <div
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${ringClass}`}
-                aria-label={def ? `${slot.label}: ${def.name}` : `Empty ${slot.label} slot`}
+                className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${ringClass}`}
+                aria-label={`${def ? `${slot.label}: ${def.name}` : `Empty ${slot.label} slot`}${slot.locked ? ' (locked)' : ''}`}
+                aria-disabled={slot.locked || undefined}
             >
                 {iconUrl && (
-                    <img src={iconUrl} alt="" className="h-6 w-6 object-contain pointer-events-none" draggable={false} />
+                    <img
+                        src={iconUrl}
+                        alt=""
+                        className={`h-6 w-6 object-contain pointer-events-none ${slot.locked ? 'opacity-40' : ''}`}
+                        draggable={false}
+                    />
+                )}
+                {slot.locked && (
+                    <Lock className="pointer-events-none absolute h-4 w-4 text-white drop-shadow" aria-hidden />
                 )}
             </div>
         </div>
