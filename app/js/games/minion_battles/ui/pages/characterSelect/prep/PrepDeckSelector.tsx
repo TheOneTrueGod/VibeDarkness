@@ -9,6 +9,8 @@ interface PrepDeckSelectorProps {
     selectedPrimaryIds: readonly string[];
     slotsFull: boolean;
     onAdd: (abilityId: string) => void;
+    /** Drop on a bottom-bar slot: swap that slot's ability for this one. */
+    onPlace: (slotIndex: number, abilityId: string) => void;
 }
 
 /**
@@ -22,6 +24,7 @@ export function PrepDeckSelector({
     selectedPrimaryIds,
     slotsFull,
     onAdd,
+    onPlace,
 }: PrepDeckSelectorProps) {
     if (!isPrepDeckSelectorUnlocked(selectableIds.length)) return null;
     return (
@@ -31,6 +34,7 @@ export function PrepDeckSelector({
             selectedPrimaryIds={selectedPrimaryIds}
             slotsFull={slotsFull}
             onAdd={onAdd}
+            onPlace={onPlace}
         />
     );
 }

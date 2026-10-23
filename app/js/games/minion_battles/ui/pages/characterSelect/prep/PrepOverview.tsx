@@ -13,6 +13,7 @@ interface PrepOverviewProps {
     selectedPrimaryIds: readonly string[];
     slotsFull: boolean;
     onAdd: (abilityId: string) => void;
+    onPlace: (slotIndex: number, abilityId: string) => void;
 }
 
 /**
@@ -29,6 +30,7 @@ export function PrepOverview({
     selectedPrimaryIds,
     slotsFull,
     onAdd,
+    onPlace,
 }: PrepOverviewProps) {
     const deckSelector = (
         <PrepDeckSelector
@@ -37,6 +39,7 @@ export function PrepOverview({
             selectedPrimaryIds={selectedPrimaryIds}
             slotsFull={slotsFull}
             onAdd={onAdd}
+            onPlace={onPlace}
         />
     );
 

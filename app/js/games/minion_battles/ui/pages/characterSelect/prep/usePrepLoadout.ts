@@ -10,6 +10,7 @@ import {
     isQuestPrepSlotsFull,
     moveQuestPrepAbility,
     needsMissionAbilitySelection,
+    placeQuestPrepAbilityAt,
     readOnlyPrepSelection,
     PREP_ABILITY_SLOT_COUNT,
     removeQuestPrepAbility,
@@ -156,6 +157,17 @@ export function usePrepLoadout({
         [localPrimaries, pushLoadout, readOnly],
     );
 
+    // Drag from the picker onto a slot: swap out that slot's primary (or fill an empty slot).
+    const placeAbility = useCallback(
+        (slotIndex: number, abilityId: string) => {
+            if (readOnly) return;
+            const next = placeQuestPrepAbilityAt(localPrimaries, slotIndex, abilityId);
+            if (JSON.stringify(next) === JSON.stringify(localPrimaries)) return;
+            void pushLoadout(next);
+        },
+        [localPrimaries, pushLoadout, readOnly],
+    );
+
     // Reordering is allowed even when read-only: the set is locked, the order is the player's.
     const moveAbility = useCallback(
         (fromIndex: number, insertIndex: number) => {
@@ -177,6 +189,7 @@ export function usePrepLoadout({
         abilityReady,
         addAbility,
         removeAbility,
+        placeAbility,
         moveAbility,
     };
 }

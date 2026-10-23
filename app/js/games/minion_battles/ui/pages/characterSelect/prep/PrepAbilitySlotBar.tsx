@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getAbility } from '../../../../abilities/AbilityRegistry';
 import type { AbilityStatic } from '../../../../abilities/Ability';
@@ -7,6 +7,12 @@ import { PREP_ABILITY_SLOT_COUNT } from '../../../../storylines/questPrepLoadout
 import { TestIds } from '../../../../../../testing/testIds';
 import { ABILITY_SLOT_PREP_HEIGHT_PX, ABILITY_SLOT_WIDTH_PX } from '../../../components/AbilitySlot';
 import { AbilitySlotPreview } from '../../../components/AbilitySlotPreview';
+import {
+    PREP_SLOT_INDEX_ATTR,
+    prepDropTargetAt,
+    usePointerDragGesture,
+    usePrepAbilityDrag,
+} from './PrepAbilityDrag';
 
 interface PrepAbilitySlotBarProps {
     character: CampaignCharacter;
@@ -22,9 +28,6 @@ interface PrepAbilitySlotBarProps {
     onReorder?: (fromIndex: number, insertIndex: number) => void;
 }
 
-/** Pointer travel (px) before a press on a card becomes a drag instead of a click. */
-const DRAG_THRESHOLD_PX = 5;
-
 interface SlotDrag {
     fromIndex: number;
     /** Gap the card would drop into, or null while it would land where it started. */
@@ -39,6 +42,8 @@ interface SlotDrag {
 /**
  * Bottom row: prep primary slots; click occupied to remove (+ attached leave with it).
  * Press and drag an occupied card to pick it up; a bar between two cards marks the drop point.
+ * Drop it on the center ability picker to unequip it. While a picker card is dragged over a slot,
+ * that slot gets a yellow border (dropping swaps the two abilities).
  */
 export function PrepAbilitySlotBar({
     character,
@@ -67,15 +72,13 @@ export function PrepAbilitySlotBar({
 
     const firstEmpty = slots.findIndex((ability) => !ability);
     const occupiedCount = firstEmpty === -1 ? slots.length : firstEmpty;
-    const canDrag = !!onReorder && occupiedCount > 1;
+    // A card can be dragged to reorder (needs 2+) or, when the loadout isn't locked, up to the picker.
+    const canDrag = !!onReorder && (occupiedCount > 1 || !readOnly);
 
     const slotRefs = useRef<Array<HTMLDivElement | null>>([]);
     const [drag, setDrag] = useState<SlotDrag | null>(null);
-    /** Set when a drag ends so the click that follows pointerup doesn't also remove the card. */
-    const suppressClickRef = useRef(false);
-    const cleanupRef = useRef<(() => void) | null>(null);
-
-    useEffect(() => () => cleanupRef.current?.(), []);
+    const { begin, onClickCapture } = usePointerDragGesture();
+    const { hoverSlotIndex, setPickerDropActive } = usePrepAbilityDrag();
 
     /** Gap under the pointer (how many occupied cards' centres lie left of it); null if a no-op. */
     const insertIndexAt = useCallback(
@@ -90,66 +93,35 @@ export function PrepAbilitySlotBar({
         [occupiedCount],
     );
 
-    const handlePointerDown = (index: number) => (e: React.PointerEvent<HTMLDivElement>) => {
-        if (!canDrag || !onReorder || e.button !== 0) return;
-        cleanupRef.current?.();
-        const startX = e.clientX;
-        const startY = e.clientY;
-        const rect = e.currentTarget.getBoundingClientRect();
-        let dragging = false;
+    /** Over the picker (and allowed to unequip): drop removes the card instead of reordering. */
+    const overPickerAt = (clientX: number, clientY: number) =>
+        !readOnly && prepDropTargetAt(clientX, clientY).overPicker;
 
-        const onMove = (ev: PointerEvent) => {
-            if (!dragging) {
-                if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < DRAG_THRESHOLD_PX) return;
-                dragging = true;
-            }
-            ev.preventDefault();
-            setDrag({
-                fromIndex: index,
-                insertIndex: insertIndexAt(ev.clientX, index),
-                x: ev.clientX,
-                y: ev.clientY,
-                offsetX: startX - rect.left,
-                offsetY: startY - rect.top,
-            });
-        };
-        const finish = (ev: PointerEvent | null) => {
-            cleanup();
-            if (!dragging) return;
-            suppressClickRef.current = true;
-            // No click follows when the pointer is released off the card; don't eat the next one.
-            window.setTimeout(() => {
-                suppressClickRef.current = false;
-            }, 0);
-            setDrag(null);
-            if (!ev) return;
-            const insertIndex = insertIndexAt(ev.clientX, index);
-            if (insertIndex !== null) onReorder(index, insertIndex);
-        };
-        const onUp = (ev: PointerEvent) => finish(ev);
-        const onCancel = () => finish(null);
-        const onKey = (ev: KeyboardEvent) => {
-            if (ev.key === 'Escape') finish(null);
-        };
-        const cleanup = () => {
-            window.removeEventListener('pointermove', onMove);
-            window.removeEventListener('pointerup', onUp);
-            window.removeEventListener('pointercancel', onCancel);
-            window.removeEventListener('keydown', onKey);
-            cleanupRef.current = null;
-        };
-        window.addEventListener('pointermove', onMove);
-        window.addEventListener('pointerup', onUp);
-        window.addEventListener('pointercancel', onCancel);
-        window.addEventListener('keydown', onKey);
-        cleanupRef.current = cleanup;
-    };
-
-    const handleClickCapture = (e: React.MouseEvent) => {
-        if (!suppressClickRef.current) return;
-        suppressClickRef.current = false;
-        e.stopPropagation();
-        e.preventDefault();
+    const handlePointerDown = (index: number, ability: AbilityStatic) => (e: React.PointerEvent<HTMLDivElement>) => {
+        if (!canDrag || !onReorder) return;
+        begin(e, {
+            onMove: (ev, point) => {
+                const overPicker = overPickerAt(ev.clientX, ev.clientY);
+                setPickerDropActive(overPicker);
+                setDrag({
+                    fromIndex: index,
+                    insertIndex: overPicker ? null : insertIndexAt(ev.clientX, index),
+                    ...point,
+                });
+            },
+            onDrop: (ev) => {
+                if (overPickerAt(ev.clientX, ev.clientY)) {
+                    onRemove(ability.id);
+                    return;
+                }
+                const insertIndex = insertIndexAt(ev.clientX, index);
+                if (insertIndex !== null) onReorder(index, insertIndex);
+            },
+            onEnd: () => {
+                setDrag(null);
+                setPickerDropActive(false);
+            },
+        });
     };
 
     const draggedAbility = drag ? slots[drag.fromIndex] : null;
@@ -162,7 +134,7 @@ export function PrepAbilitySlotBar({
             <div className="max-w-full overflow-x-auto overflow-y-hidden">
                 <div
                     className={`mx-auto flex w-max items-start gap-2 ${drag ? 'select-none' : ''}`}
-                    onClickCapture={handleClickCapture}
+                    onClickCapture={onClickCapture}
                 >
                     {slots.map((ability, index) => (
                         <div
@@ -171,11 +143,13 @@ export function PrepAbilitySlotBar({
                                 slotRefs.current[index] = el;
                             }}
                             className={[
-                                'relative shrink-0',
+                                'relative shrink-0 rounded-lg',
+                                hoverSlotIndex === index ? 'ring-2 ring-yellow-300' : '',
                                 ability && canDrag ? 'cursor-grab' : '',
                                 drag?.fromIndex === index ? 'opacity-30' : '',
                             ].filter(Boolean).join(' ')}
-                            onPointerDown={ability ? handlePointerDown(index) : undefined}
+                            {...{ [PREP_SLOT_INDEX_ATTR]: index }}
+                            onPointerDown={ability ? handlePointerDown(index, ability) : undefined}
                             onDragStart={(e) => e.preventDefault()}
                         >
                             {drag?.insertIndex === index && <SlotDropMarker side="left" />}

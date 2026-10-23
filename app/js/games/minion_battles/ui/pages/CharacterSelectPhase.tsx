@@ -38,6 +38,7 @@ import { PrepLoadoutProvider, usePrepLoadoutContext } from './characterSelect/pr
 import { PrepEquipmentProvider } from './characterSelect/prep/PrepEquipmentContext';
 import { PrepEquipmentSlots } from './characterSelect/prep/PrepEquipmentSlots';
 import { PrepEquipmentDrawer } from './characterSelect/prep/PrepEquipmentDrawer';
+import { PrepAbilityDragProvider } from './characterSelect/prep/PrepAbilityDrag';
 import { missionPrepConfig, questPrepConfig } from './characterSelect/prep/prepLoadoutConfig';
 import { getQuestDef } from '../../storylines/questRegistry';
 import type { CampaignCharacter } from '../../character_defs/CampaignCharacter';
@@ -124,6 +125,7 @@ function PrepCenter({
             selectedPrimaryIds={loadout.selectedPrimaryIds}
             slotsFull={loadout.slotsFull}
             onAdd={loadout.addAbility}
+            onPlace={loadout.placeAbility}
         />
     );
 }
@@ -408,7 +410,7 @@ export default function CharacterSelectPhase({
                 isAdmin={isAdmin}
                 onSaved={chars.handleEditorSaved}
             >
-                {content}
+                <PrepAbilityDragProvider>{content}</PrepAbilityDragProvider>
             </PrepEquipmentProvider>
         </PrepLoadoutProvider>
     );

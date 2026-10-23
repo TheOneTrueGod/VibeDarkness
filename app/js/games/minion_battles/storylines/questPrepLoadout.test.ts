@@ -20,6 +20,7 @@ import {
     isSecondaryAbility,
     moveQuestPrepAbility,
     needsMissionAbilitySelection,
+    placeQuestPrepAbilityAt,
     prepLoadoutAfterResearchGrant,
     prepLoadoutPrimaryIdsForResearchGrant,
     readOnlyPrepSelection,
@@ -63,6 +64,17 @@ describe('Quest Prep slot helpers', () => {
     it('does not duplicate an already selected primary', () => {
         const selected = addQuestPrepAbility(['0101'], '0101');
         expect(selected).toEqual(['0101']);
+    });
+
+    it('placeQuestPrepAbilityAt swaps an occupied slot and fills an empty one', () => {
+        expect(placeQuestPrepAbilityAt(['a', 'b', 'c'], 1, 'x')).toEqual(['a', 'x', 'c']);
+        expect(placeQuestPrepAbilityAt(['a', 'b'], 5, 'x')).toEqual(['a', 'b', 'x']);
+        // Already-selected ids and bad indexes leave the loadout alone.
+        expect(placeQuestPrepAbilityAt(['a', 'b'], 0, 'b')).toEqual(['a', 'b']);
+        expect(placeQuestPrepAbilityAt(['a', 'b'], -1, 'x')).toEqual(['a', 'b']);
+        // A full loadout only swaps; an "empty" index past the cap does nothing.
+        const full = ['1', '2', '3', '4', '5', '6', '7'];
+        expect(placeQuestPrepAbilityAt(full, 7, 'x')).toEqual(full);
     });
 
     it('removeQuestPrepAbility drops the primary only', () => {

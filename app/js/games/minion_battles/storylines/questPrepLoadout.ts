@@ -100,6 +100,24 @@ export function addQuestPrepAbility(
     return [...selectedPrimaryIds, abilityId];
 }
 
+/**
+ * Put `abilityId` into slot `slotIndex`: an occupied slot swaps its primary out for it, an empty
+ * slot (index past the last pick) fills the next open slot. Already-selected ids are unchanged.
+ */
+export function placeQuestPrepAbilityAt(
+    selectedPrimaryIds: readonly string[],
+    slotIndex: number,
+    abilityId: string,
+): string[] {
+    if (selectedPrimaryIds.includes(abilityId) || slotIndex < 0) return [...selectedPrimaryIds];
+    if (slotIndex < selectedPrimaryIds.length) {
+        const next = [...selectedPrimaryIds];
+        next[slotIndex] = abilityId;
+        return next;
+    }
+    return addQuestPrepAbility(selectedPrimaryIds, abilityId);
+}
+
 /** Remove a primary (and its attached companions leave with it). */
 export function removeQuestPrepAbility(
     selectedPrimaryIds: readonly string[],
