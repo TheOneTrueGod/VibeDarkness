@@ -6,6 +6,9 @@ import {
     loadoutShieldResearchChainScenario,
     loadoutEarthCoreKeepsChargedRockScenario,
     loadoutEarthCoreNoBonusRockScenario,
+    loadoutEquipmentItemsYieldCardsScenario,
+    loadoutRocksNoLightChargeScenario,
+    loadoutMoreRockSharedTreeScenario,
 } from '../scenarios/general/equipmentLoadout';
 import { getScenarioById } from '../scenarios/registry';
 import { pathShortCommuteScenario, dodgeIFrameProtectionScenario } from '../scenarios/general/pathfinding';
@@ -190,12 +193,12 @@ describe('runScenarioHeadless', () => {
         expect(r.passed).toBe(true);
     });
 
-    it('passes swing bat hits 3 of 4 targets with knockback scenario', () => {
+    it('passes swing mace hits 3 of 4 targets with knockback scenario', () => {
         const r = runScenarioHeadless(swingBatHitsThreeTargetsScenario);
         expect(r.passed, r.message).toBe(true);
     });
 
-    it('passes swing bat sequential aim pixel: lock-on hit + lunge toward click pixel', () => {
+    it('passes swing mace sequential aim pixel: lock-on hit + lunge toward click pixel', () => {
         const r = runScenarioHeadless(swingBatSequentialAimPixelScenario);
         expect(r.passed, r.message).toBe(true);
     });
@@ -526,7 +529,7 @@ describe('runScenarioHeadless', () => {
         expect(r.passed, r.message).toBe(true);
     });
 
-    it('Gather Light (0804) + Light Imbuement research → Imbued Bat (0803): full cast flow deals damage', () => {
+    it('Gather Light (0804) + Light Imbuement research → Imbued Mace (0803): full cast flow deals damage', () => {
         const r = runScenarioHeadless(lightImbuementAndImbuedBatScenario);
         expect(r.passed, r.message).toBe(true);
     });
@@ -641,7 +644,7 @@ describe('runScenarioHeadless', () => {
         expect(r.passed, r.message).toBe(true);
     });
 
-    it('Imbued Bat (0803): cone strict fill drops leavers', () => {
+    it('Imbued Mace (0803): cone strict fill drops leavers', () => {
         const r = runScenarioHeadless(imbuedBatConeStrictFillScenario);
         expect(r.passed, r.message).toBe(true);
     });
@@ -661,7 +664,7 @@ describe('runScenarioHeadless', () => {
         expect(r.passed, r.message).toBe(true);
     });
 
-    it('loadout_rocks_charged_rock_hits: Rocks + Charged Rocks research casts Throw Charged Rock and hits', () => {
+    it('loadout_rocks_charged_rock_hits: Charged Rocks item casts Throw Charged Rock and hits (item passive recovers a use)', () => {
         const r = runScenarioHeadless(loadoutRocksChargedRockHitsScenario);
         expect(r.passed, r.message).toBe(true);
     });
@@ -671,13 +674,28 @@ describe('runScenarioHeadless', () => {
         expect(r.passed, r.message).toBe(true);
     });
 
-    it('loadout_shield_research_chain: shield research chain gives 0113 + 0121 and 0113 resolves', () => {
+    it('loadout_shield_research_chain: Charged Shield item gives 0113 + 0121 and 0113 resolves', () => {
         const r = runScenarioHeadless(loadoutShieldResearchChainScenario);
         expect(r.passed, r.message).toBe(true);
     });
 
-    it('loadout_earth_core_keeps_charged_rock: Earth Core + Rocks + Charged Rocks keeps the Charged Rock throw', () => {
+    it('loadout_earth_core_keeps_charged_rock: Earth Core + Charged Rocks keeps the Charged Rock throw', () => {
         const r = runScenarioHeadless(loadoutEarthCoreKeepsChargedRockScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('loadout_equipment_items_yield_cards: each tier-2/3 weapon item alone yields its cards', () => {
+        const r = runScenarioHeadless(loadoutEquipmentItemsYieldCardsScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('loadout_rocks_no_light_charge_passive: base Rocks gets no round-start Light Charge', () => {
+        const r = runScenarioHeadless(loadoutRocksNoLightChargeScenario);
+        expect(r.passed, r.message).toBe(true);
+    });
+
+    it('loadout_more_rock_shared_tree: More Rock applies with Knives and not with base Rocks', () => {
+        const r = runScenarioHeadless(loadoutMoreRockSharedTreeScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

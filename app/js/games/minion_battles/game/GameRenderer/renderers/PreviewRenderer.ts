@@ -138,7 +138,7 @@ export function renderSelectTargetDef(
         highlightUnits.push(...candidates.slice(0, maxHighlights));
     }
 
-    // Companion hitboxes: dependent ones (e.g. Imbued Bat light cone) only when the primary would
+    // Companion hitboxes: dependent ones (e.g. Imbued Mace light cone) only when the primary would
     // connect, matching commit rules; `independent` ones (e.g. Bloody Claws' second claw) always.
     const primaryConnects = highlightUnits.length > 0;
     const takenIds = new Set(highlightUnits.map((u) => u.id));

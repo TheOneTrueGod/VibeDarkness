@@ -1,7 +1,7 @@
 /**
  * Cone wedge from an origin with an optional inner radius cut-off (donut-sector).
  * Used when an ability needs a forward cone that does not include the near arc
- * (e.g. Imbued Bat light burst from the caster toward the bat swing).
+ * (e.g. Imbued Mace light burst from the caster toward the bat swing).
  */
 
 import type { Unit } from '../game/units/Unit';

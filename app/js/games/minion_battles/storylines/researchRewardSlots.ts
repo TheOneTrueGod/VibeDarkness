@@ -1,4 +1,5 @@
 import type { ResearchRewardSlot, StoryChoiceOptionRow } from './storyTypes';
+import type { EquipmentSlotType } from '../character_defs/items/types';
 import type { ResearchNodeDef, ResearchNodeLevels } from '../../../researchTrees/types';
 import {
     isDisabledResearchNode,
@@ -8,6 +9,7 @@ import {
     getResearchNodeTags,
 } from '../../../researchTrees/types';
 import { getCoreFromEquipment } from '../character_defs/items';
+import { getItemUpgradesFor } from '../character_defs/items/itemUpgrades';
 import { RESEARCH_TREES } from '../../../researchTrees/list';
 import { collectResearchedNodeIds, nodeGrantsEquippedItem } from '../../../researchTrees/evaluator';
 import {
@@ -53,6 +55,9 @@ function sortCandidatesDeterministic(candidates: NodeCandidate[]): NodeCandidate
  *   seeded-random candidate (seed = `randomSeed` + slot index, so the same state gives the same
  *   offer) and uses the strict eligibility rules (`requirementsStrictlyMet`, `treeOpenForRandomReward`).
  *
+ * - `{ kind: 'equipmentUpgrade' }` slots become `equip_item` rows for upgrades of equipped items (no research),
+ *   omitted when the player has no upgrade left to offer.
+ *
  * Non-random slots check `node.requirements` loosely (e.g. characterHasEquippedItem, anyResearched).
  * No slot type checks costs — mission rewards intentionally bypass cost gating.
  *
@@ -78,9 +83,24 @@ export function resolveResearchRewardSlots(
     };
     const claimedKeys = new Set<string>(); // "treeId:nodeId"
 
-    return slots.map((slot, index) => {
+    const claimedUpgradeIds = new Set<string>();
+
+    return slots.flatMap((slot, index): StoryChoiceOptionRow[] => {
         const id = `slot_${index}`;
 
+        if (slot.kind === 'equipmentUpgrade') {
+            const row = resolveEquipmentUpgradeRow(id, slot.slot, equippedItemIds, claimedUpgradeIds);
+            return row ? [row] : [];
+        }
+
+        return [resolveNodeSlot(slot, index, id)];
+    });
+
+    function resolveNodeSlot(
+        slot: Exclude<ResearchRewardSlot, { kind: 'equipmentUpgrade' }>,
+        index: number,
+        id: string,
+    ): StoryChoiceOptionRow {
         if ('nodeId' in slot && slot.nodeId !== undefined) {
             // Specific node — no prereq/exclusivity checks (intentional designer grant)
             const tree = RESEARCH_TREES.find((t) => t.id === slot.treeId);
@@ -141,7 +161,34 @@ export function resolveResearchRewardSlots(
 
         claimedKeys.add(`${picked.treeId}:${picked.node.id}`);
         return buildRow(id, picked.treeId, picked.node, slot.loreTitle, slot.loreDescription);
-    });
+    }
+}
+
+/**
+ * The next unclaimed upgrade of an equipped item as an `equip_item` row, or null when none is left.
+ * Upgrades follow equipped-item order, then registry order, so the offer is deterministic.
+ */
+function resolveEquipmentUpgradeRow(
+    id: string,
+    slot: EquipmentSlotType | undefined,
+    equippedItemIds: readonly string[],
+    claimedUpgradeIds: Set<string>,
+): StoryChoiceOptionRow | null {
+    for (const equippedId of equippedItemIds) {
+        for (const upgrade of getItemUpgradesFor(equippedId)) {
+            if (claimedUpgradeIds.has(upgrade.id)) continue;
+            if (slot && !upgrade.slots.includes(slot)) continue;
+            claimedUpgradeIds.add(upgrade.id);
+            return {
+                id,
+                label: upgrade.name,
+                loreTitle: upgrade.name,
+                loreDescription: upgrade.description,
+                action: { type: 'equip_item', itemId: upgrade.id },
+            };
+        }
+    }
+    return null;
 }
 
 function hashSeed(seed: string): number {

@@ -2,7 +2,7 @@
  * BeastClaw - Player melee ability from BeastCore.
  * Box in front of caster, slashing effect. Swings twice in opposite directions.
  * Knocks back away from caster on both swings.
- * Smaller knockback than Swing Bat, interrupt on hit.
+ * Smaller knockback than Swing Mace, interrupt on hit.
  */
 
 import { AbilityPhase } from '../../../abilities/abilityTimings';

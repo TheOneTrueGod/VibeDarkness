@@ -1,10 +1,12 @@
 import type { ItemDef } from '../types';
 
-/** Pot lid - adds two Raise Shield cards. */
+/** Shield - adds Raise Shield cards. */
 export const potShieldItem: ItemDef = {
     id: '003',
-    name: 'Pot lid',
+    name: 'Shield',
     slots: ['weapon'],
     cardsToAdd: ['0104'],
     icon: '003_pot_shield.svg',
+    tier: 1,
+    campaignIds: ['world_of_darkness'],
 };

@@ -28,9 +28,9 @@ import {
     type MeleeAnimationProfile,
 } from '../../abilities/meleeAnimationProfile';
 import {
-    STICK_SWORD_TREE_ID,
-    STICK_SWORD_NODE_JAGGED_EDGE,
-} from '../../../../researchTrees/trees/stick_sword';
+    SWORD_TREE_ID,
+    SWORD_NODE_JAGGED_EDGE,
+} from '../../../../researchTrees/trees/sword';
 import type { Unit } from '../../game/units/Unit';
 import type { ActiveAbility, ResolvedTarget } from '../../game/types';
 import { type CardDef } from '../types';
@@ -114,7 +114,7 @@ const swingSwordBehaviour = CastBehaviours.MeleeAttack()
     .withDamage(DAMAGE)
     .withKnockback(KNOCKBACK_TIER)
     .onDamage((ctx, unit) => {
-        if (hasResearchNode(ctx.engine, ctx.caster, STICK_SWORD_TREE_ID, STICK_SWORD_NODE_JAGGED_EDGE)) {
+        if (hasResearchNode(ctx.engine, ctx.caster, SWORD_TREE_ID, SWORD_NODE_JAGGED_EDGE)) {
             applyBleedStack(unit, ctx.engine.gameTime, ctx.engine.roundNumber ?? 0, 3);
         }
     });
@@ -164,7 +164,7 @@ export const SwingSwordAbility = defineAbility({
             TOOLTIP_BINDINGS,
             resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
         );
-        if (hasResearchNode(gameState as AbilityEngineContext | undefined, undefined, STICK_SWORD_TREE_ID, STICK_SWORD_NODE_JAGGED_EDGE)) {
+        if (hasResearchNode(gameState as AbilityEngineContext | undefined, undefined, SWORD_TREE_ID, SWORD_NODE_JAGGED_EDGE)) {
             lines[0] = `${lines[0]} Inflicts {Bleed}.`;
         }
         return lines;

@@ -8,10 +8,9 @@ import {
 import type { Unit } from '../game/units/Unit';
 import type { EventBus } from '../game/EventBus';
 import {
-    STICK_SWORD_NODE_EXTRA_USES,
-    STICK_SWORD_TREE_ID,
-} from '../../../researchTrees/trees/stick_sword';
-import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
+    MELEE_WEAPONS_NODE_EXTRA_USES,
+    MELEE_WEAPONS_TREE_ID,
+} from '../../../researchTrees/trees/melee_weapons';
 import { getAbility } from './AbilityRegistry';
 import type { AbilityModifier } from '../../../researchTrees/types';
 import { evaluateSwapTriggers } from './abilitySwap';
@@ -56,15 +55,15 @@ const SWING_SWORD_ABILITY_ID = '0112';
 const SWING_BAT_ABILITY_ID = '0115';
 export const SWING_EXTRA_USES = 2;
 const THROW_ROCK_ABILITY_ID = 'throw_rock';
-const CRYSTAL_ROCKS_NODE_CHARGED_ROCKS = 'charged_rocks';
+const THROW_CHARGED_ROCK_ABILITY_ID = 'throw_charged_rock';
 const THROW_ROCK_USES_PENALTY_WITH_CHARGED = 3;
-/** Iron Wrists research: +max uses for whichever weapon the unit carries (sword or bat path). */
+/** Iron Wrists research (Melee Weapons tree): +max uses for whichever weapon the unit carries (sword or mace). */
 export function applyStickSwordResearchToAbilityRuntime(
     unit: Unit,
     getResearchNodes: (treeId: string) => string[],
 ): void {
-    const nodes = getResearchNodes(STICK_SWORD_TREE_ID);
-    if (!nodes.includes(STICK_SWORD_NODE_EXTRA_USES)) return;
+    const nodes = getResearchNodes(MELEE_WEAPONS_TREE_ID);
+    if (!nodes.includes(MELEE_WEAPONS_NODE_EXTRA_USES)) return;
 
     for (const abilityId of [SWING_SWORD_ABILITY_ID, SWING_BAT_ABILITY_ID]) {
         if (!unit.abilities.includes(abilityId)) continue;
@@ -76,13 +75,9 @@ export function applyStickSwordResearchToAbilityRuntime(
     }
 }
 
-/** Charged Rocks research: Throw Rock has fewer max uses. */
-export function applyCrystalRocksResearchToAbilityRuntime(
-    unit: Unit,
-    getResearchNodes: (treeId: string) => string[],
-): void {
-    const nodes = getResearchNodes(CRYSTAL_ROCKS_TREE_ID);
-    if (!nodes.includes(CRYSTAL_ROCKS_NODE_CHARGED_ROCKS)) return;
+/** Charged Rocks equipment: when Throw Charged Rock is available, Throw Rock has fewer max uses. */
+export function applyChargedRocksEquipmentToAbilityRuntime(unit: Unit): void {
+    if (!unit.abilities.includes(THROW_CHARGED_ROCK_ABILITY_ID)) return;
     if (!unit.abilities.includes(THROW_ROCK_ABILITY_ID)) return;
     ensureAbilityRuntimeState(unit, THROW_ROCK_ABILITY_ID);
     const runtime = unit.abilityRuntime[THROW_ROCK_ABILITY_ID];

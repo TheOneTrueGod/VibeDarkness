@@ -59,6 +59,7 @@ import {
 } from './character_defs/characterMissionResult';
 import { fromCampaignCharacterData } from './character_defs/CampaignCharacter';
 import type { QuestResult } from './storylines/questTypes';
+import { resolveUnlockedTierItemIds } from './storylines/unlockItemTiers';
 import VictoryModal from './ui/components/VictoryModal';
 import { MinionBattlesApi } from './api/minionBattlesApi';
 import { TestIds } from '../../testing/testIds';
@@ -373,6 +374,8 @@ export default function MinionBattlesGame({
     const [missionRewards, setMissionRewards] = useState<{
         resourceDelta?: Partial<Record<CampaignResourceKey, number>>;
         itemFromFirstChoice?: string;
+        /** Items unlocked for the campaign by the mission's `unlockItemTiers` reward. */
+        unlockedItemIds?: string[];
         researchRewardIds?: string[];
         researchRewards?: MissionResearchRewardEntry[];
         healWounds?: number;
@@ -751,12 +754,19 @@ export default function MinionBattlesGame({
                         const skipRewards = amSpectator || amNpcController;
                         const startingItemIds = skipRewards ? [] : getStartingItemIdsForPlayer(missionId, playerId);
                         const chosenPostItemId = skipRewards ? undefined : rewards.itemFromFirstChoice;
+                        const unlockedTierItemIds = skipRewards
+                            ? []
+                            : resolveUnlockedTierItemIds(
+                                  missionDef?.completionRewards?.unlockItemTiers,
+                                  missionDef?.campaignId,
+                              );
                         const itemIds = Array.from(
                             new Set([
                                 ...startingItemIds,
                                 ...(chosenPostItemId ? [chosenPostItemId] : []),
                             ])
                         );
+                        const resultItemIds = Array.from(new Set([...itemIds, ...unlockedTierItemIds]));
                         // Mid-quest: queue resource Campaign Rewards on the Quest Character;
                         // apply them only on quest clear (not via this mission result).
                         const baseVictoryResourceDelta = skipRewards
@@ -790,7 +800,7 @@ export default function MinionBattlesGame({
                                         ? undefined
                                         : {
                                               resourceDelta: recordedDelta,
-                                              itemIds: itemIds.length > 0 ? itemIds : undefined,
+                                              itemIds: resultItemIds.length > 0 ? resultItemIds : undefined,
                                               researchRewardIds: rewards.researchRewardIds,
                                               researchRewards: rewards.researchRewards,
                                               hungerChanges: rewards.hungerChanges,
@@ -804,7 +814,7 @@ export default function MinionBattlesGame({
                                     'victory',
                                     cappedDelta,
                                     skipRewards ? undefined : grantKnowledgeKeys,
-                                    skipRewards ? undefined : itemIds,
+                                    skipRewards ? undefined : resultItemIds,
                                     skipRewards ? undefined : rewards.researchRewardIds,
                                     skipRewards ? undefined : rewards.researchRewards,
                                     {
@@ -827,6 +837,9 @@ export default function MinionBattlesGame({
                                               darknessUpgradeLines,
                                               itemFromFirstChoice:
                                                   rewards.itemFromFirstChoice ?? itemIds[0] ?? undefined,
+                                              unlockedItemIds: unlockedTierItemIds.filter(
+                                                  (id) => !itemIds.includes(id),
+                                              ),
                                           }
                                 );
                                 await prepareQuestVictoryContinue(
@@ -925,6 +938,13 @@ export default function MinionBattlesGame({
                             const amNpcController = isControlEnemy(sel);
                             const skipRewards = amSpectator || amNpcController;
                             const startingItemIds = skipRewards ? [] : getStartingItemIdsForPlayer(missionId, playerId);
+                            const unlockedTierItemIds = skipRewards
+                                ? []
+                                : resolveUnlockedTierItemIds(
+                                      missionDef?.completionRewards?.unlockItemTiers,
+                                      missionDef?.campaignId,
+                                  );
+                            const resultItemIds = Array.from(new Set([...startingItemIds, ...unlockedTierItemIds]));
                             const hungerLoss = skipRewards ? 0 : matchHungerLossRef.current;
                             const baseVictoryResourceDelta = skipRewards
                                 ? undefined
@@ -944,10 +964,7 @@ export default function MinionBattlesGame({
                                             ? undefined
                                             : {
                                                   resourceDelta: recordedDelta,
-                                                  itemIds:
-                                                      startingItemIds.length > 0
-                                                          ? startingItemIds
-                                                          : undefined,
+                                                  itemIds: resultItemIds.length > 0 ? resultItemIds : undefined,
                                               },
                                     );
                                     const cappedDelta = skipRewards
@@ -958,7 +975,7 @@ export default function MinionBattlesGame({
                                         missionResult,
                                         cappedDelta,
                                         skipRewards ? undefined : grantKnowledgeKeys,
-                                        skipRewards ? undefined : startingItemIds,
+                                        skipRewards ? undefined : resultItemIds,
                                         undefined,
                                         undefined,
                                         {
@@ -974,6 +991,9 @@ export default function MinionBattlesGame({
                                             ? null
                                             : {
                                                   itemFromFirstChoice: startingItemIds[0] ?? undefined,
+                                                  unlockedItemIds: unlockedTierItemIds.filter(
+                                                      (id) => !startingItemIds.includes(id),
+                                                  ),
                                                   resourceDelta: cappedDelta,
                                                   darknessUpgradeLines,
                                               }

@@ -20,6 +20,13 @@ import { smgItem } from './weapons/008_smg';
 import { shotgunItem } from './weapons/009_shotgun';
 import { laserSwordItem } from './weapons/010_laser_sword';
 
+import { chargedRocksItem } from './weapons/011_charged_rocks';
+import { knivesItem } from './weapons/012_knives';
+import { swordItem } from './weapons/013_sword';
+import { maceItem } from './weapons/014_mace';
+import { crystalShieldItem } from './weapons/015_crystal_shield';
+import { chargedShieldItem } from './weapons/016_charged_shield';
+
 import rocksIcon from './assets/001_rocks.svg';
 import torchIcon from './assets/002_torch.svg';
 import potShieldIcon from './assets/003_pot_shield.svg';
@@ -35,6 +42,13 @@ import pistolIcon from './assets/007_pistol.svg';
 import smgIcon from './assets/008_smg.svg';
 import shotgunIcon from './assets/009_shotgun.svg';
 import laserSwordIcon from './assets/010_laser_sword.svg';
+
+import chargedRocksIcon from './assets/011_charged_rocks.svg';
+import knivesIcon from './assets/012_knives.svg';
+import swordIcon from './assets/013_sword.svg';
+import maceIcon from './assets/014_mace.svg';
+import crystalShieldIcon from './assets/015_crystal_shield.svg';
+import chargedShieldIcon from './assets/016_charged_shield.svg';
 
 export type { ItemDef, EquipmentSlotType, CoreSlotLayout } from './types';
 
@@ -66,6 +80,12 @@ export const ITEM_ICON_URLS: Record<string, string> = {
     [smgItem.id]: smgIcon,
     [shotgunItem.id]: shotgunIcon,
     [laserSwordItem.id]: laserSwordIcon,
+    [chargedRocksItem.id]: chargedRocksIcon,
+    [knivesItem.id]: knivesIcon,
+    [swordItem.id]: swordIcon,
+    [maceItem.id]: maceIcon,
+    [crystalShieldItem.id]: crystalShieldIcon,
+    [chargedShieldItem.id]: chargedShieldIcon,
 };
 
 /** Default core for World of Darkness (1 weapon, 1 utility). */
@@ -88,6 +108,12 @@ export const ALL_PLAYER_ITEMS: string[] = [
     smgItem.id,
     shotgunItem.id,
     laserSwordItem.id,
+    chargedRocksItem.id,
+    knivesItem.id,
+    swordItem.id,
+    maceItem.id,
+    crystalShieldItem.id,
+    chargedShieldItem.id,
 ];
 
 export const ITEMS: Record<string, ItemDef> = {
@@ -106,6 +132,12 @@ export const ITEMS: Record<string, ItemDef> = {
     [smgItem.id]: smgItem,
     [shotgunItem.id]: shotgunItem,
     [laserSwordItem.id]: laserSwordItem,
+    [chargedRocksItem.id]: chargedRocksItem,
+    [knivesItem.id]: knivesItem,
+    [swordItem.id]: swordItem,
+    [maceItem.id]: maceItem,
+    [crystalShieldItem.id]: crystalShieldItem,
+    [chargedShieldItem.id]: chargedShieldItem,
 };
 
 export function getItemDef(id: string): ItemDef | undefined {

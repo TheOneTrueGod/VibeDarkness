@@ -64,7 +64,7 @@ export function filterSelectableQuestPrepAbilityIds(
  * Expand primary slot picks to include free attached companions (deduped, primaries first).
  *
  * When `accessibleAbilityIds` is provided, companions are only added if they appear in that
- * pool (e.g. Imbued Bat after Light Imbuement research). Omit it to expand every attachment.
+ * pool (e.g. Imbued Mace after Light Imbuement research). Omit it to expand every attachment.
  */
 export function expandAttachedAbilityIds(
     primaryIds: readonly string[],

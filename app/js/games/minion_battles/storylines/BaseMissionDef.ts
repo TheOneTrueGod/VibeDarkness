@@ -47,6 +47,7 @@ import { enemySpawnDefToSpawnDefinition } from '../game/units/spawning/adapters'
 import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
 import { getSpecialTileDef } from './specialTileDefs';
 import { getItemDef } from '../character_defs/items';
+import type { ItemRoundStartRecoveryCharge } from '../character_defs/items/types';
 import {
     activeResearchByPlayer,
     activeResearchNodeLevelsByPlayer,
@@ -65,7 +66,7 @@ import {
 } from '../../../researchTrees/passiveBonuses';
 import { compileStatBags, mergePassiveBonuses } from '../../../darknessStrength/compile';
 import {
-    applyCrystalRocksResearchToAbilityRuntime,
+    applyChargedRocksEquipmentToAbilityRuntime,
     applyStickSwordResearchToAbilityRuntime,
     applyAbilityResearchModifiersToRuntime,
     initializeAbilityRuntimeForUnit,
@@ -112,6 +113,17 @@ function attachResourcesFromEquipment(equippedIds: string[], unit: Unit, eventBu
             // Extend here as more resource-granting items are added.
         }
     }
+}
+
+/** Item passives: round-start recovery charges from every equipped item (stored on the unit, so serialized). */
+export function collectRoundStartRecoveryCharges(equippedIds: string[]): ItemRoundStartRecoveryCharge[] {
+    const out: ItemRoundStartRecoveryCharge[] = [];
+    for (const itemId of equippedIds) {
+        for (const charge of getItemDef(itemId)?.roundStartRecoveryCharges ?? []) {
+            out.push({ ...charge });
+        }
+    }
+    return out;
 }
 
 function attachAmmoIfNeeded(engine: GameEngine, unit: Unit): void {
@@ -374,7 +386,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             const abilities = [...loadout.abilityIds];
 
             // Quest Prep / mission Prepare Carefully: selected primaries (+ free attached companions).
-            // Pass the pre-prep accessible pool so attachments like Imbued Bat only expand when
+            // Pass the pre-prep accessible pool so attachments like Imbued Mace only expand when
             // research (or equipment) actually granted them.
             const accessibleBeforePrep = [...abilities];
             const charId = params.characterSelections?.[pu.playerId];
@@ -442,6 +454,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     maxHp,
                     combatSettings,
                     passiveBonuses,
+                    roundStartRecoveryCharges: collectRoundStartRecoveryCharges(equippedIds),
                 },
                 params.eventBus,
                 engine,
@@ -466,7 +479,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             );
             initializeAbilityRuntimeForUnit(unit);
             applyAbilityResearchModifiersToRuntime(unit, unit.abilityModifiers);
-            applyCrystalRocksResearchToAbilityRuntime(unit, getResearchNodes);
+            applyChargedRocksEquipmentToAbilityRuntime(unit);
             applyStickSwordResearchToAbilityRuntime(unit, getResearchNodes);
             attachAmmoIfNeeded(engine, unit);
             attachResourcesFromEquipment(equippedIds, unit, engine.eventBus);

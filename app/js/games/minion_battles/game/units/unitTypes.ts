@@ -5,6 +5,7 @@ import type { ActiveAbility } from '../types';
 import type { VisualEffectDef } from '../effects/visualEffectDef';
 import type { TeamId } from '../teams';
 import type { Unit } from './Unit';
+import type { ItemRoundStartRecoveryCharge } from '../../character_defs/items/types';
 import type { PassiveBonuses } from '../../../../researchTrees/types';
 
 /** AI behavior settings for enemy units. */
@@ -153,6 +154,8 @@ export interface UnitConfig {
     combatSettings?: UnitCombatSettings;
     /** Aggregated passive research bonuses (computed at mission start). */
     passiveBonuses?: PassiveBonuses;
+    /** Item passives: recovery charges granted at every round start (copied from equipped items). */
+    roundStartRecoveryCharges?: ItemRoundStartRecoveryCharge[];
     ephemeralDespawnAtGameTime?: number | null;
     /** Number of units in this stack (default 1). */
     stackSize?: number;

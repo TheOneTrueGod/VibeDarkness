@@ -1,27 +1,28 @@
 import type { ResearchTreeDef } from '../types';
 import { RESEARCH_TREE_COLOUR_WEAPON, RESEARCH_TREE_ICON_WEAPON } from '../researchTreeChrome';
 import { STARTING_WEAPON_SHIELD_NODE_ID } from './startingWeaponNodes';
-import { WEAPON_TREE_STANDARD_METAL_COST } from '../weaponResearchCosts';
+import { SHIELD_TREE_ID, WEAPON_ITEM_SHIELD } from './weaponTreeIds';
 
-export const TECH_SHIELD_TREE_ID = 'tech_shield';
+/** Base Shield tree (id kept from the pre-equipment "Tech Shield" tree so stored research keeps working). */
+export const TECH_SHIELD_TREE_ID = SHIELD_TREE_ID;
 export const TECH_SHIELD_NODE_BASE = STARTING_WEAPON_SHIELD_NODE_ID;
-export const TECH_SHIELD_NODE_STRENGTHENING_LIGHT = 'extra_shields';
 
+/** Root-only: the Crystal Shield / Charged Shield upgrades are items with their own trees. */
 export const techShieldTree: ResearchTreeDef = {
     id: TECH_SHIELD_TREE_ID,
-    title: 'Tech Shield',
+    title: 'Shield',
     colour: RESEARCH_TREE_COLOUR_WEAPON,
     icon: RESEARCH_TREE_ICON_WEAPON,
-    tags: ['weapon'],
-    boundItem: { itemId: '003', rootNodeId: TECH_SHIELD_NODE_BASE },
+    tags: ['weapon', 'equipment'],
+    boundItem: { itemId: WEAPON_ITEM_SHIELD, rootNodeId: TECH_SHIELD_NODE_BASE },
     accessRequirements: [
-        { type: 'characterHasEquippedItem', itemId: '003' }, // Pot Lid (pot shield)
+        { type: 'characterHasEquippedItem', itemId: WEAPON_ITEM_SHIELD }, // Shield (pot lid)
     ],
     nodes: [
         {
             id: TECH_SHIELD_NODE_BASE,
             title: 'Raise Shield',
-            description: 'Block incoming attacks with your pot lid.',
+            description: 'Block incoming attacks with your shield.',
             flavorText: 'Not pretty, but it stops a bite.',
             order: 5,
             tier: 1,
@@ -32,55 +33,6 @@ export const techShieldTree: ResearchTreeDef = {
             cost: {},
             effects: [],
             modifiesAbility: { from: '0104', to: '0104' },
-        },
-        {
-            id: 'crystal_embedded_shield',
-            title: 'Crystal Embedded Shield',
-            description: 'Embed a crystal into your shield.',
-            order: 10,
-            tier: 2,
-            position: { x: 400, y: 100 },
-            prereqNodeIds: [TECH_SHIELD_NODE_BASE],
-            exclusiveWithNodeIds: [],
-            requirements: [{ type: 'anyResearched', treeId: TECH_SHIELD_TREE_ID, nodeIds: [TECH_SHIELD_NODE_BASE] }],
-            cost: { metal: WEAPON_TREE_STANDARD_METAL_COST },
-            effects: [{ type: 'replaceCard', fromCardId: '0104', toCardId: '0110' }],
-            modifiesAbility: { from: '0104', to: '0110' },
-        },
-        {
-            id: 'throwing_crystal_shield',
-            title: 'Charged Shield',
-            description: 'Learn how to store the energy from incoming blows... and redirect it.',
-            order: 20,
-            tier: 3,
-            position: { x: 290, y: 240 },
-            prereqNodeIds: ['crystal_embedded_shield'],
-            exclusiveWithNodeIds: ['extra_shields'],
-            requirements: [
-                { type: 'notResearched', treeId: TECH_SHIELD_TREE_ID, nodeId: 'extra_shields' },
-            ],
-            cost: { metal: WEAPON_TREE_STANDARD_METAL_COST },
-            effects: [
-                { type: 'replaceCard', fromCardId: '0110', toCardId: '0113' },
-                { type: 'addCard', cardId: '0121' },
-            ],
-            modifiesAbility: { from: '0110', to: '0113' },
-        },
-        {
-            id: TECH_SHIELD_NODE_STRENGTHENING_LIGHT,
-            title: 'Strengthening Light',
-            description: 'Empower shield defense with crystal light.',
-            order: 30,
-            tier: 3,
-            position: { x: 530, y: 240 },
-            prereqNodeIds: ['crystal_embedded_shield'],
-            exclusiveWithNodeIds: ['throwing_crystal_shield'],
-            requirements: [
-                { type: 'notResearched', treeId: TECH_SHIELD_TREE_ID, nodeId: 'throwing_crystal_shield' },
-            ],
-            cost: { metal: WEAPON_TREE_STANDARD_METAL_COST },
-            effects: [],
-            modifiesAbility: { from: '0110', to: '0110' },
         },
     ],
 };

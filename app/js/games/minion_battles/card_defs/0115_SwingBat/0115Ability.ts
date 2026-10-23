@@ -1,5 +1,5 @@
 ﻿/**
- * Swing Bat â€” Warrior melee (pipe bat).
+ * Swing Mace â€” Warrior melee (mace).
  *
  * Heavy perpendicular swing. Hits up to 3 targets; heavier knockback than the basic stick.
  * Damage boosted by Reinforced Steel research.
@@ -36,9 +36,9 @@ import {
     type TooltipTokenBindings,
 } from '../../abilities/tooltipTokens';
 import {
-    STICK_SWORD_TREE_ID,
-    STICK_SWORD_NODE_PIPE_BAT_DAMAGE,
-} from '../../../../researchTrees/trees/stick_sword';
+    MACE_TREE_ID,
+    MACE_NODE_TRAINING_REGIME,
+} from '../../../../researchTrees/trees/mace';
 import { getApproxIntegerIncrease, DescriptiveValue } from '../../../../researchTrees/descriptiveValue';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}15`;
@@ -68,38 +68,42 @@ const SWING_BAT_PROFILE: MeleeAnimationProfile = {
     }),
 };
 
-function hasPipeBatDamageResearch(gameState: unknown, caster?: Unit): boolean {
+function hasMaceDamageResearch(gameState: unknown, caster?: Unit): boolean {
     const eng = gameState as AbilityEngineContext | undefined;
-    if (hasResearchNode(eng, caster, STICK_SWORD_TREE_ID, STICK_SWORD_NODE_PIPE_BAT_DAMAGE)) {
+    if (hasResearchNode(eng, caster, MACE_TREE_ID, MACE_NODE_TRAINING_REGIME)) {
         return true;
     }
     const trees = (gameState as { researchTrees?: Record<string, string[]> } | undefined)?.researchTrees;
-    return trees?.[STICK_SWORD_TREE_ID]?.includes(STICK_SWORD_NODE_PIPE_BAT_DAMAGE) ?? false;
+    return trees?.[MACE_TREE_ID]?.includes(MACE_NODE_TRAINING_REGIME) ?? false;
 }
 
 function getDamage(engine: AbilityEngineContext | undefined, caster: Unit | undefined): number {
-    return hasPipeBatDamageResearch(engine, caster)
+    return hasMaceDamageResearch(engine, caster)
         ? BASE_DAMAGE + DAMAGE_RESEARCH_BONUS
         : BASE_DAMAGE;
 }
 
 /** Ability-specific base for tooltips (Reinforced Steel), before global Training/Mighty. */
 function getTooltipBaseDamage(gameState?: unknown): number {
-    return hasPipeBatDamageResearch(gameState)
+    return hasMaceDamageResearch(gameState)
         ? BASE_DAMAGE + DAMAGE_RESEARCH_BONUS
         : BASE_DAMAGE;
 }
 
 const TOOLTIP_LINES = [
-    'Swing your pipe bat dealing {{DAMAGE}} damage to up to {{MAX_TARGETS}} enemies.',
+    'Swing your mace dealing {{DAMAGE}} damage to up to {{MAX_TARGETS}} enemies.',
     '{{KNOCKBACK}}.',
 ] as const;
 
 const SWING_BAT_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
-  <rect x="10" y="28" width="44" height="12" rx="3" fill="#6b6b7a" stroke="#4a4a58" stroke-width="2"/>
-  <rect x="28" y="8" width="8" height="24" rx="2" fill="#7c7c8c" stroke="#4a4a58" stroke-width="1.5"/>
-  <rect x="10" y="28" width="20" height="12" rx="3" fill="#5a5a68" opacity="0.6"/>
-  <circle cx="52" cy="34" r="5" fill="#4a4a58" stroke="#333344" stroke-width="1.5"/>
+  <rect x="29" y="26" width="6" height="34" rx="2" fill="#7a5a34" stroke="#4a3520" stroke-width="1.5"/>
+  <rect x="26" y="52" width="12" height="5" rx="2" fill="#5a4026" stroke="#4a3520" stroke-width="1"/>
+  <circle cx="32" cy="17" r="9" fill="#6b6b7a" stroke="#4a4a58" stroke-width="2"/>
+  <polygon points="32,2 36,10 28,10" fill="#7c7c8c" stroke="#4a4a58" stroke-width="1.5" stroke-linejoin="round"/>
+  <polygon points="47,17 39,13 39,21" fill="#7c7c8c" stroke="#4a4a58" stroke-width="1.5" stroke-linejoin="round"/>
+  <polygon points="17,17 25,13 25,21" fill="#7c7c8c" stroke="#4a4a58" stroke-width="1.5" stroke-linejoin="round"/>
+  <polygon points="32,32 36,24 28,24" fill="#7c7c8c" stroke="#4a4a58" stroke-width="1.5" stroke-linejoin="round"/>
+  <circle cx="32" cy="17" r="4" fill="#5a5a68" opacity="0.7"/>
 </svg>`;
 
 // ---- Behaviour ----
@@ -143,7 +147,7 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
 export const SwingBatAbility_0115: AbilityStatic = {
     id: CARD_ID,
     tags: ['melee'],
-    name: 'Swing Bat',
+    name: 'Swing Mace',
     image: SWING_BAT_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,

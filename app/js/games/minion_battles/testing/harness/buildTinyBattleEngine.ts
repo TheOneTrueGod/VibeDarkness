@@ -17,7 +17,7 @@ import {
 } from '../../../../researchTrees/passiveBonuses';
 import {
     applyAbilityResearchModifiersToRuntime,
-    applyCrystalRocksResearchToAbilityRuntime,
+    applyChargedRocksEquipmentToAbilityRuntime,
     applyStickSwordResearchToAbilityRuntime,
     initializeAbilityRuntimeForUnit,
 } from '../../abilities/abilityUses';
@@ -26,6 +26,7 @@ import { computeAbilityModifiersFromResearch } from '../../../../researchTrees/e
 import { getAbilityTagsForId } from '../../abilities/Ability';
 import { expandAbilityIdsForResearchModifiers } from '../../abilities/abilityModifierHelpers';
 import { getItemDef } from '../../character_defs/items';
+import { collectRoundStartRecoveryCharges } from '../../storylines/BaseMissionDef';
 import {
     activeResearchByPlayer,
     activeResearchNodeLevelsByPlayer,
@@ -161,7 +162,7 @@ export function spawnTinyPlayerUnit(
     if (params.applyResearchAbilityModifiers) {
         applyAbilityResearchModifiersToRuntime(unit, unit.abilityModifiers);
     }
-    applyCrystalRocksResearchToAbilityRuntime(unit, getResearchNodes);
+    applyChargedRocksEquipmentToAbilityRuntime(unit);
     applyStickSwordResearchToAbilityRuntime(unit, getResearchNodes);
     engine.addUnit(unit, 'initialGameSpawn');
     return unit;
@@ -209,8 +210,8 @@ export interface PlacePlayerFromLoadoutOpts {
  * Spawn a player unit the way the battle path does: abilities come only from
  * `resolveCharacterLoadout(equipment, storedResearch)`, and everything else (engine research,
  * passives, ability modifiers, runtime tweaks) reads ACTIVE research (`activeResearchByPlayer`).
- * Engine research is set from active research, as `BattleSession` does, so in-engine lookups such
- * as the Charged Rocks light pulse ignore research for an unequipped weapon.
+ * Engine research is set from active research, as `BattleSession` does, so in-engine lookups
+ * ignore research for an unequipped weapon. Item passives come from the equipped items.
  */
 export function placePlayerFromLoadout(
     engine: GameEngine,
@@ -239,6 +240,8 @@ export function placePlayerFromLoadout(
         playerResearchNodeLevelsByPlayer: activeLevelsByPlayer,
         applyResearchAbilityModifiers: true,
     });
+    // Item passives (e.g. Charged Rocks' Light Charge), as BaseMissionDef copies them onto the unit.
+    player.roundStartRecoveryCharges = collectRoundStartRecoveryCharges(loadout.battleEquipmentIds);
     // Mirrors BaseMissionDef.attachResourcesFromEquipment.
     for (const itemId of loadout.battleEquipmentIds) {
         for (const rid of getItemDef(itemId)?.resourcesToAdd ?? []) {

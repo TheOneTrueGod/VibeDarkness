@@ -27,6 +27,7 @@ use App\Migrations\MigrationContext;
 use App\Migrations\MigrationLedger;
 use App\Migrations\MigrationRegistry;
 use App\Migrations\MigrationRunner;
+use App\Migrations\Versions\M0003EquipmentUpgradeRewards;
 use App\SaveData\CampaignMigrations;
 use App\SaveData\CharacterMigrations;
 use App\SaveData\SaveMigrator;
@@ -191,8 +192,8 @@ function runSelfTest(): int
         'equipment' => ['004', '013'],
         'researchTrees' => ['crystal_rocks' => ['throw_rock', 'charged_rocks'], 'stick_sword' => ['swing_stick']],
     ]);
-    $check('character: Chip 004+013 -> 004+001', $chip['data']['equipment'] === ['004', '001'], json_encode($chip['data']['equipment']));
-    $check('character: version 2, research untouched', $chip['data']['version'] === 2
+    $check('character: Chip 004+013 (+charged_rocks) -> 004+011', $chip['data']['equipment'] === ['004', '011'], json_encode($chip['data']['equipment']));
+    $check('character: version 3, swap node removed, other research untouched', $chip['data']['version'] === 3 && $chip['data']['researchTrees']['crystal_rocks'] === ['throw_rock']
         && $chip['data']['researchTrees']['stick_sword'] === ['swing_stick']);
     $again = CharacterMigrations::migrate($chip['data']);
     $check('character: idempotent', $again['changed'] === false && $again['data'] === $chip['data']);
@@ -223,7 +224,7 @@ function runSelfTest(): int
     $hd = $hungerChar['data'];
     $check('character v2: mission exhaustion 12 -> hunger -12', ($hd['missionResults']['camp'][0]['resourceDelta'] ?? null) === ['food' => 2, 'hunger' => -12], json_encode($hd['missionResults']['camp'][0]['resourceDelta'] ?? null));
     $check('character v2: zero exhaustion key dropped', ($hd['missionResults']['camp'][1]['resourceDelta'] ?? null) === [], json_encode($hd['missionResults']['camp'][1]['resourceDelta'] ?? null));
-    $check('character v2: quest exhaustion 5 -> hunger -5', ($hd['questResults']['camp']['q1']['resourceDelta'] ?? null) === ['hunger' => -5] && $hd['version'] === 2);
+    $check('character v2: quest exhaustion 5 -> hunger -5', ($hd['questResults']['camp']['q1']['resourceDelta'] ?? null) === ['hunger' => -5] && $hd['version'] === 3);
 
     $order = [];
     $r = SaveMigrator::migrate(['version' => 1], 3, [
@@ -254,7 +255,7 @@ function runSelfTest(): int
     );
     $hc = $hungerCamp['data'];
     $check('campaign v2: resources.exhaustion 3 -> hunger -3', ($hc['resources'] ?? null) === ['food' => 1, 'hunger' => -3], json_encode($hc['resources'] ?? null));
-    $check('campaign v2: mission delta exhaustion 4 -> hunger -4', ($hc['missionResults'][0]['resourceDelta'] ?? null) === ['hunger' => -4] && $hc['version'] === 2);
+    $check('campaign v2: mission delta exhaustion 4 -> hunger -4', ($hc['missionResults'][0]['resourceDelta'] ?? null) === ['hunger' => -4] && $hc['version'] === 3);
 
     // --- Migration 0001 end to end in a scratch storage dir --------------------------------------
     $store = makeTempDir('migrate_0001_');
@@ -274,11 +275,116 @@ function runSelfTest(): int
         $code = (new MigrationRunner($store, MigrationRegistry::all(), $quiet))->migrate();
         $charDisk = json_decode((string) file_get_contents($store . '/characters/char_t.json'), true);
         $campDisk = json_decode((string) file_get_contents($store . '/campaigns/camp1.json'), true);
-        $check('0001: applied', $code === 0 && MigrationLedger::load($store)->currentVersion() === 2);
-        $check('0001: character migrated on disk', ($charDisk['equipment'] ?? null) === ['004', '001'] && ($charDisk['version'] ?? 0) === 2);
-        $check('0001: campaign migrated on disk', ($campDisk['unlockedItemIds'] ?? null) === ['001'] && ($campDisk['version'] ?? 0) === 2,
+        $check('0001: applied', $code === 0 && MigrationLedger::load($store)->currentVersion() === 3);
+        $check('0001: character migrated on disk', ($charDisk['equipment'] ?? null) === ['004', '001'] && ($charDisk['version'] ?? 0) === 3);
+        $check('0001: campaign migrated on disk', ($campDisk['unlockedItemIds'] ?? null) === ['001'] && ($campDisk['version'] ?? 0) === 3,
             json_encode($campDisk['unlockedItemIds'] ?? null));
         $check('0001: storage override restored', StorageRoot::get() !== $store);
+    } finally {
+        StorageRoot::setOverride(null);
+        removeDir($store);
+    }
+
+    // --- Migration 0003 (equipment upgrade rewards): pure logic ---------------------------------------
+    $rocksChar = [
+        'id' => 'r', 'version' => 2, 'equipment' => ['004', '001'],
+        'researchTrees' => ['crystal_rocks' => ['throw_rock', 'charged_rocks', 'more_power', 'more_rock'], 'stick_sword' => ['swing_stick']],
+        'researchNodeLevels' => ['crystal_rocks' => ['more_power' => 2, 'charged_rocks' => 1]],
+        'researchSources' => ['crystal_rocks' => ['more_power' => ['mission:m1'], 'charged_rocks' => ['mission:m1']]],
+        'activeQuestRun' => ['runId' => 'q', 'questCharacter' => ['equipment' => ['004', '001'], 'researchTrees' => ['crystal_rocks' => ['charged_rocks']]]],
+    ];
+    $rc = CharacterMigrations::migrate($rocksChar)['data'];
+    $check('0003 character: Rocks -> Charged Rocks in place', $rc['equipment'] === ['004', '011'], json_encode($rc['equipment']));
+    $check('0003 character: quest snapshot equipment + research converted',
+        $rc['activeQuestRun']['questCharacter']['equipment'] === ['004', '011']
+        && $rc['activeQuestRun']['questCharacter']['researchTrees']['crystal_rocks'] === []);
+    $check('0003 character: swap node removed, More Power / More Rock re-parented',
+        $rc['researchTrees']['crystal_rocks'] === ['throw_rock']
+        && $rc['researchTrees']['charged_rocks_item'] === ['more_power']
+        && $rc['researchTrees']['thrown_weapons'] === ['more_rock'],
+        json_encode($rc['researchTrees']));
+    $check('0003 character: levels and sources preserved on the new tree',
+        $rc['researchNodeLevels'] === ['charged_rocks_item' => ['more_power' => 2]]
+        && $rc['researchSources'] === ['charged_rocks_item' => ['more_power' => ['mission:m1']]],
+        json_encode([$rc['researchNodeLevels'], $rc['researchSources']]));
+    $check('0003 character: idempotent', CharacterMigrations::convertSwapResearch($rc) === $rc);
+
+    $shieldChar = CharacterMigrations::migrate([
+        'id' => 's', 'version' => 2, 'equipment' => ['004', '003'],
+        'researchTrees' => ['tech_shield' => ['raise_shield', 'crystal_embedded_shield', 'throwing_crystal_shield', 'extra_shields']],
+    ])['data'];
+    $check('0003 character: Shield line highest tier wins (016)', $shieldChar['equipment'] === ['004', '016'], json_encode($shieldChar['equipment']));
+    $check('0003 character: Strengthening Light moved to Crystal Shield tree',
+        $shieldChar['researchTrees']['tech_shield'] === ['raise_shield']
+        && $shieldChar['researchTrees']['crystal_shield_item'] === ['extra_shields']);
+
+    $plainChar = ['id' => 'p', 'version' => 2, 'equipment' => ['004', '002'], 'researchTrees' => ['stick_sword' => ['swing_stick']]];
+    $pc = CharacterMigrations::migrate($plainChar)['data'];
+    $check('0003 character: untouched character keeps equipment and research',
+        $pc['equipment'] === ['004', '002'] && $pc['researchTrees'] === ['stick_sword' => ['swing_stick']] && $pc['version'] === 3);
+
+    $tierCamp = CampaignMigrations::migrate(
+        ['id' => 'tc', 'version' => 2, 'unlockedItemIds' => ['001'], 'missionResults' => [
+            ['missionId' => 'dark_awakening', 'result' => 'victory'],
+            ['missionId' => 'towards_the_light', 'result' => 'victory'],
+            ['missionId' => 'cave_respite', 'result' => 'defeat'],
+        ]],
+        static fn (string $id): array => ['cS'],
+        static fn (string $id): ?array => ['equipment' => ['004', '003'], 'researchTrees' => ['tech_shield' => ['throwing_crystal_shield']]]
+    )['data']['unlockedItemIds'];
+    sort($tierCamp);
+    $check('0003 campaign: tiers 1+2 unlocked, tier 3 only via the equipped 016',
+        $tierCamp === ['001', '002', '003', '011', '012', '013', '014', '015', '016'], json_encode($tierCamp));
+
+    // --- Migration 0003 end to end in a scratch storage dir --------------------------------------------
+    $store = makeTempDir('migrate_0003_');
+    foreach (['accounts', 'characters', 'campaigns'] as $d) {
+        mkdir($store . '/' . $d);
+    }
+    file_put_contents($store . '/accounts/1.json', json_encode([
+        'id' => 1, 'name' => 'T', 'role' => 'player', 'campaignIds' => ['camp3'], 'characterIds' => ['c_rocks', 'c_shield', 'c_plain'],
+    ]));
+    file_put_contents($store . '/accounts/accounts_index.json', json_encode(['nextId' => 2, 'byName' => ['T' => 1]]));
+    $v2 = ['version' => 2, 'ownerAccountId' => 1];
+    file_put_contents($store . '/characters/c_rocks.json', json_encode($v2 + [
+        'id' => 'c_rocks', 'equipment' => ['004', '001'],
+        'researchTrees' => ['crystal_rocks' => ['throw_rock', 'charged_rocks', 'more_power']],
+        'researchNodeLevels' => ['crystal_rocks' => ['more_power' => 2]],
+    ]));
+    file_put_contents($store . '/characters/c_shield.json', json_encode($v2 + [
+        'id' => 'c_shield', 'equipment' => ['004', '003'],
+        'researchTrees' => ['tech_shield' => ['raise_shield', 'throwing_crystal_shield']],
+    ]));
+    file_put_contents($store . '/characters/c_plain.json', json_encode($v2 + [
+        'id' => 'c_plain', 'equipment' => ['004', '002'], 'researchTrees' => ['stick_sword' => ['swing_stick']],
+    ]));
+    file_put_contents($store . '/campaigns/camp3.json', json_encode([
+        'id' => 'camp3', 'version' => 2, 'unlockedItemIds' => ['001', '002', '003'],
+        'missionResults' => [['missionId' => 'dark_awakening', 'result' => 'victory'], ['missionId' => 'towards_the_light', 'result' => 'victory']],
+    ]));
+    $readDisk = static fn (string $rel): array => json_decode((string) file_get_contents($store . '/' . $rel), true);
+    try {
+        $code = (new MigrationRunner($store, MigrationRegistry::all(), $quiet))->migrate();
+        $cr = $readDisk('characters/c_rocks.json');
+        $cs = $readDisk('characters/c_shield.json');
+        $cp = $readDisk('characters/c_plain.json');
+        $cc = $readDisk('campaigns/camp3.json');
+        $check('0003: applied', $code === 0 && MigrationLedger::load($store)->currentVersion() === 3);
+        $check('0003: Rocks character -> Charged Rocks + More Power on the new tree',
+            $cr['equipment'] === ['004', '011'] && $cr['researchTrees']['charged_rocks_item'] === ['more_power']
+            && $cr['researchTrees']['crystal_rocks'] === ['throw_rock'] && $cr['researchNodeLevels']['charged_rocks_item']['more_power'] === 2 && $cr['version'] === 3,
+            json_encode($cr));
+        $check('0003: Shield character -> Charged Shield', $cs['equipment'] === ['004', '016'] && $cs['researchTrees']['tech_shield'] === ['raise_shield'], json_encode($cs));
+        $check('0003: untouched character keeps its data', $cp['equipment'] === ['004', '002'] && $cp['researchTrees'] === ['stick_sword' => ['swing_stick']] && $cp['version'] === 3);
+        $unlockedDisk = $cc['unlockedItemIds'] ?? [];
+        sort($unlockedDisk);
+        $check('0003: campaign unlocks tier 1-2 items plus equipped 016',
+            $unlockedDisk === ['001', '002', '003', '011', '012', '013', '014', '015', '016'] && ($cc['version'] ?? 0) === 3, json_encode($cc['unlockedItemIds'] ?? null));
+        // Re-running up() on migrated data changes nothing (idempotent).
+        $before = [json_encode($cr), json_encode($cs), json_encode($cc)];
+        (new M0003EquipmentUpgradeRewards())->up(new MigrationContext($store, $quiet));
+        $after = [json_encode($readDisk('characters/c_rocks.json')), json_encode($readDisk('characters/c_shield.json')), json_encode($readDisk('campaigns/camp3.json'))];
+        $check('0003: up() is idempotent', $before === $after);
     } finally {
         StorageRoot::setOverride(null);
         removeDir($store);

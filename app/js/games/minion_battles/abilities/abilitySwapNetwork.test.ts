@@ -25,9 +25,9 @@ const PLAYER_POS = { x: 3 * CELL + CELL / 2, y: 3 * CELL + CELL / 2 };
 
 /**
  * All three ability IDs involved in the swap:
- *   0115 — Swing Bat (the base ability that gets replaced)
+ *   0115 — Swing Mace (the base ability that gets replaced)
  *   0804 — Gather Light (casts LightImbueBuff when Light Imbuement is researched)
- *   0803 — Imbued Bat (the swap-network ability; starts hidden)
+ *   0803 — Imbued Mace (the swap-network ability; starts hidden)
  */
 const ABILITIES = ['0115', '0804', '0803'] as const;
 
@@ -47,13 +47,13 @@ function buildTestEngine() {
 // ---------------------------------------------------------------------------
 
 describe('Swap Network — Scenario A: hidden on init', () => {
-    it('0803 (Imbued Bat) starts inactive', () => {
+    it('0803 (Imbued Mace) starts inactive', () => {
         const { player } = buildTestEngine();
         ensureAbilityRuntimeState(player, '0803');
         expect(player.abilityRuntime['0803']?.active).toBe(false);
     });
 
-    it('0115 (Swing Bat) starts active', () => {
+    it('0115 (Swing Mace) starts active', () => {
         const { player } = buildTestEngine();
         ensureAbilityRuntimeState(player, '0115');
         expect(player.abilityRuntime['0115']?.active).toBe(true);
@@ -71,7 +71,7 @@ describe('Swap Network — Scenario A: hidden on init', () => {
 // ---------------------------------------------------------------------------
 
 describe('Swap Network — Scenario B: swap fires on buff', () => {
-    it('applying LightImbueBuff hides Swing Bat and activates Imbued Bat', () => {
+    it('applying LightImbueBuff hides Swing Mace and activates Imbued Mace', () => {
         const { engine, player } = buildTestEngine();
 
         player.addBuff(new LightImbueBuff(), engine.gameTime, engine.roundNumber ?? 1);
@@ -80,7 +80,7 @@ describe('Swap Network — Scenario B: swap fires on buff', () => {
         expect(player.abilityRuntime['0803']?.active).toBe(true);
     });
 
-    it('Imbued Bat records replacedAbilityId = 0115 after activation', () => {
+    it('Imbued Mace records replacedAbilityId = 0115 after activation', () => {
         const { engine, player } = buildTestEngine();
 
         player.addBuff(new LightImbueBuff(), engine.gameTime, engine.roundNumber ?? 1);
@@ -88,7 +88,7 @@ describe('Swap Network — Scenario B: swap fires on buff', () => {
         expect(player.abilityRuntime['0803']?.replacedAbilityId).toBe('0115');
     });
 
-    it('Imbued Bat has currentUses = 1 after activation (usesOnActivation)', () => {
+    it('Imbued Mace has currentUses = 1 after activation (usesOnActivation)', () => {
         const { engine, player } = buildTestEngine();
 
         player.addBuff(new LightImbueBuff(), engine.gameTime, engine.roundNumber ?? 1);
@@ -96,7 +96,7 @@ describe('Swap Network — Scenario B: swap fires on buff', () => {
         expect(player.abilityRuntime['0803']?.currentUses).toBe(1);
     });
 
-    it('Imbued Bat occupies Swing Bat bar slot after activation', () => {
+    it('Imbued Mace occupies Swing Mace bar slot after activation', () => {
         const { engine, player } = buildTestEngine();
         const swingBatSlot = player.abilities.indexOf('0115');
         const imbuedBatSlot = player.abilities.indexOf('0803');
@@ -124,22 +124,22 @@ describe('Swap Network — Scenario C: swap restores on exhaust', () => {
         return { engine, player };
     }
 
-    it('Imbued Bat is inactive after being exhausted', () => {
+    it('Imbued Mace is inactive after being exhausted', () => {
         const { player } = buildActivatedEngine();
         expect(player.abilityRuntime['0803']?.active).toBe(false);
     });
 
-    it('Imbued Bat has replacedAbilityId = null after deactivation', () => {
+    it('Imbued Mace has replacedAbilityId = null after deactivation', () => {
         const { player } = buildActivatedEngine();
         expect(player.abilityRuntime['0803']?.replacedAbilityId).toBe(null);
     });
 
-    it('Swing Bat is restored to active after Imbued Bat deactivates', () => {
+    it('Swing Mace is restored to active after Imbued Mace deactivates', () => {
         const { player } = buildActivatedEngine();
         expect(player.abilityRuntime['0115']?.active).toBe(true);
     });
 
-    it('bar slot order is restored after Imbued Bat deactivates', () => {
+    it('bar slot order is restored after Imbued Mace deactivates', () => {
         const { engine, player } = buildTestEngine();
         const swingBatSlot = player.abilities.indexOf('0115');
         const imbuedBatSlot = player.abilities.indexOf('0803');
@@ -157,10 +157,10 @@ describe('Swap Network — Scenario C: swap restores on exhaust', () => {
 // ---------------------------------------------------------------------------
 
 describe('Swap Network — Scenario D: guard against double-swap', () => {
-    it('does not activate Imbued Bat when Swing Bat is already inactive', () => {
+    it('does not activate Imbued Mace when Swing Mace is already inactive', () => {
         const { engine, player } = buildTestEngine();
 
-        // Manually hide Swing Bat (simulate it already being swapped out)
+        // Manually hide Swing Mace (simulate it already being swapped out)
         ensureAbilityRuntimeState(player, '0115');
         player.abilityRuntime['0115']!.active = false;
 

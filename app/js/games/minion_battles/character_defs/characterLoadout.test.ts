@@ -5,12 +5,13 @@ const BASIC_CORE = '004';
 const EARTH_CORE = '019';
 const ROCKS = '001';
 const STICK = '002';
-const POT_LID = '003';
+const CHARGED_ROCKS = '011';
+const MACE = '014';
+const CHARGED_SHIELD = '016';
 
 describe('resolveCharacterLoadout', () => {
-    it("Chip's case: Rocks equipped with stored crystal + stick research gives charged rock and no stick", () => {
-        const { abilityIds, activeResearchTrees } = resolveCharacterLoadout([BASIC_CORE, ROCKS], {
-            crystal_rocks: ['throw_rock', 'charged_rocks'],
+    it("Chip's case: Charged Rocks equipped with stored stick research gives charged rock and no stick", () => {
+        const { abilityIds, activeResearchTrees } = resolveCharacterLoadout([BASIC_CORE, CHARGED_ROCKS], {
             stick_sword: ['swing_stick'],
         });
         expect(abilityIds).toContain('throw_charged_rock');
@@ -28,10 +29,9 @@ describe('resolveCharacterLoadout', () => {
         expect(abilityIds).not.toContain('throw_charged_rock');
     });
 
-    it('Earth Core + Rocks + charged_rocks gives throw_charged_rock, not earth_core_throw_rock', () => {
-        const { abilityIds } = resolveCharacterLoadout([EARTH_CORE, ROCKS], {
+    it('Earth Core + Charged Rocks gives throw_charged_rock, not earth_core_throw_rock', () => {
+        const { abilityIds } = resolveCharacterLoadout([EARTH_CORE, CHARGED_ROCKS], {
             earth: ['earth_core'],
-            crystal_rocks: ['throw_rock', 'charged_rocks'],
         });
         expect(abilityIds).toContain('throw_charged_rock');
         expect(abilityIds).not.toContain('earth_core_throw_rock');
@@ -57,20 +57,16 @@ describe('resolveCharacterLoadout', () => {
         expect(abilityIds).not.toContain('throw_rock');
     });
 
-    it('shield chain 0104 -> 0110 -> 0113 plus 0121', () => {
-        const { abilityIds } = resolveCharacterLoadout([BASIC_CORE, POT_LID], {
-            tech_shield: ['raise_shield', 'crystal_embedded_shield', 'throwing_crystal_shield'],
-        });
+    it('Charged Shield item gives 0113 plus 0121 instead of 0104 / 0110', () => {
+        const { abilityIds } = resolveCharacterLoadout([BASIC_CORE, CHARGED_SHIELD], {});
         expect(abilityIds).toContain('0113');
         expect(abilityIds).toContain('0121');
         expect(abilityIds).not.toContain('0104');
         expect(abilityIds).not.toContain('0110');
     });
 
-    it('Pipe Bat replaces 0103 with 0115', () => {
-        const { abilityIds } = resolveCharacterLoadout([BASIC_CORE, STICK], {
-            stick_sword: ['swing_stick', 'pipe_bat'],
-        });
+    it('Mace item gives 0115 instead of 0103', () => {
+        const { abilityIds } = resolveCharacterLoadout([BASIC_CORE, MACE], {});
         expect(abilityIds).toContain('0115');
         expect(abilityIds).not.toContain('0103');
     });
@@ -80,9 +76,9 @@ describe('resolveCharacterLoadout', () => {
     });
 
     it('does not mutate the stored research input', () => {
-        const stored = { crystal_rocks: ['charged_rocks'], stick_sword: ['swing_stick'] };
+        const stored = { crystal_rocks: ['throw_rock'], stick_sword: ['swing_stick'] };
         resolveCharacterLoadout([BASIC_CORE, STICK], stored);
-        expect(stored).toEqual({ crystal_rocks: ['charged_rocks'], stick_sword: ['swing_stick'] });
+        expect(stored).toEqual({ crystal_rocks: ['throw_rock'], stick_sword: ['swing_stick'] });
     });
 });
 

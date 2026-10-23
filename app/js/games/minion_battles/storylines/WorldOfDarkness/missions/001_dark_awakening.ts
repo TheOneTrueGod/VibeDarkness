@@ -247,6 +247,7 @@ export class DarkAwakeningMission extends BaseMissionDef {
 			food: DARK_AWAKENING_FOOD_REWARD,
 			metal: DARK_AWAKENING_METAL_REWARD,
 		},
+		unlockItemTiers: [{ slot: 'weapon' as const, tier: 1 }],
 	};
 	worldWidth = WORLD_WIDTH;
 	worldHeight = WORLD_HEIGHT;

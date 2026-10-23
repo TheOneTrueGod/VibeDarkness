@@ -6,19 +6,30 @@
 import { BaseMissionDef } from '../../BaseMissionDef';
 import { WOD_CH1_MAP_X_COL2, WOD_CH1_MAP_Y_ROW1 } from '../chapter1Map';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
+import { ITEMS } from '../../../character_defs/items';
 import type { PostMissionChoiceResolveParams } from '../../types';
 import type { PostMissionStoryDef, StoryChoiceAction, StoryChoiceOptionRow } from '../../storyTypes';
-import { CRYSTAL_ROCKS_TREE_ID } from '../../../../../researchTrees/trees/crystal_rocks';
 import { EARTH_TREE_ID, EARTH_NODE_EARTH_CORE } from '../../../../../researchTrees/trees/earth';
 import {
-    STICK_SWORD_NODE_JAGGED_EDGE,
-    STICK_SWORD_NODE_EXTRA_USES,
-    STICK_SWORD_TREE_ID,
-} from '../../../../../researchTrees/trees/stick_sword';
-import {
-    TECH_SHIELD_NODE_STRENGTHENING_LIGHT,
-    TECH_SHIELD_TREE_ID,
-} from '../../../../../researchTrees/trees/tech_shield';
+    CHARGED_ROCKS_TREE_ID,
+    CRYSTAL_SHIELD_TREE_ID,
+    MACE_TREE_ID,
+    MELEE_WEAPONS_TREE_ID,
+    NODE_IRON_WRISTS,
+    NODE_JAGGED_EDGE,
+    NODE_MORE_POWER,
+    NODE_MORE_ROCK,
+    NODE_STRENGTHENING_LIGHT,
+    NODE_TRAINING_REGIME,
+    SWORD_TREE_ID,
+    THROWN_WEAPONS_TREE_ID,
+    WEAPON_ITEM_CHARGED_ROCKS,
+    WEAPON_ITEM_CHARGED_SHIELD,
+    WEAPON_ITEM_CRYSTAL_SHIELD,
+    WEAPON_ITEM_KNIVES,
+    WEAPON_ITEM_MACE,
+    WEAPON_ITEM_SWORD,
+} from '../../../../../researchTrees/trees/weaponTreeIds';
 import {
     TRAINING_TREE_ID,
     TRAINING_NODE_CHARGING_PUNCH,
@@ -40,18 +51,7 @@ function createTerrain(): TerrainGrid {
     return TerrainGrid.createTerrainFromArray(1, 1, CELL_SIZE, [[TerrainType.Grass]], TerrainType.Grass);
 }
 
-const NODE_THROWING_CRYSTAL_SHIELD = 'throwing_crystal_shield';
-const NODE_CHARGED_ROCKS = 'charged_rocks';
-const NODE_THROWING_KNIVES = 'throwing_knives';
-const NODE_MORE_POWER = 'more_power';
-const NODE_MORE_ROCK = 'more_rock';
-const NODE_CRAFT_SWORD = 'craft_sword';
-
-function hasResearched(trees: Record<string, string[]> | undefined, treeId: string, nodeId: string): boolean {
-    return (trees?.[treeId] ?? []).includes(nodeId);
-}
-
-function getCaveRespitePunchChoiceRows(playerResearchTrees: Record<string, string[]> | undefined): StoryChoiceOptionRow[] {
+function getCaveRespitePunchChoiceRows(equippedItemIds: readonly string[]): StoryChoiceOptionRow[] {
     const grantPunch = (nodeId: string): StoryChoiceAction => ({
         type: 'grant_research_to_player',
         treeId: TRAINING_TREE_ID,
@@ -91,8 +91,8 @@ function getCaveRespitePunchChoiceRows(playerResearchTrees: Record<string, strin
             action: grantPunch(TRAINING_NODE_DOUBLE_PUNCH),
         },
     ];
-    // Charging Punch feeds Throw Charged Rock; hide it unless that is researched (mirrors the tree requirement).
-    if (!hasResearched(playerResearchTrees, CRYSTAL_ROCKS_TREE_ID, NODE_CHARGED_ROCKS)) {
+    // Charging Punch feeds Throw Charged Rock; hide it unless Charged Rocks is equipped (mirrors the tree requirement).
+    if (!equippedItemIds.includes(WEAPON_ITEM_CHARGED_ROCKS)) {
         return rows.filter((row) => row.id !== TRAINING_NODE_CHARGING_PUNCH);
     }
     return rows;
@@ -115,8 +115,8 @@ function getCaveRespiteResearchFallbackRows(): StoryChoiceOptionRow[] {
     ];
 }
 
-function getCaveRespiteResearchChoiceRows(playerResearchTrees: Record<string, string[]> | undefined, playerId?: string): StoryChoiceOptionRow[] {
-    const trees = playerResearchTrees ?? {};
+function getCaveRespiteResearchChoiceRows(equippedItemIds: readonly string[], playerId?: string): StoryChoiceOptionRow[] {
+    const equipped = (itemId: string) => equippedItemIds.includes(itemId);
     const grant = (treeId: string, nodeId: string): StoryChoiceAction => ({
         type: 'grant_research_to_player',
         treeId,
@@ -132,72 +132,92 @@ function getCaveRespiteResearchChoiceRows(playerResearchTrees: Record<string, st
     } : null;
     const withChip = (rows: StoryChoiceOptionRow[]) => chipRow ? [chipRow, ...rows] : rows;
 
-    if (hasResearched(trees, TECH_SHIELD_TREE_ID, 'crystal_embedded_shield')) {
+    if (equipped(WEAPON_ITEM_CRYSTAL_SHIELD)) {
+        const chargedShield = ITEMS[WEAPON_ITEM_CHARGED_SHIELD];
         return withChip([
             {
-                id: NODE_THROWING_CRYSTAL_SHIELD,
-                label: 'Charged Shield',
+                id: WEAPON_ITEM_CHARGED_SHIELD,
+                label: chargedShield.name,
                 loreTitle: 'Crystal Bolt',
                 loreDescription:
-                    "Lean into the shield's new geometry—let a shard answer the dark at range.",
-                action: grant(TECH_SHIELD_TREE_ID, NODE_THROWING_CRYSTAL_SHIELD),
+                    "Lean into the shield's new geometry\u2014let a shard answer the dark at range.",
+                action: { type: 'equip_item', itemId: WEAPON_ITEM_CHARGED_SHIELD },
             },
             {
-                id: TECH_SHIELD_NODE_STRENGTHENING_LIGHT,
+                id: NODE_STRENGTHENING_LIGHT,
                 label: 'Strengthening Light',
                 loreTitle: 'Fortified Gleam',
                 loreDescription: 'Weave the cave-light into your guard; each block carries a little healing onward.',
-                action: grant(TECH_SHIELD_TREE_ID, TECH_SHIELD_NODE_STRENGTHENING_LIGHT),
+                action: grant(CRYSTAL_SHIELD_TREE_ID, NODE_STRENGTHENING_LIGHT),
             },
         ]);
     }
 
-    if (hasResearched(trees, CRYSTAL_ROCKS_TREE_ID, NODE_CHARGED_ROCKS)) {
+    if (equipped(WEAPON_ITEM_CHARGED_ROCKS)) {
         return withChip([
             {
                 id: NODE_MORE_POWER,
                 label: 'More Power',
                 loreTitle: 'Heavier Impact',
                 loreDescription: 'Practice putting the charged weight of a throw behind every impact.',
-                action: grant(CRYSTAL_ROCKS_TREE_ID, NODE_MORE_POWER),
+                action: grant(CHARGED_ROCKS_TREE_ID, NODE_MORE_POWER),
             },
             {
                 id: NODE_MORE_ROCK,
                 label: 'More Rock',
                 loreTitle: 'Split Intent',
                 loreDescription: 'Train your aim so one motion can threaten two threats.',
-                action: grant(CRYSTAL_ROCKS_TREE_ID, NODE_MORE_ROCK),
+                action: grant(THROWN_WEAPONS_TREE_ID, NODE_MORE_ROCK),
             },
         ]);
     }
 
-    if (hasResearched(trees, CRYSTAL_ROCKS_TREE_ID, NODE_THROWING_KNIVES)) {
+    if (equipped(WEAPON_ITEM_KNIVES)) {
         return withChip([
             {
                 id: NODE_MORE_ROCK,
                 label: 'More Rock',
                 loreTitle: 'Second Line',
                 loreDescription: 'Hone the follow-through so your knives can find another mark.',
-                action: grant(CRYSTAL_ROCKS_TREE_ID, NODE_MORE_ROCK),
+                action: grant(THROWN_WEAPONS_TREE_ID, NODE_MORE_ROCK),
             },
         ]);
     }
 
-    if (hasResearched(trees, STICK_SWORD_TREE_ID, NODE_CRAFT_SWORD)) {
+    if (equipped(WEAPON_ITEM_SWORD)) {
         return withChip([
             {
-                id: STICK_SWORD_NODE_JAGGED_EDGE,
+                id: NODE_JAGGED_EDGE,
                 label: 'Jagged Edge',
                 loreTitle: 'Ragged Steel',
-                loreDescription: 'File the blade to a wicked burr — every slice leaves a wound that keeps bleeding.',
-                action: grant(STICK_SWORD_TREE_ID, STICK_SWORD_NODE_JAGGED_EDGE),
+                loreDescription: 'File the blade to a wicked burr \u2014 every slice leaves a wound that keeps bleeding.',
+                action: grant(SWORD_TREE_ID, NODE_JAGGED_EDGE),
             },
             {
-                id: STICK_SWORD_NODE_EXTRA_USES,
+                id: NODE_IRON_WRISTS,
                 label: '+2 Swing Sword Uses',
                 loreTitle: 'Endurance Edge',
-                loreDescription: 'Oil the wrists and lungs—squeeze two more full swings from the same stance.',
-                action: grant(STICK_SWORD_TREE_ID, STICK_SWORD_NODE_EXTRA_USES),
+                loreDescription: 'Oil the wrists and lungs\u2014squeeze two more full swings from the same stance.',
+                action: grant(MELEE_WEAPONS_TREE_ID, NODE_IRON_WRISTS),
+            },
+        ]);
+    }
+
+    if (equipped(WEAPON_ITEM_MACE)) {
+        return withChip([
+            {
+                id: NODE_TRAINING_REGIME,
+                label: 'Training Regime',
+                loreTitle: 'Heavy Habit',
+                loreDescription: 'Drill the mace until its weight lands exactly where you mean it to.',
+                action: grant(MACE_TREE_ID, NODE_TRAINING_REGIME),
+            },
+            {
+                id: NODE_IRON_WRISTS,
+                label: 'Iron Wrists',
+                loreTitle: 'Endurance Edge',
+                loreDescription: 'Oil the wrists and lungs\u2014squeeze more full swings from the same stance.',
+                action: grant(MELEE_WEAPONS_TREE_ID, NODE_IRON_WRISTS),
             },
         ]);
     }
@@ -244,10 +264,10 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
 export class CaveRespiteMission extends BaseMissionDef {
     getPostMissionChoiceOptions(params: PostMissionChoiceResolveParams): StoryChoiceOptionRow[] | null {
         if (params.choiceId === 'cave_respite_punch_choice') {
-            return getCaveRespitePunchChoiceRows(params.playerResearchTrees);
+            return getCaveRespitePunchChoiceRows(params.equippedItemIds);
         }
         if (params.choiceId === 'cave_respite_research_choice') {
-            return getCaveRespiteResearchChoiceRows(params.playerResearchTrees, params.playerId);
+            return getCaveRespiteResearchChoiceRows(params.equippedItemIds, params.playerId);
         }
         return null;
     }
@@ -264,6 +284,7 @@ export class CaveRespiteMission extends BaseMissionDef {
             metal: CAVE_RESPITE_METAL_REWARD,
             crystals: CAVE_RESPITE_CRYSTAL_REWARD,
         },
+        unlockItemTiers: [{ slot: 'weapon' as const, tier: 3 }],
     };
     worldWidth = CELL_SIZE;
     worldHeight = CELL_SIZE;

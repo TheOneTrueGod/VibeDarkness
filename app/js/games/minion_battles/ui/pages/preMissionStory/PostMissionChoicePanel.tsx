@@ -18,6 +18,7 @@ import { getResearchTree } from '../../../../../researchTrees/list';
 import { TestIds } from '../../../../../testing/testIds';
 import { arrangeStoryChoiceGridSlots, isStoryChoiceSkipOption } from './storyChoiceGrid';
 import { createStoryChoiceSkipOption } from '../../../storylines/storyChoiceOptions';
+import { ITEM_ICON_URLS } from '../../../character_defs/items';
 import { isGrantResources } from './preMissionStoryTypeGuards';
 
 /** Badge on reward options flagged {@link StoryChoiceOptionRow.forYou}. */
@@ -140,6 +141,14 @@ export default function PostMissionChoicePanel({
                                             data-testid={TestIds.storyChoiceResearchTreeIcon}
                                             title={researchTree.title}
                                             className="h-5 w-5 shrink-0 rounded-sm object-cover"
+                                        />
+                                    ) : null}
+                                    {!isSkip && opt.action?.type === 'equip_item' && ITEM_ICON_URLS[opt.action.itemId] ? (
+                                        <img
+                                            src={ITEM_ICON_URLS[opt.action.itemId]}
+                                            alt=""
+                                            data-testid="story-choice-item-icon"
+                                            className="h-6 w-6 shrink-0 object-contain"
                                         />
                                     ) : null}
                                     {!isSkip && opt.forYou ? (

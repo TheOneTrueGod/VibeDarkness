@@ -4,6 +4,7 @@
  */
 
 import type { ResearchTag } from '../../../researchTrees/types';
+import type { EquipmentSlotType } from '../character_defs/items/types';
 
 /** Which side the speaker's portrait appears on. */
 export type PortraitSide = 'left' | 'right';
@@ -130,8 +131,20 @@ export interface StoryChoiceOptionRow {
  * `loreTitle`/`loreDescription` override the node's own title/flavorText in the UI.
  */
 export type ResearchRewardSlot =
-    | { treeId: string; nodeId: string; loreTitle?: string; loreDescription?: string }
     | {
+        /**
+         * Equipment upgrade: offers an `equip_item` row for the next upgrade (`ItemDef.upgradesFrom`)
+         * of an item the player has equipped. Each such slot claims one upgrade not yet offered by an
+         * earlier slot, so two slots show two different upgrades; a slot with nothing left is omitted.
+         * The equip replaces the old item (post-mission `replaceItemIds`).
+         */
+        kind: 'equipmentUpgrade';
+        /** Only upgrades of items in this slot (default: any). */
+        slot?: EquipmentSlotType;
+    }
+    | { kind?: never; treeId: string; nodeId: string; loreTitle?: string; loreDescription?: string }
+    | {
+        kind?: never;
         nodeId?: never;
         treeId?: string;
         /** Only nodes carrying this tag (tree tags + node tags), e.g. `'weapon'`. */

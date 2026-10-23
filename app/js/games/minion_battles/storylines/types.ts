@@ -28,6 +28,7 @@ import type {
     LanterniteNestMissionConfig,
 } from '../game/units/spawning/nestMissionConfigs';
 import type { QuestSlotBank } from './questTypes';
+import type { UnlockItemTierReward } from './unlockItemTiers';
 import type { ObjectiveType } from './objectiveTypes';
 import type { EffectImageKey } from '../game/effectImages';
 
@@ -605,6 +606,11 @@ export interface MissionBattleConfig {
         resourceDelta?: Partial<Record<CampaignResourceKey, number>>;
         /** Darkness Upgrade node ids (tree `darkness_upgrades`) granted to each rewarded player's campaign. */
         darknessUpgradeIds?: string[];
+        /**
+         * Unlocks every item of the given slot + tier belonging to this mission's `campaignId`
+         * (see `ItemDef.tier` / `campaignIds`), added to the mission result `itemIds`.
+         */
+        unlockItemTiers?: UnlockItemTierReward[];
     };
     /** World modifiers active for this mission (merged with builtins and story sources at load time). */
     worldModifiers?: WorldModifierDef[];

@@ -2,26 +2,23 @@ import type { ResearchTreeDef } from '../types';
 import { RESEARCH_TREE_COLOUR_WEAPON, RESEARCH_TREE_ICON_WEAPON } from '../researchTreeChrome';
 import { EARTH_TREE_ID, EARTH_NODE_ROCK_SYNERGY_DAMAGE, EARTH_NODE_ROCK_SYNERGY_ENTOMBED } from './earth';
 import { STARTING_WEAPON_ROCKS_NODE_ID } from './startingWeaponNodes';
-import {
-    WEAPON_TREE_PREMIUM_METAL_COST,
-    WEAPON_TREE_STANDARD_METAL_COST,
-} from '../weaponResearchCosts';
+import { ROCKS_TREE_ID, WEAPON_ITEM_ROCKS } from './weaponTreeIds';
 
-export const CRYSTAL_ROCKS_TREE_ID = 'crystal_rocks';
+/** Base Rocks tree (id kept from the pre-equipment "Rocks" tree so stored research keeps working). */
+export const CRYSTAL_ROCKS_TREE_ID = ROCKS_TREE_ID;
 export const CRYSTAL_ROCKS_NODE_BASE = STARTING_WEAPON_ROCKS_NODE_ID;
-export const CRYSTAL_ROCKS_NODE_CHARGED_ROCKS = 'charged_rocks';
-export const CRYSTAL_ROCKS_NODE_PIERCING_KNIVES = 'piercing_knives';
 
+/** Root-only: upgrades to Charged Rocks / Knives are items, and their follow-ups live in the item trees. */
 export const crystalRocksTree: ResearchTreeDef = {
     id: CRYSTAL_ROCKS_TREE_ID,
     title: 'Rocks',
     colour: RESEARCH_TREE_COLOUR_WEAPON,
     icon: RESEARCH_TREE_ICON_WEAPON,
-    tags: ['weapon'],
-    boundItem: { itemId: '001', rootNodeId: CRYSTAL_ROCKS_NODE_BASE },
+    tags: ['weapon', 'equipment'],
+    boundItem: { itemId: WEAPON_ITEM_ROCKS, rootNodeId: CRYSTAL_ROCKS_NODE_BASE },
     accessRequirements: [
         { type: 'accountKnowledge', key: 'Research' },
-        { type: 'characterHasEquippedItem', itemId: '001' }, // Rocks
+        { type: 'characterHasEquippedItem', itemId: WEAPON_ITEM_ROCKS },
     ],
     nodes: [
         {
@@ -38,83 +35,6 @@ export const crystalRocksTree: ResearchTreeDef = {
             cost: {},
             effects: [],
             modifiesAbility: { from: 'throw_rock', to: 'throw_rock' },
-        },
-        {
-            id: 'charged_rocks',
-            title: 'Charged Rocks',
-            description: 'Infuse rocks with unstable crystal energy. Passive: gain {1 lightCharge} at round start.',
-            order: 10,
-            tier: 2,
-            position: { x: 400, y: 180 },
-            prereqNodeIds: [CRYSTAL_ROCKS_NODE_BASE],
-            exclusiveWithNodeIds: ['throwing_knives'],
-            requirements: [{ type: 'anyResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeIds: [CRYSTAL_ROCKS_NODE_BASE] }],
-            cost: { metal: WEAPON_TREE_STANDARD_METAL_COST },
-            effects: [{ type: 'replaceCard', fromCardId: 'throw_rock', toCardId: 'throw_charged_rock' }],
-            modifiesAbility: { from: 'throw_rock', to: 'throw_charged_rock' },
-        },
-        {
-            id: 'throwing_knives',
-            title: 'Throwing Knives',
-            description: 'Swap rocks for sharper thrown knives.',
-            order: 11,
-            tier: 2,
-            position: { x: 400, y: 380 },
-            prereqNodeIds: [CRYSTAL_ROCKS_NODE_BASE],
-            exclusiveWithNodeIds: ['charged_rocks'],
-            requirements: [{ type: 'anyResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeIds: [CRYSTAL_ROCKS_NODE_BASE] }],
-            cost: { metal: WEAPON_TREE_STANDARD_METAL_COST },
-            effects: [{ type: 'replaceCard', fromCardId: 'throw_rock', toCardId: 'throw_knife' }],
-            modifiesAbility: { from: 'throw_rock', to: 'throw_knife' },
-        },
-        {
-            id: 'more_rock',
-            title: 'More Rock',
-            description: 'Throw one additional rock or knife.',
-            order: 20,
-            tier: 3,
-            position: { x: 630, y: 300 },
-            prereqNodeIds: [],
-            exclusiveWithNodeIds: ['more_power', CRYSTAL_ROCKS_NODE_PIERCING_KNIVES],
-            requirements: [
-                { type: 'anyResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeIds: ['charged_rocks', 'throwing_knives'] },
-                { type: 'notResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeId: 'more_power' },
-                { type: 'notResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeId: CRYSTAL_ROCKS_NODE_PIERCING_KNIVES },
-            ],
-            cost: { metal: WEAPON_TREE_PREMIUM_METAL_COST },
-            effects: [],
-            modifiesAbility: { from: 'throw_rock', to: 'throw_rock' },
-        },
-        {
-            id: 'more_power',
-            title: 'More Power',
-            description: 'Increase thrown rock impact damage.',
-            order: 30,
-            tier: 3,
-            position: { x: 630, y: 120 },
-            prereqNodeIds: ['charged_rocks'],
-            exclusiveWithNodeIds: ['more_rock'],
-            requirements: [{ type: 'notResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeId: 'more_rock' }],
-            cost: { metal: WEAPON_TREE_PREMIUM_METAL_COST },
-            effects: [],
-            modifiesAbility: { from: 'throw_charged_rock', to: 'throw_charged_rock' },
-        },
-        {
-            id: CRYSTAL_ROCKS_NODE_PIERCING_KNIVES,
-            title: 'Piercing Knives',
-            description: 'Throwing knives pierce through their {first target}, hitting it and continuing to the next.',
-            order: 40,
-            tier: 3,
-            position: { x: 630, y: 460 },
-            prereqNodeIds: [],
-            exclusiveWithNodeIds: ['more_rock'],
-            requirements: [
-                { type: 'anyResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeIds: ['throwing_knives'] },
-                { type: 'notResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeId: 'more_rock' },
-            ],
-            cost: { metal: WEAPON_TREE_PREMIUM_METAL_COST },
-            effects: [],
-            modifiesAbility: { from: 'throw_knife', to: 'throw_knife' },
         },
     ],
     crossTreeNodeRefs: [

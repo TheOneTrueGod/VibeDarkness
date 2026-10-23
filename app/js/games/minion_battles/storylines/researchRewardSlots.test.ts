@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { resolveResearchRewardSlots } from './researchRewardSlots';
 import type { ResearchRewardSlot } from './storyTypes';
-import { CRYSTAL_ROCKS_NODE_CHARGED_ROCKS, CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
+import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
+import {
+    CHARGED_ROCKS_TREE_ID,
+    KNIVES_TREE_ID,
+    NODE_MORE_POWER,
+    NODE_PIERCING_KNIVES,
+    THROWN_WEAPONS_TREE_ID,
+    WEAPON_ITEM_CHARGED_ROCKS,
+    WEAPON_ITEM_KNIVES,
+    WEAPON_ITEM_SWORD,
+} from '../../../researchTrees/trees/weaponTreeIds';
 import { STICK_SWORD_NODE_BASE, STICK_SWORD_TREE_ID } from '../../../researchTrees/trees/stick_sword';
 import { LIGHT_NODE_CORE, LIGHT_TREE_ID } from '../../../researchTrees/trees/light';
 import {
@@ -36,23 +46,39 @@ function offeredTreeIds(slot: ResearchRewardSlot, research: Record<string, strin
 }
 
 describe('resolveResearchRewardSlots - active research', () => {
-    it('never offers a crystal_rocks node for a random weapon slot when the Stick is equipped', () => {
+    it('never offers a crystal_rocks node for a random weapon slot when the Sword is equipped', () => {
         const research = {
             [CRYSTAL_ROCKS_TREE_ID]: ['throw_rock'],
             [STICK_SWORD_TREE_ID]: [STICK_SWORD_NODE_BASE],
         };
-        const seen = offeredTreeIds(WEAPON_SLOT, research, [STICK]);
+        const seen = offeredTreeIds(WEAPON_SLOT, research, [WEAPON_ITEM_SWORD]);
         expect(seen.length).toBeGreaterThan(0);
         expect(seen.every((s) => s.treeId !== CRYSTAL_ROCKS_TREE_ID)).toBe(true);
     });
 
-    it('can offer charged_rocks with Rocks equipped and no stored research (virtual root)', () => {
+    it('offers More Power with Charged Rocks equipped and no stored research (virtual root)', () => {
         const seen = offeredTreeIds(
-            { tag: 'weapon', random: true, treeId: CRYSTAL_ROCKS_TREE_ID },
+            { tag: 'weapon', random: true, treeId: CHARGED_ROCKS_TREE_ID },
             {},
-            [ROCKS],
+            [WEAPON_ITEM_CHARGED_ROCKS],
         );
-        expect(seen.some((s) => s.nodeId === CRYSTAL_ROCKS_NODE_CHARGED_ROCKS)).toBe(true);
+        expect(seen.some((s) => s.nodeId === NODE_MORE_POWER)).toBe(true);
+    });
+
+    it('only offers weapon trees of the equipped item (Rocks sees none of the upgrade trees)', () => {
+        const seen = offeredTreeIds(WEAPON_SLOT, {}, [ROCKS]);
+        const upgradeTrees = new Set([CHARGED_ROCKS_TREE_ID, KNIVES_TREE_ID, THROWN_WEAPONS_TREE_ID]);
+        expect(seen.every((s) => !upgradeTrees.has(s.treeId))).toBe(true);
+    });
+
+    it('offers Piercing Knives and shared Thrown Weapons research only while Knives are equipped', () => {
+        const withKnives = offeredTreeIds(WEAPON_SLOT, {}, [WEAPON_ITEM_KNIVES]);
+        expect(withKnives.some((s) => s.nodeId === NODE_PIERCING_KNIVES)).toBe(true);
+        expect(withKnives.some((s) => s.treeId === THROWN_WEAPONS_TREE_ID)).toBe(true);
+        expect(withKnives.every((s) => s.treeId !== CHARGED_ROCKS_TREE_ID)).toBe(true);
+
+        const withStick = offeredTreeIds(WEAPON_SLOT, {}, [STICK]);
+        expect(withStick.every((s) => s.treeId !== KNIVES_TREE_ID && s.treeId !== THROWN_WEAPONS_TREE_ID)).toBe(true);
     });
 
     it('keeps offering core-tagged research as before', () => {
@@ -67,15 +93,53 @@ describe('resolveResearchRewardSlots - active research', () => {
 
     it('leaves specific designer slots untouched', () => {
         const [row] = resolveResearchRewardSlots(
-            [{ treeId: CRYSTAL_ROCKS_TREE_ID, nodeId: CRYSTAL_ROCKS_NODE_CHARGED_ROCKS }],
+            [{ treeId: CHARGED_ROCKS_TREE_ID, nodeId: NODE_MORE_POWER }],
             {},
             [STICK],
         );
         expect(row.action).toEqual({
             type: 'grant_research_to_player',
-            treeId: CRYSTAL_ROCKS_TREE_ID,
-            nodeId: CRYSTAL_ROCKS_NODE_CHARGED_ROCKS,
+            treeId: CHARGED_ROCKS_TREE_ID,
+            nodeId: NODE_MORE_POWER,
         });
+    });
+});
+
+describe('resolveResearchRewardSlots - equipmentUpgrade slots', () => {
+    const UPGRADE: ResearchRewardSlot = { kind: 'equipmentUpgrade' };
+    const itemIds = (rows: ReturnType<typeof resolveResearchRewardSlots>) =>
+        rows.map((r) => (r.action as { itemId?: string }).itemId);
+
+    it('offers one equip_item row per upgrade of the equipped item, with name and description', () => {
+        const rows = resolveResearchRewardSlots([UPGRADE, UPGRADE], {}, [ROCKS]);
+        expect(itemIds(rows)).toEqual(['011', '012']);
+        expect(rows.every((r) => r.action.type === 'equip_item')).toBe(true);
+        expect(rows[0].loreTitle).toBe('Charged Rocks');
+        expect(rows[0].loreDescription).toBeTruthy();
+        expect(new Set(rows.map((r) => r.id)).size).toBe(rows.length);
+    });
+
+    it('offers the Stick upgrades (Sword, Mace)', () => {
+        expect(itemIds(resolveResearchRewardSlots([UPGRADE, UPGRADE], {}, [STICK]))).toEqual(['013', '014']);
+    });
+
+    it('offers a Shield player a single option (Crystal Shield) and omits the spare slot', () => {
+        const rows = resolveResearchRewardSlots([UPGRADE, UPGRADE], {}, ['003']);
+        expect(itemIds(rows)).toEqual(['015']);
+    });
+
+    it('offers nothing when no equipped item has an upgrade, and mixes with research slots', () => {
+        expect(resolveResearchRewardSlots([UPGRADE], {}, ['011'])).toEqual([]);
+        const rows = resolveResearchRewardSlots(
+            [UPGRADE, { treeId: CHARGED_ROCKS_TREE_ID, nodeId: NODE_MORE_POWER }],
+            {},
+            [ROCKS],
+        );
+        expect(rows.map((r) => r.action.type)).toEqual(['equip_item', 'grant_research_to_player']);
+    });
+
+    it('filters by equipment slot', () => {
+        expect(resolveResearchRewardSlots([{ kind: 'equipmentUpgrade', slot: 'utility' }], {}, [ROCKS])).toEqual([]);
     });
 });
 
@@ -85,7 +149,7 @@ describe('resolveResearchRewardSlots - stat (Training) slots', () => {
     // Chip from lobby D2D556: Rocks + Earth Core, no Training research yet.
     const CHIP_EQUIPMENT = [ROCKS, CORE_ITEM_IDS.EarthCore];
     const CHIP_RESEARCH = {
-        [CRYSTAL_ROCKS_TREE_ID]: ['throw_rock', CRYSTAL_ROCKS_NODE_CHARGED_ROCKS, 'more_rock'],
+        [CRYSTAL_ROCKS_TREE_ID]: ['throw_rock'],
         [EARTH_TREE_ID]: ['earth_core', 'digging_claws', 'earth_rock_slide', 'earth_stone_tomb', 'rapid_throw'],
     };
 

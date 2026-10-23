@@ -1,6 +1,14 @@
 ﻿import type { ScenarioDefinition } from '../../types';
 import type { GameEngine } from '../../../game/GameEngine';
-import { CRYSTAL_ROCKS_TREE_ID } from '../../../../../researchTrees/trees/crystal_rocks';
+import {
+    CHARGED_ROCKS_TREE_ID,
+    CHARGED_ROCKS_ROOT_NODE_ID,
+    NODE_MORE_POWER,
+    NODE_MORE_ROCK,
+    ROCKS_TREE_ID,
+    THROWN_WEAPONS_TREE_ID,
+    THROWN_WEAPONS_ROOT_NODE_ID,
+} from '../../../../../researchTrees/trees/weaponTreeIds';
 import {
     buildTinyBattleEngine,
     placePlayerAndDummy,
@@ -10,7 +18,7 @@ import {
 const P = TINY_BATTLE_PLAYER_ID;
 
 function throwRockEngine(nodes: string[]): GameEngine {
-    const research = nodes.length > 0 ? { [P]: { [CRYSTAL_ROCKS_TREE_ID]: nodes } } : undefined;
+    const research = nodes.length > 0 ? { [P]: { [ROCKS_TREE_ID]: nodes } } : undefined;
     const engine = buildTinyBattleEngine({
         gridW: 16,
         gridH: 10,
@@ -28,8 +36,7 @@ function throwRockEngine(nodes: string[]): GameEngine {
     return engine;
 }
 
-function chargedRockEngine(nodes: string[]): GameEngine {
-    const research = { [P]: { [CRYSTAL_ROCKS_TREE_ID]: nodes } };
+function chargedRockEngine(research: Record<string, Record<string, string[]>>): GameEngine {
     const engine = buildTinyBattleEngine({
         gridW: 16,
         gridH: 10,
@@ -88,7 +95,7 @@ function chargedThrowTwoRockOrder(engine: GameEngine) {
 
 export const throwRockNoResearchScenario: ScenarioDefinition = {
     id: 'throw_rock_research_none',
-    title: 'Throw Rock baseline damage (no crystal_rocks nodes)',
+    title: 'Throw Rock baseline damage (no research)',
     category: 'ability',
     maxDurationMs: 5000,
     buildEngine: () => throwRockEngine([]),
@@ -128,7 +135,7 @@ export const throwRockMorePowerScenario: ScenarioDefinition = {
     title: 'Throw Charged Rock with more_power deals higher explosion damage',
     category: 'ability',
     maxDurationMs: 5000,
-    buildEngine: () => chargedRockEngine(['charged_rocks', 'more_power']),
+    buildEngine: () => chargedRockEngine({ [P]: { [CHARGED_ROCKS_TREE_ID]: [CHARGED_ROCKS_ROOT_NODE_ID, NODE_MORE_POWER] } }),
     getInitialOrders: chargedThrowOrder,
     assertPass: (e) => {
         const d = e.getUnit('target_dummy');
@@ -145,7 +152,12 @@ export const throwRockMoreRockScenario: ScenarioDefinition = {
     title: 'Throw Charged Rock with more_rock fires two projectiles',
     category: 'ability',
     maxDurationMs: 5000,
-    buildEngine: () => chargedRockEngine(['charged_rocks', 'more_rock']),
+    buildEngine: () => chargedRockEngine({
+        [P]: {
+            [CHARGED_ROCKS_TREE_ID]: [CHARGED_ROCKS_ROOT_NODE_ID],
+            [THROWN_WEAPONS_TREE_ID]: [THROWN_WEAPONS_ROOT_NODE_ID, NODE_MORE_ROCK],
+        },
+    }),
     getInitialOrders: chargedThrowTwoRockOrder,
     assertPass: (e) => {
         const d = e.getUnit('target_dummy');

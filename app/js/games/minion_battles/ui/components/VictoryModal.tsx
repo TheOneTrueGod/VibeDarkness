@@ -20,6 +20,8 @@ interface VictoryModalProps {
     missionRewards: {
         resourceDelta?: Partial<Record<CampaignResourceKey, number>>;
         itemFromFirstChoice?: string;
+        /** Items unlocked for the campaign by the mission's `unlockItemTiers` reward. */
+        unlockedItemIds?: string[];
         researchRewardIds?: string[];
         researchRewards?: MissionResearchRewardEntry[];
         /** Darkness Upgrade bonus lines (host's active set, shown for every player); already included in `resourceDelta`. */
@@ -137,6 +139,7 @@ export default function VictoryModal({
     const hasMissionRewards =
         missionRewards &&
         ((missionRewards.itemFromFirstChoice != null && missionRewards.itemFromFirstChoice !== '') ||
+            (missionRewards.unlockedItemIds?.length ?? 0) > 0 ||
             (missionRewards.resourceDelta &&
                 Object.keys(missionRewards.resourceDelta).length > 0 &&
                 Object.values(missionRewards.resourceDelta).some((v) => v != null && v > 0)) ||
@@ -195,6 +198,9 @@ export default function VictoryModal({
                             {itemId ? (
                                 <ItemRewardCard itemId={itemId} caption="From your choice" />
                             ) : null}
+                            {(missionRewards?.unlockedItemIds ?? []).map((id) => (
+                                <ItemRewardCard key={`unlocked-${id}`} itemId={id} caption="Unlocked" />
+                            ))}
                             {rewardCards.length > 0 ? (
                                 <div
                                     className="flex w-full flex-wrap justify-center gap-3"

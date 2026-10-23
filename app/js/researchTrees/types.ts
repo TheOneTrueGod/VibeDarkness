@@ -214,11 +214,19 @@ export interface CrossTreeNodeRef {
 
 /**
  * Category tags used to target research (e.g. campsite reward slots).
- * - `weapon`: weapon upgrades (Throw Rock, Swing Bat, Raise Shield and everything in their trees)
+ * - `weapon`: weapon upgrades (Throw Rock, Swing Mace, Raise Shield and everything in their trees)
  * - `stat`: stat upgrades (the Training tree)
  * - `core`: trees tied to a core item (Light, Earth, Command, Gravity, Blood Mage)
+ * - `equipment`: trees bound to an equipment item; listed after all other trees in the Upgrades sidebar
  */
-export type ResearchTag = 'weapon' | 'stat' | 'core';
+export type ResearchTag = 'weapon' | 'stat' | 'core' | 'equipment';
+
+/** Item ids a tree is bound to (empty for unbound trees). */
+export function getBoundItemIds(tree: Pick<ResearchTreeDef, 'boundItem'>): readonly string[] {
+    if (!tree.boundItem) return [];
+    const { itemId } = tree.boundItem;
+    return typeof itemId === 'string' ? [itemId] : itemId;
+}
 
 export interface ResearchTreeDef {
     id: string;
@@ -238,11 +246,13 @@ export interface ResearchTreeDef {
     ownedAbilityIds?: string[];
     nodes: ResearchNodeDef[];
     /**
-     * Marks this as a weapon tree, active only while `itemId` is equipped.
+     * Marks this as an equipment tree, active only while `itemId` is equipped. `itemId` may be a
+     * list (a shared family tree): the tree is then active while ANY of those items is equipped.
      * `rootNodeId` counts as researched automatically (a "virtual" root, never persisted)
      * while the tree is active. Research stored for an inactive bound tree is kept but ignored.
+     * Read the ids through {@link getBoundItemIds}.
      */
-    boundItem?: { itemId: string; rootNodeId: string };
+    boundItem?: { itemId: string | readonly string[]; rootNodeId: string };
     /** Nodes owned by other trees that are also displayed in this tree's panel. */
     crossTreeNodeRefs?: CrossTreeNodeRef[];
 }

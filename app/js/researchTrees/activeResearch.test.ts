@@ -6,6 +6,7 @@ import {
 } from './activeResearch';
 import { crystalRocksTree } from './trees/crystal_rocks';
 import { earthTree } from './trees/earth';
+import { getBoundItemIds, type ResearchTreeDef } from './types';
 
 describe('activeResearch', () => {
     it("handles Chip's case: Rocks equipped keeps crystal_rocks, drops stick_sword", () => {
@@ -53,5 +54,16 @@ describe('activeResearch', () => {
         const levels = { crystal_rocks: { more_rock: 1 }, earth: { x: 2 } };
         expect(getActiveResearchNodeLevels(levels, ['002'])).toEqual({ earth: { x: 2 } });
         expect(getActiveResearchNodeLevels(levels, ['001'])).toEqual(levels);
+    });
+
+    it('treats a tree bound to several items as active while any of them is equipped', () => {
+        const shared = { boundItem: { itemId: ['011', '012'], rootNodeId: 'root' } } as Pick<ResearchTreeDef, 'boundItem'>;
+        expect(getBoundItemIds(shared)).toEqual(['011', '012']);
+        expect(getBoundItemIds(crystalRocksTree)).toEqual(['001']);
+        expect(getBoundItemIds(earthTree)).toEqual([]);
+        expect(isResearchTreeActive(shared, [])).toBe(false);
+        expect(isResearchTreeActive(shared, ['001'])).toBe(false);
+        expect(isResearchTreeActive(shared, ['012'])).toBe(true);
+        expect(isResearchTreeActive(shared, ['011', '004'])).toBe(true);
     });
 });

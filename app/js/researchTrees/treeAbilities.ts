@@ -72,23 +72,35 @@ function treeHasResearchedNodes(
     return (researchedTrees?.[treeId] ?? []).length > 0;
 }
 
-/** Players see trees they have abilities in, or that they have already researched. */
+/** True when the tree has a player-facing node besides its virtual root. */
+export function researchTreeHasNonRootNodes(tree: ResearchTreeDef): boolean {
+    return tree.nodes.some(
+        (n) => n.id !== tree.boundItem?.rootNodeId && !isDraftResearchNode(n) && !isDisabledResearchNode(n),
+    );
+}
+
+/**
+ * Players see trees they have abilities in, or that they have already researched. Bound
+ * (equipment) trees with nothing but their root are hidden: admins still list them, dimmed.
+ */
 export function isPlayerVisibleResearchTree(
     tree: ResearchTreeDef,
     researchedTrees: Record<string, string[]> | undefined,
     playerAbilityIds: ReadonlySet<string>,
 ): boolean {
+    if (tree.boundItem && !researchTreeHasNonRootNodes(tree)) return false;
     return researchTreeMatchesAbilityIds(tree, playerAbilityIds) || treeHasResearchedNodes(researchedTrees, tree.id);
 }
 
-/** Matching trees first; original order is preserved within each group. */
+/**
+ * Equipment-tagged trees go after all other trees; within each group, matching trees come first.
+ * Original order is preserved within each sub-group (stable sort).
+ */
 export function sortResearchTreesByPlayerAbilities<T extends ResearchTreeDef>(
     trees: readonly T[],
     playerAbilityIds: ReadonlySet<string>,
 ): T[] {
-    return [...trees].sort((a, b) => {
-        const aMatch = researchTreeMatchesAbilityIds(a, playerAbilityIds) ? 0 : 1;
-        const bMatch = researchTreeMatchesAbilityIds(b, playerAbilityIds) ? 0 : 1;
-        return aMatch - bMatch;
-    });
+    const rank = (t: T) =>
+        (t.tags?.includes('equipment') ? 2 : 0) + (researchTreeMatchesAbilityIds(t, playerAbilityIds) ? 0 : 1);
+    return [...trees].sort((a, b) => rank(a) - rank(b));
 }

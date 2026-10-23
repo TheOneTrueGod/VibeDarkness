@@ -1,9 +1,12 @@
 ﻿import type { ScenarioDefinition } from '../../types';
 import {
-    STICK_SWORD_NODE_JAGGED_EDGE,
-    STICK_SWORD_NODE_EXTRA_USES,
-    STICK_SWORD_TREE_ID,
-} from '../../../../../researchTrees/trees/stick_sword';
+    NODE_IRON_WRISTS,
+    NODE_JAGGED_EDGE,
+    MELEE_WEAPONS_TREE_ID,
+    MELEE_WEAPONS_ROOT_NODE_ID,
+    SWORD_TREE_ID,
+    SWORD_ROOT_NODE_ID,
+} from '../../../../../researchTrees/trees/weaponTreeIds';
 import { SWORD_BASE_MAX_USES } from '../../../card_defs/0112_SwingSword/0112Ability';
 import { SWING_EXTRA_USES } from '../../../abilities/abilityUses';
 import {
@@ -59,7 +62,7 @@ export const swingSwordJaggedEdgeScenario: ScenarioDefinition = {
     category: 'ability',
     maxDurationMs: 5000,
     buildEngine() {
-        const research = { [P]: { [STICK_SWORD_TREE_ID]: ['craft_sword', STICK_SWORD_NODE_JAGGED_EDGE] } };
+        const research = { [P]: { [SWORD_TREE_ID]: [SWORD_ROOT_NODE_ID, NODE_JAGGED_EDGE] } };
         const engine = buildTinyBattleEngine({
             gridW: 16,
             gridH: 12,
@@ -135,7 +138,7 @@ export const swingSwordExtraUsesScenario: ScenarioDefinition = {
     category: 'ability',
     maxDurationMs: 1000,
     buildEngine() {
-        const research = { [P]: { [STICK_SWORD_TREE_ID]: ['craft_sword', STICK_SWORD_NODE_EXTRA_USES] } };
+        const research = { [P]: { [MELEE_WEAPONS_TREE_ID]: [MELEE_WEAPONS_ROOT_NODE_ID, NODE_IRON_WRISTS] } };
         const engine = buildTinyBattleEngine({
             gridW: 10,
             gridH: 8,

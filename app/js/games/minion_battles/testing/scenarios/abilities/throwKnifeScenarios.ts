@@ -8,14 +8,15 @@ import {
 import { createTargetDummyAtWorld } from '../../fixtures/targetDummies';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
 import {
-    CRYSTAL_ROCKS_TREE_ID,
-    CRYSTAL_ROCKS_NODE_PIERCING_KNIVES,
-} from '../../../../../researchTrees/trees/crystal_rocks';
+    KNIVES_TREE_ID,
+    KNIVES_ROOT_NODE_ID,
+    NODE_PIERCING_KNIVES,
+} from '../../../../../researchTrees/trees/weaponTreeIds';
 import { BLEED_BUFF_TYPE } from '../../../buffs/BleedBuff';
 
 const P = TINY_BATTLE_PLAYER_ID;
 
-const PIERCE_RESEARCH = ['throwing_knives', CRYSTAL_ROCKS_NODE_PIERCING_KNIVES];
+const PIERCE_RESEARCH = [KNIVES_ROOT_NODE_ID, NODE_PIERCING_KNIVES];
 
 /**
  * Caster at (80, 200). Knife aimed right at pixel (600, 200) â€” travelDistance = 200px.
@@ -33,7 +34,7 @@ export const throwKnifePiercingBleedScenario: ScenarioDefinition = {
 
     buildEngine() {
         bleedState = { hitHp0: -1, hitHp1: -1, hitTime: -1 };
-        const research = { [P]: { [CRYSTAL_ROCKS_TREE_ID]: PIERCE_RESEARCH } };
+        const research = { [P]: { [KNIVES_TREE_ID]: PIERCE_RESEARCH } };
         const engine = buildTinyBattleEngine({
             gridW: 12,
             gridH: 8,

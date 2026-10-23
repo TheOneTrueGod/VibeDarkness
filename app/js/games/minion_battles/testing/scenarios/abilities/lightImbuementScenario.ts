@@ -1,19 +1,19 @@
 /**
- * Gather Light + Imbued Bat E2E scenario (Light Imbuement research gated).
+ * Gather Light + Imbued Mace E2E scenario (Light Imbuement research gated).
  *
  * Setup:
- *   - Player (warrior) at centre-left with abilities 0115 (Swing Bat), 0804 (Gather Light),
- *     and 0803 (Imbued Bat, pre-loaded via swap network).
+ *   - Player (warrior) at centre-left with abilities 0115 (Swing Mace), 0804 (Gather Light),
+ *     and 0803 (Imbued Mace, pre-loaded via swap network).
  *   - Player owns the Light Imbuement research node so Gather Light applies LightImbueBuff.
  *   - One target dummy directly in front, within melee range.
  *
  * Order sequence:
  *   1. Use Gather Light (0804) — windup then grants Light + LightImbueBuff, triggering
- *      the swap: Swing Bat hidden → Imbued Bat activated with 1 use.
- *   2. Use Imbued Bat (0803) targeting the dummy — melee swing plus light AoE fires.
+ *      the swap: Swing Mace hidden → Imbued Mace activated with 1 use.
+ *   2. Use Imbued Mace (0803) targeting the dummy — melee swing plus light AoE fires.
  *
  * Expected:
- *   - After Gather Light completes, Swing Bat is hidden and Imbued Bat is active with 1 use.
+ *   - After Gather Light completes, Swing Mace is hidden and Imbued Mace is active with 1 use.
  *   - The dummy took damage (primary swing + possibly light AoE).
  *   - No engine errors during either cast.
  */
@@ -36,7 +36,7 @@ const CELL = 40;
 
 // Player slightly left of centre; dummy in melee range to the right.
 const PLAYER_POS = { x: 3 * CELL + CELL / 2, y: 5 * CELL + CELL / 2 }; // (140, 220)
-// 35 px to the right — within Swing Bat / Imbued Bat max range (25 px + unit radius).
+// 35 px to the right — within Swing Mace / Imbued Mace max range (25 px + unit radius).
 const DUMMY_POS  = { x: PLAYER_POS.x + 35, y: PLAYER_POS.y };
 
 const SWING_BAT_ABILITY_ID = '0115';
@@ -45,9 +45,9 @@ const SWING_BAT_INITIAL_SLOT = 0;
 
 export const lightImbuementAndImbuedBatScenario: ScenarioDefinition = {
     id: 'light_imbuement_imbued_bat_e2e',
-    title: 'Gather Light (0804) + Light Imbuement research → Imbued Bat (0803): full cast flow deals damage',
+    title: 'Gather Light (0804) + Light Imbuement research → Imbued Mace (0803): full cast flow deals damage',
     category: 'ability',
-    // Gather Light windup + Imbued Bat cast.
+    // Gather Light windup + Imbued Mace cast.
     maxDurationMs: 8000,
 
     buildEngine() {
@@ -65,11 +65,11 @@ export const lightImbuementAndImbuedBatScenario: ScenarioDefinition = {
             playerId: P,
             x: PLAYER_POS.x,
             y: PLAYER_POS.y,
-            // Include Swing Bat, Gather Light, and Imbued Bat so the swap network is fully wired.
+            // Include Swing Mace, Gather Light, and Imbued Mace so the swap network is fully wired.
             abilities: [SWING_BAT_ABILITY_ID, GATHER_LIGHT_ABILITY_ID, IMBUED_BAT_ABILITY_ID],
         });
 
-        // Light resource attached so Imbued Bat / other abilities in the bar have something to draw on.
+        // Light resource attached so Imbued Mace / other abilities in the bar have something to draw on.
         const light = new Light();
         player.attachResource(light, engine.eventBus);
 
@@ -95,7 +95,7 @@ export const lightImbuementAndImbuedBatScenario: ScenarioDefinition = {
                 abilityId: GATHER_LIGHT_ABILITY_ID,
                 targets: [],
             },
-            // 2. Cast Imbued Bat at the dummy (swap network will have activated it after step 1).
+            // 2. Cast Imbued Mace at the dummy (swap network will have activated it after step 1).
             {
                 unitId: player.id,
                 abilityId: IMBUED_BAT_ABILITY_ID,
@@ -110,7 +110,7 @@ export const lightImbuementAndImbuedBatScenario: ScenarioDefinition = {
         if (!player || !dummy) return false;
         // Dummy must have taken at least some damage (primary swing is 10 base).
         if (dummy.hp >= dummy.maxHp) return false;
-        // After Imbued Bat exhausts, Swing Bat returns to its original bar slot.
+        // After Imbued Mace exhausts, Swing Mace returns to its original bar slot.
         return player.abilities.indexOf(SWING_BAT_ABILITY_ID) === SWING_BAT_INITIAL_SLOT;
     },
 
@@ -120,10 +120,10 @@ export const lightImbuementAndImbuedBatScenario: ScenarioDefinition = {
         if (!dummy) return 'Target dummy was removed from the engine.';
         if (!player) return 'Player unit was removed from the engine.';
         if (dummy.hp >= dummy.maxHp) {
-            return `Dummy took no damage (hp=${dummy.hp}/${dummy.maxHp}). Gather Light may not have applied the imbue buff, the swap did not fire, or Imbued Bat did not connect.`;
+            return `Dummy took no damage (hp=${dummy.hp}/${dummy.maxHp}). Gather Light may not have applied the imbue buff, the swap did not fire, or Imbued Mace did not connect.`;
         }
         if (player.abilities.indexOf(SWING_BAT_ABILITY_ID) !== SWING_BAT_INITIAL_SLOT) {
-            return `Swing Bat is not in its original bar slot after the full cast (index=${player.abilities.indexOf(SWING_BAT_ABILITY_ID)}, expected=${SWING_BAT_INITIAL_SLOT}).`;
+            return `Swing Mace is not in its original bar slot after the full cast (index=${player.abilities.indexOf(SWING_BAT_ABILITY_ID)}, expected=${SWING_BAT_INITIAL_SLOT}).`;
         }
         return 'Scenario failed for an unknown reason.';
     },

@@ -12,8 +12,8 @@
  * Scenario F: After final target injected, engine runs final hit then pauses (not waitingForOrders).
  * Scenario G: Light Blast playahead pauses before active interval; inject damages enemy.
  * Scenario H: Committed vs preview Light Blast damage timing matches within FIXED_DT.
- * Scenario I: Swing Bat deferred preview pauses before cast (windup lunge).
- * Scenario J: Swing Bat preview with positional target runs windup lunge before hit interval.
+ * Scenario I: Swing Mace deferred preview pauses before cast (windup lunge).
+ * Scenario J: Swing Mace preview with positional target runs windup lunge before hit interval.
  */
 
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
@@ -257,9 +257,9 @@ function runLightBlastPreviewToDone(
     expect(done).toBe(true);
 }
 
-/** Swing Bat — matches `SwingBatCard.abilityId` in `0115Ability.ts`. */
+/** Swing Mace — matches `SwingBatCard.abilityId` in `0115Ability.ts`. */
 const SWING_BAT_ABILITY_ID = SwingBatCard.abilityId;
-/** SelectTargetDef label on Swing Bat timings. */
+/** SelectTargetDef label on Swing Mace timings. */
 const SWING_BAT_TARGET_LABEL = 'Target';
 /** Matches `0115Ability` windup interval end. */
 const SWING_BAT_WINDUP_END = 0.2;
@@ -272,7 +272,7 @@ interface SwingBatFixture {
     aimPixel: { x: number; y: number };
 }
 
-/** Player with Swing Bat; aim point at max lunge+hitbox range east. */
+/** Player with Swing Mace; aim point at max lunge+hitbox range east. */
 function buildSwingBatFixture(): SwingBatFixture {
     resetGameObjectIdCounter(1);
 
@@ -1390,9 +1390,9 @@ describe('interactive sequential targeting', () => {
     });
 
     /**
-     * Scenario I — Swing Bat defers preview until target (windup lunge needs beginActiveCast input).
+     * Scenario I — Swing Mace defers preview until target (windup lunge needs beginActiveCast input).
      */
-    it('Scenario I: Swing Bat deferred preview pauses before cast with zero ticks advanced', () => {
+    it('Scenario I: Swing Mace deferred preview pauses before cast with zero ticks advanced', () => {
         const { engine, player, aimPixel: _aimPixel } = buildSwingBatFixture();
         stepUntil(engine, () => engine.waitingForOrders != null);
 
@@ -1419,7 +1419,7 @@ describe('interactive sequential targeting', () => {
      * Regression: old code looked for aim pixel at slice(startIdx + numLockOns) which
      * missed the pixel when fewer enemies than numTargets slots were locked on.
      */
-    it('Scenario K: Swing Bat with 1 enemy lock-on and trailing aim pixel lunges toward click pixel', () => {
+    it('Scenario K: Swing Mace with 1 enemy lock-on and trailing aim pixel lunges toward click pixel', () => {
         const { engine, player, aimPixel } = buildSwingBatFixture();
 
         const enemy = createTargetDummyAtWorld(engine, player.x + 20, player.y, {
@@ -1431,7 +1431,7 @@ describe('interactive sequential targeting', () => {
 
         stepUntil(engine, () => engine.waitingForOrders != null);
 
-        // 1 enemy lock-on, numTargets=3 for Swing Bat → targets = [unit, aimPixel].
+        // 1 enemy lock-on, numTargets=3 for Swing Mace → targets = [unit, aimPixel].
         const targets: ResolvedTarget[] = [
             { type: 'unit', unitId: enemy.id },
             { type: 'pixel', position: aimPixel },
@@ -1471,7 +1471,7 @@ describe('interactive sequential targeting', () => {
      * Lunge + movementByLabel: path chosen during targeting must not apply at hit entry
      * (stale pre-lunge origin). It applies at cooldown with a repath from the post-lunge cell.
      */
-    it('Swing Bat movementByLabel applies at cooldown from post-lunge cell, not at hit entry', () => {
+    it('Swing Mace movementByLabel applies at cooldown from post-lunge cell, not at hit entry', () => {
         const { engine, player, aimPixel } = buildSwingBatFixture();
         const tm = engine.terrainManager!;
         const startGrid = tm.grid.worldToGrid(player.x, player.y);
@@ -1546,7 +1546,7 @@ describe('interactive sequential targeting', () => {
      * Lunge + order movePath (right-click before cast): walkIntent survives windup invalidate;
      * path resumes from the post-lunge cell once movement lock lifts (speed > 0 after windup).
      */
-    it('Swing Bat order movePath resumes from post-lunge cell at cooldown', () => {
+    it('Swing Mace order movePath resumes from post-lunge cell at cooldown', () => {
         const { engine, player, aimPixel } = buildSwingBatFixture();
         const tm = engine.terrainManager!;
         const startGrid = tm.grid.worldToGrid(player.x, player.y);
@@ -1612,7 +1612,7 @@ describe('interactive sequential targeting', () => {
     /**
      * Scenario J — preview order with positional targets runs windup lunge before the hit interval.
      */
-    it('Scenario J: Swing Bat preview with positional target advances during windup lunge', () => {
+    it('Scenario J: Swing Mace preview with positional target advances during windup lunge', () => {
         const { engine, player, aimPixel } = buildSwingBatFixture();
         const startX = player.x;
         const startY = player.y;

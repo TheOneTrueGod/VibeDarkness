@@ -40,7 +40,7 @@ function buildCasterWithAbility(abilityId: string) {
 }
 
 describe('findPreviewDeferredSelectLabel', () => {
-    it('returns Target for Swing Bat (windup lunge, select at 0.2s)', () => {
+    it('returns Target for Swing Mace (windup lunge, select at 0.2s)', () => {
         const { engine, player } = buildCasterWithAbility(SwingBatCard.abilityId);
         const ability = getAbility(SwingBatCard.abilityId);
         expect(ability).toBeDefined();

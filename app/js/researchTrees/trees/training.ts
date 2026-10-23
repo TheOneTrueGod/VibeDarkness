@@ -1,7 +1,7 @@
 import { PassiveStatKey, type ResearchTreeDef } from '../types';
 import { RESEARCH_TREE_COLOUR_GENERIC, RESEARCH_TREE_ICON_GENERIC } from '../researchTreeChrome';
 import { DescriptiveValue } from '../descriptiveValue';
-import { CRYSTAL_ROCKS_NODE_CHARGED_ROCKS, CRYSTAL_ROCKS_TREE_ID } from './crystal_rocks';
+import { WEAPON_ITEM_CHARGED_ROCKS } from './weaponTreeIds';
 
 export const TRAINING_TREE_ID = 'training';
 export const TRAINING_NODE_CORE = 'core_training';
@@ -126,8 +126,8 @@ export const trainingTree: ResearchTreeDef = {
                 { type: 'notResearched', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_DOUBLE_PUNCH },
                 { type: 'notResearched', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_STRONG_PUNCH },
                 { type: 'notResearched', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_SNEAKY_PUNCH },
-                // Its hit grants a Light Charge to Throw Charged Rock, so it is pointless without it.
-                { type: 'anyResearched', treeId: CRYSTAL_ROCKS_TREE_ID, nodeIds: [CRYSTAL_ROCKS_NODE_CHARGED_ROCKS] },
+                // Its hit grants a Light Charge to Throw Charged Rock, so it is pointless without Charged Rocks equipped.
+                { type: 'characterHasEquippedItem', itemId: WEAPON_ITEM_CHARGED_ROCKS },
             ],
             cost: { food: 20 },
             effects: [{ type: 'replaceCard', fromCardId: '0120', toCardId: '0119' }],

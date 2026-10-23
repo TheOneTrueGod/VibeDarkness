@@ -1,11 +1,11 @@
 /**
- * Imbued Bat — a light-infused version of Swing Bat, activated by the swap network
+ * Imbued Mace — a light-infused version of Swing Mace, activated by the swap network
  * when Gather Light is cast with the Light Imbuement research node owned.
  *
- * Inherits Swing Bat's perpendicular melee swing, then releases a forward arc of
+ * Inherits Swing Mace's perpendicular melee swing, then releases a forward arc of
  * light damage from the caster (hollow near the unit) out to LIGHT_CONE_MAX_RANGE.
  *
- * Timings match Swing Bat:
+ * Timings match Swing Mace:
  *   0.00–0.20  windup
  *   0.20–0.30  hit (primary swing + secondary light cone)
  *   0.30–1.65  cooldown
@@ -52,14 +52,14 @@ const SWING_BAT_ABILITY_ID = '0115';
 const PRIMARY_DAMAGE = 18;
 const KNOCKBACK_TIER = 3;
 
-/** Forward light burst from the caster; wide arc opens toward the bat swing. */
+/** Forward light burst from the caster; wide arc opens toward the mace swing. */
 export { LIGHT_CONE_MAX_RANGE, IMBUED_BAT_ABILITY_ID, getImbuedBatLightConeMaxRange } from './0803Constants';
 export const LIGHT_CONE_HALF_ARC_RAD = Math.PI / 4;
 export const LIGHT_CONE_DAMAGE = 12;
 const LIGHT_CONE_MAX_TARGETS = 5;
 
 const TOOLTIP_LINES = [
-    'Swing your light-imbued bat dealing {{DAMAGE}} damage to up to {{MAX_TARGETS}} enemies.',
+    'Swing your light-imbued mace dealing {{DAMAGE}} damage to up to {{MAX_TARGETS}} enemies.',
     '{{KNOCKBACK}}.',
     'Releases an arc of light dealing {{DAMAGE_2}} damage to up to {{LIGHT_CONE_MAX_TARGETS}} enemies ahead.',
     'Granted for one use by {Gather Light}.',
@@ -194,7 +194,7 @@ const imbuedBatBehaviour = CastBehaviours.MeleeAttack()
 
 export const ImbuedBatAbility = defineAbility({
     id: CARD_ID,
-    name: 'Imbued Bat',
+    name: 'Imbued Mace',
     image: IMBUED_BAT_IMAGE,
     tags: ['secondary', 'melee'],
     resourceCost: null,

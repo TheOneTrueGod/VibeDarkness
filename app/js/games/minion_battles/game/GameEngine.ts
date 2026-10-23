@@ -78,7 +78,6 @@ import { clearUnitTileTransitionState } from './terrainEffects/tileTransitions';
 import { registerDamageLinkListeners } from './units/unitDamageLinks';
 import { createDamageTakenEffect } from './createDamageTakenEffect';
 import { CantDieBuff } from '../buffs/CantDieBuff';
-import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
 import { processLanternitePulseMilestone, removeLanterniteLightSources } from './lanternite/lanternitePulse';
 import { processLanterniteNests } from './lanternite/lanterniteNestTick';
 import { processThornlingNests } from './lanternite/thornlingNestTick';
@@ -120,8 +119,6 @@ import type { StartTimeStopSpec, TimeManager, TimeStop } from './time/TimeManage
 export { FIXED_DT };
 /** Matches default player stamina in unit defs; each ability receives this many stamina charges per surge unless overridden by unit stamina. */
 export const DEFAULT_PLAYER_ROUND_STAMINA_SURGE = 2;
-const CHARGED_ROCKS_NODE_ID = 'charged_rocks';
-const CHARGED_ROCKS_LIGHT_CHARGE_PER_ROUND = 1;
 
 /** Save a checkpoint to the server every this many game ticks. */
 export const CHECKPOINT_INTERVAL = 10;
@@ -2151,7 +2148,7 @@ export class GameEngine implements EngineContext {
             });
             this.state.unitManager.onRoundStart(this.roundNumber, this);
             this.state.ninjutsuManager?.onRoundStart(this.roundNumber, countNinjutsuEnemyUnits(this.units));
-            this.applyChargedRocksLightChargePulse();
+            this.applyItemRoundStartRecoveryCharges();
             processLanternitePulseMilestone('round_start', {
                 units: this.units,
                 lightLevelEnabled: this.lightLevelEnabled,
@@ -2179,19 +2176,19 @@ export class GameEngine implements EngineContext {
         }
     }
 
-    /** Charged Rocks passive: grants one lightCharge at round start. */
-    private applyChargedRocksLightChargePulse(): void {
+    /** Item passives: grants each living unit the recovery charges its equipped items declare, once per round. */
+    private applyItemRoundStartRecoveryCharges(): void {
         for (const unit of this.units) {
-            if (!unit.isAlive()) continue;
-            const researched = this.getPlayerResearchNodes(unit.ownerId, CRYSTAL_ROCKS_TREE_ID);
-            if (!researched.includes(CHARGED_ROCKS_NODE_ID)) continue;
-            addRecoveryChargeToUnitAbilities(
-                unit,
-                'lightCharge',
-                CHARGED_ROCKS_LIGHT_CHARGE_PER_ROUND,
-                (min, max) => this.generateRandomInteger(min, max),
-                this.eventBus,
-            );
+            if (!unit.isAlive() || unit.roundStartRecoveryCharges.length === 0) continue;
+            for (const { chargeType, amount } of unit.roundStartRecoveryCharges) {
+                addRecoveryChargeToUnitAbilities(
+                    unit,
+                    chargeType,
+                    amount,
+                    (min, max) => this.generateRandomInteger(min, max),
+                    this.eventBus,
+                );
+            }
             syncNestedCardAbilityState(unit);
         }
     }

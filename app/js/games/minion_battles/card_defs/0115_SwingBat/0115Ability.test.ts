@@ -9,9 +9,9 @@ import {
     TRAINING_TREE_ID,
 } from '../../../../researchTrees/trees/training';
 import {
-    STICK_SWORD_NODE_PIPE_BAT_DAMAGE,
-    STICK_SWORD_TREE_ID,
-} from '../../../../researchTrees/trees/stick_sword';
+    MACE_NODE_TRAINING_REGIME,
+    MACE_TREE_ID,
+} from '../../../../researchTrees/trees/mace';
 import { DescriptiveValue, getApproxIntegerIncrease } from '../../../../researchTrees/descriptiveValue';
 import { SWING_BAT_BASE_DAMAGE, SwingBatAbility_0115 } from './0115Ability';
 
@@ -23,7 +23,7 @@ const MIGHTY_TWO_LEVEL_MULT =
 const PIPE_BAT_DAMAGE_BONUS = getApproxIntegerIncrease(SWING_BAT_BASE_DAMAGE, DescriptiveValue.Medium);
 const PIPE_BAT_BASE = SWING_BAT_BASE_DAMAGE + PIPE_BAT_DAMAGE_BONUS;
 
-describe('Swing Bat getTooltipText (damage tokens)', () => {
+describe('Swing Mace getTooltipText (damage tokens)', () => {
     it('without context shows base damage', () => {
         const lines = SwingBatAbility_0115.getTooltipText();
         expect(lines.some((l) => l.includes(`{${SWING_BAT_BASE_DAMAGE}}`))).toBe(true);
@@ -47,7 +47,7 @@ describe('Swing Bat getTooltipText (damage tokens)', () => {
         const mightyOnPipeBat = Math.round(PIPE_BAT_BASE * MIGHTY_TWO_LEVEL_MULT);
         const lines = SwingBatAbility_0115.getTooltipText({
             researchTrees: {
-                [STICK_SWORD_TREE_ID]: [STICK_SWORD_NODE_PIPE_BAT_DAMAGE],
+                [MACE_TREE_ID]: [MACE_NODE_TRAINING_REGIME],
                 [TRAINING_TREE_ID]: [TRAINING_NODE_MIGHTY],
             },
             researchNodeLevels: { [TRAINING_TREE_ID]: { [TRAINING_NODE_MIGHTY]: MIGHTY_TWO_LEVELS } },

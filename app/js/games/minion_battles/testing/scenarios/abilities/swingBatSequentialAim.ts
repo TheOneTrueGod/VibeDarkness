@@ -34,7 +34,7 @@ const DUMMY_ID   = 'seq_aim_dummy';
  */
 export const swingBatSequentialAimPixelScenario: ScenarioDefinition = {
     id: 'swing_bat_sequential_aim_pixel',
-    title: 'Swing Bat sequential: lock-on enemy takes damage, player lunges toward click pixel',
+    title: 'Swing Mace sequential: lock-on enemy takes damage, player lunges toward click pixel',
     category: 'ability',
     maxDurationMs: 5000,
 

@@ -6,7 +6,7 @@
  * darkened. Yellow orbs fly inward from those tiles as visual feedback.
  *
  * When the Light Imbuement research node is owned, the cast also applies LightImbueBuff so the
- * next Swing Bat swaps to Imbued Bat (0803) for one use.
+ * next Swing Mace swaps to Imbued Mace (0803) for one use.
  */
 
 import { AbilityPhase } from '../../../abilities/abilityTimings';
@@ -93,7 +93,7 @@ export const GatherLightAbility = defineAbility({
     prefireTime: GATHER_LIGHT_PREFIRE_TIME,
     targets: [],
     keywordUses: [GATHER_LIGHT_DEVOUR_USE],
-    /** Prep: Imbued Bat comes free when Light Imbuement research grants 0803 (tagged `secondary`). */
+    /** Prep: Imbued Mace comes free when Light Imbuement research grants 0803 (tagged `secondary`). */
     attachedAbilityIds: [IMBUED_BAT_ABILITY_ID],
     abilityTimings: [
         {

@@ -12,18 +12,18 @@ import { resolveResearchRewardSlots } from '../../researchRewardSlots';
 import { RESEARCH_TREES, getResearchTree } from '../../../../../researchTrees/list';
 import { getResearchNodeTags } from '../../../../../researchTrees/types';
 import { LIGHT_NODE_CORE, LIGHT_TREE_ID } from '../../../../../researchTrees/trees/light';
-import { STICK_SWORD_NODE_BASE, STICK_SWORD_TREE_ID } from '../../../../../researchTrees/trees/stick_sword';
+import { SWORD_ROOT_NODE_ID, SWORD_TREE_ID, WEAPON_ITEM_SWORD } from '../../../../../researchTrees/trees/weaponTreeIds';
 import { TRAINING_NODE_CORE, TRAINING_TREE_ID } from '../../../../../researchTrees/trees/training';
 import { CORE_ITEM_IDS } from '../../../character_defs/items';
 
 /** A player who is in a weapon tree, the stat tree and a core tree. */
 const RESEARCHED = {
     [LIGHT_TREE_ID]: [LIGHT_NODE_CORE],
-    [STICK_SWORD_TREE_ID]: [STICK_SWORD_NODE_BASE],
+    [SWORD_TREE_ID]: [SWORD_ROOT_NODE_ID],
     [TRAINING_TREE_ID]: [TRAINING_NODE_CORE],
 };
-// Stick (002) is equipped so the stored stick_sword research is part of the player's active research.
-const EQUIPMENT = [CORE_ITEM_IDS.LightCore, '002'];
+// Sword (013) is equipped so its tree and the shared Melee Weapons tree are active (Stick's tree has no upgrades).
+const EQUIPMENT = [CORE_ITEM_IDS.LightCore, WEAPON_ITEM_SWORD];
 
 function offer(seed: string) {
     return resolveResearchRewardSlots(CAMPSITE_RESEARCH_SLOTS, RESEARCHED, EQUIPMENT, seed);

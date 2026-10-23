@@ -8,10 +8,41 @@ namespace App\SaveData;
  * v1: retire the legacy upgrade items (they became ability swaps) and make sure a character
  *     holds a base weapon if its research implies one.
  * v2: Exhaustion -> Hunger. `resourceDelta.exhaustion: n` becomes `hunger: -n` (key dropped when 0).
+ * v3: Equipment upgrade rewards (docs/plans/equipment-upgrade-rewards.md). Swap research that replaced a
+ *     card (charged_rocks, throwing_knives, ...) becomes an equipped item (011-016); follow-up nodes move
+ *     to the per-item research trees, keeping node ids, levels and sources.
  */
 final class CharacterMigrations
 {
-    public const CURRENT_VERSION = 2;
+    public const CURRENT_VERSION = 3;
+
+    /**
+     * Frozen (v3): swap research node => [old tree, upgrade item, base item it replaces]. Within a base item
+     * the first owned entry wins, so the shield line lists the highest tier first. Item ids mirror
+     * app/js/games/minion_battles/character_defs/items.
+     */
+    public const SWAP_NODE_ITEMS = [
+        'charged_rocks' => ['crystal_rocks', '011', '001'],
+        'throwing_knives' => ['crystal_rocks', '012', '001'],
+        'craft_sword' => ['stick_sword', '013', '002'],
+        'pipe_bat' => ['stick_sword', '014', '002'],
+        'throwing_crystal_shield' => ['tech_shield', '016', '003'],
+        'crystal_embedded_shield' => ['tech_shield', '015', '003'],
+    ];
+
+    /**
+     * Frozen (v3): follow-up nodes that keep their node id but change tree: node id => [old tree, new tree].
+     * New tree ids mirror app/js/researchTrees/trees/weaponTreeIds.ts.
+     */
+    public const MOVED_NODES = [
+        'more_power' => ['crystal_rocks', 'charged_rocks_item'],
+        'piercing_knives' => ['crystal_rocks', 'knives_item'],
+        'more_rock' => ['crystal_rocks', 'thrown_weapons'],
+        'sword_jagged_edge' => ['stick_sword', 'sword_item'],
+        'pipe_bat_damage' => ['stick_sword', 'mace_item'],
+        'sword_extra_uses' => ['stick_sword', 'melee_weapons'],
+        'extra_shields' => ['tech_shield', 'crystal_shield_item'],
+    ];
 
     /** Frozen: retired upgrade item -> base weapon. */
     public const LEGACY_ITEM_TO_BASE = [
@@ -36,7 +67,7 @@ final class CharacterMigrations
     /** @return array<int, callable(array): array> */
     public static function migrations(): array
     {
-        return [0 => [self::class, 'v0ToV1'], 1 => [self::class, 'v1ToV2']];
+        return [0 => [self::class, 'v0ToV1'], 1 => [self::class, 'v1ToV2'], 2 => [self::class, 'v2ToV3']];
     }
 
     /** @return array{data: array<string, mixed>, changed: bool} */
@@ -159,6 +190,98 @@ final class CharacterMigrations
                     $data['questResults'][$cid][$qid] = self::convertResultRows($quest);
                 }
             }
+        }
+        return $data;
+    }
+
+    /**
+     * Convert one character-shaped array (the character itself or its quest snapshot): swap research ->
+     * equipped item, then move follow-up nodes to their new trees. Idempotent.
+     *
+     * @param array<string, mixed> $c
+     * @return array<string, mixed>
+     */
+    public static function convertSwapResearch(array $c): array
+    {
+        $trees = is_array($c['researchTrees'] ?? null) ? $c['researchTrees'] : [];
+        $levels = is_array($c['researchNodeLevels'] ?? null) ? $c['researchNodeLevels'] : [];
+        $sources = is_array($c['researchSources'] ?? null) ? $c['researchSources'] : [];
+        $equipment = is_array($c['equipment'] ?? null) ? array_values($c['equipment']) : null;
+
+        // 1) Swap nodes -> items (first owned entry per base item wins), then drop the nodes.
+        $chosen = [];
+        foreach (self::SWAP_NODE_ITEMS as $nodeId => [$treeId, $item, $base]) {
+            $owned = is_array($trees[$treeId] ?? null) && in_array($nodeId, $trees[$treeId], true);
+            if ($owned && !isset($chosen[$base])) {
+                $chosen[$base] = $item;
+            }
+        }
+        foreach (self::SWAP_NODE_ITEMS as $nodeId => [$treeId]) {
+            if (is_array($trees[$treeId] ?? null)) {
+                $trees[$treeId] = array_values(array_diff($trees[$treeId], [$nodeId]));
+            }
+            unset($levels[$treeId][$nodeId], $sources[$treeId][$nodeId]);
+        }
+        if ($equipment !== null || $chosen !== []) {
+            $equipment = $equipment ?? [];
+            foreach ($chosen as $base => $item) {
+                if (in_array($item, $equipment, true)) {
+                    continue;
+                }
+                $at = array_search($base, $equipment, true);
+                if ($at === false) {
+                    $equipment[] = $item;
+                } else {
+                    $equipment[$at] = $item;
+                }
+            }
+            $c['equipment'] = array_values(array_unique($equipment));
+        }
+
+        // 2) Follow-up nodes -> new trees, keeping levels and sources.
+        foreach (self::MOVED_NODES as $nodeId => [$oldTree, $newTree]) {
+            if (is_array($trees[$oldTree] ?? null) && in_array($nodeId, $trees[$oldTree], true)) {
+                $trees[$oldTree] = array_values(array_diff($trees[$oldTree], [$nodeId]));
+                $trees[$newTree] = array_values(array_unique(array_merge($trees[$newTree] ?? [], [$nodeId])));
+            }
+            if (isset($levels[$oldTree][$nodeId])) {
+                $levels[$newTree][$nodeId] = max((int) ($levels[$newTree][$nodeId] ?? 0), (int) $levels[$oldTree][$nodeId]);
+                unset($levels[$oldTree][$nodeId]);
+            }
+            if (isset($sources[$oldTree][$nodeId])) {
+                $merged = array_merge((array) ($sources[$newTree][$nodeId] ?? []), (array) $sources[$oldTree][$nodeId]);
+                $sources[$newTree][$nodeId] = array_values(array_unique($merged));
+                unset($sources[$oldTree][$nodeId]);
+            }
+        }
+        foreach ($levels as $treeId => $nodes) {
+            if (!is_array($nodes) || $nodes === []) {
+                unset($levels[$treeId]);
+            }
+        }
+        foreach ($sources as $treeId => $nodes) {
+            if (!is_array($nodes) || $nodes === []) {
+                unset($sources[$treeId]);
+            }
+        }
+
+        if (array_key_exists('researchTrees', $c) || $trees !== []) {
+            $c['researchTrees'] = $trees;
+        }
+        if (array_key_exists('researchNodeLevels', $c) || $levels !== []) {
+            $c['researchNodeLevels'] = $levels;
+        }
+        if (array_key_exists('researchSources', $c) || $sources !== []) {
+            $c['researchSources'] = $sources;
+        }
+        return $c;
+    }
+
+    public static function v2ToV3(array $data): array
+    {
+        $data = self::convertSwapResearch($data);
+        if (isset($data['activeQuestRun']['questCharacter']) && is_array($data['activeQuestRun']['questCharacter'])) {
+            $data['activeQuestRun']['questCharacter'] = self::convertSwapResearch($data['activeQuestRun']['questCharacter']);
         }
         return $data;
     }

@@ -17,7 +17,7 @@ import {
     MAX_LIGHT_RECOVERY_PER_ROUND,
 } from '../../games/minion_battles/resources/Light';
 import { LAY_HANDS_ABILITY_ID } from '../../games/minion_battles/card_defs/08_light_core/0806_LayHands/0806Constants';
-import { STICK_SWORD_TREE_ID, STICK_SWORD_NODE_PIPE_BAT } from './stick_sword';
+import { WEAPON_ITEM_MACE } from './weaponTreeIds';
 
 export const LIGHT_TREE_ID = 'light_core';
 export const LIGHT_NODE_CORE = 'light_core';
@@ -109,7 +109,7 @@ export const lightTree: ResearchTreeDef = {
             requirements: [
                 MISSION_REWARD_REQUIREMENT,
                 { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.LightCore },
-                { type: 'anyResearched', treeId: STICK_SWORD_TREE_ID, nodeIds: [STICK_SWORD_NODE_PIPE_BAT] },
+                { type: 'characterHasEquippedItem', itemId: WEAPON_ITEM_MACE },
             ],
             cost: {
                 crystals: LIGHT_CORE_CRYSTAL_COST,
@@ -129,7 +129,7 @@ export const lightTree: ResearchTreeDef = {
             id: LIGHT_NODE_IMBUEMENT,
             title: 'Light Imbuement',
             description:
-                'Gather Light also imbues your bat with light, exploding when you next strike your target.',
+                'Gather Light also imbues your mace with light, exploding when you next strike your target.',
             order: 10,
             tier: LIGHT_IMBUEMENT_TIER,
             position: { x: 420, y: 290 },
@@ -144,7 +144,7 @@ export const lightTree: ResearchTreeDef = {
                 metal: LIGHT_IMBUEMENT_METAL_COST,
             },
             effects: [
-                // Imbued Bat only — Gather Light (0804) already comes from Light Core and applies
+                // Imbued Mace only — Gather Light (0804) already comes from Light Core and applies
                 // the imbue buff when this node is owned. Deprecated 0802 is no longer granted.
                 { type: 'addCard', cardId: IMBUED_BAT_ABILITY_ID },
             ],
@@ -211,7 +211,7 @@ export const lightTree: ResearchTreeDef = {
             id: LIGHT_NODE_RADIANT_REACH,
             title: 'Radiant Reach',
             description:
-                `Imbued Bat's light cone reaches a {${DescriptiveValue.Huge}} amount farther per rank (doubles at max).`,
+                `Imbued Mace's light cone reaches a {${DescriptiveValue.Huge}} amount farther per rank (doubles at max).`,
             flavorText: 'Light stretches until the dark has nowhere left to stand.',
             order: 11,
             tier: 3,

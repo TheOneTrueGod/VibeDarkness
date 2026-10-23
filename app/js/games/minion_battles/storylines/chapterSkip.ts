@@ -15,6 +15,7 @@ import type { IBaseMissionDef } from './BaseMissionDef';
 import type { ChoicePhrase, StoryChoiceAction, StoryChoiceOptionRow } from './storyTypes';
 import { MISSION_MAP } from './index';
 import { resolveResearchRewardSlots } from './researchRewardSlots';
+import { resolveUnlockedTierItemIds } from './unlockItemTiers';
 import {
     createStoryChoiceSkipOption,
     filterChoiceOptionsByResearch,
@@ -325,12 +326,15 @@ function replay(
         for (const [key, amount] of Object.entries(acc.resourceDelta) as [CampaignResourceKey, number][]) {
             resourceDelta[key] = (resourceDelta[key] ?? 0) + amount;
         }
+        const itemIds = [
+            ...new Set([...acc.itemIds, ...resolveUnlockedTierItemIds(rewards?.unlockItemTiers, def.campaignId)]),
+        ];
         missionResults.push({
             missionId,
             result: 'victory',
             adminGranted: true,
             ...(Object.keys(resourceDelta).length > 0 && { resourceDelta }),
-            ...(acc.itemIds.length > 0 && { itemIds: acc.itemIds }),
+            ...(itemIds.length > 0 && { itemIds }),
             ...(acc.researchRewards.length > 0 && { researchRewards: acc.researchRewards }),
         });
         for (const key of rewards?.knowledgeKeys ?? []) {

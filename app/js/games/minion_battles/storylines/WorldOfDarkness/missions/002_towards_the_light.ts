@@ -198,18 +198,8 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
             choiceId: 'towards_the_light_cave_choice',
             options: [],
             researchRewardSlots: [
-                {
-                    minTier: 2,
-                    maxTier: 2,
-                    loreTitle: 'Crystal Experimentation',
-                    loreDescription: "Use the power of the crystals to your advantage.",
-                },
-                {
-                    minTier: 2,
-                    maxTier: 2,
-                    loreTitle: 'Iron in the Dark',
-                    loreDescription: 'Salvage tools from scrap and nerve.',
-                },
+                { kind: 'equipmentUpgrade', slot: 'weapon' },
+                { kind: 'equipmentUpgrade', slot: 'weapon' },
             ],
         },
     ],
@@ -230,6 +220,7 @@ export class TowardsTheLightMission extends BaseMissionDef {
             crystals: TOWARDS_THE_LIGHT_CRYSTAL_REWARD,
             metal: TOWARDS_THE_LIGHT_METAL_REWARD,
         },
+        unlockItemTiers: [{ slot: 'weapon' as const, tier: 2 }],
     };
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;

@@ -148,6 +148,9 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
         ...(unit.passiveBonuses && Object.keys(unit.passiveBonuses).length > 0
             ? { passiveBonuses: unit.passiveBonuses }
             : {}),
+        ...(unit.roundStartRecoveryCharges.length > 0
+            ? { roundStartRecoveryCharges: unit.roundStartRecoveryCharges.map((c) => ({ ...c })) }
+            : {}),
         ...(unit.ephemeralDespawnAtGameTime != null
             ? { ephemeralDespawnAtGameTime: unit.ephemeralDespawnAtGameTime }
             : {}),

@@ -245,12 +245,12 @@ export const energyBlastStrictPriorityFillScenario: ScenarioDefinition = {
 };
 
 /**
- * Imbued Bat: companion cone commit leaves cone → not cone-damaged.
+ * Imbued Mace: companion cone commit leaves cone → not cone-damaged.
  * Primary swing tether unchanged (melee still hits the swing target).
  */
 export const imbuedBatConeStrictFillScenario: ScenarioDefinition = {
     id: 'imbued_bat_cone_strict_fill_e2e',
-    title: 'Imbued Bat (0803): cone strict fill drops leavers; swing still hits',
+    title: 'Imbued Mace (0803): cone strict fill drops leavers; swing still hits',
     category: 'ability',
     maxDurationMs: 4000,
 

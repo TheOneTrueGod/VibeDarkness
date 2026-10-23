@@ -41,6 +41,8 @@ export type UnitFactoryConfig = {
     combatSettings?: UnitCombatSettings;
     /** Aggregated passive research bonuses (computed at mission start). */
     passiveBonuses?: import('../../../../researchTrees/types').PassiveBonuses;
+    /** Item passives: recovery charges granted at every round start. */
+    roundStartRecoveryCharges?: import('../../character_defs/items/types').ItemRoundStartRecoveryCharge[];
 };
 
 /**
@@ -73,6 +75,7 @@ export function createPlayerUnit(
         stamina,
         combatSettings: config.combatSettings,
         passiveBonuses: config.passiveBonuses,
+        roundStartRecoveryCharges: config.roundStartRecoveryCharges,
     });
     applyCombatCrowdControlProfile(unit);
     return unit;

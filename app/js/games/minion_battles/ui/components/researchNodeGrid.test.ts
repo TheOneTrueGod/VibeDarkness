@@ -10,12 +10,12 @@ import {
     earthTree,
 } from '../../../../researchTrees/trees/earth';
 import {
-    STICK_SWORD_NODE_EXTRA_USES,
-    STICK_SWORD_NODE_PIPE_BAT,
-    STICK_SWORD_TREE_ID,
-    stickSwordTree,
-} from '../../../../researchTrees/trees/stick_sword';
-import { getResearchNode } from '../../../../researchTrees/list';
+    MELEE_WEAPONS_NODE_EXTRA_USES,
+    MELEE_WEAPONS_TREE_ID,
+    meleeWeaponsTree,
+} from '../../../../researchTrees/trees/melee_weapons';
+import { MACE_ROOT_NODE_ID, SWORD_ROOT_NODE_ID } from '../../../../researchTrees/trees/weaponTreeIds';
+import type { ResearchNodeDef } from '../../../../researchTrees/types';
 import {
     TRAINING_NODE_CORE,
     TRAINING_NODE_DOUBLE_PUNCH,
@@ -171,19 +171,27 @@ describe('collectResearchRequirementEntries', () => {
     });
 
     it('groups multi-node anyResearched into one or-clause', () => {
-        const ironWrists = stickSwordTree.nodes.find((n) => n.id === STICK_SWORD_NODE_EXTRA_USES);
-        expect(ironWrists).toBeDefined();
+        const baseIronWrists = meleeWeaponsTree.nodes.find((n) => n.id === MELEE_WEAPONS_NODE_EXTRA_USES);
+        expect(baseIronWrists).toBeDefined();
+        // Iron Wrists itself no longer has an or-clause; give it one to exercise the grouping.
+        const ironWrists: ResearchNodeDef = {
+            ...baseIronWrists!,
+            prereqNodeIds: [],
+            requirements: [
+                { type: 'anyResearched', treeId: MELEE_WEAPONS_TREE_ID, nodeIds: [SWORD_ROOT_NODE_ID, MACE_ROOT_NODE_ID] },
+            ],
+        };
         const anyReq = ironWrists!.requirements.find((req) => req.type === 'anyResearched');
         expect(anyReq?.type).toBe('anyResearched');
         if (anyReq?.type !== 'anyResearched') return;
 
         const expectedLabel = `(${anyReq.nodeIds
-            .map((nodeId) => getResearchNode(STICK_SWORD_TREE_ID, nodeId)?.title ?? nodeId)
+            .map((nodeId) => nodeId)
             .join(` ${RESEARCH_REQUIREMENT_OR_WORD} `)})`;
 
         const unmet = collectResearchRequirementEntries(
-            ironWrists!,
-            stickSwordTree,
+            ironWrists,
+            meleeWeaponsTree,
             researchedSetsByTreeId({}),
         );
         expect(unmet).toHaveLength(1);
@@ -195,21 +203,21 @@ describe('collectResearchRequirementEntries', () => {
             `${RESEARCH_REQUIREMENTS_LABEL}: ${expectedLabel}`,
         );
 
-        const withSword = collectResearchRequirementEntries(
-            ironWrists!,
-            stickSwordTree,
-            researchedSetsByTreeId({ [STICK_SWORD_TREE_ID]: [anyReq.nodeIds[0]!] }),
+        const withFirst = collectResearchRequirementEntries(
+            ironWrists,
+            meleeWeaponsTree,
+            researchedSetsByTreeId({ [MELEE_WEAPONS_TREE_ID]: [anyReq.nodeIds[0]!] }),
         );
-        expect(withSword[0]?.satisfied).toBe(true);
-        expect(hasUnmetResearchRequirements(withSword)).toBe(false);
+        expect(withFirst[0]?.satisfied).toBe(true);
+        expect(hasUnmetResearchRequirements(withFirst)).toBe(false);
 
-        const withBat = collectResearchRequirementEntries(
-            ironWrists!,
-            stickSwordTree,
-            researchedSetsByTreeId({ [STICK_SWORD_TREE_ID]: [STICK_SWORD_NODE_PIPE_BAT] }),
+        const withSecond = collectResearchRequirementEntries(
+            ironWrists,
+            meleeWeaponsTree,
+            researchedSetsByTreeId({ [MELEE_WEAPONS_TREE_ID]: [anyReq.nodeIds[1]!] }),
         );
-        expect(withBat[0]?.satisfied).toBe(true);
-        expect(hasUnmetResearchRequirements(withBat)).toBe(false);
+        expect(withSecond[0]?.satisfied).toBe(true);
+        expect(hasUnmetResearchRequirements(withSecond)).toBe(false);
     });
 
     it('returns an empty list when there are no research prereqs', () => {

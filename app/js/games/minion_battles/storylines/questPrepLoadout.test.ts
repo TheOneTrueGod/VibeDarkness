@@ -42,10 +42,8 @@ describe('buildAccessibleAbilityIds', () => {
         expect(ids).toContain(STARTING_WEAPON_ROCKS_NODE_ID);
     });
 
-    it('swaps to throw_charged_rock when Charged Rocks is researched with Rocks equipped', () => {
-        const ids = buildAccessibleAbilityIds([coreEarthItem.id, '001'], {
-            crystal_rocks: ['charged_rocks'],
-        });
+    it('gives throw_charged_rock instead of throw_rock when the Charged Rocks item is equipped', () => {
+        const ids = buildAccessibleAbilityIds([coreEarthItem.id, '011'], {});
         expect(ids).not.toContain(STARTING_WEAPON_ROCKS_NODE_ID);
         expect(ids).toContain('throw_charged_rock');
     });
@@ -91,15 +89,15 @@ describe('Quest Prep slot helpers', () => {
 });
 
 describe('attached ability expansion', () => {
-    it('expands Gather Light with Imbued Bat when accessible', () => {
+    it('expands Gather Light with Imbued Mace when accessible', () => {
         expect(expandAttachedAbilityIds(['0804'], ['0804', '0803'])).toEqual(['0804', '0803']);
     });
 
-    it('does not expand Imbued Bat onto Gather Light when research has not granted it', () => {
+    it('does not expand Imbued Mace onto Gather Light when research has not granted it', () => {
         expect(expandAttachedAbilityIds(['0804'], ['0804'])).toEqual(['0804']);
     });
 
-    it('expands Gather Light with Imbued Bat when accessibility is unrestricted', () => {
+    it('expands Gather Light with Imbued Mace when accessibility is unrestricted', () => {
         expect(expandAttachedAbilityIds(['0804'])).toEqual(['0804', '0803']);
     });
 
@@ -141,7 +139,7 @@ describe('attached ability expansion', () => {
         expect(filterSelectableQuestPrepAbilityIds(accessible)).toEqual(['0804', '0115']);
     });
 
-    it('treats secondary-tagged Imbued Bat as non-selectable', () => {
+    it('treats secondary-tagged Imbued Mace as non-selectable', () => {
         expect(isSecondaryAbility('0803')).toBe(true);
         expect(isSecondaryAbility('0804')).toBe(false);
         expect(filterSelectableQuestPrepAbilityIds(['0803', '0115'])).toEqual(['0115']);

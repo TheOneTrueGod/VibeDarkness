@@ -6,9 +6,10 @@ import {
     TINY_BATTLE_PLAYER_ID,
 } from '../../harness/buildTinyBattleEngine';
 import {
-    STICK_SWORD_NODE_JAGGED_EDGE,
-    STICK_SWORD_TREE_ID,
-} from '../../../../../researchTrees/trees/stick_sword';
+    NODE_JAGGED_EDGE,
+    SWORD_TREE_ID,
+    SWORD_ROOT_NODE_ID,
+} from '../../../../../researchTrees/trees/weaponTreeIds';
 
 const P = TINY_BATTLE_PLAYER_ID;
 
@@ -20,7 +21,7 @@ export const swingSwordAppliesBleedScenario: ScenarioDefinition = {
     generalSection: 'Debuffs',
     maxDurationMs: 5000,
     buildEngine() {
-        const research = { [P]: { [STICK_SWORD_TREE_ID]: ['craft_sword', STICK_SWORD_NODE_JAGGED_EDGE] } };
+        const research = { [P]: { [SWORD_TREE_ID]: [SWORD_ROOT_NODE_ID, NODE_JAGGED_EDGE] } };
         const engine = buildTinyBattleEngine({
             gridW: 14,
             gridH: 10,

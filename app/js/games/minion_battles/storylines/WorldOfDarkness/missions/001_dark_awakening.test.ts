@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DARK_AWAKENING } from './001_dark_awakening';
+import { resolveUnlockedTierItemIds } from '../../unlockItemTiers';
 
 describe('A Dark Awakening weapon choice', () => {
     const choice = DARK_AWAKENING.preMissionStory?.phrases.find(
@@ -16,5 +17,14 @@ describe('A Dark Awakening weapon choice', () => {
         for (const option of choice.options) {
             expect(option.action).not.toHaveProperty('alsoGrantResearch');
         }
+    });
+
+    it('unlocks every tier-1 weapon on victory', () => {
+        expect(DARK_AWAKENING.completionRewards?.unlockItemTiers).toEqual([{ slot: 'weapon', tier: 1 }]);
+        expect(resolveUnlockedTierItemIds(DARK_AWAKENING.completionRewards?.unlockItemTiers, DARK_AWAKENING.campaignId)).toEqual([
+            '001',
+            '002',
+            '003',
+        ]);
     });
 });

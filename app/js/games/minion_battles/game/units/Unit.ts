@@ -7,6 +7,7 @@
  */
 
 import { PassiveStatKey, type AbilityModifier, type PassiveBonuses } from '../../../../researchTrees/types';
+import type { ItemRoundStartRecoveryCharge } from '../../character_defs/items/types';
 import { applyPassiveBonusToBase } from '../../../../researchTrees/passiveBonuses';
 import { MOVEMENT_BASE_MAX, MOVEMENT_BASE_RECOVERY_PER_ROUND } from '../../resources/Movement';
 import { GameObject, generateGameObjectId } from '../GameObject';
@@ -316,6 +317,8 @@ export class Unit extends GameObject {
     combatSettings: UnitCombatSettings | undefined;
     /** Aggregated passive research bonuses (computed at mission start). Serialized. */
     passiveBonuses: PassiveBonuses | undefined;
+    /** Item passives: recovery charges granted at every round start (from equipped items). Serialized when non-empty. */
+    roundStartRecoveryCharges: ItemRoundStartRecoveryCharge[];
 
     /** When non-null, unit dies when GameEngine.gameTime reaches this value (husks, etc.). */
     ephemeralDespawnAtGameTime: number | null = null;
@@ -354,6 +357,7 @@ export class Unit extends GameObject {
         this.stamina = config.stamina ?? 1;
         this.combatSettings = config.combatSettings;
         this.passiveBonuses = config.passiveBonuses;
+        this.roundStartRecoveryCharges = config.roundStartRecoveryCharges ?? [];
         this.ephemeralDespawnAtGameTime = config.ephemeralDespawnAtGameTime ?? null;
         this.stackSize = config.stackSize ?? 1;
     }
@@ -646,6 +650,7 @@ export class Unit extends GameObject {
             stamina: (data.stamina as number | undefined) ?? 1,
             combatSettings: data.combatSettings as UnitCombatSettings | undefined,
             passiveBonuses: data.passiveBonuses as import('../../../../researchTrees/types').PassiveBonuses | undefined,
+            roundStartRecoveryCharges: data.roundStartRecoveryCharges as ItemRoundStartRecoveryCharge[] | undefined,
         });
         applySerializedUnitState(unit, data, eventBus, currentGameTick);
         return unit;

@@ -17,6 +17,21 @@ import type { ActiveAbility } from '../game/types';
 import type { Unit } from '../game/units/Unit';
 import type { VisualEffectDef } from '../game/effects/visualEffectDef';
 import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
+import {
+    CHARGED_ROCKS_TREE_ID,
+    KNIVES_TREE_ID,
+    NODE_MORE_POWER,
+    NODE_MORE_ROCK,
+    THROWN_WEAPONS_TREE_ID,
+} from '../../../researchTrees/trees/weaponTreeIds';
+
+/** Trees whose researched nodes feed the thrown-weapon abilities (item trees + shared Thrown Weapons). */
+const THROWN_WEAPON_RESEARCH_TREE_IDS = [
+    CRYSTAL_ROCKS_TREE_ID,
+    CHARGED_ROCKS_TREE_ID,
+    KNIVES_TREE_ID,
+    THROWN_WEAPONS_TREE_ID,
+] as const;
 
 export const THROW_RANGE = 200;
 export const THROW_PROJECTILE_SPEED = 900;
@@ -132,15 +147,19 @@ export function getCrystalRocksResearch(
         ?? (engine as AbilityEngineContext & { localPlayerId?: string } | undefined)?.localPlayerId
         ?? '';
     if (!ownerId || !engine?.getPlayerResearchNodes) return new Set<string>();
-    return new Set(engine.getPlayerResearchNodes(ownerId, CRYSTAL_ROCKS_TREE_ID));
+    const nodes = new Set<string>();
+    for (const treeId of THROWN_WEAPON_RESEARCH_TREE_IDS) {
+        for (const nodeId of engine.getPlayerResearchNodes(ownerId, treeId)) nodes.add(nodeId);
+    }
+    return nodes;
 }
 
 export function hasMoreRockResearch(research: Set<string>): boolean {
-    return research.has('more_rock');
+    return research.has(NODE_MORE_ROCK);
 }
 
 export function hasMorePowerResearch(research: Set<string>): boolean {
-    return research.has('more_power');
+    return research.has(NODE_MORE_POWER);
 }
 
 export function hasResearchNodeInCrystalRocks(
@@ -148,7 +167,7 @@ export function hasResearchNodeInCrystalRocks(
     caster: Unit | undefined,
     nodeId: string,
 ): boolean {
-    return hasResearchNode(engine, caster, CRYSTAL_ROCKS_TREE_ID, nodeId);
+    return THROWN_WEAPON_RESEARCH_TREE_IDS.some((treeId) => hasResearchNode(engine, caster, treeId, nodeId));
 }
 
 /** One-shot projectile launch at the start of an Active interval. */

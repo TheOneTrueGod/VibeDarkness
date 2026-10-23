@@ -3,11 +3,11 @@
  * bat imbuement now lives on Gather Light (0804) when the Light Imbuement research node is owned.
  * This ability remains registered only for legacy save / loadout compatibility.
  *
- * Light Imbuement — 2-second charge that infuses the caster's next Swing Bat with light energy.
+ * Light Imbuement — 2-second charge that infuses the caster's next Swing Mace with light energy.
  *
  * Self-cast with no targets. After a long windup, applies a LightImbueBuff to the caster and
- * generates Light. The buff fires the swap-network trigger which replaces Swing Bat (0115) with
- * Imbued Bat (0803) for one use. Costs no Light. Recovers once per round.
+ * generates Light. The buff fires the swap-network trigger which replaces Swing Mace (0115) with
+ * Imbued Mace (0803) for one use. Costs no Light. Recovers once per round.
  */
 
 import { AbilityPhase } from '../../../abilities/abilityTimings';

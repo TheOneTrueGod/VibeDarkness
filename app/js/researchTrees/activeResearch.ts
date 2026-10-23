@@ -8,14 +8,14 @@
  * Pure: no UI or engine imports.
  */
 import { RESEARCH_TREES, getResearchTree } from './list';
-import type { ResearchNodeLevels, ResearchTreeDef } from './types';
+import { getBoundItemIds, type ResearchNodeLevels, type ResearchTreeDef } from './types';
 
-/** Unbound trees are always active; bound trees only while their item is equipped. */
+/** Unbound trees are always active; bound trees only while any of their items is equipped. */
 export function isResearchTreeActive(
     tree: Pick<ResearchTreeDef, 'boundItem'>,
     equipment: readonly string[],
 ): boolean {
-    return !tree.boundItem || equipment.includes(tree.boundItem.itemId);
+    return !tree.boundItem || getBoundItemIds(tree).some((id) => equipment.includes(id));
 }
 
 /**

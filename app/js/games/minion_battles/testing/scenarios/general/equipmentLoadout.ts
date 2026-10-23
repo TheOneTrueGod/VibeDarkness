@@ -9,9 +9,23 @@ import {
 } from '../../harness/buildTinyBattleEngine';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
 import { CORE_ITEM_IDS } from '../../../character_defs/items';
-import { CRYSTAL_ROCKS_TREE_ID, CRYSTAL_ROCKS_NODE_BASE } from '../../../../../researchTrees/trees/crystal_rocks';
-import { STICK_SWORD_TREE_ID } from '../../../../../researchTrees/trees/stick_sword';
-import { TECH_SHIELD_TREE_ID, TECH_SHIELD_NODE_BASE } from '../../../../../researchTrees/trees/tech_shield';
+import { activeResearchByPlayer, resolveCharacterLoadout } from '../../../character_defs/characterLoadout';
+import { getAbility } from '../../../abilities/AbilityRegistry';
+import {
+    CHARGED_ROCKS_ROOT_NODE_ID,
+    CHARGED_ROCKS_TREE_ID,
+    NODE_MORE_POWER,
+    NODE_MORE_ROCK,
+    THROWN_WEAPONS_ROOT_NODE_ID,
+    THROWN_WEAPONS_TREE_ID,
+    WEAPON_ITEM_CHARGED_ROCKS,
+    WEAPON_ITEM_CHARGED_SHIELD,
+    WEAPON_ITEM_CRYSTAL_SHIELD,
+    WEAPON_ITEM_KNIVES,
+    WEAPON_ITEM_MACE,
+    WEAPON_ITEM_ROCKS,
+    WEAPON_ITEM_SWORD,
+} from '../../../../../researchTrees/trees/weaponTreeIds';
 
 /**
  * Loadout scenarios: equipment + STORED research are resolved exactly as the battle path does
@@ -25,9 +39,9 @@ const SECTION = 'Equipment';
 
 const BASIC_CORE = CORE_ITEM_IDS.BasicCore;
 const EARTH_CORE = CORE_ITEM_IDS.EarthCore;
-const ROCKS = '001';
+const ROCKS = WEAPON_ITEM_ROCKS;
 const STICK = '002';
-const POT_LID = '003';
+const CHARGED_ROCKS = WEAPON_ITEM_CHARGED_ROCKS;
 
 const PLAYER_POS = { x: 100, y: 120 };
 /** Far enough that only a thrown projectile reaches it. */
@@ -56,8 +70,8 @@ function pixelOrder(e: GameEngine, abilityId: string) {
 const resolvedAbilityIds: Record<string, string[]> = {};
 
 // ---------------------------------------------------------------------------
-// Chip's bug: Rocks + charged_rocks must give a working Throw Charged Rock.
-// Also proves the engine's Charged Rocks light pulse reads the active research.
+// Charged Rocks (item 011) gives a working Throw Charged Rock and its round-start Light Charge
+// (an item passive, not research).
 // ---------------------------------------------------------------------------
 
 const ROCKS_ID = 'loadout_rocks_charged_rock_hits';
@@ -66,7 +80,7 @@ let rocksStartUses = 0;
 
 export const loadoutRocksChargedRockHitsScenario: ScenarioDefinition = {
     id: ROCKS_ID,
-    title: 'Loadout: Rocks + Charged Rocks research casts Throw Charged Rock and hits (no Swing Stick)',
+    title: 'Loadout: Charged Rocks item casts Throw Charged Rock and hits (no Swing Stick)',
     category: 'general',
     generalSection: SECTION,
     maxDurationMs: 6000,
@@ -75,12 +89,11 @@ export const loadoutRocksChargedRockHitsScenario: ScenarioDefinition = {
         const { player, abilityIds } = placePlayerFromLoadout(engine, {
             playerId: P,
             world: PLAYER_POS,
-            equipment: [BASIC_CORE, ROCKS],
-            researchTrees: { [CRYSTAL_ROCKS_TREE_ID]: [CRYSTAL_ROCKS_NODE_BASE, 'charged_rocks'] },
+            equipment: [BASIC_CORE, CHARGED_ROCKS],
         });
         resolvedAbilityIds[ROCKS_ID] = abilityIds;
         placeTargetDummy(engine, FAR_DUMMY_POS);
-        // Leave one use spent: the Charged Rocks pulse (read from ENGINE research) recovers it at
+        // Leave one use spent: the Charged Rocks item passive recovers it at
         // round start, the cast spends another, so the net is one use down from full.
         const rt = player.abilityRuntime['throw_charged_rock'];
         if (rt) {
@@ -110,14 +123,14 @@ export const loadoutRocksChargedRockHitsScenario: ScenarioDefinition = {
 };
 
 // ---------------------------------------------------------------------------
-// Swapping weapons ignores the old weapon's research (kept in storage, inactive).
+// Swapping weapons ignores the old weapon's research (kept in storage, inactive) and drops its passive.
 // ---------------------------------------------------------------------------
 
 const STICK_ID = 'loadout_swapped_weapon_ignores_old_research';
 
 export const loadoutSwappedWeaponIgnoresOldResearchScenario: ScenarioDefinition = {
     id: STICK_ID,
-    title: 'Loadout: Stick equipped with stored Charged Rocks research swings the stick and gets no light pulse',
+    title: 'Loadout: Stick equipped with stored Charged Rocks tree research swings the stick and gets no light pulse',
     category: 'general',
     generalSection: SECTION,
     maxDurationMs: 6000,
@@ -127,17 +140,16 @@ export const loadoutSwappedWeaponIgnoresOldResearchScenario: ScenarioDefinition 
             playerId: P,
             world: PLAYER_POS,
             equipment: [BASIC_CORE, STICK],
-            // Stale rocks research from before the weapon swap: stored, but inactive.
+            // Stale Charged Rocks research from before the weapon swap: stored, but inactive.
             researchTrees: {
-                [CRYSTAL_ROCKS_TREE_ID]: [CRYSTAL_ROCKS_NODE_BASE, 'charged_rocks'],
-                [STICK_SWORD_TREE_ID]: [],
+                [CHARGED_ROCKS_TREE_ID]: [CHARGED_ROCKS_ROOT_NODE_ID, NODE_MORE_POWER],
             },
         });
         resolvedAbilityIds[STICK_ID] = abilityIds;
         placeTargetDummy(engine, NEAR_DUMMY_POS);
         // Sentinel for the light pulse: Throw Charged Rock accepts light charges while it is below
         // max uses. It is added AFTER the loadout is recorded (the loadout itself has no rock
-        // throw). If the engine still held the stale charged_rocks research, the round-start pulse
+        // throw). If the unit still carried the Charged Rocks passive, the round-start pulse
         // would recover a use here.
         player.abilities.push('throw_charged_rock');
         initializeAbilityRuntimeForUnit(player);
@@ -154,7 +166,8 @@ export const loadoutSwappedWeaponIgnoresOldResearchScenario: ScenarioDefinition 
         const sentinel = player?.abilityRuntime['throw_charged_rock'];
         return ids.includes('0103')
             && !ROCK_THROW_IDS.some((id) => ids.includes(id))
-            && e.getPlayerResearchNodes(P, CRYSTAL_ROCKS_TREE_ID).every((n) => n !== 'charged_rocks')
+            && e.getPlayerResearchNodes(P, CHARGED_ROCKS_TREE_ID).length === 0
+            && player?.roundStartRecoveryCharges.length === 0
             && dummyLoss(e) > 0
             && sentinel?.currentUses === 0
             && (sentinel.recoveryChargesByType['lightCharge'] ?? 0) === 0;
@@ -162,19 +175,19 @@ export const loadoutSwappedWeaponIgnoresOldResearchScenario: ScenarioDefinition 
     failureMessage(e) {
         const ids = resolvedAbilityIds[STICK_ID] ?? [];
         const sentinel = e.getLocalPlayerUnit()?.abilityRuntime['throw_charged_rock'];
-        return `abilities=[${ids.join(',')}] (want 0103, no rock throw); engine crystal_rocks=[${e.getPlayerResearchNodes(P, CRYSTAL_ROCKS_TREE_ID).join(',')}] (want no charged_rocks); dummy lost ${dummyLoss(e)} hp (want >0); sentinel uses=${sentinel?.currentUses ?? '?'} lightCharge=${sentinel?.recoveryChargesByType['lightCharge'] ?? 0} (want 0/0: no Charged Rocks pulse)`;
+        return `abilities=[${ids.join(',')}] (want 0103, no rock throw); engine charged_rocks tree=[${e.getPlayerResearchNodes(P, CHARGED_ROCKS_TREE_ID).join(',')}] (want empty); dummy lost ${dummyLoss(e)} hp (want >0); sentinel uses=${sentinel?.currentUses ?? '?'} lightCharge=${sentinel?.recoveryChargesByType['lightCharge'] ?? 0} (want 0/0: no Charged Rocks pulse)`;
     },
 };
 
 // ---------------------------------------------------------------------------
-// Shield research chain: Crystal Embedded Shield then Charged Shield -> 0113 + 0121.
+// Charged Shield (item 016) -> 0113 + 0121.
 // ---------------------------------------------------------------------------
 
 const SHIELD_ID = 'loadout_shield_research_chain';
 
 export const loadoutShieldResearchChainScenario: ScenarioDefinition = {
     id: SHIELD_ID,
-    title: 'Loadout: Pot lid + shield research chain gives Absorption Shield (0113) and 0121, and 0113 resolves',
+    title: 'Loadout: Charged Shield item gives Absorption Shield (0113) and 0121, and 0113 resolves',
     category: 'general',
     generalSection: SECTION,
     maxDurationMs: 5000,
@@ -183,14 +196,7 @@ export const loadoutShieldResearchChainScenario: ScenarioDefinition = {
         const { abilityIds } = placePlayerFromLoadout(engine, {
             playerId: P,
             world: PLAYER_POS,
-            equipment: [BASIC_CORE, POT_LID],
-            researchTrees: {
-                [TECH_SHIELD_TREE_ID]: [
-                    TECH_SHIELD_NODE_BASE,
-                    'crystal_embedded_shield',
-                    'throwing_crystal_shield',
-                ],
-            },
+            equipment: [BASIC_CORE, WEAPON_ITEM_CHARGED_SHIELD],
         });
         resolvedAbilityIds[SHIELD_ID] = abilityIds;
         placeTargetDummy(engine, FAR_DUMMY_POS);
@@ -217,14 +223,14 @@ export const loadoutShieldResearchChainScenario: ScenarioDefinition = {
 };
 
 // ---------------------------------------------------------------------------
-// Earth Core keeps the Charged Rock throw when Rocks + charged_rocks are present.
+// Earth Core keeps the Charged Rock throw when Charged Rocks is equipped.
 // ---------------------------------------------------------------------------
 
 const EARTH_ROCKS_ID = 'loadout_earth_core_keeps_charged_rock';
 
 export const loadoutEarthCoreKeepsChargedRockScenario: ScenarioDefinition = {
     id: EARTH_ROCKS_ID,
-    title: 'Loadout: Earth Core + Rocks + Charged Rocks throws a Charged Rock (not the Earth Core rock throw)',
+    title: 'Loadout: Earth Core + Charged Rocks throws a Charged Rock (not the Earth Core rock throw)',
     category: 'general',
     generalSection: SECTION,
     maxDurationMs: 6000,
@@ -233,8 +239,7 @@ export const loadoutEarthCoreKeepsChargedRockScenario: ScenarioDefinition = {
         const { abilityIds } = placePlayerFromLoadout(engine, {
             playerId: P,
             world: PLAYER_POS,
-            equipment: [EARTH_CORE, ROCKS],
-            researchTrees: { [CRYSTAL_ROCKS_TREE_ID]: [CRYSTAL_ROCKS_NODE_BASE, 'charged_rocks'] },
+            equipment: [EARTH_CORE, CHARGED_ROCKS],
         });
         resolvedAbilityIds[EARTH_ROCKS_ID] = abilityIds;
         placeTargetDummy(engine, FAR_DUMMY_POS);
@@ -299,7 +304,166 @@ export const loadoutEarthCoreNoBonusRockScenario: ScenarioDefinition = {
     },
 };
 
+// ---------------------------------------------------------------------------
+// Each tier-2 / tier-3 item alone yields its card(s).
+// ---------------------------------------------------------------------------
+
+const TIER_CARDS_ID = 'loadout_equipment_items_yield_cards';
+
+const ITEM_CARD_EXPECTATIONS: { itemId: string; has: string[]; hasNot: string[] }[] = [
+    { itemId: WEAPON_ITEM_CHARGED_ROCKS, has: ['throw_charged_rock'], hasNot: ['throw_rock'] },
+    { itemId: WEAPON_ITEM_KNIVES, has: ['throw_knife'], hasNot: ['throw_rock'] },
+    { itemId: WEAPON_ITEM_SWORD, has: ['0112'], hasNot: ['0103'] },
+    { itemId: WEAPON_ITEM_MACE, has: ['0115'], hasNot: ['0103'] },
+    { itemId: WEAPON_ITEM_CRYSTAL_SHIELD, has: ['0110'], hasNot: ['0104'] },
+    { itemId: WEAPON_ITEM_CHARGED_SHIELD, has: ['0113', '0121'], hasNot: ['0104', '0110'] },
+];
+
+function tierItemCardProblems(): string[] {
+    const problems: string[] = [];
+    for (const { itemId, has, hasNot } of ITEM_CARD_EXPECTATIONS) {
+        const ids = resolveCharacterLoadout([BASIC_CORE, itemId], undefined).abilityIds;
+        for (const id of has) if (!ids.includes(id)) problems.push(`${itemId} missing ${id}`);
+        for (const id of hasNot) if (ids.includes(id)) problems.push(`${itemId} unexpectedly has ${id}`);
+    }
+    return problems;
+}
+
+export const loadoutEquipmentItemsYieldCardsScenario: ScenarioDefinition = {
+    id: TIER_CARDS_ID,
+    title: 'Loadout: each tier-2/3 weapon item alone yields its cards (Mace casts Swing Mace)',
+    category: 'general',
+    generalSection: SECTION,
+    maxDurationMs: 5000,
+    buildEngine() {
+        const engine = loadoutEngine();
+        const { abilityIds } = placePlayerFromLoadout(engine, {
+            playerId: P,
+            world: PLAYER_POS,
+            equipment: [BASIC_CORE, WEAPON_ITEM_MACE],
+        });
+        resolvedAbilityIds[TIER_CARDS_ID] = abilityIds;
+        placeTargetDummy(engine, NEAR_DUMMY_POS);
+        return engine;
+    },
+    getInitialOrders(e) {
+        return pixelOrder(e, '0115');
+    },
+    assertPass(e) {
+        const ids = resolvedAbilityIds[TIER_CARDS_ID] ?? [];
+        return tierItemCardProblems().length === 0 && ids.includes('0115') && dummyLoss(e) > 0;
+    },
+    failureMessage(e) {
+        return `problems=[${tierItemCardProblems().join('; ')}]; dummy lost ${dummyLoss(e)} hp (want >0 from Swing Mace)`;
+    },
+};
+
+// ---------------------------------------------------------------------------
+// Item passive: base Rocks has no round-start Light Charge (Charged Rocks does).
+// ---------------------------------------------------------------------------
+
+const ROCKS_NO_PASSIVE_ID = 'loadout_rocks_no_light_charge_passive';
+
+export const loadoutRocksNoLightChargeScenario: ScenarioDefinition = {
+    id: ROCKS_NO_PASSIVE_ID,
+    title: 'Loadout: base Rocks gets no round-start Light Charge (Charged Rocks does)',
+    category: 'general',
+    generalSection: SECTION,
+    maxDurationMs: 5000,
+    buildEngine() {
+        const engine = loadoutEngine();
+        const { player, abilityIds } = placePlayerFromLoadout(engine, {
+            playerId: P,
+            world: PLAYER_POS,
+            equipment: [BASIC_CORE, ROCKS],
+        });
+        resolvedAbilityIds[ROCKS_NO_PASSIVE_ID] = abilityIds;
+        placeTargetDummy(engine, FAR_DUMMY_POS);
+        // Sentinel: Throw Charged Rock accepts Light Charges while below max uses.
+        player.abilities.push('throw_charged_rock');
+        initializeAbilityRuntimeForUnit(player);
+        const sentinel = player.abilityRuntime['throw_charged_rock'];
+        if (sentinel) sentinel.currentUses = 0;
+        return engine;
+    },
+    getInitialOrders(e) {
+        return pixelOrder(e, 'throw_rock');
+    },
+    assertPass(e) {
+        const player = e.getLocalPlayerUnit();
+        const sentinel = player?.abilityRuntime['throw_charged_rock'];
+        const charged = resolveCharacterLoadout([BASIC_CORE, CHARGED_ROCKS], undefined);
+        return player?.roundStartRecoveryCharges.length === 0
+            && sentinel?.currentUses === 0
+            && (sentinel.recoveryChargesByType['lightCharge'] ?? 0) === 0
+            && charged.abilityIds.includes('throw_charged_rock')
+            && dummyLoss(e) > 0;
+    },
+    failureMessage(e) {
+        const player = e.getLocalPlayerUnit();
+        const sentinel = player?.abilityRuntime['throw_charged_rock'];
+        return `passives=${player?.roundStartRecoveryCharges.length ?? '?'} (want 0); sentinel uses=${sentinel?.currentUses ?? '?'} lightCharge=${sentinel?.recoveryChargesByType['lightCharge'] ?? 0} (want 0/0); dummy lost ${dummyLoss(e)} hp (want >0)`;
+    },
+};
+
+// ---------------------------------------------------------------------------
+// Shared Thrown Weapons tree: More Rock applies with Knives, not with base Rocks.
+// ---------------------------------------------------------------------------
+
+const MORE_ROCK_ID = 'loadout_more_rock_shared_tree';
+const MORE_ROCK_RESEARCH = { [THROWN_WEAPONS_TREE_ID]: [THROWN_WEAPONS_ROOT_NODE_ID, NODE_MORE_ROCK] };
+let moreRockOnRocks = true;
+
+function knifeTargetCount(e: GameEngine): number {
+    const player = e.getLocalPlayerUnit();
+    const ability = getAbility('throw_knife');
+    return player && ability?.getTargets ? ability.getTargets(player, e).length : 0;
+}
+
+export const loadoutMoreRockSharedTreeScenario: ScenarioDefinition = {
+    id: MORE_ROCK_ID,
+    title: 'Loadout: More Rock applies with Knives equipped and not with base Rocks (Knives throws two)',
+    category: 'general',
+    generalSection: SECTION,
+    maxDurationMs: 6000,
+    buildEngine() {
+        // Base Rocks: the shared tree is inactive, so More Rock research is ignored.
+        const rocksActive = activeResearchByPlayer({ [P]: [BASIC_CORE, ROCKS] }, { [P]: MORE_ROCK_RESEARCH });
+        moreRockOnRocks = (rocksActive[P]?.[THROWN_WEAPONS_TREE_ID] ?? []).includes(NODE_MORE_ROCK);
+
+        const engine = loadoutEngine();
+        const { abilityIds } = placePlayerFromLoadout(engine, {
+            playerId: P,
+            world: PLAYER_POS,
+            equipment: [BASIC_CORE, WEAPON_ITEM_KNIVES],
+            researchTrees: MORE_ROCK_RESEARCH,
+        });
+        resolvedAbilityIds[MORE_ROCK_ID] = abilityIds;
+        placeTargetDummy(engine, FAR_DUMMY_POS);
+        return engine;
+    },
+    getInitialOrders(e) {
+        const u = e.getLocalPlayerUnit()!;
+        const d = e.getUnit('target_dummy')!;
+        const target = { type: 'pixel' as const, position: { x: d.x, y: d.y } };
+        // With More Rock the knife takes two pixel targets.
+        return [{ unitId: u.id, abilityId: 'throw_knife', targets: [target, target] }];
+    },
+    assertPass(e) {
+        return !moreRockOnRocks
+            && e.getPlayerResearchNodes(P, THROWN_WEAPONS_TREE_ID).includes(NODE_MORE_ROCK)
+            && knifeTargetCount(e) === 2
+            && dummyLoss(e) > 0;
+    },
+    failureMessage(e) {
+        return `More Rock active on base Rocks=${moreRockOnRocks} (want false); engine thrown_weapons=[${e.getPlayerResearchNodes(P, THROWN_WEAPONS_TREE_ID).join(',')}] (want more_rock); knife target count=${knifeTargetCount(e)} (want 2); dummy lost ${dummyLoss(e)} hp (want >0)`;
+    },
+};
+
 export const EQUIPMENT_LOADOUT_SCENARIOS: ScenarioDefinition[] = [
+    loadoutEquipmentItemsYieldCardsScenario,
+    loadoutRocksNoLightChargeScenario,
+    loadoutMoreRockSharedTreeScenario,
     loadoutRocksChargedRockHitsScenario,
     loadoutSwappedWeaponIgnoresOldResearchScenario,
     loadoutShieldResearchChainScenario,

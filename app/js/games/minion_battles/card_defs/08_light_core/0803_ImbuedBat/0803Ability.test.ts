@@ -6,7 +6,7 @@ import {
     getImbuedBatLightConeMaxRange,
 } from './0803Constants';
 
-describe('Imbued Bat light cone range', () => {
+describe('Imbued Mace light cone range', () => {
     it('uses the base cone range with no modifier', () => {
         expect(getImbuedBatLightConeMaxRange()).toBe(LIGHT_CONE_MAX_RANGE);
     });

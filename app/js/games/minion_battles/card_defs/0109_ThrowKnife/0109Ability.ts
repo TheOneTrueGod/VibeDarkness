@@ -17,7 +17,7 @@ import type { Unit } from '../../game/units/Unit';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
 import { type CardDef } from '../types';
-import { CRYSTAL_ROCKS_NODE_PIERCING_KNIVES } from '../../../../researchTrees/trees/crystal_rocks';
+import { KNIVES_NODE_PIERCING_KNIVES } from '../../../../researchTrees/trees/knives';
 import {
     beginThrowCastPayload,
     buildMoreRockTimings,
@@ -47,11 +47,12 @@ const BLEED_STACKS_ON_HIT = 5;
 const THROW_KNIFE_PROJECTILE_URL = new URL('../../assets/projectiles/knife.svg', import.meta.url).href;
 
 function hasKnifeMultiThrow(research: Set<string>): boolean {
-    return research.has('throwing_knives') && hasMoreRockResearch(research);
+    // Throwing Knives is now the equipped item itself, so this ability being cast implies it.
+    return hasMoreRockResearch(research);
 }
 
 function hasKnifePierce(research: Set<string>): boolean {
-    return research.has(CRYSTAL_ROCKS_NODE_PIERCING_KNIVES);
+    return research.has(KNIVES_NODE_PIERCING_KNIVES);
 }
 
 function resolveKnifeDamage(ctx: import('../../abilities/castBehaviourTypes').CastBehaviourSetupContext): number {

@@ -11,8 +11,37 @@ import { lightTree } from './trees/light';
 import { gravityTree } from './trees/gravity';
 import { bloodMageTree } from './trees/blood_mage';
 import { darknessUpgradesTree } from './trees/darkness_upgrades';
+import { chargedRocksTree } from './trees/charged_rocks';
+import { knivesTree } from './trees/knives';
+import { swordTree } from './trees/sword';
+import { maceTree } from './trees/mace';
+import { crystalShieldTree } from './trees/crystal_shield';
+import { chargedShieldTree } from './trees/charged_shield';
+import { thrownWeaponsTree } from './trees/thrown_weapons';
+import { meleeWeaponsTree } from './trees/melee_weapons';
 
-export const RESEARCH_TREES: ResearchTreeDef[] = [techShieldTree, crystalRocksTree, trainingTree, stickSwordTree, miscTree, earthTree, commandCoreTree, lightTree, gravityTree, bloodMageTree, darknessUpgradesTree];
+export const RESEARCH_TREES: ResearchTreeDef[] = [
+    techShieldTree,
+    crystalRocksTree,
+    trainingTree,
+    stickSwordTree,
+    miscTree,
+    earthTree,
+    commandCoreTree,
+    lightTree,
+    gravityTree,
+    bloodMageTree,
+    darknessUpgradesTree,
+    // Equipment trees (one per upgrade item, plus shared family trees).
+    chargedRocksTree,
+    knivesTree,
+    swordTree,
+    maceTree,
+    crystalShieldTree,
+    chargedShieldTree,
+    thrownWeaponsTree,
+    meleeWeaponsTree,
+];
 
 export function getResearchTree(treeId: string): ResearchTreeDef | undefined {
     return RESEARCH_TREES.find((t) => t.id === treeId);

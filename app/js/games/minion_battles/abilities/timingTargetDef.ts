@@ -44,7 +44,7 @@ export interface SelectTargetDef {
      */
     lockOnMode?: 'tether' | 'strictHitbox';
     /**
-     * Extra hitboxes resolved on the same select click (e.g. Imbued Bat light cone).
+     * Extra hitboxes resolved on the same select click (e.g. Imbued Mace light cone).
      * Order.targets convention: `[primary0..P-1, companion0..C-1, …, aimPixel]`.
      * Preview/commit append companion candidates after primary; resolve uses strict fill
      * per companion unless that path opts into tether separately.
@@ -56,7 +56,7 @@ export interface SelectTargetDef {
         /**
          * True when this companion strikes even if the primary hitbox has no target (e.g. Bloody
          * Claws' second claw). The preview then always draws it. Default false: drawn only when the
-         * primary would connect (e.g. Imbued Bat's light cone).
+         * primary would connect (e.g. Imbued Mace's light cone).
          */
         independent?: boolean;
     }>;

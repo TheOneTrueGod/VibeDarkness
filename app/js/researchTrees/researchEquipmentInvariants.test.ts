@@ -36,7 +36,7 @@ describe('research never grants equipment (except core swaps)', () => {
 
     it('every boundItem root exists in its tree and has no effects', () => {
         const bound = RESEARCH_TREES.filter((t) => t.boundItem);
-        expect(bound.length).toBe(3);
+        expect(bound.length).toBe(11);
         for (const tree of bound) {
             const root = tree.nodes.find((n) => n.id === tree.boundItem!.rootNodeId);
             expect(root, tree.id).toBeDefined();

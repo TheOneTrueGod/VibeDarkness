@@ -5,11 +5,16 @@ import { rocksItem } from '../games/minion_battles/character_defs/items/hands/00
 import {
     collectResearchTreeAbilityIds,
     isPlayerVisibleResearchTree,
+    researchTreeHasNonRootNodes,
     researchTreeMatchesAbilityIds,
     sortResearchTreesByPlayerAbilities,
 } from './treeAbilities';
 import { trainingTree, TRAINING_NODE_DOUBLE_PUNCH, TRAINING_TREE_ID } from './trees/training';
 import { crystalRocksTree } from './trees/crystal_rocks';
+import { chargedRocksTree } from './trees/charged_rocks';
+import { chargedShieldTree } from './trees/charged_shield';
+import { stickSwordTree } from './trees/stick_sword';
+import { techShieldTree } from './trees/tech_shield';
 import { earthTree, EARTH_NODE_EARTH_CORE, EARTH_TREE_ID } from './trees/earth';
 import { lightTree, LIGHT_NODE_CORE } from './trees/light';
 import { bloodMageTree } from './trees/blood_mage';
@@ -86,5 +91,23 @@ describe('sortResearchTreesByPlayerAbilities', () => {
             new Set([punchAbilityId()]),
         );
         expect(sorted.map((t) => t.id)).toEqual([TRAINING_TREE_ID, EARTH_TREE_ID, bloodMageTree.id]);
+    });
+});
+
+describe('bound trees with only a root node', () => {
+    it('are hidden from players but a tree with a non-root node is not', () => {
+        const rootOnly = {
+            ...chargedRocksTree,
+            nodes: chargedRocksTree.nodes.filter((n) => n.id === chargedRocksTree.boundItem!.rootNodeId),
+        };
+        expect(researchTreeHasNonRootNodes(rootOnly)).toBe(false);
+        expect(isPlayerVisibleResearchTree(rootOnly, {}, new Set(['throw_rock']))).toBe(false);
+        expect(researchTreeHasNonRootNodes(chargedRocksTree)).toBe(true);
+    });
+
+    it('hides the root-only base-item and Charged Shield trees until they gain nodes', () => {
+        for (const tree of [crystalRocksTree, stickSwordTree, techShieldTree, chargedShieldTree]) {
+            expect(researchTreeHasNonRootNodes(tree), tree.id).toBe(false);
+        }
     });
 });

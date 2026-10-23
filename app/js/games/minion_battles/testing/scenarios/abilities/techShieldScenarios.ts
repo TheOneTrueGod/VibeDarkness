@@ -1,9 +1,9 @@
 ﻿import type { ScenarioDefinition } from '../../types';
 import {
-    TECH_SHIELD_TREE_ID,
-    TECH_SHIELD_NODE_BASE,
-    TECH_SHIELD_NODE_STRENGTHENING_LIGHT,
-} from '../../../../../researchTrees/trees/tech_shield';
+    CRYSTAL_SHIELD_TREE_ID,
+    CRYSTAL_SHIELD_ROOT_NODE_ID,
+    NODE_STRENGTHENING_LIGHT,
+} from '../../../../../researchTrees/trees/weaponTreeIds';
 import {
     buildTinyBattleEngine,
     spawnTinyPlayerUnit,
@@ -251,11 +251,7 @@ export const shiningBlockStrengtheningLightScenario: ScenarioDefinition = {
     buildEngine() {
         const research = {
             [P]: {
-                [TECH_SHIELD_TREE_ID]: [
-                    TECH_SHIELD_NODE_BASE,
-                    'crystal_embedded_shield',
-                    TECH_SHIELD_NODE_STRENGTHENING_LIGHT,
-                ],
+                [CRYSTAL_SHIELD_TREE_ID]: [CRYSTAL_SHIELD_ROOT_NODE_ID, NODE_STRENGTHENING_LIGHT],
             },
         };
         return buildShieldEngine('0110', research).engine;

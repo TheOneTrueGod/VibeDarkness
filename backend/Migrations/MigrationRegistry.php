@@ -4,6 +4,7 @@ namespace App\Migrations;
 
 use App\Migrations\Versions\M0001EquipmentUnlocksAndSaveVersions;
 use App\Migrations\Versions\M0002ExhaustionToHunger;
+use App\Migrations\Versions\M0003EquipmentUpgradeRewards;
 
 /**
  * Ordered list of every deploy-time migration. Append new migrations at the end with the
@@ -17,6 +18,7 @@ final class MigrationRegistry
         return [
             new M0001EquipmentUnlocksAndSaveVersions(),
             new M0002ExhaustionToHunger(),
+            new M0003EquipmentUpgradeRewards(),
         ];
     }
 

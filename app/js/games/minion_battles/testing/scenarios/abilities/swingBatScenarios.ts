@@ -24,7 +24,7 @@ const DUMMY_POSITIONS = [
 
 export const swingBatHitsThreeTargetsScenario: ScenarioDefinition = {
     id: 'swing_bat_hits_three_targets',
-    title: 'Swing Bat hits 3 out of 4 target dummies and deals damage with knockback',
+    title: 'Swing Mace hits 3 out of 4 target dummies and deals damage with knockback',
     category: 'ability',
     maxDurationMs: 5000,
 
