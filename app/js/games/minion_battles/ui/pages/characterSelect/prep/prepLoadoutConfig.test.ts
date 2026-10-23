@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { STORY_BACKGROUNDS } from '../../../../assets/story';
 import { QUEST_MAP } from '../../../../storylines/questRegistry';
-import { campfireBackgroundForPrep, questPrepBackgroundImage } from './MissionPrepSlotLayout';
+import {
+    campfireBackgroundForPrep,
+    missionPrepConfig,
+    questPrepBackgroundImage,
+    questPrepConfig,
+} from './prepLoadoutConfig';
 
 describe('campfireBackgroundForPrep', () => {
     it('always uses the story campfire, even when ability selection is required', () => {
@@ -23,5 +28,27 @@ describe('questPrepBackgroundImage', () => {
         for (const quest of Object.values(QUEST_MAP)) {
             expect(quest.prepBackgroundImage, quest.id).toBeTruthy();
         }
+    });
+});
+
+describe('prep configs', () => {
+    it('quest prep syncs the quest lobby map, uses the quest background and does not gate Ready', () => {
+        const config = questPrepConfig({ prepBackgroundImage: 'custom.png' }, ['a']);
+        expect(config).toEqual({
+            lobbyField: 'questPrepLoadoutsByPlayer',
+            rememberedAbilityIds: ['a'],
+            requireCompleteLoadout: false,
+            backgroundImage: 'custom.png',
+        });
+    });
+
+    it('mission prep syncs the mission lobby map, uses the campfire and gates Ready', () => {
+        const config = missionPrepConfig(['b']);
+        expect(config).toEqual({
+            lobbyField: 'missionPrepLoadoutsByPlayer',
+            rememberedAbilityIds: ['b'],
+            requireCompleteLoadout: true,
+            backgroundImage: STORY_BACKGROUNDS.campfire,
+        });
     });
 });

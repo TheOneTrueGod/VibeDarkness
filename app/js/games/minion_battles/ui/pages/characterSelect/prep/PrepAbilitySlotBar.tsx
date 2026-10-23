@@ -3,12 +3,12 @@ import { createPortal } from 'react-dom';
 import { getAbility } from '../../../../abilities/AbilityRegistry';
 import type { AbilityStatic } from '../../../../abilities/Ability';
 import type { CampaignCharacter } from '../../../../character_defs/CampaignCharacter';
-import { QUEST_PREP_ABILITY_SLOT_COUNT } from '../../../../storylines/questPrepLoadout';
+import { PREP_ABILITY_SLOT_COUNT } from '../../../../storylines/questPrepLoadout';
 import { TestIds } from '../../../../../../testing/testIds';
 import { ABILITY_SLOT_PREP_HEIGHT_PX, ABILITY_SLOT_WIDTH_PX } from '../../../components/AbilitySlot';
 import { AbilitySlotPreview } from '../../../components/AbilitySlotPreview';
 
-interface QuestPrepAbilitySlotBarProps {
+interface PrepAbilitySlotBarProps {
     character: CampaignCharacter;
     selectedPrimaryIds: readonly string[];
     slotCount?: number;
@@ -37,17 +37,17 @@ interface SlotDrag {
 }
 
 /**
- * Bottom row: 7 Quest Prep primary slots; click occupied to remove (+ attached leave with it).
+ * Bottom row: prep primary slots; click occupied to remove (+ attached leave with it).
  * Press and drag an occupied card to pick it up; a bar between two cards marks the drop point.
  */
-export function QuestPrepAbilitySlotBar({
+export function PrepAbilitySlotBar({
     character,
     selectedPrimaryIds,
-    slotCount = QUEST_PREP_ABILITY_SLOT_COUNT,
+    slotCount = PREP_ABILITY_SLOT_COUNT,
     onRemove,
     readOnly = false,
     onReorder,
-}: QuestPrepAbilitySlotBarProps) {
+}: PrepAbilitySlotBarProps) {
     const tooltipContext = useMemo(
         () => ({
             researchTrees: character.researchTrees,
@@ -166,7 +166,7 @@ export function QuestPrepAbilitySlotBar({
                 >
                     {slots.map((ability, index) => (
                         <div
-                            key={`quest-prep-slot-${index}`}
+                            key={`prep-slot-${index}`}
                             ref={(el) => {
                                 slotRefs.current[index] = el;
                             }}

@@ -13,6 +13,6 @@ export function CharacterSelectLoadoutSelector({
     }
 
     // Interactive picker (nothing while locked) is the shared PrepDeckSelector,
-    // rendered by MissionPrepOverview / QuestPrepOverview.
+    // rendered by prep/PrepOverview.
     return null;
 }

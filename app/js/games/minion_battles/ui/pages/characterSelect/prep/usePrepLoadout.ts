@@ -5,42 +5,42 @@ import {
     addQuestPrepAbility,
     buildAccessibleAbilityIds,
     filterSelectableQuestPrepAbilityIds,
+    isMissionPrepAbilityReady,
     isMissionPrepReadOnly,
     isQuestPrepSlotsFull,
     moveQuestPrepAbility,
     needsMissionAbilitySelection,
     readOnlyPrepSelection,
+    PREP_ABILITY_SLOT_COUNT,
     removeQuestPrepAbility,
     resolveInitialMissionSelection,
-    QUEST_PREP_ABILITY_SLOT_COUNT,
 } from '../../../../storylines/questPrepLoadout';
+import type { PrepLoadoutConfig } from './prepLoadoutConfig';
 
-interface UseQuestPrepLoadoutParams {
+interface UsePrepLoadoutParams {
     api: MinionBattlesApi;
     playerId: string;
     character: CampaignCharacter;
-    /** Lobby-synced primary picks by player id. */
-    questPrepLoadoutsByPlayer: Record<string, string[]>;
-    /**
-     * Prior quest prep picks by campaign character id (continue / previous run).
-     * Used when the lobby has no loadout yet for this player.
-     */
-    rememberedAbilityIds?: readonly string[];
+    config: PrepLoadoutConfig;
+    /** Lobby-synced primary picks by player id (the map named by `config.lobbyField`). */
+    loadoutsByPlayer: Record<string, string[]>;
 }
 
 /**
- * Local + lobby sync for Quest Prep primary ability slots.
- * Empty lobby + no remembered picks → first {@link QUEST_PREP_ABILITY_SLOT_COUNT} selectable.
- * Under/at the cap it is read-only (every ability brought), matching Prepare Carefully, since the
- * shared deck selector is hidden there and could not re-add a removed ability.
+ * Local + lobby sync for prep ability slots (Quest Prep and Prepare Carefully).
+ * Under/at cap: read-only (every selectable primary brought; order is still the player's).
+ * Over cap: the player picks up to PREP_ABILITY_SLOT_COUNT. Empty lobby → remembered picks, else
+ * the first PREP_ABILITY_SLOT_COUNT selectable.
  */
-export function useQuestPrepLoadout({
+export function usePrepLoadout({
     api,
     playerId,
     character,
-    questPrepLoadoutsByPlayer,
-    rememberedAbilityIds = [],
-}: UseQuestPrepLoadoutParams) {
+    config,
+    loadoutsByPlayer,
+}: UsePrepLoadoutParams) {
+    const { lobbyField, rememberedAbilityIds, requireCompleteLoadout } = config;
+
     const accessibleIds = useMemo(
         () => buildAccessibleAbilityIds(character.equipment, character.researchTrees),
         [character.equipment, character.researchTrees],
@@ -59,7 +59,7 @@ export function useQuestPrepLoadout({
         [selectableIds, rememberedAbilityIds],
     );
 
-    const serverPrimaries = questPrepLoadoutsByPlayer[playerId];
+    const serverPrimaries = loadoutsByPlayer[playerId];
     const [localPrimaries, setLocalPrimaries] = useState<string[]>(
         () => (serverPrimaries && serverPrimaries.length > 0 ? serverPrimaries : defaultSelection),
     );
@@ -70,32 +70,32 @@ export function useQuestPrepLoadout({
     const seededRef = useRef(false);
 
     const pushLoadout = useCallback(
-        async (requested: string[]) => {
-            const next = readOnly ? readOnlyPrepSelection(requested, selectableIds) : requested;
-            const key = JSON.stringify(next);
+        async (next: string[]) => {
+            const toPush = readOnly ? readOnlyPrepSelection(next, selectableIds) : next;
+            const key = JSON.stringify(toPush);
             if (key === lastPushedRef.current && key === JSON.stringify(localPrimaries)) {
                 return;
             }
             lastPushedRef.current = key;
             syncingRef.current = true;
-            setLocalPrimaries(next);
+            setLocalPrimaries(toPush);
             try {
                 await api.updateGameState({
-                    questPrepLoadoutsByPlayer: {
-                        ...questPrepLoadoutsByPlayer,
-                        [playerId]: next,
+                    [lobbyField]: {
+                        ...loadoutsByPlayer,
+                        [playerId]: toPush,
                     },
                 });
             } catch (e) {
-                console.warn('Failed to sync Quest Prep loadout:', e);
+                console.warn(`Failed to sync prep loadout (${lobbyField}):`, e);
             } finally {
                 syncingRef.current = false;
             }
         },
-        [api, playerId, questPrepLoadoutsByPlayer, localPrimaries, readOnly, selectableIds],
+        [api, playerId, lobbyField, loadoutsByPlayer, readOnly, selectableIds, localPrimaries],
     );
 
-    // Seed lobby once when empty (first 7 / remembered picks).
+    // Seed lobby state once when empty (read-only auto-fill or remembered picks).
     useEffect(() => {
         if (seededRef.current) return;
         seededRef.current = true;
@@ -126,6 +126,7 @@ export function useQuestPrepLoadout({
     }, [serverPrimaries, localPrimaries]);
 
     const slotsFull = isQuestPrepSlotsFull(localPrimaries);
+    const abilityReady = !requireCompleteLoadout || isMissionPrepAbilityReady(localPrimaries, selectableIds);
 
     const addAbility = useCallback(
         (abilityId: string) => {
@@ -162,9 +163,10 @@ export function useQuestPrepLoadout({
         selectableIds,
         accessibleIds,
         slotsFull,
-        slotCount: QUEST_PREP_ABILITY_SLOT_COUNT,
+        slotCount: PREP_ABILITY_SLOT_COUNT,
         readOnly,
         selectionRequired,
+        abilityReady,
         addAbility,
         removeAbility,
         moveAbility,

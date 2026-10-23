@@ -1,7 +1,7 @@
 import React from 'react';
-import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
-import { QuestPrepAbilityPicker } from './questPrep/QuestPrepAbilityPicker';
-import { isPrepDeckSelectorUnlocked } from './loadoutSelection';
+import type { CampaignCharacter } from '../../../../character_defs/CampaignCharacter';
+import { PrepAbilityPicker } from './PrepAbilityPicker';
+import { isPrepDeckSelectorUnlocked } from '../loadoutSelection';
 
 interface PrepDeckSelectorProps {
     character: CampaignCharacter;
@@ -31,7 +31,7 @@ export function PrepDeckSelector({
 }: PrepDeckSelectorProps) {
     if (!isPrepDeckSelectorUnlocked(selectableIds.length) || !open) return null;
     return (
-        <QuestPrepAbilityPicker
+        <PrepAbilityPicker
             character={character}
             selectableIds={selectableIds}
             selectedPrimaryIds={selectedPrimaryIds}

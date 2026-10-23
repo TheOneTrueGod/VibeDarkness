@@ -6,7 +6,7 @@ import { getAttachedAbilityIds } from '../../../../storylines/questPrepLoadout';
 import { TestIds } from '../../../../../../testing/testIds';
 import { AbilitySlotPreview } from '../../../components/AbilitySlotPreview';
 
-interface QuestPrepAbilityPickerProps {
+interface PrepAbilityPickerProps {
     character: CampaignCharacter;
     selectableIds: readonly string[];
     selectedPrimaryIds: readonly string[];
@@ -14,14 +14,14 @@ interface QuestPrepAbilityPickerProps {
     onAdd: (abilityId: string) => void;
 }
 
-/** Center pane: abilities the character can bring; click to fill an open Quest Prep slot. */
-export function QuestPrepAbilityPicker({
+/** Center pane: abilities the character can bring; click to fill an open prep slot. */
+export function PrepAbilityPicker({
     character,
     selectableIds,
     selectedPrimaryIds,
     slotsFull,
     onAdd,
-}: QuestPrepAbilityPickerProps) {
+}: PrepAbilityPickerProps) {
     const abilities = useMemo(
         () => selectableIds.map((id) => getAbility(id)).filter((a): a is AbilityStatic => a != null),
         [selectableIds],

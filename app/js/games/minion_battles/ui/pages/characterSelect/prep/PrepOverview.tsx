@@ -1,9 +1,9 @@
 import React from 'react';
 import type { CampaignCharacter } from '../../../../character_defs/CampaignCharacter';
 import { CharacterSelectCornerPortrait } from '../CharacterSelectCornerPortrait';
-import { PrepDeckSelector } from '../PrepDeckSelector';
+import { PrepDeckSelector } from './PrepDeckSelector';
 
-interface MissionPrepOverviewProps {
+interface PrepOverviewProps {
     character: CampaignCharacter;
     onChangeCharacter: () => void;
     useLayoutSlots?: boolean;
@@ -17,11 +17,11 @@ interface MissionPrepOverviewProps {
 }
 
 /**
- * Center segment for regular-mission Prepare Carefully.
- * Uses the shared `PrepDeckSelector` (same component and show/hide rule as Quest Prep):
- * under the ability cap it renders nothing (the campfire shows); over it, the ability picker.
+ * Center segment for the prep screens (Quest Prep and Prepare Carefully).
+ * Uses the shared `PrepDeckSelector`: under the ability cap it renders nothing (the prep
+ * background shows); over it, the ability picker.
  */
-export function MissionPrepOverview({
+export function PrepOverview({
     character,
     onChangeCharacter,
     useLayoutSlots = false,
@@ -31,7 +31,7 @@ export function MissionPrepOverview({
     selectedPrimaryIds,
     slotsFull,
     onAdd,
-}: MissionPrepOverviewProps) {
+}: PrepOverviewProps) {
     const deckSelector = (open: boolean) => (
         <PrepDeckSelector
             character={character}
@@ -42,11 +42,10 @@ export function MissionPrepOverview({
             open={open}
         />
     );
-    const center = deckSelector(true);
 
     if (useLayoutSlots) {
         // The picker only appears once unlocked and "Edit Abilities" opens it; otherwise the
-        // campfire background shows on its own.
+        // prep background shows on its own.
         if (!selectionRequired || !pickerOpen) {
             return null;
         }
@@ -68,7 +67,7 @@ export function MissionPrepOverview({
                 />
             </div>
             <div className="min-h-0 flex-1">
-                {center}
+                {deckSelector(true)}
             </div>
         </div>
     );

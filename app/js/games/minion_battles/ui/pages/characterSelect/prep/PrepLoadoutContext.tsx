@@ -1,19 +1,21 @@
 import React, { createContext, useContext, useEffect } from 'react';
 import type { CampaignCharacter } from '../../../../character_defs/CampaignCharacter';
 import type { MinionBattlesApi } from '../../../../api/minionBattlesApi';
-import { useMissionPrepLoadout } from './useMissionPrepLoadout';
+import type { PrepLoadoutConfig } from './prepLoadoutConfig';
+import { usePrepLoadout } from './usePrepLoadout';
 
-type MissionPrepLoadoutValue = ReturnType<typeof useMissionPrepLoadout> & {
+type PrepLoadoutValue = ReturnType<typeof usePrepLoadout> & {
     character: CampaignCharacter;
 };
 
-const MissionPrepLoadoutContext = createContext<MissionPrepLoadoutValue | null>(null);
+const PrepLoadoutContext = createContext<PrepLoadoutValue | null>(null);
 
-export function MissionPrepLoadoutProvider({
+export function PrepLoadoutProvider({
     api,
     playerId,
     character,
-    missionPrepLoadoutsByPlayer,
+    config,
+    loadoutsByPlayer,
     onSelectedPrimaryIdsChange,
     onAbilityReadyChange,
     children,
@@ -21,16 +23,19 @@ export function MissionPrepLoadoutProvider({
     api: MinionBattlesApi;
     playerId: string;
     character: CampaignCharacter;
-    missionPrepLoadoutsByPlayer: Record<string, string[]>;
+    config: PrepLoadoutConfig;
+    loadoutsByPlayer: Record<string, string[]>;
+    /** Mirror local primaries for Ready/freeze (avoids lobby sync race). */
     onSelectedPrimaryIdsChange?: (ids: string[]) => void;
     onAbilityReadyChange?: (ready: boolean) => void;
     children: React.ReactNode;
 }) {
-    const loadout = useMissionPrepLoadout({
+    const loadout = usePrepLoadout({
         api,
         playerId,
         character,
-        missionPrepLoadoutsByPlayer,
+        config,
+        loadoutsByPlayer,
     });
     useEffect(() => {
         onSelectedPrimaryIdsChange?.(loadout.selectedPrimaryIds);
@@ -39,16 +44,16 @@ export function MissionPrepLoadoutProvider({
         onAbilityReadyChange?.(loadout.abilityReady);
     }, [loadout.abilityReady, onAbilityReadyChange]);
     return (
-        <MissionPrepLoadoutContext.Provider value={{ ...loadout, character }}>
+        <PrepLoadoutContext.Provider value={{ ...loadout, character }}>
             {children}
-        </MissionPrepLoadoutContext.Provider>
+        </PrepLoadoutContext.Provider>
     );
 }
 
-export function useMissionPrepLoadoutContext(): MissionPrepLoadoutValue {
-    const ctx = useContext(MissionPrepLoadoutContext);
+export function usePrepLoadoutContext(): PrepLoadoutValue {
+    const ctx = useContext(PrepLoadoutContext);
     if (!ctx) {
-        throw new Error('useMissionPrepLoadoutContext must be used within MissionPrepLoadoutProvider');
+        throw new Error('usePrepLoadoutContext must be used within PrepLoadoutProvider');
     }
     return ctx;
 }

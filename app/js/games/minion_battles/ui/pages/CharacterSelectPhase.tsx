@@ -3,7 +3,8 @@
  * Shows "Create Character" card (top left) and list of player's campaign characters.
  * Characters sorted by server `lastUsed` (most recent mission first), then mission eligibility.
  * Disallow reason shown diagonally on cards when they cannot be used.
- * Quest Prep (quest lobby, status prep / first slot) uses dedicated center + bottom segments.
+ * Quest Prep (quest lobby, status prep / first slot) and Prepare Carefully share one prep stack
+ * (`characterSelect/prep/`); only `PrepLoadoutConfig` differs.
  */
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import type { PlayerState } from '../../../../types';
@@ -31,19 +32,11 @@ import { CharacterSelectAdminTabsCorner } from './characterSelect/CharacterSelec
 import ColumnSlotPlayerStatuses from '../../../../components/battleUILayout/ColumnSlotPlayerStatuses';
 import HeaderSlotLobbyInfo from '../../../../components/battleUILayout/HeaderSlotLobbyInfo';
 import { useDebugConsole } from '../../../../contexts/DebugConsoleContext';
-import { QuestPrepOverview } from './characterSelect/questPrep/QuestPrepOverview';
-import { QuestPrepAbilitySlotBar } from './characterSelect/questPrep/QuestPrepAbilitySlotBar';
-import {
-    QuestPrepLoadoutProvider,
-    useQuestPrepLoadoutContext,
-} from './characterSelect/questPrep/QuestPrepLoadoutContext';
-import { MissionPrepOverview } from './characterSelect/missionPrep/MissionPrepOverview';
-import { MissionPrepSlotLayout, questPrepBackgroundImage } from './characterSelect/missionPrep/MissionPrepSlotLayout';
+import { PrepOverview } from './characterSelect/prep/PrepOverview';
+import { PrepAbilitySlotBar } from './characterSelect/prep/PrepAbilitySlotBar';
+import { PrepLoadoutProvider, usePrepLoadoutContext } from './characterSelect/prep/PrepLoadoutContext';
+import { missionPrepConfig, questPrepConfig } from './characterSelect/prep/prepLoadoutConfig';
 import { getQuestDef } from '../../storylines/questRegistry';
-import {
-    MissionPrepLoadoutProvider,
-    useMissionPrepLoadoutContext,
-} from './characterSelect/missionPrep/MissionPrepLoadoutContext';
 import type { CampaignCharacter } from '../../character_defs/CampaignCharacter';
 import {
     buildPartyRosterFromLobby,
@@ -110,45 +103,7 @@ function isQuestPrepMode(
     return false;
 }
 
-function QuestPrepCenter({
-    useLayoutSlots,
-    onChangeCharacter,
-}: {
-    useLayoutSlots: boolean;
-    onChangeCharacter: () => void;
-}) {
-    const loadout = useQuestPrepLoadoutContext();
-    return (
-        <QuestPrepOverview
-            character={loadout.character}
-            onChangeCharacter={onChangeCharacter}
-            useLayoutSlots={useLayoutSlots}
-            selectableIds={loadout.selectableIds}
-            selectedPrimaryIds={loadout.selectedPrimaryIds}
-            slotsFull={loadout.slotsFull}
-            onAdd={loadout.addAbility}
-        />
-    );
-}
-
-function QuestPrepBottomRow() {
-    const loadout = useQuestPrepLoadoutContext();
-    const slotCount = loadout.readOnly
-        ? Math.max(loadout.selectableIds.length, loadout.selectedPrimaryIds.length)
-        : loadout.slotCount;
-    return (
-        <QuestPrepAbilitySlotBar
-            character={loadout.character}
-            selectedPrimaryIds={loadout.selectedPrimaryIds}
-            slotCount={slotCount > 0 ? slotCount : loadout.slotCount}
-            onRemove={loadout.removeAbility}
-            onReorder={loadout.moveAbility}
-            readOnly={loadout.readOnly}
-        />
-    );
-}
-
-function MissionPrepCenter({
+function PrepCenter({
     useLayoutSlots,
     onChangeCharacter,
     pickerOpen,
@@ -157,9 +112,9 @@ function MissionPrepCenter({
     pickerOpen: boolean;
     onChangeCharacter: () => void;
 }) {
-    const loadout = useMissionPrepLoadoutContext();
+    const loadout = usePrepLoadoutContext();
     return (
-        <MissionPrepOverview
+        <PrepOverview
             character={loadout.character}
             onChangeCharacter={onChangeCharacter}
             useLayoutSlots={useLayoutSlots}
@@ -173,8 +128,8 @@ function MissionPrepCenter({
     );
 }
 
-/** Footer inside MissionPrepLoadoutProvider: offers "Edit Abilities" only when over the slot cap. */
-function MissionPrepFooter({
+/** Footer inside PrepLoadoutProvider: offers "Edit Abilities" only when over the slot cap. */
+function PrepFooter({
     pickerOpen,
     onTogglePicker,
     ...footerProps
@@ -182,7 +137,7 @@ function MissionPrepFooter({
     pickerOpen: boolean;
     onTogglePicker: () => void;
 }) {
-    const loadout = useMissionPrepLoadoutContext();
+    const loadout = usePrepLoadoutContext();
     return (
         <CharacterSelectFooter
             {...footerProps}
@@ -192,13 +147,13 @@ function MissionPrepFooter({
     );
 }
 
-function MissionPrepBottomRow() {
-    const loadout = useMissionPrepLoadoutContext();
+function PrepBottomRow() {
+    const loadout = usePrepLoadoutContext();
     const slotCount = loadout.readOnly
         ? Math.max(loadout.selectableIds.length, loadout.selectedPrimaryIds.length)
         : loadout.slotCount;
     return (
-        <QuestPrepAbilitySlotBar
+        <PrepAbilitySlotBar
             character={loadout.character}
             selectedPrimaryIds={loadout.selectedPrimaryIds}
             slotCount={slotCount > 0 ? slotCount : loadout.slotCount}
@@ -263,11 +218,21 @@ export default function CharacterSelectPhase({
     );
     const inMissionPrep = !inQuestPrep;
 
-    const localPrimariesRef = useRef<string[]>(
-        inQuestPrep
-            ? (questPrepLoadoutsByPlayer[playerId] ?? [])
-            : (missionPrepLoadoutsByPlayer[playerId] ?? []),
+    const rememberedQuestAbilityIds = characterToEdit
+        ? questAbilityLoadoutsByCharacterId[characterToEdit.id]
+        : undefined;
+    const questDefId = questLobbyFields?.questDefId;
+    const lastMissionAbilityIds = characterToEdit?.lastMissionAbilityIds;
+    /** The only things that differ between Quest Prep and Prepare Carefully. */
+    const prepConfig = useMemo(
+        () => (inQuestPrep
+            ? questPrepConfig(questDefId ? getQuestDef(questDefId) : undefined, rememberedQuestAbilityIds)
+            : missionPrepConfig(lastMissionAbilityIds)),
+        [inQuestPrep, questDefId, rememberedQuestAbilityIds, lastMissionAbilityIds],
     );
+    const prepLoadoutsByPlayer = inQuestPrep ? questPrepLoadoutsByPlayer : missionPrepLoadoutsByPlayer;
+
+    const localPrimariesRef = useRef<string[]>(prepLoadoutsByPlayer[playerId] ?? []);
     const onSelectedPrimaryIdsChange = useCallback((ids: string[]) => {
         localPrimariesRef.current = ids;
     }, []);
@@ -275,9 +240,9 @@ export default function CharacterSelectPhase({
     const [abilityPickerOpen, setAbilityPickerOpen] = useState(false);
     const toggleAbilityPicker = useCallback(() => setAbilityPickerOpen((open) => !open), []);
 
-    const [missionAbilityReady, setMissionAbilityReady] = useState(true);
-    const onMissionAbilityReadyChange = useCallback((ready: boolean) => {
-        setMissionAbilityReady(ready);
+    const [prepAbilityReady, setPrepAbilityReady] = useState(true);
+    const onPrepAbilityReadyChange = useCallback((ready: boolean) => {
+        setPrepAbilityReady(ready);
     }, []);
 
     const phase = useCharacterSelectPhase({
@@ -402,7 +367,7 @@ export default function CharacterSelectPhase({
         atLeastOneCharacter,
         resolvedRequiredPlayers,
         characterToEdit,
-        abilityLoadoutReady: !hasSelectedCharacterLoadout || inQuestPrep || missionAbilityReady,
+        abilityLoadoutReady: !hasSelectedCharacterLoadout || prepAbilityReady,
         onEditModifiers: hasSelectedCharacterLoadout && modifiers.available
             ? () => setModifiersOpen(true)
             : undefined,
@@ -413,26 +378,18 @@ export default function CharacterSelectPhase({
     } as const;
 
     const abilityBottomRow =
-        hasSelectedCharacterLoadout && characterToEdit && inQuestPrep ? (
-            <QuestPrepBottomRow />
-        ) : hasSelectedCharacterLoadout && characterToEdit ? (
-            <MissionPrepBottomRow />
-        ) : null;
+        hasSelectedCharacterLoadout && characterToEdit ? <PrepBottomRow /> : null;
 
     const bottomRowWithActions = footerInBottomBand ? (
         <div className="flex h-full w-full min-h-0 flex-col">
             {/* Equal flex spacers: padding above buttons, between buttons/cards, and below cards */}
             <div className="min-h-0 flex-1" aria-hidden />
-            {inQuestPrep ? (
-                <CharacterSelectFooter {...footerProps} compact />
-            ) : (
-                <MissionPrepFooter
-                    {...footerProps}
-                    compact
-                    pickerOpen={abilityPickerOpen}
-                    onTogglePicker={toggleAbilityPicker}
-                />
-            )}
+            <PrepFooter
+                {...footerProps}
+                compact
+                pickerOpen={abilityPickerOpen}
+                onTogglePicker={toggleAbilityPicker}
+            />
             <div className="min-h-0 flex-1" aria-hidden />
             <div className="flex shrink-0 justify-center">
                 {abilityBottomRow}
@@ -487,13 +444,8 @@ export default function CharacterSelectPhase({
                         hideMissionMap
                     />
                 </div>
-            ) : isLoadoutOverview && characterToEdit && inQuestPrep ? (
-                <QuestPrepCenter
-                    useLayoutSlots={useUnifiedSlotShell}
-                    onChangeCharacter={() => setView('grid')}
-                />
             ) : isLoadoutOverview && characterToEdit ? (
-                <MissionPrepCenter
+                <PrepCenter
                     pickerOpen={abilityPickerOpen}
                     useLayoutSlots={useUnifiedSlotShell}
                     onChangeCharacter={() => setView('grid')}
@@ -566,39 +518,22 @@ export default function CharacterSelectPhase({
             compactBottomRow: footerInBottomBand,
         };
 
-        if (hasSelectedCharacterLoadout && characterToEdit && inQuestPrep) {
-            return (
-                <QuestPrepLoadoutProvider
-                    api={api}
-                    playerId={playerId}
-                    character={characterToEdit}
-                    questPrepLoadoutsByPlayer={questPrepLoadoutsByPlayer}
-                    rememberedAbilityIds={questAbilityLoadoutsByCharacterId[characterToEdit.id]}
-                    onSelectedPrimaryIdsChange={onSelectedPrimaryIdsChange}
-                >
-                    <CharacterSelectLayout
-                        {...layoutProps}
-                        backgroundImage={questPrepBackgroundImage(
-                            questLobbyFields ? getQuestDef(questLobbyFields.questDefId) : undefined,
-                        )}
-                    >
-                        {body}
-                    </CharacterSelectLayout>
-                </QuestPrepLoadoutProvider>
-            );
-        }
         if (hasSelectedCharacterLoadout && characterToEdit) {
             return (
-                <MissionPrepLoadoutProvider
+                <PrepLoadoutProvider
+                    key={prepConfig.lobbyField}
                     api={api}
                     playerId={playerId}
                     character={characterToEdit}
-                    missionPrepLoadoutsByPlayer={missionPrepLoadoutsByPlayer}
+                    config={prepConfig}
+                    loadoutsByPlayer={prepLoadoutsByPlayer}
                     onSelectedPrimaryIdsChange={onSelectedPrimaryIdsChange}
-                    onAbilityReadyChange={onMissionAbilityReadyChange}
+                    onAbilityReadyChange={onPrepAbilityReadyChange}
                 >
-                    <MissionPrepSlotLayout {...layoutProps}>{body}</MissionPrepSlotLayout>
-                </MissionPrepLoadoutProvider>
+                    <CharacterSelectLayout {...layoutProps} backgroundImage={prepConfig.backgroundImage}>
+                        {body}
+                    </CharacterSelectLayout>
+                </PrepLoadoutProvider>
             );
         }
         return <CharacterSelectLayout {...layoutProps}>{body}</CharacterSelectLayout>;
@@ -607,14 +542,9 @@ export default function CharacterSelectPhase({
     const classic = (
         <div className="w-full h-full flex flex-col max-w-[1200px] mx-auto">
             {body}
-            {hasSelectedCharacterLoadout && characterToEdit && inQuestPrep && (
+            {hasSelectedCharacterLoadout && characterToEdit && (
                 <div className="shrink-0 px-5 pb-4" style={{ minHeight: 120 }}>
-                    <QuestPrepBottomRow />
-                </div>
-            )}
-            {hasSelectedCharacterLoadout && characterToEdit && !inQuestPrep && (
-                <div className="shrink-0 px-5 pb-4" style={{ minHeight: 120 }}>
-                    <MissionPrepBottomRow />
+                    <PrepBottomRow />
                 </div>
             )}
             {adminTabsCorner && (
@@ -627,32 +557,20 @@ export default function CharacterSelectPhase({
         </div>
     );
 
-    if (hasSelectedCharacterLoadout && characterToEdit && inQuestPrep) {
-        return (
-            <QuestPrepLoadoutProvider
-                api={api}
-                playerId={playerId}
-                character={characterToEdit}
-                questPrepLoadoutsByPlayer={questPrepLoadoutsByPlayer}
-                rememberedAbilityIds={questAbilityLoadoutsByCharacterId[characterToEdit.id]}
-                onSelectedPrimaryIdsChange={onSelectedPrimaryIdsChange}
-            >
-                {classic}
-            </QuestPrepLoadoutProvider>
-        );
-    }
     if (hasSelectedCharacterLoadout && characterToEdit) {
         return (
-            <MissionPrepLoadoutProvider
+            <PrepLoadoutProvider
+                key={prepConfig.lobbyField}
                 api={api}
                 playerId={playerId}
                 character={characterToEdit}
-                missionPrepLoadoutsByPlayer={missionPrepLoadoutsByPlayer}
+                config={prepConfig}
+                loadoutsByPlayer={prepLoadoutsByPlayer}
                 onSelectedPrimaryIdsChange={onSelectedPrimaryIdsChange}
-                onAbilityReadyChange={onMissionAbilityReadyChange}
+                onAbilityReadyChange={onPrepAbilityReadyChange}
             >
                 {classic}
-            </MissionPrepLoadoutProvider>
+            </PrepLoadoutProvider>
         );
     }
     return classic;
