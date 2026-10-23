@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BowArrow, CircleDot, PanelLeftClose, PanelLeftOpen, Search, Sword, Wrench, type LucideIcon } from 'lucide-react';
 import { getItemDef, ITEM_ICON_URLS } from '../../../../character_defs/items';
 import {
@@ -23,7 +23,7 @@ const DRAWER_WIDTH_PX = 480;
 
 /**
  * Bottom-row equipment drawer on the Prepare screen. Closed, it is a thin "Equipment" bar on the
- * left of `children`; open, a panel slides over them with a search box and a scrollable item list.
+ * left of `children`; open, a panel slides out over them with a search box and a scrollable item list.
  * Drag an item onto a slot beside the portrait to equip it.
  */
 export function PrepEquipmentDrawer({ children }: { children: React.ReactNode }) {
@@ -53,12 +53,21 @@ export function PrepEquipmentDrawer({ children }: { children: React.ReactNode })
                 <span className="text-[11px] font-medium [writing-mode:vertical-rl]">Equipment</span>
             </button>
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>
-            {open && <DrawerPanel onClose={() => setOpen(false)} />}
+            <DrawerPanel open={open} onClose={() => setOpen(false)} />
         </div>
     );
 }
 
-function DrawerPanel({ onClose }: { onClose: () => void }) {
+/**
+ * Stays mounted so it can slide: a clip box pinned to the drawer's left edge, with the panel
+ * translated fully out of it while closed (and `inert`, so it can't be tabbed into or clicked).
+ */
+function DrawerPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
+    const searchRef = useRef<HTMLInputElement>(null);
+    useEffect(() => {
+        if (open) searchRef.current?.focus();
+    }, [open]);
+
     const { equipment, inventoryItemIds, canEdit, saving, setDraggingItemId } = usePrepEquipmentContext();
     const [query, setQuery] = useState('');
     const [filters, setFilters] = useState<ReadonlySet<EquipmentFilterId>>(() => new Set());
@@ -77,74 +86,83 @@ function DrawerPanel({ onClose }: { onClose: () => void }) {
 
     return (
         <div
-            data-testid={TestIds.prepEquipmentDrawer}
-            className="absolute inset-y-0 left-0 z-30 flex flex-col gap-2 border-r border-border-custom bg-surface p-2 shadow-2xl"
-            style={{ width: DRAWER_WIDTH_PX }}
+            className={`absolute inset-y-0 left-0 z-30 overflow-hidden ${open ? '' : 'pointer-events-none'}`}
+            style={{ width: DRAWER_WIDTH_PX + 24 }}
         >
-            <div className="flex shrink-0 items-center gap-2">
-                <label className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md border border-border-custom bg-dark-900/60 px-2 py-1">
-                    <Search className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden />
-                    <input
-                        type="text"
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        placeholder="Search items"
-                        aria-label="Search items"
-                        autoFocus
-                        className="min-w-0 flex-1 bg-transparent text-xs text-white outline-none placeholder:text-muted"
-                    />
-                </label>
-                <div className="flex shrink-0 items-center gap-1" role="group" aria-label="Filter items">
-                    {EQUIPMENT_FILTERS.map(({ id, label }) => {
-                        const Icon = FILTER_ICONS[id];
-                        const active = filters.has(id);
-                        return (
-                            <button
-                                key={id}
-                                type="button"
-                                title={label}
-                                aria-label={label}
-                                aria-pressed={active}
-                                onClick={() => toggleFilter(id)}
-                                className={`cursor-pointer rounded-md border p-1 transition-colors ${
-                                    active
-                                        ? 'border-primary bg-primary/20 text-white'
-                                        : 'border-border-custom text-muted hover:text-white'
-                                }`}
-                            >
-                                <Icon className={id === 'core' ? 'h-3 w-3' : 'h-3.5 w-3.5'} aria-hidden />
-                            </button>
-                        );
-                    })}
+            <div
+                data-testid={TestIds.prepEquipmentDrawer}
+                inert={!open}
+                aria-hidden={!open}
+                className={`flex h-full flex-col gap-2 border-r border-border-custom bg-surface p-2 shadow-2xl transition-transform duration-200 ease-out motion-reduce:transition-none ${
+                    open ? 'translate-x-0' : '-translate-x-full'
+                }`}
+                style={{ width: DRAWER_WIDTH_PX }}
+            >
+                <div className="flex shrink-0 items-center gap-2">
+                    <label className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md border border-border-custom bg-dark-900/60 px-2 py-1">
+                        <Search className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden />
+                        <input
+                            type="text"
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            placeholder="Search items"
+                            aria-label="Search items"
+                            ref={searchRef}
+                            className="min-w-0 flex-1 bg-transparent text-xs text-white outline-none placeholder:text-muted"
+                        />
+                    </label>
+                    <div className="flex shrink-0 items-center gap-1" role="group" aria-label="Filter items">
+                        {EQUIPMENT_FILTERS.map(({ id, label }) => {
+                            const Icon = FILTER_ICONS[id];
+                            const active = filters.has(id);
+                            return (
+                                <button
+                                    key={id}
+                                    type="button"
+                                    title={label}
+                                    aria-label={label}
+                                    aria-pressed={active}
+                                    onClick={() => toggleFilter(id)}
+                                    className={`cursor-pointer rounded-md border p-1 transition-colors ${
+                                        active
+                                            ? 'border-primary bg-primary/20 text-white'
+                                            : 'border-border-custom text-muted hover:text-white'
+                                    }`}
+                                >
+                                    <Icon className={id === 'core' ? 'h-3 w-3' : 'h-3.5 w-3.5'} aria-hidden />
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <button
+                        type="button"
+                        aria-label="Close equipment"
+                        onClick={onClose}
+                        className="cursor-pointer rounded-md p-1 text-muted transition-colors hover:text-white"
+                    >
+                        <PanelLeftClose className="h-4 w-4" aria-hidden />
+                    </button>
                 </div>
-                <button
-                    type="button"
-                    aria-label="Close equipment"
-                    onClick={onClose}
-                    className="cursor-pointer rounded-md p-1 text-muted transition-colors hover:text-white"
-                >
-                    <PanelLeftClose className="h-4 w-4" aria-hidden />
-                </button>
-            </div>
-            {!canEdit && (
-                <p className="shrink-0 text-[11px] text-yellow-400/80">Equipment is locked during a quest.</p>
-            )}
-            <ul className="grid min-h-0 flex-1 grid-cols-2 content-start gap-1 overflow-y-auto pr-1">
-                {items.map((itemId) => (
-                    <DrawerItem
-                        key={itemId}
-                        itemId={itemId}
-                        equipped={equipment.includes(itemId)}
-                        draggable={canEdit && !equipment.includes(itemId)}
-                        onDragStart={() => setDraggingItemId(itemId)}
-                        onDragEnd={() => setDraggingItemId(null)}
-                    />
-                ))}
-                {items.length === 0 && (
-                    <li className="col-span-2 py-2 text-center text-xs text-muted">No items found.</li>
+                {!canEdit && (
+                    <p className="shrink-0 text-[11px] text-yellow-400/80">Equipment is locked during a quest.</p>
                 )}
-            </ul>
-            {saving && <p className="shrink-0 text-[11px] text-muted">Saving…</p>}
+                <ul className="grid min-h-0 flex-1 grid-cols-2 content-start gap-1 overflow-y-auto pr-1">
+                    {items.map((itemId) => (
+                        <DrawerItem
+                            key={itemId}
+                            itemId={itemId}
+                            equipped={equipment.includes(itemId)}
+                            draggable={canEdit && !equipment.includes(itemId)}
+                            onDragStart={() => setDraggingItemId(itemId)}
+                            onDragEnd={() => setDraggingItemId(null)}
+                        />
+                    ))}
+                    {items.length === 0 && (
+                        <li className="col-span-2 py-2 text-center text-xs text-muted">No items found.</li>
+                    )}
+                </ul>
+                {saving && <p className="shrink-0 text-[11px] text-muted">Saving…</p>}
+            </div>
         </div>
     );
 }
