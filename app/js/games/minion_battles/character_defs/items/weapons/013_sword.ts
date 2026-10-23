@@ -6,6 +6,7 @@ export const swordItem: ItemDef = {
     name: 'Sword',
     description: 'A crude but dependable blade.',
     slots: ['weapon'],
+    attackRange: 'melee',
     cardsToAdd: ['0112'],
     icon: '013_sword.svg',
     tier: 2,

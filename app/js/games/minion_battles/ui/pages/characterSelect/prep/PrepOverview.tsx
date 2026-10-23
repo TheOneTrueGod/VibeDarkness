@@ -2,6 +2,7 @@ import React from 'react';
 import type { CampaignCharacter } from '../../../../character_defs/CampaignCharacter';
 import { CharacterSelectCornerPortrait } from '../CharacterSelectCornerPortrait';
 import { PrepDeckSelector } from './PrepDeckSelector';
+import { PrepEquipmentSlots } from './PrepEquipmentSlots';
 
 interface PrepOverviewProps {
     character: CampaignCharacter;
@@ -60,6 +61,7 @@ export function PrepOverview({
                 <CharacterSelectCornerPortrait
                     character={character}
                     onChangeCharacter={onChangeCharacter}
+                    equipmentSlots={<PrepEquipmentSlots />}
                 />
             </div>
             <div className="min-h-0 flex-1">

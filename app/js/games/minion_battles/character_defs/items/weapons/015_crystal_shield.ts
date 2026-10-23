@@ -6,6 +6,7 @@ export const crystalShieldItem: ItemDef = {
     name: 'Crystal Shield',
     description: 'A shield set with crystal that catches the light.',
     slots: ['weapon'],
+    attackRange: 'melee',
     cardsToAdd: ['0110'],
     icon: '015_crystal_shield.svg',
     tier: 2,

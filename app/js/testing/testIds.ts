@@ -79,6 +79,9 @@ export const TestIds = {
     /** Character-select Quest Prep ability picker root. */
     questPrepAbilityPicker: 'quest-prep-ability-picker',
     questPrepAbilitySlotBar: 'quest-prep-ability-slot-bar',
+    prepEquipmentSlots: 'prep-equipment-slots',
+    prepEquipmentDrawerHandle: 'prep-equipment-drawer-handle',
+    prepEquipmentDrawer: 'prep-equipment-drawer',
     missionMarkVictory: 'mission-mark-victory',
 
     characterSelectReady: 'character-select-ready',

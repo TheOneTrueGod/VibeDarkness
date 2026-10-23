@@ -6,6 +6,7 @@ export const maceItem: ItemDef = {
     name: 'Mace',
     description: 'A flanged head on a stout haft. Heavy and punishing.',
     slots: ['weapon'],
+    attackRange: 'melee',
     cardsToAdd: ['0115'],
     icon: '014_mace.svg',
     tier: 2,

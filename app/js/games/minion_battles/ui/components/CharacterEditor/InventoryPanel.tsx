@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { getItemDef } from '../../../character_defs/items';
+import { filterItemIdsByName } from '../../../character_defs/items/equipmentSlots';
 import InventoryGrid from './InventoryGrid';
 
 interface InventoryPanelProps {
@@ -18,11 +18,10 @@ export default function InventoryPanel({
     onDragEnd,
 }: InventoryPanelProps) {
     const [query, setQuery] = useState('');
-    const filteredItems = useMemo(() => {
-        const q = query.trim().toLowerCase();
-        if (!q) return visibleInventoryItems;
-        return visibleInventoryItems.filter((id) => (getItemDef(id)?.name ?? '').toLowerCase().includes(q));
-    }, [query, visibleInventoryItems]);
+    const filteredItems = useMemo(
+        () => filterItemIdsByName(visibleInventoryItems, query),
+        [query, visibleInventoryItems],
+    );
 
     return (
         <>

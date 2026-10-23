@@ -35,6 +35,9 @@ import { useDebugConsole } from '../../../../contexts/DebugConsoleContext';
 import { PrepOverview } from './characterSelect/prep/PrepOverview';
 import { PrepAbilitySlotBar } from './characterSelect/prep/PrepAbilitySlotBar';
 import { PrepLoadoutProvider, usePrepLoadoutContext } from './characterSelect/prep/PrepLoadoutContext';
+import { PrepEquipmentProvider } from './characterSelect/prep/PrepEquipmentContext';
+import { PrepEquipmentSlots } from './characterSelect/prep/PrepEquipmentSlots';
+import { PrepEquipmentDrawer } from './characterSelect/prep/PrepEquipmentDrawer';
 import { missionPrepConfig, questPrepConfig } from './characterSelect/prep/prepLoadoutConfig';
 import { getQuestDef } from '../../storylines/questRegistry';
 import type { CampaignCharacter } from '../../character_defs/CampaignCharacter';
@@ -366,7 +369,13 @@ export default function CharacterSelectPhase({
     const abilityBottomRow =
         hasSelectedCharacterLoadout && characterToEdit ? <PrepBottomRow /> : null;
 
-    const bottomRowWithActions = footerInBottomBand ? (
+    /** The equipment drawer sits on the Prepare view only, not in its Edit Character / Modifiers sub-views. */
+    const withEquipmentDrawer = (content: React.ReactNode) =>
+        hasSelectedCharacterLoadout && !backToPrepare
+            ? <PrepEquipmentDrawer>{content}</PrepEquipmentDrawer>
+            : content;
+
+    const bottomRowWithActions = footerInBottomBand ? withEquipmentDrawer(
         <div className="flex h-full w-full min-h-0 flex-col">
             {/* Equal flex spacers: padding above buttons, between buttons/cards, and below cards */}
             <div className="min-h-0 flex-1" aria-hidden />
@@ -376,8 +385,32 @@ export default function CharacterSelectPhase({
                 {abilityBottomRow}
             </div>
             <div className="min-h-0 flex-1" aria-hidden />
-        </div>
+        </div>,
     ) : abilityBottomRow;
+
+    /** Prep loadout + equipment state shared by the center, corner and bottom row. */
+    const withPrepProviders = (character: CampaignCharacter, content: React.ReactNode) => (
+        <PrepLoadoutProvider
+            key={prepConfig.lobbyField}
+            api={api}
+            playerId={playerId}
+            character={character}
+            config={prepConfig}
+            loadoutsByPlayer={prepLoadoutsByPlayer}
+            onSelectedPrimaryIdsChange={onSelectedPrimaryIdsChange}
+            onAbilityReadyChange={onPrepAbilityReadyChange}
+        >
+            <PrepEquipmentProvider
+                api={api}
+                character={character}
+                campaign={campaign}
+                isAdmin={isAdmin}
+                onSaved={chars.handleEditorSaved}
+            >
+                {content}
+            </PrepEquipmentProvider>
+        </PrepLoadoutProvider>
+    );
 
     const resolvedHeaderSlot = useUnifiedSlotShell ? (
         <HeaderSlotLobbyInfo
@@ -490,6 +523,7 @@ export default function CharacterSelectPhase({
                     <CharacterSelectCornerPortrait
                         character={characterToEdit}
                         onChangeCharacter={() => setView('grid')}
+                        equipmentSlots={<PrepEquipmentSlots />}
                     />
                 ) : undefined,
             bottomRow: bottomRowWithActions ?? undefined,
@@ -498,21 +532,11 @@ export default function CharacterSelectPhase({
         };
 
         if (hasSelectedCharacterLoadout && characterToEdit) {
-            return (
-                <PrepLoadoutProvider
-                    key={prepConfig.lobbyField}
-                    api={api}
-                    playerId={playerId}
-                    character={characterToEdit}
-                    config={prepConfig}
-                    loadoutsByPlayer={prepLoadoutsByPlayer}
-                    onSelectedPrimaryIdsChange={onSelectedPrimaryIdsChange}
-                    onAbilityReadyChange={onPrepAbilityReadyChange}
-                >
-                    <CharacterSelectLayout {...layoutProps} backgroundImage={prepConfig.backgroundImage}>
-                        {body}
-                    </CharacterSelectLayout>
-                </PrepLoadoutProvider>
+            return withPrepProviders(
+                characterToEdit,
+                <CharacterSelectLayout {...layoutProps} backgroundImage={prepConfig.backgroundImage}>
+                    {body}
+                </CharacterSelectLayout>,
             );
         }
         return <CharacterSelectLayout {...layoutProps}>{body}</CharacterSelectLayout>;
@@ -523,7 +547,7 @@ export default function CharacterSelectPhase({
             {body}
             {hasSelectedCharacterLoadout && characterToEdit && (
                 <div className="shrink-0 px-5 pb-4" style={{ minHeight: 120 }}>
-                    <PrepBottomRow />
+                    {withEquipmentDrawer(<PrepBottomRow />)}
                 </div>
             )}
             {adminTabsCorner && (
@@ -537,20 +561,7 @@ export default function CharacterSelectPhase({
     );
 
     if (hasSelectedCharacterLoadout && characterToEdit) {
-        return (
-            <PrepLoadoutProvider
-                key={prepConfig.lobbyField}
-                api={api}
-                playerId={playerId}
-                character={characterToEdit}
-                config={prepConfig}
-                loadoutsByPlayer={prepLoadoutsByPlayer}
-                onSelectedPrimaryIdsChange={onSelectedPrimaryIdsChange}
-                onAbilityReadyChange={onPrepAbilityReadyChange}
-            >
-                {classic}
-            </PrepLoadoutProvider>
-        );
+        return withPrepProviders(characterToEdit, classic);
     }
     return classic;
 }

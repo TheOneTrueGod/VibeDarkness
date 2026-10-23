@@ -8,6 +8,9 @@ import type { RecoveryChargeType } from '../../abilities/Ability';
 
 export type EquipmentSlotType = 'core' | 'weapon' | 'utility';
 
+/** How an item's attacks reach their targets. Drives the Melee / Ranged equipment filters. */
+export type ItemAttackRange = 'melee' | 'ranged';
+
 /** Slot layout granted by a core item. Only core items define this. */
 export interface CoreSlotLayout {
     weaponSlots: number;
@@ -27,6 +30,8 @@ export interface ItemDef {
     description?: string;
     /** Slots this item can fill (e.g. 'weapon'). Core defines how many of each exist. */
     slots: EquipmentSlotType[];
+    /** Melee or ranged; required on weapon items (equipment filters group by it). */
+    attackRange?: ItemAttackRange;
     /** Ability card IDs granted when this item is equipped. */
     cardsToAdd: string[];
     /** Resource IDs to attach to the unit when this item is equipped. */

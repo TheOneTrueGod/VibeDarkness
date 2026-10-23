@@ -5,6 +5,7 @@ export const laserSwordItem: ItemDef = {
     id: '010',
     name: 'Laser Sword',
     slots: ['weapon'],
+    attackRange: 'melee',
     cardsToAdd: ['0105'],
     icon: '010_laser_sword.svg',
 };

@@ -11,21 +11,25 @@ import {
     getItemDef,
     getEquippedForSlot,
     setEquipmentInSlot,
-    getSlotLayoutFromEquipment,
-    ALL_PLAYER_ITEMS,
     ITEM_ICON_URLS,
     type EquipmentSlotType,
 } from '../../../character_defs/items';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import type { MinionBattlesApi } from '../../../api/minionBattlesApi';
 import type { CharacterUpdates } from '../../../api/types';
-import { getUnlockedItemIds } from '../../../character_defs/items/unlockedItems';
 import CharacterPortrait from '../CharacterPortrait';
 import InventoryPanel from './InventoryPanel';
 import { ResearchTreeList, ResearchTreeContent, ResearchedNodesGrid } from '../ResearchTreePanel';
 import type { AccountState, CampaignResourceKey, CampaignResources, CampaignState } from '../../../../../types';
 import { TestIds } from '../../../../../testing/testIds';
 import { getCoreFromEquipment } from '../../../character_defs/items';
+import {
+    buildEquipmentUpdate as buildQuestAwareEquipmentUpdate,
+    getInventoryItemIds,
+    getSlotDescriptors,
+    isEquipmentLockedByQuest,
+    type EquipmentSlotDescriptor,
+} from '../../../character_defs/items/equipmentSlots';
 import { RESEARCH_TREES } from '../../../../../researchTrees/list';
 import {
     getActiveResearchNodeLevels,
@@ -181,23 +185,7 @@ type EditorTab = CharacterEditorTab;
 const MAX_CHARACTER_NAME_LENGTH = 15;
 
 /** Slot descriptor for the doll: type and optional index for weapon/utility. */
-export interface SlotDescriptor {
-    type: EquipmentSlotType;
-    index?: number;
-    label: string;
-}
-
-function getSlotDescriptors(equipment: string[]): SlotDescriptor[] {
-    const layout = getSlotLayoutFromEquipment(equipment);
-    const out: SlotDescriptor[] = [{ type: 'core', label: 'core' }];
-    for (let i = 0; i < layout.weaponSlots; i++) {
-        out.push({ type: 'weapon', index: i, label: layout.weaponSlots > 1 ? `weapon ${i + 1}` : 'weapon' });
-    }
-    for (let i = 0; i < layout.utilitySlots; i++) {
-        out.push({ type: 'utility', index: i, label: layout.utilitySlots > 1 ? `utility ${i + 1}` : 'utility' });
-    }
-    return out;
-}
+export type SlotDescriptor = EquipmentSlotDescriptor;
 
 export default function CharacterEditor({
     character,
@@ -308,7 +296,7 @@ export default function CharacterEditor({
         [activeResearchTrees, activeResearchNodeLevels, researchSources, darknessUpgrades],
     );
     // Equipment is frozen for the whole quest: non-admins get read-only slots while a run is active.
-    const equipmentLockedByQuest = !isAdmin && !!character.activeQuestRun;
+    const equipmentLockedByQuest = isEquipmentLockedByQuest(character, isAdmin);
     const effectiveEditMode = editMode && !equipmentLockedByQuest;
     const effectiveShowInventory = showInventoryPanel;
 
@@ -441,14 +429,8 @@ export default function CharacterEditor({
      * also written to the quest snapshot (`activeQuestRun.questCharacter.equipment`), which battles read.
      */
     const buildEquipmentUpdate = useCallback(
-        (newEquipment: string[]): CharacterUpdates => {
-            const run = character.activeQuestRun;
-            if (!run) return { equipment: newEquipment };
-            return {
-                equipment: newEquipment,
-                activeQuestRun: { ...run, questCharacter: { ...run.questCharacter, equipment: newEquipment } },
-            };
-        },
+        (newEquipment: string[]): CharacterUpdates =>
+            buildQuestAwareEquipmentUpdate(character.activeQuestRun, newEquipment),
         [character.activeQuestRun],
     );
 
@@ -527,8 +509,7 @@ export default function CharacterEditor({
     }, [character.portraitId, portraitIds, portraitIndex, savePortrait, totalPortraits]);
 
     const visibleInventoryItems = useMemo(() => {
-        const isAdminViewer = permissionAccount?.role === 'admin';
-        const base = isAdminViewer ? ALL_PLAYER_ITEMS : getUnlockedItemIds(resolvedCampaign);
+        const base = getInventoryItemIds(resolvedCampaign, permissionAccount?.role === 'admin');
         return base.filter((id) => !equipment.includes(id));
     }, [permissionAccount?.role, equipment, resolvedCampaign]);
 

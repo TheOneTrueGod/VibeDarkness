@@ -5,6 +5,7 @@ export const pistolItem: ItemDef = {
     id: '007',
     name: 'Pistol',
     slots: ['weapon'],
+    attackRange: 'ranged',
     cardsToAdd: ['0203', '0101'],
     icon: '007_pistol.svg',
 };

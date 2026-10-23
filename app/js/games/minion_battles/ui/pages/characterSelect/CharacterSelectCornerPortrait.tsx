@@ -7,12 +7,18 @@ import { CharacterHungerBar } from '../../components/CharacterEditor/CharacterHu
 interface CharacterSelectCornerPortraitProps {
     character: CampaignCharacter;
     onChangeCharacter: () => void;
+    /** Shown to the right of the portrait (Prepare screen equipment slots). */
+    equipmentSlots?: React.ReactNode;
 }
 
-/** Bottom-left slot: Change Character above a square portrait + name, with the Hunger bar beneath. */
+/**
+ * Bottom-left slot: Change Character above a square portrait + name (with optional equipment
+ * slots beside it), and the Hunger bar beneath.
+ */
 export function CharacterSelectCornerPortrait({
     character,
     onChangeCharacter,
+    equipmentSlots,
 }: CharacterSelectCornerPortraitProps) {
     const portrait = getPortrait(character.portraitId);
     const displayName = character.name || (portrait?.name ?? 'Character');
@@ -26,23 +32,26 @@ export function CharacterSelectCornerPortrait({
             >
                 Change character
             </button>
-            <div
-                className="min-h-0 flex-1 w-full overflow-hidden"
-                style={{ containerType: 'size' }}
-            >
-                <div className="flex h-full w-full items-center justify-center">
-                    <div
-                        className="max-h-full overflow-hidden"
-                        style={{ width: 'min(100cqw, 100cqh)' }}
-                    >
-                        <CharacterPortrait
-                            picture={portrait?.picture ?? ''}
-                            name={displayName}
-                            selected
-                            fill
-                        />
+            <div className="flex min-h-0 w-full flex-1 gap-2">
+                <div
+                    className="min-h-0 min-w-0 flex-1 overflow-hidden"
+                    style={{ containerType: 'size' }}
+                >
+                    <div className="flex h-full w-full items-center justify-center">
+                        <div
+                            className="max-h-full overflow-hidden"
+                            style={{ width: 'min(100cqw, 100cqh)' }}
+                        >
+                            <CharacterPortrait
+                                picture={portrait?.picture ?? ''}
+                                name={displayName}
+                                selected
+                                fill
+                            />
+                        </div>
                     </div>
                 </div>
+                {equipmentSlots}
             </div>
             <CharacterHungerBar
                 className="shrink-0"

@@ -6,6 +6,7 @@ export const knivesItem: ItemDef = {
     name: 'Knives',
     description: 'Balanced blades made for throwing.',
     slots: ['weapon'],
+    attackRange: 'ranged',
     cardsToAdd: ['throw_knife'],
     icon: '012_knives.svg',
     tier: 2,

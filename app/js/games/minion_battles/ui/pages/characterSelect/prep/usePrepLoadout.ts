@@ -112,6 +112,14 @@ export function usePrepLoadout({
         void pushLoadout(locked);
     }, [readOnly, selectableIds, localPrimaries, pushLoadout]);
 
+    // Equipment changes can take abilities away: drop picks that are no longer selectable.
+    useEffect(() => {
+        if (readOnly) return;
+        const kept = localPrimaries.filter((id) => selectableIds.includes(id));
+        if (kept.length === localPrimaries.length) return;
+        void pushLoadout(kept);
+    }, [readOnly, selectableIds, localPrimaries, pushLoadout]);
+
     // Pull remote updates when not mid-push.
     useEffect(() => {
         if (syncingRef.current) return;
