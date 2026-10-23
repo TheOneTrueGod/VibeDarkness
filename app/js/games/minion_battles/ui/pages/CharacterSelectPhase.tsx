@@ -404,6 +404,7 @@ export default function CharacterSelectPhase({
                 api={api}
                 character={character}
                 campaign={campaign}
+                knowledge={user?.knowledge}
                 isAdmin={isAdmin}
                 onSaved={chars.handleEditorSaved}
             >

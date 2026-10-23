@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { CampaignState } from '../../../../../../types';
+import type { AccountKnowledgeMap } from '../../../../../../accountKnowledge';
 import type { MinionBattlesApi } from '../../../../api/minionBattlesApi';
 import type { CampaignCharacter } from '../../../../character_defs/CampaignCharacter';
 import { setEquipmentInSlot } from '../../../../character_defs/items';
@@ -7,7 +8,7 @@ import {
     buildEquipmentUpdate,
     canItemFillSlot,
     getInventoryItemIds,
-    getSlotDescriptors,
+    getUnlockedSlotDescriptors,
     isEquipmentLockedByQuest,
     WEAPON_FIRST_SLOT_ORDER,
     type EquipmentSlotDescriptor,
@@ -17,17 +18,19 @@ import type { EquipmentSlotType } from '../../../../character_defs/items/types';
 /** Prepare-screen equipment: slots beside the portrait and the equipment drawer share this. */
 interface PrepEquipmentValue {
     equipment: string[];
-    /** Slots the equipped core grants, weapons first (Prepare order). */
+    /** Slots the equipped core grants that the player's knowledge unlocks, weapons first (Prepare order). */
     slots: EquipmentSlotDescriptor[];
     /** Items the player owns (equipped ones included; the drawer greys those out). */
     inventoryItemIds: string[];
     /** False while the quest lock applies; slots and drawer become read-only. */
     canEdit: boolean;
     saving: boolean;
+    /** Whether some visible slot accepts `itemId` (otherwise the drawer greys it out). */
+    hasSlotFor: (itemId: string) => boolean;
     /** Item currently being dragged from the drawer (lights up slots that accept it). */
     draggingItemId: string | null;
     setDraggingItemId: (itemId: string | null) => void;
-    /** Equip `itemId` into a slot; ignored when it doesn't fit or editing is locked. */
+    /** Equip `itemId` into a visible slot; ignored when it doesn't fit or editing is locked. */
     equip: (slot: EquipmentSlotType, itemId: string, slotIndex?: number) => void;
 }
 
@@ -37,6 +40,7 @@ export function PrepEquipmentProvider({
     api,
     character,
     campaign,
+    knowledge,
     isAdmin,
     onSaved,
     children,
@@ -44,6 +48,8 @@ export function PrepEquipmentProvider({
     api: MinionBattlesApi;
     character: CampaignCharacter;
     campaign: CampaignState | null | undefined;
+    /** The local player's account knowledge (unlocks knowledge-gated slots). */
+    knowledge: AccountKnowledgeMap;
     isAdmin: boolean;
     /** Called after a successful save so the lobby refreshes the character (and its abilities). */
     onSaved?: () => void;
@@ -58,12 +64,20 @@ export function PrepEquipmentProvider({
     }, [character.equipment]);
 
     const canEdit = !isEquipmentLockedByQuest(character, isAdmin);
-    const slots = useMemo(() => getSlotDescriptors(equipment, WEAPON_FIRST_SLOT_ORDER), [equipment]);
+    const slots = useMemo(
+        () => getUnlockedSlotDescriptors(equipment, knowledge, WEAPON_FIRST_SLOT_ORDER),
+        [equipment, knowledge],
+    );
+    const hasSlotFor = useCallback(
+        (itemId: string) => slots.some((slot) => canItemFillSlot(itemId, slot.type)),
+        [slots],
+    );
     const inventoryItemIds = useMemo(() => getInventoryItemIds(campaign, isAdmin), [campaign, isAdmin]);
 
     const equip = useCallback(
         (slot: EquipmentSlotType, itemId: string, slotIndex?: number) => {
             if (!canEdit || !canItemFillSlot(itemId, slot)) return;
+            if (!slots.some((s) => s.type === slot && (s.index ?? 0) === (slotIndex ?? 0))) return;
             const previous = equipment;
             const next = setEquipmentInSlot(equipment, slot, itemId, slotIndex);
             if (JSON.stringify(next) === JSON.stringify(previous)) return;
@@ -80,7 +94,7 @@ export function PrepEquipmentProvider({
                 })
                 .finally(() => setSaving(false));
         },
-        [api, canEdit, character.activeQuestRun, character.id, equipment, onSaved],
+        [api, canEdit, character.activeQuestRun, character.id, equipment, onSaved, slots],
     );
 
     const value = useMemo(
@@ -90,11 +104,12 @@ export function PrepEquipmentProvider({
             inventoryItemIds,
             canEdit,
             saving,
+            hasSlotFor,
             draggingItemId,
             setDraggingItemId,
             equip,
         }),
-        [equipment, slots, inventoryItemIds, canEdit, saving, draggingItemId, equip],
+        [equipment, slots, inventoryItemIds, canEdit, saving, hasSlotFor, draggingItemId, equip],
     );
 
     return <PrepEquipmentContext.Provider value={value}>{children}</PrepEquipmentContext.Provider>;

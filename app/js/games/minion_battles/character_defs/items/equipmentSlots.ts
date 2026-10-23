@@ -1,8 +1,14 @@
 /**
  * Equipment slot helpers shared by every equip UI (Character Editor, Prepare screen):
- * which slots a character has (in a chosen display order), which items fit them, item search,
- * the quest equipment lock, and the save payload for an equipment change.
+ * which slots a character has (in a chosen display order), which slots the player's knowledge
+ * unlocks, which items fit them, item search, the quest equipment lock, and the save payload for
+ * an equipment change.
  */
+import {
+    hasAccountKnowledge,
+    KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1,
+    type AccountKnowledgeMap,
+} from '../../../../accountKnowledge';
 import type { CharacterUpdates } from '../../api/types';
 import type { QuestRunState } from '../../storylines/questTypes';
 import type { CampaignState } from '../../../../types';
@@ -41,6 +47,35 @@ export function getSlotDescriptors(
         }
     }
     return out;
+}
+
+/** Slots that only exist once the player has an account knowledge key. */
+export const SLOT_KNOWLEDGE_REQUIREMENTS: readonly {
+    type: EquipmentSlotType;
+    index: number;
+    knowledgeKey: string;
+}[] = [
+    { type: 'utility', index: 0, knowledgeKey: KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1 },
+];
+
+/** Whether the player's knowledge unlocks this slot (slots with no requirement are always open). */
+export function isSlotUnlocked(slot: EquipmentSlotDescriptor, knowledge: AccountKnowledgeMap): boolean {
+    const requirement = SLOT_KNOWLEDGE_REQUIREMENTS.find(
+        (r) => r.type === slot.type && r.index === (slot.index ?? 0),
+    );
+    return !requirement || hasAccountKnowledge(knowledge, requirement.knowledgeKey);
+}
+
+/**
+ * Slots the player can see and equip into: the core's slots minus those their knowledge hasn't
+ * unlocked. A locked slot is UI-only: an item already in it stays equipped and works in battle.
+ */
+export function getUnlockedSlotDescriptors(
+    equipment: string[],
+    knowledge: AccountKnowledgeMap,
+    order: readonly EquipmentSlotType[] = CORE_FIRST_SLOT_ORDER,
+): EquipmentSlotDescriptor[] {
+    return getSlotDescriptors(equipment, order).filter((slot) => isSlotUnlocked(slot, knowledge));
 }
 
 /** Whether `itemId` may be equipped into a slot of `slotType`. */

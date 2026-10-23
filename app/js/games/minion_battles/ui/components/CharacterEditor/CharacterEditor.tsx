@@ -26,7 +26,7 @@ import { getCoreFromEquipment } from '../../../character_defs/items';
 import {
     buildEquipmentUpdate as buildQuestAwareEquipmentUpdate,
     getInventoryItemIds,
-    getSlotDescriptors,
+    getUnlockedSlotDescriptors,
     isEquipmentLockedByQuest,
     type EquipmentSlotDescriptor,
 } from '../../../character_defs/items/equipmentSlots';
@@ -299,6 +299,11 @@ export default function CharacterEditor({
     const equipmentLockedByQuest = isEquipmentLockedByQuest(character, isAdmin);
     const effectiveEditMode = editMode && !equipmentLockedByQuest;
     const effectiveShowInventory = showInventoryPanel;
+    // Knowledge-gated slots (e.g. Utility 1) are hidden until the character's account has learned them.
+    const unlockedSlots = useMemo(
+        () => getUnlockedSlotDescriptors(equipment, account?.knowledge),
+        [equipment, account?.knowledge],
+    );
 
     const showAllResearchTreesDebug = useSyncExternalStore(
         subscribeShowAllResearchTrees,
@@ -1151,7 +1156,7 @@ export default function CharacterEditor({
             {equippedItemsDisplay === 'list' ? (
                 <EquippedItemsList
                     equipment={equipment}
-                    slotDescriptors={getSlotDescriptors(equipment)}
+                    slotDescriptors={unlockedSlots}
                     onDropOnSlot={handleDropOnSlot}
                     onDragOver={handleDragOver}
                     onDragStartSlot={handleDragStartSlot}
@@ -1161,7 +1166,7 @@ export default function CharacterEditor({
             ) : (
                 <EquipmentDoll
                     equipment={equipment}
-                    slotDescriptors={getSlotDescriptors(equipment)}
+                    slotDescriptors={unlockedSlots}
                     onDropOnSlot={handleDropOnSlot}
                     onDragOver={handleDragOver}
                     onDragStartSlot={handleDragStartSlot}

@@ -68,7 +68,7 @@ function DrawerPanel({ open, onClose }: { open: boolean; onClose: () => void }) 
         if (open) searchRef.current?.focus();
     }, [open]);
 
-    const { equipment, inventoryItemIds, canEdit, saving, setDraggingItemId } = usePrepEquipmentContext();
+    const { equipment, inventoryItemIds, canEdit, saving, hasSlotFor, setDraggingItemId } = usePrepEquipmentContext();
     const [query, setQuery] = useState('');
     const [filters, setFilters] = useState<ReadonlySet<EquipmentFilterId>>(() => new Set());
     const items = useMemo(
@@ -152,7 +152,8 @@ function DrawerPanel({ open, onClose }: { open: boolean; onClose: () => void }) 
                             key={itemId}
                             itemId={itemId}
                             equipped={equipment.includes(itemId)}
-                            draggable={canEdit && !equipment.includes(itemId)}
+                            noSlot={!hasSlotFor(itemId)}
+                            draggable={canEdit && !equipment.includes(itemId) && hasSlotFor(itemId)}
                             onDragStart={() => setDraggingItemId(itemId)}
                             onDragEnd={() => setDraggingItemId(null)}
                         />
@@ -170,12 +171,15 @@ function DrawerPanel({ open, onClose }: { open: boolean; onClose: () => void }) 
 function DrawerItem({
     itemId,
     equipped,
+    noSlot,
     draggable,
     onDragStart,
     onDragEnd,
 }: {
     itemId: string;
     equipped: boolean;
+    /** No visible slot accepts it (e.g. the utility slot is still locked by knowledge). */
+    noSlot: boolean;
     draggable: boolean;
     onDragStart: () => void;
     onDragEnd: () => void;
@@ -207,7 +211,7 @@ function DrawerItem({
                 <span className="h-6 w-6 shrink-0" aria-hidden />
             )}
             <span className="min-w-0 flex-1 truncate">{def?.name ?? itemId}</span>
-            <span className="shrink-0 text-[10px] capitalize text-muted">{equipped ? 'Equipped' : slotText}</span>
+            <span className="shrink-0 text-[10px] capitalize text-muted">{equipped ? 'Equipped' : noSlot ? 'No slot' : slotText}</span>
         </li>
     );
 }

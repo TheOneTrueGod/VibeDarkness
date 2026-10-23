@@ -6,6 +6,7 @@ import {
     filterItemIdsByFilters,
     filterItemIdsByName,
     getSlotDescriptors,
+    getUnlockedSlotDescriptors,
     isEquipmentLockedByQuest,
     itemMatchesFilter,
     WEAPON_FIRST_SLOT_ORDER,
@@ -17,6 +18,7 @@ import { maceItem } from './weapons/014_mace';
 import { throwTorchUtilityItem } from './utility/005_throw_torch';
 import { pistolItem } from './weapons/007_pistol';
 import { ALL_PLAYER_ITEMS, getItemDef } from './index';
+import { KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1 } from '../../../../accountKnowledge';
 
 describe('getSlotDescriptors', () => {
     it('lists core first by default (Character Editor)', () => {
@@ -105,5 +107,20 @@ describe('equipment filters', () => {
         for (const id of weapons) {
             expect(getItemDef(id)?.attackRange, id).toBeDefined();
         }
+    });
+});
+
+describe('slot knowledge', () => {
+    it('hides Utility 1 until the player has its knowledge', () => {
+        const types = (knowledge: Record<string, unknown> | undefined) =>
+            getUnlockedSlotDescriptors([coreEarthItem.id], knowledge, WEAPON_FIRST_SLOT_ORDER).map((d) => d.type);
+        expect(types(undefined)).toEqual(['weapon', 'core']);
+        expect(types({})).toEqual(['weapon', 'core']);
+        expect(types({ [KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1]: {} })).toEqual(['weapon', 'core', 'utility']);
+    });
+
+    it('leaves slots without a knowledge requirement open', () => {
+        const labels = getUnlockedSlotDescriptors([coreWeaponsItem.id], {}, WEAPON_FIRST_SLOT_ORDER).map((d) => d.label);
+        expect(labels).toEqual(['weapon 1', 'weapon 2', 'weapon 3', 'core']);
     });
 });

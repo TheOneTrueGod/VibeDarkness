@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ACCOUNT_KNOWLEDGE, accountKnowledgeLabel } from '../../../../../accountKnowledge';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import type { AccountState, CampaignState, PlayerState } from '../../../../../types';
 import { getUnlockedItemIds } from '../../../character_defs/items/unlockedItems';
@@ -95,7 +96,7 @@ export default function CharactersPanel({
     } | null>(null);
     const [adminLoading, setAdminLoading] = useState(false);
     const [grantItemId, setGrantItemId] = useState(ALL_PLAYER_ITEMS[0] ?? '');
-    const [grantKnowledgeKey, setGrantKnowledgeKey] = useState<'Crystals' | 'Forging' | 'Research'>('Crystals');
+    const [grantKnowledgeKey, setGrantKnowledgeKey] = useState<string>(ACCOUNT_KNOWLEDGE[0].key);
     const [adminCreatorOpen, setAdminCreatorOpen] = useState(false);
     const adminCreateBtnRef = useRef<HTMLButtonElement>(null);
     const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
@@ -727,7 +728,7 @@ export default function CharactersPanel({
                                                         className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[13px] font-semibold bg-surface-light border border-border-custom text-white"
                                                         title={key}
                                                     >
-                                                        {key}
+                                                        {accountKnowledgeLabel(key)}
                                                     </span>
                                                 ))
                                             ) : (
@@ -738,12 +739,12 @@ export default function CharactersPanel({
                                             <label className="text-xs text-muted">Grant</label>
                                             <select
                                                 value={grantKnowledgeKey}
-                                                onChange={(e) => setGrantKnowledgeKey(e.target.value as typeof grantKnowledgeKey)}
+                                                onChange={(e) => setGrantKnowledgeKey(e.target.value)}
                                                 className="rounded-md border border-border-custom bg-white px-2 py-1 text-sm text-black"
                                             >
-                                                <option value="Crystals" className="bg-white text-black">Crystals</option>
-                                                <option value="Forging" className="bg-white text-black">Forging</option>
-                                                <option value="Research" className="bg-white text-black">Research</option>
+                                                {ACCOUNT_KNOWLEDGE.map(({ key, label }) => (
+                                                    <option key={key} value={key} className="bg-white text-black">{label}</option>
+                                                ))}
                                             </select>
                                             <button
                                                 type="button"
