@@ -108,6 +108,35 @@ export function removeQuestPrepAbility(
     return selectedPrimaryIds.filter((id) => id !== abilityId);
 }
 
+/**
+ * Move the primary at `fromIndex` into the gap `insertIndex` (0 = before the first card,
+ * `length` = after the last). Out-of-range or no-op moves return an unchanged copy.
+ */
+export function moveQuestPrepAbility(
+    selectedPrimaryIds: readonly string[],
+    fromIndex: number,
+    insertIndex: number,
+): string[] {
+    const next = [...selectedPrimaryIds];
+    if (fromIndex < 0 || fromIndex >= next.length) return next;
+    if (insertIndex < 0 || insertIndex > next.length) return next;
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(insertIndex > fromIndex ? insertIndex - 1 : insertIndex, 0, moved!);
+    return next;
+}
+
+/**
+ * Read-only (under/at cap) loadouts always hold every selectable primary, but keep the player's
+ * chosen order: requested ids that are still selectable first, then any missing ones appended.
+ */
+export function readOnlyPrepSelection(
+    requestedIds: readonly string[],
+    selectableIds: readonly string[],
+): string[] {
+    const kept = requestedIds.filter((id, i) => selectableIds.includes(id) && requestedIds.indexOf(id) === i);
+    return [...kept, ...selectableIds.filter((id) => !kept.includes(id))];
+}
+
 export function isQuestPrepSlotsFull(selectedPrimaryIds: readonly string[]): boolean {
     return selectedPrimaryIds.length >= PREP_ABILITY_SLOT_COUNT;
 }

@@ -8,7 +8,9 @@ import {
     isMissionPrepAbilityReady,
     isMissionPrepReadOnly,
     isQuestPrepSlotsFull,
+    moveQuestPrepAbility,
     needsMissionAbilitySelection,
+    readOnlyPrepSelection,
     PREP_ABILITY_SLOT_COUNT,
     removeQuestPrepAbility,
     resolveInitialMissionSelection,
@@ -62,10 +64,7 @@ export function useMissionPrepLoadout({
 
     const pushLoadout = useCallback(
         async (next: string[]) => {
-            let toPush = next;
-            if (readOnly) {
-                toPush = [...selectableIds];
-            }
+            const toPush = readOnly ? readOnlyPrepSelection(next, selectableIds) : next;
             const key = JSON.stringify(toPush);
             if (key === lastPushedRef.current && key === JSON.stringify(localPrimaries)) {
                 return;
@@ -98,11 +97,12 @@ export function useMissionPrepLoadout({
         void pushLoadout(defaultSelection);
     }, [serverPrimaries, defaultSelection, pushLoadout]);
 
-    // When under/at cap, keep selection locked to the full selectable set.
+    // When under/at cap, keep selection locked to the full selectable set (in the player's order).
     useEffect(() => {
         if (!readOnly) return;
-        if (JSON.stringify(localPrimaries) === JSON.stringify(selectableIds)) return;
-        void pushLoadout(selectableIds);
+        const locked = readOnlyPrepSelection(localPrimaries, selectableIds);
+        if (JSON.stringify(localPrimaries) === JSON.stringify(locked)) return;
+        void pushLoadout(locked);
     }, [readOnly, selectableIds, localPrimaries, pushLoadout]);
 
     // Pull remote updates when not mid-push.
@@ -141,6 +141,16 @@ export function useMissionPrepLoadout({
         [localPrimaries, pushLoadout, readOnly],
     );
 
+    // Reordering is allowed even when read-only: the set is locked, the order is the player's.
+    const moveAbility = useCallback(
+        (fromIndex: number, insertIndex: number) => {
+            const next = moveQuestPrepAbility(localPrimaries, fromIndex, insertIndex);
+            if (JSON.stringify(next) === JSON.stringify(localPrimaries)) return;
+            void pushLoadout(next);
+        },
+        [localPrimaries, pushLoadout],
+    );
+
     return {
         selectedPrimaryIds: localPrimaries,
         selectableIds,
@@ -152,5 +162,6 @@ export function useMissionPrepLoadout({
         abilityReady,
         addAbility,
         removeAbility,
+        moveAbility,
     };
 }

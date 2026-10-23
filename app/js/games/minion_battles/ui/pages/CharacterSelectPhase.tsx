@@ -142,6 +142,7 @@ function QuestPrepBottomRow() {
             selectedPrimaryIds={loadout.selectedPrimaryIds}
             slotCount={slotCount > 0 ? slotCount : loadout.slotCount}
             onRemove={loadout.removeAbility}
+            onReorder={loadout.moveAbility}
             readOnly={loadout.readOnly}
         />
     );
@@ -202,6 +203,7 @@ function MissionPrepBottomRow() {
             selectedPrimaryIds={loadout.selectedPrimaryIds}
             slotCount={slotCount > 0 ? slotCount : loadout.slotCount}
             onRemove={loadout.removeAbility}
+            onReorder={loadout.moveAbility}
             readOnly={loadout.readOnly}
         />
     );

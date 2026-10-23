@@ -7,7 +7,9 @@ import {
     filterSelectableQuestPrepAbilityIds,
     isMissionPrepReadOnly,
     isQuestPrepSlotsFull,
+    moveQuestPrepAbility,
     needsMissionAbilitySelection,
+    readOnlyPrepSelection,
     removeQuestPrepAbility,
     resolveInitialMissionSelection,
     QUEST_PREP_ABILITY_SLOT_COUNT,
@@ -69,7 +71,7 @@ export function useQuestPrepLoadout({
 
     const pushLoadout = useCallback(
         async (requested: string[]) => {
-            const next = readOnly ? [...selectableIds] : requested;
+            const next = readOnly ? readOnlyPrepSelection(requested, selectableIds) : requested;
             const key = JSON.stringify(next);
             if (key === lastPushedRef.current && key === JSON.stringify(localPrimaries)) {
                 return;
@@ -102,11 +104,12 @@ export function useQuestPrepLoadout({
         void pushLoadout(defaultSelection);
     }, [serverPrimaries, defaultSelection, pushLoadout]);
 
-    // When under/at cap, keep selection locked to the full selectable set.
+    // When under/at cap, keep selection locked to the full selectable set (in the player's order).
     useEffect(() => {
         if (!readOnly) return;
-        if (JSON.stringify(localPrimaries) === JSON.stringify(selectableIds)) return;
-        void pushLoadout(selectableIds);
+        const locked = readOnlyPrepSelection(localPrimaries, selectableIds);
+        if (JSON.stringify(localPrimaries) === JSON.stringify(locked)) return;
+        void pushLoadout(locked);
     }, [readOnly, selectableIds, localPrimaries, pushLoadout]);
 
     // Pull remote updates when not mid-push.
@@ -144,6 +147,16 @@ export function useQuestPrepLoadout({
         [localPrimaries, pushLoadout, readOnly],
     );
 
+    // Reordering is allowed even when read-only: the set is locked, the order is the player's.
+    const moveAbility = useCallback(
+        (fromIndex: number, insertIndex: number) => {
+            const next = moveQuestPrepAbility(localPrimaries, fromIndex, insertIndex);
+            if (JSON.stringify(next) === JSON.stringify(localPrimaries)) return;
+            void pushLoadout(next);
+        },
+        [localPrimaries, pushLoadout],
+    );
+
     return {
         selectedPrimaryIds: localPrimaries,
         selectableIds,
@@ -154,5 +167,6 @@ export function useQuestPrepLoadout({
         selectionRequired,
         addAbility,
         removeAbility,
+        moveAbility,
     };
 }

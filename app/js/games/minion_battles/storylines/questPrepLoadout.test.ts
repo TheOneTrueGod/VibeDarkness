@@ -18,9 +18,11 @@ import {
     isMissionPrepReadOnly,
     isQuestPrepSlotsFull,
     isSecondaryAbility,
+    moveQuestPrepAbility,
     needsMissionAbilitySelection,
     prepLoadoutAfterResearchGrant,
     prepLoadoutPrimaryIdsForResearchGrant,
+    readOnlyPrepSelection,
     removeQuestPrepAbility,
     resolveInitialMissionSelection,
 } from './questPrepLoadout';
@@ -67,6 +69,24 @@ describe('Quest Prep slot helpers', () => {
 
     it('removeQuestPrepAbility drops the primary only', () => {
         expect(removeQuestPrepAbility(['0101', '0120'], '0101')).toEqual(['0120']);
+    });
+
+    it('moveQuestPrepAbility moves a primary into the chosen gap', () => {
+        const ids = ['a', 'b', 'c', 'd'];
+        expect(moveQuestPrepAbility(ids, 0, 4)).toEqual(['b', 'c', 'd', 'a']);
+        expect(moveQuestPrepAbility(ids, 3, 0)).toEqual(['d', 'a', 'b', 'c']);
+        expect(moveQuestPrepAbility(ids, 1, 3)).toEqual(['a', 'c', 'b', 'd']);
+        expect(moveQuestPrepAbility(ids, 2, 1)).toEqual(['a', 'c', 'b', 'd']);
+        // Dropping into the gaps either side of the card itself is a no-op.
+        expect(moveQuestPrepAbility(ids, 1, 1)).toEqual(ids);
+        expect(moveQuestPrepAbility(ids, 1, 2)).toEqual(ids);
+        expect(moveQuestPrepAbility(ids, 5, 0)).toEqual(ids);
+    });
+
+    it('readOnlyPrepSelection keeps the chosen order but always holds every selectable', () => {
+        expect(readOnlyPrepSelection(['c', 'a', 'b'], ['a', 'b', 'c'])).toEqual(['c', 'a', 'b']);
+        expect(readOnlyPrepSelection(['c', 'gone', 'c'], ['a', 'b', 'c'])).toEqual(['c', 'a', 'b']);
+        expect(readOnlyPrepSelection([], ['a', 'b'])).toEqual(['a', 'b']);
     });
 });
 
