@@ -3,7 +3,9 @@ import {
     ACCOUNT_KNOWLEDGE,
     accountKnowledgeLabel,
     hasAccountKnowledge,
+    hasUpgradesSystem,
     KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1,
+    KNOWLEDGE_SYSTEM_UPGRADES,
 } from './accountKnowledge';
 
 describe('account knowledge registry', () => {
@@ -21,5 +23,11 @@ describe('account knowledge registry', () => {
         expect(hasAccountKnowledge(undefined, KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1)).toBe(false);
         expect(hasAccountKnowledge({}, KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1)).toBe(false);
         expect(hasAccountKnowledge({ [KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1]: {} }, KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1)).toBe(true);
+    });
+
+    it('opens the Upgrades system to admins and to players who know it', () => {
+        expect(hasUpgradesSystem(undefined, false)).toBe(false);
+        expect(hasUpgradesSystem({}, true)).toBe(true);
+        expect(hasUpgradesSystem({ [KNOWLEDGE_SYSTEM_UPGRADES]: {} }, false)).toBe(true);
     });
 });

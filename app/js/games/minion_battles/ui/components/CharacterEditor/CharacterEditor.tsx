@@ -1034,7 +1034,8 @@ export default function CharacterEditor({
     const selectedTree = displayResearchTrees.find((t) => t.id === (selectedTreeId ?? firstTreeId));
     const selectedTreeDimmed = selectedTree ? dimmedResearchTreeIds.has(selectedTree.id) : false;
 
-    const showUpgradesTab = shouldShowUpgradesTab(isAdmin, researchTrees);
+    // Upgrades needs the owner's System: Upgrades knowledge (admins viewing always see it).
+    const showUpgradesTab = shouldShowUpgradesTab(isAdmin, researchTrees, account?.knowledge);
     const showStatBonusesTab = characterHasStatBonuses(researchTrees, researchNodeLevels);
 
     const visibleInnerTabs: CharacterInnerTabId[] = useMemo(() => [

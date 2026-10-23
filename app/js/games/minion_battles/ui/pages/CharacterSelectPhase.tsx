@@ -41,6 +41,7 @@ import { PrepEquipmentDrawer } from './characterSelect/prep/PrepEquipmentDrawer'
 import { PrepAbilityDragProvider } from './characterSelect/prep/PrepAbilityDrag';
 import { missionPrepConfig, questPrepConfig } from './characterSelect/prep/prepLoadoutConfig';
 import { getQuestDef } from '../../storylines/questRegistry';
+import { hasUpgradesSystem } from '../../../../accountKnowledge';
 import type { CampaignCharacter } from '../../character_defs/CampaignCharacter';
 import {
     buildPartyRosterFromLobby,
@@ -348,7 +349,6 @@ export default function CharacterSelectPhase({
     const footerProps = {
         activeTab,
         view,
-        isAdmin,
         mySelection,
         effectivelyReady,
         setReadyLoading,
@@ -365,6 +365,7 @@ export default function CharacterSelectPhase({
         modifiersBlockReason: hasSelectedCharacterLoadout ? modifiers.blockReason : null,
         onSetReady: phase.handleSetReady,
         onOpenEditor: () => { setModifiersOpen(false); setEditorOpen(true); },
+        canEditCharacter: hasUpgradesSystem(user?.knowledge, isAdmin),
         onBack: backToPrepare,
     } as const;
 

@@ -13,6 +13,12 @@ export const KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1 = 'EquipmentSlotUtility1';
  */
 export const KNOWLEDGE_EQUIPMENT_SLOT_CUSTOMIZATION_CORE = 'EquipmentSlotCustomizationCore';
 
+/**
+ * Knowledge of System: Upgrades — without it (and not an admin) a player has no Upgrades tab in the
+ * Characters menu and no "Edit Character" on the Prepare screen.
+ */
+export const KNOWLEDGE_SYSTEM_UPGRADES = 'SystemUpgrades';
+
 export interface AccountKnowledgeDef {
     key: string;
     label: string;
@@ -24,6 +30,7 @@ export const ACCOUNT_KNOWLEDGE: readonly AccountKnowledgeDef[] = [
     { key: 'Research', label: 'Research' },
     { key: KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1, label: 'Equipment Slot: Utility 1' },
     { key: KNOWLEDGE_EQUIPMENT_SLOT_CUSTOMIZATION_CORE, label: 'Equipment Slot Customization: Core' },
+    { key: KNOWLEDGE_SYSTEM_UPGRADES, label: 'System: Upgrades' },
 ];
 
 /** Readable name for a knowledge key (the key itself when unregistered). */
@@ -36,4 +43,9 @@ export type AccountKnowledgeMap = Readonly<Record<string, unknown>> | null | und
 
 export function hasAccountKnowledge(knowledge: AccountKnowledgeMap, key: string): boolean {
     return !!knowledge?.[key];
+}
+
+/** Whether the Upgrades system is open to this player: admins always, others once they know it. */
+export function hasUpgradesSystem(knowledge: AccountKnowledgeMap, isAdmin: boolean): boolean {
+    return isAdmin || hasAccountKnowledge(knowledge, KNOWLEDGE_SYSTEM_UPGRADES);
 }

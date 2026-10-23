@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { hasUpgradesSystem, type AccountKnowledgeMap } from '../../../../accountKnowledge';
 
 /** True when the character has researched at least one node. */
 export function characterHasResearch(researchTrees: Record<string, string[]> | undefined): boolean {
@@ -9,12 +10,17 @@ export function characterHasResearch(researchTrees: Record<string, string[]> | u
     return false;
 }
 
-/** Players see Upgrades after they have research; admins always see it. */
+/**
+ * Players see Upgrades once they know the Upgrades system and the character has research;
+ * admins always see it.
+ */
 export function shouldShowUpgradesTab(
     isAdmin: boolean,
     researchTrees: Record<string, string[]> | undefined,
+    knowledge: AccountKnowledgeMap,
 ): boolean {
-    return isAdmin || characterHasResearch(researchTrees);
+    if (isAdmin) return true;
+    return hasUpgradesSystem(knowledge, false) && characterHasResearch(researchTrees);
 }
 
 /** Campaign-home Upgrades tab body. */

@@ -3,13 +3,11 @@ import { AnchoredPortalTooltip } from '../../components/AnchoredPortalTooltip';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import { SPECTATOR_ID, isControlEnemy } from '../../../state';
 import { TestIds } from '../../../../../testing/testIds';
-import { useDebugConsole } from '../../../../../contexts/DebugConsoleContext';
 
 interface CharacterSelectFooterProps {
     activeTab: 'characters' | 'players' | 'replay';
     /** 'overview' = loadout; 'grid' = pick / change character (Ready hidden). */
     view: 'overview' | 'grid';
-    isAdmin: boolean;
     mySelection: string | null;
     effectivelyReady: boolean;
     setReadyLoading: boolean;
@@ -29,6 +27,8 @@ interface CharacterSelectFooterProps {
     modifiersBlockReason?: string | null;
     onSetReady: () => void;
     onOpenEditor: () => void;
+    /** "Edit Character" is offered only to admins and players who know the Upgrades system. */
+    canEditCharacter: boolean;
     /**
      * Set while a Prepare sub-view (Edit Character / Edit Modifiers) is open: the footer shows
      * only Back (returns to Prepare) and Ready.
@@ -39,7 +39,6 @@ interface CharacterSelectFooterProps {
 export function CharacterSelectFooter({
     activeTab,
     view,
-    isAdmin,
     mySelection,
     effectivelyReady,
     setReadyLoading,
@@ -55,16 +54,16 @@ export function CharacterSelectFooter({
     modifiersBlockReason = null,
     onSetReady,
     onOpenEditor,
+    canEditCharacter,
     onBack,
 }: CharacterSelectFooterProps) {
-    const { debugConsoleEnabled } = useDebugConsole();
     const readyAnchorRef = useRef<HTMLDivElement>(null);
     const [readyTipOpen, setReadyTipOpen] = useState(false);
     if (activeTab === 'players') return null;
 
     const showReady = view !== 'grid';
     const showEditCharacter =
-        (isAdmin || debugConsoleEnabled)
+        canEditCharacter
         && !!mySelection
         && mySelection !== SPECTATOR_ID
         && !isControlEnemy(mySelection)
