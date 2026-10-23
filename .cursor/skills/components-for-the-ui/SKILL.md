@@ -23,8 +23,8 @@ This skill keeps a **list of component names** and a **one-line description** of
 | **DebugConsoleToggle** | 26×26 header **Debug** control (bug icon) that opens the debug drawer. Shown only after tilde ×3 unlocks debug mode. |
 | **CornerSlotBattleDetails** | Top-right battle canvas rack for world modifiers, admin ninjutsu pools, and the debug game-tick pill. |
 | **CardWithTitle** | Full-size titled card (`title`, optional `subtitle` / `actions`, children in a vertically scrolling body). Fills its parent; white text + `bg-surface`. Max width belongs on the parent wrapper. Lives in `app/js/components/`. |
-| **CharactersTabLayerOne** | Campaign-home character chrome: name, portrait, remaining-endurance bar, Change Characters with cycle arrows, left-column switch, URL-owned inner-tab bar. Lives in `CampaignHomeScreen/CharactersTab/`. |
-| **CharacterEnduranceBar** | Remaining endurance under the character portrait: red heart + borderless red rounded bar on black. Lives in `CharacterEditor/`. |
+| **CharactersTabLayerOne** | Campaign-home character chrome: name, portrait, Hunger bar, Change Characters with cycle arrows, left-column switch, URL-owned inner-tab bar. Lives in `CampaignHomeScreen/CharactersTab/`. |
+| **CharacterHungerBar** | Hunger under the character portrait: orange Ham icon + orange fill on black, with a tick at the 15% penalty threshold and a tooltip stating the tier rules. Lives in `CharacterEditor/`. |
 | **CharactersTabLayerTwo** | Campaign-home character right panel; dispatches to MissionMap / Upgrades / StatBonuses / Equipment. |
 | **LocationCardPill** | Location card mountain icon + name in a bordered pill; opens a tooltip on hover showing description, flavour text, and modifications. Accepts `size` (`small` / `medium` / `default`), optional `count`, and instance data. Lives in `minion_battles/ui/components/`. |
 

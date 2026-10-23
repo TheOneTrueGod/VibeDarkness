@@ -59,7 +59,7 @@ class GrantCampaignResourceHandler
         }
 
         $k = strtolower($resourceKey);
-        if (!in_array($k, ['food', 'metal', 'population', 'crystals', 'exhaustion'], true)) {
+        if (!in_array($k, ['food', 'metal', 'population', 'crystals', 'hunger'], true)) {
             http_response_code(400);
             return ['success' => false, 'error' => 'Invalid resource key'];
         }

@@ -1127,7 +1127,7 @@ class LobbyManager
         $byPlayer = [];
         $researchByPlayer = [];
         $researchLevelsByPlayer = [];
-        $exhaustionByPlayer = [];
+        $hungerDeltaByPlayer = [];
         foreach ($selections as $playerId => $characterId) {
             $playerId = is_int($playerId) ? (string) $playerId : $playerId;
             if (!is_string($playerId) || !is_string($characterId)) {
@@ -1158,7 +1158,7 @@ class LobbyManager
                 $researchByPlayer[$playerId] = is_array($trees) ? $trees : [];
                 $levels = $character->getResearchNodeLevels();
                 $researchLevelsByPlayer[$playerId] = is_array($levels) ? $levels : [];
-                $exhaustionByPlayer[$playerId] = $character->getExhaustion();
+                $hungerDeltaByPlayer[$playerId] = $character->getHungerDelta();
 
                 $byPlayer[$playerId] = $equipment;
             }
@@ -1195,8 +1195,8 @@ class LobbyManager
         if ($researchLevelsByPlayer !== []) {
             $state['playerResearchNodeLevelsByPlayer'] = $researchLevelsByPlayer;
         }
-        if ($exhaustionByPlayer !== []) {
-            $state['playerExhaustionByPlayer'] = $exhaustionByPlayer;
+        if ($hungerDeltaByPlayer !== []) {
+            $state['playerHungerDeltaByPlayer'] = $hungerDeltaByPlayer;
         }
         return $state;
     }

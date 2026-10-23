@@ -83,7 +83,7 @@ interface BattlePhaseProps {
     /** Reports the host's active Darkness Upgrade node ids (all clients) once the battle is loaded. */
     onActiveDarknessUpgradeNodeIds?: (nodeIds: string[]) => void;
     /** Called when victory is achieved. Passes mission result from the winning victory check. */
-    onVictory?: (missionResult: string, exhaustion?: number) => void;
+    onVictory?: (missionResult: string, hungerLoss?: number) => void;
     /** Called when defeat is achieved (all player units dead). */
     onDefeat?: () => void;
     /** Called when host sends an emitted message (NPC or chat) so the UI can show it immediately. */
@@ -290,11 +290,11 @@ export default function BattlePhase({
     const onVictoryPropRef = useRef(onVictory);
     onVictoryPropRef.current = onVictory;
     const victoryForwardedRef = useRef(false);
-    const handleVictoryAfterObjectives = useCallback((missionResult: string, exhaustion?: number) => {
+    const handleVictoryAfterObjectives = useCallback((missionResult: string, hungerLoss?: number) => {
         void playVictoryRef.current().then(() => {
             if (victoryForwardedRef.current) return;
             victoryForwardedRef.current = true;
-            onVictoryPropRef.current?.(missionResult, exhaustion);
+            onVictoryPropRef.current?.(missionResult, hungerLoss);
         });
     }, []);
 

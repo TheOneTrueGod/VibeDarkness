@@ -85,8 +85,8 @@ export interface AbilityResearchModifier extends AbilityModifier {
  */
 export enum PassiveStatKey {
     MaxHealth = 'maxHealth',
-    /** Maximum exhaustion a campaign character can accumulate. */
-    Endurance = 'endurance',
+    /** Maximum Hunger a campaign character can store. */
+    MaxHunger = 'maxHunger',
     AllDamage = 'all_damage',
     EarthDamage = 'earth_damage',
     PetMaxHealth = 'pet_maxHealth',

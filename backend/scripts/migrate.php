@@ -192,7 +192,7 @@ function runSelfTest(): int
         'researchTrees' => ['crystal_rocks' => ['throw_rock', 'charged_rocks'], 'stick_sword' => ['swing_stick']],
     ]);
     $check('character: Chip 004+013 -> 004+001', $chip['data']['equipment'] === ['004', '001'], json_encode($chip['data']['equipment']));
-    $check('character: version 1, research untouched', $chip['data']['version'] === 1
+    $check('character: version 2, research untouched', $chip['data']['version'] === 2
         && $chip['data']['researchTrees']['stick_sword'] === ['swing_stick']);
     $again = CharacterMigrations::migrate($chip['data']);
     $check('character: idempotent', $again['changed'] === false && $again['data'] === $chip['data']);
@@ -210,6 +210,20 @@ function runSelfTest(): int
         'activeQuestRun' => ['runId' => 'r', 'questCharacter' => ['equipment' => ['004', '021', '002']]],
     ]);
     $check('character: quest snapshot mapped and deduped', $quest['data']['activeQuestRun']['questCharacter']['equipment'] === ['004', '002']);
+
+    $hungerChar = CharacterMigrations::migrate([
+        'id' => 'h',
+        'version' => 1,
+        'missionResults' => ['camp' => [
+            ['missionId' => 'm1', 'result' => 'victory', 'resourceDelta' => ['food' => 2, 'exhaustion' => 12]],
+            ['missionId' => 'm2', 'result' => 'victory', 'resourceDelta' => ['exhaustion' => 0]],
+        ]],
+        'questResults' => ['camp' => ['q1' => ['resourceDelta' => ['exhaustion' => 5]]]],
+    ]);
+    $hd = $hungerChar['data'];
+    $check('character v2: mission exhaustion 12 -> hunger -12', ($hd['missionResults']['camp'][0]['resourceDelta'] ?? null) === ['food' => 2, 'hunger' => -12], json_encode($hd['missionResults']['camp'][0]['resourceDelta'] ?? null));
+    $check('character v2: zero exhaustion key dropped', ($hd['missionResults']['camp'][1]['resourceDelta'] ?? null) === [], json_encode($hd['missionResults']['camp'][1]['resourceDelta'] ?? null));
+    $check('character v2: quest exhaustion 5 -> hunger -5', ($hd['questResults']['camp']['q1']['resourceDelta'] ?? null) === ['hunger' => -5] && $hd['version'] === 2);
 
     $order = [];
     $r = SaveMigrator::migrate(['version' => 1], 3, [
@@ -232,6 +246,16 @@ function runSelfTest(): int
     sort($unlocked);
     $check('campaign: unlocked = {001, 003}', $unlocked === ['001', '003'], json_encode($unlocked));
 
+    $hungerCamp = CampaignMigrations::migrate(
+        ['id' => 'c', 'version' => 1, 'resources' => ['food' => 1, 'exhaustion' => 3],
+            'missionResults' => [['missionId' => 'm1', 'resourceDelta' => ['exhaustion' => 4]]]],
+        static fn (string $id): array => [],
+        static fn (string $id): ?array => null
+    );
+    $hc = $hungerCamp['data'];
+    $check('campaign v2: resources.exhaustion 3 -> hunger -3', ($hc['resources'] ?? null) === ['food' => 1, 'hunger' => -3], json_encode($hc['resources'] ?? null));
+    $check('campaign v2: mission delta exhaustion 4 -> hunger -4', ($hc['missionResults'][0]['resourceDelta'] ?? null) === ['hunger' => -4] && $hc['version'] === 2);
+
     // --- Migration 0001 end to end in a scratch storage dir --------------------------------------
     $store = makeTempDir('migrate_0001_');
     foreach (['accounts', 'characters', 'campaigns'] as $d) {
@@ -250,9 +274,9 @@ function runSelfTest(): int
         $code = (new MigrationRunner($store, MigrationRegistry::all(), $quiet))->migrate();
         $charDisk = json_decode((string) file_get_contents($store . '/characters/char_t.json'), true);
         $campDisk = json_decode((string) file_get_contents($store . '/campaigns/camp1.json'), true);
-        $check('0001: applied', $code === 0 && MigrationLedger::load($store)->currentVersion() === 1);
-        $check('0001: character migrated on disk', ($charDisk['equipment'] ?? null) === ['004', '001'] && ($charDisk['version'] ?? 0) === 1);
-        $check('0001: campaign migrated on disk', ($campDisk['unlockedItemIds'] ?? null) === ['001'] && ($campDisk['version'] ?? 0) === 1,
+        $check('0001: applied', $code === 0 && MigrationLedger::load($store)->currentVersion() === 2);
+        $check('0001: character migrated on disk', ($charDisk['equipment'] ?? null) === ['004', '001'] && ($charDisk['version'] ?? 0) === 2);
+        $check('0001: campaign migrated on disk', ($campDisk['unlockedItemIds'] ?? null) === ['001'] && ($campDisk['version'] ?? 0) === 2,
             json_encode($campDisk['unlockedItemIds'] ?? null));
         $check('0001: storage override restored', StorageRoot::get() !== $store);
     } finally {

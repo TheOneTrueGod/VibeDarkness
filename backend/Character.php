@@ -186,22 +186,23 @@ class Character
     }
 
     /**
-     * Current exhaustion from this character's campaign mission and quest results.
-     * Mirrors `getCharacterExhaustion` in characterEndurance.ts.
+     * Signed net hunger change (<= 0 normally) from this character's campaign mission and quest results.
+     * Latest-per-mission sum plus only negative (loss) quest deltas.
+     * Mirrors `getCharacterHungerDelta` in characterHunger.ts.
      */
-    public function getExhaustion(): int
+    public function getHungerDelta(): int
     {
         $campaignId = $this->campaignId;
         $missionList = $this->missionResults[$campaignId] ?? [];
-        $total = Campaign::sumLatestMissionResourceDeltas(is_array($missionList) ? $missionList : [])['exhaustion'];
+        $total = Campaign::sumLatestMissionResourceDeltas(is_array($missionList) ? $missionList : [])['hunger'];
         $quests = $this->questResults[$campaignId] ?? [];
         if (is_array($quests)) {
             foreach ($quests as $quest) {
                 if (!is_array($quest)) {
                     continue;
                 }
-                $n = $quest['resourceDelta']['exhaustion'] ?? 0;
-                if (is_numeric($n) && (int) $n > 0) {
+                $n = $quest['resourceDelta']['hunger'] ?? 0;
+                if (is_numeric($n) && (int) $n < 0) {
                     $total += (int) $n;
                 }
             }

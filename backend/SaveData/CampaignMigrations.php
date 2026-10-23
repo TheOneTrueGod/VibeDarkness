@@ -7,6 +7,8 @@ namespace App\SaveData;
  *
  * v1: initialise `unlockedItemIds` from mission-result items and what the owner characters
  *     hold (non-core equipment, quest snapshot equipment, and root-node implied weapons).
+ * v2: Exhaustion -> Hunger. `resourceDelta.exhaustion: n` / `resources.exhaustion: n` become
+ *     `hunger: -n` (key dropped when 0).
  *
  * Lookups are injected as closures so the migration stays testable:
  *  - $ownerCharacterIds(string $campaignId): list<string>  character ids of the campaign owner
@@ -14,7 +16,7 @@ namespace App\SaveData;
  */
 final class CampaignMigrations
 {
-    public const CURRENT_VERSION = 1;
+    public const CURRENT_VERSION = 2;
 
     /**
      * @param callable(string): array $ownerCharacterIds
@@ -23,7 +25,10 @@ final class CampaignMigrations
      */
     public static function migrations(callable $ownerCharacterIds, callable $loadCharacter): array
     {
-        return [0 => static fn (array $d): array => self::v0ToV1($d, $ownerCharacterIds, $loadCharacter)];
+        return [
+            0 => static fn (array $d): array => self::v0ToV1($d, $ownerCharacterIds, $loadCharacter),
+            1 => [self::class, 'v1ToV2'],
+        ];
     }
 
     /**
@@ -80,6 +85,17 @@ final class CampaignMigrations
         }
 
         $data['unlockedItemIds'] = $unlocked;
+        return $data;
+    }
+
+    public static function v1ToV2(array $data): array
+    {
+        if (array_key_exists('missionResults', $data)) {
+            $data['missionResults'] = CharacterMigrations::convertResultRows($data['missionResults']);
+        }
+        if (array_key_exists('resources', $data)) {
+            $data['resources'] = CharacterMigrations::exhaustionToHunger($data['resources']);
+        }
         return $data;
     }
 }

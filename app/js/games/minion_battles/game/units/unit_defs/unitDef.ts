@@ -21,7 +21,6 @@ import { DEFAULT_UNIT_SIZE, UNIT_SIZE_MAP, type UnitSize } from './unitConstants
 import type { CcResistKey } from '../../../crowdControl/ccTypes';
 import { UnitTag, hidesWorldHpBar } from '../unitTag';
 import type { EnrageDef } from '../enrageDef';
-import { EXHAUSTION_HEALTH_BAR_FILL } from '../../../character_defs/exhaustionHealth';
 
 /**
  * Defines the spawn animation played when a unit of this type enters the field via darknessSpawn.
@@ -626,11 +625,6 @@ class DefaultUnitDef implements IUnitDef {
         hpInjury.visible = hpBarSize !== 'hidden';
         container.addChild(hpInjury);
 
-        const hpExhaustion = new Graphics();
-        hpExhaustion.label = 'hpExhaustion';
-        hpExhaustion.visible = hpBarSize !== 'hidden';
-        container.addChild(hpExhaustion);
-
         // Stack count badge: shown to the left of the HP bar when stackSize > 1
         if (hpBarSize !== 'hidden') {
             const stackBadge = createBadge('', { radius: 7 });
@@ -803,25 +797,13 @@ export function updateUnitHpBar(visual: Container, unit: Unit): void {
     hpFill.fill(barColor);
 
     const barFullWidth = unit.radius * 2;
-    const exhaustionWidth = unit.maxHp > 0
-        ? Math.min(barFullWidth, barFullWidth * (unit.hpExhaustion / unit.maxHp))
-        : 0;
     const hpInjury = visual.children.find((c) => c.label === 'hpInjury') as Graphics | undefined;
     if (hpInjury) {
         hpInjury.clear();
         if (unit.hpInjury > 0 && unit.maxHp > 0) {
-            const injuryWidth = Math.min(barFullWidth - exhaustionWidth, barFullWidth * (unit.hpInjury / unit.maxHp));
-            hpInjury.rect(unit.radius - exhaustionWidth - injuryWidth, barY, injuryWidth, barHeight);
+            const injuryWidth = Math.min(barFullWidth, barFullWidth * (unit.hpInjury / unit.maxHp));
+            hpInjury.rect(unit.radius - injuryWidth, barY, injuryWidth, barHeight);
             hpInjury.fill(0x000000);
-        }
-    }
-
-    const hpExhaustion = visual.children.find((c) => c.label === 'hpExhaustion') as Graphics | undefined;
-    if (hpExhaustion) {
-        hpExhaustion.clear();
-        if (exhaustionWidth > 0) {
-            hpExhaustion.rect(unit.radius - exhaustionWidth, barY, exhaustionWidth, barHeight);
-            hpExhaustion.fill(EXHAUSTION_HEALTH_BAR_FILL);
         }
     }
 

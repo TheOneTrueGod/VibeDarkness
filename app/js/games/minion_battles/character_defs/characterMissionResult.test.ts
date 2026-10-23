@@ -1,33 +1,32 @@
 import { describe, expect, it } from 'vitest';
 import {
-    applyEnduranceCapToExtras,
+    applyHungerCapToExtras,
     buildCharacterMissionResultEntry,
     upsertCharacterMissionResultList,
 } from './characterMissionResult';
-import { DEFAULT_CHARACTER_ENDURANCE } from './characterEndurance';
 import type { MissionResult } from '../../../types';
 
 const MISSION_ID = 'dark_awakening';
 const OTHER_MISSION_ID = 'towards_the_light';
 const VICTORY_TS = 1_789_098_803_069;
 const REPLAY_TS = 1_789_098_900_000;
-const EXHAUSTION = 7;
+const HUNGER_LOST = 7;
 
 function victory(partial: Partial<MissionResult> = {}): MissionResult {
     return { missionId: MISSION_ID, result: 'victory', timestamp: VICTORY_TS, ...partial };
 }
 
 describe('buildCharacterMissionResultEntry', () => {
-    it('includes exhaustion on the resourceDelta used by the mission tooltip', () => {
+    it('includes hunger on the resourceDelta used by the mission tooltip', () => {
         expect(
             buildCharacterMissionResultEntry(MISSION_ID, 'victory', REPLAY_TS, {
-                resourceDelta: { exhaustion: EXHAUSTION },
+                resourceDelta: { hunger: -HUNGER_LOST },
             }),
         ).toEqual({
             missionId: MISSION_ID,
             result: 'victory',
             timestamp: REPLAY_TS,
-            resourceDelta: { exhaustion: EXHAUSTION },
+            resourceDelta: { hunger: -HUNGER_LOST },
         });
     });
 
@@ -41,13 +40,13 @@ describe('buildCharacterMissionResultEntry', () => {
 });
 
 describe('upsertCharacterMissionResultList', () => {
-    it('replaces an existing victory and keeps exhaustion from the replay', () => {
+    it('replaces an existing victory and keeps hunger from the replay', () => {
         const next = upsertCharacterMissionResultList(
             [victory(), { missionId: OTHER_MISSION_ID, result: 'victory', timestamp: 1 }],
             MISSION_ID,
             'victory',
             REPLAY_TS,
-            { resourceDelta: { exhaustion: EXHAUSTION } },
+            { resourceDelta: { hunger: -HUNGER_LOST } },
         );
         expect(next).toEqual([
             { missionId: OTHER_MISSION_ID, result: 'victory', timestamp: 1 },
@@ -55,22 +54,23 @@ describe('upsertCharacterMissionResultList', () => {
                 missionId: MISSION_ID,
                 result: 'victory',
                 timestamp: REPLAY_TS,
-                resourceDelta: { exhaustion: EXHAUSTION },
+                resourceDelta: { hunger: -HUNGER_LOST },
             },
         ]);
     });
 
     it('does not let a defeat overwrite an existing victory', () => {
-        const existing = [victory({ resourceDelta: { exhaustion: EXHAUSTION } })];
+        const existing = [victory({ resourceDelta: { hunger: -HUNGER_LOST } })];
         expect(upsertCharacterMissionResultList(existing, MISSION_ID, 'defeat', REPLAY_TS)).toBeNull();
     });
 });
 
-describe('applyEnduranceCapToExtras', () => {
+describe('applyHungerCapToExtras', () => {
     const CAMPAIGN_ID = 'world_of_darkness';
+    const MAX_HUNGER = 100;
 
-    it('caps exhaustion so the character cannot exceed endurance', () => {
-        const capped = applyEnduranceCapToExtras(
+    it('caps match-end hunger loss so the character cannot go below 0 hunger', () => {
+        const capped = applyHungerCapToExtras(
             {
                 campaignId: CAMPAIGN_ID,
                 missionResults: {
@@ -78,7 +78,7 @@ describe('applyEnduranceCapToExtras', () => {
                         {
                             missionId: OTHER_MISSION_ID,
                             result: 'victory',
-                            resourceDelta: { exhaustion: DEFAULT_CHARACTER_ENDURANCE - 2 },
+                            resourceDelta: { hunger: -(MAX_HUNGER - 2) },
                         },
                     ],
                 },
@@ -87,12 +87,13 @@ describe('applyEnduranceCapToExtras', () => {
                 researchNodeLevels: {},
             },
             MISSION_ID,
-            { resourceDelta: { food: 1, exhaustion: 20 } },
+            { resourceDelta: { food: 1, hunger: -20 } },
         );
-        expect(capped?.resourceDelta).toEqual({ food: 1, exhaustion: 2 });
+        expect(capped?.resourceDelta).toEqual({ food: 1, hunger: -2 });
     });
 
-    function withExhaustion(current: number) {
+    /** A character who has already lost `lost` Hunger in another mission. */
+    function hungerLost(lost: number) {
         return {
             campaignId: CAMPAIGN_ID,
             missionResults: {
@@ -100,7 +101,7 @@ describe('applyEnduranceCapToExtras', () => {
                     {
                         missionId: OTHER_MISSION_ID,
                         result: 'victory' as const,
-                        resourceDelta: { exhaustion: current },
+                        resourceDelta: { hunger: -lost },
                     },
                 ],
             },
@@ -110,44 +111,44 @@ describe('applyEnduranceCapToExtras', () => {
         };
     }
 
-    it('applies match exhaustion then recovery in order, clamping at zero mid-sequence', () => {
-        // Start 10. +5 (match) -> 15, recover 20 -> 0 (clamped), +5 -> 5. Net -5.
-        const result = applyEnduranceCapToExtras(withExhaustion(10), MISSION_ID, {
-            resourceDelta: { exhaustion: 5 },
-            exhaustionChanges: [-20, 5],
+    it('applies match loss then recovery in order, clamping at max mid-sequence', () => {
+        // Hunger 90. -5 (match) -> 85, recover 20 -> 100 (clamped), -5 -> 95. Net +5.
+        const result = applyHungerCapToExtras(hungerLost(10), MISSION_ID, {
+            resourceDelta: { hunger: -5 },
+            hungerChanges: [20, -5],
         });
-        expect(result?.resourceDelta).toEqual({ exhaustion: -5 });
-        expect(result).not.toHaveProperty('exhaustionChanges');
+        expect(result?.resourceDelta).toEqual({ hunger: 5 });
+        expect(result).not.toHaveProperty('hungerChanges');
     });
 
-    it('records a negative net delta when recovery exceeds nothing clamped', () => {
-        const result = applyEnduranceCapToExtras(withExhaustion(30), MISSION_ID, {
-            exhaustionChanges: [-20],
+    it('records a positive net delta when recovery fits under max hunger', () => {
+        const result = applyHungerCapToExtras(hungerLost(30), MISSION_ID, {
+            hungerChanges: [20],
         });
-        expect(result?.resourceDelta).toEqual({ exhaustion: -20 });
+        expect(result?.resourceDelta).toEqual({ hunger: 20 });
     });
 
-    it('cannot recover below zero total exhaustion', () => {
-        const result = applyEnduranceCapToExtras(withExhaustion(8), MISSION_ID, {
-            exhaustionChanges: [-20],
+    it('cannot recover above max hunger', () => {
+        const result = applyHungerCapToExtras(hungerLost(8), MISSION_ID, {
+            hungerChanges: [20],
         });
-        expect(result?.resourceDelta).toEqual({ exhaustion: -8 });
+        expect(result?.resourceDelta).toEqual({ hunger: 8 });
     });
 
-    it('keeps other resources and drops the delta when exhaustion is unchanged', () => {
-        const result = applyEnduranceCapToExtras(withExhaustion(0), MISSION_ID, {
+    it('keeps other resources and drops the delta when hunger is unchanged', () => {
+        const result = applyHungerCapToExtras(hungerLost(0), MISSION_ID, {
             resourceDelta: { food: 2 },
-            exhaustionChanges: [-20],
+            hungerChanges: [20],
         });
         expect(result?.resourceDelta).toEqual({ food: 2 });
     });
 
-    it('a -100 completion recovery floors a character at 0 exhaustion (30 -> 0, full endurance -> 0)', () => {
-        const low = applyEnduranceCapToExtras(withExhaustion(30), MISSION_ID, { exhaustionChanges: [-100] });
-        expect(low?.resourceDelta).toEqual({ exhaustion: -30 });
-        const full = applyEnduranceCapToExtras(withExhaustion(DEFAULT_CHARACTER_ENDURANCE), MISSION_ID, {
-            exhaustionChanges: [-100],
+    it('a +100 completion recovery refills a character to full hunger (70 -> 100, 0 -> 100)', () => {
+        const low = applyHungerCapToExtras(hungerLost(30), MISSION_ID, { hungerChanges: [100] });
+        expect(low?.resourceDelta).toEqual({ hunger: 30 });
+        const empty = applyHungerCapToExtras(hungerLost(MAX_HUNGER), MISSION_ID, {
+            hungerChanges: [100],
         });
-        expect(full?.resourceDelta).toEqual({ exhaustion: -DEFAULT_CHARACTER_ENDURANCE });
+        expect(empty?.resourceDelta).toEqual({ hunger: MAX_HUNGER });
     });
 });

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     CAMPSITE,
     CAMPSITE_CHOICE_ID,
-    CAMPSITE_EXHAUSTION_RECOVERY,
+    CAMPSITE_HUNGER_RECOVERY,
     CAMPSITE_INTRO_TEXT,
     CAMPSITE_RESEARCH_OPTION_COUNT,
     CAMPSITE_RESEARCH_SLOTS,
@@ -42,12 +42,12 @@ describe('campsite mission', () => {
         expect(CAMPSITE.skipBattle).toBe(true);
     });
 
-    it('opens with a single intro line, then recovers 20 exhaustion, then offers research slots', () => {
+    it('opens with a single intro line, then recovers 20 Hunger, then offers research slots', () => {
         const phrases = CAMPSITE.postMissionStory!.phrases;
         expect(phrases[0]).toMatchObject({ type: 'dialogue', text: 'You have discovered a campsite' });
         expect(CAMPSITE_INTRO_TEXT).toBe('You have discovered a campsite');
-        expect(phrases[1]).toEqual({ type: 'recover_exhaustion_auto', amount: 20 });
-        expect(CAMPSITE_EXHAUSTION_RECOVERY).toBe(20);
+        expect(phrases[1]).toEqual({ type: 'recover_hunger_auto', amount: 20 });
+        expect(CAMPSITE_HUNGER_RECOVERY).toBe(20);
         expect(phrases[2]).toMatchObject({
             type: 'choice',
             choiceId: CAMPSITE_CHOICE_ID,

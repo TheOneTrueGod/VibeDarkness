@@ -67,11 +67,11 @@ import {
 } from '../researchNodeGrid';
 import ResourcePill, { RESOURCE_ORDER } from '../../../../../components/ResourcePill';
 import {
-    getCharacterEndurance,
-    getCharacterExhaustion,
-    getRemainingEndurance,
-} from '../../../character_defs/characterEndurance';
-import { CHARACTER_EDITOR_PORTRAIT_SIZE_PX, CharacterEnduranceBar } from './CharacterEnduranceBar';
+    getCharacterHungerDelta,
+    getCharacterMaxHunger,
+    hungerFromDelta,
+} from '../../../character_defs/characterHunger';
+import { CHARACTER_EDITOR_PORTRAIT_SIZE_PX, CharacterHungerBar } from './CharacterHungerBar';
 import {
     RESET_CAMPAIGN_RESOURCES_CONFIRM,
     RESET_CAMPAIGN_RESOURCES_LABEL,
@@ -1141,18 +1141,15 @@ export default function CharacterEditor({
         </>
     );
 
-    const endurance = useMemo(
-        () => getCharacterEndurance(researchTrees, researchNodeLevels),
+    const maxHunger = useMemo(
+        () => getCharacterMaxHunger(researchTrees, researchNodeLevels),
         [researchTrees, researchNodeLevels],
     );
-    const exhaustion = useMemo(() => getCharacterExhaustion(character), [character]);
-    const remainingEndurance = useMemo(
-        () => getRemainingEndurance(endurance, exhaustion),
-        [endurance, exhaustion],
+    const hunger = useMemo(
+        () => hungerFromDelta(maxHunger, getCharacterHungerDelta(character)),
+        [maxHunger, character],
     );
-    const enduranceSection = (
-        <CharacterEnduranceBar remaining={remainingEndurance} endurance={endurance} />
-    );
+    const hungerSection = <CharacterHungerBar hunger={hunger} maxHunger={maxHunger} />;
 
     const portraitBlock = (
         <div className="flex justify-center pt-4">
@@ -1405,7 +1402,7 @@ export default function CharacterEditor({
                 onSelectTab={setRoutedInnerTab}
                 visibleTabs={visibleInnerTabs}
                 nameSection={nameSection}
-                enduranceSection={enduranceSection}
+                hungerSection={hungerSection}
                 showPortraitArrows={!isEditingName && innerTabShowsPortrait(innerTab)}
                 onPrevPortrait={goPrevPortrait}
                 onNextPortrait={goNextPortrait}
@@ -1500,7 +1497,7 @@ export default function CharacterEditor({
                             )}
                         </div>
                         {activeTab !== 'research' && portraitBlock}
-                        <div className="mt-3 flex justify-center">{enduranceSection}</div>
+                        <div className="mt-3 flex justify-center">{hungerSection}</div>
                         {onChangeCharacters && (activeTab === 'missionMap' || activeTab === 'research' || activeTab === 'statBonuses') && (
                             <button
                                 type="button"

@@ -37,7 +37,7 @@ class CampaignManager
     public function createCampaign(string $ownerAccountId): Campaign
     {
         $id = $this->generateCampaignId();
-        $campaign = new Campaign($id, '', [], [], ['food' => 0, 'metal' => 0, 'population' => 0, 'crystals' => 0, 'exhaustion' => 0], [], [], [], [], [], CampaignMigrations::CURRENT_VERSION);
+        $campaign = new Campaign($id, '', [], [], ['food' => 0, 'metal' => 0, 'population' => 0, 'crystals' => 0, 'hunger' => 0], [], [], [], [], [], CampaignMigrations::CURRENT_VERSION);
         $this->persistCampaign($campaign);
         $this->cache[$id] = $campaign;
         return $campaign;

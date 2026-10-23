@@ -75,20 +75,20 @@ export interface StoryChoiceActionGrantResearchConditional {
     }>;
 }
 
-/** Choice action: heal wounds on the viewing player's character this mission (reduces recorded match exhaustion). */
+/** Choice action: heal wounds on the viewing player's character this mission (reduces recorded match Hunger loss). */
 export interface StoryChoiceActionHealWounds {
     type: 'heal_wounds';
     amount: number;
 }
 
 /**
- * Choice action: recover exhaustion on the choosing player's character. Applied in story order with
- * `recover_exhaustion_auto` phrases (see `applyOrderedExhaustionChanges`), clamped to [0, endurance].
+ * Choice action: recover Hunger on the choosing player's character. Applied in story order with
+ * `recover_hunger_auto` phrases (see `applyOrderedHungerChanges`), clamped to [0, max Hunger].
  * Unlike `heal_wounds` this reaches the saved character even when the mission has no fight.
  */
-export interface StoryChoiceActionRecoverExhaustion {
-    type: 'recover_exhaustion';
-    /** Positive number of exhaustion points recovered. */
+export interface StoryChoiceActionRecoverHunger {
+    type: 'recover_hunger';
+    /** Positive number of Hunger points recovered. */
     amount: number;
 }
 
@@ -99,7 +99,7 @@ export type StoryChoiceAction =
     | StoryChoiceActionGrantResearchToPlayer
     | StoryChoiceActionGrantResearchConditional
     | StoryChoiceActionHealWounds
-    | StoryChoiceActionRecoverExhaustion;
+    | StoryChoiceActionRecoverHunger;
 
 /** One row in a choice phrase (pre- or post-mission). */
 export interface StoryChoiceOptionRow {
@@ -242,13 +242,13 @@ export interface GrantResearchAutoPhrase {
 }
 
 /**
- * Recover exhaustion for every non-spectator player at this point in the post-mission story.
- * No UI. Exhaustion changes are applied strictly in story order (see
- * `applyOrderedExhaustionChanges`), clamped to [0, endurance] at each step.
+ * Recover Hunger for every non-spectator player at this point in the post-mission story.
+ * No UI. Hunger changes are applied strictly in story order (see
+ * `applyOrderedHungerChanges`), clamped to [0, max Hunger] at each step.
  */
-export interface RecoverExhaustionAutoPhrase {
-    type: 'recover_exhaustion_auto';
-    /** Positive number of exhaustion points recovered. */
+export interface RecoverHungerAutoPhrase {
+    type: 'recover_hunger_auto';
+    /** Positive number of Hunger points recovered. */
     amount: number;
 }
 
@@ -257,7 +257,7 @@ export type PostMissionPhrase =
     | DialoguePhrase
     | ChoicePhrase
     | GrantResearchAutoPhrase
-    | RecoverExhaustionAutoPhrase;
+    | RecoverHungerAutoPhrase;
 
 /** Post-mission story shown after victory, before the victory screen. */
 export interface PostMissionStoryDef {

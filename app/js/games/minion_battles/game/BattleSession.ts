@@ -49,9 +49,9 @@ import {
 import type { PassiveBonuses } from '../../../researchTrees/types';
 import { compileWorldModifiers } from '../../../darknessStrength/compile';
 import {
-    computeMatchExhaustion,
-    findPlayerUnitForMatchExhaustion,
-} from '../storylines/matchExhaustion';
+    computeMatchHungerLoss,
+    findPlayerUnitForMatchHunger,
+} from '../storylines/matchHunger';
 import { InteractiveTargetingSession, type HeldRemoteOrder } from './interaction/InteractiveTargetingSession';
 import { USE_SEQUENTIAL_TARGETING } from '../featureFlags';
 import { PERF_UI, PERF_UI_REACT, tickPerformanceTracker } from './performance/tickPerformanceTracker';
@@ -80,7 +80,7 @@ export interface BattleSessionConfig {
     missionId: string;
     playerId: string;
     isHost: boolean;
-    onVictory?: (missionResult: string, exhaustion?: number) => void;
+    onVictory?: (missionResult: string, hungerLoss?: number) => void;
     onDefeat?: () => void;
     onEmittedChatMessage?: (entry: MessageEntry) => void;
 }
@@ -652,7 +652,7 @@ export class BattleSession implements BattleSessionHandle {
                     this.commitPreviewForTerminalOutcome(engine);
                     return;
                 }
-                onVictory(result, this.matchExhaustionFor(engine));
+                onVictory(result, this.matchHungerLossFor(engine));
             });
         }
         if (onDefeat) {
@@ -780,8 +780,8 @@ export class BattleSession implements BattleSessionHandle {
         const missionPrepLoadoutsByPlayer =
             (snapshotRecord?.missionPrepLoadoutsByPlayer as Record<string, string[]> | undefined)
             ?? undefined;
-        const playerExhaustionByPlayer =
-            (snapshotRecord?.playerExhaustionByPlayer as Record<string, number> | undefined) ?? {};
+        const playerHungerDeltaByPlayer =
+            (snapshotRecord?.playerHungerDeltaByPlayer as Record<string, number> | undefined) ?? {};
 
         const engine = new GameEngine();
         engine.prepareForNewGame({
@@ -819,7 +819,7 @@ export class BattleSession implements BattleSessionHandle {
             questPrepLoadoutsByPlayer,
             questAbilityLoadoutsByCharacterId,
             missionPrepLoadoutsByPlayer,
-            playerExhaustionByPlayer,
+            playerHungerDeltaByPlayer,
             terrainSegmentPOIs,
             terrainSegmentZones,
         });
@@ -1540,19 +1540,20 @@ export class BattleSession implements BattleSessionHandle {
             return;
         }
         if (outcome.kind === 'victory') {
-            this.config.onVictory?.(outcome.missionResult, this.matchExhaustionFor(engine));
+            this.config.onVictory?.(outcome.missionResult, this.matchHungerLossFor(engine));
         } else {
             this.config.onDefeat?.();
         }
     }
 
-    private matchExhaustionFor(engine: GameEngine): number {
-        const unit = findPlayerUnitForMatchExhaustion(
+    /** Positive Hunger lost by the local player this match (see `computeMatchHungerLoss`). */
+    private matchHungerLossFor(engine: GameEngine): number {
+        const unit = findPlayerUnitForMatchHunger(
             engine.units,
             engine.localPlayerId,
             engine.getLocalPlayerUnit(),
         );
-        return unit ? computeMatchExhaustion(unit) : 0;
+        return unit ? computeMatchHungerLoss(unit) : 0;
     }
 
     /** Emit an order_submit_failed event to all session listeners. */

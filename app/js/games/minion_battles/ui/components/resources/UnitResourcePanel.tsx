@@ -9,6 +9,8 @@ import type { ResourceDisplay } from '../../../resources/Resource';
 import { ALL_RESOURCE_DISPLAY_DEFS, SHIELD_RESOURCE_COLOR } from '../../../resources/resourceDisplayDefs';
 import { PORTAL_TOOLTIP_SURFACE_CLASS } from '../AnchoredPortalTooltip';
 import { getTotalShieldHp } from '../../../game/units/unitShield';
+import { describeHungerPenalty } from '../../../character_defs/hungerHealth';
+import { HUNGER_ORANGE } from '../../../../../components/ResourcePill';
 import {
     getResourceBarDebugEnabled,
     getResourceBarDebugFill,
@@ -45,7 +47,6 @@ export function UnitResourcePanel({ unit }: UnitResourcePanelProps) {
 
     const displayHp = debugEnabled ? Math.round((debugFill / 100) * unit.maxHp) : unit.hp;
     const displayHpInjury = debugEnabled ? 0 : unit.hpInjury;
-    const displayHpExhaustion = debugEnabled ? 0 : unit.hpExhaustion;
     const displayEffectiveMaxHp = Math.ceil(unit.getEffectiveMaxHp());
     const totalShieldHp = getTotalShieldHp(unit);
 
@@ -129,8 +130,8 @@ export function UnitResourcePanel({ unit }: UnitResourcePanelProps) {
                                 <div>Current Health: {Math.ceil(displayHp)}</div>
                                 <div>Max Health: {displayEffectiveMaxHp}</div>
                                 <div>Injury: {Math.ceil(displayHpInjury)}</div>
-                                {displayHpExhaustion > 0 && (
-                                    <div>Exhaustion: {Math.ceil(displayHpExhaustion)}</div>
+                                {unit.hungerPenalty > 0 && (
+                                    <div style={{ color: HUNGER_ORANGE }}>{describeHungerPenalty(unit.hungerPenalty)}</div>
                                 )}
                                 {totalShieldHp > 0 && <div>Shield: {Math.ceil(totalShieldHp)}</div>}
                             </div>
@@ -141,7 +142,6 @@ export function UnitResourcePanel({ unit }: UnitResourcePanelProps) {
                             hp={displayHp}
                             maxHp={unit.maxHp}
                             hpInjury={displayHpInjury}
-                            hpExhaustion={displayHpExhaustion}
                             shieldHp={totalShieldHp}
                         />
                     </div>

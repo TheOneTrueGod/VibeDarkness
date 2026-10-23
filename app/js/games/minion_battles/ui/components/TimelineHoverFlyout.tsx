@@ -23,7 +23,6 @@ function hpBarColor(ratio: number): string {
 function TimelineUnitCard({ unit }: { unit: Unit }) {
     const ratio = unit.maxHp > 0 ? Math.max(0, Math.min(1, unit.hp / unit.maxHp)) : 0;
     const injuryRatio = unit.maxHp > 0 ? Math.max(0, Math.min(1, unit.hpInjury / unit.maxHp)) : 0;
-    const exhaustionRatio = unit.maxHp > 0 ? Math.max(0, Math.min(1, unit.hpExhaustion / unit.maxHp)) : 0;
     const description = getUnitUiDescription(unit.characterId);
 
     return (
@@ -41,13 +40,7 @@ function TimelineUnitCard({ unit }: { unit: Unit }) {
                     {injuryRatio > 0 && (
                         <div
                             className="absolute top-0 h-full rounded-full bg-black"
-                            style={{ right: `${exhaustionRatio * 100}%`, width: `${injuryRatio * 100}%` }}
-                        />
-                    )}
-                    {exhaustionRatio > 0 && (
-                        <div
-                            className="absolute right-0 top-0 h-full rounded-full bg-gray-500"
-                            style={{ width: `${exhaustionRatio * 100}%` }}
+                            style={{ right: 0, width: `${injuryRatio * 100}%` }}
                         />
                     )}
                 </div>

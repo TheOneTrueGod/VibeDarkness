@@ -40,8 +40,8 @@ import {
     type HomeResolveContext,
 } from './homeBase';
 import type { MissionResult } from '../../../types';
-import { getCharacterEndurance } from '../character_defs/characterEndurance';
-import { applyFightStartExhaustion } from '../character_defs/exhaustionHealth';
+import { getCharacterMaxHunger, hungerFromDelta } from '../character_defs/characterHunger';
+import { applyFightStartHunger } from '../character_defs/hungerHealth';
 import { createPlayerUnit } from '../game/units/index';
 import { enemySpawnDefToSpawnDefinition } from '../game/units/spawning/adapters';
 import { getEnemyHealthMultiplier } from '../constants/enemyConstants';
@@ -168,8 +168,8 @@ export interface InitializeGameStateParams {
     terrainSegmentZones?: MapSegmentZone[];
     /** Shared campaign results used to resolve the home/spawn tile. */
     missionResults?: MissionResult[];
-    /** Current campaign exhaustion per player (from the selected character). */
-    playerExhaustionByPlayer?: Record<string, number>;
+    /** Net signed campaign Hunger change per player (from the selected character; normally <= 0). */
+    playerHungerDeltaByPlayer?: Record<string, number>;
 }
 
 /** Mission definition extending MissionBattleConfig with initializeGameState. */
@@ -446,13 +446,14 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 params.eventBus,
                 engine,
             );
-            applyFightStartExhaustion(
+            const maxHunger = getCharacterMaxHunger(
+                researchByPlayer[pu.playerId],
+                researchLevelsByPlayer[pu.playerId],
+            );
+            applyFightStartHunger(
                 unit,
-                params.playerExhaustionByPlayer?.[pu.playerId] ?? 0,
-                getCharacterEndurance(
-                    researchByPlayer[pu.playerId],
-                    researchLevelsByPlayer[pu.playerId],
-                ),
+                hungerFromDelta(maxHunger, params.playerHungerDeltaByPlayer?.[pu.playerId] ?? 0),
+                maxHunger,
             );
             if (staminaRecoveryBonus > 0) {
                 unit.stamina += staminaRecoveryBonus;

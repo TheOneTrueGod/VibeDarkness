@@ -64,8 +64,8 @@ export interface MinionBattlesGameStatePayload {
     characterSelectReadyPlayerIds?: string[];
     character_select_ready_player_ids?: string[];
     playerEquipmentByPlayer?: Record<string, string[]>;
-    /** Current campaign exhaustion per player (from the selected character). */
-    playerExhaustionByPlayer?: Record<string, number>;
+    /** Net signed campaign Hunger change per player (from the selected character; normally <= 0). */
+    playerHungerDeltaByPlayer?: Record<string, number>;
     groupVoteVotes?: Record<string, Record<string, string>>;
     units?: unknown[];
     gameTick?: number;

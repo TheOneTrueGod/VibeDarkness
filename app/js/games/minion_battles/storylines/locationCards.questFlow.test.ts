@@ -30,7 +30,7 @@ import { SCAVENGE_THE_PLAINS } from './WorldOfDarkness/quests/scavenge_the_plain
 import { SWARMLING_SOURCE } from './WorldOfDarkness/quests/swarmling_source';
 import { FOUND_BERRIES_MISSION_ID, FOUND_BERRIES_CHOICE_ID, FOUND_BERRIES } from './WorldOfDarkness/questMissions/found_berries';
 import { SURFACE_METAL_DEPOSIT_MISSION_ID } from './WorldOfDarkness/questMissions/surface_metal_deposit';
-import { applyHealWoundsToExhaustion } from './matchExhaustion';
+import { applyHealWoundsToHungerLoss } from './matchHunger';
 import type { ChoicePhrase } from './storyTypes';
 
 const CHARACTER = { id: 'char_location_test', equipment: [] as const };
@@ -512,12 +512,12 @@ describe('locationCards.questFlow — modifications and choice insertion', () =>
     });
 });
 
-describe('locationCards.questFlow — heal wounds exhaustion reduction', () => {
-    it('applyHealWoundsToExhaustion(7, 5) returns 2', () => {
-        expect(applyHealWoundsToExhaustion(7, 5)).toBe(2);
+describe('locationCards.questFlow — heal wounds hunger loss reduction', () => {
+    it('applyHealWoundsToHungerLoss(7, 5) returns 2', () => {
+        expect(applyHealWoundsToHungerLoss(7, 5)).toBe(2);
     });
 
-    it('applyHealWoundsToExhaustion(3, 5) returns 0 (cannot go negative)', () => {
-        expect(applyHealWoundsToExhaustion(3, 5)).toBe(0);
+    it('applyHealWoundsToHungerLoss(3, 5) returns 0 (cannot go negative)', () => {
+        expect(applyHealWoundsToHungerLoss(3, 5)).toBe(0);
     });
 });

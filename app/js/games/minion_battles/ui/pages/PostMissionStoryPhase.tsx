@@ -13,7 +13,7 @@ import type {
     DialoguePhrase,
     ChoicePhrase,
     GrantResearchAutoPhrase,
-    RecoverExhaustionAutoPhrase,
+    RecoverHungerAutoPhrase,
     PortraitSide,
     PostMissionPhrase,
     StoryChoiceAction,
@@ -58,10 +58,10 @@ function isGrantResearchAuto(phrase: PostMissionPhrase | undefined): phrase is G
     return phrase?.type === 'grant_research_auto';
 }
 
-function isRecoverExhaustionAuto(
+function isRecoverHungerAuto(
     phrase: PostMissionPhrase | undefined
-): phrase is RecoverExhaustionAutoPhrase {
-    return phrase?.type === 'recover_exhaustion_auto';
+): phrase is RecoverHungerAutoPhrase {
+    return phrase?.type === 'recover_hunger_auto';
 }
 
 function isGrantResearchToPlayer(
@@ -82,8 +82,8 @@ export interface MissionRewards {
     researchRewardIds?: string[];
     researchRewards?: MissionResearchRewardEntry[];
     healWounds?: number;
-    /** Ordered signed exhaustion changes (recovery < 0), in story order. */
-    exhaustionChanges?: number[];
+    /** Ordered signed Hunger changes (recovery > 0), in story order. */
+    hungerChanges?: number[];
 }
 
 interface ResolvedChoiceResearchReward {
@@ -182,10 +182,10 @@ export default function PostMissionStoryPhase({
     const firstEquipItemRef = useRef<string | undefined>(undefined);
     const accumulatedResourceDeltaRef = useRef<Partial<Record<'food' | 'metal' | 'crystals', number>>>({});
     const accumulatedHealWoundsRef = useRef<number>(0);
-    /** Signed exhaustion changes in the order their phrases were reached. */
-    const accumulatedExhaustionChangesRef = useRef<number[]>([]);
-    /** Phrase indices whose exhaustion change was already recorded (guards effect re-runs). */
-    const appliedExhaustionPhraseIndicesRef = useRef<Set<number>>(new Set());
+    /** Signed Hunger changes in the order their phrases were reached. */
+    const accumulatedHungerChangesRef = useRef<number[]>([]);
+    /** Phrase indices whose Hunger change was already recorded (guards effect re-runs). */
+    const appliedHungerPhraseIndicesRef = useRef<Set<number>>(new Set());
 
     useEffect(() => {
         accumulatedResearchIdsRef.current = [];
@@ -193,8 +193,8 @@ export default function PostMissionStoryPhase({
         firstEquipItemRef.current = undefined;
         accumulatedResourceDeltaRef.current = {};
         accumulatedHealWoundsRef.current = 0;
-        accumulatedExhaustionChangesRef.current = [];
-        appliedExhaustionPhraseIndicesRef.current = new Set();
+        accumulatedHungerChangesRef.current = [];
+        appliedHungerPhraseIndicesRef.current = new Set();
         setPhraseIndex(0);
         setPhantomPostChoiceStep(false);
         hasCompletedRef.current = false;
@@ -329,8 +329,8 @@ export default function PostMissionStoryPhase({
         if (hasCompletedRef.current) return;
         hasCompletedRef.current = true;
         onComplete(
-            accumulatedExhaustionChangesRef.current.length > 0
-                ? { exhaustionChanges: [...accumulatedExhaustionChangesRef.current] }
+            accumulatedHungerChangesRef.current.length > 0
+                ? { hungerChanges: [...accumulatedHungerChangesRef.current] }
                 : {},
         );
     }, [onComplete]);
@@ -346,12 +346,12 @@ export default function PostMissionStoryPhase({
     }, [phrases.length, completeIfNeeded]);
 
     useEffect(() => {
-        if (!currentPhrase || !isRecoverExhaustionAuto(currentPhrase)) return;
-        if (!amSpectator && !amNpcController && !appliedExhaustionPhraseIndicesRef.current.has(phraseIndex)) {
-            appliedExhaustionPhraseIndicesRef.current.add(phraseIndex);
+        if (!currentPhrase || !isRecoverHungerAuto(currentPhrase)) return;
+        if (!amSpectator && !amNpcController && !appliedHungerPhraseIndicesRef.current.has(phraseIndex)) {
+            appliedHungerPhraseIndicesRef.current.add(phraseIndex);
             const amount = Math.abs(currentPhrase.amount);
             if (Number.isFinite(amount) && amount > 0) {
-                accumulatedExhaustionChangesRef.current.push(-amount);
+                accumulatedHungerChangesRef.current.push(amount);
             }
         }
         advancePhrase();
@@ -457,8 +457,8 @@ export default function PostMissionStoryPhase({
                         ? accumulatedResearchEntriesRef.current
                         : undefined,
                 ...(accumulatedHealWoundsRef.current > 0 && { healWounds: accumulatedHealWoundsRef.current }),
-                ...(accumulatedExhaustionChangesRef.current.length > 0 && {
-                    exhaustionChanges: [...accumulatedExhaustionChangesRef.current],
+                ...(accumulatedHungerChangesRef.current.length > 0 && {
+                    hungerChanges: [...accumulatedHungerChangesRef.current],
                 }),
             });
         },
@@ -565,10 +565,10 @@ export default function PostMissionStoryPhase({
                 accumulatedHealWoundsRef.current += (action as any).amount;
             }
 
-            if (!amNpcController && action?.type === 'recover_exhaustion') {
+            if (!amNpcController && action?.type === 'recover_hunger') {
                 const recovered = Math.abs(action.amount);
                 if (Number.isFinite(recovered) && recovered > 0) {
-                    accumulatedExhaustionChangesRef.current.push(-recovered);
+                    accumulatedHungerChangesRef.current.push(recovered);
                 }
             }
 
@@ -643,7 +643,7 @@ export default function PostMissionStoryPhase({
         return null;
     }
 
-    if (isGrantResearchAuto(currentPhrase) || isRecoverExhaustionAuto(currentPhrase)) {
+    if (isGrantResearchAuto(currentPhrase) || isRecoverHungerAuto(currentPhrase)) {
         return null;
     }
 

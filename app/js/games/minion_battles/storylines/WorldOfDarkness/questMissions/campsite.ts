@@ -1,5 +1,5 @@
 /**
- * Campsite — special story node. Skips battle, recovers exhaustion, and offers six random free
+ * Campsite — special story node. Skips battle, recovers Hunger, and offers six random free
  * research picks: two weapon (left), two stat (middle), two core (right).
  */
 
@@ -30,7 +30,7 @@ export const CAMPSITE_3_MISSION_ID = 'campsite_3';
  */
 export const CAMPSITE_4_MISSION_ID = 'campsite_4';
 export const CAMPSITE_CHOICE_ID = 'campsite_research_choice';
-export const CAMPSITE_EXHAUSTION_RECOVERY = 20;
+export const CAMPSITE_HUNGER_RECOVERY = 20;
 /**
  * Six random reward slots. The choice grid fills row-major across three columns, so this order
  * puts the two weapon slots on the left, the two stat slots in the middle and the two core slots
@@ -61,7 +61,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },
-        { type: 'recover_exhaustion_auto', amount: CAMPSITE_EXHAUSTION_RECOVERY },
+        { type: 'recover_hunger_auto', amount: CAMPSITE_HUNGER_RECOVERY },
         {
             type: 'choice',
             choiceId: CAMPSITE_CHOICE_ID,
@@ -84,7 +84,7 @@ export class CampsiteMission extends BaseMissionDef {
     }
 
     missionType = 'campsite' as const;
-    description = `A place to rest. Recover ${CAMPSITE_EXHAUSTION_RECOVERY} exhaustion and pick one of ${CAMPSITE_RESEARCH_OPTION_COUNT} free upgrades (weapon, stat or core).`;
+    description = `A place to rest. Recover ${CAMPSITE_HUNGER_RECOVERY} Hunger and pick one of ${CAMPSITE_RESEARCH_OPTION_COUNT} free upgrades (weapon, stat or core).`;
     campaignId = 'world_of_darkness';
     name = 'Campsite';
     worldWidth = CELL_SIZE;

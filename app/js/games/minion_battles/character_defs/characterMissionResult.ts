@@ -1,11 +1,11 @@
 import type { CampaignResourceKey, MissionResearchRewardEntry, MissionResult } from '../../../types';
-import { applyOrderedExhaustionChanges, withExhaustionDelta } from '../storylines/matchExhaustion';
+import { applyOrderedHungerChanges, withHungerDelta } from '../storylines/matchHunger';
 import {
-    clampCharacterMatchExhaustion,
-    getCharacterEndurance,
-    getCharacterExhaustion,
-    type CharacterEnduranceSource,
-} from './characterEndurance';
+    clampCharacterMatchHungerLoss,
+    getCharacterHunger,
+    getCharacterMaxHunger,
+    type CharacterHungerSource,
+} from './characterHunger';
 
 export type CharacterMissionResultExtras = {
     resourceDelta?: Partial<Record<CampaignResourceKey, number>>;
@@ -13,11 +13,11 @@ export type CharacterMissionResultExtras = {
     researchRewardIds?: string[];
     researchRewards?: MissionResearchRewardEntry[];
     /**
-     * Ordered signed exhaustion changes (gain > 0, recovery < 0) applied against the
-     * character's current exhaustion, each step clamped to [0, endurance].
-     * When set, replaces `resourceDelta.exhaustion` with the resulting net delta.
+     * Ordered signed Hunger changes (loss < 0, recovery > 0) applied against the
+     * character's current Hunger, each step clamped to [0, max Hunger].
+     * When set, replaces `resourceDelta.hunger` with the resulting net delta.
      */
-    exhaustionChanges?: number[];
+    hungerChanges?: number[];
 };
 
 export function buildCharacterMissionResultEntry(
@@ -62,38 +62,39 @@ export function upsertCharacterMissionResultList(
     return [...existingList.filter((r) => r.missionId !== missionId), newEntry];
 }
 
-/** Cap match-end exhaustion so it cannot push the character past endurance. */
-export function applyEnduranceCapToExtras(
-    character: CharacterEnduranceSource,
+/** Cap match-end Hunger loss so it cannot push the character's Hunger below 0. */
+export function applyHungerCapToExtras(
+    character: CharacterHungerSource,
     missionId: string,
     extras?: CharacterMissionResultExtras,
 ): CharacterMissionResultExtras | undefined {
     if (!extras) {
         return extras;
     }
-    if (extras.exhaustionChanges && extras.exhaustionChanges.length > 0) {
-        const { exhaustionChanges, ...rest } = extras;
-        const endurance = getCharacterEndurance(character.researchTrees, character.researchNodeLevels);
-        const start = getCharacterExhaustion(character, { excludeMissionId: missionId });
-        const ordered = [extras.resourceDelta?.exhaustion ?? 0, ...exhaustionChanges];
-        const net = Math.floor(applyOrderedExhaustionChanges(start, ordered, endurance)) - start;
+    if (extras.hungerChanges && extras.hungerChanges.length > 0) {
+        const { hungerChanges, ...rest } = extras;
+        const maxHunger = getCharacterMaxHunger(character.researchTrees, character.researchNodeLevels);
+        const start = getCharacterHunger(character, { excludeMissionId: missionId });
+        const ordered = [extras.resourceDelta?.hunger ?? 0, ...hungerChanges];
+        const net = Math.floor(applyOrderedHungerChanges(start, ordered, maxHunger)) - start;
         const others = extras.resourceDelta ? { ...extras.resourceDelta } : {};
-        delete others.exhaustion;
-        const resourceDelta = net !== 0 ? { ...others, exhaustion: net } : others;
+        delete others.hunger;
+        const resourceDelta = net !== 0 ? { ...others, hunger: net } : others;
         return {
             ...rest,
             resourceDelta: Object.keys(resourceDelta).length > 0 ? resourceDelta : undefined,
         };
     }
-    const computed = extras.resourceDelta?.exhaustion ?? 0;
-    const capped = clampCharacterMatchExhaustion(character, missionId, computed);
+    // resourceDelta.hunger is a signed delta; a negative value is the match-end loss to cap.
+    const computed = extras.resourceDelta?.hunger ?? 0;
+    const cappedLoss = clampCharacterMatchHungerLoss(character, missionId, -computed);
     const rest = extras.resourceDelta ? { ...extras.resourceDelta } : undefined;
     if (rest) {
-        delete rest.exhaustion;
+        delete rest.hunger;
     }
-    const resourceDelta = withExhaustionDelta(
+    const resourceDelta = withHungerDelta(
         rest && Object.keys(rest).length > 0 ? rest : undefined,
-        capped,
+        computed > 0 ? computed : -cappedLoss,
     );
     return {
         ...extras,

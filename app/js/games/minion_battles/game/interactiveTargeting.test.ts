@@ -162,7 +162,7 @@ interface LightBlastSessionFixture {
 
 /** Host session paused at a parallel batch with Light Blast on the local caster. */
 async function mountLightBlastSessionFixture(
-    opts?: { onVictory?: (missionResult: string, exhaustion?: number) => void },
+    opts?: { onVictory?: (missionResult: string, hungerLoss?: number) => void },
 ): Promise<LightBlastSessionFixture> {
     const session = new BattleSession({
         api: makeApiStub(),

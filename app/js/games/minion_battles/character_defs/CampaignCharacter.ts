@@ -11,7 +11,7 @@ import { LIGHT_TREE_ID, LIGHT_NODE_CORE } from '../../../researchTrees/trees/lig
 import { coreLightItem } from './items/core/017_core_light';
 import { normalizeResearchSources } from '../../../researchTrees/researchSources';
 import type { ResearchNodeSources } from '../../../researchTrees/types';
-import { getCharacterEndurance, getCharacterExhaustion } from './characterEndurance';
+import { getCharacterHunger, getCharacterMaxHunger } from './characterHunger';
 
 export interface MissionTraitFilter {
     allowedTraits?: string[];
@@ -199,14 +199,14 @@ export class CampaignCharacter {
         return null;
     }
 
-    /** Maximum exhaustion this character can have (default + research). */
-    get endurance(): number {
-        return getCharacterEndurance(this.researchTrees, this.researchNodeLevels);
+    /** Maximum Hunger this character can store (default + research). */
+    get maxHunger(): number {
+        return getCharacterMaxHunger(this.researchTrees, this.researchNodeLevels);
     }
 
-    /** Current exhaustion from this character's mission and quest results. */
-    get exhaustion(): number {
-        return getCharacterExhaustion(this);
+    /** Current Hunger from this character's mission and quest results. */
+    get hunger(): number {
+        return getCharacterHunger(this);
     }
 
     toJSON(): CampaignCharacterData {

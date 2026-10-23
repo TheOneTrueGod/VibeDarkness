@@ -104,8 +104,11 @@ export class Unit extends GameObject {
     maxHp: number;
     /** Cumulative heal-penalty "lost ceiling". Never mutates maxHp — see getEffectiveMaxHp(). */
     hpInjury: number = 0;
-    /** Fight-start exhaustion reserve. Never mutates maxHp — see getEffectiveMaxHp(). */
-    hpExhaustion: number = 0;
+    /**
+     * Fraction of base max HP removed at fight start because the character was hungry (0, 0.25 or 0.5).
+     * Informational: maxHp is already lowered when this is set (see `applyFightStartHunger`).
+     */
+    hungerPenalty: number = 0;
     /** Number of units in this stack. `hp` tracks the frontmost member; damage cascades through the rest. */
     stackSize: number = 1;
     speed: number;
@@ -385,13 +388,12 @@ export class Unit extends GameObject {
     }
 
     /**
-     * Max HP after subtracting fight-start exhaustion and heal-penalty injury.
-     * Injury is floored at MIN_EFFECTIVE_MAX_HP_PCT of the post-exhaustion pool so
-     * 100% exhaustion can still leave only EXHAUSTION_MIN_AVAILABLE_HEALTH_FRACTION.
+     * Max HP after subtracting heal-penalty injury.
+     * Injury is floored at MIN_EFFECTIVE_MAX_HP_PCT of maxHp (which already includes any hunger penalty).
      */
     getEffectiveMaxHp(): number {
-        const afterExhaustion = Math.max(0, this.maxHp - this.hpExhaustion);
-        return Math.max(afterExhaustion * MIN_EFFECTIVE_MAX_HP_PCT, afterExhaustion - this.hpInjury);
+        const pool = Math.max(0, this.maxHp);
+        return Math.max(pool * MIN_EFFECTIVE_MAX_HP_PCT, pool - this.hpInjury);
     }
 
     /** Whether this unit cannot be damaged, targeted, or shown a health bar. */

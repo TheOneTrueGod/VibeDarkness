@@ -31,8 +31,8 @@ export const PLAINS_RANDOM_STORY_CHALLENGE_MAX = 20;
 /** Found Berries — Keep the Berries Campaign Reward. */
 export const FOUND_BERRIES_KEEP_FOOD = 2;
 
-/** Found Berries — Eat the Berries recovers this much exhaustion. */
-export const FOUND_BERRIES_EAT_EXHAUSTION_RECOVERY = 10;
+/** Found Berries — Eat the Berries recovers this much Hunger. */
+export const FOUND_BERRIES_EAT_HUNGER_RECOVERY = 10;
 
 /** Search for loose metals — Campaign Reward (chooser). */
 export const SURFACE_METAL_HARVEST_METAL = 3;

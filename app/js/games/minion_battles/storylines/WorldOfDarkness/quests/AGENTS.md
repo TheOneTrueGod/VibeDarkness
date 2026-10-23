@@ -22,7 +22,7 @@ Per-character "location decks" built from quest rewards. A `location_encounter` 
 
 ### Definitions and instances
 
-- `locationCards.ts` defines the static lookup (`LOCATION_CARD_DEFS`: id 1 = Found Berries, id 2 = Surface Metal Deposit; each has `missionId`, display name, description, flavour text, and `location_tag` enum array for categorization) and reward definitions (`LOCATION_REWARD_DEFS`: id 4 = "Make a healing poultice" story choice option that reduces exhaustion by 5).
+- `locationCards.ts` defines the static lookup (`LOCATION_CARD_DEFS`: id 1 = Found Berries, id 2 = Surface Metal Deposit; each has `missionId`, display name, description, flavour text, and `location_tag` enum array for categorization) and reward definitions (`LOCATION_REWARD_DEFS`: id 4 = "Make a healing poultice" story choice option that restores 5 Hunger (reduces the mission Hunger loss)).
 - Each card owned by a player is a `LocationCardInstance` (unique `instanceId`, `location_card_id`, optional `displayNameOverride`, `modifications`). Instances persist on `CampaignCharacter.locationDeck[campaignId]` (per-campaign map).
 - Deck holds **one instance per `location_card_id`**: re-clearing a quest that grants a card you already own does nothing to that instance, so the player’s modifications are kept untouched.
 - Grant new instances on quest clear via `addLocationCardsToDeck` (one instance per unique `completionRewards.locationCardIds` entry; duplicates and re-grants are skipped); see `Game.tsx` `prepareQuestVictoryContinue` (finale branch, inside `shouldGrant` guard).
@@ -44,7 +44,7 @@ Per-character "location decks" built from quest rewards. A `location_encounter` 
 - `LocationCardModification` (type `add_reward`, with `slot` and `reward_id`) inserts a story choice option from `LOCATION_REWARD_DEFS` into the encounter mission’s choice.
 - `slot` is a 0-based index: when `slot < options.length`, the modification **replaces** that index; otherwise is **appended**.
 - Applied in `PostMissionStoryPhase` via `applyLocationModificationsToOptions(options, modifications)` after computing the mission’s original choice options.
-- `heal_wounds` action (on reward id 4, e.g., the healing poultice): when the player chooses that option, exhaustion is reduced by the `amount` (1-to-1 reduction; see `applyHealWoundsToExhaustion` in `matchExhaustion.ts`).
+- `heal_wounds` action (on reward id 4, e.g., the healing poultice): when the player chooses that option, Hunger loss is reduced by the `amount` (1-to-1; see `applyHealWoundsToHungerLoss` in `matchHunger.ts`).
 
 ### UI
 

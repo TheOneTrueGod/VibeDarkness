@@ -10,12 +10,12 @@ export const DARKNESS_UPGRADE_NODE_EMPOWERED_SPIRITS = 'empowered_spirits';
 export const EMPOWERED_SPIRITS_BONUS_PER_RESOURCE = 2;
 
 /**
- * Resources Empowered Spirits grants: food, metal and crystals. `exhaustion` is a penalty accumulator and
+ * Resources Empowered Spirits grants: food, metal and crystals. `hunger` is a signed penalty accumulator and
  * `population` is intentionally not granted as a mission bonus.
  */
 export const DARKNESS_UPGRADE_REWARD_RESOURCE_KEYS: CampaignResourceKey[] = (
     Object.keys(ZERO_CAMPAIGN_RESOURCES) as CampaignResourceKey[]
-).filter((key) => key !== 'exhaustion' && key !== 'population');
+).filter((key) => key !== 'hunger' && key !== 'population');
 
 function bonusPerResource(amount: number): Partial<Record<CampaignResourceKey, number>> {
     const out: Partial<Record<CampaignResourceKey, number>> = {};

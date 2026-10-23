@@ -45,7 +45,7 @@ import {
 import { SPECTATOR_ID, isControlEnemy } from './state';
 import { MessageType } from '../../MessageTypes';
 import type { CampaignResourceKey } from '../../types';
-import { withExhaustionDelta, applyHealWoundsToExhaustion } from './storylines/matchExhaustion';
+import { withHungerDelta, applyHealWoundsToHungerLoss } from './storylines/matchHunger';
 import { mergeResourceDeltas } from '../../campaignResources';
 import {
     getDarknessUpgradeRewardEntriesForNodeIds,
@@ -53,7 +53,7 @@ import {
     type DarknessUpgradeRewardLineItem,
 } from '../../researchTrees/darknessUpgradeRewards';
 import {
-    applyEnduranceCapToExtras,
+    applyHungerCapToExtras,
     upsertCharacterMissionResultList,
     type CharacterMissionResultExtras,
 } from './character_defs/characterMissionResult';
@@ -341,7 +341,7 @@ export default function MinionBattlesGame({
                 const character = fromCampaignCharacterData(rawChar);
                 nextExtras =
                     result === 'victory'
-                        ? applyEnduranceCapToExtras(character, missionId, extras)
+                        ? applyHungerCapToExtras(character, missionId, extras)
                         : extras;
                 const existingMap: Record<string, MissionResult[]> = rawChar.missionResults ?? {};
                 const existingList = existingMap[campaignId] ?? [];
@@ -378,7 +378,8 @@ export default function MinionBattlesGame({
         healWounds?: number;
         darknessUpgradeLines?: DarknessUpgradeRewardLineItem[];
     } | null>(null);
-    const matchExhaustionRef = useRef(0);
+    /** Positive Hunger the local player lost in the last match (before heal-wounds and caps). */
+    const matchHungerLossRef = useRef(0);
 
     /** Host's active Darkness Upgrade node ids, reported by BattlePhase once the engine is loaded (all clients). */
     const activeDarknessUpgradeNodeIdsRef = useRef<string[]>([]);
@@ -764,10 +765,10 @@ export default function MinionBattlesGame({
                                 missionDef?.completionRewards?.resourceDelta,
                                 rewards.resourceDelta,
                             );
-                        const exhaustion = skipRewards
+                        const hungerLoss = skipRewards
                             ? 0
-                            : applyHealWoundsToExhaustion(matchExhaustionRef.current, rewards.healWounds);
-                        // Serialize character PATCHes first so endurance can cap exhaustion
+                            : applyHealWoundsToHungerLoss(matchHungerLossRef.current, rewards.healWounds);
+                        // Serialize character PATCHes first so the Hunger floor (0) can cap the loss
                         // before the campaign write and victory modal.
                         void (async () => {
                             try {
@@ -778,9 +779,9 @@ export default function MinionBattlesGame({
                                     );
                                 const deferResourcesToQuest =
                                     !!questLobbyFields && !skipRewards && victoryResourceDelta != null;
-                                const recordedDelta = withExhaustionDelta(
+                                const recordedDelta = withHungerDelta(
                                     skipRewards || deferResourcesToQuest ? undefined : victoryResourceDelta,
-                                    exhaustion,
+                                    -hungerLoss,
                                 );
                                 const savedExtras = await persistCharacterMissionResult(
                                     missionId,
@@ -792,7 +793,7 @@ export default function MinionBattlesGame({
                                               itemIds: itemIds.length > 0 ? itemIds : undefined,
                                               researchRewardIds: rewards.researchRewardIds,
                                               researchRewards: rewards.researchRewards,
-                                              exhaustionChanges: rewards.exhaustionChanges,
+                                              hungerChanges: rewards.hungerChanges,
                                           },
                                 );
                                 const cappedDelta = skipRewards
@@ -819,9 +820,9 @@ export default function MinionBattlesGame({
                                         ? null
                                         : {
                                               ...rewards,
-                                              resourceDelta: withExhaustionDelta(
+                                              resourceDelta: withHungerDelta(
                                                   victoryResourceDelta,
-                                                  cappedDelta?.exhaustion ?? 0,
+                                                  cappedDelta?.hunger ?? 0,
                                               ),
                                               darknessUpgradeLines,
                                               itemFromFirstChoice:
@@ -894,8 +895,8 @@ export default function MinionBattlesGame({
                     headerSlot={headerSlot}
                     chatSlot={chatSlot}
                     centerOverlay={centerOverlay}
-                    onVictory={(missionResult, exhaustion = 0) => {
-                        matchExhaustionRef.current = exhaustion;
+                    onVictory={(missionResult, hungerLoss = 0) => {
+                        matchHungerLossRef.current = hungerLoss;
                         if (!selectedMissionId) return;
                         const missionId = selectedMissionId;
                         if (postMissionStory) {
@@ -924,7 +925,7 @@ export default function MinionBattlesGame({
                             const amNpcController = isControlEnemy(sel);
                             const skipRewards = amSpectator || amNpcController;
                             const startingItemIds = skipRewards ? [] : getStartingItemIdsForPlayer(missionId, playerId);
-                            const exhaustion = skipRewards ? 0 : matchExhaustionRef.current;
+                            const hungerLoss = skipRewards ? 0 : matchHungerLossRef.current;
                             const baseVictoryResourceDelta = skipRewards
                                 ? undefined
                                 : missionDef?.completionRewards?.resourceDelta;
@@ -935,7 +936,7 @@ export default function MinionBattlesGame({
                                             baseVictoryResourceDelta,
                                             !skipRewards,
                                         );
-                                    const recordedDelta = withExhaustionDelta(victoryResourceDelta, exhaustion);
+                                    const recordedDelta = withHungerDelta(victoryResourceDelta, -hungerLoss);
                                     const savedExtras = await persistCharacterMissionResult(
                                         missionId,
                                         'victory',

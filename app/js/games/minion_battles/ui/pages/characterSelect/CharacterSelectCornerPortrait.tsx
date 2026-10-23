@@ -2,13 +2,14 @@ import React from 'react';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import { getPortrait } from '../../../character_defs/portraits';
 import CharacterPortrait from '../../components/CharacterPortrait';
+import { CharacterHungerBar } from '../../components/CharacterEditor/CharacterHungerBar';
 
 interface CharacterSelectCornerPortraitProps {
     character: CampaignCharacter;
     onChangeCharacter: () => void;
 }
 
-/** Bottom-left slot: Change Character above a square portrait + name. */
+/** Bottom-left slot: Change Character above a square portrait + name, with the Hunger bar beneath. */
 export function CharacterSelectCornerPortrait({
     character,
     onChangeCharacter,
@@ -43,6 +44,11 @@ export function CharacterSelectCornerPortrait({
                     </div>
                 </div>
             </div>
+            <CharacterHungerBar
+                className="shrink-0"
+                hunger={character.hunger}
+                maxHunger={character.maxHunger}
+            />
         </div>
     );
 }

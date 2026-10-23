@@ -78,8 +78,8 @@ export interface CampaignResources {
     metal: number;
     population: number;
     crystals: number;
-    /** Accumulated match-end exhaustion (wounds + missing HP). */
-    exhaustion: number;
+    /** Signed hunger delta (negative = lost to wounds + missing HP, positive = recovered). */
+    hunger: number;
 }
 
 export type CampaignResourceKey = keyof CampaignResources;

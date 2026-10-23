@@ -37,7 +37,7 @@ describe('darknessUpgrades', () => {
         const rewards = collectDarknessUpgradeBonusRewards(OWNED);
         expect(DARKNESS_UPGRADE_REWARD_RESOURCE_KEYS.length).toBeGreaterThan(0);
         for (const key of DARKNESS_UPGRADE_REWARD_RESOURCE_KEYS) expect(rewards[key]).toBe(2);
-        expect(rewards.exhaustion).toBeUndefined();
+        expect(rewards.hunger).toBeUndefined();
         expect(collectDarknessUpgradeBonusRewards(EMPTY_DARKNESS_UPGRADES)).toEqual({});
     });
 });

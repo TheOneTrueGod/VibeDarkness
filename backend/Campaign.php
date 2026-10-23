@@ -9,7 +9,7 @@ namespace App;
 class Campaign
 {
     /** @var list<string> */
-    private const RESOURCE_KEYS = ['food', 'metal', 'population', 'crystals', 'exhaustion'];
+    private const RESOURCE_KEYS = ['food', 'metal', 'population', 'crystals', 'hunger'];
 
     private string $id;
     private string $name;
@@ -20,14 +20,14 @@ class Campaign
      *   missionId: string,
      *   result: string,
      *   timestamp?: float,
-     *   resourceDelta?: array{food?: int, metal?: int, population?: int, crystals?: int, exhaustion?: int},
+     *   resourceDelta?: array{food?: int, metal?: int, population?: int, crystals?: int, hunger?: int},
      *   itemIds?: array<int, string>,
      *   researchRewardIds?: array<int, string>,
      *   researchRewards?: array<int, array{treeId: string, nodeId: string}>
      * }>
      */
     private array $missionResults;
-    /** @var array{food: int, metal: int, population: int, crystals: int, exhaustion: int} */
+    /** @var array{food: int, metal: int, population: int, crystals: int, hunger: int} */
     private array $resources;
     /**
      * Active DarknessStrength instance crumbs (packageId + optional data).
@@ -177,7 +177,7 @@ class Campaign
         return $this->missionResults;
     }
 
-    /** @return array{food: int, metal: int, population: int, crystals: int, exhaustion: int} */
+    /** @return array{food: int, metal: int, population: int, crystals: int, hunger: int} */
     public function getResources(): array
     {
         return $this->resources;
@@ -339,7 +339,7 @@ class Campaign
             'metal' => (int) ($this->resources['metal'] ?? 0) + $deltas['metal'],
             'population' => (int) ($this->resources['population'] ?? 0) + $deltas['population'],
             'crystals' => (int) ($this->resources['crystals'] ?? 0) + $deltas['crystals'],
-            'exhaustion' => (int) ($this->resources['exhaustion'] ?? 0) + $deltas['exhaustion'],
+            'hunger' => (int) ($this->resources['hunger'] ?? 0) + $deltas['hunger'],
         ];
     }
 
@@ -347,7 +347,7 @@ class Campaign
      * Latest resourceDelta per missionId (highest timestamp wins), then summed.
      *
      * @param array<int, mixed> $missionResults
-     * @return array{food: int, metal: int, population: int, crystals: int, exhaustion: int}
+     * @return array{food: int, metal: int, population: int, crystals: int, hunger: int}
      */
     public static function sumLatestMissionResourceDeltas(array $missionResults): array
     {
@@ -373,7 +373,7 @@ class Campaign
                 $out['metal'] += (int) ($delta['metal'] ?? 0);
                 $out['population'] += (int) ($delta['population'] ?? 0);
                 $out['crystals'] += (int) ($delta['crystals'] ?? 0);
-                $out['exhaustion'] += (int) ($delta['exhaustion'] ?? 0);
+                $out['hunger'] += (int) ($delta['hunger'] ?? 0);
             }
         }
         return $out;
@@ -385,7 +385,7 @@ class Campaign
      *
      * @param mixed $persisted
      * @param array<int, mixed> $missionResults
-     * @return array{food: int, metal: int, population: int, crystals: int, exhaustion: int}
+     * @return array{food: int, metal: int, population: int, crystals: int, hunger: int}
      */
     private static function storedResourcesFromPersistedEffective($persisted, array $missionResults): array
     {
@@ -396,7 +396,7 @@ class Campaign
             'metal' => max(0, (int) ($effective['metal'] ?? 0) - $deltas['metal']),
             'population' => max(0, (int) ($effective['population'] ?? 0) - $deltas['population']),
             'crystals' => max(0, (int) ($effective['crystals'] ?? 0) - $deltas['crystals']),
-            'exhaustion' => max(0, (int) ($effective['exhaustion'] ?? 0) - $deltas['exhaustion']),
+            'hunger' => min(0, (int) ($effective['hunger'] ?? 0) - $deltas['hunger']),
         ];
     }
 
@@ -407,15 +407,15 @@ class Campaign
         $this->resources['metal'] = max(0, ($this->resources['metal'] ?? 0) + (int) ($resourceDelta['metal'] ?? 0));
         $this->resources['population'] = max(0, ($this->resources['population'] ?? 0) + (int) ($resourceDelta['population'] ?? 0));
         $this->resources['crystals'] = max(0, ($this->resources['crystals'] ?? 0) + (int) ($resourceDelta['crystals'] ?? 0));
-        $this->resources['exhaustion'] = max(0, ($this->resources['exhaustion'] ?? 0) + (int) ($resourceDelta['exhaustion'] ?? 0));
+        $this->resources['hunger'] = min(0, ($this->resources['hunger'] ?? 0) + (int) ($resourceDelta['hunger'] ?? 0));
     }
 
     /**
-     * @return array{food: int, metal: int, population: int, crystals: int, exhaustion: int}
+     * @return array{food: int, metal: int, population: int, crystals: int, hunger: int}
      */
     private static function emptyResources(): array
     {
-        return ['food' => 0, 'metal' => 0, 'population' => 0, 'crystals' => 0, 'exhaustion' => 0];
+        return ['food' => 0, 'metal' => 0, 'population' => 0, 'crystals' => 0, 'hunger' => 0];
     }
 
     /** API and storage array. resources = effective (stored + mission rewards). */

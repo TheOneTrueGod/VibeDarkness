@@ -9,7 +9,7 @@ export const ZERO_CAMPAIGN_RESOURCES: CampaignResources = {
     metal: 0,
     population: 0,
     crystals: 0,
-    exhaustion: 0,
+    hunger: 0,
 };
 
 /**
@@ -38,7 +38,7 @@ export function sumLatestMissionResourceDeltas(
         out.metal += delta.metal ?? 0;
         out.population += delta.population ?? 0;
         out.crystals += delta.crystals ?? 0;
-        out.exhaustion += delta.exhaustion ?? 0;
+        out.hunger += delta.hunger ?? 0;
     }
     return out;
 }
@@ -67,6 +67,6 @@ export function campaignResourcesEqual(a: CampaignResources, b: CampaignResource
         a.metal === b.metal &&
         a.population === b.population &&
         a.crystals === b.crystals &&
-        a.exhaustion === b.exhaustion
+        a.hunger === b.hunger
     );
 }

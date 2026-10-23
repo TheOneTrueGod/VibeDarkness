@@ -8,10 +8,11 @@ import {
     getNonZeroPassiveBonusRows,
 } from '../../../../../researchTrees/passiveBonuses';
 import { PassiveStatKey, type ResearchNodeLevels } from '../../../../../researchTrees/types';
+import { MAX_HUNGER_TOOLTIP } from '../../../../../components/ResourcePill';
 
 const STAT_LABELS: Record<PassiveStatKey, string> = {
     [PassiveStatKey.MaxHealth]: 'Max Health',
-    [PassiveStatKey.Endurance]: 'Endurance',
+    [PassiveStatKey.MaxHunger]: 'Max Hunger',
     [PassiveStatKey.AllDamage]: 'All Damage',
     [PassiveStatKey.EarthDamage]: 'Earth Damage',
     [PassiveStatKey.PetMaxHealth]: 'Pet Max Health',
@@ -21,6 +22,10 @@ const STAT_LABELS: Record<PassiveStatKey, string> = {
     [PassiveStatKey.LightRegenEnabled]: 'Light Regen',
     [PassiveStatKey.EnemyUnitSlimeMaxHealthBonus]: 'Enemy Slime Max Health',
     [PassiveStatKey.EnemyUnitSlimeExtraProjectiles]: 'Enemy Slime Extra Projectiles',
+};
+
+const STAT_TOOLTIPS: Partial<Record<PassiveStatKey, string>> = {
+    [PassiveStatKey.MaxHunger]: MAX_HUNGER_TOOLTIP,
 };
 
 function formatAdd(add: number): string {
@@ -69,7 +74,7 @@ export default function StatBonusesTab({ researchTrees, researchNodeLevels }: St
                 <tbody>
                     {rows.map((row) => (
                         <tr key={row.key} className="border-b border-border-custom/60">
-                            <td className="py-2 pr-3 text-white">{STAT_LABELS[row.key] ?? row.key}</td>
+                            <td className="py-2 pr-3 text-white" title={STAT_TOOLTIPS[row.key]}>{STAT_LABELS[row.key] ?? row.key}</td>
                             <td className="py-2 pr-3 tabular-nums text-amber-200">{formatAdd(row.add)}</td>
                             <td className="py-2 tabular-nums text-amber-200">{formatMult(row.mult)}</td>
                         </tr>

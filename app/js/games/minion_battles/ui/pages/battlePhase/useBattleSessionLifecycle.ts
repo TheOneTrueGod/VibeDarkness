@@ -27,7 +27,7 @@ interface UseBattleSessionLifecycleParams {
     onLoadDarknessUpgrades?: () => Promise<DarknessUpgradesState | undefined>;
     /** Reports the host's active upgrade node ids once the engine is loaded (all clients). */
     onActiveDarknessUpgradeNodeIds?: (nodeIds: string[]) => void;
-    onVictory?: (missionResult: string, exhaustion?: number) => void;
+    onVictory?: (missionResult: string, hungerLoss?: number) => void;
     onDefeat?: () => void;
     onEmittedChatMessage?: (entry: MessageEntry) => void;
     sessionRef: RefObject<BattleSession | null>;

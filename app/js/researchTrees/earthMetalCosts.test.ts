@@ -97,7 +97,7 @@ describe('earth tree campaign costs', () => {
                     metal: EARTH_STONE_SYNERGY_METAL_COST - 1,
                     population: 0,
                     crystals: EARTH_STONE_SYNERGY_CRYSTAL_COST,
-                    exhaustion: 0,
+                    hunger: 0,
                 },
                 { [EARTH_TREE_ID]: [earthTree.nodes[0]!.id] },
             ),

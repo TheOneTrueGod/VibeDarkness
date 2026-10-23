@@ -2,47 +2,24 @@
  * Single campaign resource: icon + count in a rounded pill with a thin solid border.
  */
 import React from 'react';
-import { Heart } from 'lucide-react';
+import { Ham } from 'lucide-react';
 import type { CampaignResourceKey } from '../types';
+import { HUNGER_BAR_TOOLTIP } from '../games/minion_battles/character_defs/hungerHealth';
 
-export const EXHAUSTION_PILL_RED = '#ef4444';
-export const EXHAUSTION_PILL_BACKGROUND = '#b91c1c';
-export const ENDURANCE_PILL_BACKGROUND = '#000000';
+/** Tailwind orange-500: the Hunger colour everywhere (pills, character bar). */
+export const HUNGER_ORANGE = '#f97316';
+export const HUNGER_BLACK = '#000000';
 
-function ExhaustionHeartIcon({ className = 'w-[18px] h-[18px]' }: { color?: string; className?: string }) {
-    return (
-        <Heart
-            className={`${className} shrink-0`}
-            fill="#000000"
-            stroke="#ffffff"
-            strokeWidth={2}
-            aria-hidden
-        />
-    );
+/** Hunger icon: `Ham` outlined in the given colour. */
+function HungerIcon({ color, className = 'w-[18px] h-[18px]' }: { color: string; className?: string }) {
+    return <Ham className={`${className} shrink-0`} stroke={color} strokeWidth={2} aria-hidden />;
 }
 
-function EnduranceHeartIcon({ className = 'w-[18px] h-[18px]' }: { color?: string; className?: string }) {
-    return (
-        <Heart
-            className={`${className} shrink-0`}
-            fill={EXHAUSTION_PILL_RED}
-            stroke={EXHAUSTION_PILL_RED}
-            strokeWidth={2}
-            aria-hidden
-        />
-    );
-}
+const RESOURCE_ORDER: CampaignResourceKey[] = ['food', 'metal', 'population', 'crystals', 'hunger'];
 
-const RESOURCE_ORDER: CampaignResourceKey[] = ['food', 'metal', 'population', 'crystals', 'exhaustion'];
-
-export const EXHAUSTION_TOOLTIP =
-    'Exhaustion: Represents how tired this mission has left you. Based on the damage you\'ve taken.';
-
-export const ENDURANCE_TOOLTIP =
-    'Endurance: The most exhaustion this character can have.';
-
-export const REMAINING_ENDURANCE_TOOLTIP =
-    'Endurance: How much more exhaustion this character can take.';
+export const HUNGER_LOSS_TOOLTIP = 'Hunger lost this mission, based on the damage you took.';
+export const HUNGER_RECOVERY_TOOLTIP = 'Hunger recovered.';
+export const MAX_HUNGER_TOOLTIP = 'Max Hunger: The most Hunger this character can store.';
 
 const RESOURCE_META: Record<
     CampaignResourceKey,
@@ -59,15 +36,37 @@ const RESOURCE_META: Record<
     metal: { label: 'Metal', color: '#95A5A6', Icon: MetalIcon },
     population: { label: 'Population', color: '#3498DB', Icon: PopulationIcon },
     crystals: { label: 'Crystals', color: '#9B59B6', Icon: CrystalIcon },
-    exhaustion: {
-        label: 'Exhaustion',
-        color: EXHAUSTION_PILL_RED,
-        backgroundColor: EXHAUSTION_PILL_BACKGROUND,
-        textColor: '#ffffff',
-        Icon: ExhaustionHeartIcon,
-        tooltip: EXHAUSTION_TOOLTIP,
-    },
+    // Hunger chrome is sign-driven; see `hungerPillStyle`.
+    hunger: { label: 'Hunger', color: HUNGER_ORANGE, Icon: HungerIcon },
 };
+
+export interface HungerPillStyle {
+    color: string;
+    backgroundColor: string;
+    textColor: string;
+    tooltip: string;
+}
+
+/**
+ * Hunger pill chrome. Recovered (positive): solid orange, black icon + text.
+ * Lost (negative): black, orange border + icon + text. `current` shows a remaining-Hunger value (black, orange).
+ */
+export function hungerPillStyle(count: number, current = false): HungerPillStyle {
+    if (!current && count > 0) {
+        return {
+            color: HUNGER_BLACK,
+            backgroundColor: HUNGER_ORANGE,
+            textColor: HUNGER_BLACK,
+            tooltip: HUNGER_RECOVERY_TOOLTIP,
+        };
+    }
+    return {
+        color: HUNGER_ORANGE,
+        backgroundColor: HUNGER_BLACK,
+        textColor: HUNGER_ORANGE,
+        tooltip: current ? HUNGER_BAR_TOOLTIP : HUNGER_LOSS_TOOLTIP,
+    };
+}
 
 function FoodIcon({ color, className = 'w-[18px] h-[18px]' }: { color: string; className?: string }) {
     return (
@@ -137,10 +136,10 @@ export const RESOURCE_PILL_SIZE_CLASS: Record<ResourcePillSize, { pill: string; 
 export interface ResourcePillProps {
     resource: CampaignResourceKey;
     count: number;
-    /** When set, the pill shows `count/max` (exhaustion over endurance). */
+    /** When set, the pill shows `count/max` (current Hunger over max Hunger). */
     max?: number;
-    /** Upgrades remaining-endurance chrome: red heart on black (inverse of exhaustion). */
-    appearance?: 'default' | 'endurance';
+    /** `'hunger'`: current-Hunger chrome (orange Ham on black) instead of the sign-driven gain/loss chrome. */
+    appearance?: 'default' | 'hunger';
     size?: ResourcePillSize;
     className?: string;
 }
@@ -154,19 +153,12 @@ export default function ResourcePill({
     className = '',
 }: ResourcePillProps) {
     const meta = RESOURCE_META[resource];
-    const showEndurance = appearance === 'endurance';
-    const { color, Icon, label, backgroundColor, textColor, tooltip } = showEndurance
-        ? {
-              color: EXHAUSTION_PILL_RED,
-              Icon: EnduranceHeartIcon,
-              label: 'Endurance',
-              backgroundColor: ENDURANCE_PILL_BACKGROUND,
-              textColor: '#ffffff' as const,
-              tooltip: REMAINING_ENDURANCE_TOOLTIP,
-          }
+    const isHunger = resource === 'hunger';
+    const { color, Icon, label, backgroundColor, textColor, tooltip } = isHunger
+        ? { ...meta, ...hungerPillStyle(count, appearance === 'hunger') }
         : meta;
     const isNegative = count < 0;
-    const displayColor = isNegative ? '#f87171' : color;
+    const displayColor = isNegative && !isHunger ? '#f87171' : color;
     const sizeClass = RESOURCE_PILL_SIZE_CLASS[size];
     const filled = backgroundColor != null;
     return (
@@ -181,16 +173,10 @@ export default function ResourcePill({
                 color: filled ? (textColor ?? '#ffffff') : displayColor,
                 ...(filled ? { backgroundColor } : {}),
             }}
-            title={
-                showEndurance
-                    ? tooltip
-                    : max != null && resource === 'exhaustion'
-                      ? `${EXHAUSTION_TOOLTIP} ${ENDURANCE_TOOLTIP}`
-                      : (tooltip ?? `${count} ${label}`)
-            }
+            title={tooltip ?? `${count} ${label}`}
         >
             <Icon color={displayColor} className={sizeClass.icon} />
-            {max != null ? `${count}/${max}` : count}
+            {max != null ? `${count}/${max}` : isHunger && count > 0 && appearance !== 'hunger' ? `+${count}` : count}
         </span>
     );
 }
@@ -206,7 +192,8 @@ export function campaignResourceGains(
     const out: { resource: CampaignResourceKey; count: number }[] = [];
     for (const key of RESOURCE_ORDER) {
         const n = delta[key];
-        if (n != null && n > 0) {
+        // Hunger is signed: a negative delta is a loss that should still render (as a loss pill).
+        if (n != null && (n > 0 || (key === 'hunger' && n < 0))) {
             out.push({ resource: key, count: n });
         }
     }

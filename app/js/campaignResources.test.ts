@@ -23,7 +23,7 @@ describe('sumLatestMissionResourceDeltas', () => {
                 result({ missionId: 'a', resourceDelta: { food: 2, crystals: 1 } }),
                 result({ missionId: 'quest:wildlife', resourceDelta: { food: 3, metal: 5 } }),
             ]),
-        ).toEqual({ food: 5, metal: 5, population: 0, crystals: 1, exhaustion: 0 });
+        ).toEqual({ food: 5, metal: 5, population: 0, crystals: 1, hunger: 0 });
     });
 
     it('keeps only the latest result per missionId', () => {
@@ -33,7 +33,7 @@ describe('sumLatestMissionResourceDeltas', () => {
                 result({ missionId: 'a', timestamp: 3, resourceDelta: { food: 1 } }),
                 result({ missionId: 'a', timestamp: 2, resourceDelta: { food: 99 } }),
             ]),
-        ).toEqual({ food: 1, metal: 0, population: 0, crystals: 0, exhaustion: 0 });
+        ).toEqual({ food: 1, metal: 0, population: 0, crystals: 0, hunger: 0 });
     });
 });
 

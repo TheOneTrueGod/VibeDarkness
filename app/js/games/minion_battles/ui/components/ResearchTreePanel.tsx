@@ -22,8 +22,8 @@ import {
 } from '../../../../researchTrees/evaluator';
 import { getNodeLevel, getNodeMaxLevels } from '../../../../researchTrees/passiveBonuses';
 import ResourcePill, { RESOURCE_ORDER } from '../../../../components/ResourcePill';
-import { getCharacterRemainingEndurance } from '../../character_defs/characterEndurance';
-import { EXHAUSTION_RESOURCE_KEY } from '../../storylines/matchExhaustion';
+import { getCharacterHungerDelta, getCharacterMaxHunger, hungerFromDelta } from '../../character_defs/characterHunger';
+import { HUNGER_RESOURCE_KEY } from '../../storylines/matchHunger';
 import ResearchNodeCard, { type ResearchRequirementBadge } from './ResearchNodeCard';
 import { getItemDef } from '../../character_defs/items';
 import {
@@ -119,20 +119,17 @@ function UpgradesResourcePills({
 	researchNodeLevels?: ResearchNodeLevels;
 	className?: string;
 }) {
-	const remainingEndurance = getCharacterRemainingEndurance(
-		character,
-		researchTrees,
-		researchNodeLevels,
-	);
+	const maxHunger = getCharacterMaxHunger(researchTrees, researchNodeLevels);
+	const currentHunger = hungerFromDelta(maxHunger, getCharacterHungerDelta(character));
 	return (
 		<>
 			{RESOURCE_ORDER.map((resource) =>
-				resource === EXHAUSTION_RESOURCE_KEY ? (
+				resource === HUNGER_RESOURCE_KEY ? (
 					<ResourcePill
 						key={resource}
 						resource={resource}
-						appearance="endurance"
-						count={remainingEndurance}
+						appearance="hunger"
+						count={currentHunger}
 						className={className}
 					/>
 				) : (
@@ -744,7 +741,7 @@ const EMPTY_CAMPAIGN_RESOURCES: CampaignResources = {
 	metal: 0,
 	population: 0,
 	crystals: 0,
-	exhaustion: 0,
+	hunger: 0,
 };
 
 function ResearchGridCards({

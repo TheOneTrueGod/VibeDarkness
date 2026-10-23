@@ -35,7 +35,7 @@ import {
     CAVE_RESPITE_FOOD_REWARD,
     CAVE_RESPITE_METAL_REWARD,
 } from './missions/004_cave_respite';
-import { MONSTER, MONSTER_CRYSTAL_REWARD, MONSTER_EXHAUSTION_RECOVERY } from './missions/005_monster';
+import { MONSTER, MONSTER_CRYSTAL_REWARD, MONSTER_HUNGER_RECOVERY } from './missions/005_monster';
 import {
     CORE_AWAKENING,
     CORE_AWAKENING_CRYSTAL_REWARD,
@@ -84,12 +84,12 @@ describe('chapter 1 completion resource rewards', () => {
         });
     });
 
-    it('recovers 100 exhaustion for each player at the end of The Beast post-mission story', () => {
-        expect(MONSTER_EXHAUSTION_RECOVERY).toBe(100);
+    it('recovers 100 Hunger for each player at the end of The Beast post-mission story', () => {
+        expect(MONSTER_HUNGER_RECOVERY).toBe(100);
         const phrases = MONSTER.postMissionStory!.phrases;
         expect(phrases[phrases.length - 1]).toEqual({
-            type: 'recover_exhaustion_auto',
-            amount: MONSTER_EXHAUSTION_RECOVERY,
+            type: 'recover_hunger_auto',
+            amount: MONSTER_HUNGER_RECOVERY,
         });
     });
 
