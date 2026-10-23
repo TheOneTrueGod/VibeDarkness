@@ -106,10 +106,6 @@ test.describe('Mission Map quest bank side quest', () => {
             : optionalStart;
         await startBtn.scrollIntoViewIfNeeded();
         await startBtn.click();
-        // Unified layout hides the picker behind the "Edit Abilities" footer toggle.
-        const editAbilities = page.getByRole('button', { name: 'Edit Abilities' });
-        await editAbilities.waitFor({ state: 'visible', timeout: 30_000 });
-        await editAbilities.click();
         await expect(page.getByTestId(TestIds.questPrepAbilityPicker)).toBeVisible({ timeout: 30_000 });
     });
 });

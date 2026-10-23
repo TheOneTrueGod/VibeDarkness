@@ -3,13 +3,15 @@ import { DARKNESS_UPGRADE_ICON, DARKNESS_UPGRADES_TREE_ID } from '../../../../..
 import { getResearchTree } from '../../../../../researchTrees/list';
 import type { DarknessModifiersController } from './useDarknessModifiers';
 
-interface DarknessModifiersModalProps {
+interface DarknessModifiersPanelProps {
     modifiers: DarknessModifiersController;
-    onClose: () => void;
 }
 
-/** Lets the host select / deselect owned Darkness Upgrades within the mission's min/max. */
-export function DarknessModifiersModal({ modifiers, onClose }: DarknessModifiersModalProps) {
+/**
+ * Edit Modifiers view of the Prepare screen: the host selects / deselects owned Darkness Upgrades
+ * within the mission's min/max. The footer's Back button returns to Prepare.
+ */
+export function DarknessModifiersPanel({ modifiers }: DarknessModifiersPanelProps) {
     const { ownedNodeIds, selectedNodeIds, limits, check, toggle } = modifiers;
     const nodes = getResearchTree(DARKNESS_UPGRADES_TREE_ID)?.nodes ?? [];
     const selected = new Set(selectedNodeIds);
@@ -20,24 +22,17 @@ export function DarknessModifiersModal({ modifiers, onClose }: DarknessModifiers
     const minText = Math.min(limits.min, ownedNodeIds.length);
 
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-            onClick={onClose}
-            role="presentation"
-        >
-            <div
-                role="dialog"
-                aria-modal="true"
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-5 py-4">
+            <section
                 aria-label="Edit Modifiers"
-                className="w-full max-w-md rounded-lg border border-border-custom bg-surface p-5 shadow-xl"
-                onClick={(e) => e.stopPropagation()}
+                className="flex min-h-0 max-h-full w-full max-w-md flex-col rounded-xl bg-black/50 p-5 backdrop-blur-sm"
             >
                 <h2 className="text-lg font-bold text-white">Edit Modifiers</h2>
                 <p className="mt-1 text-sm text-muted">
                     Selected {selectedNodeIds.length} of {ownedNodeIds.length}. This mission allows{' '}
                     {minText > 0 ? `${minText} to ${capText}` : `up to ${capText}`}.
                 </p>
-                <ul className="mt-3 flex max-h-[50vh] flex-col gap-2 overflow-y-auto">
+                <ul className="mt-3 flex min-h-0 flex-col gap-2 overflow-y-auto">
                     {owned.map((node) => {
                         const isOn = selected.has(node.id);
                         return (
@@ -68,16 +63,7 @@ export function DarknessModifiersModal({ modifiers, onClose }: DarknessModifiers
                 {!check.valid && (
                     <p className="mt-3 text-sm text-yellow-400/80" role="alert">{check.reason}</p>
                 )}
-                <div className="mt-4 flex justify-end">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="cursor-pointer rounded-md border border-border-custom bg-surface-light px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-border-custom"
-                    >
-                        Done
-                    </button>
-                </div>
-            </div>
+            </section>
         </div>
     );
 }

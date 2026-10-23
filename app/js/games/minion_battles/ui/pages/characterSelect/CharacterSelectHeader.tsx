@@ -6,6 +6,8 @@ interface CharacterSelectHeaderTitleArgs {
     activeTab: 'characters' | 'players' | 'replay';
     isAdmin: boolean;
     editorOpen: boolean;
+    /** Edit Modifiers sub-view of Prepare is open. */
+    modifiersOpen?: boolean;
     characterToEdit: CampaignCharacter | null;
     /** 'overview' = loadout main view; 'grid' = pick / change character. */
     view: 'overview' | 'grid';
@@ -16,12 +18,14 @@ export function getCharacterSelectPhaseTitle({
     activeTab,
     isAdmin,
     editorOpen,
+    modifiersOpen = false,
     characterToEdit,
     view,
 }: CharacterSelectHeaderTitleArgs): string {
     if (activeTab === 'players' && isAdmin) return 'Players';
     if (editorOpen && characterToEdit) return 'Edit Character';
-    if (view === 'overview') return 'Prepare Carefully';
+    if (modifiersOpen && view === 'overview') return 'Edit Modifiers';
+    if (view === 'overview') return 'Prepare';
     return 'Select your character';
 }
 
@@ -42,6 +46,7 @@ export function CharacterSelectHeader({
     activeTab,
     isAdmin,
     editorOpen,
+    modifiersOpen,
     characterToEdit,
     view,
     subtitle,
@@ -52,6 +57,7 @@ export function CharacterSelectHeader({
         activeTab,
         isAdmin,
         editorOpen,
+        modifiersOpen,
         characterToEdit,
         view,
     });

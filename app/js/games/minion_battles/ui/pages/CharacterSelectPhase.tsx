@@ -45,7 +45,7 @@ import {
 import { PREP_ABILITY_SLOT_COUNT } from '../../storylines/questPrepLoadout';
 import { resolveCampaignInstanceId } from '../../../../resolveCampaignInstanceId';
 import { useDarknessModifiers } from './characterSelect/useDarknessModifiers';
-import { DarknessModifiersModal } from './characterSelect/DarknessModifiersModal';
+import { DarknessModifiersPanel } from './characterSelect/DarknessModifiersPanel';
 
 interface CharacterSelectPhaseProps {
     api: MinionBattlesApi;
@@ -106,10 +106,8 @@ function isQuestPrepMode(
 function PrepCenter({
     useLayoutSlots,
     onChangeCharacter,
-    pickerOpen,
 }: {
     useLayoutSlots: boolean;
-    pickerOpen: boolean;
     onChangeCharacter: () => void;
 }) {
     const loadout = usePrepLoadoutContext();
@@ -119,30 +117,10 @@ function PrepCenter({
             onChangeCharacter={onChangeCharacter}
             useLayoutSlots={useLayoutSlots}
             selectionRequired={loadout.selectionRequired}
-            pickerOpen={pickerOpen}
             selectableIds={loadout.selectableIds}
             selectedPrimaryIds={loadout.selectedPrimaryIds}
             slotsFull={loadout.slotsFull}
             onAdd={loadout.addAbility}
-        />
-    );
-}
-
-/** Footer inside PrepLoadoutProvider: offers "Edit Abilities" only when over the slot cap. */
-function PrepFooter({
-    pickerOpen,
-    onTogglePicker,
-    ...footerProps
-}: React.ComponentProps<typeof CharacterSelectFooter> & {
-    pickerOpen: boolean;
-    onTogglePicker: () => void;
-}) {
-    const loadout = usePrepLoadoutContext();
-    return (
-        <CharacterSelectFooter
-            {...footerProps}
-            abilityPickerOpen={pickerOpen}
-            onEditAbilities={loadout.selectionRequired ? onTogglePicker : undefined}
         />
     );
 }
@@ -237,9 +215,6 @@ export default function CharacterSelectPhase({
         localPrimariesRef.current = ids;
     }, []);
 
-    const [abilityPickerOpen, setAbilityPickerOpen] = useState(false);
-    const toggleAbilityPicker = useCallback(() => setAbilityPickerOpen((open) => !open), []);
-
     const [prepAbilityReady, setPrepAbilityReady] = useState(true);
     const onPrepAbilityReadyChange = useCallback((ready: boolean) => {
         setPrepAbilityReady(ready);
@@ -330,21 +305,33 @@ export default function CharacterSelectPhase({
         && !(activeTab === 'players' && isAdmin)
         && !(activeTab === 'replay' && isAdmin);
 
-    const isLoadoutOverview = hasSelectedCharacterLoadout && !(editorOpen && characterToEdit);
-    /** Footer + ability strip in the bottom band (Prepare Carefully and Edit Character). */
+    /**
+     * Prepare sub-views: Edit Character (`editorOpen`) and Edit Modifiers replace the center pane;
+     * Back returns to Prepare (the ability picker when there is a choice to make).
+     */
+    const modifiersViewOpen = hasSelectedCharacterLoadout && modifiersOpen && modifiers.available;
+    const isLoadoutOverview = hasSelectedCharacterLoadout && !(editorOpen && characterToEdit) && !modifiersViewOpen;
+    const closeEditor = () => { setEditorOpen(false); setEditorForceEditable(false); };
+    const backToPrepare = editorOpen && characterToEdit
+        ? closeEditor
+        : modifiersViewOpen
+          ? () => setModifiersOpen(false)
+          : undefined;
+    /** Footer + ability strip in the bottom band (Prepare and its sub-views). */
     const footerInBottomBand = useUnifiedSlotShell && hasSelectedCharacterLoadout;
 
     const phaseTitle = getCharacterSelectPhaseTitle({
         activeTab,
         isAdmin,
         editorOpen,
+        modifiersOpen: modifiersViewOpen,
         characterToEdit,
         view,
     });
     const missionName = missionDef?.name ?? missionId;
     const lobbyHeaderTitle = missionName ? `${phaseTitle}: ${missionName}` : phaseTitle;
 
-    const showAdminTabs = isAdmin && !(editorOpen && characterToEdit);
+    const showAdminTabs = isAdmin && !backToPrepare;
 
     const adminTabsCorner = showAdminTabs ? (
         <CharacterSelectAdminTabsCorner
@@ -356,7 +343,6 @@ export default function CharacterSelectPhase({
     const footerProps = {
         activeTab,
         view,
-        editorOpen,
         isAdmin,
         mySelection,
         effectivelyReady,
@@ -369,12 +355,12 @@ export default function CharacterSelectPhase({
         characterToEdit,
         abilityLoadoutReady: !hasSelectedCharacterLoadout || prepAbilityReady,
         onEditModifiers: hasSelectedCharacterLoadout && modifiers.available
-            ? () => setModifiersOpen(true)
+            ? () => { closeEditor(); setModifiersOpen(true); }
             : undefined,
         modifiersBlockReason: hasSelectedCharacterLoadout ? modifiers.blockReason : null,
         onSetReady: phase.handleSetReady,
-        onOpenEditor: () => setEditorOpen(true),
-        onCloseEditor: () => { setEditorOpen(false); setEditorForceEditable(false); },
+        onOpenEditor: () => { setModifiersOpen(false); setEditorOpen(true); },
+        onBack: backToPrepare,
     } as const;
 
     const abilityBottomRow =
@@ -384,12 +370,7 @@ export default function CharacterSelectPhase({
         <div className="flex h-full w-full min-h-0 flex-col">
             {/* Equal flex spacers: padding above buttons, between buttons/cards, and below cards */}
             <div className="min-h-0 flex-1" aria-hidden />
-            <PrepFooter
-                {...footerProps}
-                compact
-                pickerOpen={abilityPickerOpen}
-                onTogglePicker={toggleAbilityPicker}
-            />
+            <CharacterSelectFooter {...footerProps} compact />
             <div className="min-h-0 flex-1" aria-hidden />
             <div className="flex shrink-0 justify-center">
                 {abilityBottomRow}
@@ -415,6 +396,7 @@ export default function CharacterSelectPhase({
                 activeTab={activeTab}
                 isAdmin={isAdmin}
                 editorOpen={editorOpen}
+                modifiersOpen={modifiersViewOpen}
                 characterToEdit={characterToEdit}
                 view={view}
                 titleInLobbyHeader={useUnifiedSlotShell}
@@ -434,7 +416,7 @@ export default function CharacterSelectPhase({
                         character={characterToEdit}
                         api={api}
                         onSaved={chars.handleEditorSaved}
-                        onClose={() => { setEditorOpen(false); setEditorForceEditable(false); }}
+                        onClose={closeEditor}
                         editMode={isAdmin || editorForceEditable || debugConsoleEnabled}
                         showInventoryPanel={isAdmin || getUnlockedItemIds(campaign).length > 0}
                         account={user}
@@ -444,9 +426,10 @@ export default function CharacterSelectPhase({
                         hideMissionMap
                     />
                 </div>
+            ) : modifiersViewOpen ? (
+                <DarknessModifiersPanel modifiers={modifiers} />
             ) : isLoadoutOverview && characterToEdit ? (
                 <PrepCenter
-                    pickerOpen={abilityPickerOpen}
                     useLayoutSlots={useUnifiedSlotShell}
                     onChangeCharacter={() => setView('grid')}
                 />
@@ -483,10 +466,6 @@ export default function CharacterSelectPhase({
                     anchorRef={{ current: createCardRef }}
                     localPlayerId={user?.id}
                 />
-            )}
-
-            {modifiersOpen && modifiers.available && (
-                <DarknessModifiersModal modifiers={modifiers} onClose={() => setModifiersOpen(false)} />
             )}
 
             {!footerInBottomBand && <CharacterSelectFooter {...footerProps} />}

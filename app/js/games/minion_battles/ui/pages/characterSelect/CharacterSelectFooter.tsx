@@ -9,7 +9,6 @@ interface CharacterSelectFooterProps {
     activeTab: 'characters' | 'players' | 'replay';
     /** 'overview' = loadout; 'grid' = pick / change character (Ready hidden). */
     view: 'overview' | 'grid';
-    editorOpen: boolean;
     isAdmin: boolean;
     mySelection: string | null;
     effectivelyReady: boolean;
@@ -24,23 +23,22 @@ interface CharacterSelectFooterProps {
     abilityLoadoutReady?: boolean;
     /** Compact padding when rendered above the bottom ability band. */
     compact?: boolean;
-    /** When set, an "Edit Abilities" button is shown left of "Edit Character". */
-    onEditAbilities?: () => void;
-    /** True while the ability picker is open (button becomes a "Hide Abilities" toggle). */
-    abilityPickerOpen?: boolean;
     /** When set, an "Edit Modifiers" button (Darkness Upgrades) is shown. */
     onEditModifiers?: () => void;
     /** Why Ready is blocked by the modifier selection (shown as a tooltip and message), or null. */
     modifiersBlockReason?: string | null;
     onSetReady: () => void;
     onOpenEditor: () => void;
-    onCloseEditor: () => void;
+    /**
+     * Set while a Prepare sub-view (Edit Character / Edit Modifiers) is open: the footer shows
+     * only Back (returns to Prepare) and Ready.
+     */
+    onBack?: () => void;
 }
 
 export function CharacterSelectFooter({
     activeTab,
     view,
-    editorOpen,
     isAdmin,
     mySelection,
     effectivelyReady,
@@ -53,13 +51,11 @@ export function CharacterSelectFooter({
     characterToEdit,
     abilityLoadoutReady = true,
     compact = false,
-    onEditAbilities,
-    abilityPickerOpen = false,
     onEditModifiers,
     modifiersBlockReason = null,
     onSetReady,
     onOpenEditor,
-    onCloseEditor,
+    onBack,
 }: CharacterSelectFooterProps) {
     const { debugConsoleEnabled } = useDebugConsole();
     const readyAnchorRef = useRef<HTMLDivElement>(null);
@@ -99,12 +95,12 @@ export function CharacterSelectFooter({
                 compact ? 'gap-2 px-2 py-0' : 'gap-4 px-5 py-4'
             }`}
         >
-            {editorOpen ? (
+            {onBack ? (
                 <>
                     <button
                         type="button"
                         className={secondaryBtnClass}
-                        onClick={onCloseEditor}
+                        onClick={onBack}
                     >
                         Back
                     </button>
@@ -112,15 +108,6 @@ export function CharacterSelectFooter({
                 </>
             ) : (
                 <>
-                    {onEditAbilities && (
-                        <button
-                            type="button"
-                            className={secondaryBtnClass}
-                            onClick={onEditAbilities}
-                        >
-                            {abilityPickerOpen ? 'Hide Abilities' : 'Edit Abilities'}
-                        </button>
-                    )}
                     {showEditCharacter && (
                         <button
                             type="button"

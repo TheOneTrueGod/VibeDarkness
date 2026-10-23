@@ -9,17 +9,12 @@ interface PrepDeckSelectorProps {
     selectedPrimaryIds: readonly string[];
     slotsFull: boolean;
     onAdd: (abilityId: string) => void;
-    /**
-     * Whether the picker itself is shown once unlocked (e.g. the "Edit Abilities" toggle on the
-     * unified layout). Ignored while locked: nothing renders.
-     */
-    open?: boolean;
 }
 
 /**
- * Deck selector shared by Quest Prep (side quests) and Prepare Carefully (regular missions).
- * One show/hide rule for both: with no more abilities than slots there is nothing to choose, so
- * it renders nothing and the prep background shows through; otherwise the ability picker (when `open`).
+ * Deck selector on the Prepare screen (side quests and regular missions).
+ * With no more abilities than slots there is nothing to choose, so it renders nothing and the
+ * prep background shows through; otherwise the ability picker.
  */
 export function PrepDeckSelector({
     character,
@@ -27,9 +22,8 @@ export function PrepDeckSelector({
     selectedPrimaryIds,
     slotsFull,
     onAdd,
-    open = true,
 }: PrepDeckSelectorProps) {
-    if (!isPrepDeckSelectorUnlocked(selectableIds.length) || !open) return null;
+    if (!isPrepDeckSelectorUnlocked(selectableIds.length)) return null;
     return (
         <PrepAbilityPicker
             character={character}

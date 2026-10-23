@@ -123,10 +123,6 @@ test.describe('Quest Prep lobby flow', () => {
         );
         const picker = page.getByTestId(TestIds.questPrepAbilityPicker);
         const slotBar = page.getByTestId(TestIds.questPrepAbilitySlotBar);
-        // Unified layout hides the picker behind the "Edit Abilities" footer toggle.
-        const editAbilities = page.getByRole('button', { name: 'Edit Abilities' });
-        await editAbilities.waitFor({ state: 'visible', timeout: 30_000 });
-        await editAbilities.click();
         await expect(picker).toBeVisible({ timeout: 30_000 });
         await expect(slotBar).toBeVisible({ timeout: 15_000 });
 

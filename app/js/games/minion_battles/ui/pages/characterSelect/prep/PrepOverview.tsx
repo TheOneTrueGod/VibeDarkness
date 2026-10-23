@@ -8,8 +8,6 @@ interface PrepOverviewProps {
     onChangeCharacter: () => void;
     useLayoutSlots?: boolean;
     selectionRequired: boolean;
-    /** Picker is hidden by default; the "Edit Abilities" footer button opens it. */
-    pickerOpen?: boolean;
     selectableIds: readonly string[];
     selectedPrimaryIds: readonly string[];
     slotsFull: boolean;
@@ -17,7 +15,7 @@ interface PrepOverviewProps {
 }
 
 /**
- * Center segment for the prep screens (Quest Prep and Prepare Carefully).
+ * Center segment of the Prepare screen (side-quest Quest Prep and regular missions).
  * Uses the shared `PrepDeckSelector`: under the ability cap it renders nothing (the prep
  * background shows); over it, the ability picker.
  */
@@ -26,33 +24,31 @@ export function PrepOverview({
     onChangeCharacter,
     useLayoutSlots = false,
     selectionRequired,
-    pickerOpen = false,
     selectableIds,
     selectedPrimaryIds,
     slotsFull,
     onAdd,
 }: PrepOverviewProps) {
-    const deckSelector = (open: boolean) => (
+    const deckSelector = (
         <PrepDeckSelector
             character={character}
             selectableIds={selectableIds}
             selectedPrimaryIds={selectedPrimaryIds}
             slotsFull={slotsFull}
             onAdd={onAdd}
-            open={open}
         />
     );
 
     if (useLayoutSlots) {
-        // The picker only appears once unlocked and "Edit Abilities" opens it; otherwise the
-        // prep background shows on its own.
-        if (!selectionRequired || !pickerOpen) {
+        // Over the ability cap the picker is the default Prepare view; otherwise the prep
+        // background shows on its own.
+        if (!selectionRequired) {
             return null;
         }
         return (
             <div className="flex min-h-0 flex-1 flex-col justify-center px-5 py-4">
                 <div className="flex min-h-0 max-h-full flex-col rounded-xl bg-black/50 p-3 backdrop-blur-sm">
-                    {deckSelector(pickerOpen)}
+                    {deckSelector}
                 </div>
             </div>
         );
@@ -67,7 +63,7 @@ export function PrepOverview({
                 />
             </div>
             <div className="min-h-0 flex-1">
-                {deckSelector(true)}
+                {deckSelector}
             </div>
         </div>
     );
