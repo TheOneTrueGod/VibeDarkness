@@ -1,3 +1,5 @@
+import { formatItemId } from './ideasData';
+
 /** One `- ` bullet in a plan, with any indented sub-bullets. */
 export interface PlanListItem {
     text: string;
@@ -15,8 +17,10 @@ export type PlanBlock =
     | { type: 'decision'; question: string; blocks: PlanBlock[] };
 
 export interface PlanDoc {
-    /** File slug without the date prefix, e.g. `chapter-3-preparations`. */
+    /** Permanent 4-digit id from the file's numeric prefix, e.g. `0001`. Used in URLs. */
     id: string;
+    /** File slug after the date, e.g. `chapter-3-preparations`. */
+    slug: string;
     /** `YYYY-MM-DD` from the file name. */
     date: string;
     title: string;
@@ -29,7 +33,7 @@ const RULE_RE = /^\s*(-{3,}|\*{3,})\s*$/;
 const DECISION_RE = /^>\s?\[!DECISION\]\s*(.*)$/i;
 const QUOTE_RE = /^>\s?(.*)$/;
 const DONE_RE = /^\[x\]\s+(.*)$/i;
-const FILE_RE = /(?:^|\/)(\d{4}-\d{2}-\d{2})_([^/]+)\.md$/;
+const FILE_RE = /(?:^|\/)(\d+)_(\d{4}-\d{2}-\d{2})_([^/]+)\.md$/;
 
 /**
  * Parses a plan body into blocks: `#` headings, paragraphs (consecutive lines joined), nested `-`
@@ -152,24 +156,24 @@ export function groupPlanSections(blocks: PlanBlock[]): PlanSection[] {
 }
 
 /** Parses one plan file. The first `# Heading` is the title and is not repeated in the blocks. */
-export function parsePlanDoc(id: string, date: string, markdown: string): PlanDoc {
+export function parsePlanDoc(id: string, slug: string, date: string, markdown: string): PlanDoc {
     const blocks = parsePlanMarkdown(markdown);
     const titleIndex = blocks.findIndex((b) => b.type === 'heading' && b.level === 1);
     const titleBlock = blocks[titleIndex];
-    const title = titleBlock?.type === 'heading' ? titleBlock.text : id;
+    const title = titleBlock?.type === 'heading' ? titleBlock.text : slug;
     if (titleIndex >= 0) blocks.splice(titleIndex, 1);
-    return { id, date, title, blocks };
+    return { id, slug, date, title, blocks };
 }
 
-/** Builds plans from `{ path: markdown }` (files named `YYYY-MM-DD_slug.md`), newest first. */
+/** Builds plans from `{ path: markdown }` (files named `NNNN_YYYY-MM-DD_slug.md`), newest first. */
 export function buildPlans(files: Record<string, string>): PlanDoc[] {
     return Object.keys(files)
         .filter((path) => FILE_RE.test(path))
         .map((path) => {
-            const [, date, id] = FILE_RE.exec(path)!;
-            return parsePlanDoc(id, date, files[path]);
+            const [, prefix, date, slug] = FILE_RE.exec(path)!;
+            return parsePlanDoc(formatItemId(prefix), slug, date, files[path]);
         })
-        .sort((a, b) => b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
+        .sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
 }
 
 const PLAN_FILES = import.meta.glob('/docs/ideas/plans/*.md', {

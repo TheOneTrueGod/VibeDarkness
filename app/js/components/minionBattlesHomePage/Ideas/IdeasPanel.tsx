@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import PanelLayout from '../PanelLayout';
 import { IDEA_CATEGORIES } from './ideasData';
 import { PLANS } from './plansData';
@@ -6,15 +6,20 @@ import IdeaCategoryList from './IdeaCategoryList';
 import IdeaCategoryDetail from './IdeaCategoryDetail';
 import PlanList from './PlanList';
 import PlanDetail from './PlanDetail';
+import { useIdeasRoute } from './useIdeasRoute';
+import type { IdeasViewId } from '../../ability-tests/campaignTabPaths';
 
-type IdeasTabId = 'ideas' | 'plans';
+const ITEM_IDS: Record<IdeasViewId, string[]> = {
+    ideas: IDEA_CATEGORIES.map((c) => c.id),
+    plans: PLANS.map((p) => p.id),
+};
 
-const TABS: { id: IdeasTabId; label: string }[] = [
+const TABS: { id: IdeasViewId; label: string }[] = [
     { id: 'ideas', label: 'Ideas' },
     { id: 'plans', label: 'Plans' },
 ];
 
-function IdeasTabSelector({ active, onChange }: { active: IdeasTabId; onChange: (id: IdeasTabId) => void }) {
+function IdeasTabSelector({ active, onChange }: { active: IdeasViewId; onChange: (id: IdeasViewId) => void }) {
     return (
         <div role="tablist" aria-label="Ideas view" className="flex rounded-md border border-border-custom overflow-hidden">
             {TABS.map((tab) => (
@@ -39,13 +44,11 @@ function IdeasTabSelector({ active, onChange }: { active: IdeasTabId; onChange: 
 
 /** Admin brainstorming backlog and plans. Content lives in `docs/ideas/*.md` and `docs/ideas/plans/*.md`. */
 export default function IdeasPanel() {
-    const [tab, setTab] = useState<IdeasTabId>('ideas');
-    const [categoryId, setCategoryId] = useState(IDEA_CATEGORIES[0]?.id ?? null);
-    const [planId, setPlanId] = useState(PLANS[0]?.id ?? null);
+    const { view: tab, itemId, setView: setTab, selectItem } = useIdeasRoute(ITEM_IDS);
 
     const isPlans = tab === 'plans';
-    const category = IDEA_CATEGORIES.find((c) => c.id === categoryId) ?? null;
-    const plan = PLANS.find((p) => p.id === planId) ?? null;
+    const category = isPlans ? null : (IDEA_CATEGORIES.find((c) => c.id === itemId) ?? null);
+    const plan = isPlans ? (PLANS.find((p) => p.id === itemId) ?? null) : null;
 
     return (
         <PanelLayout
@@ -55,9 +58,9 @@ export default function IdeasPanel() {
             leftSize="medium"
             left={
                 isPlans ? (
-                    <PlanList plans={PLANS} selectedId={planId} onSelect={setPlanId} />
+                    <PlanList plans={PLANS} selectedId={plan?.id ?? null} onSelect={selectItem} />
                 ) : (
-                    <IdeaCategoryList categories={IDEA_CATEGORIES} selectedId={categoryId} onSelect={setCategoryId} />
+                    <IdeaCategoryList categories={IDEA_CATEGORIES} selectedId={category?.id ?? null} onSelect={selectItem} />
                 )
             }
             center={isPlans ? <PlanDetail plan={plan} /> : <IdeaCategoryDetail category={category} />}

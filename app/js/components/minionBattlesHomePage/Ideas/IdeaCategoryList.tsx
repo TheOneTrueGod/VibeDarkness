@@ -2,7 +2,7 @@ import React from 'react';
 import IdeasSidebarButton from './IdeasSidebarButton';
 import type { IdeaCategory } from './ideasData';
 
-/** Ideas tab, left pane: one row per `docs/ideas/NN_*.md` category with its idea count. */
+/** Ideas tab, left pane: one row per `docs/ideas/NNNN_*.md` category with its idea count. */
 export default function IdeaCategoryList({
     categories,
     selectedId,

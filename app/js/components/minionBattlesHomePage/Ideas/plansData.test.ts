@@ -72,22 +72,23 @@ describe('plan items', () => {
 
 describe('parsePlanDoc', () => {
     it('takes the title from the first H1 and drops it from the body', () => {
-        const plan = parsePlanDoc('x', '2026-01-02', '# My Plan\n\nBody');
+        const plan = parsePlanDoc('0001', 'x', '2026-01-02', '# My Plan\n\nBody');
         expect(plan.title).toBe('My Plan');
         expect(plan.blocks).toEqual([{ type: 'paragraph', text: 'Body' }]);
     });
 });
 
 describe('buildPlans', () => {
-    it('reads the date from the file name, newest first, skipping other files', () => {
+    it('reads the id and date from the file name, newest first, skipping files without both', () => {
         const plans = buildPlans({
-            '/docs/ideas/plans/2026-01-01_old.md': '# Old',
-            '/docs/ideas/plans/2026-03-01_new.md': '# New',
+            '/docs/ideas/plans/0001_2026-01-01_old.md': '# Old',
+            '/docs/ideas/plans/2_2026-03-01_new.md': '# New',
             '/docs/ideas/plans/notes.md': '# Notes',
+            '/docs/ideas/plans/2026-02-01_no-id.md': '# No id',
         });
-        expect(plans.map((p) => [p.id, p.date])).toEqual([
-            ['new', '2026-03-01'],
-            ['old', '2026-01-01'],
+        expect(plans.map((p) => [p.id, p.slug, p.date])).toEqual([
+            ['0002', 'new', '2026-03-01'],
+            ['0001', 'old', '2026-01-01'],
         ]);
     });
 

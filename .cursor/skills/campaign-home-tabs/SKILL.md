@@ -25,10 +25,11 @@ Tab ids, labels, and visibility live on each `CampaignHome*Tab.tsx` export (regi
 
 ## How routing works
 
-- URL pattern: `/campaign/:tabSlug`
+- URL pattern: `/campaign/:tabSlug/*`. The trailing splat lets a tab own sub-paths without remounting `CampaignHomeScreen`. Read them inside the tab with `useParams()['*']`.
 - `tabFromCampaignSlug(slug)` maps a URL slug to a `TabId` (returns `null` for unknown slugs).
 - `campaignPathForTab(tab)` returns the canonical path. Players and Characters override via `getPath` on their tab def (`/players` and `/players/:id/characters`).
 - On mount, `CampaignHomeScreen` redirects if the URL tab is missing or not visible. Default tab is `characters`.
+- **Ideas tab** sub-paths: `/campaign/ideas/ideas/:categoryId` and `/campaign/ideas/plans/:planId` (4-digit ids from the `docs/ideas` filenames). Helpers `ideasPath` / `parseIdeasSubpath` are in `campaignTabPaths.ts`, and `Ideas/useIdeasRoute.ts` redirects a missing or unknown view or id to the first item.
 - Character inner tabs live under `/players/:playerId/characters/:characterId/:characterTab`. Helpers and slugs are in `campaignTabPaths.ts`; chrome is `CampaignHomeScreen/CharactersTab/`. Visiting a character without a tab segment defaults to map.
 
 ## How to add a new tab

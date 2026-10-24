@@ -1378,7 +1378,7 @@ function AppInner() {
                 <Routes>
                     <Route path="/lobby/:lobbyCode" element={null} />
                     <Route
-                        path="/campaign/:tabSlug"
+                        path="/campaign/:tabSlug/*"
                         element={
                             <CampaignHomeScreen
                                 lobbyClient={lobbyClient}

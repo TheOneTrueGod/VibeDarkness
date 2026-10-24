@@ -18,11 +18,13 @@ A browser plan item can later be turned into a `/jp-plan`. In that case, link th
 
 ## Where it lives and how it loads
 
-- **One file per plan:** `docs/ideas/plans/YYYY-MM-DD_kebab-slug.md`. The date is the day the plan was added. Use today's date and never change it later.
+- **One file per plan:** `docs/ideas/plans/NNNN_YYYY-MM-DD_kebab-slug.md`.
+  - `NNNN` is the plan's permanent 4-digit id. Use the next unused number. It appears in the URL (`/campaign/ideas/plans/NNNN`), so never renumber a plan.
+  - The date is the day the plan was added. Use today's date and never change it later.
 - **Loading:** `app/js/components/minionBattlesHomePage/Ideas/plansData.ts` loads every file with `import.meta.glob` (eager, `?raw`). There is no registry to update; adding the file is enough.
-- **File names:** they must match `YYYY-MM-DD_slug.md`. Other names are silently skipped. The list shows plans newest first, with ties ordered by slug.
+- **File names:** they must match `NNNN_YYYY-MM-DD_slug.md`. Other names are silently skipped. The list shows plans newest first, with ties ordered by slug.
 - **Title:** the first `# Heading` is the plan title shown in the list and the detail header. It is removed from the body, so don't repeat it.
-- **UI components:** `IdeasPanel.tsx` (tab state), `PlanList.tsx` (left pane), `PlanDetail.tsx` (right pane, Markdown rendering). The Ideas categories (`docs/ideas/NN_*.md`) are a separate tab; see `docs/ideas/README.md`.
+- **UI components:** `IdeasPanel.tsx` (tab and selection come from the URL via `useIdeasRoute.ts`; path helpers `ideasPath` / `parseIdeasSubpath` are in `components/ability-tests/campaignTabPaths.ts`), `PlanList.tsx` (left pane), `PlanDetail.tsx` (right pane, Markdown rendering). The Ideas categories (`docs/ideas/NN_*.md`) are a separate tab; see `docs/ideas/README.md`.
 
 ## Supported Markdown (read `plansData.ts` for the exact rules)
 
@@ -41,7 +43,7 @@ Not supported (they render as plain text or break layout): tables, links, images
 
 ## Required structure
 
-Follow the existing plans in `docs/ideas/plans/`. The first one, `2026-10-24_chapter-3-preparations.md`, is the reference. In order:
+Follow the existing plans in `docs/ideas/plans/`. The first one, `0001_2026-10-24_chapter-3-preparations.md`, is the reference. In order:
 
 1. **`# Title`**
 2. **Intro paragraph:** what the plan is for and what milestone it serves.
