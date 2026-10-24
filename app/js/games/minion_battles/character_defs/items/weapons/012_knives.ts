@@ -1,9 +1,9 @@
 import type { ItemDef } from '../types';
 
-/** Knives - Balanced blades made for throwing. */
+/** Throwing Knives - Balanced blades made for throwing. */
 export const knivesItem: ItemDef = {
     id: '012',
-    name: 'Knives',
+    name: 'Throwing Knives',
     description: 'Balanced blades made for throwing.',
     slots: ['weapon'],
     attackRange: 'ranged',

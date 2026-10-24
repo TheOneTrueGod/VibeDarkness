@@ -34,7 +34,7 @@ import {
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 import { getItemDef } from '../../../character_defs/items';
 
-/** Tier-2 weapons offered at the cave respite, whatever the player started with: Charged Rocks, Knives, Sword, Mace. */
+/** Tier-2 weapons offered at the cave respite, whatever the player started with: Charged Rocks, Throwing Knives, Sword, Mace. */
 export const CAVE_WEAPON_ITEM_IDS = ['011', '012', '013', '014'] as const;
 
 /** Crystal-cave haul on the way to the inner campfire. */

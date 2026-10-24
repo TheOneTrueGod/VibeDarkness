@@ -7,7 +7,7 @@ interface StoryChoiceGridProps {
 }
 
 export const STORY_CHOICE_CELL_BUTTON_BASE =
-    'flex h-full min-h-0 w-full min-w-0 flex-col items-center justify-center gap-0.5 overflow-hidden rounded-lg border-2 px-1.5 py-1 text-center transition-colors sm:px-2 sm:py-1.5';
+    'flex h-full min-h-0 w-full min-w-0 flex-col items-center justify-center gap-0 overflow-hidden rounded-lg border-2 px-1.5 py-0.5 text-center transition-colors sm:px-2 sm:py-1';
 
 export const STORY_CHOICE_CELL_BUTTON_PRIMARY =
     'border-border-custom bg-surface text-white hover:border-primary hover:bg-surface-light/80';

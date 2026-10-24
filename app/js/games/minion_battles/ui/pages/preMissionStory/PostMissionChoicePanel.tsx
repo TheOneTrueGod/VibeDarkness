@@ -147,7 +147,7 @@ export default function PostMissionChoicePanel({
                                             src={ITEM_ICON_URLS[opt.action.itemId]}
                                             alt=""
                                             data-testid="story-choice-item-icon"
-                                            className="h-6 w-6 shrink-0 object-contain"
+                                            className="h-5 w-5 shrink-0 object-contain"
                                         />
                                     ) : null}
                                     {!isSkip && opt.forYou ? (
@@ -156,7 +156,7 @@ export default function PostMissionChoicePanel({
                                             aria-hidden
                                         />
                                     ) : null}
-                                    <span className="line-clamp-2 text-xs font-medium leading-snug sm:text-sm">
+                                    <span className="line-clamp-2 text-xs font-medium leading-tight sm:text-sm">
                                         {title}
                                     </span>
                                     {!isSkip && opt.forYou ? (

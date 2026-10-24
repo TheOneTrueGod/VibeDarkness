@@ -104,7 +104,7 @@ export default function ChoicePhrasePanel({
                         }
                         className={buttonClass}
                     >
-                        <span className="line-clamp-2 text-xs font-medium leading-snug sm:text-sm">{title}</span>
+                        <span className="line-clamp-2 text-xs font-medium leading-tight sm:text-sm">{title}</span>
                         <StoryChoiceDescriptionRow
                             optionId={opt.id}
                             description={description}

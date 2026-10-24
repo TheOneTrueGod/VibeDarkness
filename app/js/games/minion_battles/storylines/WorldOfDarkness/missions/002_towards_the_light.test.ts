@@ -12,7 +12,7 @@ const choice = TOWARDS_THE_LIGHT.postMissionStory?.phrases.find(
 if (!choice || choice.type !== 'choice') throw new Error('choice phrase missing');
 
 describe('Towards the Light equipment choice', () => {
-    it('offers Charged Rocks, Knives, Sword and Mace as fixed equip options', () => {
+    it('offers Charged Rocks, Throwing Knives, Sword and Mace as fixed equip options', () => {
         expect(choice.options.map((o) => o.action)).toEqual([
             { type: 'equip_item', itemId: '011' },
             { type: 'equip_item', itemId: '012' },

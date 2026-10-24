@@ -15,13 +15,13 @@ export default function StoryChoiceDescriptionRow({ optionId, description, actio
     const gains = campaignResourceGains(storyChoiceActionResourceDelta(action));
     if (gains.length === 0) {
         return description ? (
-            <span className="line-clamp-2 text-[10px] leading-snug text-zinc-400 sm:text-xs">{description}</span>
+            <span className="line-clamp-2 text-[10px] leading-tight text-zinc-400 sm:text-xs">{description}</span>
         ) : null;
     }
     return (
         <div className={`flex w-full min-w-0 items-center gap-2 ${description ? 'justify-between' : 'justify-center'}`}>
             {description ? (
-                <span className="line-clamp-2 min-w-0 text-left text-[10px] leading-snug text-zinc-400 sm:text-xs">
+                <span className="line-clamp-2 min-w-0 text-left text-[10px] leading-tight text-zinc-400 sm:text-xs">
                     {description}
                 </span>
             ) : null}
