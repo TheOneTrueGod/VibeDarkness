@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { KNOWLEDGE_RESOURCE_POPULATION } from './accountKnowledge';
 import {
+    CAMPAIGN_RESOURCE_KNOWLEDGE,
     campaignResourcesEqual,
+    isCampaignResourceVisible,
     mergeResourceDeltas,
+    visibleCampaignResources,
     sumLatestMissionResourceDeltas,
     ZERO_CAMPAIGN_RESOURCES,
 } from './campaignResources';
@@ -57,5 +61,22 @@ describe('campaignResourcesEqual', () => {
         expect(
             campaignResourcesEqual(ZERO_CAMPAIGN_RESOURCES, { ...ZERO_CAMPAIGN_RESOURCES, food: 1 }),
         ).toBe(false);
+    });
+});
+
+describe('campaign resource visibility', () => {
+    const ALL = ['food', 'metal', 'population', 'crystals', 'hunger'] as const;
+
+    it('hides population until the account knows Resource: Population', () => {
+        expect(visibleCampaignResources(ALL, undefined)).toEqual(['food', 'metal', 'crystals', 'hunger']);
+        expect(visibleCampaignResources(ALL, {})).toEqual(['food', 'metal', 'crystals', 'hunger']);
+        expect(visibleCampaignResources(ALL, { [KNOWLEDGE_RESOURCE_POPULATION]: {} })).toEqual([...ALL]);
+    });
+
+    it('always shows resources that need no knowledge', () => {
+        for (const resource of ALL) {
+            if (CAMPAIGN_RESOURCE_KNOWLEDGE[resource] == null) expect(isCampaignResourceVisible(resource, null)).toBe(true);
+        }
+        expect(isCampaignResourceVisible('population', null)).toBe(false);
     });
 });

@@ -86,9 +86,11 @@ Work involved:
 - Same plumbing as P0.5: backend `RESOURCE_KEYS`, stored `resources.crystals` and `resourceDelta.crystals`, `ResourcePill`, research costs, `darkness_upgrades.ts` copy, quest rewards.
 - The account knowledge key `'Crystals'` is stored on accounts, so the migration also renames that key (to `ResourceAttunement`, see P0.8). Today `'Crystals'` and `'Forging'` are in the knowledge registry but nothing checks them. P0.7 gives Attunement's knowledge a real job.
 
-### P0.7 "Knowledge of Resource: Population" gates the population resource
+### [x] P0.7 "Knowledge of Resource: Population" gates the population resource
 
 **Complexity:** Low (Medium if done together with P1.6)
+
+**Done:** added `KNOWLEDGE_RESOURCE_POPULATION` (`ResourcePopulation`, listed as "Resource: Population") to `accountKnowledge.ts`. `campaignResources.ts` now has a `CAMPAIGN_RESOURCE_KNOWLEDGE` table mapping a resource to the knowledge it needs, plus `isCampaignResourceVisible` and `visibleCampaignResources`. The Upgrades resource rows (`UpgradesResourcePills` in `ResearchTreePanel.tsx`) filter by the viewed player's knowledge, so an admin viewing a player sees that player's view. Admin tools (the resource-grant dropdown and "Current" totals in `CharacterEditor`) still list every resource. Gain and cost lists don't filter, because nothing grants or costs population today, and a reward that does grant it should be shown. When P0.6 lands, gating Attunement is one line in the table. The backend accepts any knowledge key, so it needed no change.
 
 - Add `KNOWLEDGE_RESOURCE_POPULATION` to `accountKnowledge.ts` and hide population from `ResourcePill` lists (`RESOURCE_ORDER` consumers: `CharacterEditor`, `MissionSelectPanel`, reward pills) unless the account knows it.
 - Generalize it: give each campaign resource an optional `knowledgeKey` in the P1.6 resource table, and have one helper (`visibleCampaignResources(knowledge)`) do the filtering. Attunement then uses the same mechanism, so a Chapter 3 resource only needs one line of data.

@@ -1,4 +1,26 @@
 import type { CampaignResourceKey, CampaignResources, MissionResult } from './types';
+import { hasAccountKnowledge, KNOWLEDGE_RESOURCE_POPULATION, type AccountKnowledgeMap } from './accountKnowledge';
+
+/**
+ * Account knowledge a campaign resource needs before it shows in player-facing resource rows.
+ * Resources not listed are always visible. Admin tools ignore this and list every resource.
+ */
+export const CAMPAIGN_RESOURCE_KNOWLEDGE: Partial<Record<CampaignResourceKey, string>> = {
+    population: KNOWLEDGE_RESOURCE_POPULATION,
+};
+
+export function isCampaignResourceVisible(resource: CampaignResourceKey, knowledge: AccountKnowledgeMap): boolean {
+    const key = CAMPAIGN_RESOURCE_KNOWLEDGE[resource];
+    return key == null || hasAccountKnowledge(knowledge, key);
+}
+
+/** The resources from `resources` (kept in order) that this account knows about. */
+export function visibleCampaignResources(
+    resources: readonly CampaignResourceKey[],
+    knowledge: AccountKnowledgeMap,
+): CampaignResourceKey[] {
+    return resources.filter((resource) => isCampaignResourceVisible(resource, knowledge));
+}
 
 export const RESET_CAMPAIGN_RESOURCES_LABEL = 'Reset resources';
 export const RESET_CAMPAIGN_RESOURCES_CONFIRM =

@@ -19,6 +19,12 @@ export const KNOWLEDGE_EQUIPMENT_SLOT_CUSTOMIZATION_CORE = 'EquipmentSlotCustomi
  */
 export const KNOWLEDGE_SYSTEM_UPGRADES = 'SystemUpgrades';
 
+/**
+ * Knowledge of Resource: Population — without it the population campaign resource is left out of the
+ * player-facing resource rows (admin tools still list it). See `isCampaignResourceVisible`.
+ */
+export const KNOWLEDGE_RESOURCE_POPULATION = 'ResourcePopulation';
+
 export interface AccountKnowledgeDef {
     key: string;
     label: string;
@@ -31,6 +37,7 @@ export const ACCOUNT_KNOWLEDGE: readonly AccountKnowledgeDef[] = [
     { key: KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1, label: 'Equipment Slot: Utility 1' },
     { key: KNOWLEDGE_EQUIPMENT_SLOT_CUSTOMIZATION_CORE, label: 'Equipment Slot Customization: Core' },
     { key: KNOWLEDGE_SYSTEM_UPGRADES, label: 'System: Upgrades' },
+    { key: KNOWLEDGE_RESOURCE_POPULATION, label: 'Resource: Population' },
 ];
 
 /** Readable name for a knowledge key (the key itself when unregistered). */

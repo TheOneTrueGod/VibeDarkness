@@ -5,6 +5,7 @@ import {
     hasAccountKnowledge,
     hasUpgradesSystem,
     KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1,
+    KNOWLEDGE_RESOURCE_POPULATION,
     KNOWLEDGE_SYSTEM_UPGRADES,
 } from './accountKnowledge';
 
@@ -16,6 +17,7 @@ describe('account knowledge registry', () => {
 
     it('names the Utility 1 slot knowledge and falls back to the raw key', () => {
         expect(accountKnowledgeLabel(KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1)).toBe('Equipment Slot: Utility 1');
+        expect(accountKnowledgeLabel(KNOWLEDGE_RESOURCE_POPULATION)).toBe('Resource: Population');
         expect(accountKnowledgeLabel('Unlisted')).toBe('Unlisted');
     });
 

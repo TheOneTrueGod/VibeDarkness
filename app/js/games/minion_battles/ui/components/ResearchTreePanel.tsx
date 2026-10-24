@@ -24,6 +24,8 @@ import { getNodeLevel, getNodeMaxLevels } from '../../../../researchTrees/passiv
 import { getInactiveResearchNodeIds } from '../../../../researchTrees/activeResearch';
 import { computeResearchTreeNodePositions } from '../../../../researchTrees/researchTreeLayout';
 import ResourcePill, { RESOURCE_ORDER } from '../../../../components/ResourcePill';
+import { visibleCampaignResources } from '../../../../campaignResources';
+import type { AccountKnowledgeMap } from '../../../../accountKnowledge';
 import { getCharacterHungerDelta, getCharacterMaxHunger, hungerFromDelta } from '../../character_defs/characterHunger';
 import { HUNGER_RESOURCE_KEY } from '../../storylines/matchHunger';
 import ResearchNodeCard, { type ResearchRequirementBadge } from './ResearchNodeCard';
@@ -113,19 +115,22 @@ function UpgradesResourcePills({
 	character,
 	researchTrees,
 	researchNodeLevels,
+	knowledge,
 	className,
 }: {
 	counts: CampaignResources;
 	character: CampaignCharacter;
 	researchTrees: Record<string, string[]>;
 	researchNodeLevels?: ResearchNodeLevels;
+	/** Viewed player's account knowledge: hides resources they don't know yet (e.g. population). */
+	knowledge: AccountKnowledgeMap;
 	className?: string;
 }) {
 	const maxHunger = getCharacterMaxHunger(researchTrees, researchNodeLevels);
 	const currentHunger = hungerFromDelta(maxHunger, getCharacterHungerDelta(character), character.startingHungerFraction);
 	return (
 		<>
-			{RESOURCE_ORDER.map((resource) =>
+			{visibleCampaignResources(RESOURCE_ORDER, knowledge).map((resource) =>
 				resource === HUNGER_RESOURCE_KEY ? (
 					<ResourcePill
 						key={resource}
@@ -442,6 +447,7 @@ export function ResearchTreeContent({
 									character={character}
 									researchTrees={researchTrees}
 									researchNodeLevels={researchNodeLevels}
+									knowledge={account?.knowledge}
 									className="text-xs"
 								/>
 							</div>
@@ -885,6 +891,7 @@ export function ResearchedNodesGrid({
 						character={character}
 						researchTrees={researchTrees}
 						researchNodeLevels={researchNodeLevels}
+						knowledge={account?.knowledge}
 						className="text-xs"
 					/>
 					<ResearchResetButtons
