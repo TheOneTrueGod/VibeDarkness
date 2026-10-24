@@ -225,13 +225,13 @@ describe('Burst getTooltipText (damage tokens)', () => {
     it('without context shows base damage 10', () => {
         const lines = BurstAbility_0302.getTooltipText();
         expect(lines.some((l) => l.includes('{10}'))).toBe(true);
-        expect(lines.some((l) => l.includes('{14}'))).toBe(false);
+        expect(lines.some((l) => l.includes('{12}'))).toBe(false);
         expect(lines.some((l) => l.includes(`{${BURST_MAX_TARGETS}}`))).toBe(true);
         expect(lines.some((l) => l.includes(`{knockback ${BURST_KNOCKBACK_TIER}}`))).toBe(true);
         expect(lines.some((l) => l.includes(`{${BURST_HP_COST}}`))).toBe(true);
     });
 
-    it('Mighty mult 1.4 on base 10 shows dynamic {14}', () => {
+    it('Mighty mult 1.2 on base 10 shows dynamic {12}', () => {
         const gameState = {
             getLocalPlayerUnit: () => ({
                 getDamageModifier: () => ({ flatAmt: 0, multiplier: MIGHTY_TWO_LEVEL_MULT }),
@@ -239,7 +239,7 @@ describe('Burst getTooltipText (damage tokens)', () => {
             }),
         };
         const lines = BurstAbility_0302.getTooltipText(gameState);
-        expect(lines.some((l) => l.includes('{14}'))).toBe(true);
+        expect(lines.some((l) => l.includes('{12}'))).toBe(true);
         expect(lines.some((l) => l.includes(`{${BURST_DAMAGE}}`))).toBe(false);
     });
 
@@ -248,7 +248,7 @@ describe('Burst getTooltipText (damage tokens)', () => {
             researchTrees: { [TRAINING_TREE_ID]: [TRAINING_NODE_MIGHTY] },
             researchNodeLevels: { [TRAINING_TREE_ID]: { [TRAINING_NODE_MIGHTY]: MIGHTY_TWO_LEVELS } },
         });
-        expect(lines.some((l) => l.includes('{14}'))).toBe(true);
+        expect(lines.some((l) => l.includes('{12}'))).toBe(true);
         expect(lines.some((l) => l.includes(`{${BURST_DAMAGE}}`))).toBe(false);
     });
 });

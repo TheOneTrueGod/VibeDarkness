@@ -2,7 +2,7 @@
  * ThrowRock - A basic ranged ability, and the shared base for its Earth Core variant.
  *
  * Targets a pixel. After windup, creates a projectile that travels up to 200px toward
- * the target. Base 5 damage on hit; **More Power** research increases damage. **More Rock**
+ * the target. Base 6 damage on hit; **More Power** research increases damage. **More Rock**
  * (crystal_rocks tree) adds a second target and throw on a longer timeline. `buildThrowRockAbility`
  * is reused by Earth Core Throw Rock (0535) with a rock-resource cost instead of stamina uses.
  */
@@ -19,7 +19,6 @@ import type { Unit } from '../../game/units/Unit';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
-import { isSinglePlayerBattle } from '../../abilities/singlePlayerBattle';
 import { buildTagDescriptionLines } from '../../abilities/abilityTagCatalog';
 import { type CardDef } from '../types';
 import {
@@ -41,7 +40,7 @@ const MAX_USES = 6;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
-export const THROW_ROCK_BASE_DAMAGE = 5;
+export const THROW_ROCK_BASE_DAMAGE = 6;
 const BASE_DAMAGE = THROW_ROCK_BASE_DAMAGE;
 /** Matches More Power bump used on Throw Charged Rock explosion damage. */
 export const THROW_ROCK_MORE_POWER_DAMAGE = 8;
@@ -54,9 +53,6 @@ const ROCK_SPIN_F3_URL = new URL('../../assets/projectiles/rock_spin_f3.svg', im
 const ROCK_SPIN_F4_URL = new URL('../../assets/projectiles/rock_spin_f4.svg', import.meta.url).href;
 /** Pixi scale for the spinning rock projectile sprite (1.0 = native 64px asset size). */
 const ROCK_PROJECTILE_SCALE = 0.25;
-
-/** Default dark wolf HP at ×1 enemy scaling — two hits at this damage kill a wolf. */
-const TWO_SHOT_WOLF_PER_HIT_DAMAGE = 6;
 
 const ENTOMBED_OPTS = {
     cancelIntervalId: 'active',
@@ -79,10 +75,7 @@ function resolveRockProjectileDamage(
     ctx: import('../../abilities/castBehaviourTypes').CastBehaviourSetupContext,
 ): number {
     const research = getCrystalRocksResearch(ctx.engine, ctx.caster);
-    let damage = rockDamageForResearch(research);
-    if (isSinglePlayerBattle(ctx.engine)) {
-        damage = Math.max(damage, TWO_SHOT_WOLF_PER_HIT_DAMAGE);
-    }
+    const damage = rockDamageForResearch(research);
     const mod = ctx.caster.abilityModifiers[abilityId] ?? {};
     return damage + (mod.damageFlat ?? 0);
 }

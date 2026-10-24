@@ -38,8 +38,8 @@ describe('Cave Respite research choice', () => {
         ]);
     });
 
-    it('Sword: Jagged Edge and Iron Wrists', () => {
-        expect(researchRows(['004', '013']).map((r) => r.id)).toEqual(['sword_jagged_edge', 'sword_extra_uses']);
+    it('Sword: Iron Wrists', () => {
+        expect(researchRows(['004', '013']).map((r) => r.id)).toEqual(['sword_extra_uses']);
     });
 
     it('Mace: Training Regime and Iron Wrists', () => {

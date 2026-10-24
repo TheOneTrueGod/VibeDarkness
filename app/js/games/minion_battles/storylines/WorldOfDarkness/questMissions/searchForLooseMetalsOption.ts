@@ -14,8 +14,7 @@ export function buildSearchForLooseMetalsOption(): StoryChoiceOptionRow {
         id: SEARCH_FOR_LOOSE_METALS_OPTION_ID,
         label: SEARCH_FOR_LOOSE_METALS_LABEL,
         loreTitle: SEARCH_FOR_LOOSE_METALS_LABEL,
-        loreDescription:
-            `Chip samples from the outcrop. Campaign Reward: +${SURFACE_METAL_HARVEST_METAL} Metal when the quest ends.`,
+        loreDescription: "There's bound to be some nearby.",
         action: {
             type: 'grant_resources',
             metal: SURFACE_METAL_HARVEST_METAL,

@@ -12,9 +12,9 @@ import { LIGHT_CORE_MISSION_START_AMOUNT } from '../games/minion_battles/resourc
 import { GRAVITY_CORE_MISSION_START_AMOUNT } from '../games/minion_battles/card_defs/09_gravity_core/gravityConstants';
 
 describe('mergeBattleEquipmentIdsFromResearch', () => {
-    it('weapon research never changes equipment (Jagged Edge leaves sword 013 alone)', () => {
+    it('weapon research never changes equipment (sword research leaves sword 013 alone)', () => {
         const out = mergeBattleEquipmentIdsFromResearch(['004', '013'], {
-            sword_item: ['swing_sword', 'sword_jagged_edge'],
+            sword_item: ['swing_sword'],
             charged_rocks_item: ['throw_charged_rock', 'more_power'],
         });
         expect(out.equipmentIds).toEqual(['004', '013']);

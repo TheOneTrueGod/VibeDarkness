@@ -17,11 +17,11 @@ export const VICTORY_STAGE_ORDER: readonly VictoryTimedStage[] = [
 
 /** Normal-speed length (ms) of each stage. The whole sequence stays under one second. */
 export const VICTORY_STAGE_DURATIONS_MS: Record<VictoryTimedStage, number> = {
-    objectives: 250,
-    title: 150,
-    conversion: 300,
-    rewards: 150,
-    continue: 100,
+    objectives: 200,
+    title: 120,
+    conversion: 500,
+    rewards: 100,
+    continue: 60,
 };
 
 /** Playback speed when the "Fast victory sequence" setting is on. */
@@ -29,6 +29,19 @@ export const VICTORY_SEQUENCE_FAST_SPEED_MULTIPLIER = 3;
 
 /** Stagger between objective rows being crossed off (ms, normal speed). */
 export const VICTORY_OBJECTIVE_STAGGER_MS = 60;
+
+/**
+ * Length (ms, normal speed) of the Hunger to HP bar animation and the food icons' flight. Deliberately longer than
+ * the `conversion` stage: the rewards and Continue arrive on schedule while it keeps playing.
+ */
+export const VICTORY_CONVERSION_ANIMATION_MS = 5000;
+
+/** Conversion animation length for the current speed; 0 (final state at once) for reduced motion. */
+export function victoryConversionAnimationMs(speedMultiplier: number, reducedMotion: boolean): number {
+    if (reducedMotion) return 0;
+    const speed = Number.isFinite(speedMultiplier) && speedMultiplier > 0 ? speedMultiplier : 1;
+    return VICTORY_CONVERSION_ANIMATION_MS / speed;
+}
 
 /** Number of food icons flown from the Hunger bar to the HP bar. */
 export const VICTORY_CONVERSION_ICON_COUNT = 7;

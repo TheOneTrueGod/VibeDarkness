@@ -44,7 +44,10 @@ import {
     eligibleStoryRewardPlayerIds,
     sumAlsoGrantToOthersFromParty,
 } from '../../storylines/partyStoryGrants';
-import { prepLoadoutPrimaryIdsForResearchGrant } from '../../storylines/questPrepLoadout';
+import {
+    prepLoadoutPrimaryIdsForResearchGrant,
+    prepLoadoutPrimaryIdsForStoryChoice,
+} from '../../storylines/questPrepLoadout';
 
 function isDialogue(phrase: PostMissionPhrase | undefined): phrase is DialoguePhrase {
     return !!phrase && phrase.type === 'dialogue';
@@ -501,14 +504,14 @@ export default function PostMissionStoryPhase({
                     }
                 }
                 const researchReward = !amNpcController ? resolvedOption?.researchReward : undefined;
-                const prepLoadoutPrimaryIds = researchReward
-                    ? prepLoadoutPrimaryIdsForResearchGrant({
+                const prepLoadoutPrimaryIds = !amNpcController
+                    ? prepLoadoutPrimaryIdsForStoryChoice({
                         playerId,
                         characterId: characterSelections[playerId],
                         equipment: currentEquipment,
                         researchTrees: playerResearchTreesByPlayer[playerId],
-                        treeId: researchReward.treeId,
-                        nodeId: researchReward.nodeId,
+                        equipItem: itemId !== undefined ? { itemId, replaceItemIds } : undefined,
+                        researchGrant: researchReward,
                         missionPrepLoadoutsByPlayer,
                         questPrepLoadoutsByPlayer,
                         questAbilityLoadoutsByCharacterId,
@@ -523,8 +526,8 @@ export default function PostMissionStoryPhase({
                         treeId: researchReward.treeId,
                         nodeId: researchReward.nodeId,
                         researchRewardId: researchReward.rewardId,
-                        ...(prepLoadoutPrimaryIds && { prepLoadoutPrimaryIds }),
                     }),
+                    ...(prepLoadoutPrimaryIds && { prepLoadoutPrimaryIds }),
                 });
             } catch (error) {
                 console.error('Failed to send story choice:', error);

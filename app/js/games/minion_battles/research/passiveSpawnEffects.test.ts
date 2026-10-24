@@ -43,7 +43,7 @@ describe('passive research at mission spawn', () => {
         expect(unit.passiveBonuses?.maxHealth?.add).toBe(50);
     });
 
-    it('Mighty doubles ability damage at 5 levels via damageModifier', () => {
+    it('Mighty adds +50% ability damage at 5 levels via damageModifier', () => {
         const trees = {
             [TINY_BATTLE_PLAYER_ID]: {
                 [TRAINING_TREE_ID]: [TRAINING_NODE_MIGHTY],
@@ -67,9 +67,9 @@ describe('passive research at mission spawn', () => {
             playerResearchTreesByPlayer: trees,
             playerResearchNodeLevelsByPlayer: levels,
         });
-        expect(unit.getDamageModifier().multiplier).toBe(2);
-        expect(getModifiedAbilityDamage(unit, 8)).toBe(16);
+        expect(unit.getDamageModifier().multiplier).toBe(1.5);
+        expect(getModifiedAbilityDamage(unit, 8)).toBe(12);
         expect(PunchNEWAbility.getDamage?.()).toBe(8);
-        expect(PunchNEWAbility.getDamage?.(unit)).toBe(16);
+        expect(PunchNEWAbility.getDamage?.(unit)).toBe(12);
     });
 });

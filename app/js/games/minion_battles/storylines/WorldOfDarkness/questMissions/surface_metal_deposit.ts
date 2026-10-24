@@ -44,7 +44,7 @@ function buildChoiceOptions(playerResearchTrees: Record<string, string[]> | unde
             label: 'Extract Metal',
             loreTitle: 'Extract Metal',
             loreDescription: canExtract
-                ? `Earth Core lets you pull deeper veins. You gain +${SURFACE_METAL_EXTRACT_SELF_METAL} Metal; each other player gains +${SURFACE_METAL_EXTRACT_OTHERS_METAL} Metal (stacks with their choice).`
+                ? `Earth Core lets you pull deeper veins. Each other player also gains +${SURFACE_METAL_EXTRACT_OTHERS_METAL} Metal.`
                 : `${REQUIRES_EARTH_CORE_LABEL}.`,
             disabledLabel: canExtract ? undefined : REQUIRES_EARTH_CORE_LABEL,
             action: {

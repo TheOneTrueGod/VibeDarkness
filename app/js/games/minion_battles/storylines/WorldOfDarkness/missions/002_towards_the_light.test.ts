@@ -3,39 +3,36 @@ import { TOWARDS_THE_LIGHT } from './002_towards_the_light';
 import { resolveResearchRewardSlots } from '../../researchRewardSlots';
 import { resolveUnlockedTierItemIds } from '../../unlockItemTiers';
 import { getActiveResearchTrees } from '../../../../../researchTrees/activeResearch';
+import { getItemDef } from '../../../character_defs/items';
+import { STORY_BACKGROUNDS } from '../../../assets/story';
 
 const choice = TOWARDS_THE_LIGHT.postMissionStory?.phrases.find(
     (p) => p.type === 'choice' && p.choiceId === 'towards_the_light_cave_choice',
 );
 if (!choice || choice.type !== 'choice') throw new Error('choice phrase missing');
-const slots = choice.researchRewardSlots ?? [];
-
-function offeredItemIds(equipped: string[]): string[] {
-    return resolveResearchRewardSlots(slots, {}, equipped)
-        .map((row) => (row.action.type === 'equip_item' ? row.action.itemId : undefined))
-        .filter((id): id is string => id !== undefined);
-}
 
 describe('Towards the Light equipment choice', () => {
-    it('uses two equipmentUpgrade slots', () => {
-        expect(slots).toEqual([
-            { kind: 'equipmentUpgrade', slot: 'weapon' },
-            { kind: 'equipmentUpgrade', slot: 'weapon' },
+    it('offers Charged Rocks, Knives, Sword and Mace as fixed equip options', () => {
+        expect(choice.options.map((o) => o.action)).toEqual([
+            { type: 'equip_item', itemId: '011' },
+            { type: 'equip_item', itemId: '012' },
+            { type: 'equip_item', itemId: '013' },
+            { type: 'equip_item', itemId: '014' },
         ]);
+        expect(choice.researchRewardSlots).toBeUndefined();
     });
 
-    it('offers a Rocks player Charged Rocks and Knives', () => {
-        expect(offeredItemIds(['004', '001'])).toEqual(['011', '012']);
+    it('only offers tier-2 weapons', () => {
+        for (const option of choice.options) {
+            if (option.action.type !== 'equip_item') throw new Error('expected equip_item');
+            const def = getItemDef(option.action.itemId)!;
+            expect(def.tier).toBe(2);
+            expect(def.slots).toContain('weapon');
+        }
     });
 
-    it('offers a Stick player Sword and Mace', () => {
-        expect(offeredItemIds(['004', '002'])).toEqual(['013', '014']);
-    });
-
-    it('offers a Shield player only Crystal Shield', () => {
-        const rows = resolveResearchRewardSlots(slots, {}, ['004', '003']);
-        expect(rows).toHaveLength(1);
-        expect(rows[0].action).toEqual({ type: 'equip_item', itemId: '015' });
+    it('uses the whisky cave background', () => {
+        expect(choice.backgroundImage).toBe(STORY_BACKGROUNDS.whiskyCave);
     });
 
     it('unlocks every tier-2 weapon on victory', () => {

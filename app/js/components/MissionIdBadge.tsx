@@ -5,6 +5,7 @@ import React from 'react';
 import { useCurrentUser } from '../user/useCurrentUser';
 import { useDebugConsole } from '../contexts/DebugConsoleContext';
 import { TestIds } from '../testing/testIds';
+import CopyableBadge from './CopyableBadge';
 
 interface MissionIdBadgeProps {
     missionId?: string | null;
@@ -17,13 +18,12 @@ export default function MissionIdBadge({ missionId, className = '' }: MissionIdB
     if (!missionId || !(isAdmin || debugConsoleEnabled)) return null;
 
     return (
-        <span
+        <CopyableBadge
             data-testid={TestIds.headerMissionId}
+            value={missionId}
             title="Mission ID"
-            className={`px-2 py-1 bg-surface-light rounded font-mono text-xs sm:text-sm shrink-0 ${className}`}
-        >
-            {missionId}
-        </span>
+            className={className}
+        />
     );
 }
 

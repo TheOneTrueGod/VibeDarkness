@@ -26,7 +26,6 @@ import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { DEFAULT_UNIT_RADIUS, DEFAULT_MELEE_LUNGE } from '../../game/units/unit_defs/unitConstants';
 import { perpendicularSwingHitbox } from '../../hitboxes';
 import { Effect } from '../../game/effects/Effect';
-import { isSinglePlayerBattle } from '../../abilities/singlePlayerBattle';
 import {
     createChargeUpConfig,
     spawnRadiusScaledChargeUp,
@@ -35,7 +34,6 @@ import {
 import type { Unit } from '../../game/units/Unit';
 import type { ActiveAbility, ResolvedTarget } from '../../game/types';
 import { type CardDef } from '../types';
-import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}03`;
 const MAX_USES = 2;
@@ -93,13 +91,7 @@ const swingStickBehaviour = CastBehaviours.MeleeAttack()
             effectType: 'punch',
         }));
     })
-    .withDamage((ctx, unit) => {
-        const eng = ctx.engine as AbilityEngineContext;
-        if (isSinglePlayerBattle(eng) && unit.characterId === 'dark_wolf') {
-            return Math.max(DAMAGE, unit.maxHp);
-        }
-        return DAMAGE;
-    });
+    .withDamage(() => DAMAGE);
 
 // ---- Timings ----
 

@@ -1,4 +1,5 @@
 import type { CampaignResourceKey, MissionResearchRewardEntry, MissionResult } from '../../../types';
+import type { MissionVictoryRecord } from '../storylines/missionVictoryRecord';
 import { applyOrderedHungerChanges, withHungerDelta } from '../storylines/matchHunger';
 import {
     clampCharacterMatchHungerLoss,
@@ -18,6 +19,10 @@ export type CharacterMissionResultExtras = {
      * When set, replaces `resourceDelta.hunger` with the resulting net delta.
      */
     hungerChanges?: number[];
+    /** HP the match-end Hunger cost restored (see `computeVictoryHealthConversion`); omitted when 0. */
+    healthRestored?: number;
+    /** Victory popover record (victory only); see `missionVictoryRecord.ts`. */
+    victory?: MissionVictoryRecord;
 };
 
 export function buildCharacterMissionResultEntry(
@@ -39,6 +44,12 @@ export function buildCharacterMissionResultEntry(
     }
     if (extras?.researchRewards && extras.researchRewards.length > 0) {
         entry.researchRewards = extras.researchRewards;
+    }
+    if (extras?.healthRestored != null && extras.healthRestored > 0) {
+        entry.healthRestored = extras.healthRestored;
+    }
+    if (result === 'victory' && extras?.victory) {
+        entry.victory = extras.victory;
     }
     return entry;
 }

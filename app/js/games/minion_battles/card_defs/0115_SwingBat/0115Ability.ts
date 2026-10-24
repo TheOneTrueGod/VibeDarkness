@@ -22,7 +22,6 @@ import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { DEFAULT_UNIT_RADIUS, DEFAULT_MELEE_LUNGE } from '../../game/units/unit_defs/unitConstants';
 import { setupWindupLungePayload } from '../../abilities/WindupLunge';
 import { perpendicularSwingHitbox, ThickLineHitbox } from '../../hitboxes';
-import { isSinglePlayerBattle } from '../../abilities/singlePlayerBattle';
 import {
     createChargeUpConfig,
     spawnRadiusScaledChargeUp,
@@ -48,7 +47,7 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 ];
 const BASE_MIN_RANGE = 0;
 const BASE_MAX_RANGE = 25;
-export const SWING_BAT_BASE_DAMAGE = 10;
+export const SWING_BAT_BASE_DAMAGE = 12;
 const BASE_DAMAGE = SWING_BAT_BASE_DAMAGE;
 const DAMAGE_RESEARCH_BONUS = getApproxIntegerIncrease(BASE_DAMAGE, DescriptiveValue.Medium);
 const SWING_BAT_EFFECT_DURATION = 0.4;
@@ -122,14 +121,7 @@ const swingBatBehaviour = CastBehaviours.MeleeAttack()
             effectType: 'punch',
         }));
     })
-    .withDamage((ctx, unit) => {
-        const eng = ctx.engine as AbilityEngineContext;
-        const baseDmg = getDamage(eng, ctx.caster);
-        if (isSinglePlayerBattle(eng) && unit.characterId === 'dark_wolf') {
-            return Math.max(baseDmg, unit.maxHp);
-        }
-        return baseDmg;
-    })
+    .withDamage((ctx) => getDamage(ctx.engine as AbilityEngineContext, ctx.caster))
     .withKnockback(KNOCKBACK_TIER);
 
 // ---- Timings ----

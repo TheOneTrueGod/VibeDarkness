@@ -68,7 +68,7 @@ describe('passiveBonuses helpers', () => {
         };
         const bonuses = computePassiveBonuses(trees, levels);
         expect(bonuses.maxHealth?.add).toBe(50);
-        expect(bonuses.all_damage?.mult).toBe(2);
+        expect(bonuses.all_damage?.mult).toBe(TRAINING_MIGHTY_ALL_DAMAGE_MULT);
         const rows = getNonZeroPassiveBonusRows(bonuses);
         expect(rows.map((r) => r.key).sort()).toEqual(['all_damage', 'maxHealth']);
     });

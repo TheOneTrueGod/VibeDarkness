@@ -37,7 +37,6 @@ import {
     markQuestResultCampaignRewardsApplied,
     campaignRewardsToMissionGrantArgs,
     type QuestLobbyFields,
-    type QuestVictoryContinuePlan,
     type CampaignRewardsPayload,
     type LocationCardInstance,
     type LocationCardModification,
@@ -46,7 +45,15 @@ import { SPECTATOR_ID, isControlEnemy } from './state';
 import { MessageType } from '../../MessageTypes';
 import type { CampaignResourceKey } from '../../types';
 import { withHungerDelta, applyHealWoundsToHungerLoss } from './storylines/matchHunger';
-import { computeVictoryHealthConversion, type VictoryHealthConversion, type VictorySnapshot } from './storylines/victoryHealthConversion';
+import { computeVictoryHealthConversion, type VictorySnapshot } from './storylines/victoryHealthConversion';
+import {
+    findLobbyVictoryRecord,
+    storedQuestVictoryFromPlan,
+    withRecordedHunger,
+    type MissionVictoryRecord,
+    type StoredQuestVictory,
+    type VictoryRecordInput,
+} from './storylines/missionVictoryRecord';
 import { getCharacterHunger, getCharacterMaxHunger } from './character_defs/characterHunger';
 import { mergeResourceDeltas } from '../../campaignResources';
 import {
@@ -166,14 +173,29 @@ export default function MinionBattlesGame({
     );
     const [defeatModalOpen, setDefeatModalOpen] = useState(false);
     const [victoryModalOpen, setVictoryModalOpen] = useState(false);
-    /** False until the async persist / quest-plan work behind the victory popover finishes. */
-    const [victoryResultsReady, setVictoryResultsReady] = useState(false);
-    /** Hunger to HP conversion for the victory popover; null when nothing converts. */
-    const [victoryConversion, setVictoryConversion] = useState<VictoryHealthConversion | null>(null);
-    /** Set when this lobby is part of a quest chain and victory advanced/completed the run. */
-    const [questVictoryPlan, setQuestVictoryPlan] = useState<QuestVictoryContinuePlan | null>(null);
-    /** Quest-clear Campaign Rewards for the victory modal (completion + queued). */
-    const [campaignRewards, setCampaignRewards] = useState<CampaignRewardsPayload | null>(null);
+    /**
+     * The victory popover's only data source: the record written onto the character's mission result (or, for
+     * spectators / a failed write, the same record kept in memory). Null until the win is recorded.
+     */
+    const [victoryRecord, setVictoryRecord] = useState<MissionVictoryRecord | null>(null);
+    const victoryQuest = victoryRecord?.quest ?? null;
+    /**
+     * Objective rows shown while a new win is still being recorded; the same rows go into the record, which then
+     * takes over.
+     */
+    const [pendingVictoryObjectives, setPendingVictoryObjectives] = useState<MissionVictoryRecord['objectives']>([]);
+    /** Objective rows and player HP captured at victory (survives the post-mission story phase). */
+    const victorySnapshotRef = useRef<VictorySnapshot | null>(null);
+    const snapshotVictoryObjectives = (): MissionVictoryRecord['objectives'] =>
+        victorySnapshotRef.current?.objectives.map(({ id, label }) => ({ id, label })) ?? [];
+    /** Bare record (title, objectives, Continue) when the win could not be recorded at all. */
+    const fallbackVictoryRecord = (): MissionVictoryRecord => ({
+        lobbyId,
+        objectives: snapshotVictoryObjectives(),
+        conversion: null,
+        rewards: null,
+        quest: null,
+    });
     /** In-session guard so remount/poll cannot double-apply Campaign Rewards grants. */
     const appliedCampaignRewardRunIdsRef = useRef<Set<string>>(new Set());
     const raw = useMemo(() => gameData ?? {}, [gameData]);
@@ -331,33 +353,61 @@ export default function MinionBattlesGame({
      * Persists the player's mission result to their character record.
      * Win always replaces; loss only persists if no existing victory for this mission.
      * Skips spectators and control-enemy selections.
+     * On victory, `victory` carries the popover's inputs: the record is built with the capped Hunger (the Hunger to
+     * HP conversion, and `healthRestored`), stored on the mission result and returned. Without a character to write
+     * to (spectators, NPC controllers, a failed write) the same record comes back unsaved.
      */
-    /** Hunger the local character had before this victory's loss (set by `persistCharacterMissionResult`). */
-    const victoryHungerRef = useRef<{ hungerBefore: number; maxHunger: number } | null>(null);
     const persistCharacterMissionResult = useCallback(
         async (
             missionId: string,
             result: 'victory' | 'defeat',
             extras?: CharacterMissionResultExtras,
-        ): Promise<CharacterMissionResultExtras | undefined> => {
+            victory?: VictoryRecordInput,
+        ): Promise<{ extras: CharacterMissionResultExtras | undefined; record: MissionVictoryRecord | null }> => {
+            let record: MissionVictoryRecord | null = victory
+                ? {
+                      lobbyId,
+                      objectives: victory.objectives,
+                      conversion: null,
+                      rewards: victory.rewards,
+                      quest: victory.quest,
+                  }
+                : null;
             const sel = (effective.characterSelections as Record<string, string>)?.[playerId];
-            if (!sel || sel === SPECTATOR_ID || isControlEnemy(sel)) return extras;
+            if (!sel || sel === SPECTATOR_ID || isControlEnemy(sel)) return { extras, record };
             const campaignId = MISSION_MAP[missionId]?.campaignId;
-            if (!campaignId) return extras;
+            if (!campaignId) return { extras, record };
             let nextExtras = extras;
             try {
                 const rawChar = await api.getCharacter(sel);
                 const character = fromCampaignCharacterData(rawChar);
-                if (result === 'victory') {
-                    victoryHungerRef.current = {
-                        hungerBefore: getCharacterHunger(character, { excludeMissionId: missionId }),
-                        maxHunger: getCharacterMaxHunger(character.researchTrees, character.researchNodeLevels),
-                    };
-                }
                 nextExtras =
                     result === 'victory'
                         ? applyHungerCapToExtras(character, missionId, extras)
                         : extras;
+                if (result === 'victory' && victory) {
+                    const hungerBefore = getCharacterHunger(character, { excludeMissionId: missionId });
+                    const maxHunger = getCharacterMaxHunger(character.researchTrees, character.researchNodeLevels);
+                    const conversion = computeVictoryHealthConversion({
+                        playerHp: victorySnapshotRef.current?.playerHp ?? null,
+                        hungerBefore,
+                        // Net recorded change: the capped match-end cost plus any post-mission Hunger recoveries.
+                        hungerAfter: Math.max(0, Math.min(maxHunger, hungerBefore + (nextExtras?.resourceDelta?.hunger ?? 0))),
+                        maxHunger,
+                        uncappedLoss: victory.hungerLoss,
+                    });
+                    record = {
+                        lobbyId,
+                        objectives: victory.objectives,
+                        conversion,
+                        rewards: victory.rewards
+                            ? withRecordedHunger(victory.rewards, nextExtras?.resourceDelta?.hunger ?? 0)
+                            : null,
+                        quest: victory.quest,
+                    };
+                    const healthRestored = conversion ? Math.round(conversion.hpAfter - conversion.hpBefore) : 0;
+                    nextExtras = { ...nextExtras, ...(healthRestored > 0 ? { healthRestored } : {}), victory: record };
+                }
                 const existingMap: Record<string, MissionResult[]> = rawChar.missionResults ?? {};
                 const existingList = existingMap[campaignId] ?? [];
                 const updatedList = upsertCharacterMissionResultList(
@@ -367,16 +417,37 @@ export default function MinionBattlesGame({
                     Date.now(),
                     nextExtras,
                 );
-                if (!updatedList) return nextExtras;
+                if (!updatedList) return { extras: nextExtras, record };
                 await api.updateCharacter(sel, {
                     missionResults: { ...existingMap, [campaignId]: updatedList },
                 });
             } catch (e) {
                 console.warn('Failed to persist character mission result:', e);
             }
-            return nextExtras;
+            return { extras: nextExtras, record };
         },
-        [api, effective.characterSelections, playerId],
+        [api, effective.characterSelections, lobbyId, playerId],
+    );
+
+    /**
+     * The victory record already stored for this mission in this lobby: a reload replays `onVictory`, and the
+     * popover then comes from the stored win (no second write, grant or quest advance). Null for a new win.
+     */
+    const loadLobbyVictoryRecord = useCallback(
+        async (missionId: string): Promise<MissionVictoryRecord | null> => {
+            const sel = (effective.characterSelections as Record<string, string>)?.[playerId];
+            if (!sel || sel === SPECTATOR_ID || isControlEnemy(sel)) return null;
+            const campaignId = MISSION_MAP[missionId]?.campaignId;
+            if (!campaignId) return null;
+            try {
+                const rawChar = await api.getCharacter(sel);
+                return findLobbyVictoryRecord(rawChar.missionResults?.[campaignId], missionId, lobbyId);
+            } catch (e) {
+                console.warn('Failed to load the stored victory record:', e);
+                return null;
+            }
+        },
+        [api, effective.characterSelections, lobbyId, playerId],
     );
 
     /** For battle phase: use phaseChangeGameState when available (host's updateGameState response).
@@ -384,35 +455,8 @@ export default function MinionBattlesGame({
      * initial state instead of remounting BattlePhase when raw gets units/gameTick. */
     const battleInitState = gamePhase === 'battle' ? (phaseChangeGameState ?? raw) : raw;
 
-    /** Rewards from post-mission choice (for victory screen). */
-    const [missionRewards, setMissionRewards] = useState<{
-        resourceDelta?: Partial<Record<CampaignResourceKey, number>>;
-        itemFromFirstChoice?: string;
-        /** Items unlocked for the campaign by the mission's `unlockItemTiers` reward. */
-        unlockedItemIds?: string[];
-        researchRewardIds?: string[];
-        researchRewards?: MissionResearchRewardEntry[];
-        healWounds?: number;
-        darknessUpgradeLines?: DarknessUpgradeRewardLineItem[];
-    } | null>(null);
     /** Positive Hunger the local player lost in the last match (before heal-wounds and caps). */
     const matchHungerLossRef = useRef(0);
-    /** Objective rows and player HP captured at victory (survives the post-mission story phase). */
-    const victorySnapshotRef = useRef<VictorySnapshot | null>(null);
-    const [victoryObjectives, setVictoryObjectives] = useState<Array<{ id: string; label: string }>>([]);
-
-    /** Builds the Hunger to HP conversion once the capped Hunger change is known. */
-    const resolveVictoryConversion = (uncappedLoss: number, cappedHungerDelta: number) => {
-        const hunger = victoryHungerRef.current;
-        if (!hunger) return null;
-        return computeVictoryHealthConversion({
-            playerHp: victorySnapshotRef.current?.playerHp ?? null,
-            hungerBefore: hunger.hungerBefore,
-            hungerAfter: Math.max(0, hunger.hungerBefore + Math.min(0, cappedHungerDelta)),
-            maxHunger: hunger.maxHunger,
-            uncappedLoss,
-        });
-    };
 
     /** Host's active Darkness Upgrade node ids, reported by BattlePhase once the engine is loaded (all clients). */
     const activeDarknessUpgradeNodeIdsRef = useRef<string[]>([]);
@@ -439,7 +483,7 @@ export default function MinionBattlesGame({
 
     /**
      * Advance or complete the active quest run after mission victory.
-     * Returns a continue plan for the victory modal, or null when not in a matching quest lobby.
+     * Returns the quest outcome for the victory record, or null when not in a matching quest lobby.
      * On quest finale: surfaces Campaign Rewards in the UI and applies grants once.
      *
      * Optional story resource deltas are queued on the Quest Character in the same read/write
@@ -447,7 +491,7 @@ export default function MinionBattlesGame({
      */
     const prepareQuestVictoryContinue = useCallback(async (
         options?: { queueResourceDelta?: Partial<Record<CampaignResourceKey, number>> },
-    ): Promise<QuestVictoryContinuePlan | null> => {
+    ): Promise<StoredQuestVictory | null> => {
         const sel = (effective.characterSelections as Record<string, string>)?.[playerId];
         if (!sel || sel === SPECTATOR_ID || isControlEnemy(sel)) return null;
         try {
@@ -474,6 +518,7 @@ export default function MinionBattlesGame({
             if (!questDef) return null;
 
             const plan = planQuestVictoryContinue(run!, questDef);
+            let finaleCampaignRewards: CampaignRewardsPayload | null = null;
             if (plan.kind === 'continued') {
                 await api.updateCharacter(sel, { activeQuestRun: plan.run });
             } else {
@@ -553,12 +598,9 @@ export default function MinionBattlesGame({
                     ...(locationDeckUpdate ? { locationDeck: locationDeckUpdate } : {}),
                 });
                 // UI: show completionRewards + queued Campaign Rewards under "Campaign Rewards".
-                setCampaignRewards(
-                    isCampaignRewardsPayloadEmpty(payload) ? null : payload,
-                );
+                finaleCampaignRewards = isCampaignRewardsPayloadEmpty(payload) ? null : payload;
             }
-            setQuestVictoryPlan(plan);
-            return plan;
+            return storedQuestVictoryFromPlan(plan, finaleCampaignRewards);
         } catch (e) {
             console.warn('Failed to advance quest run after victory:', e);
             return null;
@@ -809,9 +851,13 @@ export default function MinionBattlesGame({
                             ? 0
                             : applyHealWoundsToHungerLoss(matchHungerLossRef.current, rewards.healWounds);
                         // Serialize character PATCHes first so the Hunger floor (0) can cap the loss
-                        // before the campaign write and victory modal.
+                        // before the campaign write and victory popover.
                         void (async () => {
+                            let shown: MissionVictoryRecord | null = null;
                             try {
+                                // A reload replays the win: show the stored record and write nothing again.
+                                shown = await loadLobbyVictoryRecord(missionId);
+                                if (shown) return;
                                 const { resourceDelta: victoryResourceDelta, lineItems: darknessUpgradeLines } =
                                     applyDarknessUpgradeVictoryRewards(
                                         baseVictoryResourceDelta,
@@ -823,7 +869,13 @@ export default function MinionBattlesGame({
                                     skipRewards || deferResourcesToQuest ? undefined : victoryResourceDelta,
                                     -hungerLoss,
                                 );
-                                const savedExtras = await persistCharacterMissionResult(
+                                // Quest advance first, so its outcome goes into the victory record.
+                                const quest = await prepareQuestVictoryContinue(
+                                    deferResourcesToQuest && victoryResourceDelta
+                                        ? { queueResourceDelta: victoryResourceDelta }
+                                        : undefined,
+                                );
+                                const { extras: savedExtras, record } = await persistCharacterMissionResult(
                                     missionId,
                                     'victory',
                                     skipRewards
@@ -835,13 +887,28 @@ export default function MinionBattlesGame({
                                               researchRewards: rewards.researchRewards,
                                               hungerChanges: rewards.hungerChanges,
                                           },
+                                    {
+                                        hungerLoss,
+                                        objectives: snapshotVictoryObjectives(),
+                                        quest,
+                                        rewards: skipRewards
+                                            ? null
+                                            : {
+                                                  resourceDelta: victoryResourceDelta,
+                                                  darknessUpgradeLines,
+                                                  itemFromFirstChoice:
+                                                      rewards.itemFromFirstChoice ?? itemIds[0] ?? undefined,
+                                                  unlockedItemIds: unlockedTierItemIds.filter(
+                                                      (id) => !itemIds.includes(id),
+                                                  ),
+                                                  researchRewardIds: rewards.researchRewardIds,
+                                                  researchRewards: rewards.researchRewards,
+                                              },
+                                    },
                                 );
                                 const cappedDelta = skipRewards
                                     ? recordedDelta
                                     : (savedExtras?.resourceDelta ?? recordedDelta);
-                                setVictoryConversion(
-                                    skipRewards ? null : resolveVictoryConversion(hungerLoss, cappedDelta?.hunger ?? 0),
-                                );
                                 void onRecordMissionResult?.(
                                     missionId,
                                     'victory',
@@ -858,30 +925,9 @@ export default function MinionBattlesGame({
                                             : {}),
                                     }
                                 );
-                                setMissionRewards(
-                                    skipRewards
-                                        ? null
-                                        : {
-                                              ...rewards,
-                                              resourceDelta: withHungerDelta(
-                                                  victoryResourceDelta,
-                                                  cappedDelta?.hunger ?? 0,
-                                              ),
-                                              darknessUpgradeLines,
-                                              itemFromFirstChoice:
-                                                  rewards.itemFromFirstChoice ?? itemIds[0] ?? undefined,
-                                              unlockedItemIds: unlockedTierItemIds.filter(
-                                                  (id) => !itemIds.includes(id),
-                                              ),
-                                          }
-                                );
-                                await prepareQuestVictoryContinue(
-                                    deferResourcesToQuest && victoryResourceDelta
-                                        ? { queueResourceDelta: victoryResourceDelta }
-                                        : undefined,
-                                );
+                                shown = record;
                             } finally {
-                                setVictoryResultsReady(true);
+                                setVictoryRecord(shown ?? fallbackVictoryRecord());
                                 setVictoryModalOpen(true);
                             }
                         })();
@@ -945,9 +991,7 @@ export default function MinionBattlesGame({
                     onVictory={(missionResult, hungerLoss = 0, snapshot) => {
                         matchHungerLossRef.current = hungerLoss;
                         victorySnapshotRef.current = snapshot ?? null;
-                        victoryHungerRef.current = null;
-                        setVictoryConversion(null);
-                        setVictoryObjectives(snapshot?.objectives.map(({ id, label }) => ({ id, label })) ?? []);
+                        setVictoryRecord(null);
                         if (!selectedMissionId) return;
                         const missionId = selectedMissionId;
                         if (postMissionStory) {
@@ -987,18 +1031,24 @@ export default function MinionBattlesGame({
                             const baseVictoryResourceDelta = skipRewards
                                 ? undefined
                                 : missionDef?.completionRewards?.resourceDelta;
-                            // Open the popover now; the persist / quest work below flips `victoryResultsReady`.
-                            setVictoryResultsReady(false);
-                            setVictoryModalOpen(true);
                             void (async () => {
+                                let shown: MissionVictoryRecord | null = null;
                                 try {
+                                    // A reload replays the win: show the stored record and write nothing again.
+                                    shown = await loadLobbyVictoryRecord(missionId);
+                                    if (shown) return;
+                                    // New win: open now so the objectives and title play while the win is recorded.
+                                    setPendingVictoryObjectives(snapshotVictoryObjectives());
+                                    setVictoryModalOpen(true);
                                     const { resourceDelta: victoryResourceDelta, lineItems: darknessUpgradeLines } =
                                         applyDarknessUpgradeVictoryRewards(
                                             baseVictoryResourceDelta,
                                             !skipRewards,
                                         );
                                     const recordedDelta = withHungerDelta(victoryResourceDelta, -hungerLoss);
-                                    const savedExtras = await persistCharacterMissionResult(
+                                    // Quest advance first, so its outcome goes into the victory record.
+                                    const quest = await prepareQuestVictoryContinue();
+                                    const { extras: savedExtras, record } = await persistCharacterMissionResult(
                                         missionId,
                                         'victory',
                                         skipRewards
@@ -1007,15 +1057,25 @@ export default function MinionBattlesGame({
                                                   resourceDelta: recordedDelta,
                                                   itemIds: resultItemIds.length > 0 ? resultItemIds : undefined,
                                               },
+                                        {
+                                            hungerLoss,
+                                            objectives: snapshotVictoryObjectives(),
+                                            quest,
+                                            rewards: skipRewards
+                                                ? null
+                                                : {
+                                                      itemFromFirstChoice: startingItemIds[0] ?? undefined,
+                                                      unlockedItemIds: unlockedTierItemIds.filter(
+                                                          (id) => !startingItemIds.includes(id),
+                                                      ),
+                                                      resourceDelta: victoryResourceDelta,
+                                                      darknessUpgradeLines,
+                                                  },
+                                        },
                                     );
                                     const cappedDelta = skipRewards
                                         ? recordedDelta
                                         : (savedExtras?.resourceDelta ?? recordedDelta);
-                                    setVictoryConversion(
-                                        skipRewards
-                                            ? null
-                                            : resolveVictoryConversion(hungerLoss, cappedDelta?.hunger ?? 0),
-                                    );
                                     void onRecordMissionResult?.(
                                         missionId,
                                         missionResult,
@@ -1032,21 +1092,10 @@ export default function MinionBattlesGame({
                                                 : {}),
                                         }
                                     );
-                                    setMissionRewards(
-                                        skipRewards
-                                            ? null
-                                            : {
-                                                  itemFromFirstChoice: startingItemIds[0] ?? undefined,
-                                                  unlockedItemIds: unlockedTierItemIds.filter(
-                                                      (id) => !startingItemIds.includes(id),
-                                                  ),
-                                                  resourceDelta: cappedDelta,
-                                                  darknessUpgradeLines,
-                                              }
-                                    );
-                                    await prepareQuestVictoryContinue();
+                                    shown = record;
                                 } finally {
-                                    setVictoryResultsReady(true);
+                                    setVictoryRecord(shown ?? fallbackVictoryRecord());
+                                    setVictoryModalOpen(true);
                                 }
                             })();
                         }
@@ -1154,30 +1203,30 @@ export default function MinionBattlesGame({
                     isHost={isHost}
                     nextLobbyId={nextLobbyId}
                     onJoinNextLobby={onJoinNextLobby}
-                    questContinuation={questVictoryPlan?.kind === 'continued'}
-                    missionRewards={missionRewards}
-                    campaignRewards={campaignRewards}
-                    resultsReady={victoryResultsReady}
-                    objectives={victoryObjectives}
-                    conversion={victoryConversion}
+                    questContinuation={victoryQuest?.kind === 'continued'}
+                    missionRewards={victoryRecord?.rewards ?? null}
+                    campaignRewards={victoryQuest?.kind === 'finale' ? victoryQuest.campaignRewards : null}
+                    resultsReady={victoryRecord != null}
+                    objectives={victoryRecord?.objectives ?? pendingVictoryObjectives}
+                    conversion={victoryRecord?.conversion ?? null}
                     questBanner={
-                        questVictoryPlan?.kind === 'finale'
-                            ? `Quest complete: ${getQuestDef(questVictoryPlan.complete.result.questDefId)?.title ?? questVictoryPlan.complete.result.questDefId}`
-                            : questVictoryPlan?.kind === 'continued'
-                              ? `Quest continues — mission ${questVictoryPlan.run.currentSlotIndex + 1}/${questVictoryPlan.run.resolvedSlots.length}`
+                        victoryQuest?.kind === 'finale'
+                            ? `Quest complete: ${getQuestDef(victoryQuest.questDefId)?.title ?? victoryQuest.questDefId}`
+                            : victoryQuest?.kind === 'continued'
+                              ? `Quest continues — mission ${victoryQuest.slotNumber}/${victoryQuest.slotCount}`
                               : questLobbyFields
                                 ? (getQuestDef(questLobbyFields.questDefId)?.title ?? null)
                                 : null
                     }
                     continueLabel={
-                        questVictoryPlan?.kind === 'finale'
+                        victoryQuest?.kind === 'finale'
                             ? 'Finish Quest'
-                            : questVictoryPlan?.kind === 'continued'
+                            : victoryQuest?.kind === 'continued'
                               ? 'Continue Quest'
                               : 'Continue'
                     }
                     sideMissions={
-                        questVictoryPlan || questLobbyFields
+                        victoryQuest || questLobbyFields
                             ? []
                             : selectedMissionId
                               ? getSideMissionIds(selectedMissionId, STORYLINES).map((id) => ({
@@ -1188,12 +1237,8 @@ export default function MinionBattlesGame({
                     }
                     onStartSideMission={async (sideMissionId) => {
                         setVictoryModalOpen(false);
-                        setVictoryResultsReady(false);
-                        setVictoryConversion(null);
-                        setVictoryObjectives([]);
-                        setMissionRewards(null);
-                        setCampaignRewards(null);
-                        setQuestVictoryPlan(null);
+                        setVictoryRecord(null);
+                        setPendingVictoryObjectives([]);
                         if (onTryAgain) {
                             const created = await onTryAgain(sideMissionId, characterSelections);
                             if (created) return;
@@ -1208,14 +1253,10 @@ export default function MinionBattlesGame({
                         }
                     }}
                     onClose={async () => {
+                        const plan = victoryQuest;
                         setVictoryModalOpen(false);
-                        setVictoryResultsReady(false);
-                        setVictoryConversion(null);
-                        setVictoryObjectives([]);
-                        setMissionRewards(null);
-                        setCampaignRewards(null);
-                        const plan = questVictoryPlan;
-                        setQuestVictoryPlan(null);
+                        setVictoryRecord(null);
+                        setPendingVictoryObjectives([]);
                         const sel = (effective.characterSelections as Record<string, string>)[playerId];
                         const isSpectatorOrEnemy = !sel || sel === SPECTATOR_ID || isControlEnemy(sel);
                         const characterId = isSpectatorOrEnemy ? undefined : sel;

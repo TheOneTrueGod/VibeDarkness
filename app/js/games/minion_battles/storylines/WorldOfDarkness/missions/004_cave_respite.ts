@@ -16,12 +16,10 @@ import {
     MACE_TREE_ID,
     MELEE_WEAPONS_TREE_ID,
     NODE_IRON_WRISTS,
-    NODE_JAGGED_EDGE,
     NODE_MORE_POWER,
     NODE_MORE_ROCK,
     NODE_STRENGTHENING_LIGHT,
     NODE_TRAINING_REGIME,
-    SWORD_TREE_ID,
     THROWN_WEAPONS_TREE_ID,
     WEAPON_ITEM_CHARGED_ROCKS,
     WEAPON_ITEM_CHARGED_SHIELD,
@@ -186,13 +184,6 @@ function getCaveRespiteResearchChoiceRows(equippedItemIds: readonly string[], pl
 
     if (equipped(WEAPON_ITEM_SWORD)) {
         return withChip([
-            {
-                id: NODE_JAGGED_EDGE,
-                label: 'Jagged Edge',
-                loreTitle: 'Ragged Steel',
-                loreDescription: 'File the blade to a wicked burr \u2014 every slice leaves a wound that keeps bleeding.',
-                action: grant(SWORD_TREE_ID, NODE_JAGGED_EDGE),
-            },
             {
                 id: NODE_IRON_WRISTS,
                 label: '+2 Swing Sword Uses',

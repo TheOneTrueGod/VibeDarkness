@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+    VICTORY_CONVERSION_ANIMATION_MS,
     VICTORY_SEQUENCE_FAST_SPEED_MULTIPLIER,
     buildVictoryTimeline,
+    victoryConversionAnimationMs,
     hasReachedStage,
     stageAtElapsed,
     victorySequenceTotalMs,
@@ -54,5 +56,20 @@ describe('stage helpers', () => {
         expect(hasReachedStage('title', 'objectives')).toBe(true);
         expect(hasReachedStage('title', 'rewards')).toBe(false);
         expect(hasReachedStage('done', 'continue')).toBe(true);
+    });
+});
+
+describe('victoryConversionAnimationMs', () => {
+    it('outlasts the sequence, so Continue shows while the food is still flying', () => {
+        const sequenceMs = victorySequenceTotalMs(buildVictoryTimeline(full));
+        expect(victoryConversionAnimationMs(1, false)).toBe(VICTORY_CONVERSION_ANIMATION_MS);
+        expect(victoryConversionAnimationMs(1, false)).toBeGreaterThan(sequenceMs);
+    });
+
+    it('speeds up with the fast setting and is instant with reduced motion', () => {
+        expect(victoryConversionAnimationMs(VICTORY_SEQUENCE_FAST_SPEED_MULTIPLIER, false)).toBeCloseTo(
+            VICTORY_CONVERSION_ANIMATION_MS / VICTORY_SEQUENCE_FAST_SPEED_MULTIPLIER,
+        );
+        expect(victoryConversionAnimationMs(1, true)).toBe(0);
     });
 });

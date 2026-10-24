@@ -38,11 +38,26 @@ export interface CharacterHungerBarProps {
     className?: string;
     /** Stretch to the parent's width instead of the character-sheet portrait width. */
     fullWidth?: boolean;
+    /**
+     * Hunger before a spend: the span from `hunger` up to this shows red (e.g. the victory Hunger cost).
+     * When set, the red and orange sections also get their own short tooltips.
+     */
+    spentFrom?: number;
 }
 
+/** Tailwind red-500: Hunger just spent. */
+export const HUNGER_SPENT_RED = '#ef4444';
+
 /** Current Hunger: orange Ham + orange fill on black with an orange outline, and a tick at the 15% penalty threshold. */
-export function CharacterHungerBar({ hunger, maxHunger, className = '', fullWidth = false }: CharacterHungerBarProps) {
+export function CharacterHungerBar({
+    hunger,
+    maxHunger,
+    className = '',
+    fullWidth = false,
+    spentFrom,
+}: CharacterHungerBarProps) {
     const fillPercent = hungerBarFillPercent(hunger, maxHunger);
+    const spentPercent = spentFrom != null ? hungerBarFillPercent(spentFrom, maxHunger) : 0;
     const { leadingZeros, significant } = formatHungerBarDigits(hunger);
     return (
         <div
@@ -71,12 +86,22 @@ export function CharacterHungerBar({ hunger, maxHunger, className = '', fullWidt
                 <Ham className="h-3.5 w-3.5 shrink-0" stroke={HUNGER_ORANGE} strokeWidth={2} aria-hidden />
             </span>
             <div className="relative h-2 min-w-0 flex-1 overflow-hidden rounded-full">
+                {/* Spent span sits under the fill, so only the part past the current Hunger shows red. */}
+                {spentPercent > fillPercent ? (
+                    <div
+                        className="absolute inset-y-0 left-0 rounded-full"
+                        style={{ width: `${spentPercent}%`, backgroundColor: HUNGER_SPENT_RED }}
+                        title={`${Math.round((spentFrom ?? 0) - hunger)} Hunger spent`}
+                        aria-hidden
+                    />
+                ) : null}
                 <div
-                    className="h-full rounded-full"
+                    className="relative h-full rounded-full"
                     style={{
                         width: `${fillPercent}%`,
                         backgroundColor: HUNGER_ORANGE,
                     }}
+                    title={spentFrom != null ? `${Math.floor(hunger)} current Hunger` : undefined}
                 />
                 <div
                     className="absolute inset-y-0 w-px bg-zinc-500"

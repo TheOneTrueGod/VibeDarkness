@@ -179,6 +179,9 @@ export {
     prepLoadoutAfterResearchGrant,
     currentPrepLoadoutForPlayer,
     prepLoadoutPrimaryIdsForResearchGrant,
+    equipmentWithEquippedItem,
+    prepLoadoutAfterStoryChoice,
+    prepLoadoutPrimaryIdsForStoryChoice,
 } from './questPrepLoadout';
 export {
     buildPartyRosterFromLobby,

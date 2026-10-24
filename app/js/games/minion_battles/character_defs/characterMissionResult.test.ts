@@ -30,6 +30,15 @@ describe('buildCharacterMissionResultEntry', () => {
         });
     });
 
+    it('records the HP the Hunger cost restored, and omits it when nothing was restored', () => {
+        expect(
+            buildCharacterMissionResultEntry(MISSION_ID, 'victory', REPLAY_TS, { healthRestored: 12 }).healthRestored,
+        ).toBe(12);
+        expect(
+            buildCharacterMissionResultEntry(MISSION_ID, 'victory', REPLAY_TS, { healthRestored: 0 }),
+        ).not.toHaveProperty('healthRestored');
+    });
+
     it('omits empty extras so Results stays None when nothing was earned', () => {
         expect(buildCharacterMissionResultEntry(MISSION_ID, 'victory', REPLAY_TS, {})).toEqual({
             missionId: MISSION_ID,

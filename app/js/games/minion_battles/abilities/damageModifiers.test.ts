@@ -18,7 +18,7 @@ import { RESEARCH_DAMAGE_BONUSES } from '../research/researchTrainingEffects';
 import { formatTooltipNumber, resolveDamageToken } from './tooltipTokens';
 import type { Unit } from '../game/units/Unit';
 
-/** Mighty researched twice → all_damage mult 1.4 (plan: base 10 → 14). */
+/** Mighty researched twice → all_damage mult 1.2 (base 10 → 12). */
 const MIGHTY_TWO_LEVELS = 2;
 const MIGHTY_TWO_LEVEL_MULT =
     1 +
@@ -76,13 +76,13 @@ describe('getModifiedAbilityDamage', () => {
 });
 
 describe('getAbilityDamageForDisplay', () => {
-    it('Mighty ×2 (mult 1.4) on base 10 → raw 14', () => {
+    it('Mighty ×2 (mult 1.2) on base 10 → raw 12', () => {
         expect(
             getAbilityDamageForDisplay(10, {
                 damageModifier: { flatAmt: 0, multiplier: MIGHTY_TWO_LEVEL_MULT },
             }),
-        ).toBe(14);
-        expect(formatTooltipNumber(14)).toBe('14');
+        ).toBe(12);
+        expect(formatTooltipNumber(12)).toBe('12');
     });
 
     it('flat + mult combo', () => {
@@ -90,7 +90,7 @@ describe('getAbilityDamageForDisplay', () => {
         expect(getAbilityDamageForDisplay(10, { damageModifier: modifier })).toBe(
             applyDamageModifier(10, modifier),
         );
-        expect(applyDamageModifier(10, modifier)).toBeCloseTo(16.8, 10);
+        expect(applyDamageModifier(10, modifier)).toBeCloseTo(14.4, 10);
     });
 
     it('abilityFlatScale on flat', () => {
@@ -115,7 +115,7 @@ describe('getAbilityDamageForDisplay', () => {
                 attacker,
                 damageModifier: { flatAmt: 99, multiplier: 9 },
             }),
-        ).toBe(14);
+        ).toBe(12);
     });
 });
 
@@ -141,12 +141,12 @@ describe('buildDamageModifierFromResearch', () => {
 });
 
 describe('resolveDamageToken (wired to display helper)', () => {
-    it('formats Mighty-boosted Burst base 10 as "14"', () => {
+    it('formats Mighty-boosted Burst base 10 as "12"', () => {
         expect(
             resolveDamageToken(10, {
                 damageModifier: { flatAmt: 0, multiplier: MIGHTY_TWO_LEVEL_MULT },
             }),
-        ).toBe('14');
+        ).toBe('12');
     });
 
     it('sub-10 raw shows tenths (not combat integer round)', () => {

@@ -214,6 +214,7 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
 		{
 			type: 'choice',
 			choiceId: 'dark_awakening_weapon',
+			backgroundImage: STORY_BACKGROUNDS.campfire,
 			options: [
 				{
 					id: 'rocks',
@@ -224,11 +225,6 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
 					id: 'torch',
 					label: 'Grab a thick branch',
 					action: { type: 'equip_item' as const, itemId: '002' },
-				},
-				{
-					id: 'pot_shield',
-					label: 'Pick up the lid of a pot from the campfire',
-					action: { type: 'equip_item' as const, itemId: '003' },
 				},
 			],
 		},

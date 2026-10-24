@@ -18,7 +18,6 @@ import {
     ENEMY_HEALTH_MULTIPLIER_BY_PLAYER_COUNT,
     getEnemyHealthMultiplier,
 } from '../constants/enemyConstants';
-import { isSinglePlayerBattle } from '../abilities/singlePlayerBattle';
 import { Unit } from './units/Unit';
 
 const DARK_WOLF_BASE_HP = getDefaultHp('dark_wolf');
@@ -48,7 +47,6 @@ describe('enemyScalingPlayerCount', () => {
         });
 
         expect(engine.enemyScalingPlayerCount).toBe(1);
-        expect(isSinglePlayerBattle(engine)).toBe(true);
 
         const heroes = engine.units.filter(
             (u) => u.characterId === PLAYER_CHARACTER_ID && u.isPlayerControlled(),
@@ -75,7 +73,6 @@ describe('enemyScalingPlayerCount', () => {
             equippedItemsByPlayer: { p1: ['004'], p2: ['004'] },
         });
         expect(engine.enemyScalingPlayerCount).toBe(2);
-        expect(isSinglePlayerBattle(engine)).toBe(false);
         expect(getEnemyHealthMultiplier(engine.enemyScalingPlayerCount)).toBe(
             ENEMY_HEALTH_MULTIPLIER_BY_PLAYER_COUNT[2],
         );

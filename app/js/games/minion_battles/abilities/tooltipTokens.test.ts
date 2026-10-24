@@ -14,7 +14,7 @@ import { TRAINING_MIGHTY_ALL_DAMAGE_MULT, TRAINING_MIGHTY_LEVELS } from '../../.
 
 const EMPTY_CTX: TooltipResolveContext = {};
 
-/** Mighty ×2 levels → mult 1.4 (same as damageModifiers.test). */
+/** Mighty ×2 levels → mult 1.2 (same as damageModifiers.test). */
 const MIGHTY_TWO_LEVEL_MULT =
     1 + ((TRAINING_MIGHTY_ALL_DAMAGE_MULT - 1) * 2) / TRAINING_MIGHTY_LEVELS;
 
@@ -98,7 +98,7 @@ describe('resolveTooltipLine / formatTooltipLines', () => {
         );
         expect(segs).toEqual([
             { text: 'Hit ', role: 'static' },
-            { text: '14', role: 'dynamic' },
+            { text: '12', role: 'dynamic' },
             { text: '.', role: 'static' },
         ]);
     });
@@ -158,6 +158,6 @@ describe('resolveTooltipLine / formatTooltipLines', () => {
             { DAMAGE: { kind: 'damage', base: 10 } },
             { damageModifier: { flatAmt: 0, multiplier: MIGHTY_TWO_LEVEL_MULT } },
         );
-        expect(lines).toEqual(['Deals {14} damage']);
+        expect(lines).toEqual(['Deals {12} damage']);
     });
 });

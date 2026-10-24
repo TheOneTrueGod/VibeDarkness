@@ -15,6 +15,7 @@ import {
     VICTORY_OBJECTIVE_STAGGER_MS,
     VICTORY_SEQUENCE_FAST_SPEED_MULTIPLIER,
     hasReachedStage,
+    victoryConversionAnimationMs,
     type VictoryTimedStage,
 } from './victorySequence';
 
@@ -163,6 +164,8 @@ export default function VictoryPopover({
     const hasObjectives = objectives.length > 0;
     const hasConversion = resultsReady && conversion != null;
 
+    /** A click on the popover jumps everything, including the longer conversion animation, to its end. */
+    const [animationSkipped, setAnimationSkipped] = useState(false);
     const { stage, stageDurationMs, skip } = useVictorySequence(
         { hasObjectives, hasConversion, speedMultiplier, reducedMotion },
         resultsReady,
@@ -184,123 +187,139 @@ export default function VictoryPopover({
             className="fixed inset-0 z-50 bg-black/60 animate-fade-in"
             data-testid={TestIds.victoryPopover}
             data-stage={stage}
-            onClick={stage === 'done' ? undefined : skip}
+            onClick={() => {
+                skip();
+                setAnimationSkipped(true);
+            }}
         >
             {/* Anchored near the top and fixed in width: content grows downward without moving the card or title. */}
-            <div className="fixed left-1/2 top-[12vh] max-h-[80vh] w-[min(560px,92vw)] -translate-x-1/2 overflow-y-auto rounded-lg border border-border-custom bg-surface-light p-8 text-center shadow-xl">
-                {/* Title band: reserved from the first frame. */}
-                <div className="flex h-10 items-center justify-center">
-                    <h2
-                        className="text-2xl font-bold text-success"
-                        style={revealStyle(showTitle, stageDurationMs('title'))}
-                    >
-                        Victory!
-                    </h2>
-                </div>
-                {questBanner ? <p className="mb-3 text-sm text-primary">{questBanner}</p> : null}
-                {hasObjectives ? (
-                    <ul className="mx-auto mb-4 flex max-w-sm flex-col gap-1" aria-label="Objectives">
-                        {objectives.map((row, i) => (
-                            <ObjectiveCrossOffRow
-                                key={row.id}
-                                row={row}
-                                index={i}
-                                staggerMs={VICTORY_OBJECTIVE_STAGGER_MS / speedMultiplier}
-                                instant={reducedMotion}
-                            />
-                        ))}
-                    </ul>
-                ) : null}
-                {conversion && hasConversion ? (
-                    <div className="mb-5">
-                        {showConversion ? (
-                            <Reveal durationMs={stageDurationMs('conversion') * 0.3}>
-                                <HungerToHealthConversion
-                                    conversion={conversion}
-                                    active
-                                    durationMs={stageDurationMs('conversion')}
+            <div className="fixed left-1/2 top-[12vh] flex max-h-[80vh] w-[min(560px,92vw)] -translate-x-1/2 flex-col overflow-hidden rounded-lg border border-border-custom bg-surface-light text-center shadow-xl">
+                {/* Scrolling body; the Continue footer below stays put. */}
+                <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-4 pb-2">
+                    {/* Title band: reserved from the first frame. */}
+                    <div className="mb-1 flex h-9 items-center justify-center">
+                        <h2
+                            className="text-2xl font-bold text-success"
+                            style={revealStyle(showTitle, stageDurationMs('title'))}
+                        >
+                            Victory!
+                        </h2>
+                    </div>
+                    {questBanner ? <p className="mb-3 text-sm text-primary">{questBanner}</p> : null}
+                    {/* One column sized to its widest card; the objectives card and the reward cards share its width. */}
+                    <div className="mx-auto flex w-fit max-w-full flex-col">
+                        {/* Inner card: objectives being crossed off, then the Hunger to HP conversion. */}
+                        {hasObjectives || hasConversion ? (
+                            <div className="mb-4 flex flex-col gap-3 rounded-lg border border-border-custom bg-surface px-4 py-3">
+                                {hasObjectives ? (
+                                    <ul className="flex flex-col gap-1" aria-label="Objectives">
+                                        {objectives.map((row, i) => (
+                                            <ObjectiveCrossOffRow
+                                                key={row.id}
+                                                row={row}
+                                                index={i}
+                                                staggerMs={VICTORY_OBJECTIVE_STAGGER_MS / speedMultiplier}
+                                                instant={reducedMotion}
+                                            />
+                                        ))}
+                                    </ul>
+                                ) : null}
+                                {conversion && showConversion ? (
+                                    <Reveal durationMs={stageDurationMs('conversion') * 0.3}>
+                                        {hasObjectives ? <hr className="mb-3 border-border-custom" /> : null}
+                                        <HungerToHealthConversion
+                                            conversion={conversion}
+                                            active
+                                            durationMs={
+                                                animationSkipped ? 0 : victoryConversionAnimationMs(speedMultiplier, reducedMotion)
+                                            }
+                                        />
+                                    </Reveal>
+                                ) : null}
+                            </div>
+                        ) : null}
+                        {showRewards ? (
+                            <Reveal durationMs={stageDurationMs('rewards')}>
+                                <VictoryRewardSections
+                                    missionRewards={missionRewards}
+                                    campaignRewards={campaignRewards}
+                                    hideHunger={hasConversion}
                                 />
                             </Reveal>
                         ) : null}
                     </div>
-                ) : null}
-                {showRewards ? (
-                    <Reveal durationMs={stageDurationMs('rewards')}>
-                        <VictoryRewardSections
-                            missionRewards={missionRewards}
-                            campaignRewards={campaignRewards}
-                            showFallback={resultsReady}
-                        />
-                    </Reveal>
-                ) : null}
+                </div>
+                {/* Sticky footer: Continue (and side quests) stay visible however long the rewards run. */}
                 {showContinue ? (
-                    <Reveal durationMs={stageDurationMs('continue')}>
-                        {sideMissions && sideMissions.length > 0 && (
-                            <div className="mb-4">
-                                <p className="mb-2 text-xs text-muted">Optional side quests available:</p>
-                                <div className="flex flex-wrap justify-center gap-2">
-                                    {sideMissions.map((sm) => (
-                                        <button
-                                            key={sm.missionId}
-                                            type="button"
-                                            className="px-4 py-2 bg-violet-800 hover:bg-violet-700 text-violet-100 font-medium rounded transition-colors border border-violet-600"
-                                            onClick={() => onStartSideMission?.(sm.missionId)}
-                                        >
-                                            {sm.name}
-                                        </button>
-                                    ))}
+                    <div className="shrink-0 border-t border-border-custom px-5 py-3">
+                        <Reveal durationMs={stageDurationMs('continue')}>
+                            {sideMissions && sideMissions.length > 0 && (
+                                <div className="mb-4">
+                                    <p className="mb-2 text-xs text-muted">Optional side quests available:</p>
+                                    <div className="flex flex-wrap justify-center gap-2">
+                                        {sideMissions.map((sm) => (
+                                            <button
+                                                key={sm.missionId}
+                                                type="button"
+                                                className="px-4 py-2 bg-violet-800 hover:bg-violet-700 text-violet-100 font-medium rounded transition-colors border border-violet-600"
+                                                onClick={() => onStartSideMission?.(sm.missionId)}
+                                            >
+                                                {sm.name}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                        <div className="flex justify-center">
-                            {/* Quest continuation: any party member claims the same next lobby. */}
-                            {questContinuation ? (
-                                <button
-                                    type="button"
-                                    data-testid={TestIds.victoryPopoverContinue}
-                                    className={continueButtonClass}
-                                    onClick={onClose}
-                                >
-                                    {continueLabel}
-                                </button>
-                            ) : (
-                                <>
-                                    {/* Host (or solo play): existing continue flow */}
-                                    {(isHost === true || isHost === undefined) && (
-                                        <button
-                                            type="button"
-                                            data-testid={TestIds.victoryPopoverContinue}
-                                            className={continueButtonClass}
-                                            onClick={onClose}
-                                        >
-                                            {continueLabel}
-                                        </button>
-                                    )}
-                                    {/* Client, waiting for host to choose next mission */}
-                                    {isHost === false && !nextLobbyId && (
-                                        <button
-                                            type="button"
-                                            className="px-6 py-2 bg-gray-600 text-gray-400 font-medium rounded cursor-not-allowed"
-                                            disabled
-                                        >
-                                            Waiting for host…
-                                        </button>
-                                    )}
-                                    {/* Client, host has created next lobby */}
-                                    {isHost === false && nextLobbyId && (
-                                        <button
-                                            type="button"
-                                            data-testid={TestIds.victoryPopoverContinue}
-                                            className={continueButtonClass}
-                                            onClick={() => onJoinNextLobby?.(nextLobbyId)}
-                                        >
-                                            {continueLabel}
-                                        </button>
-                                    )}
-                                </>
                             )}
-                        </div>
-                    </Reveal>
+                            <div className="flex justify-center">
+                                {/* Quest continuation: any party member claims the same next lobby. */}
+                                {questContinuation ? (
+                                    <button
+                                        type="button"
+                                        data-testid={TestIds.victoryPopoverContinue}
+                                        className={continueButtonClass}
+                                        onClick={onClose}
+                                    >
+                                        {continueLabel}
+                                    </button>
+                                ) : (
+                                    <>
+                                        {/* Host (or solo play): existing continue flow */}
+                                        {(isHost === true || isHost === undefined) && (
+                                            <button
+                                                type="button"
+                                                data-testid={TestIds.victoryPopoverContinue}
+                                                className={continueButtonClass}
+                                                onClick={onClose}
+                                            >
+                                                {continueLabel}
+                                            </button>
+                                        )}
+                                        {/* Client, waiting for host to choose next mission */}
+                                        {isHost === false && !nextLobbyId && (
+                                            <button
+                                                type="button"
+                                                className="px-6 py-2 bg-gray-600 text-gray-400 font-medium rounded cursor-not-allowed"
+                                                disabled
+                                            >
+                                                Waiting for host…
+                                            </button>
+                                        )}
+                                        {/* Client, host has created next lobby */}
+                                        {isHost === false && nextLobbyId && (
+                                            <button
+                                                type="button"
+                                                data-testid={TestIds.victoryPopoverContinue}
+                                                className={continueButtonClass}
+                                                onClick={() => onJoinNextLobby?.(nextLobbyId)}
+                                            >
+                                                {continueLabel}
+                                            </button>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        </Reveal>
+                    </div>
                 ) : null}
             </div>
         </div>

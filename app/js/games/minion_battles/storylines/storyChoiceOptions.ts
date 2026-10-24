@@ -2,7 +2,8 @@
  * Shared rules for which options a story `choice` phrase shows, used by the live story panels
  * and the admin Skip Chapter wizard (`chapterSkip.ts`), so both offer the same rows.
  */
-import type { StoryChoiceOptionRow } from './storyTypes';
+import type { CampaignResourceKey } from '../../../types';
+import type { StoryChoiceAction, StoryChoiceOptionRow } from './storyTypes';
 import { isResearchNodeBlockedByOwnershipOrExclusivity } from '../../../researchTrees/evaluator';
 
 export const STORY_CHOICE_SKIP_OPTION_ID = 'skip';
@@ -65,4 +66,20 @@ export function needsPreMissionSkipOption(
 /** Post-mission choices always offer a way to take nothing. */
 export function withPostMissionSkipOption(options: readonly StoryChoiceOptionRow[]): StoryChoiceOptionRow[] {
     return options.some(isStoryChoiceSkipOption) ? [...options] : [...options, createStoryChoiceSkipOption()];
+}
+
+/**
+ * Resources a choice action hands the player, for its reward pills: `grant_resources` amounts and
+ * `recover_hunger` as a positive Hunger change. Empty for actions without a resource reward.
+ */
+export function storyChoiceActionResourceDelta(
+    action: StoryChoiceAction | undefined,
+): Partial<Record<CampaignResourceKey, number>> {
+    if (action?.type === 'grant_resources') {
+        return { food: action.food, metal: action.metal, crystals: action.crystals };
+    }
+    if (action?.type === 'recover_hunger') {
+        return { hunger: action.amount };
+    }
+    return {};
 }

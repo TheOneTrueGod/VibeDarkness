@@ -32,6 +32,10 @@ import {
     crystalSpecialTilesAt,
 } from '../MapSegments/50_50_crystal_cave';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
+import { getItemDef } from '../../../character_defs/items';
+
+/** Tier-2 weapons offered at the cave respite, whatever the player started with: Charged Rocks, Knives, Sword, Mace. */
+export const CAVE_WEAPON_ITEM_IDS = ['011', '012', '013', '014'] as const;
 
 /** Crystal-cave haul on the way to the inner campfire. */
 export const TOWARDS_THE_LIGHT_CRYSTAL_REWARD = 5;
@@ -196,11 +200,17 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
         {
             type: 'choice',
             choiceId: 'towards_the_light_cave_choice',
-            options: [],
-            researchRewardSlots: [
-                { kind: 'equipmentUpgrade', slot: 'weapon' },
-                { kind: 'equipmentUpgrade', slot: 'weapon' },
-            ],
+            backgroundImage: STORY_BACKGROUNDS.whiskyCave,
+            options: CAVE_WEAPON_ITEM_IDS.map((itemId) => {
+                const item = getItemDef(itemId)!;
+                return {
+                    id: `weapon_${itemId}`,
+                    label: item.name,
+                    loreTitle: item.name,
+                    loreDescription: item.description,
+                    action: { type: 'equip_item' as const, itemId },
+                };
+            }),
         },
     ],
 };

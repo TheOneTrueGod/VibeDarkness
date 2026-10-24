@@ -2,7 +2,7 @@
  * Swing Sword â€” Warrior melee (crafted sword).
  *
  * Perpendicular slash up to 2 targets, small knockback, metallic gray slash trail.
- * Bleed applies when Jagged Edge is researched.
+ * Each hit inflicts 2 Bleed stacks.
  * Composition-based refactor: all combat logic lives in CastBehaviours;
  * `beginActiveCast` survives only for the charge-up VFX.
  *
@@ -13,30 +13,25 @@
  *   0.30â€“1.30  cooldown
  */
 
-import type { AbilityRecoveryRule } from '../../abilities/Ability';
+import { AbilityEventType, type AbilityRecoveryRule } from '../../abilities/Ability';
 import { defineAbility } from '../../abilities/defineAbility';
+import swordItemIconSvg from '../../character_defs/items/assets/013_sword.svg?raw';
 import { AbilityPhase, type AbilityTimingInterval } from '../../abilities/abilityTimings';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { DEFAULT_UNIT_RADIUS, DEFAULT_MELEE_LUNGE } from '../../game/units/unit_defs/unitConstants';
 import { perpendicularSwingHitbox } from '../../hitboxes';
 import { createSlashTrailEffect } from '../../abilities/effectHelpers';
-import { applyBleedStack } from '../../buffs/bleedRuntime';
 import {
     createChargeUpConfig,
     spawnMeleeChargeUpEffect,
     type MeleeAnimationProfile,
 } from '../../abilities/meleeAnimationProfile';
-import {
-    SWORD_TREE_ID,
-    SWORD_NODE_JAGGED_EDGE,
-} from '../../../../researchTrees/trees/sword';
 import type { Unit } from '../../game/units/Unit';
 import type { ActiveAbility, ResolvedTarget } from '../../game/types';
 import { type CardDef } from '../types';
 import { Effect } from '../../game/effects/Effect';
-import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
-import { hasResearchNode, resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
+import { resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
 import {
     formatTooltipLegacyLines,
     type TooltipTokenBindings,
@@ -58,9 +53,11 @@ const SWING_LENGTH = 80;
 const SLASH_TRAIL_DURATION = 0.35;
 const SLASH_TRAIL_THICKNESS = 14;
 const SLASH_TRAIL_COLOR = 0xc0c8d0;
+/** Bleed stacks applied to each unit the sword hits. */
+const BLEED_STACKS_ON_HIT = 2;
 
 const TOOLTIP_LINES = [
-    'Slash with the sword dealing {{DAMAGE}} damage to up to {{MAX_TARGETS}} enemies, nudging them back.',
+    'Slash with the sword dealing {{DAMAGE}} damage to up to {{MAX_TARGETS}} enemies, nudging them back. Inflicts {Bleed}.',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
@@ -112,12 +109,7 @@ const swingSwordBehaviour = CastBehaviours.MeleeAttack()
         );
     })
     .withDamage(DAMAGE)
-    .withKnockback(KNOCKBACK_TIER)
-    .onDamage((ctx, unit) => {
-        if (hasResearchNode(ctx.engine, ctx.caster, SWORD_TREE_ID, SWORD_NODE_JAGGED_EDGE)) {
-            applyBleedStack(unit, ctx.engine.gameTime, ctx.engine.roundNumber ?? 0, 3);
-        }
-    });
+    .withKnockback(KNOCKBACK_TIER);
 
 // ---- Timings ----
 
@@ -131,12 +123,8 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
 
 // ---- Image ----
 
-const SWING_SWORD_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
-  <defs><linearGradient id="swblade" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9ca3af"/><stop offset="0.5" stop-color="#d1d5db"/><stop offset="1" stop-color="#e5e7eb"/></linearGradient></defs>
-  <rect x="26" y="14" width="12" height="36" rx="2" fill="url(#swblade)" stroke="#6b7280" stroke-width="1"/>
-  <rect x="28" y="8" width="8" height="8" rx="2" fill="#52525b" stroke="#3f3f46"/>
-  <ellipse cx="32" cy="32" rx="5" ry="5" fill="#d1d5db" opacity="0.5"/>
-</svg>`;
+/** Same icon as the sword equipment (raw SVG markup, as ability images are injected as HTML). */
+const SWING_SWORD_IMAGE = swordItemIconSvg;
 
 // ---- Ability export ----
 
@@ -158,16 +146,22 @@ export const SwingSwordAbility = defineAbility({
     // movementLock: lock movement through windup; release on lunge.
     movementLock: { until: 0.2 },
 
+    // Every unit the sword hits bleeds.
+    abilityEvents: {
+        [AbilityEventType.ON_ATTACK_HIT]: [
+            {
+                conditions: [{ type: 'hitResultIs', result: 'hit' }],
+                effects: [{ type: 'applyBleedToPrimaryTarget', stacks: BLEED_STACKS_ON_HIT }],
+            },
+        ],
+    },
+
     getTooltipText(gameState?: unknown): string[] {
-        const lines = formatTooltipLegacyLines(
+        return formatTooltipLegacyLines(
             TOOLTIP_LINES,
             TOOLTIP_BINDINGS,
             resolveTooltipContext(gameState, { ability: { id: CARD_ID } }),
         );
-        if (hasResearchNode(gameState as AbilityEngineContext | undefined, undefined, SWORD_TREE_ID, SWORD_NODE_JAGGED_EDGE)) {
-            lines[0] = `${lines[0]} Inflicts {Bleed}.`;
-        }
-        return lines;
     },
 
     beginActiveCast(engine: unknown, caster: Unit, _targets: ResolvedTarget[], _active: ActiveAbility): void {

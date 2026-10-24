@@ -14,6 +14,10 @@ export default defineConfig({
         'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
     },
     plugins: [react()],
+    // Markdown is only imported with `?raw` (Ideas page), but `vitest related` strips the
+    // query when crawling the import graph and would parse the bare .md as JS. Treating .md
+    // as an asset makes that bare transform a harmless URL export.
+    assetsInclude: ['**/*.md'],
     root: '.',
     resolve: {
         alias: {

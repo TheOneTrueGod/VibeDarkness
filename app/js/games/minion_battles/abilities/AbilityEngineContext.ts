@@ -29,7 +29,7 @@ export interface AbilityEngineContext {
     roundNumber?: number;
     /**
      * Human player-character roster size at mission start (not pets/summons).
-     * Optional on test stubs; {@link isSinglePlayerBattle} defaults missing to 1.
+     * Optional on test stubs; treat a missing value as 1.
      */
     enemyScalingPlayerCount?: number;
     eventBus: EventBus;

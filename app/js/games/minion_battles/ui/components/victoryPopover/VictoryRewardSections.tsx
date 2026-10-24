@@ -1,39 +1,31 @@
 /**
  * Reward sections of the victory popover: Mission Results (items, resource cards, research) and
- * Campaign Results (quest-clear rewards), or the "You have prevailed." fallback when there is nothing to show.
+ * Campaign Results (quest-clear rewards).
  */
 import React, { useRef, useState } from 'react';
 import { getItemDef, ITEM_ICON_URLS } from '../../../character_defs/items';
-import type { CampaignResourceKey, MissionResearchRewardEntry } from '../../../../../types';
+import type { CampaignResourceKey } from '../../../../../types';
 import ResourcePill, { campaignResourceGains } from '../../../../../components/ResourcePill';
-import { CAMPAIGN_RESULTS_LABEL, MISSION_RESULTS_LABEL } from '../../../../../components/missionResultCopy';
+import { CAMPAIGN_RESULTS_LABEL } from '../../../../../components/missionResultCopy';
 import ResearchNodeCard from '../ResearchNodeCard';
 import { getResearchTree, getResolvedMissionResearchRewards } from '../../../../../researchTrees/list';
 import type { CampaignRewardsPayload } from '../../../storylines/questRun';
+import type { MissionVictoryRewards } from '../../../storylines/missionVictoryRecord';
 import { isCampaignRewardsPayloadEmpty } from '../../../storylines/questCampaignRewards';
 import LocationCardPill from '../LocationCardPill';
 import { DARKNESS_UPGRADES_TREE_ID, DARKNESS_UPGRADE_ICON } from '../../../../../researchTrees/darknessUpgrades';
 import { Coins, type LucideIcon } from 'lucide-react';
 import { AnchoredPortalTooltip, PORTAL_TOOLTIP_SURFACE_CLASS } from '../AnchoredPortalTooltip';
-import type { DarknessUpgradeRewardLineItem } from '../../../../../researchTrees/darknessUpgradeRewards';
 
-export interface VictoryMissionRewards {
-    resourceDelta?: Partial<Record<CampaignResourceKey, number>>;
-    itemFromFirstChoice?: string;
-    /** Items unlocked for the campaign by the mission's `unlockItemTiers` reward. */
-    unlockedItemIds?: string[];
-    researchRewardIds?: string[];
-    researchRewards?: MissionResearchRewardEntry[];
-    /** Darkness Upgrade bonus lines (host's active set, shown for every player); already included in `resourceDelta`. */
-    darknessUpgradeLines?: DarknessUpgradeRewardLineItem[];
-}
+/** Mission Results as stored on the victory record (see `missionVictoryRecord.ts`). */
+export type VictoryMissionRewards = MissionVictoryRewards;
 
 interface VictoryRewardSectionsProps {
     missionRewards: VictoryMissionRewards | null;
     /** Quest-clear Campaign Rewards (completion + queued). Shown under Campaign Results. */
     campaignRewards?: CampaignRewardsPayload | null;
-    /** Show "You have prevailed." when there are no rewards at all (only once results are final). */
-    showFallback: boolean;
+    /** Leave Hunger out of the reward cards (the Hunger to HP conversion already shows it). */
+    hideHunger?: boolean;
 }
 
 interface RewardCardData {
@@ -45,8 +37,19 @@ interface RewardCardData {
     gains: ReturnType<typeof campaignResourceGains>;
 }
 
-/** Bordered reward card (title flanked by its icon, then resource pills); optional hover tooltip. */
-function RewardCard({ card, wide }: { card: RewardCardData; wide: boolean }) {
+/**
+ * Bordered reward card (title flanked by its icon, then resource pills, then `children`); optional hover tooltip.
+ * `width`: `full` spans the column, `half` sits two per row, `auto` keeps its natural width.
+ */
+function RewardCard({
+    card,
+    width,
+    children,
+}: {
+    card: RewardCardData;
+    width: 'full' | 'half' | 'auto';
+    children?: React.ReactNode;
+}) {
     const ref = useRef<HTMLDivElement | null>(null);
     const [hovered, setHovered] = useState(false);
     const { Icon } = card;
@@ -55,9 +58,8 @@ function RewardCard({ card, wide }: { card: RewardCardData; wide: boolean }) {
             ref={ref}
             onMouseEnter={() => setHovered(true)}
             onMouseLeave={() => setHovered(false)}
-            // One card: centred at natural width; two or more: two per row.
             className={`flex flex-col items-center gap-2 rounded-lg border border-border-custom bg-surface px-3 py-2 ${
-                wide ? 'w-[calc(50%-0.375rem)]' : ''
+                width === 'full' ? 'w-full' : width === 'half' ? 'w-[calc(50%-0.375rem)]' : ''
             }`}
         >
             <span className="flex items-center gap-1.5 text-sm font-medium text-white">
@@ -65,11 +67,14 @@ function RewardCard({ card, wide }: { card: RewardCardData; wide: boolean }) {
                 {card.title}
                 {Icon ? <Icon className="h-4 w-4 shrink-0" aria-hidden /> : null}
             </span>
-            <div className="flex flex-wrap justify-center gap-2">
-                {card.gains.map(({ resource, count }) => (
-                    <ResourcePill key={resource} resource={resource} count={count} />
-                ))}
-            </div>
+            {card.gains.length > 0 ? (
+                <div className="flex flex-wrap justify-center gap-2">
+                    {card.gains.map(({ resource, count }) => (
+                        <ResourcePill key={resource} resource={resource} count={count} />
+                    ))}
+                </div>
+            ) : null}
+            {children}
             {card.tooltip ? (
                 <AnchoredPortalTooltip anchorRef={ref} open={hovered} className={`${PORTAL_TOOLTIP_SURFACE_CLASS} px-3 py-2 text-sm`}>
                     {card.tooltip}
@@ -108,7 +113,7 @@ function ItemRewardCard({ itemId, caption }: { itemId: string; caption?: string 
 export default function VictoryRewardSections({
     missionRewards,
     campaignRewards = null,
-    showFallback,
+    hideHunger = false,
 }: VictoryRewardSectionsProps) {
     const researchRewards = getResolvedMissionResearchRewards(missionRewards);
     const hasMissionRewards =
@@ -116,8 +121,9 @@ export default function VictoryRewardSections({
         ((missionRewards.itemFromFirstChoice != null && missionRewards.itemFromFirstChoice !== '') ||
             (missionRewards.unlockedItemIds?.length ?? 0) > 0 ||
             (missionRewards.resourceDelta &&
-                Object.keys(missionRewards.resourceDelta).length > 0 &&
-                Object.values(missionRewards.resourceDelta).some((v) => v != null && v > 0)) ||
+                Object.entries(missionRewards.resourceDelta).some(
+                    ([key, v]) => v != null && v > 0 && !(hideHunger && key === 'hunger'),
+                )) ||
             researchRewards.length > 0);
 
     const hasCampaignRewards =
@@ -133,17 +139,29 @@ export default function VictoryRewardSections({
             coreResourceDelta[key] = (coreResourceDelta[key] ?? 0) - amount;
         }
     }
-    // Every reward source is a card of the same look: "Mission Rewards" first, then one per Darkness Upgrade.
-    const rewardCards: RewardCardData[] = [
-        { key: 'mission', title: 'Mission Rewards', Icon: Coins, gains: campaignResourceGains(coreResourceDelta) },
-        ...darknessUpgradeLines.map((line) => ({
+    if (hideHunger) {
+        delete coreResourceDelta.hunger;
+    }
+    // "Mission Rewards" spans the column and also holds the item rewards; each Darkness Upgrade gets a card below.
+    const missionCard: RewardCardData = {
+        key: 'mission',
+        title: 'Mission Rewards',
+        Icon: Coins,
+        gains: campaignResourceGains(coreResourceDelta),
+    };
+    const missionItems: Array<{ id: string; caption: string }> = [
+        ...(itemId ? [{ id: itemId, caption: 'From your choice' }] : []),
+        ...(missionRewards?.unlockedItemIds ?? []).map((id) => ({ id, caption: 'Unlocked' })),
+    ];
+    const upgradeCards: RewardCardData[] = darknessUpgradeLines
+        .map((line) => ({
             key: line.nodeId,
             title: line.title,
             Icon: DARKNESS_UPGRADE_ICON,
             tooltip: getDarknessUpgradeTooltip(line.nodeId),
             gains: campaignResourceGains(line.delta),
-        })),
-    ].filter((card) => card.gains.length > 0);
+        }))
+        .filter((card) => card.gains.length > 0);
 
     const campaignResourceGainsList = hasCampaignRewards
         ? campaignResourceGains(campaignRewards.resourceDelta)
@@ -163,21 +181,25 @@ export default function VictoryRewardSections({
         <>
                 {hasMissionRewards && (
                     <>
-                        <h3 className="text-lg font-semibold text-white mb-4">{MISSION_RESULTS_LABEL}</h3>
-                        <div className="flex flex-col items-center gap-4 mb-6">
-                            {itemId ? (
-                                <ItemRewardCard itemId={itemId} caption="From your choice" />
-                            ) : null}
-                            {(missionRewards?.unlockedItemIds ?? []).map((id) => (
-                                <ItemRewardCard key={`unlocked-${id}`} itemId={id} caption="Unlocked" />
-                            ))}
-                            {rewardCards.length > 0 ? (
+                        <div className="flex flex-col items-center gap-4 mb-4">
+                            {missionCard.gains.length > 0 || missionItems.length > 0 || upgradeCards.length > 0 ? (
                                 <div
                                     className="flex w-full flex-wrap justify-center gap-3"
                                     data-testid="reward-cards"
                                 >
-                                    {rewardCards.map((card) => (
-                                        <RewardCard key={card.key} card={card} wide={rewardCards.length > 1} />
+                                    {missionCard.gains.length > 0 || missionItems.length > 0 ? (
+                                        <RewardCard card={missionCard} width="full">
+                                            {missionItems.length > 0 ? (
+                                                <div className="flex flex-wrap justify-center gap-3">
+                                                    {missionItems.map(({ id, caption }) => (
+                                                        <ItemRewardCard key={`${caption}-${id}`} itemId={id} caption={caption} />
+                                                    ))}
+                                                </div>
+                                            ) : null}
+                                        </RewardCard>
+                                    ) : null}
+                                    {upgradeCards.map((card) => (
+                                        <RewardCard key={card.key} card={card} width={upgradeCards.length > 1 ? 'half' : 'auto'} />
                                     ))}
                                 </div>
                             ) : null}
@@ -269,9 +291,6 @@ export default function VictoryRewardSections({
                         </div>
                     </>
                 ) : null}
-            {showFallback && !hasMissionRewards && !hasCampaignRewards && (
-                <p className="text-muted mb-6">You have prevailed.</p>
-            )}
         </>
     );
 }

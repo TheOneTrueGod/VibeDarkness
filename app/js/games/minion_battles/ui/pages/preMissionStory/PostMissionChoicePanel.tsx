@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { Star } from 'lucide-react';
 import type { ChoicePhrase, StoryChoiceAction, StoryChoiceOptionRow } from '../../../storylines/storyTypes';
-import ResourcePill, { campaignResourceGains } from '../../../../../components/ResourcePill';
 import ResearchRewardTinyChip from '../../../../../components/ResearchRewardTinyChip';
 import StoryChoiceGrid, {
     STORY_CHOICE_CELL_BUTTON_BASE,
@@ -19,7 +18,7 @@ import { TestIds } from '../../../../../testing/testIds';
 import { arrangeStoryChoiceGridSlots, isStoryChoiceSkipOption } from './storyChoiceGrid';
 import { createStoryChoiceSkipOption } from '../../../storylines/storyChoiceOptions';
 import { ITEM_ICON_URLS } from '../../../character_defs/items';
-import { isGrantResources } from './preMissionStoryTypeGuards';
+import StoryChoiceDescriptionRow from './StoryChoiceDescriptionRow';
 
 /** Badge on reward options flagged {@link StoryChoiceOptionRow.forYou}. */
 export const FOR_YOU_BADGE_LABEL = 'For you';
@@ -170,32 +169,19 @@ export default function PostMissionChoicePanel({
                                     <span className="line-clamp-2 text-[10px] leading-snug text-zinc-500 sm:text-xs">
                                         {disabledReason}
                                     </span>
-                                ) : opt.loreDescription ? (
-                                    <span className="line-clamp-2 text-[10px] leading-snug text-zinc-400 sm:text-xs">
-                                        {opt.loreDescription}
-                                    </span>
-                                ) : null}
+                                ) : (
+                                    <StoryChoiceDescriptionRow
+                                        optionId={opt.id}
+                                        description={opt.loreDescription}
+                                        action={isSkip ? undefined : opt.action}
+                                    />
+                                )}
                                 {!isSkip && resolvedOption.researchReward ? (
                                     <div className="flex max-w-full justify-center pt-0.5">
                                         <ResearchRewardTinyChip
                                             node={resolvedOption.researchReward.node}
                                             tree={researchTree}
                                         />
-                                    </div>
-                                ) : null}
-                                {!isSkip && isGrantResources(opt.action) ? (
-                                    <div className="flex max-w-full flex-wrap items-center justify-center gap-1">
-                                        {campaignResourceGains({
-                                            food: opt.action.food,
-                                            metal: opt.action.metal,
-                                            crystals: opt.action.crystals,
-                                        }).map(({ resource, count }) => (
-                                            <ResourcePill
-                                                key={`${opt.id}-${resource}`}
-                                                resource={resource}
-                                                count={count}
-                                            />
-                                        ))}
                                     </div>
                                 ) : null}
                             </button>

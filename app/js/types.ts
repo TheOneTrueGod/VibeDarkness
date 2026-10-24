@@ -2,6 +2,7 @@
  * Shared frontend types for lobby, players, and API payloads
  */
 import type { BattleOrder } from './games/minion_battles/game/types';
+import type { MissionVictoryRecord } from './games/minion_battles/storylines/missionVictoryRecord';
 import type { ResearchNodeLevels, ResearchNodeSources } from './researchTrees/types';
 import type {
     DarknessStrengthAdminOverride,
@@ -71,6 +72,10 @@ export interface MissionResult {
     adminGranted?: boolean;
     /** Player completed this mission controlling NPCs instead of their own character. */
     controlledNpcs?: boolean;
+    /** HP the match-end Hunger cost restored to the character (victory only; omitted when 0). */
+    healthRestored?: number;
+    /** What the victory popover showed for this win (victory only); rebuilds the popover after a reload. */
+    victory?: MissionVictoryRecord;
 }
 
 export interface CampaignResources {

@@ -47,7 +47,6 @@ export const MELEE_WEAPONS_ROOT_NODE_ID = 'melee_weapons_root';
 /** Follow-up nodes (ids unchanged from the old swap-research trees; only their tree changed). */
 export const NODE_MORE_POWER = 'more_power';
 export const NODE_PIERCING_KNIVES = 'piercing_knives';
-export const NODE_JAGGED_EDGE = 'sword_jagged_edge';
 export const NODE_TRAINING_REGIME = 'pipe_bat_damage';
 export const NODE_STRENGTHENING_LIGHT = 'extra_shields';
 export const NODE_MORE_ROCK = 'more_rock';

@@ -1,12 +1,11 @@
 import React, { useMemo } from 'react';
 import type { ChoicePhrase, StoryChoiceAction, StoryChoiceOptionRow } from '../../../storylines/storyTypes';
-import ResourcePill, { campaignResourceGains } from '../../../../../components/ResourcePill';
 import StoryChoiceGrid, {
     STORY_CHOICE_CELL_BUTTON_BASE,
     STORY_CHOICE_CELL_BUTTON_PRIMARY,
     STORY_CHOICE_CELL_BUTTON_SKIP,
 } from '../../components/battleUiSlots/StoryChoiceGrid';
-import { isGrantResources } from './preMissionStoryTypeGuards';
+import StoryChoiceDescriptionRow from './StoryChoiceDescriptionRow';
 import { TestIds, storyChoiceTestId } from '../../../../../testing/testIds';
 import { filterChoiceOptionsByResearch, needsPreMissionSkipOption } from '../../../storylines/storyChoiceOptions';
 import {
@@ -106,22 +105,11 @@ export default function ChoicePhrasePanel({
                         className={buttonClass}
                     >
                         <span className="line-clamp-2 text-xs font-medium leading-snug sm:text-sm">{title}</span>
-                        {description ? (
-                            <span className="line-clamp-2 text-[10px] leading-snug text-zinc-400 sm:text-xs">
-                                {description}
-                            </span>
-                        ) : null}
-                        {!isSkip && isGrantResources(opt.action) ? (
-                            <div className="flex max-w-full flex-wrap items-center justify-center gap-1">
-                                {campaignResourceGains({
-                                    food: opt.action.food,
-                                    metal: opt.action.metal,
-                                    crystals: opt.action.crystals,
-                                }).map(({ resource, count }) => (
-                                    <ResourcePill key={`${opt.id}-${resource}`} resource={resource} count={count} />
-                                ))}
-                            </div>
-                        ) : null}
+                        <StoryChoiceDescriptionRow
+                            optionId={opt.id}
+                            description={description}
+                            action={isSkip ? undefined : opt.action}
+                        />
                     </button>
                 );
             })}

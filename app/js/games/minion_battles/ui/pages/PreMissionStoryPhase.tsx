@@ -11,7 +11,7 @@ import { STORY_BACKGROUNDS } from '../../assets/story';
 import { SPECTATOR_ID } from '../../state';
 import { getItemDef } from '../../character_defs/items';
 import { getActiveResearchTrees } from '../../../../researchTrees/activeResearch';
-import { prepLoadoutPrimaryIdsForResearchGrant } from '../../storylines/questPrepLoadout';
+import { prepLoadoutPrimaryIdsForStoryChoice } from '../../storylines/questPrepLoadout';
 import { researchGrantFromStoryAction } from '../../storylines/storyResearchGrant';
 import PreMissionStoryEndScreen from './preMissionStory/PreMissionStoryEndScreen';
 import PreMissionStoryLayout from './preMissionStory/PreMissionStoryLayout';
@@ -214,19 +214,17 @@ export default function PreMissionStoryPhase({
                 }
                 const researchGrant = researchGrantFromStoryAction(option?.action);
                 const characterId = characterSelections[playerId];
-                const prepLoadoutPrimaryIds = researchGrant
-                    ? prepLoadoutPrimaryIdsForResearchGrant({
-                        playerId,
-                        characterId,
-                        equipment: currentEquipment,
-                        researchTrees: playerResearchTreesByPlayer[playerId],
-                        treeId: researchGrant.treeId,
-                        nodeId: researchGrant.nodeId,
-                        missionPrepLoadoutsByPlayer,
-                        questPrepLoadoutsByPlayer,
-                        questAbilityLoadoutsByCharacterId,
-                    })
-                    : undefined;
+                const prepLoadoutPrimaryIds = prepLoadoutPrimaryIdsForStoryChoice({
+                    playerId,
+                    characterId,
+                    equipment: currentEquipment,
+                    researchTrees: playerResearchTreesByPlayer[playerId],
+                    equipItem: itemId !== undefined ? { itemId, replaceItemIds } : undefined,
+                    researchGrant: researchGrant ?? undefined,
+                    missionPrepLoadoutsByPlayer,
+                    questPrepLoadoutsByPlayer,
+                    questAbilityLoadoutsByCharacterId,
+                });
                 await api.sendMessage(MessageType.STORY_CHOICE, {
                     choiceId,
                     optionId,

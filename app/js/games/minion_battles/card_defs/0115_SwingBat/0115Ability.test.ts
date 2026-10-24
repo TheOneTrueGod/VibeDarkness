@@ -27,11 +27,11 @@ describe('Swing Mace getTooltipText (damage tokens)', () => {
     it('without context shows base damage', () => {
         const lines = SwingBatAbility_0115.getTooltipText();
         expect(lines.some((l) => l.includes(`{${SWING_BAT_BASE_DAMAGE}}`))).toBe(true);
-        expect(lines.some((l) => l.includes('{14}'))).toBe(false);
+        expect(lines.some((l) => l.includes(`{${Math.round(SWING_BAT_BASE_DAMAGE * MIGHTY_TWO_LEVEL_MULT)}}`))).toBe(false);
         expect(lines.some((l) => l.includes('{knockback 3}'))).toBe(true);
     });
 
-    it('Mighty mult 1.4 on base 10 shows dynamic {14}', () => {
+    it('Mighty mult on base damage shows the boosted dynamic value', () => {
         const gameState = {
             getLocalPlayerUnit: () => ({
                 getDamageModifier: () => ({ flatAmt: 0, multiplier: MIGHTY_TWO_LEVEL_MULT }),
@@ -39,7 +39,7 @@ describe('Swing Mace getTooltipText (damage tokens)', () => {
             }),
         };
         const lines = SwingBatAbility_0115.getTooltipText(gameState);
-        expect(lines.some((l) => l.includes('{14}'))).toBe(true);
+        expect(lines.some((l) => l.includes(`{${Math.round(SWING_BAT_BASE_DAMAGE * MIGHTY_TWO_LEVEL_MULT)}}`))).toBe(true);
         expect(lines.some((l) => l.includes(`{${SWING_BAT_BASE_DAMAGE}}`))).toBe(false);
     });
 

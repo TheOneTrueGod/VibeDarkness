@@ -1,11 +1,8 @@
 ﻿import type { ScenarioDefinition } from '../../types';
 import {
     NODE_IRON_WRISTS,
-    NODE_JAGGED_EDGE,
     MELEE_WEAPONS_TREE_ID,
     MELEE_WEAPONS_ROOT_NODE_ID,
-    SWORD_TREE_ID,
-    SWORD_ROOT_NODE_ID,
 } from '../../../../../researchTrees/trees/weaponTreeIds';
 import { SWORD_BASE_MAX_USES } from '../../../card_defs/0112_SwingSword/0112Ability';
 import { SWING_EXTRA_USES } from '../../../abilities/abilityUses';
@@ -17,7 +14,7 @@ import {
 } from '../../harness/buildTinyBattleEngine';
 import { createTargetDummyAtWorld } from '../../fixtures/targetDummies';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
-import { BLEED_BUFF_TYPE } from '../../../buffs/BleedBuff';
+import { BLEED_BUFF_TYPE, type BleedBuff } from '../../../buffs/BleedBuff';
 
 const P = TINY_BATTLE_PLAYER_ID;
 
@@ -56,49 +53,9 @@ export const swingSwordNoneScenario: ScenarioDefinition = {
     },
 };
 
-export const swingSwordJaggedEdgeScenario: ScenarioDefinition = {
-    id: 'swing_sword_research_jagged_edge',
-    title: 'Jagged Edge research makes Swing Sword apply bleed',
-    category: 'ability',
-    maxDurationMs: 5000,
-    buildEngine() {
-        const research = { [P]: { [SWORD_TREE_ID]: [SWORD_ROOT_NODE_ID, NODE_JAGGED_EDGE] } };
-        const engine = buildTinyBattleEngine({
-            gridW: 16,
-            gridH: 12,
-            localPlayerId: P,
-            grass: true,
-            playerResearchTreesByPlayer: research,
-        });
-        placePlayerAndDummy(engine, {
-            playerId: P,
-            playerWorld: { x: 200, y: 240 },
-            dummyWorld: { x: 278, y: 240 },
-            abilities: ['0112'],
-            playerResearchTreesByPlayer: research,
-        });
-        return engine;
-    },
-    getInitialOrders(engine) {
-        const u = engine.getLocalPlayerUnit()!;
-        const d = engine.getUnit('target_dummy')!;
-        return [{ unitId: u.id, abilityId: '0112', targets: [{ type: 'pixel', position: { x: d.x, y: d.y } }] }];
-    },
-    assertPass(engine) {
-        const d = engine.getUnit('target_dummy');
-        if (!d) return false;
-        return d.buffs.some((b) => b._type === BLEED_BUFF_TYPE);
-    },
-    failureMessage(engine) {
-        const d = engine.getUnit('target_dummy');
-        const hasBleed = d?.buffs.some((b) => b._type === BLEED_BUFF_TYPE);
-        return `dummy bleed=${hasBleed} (expected true)`;
-    },
-};
-
-export const swingSwordNoBleedWithoutResearchScenario: ScenarioDefinition = {
-    id: 'swing_sword_no_bleed_without_jagged_edge',
-    title: 'Swing Sword without Jagged Edge does not apply bleed',
+export const swingSwordBleedScenario: ScenarioDefinition = {
+    id: 'swing_sword_bleed',
+    title: 'Swing Sword inflicts 2 bleed stacks without any research',
     category: 'ability',
     maxDurationMs: 5000,
     buildEngine() {
@@ -122,13 +79,12 @@ export const swingSwordNoBleedWithoutResearchScenario: ScenarioDefinition = {
         return [{ unitId: u.id, abilityId: '0112', targets: [{ type: 'pixel', position: { x: d.x, y: d.y } }] }];
     },
     assertPass(engine) {
-        const d = engine.getUnit('target_dummy');
-        if (!d) return false;
-        return !d.buffs.some((b) => b._type === BLEED_BUFF_TYPE);
+        const bleed = engine.getUnit('target_dummy')?.buffs.find((b) => b._type === BLEED_BUFF_TYPE) as BleedBuff | undefined;
+        return bleed?.stacks === 2;
     },
     failureMessage(engine) {
-        const d = engine.getUnit('target_dummy');
-        return `dummy unexpectedly has bleed buffs: ${d?.buffs.map((b) => b._type).join(', ')}`;
+        const bleed = engine.getUnit('target_dummy')?.buffs.find((b) => b._type === BLEED_BUFF_TYPE) as BleedBuff | undefined;
+        return `dummy bleed stacks=${bleed?.stacks ?? 0} (expected 2)`;
     },
 };
 

@@ -16,9 +16,9 @@ export const TRAINING_NODE_MIGHTY = 'mighty';
 export const TRAINING_HEALTHY_LEVELS = 5;
 export const TRAINING_HEALTHY_MAX_HEALTH_ADD = 50;
 
-/** Max levels / max mult for Mighty passive (all_damage). mult 2 = +100%. */
+/** Max levels / max mult for Mighty passive (all_damage). mult 1.5 = +50% (+10% per level). */
 export const TRAINING_MIGHTY_LEVELS = 5;
-export const TRAINING_MIGHTY_ALL_DAMAGE_MULT = 2;
+export const TRAINING_MIGHTY_ALL_DAMAGE_MULT = 1.5;
 
 /** Food cost per level for Healthy. */
 export const TRAINING_PASSIVE_NODE_FOOD_COST = 15;

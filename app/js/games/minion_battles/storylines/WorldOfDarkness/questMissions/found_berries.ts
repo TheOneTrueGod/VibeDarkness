@@ -47,14 +47,14 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
                     id: FOUND_BERRIES_OPTION_EAT,
                     label: FOUND_BERRIES_EAT_LABEL,
                     loreTitle: FOUND_BERRIES_EAT_LABEL,
-                    loreDescription: `A quick meal on the road. No lasting stores — just a fuller stomach. Recover ${FOUND_BERRIES_EAT_HUNGER_RECOVERY} Hunger.`,
+                    loreDescription: 'Sate your hunger.',
                     action: { type: 'recover_hunger', amount: FOUND_BERRIES_EAT_HUNGER_RECOVERY },
                 },
                 {
                     id: FOUND_BERRIES_OPTION_KEEP,
                     label: FOUND_BERRIES_KEEP_LABEL,
                     loreTitle: FOUND_BERRIES_KEEP_LABEL,
-                    loreDescription: `Pack them carefully. Campaign Reward: +${FOUND_BERRIES_KEEP_FOOD} Food when the quest ends.`,
+                    loreDescription: 'Pack them carefully.',
                     action: {
                         type: 'grant_resources',
                         food: FOUND_BERRIES_KEEP_FOOD,

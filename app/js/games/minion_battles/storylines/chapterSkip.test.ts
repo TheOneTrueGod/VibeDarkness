@@ -40,7 +40,7 @@ function walk(state: ChapterSkipCharacterState, preferred: Record<string, string
 
 const ROCKS_PATH = {
     dark_awakening_weapon: 'rocks',
-    towards_the_light_cave_choice: 'slot_0',
+    towards_the_light_cave_choice: 'weapon_011',
     cave_respite_punch_choice: TRAINING_NODE_STRONG_PUNCH,
     cave_respite_research_choice: 'more_rock',
 };
@@ -83,7 +83,7 @@ describe('chapter skip - Chapter I', () => {
         expect(byId.cave_respite.itemIds).toContain('016');
     });
 
-    it('offers a Rocks player Charged Rocks and Knives, and a Shield player only Crystal Shield', () => {
+    it('offers every player the same four tier-2 weapons at the cave, whatever they started with', () => {
         const rocksPicks: ChapterSkipPick[] = [
             { missionId: 'dark_awakening', choiceId: 'dark_awakening_weapon', optionId: 'rocks' },
         ];
@@ -91,37 +91,19 @@ describe('chapter skip - Chapter I', () => {
         expect(rocksStep.options.map((o) => (o.action as { itemId?: string }).itemId).filter(Boolean)).toEqual([
             '011',
             '012',
-        ]);
-        const shieldPicks: ChapterSkipPick[] = [
-            { missionId: 'dark_awakening', choiceId: 'dark_awakening_weapon', optionId: 'pot_shield' },
-        ];
-        const shieldStep = getNextChapterSkipStep(CHAPTER_ONE, freshState(), shieldPicks, CTX)!;
-        expect(shieldStep.options.map((o) => (o.action as { itemId?: string }).itemId).filter(Boolean)).toEqual([
-            '015',
+            '013',
+            '014',
         ]);
     });
 
     it('resolves an equipmentUpgrade pick into an equip_item that replaces the old weapon', () => {
         const start = freshState([ROCKS]);
-        const full = walk(start, { ...ROCKS_PATH, towards_the_light_cave_choice: 'slot_1' });
+        const full = walk(start, { ...ROCKS_PATH, towards_the_light_cave_choice: 'weapon_012' });
         const plan = buildChapterSkipPlan(CHAPTER_ONE, start, full, CTX);
         expect(plan.state.equipment).toContain('012');
         expect(plan.state.equipment).not.toContain(ROCKS);
         const result = plan.missionResults.find((r) => r.missionId === 'towards_the_light')!;
         expect(result.itemIds).toContain('012');
-    });
-
-    it('lets a Crystal Shield player take Charged Shield at Cave Respite', () => {
-        const start = freshState(['003']);
-        const full = walk(start, {
-            dark_awakening_weapon: 'pot_shield',
-            towards_the_light_cave_choice: 'slot_0',
-            cave_respite_research_choice: '016',
-        });
-        const plan = buildChapterSkipPlan(CHAPTER_ONE, start, full, CTX);
-        expect(plan.state.equipment).toContain('016');
-        expect(plan.state.equipment).not.toContain('015');
-        expect(plan.state.equipment).not.toContain('003');
     });
 
     it('builds the character state a real run would leave behind', () => {

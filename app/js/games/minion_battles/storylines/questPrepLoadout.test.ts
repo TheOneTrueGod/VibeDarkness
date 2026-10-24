@@ -10,6 +10,7 @@ import {
     QUEST_PREP_ABILITY_SLOT_COUNT,
     addQuestPrepAbility,
     buildAccessibleAbilityIds,
+    equipmentWithEquippedItem,
     expandAttachedAbilityIds,
     fillEmptyPrepSlotsWithNewAbilities,
     filterSelectableQuestPrepAbilityIds,
@@ -22,7 +23,9 @@ import {
     needsMissionAbilitySelection,
     placeQuestPrepAbilityAt,
     prepLoadoutAfterResearchGrant,
+    prepLoadoutAfterStoryChoice,
     prepLoadoutPrimaryIdsForResearchGrant,
+    prepLoadoutPrimaryIdsForStoryChoice,
     readOnlyPrepSelection,
     removeQuestPrepAbility,
     resolveInitialMissionSelection,
@@ -260,6 +263,14 @@ describe('fill empty prep slots after a research grant', () => {
         ).toEqual([...selected, '0536']);
     });
 
+    it('hands a no-longer-selectable pick\'s slot to the first new ability', () => {
+        expect(fillEmptyPrepSlotsWithNewAbilities(['a', 'old', 'b'], ['a', 'old', 'b'], ['a', 'b', 'new'])).toEqual([
+            'a',
+            'new',
+            'b',
+        ]);
+    });
+
     it('returns undefined from prepLoadoutPrimaryIdsForResearchGrant when slots already include the grant', () => {
         const researchTrees = { [EARTH_TREE_ID]: [EARTH_NODE_EARTH_CORE, EARTH_NODE_GATHER_STONE] };
         const selected = buildAccessibleAbilityIds(EARTH_EQUIPMENT, researchTrees);
@@ -274,5 +285,79 @@ describe('fill empty prep slots after a research grant', () => {
                 missionPrepLoadoutsByPlayer: { p1: selected },
             }),
         ).toBeUndefined();
+    });
+});
+
+/** Abilities a weapon item adds on top of the Earth Core loadout. */
+function weaponAbilityIds(itemId: string): string[] {
+    const base = new Set(filterSelectableQuestPrepAbilityIds(buildAccessibleAbilityIds(EARTH_EQUIPMENT, {})));
+    return filterSelectableQuestPrepAbilityIds(buildAccessibleAbilityIds([...EARTH_EQUIPMENT, itemId], {})).filter(
+        (id) => !base.has(id),
+    );
+}
+
+describe('prep loadout after a story choice equips an item', () => {
+    it.each([
+        ['001', 'Rocks'],
+        ['002', 'Stick'],
+    ])('adds the %s (%s) ability to a stored loadout that predates the item', (itemId) => {
+        const selected = filterSelectableQuestPrepAbilityIds(buildAccessibleAbilityIds(EARTH_EQUIPMENT, {}));
+        const added = weaponAbilityIds(itemId);
+        expect(added.length).toBeGreaterThan(0);
+        expect(
+            prepLoadoutPrimaryIdsForStoryChoice({
+                playerId: 'p1',
+                characterId: 'c1',
+                equipment: EARTH_EQUIPMENT,
+                researchTrees: {},
+                equipItem: { itemId },
+                missionPrepLoadoutsByPlayer: { p1: selected },
+            }),
+        ).toEqual([...selected, ...added]);
+    });
+
+    it('swaps the old weapon ability for the upgrade in the same slot (Rocks to Charged Rocks)', () => {
+        const equipment = [...EARTH_EQUIPMENT, '001'];
+        const selected = filterSelectableQuestPrepAbilityIds(buildAccessibleAbilityIds(equipment, {}));
+        const rockSlot = selected.indexOf(STARTING_WEAPON_ROCKS_NODE_ID);
+        expect(rockSlot).toBeGreaterThanOrEqual(0);
+        const next = prepLoadoutPrimaryIdsForStoryChoice({
+            playerId: 'p1',
+            characterId: 'c1',
+            equipment,
+            researchTrees: {},
+            equipItem: { itemId: '011', replaceItemIds: ['001'] },
+            missionPrepLoadoutsByPlayer: { p1: selected },
+        })!;
+        expect(next).not.toContain(STARTING_WEAPON_ROCKS_NODE_ID);
+        expect(next[rockSlot]).toBe('throw_charged_rock');
+        expect(next).toHaveLength(selected.length);
+    });
+
+    it('seeds the loadout and includes the weapon when nothing is stored yet', () => {
+        const next = prepLoadoutAfterStoryChoice({
+            selectedPrimaryIds: [],
+            equipment: EARTH_EQUIPMENT,
+            researchTrees: {},
+            equipItem: { itemId: '001' },
+        });
+        expect(next).toContain(STARTING_WEAPON_ROCKS_NODE_ID);
+    });
+
+    it('returns undefined when the choice changes nothing', () => {
+        expect(
+            prepLoadoutPrimaryIdsForStoryChoice({
+                playerId: 'p1',
+                characterId: 'c1',
+                equipment: EARTH_EQUIPMENT,
+                researchTrees: {},
+                missionPrepLoadoutsByPlayer: { p1: ['a'] },
+            }),
+        ).toBeUndefined();
+    });
+
+    it('mirrors backend equipItem: removes replaced items and appends once', () => {
+        expect(equipmentWithEquippedItem(['019', '001'], '011', ['001'])).toEqual(['019', '011']);
+        expect(equipmentWithEquippedItem(['019', '001'], '001')).toEqual(['019', '001']);
     });
 });
