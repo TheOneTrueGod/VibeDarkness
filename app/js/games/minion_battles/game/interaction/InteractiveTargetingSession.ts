@@ -1188,6 +1188,10 @@ export class InteractiveTargetingSession {
             // Keep the preview's own pause plane (gameTick + 1). Promotion flushes the preview
             // checkpoint, so the host tail is already past the mark batch (lobby E27AE2).
             session.emitWaitingForOrdersIfPaused();
+        } else {
+            // Playahead dropped the parallel pause formed on the stop tick; a canonical replay commits
+            // it at the end of that tick, so form it here rather than one tick late on resume.
+            engine.commitDroppedItsPreviewPauseForStopTick();
         }
 
         session.reemitSuppressedTerminalOutcome(engine);

@@ -173,6 +173,17 @@ export class GameEngine implements EngineContext {
     /** Units whose casts ended by duration this tick (cleared each normal tick before `processActiveAbilities`). */
     private naturalAbilityCompletionUnitIdsThisTick = new Set<string>();
 
+    /**
+     * Parallel pause the ITS preview dropped during the current tick (host/solo playahead), kept so an
+     * in-place commit at that tick can form it exactly as a canonical run would. Cleared each tick.
+     * See {@link commitDroppedItsPreviewPauseForStopTick}.
+     */
+    private droppedItsPreviewPause: {
+        gameTick: number;
+        waiters: OrderWaiter[];
+        naturalCompletionUnitIds: readonly string[];
+    } | null = null;
+
     // -- Callbacks (engine wiring, not serialized) --
     private onWaitingForOrders: ((info: WaitingForOrders) => void) | null = null;
     private onRoundEnd: ((roundNumber: number) => void) | null = null;
@@ -1663,6 +1674,34 @@ export class GameEngine implements EngineContext {
         return collectUnitFocalRequests(this.state.unitManager.getUnits());
     }
 
+    /**
+     * Host in-place ITS commit: the preview stopped at a tick whose parallel pause playahead dropped.
+     * A canonical run of the same order commits that pause at the end of this tick (atTick = gameTick + 1),
+     * so form it now — otherwise the next `fixedUpdate` collects the waiters one tick late.
+     * Call after preview flags are cleared (promotion). No-op when the drop was on an earlier tick.
+     *
+     * @returns true when a parallel order pause was committed.
+     */
+    commitDroppedItsPreviewPauseForStopTick(): boolean {
+        const dropped = this.droppedItsPreviewPause;
+        this.droppedItsPreviewPause = null;
+        if (
+            dropped == null
+            || dropped.gameTick !== this.gameTick
+            || this.isSequentialTargetingPreview
+            || this.waitingForOrders != null
+            || this.deferredOrderPause != null
+        ) {
+            return false;
+        }
+        this.state.levelEventManager.runVictoryChecks();
+        this.deferredOrderPause = {
+            waiters: dropped.waiters,
+            naturalCompletionUnitIds: dropped.naturalCompletionUnitIds,
+        };
+        return this.commitDeferredOrderPauseAfterCompletedTick();
+    }
+
     private fixedUpdate(dt: number): void {
         if (this.state.levelEventManager.isTerminal) {
             return;
@@ -1724,6 +1763,7 @@ export class GameEngine implements EngineContext {
         advanceUnitLocalClocks(this.state.unitManager.getUnits(), this, dt, prevGameTime);
         this.gameTick++;
         this.naturalAbilityCompletionUnitIdsThisTick.clear();
+        this.droppedItsPreviewPause = null;
 
         tickPerformanceTracker.begin(PERF_ENGINE);
         try {
@@ -1825,6 +1865,11 @@ export class GameEngine implements EngineContext {
                         // Host/solo (and non-host ally-only): parallel pause would have formed but ITS
                         // playahead skips scheduling it — same observability hook as drop in commitDeferred.
                         this.onItsParallelPauseDecision?.('drop', waiters, this.gameTick);
+                        this.droppedItsPreviewPause = {
+                            gameTick: this.gameTick,
+                            waiters,
+                            naturalCompletionUnitIds: [...this.naturalAbilityCompletionUnitIdsThisTick],
+                        };
                     }
                 }
                 this.state.unitManager.processCrystalAura();

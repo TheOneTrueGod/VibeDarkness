@@ -353,6 +353,76 @@ describe('preview/canon execution equivalence (Step 5)', () => {
     });
 });
 
+describe('preview/canon equivalence — host in-place commit after natural completion', () => {
+    const LIGHT_BLAST_ID = '0801';
+
+    // The preview stops on the tick the cast ends and drops the caster's parallel pause; the in-place
+    // commit must form that pause on the stop tick, as a canonical replay does, not one tick later.
+    it('Light Blast: in-place commit of a completed preview matches a canonical replay of the finalized order', async () => {
+        const session = await mountSoloSession(true);
+        const engine = session.getEngine()!;
+        const caster = engine.getLocalPlayerUnit()!;
+        caster.abilities = [LIGHT_BLAST_ID];
+        initializeAbilityRuntimeForUnit(caster);
+        const light = new Light();
+        caster.attachResource(light, engine.eventBus);
+        light.add(LIGHT_BLAST_LIGHT_COST);
+
+        expect(stepUntil(engine, () => engine.waitingForOrders != null, 400)).toBe(true);
+        const casterId = caster.id;
+        const blastPixel = { x: caster.x + 30, y: caster.y };
+        const baseOrder: BattleOrder = { unitId: casterId, abilityId: LIGHT_BLAST_ID, targets: [], endTurn: true };
+
+        const mark = engine.toJSON();
+        mark.checkpointRuntimeFingerprintHex = engine.getRuntimeFingerprintHex();
+
+        // --- Engine B: ITS preview with its pick, played to natural completion, committed in place. ---
+        const persistCommittedOrder = vi.fn().mockResolvedValue(true);
+        session.setNetAdapter({
+            isOrderSubmitPathAvailable: () => true,
+            persistCommittedOrder,
+            saveSnapshotOnPause: vi.fn().mockResolvedValue(undefined),
+            queueFingerprint: vi.fn(),
+        } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
+        const its = session.interactiveTargeting;
+        expect(its.begin(baseOrder, session)).toBe(true);
+        expect(stepUntil(engine, () => engine.waitingForTargetInput?.label === 'Target', 300)).toBe(true);
+        its.resolveTarget('Target', { type: 'pixel', position: blastPixel }, session);
+        expect(stepUntil(engine, () => isITSPreviewComplete(engine), 300)).toBe(true);
+        expect(its.getPreviewCastEndedEarly(engine)).toBeNull();
+        expect(its.wouldCommitInPlace(session)).toBe(true);
+
+        await its.commit(session);
+
+        expect(persistCommittedOrder).toHaveBeenCalledTimes(1);
+        const finalized = persistCommittedOrder.mock.calls[0]![0] as BattleOrder;
+        const engineB = session.getEngine()!;
+        expect(engineB).toBe(engine);
+        engineB.stop();
+        expect(stepUntil(engineB, () => engineB.waitingForOrders != null, 600)).toBe(true);
+
+        // --- Engine A: canonical replay of the finalized order from the mark. ---
+        const sessionA = new BattleSession({
+            api: makeApiStub(),
+            missionId: 'dark_awakening',
+            playerId: SOLO_PLAYER_ID,
+            isHost: false,
+        });
+        sessionA.restoreFromInMemorySnapshot(mark);
+        const engineA = sessionA.getEngine()!;
+        engineA.stop();
+        engineA.state.orderMgr.applyOrder(finalized);
+        expect(stepUntil(engineA, () => engineA.waitingForOrders != null, 600)).toBe(true);
+
+        assertPreviewCanonEquivalence(engineA, engineB);
+        expect(engineB.getUnit(casterId)!.x).toBe(engineA.getUnit(casterId)!.x);
+        expect(engineB.getUnit(casterId)!.y).toBe(engineA.getUnit(casterId)!.y);
+
+        engineA.destroy();
+        engineB.destroy();
+    });
+});
+
 describe('preview/canon equivalence — ended-early (interrupted) preview cast', () => {
     const LIGHT_BLAST_ID = '0801';
     const KNOCK_SOURCE = { unitId: 'thornbinder', abilityId: '0008' };
@@ -371,10 +441,7 @@ describe('preview/canon equivalence — ended-early (interrupted) preview cast',
         expect(result.outcome).toBe('applied');
     }
 
-    // it.fails: a host in-place commit forms the caster's next order pause one tick later than the
-    // canonical replay (pre-existing for every in-place commit; see "Host in-place ITS commit pauses one
-    // tick later" in docs/TODO.md). Drop `.fails` once that is fixed.
-    it.fails('Light Blast: in-place commit of an interrupted preview matches a canonical replay of the finalized order (with missing labels)', async () => {
+    it('Light Blast: in-place commit of an interrupted preview matches a canonical replay of the finalized order (with missing labels)', async () => {
         const session = await mountSoloSession(true);
         const engine = session.getEngine()!;
         const caster = engine.getLocalPlayerUnit()!;
@@ -449,9 +516,7 @@ describe('preview/canon equivalence — ended-early (interrupted) preview cast',
 describe('preview/canon equivalence — missing-pick resume (updateTargets order)', () => {
     const LIGHT_BLAST_ID = '0801';
 
-    // it.fails: same pre-existing one-tick in-place pause offset as the ended-early case above
-    // (docs/TODO.md). Drop `.fails` once that is fixed.
-    it.fails('Light Blast: an in-place resume commit matches a canonical replay of the committed updateTargets order from the mark', async () => {
+    it('Light Blast: an in-place resume commit matches a canonical replay of the committed updateTargets order from the mark', async () => {
         const session = await mountSoloSession(true);
         const engine = session.getEngine()!;
         const caster = engine.getLocalPlayerUnit()!;

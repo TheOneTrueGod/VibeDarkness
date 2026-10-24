@@ -3890,7 +3890,7 @@ describe('ITS preview cast ended early before targets collected (lobbies 0AD6EA 
         session.destroy();
     });
 
-    it('commit in place persists an order listing the missing label, unpauses, and the caster gets its next order pause', async () => {
+    it('commit in place persists an order listing the missing label and the caster pauses for orders on the stop tick', async () => {
         const { session, engine, casterUnitId, remoteUnitId, atTick } = await mountLightBlastSessionFixture();
         // Other waiter confirmed before begin with a wait that outlasts the preview: no assumed waits and no
         // teammate pause during the playahead, so the commit stays in place.
@@ -3924,15 +3924,11 @@ describe('ITS preview cast ended early before targets collected (lobbies 0AD6EA 
         expect(its.isActive).toBe(false);
         expect(session.getEngine()).toBe(engine);
         expect(engine.isSequentialTargetingPreview).toBe(false);
-        expect(engine.isPaused).toBe(false);
 
-        // The next order pause forms for the caster.
-        const paused = stepUntil(
-            engine,
-            () => engine.waitingForOrders?.waiters.some((w) => w.unitId === casterUnitId) === true,
-            60,
-        );
-        expect(paused).toBe(true);
+        // The caster's order pause forms on the stop tick itself, as a canonical replay of the order would.
+        expect(engine.isPaused).toBe(true);
+        expect(engine.waitingForOrders?.atTick).toBe(engine.gameTick + 1);
+        expect(engine.waitingForOrders?.waiters.some((w) => w.unitId === casterUnitId)).toBe(true);
         session.destroy();
     });
 
@@ -4115,6 +4111,9 @@ describe('ITS missing-pick resume (beginResume at a missing-pick pause)', () => 
         session.setNetAdapter({
             isOrderSubmitPathAvailable: () => true,
             persistCommittedOrder,
+            // The host checkpoints and fingerprints at the caster's order pause formed on commit.
+            saveSnapshotOnPause: vi.fn().mockResolvedValue(undefined),
+            queueFingerprint: vi.fn(),
         } as unknown as Parameters<BattleSession['setNetAdapter']>[0]);
         return persistCommittedOrder;
     }
