@@ -1,72 +1,66 @@
 import React, { useState } from 'react';
 import PanelLayout from '../PanelLayout';
-import { IDEA_CATEGORIES, type IdeaItem } from './ideasData';
+import { IDEA_CATEGORIES } from './ideasData';
+import { PLANS } from './plansData';
+import IdeaCategoryList from './IdeaCategoryList';
+import IdeaCategoryDetail from './IdeaCategoryDetail';
+import PlanList from './PlanList';
+import PlanDetail from './PlanDetail';
 
-function IdeaList({ ideas }: { ideas: IdeaItem[] }) {
+type IdeasTabId = 'ideas' | 'plans';
+
+const TABS: { id: IdeasTabId; label: string }[] = [
+    { id: 'ideas', label: 'Ideas' },
+    { id: 'plans', label: 'Plans' },
+];
+
+function IdeasTabSelector({ active, onChange }: { active: IdeasTabId; onChange: (id: IdeasTabId) => void }) {
     return (
-        <ul className="list-disc pl-5 space-y-1">
-            {ideas.map((idea, i) => (
-                <li key={i} className="text-sm text-gray-200">
-                    {idea.text}
-                    {idea.children.length > 0 && (
-                        <div className="mt-1">
-                            <IdeaList ideas={idea.children} />
-                        </div>
-                    )}
-                </li>
+        <div role="tablist" aria-label="Ideas view" className="flex rounded-md border border-border-custom overflow-hidden">
+            {TABS.map((tab) => (
+                <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active === tab.id}
+                    onClick={() => onChange(tab.id)}
+                    className={`px-3 py-1 text-sm font-medium transition-colors ${
+                        active === tab.id
+                            ? 'bg-primary text-secondary'
+                            : 'text-gray-300 hover:bg-surface-light hover:text-white'
+                    }`}
+                >
+                    {tab.label}
+                </button>
             ))}
-        </ul>
+        </div>
     );
 }
 
-/** Admin brainstorming backlog. Content lives in `docs/ideas/*.md`. */
+/** Admin brainstorming backlog and plans. Content lives in `docs/ideas/*.md` and `docs/ideas/plans/*.md`. */
 export default function IdeasPanel() {
-    const [selectedId, setSelectedId] = useState(IDEA_CATEGORIES[0]?.id ?? null);
-    const selected = IDEA_CATEGORIES.find((c) => c.id === selectedId) ?? null;
+    const [tab, setTab] = useState<IdeasTabId>('ideas');
+    const [categoryId, setCategoryId] = useState(IDEA_CATEGORIES[0]?.id ?? null);
+    const [planId, setPlanId] = useState(PLANS[0]?.id ?? null);
+
+    const isPlans = tab === 'plans';
+    const category = IDEA_CATEGORIES.find((c) => c.id === categoryId) ?? null;
+    const plan = PLANS.find((p) => p.id === planId) ?? null;
 
     return (
         <PanelLayout
             title="Ideas"
-            subtitle="Edit in docs/ideas/"
-            leftSize="small"
+            subtitle={isPlans ? 'Edit in docs/ideas/plans/' : 'Edit in docs/ideas/'}
+            actions={<IdeasTabSelector active={tab} onChange={setTab} />}
+            leftSize="medium"
             left={
-                <div className="p-3 flex flex-col gap-1">
-                    {IDEA_CATEGORIES.map((category) => {
-                        const isSelected = category.id === selectedId;
-                        return (
-                            <button
-                                key={category.id}
-                                type="button"
-                                onClick={() => setSelectedId(category.id)}
-                                className={`flex justify-between items-center px-3 py-2 rounded border transition-colors text-left text-sm ${
-                                    isSelected
-                                        ? 'border-primary bg-surface-light text-white'
-                                        : 'border-transparent text-gray-300 hover:border-border-custom hover:bg-surface-light'
-                                }`}
-                            >
-                                <span className="font-medium">{category.name}</span>
-                                <span className="text-xs text-muted">{category.ideas.length}</span>
-                            </button>
-                        );
-                    })}
-                </div>
-            }
-            center={
-                selected ? (
-                    <div className="p-6">
-                        <h2 className="text-xl font-bold text-white mb-4">{selected.name}</h2>
-                        {selected.ideas.length > 0 ? (
-                            <IdeaList ideas={selected.ideas} />
-                        ) : (
-                            <p className="text-sm text-muted">No ideas yet.</p>
-                        )}
-                    </div>
+                isPlans ? (
+                    <PlanList plans={PLANS} selectedId={planId} onSelect={setPlanId} />
                 ) : (
-                    <div className="flex items-center justify-center h-full text-muted text-sm">
-                        No idea categories found.
-                    </div>
+                    <IdeaCategoryList categories={IDEA_CATEGORIES} selectedId={categoryId} onSelect={setCategoryId} />
                 )
             }
+            center={isPlans ? <PlanDetail plan={plan} /> : <IdeaCategoryDetail category={category} />}
         />
     );
 }

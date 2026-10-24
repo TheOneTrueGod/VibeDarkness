@@ -25,6 +25,6 @@ describe('buildIdeaCategories', () => {
     });
 
     it('loads the docs/ideas folder', () => {
-        expect(IDEA_CATEGORIES.map((c) => c.name)).toEqual(['Enemies', 'Systems', 'Abilities']);
+        expect(IDEA_CATEGORIES.map((c) => c.name)).toEqual(['Enemies', 'Systems', 'Abilities', 'Chapter 3']);
     });
 });
