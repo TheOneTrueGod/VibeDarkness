@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { buildPlans, groupPlanSections, parsePlanDoc, parsePlanMarkdown, PLANS } from './plansData';
+import {
+    buildPlans,
+    DEFAULT_PLAN_FILTERS,
+    filterPlanSections,
+    groupPlanSections,
+    parsePlanDoc,
+    parsePlanMarkdown,
+    planItems,
+    PLANS,
+} from './plansData';
 
 describe('parsePlanMarkdown', () => {
     it('splits headings, paragraphs, nested lists and rules', () => {
@@ -55,18 +64,74 @@ describe('plan items', () => {
         ]);
     });
 
-    it('groups each ### heading with its blocks until the next heading or rule', () => {
+    it('groups ## sections and ### items, reading each item size from its Complexity line', () => {
         const sections = groupPlanSections(
-            parsePlanMarkdown('Intro\n\n## P0\n\n### [x] A\n\nBody A\n\n### B\n\n- b\n\n---\n\nOutro'),
+            parsePlanMarkdown(
+                'Intro\n\n## P0\n\n### [x] A\n\n**Complexity:** Low\n\n### B\n\n**Complexity:** Large (migration)\n\n- b\n\n### C\n\nNo size\n\n---\n\nOutro',
+            ),
         );
         expect(sections).toEqual([
             { kind: 'block', block: { type: 'paragraph', text: 'Intro' } },
-            { kind: 'block', block: { type: 'heading', level: 2, text: 'P0' } },
-            { kind: 'item', title: 'A', done: true, blocks: [{ type: 'paragraph', text: 'Body A' }] },
-            { kind: 'item', title: 'B', done: false, blocks: [{ type: 'list', items: [{ text: 'b', children: [] }] }] },
+            {
+                kind: 'group',
+                title: 'P0',
+                children: [
+                    { kind: 'item', title: 'A', done: true, size: 'sm', blocks: [{ type: 'paragraph', text: '**Complexity:** Low' }] },
+                    {
+                        kind: 'item',
+                        title: 'B',
+                        done: false,
+                        size: 'lg',
+                        blocks: [
+                            { type: 'paragraph', text: '**Complexity:** Large (migration)' },
+                            { type: 'list', items: [{ text: 'b', children: [] }] },
+                        ],
+                    },
+                    { kind: 'item', title: 'C', done: false, size: null, blocks: [{ type: 'paragraph', text: 'No size' }] },
+                ],
+            },
             { kind: 'block', block: { type: 'rule' } },
             { kind: 'block', block: { type: 'paragraph', text: 'Outro' } },
         ]);
+    });
+});
+
+describe('filterPlanSections', () => {
+    const sections = groupPlanSections(
+        parsePlanMarkdown(
+            [
+                '## P0',
+                '### [x] Done small',
+                '**Complexity:** Low',
+                '### Open medium',
+                '**Complexity:** Medium',
+                '## P1',
+                '### [x] Only item, done',
+                '**Complexity:** Large',
+                '## Suggested order',
+                '- First',
+            ].join('\n\n'),
+        ),
+    );
+    const titles = (out: ReturnType<typeof filterPlanSections>) =>
+        planItems(out.sections).map((i) => i.title);
+
+    it('shows everything by default', () => {
+        const out = filterPlanSections(sections, DEFAULT_PLAN_FILTERS);
+        expect(out.hiddenCount).toBe(0);
+        expect(titles(out)).toEqual(['Done small', 'Open medium', 'Only item, done']);
+    });
+
+    it('hides done items and drops a group left with no items, but keeps item-less groups', () => {
+        const out = filterPlanSections(sections, { hideDone: true, hiddenSizes: [] });
+        expect(out.hiddenCount).toBe(2);
+        expect(titles(out)).toEqual(['Open medium']);
+        expect(out.sections.map((s) => (s.kind === 'group' ? s.title : s.kind))).toEqual(['P0', 'Suggested order']);
+    });
+
+    it('hides items by size', () => {
+        const out = filterPlanSections(sections, { hideDone: false, hiddenSizes: ['sm', 'lg'] });
+        expect(titles(out)).toEqual(['Open medium']);
     });
 });
 

@@ -24,14 +24,25 @@ A browser plan item can later be turned into a `/jp-plan`. In that case, link th
 - **Loading:** `app/js/components/minionBattlesHomePage/Ideas/plansData.ts` loads every file with `import.meta.glob` (eager, `?raw`). There is no registry to update; adding the file is enough.
 - **File names:** they must match `NNNN_YYYY-MM-DD_slug.md`. Other names are silently skipped. The list shows plans newest first, with ties ordered by slug.
 - **Title:** the first `# Heading` is the plan title shown in the list and the detail header. It is removed from the body, so don't repeat it.
-- **UI components:** `IdeasPanel.tsx` (tab and selection come from the URL via `useIdeasRoute.ts`; path helpers `ideasPath` / `parseIdeasSubpath` are in `components/ability-tests/campaignTabPaths.ts`), `PlanList.tsx` (left pane), `PlanDetail.tsx` (right pane, Markdown rendering). The Ideas categories (`docs/ideas/NN_*.md`) are a separate tab; see `docs/ideas/README.md`.
+- **UI components:** `IdeasPanel.tsx` (tab and selection come from the URL via `useIdeasRoute.ts`; path helpers `ideasPath` / `parseIdeasSubpath` are in `components/ability-tests/campaignTabPaths.ts`), `PlanList.tsx` (left pane), `PlanDetail.tsx` (right pane: sticky header plus items), `PlanFilterBar.tsx` (filters) and `PlanSizeChip.tsx` (T-shirt badge). The Ideas categories (`docs/ideas/NNNN_*.md`) are a separate tab; see `docs/ideas/README.md`.
+
+## Data structure
+
+The Markdown file is the source of truth. `plansData.ts` parses it into a tree once at load time (`PlanDoc.sections`, built by `groupPlanSections`), and the UI and filters work on that tree, never on raw text:
+
+- **Group** (`PlanGroup`): one per `##` heading (for example a priority). It holds that section's items and loose blocks up to the next `#`/`##` heading or `---`.
+- **Item** (`PlanItem`): one per `###` heading, with `title`, `done` (from the `[x] ` prefix), `size` (from its `**Complexity:**` line, or `null` if it has none) and its body `blocks`.
+- **Loose block:** anything outside an item, such as the intro, the legend, rules and "Suggested order" bullets.
+
+Filtering is a pure function, `filterPlanSections(sections, filters)`, with tests in `plansData.test.ts`. If an item needs new metadata (for example an owner or a status), derive it in `groupPlanSections` from a convention in the Markdown, add it to `PlanItem`, and test it there. Don't make the renderer parse text.
 
 ## Supported Markdown (read `plansData.ts` for the exact rules)
 
 The parser is deliberately small. Stick to:
 
 - `#` title (once), `##` priority sections, `###` items. Deeper headings render but are rarely needed.
-- **Collapsible items:** each `###` heading and everything under it (up to the next `#`/`##`/`###` heading or `---`) renders as a collapsible item.
+- **Collapsible items:** each `###` heading and everything under it (up to the next `#`/`##`/`###` heading or `---`) renders as a collapsible item. Click the header to expand or collapse it.
+- **T-shirt size:** each item's `**Complexity:**` line sets the size badge at the right of its header, which stays visible while the item is collapsed: Low → **Sm** (green), Medium → **Md** (amber), Large → **Lg** (red). Only the first word after `**Complexity:**` counts. An item without the line gets no badge, and size filters never hide it.
 - **Completed items:** prefix the item title with `[x] `, as in `### [x] P0.2 Remove …`. The item then shows a green check to the left of its name and starts collapsed. Open items have no prefix and start expanded.
 - Paragraphs: consecutive lines join into one paragraph, and a blank line ends it.
 - `-` bullets. Indent by two spaces to nest. An indented non-bullet line continues the bullet above it.
@@ -63,7 +74,7 @@ Within a priority, order items by dependency first, then by value.
 
 ### Complexity
 
-Every item starts with a `**Complexity:** <level>` line. Add a short reason in parentheses when the level isn't obvious.
+Every item starts with a `**Complexity:** <level>` line, written exactly like that (bold label, then `Low`, `Medium` or `Large` as the first word), because the T-shirt badge and size filters read it. Add a short reason in parentheses when the level isn't obvious.
 
 - **Low:** a few changes to a few files.
 - **Medium:** overhauls a small subsystem.
@@ -79,6 +90,18 @@ Optionally add `**Helps:** …` (which upcoming features benefit) or `**Prerequi
 - When the user asks for options (names, approaches), list each with a one-line trade-off and end with a **Recommendation:** line.
 - **Required decisions always go in a decision card**, never in plain prose. A decision is required when work on the item can't start (or would likely be redone) until the user picks. Put the card at the end of the item it blocks. Make the question one short sentence, and put the options with their trade-offs (and any recommendation) in the card body. Items with no open question get no card.
 - Call out anything that needs a migration. The backend runner is described in `backend/scripts/migrate.php`.
+
+## Filtering (Plans page)
+
+The sticky header over each plan holds the title, the date and the filters:
+
+- **Hide done:** hides every `[x]` item.
+- **Sizes (Sm / Md / Lg):** toggles which sizes are shown. A size that is turned off appears struck through.
+- A `##` group whose items are all hidden disappears, heading included. Groups that have no items at all, such as "Suggested order", always stay.
+- The header shows how many items are hidden.
+- Filter state is local to the page and resets on refresh.
+
+So filters work on a new plan without extra effort: give every item a `###` heading, a `**Complexity:**` line, and an `[x] ` prefix once it's done.
 
 ## Workflow
 

@@ -1,6 +1,17 @@
 import React, { useState } from 'react';
 import { ChevronRight, CircleCheck, CircleQuestionMark } from 'lucide-react';
-import { groupPlanSections, type PlanBlock, type PlanDoc, type PlanListItem } from './plansData';
+import {
+    DEFAULT_PLAN_FILTERS,
+    filterPlanSections,
+    type PlanBlock,
+    type PlanDoc,
+    type PlanFilters,
+    type PlanItem as PlanItemData,
+    type PlanListItem,
+    type PlanSection,
+} from './plansData';
+import PlanFilterBar from './PlanFilterBar';
+import PlanSizeChip from './PlanSizeChip';
 
 const INLINE_RE = /(\*\*[^*]+\*\*|`[^`]+`)/g;
 
@@ -91,8 +102,11 @@ function DecisionCard({ question, blocks }: { question: string; blocks: PlanBloc
     );
 }
 
-/** A `###` plan item that can be collapsed. Completed items start collapsed with a green check. */
-function PlanItem({ title, done, blocks }: { title: string; done: boolean; blocks: PlanBlock[] }) {
+/**
+ * A `###` plan item that can be collapsed. Completed items start collapsed with a green check; the
+ * T-shirt size sits at the right of the header so it shows while collapsed.
+ */
+function PlanItem({ item: { title, done, size, blocks } }: { item: PlanItemData }) {
     const [open, setOpen] = useState(!done);
     return (
         <div className="mt-3">
@@ -110,6 +124,11 @@ function PlanItem({ title, done, blocks }: { title: string; done: boolean; block
                 <span className={`text-base font-semibold ${done ? 'text-gray-400' : 'text-white'}`}>
                     <InlineText text={title} />
                 </span>
+                {size != null && (
+                    <span className="ml-auto pl-2">
+                        <PlanSizeChip size={size} />
+                    </span>
+                )}
             </button>
             {open && blocks.length > 0 && (
                 <div className="mt-2 ml-6 flex flex-col gap-3">
@@ -122,8 +141,34 @@ function PlanItem({ title, done, blocks }: { title: string; done: boolean; block
     );
 }
 
-/** Plans tab, right pane: the selected plan's title, date and Markdown body. */
+function Section({ section, planId }: { section: PlanSection; planId: string }) {
+    switch (section.kind) {
+        case 'item':
+            return <PlanItem item={section} />;
+        case 'block':
+            return <Block block={section.block} />;
+        case 'group':
+            return (
+                <>
+                    <Block block={{ type: 'heading', level: 2, text: section.title }} />
+                    {section.children.map((child, i) => (
+                        <Section key={sectionKey(planId, child, i)} section={child} planId={planId} />
+                    ))}
+                </>
+            );
+    }
+}
+
+/** Items key by title so their open/closed state survives filtering; other sections key by position. */
+function sectionKey(planId: string, section: PlanSection, index: number): string {
+    if (section.kind === 'item') return `${planId}-item-${section.title}`;
+    if (section.kind === 'group') return `${planId}-group-${section.title}`;
+    return `${planId}-block-${index}`;
+}
+
+/** Plans tab, right pane: a sticky header (title, date, filters) over the plan's items. */
 export default function PlanDetail({ plan }: { plan: PlanDoc | null }) {
+    const [filters, setFilters] = useState<PlanFilters>(DEFAULT_PLAN_FILTERS);
     if (!plan) {
         return (
             <div className="flex items-center justify-center h-full text-muted text-sm">
@@ -131,18 +176,22 @@ export default function PlanDetail({ plan }: { plan: PlanDoc | null }) {
             </div>
         );
     }
+    const { sections, hiddenCount } = filterPlanSections(plan.sections, filters);
     return (
-        <div className="p-6 max-w-4xl select-text">
-            <h2 className="text-xl font-bold text-white">{plan.title}</h2>
-            <p className="text-xs text-muted mt-1">Added {plan.date}</p>
-            <div className="mt-4 flex flex-col gap-3">
-                {groupPlanSections(plan.blocks).map((section, i) =>
-                    section.kind === 'item' ? (
-                        <PlanItem key={`${plan.id}-${i}`} title={section.title} done={section.done} blocks={section.blocks} />
-                    ) : (
-                        <Block key={`${plan.id}-${i}`} block={section.block} />
-                    ),
-                )}
+        <div className="max-w-4xl select-text">
+            <div className="sticky top-0 z-10 bg-surface border-b border-border-custom px-6 pt-3 pb-3">
+                <div className="flex items-baseline justify-between gap-3">
+                    <h2 className="text-xl font-bold text-white">{plan.title}</h2>
+                    <p className="text-xs text-muted shrink-0">Added {plan.date}</p>
+                </div>
+                <div className="mt-2">
+                    <PlanFilterBar filters={filters} onChange={setFilters} hiddenCount={hiddenCount} />
+                </div>
+            </div>
+            <div className="px-6 pb-6 pt-4 flex flex-col gap-3">
+                {sections.map((section, i) => (
+                    <Section key={sectionKey(plan.id, section, i)} section={section} planId={plan.id} />
+                ))}
             </div>
         </div>
     );
