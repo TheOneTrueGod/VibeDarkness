@@ -95,6 +95,8 @@ export class CampaignCharacter {
     readonly researchSources: ResearchNodeSources;
     /** Unix seconds; 0 if never used in a mission (per server). */
     readonly lastUsed: number;
+    /** Fraction of max Hunger this character started with; legacy characters (field absent) started full. */
+    readonly startingHungerFraction: number;
     /** Per-campaign mission results. Key = campaignId. */
     readonly missionResults: Record<string, MissionResult[]>;
     /** Per-campaign quest results. Key = campaignId. */
@@ -129,6 +131,10 @@ export class CampaignCharacter {
         this.researchTrees = rawResearchTrees;
         this.researchNodeLevels = normalizeResearchNodeLevels(data.researchNodeLevels);
         this.researchSources = normalizeResearchSources(data.researchSources);
+        this.startingHungerFraction =
+            typeof data.startingHungerFraction === 'number' && Number.isFinite(data.startingHungerFraction)
+                ? Math.max(0, Math.min(1, data.startingHungerFraction))
+                : 1;
         this.lastUsed =
             typeof data.lastUsed === 'number' && Number.isFinite(data.lastUsed) && data.lastUsed > 0
                 ? Math.floor(data.lastUsed)
@@ -225,6 +231,7 @@ export class CampaignCharacter {
             researchNodeLevels: this.researchNodeLevels,
             researchSources: this.researchSources,
             lastUsed: this.lastUsed,
+            startingHungerFraction: this.startingHungerFraction,
             missionResults: this.missionResults,
             questResults: this.questResults,
             activeQuestRun: this.activeQuestRun,

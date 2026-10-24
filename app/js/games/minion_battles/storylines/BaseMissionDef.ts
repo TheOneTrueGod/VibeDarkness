@@ -182,6 +182,8 @@ export interface InitializeGameStateParams {
     missionResults?: MissionResult[];
     /** Net signed campaign Hunger change per player (from the selected character; normally <= 0). */
     playerHungerDeltaByPlayer?: Record<string, number>;
+    /** Fraction of max Hunger each player's character started with (absent = full). */
+    playerHungerStartFractionByPlayer?: Record<string, number>;
 }
 
 /** Mission definition extending MissionBattleConfig with initializeGameState. */
@@ -465,7 +467,11 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
             );
             applyFightStartHunger(
                 unit,
-                hungerFromDelta(maxHunger, params.playerHungerDeltaByPlayer?.[pu.playerId] ?? 0),
+                hungerFromDelta(
+                    maxHunger,
+                    params.playerHungerDeltaByPlayer?.[pu.playerId] ?? 0,
+                    params.playerHungerStartFractionByPlayer?.[pu.playerId],
+                ),
                 maxHunger,
             );
             if (staminaRecoveryBonus > 0) {

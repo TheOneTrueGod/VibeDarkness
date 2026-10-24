@@ -42,7 +42,7 @@ export const THROW_KNIFE_BASE_DAMAGE = 7;
 const BASE_DAMAGE = THROW_KNIFE_BASE_DAMAGE;
 const MULTI_THROW_HIT_COUNT = 2;
 /** Bleed stacks applied to the unit a knife hits. */
-const BLEED_STACKS_ON_HIT = 1;
+const BLEED_STACKS_ON_HIT = 2;
 
 const THROW_KNIFE_PROJECTILE_URL = new URL('../../assets/projectiles/knife.svg', import.meta.url).href;
 

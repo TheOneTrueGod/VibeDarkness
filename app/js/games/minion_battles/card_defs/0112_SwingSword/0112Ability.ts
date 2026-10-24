@@ -2,7 +2,7 @@
  * Swing Sword â€” Warrior melee (crafted sword).
  *
  * Perpendicular slash up to 2 targets, small knockback, metallic gray slash trail.
- * Each hit inflicts 2 Bleed stacks.
+ * Each hit inflicts 3 Bleed stacks.
  * Composition-based refactor: all combat logic lives in CastBehaviours;
  * `beginActiveCast` survives only for the charge-up VFX.
  *
@@ -54,7 +54,7 @@ const SLASH_TRAIL_DURATION = 0.35;
 const SLASH_TRAIL_THICKNESS = 14;
 const SLASH_TRAIL_COLOR = 0xc0c8d0;
 /** Bleed stacks applied to each unit the sword hits. */
-const BLEED_STACKS_ON_HIT = 2;
+const BLEED_STACKS_ON_HIT = 3;
 
 const TOOLTIP_LINES = [
     'Slash with the sword dealing {{DAMAGE}} damage to up to {{MAX_TARGETS}} enemies, nudging them back. Inflicts {Bleed}.',

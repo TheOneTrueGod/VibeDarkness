@@ -73,6 +73,9 @@ class SaveSnapshotHandler
                 $checkpointFingerprint,
                 $checkpointFingerprintPaused,
             );
+            // Same tail the heartbeat would report, so the host's append window moves on the ACK
+            // instead of waiting for its next poll (lobby 9CA938).
+            $resolved = $storage->resolveLastCompletedTickAndFingerprint($lobbyId, $gameId);
         } catch (InvalidArgumentException $e) {
             http_response_code(400);
             return ['success' => false, 'error' => $e->getMessage()];
@@ -81,7 +84,13 @@ class SaveSnapshotHandler
             return ['success' => false, 'error' => $e->getMessage()];
         }
 
-        return ['success' => true, 'tick' => (int) $tickRaw];
+        return [
+            'success' => true,
+            'tick' => (int) $tickRaw,
+            'hostTick' => $resolved['lastCompleted'],
+            'hostFingerprint' => $resolved['fingerprint'],
+            'orderBatchAtTick' => $resolved['orderBatchAtTick'],
+        ];
     }
 
     /**

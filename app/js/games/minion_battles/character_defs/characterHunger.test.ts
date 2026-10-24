@@ -3,6 +3,7 @@ import { DEFAULT_PASSIVE_MULT, applyPassiveBonusToBase } from '../../../research
 import { PassiveStatKey } from '../../../researchTrees/types';
 import {
     DEFAULT_CHARACTER_MAX_HUNGER,
+    NEW_CHARACTER_STARTING_HUNGER_FRACTION,
     clampCharacterMatchHungerLoss,
     getCharacterHunger,
     getCharacterHungerDelta,
@@ -165,5 +166,33 @@ describe('clampCharacterMatchHungerLoss', () => {
     it('ignores non-positive losses', () => {
         expect(clampCharacterMatchHungerLoss(character(), MISSION_ID, 0)).toBe(0);
         expect(clampCharacterMatchHungerLoss(character(), MISSION_ID, -4)).toBe(0);
+    });
+});
+
+describe('starting Hunger fraction', () => {
+    it('a new character starts at 30% of max Hunger', () => {
+        const fresh = character({ startingHungerFraction: NEW_CHARACTER_STARTING_HUNGER_FRACTION });
+        expect(NEW_CHARACTER_STARTING_HUNGER_FRACTION).toBe(0.3);
+        expect(getCharacterHunger(fresh)).toBe(30);
+    });
+
+    it('scales the start with researched max Hunger', () => {
+        const trees = { t: ['n'] };
+        const max = getCharacterMaxHunger(trees, {});
+        expect(getCharacterHunger(character({ researchTrees: trees, startingHungerFraction: 0.3 }))).toBe(
+            Math.round(max * 0.3),
+        );
+    });
+
+    it('applies losses and recoveries on top of the starting Hunger, clamped to [0, max]', () => {
+        expect(hungerFromDelta(100, -10, 0.3)).toBe(20);
+        expect(hungerFromDelta(100, -50, 0.3)).toBe(0);
+        expect(hungerFromDelta(100, 70, 0.3)).toBe(100);
+        expect(hungerFromDelta(100, 500, 0.3)).toBe(100);
+    });
+
+    it('legacy characters (no starting fraction) still start full', () => {
+        expect(getCharacterHunger(character())).toBe(DEFAULT_CHARACTER_MAX_HUNGER);
+        expect(hungerFromDelta(100, -10)).toBe(90);
     });
 });

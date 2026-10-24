@@ -327,7 +327,12 @@ export interface BattleApi {
             /** Paired with `checkpointFingerprint` for the co-appended `fingerprints.jsonl` row. */
             checkpointFingerprintPaused?: boolean;
         },
-    ): Promise<void | { tick?: number; hostTick?: number; orderBatchAtTick?: number | null }>;
+    ): Promise<void | {
+        tick?: number;
+        hostTick?: number;
+        hostFingerprint?: string | null;
+        orderBatchAtTick?: number | null;
+    }>;
     appendBattleFingerprints(
         lobbyId: string,
         gameId: string,

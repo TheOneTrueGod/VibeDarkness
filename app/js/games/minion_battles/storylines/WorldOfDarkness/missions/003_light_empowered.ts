@@ -30,6 +30,8 @@ import {
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 
 /** Meat from the cliff-inlet hunt. */
+/** Hunger recovered in the post-mission feast (clamped to max Hunger). */
+export const LIGHT_EMPOWERED_HUNGER_RECOVERY = 100;
 export const LIGHT_EMPOWERED_FOOD_REWARD = 8;
 
 const SEGMENT_COLS = 22;
@@ -219,6 +221,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
 			portraitSide: 'left',
 			backgroundImage: STORY_BACKGROUNDS.campfire,
 		},
+		{ type: 'recover_hunger_auto', amount: LIGHT_EMPOWERED_HUNGER_RECOVERY },
 	],
 };
 

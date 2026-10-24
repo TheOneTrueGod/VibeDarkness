@@ -56,6 +56,8 @@ export interface CampaignCharacterData {
     researchSources?: ResearchNodeSources;
     /** Unix seconds; server sets when this character starts a mission as a playable unit. */
     lastUsed?: number;
+    /** Fraction of max Hunger the character started with (new characters 0.3); absent on legacy characters = full. */
+    startingHungerFraction?: number;
     /**
      * Per-campaign mission results. Key = campaignId.
      * Each array holds at most one entry per missionId (the best/latest result).

@@ -55,7 +55,7 @@ export const swingSwordNoneScenario: ScenarioDefinition = {
 
 export const swingSwordBleedScenario: ScenarioDefinition = {
     id: 'swing_sword_bleed',
-    title: 'Swing Sword inflicts 2 bleed stacks without any research',
+    title: 'Swing Sword inflicts 3 bleed stacks without any research',
     category: 'ability',
     maxDurationMs: 5000,
     buildEngine() {
@@ -80,11 +80,11 @@ export const swingSwordBleedScenario: ScenarioDefinition = {
     },
     assertPass(engine) {
         const bleed = engine.getUnit('target_dummy')?.buffs.find((b) => b._type === BLEED_BUFF_TYPE) as BleedBuff | undefined;
-        return bleed?.stacks === 2;
+        return bleed?.stacks === 3;
     },
     failureMessage(engine) {
         const bleed = engine.getUnit('target_dummy')?.buffs.find((b) => b._type === BLEED_BUFF_TYPE) as BleedBuff | undefined;
-        return `dummy bleed stacks=${bleed?.stacks ?? 0} (expected 2)`;
+        return `dummy bleed stacks=${bleed?.stacks ?? 0} (expected 3)`;
     },
 };
 

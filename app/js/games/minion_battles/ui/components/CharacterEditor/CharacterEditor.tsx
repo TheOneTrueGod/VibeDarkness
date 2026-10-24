@@ -1136,7 +1136,7 @@ export default function CharacterEditor({
         [researchTrees, researchNodeLevels],
     );
     const hunger = useMemo(
-        () => hungerFromDelta(maxHunger, getCharacterHungerDelta(character)),
+        () => hungerFromDelta(maxHunger, getCharacterHungerDelta(character), character.startingHungerFraction),
         [maxHunger, character],
     );
     const hungerSection = <CharacterHungerBar hunger={hunger} maxHunger={maxHunger} />;

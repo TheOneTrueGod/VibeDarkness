@@ -8,12 +8,20 @@ import type { MissionResult } from '../../../types';
 /** Base max Hunger for every campaign character before research. */
 export const DEFAULT_CHARACTER_MAX_HUNGER = 100;
 
+/**
+ * Fraction of max Hunger a newly created character starts with (the bar starts 30% full).
+ * Must match PHP `Character::NEW_CHARACTER_STARTING_HUNGER_FRACTION`.
+ */
+export const NEW_CHARACTER_STARTING_HUNGER_FRACTION = 0.3;
+
 export type CharacterHungerSource = {
     campaignId: string;
     missionResults: Record<string, MissionResult[]>;
     questResults: Record<string, QuestResult[]>;
     researchTrees: Record<string, string[]>;
     researchNodeLevels: ResearchNodeLevels;
+    /** Fraction of max Hunger the character started with; absent (legacy characters) means full. */
+    startingHungerFraction?: number;
 };
 
 type HungerDeltaSource = Pick<CharacterHungerSource, 'campaignId' | 'missionResults' | 'questResults'>;
@@ -57,11 +65,18 @@ export function getCharacterHungerDelta(
     return total;
 }
 
-/** Current Hunger from a signed delta: `clamp(maxHunger + delta, 0, maxHunger)`. */
-export function hungerFromDelta(maxHunger: number, hungerDelta: number): number {
+/** Hunger a character starts with: `startFraction` of max Hunger (default full), rounded to a whole point. */
+export function getStartingHunger(maxHunger: number, startFraction = 1): number {
+    const max = Number.isFinite(maxHunger) ? Math.max(0, maxHunger) : 0;
+    const fraction = Number.isFinite(startFraction) ? Math.max(0, Math.min(1, startFraction)) : 1;
+    return Math.round(max * fraction);
+}
+
+/** Current Hunger from a signed delta: `clamp(start + delta, 0, maxHunger)`; start is full unless `startFraction` says otherwise. */
+export function hungerFromDelta(maxHunger: number, hungerDelta: number, startFraction = 1): number {
     const max = Number.isFinite(maxHunger) ? Math.max(0, maxHunger) : 0;
     const delta = Number.isFinite(hungerDelta) ? hungerDelta : 0;
-    return Math.max(0, Math.min(max, max + delta));
+    return Math.max(0, Math.min(max, getStartingHunger(max, startFraction) + delta));
 }
 
 /** Current Hunger (0 = starving, max = well fed), clamped to [0, maxHunger]. */
@@ -70,7 +85,7 @@ export function getCharacterHunger(
     options?: { excludeMissionId?: string },
 ): number {
     const max = getCharacterMaxHunger(character.researchTrees, character.researchNodeLevels);
-    return hungerFromDelta(max, getCharacterHungerDelta(character, options));
+    return hungerFromDelta(max, getCharacterHungerDelta(character, options), character.startingHungerFraction);
 }
 
 /** Hunger as a 0..1 fraction of max Hunger. Zero when max Hunger is not positive. */

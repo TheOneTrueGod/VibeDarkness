@@ -46,6 +46,11 @@ class Character
     private array $locationDeck;
     /** Save-data schema version (see App\SaveData\CharacterMigrations). */
     private int $version;
+    /** Fraction of max Hunger the character started with; legacy characters (no stored value) started full. */
+    private float $startingHungerFraction;
+
+    /** Starting Hunger fraction for newly created characters (the bar starts 30% full). Mirrors characterHunger.ts. */
+    public const NEW_CHARACTER_STARTING_HUNGER_FRACTION = 0.3;
 
     public function __construct(
         string $id,
@@ -67,7 +72,8 @@ class Character
         array $lastMissionAbilityIds = [],
         array $researchSources = [],
         array $locationDeck = [],
-        int $version = 0
+        int $version = 0,
+        float $startingHungerFraction = 1.0
     ) {
         $this->id = $id;
         $this->ownerAccountId = $ownerAccountId;
@@ -89,6 +95,12 @@ class Character
         $this->lastMissionAbilityIds = self::normalizeStringIdList($lastMissionAbilityIds);
         $this->locationDeck = self::normalizeLocationDeck($locationDeck);
         $this->version = max(0, $version);
+        $this->startingHungerFraction = max(0.0, min(1.0, $startingHungerFraction));
+    }
+
+    public function getStartingHungerFraction(): float
+    {
+        return $this->startingHungerFraction;
     }
 
     public function getVersion(): int
@@ -322,6 +334,7 @@ class Character
             'lastMissionAbilityIds' => $this->lastMissionAbilityIds,
             'locationDeck' => $this->locationDeck,
             'version' => $this->version,
+            'startingHungerFraction' => $this->startingHungerFraction,
         ];
     }
 
@@ -362,7 +375,10 @@ class Character
             is_array($lastMissionAbilityIds) ? $lastMissionAbilityIds : [],
             is_array($researchSources) ? $researchSources : [],
             is_array($locationDeck) ? $locationDeck : [],
-            (int) ($data['version'] ?? 0)
+            (int) ($data['version'] ?? 0),
+            isset($data['startingHungerFraction']) && is_numeric($data['startingHungerFraction'])
+                ? (float) $data['startingHungerFraction']
+                : 1.0
         );
     }
 

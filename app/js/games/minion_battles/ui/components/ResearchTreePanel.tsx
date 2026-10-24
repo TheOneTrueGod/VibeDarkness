@@ -120,7 +120,7 @@ function UpgradesResourcePills({
 	className?: string;
 }) {
 	const maxHunger = getCharacterMaxHunger(researchTrees, researchNodeLevels);
-	const currentHunger = hungerFromDelta(maxHunger, getCharacterHungerDelta(character));
+	const currentHunger = hungerFromDelta(maxHunger, getCharacterHungerDelta(character), character.startingHungerFraction);
 	return (
 		<>
 			{RESOURCE_ORDER.map((resource) =>

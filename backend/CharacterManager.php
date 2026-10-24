@@ -40,6 +40,7 @@ class CharacterManager
             'id' => $id,
             'ownerAccountId' => $ownerAccountId,
             'version' => $data['version'] ?? CharacterMigrations::CURRENT_VERSION,
+            'startingHungerFraction' => $data['startingHungerFraction'] ?? Character::NEW_CHARACTER_STARTING_HUNGER_FRACTION,
         ]));
         $this->persist($character);
         $this->cache[$id] = $character;

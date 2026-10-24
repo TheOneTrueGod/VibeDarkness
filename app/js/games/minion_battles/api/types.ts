@@ -66,6 +66,8 @@ export interface MinionBattlesGameStatePayload {
     playerEquipmentByPlayer?: Record<string, string[]>;
     /** Net signed campaign Hunger change per player (from the selected character; normally <= 0). */
     playerHungerDeltaByPlayer?: Record<string, number>;
+    /** Fraction of max Hunger each player's character started with (absent = full). */
+    playerHungerStartFractionByPlayer?: Record<string, number>;
     groupVoteVotes?: Record<string, Record<string, string>>;
     units?: unknown[];
     gameTick?: number;

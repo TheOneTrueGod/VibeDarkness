@@ -2355,6 +2355,174 @@ describe('BattleNet', () => {
         expect(resync).toHaveBeenCalledWith('deferred-behind-host-tail');
     });
 
+    describe('9CA938: host Space right after its own pause checkpoint', () => {
+        // Host paused at 477 and started saving that checkpoint while its last heartbeat still said
+        // 415/416. Space at 478 was deferred against the stale heartbeat, the engine ran on to the next
+        // pause at 538, and the heartbeat jumped 415 → 538 — dropping the 478 rows as tick_in_past.
+        const STALE = { hostTick: 415, orderBatchAtTick: 416 } as const;
+        const PAUSE_TICK = 477;
+        const WAIT_AT_TICK = 478;
+        const NEXT_PAUSE_TICK = 538;
+        const token = { engineEpoch: 0, __brand: 'CanonicalToken' as const };
+        const pauseState = {
+            gameTick: PAUSE_TICK,
+            waitingForOrders: { atTick: WAIT_AT_TICK, waiters: [] },
+        } as unknown as SerializedGameState;
+
+        function staleHeartbeat(): Record<string, unknown> {
+            return lobby97305CHeartbeat({
+                hostTick: STALE.hostTick,
+                ordersTipTick: STALE.hostTick,
+                orderBatchAtTick: STALE.orderBatchAtTick,
+                pausedAtTick: STALE.orderBatchAtTick,
+            });
+        }
+
+        function nextPauseHeartbeat(): Record<string, unknown> {
+            return lobby97305CHeartbeat({
+                hostTick: NEXT_PAUSE_TICK,
+                ordersTipTick: NEXT_PAUSE_TICK,
+                orderBatchAtTick: NEXT_PAUSE_TICK + 1,
+                pausedAtTick: NEXT_PAUSE_TICK + 1,
+                heartbeatSeq: 2,
+            });
+        }
+
+        function makeHostNet(api: LobbyClient): BattleNet {
+            return new BattleNet({
+                api,
+                session: makeSession({
+                    getEngineTick: () => PAUSE_TICK,
+                    isPausedForOrderSync: () => true,
+                    applyRemoteOrders: vi.fn().mockReturnValue({ newlyAppliedKeys: ['k'], skippedKeys: [] }),
+                }),
+                isHost: true,
+                lobbyId: 'l1',
+                gameId: 'g1',
+                playerId: 'host',
+            });
+        }
+
+        it('Space while the pause snapshot POST is in flight persists with that snapshot instead of deferring', async () => {
+            let resolveSnapshot: () => void = () => {};
+            const saveBattleSnapshot = vi.fn(
+                () => new Promise<void>((resolve) => {
+                    resolveSnapshot = resolve;
+                }),
+            );
+            const persistHostCycles = vi.fn(async (
+                _l: string,
+                _g: string,
+                body: { orders: Array<{ idHash?: string }> },
+            ) => ({
+                accepted: true,
+                acceptedIdHashes: body.orders.map((row) => row.idHash ?? ''),
+                hostTick: PAUSE_TICK,
+            }));
+            let hb = staleHeartbeat();
+            const api = makeApi({
+                saveBattleSnapshot,
+                persistHostCycles,
+                getBattleHeartbeat: vi.fn(async () => hb),
+            });
+            const net = makeHostNet(api);
+            await net.pollOnce();
+
+            const snapshotSave = net.saveSnapshotOnPause(PAUSE_TICK, pauseState, token);
+            await net.submitOrder({ ...makeOrder('host'), endTurn: true }, WAIT_AT_TICK);
+
+            expect(persistHostCycles).toHaveBeenCalledTimes(1);
+            expect(persistHostCycles).toHaveBeenCalledWith(
+                'l1',
+                'g1',
+                expect.objectContaining({
+                    snapshot: expect.objectContaining({ tick: PAUSE_TICK }),
+                    orders: [expect.objectContaining({ atTick: WAIT_AT_TICK })],
+                }),
+            );
+            expect(net.getOrderSyncSummary().queued).toBe(0);
+
+            resolveSnapshot();
+            await snapshotSave;
+            const resync = vi.spyOn(net, 'requestResync');
+            hb = nextPauseHeartbeat();
+            await net.pollOnce({ forceHttp: true });
+            expect(resync).not.toHaveBeenCalled();
+            expect(net.getOrderSyncSummary().queued).toBe(0);
+        });
+
+        it('Space after the pause snapshot saved but before a fresh heartbeat POSTs immediately (stale poll does not regress the window)', async () => {
+            // Old server response shape: no hostTick on the snapshot ACK, so the host must rely on its own checkpoint.
+            const saveBattleSnapshot = vi.fn(async () => ({ success: true, tick: PAUSE_TICK }));
+            const appendBattleOrder = vi.fn(async (_l: string, _g: string, body: { idHash?: string }) => ({
+                accepted: true,
+                idHash: body.idHash ?? 'h',
+                hostTick: PAUSE_TICK,
+            }));
+            let hb = staleHeartbeat();
+            const api = makeApi({
+                saveBattleSnapshot,
+                appendBattleOrder,
+                getBattleHeartbeat: vi.fn(async () => hb),
+            });
+            const net = makeHostNet(api);
+            await net.pollOnce();
+            await net.saveSnapshotOnPause(PAUSE_TICK, pauseState, token);
+            // A heartbeat GET that started before the save lands afterwards with the old tail.
+            await net.pollOnce({ forceHttp: true });
+
+            await net.submitOrder({ ...makeOrder('host'), endTurn: true }, WAIT_AT_TICK);
+
+            expect(appendBattleOrder).toHaveBeenCalledTimes(1);
+            expect(appendBattleOrder).toHaveBeenCalledWith(
+                'l1',
+                'g1',
+                expect.objectContaining({ atTick: WAIT_AT_TICK }),
+            );
+            expect(net.getOrderSyncSummary().queued).toBe(0);
+
+            const resync = vi.spyOn(net, 'requestResync');
+            hb = nextPauseHeartbeat();
+            await net.pollOnce({ forceHttp: true });
+            expect(resync).not.toHaveBeenCalled();
+        });
+
+        it('pause snapshot ACK carrying hostTick flushes an already-deferred host order without waiting for a poll', async () => {
+            const saveBattleSnapshot = vi.fn(async () => ({
+                success: true,
+                tick: PAUSE_TICK,
+                hostTick: PAUSE_TICK,
+                orderBatchAtTick: WAIT_AT_TICK,
+            }));
+            const appendBattleOrder = vi.fn(async (_l: string, _g: string, body: { idHash?: string }) => ({
+                accepted: true,
+                idHash: body.idHash ?? 'h',
+                hostTick: PAUSE_TICK,
+            }));
+            const api = makeApi({
+                saveBattleSnapshot,
+                appendBattleOrder,
+                getBattleHeartbeat: vi.fn(async () => staleHeartbeat()),
+            });
+            const net = makeHostNet(api);
+            await net.pollOnce();
+            // Submitted before the checkpoint save started, against the stale 415/416 window.
+            await net.submitOrder({ ...makeOrder('host'), endTurn: true }, WAIT_AT_TICK);
+            expect(appendBattleOrder).not.toHaveBeenCalled();
+            expect(net.getOrderSyncSummary().queued).toBe(1);
+
+            await net.saveSnapshotOnPause(PAUSE_TICK, pauseState, token);
+
+            expect(appendBattleOrder).toHaveBeenCalledTimes(1);
+            expect(appendBattleOrder).toHaveBeenCalledWith(
+                'l1',
+                'g1',
+                expect.objectContaining({ atTick: WAIT_AT_TICK }),
+            );
+            expect(net.getOrderSyncSummary().queued).toBe(0);
+        });
+    });
+
     it('97305C: in-place skipLocalApply at mark batch still POSTs inside the append window', async () => {
         const applyRemoteOrders = vi.fn().mockReturnValue({ newlyAppliedKeys: [], skippedKeys: [] });
         const appendBattleOrder = vi.fn(async (_l: string, _g: string, body: { idHash?: string }) => ({

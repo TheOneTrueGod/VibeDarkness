@@ -17,14 +17,28 @@ export interface SnapshotPersistenceConfig {
     /** Callback fired when `mergeAppliedOrdersForBatch` exhausts its retries and must escalate to resync. */
     requestResync: (reason: string) => void;
     /**
-     * Host persist may update heartbeat from a snapshot ACK when the handler returns
-     * `hostTick` / `orderBatchAtTick`. Today's save handler only returns `tick`.
+     * Host updates its heartbeat view from the snapshot ACK (`hostTick` / `hostFingerprint` /
+     * `orderBatchAtTick`, resolved the same way as the heartbeat) instead of waiting for its next poll.
      */
     onPauseSnapshotAck?: (info: {
         tick: number;
         hostTick?: number;
+        hostFingerprint?: string | null;
         orderBatchAtTick?: number | null;
     }) => void;
+}
+
+/** Host append window implied by a pause checkpoint: tail at `hostTick`, parallel orders at `orderBatchAtTick`. */
+export interface CheckpointAppendWindow {
+    hostTick: number;
+    orderBatchAtTick: number;
+}
+
+function checkpointAppendWindow(tick: number, state: SerializedGameState): CheckpointAppendWindow {
+    const waitAt = state.waitingForOrders?.atTick;
+    // Pause snapshot completes tick T; parallel orders apply at waitingForOrders.atTick (typically T+1).
+    const orderBatchAtTick = typeof waitAt === 'number' && !Number.isNaN(waitAt) ? waitAt : tick + 1;
+    return { hostTick: tick, orderBatchAtTick };
 }
 
 /**
@@ -34,6 +48,8 @@ export interface SnapshotPersistenceConfig {
  */
 export class SnapshotPersistence {
     private lastSnapshotTick: number | null = null;
+    /** Append window of the last checkpoint the server accepted (paired with `lastSnapshotTick`). */
+    private lastSnapshotWindow: CheckpointAppendWindow | null = null;
     private lastBootstrapSnapshotTick: number | null = null;
     /** In-flight `saveSnapshotOnPause` (host persist POSTs await this; the engine does not). */
     private inFlightPauseSnapshot: { tick: number; promise: Promise<void> } | null = null;
@@ -65,8 +81,26 @@ export class SnapshotPersistence {
     }
 
     /** Envelope already wrote this pause snapshot; keep `lastSnapshotTick` in sync with a standalone POST. */
-    noteEnvelopeSnapshotApplied(tick: number): void {
+    noteEnvelopeSnapshotApplied(snapshot: PersistHostCyclesSnapshot): void {
+        this.recordSavedCheckpoint(snapshot.tick, snapshot.state);
+    }
+
+    /**
+     * Host's own lower bound on the server append window: the in-flight pause checkpoint (an
+     * envelope POST carries it), else the last checkpoint the server accepted. The host wrote these
+     * itself, so it need not wait for a heartbeat poll to learn them (lobby 9CA938).
+     */
+    getOwnCheckpointAppendWindow(): CheckpointAppendWindow | null {
+        const pending = this.pendingPauseSnapshotPayload;
+        if (pending != null) {
+            return checkpointAppendWindow(pending.tick, pending.state);
+        }
+        return this.lastSnapshotWindow;
+    }
+
+    private recordSavedCheckpoint(tick: number, state: SerializedGameState): void {
         this.lastSnapshotTick = tick;
+        this.lastSnapshotWindow = checkpointAppendWindow(tick, state);
     }
 
     /**
@@ -210,22 +244,14 @@ export class SnapshotPersistence {
                 ? { checkpointFingerprint, checkpointFingerprintPaused }
                 : {}),
         });
-        const engineNow = this.config.session.getEngineTick();
-        if (engineNow > tick) {
-            // `saveBattleSnapshot` can be slow; if the host already unpaused and simulated past
-            // this checkpoint, do not append a stale `{tick}` line after higher ticks on disk.
-            this.lastSnapshotTick = tick;
-        } else {
-            // When `checkpointFingerprint` is sent, the server appends `fingerprints.jsonl` in the same request.
-            this.lastSnapshotTick = tick;
-        }
-        const ack =
-            saveResult != null && typeof saveResult === 'object'
-                ? (saveResult as { hostTick?: number; orderBatchAtTick?: number | null })
-                : null;
+        // Recorded even if the host already unpaused and simulated past this checkpoint (slow POST).
+        // When `checkpointFingerprint` is sent, the server appends `fingerprints.jsonl` in the same request.
+        this.recordSavedCheckpoint(tick, state);
+        const ack = saveResult != null && typeof saveResult === 'object' ? saveResult : null;
         this.config.onPauseSnapshotAck?.({
             tick,
             hostTick: typeof ack?.hostTick === 'number' && !Number.isNaN(ack.hostTick) ? ack.hostTick : undefined,
+            hostFingerprint: ack?.hostFingerprint ?? null,
             orderBatchAtTick:
                 ack != null && 'orderBatchAtTick' in ack ? (ack.orderBatchAtTick ?? null) : undefined,
         });
@@ -467,6 +493,6 @@ export class SnapshotPersistence {
         });
         // Note: `lastSnapshotTick` is updated regardless of post-call engine advance because the
         // legacy implementation matched `saveSnapshotOnPause` semantics — see the comment there.
-        this.lastSnapshotTick = tick;
+        this.recordSavedCheckpoint(tick, state);
     }
 }

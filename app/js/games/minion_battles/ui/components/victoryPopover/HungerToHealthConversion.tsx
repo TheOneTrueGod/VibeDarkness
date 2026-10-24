@@ -172,22 +172,19 @@ export default function HungerToHealthConversion({ conversion, active, durationM
                     ))}
                 </div>
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-muted">
-                {hungerCost > 0 ? (
-                    <>
-                        <ResourcePill resource="hunger" count={-hungerCost} size={RESOURCE_PILL_SIZE_MEDIUM} />
-                        <span>restores</span>
-                        <HealthPill count={hpRestored} />
-                    </>
-                ) : null}
-                {hungerFound > 0 ? (
-                    <>
-                        <span>Found</span>
-                        <ResourcePill resource="hunger" count={Math.round(hungerFound)} size={RESOURCE_PILL_SIZE_MEDIUM} />
-                        <span className="-ml-1.5">.</span>
-                    </>
-                ) : null}
-            </div>
+            {hungerCost > 0 ? (
+                <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-muted">
+                    <ResourcePill resource="hunger" count={-hungerCost} size={RESOURCE_PILL_SIZE_MEDIUM} />
+                    <span>restores</span>
+                    <HealthPill count={hpRestored} />
+                </div>
+            ) : null}
+            {hungerFound > 0 ? (
+                <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-muted">
+                    <span>Found</span>
+                    <ResourcePill resource="hunger" count={Math.round(hungerFound)} size={RESOURCE_PILL_SIZE_MEDIUM} />
+                </div>
+            ) : null}
         </div>
     );
 }

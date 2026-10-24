@@ -255,6 +255,7 @@ describe('SnapshotPersistence.saveSnapshotOnPause', () => {
         const saveBattleSnapshot = vi.fn(async () => ({
             tick: LOBBY_97305C_PAUSE_TICK,
             hostTick: LOBBY_97305C_PAUSE_TICK,
+            hostFingerprint: 'fp329',
             orderBatchAtTick: LOBBY_97305C_WAIT_AT_TICK,
         }));
         const api = makeApi({
@@ -280,7 +281,56 @@ describe('SnapshotPersistence.saveSnapshotOnPause', () => {
         expect(onPauseSnapshotAck).toHaveBeenCalledWith({
             tick: LOBBY_97305C_PAUSE_TICK,
             hostTick: LOBBY_97305C_PAUSE_TICK,
+            hostFingerprint: 'fp329',
             orderBatchAtTick: LOBBY_97305C_WAIT_AT_TICK,
+        });
+    });
+});
+
+describe('SnapshotPersistence.getOwnCheckpointAppendWindow', () => {
+    function makeHostCtrl(saveBattleSnapshot: BattleApi['saveBattleSnapshot']): SnapshotPersistence {
+        return new SnapshotPersistence({
+            api: makeApi({ saveBattleSnapshot }),
+            session: makeSession({ getEngineTick: () => LOBBY_97305C_PAUSE_TICK }),
+            isHost: true,
+            lobbyId: 'l1',
+            gameId: 'g1',
+            playerId: 'host',
+            requestResync: vi.fn(),
+        });
+    }
+
+    const token = { engineEpoch: 0, __brand: 'CanonicalToken' as const };
+    const pauseState = {
+        gameTick: LOBBY_97305C_PAUSE_TICK,
+        waitingForOrders: { atTick: LOBBY_97305C_WAIT_AT_TICK, waiters: [] },
+    } as unknown as SerializedGameState;
+
+    it('is null before any checkpoint', () => {
+        expect(makeHostCtrl(vi.fn(async () => {})).getOwnCheckpointAppendWindow()).toBeNull();
+    });
+
+    it('reports the in-flight pause checkpoint and keeps it after the save is accepted', async () => {
+        let resolveSave: () => void = () => {};
+        const ctrl = makeHostCtrl(vi.fn(() => new Promise<void>((resolve) => {
+            resolveSave = resolve;
+        })));
+        const save = ctrl.saveSnapshotOnPause(LOBBY_97305C_PAUSE_TICK, pauseState, token);
+        const expected = { hostTick: LOBBY_97305C_PAUSE_TICK, orderBatchAtTick: LOBBY_97305C_WAIT_AT_TICK };
+        expect(ctrl.getOwnCheckpointAppendWindow()).toEqual(expected);
+        resolveSave();
+        await save;
+        expect(ctrl.getOwnCheckpointAppendWindow()).toEqual(expected);
+    });
+
+    it('defaults the order batch to tick + 1 when the checkpoint has no waitingForOrders', async () => {
+        const ctrl = makeHostCtrl(vi.fn(async () => {}));
+        await ctrl.saveSnapshotOnPause(LOBBY_97305C_PAUSE_TICK, {
+            gameTick: LOBBY_97305C_PAUSE_TICK,
+        } as SerializedGameState, token);
+        expect(ctrl.getOwnCheckpointAppendWindow()).toEqual({
+            hostTick: LOBBY_97305C_PAUSE_TICK,
+            orderBatchAtTick: LOBBY_97305C_PAUSE_TICK + 1,
         });
     });
 });

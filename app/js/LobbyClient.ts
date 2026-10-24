@@ -810,11 +810,20 @@ export class LobbyClient {
             checkpointFingerprint?: string;
             checkpointFingerprintPaused?: boolean;
         },
-    ): Promise<void> {
-        await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/snapshot`, {
+    ): Promise<{ hostTick?: number; hostFingerprint?: string | null; orderBatchAtTick?: number | null }> {
+        const data = await this.request(`/api/lobbies/${lobbyId}/games/${gameId}/snapshot`, {
             method: 'POST',
             body: JSON.stringify(body),
-        });
+        }) as unknown as {
+            hostTick?: number | null;
+            hostFingerprint?: string | null;
+            orderBatchAtTick?: number | null;
+        };
+        return {
+            hostTick: typeof data.hostTick === 'number' ? data.hostTick : undefined,
+            hostFingerprint: typeof data.hostFingerprint === 'string' ? data.hostFingerprint : null,
+            orderBatchAtTick: typeof data.orderBatchAtTick === 'number' ? data.orderBatchAtTick : null,
+        };
     }
 
     async getBattleSnapshot(

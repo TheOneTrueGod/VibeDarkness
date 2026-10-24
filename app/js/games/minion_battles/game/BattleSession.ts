@@ -783,6 +783,8 @@ export class BattleSession implements BattleSessionHandle {
             ?? undefined;
         const playerHungerDeltaByPlayer =
             (snapshotRecord?.playerHungerDeltaByPlayer as Record<string, number> | undefined) ?? {};
+        const playerHungerStartFractionByPlayer =
+            (snapshotRecord?.playerHungerStartFractionByPlayer as Record<string, number> | undefined) ?? {};
 
         const engine = new GameEngine();
         engine.prepareForNewGame({
@@ -821,6 +823,7 @@ export class BattleSession implements BattleSessionHandle {
             questAbilityLoadoutsByCharacterId,
             missionPrepLoadoutsByPlayer,
             playerHungerDeltaByPlayer,
+            playerHungerStartFractionByPlayer,
             terrainSegmentPOIs,
             terrainSegmentZones,
         });
