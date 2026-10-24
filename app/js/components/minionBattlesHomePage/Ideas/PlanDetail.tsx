@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronRight, CircleCheck, CircleQuestionMark } from 'lucide-react';
+import { ChevronRight, ChevronsDownUp, ChevronsUpDown, CircleCheck, CircleQuestionMark } from 'lucide-react';
 import {
     DEFAULT_PLAN_FILTERS,
     filterPlanSections,
@@ -9,6 +9,7 @@ import {
     type PlanItem as PlanItemData,
     type PlanListItem,
     type PlanSection,
+    planItems,
 } from './plansData';
 import PlanFilterBar from './PlanFilterBar';
 import PlanSizeChip from './PlanSizeChip';
@@ -106,13 +107,20 @@ function DecisionCard({ question, blocks }: { question: string; blocks: PlanBloc
  * A `###` plan item that can be collapsed. Completed items start collapsed with a green check; the
  * T-shirt size sits at the right of the header so it shows while collapsed.
  */
-function PlanItem({ item: { title, done, size, blocks } }: { item: PlanItemData }) {
-    const [open, setOpen] = useState(!done);
+function PlanItem({
+    item: { title, done, size, blocks },
+    open,
+    onToggle,
+}: {
+    item: PlanItemData;
+    open: boolean;
+    onToggle: () => void;
+}) {
     return (
         <div className="mt-3">
             <button
                 type="button"
-                onClick={() => setOpen((o) => !o)}
+                onClick={onToggle}
                 aria-expanded={open}
                 className="flex w-full items-center gap-2 rounded px-1 py-1 text-left hover:bg-surface-light"
             >
@@ -141,19 +149,42 @@ function PlanItem({ item: { title, done, size, blocks } }: { item: PlanItemData 
     );
 }
 
-function Section({ section, planId }: { section: PlanSection; planId: string }) {
+/** Open/closed state of a plan's items, keyed by {@link sectionKey}. */
+interface ItemOpenState {
+    isOpen: (key: string, item: PlanItemData) => boolean;
+    toggle: (key: string, item: PlanItemData) => void;
+}
+
+function Section({
+    section,
+    planId,
+    sectionId,
+    openState,
+}: {
+    section: PlanSection;
+    planId: string;
+    sectionId: string;
+    openState: ItemOpenState;
+}) {
     switch (section.kind) {
         case 'item':
-            return <PlanItem item={section} />;
+            return (
+                <PlanItem
+                    item={section}
+                    open={openState.isOpen(sectionId, section)}
+                    onToggle={() => openState.toggle(sectionId, section)}
+                />
+            );
         case 'block':
             return <Block block={section.block} />;
         case 'group':
             return (
                 <>
                     <Block block={{ type: 'heading', level: 2, text: section.title }} />
-                    {section.children.map((child, i) => (
-                        <Section key={sectionKey(planId, child, i)} section={child} planId={planId} />
-                    ))}
+                    {section.children.map((child, i) => {
+                        const key = sectionKey(planId, child, i);
+                        return <Section key={key} section={child} planId={planId} sectionId={key} openState={openState} />;
+                    })}
                 </>
             );
     }
@@ -169,6 +200,8 @@ function sectionKey(planId: string, section: PlanSection, index: number): string
 /** Plans tab, right pane: a sticky header (title, date, filters) over the plan's items. */
 export default function PlanDetail({ plan }: { plan: PlanDoc | null }) {
     const [filters, setFilters] = useState<PlanFilters>(DEFAULT_PLAN_FILTERS);
+    /** Items the user opened or closed; the rest use their default (open unless done). */
+    const [openOverrides, setOpenOverrides] = useState<Record<string, boolean>>({});
     if (!plan) {
         return (
             <div className="flex items-center justify-center h-full text-muted text-sm">
@@ -177,6 +210,32 @@ export default function PlanDetail({ plan }: { plan: PlanDoc | null }) {
         );
     }
     const { sections, hiddenCount } = filterPlanSections(plan.sections, filters);
+    const openState: ItemOpenState = {
+        isOpen: (key, item) => openOverrides[key] ?? !item.done,
+        toggle: (key, item) => setOpenOverrides((prev) => ({ ...prev, [key]: !(prev[key] ?? !item.done) })),
+    };
+    const visibleItems = planItems(sections).map((item) => ({ item, key: sectionKey(plan.id, item, 0) }));
+    const anyOpen = visibleItems.some(({ item, key }) => openState.isOpen(key, item));
+    const setAllOpen = (open: boolean) =>
+        setOpenOverrides((prev) => {
+            const next = { ...prev };
+            for (const { key } of visibleItems) next[key] = open;
+            return next;
+        });
+    const expandToggle = visibleItems.length > 0 && (
+        <button
+            type="button"
+            onClick={() => setAllOpen(!anyOpen)}
+            className="flex items-center gap-1 rounded border border-border-custom px-2 py-0.5 text-xs font-semibold text-gray-300 hover:text-white"
+        >
+            {anyOpen ? (
+                <ChevronsDownUp className="w-3.5 h-3.5" aria-hidden />
+            ) : (
+                <ChevronsUpDown className="w-3.5 h-3.5" aria-hidden />
+            )}
+            {anyOpen ? 'Contract all' : 'Expand all'}
+        </button>
+    );
     return (
         <div className="max-w-4xl select-text">
             <div className="sticky top-0 z-10 bg-surface border-b border-border-custom px-6 pt-3 pb-3">
@@ -185,13 +244,14 @@ export default function PlanDetail({ plan }: { plan: PlanDoc | null }) {
                     <p className="text-xs text-muted shrink-0">Added {plan.date}</p>
                 </div>
                 <div className="mt-2">
-                    <PlanFilterBar filters={filters} onChange={setFilters} hiddenCount={hiddenCount} />
+                    <PlanFilterBar filters={filters} onChange={setFilters} hiddenCount={hiddenCount} trailing={expandToggle} />
                 </div>
             </div>
             <div className="px-6 pb-6 pt-4 flex flex-col gap-3">
-                {sections.map((section, i) => (
-                    <Section key={sectionKey(plan.id, section, i)} section={section} planId={plan.id} />
-                ))}
+                {sections.map((section, i) => {
+                    const key = sectionKey(plan.id, section, i);
+                    return <Section key={key} section={section} planId={plan.id} sectionId={key} openState={openState} />;
+                })}
             </div>
         </div>
     );

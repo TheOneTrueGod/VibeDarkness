@@ -99,7 +99,8 @@ The sticky header over each plan holds the title, the date and the filters:
 - **Sizes (Sm / Md / Lg):** toggles which sizes are shown. A size that is turned off appears struck through.
 - A `##` group whose items are all hidden disappears, heading included. Groups that have no items at all, such as "Suggested order", always stay.
 - The header shows how many items are hidden.
-- Filter state is local to the page and resets on refresh.
+- **Expand all / Contract all** (right end of the filters row) opens or closes every visible item. It reads "Contract all" while any visible item is open, and "Expand all" otherwise.
+- Filter and open/closed state are local to the page and reset on refresh.
 
 So filters work on a new plan without extra effort: give every item a `###` heading, a `**Complexity:**` line, and an `[x] ` prefix once it's done.
 

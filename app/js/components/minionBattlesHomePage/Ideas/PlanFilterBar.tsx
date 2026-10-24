@@ -1,19 +1,23 @@
 import React from 'react';
+import type { ReactNode } from 'react';
 import { PLAN_SIZES, PLAN_SIZE_LABELS, type PlanFilters, type PlanSize } from './plansData';
 import { PLAN_SIZE_CHIP_CLASSES } from './PlanSizeChip';
 
 const TOGGLE_BASE = 'rounded border px-2 py-0.5 text-xs font-semibold transition-colors';
 const TOGGLE_OFF = 'border-border-custom text-muted line-through hover:text-white';
 
-/** Plan filters: hide done items, and show or hide each T-shirt size. */
+/** Plan filters: hide done items, and show or hide each T-shirt size, with an optional right-aligned control. */
 export default function PlanFilterBar({
     filters,
     onChange,
     hiddenCount,
+    trailing,
 }: {
     filters: PlanFilters;
     onChange: (filters: PlanFilters) => void;
     hiddenCount: number;
+    /** Right-aligned control at the end of the row (e.g. expand / contract all). */
+    trailing?: ReactNode;
 }) {
     const toggleSize = (size: PlanSize) => {
         const hidden = filters.hiddenSizes.includes(size);
@@ -59,6 +63,7 @@ export default function PlanFilterBar({
                     {hiddenCount} {hiddenCount === 1 ? 'item' : 'items'} hidden
                 </span>
             )}
+            {trailing != null && trailing !== false && <div className="ml-auto">{trailing}</div>}
         </div>
     );
 }
