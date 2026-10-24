@@ -152,7 +152,15 @@ export interface ResearchNodeDef {
     disabled?: boolean;
     /** Extra tags for this node, added to its tree's tags (see {@link ResearchTag}). */
     tags?: ResearchTag[];
-    position: { x: number; y: number };
+    /**
+     * Free "virtual" root of a weapon: counts as researched automatically while any of these
+     * items is equipped, and is never persisted. Nodes that depend on it (through `prereqNodeIds`
+     * or a same-tree `anyResearched` requirement) are only active while it is.
+     * Read the ids through {@link getVirtualRootItemIds}.
+     */
+    virtualRootFor?: string | readonly string[];
+    /** Graph position. Ignored (and may be omitted) when the tree uses `layout: 'rows'`. */
+    position?: { x: number; y: number };
     prereqNodeIds: string[];
     exclusiveWithNodeIds: string[];
     requirements: Requirement[];
@@ -217,15 +225,25 @@ export interface CrossTreeNodeRef {
  * - `weapon`: weapon upgrades (Throw Rock, Swing Mace, Raise Shield and everything in their trees)
  * - `stat`: stat upgrades (the Training tree)
  * - `core`: trees tied to a core item (Light, Earth, Command, Gravity, Blood Mage)
- * - `equipment`: trees bound to an equipment item; listed after all other trees in the Upgrades sidebar
+ * - `equipment`: trees whose nodes are bound to equipment (the Weapons tree); listed after all other trees in the Upgrades sidebar
  */
 export type ResearchTag = 'weapon' | 'stat' | 'core' | 'equipment';
 
-/** Item ids a tree is bound to (empty for unbound trees). */
-export function getBoundItemIds(tree: Pick<ResearchTreeDef, 'boundItem'>): readonly string[] {
-    if (!tree.boundItem) return [];
-    const { itemId } = tree.boundItem;
-    return typeof itemId === 'string' ? [itemId] : itemId;
+/** Item ids that make this node a virtual root (empty for ordinary nodes). */
+export function getVirtualRootItemIds(node: Pick<ResearchNodeDef, 'virtualRootFor'>): readonly string[] {
+    const ids = node.virtualRootFor;
+    if (ids == null) return [];
+    return typeof ids === 'string' ? [ids] : ids;
+}
+
+/** True when the node is a free virtual root (see `ResearchNodeDef.virtualRootFor`). */
+export function isVirtualRootNode(node: Pick<ResearchNodeDef, 'virtualRootFor'>): boolean {
+    return getVirtualRootItemIds(node).length > 0;
+}
+
+/** True when the tree holds equipment-bound virtual roots (the Weapons tree). */
+export function hasVirtualRootNodes(tree: Pick<ResearchTreeDef, 'nodes'>): boolean {
+    return tree.nodes.some(isVirtualRootNode);
 }
 
 export interface ResearchTreeDef {
@@ -246,13 +264,11 @@ export interface ResearchTreeDef {
     ownedAbilityIds?: string[];
     nodes: ResearchNodeDef[];
     /**
-     * Marks this as an equipment tree, active only while `itemId` is equipped. `itemId` may be a
-     * list (a shared family tree): the tree is then active while ANY of those items is equipped.
-     * `rootNodeId` counts as researched automatically (a "virtual" root, never persisted)
-     * while the tree is active. Research stored for an inactive bound tree is kept but ignored.
-     * Read the ids through {@link getBoundItemIds}.
+     * How the Upgrades tree view places nodes. `'graph'` (default) uses each node's `position`;
+     * `'rows'` gives every virtual root its own row with its upgrades stretching to the right
+     * (see `researchTreeLayout.ts`).
      */
-    boundItem?: { itemId: string | readonly string[]; rootNodeId: string };
+    layout?: 'graph' | 'rows';
     /** Nodes owned by other trees that are also displayed in this tree's panel. */
     crossTreeNodeRefs?: CrossTreeNodeRef[];
 }

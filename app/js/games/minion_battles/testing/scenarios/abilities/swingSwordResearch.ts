@@ -1,8 +1,7 @@
 ﻿import type { ScenarioDefinition } from '../../types';
 import {
     NODE_IRON_WRISTS,
-    MELEE_WEAPONS_TREE_ID,
-    MELEE_WEAPONS_ROOT_NODE_ID,
+    WEAPONS_TREE_ID,
 } from '../../../../../researchTrees/trees/weaponTreeIds';
 import { SWORD_BASE_MAX_USES } from '../../../card_defs/0112_SwingSword/0112Ability';
 import { SWING_EXTRA_USES } from '../../../abilities/abilityUses';
@@ -94,7 +93,7 @@ export const swingSwordExtraUsesScenario: ScenarioDefinition = {
     category: 'ability',
     maxDurationMs: 1000,
     buildEngine() {
-        const research = { [P]: { [MELEE_WEAPONS_TREE_ID]: [MELEE_WEAPONS_ROOT_NODE_ID, NODE_IRON_WRISTS] } };
+        const research = { [P]: { [WEAPONS_TREE_ID]: [NODE_IRON_WRISTS] } };
         const engine = buildTinyBattleEngine({
             gridW: 10,
             gridH: 8,

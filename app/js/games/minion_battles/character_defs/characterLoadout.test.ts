@@ -12,17 +12,17 @@ const CHARGED_SHIELD = '016';
 describe('resolveCharacterLoadout', () => {
     it("Chip's case: Charged Rocks equipped with stored stick research gives charged rock and no stick", () => {
         const { abilityIds, activeResearchTrees } = resolveCharacterLoadout([BASIC_CORE, CHARGED_ROCKS], {
-            stick_sword: ['swing_stick'],
+            weapons: ['swing_stick', 'pipe_bat_damage'],
         });
         expect(abilityIds).toContain('throw_charged_rock');
         expect(abilityIds).not.toContain('throw_rock');
         expect(abilityIds).not.toContain('0103');
-        expect(activeResearchTrees.stick_sword).toBeUndefined();
+        expect(activeResearchTrees.weapons).toEqual(['throw_charged_rock']);
     });
 
-    it('Stick equipped with stored crystal research gives 0103 and no rock throw', () => {
+    it('Stick equipped with stored rocks research gives 0103 and no rock throw', () => {
         const { abilityIds } = resolveCharacterLoadout([BASIC_CORE, STICK], {
-            crystal_rocks: ['throw_rock', 'charged_rocks'],
+            weapons: ['throw_rock', 'more_power'],
         });
         expect(abilityIds).toContain('0103');
         expect(abilityIds).not.toContain('throw_rock');
@@ -76,25 +76,24 @@ describe('resolveCharacterLoadout', () => {
     });
 
     it('does not mutate the stored research input', () => {
-        const stored = { crystal_rocks: ['throw_rock'], stick_sword: ['swing_stick'] };
+        const stored = { weapons: ['throw_rock', 'more_power'] };
         resolveCharacterLoadout([BASIC_CORE, STICK], stored);
-        expect(stored).toEqual({ crystal_rocks: ['throw_rock'], stick_sword: ['swing_stick'] });
+        expect(stored).toEqual({ weapons: ['throw_rock', 'more_power'] });
     });
 });
 
 describe('activeResearchByPlayer', () => {
-    const equipment = { p1: [BASIC_CORE, STICK], p2: [BASIC_CORE, ROCKS] };
+    const equipment = { p1: [BASIC_CORE, STICK], p2: [BASIC_CORE, CHARGED_ROCKS] };
     const research = {
-        p1: { crystal_rocks: ['throw_rock', 'charged_rocks'], earth: ['x'] },
-        p2: { crystal_rocks: ['charged_rocks'] },
+        p1: { weapons: ['throw_rock', 'more_power'], earth: ['x'] },
+        p2: { weapons: ['more_power'] },
     };
 
-    it('drops charged_rocks for a player with the Stick equipped and adds the virtual root', () => {
+    it('drops More Power for a player with the Stick equipped and adds the virtual root', () => {
         const out = activeResearchByPlayer(equipment, research);
-        expect(out.p1.crystal_rocks).toBeUndefined();
-        expect(out.p1.stick_sword).toContain('swing_stick');
+        expect(out.p1.weapons).toEqual(['swing_stick']);
         expect(out.p1.earth).toEqual(['x']);
-        expect(out.p2.crystal_rocks).toEqual(expect.arrayContaining(['charged_rocks', 'throw_rock']));
+        expect(out.p2.weapons).toEqual(expect.arrayContaining(['more_power', 'throw_charged_rock']));
     });
 
     it('is idempotent', () => {
@@ -102,10 +101,10 @@ describe('activeResearchByPlayer', () => {
         expect(activeResearchByPlayer(equipment, once)).toEqual(once);
     });
 
-    it('filters node levels of inactive bound trees', () => {
-        const levels = { p1: { crystal_rocks: { charged_rocks: 2 }, earth: { x: 1 } } };
+    it('filters node levels of inactive weapon nodes', () => {
+        const levels = { p1: { weapons: { more_power: 2 }, earth: { x: 1 } } };
         const out = activeResearchNodeLevelsByPlayer(equipment, levels);
-        expect(out.p1.crystal_rocks).toBeUndefined();
+        expect(out.p1.weapons).toEqual({});
         expect(out.p1.earth).toEqual({ x: 1 });
         expect(activeResearchNodeLevelsByPlayer(equipment, out)).toEqual(out);
     });

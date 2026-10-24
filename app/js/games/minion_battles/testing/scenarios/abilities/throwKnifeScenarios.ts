@@ -8,7 +8,7 @@ import {
 import { createTargetDummyAtWorld } from '../../fixtures/targetDummies';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
 import {
-    KNIVES_TREE_ID,
+    WEAPONS_TREE_ID,
     KNIVES_ROOT_NODE_ID,
     NODE_PIERCING_KNIVES,
 } from '../../../../../researchTrees/trees/weaponTreeIds';
@@ -34,7 +34,7 @@ export const throwKnifePiercingBleedScenario: ScenarioDefinition = {
 
     buildEngine() {
         bleedState = { hitHp0: -1, hitHp1: -1, hitTime: -1 };
-        const research = { [P]: { [KNIVES_TREE_ID]: PIERCE_RESEARCH } };
+        const research = { [P]: { [WEAPONS_TREE_ID]: PIERCE_RESEARCH } };
         const engine = buildTinyBattleEngine({
             gridW: 12,
             gridH: 8,

@@ -3,19 +3,7 @@ import { RESEARCH_TREES, getResearchTree } from './list';
 import { getResearchNodeTags } from './types';
 import { sortResearchTreesByPlayerAbilities } from './treeAbilities';
 
-const EQUIPMENT_TREE_IDS = [
-    'tech_shield',
-    'crystal_rocks',
-    'stick_sword',
-    'charged_rocks_item',
-    'knives_item',
-    'sword_item',
-    'mace_item',
-    'crystal_shield_item',
-    'charged_shield_item',
-    'thrown_weapons',
-    'melee_weapons',
-] as const;
+const EQUIPMENT_TREE_IDS = ['weapons'] as const;
 
 const BY_TAG = {
     weapon: EQUIPMENT_TREE_IDS,

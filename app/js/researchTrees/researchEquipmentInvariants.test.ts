@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { CORE_ITEM_IDS } from '../games/minion_battles/character_defs/items';
 import { applyCardReplacements } from './evaluator';
 import { RESEARCH_TREES } from './list';
+import { getVirtualRootItemIds, isVirtualRootNode } from './types';
+import { getItemDef } from '../games/minion_battles/character_defs/items';
 
 const CORE_IDS = new Set<string>(Object.values(CORE_ITEM_IDS));
 
@@ -34,14 +36,23 @@ describe('research never grants equipment (except core swaps)', () => {
         }
     });
 
-    it('every boundItem root exists in its tree and has no effects', () => {
-        const bound = RESEARCH_TREES.filter((t) => t.boundItem);
-        expect(bound.length).toBe(11);
-        for (const tree of bound) {
-            const root = tree.nodes.find((n) => n.id === tree.boundItem!.rootNodeId);
-            expect(root, tree.id).toBeDefined();
-            expect(root!.effects).toEqual([]);
-            expect(root!.exclusiveWithNodeIds).toEqual([]);
+    it('every virtual root is free, has no effects, and names a real item', () => {
+        const roots = RESEARCH_TREES.flatMap((t) => t.nodes.filter(isVirtualRootNode).map((n) => ({ tree: t, node: n })));
+        expect(roots.length).toBe(9);
+        for (const { tree, node } of roots) {
+            expect(tree.id).toBe('weapons');
+            expect(node.effects, node.id).toEqual([]);
+            expect(node.cost, node.id).toEqual({});
+            expect(node.prereqNodeIds, node.id).toEqual([]);
+            expect(node.exclusiveWithNodeIds, node.id).toEqual([]);
+            for (const itemId of getVirtualRootItemIds(node)) expect(getItemDef(itemId), `${node.id}:${itemId}`).toBeDefined();
+        }
+    });
+
+    it('every graph-layout node has a position', () => {
+        for (const tree of RESEARCH_TREES) {
+            if (tree.layout === 'rows') continue;
+            for (const node of tree.nodes) expect(node.position, `${tree.id}/${node.id}`).toBeDefined();
         }
     });
 });

@@ -17,19 +17,20 @@ Research trees are a **meta-game** system — they belong to campaign characters
 - Equipment is unlocked at campaign level and changed outside research; see the **campaign-characters** skill.
 - **Earth Core gives no bonus Throw Rock.** Rock throws come only from equipping Rocks; Earth's `replaceCard` still upgrades that throw when no weapon item claims it.
 
-### Bound trees, virtual roots, active research
+### The Weapons tree, virtual roots, active research
 
-- `ResearchTreeDef.boundItem = { itemId, rootNodeId }` marks a **weapon tree**. `itemId` is a `string | readonly string[]` (`getBoundItemIds(tree)` in `researchTrees/types.ts`): the tree is active while **any** bound item is equipped. Trees without `boundItem` (cores, training, misc) are always active.
-- **One tree per equipment item**: Rocks / Stick / Shield keep the old ids `crystal_rocks` / `stick_sword` / `tech_shield`; the upgrade items have `charged_rocks_item`, `knives_item`, `sword_item`, `mace_item`, `crystal_shield_item`, `charged_shield_item`. Ids and node constants live in `trees/weaponTreeIds.ts`. **Shared family trees** bind several items: `thrown_weapons` (Charged Rocks + Knives; More Rock) and `melee_weapons` (Sword + Mace; Iron Wrists), deliberately excluding the base Rocks / Stick. Moved follow-up nodes (`more_power`, `piercing_knives`, `sword_jagged_edge`, `pipe_bat_damage`, `extra_shields`, `more_rock`, `sword_extra_uses`) kept their node ids; only their tree changed.
-- **`'equipment'` tag**: every equipment tree carries `['weapon', 'equipment']`. `sortResearchTreesByPlayerAbilities` puts equipment-tagged trees **after** all other trees in the Upgrades sidebar (stable within each group, ability-match first). Bound trees with no non-root nodes are hidden from players (`isPlayerVisibleResearchTree`); admins still see them dimmed.
+- **One `weapons` tree** (`trees/weapons.ts`; ids and node constants in `trees/weaponTreeIds.ts`) holds every weapon. Each weapon item's basic ability is a **virtual root**: `ResearchNodeDef.virtualRootFor: itemId` (Throw Rock `001`, Swing Stick `002`, Raise Shield `003`, Throw Charged Rock `011`, Throw Knife `012`, Swing Sword `013`, Swing Mace `014`, Crystal Embedded Shield `015`, Charged Shield `016`). Read the ids with `getVirtualRootItemIds(node)`; `hasVirtualRootNodes(tree)` identifies weapon trees. The old per-item and family trees (`crystal_rocks`, `knives_item`, `thrown_weapons`, ...) were merged into it by save v4 (`M0004WeaponsResearchTree`).
+- A virtual root is free (no cost, effects, prereqs or exclusivity), counts as researched while one of its items is equipped, and is never persisted. Virtual roots are never offered as rewards.
+- **Upgrades hang off roots**: `prereqNodeIds: [root]` for one weapon (More Power, Piercing Knives, Training Regime, Strengthening Light), or a same-tree `anyResearched` over several roots for a shared upgrade (More Rock: Charged Rocks or Knives; Iron Wrists: Sword or Mace; base Rocks / Stick deliberately excluded). Add a new weapon as a `weaponRoot(...)` plus its upgrades; no new tree.
+- **Node activity** (`getInactiveResearchNodeIds(tree, equipment)` in `activeResearch.ts`): a root is inactive when none of its items is equipped; any node is inactive when a prereq is inactive or every option of a same-tree `anyResearched` is. Nodes that do not depend on a root (all non-weapon trees) are always active.
+- **`'equipment'` tag**: the Weapons tree carries `['weapon', 'equipment']`. `sortResearchTreesByPlayerAbilities` puts equipment-tagged trees **after** all other trees in the Upgrades sidebar (stable within each group, ability-match first). `isPlayerVisibleResearchTree(tree, research, abilities, equipment)` hides a tree with virtual roots while nothing but roots is active (e.g. only base Rocks equipped); admins still see it dimmed.
 - Cross-tree requirements on equipment use `characterHasEquippedItem` (e.g. Charging Punch needs Charged Rocks `011`, Imbued Mace needs Mace `014`).
-- The `rootNodeId` is a **free virtual root**: no effects, requirements or exclusivity; it counts as researched while the tree is active and is never persisted. Roots no longer exclude each other (there is no starting-weapon exclusivity).
-- Switching weapons does not delete research: the stored research is never rewritten, the inactive tree is just ignored and applies again if its weapon is re-equipped.
-- **Active research** = stored research minus inactive bound trees plus virtual roots (`researchTrees/activeResearch.ts`; per-player batch helpers in `character_defs/characterLoadout.ts`). The filter is idempotent. Every consumer reads active research: battle setup (`BattleSession.loadBattle` then `BaseMissionDef.initializeGameState`, and the engine's `ResearchManager`), Quest Prep / Prepare Carefully, Upgrades eligibility in `CharacterEditor.tsx`, and random research rewards. Purchase and reset still write **stored** research.
+- Switching weapons does not delete research: the stored research is never rewritten, inactive nodes are just ignored and apply again if their weapon is re-equipped.
+- **Active research** = stored research minus inactive nodes plus active virtual roots (`researchTrees/activeResearch.ts`; per-player batch helpers in `character_defs/characterLoadout.ts`). The filter is idempotent. Every consumer reads active research: battle setup (`BattleSession.loadBattle` then `BaseMissionDef.initializeGameState`, and the engine's `ResearchManager`), Quest Prep / Prepare Carefully, Upgrades eligibility in `CharacterEditor.tsx`, and random research rewards. Purchase and reset still write **stored** research.
 
 ### One loadout resolver
 
-`resolveCharacterLoadout(equipment, researchTrees)` in `character_defs/characterLoadout.ts` is the only place that turns equipment and research into abilities. Phases: active research, core swaps, item `cardsToAdd`, then card effects from **bound trees first**, then **unbound trees**; each phase applies `addCard`, `removeCard`, then chained `replaceCard` (`applyCardReplacements` follows `from` to `to` chains to a fixed point). Replacement maps are per phase, so a core tree cannot overwrite a weapon tree's swap.
+`resolveCharacterLoadout(equipment, researchTrees)` in `character_defs/characterLoadout.ts` is the only place that turns equipment and research into abilities. Phases: active research, core swaps, item `cardsToAdd`, then card effects from **weapon trees (with virtual roots) first**, then **all other trees**; each phase applies `addCard`, `removeCard`, then chained `replaceCard` (`applyCardReplacements` follows `from` to `to` chains to a fixed point). Replacement maps are per phase, so a core tree cannot overwrite a weapon tree's swap.
 
 ## Definitions
 
@@ -37,17 +38,19 @@ All tree and node definitions live in `app/js/researchTrees/`:
 
 - `types.ts` — `ResearchTreeDef`, `ResearchNodeDef`, `Requirement`, `ResearchEffect`
 - `researchTreeChrome.ts` — shared tree colours and icons (`assets/tree-*.png`)
+- `activeResearch.ts` — node activity and the active-research view (see above)
+- `researchTreeLayout.ts` — tree-view node placement (`graph` uses `position`; `rows` gives each virtual root a row)
 - `list.ts` — registry of all trees
 - `evaluator.ts` — `canResearchNode`, `applyResearchEffects`, `prereqClosure`, `meetsRequirement`, `computeEffectiveResourcesForTree`, `getAvailableResearchNodes`
 - `descriptiveValue.ts` — `DescriptiveValue` magnitude labels (Tiny/Small/Medium/Large/Huge)
 - `trees/` — one file per tree; each exports its tree ID constants and a `ResearchTreeDef`
 - `researchCostPolicy.ts` — core-tree total/floor targets (Light has its own curve)
-- `weaponResearchCosts.ts` — standard vs premium metal for starting-weapon trees
+- `weaponResearchCosts.ts` — standard vs premium metal for Weapons tree upgrades
 
 Each tree has `colour` and `icon`. Cards and the Upgrades sidebar use those fields — do not keep a separate research-type enum.
 
 ### Campaign costs
-Starting-weapon root nodes are free virtual roots. Stick & Sword, Tech Shield, and Throw Rock upgrades are metal-only (standard vs premium in `weaponResearchCosts.ts`). Core trees except Light follow `researchCostPolicy.ts`: about 20 total at tier 10 and about 30 at tier 15, interpolated between, with variety; tier 10 ≥ 10 crystals and 5 food; tier 15 ≥ 15 crystals and 5 food. Remaining lean: Earth → metal, Command → food, Gravity → crystals, Blood Mage → crystals and food. **Do not retune Light.**
+Weapon roots are free virtual roots. Weapons tree upgrades are metal-only (standard vs premium in `weaponResearchCosts.ts`). Core trees except Light follow `researchCostPolicy.ts`: about 20 total at tier 10 and about 30 at tier 15, interpolated between, with variety; tier 10 ≥ 10 crystals and 5 food; tier 15 ≥ 15 crystals and 5 food. Remaining lean: Earth → metal, Command → food, Gravity → crystals, Blood Mage → crystals and food. **Do not retune Light.**
 
 ### Node relationships
 - `prereqNodeIds` — nodes that must be researched before this one is available
@@ -77,7 +80,7 @@ Two slot forms (defined in `storyTypes.ts` as `ResearchRewardSlot`):
 
 Both forms check `node.requirements` (e.g. `characterHasEquippedItem`, `anyResearched`). Neither checks cost — mission rewards bypass cost gating.
 
-**Random (filter) slots depend on what is equipped:** the resolver computes active research first, so `treeOpenForRandomReward` is false for an inactive bound tree even if it holds stored research, and virtual roots satisfy prerequisites. Specific slots are unchanged. `grant_research_conditional` / `skipIfResearched` in the story phases also read active research.
+**Random (filter) slots depend on what is equipped:** the resolver computes active research first and skips inactive nodes (weapon not equipped) even if they hold stored research; virtual roots satisfy prerequisites and are never offered. Specific slots are unchanged. `grant_research_conditional` / `skipIfResearched` in the story phases also read active research.
 
 **Adding a requirement to a node**: if a node should only appear as a randomized reward when certain conditions are met (e.g. a tier-2 upgrade that prereqs a core node), add an `anyResearched` entry to `node.requirements` mirroring the structural `prereqNodeIds`. Example:
 ```ts
@@ -103,7 +106,7 @@ Components (all under `app/js/games/minion_battles/ui/components/`):
 | `CharacterEditor.tsx` | Hosts the Upgrades tab; passes character + campaign state down |
 | `ResearchTreePanel.tsx` | Outer container for the tab content |
 | `ResearchTreeList` | Sidebar selector listing eligible trees with node-count badges |
-| `ResearchTreeContent` | SVG graph rendering nodes at their `(x, y)` positions with edges |
+| `ResearchTreeContent` | Admin tree view: nodes placed by `researchTreeLayout.ts` with edges. `layout: 'rows'` (Weapons) gives every weapon root its own row, upgrades stretching right; a shared upgrade sits in the first of its weapons' rows, after that row's own upgrades. Inactive nodes are drawn faded. |
 | `ResearchedNodesGrid` | Shared Upgrades right-panel grid: eligible, possessed, and (admins) remaining unowned; sorted by node tier |
 | `researchNodeGrid.ts` | Sort-by-tier helpers, missing-prereq line text, eligible / possessed / unowned collections |
 | `ResearchNodeCard.tsx` | **ResearchNodeCard** — tree icon + title, 3-line description, medium cost pills, optional requirements strip. Admin comfortable cards add an in-flow id/source/tier footer (taller than player cards). Border colour comes from the owning tree. |
@@ -115,7 +118,7 @@ Components (all under `app/js/games/minion_battles/ui/components/`):
 Comfortable **ResearchNodeCard**s share one height: title, a reserved 3-line description, medium ResourcePill costs, then a fixed-height requirements wrapper (dark 2-line strip while any listed clause is unsatisfied; empty wrapper of the same height when hidden). Eligible cards omit that slot. Admin cards add an in-flow id/source/tier footer and are slightly taller. The strip lists unsatisfied research clauses (`prereqNodeIds` + `anyResearched`) with CSS ellipsis; multi-node `anyResearched` is one `(A or B)` clause, green if any option is owned. Hover lists every clause (unmet red, met green). The grid starts with **Resources** (effective campaign pills), then **Eligible research** (prereqs + non-cost requirements met, cost ignored), then **Possessed research**, then (admins) **Unowned research** excluding eligible. All lists sort by `tier` (then `order`). Cards the player can afford (`canResearchNode`) use a pointer cursor and click to purchase. Admins Shift+click to grant a node even when it is not normally available; unaffordable or locked cards stay non-pointer but remain clickable for that grant.
 
 ### Eligibility gating
-`eligibleResearchTrees` filters which trees are shown based on account knowledge, campaign resource minimums, equipped items, and character traits. Inactive bound trees (weapon not equipped) are hidden from players even if they hold research; admins see them dimmed. Players then only see trees they have abilities in (or already researched). Admins always see every tree, with ability-matching trees sorted first; trees the player would not see are dimmed. Tree **cores** (tier-10 nodes with no prereqs) use `{ type: 'missionReward' }` so players cannot buy them — they only come from mission/quest rewards.
+`eligibleResearchTrees` filters which trees are shown based on account knowledge, campaign resource minimums, equipped items, and character traits. Inactive weapon nodes (weapon not equipped) are dropped from the active research the Upgrades tab reads, so players never see or buy them; the Weapons tree itself is hidden while only roots are active (admins see it dimmed). Players then only see trees they have abilities in (or already researched). Admins always see every tree, with ability-matching trees sorted first; trees the player would not see are dimmed. Tree **cores** (tier-10 nodes with no prereqs) use `{ type: 'missionReward' }` so players cannot buy them — they only come from mission/quest rewards.
 
 ### Text formatting
 Use `{highlighted}` token syntax in node description strings to render magnitude words in yellow. Use `DescriptiveValue` enum values (`DescriptiveValue.Tiny`, etc.) from `researchTrees/descriptiveValue.ts` for consistent magnitude labels.

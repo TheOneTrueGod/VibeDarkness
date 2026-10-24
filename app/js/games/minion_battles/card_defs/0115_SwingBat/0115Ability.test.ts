@@ -8,10 +8,7 @@ import {
     TRAINING_NODE_MIGHTY,
     TRAINING_TREE_ID,
 } from '../../../../researchTrees/trees/training';
-import {
-    MACE_NODE_TRAINING_REGIME,
-    MACE_TREE_ID,
-} from '../../../../researchTrees/trees/mace';
+import { NODE_TRAINING_REGIME, WEAPONS_TREE_ID } from '../../../../researchTrees/trees/weaponTreeIds';
 import { DescriptiveValue, getApproxIntegerIncrease } from '../../../../researchTrees/descriptiveValue';
 import { SWING_BAT_BASE_DAMAGE, SwingBatAbility_0115 } from './0115Ability';
 
@@ -47,7 +44,7 @@ describe('Swing Mace getTooltipText (damage tokens)', () => {
         const mightyOnPipeBat = Math.round(PIPE_BAT_BASE * MIGHTY_TWO_LEVEL_MULT);
         const lines = SwingBatAbility_0115.getTooltipText({
             researchTrees: {
-                [MACE_TREE_ID]: [MACE_NODE_TRAINING_REGIME],
+                [WEAPONS_TREE_ID]: [NODE_TRAINING_REGIME],
                 [TRAINING_TREE_ID]: [TRAINING_NODE_MIGHTY],
             },
             researchNodeLevels: { [TRAINING_TREE_ID]: { [TRAINING_NODE_MIGHTY]: MIGHTY_TWO_LEVELS } },

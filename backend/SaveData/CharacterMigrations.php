@@ -11,10 +11,13 @@ namespace App\SaveData;
  * v3: Equipment upgrade rewards (docs/plans/equipment-upgrade-rewards.md). Swap research that replaced a
  *     card (charged_rocks, throwing_knives, ...) becomes an equipped item (011-016); follow-up nodes move
  *     to the per-item research trees, keeping node ids, levels and sources.
+ * v4: One Weapons tree. Every per-weapon / weapon-family research tree merges into `weapons`
+ *     (node ids, levels and sources kept); the retired family roots are dropped. Mission-result
+ *     `researchRewards` rows are re-pointed too.
  */
 final class CharacterMigrations
 {
-    public const CURRENT_VERSION = 3;
+    public const CURRENT_VERSION = 4;
 
     /**
      * Frozen (v3): swap research node => [old tree, upgrade item, base item it replaces]. Within a base item
@@ -44,6 +47,19 @@ final class CharacterMigrations
         'extra_shields' => ['tech_shield', 'crystal_shield_item'],
     ];
 
+    /** Frozen (v4): the single tree every weapon node lives in. Mirrors WEAPONS_TREE_ID in weaponTreeIds.ts. */
+    public const WEAPONS_TREE_ID = 'weapons';
+
+    /** Frozen (v4): research trees merged into the Weapons tree. */
+    public const LEGACY_WEAPON_TREE_IDS = [
+        'crystal_rocks', 'stick_sword', 'tech_shield',
+        'charged_rocks_item', 'knives_item', 'sword_item', 'mace_item', 'crystal_shield_item', 'charged_shield_item',
+        'thrown_weapons', 'melee_weapons',
+    ];
+
+    /** Frozen (v4): virtual roots of the retired family trees (no node in the Weapons tree). */
+    public const RETIRED_WEAPON_NODE_IDS = ['thrown_weapons_root', 'melee_weapons_root'];
+
     /** Frozen: retired upgrade item -> base weapon. */
     public const LEGACY_ITEM_TO_BASE = [
         '013' => '001', '016' => '001',
@@ -67,7 +83,12 @@ final class CharacterMigrations
     /** @return array<int, callable(array): array> */
     public static function migrations(): array
     {
-        return [0 => [self::class, 'v0ToV1'], 1 => [self::class, 'v1ToV2'], 2 => [self::class, 'v2ToV3']];
+        return [
+            0 => [self::class, 'v0ToV1'],
+            1 => [self::class, 'v1ToV2'],
+            2 => [self::class, 'v2ToV3'],
+            3 => [self::class, 'v3ToV4'],
+        ];
     }
 
     /** @return array{data: array<string, mixed>, changed: bool} */
@@ -282,6 +303,94 @@ final class CharacterMigrations
         $data = self::convertSwapResearch($data);
         if (isset($data['activeQuestRun']['questCharacter']) && is_array($data['activeQuestRun']['questCharacter'])) {
             $data['activeQuestRun']['questCharacter'] = self::convertSwapResearch($data['activeQuestRun']['questCharacter']);
+        }
+        return $data;
+    }
+
+    /**
+     * Merge every legacy weapon tree of one character-shaped array into the Weapons tree, keeping
+     * node ids, levels (max wins) and sources (union). Idempotent.
+     *
+     * @param array<string, mixed> $c
+     * @return array<string, mixed>
+     */
+    public static function mergeWeaponTrees(array $c): array
+    {
+        $to = self::WEAPONS_TREE_ID;
+        $drop = self::RETIRED_WEAPON_NODE_IDS;
+        if (is_array($c['researchTrees'] ?? null)) {
+            $trees = $c['researchTrees'];
+            $merged = is_array($trees[$to] ?? null) ? $trees[$to] : [];
+            foreach (self::LEGACY_WEAPON_TREE_IDS as $from) {
+                if (array_key_exists($from, $trees)) {
+                    $merged = array_merge($merged, is_array($trees[$from]) ? $trees[$from] : []);
+                    unset($trees[$from]);
+                }
+            }
+            $merged = array_values(array_unique(array_diff($merged, $drop)));
+            if ($merged !== [] || array_key_exists($to, $trees)) {
+                $trees[$to] = $merged;
+            }
+            $c['researchTrees'] = $trees;
+        }
+        foreach (['researchNodeLevels', 'researchSources'] as $key) {
+            if (!is_array($c[$key] ?? null)) {
+                continue;
+            }
+            $byTree = $c[$key];
+            $merged = is_array($byTree[$to] ?? null) ? $byTree[$to] : [];
+            foreach (self::LEGACY_WEAPON_TREE_IDS as $from) {
+                foreach (is_array($byTree[$from] ?? null) ? $byTree[$from] : [] as $nodeId => $value) {
+                    $merged[$nodeId] = $key === 'researchNodeLevels'
+                        ? max((int) ($merged[$nodeId] ?? 0), (int) $value)
+                        : array_values(array_unique(array_merge((array) ($merged[$nodeId] ?? []), (array) $value)));
+                }
+                unset($byTree[$from]);
+            }
+            foreach ($drop as $nodeId) {
+                unset($merged[$nodeId]);
+            }
+            if ($merged !== []) {
+                $byTree[$to] = $merged;
+            }
+            $c[$key] = $byTree;
+        }
+        return $c;
+    }
+
+    /**
+     * Re-point `researchRewards: [{treeId, nodeId}]` rows anywhere inside $value from legacy weapon
+     * trees to the Weapons tree.
+     */
+    public static function remapResearchRewardTrees(mixed $value): mixed
+    {
+        if (!is_array($value)) {
+            return $value;
+        }
+        foreach ($value as $k => $v) {
+            if ($k === 'researchRewards' && is_array($v)) {
+                foreach ($v as $i => $row) {
+                    if (is_array($row) && in_array($row['treeId'] ?? null, self::LEGACY_WEAPON_TREE_IDS, true)) {
+                        $value[$k][$i]['treeId'] = self::WEAPONS_TREE_ID;
+                    }
+                }
+            } elseif (is_array($v)) {
+                $value[$k] = self::remapResearchRewardTrees($v);
+            }
+        }
+        return $value;
+    }
+
+    public static function v3ToV4(array $data): array
+    {
+        $data = self::mergeWeaponTrees($data);
+        if (isset($data['activeQuestRun']['questCharacter']) && is_array($data['activeQuestRun']['questCharacter'])) {
+            $data['activeQuestRun']['questCharacter'] = self::mergeWeaponTrees($data['activeQuestRun']['questCharacter']);
+        }
+        foreach (['missionResults', 'questResults'] as $key) {
+            if (array_key_exists($key, $data)) {
+                $data[$key] = self::remapResearchRewardTrees($data[$key]);
+            }
         }
         return $data;
     }

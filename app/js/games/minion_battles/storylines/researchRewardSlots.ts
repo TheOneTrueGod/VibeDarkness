@@ -4,6 +4,7 @@ import type { ResearchNodeDef, ResearchNodeLevels } from '../../../researchTrees
 import {
     isDisabledResearchNode,
     isDraftResearchNode,
+    isVirtualRootNode,
     type Requirement,
     type ResearchTreeDef,
     getResearchNodeTags,
@@ -15,7 +16,7 @@ import { collectResearchedNodeIds, nodeGrantsEquippedItem } from '../../../resea
 import {
     getActiveResearchNodeLevels,
     getActiveResearchTrees,
-    isResearchTreeActive,
+    getInactiveResearchNodeIds,
 } from '../../../researchTrees/activeResearch';
 import { canLevelUpNode } from '../../../researchTrees/passiveBonuses';
 
@@ -127,8 +128,12 @@ export function resolveResearchRewardSlots(
             if (slot.treeId && tree.id !== slot.treeId) continue;
             if (slot.random && !treeOpenForRandomReward(tree, strict)) continue;
             const researchedSet = new Set(researched[tree.id] ?? []);
+            // Weapon nodes whose weapon is not equipped are closed to random rewards, even if stored.
+            const inactive = slot.random ? getInactiveResearchNodeIds(tree, strict.equippedItemIds) : new Set<string>();
             for (const node of tree.nodes) {
                 if (isDraftResearchNode(node) || isDisabledResearchNode(node)) continue;
+                // Virtual roots come from equipment, never from rewards.
+                if (isVirtualRootNode(node) || inactive.has(node.id)) continue;
                 if (researchedSet.has(node.id) && !canLevelUpNode(node, tree.id, researched, researchNodeLevels)) continue;
                 if (slot.tag && !getResearchNodeTags(tree, node).includes(slot.tag)) continue;
                 if (slot.minTier !== undefined && (node.tier ?? 0) < slot.minTier) continue;
@@ -252,8 +257,6 @@ function requirementsStrictlyMet(requirements: readonly Requirement[], ctx: Stri
 
 /** Same gate the Upgrades UI uses: a tree is open once researched in, otherwise its access requirements must hold. */
 function treeOpenForRandomReward(tree: ResearchTreeDef, ctx: StrictContext): boolean {
-    // Inactive bound (weapon) trees are closed even if they hold stored research.
-    if (!isResearchTreeActive(tree, ctx.equippedItemIds)) return false;
     if ((ctx.researched[tree.id] ?? []).length > 0) return true;
     return requirementsStrictlyMet(tree.accessRequirements, ctx);
 }

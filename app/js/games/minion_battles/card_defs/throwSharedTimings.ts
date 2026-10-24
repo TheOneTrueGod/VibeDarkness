@@ -1,5 +1,5 @@
 /**
- * Shared throw-family timings, More Rock dual-throw pattern, and crystal_rocks research helpers.
+ * Shared throw-family timings, More Rock dual-throw pattern, and thrown-weapon research helpers.
  * Used by Throw Rock, Throw Charged Rock, and Throw Knife.
  */
 
@@ -16,22 +16,7 @@ import { nullHitbox, type HitboxSpec } from '../hitboxes';
 import type { ActiveAbility } from '../game/types';
 import type { Unit } from '../game/units/Unit';
 import type { VisualEffectDef } from '../game/effects/visualEffectDef';
-import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
-import {
-    CHARGED_ROCKS_TREE_ID,
-    KNIVES_TREE_ID,
-    NODE_MORE_POWER,
-    NODE_MORE_ROCK,
-    THROWN_WEAPONS_TREE_ID,
-} from '../../../researchTrees/trees/weaponTreeIds';
-
-/** Trees whose researched nodes feed the thrown-weapon abilities (item trees + shared Thrown Weapons). */
-const THROWN_WEAPON_RESEARCH_TREE_IDS = [
-    CRYSTAL_ROCKS_TREE_ID,
-    CHARGED_ROCKS_TREE_ID,
-    KNIVES_TREE_ID,
-    THROWN_WEAPONS_TREE_ID,
-] as const;
+import { NODE_MORE_POWER, NODE_MORE_ROCK, WEAPONS_TREE_ID } from '../../../researchTrees/trees/weaponTreeIds';
 
 export const THROW_RANGE = 200;
 export const THROW_PROJECTILE_SPEED = 900;
@@ -147,11 +132,7 @@ export function getCrystalRocksResearch(
         ?? (engine as AbilityEngineContext & { localPlayerId?: string } | undefined)?.localPlayerId
         ?? '';
     if (!ownerId || !engine?.getPlayerResearchNodes) return new Set<string>();
-    const nodes = new Set<string>();
-    for (const treeId of THROWN_WEAPON_RESEARCH_TREE_IDS) {
-        for (const nodeId of engine.getPlayerResearchNodes(ownerId, treeId)) nodes.add(nodeId);
-    }
-    return nodes;
+    return new Set(engine.getPlayerResearchNodes(ownerId, WEAPONS_TREE_ID));
 }
 
 export function hasMoreRockResearch(research: Set<string>): boolean {
@@ -167,7 +148,7 @@ export function hasResearchNodeInCrystalRocks(
     caster: Unit | undefined,
     nodeId: string,
 ): boolean {
-    return THROWN_WEAPON_RESEARCH_TREE_IDS.some((treeId) => hasResearchNode(engine, caster, treeId, nodeId));
+    return hasResearchNode(engine, caster, WEAPONS_TREE_ID, nodeId);
 }
 
 /** One-shot projectile launch at the start of an Active interval. */

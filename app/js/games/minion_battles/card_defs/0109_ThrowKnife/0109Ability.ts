@@ -17,7 +17,7 @@ import type { Unit } from '../../game/units/Unit';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
 import { type CardDef } from '../types';
-import { KNIVES_NODE_PIERCING_KNIVES } from '../../../../researchTrees/trees/knives';
+import { NODE_PIERCING_KNIVES } from '../../../../researchTrees/trees/weaponTreeIds';
 import {
     beginThrowCastPayload,
     buildMoreRockTimings,
@@ -52,7 +52,7 @@ function hasKnifeMultiThrow(research: Set<string>): boolean {
 }
 
 function hasKnifePierce(research: Set<string>): boolean {
-    return research.has(KNIVES_NODE_PIERCING_KNIVES);
+    return research.has(NODE_PIERCING_KNIVES);
 }
 
 function resolveKnifeDamage(ctx: import('../../abilities/castBehaviourTypes').CastBehaviourSetupContext): number {

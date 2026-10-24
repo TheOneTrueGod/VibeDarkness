@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { resolveResearchRewardSlots } from './researchRewardSlots';
 import type { ResearchRewardSlot } from './storyTypes';
-import { CRYSTAL_ROCKS_TREE_ID } from '../../../researchTrees/trees/crystal_rocks';
 import {
-    CHARGED_ROCKS_TREE_ID,
-    KNIVES_TREE_ID,
+    NODE_IRON_WRISTS,
     NODE_MORE_POWER,
+    NODE_MORE_ROCK,
     NODE_PIERCING_KNIVES,
-    THROWN_WEAPONS_TREE_ID,
+    WEAPONS_TREE_ID,
     WEAPON_ITEM_CHARGED_ROCKS,
     WEAPON_ITEM_KNIVES,
     WEAPON_ITEM_SWORD,
 } from '../../../researchTrees/trees/weaponTreeIds';
-import { STICK_SWORD_NODE_BASE, STICK_SWORD_TREE_ID } from '../../../researchTrees/trees/stick_sword';
+import { weaponsTree } from '../../../researchTrees/trees/weapons';
+import { isVirtualRootNode } from '../../../researchTrees/types';
 import { LIGHT_NODE_CORE, LIGHT_TREE_ID } from '../../../researchTrees/trees/light';
 import {
     TRAINING_HEALTHY_LEVELS,
@@ -46,39 +46,43 @@ function offeredTreeIds(slot: ResearchRewardSlot, research: Record<string, strin
 }
 
 describe('resolveResearchRewardSlots - active research', () => {
-    it('never offers a crystal_rocks node for a random weapon slot when the Sword is equipped', () => {
-        const research = {
-            [CRYSTAL_ROCKS_TREE_ID]: ['throw_rock'],
-            [STICK_SWORD_TREE_ID]: [STICK_SWORD_NODE_BASE],
-        };
+    it('only offers Sword upgrades for a random weapon slot when the Sword is equipped', () => {
+        const research = { [WEAPONS_TREE_ID]: ['throw_rock', 'swing_stick', NODE_MORE_POWER] };
         const seen = offeredTreeIds(WEAPON_SLOT, research, [WEAPON_ITEM_SWORD]);
         expect(seen.length).toBeGreaterThan(0);
-        expect(seen.every((s) => s.treeId !== CRYSTAL_ROCKS_TREE_ID)).toBe(true);
+        expect(seen.every((s) => s.nodeId === NODE_IRON_WRISTS)).toBe(true);
+    });
+
+    it('never offers a virtual root', () => {
+        const roots = new Set(weaponsTree.nodes.filter(isVirtualRootNode).map((n) => n.id));
+        const seen = offeredTreeIds(WEAPON_SLOT, {}, [WEAPON_ITEM_SWORD, '001', '003']);
+        expect(seen.every((s) => !roots.has(s.nodeId))).toBe(true);
+        const [row] = resolveResearchRewardSlots([{ tag: 'weapon' }], {}, ['001']);
+        expect(roots.has((row.action as { nodeId: string }).nodeId)).toBe(false);
     });
 
     it('offers More Power with Charged Rocks equipped and no stored research (virtual root)', () => {
         const seen = offeredTreeIds(
-            { tag: 'weapon', random: true, treeId: CHARGED_ROCKS_TREE_ID },
+            { tag: 'weapon', random: true, treeId: WEAPONS_TREE_ID },
             {},
             [WEAPON_ITEM_CHARGED_ROCKS],
         );
         expect(seen.some((s) => s.nodeId === NODE_MORE_POWER)).toBe(true);
     });
 
-    it('only offers weapon trees of the equipped item (Rocks sees none of the upgrade trees)', () => {
+    it('only offers upgrades of the equipped item (base Rocks has none)', () => {
         const seen = offeredTreeIds(WEAPON_SLOT, {}, [ROCKS]);
-        const upgradeTrees = new Set([CHARGED_ROCKS_TREE_ID, KNIVES_TREE_ID, THROWN_WEAPONS_TREE_ID]);
-        expect(seen.every((s) => !upgradeTrees.has(s.treeId))).toBe(true);
+        expect(seen.every((s) => s.treeId !== WEAPONS_TREE_ID)).toBe(true);
     });
 
-    it('offers Piercing Knives and shared Thrown Weapons research only while Knives are equipped', () => {
+    it('offers Piercing Knives and the shared More Rock only while Knives are equipped', () => {
         const withKnives = offeredTreeIds(WEAPON_SLOT, {}, [WEAPON_ITEM_KNIVES]);
         expect(withKnives.some((s) => s.nodeId === NODE_PIERCING_KNIVES)).toBe(true);
-        expect(withKnives.some((s) => s.treeId === THROWN_WEAPONS_TREE_ID)).toBe(true);
-        expect(withKnives.every((s) => s.treeId !== CHARGED_ROCKS_TREE_ID)).toBe(true);
+        expect(withKnives.some((s) => s.nodeId === NODE_MORE_ROCK)).toBe(true);
+        expect(withKnives.every((s) => s.nodeId !== NODE_MORE_POWER)).toBe(true);
 
         const withStick = offeredTreeIds(WEAPON_SLOT, {}, [STICK]);
-        expect(withStick.every((s) => s.treeId !== KNIVES_TREE_ID && s.treeId !== THROWN_WEAPONS_TREE_ID)).toBe(true);
+        expect(withStick.every((s) => s.treeId !== WEAPONS_TREE_ID)).toBe(true);
     });
 
     it('keeps offering core-tagged research as before', () => {
@@ -93,13 +97,13 @@ describe('resolveResearchRewardSlots - active research', () => {
 
     it('leaves specific designer slots untouched', () => {
         const [row] = resolveResearchRewardSlots(
-            [{ treeId: CHARGED_ROCKS_TREE_ID, nodeId: NODE_MORE_POWER }],
+            [{ treeId: WEAPONS_TREE_ID, nodeId: NODE_MORE_POWER }],
             {},
             [STICK],
         );
         expect(row.action).toEqual({
             type: 'grant_research_to_player',
-            treeId: CHARGED_ROCKS_TREE_ID,
+            treeId: WEAPONS_TREE_ID,
             nodeId: NODE_MORE_POWER,
         });
     });
@@ -131,7 +135,7 @@ describe('resolveResearchRewardSlots - equipmentUpgrade slots', () => {
     it('offers nothing when no equipped item has an upgrade, and mixes with research slots', () => {
         expect(resolveResearchRewardSlots([UPGRADE], {}, ['011'])).toEqual([]);
         const rows = resolveResearchRewardSlots(
-            [UPGRADE, { treeId: CHARGED_ROCKS_TREE_ID, nodeId: NODE_MORE_POWER }],
+            [UPGRADE, { treeId: WEAPONS_TREE_ID, nodeId: NODE_MORE_POWER }],
             {},
             [ROCKS],
         );
@@ -149,7 +153,7 @@ describe('resolveResearchRewardSlots - stat (Training) slots', () => {
     // Chip from lobby D2D556: Rocks + Earth Core, no Training research yet.
     const CHIP_EQUIPMENT = [ROCKS, CORE_ITEM_IDS.EarthCore];
     const CHIP_RESEARCH = {
-        [CRYSTAL_ROCKS_TREE_ID]: ['throw_rock'],
+        [WEAPONS_TREE_ID]: ['throw_rock'],
         [EARTH_TREE_ID]: ['earth_core', 'digging_claws', 'earth_rock_slide', 'earth_stone_tomb', 'rapid_throw'],
     };
 

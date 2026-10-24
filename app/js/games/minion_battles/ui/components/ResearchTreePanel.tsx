@@ -21,6 +21,8 @@ import {
 	type ResearchContext,
 } from '../../../../researchTrees/evaluator';
 import { getNodeLevel, getNodeMaxLevels } from '../../../../researchTrees/passiveBonuses';
+import { getInactiveResearchNodeIds } from '../../../../researchTrees/activeResearch';
+import { computeResearchTreeNodePositions } from '../../../../researchTrees/researchTreeLayout';
 import ResourcePill, { RESOURCE_ORDER } from '../../../../components/ResourcePill';
 import { getCharacterHungerDelta, getCharacterMaxHunger, hungerFromDelta } from '../../character_defs/characterHunger';
 import { HUNGER_RESOURCE_KEY } from '../../storylines/matchHunger';
@@ -399,8 +401,13 @@ export function ResearchTreeContent({
 		[isAdmin, tree, allTrees],
 	);
 
+	// Row-layout trees (Weapons) place nodes from their dependencies; graph trees use `position`.
+	const nodePositions = useMemo(() => computeResearchTreeNodePositions(tree, nodes), [tree, nodes]);
+	const nodePos = (n: ResearchNodeDef) => nodePositions.get(n.id) ?? { x: 0, y: 0 };
+	// Weapon nodes whose weapon is not equipped are drawn faded.
+	const inactiveNodeIds = useMemo(() => getInactiveResearchNodeIds(tree, equipment), [tree, equipment]);
 	const allPositions = [
-		...nodes.map((n) => n.position),
+		...nodes.map(nodePos),
 		...crossTreeRefs.map((ref) => ref.position),
 	];
 	const bounds = allPositions.reduce(
@@ -472,8 +479,8 @@ export function ResearchTreeContent({
 								n.prereqNodeIds.map((p) => {
 									const from = nodes.find((x) => x.id === p);
 									if (!from) return null;
-									const a = mapPos(from.position);
-									const b = mapPos(n.position);
+									const a = mapPos(nodePos(from));
+									const b = mapPos(nodePos(n));
 									return (
 										<line
 											key={`p:${p}->${n.id}`}
@@ -493,8 +500,8 @@ export function ResearchTreeContent({
 									return req.nodeIds.map((nodeId) => {
 										const from = nodes.find((x) => x.id === nodeId);
 										if (!from) return null;
-										const a = mapPos(from.position);
-										const b = mapPos(n.position);
+										const a = mapPos(nodePos(from));
+										const b = mapPos(nodePos(n));
 										return (
 											<line
 												key={`o:${n.id}:${reqIndex}:${nodeId}`}
@@ -514,8 +521,8 @@ export function ResearchTreeContent({
 									const other = nodes.find((x) => x.id === ex);
 									if (!other) return null;
 									if (n.id > other.id) return null;
-									const a = mapPos(n.position);
-									const b = mapPos(other.position);
+									const a = mapPos(nodePos(n));
+									const b = mapPos(nodePos(other));
 									return (
 										<line
 											key={`x:${n.id}<->${ex}`}
@@ -544,7 +551,7 @@ export function ResearchTreeContent({
 							);
 							const enabled = playerCanPurchase;
 							const blocked = !atMax && !playerCanPurchase;
-							const pos = mapPos(n.position);
+							const pos = mapPos(nodePos(n));
 							const knowledgeKeys = accountKnowledgeKeys(n.requirements);
 							const itemReqs = equippedItemRequirementLabels(n.requirements);
 							const selectionReason = atMax
@@ -601,8 +608,9 @@ export function ResearchTreeContent({
 							return (
 								<div
 									key={n.id}
-									className="absolute -translate-x-1/2 -translate-y-1/2"
+									className={`absolute -translate-x-1/2 -translate-y-1/2${inactiveNodeIds.has(n.id) ? ' opacity-40' : ''}`}
 									style={{ left: pos.x, top: pos.y }}
+									title={inactiveNodeIds.has(n.id) ? 'Inactive: this weapon is not equipped.' : undefined}
 								>
 									<ResearchNodeCard
 										tree={tree}

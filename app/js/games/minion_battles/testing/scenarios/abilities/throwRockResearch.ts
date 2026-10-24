@@ -1,13 +1,10 @@
 ﻿import type { ScenarioDefinition } from '../../types';
 import type { GameEngine } from '../../../game/GameEngine';
 import {
-    CHARGED_ROCKS_TREE_ID,
+    WEAPONS_TREE_ID,
     CHARGED_ROCKS_ROOT_NODE_ID,
     NODE_MORE_POWER,
     NODE_MORE_ROCK,
-    ROCKS_TREE_ID,
-    THROWN_WEAPONS_TREE_ID,
-    THROWN_WEAPONS_ROOT_NODE_ID,
 } from '../../../../../researchTrees/trees/weaponTreeIds';
 import {
     buildTinyBattleEngine,
@@ -18,7 +15,7 @@ import {
 const P = TINY_BATTLE_PLAYER_ID;
 
 function throwRockEngine(nodes: string[]): GameEngine {
-    const research = nodes.length > 0 ? { [P]: { [ROCKS_TREE_ID]: nodes } } : undefined;
+    const research = nodes.length > 0 ? { [P]: { [WEAPONS_TREE_ID]: nodes } } : undefined;
     const engine = buildTinyBattleEngine({
         gridW: 16,
         gridH: 10,
@@ -135,7 +132,7 @@ export const throwRockMorePowerScenario: ScenarioDefinition = {
     title: 'Throw Charged Rock with more_power deals higher explosion damage',
     category: 'ability',
     maxDurationMs: 5000,
-    buildEngine: () => chargedRockEngine({ [P]: { [CHARGED_ROCKS_TREE_ID]: [CHARGED_ROCKS_ROOT_NODE_ID, NODE_MORE_POWER] } }),
+    buildEngine: () => chargedRockEngine({ [P]: { [WEAPONS_TREE_ID]: [CHARGED_ROCKS_ROOT_NODE_ID, NODE_MORE_POWER] } }),
     getInitialOrders: chargedThrowOrder,
     assertPass: (e) => {
         const d = e.getUnit('target_dummy');
@@ -154,8 +151,7 @@ export const throwRockMoreRockScenario: ScenarioDefinition = {
     maxDurationMs: 5000,
     buildEngine: () => chargedRockEngine({
         [P]: {
-            [CHARGED_ROCKS_TREE_ID]: [CHARGED_ROCKS_ROOT_NODE_ID],
-            [THROWN_WEAPONS_TREE_ID]: [THROWN_WEAPONS_ROOT_NODE_ID, NODE_MORE_ROCK],
+            [WEAPONS_TREE_ID]: [CHARGED_ROCKS_ROOT_NODE_ID, NODE_MORE_ROCK],
         },
     }),
     getInitialOrders: chargedThrowTwoRockOrder,

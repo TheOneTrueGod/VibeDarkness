@@ -16,16 +16,13 @@ import {
 } from './weaponResearchCosts';
 import { bloodMageTree } from './trees/blood_mage';
 import { commandCoreTree } from './trees/command_core';
-import { crystalRocksTree } from './trees/crystal_rocks';
 import { earthTree } from './trees/earth';
 import { gravityTree } from './trees/gravity';
 import { LIGHT_TREE_ID } from './trees/light';
-import { stickSwordTree } from './trees/stick_sword';
-import { techShieldTree } from './trees/tech_shield';
+import { weaponsTree } from './trees/weapons';
 import type { CampaignResourceCost, ResearchNodeDef, ResearchTreeDef } from './types';
 
-const STICK_SWORD_PREMIUM_TITLES = new Set(['Iron Wrists', 'Training Regime']);
-const ROCKS_PREMIUM_TITLES = new Set(['Piercing Knives', 'More Rock', 'More Power']);
+const WEAPON_PREMIUM_TITLES = new Set(['Iron Wrists', 'Training Regime', 'Piercing Knives', 'More Rock', 'More Power']);
 
 const CORE_TREES_EXCEPT_LIGHT: ResearchTreeDef[] = RESEARCH_TREES.filter(
     (tree) => tree.id !== LIGHT_TREE_ID && [
@@ -50,36 +47,13 @@ function requireNodeTier(node: ResearchNodeDef): number {
 }
 
 describe('weapon tree campaign costs', () => {
-    it('prices Stick & Sword upgrades as metal, with Iron Wrists and Training Regime at the premium', () => {
-        for (const node of stickSwordTree.nodes) {
-            if (isFreeCost(node.cost)) {
-                expect(node.title).toBe('Swing Stick');
+    it('keeps every virtual root free and prices upgrades as metal, some at the premium', () => {
+        for (const node of weaponsTree.nodes) {
+            if (node.virtualRootFor) {
+                expect(node.cost, node.id).toEqual({});
                 continue;
             }
-            const expected = STICK_SWORD_PREMIUM_TITLES.has(node.title)
-                ? WEAPON_TREE_PREMIUM_METAL_COST
-                : WEAPON_TREE_STANDARD_METAL_COST;
-            expect(node.cost, node.id).toEqual({ metal: expected });
-        }
-    });
-
-    it('prices every Tech Shield upgrade at the standard metal cost', () => {
-        for (const node of techShieldTree.nodes) {
-            if (isFreeCost(node.cost)) {
-                expect(node.title).toBe('Raise Shield');
-                continue;
-            }
-            expect(node.cost, node.id).toEqual({ metal: WEAPON_TREE_STANDARD_METAL_COST });
-        }
-    });
-
-    it('prices Throw Rock upgrades as metal, with Piercing Knives, More Rock, and More Power at the premium', () => {
-        for (const node of crystalRocksTree.nodes) {
-            if (isFreeCost(node.cost)) {
-                expect(node.title).toBe('Throw Rock');
-                continue;
-            }
-            const expected = ROCKS_PREMIUM_TITLES.has(node.title)
+            const expected = WEAPON_PREMIUM_TITLES.has(node.title)
                 ? WEAPON_TREE_PREMIUM_METAL_COST
                 : WEAPON_TREE_STANDARD_METAL_COST;
             expect(node.cost, node.id).toEqual({ metal: expected });

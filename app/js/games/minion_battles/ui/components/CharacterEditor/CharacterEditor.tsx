@@ -35,7 +35,6 @@ import { RESEARCH_TREES } from '../../../../../researchTrees/list';
 import {
     getActiveResearchNodeLevels,
     getActiveResearchTrees,
-    isResearchTreeActive,
 } from '../../../../../researchTrees/activeResearch';
 import { buildAccessibleAbilityIds } from '../../../storylines/questPrepLoadout';
 import {
@@ -340,8 +339,6 @@ export default function CharacterEditor({
             campaignResources: (resolvedCampaign?.resources ?? {}) as CampaignResources,
         };
         return RESEARCH_TREES.filter((t) => {
-            // Weapon trees are hidden while their weapon is not equipped, even if they hold research.
-            if (!isResearchTreeActive(t, equipment)) return false;
             const any = treeHasAnyResearch(ctx.character, t.id);
             if (any) return true;
             return t.accessRequirements.every((req) => {
@@ -367,9 +364,9 @@ export default function CharacterEditor({
     const playerVisibleResearchTrees = useMemo(
         () =>
             eligibleResearchTrees.filter((tree) =>
-                isPlayerVisibleResearchTree(tree, activeResearchTrees, playerAbilityIds),
+                isPlayerVisibleResearchTree(tree, activeResearchTrees, playerAbilityIds, equipment),
             ),
-        [eligibleResearchTrees, playerAbilityIds, activeResearchTrees],
+        [eligibleResearchTrees, playerAbilityIds, activeResearchTrees, equipment],
     );
 
     const displayResearchTrees = useMemo(() => {

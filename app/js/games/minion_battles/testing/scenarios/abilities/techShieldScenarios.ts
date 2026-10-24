@@ -1,6 +1,6 @@
 ﻿import type { ScenarioDefinition } from '../../types';
 import {
-    CRYSTAL_SHIELD_TREE_ID,
+    WEAPONS_TREE_ID,
     CRYSTAL_SHIELD_ROOT_NODE_ID,
     NODE_STRENGTHENING_LIGHT,
 } from '../../../../../researchTrees/trees/weaponTreeIds';
@@ -251,7 +251,7 @@ export const shiningBlockStrengtheningLightScenario: ScenarioDefinition = {
     buildEngine() {
         const research = {
             [P]: {
-                [CRYSTAL_SHIELD_TREE_ID]: [CRYSTAL_SHIELD_ROOT_NODE_ID, NODE_STRENGTHENING_LIGHT],
+                [WEAPONS_TREE_ID]: [CRYSTAL_SHIELD_ROOT_NODE_ID, NODE_STRENGTHENING_LIGHT],
             },
         };
         return buildShieldEngine('0110', research).engine;

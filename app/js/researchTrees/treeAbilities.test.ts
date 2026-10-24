@@ -10,11 +10,8 @@ import {
     sortResearchTreesByPlayerAbilities,
 } from './treeAbilities';
 import { trainingTree, TRAINING_NODE_DOUBLE_PUNCH, TRAINING_TREE_ID } from './trees/training';
-import { crystalRocksTree } from './trees/crystal_rocks';
-import { chargedRocksTree } from './trees/charged_rocks';
-import { chargedShieldTree } from './trees/charged_shield';
-import { stickSwordTree } from './trees/stick_sword';
-import { techShieldTree } from './trees/tech_shield';
+import { weaponsTree } from './trees/weapons';
+import { isVirtualRootNode } from './types';
 import { earthTree, EARTH_NODE_EARTH_CORE, EARTH_TREE_ID } from './trees/earth';
 import { lightTree, LIGHT_NODE_CORE } from './trees/light';
 import { bloodMageTree } from './trees/blood_mage';
@@ -45,10 +42,10 @@ describe('collectResearchTreeAbilityIds', () => {
         expect(coreBasicItem.cardsToAdd).toContain(punchId);
     });
 
-    it('includes throw_rock on Rocks, not on Earth', () => {
+    it('includes throw_rock on Weapons, not on Earth', () => {
         const rockId = rocksItem.cardsToAdd[0];
         expect(rockId).toBeTruthy();
-        expect(collectResearchTreeAbilityIds(crystalRocksTree).has(rockId!)).toBe(true);
+        expect(collectResearchTreeAbilityIds(weaponsTree).has(rockId!)).toBe(true);
         expect(collectResearchTreeAbilityIds(earthTree).has(rockId!)).toBe(false);
         expect(collectResearchTreeAbilityIds(earthTree).has(earthCoreAbilityId())).toBe(true);
     });
@@ -94,20 +91,25 @@ describe('sortResearchTreesByPlayerAbilities', () => {
     });
 });
 
-describe('bound trees with only a root node', () => {
-    it('are hidden from players but a tree with a non-root node is not', () => {
-        const rootOnly = {
-            ...chargedRocksTree,
-            nodes: chargedRocksTree.nodes.filter((n) => n.id === chargedRocksTree.boundItem!.rootNodeId),
-        };
-        expect(researchTreeHasNonRootNodes(rootOnly)).toBe(false);
-        expect(isPlayerVisibleResearchTree(rootOnly, {}, new Set(['throw_rock']))).toBe(false);
-        expect(researchTreeHasNonRootNodes(chargedRocksTree)).toBe(true);
+describe('Weapons tree visibility', () => {
+    it('is hidden from players while only virtual roots are active', () => {
+        // Base Rocks / Stick / Shield and Charged Shield have no upgrades yet.
+        for (const equipment of [['001'], ['002'], ['003'], ['016'], []]) {
+            expect(researchTreeHasNonRootNodes(weaponsTree, equipment), equipment.join(',')).toBe(false);
+            expect(isPlayerVisibleResearchTree(weaponsTree, {}, new Set(['throw_rock']), equipment)).toBe(false);
+        }
     });
 
-    it('hides the root-only base-item and Charged Shield trees until they gain nodes', () => {
-        for (const tree of [crystalRocksTree, stickSwordTree, techShieldTree, chargedShieldTree]) {
-            expect(researchTreeHasNonRootNodes(tree), tree.id).toBe(false);
+    it('is visible once an equipped weapon has an upgrade', () => {
+        for (const equipment of [['011'], ['012'], ['013'], ['014'], ['015']]) {
+            expect(researchTreeHasNonRootNodes(weaponsTree, equipment), equipment.join(',')).toBe(true);
+            expect(isPlayerVisibleResearchTree(weaponsTree, {}, new Set(['throw_rock']), equipment)).toBe(true);
         }
+    });
+
+    it('a tree without virtual roots is unaffected by equipment', () => {
+        const rootOnly = { ...weaponsTree, nodes: weaponsTree.nodes.filter(isVirtualRootNode) };
+        expect(researchTreeHasNonRootNodes(rootOnly)).toBe(false);
+        expect(researchTreeHasNonRootNodes(weaponsTree)).toBe(true);
     });
 });

@@ -13,11 +13,10 @@ import { activeResearchByPlayer, resolveCharacterLoadout } from '../../../charac
 import { getAbility } from '../../../abilities/AbilityRegistry';
 import {
     CHARGED_ROCKS_ROOT_NODE_ID,
-    CHARGED_ROCKS_TREE_ID,
+    WEAPONS_TREE_ID,
     NODE_MORE_POWER,
     NODE_MORE_ROCK,
-    THROWN_WEAPONS_ROOT_NODE_ID,
-    THROWN_WEAPONS_TREE_ID,
+    STICK_ROOT_NODE_ID,
     WEAPON_ITEM_CHARGED_ROCKS,
     WEAPON_ITEM_CHARGED_SHIELD,
     WEAPON_ITEM_CRYSTAL_SHIELD,
@@ -142,7 +141,7 @@ export const loadoutSwappedWeaponIgnoresOldResearchScenario: ScenarioDefinition 
             equipment: [BASIC_CORE, STICK],
             // Stale Charged Rocks research from before the weapon swap: stored, but inactive.
             researchTrees: {
-                [CHARGED_ROCKS_TREE_ID]: [CHARGED_ROCKS_ROOT_NODE_ID, NODE_MORE_POWER],
+                [WEAPONS_TREE_ID]: [CHARGED_ROCKS_ROOT_NODE_ID, NODE_MORE_POWER],
             },
         });
         resolvedAbilityIds[STICK_ID] = abilityIds;
@@ -166,7 +165,7 @@ export const loadoutSwappedWeaponIgnoresOldResearchScenario: ScenarioDefinition 
         const sentinel = player?.abilityRuntime['throw_charged_rock'];
         return ids.includes('0103')
             && !ROCK_THROW_IDS.some((id) => ids.includes(id))
-            && e.getPlayerResearchNodes(P, CHARGED_ROCKS_TREE_ID).length === 0
+            && e.getPlayerResearchNodes(P, WEAPONS_TREE_ID).join(',') === STICK_ROOT_NODE_ID
             && player?.roundStartRecoveryCharges.length === 0
             && dummyLoss(e) > 0
             && sentinel?.currentUses === 0
@@ -175,7 +174,7 @@ export const loadoutSwappedWeaponIgnoresOldResearchScenario: ScenarioDefinition 
     failureMessage(e) {
         const ids = resolvedAbilityIds[STICK_ID] ?? [];
         const sentinel = e.getLocalPlayerUnit()?.abilityRuntime['throw_charged_rock'];
-        return `abilities=[${ids.join(',')}] (want 0103, no rock throw); engine charged_rocks tree=[${e.getPlayerResearchNodes(P, CHARGED_ROCKS_TREE_ID).join(',')}] (want empty); dummy lost ${dummyLoss(e)} hp (want >0); sentinel uses=${sentinel?.currentUses ?? '?'} lightCharge=${sentinel?.recoveryChargesByType['lightCharge'] ?? 0} (want 0/0: no Charged Rocks pulse)`;
+        return `abilities=[${ids.join(',')}] (want 0103, no rock throw); engine weapons tree=[${e.getPlayerResearchNodes(P, WEAPONS_TREE_ID).join(',')}] (want ${STICK_ROOT_NODE_ID} only); dummy lost ${dummyLoss(e)} hp (want >0); sentinel uses=${sentinel?.currentUses ?? '?'} lightCharge=${sentinel?.recoveryChargesByType['lightCharge'] ?? 0} (want 0/0: no Charged Rocks pulse)`;
     },
 };
 
@@ -407,11 +406,11 @@ export const loadoutRocksNoLightChargeScenario: ScenarioDefinition = {
 };
 
 // ---------------------------------------------------------------------------
-// Shared Thrown Weapons tree: More Rock applies with Knives, not with base Rocks.
+// Shared More Rock upgrade: applies with Knives, not with base Rocks.
 // ---------------------------------------------------------------------------
 
 const MORE_ROCK_ID = 'loadout_more_rock_shared_tree';
-const MORE_ROCK_RESEARCH = { [THROWN_WEAPONS_TREE_ID]: [THROWN_WEAPONS_ROOT_NODE_ID, NODE_MORE_ROCK] };
+const MORE_ROCK_RESEARCH = { [WEAPONS_TREE_ID]: [NODE_MORE_ROCK] };
 let moreRockOnRocks = true;
 
 function knifeTargetCount(e: GameEngine): number {
@@ -427,9 +426,9 @@ export const loadoutMoreRockSharedTreeScenario: ScenarioDefinition = {
     generalSection: SECTION,
     maxDurationMs: 6000,
     buildEngine() {
-        // Base Rocks: the shared tree is inactive, so More Rock research is ignored.
+        // Base Rocks: More Rock depends on Charged Rocks / Knives, so it is inactive and ignored.
         const rocksActive = activeResearchByPlayer({ [P]: [BASIC_CORE, ROCKS] }, { [P]: MORE_ROCK_RESEARCH });
-        moreRockOnRocks = (rocksActive[P]?.[THROWN_WEAPONS_TREE_ID] ?? []).includes(NODE_MORE_ROCK);
+        moreRockOnRocks = (rocksActive[P]?.[WEAPONS_TREE_ID] ?? []).includes(NODE_MORE_ROCK);
 
         const engine = loadoutEngine();
         const { abilityIds } = placePlayerFromLoadout(engine, {
@@ -451,12 +450,12 @@ export const loadoutMoreRockSharedTreeScenario: ScenarioDefinition = {
     },
     assertPass(e) {
         return !moreRockOnRocks
-            && e.getPlayerResearchNodes(P, THROWN_WEAPONS_TREE_ID).includes(NODE_MORE_ROCK)
+            && e.getPlayerResearchNodes(P, WEAPONS_TREE_ID).includes(NODE_MORE_ROCK)
             && knifeTargetCount(e) === 2
             && dummyLoss(e) > 0;
     },
     failureMessage(e) {
-        return `More Rock active on base Rocks=${moreRockOnRocks} (want false); engine thrown_weapons=[${e.getPlayerResearchNodes(P, THROWN_WEAPONS_TREE_ID).join(',')}] (want more_rock); knife target count=${knifeTargetCount(e)} (want 2); dummy lost ${dummyLoss(e)} hp (want >0)`;
+        return `More Rock active on base Rocks=${moreRockOnRocks} (want false); engine weapons=[${e.getPlayerResearchNodes(P, WEAPONS_TREE_ID).join(',')}] (want more_rock); knife target count=${knifeTargetCount(e)} (want 2); dummy lost ${dummyLoss(e)} hp (want >0)`;
     },
 };
 

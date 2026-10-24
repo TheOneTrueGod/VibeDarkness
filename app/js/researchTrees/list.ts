@@ -1,9 +1,6 @@
 import type { ResearchNodeDef, ResearchTreeDef } from './types';
 import type { MissionResearchRewardEntry } from '../types';
-import { techShieldTree } from './trees/tech_shield';
-import { crystalRocksTree } from './trees/crystal_rocks';
 import { trainingTree } from './trees/training';
-import { stickSwordTree } from './trees/stick_sword';
 import { miscTree } from './trees/misc';
 import { earthTree } from './trees/earth';
 import { commandCoreTree } from './trees/command_core';
@@ -11,20 +8,10 @@ import { lightTree } from './trees/light';
 import { gravityTree } from './trees/gravity';
 import { bloodMageTree } from './trees/blood_mage';
 import { darknessUpgradesTree } from './trees/darkness_upgrades';
-import { chargedRocksTree } from './trees/charged_rocks';
-import { knivesTree } from './trees/knives';
-import { swordTree } from './trees/sword';
-import { maceTree } from './trees/mace';
-import { crystalShieldTree } from './trees/crystal_shield';
-import { chargedShieldTree } from './trees/charged_shield';
-import { thrownWeaponsTree } from './trees/thrown_weapons';
-import { meleeWeaponsTree } from './trees/melee_weapons';
+import { weaponsTree } from './trees/weapons';
 
 export const RESEARCH_TREES: ResearchTreeDef[] = [
-    techShieldTree,
-    crystalRocksTree,
     trainingTree,
-    stickSwordTree,
     miscTree,
     earthTree,
     commandCoreTree,
@@ -32,15 +19,7 @@ export const RESEARCH_TREES: ResearchTreeDef[] = [
     gravityTree,
     bloodMageTree,
     darknessUpgradesTree,
-    // Equipment trees (one per upgrade item, plus shared family trees).
-    chargedRocksTree,
-    knivesTree,
-    swordTree,
-    maceTree,
-    crystalShieldTree,
-    chargedShieldTree,
-    thrownWeaponsTree,
-    meleeWeaponsTree,
+    weaponsTree,
 ];
 
 export function getResearchTree(treeId: string): ResearchTreeDef | undefined {

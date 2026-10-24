@@ -1,5 +1,5 @@
 /**
- * Starting-weapon root node ids. These are free "virtual" roots of the bound weapon trees:
+ * Starting-weapon root node ids. These are free "virtual" roots in the Weapons tree:
  * they count as researched automatically while the matching weapon is equipped.
  */
 export const STARTING_WEAPON_ROCKS_NODE_ID = 'throw_rock';

@@ -3,7 +3,7 @@
  *
  * Targets a pixel. After windup, creates a projectile that travels up to 200px toward
  * the target. Base 6 damage on hit; **More Power** research increases damage. **More Rock**
- * (crystal_rocks tree) adds a second target and throw on a longer timeline. `buildThrowRockAbility`
+ * (Weapons tree) adds a second target and throw on a longer timeline. `buildThrowRockAbility`
  * is reused by Earth Core Throw Rock (0535) with a rock-resource cost instead of stamina uses.
  */
 

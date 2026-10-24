@@ -9,12 +9,8 @@ import {
     EARTH_TREE_ID,
     earthTree,
 } from '../../../../researchTrees/trees/earth';
-import {
-    MELEE_WEAPONS_NODE_EXTRA_USES,
-    MELEE_WEAPONS_TREE_ID,
-    meleeWeaponsTree,
-} from '../../../../researchTrees/trees/melee_weapons';
-import { MACE_ROOT_NODE_ID, SWORD_ROOT_NODE_ID } from '../../../../researchTrees/trees/weaponTreeIds';
+import { weaponsTree } from '../../../../researchTrees/trees/weapons';
+import { NODE_IRON_WRISTS, WEAPONS_TREE_ID } from '../../../../researchTrees/trees/weaponTreeIds';
 import type { ResearchNodeDef } from '../../../../researchTrees/types';
 import {
     TRAINING_NODE_CORE,
@@ -171,27 +167,21 @@ describe('collectResearchRequirementEntries', () => {
     });
 
     it('groups multi-node anyResearched into one or-clause', () => {
-        const baseIronWrists = meleeWeaponsTree.nodes.find((n) => n.id === MELEE_WEAPONS_NODE_EXTRA_USES);
-        expect(baseIronWrists).toBeDefined();
-        // Iron Wrists itself no longer has an or-clause; give it one to exercise the grouping.
-        const ironWrists: ResearchNodeDef = {
-            ...baseIronWrists!,
-            prereqNodeIds: [],
-            requirements: [
-                { type: 'anyResearched', treeId: MELEE_WEAPONS_TREE_ID, nodeIds: [SWORD_ROOT_NODE_ID, MACE_ROOT_NODE_ID] },
-            ],
-        };
+        // Iron Wrists needs Swing Sword or Swing Mace.
+        const ironWrists: ResearchNodeDef | undefined = weaponsTree.nodes.find((n) => n.id === NODE_IRON_WRISTS);
+        expect(ironWrists).toBeDefined();
+        if (!ironWrists) return;
         const anyReq = ironWrists!.requirements.find((req) => req.type === 'anyResearched');
         expect(anyReq?.type).toBe('anyResearched');
         if (anyReq?.type !== 'anyResearched') return;
 
         const expectedLabel = `(${anyReq.nodeIds
-            .map((nodeId) => nodeId)
+            .map((nodeId) => weaponsTree.nodes.find((n) => n.id === nodeId)?.title ?? nodeId)
             .join(` ${RESEARCH_REQUIREMENT_OR_WORD} `)})`;
 
         const unmet = collectResearchRequirementEntries(
             ironWrists,
-            meleeWeaponsTree,
+            weaponsTree,
             researchedSetsByTreeId({}),
         );
         expect(unmet).toHaveLength(1);
@@ -205,16 +195,16 @@ describe('collectResearchRequirementEntries', () => {
 
         const withFirst = collectResearchRequirementEntries(
             ironWrists,
-            meleeWeaponsTree,
-            researchedSetsByTreeId({ [MELEE_WEAPONS_TREE_ID]: [anyReq.nodeIds[0]!] }),
+            weaponsTree,
+            researchedSetsByTreeId({ [WEAPONS_TREE_ID]: [anyReq.nodeIds[0]!] }),
         );
         expect(withFirst[0]?.satisfied).toBe(true);
         expect(hasUnmetResearchRequirements(withFirst)).toBe(false);
 
         const withSecond = collectResearchRequirementEntries(
             ironWrists,
-            meleeWeaponsTree,
-            researchedSetsByTreeId({ [MELEE_WEAPONS_TREE_ID]: [anyReq.nodeIds[1]!] }),
+            weaponsTree,
+            researchedSetsByTreeId({ [WEAPONS_TREE_ID]: [anyReq.nodeIds[1]!] }),
         );
         expect(withSecond[0]?.satisfied).toBe(true);
         expect(hasUnmetResearchRequirements(withSecond)).toBe(false);

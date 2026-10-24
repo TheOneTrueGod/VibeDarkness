@@ -34,10 +34,7 @@ import {
     formatTooltipLegacyLines,
     type TooltipTokenBindings,
 } from '../../abilities/tooltipTokens';
-import {
-    MACE_TREE_ID,
-    MACE_NODE_TRAINING_REGIME,
-} from '../../../../researchTrees/trees/mace';
+import { NODE_TRAINING_REGIME, WEAPONS_TREE_ID } from '../../../../researchTrees/trees/weaponTreeIds';
 import { getApproxIntegerIncrease, DescriptiveValue } from '../../../../researchTrees/descriptiveValue';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}15`;
@@ -69,11 +66,11 @@ const SWING_BAT_PROFILE: MeleeAnimationProfile = {
 
 function hasMaceDamageResearch(gameState: unknown, caster?: Unit): boolean {
     const eng = gameState as AbilityEngineContext | undefined;
-    if (hasResearchNode(eng, caster, MACE_TREE_ID, MACE_NODE_TRAINING_REGIME)) {
+    if (hasResearchNode(eng, caster, WEAPONS_TREE_ID, NODE_TRAINING_REGIME)) {
         return true;
     }
     const trees = (gameState as { researchTrees?: Record<string, string[]> } | undefined)?.researchTrees;
-    return trees?.[MACE_TREE_ID]?.includes(MACE_NODE_TRAINING_REGIME) ?? false;
+    return trees?.[WEAPONS_TREE_ID]?.includes(NODE_TRAINING_REGIME) ?? false;
 }
 
 function getDamage(engine: AbilityEngineContext | undefined, caster: Unit | undefined): number {

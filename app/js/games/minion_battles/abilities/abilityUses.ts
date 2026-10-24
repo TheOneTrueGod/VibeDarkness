@@ -7,10 +7,7 @@ import {
 } from './Ability';
 import type { Unit } from '../game/units/Unit';
 import type { EventBus } from '../game/EventBus';
-import {
-    MELEE_WEAPONS_NODE_EXTRA_USES,
-    MELEE_WEAPONS_TREE_ID,
-} from '../../../researchTrees/trees/melee_weapons';
+import { NODE_IRON_WRISTS, WEAPONS_TREE_ID } from '../../../researchTrees/trees/weaponTreeIds';
 import { getAbility } from './AbilityRegistry';
 import type { AbilityModifier } from '../../../researchTrees/types';
 import { evaluateSwapTriggers } from './abilitySwap';
@@ -57,13 +54,13 @@ export const SWING_EXTRA_USES = 2;
 const THROW_ROCK_ABILITY_ID = 'throw_rock';
 const THROW_CHARGED_ROCK_ABILITY_ID = 'throw_charged_rock';
 const THROW_ROCK_USES_PENALTY_WITH_CHARGED = 3;
-/** Iron Wrists research (Melee Weapons tree): +max uses for whichever weapon the unit carries (sword or mace). */
+/** Iron Wrists research (Weapons tree): +max uses for whichever weapon the unit carries (sword or mace). */
 export function applyStickSwordResearchToAbilityRuntime(
     unit: Unit,
     getResearchNodes: (treeId: string) => string[],
 ): void {
-    const nodes = getResearchNodes(MELEE_WEAPONS_TREE_ID);
-    if (!nodes.includes(MELEE_WEAPONS_NODE_EXTRA_USES)) return;
+    const nodes = getResearchNodes(WEAPONS_TREE_ID);
+    if (!nodes.includes(NODE_IRON_WRISTS)) return;
 
     for (const abilityId of [SWING_SWORD_ABILITY_ID, SWING_BAT_ABILITY_ID]) {
         if (!unit.abilities.includes(abilityId)) continue;

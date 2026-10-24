@@ -1,14 +1,24 @@
 import { getItemDef } from '../games/minion_battles/character_defs/items';
-import { isDisabledResearchNode, isDraftResearchNode, type ResearchTreeDef } from './types';
+import { getInactiveResearchNodeIds } from './activeResearch';
+import {
+    getVirtualRootItemIds,
+    hasVirtualRootNodes,
+    isDisabledResearchNode,
+    isDraftResearchNode,
+    isVirtualRootNode,
+    type ResearchTreeDef,
+} from './types';
 
-/** Abilities the tree owns outright: `ownedAbilityIds` plus the cards of its access items. */
+/** Abilities the tree owns outright: `ownedAbilityIds` plus the cards of its access and virtual-root items. */
 function ownedBaseAbilityIds(tree: ResearchTreeDef): Set<string> {
     const ids = new Set<string>(tree.ownedAbilityIds ?? []);
+    const addItemCards = (itemId: string) => {
+        for (const cardId of getItemDef(itemId)?.cardsToAdd ?? []) ids.add(cardId);
+    };
     for (const req of tree.accessRequirements) {
-        if (req.type !== 'characterHasEquippedItem') continue;
-        const item = getItemDef(req.itemId);
-        for (const cardId of item?.cardsToAdd ?? []) ids.add(cardId);
+        if (req.type === 'characterHasEquippedItem') addItemCards(req.itemId);
     }
+    for (const node of tree.nodes) getVirtualRootItemIds(node).forEach(addItemCards);
     return ids;
 }
 
@@ -72,23 +82,29 @@ function treeHasResearchedNodes(
     return (researchedTrees?.[treeId] ?? []).length > 0;
 }
 
-/** True when the tree has a player-facing node besides its virtual root. */
-export function researchTreeHasNonRootNodes(tree: ResearchTreeDef): boolean {
+/**
+ * True when the tree has a player-facing node besides its virtual roots that is active for
+ * `equipment` (pass `undefined` to ignore equipment).
+ */
+export function researchTreeHasNonRootNodes(tree: ResearchTreeDef, equipment?: readonly string[]): boolean {
+    const inactive = equipment ? getInactiveResearchNodeIds(tree, equipment) : new Set<string>();
     return tree.nodes.some(
-        (n) => n.id !== tree.boundItem?.rootNodeId && !isDraftResearchNode(n) && !isDisabledResearchNode(n),
+        (n) => !isVirtualRootNode(n) && !inactive.has(n.id) && !isDraftResearchNode(n) && !isDisabledResearchNode(n),
     );
 }
 
 /**
- * Players see trees they have abilities in, or that they have already researched. Bound
- * (equipment) trees with nothing but their root are hidden: admins still list them, dimmed.
+ * Players see trees they have abilities in, or that they have already researched. A tree with
+ * virtual roots (Weapons) is hidden while nothing but roots is active for `equipment`: admins
+ * still list it, dimmed.
  */
 export function isPlayerVisibleResearchTree(
     tree: ResearchTreeDef,
     researchedTrees: Record<string, string[]> | undefined,
     playerAbilityIds: ReadonlySet<string>,
+    equipment?: readonly string[],
 ): boolean {
-    if (tree.boundItem && !researchTreeHasNonRootNodes(tree)) return false;
+    if (hasVirtualRootNodes(tree) && !researchTreeHasNonRootNodes(tree, equipment)) return false;
     return researchTreeMatchesAbilityIds(tree, playerAbilityIds) || treeHasResearchedNodes(researchedTrees, tree.id);
 }
 

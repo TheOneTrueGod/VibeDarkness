@@ -17,9 +17,7 @@ import {
     RESEARCH_TREE_ICON_WEAPON,
     resolveResearchTreeChrome,
 } from './researchTreeChrome';
-import { crystalRocksTree } from './trees/crystal_rocks';
-import { stickSwordTree } from './trees/stick_sword';
-import { techShieldTree } from './trees/tech_shield';
+import { weaponsTree } from './trees/weapons';
 import { earthTree } from './trees/earth';
 import { lightTree } from './trees/light';
 import { gravityTree } from './trees/gravity';
@@ -52,11 +50,9 @@ describe('research tree appearance', () => {
         }
     });
 
-    it('uses weapon chrome on the starting-weapon trees', () => {
-        for (const tree of [crystalRocksTree, stickSwordTree, techShieldTree]) {
-            expect(tree.colour).toBe(RESEARCH_TREE_COLOUR_WEAPON);
-            expect(tree.icon).toBe(RESEARCH_TREE_ICON_WEAPON);
-        }
+    it('uses weapon chrome on the Weapons tree', () => {
+        expect(weaponsTree.colour).toBe(RESEARCH_TREE_COLOUR_WEAPON);
+        expect(weaponsTree.icon).toBe(RESEARCH_TREE_ICON_WEAPON);
     });
 
     it('uses each core tree colour', () => {

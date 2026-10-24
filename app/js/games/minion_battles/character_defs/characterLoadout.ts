@@ -3,11 +3,11 @@
  * Used by battle setup (BaseMissionDef) and by Quest Prep / Prepare Carefully.
  *
  * Phases:
- *  1. Active research (inactive bound weapon trees dropped, virtual roots added).
+ *  1. Active research (inactive weapon nodes dropped, virtual roots added).
  *  2. Core-only equipment swaps from research.
  *  3. Each equipped item's `cardsToAdd`.
- *  4. Bound (weapon) tree card effects: addCard, removeCard, chained replaceCard.
- *  5. Unbound tree (cores, training, misc) card effects, same order.
+ *  4. Weapon tree (trees with virtual roots) card effects: addCard, removeCard, chained replaceCard.
+ *  5. Other tree (cores, training, misc) card effects, same order.
  *  6. Fallback when nothing resulted.
  *
  * Replacement maps are built per phase so a later tree can never overwrite an earlier
@@ -22,6 +22,7 @@ import {
     mergeBattleEquipmentIdsFromResearch,
     type TreePredicate,
 } from '../../../researchTrees/evaluator';
+import { hasVirtualRootNodes } from '../../../researchTrees/types';
 import { getItemDef } from './items';
 
 /**
@@ -64,8 +65,8 @@ export interface CharacterLoadout {
 
 const FALLBACK_ABILITY_IDS = ['0101', '0120'];
 
-const isBoundTree: TreePredicate = (tree) => !!tree.boundItem;
-const isUnboundTree: TreePredicate = (tree) => !tree.boundItem;
+const isWeaponTree: TreePredicate = (tree) => hasVirtualRootNodes(tree);
+const isNonWeaponTree: TreePredicate = (tree) => !hasVirtualRootNodes(tree);
 
 function applyCardEffectsPhase(
     abilities: string[],
@@ -104,8 +105,8 @@ export function resolveCharacterLoadout(
     // Fallback if no equipment (should not happen if new characters get a core).
     if (abilities.length === 0) abilities.push(...FALLBACK_ABILITY_IDS);
 
-    abilities = applyCardEffectsPhase(abilities, activeResearchTrees, isBoundTree);
-    abilities = applyCardEffectsPhase(abilities, activeResearchTrees, isUnboundTree);
+    abilities = applyCardEffectsPhase(abilities, activeResearchTrees, isWeaponTree);
+    abilities = applyCardEffectsPhase(abilities, activeResearchTrees, isNonWeaponTree);
 
     if (abilities.length === 0) abilities.push(...FALLBACK_ABILITY_IDS);
     return { activeResearchTrees, battleEquipmentIds, abilityIds: abilities };

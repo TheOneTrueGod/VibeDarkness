@@ -75,7 +75,7 @@ describe('core research unlocks', () => {
     });
 
     it('weapon nodes no longer grant equipment', () => {
-        for (const treeId of ['crystal_rocks', 'stick_sword', 'tech_shield']) {
+        for (const treeId of ['weapons']) {
             const tree = getResearchTree(treeId)!;
             for (const node of tree.nodes) {
                 for (const itemId of ['001', '002', '003', '011', '012', '013', '015', '016', '021']) {
