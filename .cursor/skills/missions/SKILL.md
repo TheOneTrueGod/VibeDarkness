@@ -54,7 +54,7 @@ For segment file layout, POI exports, and anti-patterns, read **map-segments** e
 - Types: `app/js/games/minion_battles/storylines/types.ts`
 - Story types: `app/js/games/minion_battles/storylines/storyTypes.ts`
 - Story background images: `assets/story/` (see **minion-battles-assets**)
-- Mission registration: `app/js/games/minion_battles/storylines/index.ts` (MISSION_MAP)
+- Mission registration is automatic: `storylines/index.ts` builds `MISSION_MAP` from every `BaseMissionDef` instance exported by `storylines/*/missions/*.ts` and `storylines/*/questMissions/*.ts`, keyed by `missionId`. No import or map entry is needed. `missionRegistry.test.ts` checks that every storyline, chapter and quest mission id resolves and that ids are unique.
 - Storyline flow: `app/js/games/minion_battles/storylines/WorldOfDarkness/WorldOfDarkness.ts` (edges)
 - **Tests after mission edits:** co-located `missions/*.test.ts` only — never `vitest related` on a mission file (fans out via `MISSION_MAP`; see **scoped-testing**)
 - **`disabled`:** Optional on the mission def (`MISSION_MAP_DISABLED`). Non-admins cannot select or host it from the Mission Map or Mission Select; admins still can. Quest copies that subclass a disabled map mission must override `disabled` back to false if they should stay playable.

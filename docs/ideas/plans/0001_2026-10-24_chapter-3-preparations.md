@@ -185,16 +185,20 @@ Adding one enemy currently means editing about seven places: the `EnemyUnitId` u
 >
 > Recommendation: spike the tileset strategy first, since it upgrades every existing map, then add per-segment skins for set pieces like the castle.
 
-### P1.8 Storyline and mission registry hygiene
+### [x] P1.8 Storyline and mission registry hygiene
 
 **Complexity:** Low
+
+**Done:** `MISSION_MAP` is now built automatically, using an eager `import.meta.glob` over `storylines/*/missions` and `*/questMissions`. Every exported `BaseMissionDef` instance is registered by its `missionId`, and a duplicate id throws. The result was checked to match the old hand-written map exactly (28 missions). `missionRegistry.test.ts` checks that every storyline start, edge, chapter, unlock and fixed quest-slot mission id resolves. The replay tool's mission dropdown now lists missions in file order. The `wod_ch3` stub removal stays with P0.1.
 
 - `storylines/index.ts` hand-imports every mission into `MISSION_MAP` (and so does the quest-mission list). Chapter 3's questline will add many more. Register each storyline's own missions (`WorldOfDarkness/missions/index.ts`) or auto-discover them with `import.meta.glob`, with a test that every chapter and quest mission id resolves.
 - Remove the legacy `wod_ch3` stub as part of P0.1 so the new chapter isn't built around stale ids.
 
-### P1.9 Item registry auto-discovery
+### [x] P1.9 Item registry auto-discovery
 
 **Complexity:** Low. **Helps:** new weapons
+
+**Done:** `items/index.ts` now builds `ITEMS`, `ALL_PLAYER_ITEMS` and `ITEM_ICON_URLS` from an eager glob over `items/*/NNN_*.ts` and `items/assets/*`, keyed by `ItemDef.icon`. The core, pistol, SMG and shotgun imports stay, because `CORE_ITEM_IDS` and the default equipment name them. `ALL_PLAYER_ITEMS` is now ordered by item id, so Rocks and Torch swap places in admin lists. `itemRegistry.test.ts` checks there is one item per file, the ids are unique, and every icon resolves.
 
 - `character_defs/items/index.ts` hand-imports each item and, separately, each icon (two imports per item, plus a lookup table). Use `import.meta.glob` for `items/**/NNN_*.ts` and `items/assets/*.svg` keyed by `ItemDef.icon`, with a test that every item's icon resolves.
 
@@ -238,6 +242,23 @@ Adding one enemy currently means editing about seven places: the `EnemyUnitId` u
 **Complexity:** Low
 
 - Plans now live in three places: `docs/plans/` (43 active files plus `done/`), `app/js/games/minion_battles/PLANS/`, and `docs/ideas/plans/`. Move finished `docs/plans` files into `done/`, fold `PLANS/` into `docs/plans/`, and keep `docs/ideas/plans/` for high-level roadmaps like this one.
+
+### P2.7 Lazy-load missions and items
+
+**Complexity:** Large (missions: splits every mission def and makes battle start async). Items: not worth doing.
+
+Investigated, not implemented. P1.8 and P1.9 made both registries auto-discovered with eager `import.meta.glob`, so going lazy is mostly a matter of switching to non-eager globs. The hard part is everything that reads the registries synchronously.
+
+- **What's loaded today:** everything in the game sits in one `minion_battles` chunk (2.06 MB minified in the last `dist/` build), loaded at startup because `App.tsx` imports the game statically. Missions are about 6.6k lines (`storylines/*/missions`, `*/questMissions`) plus about 0.9k lines of `MapSegments`, roughly 15% of the game's non-test source. Items are about 270 lines plus 9.5 KB of SVG icons.
+- **Who reads them synchronously:** `MISSION_MAP` has 63 references in 24 files (`App.tsx`, `Game.tsx`, `BattleSession`, `battleBootstrap`, `MissionSelectPanel`, the mission map, quest resolution, replay). Item lookups (`getItemDef`, `ITEMS`, `ITEM_ICON_URLS`) have 73 references in 23 files, all render-time UI.
+- **Missions, the shape that would work:** split each mission into eager **metadata** (id, name, campaign, map position, type, rewards, disabled, everything the campaign UI and quest resolution need) and a lazy **battle module** (terrain, spawns, AI, story scripts and objectives). Load the battle module with `await` in the battle start path, and before checkpoint resume and replay.
+  - Pros: the campaign home screen downloads less, and new Chapter 3 missions don't grow the startup bundle.
+  - Cons: every mission def needs splitting (28 today, more in Chapter 3); battle start, resume and replay become async; every multiplayer client must finish loading before the first tick (a new loading state and failure mode on a flaky connection); and tests that read `MISSION_MAP` synchronously need rewriting.
+- **Items:** the payoff is a few KB, and every lookup is synchronous render code. Keep them eager.
+- **Recommendation:** don't do per-mission lazy loading yet.
+  - Measure first, with a bundle report (for example `rollup-plugin-visualizer` on `vite build`).
+  - If startup size matters, the bigger and cheaper win is likely route-level splitting: load the battle engine, renderer and PixiJS only when entering a lobby or battle, via `React.lazy` around the battle phase.
+  - Separate quick fix: the `pixi` rule in `vite.config.ts` `manualChunks` never fires, because the `node_modules` check runs first, so PixiJS ends up in `vendor`. Swap the order if PixiJS should get its own chunk.
 
 ---
 

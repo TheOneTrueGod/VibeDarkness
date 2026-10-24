@@ -4,48 +4,10 @@
 
 import type { StorylineDef } from './types';
 import type { IBaseMissionDef } from './BaseMissionDef';
+import { BaseMissionDef } from './BaseMissionDef';
 import { WorldOfDarknessStoryline } from './WorldOfDarkness/WorldOfDarkness';
 import { BunkerAtTheEndStoryline } from './BunkerAtTheEnd/BunkerAtTheEnd';
 import { DARK_AWAKENING } from './WorldOfDarkness/missions/001_dark_awakening';
-import { TOWARDS_THE_LIGHT } from './WorldOfDarkness/missions/002_towards_the_light';
-import { LIGHT_EMPOWERED } from './WorldOfDarkness/missions/003_light_empowered';
-import { CAVE_RESPITE } from './WorldOfDarkness/missions/004_cave_respite';
-import { CRYSTAL_CORRUPTION } from './WorldOfDarkness/missions/004b_crystal_corruption';
-import { MONSTER } from './WorldOfDarkness/missions/005_monster';
-import { CORE_AWAKENING } from './WorldOfDarkness/missions/006_core_awakening';
-import { DISPLACER } from './WorldOfDarkness/missions/006d_displacer';
-import { THORNBINDER_ARENA } from './WorldOfDarkness/missions/006b_thornbinder_arena';
-import { SOUTH_GATE_SWARM } from './WorldOfDarkness/missions/006c_south_gate_swarm';
-import { EMBER_THRESHOLD } from './WorldOfDarkness/missions/007_ember_threshold';
-import { THORN_MARCH } from './WorldOfDarkness/missions/008_thorn_march';
-import { THORNLING_RISE } from './WorldOfDarkness/missions/009_thornling_rise';
-import { THE_CIRCLE } from './WorldOfDarkness/missions/010_circle_arena';
-import { LAST_HOLDOUT } from './BunkerAtTheEnd/missions/last_holdout';
-import { SWARM_PRESSURE } from './BunkerAtTheEnd/missions/002_swarm_pressure';
-import { FOUND_BERRIES } from './WorldOfDarkness/questMissions/found_berries';
-import { SURFACE_METAL_DEPOSIT } from './WorldOfDarkness/questMissions/surface_metal_deposit';
-import {
-    CAMPSITE,
-    CAMPSITE_2,
-    CAMPSITE_3,
-    CAMPSITE_4,
-    CAMPSITE_MISSION_ID,
-    CAMPSITE_2_MISSION_ID,
-    CAMPSITE_3_MISSION_ID,
-    CAMPSITE_4_MISSION_ID,
-} from './WorldOfDarkness/questMissions/campsite';
-import { QUEST_FIND_SOME_FOOD } from './WorldOfDarkness/questMissions/quest_find_some_food';
-import { QUEST_CRYSTAL_CORRUPTION } from './WorldOfDarkness/questMissions/quest_crystal_corruption';
-import { QUEST_PUSH_NORTH, QUEST_PUSH_NORTH_MISSION_ID } from './WorldOfDarkness/questMissions/quest_push_north';
-import { SWARMLING_NEST } from './WorldOfDarkness/questMissions/swarmling_nest';
-import {
-    QUEST_EMBER_THRESHOLD,
-    QUEST_EMBER_THRESHOLD_MISSION_ID,
-} from './WorldOfDarkness/questMissions/quest_ember_threshold';
-import {
-    QUEST_THORN_MARCH,
-    QUEST_THORN_MARCH_MISSION_ID,
-} from './WorldOfDarkness/questMissions/quest_thorn_march';
 
 /** Default mission when missionId is unknown (e.g. fallback in BattlePhase). */
 export { DARK_AWAKENING };
@@ -55,37 +17,33 @@ export const STORYLINES: StorylineDef[] = [
     BunkerAtTheEndStoryline,
 ];
 
-export const MISSION_MAP: Record<string, IBaseMissionDef> = {
-    dark_awakening: DARK_AWAKENING,
-    towards_the_light: TOWARDS_THE_LIGHT,
-    light_empowered: LIGHT_EMPOWERED,
-    cave_respite: CAVE_RESPITE,
-    crystal_corruption: CRYSTAL_CORRUPTION,
-    monster: MONSTER,
-    core_awakening: CORE_AWAKENING,
-    displacer: DISPLACER,
-    thornbinder_arena: THORNBINDER_ARENA,
-    south_gate_swarm: SOUTH_GATE_SWARM,
-    ember_threshold: EMBER_THRESHOLD,
-    thorn_march: THORN_MARCH,
-    thornling_rise: THORNLING_RISE,
-    the_circle: THE_CIRCLE,
-    last_holdout: LAST_HOLDOUT,
-    swarm_pressure: SWARM_PRESSURE,
-    // Quest-only / random-story bag (not on the main storyline edge graph)
-    found_berries: FOUND_BERRIES,
-    surface_metal_deposit: SURFACE_METAL_DEPOSIT,
-    [CAMPSITE_MISSION_ID]: CAMPSITE,
-    [CAMPSITE_2_MISSION_ID]: CAMPSITE_2,
-    [CAMPSITE_3_MISSION_ID]: CAMPSITE_3,
-    [CAMPSITE_4_MISSION_ID]: CAMPSITE_4,
-    quest_find_some_food: QUEST_FIND_SOME_FOOD,
-    quest_crystal_corruption: QUEST_CRYSTAL_CORRUPTION,
-    [QUEST_PUSH_NORTH_MISSION_ID]: QUEST_PUSH_NORTH,
-    swarmling_nest: SWARMLING_NEST,
-    [QUEST_EMBER_THRESHOLD_MISSION_ID]: QUEST_EMBER_THRESHOLD,
-    [QUEST_THORN_MARCH_MISSION_ID]: QUEST_THORN_MARCH,
-};
+/**
+ * Every mission module in each storyline's `missions/` and `questMissions/` folders. Missions are
+ * discovered automatically: any exported `BaseMissionDef` instance is registered under its `missionId`,
+ * so adding a mission needs no edit here.
+ */
+const MISSION_MODULES = import.meta.glob<Record<string, unknown>>(
+    ['./*/missions/*.ts', './*/questMissions/*.ts', '!./**/*.test.ts'],
+    { eager: true },
+);
+
+/** Collects exported mission defs keyed by `missionId`. Throws on a duplicate id. */
+export function collectMissionDefs(modules: Record<string, Record<string, unknown>>): Record<string, IBaseMissionDef> {
+    const out: Record<string, IBaseMissionDef> = {};
+    for (const [path, mod] of Object.entries(modules)) {
+        for (const value of Object.values(mod)) {
+            if (!(value instanceof BaseMissionDef)) continue;
+            const existing = out[value.missionId];
+            if (existing && existing !== value) {
+                throw new Error(`Duplicate missionId "${value.missionId}" (second definition in ${path})`);
+            }
+            out[value.missionId] = value;
+        }
+    }
+    return out;
+}
+
+export const MISSION_MAP: Record<string, IBaseMissionDef> = collectMissionDefs(MISSION_MODULES);
 
 export type { CampaignChapterDef, StorylineDef, StorylineFlowEdge } from './types';
 export {

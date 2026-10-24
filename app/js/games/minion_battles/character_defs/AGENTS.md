@@ -4,7 +4,7 @@ Playable character data, portraits, the item registry, and the loadout resolver 
 
 | Path | Owns |
 |------|------|
-| `items/` | Item registry (hands, weapons, cores), icons, and the campaign-unlock helper. |
+| `items/` | Item registry (hands, weapons, cores), icons, and the campaign-unlock helper. Items are auto-discovered: add `items/<folder>/NNN_name.ts` exporting an `ItemDef` and `items/assets/<icon>`; `items/index.ts` needs no edit (`itemRegistry.test.ts` checks every item has an icon and a unique id). |
 | `portraits/`, `portraits.ts` | Portrait art and registry. |
 | `CampaignCharacter.ts`, `campaignCharacterTypes.ts` | Serializable campaign character shape and its class. |
 | `characterLoadout.ts` | `resolveCharacterLoadout` and the per-player active-research helpers. |
