@@ -7,6 +7,7 @@ import gatherPartyUrl from './gather_party.png';
 import surfaceMetalDepositUrl from './surface_metal_deposit.jpg';
 import foundBerriesUrl from './found_berries.jpg';
 import whiskyCaveUrl from './whisky_cave.webp';
+import forestLightUrl from './forest_light.webp';
 
 export const STORY_BACKGROUNDS = {
     campfire: campfireUrl,
@@ -18,4 +19,6 @@ export const STORY_BACKGROUNDS = {
     foundBerries: foundBerriesUrl,
     /** Towards the Light: the respite choice inside the crystal cave. */
     whiskyCave: whiskyCaveUrl,
+    /** Core Awakening: light through the trees, behind the story and the core choice. */
+    forestLight: forestLightUrl,
 } as const;

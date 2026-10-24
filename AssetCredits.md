@@ -13,3 +13,7 @@ https://commons.wikimedia.org/wiki/File:Composite_hydrothermal_vein_(Emma_Vein,_
 Towards the Light cave story background (Whisky Cave on Mull)
 Steve Deger, CC BY 2.0 (https://creativecommons.org/licenses/by/2.0/)
 https://commons.wikimedia.org/wiki/File:Whisky_Cave_on_Mull.jpg
+
+Core Awakening story background (Light in the forest)
+Colin Knowles from Vancouver, CC BY-SA 2.0 (https://creativecommons.org/licenses/by-sa/2.0/)
+https://commons.wikimedia.org/wiki/File:Light_in_the_forest_(3902823072).jpg

@@ -17,7 +17,6 @@ import {
     MAX_LIGHT_RECOVERY_PER_ROUND,
 } from '../../games/minion_battles/resources/Light';
 import { LAY_HANDS_ABILITY_ID } from '../../games/minion_battles/card_defs/08_light_core/0806_LayHands/0806Constants';
-import { WEAPON_ITEM_MACE } from './weaponTreeIds';
 
 export const LIGHT_TREE_ID = 'light_core';
 export const LIGHT_NODE_CORE = 'light_core';
@@ -109,7 +108,6 @@ export const lightTree: ResearchTreeDef = {
             requirements: [
                 MISSION_REWARD_REQUIREMENT,
                 { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.LightCore },
-                { type: 'characterHasEquippedItem', itemId: WEAPON_ITEM_MACE },
             ],
             cost: {
                 crystals: LIGHT_CORE_CRYSTAL_COST,

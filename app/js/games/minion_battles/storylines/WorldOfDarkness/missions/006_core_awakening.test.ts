@@ -13,7 +13,10 @@ import {
     pickCoreAwakeningOptions,
     seededShuffle,
 } from './006_core_awakening';
-import { getResearchTree } from '../../../../../researchTrees/list';
+import { STORY_BACKGROUNDS } from '../../../assets/story';
+import { getResearchNode, getResearchTree } from '../../../../../researchTrees/list';
+import { LIGHT_NODE_CORE, LIGHT_TREE_ID } from '../../../../../researchTrees/trees/light';
+import { CORE_ITEM_IDS } from '../../../character_defs/items';
 import { EARTH_TREE_ID, EARTH_NODE_EARTH_CORE } from '../../../../../researchTrees/trees/earth';
 import { GRAVITY_TREE_ID, GRAVITY_NODE_CORE } from '../../../../../researchTrees/trees/gravity';
 import {
@@ -167,5 +170,30 @@ describe('CoreAwakeningMission.getPostMissionChoiceOptions', () => {
             },
         });
         expect(result).toBeNull();
+    });
+});
+
+describe('Core Awakening story', () => {
+    const phrases = CORE_AWAKENING.postMissionStory!.phrases;
+
+    it('shows the three intro lines on one dialogue screen before the choice', () => {
+        expect(phrases.map((p) => p.type)).toEqual(['dialogue', 'choice']);
+        const intro = phrases[0];
+        if (intro.type !== 'dialogue') throw new Error('expected dialogue');
+        expect(intro.text.split('\n')).toHaveLength(3);
+    });
+
+    it('uses the forest light background for the dialogue and the core choice', () => {
+        for (const phrase of phrases) {
+            expect((phrase as { backgroundImage?: string }).backgroundImage).toBe(STORY_BACKGROUNDS.forestLight);
+        }
+    });
+});
+
+describe('Light Core eligibility', () => {
+    it('does not require a particular weapon to be equipped', () => {
+        const node = getResearchNode(LIGHT_TREE_ID, LIGHT_NODE_CORE)!;
+        const equipRequirements = node.requirements.filter((r) => r.type === 'characterHasEquippedItem');
+        expect(equipRequirements).toEqual([{ type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.LightCore }]);
     });
 });
