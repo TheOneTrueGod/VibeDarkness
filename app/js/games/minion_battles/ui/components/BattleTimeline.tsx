@@ -41,7 +41,7 @@ import { getCastElapsed } from '../../game/time/actorClock';
 
 /** Character icon URLs for enemy timeline markers. Fallback to letter if unknown. */
 const ENEMY_CHARACTER_ICONS: Record<string, string> = {
-    enemy_melee: swordwomanIcon,
+    huskling: swordwomanIcon,
     slime: slimeIcon,
     dark_wolf: wolfHeadIcon,
     alpha_wolf: wolfHowlIcon,

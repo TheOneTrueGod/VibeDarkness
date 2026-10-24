@@ -1,10 +1,10 @@
 /**
- * Slime — ranged enemy (`characterId: 'slime'`). Baseline stats live in `unit_defs/unitDef.ts`.
+ * Slime — gelatinous dark creature that lobs globs of slime (`characterId: 'slime'`). Baseline stats live in `unit_defs/unitDef.ts`.
  */
 
 import type { EnemySpawnDef } from '../../../storylines/types';
 
-/** Canonical spawn template for the slime ranged enemy. */
+/** Canonical spawn template for the slime. */
 export const SLIME: EnemySpawnDef = {
     characterId: 'slime',
     name: 'Slime',

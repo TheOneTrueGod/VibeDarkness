@@ -126,7 +126,7 @@ function spawnPlayerTarget(engine: GameEngine, x: number, y: number): Unit {
     const unit = createUnitFromSpawnConfig(
         {
             id: 'player_target',
-            characterId: 'enemy_melee',
+            characterId: 'dog',
             name: 'Player Target',
             hp: 500,
             x,

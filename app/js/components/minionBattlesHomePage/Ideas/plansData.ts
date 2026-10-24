@@ -6,7 +6,8 @@ export interface PlanListItem {
 
 /** A block-level element of a plan body. Inline `**bold**` / `` `code` `` stays in `text`. */
 export type PlanBlock =
-    | { type: 'heading'; level: number; text: string }
+    /** `done` is set when the heading starts with `[x]` (the marker is stripped from `text`). */
+    | { type: 'heading'; level: number; text: string; done?: true }
     | { type: 'paragraph'; text: string }
     | { type: 'list'; items: PlanListItem[] }
     | { type: 'rule' }
@@ -27,6 +28,7 @@ const BULLET_RE = /^(\s*)[-*]\s+(.*)$/;
 const RULE_RE = /^\s*(-{3,}|\*{3,})\s*$/;
 const DECISION_RE = /^>\s?\[!DECISION\]\s*(.*)$/i;
 const QUOTE_RE = /^>\s?(.*)$/;
+const DONE_RE = /^\[x\]\s+(.*)$/i;
 const FILE_RE = /(?:^|\/)(\d{4}-\d{2}-\d{2})_([^/]+)\.md$/;
 
 /**
@@ -87,7 +89,13 @@ export function parsePlanMarkdown(markdown: string): PlanBlock[] {
         if (heading) {
             flushParagraph();
             flushList();
-            blocks.push({ type: 'heading', level: heading[1].length, text: heading[2].trim() });
+            const text = heading[2].trim();
+            const done = DONE_RE.exec(text);
+            blocks.push(
+                done
+                    ? { type: 'heading', level: heading[1].length, text: done[1], done: true }
+                    : { type: 'heading', level: heading[1].length, text },
+            );
             continue;
         }
         const bullet = BULLET_RE.exec(line);
@@ -114,6 +122,33 @@ export function parsePlanMarkdown(markdown: string): PlanBlock[] {
     flushList();
     flushDecision();
     return blocks;
+}
+
+/** Top-level piece of a plan body: a lone block, or a `###` item with the blocks under it. */
+export type PlanSection =
+    | { kind: 'block'; block: PlanBlock }
+    | { kind: 'item'; title: string; done: boolean; blocks: PlanBlock[] };
+
+/**
+ * Groups each `###` heading with the blocks after it, up to the next heading of level 3 or above or a
+ * `---` rule. Everything else stays a lone block.
+ */
+export function groupPlanSections(blocks: PlanBlock[]): PlanSection[] {
+    const sections: PlanSection[] = [];
+    let item: Extract<PlanSection, { kind: 'item' }> | null = null;
+    for (const block of blocks) {
+        const endsItem = block.type === 'rule' || (block.type === 'heading' && block.level <= 3);
+        if (endsItem) item = null;
+        if (block.type === 'heading' && block.level === 3) {
+            item = { kind: 'item', title: block.text, done: block.done === true, blocks: [] };
+            sections.push(item);
+        } else if (item) {
+            item.blocks.push(block);
+        } else {
+            sections.push({ kind: 'block', block });
+        }
+    }
+    return sections;
 }
 
 /** Parses one plan file. The first `# Heading` is the title and is not repeated in the blocks. */

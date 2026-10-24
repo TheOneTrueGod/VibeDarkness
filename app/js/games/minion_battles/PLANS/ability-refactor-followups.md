@@ -241,7 +241,7 @@ export function convexQuadHitbox(reach: number, width: number, numTargets?: numb
   add one high-level scenario (archer + player dummy in range → player unit takes damage);
   otherwise add nothing.
   - **Touches:** `testing/scenarios/` (verify/add), `testing/scenarios/registry.ts`
-  - No pre-existing archer scenario found. Added `enemyArcherShotScenario` (id `enemy_archer_shot`) to `enemies.ts`: enemy_ranged archer at (300, 180) shoots toward player dummy at (180, 180); asserts player hp < maxHp. Registered in `registry.ts`. Suite went from 515 → 516 tests (46 SimulationRunner tests, 1 new scenario included).
+  - No pre-existing archer scenario found. Added `enemyArcherShotScenario` (id `enemy_archer_shot`) to `enemies.ts`: slime at (300, 180) (formerly `enemy_ranged`) shoots toward player dummy at (180, 180); asserts player hp < maxHp. Registered in `registry.ts`. Suite went from 515 → 516 tests (46 SimulationRunner tests, 1 new scenario included).
 
 ---
 

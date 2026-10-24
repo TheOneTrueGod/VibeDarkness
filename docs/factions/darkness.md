@@ -50,7 +50,7 @@ Missions can spawn dark creatures continuously from the Darkness itself (not fro
 |---------|------|-------|
 | `dark_wolf` | dark_creature | Fast lunge attacker; pack filler |
 | `alpha_wolf` | dark_creature | Boss; CC resist, hard CC armour, custom boss AI |
-| `enemy_ranged` (Slime) | dark_creature | Stays back, ranged harassment |
+| `slime` | dark_creature | Gelatinous creature that keeps its distance and lobs slime globs |
 | `thornbinder` | dark_creature | Zone control; bramble AoE; Light Hate: weakens at bright light |
 | `husk_artillery` | dark_creature | Summoner; spawns husklings; Light Hate: weakens at bright light |
 | `huskling` | dark_creature | Ephemeral melee minion spawned by husk_artillery |
@@ -72,11 +72,11 @@ Missions can spawn dark creatures continuously from the Darkness itself (not fro
 - `app/js/games/minion_battles/game/deathEffects/darkCreatureVisualConstants.ts` — tint and palette constants
 
 ### Unit definitions
-- `app/js/games/minion_battles/game/units/unit_defs/unitDef.ts` — all unit stat blocks and `creatureType` field; dark creature entries are `dark_wolf`, `alpha_wolf`, `enemy_ranged`, `thornbinder`, `husk_artillery`, `huskling`
+- `app/js/games/minion_battles/game/units/unit_defs/unitDef.ts` — all unit stat blocks and `creatureType` field; dark creature entries are `dark_wolf`, `alpha_wolf`, `slime`, `thornbinder`, `husk_artillery`, `huskling`
 - `app/js/games/minion_battles/constants/enemyConstants.ts` — enemy spawn def templates (abilities, team, AI settings) used by missions
 
 ### Unit-specific files (dark creatures)
-- `app/js/games/minion_battles/game/units/dark_animals/` — unit-specific logic (e.g. `DarkWolf.ts`, `slimeRanged.ts`)
+- `app/js/games/minion_battles/game/units/dark_animals/` — unit-specific logic (e.g. `DarkWolf.ts`, `slime.ts`)
 
 ### AI trees
 - `app/js/games/minion_battles/game/units/unitAI/default/` — standard aggro/wander/findLight used by most dark creatures

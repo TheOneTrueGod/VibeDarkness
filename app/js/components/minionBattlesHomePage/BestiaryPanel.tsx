@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import type { EnemyUnitId } from '../../games/minion_battles/game/units/unit_defs/unitDef';
 import { getUnitDefEntry } from '../../games/minion_battles/game/units/unit_defs/unitDef';
 import { getAbility } from '../../games/minion_battles/abilities/AbilityRegistry';
+import slimeIcon from '../../games/minion_battles/assets/characters/slime.svg';
+import displacerSpiritIcon from '../../games/minion_battles/assets/characters/dark_animals/displacer_spirit.svg';
 import swordwomanIcon from '../../games/minion_battles/assets/characters/swordwoman.svg';
 import wolfHeadIcon from '../../games/minion_battles/assets/characters/dark_animals/wolf-head.svg';
 import wolfHowlIcon from '../../games/minion_battles/assets/characters/dark_animals/wolf-howl.svg';
@@ -16,7 +18,9 @@ import dogIcon from '../../games/minion_battles/assets/characters/dog.png';
 import PanelLayout from './PanelLayout';
 
 const SPRITE_ICONS: Record<string, string> = {
-    enemy_melee: swordwomanIcon,
+    huskling: swordwomanIcon,
+    slime: slimeIcon,
+    displacer_spirit: displacerSpiritIcon,
     dark_wolf: wolfHeadIcon,
     alpha_wolf: wolfHowlIcon,
     boar: boarIcon,
@@ -39,6 +43,7 @@ type BestiaryEntry = {
 };
 
 const BESTIARY_ENTRIES: BestiaryEntry[] = [
+    { id: 'slime',            name: 'Slime',           abilityIds: ['0001'],                         faction: 'dark_creature' },
     { id: 'dark_wolf',       name: 'Wolf',            abilityIds: ['0003'],                         faction: 'dark_creature' },
     { id: 'alpha_wolf',      name: 'Alpha Wolf',      abilityIds: ['0005', '0007', '0011', '0012'], faction: 'dark_creature' },
     { id: 'displacer_spirit', name: 'Displacer Spirit', abilityIds: ['0017', '0018', '0019'],                         faction: 'dark_creature' },
@@ -53,7 +58,6 @@ const BESTIARY_ENTRIES: BestiaryEntry[] = [
     { id: 'thornling',       name: 'Thornling',       abilityIds: ['0015'],                         faction: 'beast' },
     { id: 'thornling_nest',  name: 'Thornling Nest',  abilityIds: [],                               faction: 'beast' },
     { id: 'dog',             name: 'Dog',             abilityIds: ['0701'],                         faction: 'beast' },
-    { id: 'enemy_melee',     name: 'Melee Enemy',     abilityIds: ['0002'],                         faction: 'other' },
     { id: 'boar',            name: 'Boar',            abilityIds: ['0006'],                         faction: 'other' },
 ];
 

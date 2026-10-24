@@ -22,7 +22,6 @@ import { resolveEnemySpawnStats } from '../units/unit_defs/unitDef';
 import { spawnUnit } from '../units/spawning/spawnUnit';
 import { enemySpawnDefToSpawnDefinition, spawnWaveEntryToSpawnDefinition } from '../units/spawning/adapters';
 import {
-    ENEMY_MELEE,
     SLIME,
     ENEMY_DARK_WOLF,
     ENEMY_ALPHA_WOLF,
@@ -38,7 +37,6 @@ import {
 } from '../../constants/enemyConstants';
 
 const BASE_SPAWN_DEFS: Record<string, EnemySpawnDef> = {
-    enemy_melee: ENEMY_MELEE,
     slime: SLIME,
     dark_wolf: ENEMY_DARK_WOLF,
     alpha_wolf: ENEMY_ALPHA_WOLF,

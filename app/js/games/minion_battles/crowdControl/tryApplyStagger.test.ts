@@ -19,7 +19,7 @@ function makeUnit(): Unit {
         speed: 50,
         teamId: 'enemy',
         ownerId: 'ai',
-        characterId: 'enemy_melee',
+        characterId: 'dog',
         name: 'Dummy',
     });
 }

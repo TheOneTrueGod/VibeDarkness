@@ -4,7 +4,7 @@
 
 Per-player, admin-granted global upgrades that modify **all units on the field** and add **bonus mission rewards**. Tracked as a research tree (`darkness_upgrades`) so existing research UI/aggregation is reused, but stored in a **separate player-level field** (`darknessUpgrades`), not on `CampaignCharacter`. Only the **host's** upgrades count in battle (single resolver function so the policy is easy to change later).
 
-First upgrade: **Empowered Spirits** (the "ghost" enemy is the **slime**: `characterId: 'slime'`, ability `0001` SlimeShot, `game/units/dark_animals/slimeRanged.ts`):
+First upgrade: **Empowered Spirits** (the "ghost" enemy is the **slime**: `characterId: 'slime'`, ability `0001` SlimeShot, `game/units/dark_animals/slime.ts`):
 - Slimes get +12 max health.
 - Slimes fire 2 additional projectiles in a wedge; targeting preview shows them as smaller, paler lines with **no narrowing effect**, length < 40 px + slime radius.
 - Grants +2 of **each** resource at the end of a victorious mission (rolled into total mission rewards).

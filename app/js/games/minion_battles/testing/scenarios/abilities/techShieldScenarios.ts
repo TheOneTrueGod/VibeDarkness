@@ -91,7 +91,7 @@ export const raiseShieldAllyStaminaSurgeScenario: ScenarioDefinition = {
         const ally = createUnitFromSpawnConfig(
             {
                 id: 'shield_ally',
-                characterId: 'enemy_melee',
+                characterId: 'dog',
                 name: 'Ally',
                 hp: 200,
                 x: ALLY_POS.x,

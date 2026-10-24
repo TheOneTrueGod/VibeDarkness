@@ -29,6 +29,8 @@ A browser plan item can later be turned into a `/jp-plan`. In that case, link th
 The parser is deliberately small. Stick to:
 
 - `#` title (once), `##` priority sections, `###` items. Deeper headings render but are rarely needed.
+- **Collapsible items:** each `###` heading and everything under it (up to the next `#`/`##`/`###` heading or `---`) renders as a collapsible item.
+- **Completed items:** prefix the item title with `[x] `, as in `### [x] P0.2 Remove …`. The item then shows a green check to the left of its name and starts collapsed. Open items have no prefix and start expanded.
 - Paragraphs: consecutive lines join into one paragraph, and a blank line ends it.
 - `-` bullets. Indent by two spaces to nest. An indented non-bullet line continues the bullet above it.
 - Inline `**bold**` and `` `code` ``.
@@ -87,4 +89,4 @@ Optionally add `**Helps:** …` (which upcoming features benefit) or `**Prerequi
 
 - Keep the file name, and therefore the date. Update items in place; don't renumber items that other plans or jp-plans might reference.
 - When the user answers a decision, replace its card with the outcome in the item text (for example "Decided: keep X").
-- When an item is done, either remove it or mark the heading with `(done)`, depending on what the user prefers. Ask if unclear.
+- When an item is done, mark it with `[x] ` (see Supported Markdown) rather than deleting it, so the plan keeps a record. Before adding the marker, check that the change actually landed (diff, tests). Keep the item number unchanged.

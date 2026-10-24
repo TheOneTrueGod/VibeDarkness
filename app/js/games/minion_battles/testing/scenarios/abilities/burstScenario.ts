@@ -49,7 +49,7 @@ export const burstScenario: ScenarioDefinition = {
         const engine = buildTinyBattleEngine({ gridW: 18, gridH: 12, localPlayerId: P, grass: true });
 
         const caster = createUnitFromSpawnConfig({
-            id: 'burst_caster', characterId: 'enemy_melee', name: 'Caster',
+            id: 'burst_caster', characterId: 'dog', name: 'Caster',
             x: CASTER_POS.x, y: CASTER_POS.y, teamId: 'player', ownerId: 'ai',
             abilities: [BURST_ID], hp: 100, unitAITreeId: 'static_test_no_ai',
         }, engine.eventBus);
@@ -57,7 +57,7 @@ export const burstScenario: ScenarioDefinition = {
         engine.addUnit(caster, 'initialGameSpawn');
 
         const inCone = createUnitFromSpawnConfig({
-            id: 'burst_in_cone', characterId: 'enemy_melee', name: 'In Cone',
+            id: 'burst_in_cone', characterId: 'dog', name: 'In Cone',
             x: IN_CONE_POS.x, y: IN_CONE_POS.y, teamId: 'enemy', ownerId: 'ai',
             hp: DUMMY_HP, unitAITreeId: 'static_test_no_ai',
         }, engine.eventBus);
@@ -65,7 +65,7 @@ export const burstScenario: ScenarioDefinition = {
         engine.addUnit(inCone, 'initialGameSpawn');
 
         const outsideAngle = createUnitFromSpawnConfig({
-            id: 'burst_outside_angle', characterId: 'enemy_melee', name: 'Outside Angle',
+            id: 'burst_outside_angle', characterId: 'dog', name: 'Outside Angle',
             x: OUTSIDE_ANGLE_POS.x, y: OUTSIDE_ANGLE_POS.y, teamId: 'enemy', ownerId: 'ai',
             hp: DUMMY_HP, unitAITreeId: 'static_test_no_ai',
         }, engine.eventBus);
@@ -73,7 +73,7 @@ export const burstScenario: ScenarioDefinition = {
         engine.addUnit(outsideAngle, 'initialGameSpawn');
 
         const outsideRange = createUnitFromSpawnConfig({
-            id: 'burst_outside_range', characterId: 'enemy_melee', name: 'Outside Range',
+            id: 'burst_outside_range', characterId: 'dog', name: 'Outside Range',
             x: OUTSIDE_RANGE_POS.x, y: OUTSIDE_RANGE_POS.y, teamId: 'enemy', ownerId: 'ai',
             hp: DUMMY_HP, unitAITreeId: 'static_test_no_ai',
         }, engine.eventBus);
@@ -82,7 +82,7 @@ export const burstScenario: ScenarioDefinition = {
 
         // Never acts — only used to check the disabled-reason gate below the hpCost threshold.
         const lowHpCaster = createUnitFromSpawnConfig({
-            id: 'burst_low_hp_caster', characterId: 'enemy_melee', name: 'Low HP Caster',
+            id: 'burst_low_hp_caster', characterId: 'dog', name: 'Low HP Caster',
             x: CASTER_POS.x, y: CASTER_POS.y - 200, teamId: 'player', ownerId: 'ai',
             abilities: [BURST_ID], hp: BURST_HP_COST, unitAITreeId: 'static_test_no_ai',
         }, engine.eventBus);
@@ -96,7 +96,7 @@ export const burstScenario: ScenarioDefinition = {
         // (never targeted, never ordered) is the same fix `techShieldScenarios`/`absorptionShieldScenario`
         // get for free via `spawnTinyPlayerUnit`.
         const keepAlivePlayer = createUnitFromSpawnConfig({
-            id: 'burst_keep_alive_player', characterId: 'enemy_melee', name: 'Keep-Alive Player',
+            id: 'burst_keep_alive_player', characterId: 'dog', name: 'Keep-Alive Player',
             x: 0.5 * CELL, y: 0.5 * CELL, teamId: 'player', ownerId: P,
             hp: 100, unitAITreeId: 'static_test_no_ai',
         }, engine.eventBus);

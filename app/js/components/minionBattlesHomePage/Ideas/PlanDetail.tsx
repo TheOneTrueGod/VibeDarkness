@@ -1,6 +1,6 @@
-import React from 'react';
-import { CircleQuestionMark } from 'lucide-react';
-import type { PlanBlock, PlanDoc, PlanListItem } from './plansData';
+import React, { useState } from 'react';
+import { ChevronRight, CircleCheck, CircleQuestionMark } from 'lucide-react';
+import { groupPlanSections, type PlanBlock, type PlanDoc, type PlanListItem } from './plansData';
 
 const INLINE_RE = /(\*\*[^*]+\*\*|`[^`]+`)/g;
 
@@ -91,6 +91,37 @@ function DecisionCard({ question, blocks }: { question: string; blocks: PlanBloc
     );
 }
 
+/** A `###` plan item that can be collapsed. Completed items start collapsed with a green check. */
+function PlanItem({ title, done, blocks }: { title: string; done: boolean; blocks: PlanBlock[] }) {
+    const [open, setOpen] = useState(!done);
+    return (
+        <div className="mt-3">
+            <button
+                type="button"
+                onClick={() => setOpen((o) => !o)}
+                aria-expanded={open}
+                className="flex w-full items-center gap-2 rounded px-1 py-1 text-left hover:bg-surface-light"
+            >
+                <ChevronRight
+                    className={`w-4 h-4 shrink-0 text-muted transition-transform ${open ? 'rotate-90' : ''}`}
+                    aria-hidden
+                />
+                {done && <CircleCheck className="w-4 h-4 shrink-0 text-green-400" aria-label="Completed" />}
+                <span className={`text-base font-semibold ${done ? 'text-gray-400' : 'text-white'}`}>
+                    <InlineText text={title} />
+                </span>
+            </button>
+            {open && blocks.length > 0 && (
+                <div className="mt-2 ml-6 flex flex-col gap-3">
+                    {blocks.map((block, i) => (
+                        <Block key={i} block={block} />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 /** Plans tab, right pane: the selected plan's title, date and Markdown body. */
 export default function PlanDetail({ plan }: { plan: PlanDoc | null }) {
     if (!plan) {
@@ -105,9 +136,13 @@ export default function PlanDetail({ plan }: { plan: PlanDoc | null }) {
             <h2 className="text-xl font-bold text-white">{plan.title}</h2>
             <p className="text-xs text-muted mt-1">Added {plan.date}</p>
             <div className="mt-4 flex flex-col gap-3">
-                {plan.blocks.map((block, i) => (
-                    <Block key={i} block={block} />
-                ))}
+                {groupPlanSections(plan.blocks).map((section, i) =>
+                    section.kind === 'item' ? (
+                        <PlanItem key={`${plan.id}-${i}`} title={section.title} done={section.done} blocks={section.blocks} />
+                    ) : (
+                        <Block key={`${plan.id}-${i}`} block={section.block} />
+                    ),
+                )}
             </div>
         </div>
     );

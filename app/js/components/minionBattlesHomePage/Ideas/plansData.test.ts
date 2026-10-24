@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPlans, parsePlanDoc, parsePlanMarkdown, PLANS } from './plansData';
+import { buildPlans, groupPlanSections, parsePlanDoc, parsePlanMarkdown, PLANS } from './plansData';
 
 describe('parsePlanMarkdown', () => {
     it('splits headings, paragraphs, nested lists and rules', () => {
@@ -43,6 +43,29 @@ describe('decision cards', () => {
                 ],
             },
             { type: 'paragraph', text: 'After' },
+        ]);
+    });
+});
+
+describe('plan items', () => {
+    it('strips a leading [x] from headings and marks them done', () => {
+        expect(parsePlanMarkdown('### [x] P0.2 Done thing\n### P0.3 Open thing')).toEqual([
+            { type: 'heading', level: 3, text: 'P0.2 Done thing', done: true },
+            { type: 'heading', level: 3, text: 'P0.3 Open thing' },
+        ]);
+    });
+
+    it('groups each ### heading with its blocks until the next heading or rule', () => {
+        const sections = groupPlanSections(
+            parsePlanMarkdown('Intro\n\n## P0\n\n### [x] A\n\nBody A\n\n### B\n\n- b\n\n---\n\nOutro'),
+        );
+        expect(sections).toEqual([
+            { kind: 'block', block: { type: 'paragraph', text: 'Intro' } },
+            { kind: 'block', block: { type: 'heading', level: 2, text: 'P0' } },
+            { kind: 'item', title: 'A', done: true, blocks: [{ type: 'paragraph', text: 'Body A' }] },
+            { kind: 'item', title: 'B', done: false, blocks: [{ type: 'list', items: [{ text: 'b', children: [] }] }] },
+            { kind: 'block', block: { type: 'rule' } },
+            { kind: 'block', block: { type: 'paragraph', text: 'Outro' } },
         ]);
     });
 });

@@ -15,7 +15,7 @@ function targetDummySpawnArgs(
     return createUnitFromSpawnConfig(
         {
             id: opts?.id ?? 'target_dummy',
-            characterId: 'enemy_melee',
+            characterId: 'dog',
             name: opts?.name ?? 'Target Dummy',
             hp: opts?.hp ?? DEFAULT_DUMMY_HP,
             x,
@@ -43,7 +43,7 @@ export function createTargetDummyAtWorld(
 }
 
 /**
- * Spawn a stationary enemy_melee target dummy with high HP at a grid cell (world position from terrain).
+ * Spawn a stationary dog target dummy with high HP at a grid cell (world position from terrain).
  * Uses explicit id `target_dummy` when no custom id is needed for lookups.
  */
 export function createTargetDummyAtGrid(

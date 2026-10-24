@@ -91,7 +91,7 @@ function trackClawHits(engine: GameEngine, casterId: string): void {
 
 function addEnemy(engine: GameEngine, id: string, pos: { x: number; y: number }): void {
     const unit = createUnitFromSpawnConfig({
-        id, characterId: 'enemy_melee', name: id,
+        id, characterId: 'dog', name: id,
         x: pos.x, y: pos.y, teamId: 'enemy', ownerId: 'ai',
         hp: START_HP, unitAITreeId: 'static_test_no_ai',
     }, engine.eventBus);

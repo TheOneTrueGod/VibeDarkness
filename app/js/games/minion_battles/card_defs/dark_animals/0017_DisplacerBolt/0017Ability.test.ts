@@ -4,7 +4,7 @@ import { CARD_DEF_MAP } from '../../index';
 import { getUnitDefEntry } from '../../../game/units/unit_defs/unitDef';
 import { SLIME_SHOT_MAX_DISTANCE, SLIME_SHOT_PROJECTILE_SPEED, SlimeShotAbility } from '../../0001_SlimeShot/0001Ability';
 import { ENEMY_DISPLACER_SPIRIT } from '../../../constants/enemyConstants';
-import { SLIME } from '../../../game/units/dark_animals/slimeRanged';
+import { SLIME } from '../../../game/units/dark_animals/slime';
 import { Unit } from '../../../game/units/Unit';
 import {
     DISPLACER_BOLT_ID,

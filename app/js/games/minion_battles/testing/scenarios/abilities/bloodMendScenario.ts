@@ -103,7 +103,7 @@ export const bloodMendScenario: ScenarioDefinition = {
             abilities?: string[],
         ) => {
             const unit = createUnitFromSpawnConfig({
-                id, characterId: 'enemy_melee', name,
+                id, characterId: 'dog', name,
                 x: pos.x, y: pos.y, teamId, ownerId: 'ai',
                 abilities, hp: 100, unitAITreeId: 'static_test_no_ai',
             }, engine.eventBus);
@@ -126,7 +126,7 @@ export const bloodMendScenario: ScenarioDefinition = {
         // real player-owned unit the battle is defeated on tick 1, before `assertPass` can run. This idle
         // keep-alive unit (never targeted, never ordered) avoids that.
         const keepAlivePlayer = createUnitFromSpawnConfig({
-            id: 'blood_mend_keep_alive_player', characterId: 'enemy_melee', name: 'Keep-Alive Player',
+            id: 'blood_mend_keep_alive_player', characterId: 'dog', name: 'Keep-Alive Player',
             x: 0.5 * CELL, y: 0.5 * CELL, teamId: 'player', ownerId: P,
             hp: 100, unitAITreeId: 'static_test_no_ai',
         }, engine.eventBus);

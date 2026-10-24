@@ -91,7 +91,7 @@ export const petAutoEngageScenario: ScenarioDefinition = {
         const enemy = createUnitFromSpawnConfig(
             {
                 id: 'enemy1',
-                characterId: 'enemy_melee',
+                characterId: 'dog',
                 name: 'Target',
                 x: enemyPos.x,
                 y: enemyPos.y,
@@ -195,7 +195,7 @@ export const petHeelScenario: ScenarioDefinition = {
         const enemy = createUnitFromSpawnConfig(
             {
                 id: 'enemy1',
-                characterId: 'enemy_melee',
+                characterId: 'dog',
                 name: 'Target',
                 x: PLAYER_POS.x + 160,
                 y: PLAYER_POS.y,
@@ -277,7 +277,7 @@ export const petSicEmPounceScenario: ScenarioDefinition = {
         const enemy = createUnitFromSpawnConfig(
             {
                 id: 'enemy1',
-                characterId: 'enemy_melee',
+                characterId: 'dog',
                 name: 'Target',
                 x: ENEMY_POS.x,
                 y: ENEMY_POS.y,

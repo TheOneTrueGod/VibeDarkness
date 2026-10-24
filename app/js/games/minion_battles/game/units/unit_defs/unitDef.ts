@@ -98,7 +98,6 @@ export type PlayerUnitDefId = 'player';
 
 /** Enemy unit character IDs. */
 export type EnemyUnitId =
-    | 'enemy_melee'
     | 'slime'
     | 'dark_wolf'
     | 'alpha_wolf'
@@ -198,16 +197,6 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         uiDescription: 'Adventurer — stats and abilities from equipment and research.',
     },
     // Enemies
-    enemy_melee: {
-        bodyColor: 0x555555,
-        characterSpriteKey: 'enemy_melee',
-        hp: 12,
-        speed: 80,
-        size: 'Small',
-        stamina: 1,
-        perceptionRange: 250,
-        uiDescription: 'Basic melee grunt that rushes into combat.',
-    },
     slime: {
         bodyColor: 0x555555,
         characterSpriteKey: 'slime',
@@ -218,7 +207,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         perceptionRange: 400,
         creatureType: 'dark_creature',
         onDeathVisualEffects: darkCreatureIconFlashVFX(5),
-        uiDescription: 'Stays back and harasses with ranged attacks.',
+        uiDescription: 'Gelatinous dark creature that keeps its distance and lobs globs of slime.',
         maxPerTile: 1,
     },
     dark_wolf: {
@@ -298,7 +287,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     },
     huskling: {
         bodyColor: 0x6b5344,
-        characterSpriteKey: 'enemy_melee',
+        characterSpriteKey: 'huskling',
         hp: 6,
         speed: 88,
         size: 'Extra Small',

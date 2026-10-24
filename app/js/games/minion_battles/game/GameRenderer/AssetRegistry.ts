@@ -39,7 +39,7 @@ export class AssetRegistry {
 
     getCharacterTexture(characterId: string): Texture | null {
         if (characterId === 'slime') return this.slimeTexture;
-        if (characterId === 'enemy_melee') return this.swordwomanTexture;
+        if (characterId === 'huskling') return this.swordwomanTexture;
         if (characterId === 'dark_wolf') return this.wolfHeadTexture;
         if (characterId === 'alpha_wolf') return this.wolfHowlTexture;
         if (characterId === 'boar') return this.boarTexture;

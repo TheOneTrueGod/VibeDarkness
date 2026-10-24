@@ -29,24 +29,30 @@ The cleanups already asked for, plus what the investigation found about each.
 - Keep the Command Core **Bramble Patch** (`0706`): it only shares thorn helpers (`placeJitteredGroundThorns`) and comments.
 - Unit JSON loses the thornling fields. No migration, as agreed.
 
-### P0.2 Remove the `enemy_melee` placeholder
+### [x] P0.2 Remove the `enemy_melee` placeholder
 
 **Complexity:** Low
+
+**Done:** removed from `unitDef.ts`, `enemyConstants.ts`, `LevelEventManager`, `AssetRegistry` and the Bestiary. Huskling borrowed its sprite key, so it now has its own `huskling` key (still swordwoman art). Tests and scenarios that used it as a stand-in now use `dog`. Ability `0002` stays until Huskling goes in P0.1.
 
 - `unitDef.ts` (union and def), `ENEMY_MELEE` in `enemyConstants.ts`, `LevelEventManager` spawn map, the `AssetRegistry` swordwoman branch, and the Bestiary row.
 - Ability `0002_EnemyMeleeAttack` is shared with Huskling, so it goes in the same pass as P0.1 unless another unit adopts it.
 - Delete `swordwoman.svg` only if nothing else still uses it.
 
-### P0.3 Slime cleanup and Bestiary entry
+### [x] P0.3 Slime cleanup and Bestiary entry
 
 **Complexity:** Low
+
+**Done:** `slimeRanged.ts` renamed to `slime.ts`, new `uiDescription`, stale docs updated, and a Slime entry added to the Bestiary.
 
 - The runtime id is already `slime` everywhere in code. What's left is naming: rename `game/units/dark_animals/slimeRanged.ts` to `slime.ts`, change the unit's `uiDescription` and any copy that reads as "ranged basic", and update stale `enemy_ranged` / ranged-basic mentions in `PLANS/*.md` and the skills.
 - Add a Bestiary entry: `slime`, ability `0001` (Slime Shot), faction Dark Creatures, icon `assets/characters/slime.svg`.
 
-### P0.4 Bestiary icons for Displacer Spirit and Displacer Clone
+### [x] P0.4 Bestiary icons for Displacer Spirit and Displacer Clone
 
 **Complexity:** Low
+
+**Done:** the Spirit's icon was added to the Bestiary, and the Clone picks it up through its `characterSpriteKey`.
 
 - `assets/characters/dark_animals/displacer_spirit.svg` already exists and the battle renderer uses it, but the Bestiary keeps its own `SPRITE_ICONS` map, and that map leaves it out. Add the Spirit there, and let the Clone resolve through its `characterSpriteKey`, or give it a tinted variant.
 - The root cause is that unit art is registered in two places. P1.1 removes that duplication so this can't happen again.

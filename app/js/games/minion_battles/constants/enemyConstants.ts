@@ -20,18 +20,7 @@ export function getEnemyHealthMultiplier(playerCount: number): number {
     return ENEMY_HEALTH_MULTIPLIER_BY_PLAYER_COUNT[playerCount] ?? 1;
 }
 
-/** Melee enemy: knows ability 0002 (Enemy Melee Attack). */
-export const ENEMY_MELEE: EnemySpawnDef = {
-    characterId: 'enemy_melee',
-    name: 'Melee Enemy',
-    position: { x: 0, y: 0 },
-    teamId: 'enemy',
-    abilities: ['0002'],
-    aiSettings: { minRange: 30, maxRange: 80 },
-    unitAITreeId: 'hunt',
-};
-
-export { SLIME } from '../game/units/dark_animals/slimeRanged';
+export { SLIME } from '../game/units/dark_animals/slime';
 
 /** Wolf: small fast enemy with DarkWolfBite (0003). Baseline hp/speed in unit defs. */
 export const ENEMY_DARK_WOLF: EnemySpawnDef = {

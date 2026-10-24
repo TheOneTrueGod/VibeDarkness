@@ -82,7 +82,7 @@ export const bloodShardSplintersScenario: ScenarioDefinition = {
         dummy.maxHp = START_HP;
 
         const host = createUnitFromSpawnConfig({
-            id: HOST_ID, characterId: 'enemy_melee', name: 'Bleeding Host',
+            id: HOST_ID, characterId: 'dog', name: 'Bleeding Host',
             x: HOST_POS.x, y: HOST_POS.y, teamId: 'enemy', ownerId: 'ai',
             hp: START_HP, unitAITreeId: 'static_test_no_ai',
         }, engine.eventBus);
