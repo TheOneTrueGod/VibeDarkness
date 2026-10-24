@@ -6,8 +6,8 @@ export const coreLightItem: ItemDef = {
     description: 'Channels ambient light into combat energy.',
     slots: ['core'],
     slotLayout: { weaponSlots: 1, utilitySlots: 1 },
-  // Light Blast (0801) replaces Throw Torch (0601) via Light Core research `replaceCard`.
-    cardsToAdd: ['0101', '0120', '0115'],
+    // Light Blast (0801) is granted separately by Light Core research; Throw Torch stays.
+    cardsToAdd: ['0101', '0120', '0115', '0601'],
     resourcesToAdd: ['light'],
     icon: '017_core_light.svg',
 };

@@ -150,8 +150,14 @@ export function hasUnmetResearchRequirements(entries: ResearchRequirementEntry[]
     return entries.some((entry) => !entry.satisfied);
 }
 
-function sortResearchGridEntries(entries: ResearchGridEntry[]): ResearchGridEntry[] {
+const isEquipmentTree = (tree: ResearchTreeDef) => tree.tags?.includes('equipment') ?? false;
+
+function sortResearchGridEntries(entries: ResearchGridEntry[], equipmentLast = false): ResearchGridEntry[] {
     entries.sort((a, b) => {
+        if (equipmentLast) {
+            const byEquipment = Number(isEquipmentTree(a.tree)) - Number(isEquipmentTree(b.tree));
+            if (byEquipment !== 0) return byEquipment;
+        }
         const byTier = compareResearchNodesByTier(a.node, b.node);
         if (byTier !== 0) return byTier;
         return a.tree.title.localeCompare(b.tree.title);
@@ -186,6 +192,7 @@ export function researchGridEntryKey(entry: ResearchGridEntry): string {
 /**
  * Unowned nodes whose prereqs and non-cost requirements are met.
  * Already-purchased nodes (including multi-level) stay in possessed, not here.
+ * Equipment-tagged trees (Weapons) sort after all others.
  */
 export function collectEligibleResearchGridEntries(
     availableTrees: ResearchTreeDef[],
@@ -219,7 +226,7 @@ export function collectEligibleResearchGridEntries(
             entries.push({ tree, node });
         }
     }
-    return sortResearchGridEntries(entries);
+    return sortResearchGridEntries(entries, true);
 }
 
 export function excludeResearchGridEntries(

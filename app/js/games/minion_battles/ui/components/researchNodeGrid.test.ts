@@ -327,6 +327,26 @@ describe('collectEligibleResearchGridEntries', () => {
         expect(ids).not.toContain(TRAINING_NODE_STRONG_PUNCH);
         expect(ids).not.toContain(TRAINING_NODE_DOUBLE_PUNCH);
     });
+
+    it('sorts equipment-tagged trees (Weapons) after all others, even at a lower tier', () => {
+        const node = (id: string, tier: number): ResearchNodeDef => ({
+            id,
+            title: id,
+            description: '',
+            order: 0,
+            tier,
+            position: { x: 0, y: 0 },
+            prereqNodeIds: [],
+            exclusiveWithNodeIds: [],
+            requirements: [],
+            cost: {},
+            effects: [],
+        });
+        const plain = { ...trainingTree, id: 'plain', title: 'Plain', tags: [], nodes: [node('plain_high', 15)] };
+        const gear = { ...weaponsTree, id: 'gear', title: 'Gear', nodes: [node('gear_low', 1)] };
+        const ids = collectEligibleResearchGridEntries([gear, plain], null, makeCtx({})).map((e) => e.node.id);
+        expect(ids).toEqual(['plain_high', 'gear_low']);
+    });
 });
 
 describe('excludeResearchGridEntries', () => {

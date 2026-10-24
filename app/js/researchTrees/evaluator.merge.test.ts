@@ -31,11 +31,11 @@ describe('mergeBattleEquipmentIdsFromResearch', () => {
 });
 
 describe('getRemovedCardsFromResearch', () => {
-    it('Light Core research removes Throw Torch (0601)', () => {
+    it('Light Core research keeps Throw Torch (0601) alongside Light Blast', () => {
         const removed = getRemovedCardsFromResearch({
             [LIGHT_TREE_ID]: [LIGHT_NODE_CORE],
         });
-        expect(removed.has('0601')).toBe(true);
+        expect(removed.has('0601')).toBe(false);
     });
 });
 

@@ -116,12 +116,11 @@ export const lightTree: ResearchTreeDef = {
             },
             effects: [
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.BasicCore, toItemId: CORE_ITEM_IDS.LightCore },
-                { type: 'removeCard', cardId: '0601' },
                 { type: 'addCard', cardId: LIGHT_BLAST_ABILITY_ID },
                 { type: 'addCard', cardId: GATHER_LIGHT_ABILITY_ID },
                 { type: 'grantMissionStartResource', resourceId: 'light', amount: LIGHT_CORE_MISSION_START_AMOUNT },
             ],
-            modifiesAbility: { from: '0601', to: LIGHT_BLAST_ABILITY_ID },
+            modifiesAbility: { from: LIGHT_BLAST_ABILITY_ID, to: LIGHT_BLAST_ABILITY_ID },
         },
         {
             id: LIGHT_NODE_IMBUEMENT,
