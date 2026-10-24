@@ -42,7 +42,6 @@ const ROCKS_PATH = {
     dark_awakening_weapon: 'rocks',
     towards_the_light_cave_choice: 'weapon_011',
     cave_respite_punch_choice: TRAINING_NODE_STRONG_PUNCH,
-    cave_respite_research_choice: 'more_rock',
 };
 
 describe('chapter skip - Chapter I', () => {
@@ -56,7 +55,6 @@ describe('chapter skip - Chapter I', () => {
             'dark_awakening:dark_awakening_weapon',
             'towards_the_light:towards_the_light_cave_choice',
             'cave_respite:cave_respite_punch_choice',
-            'cave_respite:cave_respite_research_choice',
             'core_awakening:core_awakening_reward',
         ]);
     });
