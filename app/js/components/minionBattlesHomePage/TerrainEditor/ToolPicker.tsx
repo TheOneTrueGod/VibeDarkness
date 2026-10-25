@@ -8,6 +8,9 @@ interface ToolPickerProps {
 
 const tools: { id: EditorTool; icon: string; label: string }[] = [
     { id: 'terrain_paint', icon: '▪', label: 'Paint' },
+    { id: 'fill', icon: '■', label: 'Fill' },
+    { id: 'road', icon: '╱', label: 'Road' },
+    { id: 'curve', icon: '∿', label: 'Curved Road' },
     { id: 'poi', icon: '◉', label: 'POI' },
     { id: 'zone', icon: '▭', label: 'Zone' },
 ];

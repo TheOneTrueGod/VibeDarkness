@@ -11,9 +11,15 @@ import {
     ZONE_BORDER_ALPHA,
     ZONE_SELECTED_BORDER_COLOR,
 } from './terrainEditorColors';
-import { EditorState, EditorActions } from './useEditorState';
+import { EditorState, EditorActions, TERRAIN_TOOLS } from './useEditorState';
 import { MapSegmentPOI, MapSegmentZone } from '../../../games/minion_battles/terrain/segmentSchema';
 import { TerrainType } from '../../../games/minion_battles/terrain/TerrainType';
+import {
+    bezierRoadCells,
+    rectCells,
+    roadCells,
+    type GridCell,
+} from '../../../games/minion_battles/terrain/mapTools';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -86,6 +92,17 @@ function normalizeCorners(
     };
 }
 
+/**
+ * Quadratic bezier control point that makes the curve pass through `through` at its midpoint,
+ * so the curved-road tool bends the road to follow the mouse.
+ */
+function controlPointThrough(from: GridCell, to: GridCell, through: GridCell): GridCell {
+    return {
+        col: 2 * through.col - (from.col + to.col) / 2,
+        row: 2 * through.row - (from.row + to.row) / 2,
+    };
+}
+
 /** Draws a zone's box/circle overlay (or a live drag preview when `isPreview` is set). */
 function drawZone(
     ctx: CanvasRenderingContext2D,
@@ -128,6 +145,36 @@ export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
     const isMouseDown = useRef(false);
     const [dragStart, setDragStart] = useState<{ col: number; row: number } | null>(null);
     const [dragCurrent, setDragCurrent] = useState<{ col: number; row: number } | null>(null);
+    /** Curved-road ends placed by the first drag; the next click sets the bend and paints. */
+    const [pendingCurve, setPendingCurve] = useState<{ from: GridCell; to: GridCell } | null>(null);
+
+    useEffect(() => {
+        setPendingCurve(null);
+    }, [state.activeTool, state.segmentId]);
+
+    useEffect(() => {
+        if (!pendingCurve) return;
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setPendingCurve(null);
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [pendingCurve]);
+
+    /** Cells the fill / road / curve tool would paint right now (empty when idle). */
+    const getToolPreviewCells = useCallback((): GridCell[] => {
+        const tool = state.activeTool;
+        if (tool === 'curve' && pendingCurve) {
+            const through = state.hoveredCell;
+            if (!through) return roadCells(pendingCurve.from, pendingCurve.to, state.brushSize);
+            const control = controlPointThrough(pendingCurve.from, pendingCurve.to, through);
+            return bezierRoadCells([pendingCurve.from, control, pendingCurve.to], state.brushSize);
+        }
+        if (!dragStart || !dragCurrent) return [];
+        if (tool === 'fill') return rectCells(dragStart, dragCurrent);
+        if (tool === 'road' || tool === 'curve') return roadCells(dragStart, dragCurrent, state.brushSize);
+        return [];
+    }, [state.activeTool, state.hoveredCell, state.brushSize, pendingCurve, dragStart, dragCurrent]);
 
     // -----------------------------------------------------------------------
     // Rendering
@@ -169,12 +216,26 @@ export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
         }
         ctx.stroke();
 
-        // 3. Hover highlight
-        if (state.hoveredCell && state.activeTool === 'terrain_paint') {
+        // 3. Tool preview (fill / road / curve), else hover highlight
+        const previewCells = getToolPreviewCells();
+        if (previewCells.length > 0) {
+            ctx.fillStyle = TERRAIN_COLORS[state.selectedTerrainType] ?? '#fff';
+            ctx.globalAlpha = 0.75;
+            for (const { col, row } of previewCells) {
+                if (col < 0 || col >= width || row < 0 || row >= height) continue;
+                ctx.fillRect(col * S, row * S, S, S);
+            }
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = `rgba(255,255,255,${HOVER_OVERLAY_ALPHA})`;
+            for (const { col, row } of previewCells) {
+                if (col < 0 || col >= width || row < 0 || row >= height) continue;
+                ctx.fillRect(col * S, row * S, S, S);
+            }
+        } else if (state.hoveredCell && TERRAIN_TOOLS.includes(state.activeTool)) {
             const brushCells = getBrushCells(
                 state.hoveredCell.col,
                 state.hoveredCell.row,
-                state.brushSize,
+                state.activeTool === 'fill' ? 1 : state.brushSize,
                 width,
                 height,
             );
@@ -270,7 +331,7 @@ export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
             const { topLeft, bottomRight } = normalizeCorners(dragStart, dragCurrent);
             drawZone(ctx, { shape: state.activeZoneShape, topLeft, bottomRight }, S, false, true);
         }
-    }, [state, dragStart, dragCurrent]);
+    }, [state, dragStart, dragCurrent, getToolPreviewCells]);
 
     // -----------------------------------------------------------------------
     // Mouse helpers
@@ -321,11 +382,11 @@ export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
                 actions.paintCells(brushCells);
             }
 
-            if (isMouseDown.current && state.activeTool === 'zone' && cell) {
+            if (isMouseDown.current && dragStart && cell) {
                 setDragCurrent(cell);
             }
         },
-        [getCellFromEvent, actions, state.activeTool, state.brushSize, state.segmentData],
+        [getCellFromEvent, actions, state.activeTool, state.brushSize, state.segmentData, dragStart],
     );
 
     const handleMouseDown = useCallback(
@@ -347,7 +408,20 @@ export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
                 return;
             }
 
-            if (state.activeTool === 'zone') {
+            if (state.activeTool === 'curve' && pendingCurve) {
+                const control = controlPointThrough(pendingCurve.from, pendingCurve.to, cell);
+                actions.paintCells(bezierRoadCells([pendingCurve.from, control, pendingCurve.to], state.brushSize));
+                setPendingCurve(null);
+                isMouseDown.current = false;
+                return;
+            }
+
+            if (
+                state.activeTool === 'zone' ||
+                state.activeTool === 'fill' ||
+                state.activeTool === 'road' ||
+                state.activeTool === 'curve'
+            ) {
                 setDragStart(cell);
                 setDragCurrent(cell);
                 return;
@@ -384,19 +458,26 @@ export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
                 }
             }
         },
-        [getCellFromEvent, actions, state.activeTool, state.brushSize, state.segmentData],
+        [getCellFromEvent, actions, state.activeTool, state.brushSize, state.segmentData, pendingCurve],
     );
 
     const handleMouseUp = useCallback(() => {
         isMouseDown.current = false;
 
-        if (state.activeTool === 'zone' && dragStart && dragCurrent) {
-            const { topLeft, bottomRight } = normalizeCorners(dragStart, dragCurrent);
-            actions.addZone({ shape: state.activeZoneShape, topLeft, bottomRight });
+        if (dragStart && dragCurrent) {
+            if (state.activeTool === 'zone') {
+                const { topLeft, bottomRight } = normalizeCorners(dragStart, dragCurrent);
+                actions.addZone({ shape: state.activeZoneShape, topLeft, bottomRight });
+            } else if (state.activeTool === 'fill' || state.activeTool === 'road') {
+                actions.paintCells(getToolPreviewCells());
+            } else if (state.activeTool === 'curve') {
+                const sameCell = dragStart.col === dragCurrent.col && dragStart.row === dragCurrent.row;
+                if (!sameCell) setPendingCurve({ from: dragStart, to: dragCurrent });
+            }
         }
         setDragStart(null);
         setDragCurrent(null);
-    }, [state.activeTool, state.activeZoneShape, dragStart, dragCurrent, actions]);
+    }, [state.activeTool, state.activeZoneShape, dragStart, dragCurrent, actions, getToolPreviewCells]);
 
     const handleMouseLeave = useCallback(() => {
         isMouseDown.current = false;

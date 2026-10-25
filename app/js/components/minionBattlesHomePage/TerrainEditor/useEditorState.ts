@@ -11,7 +11,11 @@ import {
 // State
 // ---------------------------------------------------------------------------
 
-export type EditorTool = 'terrain_paint' | 'poi' | 'zone';
+/** `fill`, `road` and `curve` wrap the shared map tools in `terrain/mapTools/`. */
+export type EditorTool = 'terrain_paint' | 'fill' | 'road' | 'curve' | 'poi' | 'zone';
+
+/** Tools that paint the selected terrain type. */
+export const TERRAIN_TOOLS: readonly EditorTool[] = ['terrain_paint', 'fill', 'road', 'curve'];
 
 export interface EditorState {
     segmentId: string | null;

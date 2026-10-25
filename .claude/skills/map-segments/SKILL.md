@@ -101,4 +101,4 @@ Outdoor / WoD cave tone often sets `lightLevelEnabled` and `globalLightLevel` on
 
 ## Referenced by
 
-The **missions** skill points here for terrain composition.
+The **missions** skill points here for terrain composition. For *what* to paint in a segment (layout, lights, network nodes), see **map-design**.

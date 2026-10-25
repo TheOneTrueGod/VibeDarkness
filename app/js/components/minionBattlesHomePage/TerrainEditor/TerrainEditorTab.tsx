@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useEditorState } from './useEditorState';
+import { TERRAIN_TOOLS, useEditorState, type EditorTool } from './useEditorState';
 import SegmentSelector from './SegmentSelector';
 import TerrainCanvas from './TerrainCanvas';
 import ToolPicker from './ToolPicker';
@@ -16,6 +16,13 @@ import { TerrainType } from '../../../games/minion_battles/terrain/TerrainType';
 import PanelLayout from '../PanelLayout';
 
 type RightTab = 'poi' | 'zone';
+
+/** How-to line under the pickers for terrain tools that are not a plain brush. */
+const TERRAIN_TOOL_HINTS: Partial<Record<EditorTool, string>> = {
+    fill: 'Drag a rectangle to fill it.',
+    road: 'Drag from start to end. Brush size sets road width.',
+    curve: 'Drag from start to end, then move to bend the road and click to place it. Brush size sets road width.',
+};
 type CreateDir = 'north' | 'south' | 'east' | 'west';
 
 const PREVIEW_DEPTH = 2;
@@ -221,16 +228,21 @@ export default function TerrainEditorTab() {
                             activeTool={state.activeTool}
                             onSelect={actions.setTool}
                         />
-                        {state.activeTool === 'terrain_paint' && (
+                        {TERRAIN_TOOLS.includes(state.activeTool) && (
                             <>
                                 <TerrainTypePicker
                                     selectedType={state.selectedTerrainType}
                                     onSelect={actions.setTerrainType}
                                 />
-                                <BrushSizePicker
-                                    brushSize={state.brushSize}
-                                    onChange={actions.setBrushSize}
-                                />
+                                {state.activeTool !== 'fill' && (
+                                    <BrushSizePicker
+                                        brushSize={state.brushSize}
+                                        onChange={actions.setBrushSize}
+                                    />
+                                )}
+                                {TERRAIN_TOOL_HINTS[state.activeTool] && (
+                                    <p className="text-xs text-muted">{TERRAIN_TOOL_HINTS[state.activeTool]}</p>
+                                )}
                             </>
                         )}
                         {state.activeTool === 'zone' && (

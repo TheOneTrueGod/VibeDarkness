@@ -12,7 +12,7 @@ The Terrain Editor is an admin-only, canvas-based tool for visually authoring ma
 | `TerrainCanvas.tsx` | HTML Canvas 2D grid renderer and paint tool; handles mouse events for painting and POI placement. |
 | `useEditorState.ts` | Central editor state hook — defines the `EditorState` interface and all reducers/actions. |
 | `terrainEditorColors.ts` | Color and icon constants for each `TerrainType` value and each `POIType` value. |
-| `ToolPicker.tsx` | Toggle between `terrain_paint` and `poi` tools. |
+| `ToolPicker.tsx` | Toggle between tools: paint, fill, road, curved road, POI, zone. |
 | `TerrainTypePicker.tsx` | Selector for the active terrain type (dirt / grass / thick grass / rock). |
 | `BrushSizePicker.tsx` | Selector for brush radius (1, 2, or 3 cells). |
 | `POIEditor.tsx` | Sidebar panel for adding, editing, and deleting POIs on the current segment. |
@@ -24,6 +24,14 @@ The Terrain Editor is an admin-only, canvas-based tool for visually authoring ma
 2. **Load.** `SegmentSelector` populates from both the registry and the API (`GET /api/terrain-segments`). Selecting a segment sets `EditorState.segmentData`.
 3. **Edit.** `TerrainCanvas` reads `EditorState.segmentData` on every render. Mouse events dispatch reducers in `useEditorState` to update `segmentData` in place.
 4. **Save.** The save action calls `PUT /api/terrain-segments/:id`, which writes `storage/terrain-segments/{id}.json` on the server. After a successful save the in-memory state is considered clean.
+
+## Map tools
+
+Fill, Road and Curved Road wrap the shared, deterministic map tools in `app/js/games/minion_battles/terrain/mapTools/` (the same code agents use; see the **map-design** skill). `TerrainCanvas` only gathers points and previews; the tools compute the cells, and `paintCells` applies them with the selected terrain type. Add new shape tools to `mapTools/` first, then wire them here.
+
+- **Fill:** drag a rectangle.
+- **Road:** drag start → end; brush size is the road width.
+- **Curved Road:** drag start → end, then move the mouse to bend the road (the curve passes through the cursor) and click to paint. Escape cancels.
 
 ## Schema
 
