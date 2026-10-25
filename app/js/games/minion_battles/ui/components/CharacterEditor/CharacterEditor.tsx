@@ -3,26 +3,17 @@
  * Portrait with prev/next on the same row as the name; tabs (Equipment / Upgrades).
  * Equipment sidebar: paper doll or horizontal equipped-items list; inventory grid; drag to equip.
  */
-import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { createPortal } from 'react-dom';
-import { Check, ChevronRight, Lock, Pencil, X } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { getPortraitIdsForPlayer, getPortrait } from '../../../character_defs/portraits';
-import {
-    getItemDef,
-    getEquippedForSlot,
-    setEquipmentInSlot,
-    ITEM_ICON_URLS,
-    type EquipmentSlotType,
-} from '../../../character_defs/items';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
 import type { MinionBattlesApi } from '../../../api/minionBattlesApi';
 import type { CharacterUpdates } from '../../../api/types';
 import CharacterPortrait from '../CharacterPortrait';
 import InventoryPanel from './InventoryPanel';
-import { ResearchTreeList, ResearchTreeContent, ResearchedNodesGrid } from '../ResearchTreePanel';
-import type { AccountState, CampaignResourceKey, CampaignResources, CampaignState } from '../../../../../types';
+import { ResearchTreeList } from '../ResearchTreePanel';
+import type { AccountState, CampaignResourceKey, CampaignState } from '../../../../../types';
 import { TestIds } from '../../../../../testing/testIds';
-import { getCoreFromEquipment } from '../../../character_defs/items';
 import {
     buildEquipmentUpdate as buildQuestAwareEquipmentUpdate,
     getInventoryItemIds,
@@ -31,65 +22,33 @@ import {
     isEquipmentLockedByQuest,
     type VisibleEquipmentSlot,
 } from '../../../character_defs/items/equipmentSlots';
-import { RESEARCH_TREES } from '../../../../../researchTrees/list';
 import {
     getActiveResearchNodeLevels,
     getActiveResearchTrees,
 } from '../../../../../researchTrees/activeResearch';
-import { buildAccessibleAbilityIds } from '../../../storylines/questPrepLoadout';
 import {
-    isPlayerVisibleResearchTree,
-    sortResearchTreesByPlayerAbilities,
-} from '../../../../../researchTrees/treeAbilities';
-import {
-    canAdminGrantResearchNode,
-    canResearchNode,
-    applyResearchEffects,
-    sortNodesDeterministic,
-    prereqClosure,
-    treeHasAnyResearch,
-} from '../../../../../researchTrees/evaluator';
-import { getNodeMaxLevels } from '../../../../../researchTrees/passiveBonuses';
-import { stripResearchBySource } from '../../../../../researchTrees/researchSources';
-import {
-    canInteractWithDarknessUpgradeTree,
-    DARKNESS_UPGRADES_TREE_ID,
-    grantDarknessUpgradeNode,
-    isDarknessUpgradeTree,
     mergeDarknessUpgradesIntoResearchView,
-    revokeDarknessUpgradeNode,
 } from '../../../../../researchTrees/darknessUpgrades';
 import { EMPTY_DARKNESS_UPGRADES, type DarknessUpgradesState } from '../../../../../types';
-import { ResearchSource, type ResearchNodeSources } from '../../../../../researchTrees/types';
-import {
-    RESET_ADMIN_RESEARCH_CONFIRM,
-    RESET_PURCHASED_RESEARCH_CONFIRM,
-    RESEARCH_CLICK_ADMIN,
-    RESEARCH_CLICK_PURCHASE,
-    canResearchOptionsForClick,
-    researchSourceForClick,
-} from '../researchNodeGrid';
-import ResourcePill, { RESOURCE_ORDER } from '../../../../../components/ResourcePill';
+import { type ResearchNodeSources } from '../../../../../researchTrees/types';
 import {
     getCharacterHungerDelta,
     getCharacterMaxHunger,
     hungerFromDelta,
 } from '../../../character_defs/characterHunger';
 import { CHARACTER_EDITOR_PORTRAIT_SIZE_PX, CharacterHungerBar } from './CharacterHungerBar';
-import {
-    RESET_CAMPAIGN_RESOURCES_CONFIRM,
-    RESET_CAMPAIGN_RESOURCES_LABEL,
-} from '../../../../../campaignResources';
-import { getShowAllResearchTrees, subscribeShowAllResearchTrees } from '../../../../../debugFlags';
+import { RESET_CAMPAIGN_RESOURCES_CONFIRM } from '../../../../../campaignResources';
 import MissionMapTab from './MissionMapTab';
-import ChapterSkipWizard from './ChapterSkipWizard';
-import {
-    stripChapterResearchRewards,
-    type ChapterSkipCharacterState,
-    type ChapterSkipContext,
-    type ChapterSkipPlan,
-} from '../../../storylines/chapterSkip';
-import type { CampaignChapterDef } from '../../../storylines/types';
+import CharacterNameSection, { MAX_CHARACTER_NAME_LENGTH } from './CharacterNameSection';
+import CharacterResearchPanel from './CharacterResearchPanel';
+import EquipmentDoll from './EquipmentDoll';
+import EquippedItemsList from './EquippedItemsList';
+import { useResearchActions } from './useResearchActions';
+import { useCharacterQuestActions } from './useCharacterQuestActions';
+import { useResearchTreeView } from './useResearchTreeView';
+import { useEquipmentDragDrop } from './useEquipmentDragDrop';
+import { useChapterSkip } from './useChapterSkip';
+import CharacterEditorTabBar from './CharacterEditorTabBar';
 import StatBonusesTab from './StatBonusesTab';
 import { PortraitCycleButtons } from './PortraitCycleButtons';
 import { characterHasResearch, shouldShowUpgradesTab } from '../../../../../components/CampaignHomeScreen/CharactersTab/Upgrades/Upgrades';
@@ -109,33 +68,6 @@ import {
     CHARACTER_EDITOR_LEFT_WIDTH_CLASS,
 } from '../characters/CharacterListPullout';
 import type { StartQuestOptions } from '../../../storylines/questLobby';
-import { abandonQuestRun } from '../../../storylines/questRun';
-import type { QuestResult } from '../../../storylines/questTypes';
-import { getQuestDef, isQuestDisabled } from '../../../storylines/index';
-
-function undoReplaceEquippedItemsForRemovedNodes(
-    equipment: string[],
-    removedNodeIdsByTree: Record<string, string[]>,
-): string[] {
-    let nextEquipment = [...equipment];
-    for (const [treeId, nodeIds] of Object.entries(removedNodeIdsByTree)) {
-        const tree = RESEARCH_TREES.find((t) => t.id === treeId);
-        if (!tree) continue;
-        const researchedSet = new Set(nodeIds);
-        const researchedNodes = tree.nodes.filter((n) => researchedSet.has(n.id));
-        const ordered = sortNodesDeterministic(researchedNodes);
-        for (const node of [...ordered].reverse()) {
-            for (const eff of node.effects) {
-                if (eff.type !== 'replaceEquippedItem') continue;
-                if (nextEquipment.includes(eff.toItemId)) {
-                    nextEquipment = nextEquipment.filter((id) => id !== eff.toItemId);
-                    if (!nextEquipment.includes(eff.fromItemId)) nextEquipment.push(eff.fromItemId);
-                }
-            }
-        }
-    }
-    return nextEquipment;
-}
 
 interface CharacterEditorProps {
     character: CampaignCharacter;
@@ -182,7 +114,6 @@ interface CharacterEditorProps {
 }
 
 type EditorTab = CharacterEditorTab;
-const MAX_CHARACTER_NAME_LENGTH = 15;
 
 /** Slot descriptor for the doll: type and optional index for weapon/utility. */
 export type SlotDescriptor = VisibleEquipmentSlot;
@@ -240,8 +171,6 @@ export default function CharacterEditor({
         else setLocalTab(next);
     }, [useRoutedInnerTabs, setRoutedInnerTab]);
     const [saving, setSaving] = useState(false);
-    const [dragItemId, setDragItemId] = useState<string | null>(null);
-    const [dragSlot, setDragSlot] = useState<EquipmentSlotType | null>(null);
     const [researchTrees, setResearchTrees] = useState<Record<string, string[]>>(() => character.researchTrees ?? {});
     const [researchNodeLevels, setResearchNodeLevels] = useState<Record<string, Record<string, number>>>(
         () => character.researchNodeLevels ?? {},
@@ -308,12 +237,6 @@ export default function CharacterEditor({
         [equipment, account?.knowledge],
     );
 
-    const showAllResearchTreesDebug = useSyncExternalStore(
-        subscribeShowAllResearchTrees,
-        getShowAllResearchTrees,
-        getShowAllResearchTrees,
-    );
-
     useEffect(() => {
         setEquipment([...character.equipment]);
         setResearchTrees(character.researchTrees ?? {});
@@ -327,79 +250,21 @@ export default function CharacterEditor({
         setIsEditingName(false);
     }, [character.name, character.id]);
 
-    /** Trees the character is allowed to see (gating), used for normal list and for dimming in debug “show all”. */
-    const eligibleResearchTrees = useMemo(() => {
-        const ctx = {
-            account: (account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 }) as AccountState,
-            character: {
-                ...character,
-                equipment,
-                researchTrees: activeResearchTrees,
-                researchNodeLevels: activeResearchNodeLevels,
-                researchSources,
-            } as CampaignCharacter,
-            campaignResources: (resolvedCampaign?.resources ?? {}) as CampaignResources,
-        };
-        return RESEARCH_TREES.filter((t) => {
-            const any = treeHasAnyResearch(ctx.character, t.id);
-            if (any) return true;
-            return t.accessRequirements.every((req) => {
-                if (req.type === 'accountKnowledge') return !!ctx.account.knowledge?.[req.key];
-                if (req.type === 'campaignResourceMin') return (ctx.campaignResources[req.resource] ?? 0) >= req.min;
-                if (req.type === 'characterHasEquippedItem') return ctx.character.equipment.includes(req.itemId);
-                if (req.type === 'characterHasCore') return getCoreFromEquipment(ctx.character.equipment) !== null;
-                if (req.type === 'characterHasTrait') return ctx.character.traits.includes(req.trait);
-                if (req.type === 'notResearched') {
-                    const set = new Set(ctx.character.researchTrees?.[req.treeId] ?? []);
-                    return !set.has(req.nodeId);
-                }
-                return false;
-            });
-        });
-    }, [account, character, equipment, activeResearchTrees, activeResearchNodeLevels, researchSources, resolvedCampaign?.resources]);
-
-    const playerAbilityIds = useMemo(
-        () => new Set(buildAccessibleAbilityIds(equipment, researchTrees)),
-        [equipment, researchTrees],
-    );
-
-    const playerVisibleResearchTrees = useMemo(
-        () =>
-            eligibleResearchTrees.filter((tree) =>
-                isPlayerVisibleResearchTree(tree, activeResearchTrees, playerAbilityIds, equipment),
-            ),
-        [eligibleResearchTrees, playerAbilityIds, activeResearchTrees, equipment],
-    );
-
-    const displayResearchTrees = useMemo(() => {
-        const showAll = isAdmin || showAllResearchTreesDebug;
-        const base = showAll ? RESEARCH_TREES : playerVisibleResearchTrees;
-        // Darkness Upgrades is admin-only: never listed for non-admins (even with the debug "show all" flag).
-        const allowed = base.filter(
-            (t) => !isDarknessUpgradeTree(t.id) || canInteractWithDarknessUpgradeTree(isAdmin),
-        );
-        return sortResearchTreesByPlayerAbilities(allowed, playerAbilityIds);
-    }, [isAdmin, playerAbilityIds, playerVisibleResearchTrees, showAllResearchTreesDebug]);
-
-    const dimmedResearchTreeIds = useMemo(() => {
-        const showAll = isAdmin || showAllResearchTreesDebug;
-        if (!showAll) return new Set<string>();
-        const visibleIds = new Set(playerVisibleResearchTrees.map((t) => t.id));
-        return new Set(
-            RESEARCH_TREES.filter((t) => !visibleIds.has(t.id) && !isDarknessUpgradeTree(t.id)).map((t) => t.id),
-        );
-    }, [isAdmin, playerVisibleResearchTrees, showAllResearchTreesDebug]);
-
-    useEffect(() => {
-        // In grid view null means "All trees" — don't force a selection.
-        if (permissionAccount?.role !== 'admin' || adminUseGridView) return;
-        const firstId = displayResearchTrees[0]?.id ?? null;
-        const isSelectedStillAvailable =
-            selectedTreeId != null && displayResearchTrees.some((t) => t.id === selectedTreeId);
-        if (!isSelectedStillAvailable) {
-            setSelectedTreeId(firstId);
-        }
-    }, [displayResearchTrees, selectedTreeId, permissionAccount?.role, adminUseGridView]);
+    const { displayResearchTrees, dimmedResearchTreeIds } = useResearchTreeView({
+        account,
+        character,
+        equipment,
+        researchTrees,
+        activeResearchTrees,
+        activeResearchNodeLevels,
+        researchSources,
+        resolvedCampaign,
+        isAdmin,
+        permissionAccount,
+        adminUseGridView,
+        selectedTreeId,
+        setSelectedTreeId,
+    });
 
     useEffect(() => {
         if (campaign) {
@@ -554,480 +419,58 @@ export default function CharacterEditor({
         }
     }, [api, permissionAccount?.role, resolvedCampaign?.id]);
 
-    const handleResetResearch = useCallback(
-        async (treeIdsInput: string[]) => {
-            let treeIds = treeIdsInput;
-            if (permissionAccount?.role !== 'admin') return;
-            if (!treeIds.length) return;
-            const treeLabels = treeIds
-                .map((id) => RESEARCH_TREES.find((t) => t.id === id)?.title ?? id)
-                .join(', ');
-            const confirmMsg =
-                treeIds.length === 1
-                    ? `Reset all research in “${treeLabels}”?`
-                    : `Reset all research in these trees: ${treeLabels}?`;
-            if (!window.confirm(confirmMsg)) return;
+    const { handleResetResearch, handleResetResearchBySource, handleResearchNode } = useResearchActions({
+        character,
+        api,
+        account,
+        campaign,
+        resolvedCampaign,
+        permissionAccount,
+        isAdmin,
+        equipment,
+        researchTrees,
+        researchNodeLevels,
+        researchSources,
+        activeResearchTrees,
+        activeResearchNodeLevels,
+        viewResearch,
+        darknessUpgrades,
+        name,
+        selectedPortraitId,
+        onSaved,
+        buildEquipmentUpdate,
+        setSaving,
+        setDarknessUpgrades,
+        setLocalCampaign,
+        setResearchTrees,
+        setResearchNodeLevels,
+        setResearchSources,
+        setEquipment,
+    });
 
-            setSaving(true);
-            try {
-                if (treeIds.some(isDarknessUpgradeTree)) {
-                    const cid = resolvedCampaign?.id;
-                    if (cid) {
-                        let next = darknessUpgrades;
-                        for (const nodeId of darknessUpgrades.researchTrees[DARKNESS_UPGRADES_TREE_ID] ?? []) {
-                            next = revokeDarknessUpgradeNode(next, nodeId);
-                        }
-                        const updatedCampaign = await api.updateCampaignDarknessUpgrades(cid, next);
-                        setDarknessUpgrades(updatedCampaign.darknessUpgrades ?? next);
-                        if (!campaign) setLocalCampaign(updatedCampaign);
-                    }
-                    treeIds = treeIds.filter((id) => !isDarknessUpgradeTree(id));
-                    if (treeIds.length === 0) return;
-                }
-                const nextResearchTrees: Record<string, string[]> = { ...researchTrees };
-                const nextResearchNodeLevels: Record<string, Record<string, number>> = {
-                    ...researchNodeLevels,
-                };
-                const nextResearchSources: ResearchNodeSources = { ...researchSources };
-                const removedNodeIdsByTree: Record<string, string[]> = {};
-
-                for (const treeId of treeIds) {
-                    const tree = RESEARCH_TREES.find((t) => t.id === treeId);
-                    if (!tree) continue;
-                    removedNodeIdsByTree[treeId] = [...(researchTrees[treeId] ?? [])];
-                    nextResearchTrees[treeId] = [];
-                    delete nextResearchNodeLevels[treeId];
-                    delete nextResearchSources[treeId];
-                }
-
-                const nextEquipment = undoReplaceEquippedItemsForRemovedNodes(equipment, removedNodeIdsByTree);
-
-                const updatedChar = await api.updateCharacter(character.id, {
-                    ...buildEquipmentUpdate(nextEquipment),
-                    researchTrees: nextResearchTrees,
-                    researchNodeLevels: nextResearchNodeLevels,
-                    researchSources: nextResearchSources,
-                });
-
-                setResearchTrees(updatedChar.researchTrees ?? nextResearchTrees);
-                setResearchNodeLevels(updatedChar.researchNodeLevels ?? nextResearchNodeLevels);
-                setResearchSources(updatedChar.researchSources ?? nextResearchSources);
-                setEquipment(updatedChar.equipment ?? nextEquipment);
-                onSaved?.({ equipment: updatedChar.equipment ?? nextEquipment, name, portraitId: selectedPortraitId });
-            } catch (e) {
-                console.error('Failed to reset research:', e);
-            } finally {
-                setSaving(false);
-            }
-        },
-        [character.id, buildEquipmentUpdate, equipment, api, name, permissionAccount?.role, researchTrees, researchNodeLevels, researchSources, selectedPortraitId, onSaved, resolvedCampaign?.id, campaign, darknessUpgrades]
-    );
-
-    const handleResetResearchBySource = useCallback(
-        async (source: ResearchSource) => {
-            if (source === ResearchSource.QuestReward) return;
-            if (source === ResearchSource.Admin && permissionAccount?.role !== 'admin') return;
-            const confirmMsg =
-                source === ResearchSource.Purchased
-                    ? RESET_PURCHASED_RESEARCH_CONFIRM
-                    : RESET_ADMIN_RESEARCH_CONFIRM;
-            if (!window.confirm(confirmMsg)) return;
-
-            setSaving(true);
-            try {
-                const stripped = stripResearchBySource(
-                    researchTrees,
-                    researchNodeLevels,
-                    researchSources,
-                    source,
-                );
-                const nextEquipment = undoReplaceEquippedItemsForRemovedNodes(
-                    equipment,
-                    stripped.removedNodeIdsByTree,
-                );
-                const updatedChar = await api.updateCharacter(character.id, {
-                    equipment: nextEquipment,
-                    researchTrees: stripped.researchTrees,
-                    researchNodeLevels: stripped.researchNodeLevels,
-                    researchSources: stripped.researchSources,
-                });
-                setResearchTrees(updatedChar.researchTrees ?? stripped.researchTrees);
-                setResearchNodeLevels(updatedChar.researchNodeLevels ?? stripped.researchNodeLevels);
-                setResearchSources(updatedChar.researchSources ?? stripped.researchSources);
-                setEquipment(updatedChar.equipment ?? nextEquipment);
-                onSaved?.({ equipment: updatedChar.equipment ?? nextEquipment, name, portraitId: selectedPortraitId });
-            } catch (e) {
-                console.error('Failed to reset research by source:', e);
-            } finally {
-                setSaving(false);
-            }
-        },
-        [
-            api,
-            character.id,
-            equipment,
-            name,
-            permissionAccount?.role,
-            researchNodeLevels,
-            researchSources,
-            researchTrees,
-            selectedPortraitId,
-            onSaved,
-        ],
-    );
-
-    const handleResearchNode = useCallback(
-        async (treeId: string, nodeId: string, asAdmin = false) => {
-            if (!resolvedCampaign?.resources) return;
-            const tree = RESEARCH_TREES.find((t) => t.id === treeId);
-            if (!tree) return;
-
-            // Darkness Upgrades: admin-only, stored on the campaign (not the character), no cost/prereqs.
-            if (isDarknessUpgradeTree(treeId)) {
-                if (!canInteractWithDarknessUpgradeTree(isAdmin) || !asAdmin) return;
-                const cid = resolvedCampaign.id;
-                if (!cid) return;
-                const adminCtx = {
-                    account: (account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 }) as AccountState,
-                    character: { ...character, equipment, ...viewResearch } as unknown as CampaignCharacter,
-                    campaignResources: resolvedCampaign.resources,
-                };
-                if (!canAdminGrantResearchNode(tree, nodeId, adminCtx).ok) return;
-                const next = grantDarknessUpgradeNode(darknessUpgrades, nodeId);
-                setSaving(true);
-                try {
-                    const updated = await api.updateCampaignDarknessUpgrades(cid, next);
-                    setDarknessUpgrades(updated.darknessUpgrades ?? next);
-                    if (!campaign) setLocalCampaign(updated);
-                } catch (e) {
-                    console.error('Failed to grant darkness upgrade:', e);
-                } finally {
-                    setSaving(false);
-                }
-                return;
-            }
-
-            const ctx = {
-                account: (account ?? { id: 0, name: '', role: 'user', fire: 0, water: 0, earth: 0, air: 0 }) as AccountState,
-                character: {
-                    ...character,
-                    equipment,
-                    researchTrees: activeResearchTrees,
-                    researchNodeLevels: activeResearchNodeLevels,
-                    researchSources,
-                } as CampaignCharacter,
-                campaignResources: resolvedCampaign.resources,
-            };
-
-            const action = isAdmin && asAdmin ? RESEARCH_CLICK_ADMIN : RESEARCH_CLICK_PURCHASE;
-            const check = action === RESEARCH_CLICK_ADMIN
-                ? canAdminGrantResearchNode(tree, nodeId, ctx)
-                : canResearchNode(tree, nodeId, ctx, canResearchOptionsForClick(action));
-            if (!check.ok) return;
-
-            const targetNode = tree.nodes.find((n) => n.id === nodeId);
-            const maxLevels = targetNode ? getNodeMaxLevels(targetNode) : 1;
-            // Active view: the virtual root counts as owned, so it is never researched/persisted.
-            const already = new Set(activeResearchTrees[treeId] ?? []);
-            // Player first unlock may auto-research prereqs. Admin Shift+click grants only this node.
-            const isLevelUp = already.has(nodeId);
-            const toDo = action === RESEARCH_CLICK_ADMIN || isLevelUp
-                ? [nodeId]
-                : prereqClosure(tree, nodeId).filter((id) => !already.has(id));
-            const source = researchSourceForClick(action);
-
-            setSaving(true);
-            try {
-                for (const nid of toDo) {
-                    const nodeDef = tree.nodes.find((n) => n.id === nid);
-                    const updated = await api.researchCharacterNode(character.id, {
-                        treeId,
-                        nodeId: nid,
-                        maxLevels: nodeDef ? getNodeMaxLevels(nodeDef) : maxLevels,
-                        source,
-                    });
-                    setResearchTrees(updated.researchTrees ?? {});
-                    setResearchNodeLevels(updated.researchNodeLevels ?? {});
-                    setResearchSources(updated.researchSources ?? {});
-                }
-                const latest = await api.getCharacter(character.id);
-                const latestTrees = latest.researchTrees ?? {};
-                const latestLevels = latest.researchNodeLevels ?? {};
-                const latestSources = latest.researchSources ?? {};
-                setResearchTrees(latestTrees);
-                setResearchNodeLevels(latestLevels);
-                setResearchSources(latestSources);
-                const ctx2 = {
-                    account: ctx.account,
-                    character: {
-                        ...character,
-                        equipment,
-                        researchTrees: latestTrees,
-                        researchNodeLevels: latestLevels,
-                        researchSources: latestSources,
-                    } as CampaignCharacter,
-                    campaignResources: resolvedCampaign.resources,
-                };
-                const applied = applyResearchEffects(tree, ctx2);
-                const newEquipment = applied.equipment;
-                if (JSON.stringify(newEquipment) !== JSON.stringify(equipment)) {
-                    const updatedChar = await api.updateCharacter(character.id, buildEquipmentUpdate(newEquipment));
-                    setEquipment(updatedChar.equipment ?? newEquipment);
-                    onSaved?.({ equipment: updatedChar.equipment ?? newEquipment, name, portraitId: selectedPortraitId });
-                }
-            } catch (e) {
-                console.error('Failed to research node:', e);
-            } finally {
-                setSaving(false);
-            }
-        },
-        [
-            account,
-            character,
-            equipment,
-            api,
-            isAdmin,
-            activeResearchTrees,
-            activeResearchNodeLevels,
-            researchSources,
-            resolvedCampaign?.resources,
-            resolvedCampaign?.id,
-            campaign,
-            darknessUpgrades,
-            viewResearch,
-            selectedPortraitId,
-            name,
-            onSaved,
-            buildEquipmentUpdate,
-        ],
-    );
-
-    const handleEquipToSlot = useCallback(
-        (slot: EquipmentSlotType, itemId: string, slotIndex?: number) => {
-            if (!effectiveEditMode) return;
-            const def = getItemDef(itemId);
-            if (!def?.slots.includes(slot)) return;
-            const newEquipment = setEquipmentInSlot(equipment, slot, itemId, slotIndex);
-            setEquipment(newEquipment);
-            saveEquipment(newEquipment);
-        },
-        [effectiveEditMode, equipment, saveEquipment]
-    );
-
-    const handleDragStartItem = useCallback((e: React.DragEvent, itemId: string) => {
-        setDragItemId(itemId);
-        e.dataTransfer.setData('text/plain', itemId);
-        e.dataTransfer.effectAllowed = 'copy';
-    }, []);
-
-    const handleDragStartSlot = useCallback(
-        (e: React.DragEvent, slot: EquipmentSlotType, slotIndex?: number) => {
-            const itemId = getEquippedForSlot(equipment, slot, slotIndex);
-            if (itemId) {
-                setDragSlot(slot);
-                const key = slotIndex !== undefined ? `${slot}:${slotIndex}` : slot;
-                e.dataTransfer.setData('text/plain', `slot:${key}:${itemId}`);
-                e.dataTransfer.effectAllowed = 'move';
-            }
-        },
-        [equipment]
-    );
-
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'copy';
-    }, []);
-
-    const handleDropOnSlot = useCallback(
-        (e: React.DragEvent, slot: EquipmentSlotType, slotIndex?: number) => {
-            e.preventDefault();
-            const raw = e.dataTransfer.getData('text/plain');
-            const itemId = raw.startsWith('slot:') ? raw.split(':').slice(-1)[0] : raw;
-            if (itemId) handleEquipToSlot(slot, itemId, slotIndex);
-            setDragItemId(null);
-            setDragSlot(null);
-        },
-        [handleEquipToSlot]
-    );
-
-    const handleDragEnd = useCallback(() => {
-        setDragItemId(null);
-        setDragSlot(null);
-    }, []);
+    const {
+        dragItemId,
+        dragSlot,
+        handleDragStartItem,
+        handleDragStartSlot,
+        handleDragOver,
+        handleDropOnSlot,
+        handleDragEnd,
+    } = useEquipmentDragDrop({ equipment, effectiveEditMode, setEquipment, saveEquipment });
 
     const useGridView = !isAdmin || adminUseGridView;
 
-    const handleMarkVictory = useCallback(async (missionId: string) => {
-        if (!isAdmin) return;
-        const campaignId = character.campaignId;
-        const existingMap: Record<string, import('../../../../../types').MissionResult[]> = character.missionResults ?? {};
-        const existingList = existingMap[campaignId] ?? [];
-        if (existingList.find((r) => r.missionId === missionId && r.result !== 'defeat')) return;
-        const newEntry = { missionId, result: 'victory' as const, timestamp: Date.now(), adminGranted: true };
-        const updatedList = [...existingList.filter((r) => r.missionId !== missionId), newEntry];
-        try {
-            await api.updateCharacter(character.id, { missionResults: { ...existingMap, [campaignId]: updatedList } });
-            onSaved?.({ equipment: character.equipment, name: character.name, portraitId: character.portraitId });
-        } catch (e) {
-            console.warn('Failed to mark victory:', e);
-        }
-    }, [isAdmin, character, api, onSaved]);
+    const {
+        handleMarkVictory,
+        handleMarkQuestVictory,
+        handleCampaignChange,
+        handleMapStartQuest,
+        handleAbandonQuest,
+        handleResetQuest,
+    } = useCharacterQuestActions({ character, api, isAdmin, onSaved, onStartQuest });
 
-    /** Admin: record a quest victory in `bankId` with no rewards (mirrors Mark Victory on missions). */
-    const handleMarkQuestVictory = useCallback(async (questDefId: string, bankId: string) => {
-        if (!isAdmin) return;
-        const campaignId = character.campaignId;
-        const all = character.questResults ?? {};
-        const existingList = all[campaignId] ?? [];
-        if (existingList.some((r) => r.questDefId === questDefId && r.result === 'victory')) return;
-        const newEntry: QuestResult = {
-            questDefId,
-            result: 'victory',
-            timestamp: Date.now(),
-            placement: 'bank',
-            bankId,
-            adminGranted: true,
-            campaignRewardsApplied: true,
-        };
-        const clearRun = character.activeQuestRun?.questDefId === questDefId;
-        try {
-            await api.updateCharacter(character.id, {
-                questResults: { ...all, [campaignId]: [...existingList, newEntry] },
-                ...(clearRun ? { activeQuestRun: null } : {}),
-            });
-            onSaved?.({ equipment: character.equipment, name: character.name, portraitId: character.portraitId });
-        } catch (e) {
-            console.warn('Failed to mark quest victory:', e);
-        }
-    }, [isAdmin, character, api, onSaved]);
 
-    const handleCampaignChange = useCallback(async (newCampaignId: string) => {
-        if (!isAdmin || newCampaignId === character.campaignId) return;
-        try {
-            await api.updateCharacter(character.id, { campaignId: newCampaignId });
-            onSaved?.({ equipment: character.equipment, name: character.name, portraitId: character.portraitId });
-        } catch (e) {
-            console.warn('Failed to update campaign:', e);
-        }
-    }, [isAdmin, character.id, character.campaignId, character.equipment, character.name, character.portraitId, api, onSaved]);
-
-    /** Start / continue opens a quest lobby immediately (Quest Prep is in character_select). */
-    const handleMapStartQuest = useCallback(
-        (questDefId: string, options?: StartQuestOptions) => {
-            if (!onStartQuest) return;
-            if (!isAdmin && isQuestDisabled(getQuestDef(questDefId))) return;
-            onStartQuest(questDefId, options);
-        },
-        [onStartQuest, isAdmin],
-    );
-
-    /** Clear the singular activeQuestRun after UI confirm. */
-    const handleAbandonQuest = useCallback(async () => {
-        const run = character.activeQuestRun;
-        if (!run) return;
-        try {
-            void abandonQuestRun(run);
-            await api.updateCharacter(character.id, { activeQuestRun: null });
-            onSaved?.({
-                equipment: character.equipment,
-                name: character.name,
-                portraitId: character.portraitId,
-            });
-        } catch (e) {
-            console.warn('Failed to abandon quest:', e);
-        }
-    }, [character, api, onSaved]);
-
-    /** Admin: chapter whose Skip Chapter wizard is open. */
-    const [skipChapter, setSkipChapter] = useState<CampaignChapterDef | null>(null);
-
-    /** Wizard start: the character with research from this chapter's earlier results removed ("replace"). */
-    const chapterSkipStart = useMemo((): ChapterSkipCharacterState | null => {
-        if (!skipChapter) return null;
-        return stripChapterResearchRewards(
-            {
-                equipment: [...character.equipment],
-                researchTrees: character.researchTrees ?? {},
-                researchNodeLevels: character.researchNodeLevels ?? {},
-                researchSources: character.researchSources ?? {},
-            },
-            character.missionResults?.[character.campaignId] ?? [],
-            skipChapter.missionIds,
-        );
-    }, [skipChapter, character]);
-
-    const ownerAccountId = character.ownerAccountId ?? account?.id;
-    const chapterSkipCtx = useMemo(
-        (): ChapterSkipContext => ({
-            playerId: ownerAccountId != null ? String(ownerAccountId) : '',
-            accountKnowledge: account?.knowledge ?? {},
-        }),
-        [ownerAccountId, account?.knowledge],
-    );
-
-    /** Admin: persist a Skip Chapter plan like a real playthrough (character, campaign, account knowledge). */
-    const handleApplyChapterSkip = useCallback(async (plan: ChapterSkipPlan) => {
-        if (!isAdmin || !skipChapter) return;
-        const isInstanceId = (id: string) => /^[a-f0-9]{16}$/.test(id);
-        const campaignInstanceId =
-            resolvedCampaign?.id
-            ?? (isInstanceId(character.campaignId) ? character.campaignId : account?.campaignIds?.[0]);
-        if (!campaignInstanceId) throw new Error('No campaign found for this character.');
-
-        const storylineId = character.campaignId;
-        const now = Date.now();
-        const chapterIds = new Set(skipChapter.missionIds);
-        const existingMap = character.missionResults ?? {};
-        const keptResults = (existingMap[storylineId] ?? []).filter((r) => !chapterIds.has(r.missionId));
-        const newResults = plan.missionResults.map((r, i) => ({ ...r, timestamp: now + i }));
-
-        await api.updateCharacter(character.id, {
-            equipment: plan.state.equipment,
-            researchTrees: plan.state.researchTrees,
-            researchNodeLevels: plan.state.researchNodeLevels,
-            researchSources: plan.state.researchSources,
-            missionResults: { ...existingMap, [storylineId]: [...keptResults, ...newResults] },
-        });
-        for (const r of plan.missionResults) {
-            await api.recordCampaignMissionResult(campaignInstanceId, {
-                missionId: r.missionId,
-                result: r.result,
-                resourceDelta: r.resourceDelta,
-                itemIds: r.itemIds,
-                researchRewards: r.researchRewards,
-            });
-        }
-        if (ownerAccountId != null) {
-            for (const key of plan.knowledgeKeys) {
-                if (!account?.knowledge?.[key]) await api.grantAccountKnowledge(ownerAccountId, key);
-            }
-        }
-        onSaved?.({ equipment: plan.state.equipment, name: character.name, portraitId: character.portraitId });
-    }, [isAdmin, skipChapter, resolvedCampaign?.id, character, account?.campaignIds, account?.knowledge, ownerAccountId, api, onSaved]);
-
-    /** Admin: drop a quest's recorded victories and its run so it can be run again. */
-    const handleResetQuest = useCallback(async (questDefId: string) => {
-        if (!isAdmin) return;
-        const campaignId = character.campaignId;
-        const all = character.questResults ?? {};
-        const nextList = (all[campaignId] ?? []).filter((r) => r.questDefId !== questDefId);
-        try {
-            // Also drop this quest's run (prep / active / completed) so it can't trigger
-            // the "already have an active quest" warning when starting again.
-            const clearRun = character.activeQuestRun?.questDefId === questDefId;
-            await api.updateCharacter(character.id, {
-                questResults: { ...all, [campaignId]: nextList },
-                ...(clearRun ? { activeQuestRun: null } : {}),
-            });
-            onSaved?.({
-                equipment: character.equipment,
-                name: character.name,
-                portraitId: character.portraitId,
-            });
-        } catch (e) {
-            console.warn('Failed to reset quest:', e);
-        }
-    }, [isAdmin, character, api, onSaved]);
+    const { setSkipChapter, chapterSkipModal } = useChapterSkip({ character, account, api, isAdmin, resolvedCampaign, onSaved });
 
     const firstTreeId = displayResearchTrees[0]?.id ?? null;
     const selectedTree = displayResearchTrees.find((t) => t.id === (selectedTreeId ?? firstTreeId));
@@ -1060,74 +503,21 @@ export default function CharacterEditor({
     }, [useRoutedInnerTabs, localTab, visibleInnerTabs]);
 
     const nameSection = (
-        <>
-            {canEditName && !isEditingName && (
-                <button
-                    type="button"
-                    className="h-6 w-6 rounded border border-border-custom bg-surface-light text-white flex items-center justify-center hover:bg-border-custom cursor-pointer shrink-0"
-                    onClick={() => {
-                        setNameDraft(name);
-                        setIsEditingName(true);
-                    }}
-                    aria-label="Edit character name"
-                    title="Edit character name"
-                >
-                    <Pencil className="h-3 w-3" aria-hidden />
-                </button>
-            )}
-            {canEditName && isEditingName ? (
-                <>
-                    <button
-                        type="button"
-                        className="h-6 w-6 rounded border border-emerald-500/70 bg-emerald-600/20 text-emerald-300 flex items-center justify-center hover:bg-emerald-600/35 cursor-pointer shrink-0 disabled:opacity-50 disabled:cursor-default"
-                        onClick={() => void saveName()}
-                        aria-label="Apply name change"
-                        title="Apply name change"
-                        disabled={saving}
-                    >
-                        <Check className="h-3 w-3" aria-hidden />
-                    </button>
-                    <input
-                        type="text"
-                        value={nameDraft}
-                        onChange={(e) => setNameDraft(sanitizeCharacterName(e.target.value))}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                                e.preventDefault();
-                                void saveName();
-                            } else if (e.key === 'Escape') {
-                                e.preventDefault();
-                                cancelNameEdit();
-                            }
-                        }}
-                        className="flex-1 min-w-0 rounded border border-border-custom bg-surface px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                        placeholder={portrait?.name ?? 'Adventurer'}
-                        aria-label="Character name"
-                        maxLength={MAX_CHARACTER_NAME_LENGTH}
-                        pattern="[A-Za-z0-9]{1,15}"
-                        title="Use letters and numbers only (max 15 characters)."
-                        spellCheck={false}
-                        autoFocus
-                    />
-                    <button
-                        type="button"
-                        className="h-6 w-6 rounded border border-red-500/70 bg-red-600/20 text-red-300 flex items-center justify-center hover:bg-red-600/35 cursor-pointer shrink-0"
-                        onClick={cancelNameEdit}
-                        aria-label="Cancel name change"
-                        title="Cancel name change"
-                    >
-                        <X className="h-3 w-3" aria-hidden />
-                    </button>
-                </>
-            ) : (
-                <span
-                    className="text-lg font-semibold text-white truncate text-left min-w-0 flex-1"
-                    title={displayName}
-                >
-                    {displayName}
-                </span>
-            )}
-        </>
+        <CharacterNameSection
+            canEditName={canEditName}
+            isEditingName={isEditingName}
+            displayName={displayName}
+            nameDraft={nameDraft}
+            saving={saving}
+            placeholder={portrait?.name ?? 'Adventurer'}
+            onStartEdit={() => {
+                setNameDraft(name);
+                setIsEditingName(true);
+            }}
+            onNameDraftChange={(value) => setNameDraft(sanitizeCharacterName(value))}
+            onSave={() => void saveName()}
+            onCancel={cancelNameEdit}
+        />
     );
 
     const maxHunger = useMemo(
@@ -1234,122 +624,31 @@ export default function CharacterEditor({
     );
 
     const researchRight = (
-        <div className="flex-1 min-h-0 overflow-auto p-4">
-            {isAdmin && adminPanelsOpen && (resolvedCampaign?.resources || adminKnowledgePanel) && (
-                <div className="mb-4 flex gap-3">
-                    {resolvedCampaign?.resources && (
-                        <div className="flex-1 rounded-lg border border-border-custom bg-surface-light p-3">
-                            <p className="text-xs text-muted mb-2">Admin: grant campaign resource</p>
-                            <div className="flex flex-wrap items-center gap-2">
-                                <select
-                                    className="rounded-md border border-border-custom bg-surface px-2 py-1 text-sm text-white"
-                                    value={grantResourceKey}
-                                    onChange={(e) => setGrantResourceKey(e.target.value as CampaignResourceKey)}
-                                >
-                                    {RESOURCE_ORDER.map((resource) => (
-                                        <option key={resource} value={resource}>
-                                            {resource}
-                                        </option>
-                                    ))}
-                                </select>
-                                <input
-                                    className="w-24 rounded-md border border-border-custom bg-surface px-2 py-1 text-sm text-white"
-                                    value={grantResourceAmount}
-                                    onChange={(e) => setGrantResourceAmount(e.target.value)}
-                                    inputMode="numeric"
-                                    placeholder="amount"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => void handleGrantResource()}
-                                    className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-secondary hover:bg-primary-hover"
-                                >
-                                    Give
-                                </button>
-                                <button
-                                    type="button"
-                                    data-testid={TestIds.campaignResetResources}
-                                    onClick={() => void handleResetResources()}
-                                    disabled={saving}
-                                    title="Restore counts to the sum of mission rewards"
-                                    className="rounded-md bg-red-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-60"
-                                >
-                                    {RESET_CAMPAIGN_RESOURCES_LABEL}
-                                </button>
-                                <span className="text-xs text-muted flex flex-wrap items-center gap-2">
-                                    <span>Current:</span>
-                                    {RESOURCE_ORDER.map((resource) => (
-                                        <ResourcePill
-                                            key={resource}
-                                            resource={resource}
-                                            count={resolvedCampaign.resources[resource] ?? 0}
-                                            className="text-xs"
-                                        />
-                                    ))}
-                                </span>
-                            </div>
-                        </div>
-                    )}
-                    {adminKnowledgePanel && (
-                        <div className="flex-1 rounded-lg border border-border-custom bg-surface-light p-3">
-                            {adminKnowledgePanel}
-                        </div>
-                    )}
-                </div>
-            )}
-            {isAdmin && !useGridView ? (
-                resolvedCampaign?.resources ? (
-                    displayResearchTrees.length === 0 ? (
-                        <p className="text-sm text-muted">No research trees available.</p>
-                    ) : selectedTree ? (
-                        <ResearchTreeContent
-                            tree={selectedTree}
-                            dimmed={selectedTreeDimmed}
-                            account={account ?? null}
-                            character={character}
-                            equipment={equipment}
-                            researchTrees={viewResearch.researchTrees}
-                            researchNodeLevels={viewResearch.researchNodeLevels}
-                            researchSources={viewResearch.researchSources}
-                            campaignResources={resolvedCampaign.resources}
-                            saving={saving}
-                            canResetResearch={isAdmin}
-                            isAdmin={isAdmin}
-                            onResearchNode={(treeId, nodeId, asAdmin) => void handleResearchNode(treeId, nodeId, asAdmin)}
-                            onResetResearch={(treeIds) => void handleResetResearch(treeIds)}
-                            onResetPurchasedResearch={
-                                isAdmin ? () => void handleResetResearchBySource(ResearchSource.Purchased) : undefined
-                            }
-                            onResetAdminResearch={() => void handleResetResearchBySource(ResearchSource.Admin)}
-                        />
-                    ) : null
-                ) : (
-                    <p className="text-sm text-muted">Campaign resources not loaded.</p>
-                )
-            ) : (
-                <ResearchedNodesGrid
-                    availableTrees={displayResearchTrees}
-                    researchTrees={viewResearch.researchTrees}
-                    filterTreeId={selectedTreeId}
-                    showUnowned={isAdmin}
-                    account={account ?? null}
-                    character={character}
-                    equipment={equipment}
-                    researchNodeLevels={viewResearch.researchNodeLevels}
-                    researchSources={viewResearch.researchSources}
-                    campaignResources={resolvedCampaign?.resources}
-                    onResearchNode={(treeId, nodeId, asAdmin) => void handleResearchNode(treeId, nodeId, asAdmin)}
-                    saving={saving}
-                    isAdmin={isAdmin}
-                    onResetPurchasedResearch={
-                        isAdmin ? () => void handleResetResearchBySource(ResearchSource.Purchased) : undefined
-                    }
-                    onResetAdminResearch={
-                        isAdmin ? () => void handleResetResearchBySource(ResearchSource.Admin) : undefined
-                    }
-                />
-            )}
-        </div>
+        <CharacterResearchPanel
+            isAdmin={isAdmin}
+            adminPanelsOpen={adminPanelsOpen}
+            adminKnowledgePanel={adminKnowledgePanel}
+            resolvedCampaign={resolvedCampaign}
+            useGridView={useGridView}
+            displayResearchTrees={displayResearchTrees}
+            selectedTree={selectedTree}
+            selectedTreeDimmed={selectedTreeDimmed}
+            selectedTreeId={selectedTreeId}
+            account={account}
+            character={character}
+            equipment={equipment}
+            viewResearch={viewResearch}
+            saving={saving}
+            grantResourceKey={grantResourceKey}
+            onGrantResourceKeyChange={setGrantResourceKey}
+            grantResourceAmount={grantResourceAmount}
+            onGrantResourceAmountChange={setGrantResourceAmount}
+            onGrantResource={handleGrantResource}
+            onResetResources={handleResetResources}
+            onResearchNode={handleResearchNode}
+            onResetResearch={handleResetResearch}
+            onResetResearchBySource={handleResetResearchBySource}
+        />
     );
 
     const mapProps = {
@@ -1364,20 +663,6 @@ export default function CharacterEditor({
         onCampaignChange: isAdmin ? handleCampaignChange : undefined,
         onSkipChapter: isAdmin ? setSkipChapter : undefined,
     };
-
-    const chapterSkipModal =
-        skipChapter && chapterSkipStart
-            ? createPortal(
-                <ChapterSkipWizard
-                    chapter={skipChapter}
-                    start={chapterSkipStart}
-                    ctx={chapterSkipCtx}
-                    onApply={(_picks, plan) => handleApplyChapterSkip(plan)}
-                    onClose={() => setSkipChapter(null)}
-                />,
-                document.body,
-            )
-            : null;
 
     const bonusesProps = {
         researchTrees,
@@ -1439,62 +724,15 @@ export default function CharacterEditor({
         <div className="flex flex-col h-full w-full bg-surface overflow-hidden">
             {chapterSkipModal}
             {/* Tabs */}
-            <div className="flex gap-1 px-2 pt-2 border-b border-border-custom shrink-0">
-                {!hideMissionMap && (
-                    <button
-                        type="button"
-                        data-testid={TestIds.characterEditorMissionMapTab}
-                        className={`px-3 py-2 border-b-2 text-sm cursor-pointer ${
-                            activeTab === 'missionMap'
-                                ? 'border-primary text-primary'
-                                : 'border-transparent text-muted hover:text-white'
-                        }`}
-                        onClick={() => setActiveTab('missionMap')}
-                    >
-                        Mission Map
-                    </button>
-                )}
-                {isAdmin && (
-                    <button
-                        type="button"
-                        className={`px-3 py-2 border-b-2 text-sm cursor-pointer ${
-                            activeTab === 'equipment'
-                                ? 'border-primary text-primary'
-                                : 'border-transparent text-muted hover:text-white'
-                        }`}
-                        onClick={() => setActiveTab('equipment')}
-                    >
-                        Equipment
-                    </button>
-                )}
-                {showUpgradesTab && (
-                    <button
-                        type="button"
-                        className={`px-3 py-2 border-b-2 text-sm cursor-pointer ${
-                            activeTab === 'research'
-                                ? 'border-primary text-primary'
-                                : 'border-transparent text-muted hover:text-white'
-                        }`}
-                        onClick={() => setActiveTab('research')}
-                    >
-                        Upgrades
-                    </button>
-                )}
-                {showStatBonusesTab && (
-                    <button
-                        type="button"
-                        className={`px-3 py-2 border-b-2 text-sm cursor-pointer ${
-                            activeTab === 'statBonuses'
-                                ? 'border-primary text-primary'
-                                : 'border-transparent text-muted hover:text-white'
-                        }`}
-                        onClick={() => setActiveTab('statBonuses')}
-                    >
-                        Stat Bonuses
-                    </button>
-                )}
-                {adminPanelsToggle}
-            </div>
+            <CharacterEditorTabBar
+                activeTab={activeTab}
+                onSelectTab={setActiveTab}
+                hideMissionMap={hideMissionMap}
+                isAdmin={isAdmin}
+                showUpgradesTab={showUpgradesTab}
+                showStatBonusesTab={showStatBonusesTab}
+                actions={adminPanelsToggle}
+            />
 
             {/* Content: left (portrait + sidebar) | right (main) */}
             <div className="flex-1 min-h-0 flex overflow-hidden">
@@ -1545,155 +783,6 @@ export default function CharacterEditor({
                     )}
                 </div>
             </div>
-        </div>
-    );
-}
-
-interface EquipmentDollProps {
-    equipment: string[];
-    slotDescriptors: SlotDescriptor[];
-    onDropOnSlot: (e: React.DragEvent, slot: EquipmentSlotType, slotIndex?: number) => void;
-    onDragOver: (e: React.DragEvent) => void;
-    onDragStartSlot: (e: React.DragEvent, slot: EquipmentSlotType, slotIndex?: number) => void;
-    onDragEnd: () => void;
-    dragItemId: string | null;
-    dragSlot: EquipmentSlotType | null;
-    editMode: boolean;
-}
-
-interface EquippedItemsListProps {
-    equipment: string[];
-    slotDescriptors: SlotDescriptor[];
-    onDropOnSlot: (e: React.DragEvent, slot: EquipmentSlotType, slotIndex?: number) => void;
-    onDragOver: (e: React.DragEvent) => void;
-    onDragStartSlot: (e: React.DragEvent, slot: EquipmentSlotType, slotIndex?: number) => void;
-    onDragEnd: () => void;
-    editMode: boolean;
-}
-
-function EquippedItemsList({
-    equipment,
-    slotDescriptors,
-    onDropOnSlot,
-    onDragOver,
-    onDragStartSlot,
-    onDragEnd,
-    editMode,
-}: EquippedItemsListProps) {
-    return (
-        <div className="grid grid-flow-col grid-rows-[4rem_4rem] auto-cols-max gap-2 overflow-x-auto pb-1 -mx-1 px-1 w-full min-w-0">
-            {slotDescriptors.map((desc) => {
-                const itemId = getEquippedForSlot(equipment, desc.type, desc.index);
-                const def = itemId ? getItemDef(itemId) : null;
-                const iconUrl = itemId ? ITEM_ICON_URLS[itemId] : null;
-                const key = desc.index !== undefined ? `${desc.type}_${desc.index}` : desc.type;
-                const slotEditable = editMode && !desc.locked;
-                return (
-                    <div
-                        key={key}
-                        className={`relative flex shrink-0 w-16 h-16 flex-col items-center justify-center rounded border-2 border-dashed border-border-custom bg-surface/80 p-1 ${
-                            slotEditable ? 'cursor-pointer hover:border-primary' : 'cursor-default'
-                        } transition-colors`}
-                        onDrop={slotEditable ? (e) => onDropOnSlot(e, desc.type, desc.index) : undefined}
-                        onDragOver={slotEditable ? onDragOver : undefined}
-                        onDragStart={slotEditable && itemId ? (e) => onDragStartSlot(e, desc.type, desc.index) : undefined}
-                        draggable={slotEditable && !!itemId}
-                        onDragEnd={slotEditable ? onDragEnd : undefined}
-                        title={`${def?.name ?? desc.label}${desc.locked ? ' (locked)' : ''}`}
-                    >
-                        {iconUrl ? (
-                            <img
-                                src={iconUrl}
-                                alt={def?.name ?? desc.label}
-                                className="w-8 h-8 object-contain pointer-events-none"
-                            />
-                        ) : (
-                            <span className="text-[10px] text-muted text-center leading-tight px-0.5">{desc.label}</span>
-                        )}
-                        {desc.locked && (
-                            <Lock className="pointer-events-none absolute h-5 w-5 text-white drop-shadow" aria-hidden />
-                        )}
-                    </div>
-                );
-            })}
-        </div>
-    );
-}
-
-/** Position hints for slot types; multiple weapon/utility use row. */
-const SLOT_POSITIONS: Record<EquipmentSlotType, { left: string; top: string }> = {
-    core: { left: '10%', top: '5%' },
-    weapon: { left: '62%', top: '42%' },
-    utility: { left: '36%', top: '70%' },
-};
-
-function EquipmentDoll({
-    equipment,
-    slotDescriptors,
-    onDropOnSlot,
-    onDragOver,
-    onDragStartSlot,
-    onDragEnd,
-    editMode,
-}: EquipmentDollProps) {
-    const containerSize = 200;
-
-    return (
-        <div
-            className="relative rounded-lg border border-border-custom bg-surface-light flex items-center justify-center"
-            style={{ width: containerSize, height: 260 }}
-        >
-            {/* Stick figure: head, body, arms, legs */}
-            <svg
-                className="absolute inset-0 w-full h-full pointer-events-none"
-                viewBox="0 0 100 130"
-                preserveAspectRatio="xMidYMid meet"
-            >
-                <circle cx="50" cy="18" r="12" fill="none" stroke="#6b7280" strokeWidth="2" />
-                <line x1="50" y1="30" x2="50" y2="55" stroke="#6b7280" strokeWidth="2" />
-                <line x1="50" y1="38" x2="25" y2="50" stroke="#6b7280" strokeWidth="2" />
-                <line x1="50" y1="38" x2="75" y2="50" stroke="#6b7280" strokeWidth="2" />
-                <line x1="50" y1="55" x2="35" y2="95" stroke="#6b7280" strokeWidth="2" />
-                <line x1="50" y1="55" x2="65" y2="95" stroke="#6b7280" strokeWidth="2" />
-            </svg>
-
-            {slotDescriptors.map((desc, _i) => {
-                const itemId = getEquippedForSlot(equipment, desc.type, desc.index);
-                const def = itemId ? getItemDef(itemId) : null;
-                const iconUrl = itemId ? ITEM_ICON_URLS[itemId] : null;
-                const base = SLOT_POSITIONS[desc.type];
-                const offset = desc.index !== undefined && desc.index > 0 ? desc.index * 14 : 0;
-                const pos = {
-                    left: base.left,
-                    top: `calc(${base.top} + ${offset}%)`,
-                };
-                const key = desc.index !== undefined ? `${desc.type}_${desc.index}` : desc.type;
-                const slotEditable = editMode && !desc.locked;
-                return (
-                    <div
-                        key={key}
-                        className={`absolute w-12 h-12 flex items-center justify-center rounded border-2 border-dashed border-border-custom bg-surface/80 ${
-                            slotEditable ? 'cursor-pointer hover:border-primary' : 'cursor-default'
-                        } transition-colors`}
-                        style={{ left: pos.left, top: pos.top }}
-                        onDrop={slotEditable ? (e) => onDropOnSlot(e, desc.type, desc.index) : undefined}
-                        onDragOver={slotEditable ? onDragOver : undefined}
-                        onDragStart={slotEditable && itemId ? (e) => onDragStartSlot(e, desc.type, desc.index) : undefined}
-                        draggable={slotEditable && !!itemId}
-                        onDragEnd={slotEditable ? onDragEnd : undefined}
-                        title={`${def?.name ?? desc.label}${desc.locked ? ' (locked)' : ''}`}
-                    >
-                        {iconUrl ? (
-                            <img src={iconUrl} alt={def?.name ?? desc.label} className="w-8 h-8 object-contain pointer-events-none" />
-                        ) : (
-                            <span className="text-xs text-muted">{desc.label}</span>
-                        )}
-                        {desc.locked && (
-                            <Lock className="pointer-events-none absolute h-5 w-5 text-white drop-shadow" aria-hidden />
-                        )}
-                    </div>
-                );
-            })}
         </div>
     );
 }
