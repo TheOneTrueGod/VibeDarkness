@@ -4,22 +4,9 @@
  */
 import type { PlayerState } from '../../../types';
 import type { MessageEntry } from '../../../components/Chat';
-import { MessageType } from '../../../MessageTypes';
 import type { MinionBattlesApi } from '../api/minionBattlesApi';
-import { MISSION_MAP, DARK_AWAKENING } from '../storylines';
-import { SPECTATOR_ID, isControlEnemy } from '../state';
-import { TerrainManager } from '../terrain/TerrainManager';
-import { getSegment, getMissionSegmentZones } from '../terrain/segmentRegistry';
-import { mergePartyResearch, terrainContextFromSnapshot } from '../storylines/homeBase';
-import {
-    activeResearchByPlayer,
-    activeResearchNodeLevelsByPlayer,
-} from '../character_defs/characterLoadout';
-import type { HomeResolveContext } from '../storylines/homeBase';
-import type { IBaseMissionDef } from '../storylines/BaseMissionDef';
-import type { BattleOrder, GameEngineFromJSONOpts, SerializedGameState, WaitingForOrders } from './types';
-import { debugLog } from '../../../debugLog';
-import { logToLobbyLog, logToLobbyLogBattleSync, logToLobbyLogForced } from '../../../lobbyLog';
+import type { BattleOrder, SerializedGameState, WaitingForOrders } from './types';
+import { logToLobbyLogBattleSync, logToLobbyLogForced } from '../../../lobbyLog';
 import { GameEngine } from './GameEngine';
 import { PLAYER_CHARACTER_ID } from './units/unit_defs/unitDef';
 import { GameRenderer } from './GameRenderer';
@@ -36,45 +23,31 @@ import type {
     RemoteOrderWireRow,
 } from './battlenet';
 import { DESYNC_PENDING_ORDER_LOG_CAP } from './battlenet/constants';
-import { hashOrderId } from './battlenet/helpers/orderHashing';
-import { summarizeRemoteWireRowsForLog } from './battlenet/helpers/orderWireLogSummary';
-import { logUserState } from './battlenet/userStateLog';
 import { tickStateHistory } from './tickStateHistory';
-import { buildWorldModifiersFromSources } from '../worldModifiers/buildWorldModifiers';
-import { BUILTIN_WORLD_MODIFIERS } from '../worldModifiers/builtins/index';
-import {
-    resolveActiveDarknessStrengths,
-    type ResolveActiveDarknessStrengthsInput,
-} from '../../../darknessStrength/resolve';
-import type { PassiveBonuses } from '../../../researchTrees/types';
-import { compileWorldModifiers } from '../../../darknessStrength/compile';
-import {
-    computeMatchHungerLoss,
-    findPlayerUnitForMatchHunger,
-} from '../storylines/matchHunger';
+import { type ResolveActiveDarknessStrengthsInput } from '../../../darknessStrength/resolve';
 import type { VictorySnapshot } from '../storylines/victoryHealthConversion';
 import { InteractiveTargetingSession, type HeldRemoteOrder } from './interaction/InteractiveTargetingSession';
-import { USE_SEQUENTIAL_TARGETING } from '../featureFlags';
 import { PERF_UI, PERF_UI_REACT, tickPerformanceTracker } from './performance/tickPerformanceTracker';
-import { getAbility } from '../abilities/AbilityRegistry';
-import { canUseAbilityNow } from '../abilities/abilityUses';
-import { getInteractiveTargetDefsFromTimings } from '../abilities/targeting';
-import { isAtConditionalCancelDecision } from './interaction/isITSPreviewComplete';
 import type { SimTimeline } from './interaction/simTimeline';
-import { bumpEpoch, enterPreview, toCanonical, assertNever } from './interaction/simTimeline';
+import { bumpEpoch, enterPreview, toCanonical } from './interaction/simTimeline';
 import { PreviewEmissionBuffer } from './interaction/PreviewEmissionBuffer';
 import { mintCanonicalToken, type CanonicalToken } from './battlenet/canonicalToken';
-
-function segmentRestoreOpts(
-    mission: IBaseMissionDef,
-    ctx?: HomeResolveContext,
-): Pick<GameEngineFromJSONOpts, 'segmentIds' | 'segmentPlacements' | 'segmentNetwork'> {
-    const composed = mission.composeMap(ctx);
-    if (composed) {
-        return { segmentPlacements: composed.placements, segmentNetwork: composed.network };
-    }
-    return { segmentIds: mission.segmentIds };
-}
+import { bindEngineCallbacks } from './sessionEngineBinding';
+import {
+    applyHeldRemoteOrdersFor,
+    applyRemoteOrdersFor,
+    persistInPlaceCommittedTargetingOrderFor,
+    promotePreviewFor,
+    submitCommittedTargetingOrderFor,
+    submitPlayerOrderFor,
+} from './sessionOrders';
+import {
+    commitPreviewForTerminalOutcome,
+    matchHungerLossFor,
+    reemitSuppressedTerminalOutcome,
+    victorySnapshotFor,
+} from './sessionTerminalOutcome';
+import { loadSession, loadSessionFromSnapshot, restoreSessionFromInMemorySnapshot } from './sessionLoad';
 
 export interface BattleSessionConfig {
     api: MinionBattlesApi;
@@ -133,27 +106,35 @@ type EngineSnapshot = {
 };
 
 export class BattleSession implements BattleSessionHandle {
-    private engine: GameEngine | null = null;
-    private camera: Camera | null = null;
-    private renderer: GameRenderer | null = null;
+    /** @internal */
+    engine: GameEngine | null = null;
+    /** @internal */
+    camera: Camera | null = null;
+    /** @internal */
+    renderer: GameRenderer | null = null;
     private interactionManager: PlayerInteractionManager | null = null;
     private players: Record<string, PlayerState> = {};
     private characterSelections: Record<string, string> = {};
-    private netAdapter: BattleNet | null = null;
-    private initialFingerprint: string | null = null;
-    private initialSerializedState: SerializedGameState | null = null;
+    /** @internal */
+    netAdapter: BattleNet | null = null;
+    /** @internal */
+    initialFingerprint: string | null = null;
+    /** @internal */
+    initialSerializedState: SerializedGameState | null = null;
     /** Debug-only one-shot: force the next heartbeat fingerprint comparison to mismatch. */
     private forceNextFingerprintMismatch = false;
     private readonly listeners = new Set<BattleSessionListener>();
     /** Dedupe keys for remote rows applied this engine lifetime (cleared when the engine is torn down or replaced from snapshot). */
-    private appliedRemoteOrderKeys = new Set<string>();
+    /** @internal */
+    appliedRemoteOrderKeys = new Set<string>();
     /**
      * Every order with `atTick <= ordersBakedThroughTick` is already part of the loaded engine state
      * (checkpoint envelope tick, or -1 for a fresh tick-0 load). Remote rows in that range are skipped by
      * tick, not by key, so there is no window between `loadFromSnapshot` clearing the keys and the async
      * key seed landing in which a poll could clamp and re-run history (lobby 810373).
      */
-    private ordersBakedThroughTick = -1;
+    /** @internal */
+    ordersBakedThroughTick = -1;
     /**
      * When the UI claims a rewind presentation (DOM crossfade), ITS awaits this before
      * applying orders / unpausing. Headless callers that never defer resolve immediately.
@@ -163,11 +144,13 @@ export class BattleSession implements BattleSessionHandle {
     /** Manages the local-preview run for abilities that use SelectTargetDef. */
     readonly interactiveTargeting = new InteractiveTargetingSession();
     /** Ownership model for the interactive sequential targeting preview timeline. */
-    private timeline: SimTimeline = { kind: 'canonical', engineEpoch: 0 };
+    /** @internal */
+    timeline: SimTimeline = { kind: 'canonical', engineEpoch: 0 };
     /** Buffer for engine emissions during ITS preview; null during canonical timeline. */
-    private previewEmissionBuffer: PreviewEmissionBuffer | null = null;
+    /** @internal */
+    previewEmissionBuffer: PreviewEmissionBuffer | null = null;
 
-    constructor(private readonly config: BattleSessionConfig) {}
+    constructor(readonly config: BattleSessionConfig) {}
 
     /** Latest lobby player data for fresh loads and snapshot restores. */
     updateLobbyContext(players: Record<string, PlayerState>, characterSelections: Record<string, string>): void {
@@ -184,7 +167,8 @@ export class BattleSession implements BattleSessionHandle {
         return () => this.listeners.delete(listener);
     }
 
-    private emit(event: BattleSessionEvent): void {
+    /** @internal */
+    emit(event: BattleSessionEvent): void {
         tickPerformanceTracker.measure([PERF_UI, PERF_UI_REACT], () => {
             for (const l of this.listeners) {
                 l(event);
@@ -261,53 +245,7 @@ export class BattleSession implements BattleSessionHandle {
      * Stale/consumed runIds are logged as diag and treated as no-op.
      */
     promotePreview(runId: number): void {
-        const timeline = this.timeline;
-        if (timeline.kind !== 'preview' || timeline.runId !== runId) {
-            this.postBattleSyncLobbyLog(`diag: promotePreview stale runId=${runId}, current timeline=${timeline.kind}`, {
-                runId,
-                currentTimeline: timeline.kind,
-            });
-            return;
-        }
-
-        const buffer = this.previewEmissionBuffer;
-        this.timeline = toCanonical(timeline);
-        this.previewEmissionBuffer = null;
-
-        const engine = this.engine;
-        if (engine) {
-            engine.isSequentialTargetingPreview = false;
-            engine.sequentialTargetingPreviewCast = null;
-        }
-
-        this.rebindEngineCallbacks();
-
-        // Flush buffered emissions to the network. Best-effort: the timeline is already canonical,
-        // so a network-layer failure must not abort the promotion half-way.
-        if (buffer && this.config.isHost) {
-            try {
-                // Mint token for flushed emissions (timeline is now canonical)
-                const token = this.mintCanonicalToken();
-                // Flush fingerprints in tick order.
-                for (const fp of buffer.fingerprints) {
-                    this.netAdapter?.queueFingerprint(fp.tick, fp.fp, fp.paused, fp.adminReason, token);
-                }
-                // Flush the latest checkpoint (if any).
-                if (buffer.latestCheckpoint) {
-                    void this.netAdapter?.saveSnapshotOnPause(buffer.latestCheckpoint.tick, buffer.latestCheckpoint.state, token);
-                }
-                // Flush resolved batches.
-                for (const batchAtTick of buffer.resolvedBatches) {
-                    void this.netAdapter?.mergeAppliedOrdersForBatch(batchAtTick);
-                }
-            } catch (err) {
-                console.error('[BattleSession] promotePreview flush failed', err);
-                this.postBattleSyncLobbyLog('diag: promotePreview flush failed', {
-                    runId,
-                    error: err instanceof Error ? err.message : String(err),
-                });
-            }
-        }
+        return promotePreviewFor(this, runId);
     }
 
     /**
@@ -394,142 +332,18 @@ export class BattleSession implements BattleSessionHandle {
     rebindEngineCallbacks(): void {
         const engine = this.engine;
         if (engine) {
-            this.bindEngineCallbacks(engine);
+            bindEngineCallbacks(this, engine);
         }
     }
 
-    private applyPlayerPortraitOverrides(engine: GameEngine, portraitIds: Record<string, string> | undefined): void {
+    /** @internal */
+    applyPlayerPortraitOverrides(engine: GameEngine, portraitIds: Record<string, string> | undefined): void {
         if (!portraitIds) return;
         for (const unit of engine.units) {
             if (unit.characterId === PLAYER_CHARACTER_ID && unit.isPlayerControlled() && portraitIds[unit.ownerId]) {
                 unit.portraitId = portraitIds[unit.ownerId];
             }
         }
-    }
-
-    private bindEngineCallbacks(engine: GameEngine): void {
-        const { api, isHost, onEmittedChatMessage } = this.config;
-        // Non-host: freeze ITS at local-player parallel pauses (lobby 39E984).
-        engine.freezeItsOnLocalPlayerParallelPause = !isHost;
-        engine.setOnCheckpoint((gameTick, state) => {
-            const timeline = this.getTimeline();
-            switch (timeline.kind) {
-                case 'canonical': {
-                    if (isHost) {
-                        // Non-blocking for the engine; host persist POSTs await the in-flight snapshot.
-                        const token = this.mintCanonicalToken();
-                        void this.netAdapter?.saveSnapshotOnPause(gameTick, state, token);
-                    }
-                    break;
-                }
-                case 'preview': {
-                    const buffer = this.getPreviewEmissionBuffer();
-                    if (buffer) {
-                        buffer.recordCheckpoint(gameTick, state, timeline.runId);
-                    }
-                    break;
-                }
-                default:
-                    assertNever(timeline);
-            }
-        });
-        engine.setOnTickComplete((gameTick, fingerprintHex, paused, adminReason) => {
-            const timeline = this.getTimeline();
-            switch (timeline.kind) {
-                case 'canonical': {
-                    if (isHost) {
-                        const token = this.mintCanonicalToken();
-                        this.netAdapter?.queueFingerprint(gameTick, fingerprintHex, paused, adminReason, token);
-                    }
-                    logUserState({ api, playerId: this.config.playerId, engine, fingerprintHex });
-                    break;
-                }
-                case 'preview': {
-                    const buffer = this.getPreviewEmissionBuffer();
-                    if (buffer) {
-                        buffer.recordFingerprint(gameTick, fingerprintHex, paused, adminReason, timeline.runId);
-                    }
-                    break;
-                }
-                default:
-                    assertNever(timeline);
-            }
-        });
-        if (isHost) {
-            engine.setOnParallelBatchResolved((batchAtTick) => {
-                const timeline = this.getTimeline();
-                switch (timeline.kind) {
-                    case 'canonical': {
-                        // Fire-and-follow: `tryResumeParallel` stays paused while this hook returns a
-                        // Promise, which blocked host local playahead. Merge HTTP still runs, but only
-                        // after persist appends land (`BattleNet.mergeAppliedOrdersForBatch` no-ops while
-                        // that batch still has an unacked host append).
-                        void this.netAdapter?.mergeAppliedOrdersForBatch(batchAtTick);
-                        break;
-                    }
-                    case 'preview': {
-                        const buffer = this.getPreviewEmissionBuffer();
-                        if (buffer) {
-                            buffer.recordResolvedBatch(batchAtTick, timeline.runId);
-                        }
-                        break;
-                    }
-                    default:
-                        assertNever(timeline);
-                }
-            });
-        } else {
-            engine.setOnParallelBatchResolved(null);
-        }
-        engine.setOnEmitMessage((text, npcId) => {
-            if (!isHost) return;
-            const onSent = (res: { messageId: number; chatEntry?: Record<string, unknown> }) => {
-                if (res.chatEntry) onEmittedChatMessage?.(res.chatEntry as MessageEntry);
-            };
-            if (npcId) {
-                api.sendMessage(MessageType.NPC_CHAT, { npcId, message: text }).then(onSent).catch(() => {});
-            } else {
-                api.sendMessage(MessageType.CHAT, { message: text }).then(onSent).catch(() => {});
-            }
-        });
-        engine.setOnItsParallelPauseDecision((decision, waiters, gameTick, info) => {
-            const localPlayerId = this.config.playerId;
-            const missingPick = info?.missingPick === true;
-            // A dropped missing-pick waiter is an automatic pass-and-fizzle: always mark the preview as
-            // depending on another player (even for a local waiter), so the commit rewinds and the real
-            // timeline asks for the real pick.
-            const newlyUncertain =
-                this.interactiveTargeting.isActive
-                && (missingPick || waiters.some((w) => w.ownerId !== localPlayerId))
-                && this.interactiveTargeting.noteMultiplayerUncertaintyDuringPreview();
-            const lobbyClient = typeof api.getLobbyClient === 'function' ? api.getLobbyClient() : null;
-            if (!lobbyClient) return;
-            if (!newlyUncertain && decision === 'drop') {
-                // Skip duplicate lobby lines when waiters persist across preview ticks.
-                return;
-            }
-            logToLobbyLogBattleSync({
-                lobbyClient,
-                lobbyId: api.getLobbyId(),
-                playerId: this.config.playerId,
-                tick: gameTick,
-                severity: 'info',
-                gameId: api.getGameId(),
-                message:
-                    decision === 'freeze'
-                        ? 'ITS: freezing at parallel pause (local player is waiter)'
-                        : missingPick
-                            ? 'ITS: auto pass-and-fizzle at a missing-pick pause'
-                            : 'ITS: dropping ally-only parallel pause (preview continues)',
-                context: {
-                    decision,
-                    missingPick,
-                    isHost,
-                    waiterOwnerIds: waiters.map((w) => w.ownerId),
-                    waiterUnitIds: waiters.map((w) => w.unitId),
-                },
-            });
-        });
     }
 
     /**
@@ -551,22 +365,9 @@ export class BattleSession implements BattleSessionHandle {
         });
     }
 
-    /**
-     * Fallback when a terminal outcome fires with preview flags set but no live ITS session
-     * (e.g. flags orphaned after an external teardown): clear flags and surface the outcome.
-     */
-    private teardownSequentialTargetingPreviewForTerminalOutcome(engine: GameEngine): void {
-        engine.isSequentialTargetingPreview = false;
-        engine.sequentialTargetingPreviewCast = null;
-        engine.waitingForTargetInput = null;
-        if (this.interactiveTargeting.isActive) {
-            this.interactiveTargeting.endPreviewForTerminalOutcome(this);
-        }
-        this.rebindEngineCallbacks();
-    }
-
     /** Guards re-entry while a terminal-outcome auto-commit is awaiting network. */
-    private terminalPreviewAutoCommitInFlight = false;
+    /** @internal */
+    terminalPreviewAutoCommitInFlight = false;
 
     /**
      * Victory/defeat latched during ITS preview playahead. The killing order exists only in the
@@ -581,106 +382,9 @@ export class BattleSession implements BattleSessionHandle {
      * - A failed commit restores the pre-preview pause with no outcome UI — correct, since the
      *   kill never happened authoritatively.
      */
-    private commitPreviewForTerminalOutcome(engine: GameEngine): void {
-        if (this.terminalPreviewAutoCommitInFlight) return;
-        if (!this.interactiveTargeting.isActive) {
-            this.teardownSequentialTargetingPreviewForTerminalOutcome(engine);
-            this.reemitSuppressedTerminalOutcome(engine);
-            return;
-        }
-        this.terminalPreviewAutoCommitInFlight = true;
-        void this.interactiveTargeting
-            .commit(this, 'terminal_outcome_auto_commit')
-            .finally(() => {
-                this.terminalPreviewAutoCommitInFlight = false;
-            });
-    }
-
-    private finalizeEngine(engine: GameEngine): void {
-        const mission = MISSION_MAP[this.config.missionId] ?? DARK_AWAKENING;
-        // Defs are runtime-only; re-register after fromJSON so late spawns still assign.
-        // Fresh load already registered in initializeGameState — this is idempotent.
-        engine.registerPlayerControl(
-            mission.playerControl ?? [],
-            { ...engine.getNpcControlAssignments() },
-        );
-        if (this.renderer) {
-            this.renderer.localTeamId = engine.getLocalPlayerTeamId();
-        }
-        const { onVictory, onDefeat } = this.config;
-        engine.registerBattleObjectives(mission.battleObjectives ?? []);
-        engine.state.worldModifierManager.install(
-            buildWorldModifiersFromSources({
-                builtins: BUILTIN_WORLD_MODIFIERS,
-                campaign: compileWorldModifiers(engine.activeDarknessStrengths),
-                mission: mission.worldModifiers,
-            }),
-        );
-        this.engine = engine;
-        // Bump epoch when engine instance is replaced.
-        this.timeline = bumpEpoch(this.timeline);
-        this.emit({ type: 'round_number', roundNumber: engine.roundNumber });
-        this.emit({ type: 'round_progress', progress: engine.roundProgress });
-        this.emit({ type: 'pause_state', paused: !!engine.waitingForOrders, waitingForOrders: engine.waitingForOrders });
-
-        engine.setOnWaitingForOrders((info) => {
-            if (engine.isSequentialTargetingPreview) return;
-            this.emit({
-                type: 'waiting_for_orders',
-                engine,
-                info,
-                source: 'engine_callback',
-            });
-        });
-        this.bindEngineCallbacks(engine);
-        engine.eventBus.on('ability_bar_changed', () => {
-            if (engine.isSequentialTargetingPreview) return;
-            this.emit({ type: 'card_state', engine });
-        });
-        engine.setOnRoundEnd((rn) => {
-            if (engine.isSequentialTargetingPreview) return;
-            this.emit({ type: 'round_number', roundNumber: rn + 1 });
-            this.emit({ type: 'card_state', engine });
-        });
-        engine.setOnStateChanged(() => {
-            if (engine.isSequentialTargetingPreview) return;
-            this.emit({ type: 'round_progress', progress: engine.roundProgress });
-            this.emit({ type: 'round_number', roundNumber: engine.roundNumber });
-        });
-        if (onVictory) {
-            engine.setOnVictory((result) => {
-                if (engine.isSequentialTargetingPreview) {
-                    this.commitPreviewForTerminalOutcome(engine);
-                    return;
-                }
-                onVictory(result, this.matchHungerLossFor(engine), this.victorySnapshotFor(engine));
-            });
-        }
-        if (onDefeat) {
-            engine.setOnDefeat(() => {
-                if (engine.isSequentialTargetingPreview) {
-                    this.commitPreviewForTerminalOutcome(engine);
-                    return;
-                }
-                onDefeat();
-            });
-        }
-        const myUnit = engine.getLocalPlayerUnit();
-        if (myUnit && this.camera) {
-            this.camera.snapTo(myUnit.x, myUnit.y, myUnit.radius);
-        }
-        this.emit({ type: 'card_state', engine });
-        if (engine.waitingForOrders) {
-            this.emit({
-                type: 'waiting_for_orders',
-                engine,
-                info: engine.waitingForOrders,
-                source: 'post_full_state_sync',
-            });
-        } else {
-            engine.isPaused = false;
-        }
-        engine.clearDeferredOrderPauseAndAccumulator();
+    /** @internal */
+    commitPreviewForTerminalOutcome(engine: GameEngine): void {
+        return commitPreviewForTerminalOutcome(this, engine);
     }
 
     /** Start the simulation loop (RAF). Call after host has persisted tick-0 initial state when appropriate. Idempotent with GameEngine.start. */
@@ -707,232 +411,17 @@ export class BattleSession implements BattleSessionHandle {
      * Deterministic load: always initialize from mission + seed.
      * Optional initial snapshot is used only for metadata and mismatch fallback.
      */
-    async load({
-        players,
-        characterSelections,
-        battleSeed,
-        initialSnapshot,
-        darknessStrength,
-        darknessUpgradeBonuses,
-        darknessUpgradeNodeIds,
-    }: BattleSessionLoadArgs): Promise<void> {
-        this.updateLobbyContext(players, characterSelections);
-        this.appliedRemoteOrderKeys.clear();
-        this.ordersBakedThroughTick = -1;
-        this.teardownEngineAndRendererOnly();
-        const { api, playerId, missionId, isHost } = this.config;
-        api.setCurrentPlayerId();
-        let renderer = this.renderer;
-        if (!renderer) {
-            renderer = new GameRenderer();
-            this.renderer = renderer;
-        }
-        const mission = MISSION_MAP[missionId] ?? DARK_AWAKENING;
-        const snapshotRecord = (initialSnapshot ?? null) as Record<string, unknown> | null;
-        const equippedItemsByPlayer = (snapshotRecord?.playerEquipmentByPlayer as Record<string, string[]> | undefined) ?? {};
-        // Active research only (inactive weapon trees dropped, virtual roots added). Idempotent, so
-        // it is safe whether the snapshot holds raw or already-active research.
-        const playerResearchTreesByPlayer = activeResearchByPlayer(
-            equippedItemsByPlayer,
-            snapshotRecord?.playerResearchTreesByPlayer as Record<string, Record<string, string[]>> | undefined,
-        );
-        const terrainCtx = { researchTrees: mergePartyResearch(playerResearchTreesByPlayer) };
-        const composed = mission.composeMap(terrainCtx);
-        const terrainGrid = mission.createTerrain(terrainCtx);
-        const terrainManager = new TerrainManager(terrainGrid);
-        const camera = new Camera(800, 600, terrainGrid.worldWidth, terrainGrid.worldHeight);
-        this.camera = camera;
-        renderer.setTerrain(terrainManager);
-        renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
-
-        const selections =
-            Object.keys(characterSelections).length > 0
-                ? characterSelections
-                : ((snapshotRecord?.characterSelections ?? snapshotRecord?.character_selections) as Record<string, string>) ?? {};
-        const portraitIds = (snapshotRecord?.characterPortraitIds ?? snapshotRecord?.character_portrait_ids) as
-            | Record<string, string>
-            | undefined;
-        const displayNamesRaw =
-            (snapshotRecord?.characterDisplayNames ?? snapshotRecord?.character_display_names) as
-                | Record<string, string>
-                | undefined;
-        const playerUnits = Object.entries(selections)
-            .filter(([, charId]) => charId !== SPECTATOR_ID && !isControlEnemy(charId))
-            .map(([pid]) => {
-                const dn = displayNamesRaw?.[pid]?.trim();
-                const fallback = players[pid]?.name ?? 'Unknown';
-                return {
-                    playerId: pid,
-                    name: dn && dn !== '' ? dn : fallback,
-                    portraitId: portraitIds?.[pid],
-                };
-            });
-        const playerResearchNodeLevelsByPlayer = activeResearchNodeLevelsByPlayer(
-            equippedItemsByPlayer,
-            snapshotRecord?.playerResearchNodeLevelsByPlayer as
-                | Record<string, Record<string, Record<string, number>>>
-                | undefined,
-        );
-        const questPrepLoadoutsByPlayer =
-            (snapshotRecord?.questPrepLoadoutsByPlayer as Record<string, string[]> | undefined) ?? undefined;
-        const questAbilityLoadoutsByCharacterId =
-            (snapshotRecord?.questAbilityLoadoutsByCharacterId as Record<string, string[]> | undefined)
-            ?? undefined;
-        const missionPrepLoadoutsByPlayer =
-            (snapshotRecord?.missionPrepLoadoutsByPlayer as Record<string, string[]> | undefined)
-            ?? undefined;
-        const playerHungerDeltaByPlayer =
-            (snapshotRecord?.playerHungerDeltaByPlayer as Record<string, number> | undefined) ?? {};
-        const playerHungerStartFractionByPlayer =
-            (snapshotRecord?.playerHungerStartFractionByPlayer as Record<string, number> | undefined) ?? {};
-
-        const engine = new GameEngine();
-        engine.prepareForNewGame({
-            localPlayerId: playerId,
-            randomSeed: battleSeed,
-            terrainManager,
-            aiControllerId: mission.aiController,
-        });
-        engine.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
-        if (mission.levelEvents && mission.levelEvents.length > 0) {
-            engine.setLevelEvents(mission.levelEvents);
-        }
-        // Install before initializeGameState so enemy (and player) spawns bake statBags.
-        if (darknessStrength) {
-            engine.setActiveDarknessStrengths(resolveActiveDarknessStrengths(darknessStrength));
-        }
-        engine.darknessUpgradeBonuses = {
-            ...(darknessUpgradeBonuses ?? (snapshotRecord?.darknessUpgradeBonuses as PassiveBonuses | undefined) ?? {}),
-        };
-        engine.darknessUpgradeNodeIds = [
-            ...(darknessUpgradeNodeIds ?? (snapshotRecord?.darknessUpgradeNodeIds as string[] | undefined) ?? []),
-        ];
-        const terrainSegmentPOIs = composed?.pois
-            ?? mission.segmentIds.flatMap((id) => getSegment(id)?.pointsOfInterest ?? []);
-        const terrainSegmentZones = composed?.zones ?? getMissionSegmentZones(mission.segmentIds);
-        mission.initializeGameState(engine, {
-            playerUnits,
-            characterSelections: selections,
-            localPlayerId: playerId,
-            eventBus: engine.eventBus,
-            terrainManager,
-            equippedItemsByPlayer,
-            playerResearchTreesByPlayer,
-            playerResearchNodeLevelsByPlayer,
-            questPrepLoadoutsByPlayer,
-            questAbilityLoadoutsByCharacterId,
-            missionPrepLoadoutsByPlayer,
-            playerHungerDeltaByPlayer,
-            playerHungerStartFractionByPlayer,
-            terrainSegmentPOIs,
-            terrainSegmentZones,
-        });
-        engine.initNinjutsu(mission.ninjutsuPools);
-        engine.applyInstantLightingPass();
-        engine.setPlayerResearchTreesByPlayer(playerResearchTreesByPlayer);
-        this.applyPlayerPortraitOverrides(engine, portraitIds);
-        this.initialFingerprint = engine.computeInitialFingerprint();
-        this.initialSerializedState = engine.toJSON();
-        this.finalizeEngine(engine);
-        if (isHost && typeof api.getLobbyClient === 'function') {
-            const selectionKeys = Object.keys(selections).sort();
-            void logToLobbyLog({
-                lobbyClient: api.getLobbyClient(),
-                lobbyId: api.getLobbyId(),
-                playerId,
-                tick: 0,
-                severity: 'info',
-                logType: 'debug',
-                gameId: api.getGameId(),
-                gamePhase: 'battle',
-                message: 'battle initial fingerprint inputs',
-                context: {
-                    missionId,
-                    battleSeed,
-                    initialFingerprint: this.initialFingerprint,
-                    characterSelectionsOrdered: selectionKeys.map((id) => [id, selections[id]]),
-                    equippedItemsByPlayer,
-                },
-            });
-        }
+    async load(args: BattleSessionLoadArgs): Promise<void> {
+        return loadSession(this, args);
     }
-
-    private static readonly RESYNC_CAMERA_KEY = 'mb_camera_resync_state';
 
     /**
      * Replace simulation from a full serialized snapshot (host resync / reconnect).
      * `ordersBakedThroughTick` is required: the caller must say which orders the snapshot already contains
      * (checkpoint envelope tick `T` → `T`; tick-0 initial state → -1).
      */
-    loadFromSnapshot(
-        gameState: SerializedGameState,
-        opts: LoadFromSnapshotOpts,
-    ): void {
-        const raw = gameState as unknown as Record<string, unknown>;
-        debugLog('sync tracking', 'warn', 'BattleSession.loadFromSnapshot', {
-            gameTick: raw.gameTick ?? raw.game_tick,
-            snapshotIndex: raw.snapshotIndex,
-        });
-        // If an interactive targeting preview is in progress, abort it before replacing the engine.
-        // The mark/preview state is no longer valid after resync, so we just clear without restoring.
-        if (this.interactiveTargeting.isActive) {
-            this.interactiveTargeting.abort(this, 'resync_load_from_snapshot');
-        }
-        if (this.camera) {
-            localStorage.setItem(
-                BattleSession.RESYNC_CAMERA_KEY,
-                JSON.stringify({ x: this.camera.x, y: this.camera.y, zoom: this.camera.zoom }),
-            );
-        }
-        this.appliedRemoteOrderKeys.clear();
-        this.teardownEngineAndRendererOnly();
-        const { api, playerId, missionId } = this.config;
-        api.setCurrentPlayerId();
-        let renderer = this.renderer;
-        if (!renderer) {
-            renderer = new GameRenderer();
-            this.renderer = renderer;
-        }
-        const mission = MISSION_MAP[missionId] ?? DARK_AWAKENING;
-        const terrainCtx = terrainContextFromSnapshot(gameState as unknown as Record<string, unknown>);
-        const terrainGrid = mission.createTerrain(terrainCtx);
-        const terrainManager = new TerrainManager(terrainGrid);
-        const camera = new Camera(800, 600, terrainGrid.worldWidth, terrainGrid.worldHeight);
-        this.camera = camera;
-        renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
-        const engine = GameEngine.fromJSON(gameState, playerId, terrainManager, {
-            checkpointRuntimeFingerprintHex: opts.checkpointRuntimeFingerprintHex,
-            ...segmentRestoreOpts(mission, terrainCtx),
-        });
-        this.ordersBakedThroughTick = opts.ordersBakedThroughTick;
-        renderer.setTerrain(terrainManager);
-        // Fallback for snapshots predating ninjutsu serialization: re-init from mission config.
-        if (!engine.state.ninjutsuManager) {
-            engine.initNinjutsu(mission.ninjutsuPools);
-        }
-        engine.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
-        if (mission.levelEvents && mission.levelEvents.length > 0) {
-            engine.setLevelEvents(mission.levelEvents);
-        }
-        const snapshotPortraitIds = (raw.characterPortraitIds ?? raw.character_portrait_ids) as
-            | Record<string, string>
-            | undefined;
-        this.applyPlayerPortraitOverrides(engine, snapshotPortraitIds);
-        this.finalizeEngine(engine);
-        // Replacing the engine calls destroy() on the previous instance, which stops its rAF loop.
-        // BattlePhase only calls startEngine() once on mount; async resync paths must restart here.
-        this.startEngine();
-        const savedCamera = localStorage.getItem(BattleSession.RESYNC_CAMERA_KEY);
-        if (savedCamera) {
-            localStorage.removeItem(BattleSession.RESYNC_CAMERA_KEY);
-            try {
-                const { x, y, zoom } = JSON.parse(savedCamera) as { x: number; y: number; zoom: number };
-                this.camera.setZoomLevel(zoom);
-                this.camera.snapTo(x, y);
-            } catch {
-                // ignore malformed data
-            }
-        }
+    loadFromSnapshot(gameState: SerializedGameState, opts: LoadFromSnapshotOpts): void {
+        loadSessionFromSnapshot(this, gameState, opts);
     }
 
     /**
@@ -942,52 +431,7 @@ export class BattleSession implements BattleSessionHandle {
      * save/restore the camera from localStorage — it preserves the current camera directly.
      */
     restoreFromInMemorySnapshot(snapshot: SerializedGameState): void {
-        const { playerId, missionId } = this.config;
-        // Preserve current camera state before teardown.
-        const savedCamera = this.camera
-            ? { x: this.camera.x, y: this.camera.y, zoom: this.camera.zoom }
-            : null;
-        // Keep dedupe keys so BattleNet poll does not re-apply orders already applied before
-        // this restore (e.g. ITS commit/reset/replay after a local preview).
-        const preservedRemoteOrderKeys = new Set(this.appliedRemoteOrderKeys);
-        this.appliedRemoteOrderKeys.clear();
-        this.teardownEngineAndRendererOnly();
-        const { api } = this.config;
-        api.setCurrentPlayerId();
-        let renderer = this.renderer;
-        if (!renderer) {
-            renderer = new GameRenderer();
-            this.renderer = renderer;
-        }
-        const mission = MISSION_MAP[missionId] ?? DARK_AWAKENING;
-        const terrainCtx = terrainContextFromSnapshot(snapshot as unknown as Record<string, unknown>);
-        const terrainGrid = mission.createTerrain(terrainCtx);
-        const terrainManager = new TerrainManager(terrainGrid);
-        const camera = new Camera(800, 600, terrainGrid.worldWidth, terrainGrid.worldHeight);
-        this.camera = camera;
-        renderer.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
-        const engine = GameEngine.fromJSON(snapshot, playerId, terrainManager, {
-            checkpointRuntimeFingerprintHex: snapshot.checkpointRuntimeFingerprintHex,
-            ...segmentRestoreOpts(mission, terrainCtx),
-        });
-        renderer.setTerrain(terrainManager);
-        if (!engine.state.ninjutsuManager) {
-            engine.initNinjutsu(mission.ninjutsuPools);
-        }
-        engine.setMissionLightConfig(mission.lightLevelEnabled ?? true, mission.globalLightLevel ?? 0);
-        if (mission.levelEvents && mission.levelEvents.length > 0) {
-            engine.setLevelEvents(mission.levelEvents);
-        }
-        this.finalizeEngine(engine);
-        for (const key of preservedRemoteOrderKeys) {
-            this.appliedRemoteOrderKeys.add(key);
-        }
-        this.startEngine();
-        // Restore camera to what it was before the preview (no localStorage involved).
-        if (savedCamera) {
-            this.camera.setZoomLevel(savedCamera.zoom);
-            this.camera.snapTo(savedCamera.x, savedCamera.y);
-        }
+        restoreSessionFromInMemorySnapshot(this, snapshot);
     }
 
     /** Same as {@link load} for a new or reconnecting battle with optional lobby payload. */
@@ -1229,7 +673,8 @@ export class BattleSession implements BattleSessionHandle {
     }
 
     /** True when an order at `atTick` is already contained in the loaded engine state. */
-    private isBakedIntoLoadedState(atTick: number): boolean {
+    /** @internal */
+    isBakedIntoLoadedState(atTick: number): boolean {
         return atTick <= this.ordersBakedThroughTick;
     }
 
@@ -1250,138 +695,12 @@ export class BattleSession implements BattleSessionHandle {
      * register the key, then call `tryResumeParallel` once if any row was queued.
      */
     applyHeldRemoteOrders(rows: HeldRemoteOrder[]): void {
-        const engine = this.engine;
-        if (!engine) return;
-        let anyQueued = false;
-        for (const { atTick, order, key } of rows) {
-            if (key != null && this.appliedRemoteOrderKeys.has(key)) {
-                // Already applied before or during the preview — skip to prevent double-application.
-                continue;
-            }
-            if (this.isBakedIntoLoadedState(atTick)) {
-                if (key != null) this.appliedRemoteOrderKeys.add(key);
-                continue;
-            }
-            engine.state.orderMgr.queueOrder(atTick, order);
-            if (key != null) {
-                this.appliedRemoteOrderKeys.add(key);
-            }
-            anyQueued = true;
-        }
-        if (anyQueued) {
-            engine.tryResumeParallel();
-        }
+        return applyHeldRemoteOrdersFor(this, rows);
     }
 
     /** Apply orders delivered from the server for non-host (or late host) clients. */
     applyRemoteOrders(orders: RemoteOrderWireRow[]): ApplyRemoteOrdersResult {
-        const newlyAppliedKeys: string[] = [];
-        const skippedKeys: string[] = [];
-        // While an interactive targeting preview is running, hold all remote orders so they
-        // don't interfere with the local preview engine state. They will be applied after
-        // the preview ends (commit/reset/replay all call _restoreToMark which applies held orders).
-        if (this.interactiveTargeting.isActive) {
-            for (const row of orders) {
-                const atTick = row.atTick ?? row.gameTick;
-                if (typeof atTick !== 'number' || Number.isNaN(atTick)) continue;
-                const order = row.order as BattleOrder;
-                const idWire = row.idHash;
-                const keyFromWire = typeof idWire === 'string' && idWire.length > 0 ? idWire : null;
-                const playerId = typeof row.playerId === 'string' && row.playerId.length > 0 ? row.playerId : null;
-                const key =
-                    keyFromWire ??
-                    (playerId != null ? hashOrderId(playerId, atTick, order) : null);
-                if (key != null && (this.appliedRemoteOrderKeys.has(key) || this.isBakedIntoLoadedState(atTick))) {
-                    // Already applied before the preview started (or baked into the checkpoint) — skip entirely.
-                    this.appliedRemoteOrderKeys.add(key);
-                    skippedKeys.push(key);
-                    continue;
-                }
-                this.interactiveTargeting.holdRemoteOrder(atTick, order, key);
-            }
-            return { newlyAppliedKeys, skippedKeys };
-        }
-        const eng = this.engine;
-        if (!eng) {
-            return { newlyAppliedKeys, skippedKeys };
-        }
-        const engineTickBeforeApply = eng.gameTick;
-        for (const rec of orders) {
-            const atTick = rec.atTick ?? rec.gameTick;
-            if (typeof atTick !== 'number' || Number.isNaN(atTick)) {
-                continue;
-            }
-            const idWire = rec.idHash;
-            const keyFromWire = typeof idWire === 'string' && idWire.length > 0 ? idWire : null;
-            const playerId = typeof rec.playerId === 'string' && rec.playerId.length > 0 ? rec.playerId : null;
-            const key =
-                keyFromWire ??
-                (playerId != null ? hashOrderId(playerId, atTick, rec.order as BattleOrder) : null);
-            if (key == null) {
-                continue;
-            }
-            if (this.appliedRemoteOrderKeys.has(key)) {
-                skippedKeys.push(key);
-                continue;
-            }
-            if (this.isBakedIntoLoadedState(atTick)) {
-                this.appliedRemoteOrderKeys.add(key);
-                skippedKeys.push(key);
-                continue;
-            }
-            // Non-host: never clamp a past-batch order onto the current tick (lobby 39E984).
-            // Mark as applied for dedupe; BattleNet soft-align / recovery repairs the pause plane.
-            if (!this.config.isHost && atTick < eng.gameTick) {
-                this.appliedRemoteOrderKeys.add(key);
-                skippedKeys.push(key);
-                continue;
-            }
-            const order = rec.order;
-            eng.state.orderMgr.queueOrder(atTick, order as unknown as BattleOrder);
-            this.appliedRemoteOrderKeys.add(key);
-            newlyAppliedKeys.push(key);
-        }
-        eng.tryResumeParallel();
-        this.emit({
-            type: 'pause_state',
-            paused: !!eng.waitingForOrders,
-            waitingForOrders: eng.waitingForOrders,
-        });
-        this.emit({ type: 'card_state', engine: eng });
-        const wAfter = eng.waitingForOrders;
-        const lobbyClient = this.config.api.getLobbyClient?.();
-        if (orders.length > 0 && lobbyClient) {
-            logToLobbyLogBattleSync({
-                lobbyClient,
-                lobbyId: this.config.api.getLobbyId(),
-                playerId: this.config.playerId,
-                tick: eng.gameTick,
-                severity: 'info',
-                gameId: this.config.api.getGameId(),
-                message:
-                    'BattleSession.applyRemoteOrders: engine state after queueOrder (same effectiveTick+unitId replaces pending row)',
-                context: {
-                    engineTickBeforeApply,
-                    engineTickAfter: eng.gameTick,
-                    incomingRows: summarizeRemoteWireRowsForLog(orders),
-                    newlyAppliedKeys,
-                    skippedKeys,
-                    pendingOrdersAfter: eng.pendingOrders.map((o) => ({
-                        gameTick: o.gameTick,
-                        unitId: o.order.unitId,
-                        abilityId: o.order.abilityId,
-                    })),
-                    waitingForOrdersAfter:
-                        wAfter == null
-                            ? null
-                            : {
-                                  atTick: wAfter.atTick,
-                                  waiterUnitIds: wAfter.waiters.map((x) => x.unitId),
-                              },
-                },
-            });
-        }
-        return { newlyAppliedKeys, skippedKeys };
+        return applyRemoteOrdersFor(this, orders);
     }
 
     /**
@@ -1393,90 +712,7 @@ export class BattleSession implements BattleSessionHandle {
      * delegates to InteractiveTargetingSession.begin() instead of submitting immediately.
      */
     async submitPlayerOrder(order: BattleOrder, opts: { canSubmitOrders: boolean }): Promise<void> {
-        const engine = this.engine;
-        if (!engine) return;
-
-        let batch = engine.waitingForOrders;
-        if (!batch || !opts.canSubmitOrders) return;
-        if (!batch.waiters.some((w) => w.unitId === order.unitId)) return;
-
-        const caster = engine.getUnit(order.unitId);
-        const conditionalCancelFollowUp = isAtConditionalCancelDecision(engine, order.unitId, this.interactiveTargeting);
-
-        // Defense in depth: deferred-first-select ITS leaves waitingForOrders set, so Wait/Space
-        // could otherwise POST a wait for the open batch (lobby 10EA88). Commit uses
-        // submitCommittedTargetingOrder / persistInPlaceCommittedTargetingOrder instead.
-        if (this.interactiveTargeting.isActive) {
-            if (!conditionalCancelFollowUp) {
-                this.postBattleSyncLobbyLog('submitPlayerOrder blocked: ITS preview active', {
-                    abilityId: order.abilityId,
-                    unitId: order.unitId,
-                    endTurn: order.endTurn === true,
-                });
-                return;
-            }
-            // Assumed remote pass (or held remotes): the combo pause is not committable.
-            // Confirm throw 1 only; do not POST the follow-up on this preview batch.
-            if (this.interactiveTargeting.shouldForceItsCommitAtComboWindow()) {
-                await this.interactiveTargeting.commit(this, 'combo_window_after_assumed_pass');
-                return;
-            }
-            await this.interactiveTargeting.commit(this, 'conditional_cancel_follow_up');
-            if (this.interactiveTargeting.isActive) return;
-            // In-place commit leaves the follow-up on the preview's own pause plane (lobby E27AE2).
-            batch = engine.waitingForOrders;
-            if (!batch || !batch.waiters.some((w) => w.unitId === order.unitId)) return;
-        }
-
-        // Stale pause plane (lobby F6E500): do not start ITS or POST on a completed batch.
-        const batchSubmittable = this.isOrderBatchTickSubmittable(batch.atTick);
-        const expectedToAct = this.isLocalPlayerExpectedToAct();
-        if (!batchSubmittable || !expectedToAct) {
-            this.postBattleSyncLobbyLog('submitPlayerOrder rejected: stale pause plane', {
-                abilityId: order.abilityId,
-                unitId: order.unitId,
-                batchAtTick: batch.atTick,
-                engineTick: engine.gameTick,
-                heartbeatOrderBatchAtTick: this.getHeartbeatOrderBatchAtTick(),
-                batchSubmittable,
-                expectedToAct,
-                conditionalCancelFollowUp,
-            });
-            this.emitOrderSubmitFailed(order.unitId, order.abilityId);
-            return;
-        }
-
-        // A new cast executeUnitAbility would refuse (no uses) must not start ITS or reach the
-        // network: at a combo pause it would cancel the paused cast, then do nothing (lobby E27AE2).
-        // Confirming / updating an already-pending order for the same ability spent its use already.
-        const ability = order.abilityId !== 'wait' ? getAbility(order.abilityId) : undefined;
-        const pendingForUnit = engine.state.orderMgr.getPendingOrderForUnit(order.unitId, batch.atTick);
-        if (
-            ability
-            && caster
-            && pendingForUnit?.abilityId !== order.abilityId
-            && !canUseAbilityNow(caster, ability)
-        ) {
-            this.postBattleSyncLobbyLog('submitPlayerOrder rejected: ability not castable', {
-                abilityId: order.abilityId,
-                unitId: order.unitId,
-                batchAtTick: batch.atTick,
-                conditionalCancelFollowUp,
-            });
-            this.emitOrderSubmitFailed(order.unitId, order.abilityId);
-            return;
-        }
-
-        // Combo / Entombed follow-ups enter ITS too; the preview order resolves the paused cast.
-        if (USE_SEQUENTIAL_TARGETING) {
-            if (ability && caster && getInteractiveTargetDefsFromTimings(ability, caster, engine).length > 0) {
-                if (this.interactiveTargeting.begin(order, this)) {
-                    return;
-                }
-            }
-        }
-
-        await this.netAdapter?.submitOrder(order, batch.atTick);
+        return submitPlayerOrderFor(this, order, opts);
     }
 
     /**
@@ -1484,23 +720,7 @@ export class BattleSession implements BattleSessionHandle {
      * @returns true when the order landed (pending row, deferred POST, or registered dedupe after local apply).
      */
     async submitCommittedTargetingOrder(order: BattleOrder, atTick: number): Promise<boolean> {
-        if (!this.netAdapter) {
-            return false;
-        }
-        const unitId = order.unitId;
-        const idHash = hashOrderId(this.config.playerId, atTick, order);
-        await this.netAdapter.submitOrder(order, atTick);
-        if (this.appliedRemoteOrderKeys.has(idHash)) {
-            return true;
-        }
-        if (this.netAdapter.hasDeferredOrderFor?.(unitId, atTick)) {
-            return true;
-        }
-        const engine = this.engine;
-        if (engine?.state.orderMgr.hasPendingEndTurnOrderForUnit(unitId, atTick)) {
-            return true;
-        }
-        return false;
+        return submitCommittedTargetingOrderFor(this, order, atTick);
     }
 
     /**
@@ -1511,27 +731,7 @@ export class BattleSession implements BattleSessionHandle {
      * @param token Optional commit token (minted by caller during preview for in-place commit path).
      */
     async persistInPlaceCommittedTargetingOrder(order: BattleOrder, atTick: number, token?: CanonicalToken | null): Promise<boolean> {
-        if (!this.netAdapter) return false;
-        const pathAvailable = this.netAdapter.isOrderSubmitPathAvailable();
-        if (!pathAvailable) return false;
-
-        const idHash = hashOrderId(this.config.playerId, atTick, order);
-
-        if (this.config.isHost) {
-            const ok = await this.netAdapter.persistCommittedOrder(order, atTick, token);
-            if (ok) {
-                this.appliedRemoteOrderKeys.add(idHash);
-            }
-            return ok;
-        }
-
-        await this.netAdapter.submitOrder(order, atTick, { skipLocalApply: true, token });
-        const deferred = this.netAdapter.hasDeferredOrderFor(order.unitId, atTick);
-        if (deferred) {
-            return false;
-        }
-        this.appliedRemoteOrderKeys.add(idHash);
-        return true;
+        return persistInPlaceCommittedTargetingOrderFor(this, order, atTick, token);
     }
 
     /**
@@ -1539,42 +739,19 @@ export class BattleSession implements BattleSessionHandle {
      * (`LevelEventManager.isTerminal`) but was swallowed by `isSequentialTargetingPreview` guards.
      */
     reemitSuppressedTerminalOutcome(engine: GameEngine): void {
-        const outcome = engine.state.levelEventManager.getTerminalOutcome();
-        if (!outcome) {
-            return;
-        }
-        if (outcome.kind === 'victory') {
-            this.config.onVictory?.(
-                outcome.missionResult,
-                this.matchHungerLossFor(engine),
-                this.victorySnapshotFor(engine),
-            );
-        } else {
-            this.config.onDefeat?.();
-        }
+        return reemitSuppressedTerminalOutcome(this, engine);
     }
 
     /** Objective rows and the local player's HP at match end, for the victory popover. */
-    private victorySnapshotFor(engine: GameEngine): VictorySnapshot {
-        const unit = findPlayerUnitForMatchHunger(
-            engine.units,
-            engine.localPlayerId,
-            engine.getLocalPlayerUnit(),
-        );
-        return {
-            objectives: engine.getBattleObjectiveRows(),
-            playerHp: unit ? { hp: unit.hp, maxHp: unit.maxHp } : null,
-        };
+    /** @internal */
+    victorySnapshotFor(engine: GameEngine): VictorySnapshot {
+        return victorySnapshotFor(engine);
     }
 
     /** Positive Hunger lost by the local player this match (see `computeMatchHungerLoss`). */
-    private matchHungerLossFor(engine: GameEngine): number {
-        const unit = findPlayerUnitForMatchHunger(
-            engine.units,
-            engine.localPlayerId,
-            engine.getLocalPlayerUnit(),
-        );
-        return unit ? computeMatchHungerLoss(unit) : 0;
+    /** @internal */
+    matchHungerLossFor(engine: GameEngine): number {
+        return matchHungerLossFor(engine);
     }
 
     /** Emit an order_submit_failed event to all session listeners. */
@@ -1659,7 +836,8 @@ export class BattleSession implements BattleSessionHandle {
         }
     }
 
-    private teardownEngineAndRendererOnly(): void {
+    /** @internal */
+    teardownEngineAndRendererOnly(): void {
         const prevEngine = this.engine;
         const renderer = this.renderer;
         if (prevEngine && renderer) {
