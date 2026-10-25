@@ -6,9 +6,8 @@
  * preserving the existing public API via facade methods/getters.
  */
 
-import { EventBus, type CastEndedEarlyEvent, type DamageTakenEvent, type NearbyStoneDamagedEvent } from './EventBus';
+import { EventBus, type CastEndedEarlyEvent, type NearbyStoneDamagedEvent } from './EventBus';
 import {
-    normalizeWaitingForOrdersFromJSON,
     type OrderWaiter,
     type WaitingForOrders,
     type SerializedGameState,
@@ -19,34 +18,27 @@ import {
 import { Unit } from './units/Unit';
 import { Projectile } from './projectiles/Projectile';
 import { Effect } from './effects/Effect';
-import { getAbility } from '../abilities/AbilityRegistry';
-import {
-    elapsedIsInCoopCooldown,
-    normalizeAbilityTimingsToIntervals,
-    resolveAbilityTimingEntries,
-} from '../abilities/abilityTimings';
-import { WAIT_ABILITY_MODE_FAR } from '../abilities/WaitAbility';
-import { areAllies, areEnemies, type TeamId } from './teams';
+import type { TeamId } from './teams';
 import type { TerrainManager } from '../terrain/TerrainManager';
 import type { BattleObjectiveDef, LevelEvent, PlayerControlDef } from '../storylines/types';
 import type { SpecialTile } from './specialTiles/SpecialTile';
 import { isTileDefendPoint } from './specialTiles/SpecialTile';
 import type { AIContext, AILightSource } from './units/unitAI';
-import { computeLightChannelGrid, type LightSource as GridLightInput } from './LightGrid';
-import { LightTileGrid } from './lightTileGrid/LightTileGrid';
-import { LIGHT_TYPES, type LightType } from './lighting/lightTypes';
+import type { LightSource as GridLightInput } from './LightGrid';
+import type { LightType } from './lighting/lightTypes';
 import { LightSource } from './lightSources/LightSource';
 import type { Deployable, DeployableQuery } from './deployables/Deployable';
 import type { EngineContext } from './EngineContext';
 import { GameState } from './GameState';
 import type { PassiveBonuses } from '../../../researchTrees/types';
 import type { ActiveDarknessStrength } from '../../../darknessStrength/resolve';
-import { getDarknessStrength } from '../../../darknessStrength/registry';
-import type { DarknessStrengthInstance } from '../../../darknessStrength/types';
-import { SERIALIZED_GAME_STATE_VERSION, upgradeSerializedGameState } from './serializedGameStateUpgrade';
+import { deserializeEngine, serializeEngine } from './engineSerialization';
+import { wireCoreEventListeners } from './engineEventWiring';
+import { OrderPauseController } from './orderPause/OrderPauseController';
+import { LightingSystem } from './lighting/LightingSystem';
+import { NpcControlRegistry } from './npcControl/NpcControlRegistry';
 import {
     FingerprintEvent,
-    fingerprintFromHex,
     fingerprintInitial,
     fingerprintToHex,
     mix,
@@ -76,11 +68,8 @@ import {
 import { tickAllDots, DOT_TICKS_PER_ROUND } from './dotTick';
 import { tickDayLightDamage } from './lighting/dayLightDamage';
 import { clearUnitTileTransitionState } from './terrainEffects/tileTransitions';
-import { registerDamageLinkListeners } from './units/unitDamageLinks';
-import { createDamageTakenEffect } from './createDamageTakenEffect';
 import { CantDieBuff } from '../buffs/CantDieBuff';
 import {
-    runUnitComponentDeath,
     runUnitComponentRoundMilestone,
     runUnitComponentTick,
     type UnitComponentContext,
@@ -88,25 +77,20 @@ import {
 import { spawnUnit as spawnUnitFromDefinition } from './units/spawning/spawnUnit';
 import type { SpawnDefinition } from './units/spawning/spawnDefinition';
 import { TerrainLayerManager } from './TerrainLayerManager';
-import { isWithinEarthCoreNearbyStoneDamagedRange } from '../abilities/earthCoreHelpers';
 import { resetGameObjectIdCounter } from './GameObject';
 import type { EffectEmitter } from './effects/EffectEmitter';
 import type { WorldModifierManager } from '../worldModifiers/WorldModifierManager';
 import type { MapNetworkManager } from './managers/mapNetwork/MapNetworkManager';
-import { getMissionSegmentNetwork, getMissionSegmentPlacements } from '../terrain/segmentRegistry';
 import { CellOccupancyManager } from './managers/CellOccupancyManager';
 import { CrowdSpacingManager } from './crowdSpacing/CrowdSpacingManager';
 import { PathfindingManager } from '../pathfinding/PathfindingManager';
-import { getUnitDefEntry, getBodyColorForUnit, getCharacterSpriteKey, getUnitSpawnDef, PLAYER_CHARACTER_ID, type UnitDefId } from './units/unit_defs/unitDef';
+import { getUnitSpawnDef } from './units/unit_defs/unitDef';
 import { createAINav } from './units/unitAI/aiNav';
-import { STACK_GHOST_DURATION } from './effect_defs/movementEffects';
-import { applyVisualEffectDefs } from './effects/applyVisualEffectDefs';
-import { applyDeathSequence } from './deathSequences/applyDeathSequence';
 import { NinjutsuManager, countNinjutsuEnemyUnits, type NinjutsuUIState } from './ninjutsu/NinjutsuManager';
 import { NINJUTSU_DEFAULT, type NinjutsuPoolConfig } from './ninjutsu/ninjutsuConfig';
 import { findImpendingSelectTargetNeed } from './interaction/selectTargetLookahead';
 import { BuffRenderEmitterSystem } from './effects/buffParticleAura';
-import { advanceUnitLocalClocks, collectUnitFocalRequests, getCastElapsed } from './time/actorClock';
+import { advanceUnitLocalClocks, collectUnitFocalRequests } from './time/actorClock';
 import {
     isITSPreviewComplete,
     isPreviewCastInstance,
@@ -154,7 +138,8 @@ export class GameEngine implements EngineContext {
     private running = false;
 
     /** Monotonic id suffix for new GameObjects created while this engine is authoritative. */
-    private objectIdSeq = 1;
+    /** @internal read by `engineSerialization.ts`. */
+    objectIdSeq = 1;
 
     // Client-side only — never serialized, never synchronized between host and non-host.
     // Use this (not allocateObjectId) for visual Effect IDs.
@@ -165,33 +150,36 @@ export class GameEngine implements EngineContext {
     /**
      * Parallel order pause scheduled during a tick; committed in the **same** `fixedUpdate` after
      * `TICK_END` for that tick (see `commitDeferredOrderPauseAfterCompletedTick`).
+     *
+     * @internal read by `engineSerialization.ts` and the order-pause tests.
      */
-    private deferredOrderPause: {
+    deferredOrderPause: {
         waiters: OrderWaiter[];
         naturalCompletionUnitIds: readonly string[];
     } | null = null;
-
-    /** Units whose casts ended by duration this tick (cleared each normal tick before `processActiveAbilities`). */
-    private naturalAbilityCompletionUnitIdsThisTick = new Set<string>();
 
     /**
-     * Parallel pause the ITS preview dropped during the current tick (host/solo playahead), kept so an
-     * in-place commit at that tick can form it exactly as a canonical run would. Cleared each tick.
-     * See {@link commitDroppedItsPreviewPauseForStopTick}.
+     * Units whose casts ended by duration this tick (cleared each normal tick before `processActiveAbilities`).
+     * @internal read by `OrderPauseController`.
      */
-    private droppedItsPreviewPause: {
-        gameTick: number;
-        waiters: OrderWaiter[];
-        naturalCompletionUnitIds: readonly string[];
-    } | null = null;
+    naturalAbilityCompletionUnitIdsThisTick = new Set<string>();
+
+    /** Deferred/parallel order-pause logic (`orderPause/OrderPauseController.ts`); state stays on this engine. */
+    private readonly orderPause = new OrderPauseController(this);
+    /** Light queries and the light-grid driver (`lighting/LightingSystem.ts`); the grid lives on `GameState`. */
+    private readonly lighting = new LightingSystem(this);
 
     // -- Callbacks (engine wiring, not serialized) --
-    private onWaitingForOrders: ((info: WaitingForOrders) => void) | null = null;
+    /** @internal read by `OrderPauseController`. */
+    onWaitingForOrders: ((info: WaitingForOrders) => void) | null = null;
     private onRoundEnd: ((roundNumber: number) => void) | null = null;
-    private onStateChanged: EngineStateCallback | null = null;
-    private onCheckpoint: ((gameTick: number, state: SerializedGameState, orders: OrderAtTick[]) => void) | null = null;
+    /** @internal read by `OrderPauseController`. */
+    onStateChanged: EngineStateCallback | null = null;
+    /** @internal read by `OrderPauseController`. */
+    onCheckpoint: ((gameTick: number, state: SerializedGameState, orders: OrderAtTick[]) => void) | null = null;
     private onTickComplete: ((gameTick: number, fingerprintHex: string, paused: boolean, adminReason?: string) => void) | null = null;
-    private onParallelBatchResolved: ((batchAtTick: number) => void | Promise<void>) | null = null;
+    /** @internal read by `OrderPauseController`. */
+    onParallelBatchResolved: ((batchAtTick: number) => void | Promise<void>) | null = null;
     /**
      * Non-host multiplayer: during interactive targeting, freeze at parallel pauses that include the
      * local player so the sim cannot run past the host's order batch (lobby 39E984). Host/solo keep
@@ -202,8 +190,9 @@ export class GameEngine implements EngineContext {
     /**
      * Interactive targeting preview: whether a would-be parallel pause was dropped (ally-only) or
      * frozen (local player is a waiter). Wired by BattleSession for lobby-log observability (lobby 39E984).
+     * @internal read by `OrderPauseController`.
      */
-    private onItsParallelPauseDecision:
+    onItsParallelPauseDecision:
         | ((
               decision: 'drop' | 'freeze',
               waiters: readonly OrderWaiter[],
@@ -212,16 +201,19 @@ export class GameEngine implements EngineContext {
           ) => void)
         | null = null;
     private pendingAdminReason: string | null = null;
-    private appliedRoundStartRecovery = false;
-    private appliedMidRoundRecovery = false;
-    private appliedDotTicks = 0;
+    /** @internal reset by `engineSerialization.ts` on restore. */
+    appliedRoundStartRecovery = false;
+    /** @internal reset by `engineSerialization.ts` on restore. */
+    appliedMidRoundRecovery = false;
+    /** @internal reset by `engineSerialization.ts` on restore. */
+    appliedDotTicks = 0;
 
     /**
-     * Mission playerControl defs (runtime-only; re-registered after checkpoint restore).
+     * Mission playerControl defs and group->player assignments (`npcControl/NpcControlRegistry.ts`).
      * Assignments are serialized as {@link SerializedGameState.npcControlAssignments}.
+     * @internal `engineSerialization.ts` reads and restores `npcControl.assignments`.
      */
-    private npcControlDefs: PlayerControlDef[] = [];
-    private npcControlAssignments: Record<string, string> = {};
+    readonly npcControl = new NpcControlRegistry(this.eventBus);
 
     /** Runtime occupancy tracker — not serialized, rebuilt at the start of each movement phase. */
     readonly cellOccupancyManager = new CellOccupancyManager();
@@ -257,7 +249,8 @@ export class GameEngine implements EngineContext {
     }
 
     /** Records the first `cast_ended_early` for the ITS preview cast (see `sequentialTargetingPreviewCast`). */
-    private readonly recordPreviewCastEndedEarly = (event: CastEndedEarlyEvent): void => {
+    /** @internal subscribed by `engineEventWiring.ts`. */
+    readonly recordPreviewCastEndedEarly = (event: CastEndedEarlyEvent): void => {
         const previewCast = this.sequentialTargetingPreviewCast;
         if (!this.isSequentialTargetingPreview || previewCast == null) return;
         if (previewCast.endedEarly != null) return;
@@ -269,19 +262,11 @@ export class GameEngine implements EngineContext {
         };
     };
 
-    get randomSeed(): number {
-        return this.state.randomSeed;
-    }
-    set randomSeed(v: number) {
-        this.state.randomSeed = v;
-    }
+    get randomSeed(): number { return this.state.randomSeed; }
+    set randomSeed(v: number) { this.state.randomSeed = v; }
 
-    get gameTime(): number {
-        return this.state.gameTime;
-    }
-    set gameTime(v: number) {
-        this.state.gameTime = v;
-    }
+    get gameTime(): number { return this.state.gameTime; }
+    set gameTime(v: number) { this.state.gameTime = v; }
 
     /** World seconds per tick / FIXED_DT (1 normal, 0 Time Stop). Resolved at the start of each tick. */
     get worldPace(): number {
@@ -297,61 +282,29 @@ export class GameEngine implements EngineContext {
         return this.state.timeManager;
     }
 
-    get gameTick(): number {
-        return this.state.gameTick;
-    }
-    set gameTick(v: number) {
-        this.state.gameTick = v;
-    }
+    get gameTick(): number { return this.state.gameTick; }
+    set gameTick(v: number) { this.state.gameTick = v; }
 
-    get roundNumber(): number {
-        return this.state.roundNumber;
-    }
-    set roundNumber(v: number) {
-        this.state.roundNumber = v;
-    }
+    get roundNumber(): number { return this.state.roundNumber; }
+    set roundNumber(v: number) { this.state.roundNumber = v; }
 
-    get snapshotIndex(): number {
-        return this.state.snapshotIndex;
-    }
-    set snapshotIndex(v: number) {
-        this.state.snapshotIndex = v;
-    }
+    get snapshotIndex(): number { return this.state.snapshotIndex; }
+    set snapshotIndex(v: number) { this.state.snapshotIndex = v; }
 
-    get isPaused(): boolean {
-        return this.state.isPaused;
-    }
-    set isPaused(v: boolean) {
-        this.state.isPaused = v;
-    }
+    get isPaused(): boolean { return this.state.isPaused; }
+    set isPaused(v: boolean) { this.state.isPaused = v; }
 
-    get waitingForOrders(): WaitingForOrders | null {
-        return this.state.orderMgr.waitingForOrders;
-    }
-    set waitingForOrders(v: WaitingForOrders | null) {
-        this.state.orderMgr.waitingForOrders = v;
-    }
+    get waitingForOrders(): WaitingForOrders | null { return this.state.orderMgr.waitingForOrders; }
+    set waitingForOrders(v: WaitingForOrders | null) { this.state.orderMgr.waitingForOrders = v; }
 
-    get storyPauseActive(): boolean {
-        return this.state.storyPauseActive;
-    }
-    set storyPauseActive(v: boolean) {
-        this.state.storyPauseActive = v;
-    }
+    get storyPauseActive(): boolean { return this.state.storyPauseActive; }
+    set storyPauseActive(v: boolean) { this.state.storyPauseActive = v; }
 
-    get storyPauseReason(): string | null {
-        return this.state.storyPauseReason;
-    }
-    set storyPauseReason(v: string | null) {
-        this.state.storyPauseReason = v;
-    }
+    get storyPauseReason(): string | null { return this.state.storyPauseReason; }
+    set storyPauseReason(v: string | null) { this.state.storyPauseReason = v; }
 
-    get storyPauseEndsAt(): number | null {
-        return this.state.storyPauseEndsAt;
-    }
-    set storyPauseEndsAt(v: number | null) {
-        this.state.storyPauseEndsAt = v;
-    }
+    get storyPauseEndsAt(): number | null { return this.state.storyPauseEndsAt; }
+    set storyPauseEndsAt(v: number | null) { this.state.storyPauseEndsAt = v; }
 
     get runtimeFingerprint(): Fingerprint64 {
         return this.state.runtimeFingerprint;
@@ -370,24 +323,16 @@ export class GameEngine implements EngineContext {
         }
     }
 
-    get mapPOIs(): import('../terrain/segmentSchema').MapSegmentPOI[] {
-        return this.state.mapPOIs;
-    }
-    set mapPOIs(v: import('../terrain/segmentSchema').MapSegmentPOI[]) {
-        this.state.mapPOIs = v;
-    }
+    get mapPOIs(): import('../terrain/segmentSchema').MapSegmentPOI[] { return this.state.mapPOIs; }
+    set mapPOIs(v: import('../terrain/segmentSchema').MapSegmentPOI[]) { this.state.mapPOIs = v; }
 
     /** Register POIs from the loaded terrain segments for use by spawn behaviours. */
     registerMapPOIs(pois: import('../terrain/segmentSchema').MapSegmentPOI[]): void {
         this.state.mapPOIs = pois;
     }
 
-    get mapZones(): import('../terrain/segmentSchema').MapSegmentZone[] {
-        return this.state.mapZones;
-    }
-    set mapZones(v: import('../terrain/segmentSchema').MapSegmentZone[]) {
-        this.state.mapZones = v;
-    }
+    get mapZones(): import('../terrain/segmentSchema').MapSegmentZone[] { return this.state.mapZones; }
+    set mapZones(v: import('../terrain/segmentSchema').MapSegmentZone[]) { this.state.mapZones = v; }
 
     /** Register zones from the loaded terrain segments for use by spawn behaviours and future triggers. */
     registerMapZones(zones: import('../terrain/segmentSchema').MapSegmentZone[]): void {
@@ -398,76 +343,40 @@ export class GameEngine implements EngineContext {
         return this.state.mapZones.find((z) => z.id === id);
     }
 
-    get pendingOrders(): OrderAtTick[] {
-        return this.state.orderMgr.pendingOrders;
-    }
-    set pendingOrders(v: OrderAtTick[]) {
-        this.state.orderMgr.pendingOrders = v;
-    }
+    get pendingOrders(): OrderAtTick[] { return this.state.orderMgr.pendingOrders; }
+    set pendingOrders(v: OrderAtTick[]) { this.state.orderMgr.pendingOrders = v; }
 
-    get localPlayerId(): string {
-        return this.state.localPlayerId;
-    }
-    set localPlayerId(v: string) {
-        this.state.localPlayerId = v;
-    }
+    get localPlayerId(): string { return this.state.localPlayerId; }
+    set localPlayerId(v: string) { this.state.localPlayerId = v; }
 
-    get enemyScalingPlayerCount(): number {
-        return this.state.enemyScalingPlayerCount;
-    }
-    set enemyScalingPlayerCount(v: number) {
-        this.state.enemyScalingPlayerCount = v;
-    }
+    get enemyScalingPlayerCount(): number { return this.state.enemyScalingPlayerCount; }
+    set enemyScalingPlayerCount(v: number) { this.state.enemyScalingPlayerCount = v; }
 
     /** Active DarknessStrength packages (statBag at spawn; WM/spawnTweaks in later steps). */
-    get activeDarknessStrengths(): ActiveDarknessStrength[] {
-        return this.state.activeDarknessStrengths;
-    }
-    set activeDarknessStrengths(value: ActiveDarknessStrength[]) {
-        this.state.activeDarknessStrengths = value;
-    }
+    get activeDarknessStrengths(): ActiveDarknessStrength[] { return this.state.activeDarknessStrengths; }
+    set activeDarknessStrengths(value: ActiveDarknessStrength[]) { this.state.activeDarknessStrengths = value; }
 
     /** Host's Darkness Upgrades passive bonuses (global unit modifiers). */
-    get darknessUpgradeBonuses(): PassiveBonuses {
-        return this.state.darknessUpgradeBonuses;
-    }
-    set darknessUpgradeBonuses(value: PassiveBonuses) {
-        this.state.darknessUpgradeBonuses = value;
-    }
+    get darknessUpgradeBonuses(): PassiveBonuses { return this.state.darknessUpgradeBonuses; }
+    set darknessUpgradeBonuses(value: PassiveBonuses) { this.state.darknessUpgradeBonuses = value; }
 
     /** Host's active Darkness Upgrade node ids (reward source for all players). */
-    get darknessUpgradeNodeIds(): string[] {
-        return this.state.darknessUpgradeNodeIds;
-    }
-    set darknessUpgradeNodeIds(value: string[]) {
-        this.state.darknessUpgradeNodeIds = value;
-    }
+    get darknessUpgradeNodeIds(): string[] { return this.state.darknessUpgradeNodeIds; }
+    set darknessUpgradeNodeIds(value: string[]) { this.state.darknessUpgradeNodeIds = value; }
 
     /** Install resolved DarknessStrengths before mission init / late spawns. */
     setActiveDarknessStrengths(active: ActiveDarknessStrength[]): void {
         this.state.activeDarknessStrengths = active.slice();
     }
 
-    get aiControllerId(): string | null {
-        return this.state.aiControllerId;
-    }
-    set aiControllerId(v: string | null) {
-        this.state.aiControllerId = v;
-    }
+    get aiControllerId(): string | null { return this.state.aiControllerId; }
+    set aiControllerId(v: string | null) { this.state.aiControllerId = v; }
 
-    get lightLevelEnabled(): boolean {
-        return this.state.lightLevelEnabled;
-    }
-    set lightLevelEnabled(v: boolean) {
-        this.state.lightLevelEnabled = v;
-    }
+    get lightLevelEnabled(): boolean { return this.state.lightLevelEnabled; }
+    set lightLevelEnabled(v: boolean) { this.state.lightLevelEnabled = v; }
 
-    get globalLightLevel(): number {
-        return this.state.globalLightLevel;
-    }
-    set globalLightLevel(v: number) {
-        this.state.globalLightLevel = v;
-    }
+    get globalLightLevel(): number { return this.state.globalLightLevel; }
+    set globalLightLevel(v: number) { this.state.globalLightLevel = v; }
 
     // ========================================================================
     // Facade Getters / Methods
@@ -479,12 +388,8 @@ export class GameEngine implements EngineContext {
     get specialTiles(): SpecialTile[] { return this.state.specialTileManager.specialTiles; }
     get terrainLayers(): TerrainLayerManager { return this.state.terrainLayers; }
 
-    get playerResearchTreesByPlayer(): Record<string, Record<string, string[]>> {
-        return this.state.researchManager.playerResearchTreesByPlayer;
-    }
-    set playerResearchTreesByPlayer(value: Record<string, Record<string, string[]>>) {
-        this.state.researchManager.playerResearchTreesByPlayer = value;
-    }
+    get playerResearchTreesByPlayer(): Record<string, Record<string, string[]>> { return this.state.researchManager.playerResearchTreesByPlayer; }
+    set playerResearchTreesByPlayer(value: Record<string, Record<string, string[]>>) { this.state.researchManager.playerResearchTreesByPlayer = value; }
 
     addUnit(unit: Unit, spawnSource: SpawnSource = 'darknessSpawn'): void {
         if (!unit.isPlayerControlled() && spawnSource === 'darknessSpawn') {
@@ -495,7 +400,7 @@ export class GameEngine implements EngineContext {
             unit.growAnimTimer = 0.3;
         }
         // Assign NPC control before unitManager.addUnit so moveJitter uses the player branch.
-        this.tryAssignNpcControlOnSpawn(unit);
+        this.npcControl.tryAssignNpcControlOnSpawn(unit);
         this.state.unitManager.addUnit(unit);
         this.mixRuntimeFingerprint(FingerprintEvent.SPAWN, this.hashString32(unit.id), Math.floor(unit.x), Math.floor(unit.y));
     }
@@ -509,18 +414,14 @@ export class GameEngine implements EngineContext {
         return spawnUnitFromDefinition(this, def, spawnSource);
     }
 
-    /**
-     * Register mission playerControl defs and group→player assignments.
-     * Defs are runtime-only; assignments are serialized in checkpoints.
-     */
+    /** See `NpcControlRegistry.registerPlayerControl`. */
     registerPlayerControl(defs: PlayerControlDef[], assignmentsByGroup: Record<string, string>): void {
-        this.npcControlDefs = defs.slice();
-        this.npcControlAssignments = { ...assignmentsByGroup };
+        this.npcControl.registerPlayerControl(defs, assignmentsByGroup);
     }
 
     /** Checkpointed groupId → playerId map (empty when no NPC control is active). */
     getNpcControlAssignments(): Readonly<Record<string, string>> {
-        return this.npcControlAssignments;
+        return this.npcControl.getNpcControlAssignments();
     }
 
     /**
@@ -535,62 +436,16 @@ export class GameEngine implements EngineContext {
         return 'player';
     }
 
-    /**
-     * Assign a unit to a player for NPC control. Stamps controlGroupId when provided.
-     */
+    /** Assign a unit to a player for NPC control. Stamps controlGroupId when provided. */
     assignControl(unit: Unit, playerId: string, groupId?: string | null): void {
-        unit.ownerId = playerId;
-        if (groupId != null) {
-            unit.controlGroupId = groupId;
-        }
-        this.eventBus.emit('control_assigned', {
-            unitId: unit.id,
-            playerId,
-            groupId: unit.controlGroupId,
-        });
+        this.npcControl.assignControl(unit, playerId, groupId);
     }
 
-    /**
-     * Release a unit back to AI control. Facilitates future transfer/release UI.
-     */
+    /** Release a unit back to AI control. */
     releaseControl(unit: Unit): void {
-        const previousPlayerId = unit.ownerId === 'ai' ? null : unit.ownerId;
-        const groupId = unit.controlGroupId;
-        unit.ownerId = 'ai';
-        this.eventBus.emit('control_released', {
-            unitId: unit.id,
-            playerId: previousPlayerId,
-            groupId,
-        });
+        this.npcControl.releaseControl(unit);
     }
 
-    /** Resolved group id for a PlayerControlDef: id ?? controlGroupId ?? unitTag. */
-    private static resolvePlayerControlGroupId(def: PlayerControlDef): string | null {
-        return def.id ?? def.controlGroupId ?? def.unitTag ?? null;
-    }
-
-    /**
-     * If the unit is AI-owned, controllable, and matches a registered control group with an
-     * assigned player, hand ownership to that player.
-     */
-    private tryAssignNpcControlOnSpawn(unit: Unit): void {
-        if (unit.ownerId !== 'ai' || unit.controllable === false) return;
-        if (this.npcControlDefs.length === 0) return;
-
-        for (const def of this.npcControlDefs) {
-            const groupId = GameEngine.resolvePlayerControlGroupId(def);
-            if (groupId == null) continue;
-            const playerId = this.npcControlAssignments[groupId];
-            if (playerId == null) continue;
-
-            const matchesGroupId = unit.controlGroupId != null && unit.controlGroupId === groupId;
-            const matchesTag = def.unitTag != null && unit.tags.includes(def.unitTag);
-            if (matchesGroupId || matchesTag) {
-                this.assignControl(unit, playerId, groupId);
-                return;
-            }
-        }
-    }
     getUnit(id: string): Unit | undefined { return this.state.unitManager.getUnit(id); }
     getUnits(): Unit[] { return this.state.unitManager.getUnits(); }
     getLocalPlayerUnit(): Unit | undefined { return this.state.unitManager.getLocalPlayerUnit(this.localPlayerId); }
@@ -750,84 +605,19 @@ export class GameEngine implements EngineContext {
     }
 
     getLightLevelAt(x: number, y: number): number | null {
-        const grid = this.state.lightTileGrid;
-        if (!grid || !this.lightLevelEnabled || !this.terrainManager?.grid) return null;
-        const { col, row } = this.terrainManager.grid.worldToGrid(x, y);
-        return grid.getVisibility(
-            Math.max(0, Math.min(grid.gridHeight - 1, row)),
-            Math.max(0, Math.min(grid.gridWidth - 1, col)),
-            this.globalLightLevel,
-        );
+        return this.lighting.getLightLevelAt(x, y);
     }
 
     getLightAt(col: number, row: number): number | null {
-        if (!this.state.lightLevelEnabled) return null;
-        const grid = this.state.lightTileGrid;
-        if (!grid) return this.state.globalLightLevel;
-        if (row < 0 || row >= grid.gridHeight || col < 0 || col >= grid.gridWidth) return null;
-        return grid.getVisibility(row, col, this.globalLightLevel);
+        return this.lighting.getLightAt(col, row);
     }
 
     getLightIntensity(col: number, row: number, type: LightType): number | null {
-        if (!this.state.lightLevelEnabled) return null;
-        const grid = this.state.lightTileGrid;
-        if (!grid) return type === 'FireLight' ? this.state.globalLightLevel : 0;
-        if (row < 0 || row >= grid.gridHeight || col < 0 || col >= grid.gridWidth) return null;
-        return grid.getChannel(row, col, type);
+        return this.lighting.getLightIntensity(col, row, type);
     }
 
     getDominantLightType(col: number, row: number): LightType | null {
-        if (!this.state.lightLevelEnabled) return null;
-        const grid = this.state.lightTileGrid;
-        if (!grid) return null;
-        if (row < 0 || row >= grid.gridHeight || col < 0 || col >= grid.gridWidth) return null;
-        return grid.getDominantType(row, col);
-    }
-
-    private initLightGrid(): void {
-        if (!this.terrainManager?.grid) return;
-        const { width, height } = this.terrainManager.grid;
-        const tileGrid = LightTileGrid.create(width, height);
-        const target = computeLightChannelGrid(this.globalLightLevel, width, height, this.getAllLightSources());
-        for (let row = 0; row < height; row++) {
-            for (let col = 0; col < width; col++) {
-                for (const type of LIGHT_TYPES) {
-                    tileGrid.setChannel(row, col, type, target.channels[type][row]![col]!);
-                }
-                tileGrid.setVoid(row, col, target.voidDarkness[row]![col]!);
-            }
-        }
-        this.state.lightTileGrid = tileGrid;
-    }
-
-    private runLightGameTick(): void {
-        const grid = this.state.lightTileGrid;
-        if (!grid || !this.terrainManager?.grid) return;
-        const { width, height } = this.terrainManager.grid;
-        const target = computeLightChannelGrid(this.globalLightLevel, width, height, this.getAllLightSources());
-        const animateToward = (cur: number, rawTgt: number): number => {
-            // Round target to integer — fractional emission/radius produces float targets
-            // which would cause cur to oscillate between floor(tgt) and ceil(tgt) forever.
-            const tgt = Math.round(rawTgt);
-            // Proportional step: moves 10% of the remaining delta each tick.
-            // Snap to target when the step is negligible to avoid asymptotic drift
-            // (important for integer threshold checks like corruption at light <= 0).
-            const delta = tgt - cur;
-            const step = 0.1 * delta;
-            if (Math.abs(step) < 0.01) return tgt;
-            if (delta !== 0) return cur + step;
-            return cur;
-        };
-        for (let row = 0; row < height; row++) {
-            for (let col = 0; col < width; col++) {
-                for (const type of LIGHT_TYPES) {
-                    const cur = grid.getChannel(row, col, type);
-                    grid.setChannel(row, col, type, animateToward(cur, target.channels[type][row]![col]!));
-                }
-                const curVoid = grid.getVoid(row, col);
-                grid.setVoid(row, col, animateToward(curVoid, target.voidDarkness[row]![col]!));
-            }
-        }
+        return this.lighting.getDominantLightType(col, row);
     }
 
     setOnEmitMessage(cb: (text: string, npcId?: string) => void): void {
@@ -856,165 +646,21 @@ export class GameEngine implements EngineContext {
     // ========================================================================
 
     getAllLightSources(): GridLightInput[] {
-        return [
-            ...this.state.specialTileManager.buildLightSourcesFromSpecialTiles(),
-            ...this.state.lightSourceManager.buildGridLightInputs(),
-        ];
+        return this.lighting.getAllLightSources();
     }
 
     /** Light sources with id for AI (FindLight state). */
     private getLightSourcesForAI(): AILightSource[] {
-        const out: AILightSource[] = [];
-        for (const tile of this.specialTiles) {
-            if (tile.hp <= 0) continue;
-            const light = tile.emitsLight;
-            if (light != null && tile.maxHp > 0) {
-                const scale = 0.5 + 0.5 * (tile.hp / tile.maxHp);
-                out.push({
-                    id: tile.id,
-                    col: tile.col,
-                    row: tile.row,
-                    emission: light.lightAmount * scale,
-                    radius: light.radius,
-                });
-            }
-        }
-        const grid = this.terrainManager?.grid;
-        for (const ls of this.state.lightSourceManager.lightSources) {
-            if (!ls.active || ls.lightAmount <= 0 || ls.radius <= 0) continue;
-            const col = grid ? grid.worldToGrid(ls.x, ls.y).col : 0;
-            const row = grid ? grid.worldToGrid(ls.x, ls.y).row : 0;
-            out.push({ id: ls.id, col, row, emission: ls.lightAmount, radius: ls.radius });
-        }
-        return out;
+        return this.lighting.getLightSourcesForAI();
     }
 
     // ========================================================================
     // Lifecycle
     // ========================================================================
 
-    private registerCoreEventListeners(): void {
-        this.eventBus.clear();
-        this.state.unitManager.registerListeners();
-        this.state.interruptSystem.registerListeners(this.eventBus);
-        this.state.worldModifierManager.registerListeners(this.eventBus);
-        this.eventBus.on('cast_ended_early', this.recordPreviewCastEndedEarly);
-        registerDamageLinkListeners({
-            eventBus: this.eventBus,
-            getUnit: (id) => this.getUnit(id),
-            getUnits: () => this.units,
-        });
-
-        // unit_died: apply deathSequence (or onDeathVisualEffects) and onDeathBehaviors from the unit def directly.
-        this.eventBus.on('unit_died', (data) => {
-            const unit = this.getUnit(data.unitId);
-            if (!unit) return;
-            const def = getUnitDefEntry(unit.characterId as UnitDefId);
-            if (def?.deathSequence) applyDeathSequence(def.deathSequence, unit, this);
-            else if (def?.onDeathVisualEffects?.length) applyVisualEffectDefs(def.onDeathVisualEffects, unit, this);
-            // Component death hooks (e.g. lanternite torch removal and Spore Rebirth) run after the visual death.
-            runUnitComponentDeath(unit, this.buildUnitComponentContext(0));
-        });
-
-        // Map-network hygiene: unregister immediately rather than waiting for the next
-        // updateUnitNode diff, which may never re-fire since a dead unit's position typically
-        // never changes again after death.
-        this.eventBus.on('unit_died', (data) => {
-            this.state.mapNetworkManager.unregisterUnit(data.unitId);
-        });
-
-        this.eventBus.on('stack_members_died', (data) => {
-            const unit = this.getUnit(data.unitId);
-            if (!unit) return;
-            const ghostCount = Math.min(5, Math.ceil(Math.sqrt(data.count)));
-            const bodyColor = getBodyColorForUnit(unit);
-            const characterSpriteKey = getCharacterSpriteKey(unit.characterId);
-            for (let i = 0; i < ghostCount; i++) {
-                const direction = this.generateRandomInteger(0, 1) === 0 ? -1 : 1;
-                this.addEffect(new Effect({
-                    x: unit.x,
-                    y: unit.y,
-                    duration: STACK_GHOST_DURATION,
-                    effectType: 'StackGhost',
-                    effectData: {
-                        bodyColor,
-                        radius: unit.radius,
-                        characterSpriteKey,
-                        vx: direction * this.generateRandomInteger(80, 120),
-                        vy: -this.generateRandomInteger(100, 150),
-                        direction,
-                        initialAlpha: 0.8,
-                    },
-                }));
-            }
-        });
-
-        this.eventBus.on('round_end', (data) => {
-            this.handleRoundEnd(data.roundNumber);
-        });
-
-        this.eventBus.on('damage_taken', (data: DamageTakenEvent) => {
-            createDamageTakenEffect(
-                {
-                    addEffect: (e) => this.addEffect(e),
-                    generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
-                    getUnit: (id) => this.getUnit(id),
-                },
-                data,
-            );
-        });
-
-        this.eventBus.on('damage_taken', (data) => {
-            this.mixRuntimeFingerprint(FingerprintEvent.DAMAGE, this.hashString32(data.unitId), Math.floor(data.amount));
-        });
-
-        // Far wait: end after the minimum duration when an enemy deals damage.
-        this.eventBus.on('damage_taken', (data: DamageTakenEvent) => {
-            const unit = this.getUnit(data.unitId);
-            if (!unit?.isInWaitLockout() || unit.waitAbilityMode !== WAIT_ABILITY_MODE_FAR) return;
-            if (unit.waitMinEndTime != null && this.gameTime < unit.waitMinEndTime) return;
-            if (!data.sourceUnitId) return;
-            const source = this.getUnit(data.sourceUnitId);
-            if (!source || !areEnemies(unit.teamId, source.teamId)) return;
-            unit.waitMinEndTime = null;
-            unit.waitMaxEndTime = null;
-            unit.waitAbilityMode = null;
-        });
-        this.eventBus.on('unit_died', (data) => {
-            this.mixRuntimeFingerprint(
-                FingerprintEvent.DEATH,
-                this.hashString32(data.unitId),
-                this.hashString32(data.killerUnitId ?? ''),
-            );
-        });
-        this.eventBus.on('projectile_hit', (data) => {
-            this.mixRuntimeFingerprint(
-                FingerprintEvent.PROJECTILE_HIT,
-                this.hashString32(data.projectileId),
-                this.hashString32(data.targetUnitId),
-            );
-        });
-
-        this.eventBus.on('terrain_stone_damaged', (event) => {
-            if (!this.terrainManager) return;
-            const sourceUnitId = event.sourceUnitId ?? null;
-            const sourceUnit = sourceUnitId ? this.getUnit(sourceUnitId) : undefined;
-            for (const unit of this.units) {
-                if (!unit.isAlive() || !unit.getResource('resonance')) continue;
-                const { col: unitCol, row: unitRow } = this.terrainManager.grid.worldToGrid(unit.x, unit.y);
-                if (!isWithinEarthCoreNearbyStoneDamagedRange(unitCol, unitRow, event.col, event.row)) continue;
-                const causedBySelfOrAlly = sourceUnit
-                    ? (sourceUnit.id === unit.id || areAllies(sourceUnit.teamId, unit.teamId))
-                    : false;
-                this.emitNearbyStoneDamaged({
-                    unitId: unit.id,
-                    sourceUnitId,
-                    causedBySelfOrAlly,
-                    col: event.col,
-                    row: event.row,
-                });
-            }
-        });
+    /** @internal also called by `engineSerialization.ts` after a restore. */
+    registerCoreEventListeners(): void {
+        wireCoreEventListeners(this);
     }
 
     startStoryPause(reason: string, durationSeconds: number): void {
@@ -1082,12 +728,11 @@ export class GameEngine implements EngineContext {
     setMissionLightConfig(lightLevelEnabled: boolean, globalLightLevel: number): void {
         this.lightLevelEnabled = lightLevelEnabled;
         this.globalLightLevel = globalLightLevel;
-        if (lightLevelEnabled && this.terrainManager?.grid && !this.state.lightTileGrid) this.initLightGrid();
+        if (lightLevelEnabled && this.terrainManager?.grid && !this.state.lightTileGrid) this.lighting.initLightGrid();
     }
 
     applyInstantLightingPass(): void {
-        if (!this.lightLevelEnabled || !this.terrainManager?.grid) return;
-        this.initLightGrid();
+        this.lighting.applyInstantLightingPass();
     }
 
     setOnWaitingForOrders(cb: (info: WaitingForOrders) => void): void {
@@ -1408,7 +1053,8 @@ export class GameEngine implements EngineContext {
         this.animFrameId = requestAnimationFrame((ts) => this.loop(ts));
     }
 
-    private hashString32(input: string): number {
+    /** @internal used by `engineEventWiring.ts`. */
+    hashString32(input: string): number {
         let h = 2166136261 >>> 0;
         for (let i = 0; i < input.length; i++) {
             h ^= input.charCodeAt(i) & 0xff;
@@ -1417,7 +1063,8 @@ export class GameEngine implements EngineContext {
         return h >>> 0;
     }
 
-    private mixRuntimeFingerprint(tag: number, ...payload: number[]): void {
+    /** @internal used by `engineEventWiring.ts`. */
+    mixRuntimeFingerprint(tag: number, ...payload: number[]): void {
         this.runtimeFingerprint = mix(this.runtimeFingerprint, tag, ...payload.map((v) => v >>> 0));
     }
 
@@ -1461,166 +1108,8 @@ export class GameEngine implements EngineContext {
         );
     }
 
-    /**
-     * If {@link deferredOrderPause} was set during the tick that just completed, commit `waitingForOrders`,
-     * notify UI, and fire `onCheckpoint` — same `fixedUpdate` pass as `TICK_END` for that tick.
-     *
-     * @returns true when a parallel order pause was committed (caller returns from `fixedUpdate` after emitting tick tail).
-     */
-    /** True when any parallel-order waiter is owned by {@link localPlayerId}. */
-    private deferredPauseIncludesLocalPlayer(waiters: readonly OrderWaiter[]): boolean {
-        return waiters.some((w) => w.ownerId === this.localPlayerId);
-    }
-
-    /** True when any waiter unit has an active ability awaiting a conditional-cancel decision. */
-    private waitersIncludeConditionalCancelPause(waiters: readonly OrderWaiter[]): boolean {
-        return waiters.some(
-            (w) => this.getUnit(w.unitId)?.activeAbilities.some((a) => a.conditionalCancelPaused) ?? false,
-        );
-    }
-
-    /** True when any waiter unit has an active ability paused at a missing pick (`awaitingPickLabel`). */
-    private waitersIncludeMissingPickPause(waiters: readonly OrderWaiter[]): boolean {
-        return waiters.some((w) => this.waiterHasMissingPickPause(w));
-    }
-
-    private waiterHasMissingPickPause(waiter: OrderWaiter): boolean {
-        return this.getUnit(waiter.unitId)?.activeAbilities.some((a) => a.awaitingPickLabel !== undefined) ?? false;
-    }
-
     private commitDeferredOrderPauseAfterCompletedTick(): boolean {
-        if (this.deferredOrderPause == null || this.deferredOrderPause.waiters.length === 0) {
-            return false;
-        }
-        // Interactive targeting preview: a missing-pick waiter is always dropped, on host and non-host
-        // (automatic pass-and-fizzle, so the previewing player's playahead keeps moving). Clearing
-        // `awaitingPickLabel` leaves the label in `missingSelectLabels`, so the select fizzles the cast
-        // on entry next tick. The hook always marks the preview as depending on another player, so the
-        // commit rewinds and the real timeline asks the owner for the real pick. This deliberately
-        // bypasses the non-host freeze rule (lobby 39E984): the forced rollback is what prevents the
-        // sim from running past the host's order batch and deadlocking on submit.
-        if (this.isSequentialTargetingPreview) {
-            const missingPickWaiters = this.deferredOrderPause.waiters.filter((w) =>
-                this.waiterHasMissingPickPause(w),
-            );
-            if (missingPickWaiters.length > 0) {
-                for (const w of missingPickWaiters) {
-                    for (const cast of this.getUnit(w.unitId)?.activeAbilities ?? []) {
-                        delete cast.awaitingPickLabel;
-                    }
-                }
-                this.onItsParallelPauseDecision?.('drop', missingPickWaiters, this.gameTick, { missingPick: true });
-                const remaining = this.deferredOrderPause.waiters.filter(
-                    (w) => !missingPickWaiters.some((m) => m.unitId === w.unitId),
-                );
-                if (remaining.length === 0) {
-                    this.deferredOrderPause = null;
-                    return false;
-                }
-                this.deferredOrderPause.waiters = remaining;
-            }
-        }
-        const previewWaiters = this.deferredOrderPause.waiters;
-        const isConditionalCancelPause = this.waitersIncludeConditionalCancelPause(previewWaiters);
-        // Interactive targeting preview: ally-only pauses are always dropped so SelectTargetDef
-        // intervals can run. On non-host (`freezeItsOnLocalPlayerParallelPause`), pauses that include
-        // the local player must freeze (lobby 39E984) — otherwise the sim runs past the host's order
-        // batch and deadlocks on submit. Host/solo keep legacy ITS playahead.
-        // Conditional cancel still commits the parallel pause; ITS session ends at commit() after Done.
-        if (this.isSequentialTargetingPreview && !isConditionalCancelPause) {
-            const freezeLocal =
-                this.freezeItsOnLocalPlayerParallelPause &&
-                this.deferredPauseIncludesLocalPlayer(previewWaiters);
-            if (!freezeLocal) {
-                this.onItsParallelPauseDecision?.('drop', previewWaiters, this.gameTick);
-                this.deferredOrderPause = null;
-                return false;
-            }
-            this.onItsParallelPauseDecision?.('freeze', previewWaiters, this.gameTick);
-        } else if (this.isSequentialTargetingPreview && isConditionalCancelPause) {
-            this.onItsParallelPauseDecision?.('freeze', previewWaiters, this.gameTick);
-        }
-        const { waiters: initialWaiters, naturalCompletionUnitIds } = this.deferredOrderPause;
-        this.deferredOrderPause = null;
-        const atTick = this.gameTick + 1;
-
-        const naturalSet = new Set(naturalCompletionUnitIds);
-        // Conditional cancel is not a natural completion — suppress coop cancel to avoid
-        // unrelated team-ability interruptions during a single-unit decision.
-        // A missing-pick pause is likewise not a natural completion.
-        const isMidCastPause = isConditionalCancelPause || this.waitersIncludeMissingPickPause(initialWaiters);
-        const hadNaturalWaiter = !isMidCastPause && initialWaiters.some((w) => naturalSet.has(w.unitId));
-
-        let teamworkCancelledOwnerIds: string[] | undefined;
-        let waiters = [...initialWaiters];
-
-        if (hadNaturalWaiter) {
-            const initialWaiterUnitIds = new Set(initialWaiters.map((w) => w.unitId));
-            const triggerTeamIds = new Set<string>();
-            for (const w of initialWaiters) {
-                if (!naturalSet.has(w.unitId)) continue;
-                const u = this.getUnit(w.unitId);
-                if (u) triggerTeamIds.add(u.teamId);
-            }
-
-            const cancelledOwners = new Set<string>();
-            for (const unit of this.units) {
-                if (!unit.active || !unit.isAlive()) continue;
-                if (!unit.isPlayerControlled()) continue;
-                if (initialWaiterUnitIds.has(unit.id)) continue;
-                if (!triggerTeamIds.has(unit.teamId)) continue;
-                for (const active of [...unit.activeAbilities]) {
-                    const ability = getAbility(active.abilityId);
-                    if (!ability) continue;
-                    const entries = resolveAbilityTimingEntries(ability, unit, this);
-                    const intervals = normalizeAbilityTimingsToIntervals(entries);
-                    const elapsed = Math.max(0, getCastElapsed(unit, active, this));
-                    if (elapsedIsInCoopCooldown(elapsed, intervals)) {
-                        this.cancelActiveAbility(unit.id, active.abilityId);
-                        cancelledOwners.add(unit.ownerId);
-                    }
-                }
-                // Wait action coop cancel: if the unit is past its min wait time it is in the
-                // coop-cancellable window (last 1 s of the 1.5–2.5 s wait duration).
-                if (unit.isInWaitLockout() && unit.waitMinEndTime !== null && this.gameTime >= unit.waitMinEndTime) {
-                    unit.waitMinEndTime = null;
-                    unit.waitMaxEndTime = null;
-                    unit.waitAbilityMode = null;
-                    cancelledOwners.add(unit.ownerId);
-                }
-            }
-
-            if (cancelledOwners.size > 0) {
-                teamworkCancelledOwnerIds = [...cancelledOwners].sort();
-            }
-
-            const mergedIds = new Set(waiters.map((w) => w.unitId));
-            const extras: OrderWaiter[] = [];
-            for (const unit of this.units) {
-                if (!unit.active || !unit.isAlive()) continue;
-                if (!this.state.orderMgr.shouldPauseForOrders(unit)) continue;
-                if (mergedIds.has(unit.id)) continue;
-                mergedIds.add(unit.id);
-                extras.push({ unitId: unit.id, ownerId: unit.ownerId });
-            }
-            extras.sort((a, b) =>
-                a.ownerId !== b.ownerId ? a.ownerId.localeCompare(b.ownerId) : a.unitId.localeCompare(b.unitId),
-            );
-            waiters = [...waiters, ...extras].sort((a, b) =>
-                a.ownerId !== b.ownerId ? a.ownerId.localeCompare(b.ownerId) : a.unitId.localeCompare(b.unitId),
-            );
-        }
-
-        this.waitingForOrders = {
-            waiters,
-            atTick,
-            ...(teamworkCancelledOwnerIds !== undefined ? { teamworkCancelledOwnerIds } : {}),
-        };
-        this.isPaused = true;
-        this.snapshotIndex++;
-        this.onWaitingForOrders?.(this.waitingForOrders);
-        this.onCheckpoint?.(this.gameTick, this.toJSON(), [...this.pendingOrders]);
-        return true;
+        return this.orderPause.commitDeferredOrderPauseAfterCompletedTick();
     }
 
     /**
@@ -1673,25 +1162,13 @@ export class GameEngine implements EngineContext {
      * @returns true when a parallel order pause was committed.
      */
     commitDroppedItsPreviewPauseForStopTick(): boolean {
-        const dropped = this.droppedItsPreviewPause;
-        this.droppedItsPreviewPause = null;
-        if (
-            dropped == null
-            || dropped.gameTick !== this.gameTick
-            || this.isSequentialTargetingPreview
-            || this.waitingForOrders != null
-            || this.deferredOrderPause != null
-        ) {
-            return false;
-        }
-        this.state.levelEventManager.runVictoryChecks();
-        this.deferredOrderPause = {
-            waiters: dropped.waiters,
-            naturalCompletionUnitIds: dropped.naturalCompletionUnitIds,
-        };
-        return this.commitDeferredOrderPauseAfterCompletedTick();
+        return this.orderPause.commitDroppedItsPreviewPauseForStopTick();
     }
 
+    /**
+     * One fixed simulation step. Reads as the ordered list of tick phases; the order is load-bearing
+     * (determinism across host and clients), so never reorder without a determinism test.
+     */
     private fixedUpdate(dt: number): void {
         if (this.state.levelEventManager.isTerminal) {
             return;
@@ -1715,8 +1192,19 @@ export class GameEngine implements EngineContext {
         // scheduled at or before the start run first. The pause is then taken before the select enters.
         if (this.waitingForTargetInput != null) return;
 
-        // Resolve world pace for this tick (Time Stops, then focal requests), then derive world dt.
-        // Pace-1 invariance: when pace is exactly 1, worldDt === dt (no multiply, no float drift).
+        const worldDt = this.tickResolveWorldPace(dt);
+        if (this.tickPauseForImpendingSelectTarget(dt)) return;
+
+        this.tickAdvanceClocks(dt, worldDt);
+        this.tickRunSimulation(dt, worldDt);
+        this.tickFinish();
+    }
+
+    /**
+     * Phase: resolve world pace for this tick (Time Stops, then focal requests), then derive world dt.
+     * Pace-1 invariance: when pace is exactly 1, worldDt === dt (no multiply, no float drift).
+     */
+    private tickResolveWorldPace(dt: number): number {
         const previousPace = this.state.timeManager.worldPace;
         const endedStops = this.state.timeManager.resolveWorldPace(this.collectFocalRequests(), this.gameTick + 1);
         const worldPace = this.state.timeManager.worldPace;
@@ -1731,21 +1219,31 @@ export class GameEngine implements EngineContext {
         if (worldPace !== previousPace) {
             this.eventBus.emit('world_pace_changed', { previousPace, worldPace, gameTick: this.gameTick + 1 });
         }
-        const worldDt = worldPace === 1 ? dt : dt * worldPace;
+        return worldPace === 1 ? dt : dt * worldPace;
+    }
 
+    /** Phase: select-target lookahead. Returns true when the tick must stop before advancing time. */
+    private tickPauseForImpendingSelectTarget(dt: number): boolean {
         const impendingSelectTarget = findImpendingSelectTargetNeed(this, dt);
         if (impendingSelectTarget != null) {
             const { label, unitId, abilityId } = impendingSelectTarget;
             this.signalWaitingForTarget(label, unitId, abilityId);
-            return;
+            return true;
         }
+        return false;
+    }
 
-        // Clock audit for `dt` in this method (see game/time/AGENTS.md):
-        //  - WORLD (`worldDt`): gameTime/round progress, DoTs/regen/passives/buffs/units/projectiles (interim:
-        //    Steps 5-6 move unit/projectile steps to per-actor local time), darkness corruption, light source
-        //    decay, nests, select-target lookahead.
-        //  - TICK (`gameTick`): AI cadence (`everyAITicks`, group manager), LIGHT_TICK_INTERVAL, orders.
-        //  - WALL (`dt`): visual effects and emitters (unaffected by pace unless a `timeDomain` opt-in).
+    /**
+     * Phase: advance world time, per-actor local clocks and the tick counter.
+     *
+     * Clock audit for `dt` in the tick phases (see game/time/AGENTS.md):
+     *  - WORLD (`worldDt`): gameTime/round progress, DoTs/regen/passives/buffs/units/projectiles (interim:
+     *    Steps 5-6 move unit/projectile steps to per-actor local time), darkness corruption, light source
+     *    decay, nests, select-target lookahead.
+     *  - TICK (`gameTick`): AI cadence (`everyAITicks`, group manager), LIGHT_TICK_INTERVAL, orders.
+     *  - WALL (`dt`): visual effects and emitters (unaffected by pace unless a `timeDomain` opt-in).
+     */
+    private tickAdvanceClocks(dt: number, worldDt: number): void {
         const prevGameTime = this.gameTime;
         this.gameTime += worldDt;
         // Local clocks advance right after gameTime and before orders apply (a cast started this tick stamps its
@@ -1753,168 +1251,172 @@ export class GameEngine implements EngineContext {
         advanceUnitLocalClocks(this.state.unitManager.getUnits(), this, dt, prevGameTime);
         this.gameTick++;
         this.naturalAbilityCompletionUnitIdsThisTick.clear();
-        this.droppedItsPreviewPause = null;
+        this.orderPause.clearDroppedItsPreviewPause();
+    }
 
+    /** Phases that simulate the tick, in order, under the performance tracker. */
+    private tickRunSimulation(dt: number, worldDt: number): void {
         tickPerformanceTracker.begin(PERF_ENGINE);
         try {
             const roundTime = this.gameTime - (this.roundNumber - 1) * ROUND_DURATION;
             this.processRoundProgressMilestones(roundTime);
-
-            // Apply scheduled orders (stable merge when multiple orders share this tick)
-            tickPerformanceTracker.measure([PERF_ENGINE_ORDERS], () => {
-                const toApply = this.pendingOrders.filter((o) => o.gameTick === this.gameTick);
-                this.pendingOrders = this.pendingOrders.filter((o) => o.gameTick !== this.gameTick);
-                toApply.sort((a, b) => {
-                    const ua = a.order.unitId;
-                    const ub = b.order.unitId;
-                    return ua < ub ? -1 : ua > ub ? 1 : 0;
-                });
-                for (const { order } of toApply) {
-                    this.state.orderMgr.applyOrderLogic(order);
-                }
-            });
-
-            this.state.specialTileManager.processSpecialTileLightDecays();
-            this.state.lightSourceManager.processDecays();
-
-            // Check for round end
-            if (roundTime >= ROUND_DURATION) {
-                this.eventBus.emit('round_end', { roundNumber: this.roundNumber });
-                this.onRoundEnd?.(this.roundNumber);
-                this.roundNumber++;
-                this.appliedRoundStartRecovery = false;
-                this.appliedMidRoundRecovery = false;
-                this.appliedDotTicks = 0;
-            }
-
-            if (!this.storyPauseActive) {
-                tickPerformanceTracker.measure([PERF_ENGINE_LEVEL_EVENTS], () => {
-                    this.state.levelEventManager.processLevelEvents();
-                    this.state.objectiveManager.processObjectives();
-                });
-                const aiCtx = this.buildAIContext();
-                this.state.groupManager.tick(this.gameTick, aiCtx);
-                tickPerformanceTracker.measure([PERF_ENGINE_UNITS], () => {
-                    this.state.unitManager.gameTick(
-                        worldDt,
-                        this,
-                        (unitId: string) => this.naturalAbilityCompletionUnitIdsThisTick.add(unitId),
-                        aiCtx,
-                    );
-                });
-                // Preview stop: pause when isITSPreviewComplete (natural completion or conditional cancel).
-                if (isITSPreviewComplete(this) && !this.isPaused) {
-                    this.isPaused = true;
-                }
-                if (this.waitingForOrders == null) {
-                    const waiters = this.state.orderMgr.collectParallelWaiters();
-                    // During ITS: host/solo ignore all parallel pauses (legacy playahead). Non-host only
-                    // schedules pauses that include the local player (see commitDeferredOrderPause…).
-                    const schedulePause =
-                        waiters.length > 0 &&
-                        (!this.isSequentialTargetingPreview ||
-                            (this.freezeItsOnLocalPlayerParallelPause &&
-                                this.deferredPauseIncludesLocalPlayer(waiters)));
-                    if (schedulePause) {
-                        this.state.levelEventManager.runVictoryChecks();
-                        // A mid-cast request made earlier this tick (conditional cancel, missing pick) already
-                        // holds a deferred pause. Merge into it instead of replacing it, or its waiter is lost
-                        // and the cast stays paused with no order batch to answer it.
-                        const earlier = this.deferredOrderPause;
-                        if (earlier != null) {
-                            const merged = [...earlier.waiters];
-                            for (const w of waiters) {
-                                if (!merged.some((m) => m.unitId === w.unitId)) merged.push(w);
-                            }
-                            merged.sort((a, b) =>
-                                a.ownerId !== b.ownerId
-                                    ? a.ownerId.localeCompare(b.ownerId)
-                                    : a.unitId.localeCompare(b.unitId),
-                            );
-                            this.deferredOrderPause = {
-                                waiters: merged,
-                                naturalCompletionUnitIds: [
-                                    ...new Set([
-                                        ...earlier.naturalCompletionUnitIds,
-                                        ...this.naturalAbilityCompletionUnitIdsThisTick,
-                                    ]),
-                                ],
-                            };
-                        } else {
-                            this.deferredOrderPause = {
-                                waiters,
-                                naturalCompletionUnitIds: [...this.naturalAbilityCompletionUnitIdsThisTick],
-                            };
-                        }
-                        this.naturalAbilityCompletionUnitIdsThisTick.clear();
-                    } else if (
-                        waiters.length > 0
-                        && this.isSequentialTargetingPreview
-                        && !this.waitersIncludeConditionalCancelPause(waiters)
-                    ) {
-                        // Host/solo (and non-host ally-only): parallel pause would have formed but ITS
-                        // playahead skips scheduling it — same observability hook as drop in commitDeferred.
-                        this.onItsParallelPauseDecision?.('drop', waiters, this.gameTick);
-                        this.droppedItsPreviewPause = {
-                            gameTick: this.gameTick,
-                            waiters,
-                            naturalCompletionUnitIds: [...this.naturalAbilityCompletionUnitIdsThisTick],
-                        };
-                    }
-                }
-                this.state.unitManager.processCrystalAura();
-                this.state.specialTileManager.gameTick(this.units, this);
-            }
+            this.tickApplyScheduledOrders();
+            this.tickDecayLights();
+            this.tickCheckRoundEnd(roundTime);
+            this.tickLevelEventsAndUnits(worldDt);
             this.state.unitManager.tickDarknessCorruption(worldDt, this);
-            if (!this.storyPauseActive) {
-                tickPerformanceTracker.measure([PERF_ENGINE_PROJECTILES], () => {
-                    this.state.projectileManager.update(this.state.timeManager);
-                });
-            }
-            tickPerformanceTracker.measure([PERF_ENGINE_EFFECTS], () => {
-                const emitterEffects = this.state.effectEmitterManager.update(dt, this);
-                for (const fx of emitterEffects) {
-                    fx.id = this.allocateEffectObjectId('fx');
-                    this.state.effectManager.addEffect(fx);
-                }
-                this.state.effectManager.gameUpdate(dt);
-            });
-            tickPerformanceTracker.measure([PERF_ENGINE_LIGHTING], () => {
-                this.state.lightSourceManager.update(worldDt);
-                if (this.gameTick % LIGHT_TICK_INTERVAL === 0) this.runLightGameTick();
-            });
-            tickPerformanceTracker.measure([PERF_ENGINE_NESTS], () => {
-                runUnitComponentTick(this.buildUnitComponentContext(worldDt));
-            });
-            tickPerformanceTracker.measure([PERF_ENGINE_CLEANUP], () => {
-                this.state.unitManager.cleanupInactive();
-                this.state.projectileManager.cleanupInactive();
-                this.state.effectManager.cleanupInactive();
-                this.state.lightSourceManager.cleanupInactive();
-                this.state.terrainLayers.cleanupExpired(this.gameTime);
-            });
-            this.mixRuntimeFingerprint(
-                FingerprintEvent.EFFECT_TICK,
-                this.projectiles.length >>> 0,
-                this.units.length >>> 0,
-                this.state.lightSourceManager.lightSources.length >>> 0,
-            );
-            const deployableHash = this.deployableOwnershipHash();
-            if (deployableHash !== 0) {
-                this.mixRuntimeFingerprint(FingerprintEvent.EFFECT_TICK, deployableHash);
-            }
-            if (!this.storyPauseActive) {
-                this.state.levelEventManager.runDefeatCheck();
-                // Mirror defeat: catch projectile/DoT kills after unitManager's per-enemy checks.
-                this.state.levelEventManager.runVictoryChecks();
-            } else if (this.storyPauseEndsAt != null && this.gameTime >= this.storyPauseEndsAt) {
-                this.endStoryPause();
-            }
+            this.tickProjectiles();
+            this.tickEffects(dt);
+            this.tickLighting(worldDt);
+            this.tickUnitComponents(worldDt);
+            this.tickCleanup();
+            this.tickMixEffectFingerprint();
+            this.tickStoryPauseAndEndChecks();
         } finally {
             tickPerformanceTracker.end();
             // Finalize before checkpoint / tick-log toJSON so performanceLog is attached.
             tickPerformanceTracker.finalizeLastGameTick(this.gameTick);
         }
+    }
+
+    /** Phase: apply scheduled orders (stable merge when multiple orders share this tick). */
+    private tickApplyScheduledOrders(): void {
+        tickPerformanceTracker.measure([PERF_ENGINE_ORDERS], () => {
+            const toApply = this.pendingOrders.filter((o) => o.gameTick === this.gameTick);
+            this.pendingOrders = this.pendingOrders.filter((o) => o.gameTick !== this.gameTick);
+            toApply.sort((a, b) => {
+                const ua = a.order.unitId;
+                const ub = b.order.unitId;
+                return ua < ub ? -1 : ua > ub ? 1 : 0;
+            });
+            for (const { order } of toApply) {
+                this.state.orderMgr.applyOrderLogic(order);
+            }
+        });
+    }
+
+    /** Phase: world-time decay of special-tile and standalone light sources. */
+    private tickDecayLights(): void {
+        this.state.specialTileManager.processSpecialTileLightDecays();
+        this.state.lightSourceManager.processDecays();
+    }
+
+    /** Phase: round end (event, callback, round counter, milestone flags). */
+    private tickCheckRoundEnd(roundTime: number): void {
+        if (roundTime >= ROUND_DURATION) {
+            this.eventBus.emit('round_end', { roundNumber: this.roundNumber });
+            this.onRoundEnd?.(this.roundNumber);
+            this.roundNumber++;
+            this.appliedRoundStartRecovery = false;
+            this.appliedMidRoundRecovery = false;
+            this.appliedDotTicks = 0;
+        }
+    }
+
+    /** Phase: level events, objectives, AI groups, units, parallel-pause scheduling, crystal aura, special tiles. */
+    private tickLevelEventsAndUnits(worldDt: number): void {
+        if (!this.storyPauseActive) {
+            tickPerformanceTracker.measure([PERF_ENGINE_LEVEL_EVENTS], () => {
+                this.state.levelEventManager.processLevelEvents();
+                this.state.objectiveManager.processObjectives();
+            });
+            const aiCtx = this.buildAIContext();
+            this.state.groupManager.tick(this.gameTick, aiCtx);
+            tickPerformanceTracker.measure([PERF_ENGINE_UNITS], () => {
+                this.state.unitManager.gameTick(
+                    worldDt,
+                    this,
+                    (unitId: string) => this.naturalAbilityCompletionUnitIdsThisTick.add(unitId),
+                    aiCtx,
+                );
+            });
+            // Preview stop: pause when isITSPreviewComplete (natural completion or conditional cancel).
+            if (isITSPreviewComplete(this) && !this.isPaused) {
+                this.isPaused = true;
+            }
+            this.orderPause.scheduleParallelPauseAfterUnitTick();
+            this.state.unitManager.processCrystalAura();
+            this.state.specialTileManager.gameTick(this.units, this);
+        }
+    }
+
+    /** Phase: projectile movement and hits (skipped during a story pause). */
+    private tickProjectiles(): void {
+        if (!this.storyPauseActive) {
+            tickPerformanceTracker.measure([PERF_ENGINE_PROJECTILES], () => {
+                this.state.projectileManager.update(this.state.timeManager);
+            });
+        }
+    }
+
+    /** Phase: visual effects and emitters (wall-clock `dt`). */
+    private tickEffects(dt: number): void {
+        tickPerformanceTracker.measure([PERF_ENGINE_EFFECTS], () => {
+            const emitterEffects = this.state.effectEmitterManager.update(dt, this);
+            for (const fx of emitterEffects) {
+                fx.id = this.allocateEffectObjectId('fx');
+                this.state.effectManager.addEffect(fx);
+            }
+            this.state.effectManager.gameUpdate(dt);
+        });
+    }
+
+    /** Phase: light source update and the periodic light-grid animation. */
+    private tickLighting(worldDt: number): void {
+        tickPerformanceTracker.measure([PERF_ENGINE_LIGHTING], () => {
+            this.state.lightSourceManager.update(worldDt);
+            if (this.gameTick % LIGHT_TICK_INTERVAL === 0) this.lighting.runLightGameTick();
+        });
+    }
+
+    /** Phase: unit-component tick hooks (nests, spawners, ...). */
+    private tickUnitComponents(worldDt: number): void {
+        tickPerformanceTracker.measure([PERF_ENGINE_NESTS], () => {
+            runUnitComponentTick(this.buildUnitComponentContext(worldDt));
+        });
+    }
+
+    /** Phase: remove inactive units, projectiles, effects, light sources and expired terrain effects. */
+    private tickCleanup(): void {
+        tickPerformanceTracker.measure([PERF_ENGINE_CLEANUP], () => {
+            this.state.unitManager.cleanupInactive();
+            this.state.projectileManager.cleanupInactive();
+            this.state.effectManager.cleanupInactive();
+            this.state.lightSourceManager.cleanupInactive();
+            this.state.terrainLayers.cleanupExpired(this.gameTime);
+        });
+    }
+
+    /** Phase: mix entity counts and deployable ownership into the runtime fingerprint. */
+    private tickMixEffectFingerprint(): void {
+        this.mixRuntimeFingerprint(
+            FingerprintEvent.EFFECT_TICK,
+            this.projectiles.length >>> 0,
+            this.units.length >>> 0,
+            this.state.lightSourceManager.lightSources.length >>> 0,
+        );
+        const deployableHash = this.deployableOwnershipHash();
+        if (deployableHash !== 0) {
+            this.mixRuntimeFingerprint(FingerprintEvent.EFFECT_TICK, deployableHash);
+        }
+    }
+
+    /** Phase: defeat/victory checks, or ending an elapsed story pause. */
+    private tickStoryPauseAndEndChecks(): void {
+        if (!this.storyPauseActive) {
+            this.state.levelEventManager.runDefeatCheck();
+            // Mirror defeat: catch projectile/DoT kills after unitManager's per-enemy checks.
+            this.state.levelEventManager.runVictoryChecks();
+        } else if (this.storyPauseEndsAt != null && this.gameTime >= this.storyPauseEndsAt) {
+            this.endStoryPause();
+        }
+    }
+
+    /**
+     * Phase: end of tick. Fingerprint tail (TIME_STATE, TICK_END), commit any deferred parallel order pause,
+     * push the fingerprint ring row, notify `onTickComplete` and retain the tick record.
+     */
+    private tickFinish(): void {
         if (!this.state.timeManager.isDefault()) {
             // Only while non-default so pace-1 fingerprints stay byte-identical.
             this.mixRuntimeFingerprint(
@@ -1924,7 +1426,7 @@ export class GameEngine implements EngineContext {
             );
         }
         this.mixRuntimeFingerprint(FingerprintEvent.TICK_END, this.gameTick >>> 0, Math.floor(this.gameTime * 1000));
-        const committedParallelPause = this.commitDeferredOrderPauseAfterCompletedTick();
+        this.commitDeferredOrderPauseAfterCompletedTick();
         const paused =
             this.isPaused ||
             this.waitingForOrders != null ||
@@ -1943,9 +1445,6 @@ export class GameEngine implements EngineContext {
         if (debugSettingsSnapshot.logEveryTick) {
             console.log('[tick]', tickRecord);
         }
-        if (committedParallelPause) {
-            return;
-        }
     }
 
     // ========================================================================
@@ -1963,60 +1462,7 @@ export class GameEngine implements EngineContext {
      * Non-host / no hook: clears synchronously.
      */
     tryResumeParallel(): void {
-        const batch = this.state.orderMgr.waitingForOrders;
-        if (!batch) return;
-        const allReady = batch.waiters.every((w: OrderWaiter) => this.state.orderMgr.hasPendingEndTurnOrderForUnit(w.unitId, batch.atTick));
-        if (!allReady) return;
-
-        const unitIds = batch.waiters.map((w: OrderWaiter) => w.unitId).sort();
-        const batchAtTick = batch.atTick;
-        const pauseBatch = batch;
-        const cb = this.onParallelBatchResolved;
-        const finalizeResume = (): void => {
-            if (this.state.orderMgr.waitingForOrders !== pauseBatch) {
-                return;
-            }
-            this.state.orderMgr.waitingForOrders = null;
-            this.isPaused = false;
-            this.deferredOrderPause = null;
-            this.eventBus.emit('turn_end', { unitIds });
-            this.onStateChanged?.();
-        };
-
-        const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
-            return (
-                !!value &&
-                (typeof value === 'object' || typeof value === 'function') &&
-                typeof (value as PromiseLike<unknown>).then === 'function'
-            );
-        };
-
-        if (cb != null) {
-            let hookResult: unknown;
-            try {
-                hookResult = cb(batchAtTick);
-            } catch (err: unknown) {
-                console.error('[GameEngine] onParallelBatchResolved failed', err);
-                return;
-            }
-
-            if (isPromiseLike(hookResult)) {
-                void Promise.resolve(hookResult)
-                    .then(() => {
-                        finalizeResume();
-                    })
-                    .catch((err: unknown) => {
-                        console.error('[GameEngine] onParallelBatchResolved failed', err);
-                        // Stay paused until desync recovery or host retry restores a consistent pause plane.
-                    });
-                return;
-            }
-
-            finalizeResume();
-            return;
-        }
-
-        finalizeResume();
+        this.orderPause.tryResumeParallel();
     }
 
     /** @deprecated Use {@link tryResumeParallel}; kept for tests and gradual migration. */
@@ -2043,7 +1489,7 @@ export class GameEngine implements EngineContext {
     }
 
     requestConditionalCancelPause(unit: Unit): void {
-        this.requestMidCastOrderPause(unit);
+        this.orderPause.requestMidCastOrderPause(unit);
     }
 
     /**
@@ -2052,22 +1498,7 @@ export class GameEngine implements EngineContext {
      * `OrderManager`'s missing-pick decision (an `updateTargets` order, or `wait` to fizzle).
      */
     requestMissingPickPause(unit: Unit): void {
-        this.requestMidCastOrderPause(unit);
-    }
-
-    /** Shared body: make `unit` a waiter in the deferred order pause committed at the end of this tick. */
-    private requestMidCastOrderPause(unit: Unit): void {
-        const waiter: OrderWaiter = { unitId: unit.id, ownerId: unit.ownerId };
-        if (this.deferredOrderPause) {
-            if (!this.deferredOrderPause.waiters.some((w) => w.unitId === unit.id)) {
-                this.deferredOrderPause.waiters.push(waiter);
-            }
-        } else {
-            this.deferredOrderPause = {
-                waiters: [waiter],
-                naturalCompletionUnitIds: [],
-            };
-        }
+        this.orderPause.requestMidCastOrderPause(unit);
     }
 
     interruptUnitAndRefundAbilities(unit: Unit): void {
@@ -2118,7 +1549,8 @@ export class GameEngine implements EngineContext {
     // Round End
     // ========================================================================
 
-    private handleRoundEnd(roundNumber: number): void {
+    /** @internal invoked by `engineEventWiring.ts` on `round_end`. */
+    handleRoundEnd(roundNumber: number): void {
         this.state.abilityUseTracker.clearAbilityUses();
         this.state.lightSourceManager.handleRoundEnd(this.roundNumber);
         this.state.unitManager.onRoundEnd(roundNumber);
@@ -2166,7 +1598,8 @@ export class GameEngine implements EngineContext {
     }
 
     /** Context handed to unit-component hooks (see `units/components/unitComponentHooks.ts`). */
-    private buildUnitComponentContext(dt: number): UnitComponentContext {
+    /** @internal used by `engineEventWiring.ts`. */
+    buildUnitComponentContext(dt: number): UnitComponentContext {
         return {
             gameTime: this.gameTime,
             dt,
@@ -2216,374 +1649,17 @@ export class GameEngine implements EngineContext {
     // ========================================================================
 
     toJSON(): SerializedGameState {
-        const levelEventData = this.state.levelEventManager.toJSON();
-        const performanceLog = tickPerformanceTracker.getLastPerformanceLog();
-        return {
-            serializationVersion: SERIALIZED_GAME_STATE_VERSION,
-            // Deploy compatibility for pre-versioning clients; see `SerializedGameState.cards`.
-            cards: {},
-            randomSeed: this.randomSeed,
-            enemyScalingPlayerCount: this.enemyScalingPlayerCount,
-            gameTime: this.gameTime,
-            gameTick: this.gameTick,
-            roundNumber: this.roundNumber,
-            snapshotIndex: this.snapshotIndex,
-            ...(this.state.timeManager.isDefault() ? {} : { timeManager: this.state.timeManager.toJSON() }),
-            navEpoch: this.terrainManager?.navEpoch ?? 0,
-            units: this.state.unitManager.toJSON(this.gameTick),
-            projectiles: this.state.projectileManager.toJSON(),
-            effectEmitters: this.state.effectEmitterManager.toJSON(),
-            waitingForOrders: this.waitingForOrders
-                ? {
-                      waiters: this.waitingForOrders.waiters,
-                      atTick: this.waitingForOrders.atTick,
-                  }
-                : null,
-            orders: this.pendingOrders.map((o) => ({ gameTick: o.gameTick, order: { ...o.order, targets: o.order.targets.map((t) => ({ ...t })) } })),
-            specialTiles: this.state.specialTileManager.toJSON() as unknown as import('./types').SerializedSpecialTile[],
-            aiControllerId: this.aiControllerId,
-            firedEventIndices: levelEventData.firedEventIndices,
-            victoryCheckFirstEmitDone: levelEventData.victoryCheckFirstEmitDone,
-            continuousSpawnLastSpawnedAt: levelEventData.continuousSpawnLastSpawnedAt,
-            playerResearchTreesByPlayer: this.state.researchManager.toJSON(),
-            storyPauseActive: this.storyPauseActive,
-            storyPauseReason: this.storyPauseReason,
-            storyPauseEndsAt: this.storyPauseEndsAt,
-            objectives: this.state.objectiveManager.toJSON(),
-            worldModifiers: this.state.worldModifierManager.toJSON(),
-            ...(this.state.activeDarknessStrengths.length > 0
-                ? {
-                      activeDarknessStrengths: this.state.activeDarknessStrengths.map(
-                          ({ packageId, data }): DarknessStrengthInstance =>
-                              data !== undefined ? { packageId, data } : { packageId },
-                      ),
-                  }
-                : {}),
-            ...(Object.keys(this.state.darknessUpgradeBonuses).length > 0
-                ? { darknessUpgradeBonuses: structuredClone(this.state.darknessUpgradeBonuses) }
-                : {}),
-            ...(this.state.darknessUpgradeNodeIds.length > 0
-                ? { darknessUpgradeNodeIds: [...this.state.darknessUpgradeNodeIds] }
-                : {}),
-            lightSources: this.state.lightSourceManager.toJSON(),
-            terrainEffects: this.state.terrainLayers.toEffectsJSON(),
-            floorTiles: this.state.terrainLayers.toFloorTilesJSON(),
-            lightTileGrid: this.state.lightTileGrid?.toJSON() ?? null,
-            nextObjectId: this.objectIdSeq,
-            mapPOIs: this.mapPOIs,
-            mapZones: this.mapZones,
-            mapNetwork: this.state.mapNetworkManager.toJSON(),
-            groups: this.state.groupManager.toJSON(this.gameTick),
-            ninjutsuPools: this.state.ninjutsuManager?.toJSON() ?? undefined,
-            ...(Object.keys(this.npcControlAssignments).length > 0
-                ? { npcControlAssignments: { ...this.npcControlAssignments } }
-                : {}),
-            ...(performanceLog != null ? { performanceLog } : {}),
-        };
+        return serializeEngine(this);
     }
 
-    /**
-     * NOTE: reload/resync (`BattleSession.loadFromSnapshot`/`restoreFromInMemorySnapshot`) rebuilds
-     * the engine straight from JSON, independently of `mission.initializeGameState`. Any addition
-     * to that method which is *not* serialized (re-derived from `opts.segmentIds`/mission config
-     * rather than persisted) must be replicated here too, or it will be lost on reload.
-     */
+    /** See `deserializeEngine` in `engineSerialization.ts` (upgrades the checkpoint first). */
     static fromJSON(
         data: SerializedGameState,
         localPlayerId: string,
         terrainManager?: TerrainManager | null,
         opts?: GameEngineFromJSONOpts,
     ): GameEngine {
-        // Single entry point for every checkpoint load: bring old formats up to date first.
-        data = upgradeSerializedGameState(data);
-        const engine = new GameEngine();
-        engine.localPlayerId = localPlayerId;
-        engine.terrainManager = terrainManager ?? null;
-        engine.terrainManager?.setStoneDamagedEmitter((event) => {
-            engine.eventBus.emit('terrain_stone_damaged', event);
-        });
-        engine.terrainManager?.setTerrainEffectsClearedEmitter((cleared) => {
-            engine.eventBus.emit('terrain_effects_cleared', { cleared });
-        });
-        engine.randomSeed = data.randomSeed ?? 0;
-        engine.gameTime = data.gameTime;
-        engine.gameTick = data.gameTick ?? 0;
-        engine.roundNumber = data.roundNumber;
-        engine.snapshotIndex = data.snapshotIndex;
-        engine.state.timeManager.restoreFromJSON(data.timeManager);
-        engine.waitingForOrders = normalizeWaitingForOrdersFromJSON(data.waitingForOrders, engine.gameTick);
-        engine.aiControllerId = data.aiControllerId ?? null;
-        engine.storyPauseActive = data.storyPauseActive ?? false;
-        engine.storyPauseReason = data.storyPauseReason ?? null;
-        engine.storyPauseEndsAt = data.storyPauseEndsAt ?? null;
-
-        engine.state.levelEventManager.restoreFromJSON({
-            firedEventIndices: data.firedEventIndices,
-            victoryCheckFirstEmitDone: data.victoryCheckFirstEmitDone,
-            continuousSpawnLastSpawnedAt: data.continuousSpawnLastSpawnedAt,
-        });
-
-        engine.state.objectiveManager.importSnapshot(data.objectives);
-        engine.state.worldModifierManager.importSnapshot(data.worldModifiers ?? null);
-        engine.setActiveDarknessStrengths(
-            (data.activeDarknessStrengths ?? [])
-                .map((inst): ActiveDarknessStrength | null => {
-                    const def = getDarknessStrength(inst.packageId);
-                    if (!def) return null;
-                    return inst.data !== undefined
-                        ? { packageId: inst.packageId, data: inst.data, def }
-                        : { packageId: inst.packageId, def };
-                })
-                .filter((a): a is ActiveDarknessStrength => a != null),
-        );
-
-        engine.darknessUpgradeBonuses = data.darknessUpgradeBonuses ? structuredClone(data.darknessUpgradeBonuses) : {};
-        engine.darknessUpgradeNodeIds = data.darknessUpgradeNodeIds ? [...data.darknessUpgradeNodeIds] : [];
-
-        engine.pendingOrders = (data.orders ?? []).map((o) => ({
-            gameTick: o.gameTick,
-            order: { ...o.order, targets: (o.order.targets ?? []).map((t) => ({ ...t })) },
-        }));
-
-        // Restore units (direct push, bypasses addUnit jitter since state is serialized)
-        engine.state.unitManager.restoreFromJSON(data.units, engine.eventBus, engine.gameTick);
-
-        // Roster size is frozen at mission start; legacy checkpoints omit it — recover from heroes present.
-        engine.enemyScalingPlayerCount =
-            data.enemyScalingPlayerCount ??
-            Math.max(
-                1,
-                engine.units.filter(
-                    (u) => u.characterId === PLAYER_CHARACTER_ID && u.isPlayerControlled(),
-                ).length,
-            );
-
-        // Some checkpoints only list a subset of parallel waiters (e.g. host order already saved).
-        // Without merging, we would clear pause while another human's unit still owes an order,
-        // the host would not run GET /minimal, and remote orders would never apply.
-        if (engine.waitingForOrders) {
-            const pauseBatch = engine.waitingForOrders;
-            const { waiters, atTick } = pauseBatch;
-            const waiterUnitIds = new Set(waiters.map((w) => w.unitId));
-            const extra: OrderWaiter[] = [];
-            for (const unit of engine.units) {
-                if (!unit.active || !unit.isAlive()) continue;
-                // Frozen units never owe orders (OrderManager.shouldPauseForOrders).
-                if (!unit.isPlayerControlled() || !unit.canAct() || unit.localFrozen) continue;
-                if (waiterUnitIds.has(unit.id)) continue;
-                // Drafts don't count as having answered; only confirmed orders satisfy a waiter's pause.
-                if (!engine.state.orderMgr.hasConfirmedOrderForUnit(unit.id, atTick)) {
-                    extra.push({ unitId: unit.id, ownerId: unit.ownerId });
-                }
-            }
-            if (extra.length > 0) {
-                extra.sort((a, b) =>
-                    a.ownerId !== b.ownerId ? a.ownerId.localeCompare(b.ownerId) : a.unitId.localeCompare(b.unitId),
-                );
-                const merged = [...waiters, ...extra].sort((a, b) =>
-                    a.ownerId !== b.ownerId ? a.ownerId.localeCompare(b.ownerId) : a.unitId.localeCompare(b.unitId),
-                );
-                engine.waitingForOrders = {
-                    waiters: merged,
-                    atTick,
-                    ...(pauseBatch.teamworkCancelledOwnerIds !== undefined
-                        ? { teamworkCancelledOwnerIds: pauseBatch.teamworkCancelledOwnerIds }
-                        : {}),
-                };
-            }
-        }
-
-        // Parallel orders must be queued at waitingForOrders.atTick. Only the canonical deferred-
-        // pause shape (atTick === gameTick + 1) is normalized: older checkpoints sometimes store
-        // waiter rows at `gameTick` instead of `atTick`. Never rewrite when `atTick` drifts further
-        // ahead — that would bump legitimate intermediate ticks and stall or corrupt the timeline.
-        if (engine.waitingForOrders && engine.waitingForOrders.atTick === engine.gameTick + 1) {
-            const { waiters, atTick } = engine.waitingForOrders;
-            const waiterIds = new Set(waiters.map((w) => w.unitId));
-            for (const entry of engine.pendingOrders) {
-                const uid = entry.order.unitId;
-                if (!waiterIds.has(uid)) continue;
-                if (entry.gameTick === engine.gameTick && entry.gameTick < atTick) {
-                    entry.gameTick = atTick;
-                }
-            }
-        }
-
-        // Backward-compat: old snapshots stored conditionalCancelContext on waitingForOrders.
-        // Migrate: set conditionalCancelPaused + conditionalCancelTagFilter on the matching ability.
-        {
-            const rawWFO = (data.waitingForOrders ?? null) as Record<string, unknown> | null;
-            const rawCC = rawWFO?.conditionalCancelContext;
-            if (rawCC && typeof rawCC === 'object') {
-                const cc = rawCC as Record<string, unknown>;
-                if (typeof cc.unitId === 'string' && typeof cc.activeAbilityId === 'string') {
-                    const unit = engine.getUnit(cc.unitId);
-                    const active = unit?.activeAbilities.find((a) => a.abilityId === cc.activeAbilityId);
-                    if (active && !active.conditionalCancelPaused) {
-                        active.conditionalCancelPaused = true;
-                        const tagFilter = Array.isArray(cc.abilityTagFilter)
-                            ? (cc.abilityTagFilter as unknown[]).filter((t): t is string => typeof t === 'string')
-                            : undefined;
-                        active.conditionalCancelTagFilter = tagFilter;
-                    }
-                }
-            }
-        }
-
-        // If every waiter already has a confirmed order at the batch tick, clear pause.
-        if (engine.waitingForOrders) {
-            const { waiters, atTick } = engine.waitingForOrders;
-            if (waiters.every((w) => engine.state.orderMgr.hasConfirmedOrderForUnit(w.unitId, atTick))) {
-                engine.waitingForOrders = null;
-                engine.isPaused = false;
-            }
-        }
-
-        // Restore projectiles
-        engine.state.projectileManager.restoreFromJSON(data.projectiles);
-
-        // Restore effect emitters (runtime-only factories are dropped; emitters are short-lived)
-        engine.state.effectEmitterManager.restoreFromJSON(data.effectEmitters ?? []);
-
-        // Restore terrain layers (floor/ground/air effects) BEFORE special tiles
-        // so the TerrainManager can be fully set up before crystal protection is queried.
-        engine.state.terrainLayers = TerrainLayerManager.fromJSON(data.terrainEffects ?? [], data.floorTiles ?? []);
-        if (engine.terrainManager) {
-            engine.terrainManager.setTerrainLayers(engine.state.terrainLayers);
-            engine.terrainManager.setCrystalProtectionProvider(
-                () => engine.state.specialTileManager.getCrystalProtectionMap(),
-            );
-        }
-
-        // Restore special tiles AFTER terrain layers and crystal provider setup
-        engine.state.specialTileManager.restoreFromJSON(data.specialTiles ?? []);
-
-        // Restore navEpoch and mark NavGrid dirty (after special tiles are restored)
-        if (engine.terrainManager) {
-            engine.terrainManager.navEpoch = data.navEpoch ?? 0;
-            engine.terrainManager.markNavDirty();
-        }
-
-        // Restore light sources
-        engine.state.lightSourceManager.restoreFromJSON(data.lightSources ?? []);
-
-        // Restore light tile grid
-        engine.state.lightTileGrid = data.lightTileGrid ? LightTileGrid.fromJSON(data.lightTileGrid) : null;
-
-        // Restore map POIs (needed for networked lanternite nest spawning)
-        engine.registerMapPOIs((data.mapPOIs ?? []) as import('../terrain/segmentSchema').MapSegmentPOI[]);
-
-        // Restore map zones (needed for spawn behaviours that run deterministically on every client)
-        engine.registerMapZones((data.mapZones ?? []) as import('../terrain/segmentSchema').MapSegmentZone[]);
-
-        // Restore map network graph. Deliberately NOT restored from `data.mapNetwork` (always an
-        // empty no-op payload, see `SerializedGameState.mapNetwork`'s doc comment) — rebuilt fresh
-        // from segment data instead, mirroring `mission.initializeGameState`'s own
-        // `loadFromSegments` call. This restore path runs independently of
-        // `initializeGameState` (checkpoint/resync callers construct a fresh engine straight from
-        // JSON), so `opts.segmentIds` is the only way the graph gets populated here.
-        engine.state.mapNetworkManager.restoreFromJSON(data.mapNetwork);
-        const networkPayload = opts?.segmentNetwork
-            ?? (opts?.segmentIds ? getMissionSegmentNetwork(opts.segmentIds) : null);
-        if (networkPayload) {
-            engine.state.mapNetworkManager.loadFromSegments(networkPayload);
-            // Unit restoration (engine.state.unitManager.restoreFromJSON) already ran earlier in
-            // this function, so engine.units is populated here — seed membership once, same as
-            // the mission-init path in BaseMissionDef.initializeGameState.
-            engine.state.mapNetworkManager.buildInitialMembership(engine.units);
-        }
-        if (engine.terrainManager) {
-            if (opts?.segmentPlacements) {
-                engine.terrainManager.segmentPlacements = opts.segmentPlacements;
-            } else if (opts?.segmentIds) {
-                engine.terrainManager.segmentPlacements = getMissionSegmentPlacements(opts.segmentIds);
-            }
-        }
-
-        // Restore research trees
-        engine.state.researchManager.restoreFromJSON(data.playerResearchTreesByPlayer);
-
-        // Restore group blackboards (AI strategic layer)
-        engine.state.groupManager.fromJSON(data.groups ?? [], data.gameTick ?? 0);
-
-        // Restore ninjutsu pools (config + runtime budget/delay)
-        if (data.ninjutsuPools && data.ninjutsuPools.length > 0) {
-            engine.state.ninjutsuManager = NinjutsuManager.fromJSON(data.ninjutsuPools);
-        }
-
-        // Assignments only — defs are re-registered by BattleSession from the mission def.
-        engine.npcControlAssignments = data.npcControlAssignments
-            ? { ...data.npcControlAssignments }
-            : {};
-
-        engine.syncObjectIdsFromSnapshot(data);
-
-        // Re-register core event listeners
-        engine.registerCoreEventListeners();
-
-        // Infer parallel waiters for legacy checkpoints that omit the field.
-        if (!engine.waitingForOrders) {
-            const inferredWaiters: OrderWaiter[] = [];
-            for (const unit of engine.units) {
-                if (!unit.active) continue;
-                // Frozen units never owe orders (OrderManager.shouldPauseForOrders).
-                if (unit.isPlayerControlled() && unit.canAct() && unit.isAlive() && !unit.localFrozen) {
-                    // Drafts don't count as confirmed; re-infer if only drafts exist from this tick on.
-                    if (!engine.state.orderMgr.hasConfirmedOrderForUnit(unit.id, engine.gameTick)) {
-                        inferredWaiters.push({ unitId: unit.id, ownerId: unit.ownerId });
-                    }
-                }
-            }
-            inferredWaiters.sort((a, b) =>
-                a.ownerId !== b.ownerId ? a.ownerId.localeCompare(b.ownerId) : a.unitId.localeCompare(b.unitId),
-            );
-            if (inferredWaiters.length > 0) {
-                engine.waitingForOrders = { waiters: inferredWaiters, atTick: engine.gameTick + 1 };
-                engine.isPaused = true;
-            }
-        }
-
-        const roundTime = engine.gameTime - (engine.roundNumber - 1) * ROUND_DURATION;
-        engine.appliedRoundStartRecovery = roundTime > 0;
-        engine.appliedMidRoundRecovery = roundTime >= ROUND_DURATION / 2;
-        engine.appliedDotTicks = Math.min(DOT_TICKS_PER_ROUND, Math.floor(roundTime / (ROUND_DURATION / DOT_TICKS_PER_ROUND)));
-        clearUnitTileTransitionState();
-        // CrowdSpacing grid is ephemeral — never restore from JSON; rebuild on first tick.
-        engine.crowdSpacingManager.clear();
-        // Pathfinding manager and caches are ephemeral — never restore from JSON; rebuild on first tick.
-        engine.pathfindingManager.clear();
-        engine.terrainManager?.pathQuery.clearCache();
-
-        engine.deferredOrderPause = null;
-        if (engine.waitingForOrders != null) {
-            engine.isPaused = true;
-        }
-
-        const checkpointFromData =
-            typeof data.checkpointRuntimeFingerprintHex === 'string' && data.checkpointRuntimeFingerprintHex !== ''
-                ? data.checkpointRuntimeFingerprintHex
-                : undefined;
-        const checkpointHex = opts?.checkpointRuntimeFingerprintHex ?? checkpointFromData;
-        const legacyLayoutHex = typeof data.initialFingerprint === 'string' ? data.initialFingerprint : '';
-        if (typeof checkpointHex === 'string' && checkpointHex !== '') {
-            engine.runtimeFingerprint = fingerprintFromHex(checkpointHex);
-        } else if (legacyLayoutHex !== '') {
-            engine.runtimeFingerprint = fingerprintFromHex(legacyLayoutHex);
-        } else if (engine.gameTick === 0) {
-            engine.runtimeFingerprint = fingerprintFromHex(engine.computeInitialFingerprint());
-        } else {
-            engine.runtimeFingerprint = fingerprintInitial();
-        }
-        if (engine.gameTick > 0) {
-            const pausedRestore =
-                engine.isPaused ||
-                engine.waitingForOrders != null ||
-                engine.deferredOrderPause != null ||
-                engine.storyPauseActive;
-            engine.state.runtimeFingerprintRing.push(engine.gameTick, engine.runtimeFingerprint, pausedRestore);
-        }
-
-        return engine;
+        return deserializeEngine(() => new GameEngine(), data, localPlayerId, terrainManager, opts);
     }
 
     /**

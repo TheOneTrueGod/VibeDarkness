@@ -11,6 +11,20 @@ description: Architecture of the GameEngine manager-of-managers pattern, tick lo
 
 **Time dilation:** the tick loop resolves world pace, advances `gameTime` by world pace, and steps each unit/projectile on its own local time (tempo, step pieces, Time Stop). Read the **time-dilation** skill and `app/js/games/minion_battles/game/time/AGENTS.md` before touching clocks; pace 1 must stay byte-identical.
 
+## Where things live (`game/`)
+
+`GameEngine.ts` is the facade: public API, loop, ids, fingerprint helpers, and `fixedUpdate`, which reads as the ordered list of `tick*` phase methods (`tickResolveWorldPace`, `tickAdvanceClocks`, `tickRunSimulation`, ..., `tickFinish`). Phase order is load-bearing; never reorder without a determinism test. Everything below is a pure move out of the class; the engine keeps one-line delegates so callers never change.
+
+| Module | Owns |
+|---|---|
+| `engineSerialization.ts` | `serializeEngine` / `deserializeEngine` behind `GameEngine.toJSON` / `fromJSON` (upgrade runs first). Pinned by `engineSerialization.test.ts` and its golden `__snapshots__/engineSerialization.toJSON.json`; a diff there means the checkpoint shape changed. |
+| `engineEventWiring.ts` | `wireCoreEventListeners`: the core EventBus subscriptions (clears the bus first; registration order matters). |
+| `orderPause/OrderPauseController.ts` | Deferred/parallel order pause: waiter helpers, commit after the completed tick, `tryResumeParallel`, mid-cast pause requests, dropped-ITS-preview commit, and the post-unit scheduling step. `deferredOrderPause` and the pause callbacks stay on the engine (tests and `BattleSession` use them); the controller owns the ephemeral `droppedItsPreviewPause`. |
+| `lighting/LightingSystem.ts` | Light queries, the light-grid init/animation and light-source lists. The grid lives on `GameState.lightTileGrid`. |
+| `npcControl/NpcControlRegistry.ts` | NPC control defs and the checkpointed group -> player assignments, assign/release, assign-on-spawn. |
+
+Members marked `@internal` on `GameEngine` exist only so these modules can reach engine state; do not call them from feature code.
+
 ## Unit components (per-enemy state and behaviour)
 
 `Unit` has no per-enemy-type fields. Enemy-specific state and hooks are **components**: a def declares `components: [componentSpec(LANTERNITE_COMPONENT, { role: 'nest' })]`, state lives in `unit.components` and is read through typed accessors (`lanterniteStateOf`, `swarmStateOf`, `petStateOf`; the `peek*` variants never attach and are for scans over all units). A component type (`units/components/unitComponent.ts`) owns `create`, `toJSON`, `fromJSON`; each slice writes its own top-level keys into the unit JSON (so adding or moving a component does not change the checkpoint shape as long as the keys are kept). Behaviour hooks (`tick`, `lateTick`, `onRoundMilestone`, `onDeath`) live in `units/components/unitComponentHooks.ts`, which also lists the dispatch order; `GameEngine` calls the dispatchers at the old call sites and never names an enemy type. Spawners share `units/components/spawnerCore.ts` (`SpawnerSpec`, `tickSpawner`, `spawnSpawnerChildren`). Worked example: `game/lanternite/AGENTS.md`.
