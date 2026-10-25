@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { STORYLINES } from './index';
-import { getChapterIdAfterVictory, getNextVictoryMissionId } from './unlock';
+import { getChapterIdAfterVictory, isLastMissionInChapter } from './unlock';
 
 describe('getChapterIdAfterVictory', () => {
     it('returns the next chapter after the last mission of a chapter', () => {
-        expect(getNextVictoryMissionId('core_awakening', STORYLINES)).toBeNull();
+        expect(isLastMissionInChapter('core_awakening', STORYLINES)).toBe(true);
         expect(getChapterIdAfterVictory('core_awakening', STORYLINES)).toBe('wod_ch2');
     });
 

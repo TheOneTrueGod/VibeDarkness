@@ -22,6 +22,7 @@ import {
     addLocationCardsToDeck,
     getNextVictoryMissionId,
     getChapterIdAfterVictory,
+    isLastMissionInChapter,
     getSideMissionIds,
     getQuestDef,
     abandonQuestRun,
@@ -1277,9 +1278,11 @@ export default function MinionBattlesGame({
                             }
                             return;
                         }
-                        const nextMissionId = selectedMissionId
-                            ? getNextVictoryMissionId(selectedMissionId, STORYLINES)
-                            : null;
+                        // The last mission of a chapter returns to the Mission Map (next chapter selected).
+                        const nextMissionId =
+                            selectedMissionId && !isLastMissionInChapter(selectedMissionId, STORYLINES)
+                                ? getNextVictoryMissionId(selectedMissionId, STORYLINES)
+                                : null;
                         if (onTryAgain && nextMissionId) {
                             const created = await onTryAgain(nextMissionId, characterSelections);
                             if (created) return;

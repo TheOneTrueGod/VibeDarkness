@@ -62,6 +62,7 @@ export {
     hasVictoryResult,
     getNextVictoryMissionId,
     getChapterIdAfterVictory,
+    isLastMissionInChapter,
     getSideMissionIds,
     isSideMissionId,
     isQuestSlotBankUnlocked,

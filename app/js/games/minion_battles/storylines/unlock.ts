@@ -225,22 +225,30 @@ export function getNextVictoryMissionId(
     return null;
 }
 
+/** True when `missionId` is the last mission of its (player) chapter: nothing follows it inside the chapter. */
+export function isLastMissionInChapter(missionId: string, storylines: StorylineDef[]): boolean {
+    const nextMissionId = getNextVictoryMissionId(missionId, storylines);
+    for (const storyline of storylines) {
+        const chapter = getCampaignChapters(storyline).find((c) => c.missionIds.includes(missionId));
+        if (chapter) return nextMissionId == null || !chapter.missionIds.includes(nextMissionId);
+    }
+    return false;
+}
+
 /**
- * Chapter the Mission Map should show after finishing `missionId` and pressing Continue with no
- * follow-up mission: the next player chapter when `missionId` is the last mission of its chapter,
- * else that same chapter. Null when the mission is in no chapter.
+ * Chapter the Mission Map should show after pressing Continue on `missionId`: the next player chapter
+ * when it is the last mission of its chapter, else the same chapter. Null when it is in no chapter.
  */
 export function getChapterIdAfterVictory(
     missionId: string,
     storylines: StorylineDef[],
 ): string | null {
-    const nextMissionId = getNextVictoryMissionId(missionId, storylines);
+    const isLast = isLastMissionInChapter(missionId, storylines);
     for (const storyline of storylines) {
-        const chapters = getCampaignChapters(storyline).filter((c) => !c.adminOnly);
+        const chapters = getCampaignChapters(storyline);
         const idx = chapters.findIndex((c) => c.missionIds.includes(missionId));
         if (idx < 0) continue;
-        const isLastInChapter = nextMissionId == null || !chapters[idx].missionIds.includes(nextMissionId);
-        return (isLastInChapter ? (chapters[idx + 1] ?? chapters[idx]) : chapters[idx]).id;
+        return (isLast ? (chapters[idx + 1] ?? chapters[idx]) : chapters[idx]).id;
     }
     return null;
 }
