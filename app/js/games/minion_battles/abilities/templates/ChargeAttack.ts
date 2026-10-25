@@ -292,7 +292,10 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 	}
 }
 
-/** Resolve ground (pixel) or legacy unit aim for charge templates. */
+/**
+ * Resolve ground (pixel) or legacy unit aim for charge templates. A pixel aim taken from a unit
+ * (`trackUnitId`, set on AI orders) keeps that unit's id so follow-up dashes can re-aim at it.
+ */
 export function resolveChargeAimPoint(
 	eng: AbilityEngineContext,
 	targets: ResolvedTarget[],
@@ -300,7 +303,7 @@ export function resolveChargeAimPoint(
 	const targetDef = targets[0];
 	if (targetDef?.type === 'pixel' && targetDef.position) {
 		return {
-			targetId: '',
+			targetId: targetDef.trackUnitId ?? '',
 			targetX: targetDef.position.x,
 			targetY: targetDef.position.y,
 		};

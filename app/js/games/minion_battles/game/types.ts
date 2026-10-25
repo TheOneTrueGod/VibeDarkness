@@ -361,6 +361,13 @@ export interface ResolvedTarget {
      */
     lockRole?: 'primary' | 'companion';
     /**
+     * On a `pixel` target: the unit this aim point was taken from (AI orders aim pixel abilities at a
+     * unit's position). Abilities that re-aim during a cast (e.g. `MultiChargeAttack` follow-up dashes)
+     * follow this unit; everything else uses `position` as usual. Deliberately not `unitId`, which
+     * other code reads as "this target is a unit".
+     */
+    trackUnitId?: string;
+    /**
      * Select-step context carried on a step's primary lock-on (`buildMeleeSelectOrderTargets`).
      * `order.targets` only describes the last select step of a multi-select ability, so each step's
      * label target keeps its own clicked aim and extra lock-ons here (read by `MeleeAttack`'s

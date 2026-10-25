@@ -103,7 +103,11 @@ export function buildResolvedTargets(ability: AbilityStatic, targetUnit: Unit): 
     const targetDefs = getAbilityTargets(ability, targetUnit, null);
     return targetDefs.map((t) => {
         if (t.type === 'pixel') {
-            return { type: 'pixel' as const, position: { x: targetUnit.x, y: targetUnit.y } };
+            return {
+                type: 'pixel' as const,
+                position: { x: targetUnit.x, y: targetUnit.y },
+                trackUnitId: targetUnit.id,
+            };
         }
         if (t.type === 'unit') {
             return { type: 'unit' as const, unitId: targetUnit.id };
