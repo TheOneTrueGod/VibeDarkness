@@ -87,7 +87,7 @@ All under `storylines/WorldOfDarkness/MapSegments/`:
 3. **Sketch** — show an ASCII or **artbook** layout for approval before writing terrain.
 4. **Paint** — write the segment, POIs and zones (formats: **resync-terrain**), then network nodes.
 5. **Register** — `storylines/WorldOfDarkness/registerSegments.ts`.
-6. **Verify** — ask the user to check it in the terrain editor or in game.
+6. **Verify** — run the [Verification](#verification) checks.
 
 ## Map tools
 
@@ -105,6 +105,15 @@ Each tool also exposes its raw cell list (e.g. `roadCells`), so tools can be com
 
 To run them, write a throwaway script in the scratchpad that imports from `/app/js/games/minion_battles/terrain/mapTools`, then run it with `npx vite-node <script>` from the repo root. Print the result as ASCII to check it, then copy the rows into the segment file.
 
-## Roadmap (sections to add)
+## Verification
 
-- **Verification** — reachability, seam checks, corridor width.
+Run these checks in a scratch script (see [Map tools](#map-tools)) before asking the user to look. Report each one as passed or failed; fix failures before handing over.
+
+1. **Reachability** — `findPath` between every pair of edge openings, and from the nearest opening to each POI and network node. Every one must return a path. A POI or node on a blocked cell fails.
+2. **Seams** — stitch the new segment with each existing neighbour (`stitchTerrain` in `terrain/TerrainGrid.ts`, laid out by world-grid address) and `findPath` across every shared opening. Paths and ridges must line up on both sides of the edge.
+3. **Network** — `findPath` between each pair of connected nodes. The route should follow the road or walking path the edge represents; a big detour means a node is misplaced.
+4. **Chokepoints** — at each intended chokepoint, count the passable cells across the route. They must match the intended width (narrow 1, medium 2, wide 3); accidental 1-tile gaps elsewhere fail.
+5. **Look** — print the segment as ASCII with the route cells marked and check it against the approved sketch.
+6. **User check** — ask the user to check it in the terrain editor or in game.
+
+`findPath` reads base terrain only: crystals, created rock and units are not included.
