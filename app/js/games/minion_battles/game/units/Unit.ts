@@ -69,7 +69,6 @@ import type {
 } from './unitTypes';
 import { createPetState, type UnitPetState } from './unitPetState';
 import { createLanterniteState, type UnitLanterniteState } from './unitLanterniteState';
-import { createThornlingState, type UnitThornlingState } from './unitThornlingState';
 import { createSwarmState, type UnitSwarmState } from './unitSwarmState';
 import { createCcArmourState, tickHardCcChainDecayAtRoundEnd, type UnitCcArmourState } from '../../crowdControl/ccArmourState';
 import { serializeUnit } from './unitToJSON';
@@ -320,14 +319,12 @@ export class Unit extends GameObject {
     /** Item passives: recovery charges granted at every round start (from equipped items). Serialized when non-empty. */
     roundStartRecoveryCharges: ItemRoundStartRecoveryCharge[];
 
-    /** When non-null, unit dies when GameEngine.gameTime reaches this value (husks, etc.). */
+    /** When non-null, unit dies when GameEngine.gameTime reaches this value (displacer clones, phantom decoys, etc.). */
     ephemeralDespawnAtGameTime: number | null = null;
 
     petState: UnitPetState = createPetState();
 
     lanterniteState: UnitLanterniteState = createLanterniteState();
-
-    thornlingState: UnitThornlingState = createThornlingState();
 
     swarmState: UnitSwarmState = createSwarmState();
 

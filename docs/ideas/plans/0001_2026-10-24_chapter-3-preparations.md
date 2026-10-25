@@ -14,9 +14,11 @@ Baseline when this was written: `npx tsc --noEmit` is clean. The backend already
 
 The cleanups already asked for, plus what the investigation found about each.
 
-### P0.1 Remove the erroneous enemies (Husk Artillery, Huskling, Thornling)
+### [x] P0.1 Remove the erroneous enemies (Husk Artillery, Huskling, Thornling)
 
 **Complexity:** Medium
+
+**Done:** Husk Artillery, Huskling, Thornling and the thornling nests are deleted. That covers their unit defs, spawn templates (including `ALLY_THORNLING` / `ALLY_THORNLING_NEST`), abilities `0009` and `0015`, `0002` (whose last users were the Huskling and Thornling), `unitThornlingState`, `thornlingNestTick`, the nest wiring in the spawn and mission code, `swordwoman.svg` and the Bestiary rows. `ephemeralDespawnAtGameTime` stays because Displacer clones and Phantom Decoy use it, and the Shield of Light test now uses `dog` as its beast. The `wod_ch3` stub is gone and `009_thornling_rise` is deleted. New `CampaignChapterDef.adminOnly` is filtered in one place, `getCampaignChapters(storyline, { isAdmin })` in `unlock.ts`, which also drives `getHighestUnlockedChapterIndex`, `getUnlockedMissionIds` and `getAllMissionIdsInOrder`. Admin-only chapters are removed before indexing, so player chapter indexes are unchanged. Admins see Chapter 0 first and always unlocked, and the map still opens on the player's current chapter. Chapter 0 (`wod_ch0`, "Unused Missions") holds `thornbinder_arena`, `crystal_corruption` and `the_circle`, laid out by `chapter3Map.ts` (now the Chapter 0 layout). Chapter skip refuses admin-only chapters, no storyline edge reaches them, and Mission Select shows them to admins only.
 
 - **Legacy Chapter 3 stub.** `WorldOfDarkness.ts` still declares a `wod_ch3` chapter listing `thornbinder_arena`, `crystal_corruption`, `the_circle` and `thornling_rise` (it is set to unlock after one of its own missions). `009_thornling_rise` exists only to show off the Thornling, so delete it and its tests. Remove the stub chapter so the real Chapter 3 starts from a clean slate.
 - **Decided: move the other legacy missions to an admin-only Chapter 0.** `006b_thornbinder_arena`, `004b_crystal_corruption` and `010_circle_arena` go into a new chapter (numeral `0`, titled something like "Unused Missions"). It becomes the standing holding ground for missions that aren't in the campaign.

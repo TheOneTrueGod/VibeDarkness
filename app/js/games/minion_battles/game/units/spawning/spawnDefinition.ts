@@ -15,7 +15,6 @@ import type { AISettings, UnitCombatSettings } from '../unitTypes';
 import type {
     LanterniteNestMissionConfig,
     SwarmNestMissionConfig,
-    ThornlingNestMissionConfig,
 } from './nestMissionConfigs';
 
 /** Where to place a spawned unit. */
@@ -82,7 +81,6 @@ export type SpawnAiHookup =
     | { kind: 'lanterniteNest'; nestConfig: LanterniteNestMissionConfig; homeNestPoiId?: string }
     | { kind: 'swarm'; orbitAngle?: number; nestOwnerUnitId?: string }
     | { kind: 'swarmNest'; nestConfig: SwarmNestMissionConfig; homeNestPoiId?: string }
-    | { kind: 'thornlingNest'; nestConfig: ThornlingNestMissionConfig }
     | { kind: 'pet'; ownerUnitId: string; defId: string };
 
 export interface SpawnDefinition {

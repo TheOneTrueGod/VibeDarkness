@@ -8,7 +8,6 @@
 import type { EnemySpawnDef, SpawnWaveEntry } from '../../../storylines/types';
 import { LANTERNITE_NEST_CHARACTER_ID } from '../../lanternite/lanternitePulse';
 import { SWARM_NEST_CHARACTER_ID } from '../../lanternite/swarmNestTick';
-import { THORNLING_NEST_CHARACTER_ID } from '../../lanternite/thornlingNestTick';
 import type { SpawnAiHookup, SpawnDefinition, SpawnPlacement } from './spawnDefinition';
 
 /** Builds the `lanternite` AI hookup from the ecology fields both source types carry. */
@@ -45,8 +44,6 @@ export function enemySpawnDefToSpawnDefinition(e: EnemySpawnDef, ownerId = 'ai')
         aiHookup = { kind: 'lanterniteNest', nestConfig: e.lanterniteNest, homeNestPoiId: e.lanterniteNest.nestPoiId };
     } else if (e.characterId === SWARM_NEST_CHARACTER_ID && e.swarmNest != null) {
         aiHookup = { kind: 'swarmNest', nestConfig: e.swarmNest, homeNestPoiId: e.swarmNest.nestPoiId };
-    } else if (e.characterId === THORNLING_NEST_CHARACTER_ID && e.thornlingNest != null) {
-        aiHookup = { kind: 'thornlingNest', nestConfig: e.thornlingNest };
     } else {
         aiHookup = buildLanternitePatrolHookup(e);
     }

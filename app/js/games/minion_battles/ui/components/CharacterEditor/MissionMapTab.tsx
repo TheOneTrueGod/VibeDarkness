@@ -16,6 +16,7 @@ import type { MissionResult } from '../../../../../types';
 import type { CampaignChapterDef, MissionType, StorylineDef } from '../../../storylines/types';
 import type { StartQuestOptions } from '../../../storylines/questLobby';
 import { STORYLINES, MISSION_MAP } from '../../../storylines/index';
+import { isChapterSkippable } from '../../../storylines/chapterSkip';
 import {
     getUnlockedMissionIds,
     hasVictoryResult,
@@ -25,6 +26,7 @@ import {
     canPlayerSelectMission,
     canPlayerViewMission,
     getAllMissionIdsInOrder,
+    getCampaignChapters,
     isSideMissionId,
     isChapterUnlocked,
     getHighestUnlockedChapterIndex,
@@ -822,30 +824,30 @@ export default function MissionMapTab({
     );
 
     const unlockedIds = useMemo(
-        () => (storyline ? getUnlockedMissionIds(storyline, missionResults, questResults) : new Set<string>()),
-        [storyline, missionResults, questResults],
+        () => (storyline ? getUnlockedMissionIds(storyline, missionResults, questResults, { isAdmin }) : new Set<string>()),
+        [storyline, missionResults, questResults, isAdmin],
     );
 
-    const chapters = useMemo(() => storyline?.chapters ?? [], [storyline]);
+    const chapters = useMemo(() => (storyline ? getCampaignChapters(storyline, { isAdmin }) : []), [storyline, isAdmin]);
 
     const [activeChapterIndex, setActiveChapterIndex] = useState(() =>
-        storyline ? getHighestUnlockedChapterIndex(storyline, missionResults) : 0,
+        storyline ? getHighestUnlockedChapterIndex(storyline, missionResults, { isAdmin }) : 0,
     );
 
     // Re-default to the highest unlocked chapter whenever the campaign changes.
     useEffect(() => {
         setActiveChapterIndex(
-            storyline ? getHighestUnlockedChapterIndex(storyline, missionResults) : 0,
+            storyline ? getHighestUnlockedChapterIndex(storyline, missionResults, { isAdmin }) : 0,
         );
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [character.campaignId]);
+    }, [character.campaignId, isAdmin]);
 
     const activeChapter = chapters[activeChapterIndex] ?? chapters[0] ?? null;
 
     const missionIds = useMemo(() => {
         if (chapters.length > 0) return activeChapter?.missionIds ?? [];
-        return storyline ? getAllMissionIdsInOrder(storyline) : [];
-    }, [storyline, chapters, activeChapter]);
+        return storyline ? getAllMissionIdsInOrder(storyline, { isAdmin }) : [];
+    }, [storyline, chapters, activeChapter, isAdmin]);
 
     // Resolve mission defs and assign fallback grid positions for any missing mapPosition.
     const missions = useMemo(() => {
@@ -1032,7 +1034,7 @@ export default function MissionMapTab({
             <div className="shrink-0 flex items-center gap-3 pb-2 border-b border-border-custom mb-2">
                 {/* left */}
                 <div className="flex-1 min-w-0 flex items-center gap-2">
-                    {isAdmin && onSkipChapter && activeChapter?.adminSkippable && (
+                    {isAdmin && onSkipChapter && activeChapter && isChapterSkippable(activeChapter) && (
                         <button
                             type="button"
                             data-testid={TestIds.missionMapSkipChapter}

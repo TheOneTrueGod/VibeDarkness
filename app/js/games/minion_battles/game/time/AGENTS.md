@@ -100,7 +100,7 @@ Cadence: `DashBehaviour` afterimages (`ctx.localDt`), `mirrorToClones` echo dela
 
 ### Reviewed and left on the world clock
 
-Buff durations (default), DoTs, regen, passives (`passiveRunner`), uses/cooldowns/discard, spawns, `ephemeralDespawnAtGameTime`, thorn/bramble expiry (`terrainLayers`), husk lifetime, round-interval gates (`LightEater`/`PhantomDecoy` `canUse`), pet `heelUntilGameTime`, all `unitAI/**` timers (tick cadence), `Unit.wait*EndTime`, `CasterShakeBehaviour` (visual only), `tryApplyHardCcStun` (stun is a buff).
+Buff durations (default), DoTs, regen, passives (`passiveRunner`), uses/cooldowns/discard, spawns, `ephemeralDespawnAtGameTime`, thorn/bramble expiry (`terrainLayers`), round-interval gates (`LightEater`/`PhantomDecoy` `canUse`), pet `heelUntilGameTime`, all `unitAI/**` timers (tick cadence), `Unit.wait*EndTime`, `CasterShakeBehaviour` (visual only), `tryApplyHardCcStun` (stun is a buff).
 
 ## Pitfalls
 

@@ -1,6 +1,6 @@
 /**
  * Swarm Nest — periodically spawns swarmlings that seek unclaimed nest POIs and build new nests.
- * Follows the same pattern as thornlingNestTick.ts for spawning, and lanterniteNestTick.ts
+ * Follows the same pattern as lanterniteNestTick.ts
  * for construction completion and the golden-angle orbit-angle assignment.
  */
 

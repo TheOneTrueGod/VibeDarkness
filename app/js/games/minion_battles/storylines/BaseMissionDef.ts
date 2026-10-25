@@ -89,10 +89,6 @@ import {
     LANTERNITE_NEST_CHARACTER_ID,
 } from '../game/lanternite/lanternitePulse';
 import {
-    initializeThornlingNestSpawnState,
-    THORNLING_NEST_CHARACTER_ID,
-} from '../game/lanternite/thornlingNestTick';
-import {
     initializeSwarmNestSpawnState,
     SWARM_NEST_CHARACTER_ID,
 } from '../game/lanternite/swarmNestTick';
@@ -594,9 +590,6 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                         lightSources: engine.lightSources,
                     });
                 }
-            }
-            if (u.characterId === THORNLING_NEST_CHARACTER_ID && u.thornlingState.nestConfig != null) {
-                initializeThornlingNestSpawnState(u, engine.gameTime);
             }
             if (u.characterId === SWARM_NEST_CHARACTER_ID && u.swarmState.nestConfig != null) {
                 initializeSwarmNestSpawnState(u, engine.gameTime);

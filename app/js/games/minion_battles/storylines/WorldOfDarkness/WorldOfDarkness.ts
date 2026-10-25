@@ -158,7 +158,7 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         { fromMissionId: 'light_empowered', result: 'victory', toMissionId: 'cave_respite' },
         { fromMissionId: 'cave_respite', result: 'victory', toMissionId: 'monster' },
         { fromMissionId: 'monster', result: 'victory', toMissionId: 'core_awakening' },
-        // Chapter 2 questline: South Gate Swarm → Campsite → Surface Quests 1 → Campsite → Surface Quests 2 → Campsite → Displacer → Campsite. Thornbinder Arena moved to chapter 3.
+        // Chapter 2 questline: South Gate Swarm → Campsite → Surface Quests 1 → Campsite → Surface Quests 2 → Campsite → Displacer → Campsite. Thornbinder Arena lives in the admin-only Chapter 0.
         { fromMissionId: 'core_awakening', result: 'victory', toMissionId: 'south_gate_swarm' },
         // Campsite sits between South Gate Swarm and Surface Quests 1.
         { fromMissionId: 'south_gate_swarm', result: 'victory', toMissionId: CAMPSITE_4_MISSION_ID },
@@ -216,10 +216,13 @@ export const WorldOfDarknessStoryline: StorylineDef = {
             mapDividers: [{ y: WOD_CH2_MAP_Y_SIDE_QUEST_DIVIDER, label: 'Side Quests' }],
         },
         {
-            id: 'wod_ch3',
-            numeral: 'III',
-            unlockAfterMissionId: 'thornling_rise',
-            missionIds: ['thornbinder_arena', 'crystal_corruption', 'the_circle', 'thornling_rise'],
+            // Admin-only holding ground for missions not yet placed in a player chapter. Not the
+            // real Chapter 3 (to be built later). Positions: see chapter3Map.ts.
+            id: 'wod_ch0',
+            numeral: '0',
+            title: 'Unused Missions',
+            adminOnly: true,
+            missionIds: ['thornbinder_arena', 'crystal_corruption', 'the_circle'],
         },
     ],
 };

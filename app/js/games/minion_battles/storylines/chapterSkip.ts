@@ -7,7 +7,7 @@
  * character state left by the earlier picks, so later steps react to earlier ones.
  *
  * Pure: callers persist `buildChapterSkipPlan`'s result (character fields, per-mission results,
- * account knowledge). Only chapters flagged `adminSkippable` are offered in the UI.
+ * account knowledge). Only chapters flagged `adminSkippable` (and never `adminOnly` ones) are offered in the UI.
  */
 import type { MissionResearchRewardEntry, MissionResult, CampaignResourceKey } from '../../../types';
 import type { CampaignChapterDef } from './types';
@@ -275,6 +275,11 @@ function applyAction(
     }
 }
 
+/** Admin skip is offered only for `adminSkippable` chapters, and never for `adminOnly` ones. */
+export function isChapterSkippable(chapter: CampaignChapterDef): boolean {
+    return !!chapter.adminSkippable && !chapter.adminOnly;
+}
+
 interface ReplayResult {
     next: ChapterSkipStep | null;
     plan: ChapterSkipPlan;
@@ -286,6 +291,7 @@ function replay(
     picks: readonly ChapterSkipPick[],
     ctx: ChapterSkipContext,
 ): ReplayResult {
+    if (chapter.adminOnly) throw new Error(`Chapter skip: ${chapter.id} is admin-only and cannot be skipped`);
     const missionsWithChoices = chapter.missionIds.filter((id) => choicePhrases(missionDef(id)).length > 0);
     let state = start;
     let knowledge = { ...ctx.accountKnowledge };

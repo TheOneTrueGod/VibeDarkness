@@ -19,7 +19,6 @@ import { TimelinePhaseSegment } from './TimelinePhaseSegment';
 import { TimelineHoverFlyout, type TimelineHoverFlyoutProps } from './TimelineHoverFlyout';
 import { ensureSvgViewBox } from './abilityIconSvg';
 import slimeIcon from '../../assets/characters/slime.svg';
-import swordwomanIcon from '../../assets/characters/swordwoman.svg';
 import wolfHeadIcon from '../../assets/characters/dark_animals/wolf-head.svg';
 import wolfHowlIcon from '../../assets/characters/dark_animals/wolf-howl.svg';
 import boarIcon from '../../assets/characters/dark_animals/boar.svg';
@@ -41,7 +40,6 @@ import { getCastElapsed } from '../../game/time/actorClock';
 
 /** Character icon URLs for enemy timeline markers. Fallback to letter if unknown. */
 const ENEMY_CHARACTER_ICONS: Record<string, string> = {
-    huskling: swordwomanIcon,
     slime: slimeIcon,
     dark_wolf: wolfHeadIcon,
     alpha_wolf: wolfHowlIcon,

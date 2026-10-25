@@ -7,6 +7,7 @@ import type { MissionResult } from '../../../types';
 import type { QuestResult } from './questTypes';
 import {
     getAllMissionIdsInOrder,
+    getCampaignChapters,
     getHighestUnlockedChapterIndex,
     getUnlockedMissionIds,
     isChapterUnlocked,
@@ -35,7 +36,8 @@ const THROUGH_CORE_AWAKENING: MissionResult[] = [
     victory('core_awakening'),
 ];
 
-const wodChapters = WorldOfDarknessStoryline.chapters ?? [];
+const wodChapters = getCampaignChapters(WorldOfDarknessStoryline);
+const CH0_IDS = ['thornbinder_arena', 'crystal_corruption', 'the_circle'];
 
 describe('isChapterUnlocked', () => {
     it('always unlocks the first chapter', () => {
@@ -47,11 +49,52 @@ describe('isChapterUnlocked', () => {
         expect(isChapterUnlocked(wodChapters[1], 1, THROUGH_CORE_AWAKENING)).toBe(true);
     });
 
-    it('gates chapter 3 behind a thornling_rise victory', () => {
-        expect(isChapterUnlocked(wodChapters[2], 2, THROUGH_CORE_AWAKENING)).toBe(false);
-        expect(
-            isChapterUnlocked(wodChapters[2], 2, [...THROUGH_CORE_AWAKENING, victory('thornling_rise')]),
-        ).toBe(true);
+});
+
+describe('admin-only Chapter 0', () => {
+    const admin = { isAdmin: true };
+
+    it('is hidden from non-admins and leaves player chapter indexes untouched', () => {
+        expect(wodChapters.map((c) => c.id)).toEqual(['wod_ch1', 'wod_ch2']);
+        expect(getCampaignChapters(WorldOfDarknessStoryline, { isAdmin: false })).toEqual(wodChapters);
+        expect(isChapterUnlocked(wodChapters[0], 0, [])).toBe(true);
+        expect(isChapterUnlocked(wodChapters[1], 1, [])).toBe(false);
+    });
+
+    it('is first and always unlocked for admins, with Chapter I next', () => {
+        const chapters = getCampaignChapters(WorldOfDarknessStoryline, admin);
+        expect(chapters.map((c) => c.numeral)).toEqual(['0', 'I', 'II']);
+        expect(isChapterUnlocked(chapters[0], 0, [])).toBe(true);
+        expect(isChapterUnlocked(chapters[1], 1, [])).toBe(true);
+        expect(isChapterUnlocked(chapters[2], 2, [])).toBe(false);
+        expect(isChapterUnlocked(chapters[2], 2, THROUGH_CORE_AWAKENING)).toBe(true);
+    });
+
+    it('never becomes the default chapter, even for admins', () => {
+        expect(getHighestUnlockedChapterIndex(WorldOfDarknessStoryline, [], admin)).toBe(1);
+        expect(getHighestUnlockedChapterIndex(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING, admin)).toBe(2);
+        expect(getHighestUnlockedChapterIndex(WorldOfDarknessStoryline, [])).toBe(0);
+        expect(getHighestUnlockedChapterIndex(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING)).toBe(1);
+    });
+
+    it('keeps its missions locked and unlisted for non-admins, unlocked for admins', () => {
+        const players = getUnlockedMissionIds(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING);
+        const admins = getUnlockedMissionIds(WorldOfDarknessStoryline, [], [], admin);
+        const listed = getAllMissionIdsInOrder(WorldOfDarknessStoryline);
+        const adminListed = getAllMissionIdsInOrder(WorldOfDarknessStoryline, admin);
+        for (const id of CH0_IDS) {
+            expect(players.has(id)).toBe(false);
+            expect(listed).not.toContain(id);
+            expect(admins.has(id)).toBe(true);
+            expect(adminListed).toContain(id);
+        }
+    });
+
+    it('no storyline chapter references thornling_rise', () => {
+        for (const chapter of WorldOfDarknessStoryline.chapters ?? []) {
+            expect(chapter.missionIds).not.toContain('thornling_rise');
+            expect(chapter.unlockAfterMissionId).not.toBe('thornling_rise');
+        }
     });
 });
 
@@ -64,15 +107,6 @@ describe('getHighestUnlockedChapterIndex', () => {
         expect(
             getHighestUnlockedChapterIndex(WorldOfDarknessStoryline, THROUGH_CORE_AWAKENING),
         ).toBe(1);
-    });
-
-    it('is 2 after thornling_rise', () => {
-        expect(
-            getHighestUnlockedChapterIndex(WorldOfDarknessStoryline, [
-                ...THROUGH_CORE_AWAKENING,
-                victory('thornling_rise'),
-            ]),
-        ).toBe(2);
     });
 
     it('is 0 for a single-chapter campaign', () => {
@@ -143,14 +177,6 @@ describe('getUnlockedMissionIds — chapter gating', () => {
         expect(afterDisplacer.has('thornbinder_arena')).toBe(false);
     });
 
-    it('unlocks the chapter 3 missions as entry missions', () => {
-        const results = [...THROUGH_CORE_AWAKENING, victory('thornling_rise')];
-        const unlocked = getUnlockedMissionIds(WorldOfDarknessStoryline, results);
-        for (const id of ['thornbinder_arena', 'crystal_corruption', 'the_circle', 'thornling_rise']) {
-            expect(unlocked.has(id)).toBe(true);
-        }
-    });
-
     it('keeps single-chapter campaigns behaving as before', () => {
         expect(getUnlockedMissionIds(BunkerAtTheEndStoryline, [])).toEqual(new Set(['last_holdout']));
         expect(
@@ -182,12 +208,12 @@ describe('getAllMissionIdsInOrder — flat list still complete', () => {
         const ids = getAllMissionIdsInOrder(WorldOfDarknessStoryline);
         expect(ids).toContain('displacer');
         expect(ids).toContain('campsite_3');
-        expect(ids).toContain('thornbinder_arena');
-        expect(ids).toContain('crystal_corruption');
-        expect(ids).toContain('the_circle');
+        expect(ids).not.toContain('thornbinder_arena'); // admin-only Chapter 0 is hidden by default
+        expect(ids).not.toContain('crystal_corruption');
+        expect(ids).not.toContain('the_circle');
         expect(ids).not.toContain('ember_threshold');
         expect(ids).not.toContain('thorn_march');
         // chapter order is preserved
-        expect(ids.indexOf('dark_awakening')).toBeLessThan(ids.indexOf('thornbinder_arena'));
+        expect(ids.indexOf('dark_awakening')).toBeLessThan(ids.indexOf('displacer'));
     });
 });

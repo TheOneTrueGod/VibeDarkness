@@ -1,27 +1,11 @@
 /**
- * Config shapes for nest-kind units (`thornling_nest`, `swarm_nest`, `lanternite_nest`).
+ * Config shapes for nest-kind units (`swarm_nest`, `lanternite_nest`).
  *
  * Lives here (a leaf module, same layer as `Unit.ts`) rather than in `storylines/types.ts` so
  * `SpawnAiHookup` (spawning/spawnDefinition.ts) can reference these without creating an import
  * cycle back through `storylines/types.ts`. `storylines/types.ts` re-exports these types so
  * existing mission-authoring imports keep working unchanged.
  */
-
-/** Config for a `thornling_nest` unit — spawns creatures near itself at intervals. */
-export interface ThornlingNestMissionConfig {
-    /** Hard cap on living children. */
-    maxThornlings: number;
-    /** Seconds between spawn bursts. */
-    spawnIntervalSec: number;
-    /** How many units to spawn per interval (default 1). Capped by maxThornlings. */
-    spawnCount?: number;
-    /** Character ID to spawn (default 'thornling'). */
-    spawnCharacterId?: string;
-    /** Ability IDs for spawned units (default ['0002']). */
-    spawnAbilities?: string[];
-    /** AI tree for spawned units (default 'hunt'). */
-    spawnAITreeId?: string;
-}
 
 /** Config for a `swarm_nest` unit — spawns swarmlings that seek nest POIs and build new nests. */
 export interface SwarmNestMissionConfig {

@@ -4,10 +4,9 @@ import { serializeTacticalPlan } from './unitAI/plans/planUtils';
 import { petStateToJSON } from './unitPetState';
 import {
     lanterniteStateToJSONAfterSwarm,
-    lanterniteStateToJSONBeforeThornling,
+    lanterniteStateToJSONBeforeSwarm,
     lanterniteStateToJSONBeforeWall,
 } from './unitLanterniteState';
-import { thornlingStateToJSON } from './unitThornlingState';
 import { swarmStateToJSON } from './unitSwarmState';
 import { ccArmourStateToJSON } from '../../crowdControl/ccArmourState';
 
@@ -159,8 +158,7 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
         ...(unit.controlGroupId != null ? { controlGroupId: unit.controlGroupId } : {}),
         ...lanterniteStateToJSONBeforeWall(unit),
         ...(unit.wallEntryPoint != null ? { wallEntryPoint: { ...unit.wallEntryPoint } } : {}),
-        ...lanterniteStateToJSONBeforeThornling(unit),
-        ...thornlingStateToJSON(unit),
+        ...lanterniteStateToJSONBeforeSwarm(unit),
         ...swarmStateToJSON(unit),
         ...lanterniteStateToJSONAfterSwarm(unit),
         ...(unit.invulnerabilityGenerations != null ? { invulnerabilityGenerations: unit.invulnerabilityGenerations } : {}),

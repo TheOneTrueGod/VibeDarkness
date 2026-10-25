@@ -103,15 +103,11 @@ export type EnemyUnitId =
     | 'alpha_wolf'
     | 'boar'
     | 'thornbinder'
-    | 'husk_artillery'
-    | 'huskling'
     | 'swarmling'
     | 'displacer_spirit'
     | 'displacer_clone'
     | 'lanternite'
     | 'lanternite_nest'
-    | 'thornling'
-    | 'thornling_nest'
     | 'swarm_nest'
     | 'dog';
 export type UnitDefId = PlayerUnitDefId | EnemyUnitId;
@@ -272,31 +268,6 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         uiDescription:
             'Zone controller — slams bramble into the ground, slowing foes. Weakens in bright light (Light Hate).',
     },
-    husk_artillery: {
-        bodyColor: 0x5c4d3f,
-        characterSpriteKey: 'slime',
-        hp: 48,
-        speed: 35,
-        size: 'Large',
-        stamina: 1,
-        perceptionRange: 420,
-        creatureType: 'dark_creature',
-        onDeathVisualEffects: darkCreatureParticleBurstVFX(5),
-        uiDescription:
-            'Summoner — launches seed pods that hatch short-lived husks. Channels are telegraphed; weakens in bright light.',
-    },
-    huskling: {
-        bodyColor: 0x6b5344,
-        characterSpriteKey: 'huskling',
-        hp: 6,
-        speed: 88,
-        size: 'Extra Small',
-        stamina: 1,
-        perceptionRange: 220,
-        creatureType: 'dark_creature',
-        onDeathVisualEffects: darkCreatureIconFlashVFX(4),
-        uiDescription: 'Ephemeral husk spawned by artillery — reckless melee punches.',
-    },
     swarmling: {
         bodyColor: 0x1a1a2e,
         characterSpriteKey: 'swarmling',
@@ -381,29 +352,6 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         uiDescription:
             'Living nursery — births lantern scouts on a rhythm; needs protection when stirred.',
         participatesInMapNetwork: true,
-        tags: [UnitTag.Structure],
-    },
-    thornling: {
-        bodyColor: 0x3a6b1f,
-        characterSpriteKey: 'thornbinder',
-        hp: 8,
-        speed: 110,
-        size: 'Extra Small',
-        stamina: 1,
-        perceptionRange: 250,
-        creatureType: 'beast',
-        uiDescription: 'Thorny skittering creature — rushes in and bites.',
-    },
-    thornling_nest: {
-        bodyColor: 0x1e3d0f,
-        characterSpriteKey: 'lanternite_nest',
-        hp: 64, // playtest: -20% (was 80)
-        speed: 0,
-        size: 'Large',
-        stamina: 1,
-        perceptionRange: 0,
-        creatureType: 'beast',
-        uiDescription: 'Thornling brood nest — destroyable; roots the spawn cycle while it lives.',
         tags: [UnitTag.Structure],
     },
     swarm_nest: {

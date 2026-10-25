@@ -5,7 +5,6 @@ import { ThrowChargedRockCard } from './0108_ThrowChargedRock/0108Ability';
 import { ThrowKnifeCard } from './0109_ThrowKnife/0109Ability';
 import { DodgeCard } from './0101_Dodge/0101Ability';
 import { SlimeShotCard } from './0001_SlimeShot/0001Ability';
-import { EnemyMeleeAttackCard } from './0002_EnemyMeleeAttack/0002Ability';
 import { DoublePunchCard } from './0116_DoublePunch/0116Card';
 import { StrongPunchCard } from './0117_StrongPunch/0117Ability';
 import { SneakyPunchCard } from './0118_SneakyPunch/0118Ability';
@@ -25,7 +24,6 @@ import { LightEaterCard } from './dark_animals/0018_LightEater/0018Ability';
 import { PhantomDecoyCard } from './dark_animals/0019_PhantomDecoy/0019Ability';
 import { DisplacerBoltCard } from './dark_animals/0017_DisplacerBolt/0017Ability';
 import { FrenziedDisplacerBoltCard } from './dark_animals/0020_FrenziedDisplacerBolt/0020Ability';
-import { ThornlingBiteCard } from './dark_animals/0015_ThornlingBite/0015Ability';
 import { ThornStompCard } from './0016_ThornStomp/0016Ability';
 import { RaiseShieldCard } from './0104_RaiseShield/0104Ability';
 import { LaserShieldCard } from './0106_LaserShield/0106Ability';
@@ -87,7 +85,6 @@ const cardDefs: CardDef[] = [
     ThrowChargedRockCard,
     DodgeCard,
     SlimeShotCard,
-    EnemyMeleeAttackCard,
     DoublePunchCard,
     StrongPunchCard,
     SneakyPunchCard,
@@ -103,7 +100,6 @@ const cardDefs: CardDef[] = [
     AlphaWolfTripleChargeCard,
     AlphaWolfScratchCard,
     SwarmlingBiteCard,
-    ThornlingBiteCard,
     DisplacerBoltCard,
     FrenziedDisplacerBoltCard,
     LightEaterCard,

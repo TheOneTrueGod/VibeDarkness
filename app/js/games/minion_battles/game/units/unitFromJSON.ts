@@ -13,7 +13,6 @@ import type { AISettings, KnockbackSource, KnockbackState, NudgeState, UnitAbili
 import type { UnitAIContext } from './unitAI/contextTypes';
 import { applyPetStateFromJSON } from './unitPetState';
 import { applyLanterniteStateFromJSON } from './unitLanterniteState';
-import { applyThornlingStateFromJSON } from './unitThornlingState';
 import { applySwarmStateFromJSON } from './unitSwarmState';
 import { applyCcArmourStateFromJSON } from '../../crowdControl/ccArmourState';
 import type { PendingFrozenHit } from './unitDamage';
@@ -44,7 +43,6 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
         unit.ephemeralDespawnAtGameTime = data.ephemeralDespawnAtGameTime as number;
     }
     applyLanterniteStateFromJSON(unit, data);
-    applyThornlingStateFromJSON(unit, data);
     applySwarmStateFromJSON(unit, data);
     if (typeof data.invulnerabilityGenerations === 'number') {
         unit.invulnerabilityGenerations = data.invulnerabilityGenerations;

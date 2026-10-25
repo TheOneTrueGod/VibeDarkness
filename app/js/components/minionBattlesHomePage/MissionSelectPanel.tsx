@@ -171,7 +171,8 @@ export default function MissionSelectPanel({
         async (storylineId: string) => {
             const storyline = STORYLINES.find((entry) => entry.id === storylineId);
             if (!storyline) return;
-            const missionIds = getAllMissionIdsInOrder(storyline);
+            // Reset clears every mission, including admin-only chapters.
+            const missionIds = getAllMissionIdsInOrder(storyline, { isAdmin: true });
             if (missionIds.length === 0) return;
             const confirmed = window.confirm(
                 `Reset storyline "${storyline.title}"? This will remove all saved mission results for this storyline in your campaign.`,
@@ -201,8 +202,8 @@ export default function MissionSelectPanel({
             center={
                 <div className="p-5 space-y-6">
                     {STORYLINES.map((storyline) => {
-                        const unlocked = getUnlockedMissionIds(storyline, missionResults);
-                        const missionIds = getAllMissionIdsInOrder(storyline);
+                        const unlocked = getUnlockedMissionIds(storyline, missionResults, [], { isAdmin });
+                        const missionIds = getAllMissionIdsInOrder(storyline, { isAdmin });
                         const isResetting = resettingStorylineId === storyline.id;
                         return (
                             <div key={storyline.id} className="bg-surface-light rounded-lg p-5">

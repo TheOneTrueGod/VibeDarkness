@@ -99,17 +99,6 @@ export const ENEMY_THORNBINDER: EnemySpawnDef = {
     unitAITreeId: 'hunt',
 };
 
-/** Husk Artillery summoner — seed pods hatch husklings; Light Hate. */
-export const ENEMY_HUSK_ARTILLERY: EnemySpawnDef = {
-    characterId: 'husk_artillery',
-    name: 'Husk Artillery',
-    position: { x: 0, y: 0 },
-    teamId: 'enemy',
-    abilities: ['0009'],
-    aiSettings: { minRange: 140, maxRange: 480 },
-    unitAITreeId: 'hunt',
-};
-
 /** Swarmling: fast small biter — two copies of Bite (0013) per round. */
 export const ENEMY_SWARMLING: EnemySpawnDef = {
     characterId: 'swarmling',
@@ -130,50 +119,6 @@ export const ALLY_LANTERNITE: EnemySpawnDef = {
     abilities: ['0010'],
     aiSettings: { minRange: 0, maxRange: 600 },
     unitAITreeId: 'lanterniteNetwork',
-};
-
-/** Thornling: small fast beast that bites and retreats. */
-export const ENEMY_THORNLING: EnemySpawnDef = {
-    characterId: 'thornling',
-    name: 'Thornling',
-    position: { x: 0, y: 0 },
-    teamId: 'enemy',
-    abilities: ['0002'],
-    aiSettings: { minRange: 0, maxRange: 80 },
-    unitAITreeId: 'hunt',
-};
-
-/** Allied thornling — same stats as enemy version but fights alongside players. */
-export const ALLY_THORNLING: EnemySpawnDef = {
-    characterId: 'thornling',
-    name: 'Thornling',
-    position: { x: 0, y: 0 },
-    teamId: 'allied',
-    abilities: ['0002'],
-    aiSettings: { minRange: 0, maxRange: 80 },
-    unitAITreeId: 'hunt',
-};
-
-/** Thornling Nest: static enemy structure that roots the spawn cycle. */
-export const ENEMY_THORNLING_NEST: EnemySpawnDef = {
-    characterId: 'thornling_nest',
-    name: 'Thornling Nest',
-    position: { x: 0, y: 0 },
-    teamId: 'enemy',
-    abilities: [],
-    aiSettings: { minRange: 0, maxRange: 0 },
-    unitAITreeId: 'hunt',
-};
-
-/** Allied thornling nest — sits near players and spawns allied thornlings. */
-export const ALLY_THORNLING_NEST: EnemySpawnDef = {
-    characterId: 'thornling_nest',
-    name: 'Thornling Nest',
-    position: { x: 0, y: 0 },
-    teamId: 'allied',
-    abilities: [],
-    aiSettings: { minRange: 0, maxRange: 0 },
-    unitAITreeId: 'hunt',
 };
 
 /** Nest object — nature faction; spawns timed Lanternites; stays put (lanterniteNest mission field required). */

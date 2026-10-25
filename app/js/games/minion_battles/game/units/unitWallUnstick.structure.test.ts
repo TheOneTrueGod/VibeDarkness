@@ -63,8 +63,8 @@ describe('structures in rock', () => {
         engine.destroy();
     });
 
-    it('applies to every structure, e.g. the lanternite and thornling nests', () => {
-        for (const characterId of ['lanternite_nest', 'thornling_nest']) {
+    it('applies to every structure, e.g. the lanternite and swarm nests', () => {
+        for (const characterId of ['lanternite_nest', 'swarm_nest']) {
             const engine = buildTinyBattleEngine({ gridW: 10, gridH: 10, localPlayerId: TINY_BATTLE_PLAYER_ID, grass: true });
             const nest = spawn(engine, characterId, characterId);
             const hp0 = nest.hp;

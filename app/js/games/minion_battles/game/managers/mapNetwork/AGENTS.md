@@ -50,7 +50,7 @@ Node/edge **structure** and node **membership** have different lifecycles:
 A unit is only a membership candidate if its unit def opts in:
 `UnitDefEntry.participatesInMapNetwork` → `getUnitParticipatesInMapNetwork(characterId)`
 (`game/units/unit_defs/unitDef.ts`). Today: `swarmling`, `lanternite`, `lanternite_nest`,
-`swarm_nest`. A non-participating unit (e.g. `thornling_nest`, `slime`) is invisible to the
+`swarm_nest`. A non-participating unit ((e.g. `slime`)) is invisible to the
 network regardless of position — the same "managed purely because a unit-def field says so"
 convention `CellOccupancyManager` uses.
 
@@ -63,9 +63,6 @@ unit" signal for AI trees. It's set **statically per characterId**, not per spaw
 `SpawnDefinition.unitTags`.
 
 - `lanternite_nest` and `swarm_nest` carry `Structure`.
-- `thornling_nest` deliberately does **not** — a scoped decision, not an oversight. It used to be
-  swept up by `networkHunt`'s old `speed === 0` proxy; now it's simply not a valid `networkHunt`
-  target.
 
 Any AI tree needing "find enemy structures" for **combat / visibility** should call
 `findEnemyStructures(unit, units)` (`game/units/unitAI/utils.ts`) — that helper excludes

@@ -17,7 +17,6 @@ export type LightHateDef = {
 /** Per-character Light Hate parameters for enemies that opt in. */
 export const LIGHT_HATE_DEFS: Partial<Record<string, LightHateDef>> = {
     thornbinder: { threshold: DarknessLevel.BRIGHT_LIGHT },
-    husk_artillery: { threshold: DarknessLevel.BRIGHT_LIGHT },
 };
 
 export function getLightHateDef(characterId: string): LightHateDef | undefined {

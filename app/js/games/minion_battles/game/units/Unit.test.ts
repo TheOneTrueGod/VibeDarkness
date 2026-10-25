@@ -116,19 +116,6 @@ function buildGoldenSerializationUnit(eventBus: EventBus): Unit {
     unit.lanterniteState.constructionAngle = 1.57;
     unit.invulnerabilityGenerations = 2;
 
-    unit.thornlingState.nestConfig = {
-        maxThornlings: 6,
-        spawnIntervalSec: 3,
-        spawnCount: 2,
-        spawnCharacterId: 'thornling',
-        spawnAbilities: ['0002'],
-        spawnAITreeId: 'hunt',
-    };
-    unit.thornlingState.nestSpawnState = {
-        spawnedIds: ['thorn_1'],
-        nextSpawnAtGameTime: 18,
-    };
-
     unit.swarmState.nestConfig = {
         maxSwarmlings: 8,
         spawnIntervalSec: 2.5,
@@ -490,22 +477,6 @@ describe('Unit', () => {
               "enraged",
             ],
             "teamId": "player",
-            "thornlingNestConfig": {
-              "maxThornlings": 6,
-              "spawnAITreeId": "hunt",
-              "spawnAbilities": [
-                "0002",
-              ],
-              "spawnCharacterId": "thornling",
-              "spawnCount": 2,
-              "spawnIntervalSec": 3,
-            },
-            "thornlingNestSpawnState": {
-              "nextSpawnAtGameTime": 18,
-              "spawnedIds": [
-                "thorn_1",
-              ],
-            },
             "unitAITreeId": "hunt",
             "waitAbilityMode": "far",
             "waitMaxEndTime": 20,

@@ -83,29 +83,56 @@ export function canPlayerViewMission(params: {
     return params.isUnlocked;
 }
 
-/** All chapters defined for a storyline (empty when none). */
-export function getCampaignChapters(storyline: StorylineDef): CampaignChapterDef[] {
-    return storyline.chapters ?? [];
+/** Viewer context for chapter visibility. Omitted / `isAdmin: false` hides `adminOnly` chapters. */
+export interface ChapterViewOptions {
+    isAdmin?: boolean;
 }
 
-/** The first chapter is always unlocked; others need their `unlockAfterMissionId` victory. */
+/**
+ * The single place chapter visibility is decided. Non-admins get the player chapters in declared
+ * order; admins additionally get every `adminOnly` chapter, placed FIRST (declared order kept
+ * within each group). All index-based helpers below take indexes into this list.
+ */
+export function getCampaignChapters(
+    storyline: StorylineDef,
+    options: ChapterViewOptions = {},
+): CampaignChapterDef[] {
+    const all = storyline.chapters ?? [];
+    const player = all.filter((c) => !c.adminOnly);
+    if (!options.isAdmin) return player;
+    return [...all.filter((c) => c.adminOnly), ...player];
+}
+
+/**
+ * Admin-only chapters are always unlocked (and only ever listed for admins). Otherwise the first
+ * player chapter, or any chapter without `unlockAfterMissionId`, is always unlocked; others need
+ * that victory. `index` is an index into `getCampaignChapters` for the same viewer.
+ */
 export function isChapterUnlocked(
     chapter: CampaignChapterDef,
     index: number,
     missionResults: MissionResult[],
 ): boolean {
+    if (chapter.adminOnly) return true;
     if (index === 0 || !chapter.unlockAfterMissionId) return true;
     return hasVictoryResult(chapter.unlockAfterMissionId, missionResults);
 }
 
-/** Highest 0-based index of an unlocked chapter (0 when none are defined). */
+/**
+ * Highest 0-based index (into `getCampaignChapters` for this viewer) of an unlocked PLAYER chapter.
+ * Admin-only chapters never count, so the Mission Map defaults to the player's current chapter.
+ * Returns the first player chapter's index (0, or 1 for an admin with Chapter 0) when none unlock.
+ */
 export function getHighestUnlockedChapterIndex(
     storyline: StorylineDef,
     missionResults: MissionResult[],
+    options: ChapterViewOptions = {},
 ): number {
-    const chapters = getCampaignChapters(storyline);
-    let highest = 0;
-    for (let i = 0; i < chapters.length; i++) {
+    const chapters = getCampaignChapters(storyline, options);
+    const firstPlayer = Math.max(0, chapters.findIndex((c) => !c.adminOnly));
+    let highest = firstPlayer;
+    for (let i = firstPlayer; i < chapters.length; i++) {
+        if (chapters[i].adminOnly) continue;
         if (isChapterUnlocked(chapters[i], i, missionResults)) highest = i;
     }
     return highest;
@@ -124,6 +151,7 @@ export function getUnlockedMissionIds(
     storyline: StorylineDef,
     missionResults: MissionResult[],
     questResults: QuestResult[] = [],
+    options: ChapterViewOptions = {},
 ): Set<string> {
     const unlocked = new Set<string>();
     unlocked.add(storyline.startMissionId);
@@ -149,7 +177,9 @@ export function getUnlockedMissionIds(
         unlocked.add('cave_respite');
     }
 
-    const chapters = storyline.chapters ?? [];
+    // Same filtered list the Mission Map uses, so indexes agree. Admin-only chapter missions are
+    // therefore only unlocked for admins.
+    const chapters = getCampaignChapters(storyline, options);
     if (chapters.length > 0) {
         const chapterIdxByMission = new Map<string, number>();
         chapters.forEach((ch, i) => ch.missionIds.forEach((m) => chapterIdxByMission.set(m, i)));
@@ -236,12 +266,12 @@ export function isSideMissionId(missionId: string, storylines: StorylineDef[]): 
  *
  * Pair with getUnlockedMissionIds to show locked state.
  */
-export function getAllMissionIdsInOrder(storyline: StorylineDef): string[] {
+export function getAllMissionIdsInOrder(storyline: StorylineDef, options: ChapterViewOptions = {}): string[] {
     const ids: string[] = [];
     const push = (id: string) => {
         if (!ids.includes(id)) ids.push(id);
     };
-    for (const chapter of storyline.chapters ?? []) {
+    for (const chapter of getCampaignChapters(storyline, options)) {
         for (const missionId of chapter.missionIds) push(missionId);
     }
     push(storyline.startMissionId);

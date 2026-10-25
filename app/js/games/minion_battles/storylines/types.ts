@@ -22,7 +22,6 @@ import type { WorldModifierDef } from '../worldModifiers/types';
 import type { OverlapMethod } from '../game/LightGrid';
 import type { LightType } from '../game/lighting/lightTypes';
 import type {
-    ThornlingNestMissionConfig,
     SwarmNestMissionConfig,
     LanternitePatrolDestination,
     LanterniteNestMissionConfig,
@@ -376,7 +375,6 @@ export type LevelEvent =
  *  module) to avoid an import cycle with SpawnAiHookup; re-exported here so existing imports
  *  from storylines/types keep working unchanged. */
 export type {
-    ThornlingNestMissionConfig,
     SwarmNestMissionConfig,
     LanternitePatrolDestination,
     LanterniteNestMissionConfig,
@@ -436,8 +434,6 @@ export interface EnemySpawnDef {
     unitId?: string;
     /** When spawning a `lanternite_nest`, wires spawn pacing and patrol corridor for Lanternites from this nest. */
     lanterniteNest?: LanterniteNestMissionConfig;
-    /** When spawning a `thornling_nest`, wires spawn pacing for thornlings from this nest. */
-    thornlingNest?: ThornlingNestMissionConfig;
     /** When spawning a `swarm_nest`, wires spawn pacing and home POI for swarmlings from this nest. */
     swarmNest?: SwarmNestMissionConfig;
     /** Optional Lanternite ecology wiring beyond nest auto-spawns (e.g. proximity reinforcements). */
@@ -673,6 +669,13 @@ export interface CampaignChapterDef {
      * then records every mission as a victory (see `chapterSkip.ts`).
      */
     adminSkippable?: boolean;
+    /**
+     * Visible and playable only for admins (e.g. a holding ground for unused missions). Filtered out
+     * in one place, `getCampaignChapters(storyline, { isAdmin })` (unlock.ts); for admins these
+     * chapters sort FIRST, are always unlocked, and never count as the player's current chapter.
+     * Never skippable (`isChapterSkippable`). Missions here must not be targets of storyline edges.
+     */
+    adminOnly?: boolean;
     /** Horizontal section dividers drawn across this chapter's Mission Map (e.g. above side quests). */
     mapDividers?: CampaignMapDividerDef[];
 }

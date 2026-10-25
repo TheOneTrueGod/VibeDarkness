@@ -29,7 +29,7 @@ const CARD_ID = SHIELD_OF_LIGHT_ABILITY_ID;
 const TICK_DT = 0.01;
 const ACTIVE_TICK_ADVANCE = LIGHT_SHIELD_PREFIRE_TIME + 0.02;
 const DARK_CREATURE_CHARACTER_ID = 'slime';
-const BEAST_CHARACTER_ID = 'thornling';
+const BEAST_CHARACTER_ID = 'dog';
 
 function makeCaster(initialLight: number, withFlare = false): Unit {
     const unit = new Unit({

@@ -60,8 +60,8 @@ export function lanterniteStateToJSONBeforeWall(unit: Unit): Record<string, unkn
     };
 }
 
-/** Serialized after `wallEntryPoint`, before thornling state in Unit.toJSON. */
-export function lanterniteStateToJSONBeforeThornling(unit: Unit): Record<string, unknown> {
+/** Serialized after `wallEntryPoint`, before swarm state in Unit.toJSON. */
+export function lanterniteStateToJSONBeforeSwarm(unit: Unit): Record<string, unknown> {
     return {
         ...(unit.lanterniteState.patrolFarWorld != null
             ? { lanternPatrolFarWorld: { ...unit.lanterniteState.patrolFarWorld } }
@@ -108,7 +108,7 @@ export function lanterniteStateToJSONAfterSwarm(unit: Unit): Record<string, unkn
 export function lanterniteStateToJSON(unit: Unit): Record<string, unknown> {
     return {
         ...lanterniteStateToJSONBeforeWall(unit),
-        ...lanterniteStateToJSONBeforeThornling(unit),
+        ...lanterniteStateToJSONBeforeSwarm(unit),
         ...lanterniteStateToJSONAfterSwarm(unit),
     };
 }

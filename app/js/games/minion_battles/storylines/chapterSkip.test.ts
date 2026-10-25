@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     buildChapterSkipPlan,
     getNextChapterSkipStep,
+    isChapterSkippable,
     stripChapterResearchRewards,
     type ChapterSkipCharacterState,
     type ChapterSkipPick,
@@ -15,7 +16,7 @@ import { STORY_CHOICE_SKIP_OPTION_ID } from './storyChoiceOptions';
 import type { MissionResult } from '../../../types';
 
 const REWARD_TREE_ID = TRAINING_TREE_ID;
-const CHAPTER_ONE = WorldOfDarknessStoryline.chapters![0];
+const CHAPTER_ONE = WorldOfDarknessStoryline.chapters!.find((c) => c.id === 'wod_ch1')!;
 const ROCKS = '001';
 const STICK = '002';
 const CTX = { playerId: '2', accountKnowledge: {} };
@@ -46,7 +47,15 @@ const ROCKS_PATH = {
 
 describe('chapter skip - Chapter I', () => {
     it('is the only admin-skippable chapter', () => {
-        expect(WorldOfDarknessStoryline.chapters!.map((c) => !!c.adminSkippable)).toEqual([true, false, false]);
+        const skippable = WorldOfDarknessStoryline.chapters!.filter((c) => isChapterSkippable(c));
+        expect(skippable.map((c) => c.id)).toEqual(['wod_ch1']);
+    });
+
+    it('never offers an admin-only chapter (Chapter 0) for skipping', () => {
+        const ch0 = WorldOfDarknessStoryline.chapters!.find((c) => c.adminOnly)!;
+        expect(isChapterSkippable(ch0)).toBe(false);
+        expect(isChapterSkippable({ ...ch0, adminSkippable: true })).toBe(false);
+        expect(() => getNextChapterSkipStep(ch0, freshState(), [], CTX)).toThrow(/admin-only/);
     });
 
     it('asks for each reward choice in story order', () => {

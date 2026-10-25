@@ -27,12 +27,8 @@ import {
     ENEMY_ALPHA_WOLF,
     ENEMY_BOAR,
     ENEMY_THORNBINDER,
-    ENEMY_HUSK_ARTILLERY,
     ENEMY_SWARMLING,
     ALLY_LANTERNITE,
-    ENEMY_THORNLING,
-    ENEMY_THORNLING_NEST,
-    ALLY_THORNLING,
     getEnemyHealthMultiplier,
 } from '../../constants/enemyConstants';
 
@@ -42,12 +38,8 @@ const BASE_SPAWN_DEFS: Record<string, EnemySpawnDef> = {
     alpha_wolf: ENEMY_ALPHA_WOLF,
     boar: ENEMY_BOAR,
     thornbinder: ENEMY_THORNBINDER,
-    husk_artillery: ENEMY_HUSK_ARTILLERY,
     swarmling: ENEMY_SWARMLING,
     lanternite: ALLY_LANTERNITE,
-    thornling: ENEMY_THORNLING,
-    thornling_nest: ENEMY_THORNLING_NEST,
-    ally_thornling: ALLY_THORNLING,
 };
 
 const ROUND_DURATION = 10;

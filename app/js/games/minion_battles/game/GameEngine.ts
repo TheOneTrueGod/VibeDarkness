@@ -80,7 +80,6 @@ import { createDamageTakenEffect } from './createDamageTakenEffect';
 import { CantDieBuff } from '../buffs/CantDieBuff';
 import { processLanternitePulseMilestone, removeLanterniteLightSources } from './lanternite/lanternitePulse';
 import { processLanterniteNests } from './lanternite/lanterniteNestTick';
-import { processThornlingNests } from './lanternite/thornlingNestTick';
 import { processSwarmNests } from './lanternite/swarmNestTick';
 import { spawnUnit as spawnUnitFromDefinition } from './units/spawning/spawnUnit';
 import type { SpawnDefinition } from './units/spawning/spawnDefinition';
@@ -1907,14 +1906,6 @@ export class GameEngine implements EngineContext {
                     addLightSource: (ls) => this.addLightSource(ls),
                     lightSources: this.state.lightSourceManager.lightSources,
                     addEffectEmitter: (em) => this.addEffectEmitter(em),
-                    generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
-                });
-                processThornlingNests({
-                    gameTime: this.gameTime,
-                    units: this.units,
-                    eventBus: this.eventBus,
-                    addUnit: (u) => this.addUnit(u, 'nestSpawn'),
-                    idSource: this,
                     generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
                 });
                 processSwarmNests({

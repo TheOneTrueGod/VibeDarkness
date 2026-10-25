@@ -5,7 +5,6 @@ import { getSpecialTileDef } from '../../storylines/specialTileDefs';
 import { getPortraitIds, PORTRAITS } from '../../character_defs/portraitLoader';
 
 const SLIME_SVG_URL = new URL('../../assets/characters/slime.svg', import.meta.url).href;
-const SWORDWOMAN_SVG_URL = new URL('../../assets/characters/swordwoman.svg', import.meta.url).href;
 const WOLF_HEAD_SVG_URL = new URL('../../assets/characters/dark_animals/wolf-head.svg', import.meta.url).href;
 const WOLF_HOWL_SVG_URL = new URL('../../assets/characters/dark_animals/wolf-howl.svg', import.meta.url).href;
 const BOAR_SVG_URL = new URL('../../assets/characters/dark_animals/boar.svg', import.meta.url).href;
@@ -19,7 +18,6 @@ const DOG_PNG_URL = new URL('../../assets/characters/dog.png', import.meta.url).
 
 export class AssetRegistry {
     private slimeTexture: Texture | null = null;
-    private swordwomanTexture: Texture | null = null;
     private wolfHeadTexture: Texture | null = null;
     private wolfHowlTexture: Texture | null = null;
     private boarTexture: Texture | null = null;
@@ -39,7 +37,6 @@ export class AssetRegistry {
 
     getCharacterTexture(characterId: string): Texture | null {
         if (characterId === 'slime') return this.slimeTexture;
-        if (characterId === 'huskling') return this.swordwomanTexture;
         if (characterId === 'dark_wolf') return this.wolfHeadTexture;
         if (characterId === 'alpha_wolf') return this.wolfHowlTexture;
         if (characterId === 'boar') return this.boarTexture;
@@ -75,7 +72,6 @@ export class AssetRegistry {
         };
 
         await loadOne('slime SVG', SLIME_SVG_URL, (t) => { this.slimeTexture = t; });
-        await loadOne('swordwoman SVG', SWORDWOMAN_SVG_URL, (t) => { this.swordwomanTexture = t; });
         await loadOne('wolf-head SVG', WOLF_HEAD_SVG_URL, (t) => { this.wolfHeadTexture = t; });
         await loadOne('wolf-howl SVG', WOLF_HOWL_SVG_URL, (t) => { this.wolfHowlTexture = t; });
         await loadOne('boar SVG', BOAR_SVG_URL, (t) => { this.boarTexture = t; });
@@ -116,7 +112,6 @@ export class AssetRegistry {
 
     destroy(): void {
         this.slimeTexture = null;
-        this.swordwomanTexture = null;
         this.wolfHeadTexture = null;
         this.wolfHowlTexture = null;
         this.boarTexture = null;
