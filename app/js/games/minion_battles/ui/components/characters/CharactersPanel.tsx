@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ACCOUNT_KNOWLEDGE, accountKnowledgeLabel } from '../../../../../accountKnowledge';
+import { ACCOUNT_KNOWLEDGE, KNOWLEDGE_TYPES, KNOWLEDGE_TYPE_DEFS, type AccountKnowledgeType } from '../../../../../accountKnowledge';
+import { KnowledgePill, KNOWLEDGE_TYPE_ICONS } from '../../../../../components/KnowledgePill';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import type { AccountState, CampaignState, PlayerState } from '../../../../../types';
 import { getUnlockedItemIds } from '../../../character_defs/items/unlockedItems';
@@ -97,6 +98,24 @@ export default function CharactersPanel({
     const [adminLoading, setAdminLoading] = useState(false);
     const [grantItemId, setGrantItemId] = useState(ALL_PLAYER_ITEMS[0] ?? '');
     const [grantKnowledgeKey, setGrantKnowledgeKey] = useState<string>(ACCOUNT_KNOWLEDGE[0].key);
+    const [grantKnowledgeTypes, setGrantKnowledgeTypes] = useState<readonly AccountKnowledgeType[]>(KNOWLEDGE_TYPES);
+    const grantKnowledgeOptions = useMemo(
+        () => ACCOUNT_KNOWLEDGE.filter((k) => grantKnowledgeTypes.includes(k.type)),
+        [grantKnowledgeTypes],
+    );
+    const toggleGrantKnowledgeType = useCallback(
+        (type: AccountKnowledgeType) => {
+            const next = grantKnowledgeTypes.includes(type)
+                ? grantKnowledgeTypes.filter((t) => t !== type)
+                : [...grantKnowledgeTypes, type];
+            setGrantKnowledgeTypes(next);
+            const options = ACCOUNT_KNOWLEDGE.filter((k) => next.includes(k.type));
+            if (options.length > 0 && !options.some((k) => k.key === grantKnowledgeKey)) {
+                setGrantKnowledgeKey(options[0].key);
+            }
+        },
+        [grantKnowledgeTypes, grantKnowledgeKey],
+    );
     const [adminCreatorOpen, setAdminCreatorOpen] = useState(false);
     const adminCreateBtnRef = useRef<HTMLButtonElement>(null);
     const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
@@ -723,26 +742,42 @@ export default function CharactersPanel({
                                         <div className="flex flex-wrap gap-2 flex-1">
                                             {Object.keys(adminDetails?.account.knowledge ?? {}).length > 0 ? (
                                                 Object.keys(adminDetails?.account.knowledge ?? {}).sort().map((key) => (
-                                                    <span
-                                                        key={key}
-                                                        className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[13px] font-semibold bg-surface-light border border-border-custom text-white"
-                                                        title={key}
-                                                    >
-                                                        {accountKnowledgeLabel(key)}
-                                                    </span>
+                                                    <KnowledgePill key={key} knowledgeKey={key} />
                                                 ))
                                             ) : (
                                                 <p className="text-sm text-muted">No knowledge yet</p>
                                             )}
                                         </div>
-                                        <div className="flex items-center gap-2 mt-auto">
+                                        <div className="flex flex-wrap gap-1 mt-auto">
+                                            {KNOWLEDGE_TYPES.map((type) => {
+                                                const Icon = KNOWLEDGE_TYPE_ICONS[type];
+                                                const on = grantKnowledgeTypes.includes(type);
+                                                return (
+                                                    <button
+                                                        key={type}
+                                                        type="button"
+                                                        aria-pressed={on}
+                                                        onClick={() => toggleGrantKnowledgeType(type)}
+                                                        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs ${
+                                                            on
+                                                                ? 'border-border-custom bg-surface-light text-white'
+                                                                : 'border-dark-600 text-muted opacity-60'
+                                                        }`}
+                                                    >
+                                                        <Icon className="w-3 h-3" aria-hidden />
+                                                        {KNOWLEDGE_TYPE_DEFS[type].label}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="flex items-center gap-2">
                                             <label className="text-xs text-muted">Grant</label>
                                             <select
                                                 value={grantKnowledgeKey}
                                                 onChange={(e) => setGrantKnowledgeKey(e.target.value)}
                                                 className="rounded-md border border-border-custom bg-white px-2 py-1 text-sm text-black"
                                             >
-                                                {ACCOUNT_KNOWLEDGE.map(({ key, label }) => (
+                                                {grantKnowledgeOptions.map(({ key, label }) => (
                                                     <option key={key} value={key} className="bg-white text-black">{label}</option>
                                                 ))}
                                             </select>
@@ -750,7 +785,7 @@ export default function CharactersPanel({
                                                 type="button"
                                                 onClick={() => void handleGrantKnowledge()}
                                                 className="rounded-md bg-primary px-3 py-1.5 text-sm font-semibold text-secondary hover:bg-primary-hover disabled:opacity-60"
-                                                disabled={adminLoading}
+                                                disabled={adminLoading || grantKnowledgeOptions.length === 0}
                                             >
                                                 Grant
                                             </button>

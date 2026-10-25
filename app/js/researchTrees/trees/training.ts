@@ -1,3 +1,4 @@
+import { KNOWLEDGE_RESEARCH } from '../../accountKnowledge';
 import { PassiveStatKey, type ResearchTreeDef } from '../types';
 import { RESEARCH_TREE_COLOUR_GENERIC, RESEARCH_TREE_ICON_GENERIC } from '../researchTreeChrome';
 import { DescriptiveValue } from '../descriptiveValue';
@@ -36,7 +37,7 @@ export const trainingTree: ResearchTreeDef = {
     // Punch comes from most cores; Training upgrades it whichever core is equipped.
     ownedAbilityIds: ['0120'],
     accessRequirements: [
-        { type: 'accountKnowledge', key: 'Research' },
+        { type: 'accountKnowledge', key: KNOWLEDGE_RESEARCH },
     ],
     nodes: [
         {
@@ -50,7 +51,7 @@ export const trainingTree: ResearchTreeDef = {
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
             requirements: [
-                { type: 'accountKnowledge', key: 'Research' },
+                { type: 'accountKnowledge', key: KNOWLEDGE_RESEARCH },
             ],
             cost: {},
             effects: [],
@@ -144,7 +145,7 @@ export const trainingTree: ResearchTreeDef = {
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
             requirements: [
-                { type: 'accountKnowledge', key: 'Research' },
+                { type: 'accountKnowledge', key: KNOWLEDGE_RESEARCH },
             ],
             cost: { vigor: TRAINING_PASSIVE_NODE_VIGOR_COST },
             effects: [],
@@ -164,7 +165,7 @@ export const trainingTree: ResearchTreeDef = {
             prereqNodeIds: [],
             exclusiveWithNodeIds: [],
             requirements: [
-                { type: 'accountKnowledge', key: 'Research' },
+                { type: 'accountKnowledge', key: KNOWLEDGE_RESEARCH },
             ],
             cost: { metal: TRAINING_MIGHTY_METAL_COST, vigor: TRAINING_MIGHTY_VIGOR_COST },
             effects: [],

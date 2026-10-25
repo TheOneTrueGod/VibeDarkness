@@ -96,9 +96,11 @@ Migration: `M0005ResourceRename` plus save version 5 for campaigns and character
 - Add `KNOWLEDGE_RESOURCE_POPULATION` to `accountKnowledge.ts` and hide population from `ResourcePill` lists (`RESOURCE_ORDER` consumers: `CharacterEditor`, `MissionSelectPanel`, reward pills) unless the account knows it.
 - Generalize it: give each campaign resource an optional `knowledgeKey` in the P1.6 resource table, and have one helper (`visibleCampaignResources(knowledge)`) do the filtering. Attunement then uses the same mechanism, so a Chapter 3 resource only needs one line of data.
 
-### P0.8 Knowledge metadata: type, icon, tier
+### [x] P0.8 Knowledge metadata: type, icon, tier
 
 **Complexity:** Medium
+
+**Done:** `AccountKnowledgeDef` now has `type` (`resource` / `equipment` / `systems` / `other`), `tier` and a one-line `description`, plus `KNOWLEDGE_TYPE_DEFS` (labels), `KNOWLEDGE_TYPES` and `accountKnowledgeDef`. Research and Attunement are tier 1, everything else tier 2. The icons (`Gem`, `Swords`, `Cog`, `Sparkles`) live in the new `components/KnowledgePill.tsx`, which shows the type icon plus the label and has a hover tooltip with type, tier and description. `CharactersPanel` uses it, and its admin grant select has multi-select type filter chips. Bare `'Research'` strings are now `KNOWLEDGE_RESEARCH`, and `KNOWLEDGE_FORGING` / `KNOWLEDGE_ALPHA_WOLF_DEFEATED` were added. `AlphaWolfDefeated` was granted by mission 005 but was unregistered. The new `accountKnowledgeUsage.test.ts` checks that every knowledge key used by research trees, missions, quests and equipment slots is registered.
 
 - Extend `AccountKnowledgeDef` with `type: 'resource' | 'equipment' | 'systems' | 'other'`, `tier: number` and a one-line `description` (what the knowledge unlocks).
 - Add a `KNOWLEDGE_TYPE_DEFS` table mapping each type to a label and a lucide icon (for example `Gem` for resource, `Swords` for equipment, `Cog` for systems, `Sparkles` for other).

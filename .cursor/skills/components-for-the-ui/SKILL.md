@@ -18,6 +18,7 @@ This skill keeps a **list of component names** and a **one-line description** of
 | **PlayerPill** | Two-line player pill: color dot, name, HOST badge, (You); optional second line (e.g. selected character). Used in PlayerList and character select. |
 | **AppTitleBar** | Lobby overlay for **DebugConsoleToggle** + **MusicPlayer**. Campaign home owns those plus logout in **CampaignHomeHeader**. |
 | **MusicPlayer** | Compact cassette-style transport (play/pause, skip, readout, volume, mute) in a boxed group. Lives in the campaign-home header; lobby overlay via AppTitleBar. |
+| **KnowledgePill** | Account knowledge pill: type icon (`KNOWLEDGE_TYPE_ICONS`) + label; hover tooltip shows type, tier and description from `ACCOUNT_KNOWLEDGE`. Unregistered keys show the raw key. Lives in `app/js/components/`. |
 | **ObjectivesPopover** | Portaled (`document.body`) mission-objectives popover: centred intro with Start, fly-to / grow-from the `objectives` HUD anchor, check-off + slide-out rows, Victory text. Driven by `objectivePresentation.ts` state via `useObjectivesPresenter`; kill switch `OBJECTIVES_POPOVER_ENABLED`. Lives in `minion_battles/ui/components/objectivesPopover/`. |
 | **CiStatusPill** | Small gray/green/red circle showing local CI health from `/api/admin/ci-status`; admin-only hover tooltip with pass/fail counts. Compact size matches the music player when embedded in CampaignHomeHeader. |
 | **DebugConsoleToggle** | 26×26 header **Debug** control (bug icon) that opens the debug drawer. Shown only after tilde ×3 unlocks debug mode. |

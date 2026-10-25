@@ -5,7 +5,10 @@ import {
     hasAccountKnowledge,
     hasUpgradesSystem,
     KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1,
+    KNOWLEDGE_RESEARCH,
+    KNOWLEDGE_RESOURCE_ATTUNEMENT,
     KNOWLEDGE_RESOURCE_POPULATION,
+    KNOWLEDGE_TYPE_DEFS,
     KNOWLEDGE_SYSTEM_UPGRADES,
 } from './accountKnowledge';
 
@@ -13,6 +16,21 @@ describe('account knowledge registry', () => {
     it('has unique keys', () => {
         const keys = ACCOUNT_KNOWLEDGE.map((k) => k.key);
         expect(new Set(keys).size).toBe(keys.length);
+    });
+
+    it('gives every entry a known type, a positive integer tier and a description', () => {
+        for (const k of ACCOUNT_KNOWLEDGE) {
+            expect(KNOWLEDGE_TYPE_DEFS[k.type], k.key).toBeDefined();
+            expect(Number.isInteger(k.tier) && k.tier > 0, k.key).toBe(true);
+            expect(k.description.trim().length, k.key).toBeGreaterThan(0);
+        }
+    });
+
+    it('puts Research and Attunement in tier 1 and everything else in tier 2', () => {
+        const tierOne = [KNOWLEDGE_RESEARCH, KNOWLEDGE_RESOURCE_ATTUNEMENT];
+        for (const k of ACCOUNT_KNOWLEDGE) {
+            expect(k.tier, k.key).toBe(tierOne.includes(k.key) ? 1 : 2);
+        }
     });
 
     it('names the Utility 1 slot knowledge and falls back to the raw key', () => {

@@ -1,3 +1,4 @@
+import { KNOWLEDGE_RESEARCH } from '../../accountKnowledge';
 import { MISSION_REWARD_REQUIREMENT, PassiveStatKey, type ResearchTreeDef } from '../types';
 import { CORE_ITEM_IDS } from '../../games/minion_battles/character_defs/items';
 import { RESEARCH_TREE_COLOUR_COMMAND, RESEARCH_TREE_ICON_COMMAND } from '../researchTreeChrome';
@@ -45,7 +46,7 @@ export const commandCoreTree: ResearchTreeDef = {
     colour: RESEARCH_TREE_COLOUR_COMMAND,
     icon: RESEARCH_TREE_ICON_COMMAND,
     tags: ['core'],
-    accessRequirements: [{ type: 'accountKnowledge', key: 'Research' }],
+    accessRequirements: [{ type: 'accountKnowledge', key: KNOWLEDGE_RESEARCH }],
     nodes: [
         {
             id: COMMAND_CORE_NODE_LOYAL_COMPANION,

@@ -1,3 +1,4 @@
+import { KNOWLEDGE_RESEARCH } from '../../accountKnowledge';
 import type { ResearchNodeDef, ResearchTreeDef } from '../types';
 import { RESEARCH_TREE_COLOUR_WEAPON, RESEARCH_TREE_ICON_WEAPON } from '../researchTreeChrome';
 import { WEAPON_TREE_PREMIUM_METAL_COST, WEAPON_TREE_STANDARD_METAL_COST } from '../weaponResearchCosts';
@@ -72,7 +73,7 @@ export const weaponsTree: ResearchTreeDef = {
     icon: RESEARCH_TREE_ICON_WEAPON,
     tags: ['weapon', 'equipment'],
     layout: 'rows',
-    accessRequirements: [{ type: 'accountKnowledge', key: 'Research' }],
+    accessRequirements: [{ type: 'accountKnowledge', key: KNOWLEDGE_RESEARCH }],
     nodes: [
         // Thrown
         weaponRoot({

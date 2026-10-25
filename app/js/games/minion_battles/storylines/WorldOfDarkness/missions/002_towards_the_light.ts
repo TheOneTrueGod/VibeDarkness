@@ -8,6 +8,7 @@
  * Wolves spawn continuously from darkness (one every half-round).
  */
 
+import { KNOWLEDGE_RESEARCH } from '../../../../../accountKnowledge';
 import { BaseMissionDef } from '../../BaseMissionDef';
 import { ObjectiveType } from '../../objectiveTypes';
 import { WOD_CH1_MAP_X_COL1, WOD_CH1_MAP_Y_ROW0 } from '../chapter1Map';
@@ -225,7 +226,7 @@ export class TowardsTheLightMission extends BaseMissionDef {
     campaignId = 'world_of_darkness';
     name = 'Towards the Light';
     completionRewards = {
-        knowledgeKeys: ['Research'],
+        knowledgeKeys: [KNOWLEDGE_RESEARCH],
         resourceDelta: {
             attunement: TOWARDS_THE_LIGHT_ATTUNEMENT_REWARD,
             metal: TOWARDS_THE_LIGHT_METAL_REWARD,
