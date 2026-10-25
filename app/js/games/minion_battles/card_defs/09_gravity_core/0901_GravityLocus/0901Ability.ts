@@ -9,12 +9,14 @@
  */
 
 import { AbilityPhase } from '../../../abilities/abilityTimings';
+import { CastBehaviours } from '../../../abilities/CastBehaviours';
+import type { CastBehaviourTickContext } from '../../../abilities/castBehaviourTypes';
 import { nullHitbox } from '../../../hitboxes';
 import { type CardDef } from '../../types';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { defineAbility } from '../../../abilities/defineAbility';
 import type { Unit } from '../../../game/units/Unit';
-import type { ResolvedTarget, ActiveAbility } from '../../../game/types';
+import type { ResolvedTarget } from '../../../game/types';
 import type { EngineContext } from '../../../game/EngineContext';
 import { GravityLocusFieldBuff, type GravityLocusRepulseConfig } from '../../../buffs/GravityLocusFieldBuff';
 import {
@@ -59,6 +61,32 @@ function getPixelTargetPosition(
     return target.position;
 }
 
+/** Adds the Gravity Locus field buff to the caster at the picked point, with the ability's mode and modifiers. */
+function deployLocusField(ctx: CastBehaviourTickContext): void {
+    const locus = getPixelTargetPosition(ctx.allTargets, 0);
+    if (!locus) return;
+
+    const engine = ctx.engine as unknown as EngineContext;
+    const mod = ctx.caster.abilityModifiers[CARD_ID] ?? {};
+    const duration = GRAVITY_LOCUS_FIELD_DURATION * (mod.durationMult ?? 1);
+    const repulse: GravityLocusRepulseConfig | undefined = mod.addTags?.includes('GravityRepulse')
+        ? { explosionDamage: mod.explosionDamageFlat ?? 0, knockbackTier: mod.knockbackTier ?? 1 }
+        : undefined;
+
+    ctx.caster.addBuff(
+        new GravityLocusFieldBuff(
+            locus,
+            ctx.abilityMode ?? GRAVITY_ABILITY_MODE_PULL,
+            duration,
+            repulse,
+            { total: GRAVITY_LOCUS_FIELD_TOTAL_DAMAGE, perTick: GRAVITY_LOCUS_FIELD_DAMAGE_PER_TICK },
+        ),
+        engine.gameTime,
+        engine.roundNumber,
+        engine.eventBus,
+    );
+}
+
 export const GravityLocusAbility = defineAbility({
     id: CARD_ID,
     name: 'Gravity Locus',
@@ -90,6 +118,9 @@ export const GravityLocusAbility = defineAbility({
             end: GRAVITY_LOCUS_PREFIRE_TIME + GRAVITY_LOCUS_CAST_ACTIVE_DURATION,
             abilityPhase: AbilityPhase.Active,
             doNotRefund: true,
+            // Deploy the field at the picked point as the windup ends. The buff carries the
+            // pulses and field visual for GRAVITY_LOCUS_FIELD_DURATION, outliving the cast.
+            castBehaviours: [{ timingStart: 'start', behaviour: CastBehaviours.Instant(deployLocusField) }],
             targetDef: {
                 kind: 'select',
                 label: 'Locus',
@@ -127,43 +158,6 @@ export const GravityLocusAbility = defineAbility({
             );
         }
         return lines;
-    },
-
-    doCardEffect(
-        engine: unknown,
-        caster: Unit,
-        targets: ResolvedTarget[],
-        prevTime: number,
-        currentTime: number,
-        active?: ActiveAbility,
-    ): void {
-        // One-shot at the end of windup: deploy the field. The buff carries the
-        // pulses and field visual for GRAVITY_LOCUS_FIELD_DURATION, outliving the cast.
-        const deployTime = GRAVITY_LOCUS_PREFIRE_TIME;
-        if (currentTime < deployTime || prevTime >= deployTime) return;
-
-        const locus = getPixelTargetPosition(targets, 0);
-        if (!locus) return;
-
-        const ctx = engine as EngineContext;
-        const mod = caster.abilityModifiers[CARD_ID] ?? {};
-        const duration = GRAVITY_LOCUS_FIELD_DURATION * (mod.durationMult ?? 1);
-        const repulse: GravityLocusRepulseConfig | undefined = mod.addTags?.includes('GravityRepulse')
-            ? { explosionDamage: mod.explosionDamageFlat ?? 0, knockbackTier: mod.knockbackTier ?? 1 }
-            : undefined;
-
-        caster.addBuff(
-            new GravityLocusFieldBuff(
-                locus,
-                active?.abilityMode ?? GRAVITY_ABILITY_MODE_PULL,
-                duration,
-                repulse,
-                { total: GRAVITY_LOCUS_FIELD_TOTAL_DAMAGE, perTick: GRAVITY_LOCUS_FIELD_DAMAGE_PER_TICK },
-            ),
-            ctx.gameTime,
-            ctx.roundNumber,
-            ctx.eventBus,
-        );
     },
 
     renderTargetingPreviewSelectedTargets(gr, caster, _targets, mouseWorld): void {

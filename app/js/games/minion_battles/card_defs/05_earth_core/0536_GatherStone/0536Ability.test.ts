@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
+import '../../../abilities/AbilityRegistry';
 import { GatherStoneAbility_0536 } from './0536Ability';
 import { Unit } from '../../../game/units/Unit';
+import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
+import { enterInterval, timingsFor } from '../earthCoreTestHelpers';
 import { EventBus } from '../../../game/EventBus';
 import { Rock } from '../../../resources/Rock';
 import { TerrainType } from '../../../terrain/TerrainType';
@@ -58,6 +61,7 @@ function makeEngine(opts: {
     const terrain: TerrainStub = { types, width, height, damageRock };
     const engine = {
         units: opts.units ?? [],
+        getUnit: (id: string) => (opts.units ?? []).find((u) => u.id === id),
         gameTime: 0,
         eventBus,
         addEffect: () => {},
@@ -154,16 +158,19 @@ describe('TileAreaHitboxSpec (square preset)', () => {
     });
 });
 
-describe('Gather Stone (0536) doCardEffect', () => {
-    it('only fires on the tick crossing the 0.5s midpoint', () => {
+const gather = (engine: unknown, caster: Unit, targets: ResolvedTarget[]): void =>
+    enterInterval(GatherStoneAbility_0536, 'gather', engine as AbilityEngineContext, caster, targets);
+
+describe('Gather Stone (0536) cast behaviours', () => {
+    it('declarative, and nothing fires before the gather window', () => {
         const caster = makeUnit({ id: 'caster', teamId: 'player', col: 5, row: 5 });
         caster.attachResource(new Rock(), new EventBus());
         const { engine, terrain } = makeEngine({ terrain: { '5,5': TerrainType.Rock } });
 
-        GatherStoneAbility_0536.doCardEffect!(engine, caster, pixelTarget(5, 5), 0.4, 0.49);
+        enterInterval(GatherStoneAbility_0536, 'windup', engine as AbilityEngineContext, caster, pixelTarget(5, 5));
         expect(terrain.damageRock).not.toHaveBeenCalled();
 
-        GatherStoneAbility_0536.doCardEffect!(engine, caster, pixelTarget(5, 5), 0.4, 0.5);
+        gather(engine, caster, pixelTarget(5, 5));
         expect(terrain.damageRock).toHaveBeenCalledTimes(1);
     });
 
@@ -180,7 +187,7 @@ describe('Gather Stone (0536) doCardEffect', () => {
             },
         });
 
-        GatherStoneAbility_0536.doCardEffect!(engine, caster, pixelTarget(5, 5), 0, 0.5);
+        gather(engine, caster, pixelTarget(5, 5));
 
         expect(terrain.damageRock).toHaveBeenCalledTimes(3);
         for (const c of [[4, 5], [5, 5], [6, 5]]) {
@@ -192,13 +199,12 @@ describe('Gather Stone (0536) doCardEffect', () => {
     it('skips out-of-bounds cells so edge-of-map voids do not grant rock', () => {
         const caster = makeUnit({ id: 'caster', teamId: 'player', col: 5, row: 5 });
         caster.attachResource(new Rock(), new EventBus());
-        // Grid is only 6 wide => col 6 is out of bounds. Region centered on (5,5) spans cols 4..6.
         const { engine, terrain } = makeEngine({
             gridW: 6,
             terrain: { '4,5': TerrainType.Rock, '5,5': TerrainType.Rock, '6,5': TerrainType.Rock },
         });
 
-        GatherStoneAbility_0536.doCardEffect!(engine, caster, pixelTarget(5, 5), 0, 0.5);
+        gather(engine, caster, pixelTarget(5, 5));
 
         expect(terrain.damageRock).toHaveBeenCalledTimes(2);
         expect(terrain.damageRock).not.toHaveBeenCalledWith(6, 5, expect.anything(), expect.anything());
@@ -209,17 +215,15 @@ describe('Gather Stone (0536) doCardEffect', () => {
         const caster = makeUnit({ id: 'caster', teamId: 'player', col: 5, row: 5 });
         caster.attachResource(new Rock(), new EventBus());
         const enemy = makeUnit({ id: 'enemy', teamId: 'enemy', col: 5, row: 5 });
-        const { engine } = makeEngine({
-            terrain: { '5,5': TerrainType.Rubble },
-            units: [caster, enemy],
-        });
+        const { engine } = makeEngine({ terrain: { '5,5': TerrainType.Rubble }, units: [caster, enemy] });
 
-        GatherStoneAbility_0536.doCardEffect!(engine, caster, pixelTarget(5, 5), 0, 0.5);
+        gather(engine, caster, pixelTarget(5, 5));
 
         expect(enemy.hp).toBe(enemy.maxHp);
+        expect(timingsFor(GatherStoneAbility_0536, caster, engine).find((i) => i.id === 'gather')?.castBehaviours).toHaveLength(1);
     });
 
-    it('with the node, strikes each rubble-standing enemy once for 6', () => {
+    it('with the node, attaches the rubble strike and hits each rubble-standing enemy once for 6', () => {
         const caster = makeUnit({ id: 'caster', teamId: 'player', col: 5, row: 5 });
         caster.attachResource(new Rock(), new EventBus());
         const onRubble = makeUnit({ id: 'on_rubble', teamId: 'enemy', col: 5, row: 5 });
@@ -231,7 +235,8 @@ describe('Gather Stone (0536) doCardEffect', () => {
             units: [caster, onRubble, onGrass, outsideRegion],
         });
 
-        GatherStoneAbility_0536.doCardEffect!(engine, caster, pixelTarget(5, 5), 0, 0.5);
+        expect(timingsFor(GatherStoneAbility_0536, caster, engine).find((i) => i.id === 'gather')?.castBehaviours).toHaveLength(2);
+        gather(engine, caster, pixelTarget(5, 5));
 
         expect(onRubble.maxHp - onRubble.hp).toBe(GATHER_STONE_RUBBLE_DAMAGE);
         expect(onGrass.hp).toBe(onGrass.maxHp);
@@ -241,6 +246,6 @@ describe('Gather Stone (0536) doCardEffect', () => {
     it('bails cleanly when there is no terrain manager', () => {
         const caster = makeUnit({ id: 'caster', teamId: 'player', col: 5, row: 5 });
         const engine = { units: [], gameTime: 0, eventBus: new EventBus(), addEffect: () => {}, addEffectEmitter: () => {}, terrainManager: null };
-        expect(() => GatherStoneAbility_0536.doCardEffect!(engine, caster, pixelTarget(5, 5), 0, 0.5)).not.toThrow();
+        expect(() => gather(engine, caster, pixelTarget(5, 5))).not.toThrow();
     });
 });

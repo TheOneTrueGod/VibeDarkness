@@ -2,7 +2,7 @@
  * Double Punch - Warrior melee ability.
  *
  * Strikes twice in sequence, each using a thick-line hitbox with lock-on targeting.
- * Built entirely on the CastBehaviours system (no doCardEffect / beginActiveCast).
+ * Built entirely on the CastBehaviours system (no beginActiveCast).
  *
  * Note: two-strike timing cannot be expressed via defineMeleeStrike (single-interval);
  * uses defineAbility() directly to at least remove getRange/onAttackBlocked/getAbilityStates

@@ -28,6 +28,17 @@ export type BossHudSlice = {
     exposedTotalDuration: number | null;
     isEnraged: boolean;
     characterId: string;
+    /** Phase progress for a unit with `phases` (null otherwise). Thresholds are HP fractions for bar tick marks. */
+    phase: {
+        /** Label of the current (latest entered) phase; null before the first phase or when it has no label. */
+        label: string | null;
+        /** Phases entered so far. */
+        index: number;
+        total: number;
+        hpThresholds: number[];
+        /** Transition banner text while a phase transition is running. */
+        banner: string | null;
+    } | null;
 } | null;
 
 type BossFightHudProps = {
@@ -57,9 +68,25 @@ export default function BossFightHud({ boss, onRegisterCcStatusTarget }: BossFig
             role="region"
             aria-label="Boss fight"
         >
+            {boss.phase?.banner ? (
+                <div
+                    className="absolute left-1/2 top-14 z-40 -translate-x-1/2 whitespace-nowrap rounded-sm border border-red-900 bg-black/80 px-4 py-1 text-sm font-bold uppercase tracking-[0.25em] text-red-200 shadow-lg"
+                    role="status"
+                >
+                    {boss.phase.banner}
+                </div>
+            ) : null}
             <div className="px-2 pt-1 pb-4">
                 <div className="relative w-full">
-                    <HpBar name={boss.name} hp={boss.hp} maxHp={boss.maxHp} hpInjury={boss.hpInjury} isEnraged={boss.isEnraged} />
+                    <HpBar
+                        name={boss.name}
+                        hp={boss.hp}
+                        maxHp={boss.maxHp}
+                        hpInjury={boss.hpInjury}
+                        isEnraged={boss.isEnraged}
+                        phaseLabel={boss.phase?.label ?? null}
+                        phaseThresholds={boss.phase?.hpThresholds}
+                    />
 
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 flex translate-y-[55%] flex-row items-center justify-between gap-2">
                         <div className="flex min-w-0 flex-1 justify-start">

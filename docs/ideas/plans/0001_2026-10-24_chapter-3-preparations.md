@@ -139,14 +139,55 @@ Adding one enemy currently means editing about seven places: the `EnemyUnitId` u
 - Merge the three nest ticks (`lanternite/*NestTick.ts`, about 850 lines) into one configurable Spawner/Nest component. The same component covers on-death spawns (dismounting riders, splitting enemies) and boss add waves.
 - Do this after P0.1 so there's one fewer nest type to port. Changing the shape of in-flight checkpoints is acceptable; see P2.2 for versioning.
 
-### P1.3 Boss framework (phases as data)
+### [x] P1.3 Unit phases (boss framework as data)
 
-**Complexity:** Medium. **Helps:** new boss
+**Complexity:** Medium. **Helps:** new boss, elite enemies
 
-- Bosses today are `UnitTag.Boss` (CC armour) plus `enrageDef` plus a bespoke AI tree (`alphaWolfBoss/`, `displacerBoss/`) plus an optional `deathSequence`.
-- Add declarative phases on the def: HP or time thresholds, then swap the ability loadout or AI node, an optional transition (story pause / Time Stop, invulnerability window), spawn waves (via P1.2's spawner) and world modifier changes.
-- Re-express the alpha wolf's and displacer's enrage as phases to prove the design, then build the Chapter 3 boss on it.
-- Consider a reusable boss HUD (name and health bar, CC status already exists in `HudEffectLayer`).
+**Done:** `UnitDefEntry.phases` is an ordered list of `UnitPhaseDef`s (`game/units/components/phaseDef.ts`), with the conditions, tag and ability add/remove, AI switch, modifiers (tempo, damage multiplier), transitions (Time Stop / story pause, an invulnerability window, a banner) and `onEnter` world effects. A serialized `phase` component holds the state, and `phaseRuntime.ts` evaluates and enters phases. HP conditions use the HP recorded at the last damage event, so setting `hp` directly never enters a phase; this reproduces the old enrage exactly. The Alpha Wolf and the Displacer use `enragePreset`, and `enrageDef` is deleted. The boss HUD shows the phase label, threshold ticks and the transition banner. An old checkpoint whose unit already has a phase's tags enters that phase silently. `previewPhaseEquivalence.test.ts` checks that preview and commit match. Not built yet: the CC-armour modifier. **Found:** restoring a checkpoint partway through any Time Stop puts the runtime fingerprint out of step once the stop ends (an existing bug, not phase-specific). Fix it before relying on Time Stop phase transitions in multiplayer.
+
+**Today:** a "phase" is a single enrage.
+- `enrageDef` (`game/units/enrageDef.ts`) has one condition kind (`health_below_percent`), a threshold and a tag.
+- `UnitManager` checks it after damage, adds the tag (e.g. `UnitTag.Enraged`) and emits `unit_enraged`.
+- Abilities react through `requiredTags` / `forbiddenTags` (Alpha Wolf Triple Charge, Displacer Bolt) or in code (Phantom Decoy, Light Eater).
+- The boss HUD reads `isEnraged`.
+- Bosses otherwise combine `UnitTag.Boss` (CC armour), a bespoke AI tree (`alphaWolfBoss/`, `displacerBoss/`) and an optional `deathSequence`.
+
+**Design: `phases` on the unit def** (def-based, per the game-object-def pattern). It replaces `enrageDef`; an enrage becomes a one-phase preset (`enragePreset(threshold, tag)`). Each `UnitPhaseDef` has:
+- `id`, and an optional `label` for the boss HUD;
+- `enterWhen`, a `PhaseCondition`: `health_below_percent`, `elapsed_seconds` (since battle start or since the previous phase), `units_alive_below` (e.g. all adds dead), `counter_at_least` (world-modifier counters), or `all` / `any` combinations of these;
+- `tags: { add?, remove? }`, so every existing `requiredTags` / `forbiddenTags` keeps working;
+- `abilities: { add?, remove? }`, explicit ability-list changes for finer control;
+- `ai: { treeId?, node? }`, to swap the AI tree or jump to a node;
+- `modifiers`, e.g. speed or damage multipliers or a CC-armour override, applied as a buff;
+- `transition`: `none` / `timeStop` / `storyPause`, with a duration, an optional invulnerability window and an optional HUD banner;
+- `onEnter: WorldEffect[]`, reusing the world-modifier effect union (`spawnUnits`, light sources, counters, add/remove modifier).
+
+**Runtime:**
+- **State:** a `phase` unit component (P1.2 system) holds the current phase index, when the phase started and any transition in progress. It is serialized, so checkpoints, resync and replay keep it.
+- **When conditions are checked:** after damage (where enrage is checked today) and once per tick for time, add and counter conditions, at a fixed point in the tick order.
+- **Entering a phase:**
+  1. apply tags, abilities and modifiers;
+  2. switch the AI;
+  3. start the transition;
+  4. run the `onEnter` effects;
+  5. emit `unit_phase_entered`.
+
+  `unit_enraged` still fires when the Enraged tag is added.
+- **Death:** `deathSequence` stays separate, as the final beat.
+
+**Build order:**
+1. Types plus `enragePreset`.
+2. The phase component and the condition evaluator.
+3. Migrate the Alpha Wolf and the Displacer to `phases` with tests that prove identical behaviour, then delete `enrageDef`, `EnrageDef` and that file's TODO.
+4. Transitions and `onEnter` effects.
+5. Boss HUD: the current phase label plus threshold tick marks on the HP bar.
+6. An ability-test scenario for a multi-phase unit, including a checkpoint save and restore partway through a transition.
+
+**Decided:**
+- **One-way:** phases only advance; healing never reverts a phase. If one hit crosses several thresholds, every phase it passes is entered in order on the same tick, so no `onEnter` is skipped.
+- **Both mechanisms:** phases change tags and also have explicit ability `add` / `remove` lists, for finer control on future bosses.
+- **Any unit:** phases work on any unit, not only bosses. `UnitTag.Boss` is for identification and should be checked as rarely as possible. This is a general direction; no other refactors around it now.
+- **Previews behave like normal play:** a phase that starts during an interactive-targeting preview (playahead) runs exactly as it would in the committed run, transition included. Previews and committed runs must match, so cover it with a preview/canonical equivalence test.
 
 ### P1.4 Super move groundwork
 
@@ -163,12 +204,58 @@ Adding one enemy currently means editing about seven places: the `EnemyUnitId` u
 > - **Campaign resource spend**: each use costs a campaign resource. That ties supers to the campaign economy, but players may hoard them.
 > - **Both**: a campaign-level unlock or charge count plus an in-battle meter. The most flexible option, and the most UI.
 
-### P1.5 Settle the research-variant ability pattern before new weapons copy it
+### [x] P1.5 Finish the `castBehaviours` migration and remove `doCardEffect`
 
-**Complexity:** Medium (the pattern), Large (migrating all 24 remaining `doCardEffect` abilities)
+**Complexity:** Large (all 16 abilities plus deleting `doCardEffect`); Medium for the Chapter 3 subset only. **Helps:** new weapons, new enemies, the new boss, super moves
 
-- 24 abilities still use `doCardEffect` and 18 use `castBehaviours`. The Hard TODOs for ThrowRock, ThrowChargedRock and ThrowKnife are all blocked on the same missing piece: a research-aware projectile CastBehaviour pattern (different timings per research node).
-- New Chapter 3 weapons will have research variants and will copy whatever pattern exists. Design that pattern and migrate those three throw abilities as reference implementations. The rest of the migration TODOs can stay opportunistic.
+**Done:** all 16 abilities are on `castBehaviours`, and `doCardEffect` is deleted from `Ability`, `AbilityBase` and the tick call site. New registered blocks: `Charge`, `SpawnUnits`, `Leap`, `GroundPatch`, `TerrainStrike` (it also covers tile areas) and `Pulse`. `DashBehaviour` gained a pass-through-terrain option, a per-tile path hook, constant speed and capped multi-hit. The 13 stale migration rows are removed from `docs/TODO.md`. Anchored Tremor, Stoney Punch and the Gather Stone rubble hit are now blockable, as decided. Behaviour changes to review:
+- Earthern Punch: the line always reaches full range (it used to stop at a closer click), and it gains the standard punch impact plus a short hit pause.
+- Shaking Ground: it gains a short hit pause.
+- Anchored Tremor: exactly 4 pulses, matching its rings (the old code fired a stray 5th during cooldown). Its radius now includes the target's radius.
+- Stoney Punch: armour is spent once per cast, on the first connecting attack.
+- Thorn Stomp: its explosion visual now plays before the thorns appear.
+- Phantom Decoy: it stops at the first failed spawn.
+
+`DeployField` was not built, because it had no second user yet.
+
+**Already done: the research-variant pattern.** This item originally asked for a research-aware projectile pattern, so Chapter 3 weapons with research variants would have something to copy. That pattern exists and ThrowRock, ThrowChargedRock and ThrowKnife use it. Copy `card_defs/0107_ThrowRock` for weapons with research variants:
+- `getAbilityTimings` picks the intervals by research;
+- a `CastBehaviours.ProjectileLaunch` builder reads research per throw;
+- an extra behaviour is attached only when the research node is owned.
+
+The earlier "24 remaining `doCardEffect` abilities" figure was stale. Several `docs/TODO.md` migration rows are stale too (StoneTomb, Knock, ThrowTorch and the throws are already on `castBehaviours`); prune them when this item starts.
+
+**What's left:** 12 abilities and 2 shared templates (covering 4 more abilities) still use `doCardEffect`. Each line below gives the ability, what its `doCardEffect` does today, the proposed `castBehaviours` version, and its size. Double Punch only mentions `doCardEffect` in a comment and is already migrated.
+
+- **0524 Earthern Punch:** a thick-line melee hit at 0.2s, with bonus damage when the target stands on stone. Becomes `MeleeAttack().withHitbox(meleeLineHitbox)` with a damage function that adds the stone bonus. Low.
+- **0525 Shaking Ground:** an area hit around the caster at 0.35s, then damages the rock under the caster. Becomes `MeleeAttack` with a circle hitbox at the caster, plus **TerrainStrike**. Low.
+- **0526 Shatter:** at 0.25s, hits the enemy nearest the aim point for base damage plus an armour bonus, then consumes the rock around it. Becomes `MeleeAttack` with a nearest-to-point hitbox (or `Instant`), an armour damage function, and **TerrainStrike** in consume mode. Low.
+- **0533 Stoney Punch:** at 0.22s, spends all the caster's armour on a unit-target hit with a per-armour bonus. Becomes `MeleeAttack` with a unit-range hitbox. Compute the armour spend once per cast in an `Instant` before the strike, not once per hit. Low.
+- **0901 Gravity Locus:** at prefire, adds a `GravityLocusFieldBuff` at the aimed point, with the ability's mode and modifiers. Becomes an `Instant` at prefire; later a generic **DeployField**. Low.
+- **0536 Gather Stone:** at prefire, damages rock on a tile area and grants the rock resource; with its research node, it also hits enemies standing on rubble. Becomes an `Instant` over `TileAreaHitboxSpec`, or **TileAreaStrike**, with the research branch as a second behaviour attached only when the node is owned (the throw pattern). Low to Medium.
+- **0016 Thorn Stomp** (Thornbinder): an area hit around the caster with knockback at the end of windup, scaled down when the caster is weakened by light, then leaves a thorn patch. Becomes `MeleeAttack` with a circle hitbox and a weakened-damage function, knockback through an `abilityEvents` on-hit rule, and the thorns through **GroundPatch** (also usable by Bramble Patch 0706). Medium.
+- **0532 Anchored Tremor:** repeated pulses through the active window, with ramping damage and a stone bonus. Becomes **Pulse**, with a damage function that receives the pulse number. Medium.
+- **0534 Digging Claws:** a dash through walls that hits units and tiles along the path, tracked in an ability note. Becomes `DashBehaviour` extended with a pass-through-terrain option and a path-hit hook, plus `InitAbilityNote`. Medium.
+- **0005 Alpha Wolf Summon:** a pulse effect at prefire, then spawns wolves at fixed offsets. Becomes **SpawnUnits**. Medium.
+- **0019 Phantom Decoy:** at windup, despawns the old clones, picks free positions and spawns new clones. Becomes **SpawnUnits** with a position picker and a "replace previous batch" option. Medium.
+- **0018 Light Eater:** an airborne flight to the light at windup (via knockback); on landing, it eats the light, heals and gains super. Becomes **Leap** plus an `Instant` on landing. Medium.
+- **Template `ChargeAttack`** (0003 Dark Wolf Bite, 0006 Boar Charge, 0007 Alpha Wolf Charge): lunge movement plus damage along the path, every tick. Becomes **Charge**, wrapping the existing `abilities/behaviors/LungeMovement.ts` plus a path hit; migrate the template once. Medium.
+- **Template `MultiChargeAttack`** (0011 Alpha Wolf Triple Charge): the same over several charge windows. Becomes **Charge** on each charge interval. Low once Charge exists.
+- **`AbilityBase`:** an empty default `doCardEffect`. Delete it once everything above is migrated, then remove `doCardEffect` from the `Ability` interface. Low.
+
+**New reusable building blocks.** Each must be usable by a second ability unchanged (see "Build the engine, not the feature").
+- **TerrainStrike / TileAreaStrike:** damage or consume rock at a point or over a set of tiles (0525, 0526, 0536). Low.
+- **Pulse:** repeat a hitbox every N seconds through a window, with the pulse number passed to the damage function (0532; also boss channels and super moves). Medium.
+- **SpawnUnits:** spawn children at chosen positions through `spawnerCore.spawnSpawnerChildren` (from P1.2), optionally replacing the previous batch (0005, 0019; also boss adds, summoners and dismounting riders). Medium.
+- **Leap:** airborne travel to a point, with landing hooks (0018; also boss leaps and movement supers). Medium.
+- **Charge:** lunge movement with damage along the path (the charge templates; also new charging enemies). Medium.
+- **GroundPatch:** place a lasting ground-effect patch (0016; shareable with Bramble Patch 0706). Low to Medium.
+
+**Verification:** the preview-equivalence suite (`game/interaction/previewCanonEquivalence.test.ts`) runs every registered ability, so each migrated ability must still match a canonical replay. Add or keep an ability test for each new building block.
+
+**Decided:** Anchored Tremor, Stoney Punch and the Gather Stone rubble hit become **blockable**, going through `tryDamageOrBlock` like other attacks.
+
+**Decided:** migrate **all 16** abilities and **delete `doCardEffect`** from the `Ability` interface (and `AbilityBase`).
 
 ### [x] P1.6 Campaign resource registry (frontend and backend)
 
@@ -238,9 +325,11 @@ Adding one enemy currently means editing about seven places: the `EnemyUnitId` u
 
 - Hit-stop is a no-op (`MeleeAttack` calls `requestHitPause(3)`), and death-sequence `storyPause` should become a Time Stop (both in `docs/TODO.md`). Boss phase transitions and super moves want both effects, so do them alongside P1.3 and P1.4.
 
-### P2.4 Replace hard-coded `characterId` checks with tags or def flags
+### [x] P2.4 Replace hard-coded `characterId` checks with tags or def flags
 
 **Complexity:** Low
+
+**Done:** `003_light_empowered` finds its boar by `UnitTag.Boar`, and `005_monster` finds its boss by the mission's `controlGroupId: 'boss'`. The Alpha Wolf's single-prey hunting is now the def flag `huntsSinglePrey` (`getUnitHuntsSinglePrey`). `UnitRenderer` uses `isLanterniteNest`. The `006b_thornbinder_arena` template pick by character id stays, because it isn't a behaviour check.
 
 - For example `003_light_empowered` (`'boar'`), `005_monster` and `alphaWolfBoss_attack` (`'alpha_wolf'`), and `UnitRenderer` (`'lanternite_nest'`). Use `UnitTag` or a def flag so reskinned or new enemies get the same behaviour.
 

@@ -5,3 +5,4 @@
 import './lanterniteComponent';
 import './swarmComponent';
 import './petComponent';
+import './phaseComponent';

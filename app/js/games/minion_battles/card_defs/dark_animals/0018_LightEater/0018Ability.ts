@@ -9,6 +9,9 @@
 import type { AbilityRecoveryRule, AbilityStatic, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import { defineAbility } from '../../../abilities/defineAbility';
+import { CastBehaviours } from '../../../abilities/CastBehaviours';
+import type { LeapBehaviour } from '../../../abilities/CastBehaviours/LeapBehaviour';
+import type { CastBehaviourTickContext } from '../../../abilities/castBehaviourTypes';
 import type { TargetDef } from '../../../abilities/targeting';
 import { damageEnemiesInCircle } from '../../../abilities/targetHelpers';
 import { Effect } from '../../../game/effects/Effect';
@@ -202,6 +205,75 @@ export function devourLightsInRadius(
     return result;
 }
 
+const PULSE = { colors: [DARK_PURPLE, 0x330055, 0x110022] };
+
+/** The pre-resolved light, only when this cast actually found one to devour. */
+function lightDestination(ctx: Pick<CastBehaviourTickContext, 'castPayload'>): LightEaterPayload | null {
+    const payload = readLightEaterPayload({ castPayload: ctx.castPayload });
+    return payload?.tileId ? payload : null;
+}
+
+/** Takeoff pulse, flight at constant speed, then land exactly on the light to devour it, heal and gain super. */
+function buildLeapToLight(): LeapBehaviour {
+    return CastBehaviours.Leap({
+        destination: lightDestination,
+        airTimeSec: LIGHT_EATER_FLIGHT_TIME,
+        passThroughTerrain: true,
+        onLaunch: (ctx) => {
+            ctx.engine.addEffect(new Effect({ x: ctx.caster.x, y: ctx.caster.y, duration: 0.5, effectType: 'Pulse', effectData: PULSE }));
+        },
+        onLand: (ctx, dest) => {
+            const eng = ctx.engine as unknown as LightEaterEngine;
+            const payload = lightDestination(ctx);
+            const tile = eng.specialTiles.find((t) => t.id === payload?.tileId);
+            if (tile) devourLight(eng, tile);
+            // Boss self-heal: no heal-penalty injury (penalty 0). Heals again when the blast fires.
+            applyHeal(ctx.caster, LIGHT_EATER_HEAL, 0);
+            ctx.caster.getResource('super')?.add(LIGHT_EATER_SUPER_GAIN);
+            eng.addEffect(new Effect({ x: dest.x, y: dest.y, duration: 0.5, effectType: 'Pulse', effectData: PULSE }));
+        },
+    });
+}
+
+/** The dark explosion at the landing point: damage, devour nearby lights, heal and a ring of bolts. */
+function explode(ctx: CastBehaviourTickContext): void {
+    const eng = ctx.engine as unknown as LightEaterEngine;
+    const { caster } = ctx;
+    const payload = readLightEaterPayload({ castPayload: ctx.castPayload });
+    const center = { x: caster.x, y: caster.y };
+    damageEnemiesInCircle({
+        engine: eng as never,
+        caster,
+        center,
+        radius: LIGHT_EATER_EXPLOSION_RADIUS,
+        damage: LIGHT_EATER_EXPLOSION_DAMAGE,
+        abilityId: CARD_ID,
+        attackType: 'melee',
+    });
+    // The blast also eats every other light in its radius, player-placed ones included.
+    devourLightsInRadius(eng, center, LIGHT_EATER_EXPLOSION_RADIUS, payload?.tileId ?? null);
+    // Heal and ring of Displacer Bolts, only when this cast actually devoured a light.
+    if (payload?.tileId) {
+        applyHeal(caster, LIGHT_EATER_HEAL, 0);
+        const ringCount = hasUnitTag(caster, UnitTag.Enraged)
+            ? LIGHT_EATER_RING_PROJECTILES * LIGHT_EATER_ENRAGED_RING_MULTIPLIER
+            : LIGHT_EATER_RING_PROJECTILES;
+        const step = (Math.PI * 2) / ringCount;
+        for (let i = 0; i < ringCount; i++) {
+            const angle = LIGHT_EATER_RING_ROTATION + i * step;
+            spawnDisplacerBoltProjectile(eng, caster, Math.cos(angle), Math.sin(angle));
+        }
+    }
+    eng.addEffect(new Effect({
+        x: center.x,
+        y: center.y,
+        duration: 0.4,
+        effectType: 'Explosion',
+        effectRadius: LIGHT_EATER_EXPLOSION_RADIUS,
+        effectProperties: { color: DARK_PURPLE, direction: 'expand' },
+    }));
+}
+
 const _base: AbilityStatic = defineAbility({
     id: CARD_ID,
     name: 'Light Eater',
@@ -213,9 +285,24 @@ const _base: AbilityStatic = defineAbility({
     prefireTime: LIGHT_EATER_EXPLODE_TIME,
     abilityTimings: [
         { id: 'crouch', start: 0, end: LIGHT_EATER_WINDUP_TIME, abilityPhase: AbilityPhase.Windup },
-        { id: 'flight', start: LIGHT_EATER_WINDUP_TIME, end: LIGHT_EATER_LANDING_TIME, abilityPhase: AbilityPhase.Windup },
+        {
+            id: 'flight',
+            start: LIGHT_EATER_WINDUP_TIME,
+            end: LIGHT_EATER_LANDING_TIME,
+            abilityPhase: AbilityPhase.Windup,
+            // Takeoff and landing: reuses the knockback airborne mechanism (straight line, constant
+            // speed, arc and ground shadow rendering, terrain-ignoring) aimed at the pre-resolved light.
+            castBehaviours: [{ timingStart: 'start', timingEnd: 'end', behaviour: buildLeapToLight() }],
+        },
         { id: 'telegraph', start: LIGHT_EATER_LANDING_TIME, end: LIGHT_EATER_EXPLODE_TIME, abilityPhase: AbilityPhase.Windup },
-        { id: 'explode', start: LIGHT_EATER_EXPLODE_TIME, end: STRIKE_END, abilityPhase: AbilityPhase.Active, doNotRefund: true },
+        {
+            id: 'explode',
+            start: LIGHT_EATER_EXPLODE_TIME,
+            end: STRIKE_END,
+            abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
+            castBehaviours: [{ timingStart: 'start', behaviour: CastBehaviours.Instant(explode) }],
+        },
         { id: 'cooldown', start: STRIKE_END, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
     ],
     targets: [] as TargetDef[],
@@ -254,84 +341,6 @@ export const LightEaterAbility: AbilityStatic = {
         const dest = tile ? lightTileCenter(tile) : { x: caster.x, y: caster.y };
         const payload: LightEaterPayload = { tileId: tile?.id ?? null, x: dest.x, y: dest.y };
         active.castPayload = payload;
-    },
-
-    doCardEffect(
-        engine: unknown,
-        caster: Unit,
-        _targets: ResolvedTarget[],
-        prevTime: number,
-        currentTime: number,
-        active?: ActiveAbility,
-    ): void {
-        const eng = engine as LightEaterEngine;
-        const payload = readLightEaterPayload(active);
-        const pulse = { colors: [DARK_PURPLE, 0x330055, 0x110022] };
-
-        // Takeoff: reuse the knockback airborne mechanism (straight line, constant speed, arc and
-        // ground shadow rendering, terrain-ignoring) aimed at the pre-resolved light.
-        if (prevTime < LIGHT_EATER_WINDUP_TIME && currentTime >= LIGHT_EATER_WINDUP_TIME && payload?.tileId) {
-            eng.addEffect(new Effect({ x: caster.x, y: caster.y, duration: 0.5, effectType: 'Pulse', effectData: pulse }));
-            caster.applyKnockback(
-                {
-                    knockbackVector: { x: payload.x - caster.x, y: payload.y - caster.y },
-                    knockbackAirTime: LIGHT_EATER_FLIGHT_TIME,
-                    knockbackSlideTime: 0,
-                    knockbackSource: { unitId: caster.id, abilityId: CARD_ID },
-                    passThroughTerrain: true,
-                },
-                eng.eventBus,
-            );
-        }
-
-        // Landing: land exactly on the light, then devour it, heal, and gain super.
-        if (prevTime < LIGHT_EATER_LANDING_TIME && currentTime >= LIGHT_EATER_LANDING_TIME && payload?.tileId) {
-            caster.knockback = null;
-            caster.x = payload.x;
-            caster.y = payload.y;
-            caster.clearMovement();
-            const tile = eng.specialTiles.find((t) => t.id === payload.tileId);
-            if (tile) devourLight(eng, tile);
-            // Boss self-heal: no heal-penalty injury (penalty 0). Heals again when the blast fires.
-            applyHeal(caster, LIGHT_EATER_HEAL, 0);
-            caster.getResource('super')?.add(LIGHT_EATER_SUPER_GAIN);
-            eng.addEffect(new Effect({ x: payload.x, y: payload.y, duration: 0.5, effectType: 'Pulse', effectData: pulse }));
-        }
-
-        if (prevTime < LIGHT_EATER_EXPLODE_TIME && currentTime >= LIGHT_EATER_EXPLODE_TIME) {
-            const center = { x: caster.x, y: caster.y };
-            damageEnemiesInCircle({
-                engine: eng as never,
-                caster,
-                center,
-                radius: LIGHT_EATER_EXPLOSION_RADIUS,
-                damage: LIGHT_EATER_EXPLOSION_DAMAGE,
-                abilityId: CARD_ID,
-                attackType: 'melee',
-            });
-            // The blast also eats every other light in its radius, player-placed ones included.
-            devourLightsInRadius(eng, center, LIGHT_EATER_EXPLOSION_RADIUS, payload?.tileId ?? null);
-            // Heal and ring of Displacer Bolts, only when this cast actually devoured a light.
-            if (payload?.tileId) {
-                applyHeal(caster, LIGHT_EATER_HEAL, 0);
-                const ringCount = hasUnitTag(caster, UnitTag.Enraged)
-                    ? LIGHT_EATER_RING_PROJECTILES * LIGHT_EATER_ENRAGED_RING_MULTIPLIER
-                    : LIGHT_EATER_RING_PROJECTILES;
-                const step = (Math.PI * 2) / ringCount;
-                for (let i = 0; i < ringCount; i++) {
-                    const angle = LIGHT_EATER_RING_ROTATION + i * step;
-                    spawnDisplacerBoltProjectile(eng, caster, Math.cos(angle), Math.sin(angle));
-                }
-            }
-            eng.addEffect(new Effect({
-                x: center.x,
-                y: center.y,
-                duration: 0.4,
-                effectType: 'Explosion',
-                effectRadius: LIGHT_EATER_EXPLOSION_RADIUS,
-                effectProperties: { color: DARK_PURPLE, direction: 'expand' },
-            }));
-        }
     },
 
     /** Forecast circle at the light, from cast start until the explosion fires. */

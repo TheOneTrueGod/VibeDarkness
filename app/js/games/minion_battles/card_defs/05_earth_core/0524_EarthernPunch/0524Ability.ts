@@ -1,16 +1,22 @@
-﻿import type { AbilityStatic, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../../abilities/Ability';
+﻿/**
+ * Earthern Punch: an Earth Core melee strike. The caster punches a thick line toward the aim point
+ * for 12 damage, plus 4 more against targets standing on stone. Built on `MeleeAttack` (no
+ * `doCardEffect`); the stone bonus is a damage function, so the same shape serves any "stronger on
+ * stone" punch.
+ */
+
+import type { IAbilityPreviewGraphics } from '../../../abilities/Ability';
+import { defineAbility } from '../../../abilities/defineAbility';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
+import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import type { Unit } from '../../../game/units/Unit';
 import type { ResolvedTarget } from '../../../game/types';
 import type { TargetDef } from '../../../abilities/targeting';
 import { type CardDef } from '../../types';
 import { EARTHERN_PUNCH_ABILITY_ID } from '../../../abilities/earthCoreMeleePassives';
-import { getPixelTargetPosition, getAimPointClampedToMaxRange } from '../../../abilities/targetHelpers';
-import { ThickLineHitbox } from '../../../hitboxes';
-import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
-import { isOnStone } from '../../../abilities/earthCoreHelpers';
-import { getEffectiveTerrain, type FloorTile } from '../../../terrain/FloorTile';
-import type { EventBus } from '../../../game/EventBus';
+import { getAimPointClampedToMaxRange } from '../../../abilities/targetHelpers';
+import { ThickLineHitbox, meleeLineHitbox } from '../../../hitboxes';
+import { isUnitOnStone } from '../../../abilities/earthCoreHelpers';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import {
     formatTooltipLegacyLines,
@@ -32,35 +38,24 @@ const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     DAMAGE_2: { kind: 'damage', base: STONE_BONUS_DAMAGE },
 };
 const TARGETS: TargetDef[] = [{ type: 'pixel', label: 'Punch direction' }];
+
+const PUNCH_HITBOX = meleeLineHitbox(MAX_RANGE, LINE_THICKNESS);
+
+/** The strike lands on the first tick of the `hit` window (`impactAt(0)`), with no caster lunge. */
+const punchBehaviour = CastBehaviours.MeleeAttack()
+    .withHitbox(PUNCH_HITBOX)
+    .withImpact('punch')
+    .withImpactAt(0)
+    .withSlide({ forwardDistance: 0, backwardDistance: 0 })
+    .withDamage((ctx, unit) => BASE_DAMAGE + (isUnitOnStone(ctx.engine.terrainManager, unit) ? STONE_BONUS_DAMAGE : 0));
+
 const TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup', start: 0, end: 0.2, abilityPhase: AbilityPhase.Windup },
-    { id: 'hit', start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active, doNotRefund: true },
+    { id: 'hit', start: 0.2, end: 0.3, abilityPhase: AbilityPhase.Active, doNotRefund: true, behaviour: punchBehaviour },
     { id: 'recover', start: 0.3, end: 1.1, abilityPhase: AbilityPhase.Cooldown },
 ];
 
-interface EngineLike {
-    units: Unit[];
-    gameTime: number;
-    eventBus: EventBus;
-    getUnit(id: string): Unit | undefined;
-    terrainManager?: {
-        grid: {
-            worldToGrid(x: number, y: number): { col: number; row: number };
-            get(col: number, row: number): number;
-        };
-        getFloorTile(col: number, row: number): FloorTile | null;
-    } | null;
-}
-
-function isTargetStandingOnStone(engine: EngineLike, target: Unit): boolean {
-    if (!engine.terrainManager) return false;
-    const cell = engine.terrainManager.grid.worldToGrid(target.x, target.y);
-    const floor = engine.terrainManager.getFloorTile(cell.col, cell.row);
-    const effective = getEffectiveTerrain(floor, engine.terrainManager.grid.get(cell.col, cell.row));
-    return isOnStone(effective, floor?.destructible);
-}
-
-export const EarthernPunchAbility: AbilityStatic = {
+export const EarthernPunchAbility = defineAbility({
     id: EARTHERN_PUNCH_ABILITY_ID,
     tags: ['melee'],
     name: 'Earthern Punch',
@@ -77,44 +72,9 @@ export const EarthernPunchAbility: AbilityStatic = {
             resolveTooltipContext(gameState, { ability: { id: EARTHERN_PUNCH_ABILITY_ID } }),
         );
     },
-    getAbilityStates(): [] {
-        return [];
-    },
     getRange(caster: Unit): { minRange: number; maxRange: number } {
         return { minRange: 0, maxRange: MAX_RANGE + caster.radius };
     },
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        if (!(prevTime < 0.2 && currentTime >= 0.2)) return;
-        const eng = engine as EngineLike;
-        const targetPos = getPixelTargetPosition(targets, 0);
-        if (!targetPos) return;
-        const clamped = getAimPointClampedToMaxRange(caster, targetPos, MAX_RANGE + caster.radius);
-        const hitUnits = ThickLineHitbox.getUnitsInHitbox(
-            eng,
-            caster,
-            caster.x,
-            caster.y,
-            clamped.x,
-            clamped.y,
-            LINE_THICKNESS,
-        );
-        for (const targetUnit of hitUnits) {
-            let damage = BASE_DAMAGE;
-            if (isTargetStandingOnStone(eng, targetUnit)) damage += STONE_BONUS_DAMAGE;
-            tryDamageOrBlock(targetUnit, {
-                engine: eng,
-                gameTime: eng.gameTime,
-                eventBus: eng.eventBus,
-                attackerX: caster.x,
-                attackerY: caster.y,
-                attackerId: caster.id,
-                abilityId: EARTHERN_PUNCH_ABILITY_ID,
-                damage,
-                attackType: 'melee',
-            });
-        }
-    },
-    onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {},
     renderTargetingPreview(
         gr: IAbilityPreviewGraphics,
         caster: Unit,
@@ -125,7 +85,7 @@ export const EarthernPunchAbility: AbilityStatic = {
         const aim = getAimPointClampedToMaxRange(caster, mouseWorld, MAX_RANGE + caster.radius);
         ThickLineHitbox.renderTargetingPreview(gr, caster, aim, MAX_RANGE + caster.radius, LINE_THICKNESS);
     },
-};
+});
 
 export const EarthernPunchCard: CardDef = {
     abilityId: EARTHERN_PUNCH_ABILITY_ID,

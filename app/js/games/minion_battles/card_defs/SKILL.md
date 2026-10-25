@@ -38,7 +38,7 @@ A 4-digit ability id is `<group><index>`: the first two digits are the **group**
 
 **Abilities should contain as little logic as possible.** Use helpers from `abilities/` so an ability reads as a list of behaviours.
 
-- Implement `doCardEffect` by calling helpers keyed to clear behaviours; do not inline geometry, damage/block checks or drawing when a helper exists or can be added. Helper files: `targetHelpers.ts`, `effectHelpers.ts`, `previewHelpers.ts`, `gunHelpers.ts`, `blockingHelpers.ts`, `petCommands.ts`.
+- Compose `castBehaviours` (see `abilities/CastBehaviours/index.ts`) by calling helpers keyed to clear behaviours; do not inline geometry, damage/block checks or drawing when a helper exists or can be added. Helper files: `targetHelpers.ts`, `effectHelpers.ts`, `previewHelpers.ts`, `gunHelpers.ts`, `blockingHelpers.ts`, `petCommands.ts`.
 - **Hitboxes (combat):** collect targets via a hitbox (`CircleHitbox` / `ThickLineHitbox` / `resolveHitbox`) or a wrapping helper such as `damageEnemiesInCircle`; never hand-roll radius or capsule loops. Environment damage stays on direct `takeDamage` / tile paths. See **working-with-hitboxes**.
 
 ## Reuse before you build
@@ -58,7 +58,7 @@ Break the ability into parts (movement, hitbox, effect, event rule, CastBehaviou
 
 ## Juicing the game
 
-Correct rules are not enough: make the cast readable (telegraph, payoff, result). Ask for each ability about anticipation (`prefireTime`, `renderTargetingPreview`, early timing bands), impact (align one-shot `doCardEffect` thresholds with timing intervals), and aftermath (recovery and labels).
+Correct rules are not enough: make the cast readable (telegraph, payoff, result). Ask for each ability about anticipation (`prefireTime`, `renderTargetingPreview`, early timing bands), impact (align one-shot behaviours (`Instant`) with timing intervals), and aftermath (recovery and labels).
 
 - **Enemy hitbox telegraph:** for enemy abilities whose `renderActivePreview` shows a non-line projected area, use `previewHelpers` (`drawEnemyConeHitboxTelegraph`, `drawEnemyConvexQuadHitboxTelegraph`): faint red stroke, red fill growing from the shape centre, full red stroke from `prefireTime` through any linger. Leave line / thick-capsule previews alone. Ask the player if centring or geometry is ambiguous.
 - **`abilityTimings` palette:** red = `active` (damage); light green = `active` + `tags: ['iframe']`; sky blue = `active` + `tags: ['juggernaut']`; white = `startup`; gray = `cooldown`. `iframe` / `juggernaut` are tags on an `AbilityTimingInterval`, not phases.
@@ -70,7 +70,7 @@ Correct rules are not enough: make the cast readable (telegraph, payoff, result)
 
 - A **design comment** before imports: one prose paragraph (4 lines max) on what it looks like to use, its role in the kit, and how it plays out.
 - The **ability** (`AbilityStatic`, `abilities/Ability.ts`) and the **CardDef** (`card_defs/types.ts`) with the same 4-digit id; `abilityId` points at the ability. Both exported from the one file. Shared values go in top-level constants.
-- `doCardEffect(engine, caster, targets, prevTime, currentTime)` runs every tick; use `prevTime` / `currentTime` for one-shots. `renderTargetingPreview(gr, caster, currentTargets, mouseWorld, units)` draws the targeting hint. Implement the rest of `AbilityStatic` as needed; card `image` files stay in the card's folder (see **minion-battles-assets**).
+- Abilities act only through `castBehaviours` on `abilityTimings` intervals (no per-tick hook); use `Instant` for one-shots. `renderTargetingPreview(gr, caster, currentTargets, mouseWorld, units)` draws the targeting hint. Implement the rest of `AbilityStatic` as needed; card `image` files stay in the card's folder (see **minion-battles-assets**).
 - **Range** = range value + source object size + target object size.
 - **Serialization:** store unit ids, not references.
 - **Blocking:** `onAttackBlocked` is optional (projectiles deactivate, charges knock back the attacker, melee omits it). Blocking abilities implement `getBlockingArc`; projectiles need `sourceAbilityId`.
@@ -100,7 +100,7 @@ An `AbilityStatic` with `passive?: PassiveDef` (`abilities/passiveDef.ts`, which
 - [ ] Group folder `NN_slug/` chosen per **Folder and id convention** (new group: enum member first); folder `####_AbilityName/` and file `####Ability.ts` created.
 - [ ] Id = group (2 digits) + index (2 digits), not reused; supers in the 90+ range.
 - [ ] One file exports ability and `CardDef` with matching `id` / `abilityId`.
-- [ ] Non-empty interval `abilityTimings`; `doCardEffect` and `renderTargetingPreview` implemented.
+- [ ] Non-empty interval `abilityTimings`; `castBehaviours` and `renderTargetingPreview` implemented.
 - [ ] Registered in `AbilityRegistry.ts` and `card_defs/index.ts`.
 - [ ] Character card list or research node grants the card where applicable (research costs: see **research-trees** and `app/js/researchTrees/researchCostPolicy.ts`).
 - [ ] New enemy character: add to `BESTIARY_ENTRIES` in `app/js/components/minionBattlesHomePage/BestiaryPanel.tsx`; the entry list is built from the bestiary unit ids there.

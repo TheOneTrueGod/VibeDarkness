@@ -9,7 +9,7 @@ import type { EventBus } from '../game/EventBus';
 import type { WorldModifierDef, WorldEventType, SerializedWorldModifierInstance } from './types';
 import type { WorldCondition } from './WorldCondition';
 import type { WorldEffect } from './WorldEffect';
-import type { WorldRuleEvalContext, WorldEventContext } from './WorldModifierRuntime';
+import type { WorldRuleEvalContext, WorldEventContext, WorldEffectCallbacks } from './WorldModifierRuntime';
 import type { LightSource } from '../game/lightSources/LightSource';
 import { evaluateCondition, applyEffect } from './WorldModifierRuntime';
 import { type DispatchableRule, dispatchEventRules } from './EventRuleDispatcher';
@@ -212,6 +212,37 @@ export class WorldModifierManager {
         if (inst) inst.disabled = disabled;
     }
 
+    /** Current value of a modifier's counter (0 when the modifier or counter does not exist). */
+    getCounter(modifierId: string, counterId: string): number {
+        return this.instances.get(modifierId)?.counters[counterId] ?? 0;
+    }
+
+    /**
+     * Run effects on behalf of a unit (a phase's `onEnter`) instead of a modifier rule. Effects see the unit's
+     * position as `'victim'`; `incrementCounter` must name its `modifierId`. The `spawnLightSource` stacking
+     * policy is the default (`stack`) since no modifier owns the call.
+     */
+    applyEffectsForUnit(
+        effects: readonly WorldEffect[],
+        unit: { id: string; characterId: string; x: number; y: number },
+    ): void {
+        const evalCtx: WorldRuleEvalContext = {
+            event: {
+                eventType: 'on_unit_effect',
+                unitId: unit.id,
+                characterId: unit.characterId,
+                x: unit.x,
+                y: unit.y,
+                roundNumber: this.ctx.roundNumber,
+            },
+            counters: {},
+            isObjectiveCompleted: (id) => this.ctx.isObjectiveCompleted(id),
+        };
+        for (const effect of effects) {
+            applyEffect(effect, evalCtx, this.ctx, this.buildEffectCallbacks(null));
+        }
+    }
+
     // -----------------------------------------------------------------------
     // Debug snapshot
     // -----------------------------------------------------------------------
@@ -273,6 +304,44 @@ export class WorldModifierManager {
     // Internal dispatch
     // -----------------------------------------------------------------------
 
+    /** Effect callbacks; `owner` is the instance whose rule is running (null for unit-run effects). */
+    private buildEffectCallbacks(owner: WorldModifierInstance | null): WorldEffectCallbacks {
+        return {
+            onIncrementCounter: (counterId, amount, modifierId) => {
+                const target = modifierId != null ? this.instances.get(modifierId) : owner;
+                if (!target) {
+                    console.warn(`[WorldModifierManager] incrementCounter "${counterId}" has no target modifier (set modifierId)`);
+                    return;
+                }
+                target.counters[counterId] = (target.counters[counterId] ?? 0) + amount;
+            },
+            onAddModifier: (def) => this.addModifier(def),
+            onRemoveModifier: (id) => this.removeModifier(id),
+            onSetDisabled: (id, disabled) => this.setDisabled(id, disabled),
+            onCustomEffect: (effectId, params, ruleCtx) => {
+                const handler = this.customEffectHandlers.get(effectId);
+                if (handler) {
+                    handler(params, ruleCtx, this.ctx);
+                } else {
+                    console.warn(`[WorldModifierManager] no handler for custom effectId "${effectId}"`);
+                }
+            },
+            getSpawnedLightSourcesAtCell: (col, row) => {
+                const result: Array<{ id: string; ls: LightSource }> = [];
+                for (const [id, entry] of this.spawnedLightSources) {
+                    if (entry.col === col && entry.row === row) result.push({ id, ls: entry.ls });
+                }
+                return result;
+            },
+            onDeactivateSpawnedLightSource: (id) => {
+                this.spawnedLightSources.delete(id);
+            },
+            onRegisterSpawnedLightSource: (id, ls, col, row) => {
+                this.spawnedLightSources.set(id, { ls, col, row });
+            },
+        };
+    }
+
     private dispatchForEvent(eventType: WorldEventType, rawCtx: WorldEventContext): void {
         const sortedInstances = [...this.instances.values()].sort(
             (a, b) => (b.def.priority ?? 0) - (a.def.priority ?? 0),
@@ -312,35 +381,7 @@ export class WorldModifierManager {
                 {
                     evaluateCondition: (cond, ctx) => evaluateCondition(cond, ctx),
                     applyEffect: (effect, ctx) => {
-                        applyEffect(effect, ctx, this.ctx, {
-                            onIncrementCounter: (counterId, amount) => {
-                                inst.counters[counterId] = (inst.counters[counterId] ?? 0) + amount;
-                            },
-                            onAddModifier: (def) => this.addModifier(def),
-                            onRemoveModifier: (id) => this.removeModifier(id),
-                            onSetDisabled: (id, disabled) => this.setDisabled(id, disabled),
-                            onCustomEffect: (effectId, params, ruleCtx) => {
-                                const handler = this.customEffectHandlers.get(effectId);
-                                if (handler) {
-                                    handler(params, ruleCtx, this.ctx);
-                                } else {
-                                    console.warn(`[WorldModifierManager] no handler for custom effectId "${effectId}"`);
-                                }
-                            },
-                            getSpawnedLightSourcesAtCell: (col, row) => {
-                                const result: Array<{ id: string; ls: LightSource }> = [];
-                                for (const [id, entry] of this.spawnedLightSources) {
-                                    if (entry.col === col && entry.row === row) result.push({ id, ls: entry.ls });
-                                }
-                                return result;
-                            },
-                            onDeactivateSpawnedLightSource: (id) => {
-                                this.spawnedLightSources.delete(id);
-                            },
-                            onRegisterSpawnedLightSource: (id, ls, col, row) => {
-                                this.spawnedLightSources.set(id, { ls, col, row });
-                            },
-                        }, inst.def);
+                        applyEffect(effect, ctx, this.ctx, this.buildEffectCallbacks(inst), inst.def);
                     },
                 },
             );

@@ -14,7 +14,7 @@ import {
     tryQueueAbilityOrder,
     queueWaitAndEndTurn,
 } from '../utils';
-import { getPerceptionRange } from '../../unit_defs/unitDef';
+import { getPerceptionRange, getUnitHuntsSinglePrey } from '../../unit_defs/unitDef';
 
 function getSightRadius(unit: Unit): number {
     const ctx = unit.aiContext as AlphaWolfBossAITreeContext;
@@ -69,7 +69,7 @@ export const alphaWolfBoss_attack: AINode<'alphaWolfBoss', AlphaWolfBossNodeId> 
             }
 
             const target =
-                unit.characterId === 'alpha_wolf'
+                getUnitHuntsSinglePrey(unit.characterId)
                     ? pickOrGetPrey(unit, context)
                     : inSight[0] ?? null;
 

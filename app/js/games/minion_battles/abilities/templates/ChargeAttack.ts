@@ -1,6 +1,6 @@
 import { AbilityBase } from '../AbilityBase';
 import type { AbilityRecoveryRule, AbilityAISettings, AbilityNinjutsuConfig } from '../Ability';
-import { AbilityPhase, type AbilityTimingInterval, activeTimingIds } from '../abilityTimings';
+import { AbilityPhase, type AbilityTimingInterval } from '../abilityTimings';
 import type { AbilityStatic, IAbilityPreviewGraphics, AttackBlockedInfo } from '../Ability';
 import type { UnitTag } from '../../game/units/unitTag';
 import type { AbilityEngineContext } from '../AbilityEngineContext';
@@ -8,10 +8,10 @@ import type { Unit } from '../../game/units/Unit';
 import type { TargetDef } from '../targeting';
 import type { ActiveAbility, ResolvedTarget } from '../../game/types';
 import type { CardDef } from '../../card_defs/types';
-import { computeLungeChargeDirection, LungeMovement } from '../behaviors/LungeMovement';
-import { ThickLineHitbox } from '../../hitboxes/ThickLineHitbox';
+import { computeLungeChargeDirection } from '../behaviors/LungeMovement';
+import { CastBehaviours } from '../CastBehaviours';
+import type { ChargeBehaviour } from '../CastBehaviours/ChargeBehaviour';
 import { Effect } from '../../game/effects/Effect';
-import { tryDamageOrBlock } from '../blockingHelpers';
 import { tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
 import { createChargeCapsuleTargetPreview, drawChargeCapsuleTimingTelegraph } from '../previewHelpers';
 import { getDirectionFromTo } from '../targetHelpers';
@@ -77,7 +77,6 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 	readonly interruptPolicy = { beforeCooldown: 'skipToCooldown' as const };
 
 	private readonly config: ChargeAttackConfig;
-	private readonly lungeMovement: LungeMovement;
 	/** End of windup interval (exclusive); same as lunge phase start. */
 	private readonly windupEnd: number;
 
@@ -94,7 +93,13 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 		this.prefireTime = w + l;
 		this.abilityTimings = [
 			{ id: 'windup', start: 0, end: w, abilityPhase: AbilityPhase.Windup, doNotRefund: true },
-			{ id: 'lunge', start: w, end: w + l, abilityPhase: AbilityPhase.Active },
+			{
+				id: 'lunge',
+				start: w,
+				end: w + l,
+				abilityPhase: AbilityPhase.Active,
+				castBehaviours: [{ timingStart: 'start', timingEnd: 'end', behaviour: this.buildChargeBehaviour() }],
+			},
 			{ id: 'cooldown', start: w + l, end: w + l + cd, abilityPhase: AbilityPhase.Cooldown },
 		];
 		this.targets = [{ type: 'pixel', label: 'Charge direction' }] as TargetDef[];
@@ -103,11 +108,6 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 			maxRange: config.aiMaxRange,
 			...(config.aiNinjutsu ? { ninjutsu: config.aiNinjutsu } : {}),
 		};
-		this.lungeMovement = new LungeMovement({
-			maxRange: config.baseMaxRange,
-			lungeDuration: l,
-			windupTime: w,
-		});
 		this.renderTargetingPreview = createChargeCapsuleTargetPreview({
 			getDashLength: (caster: Unit) => config.baseMaxRange + caster.radius,
 			getCapsuleThickness: (caster: Unit) => caster.radius * config.capsuleRadiusMultiplier,
@@ -120,6 +120,34 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 
 	get cardDef(): CardDef {
 		return { abilityId: this.config.id };
+	}
+
+	/** Lunge plus path damage over the lunge window; clears the note when the lunge ends. */
+	private buildChargeBehaviour(): ChargeBehaviour<ChargeNote> {
+		const config = this.config;
+		return CastBehaviours.Charge<ChargeNote>({
+			maxRange: config.baseMaxRange,
+			lungeDuration: config.lungeDuration,
+			capsuleRadiusMultiplier: config.capsuleRadiusMultiplier,
+			damage: config.damage,
+			getNote: (ctx) => this.getChargeNote(ctx.caster, { castPayload: ctx.castPayload }),
+		})
+			.withBlockSource('approach')
+			.withStopOnBlocked()
+			.withClearNoteOnEnd()
+			.withOnHit((unit, ctx) => {
+				const eng = ctx.engine;
+				const angleRad = (eng.generateRandomInteger(0, 359) * Math.PI) / 180;
+				const radiusFactor = eng.generateRandomInteger(0, 100) / 100;
+				const offsetR = unit.radius * 0.5 * radiusFactor;
+				eng.addEffect(new Effect({
+					x: unit.x + Math.cos(angleRad) * offsetR,
+					y: unit.y + Math.sin(angleRad) * offsetR,
+					duration: config.effectDuration,
+					effectType: config.effectType,
+					effectRadius: ctx.caster.radius * 2,
+				}));
+			});
 	}
 
 	getTooltipText(gameState?: unknown): string[] {
@@ -144,35 +172,6 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 		if (note) {
 			active.castPayload = note;
 			this.setAbilityNote(caster, note);
-		}
-	}
-
-	doCardEffect(
-		engine: unknown,
-		caster: Unit,
-		_targets: ResolvedTarget[],
-		prevTime: number,
-		currentTime: number,
-		active?: ActiveAbility,
-	): void {
-		const eng = engine as AbilityEngineContext;
-
-		const note = this.getChargeNote(caster, active);
-		if (!note) return;
-
-		if (activeTimingIds(currentTime, this.getAbilityTimingIntervals()).has('windup')) return;
-
-		if (note.lungeOriginX === undefined) {
-			note.lungeOriginX = caster.x;
-			note.lungeOriginY = caster.y;
-		}
-
-		const segment = this.lungeMovement.advance(caster, note, prevTime, currentTime, eng);
-		this.damageEnemiesInPath(eng, caster, note, segment);
-
-		if (currentTime >= this.prefireTime) {
-			if (active) active.castPayload = undefined;
-			this.clearAbilityNote(caster);
 		}
 	}
 
@@ -259,7 +258,7 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 	}
 
 	/** Prefer `active.castPayload`; fall back to unit ability note (older checkpoints). */
-	private getChargeNote(caster: Unit, active?: ActiveAbility): ChargeNote | null {
+	private getChargeNote(caster: Unit, active?: Pick<ActiveAbility, 'castPayload'>): ChargeNote | null {
 		const payload = active?.castPayload;
 		if (payload && typeof payload === 'object' && 'lungeStartX' in payload) {
 			return payload as ChargeNote;
@@ -290,93 +289,6 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 			chargeDirY,
 			hitTargetIds: [],
 		};
-	}
-
-	private damageEnemiesInPath(
-		eng: AbilityEngineContext,
-		caster: Unit,
-		note: ChargeNote,
-		segment: { fromX: number; fromY: number; toX: number; toY: number },
-	): void {
-		const capsuleRadius = caster.radius * this.config.capsuleRadiusMultiplier;
-		const hitUnits = ThickLineHitbox.getUnitsInHitbox(
-			eng, caster, segment.fromX, segment.fromY, segment.toX, segment.toY, capsuleRadius,
-		);
-
-		/** Blocking uses attack direction vs shield arc; centroid flips sides once overlaps — use approaching side. */
-		const blockAngleSource = this.getDirectionalBlockAttackSource(caster, note, segment);
-
-		for (const unit of hitUnits) {
-			if (note.hitTargetIds.includes(unit.id)) continue;
-			if (unit.hasIFrames(eng.gameTime)) continue;
-
-			const outcome = tryDamageOrBlock(unit, {
-				engine: eng,
-				gameTime: eng.gameTime,
-				eventBus: eng.eventBus,
-				attackerX: blockAngleSource.x,
-				attackerY: blockAngleSource.y,
-				attackerId: caster.id,
-				abilityId: this.config.id,
-				damage: this.config.damage,
-				attackType: 'charging',
-			});
-			if (!outcome.hit) return;
-			note.hitTargetIds.push(unit.id);
-
-			const angleDeg = eng.generateRandomInteger(0, 359);
-			const angleRad = (angleDeg * Math.PI) / 180;
-			const radiusFactor = eng.generateRandomInteger(0, 100) / 100;
-			const maxOffset = unit.radius * 0.5;
-			const offsetR = maxOffset * radiusFactor;
-			const offsetX = Math.cos(angleRad) * offsetR;
-			const offsetY = Math.sin(angleRad) * offsetR;
-
-			eng.addEffect(new Effect({
-				x: unit.x + offsetX,
-				y: unit.y + offsetY,
-				duration: this.config.effectDuration,
-				effectType: this.config.effectType,
-				effectRadius: caster.radius * 2,
-			}));
-		}
-	}
-
-	/**
-	 * World point used for directional block checks (angle from defender toward "incoming").
-	 * Prefer a point behind the charger along motion so the blocked arc stays stable through overlap/passthrough.
-	 */
-	private getDirectionalBlockAttackSource(
-		caster: Unit,
-		note: ChargeNote,
-		segment: { fromX: number; fromY: number; toX: number; toY: number },
-	): { x: number; y: number } {
-		const lookbackPx = Math.max(caster.radius * 6, 120);
-		let nx: number | undefined;
-		let ny: number | undefined;
-		if (note.chargeDirX !== undefined && note.chargeDirY !== undefined) {
-			const mag = Math.hypot(note.chargeDirX, note.chargeDirY);
-			if (mag > 1e-6) {
-				nx = note.chargeDirX / mag;
-				ny = note.chargeDirY / mag;
-			}
-		}
-		if (nx === undefined || ny === undefined) {
-			const dx = segment.toX - segment.fromX;
-			const dy = segment.toY - segment.fromY;
-			const mag = Math.hypot(dx, dy);
-			if (mag > 1e-6) {
-				nx = dx / mag;
-				ny = dy / mag;
-			}
-		}
-		if (nx !== undefined && ny !== undefined) {
-			return {
-				x: caster.x - nx * lookbackPx,
-				y: caster.y - ny * lookbackPx,
-			};
-		}
-		return { x: caster.x, y: caster.y };
 	}
 }
 

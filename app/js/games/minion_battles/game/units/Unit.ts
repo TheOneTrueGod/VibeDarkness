@@ -35,7 +35,6 @@ import {
     getDefaultRadius,
     getUnitCombatCcDef,
     getUnitComponentSpecs,
-    getUnitEnrageDef,
     getUnitTerrainCrushDamage,
     PLAYER_CHARACTER_ID,
     resolvePlayerUnitRadius,
@@ -43,7 +42,6 @@ import {
 import { getHealthBonusFromResearch } from '../../research/researchTrainingEffects';
 import { evaluateSwapTriggers } from '../../abilities/abilitySwap';
 import { UnitTag } from './unitTag';
-import type { EnrageDef } from './enrageDef';
 import type { EngineContext } from '../EngineContext';
 import { tickUnitActiveAbilities } from './unitAbilityTick';
 import { localNow } from '../time/actorClock';
@@ -209,11 +207,6 @@ export class Unit extends GameObject {
      * Serialized only when non-null.
      */
     controlGroupId: string | null = null;
-
-    /** Enrage trigger sourced from the unit def — no backing field or serialization needed. */
-    get enrageDef(): EnrageDef | undefined {
-        return getUnitEnrageDef(this.characterId);
-    }
 
     /** Per-unit timing/directional seed in [0, 1]. Set once at spawn; use for jitter, timing offsets, phase spreads. */
     moveJitter: number = 0;

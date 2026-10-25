@@ -43,7 +43,6 @@ describe('AbilityEventRuntime', () => {
             targets: [],
             abilityTimings: [{ id: 'x', start: 0, end: 1, abilityPhase: AbilityPhase.Active }],
             getTooltipText: () => [''],
-            doCardEffect: () => {},
             getAbilityStates: () => [],
             onAttackBlocked: () => {},
             abilityEvents: {
@@ -105,7 +104,6 @@ describe('AbilityEventRuntime', () => {
             targets: [],
             abilityTimings: [{ id: 'x', start: 0, end: 1, abilityPhase: AbilityPhase.Active }],
             getTooltipText: () => [''],
-            doCardEffect: () => {},
             getAbilityStates: () => [],
             onAttackBlocked: () => {},
             abilityEvents: {
@@ -166,7 +164,6 @@ describe('AbilityEventRuntime', () => {
             targets: [],
             abilityTimings: [{ id: 'x', start: 0, end: 1, abilityPhase: AbilityPhase.Active }],
             getTooltipText: () => [''],
-            doCardEffect: () => {},
             getAbilityStates: () => [],
             onAttackBlocked: () => {},
             abilityEvents: {
@@ -221,7 +218,6 @@ describe('AbilityEventRuntime', () => {
             targets: [],
             abilityTimings: [{ id: 'x', start: 0, end: 1, abilityPhase: AbilityPhase.Active }],
             getTooltipText: () => [''],
-            doCardEffect: () => {},
             getAbilityStates: () => [],
             onAttackBlocked: () => {},
             abilityEvents: {
@@ -305,7 +301,6 @@ describe('AbilityEventRuntime', () => {
             targets: [],
             abilityTimings: [{ id: 'x', start: 0, end: 1, abilityPhase: AbilityPhase.Active }],
             getTooltipText: () => [''],
-            doCardEffect: () => {},
             getAbilityStates: () => [],
             onAttackBlocked: () => {},
             abilityEvents: {

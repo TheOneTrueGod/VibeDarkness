@@ -265,7 +265,7 @@ export class LightEmpoweredMission extends BaseMissionDef {
 
 	override initializeGameState(engine: Parameters<BaseMissionDef['initializeGameState']>[0], params: Parameters<BaseMissionDef['initializeGameState']>[1]): void {
 		super.initializeGameState(engine, params);
-		const boar = engine.units.find((u) => u.characterId === 'boar');
+		const boar = engine.units.find((u) => u.tags.includes(UnitTag.Boar));
 		if (boar && params.terrainManager?.grid) {
 			const grid = params.terrainManager.grid;
 			const { col, row } = grid.worldToGrid(boar.x, boar.y);

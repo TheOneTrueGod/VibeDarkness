@@ -1,6 +1,7 @@
 /**
  * Digging Claws – Earth Core card. Wall-penetrating dash that damages rock tiles in transit.
- * The cast ends as soon as the dash does (no cooldown). If the dash ends inside a wall, the dash's
+ * Built on `CastBehaviours.Dash` (pass-through-terrain, path-tile hook and a touch hitbox), so no
+ * `doCardEffect` or ability note is needed. The cast ends as soon as the dash does (no cooldown). If the dash ends inside a wall, the dash's
  * conditional cancel lets the player chain another Entombed ability; otherwise the shared
  * wall-unstick system (`tickWallUnstick`) pushes the unit out.
  */
@@ -10,18 +11,17 @@ import { AbilityState, AbilityEventType } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import { FIXED_DT } from '../../../game/gameConstants';
 import { createPixelTargetPreview } from '../../../abilities/previewHelpers';
+import { CastBehaviours } from '../../../abilities/CastBehaviours';
+import { strikeTerrain } from '../../../abilities/CastBehaviours/TerrainStrikeBehaviour';
 import { nullHitbox } from '../../../hitboxes';
 import type { ResolvedTarget, ActiveAbility } from '../../../game/types';
 import type { Unit } from '../../../game/units/Unit';
 import { Effect } from '../../../game/effects/Effect';
 import { type CardDef } from '../../types';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
-import { getPixelTargetPosition, getDirectionFromTo, damageEnemiesTouchingCaster } from '../../../abilities/targetHelpers';
 import { getBodyColorForUnit, getCharacterSpriteKey } from '../../../game/units/unit_defs/unitDef';
-import { isAbilityNote } from '../../../game/AbilityNote';
 import { ContinuousEmitter, IntervalEmitter } from '../../../game/effects/EffectEmitter';
 import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
-import type { TerrainManager } from '../../../terrain/TerrainManager';
 import { TerrainType } from '../../../terrain/TerrainType';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import {
@@ -63,19 +63,24 @@ const DIGGING_CLAWS_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.or
         stroke="#a07840" stroke-width="3.5" fill="none" stroke-linecap="round"/>
 </svg>`;
 
-/** Damage a rock tile at the caster's current position (once per unique tile per cast). */
-function maybeDamageCurrentTile(
-	caster: Unit,
-	tm: TerrainManager,
-	damagedTileKeys: string[],
-): void {
-	if (tm.isPassable(caster.x, caster.y)) return;
-	const cell = tm.grid.worldToGrid(caster.x, caster.y);
-	const key = `${cell.col},${cell.row}`;
-	if (damagedTileKeys.includes(key)) return;
-	damagedTileKeys.push(key);
-	tm.damageRock(cell.col, cell.row, ROCK_DAMAGE, caster.id);
-}
+/**
+ * The dash: a fixed-speed run of `MAX_DISTANCE` that ignores terrain, damages every intact rock tile
+ * it enters (once per tile), and hits up to `DIGGING_CLAWS_MAX_TARGETS` enemies it touches, once each.
+ * The knockback on each hit is an `abilityEvents` rule below.
+ */
+const diggingDash = CastBehaviours.Dash()
+	.withMaxDistance(MAX_DISTANCE)
+	.withConstantSpeed()
+	.withPassThroughTerrain()
+	.withOnPathTile((ctx, tile) => {
+		strikeTerrain(ctx.engine, ctx.caster, [tile], { kind: 'damageRock', amount: ROCK_DAMAGE });
+	})
+	.addHitbox('caster', { shape: 'circle', range: 'caster' }, {
+		damage: UNIT_DAMAGE,
+		attackType: 'melee',
+		filter: 'enemy',
+		maxTargets: DIGGING_CLAWS_MAX_TARGETS,
+	});
 
 export const DiggingClawsAbility: AbilityStatic = {
 	id: CARD_ID,
@@ -96,6 +101,7 @@ export const DiggingClawsAbility: AbilityStatic = {
 			doNotRefund: true,
 			tags: ['iframe'] as const,
 			targetDef: { kind: 'select', label: 'Direction to dash', hitbox: nullHitbox, filter: 'any', allowMiss: true },
+			behaviour: diggingDash,
 			conditionalCancel: {
 				condition: ({ caster, engine }) => {
 					const terrain = engine.terrainManager;
@@ -205,66 +211,6 @@ export const DiggingClawsAbility: AbilityStatic = {
 		eng.addEffectEmitter(rockDebrisEmitter);
 
 		active.castPayload = { afterimageEmitter: emitter };
-	},
-
-	doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-		const eng = engine as AbilityEngineContext;
-		const tm: TerrainManager | null = eng.terrainManager ?? null;
-
-		// ── Init ──────────────────────────────────────────────────────────────────────
-		if (prevTime < 0.05 && currentTime >= 0.05) {
-			caster.setAbilityNote({
-				abilityId: CARD_ID,
-				abilityNote: {
-					hitTargetIds: [],
-					damagedTileKeys: [],
-				},
-			});
-		}
-
-		// ── Dash over: the cast ends on this tick ─────────────────────────────────────
-		// A unit left inside rock is pushed out by the shared wall-unstick system.
-		if (currentTime >= DASH_DURATION) {
-			if (isAbilityNote(caster.abilityNote, CARD_ID)) caster.clearAbilityNote();
-			return;
-		}
-
-		// ── Dash phase (currentTime < DASH_DURATION) ──────────────────────────────────
-		const pos = getPixelTargetPosition(targets, 0);
-		const dirResult = pos ? getDirectionFromTo(caster.x, caster.y, pos.x, pos.y) : null;
-		const distToTarget = dirResult?.dist ?? 0;
-		const moveDistance =
-			distToTarget > 0
-				? Math.min(
-					((currentTime - prevTime) / DASH_DURATION) * MAX_DISTANCE,
-					distToTarget,
-				)
-				: 0;
-
-		// Wall-penetrating movement: bypass terrain check, call moveUnit directly
-		if (pos && distToTarget > 0 && moveDistance > 0) {
-			caster.invalidateMovementPath();
-			caster.moveUnit(pos.x, pos.y, moveDistance);
-
-			// Rock tile damage in transit
-			if (tm && isAbilityNote(caster.abilityNote, CARD_ID)) {
-				maybeDamageCurrentTile(caster, tm, caster.abilityNote.abilityNote.damagedTileKeys);
-			}
-		}
-
-		// Touch damage: hit enemies overlapping the caster after movement
-		if (isAbilityNote(caster.abilityNote, CARD_ID)) {
-			const note = caster.abilityNote.abilityNote;
-			damageEnemiesTouchingCaster({
-				engine: eng,
-				caster,
-				abilityId: CARD_ID,
-				damage: UNIT_DAMAGE,
-				attackType: 'melee',
-				alreadyHitIds: note.hitTargetIds,
-				maxTargets: DIGGING_CLAWS_MAX_TARGETS,
-			});
-		}
 	},
 
 	renderTargetingPreviewSelectedTargets: createPixelTargetPreview(MAX_DISTANCE),

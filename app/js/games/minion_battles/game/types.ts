@@ -389,12 +389,12 @@ export interface ActiveAbility {
     targets: ResolvedTarget[];
     /**
      * Set by one-shot abilities when their effect has fired (prevents duplicate triggers).
-     * @legacy TODO: remove when doCardEffect abilities are ported to CastBehaviours
+     * @legacy TODO: remove when remaining beginActiveCast abilities are ported to CastBehaviours
      */
     fired?: boolean;
     /**
      * Ability-specific snapshot set once in `beginActiveCast` (e.g. charge lunge vectors).
-     * Prefer this over inferring setup from `doCardEffect` phase boundaries. Serialized with checkpoints.
+     * Prefer this over inferring setup from phase boundaries. Serialized with checkpoints.
      */
     castPayload?: unknown;
     /**
@@ -427,7 +427,7 @@ export interface ActiveAbility {
     evadeFired?: boolean;
     /**
      * Set by the conditionalCancel system when a condition fires on interval exit.
-     * Prevents doCardEffect from running until the player resolves the decision.
+     * Prevents the cast from advancing until the player resolves the decision.
      * Cleared when "wait" is chosen; ability is cancelled if an ability is chosen instead.
      * Serialized.
      */

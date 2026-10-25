@@ -44,7 +44,20 @@ export interface RoundWorldContext {
     roundNumber: number;
 }
 
-export type WorldEventContext = UnitDiedWorldContext | RoundWorldContext;
+/**
+ * Context for effects run by a unit rather than a modifier rule (a phase's `onEnter`). `position: 'victim'` and
+ * `'killer'` both resolve to this unit's position.
+ */
+export interface UnitEffectWorldContext {
+    eventType: 'on_unit_effect';
+    unitId: string;
+    characterId: string;
+    x: number;
+    y: number;
+    roundNumber: number;
+}
+
+export type WorldEventContext = UnitDiedWorldContext | RoundWorldContext | UnitEffectWorldContext;
 
 // ---------------------------------------------------------------------------
 // Evaluation context (passed to both condition and effect handlers)
@@ -66,7 +79,7 @@ export interface WorldRuleEvalContext {
 // ---------------------------------------------------------------------------
 
 export interface WorldEffectCallbacks {
-    onIncrementCounter(counterId: string, amount: number): void;
+    onIncrementCounter(counterId: string, amount: number, modifierId?: string): void;
     onAddModifier(def: WorldModifierDef): void;
     onRemoveModifier(id: string): void;
     onSetDisabled(id: string, disabled: boolean): void;
@@ -169,11 +182,11 @@ export function applyEffect(
 ): void {
     switch (effect.type) {
         case 'spawnLightSource': {
-            if (ctx.event.eventType !== 'on_unit_died') break;
             const ev = ctx.event;
-            let x = ev.victimX;
-            let y = ev.victimY;
-            if (effect.position === 'killer' && ev.killerUnitId) {
+            if (ev.eventType !== 'on_unit_died' && ev.eventType !== 'on_unit_effect') break;
+            let x = ev.eventType === 'on_unit_died' ? ev.victimX : ev.x;
+            let y = ev.eventType === 'on_unit_died' ? ev.victimY : ev.y;
+            if (ev.eventType === 'on_unit_died' && effect.position === 'killer' && ev.killerUnitId) {
                 const killer = engine.getUnit(ev.killerUnitId);
                 if (killer) { x = killer.x; y = killer.y; }
             }
@@ -243,7 +256,7 @@ export function applyEffect(
         }
 
         case 'incrementCounter': {
-            callbacks.onIncrementCounter(effect.counterId, effect.amount ?? 1);
+            callbacks.onIncrementCounter(effect.counterId, effect.amount ?? 1, effect.modifierId);
             applyVisualEffects(effect.visualEffects, ctx, engine);
             break;
         }
@@ -304,6 +317,11 @@ function applyVisualEffects(
             // Unit already removed — use the pre-death position stored in the context.
             unit = { x: ctx.event.victimX, y: ctx.event.victimY, radius: 0, characterId: ctx.event.victimCharacterId };
         }
+    }
+
+    if (ctx.event.eventType === 'on_unit_effect') {
+        unit = engine.getUnit(ctx.event.unitId)
+            ?? { x: ctx.event.x, y: ctx.event.y, radius: 0, characterId: ctx.event.characterId };
     }
 
     if (!unit) {

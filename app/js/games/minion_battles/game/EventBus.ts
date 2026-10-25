@@ -18,6 +18,7 @@ export type GameEventType =
     | 'round_end'
     | 'unit_died'
     | 'unit_enraged'
+    | 'unit_phase_entered'
     | 'ability_used'
     | 'projectile_hit'
     | 'terrain_stone_damaged'
@@ -134,6 +135,17 @@ export interface UnitDiedEvent {
 export interface UnitEnragedEvent {
     unitId: string;
     tag: string;
+}
+
+/** A unit entered a phase (see `game/units/components/phaseDef.ts`). Fired once per phase, in order, even when one hit crosses several. */
+export interface UnitPhaseEnteredEvent {
+    unitId: string;
+    phaseId: string;
+    /** Zero-based position in the unit's phase list. */
+    phaseIndex: number;
+    label: string | null;
+    /** Tags the phase newly added (empty when it added none). */
+    tagsAdded: string[];
 }
 
 export interface AbilityUsedEvent {
@@ -285,6 +297,7 @@ export type GameEventDataMap = {
     round_end: RoundEndEvent;
     unit_died: UnitDiedEvent;
     unit_enraged: UnitEnragedEvent;
+    unit_phase_entered: UnitPhaseEnteredEvent;
     ability_used: AbilityUsedEvent;
     projectile_hit: ProjectileHitEvent;
     terrain_stone_damaged: TerrainStoneDamagedEvent;

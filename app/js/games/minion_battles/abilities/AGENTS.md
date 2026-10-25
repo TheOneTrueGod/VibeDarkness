@@ -6,7 +6,7 @@ Declarative cast timing, targeting, hitboxes, and reusable cast behaviours for M
 
 | Path | Owns |
 |------|------|
-| `CastBehaviours/` | Reusable timed behaviours (`CastBehaviours.MeleeAttack()`, Dash, ProjectileLaunch, Instant, CasterSlide, CasterShake, …). Prefer these over new `doCardEffect` melee boilerplate. |
+| `CastBehaviours/` | Reusable timed behaviours (`CastBehaviours.MeleeAttack()`, Dash, ProjectileLaunch, Instant, CasterSlide, CasterShake, Charge, SpawnUnits, Leap, GroundPatch, TerrainStrike, Pulse, …). Every ability is built from these (there is no per-tick ability hook). Blocks: MeleeAttack, Dash, ProjectileLaunch, Instant, InitAbilityNote, CasterSlide, CasterShake, Charge, SpawnUnits, Leap, GroundPatch, TerrainStrike, Pulse. |
 | `tileAreaHelpers.ts`, `telegraphStyles.ts`, `easing.ts`, `previewHelpers.ts` | Tile-area geometry and occupancy (`getUnitsInTiles`), named telegraph palettes, easing curves, and preview drawing. Tile hitboxes themselves are in `hitboxes/TileAreaHitboxSpec.ts`; its `tileShapes` (incl. `disc(r)`) and `cellsAroundPoint` also serve non-select AoEs (e.g. Thornbinder's landing footprint), with `damageEnemiesInTiles` / `placeJitteredGroundThorns({ cells })` in `targetHelpers.ts` so effect and `drawTileAreaTelegraph` preview share one cell list. |
 | `Ability.ts` / `AbilityRegistry.ts` | Ability static contract and id → ability lookup. New abilities must `register(...)` here or they are silently missing at runtime. |
 | `abilityTimings.ts` | Timing intervals, `emitterDef`, and `getEffectiveCastBehaviours` (normalises `castBehaviours` vs `behaviour` shorthand). Interval enter detection must treat `start: 0` correctly (`enteredTimingIds` special-cases the first tick — needed for emitters and Instant behaviours). |
@@ -23,7 +23,8 @@ Declarative cast timing, targeting, hitboxes, and reusable cast behaviours for M
 
 ## CastBehaviours — load-bearing rules
 
-- **Coexistence:** `doCardEffect` remains an escape hatch. New declarative abilities omit it. Ability-level `getCasterRenderOffset` and behaviour offsets are summed. `beginActiveCast` is still for cast-start setup; behaviour `onSetup` runs when that behaviour’s timing window opens.
+- **Only path:** `castBehaviours` (on `abilityTimings` intervals) is the only way an ability acts over time; the old per-tick `doCardEffect` hook was removed. Ability-level `getCasterRenderOffset` and behaviour offsets are summed. `beginActiveCast` is still for cast-start setup; behaviour `onSetup` runs when that behaviour’s timing window opens.
+- **Registered blocks** (`CastBehaviours.X`): `Charge(config)` lunge plus a damage sweep along the path (wraps `LungeMovement`); `SpawnUnits(config)` batch spawn through the spawner core, with a position picker (`offsetsFromCaster`) and an optional "replace previous batch"; `Leap(config)` airborne caster flight with landing hooks; `GroundPatch(config)` ground-effect patch with ownership replace rules; `TerrainStrike()` fluent terrain damage/consume at a point or tile area; `Pulse(config)` repeated pulses through a window, damage function receives the pulse number.
 - **Lock-on is independent of behaviours:** use `SelectTargetDef` + hitbox specs for pick/lock; pair with whatever `castBehaviours` fit the strike (e.g. teleport then melee).
 - **Multi-target entries:** one behaviour instance can be reused with different `targetIndex` values; `onSetup`/`onTick` run per entry when its window opens.
 - **Interrupt:** active sustained behaviours get `onInterrupt` when the cast is forcibly removed; already-finished windows do not.

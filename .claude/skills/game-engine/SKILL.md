@@ -15,6 +15,16 @@ description: Architecture of the GameEngine manager-of-managers pattern, tick lo
 
 `Unit` has no per-enemy-type fields. Enemy-specific state and hooks are **components**: a def declares `components: [componentSpec(LANTERNITE_COMPONENT, { role: 'nest' })]`, state lives in `unit.components` and is read through typed accessors (`lanterniteStateOf`, `swarmStateOf`, `petStateOf`; the `peek*` variants never attach and are for scans over all units). A component type (`units/components/unitComponent.ts`) owns `create`, `toJSON`, `fromJSON`; each slice writes its own top-level keys into the unit JSON (so adding or moving a component does not change the checkpoint shape as long as the keys are kept). Behaviour hooks (`tick`, `lateTick`, `onRoundMilestone`, `onDeath`) live in `units/components/unitComponentHooks.ts`, which also lists the dispatch order; `GameEngine` calls the dispatchers at the old call sites and never names an enemy type. Spawners share `units/components/spawnerCore.ts` (`SpawnerSpec`, `tickSpawner`, `spawnSpawnerChildren`). Worked example: `game/lanternite/AGENTS.md`.
 
+## Unit phases (bosses, elites, any unit)
+
+`UnitDefEntry.phases` is an ordered list of `UnitPhaseDef`s (`game/units/components/phaseDef.ts`). Each phase has an `enterWhen` condition (HP %, elapsed time, units alive, world-modifier counter, or `all`/`any` combinations), and when entered it can: add or remove tags, add or remove abilities, switch the AI tree or node, apply modifiers (tempo, damage multiplier), play a transition (Time Stop or story pause, an invulnerability window, a banner), and run `onEnter` world-modifier effects.
+
+- **State and checks:** a serialized `phase` component holds the state (`phaseComponent.ts`); `phaseRuntime.ts` evaluates conditions and enters phases. HP conditions are checked after damage events (`UnitManager`) and read the HP recorded at the last damage event, never live HP, so setting `hp` directly never enters a phase. Non-HP conditions are checked once per tick in the unit-component tick hook.
+- **One-way:** phases only advance. A hit that crosses several thresholds enters each phase in order. Phases work on any unit; never gate them on `UnitTag.Boss`.
+- **Enrage:** a one-phase preset, `enragePreset(threshold)`, used by the Alpha Wolf and the Displacer. `unit_enraged` still fires.
+- **Previews:** a phase entered during an ITS preview must behave exactly as in the committed run (`game/interaction/previewPhaseEquivalence.test.ts`).
+- **Old checkpoints:** a unit with no phase state, but which already carries every tag a phase adds, is treated as having entered that phase silently, so it never re-runs `onEnter`.
+
 ## Checkpoint versioning (read before changing serialized state)
 
 `GameEngine.toJSON` writes `serializationVersion` (`SERIALIZED_GAME_STATE_VERSION`); a missing field means version 0. `GameEngine.fromJSON` calls `upgradeSerializedGameState` (`game/serializedGameStateUpgrade.ts`) before it reads anything, so live checkpoints, recovery/resync, replay and ability tests all get upgraded. Any new code that deserializes a game state must go through `GameEngine.fromJSON` (never read checkpoint fields directly without upgrading).

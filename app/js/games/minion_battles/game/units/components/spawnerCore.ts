@@ -25,7 +25,7 @@ import type { Unit } from '../Unit';
 import type { AISettings } from '../unitTypes';
 import { UnitTag } from '../unitTag';
 import { spawnUnit, type SpawnUnitContext } from '../spawning/spawnUnit';
-import type { SpawnAiHookup } from '../spawning/spawnDefinition';
+import type { SpawnAiHookup, SpawnDefinition, SpawnPlacement } from '../spawning/spawnDefinition';
 
 /** Pacing and child bookkeeping for one spawner unit. Serialized by the owning component. */
 export interface SpawnerState {
@@ -80,7 +80,15 @@ export interface SpawnerSpec<Cfg> {
         spawner: Unit,
         livingChildren: number,
         env: SpawnerEnv,
-    ): { unitAITreeId: string; aiHookup: SpawnAiHookup } | null;
+    ): {
+        /** Omit to let `spawnUnit` resolve its own AI-tree fallback. */
+        unitAITreeId?: string;
+        aiHookup: SpawnAiHookup;
+        /** Explicit placement for this child (e.g. a chosen world point) instead of the default ring around the spawner. */
+        placement?: SpawnPlacement;
+        /** Fields merged over the generated definition last (stats, tags, ownership), for spawners whose children are not uniform. */
+        overrides?: Partial<SpawnDefinition>;
+    } | null;
 }
 
 /** Fresh state whose first burst is one interval away. */
@@ -128,7 +136,7 @@ export function spawnSpawnerChildren<Cfg>(args: {
                 teamId: child.team === 'inherit' ? spawner.teamId : child.team,
                 unitAITreeId: described.unitAITreeId,
                 aiSettings: child.aiSettings ? { ...child.aiSettings } : null,
-                placement: {
+                placement: described.placement ?? {
                     kind: 'relativeToUnit',
                     anchorUnitId: spawner.id,
                     maxRadiusPx: spawner.radius + child.spawnRadiusExtraPx,
@@ -143,6 +151,7 @@ export function spawnSpawnerChildren<Cfg>(args: {
                       }
                     : {}),
                 aiHookup: described.aiHookup,
+                ...described.overrides,
             },
             child.spawnSource,
         );

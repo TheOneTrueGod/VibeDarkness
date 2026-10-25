@@ -721,7 +721,6 @@ export function tickUnitActiveAbilities(
             }
         }
 
-        ability.doCardEffect?.(engine, unit, active.targets, safePrevTime, currentTime, active);
         triggerAbilityEvent({
             engine,
             caster: unit,

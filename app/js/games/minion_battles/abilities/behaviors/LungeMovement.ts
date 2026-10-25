@@ -90,7 +90,22 @@ export class LungeMovement {
     ): LungeSegment {
         const lungeElapsed = currentTime - this.windupTime;
         const lungeProgress = Math.min(1, lungeElapsed / this.lungeDuration);
+        const prevLungeProgress = Math.min(1, (prevTime - this.windupTime) / this.lungeDuration);
+        return this.advanceByProgress(caster, target, prevLungeProgress, lungeProgress, engine);
+    }
 
+    /**
+     * Same as {@link advance}, but takes lunge progress (0 at the lunge start, 1 at its end) directly.
+     * `prevLungeProgress` may be negative on the first lunge tick when the tick straddled the windup end.
+     * Used by the Charge cast behaviour, which reads its progress from its timing window.
+     */
+    advanceByProgress(
+        caster: Unit,
+        target: LungeTarget,
+        prevLungeProgress: number,
+        lungeProgress: number,
+        engine: AbilityEngineContext,
+    ): LungeSegment {
         let dirX: number;
         let dirY: number;
         if (
@@ -115,7 +130,6 @@ export class LungeMovement {
         const ox = target.lungeOriginX ?? target.lungeStartX;
         const oy = target.lungeOriginY ?? target.lungeStartY;
 
-        const prevLungeProgress = Math.min(1, (prevTime - this.windupTime) / this.lungeDuration);
         const prevDist = prevLungeProgress * this.maxRange;
         const fromX = ox + dirX * prevDist;
         const fromY = oy + dirY * prevDist;

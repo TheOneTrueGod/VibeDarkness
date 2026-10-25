@@ -188,7 +188,8 @@ export class MonsterMission extends BaseMissionDef {
     override initializeGameState(engine: Parameters<BaseMissionDef['initializeGameState']>[0], params: Parameters<BaseMissionDef['initializeGameState']>[1]): void {
         super.initializeGameState(engine, params);
 
-        const alphaWolf = engine.units.find((u) => u.characterId === 'alpha_wolf');
+        // The mission's boss is the one player-controllable unit (`controlGroupId: 'boss'`), not the summoned pack wolves.
+        const alphaWolf = engine.units.find((u) => u.controlGroupId === 'boss');
         if (alphaWolf) {
             alphaWolf.aiContext = { aiTree: 'alphaWolfBoss' as const, sightRadius: 400 };
         }

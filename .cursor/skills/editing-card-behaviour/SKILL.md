@@ -52,7 +52,7 @@ Abilities should read like a **list of behaviours**. Prefer utility functions in
 ### 7. Card definitions vs abilities
 
 - **Card definitions** (`CardDef` in `card_defs/types.ts`): Define `id`, `name`, `abilityId`, and `discardDuration`. See `card_defs/types.ts` for the full type.
-- **Abilities** (`AbilityStatic` in `abilities/Ability.ts`): Define runtime behaviour — `prefireTime`, required `abilityTimings` (total cast length and UI phases), resource cost, targets, `doCardEffect`, and `getAbilityStates`. While a unit has an active cast, it generally cannot take another action until that entry ends (driven by `abilityTimings`, not a separate per-ability cooldown stat). See existing abilities under `card_defs/` for reference implementations.
+- **Abilities** (`AbilityStatic` in `abilities/Ability.ts`): Define runtime behaviour — `prefireTime`, required `abilityTimings` (total cast length and UI phases), resource cost, targets, `castBehaviours` (on `abilityTimings` intervals), and `getAbilityStates`. While a unit has an active cast, it generally cannot take another action until that entry ends (driven by `abilityTimings`, not a separate per-ability cooldown stat). See existing abilities under `card_defs/` for reference implementations.
 
 ### 8. Editing guidelines
 
@@ -60,7 +60,7 @@ When **editing card behaviour**, follow this checklist:
 
 1. **Changing uses**: Edit `maxUses` in `ABILITY_USE_CONFIGS` (`abilities/abilityUses.ts`) for the ability ID. Add an entry if one doesn't exist — missing entries fall back to `maxUses: 1`. Also set `recoveries` to define how uses are restored (typically `staminaCharge`).
 2. **Changing discard timing**: Use `unit: 'rounds'` for round-tied pacing, `unit: 'seconds'` for real-time cooldown-like behaviour. Ensure the card can still be meaningfully drawn given hand size and draw rate.
-3. **Changing cast timing or prefire**: Distinguish **card cycle** (`discardDuration`) from **cast timeline** (`abilityTimings` + `prefireTime` used in behaviour / default movement lock). Keep `abilityTimings` consistent with what `doCardEffect` does so the unit is not stuck “casting” longer or shorter than the real effects. Avoid stacking very long discard timers with very long casts so the card still shows up in play.
+3. **Changing cast timing or prefire**: Distinguish **card cycle** (`discardDuration`) from **cast timeline** (`abilityTimings` + `prefireTime` used in behaviour / default movement lock). Keep `abilityTimings` consistent with what the `castBehaviours` do so the unit is not stuck “casting” longer or shorter than the real effects. Avoid stacking very long discard timers with very long casts so the card still shows up in play.
 4. **Changing resource cost**: Make sure the owning unit actually has the required resource.
 5. **Debugging draw/discard issues**: Inspect `CardInstance`, `onCardUsed`, `moveToDiscard`, `processDiscardSeconds`, and `handleRoundEnd` in the engine. Confirm the card's `abilityId` matches and the `CardDef` is correctly registered.
 6. **Editing `abilityEvents`**: Prefer reusable presets over new inline event rules, and prefer inline event rules over custom handlers. If no inline primitive exists, prompt the user whether the behavior is one-off or should be generalized into a reusable condition/effect/preset. Custom handlers require a short explanatory comment. Within one event rule, conditions use AND semantics; across multiple event rules, matching uses OR semantics.

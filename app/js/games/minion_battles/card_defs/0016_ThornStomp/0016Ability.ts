@@ -8,13 +8,15 @@
 
 import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, IAbilityPreviewGraphics } from '../../abilities/Ability';
 import { Effect } from '../../game/effects/Effect';
+import { CastBehaviours } from '../../abilities/CastBehaviours';
+import type { CastBehaviourTickContext } from '../../abilities/castBehaviourTypes';
 import { AbilityPhase } from '../../abilities/abilityTimings';
-import type { ActiveAbility, ResolvedTarget } from '../../game/types';
+import type { ActiveAbility } from '../../game/types';
 import type { Unit } from '../../game/units/Unit';
 import type { KnockbackSource } from '../../game/units/unitTypes';
 import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
-import { damageEnemiesInCircle, placeJitteredGroundThorns } from '../../abilities/targetHelpers';
+import { damageEnemiesInCircle } from '../../abilities/targetHelpers';
 import { tryDamageOrBlock } from '../../abilities/blockingHelpers';
 import { knockbackCtxFromEngine, tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
 import type { EventBus } from '../../game/EventBus';
@@ -65,6 +67,61 @@ interface EngineLike {
     generateRandomInteger(min: number, max: number): number;
 }
 
+/** Radius, damage and thorn slow for this cast: weakened by bright light (Light Hate). */
+function stompStats(ctx: CastBehaviourTickContext): { radius: number; damage: number; slowMult: number } {
+    const weakened = isLightHateWeakened(ctx.caster, ctx.engine as unknown as EngineLike);
+    return {
+        radius: weakened ? WEAKENED_RADIUS : BASE_RADIUS,
+        damage: weakened ? WEAKENED_DAMAGE : BASE_DAMAGE,
+        slowMult: weakened ? SLOW_MULT_WEAKENED : SLOW_MULT_NORMAL,
+    };
+}
+
+/** The slam: damage and knockback around the caster's own feet, plus the explosion visual. */
+function stompBlast(ctx: CastBehaviourTickContext): void {
+    const eng = ctx.engine as unknown as EngineLike;
+    const { caster } = ctx;
+    const { radius, damage } = stompStats(ctx);
+    const center = { x: caster.x, y: caster.y };
+
+    const knockbackCtx = knockbackCtxFromEngine(eng);
+    const knockbackSource: KnockbackSource = { unitId: caster.id, abilityId: THORN_STOMP_ABILITY_ID };
+    // Impact discovery via CircleHitbox (damageEnemiesInCircle); env thorns ignore iframes.
+    damageEnemiesInCircle({
+        engine: eng,
+        caster,
+        center,
+        radius,
+        damage,
+        abilityId: THORN_STOMP_ABILITY_ID,
+        attackType: 'melee',
+        onHit: (unit) => {
+            tryDamageOrBlock(unit, {
+                engine: eng,
+                gameTime: eng.gameTime,
+                eventBus: eng.eventBus,
+                attackerX: center.x,
+                attackerY: center.y,
+                attackerId: caster.id,
+                abilityId: THORN_STOMP_ABILITY_ID,
+                damage,
+                attackType: 'melee',
+            });
+            // Away from caster's own position: this is a self-centered stomp, so "away from
+            // source" already means "radially outward" with no aim/landing math needed.
+            tryApplyKnockbackByTier(unit, KNOCKBACK_TIER, knockbackSource, center.x, center.y, knockbackCtx);
+        },
+    });
+
+    eng.addEffect(new Effect({
+        x: center.x,
+        y: center.y,
+        duration: 0.6,
+        effectType: 'BrambleExplosion',
+        effectRadius: radius,
+    }));
+}
+
 export const ThornStompAbility: AbilityStatic = {
     id: THORN_STOMP_ABILITY_ID,
     name: 'Thorn Stomp',
@@ -77,7 +134,32 @@ export const ThornStompAbility: AbilityStatic = {
     prefireTime: WINDUP_TIME,
     abilityTimings: [
         { id: 'windup', start: 0, end: WINDUP_TIME, abilityPhase: AbilityPhase.Windup },
-        { id: 'strike', start: WINDUP_TIME, end: STRIKE_TIME, abilityPhase: AbilityPhase.Active, doNotRefund: true },
+        {
+            id: 'strike',
+            start: WINDUP_TIME,
+            end: STRIKE_TIME,
+            abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
+            // Order matters: the blast resolves first, then the thorns (their RNG draws come after the blast's).
+            castBehaviours: [
+                { timingStart: 'start', behaviour: CastBehaviours.Instant(stompBlast) },
+                {
+                    timingStart: 'start',
+                    // Thorns last roughly two rounds (unless a cell deals damage and destroys itself), same
+                    // lifetime as Bramble. With only 1 use/round recovered, the next stomp is realistically
+                    // ~a round away, not gated by this cast's own (near-zero) cooldown tail.
+                    behaviour: CastBehaviours.GroundPatch({
+                        effectType: 'dark_thorn',
+                        radius: (ctx) => stompStats(ctx).radius,
+                        lifetimeSec: DARK_THORN_DURATION_ROUNDS * ROUND_DURATION,
+                        lifetimeTrimSec: THORN_CLEAR_BEFORE_NEXT_SEC,
+                        jitterSec: DURATION_JITTER_IN_SECONDS,
+                        params: (ctx) => ({ slowMult: stompStats(ctx).slowMult }),
+                        idPrefix: 'thornstomp',
+                    }),
+                },
+            ],
+        },
         { id: 'cooldown', start: STRIKE_TIME, end: COOLDOWN_END, abilityPhase: AbilityPhase.Cooldown },
     ],
     targets: [],
@@ -103,73 +185,6 @@ export const ThornStompAbility: AbilityStatic = {
     },
     getAbilityStates(): AbilityStateEntry[] {
         return [];
-    },
-
-    doCardEffect(engine: unknown, caster: Unit, _targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        if (prevTime >= WINDUP_TIME || currentTime < WINDUP_TIME) return;
-        const eng = engine as EngineLike;
-
-        const weakened = isLightHateWeakened(caster, eng);
-        const radius = weakened ? WEAKENED_RADIUS : BASE_RADIUS;
-        const damage = weakened ? WEAKENED_DAMAGE : BASE_DAMAGE;
-        const slowMult = weakened ? SLOW_MULT_WEAKENED : SLOW_MULT_NORMAL;
-        const center = { x: caster.x, y: caster.y };
-
-        const knockbackCtx = knockbackCtxFromEngine(eng);
-        const knockbackSource: KnockbackSource = { unitId: caster.id, abilityId: THORN_STOMP_ABILITY_ID };
-        // Impact discovery via CircleHitbox (damageEnemiesInCircle); env thorns below ignore iframes.
-        damageEnemiesInCircle({
-            engine: eng,
-            caster,
-            center,
-            radius,
-            damage,
-            abilityId: THORN_STOMP_ABILITY_ID,
-            attackType: 'melee',
-            onHit: (unit) => {
-                tryDamageOrBlock(unit, {
-                    engine: eng,
-                    gameTime: eng.gameTime,
-                    eventBus: eng.eventBus,
-                    attackerX: center.x,
-                    attackerY: center.y,
-                    attackerId: caster.id,
-                    abilityId: THORN_STOMP_ABILITY_ID,
-                    damage,
-                    attackType: 'melee',
-                });
-                // Away from caster's own position — this is a self-centered stomp, so "away from
-                // source" already means "radially outward" with no aim/landing math needed.
-                tryApplyKnockbackByTier(unit, KNOCKBACK_TIER, knockbackSource, center.x, center.y, knockbackCtx);
-            },
-        });
-
-        // Thorns last roughly two rounds (unless a cell deals damage and destroys itself), same
-        // lifetime as Bramble. With only 1 use/round recovered, the next stomp is realistically
-        // ~a round away, not gated by this cast's own (near-zero) cooldown tail.
-        const baseExpiresAt =
-            eng.gameTime + DARK_THORN_DURATION_ROUNDS * ROUND_DURATION - THORN_CLEAR_BEFORE_NEXT_SEC;
-        placeJitteredGroundThorns({
-            engine: eng,
-            caster,
-            center,
-            radius,
-            effectType: 'dark_thorn',
-            placedAtGameTime: eng.gameTime,
-            baseExpiresAtGameTime: baseExpiresAt,
-            durationJitterInSeconds: DURATION_JITTER_IN_SECONDS,
-            ownerAbilityId: THORN_STOMP_ABILITY_ID,
-            params: { slowMult },
-            idPrefix: `thornstomp-${caster.id}-${eng.gameTime}`,
-        });
-
-        eng.addEffect(new Effect({
-            x: center.x,
-            y: center.y,
-            duration: 0.6,
-            effectType: 'BrambleExplosion',
-            effectRadius: radius,
-        }));
     },
 
     renderActivePreview(

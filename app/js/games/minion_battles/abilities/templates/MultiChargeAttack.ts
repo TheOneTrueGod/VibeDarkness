@@ -1,6 +1,6 @@
 import { AbilityBase } from '../AbilityBase';
 import type { AbilityRecoveryRule, AbilityAISettings, AbilityNinjutsuConfig } from '../Ability';
-import { AbilityPhase, type AbilityTimingInterval, activeTimingIds } from '../abilityTimings';
+import { AbilityPhase, type AbilityTimingInterval } from '../abilityTimings';
 import type { AbilityStatic, IAbilityPreviewGraphics } from '../Ability';
 import type { UnitTag } from '../../game/units/unitTag';
 import type { AbilityEngineContext } from '../AbilityEngineContext';
@@ -8,14 +8,10 @@ import type { Unit } from '../../game/units/Unit';
 import type { TargetDef } from '../targeting';
 import type { ActiveAbility, ResolvedTarget } from '../../game/types';
 import type { CardDef } from '../../card_defs/types';
-import {
-	computeLungeChargeDirection,
-	LungeMovement,
-	type LungeTarget,
-} from '../behaviors/LungeMovement';
-import { ThickLineHitbox } from '../../hitboxes/ThickLineHitbox';
+import { computeLungeChargeDirection, type LungeTarget } from '../behaviors/LungeMovement';
+import { CastBehaviours } from '../CastBehaviours';
+import type { ChargeBehaviour } from '../CastBehaviours/ChargeBehaviour';
 import { Effect } from '../../game/effects/Effect';
-import { tryDamageOrBlock } from '../blockingHelpers';
 import { createChargeCapsuleTargetPreview, drawChargeCapsuleTimingTelegraph } from '../previewHelpers';
 import { getDirectionFromTo } from '../targetHelpers';
 import { resolveChargeAimPoint } from './ChargeAttack';
@@ -76,7 +72,6 @@ interface DashPhase {
 	windupEnd: number;
 	dashStart: number;
 	dashEnd: number;
-	lunge: LungeMovement;
 }
 
 export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
@@ -139,6 +134,7 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 					end: dashEnd,
 					abilityPhase: AbilityPhase.Active,
 					...juggernautTag,
+					castBehaviours: [{ timingStart: 'start', timingEnd: 'end', behaviour: this.buildChargeBehaviour(i) }],
 				},
 			);
 
@@ -149,11 +145,6 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 				windupEnd,
 				dashStart,
 				dashEnd,
-				lunge: new LungeMovement({
-					maxRange: config.baseMaxRange,
-					lungeDuration: config.lungeDuration,
-					windupTime: dashStart,
-				}),
 			});
 
 			t = dashEnd;
@@ -191,6 +182,41 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 		return { abilityId: this.config.id };
 	}
 
+	/**
+	 * Charge over dash `index`'s window. The follow-up dash aims when this one ends, from wherever the
+	 * caster stands then, so the final tick of a dash window does not move or hit (as it never did).
+	 * The last dash clears the note when it ends.
+	 */
+	private buildChargeBehaviour(index: number): ChargeBehaviour<DashNote> {
+		const config = this.config;
+		const isLast = index === config.dashes - 1;
+		return CastBehaviours.Charge<DashNote>({
+			maxRange: config.baseMaxRange,
+			lungeDuration: config.lungeDuration,
+			capsuleRadiusMultiplier: config.capsuleRadiusMultiplier,
+			damage: config.damage,
+			getNote: (ctx) => this.getChargeNote(ctx.caster, { castPayload: ctx.castPayload })?.dashes[index] ?? null,
+		})
+			.withAdvanceOnLastTick(false)
+			.withOnHit((unit, ctx) => {
+				ctx.engine.addEffect(new Effect({
+					x: unit.x,
+					y: unit.y,
+					duration: config.effectDuration,
+					effectType: config.effectType,
+					effectRadius: ctx.caster.radius * 2,
+				}));
+			})
+			.withOnEnd((ctx) => {
+				if (isLast) return;
+				const note = this.getChargeNote(ctx.caster, { castPayload: ctx.castPayload });
+				if (note && note.dashes[index + 1] === null) {
+					note.dashes[index + 1] = this.buildDashNote(ctx.engine, ctx.caster, note);
+				}
+			})
+			.withClearNoteOnEnd(isLast);
+	}
+
 	getTooltipText(): string[] {
 		return [this.config.tooltipText];
 	}
@@ -206,47 +232,6 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 		if (note) {
 			active.castPayload = note;
 			this.setAbilityNote(caster, note);
-		}
-	}
-
-	doCardEffect(
-		engine: unknown,
-		caster: Unit,
-		_targets: ResolvedTarget[],
-		prevTime: number,
-		currentTime: number,
-		active?: ActiveAbility,
-	): void {
-		const eng = engine as AbilityEngineContext;
-		const note = this.getChargeNote(caster, active);
-		if (!note) return;
-
-		const ids = activeTimingIds(currentTime, this.getAbilityTimingIntervals());
-
-		for (let i = 0; i < this.dashPhases.length; i++) {
-			const phase = this.dashPhases[i];
-
-			if (i > 0 && currentTime >= this.dashPhases[i - 1].dashEnd && note.dashes[i] === null) {
-				note.dashes[i] = this.buildDashNote(eng, caster, note);
-			}
-
-			if (!ids.has(phase.id)) continue;
-
-			const dashNote = note.dashes[i];
-			if (!dashNote) continue;
-
-			if (dashNote.lungeOriginX === undefined) {
-				dashNote.lungeOriginX = caster.x;
-				dashNote.lungeOriginY = caster.y;
-			}
-
-			const segment = phase.lunge.advance(caster, dashNote, prevTime, currentTime, eng);
-			this.damageEnemiesInPath(eng, caster, dashNote, segment);
-		}
-
-		if (currentTime >= this.activeEnd) {
-			if (active) active.castPayload = undefined;
-			this.clearAbilityNote(caster);
 		}
 	}
 
@@ -299,7 +284,7 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 		}
 	}
 
-	private getChargeNote(caster: Unit, active?: ActiveAbility): MultiChargeNote | null {
+	private getChargeNote(caster: Unit, active?: Pick<ActiveAbility, 'castPayload'>): MultiChargeNote | null {
 		const payload = active?.castPayload;
 		if (payload && typeof payload === 'object' && 'dashes' in payload) {
 			return payload as MultiChargeNote;
@@ -347,44 +332,5 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 			chargeDirY: dirY,
 			hitTargetIds: [],
 		};
-	}
-
-	private damageEnemiesInPath(
-		eng: AbilityEngineContext,
-		caster: Unit,
-		dashNote: DashNote,
-		segment: { fromX: number; fromY: number; toX: number; toY: number },
-	): void {
-		const capsuleRadius = caster.radius * this.config.capsuleRadiusMultiplier;
-		const hitUnits = ThickLineHitbox.getUnitsInHitbox(
-			eng, caster, segment.fromX, segment.fromY, segment.toX, segment.toY, capsuleRadius,
-		);
-
-		for (const unit of hitUnits) {
-			if (dashNote.hitTargetIds.includes(unit.id)) continue;
-			if (unit.hasIFrames(eng.gameTime)) continue;
-
-			const outcome = tryDamageOrBlock(unit, {
-				engine: eng,
-				gameTime: eng.gameTime,
-				eventBus: eng.eventBus,
-				attackerX: caster.x,
-				attackerY: caster.y,
-				attackerId: caster.id,
-				abilityId: this.config.id,
-				damage: this.config.damage,
-				attackType: 'charging',
-			});
-			if (!outcome.hit) continue;
-			dashNote.hitTargetIds.push(unit.id);
-
-			eng.addEffect(new Effect({
-				x: unit.x,
-				y: unit.y,
-				duration: this.config.effectDuration,
-				effectType: this.config.effectType,
-				effectRadius: caster.radius * 2,
-			}));
-		}
 	}
 }

@@ -451,8 +451,8 @@ export interface AbilityStatic {
     readonly abilitySource?: { type: 'pet'; selector: 'nearest' | 'all' };
     /**
      * Time in seconds before the ability's main effect typically fires (windup / telegraph end).
-     * The engine calls `doCardEffect` every tick until the cast ends; use this (or interval ids from
-     * `abilityTimings`) inside `doCardEffect` for threshold checks. `AbilityBase` also uses it for the
+     * Cast behaviours (`castBehaviours` on `abilityTimings` intervals) do the work; use this (or interval
+     * ids from `abilityTimings`) for threshold checks. `AbilityBase` also uses it for the
      * default movement penalty until `prefireTime` elapses unless `getAbilityStates` is overridden.
      * Use `0` when the main effect is immediate.
      *
@@ -542,32 +542,9 @@ export interface AbilityStatic {
     getDamage?(caster?: Unit): number;
 
     /**
-     * Execute the ability's effect over time using threshold checks.
-     *
-     * Called every tick while the ability is active. `prevTime` and `currentTime` are seconds elapsed
-     * since the cast started. Fire one-shots with edge checks (e.g. `prevTime < 0.3 && currentTime >= 0.3`).
-     * For repeating logic during a phase, gate on elapsed time or on `abilityTimings` (e.g. via helpers
-     * in `abilityTimings.ts`), not only on `prefireTime`.
-     *
-     * The engine removes the active ability when `currentTime >= getTotalAbilityDuration(this)` (derived
-     * from non-empty `abilityTimings`). That is independent of what `getAbilityStates` returns.
-     *
-     * On the first tick, `prevTime` is 0.
-     */
-    /** @deprecated Prefer `castBehaviours` on `abilityTimings` intervals for new abilities. */
-    doCardEffect?(
-        engine: unknown,
-        caster: Unit,
-        targets: ResolvedTarget[],
-        prevTime: number,
-        currentTime: number,
-        active?: ActiveAbility,
-    ): void;
-
-    /**
      * Optional. Called exactly once when an active ability entry is created (same tick as the order
      * that started the cast). Use for one-time setup (snapshots, resolved positions) and store data on
-     * `active.castPayload` instead of relying on the first `doCardEffect` tick or phase boundaries.
+     * `active.castPayload` instead of relying on the first tick or phase boundaries.
      */
     beginActiveCast?(
         engine: unknown,

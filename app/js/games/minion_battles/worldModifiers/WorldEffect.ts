@@ -60,6 +60,11 @@ export interface IncrementCounterEffect {
     counterId: string;
     /** Amount to add; defaults to 1. */
     amount?: number;
+    /**
+     * Which modifier's counter to increment. Defaults to the modifier whose rule is running; REQUIRED when the
+     * effect runs from a unit (a phase's `onEnter`), which has no owning modifier.
+     */
+    modifierId?: string;
     /** VisualEffect: wire to VisualEffect runtime when available. */
     visualEffects?: VisualEffectDef[];
 }

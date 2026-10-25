@@ -1,45 +1,39 @@
-﻿import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import '../../../abilities/AbilityRegistry';
 import { AnchoredTremor } from './0532Ability';
-import { Unit } from '../../../game/units/Unit';
-import { EventBus } from '../../../game/EventBus';
-import { TerrainType } from '../../../terrain/TerrainType';
-import type { ResolvedTarget } from '../../../game/types';
+import { buildTinyBattleEngine, placePlayerAndDummy, TINY_BATTLE_PLAYER_ID } from '../../../testing/harness/buildTinyBattleEngine';
+import { castToEnd, timingsFor } from '../earthCoreTestHelpers';
 
-function makeUnit(config: { id: string; teamId: 'player' | 'enemy'; x: number; y: number }): Unit {
-    return new Unit({
-        x: config.x,
-        y: config.y,
-        hp: 100,
-        speed: 100,
-        teamId: config.teamId,
-        ownerId: config.teamId === 'player' ? 'p1' : 'ai',
-        characterId: config.teamId === 'player' ? 'player' : 'dark_wolf',
-        name: config.teamId === 'player' ? 'player' : 'dark_wolf',
+const P = TINY_BATTLE_PLAYER_ID;
+const CELL = 40;
+const PLAYER_POS = { x: 3 * CELL + CELL / 2, y: 5 * CELL + CELL / 2 };
+const DUMMY_POS = { x: 5 * CELL + CELL / 2, y: 5 * CELL + CELL / 2 };
+
+function setup() {
+    const engine = buildTinyBattleEngine({ gridW: 12, gridH: 10, localPlayerId: P, grass: true });
+    const { player, dummy } = placePlayerAndDummy(engine, {
+        playerId: P,
+        playerWorld: PLAYER_POS,
+        dummyWorld: DUMMY_POS,
+        abilities: [AnchoredTremor.id],
     });
+    return { engine, player, dummy };
 }
 
 describe('Anchored Tremor', () => {
-    it('ramps pulse damage and applies stone bonus', () => {
-        const caster = makeUnit({ id: 'caster', teamId: 'player', x: 0, y: 0 });
-        const enemyOnStone = makeUnit({ id: 'enemy_a', teamId: 'enemy', x: 5, y: 0 });
-        const enemyOnGrass = makeUnit({ id: 'enemy_b', teamId: 'enemy', x: 8, y: 0 });
-        const units = [caster, enemyOnStone, enemyOnGrass];
+    it('is declarative: a Pulse behaviour on the active window', () => {
+        expect(timingsFor(AnchoredTremor).find((i) => i.id === 'active')?.behaviour).toBeDefined();
+    });
 
-        const engine = {
-            units,
-            gameTime: 0,
-            eventBus: new EventBus(),
-            addEffect: () => {},
-            terrainManager: {
-                getTerrainAt: (x: number) => (x < 7 ? TerrainType.Rock : TerrainType.Grass),
-            },
-        };
-        const targets: ResolvedTarget[] = [{ type: 'pixel', position: { x: 0, y: 0 } }];
+    it('lands four pulses that ramp 3, 5, 7, 9 (24 total) on grass', () => {
+        const { engine, player, dummy } = setup();
+        castToEnd(engine, player, AnchoredTremor.id, [{ type: 'pixel', position: DUMMY_POS }]);
+        expect(dummy.maxHp - dummy.hp).toBe(24);
+    });
 
-        AnchoredTremor.doCardEffect!(engine, caster, targets, 0.2, 0.91);
-
-        // Two pulses (3 + 5) and stone bonus per pulse (+2 each).
-        expect(enemyOnStone.hp).toBe(100 - (3 + 2) - (5 + 2));
-        expect(enemyOnGrass.hp).toBe(100 - 3 - 5);
+    it('does not reach an enemy outside the pulse radius', () => {
+        const { engine, player, dummy } = setup();
+        castToEnd(engine, player, AnchoredTremor.id, [{ type: 'pixel', position: { x: DUMMY_POS.x, y: DUMMY_POS.y + 200 } }]);
+        expect(dummy.maxHp - dummy.hp).toBe(0);
     });
 });

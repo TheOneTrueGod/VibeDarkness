@@ -3,7 +3,10 @@ import { EventBus } from '../../game/EventBus';
 import { Unit } from '../../game/units/Unit';
 import { Projectile } from '../../game/projectiles/Projectile';
 import { TerrainLayerManager } from '../../game/TerrainLayerManager';
-import { ThornStompAbility, THORN_STOMP_WINDUP_TIME } from './0016Ability';
+import { ThornStompAbility } from './0016Ability';
+import { getEffectiveCastBehaviours, type AbilityTimingInterval } from '../../abilities/abilityTimings';
+import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
+import type { CastBehaviourTickContext } from '../../abilities/castBehaviourTypes';
 import { ThornbinderBrambleAbility, THORNBINDER_ABILITY_ID } from '../0008_ThornbinderBramble/0008Ability';
 
 function makeCaster(): Unit {
@@ -34,8 +37,26 @@ function makeEngine(caster: Unit) {
     };
 }
 
+/** Runs the strike window's one-shot behaviours in order, as the tick loop does on window entry. */
 function fireStomp(engine: ReturnType<typeof makeEngine>, caster: Unit) {
-    ThornStompAbility.doCardEffect!(engine, caster, [], 0, THORN_STOMP_WINDUP_TIME + 0.01);
+    const strike = (ThornStompAbility.abilityTimings as AbilityTimingInterval[]).find((t) => t.id === 'strike')!;
+    for (const entry of getEffectiveCastBehaviours(strike)!) {
+        const ctx: CastBehaviourTickContext = {
+            caster,
+            abilityId: ThornStompAbility.id,
+            target: { type: 'pixel', position: { x: caster.x, y: caster.y } },
+            allTargets: [],
+            castPayload: undefined,
+            behaviourPayload: undefined,
+            setBehaviourPayload: () => {},
+            engine: engine as unknown as AbilityEngineContext,
+            windowProgress: 0,
+            prevWindowProgress: 0,
+            isFirstTick: true,
+            isLastTick: true,
+        };
+        entry.behaviour.onTick?.(ctx);
+    }
 }
 
 function fireBramble(engine: ReturnType<typeof makeEngine>, caster: Unit, x: number, y: number) {

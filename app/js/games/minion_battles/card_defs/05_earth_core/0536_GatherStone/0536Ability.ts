@@ -4,7 +4,12 @@
  * fixed durability hit, banking one rock pebble per tile (and feeding Resonance to
  * nearby Earth allies for free via the stone-damage event). The "Grinding Debris"
  * research node adds a bite: enemies standing on rubble in the patch take 6 damage,
- * once each. It is stationary space control that turns cleared ground into pressure.
+ * once each, and that hit can be blocked. It is stationary space control that turns cleared
+ * ground into pressure.
+ *
+ * Built on `TerrainStrike` (the rock harvest) with no `doCardEffect`. Grinding Debris follows the
+ * research-variant pattern of Throw Rock: `getAbilityTimings` returns the base timings, or the same
+ * timings with a second behaviour attached to the gather window when the node is owned.
  */
 
 import {
@@ -19,9 +24,12 @@ import type { ResolvedTarget, ActiveAbility } from '../../../game/types';
 import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 import { type CardDef } from '../../types';
 import { TerrainType } from '../../../terrain/TerrainType';
-import { areEnemies } from '../../../game/teams';
 import { tileAreaHitbox, tileShapes } from '../../../hitboxes/TileAreaHitboxSpec';
-import { getUnitsInTiles, type TileCoord } from '../../../abilities/tileAreaHelpers';
+import { tileCentre, type TileCoord } from '../../../abilities/tileAreaHelpers';
+import { CastBehaviours } from '../../../abilities/CastBehaviours';
+import type { CastBehaviourEntry, CastBehaviourTickContext } from '../../../abilities/castBehaviourTypes';
+import { damageEnemiesInTiles } from '../../../abilities/targetHelpers';
+import { tryDamageOrBlock } from '../../../abilities/blockingHelpers';
 import { drawTileAreaTelegraph } from '../../../abilities/previewHelpers';
 import { TELEGRAPH_STYLES } from '../../../abilities/telegraphStyles';
 import { EARTH_TREE_ID, EARTH_NODE_GATHER_STONE_RUBBLE_STRIKE } from '../../../../../researchTrees/trees/earth';
@@ -60,43 +68,108 @@ const GATHER_STONE_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org
 
 const MARK_INTERVAL = 1 / 60;
 
-const TIMINGS: AbilityTimingInterval[] = [
-    {
-        // One-tick interactive select at t=0: the player marks the patch before any
-        // cast time elapses (deferred-first-select), then the windup telegraphs it.
-        // start:0 select intervals are Active-phase by convention (Claw, Dodge, Digging Claws).
-        id: 'mark',
-        start: 0,
-        end: MARK_INTERVAL,
-        abilityPhase: AbilityPhase.Active,
-        targetDef: {
-            kind: 'select',
-            label: 'Gather area',
-            hitbox: GATHER_STONE_HITBOX,
-            filter: 'any',
-            allowMiss: true,
+/** The patch of tiles the cast marked (the `mark` select's pixel, snapped by the hitbox), or none. */
+function gatherCells(ctx: CastBehaviourTickContext): TileCoord[] {
+    const pixel = getPixelTargetPosition([ctx.target], 0);
+    return pixel ? GATHER_STONE_HITBOX.resolveCells(ctx.caster, pixel) : [];
+}
+
+/**
+ * Rock harvest: every intact rock tile in the patch takes a fixed durability hit and banks rock
+ * (feeding Resonance to nearby Earth allies for free via the stone-damage event).
+ */
+const gatherHarvest = CastBehaviours.TerrainStrike()
+    .atTiles(gatherCells)
+    .damageRock(GATHER_STONE_ROCK_DAMAGE)
+    .onStruck((ctx, struck) => {
+        ctx.caster.getResource('rock')?.add(struck.length * GATHER_STONE_ROCK_RESOURCE_PER_TILE);
+        spawnGatherStoneRockImpacts(ctx.engine, ctx.caster, struck);
+    });
+
+/**
+ * Grinding Debris: enemies standing on rubble in the patch take a hit that can be blocked. It runs
+ * after the harvest, so rock the harvest just broke counts as rubble.
+ */
+const rubbleStrike = CastBehaviours.Instant((ctx) => {
+    const tm = ctx.engine.terrainManager;
+    const pixel = getPixelTargetPosition([ctx.target], 0);
+    if (!tm || !pixel) return;
+    const rubbleCells = gatherCells(ctx).filter((cell) =>
+        tm.isInBounds(cell.col, cell.row) && tm.getEffectiveTerrainType(cell.col, cell.row) === TerrainType.Rubble);
+    const anchor = GATHER_STONE_HITBOX.resolveAnchor(ctx.caster, pixel);
+    const origin = anchor ? tileCentre(anchor) : { x: ctx.caster.x, y: ctx.caster.y };
+    damageEnemiesInTiles({
+        engine: ctx.engine,
+        caster: ctx.caster,
+        tiles: rubbleCells,
+        origin,
+        damage: GATHER_STONE_RUBBLE_DAMAGE,
+        abilityId: ABILITY_ID,
+        attackType: 'melee',
+        onHit: (unit) => {
+            const outcome = tryDamageOrBlock(unit, {
+                engine: ctx.engine,
+                gameTime: ctx.engine.gameTime,
+                eventBus: ctx.engine.eventBus,
+                attackerX: origin.x,
+                attackerY: origin.y,
+                attackerId: ctx.caster.id,
+                abilityId: ABILITY_ID,
+                damage: GATHER_STONE_RUBBLE_DAMAGE,
+                attackType: 'melee',
+            });
+            if (outcome.hit) spawnGatherStoneRubbleClash(ctx.engine, unit.x, unit.y);
         },
-    },
-    {
-        id: 'windup',
-        start: MARK_INTERVAL,
-        end: GATHER_STONE_PREFIRE,
-        abilityPhase: AbilityPhase.Windup,
-    },
-    {
-        id: 'gather',
-        start: GATHER_STONE_PREFIRE,
-        end: GATHER_STONE_PREFIRE + 0.1,
-        abilityPhase: AbilityPhase.Active,
-        doNotRefund: true,
-    },
-    {
-        id: 'cooldown',
-        start: GATHER_STONE_PREFIRE + 0.1,
-        end: GATHER_STONE_CAST_TIME,
-        abilityPhase: AbilityPhase.Cooldown,
-    },
-];
+    });
+});
+
+function buildTimings(withRubbleStrike: boolean): AbilityTimingInterval[] {
+    const gatherBehaviours: CastBehaviourEntry[] = [
+        { timingStart: 'start', timingEnd: 'end', behaviour: gatherHarvest },
+        ...(withRubbleStrike ? [{ timingStart: 'start', timingEnd: 'end', behaviour: rubbleStrike } as CastBehaviourEntry] : []),
+    ];
+    return [
+        {
+            // One-tick interactive select at t=0: the player marks the patch before any
+            // cast time elapses (deferred-first-select), then the windup telegraphs it.
+            // start:0 select intervals are Active-phase by convention (Claw, Dodge, Digging Claws).
+            id: 'mark',
+            start: 0,
+            end: MARK_INTERVAL,
+            abilityPhase: AbilityPhase.Active,
+            targetDef: {
+                kind: 'select',
+                label: 'Gather area',
+                hitbox: GATHER_STONE_HITBOX,
+                filter: 'any',
+                allowMiss: true,
+            },
+        },
+        {
+            id: 'windup',
+            start: MARK_INTERVAL,
+            end: GATHER_STONE_PREFIRE,
+            abilityPhase: AbilityPhase.Windup,
+        },
+        {
+            id: 'gather',
+            start: GATHER_STONE_PREFIRE,
+            end: GATHER_STONE_PREFIRE + 0.1,
+            abilityPhase: AbilityPhase.Active,
+            doNotRefund: true,
+            castBehaviours: gatherBehaviours,
+        },
+        {
+            id: 'cooldown',
+            start: GATHER_STONE_PREFIRE + 0.1,
+            end: GATHER_STONE_CAST_TIME,
+            abilityPhase: AbilityPhase.Cooldown,
+        },
+    ];
+}
+
+const BASE_TIMINGS = buildTimings(false);
+const RUBBLE_STRIKE_TIMINGS = buildTimings(true);
 
 /** Pixel target position from resolved targets (mirrors the local helper in 0532). */
 function getPixelTargetPosition(targets: ResolvedTarget[], index: number = 0): { x: number; y: number } | null {
@@ -119,7 +192,13 @@ export const GatherStoneAbility_0536: AbilityStatic = {
     resourceCost: null, // TODO: Earth Core resonance cost pending balance pass.
     rechargeTurns: GATHER_STONE_RECHARGE_TURNS,
     prefireTime: GATHER_STONE_PREFIRE,
-    abilityTimings: TIMINGS,
+    abilityTimings: BASE_TIMINGS,
+    getAbilityTimings(caster?: Unit, gameState?: unknown): AbilityTimingInterval[] {
+        const eng = gameState as AbilityEngineContext | undefined;
+        return eng && caster && casterHasResearchNode(eng, caster, EARTH_NODE_GATHER_STONE_RUBBLE_STRIKE)
+            ? RUBBLE_STRIKE_TIMINGS
+            : BASE_TIMINGS;
+    },
     targets: [],
     aiSettings: { minRange: 0, maxRange: GATHER_STONE_CAST_RANGE },
 
@@ -144,48 +223,6 @@ export const GatherStoneAbility_0536: AbilityStatic = {
 
     beginActiveCast(engine: unknown, caster: Unit): void {
         spawnGatherStonePullRing(engine as AbilityEngineContext, caster);
-    },
-
-    doCardEffect(engine: unknown, caster: Unit, targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        if (!(prevTime < GATHER_STONE_PREFIRE && currentTime >= GATHER_STONE_PREFIRE)) return;
-        const eng = engine as AbilityEngineContext;
-        const tm = eng.terrainManager;
-        if (!tm) return;
-        const pixel = getPixelTargetPosition(targets, 0);
-        if (!pixel) return;
-
-        const cells = GATHER_STONE_HITBOX.resolveCells(caster, pixel);
-
-        // --- Rock harvest -----------------------------------------------------
-        // Pre-check intact rock: damageRock's return value is null unless a
-        // crack-tier change or destroy happens, so it can't tell us "was damaged".
-        // isIntactRockAt is false out of bounds, so edge-of-map voids grant no phantom rock.
-        const rockResource = caster.getResource('rock');
-        const damagedRockCells: TileCoord[] = [];
-        for (const cell of cells) {
-            if (!tm.isIntactRockAt(cell.col, cell.row)) continue;
-            tm.damageRock(cell.col, cell.row, GATHER_STONE_ROCK_DAMAGE, caster.id);
-            damagedRockCells.push(cell);
-            rockResource?.add(GATHER_STONE_ROCK_RESOURCE_PER_TILE);
-        }
-
-        // --- Grinding Debris (research node 2) -------------------------------
-        if (casterHasResearchNode(eng, caster, EARTH_NODE_GATHER_STONE_RUBBLE_STRIKE)) {
-            const isEnemyOfCaster = (unit: Unit): boolean => unit.isAlive() && areEnemies(caster.teamId, unit.teamId);
-            for (const cell of cells) {
-                if (!tm.isInBounds(cell.col, cell.row)) continue;
-                if (tm.getEffectiveTerrainType(cell.col, cell.row) !== TerrainType.Rubble) continue;
-                // Per cell, in cell order, so hits land in the same order as before. A unit's
-                // centre sits in exactly one tile, so no unit is hit twice.
-                for (const unit of getUnitsInTiles(eng.units, [cell], isEnemyOfCaster)) {
-                    // Flat, unblockable environment-style hit; return value unused (see 0532).
-                    unit.takeDamage(GATHER_STONE_RUBBLE_DAMAGE, caster.id, eng.eventBus);
-                    spawnGatherStoneRubbleClash(eng, unit.x, unit.y);
-                }
-            }
-        }
-
-        spawnGatherStoneRockImpacts(eng, caster, damagedRockCells);
     },
 
     renderTargetingPreview(

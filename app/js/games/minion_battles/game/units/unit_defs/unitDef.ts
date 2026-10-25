@@ -20,7 +20,8 @@ import { getPortrait } from '../../../character_defs/portraitLoader';
 import { DEFAULT_UNIT_SIZE, UNIT_SIZE_MAP, type UnitSize } from './unitConstants';
 import type { CcResistKey } from '../../../crowdControl/ccTypes';
 import { UnitTag, hidesWorldHpBar } from '../unitTag';
-import type { EnrageDef } from '../enrageDef';
+import { enragePreset, type UnitPhaseDef } from '../components/phaseDef';
+import { PHASE_COMPONENT } from '../components/phaseComponent';
 import type { LightHateDef } from '../../lightHate';
 import { DarknessLevel } from '../../darknessLevels';
 import type { EnemySpawnDef } from '../../../storylines/types';
@@ -32,6 +33,7 @@ import { SLIME } from '../dark_animals/slime';
 import {
     ENEMY_DARK_WOLF,
     ENEMY_ALPHA_WOLF,
+    ALPHA_WOLF_ENRAGE_THRESHOLD,
     ENEMY_BOAR,
     ENEMY_THORNBINDER,
     ENEMY_SWARMLING,
@@ -153,6 +155,8 @@ export interface UnitDefEntry {
     stamina?: number;
     stackSize?: number;
     perceptionRange?: number;
+    /** Hunter AI (`alphaWolfBoss` tree) locks onto one random visible enemy as prey and keeps chasing it, instead of attacking the first enemy in sight. */
+    huntsSinglePrey?: boolean;
     onDeathVisualEffects?: VisualEffectDef[];
     /**
      * Components this character carries (see `units/components/unitComponent.ts`): per-unit state slices that
@@ -167,8 +171,12 @@ export interface UnitDefEntry {
     /** Short flavor text for battle UI (e.g. timeline hover). */
     uiDescription?: string;
     combatCc?: UnitCombatCcDef;
-    /** If set, units of this character type gain a tag when the enrage condition is met at runtime. */
-    enrageDef?: EnrageDef;
+    /**
+     * Ordered, one-way phases (boss phases, elite enrages) for units of this character type; work on any unit, not
+     * only bosses. State lives in the serialized `phase` unit component, attached automatically (see
+     * `getUnitComponentSpecs`). A plain enrage is `[enragePreset(threshold)]`. See `units/components/phaseDef.ts`.
+     */
+    phases?: UnitPhaseDef[];
     /** Max unit objects of this type that can share one tile (tile-space share = 1/maxPerTile per object).
      *  undefined = exempt from the occupancy system entirely. */
     maxPerTile?: number;
@@ -260,6 +268,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         size: 'Extra Large',
         stamina: 2,
         perceptionRange: 350,
+        huntsSinglePrey: true,
         creatureType: 'dark_creature',
         uiDescription: 'Pack leader with heavy claws and howling support.',
         combatCc: {
@@ -269,12 +278,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
             ccArmourBreakStunDuration: 5,
             knockbackResistance: 2,
         },
-        enrageDef: {
-            conditionType: 'health_below_percent',
-            threshold: 0.5,
-            tag: UnitTag.Enraged,
-            oneShot: true,
-        },
+        phases: [enragePreset(ALPHA_WOLF_ENRAGE_THRESHOLD)],
         deathSequence: ALPHA_WOLF_DEATH_SEQUENCE,
     },
     boar: {
@@ -350,12 +354,7 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         startingResources: { super: 2 },
         displayWiggleRadius: 10,
         // Enrages at half health, like the alpha wolf: bigger decoys, a double-tap bolt, a denser light-eater ring.
-        enrageDef: {
-            conditionType: 'health_below_percent',
-            threshold: 0.5,
-            tag: UnitTag.Enraged,
-            oneShot: true,
-        },
+        phases: [enragePreset(0.5)],
     },
     displacer_clone: {
         bodyColor: 0x1e3a5f,
@@ -509,14 +508,19 @@ export function getUnitDefEntry(characterId: UnitDefId): UnitDefEntry | undefine
     return UNIT_DEFS[characterId];
 }
 
-/** Components a character's def declares (undefined when none). */
+/**
+ * Components a character's def declares (undefined when none). A def with `phases` also gets the `phase`
+ * component (options = its phase list), so defs never declare it by hand.
+ */
 export function getUnitComponentSpecs(characterId: string): readonly UnitComponentSpec<any, any>[] | undefined {
-    return UNIT_DEFS[characterId as UnitDefId]?.components;
+    const def = UNIT_DEFS[characterId as UnitDefId];
+    if (!def?.phases?.length) return def?.components;
+    return [...(def.components ?? []), componentSpec(PHASE_COMPONENT, { phases: def.phases })];
 }
 
-/** Enrage trigger def for a character id (undefined when the character does not enrage). */
-export function getUnitEnrageDef(characterId: string): EnrageDef | undefined {
-    return UNIT_DEFS[characterId as UnitDefId]?.enrageDef;
+/** Phases a character's def declares (undefined when none). */
+export function getUnitPhases(characterId: string): readonly UnitPhaseDef[] | undefined {
+    return UNIT_DEFS[characterId as UnitDefId]?.phases;
 }
 
 function unitIsDarkCreature(unit: Unit): boolean {
@@ -783,6 +787,11 @@ export function resolveEnemySpawnStats(partial: {
 export function getPerceptionRange(characterId: string): number {
     const def = UNIT_DEFS[characterId as UnitDefId];
     return def?.perceptionRange ?? 300;
+}
+
+/** True when the character's hunter AI picks and keeps a single prey (see `UnitDefEntry.huntsSinglePrey`). */
+export function getUnitHuntsSinglePrey(characterId: string): boolean {
+    return UNIT_DEFS[characterId as UnitDefId]?.huntsSinglePrey === true;
 }
 
 /** Creature category from unit defs; undefined when unset (treat as uncategorized for new-enemy workflows). */

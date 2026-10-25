@@ -93,6 +93,9 @@ export interface EngineContext {
     /** Trigger a story pause: freeze the sim, grant can't-die to player units, resume after durationSeconds. */
     startStoryPause(reason: string, durationSeconds: number): void;
 
+    /** Start a Time Stop (see `game/time/AGENTS.md`). Duration is tick time. */
+    startTimeStop(spec: import('./time/TimeManager').StartTimeStopSpec): import('./time/TimeManager').TimeStop;
+
     /** Register an EffectEmitter to be ticked by the EffectEmitterManager. */
     addEffectEmitter(emitter: EffectEmitter): void;
 

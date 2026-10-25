@@ -81,7 +81,7 @@ import { mirrorAbilityToClones } from './mirrorToClones';
 import { pickCloneSpawnPositions } from './clonePlacement';
 import { advanceKite, applyKiteMovement, DISPLACER_KITE_DISTANCE, type KiteState } from '../units/unitAI/displacer/displacerKite';
 import { DisplayWiggle } from '../GameRenderer/displayWiggle';
-import { getUnitDisplayWiggleRadius } from '../units/unit_defs/unitDef';
+import { getUnitDisplayWiggleRadius, getUnitPhases } from '../units/unit_defs/unitDef';
 import { ROUND_DURATION } from '../gameConstants';
 import { SuperBar } from '../../resources/SuperBar';
 import { createResourceFromId } from '../../resources/createResourceFromId';
@@ -807,7 +807,9 @@ describe('Displacer Spirit enrage (half health)', () => {
     it('enrages once, below half health, and not before', () => {
         const engine = makeEngine();
         const boss = spawnEnemy(engine, ENEMY_DISPLACER_SPIRIT, cell(18), cell(8));
-        expect(boss.enrageDef).toMatchObject({ conditionType: 'health_below_percent', threshold: 0.5, tag: UnitTag.Enraged });
+        expect(getUnitPhases(boss.characterId)).toMatchObject([
+            { enterWhen: { kind: 'health_below_percent', threshold: 0.5 }, tags: { add: [UnitTag.Enraged] } },
+        ]);
         boss.takeDamage(boss.maxHp * 0.4, null, engine.eventBus);
         expect(hasUnitTag(boss, UnitTag.Enraged)).toBe(false);
         boss.takeDamage(boss.maxHp * 0.15, null, engine.eventBus);

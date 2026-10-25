@@ -1,11 +1,16 @@
-﻿import type { AbilityStatic, AttackBlockedInfo, IAbilityPreviewGraphics } from '../../../abilities/Ability';
+﻿/**
+ * Shaking Ground: an Earth Core quake. After a short windup the ground shakes in a 100px radius
+ * around the caster, damaging every enemy in it, and cracks the stone tile under the caster. Built on
+ * `MeleeAttack` (circle hitbox at the caster) plus `TerrainStrike`, so the hit and the rock damage
+ * share one cast window and no `doCardEffect` is needed.
+ */
+
+import type { AbilityStatic, IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
+import { CastBehaviours } from '../../../abilities/CastBehaviours';
 import type { Unit } from '../../../game/units/Unit';
-import type { ResolvedTarget } from '../../../game/types';
 import { type CardDef } from '../../types';
 import { SHAKING_GROUND_ABILITY_ID } from '../../../abilities/earthCoreMeleePassives';
-import { damageEnemiesInCircle } from '../../../abilities/targetHelpers';
-import type { AbilityEngineContext } from '../../../abilities/AbilityEngineContext';
 import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 
@@ -19,9 +24,31 @@ const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     RADIUS: { kind: 'plain', value: RADIUS },
     DAMAGE: { kind: 'damage', base: DAMAGE },
 };
+
+/** Area hit around the caster. No lunge and no impact effect: the ground itself is the telegraph. */
+const quakeHit = CastBehaviours.MeleeAttack()
+    .withHitbox({ shape: 'circle', range: RADIUS })
+    .withImpactAt(0)
+    .withSlide({ forwardDistance: 0, backwardDistance: 0 })
+    .withImpactVFX(() => {})
+    .withDamage(DAMAGE);
+
+/** Cracks the stone tile under the caster, after the hit. Default Earth Core stone damage. */
+const quakeCrack = CastBehaviours.TerrainStrike().atPoint((ctx) => ctx.caster).damageRock();
+
 const TIMINGS: AbilityTimingInterval[] = [
     { id: 'windup', start: 0, end: 0.35, abilityPhase: AbilityPhase.Windup },
-    { id: 'quake', start: 0.35, end: 0.45, abilityPhase: AbilityPhase.Active, doNotRefund: true },
+    {
+        id: 'quake',
+        start: 0.35,
+        end: 0.45,
+        abilityPhase: AbilityPhase.Active,
+        doNotRefund: true,
+        castBehaviours: [
+            { timingStart: 'start', timingEnd: 'end', behaviour: quakeHit },
+            { timingStart: 'start', timingEnd: 'end', behaviour: quakeCrack },
+        ],
+    },
     { id: 'recover', start: 0.45, end: 1.5, abilityPhase: AbilityPhase.Cooldown },
 ];
 
@@ -45,23 +72,6 @@ export const ShakingGroundAbility: AbilityStatic = {
     getAbilityStates(): [] {
         return [];
     },
-    doCardEffect(engine: unknown, caster: Unit, _targets: ResolvedTarget[], prevTime: number, currentTime: number): void {
-        if (!(prevTime < 0.35 && currentTime >= 0.35)) return;
-        const eng = engine as AbilityEngineContext;
-        damageEnemiesInCircle({
-            engine: eng,
-            caster,
-            center: { x: caster.x, y: caster.y },
-            radius: RADIUS,
-            damage: DAMAGE,
-            abilityId: SHAKING_GROUND_ABILITY_ID,
-            attackType: 'melee',
-        });
-        if (!eng.terrainManager) return;
-        const cell = eng.terrainManager.grid.worldToGrid(caster.x, caster.y);
-        eng.terrainManager.damageRock(cell.col, cell.row, undefined, caster.id);
-    },
-    onAttackBlocked(_engine: unknown, _defender: Unit, _attackInfo: AttackBlockedInfo): void {},
     renderTargetingPreview(
         gr: IAbilityPreviewGraphics,
         caster: Unit,

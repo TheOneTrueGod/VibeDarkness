@@ -18,8 +18,10 @@ import {
 } from './0008Ability';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { worldToTile } from '../../abilities/tileAreaHelpers';
-import { isAbilityTimingInterval, type AbilityTimingInterval } from '../../abilities/abilityTimings';
-import { ThornStompAbility, THORN_STOMP_WINDUP_TIME } from '../0016_ThornStomp/0016Ability';
+import { isAbilityTimingInterval, getEffectiveCastBehaviours, type AbilityTimingInterval } from '../../abilities/abilityTimings';
+import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
+import type { CastBehaviourTickContext } from '../../abilities/castBehaviourTypes';
+import { ThornStompAbility } from '../0016_ThornStomp/0016Ability';
 
 function makeGraphicsRecorder(): IAbilityPreviewGraphics & {
     circles: { x: number; y: number; radius: number }[];
@@ -93,6 +95,28 @@ function fireBramble(engine: ReturnType<typeof makeEngine>, caster: Unit, x: num
     ThornbinderBrambleAbility.onProjectileExpired!(engine, caster, projectile);
 }
 
+/** Runs Thorn Stomp's strike-window behaviours in order, as the tick loop does on window entry. */
+function fireStomp(engine: ReturnType<typeof makeEngine>, caster: Unit) {
+    const strike = (ThornStompAbility.abilityTimings as AbilityTimingInterval[]).find((t) => t.id === 'strike')!;
+    for (const entry of getEffectiveCastBehaviours(strike)!) {
+        const ctx: CastBehaviourTickContext = {
+            caster,
+            abilityId: ThornStompAbility.id,
+            target: { type: 'pixel', position: { x: caster.x, y: caster.y } },
+            allTargets: [],
+            castPayload: undefined,
+            behaviourPayload: undefined,
+            setBehaviourPayload: () => {},
+            engine: engine as unknown as AbilityEngineContext,
+            windowProgress: 0,
+            prevWindowProgress: 0,
+            isFirstTick: true,
+            isLastTick: true,
+        };
+        entry.behaviour.onTick?.(ctx);
+    }
+}
+
 describe('ThornbinderBrambleAbility ground-thorn ownership', () => {
     it('does not remove its own previously-placed patch when it casts again', () => {
         const caster = makeCaster();
@@ -114,7 +138,7 @@ describe('ThornbinderBrambleAbility ground-thorn ownership', () => {
         const caster = makeCaster();
         const engine = makeEngine(caster);
 
-        ThornStompAbility.doCardEffect!(engine, caster, [], 0, THORN_STOMP_WINDUP_TIME + 0.01);
+        fireStomp(engine, caster);
         const stompEffects = Array.from(engine.terrainLayers.allEffects.values());
         expect(stompEffects.length).toBeGreaterThan(0);
 

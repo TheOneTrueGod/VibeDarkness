@@ -7,12 +7,16 @@ export type BossArcadeHpBarProps = {
     maxHp: number;
     hpInjury?: number;
     isEnraged?: boolean;
+    /** Label of the current phase (shown after the name). */
+    phaseLabel?: string | null;
+    /** HP fractions (0-1) where the next phase starts; drawn as tick marks on the bar. */
+    phaseThresholds?: number[];
 };
 
 /**
  * Compact boss HP strip with fill ratio and name centered on the bar.
  */
-export function BossArcadeHpBar({ name, hp, maxHp, hpInjury, isEnraged }: BossArcadeHpBarProps) {
+export function BossArcadeHpBar({ name, hp, maxHp, hpInjury, isEnraged, phaseLabel, phaseThresholds }: BossArcadeHpBarProps) {
     const safeMax = maxHp > 0 ? maxHp : 1;
     const ratio = Math.min(1, Math.max(0, hp / safeMax));
     const fillWidthPct = ratio * 100;
@@ -36,6 +40,15 @@ export function BossArcadeHpBar({ name, hp, maxHp, hpInjury, isEnraged }: BossAr
                     aria-hidden
                 />
             )}
+            {(phaseThresholds ?? []).map((threshold) => (
+                <div
+                    key={threshold}
+                    className={`absolute inset-y-0 z-10 w-px ${ratio <= threshold ? 'bg-gray-500/40' : 'bg-gray-300/70'}`}
+                    style={{ left: `${threshold * 100}%` }}
+                    data-testid="phase-threshold"
+                    aria-hidden
+                />
+            ))}
             <div className="relative z-10 flex h-full items-center justify-center gap-1.5 px-3">
                 {isEnraged && (
                     <Flame className="h-4 w-4 shrink-0 text-orange-400 drop-shadow-[0_0_4px_rgba(251,146,60,0.9)]" aria-hidden />
@@ -43,6 +56,11 @@ export function BossArcadeHpBar({ name, hp, maxHp, hpInjury, isEnraged }: BossAr
                 <span className="max-w-full truncate text-center text-xs font-bold uppercase tracking-[0.18em] text-gray-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] sm:text-sm">
                     {name}
                 </span>
+                {phaseLabel ? (
+                    <span className="shrink-0 text-[0.6rem] font-semibold uppercase tracking-widest text-orange-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                        {phaseLabel}
+                    </span>
+                ) : null}
                 {isEnraged && (
                     <Flame className="h-4 w-4 shrink-0 text-orange-400 drop-shadow-[0_0_4px_rgba(251,146,60,0.9)]" aria-hidden />
                 )}

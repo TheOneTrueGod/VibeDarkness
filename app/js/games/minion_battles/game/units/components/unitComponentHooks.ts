@@ -13,6 +13,9 @@
  * | `runUnitComponentRoundMilestone` | the round-start block (after unit round-start work) and the round-half block | `onRoundMilestone` |
  * | `runUnitComponentDeath` | the `unit_died` listener, right after the def's death sequence / visual effects | `onDeath` for each component the dying unit carries |
  *
+ * The `phase` component (`phaseHooks.ts`) uses `tick` to end phase transitions and check non-damage phase conditions;
+ * HP conditions are also checked by `UnitManager` right after `damage_taken`.
+ *
  * `tick`, `lateTick` and `onRoundMilestone` are type-level: they run once per call and iterate `ctx.units` themselves.
  * Many behaviours span units (pooled construction, a nest counting its children), and RNG draws and id allocation must
  * keep a fixed order across units, so one pass per type is the deterministic shape. `onDeath` is per unit.
@@ -33,6 +36,8 @@ import type { Unit } from '../Unit';
 import type { UnitComponentType } from './unitComponent';
 import { LANTERNITE_COMPONENT } from './lanterniteComponent';
 import { SWARM_COMPONENT } from './swarmComponent';
+import { PHASE_COMPONENT } from './phaseComponent';
+import { PHASE_HOOKS } from './phaseHooks';
 import { LANTERNITE_HOOKS } from '../../lanternite/lanterniteComponentHooks';
 import { SWARM_HOOKS } from '../../lanternite/swarmComponentHooks';
 
@@ -79,6 +84,8 @@ interface HookEntry {
 const HOOK_ENTRIES: HookEntry[] = [
     { type: LANTERNITE_COMPONENT, hooks: LANTERNITE_HOOKS },
     { type: SWARM_COMPONENT, hooks: SWARM_HOOKS },
+    // Phases last: they read the world after this tick's spawns, and their `tick` ends transitions then checks conditions.
+    { type: PHASE_COMPONENT, hooks: PHASE_HOOKS },
 ];
 
 /** Append hooks for a component type (tests and future components). Returns a function that unregisters them. */

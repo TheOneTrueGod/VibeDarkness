@@ -8,6 +8,14 @@
  * Optional hitbox via addHitbox(): caster-anchored touch detection that deals damage
  * and fires ON_ATTACK_HIT events per hit unit (enabling abilityEvents side-effects such
  * as knockback). Uses touch semantics: a unit is hit when the two circles overlap.
+ *
+ * Optional extensions (all off by default, so existing dashes are unchanged):
+ *  - withPassThroughTerrain(): the dash ignores terrain collision (wall-penetrating dashes).
+ *  - withOnPathTile(cb): called once per tile the caster's centre enters along the path, so an
+ *    ability can react to the ground it crosses (damage rock with `strikeTerrain`, leave a trail).
+ *  - withConstantSpeed(): covers `maxDistance` over the window, so a short dash arrives early and
+ *    waits instead of slowing down to fill the window.
+ *  - addHitbox(..., { maxTargets }): cap on the distinct units one dash may hit.
  */
 
 import type { Unit } from '../../game/units/Unit';
@@ -24,6 +32,7 @@ import { Effect } from '../../game/effects/Effect';
 import type { HitboxDef } from '../hitboxDef';
 import { tryDamageOrBlock } from '../blockingHelpers';
 import { areEnemies } from '../../game/teams';
+import { worldToTile, type TileCoord } from '../tileAreaHelpers';
 
 const AFTERIMAGE_DURATION = 6 / 60;
 const AFTERIMAGE_INITIAL_ALPHA = 0.75;
@@ -33,6 +42,8 @@ interface DashHitboxConfig {
     damage: number | ((ctx: CastBehaviourTickContext) => number);
     attackType: 'melee' | 'charging';
     filter: 'enemy' | 'ally' | 'any';
+    /** Cap on distinct units hit across the whole dash; null = unlimited. */
+    maxTargets: number | null;
 }
 
 interface DashPayload {
@@ -50,6 +61,9 @@ interface DashPayload {
     } | null;
     // Hit-dedup set — null when no hitbox is configured.
     hitIds: Set<string> | null;
+    // Tiles already reported to the path-tile hook, as `col,row` keys (an array, not a Set, so the
+    // payload stays JSON-friendly). Stays empty when no hook is configured.
+    visitedTiles: string[];
     // When stopAfterHits is set, set to true once that many units have been hit so
     // subsequent ticks skip movement.
     stopped: boolean;
@@ -64,6 +78,11 @@ export class DashBehaviour implements CastBehaviour {
     /** Stop dash movement after this many successful hits; null = never stop on hit. */
     private _stopAfterHits: number | null = null;
     private _onHitCallback: ((hitUnit: Unit, ctx: CastBehaviourTickContext) => void) | null = null;
+    /** When true the dash ignores terrain collision (see {@link withPassThroughTerrain}). */
+    private _passThroughTerrain: boolean = false;
+    /** When true the dash covers `maxDistance` over the window instead of the clamped distance. */
+    private _constantSpeed: boolean = false;
+    private _onPathTile: ((ctx: CastBehaviourTickContext, tile: TileCoord) => void) | null = null;
     withMaxDistance(px: number): this {
         this._maxDistance = px;
         return this;
@@ -84,6 +103,38 @@ export class DashBehaviour implements CastBehaviour {
     /** Optional callback fired once per hit unit during `_processHitbox`. Runs after the hit is confirmed. */
     withOnHit(cb: (hitUnit: Unit, ctx: CastBehaviourTickContext) => void): this {
         this._onHitCallback = cb;
+        return this;
+    }
+
+    /**
+     * Ignore terrain collision: the dash travels the full distance through walls, rock and other
+     * impassable tiles (Digging Claws). Pair with {@link withOnPathTile} to react to what is crossed.
+     * The ability is responsible for the caster not being left inside a wall (see the wall-unstick
+     * system and `conditionalCancel`).
+     */
+    withPassThroughTerrain(enabled = true): this {
+        this._passThroughTerrain = enabled;
+        return this;
+    }
+
+    /**
+     * Path-hit hook: called once for each tile the caster's centre enters during the dash, after the
+     * tick's movement, in path order. A tile is reported once per dash. The tile is reported whatever
+     * its terrain, so the callback decides what counts (for example `strikeTerrain` only affects
+     * intact rock).
+     */
+    withOnPathTile(cb: (ctx: CastBehaviourTickContext, tile: TileCoord) => void): this {
+        this._onPathTile = cb;
+        return this;
+    }
+
+    /**
+     * Move at the fixed speed `maxDistance / windowLength` rather than spreading the (possibly
+     * shorter) clamped distance over the whole window. A dash aimed closer than `maxDistance`
+     * arrives early and then waits out the window, instead of crawling to fill it.
+     */
+    withConstantSpeed(enabled = true): this {
+        this._constantSpeed = enabled;
         return this;
     }
 
@@ -112,13 +163,20 @@ export class DashBehaviour implements CastBehaviour {
     addHitbox(
         _anchor: 'caster',
         def: HitboxDef,
-        attack: { damage: number | ((ctx: CastBehaviourTickContext) => number); attackType: 'melee' | 'charging'; filter?: 'enemy' | 'ally' | 'any' },
+        attack: {
+            damage: number | ((ctx: CastBehaviourTickContext) => number);
+            attackType: 'melee' | 'charging';
+            filter?: 'enemy' | 'ally' | 'any';
+            /** Cap on distinct units hit across the whole dash; the nearest are hit first when more touch at once. */
+            maxTargets?: number;
+        },
     ): this {
         this._hitbox = {
             def,
             damage: attack.damage,
             attackType: attack.attackType,
             filter: attack.filter ?? 'enemy',
+            maxTargets: attack.maxTargets ?? null,
         };
         return this;
     }
@@ -126,7 +184,7 @@ export class DashBehaviour implements CastBehaviour {
     onSetup(ctx: CastBehaviourSetupContext): void {
         const target = ctx.target;
         if (target.type !== 'pixel' || !target.position) {
-            ctx.setBehaviourPayload({ endX: ctx.caster.x, endY: ctx.caster.y, totalDistance: 0, afterimage: null, hitIds: null, stopped: false });
+            ctx.setBehaviourPayload({ endX: ctx.caster.x, endY: ctx.caster.y, totalDistance: 0, afterimage: null, hitIds: null, visitedTiles: [], stopped: false });
             return;
         }
 
@@ -137,7 +195,7 @@ export class DashBehaviour implements CastBehaviour {
             ctx.caster.x, ctx.caster.y,
             targetX, targetY,
             this._maxDistance,
-            { terrainManager: ctx.engine.terrainManager ?? null, step: this._collisionStep },
+            { terrainManager: this._passThroughTerrain ? null : (ctx.engine.terrainManager ?? null), step: this._collisionStep },
         );
         const endX = ctx.caster.x + dx;
         const endY = ctx.caster.y + dy;
@@ -160,6 +218,7 @@ export class DashBehaviour implements CastBehaviour {
             totalDistance,
             afterimage,
             hitIds: this._hitbox ? new Set<string>() : null,
+            visitedTiles: [],
             stopped: false,
         } satisfies DashPayload);
     }
@@ -174,10 +233,12 @@ export class DashBehaviour implements CastBehaviour {
         if (stillDashing) {
             ctx.caster.claimAbilityMovement();
             const progressDelta = ctx.windowProgress - ctx.prevWindowProgress;
-            const moveThisTick = Math.min(progressDelta * payload.totalDistance, distToEnd);
+            const span = this._constantSpeed ? this._maxDistance : payload.totalDistance;
+            const moveThisTick = Math.min(progressDelta * span, distToEnd);
             if (moveThisTick > 0) {
                 ctx.caster.invalidateMovementPath();
                 ctx.caster.moveUnit(payload.endX, payload.endY, moveThisTick);
+                if (this._onPathTile !== null) this._reportPathTile(ctx, payload);
             }
         }
 
@@ -198,12 +259,23 @@ export class DashBehaviour implements CastBehaviour {
         }
     }
 
+    /** Reports the tile the caster now stands in to the path hook, once per tile per dash. */
+    private _reportPathTile(ctx: CastBehaviourTickContext, payload: DashPayload): void {
+        const tile = worldToTile(ctx.caster.x, ctx.caster.y);
+        const key = `${tile.col},${tile.row}`;
+        if (payload.visitedTiles.includes(key)) return;
+        payload.visitedTiles.push(key);
+        ctx.setBehaviourPayload(payload);
+        this._onPathTile!(ctx, tile);
+    }
+
     private _processHitbox(ctx: CastBehaviourTickContext, payload: DashPayload): void {
-        const { def, damage: damageOrFn, attackType, filter } = this._hitbox!;
+        const { def, damage: damageOrFn, attackType, filter, maxTargets } = this._hitbox!;
         const hitRadius = def.shape === 'circle'
             ? (def.range === 'caster' ? ctx.caster.radius : def.range)
             : ctx.caster.radius;
 
+        const candidates: Unit[] = [];
         for (const unit of ctx.engine.units) {
             if (!unit.active || !unit.isAlive()) continue;
             if (unit.id === ctx.caster.id) continue;
@@ -214,7 +286,20 @@ export class DashBehaviour implements CastBehaviour {
 
             const dist = Math.hypot(unit.x - ctx.caster.x, unit.y - ctx.caster.y);
             if (dist > hitRadius + unit.radius) continue;
+            candidates.push(unit);
+        }
 
+        // Respect the dash-wide cap: when more units touch than slots remain, the nearest are hit first.
+        const slotsRemaining = maxTargets !== null ? maxTargets - payload.hitIds!.size : Infinity;
+        const toHit = candidates.length > slotsRemaining
+            ? candidates
+                .map((unit) => ({ unit, distSq: (unit.x - ctx.caster.x) ** 2 + (unit.y - ctx.caster.y) ** 2 }))
+                .sort((a, b) => a.distSq - b.distSq)
+                .slice(0, Math.max(0, slotsRemaining))
+                .map((entry) => entry.unit)
+            : candidates;
+
+        for (const unit of toHit) {
             const damage = typeof damageOrFn === 'function' ? damageOrFn(ctx) : damageOrFn;
             const outcome = tryDamageOrBlock(unit, {
                 engine: ctx.engine,

@@ -1,6 +1,5 @@
 import { EARTH_CORE_SHARED_DIAMETER } from '../card_defs/05_earth_core/earthCoreConstants';
-import type { DestructibleState } from '../terrain/FloorTile';
-import { isOnStone as isOnStoneTile } from '../terrain/FloorTile';
+import { getEffectiveTerrain, isOnStone as isOnStoneTile, type DestructibleState, type FloorTile } from '../terrain/FloorTile';
 import { TerrainType } from '../terrain/TerrainType';
 
 /**
@@ -61,4 +60,29 @@ export function isWithinEarthCoreNearbyStoneDamagedRange(
         damagedStoneCol,
         damagedStoneRow,
     );
+}
+
+/** The slice of `TerrainManager` that {@link isUnitOnStone} reads (lets tests pass a small stub). */
+export interface StoneQueryTerrain {
+    grid: {
+        worldToGrid(x: number, y: number): { col: number; row: number };
+        get(col: number, row: number): TerrainType;
+    };
+    getFloorTile(col: number, row: number): FloorTile | null;
+}
+
+/**
+ * True when a unit stands on intact stone (its tile's effective terrain, floor layer included, is
+ * intact rock). The shared "on stone" check for Earth Core damage riders (Earthern Punch, Anchored
+ * Tremor). Rubble and destroyed rock do not count; no terrain manager means no stone.
+ */
+export function isUnitOnStone(
+    terrain: StoneQueryTerrain | null | undefined,
+    unit: { x: number; y: number },
+): boolean {
+    if (!terrain) return false;
+    const cell = terrain.grid.worldToGrid(unit.x, unit.y);
+    const floor = terrain.getFloorTile(cell.col, cell.row);
+    const effective = getEffectiveTerrain(floor, terrain.grid.get(cell.col, cell.row));
+    return isOnStone(effective, floor?.destructible);
 }

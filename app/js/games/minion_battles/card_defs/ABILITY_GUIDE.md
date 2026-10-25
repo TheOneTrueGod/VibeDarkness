@@ -10,7 +10,7 @@ Important: ability implementation files belong in `card_defs/` folders (not dire
 
 **Abilities should contain as little logic as possible.** Use utility functions from `abilities/` so that reading an ability's functions is like reading a list of behaviours, not a block of implementation details.
 
-- **Do**: Implement `doCardEffect` by calling helpers keyed to clear behaviours (e.g. "at 0.05s draw a card", "during windup apply forced displacement toward target").
+- **Do**: Compose `castBehaviours` and call helpers keyed to clear behaviours (e.g. "at 0.05s draw a card", "during windup apply forced displacement toward target").
 - **Don't**: Inline geometry, damage/block checks, or drawing logic in the ability file when a shared helper already exists or can be added.
 - **Helpers**: See utility files in `abilities/` (`targetHelpers.ts`, `effectHelpers.ts`, `previewHelpers.ts`, `gunHelpers.ts`, `blockingHelpers.ts`, `petCommands.ts`) for available helpers. When adding new reusable behaviour, add or extend a helper first, then call it from the ability.
 - **Hitboxes (combat)**: When an ability damages or CCs units in a shape, collect targets via a hitbox (`CircleHitbox` / `ThickLineHitbox` / `resolveHitbox`) or a helper that wraps one (e.g. `damageEnemiesInCircle`). Do **not** hand-roll enemy radius/capsule loops for combat. Combat iFrames are filtered inside that pipeline by default. Environment damage (thorns, DoT, day-light, etc.) stays on direct `takeDamage` / tile paths — see **working-with-hitboxes** / `hitboxes/SKILL.md`.
@@ -68,7 +68,7 @@ See the decision table at the top of `abilities/previewHelpers.ts`. Rule of thum
 Ask for each ability:
 
 - **Anticipation** — Does windup and targeting make the intent obvious? (`prefireTime`, `renderTargetingPreview`, early `abilityTimings` bands.)
-- **Impact** — Is the payoff moment clear? Prefer aligning one-shot `doCardEffect` thresholds with meaningful timing intervals and phases (see **`abilityTimings`** below).
+- **Impact** — Is the payoff moment clear? Prefer aligning one-shot behaviours (`Instant`) with meaningful timing intervals and phases (see **`abilityTimings`** below).
 - **Aftermath** — Is recovery or lingering feedback clear enough that the cadence isn't muddy? (timeline labels/phases, short effects.)
 
 **Hooks in this codebase**
@@ -79,7 +79,7 @@ Ask for each ability:
 - **Battle effects** — Particle bursts, glows, etc. via the effects system. Visual defs live in `game/effect_defs/` (not the old `game/effectDef.ts`). Two distinct types exist — see `game/effects/AGENTS.md` for the full architecture:
   - **`Effect`** — purely visual, render-tick-driven (`renderUpdate` every rAF frame), **not serialized**. Use `engine.addEffect(effect)` for one-off effects at a specific game-state moment (hit position, impact point).
   - **`EffectEmitter`** — game-tick-driven, **serialized**, produces `Effect` instances. Use `engine.addEffectEmitter(emitter)` for imperative emitter creation (e.g. in `beginActiveCast` for per-unit visual data like Afterimage).
-  - **Time-based visual emission** within an ability should use `abilityTimings[n].emitterDef` (type `AbilityTimingEmitterDef` from `abilities/abilityTimings.ts`). The engine auto-creates and deactivates emitters when timing windows open/close — do not use manual loops or edge-checks in `doCardEffect` for this.
+  - **Time-based visual emission** within an ability should use `abilityTimings[n].emitterDef` (type `AbilityTimingEmitterDef` from `abilities/abilityTimings.ts`). The engine auto-creates and deactivates emitters when timing windows open/close — do not use manual loops or edge-checks in behaviours for this.
 - **`abilityEvents`** — Primarily **gameplay rule** hooks (`abilities/events/AbilityEffect.ts`). Prefer presets and inline rules; use **`custom`** effects only when needed, with the required comment, consistent with **`abilityEvents` authoring order** below.
 - **Player-facing copy** — Names, descriptions, and tooltip rhythm: **writing-style-abilities** (`.cursor/skills/narrative/writing-style-abilities/SKILL.md`). For `getTooltipText`, mechanical keywords use standalone lines (`'{Bright 3}'`, `'{knockback 1}'`) — see **Keyword lines [Canon]** in that skill's `STYLE.md`. **Do not** restate the resource cost in tooltip text (no `"Costs 2 Light"` / `"Free to cast"` lines) — the card UI already shows `resourceCost` as icons in the card's top-right corner; a redundant cost line in the tooltip is noise and drifts out of sync when the cost changes.
 
@@ -132,9 +132,9 @@ Both are exported from the same file. Export the ability for `AbilityRegistry` a
 
 ## Required ability behavior
 
-1. **`doCardEffect(engine, caster, targets, prevTime, currentTime)`**
-   - Runs every tick while the ability is active.
-   - Use `prevTime` and `currentTime` (seconds since start) for one-shot effects. See existing abilities under `card_defs/` for threshold examples.
+1. **`castBehaviours` on `abilityTimings` intervals** (`CastBehaviours.MeleeAttack()`, `Instant`, `ProjectileLaunch`, `Dash`, `Pulse`, `TerrainStrike`, …; see `abilities/CastBehaviours/index.ts`)
+   - The only way an ability acts over time; there is no per-tick ability hook. Each behaviour runs when its timing window opens or ticks.
+   - Use `Instant` for one-shots, aligned to a timing interval. See existing abilities under `card_defs/` for examples.
 
 2. **`renderTargetingPreview(gr, caster, currentTargets, mouseWorld, units)`**
    - Draws a hint in the targeting overlay for where the skill will affect.
@@ -147,7 +147,7 @@ Implement the rest of `AbilityStatic` (`getDescription`, `getAbilityStates`, `ta
 
 | Field | Role |
 |--------|------|
-| `id` | Stable string for simulation (`windup`, `lunge`, `hit`, …) — use `activeTimingIds` / `enteredTimingIds` in `doCardEffect` when migrating. |
+| `id` | Stable string for simulation (`windup`, `lunge`, `hit`, …) — attach `castBehaviours` to the interval that owns the effect. |
 | `start`, `end` | Seconds from cast start; **half-open** `[start, end)` (`end` exclusive). |
 | `abilityPhase` | `AbilityPhase` for ring UI and timeline colour. |
 | `timelineLabel` / `timelineDescription` | Optional; battle timeline tooltips default from phase if omitted. |
@@ -279,7 +279,7 @@ To find or consume things other abilities left on the map (lights, bramble), cal
 - [ ] Folder `card_defs/####_ABILITY_NAME` and file `####_ABILITY_NAME.ts` created.
 - [ ] Ability ID uses group (2 digits) + index (2 digits); group from `AbilityGroupId`.
 - [ ] Same file exports both the ability and the `CardDef` with matching `id` / `abilityId`.
-- [ ] Non-empty `abilityTimings` (interval form); `doCardEffect` implements per-tick behavior; `renderTargetingPreview` draws targeting hint.
+- [ ] Non-empty `abilityTimings` (interval form); `castBehaviours` implement the behaviour; `renderTargetingPreview` draws targeting hint.
 - [ ] Ability registered in `AbilityRegistry.ts`; card def registered in `card_defs/index.ts`.
 - [ ] Character's card list includes the new card id if the character should have the card.
 - [ ] If a **new enemy character** was introduced: add it to `BESTIARY_ENTRIES` in `app/js/components/BestiaryPanel.tsx` and ensure its sprite key appears in `SPRITE_ICONS`.

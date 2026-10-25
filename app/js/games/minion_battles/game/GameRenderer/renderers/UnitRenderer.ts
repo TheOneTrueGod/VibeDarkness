@@ -31,7 +31,7 @@ import { DisplayWiggle } from '../displayWiggle';
 import { getBuffVisualRenderer } from '../../../buffs/buffVisuals';
 import type { DamageTakenEvent } from '../../EventBus';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
-import { lanterniteStateOf, peekLanterniteState } from '../../units/components/lanterniteComponent';
+import { isLanterniteNest, lanterniteStateOf, peekLanterniteState } from '../../units/components/lanterniteComponent';
 
 const HIT_FLASH_DURATION = 0.3;
 const HIT_FLASH_COLOR = 0xff0000;
@@ -420,7 +420,7 @@ export class UnitRenderer {
             }
 
             // Lanternite nest spawn progress arc
-            if (unit.characterId === 'lanternite_nest') {
+            if (isLanterniteNest(unit)) {
                 let nestSpawnArc = visual.children.find((c) => c.label === 'nestSpawnArc') as Graphics | undefined;
                 const nestCfg = lanterniteStateOf(unit).nestConfig;
                 const nestState = lanterniteStateOf(unit).nestSpawnState;

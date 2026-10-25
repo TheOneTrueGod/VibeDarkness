@@ -15,7 +15,6 @@ import {
 } from './abilityTimings';
 import type { Unit } from '../game/units/Unit';
 import type { TargetDef } from './targeting';
-import type { ActiveAbility, ResolvedTarget } from '../game/types';
 
 export abstract class AbilityBase<TNote = never> implements AbilityStatic {
     abstract readonly id: string;
@@ -23,15 +22,6 @@ export abstract class AbilityBase<TNote = never> implements AbilityStatic {
     abstract readonly image: string;
     abstract readonly prefireTime: number;
     abstract readonly targets: TargetDef[];
-
-    doCardEffect(
-        _engine: unknown,
-        _caster: Unit,
-        _targets: ResolvedTarget[],
-        _prevTime: number,
-        _currentTime: number,
-        _active?: ActiveAbility,
-    ): void {}
 
     abstract getTooltipText(gameState?: unknown): string[];
 

@@ -6,6 +6,24 @@ import type { BossHudSlice } from '../../components/boss/BossFightHud';
 import { getBossSpecialMoveCharges } from '../../components/boss/bossSignatureHud';
 import { getEffectiveHardCcThreshold } from '../../../crowdControl/ccArmourState';
 import { UnitTag } from '../../../game/units/unitTag';
+import { peekPhaseState, phasesOf } from '../../../game/units/components/phaseComponent';
+import { getPhaseHpThresholds } from '../../../game/units/components/phaseDef';
+import type { Unit } from '../../../game/units/Unit';
+
+/** Phase HUD data for a phased unit (null when the unit has no phases). */
+function buildPhaseHud(b: Unit): NonNullable<BossHudSlice>['phase'] {
+    const phases = phasesOf(b);
+    if (phases.length === 0) return null;
+    const state = peekPhaseState(b);
+    const index = state?.index ?? 0;
+    return {
+        label: index > 0 ? (phases[index - 1]?.label ?? null) : null,
+        index,
+        total: phases.length,
+        hpThresholds: getPhaseHpThresholds(phases),
+        banner: state?.transition?.banner ?? null,
+    };
+}
 
 function buildBossHudSlice(engine: GameEngine): BossHudSlice {
     const bosses = engine.units.filter((u) => u.isAlive() && u.tags.includes(UnitTag.Boss));
@@ -34,7 +52,20 @@ function buildBossHudSlice(engine: GameEngine): BossHudSlice {
         exposedTotalDuration,
         isEnraged: b.tags.includes(UnitTag.Enraged),
         characterId: b.characterId,
+        phase: buildPhaseHud(b),
     };
+}
+
+function phaseHudEqual(prev: NonNullable<BossHudSlice>['phase'], next: NonNullable<BossHudSlice>['phase']): boolean {
+    if (prev == null || next == null) return prev === next;
+    return (
+        prev.label === next.label &&
+        prev.index === next.index &&
+        prev.total === next.total &&
+        prev.banner === next.banner &&
+        prev.hpThresholds.length === next.hpThresholds.length &&
+        prev.hpThresholds.every((t, i) => t === next.hpThresholds[i])
+    );
 }
 
 function bossHudSlicesEqual(prev: BossHudSlice, next: BossHudSlice): boolean {
@@ -65,6 +96,7 @@ function bossHudSlicesEqual(prev: BossHudSlice, next: BossHudSlice): boolean {
         prev.exposedTotalDuration === next.exposedTotalDuration &&
         prev.isEnraged === next.isEnraged &&
         prev.characterId === next.characterId &&
+        phaseHudEqual(prev.phase, next.phase) &&
         smEqual
     );
 }
