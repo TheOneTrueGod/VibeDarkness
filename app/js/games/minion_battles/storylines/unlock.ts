@@ -226,6 +226,26 @@ export function getNextVictoryMissionId(
 }
 
 /**
+ * Chapter the Mission Map should show after finishing `missionId` and pressing Continue with no
+ * follow-up mission: the next player chapter when `missionId` is the last mission of its chapter,
+ * else that same chapter. Null when the mission is in no chapter.
+ */
+export function getChapterIdAfterVictory(
+    missionId: string,
+    storylines: StorylineDef[],
+): string | null {
+    const nextMissionId = getNextVictoryMissionId(missionId, storylines);
+    for (const storyline of storylines) {
+        const chapters = getCampaignChapters(storyline).filter((c) => !c.adminOnly);
+        const idx = chapters.findIndex((c) => c.missionIds.includes(missionId));
+        if (idx < 0) continue;
+        const isLastInChapter = nextMissionId == null || !chapters[idx].missionIds.includes(nextMissionId);
+        return (isLastInChapter ? (chapters[idx + 1] ?? chapters[idx]) : chapters[idx]).id;
+    }
+    return null;
+}
+
+/**
  * Return all side mission IDs available from `currentMissionId` after victory.
  */
 export function getSideMissionIds(

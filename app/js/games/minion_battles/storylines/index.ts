@@ -61,6 +61,7 @@ export {
     getHighestUnlockedChapterIndex,
     hasVictoryResult,
     getNextVictoryMissionId,
+    getChapterIdAfterVictory,
     getSideMissionIds,
     isSideMissionId,
     isQuestSlotBankUnlocked,

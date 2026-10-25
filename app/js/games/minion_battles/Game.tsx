@@ -21,6 +21,7 @@ import {
     STORYLINES,
     addLocationCardsToDeck,
     getNextVictoryMissionId,
+    getChapterIdAfterVictory,
     getSideMissionIds,
     getQuestDef,
     abandonQuestRun,
@@ -119,7 +120,7 @@ interface MinionBattlesGameProps extends Pick<GameComponentProps, 'minionBattles
     onLeave?: (characterId?: string) => void;
     /** Called when the player presses Continue after a victory; passes the campaign character id they
      *  brought (undefined for spectators/control-enemies). Falls back to onLeave if not provided. */
-    onContinue?: (characterId: string | undefined) => void;
+    onContinue?: (characterId: string | undefined, missionMapChapterId?: string | null) => void;
     /** Create a new lobby for the given mission (Try Again / Continue victory path).
      *  Returns true on success; false triggers the onContinue fallback.
      *  previousCharacterSelections carries the battle's character selections into the new lobby so
@@ -1284,7 +1285,10 @@ export default function MinionBattlesGame({
                             if (created) return;
                         }
                         if (onContinue) {
-                            onContinue(characterId);
+                            onContinue(
+                                characterId,
+                                selectedMissionId ? getChapterIdAfterVictory(selectedMissionId, STORYLINES) : null,
+                            );
                         } else {
                             onLeave?.();
                         }

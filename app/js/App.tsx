@@ -1114,7 +1114,7 @@ function AppInner() {
         }
     }, [currentLobby, currentPlayer, lobbyClient, showToast, refetchUser, navigate, isAdmin, user?.id]);
 
-    const handleContinueFromMission = useCallback((characterId: string | undefined) => {
+    const handleContinueFromMission = useCallback((characterId: string | undefined, missionMapChapterId?: string | null) => {
         if (!currentLobby || !currentPlayer) return;
         const lobbyId = currentLobby.id;
         const playerId = currentPlayer.id;
@@ -1137,7 +1137,10 @@ function AppInner() {
 
         const home = isAdmin ? campaignPathForTab('mission_select') : campaignPathForTab('join_mission');
         const target = characterId && user?.id ? playerCharacterPath(user.id, characterId) : home;
-        navigate(target, { replace: true });
+        navigate(target, {
+            replace: true,
+            state: missionMapChapterId ? { missionMapChapterId } : undefined,
+        });
         setScreen('lobby');
         refetchUser();
         showToast('Left the lobby', 'info');

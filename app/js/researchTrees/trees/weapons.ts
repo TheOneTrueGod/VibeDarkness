@@ -11,7 +11,6 @@ import {
     NODE_IRON_WRISTS,
     NODE_MORE_POWER,
     NODE_MORE_ROCK,
-    NODE_PIERCING_KNIVES,
     NODE_STRENGTHENING_LIGHT,
     NODE_TRAINING_REGIME,
     ROCKS_ROOT_NODE_ID,
@@ -112,11 +111,10 @@ export const weaponsTree: ResearchTreeDef = {
             order: 20,
             tier: 2,
             prereqNodeIds: [],
-            exclusiveWithNodeIds: [NODE_MORE_POWER, NODE_PIERCING_KNIVES],
+            exclusiveWithNodeIds: [NODE_MORE_POWER],
             requirements: [
                 { type: 'anyResearched', treeId: WEAPONS_TREE_ID, nodeIds: [CHARGED_ROCKS_ROOT_NODE_ID, KNIVES_ROOT_NODE_ID] },
                 { type: 'notResearched', treeId: WEAPONS_TREE_ID, nodeId: NODE_MORE_POWER },
-                { type: 'notResearched', treeId: WEAPONS_TREE_ID, nodeId: NODE_PIERCING_KNIVES },
             ],
             cost: { metal: WEAPON_TREE_PREMIUM_METAL_COST },
             effects: [],
@@ -129,19 +127,6 @@ export const weaponsTree: ResearchTreeDef = {
             description: 'Throw sharpened knives at enemies from a distance.',
             abilityId: 'throw_knife',
         }),
-        {
-            id: NODE_PIERCING_KNIVES,
-            title: 'Piercing Knives',
-            description: 'Throwing knives pierce through their {first target}, hitting it and continuing to the next.',
-            order: 40,
-            tier: 2,
-            prereqNodeIds: [KNIVES_ROOT_NODE_ID],
-            exclusiveWithNodeIds: [NODE_MORE_ROCK],
-            requirements: [{ type: 'notResearched', treeId: WEAPONS_TREE_ID, nodeId: NODE_MORE_ROCK }],
-            cost: { metal: WEAPON_TREE_PREMIUM_METAL_COST },
-            effects: [],
-            modifiesAbility: { from: 'throw_knife', to: 'throw_knife' },
-        },
 
         // Melee
         weaponRoot({

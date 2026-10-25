@@ -119,14 +119,14 @@ const PRE_MISSION_STORY: PreMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: "A low growl echoes from beyond the cave mouth. Something waits for you out there—patient, hungry.",
+            text: "A loud growl echoes from beyond the cave mouth. Something has found you.  Something patient... Something hungry",
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },
         {
             type: 'dialogue',
             speakerId: '1',
-            text: "The Beast has come. He will not let you pass. The dark crystal at his feet pulses with malice. There is no retreat—only the fight.",
+            text: "The Beast has come. There is no retreat... only the fight.",
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },
@@ -138,7 +138,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
         {
             type: 'dialogue',
             speakerId: '1',
-            text: "TO DO: POST MISSION STORY.",
+            text: "You defeat the Beast, but something is different.  You feel... power.  Like things won't be the same anymore.",
             portraitSide: 'left',
             backgroundImage: STORY_BACKGROUNDS.campfire,
         },

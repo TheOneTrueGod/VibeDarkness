@@ -22,7 +22,7 @@ import { LIGHT_TREE_ID } from './trees/light';
 import { weaponsTree } from './trees/weapons';
 import type { CampaignResourceCost, ResearchNodeDef, ResearchTreeDef } from './types';
 
-const WEAPON_PREMIUM_TITLES = new Set(['Iron Wrists', 'Training Regime', 'Piercing Knives', 'More Rock', 'More Power']);
+const WEAPON_PREMIUM_TITLES = new Set(['Iron Wrists', 'Training Regime','More Rock', 'More Power']);
 
 const CORE_TREES_EXCEPT_LIGHT: ResearchTreeDef[] = RESEARCH_TREES.filter(
     (tree) => tree.id !== LIGHT_TREE_ID && [

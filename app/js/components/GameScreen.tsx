@@ -81,7 +81,7 @@ export interface GameComponentProps {
     onLeave?: () => void;
     /** Called when the player presses Continue after a victory; passes the campaign character id they
      *  brought (undefined for spectators/control-enemies). Falls back to onLeave if not provided. */
-    onContinue?: (characterId: string | undefined) => void;
+    onContinue?: (characterId: string | undefined, missionMapChapterId?: string | null) => void;
     /** Called when user clicks Try Again after defeat or Continue after victory; creates a new lobby for the given
      *  mission. Returns true on success so the caller can fall back if lobby creation fails.
      *  Optional questLobby stamps quest chain fields on the new lobby. */
@@ -126,7 +126,7 @@ interface GameScreenProps {
     onSendChat: (message: string) => void;
     onCanvasClick: (x: number, y: number) => void;
     onLeave: () => void;
-    onContinue?: (characterId: string | undefined) => void;
+    onContinue?: (characterId: string | undefined, missionMapChapterId?: string | null) => void;
     onSelectGame: (gameId: string) => void;
     onRecordMissionResult?: (
         missionId: string,

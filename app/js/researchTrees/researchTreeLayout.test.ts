@@ -15,7 +15,6 @@ describe('rows layout (Weapons tree)', () => {
 
     it('stretches upgrades to the right of the root they need', () => {
         expect(cell('more_power')).toEqual({ row: cell('throw_charged_rock').row, column: 1 });
-        expect(cell('piercing_knives')).toEqual({ row: cell('throw_knife').row, column: 1 });
         expect(cell('pipe_bat_damage')).toEqual({ row: cell('swing_mace').row, column: 1 });
         expect(cell('extra_shields')).toEqual({ row: cell('crystal_shield').row, column: 1 });
     });
@@ -31,11 +30,10 @@ describe('rows layout (Weapons tree)', () => {
     });
 
     it('compacts rows when only some weapons are shown', () => {
-        const shown = weaponsTree.nodes.filter((n) => ['throw_knife', 'piercing_knives', 'more_rock'].includes(n.id));
+        const shown = weaponsTree.nodes.filter((n) => ['throw_knife', 'more_rock'].includes(n.id));
         const sub = computeResearchTreeRowCells(weaponsTree, shown);
         expect(sub.get('throw_knife')).toEqual({ row: 0, column: 0 });
-        expect(sub.get('piercing_knives')).toEqual({ row: 0, column: 1 });
-        expect(sub.get('more_rock')).toEqual({ row: 0, column: 2 });
+        expect(sub.get('more_rock')).toEqual({ row: 0, column: 1 });
     });
 });
 

@@ -7,16 +7,12 @@ import {
 } from '../../harness/buildTinyBattleEngine';
 import { createTargetDummyAtWorld } from '../../fixtures/targetDummies';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
-import {
-    WEAPONS_TREE_ID,
-    KNIVES_ROOT_NODE_ID,
-    NODE_PIERCING_KNIVES,
-} from '../../../../../researchTrees/trees/weaponTreeIds';
+import { WEAPONS_TREE_ID, KNIVES_ROOT_NODE_ID } from '../../../../../researchTrees/trees/weaponTreeIds';
 import { BLEED_BUFF_TYPE } from '../../../buffs/BleedBuff';
 
 const P = TINY_BATTLE_PLAYER_ID;
 
-const PIERCE_RESEARCH = [KNIVES_ROOT_NODE_ID, NODE_PIERCING_KNIVES];
+const PIERCE_RESEARCH = [KNIVES_ROOT_NODE_ID];
 
 /**
  * Caster at (80, 200). Knife aimed right at pixel (600, 200) â€” travelDistance = 200px.
@@ -28,7 +24,7 @@ let bleedState = { hitHp0: -1, hitHp1: -1, hitTime: -1 };
 
 export const throwKnifePiercingBleedScenario: ScenarioDefinition = {
     id: 'throw_knife_piercing_bleed',
-    title: 'Throw Knife with piercing_knives pierces the first target and bleeds both',
+    title: 'Throw Knife pierces the first target and bleeds both',
     category: 'ability',
     maxDurationMs: 8000,
 

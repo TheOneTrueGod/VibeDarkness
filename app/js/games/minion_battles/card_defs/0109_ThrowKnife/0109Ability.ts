@@ -1,7 +1,7 @@
 ﻿/**
  * ThrowKnife - Research-upgraded Throw Rock variant.
  *
- * Base version throws one knife for more damage than Throw Rock.
+ * Base version throws one knife for more damage than Throw Rock; knives pierce 2 enemies.
  * If both Throwing Knives and More Rock are researched, throws a second knife.
  */
 
@@ -17,7 +17,6 @@ import type { Unit } from '../../game/units/Unit';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
 import { type CardDef } from '../types';
-import { NODE_PIERCING_KNIVES } from '../../../../researchTrees/trees/weaponTreeIds';
 import {
     beginThrowCastPayload,
     buildMoreRockTimings,
@@ -36,13 +35,15 @@ import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext'
 const ABILITY_ID = 'throw_knife';
 const MAX_USES = 5;
 const RECOVERIES: AbilityRecoveryRule[] = [
-    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
+    { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 2 },
 ];
 export const THROW_KNIFE_BASE_DAMAGE = 7;
 const BASE_DAMAGE = THROW_KNIFE_BASE_DAMAGE;
 const MULTI_THROW_HIT_COUNT = 2;
 /** Bleed stacks applied to the unit a knife hits. */
 const BLEED_STACKS_ON_HIT = 2;
+/** Extra enemies a knife passes through, so it hits 2 enemies in total. */
+const KNIFE_PIERCE = 1;
 
 const THROW_KNIFE_PROJECTILE_URL = new URL('../../assets/projectiles/knife.svg', import.meta.url).href;
 
@@ -51,32 +52,27 @@ function hasKnifeMultiThrow(research: Set<string>): boolean {
     return hasMoreRockResearch(research);
 }
 
-function hasKnifePierce(research: Set<string>): boolean {
-    return research.has(NODE_PIERCING_KNIVES);
-}
-
 function resolveKnifeDamage(ctx: import('../../abilities/castBehaviourTypes').CastBehaviourSetupContext): number {
     const mod = ctx.caster.abilityModifiers[ABILITY_ID] ?? {};
     return BASE_DAMAGE + (mod.damageFlat ?? 0);
 }
 
-function knifeLaunchBehaviour(pierce: number) {
+function knifeLaunchBehaviour() {
     return CastBehaviours.ProjectileLaunch()
         .withSpeed(THROW_PROJECTILE_SPEED)
         .withMaxRange(THROW_RANGE)
-        .withPierce(pierce)
+        .withPierce(KNIFE_PIERCE)
         .withTravelFullRange()
         .withResolveDamage(resolveKnifeDamage)
         .withSpriteConfig({
-            sprite: { frameFiles: [THROW_KNIFE_PROJECTILE_URL] },
+            sprite: { scale: 0.5, frameFiles: [THROW_KNIFE_PROJECTILE_URL] },
             loop: false,
             animations: [{ type: 'rotation', mode: 'velocity-facing' }],
         });
 }
 
 function buildKnifeTimings(research: Set<string>) {
-    const pierce = hasKnifePierce(research) ? 1 : 0;
-    const launch = knifeLaunchBehaviour(pierce);
+    const launch = knifeLaunchBehaviour();
     if (hasKnifeMultiThrow(research)) {
         return buildMoreRockTimings({ launchBehaviour: launch });
     }
@@ -100,7 +96,7 @@ export const ThrowKnife: AbilityStatic = {
     maxUses: MAX_USES,
     recoveries: RECOVERIES,
     prefireTime: 0.3,
-    abilityTimings: buildThrowBaseTimings({ launchBehaviour: knifeLaunchBehaviour(0) }),
+    abilityTimings: buildThrowBaseTimings({ launchBehaviour: knifeLaunchBehaviour() }),
     getAbilityTimings(caster, gameState) {
         const research = getCrystalRocksResearch(gameState as AbilityEngineContext | undefined, caster);
         return buildKnifeTimings(research);
@@ -125,7 +121,6 @@ export const ThrowKnife: AbilityStatic = {
     getTooltipText(gameState?: unknown): string[] {
         const eng = gameState as AbilityEngineContext | undefined;
         const research = getCrystalRocksResearch(eng);
-        const pierceLine = hasKnifePierce(research) ? ' Pierces through the {first target}.' : '';
         const mod = getAbilityModifier(gameState, undefined, ABILITY_ID);
         const damageBase = BASE_DAMAGE + (mod.damageFlat ?? 0);
         const bindings: TooltipTokenBindings = {
@@ -135,20 +130,16 @@ export const ThrowKnife: AbilityStatic = {
         const ctx = resolveTooltipContext(gameState, { ability: { id: ABILITY_ID } });
         if (hasKnifeMultiThrow(research)) {
             return formatTooltipLegacyLines(
-                ['Throws {{HIT_COUNT}} knives dealing {{DAMAGE}} damage each to the first enemy hit. Inflicts {Bleed}.'],
+                ['Throw {{HIT_COUNT}} knives that pierce 2 enemies, dealing {{DAMAGE}} damage each and inflicting {Bleed}.'],
                 bindings,
                 ctx,
             );
         }
-        const lines = formatTooltipLegacyLines(
-            ['Throws a knife dealing {{DAMAGE}} damage to the first enemy hit. Inflicts {Bleed}.'],
+        return formatTooltipLegacyLines(
+            ['Throw a knife that pierces 2 enemies, dealing {{DAMAGE}} damage and inflicting {Bleed}.'],
             bindings,
             ctx,
         );
-        if (pierceLine) {
-            lines[0] = `${lines[0]}${pierceLine}`;
-        }
-        return lines;
     },
 
     beginActiveCast(engine, caster, _targets, active) {

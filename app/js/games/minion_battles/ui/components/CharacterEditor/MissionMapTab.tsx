@@ -9,6 +9,7 @@
  */
 import React, { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocation } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
 import { Check, ChevronDown, FastForward, Route, Scroll, Skull, Swords, Tent, X } from 'lucide-react';
 import type { CampaignCharacter } from '../../../character_defs/CampaignCharacter';
@@ -830,17 +831,22 @@ export default function MissionMapTab({
 
     const chapters = useMemo(() => (storyline ? getCampaignChapters(storyline, { isAdmin }) : []), [storyline, isAdmin]);
 
-    const [activeChapterIndex, setActiveChapterIndex] = useState(() =>
-        storyline ? getHighestUnlockedChapterIndex(storyline, missionResults, { isAdmin }) : 0,
-    );
+    // Set by App.handleContinueFromMission when a victory Continue should land on a specific chapter.
+    const requestedChapterId = (useLocation().state as { missionMapChapterId?: string } | null)?.missionMapChapterId;
 
-    // Re-default to the highest unlocked chapter whenever the campaign changes.
+    const defaultChapterIndex = () => {
+        if (!storyline) return 0;
+        const requested = requestedChapterId ? chapters.findIndex((c) => c.id === requestedChapterId) : -1;
+        return requested >= 0 ? requested : getHighestUnlockedChapterIndex(storyline, missionResults, { isAdmin });
+    };
+
+    const [activeChapterIndex, setActiveChapterIndex] = useState(defaultChapterIndex);
+
+    // Re-default to the requested / highest unlocked chapter whenever the campaign changes.
     useEffect(() => {
-        setActiveChapterIndex(
-            storyline ? getHighestUnlockedChapterIndex(storyline, missionResults, { isAdmin }) : 0,
-        );
+        setActiveChapterIndex(defaultChapterIndex());
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [character.campaignId, isAdmin]);
+    }, [character.campaignId, isAdmin, requestedChapterId]);
 
     const activeChapter = chapters[activeChapterIndex] ?? chapters[0] ?? null;
 

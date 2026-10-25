@@ -36,7 +36,6 @@ export const CHARGED_SHIELD_ROOT_NODE_ID = 'charged_shield';
 
 /** Upgrades (ids unchanged from the old per-item trees; only their tree changed). */
 export const NODE_MORE_POWER = 'more_power';
-export const NODE_PIERCING_KNIVES = 'piercing_knives';
 export const NODE_TRAINING_REGIME = 'pipe_bat_damage';
 export const NODE_STRENGTHENING_LIGHT = 'extra_shields';
 export const NODE_MORE_ROCK = 'more_rock';

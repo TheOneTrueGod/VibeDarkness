@@ -22,8 +22,8 @@ describe('activeResearch', () => {
     });
 
     it('drops stored upgrades whose weapon is not equipped, keeps the rest', () => {
-        const stored = { weapons: ['more_power', 'piercing_knives', 'pipe_bat_damage'] };
-        expect(getActiveResearchTrees(stored, ['012']).weapons).toEqual(['piercing_knives', 'throw_knife']);
+        const stored = { weapons: ['more_power', 'pipe_bat_damage'] };
+        expect(getActiveResearchTrees(stored, ['012']).weapons).toEqual(['throw_knife']);
         expect(getActiveResearchTrees(stored, ['011', '014']).weapons).toEqual([
             'more_power',
             'pipe_bat_damage',

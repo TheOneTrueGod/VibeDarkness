@@ -5,7 +5,6 @@ import {
     NODE_IRON_WRISTS,
     NODE_MORE_POWER,
     NODE_MORE_ROCK,
-    NODE_PIERCING_KNIVES,
     WEAPONS_TREE_ID,
     WEAPON_ITEM_CHARGED_ROCKS,
     WEAPON_ITEM_KNIVES,
@@ -75,9 +74,8 @@ describe('resolveResearchRewardSlots - active research', () => {
         expect(seen.every((s) => s.treeId !== WEAPONS_TREE_ID)).toBe(true);
     });
 
-    it('offers Piercing Knives and the shared More Rock only while Knives are equipped', () => {
+    it('offers the shared More Rock only while Knives are equipped', () => {
         const withKnives = offeredTreeIds(WEAPON_SLOT, {}, [WEAPON_ITEM_KNIVES]);
-        expect(withKnives.some((s) => s.nodeId === NODE_PIERCING_KNIVES)).toBe(true);
         expect(withKnives.some((s) => s.nodeId === NODE_MORE_ROCK)).toBe(true);
         expect(withKnives.every((s) => s.nodeId !== NODE_MORE_POWER)).toBe(true);
 
