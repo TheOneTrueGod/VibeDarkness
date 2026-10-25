@@ -31,6 +31,8 @@ interface CharactersTabLayerOneProps {
     onPrevPortrait: () => void;
     onNextPortrait: () => void;
     onChangeCharacters?: () => void;
+    /** Right-aligned content on the inner-tab row (e.g. the admin panels toggle). */
+    tabBarActions?: ReactNode;
     portrait?: ReactNode;
     leftByTab: Partial<Record<CharacterInnerTabId, ReactNode>>;
     children: ReactNode;
@@ -49,6 +51,7 @@ export function CharactersTabLayerOne({
     onPrevPortrait,
     onNextPortrait,
     onChangeCharacters,
+    tabBarActions,
     portrait,
     leftByTab,
     children,
@@ -108,6 +111,7 @@ export function CharactersTabLayerOne({
                             {CHARACTER_INNER_TAB_LABEL[id]}
                         </button>
                     ))}
+                    {tabBarActions}
                 </div>
                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{children}</div>
             </div>

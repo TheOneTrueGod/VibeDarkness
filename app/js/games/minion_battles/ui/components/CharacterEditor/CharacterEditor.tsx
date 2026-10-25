@@ -5,7 +5,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Lock, Pencil, X } from 'lucide-react';
+import { Check, ChevronRight, Lock, Pencil, X } from 'lucide-react';
 import { getPortraitIdsForPlayer, getPortrait } from '../../../character_defs/portraits';
 import {
     getItemDef,
@@ -262,6 +262,8 @@ export default function CharacterEditor({
     const resolvedCampaign = campaign ?? localCampaign;
     const permissionAccount = viewerAccount ?? account ?? null;
     const isAdmin = permissionAccount?.role === 'admin';
+    /** Admin-only: shows the campaign-resource grant and knowledge panels on the Upgrades tab. */
+    const [adminPanelsOpen, setAdminPanelsOpen] = useState(false);
 
     // Darkness Upgrades live on the campaign (player level), not on the character.
     const [darknessUpgrades, setDarknessUpgrades] = useState<DarknessUpgradesState>(
@@ -1233,7 +1235,7 @@ export default function CharacterEditor({
 
     const researchRight = (
         <div className="flex-1 min-h-0 overflow-auto p-4">
-            {isAdmin && (resolvedCampaign?.resources || adminKnowledgePanel) && (
+            {isAdmin && adminPanelsOpen && (resolvedCampaign?.resources || adminKnowledgePanel) && (
                 <div className="mb-4 flex gap-3">
                     {resolvedCampaign?.resources && (
                         <div className="flex-1 rounded-lg border border-border-custom bg-surface-light p-3">
@@ -1382,6 +1384,26 @@ export default function CharacterEditor({
         researchNodeLevels,
     };
 
+    const adminPanelsToggle = isAdmin ? (
+        <button
+            type="button"
+            aria-expanded={adminPanelsOpen}
+            onClick={() => setAdminPanelsOpen((open) => !open)}
+            title={adminPanelsOpen ? 'Hide admin panels' : 'Show admin panels'}
+            className={`ml-auto flex items-center gap-1 self-center rounded border px-2 py-1 text-xs font-semibold transition-colors ${
+                adminPanelsOpen
+                    ? 'border-red-500/60 bg-red-900/40 text-red-200'
+                    : 'border-border-custom text-muted hover:text-white'
+            }`}
+        >
+            <ChevronRight
+                className={`h-3.5 w-3.5 transition-transform ${adminPanelsOpen ? 'rotate-90' : ''}`}
+                aria-hidden
+            />
+            Admin
+        </button>
+    ) : null;
+
     if (useRoutedInnerTabs) {
         return (
             <CharactersTabLayerOne
@@ -1394,6 +1416,7 @@ export default function CharacterEditor({
                 onPrevPortrait={goPrevPortrait}
                 onNextPortrait={goNextPortrait}
                 onChangeCharacters={onChangeCharacters}
+                tabBarActions={adminPanelsToggle}
                 portrait={innerTabShowsPortrait(innerTab) ? portraitBlock : undefined}
                 leftByTab={{
                     equipment: equipmentLeft,
@@ -1470,6 +1493,7 @@ export default function CharacterEditor({
                         Stat Bonuses
                     </button>
                 )}
+                {adminPanelsToggle}
             </div>
 
             {/* Content: left (portrait + sidebar) | right (main) */}
