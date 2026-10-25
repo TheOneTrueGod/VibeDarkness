@@ -24,6 +24,9 @@ import type { ActiveDarknessStrength } from '../../../../../darknessStrength/res
 import { applyDarknessStrengthStatBuffs } from '../../../../../darknessStrength/compile';
 import type { PassiveBonuses, PassiveStatKey } from '../../../../../researchTrees/types';
 import { applyPassiveBonusToBase } from '../../../../../researchTrees/passiveBonuses';
+import { lanterniteStateOf } from '../components/lanterniteComponent';
+import { swarmStateOf } from '../components/swarmComponent';
+import { petStateOf } from '../components/petComponent';
 
 /**
  * Narrow, structural context spawnUnit needs. `GameEngine` (which implements `EngineContext`)
@@ -551,39 +554,39 @@ function applyAiHookup(ctx: SpawnUnitContext, unit: Unit, hookup: SpawnAiHookup 
 
     switch (hookup.kind) {
         case 'lanternite': {
-            if (hookup.patrolFarWorld != null) unit.lanterniteState.patrolFarWorld = { ...hookup.patrolFarWorld };
-            if (hookup.patrolLeg != null) unit.lanterniteState.patrolLeg = hookup.patrolLeg;
-            if (hookup.role != null) unit.lanterniteState.role = hookup.role;
-            if (hookup.targetNestPoiId != null) unit.lanterniteState.targetNestPoiId = hookup.targetNestPoiId;
-            if (hookup.nestConfig != null) unit.lanterniteState.nestConfig = hookup.nestConfig;
-            if (hookup.constructionAngle != null) unit.lanterniteState.constructionAngle = hookup.constructionAngle;
-            if (hookup.attackReadyAtGameTime != null) unit.lanterniteState.attackReadyAtGameTime = hookup.attackReadyAtGameTime;
-            if (hookup.nestOwnerUnitId != null) unit.lanterniteState.nestOwnerUnitId = hookup.nestOwnerUnitId;
+            if (hookup.patrolFarWorld != null) lanterniteStateOf(unit).patrolFarWorld = { ...hookup.patrolFarWorld };
+            if (hookup.patrolLeg != null) lanterniteStateOf(unit).patrolLeg = hookup.patrolLeg;
+            if (hookup.role != null) lanterniteStateOf(unit).role = hookup.role;
+            if (hookup.targetNestPoiId != null) lanterniteStateOf(unit).targetNestPoiId = hookup.targetNestPoiId;
+            if (hookup.nestConfig != null) lanterniteStateOf(unit).nestConfig = hookup.nestConfig;
+            if (hookup.constructionAngle != null) lanterniteStateOf(unit).constructionAngle = hookup.constructionAngle;
+            if (hookup.attackReadyAtGameTime != null) lanterniteStateOf(unit).attackReadyAtGameTime = hookup.attackReadyAtGameTime;
+            if (hookup.nestOwnerUnitId != null) lanterniteStateOf(unit).nestOwnerUnitId = hookup.nestOwnerUnitId;
             return;
         }
         case 'lanterniteNest': {
-            unit.lanterniteState.nestConfig = hookup.nestConfig;
-            if (hookup.homeNestPoiId != null) unit.lanterniteState.homeNestPoiId = hookup.homeNestPoiId;
+            lanterniteStateOf(unit).nestConfig = hookup.nestConfig;
+            if (hookup.homeNestPoiId != null) lanterniteStateOf(unit).homeNestPoiId = hookup.homeNestPoiId;
             return;
         }
         case 'swarm': {
             // currentNodeId/targetNodeId are intentionally NOT set here — they start null and are
             // resolved lazily on the swarmling's first snet_seek tick (spawn position counts as
             // an implicit first arrival). See swarmlingNetwork/snet_seek.ts.
-            if (hookup.orbitAngle != null) unit.swarmState.orbitAngle = hookup.orbitAngle;
-            if (hookup.nestOwnerUnitId != null) unit.swarmState.nestOwnerUnitId = hookup.nestOwnerUnitId;
+            if (hookup.orbitAngle != null) swarmStateOf(unit).orbitAngle = hookup.orbitAngle;
+            if (hookup.nestOwnerUnitId != null) swarmStateOf(unit).nestOwnerUnitId = hookup.nestOwnerUnitId;
             return;
         }
         case 'swarmNest': {
-            unit.swarmState.nestConfig = hookup.nestConfig;
-            if (hookup.homeNestPoiId != null) unit.swarmState.homeNestPoiId = hookup.homeNestPoiId;
+            swarmStateOf(unit).nestConfig = hookup.nestConfig;
+            if (hookup.homeNestPoiId != null) swarmStateOf(unit).homeNestPoiId = hookup.homeNestPoiId;
             return;
         }
         case 'pet': {
-            unit.petState.ownerUnitId = hookup.ownerUnitId;
-            unit.petState.defId = hookup.defId;
+            petStateOf(unit).ownerUnitId = hookup.ownerUnitId;
+            petStateOf(unit).defId = hookup.defId;
             const owner = ctx.units.find((u) => u.id === hookup.ownerUnitId);
-            if (owner) owner.petState.unitIds.push(unit.id);
+            if (owner) petStateOf(owner).unitIds.push(unit.id);
             return;
         }
     }

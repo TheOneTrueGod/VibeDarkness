@@ -93,7 +93,7 @@ See **`## Command cards and delegated abilities`** in `card_defs/SKILL.md` and t
 
 ## Sequential targeting playahead
 
-Scenario harnesses cover the **committed** order path only (orders applied, then ticks). The interactive playahead pause/inject path is tested in `game/interactiveTargeting.test.ts` (Scenarios A–H plus commit-time in-place / rewind / reset-refresh cases from `docs/plans/sequential-targeting-rollback-ux.md`). When an ability misbehaves only during targeting preview, add coverage there — not a new AbilityTest scenario.
+Scenario harnesses cover the **committed** order path only (orders applied, then ticks). The interactive playahead pause/inject path is tested in `game/interactiveTargeting.test.ts` (Scenarios A–H plus commit-time in-place / rewind / reset-refresh cases from `docs/plans/done/sequential-targeting-rollback-ux.md`). When an ability misbehaves only during targeting preview, add coverage there — not a new AbilityTest scenario.
 
 ## Related skills
 

@@ -54,11 +54,11 @@ Follow the same rule as above: **do not paste tag unions or catalog strings into
 
 ## Minion Battles: new skill trees (ability groups)
 
-When adding or reorganizing a **thematic line of cards** (a new skill tree):
+When adding or reorganizing a **thematic line of cards** (a new skill tree, weapon line, or enemy family):
 
-1. Add a **`AbilityGroupId`** entry in `app/js/games/minion_battles/card_defs/AbilityGroupId.ts` (source of truth for the first two digits of 4-digit ids). Use `formatGroupId()` when composing ids in TypeScript.
-2. Co-locate all related `card_defs` under **`app/js/games/minion_battles/card_defs/<tree_folder>/`** (see `05_earth_core/` and `utility/` for folder layout and import depth). For Earth (**`05`**), read `05_earth_core/EarthCore.md` when changing that line. Do not scatter one tree across unrelated top-level folders.
-3. Follow **`app/js/games/minion_battles/card_defs/SKILL.md`** for id rules, registration, and `abilityTimings`; keep this skill free of duplicated numeric assignments.
+1. Add an **`AbilityGroupId`** entry in `app/js/games/minion_battles/card_defs/AbilityGroupId.ts` (source of truth for the first two digits of 4-digit ids). Use `formatGroupId()` when composing ids in TypeScript.
+2. Co-locate all related `card_defs` under **`app/js/games/minion_battles/card_defs/NN_<slug>/`**, where `NN` is the group's two digits (see `05_earth_core/` for layout and import depth). One group folder per weapon line, core or enemy family; do not scatter one line across unrelated folders. Core-crossover abilities live in their home core's folder.
+3. Follow **`app/js/games/minion_battles/card_defs/SKILL.md`** (**Folder and id convention**) for where weapons, enemies, crossovers and super moves go, how to pick the next free group and index, and how to treat the legacy flat folders (leave them in place). For Earth (**`05`**) read `05_earth_core/EarthCore.md`; for Gravity (**`09`**) read `09_gravity_core/GravityCore.md`. Keep this skill free of duplicated numeric assignments.
 
 ## Verification after code edits
 

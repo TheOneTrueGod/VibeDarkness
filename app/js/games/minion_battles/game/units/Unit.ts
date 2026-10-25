@@ -34,6 +34,7 @@ import {
     getDefaultHp,
     getDefaultRadius,
     getUnitCombatCcDef,
+    getUnitComponentSpecs,
     getUnitEnrageDef,
     getUnitTerrainCrushDamage,
     PLAYER_CHARACTER_ID,
@@ -67,9 +68,8 @@ import type {
     UnitWalkIntent,
     UnitWalkGoal,
 } from './unitTypes';
-import { createPetState, type UnitPetState } from './unitPetState';
-import { createLanterniteState, type UnitLanterniteState } from './unitLanterniteState';
-import { createSwarmState, type UnitSwarmState } from './unitSwarmState';
+import { attachDefComponents, type UnitComponentInstance } from './components/unitComponent';
+import './components/builtinComponents';
 import { createCcArmourState, tickHardCcChainDecayAtRoundEnd, type UnitCcArmourState } from '../../crowdControl/ccArmourState';
 import { serializeUnit } from './unitToJSON';
 import { applySerializedUnitState, normalizeLegacyUnitIdentity } from './unitFromJSON';
@@ -322,11 +322,12 @@ export class Unit extends GameObject {
     /** When non-null, unit dies when GameEngine.gameTime reaches this value (displacer clones, phantom decoys, etc.). */
     ephemeralDespawnAtGameTime: number | null = null;
 
-    petState: UnitPetState = createPetState();
-
-    lanterniteState: UnitLanterniteState = createLanterniteState();
-
-    swarmState: UnitSwarmState = createSwarmState();
+    /**
+     * Component state slices keyed by component id (see `components/unitComponent.ts`). Declared on the unit's def
+     * (`UnitDefEntry.components`) or attached on first access. Read through the typed accessors each component module
+     * exports (`lanterniteStateOf`, `swarmStateOf`, `petStateOf`); serialized by `serializeUnit`.
+     */
+    readonly components: Map<string, UnitComponentInstance> = new Map();
 
     /** Generational invulnerability (>0 = invulnerable). Children get max(0, this - 1), losing invuln when counter hits 0. */
     invulnerabilityGenerations: number | null = null;
@@ -357,6 +358,7 @@ export class Unit extends GameObject {
         this.roundStartRecoveryCharges = config.roundStartRecoveryCharges ?? [];
         this.ephemeralDespawnAtGameTime = config.ephemeralDespawnAtGameTime ?? null;
         this.stackSize = config.stackSize ?? 1;
+        attachDefComponents(this, getUnitComponentSpecs(config.characterId));
     }
 
     /** Attach a resource and subscribe its event listeners. */

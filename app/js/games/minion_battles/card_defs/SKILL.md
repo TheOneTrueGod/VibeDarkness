@@ -1,298 +1,108 @@
 ---
-name: creating-an-ability
-description: Guides creating new abilities and card definitions in Minion Battles. Use when adding a new ability, card, or skill to app/js/games/minion_battles, or when the user asks how to create an ability.
+name: card-defs
+description: Guide to Minion Battles card_defs - folder layout and id convention (ability groups), creating abilities and card defs, abilityTimings, registration, passives and the implementation checklist. Use when adding or changing an ability or card def, or when deciding which card_defs folder or id a new ability gets.
 ---
 
-# Creating an Ability (Minion Battles)
+# card_defs: layout, ids and creating an ability
 
-When adding a new ability to Minion Battles, follow this layout and ID scheme so abilities stay consistent and discoverable.
+Ability implementation files live in `card_defs/` folders, never directly under `abilities/` (that holds shared helpers and the engine side). Abilities can have typed `tags` (separate from `keywords`); see `abilities/Ability.ts` and `abilities/abilityTagCatalog.ts` rather than copying tag lists here.
 
-Important: ability implementation files belong in `card_defs/` folders (not directly under `abilities/`).
+> **Full details:** this skill is the short version. The complete earlier guidance (knockback, movement, blocking, serialization, `abilityEvents` order, command cards, targeting previews, deployables, checklists) is preserved in [`ABILITY_GUIDE.md`](ABILITY_GUIDE.md). Read it before implementing anything non-trivial.
+
+## Folder and id convention
+
+A 4-digit ability id is `<group><index>`: the first two digits are the **group**, the last two the **index** within it (01 to 99). The group enum is `AbilityGroupId.ts` (this folder, source of truth; use `formatGroupId()` in code). Do not paste id tables into skills or docs.
+
+**One group folder per thematic line.** A line is a weapon line, a core (skill tree), or an enemy family. Name it `NN_slug/` where `NN` is the group's two digits (examples: `05_earth_core/`, `08_light_core/`). Each ability gets `NN_slug/####_AbilityName/####Ability.ts` (file name matches its folder).
+
+| What | Where |
+|------|-------|
+| New weapon line | Its own group and folder, e.g. `NN_<weapon>_weapon/`. Every ability that weapon grants lives there |
+| New core (skill tree) | Its own group and folder, `NN_<name>_core/`, plus a `<Name>Core.md` (see below) |
+| Core-crossover ability | The **home core**: the core whose research node unlocks it. Import the other core's helpers from that core's shared files. The home core's `<Name>Core.md` lists its crossovers and what they depend on. Never a second copy |
+| Enemy ability | The enemy family's own group and folder, `NN_enemy_<family>/` (like `dark_animals/`, the legacy home of most group `00` abilities). Do not add to flat `00xx` |
+| Super move | The owning weapon's or core's folder, index **90 and up** (`NN90`, `NN91`, ...) so supers read as a set. Enemy supers go in that enemy family's folder, same range. Revisit once the super-move design (plan item P1.4) lands |
+| Shared helper for one group | A file in that group's folder (see `05_earth_core/earthCoreConstants.ts`, `09_gravity_core/gravityConstants.ts`). Cross-group helpers go in `abilities/` |
+
+**Choosing ids.** Next free group = the largest `AbilityGroupId` member plus one (check the enum; groups are two digits, so `99` is the ceiling). Add the enum member **first**, with a doc-comment line pointing at the folder and any `<Name>Core.md`. Next free index = the highest `####` in that group's folders plus one. **Never reuse a removed id**: saves, decks and research nodes can still reference it (a gap such as `0303` is intentional). Order indexes by when they were added, except the supers range.
+
+**Legacy folders (leave in place, do not move).** Flat folders directly under `card_defs/` (`00xx` enemies, `01xx` Warrior, `0203` to `0205` Ranger guns) have no group folder. They are legacy: do not rename or move them (ids are referenced from saves and registries, and moves churn imports), and do not add new flat folders. A new weapon line or enemy family never goes in a legacy flat folder: it gets a new group (see the table). Extend a legacy group only with a card that genuinely belongs to that exact line, and put it in a new `NN_slug/` folder rather than another flat one. Also predating this naming: `03_blood_mage/` (enum member `Mage`), `utility/` (group `06`, no number prefix), `dark_animals/` (group `00`, no prefix), `special/` (no group). New folders always use `NN_slug`.
+
+**Adding a new group.**
+1. Append the `AbilityGroupId` member (and a doc-comment line).
+2. Create `card_defs/NN_slug/` and put every related ability under it; never scatter one line across unrelated folders.
+3. For a core, add `<Name>Core.md` in the folder (same role as `EarthCore.md` / `GravityCore.md`: the tree's identity and where it diverges from generic patterns) and link it from the enum comment. Read it before changing that group's cards: `05_earth_core/EarthCore.md` for Earth, `09_gravity_core/GravityCore.md` for Gravity, `03_blood_mage/AGENTS.md` for Blood Mage.
+4. Register abilities and card defs (see **Registration**).
 
 ## Literate programming: abilities as a list of behaviours
 
-**Abilities should contain as little logic as possible.** Use utility functions from `abilities/` so that reading an ability's functions is like reading a list of behaviours, not a block of implementation details.
+**Abilities should contain as little logic as possible.** Use helpers from `abilities/` so an ability reads as a list of behaviours.
 
-- **Do**: Implement `doCardEffect` by calling helpers keyed to clear behaviours (e.g. "at 0.05s draw a card", "during windup apply forced displacement toward target").
-- **Don't**: Inline geometry, damage/block checks, or drawing logic in the ability file when a shared helper already exists or can be added.
-- **Helpers**: See utility files in `abilities/` (`targetHelpers.ts`, `effectHelpers.ts`, `previewHelpers.ts`, `gunHelpers.ts`, `blockingHelpers.ts`, `petCommands.ts`) for available helpers. When adding new reusable behaviour, add or extend a helper first, then call it from the ability.
-- **Hitboxes (combat)**: When an ability damages or CCs units in a shape, collect targets via a hitbox (`CircleHitbox` / `ThickLineHitbox` / `resolveHitbox`) or a helper that wraps one (e.g. `damageEnemiesInCircle`). Do **not** hand-roll enemy radius/capsule loops for combat. Combat iFrames are filtered inside that pipeline by default. Environment damage (thorns, DoT, day-light, etc.) stays on direct `takeDamage` / tile paths — see **working-with-hitboxes** / `hitboxes/SKILL.md`.
+- Implement `doCardEffect` by calling helpers keyed to clear behaviours; do not inline geometry, damage/block checks or drawing when a helper exists or can be added. Helper files: `targetHelpers.ts`, `effectHelpers.ts`, `previewHelpers.ts`, `gunHelpers.ts`, `blockingHelpers.ts`, `petCommands.ts`.
+- **Hitboxes (combat):** collect targets via a hitbox (`CircleHitbox` / `ThickLineHitbox` / `resolveHitbox`) or a wrapping helper such as `damageEnemiesInCircle`; never hand-roll radius or capsule loops. Environment damage stays on direct `takeDamage` / tile paths. See **working-with-hitboxes**.
 
 ## Reuse before you build
 
-Before implementing, break the ability into its constituent parts (movement, hitbox, visual effect, event rule, CastBehaviour, etc.) and check whether each part already exists in another ability or helper.
+Break the ability into parts (movement, hitbox, effect, event rule, CastBehaviour) and check whether each exists. Reuse what does; for parts that do not exist, ask the user whether it is a one-off or a reusable helper, and which parameters vary. Prefer extending an existing `CastBehaviour` with config over a sibling class; a new one is only for genuinely atomic behaviour. Dash and lunge claim exclusive movement while sliding (see **Self-displacement owns walking** in `abilities/AGENTS.md`, which also covers declarative cast behaviours and select-target lock-on).
 
-- For parts that **exist elsewhere**: call the shared helper or copy the pattern from `card_defs/`.
-- For parts that **do not exist**: ask the user before implementing — should this be a one-off or a reusable helper/effect? If reusable, identify which parameters are likely to vary across abilities (e.g. damage amount, radius, duration, direction) so the interface can be designed correctly from the start.
+**Separation of concerns:** CastBehaviours and hitboxes detect *what* happened (who is in range, per-unit dedup) and emit an `AbilityEventType` (e.g. `ON_ATTACK_HIT`); `abilityEvents` declare *what to do* (damage, knockback tiers, buffs). You should be able to change the payoff by editing only `abilityEvents`.
 
-### Extending CastBehaviours vs creating new ones
+**`abilityEvents` authoring order:** prefer presets, then inline rules, then `custom` handlers (with a short comment). If no inline primitive exists, ask the user whether to generalize. Conditions inside one rule are AND; multiple rules are OR. Rule types: `abilities/events/AbilityEffect.ts`.
 
-When an ability needs behaviour similar to an existing `CastBehaviour` (movement, melee, etc.), prefer **extending that behaviour** with new configuration options rather than creating a sibling class that duplicates the core logic. A new `CastBehaviour` class is appropriate only when the behaviour is genuinely atomic — it does one thing with no overlap with existing behaviours.
+## Special cases
 
-Dash and lunge claim exclusive movement for the caster while they slide; walk orders resume after the slide. Custom slides must use the same unit displacement helpers. See **Self-displacement owns walking** in `abilities/AGENTS.md`.
-
-## Separation of concerns: hitboxes vs abilityEvents
-
-Keep two concerns separate in the `castBehaviours` system:
-
-- **CastBehaviours / hitboxes** — detect *what* happened: which units are in range, what shape the hit area is, which units have already been hit this cast. When a hit is confirmed, emit the appropriate `AbilityEventType` (e.g. `ON_ATTACK_HIT`).
-- **`abilityEvents`** — declare *what to do* when an event fires: damage multipliers, knockback tiers, buffs, secondary effects.
-
-Hitbox geometry and per-unit dedup live on the `CastBehaviour`; damage values and effect tiers live in `abilityEvents`. A good sign the split is correct: you can change what happens on hit by editing only `abilityEvents`, without touching the hitbox shape or detection logic.
-
-## Command cards and delegated abilities
-
-Some player cards trigger another unit's ability (e.g. Sic 'em 0704 → Pounce 0702 on the nearest pet).
-
-- **Preview origin** — when `abilitySource: { type: 'pet' }` is set, `renderTargetingPreview` must draw from `resolveAbilitySourceUnits`, **not** from the caster. Use `createPetSourcedMovementPreview` in `previewHelpers.ts`.
-- **Preview path** — must match the **delegate** ability's movement, not the command card's `getRange`. For dashes, use terrain-aware helpers (`resolveTerrainAwareMovementDisplacement` / `createMovementTargetPreview`), not manual straight-line clamp or `createPixelTargetPreview` from the caster.
-- **Constants** — import max distance and collision step from the delegate ability file (e.g. `0702_Pounce/0702Ability.ts`), do not duplicate literals on the command card.
-- **Module docs** — see the Sic 'em → Pounce checklist in `abilities/petCommands.ts`.
-
-Reference implementation: `card_defs/07_command_core/0704_SicEm/0704Ability.ts`.
-
-## Special actions
-
-Zero-frame abilities with `actionChannel: 'special'` fill `BattleOrder.specialAction` instead of replacing the primary `abilityId`. They never occupy `activeAbilities` and are applied via `applySpecialAction`.
-
-- Usable **alongside** a primary ability (and movement) in the same turn.
-- Selecting a special never auto-ends the turn; auto-end-turn only fires on a **primary** submit.
-- ITS: specials do not enter sequential targeting; when a primary begins ITS, carry `specialAction` on the order so commit preserves it (`buildFinalizedSequentialTargetingOrder` spreads `baseOrder`).
-- Reference: Order: Attack (`0708`) and Order: Move (`0709`).
-
-## Targeting preview helper choice
-
-See the decision table at the top of `abilities/previewHelpers.ts`. Rule of thumb: if runtime movement uses `DashBehaviour` / `computeForcedDisplacement`, the preview must use the matching terrain-aware preset.
+- **Command cards and delegated abilities** (Sic 'em `0704` delegating to Pounce `0702`): with `abilitySource: { type: 'pet' }`, the preview draws from `resolveAbilitySourceUnits` (use `createPetSourcedMovementPreview`), follows the delegate's terrain-aware movement, and imports range constants from the delegate file. Checklist in `abilities/petCommands.ts`; reference `07_command_core/0704_SicEm/0704Ability.ts`.
+- **Special actions:** zero-frame abilities with `actionChannel: 'special'` fill `BattleOrder.specialAction`, never enter `activeAbilities`, and never auto-end the turn. During sequential targeting, carry `specialAction` on the order. Reference: `0708`, `0709`.
+- **Preview helper choice:** see the decision table at the top of `abilities/previewHelpers.ts`; if runtime movement uses `DashBehaviour` / `computeForcedDisplacement`, use the matching terrain-aware preview.
+- **Deployables:** use `findDeployables` / `consumeDeployable` (see `game/deployables/AGENTS.md`), pass the caster's team, and use identical args in preview and cast. Reference: `08_light_core/0806_LayHands/0806Ability.ts`.
 
 ## Juicing the game
 
-**Juice** is the presentation and feedback that makes mechanics **readable and satisfying**: telegraph → payoff → read the result. Implementing correct rules is necessary but not sufficient; consider how the cast **feels** in battle.
+Correct rules are not enough: make the cast readable (telegraph, payoff, result). Ask for each ability about anticipation (`prefireTime`, `renderTargetingPreview`, early timing bands), impact (align one-shot `doCardEffect` thresholds with timing intervals), and aftermath (recovery and labels).
 
-Ask for each ability:
-
-- **Anticipation** — Does windup and targeting make the intent obvious? (`prefireTime`, `renderTargetingPreview`, early `abilityTimings` bands.)
-- **Impact** — Is the payoff moment clear? Prefer aligning one-shot `doCardEffect` thresholds with meaningful timing intervals and phases (see **`abilityTimings`** below).
-- **Aftermath** — Is recovery or lingering feedback clear enough that the cadence isn't muddy? (timeline labels/phases, short effects.)
-
-**Hooks in this codebase**
-
-- **Enemy hitbox telegraph** — For **enemy** abilities whose `renderActivePreview` shows a **non-line** projected hit area, use `previewHelpers` (`drawEnemyConeHitboxTelegraph`, `drawEnemyConvexQuadHitboxTelegraph`, or the same pattern): faint red outer stroke, a more saturated red fill that **grows from the shape's geometric center** until it matches the final footprint, outer stroke **fully red from `prefireTime` through any short linger** while the strike is still readable (e.g. melee flash). **Do not** change **line / thick-capsule** previews that already encode timing (e.g. slime `SlimeShot` aim lines, `ChargeAttack` lunge capsule). If the correct centering, linger, or geometry for the telegraph is ambiguous, **ask the player**.
-- **`abilityTimings`** — Defines phase colours and the battle timeline; keep intervals truthful so rings match what the sim does at each second. **Timeline colour palette** (also used in the circular ring): **red** (`active`) = dealing damage; **light leafy green** (`active` + `tags: ['iframe']`) = invincibility / swiftness; **sky blue** (`active` + `tags: ['juggernaut']`) = shields or armour active; **white** (`startup`) = windup; **gray** (`cooldown`) = recovery. `iframe` and `juggernaut` are *tags* on an `AbilityTimingInterval`, not phases — use `abilityPhase: AbilityPhase.Active, tags: ['iframe'] as const` or `tags: ['juggernaut'] as const`.
-- **Damage feedback** — `GameRenderer` subscribes to `damage_taken` on the event bus and runs a brief **hit flash** on the damaged unit (`game/GameRenderer.ts`). Flows that apply damage through normal paths get this largely "for free."
-- **Battle effects** — Particle bursts, glows, etc. via the effects system. Visual defs live in `game/effect_defs/` (not the old `game/effectDef.ts`). Two distinct types exist — see `game/effects/AGENTS.md` for the full architecture:
-  - **`Effect`** — purely visual, render-tick-driven (`renderUpdate` every rAF frame), **not serialized**. Use `engine.addEffect(effect)` for one-off effects at a specific game-state moment (hit position, impact point).
-  - **`EffectEmitter`** — game-tick-driven, **serialized**, produces `Effect` instances. Use `engine.addEffectEmitter(emitter)` for imperative emitter creation (e.g. in `beginActiveCast` for per-unit visual data like Afterimage).
-  - **Time-based visual emission** within an ability should use `abilityTimings[n].emitterDef` (type `AbilityTimingEmitterDef` from `abilities/abilityTimings.ts`). The engine auto-creates and deactivates emitters when timing windows open/close — do not use manual loops or edge-checks in `doCardEffect` for this.
-- **`abilityEvents`** — Primarily **gameplay rule** hooks (`abilities/events/AbilityEffect.ts`). Prefer presets and inline rules; use **`custom`** effects only when needed, with the required comment, consistent with **`abilityEvents` authoring order** below.
-- **Player-facing copy** — Names, descriptions, and tooltip rhythm: **writing-style-abilities** (`.cursor/skills/narrative/writing-style-abilities/SKILL.md`). For `getTooltipText`, mechanical keywords use standalone lines (`'{Bright 3}'`, `'{knockback 1}'`) — see **Keyword lines [Canon]** in that skill's `STYLE.md`. **Do not** restate the resource cost in tooltip text (no `"Costs 2 Light"` / `"Free to cast"` lines) — the card UI already shows `resourceCost` as icons in the card's top-right corner; a redundant cost line in the tooltip is noise and drifts out of sync when the cost changes.
-
-## `abilityEvents` authoring order
-
-When implementing `abilityEvents`, follow this policy:
-
-1. Prefer reusable presets over defining a new inline event rule.
-2. Prefer an inline event rule over a custom handler.
-3. If no inline primitive exists, prompt the user whether the behavior is one-off or should be generalized into a reusable condition/effect/preset.
-4. Custom handlers require a short explanatory comment.
-5. Within one event rule, conditions use AND semantics; across multiple event rules, matching uses OR semantics.
-
-## Where to put it
-
-1. **Skill tree folder (recommended for a coherent line of cards)**  
-   Group related defs under `app/js/games/minion_battles/card_defs/<tree_folder>/` (examples: `05_earth_core/`, `utility/`). Each ability still gets its own `####_ABILITY_NAME/` folder **inside** that tree folder.
-
-2. **Per-ability folder**: `app/js/games/minion_battles/card_defs/[<tree_folder>/]####_ABILITY_NAME`
-   - `####` = 4-digit ability/card ID (see below).
-   - `ABILITY_NAME` = short name in SCREAMING_SNAKE or PascalCase.
-
-3. **Single file inside that folder**: `####_ABILITY_NAME.ts`
-   - The **file name must match the folder name** exactly.
-   - This file holds **both** the `CardDef` and the ability (`AbilityStatic` implementation).
-   - Legacy/non-numbered abilities may use `card_defs/<ability_name>/<ability_name>.ts`.
-
-## Ability ID (####)
-
-The 4-digit ID is `<group><index>`:
-
-- **First two digits = group ID** (character/class). See `AbilityGroupId.ts` in this folder for valid group IDs and `formatGroupId()` for zero-padding.
-- **Last two digits = index** of the card within that group (01, 02, 03, …).
-
-## Skill trees and `AbilityGroupId`
-
-- **Do not invent a new leading digit** without adding a matching **`AbilityGroupId`** enum member and using `formatGroupId(thatGroup)` when constructing ids in code.
-- **`05` = Earth / "earth skills"** (`AbilityGroupId.Earth`). **Folder:** `card_defs/05_earth_core/`. **Tree overview & Earth-specific authoring rules:** `card_defs/05_earth_core/EarthCore.md` — read it **before** adding or changing any **`05xx`** card, Resonance/stone/Stonephase/tremorsense behaviour, or shared Earth helpers. It is the canonical place for how Earth diverges from generic ability patterns.
-- **`06` = Utility** (`AbilityGroupId.Utility`) for cross-cutting utility cards that are not Earth-specific; keep them under `card_defs/utility/`.
-- **Adding a new thematic tree**: (1) append a new `AbilityGroupId` value, (2) assign ids as `formatGroupId(newGroup) + two-digit index`, (3) place all related ability folders under `card_defs/<NN>_<short_name>/` (match the two-digit group in the folder prefix), and (4) add a **`<Name>Core.md`** inside that folder (same role as `EarthCore.md`) and **link it from this section** with "when to read" guidance.
+- **Enemy hitbox telegraph:** for enemy abilities whose `renderActivePreview` shows a non-line projected area, use `previewHelpers` (`drawEnemyConeHitboxTelegraph`, `drawEnemyConvexQuadHitboxTelegraph`): faint red stroke, red fill growing from the shape centre, full red stroke from `prefireTime` through any linger. Leave line / thick-capsule previews alone. Ask the player if centring or geometry is ambiguous.
+- **`abilityTimings` palette:** red = `active` (damage); light green = `active` + `tags: ['iframe']`; sky blue = `active` + `tags: ['juggernaut']`; white = `startup`; gray = `cooldown`. `iframe` / `juggernaut` are tags on an `AbilityTimingInterval`, not phases.
+- **Damage feedback:** `GameRenderer` flashes units on `damage_taken`, so normal damage paths get it free.
+- **Effects:** `Effect` (visual, render-driven, not serialized) vs `EffectEmitter` (game-tick, serialized); see `game/effects/AGENTS.md`. Defs live in `game/effect_defs/`. Time-based emission uses `abilityTimings[n].emitterDef` (`AbilityTimingEmitterDef`), not manual edge checks.
+- **Player-facing copy:** **writing-style-abilities** (`.cursor/skills/narrative/writing-style-abilities/SKILL.md`). Mechanical keywords are standalone lines (see **Keyword lines [Canon]** in its `STYLE.md`). Do not restate `resourceCost` in tooltips; the card UI shows it.
 
 ## What goes in the ability file
 
-- **Design comment**: A short block comment at the very top of the file (before imports) describing the ability's intent. Write it as a prose paragraph — not a bulleted list. Keep it to 4 lines or fewer. Cover: what the ability looks like to use, the role it plays in the unit's kit, and how it's meant to play out in battle. This is the canonical place to capture design intent so it's visible while editing the implementation.
-- **Ability**: An object implementing `AbilityStatic` (from `abilities/Ability.ts`). Use the same 4-digit id so cards and abilities match.
-- **CardDef**: An object implementing `CardDef` (from `card_defs/types.ts`) with the same `id` and `abilityId` pointing at the ability.
-- Static values used in multiple places should be defined as constants at the top of the file.
+- A **design comment** before imports: one prose paragraph (4 lines max) on what it looks like to use, its role in the kit, and how it plays out.
+- The **ability** (`AbilityStatic`, `abilities/Ability.ts`) and the **CardDef** (`card_defs/types.ts`) with the same 4-digit id; `abilityId` points at the ability. Both exported from the one file. Shared values go in top-level constants.
+- `doCardEffect(engine, caster, targets, prevTime, currentTime)` runs every tick; use `prevTime` / `currentTime` for one-shots. `renderTargetingPreview(gr, caster, currentTargets, mouseWorld, units)` draws the targeting hint. Implement the rest of `AbilityStatic` as needed; card `image` files stay in the card's folder (see **minion-battles-assets**).
+- **Range** = range value + source object size + target object size.
+- **Serialization:** store unit ids, not references.
+- **Blocking:** `onAttackBlocked` is optional (projectiles deactivate, charges knock back the attacker, melee omits it). Blocking abilities implement `getBlockingArc`; projectiles need `sourceAbilityId`.
+- **Knockback:** `tryApplyKnockbackByTier` (`crowdControl/knockbackKeywords.ts`); tiers 1 to 3.
+- **Movement:** abilities that reposition the caster cost `resourceCost: { resourceId: 'movement_points', amount: 1 }` (2 for longer repositions); others use `null`.
 
-Both are exported from the same file. Export the ability for `AbilityRegistry` and the card def for `card_defs/index.ts`.
+### `abilityTimings`
 
-## Required ability behavior
+Required on every ability, as `AbilityTimingInterval` rows (`abilities/abilityTimings.ts`): `id`, half-open `[start, end)` seconds, `abilityPhase`, optional `timelineLabel` / `timelineDescription`, `targetDef`, `conditionalCancel` (see `ConditionalCancelDef`). Overlaps: first listed wins on the merged band; total duration is `max(end)`. Legacy `{ duration, abilityPhase }` is for adapters and tests only.
 
-1. **`doCardEffect(engine, caster, targets, prevTime, currentTime)`**
-   - Runs every tick while the ability is active.
-   - Use `prevTime` and `currentTime` (seconds since start) for one-shot effects. See existing abilities under `card_defs/` for threshold examples.
-
-2. **`renderTargetingPreview(gr, caster, currentTargets, mouseWorld, units)`**
-   - Draws a hint in the targeting overlay for where the skill will affect.
-
-Implement the rest of `AbilityStatic` (`getDescription`, `getAbilityStates`, `targets`, `prefireTime`, **`abilityTimings`**, `resourceCost`, `rechargeTurns`, `image`, `aiSettings`) as needed. See existing abilities under `card_defs/` for reference. Card `image` files stay in that card's folder (see **minion-battles-assets**).
-
-### `abilityTimings` (half-open intervals)
-
-**Required** on every ability. Use **`AbilityTimingInterval`** rows (see `abilities/abilityTimings.ts`):
-
-| Field | Role |
-|--------|------|
-| `id` | Stable string for simulation (`windup`, `lunge`, `hit`, …) — use `activeTimingIds` / `enteredTimingIds` in `doCardEffect` when migrating. |
-| `start`, `end` | Seconds from cast start; **half-open** `[start, end)` (`end` exclusive). |
-| `abilityPhase` | `AbilityPhase` for ring UI and timeline colour. |
-| `timelineLabel` / `timelineDescription` | Optional; battle timeline tooltips default from phase if omitted. |
-| `targetDef` | Optional targeting for this interval (e.g. `SelectTargetDef` with `kind: 'select'`). See **Sequential targeting playahead** below. |
-| `conditionalCancel` | Optional mid-cast decision point (evaluated on **interval exit**). When the condition is true, the engine pauses and the player may pick an eligible ability or `wait` to resume the current cast. See `ConditionalCancelDef` in `abilities/abilityTimings.ts`. |
-
-**Order matters** when intervals overlap: the battle timeline's single merged band uses **first-listed wins** for overlapping time. Total active duration for the engine is **`max(end)`** across intervals (see `getTotalAbilityDuration`).
-
-Legacy `{ duration, abilityPhase }` remains in the type union for adapters/tests; new card defs should use interval rows only.
-
-#### Sequential targeting playahead
-
-A `targetDef: { kind: 'select', ... }` on a timing interval opts the ability into the **interactive sequential targeting** playahead (local preview that pauses for each select). Full flow: `docs/interactive-sequential-targeting.md`.
-
-- **t=0 selects** and **windup-lunge** abilities rely on deferred-first-select handling (`findPreviewDeferredSelectLabel`) — the preview does not queue the cast until the first target is chosen.
-- Select defs must live on **raw** timing entries: `getSelectTargetDefsFromTimings` reads raw entries (before normalisation / coop-tail-split) — see `abilities/targeting.ts` (~line 93). Do not put `targetDef` only on a post-split interval.
-
-#### Entombed / inside-wall conditional cancel (rock tree)
-
-When a unit casts while **inside impassable terrain** (rock/wall), some abilities should pause near the end of the cast so the player can chain another **`Entombed`** ability or **`wait`** to resume (e.g. slingshot out of the wall).
-
-**Condition pattern** (same as Digging Claws):
-
-```typescript
-condition: ({ caster, engine }) => {
-    const tm = engine.terrainManager;
-    return tm != null && !tm.isPassable(caster.x, caster.y);
-},
-abilityTagFilter: ['Entombed'],
-```
-
-**Linger interval requirement:** If the last **`Active`** band ends exactly when **`Cooldown`** starts, the conditional-cancel pause would fire after the cast is already in `Cooldown`. Generic wall eject (`Unit.tickWallUnstick`) is only suppressed while an `Entombed` ability is in a **non-`Cooldown`** phase. Fix: insert a tiny **`Active`** “linger” interval (one tick, `1/60` s) immediately **before** `cooldown`, and shift `cooldown.start` forward by the same amount. The pause then fires on exit of the last real active band while the cast is still considered active.
-
-**Reuse helper:** `abilities/entombed/entombedWallCancel.ts` exports `ENTOMB_WALL_CONDITIONAL_CANCEL` and `withEntombedWallConditionalCancelAndLinger(timings, { cancelIntervalId, cooldownIntervalId, … })`. Apply to the **final throw** interval (`active` or `active_2` on more-rock timelines). Examples: `0107_ThrowRock/0107Ability.ts`, `0108_ThrowChargedRock/0108Ability.ts`. Digging Claws (`0534`) inlines `conditionalCancel` on its dash interval instead.
-
-### Blocking and `onAttackBlocked`
-
-- **`onAttackBlocked(engine, defender, attackInfo)`** — **Optional**. Called when this ability's attack is blocked. Omit it for melee abilities (no-op is the default). Behaviour varies by ability type:
-  - **Projectile abilities**: Deactivate the projectile; no damage dealt.
-  - **Melee abilities**: Omit entirely — `onAttackBlocked` is optional and defaults to nothing.
-  - **Charging abilities**: Apply knockback to the attacker and clear the ability note.
-- **Blocking abilities**: Implement `getBlockingArc(caster, activeAbility, currentTime)` to return the blocking arc in radians. Projectiles must be created with `sourceAbilityId` so the engine knows which ability's `onAttackBlocked` to call.
-
-See existing blocking and attacking abilities for reference implementations.
-
-### Serialization
-
-Whenever an ability needs to store data for future use, it must be serializable. Store unit IDs rather than unit references, and look up units by ID when needed.
+- **Sequential targeting playahead:** a `targetDef: { kind: 'select', ... }` opts into interactive sequential targeting (`docs/interactive-sequential-targeting.md`). Select defs must be on **raw** timing entries (`getSelectTargetDefsFromTimings` in `abilities/targeting.ts`), not post-split ones. t=0 selects and windup-lunge abilities rely on `findPreviewDeferredSelectLabel`.
+- **Entombed (rock tree):** abilities usable while inside terrain pause near the end for an `Entombed` chain or `wait`. Use `withEntombedWallConditionalCancelAndLinger` from `abilities/entombed/entombedWallCancel.ts` (adds the one-tick linger before `cooldown` so the pause fires before Cooldown). Examples: `0107_ThrowRock`, `0108_ThrowChargedRock`; `0534` inlines it.
 
 ## Registration
 
-- **Ability**: In `abilities/AbilityRegistry.ts`, import and call `register(YourAbility)`. **This is the step most often forgotten.** A card can appear in `CARD_DEF_MAP` while `getAbility(id)` returns `undefined`, so the ability is silently unusable (historically bitten Double Punch / `0116`).
-- **Card def**: In `card_defs/index.ts`, import and add to the `cardDefs` array.
-
-To avoid name collisions when importing multiple abilities, suffix the exported ability constant with its 4-digit ID: e.g. `SwingBatAbility_0103`, `SwingBatAbility_0115`. Apply this convention to all new abilities.
-
-Declarative cast behaviours and select-target lock-on: see `abilities/AGENTS.md`.
+- **Ability:** `abilities/AbilityRegistry.ts`, import and `register(YourAbility)`. This is the step most often forgotten: a card can exist in `CARD_DEF_MAP` while `getAbility(id)` is `undefined` (bit `0116` once).
+- **Card def:** `card_defs/index.ts`, import and add to the `cardDefs` array.
+- Suffix the exported ability constant with its id to avoid collisions (`SwingBatAbility_0115`). Use this for all new abilities.
 
 ## Passive abilities
 
-A **passive ability** is an `AbilityStatic` with a `passive?: PassiveDef` field (see `abilities/passiveDef.ts`). No cast order is ever issued; the engine's `processUnitPassives` (wired into `UnitManager.gameTick`) fires the passive automatically every tick for every alive unit that has the ability ID in its `abilities` list.
-
-**Anatomy of a PassiveDef:**
-
-```typescript
-const myPassive: PassiveDef = {
-    trigger: { type: 'onTick', intervalSec: 1.0 },   // once per second (1/8 of 8 s round)
-    effects: [
-        {
-            type: 'aoe_damage',
-            damage: 4,
-            // range?: number   — omit for unlimited (global)
-            targetFilter: { creatureType: 'dark_creature' },
-        },
-    ],
-};
-```
-
-**Available triggers:**
-| `type`    | Key field | Behaviour |
-|-----------|-----------|-----------|
-| `onTick`  | `intervalSec: number` | Fires whenever `gameTime` crosses an integer multiple of `intervalSec` (floor-crossing detection, no state stored on the unit). |
-
-**Available effects:**
-| `type`       | Fields | Behaviour |
-|--------------|--------|-----------|
-| `aoe_damage` | `damage`, `range?`, `targetFilter` | Deals flat damage to every alive unit that passes the filter. `range` omitted = unlimited (global aura). |
-
-**`targetFilter` options:**
-- `creatureType?: 'dark_creature' | 'beast'` — restricts to units whose character def has that creature type.
-- `teamRelation?: 'enemy' | 'ally' | 'any'` — restricts by team relation to the caster.
-
-**Passive-specific checklist:**
-- [ ] Ability file exports the ability with a non-empty `passive` def.
-- [ ] `abilityTimings: []` and `targets: []` (passive abilities have no cast lifecycle).
-- [ ] Ability registered in `AbilityRegistry.ts`.
-- [ ] Every spawn config that should have the passive includes the ability ID in its `abilities` array (check both static spawn defs and any dynamic `createUnitFromSpawnConfig` calls for that character).
-- [ ] No `CardDef` needed unless the passive also appears as a player card.
-
-## Ability concepts
-
-- **Range**: Always calculate based on the range value plus the size of the source object plus the size of the target object.
-
-## Knockback
-
-Use `tryApplyKnockbackByTier(target, tier, source, casterX, casterY, engine)` from `crowdControl/knockbackKeywords.ts`. Tier 1 = light, 2 = medium, 3 = heavy. The function handles CC-armour gating, ExposedBuff, and hard-CC threshold logic internally.
-
-While knockback is active, the unit cannot move or act. If it hits a wall, it bounces. All knockback state is serialized for save/restore.
-
-## Movement abilities
-
-Abilities that **reposition the caster** (dashes, lunges, teleports) cost 1 movement point in addition to any uses or other resources:
-
-```typescript
-resourceCost: { resourceId: 'movement_points', amount: 1 },
-```
-
-All player units have the `movement` resource attached at battle start (initial 2, max 3, recovers 2 per round). Set the cost directly — no guard needed.
-
-For longer-range or more powerful repositions, use `amount: 2`. Abilities that do not move the caster (stationary attacks, buffs, summons) should use `resourceCost: null`.
-
-## Interacting with deployables
-
-To find or consume things other abilities left on the map (lights, bramble), call `findDeployables` / `consumeDeployable` on the engine instead of reading a store directly; see `game/deployables/AGENTS.md`. Always pass the caster's team (only own-team deployables match; ownerless story objects never do). Preview and cast must use identical query arguments so the previewed target is the one acted on; Lay Hands (`08_light_core/0806_LayHands/0806Ability.ts`) is the reference.
+An `AbilityStatic` with `passive?: PassiveDef` (`abilities/passiveDef.ts`, which lists the triggers, effects and `targetFilter` options). No cast order is issued; `processUnitPassives` (via `UnitManager.gameTick`) fires it every tick for alive units carrying the id. Checklist: non-empty `passive`; `abilityTimings: []` and `targets: []`; registered; every spawn config (static defs and dynamic `createUnitFromSpawnConfig` calls) lists the id; no `CardDef` unless it is also a player card.
 
 ## Checklist
 
-- [ ] Design comment at the top of the file: a short prose paragraph (≤ 4 lines) covering what the ability looks like, its role in the kit, and how it plays out in battle.
-- [ ] Folder `card_defs/####_ABILITY_NAME` and file `####_ABILITY_NAME.ts` created.
-- [ ] Ability ID uses group (2 digits) + index (2 digits); group from `AbilityGroupId`.
-- [ ] Same file exports both the ability and the `CardDef` with matching `id` / `abilityId`.
-- [ ] Non-empty `abilityTimings` (interval form); `doCardEffect` implements per-tick behavior; `renderTargetingPreview` draws targeting hint.
-- [ ] Ability registered in `AbilityRegistry.ts`; card def registered in `card_defs/index.ts`.
-- [ ] Character's card list includes the new card id if the character should have the card.
-- [ ] If a **new enemy character** was introduced: add it to `BESTIARY_ENTRIES` in `app/js/components/BestiaryPanel.tsx` and ensure its sprite key appears in `SPRITE_ICONS`.
-- [ ] If the ability damages or CCs units in a shape: use a hitbox or a hitbox-wrapping helper — no hand-rolled combat radius loops.
-- [ ] If the ability inflicts knockback: use `tryApplyKnockbackByTier` (or documented knockback helpers) with serializable params.
-- [ ] If the ability has a select `targetDef`, confirm it behaves under sequential targeting (see playahead section).
-
-### Juice / feel
-
-- [ ] Windup / impact / recovery line up with **`abilityTimings`** so the timeline matches the sim.
-- [ ] **`renderTargetingPreview`** matches what the ability actually hits where it affects fairness or clarity (for dashes: terrain-aware path and correct origin — see **Command cards** and **Targeting preview helper choice** above).
-- [ ] Damage path: if damage goes through usual `takeDamage` / event flow, hit flash applies; otherwise intentional extra feedback (effects / other presentation) was considered.
-- [ ] Tooltip and timeline wording don't contradict timings (coordinate with narrative skill if needed).
+- [ ] Design comment at the top of the file.
+- [ ] Group folder `NN_slug/` chosen per **Folder and id convention** (new group: enum member first); folder `####_AbilityName/` and file `####Ability.ts` created.
+- [ ] Id = group (2 digits) + index (2 digits), not reused; supers in the 90+ range.
+- [ ] One file exports ability and `CardDef` with matching `id` / `abilityId`.
+- [ ] Non-empty interval `abilityTimings`; `doCardEffect` and `renderTargetingPreview` implemented.
+- [ ] Registered in `AbilityRegistry.ts` and `card_defs/index.ts`.
+- [ ] Character card list or research node grants the card where applicable (research costs: see **research-trees** and `app/js/researchTrees/researchCostPolicy.ts`).
+- [ ] New enemy character: add to `BESTIARY_ENTRIES` in `app/js/components/minionBattlesHomePage/BestiaryPanel.tsx`; the entry list is built from the bestiary unit ids there.
+- [ ] Shape damage or CC uses a hitbox; knockback uses `tryApplyKnockbackByTier`; select `targetDef` checked under sequential targeting.
+- [ ] Juice: timings match the sim, preview matches what is hit (dashes: terrain-aware and correct origin), tooltips do not contradict timings.

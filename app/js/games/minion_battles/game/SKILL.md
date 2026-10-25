@@ -18,7 +18,6 @@ description: Architecture of the GameEngine manager-of-managers pattern, tick lo
 | **EffectManager** | `game/effects/EffectManager.ts` | All visual Effects; render-tick (`renderUpdate`) and game-tick (`gameUpdate`) update paths |
 | **EffectEmitterManager** | `game/effects/EffectEmitterManager.ts` | Game-tick emitters that produce Effects each tick; updated in `fixedUpdate` |
 | **LightSourceManager** | `game/lightSources/LightSourceManager.ts` | All LightSources; round-based and interval decay, unit-follow, LightGrid feed |
-| **CardManager** | `game/managers/CardManager.ts` | Cards, research trees, and ability-use tracking |
 | **SpecialTileManager** | `game/managers/SpecialTileManager.ts` | Special tiles, crystal protection, and light sources from tiles |
 | **LevelEventManager** | `game/managers/LevelEventManager.ts` | Level events, spawn waves, victory/defeat conditions |
 

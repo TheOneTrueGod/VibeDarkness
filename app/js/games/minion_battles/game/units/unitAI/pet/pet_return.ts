@@ -8,6 +8,7 @@ import type { Unit } from '../../Unit';
 import type { AIContext, AINode } from '../types';
 import type { PetAITreeContext, PetNodeId } from './context';
 import { queueWaitAndEndTurn, distance } from '../utils';
+import { petStateOf } from '../../components/petComponent';
 
 const FOLLOW_DISTANCE = 50;
 
@@ -23,7 +24,7 @@ export const pet_return: AINode<'pet', PetNodeId> = {
                 return;
             }
 
-            const owner = unit.petState.ownerUnitId ? context.getUnit(unit.petState.ownerUnitId) : null;
+            const owner = petStateOf(unit).ownerUnitId ? context.getUnit(petStateOf(unit).ownerUnitId!) : null;
 
             if (!owner?.isAlive()) {
                 ctx.aiState = 'pet_follow';
@@ -51,7 +52,7 @@ export const pet_return: AINode<'pet', PetNodeId> = {
         {
             targetNodeId: 'pet_follow',
             evaluate(unit: Unit, context: AIContext): boolean {
-                const owner = unit.petState.ownerUnitId ? context.getUnit(unit.petState.ownerUnitId) : null;
+                const owner = petStateOf(unit).ownerUnitId ? context.getUnit(petStateOf(unit).ownerUnitId!) : null;
                 if (!owner?.isAlive()) return true;
                 return distance(unit.x, unit.y, owner.x, owner.y) <= FOLLOW_DISTANCE;
             },

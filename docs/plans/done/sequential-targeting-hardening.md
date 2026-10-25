@@ -13,7 +13,7 @@
 ## Context
 
 A code review of the interactive sequential targeting branch (see
-`docs/interactive-sequential-targeting.md` and `docs/plans/interactive-sequential-targeting.md`)
+`docs/interactive-sequential-targeting.md` and `docs/plans/done/interactive-sequential-targeting.md`)
 found the following issues. This plan fixes them:
 
 1. **TS errors** — `checkpointRuntimeFingerprintHex` is not declared on `SerializedGameState`
@@ -62,7 +62,7 @@ This plan is executed by the **jp-implement-plan** chain. Each agent reads
 document order with unchecked items), then hands off a fresh agent with:
 
 > Read `.claude/skills/jp-implement-plan/SKILL.md` and follow it for the plan at
-> `docs/plans/sequential-targeting-hardening.md`.
+> `docs/plans/done/sequential-targeting-hardening.md`.
 
 Rules for this plan:
 

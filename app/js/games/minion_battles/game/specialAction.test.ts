@@ -26,6 +26,7 @@ import {
     TINY_BATTLE_PLAYER_ID,
 } from '../testing/harness/buildTinyBattleEngine';
 import { createTargetDummyAtWorld } from '../testing/fixtures/targetDummies';
+import { petStateOf } from './units/components/petComponent';
 function makePet(id = 'pet1'): Unit {
     const pet = new Unit({
         id,
@@ -40,8 +41,8 @@ function makePet(id = 'pet1'): Unit {
         name: 'Dog',
         abilities: ['0701', FLING_THORN_ABILITY_ID],
     });
-    pet.petState.defId = 'dog';
-    pet.petState.ownerUnitId = 'player1';
+    petStateOf(pet).defId = 'dog';
+    petStateOf(pet).ownerUnitId = 'player1';
     initializeAbilityRuntimeForUnit(pet);
     return pet;
 }
@@ -60,7 +61,7 @@ describe('BattleOrder.specialAction / OrderManager', () => {
             abilities: ['0101'],
         });
         const pet = makePet();
-        pet.petState.ownerUnitId = player.id;
+        petStateOf(pet).ownerUnitId = player.id;
         engine.addUnit(pet, 'initialGameSpawn');
         const enemy = createTargetDummyAtWorld(engine, 200, 100);
         engine.addUnit(enemy, 'initialGameSpawn');
@@ -212,7 +213,7 @@ describe('Order: Attack / Order: Move abilities', () => {
             abilities: [ORDER_ATTACK_ABILITY_ID],
         });
         const pet = makePet();
-        pet.petState.ownerUnitId = caster.id;
+        petStateOf(pet).ownerUnitId = caster.id;
         const effects: unknown[] = [];
         ability!.applySpecialAction!(
             caster,

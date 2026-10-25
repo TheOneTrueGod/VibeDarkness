@@ -9,6 +9,7 @@ import type { Unit } from '../../Unit';
 import type { AIContext, AINode } from '../types';
 import type { PetAITreeContext, PetNodeId } from './context';
 import { queueWaitAndEndTurn, distance } from '../utils';
+import { petStateOf } from '../../components/petComponent';
 
 export const pet_heel: AINode<'pet', PetNodeId> = {
     nodeId: 'pet_heel',
@@ -21,7 +22,7 @@ export const pet_heel: AINode<'pet', PetNodeId> = {
                 return;
             }
 
-            const owner = unit.petState.ownerUnitId ? context.getUnit(unit.petState.ownerUnitId) : null;
+            const owner = petStateOf(unit).ownerUnitId ? context.getUnit(petStateOf(unit).ownerUnitId!) : null;
             const tetherRange = ctx.heelTetherRange ?? 30;
 
             if (owner?.isAlive() && distance(unit.x, unit.y, owner.x, owner.y) > tetherRange) {

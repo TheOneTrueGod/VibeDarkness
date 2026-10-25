@@ -21,9 +21,22 @@ import { findUnoccupiedConnectedNestPoi, countAliveChildrenByRole } from './lant
 import { UnitTag } from '../units/unitTag';
 import { IntervalEmitter, type EffectEmitter } from '../effects/EffectEmitter';
 import { Effect } from '../effects/Effect';
-import { spawnUnit, type SpawnUnitContext } from '../units/spawning/spawnUnit';
+import { spawnUnit } from '../units/spawning/spawnUnit';
 import type { SpawnAiHookup } from '../units/spawning/spawnDefinition';
 import type { LanterniteNetworkAITreeContext } from '../units/unitAI/lanterniteNetwork/context';
+import {
+    isLanterniteCreature,
+    isLanterniteNest,
+    lanterniteStateOf,
+    peekLanterniteState,
+} from '../units/components/lanterniteComponent';
+import {
+    buildNestSpawnContext,
+    poolSharedConstruction,
+    tickSpawner,
+    type SpawnerEnv,
+    type SpawnerSpec,
+} from '../units/components/spawnerCore';
 
 /**
  * Golden angle in radians (~137.5°). Used to distribute scout stand angles so each
@@ -36,17 +49,8 @@ const ROUND_DURATION_SEC = 8;
 /** Read-only query surface `processLanterniteNests` needs — mirrors `AIContext.mapNetwork`'s `Pick<...>` restriction (query only, no `tick`/`loadFromSegments`). */
 type MapNetworkQuery = Pick<MapNetworkManager, 'getNeighborIds' | 'getNode'>;
 
-function pruneSpawnedLanternIds(nest: Unit, units: readonly Unit[]): void {
-    const state = nest.lanterniteState.nestSpawnState;
-    if (!state) return;
-    state.spawnedIds = state.spawnedIds.filter((id) => {
-        const u = units.find((x) => x.id === id);
-        return u != null && u.isAlive();
-    });
-}
-
 function resolvePatrolFarWorld(nest: Unit, units: readonly Unit[]): { x: number; y: number } | null {
-    const cfg = nest.lanterniteState.nestConfig;
+    const cfg = lanterniteStateOf(nest).nestConfig;
     if (!cfg) return null;
     const dest = cfg.patrolDestination;
     if (dest.kind === 'world') return { x: dest.x, y: dest.y };
@@ -54,12 +58,112 @@ function resolvePatrolFarWorld(nest: Unit, units: readonly Unit[]): { x: number;
     return other ? { x: other.x, y: other.y } : null;
 }
 
+/** Extra px beyond the nest's own radius that lanternites may spawn within. */
+const NEST_SPAWN_EXTRA_RADIUS = 70;
+
+/**
+ * The lanternite nest as a spawner (see `units/components/spawnerCore.ts`). The shared core owns pacing, cap, burst and
+ * placement; this spec supplies the child's static shape plus the two lanternite-specific decisions:
+ * - legacy patrol nests wait (without rescheduling) until their patrol destination resolves,
+ * - networked nests assign each child a role (scout toward an unclaimed neighbor POI, or defender), a unique golden-angle
+ *   stand angle and a staggered attack offset; legacy children just patrol to the far point.
+ */
+export const LANTERNITE_SPAWNER: SpawnerSpec<LanterniteNestMissionConfig> = {
+    child: {
+        characterId: LANTERNITE_CHARACTER_ID,
+        name: 'Lanternite',
+        abilities: ['0010'],
+        team: 'nature',
+        aiSettings: { minRange: 0, maxRange: 600 },
+        spawnRadiusExtraPx: NEST_SPAWN_EXTRA_RADIUS,
+        inheritInvulnerability: true,
+        spawnSource: 'nestSpawn',
+    },
+    maxChildren: (cfg) => cfg.maxLanternites,
+    intervalSec: (cfg) => cfg.spawnIntervalSec,
+    burstCount: (cfg) => cfg.spawnCount ?? 1,
+    canSpawn(nest, env) {
+        // Legacy (non-networked) mode: resolve the patrol destination once before the burst loop. If unavailable, skip
+        // this tick entirely (retry next tick).
+        const cfg = lanterniteStateOf(nest).nestConfig;
+        return Boolean(cfg?.networked) || resolvePatrolFarWorld(nest, env.units) != null;
+    },
+    describeChild(nest, aliveKids, env) {
+        const nestState = lanterniteStateOf(nest);
+        const cfg = nestState.nestConfig!;
+        const spawnedIds = nestState.nestSpawnState!.spawnedIds;
+
+        if (!cfg.networked) {
+            // Legacy patrol behavior
+            const far = resolvePatrolFarWorld(nest, env.units);
+            if (!far) return null;
+            return {
+                unitAITreeId: 'lanternitePatrol',
+                aiHookup: {
+                    kind: 'lanternite',
+                    patrolFarWorld: { ...far },
+                    patrolLeg: 'toFar',
+                    nestOwnerUnitId: nest.id,
+                },
+            };
+        }
+
+        // Network mode: assign roles, resolve scout target, stagger attack offset.
+        // Favor spawning a scout whenever scouts haven't caught up to defenders (so a
+        // scout that died en route gets promptly retried) or once the defender quota is
+        // met; otherwise spawn a defender.
+        const defenderCount = countAliveChildrenByRole(spawnedIds, env.units, 'defender');
+        const scoutCount = countAliveChildrenByRole(spawnedIds, env.units, 'scout');
+        const targetDefenders = Math.floor(cfg.maxLanternites / 2);
+        const nestPoiId = nestState.homeNestPoiId ?? cfg.nestPoiId;
+
+        let role: 'scout' | 'defender' = 'defender';
+        let targetNode: NetworkNode | null = null;
+
+        if (scoutCount <= defenderCount || defenderCount >= targetDefenders) {
+            if (nestPoiId && env.mapNetwork) {
+                targetNode = findUnoccupiedConnectedNestPoi(nestPoiId, env.mapNetwork, env.units);
+            }
+            role = targetNode ? 'scout' : 'defender';
+        }
+
+        // Assign a unique stand angle using the golden angle so each scout
+        // in a nest stands at a distinct direction around the build site.
+        const constructionAngle = (aliveKids * GOLDEN_ANGLE) % (Math.PI * 2);
+
+        let patrolFarWorld: { x: number; y: number } | undefined;
+        let targetNestPoiId: string | undefined;
+        let nestConfig: LanterniteNestMissionConfig | undefined;
+        if (role === 'scout' && targetNode) {
+            // The manager already stores mission-global px — no `terrainGrid.gridToWorld`
+            // conversion needed (unlike the old POI-tag path).
+            patrolFarWorld = { x: targetNode.x, y: targetNode.y };
+            targetNestPoiId = targetNode.id;
+            nestConfig = cfg;
+        }
+
+        const numPhases = Math.max(1, cfg.maxLanternites);
+        const phaseOffsetSec = (aliveKids % numPhases) * (ROUND_DURATION_SEC / numPhases);
+        const attackReadyAtGameTime = env.gameTime + phaseOffsetSec;
+
+        const aiHookup: SpawnAiHookup = {
+            kind: 'lanternite',
+            role,
+            patrolFarWorld,
+            targetNestPoiId,
+            nestConfig,
+            constructionAngle,
+            attackReadyAtGameTime,
+            nestOwnerUnitId: nest.id,
+        };
+        return { unitAITreeId: 'lanterniteNetwork', aiHookup };
+    },
+};
+
 /**
  * Advances nest spawn timers once per simulation tick (host).
  * Also handles scout construction completion — spawns a new nest and removes the scout.
  */
-/** Extra px beyond the nest's own radius that lanternites may spawn within. */
-const NEST_SPAWN_EXTRA_RADIUS = 70;
 
 export function processLanterniteNests(params: {
     gameTime: number;
@@ -79,53 +183,30 @@ export function processLanterniteNests(params: {
     /** Seeded RNG source — must be passed from the engine so spawn positions are deterministic across clients. */
     generateRandomInteger: (min: number, max: number) => number;
 }): void {
-    const spawnCtx: SpawnUnitContext = {
-        units: params.units,
-        eventBus: params.eventBus,
-        addUnit: params.addUnit,
-        terrainManager: null,
-        lightLevelEnabled: false,
-        aiControllerId: null,
-        mapPOIs: params.mapPOIs ?? [],
-        getLightAt: () => null,
-        getZoneById: () => undefined,
-        generateRandomInteger: params.generateRandomInteger,
-        allocateObjectId: params.idSource?.allocateObjectId?.bind(params.idSource),
-    };
+    const spawnCtx = buildNestSpawnContext(params);
 
     // --- Shared construction: scouts building at the same POI pool their effort, so N scouts
     // at one site finish N times faster than a lone scout. Each additional scout beyond the
     // first pulls the group's (already-synced, see lnet_scout_travel.ts's join logic) shared
     // completion time closer by one extra `dt` this tick.
-    {
-        const buildersByPoi = new Map<string, Unit[]>();
-        for (const u of params.units) {
-            if (!u.isAlive()) continue;
-            const poiId = u.lanterniteState.targetNestPoiId;
-            const completeAt = u.lanterniteState.constructionCompleteAtGameTime;
-            if (poiId == null || completeAt == null || completeAt <= params.gameTime) continue;
-            const group = buildersByPoi.get(poiId);
-            if (group) group.push(u);
-            else buildersByPoi.set(poiId, [u]);
-        }
-        for (const group of buildersByPoi.values()) {
-            if (group.length < 2) continue;
-            const extra = (group.length - 1) * params.dt;
-            for (const u of group) {
-                u.lanterniteState.constructionCompleteAtGameTime = Math.max(
-                    params.gameTime,
-                    u.lanterniteState.constructionCompleteAtGameTime! - extra,
-                );
-            }
-        }
-    }
+    poolSharedConstruction({
+        units: params.units,
+        gameTime: params.gameTime,
+        dt: params.dt,
+        siteOf: (u) => peekLanterniteState(u)?.targetNestPoiId,
+        completeAtOf: (u) => peekLanterniteState(u)?.constructionCompleteAtGameTime,
+        setCompleteAt: (u, t) => {
+            lanterniteStateOf(u).constructionCompleteAtGameTime = t;
+        },
+    });
 
     // --- Construction completion: scouts that have finished building ---
     for (const unit of params.units) {
+        const scoutState = peekLanterniteState(unit);
         if (
             !unit.isAlive() ||
-            unit.lanterniteState.constructionCompleteAtGameTime == null ||
-            params.gameTime < unit.lanterniteState.constructionCompleteAtGameTime
+            scoutState?.constructionCompleteAtGameTime == null ||
+            params.gameTime < scoutState.constructionCompleteAtGameTime
         ) {
             continue;
         }
@@ -136,12 +217,12 @@ export function processLanterniteNests(params: {
         // this node by position," while this check needs the narrower "is there a live
         // `lanternite_nest` whose *home* is this exact POI id" fact; replicating that exactly
         // through the generic method would need extra plumbing, not worth the churn here.
-        if (unit.lanterniteState.targetNestPoiId != null) {
+        if (lanterniteStateOf(unit).targetNestPoiId != null) {
             const alreadyOccupied = params.units.some(
                 (u) =>
-                    u.characterId === LANTERNITE_NEST_CHARACTER_ID &&
+                    isLanterniteNest(u) &&
                     u.isAlive() &&
-                    u.lanterniteState.homeNestPoiId === unit.lanterniteState.targetNestPoiId,
+                    lanterniteStateOf(u).homeNestPoiId === lanterniteStateOf(unit).targetNestPoiId,
             );
             if (alreadyOccupied) {
                 unit.hp = 0;
@@ -151,26 +232,28 @@ export function processLanterniteNests(params: {
             }
         }
 
-        const parentNestId = unit.lanterniteState.nestOwnerUnitId;
+        const parentNestId = lanterniteStateOf(unit).nestOwnerUnitId;
         const parentNest = parentNestId
             ? params.units.find((u) => u.id === parentNestId)
             : null;
 
         // Remove scout from parent's spawn tracking
-        if (parentNest?.lanterniteState.nestSpawnState) {
-            parentNest.lanterniteState.nestSpawnState.spawnedIds =
-                parentNest.lanterniteState.nestSpawnState.spawnedIds.filter((id) => id !== unit.id);
+        const parentNestState = parentNest ? lanterniteStateOf(parentNest) : null;
+        if (parentNestState?.nestSpawnState) {
+            parentNestState.nestSpawnState.spawnedIds = parentNestState.nestSpawnState.spawnedIds.filter(
+                (id) => id !== unit.id,
+            );
         }
 
-        const parentCfg = parentNest?.lanterniteState.nestConfig;
-        const nestPos = unit.lanterniteState.patrolFarWorld ?? { x: unit.x, y: unit.y };
+        const parentCfg = parentNestState?.nestConfig;
+        const nestPos = lanterniteStateOf(unit).patrolFarWorld ?? { x: unit.x, y: unit.y };
         const newNestCfg: LanterniteNestMissionConfig = {
             maxLanternites: parentCfg?.maxLanternites ?? 3,
             spawnIntervalSec: parentCfg?.spawnIntervalSec ?? 14,
             ...(parentCfg?.spawnCount != null ? { spawnCount: parentCfg.spawnCount } : {}),
             patrolDestination: { kind: 'world', x: nestPos.x, y: nestPos.y },
             networked: true,
-            nestPoiId: unit.lanterniteState.targetNestPoiId ?? undefined,
+            nestPoiId: lanterniteStateOf(unit).targetNestPoiId ?? undefined,
             scoutConstructionSec: parentCfg?.scoutConstructionSec ?? 10,
         };
 
@@ -188,7 +271,7 @@ export function processLanterniteNests(params: {
             aiHookup: {
                 kind: 'lanterniteNest',
                 nestConfig: newNestCfg,
-                homeNestPoiId: unit.lanterniteState.targetNestPoiId ?? undefined,
+                homeNestPoiId: lanterniteStateOf(unit).targetNestPoiId ?? undefined,
             },
         });
         prepareLanterniteNestForMissionStart(newNest, params.gameTime);
@@ -200,134 +283,25 @@ export function processLanterniteNests(params: {
         // Claim the scout as owned by the new nest before killing it so the global
         // respawn manager (which only respawns ownerless lanternites) does not queue
         // a replacement. Pre-spawned scouts start with no owner.
-        unit.lanterniteState.nestOwnerUnitId = newNest.id;
+        lanterniteStateOf(unit).nestOwnerUnitId = newNest.id;
         unit.hp = 0;
         unit.active = false;
         params.eventBus.emit('unit_died', { unitId: unit.id, killerUnitId: null });
     }
 
-    // --- Nest spawning ---
+    // --- Nest spawning (pacing, cap, burst and placement are the shared spawner core; see LANTERNITE_SPAWNER) ---
+    const spawnerEnv: SpawnerEnv = { units: params.units, gameTime: params.gameTime, mapNetwork: params.mapNetwork };
     for (const nest of params.units) {
-        if (!nest.isAlive() || nest.characterId !== LANTERNITE_NEST_CHARACTER_ID) continue;
-
-        const cfg = nest.lanterniteState.nestConfig;
-        const state = nest.lanterniteState.nestSpawnState;
-        if (!cfg || !state) continue;
-
-        pruneSpawnedLanternIds(nest, params.units);
-
-        if (state.spawnedIds.length >= cfg.maxLanternites) continue;
-        if (params.gameTime < state.nextSpawnAtGameTime) continue;
-
-        // For legacy (non-networked) mode, resolve patrol destination once before the burst loop.
-        // If unavailable, skip this tick entirely (matches original behaviour: retry next tick).
-        if (!cfg.networked) {
-            const far = resolvePatrolFarWorld(nest, params.units);
-            if (!far) continue;
-        }
-
-        const burstCount = cfg.spawnCount ?? 1;
-
-        for (let burst = 0; burst < burstCount; burst++) {
-            // Re-check cap each iteration — previous burst may have filled the nest.
-            if (state.spawnedIds.length >= cfg.maxLanternites) break;
-
-            // aliveKids is the count before this unit is added.
-            const aliveKids = state.spawnedIds.length;
-
-            let unitAITreeId = 'lanternitePatrol';
-            let aiHookup: SpawnAiHookup;
-
-            if (cfg.networked) {
-                // Network mode: assign roles, resolve scout target, stagger attack offset.
-                // Favor spawning a scout whenever scouts haven't caught up to defenders (so a
-                // scout that died en route gets promptly retried) or once the defender quota is
-                // met; otherwise spawn a defender.
-                const defenderCount = countAliveChildrenByRole(state.spawnedIds, params.units, 'defender');
-                const scoutCount = countAliveChildrenByRole(state.spawnedIds, params.units, 'scout');
-                const targetDefenders = Math.floor(cfg.maxLanternites / 2);
-                const nestPoiId = nest.lanterniteState.homeNestPoiId ?? cfg.nestPoiId;
-
-                let role: 'scout' | 'defender' = 'defender';
-                let targetNode: NetworkNode | null = null;
-
-                if (scoutCount <= defenderCount || defenderCount >= targetDefenders) {
-                    if (nestPoiId && params.mapNetwork) {
-                        targetNode = findUnoccupiedConnectedNestPoi(nestPoiId, params.mapNetwork, params.units);
-                    }
-                    role = targetNode ? 'scout' : 'defender';
-                }
-
-                unitAITreeId = 'lanterniteNetwork';
-
-                // Assign a unique stand angle using the golden angle so each scout
-                // in a nest stands at a distinct direction around the build site.
-                const constructionAngle = (aliveKids * GOLDEN_ANGLE) % (Math.PI * 2);
-
-                let patrolFarWorld: { x: number; y: number } | undefined;
-                let targetNestPoiId: string | undefined;
-                let nestConfig: LanterniteNestMissionConfig | undefined;
-                if (role === 'scout' && targetNode) {
-                    // The manager already stores mission-global px — no `terrainGrid.gridToWorld`
-                    // conversion needed (unlike the old POI-tag path).
-                    patrolFarWorld = { x: targetNode.x, y: targetNode.y };
-                    targetNestPoiId = targetNode.id;
-                    nestConfig = cfg;
-                }
-
-                const numPhases = Math.max(1, cfg.maxLanternites);
-                const phaseOffsetSec = (aliveKids % numPhases) * (ROUND_DURATION_SEC / numPhases);
-                const attackReadyAtGameTime = params.gameTime + phaseOffsetSec;
-
-                aiHookup = {
-                    kind: 'lanternite',
-                    role,
-                    patrolFarWorld,
-                    targetNestPoiId,
-                    nestConfig,
-                    constructionAngle,
-                    attackReadyAtGameTime,
-                    nestOwnerUnitId: nest.id,
-                };
-            } else {
-                // Legacy patrol behavior
-                const far = resolvePatrolFarWorld(nest, params.units);
-                if (!far) break;
-                aiHookup = {
-                    kind: 'lanternite',
-                    patrolFarWorld: { ...far },
-                    patrolLeg: 'toFar',
-                    nestOwnerUnitId: nest.id,
-                };
-            }
-
-            const [lan] = spawnUnit(
-                spawnCtx,
-                {
-                    characterId: LANTERNITE_CHARACTER_ID,
-                    name: 'Lanternite',
-                    abilities: ['0010'],
-                    teamId: 'nature',
-                    unitAITreeId,
-                    aiSettings: { minRange: 0, maxRange: 600 },
-                    placement: {
-                        kind: 'relativeToUnit',
-                        anchorUnitId: nest.id,
-                        maxRadiusPx: nest.radius + NEST_SPAWN_EXTRA_RADIUS,
-                    },
-                    unitTags: nest.tags.includes(UnitTag.Invincible) ? [UnitTag.Invincible] : undefined,
-                    invulnerabilityGenerations:
-                        nest.invulnerabilityGenerations != null
-                            ? Math.max(0, nest.invulnerabilityGenerations - 1)
-                            : undefined,
-                    aiHookup,
-                },
-                'nestSpawn',
-            );
-            state.spawnedIds.push(lan.id);
-        }
-
-        state.nextSpawnAtGameTime = params.gameTime + Math.max(0.5, cfg.spawnIntervalSec);
+        if (!nest.isAlive() || !isLanterniteNest(nest)) continue;
+        const nestState = lanterniteStateOf(nest);
+        tickSpawner({
+            spawner: nest,
+            cfg: nestState.nestConfig,
+            state: nestState.nestSpawnState,
+            spec: LANTERNITE_SPAWNER,
+            spawnCtx,
+            env: spawnerEnv,
+        });
     }
 
     // --- Defender promotion: a networked nest with an unclaimed neighbor and no spare spawn
@@ -338,18 +312,18 @@ export function processLanterniteNests(params: {
     // already targets, so this never doubles up with a freshly spawned or traveling scout.
     if (params.mapNetwork) {
         for (const nest of params.units) {
-            if (!nest.isAlive() || nest.characterId !== LANTERNITE_NEST_CHARACTER_ID) continue;
-            const cfg = nest.lanterniteState.nestConfig;
+            if (!nest.isAlive() || !isLanterniteNest(nest)) continue;
+            const cfg = lanterniteStateOf(nest).nestConfig;
             if (!cfg?.networked) continue;
-            const nestPoiId = nest.lanterniteState.homeNestPoiId ?? cfg.nestPoiId;
+            const nestPoiId = lanterniteStateOf(nest).homeNestPoiId ?? cfg.nestPoiId;
             if (!nestPoiId) continue;
 
             const defenders = params.units.filter(
                 (u) =>
                     u.isAlive() &&
-                    u.characterId === LANTERNITE_CHARACTER_ID &&
-                    u.lanterniteState.nestOwnerUnitId === nest.id &&
-                    u.lanterniteState.role === 'defender',
+                    isLanterniteCreature(u) &&
+                    lanterniteStateOf(u).nestOwnerUnitId === nest.id &&
+                    lanterniteStateOf(u).role === 'defender',
             );
             if (defenders.length === 0) continue;
 
@@ -361,10 +335,10 @@ export function processLanterniteNests(params: {
                 defenders.find(
                     (u) => (u.aiContext as Partial<LanterniteNetworkAITreeContext>).aiState !== 'lnet_chase',
                 ) ?? defenders[0];
-            promoted.lanterniteState.role = 'scout';
-            promoted.lanterniteState.targetNestPoiId = targetNode.id;
-            promoted.lanterniteState.patrolFarWorld = { x: targetNode.x, y: targetNode.y };
-            promoted.lanterniteState.nestConfig = cfg;
+            lanterniteStateOf(promoted).role = 'scout';
+            lanterniteStateOf(promoted).targetNestPoiId = targetNode.id;
+            lanterniteStateOf(promoted).patrolFarWorld = { x: targetNode.x, y: targetNode.y };
+            lanterniteStateOf(promoted).nestConfig = cfg;
         }
     }
 
@@ -372,18 +346,19 @@ export function processLanterniteNests(params: {
     if (params.addEffectEmitter) {
         for (const unit of params.units) {
             if (!unit.isAlive()) continue;
-            if (unit.lanterniteState.role !== 'scout') continue;
-            if (unit.lanterniteState.constructionCompleteAtGameTime == null) continue;
-            if (unit.lanterniteState.constructionEmitterStarted) continue;
+            const emitterState = peekLanterniteState(unit);
+            if (emitterState?.role !== 'scout') continue;
+            if (emitterState.constructionCompleteAtGameTime == null) continue;
+            if (emitterState.constructionEmitterStarted) continue;
 
-            unit.lanterniteState.constructionEmitterStarted = true;
-            const targetPos = unit.lanterniteState.patrolFarWorld;
+            emitterState.constructionEmitterStarted = true;
+            const targetPos = emitterState.patrolFarWorld;
             if (!targetPos) continue;
 
             const targetX = targetPos.x;
             const targetY = targetPos.y;
             const unitId = unit.id;
-            const remaining = Math.max(0, unit.lanterniteState.constructionCompleteAtGameTime - params.gameTime);
+            const remaining = Math.max(0, emitterState.constructionCompleteAtGameTime - params.gameTime);
 
             // Emit ~2-3 green arc particles per second for the remaining construction duration.
             const emitter = new IntervalEmitter({

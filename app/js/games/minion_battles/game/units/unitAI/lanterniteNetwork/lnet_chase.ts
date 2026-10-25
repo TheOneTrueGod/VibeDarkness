@@ -7,6 +7,7 @@ import type { Unit } from '../../Unit';
 import type { AIContext, AINode } from '../types';
 import { findEnemies, tryQueueAbilityOrder, queueWaitAndEndTurn } from '../utils';
 import type { LanterniteNetworkAITreeContext, LanterniteNetworkNodeId } from './context';
+import { lanterniteStateOf } from '../../components/lanterniteComponent';
 
 export const lnet_chase: AINode<'lanterniteNetwork', LanterniteNetworkNodeId> = {
     nodeId: 'lnet_chase',
@@ -42,7 +43,7 @@ export const lnet_chase: AINode<'lanterniteNetwork', LanterniteNetworkNodeId> = 
             // Promoted to scout by its nest (see processLanterniteNests's defender promotion).
             targetNodeId: 'lnet_scout_travel',
             evaluate(unit: Unit): boolean {
-                return unit.lanterniteState.role === 'scout' && unit.lanterniteState.patrolFarWorld != null;
+                return lanterniteStateOf(unit).role === 'scout' && lanterniteStateOf(unit).patrolFarWorld != null;
             },
         },
         {

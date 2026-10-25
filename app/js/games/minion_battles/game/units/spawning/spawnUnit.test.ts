@@ -13,6 +13,8 @@ import {
 } from '../../../../../darknessStrength/packages/starters';
 import { getDefaultHp } from '../unit_defs/unitDef';
 import type { PassiveBonuses } from '../../../../../researchTrees/types';
+import { lanterniteStateOf } from '../components/lanterniteComponent';
+import { petStateOf } from '../components/petComponent';
 
 function setupEngine(gridSize = 10): GameEngine {
     resetGameObjectIdCounter(1);
@@ -277,11 +279,11 @@ describe('spawnUnit aiHookup', () => {
             },
         });
         const unit = spawned[0]!;
-        expect(unit.lanterniteState.role).toBe('scout');
-        expect(unit.lanterniteState.targetNestPoiId).toBe('nest_b');
-        expect(unit.lanterniteState.patrolFarWorld).toEqual({ x: 10, y: 20 });
-        expect(unit.lanterniteState.nestOwnerUnitId).toBe('nest_a_unit');
-        expect(unit.lanterniteState.constructionAngle).toBe(1.5);
+        expect(lanterniteStateOf(unit).role).toBe('scout');
+        expect(lanterniteStateOf(unit).targetNestPoiId).toBe('nest_b');
+        expect(lanterniteStateOf(unit).patrolFarWorld).toEqual({ x: 10, y: 20 });
+        expect(lanterniteStateOf(unit).nestOwnerUnitId).toBe('nest_a_unit');
+        expect(lanterniteStateOf(unit).constructionAngle).toBe(1.5);
     });
 
     it('pet hookup wires the pet and pushes onto the owner unitIds', () => {
@@ -302,15 +304,15 @@ describe('spawnUnit aiHookup', () => {
             aiHookup: { kind: 'pet', ownerUnitId: owner.id, defId: 'dog' },
         });
         const pet = spawned[0]!;
-        expect(pet.petState.ownerUnitId).toBe(owner.id);
-        expect(pet.petState.defId).toBe('dog');
-        expect(owner.petState.unitIds).toContain(pet.id);
+        expect(petStateOf(pet).ownerUnitId).toBe(owner.id);
+        expect(petStateOf(pet).defId).toBe('dog');
+        expect(petStateOf(owner).unitIds).toContain(pet.id);
     });
 
     it('omitted aiHookup leaves ecology state untouched', () => {
         const engine = setupEngine();
         const spawned = engine.spawnUnit({ ...BASE, placement: { kind: 'fixedWorld', x: 0, y: 0 } });
-        expect(spawned[0]!.lanterniteState.role).toBeNull();
+        expect(lanterniteStateOf(spawned[0]!).role).toBeNull();
     });
 });
 

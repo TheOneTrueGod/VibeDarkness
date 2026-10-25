@@ -5,6 +5,7 @@ import { TerrainGrid, CELL_SIZE } from '../../terrain/TerrainGrid';
 import { TerrainManager } from '../../terrain/TerrainManager';
 import { TerrainType } from '../../terrain/TerrainType';
 import { continuousSpawnStartGameTime } from './LevelEventManager';
+import { lanterniteStateOf } from '../units/components/lanterniteComponent';
 
 function setupEngine(): GameEngine {
     resetGameObjectIdCounter(1);
@@ -73,9 +74,9 @@ describe('LevelEventManager continuousSpawn lanternite ecology fields', () => {
         const lanternites = engine.units.filter((u) => u.characterId === 'lanternite');
         expect(lanternites).toHaveLength(1);
         const [lanternite] = lanternites;
-        expect(lanternite!.lanterniteState.nestOwnerUnitId).toBe('nest_1');
-        expect(lanternite!.lanterniteState.patrolFarWorld).toEqual({ x: 123, y: 456 });
-        expect(lanternite!.lanterniteState.patrolLeg).toBe('toFar');
+        expect(lanterniteStateOf(lanternite!).nestOwnerUnitId).toBe('nest_1');
+        expect(lanterniteStateOf(lanternite!).patrolFarWorld).toEqual({ x: 123, y: 456 });
+        expect(lanterniteStateOf(lanternite!).patrolLeg).toBe('toFar');
     });
 });
 

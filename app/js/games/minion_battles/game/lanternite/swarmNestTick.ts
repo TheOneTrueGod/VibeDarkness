@@ -11,8 +11,17 @@ import type { MapSegmentPOI } from '../../terrain/segmentSchema';
 import type { SwarmNestMissionConfig } from '../../storylines/types';
 import type { MapNetworkManager } from '../managers/mapNetwork/MapNetworkManager';
 import type { NetworkNode } from '../managers/mapNetwork/types';
-import { spawnUnit, type SpawnUnitContext } from '../units/spawning/spawnUnit';
+import { spawnUnit } from '../units/spawning/spawnUnit';
+import {
+    buildNestSpawnContext,
+    createSpawnerState,
+    poolSharedConstruction,
+    tickSpawner,
+    type SpawnerEnv,
+    type SpawnerSpec,
+} from '../units/components/spawnerCore';
 import { resolveNearestNodeId, findNearestNodeByHops } from '../managers/mapNetwork/graphSearch';
+import { isSwarmNest, isSwarmling, peekSwarmState, swarmStateOf } from '../units/components/swarmComponent';
 
 export const SWARM_NEST_CHARACTER_ID = 'swarm_nest';
 export const SWARM_NEST_SWARMLING_CHARACTER_ID = 'swarmling';
@@ -43,14 +52,35 @@ type MapNetworkQuery = Pick<
     'getAllNodeIds' | 'getNode' | 'getNeighborIds' | 'findNodeContainingPosition'
 >;
 
-function pruneSpawnedIds(nest: Unit, units: readonly Unit[]): void {
-    const state = nest.swarmState.nestSpawnState;
-    if (!state) return;
-    state.spawnedIds = state.spawnedIds.filter((id) => {
-        const u = units.find((x) => x.id === id);
-        return u != null && u.isAlive();
-    });
-}
+/**
+ * The swarm nest as a spawner (see `units/components/spawnerCore.ts`). The shared core owns pacing, cap, burst and
+ * placement; this spec supplies the swarmling's static shape. A swarmling inherits the nest's team, gets a golden-angle
+ * orbit slot, and starts with no target node: `currentNodeId`/`targetNodeId` are resolved lazily on its first
+ * `snet_seek` tick (its spawn position, near the nest's own node, counts as an implicit first arrival), so it hops
+ * node-to-node by population gradient instead of beelining at a pre-computed distant target.
+ */
+export const SWARM_SPAWNER: SpawnerSpec<SwarmNestMissionConfig> = {
+    child: {
+        characterId: SWARM_NEST_SWARMLING_CHARACTER_ID,
+        name: 'Swarmling',
+        abilities: [SWARMLING_BITE_ABILITY_ID],
+        team: 'inherit',
+        aiSettings: { minRange: 0, maxRange: 70 },
+        spawnRadiusExtraPx: NEST_SPAWN_EXTRA_RADIUS,
+        inheritInvulnerability: false,
+    },
+    maxChildren: (cfg) => cfg.maxSwarmlings,
+    intervalSec: (cfg) => cfg.spawnIntervalSec,
+    burstCount: (cfg) => cfg.spawnCount ?? 1,
+    describeChild(nest, aliveCount, _env) {
+        const orbitAngle = (aliveCount * GOLDEN_ANGLE) % (Math.PI * 2);
+        const cfg = swarmStateOf(nest).nestConfig!;
+        return {
+            unitAITreeId: cfg.spawnAITreeId ?? SWARMLING_AI_TREE_ID,
+            aiHookup: { kind: 'swarm', orbitAngle, nestOwnerUnitId: nest.id },
+        };
+    },
+};
 
 /**
  * True if a living `swarm_nest` structure already calls `nodeId` home. Deliberately does NOT
@@ -61,9 +91,7 @@ function pruneSpawnedIds(nest: Unit, units: readonly Unit[]): void {
  * finished structure actually reserves the node against further targeting.
  */
 export function isNodeClaimedBySwarm(nodeId: string, allUnits: readonly Unit[]): boolean {
-    return allUnits.some(
-        (u) => u.isAlive() && u.characterId === SWARM_NEST_CHARACTER_ID && u.swarmState.homeNestPoiId === nodeId,
-    );
+    return allUnits.some((u) => u.isAlive() && isSwarmNest(u) && swarmStateOf(u).homeNestPoiId === nodeId);
 }
 
 /**
@@ -89,7 +117,7 @@ export function isValidUnclaimedBuildNode(
  * no BFS-reachable unclaimed candidate (e.g. a disconnected graph/component) — preserves the
  * pre-existing guarantee that a target is always found if one exists anywhere.
  *
- * Design notes — see `docs/plans/swarm-nest-network-migration.md` decisions #1/#2. Do not "fix"
+ * Design notes — see `docs/plans/done/swarm-nest-network-migration.md` decisions #1/#2. Do not "fix"
  * this to match lanternite's `findUnoccupiedConnectedNestPoi`: no `mapNetwork.getOwnerCharacterId`
  * call — swarm nests are meant to *always contest* a node regardless of which faction already
  * holds it, that's what drives the contested-nest-site fights lanternite's `isNestSiteContested`
@@ -130,12 +158,9 @@ export function findUnclaimedNetworkNode(
 }
 
 export function initializeSwarmNestSpawnState(nest: Unit, gameTime: number): void {
-    const cfg = nest.swarmState.nestConfig;
+    const cfg = swarmStateOf(nest).nestConfig;
     if (!cfg) return;
-    nest.swarmState.nestSpawnState = {
-        spawnedIds: [],
-        nextSpawnAtGameTime: gameTime + Math.max(0.5, cfg.spawnIntervalSec),
-    };
+    swarmStateOf(nest).nestSpawnState = createSpawnerState(gameTime, cfg.spawnIntervalSec);
 }
 
 /**
@@ -157,67 +182,41 @@ export function processSwarmNests(params: {
     /** Seeded RNG source — must be passed from the engine so spawn positions are deterministic across clients. */
     generateRandomInteger: (min: number, max: number) => number;
 }): void {
-    const spawnCtx: SpawnUnitContext = {
-        units: params.units,
-        eventBus: params.eventBus,
-        addUnit: params.addUnit,
-        terrainManager: null,
-        lightLevelEnabled: false,
-        aiControllerId: null,
-        mapPOIs: params.mapPOIs ?? [],
-        getLightAt: () => null,
-        getZoneById: () => undefined,
-        generateRandomInteger: params.generateRandomInteger,
-        allocateObjectId: params.idSource?.allocateObjectId?.bind(params.idSource),
-    };
+    const spawnCtx = buildNestSpawnContext(params);
 
     // --- Shared construction: swarmlings building at the same POI pool their effort, so N
     // swarmlings at one site finish N times faster than a lone one. Each additional swarmling
     // beyond the first pulls the group's (already-synced, see snet_seek.ts's join logic) shared
     // completion time closer by one extra `dt` this tick.
-    {
-        const buildersByPoi = new Map<string, Unit[]>();
-        for (const u of params.units) {
-            if (!u.isAlive()) continue;
-            const poiId = u.swarmState.currentNodeId;
-            const completeAt = u.swarmState.constructionCompleteAtGameTime;
-            if (poiId == null || completeAt == null || completeAt <= params.gameTime) continue;
-            const group = buildersByPoi.get(poiId);
-            if (group) group.push(u);
-            else buildersByPoi.set(poiId, [u]);
-        }
-        for (const group of buildersByPoi.values()) {
-            if (group.length < 2) continue;
-            const extra = (group.length - 1) * params.dt;
-            for (const u of group) {
-                u.swarmState.constructionCompleteAtGameTime = Math.max(
-                    params.gameTime,
-                    u.swarmState.constructionCompleteAtGameTime! - extra,
-                );
-            }
-        }
-    }
+    poolSharedConstruction({
+        units: params.units,
+        gameTime: params.gameTime,
+        dt: params.dt,
+        siteOf: (u) => peekSwarmState(u)?.currentNodeId,
+        completeAtOf: (u) => peekSwarmState(u)?.constructionCompleteAtGameTime,
+        setCompleteAt: (u, t) => {
+            swarmStateOf(u).constructionCompleteAtGameTime = t;
+        },
+    });
 
     // --- Construction completion: swarmlings that have finished building ---
     for (const unit of params.units) {
+        const builderState = peekSwarmState(unit);
         if (
             !unit.isAlive() ||
-            unit.characterId !== SWARM_NEST_SWARMLING_CHARACTER_ID ||
-            unit.swarmState.constructionCompleteAtGameTime == null ||
-            params.gameTime < unit.swarmState.constructionCompleteAtGameTime
+            !isSwarmling(unit) ||
+            builderState?.constructionCompleteAtGameTime == null ||
+            params.gameTime < builderState.constructionCompleteAtGameTime
         ) {
             continue;
         }
 
-        const targetPoiId = unit.swarmState.currentNodeId;
+        const targetPoiId = swarmStateOf(unit).currentNodeId;
 
         // Skip if another swarmling already built a nest at this POI
         if (targetPoiId != null) {
             const alreadyOccupied = params.units.some(
-                (u) =>
-                    u.characterId === SWARM_NEST_CHARACTER_ID &&
-                    u.isAlive() &&
-                    u.swarmState.homeNestPoiId === targetPoiId,
+                (u) => isSwarmNest(u) && u.isAlive() && swarmStateOf(u).homeNestPoiId === targetPoiId,
             );
             if (alreadyOccupied) {
                 unit.hp = 0;
@@ -234,10 +233,10 @@ export function processSwarmNests(params: {
             // conversion needed (unlike the old POI-tag path), mirrors lanternite's cleanup.
 
             // Resolve config from swarmling's parent nest
-            const parentNest = unit.swarmState.nestOwnerUnitId
-                ? params.units.find((u) => u.id === unit.swarmState.nestOwnerUnitId && u.isAlive())
+            const parentNest = swarmStateOf(unit).nestOwnerUnitId
+                ? params.units.find((u) => u.id === swarmStateOf(unit).nestOwnerUnitId && u.isAlive())
                 : null;
-            const cfg: SwarmNestMissionConfig = parentNest?.swarmState.nestConfig ?? {
+            const cfg: SwarmNestMissionConfig = (parentNest ? swarmStateOf(parentNest).nestConfig : null) ?? {
                 maxSwarmlings: 3,
                 spawnIntervalSec: 8,
             };
@@ -260,50 +259,19 @@ export function processSwarmNests(params: {
         unit.active = false;
     }
 
-    // --- Spawn swarmlings from each live swarm_nest ---
+    // --- Spawn swarmlings from each live swarm_nest (shared spawner core; see SWARM_SPAWNER) ---
+    const spawnerEnv: SpawnerEnv = { units: params.units, gameTime: params.gameTime };
     for (const nest of params.units) {
-        if (!nest.isAlive() || nest.characterId !== SWARM_NEST_CHARACTER_ID) continue;
-
-        const cfg = nest.swarmState.nestConfig;
-        const state = nest.swarmState.nestSpawnState;
-        if (!cfg || !state) continue;
-
-        pruneSpawnedIds(nest, params.units);
-
-        if (state.spawnedIds.length >= cfg.maxSwarmlings) continue;
-        if (params.gameTime < state.nextSpawnAtGameTime) continue;
-
-        const burstCount = cfg.spawnCount ?? 1;
-
-        for (let burst = 0; burst < burstCount; burst++) {
-            if (state.spawnedIds.length >= cfg.maxSwarmlings) break;
-
-            const aliveCount = state.spawnedIds.length;
-            const orbitAngle = (aliveCount * GOLDEN_ANGLE) % (Math.PI * 2);
-
-            // No target node is assigned here — currentNodeId/targetNodeId start null and are
-            // resolved lazily on the swarmling's first snet_seek tick (its spawn position, near
-            // the nest's own node, counts as an implicit first arrival). The swarmling then hops
-            // node-to-node via the population gradient rather than beelining at a single
-            // pre-computed distant target. See swarmlingNetwork/snet_seek.ts.
-            const [child] = spawnUnit(spawnCtx, {
-                characterId: SWARM_NEST_SWARMLING_CHARACTER_ID,
-                name: 'Swarmling',
-                abilities: [SWARMLING_BITE_ABILITY_ID],
-                teamId: nest.teamId,
-                unitAITreeId: cfg.spawnAITreeId ?? SWARMLING_AI_TREE_ID,
-                aiSettings: { minRange: 0, maxRange: 70 },
-                placement: {
-                    kind: 'relativeToUnit',
-                    anchorUnitId: nest.id,
-                    maxRadiusPx: nest.radius + NEST_SPAWN_EXTRA_RADIUS,
-                },
-                aiHookup: { kind: 'swarm', orbitAngle, nestOwnerUnitId: nest.id },
-            });
-            state.spawnedIds.push(child.id);
-        }
-
-        state.nextSpawnAtGameTime = params.gameTime + Math.max(0.5, cfg.spawnIntervalSec);
+        if (!nest.isAlive() || !isSwarmNest(nest)) continue;
+        const nestState = swarmStateOf(nest);
+        tickSpawner({
+            spawner: nest,
+            cfg: nestState.nestConfig,
+            state: nestState.nestSpawnState,
+            spec: SWARM_SPAWNER,
+            spawnCtx,
+            env: spawnerEnv,
+        });
     }
 }
 

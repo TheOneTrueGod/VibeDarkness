@@ -5,6 +5,8 @@
 import type { Unit } from '../units/Unit';
 import type { EventBus } from '../EventBus';
 import { LightSource } from '../lightSources/LightSource';
+import { isLanterniteCreature, isLanterniteNest, lanterniteStateOf } from '../units/components/lanterniteComponent';
+import { createSpawnerState } from '../units/components/spawnerCore';
 
 export const LANTERNITE_CHARACTER_ID = 'lanternite';
 export const LANTERNITE_NEST_CHARACTER_ID = 'lanternite_nest';
@@ -116,7 +118,7 @@ export function processLanternitePulseMilestone(
     },
 ): void {
     for (const lantern of ctx.units) {
-        if (!lantern.isAlive() || lantern.characterId !== LANTERNITE_CHARACTER_ID) continue;
+        if (!lantern.isAlive() || !isLanterniteCreature(lantern)) continue;
         applySoulSap(lantern, ctx.eventBus);
         if (!lantern.isAlive()) {
             removeLanterniteLightSources(lantern.id, ctx.lightSources);
@@ -133,7 +135,7 @@ export function processLanternitePulseMilestone(
 
     if (ctx.lightLevelEnabled) {
         for (const nest of ctx.units) {
-            if (!nest.isAlive() || nest.characterId !== LANTERNITE_NEST_CHARACTER_ID) continue;
+            if (!nest.isAlive() || !isLanterniteNest(nest)) continue;
             upsertNestLightSource({
                 nest,
                 addLightSource: ctx.addLightSource,
@@ -145,11 +147,9 @@ export function processLanternitePulseMilestone(
 
 /** Initialise nest spawn pacing after the engine clock is ready. */
 export function prepareLanterniteNestForMissionStart(unit: Unit, gameTime: number): void {
-    if (unit.characterId !== LANTERNITE_NEST_CHARACTER_ID || !unit.lanterniteState.nestConfig) return;
-    const iv = Math.max(0.5, unit.lanterniteState.nestConfig.spawnIntervalSec);
-    unit.lanterniteState.nestSpawnState = {
-        spawnedIds: [],
-        nextSpawnAtGameTime: gameTime + iv,
-    };
+    if (!isLanterniteNest(unit)) return;
+    const state = lanterniteStateOf(unit);
+    if (!state.nestConfig) return;
+    state.nestSpawnState = createSpawnerState(gameTime, state.nestConfig.spawnIntervalSec);
 }
 

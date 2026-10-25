@@ -2,11 +2,11 @@
 
 > **Status: COMPLETE — all steps done**
 
-**Canonical file:** [`docs/plans/visual-effect-def-death-vfx.plan.md`](docs/plans/visual-effect-def-death-vfx.plan.md)
+**Canonical file:** [`docs/plans/done/visual-effect-def-death-vfx.plan.md`](docs/plans/done/visual-effect-def-death-vfx.plan.md)
 
 ## Agent Instructions
 
-Execute one step at a time via `/jp-implement-plan docs/plans/visual-effect-def-death-vfx.plan.md`.
+Execute one step at a time via `/jp-implement-plan docs/plans/done/visual-effect-def-death-vfx.plan.md`.
 
 For each step:
 
@@ -327,7 +327,7 @@ This fires for every unit. Alpha wolf has no `onDeathVisualEffects`, so it's a n
 **Goal:** Create a plan file for the remaining work that was explicitly out of scope for this initiative.
 
 **Touches:**
-- `docs/plans/visual-effect-def-followon.plan.md` *(new)*
+- `docs/plans/done/visual-effect-def-followon.plan.md` *(new)*
 
 **Items to include in the follow-on plan:**
 
@@ -339,5 +339,5 @@ This fires for every unit. Alpha wolf has no `onDeathVisualEffects`, so it's a n
 
 ### Checklist
 
-- [x] Create `docs/plans/visual-effect-def-followon.plan.md` with the three items above as separate Steps, each with their own Touches and Checklist structure matching this file's format.
-  - Created `docs/plans/visual-effect-def-followon.plan.md` with Steps 1–3 covering WorldEffect wiring, AbilityTimingEmitterDef integration, and DirectEffectVFXDef positional variants; each step has Touches, Design, and Checklist sections matching this file's format.
+- [x] Create `docs/plans/done/visual-effect-def-followon.plan.md` with the three items above as separate Steps, each with their own Touches and Checklist structure matching this file's format.
+  - Created `docs/plans/done/visual-effect-def-followon.plan.md` with Steps 1–3 covering WorldEffect wiring, AbilityTimingEmitterDef integration, and DirectEffectVFXDef positional variants; each step has Touches, Design, and Checklist sections matching this file's format.

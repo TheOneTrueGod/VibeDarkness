@@ -21,6 +21,22 @@ import { DEFAULT_UNIT_SIZE, UNIT_SIZE_MAP, type UnitSize } from './unitConstants
 import type { CcResistKey } from '../../../crowdControl/ccTypes';
 import { UnitTag, hidesWorldHpBar } from '../unitTag';
 import type { EnrageDef } from '../enrageDef';
+import type { LightHateDef } from '../../lightHate';
+import { DarknessLevel } from '../../darknessLevels';
+import type { EnemySpawnDef } from '../../../storylines/types';
+import { UNIT_SPRITE_URLS } from './unitSprites';
+import { componentSpec, type UnitComponentSpec } from '../components/unitComponent';
+import { LANTERNITE_COMPONENT } from '../components/lanterniteComponent';
+import { SWARM_COMPONENT } from '../components/swarmComponent';
+import { SLIME } from '../dark_animals/slime';
+import {
+    ENEMY_DARK_WOLF,
+    ENEMY_ALPHA_WOLF,
+    ENEMY_BOAR,
+    ENEMY_THORNBINDER,
+    ENEMY_SWARMLING,
+    ALLY_LANTERNITE,
+} from '../../../constants/enemyConstants';
 
 /**
  * Defines the spawn animation played when a unit of this type enters the field via darknessSpawn.
@@ -29,19 +45,6 @@ import type { EnrageDef } from '../enrageDef';
 export type SpawnAnimationDef =
     | { type: 'darkVortex'; duration: number }
     | { type: 'burstRise'; duration: number; riseHeight?: number };
-
-/**
- * Non-visual behaviors executed when a unit of this type dies.
- * These are one-off, hardcoded entries for lanternites only — not a generic pattern.
- * Do not model new death behaviours after this.
- */
-export type UnitDeathBehavior =
-    // Hardcoded for lanternites only — deactivates the lantern_torch_${unitId} light source on death.
-    // Not a generic pattern; do not model new death behaviours after this.
-    | { type: 'removesOwnedLightSources' }
-    // Hardcoded for lanternites only — queues a Spore Rebirth respawn via LanterniteRespawnManager.
-    // Not a generic pattern; do not model new death behaviours after this.
-    | { type: 'sporeRebirth' };
 
 type HpBarSize = 'large' | 'small' | 'hidden';
 
@@ -128,6 +131,19 @@ export const PLAYER_CHARACTER_ID: PlayerUnitDefId = 'player';
  */
 export interface UnitDefEntry {
     bodyColor: number;
+    /** Name shown in the Bestiary and other UI. Required for every enemy (see unitDefRegistry.test). */
+    displayName?: string;
+    /** Art URL for icons (Bestiary, timeline). Required for every enemy. Values come from `UNIT_SPRITE_URLS`. */
+    sprite?: string;
+    /**
+     * Bestiary listing. Every enemy needs one unless `hidden: true`. The section comes from
+     * `creatureType` (dark_creature -> Dark Creatures, beast/nature -> Beasts, otherwise Other).
+     */
+    bestiary?: { abilityIds: string[]; hidden?: boolean };
+    /** Light Hate keyword parameters; absent = not weakened by light. */
+    lightHate?: LightHateDef;
+    /** Base spawn template used by wave/continuous spawns (`LevelEventManager`); absent = not spawnable by characterId. */
+    baseSpawn?: EnemySpawnDef;
     characterSpriteKey?: string;
     hp?: number;
     speed?: number;
@@ -138,7 +154,12 @@ export interface UnitDefEntry {
     stackSize?: number;
     perceptionRange?: number;
     onDeathVisualEffects?: VisualEffectDef[];
-    onDeathBehaviors?: UnitDeathBehavior[];
+    /**
+     * Components this character carries (see `units/components/unitComponent.ts`): per-unit state slices that
+     * serialize themselves and may hook tick, round milestones and death. Build entries with `componentSpec`.
+     * Death behaviour that is not a visual effect belongs in a component's `onDeath` hook.
+     */
+    components?: UnitComponentSpec<any, any>[];
     /** Cinematic death (pause → animation → resume), e.g. bosses. Replaces onDeathVisualEffects. */
     deathSequence?: DeathSequenceDef;
     /** Darkness vs natural beast; drives expectations for death/damage presentation and copy. */
@@ -195,6 +216,10 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     // Enemies
     slime: {
         bodyColor: 0x555555,
+        displayName: 'Slime',
+        sprite: UNIT_SPRITE_URLS.slime,
+        bestiary: { abilityIds: ['0001'] },
+        baseSpawn: SLIME,
         characterSpriteKey: 'slime',
         hp: 20,
         speed: 50,
@@ -208,6 +233,10 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     },
     dark_wolf: {
         bodyColor: 0x1a1a2e,
+        displayName: 'Wolf',
+        sprite: UNIT_SPRITE_URLS.dark_wolf,
+        bestiary: { abilityIds: ['0003'] },
+        baseSpawn: ENEMY_DARK_WOLF,
         characterSpriteKey: 'dark_wolf',
         hp: 12,
         speed: 120,
@@ -221,6 +250,10 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     },
     alpha_wolf: {
         bodyColor: 0x1a1a2e,
+        displayName: 'Alpha Wolf',
+        sprite: UNIT_SPRITE_URLS.alpha_wolf,
+        bestiary: { abilityIds: ['0005', '0007', '0011', '0012'] },
+        baseSpawn: ENEMY_ALPHA_WOLF,
         characterSpriteKey: 'alpha_wolf',
         hp: 173,
         speed: 135,
@@ -246,6 +279,10 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     },
     boar: {
         bodyColor: 0x4a3728,
+        displayName: 'Boar',
+        sprite: UNIT_SPRITE_URLS.boar,
+        bestiary: { abilityIds: ['0006'] },
+        baseSpawn: ENEMY_BOAR,
         characterSpriteKey: 'boar',
         hp: 54,
         speed: 100,
@@ -257,6 +294,11 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     },
     thornbinder: {
         bodyColor: 0x3d2c4a,
+        displayName: 'Thornbinder',
+        sprite: UNIT_SPRITE_URLS.thornbinder,
+        bestiary: { abilityIds: ['0008'] },
+        baseSpawn: ENEMY_THORNBINDER,
+        lightHate: { threshold: DarknessLevel.BRIGHT_LIGHT },
         characterSpriteKey: 'thornbinder',
         hp: 42,
         speed: 34,
@@ -270,6 +312,10 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     },
     swarmling: {
         bodyColor: 0x1a1a2e,
+        displayName: 'Swarmling',
+        sprite: UNIT_SPRITE_URLS.swarmling,
+        bestiary: { abilityIds: ['0013'] },
+        baseSpawn: ENEMY_SWARMLING,
         characterSpriteKey: 'swarmling',
         hp: 4,
         speed: 45,
@@ -282,9 +328,13 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         maxPerTile: 3,
         spawnDef: { type: 'burstRise', duration: 0.6, riseHeight: 24 },
         participatesInMapNetwork: true,
+        components: [componentSpec(SWARM_COMPONENT, { role: 'swarmling' })],
     },
     displacer_spirit: {
         bodyColor: 0x1e3a5f,
+        displayName: 'Displacer Spirit',
+        sprite: UNIT_SPRITE_URLS.displacer_spirit,
+        bestiary: { abilityIds: ['0017', '0018', '0019'] },
         characterSpriteKey: 'displacer_spirit',
         hp: 120,
         // Slime is 50; a bit above that (no ghost unit def exists yet — see mission notes).
@@ -309,6 +359,9 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     },
     displacer_clone: {
         bodyColor: 0x1e3a5f,
+        displayName: 'Displacer Clone',
+        sprite: UNIT_SPRITE_URLS.displacer_spirit,
+        bestiary: { abilityIds: ['0017'] },
         // Same sprite and size as the Displacer Spirit.
         characterSpriteKey: 'displacer_spirit',
         hp: 6,
@@ -325,6 +378,10 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
     },
     lanternite: {
         bodyColor: 0x34d399,
+        displayName: 'Lanternite',
+        sprite: UNIT_SPRITE_URLS.lanternite,
+        bestiary: { abilityIds: ['0010'] },
+        baseSpawn: ALLY_LANTERNITE,
         characterSpriteKey: 'lanternite',
         hp: 20,
         speed: 70,
@@ -332,16 +389,16 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         stamina: 1,
         perceptionRange: 260,
         creatureType: 'nature',
-        onDeathBehaviors: [
-            { type: 'removesOwnedLightSources' },
-            { type: 'sporeRebirth' },
-        ],
+        components: [componentSpec(LANTERNITE_COMPONENT, { role: 'creature' })],
         uiDescription:
             'Lantern-bearing creature — pulses light up to four times each round (Soul Sap) and wanders patrol routes beside its nest.',
         participatesInMapNetwork: true,
     },
     lanternite_nest: {
         bodyColor: 0x065f46,
+        displayName: 'Lanternite Nest',
+        sprite: UNIT_SPRITE_URLS.lanternite_nest,
+        bestiary: { abilityIds: ['0014'] },
         characterSpriteKey: 'curling_vines',
         hp: 16, // playtest: -20% (was 20)
         speed: 0,
@@ -353,9 +410,13 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
             'Living nursery — births lantern scouts on a rhythm; needs protection when stirred.',
         participatesInMapNetwork: true,
         tags: [UnitTag.Structure],
+        components: [componentSpec(LANTERNITE_COMPONENT, { role: 'nest' })],
     },
     swarm_nest: {
         bodyColor: 0x3d0000,
+        displayName: 'Swarm Nest',
+        sprite: UNIT_SPRITE_URLS.swarm_nest,
+        bestiary: { abilityIds: [] },
         characterSpriteKey: 'lanternite_nest',
         hp: 80, // playtest: -20% (was 100)
         speed: 0,
@@ -367,9 +428,13 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         uiDescription: 'Swarm Nest — spawns skittering swarmlings that seek out other nest sites.',
         participatesInMapNetwork: true,
         tags: [UnitTag.Structure],
+        components: [componentSpec(SWARM_COMPONENT, { role: 'nest' })],
     },
     dog: {
         bodyColor: 0x8a5a2b,
+        displayName: 'Dog',
+        sprite: UNIT_SPRITE_URLS.dog,
+        bestiary: { abilityIds: ['0701'] },
         characterSpriteKey: 'dog',
         hp: 48,
         speed: 140,
@@ -380,6 +445,49 @@ const UNIT_DEFS: Record<UnitDefId, UnitDefEntry> = {
         uiDescription: 'Loyal hound — fights close to its master, biting enemies that stray too near.',
     },
 };
+
+/** Enemy def ids (every def except the player), in registry order. */
+export function getEnemyUnitDefIds(): EnemyUnitId[] {
+    return (Object.keys(UNIT_DEFS) as UnitDefId[]).filter((id): id is EnemyUnitId => id !== PLAYER_CHARACTER_ID);
+}
+
+/** Bestiary section for a def, derived from `creatureType`. */
+export type BestiaryFaction = 'dark_creature' | 'beast' | 'other';
+
+export function getBestiaryFaction(characterId: string): BestiaryFaction {
+    const t = UNIT_DEFS[characterId as UnitDefId]?.creatureType;
+    if (t === 'dark_creature') return 'dark_creature';
+    if (t === 'beast' || t === 'nature') return 'beast';
+    return 'other';
+}
+
+/** Enemy ids that appear in the Bestiary (have a `bestiary` entry that is not hidden), in registry order. */
+export function getBestiaryUnitIds(): EnemyUnitId[] {
+    return getEnemyUnitDefIds().filter((id) => {
+        const b = UNIT_DEFS[id].bestiary;
+        return b != null && !b.hidden;
+    });
+}
+
+/** Art URL for a character id's icon (Bestiary, timeline), or undefined. */
+export function getUnitSpriteUrl(characterId: string): string | undefined {
+    return UNIT_DEFS[characterId as UnitDefId]?.sprite;
+}
+
+/** Light Hate parameters for a character id, if it opts in. */
+export function getUnitLightHateDef(characterId: string): LightHateDef | undefined {
+    return UNIT_DEFS[characterId as UnitDefId]?.lightHate;
+}
+
+/** Base spawn templates keyed by characterId, for every def that declares `baseSpawn`. */
+export function getBaseSpawnDefs(): Record<string, EnemySpawnDef> {
+    const out: Record<string, EnemySpawnDef> = {};
+    for (const id of getEnemyUnitDefIds()) {
+        const t = UNIT_DEFS[id].baseSpawn;
+        if (t) out[id] = t;
+    }
+    return out;
+}
 
 /** Display-only sprite wiggle radius (px) for a character id; 0 when it does not wiggle. */
 export function getUnitDisplayWiggleRadius(characterId: string): number {
@@ -399,6 +507,11 @@ export function getUnitCombatCcDef(characterId: string): UnitCombatCcDef | undef
 /** Read-only access to a unit's static data (hp, speed, description, etc.). */
 export function getUnitDefEntry(characterId: UnitDefId): UnitDefEntry | undefined {
     return UNIT_DEFS[characterId];
+}
+
+/** Components a character's def declares (undefined when none). */
+export function getUnitComponentSpecs(characterId: string): readonly UnitComponentSpec<any, any>[] | undefined {
+    return UNIT_DEFS[characterId as UnitDefId]?.components;
 }
 
 /** Enrage trigger def for a character id (undefined when the character does not enrage). */

@@ -11,9 +11,7 @@ import { deserializeTacticalPlan } from './unitAI/plans/planUtils';
 import type { SerializedTacticalPlan } from './unitAI/plans/types';
 import type { AISettings, KnockbackSource, KnockbackState, NudgeState, UnitAbilityRuntimeState } from './unitTypes';
 import type { UnitAIContext } from './unitAI/contextTypes';
-import { applyPetStateFromJSON } from './unitPetState';
-import { applyLanterniteStateFromJSON } from './unitLanterniteState';
-import { applySwarmStateFromJSON } from './unitSwarmState';
+import { applyUnitComponentsFromJSON } from './components/unitComponent';
 import { applyCcArmourStateFromJSON } from '../../crowdControl/ccArmourState';
 import type { PendingFrozenHit } from './unitDamage';
 
@@ -42,12 +40,10 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
     if (data.ephemeralDespawnAtGameTime != null) {
         unit.ephemeralDespawnAtGameTime = data.ephemeralDespawnAtGameTime as number;
     }
-    applyLanterniteStateFromJSON(unit, data);
-    applySwarmStateFromJSON(unit, data);
+    applyUnitComponentsFromJSON(unit, data);
     if (typeof data.invulnerabilityGenerations === 'number') {
         unit.invulnerabilityGenerations = data.invulnerabilityGenerations;
     }
-    applyPetStateFromJSON(unit, data);
 
     // Restore movement
     const movementData = data.movement as {

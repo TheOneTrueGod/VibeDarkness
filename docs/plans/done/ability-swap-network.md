@@ -46,7 +46,7 @@ This plan is executed by the **jp-implement-plan** chain. Each agent reads
 document order with unchecked items), then hands off a fresh agent with:
 
 > Read `.claude/skills/jp-implement-plan/SKILL.md` and follow it for the plan at
-> `docs/plans/ability-swap-network.md`.
+> `docs/plans/done/ability-swap-network.md`.
 
 Rules for this plan:
 

@@ -6,7 +6,7 @@
 
 import type { Unit } from './units/Unit';
 import { getLightGrid, type LightSource } from './LightGrid';
-import { DarknessLevel } from './darknessLevels';
+import { getUnitLightHateDef } from './units/unit_defs/unitDef';
 import type { TerrainGrid } from '../terrain/TerrainGrid';
 
 export type LightHateDef = {
@@ -14,13 +14,9 @@ export type LightHateDef = {
     threshold: number;
 };
 
-/** Per-character Light Hate parameters for enemies that opt in. */
-export const LIGHT_HATE_DEFS: Partial<Record<string, LightHateDef>> = {
-    thornbinder: { threshold: DarknessLevel.BRIGHT_LIGHT },
-};
-
+/** Per-character Light Hate parameters live on the unit def (`UnitDefEntry.lightHate`). */
 export function getLightHateDef(characterId: string): LightHateDef | undefined {
-    return LIGHT_HATE_DEFS[characterId];
+    return getUnitLightHateDef(characterId);
 }
 
 export function getLightLevelAtWorldPx(

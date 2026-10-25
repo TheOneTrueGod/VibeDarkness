@@ -13,6 +13,7 @@ import { COMMAND_CORE_TREE_ID, COMMAND_CORE_NODE_LOYAL_COMPANION } from '../../.
 import { applyDirectionalKnockback } from '../../crowdControl/knockbackKeywords';
 import { commandHeel } from '../../abilities/petCommands';
 import type { PetAITreeContext } from './unitAI/pet/context';
+import { petStateOf } from './components/petComponent';
 
 // ---- helpers ----
 
@@ -76,23 +77,23 @@ describe('Pet unit toJSON / fromJSON', () => {
     it('restores petOwnerUnitId, petUnitIds, petDefId', () => {
         const eb = new EventBus();
         const dog = makeUnit({ id: 'dog1' });
-        dog.petState.ownerUnitId = 'owner1';
-        dog.petState.unitIds = [];
-        dog.petState.defId = 'dog';
+        petStateOf(dog).ownerUnitId = 'owner1';
+        petStateOf(dog).unitIds = [];
+        petStateOf(dog).defId = 'dog';
 
         const owner = makeUnit({ id: 'owner1' });
-        owner.petState.unitIds = ['dog1'];
+        petStateOf(owner).unitIds = ['dog1'];
 
         const dogJson = dog.toJSON();
         const restoredDog = Unit.fromJSON(dogJson, eb);
 
-        expect(restoredDog.petState.ownerUnitId).toBe('owner1');
-        expect(restoredDog.petState.defId).toBe('dog');
-        expect(restoredDog.petState.unitIds).toEqual([]);
+        expect(petStateOf(restoredDog).ownerUnitId).toBe('owner1');
+        expect(petStateOf(restoredDog).defId).toBe('dog');
+        expect(petStateOf(restoredDog).unitIds).toEqual([]);
 
         const ownerJson = owner.toJSON();
         const restoredOwner = Unit.fromJSON(ownerJson, eb);
-        expect(restoredOwner.petState.unitIds).toEqual(['dog1']);
+        expect(petStateOf(restoredOwner).unitIds).toEqual(['dog1']);
     });
 
     it('backward-compatible: missing fields default correctly', () => {
@@ -107,9 +108,9 @@ describe('Pet unit toJSON / fromJSON', () => {
         delete data.petDefId;
 
         const restored = Unit.fromJSON(json, eb);
-        expect(restored.petState.ownerUnitId).toBeUndefined();
-        expect(restored.petState.unitIds).toEqual([]);
-        expect(restored.petState.defId).toBeUndefined();
+        expect(petStateOf(restored).ownerUnitId).toBeUndefined();
+        expect(petStateOf(restored).unitIds).toEqual([]);
+        expect(petStateOf(restored).defId).toBeUndefined();
     });
 });
 

@@ -14,6 +14,7 @@ import {
 } from '../utils';
 import { getPerceptionRange } from '../../unit_defs/unitDef';
 import type { LanterniteNetworkAITreeContext, LanterniteNetworkNodeId } from './context';
+import { lanterniteStateOf, peekLanterniteState } from '../../components/lanterniteComponent';
 
 const ARRIVAL_PX = 36;
 const ATTACK_COOLDOWN_SEC = 1;
@@ -46,7 +47,7 @@ export const lnet_scout_travel: AINode<'lanterniteNetwork', LanterniteNetworkNod
             ctx.aiTree = 'lanterniteNetwork';
             ctx.aiState = 'lnet_scout_travel';
 
-            const far = unit.lanterniteState.patrolFarWorld;
+            const far = lanterniteStateOf(unit).patrolFarWorld;
             if (!far || !unit.isAlive()) {
                 queueWaitAndEndTurn(unit, context);
                 return;
@@ -55,7 +56,7 @@ export const lnet_scout_travel: AINode<'lanterniteNetwork', LanterniteNetworkNod
             // Compute the stand position: offset from the build site at the scout's assigned angle.
             // Each scout has a unique angle (set at spawn) so multiple scouts from the same nest
             // encircle the build site rather than piling on top of each other.
-            const angle = unit.lanterniteState.constructionAngle ?? 0;
+            const angle = lanterniteStateOf(unit).constructionAngle ?? 0;
             const standX = far.x + Math.cos(angle) * CONSTRUCTION_STAND_RADIUS;
             const standY = far.y + Math.sin(angle) * CONSTRUCTION_STAND_RADIUS;
 
@@ -71,7 +72,7 @@ export const lnet_scout_travel: AINode<'lanterniteNetwork', LanterniteNetworkNod
                 // of starting a fresh timer — processLanterniteNests accelerates the shared
                 // completion time based on how many scouts are contributing, and only one of us
                 // will spawn the actual nest once it's done.
-                const targetPoiId = unit.lanterniteState.targetNestPoiId;
+                const targetPoiId = lanterniteStateOf(unit).targetNestPoiId;
                 const existingBuilder = targetPoiId
                     ? context
                           .getUnits()
@@ -79,17 +80,17 @@ export const lnet_scout_travel: AINode<'lanterniteNetwork', LanterniteNetworkNod
                               (u) =>
                                   u.id !== unit.id &&
                                   u.isAlive() &&
-                                  u.lanterniteState.targetNestPoiId === targetPoiId &&
-                                  u.lanterniteState.constructionCompleteAtGameTime != null,
+                                  peekLanterniteState(u)?.targetNestPoiId === targetPoiId &&
+                                  peekLanterniteState(u)?.constructionCompleteAtGameTime != null,
                           )
                     : undefined;
                 if (existingBuilder) {
-                    unit.lanterniteState.constructionCompleteAtGameTime =
-                        existingBuilder.lanterniteState.constructionCompleteAtGameTime;
+                    lanterniteStateOf(unit).constructionCompleteAtGameTime =
+                        lanterniteStateOf(existingBuilder).constructionCompleteAtGameTime;
                 } else {
                     const constructionSec =
-                        unit.lanterniteState.nestConfig?.scoutConstructionSec ?? DEFAULT_CONSTRUCTION_SEC;
-                    unit.lanterniteState.constructionCompleteAtGameTime = context.gameTime + constructionSec;
+                        lanterniteStateOf(unit).nestConfig?.scoutConstructionSec ?? DEFAULT_CONSTRUCTION_SEC;
+                    lanterniteStateOf(unit).constructionCompleteAtGameTime = context.gameTime + constructionSec;
                 }
                 queueWaitAndEndTurn(unit, context);
                 return;
@@ -99,7 +100,7 @@ export const lnet_scout_travel: AINode<'lanterniteNetwork', LanterniteNetworkNod
             context.nav.moveToPoint(unit, standX, standY);
 
             // Opportunistic attack (do not chase; just fire if eligible and enemy in range)
-            if (context.gameTime >= unit.lanterniteState.attackReadyAtGameTime) {
+            if (context.gameTime >= lanterniteStateOf(unit).attackReadyAtGameTime) {
                 const enemies = findEnemies(unit, context.getUnits());
                 const perceptionRange = getPerceptionRange(unit.characterId);
                 const inSight = getEnemiesInPerceptionAndLOS(
@@ -109,7 +110,7 @@ export const lnet_scout_travel: AINode<'lanterniteNetwork', LanterniteNetworkNod
                     context.hasLineOfSight,
                 );
                 if (tryQueueAbilityOrder(unit, context, inSight)) {
-                    unit.lanterniteState.attackReadyAtGameTime = context.gameTime + ATTACK_COOLDOWN_SEC;
+                    lanterniteStateOf(unit).attackReadyAtGameTime = context.gameTime + ATTACK_COOLDOWN_SEC;
                     return;
                 }
             }
@@ -121,7 +122,7 @@ export const lnet_scout_travel: AINode<'lanterniteNetwork', LanterniteNetworkNod
         {
             targetNodeId: 'lnet_scout_construct',
             evaluate(unit: Unit): boolean {
-                return unit.lanterniteState.constructionCompleteAtGameTime != null;
+                return lanterniteStateOf(unit).constructionCompleteAtGameTime != null;
             },
         },
     ],

@@ -14,6 +14,7 @@ import {
 } from '../utils';
 import { getPerceptionRange } from '../../unit_defs/unitDef';
 import type { LanterniteNetworkAITreeContext, LanterniteNetworkNodeId } from './context';
+import { lanterniteStateOf } from '../../components/lanterniteComponent';
 
 const ATTACK_COOLDOWN_SEC = 1;
 
@@ -26,7 +27,7 @@ export const lnet_scout_construct: AINode<'lanterniteNetwork', LanterniteNetwork
             ctx.aiState = 'lnet_scout_construct';
 
             // Opportunistic attack while standing still
-            if (context.gameTime >= unit.lanterniteState.attackReadyAtGameTime) {
+            if (context.gameTime >= lanterniteStateOf(unit).attackReadyAtGameTime) {
                 const enemies = findEnemies(unit, context.getUnits());
                 const perceptionRange = getPerceptionRange(unit.characterId);
                 const inSight = getEnemiesInPerceptionAndLOS(
@@ -36,7 +37,7 @@ export const lnet_scout_construct: AINode<'lanterniteNetwork', LanterniteNetwork
                     context.hasLineOfSight,
                 );
                 if (tryQueueAbilityOrder(unit, context, inSight)) {
-                    unit.lanterniteState.attackReadyAtGameTime = context.gameTime + ATTACK_COOLDOWN_SEC;
+                    lanterniteStateOf(unit).attackReadyAtGameTime = context.gameTime + ATTACK_COOLDOWN_SEC;
                     return;
                 }
             }

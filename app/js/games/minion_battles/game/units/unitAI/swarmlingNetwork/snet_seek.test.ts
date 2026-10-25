@@ -16,6 +16,7 @@ import { WORLD_WIDTH, WORLD_HEIGHT } from '../../../GameEngine';
 import { MapNetworkManager } from '../../../managers/mapNetwork/MapNetworkManager';
 import type { ResolvedMapNetwork } from '../../../managers/mapNetwork/types';
 import { SWARM_NEST_CHARACTER_ID } from '../../../lanternite/swarmNestTick';
+import { swarmStateOf } from '../../components/swarmComponent';
 
 // Chain a - b - c, all 'nest'-tagged and unclaimed unless a test says otherwise. 'iso' is a
 // disconnected fourth node (also 'nest'-tagged) used for the Euclidean-fallback test, and 'far'
@@ -59,8 +60,8 @@ function createSwarmling(id: string, x: number, y: number, overrides: Partial<{ 
     const ctx = unit.aiContext as SwarmlingNetworkAITreeContext;
     ctx.aiTree = 'swarmlingNetwork';
     ctx.aiState = 'snet_seek';
-    if (overrides.currentNodeId !== undefined) unit.swarmState.currentNodeId = overrides.currentNodeId;
-    if (overrides.targetNodeId !== undefined) unit.swarmState.targetNodeId = overrides.targetNodeId;
+    if (overrides.currentNodeId !== undefined) swarmStateOf(unit).currentNodeId = overrides.currentNodeId;
+    if (overrides.targetNodeId !== undefined) swarmStateOf(unit).targetNodeId = overrides.targetNodeId;
     return unit;
 }
 
@@ -150,7 +151,7 @@ describe('snet_seek', () => {
 
         runUnitAI(unit, SWARMLING_NETWORK_AI_TREE, context);
 
-        expect(unit.swarmState.currentNodeId).toBe('a');
+        expect(swarmStateOf(unit).currentNodeId).toBe('a');
     });
 
     it('settles and starts construction when currentNodeId is a valid unclaimed nest node', () => {
@@ -160,16 +161,16 @@ describe('snet_seek', () => {
 
         runUnitAI(unit, SWARMLING_NETWORK_AI_TREE, context);
 
-        expect(unit.swarmState.constructionCompleteAtGameTime).not.toBeNull();
-        expect(unit.swarmState.constructionCompleteAtGameTime).toBeGreaterThan(10);
-        expect(unit.swarmState.targetNodeId).toBeNull();
+        expect(swarmStateOf(unit).constructionCompleteAtGameTime).not.toBeNull();
+        expect(swarmStateOf(unit).constructionCompleteAtGameTime).toBeGreaterThan(10);
+        expect(swarmStateOf(unit).targetNodeId).toBeNull();
     });
 
     it('picks the strictly-lower-population neighbor as next hop when current node is claimed', () => {
         const mapNetwork = makeMapNetwork();
         // 'b' is claimed by a swarm_nest — not a valid build site, forces a gradient decision.
         const nestAtB = createSwarmNestHome('nest_b', 300, 100, 'b');
-        nestAtB.swarmState.homeNestPoiId = 'b';
+        swarmStateOf(nestAtB).homeNestPoiId = 'b';
         // Two other swarmlings already settled at 'b' (population 2 there), 'a' stays empty.
         const otherAtB1 = createSwarmling('other1', 300, 100, { currentNodeId: 'b' });
         const otherAtB2 = createSwarmling('other2', 300, 100, { currentNodeId: 'b' });
@@ -183,9 +184,9 @@ describe('snet_seek', () => {
 
         runUnitAI(unit, SWARMLING_NETWORK_AI_TREE, context);
 
-        expect(unit.swarmState.targetNodeId).toBe('a');
-        expect(unit.swarmState.currentNodeId).toBe('b'); // unchanged until arrival
-        expect(unit.swarmState.constructionCompleteAtGameTime).toBeNull();
+        expect(swarmStateOf(unit).targetNodeId).toBe('a');
+        expect(swarmStateOf(unit).currentNodeId).toBe('b'); // unchanged until arrival
+        expect(swarmStateOf(unit).constructionCompleteAtGameTime).toBeNull();
     });
 
     it('reassigns currentNodeId on arrival at a committed target node', () => {
@@ -196,7 +197,7 @@ describe('snet_seek', () => {
 
         runUnitAI(unit, SWARMLING_NETWORK_AI_TREE, context);
 
-        expect(unit.swarmState.currentNodeId).toBe('b');
+        expect(swarmStateOf(unit).currentNodeId).toBe('b');
     });
 
     it('does not reconsider its target while in transit (targetNodeId stable across ticks before arrival)', () => {
@@ -206,12 +207,12 @@ describe('snet_seek', () => {
         const { context } = createMockContext({ units: [unit], mapNetwork, terrainManager: makeTerrain() });
 
         runUnitAI(unit, SWARMLING_NETWORK_AI_TREE, context);
-        expect(unit.swarmState.targetNodeId).toBe('b');
-        expect(unit.swarmState.currentNodeId).toBe('a');
+        expect(swarmStateOf(unit).targetNodeId).toBe('b');
+        expect(swarmStateOf(unit).currentNodeId).toBe('a');
 
         runUnitAI(unit, SWARMLING_NETWORK_AI_TREE, context);
-        expect(unit.swarmState.targetNodeId).toBe('b');
-        expect(unit.swarmState.currentNodeId).toBe('a');
+        expect(swarmStateOf(unit).targetNodeId).toBe('b');
+        expect(swarmStateOf(unit).currentNodeId).toBe('a');
     });
 
     it('does not oscillate between two nodes with tied population (strictly-lower settling rule)', () => {
@@ -227,9 +228,9 @@ describe('snet_seek', () => {
             edges: [['x', 'y']],
         });
         const nestAtX = createSwarmNestHome('nest_x', 100, 100, 'x');
-        nestAtX.swarmState.homeNestPoiId = 'x';
+        swarmStateOf(nestAtX).homeNestPoiId = 'x';
         const nestAtY = createSwarmNestHome('nest_y', 300, 100, 'y');
-        nestAtY.swarmState.homeNestPoiId = 'y';
+        swarmStateOf(nestAtY).homeNestPoiId = 'y';
         const unitAtA = createSwarmling('s_a', 100, 100, { currentNodeId: 'x' });
         const unitAtB = createSwarmling('s_b', 300, 100, { currentNodeId: 'y' });
 
@@ -243,10 +244,10 @@ describe('snet_seek', () => {
         runUnitAI(unitAtB, SWARMLING_NETWORK_AI_TREE, context);
 
         // Tied population (1 vs 1) — neither should have committed to a hop.
-        expect(unitAtA.swarmState.targetNodeId).toBeNull();
-        expect(unitAtB.swarmState.targetNodeId).toBeNull();
-        expect(unitAtA.swarmState.currentNodeId).toBe('x');
-        expect(unitAtB.swarmState.currentNodeId).toBe('y');
+        expect(swarmStateOf(unitAtA).targetNodeId).toBeNull();
+        expect(swarmStateOf(unitAtB).targetNodeId).toBeNull();
+        expect(swarmStateOf(unitAtA).currentNodeId).toBe('x');
+        expect(swarmStateOf(unitAtB).currentNodeId).toBe('y');
     });
 
     it('falls back to the whole-graph Euclidean scan when BFS from an isolated claimed node finds nothing', () => {
@@ -262,7 +263,7 @@ describe('snet_seek', () => {
             edges: [],
         });
         const nestAtIso = createSwarmNestHome('nest_iso', 900, 100, 'iso');
-        nestAtIso.swarmState.homeNestPoiId = 'iso';
+        swarmStateOf(nestAtIso).homeNestPoiId = 'iso';
         const unit = createSwarmling('s1', 900, 100, { currentNodeId: 'iso' });
 
         const { context } = createMockContext({
@@ -273,7 +274,7 @@ describe('snet_seek', () => {
 
         runUnitAI(unit, SWARMLING_NETWORK_AI_TREE, context);
 
-        expect(unit.swarmState.targetNodeId).toBe('far');
+        expect(swarmStateOf(unit).targetNodeId).toBe('far');
     });
 
     it('switches to snet_hunt when a hostile is within alert radius, unchanged from before this refactor', () => {
@@ -288,7 +289,7 @@ describe('snet_seek', () => {
         expect(ctx.aiState).toBe('snet_hunt');
         expect(ctx.huntTargetId).toBe('p1');
         // No gradient decision should have run this tick.
-        expect(unit.swarmState.targetNodeId).toBeNull();
+        expect(swarmStateOf(unit).targetNodeId).toBeNull();
     });
 
     // Regression (replaced after removing onPathfindingRetrigger): ensure that the walk goal's dest

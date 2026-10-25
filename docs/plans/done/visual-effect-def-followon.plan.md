@@ -4,11 +4,11 @@
 >
 > All three steps implemented and verified. `WorldEffect.visualEffects` now wires to `applyVisualEffectDefs` in `WorldModifierRuntime.ts` (Step 1); `AbilityTimingEmitterDef` gained `visualEffects` + `effectPosition` fields with execution in `unitAbilityTick.ts` (Step 2); `DirectEffectVFXDef` gained a `position` field (`'caster' | 'target' | 'midpoint'`) with context-aware spawn logic in `applyVisualEffectDefs` (Step 3). Full suite: 555/555 green.
 
-**Canonical file:** [`docs/plans/visual-effect-def-followon.plan.md`](docs/plans/visual-effect-def-followon.plan.md)
+**Canonical file:** [`docs/plans/done/visual-effect-def-followon.plan.md`](docs/plans/done/visual-effect-def-followon.plan.md)
 
 ## Agent Instructions
 
-Execute one step at a time via `/jp-implement-plan docs/plans/visual-effect-def-followon.plan.md`.
+Execute one step at a time via `/jp-implement-plan docs/plans/done/visual-effect-def-followon.plan.md`.
 
 For each step:
 
@@ -23,7 +23,7 @@ For each step:
 
 ## Context
 
-This plan picks up the three items that were explicitly out of scope for the initial `VisualEffectDef` system build (see [`docs/plans/visual-effect-def-death-vfx.plan.md`](docs/plans/visual-effect-def-death-vfx.plan.md)).
+This plan picks up the three items that were explicitly out of scope for the initial `VisualEffectDef` system build (see [`docs/plans/done/visual-effect-def-death-vfx.plan.md`](docs/plans/done/visual-effect-def-death-vfx.plan.md)).
 
 After that plan completed:
 

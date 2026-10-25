@@ -4,7 +4,7 @@ description: Creates an implementation plan file that breaks work into numbered 
 ---
 > **Plan vs browser plan:** "plan" means this skill (an executable plan in `docs/plans/`). A "browser plan" is a different thing: a prioritized P0/P1/P2 report shown in the Ideas tab. See the **jp-browser-plan** skill.
 
-Save the plan file to `docs/plans/<kebab-name>.md` (not `app/js/games/minion_battles/PLANS/`, which is legacy).
+Save the plan file to `docs/plans/<kebab-name>.md` (not `app/js/games/minion_battles/PLANS/`, a legacy folder that no longer exists; all plans live under `docs/plans/`, finished ones in `docs/plans/done/`).
 
 Create a plan file and break the work down into individual changes. Keep changes to a minimal number of files. Use a checklist item for each change so it can be checked off after verification. Only top-level `- [ ]` items directly under a `### Step N` heading count as checklist items; nested bullets are instructions for the item above.
 

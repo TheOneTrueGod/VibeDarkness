@@ -8,6 +8,7 @@ import type { Unit } from '../../Unit';
 import type { AIContext, AINode } from '../types';
 import { findEnemies, tryQueueAbilityOrder, queueWaitAndEndTurn } from '../utils';
 import type { SwarmlingNetworkAITreeContext, SwarmlingNetworkNodeId } from './context';
+import { swarmStateOf } from '../../components/swarmComponent';
 
 /** Radius (px) from the hunt target's centre that swarmlings aim to stand at. */
 const HUNT_RING_RADIUS = 60;
@@ -31,7 +32,7 @@ export const snet_hunt: AINode<'swarmlingNetwork', SwarmlingNetworkNodeId> = {
             }
 
             // Compute this swarmling's orbit position around the target
-            const orbitAngle = unit.swarmState.orbitAngle ?? 0;
+            const orbitAngle = swarmStateOf(unit).orbitAngle ?? 0;
             const orbitX = target.x + Math.cos(orbitAngle) * HUNT_RING_RADIUS;
             const orbitY = target.y + Math.sin(orbitAngle) * HUNT_RING_RADIUS;
 

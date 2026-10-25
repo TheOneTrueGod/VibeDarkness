@@ -6,6 +6,7 @@ import type { AIContext } from '../types';
 import type { PetAITreeContext } from './context';
 import { initializeAbilityRuntimeForUnit } from '../../../../abilities/abilityUses';
 import { FLING_THORN_ABILITY_ID, FLING_THORN_MAX_DISTANCE } from '../../../../card_defs/07_command_core/0705_FlingThorn/0705Ability';
+import { petStateOf } from '../../components/petComponent';
 
 function makeUnit(overrides: Partial<ConstructorParameters<typeof Unit>[0]> & {
     abilities?: string[];
@@ -24,8 +25,8 @@ function makeUnit(overrides: Partial<ConstructorParameters<typeof Unit>[0]> & {
         abilities: overrides.abilities ?? ['0701', FLING_THORN_ABILITY_ID],
         ...overrides,
     });
-    unit.petState.defId = 'dog';
-    unit.petState.ownerUnitId = 'owner1';
+    petStateOf(unit).defId = 'dog';
+    petStateOf(unit).ownerUnitId = 'owner1';
     initializeAbilityRuntimeForUnit(unit);
     return unit;
 }

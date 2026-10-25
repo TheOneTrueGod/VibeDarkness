@@ -281,7 +281,7 @@ export const earthCoreStoneTombCentreEscapeScenario: ScenarioDefinition = {
 };
 
 // ---------------------------------------------------------------------------
-// Terrain clearing helpers (docs/plans/terrain-clearing-system.md)
+// Terrain clearing helpers (docs/plans/done/terrain-clearing-system.md)
 // ---------------------------------------------------------------------------
 
 type EarthEngine = ReturnType<typeof buildTinyBattleEngine>;

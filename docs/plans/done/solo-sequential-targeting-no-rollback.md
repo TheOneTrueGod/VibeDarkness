@@ -13,7 +13,7 @@ prefilled committed order) would produce — recovery-after-refresh replays the 
 prefilled, and Replay restores + re-runs prefilled, so any divergence surfaces as a desync or a
 visible glitch.
 
-**Verified current state** (hardening plan `docs/plans/sequential-targeting-hardening.md`
+**Verified current state** (hardening plan `docs/plans/done/sequential-targeting-hardening.md`
 complete through Step 9; "Playahead" commit `d3b0237`):
 
 - **Already fixed — one-tick-late deferred fires.** `findImpendingSelectTargetNeed`
@@ -48,7 +48,7 @@ This plan is executed by the **jp-implement-plan** chain. Each agent reads
 document order with unchecked items), then hands off a fresh agent with:
 
 > Read `.claude/skills/jp-implement-plan/SKILL.md` and follow it for the plan at
-> `docs/plans/solo-sequential-targeting-no-rollback.md`.
+> `docs/plans/done/solo-sequential-targeting-no-rollback.md`.
 
 Rules for this plan:
 

@@ -28,7 +28,7 @@ This plan is executed by the **jp-implement-plan** chain. Each agent reads
 document order with unchecked items), then hands off a fresh agent with:
 
 > Read `.claude/skills/jp-implement-plan/SKILL.md` and follow it for the plan at
-> `app/js/games/minion_battles/PLANS/double-punch-target-fallback.md`.
+> `docs/plans/done/double-punch-target-fallback.md`.
 
 Additional rules for this plan:
 

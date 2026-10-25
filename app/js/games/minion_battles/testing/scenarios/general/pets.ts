@@ -14,6 +14,7 @@ import { createUnitFromSpawnConfig } from '../../../game/units/index';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
 import type { PetAITreeContext } from '../../../game/units/unitAI/pet/context';
 import type { StunnedBuff } from '../../../buffs/StunnedBuff';
+import { petStateOf } from '../../../game/units/components/petComponent';
 
 const P = TINY_BATTLE_PLAYER_ID;
 const CELL = 40;
@@ -41,10 +42,10 @@ function spawnDog(
         engine.eventBus,
         engine,
     );
-    dog.petState.defId = 'dog';
-    dog.petState.ownerUnitId = owner.id;
+    petStateOf(dog).defId = 'dog';
+    petStateOf(dog).ownerUnitId = owner.id;
     if (opts.hp !== undefined) dog.hp = opts.hp;
-    owner.petState.unitIds.push(dog.id);
+    petStateOf(owner).unitIds.push(dog.id);
     initializeAbilityRuntimeForUnit(dog);
     engine.addUnit(dog, 'initialGameSpawn');
     return dog;

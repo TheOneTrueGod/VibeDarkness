@@ -116,9 +116,11 @@ Migration: `M0005ResourceRename` plus save version 5 for campaigns and character
 
 Each of these removes friction that the planned Chapter 3 content would otherwise hit several times over.
 
-### P1.1 One source of truth per enemy (unit def drives Bestiary, art and spawns)
+### [x] P1.1 One source of truth per enemy (unit def drives Bestiary, art and spawns)
 
 **Complexity:** Medium. **Helps:** new enemies, new boss
+
+**Done:** `UnitDefEntry` now has `displayName`, `sprite`, `bestiary` (`abilityIds`, optional `hidden`), `lightHate` and `baseSpawn`. Unit art is imported once, in `unit_defs/unitSprites.ts` (`UNIT_SPRITE_URLS`). `AssetRegistry` preloads a texture per sprite key into a map (the if-chain is gone). The Bestiary, timeline icons, `getBaseSpawnDefs()` and Light Hate all read from the defs, and the Bestiary faction comes from `creatureType`. The `enemyConstants` exports missions use are unchanged (the defs reference them). `unitDefRegistry.test.ts` fails if an enemy lacks a sprite, name or Bestiary entry. The `EnemyUnitId` union is still edited by hand.
 
 Adding one enemy currently means editing about seven places: the `EnemyUnitId` union and `UNIT_DEFS` (`unitDef.ts`), the spawn template in `enemyConstants.ts`, `LevelEventManager.BASE_SPAWN_DEFS`, an `AssetRegistry` texture field and an `if (characterId === …)` branch, `BestiaryPanel`'s `SPRITE_ICONS` and `BESTIARY_ENTRIES` (which repeat the name, abilities and a faction that duplicates `creatureType`), and `lightHate.ts`.
 
@@ -126,9 +128,11 @@ Adding one enemy currently means editing about seven places: the `EnemyUnitId` u
 - Have `AssetRegistry` load textures from the defs (a map, not an if-chain) and have the Bestiary list its entries from `UNIT_DEFS`.
 - Add a test that every enemy def has a sprite and a Bestiary entry (or an explicit `bestiary: { hidden: true }`). This turns P0.4-style gaps into test failures.
 
-### P1.2 Move enemy-specific state and ticks off `Unit` and `GameEngine`
+### [x] P1.2 Move enemy-specific state and ticks off `Unit` and `GameEngine`
 
 **Complexity:** Medium. **Helps:** new enemies, boss phases, "mounted enemies that dismount", summoners
+
+**Done:** unit components (`game/units/components/`). Defs declare `components: [componentSpec(...)]`; lanternite, swarm and pet state live in `unit.components` behind typed accessors, and `GameEngine` calls `runUnitComponentTick` / `runUnitComponentRoundMilestone` / `runUnitComponentDeath` instead of naming nest types (lanternite death handling moved from `onDeathBehaviors` to a component `onDeath`). The lanternite and swarm nests share a spawner core (`spawnerCore.ts`: `SpawnerSpec`, `tickSpawner`, `spawnSpawnerChildren` for on-death or boss-wave spawns, `poolSharedConstruction`). Serialized unit keys are unchanged, so no checkpoint upgrade step was needed. Scout and swarmling construction completion stayed per nest.
 
 - `Unit` carries `petState`, `lanterniteState`, `thornlingState` and `swarmState`, and `unitToJSON` interleaves them in a fixed order (`lanterniteStateToJSONBeforeThornling`, …). `GameEngine` imports `processLanterniteNests`, `processThornlingNests` and `processSwarmNests`, plus the lanternite pulse milestones.
 - Introduce unit components declared on the def. Each component owns `create`, `toJSON`/`fromJSON`, `tick` and round-milestone hooks, and the engine loops over components instead of naming enemy types.
@@ -220,9 +224,11 @@ Adding one enemy currently means editing about seven places: the `EnemyUnitId` u
 - `BattleNet.ts` (3,209 lines), `GameEngine.ts` (2,603), `BattleSession.ts` (1,691), `CharacterEditor.tsx` (1,675), `App.tsx` (1,633), `MissionMapTab.tsx` (1,593), `Game.tsx` (1,305).
 - The one that matters most for Chapter 3 is `GameEngine`, because new systems get attached to its tick. Extract the tick phases when doing P1.2 rather than as a separate project.
 
-### P2.2 Checkpoint versioning and removing `CardManager`
+### [x] P2.2 Checkpoint versioning and removing `CardManager`
 
 **Complexity:** Medium
+
+**Done:** `SerializedGameState.serializationVersion` (currently 1) has ordered raw-JSON upgrade steps in `game/serializedGameStateUpgrade.ts`, run first in `GameEngine.fromJSON`, so every load path is covered. A newer-than-build checkpoint throws `UnsupportedCheckpointVersionError`. `CardManager` was dead and is deleted; step 0 to 1 drops legacy `cards`. `toJSON` still writes an empty `cards: {}` for one release, so browsers on the previous build don't crash during a deploy (their `fromJSON` called `Object.entries(data.cards)`). The runtime fingerprint is an event hash, so the version can't cause false desyncs. The how-to is in the game-engine skill.
 
 - `SerializedGameState` has no version field, so every serialization change (P1.2, P1.3) risks breaking battles that are mid-flight during a deploy. Add a version and a small upgrade step on `fromJSON`. That also unblocks the Hard TODO to drop `CardManager` and `cards` from checkpoints.
 
@@ -238,15 +244,19 @@ Adding one enemy currently means editing about seven places: the `EnemyUnitId` u
 
 - For example `003_light_empowered` (`'boar'`), `005_monster` and `alphaWolfBoss_attack` (`'alpha_wolf'`), and `UnitRenderer` (`'lanternite_nest'`). Use `UnitTag` or a def flag so reskinned or new enemies get the same behaviour.
 
-### P2.5 Card definition folder convention
+### [x] P2.5 Card definition folder convention
 
 **Complexity:** Low
+
+**Done:** `card_defs/SKILL.md` now documents one `NN_slug/` group folder per weapon line, core or enemy family (with `AbilityGroupId`). It also covers: crossovers live in the core that unlocks them, enemy abilities in `NN_enemy_<family>/`, super moves at index 90+ in their owner's folder (revisit after P1.4), and next-free-id rules. Legacy flat folders stay. The skill was trimmed under 200 lines, and the full earlier guidance is kept in `card_defs/ABILITY_GUIDE.md`. Layout inconsistencies found: `Healer` (04) is unused, group 00 is split between flat folders and `dark_animals/`, and `special/ChannelDarkness` is empty.
 
 - `card_defs/` mixes flat `00xx`/`01xx`/`02xx` folders with grouped ones (`03_blood_mage`, `05_earth_core`, `dark_animals`, …). Pick the convention for Chapter 3 weapons (one group folder per weapon or core, with an id range) and document it in `card_defs/SKILL.md` before the new abilities land.
 
-### P2.6 Plan and doc hygiene
+### [x] P2.6 Plan and doc hygiene
 
 **Complexity:** Low
+
+**Done:** 29 finished plans moved to `docs/plans/done/` with `git mv`, including two from the legacy `minion_battles/PLANS/` folder. Ten of them still have only manual browser checks unticked. The legacy folder is folded in and removed, and `docs/plans/` now holds 16 unfinished plans (most have only a manual browser check left). Path references in skills, AGENTS.md files, docs and code comments were updated. The shipped migration `M0001` still cites an old plan path; it was left on purpose, because editing a shipped migration changes its checksum.
 
 - Plans now live in three places: `docs/plans/` (43 active files plus `done/`), `app/js/games/minion_battles/PLANS/`, and `docs/ideas/plans/`. Move finished `docs/plans` files into `done/`, fold `PLANS/` into `docs/plans/`, and keep `docs/ideas/plans/` for high-level roadmaps like this one.
 

@@ -31,6 +31,7 @@ import { DisplayWiggle } from '../displayWiggle';
 import { getBuffVisualRenderer } from '../../../buffs/buffVisuals';
 import type { DamageTakenEvent } from '../../EventBus';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
+import { lanterniteStateOf, peekLanterniteState } from '../../units/components/lanterniteComponent';
 
 const HIT_FLASH_DURATION = 0.3;
 const HIT_FLASH_COLOR = 0xff0000;
@@ -421,8 +422,8 @@ export class UnitRenderer {
             // Lanternite nest spawn progress arc
             if (unit.characterId === 'lanternite_nest') {
                 let nestSpawnArc = visual.children.find((c) => c.label === 'nestSpawnArc') as Graphics | undefined;
-                const nestCfg = unit.lanterniteState.nestConfig;
-                const nestState = unit.lanterniteState.nestSpawnState;
+                const nestCfg = lanterniteStateOf(unit).nestConfig;
+                const nestState = lanterniteStateOf(unit).nestSpawnState;
                 const showArc = nestCfg != null && nestState != null
                     && nestState.spawnedIds.length < nestCfg.maxLanternites
                     && gameTime < nestState.nextSpawnAtGameTime;
@@ -458,14 +459,15 @@ export class UnitRenderer {
 
         for (const unit of engine.units) {
             if (!unit.isAlive()) continue;
-            if (unit.lanterniteState.constructionCompleteAtGameTime == null) continue;
-            const targetPos = unit.lanterniteState.patrolFarWorld;
+            const lanterniteState = peekLanterniteState(unit);
+            if (lanterniteState?.constructionCompleteAtGameTime == null) continue;
+            const targetPos = lanterniteState.patrolFarWorld;
             if (!targetPos) continue;
 
             activeScoutIds.add(unit.id);
 
-            const totalSec = unit.lanterniteState.nestConfig?.scoutConstructionSec ?? 10;
-            const remaining = Math.max(0, unit.lanterniteState.constructionCompleteAtGameTime - engine.gameTime);
+            const totalSec = lanterniteState.nestConfig?.scoutConstructionSec ?? 10;
+            const remaining = Math.max(0, lanterniteState.constructionCompleteAtGameTime - engine.gameTime);
             const progress = Math.min(1, Math.max(0, 1 - remaining / totalSec));
 
             let ghost = this.constructionGhostVisuals.get(unit.id);

@@ -10,6 +10,7 @@ import type { MapNetworkManager } from '../managers/mapNetwork/MapNetworkManager
 import type { NetworkNode } from '../managers/mapNetwork/types';
 import type { Unit } from '../units/Unit';
 import { LANTERNITE_NEST_CHARACTER_ID } from './lanternitePulse';
+import { peekLanterniteState } from '../units/components/lanterniteComponent';
 
 /**
  * Find a connected (neighbor) nest node the lanternite network has not claimed: no living
@@ -33,8 +34,9 @@ export function findUnoccupiedConnectedNestPoi(
         const claimed = allUnits.some(
             (u) =>
                 u.isAlive() &&
-                (u.lanterniteState.targetNestPoiId === neighborId ||
-                    (u.characterId === LANTERNITE_NEST_CHARACTER_ID && u.lanterniteState.homeNestPoiId === neighborId)),
+                (peekLanterniteState(u)?.targetNestPoiId === neighborId ||
+                    (u.characterId === LANTERNITE_NEST_CHARACTER_ID &&
+                        peekLanterniteState(u)?.homeNestPoiId === neighborId)),
         );
         if (claimed) continue;
 
@@ -53,6 +55,6 @@ export function countAliveChildrenByRole(
 ): number {
     return spawnedIds.filter((id) => {
         const u = allUnits.find((x) => x.id === id);
-        return u != null && u.isAlive() && u.lanterniteState.role === role;
+        return u != null && u.isAlive() && peekLanterniteState(u)?.role === role;
     }).length;
 }

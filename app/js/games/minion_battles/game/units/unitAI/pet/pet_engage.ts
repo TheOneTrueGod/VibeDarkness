@@ -15,6 +15,7 @@ import { getPetDef } from '../../pet_defs/petDef';
 import { getAbility } from '../../../../abilities/AbilityRegistry';
 import { canUseAbilityNow, meetsTagRequirements } from '../../../../abilities/abilityUses';
 import type { AbilityStatic } from '../../../../abilities/Ability';
+import { petStateOf } from '../../components/petComponent';
 
 const RESCAN_INTERVAL_ROUNDS = 0.25;
 
@@ -66,10 +67,10 @@ export const pet_engage: AINode<'pet', PetNodeId> = {
                 return;
             }
 
-            const petDef = unit.petState.defId ? getPetDef(unit.petState.defId) : null;
+            const petDef = petStateOf(unit).defId ? getPetDef(petStateOf(unit).defId!) : null;
             const returnRange = petDef?.returnLeashRange ?? 300;
 
-            const owner = unit.petState.ownerUnitId ? context.getUnit(unit.petState.ownerUnitId) : null;
+            const owner = petStateOf(unit).ownerUnitId ? context.getUnit(petStateOf(unit).ownerUnitId!) : null;
             const ownerAlive = owner?.isAlive() ?? false;
 
             // Check return leash
@@ -154,9 +155,9 @@ export const pet_engage: AINode<'pet', PetNodeId> = {
         {
             targetNodeId: 'pet_return',
             evaluate(unit: Unit, context: AIContext): boolean {
-                const petDef = unit.petState.defId ? getPetDef(unit.petState.defId) : null;
+                const petDef = petStateOf(unit).defId ? getPetDef(petStateOf(unit).defId!) : null;
                 const returnRange = petDef?.returnLeashRange ?? 300;
-                const owner = unit.petState.ownerUnitId ? context.getUnit(unit.petState.ownerUnitId) : null;
+                const owner = petStateOf(unit).ownerUnitId ? context.getUnit(petStateOf(unit).ownerUnitId!) : null;
                 if (!owner?.isAlive()) return false;
                 return distance(unit.x, unit.y, owner.x, owner.y) > returnRange;
             },

@@ -7,6 +7,7 @@ import type { Unit } from '../../Unit';
 import type { AIContext, AINode } from '../types';
 import { queueWaitAndEndTurn } from '../utils';
 import type { LanterniteNetworkAITreeContext, LanterniteNetworkNodeId } from './context';
+import { lanterniteStateOf } from '../../components/lanterniteComponent';
 
 export const lnet_assign_role: AINode<'lanterniteNetwork', LanterniteNetworkNodeId> = {
     nodeId: 'lnet_assign_role',
@@ -22,13 +23,13 @@ export const lnet_assign_role: AINode<'lanterniteNetwork', LanterniteNetworkNode
         {
             targetNodeId: 'lnet_scout_travel',
             evaluate(unit: Unit): boolean {
-                return unit.lanterniteState.role === 'scout' && unit.lanterniteState.patrolFarWorld != null;
+                return lanterniteStateOf(unit).role === 'scout' && lanterniteStateOf(unit).patrolFarWorld != null;
             },
         },
         {
             targetNodeId: 'lnet_guard',
             evaluate(unit: Unit): boolean {
-                return unit.lanterniteState.role === 'defender';
+                return lanterniteStateOf(unit).role === 'defender';
             },
         },
     ],

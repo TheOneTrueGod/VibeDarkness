@@ -1,37 +1,15 @@
 import React, { useState } from 'react';
-import type { EnemyUnitId } from '../../games/minion_battles/game/units/unit_defs/unitDef';
-import { getUnitDefEntry } from '../../games/minion_battles/game/units/unit_defs/unitDef';
+import type { BestiaryFaction, EnemyUnitId } from '../../games/minion_battles/game/units/unit_defs/unitDef';
+import {
+    getBestiaryFaction,
+    getBestiaryUnitIds,
+    getUnitDefEntry,
+    getUnitSpriteUrl,
+} from '../../games/minion_battles/game/units/unit_defs/unitDef';
 import { getAbility } from '../../games/minion_battles/abilities/AbilityRegistry';
-import slimeIcon from '../../games/minion_battles/assets/characters/slime.svg';
-import displacerSpiritIcon from '../../games/minion_battles/assets/characters/dark_animals/displacer_spirit.svg';
-import wolfHeadIcon from '../../games/minion_battles/assets/characters/dark_animals/wolf-head.svg';
-import wolfHowlIcon from '../../games/minion_battles/assets/characters/dark_animals/wolf-howl.svg';
-import boarIcon from '../../games/minion_battles/assets/characters/dark_animals/boar.svg';
-import swarmlingIcon from '../../games/minion_battles/assets/characters/dark_animals/swarmling.svg';
-import swarmNestIcon from '../../games/minion_battles/assets/characters/dark_animals/swarm_nest.svg';
-import thornbinderIcon from '../../games/minion_battles/assets/characters/thornbinder.svg';
-import lanterniteIcon from '../../games/minion_battles/assets/characters/lanternite.svg';
-import lanterniteNestIcon from '../../games/minion_battles/assets/characters/lanternite_nest.svg';
-import curlingVinesIcon from '../../games/minion_battles/assets/characters/curling_vines.svg';
-import dogIcon from '../../games/minion_battles/assets/characters/dog.png';
 import PanelLayout from './PanelLayout';
 
-const SPRITE_ICONS: Record<string, string> = {
-    slime: slimeIcon,
-    displacer_spirit: displacerSpiritIcon,
-    dark_wolf: wolfHeadIcon,
-    alpha_wolf: wolfHowlIcon,
-    boar: boarIcon,
-    swarmling: swarmlingIcon,
-    swarm_nest: swarmNestIcon,
-    thornbinder: thornbinderIcon,
-    lanternite: lanterniteIcon,
-    lanternite_nest: lanterniteNestIcon,
-    curling_vines: curlingVinesIcon,
-    dog: dogIcon,
-};
-
-type Faction = 'dark_creature' | 'beast' | 'other';
+type Faction = BestiaryFaction;
 
 type BestiaryEntry = {
     id: EnemyUnitId;
@@ -40,20 +18,16 @@ type BestiaryEntry = {
     faction: Faction;
 };
 
-const BESTIARY_ENTRIES: BestiaryEntry[] = [
-    { id: 'slime',            name: 'Slime',           abilityIds: ['0001'],                         faction: 'dark_creature' },
-    { id: 'dark_wolf',       name: 'Wolf',            abilityIds: ['0003'],                         faction: 'dark_creature' },
-    { id: 'alpha_wolf',      name: 'Alpha Wolf',      abilityIds: ['0005', '0007', '0011', '0012'], faction: 'dark_creature' },
-    { id: 'displacer_spirit', name: 'Displacer Spirit', abilityIds: ['0017', '0018', '0019'],                         faction: 'dark_creature' },
-    { id: 'thornbinder',     name: 'Thornbinder',     abilityIds: ['0008'],                         faction: 'dark_creature' },
-    { id: 'swarmling',       name: 'Swarmling',       abilityIds: ['0013'],                         faction: 'dark_creature' },
-    { id: 'displacer_clone', name: 'Displacer Clone', abilityIds: ['0017'],                         faction: 'dark_creature' },
-    { id: 'swarm_nest',      name: 'Swarm Nest',      abilityIds: [],                               faction: 'dark_creature' },
-    { id: 'lanternite',      name: 'Lanternite',      abilityIds: ['0010'],                         faction: 'beast' },
-    { id: 'lanternite_nest', name: 'Lanternite Nest', abilityIds: ['0014'],                         faction: 'beast' },
-    { id: 'dog',             name: 'Dog',             abilityIds: ['0701'],                         faction: 'beast' },
-    { id: 'boar',            name: 'Boar',            abilityIds: ['0006'],                         faction: 'other' },
-];
+/** Built from the unit defs: `displayName`, `bestiary.abilityIds`, faction from `creatureType`. */
+const BESTIARY_ENTRIES: BestiaryEntry[] = getBestiaryUnitIds().map((id) => {
+    const def = getUnitDefEntry(id);
+    return {
+        id,
+        name: def?.displayName ?? id,
+        abilityIds: def?.bestiary?.abilityIds ?? [],
+        faction: getBestiaryFaction(id),
+    };
+});
 
 const FACTION_SECTIONS: { faction: Faction; label: string }[] = [
     { faction: 'dark_creature', label: 'Dark Creatures' },
@@ -63,14 +37,8 @@ const FACTION_SECTIONS: { faction: Faction; label: string }[] = [
 
 const ICON_SIZE = 58;
 
-function getSpriteUrl(id: EnemyUnitId): string | undefined {
-    if (SPRITE_ICONS[id]) return SPRITE_ICONS[id];
-    const spriteKey = getUnitDefEntry(id)?.characterSpriteKey;
-    return spriteKey ? SPRITE_ICONS[spriteKey] : undefined;
-}
-
 function UnitIcon({ id, size }: { id: EnemyUnitId; size: number }) {
-    const url = getSpriteUrl(id);
+    const url = getUnitSpriteUrl(id);
     if (!url) return <div style={{ width: size, height: size }} className="rounded bg-surface-light flex-shrink-0" />;
     return (
         <img

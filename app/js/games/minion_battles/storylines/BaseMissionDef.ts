@@ -93,6 +93,8 @@ import {
     SWARM_NEST_CHARACTER_ID,
 } from '../game/lanternite/swarmNestTick';
 import { getControlGroupId } from '../state';
+import { peekLanterniteState } from '../game/units/components/lanterniteComponent';
+import { peekSwarmState } from '../game/units/components/swarmComponent';
 
 /** Gun abilities that require an ammo resource at mission start (not melee swords). */
 const AMMO_ABILITIES = new Set(['0203', '0204', '0205']);
@@ -315,8 +317,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
 
     /**
      * Set up the initial game state with player units, enemies, projectiles, and effects.
-     * Adds units to engine.units, projectiles to engine.projectiles, effects to engine.effects,
-     * and cards to engine.cards.
+     * Adds units to engine.units, projectiles to engine.projectiles, and effects to engine.effects.
      *
      * NOTE: `GameEngine.fromJSON` runs this same mission-setup role on reload/resync, but
      * independently of this method. Any addition here that is *not* serialized into game state
@@ -578,7 +579,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
         }
 
         for (const u of engine.units) {
-            if (u.characterId === LANTERNITE_NEST_CHARACTER_ID && u.lanterniteState.nestConfig != null) {
+            if (u.characterId === LANTERNITE_NEST_CHARACTER_ID && peekLanterniteState(u)?.nestConfig != null) {
                 prepareLanterniteNestForMissionStart(u, engine.gameTime);
                 // Register the light source immediately so applyInstantLightingPass() (called
                 // right after initializeGameState) snapshots full brightness from frame 0,
@@ -591,7 +592,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                     });
                 }
             }
-            if (u.characterId === SWARM_NEST_CHARACTER_ID && u.swarmState.nestConfig != null) {
+            if (u.characterId === SWARM_NEST_CHARACTER_ID && peekSwarmState(u)?.nestConfig != null) {
                 initializeSwarmNestSpawnState(u, engine.gameTime);
             }
         }

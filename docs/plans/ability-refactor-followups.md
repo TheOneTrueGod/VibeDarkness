@@ -4,7 +4,7 @@
 > → ProjectileLaunch) was not run — items deferred to `docs/TODO.md` (Medium category).
 
 **Goal:** Close out the follow-ups identified in the post-implementation review of
-`PLANS/done/ability-boilerplate-reduction.md`. Fix the permanently-red test so the chain has a
+`docs/plans/done/ability-boilerplate-reduction.md`. Fix the permanently-red test so the chain has a
 real green gate, finish the declarative-damage story (single source of truth for amount dealt,
 typed attack types, per-unit damage resolver, delete the deprecated overload), make
 `onAttackBlocked` optional at the contract level, clean up the `0534` deviation, wire the
@@ -23,7 +23,7 @@ This plan is executed by the **jp-implement-plan** chain: each agent reads
 document order with unchecked items), then hands off a fresh agent with:
 
 > Read `.claude/skills/jp-implement-plan/SKILL.md` and follow it for the plan at
-> `app/js/games/minion_battles/PLANS/ability-refactor-followups.md`.
+> `docs/plans/ability-refactor-followups.md`.
 
 Additional rules for this plan:
 

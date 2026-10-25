@@ -8,6 +8,7 @@ import type { Unit } from '../units/Unit';
 import type { NetworkNode } from '../managers/mapNetwork/types';
 import { lnet_guard } from '../units/unitAI/lanterniteNetwork/lnet_guard';
 import { lnet_chase } from '../units/unitAI/lanterniteNetwork/lnet_chase';
+import { lanterniteStateOf } from '../units/components/lanterniteComponent';
 
 /**
  * Networked lanternite expansion — regression coverage for quest_thorn_march (lobby A74362): the
@@ -82,9 +83,9 @@ describe('processLanterniteNests — networked expansion', () => {
     const kidsOf = (nest: Unit) =>
         units.filter(
             (u) =>
-                u.characterId === LANTERNITE_CHARACTER_ID && u.isAlive() && u.lanterniteState.nestOwnerUnitId === nest.id,
+                u.characterId === LANTERNITE_CHARACTER_ID && u.isAlive() && lanterniteStateOf(u).nestOwnerUnitId === nest.id,
         );
-    const scoutsOf = (nest: Unit) => kidsOf(nest).filter((u) => u.lanterniteState.role === 'scout');
+    const scoutsOf = (nest: Unit) => kidsOf(nest).filter((u) => lanterniteStateOf(u).role === 'scout');
 
     beforeEach(() => {
         resetGameObjectIdCounter(1);
@@ -106,7 +107,7 @@ describe('processLanterniteNests — networked expansion', () => {
         for (let t = 0; t <= 20; t++) step(t);
 
         expect(scoutsOf(nest)).toHaveLength(1);
-        expect(scoutsOf(nest)[0].lanterniteState.targetNestPoiId).toBe(NEXT.id);
+        expect(lanterniteStateOf(scoutsOf(nest)[0]).targetNestPoiId).toBe(NEXT.id);
     });
 
     it('does not send scouts to a neighbor that is already a lanternite nest home', () => {
@@ -135,9 +136,9 @@ describe('processLanterniteNests — networked expansion', () => {
 
         const scouts = scoutsOf(nest);
         expect(scouts).toHaveLength(1);
-        expect(scouts[0].lanterniteState.targetNestPoiId).toBe(NEXT.id);
-        expect(scouts[0].lanterniteState.patrolFarWorld).toEqual({ x: NEXT.x, y: NEXT.y });
-        expect(scouts[0].lanterniteState.nestConfig?.scoutConstructionSec).toBe(12);
+        expect(lanterniteStateOf(scouts[0]).targetNestPoiId).toBe(NEXT.id);
+        expect(lanterniteStateOf(scouts[0]).patrolFarWorld).toEqual({ x: NEXT.x, y: NEXT.y });
+        expect(lanterniteStateOf(scouts[0]).nestConfig?.scoutConstructionSec).toBe(12);
 
         // The target is now claimed by that scout — no further promotions.
         step(62);
@@ -154,8 +155,8 @@ describe('processLanterniteNests — networked expansion', () => {
         const aiContext = {} as never;
         expect(toScout(lnet_guard.edges).evaluate(defender, aiContext)).toBe(false);
 
-        defender.lanterniteState.role = 'scout';
-        defender.lanterniteState.patrolFarWorld = { x: NEXT.x, y: NEXT.y };
+        lanterniteStateOf(defender).role = 'scout';
+        lanterniteStateOf(defender).patrolFarWorld = { x: NEXT.x, y: NEXT.y };
         expect(toScout(lnet_guard.edges).evaluate(defender, aiContext)).toBe(true);
         expect(toScout(lnet_chase.edges).evaluate(defender, aiContext)).toBe(true);
     });

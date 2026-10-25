@@ -5,7 +5,7 @@ description: Guides creating new abilities and card definitions in Minion Battle
 
 # Creating an Ability
 
-**See [`app/js/games/minion_battles/card_defs/SKILL.md`](../../../app/js/games/minion_battles/card_defs/SKILL.md) for the full guide** — folder layout, stable IDs, **`abilityTimings`** (half-open intervals), **`AbilityGroupId` / skill-tree folders**, registration, **`abilityEvents`** authoring order, and the implementation checklist.
+**See [`app/js/games/minion_battles/card_defs/SKILL.md`](../../../app/js/games/minion_battles/card_defs/SKILL.md) for the full guide** — folder layout, stable IDs, **`abilityTimings`** (half-open intervals), **`AbilityGroupId` / group-folder convention** (which `NN_slug/` folder and id a new weapon, core-crossover, enemy or super-move ability gets), registration, **`abilityEvents`** authoring order, and the implementation checklist.
 
 **Combat hit discovery** — Shape damage/CC must go through a hitbox or a helper that wraps one (see **Hitboxes (combat)** in the full guide and `hitboxes/SKILL.md`). Do not hand-roll enemy radius loops for combat.
 

@@ -22,7 +22,7 @@ This plan is executed by the **jp-implement-plan** chain. Each agent reads
 step in document order with unchecked items), verifies it, then hands off with:
 
 > Read `.claude/skills/jp-implement-plan/SKILL.md` and follow it for the plan at
-> `docs/plans/torch-copy-research-node.md`.
+> `docs/plans/done/torch-copy-research-node.md`.
 
 Rules for all steps:
 - **Read every file listed in "Touches" before writing a single line.** Do not assume types or signatures.

@@ -93,6 +93,17 @@ export interface SerializedSpecialTile {
 
 /** Serialized game state for server sync. */
 export interface SerializedGameState {
+    /**
+     * Checkpoint format version (see `serializedGameStateUpgrade.ts`). Missing means 0, i.e. the
+     * format before versioning existed; `GameEngine.fromJSON` upgrades it before reading.
+     */
+    serializationVersion?: number;
+    /**
+     * Deploy compatibility only: always written as `{}` so clients still running a build from before
+     * `CardManager` was removed (which call `Object.entries(data.cards)`) can load new checkpoints.
+     * Nothing reads it. Remove it, and add an upgrade step that drops it, once no such build can be live.
+     */
+    cards?: Record<string, never>;
     /** Deterministic RNG seed (host-generated before initial sync). */
     randomSeed?: number;
     /**
@@ -111,7 +122,6 @@ export interface SerializedGameState {
     navEpoch?: number;
     units: Record<string, unknown>[];
     projectiles: Record<string, unknown>[];
-    cards: Record<string, SerializedCardInstance[]>;
     waitingForOrders: WaitingForOrders | null;
     /** Orders scheduled for future ticks (included in checkpoints). */
     orders?: OrderAtTick[];
@@ -216,18 +226,6 @@ export interface GameEngineFromJSONOpts {
      */
     segmentPlacements?: ResolvedSegmentPlacement[];
     segmentNetwork?: { nodes: ResolvedNetworkNode[]; edges: NetworkEdgeDef[] };
-}
-
-/** Serialized card instance. */
-export interface SerializedCardInstance {
-    instanceId?: string;
-    cardDefId: string;
-    abilityId: string;
-    location: 'hand' | 'deck' | 'discard';
-    /** Rounds remaining in discard (rounds-based). */
-    discardRoundsRemaining?: number;
-    /** Game time when added to discard (seconds-based). */
-    discardAddedAtTime?: number;
 }
 
 /** Zero-frame special action riding beside the primary ability on a BattleOrder. */

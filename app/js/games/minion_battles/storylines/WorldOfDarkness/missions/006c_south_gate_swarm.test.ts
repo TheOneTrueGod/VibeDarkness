@@ -15,6 +15,7 @@ import { isTileInZone } from '../../../terrain/zones';
 import { SWARM_NEST_CHARACTER_ID } from '../../../game/lanternite/swarmNestTick';
 import { ROUND_DURATION } from '../../../game/gameConstants';
 import { OUTSIDE_CAVE_MOUTH_ZONE } from '../MapSegments/50_50_crystal_cave';
+import { swarmStateOf } from '../../../game/units/components/swarmComponent';
 
 registerWorldOfDarknessSegments();
 
@@ -88,8 +89,8 @@ describe('SouthGateSwarmMission', () => {
 
         const nest = engine.units.find((u) => u.characterId === SWARM_NEST_CHARACTER_ID);
         expect(nest).toBeDefined();
-        expect(nest!.swarmState.nestConfig?.spawnCount).toBe(SWARM_NEST_SPAWN_COUNT);
-        expect(nest!.swarmState.nestConfig?.spawnIntervalSec).toBe(SWARM_NEST_SPAWN_INTERVAL_SEC);
+        expect(swarmStateOf(nest!).nestConfig?.spawnCount).toBe(SWARM_NEST_SPAWN_COUNT);
+        expect(swarmStateOf(nest!).nestConfig?.spawnIntervalSec).toBe(SWARM_NEST_SPAWN_INTERVAL_SEC);
         expect(SWARM_NEST_SPAWN_INTERVAL_SEC).toBe(ROUND_DURATION * 0.75);
 
         // Only the opening box wolves — no nest-side guards.

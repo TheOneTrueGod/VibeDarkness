@@ -56,20 +56,20 @@ describe('createPetSourcedMovementPreview', () => {
             y: 0,
             teamId: 'player',
             ownerId: 'p1',
-            petState: { ownerUnitId: 'player1' },
+            components: new Map([['pet', { state: { ownerUnitId: 'player1', unitIds: [], defId: undefined }, options: undefined }]]),
             radius: 12,
             isAlive: () => true,
-        } as Unit;
+        } as unknown as Unit;
         const farPet = {
             id: 'dog2',
             x: 10,
             y: 200,
             teamId: 'player',
             ownerId: 'p1',
-            petState: { ownerUnitId: 'player1' },
+            components: new Map([['pet', { state: { ownerUnitId: 'player1', unitIds: [], defId: undefined }, options: undefined }]]),
             radius: 12,
             isAlive: () => true,
-        } as Unit;
+        } as unknown as Unit;
 
         const preview = createPetSourcedMovementPreview(
             { abilitySource: { type: 'pet', selector: 'nearest' } },

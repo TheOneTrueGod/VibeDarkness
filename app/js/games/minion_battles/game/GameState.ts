@@ -7,7 +7,6 @@ import type { EngineContext } from './EngineContext';
 import { UnitManager } from './managers/UnitManager';
 import { ProjectileManager } from './managers/ProjectileManager';
 import { EffectManager } from './effects/EffectManager';
-import { CardManager } from './managers/CardManager';
 import { AbilityUseTracker } from './managers/AbilityUseTracker';
 import { ResearchManager } from './managers/ResearchManager';
 import { SpecialTileManager } from './managers/SpecialTileManager';
@@ -59,7 +58,6 @@ export class GameState {
     readonly projectileManager: ProjectileManager;
     readonly effectManager: EffectManager;
     readonly effectEmitterManager: EffectEmitterManager;
-    readonly cardManager: CardManager;
     readonly abilityUseTracker: AbilityUseTracker;
     readonly researchManager: ResearchManager;
     readonly specialTileManager: SpecialTileManager;
@@ -141,7 +139,6 @@ export class GameState {
         };
         this.effectManager.ownerTempoResolver = ownerTempo;
         this.effectEmitterManager.ownerTempoResolver = ownerTempo;
-        this.cardManager = new CardManager(ctx);
         this.abilityUseTracker = new AbilityUseTracker();
         this.researchManager = new ResearchManager();
         this.specialTileManager = new SpecialTileManager(ctx);

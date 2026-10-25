@@ -2,7 +2,7 @@
 
 Soft radius packing for grounded units in Minion Battles. Not rigid physics; does not overload ability **`nudge`**. Separate from `CellOccupancyManager` (tile capacity / shove).
 
-Use this doc for future `/jp-plan` work. MVP implementation lives under `app/js/games/minion_battles/game/crowdSpacing/`. The one-shot MVP plan is `docs/plans/crowd-spacing-mvp.md`.
+Use this doc for future `/jp-plan` work. MVP implementation lives under `app/js/games/minion_battles/game/crowdSpacing/`. The one-shot MVP plan is `docs/plans/done/crowd-spacing-mvp.md`.
 
 ### Vocabulary
 

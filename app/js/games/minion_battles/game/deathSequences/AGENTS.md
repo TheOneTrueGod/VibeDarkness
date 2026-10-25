@@ -2,7 +2,7 @@
 
 Cinematic unit deaths (usually bosses): gameplay pauses (story pause), the animation plays, then gameplay resumes and victory/defeat checks run again.
 
-- **Where it lives:** `UnitDefEntry.deathSequence` on the character's unit def. Only units of that character trigger it, so it never leaks into missions without that unit. It replaces `onDeathVisualEffects` for that unit; `onDeathBehaviors` still run.
+- **Where it lives:** `UnitDefEntry.deathSequence` on the character's unit def. Only units of that character trigger it, so it never leaks into missions without that unit. It replaces `onDeathVisualEffects` for that unit; component `onDeath` hooks (`units/components/unitComponentHooks.ts`) still run.
 - **Entry point:** the engine's `unit_died` listener (`GameEngine.registerCoreEventListeners`) calls `applyDeathSequence`.
 - **Building blocks** (`deathSequenceDef.ts`):
   - `pauseSeconds` / `pauseReason` → `engine.startStoryPause`. Make `pauseSeconds` cover the whole animation.

@@ -246,5 +246,5 @@ Interactive preview orders set `targetsByLabel: {}` (empty object, not `undefine
 | `ui/pages/BattlePhase.tsx` | Targeting cursor, status pill, Reset/Replay/Continue, rewind overlay, ghost hold/merge, conditional auto-commit |
 | `game/interactiveTargeting.test.ts` | Engine pause/resume, fingerprint parity, commit-time in-place, rewind emit |
 | `game/interaction/AGENTS.md` | Short agent pointer for this folder |
-| `docs/plans/sequential-targeting-rollback-ux.md` | Plan for commit-time in-place, rewind UX, non-host path |
+| `docs/plans/done/sequential-targeting-rollback-ux.md` | Plan for commit-time in-place, rewind UX, non-host path |
 | `abilities/targeting.ts` | `buildMeleeSelectOrderTargets`, `findMeleeAimPixelInTargets`, `getSelectTargetDefsFromTimings` |

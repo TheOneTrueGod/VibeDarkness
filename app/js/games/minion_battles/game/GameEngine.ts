@@ -43,6 +43,7 @@ import type { PassiveBonuses } from '../../../researchTrees/types';
 import type { ActiveDarknessStrength } from '../../../darknessStrength/resolve';
 import { getDarknessStrength } from '../../../darknessStrength/registry';
 import type { DarknessStrengthInstance } from '../../../darknessStrength/types';
+import { SERIALIZED_GAME_STATE_VERSION, upgradeSerializedGameState } from './serializedGameStateUpgrade';
 import {
     FingerprintEvent,
     fingerprintFromHex,
@@ -78,9 +79,12 @@ import { clearUnitTileTransitionState } from './terrainEffects/tileTransitions';
 import { registerDamageLinkListeners } from './units/unitDamageLinks';
 import { createDamageTakenEffect } from './createDamageTakenEffect';
 import { CantDieBuff } from '../buffs/CantDieBuff';
-import { processLanternitePulseMilestone, removeLanterniteLightSources } from './lanternite/lanternitePulse';
-import { processLanterniteNests } from './lanternite/lanterniteNestTick';
-import { processSwarmNests } from './lanternite/swarmNestTick';
+import {
+    runUnitComponentDeath,
+    runUnitComponentRoundMilestone,
+    runUnitComponentTick,
+    type UnitComponentContext,
+} from './units/components/unitComponentHooks';
 import { spawnUnit as spawnUnitFromDefinition } from './units/spawning/spawnUnit';
 import type { SpawnDefinition } from './units/spawning/spawnDefinition';
 import { TerrainLayerManager } from './TerrainLayerManager';
@@ -110,8 +114,6 @@ import {
 } from './interaction/isITSPreviewComplete';
 
 // Re-exports for backward compatibility
-export type { CardInstance } from './managers/CardManager';
-export { MAX_HAND_SIZE, CARDS_PER_ROUND } from './managers/CardManager';
 
 import { FIXED_DT, ROUND_DURATION } from './gameConstants';
 import type { StartTimeStopSpec, TimeManager, TimeStop } from './time/TimeManager';
@@ -476,8 +478,6 @@ export class GameEngine implements EngineContext {
     get effects(): Effect[] { return this.state.effectManager.effects; }
     get specialTiles(): SpecialTile[] { return this.state.specialTileManager.specialTiles; }
     get terrainLayers(): TerrainLayerManager { return this.state.terrainLayers; }
-    get cards(): Record<string, import('./managers/CardManager').CardInstance[]> { return this.state.cardManager.cards; }
-    set cards(value: Record<string, import('./managers/CardManager').CardInstance[]>) { this.state.cardManager.cards = value; }
 
     get playerResearchTreesByPlayer(): Record<string, Record<string, string[]>> {
         return this.state.researchManager.playerResearchTreesByPlayer;
@@ -912,17 +912,8 @@ export class GameEngine implements EngineContext {
             const def = getUnitDefEntry(unit.characterId as UnitDefId);
             if (def?.deathSequence) applyDeathSequence(def.deathSequence, unit, this);
             else if (def?.onDeathVisualEffects?.length) applyVisualEffectDefs(def.onDeathVisualEffects, unit, this);
-            if (def?.onDeathBehaviors?.length) {
-                for (const b of def.onDeathBehaviors) {
-                    if (b.type === 'removesOwnedLightSources') {
-                        removeLanterniteLightSources(unit.id, this.lightSources);
-                    } else if (b.type === 'sporeRebirth') {
-                        if (unit.lanterniteState.nestOwnerUnitId == null) {
-                            this.state.lanterniteRespawnManager.onLanterniteUnitDied(unit.x, unit.y, this.gameTime);
-                        }
-                    }
-                }
-            }
+            // Component death hooks (e.g. lanternite torch removal and Spore Rebirth) run after the visual death.
+            runUnitComponentDeath(unit, this.buildUnitComponentContext(0));
         });
 
         // Map-network hygiene: unregister immediately rather than waiting for the next
@@ -1893,33 +1884,7 @@ export class GameEngine implements EngineContext {
                 if (this.gameTick % LIGHT_TICK_INTERVAL === 0) this.runLightGameTick();
             });
             tickPerformanceTracker.measure([PERF_ENGINE_NESTS], () => {
-                processLanterniteNests({
-                    gameTime: this.gameTime,
-                    dt: worldDt,
-                    units: this.units,
-                    eventBus: this.eventBus,
-                    addUnit: (u, src) => this.addUnit(u, src),
-                    idSource: this,
-                    mapPOIs: this.mapPOIs,
-                    mapNetwork: this.state.mapNetworkManager,
-                    lightLevelEnabled: this.lightLevelEnabled,
-                    addLightSource: (ls) => this.addLightSource(ls),
-                    lightSources: this.state.lightSourceManager.lightSources,
-                    addEffectEmitter: (em) => this.addEffectEmitter(em),
-                    generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
-                });
-                processSwarmNests({
-                    gameTime: this.gameTime,
-                    dt: worldDt,
-                    units: this.units,
-                    mapPOIs: this.mapPOIs,
-                    mapNetwork: this.state.mapNetworkManager,
-                    eventBus: this.eventBus,
-                    addUnit: (u) => this.addUnit(u, 'nestSpawn'),
-                    idSource: this,
-                    generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
-                });
-                this.state.lanterniteRespawnManager.gameTick(this.gameTime, this, this.eventBus);
+                runUnitComponentTick(this.buildUnitComponentContext(worldDt));
             });
             tickPerformanceTracker.measure([PERF_ENGINE_CLEANUP], () => {
                 this.state.unitManager.cleanupInactive();
@@ -2185,23 +2150,11 @@ export class GameEngine implements EngineContext {
             this.state.unitManager.onRoundStart(this.roundNumber, this);
             this.state.ninjutsuManager?.onRoundStart(this.roundNumber, countNinjutsuEnemyUnits(this.units));
             this.applyItemRoundStartRecoveryCharges();
-            processLanternitePulseMilestone('round_start', {
-                units: this.units,
-                lightLevelEnabled: this.lightLevelEnabled,
-                eventBus: this.eventBus,
-                addLightSource: (ls) => this.addLightSource(ls),
-                lightSources: this.state.lightSourceManager.lightSources,
-            });
+            runUnitComponentRoundMilestone('round_start', this.buildUnitComponentContext(0));
             this.appliedRoundStartRecovery = true;
         }
         if (!this.appliedMidRoundRecovery && roundTime >= ROUND_DURATION / 2) {
-            processLanternitePulseMilestone('round_half', {
-                units: this.units,
-                lightLevelEnabled: this.lightLevelEnabled,
-                eventBus: this.eventBus,
-                addLightSource: (ls) => this.addLightSource(ls),
-                lightSources: this.state.lightSourceManager.lightSources,
-            });
+            runUnitComponentRoundMilestone('round_half', this.buildUnitComponentContext(0));
             this.appliedMidRoundRecovery = true;
         }
         const dotTickInterval = ROUND_DURATION / DOT_TICKS_PER_ROUND;
@@ -2210,6 +2163,26 @@ export class GameEngine implements EngineContext {
             tickDayLightDamage(this.units, this, this.appliedDotTicks);
             this.appliedDotTicks++;
         }
+    }
+
+    /** Context handed to unit-component hooks (see `units/components/unitComponentHooks.ts`). */
+    private buildUnitComponentContext(dt: number): UnitComponentContext {
+        return {
+            gameTime: this.gameTime,
+            dt,
+            units: this.units,
+            eventBus: this.eventBus,
+            engine: this,
+            state: this.state,
+            addUnit: (u, src) => this.addUnit(u, src),
+            mapPOIs: this.mapPOIs,
+            mapNetwork: this.state.mapNetworkManager,
+            lightLevelEnabled: this.lightLevelEnabled,
+            addLightSource: (ls) => this.addLightSource(ls),
+            lightSources: this.state.lightSourceManager.lightSources,
+            addEffectEmitter: (em) => this.addEffectEmitter(em),
+            generateRandomInteger: (min, max) => this.generateRandomInteger(min, max),
+        };
     }
 
     /** Item passives: grants each living unit the recovery charges its equipped items declare, once per round. */
@@ -2244,9 +2217,11 @@ export class GameEngine implements EngineContext {
 
     toJSON(): SerializedGameState {
         const levelEventData = this.state.levelEventManager.toJSON();
-        const cardData = this.state.cardManager.toJSON();
         const performanceLog = tickPerformanceTracker.getLastPerformanceLog();
         return {
+            serializationVersion: SERIALIZED_GAME_STATE_VERSION,
+            // Deploy compatibility for pre-versioning clients; see `SerializedGameState.cards`.
+            cards: {},
             randomSeed: this.randomSeed,
             enemyScalingPlayerCount: this.enemyScalingPlayerCount,
             gameTime: this.gameTime,
@@ -2258,7 +2233,6 @@ export class GameEngine implements EngineContext {
             units: this.state.unitManager.toJSON(this.gameTick),
             projectiles: this.state.projectileManager.toJSON(),
             effectEmitters: this.state.effectEmitterManager.toJSON(),
-            cards: cardData.cards as Record<string, import('./types').SerializedCardInstance[]>,
             waitingForOrders: this.waitingForOrders
                 ? {
                       waiters: this.waitingForOrders.waiters,
@@ -2320,6 +2294,8 @@ export class GameEngine implements EngineContext {
         terrainManager?: TerrainManager | null,
         opts?: GameEngineFromJSONOpts,
     ): GameEngine {
+        // Single entry point for every checkpoint load: bring old formats up to date first.
+        data = upgradeSerializedGameState(data);
         const engine = new GameEngine();
         engine.localPlayerId = localPlayerId;
         engine.terrainManager = terrainManager ?? null;
@@ -2523,8 +2499,7 @@ export class GameEngine implements EngineContext {
             }
         }
 
-        // Restore cards + research trees
-        engine.state.cardManager.restoreFromJSON(data.cards);
+        // Restore research trees
         engine.state.researchManager.restoreFromJSON(data.playerResearchTreesByPlayer);
 
         // Restore group blackboards (AI strategic layer)

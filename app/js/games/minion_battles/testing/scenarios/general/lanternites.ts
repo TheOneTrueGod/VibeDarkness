@@ -17,6 +17,7 @@ import { prepareLanterniteNestForMissionStart } from '../../../game/lanternite/l
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
 import { LANTERNITE_NEST_AURA_ID } from '../../../card_defs/dark_animals/0014_LanterniteNestAura/0014Ability';
 import { rasterizeArea } from '../../../game/TerrainLayerManager';
+import { lanterniteStateOf } from '../../../game/units/components/lanterniteComponent';
 
 const CELL = 40;
 
@@ -109,7 +110,7 @@ export const lanterniteNestBuildScenario: ScenarioDefinition = {
             engine.eventBus,
             engine,
         );
-        nestUnit.lanterniteState.nestConfig = {
+        lanterniteStateOf(nestUnit).nestConfig = {
             maxLanternites: 1,
             spawnIntervalSec: 1,
             patrolDestination: { kind: 'world', x: worldOf(NEST_B_COL, NEST_B_ROW).x, y: worldOf(NEST_B_COL, NEST_B_ROW).y },
@@ -117,10 +118,10 @@ export const lanterniteNestBuildScenario: ScenarioDefinition = {
             nestPoiId: 'test_nest_a',
             scoutConstructionSec: 2,
         };
-        nestUnit.lanterniteState.homeNestPoiId = 'test_nest_a';
+        lanterniteStateOf(nestUnit).homeNestPoiId = 'test_nest_a';
         prepareLanterniteNestForMissionStart(nestUnit, 0);
         // Override to spawn the scout on the very first tick rather than after spawnIntervalSec
-        nestUnit.lanterniteState.nestSpawnState!.nextSpawnAtGameTime = 0;
+        lanterniteStateOf(nestUnit).nestSpawnState!.nextSpawnAtGameTime = 0;
         engine.addUnit(nestUnit, 'initialGameSpawn');
 
         // Player spawns below the nest row and walks left/right â€” keeps battle non-idle
@@ -151,7 +152,7 @@ export const lanterniteNestBuildScenario: ScenarioDefinition = {
         const nests = engine.units.filter((u) => u.characterId === 'lanternite_nest' && u.isAlive());
         const scouts = engine.units.filter((u) => u.characterId === 'lanternite' && u.isAlive());
         const scout = scouts[0];
-        const buildTime = scout?.lanterniteState.constructionCompleteAtGameTime;
+        const buildTime = (scout ? lanterniteStateOf(scout).constructionCompleteAtGameTime : undefined);
         return (
             `alive nests=${nests.length} alive scouts=${scouts.length}` +
             (buildTime != null
@@ -220,7 +221,7 @@ export const lanterniteNestDualSpawnScenario: ScenarioDefinition = {
             engine,
         );
         // maxLanternites:2 means the nest will produce one scout (first) and one defender (second)
-        nestUnit.lanterniteState.nestConfig = {
+        lanterniteStateOf(nestUnit).nestConfig = {
             maxLanternites: 2,
             spawnIntervalSec: 1,
             patrolDestination: { kind: 'world', x: worldOf(NEST_B_COL, NEST_B_ROW).x, y: worldOf(NEST_B_COL, NEST_B_ROW).y },
@@ -228,10 +229,10 @@ export const lanterniteNestDualSpawnScenario: ScenarioDefinition = {
             nestPoiId: 'dual_nest_a',
             scoutConstructionSec: 2,
         };
-        nestUnit.lanterniteState.homeNestPoiId = 'dual_nest_a';
+        lanterniteStateOf(nestUnit).homeNestPoiId = 'dual_nest_a';
         prepareLanterniteNestForMissionStart(nestUnit, 0);
         // Trigger the scout on the very first tick rather than waiting spawnIntervalSec
-        nestUnit.lanterniteState.nestSpawnState!.nextSpawnAtGameTime = 0;
+        lanterniteStateOf(nestUnit).nestSpawnState!.nextSpawnAtGameTime = 0;
         engine.addUnit(nestUnit, 'initialGameSpawn');
 
         // Player walks a three-leg zigzag so the battle stays non-idle for the full ~8s sequence
@@ -255,7 +256,7 @@ export const lanterniteNestDualSpawnScenario: ScenarioDefinition = {
     assertPass(engine) {
         const nests = engine.units.filter((u) => u.characterId === 'lanternite_nest' && u.isAlive()).length;
         const defenders = engine.units.filter(
-            (u) => u.characterId === 'lanternite' && u.lanterniteState.role === 'defender' && u.isAlive(),
+            (u) => u.characterId === 'lanternite' && lanterniteStateOf(u).role === 'defender' && u.isAlive(),
         ).length;
         // Both halves must be true: scout built the second nest, AND a defender is still on guard
         return nests >= 2 && defenders >= 1;
@@ -264,12 +265,12 @@ export const lanterniteNestDualSpawnScenario: ScenarioDefinition = {
     failureMessage(engine) {
         const nests = engine.units.filter((u) => u.characterId === 'lanternite_nest' && u.isAlive()).length;
         const scouts = engine.units.filter(
-            (u) => u.characterId === 'lanternite' && u.lanterniteState.role === 'scout' && u.isAlive(),
+            (u) => u.characterId === 'lanternite' && lanterniteStateOf(u).role === 'scout' && u.isAlive(),
         );
         const defenders = engine.units.filter(
-            (u) => u.characterId === 'lanternite' && u.lanterniteState.role === 'defender' && u.isAlive(),
+            (u) => u.characterId === 'lanternite' && lanterniteStateOf(u).role === 'defender' && u.isAlive(),
         ).length;
-        const buildTime = scouts[0]?.lanterniteState.constructionCompleteAtGameTime;
+        const buildTime = (scouts[0] ? lanterniteStateOf(scouts[0]).constructionCompleteAtGameTime : undefined);
         return (
             `alive nests=${nests} scouts=${scouts.length} defenders=${defenders}` +
             (buildTime != null ? ` constructAt=${buildTime.toFixed(1)} now=${engine.gameTime.toFixed(1)}` : '')
@@ -278,8 +279,8 @@ export const lanterniteNestDualSpawnScenario: ScenarioDefinition = {
 
     describeState(engine) {
         const nests = engine.units.filter((u) => u.characterId === 'lanternite_nest' && u.isAlive()).length;
-        const scouts = engine.units.filter((u) => u.characterId === 'lanternite' && u.lanterniteState.role === 'scout').length;
-        const defenders = engine.units.filter((u) => u.characterId === 'lanternite' && u.lanterniteState.role === 'defender').length;
+        const scouts = engine.units.filter((u) => u.characterId === 'lanternite' && lanterniteStateOf(u).role === 'scout').length;
+        const defenders = engine.units.filter((u) => u.characterId === 'lanternite' && lanterniteStateOf(u).role === 'defender').length;
         return `t=${engine.gameTime.toFixed(1)} nests=${nests} scouts=${scouts} defenders=${defenders}`;
     },
 };
@@ -337,11 +338,11 @@ export const lanterniteSharedConstructionScenario: ScenarioDefinition = {
                 engine.eventBus,
                 engine,
             );
-            scout.lanterniteState.role = 'scout';
-            scout.lanterniteState.targetNestPoiId = 'shared_site';
-            scout.lanterniteState.patrolFarWorld = { x: sitePos.x, y: sitePos.y };
-            scout.lanterniteState.constructionAngle = angle;
-            scout.lanterniteState.nestConfig = {
+            lanterniteStateOf(scout).role = 'scout';
+            lanterniteStateOf(scout).targetNestPoiId = 'shared_site';
+            lanterniteStateOf(scout).patrolFarWorld = { x: sitePos.x, y: sitePos.y };
+            lanterniteStateOf(scout).constructionAngle = angle;
+            lanterniteStateOf(scout).nestConfig = {
                 maxLanternites: 1,
                 spawnIntervalSec: 1,
                 patrolDestination: { kind: 'world', x: sitePos.x, y: sitePos.y },
@@ -381,7 +382,7 @@ export const lanterniteSharedConstructionScenario: ScenarioDefinition = {
     failureMessage(engine) {
         const nests = engine.units.filter((u) => u.characterId === 'lanternite_nest' && u.isAlive());
         const scouts = engine.units.filter((u) => u.characterId === 'lanternite' && u.isAlive());
-        const buildTime = scouts[0]?.lanterniteState.constructionCompleteAtGameTime;
+        const buildTime = (scouts[0] ? lanterniteStateOf(scouts[0]).constructionCompleteAtGameTime : undefined);
         return (
             `alive nests=${nests.length} alive scouts=${scouts.length}` +
             (buildTime != null
@@ -441,7 +442,7 @@ export const lanterniteDefenderAttackScenario: ScenarioDefinition = {
             engine.eventBus,
             engine,
         );
-        lanternite.lanterniteState.role = 'defender';
+        lanterniteStateOf(lanternite).role = 'defender';
         initializeAbilityRuntimeForUnit(lanternite);
         engine.addUnit(lanternite, 'initialGameSpawn');
 
@@ -550,7 +551,7 @@ export const lanterniteDefenderTracksMovingTargetScenario: ScenarioDefinition = 
             engine.eventBus,
             engine,
         );
-        lanternite.lanterniteState.role = 'defender';
+        lanterniteStateOf(lanternite).role = 'defender';
         initializeAbilityRuntimeForUnit(lanternite);
         engine.addUnit(lanternite, 'initialGameSpawn');
 

@@ -12,6 +12,9 @@ import { Mana } from '../../resources/Mana';
 import { createPlan } from './unitAI/plans/planUtils';
 import type { TacticalPlan } from './unitAI/plans/types';
 import { WAIT_ABILITY_MODE_FAR } from '../../abilities/WaitAbility';
+import { lanterniteStateOf } from './components/lanterniteComponent';
+import { swarmStateOf } from './components/swarmComponent';
+import { petStateOf } from './components/petComponent';
 
 /** Tick passed to toJSON/fromJSON in the golden checkpoint snapshot test. */
 const GOLDEN_SERIALIZATION_TICK = 5;
@@ -93,10 +96,10 @@ function buildGoldenSerializationUnit(eventBus: EventBus): Unit {
 
     unit.wallEntryPoint = { x: 88, y: 92 };
 
-    unit.lanterniteState.nestOwnerUnitId = 'nest_owner_1';
-    unit.lanterniteState.patrolFarWorld = { x: 400, y: 300 };
-    unit.lanterniteState.patrolLeg = 'toNest';
-    unit.lanterniteState.nestConfig = {
+    lanterniteStateOf(unit).nestOwnerUnitId = 'nest_owner_1';
+    lanterniteStateOf(unit).patrolFarWorld = { x: 400, y: 300 };
+    lanterniteStateOf(unit).patrolLeg = 'toNest';
+    lanterniteStateOf(unit).nestConfig = {
         maxLanternites: 4,
         spawnIntervalSec: 2,
         patrolDestination: { kind: 'world', x: 400, y: 300 },
@@ -104,38 +107,38 @@ function buildGoldenSerializationUnit(eventBus: EventBus): Unit {
         nestPoiId: 'nest_poi_a',
         scoutConstructionSec: 12,
     };
-    unit.lanterniteState.nestSpawnState = {
+    lanterniteStateOf(unit).nestSpawnState = {
         spawnedIds: ['scout_1', 'scout_2'],
         nextSpawnAtGameTime: 15,
     };
-    unit.lanterniteState.role = 'scout';
-    unit.lanterniteState.targetNestPoiId = 'target_nest_poi';
-    unit.lanterniteState.homeNestPoiId = 'home_nest_poi';
-    unit.lanterniteState.constructionCompleteAtGameTime = 20;
-    unit.lanterniteState.attackReadyAtGameTime = 8;
-    unit.lanterniteState.constructionAngle = 1.57;
+    lanterniteStateOf(unit).role = 'scout';
+    lanterniteStateOf(unit).targetNestPoiId = 'target_nest_poi';
+    lanterniteStateOf(unit).homeNestPoiId = 'home_nest_poi';
+    lanterniteStateOf(unit).constructionCompleteAtGameTime = 20;
+    lanterniteStateOf(unit).attackReadyAtGameTime = 8;
+    lanterniteStateOf(unit).constructionAngle = 1.57;
     unit.invulnerabilityGenerations = 2;
 
-    unit.swarmState.nestConfig = {
+    swarmStateOf(unit).nestConfig = {
         maxSwarmlings: 8,
         spawnIntervalSec: 2.5,
         spawnCount: 2,
         scoutConstructionSec: 10,
     };
-    unit.swarmState.nestSpawnState = {
+    swarmStateOf(unit).nestSpawnState = {
         spawnedIds: ['swarm_1', 'swarm_2'],
         nextSpawnAtGameTime: 22,
     };
-    unit.swarmState.homeNestPoiId = 'swarm_home_poi';
-    unit.swarmState.orbitAngle = 2.4;
-    unit.swarmState.currentNodeId = 'swarm_current_node';
-    unit.swarmState.targetNodeId = 'swarm_target_node';
-    unit.swarmState.nestOwnerUnitId = 'swarm_nest_owner';
-    unit.swarmState.constructionCompleteAtGameTime = 25;
+    swarmStateOf(unit).homeNestPoiId = 'swarm_home_poi';
+    swarmStateOf(unit).orbitAngle = 2.4;
+    swarmStateOf(unit).currentNodeId = 'swarm_current_node';
+    swarmStateOf(unit).targetNodeId = 'swarm_target_node';
+    swarmStateOf(unit).nestOwnerUnitId = 'swarm_nest_owner';
+    swarmStateOf(unit).constructionCompleteAtGameTime = 25;
 
-    unit.petState.ownerUnitId = 'owner_unit_1';
-    unit.petState.unitIds = ['pet_1', 'pet_2'];
-    unit.petState.defId = 'dog';
+    petStateOf(unit).ownerUnitId = 'owner_unit_1';
+    petStateOf(unit).unitIds = ['pet_1', 'pet_2'];
+    petStateOf(unit).defId = 'dog';
 
     unit.tacticalPlan = createPlan<TacticalPlan>(
         {

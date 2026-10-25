@@ -27,6 +27,7 @@ import {
     findUnclaimedNetworkNode,
 } from '../../../lanternite/swarmNestTick';
 import { resolveNearestNodeId } from '../../../managers/mapNetwork/graphSearch';
+import { peekSwarmState, swarmStateOf } from '../../components/swarmComponent';
 
 /** Distance (px) considered "arrived" at a target network node. */
 const ARRIVAL_THRESHOLD_PX = 40;
@@ -41,7 +42,7 @@ type MapNetworkQuery = NonNullable<AIContext['mapNetwork']>;
  *  more populated before they've physically arrived, which is what keeps a whole burst from
  *  independently picking the same "currently empty" neighbor. */
 function swarmPopulationNodeId(unit: Unit): string | null {
-    return unit.swarmState.targetNodeId ?? unit.swarmState.currentNodeId;
+    return swarmStateOf(unit).targetNodeId ?? swarmStateOf(unit).currentNodeId;
 }
 
 function countMobileSwarmPopulation(nodeId: string, allUnits: readonly Unit[]): number {
@@ -109,7 +110,7 @@ export const snet_seek: AINode<'swarmlingNetwork', SwarmlingNetworkNodeId> = {
             }
 
             // If construction timer is already set, wait in place until processSwarmNests fires.
-            if (unit.swarmState.constructionCompleteAtGameTime != null) {
+            if (swarmStateOf(unit).constructionCompleteAtGameTime != null) {
                 queueWaitAndEndTurn(unit, context);
                 return;
             }
@@ -125,17 +126,17 @@ export const snet_seek: AINode<'swarmlingNetwork', SwarmlingNetworkNodeId> = {
 
             // --- Arrival: resolve currentNodeId (implicit first arrival at spawn, or explicit
             // reassignment once a committed in-transit hop reaches its target) ---
-            if (unit.swarmState.currentNodeId == null) {
-                unit.swarmState.currentNodeId = resolveNearestNodeId(unit.x, unit.y, mapNetwork);
-            } else if (unit.swarmState.targetNodeId != null) {
-                const targetNode = mapNetwork.getNode(unit.swarmState.targetNodeId);
+            if (swarmStateOf(unit).currentNodeId == null) {
+                swarmStateOf(unit).currentNodeId = resolveNearestNodeId(unit.x, unit.y, mapNetwork);
+            } else if (swarmStateOf(unit).targetNodeId != null) {
+                const targetNode = mapNetwork.getNode(swarmStateOf(unit).targetNodeId!);
                 if (targetNode && distance(unit.x, unit.y, targetNode.x, targetNode.y) < ARRIVAL_THRESHOLD_PX) {
-                    unit.swarmState.currentNodeId = unit.swarmState.targetNodeId;
-                    unit.swarmState.targetNodeId = null;
+                    swarmStateOf(unit).currentNodeId = swarmStateOf(unit).targetNodeId;
+                    swarmStateOf(unit).targetNodeId = null;
                 }
             }
 
-            const currentNodeId = unit.swarmState.currentNodeId;
+            const currentNodeId = swarmStateOf(unit).currentNodeId;
             if (currentNodeId == null) {
                 // Empty/unreachable graph — nothing to do.
                 queueWaitAndEndTurn(unit, context);
@@ -143,7 +144,7 @@ export const snet_seek: AINode<'swarmlingNetwork', SwarmlingNetworkNodeId> = {
             }
 
             // --- Decision: only when stationary (just arrived, or just resolved a fresh spawn) ---
-            if (unit.swarmState.targetNodeId == null) {
+            if (swarmStateOf(unit).targetNodeId == null) {
                 if (isValidUnclaimedBuildNode(currentNodeId, mapNetwork, allUnits)) {
                     // Join an existing builder's shared completion time at this same node instead
                     // of starting a fresh timer — processSwarmNests accelerates the shared
@@ -152,11 +153,11 @@ export const snet_seek: AINode<'swarmlingNetwork', SwarmlingNetworkNodeId> = {
                         (u) =>
                             u.id !== unit.id &&
                             u.isAlive() &&
-                            u.swarmState.currentNodeId === currentNodeId &&
-                            u.swarmState.constructionCompleteAtGameTime != null,
+                            peekSwarmState(u)?.currentNodeId === currentNodeId &&
+                            peekSwarmState(u)?.constructionCompleteAtGameTime != null,
                     );
-                    unit.swarmState.constructionCompleteAtGameTime = existingBuilder
-                        ? existingBuilder.swarmState.constructionCompleteAtGameTime
+                    swarmStateOf(unit).constructionCompleteAtGameTime = existingBuilder
+                        ? swarmStateOf(existingBuilder).constructionCompleteAtGameTime
                         : context.gameTime + SWARM_DEFAULT_CONSTRUCTION_SEC;
                     queueWaitAndEndTurn(unit, context);
                     return;
@@ -173,14 +174,14 @@ export const snet_seek: AINode<'swarmlingNetwork', SwarmlingNetworkNodeId> = {
                     queueWaitAndEndTurn(unit, context);
                     return;
                 }
-                unit.swarmState.targetNodeId = nextHop;
+                swarmStateOf(unit).targetNodeId = nextHop;
             }
 
             // --- Movement: whenever a hop is committed ---
-            const targetNode = mapNetwork.getNode(unit.swarmState.targetNodeId!);
+            const targetNode = mapNetwork.getNode(swarmStateOf(unit).targetNodeId!);
             if (!targetNode) {
                 // Defensive — the graph changed under us (shouldn't happen mid-battle).
-                unit.swarmState.targetNodeId = null;
+                swarmStateOf(unit).targetNodeId = null;
                 queueWaitAndEndTurn(unit, context);
                 return;
             }

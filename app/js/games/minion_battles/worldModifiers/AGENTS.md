@@ -2,7 +2,7 @@
 
 ## Plan status
 
-- **v1 + v2 initiative complete** (H1–H4 done). See `docs/plans/world-modifiers.plan.md` and `docs/plans/world-modifiers-v2.plan.md`.
+- **v1 + v2 initiative complete** (H1–H4 done). See `docs/plans/done/world-modifiers.plan.md` and `docs/plans/done/world-modifiers-v2.plan.md`.
 - **H5 VisualEffect:** stub only — see § VisualEffect hook below; full wiring waits on the parallel VisualEffect definition system.
 - **Optional follow-up:** Step 6 built-in death migration (lanternite, alpha wolf, stack ghost) — checklist in v2 plan, not started.
 - **Unrelated pre-existing test failures:** `telegraphTracking.test.ts`, `SimulationRunner` swing sword extra uses.
@@ -224,7 +224,7 @@ Add a `setWorldModifiers` event to a mission's `levelEvents` array:
 
 ## Built-in modifiers
 
-`builtins/index.ts` (`BUILTIN_WORLD_MODIFIERS`) is currently empty. Per-character death behaviour does **not** belong here — built-ins run in every mission. Use the unit def instead: `onDeathVisualEffects`, `onDeathBehaviors`, or `deathSequence` for cinematic boss deaths (see `game/deathSequences/AGENTS.md`).
+`builtins/index.ts` (`BUILTIN_WORLD_MODIFIERS`) is currently empty. Per-character death behaviour does **not** belong here — built-ins run in every mission. Use the unit def instead: `onDeathVisualEffects`, a unit component's `onDeath` hook (see `game/units/components/unitComponentHooks.ts`), or `deathSequence` for cinematic boss deaths (see `game/deathSequences/AGENTS.md`).
 
 Ids starting with `_builtin_` are reserved for built-in world modifiers defined in `builtins/index.ts`. Do not use this prefix for mission or story defs.
 

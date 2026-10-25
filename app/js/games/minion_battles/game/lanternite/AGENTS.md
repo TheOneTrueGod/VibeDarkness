@@ -11,10 +11,19 @@ top of that shared graph.
 | File | Owns |
 |------|------|
 | `lanternitePulse.ts` | Constants (`LANTERNITE_CHARACTER_ID`, light amounts/radii), Soul Sap, `upsertLanternLightSource`, `upsertNestLightSource`, `processLanternitePulseMilestone`, nest hydration helpers |
-| `lanterniteNestTick.ts` | `processLanterniteNests` — per-tick nest spawn pacing, scout construction completion, network role assignment, construction particle emitters |
+| `lanterniteNestTick.ts` | `processLanterniteNests` — scout construction completion, defender promotion, construction particle emitters; `LANTERNITE_SPAWNER` (the nest's `SpawnerSpec`: child shape plus legacy-patrol gate and network role assignment) |
+| `lanterniteComponentHooks.ts` / `swarmComponentHooks.ts` | The lanternite / swarm component's engine hooks (`tick`, `lateTick` respawn queue, round milestones, `onDeath`); `GameEngine` reaches them only through `units/components/unitComponentHooks.ts` |
 | `LanterniteRespawnManager.ts` | Queues and fires Spore rebirth respawns after `LANTERNITE_RESPAWN_DELAY_SEC` |
 | `lanterniteNetworkUtils.ts` | Helpers for networked nest expansion: finding unoccupied connected POIs, counting children by role |
-| `swarmNestTick.ts` | `processSwarmNests` — the `swarm_nest` (dark-creature) counterpart to the lanternite nest network; `isNodeClaimedBySwarm`/`isValidUnclaimedBuildNode` (build-eligibility) and `findUnclaimedNetworkNode` (bootstrap-only fallback target picker, see below) |
+| `swarmNestTick.ts` | `SWARM_SPAWNER` (the swarm nest's `SpawnerSpec`); `processSwarmNests` — the `swarm_nest` (dark-creature) counterpart to the lanternite nest network; `isNodeClaimedBySwarm`/`isValidUnclaimedBuildNode` (build-eligibility) and `findUnclaimedNetworkNode` (bootstrap-only fallback target picker, see below) |
+
+## State, hooks and spawning (unit components)
+
+Lanternite and swarm state are **unit components**, not fields on `Unit`. `lanternite_nest` / `lanternite` / `swarm_nest` / `swarmling` declare `componentSpec(LANTERNITE_COMPONENT | SWARM_COMPONENT, { role })` on their defs; read the state with `lanterniteStateOf(unit)` / `swarmStateOf(unit)` (attaches a default slice when missing, use for the unit's own AI and writes) or `peekLanterniteState(unit)` / `peekSwarmState(unit)` (never attaches, use in scans over many units). `isLanterniteNest` / `isLanterniteCreature` / `isSwarmNest` / `isSwarmling` test the declared role. Serialized keys are unchanged (`lanterniteRole`, `swarmlingOrbitAngle`, ...). See `units/components/unitComponent.ts`.
+
+The engine runs these through component hooks at the same points as before: nest tick (lanternite, then swarm, then the lanternite respawn queue as `lateTick`), the `round_start` / `round_half` pulses, and `unit_died` (`onDeath`: torch removal and Spore Rebirth for creatures only).
+
+Both nests spawn through the shared spawner core (`units/components/spawnerCore.ts`): `tickSpawner` does prune, cap, timer, burst, placement, team and invulnerability inheritance and rescheduling from a `SpawnerSpec`; each nest supplies only `describeChild` (AI tree and hookup) and an optional `canSpawn` gate. `spawnSpawnerChildren` is the one-shot entry point for on-death or boss-wave spawns. Shared-construction pooling is `poolSharedConstruction`. Scout/swarmling construction completion stays per nest (different dead-builder handling, unit_died emission and nest config).
 
 ## Key mechanics
 

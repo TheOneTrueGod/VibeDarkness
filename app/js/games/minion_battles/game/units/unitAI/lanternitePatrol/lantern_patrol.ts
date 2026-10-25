@@ -8,6 +8,7 @@ import type { AINode } from '../types';
 import { distance } from '../utils';
 import { queueWaitAndEndTurn } from '../utils';
 import type { LanternitePatrolAITreeContext, LanternitePatrolNodeId } from './context';
+import { lanterniteStateOf } from '../../components/lanterniteComponent';
 
 const ARRIVAL_PX = 36;
 
@@ -15,8 +16,8 @@ export const lantern_patrol: AINode<'lanternitePatrol', LanternitePatrolNodeId> 
     nodeId: 'lantern_patrol',
     actions: {
         execute(unit: Unit, context: AIContext): void {
-            const nestId = unit.lanterniteState.nestOwnerUnitId;
-            const far = unit.lanterniteState.patrolFarWorld;
+            const nestId = lanterniteStateOf(unit).nestOwnerUnitId;
+            const far = lanterniteStateOf(unit).patrolFarWorld;
             const ctxAi = unit.aiContext as LanternitePatrolAITreeContext;
             ctxAi.aiTree = 'lanternitePatrol';
             ctxAi.aiState = 'lantern_patrol';
@@ -32,12 +33,12 @@ export const lantern_patrol: AINode<'lanternitePatrol', LanternitePatrolNodeId> 
             }
 
             const tgt =
-                unit.lanterniteState.patrolLeg === 'toFar' ? far : ({ x: nest.x, y: nest.y } as const);
+                lanterniteStateOf(unit).patrolLeg === 'toFar' ? far : ({ x: nest.x, y: nest.y } as const);
             if (distance(unit.x, unit.y, tgt.x, tgt.y) < ARRIVAL_PX) {
-                unit.lanterniteState.patrolLeg = unit.lanterniteState.patrolLeg === 'toFar' ? 'toNest' : 'toFar';
+                lanterniteStateOf(unit).patrolLeg = lanterniteStateOf(unit).patrolLeg === 'toFar' ? 'toNest' : 'toFar';
             }
 
-            const dest = unit.lanterniteState.patrolLeg === 'toFar' ? far : { x: nest.x, y: nest.y };
+            const dest = lanterniteStateOf(unit).patrolLeg === 'toFar' ? far : { x: nest.x, y: nest.y };
 
             context.nav.moveToPoint(unit, dest.x, dest.y);
             queueWaitAndEndTurn(unit, context);

@@ -18,29 +18,13 @@ import type {
     EnemySpawnDef,
     SpawnWaveEntry,
 } from '../../storylines/types';
-import { resolveEnemySpawnStats } from '../units/unit_defs/unitDef';
+import { getBaseSpawnDefs, resolveEnemySpawnStats } from '../units/unit_defs/unitDef';
 import { spawnUnit } from '../units/spawning/spawnUnit';
 import { enemySpawnDefToSpawnDefinition, spawnWaveEntryToSpawnDefinition } from '../units/spawning/adapters';
-import {
-    SLIME,
-    ENEMY_DARK_WOLF,
-    ENEMY_ALPHA_WOLF,
-    ENEMY_BOAR,
-    ENEMY_THORNBINDER,
-    ENEMY_SWARMLING,
-    ALLY_LANTERNITE,
-    getEnemyHealthMultiplier,
-} from '../../constants/enemyConstants';
+import { getEnemyHealthMultiplier } from '../../constants/enemyConstants';
 
-const BASE_SPAWN_DEFS: Record<string, EnemySpawnDef> = {
-    slime: SLIME,
-    dark_wolf: ENEMY_DARK_WOLF,
-    alpha_wolf: ENEMY_ALPHA_WOLF,
-    boar: ENEMY_BOAR,
-    thornbinder: ENEMY_THORNBINDER,
-    swarmling: ENEMY_SWARMLING,
-    lanternite: ALLY_LANTERNITE,
-};
+/** Base spawn templates come from the unit defs (`UnitDefEntry.baseSpawn`). */
+const BASE_SPAWN_DEFS: Record<string, EnemySpawnDef> = getBaseSpawnDefs();
 
 const ROUND_DURATION = 10;
 

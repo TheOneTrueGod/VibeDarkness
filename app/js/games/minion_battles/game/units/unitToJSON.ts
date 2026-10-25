@@ -1,13 +1,7 @@
 import type { Unit } from './Unit';
 import { PLAYER_CHARACTER_ID } from './unit_defs/unitDef';
 import { serializeTacticalPlan } from './unitAI/plans/planUtils';
-import { petStateToJSON } from './unitPetState';
-import {
-    lanterniteStateToJSONAfterSwarm,
-    lanterniteStateToJSONBeforeSwarm,
-    lanterniteStateToJSONBeforeWall,
-} from './unitLanterniteState';
-import { swarmStateToJSON } from './unitSwarmState';
+import { serializeUnitComponents } from './components/unitComponent';
 import { ccArmourStateToJSON } from '../../crowdControl/ccArmourState';
 
 export function serializeUnit(unit: Unit, currentGameTick: number): Record<string, unknown> {
@@ -156,13 +150,10 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
         ...(unit.tags.length > 0 ? { tags: [...unit.tags] } : {}),
         ...(unit.controllable === false ? { controllable: false } : {}),
         ...(unit.controlGroupId != null ? { controlGroupId: unit.controlGroupId } : {}),
-        ...lanterniteStateToJSONBeforeWall(unit),
+        // Component slices (lanternite, swarm, pet, ...) write their own top-level keys; see components/unitComponent.ts.
+        ...serializeUnitComponents(unit),
         ...(unit.wallEntryPoint != null ? { wallEntryPoint: { ...unit.wallEntryPoint } } : {}),
-        ...lanterniteStateToJSONBeforeSwarm(unit),
-        ...swarmStateToJSON(unit),
-        ...lanterniteStateToJSONAfterSwarm(unit),
         ...(unit.invulnerabilityGenerations != null ? { invulnerabilityGenerations: unit.invulnerabilityGenerations } : {}),
-        ...petStateToJSON(unit),
         tacticalPlan: unit.tacticalPlan
             ? serializeTacticalPlan(unit.tacticalPlan, currentGameTick)
             : null,

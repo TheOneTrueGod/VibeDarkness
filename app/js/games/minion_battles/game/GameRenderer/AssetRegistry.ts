@@ -2,32 +2,13 @@ import { Assets, Texture } from 'pixi.js';
 import type { EffectImageKey } from '../effectImages';
 import { EFFECT_IMAGE_SOURCES } from '../effectImages';
 import { getSpecialTileDef } from '../../storylines/specialTileDefs';
+import { UNIT_SPRITE_URLS } from '../units/unit_defs/unitSprites';
 import { getPortraitIds, PORTRAITS } from '../../character_defs/portraitLoader';
 
-const SLIME_SVG_URL = new URL('../../assets/characters/slime.svg', import.meta.url).href;
-const WOLF_HEAD_SVG_URL = new URL('../../assets/characters/dark_animals/wolf-head.svg', import.meta.url).href;
-const WOLF_HOWL_SVG_URL = new URL('../../assets/characters/dark_animals/wolf-howl.svg', import.meta.url).href;
-const BOAR_SVG_URL = new URL('../../assets/characters/dark_animals/boar.svg', import.meta.url).href;
-const LANTERNITE_SVG_URL = new URL('../../assets/characters/lanternite.svg', import.meta.url).href;
-const LANTERNITE_NEST_SVG_URL = new URL('../../assets/characters/lanternite_nest.svg', import.meta.url).href;
-const CURLING_VINES_SVG_URL = new URL('../../assets/characters/curling_vines.svg', import.meta.url).href;
-const SWARMLING_SVG_URL = new URL('../../assets/characters/dark_animals/swarmling.svg', import.meta.url).href;
-const DISPLACER_SPIRIT_SVG_URL = new URL('../../assets/characters/dark_animals/displacer_spirit.svg', import.meta.url).href;
-const THORNBINDER_SVG_URL = new URL('../../assets/characters/thornbinder.svg', import.meta.url).href;
-const DOG_PNG_URL = new URL('../../assets/characters/dog.png', import.meta.url).href;
 
 export class AssetRegistry {
-    private slimeTexture: Texture | null = null;
-    private wolfHeadTexture: Texture | null = null;
-    private wolfHowlTexture: Texture | null = null;
-    private boarTexture: Texture | null = null;
-    private lanterniteTexture: Texture | null = null;
-    private lanterniteNestTexture: Texture | null = null;
-    private curlingVinesTexture: Texture | null = null;
-    private swarmlingTexture: Texture | null = null;
-    private displacerSpiritTexture: Texture | null = null;
-    private thornbinderTexture: Texture | null = null;
-    private dogTexture: Texture | null = null;
+    /** Character textures by sprite key (`UNIT_SPRITE_URLS` / `UnitDefEntry.characterSpriteKey`). */
+    private characterTextures: Map<string, Texture> = new Map();
     private campfireTexture: Texture | null = null;
     private effectTextures: Partial<Record<EffectImageKey, Texture>> = {};
     private playerPortraitTextures: Map<string, Texture> = new Map();
@@ -36,18 +17,7 @@ export class AssetRegistry {
     pendingUnitSync: boolean = false;
 
     getCharacterTexture(characterId: string): Texture | null {
-        if (characterId === 'slime') return this.slimeTexture;
-        if (characterId === 'dark_wolf') return this.wolfHeadTexture;
-        if (characterId === 'alpha_wolf') return this.wolfHowlTexture;
-        if (characterId === 'boar') return this.boarTexture;
-        if (characterId === 'lanternite') return this.lanterniteTexture;
-        if (characterId === 'lanternite_nest') return this.lanterniteNestTexture;
-        if (characterId === 'curling_vines') return this.curlingVinesTexture;
-        if (characterId === 'swarmling') return this.swarmlingTexture;
-        if (characterId === 'displacer_spirit') return this.displacerSpiritTexture;
-        if (characterId === 'thornbinder') return this.thornbinderTexture;
-        if (characterId === 'dog') return this.dogTexture;
-        return null;
+        return this.characterTextures.get(characterId) ?? null;
     }
 
     getPlayerPortraitTexture(portraitId: string): Texture | null {
@@ -71,17 +41,9 @@ export class AssetRegistry {
             }
         };
 
-        await loadOne('slime SVG', SLIME_SVG_URL, (t) => { this.slimeTexture = t; });
-        await loadOne('wolf-head SVG', WOLF_HEAD_SVG_URL, (t) => { this.wolfHeadTexture = t; });
-        await loadOne('wolf-howl SVG', WOLF_HOWL_SVG_URL, (t) => { this.wolfHowlTexture = t; });
-        await loadOne('boar SVG', BOAR_SVG_URL, (t) => { this.boarTexture = t; });
-        await loadOne('lanternite SVG', LANTERNITE_SVG_URL, (t) => { this.lanterniteTexture = t; });
-        await loadOne('lanternite_nest SVG', LANTERNITE_NEST_SVG_URL, (t) => { this.lanterniteNestTexture = t; });
-        await loadOne('curling_vines SVG', CURLING_VINES_SVG_URL, (t) => { this.curlingVinesTexture = t; });
-        await loadOne('swarmling SVG', SWARMLING_SVG_URL, (t) => { this.swarmlingTexture = t; });
-        await loadOne('displacer_spirit SVG', DISPLACER_SPIRIT_SVG_URL, (t) => { this.displacerSpiritTexture = t; });
-        await loadOne('thornbinder SVG', THORNBINDER_SVG_URL, (t) => { this.thornbinderTexture = t; });
-        await loadOne('dog PNG', DOG_PNG_URL, (t) => { this.dogTexture = t; });
+        for (const [key, url] of Object.entries(UNIT_SPRITE_URLS)) {
+            await loadOne(`${key} sprite`, url, (t) => { this.characterTextures.set(key, t); });
+        }
 
         const campfireDef = getSpecialTileDef('Campfire');
         if (campfireDef?.image) {
@@ -111,15 +73,7 @@ export class AssetRegistry {
     }
 
     destroy(): void {
-        this.slimeTexture = null;
-        this.wolfHeadTexture = null;
-        this.wolfHowlTexture = null;
-        this.boarTexture = null;
-        this.lanterniteTexture = null;
-        this.lanterniteNestTexture = null;
-        this.curlingVinesTexture = null;
-        this.displacerSpiritTexture = null;
-        this.dogTexture = null;
+        this.characterTextures.clear();
         this.campfireTexture = null;
         this.effectTextures = {};
         this.playerPortraitTextures.clear();

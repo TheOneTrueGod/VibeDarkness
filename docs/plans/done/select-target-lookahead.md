@@ -4,7 +4,7 @@
 
 ## Context
 
-Interactive sequential targeting (see [`docs/plans/interactive-sequential-targeting.md`](../interactive-sequential-targeting.md) and [`docs/plans/sequential-targeting-hardening.md`](../sequential-targeting-hardening.md)) pauses **after** a SelectTargetDef interval has already entered on the current tick. That advances cast elapsed time into the active window before the player picks a target.
+Interactive sequential targeting (see [`docs/plans/done/interactive-sequential-targeting.md`](../interactive-sequential-targeting.md) and [`docs/plans/done/sequential-targeting-hardening.md`](../sequential-targeting-hardening.md)) pauses **after** a SelectTargetDef interval has already entered on the current tick. That advances cast elapsed time into the active window before the player picks a target.
 
 **Symptom:** Light Blast (`0801`) in playahead — windup plays, target cursor appears, click does nothing visible (no explosion, no damage). Double Punch still works because `MeleeAttack` keys off window-progress crossing, not `isFirstTick` alone.
 

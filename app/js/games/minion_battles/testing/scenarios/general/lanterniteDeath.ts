@@ -24,6 +24,7 @@ import {
     LANTERNITE_TORCH_RADIUS_TILES,
     LANTERNITE_RESPAWN_DELAY_SEC,
 } from '../../../game/lanternite/lanternitePulse';
+import { lanterniteStateOf } from '../../../game/units/components/lanterniteComponent';
 
 const P = TINY_BATTLE_PLAYER_ID;
 const CELL = 40;
@@ -170,7 +171,7 @@ export const lanterniteNestOwnedNoRespawnScenario: ScenarioDefinition = {
             engine,
         );
         // Mark as nest-owned — sporeRebirth must skip this unit.
-        lanternite.lanterniteState.nestOwnerUnitId = 'fake_nest_id';
+        lanterniteStateOf(lanternite).nestOwnerUnitId = 'fake_nest_id';
         engine.addUnit(lanternite, 'initialGameSpawn');
 
         engine.addLightSource(

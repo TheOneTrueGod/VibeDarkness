@@ -6,11 +6,11 @@
 >
 > **Step 2 complete (2026-06-19).** `overrideEffect` field on `WorldModifierDef`; `spawnLightSource` merge logic (stack/replace/max) in `WorldModifierRuntime.ts`; side map in `WorldModifierManager`; 3 new tests in `overrideEffect.test.ts` all green; same 2 pre-existing failures, no regressions.
 
-**Canonical file:** [`docs/plans/world-modifiers-v2.plan.md`](docs/plans/world-modifiers-v2.plan.md)
+**Canonical file:** [`docs/plans/done/world-modifiers-v2.plan.md`](docs/plans/done/world-modifiers-v2.plan.md)
 
 ## Agent Instructions
 
-Execute one step at a time via `/jp-implement-plan docs/plans/world-modifiers-v2.plan.md`.
+Execute one step at a time via `/jp-implement-plan docs/plans/done/world-modifiers-v2.plan.md`.
 
 For each step:
 
@@ -341,7 +341,7 @@ BattlePhase bridge implementations call `engine.state.worldModifierManager` / fa
 
 | Topic | Location |
 |-------|----------|
-| V1 plan (completed) | [`docs/plans/world-modifiers.plan.md`](docs/plans/world-modifiers.plan.md) |
+| V1 plan (completed) | [`docs/plans/done/world-modifiers.plan.md`](docs/plans/done/world-modifiers.plan.md) |
 | Agent guide | [`app/js/games/minion_battles/worldModifiers/AGENTS.md`](app/js/games/minion_battles/worldModifiers/AGENTS.md) |
 | Battle install path | [`app/js/games/minion_battles/game/BattleSession.ts`](app/js/games/minion_battles/game/BattleSession.ts) `finalizeEngine()` |
 | Build helper | [`app/js/games/minion_battles/worldModifiers/buildWorldModifiers.ts`](app/js/games/minion_battles/worldModifiers/buildWorldModifiers.ts) |

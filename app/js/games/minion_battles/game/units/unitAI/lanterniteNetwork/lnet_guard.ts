@@ -15,6 +15,7 @@ import {
 } from '../utils';
 import { getPerceptionRange } from '../../unit_defs/unitDef';
 import type { LanterniteNetworkAITreeContext, LanterniteNetworkNodeId } from './context';
+import { lanterniteStateOf } from '../../components/lanterniteComponent';
 
 /** Patrol ring: min and max distance from nest centre (px). */
 const PATROL_MIN_DIST_PX = 80;
@@ -80,8 +81,8 @@ export const lnet_guard: AINode<'lanterniteNetwork', LanterniteNetworkNodeId> = 
                 return;
             }
 
-            const nest = unit.lanterniteState.nestOwnerUnitId
-                ? context.getUnit(unit.lanterniteState.nestOwnerUnitId)
+            const nest = lanterniteStateOf(unit).nestOwnerUnitId
+                ? context.getUnit(lanterniteStateOf(unit).nestOwnerUnitId!)
                 : null;
             if (!nest?.isAlive()) {
                 queueWaitAndEndTurn(unit, context);
@@ -130,7 +131,7 @@ export const lnet_guard: AINode<'lanterniteNetwork', LanterniteNetworkNodeId> = 
             // Promoted to scout by its nest (see processLanterniteNests's defender promotion).
             targetNodeId: 'lnet_scout_travel',
             evaluate(unit: Unit): boolean {
-                return unit.lanterniteState.role === 'scout' && unit.lanterniteState.patrolFarWorld != null;
+                return lanterniteStateOf(unit).role === 'scout' && lanterniteStateOf(unit).patrolFarWorld != null;
             },
         },
         {

@@ -26,6 +26,7 @@ import {
     ARENA_OUTSIDE_ROAD_SPAWN_POINTS,
     BOSS_ARENA_CENTER,
 } from '../MapSegments/0_0_boss_arena';
+import { swarmStateOf } from '../../../game/units/components/swarmComponent';
 
 registerWorldOfDarknessSegments();
 
@@ -74,8 +75,8 @@ describe('SwarmlingNestMission', () => {
 
         const nest = engine.units.find((u) => u.characterId === SWARM_NEST_CHARACTER_ID);
         expect(nest).toBeDefined();
-        expect(nest!.swarmState.nestConfig?.spawnCount).toBe(SWARM_NEST_SPAWN_COUNT);
-        expect(nest!.swarmState.nestConfig?.spawnIntervalSec).toBe(SWARM_NEST_SPAWN_INTERVAL_SEC);
+        expect(swarmStateOf(nest!).nestConfig?.spawnCount).toBe(SWARM_NEST_SPAWN_COUNT);
+        expect(swarmStateOf(nest!).nestConfig?.spawnIntervalSec).toBe(SWARM_NEST_SPAWN_INTERVAL_SEC);
         engine.destroy();
     });
 

@@ -42,7 +42,7 @@ document order with unchecked items), then hands off a fresh agent with:
 
 > Read `.claude/skills/jp-implement-plan/SKILL.md` and follow it for the plan at
 
-> `app/js/games/minion_battles/PLANS/done/ability-boilerplate-reduction.md`.
+> `docs/plans/done/ability-boilerplate-reduction.md`.
 
 
 

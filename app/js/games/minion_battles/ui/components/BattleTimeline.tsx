@@ -11,18 +11,13 @@ import {
 import { getAbility } from '../../abilities/AbilityRegistry';
 import type { AbilityStatic } from '../../abilities/Ability';
 import type { Unit } from '../../game/units/Unit';
-import { isDarkCreatureCharacterId, PLAYER_CHARACTER_ID } from '../../game/units/unit_defs/unitDef';
+import { getUnitSpriteUrl, isDarkCreatureCharacterId, PLAYER_CHARACTER_ID } from '../../game/units/unit_defs/unitDef';
 import { getPortrait } from '../../character_defs/portraits';
 import { getTotalShieldHp } from '../../game/units/unitShield';
 import { SHIELD_RESOURCE_COLOR } from '../../resources/resourceDisplayDefs';
 import { TimelinePhaseSegment } from './TimelinePhaseSegment';
 import { TimelineHoverFlyout, type TimelineHoverFlyoutProps } from './TimelineHoverFlyout';
 import { ensureSvgViewBox } from './abilityIconSvg';
-import slimeIcon from '../../assets/characters/slime.svg';
-import wolfHeadIcon from '../../assets/characters/dark_animals/wolf-head.svg';
-import wolfHowlIcon from '../../assets/characters/dark_animals/wolf-howl.svg';
-import boarIcon from '../../assets/characters/dark_animals/boar.svg';
-import swarmlingIcon from '../../assets/characters/dark_animals/swarmling.svg';
 import {
     AbilityPhase,
     buildPrimaryTimelineSegments,
@@ -37,15 +32,6 @@ import {
 import { WaitAbility } from '../../abilities/WaitAbility';
 import { EXPOSED_BUFF_TYPE } from '../../buffs/ExposedBuff';
 import { getCastElapsed } from '../../game/time/actorClock';
-
-/** Character icon URLs for enemy timeline markers. Fallback to letter if unknown. */
-const ENEMY_CHARACTER_ICONS: Record<string, string> = {
-    slime: slimeIcon,
-    dark_wolf: wolfHeadIcon,
-    alpha_wolf: wolfHowlIcon,
-    boar: boarIcon,
-    swarmling: swarmlingIcon,
-};
 
 export type TimelinePanelHover =
     | {
@@ -230,7 +216,7 @@ function UnitRailIcon({
             );
         }
     }
-    const iconUrl = ENEMY_CHARACTER_ICONS[unit.characterId];
+    const iconUrl = getUnitSpriteUrl(unit.characterId);
     if (iconUrl) {
         const dark = isDarkCreatureCharacterId(unit.characterId);
         return (
@@ -290,7 +276,7 @@ function renderEnemyTimelineTrack(
                 {exposedMarkers.map((m) => {
                     const clampedEnd = Math.min(m.endFromNow, windowSeconds);
                     const widthPercent = (clampedEnd / windowSeconds) * 100;
-                    const iconUrl = ENEMY_CHARACTER_ICONS[m.unit.characterId];
+                    const iconUrl = getUnitSpriteUrl(m.unit.characterId);
                     const markerDark = isDarkCreatureCharacterId(m.unit.characterId);
                     const nameInitial = m.unit.name?.[0]?.toUpperCase() ?? '?';
                     return (
@@ -342,7 +328,7 @@ function renderEnemyTimelineTrack(
                         }
                     }
 
-                    const iconUrl = ENEMY_CHARACTER_ICONS[marker.unit.characterId];
+                    const iconUrl = getUnitSpriteUrl(marker.unit.characterId);
                     const markerDark = isDarkCreatureCharacterId(marker.unit.characterId);
                     const nameInitial = marker.unit.name?.[0]?.toUpperCase() ?? '?';
                     const rowKey = `enemy:${marker.unit.id}:${idx}`;

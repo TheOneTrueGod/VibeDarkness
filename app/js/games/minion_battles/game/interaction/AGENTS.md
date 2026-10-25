@@ -6,7 +6,7 @@ Player-facing battle interaction: targeting tools and the **Interactive Targetin
 
 **Resume mode (missing-pick pause):** when a real-timeline cast reaches a select its order lacks, the owner is paused with `awaitingPickLabel` set. `InteractiveTargetingSession.beginResume` starts ITS from that pause (cursor up at once), and Done sends one `updateTargets` order; Pass (`handleWait`) sends `wait`, which fizzles the cast. Details and the saved-data-only rule: [`docs/interactive-sequential-targeting.md`](../../../../../../docs/interactive-sequential-targeting.md).
 
-**ITS commit:** at commit time, `wouldCommitInPlace` decides **in-place** (keep the playahead state) vs **rollback** (restore the mark snapshot, with a rewind overlay). Predicate and UX: [`docs/interactive-sequential-targeting.md`](../../../../../../docs/interactive-sequential-targeting.md). Plan that introduced commit-time in-place / rewind: [`docs/plans/sequential-targeting-rollback-ux.md`](../../../../../../docs/plans/sequential-targeting-rollback-ux.md).
+**ITS commit:** at commit time, `wouldCommitInPlace` decides **in-place** (keep the playahead state) vs **rollback** (restore the mark snapshot, with a rewind overlay). Predicate and UX: [`docs/interactive-sequential-targeting.md`](../../../../../../docs/interactive-sequential-targeting.md). Plan that introduced commit-time in-place / rewind: [`docs/plans/done/sequential-targeting-rollback-ux.md`](../../../../../../docs/plans/done/sequential-targeting-rollback-ux.md).
 
 | Path | Owns |
 |------|------|

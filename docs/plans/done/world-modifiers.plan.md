@@ -2,11 +2,11 @@
 
 > **Completed 2026-06-19.** All v1 steps (1–8) are done and tests are green (two pre-existing failures in telegraphTracking and SimulationRunner unrelated to this system). Delivered: declarative `WorldModifierDef` type system, `WorldModifierManager` with EventBus integration, `spawnLightSource` / counter / mid-battle add-remove-disable effects, `setWorldModifiers` LevelEvent, Dark Swarm mission modifier on Last Holdout, `_builtin_default_death_vfx` migration from GameEngine, `WorldModifiersPanel` UI, checkpoint serialization, and `worldModifiers/AGENTS.md`. v2 handoffs (H1–H5) are documented in the plan and remain outstanding.
 
-**Canonical file:** [`docs/plans/world-modifiers.plan.md`](docs/plans/world-modifiers.plan.md)
+**Canonical file:** [`docs/plans/done/world-modifiers.plan.md`](docs/plans/done/world-modifiers.plan.md)
 
 ## Agent Instructions
 
-Execute one step at a time via `/jp-implement-plan docs/plans/world-modifiers.plan.md`.
+Execute one step at a time via `/jp-implement-plan docs/plans/done/world-modifiers.plan.md`.
 
 For each step:
 

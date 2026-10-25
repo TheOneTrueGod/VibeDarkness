@@ -10,6 +10,7 @@ import {
 } from '../../harness/buildTinyBattleEngine';
 import { createUnitFromSpawnConfig } from '../../../game/units/index';
 import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses';
+import { swarmStateOf } from '../../../game/units/components/swarmComponent';
 
 const P = TINY_BATTLE_PLAYER_ID;
 const CELL = 40;
@@ -147,7 +148,7 @@ export const swarmlingSharedConstructionScenario: ScenarioDefinition = {
 
         // `processSwarmNests`'s construction-completion path now resolves the new nest's spawn
         // position via `mapNetwork.getNode(...)` instead of the old `mapPOIs` + `terrainGrid`
-        // lookup (see `docs/plans/swarm-nest-network-migration.md` Step 2/3) — register a matching
+        // lookup (see `docs/plans/done/swarm-nest-network-migration.md` Step 2/3) — register a matching
         // network node (same id as the POI above) so construction can still complete here.
         // Mirrors `lanternites.ts`'s `engine.mapNetworkManager.loadFromSegments(...)` pattern; no
         // edges needed since this scenario hardcodes `swarmState.currentNodeId` directly and never
@@ -189,8 +190,8 @@ export const swarmlingSharedConstructionScenario: ScenarioDefinition = {
                 engine.eventBus,
                 engine,
             );
-            swarmling.swarmState.currentNodeId = 'swarm_shared_site';
-            swarmling.swarmState.orbitAngle = angle;
+            swarmStateOf(swarmling).currentNodeId = 'swarm_shared_site';
+            swarmStateOf(swarmling).orbitAngle = angle;
             initializeAbilityRuntimeForUnit(swarmling);
             engine.addUnit(swarmling, 'initialGameSpawn');
         }
@@ -223,7 +224,7 @@ export const swarmlingSharedConstructionScenario: ScenarioDefinition = {
     failureMessage(engine) {
         const nests = engine.units.filter((u) => u.characterId === 'swarm_nest' && u.isAlive());
         const swarmlings = engine.units.filter((u) => u.characterId === 'swarmling' && u.isAlive());
-        const buildTime = swarmlings[0]?.swarmState.constructionCompleteAtGameTime;
+        const buildTime = (swarmlings[0] ? swarmStateOf(swarmlings[0]).constructionCompleteAtGameTime : undefined);
         return (
             `alive nests=${nests.length} alive swarmlings=${swarmlings.length}` +
             (buildTime != null
@@ -267,7 +268,7 @@ export const swarmlingContestsOccupiedNestScenario: ScenarioDefinition = {
         const nestPos = swarmWorldOf(CONTEST_NEST_COL, CONTEST_NEST_ROW);
 
         // Two candidate network nodes: one close to the swarm nest, one genuinely unclaimed but
-        // much farther away. Per docs/plans/swarm-nest-network-migration.md decisions #1/#2 (and
+        // much farther away. Per docs/plans/done/swarm-nest-network-migration.md decisions #1/#2 (and
         // the later population-gradient migration, see game/lanternite/AGENTS.md), a swarmling's
         // build-eligibility check (`isValidUnclaimedBuildNode`/`isNodeClaimedBySwarm`) only
         // excludes nodes already claimed by the swarm's *own* units — a rival faction's structure
@@ -305,8 +306,8 @@ export const swarmlingContestsOccupiedNestScenario: ScenarioDefinition = {
             engine.eventBus,
             engine,
         );
-        nest.swarmState.nestConfig = { maxSwarmlings: 1, spawnIntervalSec: 1 };
-        nest.swarmState.nestSpawnState = { spawnedIds: [], nextSpawnAtGameTime: 0 };
+        swarmStateOf(nest).nestConfig = { maxSwarmlings: 1, spawnIntervalSec: 1 };
+        swarmStateOf(nest).nestSpawnState = { spawnedIds: [], nextSpawnAtGameTime: 0 };
         engine.addUnit(nest, 'initialGameSpawn');
 
         spawnTinyPlayerUnit(engine, {
@@ -328,20 +329,21 @@ export const swarmlingContestsOccupiedNestScenario: ScenarioDefinition = {
     assertPass(engine) {
         const swarmling = engine.units.find((u) => u.characterId === 'swarmling' && u.isAlive());
         return (
-            swarmling?.swarmState.currentNodeId === 'contest_near_node' &&
-            swarmling.swarmState.constructionCompleteAtGameTime != null
+            (swarmling ? swarmStateOf(swarmling).currentNodeId : undefined) === 'contest_near_node' &&
+            swarmling != null &&
+            swarmStateOf(swarmling).constructionCompleteAtGameTime != null
         );
     },
 
     failureMessage(engine) {
         const swarmling = engine.units.find((u) => u.characterId === 'swarmling' && u.isAlive());
         return swarmling
-            ? `swarmling currentNodeId=${swarmling.swarmState.currentNodeId ?? 'none'} targetNodeId=${swarmling.swarmState.targetNodeId ?? 'none'}`
+            ? `swarmling currentNodeId=${swarmStateOf(swarmling).currentNodeId ?? 'none'} targetNodeId=${swarmStateOf(swarmling).targetNodeId ?? 'none'}`
             : 'no swarmling spawned';
     },
 
     describeState(engine) {
         const swarmling = engine.units.find((u) => u.characterId === 'swarmling' && u.isAlive());
-        return `t=${engine.gameTime.toFixed(1)} swarmlingCurrentNode=${swarmling?.swarmState.currentNodeId ?? 'none'}`;
+        return `t=${engine.gameTime.toFixed(1)} swarmlingCurrentNode=${(swarmling ? swarmStateOf(swarmling).currentNodeId : undefined) ?? 'none'}`;
     },
 };
