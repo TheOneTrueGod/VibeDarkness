@@ -111,6 +111,7 @@ Buff durations (default), DoTs, regen, passives (`passiveRunner`), uses/cooldown
 - Do not give projectiles/summons the caster's tempo; they start at 1.
 - Do not widen the fast path: a step of at most `FIXED_DT` must stay a single call, or pace-1 tests drift.
 - New serialized time state must be omitted at defaults so pace-1 JSON and fingerprints stay byte-identical.
+- Per-tick clock outputs that are read between ticks must round-trip. `localFrozen` and `frozenHitPolicyFromStop` are serialized (only when set) because `fromJSON`'s waiter inference and frozen hits read them before the first restored tick; a restore mid Time Stop that saw a frozen hero as thawed formed an order pause the canonical run never had, and the fingerprint diverged when the stop ended (`timeStop.test.ts` "Time Stop checkpoint determinism").
 - Previews (ITS, ghost plans, play-ahead) run the same dilated engine path; ability-duration-to-ticks math takes the caster's step rate (`abilityDurationSecondsToTicks(sec, stepRate)`), tick caps stay in ticks.
 - Tests: Time Dilation AbilityTest section (`testing/scenarios/general/timeDilation.ts`), plus `*.test.ts` here.
 

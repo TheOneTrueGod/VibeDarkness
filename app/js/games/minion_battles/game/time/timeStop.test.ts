@@ -252,3 +252,31 @@ describe('frozen-hit policy', () => {
         restored.destroy();
     });
 });
+
+describe('Time Stop checkpoint determinism', () => {
+    // The hero is frozen with no order yet when the checkpoint is taken. A restore that saw it as thawed (localFrozen
+    // not round-tripped) inferred an order pause the canonical run never formed, so the pause after the stop shifted.
+    it('a run restored mid Time Stop matches the uninterrupted run on runtime fingerprint after the stop ends', () => {
+        const engine = makeEngine();
+        addVictim(engine);
+        engine.startTimeStop({ durationTickSeconds: 20 * FIXED_DT });
+        runTicks(engine, 5);
+        const json = JSON.parse(JSON.stringify(engine.toJSON()));
+        const restored = GameEngine.fromJSON(json, 'p1', engine.terrainManager, {
+            checkpointRuntimeFingerprintHex: fingerprintToHex(engine.runtimeFingerprint),
+        });
+        restored.isPaused = false;
+        expect(fingerprintToHex(restored.runtimeFingerprint)).toBe(fingerprintToHex(engine.runtimeFingerprint));
+
+        for (let i = 0; i < 60; i++) {
+            runTicks(engine, 1);
+            runTicks(restored, 1);
+            expect(restored.gameTick).toBe(engine.gameTick);
+            expect(fingerprintToHex(restored.runtimeFingerprint), `tick ${engine.gameTick}`).toBe(
+                fingerprintToHex(engine.runtimeFingerprint),
+            );
+        }
+        engine.destroy();
+        restored.destroy();
+    });
+});

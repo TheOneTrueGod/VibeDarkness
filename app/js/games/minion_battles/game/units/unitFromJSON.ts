@@ -171,6 +171,11 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
         unit.localClockActive = true;
     }
     unit.timeDebt = typeof data.timeDebt === 'number' ? data.timeDebt : 0;
+    unit.localFrozen = data.localFrozen === true;
+    unit.frozenHitPolicyFromStop =
+        data.frozenHitPolicyFromStop === 'immediate' || data.frozenHitPolicyFromStop === 'onResume'
+            ? data.frozenHitPolicyFromStop
+            : undefined;
     unit.pendingFrozenHits = Array.isArray(data.pendingFrozenHits)
         ? (data.pendingFrozenHits as PendingFrozenHit[]).map((h) => ({ ...h }))
         : [];

@@ -519,8 +519,7 @@ describe('serialization', () => {
         }
         expect(restored.gameTick).toBe(engine.gameTick);
         expect(restored.gameTime).toBe(engine.gameTime);
-        // Not compared: the runtime fingerprint of ANY engine restored mid Time Stop diverges once the stop ends (the
-        // restored hero forms its parallel order pause a tick differently; reproducible with a bare engine.startTimeStop).
+        expect(restored.getRuntimeFingerprintHex()).toBe(engine.getRuntimeFingerprintHex());
         engine.destroy();
         restored.destroy();
     });

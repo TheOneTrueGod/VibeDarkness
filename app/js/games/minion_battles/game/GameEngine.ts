@@ -2368,7 +2368,8 @@ export class GameEngine implements EngineContext {
             const extra: OrderWaiter[] = [];
             for (const unit of engine.units) {
                 if (!unit.active || !unit.isAlive()) continue;
-                if (!unit.isPlayerControlled() || !unit.canAct()) continue;
+                // Frozen units never owe orders (OrderManager.shouldPauseForOrders).
+                if (!unit.isPlayerControlled() || !unit.canAct() || unit.localFrozen) continue;
                 if (waiterUnitIds.has(unit.id)) continue;
                 // Drafts don't count as having answered; only confirmed orders satisfy a waiter's pause.
                 if (!engine.state.orderMgr.hasConfirmedOrderForUnit(unit.id, atTick)) {
@@ -2525,7 +2526,8 @@ export class GameEngine implements EngineContext {
             const inferredWaiters: OrderWaiter[] = [];
             for (const unit of engine.units) {
                 if (!unit.active) continue;
-                if (unit.isPlayerControlled() && unit.canAct() && unit.isAlive()) {
+                // Frozen units never owe orders (OrderManager.shouldPauseForOrders).
+                if (unit.isPlayerControlled() && unit.canAct() && unit.isAlive() && !unit.localFrozen) {
                     // Drafts don't count as confirmed; re-infer if only drafts exist from this tick on.
                     if (!engine.state.orderMgr.hasConfirmedOrderForUnit(unit.id, engine.gameTick)) {
                         inferredWaiters.push({ unitId: unit.id, ownerId: unit.ownerId });
