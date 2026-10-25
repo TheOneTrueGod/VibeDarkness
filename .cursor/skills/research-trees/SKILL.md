@@ -50,7 +50,7 @@ All tree and node definitions live in `app/js/researchTrees/`:
 Each tree has `colour` and `icon`. Cards and the Upgrades sidebar use those fields — do not keep a separate research-type enum.
 
 ### Campaign costs
-Weapon roots are free virtual roots. Weapons tree upgrades are metal-only (standard vs premium in `weaponResearchCosts.ts`). Core trees except Light follow `researchCostPolicy.ts`: about 20 total at tier 10 and about 30 at tier 15, interpolated between, with variety; tier 10 ≥ 10 crystals and 5 food; tier 15 ≥ 15 crystals and 5 food. Remaining lean: Earth → metal, Command → food, Gravity → crystals, Blood Mage → crystals and food. **Do not retune Light.**
+Weapon roots are free virtual roots. Weapons tree upgrades are metal-only (standard vs premium in `weaponResearchCosts.ts`). Core trees except Light follow `researchCostPolicy.ts`: about 20 total at tier 10 and about 30 at tier 15, interpolated between, with variety; tier 10 ≥ 10 attunement and 5 vigor; tier 15 ≥ 15 attunement and 5 vigor. Remaining lean: Earth → metal, Command → vigor, Gravity → attunement, Blood Mage → attunement and vigor. **Do not retune Light.**
 
 ### Node relationships
 - `prereqNodeIds` — nodes that must be researched before this one is available

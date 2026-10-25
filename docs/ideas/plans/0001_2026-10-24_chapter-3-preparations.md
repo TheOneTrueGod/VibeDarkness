@@ -57,9 +57,11 @@ The cleanups already asked for, plus what the investigation found about each.
 - `assets/characters/dark_animals/displacer_spirit.svg` already exists and the battle renderer uses it, but the Bestiary keeps its own `SPRITE_ICONS` map, and that map leaves it out. Add the Spirit there, and let the Clone resolve through its `characterSpriteKey`, or give it a tinted variant.
 - The root cause is that unit art is registered in two places. P1.1 removes that duplication so this can't happen again.
 
-### P0.5 Rename the "food" campaign resource
+### [x] P0.5 Rename the "food" campaign resource
 
 **Complexity:** Large (stored campaign data, about 110 references, backend arithmetic, narrative copy)
+
+**Done (with P0.6 and P1.6):** `food` is now `vigor` (label "Vigor", lucide `BicepsFlexed`, green `#22C55E`), so Ham means Hunger only. The rename covers research cost constants (`*_VIGOR_COST`, `minCoreResearchVigor`), mission and quest rewards (`*_VIGOR_REWARD`, `*_COMPLETION_VIGOR`, `FOUND_BERRIES_KEEP_VIGOR`), story `grant_resources` actions and tests. The Hunger tooltip now reads "Eat well to heal your wounds after a fight." Story prose about literal food ("Find some food", berries, sharing meat) stays, and so do all persisted mission, quest and option ids.
 
 Campaign food is spent on research nodes across every tree. Hunger is per-character and drains into health after a fight, but it shares food's look: both use the Ham icon, the Hunger tooltip says "Use food to heal your wounds", and the conversion animation flies food icons. Whichever name you pick, the new resource needs its own icon so that Ham means Hunger only.
 
@@ -70,18 +72,15 @@ Work involved:
 - Frontend: `campaignResources.ts`, `ResourcePill.tsx` (label, colour, icon), `partyStoryGrants.ts`, `storyChoiceOptions.ts`, `researchCostPolicy.ts`, every research tree's `*_FOOD_COST` constants, quest and mission `completionRewards`, and `chapterSkip.ts`. Update the Hunger copy and art too (`hungerHealth.ts` tooltip, the food icons in `HungerToHealthConversion.tsx`) so Hunger stops saying "food".
 - Narrative sources need new flavour: `quest_find_some_food`, `found_berries` ("Found Berries" location card) and the chapter 1 food rewards.
 
-> [!DECISION] What should the food resource be called?
-> - **Training**: the name you suggested. It fits what the resource is spent on and matches the existing **Training** research tree (Healthy / Mighty already cost food). Tree and currency would share a name, which is fine if the tree is the "obvious" place to spend it.
-> - **Vigor**: physical and generic. It covers research costs, and it doesn't clash with Hunger or with the Training tree's name.
-> - **Experience**: the most familiar to players for "points you spend on upgrades", but it suggests levelling, which the game doesn't have.
-> - **Grit**: flavourful and short, a good fit for a party slogging through darkness. It's less obvious as a currency.
-> - **Insight**: pairs with Knowledge and Research, but it overlaps with Attunement (another mental currency) after P0.6.
->
-> Recommendation: **Training**.
+**Decided:** Vigor (key `vigor`).
 
-### P0.6 Rename "crystals" to "attunement"
+### [x] P0.6 Rename "crystals" to "attunement"
 
 **Complexity:** Large (do it in the same migration as P0.5)
+
+**Done (with P0.5):** `crystals` is now `attunement` (label "Attunement", lucide `Sparkles`, violet `#8B5CF6`), and the knowledge key `Crystals` is now `KNOWLEDGE_RESOURCE_ATTUNEMENT` (`ResourceAttunement`, "Resource: Attunement"). Attunement is deliberately not knowledge-gated yet, because no player has that knowledge and gating would hide it from everyone. Grant it from a mission first. Dark crystals, the Crystal Shield, crystal caves and the `crystal_corruption` id are untouched.
+
+Migration: `M0005ResourceRename` plus save version 5 for campaigns and characters, with the rename logic in `backend/SaveData/ResourceRenames.php`. It renames campaign `resources`, every `resourceDelta` (mission results, nested victory rewards, quest results, active quest runs), character knowledge, and account knowledge (swept by M0005, plus a lazy rename in `PlayerAccount::fromArray`). It was checked against a copy of local storage: 32 characters, 8 campaigns and 1 account changed, a re-run is a no-op, and no old keys remain. Saves also migrate lazily on load. Local `storage/` has not been migrated; run `npm run migrate` when ready (deploy runs it automatically).
 
 - Same plumbing as P0.5: backend `RESOURCE_KEYS`, stored `resources.crystals` and `resourceDelta.crystals`, `ResourcePill`, research costs, `darkness_upgrades.ts` copy, quest rewards.
 - The account knowledge key `'Crystals'` is stored on accounts, so the migration also renames that key (to `ResourceAttunement`, see P0.8). Today `'Crystals'` and `'Forging'` are in the knowledge registry but nothing checks them. P0.7 gives Attunement's knowledge a real job.
@@ -163,9 +162,11 @@ Adding one enemy currently means editing about seven places: the `EnemyUnitId` u
 - 24 abilities still use `doCardEffect` and 18 use `castBehaviours`. The Hard TODOs for ThrowRock, ThrowChargedRock and ThrowKnife are all blocked on the same missing piece: a research-aware projectile CastBehaviour pattern (different timings per research node).
 - New Chapter 3 weapons will have research variants and will copy whatever pattern exists. Design that pattern and migrate those three throw abilities as reference implementations. The rest of the migration TODOs can stay opportunistic.
 
-### P1.6 Campaign resource registry (frontend and backend)
+### [x] P1.6 Campaign resource registry (frontend and backend)
 
 **Complexity:** Medium. **Prerequisite for P0.5, P0.6 and P0.7**
+
+**Done (prerequisite for P0.5 and P0.6):** frontend `CAMPAIGN_RESOURCE_DEFS` in `campaignResources.ts` (key, label, colour, `missionBonus`, optional `knowledgeKey` / `signed`). `CampaignResourceKey` derives from it, and so do `CAMPAIGN_RESOURCE_KEYS`, `MISSION_BONUS_RESOURCE_KEYS`, `ZERO_CAMPAIGN_RESOURCES` and the knowledge gating. Icons stay in `ResourcePill.tsx`. Backend: public `Campaign::RESOURCE_KEYS` plus `SIGNED_RESOURCE_KEYS` for hunger, with every per-key block now a loop, `Campaign::zeroResources()`, and grant validation against the constant.
 
 - Resource keys are hard-coded per key in `ZERO_CAMPAIGN_RESOURCES`, `sumLatestMissionResourceDeltas`, `campaignResourcesEqual` (`campaignResources.ts`), `ResourcePill` (`RESOURCE_ORDER` and the label table), `partyStoryGrants.ResourceDelta`, `storyChoiceOptions`, `researchCostPolicy`, and `Campaign.php` (spelled out key by key in four methods and its PHPDoc shapes).
 - Replace these with a `CAMPAIGN_RESOURCE_DEFS` table (key, label, icon, colour, `knowledgeKey`, `isPenalty` for hunger) and loop over it, and loop over `RESOURCE_KEYS` in PHP. After that, renaming or adding a resource is data plus a migration.

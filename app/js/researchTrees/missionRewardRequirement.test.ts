@@ -37,7 +37,7 @@ function makeCtx(): ResearchContext {
             missionId: '',
             researchTrees: {},
         }),
-        campaignResources: { food: 100, metal: 100, population: 10, crystals: 100 } as CampaignResources,
+        campaignResources: { vigor: 100, metal: 100, population: 10, attunement: 100 } as CampaignResources,
     };
 }
 

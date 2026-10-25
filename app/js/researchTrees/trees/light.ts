@@ -47,44 +47,44 @@ export const LIGHT_INCREASED_RADIANCE_USES_PER_RANK = 1;
 export const LIGHT_RADIANT_REACH_RANGE_MULT = 2;
 
 /**
- * Campaign research costs. Light leans crystal (about half to two-thirds of each node),
- * every node asks for a little food, and the remainder is metal. Totals climb from
+ * Campaign research costs. Light leans Attunement (about half to two-thirds of each node),
+ * every node asks for a little Vigor, and the remainder is metal. Totals climb from
  * about 20 at tier 10 toward about 40 at tier 15 — rounded, not interpolated to the unit.
  */
-export const LIGHT_CORE_CRYSTAL_COST = 12;
-export const LIGHT_CORE_FOOD_COST = 3;
+export const LIGHT_CORE_ATTUNEMENT_COST = 12;
+export const LIGHT_CORE_VIGOR_COST = 3;
 export const LIGHT_CORE_METAL_COST = 5;
 
-export const LIGHT_RADIANT_REACH_CRYSTAL_COST = 8;
-export const LIGHT_RADIANT_REACH_FOOD_COST = 2;
+export const LIGHT_RADIANT_REACH_ATTUNEMENT_COST = 8;
+export const LIGHT_RADIANT_REACH_VIGOR_COST = 2;
 export const LIGHT_RADIANT_REACH_METAL_COST = 3;
 
-export const LIGHT_IMBUEMENT_CRYSTAL_COST = 16;
-export const LIGHT_IMBUEMENT_FOOD_COST = 4;
+export const LIGHT_IMBUEMENT_ATTUNEMENT_COST = 16;
+export const LIGHT_IMBUEMENT_VIGOR_COST = 4;
 export const LIGHT_IMBUEMENT_METAL_COST = 8;
 
-export const LIGHT_GATHER_LIGHT_CRYSTAL_COST = 16;
-export const LIGHT_GATHER_LIGHT_FOOD_COST = 3;
+export const LIGHT_GATHER_LIGHT_ATTUNEMENT_COST = 16;
+export const LIGHT_GATHER_LIGHT_VIGOR_COST = 3;
 export const LIGHT_GATHER_LIGHT_METAL_COST = 6;
 
-export const LIGHT_INCREASED_RADIANCE_CRYSTAL_COST = 18;
-export const LIGHT_INCREASED_RADIANCE_FOOD_COST = 4;
+export const LIGHT_INCREASED_RADIANCE_ATTUNEMENT_COST = 18;
+export const LIGHT_INCREASED_RADIANCE_VIGOR_COST = 4;
 export const LIGHT_INCREASED_RADIANCE_METAL_COST = 6;
 
-export const LIGHT_SHIELD_CRYSTAL_COST = 20;
-export const LIGHT_SHIELD_FOOD_COST = 5;
+export const LIGHT_SHIELD_ATTUNEMENT_COST = 20;
+export const LIGHT_SHIELD_VIGOR_COST = 5;
 export const LIGHT_SHIELD_METAL_COST = 7;
 
-export const LIGHT_ATTUNED_CRYSTAL_COST = 18;
-export const LIGHT_ATTUNED_FOOD_COST = 6;
+export const LIGHT_ATTUNED_ATTUNEMENT_COST = 18;
+export const LIGHT_ATTUNED_VIGOR_COST = 6;
 export const LIGHT_ATTUNED_METAL_COST = 8;
 
-export const LIGHT_SHIELD_FLARE_CRYSTAL_COST = 22;
-export const LIGHT_SHIELD_FLARE_FOOD_COST = 4;
+export const LIGHT_SHIELD_FLARE_ATTUNEMENT_COST = 22;
+export const LIGHT_SHIELD_FLARE_VIGOR_COST = 4;
 export const LIGHT_SHIELD_FLARE_METAL_COST = 10;
 
-export const LIGHT_LAY_HANDS_CRYSTAL_COST = 22;
-export const LIGHT_LAY_HANDS_FOOD_COST = 5;
+export const LIGHT_LAY_HANDS_ATTUNEMENT_COST = 22;
+export const LIGHT_LAY_HANDS_VIGOR_COST = 5;
 export const LIGHT_LAY_HANDS_METAL_COST = 9;
 
 export const lightTree: ResearchTreeDef = {
@@ -110,8 +110,8 @@ export const lightTree: ResearchTreeDef = {
                 { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.LightCore },
             ],
             cost: {
-                crystals: LIGHT_CORE_CRYSTAL_COST,
-                food: LIGHT_CORE_FOOD_COST,
+                attunement: LIGHT_CORE_ATTUNEMENT_COST,
+                vigor: LIGHT_CORE_VIGOR_COST,
                 metal: LIGHT_CORE_METAL_COST,
             },
             effects: [
@@ -136,8 +136,8 @@ export const lightTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: LIGHT_TREE_ID, nodeIds: [LIGHT_NODE_CORE] },
             ],
             cost: {
-                crystals: LIGHT_IMBUEMENT_CRYSTAL_COST,
-                food: LIGHT_IMBUEMENT_FOOD_COST,
+                attunement: LIGHT_IMBUEMENT_ATTUNEMENT_COST,
+                vigor: LIGHT_IMBUEMENT_VIGOR_COST,
                 metal: LIGHT_IMBUEMENT_METAL_COST,
             },
             effects: [
@@ -160,8 +160,8 @@ export const lightTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: LIGHT_TREE_ID, nodeIds: [LIGHT_NODE_CORE] },
             ],
             cost: {
-                crystals: LIGHT_GATHER_LIGHT_CRYSTAL_COST,
-                food: LIGHT_GATHER_LIGHT_FOOD_COST,
+                attunement: LIGHT_GATHER_LIGHT_ATTUNEMENT_COST,
+                vigor: LIGHT_GATHER_LIGHT_VIGOR_COST,
                 metal: LIGHT_GATHER_LIGHT_METAL_COST,
             },
             effects: [],
@@ -189,8 +189,8 @@ export const lightTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: LIGHT_TREE_ID, nodeIds: [LIGHT_NODE_CORE] },
             ],
             cost: {
-                crystals: LIGHT_INCREASED_RADIANCE_CRYSTAL_COST,
-                food: LIGHT_INCREASED_RADIANCE_FOOD_COST,
+                attunement: LIGHT_INCREASED_RADIANCE_ATTUNEMENT_COST,
+                vigor: LIGHT_INCREASED_RADIANCE_VIGOR_COST,
                 metal: LIGHT_INCREASED_RADIANCE_METAL_COST,
             },
             effects: [],
@@ -219,8 +219,8 @@ export const lightTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: LIGHT_TREE_ID, nodeIds: [LIGHT_NODE_IMBUEMENT] },
             ],
             cost: {
-                crystals: LIGHT_RADIANT_REACH_CRYSTAL_COST,
-                food: LIGHT_RADIANT_REACH_FOOD_COST,
+                attunement: LIGHT_RADIANT_REACH_ATTUNEMENT_COST,
+                vigor: LIGHT_RADIANT_REACH_VIGOR_COST,
                 metal: LIGHT_RADIANT_REACH_METAL_COST,
             },
             effects: [],
@@ -249,8 +249,8 @@ export const lightTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: LIGHT_TREE_ID, nodeIds: [LIGHT_NODE_CORE] },
             ],
             cost: {
-                crystals: LIGHT_ATTUNED_CRYSTAL_COST,
-                food: LIGHT_ATTUNED_FOOD_COST,
+                attunement: LIGHT_ATTUNED_ATTUNEMENT_COST,
+                vigor: LIGHT_ATTUNED_VIGOR_COST,
                 metal: LIGHT_ATTUNED_METAL_COST,
             },
             effects: [],
@@ -272,8 +272,8 @@ export const lightTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: LIGHT_TREE_ID, nodeIds: [LIGHT_NODE_CORE] },
             ],
             cost: {
-                crystals: LIGHT_SHIELD_CRYSTAL_COST,
-                food: LIGHT_SHIELD_FOOD_COST,
+                attunement: LIGHT_SHIELD_ATTUNEMENT_COST,
+                vigor: LIGHT_SHIELD_VIGOR_COST,
                 metal: LIGHT_SHIELD_METAL_COST,
             },
             effects: [
@@ -296,8 +296,8 @@ export const lightTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: LIGHT_TREE_ID, nodeIds: [LIGHT_NODE_SHIELD_OF_LIGHT] },
             ],
             cost: {
-                crystals: LIGHT_SHIELD_FLARE_CRYSTAL_COST,
-                food: LIGHT_SHIELD_FLARE_FOOD_COST,
+                attunement: LIGHT_SHIELD_FLARE_ATTUNEMENT_COST,
+                vigor: LIGHT_SHIELD_FLARE_VIGOR_COST,
                 metal: LIGHT_SHIELD_FLARE_METAL_COST,
             },
             effects: [],
@@ -326,8 +326,8 @@ export const lightTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: LIGHT_TREE_ID, nodeIds: [LIGHT_NODE_CORE] },
             ],
             cost: {
-                crystals: LIGHT_LAY_HANDS_CRYSTAL_COST,
-                food: LIGHT_LAY_HANDS_FOOD_COST,
+                attunement: LIGHT_LAY_HANDS_ATTUNEMENT_COST,
+                vigor: LIGHT_LAY_HANDS_VIGOR_COST,
                 metal: LIGHT_LAY_HANDS_METAL_COST,
             },
             effects: [

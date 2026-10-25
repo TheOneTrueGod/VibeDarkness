@@ -69,12 +69,12 @@ describe('computeMatchHungerLoss', () => {
 
 describe('withHungerDelta', () => {
     it('leaves the delta unchanged when the hunger change is 0', () => {
-        expect(withHungerDelta({ food: 2 }, 0)).toEqual({ food: 2 });
+        expect(withHungerDelta({ vigor: 2 }, 0)).toEqual({ vigor: 2 });
         expect(withHungerDelta(undefined, 0)).toBeUndefined();
     });
 
     it('adds a negative hunger delta onto an existing delta', () => {
-        expect(withHungerDelta({ food: 2 }, -4)).toEqual({ food: 2, hunger: -4 });
+        expect(withHungerDelta({ vigor: 2 }, -4)).toEqual({ vigor: 2, hunger: -4 });
         expect(withHungerDelta(undefined, -4)).toEqual({ hunger: -4 });
     });
 

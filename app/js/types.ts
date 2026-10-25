@@ -1,6 +1,7 @@
 /**
  * Shared frontend types for lobby, players, and API payloads
  */
+import type { CAMPAIGN_RESOURCE_DEFS } from './campaignResources';
 import type { BattleOrder } from './games/minion_battles/game/types';
 import type { MissionVictoryRecord } from './games/minion_battles/storylines/missionVictoryRecord';
 import type { ResearchNodeLevels, ResearchNodeSources } from './researchTrees/types';
@@ -78,16 +79,11 @@ export interface MissionResult {
     victory?: MissionVictoryRecord;
 }
 
-export interface CampaignResources {
-    food: number;
-    metal: number;
-    population: number;
-    crystals: number;
-    /** Signed hunger delta (negative = lost to wounds + missing HP, positive = recovered). */
-    hunger: number;
-}
+/** Resource keys come from the `CAMPAIGN_RESOURCE_DEFS` table in `campaignResources.ts`. */
+export type CampaignResourceKey = (typeof CAMPAIGN_RESOURCE_DEFS)[number]['key'];
 
-export type CampaignResourceKey = keyof CampaignResources;
+/** Campaign resource totals. `hunger` is a signed delta (negative = lost to wounds + missing HP, positive = recovered). */
+export type CampaignResources = Record<CampaignResourceKey, number>;
 
 /** Stub campaign region entry (lord domains later). */
 export interface CampaignRegionState {

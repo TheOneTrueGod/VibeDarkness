@@ -252,7 +252,7 @@ export default function CharacterEditor({
     const [selectedTreeId, setSelectedTreeId] = useState<string | null>(null);
     const [adminUseGridView, setAdminUseGridView] = useState(true);
     const [localCampaign, setLocalCampaign] = useState<CampaignState | null>(null);
-    const [grantResourceKey, setGrantResourceKey] = useState<CampaignResourceKey>('food');
+    const [grantResourceKey, setGrantResourceKey] = useState<CampaignResourceKey>('vigor');
     const [grantResourceAmount, setGrantResourceAmount] = useState<string>('1');
 
     const selectedPortraitId = portraitIds[portraitIndex] ?? portraitIds[0];

@@ -12,7 +12,7 @@ import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 import {
     FOUND_BERRIES_EAT_HUNGER_RECOVERY,
-    FOUND_BERRIES_KEEP_FOOD,
+    FOUND_BERRIES_KEEP_VIGOR,
     LOCATION_PLAINS_TAG,
     PLAINS_STORY_CHALLENGE_RATING,
 } from './questMissionConstants';
@@ -57,7 +57,7 @@ const POST_MISSION_STORY: PostMissionStoryDef = {
                     loreDescription: 'Pack them carefully.',
                     action: {
                         type: 'grant_resources',
-                        food: FOUND_BERRIES_KEEP_FOOD,
+                        vigor: FOUND_BERRIES_KEEP_VIGOR,
                     },
                 },
                 buildSearchForLooseMetalsOption(),

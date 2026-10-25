@@ -6,17 +6,17 @@ import {
     EARTH_NODE_ROCK_SYNERGY_ENTOMBED,
     EARTH_NODE_RAPID_THROW,
     EARTH_NODE_EARTH_ATTUNED,
-    EARTH_BURIED_ARSENAL_CRYSTAL_COST,
-    EARTH_BURIED_ARSENAL_FOOD_COST,
+    EARTH_BURIED_ARSENAL_ATTUNEMENT_COST,
+    EARTH_BURIED_ARSENAL_VIGOR_COST,
     EARTH_BURIED_ARSENAL_METAL_COST,
-    EARTH_STONE_SYNERGY_CRYSTAL_COST,
-    EARTH_STONE_SYNERGY_FOOD_COST,
+    EARTH_STONE_SYNERGY_ATTUNEMENT_COST,
+    EARTH_STONE_SYNERGY_VIGOR_COST,
     EARTH_STONE_SYNERGY_METAL_COST,
-    EARTH_RAPID_THROW_CRYSTAL_COST,
-    EARTH_RAPID_THROW_FOOD_COST,
+    EARTH_RAPID_THROW_ATTUNEMENT_COST,
+    EARTH_RAPID_THROW_VIGOR_COST,
     EARTH_RAPID_THROW_METAL_COST,
-    EARTH_ATTUNED_CRYSTAL_COST,
-    EARTH_ATTUNED_FOOD_COST,
+    EARTH_ATTUNED_ATTUNEMENT_COST,
+    EARTH_ATTUNED_VIGOR_COST,
     EARTH_ATTUNED_METAL_COST,
     EARTH_TREE_ID,
 } from './trees/earth';
@@ -24,26 +24,26 @@ import type { CampaignCharacter } from '../games/minion_battles/character_defs/C
 import type { CampaignResources } from '../types';
 
 const STONE_SYNERGY_COST = {
-    crystals: EARTH_STONE_SYNERGY_CRYSTAL_COST,
-    food: EARTH_STONE_SYNERGY_FOOD_COST,
+    attunement: EARTH_STONE_SYNERGY_ATTUNEMENT_COST,
+    vigor: EARTH_STONE_SYNERGY_VIGOR_COST,
     metal: EARTH_STONE_SYNERGY_METAL_COST,
 };
 
 const BURIED_ARSENAL_COST = {
-    crystals: EARTH_BURIED_ARSENAL_CRYSTAL_COST,
-    food: EARTH_BURIED_ARSENAL_FOOD_COST,
+    attunement: EARTH_BURIED_ARSENAL_ATTUNEMENT_COST,
+    vigor: EARTH_BURIED_ARSENAL_VIGOR_COST,
     metal: EARTH_BURIED_ARSENAL_METAL_COST,
 };
 
 const RAPID_THROW_COST = {
-    crystals: EARTH_RAPID_THROW_CRYSTAL_COST,
-    food: EARTH_RAPID_THROW_FOOD_COST,
+    attunement: EARTH_RAPID_THROW_ATTUNEMENT_COST,
+    vigor: EARTH_RAPID_THROW_VIGOR_COST,
     metal: EARTH_RAPID_THROW_METAL_COST,
 };
 
 const ATTUNED_COST = {
-    crystals: EARTH_ATTUNED_CRYSTAL_COST,
-    food: EARTH_ATTUNED_FOOD_COST,
+    attunement: EARTH_ATTUNED_ATTUNEMENT_COST,
+    vigor: EARTH_ATTUNED_VIGOR_COST,
     metal: EARTH_ATTUNED_METAL_COST,
 };
 
@@ -64,13 +64,13 @@ describe('earth tree campaign costs', () => {
         const node = earthTree.nodes.find((n) => n.id === EARTH_NODE_ROCK_SYNERGY_DAMAGE)!;
         expect(getResearchNodePurchaseCost(node, 0)).toEqual(STONE_SYNERGY_COST);
         expect(getResearchNodePurchaseCost(node, 1)).toEqual({
-            crystals: EARTH_STONE_SYNERGY_CRYSTAL_COST * 2,
-            food: EARTH_STONE_SYNERGY_FOOD_COST * 2,
+            attunement: EARTH_STONE_SYNERGY_ATTUNEMENT_COST * 2,
+            vigor: EARTH_STONE_SYNERGY_VIGOR_COST * 2,
             metal: EARTH_STONE_SYNERGY_METAL_COST * 2,
         });
     });
 
-    it('Buried Arsenal costs a flat crystal/food/metal mix', () => {
+    it('Buried Arsenal costs a flat attunement/vigor/metal mix', () => {
         const node = earthTree.nodes.find((n) => n.id === EARTH_NODE_ROCK_SYNERGY_ENTOMBED)!;
         expect(getResearchNodePurchaseCost(node, 0)).toEqual(BURIED_ARSENAL_COST);
     });
@@ -93,10 +93,10 @@ describe('earth tree campaign costs', () => {
             EARTH_NODE_ROCK_SYNERGY_DAMAGE,
             makeCtx(
                 {
-                    food: EARTH_STONE_SYNERGY_FOOD_COST,
+                    vigor: EARTH_STONE_SYNERGY_VIGOR_COST,
                     metal: EARTH_STONE_SYNERGY_METAL_COST - 1,
                     population: 0,
-                    crystals: EARTH_STONE_SYNERGY_CRYSTAL_COST,
+                    attunement: EARTH_STONE_SYNERGY_ATTUNEMENT_COST,
                     hunger: 0,
                 },
                 { [EARTH_TREE_ID]: [earthTree.nodes[0]!.id] },

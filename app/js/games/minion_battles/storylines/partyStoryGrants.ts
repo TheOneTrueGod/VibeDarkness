@@ -3,9 +3,10 @@
  */
 
 import { SPECTATOR_ID, isControlEnemy } from '../state';
+import { MISSION_BONUS_RESOURCE_KEYS, type MissionBonusResourceDelta } from '../../../campaignResources';
 import type { StoryChoiceActionGrantResources, StoryChoiceOptionRow } from './storyTypes';
 
-export type ResourceDelta = Partial<Record<'food' | 'metal' | 'crystals', number>>;
+export type ResourceDelta = MissionBonusResourceDelta;
 
 export function isGrantResourcesAction(
     action: { type: string } | undefined,
@@ -21,9 +22,10 @@ export function choiceOptionsHaveAlsoGrantToOthers(options: StoryChoiceOptionRow
 
 export function addResourceDelta(into: ResourceDelta, add: ResourceDelta | undefined): void {
     if (!add) return;
-    if (add.food != null) into.food = (into.food ?? 0) + add.food;
-    if (add.metal != null) into.metal = (into.metal ?? 0) + add.metal;
-    if (add.crystals != null) into.crystals = (into.crystals ?? 0) + add.crystals;
+    for (const key of MISSION_BONUS_RESOURCE_KEYS) {
+        const amount = add[key];
+        if (amount != null) into[key] = (into[key] ?? 0) + amount;
+    }
 }
 
 /** Non-spectator, non-NPC-controller player ids. */

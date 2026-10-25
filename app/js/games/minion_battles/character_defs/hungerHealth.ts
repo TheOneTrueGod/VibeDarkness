@@ -19,7 +19,7 @@ export const HUNGER_PENALTY_TIERS: readonly HungerPenaltyTier[] = [
 
 export const HUNGER_BAR_TOOLTIP =
     'Hunger: How well fed this character is.\n' +
-    'Use food to heal your wounds after a fight.\n' +
+    'Eat well to heal your wounds after a fight.\n' +
     '<15: Lose 25% max health\n' +
     '0: Lose 50% max health';
 

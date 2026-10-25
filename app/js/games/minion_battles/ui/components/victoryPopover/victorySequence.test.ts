@@ -60,7 +60,7 @@ describe('stage helpers', () => {
 });
 
 describe('victoryConversionAnimationMs', () => {
-    it('outlasts the sequence, so Continue shows while the food is still flying', () => {
+    it('outlasts the sequence, so Continue shows while the hunger icons are still flying', () => {
         const sequenceMs = victorySequenceTotalMs(buildVictoryTimeline(full));
         expect(victoryConversionAnimationMs(1, false)).toBe(VICTORY_CONVERSION_ANIMATION_MS);
         expect(victoryConversionAnimationMs(1, false)).toBeGreaterThan(sequenceMs);

@@ -21,7 +21,7 @@ const EMPTY_PAYLOAD: CampaignRewardsPayload = {
 };
 
 const FULL_PAYLOAD: CampaignRewardsPayload = {
-    resourceDelta: { crystals: 2, food: 1 },
+    resourceDelta: { attunement: 2, vigor: 1 },
     unlockItemIds: ['item_a', 'item_b'],
     knowledgeKeys: ['BoarHerdFound'],
     itemCardIds: ['card_x', 'item_a'],
@@ -45,7 +45,7 @@ describe('isCampaignRewardsPayloadEmpty / grant args', () => {
 
     it('maps Campaign Rewards onto existing mission grant fields (deduped items)', () => {
         expect(campaignRewardsToMissionGrantArgs(FULL_PAYLOAD)).toEqual({
-            resourceDelta: { crystals: 2, food: 1 },
+            resourceDelta: { attunement: 2, vigor: 1 },
             grantKnowledgeKeys: ['BoarHerdFound'],
             itemIds: ['item_a', 'item_b', 'card_x'],
             researchRewardIds: ['tree+node'],

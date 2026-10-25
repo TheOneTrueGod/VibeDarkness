@@ -20,12 +20,12 @@ export const TRAINING_HEALTHY_MAX_HEALTH_ADD = 50;
 export const TRAINING_MIGHTY_LEVELS = 5;
 export const TRAINING_MIGHTY_ALL_DAMAGE_MULT = 1.5;
 
-/** Food cost per level for Healthy. */
-export const TRAINING_PASSIVE_NODE_FOOD_COST = 15;
+/** Vigor cost per level for Healthy. */
+export const TRAINING_PASSIVE_NODE_VIGOR_COST = 15;
 
 /** Mighty per-level campaign resource cost. */
 export const TRAINING_MIGHTY_METAL_COST = 15;
-export const TRAINING_MIGHTY_FOOD_COST = 5;
+export const TRAINING_MIGHTY_VIGOR_COST = 5;
 
 export const trainingTree: ResearchTreeDef = {
     id: TRAINING_TREE_ID,
@@ -70,7 +70,7 @@ export const trainingTree: ResearchTreeDef = {
                 { type: 'notResearched', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_SNEAKY_PUNCH },
                 { type: 'notResearched', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_CHARGING_PUNCH },
             ],
-            cost: { food: 20 },
+            cost: { vigor: 20 },
             effects: [{ type: 'replaceCard', fromCardId: '0120', toCardId: '0116' }],
             modifiesAbility: { from: '0120', to: '0116' },
         },
@@ -89,7 +89,7 @@ export const trainingTree: ResearchTreeDef = {
                 { type: 'notResearched', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_SNEAKY_PUNCH },
                 { type: 'notResearched', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_CHARGING_PUNCH },
             ],
-            cost: { food: 20 },
+            cost: { vigor: 20 },
             effects: [{ type: 'replaceCard', fromCardId: '0120', toCardId: '0117' }],
             modifiesAbility: { from: '0120', to: '0117' },
         },
@@ -108,7 +108,7 @@ export const trainingTree: ResearchTreeDef = {
                 { type: 'notResearched', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_STRONG_PUNCH },
                 { type: 'notResearched', treeId: TRAINING_TREE_ID, nodeId: TRAINING_NODE_CHARGING_PUNCH },
             ],
-            cost: { food: 20 },
+            cost: { vigor: 20 },
             effects: [{ type: 'replaceCard', fromCardId: '0120', toCardId: '0118' }],
             modifiesAbility: { from: '0120', to: '0118' },
         },
@@ -129,7 +129,7 @@ export const trainingTree: ResearchTreeDef = {
                 // Its hit grants a Light Charge to Throw Charged Rock, so it is pointless without Charged Rocks equipped.
                 { type: 'characterHasEquippedItem', itemId: WEAPON_ITEM_CHARGED_ROCKS },
             ],
-            cost: { food: 20 },
+            cost: { vigor: 20 },
             effects: [{ type: 'replaceCard', fromCardId: '0120', toCardId: '0119' }],
             modifiesAbility: { from: '0120', to: '0119' },
         },
@@ -146,7 +146,7 @@ export const trainingTree: ResearchTreeDef = {
             requirements: [
                 { type: 'accountKnowledge', key: 'Research' },
             ],
-            cost: { food: TRAINING_PASSIVE_NODE_FOOD_COST },
+            cost: { vigor: TRAINING_PASSIVE_NODE_VIGOR_COST },
             effects: [],
             levels: TRAINING_HEALTHY_LEVELS,
             passiveBonus: {
@@ -166,7 +166,7 @@ export const trainingTree: ResearchTreeDef = {
             requirements: [
                 { type: 'accountKnowledge', key: 'Research' },
             ],
-            cost: { metal: TRAINING_MIGHTY_METAL_COST, food: TRAINING_MIGHTY_FOOD_COST },
+            cost: { metal: TRAINING_MIGHTY_METAL_COST, vigor: TRAINING_MIGHTY_VIGOR_COST },
             effects: [],
             levels: TRAINING_MIGHTY_LEVELS,
             passiveBonus: {

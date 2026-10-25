@@ -38,7 +38,7 @@ import { getItemDef } from '../../../character_defs/items';
 export const CAVE_WEAPON_ITEM_IDS = ['011', '012', '013', '014'] as const;
 
 /** Crystal-cave haul on the way to the inner campfire. */
-export const TOWARDS_THE_LIGHT_CRYSTAL_REWARD = 5;
+export const TOWARDS_THE_LIGHT_ATTUNEMENT_REWARD = 5;
 export const TOWARDS_THE_LIGHT_METAL_REWARD = 5;
 
 const COLS = 66;
@@ -227,7 +227,7 @@ export class TowardsTheLightMission extends BaseMissionDef {
     completionRewards = {
         knowledgeKeys: ['Research'],
         resourceDelta: {
-            crystals: TOWARDS_THE_LIGHT_CRYSTAL_REWARD,
+            attunement: TOWARDS_THE_LIGHT_ATTUNEMENT_REWARD,
             metal: TOWARDS_THE_LIGHT_METAL_REWARD,
         },
         unlockItemTiers: [{ slot: 'weapon' as const, tier: 2 }],

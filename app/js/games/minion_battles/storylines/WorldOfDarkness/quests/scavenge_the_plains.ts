@@ -9,8 +9,8 @@ import {
     LOCATION_PLAINS_TAG,
     PLAINS_RANDOM_STORY_CHALLENGE_MAX,
     PLAINS_RANDOM_STORY_CHALLENGE_MIN,
-    SCAVENGE_THE_PLAINS_COMPLETION_CRYSTALS,
-    SCAVENGE_THE_PLAINS_COMPLETION_FOOD,
+    SCAVENGE_THE_PLAINS_COMPLETION_ATTUNEMENT,
+    SCAVENGE_THE_PLAINS_COMPLETION_VIGOR,
     SCAVENGE_THE_PLAINS_COMPLETION_METAL,
 } from '../questMissions/questMissionConstants';
 import { QUEST_FIND_SOME_FOOD_MISSION_ID } from '../questMissions/quest_find_some_food';
@@ -42,8 +42,8 @@ export const SCAVENGE_THE_PLAINS: QuestDef = {
     ],
     completionRewards: {
         resourceDelta: {
-            crystals: SCAVENGE_THE_PLAINS_COMPLETION_CRYSTALS,
-            food: SCAVENGE_THE_PLAINS_COMPLETION_FOOD,
+            attunement: SCAVENGE_THE_PLAINS_COMPLETION_ATTUNEMENT,
+            vigor: SCAVENGE_THE_PLAINS_COMPLETION_VIGOR,
             metal: SCAVENGE_THE_PLAINS_COMPLETION_METAL,
         },
     },

@@ -32,7 +32,7 @@ import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 /** Meat from the cliff-inlet hunt. */
 /** Hunger recovered in the post-mission feast (clamped to max Hunger). */
 export const LIGHT_EMPOWERED_HUNGER_RECOVERY = 100;
-export const LIGHT_EMPOWERED_FOOD_REWARD = 8;
+export const LIGHT_EMPOWERED_VIGOR_REWARD = 8;
 
 const SEGMENT_COLS = 22;
 const SEGMENT_ROWS = 22;
@@ -236,7 +236,7 @@ export class LightEmpoweredMission extends BaseMissionDef {
 	name = 'Find some food';
 	completionRewards = {
 		knowledgeKeys: ['Research'],
-		resourceDelta: { food: LIGHT_EMPOWERED_FOOD_REWARD },
+		resourceDelta: { vigor: LIGHT_EMPOWERED_VIGOR_REWARD },
 	};
 	worldWidth = WORLD_WIDTH;
 	worldHeight = WORLD_HEIGHT;

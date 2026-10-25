@@ -26,40 +26,40 @@ export const EARTH_ATTUNED_CLAW_USES_PER_RANK = 1;
 /** Card ids Earth Attuned boosts: Bone Claws and its Digging Claws upgrade. */
 export const EARTH_ATTUNED_CLAW_ABILITY_IDS = ['0111', '0534'] as const;
 
-export const EARTH_CORE_CRYSTAL_COST = 10;
-export const EARTH_CORE_FOOD_COST = 5;
+export const EARTH_CORE_ATTUNEMENT_COST = 10;
+export const EARTH_CORE_VIGOR_COST = 5;
 export const EARTH_CORE_METAL_COST = 6;
 
-export const EARTH_DIGGING_CLAWS_CRYSTAL_COST = 6;
-export const EARTH_DIGGING_CLAWS_FOOD_COST = 4;
+export const EARTH_DIGGING_CLAWS_ATTUNEMENT_COST = 6;
+export const EARTH_DIGGING_CLAWS_VIGOR_COST = 4;
 export const EARTH_DIGGING_CLAWS_METAL_COST = 7;
 
-export const EARTH_STONE_SYNERGY_CRYSTAL_COST = 5;
-export const EARTH_STONE_SYNERGY_FOOD_COST = 4;
+export const EARTH_STONE_SYNERGY_ATTUNEMENT_COST = 5;
+export const EARTH_STONE_SYNERGY_VIGOR_COST = 4;
 export const EARTH_STONE_SYNERGY_METAL_COST = 8;
 
-export const EARTH_BURIED_ARSENAL_CRYSTAL_COST = 6;
-export const EARTH_BURIED_ARSENAL_FOOD_COST = 3;
+export const EARTH_BURIED_ARSENAL_ATTUNEMENT_COST = 6;
+export const EARTH_BURIED_ARSENAL_VIGOR_COST = 3;
 export const EARTH_BURIED_ARSENAL_METAL_COST = 8;
 
-export const EARTH_RAPID_THROW_CRYSTAL_COST = 11;
-export const EARTH_RAPID_THROW_FOOD_COST = 5;
+export const EARTH_RAPID_THROW_ATTUNEMENT_COST = 11;
+export const EARTH_RAPID_THROW_VIGOR_COST = 5;
 export const EARTH_RAPID_THROW_METAL_COST = 11;
 
-export const EARTH_ATTUNED_CRYSTAL_COST = 10;
-export const EARTH_ATTUNED_FOOD_COST = 5;
+export const EARTH_ATTUNED_ATTUNEMENT_COST = 10;
+export const EARTH_ATTUNED_VIGOR_COST = 5;
 export const EARTH_ATTUNED_METAL_COST = 9;
 
-export const EARTH_GATHER_STONE_CRYSTAL_COST = 11;
-export const EARTH_GATHER_STONE_FOOD_COST = 6;
+export const EARTH_GATHER_STONE_ATTUNEMENT_COST = 11;
+export const EARTH_GATHER_STONE_VIGOR_COST = 6;
 export const EARTH_GATHER_STONE_METAL_COST = 10;
 
-export const EARTH_GRINDING_DEBRIS_CRYSTAL_COST = 12;
-export const EARTH_GRINDING_DEBRIS_FOOD_COST = 5;
+export const EARTH_GRINDING_DEBRIS_ATTUNEMENT_COST = 12;
+export const EARTH_GRINDING_DEBRIS_VIGOR_COST = 5;
 export const EARTH_GRINDING_DEBRIS_METAL_COST = 12;
 
-export const EARTH_STONE_TOMB_CRYSTAL_COST = 10;
-export const EARTH_STONE_TOMB_FOOD_COST = 5;
+export const EARTH_STONE_TOMB_ATTUNEMENT_COST = 10;
+export const EARTH_STONE_TOMB_VIGOR_COST = 5;
 export const EARTH_STONE_TOMB_METAL_COST = 9;
 
 export const earthTree: ResearchTreeDef = {
@@ -85,8 +85,8 @@ export const earthTree: ResearchTreeDef = {
                 { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.EarthCore },
             ],
             cost: {
-                crystals: EARTH_CORE_CRYSTAL_COST,
-                food: EARTH_CORE_FOOD_COST,
+                attunement: EARTH_CORE_ATTUNEMENT_COST,
+                vigor: EARTH_CORE_VIGOR_COST,
                 metal: EARTH_CORE_METAL_COST,
             },
             effects: [
@@ -109,8 +109,8 @@ export const earthTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
             cost: {
-                crystals: EARTH_DIGGING_CLAWS_CRYSTAL_COST,
-                food: EARTH_DIGGING_CLAWS_FOOD_COST,
+                attunement: EARTH_DIGGING_CLAWS_ATTUNEMENT_COST,
+                vigor: EARTH_DIGGING_CLAWS_VIGOR_COST,
                 metal: EARTH_DIGGING_CLAWS_METAL_COST,
             },
             effects: [{ type: 'replaceCard', fromCardId: '0111', toCardId: '0534' }],
@@ -129,8 +129,8 @@ export const earthTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
             cost: {
-                crystals: EARTH_STONE_SYNERGY_CRYSTAL_COST,
-                food: EARTH_STONE_SYNERGY_FOOD_COST,
+                attunement: EARTH_STONE_SYNERGY_ATTUNEMENT_COST,
+                vigor: EARTH_STONE_SYNERGY_VIGOR_COST,
                 metal: EARTH_STONE_SYNERGY_METAL_COST,
             },
             purchaseCostMultipliesByTargetLevel: true,
@@ -155,8 +155,8 @@ export const earthTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
             cost: {
-                crystals: EARTH_BURIED_ARSENAL_CRYSTAL_COST,
-                food: EARTH_BURIED_ARSENAL_FOOD_COST,
+                attunement: EARTH_BURIED_ARSENAL_ATTUNEMENT_COST,
+                vigor: EARTH_BURIED_ARSENAL_VIGOR_COST,
                 metal: EARTH_BURIED_ARSENAL_METAL_COST,
             },
             effects: [],
@@ -180,8 +180,8 @@ export const earthTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
             cost: {
-                crystals: EARTH_RAPID_THROW_CRYSTAL_COST,
-                food: EARTH_RAPID_THROW_FOOD_COST,
+                attunement: EARTH_RAPID_THROW_ATTUNEMENT_COST,
+                vigor: EARTH_RAPID_THROW_VIGOR_COST,
                 metal: EARTH_RAPID_THROW_METAL_COST,
             },
             effects: [],
@@ -208,8 +208,8 @@ export const earthTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
             cost: {
-                crystals: EARTH_ATTUNED_CRYSTAL_COST,
-                food: EARTH_ATTUNED_FOOD_COST,
+                attunement: EARTH_ATTUNED_ATTUNEMENT_COST,
+                vigor: EARTH_ATTUNED_VIGOR_COST,
                 metal: EARTH_ATTUNED_METAL_COST,
             },
             effects: [],
@@ -236,8 +236,8 @@ export const earthTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
             cost: {
-                crystals: EARTH_GATHER_STONE_CRYSTAL_COST,
-                food: EARTH_GATHER_STONE_FOOD_COST,
+                attunement: EARTH_GATHER_STONE_ATTUNEMENT_COST,
+                vigor: EARTH_GATHER_STONE_VIGOR_COST,
                 metal: EARTH_GATHER_STONE_METAL_COST,
             },
             effects: [{ type: 'addCard', cardId: '0536' }],
@@ -255,8 +255,8 @@ export const earthTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_GATHER_STONE] }],
             cost: {
-                crystals: EARTH_GRINDING_DEBRIS_CRYSTAL_COST,
-                food: EARTH_GRINDING_DEBRIS_FOOD_COST,
+                attunement: EARTH_GRINDING_DEBRIS_ATTUNEMENT_COST,
+                vigor: EARTH_GRINDING_DEBRIS_VIGOR_COST,
                 metal: EARTH_GRINDING_DEBRIS_METAL_COST,
             },
             effects: [],
@@ -274,8 +274,8 @@ export const earthTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [],
             requirements: [{ type: 'anyResearched', treeId: EARTH_TREE_ID, nodeIds: [EARTH_NODE_EARTH_CORE] }],
             cost: {
-                crystals: EARTH_STONE_TOMB_CRYSTAL_COST,
-                food: EARTH_STONE_TOMB_FOOD_COST,
+                attunement: EARTH_STONE_TOMB_ATTUNEMENT_COST,
+                vigor: EARTH_STONE_TOMB_VIGOR_COST,
                 metal: EARTH_STONE_TOMB_METAL_COST,
             },
             effects: [{ type: 'addCard', cardId: '0530' }],

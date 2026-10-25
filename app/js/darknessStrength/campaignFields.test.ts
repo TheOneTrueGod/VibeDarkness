@@ -17,7 +17,7 @@ const BASE_CAMPAIGN: Omit<CampaignState, 'darknessStrengthInstances'> = {
     name: 'Test',
     campaignCharacters: [],
     missionResults: [],
-    resources: { food: 0, metal: 0, population: 0, crystals: 0, hunger: 0 },
+    resources: { vigor: 0, metal: 0, population: 0, attunement: 0, hunger: 0 },
 };
 
 describe('campaign DarknessStrength API payload shape', () => {

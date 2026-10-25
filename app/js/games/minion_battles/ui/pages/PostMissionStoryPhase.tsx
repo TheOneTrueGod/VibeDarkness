@@ -6,6 +6,7 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { flushSync } from 'react-dom';
 import type { MissionResearchRewardEntry, PlayerState } from '../../../../types';
+import type { MissionBonusResourceDelta } from '../../../../campaignResources';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import { MessageType } from '../../../../MessageTypes';
 import type {
@@ -80,7 +81,7 @@ function isGrantResearchConditional(
 }
 
 export interface MissionRewards {
-    resourceDelta?: Partial<Record<'food' | 'metal' | 'crystals', number>>;
+    resourceDelta?: MissionBonusResourceDelta;
     itemFromFirstChoice?: string;
     researchRewardIds?: string[];
     researchRewards?: MissionResearchRewardEntry[];
@@ -183,7 +184,7 @@ export default function PostMissionStoryPhase({
     const accumulatedResearchIdsRef = useRef<string[]>([]);
     const accumulatedResearchEntriesRef = useRef<MissionResearchRewardEntry[]>([]);
     const firstEquipItemRef = useRef<string | undefined>(undefined);
-    const accumulatedResourceDeltaRef = useRef<Partial<Record<'food' | 'metal' | 'crystals', number>>>({});
+    const accumulatedResourceDeltaRef = useRef<MissionBonusResourceDelta>({});
     const accumulatedHealWoundsRef = useRef<number>(0);
     /** Signed Hunger changes in the order their phrases were reached. */
     const accumulatedHungerChangesRef = useRef<number[]>([]);
@@ -436,10 +437,10 @@ export default function PostMissionStoryPhase({
             const resourceDelta =
                 Object.keys(resourceDeltaFlat).length > 0
                     ? {
-                          ...(resourceDeltaFlat.food != null && { food: resourceDeltaFlat.food }),
+                          ...(resourceDeltaFlat.vigor != null && { vigor: resourceDeltaFlat.vigor }),
                           ...(resourceDeltaFlat.metal != null && { metal: resourceDeltaFlat.metal }),
-                          ...(resourceDeltaFlat.crystals != null && {
-                              crystals: resourceDeltaFlat.crystals,
+                          ...(resourceDeltaFlat.attunement != null && {
+                              attunement: resourceDeltaFlat.attunement,
                           }),
                       }
                     : undefined;
@@ -554,9 +555,9 @@ export default function PostMissionStoryPhase({
 
             if (!amNpcController && isGrantResources(action) && action) {
                 addResourceDelta(accumulatedResourceDeltaRef.current, {
-                    food: action.food,
+                    vigor: action.vigor,
                     metal: action.metal,
-                    crystals: action.crystals,
+                    attunement: action.attunement,
                 });
             }
 

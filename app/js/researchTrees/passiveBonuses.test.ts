@@ -12,7 +12,7 @@ import {
     TRAINING_HEALTHY_LEVELS,
     TRAINING_HEALTHY_MAX_HEALTH_ADD,
     TRAINING_MIGHTY_ALL_DAMAGE_MULT,
-    TRAINING_MIGHTY_FOOD_COST,
+    TRAINING_MIGHTY_VIGOR_COST,
     TRAINING_MIGHTY_LEVELS,
     TRAINING_MIGHTY_METAL_COST,
     TRAINING_NODE_HEALTHY,
@@ -48,11 +48,11 @@ describe('passiveBonuses helpers', () => {
         expect(bonuses.all_damage?.add).toBe(0);
     });
 
-    it('prices Mighty in metal and food per level', () => {
+    it('prices Mighty in metal and Vigor per level', () => {
         const node = trainingTree.nodes.find((n) => n.id === TRAINING_NODE_MIGHTY);
         expect(node?.cost).toEqual({
             metal: TRAINING_MIGHTY_METAL_COST,
-            food: TRAINING_MIGHTY_FOOD_COST,
+            vigor: TRAINING_MIGHTY_VIGOR_COST,
         });
     });
 
@@ -135,7 +135,7 @@ describe('leveled research availability', () => {
                 knowledge: { Research: {} },
             } satisfies AccountState,
             character: charWithItem,
-            campaignResources: { food: 100, metal: 0, population: 0, crystals: 0 } as CampaignResources,
+            campaignResources: { vigor: 100, metal: 0, population: 0, attunement: 0 } as CampaignResources,
         };
         const check = canResearchNode(trainingTree, TRAINING_NODE_HEALTHY, ctx);
         expect(check.ok).toBe(true);

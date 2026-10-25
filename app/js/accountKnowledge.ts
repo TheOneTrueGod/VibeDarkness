@@ -25,13 +25,19 @@ export const KNOWLEDGE_SYSTEM_UPGRADES = 'SystemUpgrades';
  */
 export const KNOWLEDGE_RESOURCE_POPULATION = 'ResourcePopulation';
 
+/**
+ * Knowledge of Resource: Attunement (formerly stored as `Crystals`). Reserved for gating the attunement campaign
+ * resource in player-facing rows; the resource table does not use it yet. See `CAMPAIGN_RESOURCE_DEFS`.
+ */
+export const KNOWLEDGE_RESOURCE_ATTUNEMENT = 'ResourceAttunement';
+
 export interface AccountKnowledgeDef {
     key: string;
     label: string;
 }
 
 export const ACCOUNT_KNOWLEDGE: readonly AccountKnowledgeDef[] = [
-    { key: 'Crystals', label: 'Crystals' },
+    { key: KNOWLEDGE_RESOURCE_ATTUNEMENT, label: 'Resource: Attunement' },
     { key: 'Forging', label: 'Forging' },
     { key: 'Research', label: 'Research' },
     { key: KNOWLEDGE_EQUIPMENT_SLOT_UTILITY_1, label: 'Equipment Slot: Utility 1' },

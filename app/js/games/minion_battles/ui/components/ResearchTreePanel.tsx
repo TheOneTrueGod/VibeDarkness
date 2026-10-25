@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import type { AccountState, CampaignResources } from '../../../../types';
+import type { AccountState, CampaignResourceKey, CampaignResources } from '../../../../types';
 import type { CampaignCharacter } from '../../character_defs/CampaignCharacter';
 import {
 	isDisabledResearchNode,
@@ -24,7 +24,12 @@ import { getNodeLevel, getNodeMaxLevels } from '../../../../researchTrees/passiv
 import { getInactiveResearchNodeIds } from '../../../../researchTrees/activeResearch';
 import { computeResearchTreeNodePositions } from '../../../../researchTrees/researchTreeLayout';
 import ResourcePill, { RESOURCE_ORDER } from '../../../../components/ResourcePill';
-import { visibleCampaignResources } from '../../../../campaignResources';
+import {
+	CAMPAIGN_RESOURCE_KEYS,
+	campaignResourceDef,
+	visibleCampaignResources,
+	ZERO_CAMPAIGN_RESOURCES,
+} from '../../../../campaignResources';
 import type { AccountKnowledgeMap } from '../../../../accountKnowledge';
 import { getCharacterHungerDelta, getCharacterMaxHunger, hungerFromDelta } from '../../character_defs/characterHunger';
 import { HUNGER_RESOURCE_KEY } from '../../storylines/matchHunger';
@@ -102,7 +107,10 @@ function getResearchBlockReason(missing: string[]): string | null {
 	if (first === MISSION_REWARD_MISSING) return 'Only available as a mission reward.';
 	if (first.startsWith('insufficient_')) {
 		const resource = first.replace('insufficient_', '');
-		return `Not enough ${resource}.`;
+		const label = CAMPAIGN_RESOURCE_KEYS.includes(resource as CampaignResourceKey)
+			? campaignResourceDef(resource as CampaignResourceKey).label
+			: resource;
+		return `Not enough ${label}.`;
 	}
 	return 'Cannot be researched yet.';
 }
@@ -750,13 +758,7 @@ export interface ResearchedNodesGridProps {
 	onResetAdminResearch?: () => void;
 }
 
-const EMPTY_CAMPAIGN_RESOURCES: CampaignResources = {
-	food: 0,
-	metal: 0,
-	population: 0,
-	crystals: 0,
-	hunger: 0,
-};
+const EMPTY_CAMPAIGN_RESOURCES: CampaignResources = ZERO_CAMPAIGN_RESOURCES;
 
 function ResearchGridCards({
 	entries,

@@ -29,8 +29,10 @@ use App\Migrations\MigrationRegistry;
 use App\Migrations\MigrationRunner;
 use App\Migrations\Versions\M0003EquipmentUpgradeRewards;
 use App\Migrations\Versions\M0004WeaponsResearchTree;
+use App\Migrations\Versions\M0005ResourceRename;
 use App\SaveData\CampaignMigrations;
 use App\SaveData\CharacterMigrations;
+use App\SaveData\ResourceRenames;
 use App\SaveData\SaveMigrator;
 use App\SaveData\StorageRoot;
 
@@ -412,23 +414,99 @@ function runSelfTest(): int
         $cs = $readDisk('characters/c_shield.json');
         $cp = $readDisk('characters/c_plain.json');
         $cc = $readDisk('campaigns/camp3.json');
-        $check('0003+0004: applied', $code === 0 && MigrationLedger::load($store)->currentVersion() === 4);
+        $check('0003+0004: applied', $code === 0 && MigrationLedger::load($store)->currentVersion() === 5);
         $check('0003+0004: Rocks character -> Charged Rocks + More Power in the Weapons tree',
             $cr['equipment'] === ['004', '011'] && $cr['researchTrees'] === ['weapons' => ['throw_rock', 'more_power']]
-            && $cr['researchNodeLevels']['weapons']['more_power'] === 2 && $cr['version'] === 4,
+            && $cr['researchNodeLevels']['weapons']['more_power'] === 2 && $cr['version'] === 5,
             json_encode($cr));
         $check('0003+0004: Shield character -> Charged Shield', $cs['equipment'] === ['004', '016'] && $cs['researchTrees']['weapons'] === ['raise_shield'], json_encode($cs));
-        $check('0003+0004: plain character keeps equipment, research moves to weapons', $cp['equipment'] === ['004', '002'] && $cp['researchTrees'] === ['weapons' => ['swing_stick']] && $cp['version'] === 4);
+        $check('0003+0004: plain character keeps equipment, research moves to weapons', $cp['equipment'] === ['004', '002'] && $cp['researchTrees'] === ['weapons' => ['swing_stick']] && $cp['version'] === 5);
         $unlockedDisk = $cc['unlockedItemIds'] ?? [];
         sort($unlockedDisk);
         $check('0003: campaign unlocks tier 1-2 items plus equipped 016',
-            $unlockedDisk === ['001', '002', '003', '011', '012', '013', '014', '015', '016'] && ($cc['version'] ?? 0) === 4, json_encode($cc['unlockedItemIds'] ?? null));
+            $unlockedDisk === ['001', '002', '003', '011', '012', '013', '014', '015', '016'] && ($cc['version'] ?? 0) === 5, json_encode($cc['unlockedItemIds'] ?? null));
         // Re-running up() on migrated data changes nothing (idempotent).
         $before = [json_encode($cr), json_encode($cs), json_encode($cc)];
         (new M0003EquipmentUpgradeRewards())->up(new MigrationContext($store, $quiet));
         (new M0004WeaponsResearchTree())->up(new MigrationContext($store, $quiet));
         $after = [json_encode($readDisk('characters/c_rocks.json')), json_encode($readDisk('characters/c_shield.json')), json_encode($readDisk('campaigns/camp3.json'))];
         $check('0003+0004: up() is idempotent', $before === $after);
+    } finally {
+        StorageRoot::setOverride(null);
+        removeDir($store);
+    }
+
+    // --- Migration 0005 (resource rename): pure logic -------------------------------------------------
+    $rc = $charTo([
+        'id' => 'rr', 'version' => 4,
+        'knowledge' => ['Crystals' => ['acquiredAt' => 5], 'Other' => []],
+        'missionResults' => ['camp' => [['missionId' => 'm', 'resourceDelta' => ['food' => 2, 'crystals' => 3, 'metal' => 1],
+            'victory' => ['rewards' => ['resourceDelta' => ['food' => 1, 'vigor' => 4]]]]]],
+        'questResults' => ['camp' => ['q1' => ['resourceDelta' => ['crystals' => 2]]]],
+        'activeQuestRun' => ['runId' => 'r', 'rewards' => ['resourceDelta' => ['food' => 7]]],
+    ], 5)['data'];
+    $check('0005 character: mission resourceDelta renamed, others untouched',
+        $rc['missionResults']['camp'][0]['resourceDelta'] === ['metal' => 1, 'vigor' => 2, 'attunement' => 3], json_encode($rc['missionResults']['camp'][0]['resourceDelta']));
+    $check('0005 character: nested rewards summed into the existing new key',
+        $rc['missionResults']['camp'][0]['victory']['rewards']['resourceDelta'] === ['vigor' => 5], json_encode($rc['missionResults']['camp'][0]['victory']));
+    $check('0005 character: quest results and active quest run renamed',
+        $rc['questResults']['camp']['q1']['resourceDelta'] === ['attunement' => 2] && $rc['activeQuestRun']['rewards']['resourceDelta'] === ['vigor' => 7]);
+    $check('0005 character: knowledge key renamed keeping details, version 5',
+        $rc['knowledge'] === ['Other' => [], 'ResourceAttunement' => ['acquiredAt' => 5]] && $rc['version'] === 5, json_encode($rc['knowledge']));
+    $check('0005 character: idempotent', CharacterMigrations::v4ToV5($rc) === $rc);
+    $rcamp = $campTo(
+        ['id' => 'rc', 'version' => 4, 'resources' => ['food' => 3, 'crystals' => 1, 'metal' => 2, 'hunger' => -1],
+            'missionResults' => [['missionId' => 'm', 'resourceDelta' => ['food' => 1, 'crystals' => 2]]]],
+        5,
+        static fn (string $id): array => [],
+        static fn (string $id): ?array => null
+    )['data'];
+    $check('0005 campaign: resources renamed',
+        $rcamp['resources'] === ['metal' => 2, 'hunger' => -1, 'vigor' => 3, 'attunement' => 1] && $rcamp['version'] === 5, json_encode($rcamp['resources']));
+    $check('0005 campaign: mission resourceDelta renamed', $rcamp['missionResults'][0]['resourceDelta'] === ['vigor' => 1, 'attunement' => 2]);
+    $check('0005 campaign: idempotent', CampaignMigrations::v4ToV5($rcamp) === $rcamp);
+    $check('0005 account knowledge: renamed keeping details; both keys merge',
+        ResourceRenames::renameKnowledgeMap(['Crystals' => ['acquiredAt' => 1]]) === ['ResourceAttunement' => ['acquiredAt' => 1]]
+        && ResourceRenames::renameKnowledgeMap(['Crystals' => ['acquiredAt' => 1, 'a' => 1], 'ResourceAttunement' => ['acquiredAt' => 9]])
+            === ['ResourceAttunement' => ['acquiredAt' => 9, 'a' => 1]]);
+
+    // --- Migration 0005 end to end (accounts, characters, campaigns) in a scratch storage dir ---------
+    $store = makeTempDir('migrate_0005_');
+    foreach (['accounts', 'characters', 'campaigns'] as $d) {
+        mkdir($store . '/' . $d);
+    }
+    file_put_contents($store . '/accounts/1.json', json_encode([
+        'id' => 1, 'name' => 'T', 'role' => 'user', 'knowledge' => ['Crystals' => ['acquiredAt' => 3]],
+    ]));
+    file_put_contents($store . '/accounts/accounts_index.json', json_encode(['nextId' => 2, 'byName' => ['T' => 1]]));
+    file_put_contents($store . '/characters/c.json', json_encode([
+        'id' => 'c', 'version' => 4, 'ownerAccountId' => 1,
+        'missionResults' => ['camp' => [['missionId' => 'm', 'resourceDelta' => ['food' => 2]]]],
+    ]));
+    file_put_contents($store . '/campaigns/k.json', json_encode([
+        'id' => 'k', 'version' => 4, 'resources' => ['crystals' => 4], 'missionResults' => [],
+    ]));
+    try {
+        $m5 = new MigrationContext($store, $quiet);
+        $plan5 = (new M0005ResourceRename())->plan($m5);
+        $check('0005: plan counts all three kinds', str_contains(end($plan5), '1 character(s), 1 campaign(s), 1 account(s)'), json_encode($plan5));
+        (new M0005ResourceRename())->up($m5);
+        $acct = json_decode((string) file_get_contents($store . '/accounts/1.json'), true);
+        $chr = json_decode((string) file_get_contents($store . '/characters/c.json'), true);
+        $cmp = json_decode((string) file_get_contents($store . '/campaigns/k.json'), true);
+        $check('0005: account knowledge renamed on disk', ($acct['knowledge'] ?? null) === ['ResourceAttunement' => ['acquiredAt' => 3]], json_encode($acct['knowledge'] ?? null));
+        $check('0005: character and campaign renamed on disk',
+            ($chr['missionResults']['camp'][0]['resourceDelta'] ?? null) === ['vigor' => 2] && ($cmp['resources']['attunement'] ?? null) === 4
+            && !isset($cmp['resources']['crystals']) && $chr['version'] === 5 && $cmp['version'] === 5);
+        $before = [json_encode($acct), json_encode($chr), json_encode($cmp)];
+        (new M0005ResourceRename())->up($m5);
+        $after = [
+            json_encode(json_decode((string) file_get_contents($store . '/accounts/1.json'), true)),
+            json_encode(json_decode((string) file_get_contents($store . '/characters/c.json'), true)),
+            json_encode(json_decode((string) file_get_contents($store . '/campaigns/k.json'), true)),
+        ];
+        $check('0005: up() is idempotent', $before === $after);
+        $check('0005: plan is empty after applying', str_contains((string) ($p = (new M0005ResourceRename())->plan($m5))[count($p) - 1], '0 character(s), 0 campaign(s), 0 account(s)'));
     } finally {
         StorageRoot::setOverride(null);
         removeDir($store);

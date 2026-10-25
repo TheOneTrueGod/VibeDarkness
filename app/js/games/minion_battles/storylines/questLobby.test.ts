@@ -205,14 +205,14 @@ describe('planQuestVictoryContinue / planQuestDefeatRetry', () => {
         const run = startActiveRun();
         const withReward = queueCampaignReward(run, {
             source: 'story',
-            resourceDelta: { food: 2 },
+            resourceDelta: { vigor: 2 },
         });
         const plan = planQuestVictoryContinue(withReward, SWARMLING_SOURCE);
         expect(plan.kind).toBe('continued');
         if (plan.kind !== 'continued') return;
         expect(plan.run.currentSlotIndex).toBe(1);
         expect(plan.run.questCharacter.campaignRewards).toEqual([
-            { source: 'story', resourceDelta: { food: 2 } },
+            { source: 'story', resourceDelta: { vigor: 2 } },
         ]);
         expect(plan.nextMissionId).toBe(run.resolvedSlots[1]!.missionId);
     });

@@ -21,6 +21,7 @@ import {
     MISSION_REWARD_MISSING,
     ResearchSource,
 } from './types';
+import { ZERO_CAMPAIGN_RESOURCES } from '../campaignResources';
 import { RESEARCH_TREES } from './list';
 import { DEFAULT_PASSIVE_MULT, getAddAtLevel, getMultBonusAtLevel, getNodeLevel, getNodeMaxLevels } from './passiveBonuses';
 import { getNodeResearchSources } from './researchSources';
@@ -845,7 +846,7 @@ export function mergeBattleEquipmentIdsFromResearch(
         const ctx: ResearchContext = {
             account: dummyAccount as AccountState,
             character,
-            campaignResources: { food: 0, metal: 0, population: 0, crystals: 0, hunger: 0 },
+            campaignResources: { ...ZERO_CAMPAIGN_RESOURCES },
         };
         const applied = applyResearchEffects(tree, ctx);
         equipment = applied.equipment;

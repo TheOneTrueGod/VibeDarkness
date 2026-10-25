@@ -20,7 +20,7 @@ import {
     TRAINING_NODE_STRONG_PUNCH,
     TRAINING_TREE_ID,
     TRAINING_HEALTHY_LEVELS,
-    TRAINING_PASSIVE_NODE_FOOD_COST,
+    TRAINING_PASSIVE_NODE_VIGOR_COST,
     trainingTree,
 } from '../../../../researchTrees/trees/training';
 import { ResearchSource } from '../../../../researchTrees/types';
@@ -52,9 +52,9 @@ import {
 
 function makeCtx(
     researchTrees: Record<string, string[]>,
-    options: { knowledge?: boolean; core?: boolean; food?: number } = {},
+    options: { knowledge?: boolean; core?: boolean; vigor?: number } = {},
 ): ResearchContext {
-    const { knowledge = true, core = true, food = 0 } = options;
+    const { knowledge = true, core = true, vigor = 0 } = options;
     return {
         account: {
             id: 1,
@@ -78,13 +78,13 @@ function makeCtx(
             missionId: '',
             researchTrees,
         }),
-        campaignResources: { food, metal: 0, population: 0, crystals: 0, hunger: 0 },
+        campaignResources: { vigor, metal: 0, population: 0, attunement: 0, hunger: 0 },
     };
 }
 
 function eligibleIds(
     researchTrees: Record<string, string[]>,
-    options?: { knowledge?: boolean; core?: boolean; food?: number },
+    options?: { knowledge?: boolean; core?: boolean; vigor?: number },
 ): string[] {
     return collectEligibleResearchGridEntries(
         [trainingTree],
@@ -309,7 +309,7 @@ describe('collectEligibleResearchGridEntries', () => {
     });
 
     it('includes nodes once prereqs are researched, ignoring cost', () => {
-        const ids = eligibleIds({ [TRAINING_TREE_ID]: [TRAINING_NODE_CORE] }, { food: 0 });
+        const ids = eligibleIds({ [TRAINING_TREE_ID]: [TRAINING_NODE_CORE] }, { vigor: 0 });
         expect(ids).toContain(TRAINING_NODE_DOUBLE_PUNCH);
         expect(ids).not.toContain(TRAINING_NODE_CORE);
     });
@@ -378,24 +378,24 @@ describe('canPurchaseResearchGridEntry', () => {
     it('rejects an eligible paid node when resources are short', () => {
         const doublePunch = trainingTree.nodes.find((n) => n.id === TRAINING_NODE_DOUBLE_PUNCH);
         expect(doublePunch).toBeDefined();
-        const ctx = makeCtx({ [TRAINING_TREE_ID]: [TRAINING_NODE_CORE] }, { food: 0 });
+        const ctx = makeCtx({ [TRAINING_TREE_ID]: [TRAINING_NODE_CORE] }, { vigor: 0 });
         expect(canPurchaseResearchGridEntry({ tree: trainingTree, node: doublePunch! }, ctx)).toBe(false);
     });
 
     it('allows an eligible paid node when resources cover the cost', () => {
         const doublePunch = trainingTree.nodes.find((n) => n.id === TRAINING_NODE_DOUBLE_PUNCH);
         expect(doublePunch).toBeDefined();
-        const foodCost = doublePunch!.cost?.food ?? 0;
-        const ctx = makeCtx({ [TRAINING_TREE_ID]: [TRAINING_NODE_CORE] }, { food: foodCost });
+        const vigorCost = doublePunch!.cost?.vigor ?? 0;
+        const ctx = makeCtx({ [TRAINING_TREE_ID]: [TRAINING_NODE_CORE] }, { vigor: vigorCost });
         expect(canPurchaseResearchGridEntry({ tree: trainingTree, node: doublePunch! }, ctx)).toBe(true);
     });
 
-    it('allows another level of possessed Healthy when remaining food covers the next purchase', () => {
+    it('allows another level of possessed Healthy when remaining vigor covers the next purchase', () => {
         const healthy = trainingTree.nodes.find((n) => n.id === TRAINING_NODE_HEALTHY);
         expect(healthy).toBeDefined();
         const ctx = makeCtx(
             { [TRAINING_TREE_ID]: [TRAINING_NODE_HEALTHY] },
-            { food: TRAINING_PASSIVE_NODE_FOOD_COST * DEFAULT_RESEARCH_NODE_LEVELS + TRAINING_PASSIVE_NODE_FOOD_COST },
+            { vigor: TRAINING_PASSIVE_NODE_VIGOR_COST * DEFAULT_RESEARCH_NODE_LEVELS + TRAINING_PASSIVE_NODE_VIGOR_COST },
         );
         expect(canPurchaseResearchGridEntry({ tree: trainingTree, node: healthy! }, ctx)).toBe(true);
     });

@@ -6,12 +6,12 @@ import type { ResearchContext } from './evaluator';
 import { ResearchSource, type ResearchNodeSources } from './types';
 import {
     TRAINING_NODE_HEALTHY,
-    TRAINING_PASSIVE_NODE_FOOD_COST,
+    TRAINING_PASSIVE_NODE_VIGOR_COST,
     TRAINING_TREE_ID,
     trainingTree,
 } from './trees/training';
 
-const BASE_RESOURCES: CampaignResources = { food: 100, metal: 40, population: 2, crystals: 8, hunger: 0 };
+const BASE_RESOURCES: CampaignResources = { vigor: 100, metal: 40, population: 2, attunement: 8, hunger: 0 };
 
 function makeCtx(
     researchTrees: Record<string, string[]>,
@@ -57,9 +57,9 @@ describe('computeEffectiveResources', () => {
             { [TRAINING_TREE_ID]: [TRAINING_NODE_HEALTHY] },
             { [TRAINING_TREE_ID]: { [TRAINING_NODE_HEALTHY]: healthyLevel } },
         );
-        const expectedFood = BASE_RESOURCES.food - TRAINING_PASSIVE_NODE_FOOD_COST * healthyLevel;
-        expect(computeEffectiveResources(ctx).food).toBe(expectedFood);
-        expect(computeEffectiveResourcesForTree(trainingTree, ctx).food).toBe(expectedFood);
+        const expectedVigor = BASE_RESOURCES.vigor - TRAINING_PASSIVE_NODE_VIGOR_COST * healthyLevel;
+        expect(computeEffectiveResources(ctx).vigor).toBe(expectedVigor);
+        expect(computeEffectiveResourcesForTree(trainingTree, ctx).vigor).toBe(expectedVigor);
         expect(computeEffectiveResources(ctx).metal).toBe(BASE_RESOURCES.metal);
     });
 
@@ -72,21 +72,21 @@ describe('computeEffectiveResources', () => {
             },
         };
         const ctx = makeCtx(trees, levels, sources);
-        expect(computeEffectiveResources(ctx).food).toBe(
-            BASE_RESOURCES.food - TRAINING_PASSIVE_NODE_FOOD_COST,
+        expect(computeEffectiveResources(ctx).vigor).toBe(
+            BASE_RESOURCES.vigor - TRAINING_PASSIVE_NODE_VIGOR_COST,
         );
-        expect(computeEffectiveResourcesForTree(trainingTree, ctx).food).toBe(
-            BASE_RESOURCES.food - TRAINING_PASSIVE_NODE_FOOD_COST,
+        expect(computeEffectiveResourcesForTree(trainingTree, ctx).vigor).toBe(
+            BASE_RESOURCES.vigor - TRAINING_PASSIVE_NODE_VIGOR_COST,
         );
 
         const questOnly = makeCtx(trees, undefined, {
             [TRAINING_TREE_ID]: { [TRAINING_NODE_HEALTHY]: [ResearchSource.QuestReward] },
         });
-        expect(computeEffectiveResources(questOnly).food).toBe(BASE_RESOURCES.food);
+        expect(computeEffectiveResources(questOnly).vigor).toBe(BASE_RESOURCES.vigor);
 
         const adminOnly = makeCtx(trees, undefined, {
             [TRAINING_TREE_ID]: { [TRAINING_NODE_HEALTHY]: [ResearchSource.Admin] },
         });
-        expect(computeEffectiveResources(adminOnly).food).toBe(BASE_RESOURCES.food);
+        expect(computeEffectiveResources(adminOnly).vigor).toBe(BASE_RESOURCES.vigor);
     });
 });

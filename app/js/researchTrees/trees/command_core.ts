@@ -15,28 +15,28 @@ export const EMPOWER_PET_LEVELS = 5;
 export const EMPOWER_PET_MAX_HEALTH_ADD = 100;
 export const EMPOWER_PET_MAX_BITE_DAMAGE_ADD = 10;
 
-export const COMMAND_LOYAL_CRYSTAL_COST = 10;
-export const COMMAND_LOYAL_FOOD_COST = 9;
+export const COMMAND_LOYAL_ATTUNEMENT_COST = 10;
+export const COMMAND_LOYAL_VIGOR_COST = 9;
 export const COMMAND_LOYAL_METAL_COST = 2;
 
-export const COMMAND_HEEL_CRYSTAL_COST = 10;
-export const COMMAND_HEEL_FOOD_COST = 8;
+export const COMMAND_HEEL_ATTUNEMENT_COST = 10;
+export const COMMAND_HEEL_VIGOR_COST = 8;
 export const COMMAND_HEEL_METAL_COST = 2;
 
-export const COMMAND_SIC_CRYSTAL_COST = 11;
-export const COMMAND_SIC_FOOD_COST = 8;
+export const COMMAND_SIC_ATTUNEMENT_COST = 11;
+export const COMMAND_SIC_VIGOR_COST = 8;
 export const COMMAND_SIC_METAL_COST = 2;
 
-export const COMMAND_THORN_CRYSTAL_COST = 11;
-export const COMMAND_THORN_FOOD_COST = 9;
+export const COMMAND_THORN_ATTUNEMENT_COST = 11;
+export const COMMAND_THORN_VIGOR_COST = 9;
 export const COMMAND_THORN_METAL_COST = 3;
 
-export const COMMAND_BRAMBLES_CRYSTAL_COST = 10;
-export const COMMAND_BRAMBLES_FOOD_COST = 11;
+export const COMMAND_BRAMBLES_ATTUNEMENT_COST = 10;
+export const COMMAND_BRAMBLES_VIGOR_COST = 11;
 export const COMMAND_BRAMBLES_METAL_COST = 2;
 
-export const COMMAND_EMPOWER_CRYSTAL_COST = 10;
-export const COMMAND_EMPOWER_FOOD_COST = 10;
+export const COMMAND_EMPOWER_ATTUNEMENT_COST = 10;
+export const COMMAND_EMPOWER_VIGOR_COST = 10;
 export const COMMAND_EMPOWER_METAL_COST = 3;
 
 export const commandCoreTree: ResearchTreeDef = {
@@ -62,8 +62,8 @@ export const commandCoreTree: ResearchTreeDef = {
                 { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.CommandCore },
             ],
             cost: {
-                crystals: COMMAND_LOYAL_CRYSTAL_COST,
-                food: COMMAND_LOYAL_FOOD_COST,
+                attunement: COMMAND_LOYAL_ATTUNEMENT_COST,
+                vigor: COMMAND_LOYAL_VIGOR_COST,
                 metal: COMMAND_LOYAL_METAL_COST,
             },
             effects: [
@@ -84,8 +84,8 @@ export const commandCoreTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [],
             requirements: [],
             cost: {
-                crystals: COMMAND_HEEL_CRYSTAL_COST,
-                food: COMMAND_HEEL_FOOD_COST,
+                attunement: COMMAND_HEEL_ATTUNEMENT_COST,
+                vigor: COMMAND_HEEL_VIGOR_COST,
                 metal: COMMAND_HEEL_METAL_COST,
             },
             effects: [{ type: 'addCard', cardId: '0703' }],
@@ -101,8 +101,8 @@ export const commandCoreTree: ResearchTreeDef = {
             exclusiveWithNodeIds: [],
             requirements: [],
             cost: {
-                crystals: COMMAND_SIC_CRYSTAL_COST,
-                food: COMMAND_SIC_FOOD_COST,
+                attunement: COMMAND_SIC_ATTUNEMENT_COST,
+                vigor: COMMAND_SIC_VIGOR_COST,
                 metal: COMMAND_SIC_METAL_COST,
             },
             effects: [{ type: 'addCard', cardId: '0704' }],
@@ -122,8 +122,8 @@ export const commandCoreTree: ResearchTreeDef = {
                 { type: 'notResearched', treeId: COMMAND_CORE_TREE_ID, nodeId: COMMAND_CORE_NODE_MIMIC_BRAMBLES },
             ],
             cost: {
-                crystals: COMMAND_THORN_CRYSTAL_COST,
-                food: COMMAND_THORN_FOOD_COST,
+                attunement: COMMAND_THORN_ATTUNEMENT_COST,
+                vigor: COMMAND_THORN_VIGOR_COST,
                 metal: COMMAND_THORN_METAL_COST,
             },
             effects: [{ type: 'grantPetAbility', petId: 'dog', abilityId: '0705' }],
@@ -143,8 +143,8 @@ export const commandCoreTree: ResearchTreeDef = {
                 { type: 'notResearched', treeId: COMMAND_CORE_TREE_ID, nodeId: COMMAND_CORE_NODE_MIMIC_THORN },
             ],
             cost: {
-                crystals: COMMAND_BRAMBLES_CRYSTAL_COST,
-                food: COMMAND_BRAMBLES_FOOD_COST,
+                attunement: COMMAND_BRAMBLES_ATTUNEMENT_COST,
+                vigor: COMMAND_BRAMBLES_VIGOR_COST,
                 metal: COMMAND_BRAMBLES_METAL_COST,
             },
             effects: [
@@ -166,8 +166,8 @@ export const commandCoreTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: COMMAND_CORE_TREE_ID, nodeIds: [COMMAND_CORE_NODE_LOYAL_COMPANION] },
             ],
             cost: {
-                crystals: COMMAND_EMPOWER_CRYSTAL_COST,
-                food: COMMAND_EMPOWER_FOOD_COST,
+                attunement: COMMAND_EMPOWER_ATTUNEMENT_COST,
+                vigor: COMMAND_EMPOWER_VIGOR_COST,
                 metal: COMMAND_EMPOWER_METAL_COST,
             },
             effects: [],

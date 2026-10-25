@@ -2,6 +2,8 @@
 
 namespace App;
 
+use App\SaveData\ResourceRenames;
+
 /**
  * Persistent player account with resources.
  * Keyed by auto-increment ID; name provided by user on first sign-in.
@@ -343,6 +345,8 @@ class PlayerAccount
         $inventoryItemIds = is_array($inventoryItemIds) ? array_values(array_map('strval', $inventoryItemIds)) : [];
         $knowledge = $data['knowledge'] ?? [];
         $knowledge = is_array($knowledge) ? $knowledge : [];
+        // Lazy rename (M0005): an account missed by the deploy sweep still works.
+        $knowledge = ResourceRenames::renameKnowledgeMap($knowledge);
         $emergencyRecoveryExpiresAt = isset($data['emergencyRecoveryExpiresAt']) ? (int) $data['emergencyRecoveryExpiresAt'] : null;
         return new self(
             (int) $data['id'],

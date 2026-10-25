@@ -2,8 +2,9 @@
  * Single campaign resource: icon + count in a rounded pill with a thin solid border.
  */
 import React from 'react';
-import { Ham } from 'lucide-react';
+import { BicepsFlexed, Ham, Sparkles } from 'lucide-react';
 import type { CampaignResourceKey } from '../types';
+import { CAMPAIGN_RESOURCE_KEYS, campaignResourceDef } from '../campaignResources';
 import { HUNGER_BAR_TOOLTIP } from '../games/minion_battles/character_defs/hungerHealth';
 import { HUNGER_PER_MISSING_HP } from '../games/minion_battles/storylines/matchHunger';
 
@@ -16,7 +17,18 @@ function HungerIcon({ color, className = 'w-[18px] h-[18px]' }: { color: string;
     return <Ham className={`${className} shrink-0`} stroke={color} strokeWidth={2} aria-hidden />;
 }
 
-const RESOURCE_ORDER: CampaignResourceKey[] = ['food', 'metal', 'population', 'crystals', 'hunger'];
+/** Vigor icon: `BicepsFlexed` outlined in the given colour. */
+function VigorIcon({ color, className = 'w-[18px] h-[18px]' }: { color: string; className?: string }) {
+    return <BicepsFlexed className={`${className} shrink-0`} stroke={color} strokeWidth={2} aria-hidden />;
+}
+
+/** Attunement icon: `Sparkles` outlined in the given colour. */
+function AttunementIcon({ color, className = 'w-[18px] h-[18px]' }: { color: string; className?: string }) {
+    return <Sparkles className={`${className} shrink-0`} stroke={color} strokeWidth={2} aria-hidden />;
+}
+
+/** Campaign resource keys in display order (from the shared resource table). */
+const RESOURCE_ORDER: readonly CampaignResourceKey[] = CAMPAIGN_RESOURCE_KEYS;
 
 /** HP of missing health that costs 1 Hunger at match end (derived from the loss rule). */
 const HP_PER_HUNGER = 1 / HUNGER_PER_MISSING_HP;
@@ -24,24 +36,30 @@ export const HUNGER_LOSS_TOOLTIP = `Hunger lost.  ${HP_PER_HUNGER}HP = 1 Hunger`
 export const HUNGER_RECOVERY_TOOLTIP = 'Hunger recovered.';
 export const MAX_HUNGER_TOOLTIP = 'Max Hunger: The most Hunger this character can store.';
 
-const RESOURCE_META: Record<
-    CampaignResourceKey,
-    {
-        label: string;
-        color: string;
-        Icon: React.FC<{ color: string; className?: string }>;
-        backgroundColor?: string;
-        textColor?: string;
-        tooltip?: string;
-    }
-> = {
-    food: { label: 'Food', color: '#E67E22', Icon: FoodIcon },
-    metal: { label: 'Metal', color: '#95A5A6', Icon: MetalIcon },
-    population: { label: 'Population', color: '#3498DB', Icon: PopulationIcon },
-    crystals: { label: 'Crystals', color: '#9B59B6', Icon: CrystalIcon },
-    // Hunger chrome is sign-driven; see `hungerPillStyle`.
-    hunger: { label: 'Hunger', color: HUNGER_ORANGE, Icon: HungerIcon },
+type ResourceIcon = React.FC<{ color: string; className?: string }>;
+
+/** Icons live here (JSX); label and colour come from `CAMPAIGN_RESOURCE_DEFS`. */
+const RESOURCE_ICONS: Record<CampaignResourceKey, ResourceIcon> = {
+    vigor: VigorIcon,
+    metal: MetalIcon,
+    population: PopulationIcon,
+    attunement: AttunementIcon,
+    hunger: HungerIcon,
 };
+
+interface ResourceMeta {
+    label: string;
+    color: string;
+    Icon: ResourceIcon;
+    backgroundColor?: string;
+    textColor?: string;
+    tooltip?: string;
+}
+
+function resourceMeta(resource: CampaignResourceKey): ResourceMeta {
+    const { label, color } = campaignResourceDef(resource);
+    return { label, color, Icon: RESOURCE_ICONS[resource] };
+}
 
 export interface HungerPillStyle {
     color: string;
@@ -71,17 +89,6 @@ export function hungerPillStyle(count: number, current = false): HungerPillStyle
     };
 }
 
-function FoodIcon({ color, className = 'w-[18px] h-[18px]' }: { color: string; className?: string }) {
-    return (
-        <svg viewBox="0 0 24 24" className={`${className} shrink-0`} aria-hidden>
-            <path
-                fill={color}
-                d="M12 2C8 6 6 10 6 14c0 3.3 2.7 6 6 6s6-2.7 6-6c0-4-2-8-6-12zm0 16c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"
-            />
-        </svg>
-    );
-}
-
 function MetalIcon({ color, className = 'w-[18px] h-[18px]' }: { color: string; className?: string }) {
     return (
         <svg viewBox="0 0 24 24" className={`${className} shrink-0`} aria-hidden>
@@ -100,14 +107,6 @@ function PopulationIcon({ color, className = 'w-[18px] h-[18px]' }: { color: str
                 fill={color}
                 d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.84 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"
             />
-        </svg>
-    );
-}
-
-function CrystalIcon({ color, className = 'w-[18px] h-[18px]' }: { color: string; className?: string }) {
-    return (
-        <svg viewBox="0 0 24 24" className={`${className} shrink-0`} aria-hidden>
-            <path fill={color} d="M12 2L22 12L12 22L2 12Z" />
         </svg>
     );
 }
@@ -155,7 +154,7 @@ export default function ResourcePill({
     size = RESOURCE_PILL_SIZE_DEFAULT,
     className = '',
 }: ResourcePillProps) {
-    const meta = RESOURCE_META[resource];
+    const meta = resourceMeta(resource);
     const isHunger = resource === 'hunger';
     const { color, Icon, label, backgroundColor, textColor, tooltip } = isHunger
         ? { ...meta, ...hungerPillStyle(count, appearance === 'hunger') }

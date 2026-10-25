@@ -27,7 +27,7 @@ describe("hunger pills", () => {
     });
 
     it("campaignResourceGains lists negative hunger but not other negatives", () => {
-        expect(campaignResourceGains({ hunger: -5, food: -2, metal: 3 })).toEqual([
+        expect(campaignResourceGains({ hunger: -5, vigor: -2, metal: 3 })).toEqual([
             { resource: "metal", count: 3 },
             { resource: "hunger", count: -5 },
         ]);

@@ -12,6 +12,7 @@ namespace App\SaveData;
  * v3: Equipment upgrade rewards. Unlock the tier items of completed chapter-1 missions and every
  *     upgrade item the owner's (migrated) characters have equipped.
  * v4: One Weapons tree. Mission-result `researchRewards` rows from legacy weapon trees point at `weapons`.
+ * v5: Resource rename. `food` -> `vigor`, `crystals` -> `attunement` in `resources` and every `resourceDelta`.
  *
  * Lookups are injected as closures so the migration stays testable:
  *  - $ownerCharacterIds(string $campaignId): list<string>  character ids of the campaign owner
@@ -19,7 +20,7 @@ namespace App\SaveData;
  */
 final class CampaignMigrations
 {
-    public const CURRENT_VERSION = 4;
+    public const CURRENT_VERSION = 5;
 
     /**
      * Frozen (v3): tier unlocks of the completed chapter-1 missions: missionId => item ids.
@@ -50,6 +51,7 @@ final class CampaignMigrations
             1 => [self::class, 'v1ToV2'],
             2 => static fn (array $d): array => self::v2ToV3($d, $ownerCharacterIds, $loadCharacter),
             3 => [self::class, 'v3ToV4'],
+            4 => [self::class, 'v4ToV5'],
         ];
     }
 
@@ -171,6 +173,20 @@ final class CampaignMigrations
     {
         if (array_key_exists('missionResults', $data)) {
             $data['missionResults'] = CharacterMigrations::remapResearchRewardTrees($data['missionResults']);
+        }
+        return $data;
+    }
+
+    public static function v4ToV5(array $data): array
+    {
+        if (array_key_exists('resources', $data)) {
+            $data['resources'] = ResourceRenames::renameResourceMap($data['resources']);
+        }
+        // missionResults plus any queued / pending reward payloads carrying a resourceDelta.
+        foreach (['missionResults', 'pendingRewards', 'queuedRewards'] as $key) {
+            if (array_key_exists($key, $data)) {
+                $data[$key] = ResourceRenames::renameDeep($data[$key]);
+            }
         }
         return $data;
     }

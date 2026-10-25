@@ -21,9 +21,9 @@ import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 
 /** Forage and salvage while the party rests in the alcove. */
-export const CAVE_RESPITE_FOOD_REWARD = 3;
+export const CAVE_RESPITE_VIGOR_REWARD = 3;
 export const CAVE_RESPITE_METAL_REWARD = 5;
-export const CAVE_RESPITE_CRYSTAL_REWARD = 2;
+export const CAVE_RESPITE_ATTUNEMENT_REWARD = 2;
 
 function createTerrain(): TerrainGrid {
     return TerrainGrid.createTerrainFromArray(1, 1, CELL_SIZE, [[TerrainType.Grass]], TerrainType.Grass);
@@ -116,9 +116,9 @@ export class CaveRespiteMission extends BaseMissionDef {
     name = 'Cave respite';
     completionRewards = {
         resourceDelta: {
-            food: CAVE_RESPITE_FOOD_REWARD,
+            vigor: CAVE_RESPITE_VIGOR_REWARD,
             metal: CAVE_RESPITE_METAL_REWARD,
-            crystals: CAVE_RESPITE_CRYSTAL_REWARD,
+            attunement: CAVE_RESPITE_ATTUNEMENT_REWARD,
         },
         unlockItemTiers: [{ slot: 'weapon' as const, tier: 3 }],
     };

@@ -89,7 +89,7 @@ function easeOut(t: number): number {
 }
 
 /**
- * Hunger bar (left) drains while the HP bar (right) fills, with small food icons flying from one to the other;
+ * Hunger bar (left) drains while the HP bar (right) fills, with small hunger icons flying from one to the other;
  * any Hunger found afterwards then refills the Hunger bar. Progress is driven by one rAF loop so the bars, digits
  * and icons share the stage's duration.
  */
@@ -114,7 +114,7 @@ export default function HungerToHealthConversion({ conversion, active, durationM
         return () => cancelAnimationFrame(frame);
     }, [active, durationMs]);
 
-    // Food icons: staggered flights from the Hunger bar across to the HP bar, while the cost is being paid.
+    // Hunger icons: staggered flights from the Hunger bar across to the HP bar, while the cost is being paid.
     useEffect(() => {
         const host = flightRef.current;
         const costMs = durationMs * costShare;

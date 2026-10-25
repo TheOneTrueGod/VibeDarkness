@@ -3,6 +3,7 @@
  * and the admin Skip Chapter wizard (`chapterSkip.ts`), so both offer the same rows.
  */
 import type { CampaignResourceKey } from '../../../types';
+import { MISSION_BONUS_RESOURCE_KEYS } from '../../../campaignResources';
 import type { StoryChoiceAction, StoryChoiceOptionRow } from './storyTypes';
 import { isResearchNodeBlockedByOwnershipOrExclusivity } from '../../../researchTrees/evaluator';
 
@@ -76,7 +77,9 @@ export function storyChoiceActionResourceDelta(
     action: StoryChoiceAction | undefined,
 ): Partial<Record<CampaignResourceKey, number>> {
     if (action?.type === 'grant_resources') {
-        return { food: action.food, metal: action.metal, crystals: action.crystals };
+        const out: Partial<Record<CampaignResourceKey, number>> = {};
+        for (const key of MISSION_BONUS_RESOURCE_KEYS) out[key] = action[key];
+        return out;
     }
     if (action?.type === 'recover_hunger') {
         return { hunger: action.amount };

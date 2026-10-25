@@ -8,8 +8,20 @@ namespace App;
  */
 class Campaign
 {
-    /** @var list<string> */
-    private const RESOURCE_KEYS = ['food', 'metal', 'population', 'crystals', 'hunger'];
+    /**
+     * Every campaign resource key. The single source of truth: renaming or adding a resource starts here
+     * (plus a data migration for stored saves).
+     *
+     * @var list<string>
+     */
+    public const RESOURCE_KEYS = ['vigor', 'metal', 'population', 'attunement', 'hunger'];
+
+    /**
+     * Resources that are signed penalty accumulators: clamped to <= 0 (min(0, x)) instead of >= 0 (max(0, x)).
+     *
+     * @var list<string>
+     */
+    private const SIGNED_RESOURCE_KEYS = ['hunger'];
 
     private string $id;
     private string $name;
@@ -20,14 +32,14 @@ class Campaign
      *   missionId: string,
      *   result: string,
      *   timestamp?: float,
-     *   resourceDelta?: array{food?: int, metal?: int, population?: int, crystals?: int, hunger?: int},
+     *   resourceDelta?: array<string, int>,
      *   itemIds?: array<int, string>,
      *   researchRewardIds?: array<int, string>,
      *   researchRewards?: array<int, array{treeId: string, nodeId: string}>
      * }>
      */
     private array $missionResults;
-    /** @var array{food: int, metal: int, population: int, crystals: int, hunger: int} */
+    /** @var array<string, int> keys are Campaign::RESOURCE_KEYS */
     private array $resources;
     /**
      * Active DarknessStrength instance crumbs (packageId + optional data).
@@ -75,7 +87,7 @@ class Campaign
         $this->campaignCharacters = $campaignCharacters;
         $this->missionResults = $missionResults;
         $this->resources = array_merge(
-            self::emptyResources(),
+            self::zeroResources(),
             $resources
         );
         $this->darknessStrengthInstances = self::normalizeDarknessStrengthInstances($darknessStrengthInstances);
@@ -177,7 +189,7 @@ class Campaign
         return $this->missionResults;
     }
 
-    /** @return array{food: int, metal: int, population: int, crystals: int, hunger: int} */
+    /** @return array<string, int> keys are Campaign::RESOURCE_KEYS */
     public function getResources(): array
     {
         return $this->resources;
@@ -196,7 +208,7 @@ class Campaign
     public function setResources(array $resources): void
     {
         $this->resources = array_merge(
-            self::emptyResources(),
+            self::zeroResources(),
             array_intersect_key($resources, array_flip(self::RESOURCE_KEYS))
         );
     }
@@ -327,31 +339,29 @@ class Campaign
     /** Zero the admin/base pool so effective resources equal mission reward deltas only. */
     public function resetStoredResources(): void
     {
-        $this->resources = self::emptyResources();
+        $this->resources = self::zeroResources();
     }
 
     /** Effective resources = stored resources + sum of mission reward deltas. Used for display and research checks. */
     public function getEffectiveResources(): array
     {
         $deltas = self::sumLatestMissionResourceDeltas($this->missionResults);
-        return [
-            'food' => (int) ($this->resources['food'] ?? 0) + $deltas['food'],
-            'metal' => (int) ($this->resources['metal'] ?? 0) + $deltas['metal'],
-            'population' => (int) ($this->resources['population'] ?? 0) + $deltas['population'],
-            'crystals' => (int) ($this->resources['crystals'] ?? 0) + $deltas['crystals'],
-            'hunger' => (int) ($this->resources['hunger'] ?? 0) + $deltas['hunger'],
-        ];
+        $out = [];
+        foreach (self::RESOURCE_KEYS as $key) {
+            $out[$key] = (int) ($this->resources[$key] ?? 0) + $deltas[$key];
+        }
+        return $out;
     }
 
     /**
      * Latest resourceDelta per missionId (highest timestamp wins), then summed.
      *
      * @param array<int, mixed> $missionResults
-     * @return array{food: int, metal: int, population: int, crystals: int, hunger: int}
+     * @return array<string, int> keys are Campaign::RESOURCE_KEYS
      */
     public static function sumLatestMissionResourceDeltas(array $missionResults): array
     {
-        $out = self::emptyResources();
+        $out = self::zeroResources();
         $latestByMission = [];
         foreach ($missionResults as $r) {
             if (!is_array($r)) {
@@ -369,11 +379,9 @@ class Campaign
         foreach ($latestByMission as $r) {
             $delta = $r['resourceDelta'] ?? null;
             if (is_array($delta)) {
-                $out['food'] += (int) ($delta['food'] ?? 0);
-                $out['metal'] += (int) ($delta['metal'] ?? 0);
-                $out['population'] += (int) ($delta['population'] ?? 0);
-                $out['crystals'] += (int) ($delta['crystals'] ?? 0);
-                $out['hunger'] += (int) ($delta['hunger'] ?? 0);
+                foreach (self::RESOURCE_KEYS as $key) {
+                    $out[$key] += (int) ($delta[$key] ?? 0);
+                }
             }
         }
         return $out;
@@ -385,37 +393,44 @@ class Campaign
      *
      * @param mixed $persisted
      * @param array<int, mixed> $missionResults
-     * @return array{food: int, metal: int, population: int, crystals: int, hunger: int}
+     * @return array<string, int> keys are Campaign::RESOURCE_KEYS
      */
     private static function storedResourcesFromPersistedEffective($persisted, array $missionResults): array
     {
         $effective = is_array($persisted) ? $persisted : [];
         $deltas = self::sumLatestMissionResourceDeltas($missionResults);
-        return [
-            'food' => max(0, (int) ($effective['food'] ?? 0) - $deltas['food']),
-            'metal' => max(0, (int) ($effective['metal'] ?? 0) - $deltas['metal']),
-            'population' => max(0, (int) ($effective['population'] ?? 0) - $deltas['population']),
-            'crystals' => max(0, (int) ($effective['crystals'] ?? 0) - $deltas['crystals']),
-            'hunger' => min(0, (int) ($effective['hunger'] ?? 0) - $deltas['hunger']),
-        ];
+        $out = [];
+        foreach (self::RESOURCE_KEYS as $key) {
+            $out[$key] = self::clampResource($key, (int) ($effective[$key] ?? 0) - $deltas[$key]);
+        }
+        return $out;
     }
 
-    /** Adjust resources by delta (can be negative). Floors each at 0. */
+    /** Adjust resources by delta (can be negative). Floors each at 0 (signed keys cap at 0 instead). */
     public function adjustResources(array $resourceDelta): void
     {
-        $this->resources['food'] = max(0, ($this->resources['food'] ?? 0) + (int) ($resourceDelta['food'] ?? 0));
-        $this->resources['metal'] = max(0, ($this->resources['metal'] ?? 0) + (int) ($resourceDelta['metal'] ?? 0));
-        $this->resources['population'] = max(0, ($this->resources['population'] ?? 0) + (int) ($resourceDelta['population'] ?? 0));
-        $this->resources['crystals'] = max(0, ($this->resources['crystals'] ?? 0) + (int) ($resourceDelta['crystals'] ?? 0));
-        $this->resources['hunger'] = min(0, ($this->resources['hunger'] ?? 0) + (int) ($resourceDelta['hunger'] ?? 0));
+        foreach (self::RESOURCE_KEYS as $key) {
+            $this->resources[$key] = self::clampResource(
+                $key,
+                ($this->resources[$key] ?? 0) + (int) ($resourceDelta[$key] ?? 0)
+            );
+        }
+    }
+
+    /** max(0, x) for normal resources; min(0, x) for SIGNED_RESOURCE_KEYS. */
+    private static function clampResource(string $key, int $value): int
+    {
+        return in_array($key, self::SIGNED_RESOURCE_KEYS, true) ? min(0, $value) : max(0, $value);
     }
 
     /**
-     * @return array{food: int, metal: int, population: int, crystals: int, hunger: int}
+     * A resources map with every Campaign::RESOURCE_KEYS entry at 0.
+     *
+     * @return array<string, int>
      */
-    private static function emptyResources(): array
+    public static function zeroResources(): array
     {
-        return ['food' => 0, 'metal' => 0, 'population' => 0, 'crystals' => 0, 'hunger' => 0];
+        return array_fill_keys(self::RESOURCE_KEYS, 0);
     }
 
     /** API and storage array. resources = effective (stored + mission rewards). */

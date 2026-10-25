@@ -19,14 +19,14 @@ import {
     INVESTIGATE_THE_WILDLIFE_DESCRIPTION,
 } from '../../../storylines/WorldOfDarkness/quests/investigate_the_wildlife';
 import {
-    SCAVENGE_THE_PLAINS_COMPLETION_CRYSTALS,
-    SCAVENGE_THE_PLAINS_COMPLETION_FOOD,
+    SCAVENGE_THE_PLAINS_COMPLETION_ATTUNEMENT,
+    SCAVENGE_THE_PLAINS_COMPLETION_VIGOR,
     SCAVENGE_THE_PLAINS_COMPLETION_METAL,
-    INVESTIGATE_THE_WILDLIFE_COMPLETION_CRYSTALS,
-    INVESTIGATE_THE_WILDLIFE_COMPLETION_FOOD,
+    INVESTIGATE_THE_WILDLIFE_COMPLETION_ATTUNEMENT,
+    INVESTIGATE_THE_WILDLIFE_COMPLETION_VIGOR,
     INVESTIGATE_THE_WILDLIFE_COMPLETION_METAL,
-    SWARMLING_SOURCE_COMPLETION_CRYSTALS,
-    SWARMLING_SOURCE_COMPLETION_FOOD,
+    SWARMLING_SOURCE_COMPLETION_ATTUNEMENT,
+    SWARMLING_SOURCE_COMPLETION_VIGOR,
     SWARMLING_SOURCE_COMPLETION_METAL,
 } from '../../../storylines/WorldOfDarkness/questMissions/questMissionConstants';
 import {
@@ -127,28 +127,28 @@ describe('questResultPlacementLabel', () => {
 describe('questCompletionResourceGains', () => {
     it('reads only QuestDef.completionRewards, not inner mission grants', () => {
         expect(questCompletionResourceGains(SCAVENGE_THE_PLAINS)).toEqual([
-            { resource: 'food', count: SCAVENGE_THE_PLAINS_COMPLETION_FOOD },
+            { resource: 'vigor', count: SCAVENGE_THE_PLAINS_COMPLETION_VIGOR },
             { resource: 'metal', count: SCAVENGE_THE_PLAINS_COMPLETION_METAL },
-            { resource: 'crystals', count: SCAVENGE_THE_PLAINS_COMPLETION_CRYSTALS },
+            { resource: 'attunement', count: SCAVENGE_THE_PLAINS_COMPLETION_ATTUNEMENT },
         ]);
     });
 
-    it('copies Scavenge the Plains completion food, metal, and crystals onto Investigate the Wildlife', () => {
+    it('copies Scavenge the Plains completion vigor, metal, and attunement onto Investigate the Wildlife', () => {
         expect(questCompletionResourceGains(INVESTIGATE_THE_WILDLIFE)).toEqual([
-            { resource: 'food', count: INVESTIGATE_THE_WILDLIFE_COMPLETION_FOOD },
+            { resource: 'vigor', count: INVESTIGATE_THE_WILDLIFE_COMPLETION_VIGOR },
             { resource: 'metal', count: INVESTIGATE_THE_WILDLIFE_COMPLETION_METAL },
-            { resource: 'crystals', count: INVESTIGATE_THE_WILDLIFE_COMPLETION_CRYSTALS },
+            { resource: 'attunement', count: INVESTIGATE_THE_WILDLIFE_COMPLETION_ATTUNEMENT },
         ]);
-        expect(INVESTIGATE_THE_WILDLIFE_COMPLETION_FOOD).toBe(SCAVENGE_THE_PLAINS_COMPLETION_FOOD);
+        expect(INVESTIGATE_THE_WILDLIFE_COMPLETION_VIGOR).toBe(SCAVENGE_THE_PLAINS_COMPLETION_VIGOR);
         expect(INVESTIGATE_THE_WILDLIFE_COMPLETION_METAL).toBe(SCAVENGE_THE_PLAINS_COMPLETION_METAL);
-        expect(INVESTIGATE_THE_WILDLIFE_COMPLETION_CRYSTALS).toBe(SCAVENGE_THE_PLAINS_COMPLETION_CRYSTALS);
+        expect(INVESTIGATE_THE_WILDLIFE_COMPLETION_ATTUNEMENT).toBe(SCAVENGE_THE_PLAINS_COMPLETION_ATTUNEMENT);
     });
 
-    it('reads Swarmling Source completion food, metal, and crystals', () => {
+    it('reads Swarmling Source completion vigor, metal, and attunement', () => {
         expect(questCompletionResourceGains(SWARMLING_SOURCE)).toEqual([
-            { resource: 'food', count: SWARMLING_SOURCE_COMPLETION_FOOD },
+            { resource: 'vigor', count: SWARMLING_SOURCE_COMPLETION_VIGOR },
             { resource: 'metal', count: SWARMLING_SOURCE_COMPLETION_METAL },
-            { resource: 'crystals', count: SWARMLING_SOURCE_COMPLETION_CRYSTALS },
+            { resource: 'attunement', count: SWARMLING_SOURCE_COMPLETION_ATTUNEMENT },
         ]);
     });
 });

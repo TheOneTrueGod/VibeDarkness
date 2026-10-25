@@ -6,6 +6,7 @@ use App\Migrations\Versions\M0001EquipmentUnlocksAndSaveVersions;
 use App\Migrations\Versions\M0002ExhaustionToHunger;
 use App\Migrations\Versions\M0003EquipmentUpgradeRewards;
 use App\Migrations\Versions\M0004WeaponsResearchTree;
+use App\Migrations\Versions\M0005ResourceRename;
 
 /**
  * Ordered list of every deploy-time migration. Append new migrations at the end with the
@@ -21,6 +22,7 @@ final class MigrationRegistry
             new M0002ExhaustionToHunger(),
             new M0003EquipmentUpgradeRewards(),
             new M0004WeaponsResearchTree(),
+            new M0005ResourceRename(),
         ];
     }
 

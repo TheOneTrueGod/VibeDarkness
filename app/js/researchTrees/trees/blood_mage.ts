@@ -10,24 +10,24 @@ export const BLOOD_MAGE_NODE_PACT = 'blood_mage_pact';
 export const BLOOD_MAGE_NODE_CLAWS = 'blood_mage_claws';
 export const BLOOD_MAGE_NODE_SPLINTERS = 'blood_mage_shard_splinters';
 
-export const BLOOD_CORE_CRYSTAL_COST = 12;
-export const BLOOD_CORE_FOOD_COST = 8;
+export const BLOOD_CORE_ATTUNEMENT_COST = 12;
+export const BLOOD_CORE_VIGOR_COST = 8;
 export const BLOOD_CORE_METAL_COST = 1;
 
-export const BLOOD_BURST_CRYSTAL_COST = 8;
-export const BLOOD_BURST_FOOD_COST = 7;
+export const BLOOD_BURST_ATTUNEMENT_COST = 8;
+export const BLOOD_BURST_VIGOR_COST = 7;
 export const BLOOD_BURST_METAL_COST = 2;
 
-export const BLOOD_PACT_CRYSTAL_COST = 13;
-export const BLOOD_PACT_FOOD_COST = 8;
+export const BLOOD_PACT_ATTUNEMENT_COST = 13;
+export const BLOOD_PACT_VIGOR_COST = 8;
 export const BLOOD_PACT_METAL_COST = 3;
 
-export const BLOODY_CLAWS_CRYSTAL_COST = 12;
-export const BLOODY_CLAWS_FOOD_COST = 7;
+export const BLOODY_CLAWS_ATTUNEMENT_COST = 12;
+export const BLOODY_CLAWS_VIGOR_COST = 7;
 export const BLOODY_CLAWS_METAL_COST = 1;
 
-export const BLOOD_SPLINTERS_CRYSTAL_COST = 14;
-export const BLOOD_SPLINTERS_FOOD_COST = 9;
+export const BLOOD_SPLINTERS_ATTUNEMENT_COST = 14;
+export const BLOOD_SPLINTERS_VIGOR_COST = 9;
 export const BLOOD_SPLINTERS_METAL_COST = 3;
 
 export const bloodMageTree: ResearchTreeDef = {
@@ -54,8 +54,8 @@ export const bloodMageTree: ResearchTreeDef = {
                 { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.BloodMageCore },
             ],
             cost: {
-                crystals: BLOOD_CORE_CRYSTAL_COST,
-                food: BLOOD_CORE_FOOD_COST,
+                attunement: BLOOD_CORE_ATTUNEMENT_COST,
+                vigor: BLOOD_CORE_VIGOR_COST,
                 metal: BLOOD_CORE_METAL_COST,
             },
             effects: [
@@ -79,8 +79,8 @@ export const bloodMageTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: BLOOD_MAGE_TREE_ID, nodeIds: [BLOOD_MAGE_NODE_CORE] },
             ],
             cost: {
-                crystals: BLOOD_BURST_CRYSTAL_COST,
-                food: BLOOD_BURST_FOOD_COST,
+                attunement: BLOOD_BURST_ATTUNEMENT_COST,
+                vigor: BLOOD_BURST_VIGOR_COST,
                 metal: BLOOD_BURST_METAL_COST,
             },
             effects: [
@@ -102,8 +102,8 @@ export const bloodMageTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: BLOOD_MAGE_TREE_ID, nodeIds: [BLOOD_MAGE_NODE_CORE] },
             ],
             cost: {
-                crystals: BLOOD_PACT_CRYSTAL_COST,
-                food: BLOOD_PACT_FOOD_COST,
+                attunement: BLOOD_PACT_ATTUNEMENT_COST,
+                vigor: BLOOD_PACT_VIGOR_COST,
                 metal: BLOOD_PACT_METAL_COST,
             },
             effects: [
@@ -125,8 +125,8 @@ export const bloodMageTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: BLOOD_MAGE_TREE_ID, nodeIds: [BLOOD_MAGE_NODE_CORE] },
             ],
             cost: {
-                crystals: BLOODY_CLAWS_CRYSTAL_COST,
-                food: BLOODY_CLAWS_FOOD_COST,
+                attunement: BLOODY_CLAWS_ATTUNEMENT_COST,
+                vigor: BLOODY_CLAWS_VIGOR_COST,
                 metal: BLOODY_CLAWS_METAL_COST,
             },
             effects: [
@@ -148,8 +148,8 @@ export const bloodMageTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: BLOOD_MAGE_TREE_ID, nodeIds: [BLOOD_MAGE_NODE_CORE] },
             ],
             cost: {
-                crystals: BLOOD_SPLINTERS_CRYSTAL_COST,
-                food: BLOOD_SPLINTERS_FOOD_COST,
+                attunement: BLOOD_SPLINTERS_ATTUNEMENT_COST,
+                vigor: BLOOD_SPLINTERS_VIGOR_COST,
                 metal: BLOOD_SPLINTERS_METAL_COST,
             },
             effects: [],

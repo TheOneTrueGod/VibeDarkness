@@ -4,8 +4,8 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-    CHAPTER_1_COMPLETION_CRYSTALS,
-    CHAPTER_1_COMPLETION_FOOD,
+    CHAPTER_1_COMPLETION_ATTUNEMENT,
+    CHAPTER_1_COMPLETION_VIGOR,
     CHAPTER_1_COMPLETION_METAL,
     WOD_CH1_MAP_COL_SPACING,
     WOD_CH1_MAP_ROW_SPACING,
@@ -17,29 +17,29 @@ import {
 } from './chapter1Map';
 import {
     DARK_AWAKENING,
-    DARK_AWAKENING_FOOD_REWARD,
+    DARK_AWAKENING_VIGOR_REWARD,
     DARK_AWAKENING_METAL_REWARD,
 } from './missions/001_dark_awakening';
 import {
     TOWARDS_THE_LIGHT,
-    TOWARDS_THE_LIGHT_CRYSTAL_REWARD,
+    TOWARDS_THE_LIGHT_ATTUNEMENT_REWARD,
     TOWARDS_THE_LIGHT_METAL_REWARD,
 } from './missions/002_towards_the_light';
 import {
     LIGHT_EMPOWERED,
-    LIGHT_EMPOWERED_FOOD_REWARD,
+    LIGHT_EMPOWERED_VIGOR_REWARD,
 } from './missions/003_light_empowered';
 import {
     CAVE_RESPITE,
-    CAVE_RESPITE_CRYSTAL_REWARD,
-    CAVE_RESPITE_FOOD_REWARD,
+    CAVE_RESPITE_ATTUNEMENT_REWARD,
+    CAVE_RESPITE_VIGOR_REWARD,
     CAVE_RESPITE_METAL_REWARD,
 } from './missions/004_cave_respite';
-import { MONSTER, MONSTER_CRYSTAL_REWARD, MONSTER_HUNGER_RECOVERY } from './missions/005_monster';
+import { MONSTER, MONSTER_ATTUNEMENT_REWARD, MONSTER_HUNGER_RECOVERY } from './missions/005_monster';
 import {
     CORE_AWAKENING,
-    CORE_AWAKENING_CRYSTAL_REWARD,
-    CORE_AWAKENING_FOOD_REWARD,
+    CORE_AWAKENING_ATTUNEMENT_REWARD,
+    CORE_AWAKENING_VIGOR_REWARD,
     CORE_AWAKENING_METAL_REWARD,
 } from './missions/006_core_awakening';
 import { mergeResourceDeltas } from '../../../../campaignResources';
@@ -65,22 +65,22 @@ describe('chapter 1 mission map grid', () => {
 });
 
 describe('chapter 1 completion resource rewards', () => {
-    it('grants cave crystals and metal on Towards the Light', () => {
+    it('grants attunement and metal on Towards the Light', () => {
         expect(TOWARDS_THE_LIGHT.completionRewards?.resourceDelta).toEqual({
-            crystals: TOWARDS_THE_LIGHT_CRYSTAL_REWARD,
+            attunement: TOWARDS_THE_LIGHT_ATTUNEMENT_REWARD,
             metal: TOWARDS_THE_LIGHT_METAL_REWARD,
         });
     });
 
-    it('grants food on Find some food', () => {
+    it('grants vigor on Find some food', () => {
         expect(LIGHT_EMPOWERED.completionRewards?.resourceDelta).toEqual({
-            food: LIGHT_EMPOWERED_FOOD_REWARD,
+            vigor: LIGHT_EMPOWERED_VIGOR_REWARD,
         });
     });
 
-    it('grants crystals on The Beast', () => {
+    it('grants attunement on The Beast', () => {
         expect(MONSTER.completionRewards?.resourceDelta).toEqual({
-            crystals: MONSTER_CRYSTAL_REWARD,
+            attunement: MONSTER_ATTUNEMENT_REWARD,
         });
     });
 
@@ -93,7 +93,7 @@ describe('chapter 1 completion resource rewards', () => {
         });
     });
 
-    it('totals fifteen food, metal, and crystals across chapter 1', () => {
+    it('totals fifteen vigor, metal, and attunement across chapter 1', () => {
         const totals = mergeResourceDeltas(
             DARK_AWAKENING.completionRewards?.resourceDelta,
             TOWARDS_THE_LIGHT.completionRewards?.resourceDelta,
@@ -103,23 +103,23 @@ describe('chapter 1 completion resource rewards', () => {
             CORE_AWAKENING.completionRewards?.resourceDelta,
         );
         expect(totals).toEqual({
-            food: CHAPTER_1_COMPLETION_FOOD,
+            vigor: CHAPTER_1_COMPLETION_VIGOR,
             metal: CHAPTER_1_COMPLETION_METAL,
-            crystals: CHAPTER_1_COMPLETION_CRYSTALS,
+            attunement: CHAPTER_1_COMPLETION_ATTUNEMENT,
         });
         expect(DARK_AWAKENING.completionRewards?.resourceDelta).toEqual({
-            food: DARK_AWAKENING_FOOD_REWARD,
+            vigor: DARK_AWAKENING_VIGOR_REWARD,
             metal: DARK_AWAKENING_METAL_REWARD,
         });
         expect(CAVE_RESPITE.completionRewards?.resourceDelta).toEqual({
-            food: CAVE_RESPITE_FOOD_REWARD,
+            vigor: CAVE_RESPITE_VIGOR_REWARD,
             metal: CAVE_RESPITE_METAL_REWARD,
-            crystals: CAVE_RESPITE_CRYSTAL_REWARD,
+            attunement: CAVE_RESPITE_ATTUNEMENT_REWARD,
         });
         expect(CORE_AWAKENING.completionRewards?.resourceDelta).toEqual({
-            food: CORE_AWAKENING_FOOD_REWARD,
+            vigor: CORE_AWAKENING_VIGOR_REWARD,
             metal: CORE_AWAKENING_METAL_REWARD,
-            crystals: CORE_AWAKENING_CRYSTAL_REWARD,
+            attunement: CORE_AWAKENING_ATTUNEMENT_REWARD,
         });
     });
 });

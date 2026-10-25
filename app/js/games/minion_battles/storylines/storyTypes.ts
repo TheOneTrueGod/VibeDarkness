@@ -3,6 +3,7 @@
  * Strongly typed phrase union; choice actions are extensible.
  */
 
+import type { MissionBonusResourceDelta } from '../../../campaignResources';
 import type { ResearchTag } from '../../../researchTrees/types';
 import type { EquipmentSlotType } from '../character_defs/items/types';
 
@@ -42,21 +43,14 @@ export interface StoryChoiceActionEquipItem {
 }
 
 /** Choice action: grant campaign resources (used in post-mission choices). */
-export interface StoryChoiceActionGrantResources {
+export interface StoryChoiceActionGrantResources extends MissionBonusResourceDelta {
     type: 'grant_resources';
-    food?: number;
-    metal?: number;
-    crystals?: number;
     /**
      * Also grant these resources to every other non-spectator player when they complete
      * this choice phrase (stacks with their own choice). Requires the post-mission phase
      * to wait until all players have chosen before finalizing rewards.
      */
-    alsoGrantToOthers?: {
-        food?: number;
-        metal?: number;
-        crystals?: number;
-    };
+    alsoGrantToOthers?: MissionBonusResourceDelta;
 }
 
 /** Choice action: grant one research node to the player's selected campaign character. */

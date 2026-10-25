@@ -1,5 +1,5 @@
 import type { CampaignResourceKey, ResearchTreeDef } from '../types';
-import { ZERO_CAMPAIGN_RESOURCES } from '../../campaignResources';
+import { MISSION_BONUS_RESOURCE_KEYS } from '../../campaignResources';
 import { PassiveStatKey } from '../types';
 import { RESEARCH_TREE_COLOUR_DARKNESS, RESEARCH_TREE_ICON_GENERIC } from '../researchTreeChrome';
 
@@ -10,12 +10,10 @@ export const DARKNESS_UPGRADE_NODE_EMPOWERED_SPIRITS = 'empowered_spirits';
 export const EMPOWERED_SPIRITS_BONUS_PER_RESOURCE = 2;
 
 /**
- * Resources Empowered Spirits grants: food, metal and crystals. `hunger` is a signed penalty accumulator and
+ * Resources Empowered Spirits grants: Vigor, metal and Attunement. `hunger` is a signed penalty accumulator and
  * `population` is intentionally not granted as a mission bonus.
  */
-export const DARKNESS_UPGRADE_REWARD_RESOURCE_KEYS: CampaignResourceKey[] = (
-    Object.keys(ZERO_CAMPAIGN_RESOURCES) as CampaignResourceKey[]
-).filter((key) => key !== 'hunger' && key !== 'population');
+export const DARKNESS_UPGRADE_REWARD_RESOURCE_KEYS: CampaignResourceKey[] = [...MISSION_BONUS_RESOURCE_KEYS];
 
 function bonusPerResource(amount: number): Partial<Record<CampaignResourceKey, number>> {
     const out: Partial<Record<CampaignResourceKey, number>> = {};
@@ -45,7 +43,7 @@ export const darknessUpgradesTree: ResearchTreeDef = {
             id: DARKNESS_UPGRADE_NODE_EMPOWERED_SPIRITS,
             title: 'Empowered Spirits',
             description:
-                'Slimes gain +12 max health and fire 2 additional projectiles in a wedge. Victorious missions grant +2 food, metal and crystals.',
+                'Slimes gain +12 max health and fire 2 additional projectiles in a wedge. Victorious missions grant +2 Vigor, metal and Attunement.',
             summary: 'Tougher Ghosts',
             flavorText: 'The darkness feeds, and what it feeds grows.',
             order: 10,

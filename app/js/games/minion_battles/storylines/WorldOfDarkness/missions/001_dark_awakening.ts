@@ -18,7 +18,7 @@ import { TerrainGrid, CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TerrainType } from '../../../terrain/TerrainType';
 
 /** Scraps gathered after surviving the first night. */
-export const DARK_AWAKENING_FOOD_REWARD = 2;
+export const DARK_AWAKENING_VIGOR_REWARD = 2;
 export const DARK_AWAKENING_METAL_REWARD = 2;
 
 // Grid: 30 columns × 22 rows (40px cells)
@@ -240,7 +240,7 @@ export class DarkAwakeningMission extends BaseMissionDef {
 	name = 'A Dark Awakening';
 	completionRewards = {
 		resourceDelta: {
-			food: DARK_AWAKENING_FOOD_REWARD,
+			vigor: DARK_AWAKENING_VIGOR_REWARD,
 			metal: DARK_AWAKENING_METAL_REWARD,
 		},
 		unlockItemTiers: [{ slot: 'weapon' as const, tier: 1 }],

@@ -31,7 +31,7 @@ export const VICTORY_SEQUENCE_FAST_SPEED_MULTIPLIER = 3;
 export const VICTORY_OBJECTIVE_STAGGER_MS = 60;
 
 /**
- * Length (ms, normal speed) of the Hunger to HP bar animation and the food icons' flight. Deliberately longer than
+ * Length (ms, normal speed) of the Hunger to HP bar animation and the hunger icons' flight. Deliberately longer than
  * the `conversion` stage: the rewards and Continue arrive on schedule while it keeps playing.
  */
 export const VICTORY_CONVERSION_ANIMATION_MS = 5000;
@@ -43,7 +43,7 @@ export function victoryConversionAnimationMs(speedMultiplier: number, reducedMot
     return VICTORY_CONVERSION_ANIMATION_MS / speed;
 }
 
-/** Number of food icons flown from the Hunger bar to the HP bar. */
+/** Number of hunger icons flown from the Hunger bar to the HP bar. */
 export const VICTORY_CONVERSION_ICON_COUNT = 7;
 
 export interface VictoryTimelineOptions {

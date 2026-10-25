@@ -9,7 +9,7 @@ import {
 } from './found_berries';
 import {
     FOUND_BERRIES_EAT_HUNGER_RECOVERY,
-    FOUND_BERRIES_KEEP_FOOD,
+    FOUND_BERRIES_KEEP_VIGOR,
     SEARCH_FOR_LOOSE_METALS_LABEL,
     SEARCH_FOR_LOOSE_METALS_OPTION_ID,
     SURFACE_METAL_HARVEST_METAL,
@@ -44,13 +44,13 @@ describe('Found Berries choices', () => {
         expect(eat?.action).toEqual({ type: 'recover_hunger', amount: FOUND_BERRIES_EAT_HUNGER_RECOVERY });
     });
 
-    it('grants keep-food and harvest-metal Campaign Rewards', () => {
+    it('grants keep-vigor and harvest-metal Campaign Rewards', () => {
         const options = foundBerriesChoiceOptions();
         const keep = options.find((o) => o.id === FOUND_BERRIES_OPTION_KEEP);
         const metals = options.find((o) => o.id === SEARCH_FOR_LOOSE_METALS_OPTION_ID);
         expect(keep?.action).toEqual({
             type: 'grant_resources',
-            food: FOUND_BERRIES_KEEP_FOOD,
+            vigor: FOUND_BERRIES_KEEP_VIGOR,
         });
         expect(metals?.action).toEqual({
             type: 'grant_resources',

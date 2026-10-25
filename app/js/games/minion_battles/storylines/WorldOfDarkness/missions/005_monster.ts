@@ -24,7 +24,7 @@ import {
 } from '../MapSegments/50_50_crystal_cave';
 
 /** Crystals pried from the Beast's dark-crystal den. */
-export const MONSTER_CRYSTAL_REWARD = 6;
+export const MONSTER_ATTUNEMENT_REWARD = 6;
 /** Hunger each player's character recovers on defeating the Alpha Wolf (clamped at max Hunger by the story's ordered Hunger changes). */
 export const MONSTER_HUNGER_RECOVERY = 100;
 
@@ -156,7 +156,7 @@ export class MonsterMission extends BaseMissionDef {
     name = 'Monster';
     completionRewards = {
         knowledgeKeys: ['AlphaWolfDefeated'],
-        resourceDelta: { crystals: MONSTER_CRYSTAL_REWARD },
+        resourceDelta: { attunement: MONSTER_ATTUNEMENT_REWARD },
     };
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;

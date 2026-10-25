@@ -14,10 +14,12 @@ namespace App\SaveData;
  * v4: One Weapons tree. Every per-weapon / weapon-family research tree merges into `weapons`
  *     (node ids, levels and sources kept); the retired family roots are dropped. Mission-result
  *     `researchRewards` rows are re-pointed too.
+ * v5: Resource rename. `food` -> `vigor`, `crystals` -> `attunement` in every `resourceDelta`; knowledge key
+ *     `Crystals` -> `ResourceAttunement`.
  */
 final class CharacterMigrations
 {
-    public const CURRENT_VERSION = 4;
+    public const CURRENT_VERSION = 5;
 
     /**
      * Frozen (v3): swap research node => [old tree, upgrade item, base item it replaces]. Within a base item
@@ -88,6 +90,7 @@ final class CharacterMigrations
             1 => [self::class, 'v1ToV2'],
             2 => [self::class, 'v2ToV3'],
             3 => [self::class, 'v3ToV4'],
+            4 => [self::class, 'v4ToV5'],
         ];
     }
 
@@ -391,6 +394,23 @@ final class CharacterMigrations
             if (array_key_exists($key, $data)) {
                 $data[$key] = self::remapResearchRewardTrees($data[$key]);
             }
+        }
+        return $data;
+    }
+
+    public static function v4ToV5(array $data): array
+    {
+        foreach (['missionResults', 'questResults', 'activeQuestRun'] as $key) {
+            if (array_key_exists($key, $data)) {
+                $data[$key] = ResourceRenames::renameDeep($data[$key]);
+            }
+        }
+        if (array_key_exists('knowledge', $data)) {
+            $data['knowledge'] = ResourceRenames::renameKnowledgeMap($data['knowledge']);
+        }
+        if (isset($data['activeQuestRun']['questCharacter']['knowledge'])) {
+            $data['activeQuestRun']['questCharacter']['knowledge'] =
+                ResourceRenames::renameKnowledgeMap($data['activeQuestRun']['questCharacter']['knowledge']);
         }
         return $data;
     }

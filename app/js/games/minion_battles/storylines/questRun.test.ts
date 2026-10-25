@@ -31,7 +31,7 @@ const CAMPAIGN_CHARACTER = {
 const QUEST_WITH_COMPLETION: QuestDef = {
     ...SWARMLING_SOURCE,
     completionRewards: {
-        resourceDelta: { food: 3 },
+        resourceDelta: { vigor: 3 },
         unlockItemIds: ['item_completion_badge'],
         knowledgeKeys: ['BoarHerdFound'],
     },
@@ -189,13 +189,13 @@ describe('abandonQuestRun', () => {
         });
         run = queueCampaignReward(run, {
             source: 'draft_pick',
-            resourceDelta: { crystals: 5 },
+            resourceDelta: { attunement: 5 },
         });
         const abandoned = abandonQuestRun(run);
         expect(abandoned.status).toBe('abandoned');
         expect(abandoned.assignedBankId).toBe(SAMPLE_BANK_ID);
         expect(abandoned.questCharacter.campaignRewards).toEqual([
-            { source: 'draft_pick', resourceDelta: { crystals: 5 } },
+            { source: 'draft_pick', resourceDelta: { attunement: 5 } },
         ]);
         // Domain abandon does not produce a victory QuestResult or apply payload.
         expect(abandoned.questCharacter.equipment).toEqual(CAMPAIGN_CHARACTER.equipment);
@@ -250,13 +250,13 @@ describe('completeQuestRun / Campaign Rewards', () => {
         // Queued mid-run — still not applied (no campaign mutation API called here).
         run = queueCampaignReward(run, {
             source: 'draft_pick',
-            resourceDelta: { crystals: 2 },
+            resourceDelta: { attunement: 2 },
             unlockItemIds: ['item_sword_of_dreams'],
             researchRewardIds: ['research_boar_lore'],
         });
         run = queueCampaignReward(run, {
             source: 'story',
-            resourceDelta: { crystals: 1, food: 1 },
+            resourceDelta: { attunement: 1, vigor: 1 },
             itemCardIds: ['card_boar_call'],
         });
 
@@ -286,10 +286,10 @@ describe('completeQuestRun / Campaign Rewards', () => {
         expect(completed.result.placement).toBe('bank');
         expect(completed.result.bankId).toBe(SAMPLE_BANK_ID);
 
-        // completion food:3 + story food:1; crystals 2+1; unlocks merged
+        // completion vigor:3 + story vigor:1; attunement 2+1; unlocks merged
         expect(completed.campaignRewardsToApply.resourceDelta).toEqual({
-            food: 4,
-            crystals: 3,
+            vigor: 4,
+            attunement: 3,
         });
         expect(completed.campaignRewardsToApply.unlockItemIds).toEqual([
             'item_completion_badge',
@@ -299,7 +299,7 @@ describe('completeQuestRun / Campaign Rewards', () => {
         expect(completed.campaignRewardsToApply.itemCardIds).toEqual(['card_boar_call']);
         expect(completed.campaignRewardsToApply.researchRewardIds).toEqual(['research_boar_lore']);
 
-        expect(completed.result.resourceDelta).toEqual({ food: 4, crystals: 3 });
+        expect(completed.result.resourceDelta).toEqual({ vigor: 4, attunement: 3 });
         expect(completed.result.unlockItemIds).toEqual([
             'item_completion_badge',
             'item_sword_of_dreams',
@@ -322,7 +322,7 @@ describe('completeQuestRun / Campaign Rewards', () => {
         const questWithLocationCards: QuestDef = {
             ...SWARMLING_SOURCE,
             completionRewards: {
-                resourceDelta: { food: 3 },
+                resourceDelta: { vigor: 3 },
                 locationCardIds: [1, 2],
             },
         };

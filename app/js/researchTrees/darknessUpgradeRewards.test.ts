@@ -66,22 +66,22 @@ describe('mergeDarknessUpgradeRewards', () => {
 describe('all-players bonus rewards from active node ids', () => {
     const ids = [DARKNESS_UPGRADE_NODE_EMPOWERED_SPIRITS];
     const apply = (nodeIds: string[] | undefined, victory: boolean) =>
-        mergeDarknessUpgradeRewards({ food: 1 }, getDarknessUpgradeRewardEntriesForNodeIds(nodeIds), victory);
+        mergeDarknessUpgradeRewards({ vigor: 1 }, getDarknessUpgradeRewardEntriesForNodeIds(nodeIds), victory);
 
     it('a non-host receives the same reward as the host from the same active ids', () => {
         const host = apply(ids, true);
         const nonHost = apply([...ids], true);
         expect(nonHost).toEqual(host);
-        expect(nonHost.resourceDelta?.food).toBe(3);
+        expect(nonHost.resourceDelta?.vigor).toBe(3);
         expect(nonHost.lineItems).toHaveLength(1);
     });
     it('empty or missing ids give no reward', () => {
         expect(apply([], true).lineItems).toEqual([]);
-        expect(apply(undefined, true).resourceDelta).toEqual({ food: 1 });
+        expect(apply(undefined, true).resourceDelta).toEqual({ vigor: 1 });
         expect(apply(['unknown_node'], true).lineItems).toEqual([]);
     });
     it('defeat gives no reward', () => {
-        expect(apply(ids, false)).toEqual({ resourceDelta: { food: 1 }, lineItems: [] });
+        expect(apply(ids, false)).toEqual({ resourceDelta: { vigor: 1 }, lineItems: [] });
     });
 });
 

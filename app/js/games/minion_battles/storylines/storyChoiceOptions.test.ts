@@ -7,10 +7,10 @@ describe('storyChoiceActionResourceDelta', () => {
     });
 
     it('passes grant_resources amounts through', () => {
-        expect(storyChoiceActionResourceDelta({ type: 'grant_resources', food: 5, metal: 2 })).toEqual({
-            food: 5,
+        expect(storyChoiceActionResourceDelta({ type: 'grant_resources', vigor: 5, metal: 2 })).toEqual({
+            vigor: 5,
             metal: 2,
-            crystals: undefined,
+            attunement: undefined,
         });
     });
 

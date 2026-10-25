@@ -96,9 +96,9 @@ describe('applyHungerCapToExtras', () => {
                 researchNodeLevels: {},
             },
             MISSION_ID,
-            { resourceDelta: { food: 1, hunger: -20 } },
+            { resourceDelta: { vigor: 1, hunger: -20 } },
         );
-        expect(capped?.resourceDelta).toEqual({ food: 1, hunger: -2 });
+        expect(capped?.resourceDelta).toEqual({ vigor: 1, hunger: -2 });
     });
 
     /** A character who has already lost `lost` Hunger in another mission. */
@@ -146,10 +146,10 @@ describe('applyHungerCapToExtras', () => {
 
     it('keeps other resources and drops the delta when hunger is unchanged', () => {
         const result = applyHungerCapToExtras(hungerLost(0), MISSION_ID, {
-            resourceDelta: { food: 2 },
+            resourceDelta: { vigor: 2 },
             hungerChanges: [20],
         });
-        expect(result?.resourceDelta).toEqual({ food: 2 });
+        expect(result?.resourceDelta).toEqual({ vigor: 2 });
     });
 
     it('a +100 completion recovery refills a character to full hunger (70 -> 100, 0 -> 100)', () => {

@@ -5,8 +5,8 @@ import {
     CORE_RESEARCH_TIER_LOW_TOTAL,
     CORE_RESEARCH_TOTAL_SLACK,
     interpolatedCoreResearchTotal,
-    minCoreResearchCrystals,
-    minCoreResearchFood,
+    minCoreResearchAttunement,
+    minCoreResearchVigor,
     remainingAfterCoreFloors,
     researchResourceTotal,
 } from './researchCostPolicy';
@@ -66,16 +66,16 @@ describe('core tree campaign costs (except Light)', () => {
         expect(CORE_TREES_EXCEPT_LIGHT.map((tree) => tree.id)).not.toContain(LIGHT_TREE_ID);
     });
 
-    it('meets crystal and food floors from tier 10 upward', () => {
+    it('meets attunement and vigor floors from tier 10 upward', () => {
         for (const tree of CORE_TREES_EXCEPT_LIGHT) {
             for (const node of paidNodes(tree)) {
                 const tier = requireNodeTier(node);
                 if (tier < CORE_RESEARCH_TIER_LOW) continue;
-                expect(node.cost.crystals ?? 0, `${tree.id}:${node.id}`).toBeGreaterThanOrEqual(
-                    minCoreResearchCrystals(tier),
+                expect(node.cost.attunement ?? 0, `${tree.id}:${node.id}`).toBeGreaterThanOrEqual(
+                    minCoreResearchAttunement(tier),
                 );
-                expect(node.cost.food ?? 0, `${tree.id}:${node.id}`).toBeGreaterThanOrEqual(
-                    minCoreResearchFood(tier),
+                expect(node.cost.vigor ?? 0, `${tree.id}:${node.id}`).toBeGreaterThanOrEqual(
+                    minCoreResearchVigor(tier),
                 );
             }
         }
@@ -102,32 +102,32 @@ describe('core tree campaign costs (except Light)', () => {
     it('leans remaining Earth cost toward metal', () => {
         for (const node of paidNodes(earthTree)) {
             const remaining = remainingAfterCoreFloors(node.cost, requireNodeTier(node));
-            expect(remaining.metal, node.id).toBeGreaterThanOrEqual(remaining.crystals);
-            expect(remaining.metal, node.id).toBeGreaterThanOrEqual(remaining.food);
+            expect(remaining.metal, node.id).toBeGreaterThanOrEqual(remaining.attunement);
+            expect(remaining.metal, node.id).toBeGreaterThanOrEqual(remaining.vigor);
         }
     });
 
-    it('leans remaining Command cost toward food', () => {
+    it('leans remaining Command cost toward Vigor', () => {
         for (const node of paidNodes(commandCoreTree)) {
             const remaining = remainingAfterCoreFloors(node.cost, requireNodeTier(node));
-            expect(remaining.food, node.id).toBeGreaterThanOrEqual(remaining.crystals);
-            expect(remaining.food, node.id).toBeGreaterThanOrEqual(remaining.metal);
+            expect(remaining.vigor, node.id).toBeGreaterThanOrEqual(remaining.attunement);
+            expect(remaining.vigor, node.id).toBeGreaterThanOrEqual(remaining.metal);
         }
     });
 
-    it('leans remaining Gravity cost toward crystals', () => {
+    it('leans remaining Gravity cost toward Attunement', () => {
         for (const node of paidNodes(gravityTree)) {
             const remaining = remainingAfterCoreFloors(node.cost, requireNodeTier(node));
-            expect(remaining.crystals, node.id).toBeGreaterThanOrEqual(remaining.food);
-            expect(remaining.crystals, node.id).toBeGreaterThanOrEqual(remaining.metal);
+            expect(remaining.attunement, node.id).toBeGreaterThanOrEqual(remaining.vigor);
+            expect(remaining.attunement, node.id).toBeGreaterThanOrEqual(remaining.metal);
         }
     });
 
-    it('leans Blood Mage remaining cost toward crystals and food', () => {
+    it('leans Blood Mage remaining cost toward Attunement and Vigor', () => {
         for (const node of paidNodes(bloodMageTree)) {
             const remaining = remainingAfterCoreFloors(node.cost, requireNodeTier(node));
-            expect(remaining.crystals, node.id).toBeGreaterThanOrEqual(remaining.metal);
-            expect(remaining.food, node.id).toBeGreaterThanOrEqual(remaining.metal);
+            expect(remaining.attunement, node.id).toBeGreaterThanOrEqual(remaining.metal);
+            expect(remaining.vigor, node.id).toBeGreaterThanOrEqual(remaining.metal);
         }
     });
 });

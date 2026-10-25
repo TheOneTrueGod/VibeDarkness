@@ -3,6 +3,7 @@
 namespace App\Http\Handlers;
 
 use App\AccountService;
+use App\Campaign;
 use App\CampaignManager;
 use App\LobbyManager;
 use App\PlayerAccount;
@@ -59,7 +60,7 @@ class GrantCampaignResourceHandler
         }
 
         $k = strtolower($resourceKey);
-        if (!in_array($k, ['food', 'metal', 'population', 'crystals', 'hunger'], true)) {
+        if (!in_array($k, Campaign::RESOURCE_KEYS, true)) {
             http_response_code(400);
             return ['success' => false, 'error' => 'Invalid resource key'];
         }

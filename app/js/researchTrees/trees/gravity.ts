@@ -23,32 +23,32 @@ export const GRAVITY_NODE_EASE_BURDENS = 'gravity_ease_burdens';
 export const GRAVITY_NODE_REPULSE = 'gravity_repulse';
 export const GRAVITY_NODE_COLLAPSE = 'gravity_collapse';
 
-export const GRAVITY_CORE_CRYSTAL_COST = 13;
-export const GRAVITY_CORE_FOOD_COST = 5;
+export const GRAVITY_CORE_ATTUNEMENT_COST = 13;
+export const GRAVITY_CORE_VIGOR_COST = 5;
 export const GRAVITY_CORE_METAL_COST = 2;
 
-export const GRAVITY_LOCUS_CRYSTAL_COST = 12;
-export const GRAVITY_LOCUS_FOOD_COST = 5;
+export const GRAVITY_LOCUS_ATTUNEMENT_COST = 12;
+export const GRAVITY_LOCUS_VIGOR_COST = 5;
 export const GRAVITY_LOCUS_METAL_COST = 1;
 
-export const GRAVITY_REPULSE_CRYSTAL_COST = 13;
-export const GRAVITY_REPULSE_FOOD_COST = 5;
+export const GRAVITY_REPULSE_ATTUNEMENT_COST = 13;
+export const GRAVITY_REPULSE_VIGOR_COST = 5;
 export const GRAVITY_REPULSE_METAL_COST = 1;
 
-export const GRAVITY_LIFT_CRYSTAL_COST = 13;
-export const GRAVITY_LIFT_FOOD_COST = 5;
+export const GRAVITY_LIFT_ATTUNEMENT_COST = 13;
+export const GRAVITY_LIFT_VIGOR_COST = 5;
 export const GRAVITY_LIFT_METAL_COST = 1;
 
-export const GRAVITY_SHIELD_CRYSTAL_COST = 16;
-export const GRAVITY_SHIELD_FOOD_COST = 5;
+export const GRAVITY_SHIELD_ATTUNEMENT_COST = 16;
+export const GRAVITY_SHIELD_VIGOR_COST = 5;
 export const GRAVITY_SHIELD_METAL_COST = 5;
 
-export const GRAVITY_EASE_BURDENS_CRYSTAL_COST = 16;
-export const GRAVITY_EASE_BURDENS_FOOD_COST = 5;
+export const GRAVITY_EASE_BURDENS_ATTUNEMENT_COST = 16;
+export const GRAVITY_EASE_BURDENS_VIGOR_COST = 5;
 export const GRAVITY_EASE_BURDENS_METAL_COST = 5;
 
-export const GRAVITY_COLLAPSE_CRYSTAL_COST = 14;
-export const GRAVITY_COLLAPSE_FOOD_COST = 5;
+export const GRAVITY_COLLAPSE_ATTUNEMENT_COST = 14;
+export const GRAVITY_COLLAPSE_VIGOR_COST = 5;
 export const GRAVITY_COLLAPSE_METAL_COST = 1;
 
 export const gravityTree: ResearchTreeDef = {
@@ -75,8 +75,8 @@ export const gravityTree: ResearchTreeDef = {
                 { type: 'characterHasEquippedItem', itemId: CORE_ITEM_IDS.GravityCore },
             ],
             cost: {
-                crystals: GRAVITY_CORE_CRYSTAL_COST,
-                food: GRAVITY_CORE_FOOD_COST,
+                attunement: GRAVITY_CORE_ATTUNEMENT_COST,
+                vigor: GRAVITY_CORE_VIGOR_COST,
                 metal: GRAVITY_CORE_METAL_COST,
             },
             effects: [
@@ -102,8 +102,8 @@ export const gravityTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: GRAVITY_TREE_ID, nodeIds: [GRAVITY_NODE_CORE] },
             ],
             cost: {
-                crystals: GRAVITY_LOCUS_CRYSTAL_COST,
-                food: GRAVITY_LOCUS_FOOD_COST,
+                attunement: GRAVITY_LOCUS_ATTUNEMENT_COST,
+                vigor: GRAVITY_LOCUS_VIGOR_COST,
                 metal: GRAVITY_LOCUS_METAL_COST,
             },
             effects: [
@@ -126,8 +126,8 @@ export const gravityTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: GRAVITY_TREE_ID, nodeIds: [GRAVITY_NODE_GRAVITY_LOCUS] },
             ],
             cost: {
-                crystals: GRAVITY_REPULSE_CRYSTAL_COST,
-                food: GRAVITY_REPULSE_FOOD_COST,
+                attunement: GRAVITY_REPULSE_ATTUNEMENT_COST,
+                vigor: GRAVITY_REPULSE_VIGOR_COST,
                 metal: GRAVITY_REPULSE_METAL_COST,
             },
             effects: [],
@@ -156,8 +156,8 @@ export const gravityTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: GRAVITY_TREE_ID, nodeIds: [GRAVITY_NODE_CORE] },
             ],
             cost: {
-                crystals: GRAVITY_LIFT_CRYSTAL_COST,
-                food: GRAVITY_LIFT_FOOD_COST,
+                attunement: GRAVITY_LIFT_ATTUNEMENT_COST,
+                vigor: GRAVITY_LIFT_VIGOR_COST,
                 metal: GRAVITY_LIFT_METAL_COST,
             },
             effects: [
@@ -179,8 +179,8 @@ export const gravityTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: GRAVITY_TREE_ID, nodeIds: [GRAVITY_NODE_CORE] },
             ],
             cost: {
-                crystals: GRAVITY_SHIELD_CRYSTAL_COST,
-                food: GRAVITY_SHIELD_FOOD_COST,
+                attunement: GRAVITY_SHIELD_ATTUNEMENT_COST,
+                vigor: GRAVITY_SHIELD_VIGOR_COST,
                 metal: GRAVITY_SHIELD_METAL_COST,
             },
             effects: [
@@ -201,8 +201,8 @@ export const gravityTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: GRAVITY_TREE_ID, nodeIds: [GRAVITY_NODE_CORE] },
             ],
             cost: {
-                crystals: GRAVITY_EASE_BURDENS_CRYSTAL_COST,
-                food: GRAVITY_EASE_BURDENS_FOOD_COST,
+                attunement: GRAVITY_EASE_BURDENS_ATTUNEMENT_COST,
+                vigor: GRAVITY_EASE_BURDENS_VIGOR_COST,
                 metal: GRAVITY_EASE_BURDENS_METAL_COST,
             },
             effects: [
@@ -224,8 +224,8 @@ export const gravityTree: ResearchTreeDef = {
                 { type: 'anyResearched', treeId: GRAVITY_TREE_ID, nodeIds: [GRAVITY_NODE_CORE] },
             ],
             cost: {
-                crystals: GRAVITY_COLLAPSE_CRYSTAL_COST,
-                food: GRAVITY_COLLAPSE_FOOD_COST,
+                attunement: GRAVITY_COLLAPSE_ATTUNEMENT_COST,
+                vigor: GRAVITY_COLLAPSE_VIGOR_COST,
                 metal: GRAVITY_COLLAPSE_METAL_COST,
             },
             effects: [

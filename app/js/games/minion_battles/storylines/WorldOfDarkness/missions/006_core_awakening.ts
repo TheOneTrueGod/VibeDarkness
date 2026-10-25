@@ -30,9 +30,9 @@ import {
 } from '../../../../../researchTrees/trees/misc';
 
 /** Residue from the awakening rite. */
-export const CORE_AWAKENING_FOOD_REWARD = 2;
+export const CORE_AWAKENING_VIGOR_REWARD = 2;
 export const CORE_AWAKENING_METAL_REWARD = 3;
-export const CORE_AWAKENING_CRYSTAL_REWARD = 2;
+export const CORE_AWAKENING_ATTUNEMENT_REWARD = 2;
 
 function createTerrain(): TerrainGrid {
     return TerrainGrid.createTerrainFromArray(1, 1, CELL_SIZE, [[TerrainType.Grass]], TerrainType.Grass);
@@ -249,9 +249,9 @@ export class CoreAwakeningMission extends BaseMissionDef {
     name = 'Core Awakening';
     completionRewards = {
         resourceDelta: {
-            food: CORE_AWAKENING_FOOD_REWARD,
+            vigor: CORE_AWAKENING_VIGOR_REWARD,
             metal: CORE_AWAKENING_METAL_REWARD,
-            crystals: CORE_AWAKENING_CRYSTAL_REWARD,
+            attunement: CORE_AWAKENING_ATTUNEMENT_REWARD,
         },
     };
     worldWidth = CELL_SIZE;

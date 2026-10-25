@@ -8,18 +8,18 @@ import {
 } from '../games/minion_battles/card_defs/08_light_core/0805_ShieldOfLight/0805Constants';
 import type { CampaignResourceCost } from './types';
 import {
-    LIGHT_CORE_CRYSTAL_COST,
-    LIGHT_CORE_FOOD_COST,
+    LIGHT_CORE_ATTUNEMENT_COST,
+    LIGHT_CORE_VIGOR_COST,
     LIGHT_CORE_METAL_COST,
     LIGHT_NODE_BLINDING_FLARE,
     LIGHT_NODE_CORE,
     LIGHT_NODE_SHIELD_OF_LIGHT,
-    LIGHT_SHIELD_CRYSTAL_COST,
-    LIGHT_SHIELD_FLARE_CRYSTAL_COST,
-    LIGHT_SHIELD_FLARE_FOOD_COST,
+    LIGHT_SHIELD_ATTUNEMENT_COST,
+    LIGHT_SHIELD_FLARE_ATTUNEMENT_COST,
+    LIGHT_SHIELD_FLARE_VIGOR_COST,
     LIGHT_SHIELD_FLARE_METAL_COST,
     LIGHT_SHIELD_FLARE_TIER,
-    LIGHT_SHIELD_FOOD_COST,
+    LIGHT_SHIELD_VIGOR_COST,
     LIGHT_SHIELD_METAL_COST,
     LIGHT_SHIELD_TIER,
     LIGHT_TREE_ID,
@@ -27,12 +27,12 @@ import {
 } from './trees/light';
 
 function resourceTotal(cost: CampaignResourceCost): number {
-    return (cost.crystals ?? 0) + (cost.food ?? 0) + (cost.metal ?? 0);
+    return (cost.attunement ?? 0) + (cost.vigor ?? 0) + (cost.metal ?? 0);
 }
 
-function crystalShare(cost: CampaignResourceCost): number {
+function attunementShare(cost: CampaignResourceCost): number {
     const total = resourceTotal(cost);
-    return total === 0 ? 0 : (cost.crystals ?? 0) / total;
+    return total === 0 ? 0 : (cost.attunement ?? 0) / total;
 }
 
 describe('Shield of Light research', () => {
@@ -44,8 +44,8 @@ describe('Shield of Light research', () => {
             expect.arrayContaining([{ type: 'addCard', cardId: SHIELD_OF_LIGHT_ABILITY_ID }]),
         );
         expect(node?.cost).toEqual({
-            crystals: LIGHT_SHIELD_CRYSTAL_COST,
-            food: LIGHT_SHIELD_FOOD_COST,
+            attunement: LIGHT_SHIELD_ATTUNEMENT_COST,
+            vigor: LIGHT_SHIELD_VIGOR_COST,
             metal: LIGHT_SHIELD_METAL_COST,
         });
     });
@@ -61,8 +61,8 @@ describe('Shield of Light research', () => {
             addTags: [LIGHT_SHIELD_FLARE_TAG],
         });
         expect(node?.cost).toEqual({
-            crystals: LIGHT_SHIELD_FLARE_CRYSTAL_COST,
-            food: LIGHT_SHIELD_FLARE_FOOD_COST,
+            attunement: LIGHT_SHIELD_FLARE_ATTUNEMENT_COST,
+            vigor: LIGHT_SHIELD_FLARE_VIGOR_COST,
             metal: LIGHT_SHIELD_FLARE_METAL_COST,
         });
     });
@@ -80,11 +80,11 @@ describe('Shield of Light research', () => {
 });
 
 describe('Light tree campaign costs', () => {
-    it('gives every node crystals, a small food cost, and a crystal-majority total', () => {
+    it('gives every node Attunement, a small Vigor cost, and an Attunement-majority total', () => {
         for (const node of lightTree.nodes) {
-            expect(node.cost.food, node.id).toBeGreaterThan(0);
-            expect(node.cost.crystals, node.id).toBeGreaterThan(0);
-            const share = crystalShare(node.cost);
+            expect(node.cost.vigor, node.id).toBeGreaterThan(0);
+            expect(node.cost.attunement, node.id).toBeGreaterThan(0);
+            const share = attunementShare(node.cost);
             expect(share, node.id).toBeGreaterThanOrEqual(0.5);
             expect(share, node.id).toBeLessThanOrEqual(0.7);
         }
@@ -93,7 +93,7 @@ describe('Light tree campaign costs', () => {
     it('prices Light Core near 20 resources and later tiers higher toward 40', () => {
         const core = lightTree.nodes.find((n) => n.id === LIGHT_NODE_CORE)!;
         expect(resourceTotal(core.cost)).toBe(
-            LIGHT_CORE_CRYSTAL_COST + LIGHT_CORE_FOOD_COST + LIGHT_CORE_METAL_COST,
+            LIGHT_CORE_ATTUNEMENT_COST + LIGHT_CORE_VIGOR_COST + LIGHT_CORE_METAL_COST,
         );
         expect(resourceTotal(core.cost)).toBe(20);
 

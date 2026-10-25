@@ -2,12 +2,69 @@ import type { CampaignResourceKey, CampaignResources, MissionResult } from './ty
 import { hasAccountKnowledge, KNOWLEDGE_RESOURCE_POPULATION, type AccountKnowledgeMap } from './accountKnowledge';
 
 /**
+ * The one table of campaign resources, in display order. Adding or renaming a resource is an edit here
+ * (plus its icon in `ResourcePill.tsx`); everything else loops over this table.
+ */
+export const CAMPAIGN_RESOURCE_DEFS = [
+    { key: 'vigor', label: 'Vigor', color: '#22C55E', missionBonus: true },
+    { key: 'metal', label: 'Metal', color: '#95A5A6', missionBonus: true },
+    {
+        key: 'population',
+        label: 'Population',
+        color: '#3498DB',
+        missionBonus: false,
+        /** Account knowledge needed before the resource shows in player-facing rows (admin tools ignore it). */
+        knowledgeKey: KNOWLEDGE_RESOURCE_POPULATION,
+    },
+    /**
+     * No `knowledgeKey` (`KNOWLEDGE_RESOURCE_ATTUNEMENT`) yet: no player has that knowledge, so gating would hide
+     * Attunement from everyone. Add it once the knowledge is granted somewhere.
+     */
+    { key: 'attunement', label: 'Attunement', color: '#8B5CF6', missionBonus: true },
+    /** Hunger is a signed penalty accumulator (can go negative); its pill chrome is sign-driven. */
+    { key: 'hunger', label: 'Hunger', color: '#f97316', missionBonus: false, signed: true },
+] as const satisfies readonly CampaignResourceDef[];
+
+export interface CampaignResourceDef {
+    key: string;
+    label: string;
+    color: string;
+    /** True when the resource can be handed out as a mission/story reward and counts toward research cost totals. */
+    missionBonus: boolean;
+    /** Account knowledge required before player-facing rows show this resource. */
+    knowledgeKey?: string;
+    /** True when the value is a signed delta (a penalty accumulator) rather than a spendable stockpile. */
+    signed?: boolean;
+}
+
+/** Resource keys in display order. */
+export const CAMPAIGN_RESOURCE_KEYS: readonly CampaignResourceKey[] = CAMPAIGN_RESOURCE_DEFS.map((d) => d.key);
+
+/** Resources that can be granted as mission / story rewards (vigor, metal, attunement today). */
+export type MissionBonusResourceKey = Extract<(typeof CAMPAIGN_RESOURCE_DEFS)[number], { missionBonus: true }>['key'];
+export type MissionBonusResourceDelta = Partial<Record<MissionBonusResourceKey, number>>;
+export const MISSION_BONUS_RESOURCE_KEYS = CAMPAIGN_RESOURCE_DEFS.filter((d) => d.missionBonus).map(
+    (d) => d.key,
+) as MissionBonusResourceKey[];
+
+const DEF_BY_KEY = new Map<CampaignResourceKey, CampaignResourceDef>(
+    CAMPAIGN_RESOURCE_DEFS.map((d) => [d.key, d]),
+);
+
+export function campaignResourceDef(resource: CampaignResourceKey): CampaignResourceDef {
+    return DEF_BY_KEY.get(resource)!;
+}
+
+/** A (possibly partial) set of resource amounts. */
+export type CampaignResourceDelta = Partial<Record<CampaignResourceKey, number>>;
+
+/**
  * Account knowledge a campaign resource needs before it shows in player-facing resource rows.
  * Resources not listed are always visible. Admin tools ignore this and list every resource.
  */
-export const CAMPAIGN_RESOURCE_KNOWLEDGE: Partial<Record<CampaignResourceKey, string>> = {
-    population: KNOWLEDGE_RESOURCE_POPULATION,
-};
+export const CAMPAIGN_RESOURCE_KNOWLEDGE: Partial<Record<CampaignResourceKey, string>> = Object.fromEntries(
+    CAMPAIGN_RESOURCE_DEFS.flatMap((d) => ('knowledgeKey' in d ? [[d.key, d.knowledgeKey]] : [])),
+);
 
 export function isCampaignResourceVisible(resource: CampaignResourceKey, knowledge: AccountKnowledgeMap): boolean {
     const key = CAMPAIGN_RESOURCE_KNOWLEDGE[resource];
@@ -26,13 +83,9 @@ export const RESET_CAMPAIGN_RESOURCES_LABEL = 'Reset resources';
 export const RESET_CAMPAIGN_RESOURCES_CONFIRM =
     'Reset campaign resources to the sum of mission rewards? This removes admin-granted extras.';
 
-export const ZERO_CAMPAIGN_RESOURCES: CampaignResources = {
-    food: 0,
-    metal: 0,
-    population: 0,
-    crystals: 0,
-    hunger: 0,
-};
+export const ZERO_CAMPAIGN_RESOURCES: CampaignResources = Object.fromEntries(
+    CAMPAIGN_RESOURCE_DEFS.map((d) => [d.key, 0]),
+) as CampaignResources;
 
 /**
  * Latest `resourceDelta` per missionId (highest timestamp wins), then summed.
@@ -56,20 +109,16 @@ export function sumLatestMissionResourceDeltas(
     for (const result of latestByMission.values()) {
         const delta = result.resourceDelta;
         if (!delta) continue;
-        out.food += delta.food ?? 0;
-        out.metal += delta.metal ?? 0;
-        out.population += delta.population ?? 0;
-        out.crystals += delta.crystals ?? 0;
-        out.hunger += delta.hunger ?? 0;
+        for (const key of CAMPAIGN_RESOURCE_KEYS) out[key] += delta[key] ?? 0;
     }
     return out;
 }
 
 /** Sum one or more resource deltas. Returns undefined when nothing was added. */
 export function mergeResourceDeltas(
-    ...deltas: Array<Partial<Record<CampaignResourceKey, number>> | undefined>
-): Partial<Record<CampaignResourceKey, number>> | undefined {
-    const out: Partial<Record<CampaignResourceKey, number>> = {};
+    ...deltas: Array<CampaignResourceDelta | undefined>
+): CampaignResourceDelta | undefined {
+    const out: CampaignResourceDelta = {};
     let any = false;
     for (const delta of deltas) {
         if (!delta) continue;
@@ -84,11 +133,5 @@ export function mergeResourceDeltas(
 }
 
 export function campaignResourcesEqual(a: CampaignResources, b: CampaignResources): boolean {
-    return (
-        a.food === b.food &&
-        a.metal === b.metal &&
-        a.population === b.population &&
-        a.crystals === b.crystals &&
-        a.hunger === b.hunger
-    );
+    return CAMPAIGN_RESOURCE_KEYS.every((key) => a[key] === b[key]);
 }

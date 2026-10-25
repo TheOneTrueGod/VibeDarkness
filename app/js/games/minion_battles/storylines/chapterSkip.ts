@@ -13,6 +13,7 @@ import type { MissionResearchRewardEntry, MissionResult, CampaignResourceKey } f
 import type { CampaignChapterDef } from './types';
 import type { IBaseMissionDef } from './BaseMissionDef';
 import type { ChoicePhrase, StoryChoiceAction, StoryChoiceOptionRow } from './storyTypes';
+import { MISSION_BONUS_RESOURCE_KEYS } from '../../../campaignResources';
 import { MISSION_MAP } from './index';
 import { resolveResearchRewardSlots } from './researchRewardSlots';
 import { resolveUnlockedTierItemIds } from './unlockItemTiers';
@@ -263,7 +264,7 @@ function applyAction(
             return match ? grant(state, match.treeId, match.nodeId) : state;
         }
         case 'grant_resources':
-            for (const key of ['food', 'metal', 'crystals'] as const) {
+            for (const key of MISSION_BONUS_RESOURCE_KEYS) {
                 const amount = action[key];
                 if (amount) acc.resourceDelta[key] = (acc.resourceDelta[key] ?? 0) + amount;
             }

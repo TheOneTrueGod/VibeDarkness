@@ -31,7 +31,7 @@ const SAMPLE_RUN: QuestRunState = {
         campaignRewards: [
             {
                 source: 'draft_pick',
-                resourceDelta: { crystals: 2 },
+                resourceDelta: { attunement: 2 },
                 unlockItemIds: ['item_sword_of_dreams'],
             },
         ],
@@ -44,7 +44,7 @@ const SAMPLE_VICTORY: QuestResult = {
     questDefId: SWARMLING_SOURCE.id,
     result: 'victory',
     timestamp: 1_700_000_000,
-    resourceDelta: { crystals: 2 },
+    resourceDelta: { attunement: 2 },
     unlockItemIds: ['item_sword_of_dreams'],
     placement: 'bank',
     bankId: 'bank_south_gate',
