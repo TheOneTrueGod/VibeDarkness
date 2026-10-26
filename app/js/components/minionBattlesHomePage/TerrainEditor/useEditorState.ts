@@ -6,16 +6,17 @@ import {
     MapSegmentZone,
     ZoneShape,
 } from '../../../games/minion_battles/terrain/segmentSchema';
+import { mirrorCells, type MirrorMode } from '../../../games/minion_battles/terrain/mapTools';
 
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
 
-/** `fill`, `road` and `curve` wrap the shared map tools in `terrain/mapTools/`. */
-export type EditorTool = 'terrain_paint' | 'fill' | 'road' | 'curve' | 'poi' | 'zone';
+/** `fill`, `ellipse`, `road` and `curve` wrap the shared map tools in `terrain/mapTools/`. */
+export type EditorTool = 'terrain_paint' | 'fill' | 'ellipse' | 'road' | 'curve' | 'poi' | 'zone';
 
 /** Tools that paint the selected terrain type. */
-export const TERRAIN_TOOLS: readonly EditorTool[] = ['terrain_paint', 'fill', 'road', 'curve'];
+export const TERRAIN_TOOLS: readonly EditorTool[] = ['terrain_paint', 'fill', 'ellipse', 'road', 'curve'];
 
 export interface EditorState {
     segmentId: string | null;
@@ -25,6 +26,8 @@ export interface EditorState {
     showPOIs: boolean;
     selectedTerrainType: TerrainType;
     brushSize: 1 | 2 | 3 | 4 | 5 | 7;
+    /** Symmetry applied to every terrain paint (all terrain tools). */
+    mirrorMode: MirrorMode;
     selectedPOIId: string | null;
     hoveredCell: { col: number; row: number } | null;
     saveStatus: 'idle' | 'saving' | 'saved' | 'error';
@@ -41,6 +44,7 @@ const initialState: EditorState = {
     showPOIs: true,
     selectedTerrainType: TerrainType.Grass,
     brushSize: 1,
+    mirrorMode: 'none',
     selectedPOIId: null,
     hoveredCell: null,
     saveStatus: 'idle',
@@ -58,6 +62,7 @@ type EditorAction =
     | { type: 'SET_TOOL'; payload: EditorTool }
     | { type: 'SET_TERRAIN_TYPE'; payload: TerrainType }
     | { type: 'SET_BRUSH_SIZE'; payload: 1 | 2 | 3 | 4 | 5 | 7 }
+    | { type: 'SET_MIRROR_MODE'; payload: MirrorMode }
     | { type: 'TOGGLE_POIS' }
     | { type: 'SET_HOVERED_CELL'; payload: { col: number; row: number } | null }
     | { type: 'PAINT_CELLS'; payload: { col: number; row: number }[] }
@@ -101,6 +106,9 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         case 'SET_BRUSH_SIZE':
             return { ...state, brushSize: action.payload };
 
+        case 'SET_MIRROR_MODE':
+            return { ...state, mirrorMode: action.payload };
+
         case 'TOGGLE_POIS':
             return { ...state, showPOIs: !state.showPOIs };
 
@@ -111,7 +119,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
             if (!state.segmentData) return state;
 
             const { terrain, height, width } = state.segmentData;
-            const cells = action.payload;
+            const cells = mirrorCells(action.payload, width, height, state.mirrorMode);
             const targetType = state.selectedTerrainType;
 
             // Find which rows are actually being changed.
@@ -271,6 +279,7 @@ export interface EditorActions {
     setTool: (tool: EditorTool) => void;
     setTerrainType: (type: TerrainType) => void;
     setBrushSize: (size: 1 | 2 | 3 | 4 | 5 | 7) => void;
+    setMirrorMode: (mode: MirrorMode) => void;
     togglePOIs: () => void;
     setHoveredCell: (cell: { col: number; row: number } | null) => void;
     paintCells: (cells: { col: number; row: number }[]) => void;
@@ -300,6 +309,7 @@ export function useEditorState(): { state: EditorState; actions: EditorActions }
         setTool: (tool) => dispatch({ type: 'SET_TOOL', payload: tool }),
         setTerrainType: (type) => dispatch({ type: 'SET_TERRAIN_TYPE', payload: type }),
         setBrushSize: (size) => dispatch({ type: 'SET_BRUSH_SIZE', payload: size }),
+        setMirrorMode: (mode) => dispatch({ type: 'SET_MIRROR_MODE', payload: mode }),
         togglePOIs: () => dispatch({ type: 'TOGGLE_POIS' }),
         setHoveredCell: (cell) => dispatch({ type: 'SET_HOVERED_CELL', payload: cell }),
         paintCells: (cells) => dispatch({ type: 'PAINT_CELLS', payload: cells }),

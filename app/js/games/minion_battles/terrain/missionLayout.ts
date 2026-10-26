@@ -5,7 +5,7 @@
  * See `composeMissionMap` and `storylines/homeBase.ts`.
  */
 
-import { offsetZone } from './zones';
+import { offsetPoi, offsetZone } from './zones';
 import { TerrainType } from './TerrainType';
 import { TerrainGrid, CELL_SIZE, stitchTerrain, getStitchLayoutMetrics } from './TerrainGrid';
 import type { MapSegmentPOI, MapSegmentZone } from './segmentSchema';
@@ -48,14 +48,6 @@ function resolveCellId(cell: MissionLayoutCell, spawnSegmentId: string): string 
     return cell.id;
 }
 
-function offsetPoi(poi: MapSegmentPOI, originCol: number, originRow: number): MapSegmentPOI {
-    return {
-        ...poi,
-        col: poi.col + originCol,
-        row: poi.row + originRow,
-        tags: poi.tags ? [...poi.tags] : undefined,
-    };
-}
 
 function uniqueIds(ids: string[]): string[] {
     return [...new Set(ids)];

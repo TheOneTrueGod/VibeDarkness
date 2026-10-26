@@ -5,7 +5,7 @@
  * returned tiles themselves.
  */
 
-import type { MapSegmentZone } from './segmentSchema';
+import type { MapSegmentPOI, MapSegmentZone } from './segmentSchema';
 
 export interface GridCell {
     col: number;
@@ -73,5 +73,15 @@ export function offsetZone(zone: MapSegmentZone, dCol: number, dRow: number): Ma
         ...zone,
         topLeft: { col: zone.topLeft.col + dCol, row: zone.topLeft.row + dRow },
         bottomRight: { col: zone.bottomRight.col + dCol, row: zone.bottomRight.row + dRow },
+    };
+}
+
+/** Returns a copy of `poi` shifted by (dCol, dRow) — segment-local to mission-global. */
+export function offsetPoi(poi: MapSegmentPOI, dCol: number, dRow: number): MapSegmentPOI {
+    return {
+        ...poi,
+        col: poi.col + dCol,
+        row: poi.row + dRow,
+        tags: poi.tags ? [...poi.tags] : undefined,
     };
 }

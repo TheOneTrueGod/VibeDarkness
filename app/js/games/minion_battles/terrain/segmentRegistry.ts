@@ -1,7 +1,7 @@
 import type { MapSegmentData, MapSegmentPOI, MapSegmentZone } from './segmentSchema';
 import { MapSegmentDataSchema } from './segmentSchema';
 import { TerrainType } from './TerrainType';
-import { offsetZone } from './zones';
+import { offsetPoi, offsetZone } from './zones';
 import { CELL_SIZE } from './TerrainGrid';
 import type { NetworkEdgeDef, NetworkNodePosition } from './networkSchema';
 
@@ -110,6 +110,19 @@ export function getMissionSegmentZones(segmentIds: string[]): MapSegmentZone[] {
         }
     }
     return zones;
+}
+
+/**
+ * Every segment's POIs, shifted from segment-local to mission-global grid coords by world-grid
+ * address (same placement as {@link getMissionSegmentZones}). Layout-composer missions get theirs
+ * from `composeMissionMap` instead.
+ */
+export function getMissionSegmentPOIs(segmentIds: string[]): MapSegmentPOI[] {
+    return getMissionSegmentPlacements(segmentIds).flatMap((placement) =>
+        (registry.get(placement.id)?.pointsOfInterest ?? []).map((poi) =>
+            offsetPoi(poi, placement.originCol, placement.originRow),
+        ),
+    );
 }
 
 /** A segment's placement rect in mission-global grid coords (see `getMissionSegmentPlacements`). */

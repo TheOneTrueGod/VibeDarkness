@@ -5,7 +5,7 @@
 import { MISSION_MAP, DARK_AWAKENING } from '../storylines';
 import { SPECTATOR_ID, isControlEnemy } from '../state';
 import { TerrainManager } from '../terrain/TerrainManager';
-import { getSegment, getMissionSegmentZones } from '../terrain/segmentRegistry';
+import { getMissionSegmentPOIs, getMissionSegmentZones } from '../terrain/segmentRegistry';
 import { mergePartyResearch, terrainContextFromSnapshot } from '../storylines/homeBase';
 import { activeResearchByPlayer, activeResearchNodeLevelsByPlayer } from '../character_defs/characterLoadout';
 import type { HomeResolveContext } from '../storylines/homeBase';
@@ -142,8 +142,7 @@ export async function loadSession(
     engine.darknessUpgradeNodeIds = [
         ...(darknessUpgradeNodeIds ?? (snapshotRecord?.darknessUpgradeNodeIds as string[] | undefined) ?? []),
     ];
-    const terrainSegmentPOIs = composed?.pois
-        ?? mission.segmentIds.flatMap((id) => getSegment(id)?.pointsOfInterest ?? []);
+    const terrainSegmentPOIs = composed?.pois ?? getMissionSegmentPOIs(mission.segmentIds);
     const terrainSegmentZones = composed?.zones ?? getMissionSegmentZones(mission.segmentIds);
     mission.initializeGameState(engine, {
         playerUnits,

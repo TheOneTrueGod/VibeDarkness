@@ -51,7 +51,7 @@ export interface LightSource {
  * cells at the same ring distance get identical contributions — no diagonal brightness
  * inconsistency — while producing a circular (rather than diamond) light shape.
  */
-function roundedEuclideanDistance(col: number, row: number, sc: number, sr: number): number {
+export function roundedEuclideanDistance(col: number, row: number, sc: number, sr: number): number {
     return Math.round(Math.sqrt((col - sc) ** 2 + (row - sr) ** 2));
 }
 

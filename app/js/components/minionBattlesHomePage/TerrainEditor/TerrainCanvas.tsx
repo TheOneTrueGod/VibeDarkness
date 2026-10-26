@@ -16,6 +16,8 @@ import { MapSegmentPOI, MapSegmentZone } from '../../../games/minion_battles/ter
 import { TerrainType } from '../../../games/minion_battles/terrain/TerrainType';
 import {
     bezierRoadCells,
+    ellipseCells,
+    mirrorCells,
     rectCells,
     roadCells,
     type GridCell,
@@ -172,6 +174,7 @@ export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
         }
         if (!dragStart || !dragCurrent) return [];
         if (tool === 'fill') return rectCells(dragStart, dragCurrent);
+        if (tool === 'ellipse') return ellipseCells(dragStart, dragCurrent);
         if (tool === 'road' || tool === 'curve') return roadCells(dragStart, dragCurrent, state.brushSize);
         return [];
     }, [state.activeTool, state.hoveredCell, state.brushSize, pendingCurve, dragStart, dragCurrent]);
@@ -216,8 +219,8 @@ export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
         }
         ctx.stroke();
 
-        // 3. Tool preview (fill / road / curve), else hover highlight
-        const previewCells = getToolPreviewCells();
+        // 3. Tool preview (fill / ellipse / road / curve), else hover highlight. Mirrored like the paint.
+        const previewCells = mirrorCells(getToolPreviewCells(), width, height, state.mirrorMode);
         if (previewCells.length > 0) {
             ctx.fillStyle = TERRAIN_COLORS[state.selectedTerrainType] ?? '#fff';
             ctx.globalAlpha = 0.75;
@@ -232,12 +235,17 @@ export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
                 ctx.fillRect(col * S, row * S, S, S);
             }
         } else if (state.hoveredCell && TERRAIN_TOOLS.includes(state.activeTool)) {
-            const brushCells = getBrushCells(
-                state.hoveredCell.col,
-                state.hoveredCell.row,
-                state.activeTool === 'fill' ? 1 : state.brushSize,
+            const brushCells = mirrorCells(
+                getBrushCells(
+                    state.hoveredCell.col,
+                    state.hoveredCell.row,
+                    state.activeTool === 'fill' || state.activeTool === 'ellipse' ? 1 : state.brushSize,
+                    width,
+                    height,
+                ),
                 width,
                 height,
+                state.mirrorMode,
             );
             ctx.fillStyle = `rgba(255,255,255,${HOVER_OVERLAY_ALPHA})`;
             for (const { col, row } of brushCells) {
@@ -419,6 +427,7 @@ export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
             if (
                 state.activeTool === 'zone' ||
                 state.activeTool === 'fill' ||
+                state.activeTool === 'ellipse' ||
                 state.activeTool === 'road' ||
                 state.activeTool === 'curve'
             ) {
@@ -468,7 +477,7 @@ export default function TerrainCanvas({ state, actions }: TerrainCanvasProps) {
             if (state.activeTool === 'zone') {
                 const { topLeft, bottomRight } = normalizeCorners(dragStart, dragCurrent);
                 actions.addZone({ shape: state.activeZoneShape, topLeft, bottomRight });
-            } else if (state.activeTool === 'fill' || state.activeTool === 'road') {
+            } else if (state.activeTool === 'fill' || state.activeTool === 'ellipse' || state.activeTool === 'road') {
                 actions.paintCells(getToolPreviewCells());
             } else if (state.activeTool === 'curve') {
                 const sameCell = dragStart.col === dragCurrent.col && dragStart.row === dragCurrent.row;

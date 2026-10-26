@@ -30,6 +30,8 @@ The Terrain Editor is an admin-only, canvas-based tool for visually authoring ma
 Fill, Road and Curved Road wrap the shared, deterministic map tools in `app/js/games/minion_battles/terrain/mapTools/` (the same code agents use; see the **map-design** skill). `TerrainCanvas` only gathers points and previews; the tools compute the cells, and `paintCells` applies them with the selected terrain type. Add new shape tools to `mapTools/` first, then wire them here.
 
 - **Fill:** drag a rectangle.
+- **Ellipse:** drag a box; fills the ellipse inside it (same shape as a circle zone).
+- **Mirror toggle** (`MirrorPicker.tsx`): none / left-right / top-bottom / both. Applied to every terrain paint in the `PAINT_CELLS` reducer via `mirrorCells`, so all terrain tools respect it.
 - **Road:** drag start → end; brush size is the road width.
 - **Curved Road:** drag start → end, then move the mouse to bend the road (the curve passes through the cursor) and click to paint. Escape cancels.
 

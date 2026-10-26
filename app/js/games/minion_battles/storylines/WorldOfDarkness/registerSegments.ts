@@ -37,7 +37,56 @@ import {
     EAST_CAVE_GRID_COL,
     EAST_CAVE_GRID_ROW,
     EAST_CAVE_CAMPFIRE,
+    EAST_CAVE_MOUTH,
+    EAST_CAVE_CRYSTAL_POINTS,
+    EAST_CAVE_NETWORK,
 } from './MapSegments/10_10_east_cave';
+import {
+    MAP_SEGMENT_60_50_CAVE_ROAD,
+    CAVE_ROAD_SEGMENT_ID,
+    CAVE_ROAD_GRID_COL,
+    CAVE_ROAD_GRID_ROW,
+    CAVE_MOUTH_APRON,
+    NORTH_OUTCROP,
+    SOUTH_THICKET,
+    ROADSIDE_CLEARING,
+    CAVE_ROAD_NETWORK,
+} from './MapSegments/60_50_cave_road';
+import {
+    MAP_SEGMENT_61_50_ROAD_BEND,
+    ROAD_BEND_SEGMENT_ID,
+    ROAD_BEND_GRID_COL,
+    ROAD_BEND_GRID_ROW,
+    ROAD_BEND,
+    NORTHWEST_THICKET,
+    SOUTHEAST_THICKET,
+    ROAD_BEND_NETWORK,
+} from './MapSegments/61_50_road_bend';
+import {
+    MAP_SEGMENT_61_49_CASTLE_GATE,
+    CASTLE_GATE_SEGMENT_ID,
+    CASTLE_GATE_GRID_COL,
+    CASTLE_GATE_GRID_ROW,
+    GATE_APPROACH,
+    MOAT_BRIDGE,
+    CASTLE_GATE,
+    GATE_YARD_WEST,
+    GATE_YARD_EAST,
+    CASTLE_GATE_NETWORK,
+} from './MapSegments/61_49_castle_gate';
+import {
+    MAP_SEGMENT_61_48_CASTLE_COURTYARD,
+    CASTLE_COURTYARD_SEGMENT_ID,
+    CASTLE_COURTYARD_GRID_COL,
+    CASTLE_COURTYARD_GRID_ROW,
+    COURTYARD_CENTER,
+    KEEP_DOOR,
+    COURTYARD_NORTHWEST,
+    COURTYARD_NORTHEAST,
+    COURTYARD_SOUTHWEST,
+    COURTYARD_SOUTHEAST,
+    CASTLE_COURTYARD_NETWORK,
+} from './MapSegments/61_48_castle_courtyard';
 import {
     MAP_SEGMENT_0_0_BOSS_ARENA,
     BOSS_ARENA_SEGMENT_ID,
@@ -80,14 +129,13 @@ export function registerWorldOfDarknessSegments(): void {
         tsTerrainToSegmentData('49_50_path_to_cave', 49, 50, MAP_SEGMENT_49_50_PATH_TO_CAVE),
     );
 
-    // 49_51 West Glade — Lanternite nest anchor (origin: col-offset=0, row-offset=22 in mission-007 2×2 world)
-    // POI col/row are stitched-world coordinates for the 44×44 mission-007 grid.
+    // 49_51 West Glade — Lanternite nest anchor
     const westGladePOIs: MapSegmentPOI[] = [
         {
             id: 'nest_west',
             label: 'West Glade Nest',
-            col: LANTERN_NEST_FOCUS.col,           // 7 — same as segment-local (top-left origin)
-            row: 22 + LANTERN_NEST_FOCUS.row,      // 37 — stitched (row offset 22 for bottom segment row)
+            col: LANTERN_NEST_FOCUS.col,
+            row: LANTERN_NEST_FOCUS.row,
             type: 'nest',
             // connects:nest_south tag removed — connectivity is now carried by this segment's
             // `network` data (WEST_GLADE_NETWORK, see MapSegments/49_51_west_glade.ts) instead of
@@ -202,7 +250,7 @@ export function registerWorldOfDarknessSegments(): void {
         ),
     );
 
-    // 10_10 East cave — home tile, mouth on the east wall
+    // 10_10 East cave — home tile, mouth on the east wall; six crystal light spots (safe space)
     const eastCavePOIs: MapSegmentPOI[] = [
         {
             id: 'cave_campfire',
@@ -218,16 +266,81 @@ export function registerWorldOfDarknessSegments(): void {
             row: EAST_CAVE_CAMPFIRE.row + offset.dRow,
             type: 'playerSpawn' as const,
         })),
+        ...Object.entries(EAST_CAVE_CRYSTAL_POINTS).map(([id, pt], index) => ({
+            id,
+            label: `Crystal ${index + 1}`,
+            col: pt.col,
+            row: pt.row,
+            type: 'crystal' as const,
+        })),
+        { id: 'cave_mouth', label: 'Cave Mouth', col: EAST_CAVE_MOUTH.col, row: EAST_CAVE_MOUTH.row, type: 'generic' },
     ];
-    registerSegment(
-        tsTerrainToSegmentData(
+    registerSegment({
+        ...tsTerrainToSegmentData(
             EAST_CAVE_SEGMENT_ID,
             EAST_CAVE_GRID_COL,
             EAST_CAVE_GRID_ROW,
             MAP_SEGMENT_10_10_EAST_CAVE,
             eastCavePOIs,
         ),
-    );
+        network: EAST_CAVE_NETWORK,
+    });
+
+    // 60_50 Cave Road — outside the 10_10 cave mouth (placed beside 10_10 by a layout composer)
+    const caveRoadPOIs: MapSegmentPOI[] = [
+        { id: 'cave_mouth_apron',  label: 'Cave Mouth Apron',  col: CAVE_MOUTH_APRON.col,  row: CAVE_MOUTH_APRON.row,  type: 'generic' },
+        { id: 'north_outcrop',     label: 'North Outcrop',     col: NORTH_OUTCROP.col,     row: NORTH_OUTCROP.row,     type: 'enemySpawn' },
+        { id: 'south_thicket',     label: 'South Thicket',     col: SOUTH_THICKET.col,     row: SOUTH_THICKET.row,     type: 'enemySpawn' },
+        { id: 'roadside_clearing', label: 'Roadside Clearing', col: ROADSIDE_CLEARING.col, row: ROADSIDE_CLEARING.row, type: 'patrol_point' },
+    ];
+    registerSegment({
+        ...tsTerrainToSegmentData(CAVE_ROAD_SEGMENT_ID, CAVE_ROAD_GRID_COL, CAVE_ROAD_GRID_ROW, MAP_SEGMENT_60_50_CAVE_ROAD, caveRoadPOIs),
+        network: CAVE_ROAD_NETWORK,
+    });
+
+    // 61_50 Road Bend — road turns from east to north toward the castle
+    const roadBendPOIs: MapSegmentPOI[] = [
+        { id: 'road_bend',         label: 'Road Bend',         col: ROAD_BEND.col,         row: ROAD_BEND.row,         type: 'patrol_point' },
+        { id: 'northwest_thicket', label: 'Northwest Thicket', col: NORTHWEST_THICKET.col, row: NORTHWEST_THICKET.row, type: 'enemySpawn' },
+        { id: 'southeast_thicket', label: 'Southeast Thicket', col: SOUTHEAST_THICKET.col, row: SOUTHEAST_THICKET.row, type: 'enemySpawn' },
+    ];
+    registerSegment({
+        ...tsTerrainToSegmentData(ROAD_BEND_SEGMENT_ID, ROAD_BEND_GRID_COL, ROAD_BEND_GRID_ROW, MAP_SEGMENT_61_50_ROAD_BEND, roadBendPOIs),
+        network: ROAD_BEND_NETWORK,
+    });
+
+    // 61_49 Castle Gate — moat, curtain wall, 2-wide gate chokepoint (no light spots)
+    const castleGatePOIs: MapSegmentPOI[] = [
+        { id: 'gate_approach',  label: 'Gate Approach',  col: GATE_APPROACH.col,  row: GATE_APPROACH.row,  type: 'generic' },
+        { id: 'moat_bridge',    label: 'Moat Bridge',    col: MOAT_BRIDGE.col,    row: MOAT_BRIDGE.row,    type: 'generic' },
+        { id: 'castle_gate',    label: 'Castle Gate',    col: CASTLE_GATE.col,    row: CASTLE_GATE.row,    type: 'generic' },
+        { id: 'gate_yard_west', label: 'Gate Yard West', col: GATE_YARD_WEST.col, row: GATE_YARD_WEST.row, type: 'enemySpawn' },
+        { id: 'gate_yard_east', label: 'Gate Yard East', col: GATE_YARD_EAST.col, row: GATE_YARD_EAST.row, type: 'enemySpawn' },
+    ];
+    registerSegment({
+        ...tsTerrainToSegmentData(CASTLE_GATE_SEGMENT_ID, CASTLE_GATE_GRID_COL, CASTLE_GATE_GRID_ROW, MAP_SEGMENT_61_49_CASTLE_GATE, castleGatePOIs),
+        network: CASTLE_GATE_NETWORK,
+    });
+
+    // 61_48 Castle Courtyard — open symmetric courtyard behind the gate (no light spots)
+    const castleCourtyardPOIs: MapSegmentPOI[] = [
+        { id: 'courtyard_center',    label: 'Courtyard Center',    col: COURTYARD_CENTER.col,    row: COURTYARD_CENTER.row,    type: 'patrol_point' },
+        { id: 'keep_door',           label: 'Keep Door',           col: KEEP_DOOR.col,           row: KEEP_DOOR.row,           type: 'generic' },
+        { id: 'courtyard_northwest', label: 'Courtyard Northwest', col: COURTYARD_NORTHWEST.col, row: COURTYARD_NORTHWEST.row, type: 'enemySpawn' },
+        { id: 'courtyard_northeast', label: 'Courtyard Northeast', col: COURTYARD_NORTHEAST.col, row: COURTYARD_NORTHEAST.row, type: 'enemySpawn' },
+        { id: 'courtyard_southwest', label: 'Courtyard Southwest', col: COURTYARD_SOUTHWEST.col, row: COURTYARD_SOUTHWEST.row, type: 'enemySpawn' },
+        { id: 'courtyard_southeast', label: 'Courtyard Southeast', col: COURTYARD_SOUTHEAST.col, row: COURTYARD_SOUTHEAST.row, type: 'enemySpawn' },
+    ];
+    registerSegment({
+        ...tsTerrainToSegmentData(
+            CASTLE_COURTYARD_SEGMENT_ID,
+            CASTLE_COURTYARD_GRID_COL,
+            CASTLE_COURTYARD_GRID_ROW,
+            MAP_SEGMENT_61_48_CASTLE_COURTYARD,
+            castleCourtyardPOIs,
+        ),
+        network: CASTLE_COURTYARD_NETWORK,
+    });
 
     // 0_0 Boss arena — encounter tile placed by layout composer, not world-grid adjacency
     const arenaRingPOIs: MapSegmentPOI[] = [
@@ -257,20 +370,19 @@ export function registerWorldOfDarknessSegments(): void {
     );
 
     // 50_51 South Gate — patrol draw point + second lanternite nest site
-    // POI col/row are stitched-world coordinates (col-offset=22, row-offset=22 in mission-007 2×2 world).
     const southGatePOIs: MapSegmentPOI[] = [
         {
             id: 'patrol_draw_point',
             label: 'Patrol Draw Point',
-            col: 22 + PATROL_DRAW_POINT.col,   // stitched (22+16=38)
-            row: 22 + PATROL_DRAW_POINT.row,   // stitched (22+11=33)
+            col: PATROL_DRAW_POINT.col,
+            row: PATROL_DRAW_POINT.row,
             type: 'patrol_point',
         },
         {
             id: 'nest_south',
             label: 'South Gate Nest',
-            col: 22 + 9,  // stitched — segment-local (9, 11) on the dirt corridor
-            row: 22 + 11,
+            col: 9, // on the dirt corridor
+            row: 11,
             type: 'nest',
             // connects:nest_west tag removed — connectivity is now carried by this segment's
             // `network` data (SOUTH_GATE_NETWORK, see MapSegments/50_51_south_gate.ts).

@@ -6,6 +6,7 @@ import TerrainCanvas from './TerrainCanvas';
 import ToolPicker from './ToolPicker';
 import TerrainTypePicker from './TerrainTypePicker';
 import BrushSizePicker from './BrushSizePicker';
+import MirrorPicker from './MirrorPicker';
 import POIEditor from './POIEditor';
 import ZoneShapePicker from './ZoneShapePicker';
 import ZoneEditor from './ZoneEditor';
@@ -20,6 +21,7 @@ type RightTab = 'poi' | 'zone';
 /** How-to line under the pickers for terrain tools that are not a plain brush. */
 const TERRAIN_TOOL_HINTS: Partial<Record<EditorTool, string>> = {
     fill: 'Drag a rectangle to fill it.',
+    ellipse: 'Drag a box to fill the ellipse inside it.',
     road: 'Drag from start to end. Brush size sets road width.',
     curve: 'Drag from start to end, then move to bend the road and click to place it. Brush size sets road width.',
 };
@@ -234,12 +236,16 @@ export default function TerrainEditorTab() {
                                     selectedType={state.selectedTerrainType}
                                     onSelect={actions.setTerrainType}
                                 />
-                                {state.activeTool !== 'fill' && (
+                                {state.activeTool !== 'fill' && state.activeTool !== 'ellipse' && (
                                     <BrushSizePicker
                                         brushSize={state.brushSize}
                                         onChange={actions.setBrushSize}
                                     />
                                 )}
+                                <MirrorPicker
+                                    mirrorMode={state.mirrorMode}
+                                    onChange={actions.setMirrorMode}
+                                />
                                 {TERRAIN_TOOL_HINTS[state.activeTool] && (
                                     <p className="text-xs text-muted">{TERRAIN_TOOL_HINTS[state.activeTool]}</p>
                                 )}
