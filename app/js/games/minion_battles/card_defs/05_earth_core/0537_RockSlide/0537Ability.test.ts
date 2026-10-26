@@ -371,6 +371,45 @@ describe('Rock Slide (0537) wall landing', () => {
     }
 });
 
+describe('Rock Slide (0537) water', () => {
+    it('slid into water, the rock is lost and the first water tile becomes gravel', () => {
+        const engine = buildTinyBattleEngine({ gridW: 21, gridH: 21, localPlayerId: TINY_BATTLE_PLAYER_ID, grass: true });
+        const grid = engine.terrainManager!.grid;
+        const casterTile = { col: 5, row: 10 };
+        const rock = { col: casterTile.col - 1, row: casterTile.row - 1 };
+        grid.set(rock.col, rock.row, TerrainType.Rock);
+        // A 3-wide pond two tiles past the spawn tile (inside the 5-tile range).
+        const firstWater = { col: casterTile.col + 3, row: casterTile.row };
+        for (let c = 0; c < 3; c++) {
+            for (let r = -1; r <= 1; r++) grid.set(firstWater.col + c, firstWater.row + r, TerrainType.Water);
+        }
+        engine.terrainManager!.clearPathCache();
+        placePlayerAndDummy(engine, {
+            playerId: TINY_BATTLE_PLAYER_ID,
+            playerWorld: tileCentre(casterTile),
+            dummyWorld: tileCentre({ col: 1, row: 1 }),
+            abilities: ['0537'],
+        });
+        const player = engine.getLocalPlayerUnit()!;
+        engine.state.orderMgr.applyOrder({
+            unitId: player.id,
+            abilityId: '0537',
+            targets: [pixelAt(rock.col, rock.row), pixelAt(casterTile.col + 1, casterTile.row)],
+            endTurn: true,
+        });
+        for (let i = 0; i < 240; i++) tick(engine);
+
+        expect(liveProjectiles(engine)).toHaveLength(0);
+        expect(terrain(engine, firstWater.col, firstWater.row)).toBe(TerrainType.Rubble);
+        expect(terrain(engine, firstWater.col + 1, firstWater.row)).toBe(TerrainType.Water);
+        // No rock anywhere along the path: it did not rest in front of the water.
+        for (let c = casterTile.col + 1; c < firstWater.col; c++) {
+            expect(terrain(engine, c, casterTile.row)).not.toBe(TerrainType.Rock);
+        }
+        engine.destroy();
+    });
+});
+
 describe('Rock Slide (0537) pick validation', () => {
     const selectDefs = RockSlideAbility_0537.abilityTimings
         .map((t) => ('targetDef' in t ? t.targetDef : undefined))

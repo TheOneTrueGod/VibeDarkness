@@ -40,6 +40,7 @@ import { tileCentre, worldToTile, type TileCoord } from '../../../abilities/tile
 import { drawArrow, drawTileAreaTelegraph } from '../../../abilities/previewHelpers';
 import { TELEGRAPH_STYLES } from '../../../abilities/telegraphStyles';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
+import { ROCK_FILLABLE_TERRAIN_TYPES } from '../../../terrain/TerrainType';
 import { TERRAIN_CLEARS } from '../../../game/terrainEffects/terrainClearing';
 import {
     ROCK_SLIDE_CAST_RANGE,
@@ -130,7 +131,11 @@ function pickPosition(active: ActiveAbility, label: string, index: number): Poin
  * front of the wall. The settle effect is centred on that tile, not on the wall face.
  */
 function settleRockAt(engine: AbilityEngineContext, x: number, y: number): void {
-    const tile = worldToTile(x, y);
+    settleRockOnTile(engine, worldToTile(x, y));
+}
+
+/** Raise the rock on a tile. On water, `createOrMarkRock` fills the tile with gravel instead. */
+function settleRockOnTile(engine: AbilityEngineContext, tile: TileCoord): void {
     engine.terrainManager?.createOrMarkRock(tile.col, tile.row);
     const centre = tileCentre(tile);
     spawnRockSlideSettle(engine, centre.x, centre.y);
@@ -162,6 +167,8 @@ function rockLaunch(): ProjectileLaunchBehaviour {
             knockback: { tier: ROCK_SLIDE_KNOCKBACK_TIER, direction: { kind: 'sideOfTravel', angleDeg: 45 } },
         })
         .withModifiers(['stopsAtWalls'])
+        // Slides along the ground, so water stops it (and the rock fills that tile; see onProjectileExpired).
+        .withCollidesWithTerrain([...ROCK_FILLABLE_TERRAIN_TYPES])
         .withTerrainClear(TERRAIN_CLEARS.scour)
         .withOrigin((ctx: CastBehaviourSetupContext) => {
             const dir = directionOf(ctx.caster, ctx.target);
@@ -320,8 +327,15 @@ export const RockSlideAbility_0537: AbilityStatic = defineAbility({
     },
 
     onProjectileExpired(engine: unknown, _caster: Unit, projectile: Projectile): void {
+        const eng = engine as AbilityEngineContext;
+        const hit = projectile.stoppedAtTerrain;
+        if (hit && ROCK_FILLABLE_TERRAIN_TYPES.includes(hit.terrainType)) {
+            // Reached water: the rock is lost and fills that tile (gravel).
+            settleRockOnTile(eng, hit);
+            return;
+        }
         // Hit a wall or ran out of range: the rock comes to rest on the tile it stopped over.
-        settleRockAt(engine as AbilityEngineContext, projectile.x, projectile.y);
+        settleRockAt(eng, projectile.x, projectile.y);
     },
 
     /** Keeps the picks visible after they are made: the rock tile until it is destroyed, the arrow until launch. */

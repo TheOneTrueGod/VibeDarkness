@@ -191,6 +191,12 @@ export class Projectile extends GameObject {
      * Empty = no per-type collision. Serialized.
      */
     collidesWithTerrain: TerrainType[];
+    /**
+     * Runtime-only: the tile and terrain that stopped this projectile (`stopsAtWalls` /
+     * `collidesWithTerrain`), set just before it expires so `onProjectileExpired` can react to what it
+     * hit. Null when it expired for any other reason. Not serialized (read in the same tick).
+     */
+    stoppedAtTerrain: { col: number; row: number; terrainType: TerrainType } | null = null;
     /** Runtime-only: visual effects fired when the projectile reaches its target. Not serialized. */
     onHitEffects?: VisualEffectDef[];
 
@@ -556,6 +562,8 @@ export class Projectile extends GameObject {
                 (stopsAtWalls && TERRAIN_PROPERTIES[terrainType].blocksProjectiles) ||
                 this.collidesWithTerrain.includes(terrainType);
             if (obstructs && !isTraversableByModifiers(terrainType, this.modifiers)) {
+                const cell = terrainManager.grid.worldToGrid(sampleX, sampleY);
+                this.stoppedAtTerrain = { col: cell.col, row: cell.row, terrainType };
                 return { x: prevSampleX, y: prevSampleY };
             }
             prevSampleX = sampleX;

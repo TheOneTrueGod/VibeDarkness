@@ -206,6 +206,32 @@ describe('Stone Tomb (0530)', () => {
         expect(tm.getEffectiveTerrainType(5, 5)).toBe(TerrainType.Rock);
     });
 
+    it('cast on water: the centre and the plus arms become gravel, with no rock', () => {
+        const engine = earthCoreStoneTombScenario.buildEngine() as GameEngine;
+        const player = engine.getLocalPlayerUnit()!;
+        const tm = engine.terrainManager!;
+        const plus = [[5, 5], [4, 5], [6, 5], [5, 4], [5, 6]];
+        for (const [c, r] of plus) tm.grid.set(c!, r!, TerrainType.Water);
+        tm.clearPathCache();
+
+        executeUnitAbility(player, StoneTomb, [], engine);
+        const active = player.activeAbilities.find((a) => a.abilityId === '0530')!;
+        active.targetsByLabel = {};
+        const start = active.startTime;
+        const tick = (): void => {
+            resolveParallelOrderPause(engine);
+            engine.stepSimulationFixedTicks(1);
+        };
+        let guard = 0;
+        while (!engine.waitingForTargetInput && guard++ < 300) tick();
+        engine.waitingForTargetInput = null;
+        active.targetsByLabel = { 'Tomb location': { type: 'pixel', position: center(5, 5) } };
+        guard = 0;
+        while (engine.gameTime - start < STONE_TOMB_STAGE1_TIME + STONE_TOMB_STAGE_GAP + 0.1 && guard++ < 300) tick();
+
+        for (const [c, r] of plus) expect(tm.getEffectiveTerrainType(c!, r!)).toBe(TerrainType.Rubble);
+    });
+
     it('stage 1 damages only centre-tile enemies and raises only the centre rock', () => {
         const caster = makeUnit('c', 'player', 5, 9);
         const inCenter = makeUnit('a', 'enemy', 5, 5);

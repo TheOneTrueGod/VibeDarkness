@@ -197,12 +197,24 @@ export class TerrainManager {
         return 0;
     }
 
+    /**
+     * Raise rock on a tile (the single entry for rock-creating abilities). On terrain with
+     * `raisedRockBecomes` (Water) the tile becomes that type instead (gravel) and null is returned.
+     */
     createOrMarkRock(col: number, row: number, maxHealth: number = EARTH_CORE_STONE_HEALTH): FloorTile | null {
         if (!this.terrainLayers) return null;
         if (col < 0 || col >= this.grid.width || row < 0 || row >= this.grid.height) return null;
 
         // Check if effective passability actually changes.
         const previousEffective = this.getEffectiveTerrainType(col, row);
+        // Terrain such as Water turns raised rock into something else (gravel filling the water).
+        const filled = TERRAIN_PROPERTIES[previousEffective].raisedRockBecomes;
+        if (filled !== undefined) {
+            this.terrainLayers.setFloorTile(col, row, { terrainType: filled });
+            this.scourGroundEffects(col, row);
+            this.notifyNavChanged(col, row);
+            return null;
+        }
         if (previousEffective === TerrainType.Rock) {
             // Already a rock, no change in passability.
             const tile: FloorTile = {
@@ -392,15 +404,17 @@ export class TerrainManager {
     }
 
     /**
-     * Lay Rubble (gravel) on open ground, the same floor tile a destroyed rock leaves behind. Rock and
-     * Impassable tiles are left alone (this never breaks rock), as are tiles that are already Rubble.
-     * Returns true when the tile changed.
+     * Lay Rubble (gravel) on open ground, the same floor tile a destroyed rock leaves behind. Also fills
+     * terrain that turns raised rock into gravel (Water). Rock and Impassable tiles are left alone (this
+     * never breaks rock), as are tiles that are already Rubble. Returns true when the tile changed.
      */
     createRubble(col: number, row: number): boolean {
         if (!this.terrainLayers) return false;
         if (!this.isInBounds(col, row)) return false;
         const current = this.getEffectiveTerrainType(col, row);
-        if (current === TerrainType.Rubble || !TERRAIN_PROPERTIES[current].passable) return false;
+        const props = TERRAIN_PROPERTIES[current];
+        const fillable = props.raisedRockBecomes === TerrainType.Rubble;
+        if (current === TerrainType.Rubble || (!props.passable && !fillable)) return false;
 
         this.terrainLayers.setFloorTile(col, row, { terrainType: TerrainType.Rubble });
         // The effective terrain type changed (movement cost, and the terrain sprite repaints on navEpoch).

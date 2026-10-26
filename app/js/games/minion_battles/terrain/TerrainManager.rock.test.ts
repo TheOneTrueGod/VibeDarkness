@@ -193,3 +193,32 @@ describe('TerrainManager.createOrMarkRock rock rule', () => {
         expect(emitter).not.toHaveBeenCalled();
     });
 });
+
+describe('TerrainManager rock on water', () => {
+    function waterManager(): TerrainManager {
+        const grid = TerrainGrid.createFilledTerrain(5, 5, CELL_SIZE, TerrainType.Grass);
+        grid.set(2, 2, TerrainType.Water);
+        grid.set(3, 2, TerrainType.Water);
+        return makeManager(grid);
+    }
+
+    it('createOrMarkRock on water fills the tile with gravel instead of raising rock', () => {
+        const manager = waterManager();
+        const epoch = manager.navEpoch;
+        expect(manager.createOrMarkRock(2, 2)).toBeNull();
+        expect(manager.getEffectiveTerrainType(2, 2)).toBe(TerrainType.Rubble);
+        expect(manager.isPassable(2 * CELL_SIZE + 20, 2 * CELL_SIZE + 20)).toBe(true);
+        expect(manager.navEpoch).toBeGreaterThan(epoch);
+        // Gravel is ordinary ground now: a second rock raises normally.
+        expect(manager.createOrMarkRock(2, 2)?.terrainType).toBe(TerrainType.Rock);
+    });
+
+    it('createRubble lays gravel on water but still never on rock', () => {
+        const manager = waterManager();
+        manager.grid.set(1, 1, TerrainType.Rock);
+        expect(manager.createRubble(3, 2)).toBe(true);
+        expect(manager.getEffectiveTerrainType(3, 2)).toBe(TerrainType.Rubble);
+        expect(manager.createRubble(1, 1)).toBe(false);
+        expect(manager.getEffectiveTerrainType(1, 1)).toBe(TerrainType.Rock);
+    });
+});

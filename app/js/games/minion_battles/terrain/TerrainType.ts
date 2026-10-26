@@ -45,6 +45,11 @@ export interface TerrainProperties {
     forcedMovementPassable: boolean;
     /** Hazard triggered when a grounded unit ends up on this terrain (forced there). */
     forcedEntryHazard?: TerrainHazardId;
+    /**
+     * What rock raised or slid onto this terrain becomes instead of rock (Water: Rubble, i.e. gravel
+     * filling the water). Such terrain also accepts laid gravel. See `TerrainManager.createOrMarkRock`.
+     */
+    raisedRockBecomes?: TerrainType;
     /** Speed multiplier (1.0 = normal, 0.75 = 25% slower, 0 = impassable). */
     speedMultiplier: number;
     /** A* pathfinding cost weight (1.0 = normal, higher = less preferred). */
@@ -154,6 +159,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         passable: false,
         forcedMovementPassable: true,
         forcedEntryHazard: 'drown',
+        raisedRockBecomes: TerrainType.Rubble,
         speedMultiplier: 0,
         pathfindingWeight: Infinity,
         projectilePassable: true,
@@ -163,3 +169,8 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         hardEdgeFamily: [],
     },
 };
+
+/** Terrain types that turn raised or sliding rock into something else (`raisedRockBecomes`), e.g. Water. */
+export const ROCK_FILLABLE_TERRAIN_TYPES: readonly TerrainType[] = (
+    Object.keys(TERRAIN_PROPERTIES).map(Number) as TerrainType[]
+).filter((type) => TERRAIN_PROPERTIES[type].raisedRockBecomes !== undefined);
