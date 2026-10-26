@@ -46,6 +46,20 @@ interface ForceMoveOptions {
     grid?: TerrainGrid | null;
     /** Step size in pixels when probing along the movement path. */
     step?: number;
+    /**
+     * True when the unit is moved against its will (knockback, lift): it may then be carried
+     * onto `forcedMovementPassable` terrain such as Water. Self-movement (dash, lunge) leaves
+     * this off and stops at anything it cannot walk on.
+     */
+    forced?: boolean;
+}
+
+/** Passability probe for a forced/self move, or null when there is no terrain information. */
+export function forcedMovePassableFn(options: ForceMoveOptions): PassableFn | null {
+    const { terrainManager: tm, grid, forced } = options;
+    if (tm) return forced ? (x, y) => tm.isForcedMovementPassable(x, y) : (x, y) => tm.isPassable(x, y);
+    if (grid) return forced ? (x, y) => grid.isForcedMovementPassable(x, y) : (x, y) => grid.isPassable(x, y);
+    return null;
 }
 
 export interface ForcedDisplacement {
@@ -86,12 +100,7 @@ export function computeForcedDisplacement(
     const ux = dxTotal / distToTarget;
     const uy = dyTotal / distToTarget;
 
-    const passable: PassableFn | null =
-        options.terrainManager
-            ? (x, y) => options.terrainManager!.isPassable(x, y)
-            : options.grid
-                ? (x, y) => options.grid!.isPassable(x, y)
-                : null;
+    const passable = forcedMovePassableFn(options);
 
     // If we have no passability information, just move the full desired distance.
     if (!passable) {

@@ -21,6 +21,7 @@ function makeUnit(id: string, x: number, y: number) {
         radius: 10,
         teamId: 'enemy',
         isAlive: () => true,
+        isUntargetable: () => false,
         hasIFrames: () => false,
         activeAbilities: [],
         takeDamage: vi.fn(),

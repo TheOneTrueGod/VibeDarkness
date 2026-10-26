@@ -29,6 +29,7 @@ const LAYER_ORDER: TerrainType[] = [
     TerrainType.Grass,
     TerrainType.ThickGrass,
     TerrainType.Dirt,
+    TerrainType.Water,
     TerrainType.Rubble,
     TerrainType.Rock,
 ];

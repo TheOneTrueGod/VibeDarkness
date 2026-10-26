@@ -96,7 +96,7 @@ export class PathfindingManager {
         for (let k = 0; k < n; k++) {
             const unit = units[(start + k) % n];
 
-            if (!unit.active || !unit.isAlive() || unit.isSpawning()) continue;
+            if (!unit.active || !unit.isAlive() || unit.isUntargetable()) continue;
 
             const intent = unit.walkIntent;
             if (!intent) continue;

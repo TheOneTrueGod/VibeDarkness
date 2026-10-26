@@ -45,7 +45,7 @@ export function isCrowdSpacingForcedMover(unit: Unit): boolean {
  * Everyone else grounded and alive → soft.
  */
 export function getCrowdSpacingRole(unit: Unit): CrowdSpacingRole {
-    if (!unit.isAlive() || unit.isSpawning()) return 'exempt';
+    if (!unit.isAlive() || unit.isUntargetable()) return 'exempt';
     if (isUnitAirborne(unit)) return 'exempt';
     if (unit.abilityOwnsMovementThisTick) return 'exempt';
     if (hasUnitTag(unit, UnitTag.CrowdSpacingExempt)) return 'exempt';

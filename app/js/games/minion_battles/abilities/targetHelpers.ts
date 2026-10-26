@@ -103,7 +103,7 @@ export function damageEnemiesInTiles(options: {
         getUnitsInTiles(eng.units, tiles, (unit) =>
             unit.active
             && unit.isAlive()
-            && !unit.isSpawning()
+            && !unit.isUntargetable()
             && unit.id !== caster.id
             && areEnemies(caster.teamId, unit.teamId),
         ),

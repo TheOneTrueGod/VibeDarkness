@@ -70,6 +70,14 @@ Light types and their gameplay effects: `game/lighting/AGENTS.md`.
 
 Read `terrain/TerrainType.ts` for the list of terrain types and their properties before painting. Do not copy the list into this skill.
 
+Water blocks walking but not projectiles, and units knocked into it drown (see `terrain/AGENTS.md`). Use it for moats, ponds and rivers that should shape movement without blocking ranged attacks.
+
+### Feature sizes
+
+- **Thickets** (ThickGrass clumps): about 5–7 tiles across, as in `60_50` and `61_50`.
+- **Ponds and lakes:** slightly bigger than a thicket (about 7–8 × 6). Place them near a road or path so players run into them.
+- **Rivers:** can be narrower than a pond, but should flow like roads: continuous, crossing segment edges and lining up with the neighbour.
+
 ## Points of interest
 
 POIs are named, segment-local points that tell missions and game systems where things belong. They are hints, not content: a POI places nothing by itself.

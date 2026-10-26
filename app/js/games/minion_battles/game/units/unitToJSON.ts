@@ -89,6 +89,7 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
         unitAITreeId: unit.unitAITreeId,
         moveJitter: unit.moveJitter,
         spawnTimer: unit.spawnTimer,
+        ...(unit.terrainHazard ? { terrainHazard: { ...unit.terrainHazard } } : {}),
         growAnimTimer: unit.growAnimTimer,
         waitMinEndTime: unit.waitMinEndTime,
         waitMaxEndTime: unit.waitMaxEndTime,

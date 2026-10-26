@@ -2,7 +2,16 @@ import { z } from 'zod';
 import { TerrainType } from './TerrainType';
 import { MapSegmentNetworkSchema } from './networkSchema';
 
-export const POI_TYPES = ['generic', 'campfire', 'crystal', 'nest', 'patrol_point', 'enemySpawn', 'playerSpawn'] as const;
+/** Terrain types a segment may contain. Rubble and Impassable are runtime-only. */
+export const AUTHORED_TERRAIN_TYPES: readonly number[] = [
+    TerrainType.Dirt,
+    TerrainType.Grass,
+    TerrainType.ThickGrass,
+    TerrainType.Rock,
+    TerrainType.Water,
+];
+
+export const POI_TYPES =['generic', 'campfire', 'crystal', 'nest', 'patrol_point', 'enemySpawn', 'playerSpawn'] as const;
 export type POIType = typeof POI_TYPES[number];
 
 export const MapSegmentPOISchema = z.object({
@@ -40,7 +49,9 @@ export const MapSegmentDataSchema = z.object({
     gridRow: z.number().int(),
     width: z.number().int().positive(),
     height: z.number().int().positive(),
-    terrain: z.array(z.array(z.number().int().min(0).max(3))),
+    terrain: z.array(z.array(z.number().int().refine((t) => AUTHORED_TERRAIN_TYPES.includes(t), {
+        message: 'Not an authored terrain type (see AUTHORED_TERRAIN_TYPES)',
+    }))),
     pointsOfInterest: z.array(MapSegmentPOISchema).default([]),
     zones: z.array(MapSegmentZoneSchema).default([]),
     /**
@@ -53,7 +64,3 @@ export const MapSegmentDataSchema = z.object({
 });
 export type MapSegmentData = z.infer<typeof MapSegmentDataSchema>;
 
-// Ensure TerrainType values stay in sync with the schema max (0–3).
-// This is a compile-time check only.
-const _terrainTypeCheck: TerrainType = TerrainType.Rock; // Rock = 3, which is the schema max
-void _terrainTypeCheck;

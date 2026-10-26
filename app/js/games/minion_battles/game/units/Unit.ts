@@ -78,6 +78,7 @@ import { getUnitEffectiveSpeed, unitHasIFrames, isUnitInJuggernautWindow, getUni
 import { updateUnit, tickUnitMovement, type UnitMovementTickOptions, setUnitMovement, clearUnitMovement, invalidateUnitMovementPath, setUnitWalkGoal } from './unitMovementTick';
 import { applyDamageToUnit, applyDamageToUnitDetailed, tickUnitDarknessCorruption, type DamageBreakdown, type PendingFrozenHit } from './unitDamage';
 import type { FrozenHitPolicy } from '../time/timeConstants';
+import type { UnitTerrainHazardState } from '../terrainHazards/drowning';
 import { MIN_EFFECTIVE_MAX_HP_PCT } from './unitHeal';
 
 export type {
@@ -222,6 +223,8 @@ export class Unit extends GameObject {
 
     /** Seconds remaining in spawn animation (0 = not spawning). Unit is invisible and untargetable while > 0. */
     spawnTimer: number = 0;
+    /** Active terrain hazard (e.g. drowning in Water); untargetable and unable to act while set. See `game/terrainHazards/`. */
+    terrainHazard: UnitTerrainHazardState | null = null;
     /** Seconds remaining in grow-in scale animation (0 = not growing). Set when spawned via nestSpawn. */
     growAnimTimer: number = 0;
 
@@ -403,6 +406,16 @@ export class Unit extends GameObject {
         return this.spawnTimer > 0;
     }
 
+    /** Whether this unit is in a terrain hazard such as drowning (untargetable, cannot act). */
+    isInTerrainHazard(): boolean {
+        return this.terrainHazard !== null;
+    }
+
+    /** Whether targeting, hitboxes, projectiles and damage must skip this unit (spawning or in a terrain hazard). */
+    isUntargetable(): boolean {
+        return this.isSpawning() || this.isInTerrainHazard();
+    }
+
     /**
      * Calculate max health from unit def base + Training health maps + unit passiveBonuses.
      * Prefer the bag attached at mission start; callers without a bag get Training-map HP only.
@@ -534,6 +547,7 @@ export class Unit extends GameObject {
         return (
             this.isAlive() &&
             !this.isInKnockback() &&
+            !this.isInTerrainHazard() &&
             !this.hasBuff('stunned') &&
             !this.hasBuff(LIFTED_BUFF_TYPE) &&
             !this.hasBuff('exposed') &&

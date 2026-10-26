@@ -4,8 +4,9 @@
  * Not a world-grid neighbour of 10_10: a mission's layout composer places 10_10 directly west of
  * this tile. The west edge matches 10_10's east wall (rock except the 2-wide mouth at rows 9-10).
  * The cave's rock face continues down the west side and thins out eastward into open grass. The
- * road bends gently south and leaves the east edge at rows 11-12 (into 61_50).
- * Painted with terrain/mapTools (fillRect, paintRoad, paintBezierRoad).
+ * road bends gently south and leaves the east edge at rows 11-12 (into 61_50). A pond just south
+ * of the road (cols 13-20, rows 14-19) surrounds the boulder as an island.
+ * Painted with terrain/mapTools (fillRect, paintRoad, paintBezierRoad, ellipse).
  */
 
 import { TerrainType } from '../../../terrain/TerrainType';
@@ -15,6 +16,7 @@ const _ = TerrainType.Grass;
 const R = TerrainType.Rock;
 const T = TerrainType.ThickGrass;
 const D = TerrainType.Dirt;
+const W = TerrainType.Water;
 
 export const CAVE_ROAD_SEGMENT_ID = '60_50_cave_road';
 export const CAVE_ROAD_GRID_COL = 60;
@@ -35,12 +37,12 @@ export const MAP_SEGMENT_60_50_CAVE_ROAD: TerrainType[][] = [
     [R, R, R, D, D, D, D, _, _, D, D, D, D, D, D, D, D, D, D, D, D, D],
     [R, R, R, _, D, D, _, _, _, _, _, _, D, D, D, D, D, D, D, D, D, D],
     [R, R, R, R, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-    [R, R, R, R, R, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-    [R, R, R, R, R, _, _, _, _, _, T, T, T, _, _, _, _, _, _, _, _, _],
-    [R, R, R, R, R, _, _, _, _, T, T, T, T, T, _, R, R, _, _, _, _, _],
-    [R, R, R, R, R, R, R, _, T, T, T, T, T, T, T, R, R, _, _, _, _, _],
-    [R, R, R, R, R, R, R, _, _, T, T, T, T, T, _, _, _, _, _, _, _, _],
-    [R, R, R, R, R, R, R, _, _, _, T, T, T, _, _, _, _, _, _, _, _, _],
+    [R, R, R, R, R, _, _, _, _, _, _, _, _, _, _, W, W, W, W, _, _, _],
+    [R, R, R, R, R, _, _, _, _, _, T, T, T, _, W, W, W, W, W, W, _, _],
+    [R, R, R, R, R, _, _, _, _, T, T, T, T, W, W, R, R, W, W, W, W, _],
+    [R, R, R, R, R, R, R, _, T, T, T, T, T, W, W, R, R, W, W, W, W, _],
+    [R, R, R, R, R, R, R, _, _, T, T, T, T, T, W, W, W, W, W, W, _, _],
+    [R, R, R, R, R, R, R, _, _, _, T, T, T, _, _, W, W, W, W, _, _, _],
     [R, R, R, R, R, R, R, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
     [R, R, R, R, R, R, R, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
 ];

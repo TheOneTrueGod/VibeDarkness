@@ -12,6 +12,7 @@ import type { EngineContext } from '../EngineContext';
 import type { EventBus } from '../EventBus';
 import { runUnitAI, getUnitAITree } from '../units/unitAI';
 import { tickSpawnAnimation } from '../units/spawnAnimation';
+import { tickTerrainHazard } from '../terrainHazards/drowning';
 import { getUnitTravelSpeedPx, tickUnitFrozenUpkeep } from '../units/unitMovementTick';
 import { collectAbilityBoundaryOffsets } from '../units/unitAbilityTick';
 import { resolvePendingFrozenHits } from '../units/unitDamage';
@@ -257,6 +258,10 @@ export class UnitManager {
             if (first) tickSpawnAnimation(unit, worldDt, engine);
             return;
         }
+        if (unit.isInTerrainHazard()) {
+            if (first) tickTerrainHazard(unit, worldDt, engine);
+            return;
+        }
         if (first && unit.growAnimTimer > 0) {
             unit.growAnimTimer = Math.max(0, unit.growAnimTimer - worldDt);
         }
@@ -301,7 +306,7 @@ export class UnitManager {
         // Phase 1b: active ability tick (piece 0)
         tickPerformanceTracker.measure([PERF_UNITS_ABILITIES], () => {
             for (const unit of this.units) {
-                if (!unit.active || unit.activeAbilities.length === 0 || unit.localFrozen) continue;
+                if (!unit.active || unit.activeAbilities.length === 0 || unit.localFrozen || unit.isInTerrainHazard()) continue;
                 this.beginPiece(unit, plans?.get(unit), 0);
                 unit.tickActiveAbilities(dt, engine, () => onNaturalAbilityCompletion(unit.id));
             }
@@ -346,7 +351,7 @@ export class UnitManager {
                         const plan = plans.get(unit)!;
                         if (!unit.active || k >= plan.pieces.length) continue;
                         this.beginPiece(unit, plan, k);
-                        if (unit.activeAbilities.length > 0) {
+                        if (unit.activeAbilities.length > 0 && !unit.isInTerrainHazard()) {
                             unit.tickActiveAbilities(dt, engine, () => onNaturalAbilityCompletion(unit.id));
                         }
                         if (!unit.active) continue;

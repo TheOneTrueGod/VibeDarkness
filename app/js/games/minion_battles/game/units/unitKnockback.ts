@@ -4,7 +4,7 @@ import type { ApplyKnockbackParams, KnockbackSource, KnockbackState } from './un
 import type { EventBus } from '../EventBus';
 import type { TerrainGrid } from '../../terrain/TerrainGrid';
 import type { TerrainManager } from '../../terrain/TerrainManager';
-import { computeForcedDisplacement } from '../forceMove';
+import { computeForcedDisplacement, forcedMovePassableFn } from '../forceMove';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { KNOCKBACK_TOTAL_DISPLACEMENT_FACTOR } from '../../crowdControl/knockbackKeywords';
 
@@ -127,11 +127,8 @@ export function updateUnitKnockback(
     const newX = startX + pushX;
     const newY = startY + pushY;
 
-    const passable: PassableFn | null = terrainManager
-        ? (x, y) => terrainManager.isPassable(x, y)
-        : grid
-            ? (x, y) => grid.isPassable(x, y)
-            : null;
+    // Knockback is forced movement: it can carry the unit onto Water (which then drowns it).
+    const passable: PassableFn | null = forcedMovePassableFn({ terrainManager, grid, forced: true });
 
     // Wall escape: a unit whose segment starts inside a wall (e.g. a rock raised under it this tick)
     // moves the full segment without terrain collision, as passThroughTerrain does, and the knockback
@@ -146,7 +143,7 @@ export function updateUnitKnockback(
             newX,
             newY,
             segmentLength,
-            terrainManager ? { terrainManager } : { grid: grid! },
+            terrainManager ? { terrainManager, forced: true } : { grid: grid!, forced: true },
         );
 
         if (distance <= 0) {

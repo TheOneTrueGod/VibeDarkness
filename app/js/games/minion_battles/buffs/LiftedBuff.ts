@@ -102,6 +102,7 @@ export class LiftedBuff extends Buff {
             const disp = computeForcedDisplacement(unit.x, unit.y, towardX, towardY, maxDistance, {
                 terrainManager: tm,
                 grid,
+                forced: true,
             });
             unit.x += disp.dx;
             unit.y += disp.dy;
@@ -175,7 +176,7 @@ function applySlamKnockback(
 
     for (const other of units) {
         if (other.id === slammingUnit.id) continue;
-        if (!other.active || !other.isAlive() || other.isSpawning()) continue;
+        if (!other.active || !other.isAlive() || other.isUntargetable()) continue;
         // Still-floating lifts slam on their own expiry; don't shove them mid-air.
         if (other.hasBuff(LIFTED_BUFF_TYPE)) continue;
 

@@ -30,6 +30,7 @@ function makeEnemy(
         active: true,
         isAlive: () => true,
         isSpawning: () => false,
+        isUntargetable: () => false,
         hasIFrames: () => opts?.hasIFrames ?? false,
     } as unknown as Unit;
 }

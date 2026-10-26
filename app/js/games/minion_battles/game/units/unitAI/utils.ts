@@ -52,7 +52,7 @@ export function everyAITicks(gameTick: number, intervalTicks: number): boolean {
 /** Get all living units hostile to the given unit. Enemies cannot see crystal-protected or invincible units. */
 export function findEnemies(unit: Unit, units: Unit[]): Unit[] {
     const hostile = units.filter((u) => u.isAlive() && areEnemies(unit.teamId, u.teamId));
-    return hostile.filter((u) => !u.tags?.includes(UnitTag.ProtectedByCrystal) && !u.isInvincible() && !u.isSpawning());
+    return hostile.filter((u) => !u.tags?.includes(UnitTag.ProtectedByCrystal) && !u.isInvincible() && !u.isUntargetable());
 }
 
 /** Living hostile units tagged `UnitTag.Structure` (e.g. lanternite_nest, swarm_nest). The
@@ -77,7 +77,7 @@ export function findEnemyStructuresForTravel(unit: Unit, units: Unit[]): Unit[] 
             areEnemies(unit.teamId, u.teamId) &&
             hasUnitTag(u, UnitTag.Structure) &&
             !u.tags?.includes(UnitTag.ProtectedByCrystal) &&
-            !u.isSpawning(),
+            !u.isUntargetable(),
     );
 }
 

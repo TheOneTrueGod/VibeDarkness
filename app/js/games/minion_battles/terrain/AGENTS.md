@@ -24,6 +24,10 @@ Core API: `game/TerrainLayerManager.ts` (`add` / `remove` / `removeByOwner` / mo
 
 Ground/air overlays: `game/GameRenderer/renderers/TerrainEffectRenderer.ts` and visuals in `game/GameRenderer/terrainEffectDefs.ts`.
 
+## Water and terrain hazards (def-driven)
+
+`TerrainProperties.forcedMovementPassable` says whether forced movement (knockback, lift: `computeForcedDisplacement` with `forced: true`) may carry a unit onto a tile; walking, pathfinding and self-movement (dash, lunge) still use `passable`. Water is the only non-walkable type that allows it. A grounded unit that enters or lands on terrain with a `forcedEntryHazard` starts that hazard (`game/terrainHazards/`): for `drown` it is untargetable (`Unit.isUntargetable`) and cannot act while it sinks, then reappears on the nearest walkable tile and takes the def's damage. To add a hazard: add an id to `TerrainHazardId`, a def in `terrainHazardDefs.ts`, and point a terrain type at it.
+
 ## Thorns (def-driven)
 
 Thorn-style ground hazards (`bramble_slow`, `dark_thorn`) share one rule set: `TerrainEffectDef.thorns` in `game/terrainEffects/terrainEffectDefs.ts` (`hurts` creature filter, `enterDamage`, `landDamage`, `consumeOnTrigger`). `game/terrainEffects/thorns.ts` (`triggerThorns`) applies it from `tileTransitions.ts` `onEnter` / `onLand`; there is no standing DoT. To add a variant: add a def entry with `thorns`, add a visual entry in `game/GameRenderer/terrainEffectDefs.ts`, and never rename existing effect-type strings (checkpoints store them).

@@ -82,7 +82,7 @@ export abstract class ThickLineHitbox extends Hitbox {
     ): Unit[] {
         const result: Unit[] = [];
         for (const unit of engine.units) {
-            if (!unit.active || !unit.isAlive() || unit.isSpawning()) continue;
+            if (!unit.active || !unit.isAlive() || unit.isUntargetable()) continue;
             if (!areEnemies(caster.teamId, unit.teamId)) continue;
             if (unit.id === caster.id) continue;
 

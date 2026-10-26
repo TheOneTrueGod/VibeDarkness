@@ -14,6 +14,7 @@ import type { UnitAIContext } from './unitAI/contextTypes';
 import { applyUnitComponentsFromJSON } from './components/unitComponent';
 import { applyCcArmourStateFromJSON } from '../../crowdControl/ccArmourState';
 import type { PendingFrozenHit } from './unitDamage';
+import type { UnitTerrainHazardState } from '../terrainHazards/drowning';
 
 /** Old unit.characterId values for player units before unified `player` id. */
 const LEGACY_PLAYER_CHARACTER_IDS = new Set([
@@ -108,6 +109,8 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
     unit.unitAITreeId = (data.unitAITreeId as string) ?? 'hunt';
     unit.moveJitter = (data.moveJitter as number) ?? 0;
     unit.spawnTimer = (data.spawnTimer as number | undefined) ?? 0;
+    const hazard = data.terrainHazard as UnitTerrainHazardState | undefined;
+    unit.terrainHazard = hazard ? { ...hazard } : null;
     unit.growAnimTimer = (data.growAnimTimer as number | undefined) ?? 0;
     unit.waitMinEndTime = (data.waitMinEndTime as number | null) ?? null;
     unit.waitMaxEndTime = (data.waitMaxEndTime as number | null) ?? null;

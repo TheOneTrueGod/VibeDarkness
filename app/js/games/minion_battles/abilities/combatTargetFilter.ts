@@ -25,7 +25,7 @@ export function filterCombatHitTargets(
 ): Unit[] {
     const respectIFrames = opts?.respectIFrames ?? true;
     return units.filter((unit) => {
-        if (!unit.active || !unit.isAlive() || unit.isSpawning()) return false;
+        if (!unit.active || !unit.isAlive() || unit.isUntargetable()) return false;
         if (respectIFrames && unit.hasIFrames(gameTime)) return false;
         return true;
     });

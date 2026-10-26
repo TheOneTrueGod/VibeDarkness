@@ -3,7 +3,8 @@
  *
  * `onLeave` / `onEnter` / `onLand` look up the ground effect at the relevant cell and
  * hand it to the def-driven thorn rules in `thorns.ts` (`TerrainEffectDef.thorns`). Thorns
- * only trigger on enter / land; there is no standing damage.
+ * only trigger on enter / land; there is no standing damage. Enter / land on terrain with a
+ * `forcedEntryHazard` (Water) starts that hazard instead (`game/terrainHazards/drowning.ts`).
  */
 
 import type { EventBus } from '../EventBus';
@@ -13,13 +14,14 @@ import { BRAMBLE_SLOW_EFFECT_TYPE, DARK_THORN_EFFECT_TYPE } from './terrainEffec
 import { LIFTED_BUFF_TYPE } from '../../buffs/liftedBuffType';
 import { CELL_SIZE } from '../../terrain/TerrainGrid';
 import { triggerThorns } from './thorns';
+import { triggerTerrainHazard, type TerrainHazardEngine } from '../terrainHazards/drowning';
 
 /** How long Thornbinder ground thorns last, in rounds (before jitter). */
 export const DARK_THORN_DURATION_ROUNDS = 2;
 
 export { BRAMBLE_SLOW_EFFECT_TYPE, DARK_THORN_EFFECT_TYPE };
 
-export interface TileTransitionEngine {
+export interface TileTransitionEngine extends TerrainHazardEngine {
     terrainLayers: TerrainLayerManager;
     eventBus: EventBus;
 }
@@ -92,12 +94,14 @@ export function onLeave(
 
 /** Called when a grounded unit enters a new cell (skipped while airborne). */
 export function onEnter(cell: TileCell, unit: Unit, engine: TileTransitionEngine): void {
+    if (triggerTerrainHazard(unit, cell, engine)) return;
     const effect = engine.terrainLayers.getGroundEffectAt(cell.col, cell.row);
     if (effect) triggerThorns(effect, unit, 'enter', engine);
 }
 
 /** Called when a unit transitions airborne to grounded. */
 export function onLand(cell: TileCell, unit: Unit, engine: TileTransitionEngine): void {
+    if (triggerTerrainHazard(unit, cell, engine)) return;
     const effect = engine.terrainLayers.getGroundEffectAt(cell.col, cell.row);
     if (effect) triggerThorns(effect, unit, 'land', engine);
 }

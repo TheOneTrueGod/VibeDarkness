@@ -27,6 +27,7 @@ import {
     type IUnitRenderContext,
 } from '../../units/unit_defs/unitDef';
 import { getSpawnRenderState } from '../../units/spawnVisuals';
+import { getDrowningRenderState, type DrowningRenderState } from '../../terrainHazards/drowning';
 import { DisplayWiggle } from '../displayWiggle';
 import { getBuffVisualRenderer } from '../../../buffs/buffVisuals';
 import type { DamageTakenEvent } from '../../EventBus';
@@ -48,6 +49,8 @@ export class UnitRenderer {
     /** Wall-clock time (ms) of the previous renderUnits call; wiggle runs on real time so it moves while paused. */
     private lastWiggleRealTimeMs: number | null = null;
     private knockbackShadowVisuals: Map<string, Graphics> = new Map();
+    /** World-space clip masks for units sinking into water (see `updateDrowningMask`). */
+    private drowningMasks: Map<string, Graphics> = new Map();
     private constructionGhostVisuals: Map<string, Container> = new Map();
     private hitFlashState: Map<string, { startTime: number; rafId: number }> = new Map();
 
@@ -273,9 +276,11 @@ export class UnitRenderer {
             }
 
             const spawnState = getSpawnRenderState(unit);
+            const drowning = getDrowningRenderState(unit);
             visual.x = unit.x + renderOffsetX + wiggleX;
-            visual.y = unit.y + renderOffsetY + wiggleY + knockupYOffset + (spawnState?.yOffset ?? 0);
+            visual.y = unit.y + renderOffsetY + wiggleY + knockupYOffset + (spawnState?.yOffset ?? 0) + (drowning?.sinkY ?? 0);
             visual.visible = unit.active && (spawnState ? spawnState.visible : true);
+            this.updateDrowningMask(unit.id, visual, drowning, unit.x, unit.radius);
 
             // Grow-in animation: scale from 0 → 1 over growAnimTimer duration (nestSpawn units)
             if (unit.growAnimTimer > 0) {
@@ -338,7 +343,7 @@ export class UnitRenderer {
                         body.stroke({ color: 0xfacc15, width: 2 });
                     }
                 }
-                const showHpBar = !unit.isInvincible() && !hidesWorldHpBar(unit) && !unit.isSpawning();
+                const showHpBar = !unit.isInvincible() && !hidesWorldHpBar(unit) && !unit.isUntargetable();
                 if (hpBg) hpBg.visible = showHpBar;
                 if (hpFill) hpFill.visible = showHpBar;
                 if (hpInjury) hpInjury.visible = showHpBar;
@@ -593,6 +598,49 @@ export class UnitRenderer {
                 this.knockbackShadowVisuals.delete(id);
             }
         }
+
+        for (const [id, mask] of this.drowningMasks) {
+            if (!activeUnitIds.has(id)) {
+                this.gameContainer.removeChild(mask);
+                mask.destroy();
+                this.drowningMasks.delete(id);
+            }
+        }
+    }
+
+    /**
+     * Drowning: clip the unit visual below the water line so it looks like it sinks into the water.
+     * The mask lives in world space (a sibling in the game container), so the visual slides down
+     * past a fixed line. Removed again as soon as the unit is out of the hazard.
+     */
+    private updateDrowningMask(
+        unitId: string,
+        visual: Container,
+        drowning: DrowningRenderState | null,
+        unitX: number,
+        radius: number,
+    ): void {
+        let mask = this.drowningMasks.get(unitId);
+        if (!drowning) {
+            if (mask) {
+                if (visual.mask === mask) visual.mask = null;
+                this.gameContainer.removeChild(mask);
+                mask.destroy();
+                this.drowningMasks.delete(unitId);
+            }
+            return;
+        }
+        if (!mask) {
+            mask = new Graphics();
+            this.drowningMasks.set(unitId, mask);
+            this.gameContainer.addChild(mask);
+        }
+        // Everything above the water line, wide and tall enough for the sprite, label and HP bar.
+        const half = radius * 6;
+        mask.clear();
+        mask.rect(unitX - half, drowning.waterLineY - half * 2, half * 2, half * 2);
+        mask.fill({ color: 0xffffff });
+        visual.mask = mask;
     }
 
     destroy(): void {
@@ -601,6 +649,8 @@ export class UnitRenderer {
         this.unitVisuals.clear();
         for (const shadow of this.knockbackShadowVisuals.values()) shadow.destroy();
         this.knockbackShadowVisuals.clear();
+        for (const mask of this.drowningMasks.values()) mask.destroy();
+        this.drowningMasks.clear();
         for (const ghost of this.constructionGhostVisuals.values()) ghost.destroy();
         this.constructionGhostVisuals.clear();
     }

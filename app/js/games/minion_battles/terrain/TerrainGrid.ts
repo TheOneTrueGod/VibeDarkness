@@ -84,6 +84,11 @@ export class TerrainGrid {
         return TERRAIN_PROPERTIES[this.getAtWorld(worldX, worldY)].passable;
     }
 
+    /** Check if forced movement (knockback, lift) can carry a unit onto a world position. */
+    isForcedMovementPassable(worldX: number, worldY: number): boolean {
+        return TERRAIN_PROPERTIES[this.getAtWorld(worldX, worldY)].forcedMovementPassable;
+    }
+
     /** Get speed multiplier at a world position. */
     getSpeedMultiplier(worldX: number, worldY: number): number {
         return TERRAIN_PROPERTIES[this.getAtWorld(worldX, worldY)].speedMultiplier;

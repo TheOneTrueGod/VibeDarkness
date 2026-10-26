@@ -21,6 +21,7 @@ function makeUnit(overrides: {
         active,
         isAlive: () => alive,
         isSpawning: () => spawning,
+        isUntargetable: () => spawning,
         hasIFrames: () => hasIFrames,
     } as unknown as Unit;
 }

@@ -201,7 +201,7 @@ export class ConvexQuadHitboxSpec extends HitboxSpec {
         const { corners } = getQuadInFront(caster, { x: aimX, y: aimY }, this.reach, this.width);
         const hits: Unit[] = [];
         for (const unit of engine.units) {
-            if (!unit.active || !unit.isAlive() || unit.isSpawning()) continue;
+            if (!unit.active || !unit.isAlive() || unit.isUntargetable()) continue;
             if (!areEnemies(caster.teamId, unit.teamId)) continue;
             if (unit.id === caster.id) continue;
             if (pointInConvexQuad(unit.x, unit.y, corners[0]!, corners[1]!, corners[2]!, corners[3]!)) {

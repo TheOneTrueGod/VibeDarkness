@@ -135,6 +135,12 @@ export class TerrainManager {
         return this.isCellPassableWithFloor(col, row);
     }
 
+    /** Check if forced movement (knockback, lift) can carry a unit onto a world position (respects floor layer). */
+    isForcedMovementPassable(worldX: number, worldY: number): boolean {
+        const { col, row } = this.grid.worldToGrid(worldX, worldY);
+        return TERRAIN_PROPERTIES[this.getEffectiveTerrainType(col, row)].forcedMovementPassable;
+    }
+
     /** Get the speed multiplier at a world position (uses effective terrain). */
     getSpeedMultiplier(worldX: number, worldY: number): number {
         const { col, row } = this.grid.worldToGrid(worldX, worldY);

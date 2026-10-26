@@ -645,7 +645,7 @@ export class Projectile extends GameObject {
             const endWidth = this.rectEndWidth ?? 0;
             const halfWidth = (startWidth + (endWidth - startWidth) * progress) / 2;
             for (const unit of units) {
-                if (!unit.isAlive()) continue;
+                if (!unit.isAlive() || unit.isUntargetable()) continue;
                 if (!areEnemies(this.sourceTeamId, unit.teamId)) continue;
                 if (this.hitUnitIds.has(unit.id) || this.knockbackOnlyUnitIds.has(unit.id)) continue;
                 const relX = unit.x - this.frameStartX;
@@ -659,7 +659,7 @@ export class Projectile extends GameObject {
             }
         } else {
             for (const unit of units) {
-                if (!unit.isAlive()) continue;
+                if (!unit.isAlive() || unit.isUntargetable()) continue;
                 if (!areEnemies(this.sourceTeamId, unit.teamId)) continue;
                 if (this.hitUnitIds.has(unit.id) || this.knockbackOnlyUnitIds.has(unit.id)) continue;
                 const dx = unit.x - this.x;

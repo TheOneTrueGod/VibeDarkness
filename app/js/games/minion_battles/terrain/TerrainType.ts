@@ -19,7 +19,15 @@ export enum TerrainType {
      * editor bedrock palette; never authored directly into a segment.
      */
     Impassable = 5,
+    /**
+     * Blocks walking and pathfinding but not projectiles. Forced movement (knockback, lift) can
+     * carry a unit onto it, which triggers its `forcedEntryHazard` (drowning).
+     */
+    Water = 6,
 }
+
+/** Terrain hazard a unit suffers when forced onto a tile it cannot walk on. Rules: `game/terrainHazards/`. */
+export type TerrainHazardId = 'drown';
 
 export type TerrainRenderStrategy = 'marching-squares' | 'hard-edge';
 
@@ -30,6 +38,13 @@ export interface TerrainProperties {
     color: string;
     /** Whether units can walk on this terrain. */
     passable: boolean;
+    /**
+     * Whether forced movement (knockback, lift) can carry a unit onto this terrain. True for every
+     * walkable type; Water is the only non-walkable type that allows it.
+     */
+    forcedMovementPassable: boolean;
+    /** Hazard triggered when a grounded unit ends up on this terrain (forced there). */
+    forcedEntryHazard?: TerrainHazardId;
     /** Speed multiplier (1.0 = normal, 0.75 = 25% slower, 0 = impassable). */
     speedMultiplier: number;
     /** A* pathfinding cost weight (1.0 = normal, higher = less preferred). */
@@ -55,6 +70,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         name: 'Dirt',
         color: '#8B6914',
         passable: true,
+        forcedMovementPassable: true,
         speedMultiplier: 1.0,
         pathfindingWeight: 1.0,
         projectilePassable: true,
@@ -67,6 +83,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         name: 'Grass',
         color: '#4CAF50',
         passable: true,
+        forcedMovementPassable: true,
         speedMultiplier: 1.0,
         pathfindingWeight: 1.0,
         projectilePassable: true,
@@ -79,6 +96,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         name: 'Thick Grass',
         color: '#2E7D32',
         passable: true,
+        forcedMovementPassable: true,
         speedMultiplier: 0.75,
         pathfindingWeight: 1.5,
         projectilePassable: true,
@@ -91,6 +109,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         name: 'Rock',
         color: '#757575',
         passable: false,
+        forcedMovementPassable: false,
         speedMultiplier: 0,
         pathfindingWeight: Infinity,
         projectilePassable: true,
@@ -103,6 +122,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         name: 'Rubble',
         color: '#6b5b4f',
         passable: true,
+        forcedMovementPassable: true,
         speedMultiplier: 0.85,
         pathfindingWeight: 1.2,
         projectilePassable: true,
@@ -118,6 +138,7 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         // Matches TerrainGrid.get()'s out-of-bounds fallback (Rock) exactly, so this behaves
         // identically to standing just past the edge of the map.
         passable: false,
+        forcedMovementPassable: false,
         speedMultiplier: 0,
         pathfindingWeight: Infinity,
         projectilePassable: true,
@@ -125,6 +146,20 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         // Unused: excluded from TerrainRenderer's LAYER_ORDER, so no layer renderer ever runs for it.
         renderStrategy: 'hard-edge',
         blocksBleed: true,
+        hardEdgeFamily: [],
+    },
+    [TerrainType.Water]: {
+        name: 'Water',
+        color: '#2F7FD6',
+        passable: false,
+        forcedMovementPassable: true,
+        forcedEntryHazard: 'drown',
+        speedMultiplier: 0,
+        pathfindingWeight: Infinity,
+        projectilePassable: true,
+        blocksProjectiles: false,
+        renderStrategy: 'marching-squares',
+        blocksBleed: false,
         hardEdgeFamily: [],
     },
 };

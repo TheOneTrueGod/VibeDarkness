@@ -74,7 +74,7 @@ export function applyDamageToUnitDetailed(
         return NO_DAMAGE_BREAKDOWN;
     }
     if (unit.isInvincible()) return NO_DAMAGE_BREAKDOWN;
-    if (unit.isSpawning()) return NO_DAMAGE_BREAKDOWN;
+    if (unit.isUntargetable()) return NO_DAMAGE_BREAKDOWN;
 
     // God mode: prevent HP loss for player-controlled units.
     if (debugSettingsSnapshot.godModeEnabled && unit.isPlayerControlled()) {
