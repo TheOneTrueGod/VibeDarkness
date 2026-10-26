@@ -2,7 +2,8 @@
  * 61_50 Road Bend - open grassland where the road from 60_50 (west edge, rows 11-12) curves north
  * and leaves the north edge at cols 10-11 toward the 61_49 castle gate.
  * Thickets and a few boulders give cover on both sides of the bend; a pond sits just south of the
- * bend (cols 8-14, rows 14-19), between the two southern thickets.
+ * bend (cols 8-14, rows 14-19), between the two southern thickets,
+ * ringed with Shallow Water.
  * Painted with terrain/mapTools (fillRect, paintRoad, paintBezierRoad, ellipse).
  */
 
@@ -14,6 +15,7 @@ const R = TerrainType.Rock;
 const T = TerrainType.ThickGrass;
 const D = TerrainType.Dirt;
 const W = TerrainType.Water;
+const SW = TerrainType.ShallowWater;
 
 export const ROAD_BEND_SEGMENT_ID = '61_50_road_bend';
 export const ROAD_BEND_GRID_COL = 61;
@@ -33,14 +35,14 @@ export const MAP_SEGMENT_61_50_ROAD_BEND: TerrainType[][] = [
     [_, _, _, _, _, _, D, D, D, D, D, _, _, _, _, _, _, _, _, _, _, _],
     [D, D, D, D, D, D, D, D, D, D, _, _, _, _, _, _, _, _, _, _, _, _],
     [D, D, D, D, D, D, D, D, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, T, _, _, _, _],
-    [_, _, _, _, _, _, _, _, _, _, W, W, W, _, _, T, T, T, T, T, _, _],
-    [_, _, _, _, _, _, _, _, W, W, W, W, W, W, W, T, T, R, R, T, T, _],
-    [_, _, _, _, T, T, T, _, W, W, W, W, W, W, W, T, T, R, R, T, T, _],
-    [_, _, _, T, T, T, T, T, W, W, W, W, W, W, W, T, T, T, T, T, T, _],
-    [_, _, T, T, T, T, T, T, W, W, W, W, W, W, W, T, T, T, T, T, _, _],
-    [_, _, _, T, T, T, T, T, _, _, W, W, W, _, _, _, _, T, _, _, _, _],
-    [_, _, _, _, T, T, T, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, SW, SW, SW, _, _, _, _, T, _, _, _, _],
+    [_, _, _, _, _, _, _, _, SW, SW, W, W, W, SW, SW, T, T, T, T, T, _, _],
+    [_, _, _, _, _, _, _, SW, W, W, W, W, W, W, W, SW, T, R, R, T, T, _],
+    [_, _, _, _, T, T, T, SW, W, W, W, W, W, W, W, SW, T, R, R, T, T, _],
+    [_, _, _, T, T, T, T, SW, W, W, W, W, W, W, W, SW, T, T, T, T, T, _],
+    [_, _, T, T, T, T, T, SW, W, W, W, W, W, W, W, SW, T, T, T, T, _, _],
+    [_, _, _, T, T, T, T, T, SW, SW, W, W, W, SW, SW, _, _, T, _, _, _, _],
+    [_, _, _, _, T, T, T, _, _, _, SW, SW, SW, _, _, _, _, _, _, _, _, _],
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
 ];
 
