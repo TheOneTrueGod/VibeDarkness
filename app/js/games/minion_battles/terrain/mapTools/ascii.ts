@@ -20,6 +20,8 @@ export const TERRAIN_ASCII: Record<TerrainType, string> = {
     [TerrainType.Rubble]: '%',
     [TerrainType.Impassable]: ' ',
     [TerrainType.Water]: '~',
+    [TerrainType.ShallowWater]: ':',
+    [TerrainType.DeepWater]: '=',
 };
 
 /** Segment-file shorthand consts (`const _ = TerrainType.Grass` etc.), as used across `MapSegments/`. */
@@ -29,6 +31,8 @@ export const TERRAIN_TS_SHORTHAND: Partial<Record<TerrainType, string>> = {
     [TerrainType.ThickGrass]: 'T',
     [TerrainType.Rock]: 'R',
     [TerrainType.Water]: 'W',
+    [TerrainType.ShallowWater]: 'SW',
+    [TerrainType.DeepWater]: 'DW',
 };
 
 /** Cells drawn with one character on top of the terrain (later marks win). */

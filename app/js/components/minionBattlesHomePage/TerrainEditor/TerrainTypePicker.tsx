@@ -12,7 +12,9 @@ const TERRAIN_TYPES: TerrainType[] = [
     TerrainType.Grass,
     TerrainType.ThickGrass,
     TerrainType.Rock,
+    TerrainType.ShallowWater,
     TerrainType.Water,
+    TerrainType.DeepWater,
 ];
 
 export default function TerrainTypePicker({ selectedType, onSelect }: TerrainTypePickerProps) {

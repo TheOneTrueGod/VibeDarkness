@@ -17,4 +17,9 @@ export const TERRAIN_HAZARD_DEFS: Record<TerrainHazardId, TerrainHazardDef> = {
         durationSeconds: 1,
         damage: 10,
     },
+    /** Deep Water: the same sink, double damage. */
+    drown_deep: {
+        durationSeconds: 1,
+        damage: 20,
+    },
 };

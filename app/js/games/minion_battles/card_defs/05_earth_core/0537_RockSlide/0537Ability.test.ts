@@ -372,7 +372,11 @@ describe('Rock Slide (0537) wall landing', () => {
 });
 
 describe('Rock Slide (0537) water', () => {
-    it('slid into water, the rock is lost and the first water tile becomes gravel', () => {
+    it.each([
+        [TerrainType.ShallowWater, TerrainType.Rubble],
+        [TerrainType.Water, TerrainType.Rubble],
+        [TerrainType.DeepWater, TerrainType.ShallowWater],
+    ])('slid into %s, the rock is lost and the first water tile becomes %s', (water, filled) => {
         const engine = buildTinyBattleEngine({ gridW: 21, gridH: 21, localPlayerId: TINY_BATTLE_PLAYER_ID, grass: true });
         const grid = engine.terrainManager!.grid;
         const casterTile = { col: 5, row: 10 };
@@ -381,7 +385,7 @@ describe('Rock Slide (0537) water', () => {
         // A 3-wide pond two tiles past the spawn tile (inside the 5-tile range).
         const firstWater = { col: casterTile.col + 3, row: casterTile.row };
         for (let c = 0; c < 3; c++) {
-            for (let r = -1; r <= 1; r++) grid.set(firstWater.col + c, firstWater.row + r, TerrainType.Water);
+            for (let r = -1; r <= 1; r++) grid.set(firstWater.col + c, firstWater.row + r, water);
         }
         engine.terrainManager!.clearPathCache();
         placePlayerAndDummy(engine, {
@@ -400,8 +404,8 @@ describe('Rock Slide (0537) water', () => {
         for (let i = 0; i < 240; i++) tick(engine);
 
         expect(liveProjectiles(engine)).toHaveLength(0);
-        expect(terrain(engine, firstWater.col, firstWater.row)).toBe(TerrainType.Rubble);
-        expect(terrain(engine, firstWater.col + 1, firstWater.row)).toBe(TerrainType.Water);
+        expect(terrain(engine, firstWater.col, firstWater.row)).toBe(filled);
+        expect(terrain(engine, firstWater.col + 1, firstWater.row)).toBe(water);
         // No rock anywhere along the path: it did not rest in front of the water.
         for (let c = casterTile.col + 1; c < firstWater.col; c++) {
             expect(terrain(engine, c, casterTile.row)).not.toBe(TerrainType.Rock);

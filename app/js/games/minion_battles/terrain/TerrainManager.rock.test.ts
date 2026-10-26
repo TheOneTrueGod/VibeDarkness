@@ -194,31 +194,47 @@ describe('TerrainManager.createOrMarkRock rock rule', () => {
     });
 });
 
-describe('TerrainManager rock on water', () => {
-    function waterManager(): TerrainManager {
+describe('TerrainManager rock and gravel on water (water levels)', () => {
+    // Levels: deep 3, water 2, shallow 1; rock raises the ground 2 levels, gravel 1; level 0 is gravel.
+    function managerWith(type: TerrainType): TerrainManager {
         const grid = TerrainGrid.createFilledTerrain(5, 5, CELL_SIZE, TerrainType.Grass);
-        grid.set(2, 2, TerrainType.Water);
-        grid.set(3, 2, TerrainType.Water);
+        grid.set(2, 2, type);
         return makeManager(grid);
     }
 
-    it('createOrMarkRock on water fills the tile with gravel instead of raising rock', () => {
-        const manager = waterManager();
+    it.each([
+        [TerrainType.DeepWater, TerrainType.ShallowWater],
+        [TerrainType.Water, TerrainType.Rubble],
+        [TerrainType.ShallowWater, TerrainType.Rubble],
+    ])('rock on %s becomes %s, not rock', (start, result) => {
+        const manager = managerWith(start);
         const epoch = manager.navEpoch;
         expect(manager.createOrMarkRock(2, 2)).toBeNull();
-        expect(manager.getEffectiveTerrainType(2, 2)).toBe(TerrainType.Rubble);
-        expect(manager.isPassable(2 * CELL_SIZE + 20, 2 * CELL_SIZE + 20)).toBe(true);
+        expect(manager.getEffectiveTerrainType(2, 2)).toBe(result);
         expect(manager.navEpoch).toBeGreaterThan(epoch);
-        // Gravel is ordinary ground now: a second rock raises normally.
+    });
+
+    it.each([
+        [TerrainType.DeepWater, TerrainType.Water],
+        [TerrainType.Water, TerrainType.ShallowWater],
+        [TerrainType.ShallowWater, TerrainType.Rubble],
+    ])('gravel on %s becomes %s', (start, result) => {
+        const manager = managerWith(start);
+        expect(manager.createRubble(2, 2)).toBe(true);
+        expect(manager.getEffectiveTerrainType(2, 2)).toBe(result);
+    });
+
+    it('stacks: two gravels fill water; rock on filled gravel raises normally', () => {
+        const manager = managerWith(TerrainType.Water);
+        manager.createRubble(2, 2);
+        manager.createRubble(2, 2);
+        expect(manager.getEffectiveTerrainType(2, 2)).toBe(TerrainType.Rubble);
         expect(manager.createOrMarkRock(2, 2)?.terrainType).toBe(TerrainType.Rock);
     });
 
-    it('createRubble lays gravel on water but still never on rock', () => {
-        const manager = waterManager();
-        manager.grid.set(1, 1, TerrainType.Rock);
-        expect(manager.createRubble(3, 2)).toBe(true);
-        expect(manager.getEffectiveTerrainType(3, 2)).toBe(TerrainType.Rubble);
-        expect(manager.createRubble(1, 1)).toBe(false);
-        expect(manager.getEffectiveTerrainType(1, 1)).toBe(TerrainType.Rock);
+    it('gravel still never replaces rock', () => {
+        const manager = managerWith(TerrainType.Rock);
+        expect(manager.createRubble(2, 2)).toBe(false);
+        expect(manager.getEffectiveTerrainType(2, 2)).toBe(TerrainType.Rock);
     });
 });

@@ -12,6 +12,8 @@ export const TERRAIN_COLORS: Record<TerrainType, string> = {
     [TerrainType.Rubble]: TERRAIN_PROPERTIES[TerrainType.Rubble].color,
     [TerrainType.Impassable]: TERRAIN_PROPERTIES[TerrainType.Impassable].color,
     [TerrainType.Water]: TERRAIN_PROPERTIES[TerrainType.Water].color,
+    [TerrainType.ShallowWater]: TERRAIN_PROPERTIES[TerrainType.ShallowWater].color,
+    [TerrainType.DeepWater]: TERRAIN_PROPERTIES[TerrainType.DeepWater].color,
 };
 
 export interface POIStyle {

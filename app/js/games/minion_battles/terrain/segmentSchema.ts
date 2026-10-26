@@ -8,7 +8,9 @@ export const AUTHORED_TERRAIN_TYPES: readonly number[] = [
     TerrainType.Grass,
     TerrainType.ThickGrass,
     TerrainType.Rock,
+    TerrainType.ShallowWater,
     TerrainType.Water,
+    TerrainType.DeepWater,
 ];
 
 export const POI_TYPES =['generic', 'campfire', 'crystal', 'nest', 'patrol_point', 'enemySpawn', 'playerSpawn'] as const;

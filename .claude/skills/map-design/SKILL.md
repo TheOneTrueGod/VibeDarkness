@@ -70,7 +70,15 @@ Light types and their gameplay effects: `game/lighting/AGENTS.md`.
 
 Read `terrain/TerrainType.ts` for the list of terrain types and their properties before painting. Do not copy the list into this skill.
 
-Water blocks walking but not projectiles, and units knocked into it drown (see `terrain/AGENTS.md`). Use it for moats, ponds and rivers that should shape movement without blocking ranged attacks.
+Water comes in **levels** (see `terrain/AGENTS.md`); none of them block projectiles:
+
+| Level | Type | Use |
+|-------|------|-----|
+| 1 | Shallow Water | Walkable at half speed. Edges of ponds and rivers, fords, marsh. |
+| 2 | Water | Not walkable; units knocked in drown. Ordinary ponds, moats, rivers. |
+| 3 | Deep Water | Not walkable; drowning hurts double. The middle of large lakes and wide rivers. |
+
+Shape water features as levels: deeper in the middle, shallower toward the banks, so the map reads naturally and Earth abilities (rock raises the ground 2 levels, gravel 1) have something to work with.
 
 ### Feature sizes
 

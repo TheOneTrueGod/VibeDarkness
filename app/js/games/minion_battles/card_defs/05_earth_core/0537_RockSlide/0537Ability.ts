@@ -40,7 +40,7 @@ import { tileCentre, worldToTile, type TileCoord } from '../../../abilities/tile
 import { drawArrow, drawTileAreaTelegraph } from '../../../abilities/previewHelpers';
 import { TELEGRAPH_STYLES } from '../../../abilities/telegraphStyles';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
-import { ROCK_FILLABLE_TERRAIN_TYPES } from '../../../terrain/TerrainType';
+import { WATER_TERRAIN_TYPES } from '../../../terrain/TerrainType';
 import { TERRAIN_CLEARS } from '../../../game/terrainEffects/terrainClearing';
 import {
     ROCK_SLIDE_CAST_RANGE,
@@ -134,7 +134,7 @@ function settleRockAt(engine: AbilityEngineContext, x: number, y: number): void 
     settleRockOnTile(engine, worldToTile(x, y));
 }
 
-/** Raise the rock on a tile. On water, `createOrMarkRock` fills the tile with gravel instead. */
+/** Raise the rock on a tile. On water, `createOrMarkRock` raises the ground two water levels instead. */
 function settleRockOnTile(engine: AbilityEngineContext, tile: TileCoord): void {
     engine.terrainManager?.createOrMarkRock(tile.col, tile.row);
     const centre = tileCentre(tile);
@@ -167,8 +167,8 @@ function rockLaunch(): ProjectileLaunchBehaviour {
             knockback: { tier: ROCK_SLIDE_KNOCKBACK_TIER, direction: { kind: 'sideOfTravel', angleDeg: 45 } },
         })
         .withModifiers(['stopsAtWalls'])
-        // Slides along the ground, so water stops it (and the rock fills that tile; see onProjectileExpired).
-        .withCollidesWithTerrain([...ROCK_FILLABLE_TERRAIN_TYPES])
+        // Slides along the ground, so any water (shallow included) stops it; the rock sinks into that tile.
+        .withCollidesWithTerrain([...WATER_TERRAIN_TYPES])
         .withTerrainClear(TERRAIN_CLEARS.scour)
         .withOrigin((ctx: CastBehaviourSetupContext) => {
             const dir = directionOf(ctx.caster, ctx.target);
@@ -329,8 +329,8 @@ export const RockSlideAbility_0537: AbilityStatic = defineAbility({
     onProjectileExpired(engine: unknown, _caster: Unit, projectile: Projectile): void {
         const eng = engine as AbilityEngineContext;
         const hit = projectile.stoppedAtTerrain;
-        if (hit && ROCK_FILLABLE_TERRAIN_TYPES.includes(hit.terrainType)) {
-            // Reached water: the rock is lost and fills that tile (gravel).
+        if (hit && WATER_TERRAIN_TYPES.includes(hit.terrainType)) {
+            // Reached water: the rock is lost and raises that tile's ground (deep -> shallow, else gravel).
             settleRockOnTile(eng, hit);
             return;
         }

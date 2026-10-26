@@ -206,7 +206,7 @@ describe('Stone Tomb (0530)', () => {
         expect(tm.getEffectiveTerrainType(5, 5)).toBe(TerrainType.Rock);
     });
 
-    it('cast on water: the centre and the plus arms become gravel, with no rock', () => {
+    it('cast on water: rock fills the centre to gravel, gravel raises the arms to shallow water', () => {
         const engine = earthCoreStoneTombScenario.buildEngine() as GameEngine;
         const player = engine.getLocalPlayerUnit()!;
         const tm = engine.terrainManager!;
@@ -229,7 +229,8 @@ describe('Stone Tomb (0530)', () => {
         guard = 0;
         while (engine.gameTime - start < STONE_TOMB_STAGE1_TIME + STONE_TOMB_STAGE_GAP + 0.1 && guard++ < 300) tick();
 
-        for (const [c, r] of plus) expect(tm.getEffectiveTerrainType(c!, r!)).toBe(TerrainType.Rubble);
+        expect(tm.getEffectiveTerrainType(5, 5)).toBe(TerrainType.Rubble);
+        for (const [c, r] of plus.slice(1)) expect(tm.getEffectiveTerrainType(c!, r!)).toBe(TerrainType.ShallowWater);
     });
 
     it('stage 1 damages only centre-tile enemies and raises only the centre rock', () => {

@@ -85,6 +85,25 @@ describe('Water terrain', () => {
     });
 });
 
+describe('Shallow Water terrain', () => {
+    it('is walkable at half speed, passes projectiles, and never drowns', () => {
+        const engine = engineWithPond([]);
+        engine.terrainManager!.grid.set(5, ROW, TerrainType.ShallowWater);
+        engine.terrainManager!.clearPathCache();
+        const tm = engine.terrainManager!;
+        expect(tm.isPassable(centre(5), centre(ROW))).toBe(true);
+        expect(tm.getSpeedMultiplier(centre(5), centre(ROW))).toBe(0.5);
+        expect(tm.isProjectilePassable(centre(5), centre(ROW))).toBe(true);
+
+        const unit = addSlime(engine, 4);
+        step(engine, 1);
+        knockEast(engine, unit, 30);
+        step(engine, 30);
+        expect(unit.terrainHazard).toBeNull();
+        engine.destroy();
+    });
+});
+
 describe('drowning', () => {
     it('knockback into water drowns the unit, then it reappears on land and takes damage', () => {
         const engine = engineWithPond([5, 6, 7]);
@@ -118,6 +137,25 @@ describe('drowning', () => {
         const restRow = Math.floor(unit.y / CELL);
         expect(Math.abs(restCol - drownCell) + Math.abs(restRow - ROW)).toBe(1);
         expect(unit.isUntargetable()).toBe(false);
+        engine.destroy();
+    });
+
+    it('deep water drowns for double damage', () => {
+        const engine = engineWithPond([]);
+        for (const col of [5, 6, 7]) engine.terrainManager!.grid.set(col, ROW, TerrainType.DeepWater);
+        engine.terrainManager!.clearPathCache();
+        const unit = addSlime(engine, 4);
+        step(engine, 1);
+        knockEast(engine, unit, 40);
+        let ticks = 0;
+        while (!unit.terrainHazard && ticks < 60) {
+            step(engine, 1);
+            ticks++;
+        }
+        expect(unit.terrainHazard?.hazardId).toBe('drown_deep');
+        step(engine, Math.ceil(TERRAIN_HAZARD_DEFS.drown_deep.durationSeconds * TICKS_PER_SECOND) + 2);
+        expect(TERRAIN_HAZARD_DEFS.drown_deep.damage).toBe(2 * TERRAIN_HAZARD_DEFS.drown.damage);
+        expect(unit.hp).toBe(50 - TERRAIN_HAZARD_DEFS.drown_deep.damage);
         engine.destroy();
     });
 

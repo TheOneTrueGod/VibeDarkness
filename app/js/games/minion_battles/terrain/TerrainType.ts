@@ -20,14 +20,18 @@ export enum TerrainType {
      */
     Impassable = 5,
     /**
-     * Blocks walking and pathfinding but not projectiles. Forced movement (knockback, lift) can
-     * carry a unit onto it, which triggers its `forcedEntryHazard` (drowning).
+     * Water level 2. Blocks walking and pathfinding but not projectiles. Forced movement (knockback,
+     * lift) can carry a unit onto it, which triggers its `forcedEntryHazard` (drowning).
      */
     Water = 6,
+    /** Water level 1. Walkable at half speed; projectiles pass over it. */
+    ShallowWater = 7,
+    /** Water level 3. Like Water, but drowning in it hurts twice as much. */
+    DeepWater = 8,
 }
 
 /** Terrain hazard a unit suffers when forced onto a tile it cannot walk on. Rules: `game/terrainHazards/`. */
-export type TerrainHazardId = 'drown';
+export type TerrainHazardId = 'drown' | 'drown_deep';
 
 export type TerrainRenderStrategy = 'marching-squares' | 'hard-edge';
 
@@ -40,16 +44,16 @@ export interface TerrainProperties {
     passable: boolean;
     /**
      * Whether forced movement (knockback, lift) can carry a unit onto this terrain. True for every
-     * walkable type; Water is the only non-walkable type that allows it.
+     * walkable type; Water and Deep Water are the non-walkable types that allow it.
      */
     forcedMovementPassable: boolean;
     /** Hazard triggered when a grounded unit ends up on this terrain (forced there). */
     forcedEntryHazard?: TerrainHazardId;
     /**
-     * What rock raised or slid onto this terrain becomes instead of rock (Water: Rubble, i.e. gravel
-     * filling the water). Such terrain also accepts laid gravel. See `TerrainManager.createOrMarkRock`.
+     * Depth for water types (1 shallow, 2 water, 3 deep). Rock and gravel placed on water raise the
+     * ground instead of sitting on top; see `raiseGround`.
      */
-    raisedRockBecomes?: TerrainType;
+    waterLevel?: number;
     /** Speed multiplier (1.0 = normal, 0.75 = 25% slower, 0 = impassable). */
     speedMultiplier: number;
     /** A* pathfinding cost weight (1.0 = normal, higher = less preferred). */
@@ -159,7 +163,36 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
         passable: false,
         forcedMovementPassable: true,
         forcedEntryHazard: 'drown',
-        raisedRockBecomes: TerrainType.Rubble,
+        waterLevel: 2,
+        speedMultiplier: 0,
+        pathfindingWeight: Infinity,
+        projectilePassable: true,
+        blocksProjectiles: false,
+        renderStrategy: 'marching-squares',
+        blocksBleed: false,
+        hardEdgeFamily: [],
+    },
+    [TerrainType.ShallowWater]: {
+        name: 'Shallow Water',
+        color: '#7DBDF0',
+        passable: true,
+        forcedMovementPassable: true,
+        waterLevel: 1,
+        speedMultiplier: 0.5,
+        pathfindingWeight: 2.0,
+        projectilePassable: true,
+        blocksProjectiles: false,
+        renderStrategy: 'marching-squares',
+        blocksBleed: false,
+        hardEdgeFamily: [],
+    },
+    [TerrainType.DeepWater]: {
+        name: 'Deep Water',
+        color: '#1B4A94',
+        passable: false,
+        forcedMovementPassable: true,
+        forcedEntryHazard: 'drown_deep',
+        waterLevel: 3,
         speedMultiplier: 0,
         pathfindingWeight: Infinity,
         projectilePassable: true,
@@ -170,7 +203,31 @@ export const TERRAIN_PROPERTIES: Record<TerrainType, TerrainProperties> = {
     },
 };
 
-/** Terrain types that turn raised or sliding rock into something else (`raisedRockBecomes`), e.g. Water. */
-export const ROCK_FILLABLE_TERRAIN_TYPES: readonly TerrainType[] = (
+/** How much each kind of placed stone raises the ground on water (lowers its water level). */
+export const GROUND_RAISE = {
+    rock: 2,
+    gravel: 1,
+} as const;
+
+/** Terrain for each water level; level 0 (water filled in) is gravel. */
+const TERRAIN_FOR_WATER_LEVEL: readonly TerrainType[] = [
+    TerrainType.Rubble,
+    TerrainType.ShallowWater,
+    TerrainType.Water,
+    TerrainType.DeepWater,
+];
+
+/** Water types (any `waterLevel`), e.g. what a sliding rock sinks into. */
+export const WATER_TERRAIN_TYPES: readonly TerrainType[] = (
     Object.keys(TERRAIN_PROPERTIES).map(Number) as TerrainType[]
-).filter((type) => TERRAIN_PROPERTIES[type].raisedRockBecomes !== undefined);
+).filter((type) => (TERRAIN_PROPERTIES[type].waterLevel ?? 0) > 0);
+
+/**
+ * What a water tile becomes when stone raises its ground by `amount` levels (rock 2, gravel 1):
+ * deep + rock = shallow, water + gravel = shallow, shallow + gravel = gravel. Null for non-water.
+ */
+export function raiseGround(type: TerrainType, amount: number): TerrainType | null {
+    const level = TERRAIN_PROPERTIES[type].waterLevel;
+    if (!level) return null;
+    return TERRAIN_FOR_WATER_LEVEL[Math.max(0, level - amount)];
+}
