@@ -43,7 +43,6 @@ import {
 } from '../MapSegments/50_51_south_gate';
 import { getTerrainForSegment } from '../../../terrain/segmentRegistry';
 import { SWARM_NEST_CHARACTER_ID } from '../../../game/lanternite/swarmNestTick';
-import { NINJUTSU_3_FLURRY_PER_ROUND } from '../../../game/ninjutsu/ninjutsuConfig';
 
 // ---------------------------------------------------------------------------
 // Grid constants — vertical stack: 50_50 (north) over 50_51 (south)
@@ -276,7 +275,6 @@ export class SouthGateSwarmMission extends BaseMissionDef {
     specialTiles = SPECIAL_TILES;
     lightLevelEnabled = true;
     globalLightLevel = 0;
-    ninjutsuPools = { shadow: NINJUTSU_3_FLURRY_PER_ROUND };
     gatherPartyBackgroundImage = STORY_BACKGROUNDS.campfire;
     preMissionStory = PRE_MISSION_STORY;
     postMissionStory = POST_MISSION_STORY;

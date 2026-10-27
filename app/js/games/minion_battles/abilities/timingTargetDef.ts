@@ -2,6 +2,7 @@ import type { HitboxSpec } from '../hitboxes/HitboxSpec';
 import type { Unit } from '../game/units/Unit';
 import type { ResolvedTarget } from '../game/types';
 import type { SelectStepLunge } from './stepLunge';
+import type { UnitTag } from '../game/units/unitTag';
 
 /** AI auto-resolution for a select step (see `buildAiSelectTargets`). */
 export type SelectTargetAiHint =
@@ -13,6 +14,8 @@ export interface SelectTargetDef {
     label: string;
     hitbox: HitboxSpec;
     filter: 'enemy' | 'ally' | 'any';
+    /** Units carrying any of these tags can never be picked (e.g. `UnitTag.Structure` for forced movement). */
+    excludeUnitTags?: readonly UnitTag[];
     allowMiss?: boolean;
     /**
      * Ask for this pick when the select's interval is about to enter, even when it is the cast's

@@ -23,6 +23,7 @@ import type {
 } from '../../../game/EventBus';
 import type { EngineContext } from '../../../game/EngineContext';
 import type { Unit } from '../../../game/units/Unit';
+import { UnitTag } from '../../../game/units/unitTag';
 import type { ResolvedTarget } from '../../../game/types';
 import { unitRangeHitbox, nullHitbox } from '../../../hitboxes';
 import { drawClampedLine } from '../../../abilities/previewHelpers';
@@ -32,6 +33,7 @@ import {
     FORCE_PUSH_ACTIVE_DURATION,
     FORCE_PUSH_COLLISION_DAMAGE,
     FORCE_PUSH_COOLDOWN_DURATION,
+    FORCE_PUSH_FLIGHT_TIME_SCALE,
     FORCE_PUSH_GRAVITY_COST,
     FORCE_PUSH_KNOCKBACK_TIER,
     FORCE_PUSH_LANDING_DISTANCE_SCALE,
@@ -102,6 +104,8 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
             label: FORCE_PUSH_TARGET_LABEL,
             hitbox: FORCE_PUSH_UNIT_HITBOX,
             filter: 'enemy',
+            // Structures never move (see isImmuneToForcedMovement), so they are not valid picks.
+            excludeUnitTags: [UnitTag.Structure],
             allowMiss: false,
         },
     },
@@ -289,6 +293,7 @@ function launchForcePushTarget(
             landingMinDistance: FORCE_PUSH_LANDING_MIN_DISTANCE,
             landingMaxDistance: FORCE_PUSH_LANDING_MAX_DISTANCE,
             distanceScale: FORCE_PUSH_LANDING_DISTANCE_SCALE,
+            timeScale: FORCE_PUSH_FLIGHT_TIME_SCALE,
         },
         { collideWithUnits: true, bounceOffTerrain: true, unitCollisionStartFraction: FORCE_PUSH_UNIT_COLLISION_START_FRACTION },
     );

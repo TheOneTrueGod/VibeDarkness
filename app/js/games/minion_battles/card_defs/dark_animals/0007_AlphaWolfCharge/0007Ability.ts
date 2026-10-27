@@ -24,7 +24,7 @@ const alphaWolfCharge = new ChargeAttack({
     cooldownDuration: 2.5,
     baseMaxRange: 120,
     aiMaxRange: 100,
-    capsuleRadiusMultiplier: 1.6,
+    capsuleRadiusMultiplier: 1.4,
     knockbackTierOnBlock: 1,
     preview: { color: 0xff3300, width: 19 },
     effectType: 'bite',

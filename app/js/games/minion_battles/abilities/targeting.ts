@@ -6,6 +6,7 @@
  */
 
 import type { Unit } from '../game/units/Unit';
+import type { UnitTag } from '../game/units/unitTag';
 import type { Camera } from '../game/Camera';
 import type { ResolvedTarget } from '../game/types';
 import type { AbilityStatic, IAbilityPreviewGraphics } from './Ability';
@@ -155,9 +156,11 @@ export function filterSelectTargetCandidates(
     caster: Pick<Unit, 'id' | 'teamId'>,
     filter: SelectTargetDef['filter'],
     includeSelf = false,
+    excludeUnitTags?: readonly UnitTag[],
 ): Unit[] {
     return units.filter(u => {
         if (u.id === caster.id && !includeSelf) return false;
+        if (excludeUnitTags?.some((tag) => u.tags.includes(tag))) return false;
         if (filter === 'enemy') return areEnemies(caster.teamId, u.teamId);
         if (filter === 'ally')  return areAllies(caster.teamId, u.teamId);
         return true; // 'any'
@@ -235,7 +238,9 @@ export function resolveSelectTargetLockOnCandidates(
     originCaster.y = originY;
 
     const raw = selectDef.hitbox.resolveTargets(originCaster, effectiveAim, engine.units as Unit[]);
-    const candidates = filterSelectTargetCandidates(raw, caster, selectDef.filter, selectDef.includeSelf);
+    const candidates = filterSelectTargetCandidates(
+        raw, caster, selectDef.filter, selectDef.includeSelf, selectDef.excludeUnitTags,
+    );
     candidates.sort((a, b) => {
         const da = (a.x - effectiveAim.x) ** 2 + (a.y - effectiveAim.y) ** 2;
         const db = (b.x - effectiveAim.x) ** 2 + (b.y - effectiveAim.y) ** 2;
@@ -285,7 +290,7 @@ export function resolveSelectTargetCompanionLockOns(
     for (const companion of companions) {
         const raw = companion.hitbox.resolveTargets(originCaster, effectiveAim, engine.units as Unit[]);
         const filter = companion.filter ?? selectDef.filter;
-        const filtered = filterSelectTargetCandidates(raw, caster, filter, selectDef.includeSelf)
+        const filtered = filterSelectTargetCandidates(raw, caster, filter, selectDef.includeSelf, selectDef.excludeUnitTags)
             .filter((u) => !taken.has(u.id));
         filtered.sort((a, b) => {
             const da = (a.x - effectiveAim.x) ** 2 + (a.y - effectiveAim.y) ** 2;

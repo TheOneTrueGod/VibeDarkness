@@ -126,7 +126,9 @@ export function renderSelectTargetDef(
     // don't know about SelectTargetDef.filter, so an unfiltered unit list would let the
     // crosshair snap to units (e.g. enemies for a filter:'ally' ability) that could never
     // actually be selected. Draw hitbox first — some implementations call gr.clear() internally.
-    const teamFilteredUnits = filterSelectTargetCandidates(engine.units, caster, selectDef.filter, selectDef.includeSelf);
+    const teamFilteredUnits = filterSelectTargetCandidates(
+        engine.units, caster, selectDef.filter, selectDef.includeSelf, selectDef.excludeUnitTags,
+    );
     const candidates = selectDef.hitbox.renderTargetingPreview(gr, effectiveCaster, effectiveAim, teamFilteredUnits);
     const highlightUnits: Unit[] = [];
     if (candidates.length > 0) {

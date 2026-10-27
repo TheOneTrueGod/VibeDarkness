@@ -1,7 +1,11 @@
 import { Unit } from '../../game/units/Unit';
 import type { CastBehaviourTickContext } from '../castBehaviourTypes';
 import type { AbilityEngineContext } from '../AbilityEngineContext';
-import { tryApplyKnockbackByTier, knockbackCtxFromEngine } from '../../crowdControl/knockbackKeywords';
+import {
+    tryApplyKnockbackByTier,
+    knockbackCtxFromEngine,
+    type KnockbackLaunchOpts,
+} from '../../crowdControl/knockbackKeywords';
 import { tryDamageOrBlock, type TryDamageOrBlockParams } from '../blockingHelpers';
 
 /**
@@ -10,14 +14,17 @@ import { tryDamageOrBlock, type TryDamageOrBlockParams } from '../blockingHelper
  */
 export abstract class BaseAttackBehaviour {
     private _knockbackTier: number | null = null;
+    private _knockbackOpts: KnockbackLaunchOpts | undefined = undefined;
     private _damageAmount: number | null = null;
     private _damageResolver: ((ctx: CastBehaviourTickContext, unit: Unit) => number) | null = null;
     private _damageAttackType: TryDamageOrBlockParams['attackType'] = 'melee';
     private _onDamageHook: ((ctx: CastBehaviourTickContext, unit: Unit, amountDealt: number) => void) | null = null;
     private _onBlockedHook: ((ctx: CastBehaviourTickContext, unit: Unit) => void) | null = null;
 
-    withKnockback(tier: number): this {
+    /** `opts.magnitudeScale` nudges the launch distance without changing the tier (see `KnockbackLaunchOpts`). */
+    withKnockback(tier: number, opts?: Pick<KnockbackLaunchOpts, 'magnitudeScale'>): this {
         this._knockbackTier = tier;
+        this._knockbackOpts = opts;
         return this;
     }
 
@@ -115,9 +122,9 @@ export abstract class BaseAttackBehaviour {
                 });
                 unit.stackSize -= count;
                 eng.addUnit(splitUnit, 'abilitySpawn');
-                tryApplyKnockbackByTier(splitUnit, this._knockbackTier, source, ctx.caster.x, ctx.caster.y, engineCtx);
+                tryApplyKnockbackByTier(splitUnit, this._knockbackTier, source, ctx.caster.x, ctx.caster.y, engineCtx, this._knockbackOpts);
             } else {
-                tryApplyKnockbackByTier(unit, this._knockbackTier, source, ctx.caster.x, ctx.caster.y, engineCtx);
+                tryApplyKnockbackByTier(unit, this._knockbackTier, source, ctx.caster.x, ctx.caster.y, engineCtx, this._knockbackOpts);
             }
         }
     }

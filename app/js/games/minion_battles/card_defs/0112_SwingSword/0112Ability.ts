@@ -47,6 +47,8 @@ const BASE_MAX_RANGE = 48;
 export const SWING_SWORD_DAMAGE = 10;
 const DAMAGE = SWING_SWORD_DAMAGE;
 const KNOCKBACK_TIER = 1;
+/** A bit more push than a plain tier-1 nudge. */
+const KNOCKBACK_MAGNITUDE_SCALE = 1.5;
 const MAX_TARGETS = 2;
 const LINE_THICKNESS = 36;
 const SWING_LENGTH = 80;
@@ -109,7 +111,7 @@ const swingSwordBehaviour = CastBehaviours.MeleeAttack()
         );
     })
     .withDamage(DAMAGE)
-    .withKnockback(KNOCKBACK_TIER);
+    .withKnockback(KNOCKBACK_TIER, { magnitudeScale: KNOCKBACK_MAGNITUDE_SCALE });
 
 // ---- Timings ----
 

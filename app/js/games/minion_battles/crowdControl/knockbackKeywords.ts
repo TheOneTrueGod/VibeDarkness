@@ -10,6 +10,15 @@ export type ForcedMovementCollisionOpts = Pick<
     'collideWithUnits' | 'bounceOffTerrain' | 'unitCollisionStartFraction'
 >;
 
+/** Launch options for tier knockback: collision handling plus an optional distance scale. */
+export interface KnockbackLaunchOpts extends ForcedMovementCollisionOpts {
+    /**
+     * Multiplies the tier's launch magnitude (distance) without changing the tier itself, so CC armour,
+     * resistance and tooltips still read the tier. Use for small tuning between tiers. Default 1.
+     */
+    magnitudeScale?: number;
+}
+
 // ---- Tier table ----
 
 export interface KnockbackTierDef {
@@ -162,7 +171,7 @@ export function tryApplyKnockbackByTier(
     casterX: number,
     casterY: number,
     engine: KnockbackEngineCtx,
-    collisionOpts?: ForcedMovementCollisionOpts,
+    collisionOpts?: KnockbackLaunchOpts,
 ): KnockbackAttemptResult {
     return _tryApplyTierForcedMovement(target, tier, engine, (t, tierDef) => {
         _launchKnockback(t, tierDef, source, casterX, casterY, engine, collisionOpts);
@@ -256,6 +265,11 @@ export interface AimedKnockbackOptions {
      * When omitted, air time scales with distance as before.
      */
     durationOverride?: number;
+    /**
+     * Multiplies the flight time (air + slide) after the distance scaling: below 1 flies faster over
+     * the same distance. Ignored when `durationOverride` is set. Default 1.
+     */
+    timeScale?: number;
 }
 
 /**
@@ -283,7 +297,7 @@ export function computeAimedKnockbackParams(
     const airTime =
         options.durationOverride != null
             ? options.durationOverride / (1 + slideRatio)
-            : tierDef.airTime * (1 + (options.distanceScale - 1) * t);
+            : tierDef.airTime * (1 + (options.distanceScale - 1) * t) * (options.timeScale ?? 1);
     const slideTime = airTime * slideRatio;
 
     return {
@@ -333,12 +347,13 @@ function _launchKnockback(
     casterX: number,
     casterY: number,
     engine: KnockbackEngineCtx,
-    collisionOpts?: ForcedMovementCollisionOpts,
+    collisionOpts?: KnockbackLaunchOpts,
 ): void {
     const { dirX, dirY } = getDirectionFromTo(casterX, casterY, target.x, target.y);
+    const magnitude = tierDef.magnitude * (collisionOpts?.magnitudeScale ?? 1);
     target.applyKnockback(
         {
-            knockbackVector: { x: dirX * tierDef.magnitude, y: dirY * tierDef.magnitude },
+            knockbackVector: { x: dirX * magnitude, y: dirY * magnitude },
             knockbackAirTime: tierDef.airTime,
             knockbackSlideTime: tierDef.slideTime,
             knockbackSource: source,

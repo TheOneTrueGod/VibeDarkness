@@ -110,6 +110,8 @@ export const FORCE_PUSH_LANDING_MIN_DISTANCE = 8;
 export const FORCE_PUSH_LANDING_DISTANCE_SCALE = 1.25;
 /** Fraction of total knockback travel before unit–unit collision is checked (adjacent-unit pop-out). */
 export const FORCE_PUSH_UNIT_COLLISION_START_FRACTION = 0.25;
+/** Force Push flight-time multiplier (under 1 = a faster fling over the same distance). */
+export const FORCE_PUSH_FLIGHT_TIME_SCALE = 0.6;
 
 /** Lift (0903) — AoE lift + slam; mode changes horizontal landing only. */
 export const GRAVITY_INVERSION_MAX_RANGE = 160;
