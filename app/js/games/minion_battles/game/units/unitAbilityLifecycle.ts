@@ -26,6 +26,7 @@ import {
     canUseAbilityNow,
     consumeAbilityUse,
     ensureAbilityRuntimeState,
+    refillUsesAtRoundStart,
     syncNestedCardAbilityState,
 } from '../../abilities/abilityUses';
 import { initTelegraphCastPayload } from '../../abilities/telegraphTracking';
@@ -328,7 +329,7 @@ export function executeUnitAbility(
 
 export function unitRoundStart(unit: Unit, engine: EngineContext): void {
     if (!unit.isAlive()) return;
-    unit.applyStaminaSurge(Math.max(0, Math.floor(unit.stamina)));
+    refillUsesAtRoundStart(unit);
     unit.grantRoundCharges();
     const movement = unit.getResource('movement_points');
     if (movement) {

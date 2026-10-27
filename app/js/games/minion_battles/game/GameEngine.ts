@@ -47,7 +47,6 @@ import {
 import {
     addRecoveryChargeToUnitAbilities,
     getRoundChargeEligibleAbilityIds,
-    getStaminaSurgeEligibleAbilityIds,
     syncNestedCardAbilityState,
 } from '../abilities/abilityUses';
 import { debugSettingsSnapshot, consumeDebugAdvanceTickRequest } from '../../../debug/debugSettingsStore';
@@ -102,8 +101,6 @@ import {
 import { FIXED_DT, ROUND_DURATION } from './gameConstants';
 import type { StartTimeStopSpec, TimeManager, TimeStop } from './time/TimeManager';
 export { FIXED_DT };
-/** Matches default player stamina in unit defs; each ability receives this many stamina charges per surge unless overridden by unit stamina. */
-export const DEFAULT_PLAYER_ROUND_STAMINA_SURGE = 2;
 
 /** Save a checkpoint to the server every this many game ticks. */
 export const CHECKPOINT_INTERVAL = 10;
@@ -1559,7 +1556,7 @@ export class GameEngine implements EngineContext {
 
     /**
      * Round timer milestones (same cadence as UI round progress: 0% and 50%).
-     * Stamina surge runs at round start; all DoT effects tick DOT_TICKS_PER_ROUND times per round.
+     * Use refills run at round start; all DoT effects tick DOT_TICKS_PER_ROUND times per round.
      */
     private processRoundProgressMilestones(roundTime: number): void {
         const bleedFx = {
@@ -1568,16 +1565,11 @@ export class GameEngine implements EngineContext {
         };
         if (!this.appliedRoundStartRecovery) {
             const surgeUnit = this.units.find(u => u.isPlayerControlled() && u.isAlive());
-            const staminaSurgeAmount = surgeUnit ? Math.max(0, Math.floor(surgeUnit.stamina)) : 0;
             const roundChargeAbilityIds = surgeUnit ? getRoundChargeEligibleAbilityIds(surgeUnit) : [];
-            const staminaSurgeAbilityIds =
-                surgeUnit && staminaSurgeAmount > 0 ? getStaminaSurgeEligibleAbilityIds(surgeUnit) : [];
             this.eventBus.emit('round_start', {
                 roundNumber: this.roundNumber,
-                staminaSurgeAmount,
                 roundChargeCount: roundChargeAbilityIds.length,
                 roundChargeAbilityIds,
-                staminaSurgeAbilityIds,
             });
             this.state.unitManager.onRoundStart(this.roundNumber, this);
             this.state.ninjutsuManager?.onRoundStart(this.roundNumber, countNinjutsuEnemyUnits(this.units));

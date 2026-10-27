@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { AbilityEventType, type AbilityStatic } from '../Ability';
 import { ensureAbilityRuntimeState } from '../abilityUses';
+import { CARD_ID as PUNCH_ABILITY_ID } from '../../card_defs/0120_PunchNEW/0120Ability';
+import { CARD_ID as DOUBLE_PUNCH_ABILITY_ID } from '../../card_defs/0116_DoublePunch/0116Ability';
 import { Unit } from '../../game/units/Unit';
 import { EventBus } from '../../game/EventBus';
 import { triggerAbilityEvent, type AbilityEventRuntimeContext } from './AbilityEventRuntime';
@@ -337,5 +339,59 @@ describe('AbilityEventRuntime', () => {
         expect(terrainLayers.getGroundEffectAt(6, 6)?.id).toBe('far');
         expect(terrainLayers.getEffectsCoveringCell('air', 2, 2)).toHaveLength(1);
         expect(events).toHaveLength(1);
+    });
+
+    it('restores one use of the punch the caster has', () => {
+        const caster = createUnit({ abilities: [DOUBLE_PUNCH_ABILITY_ID] });
+        ensureAbilityRuntimeState(caster, DOUBLE_PUNCH_ABILITY_ID);
+        ensureAbilityRuntimeState(caster, PUNCH_ABILITY_ID);
+        caster.abilityRuntime[DOUBLE_PUNCH_ABILITY_ID]!.currentUses = 0;
+        caster.abilityRuntime[PUNCH_ABILITY_ID]!.currentUses = 0;
+
+        const ability = {
+            id: 'dodge_like',
+            name: 'Dodge-like',
+            image: '',
+            resourceCost: null,
+            rechargeTurns: 0,
+            prefireTime: 0,
+            targets: [],
+            abilityTimings: [{ id: 'x', start: 0, end: 1, abilityPhase: AbilityPhase.Active }],
+            getTooltipText: () => [''],
+            getAbilityStates: () => [],
+            onAttackBlocked: () => {},
+            abilityEvents: {
+                [AbilityEventType.ON_CAST_START]: [
+                    {
+                        conditions: [{ type: 'always' }],
+                        effects: [{
+                            type: 'restoreUses',
+                            abilityIds: [PUNCH_ABILITY_ID, DOUBLE_PUNCH_ABILITY_ID],
+                            amount: 1,
+                        }],
+                    },
+                ],
+            },
+        } as AbilityStatic;
+
+        triggerAbilityEvent({
+            engine: {
+                gameTime: 0,
+                roundNumber: 1,
+                getUnit: () => caster,
+                eventBus: new EventBus(),
+                generateRandomInteger: (min) => min,
+            },
+            caster,
+            ability,
+            activeAbility: { abilityId: ability.id, startTime: 0, targets: [] },
+            targets: [],
+            eventType: AbilityEventType.ON_CAST_START,
+            currentTime: 0,
+            prevTime: 0,
+        });
+
+        expect(caster.abilityRuntime[DOUBLE_PUNCH_ABILITY_ID]!.currentUses).toBe(1);
+        expect(caster.abilityRuntime[PUNCH_ABILITY_ID]!.currentUses).toBe(0);
     });
 });

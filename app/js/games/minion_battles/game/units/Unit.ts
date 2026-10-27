@@ -19,7 +19,6 @@ import type { DamageApplyOptions, EventBus } from '../EventBus';
 import { refundAbilityCost, spendAbilityCost, type AbilityStatic } from '../../abilities/Ability';
 import {
     addRecoveryChargeToUnitAbilities,
-    applyStaminaSurgeToUnit,
     canUseAbilityNow,
     consumeAbilityUse as consumeAbilityUseUtil,
     ensureAbilityRuntimeState as ensureAbilityRuntimeStateUtil,
@@ -52,6 +51,7 @@ import {
     interruptUnitAbilities,
     unitRoundStart,
 } from './unitAbilityLifecycle';
+import type { HoverFlightState } from './hoverFlight';
 import type {
     ActiveCastBehaviourRecord,
     AISettings,
@@ -124,7 +124,10 @@ export class Unit extends GameObject {
     abilityRuntime: Record<string, UnitAbilityRuntimeState> = {};
     /** Per-ability modifiers derived from research. Computed once at unit creation; never changes mid-battle. */
     abilityModifiers: Record<string, AbilityModifier> = {};
-    /** Stamina stat: round-start surge grants this many stamina charges to each eligible ability. */
+    /**
+     * Former stamina stat. No longer affects use recovery.
+     * Still stored so older checkpoints load.
+     */
     stamina: number = 1;
     /** Stacks of movement recovery slow from spell/ability effects (1 per stack = −1 movement/round). */
     movementRecoverySlowStacks: number = 0;
@@ -262,6 +265,12 @@ export class Unit extends GameObject {
 
     /** Active knockback state; unit cannot move while set. */
     knockback: KnockbackState | null = null;
+
+    /**
+     * Low hover carry (lift, fast flight, fall). Omitted from checkpoints while null.
+     * While set, the unit cannot walk or take orders.
+     */
+    hoverFlight: HoverFlightState | null = null;
 
     /** Active non-interrupting nudge displacement. Serialized. */
     nudge: NudgeState | null = null;
@@ -474,6 +483,11 @@ export class Unit extends GameObject {
         return this.knockback !== null;
     }
 
+    /** Whether a hover carry currently owns this unit (cannot move or act). */
+    isInHoverFlight(): boolean {
+        return this.hoverFlight !== null;
+    }
+
     /** Whether the engine is currently piloting this unit (slingshot, cinematic, etc.). */
     isControlled(): boolean {
         return this.controlled;
@@ -547,6 +561,7 @@ export class Unit extends GameObject {
         return (
             this.isAlive() &&
             !this.isInKnockback() &&
+            !this.isInHoverFlight() &&
             !this.isInTerrainHazard() &&
             !this.hasBuff('stunned') &&
             !this.hasBuff(LIFTED_BUFF_TYPE) &&
@@ -602,7 +617,6 @@ export class Unit extends GameObject {
 
     // ---- Ability management OOP wrappers ----
 
-    applyStaminaSurge(surgeAmount: number): void { applyStaminaSurgeToUnit(this, surgeAmount); }
     addRecoveryCharge(type: import('../../abilities/abilityUses').RecoveryChargeType, amount: number, rng: () => number): void { addRecoveryChargeToUnitAbilities(this, type, amount, rng); }
     grantRoundCharges(): void { grantRoundChargesToEligibleAbilities(this); }
     syncNestedCardState(): void { syncNestedCardAbilityState(this); }

@@ -18,6 +18,7 @@ import { ShieldBuff, SHIELD_BUFF_TYPE } from './ShieldBuff';
 import { TimeDilationBuff, TIME_DILATION_BUFF_TYPE } from './TimeDilationBuff';
 import { DamageLinkBuff, DAMAGE_LINK_BUFF_TYPE } from './DamageLinkBuff';
 import { HpDrainBuff, HP_DRAIN_BUFF_TYPE } from './HpDrainBuff';
+import { HitStopBuff, HIT_STOP_BUFF_TYPE } from './HitStopBuff';
 
 type BuffDeserializer = (data: BuffSerialized) => Buff;
 
@@ -35,6 +36,7 @@ const registry: Record<string, BuffDeserializer> = {
     [TIME_DILATION_BUFF_TYPE]: TimeDilationBuff.fromJSON as BuffDeserializer,
     [DAMAGE_LINK_BUFF_TYPE]: DamageLinkBuff.fromJSON as BuffDeserializer,
     [HP_DRAIN_BUFF_TYPE]: HpDrainBuff.fromJSON as BuffDeserializer,
+    [HIT_STOP_BUFF_TYPE]: HitStopBuff.fromJSON as BuffDeserializer,
 };
 
 /** Deserialize a buff from JSON. Returns the buff instance or throws if type unknown. */

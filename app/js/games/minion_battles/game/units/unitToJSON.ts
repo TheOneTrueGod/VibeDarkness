@@ -3,6 +3,7 @@ import { PLAYER_CHARACTER_ID } from './unit_defs/unitDef';
 import { serializeTacticalPlan } from './unitAI/plans/planUtils';
 import { serializeUnitComponents } from './components/unitComponent';
 import { ccArmourStateToJSON } from '../../crowdControl/ccArmourState';
+import { serializeHoverFlight } from './hoverFlight';
 
 export function serializeUnit(unit: Unit, currentGameTick: number): Record<string, unknown> {
     return {
@@ -113,6 +114,7 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
                 ? { unitCollisionStartFraction: unit.knockback.unitCollisionStartFraction }
                 : {}),
         } : null,
+        ...(unit.hoverFlight ? { hoverFlight: serializeHoverFlight(unit.hoverFlight) } : {}),
         nudge: unit.nudge ? {
             nudgeVector: { ...unit.nudge.nudgeVector },
             nudgeDuration: unit.nudge.nudgeDuration,

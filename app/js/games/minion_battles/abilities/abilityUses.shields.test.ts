@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { getAbilityUseConfig } from './abilityUses';
+import { getAbilityUseConfig, initializeAbilityRuntimeForUnit, refillUsesAtRoundStart } from './abilityUses';
+import { Unit } from '../game/units/Unit';
+import { SWORD_BASE_MAX_USES } from '../card_defs/0112_SwingSword/0112Ability';
 
 describe('shield ability use configs', () => {
     it.each([
@@ -49,22 +51,48 @@ describe('migrated ability use configs', () => {
         ]);
     });
 
-    it("gives Sic 'em two uses with two-stamina recovery", () => {
+    it("gives Sic 'em two uses that refill each round", () => {
         const config = getAbilityUseConfig('0704');
         expect(config.maxUses).toBe(2);
-        expect(config.recoveries).toEqual([
-            { chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 },
-        ]);
+        expect(config.refillsEachRound).toBe(true);
+        expect(config.recoveries).toEqual([]);
     });
 });
 
 describe('default ability use config fallback', () => {
-    it('uses stamina default for unconfigured abilities like wait', () => {
+    it('refills unconfigured abilities like wait each round', () => {
         const config = getAbilityUseConfig('wait');
         expect(config.maxUses).toBe(1);
         expect(config.startingUses).toBeUndefined();
-        expect(config.recoveries).toEqual([
-            { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
-        ]);
+        expect(config.refillsEachRound).toBe(true);
+        expect(config.recoveries).toEqual([]);
+    });
+});
+
+describe('round-start use refill', () => {
+    it('refills stamina-backed abilities and leaves explicit charge rules and opt-outs', () => {
+        const unit = new Unit({
+            id: 'refill_unit',
+            x: 0,
+            y: 0,
+            hp: 100,
+            maxHp: 100,
+            speed: 100,
+            teamId: 'player',
+            ownerId: 'p1',
+            characterId: 'player',
+            name: 'Refill',
+            abilities: ['0112', '0101', '0111'],
+        });
+        initializeAbilityRuntimeForUnit(unit);
+        unit.abilityRuntime['0112']!.currentUses = 0;
+        unit.abilityRuntime['0101']!.currentUses = 0;
+        unit.abilityRuntime['0111']!.currentUses = 0;
+
+        refillUsesAtRoundStart(unit);
+
+        expect(unit.abilityRuntime['0112']!.currentUses).toBe(SWORD_BASE_MAX_USES);
+        expect(unit.abilityRuntime['0101']!.currentUses).toBe(0);
+        expect(unit.abilityRuntime['0111']!.currentUses).toBe(0);
     });
 });

@@ -17,6 +17,9 @@ import {
     LIFTED_RENDER_MAX_HEIGHT_PX,
     getLiftedRenderState,
 } from '../../../buffs/LiftedBuff';
+import { getHoverFlightRenderHeight } from '../../units/hoverFlight';
+import type { Unit } from '../../units/Unit';
+import { GRAVITY_VIOLET } from '../../effect_defs/aoeEffects';
 import {
     renderUnit,
     updateUnitHpBar,
@@ -52,6 +55,9 @@ export class UnitRenderer {
     /** Wall-clock time (ms) of the previous renderUnits call; wiggle runs on real time so it moves while paused. */
     private lastWiggleRealTimeMs: number | null = null;
     private knockbackShadowVisuals: Map<string, Graphics> = new Map();
+    /** Violet ring, motes and trail while a unit is in a hover carry. Render-only. */
+    private hoverFlightVisuals: Map<string, Graphics> = new Map();
+    private hoverMotePhase: Map<string, number> = new Map();
     /** World-space clip masks for units sinking into water (see `updateDrowningMask`). */
     private drowningMasks: Map<string, Graphics> = new Map();
     private constructionGhostVisuals: Map<string, Container> = new Map();
@@ -116,6 +122,9 @@ export class UnitRenderer {
         }
         for (const shadow of this.knockbackShadowVisuals.values()) {
             shadow.visible = false;
+        }
+        for (const juice of this.hoverFlightVisuals.values()) {
+            juice.visible = false;
         }
         for (const ghost of this.constructionGhostVisuals.values()) {
             ghost.visible = false;
@@ -239,6 +248,10 @@ export class UnitRenderer {
                     knockupMaxHeight = Math.min(magnitude * 0.25, LIFTED_RENDER_MAX_HEIGHT_PX);
                     knockupYOffset = -arcFactor * knockupMaxHeight;
                 }
+            } else if (unit.hoverFlight) {
+                const height = getHoverFlightRenderHeight(unit.hoverFlight);
+                knockupMaxHeight = Math.max(unit.hoverFlight.hoverHeight, 1);
+                knockupYOffset = -height;
             } else if (unit.hasBuff(LIFTED_BUFF_TYPE)) {
                 const lifted = getLiftedRenderState(unit, engine.gameTime);
                 if (lifted) {
@@ -289,6 +302,7 @@ export class UnitRenderer {
             const drowning = getDrowningRenderState(unit);
             visual.x = unit.x + renderOffsetX + wiggleX;
             visual.y = unit.y + renderOffsetY + wiggleY + knockupYOffset + (spawnState?.yOffset ?? 0) + (drowning?.sinkY ?? 0);
+            this.drawHoverFlightJuice(unit, visual.x, visual.y, wiggleDt);
             visual.visible = unit.active && (spawnState ? spawnState.visible : true);
             this.updateDrowningMask(unit.id, visual, drowning, unit.x, unit.radius);
 
@@ -609,12 +623,64 @@ export class UnitRenderer {
             }
         }
 
+        for (const [id, juice] of this.hoverFlightVisuals) {
+            if (!activeUnitIds.has(id)) {
+                this.gameContainer.removeChild(juice);
+                juice.destroy();
+                this.hoverFlightVisuals.delete(id);
+                this.hoverMotePhase.delete(id);
+            }
+        }
+
         for (const [id, mask] of this.drowningMasks) {
             if (!activeUnitIds.has(id)) {
                 this.gameContainer.removeChild(mask);
                 mask.destroy();
                 this.drowningMasks.delete(id);
             }
+        }
+    }
+
+    /** Violet ring, orbiting motes and a short trail. Wall time so the motes keep moving while targeting is paused. */
+    private drawHoverFlightJuice(unit: Unit, x: number, y: number, dt: number): void {
+        let juice = this.hoverFlightVisuals.get(unit.id);
+        const flight = unit.hoverFlight;
+        if (!flight || !unit.active) {
+            if (juice) juice.visible = false;
+            return;
+        }
+        if (!juice) {
+            juice = new Graphics();
+            juice.zIndex = Z_UNITS + 0.1;
+            this.hoverFlightVisuals.set(unit.id, juice);
+            this.gameContainer.addChild(juice);
+        }
+        juice.visible = true;
+        juice.clear();
+        juice.x = x;
+        juice.y = y;
+
+        const phase = (this.hoverMotePhase.get(unit.id) ?? 0) + dt * 4;
+        this.hoverMotePhase.set(unit.id, phase);
+
+        if (flight.phase === 'flight') {
+            const speed = Math.hypot(flight.vx, flight.vy);
+            if (speed > 1) {
+                const tail = 36;
+                juice.moveTo(0, 0);
+                juice.lineTo((-flight.vx / speed) * tail, (-flight.vy / speed) * tail);
+                juice.stroke({ color: GRAVITY_VIOLET, width: 6, alpha: 0.4 });
+            }
+        }
+
+        juice.circle(0, 0, flight.collisionRadius);
+        juice.stroke({ color: GRAVITY_VIOLET, width: 2, alpha: 0.75 });
+
+        const orbit = flight.collisionRadius + 6;
+        for (let i = 0; i < 6; i++) {
+            const angle = phase + (i * Math.PI) / 3;
+            juice.circle(Math.cos(angle) * orbit, Math.sin(angle) * orbit * 0.55, 2.2);
+            juice.fill({ color: i % 2 === 0 ? GRAVITY_VIOLET : 0xe9d5ff, alpha: 0.85 });
         }
     }
 
@@ -659,6 +725,9 @@ export class UnitRenderer {
         this.unitVisuals.clear();
         for (const shadow of this.knockbackShadowVisuals.values()) shadow.destroy();
         this.knockbackShadowVisuals.clear();
+        for (const juice of this.hoverFlightVisuals.values()) juice.destroy();
+        this.hoverFlightVisuals.clear();
+        this.hoverMotePhase.clear();
         for (const mask of this.drowningMasks.values()) mask.destroy();
         this.drowningMasks.clear();
         for (const ghost of this.constructionGhostVisuals.values()) ghost.destroy();

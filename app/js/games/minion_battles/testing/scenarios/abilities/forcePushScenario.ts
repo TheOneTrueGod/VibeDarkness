@@ -1,8 +1,8 @@
 /**
- * Force Push (0902) — collision damage via forced-movement events.
+ * Force Push (0902) — hover flight through an enemy, then a wall.
  *
- * Beat 1: flung enemy strikes a second enemy (both damaged).
- * Beat 2: flung enemy rebounds off terrain (flung unit damaged).
+ * Beat 1: flung enemy bowls through a second enemy (both damaged).
+ * Beat 2: flung enemy hits a rock, takes the wall hit, and is stunned.
  */
 
 import type { ScenarioDefinition } from '../../types';
@@ -18,13 +18,16 @@ import { TerrainType } from '../../../terrain/TerrainType';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { DEFAULT_UNIT_RADIUS } from '../../../game/units/unit_defs/unitConstants';
 import {
-    FORCE_PUSH_COLLISION_DAMAGE,
     FORCE_PUSH_COOLDOWN_DURATION,
+    FORCE_PUSH_ENEMY_DAMAGE,
+    FORCE_PUSH_FLIGHT_DISTANCE,
+    FORCE_PUSH_FLUNG_HIT_DAMAGE,
     FORCE_PUSH_GRAVITY_COST,
-    FORCE_PUSH_LANDING_MAX_DISTANCE,
+    FORCE_PUSH_LIFT_DURATION,
     FORCE_PUSH_PREFIRE_TIME,
-    FORCE_PUSH_TERRAIN_DAMAGE,
-    FORCE_PUSH_UNIT_COLLISION_START_FRACTION,
+    FORCE_PUSH_RELEASE_DURATION,
+    FORCE_PUSH_SELECT_TICK,
+    FORCE_PUSH_WALL_UNIT_DAMAGE,
 } from '../../../card_defs/09_gravity_core/gravityConstants';
 
 const P = TINY_BATTLE_PLAYER_ID;
@@ -34,21 +37,21 @@ const SHARED_Y = 3 * CELL_SIZE + CELL_SIZE / 2;
 /** Centered on the grid — avoids west-edge terrain clips from `0902Ability.test.ts` coords. */
 const PLAYER_X = 3 * CELL_SIZE + CELL_SIZE / 2;
 const FLING_X = PLAYER_X + 100;
-/**
- * Blocker sits just beyond the unit-collision grace distance so overlap at grace end
- * is not ignored (see FORCE_PUSH_UNIT_COLLISION_START_FRACTION).
- */
-const COLLISION_GRACE_TRAVEL_PX =
-    FORCE_PUSH_LANDING_MAX_DISTANCE * FORCE_PUSH_UNIT_COLLISION_START_FRACTION;
-const BLOCKER_X =
-    FLING_X + COLLISION_GRACE_TRAVEL_PX + DEFAULT_UNIT_RADIUS * 2 + 2;
+/** Past the bodies' combined radius so the fling crosses them instead of starting inside them. */
+const BLOCKER_X = FLING_X + DEFAULT_UNIT_RADIUS * 2 + 24;
 const WALL_FLING_Y = 5 * CELL_SIZE + CELL_SIZE / 2;
 const WALL_FLING_X = 4 * CELL_SIZE + CELL_SIZE / 2;
 /** One column inside max fling travel from WALL_FLING_X toward the landing aim. */
 const ROCK_COL = 6;
 const ROCK_ROW = 5;
 
-const TOTAL_CAST_SECONDS = FORCE_PUSH_PREFIRE_TIME + FORCE_PUSH_COOLDOWN_DURATION + 0.35;
+const TOTAL_CAST_SECONDS =
+    FORCE_PUSH_PREFIRE_TIME
+    + FORCE_PUSH_SELECT_TICK
+    + FORCE_PUSH_LIFT_DURATION
+    + FORCE_PUSH_SELECT_TICK
+    + FORCE_PUSH_RELEASE_DURATION
+    + FORCE_PUSH_COOLDOWN_DURATION;
 const SECOND_PUSH_TICK = Math.ceil(TOTAL_CAST_SECONDS * 60) + 30;
 
 function forcePushOrderTargets(
@@ -68,8 +71,8 @@ function forcePushOrderTargets(
         {
             type: 'pixel' as const,
             position: {
-                x: flingX + dirX * FORCE_PUSH_LANDING_MAX_DISTANCE,
-                y: flingY + dirY * FORCE_PUSH_LANDING_MAX_DISTANCE,
+                x: flingX + dirX * FORCE_PUSH_FLIGHT_DISTANCE,
+                y: flingY + dirY * FORCE_PUSH_FLIGHT_DISTANCE,
             },
         },
     ];
@@ -166,17 +169,11 @@ export const forcePushScenario: ScenarioDefinition = {
         const blockerLoss = collisionBlocker.maxHp - collisionBlocker.hp;
         const wallFlingLoss = wallFling.maxHp - wallFling.hp;
 
-        if (engine.gameTime < TOTAL_CAST_SECONDS) {
-            return (
-                flingCollisionLoss >= FORCE_PUSH_COLLISION_DAMAGE
-                && blockerLoss >= FORCE_PUSH_COLLISION_DAMAGE
-            );
-        }
-
         return (
-            flingCollisionLoss >= FORCE_PUSH_COLLISION_DAMAGE
-            && blockerLoss >= FORCE_PUSH_COLLISION_DAMAGE
-            && wallFlingLoss >= FORCE_PUSH_TERRAIN_DAMAGE
+            flingCollisionLoss >= FORCE_PUSH_FLUNG_HIT_DAMAGE
+            && blockerLoss >= FORCE_PUSH_ENEMY_DAMAGE
+            && wallFlingLoss >= FORCE_PUSH_WALL_UNIT_DAMAGE
+            && wallFling.hasBuff('stunned')
         );
     },
 
@@ -186,9 +183,9 @@ export const forcePushScenario: ScenarioDefinition = {
         const wallFling = engine.getUnit('wall_fling');
         return [
             `t=${engine.gameTime.toFixed(2)}s`,
-            `collision_fling lost ${collisionFling ? collisionFling.maxHp - collisionFling.hp : '?'} (expected ≥${FORCE_PUSH_COLLISION_DAMAGE})`,
-            `collision_blocker lost ${collisionBlocker ? collisionBlocker.maxHp - collisionBlocker.hp : '?'} (expected ≥${FORCE_PUSH_COLLISION_DAMAGE})`,
-            `wall_fling lost ${wallFling ? wallFling.maxHp - wallFling.hp : '?'} (expected ≥${FORCE_PUSH_TERRAIN_DAMAGE})`,
+            `collision_fling lost ${collisionFling ? collisionFling.maxHp - collisionFling.hp : '?'} (expected ≥${FORCE_PUSH_FLUNG_HIT_DAMAGE})`,
+            `collision_blocker lost ${collisionBlocker ? collisionBlocker.maxHp - collisionBlocker.hp : '?'} (expected ≥${FORCE_PUSH_ENEMY_DAMAGE})`,
+            `wall_fling lost ${wallFling ? wallFling.maxHp - wallFling.hp : '?'} (expected ≥${FORCE_PUSH_WALL_UNIT_DAMAGE}), stunned=${wallFling?.hasBuff('stunned') ?? false}`,
         ].join('; ');
     },
 };

@@ -13,6 +13,7 @@ import type { AISettings, KnockbackSource, KnockbackState, NudgeState, UnitAbili
 import type { UnitAIContext } from './unitAI/contextTypes';
 import { applyUnitComponentsFromJSON } from './components/unitComponent';
 import { applyCcArmourStateFromJSON } from '../../crowdControl/ccArmourState';
+import { hoverFlightFromJSON } from './hoverFlight';
 import type { PendingFrozenHit } from './unitDamage';
 import type { UnitTerrainHazardState } from '../terrainHazards/drowning';
 
@@ -138,6 +139,7 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
                 : {}),
         };
     }
+    unit.hoverFlight = hoverFlightFromJSON(data.hoverFlight);
     const ng = data.nudge as NudgeState | null;
     if (ng && typeof ng.nudgeElapsed === 'number') {
         unit.nudge = {

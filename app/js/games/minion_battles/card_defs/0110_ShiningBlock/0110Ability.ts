@@ -48,7 +48,7 @@ const TOOLTIP_LINES = [
     'Raise your crystal shield blocking all attacks from the front',
     'On Block: Deals {{DAMAGE}} damage and stuns up to {{MAX_TARGETS}} enemies for {{STUN}} seconds.',
     '{Bright 2}',
-    'On Block: Gain {1} stamina charge. Nearby allies gain {2} stamina surges and {1} light charge',
+    'Nearby allies gain {1} light charge',
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
@@ -162,18 +162,6 @@ export const ShiningBlockAbility = {
                 maxTriggersPerCast: 1,
                 conditions: [{ type: 'always' }],
                 effects: [
-                    {
-                        type: 'recoverCharge',
-                        chargeType: 'staminaCharge',
-                        amount: 1,
-                        recipient: 'randomAbility',
-                    },
-                    {
-                        type: 'grantChargeToNearbyAllies',
-                        chargeType: 'staminaCharge',
-                        amount: 2,
-                        radius: 50,
-                    },
                     {
                         type: 'custom',
                         effectId: 'shiningBlockLightCharges',

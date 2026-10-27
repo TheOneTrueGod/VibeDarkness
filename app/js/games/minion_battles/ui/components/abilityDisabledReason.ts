@@ -2,7 +2,7 @@ import { getAbilityResourceCosts, type AbilityStatic } from '../../abilities/Abi
 import type { Unit } from '../../game/units/Unit';
 import { getLivingPetsOfUnit } from '../../game/units/petHelpers';
 import { getAbilityUseConfig, unitAbilityHasTag, type AbilityRecoveryRule } from '../../abilities/abilityUses';
-import { describeAbilityRecovery } from './recoveryChargeDefinitions';
+import { describeAbilityRecovery, FULL_ROUND_REFILL_DESCRIPTION } from './recoveryChargeDefinitions';
 import { ALL_RESOURCE_DISPLAY_DEFS } from '../../resources/resourceDisplayDefs';
 
 export type DisabledReasonId =
@@ -18,6 +18,8 @@ export interface DisabledReason {
     resourceId?: string;
     /** Populated for 'no_uses_remaining' — how the ability gets uses back. */
     recoveries?: readonly AbilityRecoveryRule[];
+    /** Populated for 'no_uses_remaining' when the ability refills at round start. */
+    refillsEachRound?: boolean;
 }
 
 /** Disabled-reason text renders as plain text, so drop legacy `{n}` highlight braces. */
@@ -43,9 +45,11 @@ export function getDisabledReasonDisplay(reason: DisabledReason): { title: strin
         case 'no_uses_remaining':
             return {
                 title: 'No Uses Remaining',
-                description: reason.recoveries?.length
-                    ? stripTooltipBraces(describeAbilityRecovery(reason.recoveries))
-                    : 'This ability has no uses left.',
+                description: reason.refillsEachRound
+                    ? FULL_ROUND_REFILL_DESCRIPTION
+                    : reason.recoveries?.length
+                        ? stripTooltipBraces(describeAbilityRecovery(reason.recoveries))
+                        : 'This ability has no uses left.',
             };
         case 'no_pet_source':
             return { title: 'No Pet', description: 'This ability requires a living pet.' };
@@ -101,7 +105,12 @@ export function getAbilityDisabledReason(params: {
     }
 
     if (currentUses <= 0) {
-        return { reason_id: 'no_uses_remaining', recoveries: getAbilityUseConfig(abilityId).recoveries };
+        const useConfig = getAbilityUseConfig(abilityId);
+        return {
+            reason_id: 'no_uses_remaining',
+            recoveries: useConfig.recoveries,
+            refillsEachRound: useConfig.refillsEachRound,
+        };
     }
 
     const hasPetSource =

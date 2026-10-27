@@ -1,7 +1,7 @@
 import { tryCcInterruptAbilities } from '../../crowdControl/ccInterrupt';
 import { applyBleedStack } from '../../buffs/bleedRuntime';
 import { getCastElapsed } from '../../game/time/actorClock';
-import { grantRecoveryChargeToRandomAbility, applyChargeSurgeToUnit } from '../abilityUses';
+import { grantRecoveryChargeToRandomAbility, applyChargeSurgeToUnit, restoreAbilityUses } from '../abilityUses';
 import { getAbility } from '../AbilityRegistry';
 import { AbilityEventType } from '../Ability';
 import type { AbilityStatic, AttackBlockedInfo } from '../Ability';
@@ -233,6 +233,13 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
                 }
             } else if (recipient === 'allAbilities') {
                 applyChargeSurgeToUnit(context.caster, effect.chargeType, effect.amount, context.engine.eventBus);
+            }
+            return;
+        }
+        case 'restoreUses': {
+            if (effect.amount <= 0) return;
+            for (const abilityId of effect.abilityIds) {
+                restoreAbilityUses(context.caster, abilityId, effect.amount);
             }
             return;
         }

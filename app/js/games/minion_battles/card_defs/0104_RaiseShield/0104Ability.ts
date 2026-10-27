@@ -1,10 +1,8 @@
 /**
  * Raise Shield - Warrior skill. Hold a shield for 1.3s in a direction.
  * Movement speed penalty 0.1, blocks attacks from within a 120° arc.
- * On Block: nearby allies gain 2 stamina surges; on 2nd+ block: extra surges to self + wider area allies.
  */
 
-import { AbilityEventType } from '../../abilities/Ability';
 import type { AbilityRecoveryRule } from '../../abilities/Ability';
 import { defineDirectionalShield } from '../../abilities/archetypes/defineDirectionalShield';
 import { type CardDef } from '../types';
@@ -43,47 +41,7 @@ export const RaiseShieldAbility = defineDirectionalShield({
         return [
             'Raise your shield blocking all attacks from the front',
             'Blocks attacks from the front arc',
-            'On Block: Allies within {50} gain {2} stamina surges',
         ];
-    },
-
-    abilityEvents: {
-        [AbilityEventType.ON_BLOCK_SUCCESS]: [
-            {
-                conditions: [{ type: 'always' }],
-                effects: [
-                    {
-                        type: 'grantChargeToNearbyAllies',
-                        chargeType: 'staminaCharge',
-                        amount: 2,
-                        radius: 50,
-                    },
-                ],
-            },
-            {
-                // Fires once on the 2nd block (per-block-surge has already incremented to 2
-                // within the same dispatch before this rule evaluates).
-                oncePerCast: true,
-                conditions: [
-                    { type: 'selfRuleHasTriggeredAtLeast', ruleId: 'per-block-surge', count: 2 },
-                ],
-                effects: [
-                    {
-                        type: 'recoverCharge',
-                        chargeType: 'staminaCharge',
-                        amount: 1,
-                        recipient: 'randomAbility',
-                        excludeCurrentAbility: true,
-                    },
-                    {
-                        type: 'grantChargeToNearbyAllies',
-                        chargeType: 'staminaCharge',
-                        amount: 2,
-                        radius: 180,
-                    },
-                ],
-            },
-        ],
     },
 });
 

@@ -1,51 +1,60 @@
 /**
- * Force Push — fling a single enemy toward a chosen landing point with collision damage.
+ * Force Push — lift one enemy, then fling them like a fast rock.
  *
- * Two-step targeting: pick an enemy, then pick a landing pixel anchored on that unit.
- * Collision damage is authored here via forced-movement events — not in engine code.
+ * Windup, pick an enemy, watch them rise, then aim a direction. They stay just off the ground
+ * and bowl through enemies. Allies ricochet them. A wall drops them, stuns them, and bounces them.
+ * Interrupt the cast after the pick and they fall where they are; the gravity is spent.
  */
 
-import { AbilityEventType } from '../../../abilities/Ability';
+import { AbilityEventType, type IAbilityPreviewGraphics } from '../../../abilities/Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { CastBehaviours } from '../../../abilities/CastBehaviours';
+import type { CastBehaviour, CastBehaviourBaseContext } from '../../../abilities/castBehaviourTypes';
 import { resolveTargetToPoint } from '../../../abilities/targeting';
 import {
+    applyDirectionalKnockback,
     knockbackCtxFromEngine,
-    tryApplyAimedKnockbackByTier,
-    type KnockbackEngineCtx,
 } from '../../../crowdControl/knockbackKeywords';
+import { tryApplyHardCcStun } from '../../../crowdControl/tryApplyHardCcStun';
+import { getEffectiveHardCcThreshold } from '../../../crowdControl/ccArmourState';
 import { areEnemies } from '../../../game/teams';
 import { Effect } from '../../../game/effects/Effect';
-import type {
-    ForcedMovementTerrainCollisionEvent,
-    ForcedMovementUnitCollisionEvent,
-} from '../../../game/EventBus';
+import { computeForcedDisplacement } from '../../../game/forceMove';
 import type { EngineContext } from '../../../game/EngineContext';
 import type { Unit } from '../../../game/units/Unit';
-import { UnitTag } from '../../../game/units/unitTag';
+import { hasUnitTag, UnitTag } from '../../../game/units/unitTag';
 import type { ResolvedTarget } from '../../../game/types';
 import { unitRangeHitbox, nullHitbox } from '../../../hitboxes';
-import { drawClampedLine } from '../../../abilities/previewHelpers';
 import { AbilityGroupId, formatGroupId } from '../../AbilityGroupId';
 import { type CardDef } from '../../types';
 import {
-    FORCE_PUSH_ACTIVE_DURATION,
-    FORCE_PUSH_COLLISION_DAMAGE,
+    FORCE_PUSH_AIM_MAX_DISTANCE,
+    FORCE_PUSH_AIM_MIN_DISTANCE,
+    FORCE_PUSH_COLLISION_GRACE_PX,
     FORCE_PUSH_COOLDOWN_DURATION,
-    FORCE_PUSH_FLIGHT_TIME_SCALE,
+    FORCE_PUSH_DIRECTION_LABEL,
+    FORCE_PUSH_ENEMY_DAMAGE,
+    FORCE_PUSH_FALL_DURATION,
+    FORCE_PUSH_FLIGHT_DISTANCE,
+    FORCE_PUSH_FLIGHT_SPEED,
+    FORCE_PUSH_FLUNG_HIT_DAMAGE,
     FORCE_PUSH_GRAVITY_COST,
+    FORCE_PUSH_HIT_RADIUS,
+    FORCE_PUSH_HOVER_HEIGHT_PX,
     FORCE_PUSH_KNOCKBACK_TIER,
-    FORCE_PUSH_LANDING_DISTANCE_SCALE,
-    FORCE_PUSH_LANDING_LABEL,
-    FORCE_PUSH_LANDING_MAX_DISTANCE,
-    FORCE_PUSH_LANDING_MIN_DISTANCE,
+    FORCE_PUSH_LEAN_DISTANCE,
+    FORCE_PUSH_LIFT_DURATION,
     FORCE_PUSH_MAX_RANGE,
     FORCE_PUSH_PREFIRE_TIME,
-    FORCE_PUSH_SELECT_GAP,
+    FORCE_PUSH_PUNCH_DISTANCE,
+    FORCE_PUSH_PUNCH_RETURN,
+    FORCE_PUSH_RELEASE_DURATION,
+    FORCE_PUSH_SELECT_TICK,
     FORCE_PUSH_TARGET_LABEL,
-    FORCE_PUSH_TERRAIN_DAMAGE,
-    FORCE_PUSH_UNIT_COLLISION_START_FRACTION,
+    FORCE_PUSH_WALL_STUN_DURATION,
+    FORCE_PUSH_WALL_TERRAIN_DAMAGE,
+    FORCE_PUSH_WALL_UNIT_DAMAGE,
 } from '../gravityConstants';
 import { GRAVITY_VIOLET } from '../../../game/effect_defs/aoeEffects';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
@@ -58,19 +67,42 @@ import {
     TERRAIN_IMPACT_EFFECT_TYPE,
 } from '../../../game/effect_defs/impactEffects';
 import type { AbilityEventRuntimeContext } from '../../../abilities/events/AbilityEventRuntime';
-import type { KnockbackSource } from '../../../game/units/unitTypes';
+import { EXPOSED_BUFF_TYPE } from '../../../buffs/ExposedBuff';
+import { applyHitStop } from '../../../buffs/HitStopBuff';
+import {
+    beginHoverLift,
+    cancelHoverFlight,
+    launchHoverFlight,
+    registerHoverFlightHandler,
+    type HoverFlightEngine,
+    type HoverFlightUnitContact,
+    type HoverFlightWallContact,
+} from '../../../game/units/hoverFlight';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Gravity)}02`;
 const MAX_USES = 2;
 const FORCE_PUSH_UNIT_HITBOX = unitRangeHitbox(FORCE_PUSH_MAX_RANGE);
 
+const LIFT_START = FORCE_PUSH_PREFIRE_TIME + FORCE_PUSH_SELECT_TICK;
+const LIFT_END = LIFT_START + FORCE_PUSH_LIFT_DURATION;
+const AIM_END = LIFT_END + FORCE_PUSH_SELECT_TICK;
+const RELEASE_END = AIM_END + FORCE_PUSH_RELEASE_DURATION;
+const COOLDOWN_END = RELEASE_END + FORCE_PUSH_COOLDOWN_DURATION;
+
+/** How far through the punch window the caster is at full extension. */
+const PUNCH_IMPACT_AT = 0.35;
+
 const TOOLTIP_LINES = [
-    'Pick an enemy, then a landing spot to fling them.',
-    'Collisions with units and walls deal {{DAMAGE}} damage.',
+    'Lift an enemy, then fling them. They stay just off the ground until they land or hit a wall.',
+    'Enemies they hit take {{ENEMY_DAMAGE}} damage. They take {{FLUNG_DAMAGE}} each time they hit someone.',
+    'A wall deals {{WALL_DAMAGE}} to them, stuns them, and bounces them off it. Allies ricochet them.',
+    `{knockback ${FORCE_PUSH_KNOCKBACK_TIER}}`,
 ] as const;
 
 const TOOLTIP_BINDINGS: TooltipTokenBindings = {
-    DAMAGE: { kind: 'damage', base: FORCE_PUSH_COLLISION_DAMAGE },
+    ENEMY_DAMAGE: { kind: 'damage', base: FORCE_PUSH_ENEMY_DAMAGE },
+    FLUNG_DAMAGE: { kind: 'damage', base: FORCE_PUSH_FLUNG_HIT_DAMAGE },
+    WALL_DAMAGE: { kind: 'damage', base: FORCE_PUSH_WALL_UNIT_DAMAGE },
 };
 
 const FORCE_PUSH_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
@@ -86,17 +118,58 @@ const FORCE_PUSH_IMAGE = `<svg width="64" height="64" xmlns="http://www.w3.org/2
   <path d="M46 24 L54 32 L46 40" stroke="#c084fc" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>`;
 
+/** Bosses (and any armoured unit) can be picked only while Exposed. Structures never can. */
+export function isForcePushTarget(unit: Unit, gameTime: number): boolean {
+    if (!unit.isAlive()) return false;
+    if (hasUnitTag(unit, UnitTag.Structure)) return false;
+    if (unit.isInJuggernautWindow(gameTime) || unit.hasIFrames(gameTime)) return false;
+    const needsExposed = hasUnitTag(unit, UnitTag.Boss) || getEffectiveHardCcThreshold(unit) > 0;
+    if (needsExposed && !unit.hasBuff(EXPOSED_BUFF_TYPE)) return false;
+    return true;
+}
+
+const liftCarry: CastBehaviour = {
+    onTick(ctx) {
+        if (!ctx.isFirstTick) return;
+        const eng = ctx.engine as EngineContext;
+        const target = flungUnitFromContext(ctx);
+        if (!target || !isForcePushTarget(target, eng.gameTime)) return;
+        const started = beginHoverLift(target, {
+            hoverHeight: FORCE_PUSH_HOVER_HEIGHT_PX,
+            liftDuration: FORCE_PUSH_LIFT_DURATION,
+            fallDuration: FORCE_PUSH_FALL_DURATION,
+            collisionRadius: Math.max(target.radius, FORCE_PUSH_HIT_RADIUS),
+            collisionGrace: FORCE_PUSH_COLLISION_GRACE_PX,
+            source: { unitId: ctx.caster.id, abilityId: ctx.abilityId },
+            casterTeamId: ctx.caster.teamId,
+        });
+        if (!started) return;
+        eng.interruptUnitAndRefundAbilities?.(target);
+    },
+    onInterrupt(ctx) {
+        const target = flungUnitFromContext(ctx);
+        if (target?.hoverFlight?.phase === 'lift') cancelHoverFlight(target);
+    },
+};
+
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
     {
         id: 'windup',
         start: 0,
         end: FORCE_PUSH_PREFIRE_TIME,
         abilityPhase: AbilityPhase.Windup,
+        castBehaviours: [
+            {
+                timingStart: 'start',
+                timingEnd: 'end',
+                behaviour: CastBehaviours.CasterShake({ from: 1, to: 2 }),
+            },
+        ],
     },
     {
         id: 'selectTarget',
         start: FORCE_PUSH_PREFIRE_TIME,
-        end: FORCE_PUSH_PREFIRE_TIME + FORCE_PUSH_SELECT_GAP,
+        end: LIFT_START,
         abilityPhase: AbilityPhase.Active,
         doNotRefund: true,
         targetDef: {
@@ -104,70 +177,95 @@ const ABILITY_TIMINGS: AbilityTimingInterval[] = [
             label: FORCE_PUSH_TARGET_LABEL,
             hitbox: FORCE_PUSH_UNIT_HITBOX,
             filter: 'enemy',
-            // Structures never move (see isImmuneToForcedMovement), so they are not valid picks.
             excludeUnitTags: [UnitTag.Structure],
             allowMiss: false,
+            validatePick({ engine, pick }) {
+                const unit = resolveTargetUnit(pick, engine as EngineContext);
+                if (!unit) return false;
+                return isForcePushTarget(unit, (engine as EngineContext).gameTime);
+            },
         },
     },
     {
-        id: 'selectLanding',
-        start: FORCE_PUSH_PREFIRE_TIME + FORCE_PUSH_SELECT_GAP,
-        end: FORCE_PUSH_PREFIRE_TIME + FORCE_PUSH_ACTIVE_DURATION,
+        id: 'lift',
+        start: LIFT_START,
+        end: LIFT_END,
         abilityPhase: AbilityPhase.Active,
+        doNotRefund: true,
+        castBehaviours: [
+            {
+                timingStart: 'start',
+                timingEnd: 'end',
+                targetIndex: 0,
+                behaviour: liftCarry,
+            },
+            {
+                timingStart: 'start',
+                timingEnd: 'end',
+                targetIndex: 0,
+                behaviour: CastBehaviours.CasterSlide({
+                    forwardDistance: FORCE_PUSH_LEAN_DISTANCE,
+                    backwardDistance: 0,
+                    impactAt: 1,
+                    direction: leanDirection,
+                }),
+            },
+        ],
+    },
+    {
+        id: 'selectDirection',
+        start: LIFT_END,
+        end: AIM_END,
+        abilityPhase: AbilityPhase.Active,
+        doNotRefund: true,
         targetDef: {
             kind: 'select',
-            label: FORCE_PUSH_LANDING_LABEL,
+            label: FORCE_PUSH_DIRECTION_LABEL,
             hitbox: nullHitbox,
             filter: 'any',
             allowMiss: true,
             anchorLabel: FORCE_PUSH_TARGET_LABEL,
-            maxRangeFromAnchor: FORCE_PUSH_LANDING_MAX_DISTANCE,
-            minRangeFromAnchor: FORCE_PUSH_LANDING_MIN_DISTANCE,
+            maxRangeFromAnchor: FORCE_PUSH_AIM_MAX_DISTANCE,
+            minRangeFromAnchor: FORCE_PUSH_AIM_MIN_DISTANCE,
             aiHint: {
                 kind: 'pixelFromAnchor',
                 direction: 'awayFromCaster',
                 distance: 'maxFromAnchor',
             },
         },
-        behaviour: CastBehaviours.Instant((ctx) => {
-            const eng = ctx.engine as EngineContext;
-            const active = ctx.caster.activeAbilities.find((a) => a.abilityId === ctx.abilityId);
-            if (!active) return;
-
-            const targetUnit = resolveTargetUnit(
-                active.targetsByLabel?.[FORCE_PUSH_TARGET_LABEL] ?? active.targets[0],
-                eng,
-            );
-            if (!targetUnit?.isAlive()) return;
-
-            const landingTarget =
-                active.targetsByLabel?.[FORCE_PUSH_LANDING_LABEL] ?? active.targets[1];
-            const landingPoint = resolveTargetToPoint(landingTarget, eng);
-            if (!landingPoint) return;
-
-            const payload = (active.castPayload ?? {}) as ForcePushCastPayload;
-            if (!payload.listeners) {
-                payload.listeners = subscribeForcePushCollisionListeners(eng, ctx.caster, ctx.abilityId);
-                active.castPayload = payload;
-            }
-
-            launchForcePushTarget(eng, ctx.caster, targetUnit, landingPoint, ctx.abilityId);
-        }),
+    },
+    {
+        id: 'release',
+        start: AIM_END,
+        end: RELEASE_END,
+        abilityPhase: AbilityPhase.Active,
+        doNotRefund: true,
+        castBehaviours: [
+            {
+                timingStart: 'start',
+                targetIndex: 1,
+                behaviour: CastBehaviours.Instant(launchFromContext),
+            },
+            {
+                timingStart: 'start',
+                timingEnd: 'end',
+                targetIndex: 1,
+                behaviour: CastBehaviours.CasterSlide({
+                    forwardDistance: FORCE_PUSH_PUNCH_DISTANCE,
+                    backwardDistance: FORCE_PUSH_PUNCH_RETURN,
+                    impactAt: PUNCH_IMPACT_AT,
+                    direction: punchDirection,
+                }),
+            },
+        ],
     },
     {
         id: 'cooldown',
-        start: FORCE_PUSH_PREFIRE_TIME + FORCE_PUSH_ACTIVE_DURATION,
-        end: FORCE_PUSH_PREFIRE_TIME + FORCE_PUSH_ACTIVE_DURATION + FORCE_PUSH_COOLDOWN_DURATION,
+        start: RELEASE_END,
+        end: COOLDOWN_END,
         abilityPhase: AbilityPhase.Cooldown,
     },
 ];
-
-interface ForcePushCastPayload {
-    listeners?: {
-        onUnitCollision: (data: ForcedMovementUnitCollisionEvent) => void;
-        onTerrainCollision: (data: ForcedMovementTerrainCollisionEvent) => void;
-    };
-}
 
 function resolveTargetUnit(
     target: ResolvedTarget | undefined,
@@ -177,126 +275,189 @@ function resolveTargetUnit(
     return engine.getUnit(target.unitId) ?? null;
 }
 
-function matchesCastSource(
-    source: KnockbackSource,
-    casterId: string,
-    abilityId: string,
-): boolean {
-    return source.unitId === casterId && source.abilityId === abilityId;
+/**
+ * A pick stored on the cast by its select label.
+ * Interactive targeting writes each click into `targetsByLabel`, then replaces the positional
+ * `targets` array with that click's own list. Later selects must not read `targets` by index.
+ */
+function labelledPick(ctx: CastBehaviourBaseContext, label: string): ResolvedTarget | undefined {
+    const active = ctx.caster.activeAbilities.find((ability) => ability.abilityId === ctx.abilityId);
+    return active?.targetsByLabel?.[label];
 }
 
-function spawnCollisionClashEffect(engine: EngineContext, impact: { x: number; y: number }): void {
-    engine.addEffect(new Effect({
-        x: impact.x,
-        y: impact.y,
+function flungUnitFromContext(ctx: CastBehaviourBaseContext): Unit | null {
+    const eng = ctx.engine as EngineContext;
+    return resolveTargetUnit(
+        labelledPick(ctx, FORCE_PUSH_TARGET_LABEL) ?? ctx.allTargets[0] ?? ctx.target,
+        eng,
+    );
+}
+
+function aimPixelFromContext(ctx: CastBehaviourBaseContext): { x: number; y: number } | null {
+    const labelled = labelledPick(ctx, FORCE_PUSH_DIRECTION_LABEL);
+    if (labelled?.type === 'pixel' && labelled.position) return labelled.position;
+    if (ctx.target?.type === 'pixel' && ctx.target.position) return ctx.target.position;
+    for (const candidate of ctx.allTargets) {
+        if (candidate.type === 'pixel' && candidate.position) return candidate.position;
+    }
+    return null;
+}
+
+function leanDirection(ctx: CastBehaviourBaseContext): { x: number; y: number } | null {
+    const target = flungUnitFromContext(ctx);
+    if (!target) return null;
+    return directionBetween(ctx.caster, target);
+}
+
+function punchDirection(ctx: CastBehaviourBaseContext): { x: number; y: number } | null {
+    const pixel = aimPixelFromContext(ctx);
+    const target = flungUnitFromContext(ctx);
+    if (!pixel || !target) return null;
+    return directionBetween(target, pixel);
+}
+
+function directionBetween(
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+): { x: number; y: number } | null {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-4) return null;
+    return { x: dx / len, y: dy / len };
+}
+
+function launchFromContext(ctx: CastBehaviourBaseContext): void {
+    const eng = ctx.engine as EngineContext;
+    const target = flungUnitFromContext(ctx);
+    const pixel = aimPixelFromContext(ctx);
+    if (!target || !pixel) return;
+    if (!isForcePushTarget(target, eng.gameTime) || target.hoverFlight?.phase !== 'lift') {
+        if (target?.hoverFlight?.phase === 'lift') cancelHoverFlight(target);
+        return;
+    }
+    launchHoverFlight(
+        target,
+        { x: pixel.x - target.x, y: pixel.y - target.y },
+        FORCE_PUSH_FLIGHT_SPEED,
+        FORCE_PUSH_FLIGHT_DISTANCE,
+    );
+}
+
+function dropIfStillLifted(engine: EngineContext, activeTargets: ResolvedTarget[] | undefined, byLabel: Record<string, ResolvedTarget> | undefined): void {
+    const target = resolveTargetUnit(byLabel?.[FORCE_PUSH_TARGET_LABEL] ?? activeTargets?.[0], engine);
+    if (target?.hoverFlight?.phase === 'lift') cancelHoverFlight(target);
+}
+
+function spawnClash(engine: HoverFlightEngine, x: number, y: number): void {
+    engine.addEffect?.(new Effect({
+        x,
+        y,
         duration: 0.35,
         effectType: COLLISION_CLASH_EFFECT_TYPE,
         effectData: { color: GRAVITY_VIOLET },
     }));
 }
 
-function spawnTerrainImpactEffect(
-    engine: EngineContext,
-    event: ForcedMovementTerrainCollisionEvent,
-): void {
-    engine.addEffect(new Effect({
-        x: event.impact.x,
-        y: event.impact.y,
-        duration: 0.45,
-        effectType: TERRAIN_IMPACT_EFFECT_TYPE,
-        effectData: {
-            color: GRAVITY_VIOLET,
-            tile: event.tile,
-            impact: event.impact,
-        },
-    }));
-}
-
-function subscribeForcePushCollisionListeners(
-    engine: EngineContext,
-    caster: Unit,
-    abilityId: string,
-): ForcePushCastPayload['listeners'] {
-    const onUnitCollision = (data: ForcedMovementUnitCollisionEvent): void => {
-        if (!matchesCastSource(data.source, caster.id, abilityId)) return;
-
-        const flung = engine.getUnit(data.movingUnitId);
-        const struck = engine.getUnit(data.struckUnitId);
-        if (!flung?.isAlive()) return;
-
-        // Defense in depth: unit–unit sweep already passes through iFrames; skip damage if an event still fires.
-        if (
-            flung.hasIFrames(engine.gameTime)
-            || (struck?.isAlive() === true && struck.hasIFrames(engine.gameTime))
-        ) {
-            return;
+function onFlingUnitHit(contact: HoverFlightUnitContact, engine: HoverFlightEngine): void {
+    const source = contact.mover.hoverFlight?.source;
+    if (!source) return;
+    const round = engine.roundNumber ?? 1;
+    if (!contact.mover.hasIFrames(engine.gameTime)) {
+        contact.mover.takeDamage(FORCE_PUSH_FLUNG_HIT_DAMAGE, source.unitId, engine.eventBus);
+    }
+    spawnClash(engine, contact.impact.x, contact.impact.y);
+    if (contact.response === 'pass' && areEnemies(contact.mover.hoverFlight?.casterTeamId ?? 'player', contact.other.teamId)) {
+        if (!contact.other.hasIFrames(engine.gameTime)) {
+            contact.other.takeDamage(FORCE_PUSH_ENEMY_DAMAGE, source.unitId, engine.eventBus);
         }
-
-        // Flat collision damage; return values unused, so no need for the shield/armour breakdown.
-        flung.takeDamage(FORCE_PUSH_COLLISION_DAMAGE, caster.id, engine.eventBus);
-        spawnCollisionClashEffect(engine, data.impact);
-
-        if (struck?.isAlive() && areEnemies(caster.teamId, struck.teamId)) {
-            struck.takeDamage(FORCE_PUSH_COLLISION_DAMAGE, caster.id, engine.eventBus);
-        }
-    };
-
-    const onTerrainCollision = (data: ForcedMovementTerrainCollisionEvent): void => {
-        if (!matchesCastSource(data.source, caster.id, abilityId)) return;
-
-        const flung = engine.getUnit(data.unitId);
-        if (!flung?.isAlive()) return;
-
-        // Flat collision damage; return value unused, so no need for the shield/armour breakdown.
-        flung.takeDamage(FORCE_PUSH_TERRAIN_DAMAGE, caster.id, engine.eventBus);
-        engine.terrainManager?.damageRock(
-            data.tile.col,
-            data.tile.row,
-            FORCE_PUSH_TERRAIN_DAMAGE,
-            caster.id,
+        applyDirectionalKnockback(
+            contact.other,
+            FORCE_PUSH_KNOCKBACK_TIER,
+            contact.travelDir,
+            source,
+            knockbackCtxFromEngine(engine),
         );
-        spawnTerrainImpactEffect(engine, data);
-    };
-
-    engine.eventBus.on('forced_movement_unit_collision', onUnitCollision);
-    engine.eventBus.on('forced_movement_terrain_collision', onTerrainCollision);
-
-    return { onUnitCollision, onTerrainCollision };
+    }
+    applyHitStop([contact.mover, contact.other], engine.gameTime, round);
 }
 
-function unsubscribeForcePushCollisionListeners(
-    engine: EngineContext,
-    listeners: ForcePushCastPayload['listeners'] | undefined,
-): void {
-    if (!listeners) return;
-    engine.eventBus.off('forced_movement_unit_collision', listeners.onUnitCollision);
-    engine.eventBus.off('forced_movement_terrain_collision', listeners.onTerrainCollision);
-}
-
-function launchForcePushTarget(
-    engine: EngineContext,
-    caster: Unit,
-    targetUnit: Unit,
-    landing: { x: number; y: number },
-    abilityId: string,
-): void {
-    const knockbackEngine: KnockbackEngineCtx = knockbackCtxFromEngine(engine);
-    const source: KnockbackSource = { unitId: caster.id, abilityId };
-
-    tryApplyAimedKnockbackByTier(
-        targetUnit,
+function onFlingWall(contact: HoverFlightWallContact, engine: HoverFlightEngine): void {
+    const source = contact.mover.hoverFlight?.source;
+    if (!source) return;
+    const round = engine.roundNumber ?? 1;
+    if (!contact.mover.hasIFrames(engine.gameTime)) {
+        contact.mover.takeDamage(FORCE_PUSH_WALL_UNIT_DAMAGE, source.unitId, engine.eventBus);
+    }
+    if (contact.kind === 'terrain') {
+        engine.terrainManager?.damageRock(
+            contact.tile.col,
+            contact.tile.row,
+            FORCE_PUSH_WALL_TERRAIN_DAMAGE,
+            source.unitId,
+        );
+        engine.addEffect?.(new Effect({
+            x: contact.impact.x,
+            y: contact.impact.y,
+            duration: 0.45,
+            effectType: TERRAIN_IMPACT_EFFECT_TYPE,
+            effectData: {
+                color: GRAVITY_VIOLET,
+                tile: contact.tile,
+                impact: contact.impact,
+            },
+        }));
+    } else {
+        spawnClash(engine, contact.impact.x, contact.impact.y);
+    }
+    applyDirectionalKnockback(
+        contact.mover,
         FORCE_PUSH_KNOCKBACK_TIER,
-        landing,
+        contact.reflectedDir,
         source,
-        knockbackEngine,
-        {
-            landingMinDistance: FORCE_PUSH_LANDING_MIN_DISTANCE,
-            landingMaxDistance: FORCE_PUSH_LANDING_MAX_DISTANCE,
-            distanceScale: FORCE_PUSH_LANDING_DISTANCE_SCALE,
-            timeScale: FORCE_PUSH_FLIGHT_TIME_SCALE,
-        },
-        { collideWithUnits: true, bounceOffTerrain: true, unitCollisionStartFraction: FORCE_PUSH_UNIT_COLLISION_START_FRACTION },
+        knockbackCtxFromEngine(engine),
     );
+    tryApplyHardCcStun(
+        contact.mover,
+        FORCE_PUSH_WALL_STUN_DURATION,
+        engine.gameTime,
+        round,
+        engine.eventBus,
+    );
+    applyHitStop([contact.mover], engine.gameTime, round);
+}
+
+registerHoverFlightHandler(CARD_ID, {
+    onUnit: onFlingUnitHit,
+    onWall: onFlingWall,
+});
+
+function aimTip(
+    anchor: { x: number; y: number },
+    mouse: { x: number; y: number },
+    engine: EngineContext | undefined,
+): { x: number; y: number } {
+    let dx = mouse.x - anchor.x;
+    let dy = mouse.y - anchor.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-4) {
+        dx = 1;
+        dy = 0;
+    } else {
+        dx /= len;
+        dy /= len;
+    }
+    const end = {
+        x: anchor.x + dx * FORCE_PUSH_FLIGHT_DISTANCE,
+        y: anchor.y + dy * FORCE_PUSH_FLIGHT_DISTANCE,
+    };
+    const terrainManager = engine?.terrainManager ?? null;
+    if (!terrainManager) return end;
+    const disp = computeForcedDisplacement(anchor.x, anchor.y, end.x, end.y, FORCE_PUSH_FLIGHT_DISTANCE, {
+        terrainManager,
+        forced: true,
+    });
+    return { x: anchor.x + disp.dx, y: anchor.y + disp.dy };
 }
 
 export const ForcePushAbility = defineAbility({
@@ -331,23 +492,30 @@ export const ForcePushAbility = defineAbility({
                 conditions: [{ type: 'always' }],
                 effects: [{
                     type: 'custom',
-                    effectId: 'forcePushUnsubscribeCollisionListeners',
-                    comment: 'Remove scoped forced-movement collision listeners when the cast ends or is interrupted.',
+                    effectId: 'forcePushDropIfUnlaunched',
+                    comment: 'An interrupt after the pick, before the fling, drops the lifted unit. A launched fling keeps going.',
                 }],
             },
         ],
     },
 
     customEffectHandlers: {
-        forcePushUnsubscribeCollisionListeners: (_params, ctx) => {
+        forcePushDropIfUnlaunched: (_params, ctx) => {
             const runtime = ctx as AbilityEventRuntimeContext;
             const eng = runtime.engine as EngineContext;
-            const payload = runtime.activeAbility?.castPayload as ForcePushCastPayload | undefined;
-            unsubscribeForcePushCollisionListeners(eng, payload?.listeners);
-            if (payload) {
-                delete payload.listeners;
-            }
+            dropIfStillLifted(eng, runtime.activeAbility?.targets, runtime.activeAbility?.targetsByLabel);
         },
+    },
+
+    renderActivePreview(gr, caster, active, _gameTime, engine): void {
+        const eng = engine as EngineContext | undefined;
+        if (!eng?.getUnit) return;
+        const target = resolveTargetUnit(
+            active.targetsByLabel?.[FORCE_PUSH_TARGET_LABEL] ?? active.targets[0],
+            eng,
+        );
+        if (!target?.hoverFlight || target.hoverFlight.phase !== 'lift') return;
+        drawTether(gr, caster, target);
     },
 
     renderTargetingPreviewSelectedTargets(gr, _caster, targets, mouseWorld, _units, engine): void {
@@ -355,17 +523,29 @@ export const ForcePushAbility = defineAbility({
         if (!anchorTarget) return;
         const eng = engine as EngineContext | undefined;
         if (!eng) return;
-        const anchorPoint = resolveTargetToPoint(anchorTarget, eng);
-        if (!anchorPoint) return;
-        drawClampedLine(
-            gr,
-            anchorPoint,
-            mouseWorld,
-            FORCE_PUSH_LANDING_MAX_DISTANCE,
-            { color: GRAVITY_VIOLET, width: 2, alpha: 0.55 },
-        );
+        const anchor = resolveTargetToPoint(anchorTarget, eng);
+        if (!anchor) return;
+        const tip = aimTip(anchor, mouseWorld, eng);
+        const width = FORCE_PUSH_HIT_RADIUS * 2;
+        gr.moveTo(anchor.x, anchor.y);
+        gr.lineTo(tip.x, tip.y);
+        gr.stroke({ color: GRAVITY_VIOLET, width, alpha: 0.22 });
+        gr.moveTo(anchor.x, anchor.y);
+        gr.lineTo(tip.x, tip.y);
+        gr.stroke({ color: GRAVITY_VIOLET, width: 2, alpha: 0.85 });
+        gr.circle(tip.x, tip.y, FORCE_PUSH_HIT_RADIUS);
+        gr.stroke({ color: GRAVITY_VIOLET, width: 2, alpha: 0.7 });
     },
 });
+
+function drawTether(gr: IAbilityPreviewGraphics, from: { x: number; y: number }, to: { x: number; y: number }): void {
+    gr.moveTo(from.x, from.y);
+    gr.lineTo(to.x, to.y);
+    gr.stroke({ color: GRAVITY_VIOLET, width: 5, alpha: 0.2 });
+    gr.moveTo(from.x, from.y);
+    gr.lineTo(to.x, to.y);
+    gr.stroke({ color: 0xe9d5ff, width: 2, alpha: 0.9 });
+}
 
 export const ForcePushCard: CardDef = {
     abilityId: CARD_ID,

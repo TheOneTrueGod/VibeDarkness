@@ -21,7 +21,7 @@ import {
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { meleeLineHitbox } from '../../hitboxes';
 
-const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}16`;
+export const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}16`;
 const MAX_USES = 2;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },

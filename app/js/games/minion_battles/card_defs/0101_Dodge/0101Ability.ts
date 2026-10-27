@@ -1,7 +1,7 @@
 ﻿/**
  * Dodge - Warrior card. Move toward target up to DODGE_MAX_DISTANCE px over 0.4 s at constant rate
- * (terrain may shorten travel). The iframe window grants invincibility; a stamina charge is given
- * to a random other ability on cast. An afterimage trail follows the unit throughout the dash.
+ * (terrain may shorten travel). The iframe window grants invincibility. Casting restores one use
+ * of Punch (including Training replacements). An afterimage trail follows the unit throughout the dash.
  */
 
 import { AbilityState, AbilityEventType } from '../../abilities/Ability';
@@ -13,6 +13,7 @@ import { type CardDef } from '../types';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
 import { nullHitbox } from '../../hitboxes';
+import { PUNCH_FAMILY_ABILITY_IDS } from '../punchFamily';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}01`;
 const MAX_USES = 2;
@@ -62,7 +63,7 @@ export const DodgeAbility: AbilityStatic = {
         [AbilityEventType.ON_CAST_START]: [
             {
                 conditions: [{ type: 'always' }],
-                effects: [{ type: 'recoverCharge', chargeType: 'staminaCharge', amount: 1, recipient: 'allAbilities' }],
+                effects: [{ type: 'restoreUses', abilityIds: PUNCH_FAMILY_ABILITY_IDS, amount: 1 }],
             },
         ],
     },
@@ -70,7 +71,7 @@ export const DodgeAbility: AbilityStatic = {
     getTooltipText(_gameState?: unknown): string[] {
         return [
             'Avoid attacks while dodging towards a point',
-            'Grants {1} stamina surge to all abilities',
+            'Restores {1} use of Punch',
         ];
     },
 

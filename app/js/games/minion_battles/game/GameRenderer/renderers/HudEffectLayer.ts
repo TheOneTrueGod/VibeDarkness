@@ -176,16 +176,6 @@ export class HudEffectLayer {
         if (data.roundNumber <= 1) return;
 
         const resources: RoundStartResourceGrant[] = [];
-        const surgeAmount = data.staminaSurgeAmount ?? 0;
-        const staminaSurgeAbilityIds = data.staminaSurgeAbilityIds ?? [];
-        if (surgeAmount > 0 && staminaSurgeAbilityIds.length > 0) {
-            resources.push({
-                chargeType: 'staminaCharge',
-                amount: surgeAmount,
-                color: iconColor('staminaCharge'),
-                targetAbilityIds: staminaSurgeAbilityIds,
-            });
-        }
         const roundChargeAbilityIds = data.roundChargeAbilityIds ?? [];
         if (roundChargeAbilityIds.length > 0) {
             resources.push({

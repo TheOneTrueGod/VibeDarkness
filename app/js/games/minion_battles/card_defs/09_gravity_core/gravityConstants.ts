@@ -5,7 +5,14 @@
  * Abilities and the Gravity resource import from here — no magic numbers elsewhere.
  */
 
-import { ROUND_DURATION } from '../../game/gameConstants';
+import { FIXED_DT, ROUND_DURATION } from '../../game/gameConstants';
+import { CELL_SIZE } from '../../terrain/TerrainGrid';
+import { DEFAULT_UNIT_RADIUS } from '../../game/units/unit_defs/unitConstants';
+import {
+    ROCK_SLIDE_PROJECTILE_RADIUS,
+    ROCK_SLIDE_PROJECTILE_SPEED,
+    ROCK_SLIDE_TRAVEL_TILES,
+} from '../05_earth_core/earthCoreConstants';
 
 /** Floor gravity gain per round when far from enemies and projectiles. */
 export const GRAVITY_MIN_PER_ROUND = 2;
@@ -89,29 +96,58 @@ export const EASE_BURDENS_TARGET_LABEL = 'Ally';
 /** Stacking key for the buff: re-casting on the same target refreshes instead of stacking. */
 export const EASE_BURDENS_SOURCE_ID = 'ease_burdens';
 
-/** Force Push (0902) — aimed fling with collision damage. */
+/** Force Push (0902) — lift, then a fast flat fling. */
 export const FORCE_PUSH_MAX_RANGE = 160;
 export const FORCE_PUSH_PREFIRE_TIME = 0.25;
-export const FORCE_PUSH_SELECT_GAP = 0.05;
-export const FORCE_PUSH_ACTIVE_DURATION = 0.1;
+/** One lockstep tick. Selects after t = 0 use a single tick; the gate pauses on the tick before. */
+export const FORCE_PUSH_SELECT_TICK = FIXED_DT;
+/** Rise before the direction aim. Interactive targeting plays this between the two clicks. */
+export const FORCE_PUSH_LIFT_DURATION = 0.2;
+/** Caster punch after the direction is chosen. The body launches at the start of this window. */
+export const FORCE_PUSH_RELEASE_DURATION = 0.2;
 export const FORCE_PUSH_COOLDOWN_DURATION = 1.25;
-export const FORCE_PUSH_KNOCKBACK_TIER = 3;
-export const FORCE_PUSH_COLLISION_DAMAGE = 8;
-export const FORCE_PUSH_TERRAIN_DAMAGE = 8;
+export const FORCE_PUSH_HOVER_HEIGHT_PX = 14;
+export const FORCE_PUSH_FALL_DURATION = 0.12;
+/** Matched to Rock Slide so the carry feels like that projectile. */
+export const FORCE_PUSH_FLIGHT_SPEED = ROCK_SLIDE_PROJECTILE_SPEED;
+export const FORCE_PUSH_FLIGHT_DISTANCE = ROCK_SLIDE_TRAVEL_TILES * CELL_SIZE;
+/** Minimum sweep thickness, matched to Rock Slide's projectile. Larger bodies use their own radius. */
+export const FORCE_PUSH_HIT_RADIUS = ROCK_SLIDE_PROJECTILE_RADIUS;
+/** Skip overlaps that already exist at the start of the carry. */
+export const FORCE_PUSH_COLLISION_GRACE_PX = DEFAULT_UNIT_RADIUS;
+/** Knockback on enemies the body passes through, and the bounce off a wall. */
+export const FORCE_PUSH_KNOCKBACK_TIER = 2;
+/** Damage to each enemy the flung unit hits. */
+export const FORCE_PUSH_ENEMY_DAMAGE = 8;
+/** Damage to the flung unit each time they hit another unit. */
+export const FORCE_PUSH_FLUNG_HIT_DAMAGE = 2;
+/** Damage to the flung unit when they hit a wall. */
+export const FORCE_PUSH_WALL_UNIT_DAMAGE = 8;
+/**
+ * Damage to the wall itself. A fresh wall has 100 health, so two hits destroy it.
+ * Kept as its own number from the damage the flung unit takes.
+ */
+export const FORCE_PUSH_WALL_TERRAIN_DAMAGE = 50;
+/** Stun applied to the flung unit when they hit a wall. */
+export const FORCE_PUSH_WALL_STUN_DURATION = 1;
 export const FORCE_PUSH_GRAVITY_COST = 5;
+export const FORCE_PUSH_LEAN_DISTANCE = 12;
+export const FORCE_PUSH_PUNCH_DISTANCE = 16;
+export const FORCE_PUSH_PUNCH_RETURN = 6;
 /** Sequential select labels for Force Push targeting. */
 export const FORCE_PUSH_TARGET_LABEL = 'Target';
+export const FORCE_PUSH_DIRECTION_LABEL = 'Direction';
+/** How far the aim click is read from the lifted unit. The flight itself always goes FORCE_PUSH_FLIGHT_DISTANCE. */
+export const FORCE_PUSH_AIM_MAX_DISTANCE = FORCE_PUSH_FLIGHT_DISTANCE;
+export const FORCE_PUSH_AIM_MIN_DISTANCE = 8;
+
+/**
+ * Sample distances for aimed-knockback tests. Force Push no longer launches through that path.
+ */
 export const FORCE_PUSH_LANDING_LABEL = 'Landing';
-/** Max landing pixel distance from the flung unit. */
 export const FORCE_PUSH_LANDING_MAX_DISTANCE = 126;
-/** Minimum fling distance to avoid a zero-vector launch. */
 export const FORCE_PUSH_LANDING_MIN_DISTANCE = 8;
-/** Air-time scale at max landing distance relative to tier-3 baseline (matches displacement cap). */
 export const FORCE_PUSH_LANDING_DISTANCE_SCALE = 1.25;
-/** Fraction of total knockback travel before unit–unit collision is checked (adjacent-unit pop-out). */
-export const FORCE_PUSH_UNIT_COLLISION_START_FRACTION = 0.25;
-/** Force Push flight-time multiplier (under 1 = a faster fling over the same distance). */
-export const FORCE_PUSH_FLIGHT_TIME_SCALE = 0.6;
 
 /** Lift (0903) — AoE lift + slam; mode changes horizontal landing only. */
 export const GRAVITY_INVERSION_MAX_RANGE = 160;

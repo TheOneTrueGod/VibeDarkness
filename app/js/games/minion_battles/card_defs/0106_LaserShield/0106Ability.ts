@@ -1,10 +1,8 @@
 /**
  * Laser Shield - Warrior skill. Hold a cyan energy shield for 3s in a direction.
  * Movement speed penalty 0.1, blocks attacks from within a 120° arc.
- * Same reward logic as Raise Shield — longer duration and laser color theme.
  */
 
-import { AbilityEventType } from '../../abilities/Ability';
 import type { AbilityRecoveryRule } from '../../abilities/Ability';
 import { defineDirectionalShield } from '../../abilities/archetypes/defineDirectionalShield';
 import { type CardDef } from '../types';
@@ -52,45 +50,6 @@ export const LaserShieldAbility = defineDirectionalShield({
             'Blocks attacks from the front arc',
             'Lasts for 3 seconds with only 1 second cooldown',
         ];
-    },
-
-    abilityEvents: {
-        [AbilityEventType.ON_BLOCK_SUCCESS]: [
-            {
-                conditions: [{ type: 'always' }],
-                effects: [
-                    {
-                        type: 'grantChargeToNearbyAllies',
-                        chargeType: 'staminaCharge',
-                        amount: 2,
-                        radius: 50,
-                    },
-                ],
-            },
-            {
-                // Fires once on the 2nd block (per-block-surge has already incremented to 2
-                // within the same dispatch before this rule evaluates).
-                oncePerCast: true,
-                conditions: [
-                    { type: 'selfRuleHasTriggeredAtLeast', ruleId: 'per-block-surge', count: 2 },
-                ],
-                effects: [
-                    {
-                        type: 'recoverCharge',
-                        chargeType: 'staminaCharge',
-                        amount: 1,
-                        recipient: 'randomAbility',
-                        excludeCurrentAbility: true,
-                    },
-                    {
-                        type: 'grantChargeToNearbyAllies',
-                        chargeType: 'staminaCharge',
-                        amount: 2,
-                        radius: 180,
-                    },
-                ],
-            },
-        ],
     },
 });
 

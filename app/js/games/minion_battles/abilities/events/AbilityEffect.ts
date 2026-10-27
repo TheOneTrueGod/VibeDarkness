@@ -21,6 +21,12 @@ export type AbilityEffect =
         excludeCurrentAbility?: boolean;
     }
     | {
+        type: 'restoreUses';
+        /** Uses added to each listed ability the caster currently has, capped at that ability's max. */
+        amount: number;
+        abilityIds: readonly string[];
+    }
+    | {
         type: 'grantChargeToNearbyAllies';
         chargeType: RecoveryChargeType;
         /** Charges granted per qualifying ally. */

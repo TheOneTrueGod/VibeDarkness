@@ -41,11 +41,8 @@ import { clawMovementDistanceScenario } from '../scenarios/abilities/clawScenari
 import { absorptionShieldEnergyChargeScenario } from '../scenarios/abilities/absorptionShieldScenario';
 import {
     raiseShieldBlocksScenario,
-    raiseShieldAllyStaminaSurgeScenario,
     shiningBlockRetaliationScenario,
     shiningBlockStrengtheningLightScenario,
-    shiningBlockStaminaOnBlockScenario,
-    absorptionShieldStaminaOnBlockScenario,
 } from '../scenarios/abilities/techShieldScenarios';
 import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteSharedConstructionScenario, lanterniteDefenderAttackScenario, lanterniteDefenderTracksMovingTargetScenario } from '../scenarios/general/lanternites';
 import { lanterniteDeathBehaviorsScenario, lanterniteNestOwnedNoRespawnScenario } from '../scenarios/general/lanterniteDeath';
@@ -223,11 +220,6 @@ describe('runScenarioHeadless', () => {
         expect(r.passed, r.message).toBe(true);
     });
 
-    it('passes raise shield ally stamina surge on block scenario', () => {
-        const r = runScenarioHeadless(raiseShieldAllyStaminaSurgeScenario);
-        expect(r.passed, r.message).toBe(true);
-    });
-
     it('passes shining block retaliation on block scenario', () => {
         const r = runScenarioHeadless(shiningBlockRetaliationScenario);
         expect(r.passed, r.message).toBe(true);
@@ -235,16 +227,6 @@ describe('runScenarioHeadless', () => {
 
     it('passes shining block strengthening light heal scenario', () => {
         const r = runScenarioHeadless(shiningBlockStrengtheningLightScenario);
-        expect(r.passed, r.message).toBe(true);
-    });
-
-    it('passes shining block stamina on block scenario', () => {
-        const r = runScenarioHeadless(shiningBlockStaminaOnBlockScenario);
-        expect(r.passed, r.message).toBe(true);
-    });
-
-    it('passes absorption shield stamina on block scenario', () => {
-        const r = runScenarioHeadless(absorptionShieldStaminaOnBlockScenario);
         expect(r.passed, r.message).toBe(true);
     });
 

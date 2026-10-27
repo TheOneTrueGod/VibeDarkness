@@ -17,21 +17,45 @@ export type { RecoveryChargeType, AbilityRecoveryRule };
 export interface AbilityUseConfig {
     maxUses: number;
     startingUses?: number;
+    /** Charge rules that still apply. Empty when the ability refills every round. */
     recoveries: AbilityRecoveryRule[];
+    /** Round start sets current uses to max uses. Charge rules are not applied. */
+    refillsEachRound: boolean;
 }
 
 const DEFAULT_USE_CONFIG: AbilityUseConfig = {
     maxUses: 1,
-    recoveries: [{ chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 }],
+    recoveries: [],
+    refillsEachRound: true,
 };
+
+/**
+ * Default recovery is a full refill at round start.
+ * An explicit empty `recoveries` array opts out.
+ * Any non-stamina charge rule opts out (those charges still restore uses).
+ * A stamina-only rule is the old default and now refills fully.
+ */
+export function abilityRefillsUsesEachRound(ability: Pick<AbilityStatic, 'recoveries'> | undefined): boolean {
+    if (!ability) return true;
+    const recoveries = ability.recoveries;
+    if (recoveries === undefined) return true;
+    if (recoveries.length === 0) return false;
+    return recoveries.every((rule) => rule.chargeType === 'staminaCharge');
+}
 
 export function getAbilityUseConfig(abilityId: string): AbilityUseConfig {
     const ability = getAbility(abilityId);
-    if (!ability) return DEFAULT_USE_CONFIG;
+    if (!ability) return { ...DEFAULT_USE_CONFIG, recoveries: [] };
+    const refillsEachRound = abilityRefillsUsesEachRound(ability);
+    const raw = ability.recoveries ?? [];
+    const recoveries = refillsEachRound
+        ? []
+        : raw.filter((rule) => rule.chargeType !== 'staminaCharge');
     return {
         maxUses: ability.getMaxUses?.() ?? ability.maxUses ?? DEFAULT_USE_CONFIG.maxUses,
         startingUses: ability.startingUses,
-        recoveries: [...(ability.recoveries ?? DEFAULT_USE_CONFIG.recoveries)],
+        recoveries,
+        refillsEachRound,
     };
 }
 
@@ -162,10 +186,36 @@ export function grantAbilityUses(unit: Unit, abilityId: string, minUses: number 
 
 /** Restore one use when a cast is cancelled before natural completion (e.g. conditional-cancel switch). */
 export function refundAbilityUse(unit: Unit, abilityId: string): void {
+    addAbilityUses(unit, abilityId, 1);
+}
+
+/**
+ * Add uses of one ability, capped at its current max. Does not raise maxUses.
+ * No-op when the unit does not currently have that ability.
+ */
+export function restoreAbilityUses(unit: Unit, abilityId: string, amount: number): void {
+    if (!unit.abilities.includes(abilityId)) return;
+    addAbilityUses(unit, abilityId, amount);
+}
+
+function addAbilityUses(unit: Unit, abilityId: string, amount: number): void {
+    if (amount <= 0) return;
     ensureAbilityRuntimeState(unit, abilityId);
     const runtime = unit.abilityRuntime[abilityId];
     if (!runtime) return;
-    runtime.currentUses = Math.min(runtime.maxUses, runtime.currentUses + 1);
+    runtime.currentUses = Math.min(runtime.maxUses, runtime.currentUses + amount);
+    syncNestedCardAbilityState(unit);
+}
+
+/** Round start: abilities on the default recovery refill to max uses. Opt-outs are left alone. */
+export function refillUsesAtRoundStart(unit: Unit): void {
+    for (const abilityId of getAbilityIdsEligibleForRecovery(unit)) {
+        if (!abilityRefillsUsesEachRound(getAbility(abilityId))) continue;
+        ensureAbilityRuntimeState(unit, abilityId);
+        const runtime = unit.abilityRuntime[abilityId];
+        if (!runtime) continue;
+        runtime.currentUses = runtime.maxUses;
+    }
     syncNestedCardAbilityState(unit);
 }
 
@@ -216,7 +266,6 @@ export function addRecoveryChargeToUnitAbilities(
 
 /**
  * Grant the same charge amount to every ability that can accept it (not pooled or randomly split).
- * Used for surge effects where every ability benefits simultaneously.
  */
 export function applyChargeSurgeToUnit(unit: Unit, chargeType: RecoveryChargeType, amount: number, eventBus?: EventBus): void {
     if (amount <= 0) return;
@@ -231,11 +280,6 @@ export function applyChargeSurgeToUnit(unit: Unit, chargeType: RecoveryChargeTyp
     if (anyGranted && eventBus) {
         eventBus.emit('recovery_charge_granted', { unitId: unit.id, chargeType, amount });
     }
-}
-
-/** Round-start stamina surge: grant the same stamina charge amount to every eligible ability. */
-export function applyStaminaSurgeToUnit(unit: Unit, surgeAmount: number): void {
-    applyChargeSurgeToUnit(unit, 'staminaCharge', surgeAmount);
 }
 
 /**
@@ -408,13 +452,6 @@ function getAbilityIdsEligibleForRecovery(unit: Unit): string[] {
 export function getRoundChargeEligibleAbilityIds(unit: Unit): string[] {
     return unit.abilities.filter((abilityId) =>
         canAbilityReceiveRecoveryCharge(unit, abilityId, 'roundCharge'),
-    );
-}
-
-/** Abilities that will receive stamina surge charges at round start (pre-recovery snapshot). */
-export function getStaminaSurgeEligibleAbilityIds(unit: Unit): string[] {
-    return getAbilityIdsEligibleForRecovery(unit).filter((abilityId) =>
-        canAbilityReceiveRecoveryCharge(unit, abilityId, 'staminaCharge'),
     );
 }
 

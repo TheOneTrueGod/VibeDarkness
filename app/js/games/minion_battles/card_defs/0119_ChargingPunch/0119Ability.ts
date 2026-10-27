@@ -11,7 +11,7 @@ import { defineMeleeStrike } from '../../abilities/archetypes/defineMeleeStrike'
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { type CardDef } from '../types';
 
-const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}19`;
+export const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}19`;
 const MAX_USES = 4;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },

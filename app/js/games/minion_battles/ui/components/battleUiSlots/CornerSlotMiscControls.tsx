@@ -4,7 +4,6 @@
  */
 import React, { useCallback } from 'react';
 import RoundTrackerCard from '../RoundTrackerCard';
-import { DEFAULT_PLAYER_ROUND_STAMINA_SURGE } from '../../../game/GameEngine';
 import type { Unit } from '../../../game/units/Unit';
 import { TestIds } from '../../../../../testing/testIds';
 import {
@@ -180,7 +179,6 @@ export default function CornerSlotMiscControls({
                     roundNumber={roundNumber}
                     progress={roundProgress}
                     isPaused={isPaused}
-                    staminaSurge={playerUnit.stamina ?? DEFAULT_PLAYER_ROUND_STAMINA_SURGE}
                 />
             </div>
         </div>

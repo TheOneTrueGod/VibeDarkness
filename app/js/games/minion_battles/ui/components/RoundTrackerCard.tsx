@@ -1,12 +1,11 @@
 import React, { useRef, useState } from 'react';
 import { AnchoredPortalTooltip } from './AnchoredPortalTooltip';
-import { DEFAULT_PLAYER_ROUND_STAMINA_SURGE } from '../../game/GameEngine';
+import { ROUND_DURATION } from '../../game/gameConstants';
 
 interface RoundTrackerCardProps {
     roundNumber: number;
     progress: number;
     isPaused: boolean;
-    staminaSurge?: number;
     onRootRef?: (el: HTMLDivElement | null) => void;
 }
 
@@ -19,7 +18,6 @@ export default function RoundTrackerCard({
     roundNumber,
     progress,
     isPaused,
-    staminaSurge = DEFAULT_PLAYER_ROUND_STAMINA_SURGE,
     onRootRef,
 }: RoundTrackerCardProps) {
     const rootRef = useRef<HTMLDivElement | null>(null);
@@ -70,9 +68,8 @@ export default function RoundTrackerCard({
                 open={showTooltip}
                 className="w-64 rounded-lg border border-dark-600 bg-black/95 px-3 py-2 text-xs text-gray-200 shadow-lg"
             >
-                At the start of each round, a stamina surge restores{' '}
-                <span className="font-semibold text-yellow-400">{staminaSurge}</span> stamina to{' '}
-                <span className="font-semibold text-yellow-400">each</span> of your abilities.
+                A round lasts{' '}
+                <span className="font-semibold text-yellow-400">{ROUND_DURATION}</span> seconds.
             </AnchoredPortalTooltip>
         </>
     );

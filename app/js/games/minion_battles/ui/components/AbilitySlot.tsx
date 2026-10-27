@@ -126,7 +126,8 @@ export default function AbilitySlot({
     const displayCosts = ability.hpCost
         ? [...costs, { resourceId: 'hp', amount: ability.hpCost }]
         : costs;
-    const recoveryRules = getAbilityUseConfig(ability.id).recoveries;
+    const useConfig = getAbilityUseConfig(ability.id);
+    const recoveryRules = useConfig.recoveries;
     const hasRecovery = recoveryRules.length > 0;
     const firstRule = recoveryRules[0];
     const animRule: AbilityChargeAnimRule | undefined = firstRule
@@ -311,7 +312,7 @@ export default function AbilitySlot({
                     title={ability.name}
                     lines={tooltipLines}
                     disabledReason={disabledReason ?? undefined}
-                    extraKeywordEntries={recoveryGlossaryEntries(recoveryRules)}
+                    extraKeywordEntries={recoveryGlossaryEntries(recoveryRules, useConfig.refillsEachRound)}
                 />
             )}
 

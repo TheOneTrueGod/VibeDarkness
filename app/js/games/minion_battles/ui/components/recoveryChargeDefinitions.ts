@@ -31,7 +31,7 @@ export interface RecoveryChargeDefinition {
 export const RECOVERY_CHARGE_DEFINITIONS: Record<RecoveryChargeType, RecoveryChargeDefinition> = {
     staminaCharge: {
         displayName: 'Stamina charge',
-        howToGain: 'You gain Stamina charges at the start of each round.',
+        howToGain: 'Stamina charges are no longer granted.',
         fillClass: 'bg-amber-600',
         iconCircleBorderClass: 'border-amber-600',
         possessedBgClass: 'bg-white',
@@ -39,7 +39,7 @@ export const RECOVERY_CHARGE_DEFINITIONS: Record<RecoveryChargeType, RecoveryCha
         iconClassName: 'text-amber-400',
         darkIconClassName: 'text-amber-600',
         strokeWidth: 2.25,
-        rowExplanation: 'Stamina charges — gained from round-start surge and other effects; fill bars to recover uses.',
+        rowExplanation: 'Stamina charges are no longer used.',
         mainHex: 0xd97706,
         softHex: 0xffffff,
     },
@@ -101,6 +101,9 @@ export const RECOVERY_CHARGE_DEFINITIONS: Record<RecoveryChargeType, RecoveryCha
     },
 };
 
+/** Shown on abilities that refill to max uses at round start. */
+export const FULL_ROUND_REFILL_DESCRIPTION = 'All uses recover at the start of each round.';
+
 /** One sentence per recovery rule: how many uses a charge restores and how the charge is gained. */
 export function describeAbilityRecovery(recoveries: readonly AbilityRecoveryRule[]): string {
     return recoveries
@@ -119,7 +122,9 @@ export function describeAbilityRecovery(recoveries: readonly AbilityRecoveryRule
 /** Reminder card on ability tooltips explaining how the ability gets its uses back. */
 export function recoveryGlossaryEntries(
     recoveries: readonly AbilityRecoveryRule[],
+    refillsEachRound = false,
 ): { title: string; description: string }[] {
+    if (refillsEachRound) return [{ title: 'Recovery', description: FULL_ROUND_REFILL_DESCRIPTION }];
     if (recoveries.length === 0) return [];
     return [{ title: 'Recovery', description: describeAbilityRecovery(recoveries) }];
 }

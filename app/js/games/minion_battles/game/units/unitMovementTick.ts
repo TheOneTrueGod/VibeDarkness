@@ -12,6 +12,7 @@ import { MIN_FOLLOW_RADIUS } from '../gameConstants';
 import { WAIT_ABILITY_MODE_FAR } from '../../abilities/WaitAbility';
 import { checkCellCrossingOccupancy } from './unitCellSlide';
 import { updateUnitKnockback } from './unitKnockback';
+import { updateHoverFlight } from './hoverFlight';
 import { updateUnitNudge } from './unitNudge';
 import { tickWallUnstick } from './unitWallUnstick';
 import { localNow } from '../time/actorClock';
@@ -196,6 +197,13 @@ export function updateUnit(unit: Unit, dt: number, engine: unknown, opts?: UnitM
             units: eng.units,
             gameTime: eng.gameTime,
         });
+        return;
+    }
+
+    // Hover carry: lift, fast fling, or the drop after an interrupt. Owns the body like knockback.
+    if (unit.hoverFlight) {
+        const eng = engine as EngineContext;
+        updateHoverFlight(unit, dt, eng);
         return;
     }
 
@@ -394,6 +402,7 @@ function tickUnitEphemeralExpiry(unit: Unit, engine: EngineContext): void {
  * An upper-bound estimate: it only decides how finely a long step is cut.
  */
 export function getUnitTravelSpeedPx(unit: Unit, engine: EngineContext): number {
+    if (unit.hoverFlight?.phase === 'flight') return unit.hoverFlight.speed;
     const k = unit.knockback;
     if (k) {
         const len = Math.hypot(k.knockbackVector.x, k.knockbackVector.y);

@@ -55,6 +55,7 @@ Force Push, Gravity Locus, and Lift share the same **Ability Mode** toggle (`'pu
 
 ## Visual language (violet `#a855f7`)
 
+- **Orbiting orbs** are the hallmark of the gravity tree. A few small violet orbs circle the body or point gravity is acting on, so the effect reads as gravity even when the rest of the move is a ring, a trail, or a field. Force Push’s hover carry is the first use (`UnitRenderer` draws them while a unit is in hover flight). Reuse that orbit on new gravity visuals instead of inventing a different sparkle.
 - **Nudge vs launch**: nudges use understated `NudgeArrowEffectDef` (ghost arrow, no trail); launches get real trails/impact visuals — the absent trail signals “not real CC.”
 - **Locus field**: `GravityFieldEffectDef` — inward spirals for Pull, outward rings/cracks for Push.
 - **Collisions** (Force Push only): `CollisionClashEffectDef` for unit-vs-unit; `TerrainImpactEffectDef` for wall hits.

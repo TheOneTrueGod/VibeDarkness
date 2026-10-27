@@ -8,7 +8,6 @@ import { getDefaultHp, PLAYER_CHARACTER_ID } from '../../game/units/unit_defs/un
 import {
     getHealthBonusFromResearch,
     getDamageBonusFromResearch,
-    getStaminaRecoveryBonusFromResearch,
 } from '../../research/researchTrainingEffects';
 import {
     applyPassiveBonusToBase,
@@ -124,7 +123,6 @@ export function spawnTinyPlayerUnit(
     const baseHp = getDefaultHp(PLAYER_CHARACTER_ID);
     const healthBonus = getHealthBonusFromResearch(getResearchNodes);
     const flatDamageBonus = getDamageBonusFromResearch(getResearchNodes);
-    const staminaRecoveryBonus = getStaminaRecoveryBonusFromResearch(getResearchNodes);
     const maxHp = applyPassiveBonusToBase(baseHp + healthBonus, passiveBonuses.maxHealth);
     const damageMultiplier = passiveBonuses.all_damage?.mult ?? DEFAULT_PASSIVE_MULT;
     const unit = createPlayerUnit(
@@ -147,9 +145,6 @@ export function spawnTinyPlayerUnit(
         eventBus,
         engine,
     );
-    if (staminaRecoveryBonus > 0) {
-        unit.stamina += staminaRecoveryBonus;
-    }
     if (params.applyResearchAbilityModifiers) {
         unit.abilityModifiers = computeAbilityModifiersFromResearch(
             params.playerResearchTreesByPlayer?.[params.playerId],

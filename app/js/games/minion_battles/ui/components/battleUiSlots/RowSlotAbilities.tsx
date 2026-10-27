@@ -357,6 +357,7 @@ export default function RowSlotAbilities({
         if (!card) return null;
         return card.ability;
     }, [mobileDescIndex, handCards]);
+    const mobileDescUseConfig = mobileDescAbility ? getAbilityUseConfig(mobileDescAbility.id) : null;
 
     const renderHandCard = (card: (typeof handCards)[number], index: number) => {
         if (!playerUnit) return null;
@@ -487,7 +488,10 @@ export default function RowSlotAbilities({
                 <AbilityTooltip
                     title={mobileDescAbility.name}
                     lines={mobileDescAbility.getTooltipText(gameState)}
-                    extraKeywordEntries={recoveryGlossaryEntries(getAbilityUseConfig(mobileDescAbility.id).recoveries)}
+                    extraKeywordEntries={recoveryGlossaryEntries(
+                        mobileDescUseConfig?.recoveries ?? [],
+                        mobileDescUseConfig?.refillsEachRound ?? false,
+                    )}
                     isMobileOverlay
                     onDismiss={handleMobileDescDismiss}
                 />

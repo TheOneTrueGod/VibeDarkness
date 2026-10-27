@@ -80,11 +80,8 @@ import { pistolHitsDummyScenario, smgHitsDummyScenario, shotgunHitsDummyScenario
 import { absorptionShieldEnergyChargeScenario } from './abilities/absorptionShieldScenario';
 import {
     raiseShieldBlocksScenario,
-    raiseShieldAllyStaminaSurgeScenario,
     shiningBlockRetaliationScenario,
     shiningBlockStrengtheningLightScenario,
-    shiningBlockStaminaOnBlockScenario,
-    absorptionShieldStaminaOnBlockScenario,
 } from './abilities/techShieldScenarios';
 import { lanterniteNestBuildScenario, lanterniteNestDualSpawnScenario, lanterniteSharedConstructionScenario, lanterniteDefenderAttackScenario, lanterniteDefenderTracksMovingTargetScenario, lanterniteNestThornSpreadScenario } from './general/lanternites';
 import { lanterniteDeathBehaviorsScenario, lanterniteNestOwnedNoRespawnScenario } from './general/lanterniteDeath';
@@ -202,11 +199,8 @@ export const ALL_ABILITY_TEST_SCENARIOS: ScenarioDefinition[] = [
     swarmlingContestsOccupiedNestScenario,
     absorptionShieldEnergyChargeScenario,
     raiseShieldBlocksScenario,
-    raiseShieldAllyStaminaSurgeScenario,
     shiningBlockRetaliationScenario,
     shiningBlockStrengtheningLightScenario,
-    shiningBlockStaminaOnBlockScenario,
-    absorptionShieldStaminaOnBlockScenario,
     lanterniteNestBuildScenario,
     lanterniteNestDualSpawnScenario,
     lanterniteSharedConstructionScenario,

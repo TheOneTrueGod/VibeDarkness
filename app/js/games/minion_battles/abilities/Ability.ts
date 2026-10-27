@@ -365,7 +365,10 @@ export interface AbilityStatic {
     readonly maxUses?: number;
     /** Uses available at battle start when different from maxUses (e.g. Energy Blast starts at 0). */
     readonly startingUses?: number;
-    /** Recovery rules restoring uses. Default: 1 staminaCharge -> 1 use. */
+    /**
+     * Charge rules that restore uses. Omit to refill every use at round start.
+     * An empty array opts out of that refill. A stamina-only list is treated as the refill default.
+     */
     readonly recoveries?: readonly AbilityRecoveryRule[];
     /** Max-uses lookup. Default implementation returns this.maxUses; override for dynamic values. */
     getMaxUses?(): number;

@@ -38,7 +38,7 @@ import {
 } from '../../abilities/tooltipTokens';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}12`;
-export const SWORD_BASE_MAX_USES = 4;
+export const SWORD_BASE_MAX_USES = 3;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];

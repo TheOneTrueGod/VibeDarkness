@@ -55,6 +55,7 @@ export function forgetUnitTileTransitionState(unitId: string): void {
  */
 export function isUnitAirborne(unit: Unit): boolean {
     if (unit.hasBuff(LIFTED_BUFF_TYPE)) return true;
+    if (unit.hoverFlight) return true;
     const kb = unit.knockback;
     if (!kb) return false;
     return kb.knockbackElapsed < kb.knockbackAirTime;

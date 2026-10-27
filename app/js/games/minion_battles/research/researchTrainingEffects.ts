@@ -15,7 +15,6 @@ import { DescriptiveValue, getApproxIntegerIncrease } from '../../../researchTre
 
 const CORE_TRAINING_DAMAGE_BASELINE = 8;
 const CORE_TRAINING_HEALTH_BASELINE = 100;
-const CORE_TRAINING_STAMINA_RECOVERY_BONUS = 1;
 
 /** Map of research node ID -> extra max health granted. */
 export const RESEARCH_HEALTH_BONUSES: Record<string, number> = {
@@ -25,11 +24,6 @@ export const RESEARCH_HEALTH_BONUSES: Record<string, number> = {
 /** Map of research node ID -> flat damage bonus applied to ability damage. */
 export const RESEARCH_DAMAGE_BONUSES: Record<string, number> = {
     [TRAINING_NODE_CORE]: getApproxIntegerIncrease(CORE_TRAINING_DAMAGE_BASELINE, DescriptiveValue.Tiny),
-};
-
-/** Map of research node ID -> flat stamina-recovery bonus (extra stamina pulses). */
-export const RESEARCH_STAMINA_RECOVERY_BONUSES: Record<string, number> = {
-    [TRAINING_NODE_CORE]: CORE_TRAINING_STAMINA_RECOVERY_BONUS,
 };
 
 export interface TrainingPunchResearchState {
@@ -72,18 +66,6 @@ export function getDamageBonusFromResearch(
     let total = 0;
     for (const nodeId of nodes) {
         total += RESEARCH_DAMAGE_BONUSES[nodeId] ?? 0;
-    }
-    return total;
-}
-
-/** Get total stamina-recovery bonus from Training research for a player. */
-export function getStaminaRecoveryBonusFromResearch(
-    getResearchNodes: (treeId: string) => string[],
-): number {
-    const nodes = new Set(getResearchNodes(TRAINING_TREE_ID));
-    let total = 0;
-    for (const nodeId of nodes) {
-        total += RESEARCH_STAMINA_RECOVERY_BONUSES[nodeId] ?? 0;
     }
     return total;
 }

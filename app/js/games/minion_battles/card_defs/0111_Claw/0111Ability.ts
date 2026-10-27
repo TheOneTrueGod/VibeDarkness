@@ -21,8 +21,9 @@ import { nullHitbox } from '../../hitboxes';
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}11` as '0111';
 const MAX_USES = 2;
 /**
- * No stamina (or other) recovery: uses come back only through research `roundRecoveryFlat`
- * (Earth Attuned). Must stay an explicit empty array; an omitted `recoveries` defaults to stamina.
+ * Opt out of the default full refill each round. Uses come back only through research
+ * `roundRecoveryFlat` (Earth Attuned). Must stay an explicit empty array; omitting
+ * `recoveries` refills every use at round start.
  */
 const RECOVERIES: AbilityRecoveryRule[] = [];
 export const CLAW_DURATION = 0.4;
@@ -85,12 +86,6 @@ export const ClawAbility: AbilityStatic = {
 	aiSettings: { minRange: 0, maxRange: CLAW_MAX_DISTANCE },
 
 	abilityEvents: {
-		[AbilityEventType.ON_CAST_START]: [
-			{
-				conditions: [{ type: 'always' }],
-				effects: [{ type: 'recoverCharge', chargeType: 'staminaCharge', amount: 1, excludeCurrentAbility: true }],
-			},
-		],
 		[AbilityEventType.ON_ATTACK_HIT]: [
 			{
 				conditions: [{ type: 'always' }],

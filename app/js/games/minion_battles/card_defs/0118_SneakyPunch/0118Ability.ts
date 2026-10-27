@@ -14,7 +14,7 @@ import { BLEED_BUFF_TYPE } from '../../buffs/BleedBuff';
 import { EXPOSED_BUFF_TYPE } from '../../buffs/ExposedBuff';
 import { type CardDef } from '../types';
 
-const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}18`;
+export const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}18`;
 const MAX_USES = 2;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 },
