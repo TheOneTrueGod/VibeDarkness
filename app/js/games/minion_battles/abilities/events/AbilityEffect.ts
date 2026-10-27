@@ -46,6 +46,7 @@ export type AbilityEffect =
     | { type: 'applyStunnedToPrimaryTarget'; duration: number; ccCharges?: number }
     /** Adds `stacks` bleed stacks to the unit that was hit. */
     | { type: 'applyBleedToPrimaryTarget'; stacks: number }
+    /** Interrupts the primary target unless CC armour or a juggernaut window protects it (`canCcInterrupt`). */
     | { type: 'interruptPrimaryTargetAbilities' }
     | { type: 'setAbilityNote'; abilityId: string; note: Record<string, unknown> }
     | {

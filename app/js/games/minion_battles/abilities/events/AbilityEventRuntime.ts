@@ -1,3 +1,4 @@
+import { tryCcInterruptAbilities } from '../../crowdControl/ccInterrupt';
 import { applyBleedStack } from '../../buffs/bleedRuntime';
 import { getCastElapsed } from '../../game/time/actorClock';
 import { grantRecoveryChargeToRandomAbility, applyChargeSurgeToUnit } from '../abilityUses';
@@ -303,7 +304,10 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
             return;
         }
         case 'interruptPrimaryTargetAbilities':
-            context.primaryTarget?.interruptAllAbilities(context.engine as EngineContext);
+            // CC armour (e.g. bosses) blocks the interrupt the same way it blocks the stun / knockback.
+            if (context.primaryTarget) {
+                tryCcInterruptAbilities(context.primaryTarget, context.engine as unknown as EngineContext & { gameTime: number });
+            }
             return;
         case 'setAbilityNote':
             context.caster.setAbilityNote({ abilityId: effect.abilityId, abilityNote: effect.note });
