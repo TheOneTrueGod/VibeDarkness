@@ -1,5 +1,6 @@
 import React from 'react';
-import ResourcePill, { campaignResourceGains } from '../../../../../components/ResourcePill';
+import ResourcePill, { visibleCampaignResourceGains } from '../../../../../components/ResourcePill';
+import { useCurrentUser } from '../../../../../user/useCurrentUser';
 import type { StoryChoiceAction } from '../../../storylines/storyTypes';
 import { storyChoiceActionResourceDelta } from '../../../storylines/storyChoiceOptions';
 
@@ -20,7 +21,8 @@ export default function StoryChoiceDescriptionRow({
     singleLine = false,
 }: StoryChoiceDescriptionRowProps) {
     const clamp = singleLine ? 'line-clamp-1' : 'line-clamp-2';
-    const gains = campaignResourceGains(storyChoiceActionResourceDelta(action));
+    const { knowledge } = useCurrentUser();
+    const gains = visibleCampaignResourceGains(storyChoiceActionResourceDelta(action), knowledge);
     if (gains.length === 0) {
         return description ? (
             <span className={`${clamp} min-h-0 shrink-0 text-[10px] leading-tight text-zinc-400 sm:text-xs`}>{description}</span>

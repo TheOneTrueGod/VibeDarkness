@@ -5,7 +5,8 @@ import { STORYLINES, MISSION_MAP } from '../../../../storylines/index';
 import { canPlayerSelectMission, hasVictoryResult, isSideMissionId } from '../../../../storylines/unlock';
 import { getResolvedMissionResearchRewards } from '../../../../../../researchTrees/list';
 import ResearchRewardTinyChip, { MISSION_REWARD_CHIP_CLASSNAME } from '../../../../../../components/ResearchRewardTinyChip';
-import ResourcePill, { campaignResourceGains } from '../../../../../../components/ResourcePill';
+import ResourcePill, { visibleCampaignResourceGains } from '../../../../../../components/ResourcePill';
+import { useCurrentUser } from '../../../../../../user/useCurrentUser';
 import { MISSION_RESULTS_LABEL } from '../../../../../../components/missionResultCopy';
 import { getItemDef } from '../../../../character_defs/items';
 import { TestIds } from '../../../../../../testing/testIds';
@@ -40,7 +41,11 @@ export default function MissionTooltip({
     const result = missionResults.find((r) => r.missionId === data.id);
 
     // Earned rewards — same resolution logic as CampaignHomeScreen mission select
-    const gainedResources = useMemo(() => campaignResourceGains(result?.resourceDelta), [result?.resourceDelta]);
+    const { knowledge } = useCurrentUser();
+    const gainedResources = useMemo(
+        () => visibleCampaignResourceGains(result?.resourceDelta, knowledge),
+        [result?.resourceDelta, knowledge],
+    );
     const gainedResearchRewards = useMemo(() => getResolvedMissionResearchRewards(result), [result]);
     const gainedItemCardIds = useMemo(() => [
         ...(Array.isArray(result?.itemCardIds) ? result.itemCardIds : []),

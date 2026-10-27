@@ -14,7 +14,7 @@ import {
     MISSION_DISABLED_ADMIN_NOTICE,
 } from '../../games/minion_battles/storylines/unlock';
 import { getResolvedMissionResearchRewards, type ResolvedResearchReward } from '../../researchTrees/list';
-import ResourcePill, { campaignResourceGains } from '../ResourcePill';
+import ResourcePill, { visibleCampaignResourceGains } from '../ResourcePill';
 import { MISSION_RESULTS_LABEL } from '../missionResultCopy';
 import ResearchRewardTinyChip, { MISSION_REWARD_CHIP_CLASSNAME } from '../ResearchRewardTinyChip';
 import { ITEM_ICON_URLS, getItemDef } from '../../games/minion_battles/character_defs/items';
@@ -132,7 +132,7 @@ export default function MissionSelectPanel({
     onSelectMission,
     onCampaignUpdated,
 }: MissionSelectPanelProps) {
-    const { isAdmin } = useCurrentUser();
+    const { isAdmin, knowledge } = useCurrentUser();
     const [selectingMission, setSelectingMission] = useState(false);
     const [resettingStorylineId, setResettingStorylineId] = useState<string | null>(null);
 
@@ -235,7 +235,7 @@ export default function MissionSelectPanel({
                                         });
                                         const hasVictory = hasVictoryResult(missionId, missionResults);
                                         const missionResult = latestMissionResultById.get(missionId);
-                                        const gainedResources = campaignResourceGains(missionResult?.resourceDelta);
+                                        const gainedResources = visibleCampaignResourceGains(missionResult?.resourceDelta, knowledge);
                                         const gainedResearchRewards = getResolvedMissionResearchRewards(missionResult);
                                         const gainedItemCardIds = [
                                             ...(Array.isArray(missionResult?.itemCardIds) ? missionResult.itemCardIds : []),

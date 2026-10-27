@@ -8,7 +8,8 @@ import { getQuestDef } from '../../../../storylines/questRegistry';
 import { getLocationCardDef } from '../../../../storylines/locationCards';
 import { getResolvedMissionResearchRewards } from '../../../../../../researchTrees/list';
 import ResearchRewardTinyChip, { MISSION_REWARD_CHIP_CLASSNAME } from '../../../../../../components/ResearchRewardTinyChip';
-import ResourcePill, { campaignResourceGains } from '../../../../../../components/ResourcePill';
+import ResourcePill, { visibleCampaignResourceGains } from '../../../../../../components/ResourcePill';
+import { useCurrentUser } from '../../../../../../user/useCurrentUser';
 import { getItemDef } from '../../../../character_defs/items';
 import { TestIds } from '../../../../../../testing/testIds';
 import { MAP_NODE_DISABLED_LABEL, questBankHoverDescription } from '../questBankUi';
@@ -56,7 +57,11 @@ function QuestSlotList({ rows, isAdmin }: { rows: QuestSlotRow[]; isAdmin: boole
 
 /** Chips for what a cleared quest granted (resources, research, items, location cards). */
 function QuestRewardChips({ result }: { result: QuestResult | undefined }) {
-    const resources = useMemo(() => campaignResourceGains(result?.resourceDelta), [result?.resourceDelta]);
+    const { knowledge } = useCurrentUser();
+    const resources = useMemo(
+        () => visibleCampaignResourceGains(result?.resourceDelta, knowledge),
+        [result?.resourceDelta, knowledge],
+    );
     const research = useMemo(() => getResolvedMissionResearchRewards(result), [result]);
     const itemIds = result?.unlockItemIds ?? [];
     const locationCardIds = result?.locationCardIds ?? [];

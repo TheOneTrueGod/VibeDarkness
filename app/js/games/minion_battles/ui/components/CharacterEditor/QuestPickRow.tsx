@@ -11,6 +11,8 @@ import {
 } from '../../../storylines/questLobby';
 import { TestIds } from '../../../../../testing/testIds';
 import ResourcePill from '../../../../../components/ResourcePill';
+import { useCurrentUser } from '../../../../../user/useCurrentUser';
+import { isCampaignResourceVisible } from '../../../../../campaignResources';
 import {
     AnchoredPortalTooltip,
     PORTAL_TOOLTIP_SURFACE_CLASS,
@@ -139,9 +141,11 @@ export function QuestPickRow({
     );
     const currentSlotIndex =
         isActive && activeRun ? activeRun.currentSlotIndex : null;
-    const campaignResourceRewards = useMemo(
-        () => questCompletionResourceGains(quest),
-        [quest],
+    const { knowledge } = useCurrentUser();
+    const allResourceRewards = useMemo(() => questCompletionResourceGains(quest), [quest]);
+    // Resources the player does not know yet are hidden; a quest whose rewards are all hidden shows no row.
+    const campaignResourceRewards = allResourceRewards.filter(({ resource }) =>
+        isCampaignResourceVisible(resource, knowledge),
     );
 
     return (
@@ -164,7 +168,7 @@ export function QuestPickRow({
                     className="mt-1 flex flex-wrap items-center gap-1"
                     aria-label="Campaign resource rewards"
                 >
-                    {campaignResourceRewards.length > 0 ? (
+                    {allResourceRewards.length > 0 && campaignResourceRewards.length === 0 ? null : campaignResourceRewards.length > 0 ? (
                         campaignResourceRewards.map(({ resource, count }) => (
                             <ResourcePill
                                 key={resource}
