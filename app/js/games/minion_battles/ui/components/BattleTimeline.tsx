@@ -1,4 +1,5 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { ROUND_DURATION } from '../../game/gameConstants';
 import { Maximize2, Minimize2, Heart, Shield } from 'lucide-react';
 import type { PlayerState } from '../../../../types';
 import type { GameEngine } from '../../game/GameEngine';
@@ -52,10 +53,31 @@ const TIMELINE_TRACK_HEIGHT_CLASS = 'h-[3.5rem]';
  * Half-second ticks and time labels below the axis so numbers are not clipped by the row.
  * Horizontal line sits in the upper third; labels sit in padded space along the bottom.
  */
+/** Seconds elapsed in the current round, for the quarter-round markers on every timeline ruler. */
+const TimelineRoundTimeContext = createContext<number | null>(null);
+
+const QUARTER_ROUND_SECONDS = ROUND_DURATION / 4;
+const QUARTER_ROUND_LABELS = ['Round', '¼', '½', '¾'] as const;
+
+/** Quarter-round boundaries that fall inside the window, as seconds from now with a label. */
+function quarterRoundMarkers(roundTime: number, windowSeconds: number): { t: number; label: string }[] {
+    const markers: { t: number; label: string }[] = [];
+    const eps = 1e-6;
+    for (let k = Math.floor(roundTime / QUARTER_ROUND_SECONDS) + 1; ; k++) {
+        const t = k * QUARTER_ROUND_SECONDS - roundTime;
+        if (t > windowSeconds + eps) break;
+        if (t <= eps) continue;
+        markers.push({ t, label: QUARTER_ROUND_LABELS[((k % 4) + 4) % 4] });
+    }
+    return markers;
+}
+
 function TimelineTimeRuler({ windowSeconds }: { windowSeconds: number }) {
+    const roundTime = useContext(TimelineRoundTimeContext);
     if (windowSeconds <= 0) {
         return null;
     }
+    const roundMarkers = roundTime != null ? quarterRoundMarkers(roundTime, windowSeconds) : [];
     const ticks: number[] = [];
     const step = 0.5;
     for (let t = 0; t <= windowSeconds + step / 4; t += step) {
@@ -70,6 +92,19 @@ function TimelineTimeRuler({ windowSeconds }: { windowSeconds: number }) {
                 className="absolute left-0 right-0 h-px bg-gray-600"
                 style={{ top: `${axisTopPercent}%` }}
             />
+            {roundMarkers.map(({ t, label }) => (
+                <div
+                    key={`quarter-${label}`}
+                    className="absolute inset-y-0 flex w-0 flex-col items-center"
+                    style={{ left: `${(t / windowSeconds) * 100}%` }}
+                    data-testid="timeline-quarter-round-marker"
+                >
+                    <div className="h-full w-px bg-amber-400/50" />
+                    <span className="absolute top-0 -translate-x-1/2 whitespace-nowrap text-[9px] font-semibold leading-none text-amber-300/90">
+                        {label}
+                    </span>
+                </div>
+            ))}
             {ticks.map((t) => {
                 const leftPercent = (t / windowSeconds) * 100;
                 const atStart = Math.abs(t) < 1e-6;
@@ -210,7 +245,6 @@ function UnitRailIcon({
                 <img
                     src={p.picture}
                     alt={unit.name}
-                    title={unit.name}
                     className="h-7 w-7 shrink-0 rounded-sm border border-dark-600 bg-dark-800 object-cover"
                 />
             );
@@ -221,7 +255,7 @@ function UnitRailIcon({
         const dark = isDarkCreatureCharacterId(unit.characterId);
         return (
             <div className="relative flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-sm border border-dark-600 bg-dark-800">
-                <img src={iconUrl} alt="" className="h-full w-full object-contain" title={unit.name} />
+                <img src={iconUrl} alt="" className="h-full w-full object-contain" />
                 {dark ? (
                     <div
                         className="pointer-events-none absolute inset-0 mix-blend-multiply bg-[#9966cc]/20"
@@ -235,7 +269,6 @@ function UnitRailIcon({
         <div
             className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm text-xs font-bold text-black"
             style={{ backgroundColor: playerColor }}
-            title={unit.name}
         >
             {(unit.name || playerNameFallback)?.[0]?.toUpperCase() ?? '?'}
         </div>
@@ -284,7 +317,7 @@ function renderEnemyTimelineTrack(
                             <div
                                 className="pointer-events-none absolute left-0 top-[25%] h-[50%] z-10"
                                 style={{ width: `${widthPercent}%` }}
-                                title={`${m.unit.name} exposed for ${clampedEnd.toFixed(1)}s`}
+                                title={`Exposed for ${clampedEnd.toFixed(1)}s`}
                             >
                                 <div className="absolute inset-0 bg-amber-400/20" />
                                 <div className="absolute inset-y-0 right-0 w-0.5 bg-amber-400/80" />
@@ -292,7 +325,7 @@ function renderEnemyTimelineTrack(
                             <div
                                 className="absolute top-1/2 z-30 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 pointer-events-none items-center justify-center overflow-hidden rounded-sm border border-black bg-amber-500"
                                 style={{ left: `clamp(8px, ${widthPercent}%, calc(100% - 8px))` }}
-                                title={`${m.unit.name} exposed for ${clampedEnd.toFixed(1)}s`}
+                                title={`Exposed for ${clampedEnd.toFixed(1)}s`}
                             >
                                 {iconUrl ? (
                                     <span className="relative block h-full w-full">
@@ -372,7 +405,6 @@ function renderEnemyTimelineTrack(
                                 <div
                                     className={`absolute top-1/2 z-30 flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 cursor-default items-center justify-center overflow-hidden rounded-sm border border-black ${iconBg}`}
                                     style={{ left: iconLeft }}
-                                    title={marker.unit.name || 'Enemy'}
                                     onPointerEnter={onMarkerEnter}
                                 >
                                     {iconUrl ? (
@@ -951,7 +983,16 @@ function renderPlayerRow(
     );
 }
 
-export default function BattleTimeline({
+export default function BattleTimeline(props: BattleTimelineProps) {
+    const roundTime = props.engine.gameTime - (props.engine.roundNumber - 1) * ROUND_DURATION;
+    return (
+        <TimelineRoundTimeContext.Provider value={roundTime}>
+            <BattleTimelineBody {...props} />
+        </TimelineRoundTimeContext.Provider>
+    );
+}
+
+function BattleTimelineBody({
     engine,
     players,
     localPlayerId,

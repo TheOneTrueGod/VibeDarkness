@@ -43,7 +43,7 @@ export const trainingTree: ResearchTreeDef = {
         {
             id: TRAINING_NODE_CORE,
             title: 'Core Training',
-            description: `Increase Damage a {${DescriptiveValue.Tiny}} amount, Max Health a {${DescriptiveValue.Small}} amount, and Stamina Recovery by {1}.`,
+            description: `{${DescriptiveValue.Tiny}} Damage boost, {${DescriptiveValue.Small}} Max Health boost, and {1} more Stamina Recovery.`,
             flavorText: 'Learn to brace with the terrain before every strike.',
             order: 10,
             tier: 1,

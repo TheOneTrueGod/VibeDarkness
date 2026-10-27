@@ -129,6 +129,8 @@ const _base: AbilityStatic = defineAbility({
             start: LOCK_TIME,
             end: PREFIRE_TIME,
             abilityPhase: AbilityPhase.Active,
+            // Aims until PREFIRE_TIME, then fires: the timeline shows a short red tick when it fires.
+            timelineDanger: 'end',
             doNotRefund: true,
             behaviour: new SlimeShotLaunch(CastBehaviours.ProjectileLaunch()
                 .withSpeed(PROJECTILE_SPEED)

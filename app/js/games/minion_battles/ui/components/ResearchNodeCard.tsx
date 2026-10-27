@@ -358,6 +358,8 @@ export default function ResearchNodeCard({
             </div>
             <div
                 className={`${descSizeClass} shrink-0 text-gray-300 line-clamp-3`}
+                // Full text on hover when the clamp cuts the description short.
+                title={parseHighlightedSegments(node.description).map((segment) => segment.text).join('')}
                 style={{
                     display: '-webkit-box',
                     WebkitLineClamp: descClampLines,

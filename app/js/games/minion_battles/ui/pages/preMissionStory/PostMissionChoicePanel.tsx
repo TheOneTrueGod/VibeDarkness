@@ -131,8 +131,9 @@ export default function PostMissionChoicePanel({
                                     )
                                 }
                                 className={buttonClass}
+                                title={opt.loreDescription}
                             >
-                                <div className="flex w-full min-w-0 items-center justify-center gap-1">
+                                <div className="flex w-full min-w-0 shrink-0 items-center justify-center gap-1">
                                     {!isSkip && researchTree ? (
                                         <img
                                             src={researchTree.icon}
@@ -174,10 +175,11 @@ export default function PostMissionChoicePanel({
                                         optionId={opt.id}
                                         description={opt.loreDescription}
                                         action={isSkip ? undefined : opt.action}
+                                        singleLine={!isSkip && !!resolvedOption.researchReward}
                                     />
                                 )}
                                 {!isSkip && resolvedOption.researchReward ? (
-                                    <div className="flex max-w-full justify-center pt-0.5">
+                                    <div className="flex max-w-full shrink-0 justify-center pt-0.5">
                                         <ResearchRewardTinyChip
                                             node={resolvedOption.researchReward.node}
                                             tree={researchTree}

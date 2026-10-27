@@ -165,6 +165,12 @@ export interface AbilityTimingInterval {
     timelineLabel?: string;
     /** Optional battle timeline tooltip body. */
     timelineDescription?: string;
+    /**
+     * Where the enemy battle timeline draws this window's danger (red) bar. Default `'window'` spans the
+     * whole window; `'end'` draws a short tick at the window's end, for windows that only aim/track and
+     * release the attack as they close (e.g. a projectile fired when aiming finishes).
+     */
+    timelineDanger?: 'window' | 'end';
     /** Optional declarative emitter: engine auto-creates/deactivates it as this window opens/closes. */
     emitterDef?: AbilityTimingEmitterDef;
     castBehaviours?: CastBehaviourEntry[];
@@ -617,9 +623,13 @@ export function computeVisiblePrimarySegments(
     return segments;
 }
 
+/** Length (seconds) of the enemy timeline danger tick for `timelineDanger: 'end'` windows. */
+export const TIMELINE_DANGER_TICK_SECONDS = 0.1;
+
 /**
- * Enemy row "action" bar: first interval with Active phase in declaration order, else ids
- * hit / lunge / flight, else the first declared interval (e.g. Juggernaut-only block abilities).
+ * Enemy row "action" bar: first interval with Active phase in declaration order (a short tick at its
+ * end when `timelineDanger: 'end'`), else ids hit / lunge / flight, else the first declared interval
+ * (e.g. Juggernaut-only block abilities).
  */
 export function getEnemyActionWindowFromIntervals(
     intervals: AbilityTimingInterval[],
@@ -627,6 +637,9 @@ export function getEnemyActionWindowFromIntervals(
     if (intervals.length === 0) return null;
     for (const it of intervals) {
         if (it.abilityPhase === AbilityPhase.Active) {
+            if (it.timelineDanger === 'end') {
+                return { actionStart: Math.max(it.start, it.end - TIMELINE_DANGER_TICK_SECONDS), actionEnd: it.end };
+            }
             return { actionStart: it.start, actionEnd: it.end };
         }
     }
