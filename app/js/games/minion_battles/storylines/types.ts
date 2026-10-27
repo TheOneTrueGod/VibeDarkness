@@ -195,8 +195,15 @@ export interface VictoryConditionAliveUnitCount {
     minCount: number;
 }
 
+/** True once the battle objective with this id has completed. Ties victory or events to the objective chain. */
+export interface VictoryConditionObjectiveCompleted {
+    type: 'objectiveCompleted';
+    objectiveId: string;
+}
+
 export type VictoryCondition =
     | VictoryConditionEliminateAllEnemies
+    | VictoryConditionObjectiveCompleted
     | VictoryConditionAllUnitsNearPosition
     | VictoryConditionUnitDead
     | VictoryConditionAtLeastRound
@@ -294,6 +301,14 @@ interface LevelEventBase {
     emittedMessage?: string;
     /** NPC id (e.g. '1') whose name/color is used when displaying the message. */
     emittedByNpcId?: string;
+    /**
+     * Objective gate: the event is inactive until this battle objective completes. A one-shot event
+     * then fires as soon as its own trigger is also met; a continuous spawn starts its interval from
+     * the moment the gate opens. Ties events to the objective chain (e.g. spawn guards on arrival).
+     */
+    afterObjective?: string;
+    /** Objective gate: the event stops (or never fires) once this battle objective completes. */
+    untilObjective?: string;
 }
 
 /** Spawn wave: spawns enemies around map edges when trigger fires. */
@@ -301,6 +316,8 @@ export interface LevelEventSpawnWave extends LevelEventBase {
     type: 'spawnWave';
     trigger: { atRound: number } | { afterSeconds: number };
     spawns: SpawnWaveEntry[];
+    /** Extra units spawned at exact positions (e.g. swarm nests with their config), as in proximitySpawn. */
+    extraEnemySpawns?: EnemySpawnDef[];
 }
 
 /** Victory check: runs periodically (every 10 frames + before turns) when trigger is met. */

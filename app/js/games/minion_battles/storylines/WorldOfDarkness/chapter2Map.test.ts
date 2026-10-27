@@ -23,7 +23,7 @@ import {
     WOD_SWARMLING_SOURCE_BANK,
     WorldOfDarknessStoryline,
 } from './WorldOfDarkness';
-import { WOD_CH3_MAP_X_COL0, WOD_CH3_MAP_X_COL1, WOD_CH3_MAP_Y_ROW0, WOD_CH3_MAP_Y_ROW1 } from './chapter3Map';
+import { WOD_CH0_MAP_X_COL0, WOD_CH0_MAP_X_COL1, WOD_CH0_MAP_Y_ROW0, WOD_CH0_MAP_Y_ROW1 } from './chapter0Map';
 import { CAMPSITE, CAMPSITE_2, CAMPSITE_3, CAMPSITE_4 } from './questMissions/campsite';
 import { CRYSTAL_CORRUPTION } from './missions/004b_crystal_corruption';
 import { DISPLACER } from './missions/006d_displacer';
@@ -85,9 +85,9 @@ describe('chapter 2 mission map grid', () => {
     });
 
     it('lays Chapter 0 out: Thornbinder on row 0, the rest in a line on row 1', () => {
-        expect(THORNBINDER_ARENA.mapPosition).toEqual({ x: WOD_CH3_MAP_X_COL0, y: WOD_CH3_MAP_Y_ROW0 });
-        expect(CRYSTAL_CORRUPTION.mapPosition).toEqual({ x: WOD_CH3_MAP_X_COL0, y: WOD_CH3_MAP_Y_ROW1 });
-        expect(THE_CIRCLE.mapPosition).toEqual({ x: WOD_CH3_MAP_X_COL1, y: WOD_CH3_MAP_Y_ROW1 });
+        expect(THORNBINDER_ARENA.mapPosition).toEqual({ x: WOD_CH0_MAP_X_COL0, y: WOD_CH0_MAP_Y_ROW0 });
+        expect(CRYSTAL_CORRUPTION.mapPosition).toEqual({ x: WOD_CH0_MAP_X_COL0, y: WOD_CH0_MAP_Y_ROW1 });
+        expect(THE_CIRCLE.mapPosition).toEqual({ x: WOD_CH0_MAP_X_COL1, y: WOD_CH0_MAP_Y_ROW1 });
     });
 
     it('keeps Thornbinder Arena disabled', () => {

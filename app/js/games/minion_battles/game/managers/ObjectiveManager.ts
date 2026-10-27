@@ -168,9 +168,12 @@ export class ObjectiveManager {
         if (this.ctx.storyPauseActive || this.defs.length === 0) return;
 
         this.syncRevealedFromPrerequisites();
+        // An objective revealed during this pass is first evaluated next tick, after level events
+        // have reacted to the completion that revealed it (e.g. spawned the units it asks you to kill).
+        const evaluable = new Set(this.revealedIds);
 
         for (const d of this.defs) {
-            if (!this.revealedIds.has(d.id) || this.completedIds.has(d.id)) continue;
+            if (!evaluable.has(d.id) || this.completedIds.has(d.id)) continue;
             if (this.evaluateCondition(d.toComplete)) {
                 this.completedIds.add(d.id);
                 this.applyOnComplete(d.onComplete);
@@ -202,6 +205,9 @@ export class ObjectiveManager {
         }
         if (cond.type === 'atLeastRound') {
             return this.ctx.roundNumber >= cond.round;
+        }
+        if (cond.type === 'objectiveCompleted') {
+            return this.completedIds.has(cond.objectiveId);
         }
         if (cond.type === 'aliveUnitCount') {
             const count = this.ctx.units.filter(

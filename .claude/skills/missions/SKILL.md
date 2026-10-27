@@ -53,6 +53,14 @@ When instructed to have enemies "start spawned" or "spawn at the start", both ph
   - Circle-based: `scatterPositionsInCircle` in `storylines/missionSpawnHelpers.ts`.
   - Zone-based: `buildOpeningWolves` in `WorldOfDarkness/missions/007_ember_threshold.ts` (uses `resolveZoneTiles` + `engine.generateRandomInteger`).
 
+## Tying events to objectives
+
+- **Objective gates** on any level event (`LevelEventBase` in `types.ts`): `afterObjective` keeps the event inactive until that objective completes (a continuous spawn starts its interval then); `untilObjective` stops it once that objective completes. Use these for "spawn X until the party reaches Y" and "when they reach Y, spawn Z".
+- **Victory from objectives:** a `victoryCheck` with `{ type: 'objectiveCompleted', objectiveId }`, so the win follows the objective chain.
+- **Exact-position spawns mid-battle** (e.g. swarm nests with their config): `spawnWave.extraEnemySpawns`, like `proximitySpawn`.
+- An objective revealed in a pass is first evaluated on the next tick, after level events react to the completion that revealed it. So "kill the spawners" revealed by "reach the bridge" does not complete before the spawners exist.
+- Example: `WorldOfDarkness/missions/011_the_lonely_castle.ts`.
+
 ## Movement targets and story text
 
 - **Objective types:** every `BattleObjectiveDef` sets `objectiveType` (`storylines/objectiveTypes.ts`: `ReachLocation`, `EliminateAll`, `KillTarget`, `Survive`, `Protect`). `OBJECTIVE_TYPE_DEFS` picks the default hints: only `ReachLocation` draws faint footprint tiles (`showObjectiveTiles`), over the `allUnitsNearPosition` area by default or explicit `tiles` (e.g. `getTilesAroundTile(col, row, 1)`). Other types show the `showObjectiveMarker` "!" alone. `storylines/objectiveTypes.test.ts` audits every mission's objectives.

@@ -21,6 +21,7 @@ import {
     CAMPSITE_3_MISSION_ID,
     CAMPSITE_4_MISSION_ID,
 } from './questMissions/campsite';
+import { THE_LONELY_CASTLE_MISSION_ID } from './missions/011_the_lonely_castle';
 import {
     SWARMLING_SOURCE,
     SWARMLING_SOURCE_QUEST_ID,
@@ -178,6 +179,8 @@ export const WorldOfDarknessStoryline: StorylineDef = {
         },
         { fromMissionId: CAMPSITE_2_MISSION_ID, result: 'victory', toMissionId: 'displacer' },
         { fromMissionId: 'displacer', result: 'victory', toMissionId: CAMPSITE_3_MISSION_ID },
+        // Chapter 3
+        { fromMissionId: CAMPSITE_3_MISSION_ID, result: 'victory', toMissionId: THE_LONELY_CASTLE_MISSION_ID },
     ],
     questSlotBanks: [
         WOD_SWARMLING_SOURCE_BANK,
@@ -216,8 +219,16 @@ export const WorldOfDarknessStoryline: StorylineDef = {
             mapDividers: [{ y: WOD_CH2_MAP_Y_SIDE_QUEST_DIVIDER, label: 'Side Quests' }],
         },
         {
-            // Admin-only holding ground for missions not yet placed in a player chapter. Not the
-            // real Chapter 3 (to be built later). Positions: see chapter3Map.ts.
+            // Positions: see chapter3Map.ts.
+            id: 'wod_ch3',
+            numeral: 'III',
+            title: 'The Lonely Castle',
+            unlockAfterMissionId: CAMPSITE_3_MISSION_ID,
+            missionIds: [THE_LONELY_CASTLE_MISSION_ID],
+        },
+        {
+            // Admin-only holding ground for missions not yet placed in a player chapter.
+            // Positions: see chapter0Map.ts.
             id: 'wod_ch0',
             numeral: '0',
             title: 'Unused Missions',

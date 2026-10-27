@@ -13,7 +13,7 @@ import {
     BOSS_ARENA_SEGMENT_ID,
     BOSS_ARENA_SIZE,
 } from '../MapSegments/0_0_boss_arena';
-import { WOD_CH3_MAP_X_COL1, WOD_CH3_MAP_Y_ROW1 } from '../chapter3Map';
+import { WOD_CH0_MAP_X_COL1, WOD_CH0_MAP_Y_ROW1 } from '../chapter0Map';
 
 export const CIRCLE_ARENA_LAYOUT: MissionMapLayout = [
     [{ kind: 'segment', id: BOSS_ARENA_SEGMENT_ID }, { kind: 'spawn' }],
@@ -32,7 +32,7 @@ export class CircleArenaMission extends BaseMissionDef {
     missionId = CircleArenaMission.missionId;
     name = CircleArenaMission.nameStr;
     disabled = MISSION_MAP_DISABLED;
-    mapPosition = { x: WOD_CH3_MAP_X_COL1, y: WOD_CH3_MAP_Y_ROW1 };
+    mapPosition = { x: WOD_CH0_MAP_X_COL1, y: WOD_CH0_MAP_Y_ROW1 };
     isSideMission = true;
     missionType = 'boss' as const;
     description = 'A dirt circle in the grass. The cave you live in sits on its eastern edge.';

@@ -110,10 +110,18 @@ export class LevelEventManager {
         this.onEmitMessage?.(text, npcId);
     }
 
+    /** Objective gates (`afterObjective` / `untilObjective`): false while the event must not run. */
+    private isObjectiveGateOpen(evt: LevelEvent): boolean {
+        if (evt.afterObjective && !this.ctx.isObjectiveCompleted(evt.afterObjective)) return false;
+        if (evt.untilObjective && this.ctx.isObjectiveCompleted(evt.untilObjective)) return false;
+        return true;
+    }
+
     processLevelEvents(): void {
         if (this.ctx.storyPauseActive) return;
         for (let i = 0; i < this.levelEvents.length; i++) {
             const evt = this.levelEvents[i];
+            if (!this.isObjectiveGateOpen(evt)) continue;
             if (evt.type === 'spawnWave') {
                 this.processSpawnWaveEvent(i, evt);
             } else if (evt.type === 'continuousSpawn') {
@@ -199,8 +207,16 @@ export class LevelEventManager {
             this.executeSpawnWaveSpawns(evt.spawnWaveEntries);
         }
 
+        this.executeEnemySpawnDefs(evt.extraEnemySpawns);
+
+        if (evt.revealObjectiveIds?.length) this.ctx.revealBattleObjectives(evt.revealObjectiveIds);
+    }
+
+    /** Spawns mission-defined enemies at exact positions, with player-count health scaling. */
+    private executeEnemySpawnDefs(defs: EnemySpawnDef[] | undefined): void {
+        if (!defs?.length) return;
         const enemyHealthMult = getEnemyHealthMultiplier(this.ctx.enemyScalingPlayerCount);
-        for (const enemyDef of evt.extraEnemySpawns ?? []) {
+        for (const enemyDef of defs) {
             const def = enemySpawnDefToSpawnDefinition(enemyDef, 'ai');
             const stats = resolveEnemySpawnStats(enemyDef);
             def.hp = Math.round(stats.hp * (enemyDef.teamId === 'enemy' ? enemyHealthMult : 1));
@@ -208,8 +224,6 @@ export class LevelEventManager {
 
             spawnUnit(this.ctx, def, undefined);
         }
-
-        if (evt.revealObjectiveIds?.length) this.ctx.revealBattleObjectives(evt.revealObjectiveIds);
     }
 
     private processConvertSpecialTileEvent(i: number, evt: LevelEventConvertSpecialTile): void {
@@ -253,6 +267,7 @@ export class LevelEventManager {
         if (evt.emittedMessage) this.emitMessage(evt.emittedMessage, evt.emittedByNpcId);
 
         this.executeSpawnWaveSpawns(evt.spawns);
+        this.executeEnemySpawnDefs(evt.extraEnemySpawns);
     }
 
     private processContinuousSpawnEvent(i: number, evt: LevelEventContinuousSpawn): void {
@@ -270,6 +285,11 @@ export class LevelEventManager {
         }
 
         let lastSpawned = this.continuousSpawnLastSpawnedAt[i];
+        if (lastSpawned === undefined && evt.afterObjective) {
+            // Gated: the first interval starts when the objective gate opens.
+            this.continuousSpawnLastSpawnedAt[i] = this.ctx.gameTime;
+            return;
+        }
         if (lastSpawned === undefined) {
             if (startRound !== undefined) {
                 lastSpawned = continuousSpawnStartGameTime(startRound) - intervalSeconds;
@@ -376,6 +396,9 @@ export class LevelEventManager {
         }
         if (cond.type === 'atLeastRound') {
             return this.ctx.roundNumber >= cond.round;
+        }
+        if (cond.type === 'objectiveCompleted') {
+            return this.ctx.isObjectiveCompleted(cond.objectiveId);
         }
         if (cond.type === 'aliveUnitCount') {
             const count = this.ctx.units.filter(

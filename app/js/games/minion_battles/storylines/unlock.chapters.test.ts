@@ -55,7 +55,7 @@ describe('admin-only Chapter 0', () => {
     const admin = { isAdmin: true };
 
     it('is hidden from non-admins and leaves player chapter indexes untouched', () => {
-        expect(wodChapters.map((c) => c.id)).toEqual(['wod_ch1', 'wod_ch2']);
+        expect(wodChapters.map((c) => c.id)).toEqual(['wod_ch1', 'wod_ch2', 'wod_ch3']);
         expect(getCampaignChapters(WorldOfDarknessStoryline, { isAdmin: false })).toEqual(wodChapters);
         expect(isChapterUnlocked(wodChapters[0], 0, [])).toBe(true);
         expect(isChapterUnlocked(wodChapters[1], 1, [])).toBe(false);
@@ -63,7 +63,7 @@ describe('admin-only Chapter 0', () => {
 
     it('is first and always unlocked for admins, with Chapter I next', () => {
         const chapters = getCampaignChapters(WorldOfDarknessStoryline, admin);
-        expect(chapters.map((c) => c.numeral)).toEqual(['0', 'I', 'II']);
+        expect(chapters.map((c) => c.numeral)).toEqual(['0', 'I', 'II', 'III']);
         expect(isChapterUnlocked(chapters[0], 0, [])).toBe(true);
         expect(isChapterUnlocked(chapters[1], 1, [])).toBe(true);
         expect(isChapterUnlocked(chapters[2], 2, [])).toBe(false);

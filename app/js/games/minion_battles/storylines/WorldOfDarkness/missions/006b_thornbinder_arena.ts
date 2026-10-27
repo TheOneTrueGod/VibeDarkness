@@ -19,7 +19,7 @@ import type {
 import { MISSION_MAP_DISABLED } from '../../types';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { DarknessLevel } from '../../../game/darknessLevels';
-import { WOD_CH3_MAP_X_COL0, WOD_CH3_MAP_Y_ROW0 } from '../chapter3Map';
+import { WOD_CH0_MAP_X_COL0, WOD_CH0_MAP_Y_ROW0 } from '../chapter0Map';
 import { ENEMY_DARK_WOLF, ENEMY_THORNBINDER } from '../../../constants/enemyConstants';
 import { NINJUTSU_3_FLURRY_PER_ROUND } from '../../../game/ninjutsu/ninjutsuConfig';
 import { DARK_CRYSTAL_TILE_DEFAULTS } from '../MapSegments/50_50_crystal_cave';
@@ -191,8 +191,8 @@ export class ThornbinderArenaMission extends BaseMissionDef {
     missionId = ThornbinderArenaMission.missionId;
     name = ThornbinderArenaMission.nameStr;
     disabled = MISSION_MAP_DISABLED;
-    /** Chapter 3 grid — row 0 col 0. */
-    mapPosition = { x: WOD_CH3_MAP_X_COL0, y: WOD_CH3_MAP_Y_ROW0 };
+    /** Chapter 0 (Unused Missions) grid — row 0 col 0. */
+    mapPosition = { x: WOD_CH0_MAP_X_COL0, y: WOD_CH0_MAP_Y_ROW0 };
     missionType = 'battle' as const;
     description =
         'Bramble-weaving creatures hold a dirt circle east of the cave. Dark crystals mark the ring — more will come.';

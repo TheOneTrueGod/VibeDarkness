@@ -64,7 +64,12 @@ describe('ObjectiveManager', () => {
         expect(rows.find((r) => r.id === 'kill_boar')?.completed).toBe(true);
         const mop = rows.find((r) => r.id === 'mop_up');
         expect(mop).toBeDefined();
-        expect(mop?.completed).toBe(true);
+        // Revealed this pass: first evaluated next pass, after level events can react to the reveal.
+        expect(mop?.completed).toBe(false);
+
+        engine.state.objectiveManager.processObjectives();
+        rows = engine.getBattleObjectiveRows();
+        expect(rows.find((r) => r.id === 'mop_up')?.completed).toBe(true);
     });
 
     it('atLeastRound gates eliminate objective until the round threshold', () => {
