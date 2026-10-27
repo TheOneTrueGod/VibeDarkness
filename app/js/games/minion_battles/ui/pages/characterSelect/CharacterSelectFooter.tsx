@@ -77,7 +77,7 @@ export function CharacterSelectFooter({
             type="button"
             data-testid={TestIds.characterSelectReady}
             disabled={readyBlocked}
-            className={`${compact ? 'px-4 py-1 text-sm' : 'px-8 py-3 text-lg'} font-bold rounded-lg transition-colors shadow-lg ${
+            className={`${compact ? 'px-6 py-1.5 text-base min-w-[7rem]' : 'px-14 py-4 text-2xl min-w-[12rem]'} font-bold rounded-lg transition-colors shadow-lg ${
                 readyBlocked
                     ? 'bg-gray-600 text-gray-400 cursor-default'
                     : 'bg-primary text-secondary hover:opacity-90 cursor-pointer'

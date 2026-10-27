@@ -9,7 +9,6 @@ import {
     canPlayerViewMission,
     hasVictoryResult,
     isDedicatedQuestBank,
-    isMissionCompleted,
     isMissionDisabled,
 } from '../../../../storylines/unlock';
 import { missionMapNodeTestId, missionMapQuestBankTestId } from '../../../../../../testing/testIds';
@@ -75,7 +74,8 @@ export function MissionNode({
                     const isDisabled = isMissionDisabled(def);
                     const viewable = canPlayerViewMission({ isAdmin, isUnlocked });
                     const missionType = def?.missionType ?? DEFAULT_MISSION_TYPE;
-                    const finished = isMissionCompleted(id, missionResults);
+                    // Only a win finishes a mission; a defeat alone leaves it open.
+                    const finished = hasVictoryResult(id, missionResults);
                     // Every completed main-path node (battle, boss, story, campsite) gets the green outline.
                     const completedNode = !isSide && finished;
                     const completedCombat = completedNode && missionType === 'battle';

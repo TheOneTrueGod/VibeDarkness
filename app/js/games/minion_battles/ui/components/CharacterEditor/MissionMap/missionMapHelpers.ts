@@ -52,7 +52,7 @@ export function getMissionNodeFill(
     missionResults: MissionResult[],
     isDisabled: boolean,
 ): string {
-    if (isMissionCompleted(missionId, missionResults) || isDisabled) return MISSION_NODE_FILL.finished;
+    if (hasVictoryResult(missionId, missionResults) || isDisabled) return MISSION_NODE_FILL.finished;
     if (missionType === 'boss') return `url(#${BOSS_GRADIENT_ID})`;
     if (missionType === 'story') return MISSION_NODE_FILL.story;
     if (missionType === 'campsite') return MISSION_NODE_FILL.campsite;
@@ -66,7 +66,7 @@ export function getMissionGlowColor(
     missionResults: MissionResult[],
     isDisabled: boolean,
 ): string {
-    if (isMissionCompleted(missionId, missionResults) || isDisabled) return MISSION_NODE_FILL.finished;
+    if (hasVictoryResult(missionId, missionResults) || isDisabled) return MISSION_NODE_FILL.finished;
     if (missionType === 'boss') return BOSS_GLOW_COLOR;
     if (missionType === 'story') return MISSION_NODE_FILL.story;
     if (missionType === 'campsite') return MISSION_NODE_FILL.campsite;

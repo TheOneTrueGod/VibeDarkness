@@ -100,8 +100,10 @@ export default function QuestBankPickerPopup({
 
     const unlockRequirement = questBankUnlockRequirementLabel(bank, banks);
     const lockedCopy = unlockRequirement
-        ? `This slot unlocks after ${unlockRequirement}. You can still start matching quests.`
-        : 'This slot is locked. You can still start matching quests.';
+        ? `This slot unlocks after ${unlockRequirement}.`
+        : 'This slot is locked.';
+    // Locked (non-admins only reach this): no new starts, but an already-active quest can still be continued.
+    const listedQuests = isUnlocked ? eligible : eligible.filter((q) => activeQuest?.questDefId === q.id);
 
     return (
         <div
@@ -162,15 +164,15 @@ export default function QuestBankPickerPopup({
                     <p className="text-[10px] font-semibold text-violet-400/90 uppercase tracking-wide">
                         Optional / side quests
                     </p>
-                    {eligible.length === 0 ? (
+                    {listedQuests.length === 0 ? (
                         <p className="text-[11px] text-muted italic px-0.5">
-                            No eligible quests for this bank.
+                            {isUnlocked ? 'No eligible quests for this bank.' : 'Finish the earlier missions to open these quests.'}
                         </p>
                     ) : (
                         <div
                             className={`flex w-full flex-col gap-1.5 overflow-y-auto ${QUEST_BANK_PICKER_LIST_MAX_HEIGHT_CLASS} pr-0.5`}
                         >
-                            {eligible.map((q) => {
+                            {listedQuests.map((q) => {
                                 const isActive = activeQuest?.questDefId === q.id;
                                 return (
                                     <QuestPickRow

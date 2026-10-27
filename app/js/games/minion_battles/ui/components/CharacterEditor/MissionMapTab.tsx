@@ -17,7 +17,7 @@ import type { StartQuestOptions } from '../../../storylines/questLobby';
 import { STORYLINES, MISSION_MAP } from '../../../storylines/index';
 import {
     getUnlockedMissionIds,
-    isMissionCompleted,
+    hasVictoryResult,
     isMissionDisabled,
     getAllMissionIdsInOrder,
     getCampaignChapters,
@@ -175,7 +175,7 @@ export default function MissionMapTab({
     const completedNodeKeys = useMemo(() => {
         const done = new Set<string>();
         for (const { id } of missions) {
-            if (isMissionCompleted(id, missionResults)) done.add(id);
+            if (hasVictoryResult(id, missionResults)) done.add(id);
         }
         for (const bank of questBanksOnMap) {
             if (isQuestBankFinished(bank, questResults)) done.add(questBankMapNodeKey(bank.id));

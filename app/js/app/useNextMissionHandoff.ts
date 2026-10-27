@@ -10,6 +10,7 @@ import {
 import type { QuestLobbyFields } from '../games/minion_battles/storylines/questLobby';
 import type { LobbyState, PlayerState, AccountState, GameStatePayload } from '../types';
 import { LOBBY_PATH_PREFIX } from './constants';
+import { markLobbyForAutoReady } from './autoReadyLobby';
 import type { LobbySessionSetters, ShowToast, UserDataUser } from './types';
 
 interface UseNextMissionHandoffArgs extends Pick<LobbySessionSetters, 'setScreen' | 'setCurrentLobby' | 'setCurrentPlayer' | 'setCurrentAccount' | 'setPlayers' | 'setChatMessages' | 'setChatEnabled' | 'setClicks' | 'setConnectionStatus' | 'setLobbyPageState' | 'setLobbyGameId' | 'setLobbyGameType' | 'setLobbyGameData' | 'setCurrentCampaignId' | 'setLastPollMessageId' | 'setPollMessagesReady'> {
@@ -163,6 +164,7 @@ export function useNextMissionHandoff({
 
                     setPollMessagesReady(false);
                     setLastPollMessageId(null);
+                    markLobbyForAutoReady(newLobby.id);
                     await startInLobby(newLobby, newPlayer);
                     return true;
                 }
@@ -211,6 +213,7 @@ export function useNextMissionHandoff({
 
                 setPollMessagesReady(false);
                 setLastPollMessageId(null);
+                markLobbyForAutoReady(newLobby.id);
                 await startInLobby(newLobby, newPlayer);
                 return true;
             } catch (error) {

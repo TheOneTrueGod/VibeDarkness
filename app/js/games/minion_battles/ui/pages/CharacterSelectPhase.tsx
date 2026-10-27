@@ -6,7 +6,8 @@
  * Quest Prep (quest lobby, status prep / first slot) and Prepare Carefully share one prep stack
  * (`characterSelect/prep/`); only `PrepLoadoutConfig` differs.
  */
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { clearAutoReadyLobby, isLobbyMarkedForAutoReady } from '../../../../app/autoReadyLobby';
 import type { PlayerState } from '../../../../types';
 import type { MinionBattlesApi } from '../../api/minionBattlesApi';
 import type { PreMissionStoryDef } from '../../storylines/storyTypes';
@@ -346,6 +347,24 @@ export default function CharacterSelectPhase({
         />
     ) : undefined;
 
+    // Single-player Continue into the next mission: send Ready automatically once the loadout allows it.
+    const footerAbilityReady = !hasSelectedCharacterLoadout || prepAbilityReady;
+    const footerModifiersBlockReason = hasSelectedCharacterLoadout ? modifiers.blockReason : null;
+    useEffect(() => {
+        if (!isLobbyMarkedForAutoReady(lobbyId)) return;
+        if (Object.keys(players).length > 1) {
+            clearAutoReadyLobby();
+            return;
+        }
+        if (!mySelection || effectivelyReady || setReadyLoading || charactersLoading) return;
+        if (!footerAbilityReady || footerModifiersBlockReason != null) return;
+        clearAutoReadyLobby();
+        void phase.handleSetReady();
+    }, [
+        lobbyId, players, mySelection, effectivelyReady, setReadyLoading, charactersLoading,
+        footerAbilityReady, footerModifiersBlockReason, phase,
+    ]);
+
     const footerProps = {
         activeTab,
         view,
@@ -358,11 +377,11 @@ export default function CharacterSelectPhase({
         atLeastOneCharacter,
         resolvedRequiredPlayers,
         characterToEdit,
-        abilityLoadoutReady: !hasSelectedCharacterLoadout || prepAbilityReady,
+        abilityLoadoutReady: footerAbilityReady,
         onEditModifiers: hasSelectedCharacterLoadout && modifiers.available
             ? () => { closeEditor(); setModifiersOpen(true); }
             : undefined,
-        modifiersBlockReason: hasSelectedCharacterLoadout ? modifiers.blockReason : null,
+        modifiersBlockReason: footerModifiersBlockReason,
         onSetReady: phase.handleSetReady,
         onOpenEditor: () => { setModifiersOpen(false); setEditorOpen(true); },
         canEditCharacter: hasUpgradesSystem(user?.knowledge, isAdmin),
