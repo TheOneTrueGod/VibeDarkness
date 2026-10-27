@@ -12,7 +12,7 @@ import type { UnitAbilityRuntimeState } from '../../game/units/Unit';
 import { getAbilityUseConfig } from '../../abilities/abilityUses';
 import { useAbilityUseChargeAnimation, type AbilityChargeAnimRule } from '../abilityUseChargeAnimation';
 import { ChargeIcon } from './ChargeIcon';
-import { RECOVERY_CHARGE_DEFINITIONS } from './recoveryChargeDefinitions';
+import { RECOVERY_CHARGE_DEFINITIONS, recoveryGlossaryEntries } from './recoveryChargeDefinitions';
 import AbilityTooltip from './AbilityTooltip';
 import {
     ResourceCostIcon,
@@ -311,6 +311,7 @@ export default function AbilitySlot({
                     title={ability.name}
                     lines={tooltipLines}
                     disabledReason={disabledReason ?? undefined}
+                    extraKeywordEntries={recoveryGlossaryEntries(recoveryRules)}
                 />
             )}
 

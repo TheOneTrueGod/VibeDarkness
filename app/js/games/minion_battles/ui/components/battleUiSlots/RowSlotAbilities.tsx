@@ -12,6 +12,7 @@ import { getAbilityDisabledReason } from '../abilityDisabledReason';
 import AbilitySlot from '../AbilitySlot';
 import AbilityTooltip from '../AbilityTooltip';
 import { getAbilityUseConfig, type RecoveryChargeType } from '../../../abilities/abilityUses';
+import { recoveryGlossaryEntries } from '../recoveryChargeDefinitions';
 import { getAbilityBarLayoutKey, splitAbilityRows } from '../../../abilities/abilityBarLayout';
 import {
     ABILITY_CARD_LIFT_PADDING_Y_PX,
@@ -486,6 +487,7 @@ export default function RowSlotAbilities({
                 <AbilityTooltip
                     title={mobileDescAbility.name}
                     lines={mobileDescAbility.getTooltipText(gameState)}
+                    extraKeywordEntries={recoveryGlossaryEntries(getAbilityUseConfig(mobileDescAbility.id).recoveries)}
                     isMobileOverlay
                     onDismiss={handleMobileDescDismiss}
                 />

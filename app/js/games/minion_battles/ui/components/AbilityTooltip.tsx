@@ -106,6 +106,8 @@ export interface AbilityTooltipProps {
     anchorRef?: React.RefObject<HTMLElement | null>;
     /** Whether the portaled desktop tooltip is visible. Defaults to true when rendered. */
     open?: boolean;
+    /** Extra reminder cards appended after keyword cards (e.g. how the ability recovers uses). */
+    extraKeywordEntries?: readonly KeywordGlossaryEntry[];
 }
 
 const TOOLTIP_WIDTH = 180;
@@ -122,13 +124,17 @@ export default function AbilityTooltip({
     onDismiss,
     anchorRef,
     open = true,
+    extraKeywordEntries = [],
 }: AbilityTooltipProps) {
     const reasonDisplay = disabledReason ? getDisabledReasonDisplay(disabledReason) : null;
     const renderedLines = resolveLinesForRender(lines, segmentLines);
     // Reminder cards for described keywords used above (e.g. Rend), shown beside the tooltip.
-    const keywordEntries = keywordGlossaryEntries(
-        renderedLines.flatMap((segs) => segs.filter((seg) => seg.dynamic).map((seg) => seg.text)),
-    );
+    const keywordEntries = [
+        ...keywordGlossaryEntries(
+            renderedLines.flatMap((segs) => segs.filter((seg) => seg.dynamic).map((seg) => seg.text)),
+        ),
+        ...extraKeywordEntries,
+    ];
 
     if (isMobileOverlay) {
         return (

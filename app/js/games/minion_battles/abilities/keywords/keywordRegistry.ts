@@ -41,14 +41,37 @@ export interface KeywordGlossaryEntry {
 }
 
 /**
- * Reminder entries for described keywords that appear in a tooltip. `keywordTexts` are the
- * tooltip's dynamic segment texts (e.g. `Rend 2`); each described keyword found yields one entry,
- * in first-seen order without duplicates.
+ * Unnumbered glossary term (a status or mechanic, e.g. Bleed) shown as a reminder card when a
+ * tooltip highlights one of its `matches` (case-insensitive, e.g. `{Bleed}` or `{bleeding}`).
+ */
+export interface GlossaryTermDef {
+    title: string;
+    matches: readonly string[];
+    /** Legacy-encoded reminder text. */
+    description: string;
+}
+
+const glossaryTerms: GlossaryTermDef[] = [];
+
+export function registerGlossaryTerm(def: GlossaryTermDef): void {
+    glossaryTerms.push(def);
+}
+
+/**
+ * Reminder entries for described keywords and glossary terms that appear in a tooltip.
+ * `keywordTexts` are the tooltip's dynamic segment texts (e.g. `Rend 2`, `Bleed`); each one found
+ * yields one entry, in first-seen order without duplicates.
  */
 export function keywordGlossaryEntries(keywordTexts: readonly string[]): KeywordGlossaryEntry[] {
     const entries: KeywordGlossaryEntry[] = [];
     const seen = new Set<string>();
     for (const text of keywordTexts) {
+        const lower = text.trim().toLowerCase();
+        for (const term of glossaryTerms) {
+            if (seen.has(term.title) || !term.matches.some((m) => m.toLowerCase() === lower)) continue;
+            seen.add(term.title);
+            entries.push({ title: term.title, description: term.description });
+        }
         for (const def of registry.values()) {
             if (!def.describe) continue;
             const prefix = `${def.displayName} `;
@@ -94,3 +117,9 @@ registerKeyword({
 
 registerKeyword(devourLightKeyword);
 registerKeyword(rendKeyword);
+
+registerGlossaryTerm({
+    title: 'Bleed',
+    matches: ['bleed', 'bleeding'],
+    description: 'Takes damage over time. Each tick deals {1} damage per {10} stacks (rounded up), then removes {1} stack.',
+});

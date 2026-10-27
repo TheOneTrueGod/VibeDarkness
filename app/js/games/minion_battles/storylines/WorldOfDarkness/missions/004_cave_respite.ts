@@ -120,7 +120,6 @@ export class CaveRespiteMission extends BaseMissionDef {
             metal: CAVE_RESPITE_METAL_REWARD,
             attunement: CAVE_RESPITE_ATTUNEMENT_REWARD,
         },
-        unlockItemTiers: [{ slot: 'weapon' as const, tier: 3 }],
     };
     worldWidth = CELL_SIZE;
     worldHeight = CELL_SIZE;

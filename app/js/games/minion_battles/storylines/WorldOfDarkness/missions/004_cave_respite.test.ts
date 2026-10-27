@@ -19,9 +19,7 @@ describe('Cave Respite punch choice', () => {
 });
 
 describe('Cave Respite rewards', () => {
-    it('unlocks the tier-3 weapon on victory', () => {
-        expect(resolveUnlockedTierItemIds(CAVE_RESPITE.completionRewards?.unlockItemTiers, CAVE_RESPITE.campaignId)).toEqual([
-            '016',
-        ]);
+    it('unlocks no weapon tier (Find some food unlocks tier 3)', () => {
+        expect(resolveUnlockedTierItemIds(CAVE_RESPITE.completionRewards?.unlockItemTiers, CAVE_RESPITE.campaignId)).toEqual([]);
     });
 });

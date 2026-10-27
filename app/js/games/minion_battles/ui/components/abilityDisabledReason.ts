@@ -1,7 +1,8 @@
 import { getAbilityResourceCosts, type AbilityStatic } from '../../abilities/Ability';
 import type { Unit } from '../../game/units/Unit';
 import { getLivingPetsOfUnit } from '../../game/units/petHelpers';
-import { unitAbilityHasTag } from '../../abilities/abilityUses';
+import { getAbilityUseConfig, unitAbilityHasTag, type AbilityRecoveryRule } from '../../abilities/abilityUses';
+import { describeAbilityRecovery } from './recoveryChargeDefinitions';
 import { ALL_RESOURCE_DISPLAY_DEFS } from '../../resources/resourceDisplayDefs';
 
 export type DisabledReasonId =
@@ -15,6 +16,13 @@ export interface DisabledReason {
     reason_id: DisabledReasonId;
     /** Populated for 'cannot_afford' — identifies which resource is insufficient. */
     resourceId?: string;
+    /** Populated for 'no_uses_remaining' — how the ability gets uses back. */
+    recoveries?: readonly AbilityRecoveryRule[];
+}
+
+/** Disabled-reason text renders as plain text, so drop legacy `{n}` highlight braces. */
+function stripTooltipBraces(text: string): string {
+    return text.replace(/[{}]/g, '');
 }
 
 function getResourceDisplayName(resourceId: string): string {
@@ -33,7 +41,12 @@ export function getDisabledReasonDisplay(reason: DisabledReason): { title: strin
             };
         }
         case 'no_uses_remaining':
-            return { title: 'No Uses Remaining', description: 'This ability has no uses left this round.' };
+            return {
+                title: 'No Uses Remaining',
+                description: reason.recoveries?.length
+                    ? stripTooltipBraces(describeAbilityRecovery(reason.recoveries))
+                    : 'This ability has no uses left.',
+            };
         case 'no_pet_source':
             return { title: 'No Pet', description: 'This ability requires a living pet.' };
         case 'tag_filter_mismatch':
@@ -87,7 +100,9 @@ export function getAbilityDisabledReason(params: {
         if (hpAffordReason) return hpAffordReason;
     }
 
-    if (currentUses <= 0) return { reason_id: 'no_uses_remaining' };
+    if (currentUses <= 0) {
+        return { reason_id: 'no_uses_remaining', recoveries: getAbilityUseConfig(abilityId).recoveries };
+    }
 
     const hasPetSource =
         ability.abilitySource?.type !== 'pet'

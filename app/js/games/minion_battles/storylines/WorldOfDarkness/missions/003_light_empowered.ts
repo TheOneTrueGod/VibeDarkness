@@ -238,6 +238,7 @@ export class LightEmpoweredMission extends BaseMissionDef {
 	completionRewards = {
 		knowledgeKeys: [KNOWLEDGE_RESEARCH],
 		resourceDelta: { vigor: LIGHT_EMPOWERED_VIGOR_REWARD },
+		unlockItemTiers: [{ slot: 'weapon' as const, tier: 3 }],
 	};
 	worldWidth = WORLD_WIDTH;
 	worldHeight = WORLD_HEIGHT;
