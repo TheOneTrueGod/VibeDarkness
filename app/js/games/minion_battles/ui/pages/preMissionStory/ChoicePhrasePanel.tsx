@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import type { ChoicePhrase, StoryChoiceAction, StoryChoiceOptionRow } from '../../../storylines/storyTypes';
 import StoryChoiceGrid, {
     STORY_CHOICE_CELL_BUTTON_BASE,
+    STORY_CHOICE_CELL_BUTTON_PADDING,
     STORY_CHOICE_CELL_BUTTON_PRIMARY,
     STORY_CHOICE_CELL_BUTTON_SKIP,
 } from '../../components/battleUiSlots/StoryChoiceGrid';
@@ -85,7 +86,7 @@ export default function ChoicePhrasePanel({
             cells={gridSlots.map((opt) => {
                 if (!opt) return null;
                 const isSkip = isStoryChoiceSkipOption(opt);
-                const buttonClass = `${STORY_CHOICE_CELL_BUTTON_BASE} ${
+                const buttonClass = `${STORY_CHOICE_CELL_BUTTON_BASE} ${STORY_CHOICE_CELL_BUTTON_PADDING} ${
                     isSkip ? STORY_CHOICE_CELL_BUTTON_SKIP : STORY_CHOICE_CELL_BUTTON_PRIMARY
                 }`;
                 const title = opt.loreTitle ?? opt.label;

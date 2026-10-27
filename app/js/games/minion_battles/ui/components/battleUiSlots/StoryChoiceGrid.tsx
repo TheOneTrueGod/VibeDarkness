@@ -7,7 +7,16 @@ interface StoryChoiceGridProps {
 }
 
 export const STORY_CHOICE_CELL_BUTTON_BASE =
-    'flex h-full min-h-0 w-full min-w-0 flex-col items-center justify-center gap-0 overflow-hidden rounded-lg border-2 px-1.5 py-0.5 text-center transition-colors sm:px-2 sm:py-1';
+    'flex h-full min-h-0 w-full min-w-0 flex-col items-center justify-center overflow-hidden rounded-lg border-2 text-center transition-colors';
+
+/** Default inset. Research-node rewards use {@link STORY_CHOICE_CELL_BUTTON_RESEARCH_PADDING}. */
+export const STORY_CHOICE_CELL_BUTTON_PADDING = 'gap-0 px-1.5 py-0.5 sm:px-2 sm:py-1';
+
+/**
+ * Research rewards omit the node pill, so the cell keeps two description lines
+ * and a larger inset instead of a chip row.
+ */
+export const STORY_CHOICE_CELL_BUTTON_RESEARCH_PADDING = 'gap-1 px-2.5 py-1.5 sm:gap-1.5 sm:px-3 sm:py-2';
 
 export const STORY_CHOICE_CELL_BUTTON_PRIMARY =
     'border-border-custom bg-surface text-white hover:border-primary hover:bg-surface-light/80';

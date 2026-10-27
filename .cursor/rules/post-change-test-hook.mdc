@@ -20,11 +20,11 @@ Whenever you finish a command where **files have been created, saved, or deleted
 2. **Run the minimal relevant Vitest set** — only **after** step 1 succeeds; skip when **Skills only — no Vitest** (below) applies.
    - **Before** invoking the first `npx vitest` / `npm run test` (and again before each re-run after a fix), post in the user-facing message: <span style="color: green">Starting unit tests — first pass on the code is done; feel free to run your own checks.</span> (exact HTML; see **scoped-testing** skill).
    - Pick the **smallest** command that covers the change. See **`.cursor/skills/scoped-testing/SKILL.md`** for the decision tree.
-   - **Default for a focused edit:** if the changed source has a co-located `*.test.ts`, run **only** that file. Do **not** also run `vitest related` for the same leaf (missions, items, and other registry leaves fan out through hubs and inflate the run).
-   - **Use `vitest related` only when** there is no co-located test **and** the file is not a hub/registry leaf (see scoped-testing).
-   - **When several files changed or imports are unclear:** `npx vitest run --changed` (uncommitted changes). If the working tree is **clean**, use `npx vitest run --changed HEAD~1`.
-   - **Do not** run `npm run test` (full suite) after routine edits. **`npm run ci`** runs lint, the full test suite, and `tsc` on a 30-minute loop locally — that is the backstop for broad regressions.
-   - **Full suite (`npm run test`) only when:** the user asks, you are finishing a large cross-cutting refactor (serialization, tick loop, shared types), or you deliberately want a pre-merge sanity check.
+   - **Standard for small and medium changes:** `npx vitest run` with the explicit test-file paths you chose. A co-located `*.test.ts` is the usual choice. Several edited files still means those named files, not a wider command. Do **not** also run `vitest related` for a file that already has a co-located test (missions, items, and other registry leaves fan out through hubs and inflate the run).
+   - If you cannot name a test file that covers the edit, skip Vitest and say so. Do not widen the run because several files changed or the import graph is unclear.
+   - **Use `vitest related` only when** one changed file has no co-located test **and** it is not a hub/registry leaf (see scoped-testing). One file per call.
+   - **`npx vitest run --changed`** is a deliberate git-aware check, not the default. Use it when you mean to cover the work you actually changed. Skip it when the dirty tree also has unrelated files (`package.json`, storage, and so on): the flag follows the whole tree, and a shared import can turn it into a near-suite. On a clean tree, `npx vitest run --changed HEAD~1` is that same deliberate check against the last commit.
+   - **`npm run test`** is the full suite. Use it when the user asks, you are finishing a large cross-cutting refactor (serialization, tick loop, shared types), or you want a pre-merge sanity check. Extra flags such as `--changed` do not make `npm run test` a scoped run; use `npx vitest run ...` for anything smaller. **`npm run ci`** runs lint, the full suite, and `tsc` on a 30-minute loop locally — that is the backstop for broad regressions.
 
 3. **If all tests pass**:
    - Return your normal response to the user

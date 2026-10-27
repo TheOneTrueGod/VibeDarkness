@@ -9,8 +9,6 @@ interface StoryChoiceDescriptionRowProps {
     description?: string;
     /** Resource pills come from this action (see `storyChoiceActionResourceDelta`); omit for none. */
     action?: StoryChoiceAction;
-    /** Clamp the description to one line (the cell also shows a research chip below it). */
-    singleLine?: boolean;
 }
 
 /** A story choice's description with its resource pills: description on the left, pills on the right. */
@@ -18,20 +16,26 @@ export default function StoryChoiceDescriptionRow({
     optionId,
     description,
     action,
-    singleLine = false,
 }: StoryChoiceDescriptionRowProps) {
-    const clamp = singleLine ? 'line-clamp-1' : 'line-clamp-2';
     const { knowledge } = useCurrentUser();
     const gains = visibleCampaignResourceGains(storyChoiceActionResourceDelta(action), knowledge);
     if (gains.length === 0) {
         return description ? (
-            <span className={`${clamp} min-h-0 shrink-0 text-[10px] leading-tight text-zinc-400 sm:text-xs`}>{description}</span>
+            <span
+                data-className="StoryChoiceDescriptionRow"
+                className="line-clamp-2 w-full min-h-0 shrink-0 text-[10px] leading-snug text-zinc-400 sm:text-xs"
+            >
+                {description}
+            </span>
         ) : null;
     }
     return (
-        <div className={`flex w-full min-w-0 items-center gap-2 ${description ? 'justify-between' : 'justify-center'}`}>
+        <div
+            data-className="StoryChoiceDescriptionRow"
+            className={`flex w-full min-w-0 items-center gap-2 ${description ? 'justify-between' : 'justify-center'}`}
+        >
             {description ? (
-                <span className={`${clamp} min-w-0 text-left text-[10px] leading-tight text-zinc-400 sm:text-xs`}>
+                <span className="line-clamp-2 min-w-0 text-left text-[10px] leading-snug text-zinc-400 sm:text-xs">
                     {description}
                 </span>
             ) : null}

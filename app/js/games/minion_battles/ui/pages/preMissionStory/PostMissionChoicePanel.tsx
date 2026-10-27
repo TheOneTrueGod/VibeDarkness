@@ -1,11 +1,13 @@
 import React, { useMemo } from 'react';
 import { Star } from 'lucide-react';
 import type { ChoicePhrase, StoryChoiceAction, StoryChoiceOptionRow } from '../../../storylines/storyTypes';
-import ResearchRewardTinyChip from '../../../../../components/ResearchRewardTinyChip';
+import ResearchNodeHoverAnchor from '../../../../../components/ResearchNodeHoverAnchor';
 import StoryChoiceGrid, {
     STORY_CHOICE_CELL_BUTTON_BASE,
     STORY_CHOICE_CELL_BUTTON_DISABLED,
+    STORY_CHOICE_CELL_BUTTON_PADDING,
     STORY_CHOICE_CELL_BUTTON_PRIMARY,
+    STORY_CHOICE_CELL_BUTTON_RESEARCH_PADDING,
     STORY_CHOICE_CELL_BUTTON_SKIP,
 } from '../../components/battleUiSlots/StoryChoiceGrid';
 import { storyChoiceTestId } from '../../../../../testing/testIds';
@@ -71,7 +73,7 @@ export default function PostMissionChoicePanel({
 
     if (amSpectator) {
         return (
-            <div className="flex h-full min-h-0 w-full flex-col items-center justify-center gap-3 text-center">
+            <div data-className="PostMissionChoicePanel" className="flex h-full min-h-0 w-full flex-col items-center justify-center gap-3 text-center">
                 <p className="text-muted text-sm">Spectators do not receive rewards.</p>
                 <button
                     type="button"
@@ -85,7 +87,7 @@ export default function PostMissionChoicePanel({
     }
 
     return (
-        <div className="flex h-full min-h-0 w-full flex-col gap-1">
+        <div data-className="PostMissionChoicePanel" className="flex h-full min-h-0 w-full flex-col gap-1">
             {waitingForPartyChoiceId ? (
                 <p className="shrink-0 text-center text-xs text-amber-200/90 sm:text-sm">
                     Waiting for other players to choose…
@@ -105,10 +107,15 @@ export default function PostMissionChoicePanel({
                                 ? getResearchTree(resolvedOption.researchReward.treeId)
                                 : undefined;
                         const title = opt.loreTitle ?? opt.label;
+                        const isResearchReward = !isSkip && resolvedOption.researchReward != null;
                         const disabledReason = resolvedOption.disabled
                             ? (resolvedOption.disabledLabel ?? opt.disabledLabel ?? UNAVAILABLE_CHOICE_REASON)
                             : undefined;
                         const buttonClass = `${STORY_CHOICE_CELL_BUTTON_BASE} ${
+                            isResearchReward
+                                ? STORY_CHOICE_CELL_BUTTON_RESEARCH_PADDING
+                                : STORY_CHOICE_CELL_BUTTON_PADDING
+                        } ${
                             resolvedOption.disabled
                                 ? `${STORY_CHOICE_CELL_BUTTON_DISABLED} pointer-events-none`
                                 : isSkip
@@ -118,7 +125,6 @@ export default function PostMissionChoicePanel({
 
                         const button = (
                             <button
-                                key={opt.id}
                                 type="button"
                                 data-testid={storyChoiceTestId(opt.id)}
                                 disabled={resolvedOption.disabled || !!waitingForPartyChoiceId}
@@ -131,7 +137,7 @@ export default function PostMissionChoicePanel({
                                     )
                                 }
                                 className={buttonClass}
-                                title={opt.loreDescription}
+                                title={isResearchReward ? undefined : opt.loreDescription}
                             >
                                 <div className="flex w-full min-w-0 shrink-0 items-center justify-center gap-1">
                                     {!isSkip && researchTree ? (
@@ -139,7 +145,6 @@ export default function PostMissionChoicePanel({
                                             src={researchTree.icon}
                                             alt=""
                                             data-testid={TestIds.storyChoiceResearchTreeIcon}
-                                            title={researchTree.title}
                                             className="h-5 w-5 shrink-0 rounded-sm object-cover"
                                         />
                                     ) : null}
@@ -175,27 +180,32 @@ export default function PostMissionChoicePanel({
                                         optionId={opt.id}
                                         description={opt.loreDescription}
                                         action={isSkip ? undefined : opt.action}
-                                        singleLine={!isSkip && !!resolvedOption.researchReward}
                                     />
                                 )}
-                                {!isSkip && resolvedOption.researchReward ? (
-                                    <div className="flex max-w-full shrink-0 justify-center pt-0.5">
-                                        <ResearchRewardTinyChip
-                                            node={resolvedOption.researchReward.node}
-                                            tree={researchTree}
-                                        />
-                                    </div>
-                                ) : null}
                             </button>
                         );
 
-                        if (!resolvedOption.disabled) return button;
+                        if (resolvedOption.disabled) {
+                            return (
+                                <DisabledStoryChoiceTooltip key={opt.id} reason={disabledReason}>
+                                    {button}
+                                </DisabledStoryChoiceTooltip>
+                            );
+                        }
 
-                        return (
-                            <DisabledStoryChoiceTooltip key={opt.id} reason={disabledReason}>
-                                {button}
-                            </DisabledStoryChoiceTooltip>
-                        );
+                        if (isResearchReward && resolvedOption.researchReward) {
+                            return (
+                                <ResearchNodeHoverAnchor
+                                    key={opt.id}
+                                    node={resolvedOption.researchReward.node}
+                                    tree={researchTree}
+                                >
+                                    {button}
+                                </ResearchNodeHoverAnchor>
+                            );
+                        }
+
+                        return <React.Fragment key={opt.id}>{button}</React.Fragment>;
                     })}
                 />
             </div>

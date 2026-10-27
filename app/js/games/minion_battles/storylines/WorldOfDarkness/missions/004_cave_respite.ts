@@ -40,32 +40,28 @@ function getCaveRespitePunchChoiceRows(equippedItemIds: readonly string[]): Stor
             id: TRAINING_NODE_CHARGING_PUNCH,
             label: 'Charging Punch',
             loreTitle: 'Crystal Rhythm',
-            loreDescription:
-                'The cave crystals answer a steady rhythm. Channel their stored light through your strike so each hit builds 1 Light Charge for your next move.',
+            loreDescription: 'The crystals keep your rhythm. Each hit stores 1 Light Charge.',
             action: grantPunch(TRAINING_NODE_CHARGING_PUNCH),
         },
         {
             id: TRAINING_NODE_SNEAKY_PUNCH,
             label: 'Sneaky Punch',
             loreTitle: 'Strike the Opening',
-            loreDescription:
-                'You learned to wait for clean openings in wolf packs. Punch deals extra damage to stunned enemies.',
+            loreDescription: 'Wait for a clean opening. Extra damage to stunned enemies.',
             action: grantPunch(TRAINING_NODE_SNEAKY_PUNCH),
         },
         {
             id: TRAINING_NODE_STRONG_PUNCH,
             label: 'Strong Punch',
             loreTitle: 'Brace and Hit',
-            loreDescription:
-                'Hunting in rough ground taught you to plant your feet and drive through. Punch stuns and knocks back enemies.',
+            loreDescription: 'Plant your feet and drive through. Stun and knock enemies back.',
             action: grantPunch(TRAINING_NODE_STRONG_PUNCH),
         },
         {
             id: TRAINING_NODE_DOUBLE_PUNCH,
             label: 'Double Punch',
             loreTitle: 'Two Quick Blows',
-            loreDescription:
-                'Fighting in tight cave paths trained fast follow-ups. Punch can target two enemies in sequence.',
+            loreDescription: 'Tight paths train fast follow-ups. Strike two enemies in sequence.',
             action: grantPunch(TRAINING_NODE_DOUBLE_PUNCH),
         },
     ];

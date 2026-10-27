@@ -14,6 +14,10 @@ export const RESEARCH_NODE_COMFORTABLE_DESC_HEIGHT_EM =
     RESEARCH_NODE_COMFORTABLE_DESC_LINES * RESEARCH_NODE_LEADING_SNUG_EM;
 
 export const RESEARCH_NODE_COMFORTABLE_WIDTH_CLASS = 'w-[280px]';
+
+/** Compact card footprint. Class strings stay literals so Tailwind can see them. */
+export const RESEARCH_NODE_COMPACT_WIDTH_PX = 180;
+export const RESEARCH_NODE_COMPACT_HEIGHT_PX = 116;
 export const RESEARCH_NODE_COMPACT_WIDTH_CLASS = 'w-[180px]';
 export const RESEARCH_NODE_COMPACT_HEIGHT_CLASS = 'h-[116px]';
 

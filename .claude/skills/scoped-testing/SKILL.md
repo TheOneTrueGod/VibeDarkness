@@ -7,7 +7,7 @@ description: How to pick the smallest Vitest run for a change. Use after code ed
 
 **Vitest, not Jest.** Full-suite backstop: **`npm run ci`** (30-minute loop: lint, all tests, `tsc`).
 
-After a code change, run the **smallest** set that still covers what you changed.
+After a code change, run the **smallest** set that still covers what you changed. For small and medium changes that set is **explicit test files** (`npx vitest run path/to/A.test.ts`). `npx vitest run --changed` and `npm run test` stay available for deliberate broader checks; they are not the default.
 
 ## Picking the minimal set (in order)
 
@@ -28,22 +28,22 @@ After a code change, run the **smallest** set that still covers what you changed
    ```
    One `related` call per independent changed non-test file is usually enough.
 
-4. **Several files or unclear fan-out** — git-aware module graph:
+4. **Deliberate changed-graph check** — not the default when several files changed or the import graph is unclear. Name the test files instead. Use this only when you mean to cover the work you actually changed:
    ```bash
    npx vitest run --changed
    ```
-   Multi-commit branch work: `npx vitest run --changed main` (or your base ref). Clean tree after commit: `npx vitest run --changed HEAD~1`.
+   Skip it when the dirty tree also has unrelated files (`package.json`, storage, and so on): the flag follows the whole tree, and a shared import can turn it into a near-suite. Multi-commit branch work: `npx vitest run --changed main` (or your base ref). Clean tree after commit: `npx vitest run --changed HEAD~1`.
 
 5. **Known domain folders** (when only that area changed):
    - `game/battlenet/**` → `npx vitest run app/js/games/minion_battles/game/battlenet`
    - Card/ability → co-located `NNNNAbility.test.ts` and often `app/js/games/minion_battles/abilities`
    - New UI helper under `app/js/ci/` → `npx vitest run app/js/ci`
 
-6. **Full suite** — `npm run test` — only when:
+6. **Full suite** — `npm run test` — when you deliberately want the whole suite:
    - User explicitly asks
    - Large cross-cutting refactor (serialization, tick loop, shared `types.ts`, managers)
    - Deliberate pre-merge / handoff check
-   - **Not** after every small edit (CI covers this routinely)
+   - **Not** the default after a small or medium edit (CI covers this routinely). Extra flags such as `--changed` do not make `npm run test` a scoped run; use `npx vitest run ...` for anything smaller.
 
 ## Hub files and registry leaves — do **not** use `vitest related`
 
