@@ -225,12 +225,21 @@ export function getNextVictoryMissionId(
     return null;
 }
 
-/** True when `missionId` is the last mission of its (player) chapter: nothing follows it inside the chapter. */
+/**
+ * True when `missionId` is the last mission of its (player) chapter. When the next chapter names the
+ * mission that unlocks it (`unlockAfterMissionId`), only that mission ends the chapter: a mission
+ * followed by a quest bank rather than a mission edge (e.g. a campsite before Surface Quests) is still
+ * mid-chapter. Otherwise: nothing follows it inside the chapter.
+ */
 export function isLastMissionInChapter(missionId: string, storylines: StorylineDef[]): boolean {
     const nextMissionId = getNextVictoryMissionId(missionId, storylines);
     for (const storyline of storylines) {
-        const chapter = getCampaignChapters(storyline).find((c) => c.missionIds.includes(missionId));
-        if (chapter) return nextMissionId == null || !chapter.missionIds.includes(nextMissionId);
+        const chapters = getCampaignChapters(storyline);
+        const idx = chapters.findIndex((c) => c.missionIds.includes(missionId));
+        if (idx < 0) continue;
+        const nextChapterGate = chapters[idx + 1]?.unlockAfterMissionId;
+        if (nextChapterGate) return nextChapterGate === missionId;
+        return nextMissionId == null || !chapters[idx]!.missionIds.includes(nextMissionId);
     }
     return false;
 }
