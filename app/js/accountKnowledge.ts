@@ -31,6 +31,12 @@ export const KNOWLEDGE_RESOURCE_POPULATION = 'ResourcePopulation';
  */
 export const KNOWLEDGE_RESOURCE_ATTUNEMENT = 'ResourceAttunement';
 
+/**
+ * Knowledge of Resource: Food — without it the Hunger resource is left out of player-facing rows and
+ * the victory screen skips the Hunger to HP conversion. Granted by "Find some food" (the boar hunt).
+ */
+export const KNOWLEDGE_RESOURCE_FOOD = 'ResourceFood';
+
 /** Research system: the Research trees (and their nodes) are closed to a player without it. */
 export const KNOWLEDGE_RESEARCH = 'Research';
 
@@ -75,6 +81,13 @@ export const ACCOUNT_KNOWLEDGE: readonly AccountKnowledgeDef[] = [
         type: 'resource',
         tier: 1,
         description: 'Reserved for showing the Attunement resource; not gated yet.',
+    },
+    {
+        key: KNOWLEDGE_RESOURCE_FOOD,
+        label: 'Resource: Food',
+        type: 'resource',
+        tier: 1,
+        description: 'Shows Hunger in resource rows and the Hunger to HP conversion on the victory screen.',
     },
     {
         key: KNOWLEDGE_FORGING,

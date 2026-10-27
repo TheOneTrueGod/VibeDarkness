@@ -1,5 +1,10 @@
 import type { CampaignResourceKey, CampaignResources, MissionResult } from './types';
-import { hasAccountKnowledge, KNOWLEDGE_RESOURCE_POPULATION, type AccountKnowledgeMap } from './accountKnowledge';
+import {
+    hasAccountKnowledge,
+    KNOWLEDGE_RESOURCE_FOOD,
+    KNOWLEDGE_RESOURCE_POPULATION,
+    type AccountKnowledgeMap,
+} from './accountKnowledge';
 
 /**
  * The one table of campaign resources, in display order. Adding or renaming a resource is an edit here
@@ -22,7 +27,14 @@ export const CAMPAIGN_RESOURCE_DEFS = [
      */
     { key: 'attunement', label: 'Attunement', color: '#8B5CF6', missionBonus: true },
     /** Hunger is a signed penalty accumulator (can go negative); its pill chrome is sign-driven. */
-    { key: 'hunger', label: 'Hunger', color: '#f97316', missionBonus: false, signed: true },
+    {
+        key: 'hunger',
+        label: 'Hunger',
+        color: '#f97316',
+        missionBonus: false,
+        signed: true,
+        knowledgeKey: KNOWLEDGE_RESOURCE_FOOD,
+    },
 ] as const satisfies readonly CampaignResourceDef[];
 
 export interface CampaignResourceDef {

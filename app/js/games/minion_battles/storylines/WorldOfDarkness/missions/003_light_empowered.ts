@@ -5,7 +5,7 @@
  * Map: two segments stacked vertically. Top: cliff path with inlet. Bottom: crystal cave (reused from mission 2).
  */
 
-import { KNOWLEDGE_RESEARCH } from '../../../../../accountKnowledge';
+import { KNOWLEDGE_RESEARCH, KNOWLEDGE_RESOURCE_FOOD } from '../../../../../accountKnowledge';
 import { BaseMissionDef } from '../../BaseMissionDef';
 import { ObjectiveType } from '../../objectiveTypes';
 import { WOD_CH1_MAP_X_COL2, WOD_CH1_MAP_Y_ROW0 } from '../chapter1Map';
@@ -236,7 +236,7 @@ export class LightEmpoweredMission extends BaseMissionDef {
 	campaignId = 'world_of_darkness';
 	name = 'Find some food';
 	completionRewards = {
-		knowledgeKeys: [KNOWLEDGE_RESEARCH],
+		knowledgeKeys: [KNOWLEDGE_RESEARCH, KNOWLEDGE_RESOURCE_FOOD],
 		resourceDelta: { vigor: LIGHT_EMPOWERED_VIGOR_REWARD },
 		unlockItemTiers: [{ slot: 'weapon' as const, tier: 3 }],
 	};

@@ -91,12 +91,19 @@ function getDarknessUpgradeTooltip(nodeId: string): string | undefined {
 }
 
 function ItemRewardCard({ itemId, caption }: { itemId: string; caption?: string }) {
+    const ref = useRef<HTMLDivElement | null>(null);
+    const [hovered, setHovered] = useState(false);
     const itemDef = getItemDef(itemId);
     const itemIconUrl = ITEM_ICON_URLS[itemId];
     if (!itemDef || !itemIconUrl) return null;
     return (
         <div className="flex flex-col items-center gap-1">
-            <div className="flex flex-col items-center justify-center rounded-lg border-2 border-primary bg-surface px-4 py-3 min-w-[100px]">
+            <div
+                ref={ref}
+                onMouseEnter={() => setHovered(true)}
+                onMouseLeave={() => setHovered(false)}
+                className="flex flex-col items-center justify-center rounded-lg border-2 border-primary bg-surface px-4 py-3 min-w-[100px]"
+            >
                 <img
                     src={itemIconUrl}
                     alt=""
@@ -104,6 +111,15 @@ function ItemRewardCard({ itemId, caption }: { itemId: string; caption?: string 
                     aria-hidden
                 />
                 <p className="mt-2 text-sm font-medium text-white">{itemDef.name}</p>
+                <AnchoredPortalTooltip
+                    anchorRef={ref}
+                    open={hovered}
+                    className={`${PORTAL_TOOLTIP_SURFACE_CLASS} max-w-[240px] px-3 py-2 text-left text-sm`}
+                >
+                    <p className="font-semibold text-white">{itemDef.name}</p>
+                    {itemDef.description ? <p className="mt-1 text-muted">{itemDef.description}</p> : null}
+                    {caption ? <p className="mt-1 text-xs text-muted">{caption}: now available to equip.</p> : null}
+                </AnchoredPortalTooltip>
             </div>
             {caption ? <span className="text-xs text-muted">{caption}</span> : null}
         </div>

@@ -68,7 +68,11 @@ function MissionRewardsStrip({
                             <span
                                 key={`${missionId}-${itemId}-${idx}`}
                                 className={`${MISSION_REWARD_CHIP_CLASSNAME} text-white`}
-                                title={itemDef?.name ?? itemId}
+                                title={
+                                    itemDef
+                                        ? `${itemDef.name}${itemDef.description ? `: ${itemDef.description}` : ''}`
+                                        : itemId
+                                }
                             >
                                 {iconUrl ? (
                                     <img src={iconUrl} alt="" className="h-4 w-4 object-contain" aria-hidden />

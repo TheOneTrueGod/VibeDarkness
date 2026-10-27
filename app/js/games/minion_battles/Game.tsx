@@ -26,7 +26,8 @@ import {
 } from './storylines';
 import type { CampaignResourceKey } from '../../types';
 import type { VictorySnapshot } from './storylines/victoryHealthConversion';
-import type { MissionVictoryRecord } from './storylines/missionVictoryRecord';
+import type { MissionVictoryRecord, MissionVictoryRewards } from './storylines/missionVictoryRecord';
+import { hasAccountKnowledge, KNOWLEDGE_RESOURCE_FOOD } from '../../accountKnowledge';
 import {
     getDarknessUpgradeRewardEntriesForNodeIds,
     mergeDarknessUpgradeRewards,
@@ -54,6 +55,13 @@ import {
 import type { VictoryFlowContext } from './phaseHandlers/types';
 import type { MinionBattlesGameProps } from './gameProps';
 
+/** Victory rewards with Hunger removed (for players who have not learned about food yet). */
+function withoutHunger(rewards: MissionVictoryRewards | null): MissionVictoryRewards | null {
+    if (!rewards?.resourceDelta || rewards.resourceDelta.hunger == null) return rewards;
+    const { hunger: _hunger, ...rest } = rewards.resourceDelta;
+    return { ...rewards, resourceDelta: rest };
+}
+
 export default function MinionBattlesGame({
     minionBattlesApi: minionBattlesApiProp,
     lobbyClient,
@@ -80,6 +88,8 @@ export default function MinionBattlesGame({
 }: MinionBattlesGameProps) {
     const gameSync = useGameSyncOptional();
     const { knowledge: accountKnowledge } = useCurrentUser();
+    // Hunger (food) stays off the victory screen until the player learns about food.
+    const knowsFood = hasAccountKnowledge(accountKnowledge, KNOWLEDGE_RESOURCE_FOOD);
     const applyOptimisticGamePatch = gameSync?.applyOptimisticGamePatch;
     const api = useMemo(
         () =>
@@ -551,11 +561,11 @@ export default function MinionBattlesGame({
                     nextLobbyId={nextLobbyId}
                     onJoinNextLobby={onJoinNextLobby}
                     questContinuation={victoryQuest?.kind === 'continued'}
-                    missionRewards={victoryRecord?.rewards ?? null}
+                    missionRewards={knowsFood ? (victoryRecord?.rewards ?? null) : withoutHunger(victoryRecord?.rewards ?? null)}
                     campaignRewards={victoryQuest?.kind === 'finale' ? victoryQuest.campaignRewards : null}
                     resultsReady={victoryRecord != null}
                     objectives={victoryRecord?.objectives ?? pendingVictoryObjectives}
-                    conversion={victoryRecord?.conversion ?? null}
+                    conversion={knowsFood ? (victoryRecord?.conversion ?? null) : null}
                     questBanner={
                         victoryQuest?.kind === 'finale'
                             ? `Quest complete: ${getQuestDef(victoryQuest.questDefId)?.title ?? victoryQuest.questDefId}`
