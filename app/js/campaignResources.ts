@@ -3,6 +3,7 @@ import {
     hasAccountKnowledge,
     KNOWLEDGE_RESOURCE_FOOD,
     KNOWLEDGE_RESOURCE_POPULATION,
+    KNOWLEDGE_SYSTEM_CAMPAIGN_RESOURCES,
     type AccountKnowledgeMap,
 } from './accountKnowledge';
 
@@ -11,8 +12,8 @@ import {
  * (plus its icon in `ResourcePill.tsx`); everything else loops over this table.
  */
 export const CAMPAIGN_RESOURCE_DEFS = [
-    { key: 'vigor', label: 'Vigor', color: '#22C55E', missionBonus: true },
-    { key: 'metal', label: 'Metal', color: '#95A5A6', missionBonus: true },
+    { key: 'vigor', label: 'Vigor', color: '#22C55E', missionBonus: true, knowledgeKey: KNOWLEDGE_SYSTEM_CAMPAIGN_RESOURCES },
+    { key: 'metal', label: 'Metal', color: '#95A5A6', missionBonus: true, knowledgeKey: KNOWLEDGE_SYSTEM_CAMPAIGN_RESOURCES },
     {
         key: 'population',
         label: 'Population',
@@ -21,11 +22,14 @@ export const CAMPAIGN_RESOURCE_DEFS = [
         /** Account knowledge needed before the resource shows in player-facing rows (admin tools ignore it). */
         knowledgeKey: KNOWLEDGE_RESOURCE_POPULATION,
     },
-    /**
-     * No `knowledgeKey` (`KNOWLEDGE_RESOURCE_ATTUNEMENT`) yet: no player has that knowledge, so gating would hide
-     * Attunement from everyone. Add it once the knowledge is granted somewhere.
-     */
-    { key: 'attunement', label: 'Attunement', color: '#8B5CF6', missionBonus: true },
+    /** Gated with Vigor and Metal by System: Campaign Resources (`KNOWLEDGE_RESOURCE_ATTUNEMENT` stays reserved). */
+    {
+        key: 'attunement',
+        label: 'Attunement',
+        color: '#8B5CF6',
+        missionBonus: true,
+        knowledgeKey: KNOWLEDGE_SYSTEM_CAMPAIGN_RESOURCES,
+    },
     /** Hunger is a signed penalty accumulator (can go negative); its pill chrome is sign-driven. */
     {
         key: 'hunger',

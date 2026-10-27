@@ -26,8 +26,8 @@ import {
 } from './storylines';
 import type { CampaignResourceKey } from '../../types';
 import type { VictorySnapshot } from './storylines/victoryHealthConversion';
-import type { MissionVictoryRecord, MissionVictoryRewards } from './storylines/missionVictoryRecord';
-import { hasAccountKnowledge, KNOWLEDGE_RESOURCE_FOOD } from '../../accountKnowledge';
+import type { MissionVictoryRecord } from './storylines/missionVictoryRecord';
+import { hasAccountKnowledge, KNOWLEDGE_RESOURCE_FOOD, type AccountKnowledgeMap } from '../../accountKnowledge';
 import {
     getDarknessUpgradeRewardEntriesForNodeIds,
     mergeDarknessUpgradeRewards,
@@ -55,13 +55,6 @@ import {
 import type { VictoryFlowContext } from './phaseHandlers/types';
 import type { MinionBattlesGameProps } from './gameProps';
 
-/** Victory rewards with Hunger removed (for players who have not learned about food yet). */
-function withoutHunger(rewards: MissionVictoryRewards | null): MissionVictoryRewards | null {
-    if (!rewards?.resourceDelta || rewards.resourceDelta.hunger == null) return rewards;
-    const { hunger: _hunger, ...rest } = rewards.resourceDelta;
-    return { ...rewards, resourceDelta: rest };
-}
-
 export default function MinionBattlesGame({
     minionBattlesApi: minionBattlesApiProp,
     lobbyClient,
@@ -88,8 +81,7 @@ export default function MinionBattlesGame({
 }: MinionBattlesGameProps) {
     const gameSync = useGameSyncOptional();
     const { knowledge: accountKnowledge } = useCurrentUser();
-    // Hunger (food) stays off the victory screen until the player learns about food.
-    const knowsFood = hasAccountKnowledge(accountKnowledge, KNOWLEDGE_RESOURCE_FOOD);
+
     const applyOptimisticGamePatch = gameSync?.applyOptimisticGamePatch;
     const api = useMemo(
         () =>
@@ -99,6 +91,16 @@ export default function MinionBattlesGame({
     );
     const [defeatModalOpen, setDefeatModalOpen] = useState(false);
     const [victoryModalOpen, setVictoryModalOpen] = useState(false);
+    /**
+     * Knowledge as it was when the victory popover opened: the win itself may grant knowledge (e.g. Find
+     * some food grants Resource: Food), which must not reveal anything on that same popover.
+     */
+    const victoryKnowledgeRef = useRef<AccountKnowledgeMap | undefined>(undefined);
+    if (!victoryModalOpen) victoryKnowledgeRef.current = undefined;
+    else if (victoryKnowledgeRef.current === undefined) victoryKnowledgeRef.current = accountKnowledge;
+    const victoryKnowledge = victoryKnowledgeRef.current ?? accountKnowledge;
+    // Hunger (food) stays off the victory screen until the player learns about food.
+    const knowsFood = hasAccountKnowledge(victoryKnowledge, KNOWLEDGE_RESOURCE_FOOD);
     /**
      * The victory popover's only data source: the record written onto the character's mission result (or, for
      * spectators / a failed write, the same record kept in memory). Null until the win is recorded.
@@ -561,7 +563,8 @@ export default function MinionBattlesGame({
                     nextLobbyId={nextLobbyId}
                     onJoinNextLobby={onJoinNextLobby}
                     questContinuation={victoryQuest?.kind === 'continued'}
-                    missionRewards={knowsFood ? (victoryRecord?.rewards ?? null) : withoutHunger(victoryRecord?.rewards ?? null)}
+                    missionRewards={victoryRecord?.rewards ?? null}
+                    knowledge={victoryKnowledge}
                     campaignRewards={victoryQuest?.kind === 'finale' ? victoryQuest.campaignRewards : null}
                     resultsReady={victoryRecord != null}
                     objectives={victoryRecord?.objectives ?? pendingVictoryObjectives}

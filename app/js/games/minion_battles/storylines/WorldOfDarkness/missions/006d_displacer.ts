@@ -5,6 +5,7 @@
  * near the party and two more arrive every round.
  */
 
+import { KNOWLEDGE_COMPLETED_CHAPTER_2 } from '../../../../../accountKnowledge';
 import { BaseMissionDef } from '../../BaseMissionDef';
 import { ObjectiveType } from '../../objectiveTypes';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
@@ -162,7 +163,10 @@ export class DisplacerMission extends BaseMissionDef {
     missionType = 'boss' as const;
     description = 'A spirit flickers in the lit circle. Its bolts fly farther than they seem to aim.';
     /** First Darkness Upgrade: the Displacer Spirit's power empowers the slimes (and sweetens future victories). */
-    completionRewards = { darknessUpgradeIds: [DARKNESS_UPGRADE_NODE_EMPOWERED_SPIRITS] };
+    completionRewards = {
+        darknessUpgradeIds: [DARKNESS_UPGRADE_NODE_EMPOWERED_SPIRITS],
+        knowledgeKeys: [KNOWLEDGE_COMPLETED_CHAPTER_2],
+    };
     campaignId = 'world_of_darkness';
     name = DISPLACER_NAME;
     worldWidth = WORLD_WIDTH;

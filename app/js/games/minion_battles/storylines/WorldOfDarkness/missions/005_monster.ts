@@ -6,7 +6,7 @@
  * Dark crystal creates a purple-tinted arena (light range 10).
  */
 
-import { KNOWLEDGE_ALPHA_WOLF_DEFEATED } from '../../../../../accountKnowledge';
+import { KNOWLEDGE_COMPLETED_CHAPTER_1 } from '../../../../../accountKnowledge';
 import { BaseMissionDef } from '../../BaseMissionDef';
 import { WOD_CH1_MAP_X_COL1, WOD_CH1_MAP_Y_ROW1 } from '../chapter1Map';
 import { NINJUTSU_DISABLED } from '../../../game/ninjutsu/ninjutsuConfig';
@@ -156,7 +156,7 @@ export class MonsterMission extends BaseMissionDef {
     campaignId = 'world_of_darkness';
     name = 'Monster';
     completionRewards = {
-        knowledgeKeys: [KNOWLEDGE_ALPHA_WOLF_DEFEATED],
+        knowledgeKeys: [KNOWLEDGE_COMPLETED_CHAPTER_1],
         resourceDelta: { attunement: MONSTER_ATTUNEMENT_REWARD },
     };
     worldWidth = WORLD_WIDTH;

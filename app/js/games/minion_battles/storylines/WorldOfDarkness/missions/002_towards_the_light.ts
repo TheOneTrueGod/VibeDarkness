@@ -231,7 +231,10 @@ export class TowardsTheLightMission extends BaseMissionDef {
             attunement: TOWARDS_THE_LIGHT_ATTUNEMENT_REWARD,
             metal: TOWARDS_THE_LIGHT_METAL_REWARD,
         },
-        unlockItemTiers: [{ slot: 'weapon' as const, tier: 2 }],
+        unlockItemTiers: [
+            { slot: 'weapon' as const, tier: 2 },
+            { slot: 'weapon' as const, tier: 3 },
+        ],
     };
     worldWidth = WORLD_WIDTH;
     worldHeight = WORLD_HEIGHT;

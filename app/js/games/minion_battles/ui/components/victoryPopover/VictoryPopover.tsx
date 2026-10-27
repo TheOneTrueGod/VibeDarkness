@@ -3,6 +3,7 @@
  * (objectives crossed off, "Victory" title, Hunger to HP conversion, rewards, Continue). Timings live in
  * `victorySequence.ts`.
  */
+import type { AccountKnowledgeMap } from '../../../../../accountKnowledge';
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { TestIds } from '../../../../../testing/testIds';
 import { getFastVictorySequence, subscribeFastVictorySequence } from '../../../../../debugFlags';
@@ -25,6 +26,8 @@ export interface VictoryObjectiveRow {
 }
 
 interface VictoryPopoverProps {
+    /** Viewer's account knowledge (as of when the popover opened); hides rewards they do not know about yet. */
+    knowledge?: AccountKnowledgeMap;
     missionRewards: VictoryMissionRewards | null;
     /**
      * Quest-clear Campaign Rewards (completion + queued). Shown under Campaign Results.
@@ -157,6 +160,7 @@ export default function VictoryPopover({
     questContinuation = false,
     questBanner,
     continueLabel = 'Continue',
+    knowledge,
 }: VictoryPopoverProps) {
     const fast = useSyncExternalStore(subscribeFastVictorySequence, getFastVictorySequence, getFastVictorySequence);
     const [reducedMotion] = useState(prefersReducedMotion);
@@ -244,6 +248,7 @@ export default function VictoryPopover({
                                     missionRewards={missionRewards}
                                     campaignRewards={campaignRewards}
                                     hideHunger={hasConversion}
+                                    knowledge={knowledge}
                                 />
                             </Reveal>
                         ) : null}

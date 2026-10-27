@@ -43,11 +43,23 @@ export const KNOWLEDGE_RESEARCH = 'Research';
 /** Forging. Reserved: nothing checks it yet. */
 export const KNOWLEDGE_FORGING = 'Forging';
 
-/** Story flag granted on defeating the alpha wolf (mission 005). Nothing checks it yet. */
-export const KNOWLEDGE_ALPHA_WOLF_DEFEATED = 'AlphaWolfDefeated';
+/**
+ * Knowledge of System: Campaign Resources — without it Vigor, Metal and Attunement are left out of
+ * player-facing resource displays (see `CAMPAIGN_RESOURCE_DEFS`). Nothing grants it yet.
+ */
+export const KNOWLEDGE_SYSTEM_CAMPAIGN_RESOURCES = 'SystemCampaignResources';
+
+/**
+ * Progression: Completed Chapter 1, granted by defeating the alpha wolf (mission 005). Until then the
+ * victory screen leaves out equipment rewards.
+ */
+export const KNOWLEDGE_COMPLETED_CHAPTER_1 = 'CompletedChapter1';
+
+/** Progression: Completed Chapter 2, granted by defeating the Displacer spirit. Nothing checks it yet. */
+export const KNOWLEDGE_COMPLETED_CHAPTER_2 = 'CompletedChapter2';
 
 /** What a piece of knowledge is about; drives the pill icon and the admin grant filters. */
-export type AccountKnowledgeType = 'resource' | 'equipment' | 'systems' | 'other';
+export type AccountKnowledgeType = 'resource' | 'equipment' | 'systems' | 'progression' | 'other';
 
 export interface AccountKnowledgeTypeDef {
     /** Display label for the type. (Icons live in `components/KnowledgePill.tsx`, keeping this file plain TS.) */
@@ -58,6 +70,7 @@ export const KNOWLEDGE_TYPE_DEFS: Readonly<Record<AccountKnowledgeType, AccountK
     resource: { label: 'Resource' },
     equipment: { label: 'Equipment' },
     systems: { label: 'Systems' },
+    progression: { label: 'Progression' },
     other: { label: 'Other' },
 };
 
@@ -132,11 +145,26 @@ export const ACCOUNT_KNOWLEDGE: readonly AccountKnowledgeDef[] = [
         description: 'Shows the Population resource in player-facing resource rows.',
     },
     {
-        key: KNOWLEDGE_ALPHA_WOLF_DEFEATED,
-        label: 'Alpha Wolf Defeated',
-        type: 'other',
+        key: KNOWLEDGE_SYSTEM_CAMPAIGN_RESOURCES,
+        label: 'System: Campaign Resources',
+        type: 'systems',
         tier: 2,
-        description: 'Story flag from defeating the alpha wolf; nothing checks it today.',
+        description:
+            'Shows Vigor, Metal and Attunement: victory-screen Mission Rewards, mission and quest reward tooltips on the Mission Map (including side-quest picks) and story-choice reward pills.',
+    },
+    {
+        key: KNOWLEDGE_COMPLETED_CHAPTER_1,
+        label: 'Completed Chapter 1',
+        type: 'progression',
+        tier: 1,
+        description: 'Granted by defeating the alpha wolf. Shows equipment rewards on the victory screen.',
+    },
+    {
+        key: KNOWLEDGE_COMPLETED_CHAPTER_2,
+        label: 'Completed Chapter 2',
+        type: 'progression',
+        tier: 2,
+        description: 'Granted by defeating the Displacer spirit. Nothing checks it yet.',
     },
 ];
 

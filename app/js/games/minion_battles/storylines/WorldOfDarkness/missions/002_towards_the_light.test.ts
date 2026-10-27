@@ -35,10 +35,10 @@ describe('Towards the Light equipment choice', () => {
         expect(choice.backgroundImage).toBe(STORY_BACKGROUNDS.whiskyCave);
     });
 
-    it('unlocks every tier-2 weapon on victory', () => {
+    it('unlocks every tier-2 weapon and the tier-3 Charged Shield on victory', () => {
         expect(
             resolveUnlockedTierItemIds(TOWARDS_THE_LIGHT.completionRewards?.unlockItemTiers, TOWARDS_THE_LIGHT.campaignId),
-        ).toEqual(['011', '012', '013', '014', '015']);
+        ).toEqual(['011', '012', '013', '014', '015', '016']);
     });
 
     it('random weapon slots only offer the equipped item trees', () => {

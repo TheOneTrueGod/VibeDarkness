@@ -4,7 +4,8 @@
 import React from 'react';
 import { BicepsFlexed, Ham, Sparkles } from 'lucide-react';
 import type { CampaignResourceKey } from '../types';
-import { CAMPAIGN_RESOURCE_KEYS, campaignResourceDef } from '../campaignResources';
+import { CAMPAIGN_RESOURCE_KEYS, campaignResourceDef, isCampaignResourceVisible } from '../campaignResources';
+import type { AccountKnowledgeMap } from '../accountKnowledge';
 import { HUNGER_BAR_TOOLTIP } from '../games/minion_battles/character_defs/hungerHealth';
 import { HUNGER_PER_MISSING_HP } from '../games/minion_battles/storylines/matchHunger';
 
@@ -200,4 +201,15 @@ export function campaignResourceGains(
         }
     }
     return out;
+}
+
+/**
+ * `campaignResourceGains` for player-facing reward displays: leaves out resources the viewer does not
+ * know yet (`isCampaignResourceVisible`, e.g. Vigor/Metal/Attunement before System: Campaign Resources).
+ */
+export function visibleCampaignResourceGains(
+    delta: Partial<Record<CampaignResourceKey, number>> | undefined,
+    knowledge: AccountKnowledgeMap,
+): { resource: CampaignResourceKey; count: number }[] {
+    return campaignResourceGains(delta).filter(({ resource }) => isCampaignResourceVisible(resource, knowledge));
 }

@@ -86,8 +86,7 @@ describe('chapter skip - Chapter I', () => {
         expect(byId.towards_the_light.itemIds).toEqual(
             expect.arrayContaining(['011', '012', '013', '014', '015']),
         );
-        expect(byId.towards_the_light.itemIds).not.toContain('016');
-        expect(byId.light_empowered.itemIds).toContain('016');
+        expect(byId.towards_the_light.itemIds).toContain('016');
     });
 
     it('offers every player the same four tier-2 weapons at the cave, whatever they started with', () => {
@@ -139,7 +138,7 @@ describe('chapter skip - Chapter I', () => {
         expect(byId.core_awakening.researchRewards).toHaveLength(1);
         expect(byId.light_empowered.researchRewards).toBeUndefined();
 
-        expect(plan.knowledgeKeys).toEqual(expect.arrayContaining(['Research', 'AlphaWolfDefeated']));
+        expect(plan.knowledgeKeys).toEqual(expect.arrayContaining(['Research', 'CompletedChapter1']));
     });
 
     it('offers the "no reward" skip on every post-mission choice, like the live story', () => {

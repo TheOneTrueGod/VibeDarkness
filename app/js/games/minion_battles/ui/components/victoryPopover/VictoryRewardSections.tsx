@@ -5,7 +5,12 @@
 import React, { useRef, useState } from 'react';
 import { getItemDef, ITEM_ICON_URLS } from '../../../character_defs/items';
 import type { CampaignResourceKey } from '../../../../../types';
-import ResourcePill, { campaignResourceGains } from '../../../../../components/ResourcePill';
+import ResourcePill, { visibleCampaignResourceGains } from '../../../../../components/ResourcePill';
+import {
+    hasAccountKnowledge,
+    KNOWLEDGE_COMPLETED_CHAPTER_1,
+    type AccountKnowledgeMap,
+} from '../../../../../accountKnowledge';
 import { CAMPAIGN_RESULTS_LABEL } from '../../../../../components/missionResultCopy';
 import ResearchNodeCard from '../ResearchNodeCard';
 import { getResearchTree, getResolvedMissionResearchRewards } from '../../../../../researchTrees/list';
@@ -26,6 +31,11 @@ interface VictoryRewardSectionsProps {
     campaignRewards?: CampaignRewardsPayload | null;
     /** Leave Hunger out of the reward cards (the Hunger to HP conversion already shows it). */
     hideHunger?: boolean;
+    /**
+     * Viewer's account knowledge: resources they do not know yet are left out (`isCampaignResourceVisible`),
+     * and equipment rewards wait for Completed Chapter 1.
+     */
+    knowledge?: AccountKnowledgeMap;
 }
 
 interface RewardCardData {
@@ -34,7 +44,7 @@ interface RewardCardData {
     Icon?: LucideIcon;
     /** Hover description (basic tooltip). */
     tooltip?: string;
-    gains: ReturnType<typeof campaignResourceGains>;
+    gains: ReturnType<typeof visibleCampaignResourceGains>;
 }
 
 /**
@@ -130,17 +140,12 @@ export default function VictoryRewardSections({
     missionRewards,
     campaignRewards = null,
     hideHunger = false,
+    knowledge,
 }: VictoryRewardSectionsProps) {
     const researchRewards = getResolvedMissionResearchRewards(missionRewards);
-    const hasMissionRewards =
-        missionRewards &&
-        ((missionRewards.itemFromFirstChoice != null && missionRewards.itemFromFirstChoice !== '') ||
-            (missionRewards.unlockedItemIds?.length ?? 0) > 0 ||
-            (missionRewards.resourceDelta &&
-                Object.entries(missionRewards.resourceDelta).some(
-                    ([key, v]) => v != null && v > 0 && !(hideHunger && key === 'hunger'),
-                )) ||
-            researchRewards.length > 0);
+    const showEquipment = hasAccountKnowledge(knowledge, KNOWLEDGE_COMPLETED_CHAPTER_1);
+    const gainsOf = (delta: Partial<Record<CampaignResourceKey, number>> | undefined) =>
+        visibleCampaignResourceGains(delta, knowledge);
 
     const hasCampaignRewards =
         campaignRewards != null && !isCampaignRewardsPayloadEmpty(campaignRewards);
@@ -163,26 +168,31 @@ export default function VictoryRewardSections({
         key: 'mission',
         title: 'Mission Rewards',
         Icon: Coins,
-        gains: campaignResourceGains(coreResourceDelta),
+        gains: gainsOf(coreResourceDelta),
     };
-    const missionItems: Array<{ id: string; caption: string }> = [
-        ...(itemId ? [{ id: itemId, caption: 'From your choice' }] : []),
-        ...(missionRewards?.unlockedItemIds ?? []).map((id) => ({ id, caption: 'Unlocked' })),
-    ];
+    const missionItems: Array<{ id: string; caption: string }> = showEquipment
+        ? [
+              ...(itemId ? [{ id: itemId, caption: 'From your choice' }] : []),
+              ...(missionRewards?.unlockedItemIds ?? []).map((id) => ({ id, caption: 'Unlocked' })),
+          ]
+        : [];
     const upgradeCards: RewardCardData[] = darknessUpgradeLines
         .map((line) => ({
             key: line.nodeId,
             title: line.title,
             Icon: DARKNESS_UPGRADE_ICON,
             tooltip: getDarknessUpgradeTooltip(line.nodeId),
-            gains: campaignResourceGains(line.delta),
+            gains: gainsOf(line.delta),
         }))
         .filter((card) => card.gains.length > 0);
+    // The whole section is left out when knowledge hides everything in it.
+    const hasMissionRewards =
+        missionCard.gains.length > 0 || missionItems.length > 0 || upgradeCards.length > 0 || researchRewards.length > 0;
 
     const campaignResourceGainsList = hasCampaignRewards
-        ? campaignResourceGains(campaignRewards.resourceDelta)
+        ? gainsOf(campaignRewards.resourceDelta)
         : [];
-    const campaignItemIds = hasCampaignRewards
+    const campaignItemIds = hasCampaignRewards && showEquipment
         ? Array.from(
               new Set([...campaignRewards.unlockItemIds, ...campaignRewards.itemCardIds]),
           )
@@ -192,6 +202,13 @@ export default function VictoryRewardSections({
               researchRewardIds: campaignRewards.researchRewardIds,
           })
         : [];
+    const showCampaignRewards =
+        hasCampaignRewards
+        && (campaignResourceGainsList.length > 0
+            || campaignItemIds.length > 0
+            || campaignRewards.locationCardIds.length > 0
+            || campaignRewards.knowledgeKeys.length > 0
+            || campaignResearchRewards.length > 0);
 
     return (
         <>
@@ -242,7 +259,7 @@ export default function VictoryRewardSections({
                         </div>
                     </>
                 )}
-                {hasCampaignRewards && campaignRewards ? (
+                {showCampaignRewards && campaignRewards ? (
                     <>
                         <h3 className="text-lg font-semibold text-white mb-4">{CAMPAIGN_RESULTS_LABEL}</h3>
                         <div className="flex flex-col items-center gap-4 mb-6">

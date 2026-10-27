@@ -18,7 +18,7 @@ describe('Cave Respite punch choice', () => {
 });
 
 describe('Cave Respite rewards', () => {
-    it('unlocks no weapon tier (Find some food unlocks tier 3)', () => {
+    it('unlocks no weapon tier (Towards the Light unlocks tier 3)', () => {
         expect('unlockItemTiers' in CAVE_RESPITE.completionRewards).toBe(false);
     });
 });

@@ -8,6 +8,7 @@ import {
     KNOWLEDGE_RESEARCH,
     KNOWLEDGE_RESOURCE_ATTUNEMENT,
     KNOWLEDGE_RESOURCE_FOOD,
+    KNOWLEDGE_COMPLETED_CHAPTER_1,
     KNOWLEDGE_RESOURCE_POPULATION,
     KNOWLEDGE_TYPE_DEFS,
     KNOWLEDGE_SYSTEM_UPGRADES,
@@ -27,8 +28,13 @@ describe('account knowledge registry', () => {
         }
     });
 
-    it('puts Research, Attunement and Food in tier 1 and everything else in tier 2', () => {
-        const tierOne = [KNOWLEDGE_RESEARCH, KNOWLEDGE_RESOURCE_ATTUNEMENT, KNOWLEDGE_RESOURCE_FOOD];
+    it('puts the Chapter 1 knowledge in tier 1 and everything else in tier 2', () => {
+        const tierOne = [
+            KNOWLEDGE_RESEARCH,
+            KNOWLEDGE_RESOURCE_ATTUNEMENT,
+            KNOWLEDGE_RESOURCE_FOOD,
+            KNOWLEDGE_COMPLETED_CHAPTER_1,
+        ];
         for (const k of ACCOUNT_KNOWLEDGE) {
             expect(k.tier, k.key).toBe(tierOne.includes(k.key) ? 1 : 2);
         }
