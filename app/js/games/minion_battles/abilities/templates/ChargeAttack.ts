@@ -1,7 +1,7 @@
 import { AbilityBase } from '../AbilityBase';
 import type { AbilityRecoveryRule, AbilityAISettings, AbilityNinjutsuConfig } from '../Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../abilityTimings';
-import type { AbilityStatic, IAbilityPreviewGraphics, AttackBlockedInfo } from '../Ability';
+import type { AbilityStatic, ActivePreviewEngineContext, IAbilityPreviewGraphics, AttackBlockedInfo } from '../Ability';
 import type { UnitTag } from '../../game/units/unitTag';
 import type { AbilityEngineContext } from '../AbilityEngineContext';
 import type { Unit } from '../../game/units/Unit';
@@ -13,7 +13,11 @@ import { CastBehaviours } from '../CastBehaviours';
 import type { ChargeBehaviour } from '../CastBehaviours/ChargeBehaviour';
 import { Effect } from '../../game/effects/Effect';
 import { tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
-import { createChargeCapsuleTargetPreview, drawChargeCapsuleTimingTelegraph } from '../previewHelpers';
+import {
+	createChargeCapsuleTargetPreview,
+	drawChargeCapsuleTimingTelegraph,
+	sweepTelegraphColorForViewer,
+} from '../previewHelpers';
 import { getDirectionFromTo } from '../targetHelpers';
 import { formatTooltipLegacyLines } from '../tooltipTokens';
 import { resolveTooltipContext } from '../abilityModifierHelpers';
@@ -180,6 +184,7 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 		caster: Unit,
 		activeAbility: ActiveAbility,
 		gameTime: number,
+		engine?: ActivePreviewEngineContext,
 	): void {
 		const elapsed = getCastElapsedAt(activeAbility, gameTime);
 		if (elapsed < 0 || elapsed >= this.prefireTime) return;
@@ -213,7 +218,7 @@ export class ChargeAttack extends AbilityBase<ChargeNote> {
 		const endY = oy + uy * lineLen;
 
 		const capsuleThickness = caster.radius * this.config.capsuleRadiusMultiplier;
-		const c = this.config.preview.color;
+		const c = sweepTelegraphColorForViewer(this.config.preview.color, note.hitTargetIds, engine);
 		drawChargeCapsuleTimingTelegraph(
 			gr,
 			ox,

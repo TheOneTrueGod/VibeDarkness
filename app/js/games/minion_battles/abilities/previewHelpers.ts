@@ -14,7 +14,7 @@
  * preview must use `resolveTerrainAwareMovementDisplacement` (or a preset built on it).
  */
 
-import type { AbilityStatic, IAbilityPreviewGraphics } from './Ability';
+import type { AbilityStatic, ActivePreviewEngineContext, IAbilityPreviewGraphics } from './Ability';
 import type { Unit } from '../game/units/Unit';
 import type { ResolvedTarget } from '../game/types';
 import { getUnitAtPosition } from './targeting';
@@ -25,7 +25,7 @@ import type { TerrainManager } from '../terrain/TerrainManager';
 import { resolveAbilitySourceUnits } from './abilitySourceUnits';
 import { CELL_SIZE } from '../terrain/TerrainGrid';
 import { getTileAreaEdges, getTileAreaOutlineLoops, type TileCoord } from './tileAreaHelpers';
-import type { TelegraphStyle } from './telegraphStyles';
+import { TELEGRAPH_STYLES, type TelegraphStyle } from './telegraphStyles';
 
 /**
  * Fills each cell and strokes only the outer outline of the union of cells (shared edges cancel),
@@ -973,4 +973,18 @@ export function createUnitTargetPreview(options: UnitTargetPreviewOptions): Rend
             }
         }
     };
+}
+
+/**
+ * Telegraph colour for a multi-hit sweep (charges): grey (`TELEGRAPH_STYLES.invalid`) once the sweep
+ * has already hit the viewer's unit and so can no longer hurt them, else `baseColor`.
+ */
+export function sweepTelegraphColorForViewer(
+    baseColor: number,
+    hitTargetIds: readonly string[],
+    engine: ActivePreviewEngineContext | undefined,
+): number {
+    const viewerId = engine?.getLocalPlayerUnit?.()?.id;
+    if (viewerId && hitTargetIds.includes(viewerId)) return TELEGRAPH_STYLES.invalid.color;
+    return baseColor;
 }

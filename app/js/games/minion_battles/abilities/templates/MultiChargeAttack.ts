@@ -1,7 +1,7 @@
 import { AbilityBase } from '../AbilityBase';
 import type { AbilityRecoveryRule, AbilityAISettings, AbilityNinjutsuConfig } from '../Ability';
 import { AbilityPhase, type AbilityTimingInterval } from '../abilityTimings';
-import type { AbilityStatic, IAbilityPreviewGraphics } from '../Ability';
+import type { AbilityStatic, ActivePreviewEngineContext, IAbilityPreviewGraphics } from '../Ability';
 import type { UnitTag } from '../../game/units/unitTag';
 import type { AbilityEngineContext } from '../AbilityEngineContext';
 import type { Unit } from '../../game/units/Unit';
@@ -12,7 +12,11 @@ import { computeLungeChargeDirection, type LungeTarget } from '../behaviors/Lung
 import { CastBehaviours } from '../CastBehaviours';
 import type { ChargeBehaviour } from '../CastBehaviours/ChargeBehaviour';
 import { Effect } from '../../game/effects/Effect';
-import { createChargeCapsuleTargetPreview, drawChargeCapsuleTimingTelegraph } from '../previewHelpers';
+import {
+	createChargeCapsuleTargetPreview,
+	drawChargeCapsuleTimingTelegraph,
+	sweepTelegraphColorForViewer,
+} from '../previewHelpers';
 import { getDirectionFromTo } from '../targetHelpers';
 import { resolveChargeAimPoint } from './ChargeAttack';
 import { getCastElapsedAt } from '../../game/time/actorClock';
@@ -240,6 +244,7 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 		caster: Unit,
 		activeAbility: ActiveAbility,
 		gameTime: number,
+		engine?: ActivePreviewEngineContext,
 	): void {
 		const elapsed = getCastElapsedAt(activeAbility, gameTime);
 		if (elapsed < 0 || elapsed >= this.activeEnd) return;
@@ -278,7 +283,7 @@ export class MultiChargeAttack extends AbilityBase<MultiChargeNote> {
 				capsuleThickness,
 				windupLocalElapsed,
 				windupDuration,
-				this.config.preview.color,
+				sweepTelegraphColorForViewer(this.config.preview.color, dashNote.hitTargetIds, engine),
 			);
 			return;
 		}

@@ -40,6 +40,9 @@ const HIT_FLASH_COLOR = 0xff0000;
 const SHIELD_HIT_FLASH_COLOR = 0x3b82f6;
 
 const Z_UNITS = 10;
+/** Hovered / targeting-highlighted units (and their HP bars) draw above the other units. */
+// Stays below terrain effects (10.5) and projectiles (11).
+const Z_UNITS_RAISED = Z_UNITS + 0.25;
 const Z_KNOCKBACK_SHADOW = 9;
 
 export class UnitRenderer {
@@ -125,6 +128,13 @@ export class UnitRenderer {
             const visual = this.unitVisuals.get(unit.id);
             if (!visual) continue;
             syncUnitCharacterSpriteIfNeeded(visual, unit, context);
+        }
+    }
+
+    /** Lift hovered / highlighted units above the rest; everyone else returns to the base unit layer. */
+    setRaisedUnitIds(raised: ReadonlySet<string>): void {
+        for (const [unitId, visual] of this.unitVisuals) {
+            visual.zIndex = raised.has(unitId) ? Z_UNITS_RAISED : Z_UNITS;
         }
     }
 

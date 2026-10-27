@@ -195,6 +195,13 @@ export interface AbilityModesConfig {
     modeAbilityIds?: Readonly<Record<string, string>>;
 }
 
+/** Engine slice handed to `renderActivePreview`. */
+export interface ActivePreviewEngineContext {
+    darknessUpgradeBonuses?: PassiveBonuses;
+    /** The viewer's own unit, for telegraphs that change once they can no longer hit the viewer. */
+    getLocalPlayerUnit?(): Unit | undefined;
+}
+
 /**
  * Declarative windup telegraph rendered generically by `PreviewRenderer`.
  * When set, `Unit.executeAbility` captures the primary target position into
@@ -577,8 +584,11 @@ export interface AbilityStatic {
         activeAbility: ActiveAbility,
         /** Cast "now" on the caster's clock (`localNow(caster, engine.gameTime)`), NOT world time. Use `getCastElapsedAt(activeAbility, gameTime)`. */
         gameTime: number,
-        /** Engine context for previews that depend on run-wide state (e.g. darkness upgrades). */
-        engine?: { darknessUpgradeBonuses?: PassiveBonuses },
+        /**
+         * Engine context for previews that depend on run-wide state (e.g. darkness upgrades) or on the
+         * viewer (e.g. a charge telegraph greys out once it has already hit the local player's unit).
+         */
+        engine?: ActivePreviewEngineContext,
     ): void;
 
     /**

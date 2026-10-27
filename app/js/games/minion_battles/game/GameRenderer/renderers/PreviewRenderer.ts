@@ -21,6 +21,7 @@ import {
 } from '../../../abilities/targeting';
 import { drawClampedLine, drawFacingIndicator } from '../../../abilities/previewHelpers';
 import { resolveAbilitySourceUnits } from '../../../abilities/abilitySourceUnits';
+import { getUnitAtPosition } from '../../../abilities/targeting';
 import { areEnemies } from '../../teams';
 import type { TeamId } from '../../teams';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
@@ -105,7 +106,7 @@ export function renderSelectTargetDef(
     selectDef: SelectTargetDef,
     aimPoint: { x: number; y: number },
     engine: GameEngine,
-): void {
+): Unit[] {
     const lungeDistance = getSelectStepLungeDistance(ability, caster, selectDef, engine);
     const state = lungeDistance != null
         ? computeLungePreviewState(
@@ -178,6 +179,7 @@ export function renderSelectTargetDef(
     if (state) {
         renderLungeIndicator(gr, caster, state.virtualX, state.virtualY);
     }
+    return highlightUnits;
 }
 
 /** Turn-limit facing indicator: base corners this far outside the caster's body, apex further out. */
@@ -197,11 +199,11 @@ function renderConstrainedSelectTargetDef(
     mouseWorld: { x: number; y: number },
     collectedTargets: Record<string, ResolvedTarget>,
     engine: GameEngine,
-): void {
+): Unit[] {
     const aim = constrainSelectAim(caster, selectDef, mouseWorld, collectedTargets, engine);
-    renderSelectTargetDef(gr, ability, caster, selectDef, aim, engine);
+    const highlighted = renderSelectTargetDef(gr, ability, caster, selectDef, aim, engine);
     const ref = resolveTurnLimitReference(caster, selectDef, collectedTargets, engine);
-    if (!ref) return;
+    if (!ref) return highlighted;
     const innerR = caster.radius + TURN_LIMIT_INDICATOR_INNER_GAP;
     drawFacingIndicator(gr, caster.x, caster.y, ref.angle, ref.maxRad, innerR, innerR + TURN_LIMIT_INDICATOR_LENGTH, {
         fillColor: 0xef9f27,
@@ -209,6 +211,7 @@ function renderConstrainedSelectTargetDef(
         strokeColor: 0xba7517,
         strokeAlpha: 0.9,
     });
+    return highlighted;
 }
 
 /**
@@ -255,7 +258,7 @@ function renderInvalidSelectTargetDef(
     selectDef: SelectTargetDef,
     aimPoint: { x: number; y: number },
     engine: GameEngine,
-): void {
+): Unit[] {
     const lungeDistance = getSelectStepLungeDistance(ability, caster, selectDef, engine);
     const state = lungeDistance != null
         ? computeLungePreviewState(
@@ -307,6 +310,7 @@ const Z_TARGETING_PREVIEW = 101;
 
 export class PreviewRenderer {
     private moveTargetVisuals: Map<string, Graphics> = new Map();
+    private raisedUnitIds = new Set<string>();
     private abilityPreviewGraphics: Graphics = new Graphics();
     private targetingPreviewGraphics: Graphics = new Graphics();
     private ghostPreviewGraphics: Graphics = new Graphics();
@@ -350,6 +354,11 @@ export class PreviewRenderer {
             ghostPlans?: Record<string, GhostPlanData>;
         } | null,
     ): void {
+        this.raisedUnitIds.clear();
+        if (targetingState?.mouseWorld) {
+            const hovered = getUnitAtPosition(targetingState.mouseWorld, engine.units);
+            if (hovered) this.raisedUnitIds.add(hovered.id);
+        }
         this.renderMoveTargets(engine.units, localTeamId);
         this.renderGhostPreviews(engine, localTeamId);
         this.renderActiveAbilityPreviews(engine, localTeamId);
@@ -665,6 +674,11 @@ export class PreviewRenderer {
         }
     }
 
+    /** Units hovered or highlighted by the targeting preview this frame (drawn above other units). */
+    getRaisedUnitIds(): ReadonlySet<string> {
+        return this.raisedUnitIds;
+    }
+
     private renderActiveAbilityPreviews(engine: GameEngine, localTeamId: TeamId): void {
         this.abilityPreviewGraphics.clear();
         for (const unit of engine.units) {
@@ -817,7 +831,11 @@ export class PreviewRenderer {
                                 engine,
                             );
                         } else {
-                            renderConstrainedSelectTargetDef(gr, ability, caster, interactiveDef, ts.mouseWorld, collected, engine);
+                            for (const u of renderConstrainedSelectTargetDef(
+                                gr, ability, caster, interactiveDef, ts.mouseWorld, collected, engine,
+                            )) {
+                                this.raisedUnitIds.add(u.id);
+                            }
                         }
                         ability.renderSelectTargetPreviewExtras?.(gr, caster, engine);
                     }

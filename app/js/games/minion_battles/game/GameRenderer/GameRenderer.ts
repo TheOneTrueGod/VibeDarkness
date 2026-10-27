@@ -48,6 +48,8 @@ import {
 } from '../performance/tickPerformanceTracker';
 import { presentPixiApplicationWithTiming } from './pixiPresentWithTiming';
 
+const NO_RAISED_UNITS: ReadonlySet<string> = new Set();
+
 export class GameRenderer {
 	app: Application;
 	private gameContainer: Container;
@@ -358,6 +360,9 @@ export class GameRenderer {
 				if (previewsVisible) {
 					this.previewRenderer.render(engine, this.localTeamId, targetingState ?? null);
 				}
+				this.unitRenderer.setRaisedUnitIds(
+					previewsVisible ? this.previewRenderer.getRaisedUnitIds() : NO_RAISED_UNITS,
+				);
 			});
 
 			tickPerformanceTracker.measure([PERF_UI_CANVAS_MAP_NETWORK], () => {
