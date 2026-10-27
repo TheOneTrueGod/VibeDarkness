@@ -260,7 +260,7 @@ function renderInvalidSelectTargetDef(
     selectDef: SelectTargetDef,
     aimPoint: { x: number; y: number },
     engine: GameEngine,
-): Unit[] {
+): void {
     const lungeDistance = getSelectStepLungeDistance(ability, caster, selectDef, engine);
     const state = lungeDistance != null
         ? computeLungePreviewState(

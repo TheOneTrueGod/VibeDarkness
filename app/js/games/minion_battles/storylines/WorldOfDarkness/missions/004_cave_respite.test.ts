@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { CAVE_RESPITE } from './004_cave_respite';
-import { resolveUnlockedTierItemIds } from '../../unlockItemTiers';
 import { TRAINING_NODE_CHARGING_PUNCH, TRAINING_TREE_ID } from '../../../../../researchTrees/trees/training';
 
 function punchRowIds(equipped: string[]): string[] {
@@ -20,6 +19,6 @@ describe('Cave Respite punch choice', () => {
 
 describe('Cave Respite rewards', () => {
     it('unlocks no weapon tier (Find some food unlocks tier 3)', () => {
-        expect(resolveUnlockedTierItemIds(CAVE_RESPITE.completionRewards?.unlockItemTiers, CAVE_RESPITE.campaignId)).toEqual([]);
+        expect('unlockItemTiers' in CAVE_RESPITE.completionRewards).toBe(false);
     });
 });
