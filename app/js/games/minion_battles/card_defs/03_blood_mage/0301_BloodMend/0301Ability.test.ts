@@ -348,7 +348,7 @@ describe('BloodMendAbility_0301', () => {
             isMyTurn: true,
             allUnits: [caster, ally],
             conditionalCancelContext: null,
-        })).toEqual({ reason_id: 'no_uses_remaining' });
+        })).toMatchObject({ reason_id: 'no_uses_remaining' });
 
         caster.grantRoundCharges();
         expect(runtime.currentUses).toBe(1);

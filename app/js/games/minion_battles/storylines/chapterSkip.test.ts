@@ -87,7 +87,7 @@ describe('chapter skip - Chapter I', () => {
             expect.arrayContaining(['011', '012', '013', '014', '015']),
         );
         expect(byId.towards_the_light.itemIds).not.toContain('016');
-        expect(byId.cave_respite.itemIds).toContain('016');
+        expect(byId.light_empowered.itemIds).toContain('016');
     });
 
     it('offers every player the same four tier-2 weapons at the cave, whatever they started with', () => {

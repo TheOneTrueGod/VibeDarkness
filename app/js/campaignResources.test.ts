@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { KNOWLEDGE_RESOURCE_POPULATION } from './accountKnowledge';
+import { KNOWLEDGE_RESOURCE_FOOD, KNOWLEDGE_RESOURCE_POPULATION } from './accountKnowledge';
 import {
     CAMPAIGN_RESOURCE_DEFS,
     CAMPAIGN_RESOURCE_KEYS,
@@ -70,10 +70,15 @@ describe('campaignResourcesEqual', () => {
 describe('campaign resource visibility', () => {
     const ALL = ['vigor', 'metal', 'population', 'attunement', 'hunger'] as const;
 
-    it('hides population until the account knows Resource: Population', () => {
-        expect(visibleCampaignResources(ALL, undefined)).toEqual(['vigor', 'metal', 'attunement', 'hunger']);
-        expect(visibleCampaignResources(ALL, {})).toEqual(['vigor', 'metal', 'attunement', 'hunger']);
-        expect(visibleCampaignResources(ALL, { [KNOWLEDGE_RESOURCE_POPULATION]: {} })).toEqual([...ALL]);
+    it('hides population and hunger until the account knows Resource: Population / Food', () => {
+        expect(visibleCampaignResources(ALL, undefined)).toEqual(['vigor', 'metal', 'attunement']);
+        expect(visibleCampaignResources(ALL, {})).toEqual(['vigor', 'metal', 'attunement']);
+        expect(visibleCampaignResources(ALL, { [KNOWLEDGE_RESOURCE_POPULATION]: {} })).toEqual([
+            'vigor', 'metal', 'population', 'attunement',
+        ]);
+        expect(
+            visibleCampaignResources(ALL, { [KNOWLEDGE_RESOURCE_POPULATION]: {}, [KNOWLEDGE_RESOURCE_FOOD]: {} }),
+        ).toEqual([...ALL]);
     });
 
     it('always shows resources that need no knowledge', () => {
