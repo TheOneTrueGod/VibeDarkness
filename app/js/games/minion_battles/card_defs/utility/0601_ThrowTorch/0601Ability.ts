@@ -8,7 +8,7 @@
  * is added to their ability list.
  */
 
-import type { AbilityRecoveryRule, AbilityStateEntry } from '../../../abilities/Ability';
+import type { AbilityStateEntry } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import { createPixelTargetPreview } from '../../../abilities/previewHelpers';
 import { nullHitbox } from '../../../hitboxes';
@@ -21,9 +21,6 @@ import { defineAbility } from '../../../abilities/defineAbility';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Utility)}01`;
 const MAX_USES = 1;
-const RECOVERIES: AbilityRecoveryRule[] = [
-    { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 },
-];
 const PREFIRE_TIME = 0.2;
 const MAX_RANGE = 200;
 const BRIGHT_MAGNITUDE = 3;
@@ -51,7 +48,6 @@ export const ThrowTorchAbility = defineAbility({
     resourceCost: null,
     rechargeTurns: 1,
     maxUses: MAX_USES,
-    recoveries: RECOVERIES,
     prefireTime: PREFIRE_TIME,
     abilityTimings: [
         {

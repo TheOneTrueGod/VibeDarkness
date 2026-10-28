@@ -24,6 +24,12 @@ Vitest config lives in `vite.config.ts` (`test.include` / `test.exclude`). Disco
 
 **Write a failing test first** before tracing code paths. Engine bugs show up as test failures. If the test passes, the engine is correct and the bug is in the BattleNet/UI layer. Deep static analysis of the engine is rarely the right first move for a "game isn't pausing" or "player can't act" report.
 
+## Live app debugging
+
+Read **`.cursor/skills/playwright-e2e/SKILL.md`** when checking the running app (lobby, battle, or UI).
+
+Log in with the helper account in `.env.playwright.local` only (`PLAYWRIGHT_USERNAME` / `PLAYWRIGHT_PASSWORD`). Those credentials are for local debugging, including browser login. Use no other account. Do not commit that file or copy the password into notes, chat, or source.
+
 ## Order-submission architecture
 
 In the **live game**, player orders flow through:

@@ -5,7 +5,7 @@
  */
 
 import { AbilityState, AbilityEventType } from '../../abilities/Ability';
-import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
+import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import type { Unit } from '../../game/units/Unit';
 import { createMovementTargetPreview } from '../../abilities/previewHelpers';
@@ -17,9 +17,6 @@ import { PUNCH_FAMILY_ABILITY_IDS } from '../punchFamily';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}01`;
 const MAX_USES = 2;
-const RECOVERIES: AbilityRecoveryRule[] = [
-    { chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 },
-];
 const DODGE_DURATION = 0.4;
 /** Max travel distance (px); preview uses the same value with {@link computeForcedDisplacement}. */
 export const DODGE_MAX_DISTANCE = 140;
@@ -40,7 +37,6 @@ export const DodgeAbility: AbilityStatic = {
     resourceCost: { resourceId: 'movement_points', amount: 1 },
     rechargeTurns: 0,
     maxUses: MAX_USES,
-    recoveries: RECOVERIES,
     prefireTime: DODGE_DURATION,
     abilityTimings: [
         {

@@ -7,7 +7,7 @@ import type { EventBus } from '../game/EventBus';
 import { Effect } from '../game/effects/Effect';
 import { PARTICLE_EXPLOSION_DURATION_SECONDS } from '../game/deathEffects/ParticleExplosion';
 import { getCreatureType } from '../game/units/unit_defs/unitDef';
-import { BleedBuff, BLEED_BUFF_TYPE } from './BleedBuff';
+import { BleedBuff, BLEED_BUFF_TYPE, BLEED_STACKS_PER_DAMAGE } from './BleedBuff';
 
 const MINI_DISSOLUTION_PARTICLE_COUNT = 6;
 
@@ -84,8 +84,8 @@ export function applyBleedStack(unit: Unit, gameTime: number, roundNumber: numbe
 }
 
 /**
- * One bleed tick: each unit with bleed takes ceil(stacks / 10) damage, then loses one stack.
- * Called DOT_TICKS_PER_ROUND times per round via tickAllDots().
+ * One bleed tick: each unit with bleed takes ceil(stacks / BLEED_STACKS_PER_DAMAGE) damage
+ * and loses that many stacks. `tickAllDots` calls this every eighth of a round.
  */
 export function tickBleedForRoundMilestone(
     units: readonly Unit[],
@@ -97,10 +97,10 @@ export function tickBleedForRoundMilestone(
         const bleed = findBleedBuff(unit);
         if (!bleed || bleed.stacks <= 0) continue;
 
-        const damage = Math.ceil(bleed.stacks / 10);
+        const damage = Math.ceil(bleed.stacks / BLEED_STACKS_PER_DAMAGE);
         // Only used for the damage-number visual; hp-damage-only is sufficient, no need for the breakdown.
         const actual = unit.takeDamage(damage, null, eventBus);
-        bleed.stacks -= 1;
+        consumeBleedStacks(unit, damage);
         if (fx) {
             spawnBleedDamageVisuals(unit, actual, fx);
         }

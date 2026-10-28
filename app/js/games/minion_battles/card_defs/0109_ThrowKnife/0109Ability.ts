@@ -33,7 +33,7 @@ import {
 import type { AbilityEngineContext } from '../../abilities/AbilityEngineContext';
 
 const ABILITY_ID = 'throw_knife';
-const MAX_USES = 5;
+export const THROW_KNIFE_MAX_USES = 4;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 2 },
 ];
@@ -93,7 +93,7 @@ export const ThrowKnife: AbilityStatic = {
     tags: ['RockThrow'],
     resourceCost: null,
     rechargeTurns: 1,
-    maxUses: MAX_USES,
+    maxUses: THROW_KNIFE_MAX_USES,
     recoveries: RECOVERIES,
     prefireTime: 0.3,
     abilityTimings: buildThrowBaseTimings({ launchBehaviour: knifeLaunchBehaviour() }),

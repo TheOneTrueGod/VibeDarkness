@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Unit } from '../game/units/Unit';
 import { EventBus } from '../game/EventBus';
 import { applyBleedStack, consumeBleedStacks, isBleeding, tickBleedForRoundMilestone } from './bleedRuntime';
-import { BleedBuff } from './BleedBuff';
+import { BleedBuff, BLEED_STACKS_PER_DAMAGE } from './BleedBuff';
 
 function makeUnit(hp = 100): Unit {
     return new Unit({
@@ -30,17 +30,18 @@ describe('bleedRuntime', () => {
         expect((b as BleedBuff).stacks).toBe(2);
     });
 
-    it('tick deals ceil(stacks/10) damage then removes one stack', () => {
+    it('tick deals ceil(stacks/10) damage and removes that many stacks', () => {
         const bus = new EventBus();
         const u = makeUnit(100);
-        applyBleedStack(u, 0, 1, 3);
+        const stacks = BLEED_STACKS_PER_DAMAGE * 2 + 3;
+        applyBleedStack(u, 0, 1, stacks);
 
         tickBleedForRoundMilestone([u], bus);
 
-        // ceil(3/10) = 1 damage
-        expect(u.hp).toBe(99);
+        const damage = Math.ceil(stacks / BLEED_STACKS_PER_DAMAGE);
+        expect(u.hp).toBe(100 - damage);
         const bleed = u.buffs.find((b): b is BleedBuff => b instanceof BleedBuff);
-        expect(bleed?.stacks).toBe(2);
+        expect(bleed?.stacks).toBe(stacks - damage);
     });
 
     it('clears bleed buff when stacks reach zero after tick', () => {

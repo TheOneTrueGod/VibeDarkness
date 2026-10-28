@@ -1,4 +1,6 @@
 import { formatTooltipNumber } from '../tooltipTokens';
+import { BLEED_STACKS_PER_DAMAGE } from '../../buffs/BleedBuff';
+import { BLEED_TICKS_PER_ROUND } from '../../game/dotTick';
 import { BRIGHT_DEFS, BRIGHT_ROUND_END_DECAY, spawnBrightLight, type EngineWithLight } from '../brightKeyword';
 import { devourLightKeyword } from './devourLightKeyword';
 import { rendKeyword } from './rendKeyword';
@@ -121,5 +123,5 @@ registerKeyword(rendKeyword);
 registerGlossaryTerm({
     title: 'Bleed',
     matches: ['bleed', 'bleeding'],
-    description: 'Takes damage over time. Each tick deals {1} damage per {10} stacks (rounded up), then removes {1} stack.',
+    description: `Deals {1} damage per {${BLEED_STACKS_PER_DAMAGE}} stacks every {1/${BLEED_TICKS_PER_ROUND}} round.`,
 });

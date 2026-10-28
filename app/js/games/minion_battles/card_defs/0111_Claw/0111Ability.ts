@@ -4,7 +4,7 @@
  */
 
 import { AbilityState, AbilityEventType } from '../../abilities/Ability';
-import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
+import type { AbilityStatic, AbilityStateEntry, AttackBlockedInfo } from '../../abilities/Ability';
 import { AbilityPhase } from '../../abilities/abilityTimings';
 import { createMovementTargetPreview } from '../../abilities/previewHelpers';
 import { resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
@@ -20,12 +20,6 @@ import { nullHitbox } from '../../hitboxes';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}11` as '0111';
 const MAX_USES = 2;
-/**
- * Opt out of the default full refill each round. Uses come back only through research
- * `roundRecoveryFlat` (Earth Attuned). Must stay an explicit empty array; omitting
- * `recoveries` refills every use at round start.
- */
-const RECOVERIES: AbilityRecoveryRule[] = [];
 export const CLAW_DURATION = 0.4;
 export const CLAW_MAX_DISTANCE = 100;
 export const CLAW_COLLISION_STEP = 4;
@@ -55,7 +49,6 @@ export const ClawAbility: AbilityStatic = {
 	resourceCost: { resourceId: 'movement_points', amount: 1 },
 	rechargeTurns: 0,
 	maxUses: MAX_USES,
-	recoveries: RECOVERIES,
 	prefireTime: CLAW_DURATION,
 	abilityTimings: [
 		{

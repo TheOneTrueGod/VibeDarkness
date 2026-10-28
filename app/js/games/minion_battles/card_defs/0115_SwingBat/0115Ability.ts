@@ -38,7 +38,7 @@ import { NODE_TRAINING_REGIME, WEAPONS_TREE_ID } from '../../../../researchTrees
 import { getApproxIntegerIncrease, DescriptiveValue } from '../../../../researchTrees/descriptiveValue';
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Warrior)}15`;
-const MAX_USES = 3;
+export const SWING_BAT_MAX_USES = 3;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 2, usesRecovered: 1 },
 ];
@@ -140,7 +140,7 @@ export const SwingBatAbility_0115: AbilityStatic = {
     image: SWING_BAT_IMAGE,
     resourceCost: null,
     rechargeTurns: 1,
-    maxUses: MAX_USES,
+    maxUses: SWING_BAT_MAX_USES,
     recoveries: RECOVERIES,
     prefireTime: 0.2,
     abilityTimings: ABILITY_TIMINGS,

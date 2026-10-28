@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { ROUND_DURATION } from '../../game/gameConstants';
+import { DOT_TICKS_PER_ROUND } from '../../game/dotTick';
 import { Maximize2, Minimize2, Heart, Shield } from 'lucide-react';
 import type { PlayerState } from '../../../../types';
 import type { GameEngine } from '../../game/GameEngine';
@@ -53,31 +54,78 @@ const TIMELINE_TRACK_HEIGHT_CLASS = 'h-[3.5rem]';
  * Half-second ticks and time labels below the axis so numbers are not clipped by the row.
  * Horizontal line sits in the upper third; labels sit in padded space along the bottom.
  */
-/** Seconds elapsed in the current round, for the quarter-round markers on every timeline ruler. */
-const TimelineRoundTimeContext = createContext<number | null>(null);
+/** Elapsed time in the current round, plus that round's number, for every timeline ruler. */
+interface TimelineRoundClock {
+    /** Seconds elapsed in the current round. */
+    roundTime: number;
+    /** 1-based round in progress. The round-end mark names the round that starts there. */
+    roundNumber: number;
+}
+
+const TimelineRoundTimeContext = createContext<TimelineRoundClock | null>(null);
 
 const QUARTER_ROUND_SECONDS = ROUND_DURATION / 4;
-const QUARTER_ROUND_LABELS = ['Round', '¼', '½', '¾'] as const;
+const EIGHTH_ROUND_SECONDS = ROUND_DURATION / DOT_TICKS_PER_ROUND;
+/** ¼, ½, and ¾. The round boundary is labeled with the upcoming round number instead. */
+const QUARTER_FRACTION_LABELS = ['¼', '½', '¾'] as const;
 
-/** Quarter-round boundaries that fall inside the window, as seconds from now with a label. */
-function quarterRoundMarkers(roundTime: number, windowSeconds: number): { t: number; label: string }[] {
-    const markers: { t: number; label: string }[] = [];
+type TimelineRoundMark = {
+    /** Seconds from now until this boundary. */
+    t: number;
+    /** Round boundary (full line) or a ¼ / ½ / ¾ mark (bar down to the axis only). */
+    kind: 'round' | 'quarter';
+    label: string;
+};
+
+/**
+ * Quarter-round boundaries inside the window, as seconds from now.
+ * `k` counts quarters from the start of the current round, so k = 4 is the next round.
+ */
+function quarterRoundMarkers(roundTime: number, windowSeconds: number, roundNumber: number): TimelineRoundMark[] {
+    const markers: TimelineRoundMark[] = [];
     const eps = 1e-6;
     for (let k = Math.floor(roundTime / QUARTER_ROUND_SECONDS) + 1; ; k++) {
         const t = k * QUARTER_ROUND_SECONDS - roundTime;
         if (t > windowSeconds + eps) break;
         if (t <= eps) continue;
-        markers.push({ t, label: QUARTER_ROUND_LABELS[((k % 4) + 4) % 4] });
+        const slot = ((k % 4) + 4) % 4;
+        if (slot === 0) {
+            markers.push({ t, kind: 'round', label: `Round ${roundNumber + k / 4}` });
+        } else {
+            markers.push({ t, kind: 'quarter', label: QUARTER_FRACTION_LABELS[slot - 1] });
+        }
     }
     return markers;
 }
 
+/**
+ * Eighth-round boundaries that are not already a labeled quarter or round mark,
+ * as seconds from now. Those are the odd eighths: 1/8, 3/8, 5/8, 7/8.
+ */
+export function eighthRoundTickTimes(roundTime: number, windowSeconds: number): number[] {
+    const ticks: number[] = [];
+    const eps = 1e-6;
+    for (let k = Math.floor(roundTime / EIGHTH_ROUND_SECONDS) + 1; ; k++) {
+        const t = k * EIGHTH_ROUND_SECONDS - roundTime;
+        if (t > windowSeconds + eps) break;
+        if (t <= eps) continue;
+        if (k % 2 === 0) continue;
+        ticks.push(t);
+    }
+    return ticks;
+}
+
 function TimelineTimeRuler({ windowSeconds }: { windowSeconds: number }) {
-    const roundTime = useContext(TimelineRoundTimeContext);
+    const roundClock = useContext(TimelineRoundTimeContext);
     if (windowSeconds <= 0) {
         return null;
     }
-    const roundMarkers = roundTime != null ? quarterRoundMarkers(roundTime, windowSeconds) : [];
+    const roundMarkers =
+        roundClock != null
+            ? quarterRoundMarkers(roundClock.roundTime, windowSeconds, roundClock.roundNumber)
+            : [];
+    const eighthTicks =
+        roundClock != null ? eighthRoundTickTimes(roundClock.roundTime, windowSeconds) : [];
     const ticks: number[] = [];
     const step = 0.5;
     for (let t = 0; t <= windowSeconds + step / 4; t += step) {
@@ -87,23 +135,55 @@ function TimelineTimeRuler({ windowSeconds }: { windowSeconds: number }) {
     const axisTopPercent = 36;
 
     return (
-        <div className="pointer-events-none absolute inset-y-0 left-1 right-1 overflow-hidden" aria-hidden>
+        <div data-className="TimelineTimeRuler" className="pointer-events-none absolute inset-y-0 left-1 right-1 overflow-hidden" aria-hidden>
             <div
                 className="absolute left-0 right-0 h-px bg-gray-600"
                 style={{ top: `${axisTopPercent}%` }}
             />
-            {roundMarkers.map(({ t, label }) => (
+            {roundMarkers.map((marker) => {
+                const left = `${(marker.t / windowSeconds) * 100}%`;
+                // End-of-round line runs the full track. Quarter marks are a bar that stops on the axis.
+                const barStyle: React.CSSProperties =
+                    marker.kind === 'round'
+                        ? { top: 0, bottom: 0 }
+                        : { top: 0, height: `${axisTopPercent}%` };
+                return (
+                    <div
+                        key={`${marker.kind}-${marker.t}`}
+                        className="absolute inset-y-0 w-0"
+                        style={{ left }}
+                        data-testid={
+                            marker.kind === 'round' ? undefined : 'timeline-quarter-round-marker'
+                        }
+                    >
+                        <div
+                            className="absolute left-0 w-px -translate-x-1/2 bg-amber-400/50"
+                            style={barStyle}
+                        />
+                        <span
+                            className={`absolute whitespace-nowrap font-semibold leading-none ${
+                                marker.kind === 'round'
+                                    ? 'text-[9px] text-amber-300/90'
+                                    : 'bg-black px-0.5 py-px text-[11px] text-yellow-300'
+                            }`}
+                            style={
+                                marker.kind === 'round'
+                                    ? { top: 2, transform: 'translateX(calc(-50% - 2px))' }
+                                    : { top: 3, transform: 'translateX(-50%)' }
+                            }
+                        >
+                            {marker.label}
+                        </span>
+                    </div>
+                );
+            })}
+            {eighthTicks.map((t) => (
                 <div
-                    key={`quarter-${label}`}
-                    className="absolute inset-y-0 flex w-0 flex-col items-center"
-                    style={{ left: `${(t / windowSeconds) * 100}%` }}
-                    data-testid="timeline-quarter-round-marker"
-                >
-                    <div className="h-full w-px bg-amber-400/50" />
-                    <span className="absolute top-0 -translate-x-1/2 whitespace-nowrap text-[9px] font-semibold leading-none text-amber-300/90">
-                        {label}
-                    </span>
-                </div>
+                    key={`eighth-${t}`}
+                    data-testid="timeline-eighth-round-tick"
+                    className="absolute h-2 w-px -translate-x-1/2 bg-yellow-400"
+                    style={{ left: `${(t / windowSeconds) * 100}%`, top: `calc(${axisTopPercent}% - 0.5rem)` }}
+                />
             ))}
             {ticks.map((t) => {
                 const leftPercent = (t / windowSeconds) * 100;
@@ -985,8 +1065,9 @@ function renderPlayerRow(
 
 export default function BattleTimeline(props: BattleTimelineProps) {
     const roundTime = props.engine.gameTime - (props.engine.roundNumber - 1) * ROUND_DURATION;
+    const roundClock: TimelineRoundClock = { roundTime, roundNumber: props.engine.roundNumber };
     return (
-        <TimelineRoundTimeContext.Provider value={roundTime}>
+        <TimelineRoundTimeContext.Provider value={roundClock}>
             <BattleTimelineBody {...props} />
         </TimelineRoundTimeContext.Provider>
     );

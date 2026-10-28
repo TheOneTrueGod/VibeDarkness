@@ -24,6 +24,10 @@ npm run play:smoke       # login → host first mission → play to tick 100
 
 Requires Chromium once: `npx playwright install chromium`. Stack: `npm run php` + `npm run dev` (or reuse running servers).
 
+## Local login
+
+The debugging account is `.env.playwright.local` (`PLAYWRIGHT_USERNAME` / `PLAYWRIGHT_PASSWORD`). Use it to log in while debugging the local app, in the browser or in Playwright. Use no other account. Leave the password in that file. Root `AGENTS.md` ("Live app debugging") points here.
+
 ## Sandbox
 
 Chromium OS sandbox on; artifacts under `tmp/playwright/`; only localhost Vite/PHP origins; `file://` blocked. Specs must `import { test, expect } from './fixtures/sandboxed'`.

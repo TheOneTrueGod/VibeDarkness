@@ -6,7 +6,7 @@
  * wall-unstick system (`tickWallUnstick`) pushes the unit out.
  */
 
-import type { AbilityRecoveryRule, AbilityStatic, AbilityStateEntry } from '../../../abilities/Ability';
+import type { AbilityStatic, AbilityStateEntry } from '../../../abilities/Ability';
 import { AbilityState, AbilityEventType } from '../../../abilities/Ability';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
 import { FIXED_DT } from '../../../game/gameConstants';
@@ -31,14 +31,6 @@ import {
 
 const CARD_ID = `${formatGroupId(AbilityGroupId.Earth)}34` as '0534';
 const MAX_USES = 2;
-/**
- * Restores 2 uses at round start (no stamina recovery). Earth Attuned's research `roundRecoveryFlat`
- * adds to this per rank.
- */
-const ROUND_USES_RECOVERED = 2;
-const RECOVERIES: AbilityRecoveryRule[] = [
-	{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: ROUND_USES_RECOVERED },
-];
 /** The dash movement. The cast ends one tick after it (see the `dashEnd` interval); no cooldown. */
 const DASH_DURATION = 0.4;
 const MAX_DISTANCE = 160;
@@ -90,7 +82,6 @@ export const DiggingClawsAbility: AbilityStatic = {
 	resourceCost: { resourceId: 'movement_points', amount: 1 },
 	rechargeTurns: 0,
 	maxUses: MAX_USES,
-	recoveries: RECOVERIES,
 	prefireTime: DASH_DURATION,
 	abilityTimings: [
 		{

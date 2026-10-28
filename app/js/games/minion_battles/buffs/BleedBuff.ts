@@ -5,6 +5,8 @@
 import { Buff, type BuffSerialized } from './Buff';
 
 export const BLEED_BUFF_TYPE = 'bleed';
+/** Stacks required for each point of bleed tick damage (`ceil(stacks / this)`). */
+export const BLEED_STACKS_PER_DAMAGE = 10;
 
 /** Rounds duration is unused; stacks and milestone ticks drive removal. */
 const BLEED_PLACEHOLDER_ROUNDS = 1_000_000;

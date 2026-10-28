@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { formatKeywordLine, formatKeywordText, getKeyword, registerKeyword } from './keywordRegistry';
+import { BLEED_STACKS_PER_DAMAGE } from '../../buffs/BleedBuff';
+import { BLEED_TICKS_PER_ROUND } from '../../game/dotTick';
+import { formatKeywordLine, formatKeywordText, getKeyword, keywordGlossaryEntries, registerKeyword } from './keywordRegistry';
 import { resolveTooltipLine } from '../tooltipTokens';
 
 describe('keywordRegistry', () => {
@@ -12,6 +14,13 @@ describe('keywordRegistry', () => {
         expect(formatKeywordText('bright', 3)).toBe('Bright 3');
         expect(formatKeywordText('knockback', 1)).toBe('knockback 1');
         expect(formatKeywordLine({ keyword: 'bright', n: 3 })).toBe('{Bright 3}');
+    });
+
+    it('describes Bleed as one damage per ten stacks each eighth of a round', () => {
+        expect(keywordGlossaryEntries(['Bleed'])).toEqual([{
+            title: 'Bleed',
+            description: `Deals {1} damage per {${BLEED_STACKS_PER_DAMAGE}} stacks every {1/${BLEED_TICKS_PER_ROUND}} round.`,
+        }]);
     });
 
     it('throws for unregistered keyword', () => {

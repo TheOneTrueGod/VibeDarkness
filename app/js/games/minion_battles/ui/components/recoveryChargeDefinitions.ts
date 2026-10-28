@@ -72,8 +72,8 @@ export const RECOVERY_CHARGE_DEFINITIONS: Record<RecoveryChargeType, RecoveryCha
         softHex: 0xecfeff,
     },
     roundCharge: {
-        displayName: 'Round charge',
-        howToGain: 'You gain one at the start of each round.',
+        displayName: 'round',
+        howToGain: 'Uses come back at the start of each round.',
         fillClass: 'bg-gray-900',
         iconCircleBorderClass: 'border-gray-900',
         possessedBgClass: 'bg-white',
@@ -81,7 +81,7 @@ export const RECOVERY_CHARGE_DEFINITIONS: Record<RecoveryChargeType, RecoveryCha
         iconClassName: 'text-white',
         darkIconClassName: 'text-gray-900',
         strokeWidth: 2.25,
-        rowExplanation: 'Round charges — gain one at the start of each round while this card can recharge.',
+        rowExplanation: 'Recovers uses at the start of each round.',
         mainHex: 0x111827,
         softHex: 0xffffff,
     },
@@ -104,12 +104,24 @@ export const RECOVERY_CHARGE_DEFINITIONS: Record<RecoveryChargeType, RecoveryCha
 /** Shown on abilities that refill to max uses at round start. */
 export const FULL_ROUND_REFILL_DESCRIPTION = 'All uses recover at the start of each round.';
 
-/** One sentence per recovery rule: how many uses a charge restores and how the charge is gained. */
+function describeUsesRecovered(usesRecovered: number): string {
+    return usesRecovered === 1 ? '{1} use' : `{${usesRecovered}} uses`;
+}
+
+/** Round recovery is described as uses per round, without naming the charge. */
+function describeRoundRecovery(rule: AbilityRecoveryRule): string {
+    const uses = describeUsesRecovered(rule.usesRecovered);
+    if (rule.chargesPerRecovery <= 1) return `Recovers ${uses} per round.`;
+    return `Recovers ${uses} every {${rule.chargesPerRecovery}} rounds.`;
+}
+
+/** One sentence per recovery rule: how many uses come back, and how. */
 export function describeAbilityRecovery(recoveries: readonly AbilityRecoveryRule[]): string {
     return recoveries
         .map((rule) => {
+            if (rule.chargeType === 'roundCharge') return describeRoundRecovery(rule);
             const def = RECOVERY_CHARGE_DEFINITIONS[rule.chargeType];
-            const uses = rule.usesRecovered === 1 ? '{1} use' : `{${rule.usesRecovered}} uses`;
+            const uses = describeUsesRecovered(rule.usesRecovered);
             const charges =
                 rule.chargesPerRecovery === 1
                     ? `each ${def.displayName}`

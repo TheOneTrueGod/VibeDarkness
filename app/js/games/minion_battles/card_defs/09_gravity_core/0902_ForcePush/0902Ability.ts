@@ -467,7 +467,6 @@ export const ForcePushAbility = defineAbility({
     resourceCost: { resourceId: 'gravity', amount: FORCE_PUSH_GRAVITY_COST },
     rechargeTurns: 1,
     maxUses: MAX_USES,
-    recoveries: [{ chargeType: 'roundCharge', chargesPerRecovery: 1, usesRecovered: 1 }],
     prefireTime: FORCE_PUSH_PREFIRE_TIME,
     abilityTimings: ABILITY_TIMINGS,
     targets: [],

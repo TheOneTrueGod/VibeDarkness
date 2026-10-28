@@ -36,7 +36,7 @@ import {
     TWO_PIXEL_TARGETS,
 } from '../throwSharedTimings';
 
-const MAX_USES = 6;
+export const THROW_ROCK_MAX_USES = 4;
 const RECOVERIES: AbilityRecoveryRule[] = [
     { chargeType: 'staminaCharge', chargesPerRecovery: 1, usesRecovered: 1 },
 ];
@@ -235,7 +235,7 @@ export const ThrowRock = buildThrowRockAbility({
     name: 'Throw Rock',
     tags: ['RockThrow'],
     resourceCost: null,
-    maxUses: MAX_USES,
+    maxUses: THROW_ROCK_MAX_USES,
     recoveries: RECOVERIES,
 });
 

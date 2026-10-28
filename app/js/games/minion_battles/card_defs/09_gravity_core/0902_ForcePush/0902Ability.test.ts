@@ -36,6 +36,7 @@ import {
     FORCE_PUSH_WALL_UNIT_DAMAGE,
 } from '../gravityConstants';
 import { ForcePushAbility, isForcePushTarget } from './0902Ability';
+import { getAbilityUseConfig } from '../../../abilities/abilityUses';
 
 const TICK_DT = FIXED_DT;
 
@@ -181,6 +182,13 @@ function castAt(caster: Unit, flung: Unit, engine: EngineContext): void {
 }
 
 describe('ForcePushAbility', () => {
+    it('refills every use at round start', () => {
+        const config = getAbilityUseConfig(ForcePushAbility.id);
+        expect(config.maxUses).toBe(ForcePushAbility.maxUses);
+        expect(config.refillsEachRound).toBe(true);
+        expect(config.recoveries).toEqual([]);
+    });
+
     it('rejects bosses and structures unless the boss is exposed', () => {
         const boss = makeUnit('boss', 100, 100, 'enemy');
         boss.tags.push(UnitTag.Boss);
