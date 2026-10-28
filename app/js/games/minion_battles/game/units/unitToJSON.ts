@@ -99,6 +99,7 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
         corruptionProgress: unit.corruptionProgress,
         crystalCorruptionProgress: unit.crystalCorruptionProgress,
         darknessDamageProcCount: unit.darknessDamageProcCount,
+        ...(unit.darknessStrikeElapsed != null ? { darknessStrikeElapsed: unit.darknessStrikeElapsed } : {}),
         ...ccArmourStateToJSON(unit),
         wallStuckTime: unit.wallStuckTime,
         knockback: unit.knockback ? {

@@ -242,14 +242,20 @@ export class Unit extends GameObject {
     /** When true, the unit holds position but retains its queued movement path for the next order. */
     movementPaused: boolean = false;
 
-    /** Darkness corruption progress 0..1. Fills only in full darkness; drains when brighter. At 1 in full darkness: escalating damage then reset to 0. */
+    /** Darkness corruption progress 0..1. Fills only in full darkness; drains when brighter. At 1 the needle strike begins. */
     corruptionProgress: number = 0;
 
     /** Crystal corruption progress 0..1. Set while this unit is actively corrupting a crystal; 0 when not corrupting. */
     crystalCorruptionProgress: number = 0;
 
-    /** Darkness damage proc count since last reset. Next proc: `5 * (count + 2)` dmg. Resets when corruption drains outside full darkness. */
+    /** Darkness damage procs since the ring last drained away. See `darknessCorruptionDamage`. */
     darknessDamageProcCount: number = 0;
+
+    /**
+     * Seconds into the needle strike after the ring fills. Null while the ring is building or idle.
+     * Damage lands when this reaches `DARKNESS_STRIKE_SECONDS`, then the ring resets.
+     */
+    darknessStrikeElapsed: number | null = null;
 
     /** Reduces effective tier of incoming tier-based knockback (see tryApplyKnockbackByTier). Def-sourced; no backing field. */
     get knockbackResistance(): number {

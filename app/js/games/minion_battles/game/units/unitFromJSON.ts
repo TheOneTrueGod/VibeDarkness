@@ -121,6 +121,9 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
     unit.corruptionProgress = Math.max(0, Math.min(1, (data.corruptionProgress as number) ?? 0));
     unit.crystalCorruptionProgress = Math.max(0, Math.min(1, (data.crystalCorruptionProgress as number) ?? 0));
     unit.darknessDamageProcCount = Math.max(0, Math.floor((data.darknessDamageProcCount as number) ?? 0));
+    unit.darknessStrikeElapsed = typeof data.darknessStrikeElapsed === 'number' && data.darknessStrikeElapsed >= 0
+        ? data.darknessStrikeElapsed
+        : null;
     unit.hpInjury = Math.max(0, (data.hpInjury as number) ?? 0);
     unit.hungerPenalty = Math.max(0, (data.hungerPenalty as number) ?? 0);
     const kb = data.knockback as KnockbackState | null;

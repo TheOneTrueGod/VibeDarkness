@@ -36,6 +36,7 @@ import { getBuffVisualRenderer } from '../../../buffs/buffVisuals';
 import type { DamageTakenEvent } from '../../EventBus';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { isLanterniteNest, lanterniteStateOf, peekLanterniteState } from '../../units/components/lanterniteComponent';
+import { syncDarknessNeedles } from './darknessNeedleVisual';
 
 const HIT_FLASH_DURATION = 0.3;
 const HIT_FLASH_COLOR = 0xff0000;
@@ -380,28 +381,7 @@ export class UnitRenderer {
                 if (showHpBar) updateUnitHpBar(visual, unit);
             }
 
-            // Darkness corruption bar
-            let corruptionBar = visual.children.find((c) => c.label === 'corruptionBar') as Graphics | undefined;
-            if (unit.corruptionProgress > 0) {
-                if (!corruptionBar) {
-                    corruptionBar = new Graphics();
-                    corruptionBar.label = 'corruptionBar';
-                    visual.addChild(corruptionBar);
-                }
-                corruptionBar.visible = true;
-                corruptionBar.clear();
-                const w = 24;
-                const h = 4;
-                const y = -unit.radius - 14;
-                corruptionBar.rect(-w / 2, y, w, h);
-                corruptionBar.fill({ color: 0x332244 });
-                corruptionBar.rect(-w / 2, y, w * unit.corruptionProgress, h);
-                corruptionBar.fill({ color: 0x663399 });
-                corruptionBar.rect(-w / 2, y, w, h);
-                corruptionBar.stroke({ color: 0x9966cc, width: 1 });
-            } else {
-                if (corruptionBar) corruptionBar.visible = false;
-            }
+            syncDarknessNeedles(visual, unit);
 
             // Crystal corruption bar
             let crystalCorruptBar = visual.children.find((c) => c.label === 'crystalCorruptBar') as Graphics | undefined;

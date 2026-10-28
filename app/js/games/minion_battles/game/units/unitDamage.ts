@@ -5,6 +5,11 @@ import { debugSettingsSnapshot } from '../../../../debug/debugSettingsStore';
 import { applyDamageToEarthCoreArmour } from '../../abilities/earthCoreArmour';
 import { applyDamageToShields } from './unitShield';
 import { applyDamageLinks } from './unitDamageLinks';
+import {
+    DARKNESS_CORRUPTION_RATE,
+    DARKNESS_STRIKE_SECONDS,
+    darknessCorruptionDamage,
+} from './darknessCorruption';
 import { DarknessLevel } from '../darknessLevels';
 import { DEFAULT_FROZEN_HIT_POLICY, type FrozenHitPolicy } from '../time/timeConstants';
 
@@ -158,25 +163,54 @@ export function applyDamageToUnit(
     return applyDamageToUnitDetailed(unit, amount, sourceUnitId, eventBus, opts).hpDamage;
 }
 
+function landDarknessCorruptionHit(unit: Unit, engine: EngineContext): void {
+    // Flat corruption damage; return value unused, so no need for the shield/armour breakdown.
+    unit.takeDamage(darknessCorruptionDamage(unit.darknessDamageProcCount), null, engine.eventBus);
+    unit.darknessDamageProcCount += 1;
+}
+
+/**
+ * Fill the needle ring in full darkness, drain it in any brighter light, and deal damage when a strike snaps in.
+ * Leaving full darkness during the strike cancels it: the ring unwinds and no hit lands.
+ */
 export function tickUnitDarknessCorruption(unit: Unit, dt: number, engine: EngineContext): void {
     const light = engine.getLightLevelAt(unit.x, unit.y);
     if (light === null) return;
     const inFullDarkness = light <= DarknessLevel.FULL_DARKNESS;
-    const corruptionRate = 0.45;
-    if (inFullDarkness) {
-        unit.corruptionProgress = Math.min(1, unit.corruptionProgress + dt * corruptionRate);
-    } else {
-        unit.corruptionProgress = Math.max(0, unit.corruptionProgress - dt * corruptionRate);
-        if (unit.corruptionProgress <= 0) {
-            unit.darknessDamageProcCount = 0;
-        }
+    if (!inFullDarkness) {
+        if (unit.darknessStrikeElapsed != null) unit.darknessStrikeElapsed = null;
+        unit.corruptionProgress = Math.max(0, unit.corruptionProgress - dt * DARKNESS_CORRUPTION_RATE);
+        if (unit.corruptionProgress <= 0) unit.darknessDamageProcCount = 0;
+        return;
     }
-    if (inFullDarkness && unit.corruptionProgress >= 1) {
+
+    let remaining = dt;
+    if (unit.darknessStrikeElapsed != null) {
+        unit.darknessStrikeElapsed += remaining;
+        if (unit.darknessStrikeElapsed < DARKNESS_STRIKE_SECONDS) return;
+        remaining = unit.darknessStrikeElapsed - DARKNESS_STRIKE_SECONDS;
+        landDarknessCorruptionHit(unit, engine);
         unit.corruptionProgress = 0;
-        const hitIndex = unit.darknessDamageProcCount + 1;
-        const damage = 5 * (hitIndex + 1);
-        // Flat corruption damage; return value unused, so no need for the shield/armour breakdown.
-        unit.takeDamage(damage, null, engine.eventBus);
-        unit.darknessDamageProcCount += 1;
+        unit.darknessStrikeElapsed = null;
+        if (!unit.isAlive()) return;
+    }
+
+    while (remaining > 0) {
+        const secondsUntilFull = (1 - unit.corruptionProgress) / DARKNESS_CORRUPTION_RATE;
+        if (remaining < secondsUntilFull) {
+            unit.corruptionProgress += remaining * DARKNESS_CORRUPTION_RATE;
+            return;
+        }
+        remaining -= secondsUntilFull;
+        unit.corruptionProgress = 1;
+        if (remaining < DARKNESS_STRIKE_SECONDS) {
+            unit.darknessStrikeElapsed = remaining;
+            return;
+        }
+        remaining -= DARKNESS_STRIKE_SECONDS;
+        landDarknessCorruptionHit(unit, engine);
+        unit.corruptionProgress = 0;
+        unit.darknessStrikeElapsed = null;
+        if (!unit.isAlive()) return;
     }
 }
