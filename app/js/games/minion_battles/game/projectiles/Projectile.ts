@@ -13,6 +13,7 @@ import type { Unit } from '../units/Unit';
 import type { EventBus } from '../EventBus';
 import { canAttackBeBlocked, getBlockingArcForUnit, executeBlock } from '../../abilities/blockingHelpers';
 import { getAbility } from '../../abilities/AbilityRegistry';
+import { applyProjectileHitStop, applyUnitHitPause, resolveHitImpactSeconds } from '../../buffs/hitPause';
 import { AbilityEventType } from '../../abilities/Ability';
 import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
 import { triggerAbilityEventFromAttack, triggerAbilityEventFromProjectileExpiry } from '../../abilities/events';
@@ -383,10 +384,24 @@ export class Projectile extends GameObject {
         return before - this.buffs.length;
     }
 
-    /** Drop buffs whose world-time duration has elapsed at `gameTime`. */
+    /**
+     * Drop buffs that have ended. World-time buffs use `gameTime`. A hit-pause buff uses
+     * `hitPauseSteps`: it stays for the step about to run, then the count drops, so the projectile
+     * is frozen for exactly that many steps even though expiry runs before the step.
+     */
     expireBuffs(gameTime: number): void {
         if (this.buffs.length === 0) return;
-        this.buffs = this.buffs.filter((b) => !isProjectileBuffExpired(b, gameTime));
+        const kept: ProjectileBuff[] = [];
+        for (const buff of this.buffs) {
+            if (buff.hitPauseSteps !== undefined) {
+                if (buff.hitPauseSteps <= 0) continue;
+                buff.hitPauseSteps -= 1;
+                kept.push(buff);
+                continue;
+            }
+            if (!isProjectileBuffExpired(buff, gameTime)) kept.push(buff);
+        }
+        this.buffs = kept;
     }
 
     /** Time modifiers carried by this projectile's buffs (projectiles start at tempo 1, not the caster's). */
@@ -621,6 +636,8 @@ export class Projectile extends GameObject {
      * `damagingHits - already_hit` of them take damage, choosing the closest first.
      *
      * Units with IFrames or an active block immediately consume the projectile.
+     * A contact that is neither of those — a damaging hit or a knockback-only overflow —
+     * freezes this projectile (hitstop) and that unit (hitstun). The caster is not frozen.
      * Returns the last unit hit this frame, or null.
      */
     checkCollision(units: Unit[], eventBus: EventBus, gameTime: number, engine?: unknown): Unit | null {
@@ -691,6 +708,7 @@ export class Projectile extends GameObject {
                 if (unit.hasIFrames(gameTime)) continue;
                 this.knockbackOnlyUnitIds.add(unit.id);
                 this.applyHitKnockback(unit, engine);
+                this.applyStrikeContactPauses(unit, gameTime, engine);
             }
         }
 
@@ -749,6 +767,7 @@ export class Projectile extends GameObject {
             if (engine) {
                 this.applyHitKnockback(unit, engine);
             }
+            this.applyStrikeContactPauses(unit, gameTime, engine);
             eventBus.emit('projectile_hit', {
                 projectileId: this.id,
                 targetUnitId: unit.id,
@@ -768,6 +787,20 @@ export class Projectile extends GameObject {
         }
 
         return lastHit;
+    }
+
+    /**
+     * A landed contact (damaging hit or knockback-only overflow). Hitstop freezes this projectile;
+     * hitstun freezes `unit`. Lengths come from `sourceAbilityId`; each body's tempo scales its own
+     * pause. The caster (`sourceUnitId`) is not frozen. World time is `gameTime`. An iFrame miss and
+     * a facing block never reach here. Stub collisions with no engine round apply nothing.
+     */
+    private applyStrikeContactPauses(unit: Unit, gameTime: number, engine: unknown): void {
+        const roundNumber = (engine as { roundNumber?: number } | undefined)?.roundNumber;
+        if (roundNumber === undefined) return;
+        const impact = resolveHitImpactSeconds(getAbility(this.sourceAbilityId));
+        applyProjectileHitStop(this, impact.hitstopSeconds, gameTime);
+        applyUnitHitPause(unit, { seconds: impact.hitstunSeconds, kind: 'hit_stun' }, gameTime, roundNumber);
     }
 
     /** Knock `unit` back per `hitPolicy.knockback` (no-op when the policy has no knockback). */

@@ -12,6 +12,7 @@ import { getAbility } from '../../../abilities/AbilityRegistry';
 import { normalizeAbilityTimingsToIntervals, resolveAbilityTimingEntries, getEffectiveCastBehaviours } from '../../../abilities/abilityTimings';
 import { resolveBehaviourTimingRef } from '../../../abilities/castBehaviourTypes';
 import { resolveCastBehaviourTarget } from '../../../abilities/resolveCastBehaviourTarget';
+import { HIT_STUN_BUFF_TYPE } from '../../../buffs/hitPause';
 import {
     LIFTED_BUFF_TYPE,
     LIFTED_RENDER_MAX_HEIGHT_PX,
@@ -32,6 +33,7 @@ import {
 import { getSpawnRenderState } from '../../units/spawnVisuals';
 import { getDrowningRenderState, type DrowningRenderState } from '../../terrainHazards/drowning';
 import { DisplayWiggle } from '../displayWiggle';
+import { hitStunShakeOffset } from './hitStunShake';
 import { getBuffVisualRenderer } from '../../../buffs/buffVisuals';
 import type { DamageTakenEvent } from '../../EventBus';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
@@ -297,6 +299,14 @@ export class UnitRenderer {
                 wiggle.update(wiggleDt);
                 wiggleX = wiggle.offsetX;
                 wiggleY = wiggle.offsetY;
+            }
+
+            // Hitstun shake: wall-time sprite jitter on the victim while the battle is running.
+            // The order screen (engine paused) holds a still pose. Display-only; unit.x/y stay put.
+            if (!engine.isPaused && unit.hasBuff(HIT_STUN_BUFF_TYPE)) {
+                const shake = hitStunShakeOffset(nowMs, unit.id);
+                renderOffsetX += shake.x;
+                renderOffsetY += shake.y;
             }
 
             const spawnState = getSpawnRenderState(unit);

@@ -130,6 +130,11 @@ export const FORCE_PUSH_WALL_UNIT_DAMAGE = 8;
 export const FORCE_PUSH_WALL_TERRAIN_DAMAGE = 50;
 /** Stun applied to the flung unit when they hit a wall. */
 export const FORCE_PUSH_WALL_STUN_DURATION = 1;
+/**
+ * Hitstop on each body in a Force Push contact, at tempo 1: 3 lockstep ticks.
+ * The shared helper scales this by that unit's tempo. There is no hitstun buff.
+ */
+export const FORCE_PUSH_HIT_STOP_SECONDS = 3 * FIXED_DT;
 export const FORCE_PUSH_GRAVITY_COST = 5;
 export const FORCE_PUSH_LEAN_DISTANCE = 12;
 export const FORCE_PUSH_PUNCH_DISTANCE = 16;

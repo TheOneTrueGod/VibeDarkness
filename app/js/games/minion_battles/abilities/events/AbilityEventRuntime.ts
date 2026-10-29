@@ -25,6 +25,7 @@ import type { HitboxEngineContext } from '../../hitboxes/Hitbox';
 import type { EngineContext } from '../../game/EngineContext';
 import type { TerrainLayerManager } from '../../game/TerrainLayerManager';
 import { TERRAIN_CLEARS, clearTerrainEffects } from '../../game/terrainEffects/terrainClearing';
+import { applyProjectileHitStop, applyUnitHitPause, resolveHitImpactSeconds } from '../../buffs/hitPause';
 
 type CustomConditionHandler = (
     params: Record<string, unknown> | undefined,
@@ -349,10 +350,19 @@ function applyEffect(effect: AbilityEffect, context: AbilityEventRuntimeContext)
                 committedIds,
                 numTargets: maxTargets,
             });
+            // The projectile is the striking body, so hitstop freezes it. `gameTime` is world time.
+            const impact = resolveHitImpactSeconds(context.ability);
             for (const unit of hits) {
                 const modifiedDamage = getModifiedAbilityDamage(context.caster, damage);
                 // Flat AoE explosion damage; return value unused, so no need for the shield/armour breakdown.
                 unit.takeDamage(modifiedDamage, context.caster.id, context.engine.eventBus);
+                applyUnitHitPause(
+                    unit,
+                    { seconds: impact.hitstunSeconds, kind: 'hit_stun' },
+                    context.engine.gameTime,
+                    context.engine.roundNumber,
+                );
+                applyProjectileHitStop(projectile, impact.hitstopSeconds, context.engine.gameTime);
                 if (knockbackTier != null) {
                     tryApplyKnockbackByTier(
                         unit,

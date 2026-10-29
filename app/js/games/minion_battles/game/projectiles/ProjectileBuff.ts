@@ -14,8 +14,15 @@ export interface ProjectileBuff {
     sourceId: string;
     /** World time (`engine.gameTime`) when applied. */
     appliedAtTime: number;
-    /** World seconds the buff lasts; `null` = until removed. */
+    /** World seconds the buff lasts; `null` = until removed. Ignored when `hitPauseSteps` is set. */
     duration: number | null;
+    /**
+     * Hitstop step budget. When set, `expireBuffs` keeps the buff for this many steps and then
+     * drops it, instead of using world-time `duration`. Each call observes the buff (so the step
+     * still freezes) and then decrements, which cancels the expire-before-step shortfall: a value
+     * of N leaves the projectile frozen for N steps. Not scaled by world pace.
+     */
+    hitPauseSteps?: number;
     /** Tempo/focal/freeze carried by this buff (stacked multiplicatively with other buffs). */
     timeModifier?: TimeModifier;
 }

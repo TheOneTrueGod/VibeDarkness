@@ -32,6 +32,7 @@ import { TerrainType } from '../../../terrain/TerrainType';
 import { TerrainLayerManager } from '../../../game/TerrainLayerManager';
 import { resolveParallelOrderPause } from '../../../testing/runner/SimulationRunner';
 import { earthCoreStoneTombScenario } from '../../../testing/scenarios/abilities/earthCoreScenarios';
+import { HIT_STUN_BUFF_TYPE } from '../../../buffs/hitPause';
 
 const CELL = 40;
 const center = (col: number, row: number) => ({ x: col * CELL + CELL / 2, y: row * CELL + CELL / 2 });
@@ -204,6 +205,31 @@ describe('Stone Tomb (0530)', () => {
 
         expect(dummy.maxHp - dummy.hp).toBeGreaterThanOrEqual(STONE_TOMB_STAGE1_DAMAGE);
         expect(tm.getEffectiveTerrainType(5, 5)).toBe(TerrainType.Rock);
+    });
+
+    it('stage 1 hitstuns the struck dummy on a full engine tick', () => {
+        const engine = earthCoreStoneTombScenario.buildEngine() as GameEngine;
+        const player = engine.getLocalPlayerUnit()!;
+        const dummy = engine.getUnit('target_dummy')!;
+
+        executeUnitAbility(player, StoneTomb, [], engine);
+        const active = player.activeAbilities.find((a) => a.abilityId === '0530')!;
+        active.targetsByLabel = {};
+        const tick = (): void => {
+            resolveParallelOrderPause(engine);
+            engine.stepSimulationFixedTicks(1);
+        };
+
+        let guard = 0;
+        while (!engine.waitingForTargetInput && guard++ < 300) tick();
+        engine.waitingForTargetInput = null;
+        active.targetsByLabel = { 'Tomb location': { type: 'pixel', position: { x: dummy.x, y: dummy.y } } };
+
+        guard = 0;
+        while (dummy.hp === dummy.maxHp && guard++ < 300) tick();
+
+        expect(dummy.hp).toBeLessThan(dummy.maxHp);
+        expect(dummy.hasBuff(HIT_STUN_BUFF_TYPE)).toBe(true);
     });
 
     it('cast on water: rock fills the centre to gravel, gravel raises the arms to shallow water', () => {

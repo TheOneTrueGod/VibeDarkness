@@ -12,6 +12,7 @@ import type { AttackBlockedInfo } from './Ability';
 import { AbilityEventType } from './Ability';
 import { getModifiedAbilityDamage } from './damageModifiers';
 import { triggerAbilityEvent, triggerAbilityEventFromAttack } from './events';
+import { applyUnitHitPause, resolveHitImpactSeconds } from '../buffs/hitPause';
 
 export interface BlockingArc {
     abilityId: string;
@@ -192,9 +193,30 @@ export interface DamageOutcome {
 }
 
 /**
+ * Freeze the bodies in a landed strike. Hitstun on the defender, hitstop on the attacker unit
+ * when `getUnit` finds one. Lengths come from the ability (`resolveHitImpactSeconds`); each
+ * actor's tempo scales its own pause. Called after damage so a knockback launched later in
+ * the same tick is stored by the freeze on the following tick. Does not write `worldPace`.
+ */
+function applyStrikeHitPauses(
+    defender: Unit,
+    attacker: Unit | undefined,
+    ability: AbilityStatic | undefined,
+    gameTime: number,
+    roundNumber: number,
+): void {
+    const impact = resolveHitImpactSeconds(ability);
+    applyUnitHitPause(defender, { seconds: impact.hitstunSeconds, kind: 'hit_stun' }, gameTime, roundNumber);
+    if (!attacker) return;
+    applyUnitHitPause(attacker, { seconds: impact.hitstopSeconds, kind: 'hit_stop' }, gameTime, roundNumber);
+}
+
+/**
  * If the defender can block the attack (from attacker position), execute block and return
  * `{ hit: false, amountDealt: 0 }`. Otherwise deal damage and return the modified amount.
  * Active iFrames (when `respectIFrames` is not false) miss without damage or block side-effects.
+ * A contact that is not that miss and not a facing block — including a hit fully absorbed by
+ * shields — freezes the defender (hitstun) and the attacker unit (hitstop) before returning.
  */
 export function tryDamageOrBlock(
     defender: Unit,
@@ -235,6 +257,8 @@ export function tryDamageOrBlock(
     // CastBehaviours). Direct/AoE unit.takeDamage() call sites still get HP-pool shield
     // absorption (universal, in unitDamage.ts) but won't fire onBlock.
     const breakdown = defender.takeDamageDetailed(modifiedDamage, attackerId, eventBus);
+    const roundNumber = (engine as { roundNumber?: number }).roundNumber ?? 1;
+    applyStrikeHitPauses(defender, attacker, ability, gameTime, roundNumber);
     if (breakdown.shieldAbsorbed >= modifiedDamage && breakdown.hpDamage <= 0) {
         fireAttackBlockedHooks(
             engine,

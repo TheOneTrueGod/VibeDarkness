@@ -22,6 +22,10 @@ import { initializeAbilityRuntimeForUnit } from '../../../abilities/abilityUses'
 import { registerAbilityForTest } from '../../../abilities/AbilityRegistry';
 import { defineAbility } from '../../../abilities/defineAbility';
 import { AbilityPhase } from '../../../abilities/abilityTimings';
+import { CastBehaviours } from '../../../abilities/CastBehaviours';
+import { perpendicularSwingHitbox } from '../../../hitboxes';
+import { HIT_STUN_BUFF_TYPE } from '../../../buffs/hitPause';
+import { DEFAULT_HIT_STUN_SECONDS } from '../../../game/time/timeConstants';
 import { Gravity } from '../../../resources/Gravity';
 import { EaseBurdensAbility } from '../../../card_defs/09_gravity_core/0906_EaseBurdens/0906Ability';
 import { EASE_BURDENS_GRAVITY_COST } from '../../../card_defs/09_gravity_core/gravityConstants';
@@ -595,9 +599,155 @@ export const timeDilationExtremeTempoScenario: ScenarioDefinition = {
     },
 };
 
+// ---------------------------------------------------------------------------
+// 5. Hitstun delays the victim's cast
+// ---------------------------------------------------------------------------
+
+const HS_VICTIM = 'td_hitstun_victim';
+const HS_ATTACKER = 'td_hitstun_attacker';
+const HS_STRIKE_ID = '__test_time_dilation_hitstun_strike__';
+/** One-cell gap. Inside the swing tether (`swingRange` plus unit radius plus lock-on extra). */
+const HS_ATTACKER_COL = 2;
+const HS_VICTIM_COL = 3;
+const HS_STRIKE_ROW = 2;
+const HS_PLAYER_COL = 6;
+const HS_PLAYER_ROW = 4;
+const HS_GRID_W = 8;
+const HS_GRID_H = 5;
+/** Swing window. Still open across a tempo-1 hitstop, so the strike is a cast rather than an instant. */
+const HS_STRIKE_WINDOW_SECONDS = 1;
+const HS_STRIKE_DAMAGE = 10;
+const HS_SWING_RANGE = CELL_SIZE;
+const HS_SWING_LENGTH = CELL_SIZE * 2;
+const HS_SWING_THICKNESS = CELL_SIZE / 2;
+/** `MeleeAttack` treats `<= 0` as the first tick of the window. */
+const HS_IMPACT_ON_FIRST_TICK = 0;
+const HS_NO_SLIDE_DISTANCE = 0;
+
+const hitstunStrikeAbility = defineAbility({
+    id: HS_STRIKE_ID,
+    name: 'Time Dilation Hitstun Strike',
+    image: '',
+    resourceCost: null,
+    rechargeTurns: 0,
+    prefireTime: 0,
+    targets: [],
+    abilityTimings: [{
+        id: 'swing',
+        start: 0,
+        end: HS_STRIKE_WINDOW_SECONDS,
+        abilityPhase: AbilityPhase.Active,
+        behaviour: CastBehaviours.MeleeAttack()
+            .withHitbox(perpendicularSwingHitbox(HS_SWING_RANGE, HS_SWING_LENGTH, HS_SWING_THICKNESS))
+            .withImpactAt(HS_IMPACT_ON_FIRST_TICK)
+            .withDamage(HS_STRIKE_DAMAGE)
+            .withSlide({ forwardDistance: HS_NO_SLIDE_DISTANCE, backwardDistance: HS_NO_SLIDE_DISTANCE }),
+    }],
+    getTooltipText: () => ['Test-only melee strike used to check that hitstun delays a cast.'],
+    getRange: () => ({ minRange: 0, maxRange: HS_SWING_RANGE }),
+});
+registerAbilityForTest(hitstunStrikeAbility);
+
+interface HitstunCastState {
+    /** Active ability ids on the tick the hitstun buff is first seen. */
+    idsAtLanding: string[] | null;
+    /** A later sample, still during hitstun, still had those ids. */
+    heldThroughStun: boolean;
+    /** The active set changed while hitstun was up. */
+    castDropped: boolean;
+}
+const hitstunCastState = new WeakMap<GameEngine, HitstunCastState>();
+
+function activeAbilityIds(unit: Unit): string[] {
+    return unit.activeAbilities.map((active) => active.abilityId);
+}
+
+function sameAbilityIds(a: string[], b: string[]): boolean {
+    return a.length === b.length && a.every((id, i) => id === b[i]);
+}
+
+function observeHitstunCast(engine: GameEngine): HitstunCastState {
+    const s = hitstunCastState.get(engine)!;
+    const victim = engine.getUnit(HS_VICTIM)!;
+    if (!victim.hasBuff(HIT_STUN_BUFF_TYPE)) return s;
+    const ids = activeAbilityIds(victim);
+    if (s.idsAtLanding === null) {
+        s.idsAtLanding = ids;
+        return s;
+    }
+    if (sameAbilityIds(ids, s.idsAtLanding)) s.heldThroughStun = true;
+    else s.castDropped = true;
+    return s;
+}
+
+/**
+ * A melee strike connects while the victim is mid-cast. Hitstun freezes that unit, and the cast stays
+ * the same ability (delayed, not removed). The run passes only after that mid-stun sample and after
+ * the buff has expired. The player's wait keeps the runner from idling out before then.
+ */
+export const timeDilationHitstunDelaysCastScenario: ScenarioDefinition = {
+    id: 'time_dilation_hitstun_delays_cast',
+    title: 'Hitstun: a melee hit freezes the victim, and their cast is still that cast after the buff ends',
+    category: 'general',
+    generalSection: SECTION,
+    maxDurationMs: 3000,
+    buildEngine() {
+        const engine = buildTinyBattleEngine({ gridW: HS_GRID_W, gridH: HS_GRID_H, localPlayerId: P, grass: true });
+        spawnTinyPlayerUnit(engine, {
+            playerId: P,
+            x: cellCenter(HS_PLAYER_COL, HS_PLAYER_ROW).x,
+            y: cellCenter(HS_PLAYER_COL, HS_PLAYER_ROW).y,
+            abilities: [],
+        });
+        spawnStaticUnit(engine, {
+            id: HS_ATTACKER,
+            col: HS_ATTACKER_COL,
+            row: HS_STRIKE_ROW,
+            teamId: 'player',
+            abilities: [HS_STRIKE_ID],
+        });
+        spawnStaticUnit(engine, {
+            id: HS_VICTIM,
+            col: HS_VICTIM_COL,
+            row: HS_STRIKE_ROW,
+            teamId: 'enemy',
+            abilities: [PROBE_ID],
+        });
+        hitstunCastState.set(engine, { idsAtLanding: null, heldThroughStun: false, castDropped: false });
+        return engine;
+    },
+    getInitialOrders(engine) {
+        const player = engine.getLocalPlayerUnit()!;
+        return [
+            { unitId: player.id, abilityId: 'wait', targets: [] },
+            { unitId: HS_ATTACKER, abilityId: HS_STRIKE_ID, targets: [{ type: 'unit', unitId: HS_VICTIM }] },
+            { unitId: HS_VICTIM, abilityId: PROBE_ID, targets: [] },
+        ];
+    },
+    assertPass(engine) {
+        const s = observeHitstunCast(engine);
+        const victim = engine.getUnit(HS_VICTIM);
+        if (!victim || s.idsAtLanding === null || !s.heldThroughStun || s.castDropped) return false;
+        if (s.idsAtLanding.length !== 1 || s.idsAtLanding[0] !== PROBE_ID) return false;
+        if (victim.hasBuff(HIT_STUN_BUFF_TYPE)) return false;
+        return sameAbilityIds(activeAbilityIds(victim), s.idsAtLanding);
+    },
+    failureMessage(engine) {
+        const s = observeHitstunCast(engine);
+        const victim = engine.getUnit(HS_VICTIM);
+        const ids = victim ? activeAbilityIds(victim).join(',') : 'missing';
+        return (
+            `landing=${s.idsAtLanding?.join(',') ?? 'none'} held=${s.heldThroughStun} dropped=${s.castDropped} ` +
+            `stun=${Boolean(victim?.hasBuff(HIT_STUN_BUFF_TYPE))} active=${ids} hp=${victim?.hp} ` +
+            `hitstunSec=${DEFAULT_HIT_STUN_SECONDS}`
+        );
+    },
+};
+
 export const TIME_DILATION_SCENARIOS: ScenarioDefinition[] = [
     timeDilationEaseBurdensHasteScenario,
     timeDilationProjectileTempoScenario,
     timeDilationTimeStopScenario,
     timeDilationExtremeTempoScenario,
+    timeDilationHitstunDelaysCastScenario,
 ];

@@ -1,6 +1,6 @@
 ---
 name: time-dilation
-description: Minion Battles time dilation - tempo, haste, slow, world pace, focal dilation, Time Stop, hit-stop, frozen actors, local time, and "which clock do I use?". Use when adding haste/slow effects, reading cast or elapsed time, touching gameTime/localTime, or writing dilation tests.
+description: Minion Battles time dilation - tempo, haste, slow, world pace, focal dilation, Time Stop, hitstop, hitstun, frozen actors, local time, and "which clock do I use?". Use when adding haste/slow effects, reading cast or elapsed time, touching gameTime/localTime, or writing dilation tests.
 ---
 
 # Time Dilation
@@ -15,7 +15,7 @@ Actors (units, projectiles) run on their own local clock at a tempo; focal dilat
 - Haste/slow comes from the engine: apply a `TimeDilationBuff` preset (or `Buff.timeModifier`, or a projectile buff). Do not write tempo maths in ability code.
 - Pace-1 invariance: with no modifiers, behaviour and serialized state must be byte-identical to before. Existing tests must not change.
 - Time Stop: `engine.startTimeStop(...)` is the only entry point; duration is tick time and capped. Frozen-hit policy: Time Stop def, then per-hit option, then default `'immediate'`.
-- Hit-stop is a placeholder (`HIT_STOP_DEFAULTS`); `requestHitPause` is a no-op.
+- Strike pauses freeze only the bodies in the hit. Hitstop freezes the striking unit or projectile; hitstun freezes the victim. Apply them with `applyUnitHitPause` / `applyProjectileHitStop` in `buffs/hitPause.ts`. Seconds scale with that actor's tempo; world pace does not. Casts on those actors delay. See `game/time/AGENTS.md`.
 
 ## Tests
 

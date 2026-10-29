@@ -41,6 +41,7 @@ import {
     FORCE_PUSH_FLUNG_HIT_DAMAGE,
     FORCE_PUSH_GRAVITY_COST,
     FORCE_PUSH_HIT_RADIUS,
+    FORCE_PUSH_HIT_STOP_SECONDS,
     FORCE_PUSH_HOVER_HEIGHT_PX,
     FORCE_PUSH_KNOCKBACK_TIER,
     FORCE_PUSH_LEAN_DISTANCE,
@@ -68,7 +69,7 @@ import {
 } from '../../../game/effect_defs/impactEffects';
 import type { AbilityEventRuntimeContext } from '../../../abilities/events/AbilityEventRuntime';
 import { EXPOSED_BUFF_TYPE } from '../../../buffs/ExposedBuff';
-import { applyHitStop } from '../../../buffs/HitStopBuff';
+import { applyUnitHitPause } from '../../../buffs/hitPause';
 import {
     beginHoverLift,
     cancelHoverFlight,
@@ -349,6 +350,15 @@ function dropIfStillLifted(engine: EngineContext, activeTargets: ResolvedTarget[
     if (target?.hoverFlight?.phase === 'lift') cancelHoverFlight(target);
 }
 
+function applyForcePushHitStop(unit: Unit, gameTime: number, round: number): void {
+    applyUnitHitPause(
+        unit,
+        { seconds: FORCE_PUSH_HIT_STOP_SECONDS, kind: 'hit_stop' },
+        gameTime,
+        round,
+    );
+}
+
 function spawnClash(engine: HoverFlightEngine, x: number, y: number): void {
     engine.addEffect?.(new Effect({
         x,
@@ -379,7 +389,8 @@ function onFlingUnitHit(contact: HoverFlightUnitContact, engine: HoverFlightEngi
             knockbackCtxFromEngine(engine),
         );
     }
-    applyHitStop([contact.mover, contact.other], engine.gameTime, round);
+    applyForcePushHitStop(contact.mover, engine.gameTime, round);
+    applyForcePushHitStop(contact.other, engine.gameTime, round);
 }
 
 function onFlingWall(contact: HoverFlightWallContact, engine: HoverFlightEngine): void {
@@ -424,7 +435,7 @@ function onFlingWall(contact: HoverFlightWallContact, engine: HoverFlightEngine)
         round,
         engine.eventBus,
     );
-    applyHitStop([contact.mover], engine.gameTime, round);
+    applyForcePushHitStop(contact.mover, engine.gameTime, round);
 }
 
 registerHoverFlightHandler(CARD_ID, {

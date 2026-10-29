@@ -1655,11 +1655,8 @@ export class GameEngine implements EngineContext {
     }
 
     /**
-     * Pause game simulation for approximately `frames` game ticks (hitpause).
-     *
-     * PLACEHOLDER (no-op). See `HIT_STOP_DEFAULTS` in `game/time/timeConstants.ts`: a future
-     * implementation applies a short tick-time `freeze` TimeModifier to attacker and victim (not
-     * world pace), so the rest of the world keeps moving and stored momentum resumes afterwards.
+     * Global simulation pause. Strike pauses live in `applyUnitHitPause` / `applyProjectileHitStop`.
+     * This method no longer grows a global pause (no-op).
      */
     requestHitPause(frames: number): void {
         void frames;

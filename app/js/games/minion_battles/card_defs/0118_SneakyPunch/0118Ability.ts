@@ -6,7 +6,9 @@
  */
 
 import type { AbilityRecoveryRule } from '../../abilities/Ability';
+import { getAbility } from '../../abilities/AbilityRegistry';
 import { defineMeleeStrike } from '../../abilities/archetypes/defineMeleeStrike';
+import { applyUnitHitPause, resolveHitImpactSeconds } from '../../buffs/hitPause';
 import { Effect } from '../../game/effects/Effect';
 import { AbilityGroupId, formatGroupId } from '../AbilityGroupId';
 import { STUNNED_BUFF_TYPE } from '../../buffs/StunnedBuff';
@@ -78,6 +80,11 @@ export const SneakyPunchAbility = defineMeleeStrike({
         if (isVulnerable) {
             // Flat bonus damage; return value unused, so no need for the shield/armour breakdown.
             unit.takeDamage(BONUS_DAMAGE, ctx.caster.id, ctx.engine.eventBus);
+            // Same-tick strike. Replaces the hitstop and hitstun the melee contact just applied.
+            const impact = resolveHitImpactSeconds(getAbility(ctx.abilityId));
+            const roundNumber = ctx.engine.roundNumber ?? 1;
+            applyUnitHitPause(unit, { seconds: impact.hitstunSeconds, kind: 'hit_stun' }, ctx.engine.gameTime, roundNumber);
+            applyUnitHitPause(ctx.caster, { seconds: impact.hitstopSeconds, kind: 'hit_stop' }, ctx.engine.gameTime, roundNumber);
             ctx.engine.addEffect(new Effect({
                 x: unit.x,
                 y: unit.y,

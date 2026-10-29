@@ -313,6 +313,19 @@ export interface AbilitySwapConfig {
     deactivateTrigger: DeactivateTrigger;
 }
 
+/**
+ * Per-ability strike-pause lengths, in seconds.
+ * An omitted field uses the default (`DEFAULT_HIT_STOP_SECONDS` for hitstop,
+ * `DEFAULT_HIT_STUN_SECONDS` for hitstun). `n * FIXED_DT` is an n-tick hitch at
+ * tempo 1. `0` means that side does not pause. `resolveHitImpactSeconds` fills the gaps.
+ */
+export interface HitImpact {
+    /** Hitstop on the striking body. Omit for the default; `0` skips it. */
+    hitstopSeconds?: number;
+    /** Hitstun on the unit that was hit. Omit for the default; `0` skips it. */
+    hitstunSeconds?: number;
+}
+
 /** Interrupt handling for an ability's active cast. See `AbilityStatic.interruptPolicy`. */
 export interface AbilityInterruptPolicy {
     beforeCooldown?: 'cancel' | 'skipToCooldown';
@@ -507,6 +520,12 @@ export interface AbilityStatic {
      *   launched (projectiles, terrain) are unaffected.
      */
     readonly interruptPolicy?: AbilityInterruptPolicy;
+
+    /**
+     * Optional strike pauses, in seconds. An omitted field uses the default.
+     * `n * FIXED_DT` is an n-tick hitch at tempo 1. `0` means that side does not pause.
+     */
+    readonly hitImpact?: HitImpact;
 
     /**
      * Optional per-cast mode toggle (e.g. push/pull). Mode is committed on the BattleOrder and

@@ -42,7 +42,9 @@ import { drawTileAreaTelegraph } from '../../../abilities/previewHelpers';
 import { TELEGRAPH_STYLES } from '../../../abilities/telegraphStyles';
 import { CELL_SIZE } from '../../../terrain/TerrainGrid';
 import { TERRAIN_CLEARS, clearTerrainEffects } from '../../../game/terrainEffects/terrainClearing';
+import { getAbility } from '../../../abilities/AbilityRegistry';
 import { knockbackCtxFromEngine, tryApplyKnockbackByTier } from '../../../crowdControl/knockbackKeywords';
+import { applyUnitHitPause, resolveHitImpactSeconds } from '../../../buffs/hitPause';
 import {
     STONE_TOMB_MAX_TILE_OFFSET,
     STONE_TOMB_CAST_RANGE,
@@ -113,6 +115,17 @@ function spawnTileImpact(engine: AbilityEngineContext, tile: TileCoord): void {
     }));
 }
 
+/**
+ * Hitstun on the struck unit and hitstop on the caster. `engine.gameTime` is world time;
+ * each body's tempo scales its own pause.
+ */
+function applyTombStrikePauses(engine: AbilityEngineContext, caster: Unit, victim: Unit): void {
+    const impact = resolveHitImpactSeconds(getAbility(ABILITY_ID));
+    const roundNumber = engine.roundNumber ?? 1;
+    applyUnitHitPause(victim, { seconds: impact.hitstunSeconds, kind: 'hit_stun' }, engine.gameTime, roundNumber);
+    applyUnitHitPause(caster, { seconds: impact.hitstopSeconds, kind: 'hit_stop' }, engine.gameTime, roundNumber);
+}
+
 /** Erases ground effects (any team) from the struck tiles. No-op on engine stubs without terrain layers. */
 function scourTiles(engine: AbilityEngineContext, caster: Unit, tiles: TileCoord[]): void {
     if (!engine.terrainLayers) return;
@@ -147,6 +160,7 @@ function stageOne(ctx: CastBehaviourTickContext): void {
     for (const unit of unitsOnTiles(engine, caster, [center], true)) {
         // Flat, unblockable environment-style hit; return value unused (see 0532).
         unit.takeDamage(STONE_TOMB_STAGE1_DAMAGE, caster.id, engine.eventBus);
+        applyTombStrikePauses(engine, caster, unit);
         knockback(unit);
     }
     // Allies (and the caster) standing in the centre tile are shoved clear too, undamaged.
@@ -169,6 +183,7 @@ function stageTwo(ctx: CastBehaviourTickContext): void {
     const engine = ctx.engine;
     for (const unit of unitsOnTiles(engine, ctx.caster, cells, true)) {
         unit.takeDamage(STONE_TOMB_STAGE2_DAMAGE, ctx.caster.id, engine.eventBus);
+        applyTombStrikePauses(engine, ctx.caster, unit);
     }
     scourTiles(engine, ctx.caster, cells);
     // cells[0] is the centre (plus() puts it first), whose rock was raised in stage 1.

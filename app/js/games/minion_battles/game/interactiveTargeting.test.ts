@@ -33,7 +33,9 @@ import { spawnBrightLight } from '../abilities/brightKeyword';
 import { findPreviewDeferredSelectLabel } from './interaction/selectTargetLookahead';
 import { getEndedEarlyPreviewStop, isITSPreviewComplete } from './interaction/isITSPreviewComplete';
 import { knockbackCtxFromEngine, tryApplyKnockbackByTier } from '../crowdControl/knockbackKeywords';
-import { ITS_ENDED_EARLY_PLAYAHEAD_MAX_TICKS } from './gameConstants';
+import { FIXED_DT, ITS_ENDED_EARLY_PLAYAHEAD_MAX_TICKS } from './gameConstants';
+import { hitPauseTicks } from '../buffs/hitPause';
+import { DEFAULT_HIT_STOP_SECONDS } from './time/timeConstants';
 import { getAbility, registerAbilityForTest } from '../abilities/AbilityRegistry';
 import { AbilityPhase } from '../abilities/abilityTimings';
 import { defineAbility } from '../abilities/defineAbility';
@@ -976,7 +978,7 @@ describe('interactive sequential targeting', () => {
      * 1. After order application, unit.movement points toward col A.
      * 2. After punch1 fires (label 'Target 1' has no movementByLabel entry), unit.movement
      *    still points toward col A (unchanged).
-     * 3. After punch2 fires (at ~0.5 s), unit.movement switches to point toward col B.
+     * 3. After punch2 fires (local 0.5 s, plus the attacker's punch-1 hitstop), unit.movement switches to point toward col B.
      *
      * NOTE: Double Punch locks movement speed to 0 until 0.6 s, so the unit won't translate
      * physically — but setMovement is called and the path changes as expected.
@@ -1047,8 +1049,10 @@ describe('interactive sequential targeting', () => {
         const activeAbility = player.activeAbilities.find(a => a.abilityId === '0116');
         expect(activeAbility).not.toBeUndefined();
 
-        // Step until just after punch1 fires (elapsed > 0.25 s) but before punch2 (0.5 s).
+        // Step until just after punch1 fires (elapsed > 0.25 s) but before punch2.
         // After punch1, 'Target 1' has no movementByLabel entry, so movement path stays A.
+        // Punch 1 hitstops the attacker, so punch 2's local 0.5 s is that many world seconds later.
+        const punch1HitstopWorldSeconds = hitPauseTicks(DEFAULT_HIT_STOP_SECONDS, 1) * FIXED_DT;
         let passedPunch1 = false;
         let passedPunch2 = false;
         for (let i = 0; i < 300; i++) {
@@ -1059,7 +1063,7 @@ describe('interactive sequential targeting', () => {
                 // Verify movement still points toward A (punch1 has no movementByLabel entry).
                 expect(player.movement?.path[player.movement.path.length - 1]).toEqual({ col: moveColA, row: moveRowA });
             }
-            if (elapsed > 0.51 && !passedPunch2) {
+            if (elapsed > 0.51 + punch1HitstopWorldSeconds && !passedPunch2) {
                 passedPunch2 = true;
                 // Assert: after punch2 interval enters (0.5 s), movement path switches to B.
                 expect(player.movement?.path[player.movement.path.length - 1]).toEqual({ col: moveColB, row: moveRowB });

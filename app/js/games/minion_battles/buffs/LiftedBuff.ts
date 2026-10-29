@@ -4,7 +4,9 @@
  * and a slam event.
  */
 
+import { getAbility } from '../abilities/AbilityRegistry';
 import { Buff, type BuffExpireContext, type BuffSerialized } from './Buff';
+import { applyUnitHitPause, resolveHitImpactSeconds } from './hitPause';
 import type { Unit } from '../game/units/Unit';
 import { isImmuneToForcedMovement } from '../game/units/unitTag';
 import { computeForcedDisplacement } from '../game/forceMove';
@@ -111,7 +113,14 @@ export class LiftedBuff extends Buff {
         // Combat slam: skip damage during iFrames (env-style takeDamage is not gated globally).
         if (!unit.hasIFrames(ctx.gameTime)) {
             // Flat slam damage; return value unused, so no need for the shield/armour breakdown.
+            // `ctx.gameTime` is world time. The lifter is the striking unit; the slamming unit is the victim.
             unit.takeDamage(this.slamDamage, this.sourceUnitId, ctx.eventBus);
+            const impact = resolveHitImpactSeconds(getAbility(this.sourceAbilityId));
+            applyUnitHitPause(unit, { seconds: impact.hitstunSeconds, kind: 'hit_stun' }, ctx.gameTime, ctx.roundNumber);
+            const striker = ctx.units?.find((other) => other.id === this.sourceUnitId);
+            if (striker) {
+                applyUnitHitPause(striker, { seconds: impact.hitstopSeconds, kind: 'hit_stop' }, ctx.gameTime, ctx.roundNumber);
+            }
         }
 
         applySlamKnockback(unit, ctx, this.sourceUnitId, this.sourceAbilityId);

@@ -9,11 +9,14 @@ import {
     type TooltipTokenBindings,
 } from '../../abilities/tooltipTokens';
 import type { TargetDef } from '../../abilities/targeting';
+import type { Projectile } from '../../game/projectiles/Projectile';
 import type { Unit } from '../../game/units/Unit';
 import { Effect } from '../../game/effects/Effect';
 import { deactivateProjectileOnBlock } from '../../abilities/effectHelpers';
 import { CastBehaviours } from '../../abilities/CastBehaviours';
+import { getAbility } from '../../abilities/AbilityRegistry';
 import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
+import { applyProjectileHitStop, applyUnitHitPause, resolveHitImpactSeconds } from '../../buffs/hitPause';
 import { knockbackCtxFromEngine, tryApplyKnockbackByTier } from '../../crowdControl/knockbackKeywords';
 import { type CardDef } from '../types';
 import {
@@ -255,7 +258,7 @@ export const ThrowChargedRock: AbilityStatic = {
 
     onProjectileExpired(engine, caster, projectile, _hitUnitId?: string): void {
         const eng = engine as AbilityEngineContext;
-        const proj = projectile as { x: number; y: number };
+        const proj = projectile as Projectile;
         const sourceUnit = eng.getUnit(caster.id);
         if (!sourceUnit) return;
 
@@ -305,10 +308,15 @@ export const ThrowChargedRock: AbilityStatic = {
             numTargets: maxTargets,
         });
 
+        // The rock is the striking body, so hitstop freezes the projectile. `eng.gameTime` is world time.
+        const impact = resolveHitImpactSeconds(getAbility(CARD_ID));
+        const roundNumber = eng.roundNumber ?? 1;
         for (const unit of units) {
             const modifiedDamage = getModifiedAbilityDamage(sourceUnit, explosionDamage);
             // Flat explosion damage; return value unused, so no need for the shield/armour breakdown.
             unit.takeDamage(modifiedDamage, sourceUnit.id, eng.eventBus);
+            applyUnitHitPause(unit, { seconds: impact.hitstunSeconds, kind: 'hit_stun' }, eng.gameTime, roundNumber);
+            applyProjectileHitStop(proj, impact.hitstopSeconds, eng.gameTime);
             tryApplyKnockbackByTier(
                 unit,
                 KNOCKBACK_TIER,

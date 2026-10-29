@@ -426,10 +426,9 @@ export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBeh
         }
 
         // Apply tier-based knockback (if configured via withKnockback).
+        // Strike pauses are applied inside tryDamageOrBlock, before this knockback,
+        // so the freeze stores the launch on the following tick.
         this.applyKnockbackToHits(hitUnits, ctx);
-
-        // Hit pause.
-        ctx.engine.requestHitPause?.(3);
     }
 
     onInterrupt(ctx: CastBehaviourInterruptContext): void {

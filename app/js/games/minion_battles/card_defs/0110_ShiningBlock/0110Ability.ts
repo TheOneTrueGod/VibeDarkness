@@ -16,7 +16,9 @@ import { Effect } from '../../game/effects/Effect';
 import { tryApplyHardCcStun } from '../../crowdControl/tryApplyHardCcStun';
 import { areEnemies } from '../../game/teams';
 import { grantRecoveryChargeToRandomAbility } from '../../abilities/abilityUses';
+import { getAbility } from '../../abilities/AbilityRegistry';
 import { getModifiedAbilityDamage } from '../../abilities/damageModifiers';
+import { applyUnitHitPause, resolveHitImpactSeconds } from '../../buffs/hitPause';
 import { resolveTooltipContext } from '../../abilities/abilityModifierHelpers';
 import {
     formatTooltipLegacyLines,
@@ -95,10 +97,14 @@ function executeShiningBlockRetaliation(engine: unknown, defender: Unit, aimPos:
     }
     enemiesInCone.sort((a, b) => a.dist - b.dist);
 
+    const impact = resolveHitImpactSeconds(getAbility(CARD_ID));
     for (const { unit } of enemiesInCone.slice(0, RETALIATION_MAX_TARGETS)) {
         const modifiedDamage = getModifiedAbilityDamage(defender, RETALIATION_DAMAGE);
         // Flat retaliation damage; return value unused, so no need for the shield/armour breakdown.
+        // `eng.gameTime` is world time. The blocker is the striking unit.
         unit.takeDamage(modifiedDamage, defender.id, eng.eventBus);
+        applyUnitHitPause(unit, { seconds: impact.hitstunSeconds, kind: 'hit_stun' }, eng.gameTime, eng.roundNumber);
+        applyUnitHitPause(defender, { seconds: impact.hitstopSeconds, kind: 'hit_stop' }, eng.gameTime, eng.roundNumber);
         const stunResult = tryApplyHardCcStun(unit, STUN_DURATION, eng.gameTime, eng.roundNumber, eng.eventBus);
         if (stunResult.outcome === 'applied') {
             unit.interruptAllAbilities(engine as EngineContext);

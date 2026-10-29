@@ -17,7 +17,9 @@
  * back enemies still caught inside the original field radius.
  */
 
+import { getAbility } from '../abilities/AbilityRegistry';
 import { Buff, type BuffExpireContext, type BuffSerialized } from './Buff';
+import { applyUnitHitPause, resolveHitImpactSeconds } from './hitPause';
 import type { BuffRenderEmitContext } from '../game/effects/buffParticleAura';
 import type { Unit } from '../game/units/Unit';
 import type { KnockbackSource } from '../game/units/unitTypes';
@@ -244,6 +246,7 @@ export class GravityLocusFieldBuff extends Buff {
         if (!this.repulse || !unit.isAlive()) return;
 
         const radiusSq = GRAVITY_LOCUS_FIELD_RADIUS * GRAVITY_LOCUS_FIELD_RADIUS;
+        const impact = resolveHitImpactSeconds(getAbility(GRAVITY_LOCUS_ABILITY_ID));
         const source: KnockbackSource = { unitId: unit.id, abilityId: GRAVITY_LOCUS_ABILITY_ID };
         const knockbackEngine = knockbackCtxFromEngine({
             gameTime: ctx.gameTime,
@@ -261,7 +264,10 @@ export class GravityLocusFieldBuff extends Buff {
             if (dx * dx + dy * dy > radiusSq) continue;
 
             // Flat explosion damage; return value unused, so no need for the shield/armour breakdown.
+            // `ctx.gameTime` is world time. The caster is the striking unit; each enemy is a victim.
             target.takeDamage(this.repulse.explosionDamage, unit.id, ctx.eventBus);
+            applyUnitHitPause(target, { seconds: impact.hitstunSeconds, kind: 'hit_stun' }, ctx.gameTime, ctx.roundNumber);
+            applyUnitHitPause(unit, { seconds: impact.hitstopSeconds, kind: 'hit_stop' }, ctx.gameTime, ctx.roundNumber);
             tryApplyKnockbackByTier(
                 target,
                 this.repulse.knockbackTier,

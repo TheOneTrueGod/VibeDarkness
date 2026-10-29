@@ -20,6 +20,8 @@ import { getDirectionFromTo } from '../../../abilities/targetHelpers';
 import { resolveTargetToPoint } from '../../../abilities/targeting';
 import { resolveTooltipContext } from '../../../abilities/abilityModifierHelpers';
 import { formatTooltipLegacyLines, type TooltipTokenBindings } from '../../../abilities/tooltipTokens';
+import { getAbility } from '../../../abilities/AbilityRegistry';
+import { applyUnitHitPause, resolveHitImpactSeconds } from '../../../buffs/hitPause';
 import { knockbackCtxFromEngine, tryApplyAimedKnockbackByTier } from '../../../crowdControl/knockbackKeywords';
 import { tryApplyStagger } from '../../../crowdControl/tryApplyStagger';
 import { GRAVITY_VIOLET } from '../../../game/effect_defs/aoeEffects';
@@ -226,6 +228,7 @@ function releaseCollapse(engine: EngineContext, caster: Unit, aim: { x: number; 
 
     const knockbackEngine = knockbackCtxFromEngine(engine);
     const source: KnockbackSource = { unitId: caster.id, abilityId };
+    const impact = resolveHitImpactSeconds(getAbility(abilityId));
 
     targets.forEach((target, i) => {
         const slot = slots[i];
@@ -250,6 +253,8 @@ function releaseCollapse(engine: EngineContext, caster: Unit, aim: { x: number; 
         pulled++;
 
         target.takeDamage(COLLAPSE_DAMAGE, caster.id, engine.eventBus);
+        applyUnitHitPause(target, { seconds: impact.hitstunSeconds, kind: 'hit_stun' }, engine.gameTime, engine.roundNumber);
+        applyUnitHitPause(caster, { seconds: impact.hitstopSeconds, kind: 'hit_stop' }, engine.gameTime, engine.roundNumber);
         tryApplyStagger(
             target,
             COLLAPSE_FLING_DURATION + COLLAPSE_STAGGER_LINGER,

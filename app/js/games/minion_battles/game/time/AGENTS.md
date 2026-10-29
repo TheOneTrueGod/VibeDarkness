@@ -6,14 +6,14 @@ Deterministic per-actor clocks, world pace and Time Stop. Units and projectiles 
 
 | File | Owns |
 |---|---|
-| `timeConstants.ts` | Clamps, budgets, Time Stop cap, frozen-hit default, `HIT_STOP_DEFAULTS` placeholder. |
+| `timeConstants.ts` | Clamps, budgets, Time Stop cap, frozen-hit default, hitstop and hitstun durations. |
 | `TimeModifier.ts` | `TimeModifier` shape and pure resolvers (`resolveTempo`, `resolveFocalWorldPaceRequest`). |
 | `TimeManager.ts` | Owned by `GameState.timeManager`. World pace rule, active Time Stops, `getStepRate`, JSON. |
 | `actorClock.ts` | Unit-side clock: `getActorTempo`, `getActorStepRate`, `getCastElapsed`, `localNow`, `advanceUnitLocalClocks`, `collectUnitFocalRequests`. |
 | `stepPieces.ts` | `planStepPieces`: cuts a long step into pieces, enforces the budget, returns `timeDebt`. |
 | `*.test.ts` | Unit and engine tests; `clockUsage.guard.test.ts` is the source-scan guard (see Pitfalls). |
 
-Related: `projectiles/ProjectileBuff.ts` (projectile tempo sources), `effects/timeDomain.ts` (effect override), `buffs/TimeDilationBuff.ts` (generic tempo buff + presets).
+Related: `projectiles/ProjectileBuff.ts` (projectile tempo sources), `effects/timeDomain.ts` (effect override), `buffs/TimeDilationBuff.ts` (generic tempo buff + presets), `buffs/hitPause.ts` (hitstop and hitstun).
 
 ## Vocabulary
 
@@ -31,6 +31,8 @@ Never say bare "time". Name the clock.
 | Focal dilation | Tempo modifier that also asks the world to slow so the actor looks normal speed. | `TimeModifier.focal` |
 | Local dilation | Tempo modifier with no `focal`; world pace unaffected. | `TimeModifier` |
 | Time Stop | World pace 0 for a tick-time duration; exempt actors keep their own rate. | `engine.startTimeStop` |
+| Hitstop | Freeze on the striking unit, or the striking projectile. Other actors keep their tempo. | `applyUnitHitPause` (`hit_stop`), `applyProjectileHitStop` |
+| Hitstun | Freeze on the unit that was hit. The striking body's hitstop is a separate buff. | `applyUnitHitPause` (`hit_stun`) |
 | Step pieces | Sub-intervals one actor's long step is cut into. | `planStepPieces` |
 
 ## Core rules
@@ -80,7 +82,18 @@ Never count ticks for a gameplay duration, and never compute cast elapsed from `
 - Exempt actors step at `exemptRate x tempo`; their ability timelines advance as authored (an exempt caster keeps casting). A cinematic-only stop has no exempt actors.
 - Events: `time_stop_started`, `time_stop_ended` (`reason: 'expired' | 'ended'`), `world_pace_changed { previousPace, worldPace, gameTick }`. Use them for VFX/UI instead of polling.
 - **Frozen-hit policy precedence:** the Time Stop def's `frozenHitPolicy` beats `DamageApplyOptions.frozenHitPolicy` beats `DEFAULT_FROZEN_HIT_POLICY` (`'immediate'`). `'immediate'` applies as normal; `'onResume'` queues `unit.pendingFrozenHits` (serialized), resolved in order at the start of the first `UnitManager.gameTick` after the unit thaws (after thaw, before abilities).
-- Hit-stop is a placeholder: `HIT_STOP_DEFAULTS` documents the intended design (short tick-time `freeze` modifier on attacker and victim, not world pace); `requestHitPause` is a no-op.
+
+## Strike pauses (hitstop and hitstun)
+
+Hitstop and hitstun freeze only the bodies in the hit. Hitstop freezes the striking unit, or the striking projectile (the caster keeps moving). Hitstun freezes the unit that was hit. Every other unit and projectile keeps its tempo. Do not call `startTimeStop`, do not write `worldPace`, and do not set `focal` on the modifier.
+
+Defaults are seconds at tempo 1: hitstop `DEFAULT_HIT_STOP_SECONDS` (`2 * FIXED_DT`), hitstun `DEFAULT_HIT_STUN_SECONDS` (`4 * FIXED_DT`). `hitPauseTicks` scales that length by the actor's tempo (freeze modifiers ignored when sampling) into a whole tick count. World pace does not scale it. A cast on a paused actor delays and continues when the freeze ends; it is not cancelled. Stored momentum (knockback, hover flight) resumes the same way.
+
+Force Push uses the same helper with `FORCE_PUSH_HIT_STOP_SECONDS` (`3 * FIXED_DT`) and hitstop only. It does not also apply hitstun.
+
+Apply with `applyUnitHitPause` / `applyProjectileHitStop` in `buffs/hitPause.ts`. Optional `hitImpact` on the ability replaces either duration in seconds; `0` turns that side off. `resolveHitImpactSeconds` fills an omitted field from the defaults.
+
+Unit buffs are read by `advanceUnitLocalClocks` and removed later in `tickUnitUpkeep`, so a count of N freezes the unit for N subsequent ticks. Projectile buffs are removed in `expireBuffs` before the step; `hitPauseSteps` keeps the buff for the step it is observed on, so the same count still freezes the projectile for N steps.
 
 ## Frozen actors (tempo 0)
 
