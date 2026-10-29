@@ -2,8 +2,9 @@
  * Darkness corruption: a ring of needles that fills while a player stands in full darkness,
  * hops outward, then snaps inward. Damage lands on the snap.
  *
- * Proportions match the approved mock (reference radius 34): tips rest outside the body,
- * each needle grows along the rim and pivots inward, then the ring shifts out and strikes.
+ * Proportions match the approved mock (reference radius 34). At rest, half of each needle
+ * lies over the body and half sticks out. Needles grow along the rim, pivot inward, hop
+ * outward, then snap in.
  */
 
 /** Progress gained per second in full darkness. Also the drain rate in any brighter light. */
@@ -24,13 +25,18 @@ export const DARKNESS_STRIKE_SECONDS = DARKNESS_STRIKE_OUT_SECONDS + DARKNESS_ST
  */
 export const DARKNESS_HIT_DAMAGE_STEP = 5;
 
-/** Approved mock, in its own pixel space. Scales below are these sizes divided by the mock radius. */
+/**
+ * Approved mock, in its own pixel space. Length, width, outline, and the outward hop are
+ * 80% of the previous ring. The resting midpoint sits on the body edge. The snap still
+ * ends inside the body. Scales below are these sizes divided by the mock radius.
+ */
 const MOCK_UNIT_RADIUS = 34;
-const MOCK_NEEDLE_TIP_RADIUS = 56;
-const MOCK_NEEDLE_LENGTH = 62;
-const MOCK_NEEDLE_OUTWARD = 14;
+const NEEDLE_SIZE_SCALE = 0.8;
+const MOCK_NEEDLE_LENGTH = 31 * NEEDLE_SIZE_SCALE;
+const MOCK_NEEDLE_HALF_WIDTH = 1.6 * NEEDLE_SIZE_SCALE;
+const MOCK_NEEDLE_OUTWARD = 7 * NEEDLE_SIZE_SCALE;
+const MOCK_NEEDLE_TIP_RADIUS = MOCK_UNIT_RADIUS - MOCK_NEEDLE_LENGTH / 2;
 const MOCK_NEEDLE_IMPACT_TIP_RADIUS = 12;
-const MOCK_NEEDLE_HALF_WIDTH = 3.2;
 
 export const DARKNESS_NEEDLE_TIP_RADIUS_SCALE = MOCK_NEEDLE_TIP_RADIUS / MOCK_UNIT_RADIUS;
 export const DARKNESS_NEEDLE_LENGTH_SCALE = MOCK_NEEDLE_LENGTH / MOCK_UNIT_RADIUS;
@@ -38,11 +44,11 @@ export const DARKNESS_NEEDLE_OUTWARD_SCALE = MOCK_NEEDLE_OUTWARD / MOCK_UNIT_RAD
 export const DARKNESS_NEEDLE_IMPACT_TIP_SCALE = MOCK_NEEDLE_IMPACT_TIP_RADIUS / MOCK_UNIT_RADIUS;
 export const DARKNESS_NEEDLE_HALF_WIDTH_SCALE = MOCK_NEEDLE_HALF_WIDTH / MOCK_UNIT_RADIUS;
 
-/** Body of each needle. Dark enough to read as corruption, light enough to see on black ground. */
-export const DARKNESS_NEEDLE_FILL = 0x7c3aed;
+/** Dark purple core of each needle, framed by the light outline. */
+export const DARKNESS_NEEDLE_FILL = 0x3b0764;
 /** Light purple edge so the needle still reads when the player is standing in full darkness. */
 export const DARKNESS_NEEDLE_OUTLINE = 0xe9d5ff;
-export const DARKNESS_NEEDLE_OUTLINE_WIDTH = 2;
+export const DARKNESS_NEEDLE_OUTLINE_WIDTH = NEEDLE_SIZE_SCALE;
 
 export function darknessCorruptionDamage(procCount: number): number {
     const hitIndex = procCount + 1;

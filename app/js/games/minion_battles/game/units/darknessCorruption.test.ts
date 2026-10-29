@@ -65,6 +65,7 @@ describe('darkness needle poses', () => {
         const aimedBase = Math.hypot(baseCenter(poses[0].points).x, baseCenter(poses[0].points).y);
         expect(aimedTip).toBeCloseTo(RADIUS * DARKNESS_NEEDLE_TIP_RADIUS_SCALE);
         expect(aimedTip).toBeLessThan(aimedBase);
+        expect((aimedTip + aimedBase) / 2).toBeCloseTo(RADIUS);
 
         const spinning = poses[4].points;
         const base = baseCenter(spinning);
