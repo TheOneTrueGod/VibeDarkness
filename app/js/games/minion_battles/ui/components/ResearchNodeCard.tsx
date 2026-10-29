@@ -1,6 +1,5 @@
-import React, { useCallback, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { isDisabledResearchNode, type ResearchNodeDef, type ResearchTreeDef } from '../../../../researchTrees/types';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { isDisabledResearchNode, type ResearchNodeDef, type ResearchNodeLevels, type ResearchTreeDef } from '../../../../researchTrees/types';
 import { getResearchNodePurchaseCost } from '../../../../researchTrees/evaluator';
 import { getNodeMaxLevels } from '../../../../researchTrees/passiveBonuses';
 import { getResearchTreeContainingNode } from '../../../../researchTrees/list';
@@ -12,6 +11,7 @@ import ResourcePill, {
 } from '../../../../components/ResourcePill';
 import { TestIds } from '../../../../testing/testIds';
 import ResearchAbilityPreview from './ResearchAbilityPreview';
+import { buildResearchNodePreview, researchPreviewIsEmpty } from '../../research/researchNodePreview';
 import { AnchoredPortalTooltip } from './AnchoredPortalTooltip';
 import { useCurrentUser } from '../../../../user/useCurrentUser';
 import {
@@ -34,6 +34,9 @@ import {
     RESEARCH_NODE_REQUIREMENTS_LINES,
     RESEARCH_NODE_REQUIREMENTS_SLOT_HEIGHT_PX,
 } from './researchNodeCardLayout';
+
+/** How long the node tooltip stays up while the pointer crosses onto it. */
+const RESEARCH_NODE_TOOLTIP_HANDOFF_MS = 120;
 
 export interface ResearchRequirementBadge {
     id: string;
@@ -81,6 +84,14 @@ export interface ResearchNodeCardProps {
     requirementBadges?: ResearchRequirementBadge[];
     /** Distinct owned sources for the admin footer (id · source · tier). Empty when unowned. */
     researchSourceLabel?: string;
+    /**
+     * Character research the hover preview diffs against. Omit for a blank character:
+     * the preview still shows this node's own delta.
+     */
+    researchTrees?: Record<string, string[]>;
+    researchNodeLevels?: ResearchNodeLevels;
+    /** Equipped items, so tag-targeted upgrades resolve onto this character's abilities. */
+    equipment?: readonly string[];
     className?: string;
 }
 
@@ -193,6 +204,9 @@ export default function ResearchNodeCard({
     selectionReason = null,
     requirementBadges = [],
     researchSourceLabel = '',
+    researchTrees,
+    researchNodeLevels,
+    equipment,
     className = '',
 }: ResearchNodeCardProps) {
     const { isAdmin } = useCurrentUser();
@@ -205,50 +219,74 @@ export default function ResearchNodeCard({
     const hasReqBadges = showRequirements && requirementBadges.length > 0;
     const showRequirementsStrip = showPrereqRow && hasUnmetResearchRequirements(researchRequirementEntries);
     const [reqHover, setReqHover] = useState(false);
-    const hasTooltipContent = Boolean(node.flavorText || selectionReason || node.modifiesAbility);
+    const owningTreeForPreview = treeProp ?? getResearchTreeContainingNode(node.id);
+    const hoverPreview = useMemo(
+        () => (owningTreeForPreview
+            ? buildResearchNodePreview({
+                treeId: owningTreeForPreview.id,
+                node,
+                researchTrees,
+                researchNodeLevels,
+                currentLevel,
+                equipment,
+            })
+            : null),
+        [owningTreeForPreview, node, researchTrees, researchNodeLevels, currentLevel, equipment],
+    );
+    const hasHoverPreview = hoverPreview != null && !researchPreviewIsEmpty(hoverPreview);
+    const hasTooltipContent = Boolean(node.flavorText || selectionReason || hasHoverPreview);
 
     const anchorRef = useRef<HTMLDivElement>(null);
     const [flavorHover, setFlavorHover] = useState(false);
-    const [tipPosition, setTipPosition] = useState<{ left: number; top: number; transform: string } | null>(null);
+    const [portalHover, setPortalHover] = useState(false);
+    const flavorHoverRef = useRef(false);
+    const portalHoverRef = useRef(false);
+    const closeTimerRef = useRef<number | null>(null);
 
-    const updateFlavorTooltipPosition = useCallback(() => {
-        const el = anchorRef.current;
-        if (!el) return;
-        const rect = el.getBoundingClientRect();
-        const margin = 8;
-        const approxH = node.modifiesAbility ? 280 : 140;
-        const vh = window.innerHeight;
-        const vw = window.innerWidth;
-        const halfW = node.modifiesAbility ? 160 : 120;
-
-        let top: number;
-        let transform: string;
-        const preferAbove = rect.bottom + margin + approxH > vh - 12 && rect.top > approxH + margin;
-        if (preferAbove) {
-            top = rect.top - margin;
-            transform = 'translate(-50%, -100%)';
-        } else {
-            top = rect.bottom + margin;
-            transform = 'translateX(-50%)';
+    const cancelTooltipClose = useCallback(() => {
+        if (closeTimerRef.current != null) {
+            window.clearTimeout(closeTimerRef.current);
+            closeTimerRef.current = null;
         }
-        let left = rect.left + rect.width / 2;
-        left = Math.max(halfW + 8, Math.min(vw - halfW - 8, left));
-        setTipPosition({ left, top, transform });
-    }, [node.modifiesAbility]);
+    }, []);
+
+    const scheduleTooltipClose = useCallback(() => {
+        cancelTooltipClose();
+        closeTimerRef.current = window.setTimeout(() => {
+            closeTimerRef.current = null;
+            if (flavorHoverRef.current || portalHoverRef.current) return;
+            setFlavorHover(false);
+            setPortalHover(false);
+        }, RESEARCH_NODE_TOOLTIP_HANDOFF_MS);
+    }, [cancelTooltipClose]);
+
+    useEffect(() => cancelTooltipClose, [cancelTooltipClose]);
 
     const handleFlavorEnter = useCallback(() => {
         if (!hasTooltipContent) return;
+        flavorHoverRef.current = true;
         setFlavorHover(true);
-        updateFlavorTooltipPosition();
-    }, [hasTooltipContent, updateFlavorTooltipPosition]);
+        cancelTooltipClose();
+    }, [hasTooltipContent, cancelTooltipClose]);
 
     const handleFlavorLeave = useCallback(() => {
-        setFlavorHover(false);
-        setTipPosition(null);
+        flavorHoverRef.current = false;
         setReqHover(false);
-    }, []);
+        scheduleTooltipClose();
+    }, [scheduleTooltipClose]);
 
-    const owningTree = treeProp ?? getResearchTreeContainingNode(node.id);
+    const handlePortalEnter = useCallback(() => {
+        portalHoverRef.current = true;
+        setPortalHover(true);
+        cancelTooltipClose();
+    }, [cancelTooltipClose]);
+
+    const handlePortalLeave = useCallback(() => {
+        portalHoverRef.current = false;
+        scheduleTooltipClose();
+    }, [scheduleTooltipClose]);
+
+    const owningTree = owningTreeForPreview;
     const treeChrome = resolveResearchTreeChrome(owningTree);
 
     const stateClasses =
@@ -430,44 +468,37 @@ export default function ResearchNodeCard({
         </div>
     );
 
-    const tooltipWidth = node.modifiesAbility ? 'w-[320px]' : 'w-60';
-
-    const flavorPortal =
-        flavorHover &&
-        !reqHover &&
-        tipPosition &&
-        hasTooltipContent &&
-        typeof document !== 'undefined' &&
-        createPortal(
-            <div
-                className={`pointer-events-none fixed z-[9999] ${tooltipWidth} rounded-md border border-border-custom bg-surface-light px-3 py-2 text-xs text-gray-200 shadow-lg`}
-                style={{
-                    left: tipPosition.left,
-                    top: tipPosition.top,
-                    transform: tipPosition.transform,
-                }}
-            >
-                {node.flavorText && <p className="mt-0.5 italic text-gray-200">{node.flavorText}</p>}
-                {selectionReason && (
-                    <p className={`${node.flavorText ? 'mt-2' : 'mt-0.5'} text-rose-200`}>{selectionReason}</p>
-                )}
-                {node.modifiesAbility && (
-                    <ResearchAbilityPreview
-                        from={node.modifiesAbility.from}
-                        to={node.modifiesAbility.to}
-                        afterTooltipLines={
-                            node.modifiesAbility.from === node.modifiesAbility.to
-                                ? [node.description]
-                                : undefined
-                        }
-                    />
-                )}
-            </div>,
-            document.body,
-        );
+    const flavorPortal = (
+        <AnchoredPortalTooltip
+            anchorRef={anchorRef}
+            open={(flavorHover || portalHover) && !reqHover && hasTooltipContent}
+            placement="top"
+            interactive
+            onPointerEnter={handlePortalEnter}
+            onPointerLeave={handlePortalLeave}
+            className="w-max max-w-[min(92vw,780px)] px-3 py-2 text-xs text-gray-200"
+        >
+            {node.flavorText && <p className="mt-0.5 italic text-gray-200">{node.flavorText}</p>}
+            {selectionReason && (
+                <p className={`${node.flavorText ? 'mt-2' : 'mt-0.5'} text-rose-200`}>{selectionReason}</p>
+            )}
+            {owningTree && hasHoverPreview && (
+                <ResearchAbilityPreview
+                    treeId={owningTree.id}
+                    node={node}
+                    researchTrees={researchTrees}
+                    researchNodeLevels={researchNodeLevels}
+                    currentLevel={currentLevel}
+                    equipment={equipment}
+                    divided={Boolean(node.flavorText || selectionReason)}
+                />
+            )}
+        </AnchoredPortalTooltip>
+    );
 
     return (
         <div
+            data-className="ResearchNodeCard"
             ref={anchorRef}
             className="relative"
             onMouseEnter={handleFlavorEnter}

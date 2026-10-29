@@ -7,7 +7,7 @@
 
 import React, { useCallback, useRef } from 'react';
 import { getAbilityResourceCosts, type AbilityModesConfig, type AbilityStatic } from '../../abilities/Ability';
-import { getLocalPlayerUnitFromGameState } from '../../abilities/abilityModifierHelpers';
+import { getAbilityModifier, getLocalPlayerUnitFromGameState } from '../../abilities/abilityModifierHelpers';
 import type { UnitAbilityRuntimeState } from '../../game/units/Unit';
 import { getAbilityUseConfig } from '../../abilities/abilityUses';
 import { useAbilityUseChargeAnimation, type AbilityChargeAnimRule } from '../abilityUseChargeAnimation';
@@ -122,10 +122,24 @@ export default function AbilitySlot({
     // Display-only: getAbilityResourceCosts() also drives real affordability/spend/refund
     // logic (unit.getResource(...)), and HP isn't a generic Resource — append it here
     // purely for the card badge, never feed this array back into the economy pipeline.
-    const costs = getAbilityResourceCosts(ability, getLocalPlayerUnitFromGameState(gameState));
-    const displayCosts = ability.hpCost
-        ? [...costs, { resourceId: 'hp', amount: ability.hpCost }]
+    const localUnit = getLocalPlayerUnitFromGameState(gameState);
+    const costs = getAbilityResourceCosts(ability, localUnit ?? undefined);
+    // Battle costs already include the unit's resourceCostFlat. Out of battle (research
+    // hover, Prepare) the same flat comes from the research snapshot on gameState.
+    const bagCostFlat = localUnit
+        ? 0
+        : (getAbilityModifier(gameState, undefined, ability.id).resourceCostFlat ?? 0);
+    const adjustedCosts = bagCostFlat !== 0 && costs.length > 0
+        ? costs.map((cost, index) => (
+            index === 0 ? { ...cost, amount: cost.amount + bagCostFlat } : cost
+        ))
         : costs;
+    const withHp = ability.hpCost
+        ? [...adjustedCosts, { resourceId: 'hp', amount: ability.hpCost }]
+        : adjustedCosts;
+    const displayCosts = bagCostFlat !== 0
+        ? withHp.filter((cost) => cost.amount > 0)
+        : withHp;
     const useConfig = getAbilityUseConfig(ability.id);
     const recoveryRules = useConfig.recoveries;
     const hasRecovery = recoveryRules.length > 0;

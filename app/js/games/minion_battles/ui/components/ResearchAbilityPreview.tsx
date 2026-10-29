@@ -1,99 +1,151 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import type { ResearchNodeDef, ResearchNodeLevels } from '../../../../researchTrees/types';
+import {
+    buildResearchNodePreview,
+    researchPreviewIsEmpty,
+    type ResearchPreviewStat,
+    type ResearchView,
+} from '../../research/researchNodePreview';
 import { getAbility } from '../../abilities/AbilityRegistry';
-import type { AbilityStatic } from '../../abilities/Ability';
+import ResourcePill, { RESOURCE_PILL_SIZE_SMALL } from '../../../../components/ResourcePill';
+import { AbilitySlotPreview } from './AbilitySlotPreview';
+import { ResourceIcon } from './resources/ResourceIcon';
 
-function parseHighlightedSegments(text: string): Array<{ text: string; highlighted: boolean }> {
-    const segments: Array<{ text: string; highlighted: boolean }> = [];
-    const re = /\{([^}]*)\}/g;
-    let lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = re.exec(text)) !== null) {
-        if (match.index > lastIndex) {
-            segments.push({ text: text.slice(lastIndex, match.index), highlighted: false });
-        }
-        segments.push({ text: match[1], highlighted: true });
-        lastIndex = match.index + match[0].length;
-    }
-    if (lastIndex < text.length) {
-        segments.push({ text: text.slice(lastIndex), highlighted: false });
-    }
-    return segments;
+const COLUMN_LABEL = 'text-[9px] uppercase tracking-wider text-zinc-500 px-0.5';
+
+export interface ResearchAbilityPreviewProps {
+    treeId: string;
+    node: ResearchNodeDef;
+    researchTrees?: Record<string, string[]>;
+    researchNodeLevels?: ResearchNodeLevels;
+    currentLevel?: number;
+    equipment?: readonly string[];
+    /** Draw a divider when flavor or a selection reason sits above this block. */
+    divided?: boolean;
 }
 
-function MiniAbilityCard({ ability, label, overrideTooltipLines }: { ability: AbilityStatic; label: string; overrideTooltipLines?: string[] }) {
-    const lines = overrideTooltipLines ?? ability.getTooltipText();
-
+function StatValue({ row, side }: { row: ResearchPreviewStat; side: 'before' | 'after' }) {
+    const value = side === 'before' ? row.before : row.after;
+    if (row.kind === 'text') {
+        return <p className="text-[11px] leading-snug text-gray-200">{value}</p>;
+    }
+    if (row.kind === 'campaign') {
+        return (
+            <div className="flex flex-col gap-0.5" title={row.label}>
+                <span className="text-[10px] text-gray-400">{row.label}</span>
+                <ResourcePill
+                    resource={row.resource}
+                    count={Number(value)}
+                    size={RESOURCE_PILL_SIZE_SMALL}
+                    appearance={row.resource === 'hunger' ? 'hunger' : 'default'}
+                />
+            </div>
+        );
+    }
     return (
-        <div className="flex flex-col gap-1">
-            <div className="text-[9px] uppercase tracking-wider text-zinc-500 px-0.5">{label}</div>
-            <div className="flex flex-col gap-1.5 rounded border border-zinc-600 bg-zinc-900 px-2 py-1.5 w-[130px]">
-                <div className="flex items-center gap-1.5">
-                    <div className="w-7 h-7 shrink-0 overflow-hidden relative">
-                        <div
-                            style={{ transform: 'scale(0.7)', transformOrigin: 'top left', width: 40, height: 40, position: 'absolute' }}
-                            dangerouslySetInnerHTML={{ __html: ability.image }}
-                        />
-                    </div>
-                    <div className="text-[11px] font-semibold text-white leading-tight truncate min-w-0">{ability.name}</div>
+        <div className="flex items-center gap-1.5" title={row.label}>
+            <ResourceIcon resourceId={row.resourceId} size={16} />
+            <span className="text-[10px] text-gray-400">{row.label}</span>
+            <span className="text-[12px] font-semibold tabular-nums text-white">{value}</span>
+        </div>
+    );
+}
+
+function ResearchAbilityCard({ abilityId, gameState }: { abilityId: string; gameState: ResearchView }) {
+    const ability = getAbility(abilityId);
+    if (!ability) return null;
+    return <AbilitySlotPreview ability={ability} tooltipContext={gameState} />;
+}
+
+function StatColumns({ rows }: { rows: ResearchPreviewStat[] }) {
+    return (
+        <div className="flex items-start gap-2">
+            <div className="flex min-w-[148px] flex-col gap-1">
+                <div className={COLUMN_LABEL}>Before</div>
+                <div className="flex flex-col gap-1.5 rounded-lg border border-white bg-black px-2 py-1.5">
+                    {rows.map((row) => (
+                        <StatValue key={row.id} row={row} side="before" />
+                    ))}
                 </div>
-                {lines.length > 0 && (
-                    <div className="flex flex-col gap-0.5">
-                        {lines.map((line, lineIdx) => (
-                            <div
-                                key={lineIdx}
-                                className="text-[10px] text-gray-400 leading-snug"
-                                style={{
-                                    display: '-webkit-box',
-                                    WebkitLineClamp: 4,
-                                    WebkitBoxOrient: 'vertical',
-                                    overflow: 'hidden',
-                                }}
-                            >
-                                {parseHighlightedSegments(line).map((seg, i) => (
-                                    <span key={i} className={seg.highlighted ? 'text-amber-300' : ''}>
-                                        {seg.text}
-                                    </span>
-                                ))}
-                            </div>
-                        ))}
-                    </div>
-                )}
+            </div>
+            <div className="shrink-0 self-center text-base text-zinc-400">→</div>
+            <div className="flex min-w-[148px] flex-col gap-1">
+                <div className={COLUMN_LABEL}>After</div>
+                <div className="flex flex-col gap-1.5 rounded-lg border border-white bg-black px-2 py-1.5">
+                    {rows.map((row) => (
+                        <StatValue key={row.id} row={row} side="after" />
+                    ))}
+                </div>
             </div>
         </div>
     );
 }
 
-interface ResearchAbilityPreviewProps {
-    from: string;
-    to: string;
-    /** Lines to show in the "after" card instead of the ability's own tooltip. Used when the
-     *  ability is the same before and after (from === to) — the node description describes the change. */
-    afterTooltipLines?: string[];
-}
+export default function ResearchAbilityPreview({
+    treeId,
+    node,
+    researchTrees,
+    researchNodeLevels,
+    currentLevel = 0,
+    equipment,
+    divided = false,
+}: ResearchAbilityPreviewProps) {
+    const preview = useMemo(
+        () => buildResearchNodePreview({
+            treeId,
+            node,
+            researchTrees,
+            researchNodeLevels,
+            currentLevel,
+            equipment,
+        }),
+        [treeId, node, researchTrees, researchNodeLevels, currentLevel, equipment],
+    );
 
-export default function ResearchAbilityPreview({ from, to, afterTooltipLines }: ResearchAbilityPreviewProps) {
-    const fromAbility = getAbility(from);
-    const toAbility = getAbility(to);
-
-    if (!fromAbility && !toAbility) return null;
+    if (researchPreviewIsEmpty(preview)) return null;
 
     return (
-        <div className="flex items-start gap-2 mt-2 pt-2 border-t border-zinc-700">
-            {fromAbility ? (
-                <MiniAbilityCard ability={fromAbility} label="Before" />
-            ) : (
-                <div className="w-[130px] rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-[10px] text-zinc-500 italic">
-                    Unknown
+        <div
+            data-className="ResearchAbilityPreview"
+            className={`flex flex-col gap-3 ${divided ? 'mt-2 border-t border-zinc-700 pt-2' : ''}`}
+        >
+            {preview.stats.length > 0 && <StatColumns rows={preview.stats} />}
+            {preview.unlocks.length > 0 && (
+                <div className="flex flex-col gap-1">
+                    <div className={COLUMN_LABEL}>Unlocks</div>
+                    <div className="flex flex-wrap items-start gap-2">
+                        {preview.unlocks.map((abilityId) => (
+                            <ResearchAbilityCard
+                                key={abilityId}
+                                abilityId={abilityId}
+                                gameState={preview.afterView}
+                            />
+                        ))}
+                    </div>
                 </div>
             )}
-            <div className="text-zinc-400 text-base shrink-0 self-center">→</div>
-            {toAbility ? (
-                <MiniAbilityCard ability={toAbility} label="After" overrideTooltipLines={afterTooltipLines} />
-            ) : (
-                <div className="w-[130px] rounded border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-[10px] text-zinc-500 italic">
-                    Unknown
+            {preview.upgrades.map((pair) => (
+                <div
+                    key={`${pair.beforeAbilityId}->${pair.afterAbilityId}`}
+                    className="flex items-start gap-2"
+                >
+                    <div className="flex flex-col gap-1">
+                        <div className={COLUMN_LABEL}>Before</div>
+                        <ResearchAbilityCard
+                            abilityId={pair.beforeAbilityId}
+                            gameState={preview.beforeView}
+                        />
+                    </div>
+                    <div className="shrink-0 self-center text-base text-zinc-400">→</div>
+                    <div className="flex flex-col gap-1">
+                        <div className={COLUMN_LABEL}>After</div>
+                        <ResearchAbilityCard
+                            abilityId={pair.afterAbilityId}
+                            gameState={preview.afterView}
+                        />
+                    </div>
                 </div>
-            )}
+            ))}
         </div>
     );
 }

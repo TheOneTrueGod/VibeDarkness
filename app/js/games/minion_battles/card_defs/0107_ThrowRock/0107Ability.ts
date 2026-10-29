@@ -45,7 +45,7 @@ const BASE_DAMAGE = THROW_ROCK_BASE_DAMAGE;
 /** Matches More Power bump used on Throw Charged Rock explosion damage. */
 export const THROW_ROCK_MORE_POWER_DAMAGE = 8;
 const MORE_POWER_DAMAGE = THROW_ROCK_MORE_POWER_DAMAGE;
-const MORE_ROCK_HIT_COUNT = 2;
+export const MORE_ROCK_HIT_COUNT = 2;
 
 const ROCK_SPIN_F1_URL = new URL('../../assets/projectiles/rock_spin_f1.svg', import.meta.url).href;
 const ROCK_SPIN_F2_URL = new URL('../../assets/projectiles/rock_spin_f2.svg', import.meta.url).href;

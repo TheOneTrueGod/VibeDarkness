@@ -174,8 +174,10 @@ export interface ResearchNodeDef {
     /** Ability parameter modifications granted by this node. Merged additively across all researched nodes. */
     abilityResearchModifiers?: AbilityResearchModifier[];
     /**
-     * Ability IDs to show a before/after card preview in the tooltip.
-     * Use the same ID for both when the node modifies rather than replaces an ability.
+     * Optional hint when a node changes an ability in a way the effects do not describe
+     * (no `replaceCard`, `addCard`, or `abilityResearchModifiers`). The hover preview
+     * derives grants, replacements, and stat diffs on its own; this pair is only the
+     * fallback card. Same id both sides means "this ability changes", not a new card.
      */
     modifiesAbility?: { from: string; to: string };
     /**

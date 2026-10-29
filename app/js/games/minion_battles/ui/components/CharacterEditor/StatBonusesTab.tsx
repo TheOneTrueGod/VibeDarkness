@@ -8,21 +8,10 @@ import {
     getNonZeroPassiveBonusRows,
 } from '../../../../../researchTrees/passiveBonuses';
 import { PassiveStatKey, type ResearchNodeLevels } from '../../../../../researchTrees/types';
+import { PASSIVE_STAT_LABELS } from '../../../../../researchTrees/passiveStatLabels';
 import { MAX_HUNGER_TOOLTIP } from '../../../../../components/ResourcePill';
 
-const STAT_LABELS: Record<PassiveStatKey, string> = {
-    [PassiveStatKey.MaxHealth]: 'Max Health',
-    [PassiveStatKey.MaxHunger]: 'Max Hunger',
-    [PassiveStatKey.AllDamage]: 'All Damage',
-    [PassiveStatKey.EarthDamage]: 'Earth Damage',
-    [PassiveStatKey.PetMaxHealth]: 'Pet Max Health',
-    [PassiveStatKey.Ability0701Damage]: 'Dog Bite Damage',
-    [PassiveStatKey.MaxMovementPoints]: 'Max Movement Points',
-    [PassiveStatKey.MovementRegenPerRound]: 'Movement Regen / Round',
-    [PassiveStatKey.LightRegenEnabled]: 'Light Regen',
-    [PassiveStatKey.EnemyUnitSlimeMaxHealthBonus]: 'Enemy Slime Max Health',
-    [PassiveStatKey.EnemyUnitSlimeExtraProjectiles]: 'Enemy Slime Extra Projectiles',
-};
+const STAT_LABELS = PASSIVE_STAT_LABELS;
 
 const STAT_TOOLTIPS: Partial<Record<PassiveStatKey, string>> = {
     [PassiveStatKey.MaxHunger]: MAX_HUNGER_TOOLTIP,

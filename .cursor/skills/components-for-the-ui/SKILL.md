@@ -28,6 +28,8 @@ This skill keeps a **list of component names** and a **one-line description** of
 | **CharacterHungerBar** | Hunger under the character portrait: orange Ham icon + orange fill on black, with a tick at the 15% penalty threshold and a tooltip stating the tier rules. Lives in `CharacterEditor/`. |
 | **CharactersTabLayerTwo** | Campaign-home character right panel; dispatches to MissionMap / Upgrades / StatBonuses / Equipment. |
 | **LocationCardPill** | Location card mountain icon + name in a bordered pill; opens a tooltip on hover showing description, flavour text, and modifications. Accepts `size` (`small` / `medium` / `default`), optional `count`, and instance data. Lives in `minion_battles/ui/components/`. |
+| **AbilitySlotPreview** | Read-only ability card (same AbilitySlot chrome as battle and Prepare Carefully). Pass `tooltipContext` so its tooltip uses that research snapshot. Research-node hover uses this for Unlocks and before/after. |
+| **ResearchAbilityPreview** | Research-node hover comparison: stat before/after, an Unlocks row, and ability upgrade pairs. |
 
 ## When to use
 

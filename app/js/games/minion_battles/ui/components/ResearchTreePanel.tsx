@@ -633,6 +633,9 @@ export function ResearchTreeContent({
 										state={atMax ? 'researched' : enabled ? 'enabled' : blocked ? 'blocked' : 'default'}
 										currentLevel={currentLevel}
 										maxLevels={maxLevels}
+										researchTrees={researchTrees}
+										researchNodeLevels={researchNodeLevels}
+										equipment={equipment}
 										showCost
 										showRequirements
 										showTier
@@ -700,6 +703,9 @@ export function ResearchTreeContent({
 										state={atMax ? 'researched' : enabled ? 'enabled' : blocked ? 'blocked' : 'default'}
 										currentLevel={currentLevel}
 										maxLevels={maxLevels}
+										researchTrees={researchTrees}
+										researchNodeLevels={researchNodeLevels}
+										equipment={equipment}
 										showCost
 										showRequirements
 										showTier
@@ -767,6 +773,7 @@ function ResearchGridCards({
 	researchTrees,
 	researchNodeLevels,
 	researchSources,
+	equipment,
 	researchCtx,
 	onResearchNode,
 	isAdmin = false,
@@ -778,6 +785,7 @@ function ResearchGridCards({
 	researchTrees: Record<string, string[]>;
 	researchNodeLevels?: ResearchNodeLevels;
 	researchSources?: ResearchNodeSources;
+	equipment?: readonly string[];
 	researchCtx: ResearchContext;
 	onResearchNode?: ResearchNodeClickHandler;
 	isAdmin?: boolean;
@@ -818,6 +826,9 @@ function ResearchGridCards({
 						allowAdminShiftGrant={isAdmin && adminCanGrant && !playerCanPurchase}
 						currentLevel={getNodeLevel(tree.id, node.id, researchTrees, researchNodeLevels)}
 						maxLevels={getNodeMaxLevels(node)}
+						researchTrees={researchTrees}
+						researchNodeLevels={researchNodeLevels}
+						equipment={equipment}
 						researchSourceLabel={formatOwnedResearchSourcesLabel(
 							tree.id,
 							node.id,
@@ -919,6 +930,7 @@ export function ResearchedNodesGrid({
 						researchTrees={researchTrees}
 						researchNodeLevels={researchNodeLevels}
 						researchSources={researchSources}
+						equipment={equipment}
 						researchCtx={researchCtx}
 						onResearchNode={onResearchNode}
 						isAdmin={isAdmin}
@@ -938,6 +950,7 @@ export function ResearchedNodesGrid({
 						researchTrees={researchTrees}
 						researchNodeLevels={researchNodeLevels}
 						researchSources={researchSources}
+						equipment={equipment}
 						researchCtx={researchCtx}
 						onResearchNode={onResearchNode}
 						isAdmin={isAdmin}
@@ -956,6 +969,7 @@ export function ResearchedNodesGrid({
 						researchTrees={researchTrees}
 						researchNodeLevels={researchNodeLevels}
 						researchSources={researchSources}
+						equipment={equipment}
 						researchCtx={researchCtx}
 						onResearchNode={onResearchNode}
 						isAdmin={isAdmin}

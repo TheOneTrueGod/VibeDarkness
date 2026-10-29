@@ -47,6 +47,13 @@ export interface AnchoredPortalTooltipProps {
     autoFlip?: boolean;
     viewportPaddingPx?: number;
     /**
+     * When true, the tip receives pointer events so the pointer can move onto it
+     * (research hover cards). Default tips stay click-through.
+     */
+    interactive?: boolean;
+    onPointerEnter?: () => void;
+    onPointerLeave?: () => void;
+    /**
      * When true, the portal only positions its children and draws no surface of its own. Use for
      * a group of separate tooltip boxes (each child applies {@link PORTAL_TOOLTIP_SURFACE_CLASS} or
      * equivalent chrome itself), e.g. an ability tooltip with keyword cards beside it.
@@ -65,6 +72,9 @@ export function AnchoredPortalTooltip({
     autoFlip = true,
     viewportPaddingPx = PORTAL_TOOLTIP_VIEWPORT_PADDING_PX,
     bare = false,
+    interactive = false,
+    onPointerEnter,
+    onPointerLeave,
 }: AnchoredPortalTooltipProps) {
     const tipRef = useRef<HTMLDivElement | null>(null);
     const [position, setPosition] = useState<TooltipPosition | null>(null);
@@ -119,7 +129,9 @@ export function AnchoredPortalTooltip({
         <div
             ref={tipRef}
             role="tooltip"
-            className={`pointer-events-none fixed ${bare ? '' : PORTAL_TOOLTIP_SURFACE_CLASS} ${className}`}
+            className={`${interactive ? 'pointer-events-auto' : 'pointer-events-none'} fixed ${bare ? '' : PORTAL_TOOLTIP_SURFACE_CLASS} ${className}`}
+            onPointerEnter={onPointerEnter}
+            onPointerLeave={onPointerLeave}
             style={{
                 left: position?.left ?? -9999,
                 top: position?.top ?? -9999,

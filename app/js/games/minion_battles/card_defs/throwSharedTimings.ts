@@ -131,8 +131,13 @@ export function getCrystalRocksResearch(
     const ownerId = caster?.ownerId
         ?? (engine as AbilityEngineContext & { localPlayerId?: string } | undefined)?.localPlayerId
         ?? '';
-    if (!ownerId || !engine?.getPlayerResearchNodes) return new Set<string>();
-    return new Set(engine.getPlayerResearchNodes(ownerId, WEAPONS_TREE_ID));
+    if (ownerId && engine?.getPlayerResearchNodes) {
+        return new Set(engine.getPlayerResearchNodes(ownerId, WEAPONS_TREE_ID));
+    }
+    // Research hover passes a snapshot bag instead of a battle engine.
+    const trees = (engine as { researchTrees?: Record<string, readonly string[] | undefined> } | undefined)?.researchTrees;
+    if (!trees) return new Set<string>();
+    return new Set(trees[WEAPONS_TREE_ID] ?? []);
 }
 
 export function hasMoreRockResearch(research: Set<string>): boolean {

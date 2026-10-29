@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import type { AbilityStatic } from '../../abilities/Ability';
+import { getAbilityModifier } from '../../abilities/abilityModifierHelpers';
 import { getAbilityUseConfig } from '../../abilities/abilityUses';
 import type { UnitAbilityRuntimeState } from '../../game/units/Unit';
 import { getAbility } from '../../abilities/AbilityRegistry';
@@ -49,13 +50,17 @@ export function AbilitySlotPreview({
     const [previewMode, setPreviewMode] = useState<string | undefined>(abilityModes?.defaultMode);
     const shownAbility = getAbility(resolveModeAbilityId(ability, previewMode)) ?? ability;
     const useConfig = getAbilityUseConfig(shownAbility.id);
+    const maxUses = Math.max(
+        0,
+        useConfig.maxUses + (getAbilityModifier(tooltipContext, undefined, shownAbility.id).maxUsesFlat ?? 0),
+    );
     const runtime = useMemo((): UnitAbilityRuntimeState => ({
-        currentUses: useConfig.maxUses,
-        maxUses: useConfig.maxUses,
+        currentUses: maxUses,
+        maxUses,
         recoveryChargesByType: {},
         active: true,
         replacedAbilityId: null,
-    }), [useConfig.maxUses]);
+    }), [maxUses]);
 
     const className = [
         compact ? 'scale-75 origin-center opacity-80' : '',
@@ -64,6 +69,7 @@ export function AbilitySlotPreview({
 
     return (
         <div
+            data-className="AbilitySlotPreview"
             className={className}
             title={disabled && disabledTitle ? disabledTitle : undefined}
         >

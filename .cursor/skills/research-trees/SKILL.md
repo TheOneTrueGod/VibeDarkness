@@ -122,3 +122,12 @@ Comfortable **ResearchNodeCard**s share one height: title, a reserved 3-line des
 
 ### Text formatting
 Use `{highlighted}` token syntax in node description strings to render magnitude words in yellow. Use `DescriptiveValue` enum values (`DescriptiveValue.Tiny`, etc.) from `researchTrees/descriptiveValue.ts` for consistent magnitude labels.
+
+### Hover preview
+The node tooltip's before/after block is derived by `buildResearchNodePreview` (`research/researchNodePreview.ts`). Do not hand-write preview copy.
+
+- **Stats** (`passiveBonus`, training health/damage maps, `grantMissionStartResource`, `bonusRewards`): the character's aggregate before this rank and after it. Health, hunger, and movement use icons. Percent and flat bonuses with no icon read `All Damage +0%` → `All Damage +10%` (other owned bonuses stay in both numbers).
+- **Unlocks** (`addCard`, `grantPetAbility`): one **AbilitySlotPreview** per grant (the same card as battle and Prepare Carefully), in a row titled Unlocks. Hovering the card opens that ability's tooltip, resolved against the character's other bonuses.
+- **Upgrades** (`replaceCard`, `abilityResearchModifiers`, or `modifiesAbility` when the effects do not already describe the change): before card and after card. Both are AbilitySlotPreview; each tooltip resolves `getTooltipText` against that column's research snapshot, so a global damage bonus already on the character shows in both.
+
+`modifiesAbility` is only a fallback for behaviour that is not in effects or modifiers (same id both sides). A grant should not set it.

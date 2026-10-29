@@ -1,6 +1,8 @@
 import type { AbilityModifier, ResearchNodeLevels } from '../../../researchTrees/types';
+import { computeAbilityModifiersFromResearch } from '../../../researchTrees/evaluator';
 import type { Unit } from '../game/units/Unit';
 import type { AbilityEngineContext } from './AbilityEngineContext';
+import { getAbilityTagsForId } from './Ability';
 import { buildDamageModifierFromResearch } from './damageModifiers';
 import type { TooltipResolveContext } from './tooltipTokens';
 import { getAbility } from './AbilityRegistry';
@@ -88,8 +90,17 @@ export function getAbilityModifier(
     abilityId: string,
 ): AbilityModifier {
     if (caster) return caster.abilityModifiers[abilityId] ?? {};
-    const eng = gameState as EngineWithLocalUnit | undefined;
-    return eng?.getLocalPlayerUnit?.()?.abilityModifiers[abilityId] ?? {};
+    const unit = getLocalPlayerUnitFromGameState(gameState);
+    if (unit) return unit.abilityModifiers[abilityId] ?? {};
+    const bag = gameState as ResearchTooltipBag | undefined;
+    if (!bag?.researchTrees) return {};
+    const modifiers = computeAbilityModifiersFromResearch(
+        bag.researchTrees,
+        getAbilityTagsForId,
+        expandAbilityIdsForResearchModifiers([abilityId]),
+        bag.researchNodeLevels,
+    );
+    return modifiers[abilityId] ?? {};
 }
 
 /** Local player unit from a tooltip gameState / engine, if available. */
@@ -105,6 +116,7 @@ export function getLocalPlayerUnitFromGameState(gameState: unknown): Unit | unde
  *   - Runtime: pass `engine` and `caster` — owner id comes from `caster.ownerId`.
  *   - Tooltip (no caster): pass `engine` with `engine.localPlayerId` set; `caster` may be
  *     undefined and the local player id is used as fallback.
+ *   - Out of battle: pass a `{ researchTrees }` snapshot (the research hover preview does this).
  */
 export function hasResearchNode(
     engine: AbilityEngineContext | undefined,
@@ -113,8 +125,12 @@ export function hasResearchNode(
     nodeId: string,
 ): boolean {
     const ownerId = caster?.ownerId ?? (engine as AbilityEngineContext & { localPlayerId?: string } | undefined)?.localPlayerId ?? '';
-    if (!ownerId || !engine?.getPlayerResearchNodes) return false;
-    return engine.getPlayerResearchNodes(ownerId, treeId).includes(nodeId);
+    if (ownerId && engine?.getPlayerResearchNodes) {
+        return engine.getPlayerResearchNodes(ownerId, treeId).includes(nodeId);
+    }
+    const trees = (engine as ResearchTooltipBag | undefined)?.researchTrees;
+    if (!trees) return false;
+    return (trees[treeId] ?? []).includes(nodeId);
 }
 
 /**
