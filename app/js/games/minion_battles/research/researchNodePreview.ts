@@ -21,6 +21,7 @@ import {
 } from '../../../researchTrees/evaluator';
 import { RESEARCH_TREES } from '../../../researchTrees/list';
 import {
+    getVirtualRootItemIds,
     PassiveStatKey,
     type AbilityResearchModifier,
     type CampaignResourceKey,
@@ -28,6 +29,7 @@ import {
     type ResearchNodeDef,
     type ResearchNodeLevels,
 } from '../../../researchTrees/types';
+import { getItemDef } from '../character_defs/items';
 import { resolveCharacterLoadout } from '../character_defs/characterLoadout';
 import { getCharacterMaxHunger } from '../character_defs/characterHunger';
 import { expandAbilityIdsForResearchModifiers } from '../abilities/abilityModifierHelpers';
@@ -197,6 +199,12 @@ function collectAbilityChanges(
     for (const effect of node.effects) {
         if (effect.type === 'addCard' && !replacedTo.has(effect.cardId)) pushUnique(unlocks, effect.cardId);
         if (effect.type === 'grantPetAbility') pushUnique(unlocks, effect.abilityId);
+    }
+    // Virtual roots are the weapon item, not a rewrite. Unlock the item's cards.
+    for (const itemId of getVirtualRootItemIds(node)) {
+        for (const cardId of getItemDef(itemId)?.cardsToAdd ?? []) {
+            if (!replacedTo.has(cardId)) pushUnique(unlocks, cardId);
+        }
     }
     for (const modifier of node.abilityResearchModifiers ?? []) {
         if (modifier.abilitySpecification.type !== 'abilityId') continue;

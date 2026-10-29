@@ -178,6 +178,8 @@ export interface ResearchNodeDef {
      * (no `replaceCard`, `addCard`, or `abilityResearchModifiers`). The hover preview
      * derives grants, replacements, and stat diffs on its own; this pair is only the
      * fallback card. Same id both sides means "this ability changes", not a new card.
+     * Virtual roots grant the bound item's `cardsToAdd` as Unlocks; do not treat this pair
+     * as a rewrite.
      */
     modifiesAbility?: { from: string; to: string };
     /**

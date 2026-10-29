@@ -34,7 +34,13 @@ import {
     TRAINING_TREE_ID,
     trainingTree,
 } from '../../../researchTrees/trees/training';
-import { NODE_MORE_ROCK, WEAPONS_TREE_ID } from '../../../researchTrees/trees/weaponTreeIds';
+import { getItemDef } from '../character_defs/items';
+import {
+    NODE_MORE_ROCK,
+    SHIELD_ROOT_NODE_ID,
+    WEAPONS_TREE_ID,
+    WEAPON_ITEM_SHIELD,
+} from '../../../researchTrees/trees/weaponTreeIds';
 import { weaponsTree } from '../../../researchTrees/trees/weapons';
 import { RESEARCH_DAMAGE_BONUSES, RESEARCH_HEALTH_BONUSES } from './researchTrainingEffects';
 import { MOVEMENT_BASE_MAX } from '../resources/Movement';
@@ -123,6 +129,15 @@ describe('buildResearchNodePreview', () => {
             before: '0',
             after: String(GRAVITY_CORE_MISSION_START_AMOUNT),
         });
+    });
+
+    it('shows a weapon virtual root as unlocking the item ability', () => {
+        const node = nodeById(weaponsTree, SHIELD_ROOT_NODE_ID);
+        const preview = buildResearchNodePreview({ treeId: WEAPONS_TREE_ID, node });
+        const granted = getItemDef(WEAPON_ITEM_SHIELD)?.cardsToAdd ?? [];
+        expect(granted.length).toBeGreaterThan(0);
+        expect(preview.unlocks).toEqual(granted);
+        expect(preview.upgrades).toEqual([]);
     });
 
     it('shows Collapse as an unlock rather than a Gravity Locus rewrite', () => {
