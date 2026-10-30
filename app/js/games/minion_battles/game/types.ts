@@ -127,6 +127,10 @@ export interface SerializedGameState {
     orders?: OrderAtTick[];
     /** Special tiles (defend points, etc.) with runtime state. */
     specialTiles?: SerializedSpecialTile[];
+    /** Conjured weapons left on the ground. Omitted when empty. No expiry. */
+    droppedWeapons?: import('./fieldObjects/FieldObjectManager').DroppedWeapon[];
+    /** Placed sentries. Omitted when empty. */
+    sentries?: import('./fieldObjects/FieldObjectManager').Sentry[];
     /** AI controller ID for enemy units (e.g. 'legacy', 'defensePoints'). Omitted => legacy. */
     aiControllerId?: string | null;
     /** Indices of one-shot level events that have already fired (spawn waves). Restored on load to avoid re-spawning. */

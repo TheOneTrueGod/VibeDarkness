@@ -454,3 +454,85 @@ export class NullHitboxSpec extends HitboxSpec {
 
 /** Singleton null hitbox for direction-pick abilities. */
 export const nullHitbox = new NullHitboxSpec();
+
+// ---------------------------------------------------------------------------
+// GroundPointHitboxSpec — a range ring, no unit lock
+// ---------------------------------------------------------------------------
+
+/**
+ * Ground click inside a ring around the caster. Returns no unit candidates.
+ * Pair with `validatePick` to reject blocked or occupied cells.
+ */
+export class GroundPointHitboxSpec extends HitboxSpec {
+    constructor(private readonly range: number) {
+        super();
+    }
+
+    get maxRange(): number { return this.range; }
+
+    renderTargetingPreview(
+        gr: IAbilityPreviewGraphics,
+        caster: HitboxPreviewCaster,
+        _mouseWorld: { x: number; y: number },
+        _units: Unit[],
+    ): Unit[] {
+        gr.circle(caster.x, caster.y, this.range);
+        gr.stroke({ color: 0xc4a574, width: 1.5, alpha: 0.75 });
+        return [];
+    }
+
+    resolveTargets(): Unit[] { return []; }
+
+    resolveHits(): Unit[] { return []; }
+}
+
+export function groundPointHitbox(range: number): GroundPointHitboxSpec {
+    return new GroundPointHitboxSpec(range);
+}
+
+// ---------------------------------------------------------------------------
+// FacingConeHitboxSpec — direction cone drawn from the preview caster
+// ---------------------------------------------------------------------------
+
+/**
+ * Direction pick that draws a cone from the preview origin (the caster, or an
+ * anchored point when the preview passes that point as the caster).
+ */
+export class FacingConeHitboxSpec extends HitboxSpec {
+    constructor(
+        private readonly range: number,
+        private readonly halfAngleRad: number,
+    ) {
+        super();
+    }
+
+    get maxRange(): number { return this.range; }
+
+    renderTargetingPreview(
+        gr: IAbilityPreviewGraphics,
+        caster: HitboxPreviewCaster,
+        mouseWorld: { x: number; y: number },
+        _units: Unit[],
+    ): Unit[] {
+        const angle = Math.atan2(mouseWorld.y - caster.y, mouseWorld.x - caster.x);
+        const steps = 8;
+        const start = angle - this.halfAngleRad;
+        gr.moveTo(caster.x, caster.y);
+        for (let i = 0; i <= steps; i++) {
+            const a = start + (this.halfAngleRad * 2 * i) / steps;
+            gr.lineTo(caster.x + Math.cos(a) * this.range, caster.y + Math.sin(a) * this.range);
+        }
+        gr.lineTo(caster.x, caster.y);
+        gr.fill({ color: 0xc4a574, alpha: 0.22 });
+        gr.stroke({ color: 0xe8d5a3, width: 1.5, alpha: 0.85 });
+        return [];
+    }
+
+    resolveTargets(): Unit[] { return []; }
+
+    resolveHits(): Unit[] { return []; }
+}
+
+export function facingConeHitbox(range: number, halfAngleRad: number): FacingConeHitboxSpec {
+    return new FacingConeHitboxSpec(range, halfAngleRad);
+}

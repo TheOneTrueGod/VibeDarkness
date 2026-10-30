@@ -60,6 +60,7 @@ export const bloodMageTree: ResearchTreeDef = {
             },
             effects: [
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.BasicCore, toItemId: CORE_ITEM_IDS.BloodMageCore },
+                { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.ArmoryCore, toItemId: CORE_ITEM_IDS.BloodMageCore },
                 { type: 'addCard', cardId: '0301' },
                 { type: 'addCard', cardId: '0304' },
             ],

@@ -61,6 +61,8 @@ export interface CharacterLoadout {
     activeResearchTrees: Record<string, string[]>;
     battleEquipmentIds: string[];
     abilityIds: string[];
+    /** Weapon-item cards after the same replacement passes as `abilityIds`, kept only if they remain on the bar. */
+    weaponAbilityIds: string[];
 }
 
 const FALLBACK_ABILITY_IDS = ['0101', '0120'];
@@ -109,5 +111,24 @@ export function resolveCharacterLoadout(
     abilities = applyCardEffectsPhase(abilities, activeResearchTrees, isNonWeaponTree);
 
     if (abilities.length === 0) abilities.push(...FALLBACK_ABILITY_IDS);
-    return { activeResearchTrees, battleEquipmentIds, abilityIds: abilities };
+
+    let weaponAbilities = weaponSeedAbilityIds(battleEquipmentIds);
+    weaponAbilities = applyCardEffectsPhase(weaponAbilities, activeResearchTrees, isWeaponTree);
+    weaponAbilities = applyCardEffectsPhase(weaponAbilities, activeResearchTrees, isNonWeaponTree);
+    const onBar = new Set(abilities);
+    const weaponAbilityIds = weaponAbilities.filter((id) => onBar.has(id));
+
+    return { activeResearchTrees, battleEquipmentIds, abilityIds: abilities, weaponAbilityIds };
+}
+
+function weaponSeedAbilityIds(equipmentIds: readonly string[]): string[] {
+    const seeds: string[] = [];
+    for (const itemId of equipmentIds) {
+        const item = getItemDef(itemId);
+        if (!item?.slots.includes('weapon')) continue;
+        for (const cardId of item.cardsToAdd) {
+            if (!seeds.includes(cardId)) seeds.push(cardId);
+        }
+    }
+    return seeds;
 }

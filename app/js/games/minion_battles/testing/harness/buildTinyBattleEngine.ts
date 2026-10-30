@@ -32,6 +32,7 @@ import {
     resolveCharacterLoadout,
 } from '../../character_defs/characterLoadout';
 import { createResourceFromId } from '../../resources/createResourceFromId';
+import { getMissionStartResourcesFromResearch } from '../../../../researchTrees/evaluator';
 
 /** Ability id that does not resolve in the registry: movement-only orders still apply `movePath`. */
 export const MOVE_ONLY_ABILITY_ID = '__move_only__';
@@ -244,6 +245,11 @@ export function placePlayerFromLoadout(
             const resource = createResourceFromId(rid);
             if (resource) player.attachResource(resource, engine.eventBus);
         }
+    }
+    player.weaponAbilityIds = loadout.weaponAbilityIds.filter((id) => player.abilities.includes(id));
+    const grants = getMissionStartResourcesFromResearch(activeByPlayer[playerId]);
+    for (const [resourceId, amount] of grants) {
+        player.getResource(resourceId)?.add(amount);
     }
     return { player, abilityIds: loadout.abilityIds, activeResearchTrees: activeByPlayer[playerId] ?? {} };
 }

@@ -17,9 +17,29 @@ import type { ActiveAbility } from '../game/types';
 import type { Unit } from '../game/units/Unit';
 import type { VisualEffectDef } from '../game/effects/visualEffectDef';
 import { NODE_MORE_POWER, NODE_MORE_ROCK, WEAPONS_TREE_ID } from '../../../researchTrees/trees/weaponTreeIds';
+import type { SpriteProjectileConfig } from '../game/projectiles/projectile_defs/types';
+import { THROW_PROJECTILE_SPEED, THROW_RANGE } from './throwNumbers';
 
-export const THROW_RANGE = 200;
-export const THROW_PROJECTILE_SPEED = 900;
+export { THROW_PROJECTILE_SPEED, THROW_RANGE };
+
+const ROCK_SPIN_F1_URL = new URL('../assets/projectiles/rock_spin_f1.svg', import.meta.url).href;
+const ROCK_SPIN_F2_URL = new URL('../assets/projectiles/rock_spin_f2.svg', import.meta.url).href;
+const ROCK_SPIN_F3_URL = new URL('../assets/projectiles/rock_spin_f3.svg', import.meta.url).href;
+const ROCK_SPIN_F4_URL = new URL('../assets/projectiles/rock_spin_f4.svg', import.meta.url).href;
+/** Pixi scale for the spinning rock projectile sprite (1.0 = native 64px asset size). */
+const ROCK_PROJECTILE_SCALE = 0.25;
+
+/** Shared by Throw Rock and anything that fires the same spinning rock (Armory turrets). */
+export const THROW_ROCK_SPRITE_CONFIG: SpriteProjectileConfig = {
+    sprite: {
+        fps: 8,
+        scale: ROCK_PROJECTILE_SCALE,
+        frameFiles: [ROCK_SPIN_F1_URL, ROCK_SPIN_F2_URL, ROCK_SPIN_F3_URL, ROCK_SPIN_F4_URL],
+    },
+    loop: true,
+    trail: { effectType: 'BulletTrail' },
+    animations: [{ type: 'rotation', mode: 'constant', degreesPerSecond: 180 }],
+};
 
 /** One timeline cell for the More Rock dual-throw pattern (14 × slice = 1.4s total). */
 export const MORE_ROCK_TIME_SLICE = 0.1;

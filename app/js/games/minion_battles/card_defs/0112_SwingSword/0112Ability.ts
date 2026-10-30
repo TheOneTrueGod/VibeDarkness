@@ -46,9 +46,9 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 const BASE_MAX_RANGE = 48;
 export const SWING_SWORD_DAMAGE = 10;
 const DAMAGE = SWING_SWORD_DAMAGE;
-const KNOCKBACK_TIER = 1;
+export const SWING_SWORD_KNOCKBACK_TIER = 1;
 /** A bit more push than a plain tier-1 nudge. */
-const KNOCKBACK_MAGNITUDE_SCALE = 1.5;
+export const SWING_SWORD_KNOCKBACK_MAGNITUDE_SCALE = 1.5;
 const MAX_TARGETS = 2;
 const LINE_THICKNESS = 36;
 const SWING_LENGTH = 80;
@@ -56,7 +56,7 @@ const SLASH_TRAIL_DURATION = 0.35;
 const SLASH_TRAIL_THICKNESS = 14;
 const SLASH_TRAIL_COLOR = 0xc0c8d0;
 /** Bleed stacks applied to each unit the sword hits. */
-const BLEED_STACKS_ON_HIT = 3;
+export const SWING_SWORD_BLEED_STACKS = 3;
 
 const TOOLTIP_LINES = [
     'Slash with the sword dealing {{DAMAGE}} damage to up to {{MAX_TARGETS}} enemies, nudging them back. Inflicts {Bleed}.',
@@ -67,7 +67,7 @@ const TOOLTIP_BINDINGS: TooltipTokenBindings = {
     MAX_TARGETS: { kind: 'plain', value: MAX_TARGETS },
 };
 
-const SWING_SWORD_HITBOX = perpendicularSwingHitbox(BASE_MAX_RANGE, SWING_LENGTH, LINE_THICKNESS, MAX_TARGETS);
+export const SWING_SWORD_HITBOX = perpendicularSwingHitbox(BASE_MAX_RANGE, SWING_LENGTH, LINE_THICKNESS, MAX_TARGETS);
 
 // ---- Charge-up VFX profile (used in beginActiveCast only) ----
 
@@ -111,7 +111,7 @@ const swingSwordBehaviour = CastBehaviours.MeleeAttack()
         );
     })
     .withDamage(DAMAGE)
-    .withKnockback(KNOCKBACK_TIER, { magnitudeScale: KNOCKBACK_MAGNITUDE_SCALE });
+    .withKnockback(SWING_SWORD_KNOCKBACK_TIER, { magnitudeScale: SWING_SWORD_KNOCKBACK_MAGNITUDE_SCALE });
 
 // ---- Timings ----
 
@@ -132,7 +132,7 @@ const SWING_SWORD_IMAGE = swordItemIconSvg;
 
 export const SwingSwordAbility = defineAbility({
     id: CARD_ID,
-    tags: ['melee'],
+    tags: ['melee', 'sword'],
     name: 'Swing Sword',
     image: SWING_SWORD_IMAGE,
     resourceCost: null,
@@ -153,7 +153,7 @@ export const SwingSwordAbility = defineAbility({
         [AbilityEventType.ON_ATTACK_HIT]: [
             {
                 conditions: [{ type: 'hitResultIs', result: 'hit' }],
-                effects: [{ type: 'applyBleedToPrimaryTarget', stacks: BLEED_STACKS_ON_HIT }],
+                effects: [{ type: 'applyBleedToPrimaryTarget', stacks: SWING_SWORD_BLEED_STACKS }],
             },
         ],
     },

@@ -55,7 +55,7 @@ Paths below are relative to `app/js/games/minion_battles/`. **Do not treat this 
 | `terrain/` | Bedrock grid, terrain manager. See `terrain/AGENTS.md` (mutable floor/ground/air overlays live on `game/TerrainLayerManager`; pathfinding guide at `pathfinding/AGENTS.md`). |
 | `abilities/` | Ability classes, timings, targeting, CastBehaviours, previews. See `abilities/AGENTS.md`. |
 | `crowdControl/` | Hard CC apply paths, knockback keywords, boss CC armour. See `crowdControl/AGENTS.md`. |
-| `card_defs/` | One folder per card/ability definition asset. |
+| `card_defs/` | One folder per card/ability definition asset. Armory's concealed-token pattern is in `card_defs/10_armory_core/AGENTS.md`. |
 | `character_defs/` | Playable character definitions, portraits, items, loadout resolver. See `character_defs/AGENTS.md`. |
 | `constants/` | Shared numeric/template constants (enemy templates re-export from `game/` where appropriate). |
 | `buffs/` | Buff defs and runtime buff logic. |

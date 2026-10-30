@@ -15,6 +15,7 @@ import {
     WEAPON_TREE_STANDARD_METAL_COST,
 } from './weaponResearchCosts';
 import { bloodMageTree } from './trees/blood_mage';
+import { armoryTree } from './trees/armory';
 import { commandCoreTree } from './trees/command_core';
 import { earthTree } from './trees/earth';
 import { gravityTree } from './trees/gravity';
@@ -30,6 +31,7 @@ const CORE_TREES_EXCEPT_LIGHT: ResearchTreeDef[] = RESEARCH_TREES.filter(
         commandCoreTree.id,
         gravityTree.id,
         bloodMageTree.id,
+        armoryTree.id,
     ].includes(tree.id),
 );
 

@@ -78,6 +78,10 @@ import { BurstCard_0302 } from './03_blood_mage/0302_Burst/0302Ability';
 import { BloodShardCard_0304 } from './03_blood_mage/0304_BloodShard/0304Ability';
 import { BloodPactCard_0305 } from './03_blood_mage/0305_BloodPact/0305Ability';
 import { BloodyClawsCard_0306 } from './03_blood_mage/0306_BloodyClaws/0306Ability';
+import { CreateSwordCard } from './10_armory_core/1001_CreateSword/1001Ability';
+import { ImprovisedSwordCard } from './10_armory_core/1002_ImprovisedSword/1002Ability';
+import { ThrowSwordCard } from './10_armory_core/1003_ThrowSword/1003Ability';
+import { DeployTurretCard } from './10_armory_core/1004_DeployTurret/1004Ability';
 
 const cardDefs: CardDef[] = [
     ThrowKnifeCard,
@@ -158,6 +162,10 @@ const cardDefs: CardDef[] = [
     BloodShardCard_0304,
     BloodPactCard_0305,
     BloodyClawsCard_0306,
+    CreateSwordCard,
+    ImprovisedSwordCard,
+    ThrowSwordCard,
+    DeployTurretCard,
 ];
 
 export const CARD_DEF_MAP: Map<string, CardDef> = new Map(cardDefs.map((c) => [c.abilityId, c]));

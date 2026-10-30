@@ -81,6 +81,7 @@ import { Ammo } from '../resources/Ammo';
 import { Light } from '../resources/Light';
 import { Rock } from '../resources/Rock';
 import { Gravity } from '../resources/Gravity';
+import { Charge } from '../resources/Charge';
 import { Movement } from '../resources/Movement';
 import {
     prepareLanterniteNestForMissionStart,
@@ -107,6 +108,7 @@ function attachResourcesFromEquipment(equippedIds: string[], unit: Unit, eventBu
             if (rid === 'light') unit.attachResource(new Light(), eventBus);
             if (rid === 'rock') unit.attachResource(new Rock(), eventBus);
             if (rid === 'gravity') unit.attachResource(new Gravity(), eventBus);
+            if (rid === 'charge') unit.attachResource(new Charge(), eventBus);
             // Extend here as more resource-granting items are added.
         }
     }
@@ -438,6 +440,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                           },
                       }
                     : undefined;
+            const weaponAbilityIds = loadout.weaponAbilityIds.filter((id) => abilities.includes(id));
             const unit = createPlayerUnit(
                 {
                     x: spawnX,
@@ -456,6 +459,7 @@ export abstract class BaseMissionDef implements IBaseMissionDef {
                 params.eventBus,
                 engine,
             );
+            unit.weaponAbilityIds = weaponAbilityIds;
             const maxHunger = getCharacterMaxHunger(
                 researchByPlayer[pu.playerId],
                 researchLevelsByPlayer[pu.playerId],

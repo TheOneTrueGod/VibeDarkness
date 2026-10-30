@@ -116,6 +116,7 @@ export const lightTree: ResearchTreeDef = {
             },
             effects: [
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.BasicCore, toItemId: CORE_ITEM_IDS.LightCore },
+                { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.ArmoryCore, toItemId: CORE_ITEM_IDS.LightCore },
                 { type: 'addCard', cardId: LIGHT_BLAST_ABILITY_ID },
                 { type: 'addCard', cardId: GATHER_LIGHT_ABILITY_ID },
                 { type: 'grantMissionStartResource', resourceId: 'light', amount: LIGHT_CORE_MISSION_START_AMOUNT },

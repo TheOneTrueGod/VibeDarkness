@@ -29,6 +29,12 @@ import {
 } from './types';
 import type { GameEngine } from './GameEngine';
 
+function fieldObjectsJSON(engine: GameEngine): Pick<SerializedGameState, 'droppedWeapons' | 'sentries'> {
+    const saved = engine.state.fieldObjects.toJSON();
+    if (saved.droppedWeapons.length === 0 && saved.sentries.length === 0) return {};
+    return { droppedWeapons: saved.droppedWeapons, sentries: saved.sentries };
+}
+
 export function serializeEngine(engine: GameEngine): SerializedGameState {
     const levelEventData = engine.state.levelEventManager.toJSON();
     const performanceLog = tickPerformanceTracker.getLastPerformanceLog();
@@ -55,6 +61,7 @@ export function serializeEngine(engine: GameEngine): SerializedGameState {
             : null,
         orders: engine.pendingOrders.map((o) => ({ gameTick: o.gameTick, order: { ...o.order, targets: o.order.targets.map((t) => ({ ...t })) } })),
         specialTiles: engine.state.specialTileManager.toJSON() as unknown as import('./types').SerializedSpecialTile[],
+        ...fieldObjectsJSON(engine),
         aiControllerId: engine.aiControllerId,
         firedEventIndices: levelEventData.firedEventIndices,
         victoryCheckFirstEmitDone: levelEventData.victoryCheckFirstEmitDone,
@@ -274,6 +281,10 @@ export function deserializeEngine(
 
     // Restore special tiles AFTER terrain layers and crystal provider setup
     engine.state.specialTileManager.restoreFromJSON(data.specialTiles ?? []);
+    engine.state.fieldObjects.restoreFromJSON({
+        droppedWeapons: data.droppedWeapons ?? [],
+        sentries: data.sentries ?? [],
+    });
 
     // Restore navEpoch and mark NavGrid dirty (after special tiles are restored)
     if (engine.terrainManager) {

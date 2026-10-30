@@ -51,6 +51,8 @@ export function serializeUnit(unit: Unit, currentGameTick: number): Record<strin
             }
             : {}),
         abilities: unit.abilities,
+        ...(unit.weaponAbilityIds.length > 0 ? { weaponAbilityIds: unit.weaponAbilityIds } : {}),
+        ...(unit.heldConjuredWeapon ? { heldConjuredWeapon: unit.heldConjuredWeapon } : {}),
         activeAbilities: unit.activeAbilities.map((a) => ({
             abilityId: a.abilityId,
             startTime: a.startTime,

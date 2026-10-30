@@ -297,6 +297,12 @@ function renderAnchoredSelectTargetDef(
     );
     if (!anchorPoint) return;
     drawClampedLine(gr, anchorPoint, mouseWorld, selectDef.maxRangeFromAnchor, stroke);
+    selectDef.hitbox.renderTargetingPreview(
+        gr,
+        { x: anchorPoint.x, y: anchorPoint.y },
+        mouseWorld,
+        engine.units,
+    );
 }
 
 const MOVE_TARGET_COLOR = 0x333333;

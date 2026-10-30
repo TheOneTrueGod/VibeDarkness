@@ -9,7 +9,7 @@ const BY_TAG = {
     weapon: EQUIPMENT_TREE_IDS,
     equipment: EQUIPMENT_TREE_IDS,
     stat: ['training'],
-    core: ['light_core', 'earth', 'command_core', 'gravity_core', 'blood_mage'],
+    core: ['light_core', 'earth', 'command_core', 'gravity_core', 'blood_mage', 'armory_core'],
 } as const;
 
 describe('research tags', () => {

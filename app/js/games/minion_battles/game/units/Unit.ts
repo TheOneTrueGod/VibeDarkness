@@ -52,6 +52,7 @@ import {
     unitRoundStart,
 } from './unitAbilityLifecycle';
 import type { HoverFlightState } from './hoverFlight';
+import type { HeldConjuredWeaponState } from '../conjuredWeapons/registry';
 import type {
     ActiveCastBehaviourRecord,
     AISettings,
@@ -137,6 +138,13 @@ export class Unit extends GameObject {
 
     /** Ability IDs available to this unit. */
     abilities: string[] = [];
+    /**
+     * Ability ids that came from the equipped weapon (after research replacements).
+     * A conjured weapon hides these and restores them, uses included.
+     */
+    weaponAbilityIds: string[] = [];
+    /** Set while a conjured weapon occupies the weapon slots. Null when the bar is normal. */
+    heldConjuredWeapon: HeldConjuredWeaponState | null = null;
 
     /** Abilities currently being executed (tick-based effects in progress). */
     activeAbilities: ActiveAbility[] = [];

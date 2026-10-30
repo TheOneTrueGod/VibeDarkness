@@ -29,6 +29,7 @@ import { PreviewRenderer } from './renderers/PreviewRenderer';
 import { TerrainEffectRenderer } from './renderers/TerrainEffectRenderer';
 import { FloorTileRenderer } from './renderers/FloorTileRenderer';
 import { MapNetworkRenderer } from './renderers/MapNetworkRenderer';
+import { FieldObjectRenderer } from './renderers/FieldObjectRenderer';
 import { isRenderLayerVisible } from '../../../../debug/renderVisibilityStore';
 import {
 	PERF_UI,
@@ -70,6 +71,7 @@ export class GameRenderer {
 	private terrainEffectRenderer!: TerrainEffectRenderer;
 	private floorTileRenderer!: FloorTileRenderer;
 	private mapNetworkRenderer!: MapNetworkRenderer;
+	private fieldObjectRenderer!: FieldObjectRenderer;
 
 	/** Optional debug: draw a yellow outline around this unit. */
 	private debugUnitOutlineId: string | null = null;
@@ -177,6 +179,7 @@ export class GameRenderer {
 		this.floorTileRenderer = new FloorTileRenderer(this.gameContainer);
 		this.terrainEffectRenderer = new TerrainEffectRenderer(this.gameContainer);
 		this.mapNetworkRenderer = new MapNetworkRenderer(this.gameContainer);
+		this.fieldObjectRenderer = new FieldObjectRenderer(this.gameContainer);
 
 		const afterLoad = (): void => {
 			const tex = this.assetRegistry.getEffectTexture('darkBlob');
@@ -337,6 +340,8 @@ export class GameRenderer {
 					this.lightSourceRenderer.render(engine);
 				}
 			});
+
+			this.fieldObjectRenderer.render(engine);
 
 			tickPerformanceTracker.measure([PERF_UI_CANVAS_PROJECTILES], () => {
 				const projectilesVisible = isRenderLayerVisible('projectiles');

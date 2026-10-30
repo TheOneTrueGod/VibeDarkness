@@ -90,6 +90,10 @@ import { BurstAbility_0302 } from '../card_defs/03_blood_mage/0302_Burst/0302Abi
 import { BloodShardAbility_0304 } from '../card_defs/03_blood_mage/0304_BloodShard/0304Ability';
 import { BloodPactAbility_0305 } from '../card_defs/03_blood_mage/0305_BloodPact/0305Ability';
 import { BloodyClawsAbility_0306 } from '../card_defs/03_blood_mage/0306_BloodyClaws/0306Ability';
+import { CreateSwordAbility } from '../card_defs/10_armory_core/1001_CreateSword/1001Ability';
+import { ImprovisedSwordAbility } from '../card_defs/10_armory_core/1002_ImprovisedSword/1002Ability';
+import { ThrowSwordAbility } from '../card_defs/10_armory_core/1003_ThrowSword/1003Ability';
+import { DeployTurretAbility } from '../card_defs/10_armory_core/1004_DeployTurret/1004Ability';
 import { WaitAbility } from './WaitAbility';
 
 const ABILITY_MAP: Map<string, AbilityStatic> = new Map();
@@ -190,6 +194,10 @@ register(BurstAbility_0302);
 register(BloodShardAbility_0304);
 register(BloodPactAbility_0305);
 register(BloodyClawsAbility_0306);
+register(CreateSwordAbility);
+register(ImprovisedSwordAbility);
+register(ThrowSwordAbility);
+register(DeployTurretAbility);
 
 setAbilityTagResolver((id) => ABILITY_MAP.get(id)?.tags ?? []);
 

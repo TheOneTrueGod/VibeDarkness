@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { RESEARCH_TREES, getResearchTreeContainingNode } from './list';
 import {
+    RESEARCH_TREE_COLOUR_ARMORY,
     RESEARCH_TREE_COLOUR_BLOOD_MAGE,
     RESEARCH_TREE_COLOUR_COMMAND,
     RESEARCH_TREE_COLOUR_EARTH,
@@ -23,6 +24,7 @@ import { lightTree } from './trees/light';
 import { gravityTree } from './trees/gravity';
 import { commandCoreTree } from './trees/command_core';
 import { bloodMageTree } from './trees/blood_mage';
+import { armoryTree } from './trees/armory';
 import { trainingTree } from './trees/training';
 import { miscTree } from './trees/misc';
 
@@ -66,6 +68,8 @@ describe('research tree appearance', () => {
         expect(commandCoreTree.icon).toBe(RESEARCH_TREE_ICON_COMMAND);
         expect(bloodMageTree.colour).toBe(RESEARCH_TREE_COLOUR_BLOOD_MAGE);
         expect(bloodMageTree.icon).toBe(RESEARCH_TREE_ICON_BLOOD_MAGE);
+        expect(armoryTree.colour).toBe(RESEARCH_TREE_COLOUR_ARMORY);
+        expect(armoryTree.icon).toBe(RESEARCH_TREE_ICON_GENERIC);
         expect(trainingTree.colour).toBe(RESEARCH_TREE_COLOUR_GENERIC);
         expect(miscTree.colour).toBe(RESEARCH_TREE_COLOUR_GENERIC);
         expect(trainingTree.icon).toBe(RESEARCH_TREE_ICON_GENERIC);

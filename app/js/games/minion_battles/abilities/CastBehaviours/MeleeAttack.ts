@@ -71,13 +71,16 @@ interface MeleeAttackPayload {
 
 // ---- Behaviour class ----
 
+/** Progress through the active window when the hit resolves. 0 fires on the first tick of that window. */
+export const MELEE_ATTACK_DEFAULT_IMPACT_AT = 0.4;
+
 export class MeleeAttackBehaviour extends BaseAttackBehaviour implements CastBehaviour {
     /** Lock-ons are judged by the tether (lock-on range), not the ability's centre-distance range. */
     readonly keepsUnitTargetsBeyondRange = true;
     private hitboxDef: HitboxDef | HitboxSpec | null = null;
     private impactEffectType: string = 'punch';
     private impactVFXCallback: ((ctx: CastBehaviourTickContext, hitUnits: Unit[], aimX: number, aimY: number) => void) | null = null;
-    private impactAt: number = 0.4;
+    private impactAt: number = MELEE_ATTACK_DEFAULT_IMPACT_AT;
     private slideConfig = { forwardDistance: 12, backwardDistance: 0 };
     private maxHits: number = 1;
     /**

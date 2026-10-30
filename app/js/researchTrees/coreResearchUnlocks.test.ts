@@ -4,6 +4,7 @@ import { canResearchNode, nodeGrantsEquippedItem } from './evaluator';
 import { getResearchNode, getResearchTree } from './list';
 import { MISSION_REWARD_REQUIREMENT } from './types';
 import { BLOOD_MAGE_NODE_CORE, BLOOD_MAGE_TREE_ID, bloodMageTree } from './trees/blood_mage';
+import { ARMORY_NODE_CORE, ARMORY_TREE_ID, armoryTree } from './trees/armory';
 import { COMMAND_CORE_NODE_LOYAL_COMPANION, COMMAND_CORE_TREE_ID, commandCoreTree } from './trees/command_core';
 import { EARTH_NODE_EARTH_CORE, EARTH_TREE_ID, earthTree } from './trees/earth';
 import { GRAVITY_NODE_CORE, GRAVITY_TREE_ID, gravityTree } from './trees/gravity';
@@ -18,6 +19,7 @@ const CORE_UNLOCKS = [
     { treeId: GRAVITY_TREE_ID, nodeId: GRAVITY_NODE_CORE, coreItemId: CORE_ITEM_IDS.GravityCore, tree: gravityTree },
     { treeId: COMMAND_CORE_TREE_ID, nodeId: COMMAND_CORE_NODE_LOYAL_COMPANION, coreItemId: CORE_ITEM_IDS.CommandCore, tree: commandCoreTree },
     { treeId: BLOOD_MAGE_TREE_ID, nodeId: BLOOD_MAGE_NODE_CORE, coreItemId: CORE_ITEM_IDS.BloodMageCore, tree: bloodMageTree },
+    { treeId: ARMORY_TREE_ID, nodeId: ARMORY_NODE_CORE, coreItemId: CORE_ITEM_IDS.ArmoryCore, tree: armoryTree },
 ] as const;
 
 function makeCtx(equipment: string[]): ResearchContext {

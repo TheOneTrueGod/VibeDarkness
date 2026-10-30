@@ -254,6 +254,8 @@ export type AbilityTag =
     | 'basicAttack'
     /** Melee weapon strike; eligible follow-up for "Combos to melee" conditional cancels. */
     | 'melee'
+    /** Sword-family strike. Shared by Swing Sword and conjured swords; modifiers stay per ability. */
+    | 'sword'
     /** Gravity Locus detonates its field on expiry instead of just fading (Repulse research). */
     | 'GravityRepulse'
     /** Shield of Light burst on cast that knocks back darkness creatures (Blinding Flare research). */

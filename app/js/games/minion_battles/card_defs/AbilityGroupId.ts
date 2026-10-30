@@ -5,6 +5,7 @@
  * **07 = Command** pet/companion tree (see `card_defs/07_command_core/`).
  * **08 = Light** skill tree (see `card_defs/08_light_core/`).
  * **09 = Gravity** skill tree (see `card_defs/09_gravity_core/` and `GravityCore.md`).
+ * **10 = Armory** skill tree (see `card_defs/10_armory_core/AGENTS.md` and `ArmoryCore.md`).
  * **03 = Mage** is the Blood Mage tree (`card_defs/03_blood_mage/`, see its `AGENTS.md`).
  *
  * Convention for new groups (full rules in `card_defs/SKILL.md`, **Folder and id convention**): one group per
@@ -23,6 +24,7 @@ export enum AbilityGroupId {
     Command = 7,
     Light = 8,
     Gravity = 9,
+    Armory = 10,
 }
 
 export function formatGroupId(group: AbilityGroupId): string {

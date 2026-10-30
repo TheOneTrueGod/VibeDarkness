@@ -31,6 +31,8 @@ export const RESEARCH_TREE_COLOUR_BLOOD_MAGE = '#f87171';
 export const RESEARCH_TREE_COLOUR_DARKNESS = '#6366f1';
 /** Cool sky — Training, Lightbearer, and other generic trees. */
 export const RESEARCH_TREE_COLOUR_GENERIC = '#7dd3fc';
+/** Steel — Armory Core (reuses the generic icon). */
+export const RESEARCH_TREE_COLOUR_ARMORY = '#a8a29e';
 
 export function resolveResearchTreeChrome(
     tree: Pick<ResearchTreeDef, 'colour' | 'icon'> | undefined,

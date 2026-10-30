@@ -13,6 +13,7 @@ export const ResourceId = {
     Resonance: 'resonance',
     MovementPoints: 'movement_points',
     Super: 'super',
+    Charge: 'charge',
 } as const;
 
 export type ResourceId = (typeof ResourceId)[keyof typeof ResourceId];
@@ -28,6 +29,7 @@ export const ALL_SERIALIZABLE_RESOURCE_IDS: readonly ResourceId[] = [
     ResourceId.Resonance,
     ResourceId.MovementPoints,
     ResourceId.Super,
+    ResourceId.Charge,
 ];
 
 const RESOURCE_ID_SET = new Set<string>(ALL_SERIALIZABLE_RESOURCE_IDS);

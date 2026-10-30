@@ -1262,6 +1262,7 @@ export class GameEngine implements EngineContext {
             this.tickCheckRoundEnd(roundTime);
             this.tickLevelEventsAndUnits(worldDt);
             this.state.unitManager.tickDarknessCorruption(worldDt, this);
+            this.state.fieldObjects.tick(this);
             this.tickProjectiles();
             this.tickEffects(dt);
             this.tickLighting(worldDt);

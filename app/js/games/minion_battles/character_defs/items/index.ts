@@ -14,6 +14,7 @@ import { coreGravityItem } from './core/018_core_gravity';
 import { coreEarthItem } from './core/019_core_earth';
 import { coreCommandItem } from './core/020_core_command';
 import { coreBloodMageItem } from './core/022_core_blood_mage';
+import { coreArmoryItem } from './core/023_core_armory';
 import { pistolItem } from './weapons/007_pistol';
 import { smgItem } from './weapons/008_smg';
 import { shotgunItem } from './weapons/009_shotgun';
@@ -46,6 +47,7 @@ export const CORE_ITEM_IDS = {
     EarthCore: coreEarthItem.id,
     CommandCore: coreCommandItem.id,
     BloodMageCore: coreBloodMageItem.id,
+    ArmoryCore: coreArmoryItem.id,
 } as const;
 
 /** Icon URL per item id (for Character Editor etc.), from `assets/<ItemDef.icon>`. */

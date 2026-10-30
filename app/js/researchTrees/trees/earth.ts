@@ -93,6 +93,7 @@ export const earthTree: ResearchTreeDef = {
                 { type: 'addCard', cardId: '0111' },
                 { type: 'addCard', cardId: '0537' },
                 { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.BasicCore, toItemId: CORE_ITEM_IDS.EarthCore },
+                { type: 'replaceEquippedItem', fromItemId: CORE_ITEM_IDS.ArmoryCore, toItemId: CORE_ITEM_IDS.EarthCore },
                 { type: 'replaceCard', fromCardId: 'throw_rock', toCardId: 'earth_core_throw_rock' },
                 { type: 'grantMissionStartResource', resourceId: 'rock', amount: EARTH_CORE_MISSION_START_ROCK_AMOUNT },
             ],

@@ -26,6 +26,7 @@ import { InterruptSystem } from './units/unitAI/plans/InterruptSystem';
 import { WorldModifierManager } from '../worldModifiers/WorldModifierManager';
 import type { NinjutsuManager } from './ninjutsu/NinjutsuManager';
 import { MapNetworkManager } from './managers/mapNetwork/MapNetworkManager';
+import { FieldObjectManager } from './fieldObjects/FieldObjectManager';
 import { TimeManager } from './time/TimeManager';
 import { getActorTempo } from './time/actorClock';
 import type { PassiveBonuses } from '../../../researchTrees/types';
@@ -86,6 +87,9 @@ export class GameState {
 
     /** Query/consume view over everything abilities leave on the map (lights, bramble, story tiles). */
     readonly deployables = new DeployableRegistry();
+
+    /** Dropped weapons and sentries. Not units. */
+    readonly fieldObjects: FieldObjectManager;
 
     /** POIs from the loaded map segment(s), used for enemySpawn point lookups. */
     mapPOIs: MapSegmentPOI[] = [];
@@ -151,6 +155,8 @@ export class GameState {
         this.interruptSystem = new InterruptSystem(() => this.unitManager.units);
         this.worldModifierManager = new WorldModifierManager(ctx);
         this.mapNetworkManager = new MapNetworkManager();
+        this.fieldObjects = new FieldObjectManager();
+        this.deployables.registerProvider(this.fieldObjects);
         this.deployables.registerProvider(this.lightSourceManager);
         this.deployables.registerProvider(this.specialTileManager);
         // GameEngine.fromJSON replaces `terrainLayers`, so resolve it at call time.

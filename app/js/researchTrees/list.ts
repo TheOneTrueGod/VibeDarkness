@@ -7,6 +7,7 @@ import { commandCoreTree } from './trees/command_core';
 import { lightTree } from './trees/light';
 import { gravityTree } from './trees/gravity';
 import { bloodMageTree } from './trees/blood_mage';
+import { armoryTree } from './trees/armory';
 import { darknessUpgradesTree } from './trees/darkness_upgrades';
 import { weaponsTree } from './trees/weapons';
 
@@ -18,6 +19,7 @@ export const RESEARCH_TREES: ResearchTreeDef[] = [
     lightTree,
     gravityTree,
     bloodMageTree,
+    armoryTree,
     darknessUpgradesTree,
     weaponsTree,
 ];

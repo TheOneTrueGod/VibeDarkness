@@ -7,6 +7,7 @@ import type { Projectile } from '../game/projectiles/Projectile';
 import type { Deployable, DeployableQuery } from '../game/deployables/Deployable';
 import type { SpawnSource, ResolvedTarget } from '../game/types';
 import type { PassiveBonuses } from '../../../researchTrees/types';
+import type { FieldObjectManager } from '../game/fieldObjects/FieldObjectManager';
 
 /**
  * Shared engine context for ability implementations.
@@ -56,5 +57,6 @@ export interface AbilityEngineContext {
                 order: { unitId: string; abilityId: string; targets: ResolvedTarget[] },
             ): void;
         };
+        fieldObjects?: FieldObjectManager;
     };
 }

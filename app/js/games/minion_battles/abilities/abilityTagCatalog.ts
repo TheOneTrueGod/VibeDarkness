@@ -15,6 +15,7 @@ export type AbilityTagSettingsByTag = {
     free: PriorityTagSettings;
     basicAttack: PriorityTagSettings;
     melee: PriorityTagSettings;
+    sword: PriorityTagSettings;
     secondary: PriorityTagSettings;
     GravityRepulse: PriorityTagSettings;
     LightShieldFlare: PriorityTagSettings;
@@ -67,6 +68,7 @@ export const ABILITY_TAG_CATALOG: AbilityTagCatalog = {
         autoAddToDescription: true,
     },
     melee: { hint: 'Melee weapon strike', displayName: 'Melee' },
+    sword: { hint: 'Sword', displayName: 'Sword' },
     secondary: {
         hint: 'Granted by another ability',
         displayName: 'Secondary',

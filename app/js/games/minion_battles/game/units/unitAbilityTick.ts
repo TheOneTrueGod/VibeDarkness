@@ -8,6 +8,7 @@
 import type { Unit } from './Unit';
 import { getCastElapsed, localNow } from '../time/actorClock';
 import type { EngineContext } from '../EngineContext';
+import { onConjuredWeaponCastEnded } from '../conjuredWeapons/runtime';
 import { getAbility } from '../../abilities/AbilityRegistry';
 import {
     normalizeAbilityTimingsToIntervals,
@@ -764,6 +765,7 @@ export function tickUnitActiveAbilities(
         if (ability?.clearMovementOnComplete) {
             unit.clearMovement();
         }
+        onConjuredWeaponCastEnded(unit, active.abilityId, engine);
         onNaturalCompletion();
         unit.activeAbilities.splice(completedIndex, 1);
     }

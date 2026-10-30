@@ -97,7 +97,7 @@ export const SPRITE_EFFECT_DEFS: Record<string, SpriteEffectDef> = {
 
 const svgTextureCache = new Map<string, Texture | 'loading'>();
 
-function getSvgTexture(svg: string): Texture | null {
+export function loadSvgTexture(svg: string): Texture | null {
     const cached = svgTextureCache.get(svg);
     if (cached === 'loading') return null;
     if (cached instanceof Texture) return cached;
@@ -203,7 +203,7 @@ interface SpriteEffectData {
 function resolveTexture(def: SpriteEffectDef | undefined, context: IEffectRenderContext): Texture | null {
     if (!def) return null;
     if (def.texture) return context.getEffectTexture(def.texture as EffectImageKey);
-    if (def.svg) return getSvgTexture(def.svg);
+    if (def.svg) return loadSvgTexture(def.svg);
     if (def.characterSprite) return context.getCharacterTexture?.(def.characterSprite) ?? null;
     return null;
 }

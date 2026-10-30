@@ -15,6 +15,7 @@ import { applyUnitComponentsFromJSON } from './components/unitComponent';
 import { applyCcArmourStateFromJSON } from '../../crowdControl/ccArmourState';
 import { hoverFlightFromJSON } from './hoverFlight';
 import type { PendingFrozenHit } from './unitDamage';
+import type { HeldConjuredWeaponState } from '../conjuredWeapons/registry';
 import type { UnitTerrainHazardState } from '../terrainHazards/drowning';
 
 /** Old unit.characterId values for player units before unified `player` id. */
@@ -188,6 +189,10 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
         ? (data.pendingFrozenHits as PendingFrozenHit[]).map((h) => ({ ...h }))
         : [];
     unit.tags = parseUnitTagsFromJSON(data.tags);
+    unit.weaponAbilityIds = Array.isArray(data.weaponAbilityIds)
+        ? (data.weaponAbilityIds as unknown[]).filter((id): id is string => typeof id === 'string')
+        : [];
+    unit.heldConjuredWeapon = parseHeldConjuredWeapon(data.heldConjuredWeapon);
     if (data.controllable === false) {
         unit.controllable = false;
     }
@@ -222,4 +227,14 @@ export function applySerializedUnitState(unit: Unit, data: Record<string, unknow
     }
 
     // Resources are reattached by the unit subclass factory
+}
+
+function parseHeldConjuredWeapon(raw: unknown): HeldConjuredWeaponState | null {
+    if (raw == null || typeof raw !== 'object') return null;
+    const rec = raw as { defId?: unknown; stowedAbilityIds?: unknown };
+    if (typeof rec.defId !== 'string') return null;
+    const stowedAbilityIds = Array.isArray(rec.stowedAbilityIds)
+        ? rec.stowedAbilityIds.filter((id): id is string => typeof id === 'string')
+        : [];
+    return { defId: rec.defId, stowedAbilityIds };
 }

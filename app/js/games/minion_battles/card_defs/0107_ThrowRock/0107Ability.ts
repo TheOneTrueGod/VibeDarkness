@@ -31,6 +31,7 @@ import {
     ROCK_THROW_PROFILE,
     THROW_PROJECTILE_SPEED,
     THROW_RANGE,
+    THROW_ROCK_SPRITE_CONFIG,
     throwMovementPenaltyStates,
     throwMovementPenaltyStatesForActive,
     TWO_PIXEL_TARGETS,
@@ -46,13 +47,6 @@ const BASE_DAMAGE = THROW_ROCK_BASE_DAMAGE;
 export const THROW_ROCK_MORE_POWER_DAMAGE = 8;
 const MORE_POWER_DAMAGE = THROW_ROCK_MORE_POWER_DAMAGE;
 export const MORE_ROCK_HIT_COUNT = 2;
-
-const ROCK_SPIN_F1_URL = new URL('../../assets/projectiles/rock_spin_f1.svg', import.meta.url).href;
-const ROCK_SPIN_F2_URL = new URL('../../assets/projectiles/rock_spin_f2.svg', import.meta.url).href;
-const ROCK_SPIN_F3_URL = new URL('../../assets/projectiles/rock_spin_f3.svg', import.meta.url).href;
-const ROCK_SPIN_F4_URL = new URL('../../assets/projectiles/rock_spin_f4.svg', import.meta.url).href;
-/** Pixi scale for the spinning rock projectile sprite (1.0 = native 64px asset size). */
-const ROCK_PROJECTILE_SCALE = 0.25;
 
 const ENTOMBED_OPTS = {
     cancelIntervalId: 'active',
@@ -86,16 +80,7 @@ function rockLaunchBehaviour(abilityId: string) {
         .withMaxRange(THROW_RANGE)
         .withTravelFullRange()
         .withResolveDamage((ctx) => resolveRockProjectileDamage(abilityId, ctx))
-        .withSpriteConfig({
-            sprite: {
-                fps: 8,
-                scale: ROCK_PROJECTILE_SCALE,
-                frameFiles: [ROCK_SPIN_F1_URL, ROCK_SPIN_F2_URL, ROCK_SPIN_F3_URL, ROCK_SPIN_F4_URL],
-            },
-            loop: true,
-            trail: { effectType: 'BulletTrail' },
-            animations: [{ type: 'rotation', mode: 'constant', degreesPerSecond: 180 }],
-        });
+        .withSpriteConfig(THROW_ROCK_SPRITE_CONFIG);
 }
 
 const THROW_ROCK_IMAGE = `<svg width="40" height="40" xmlns="http://www.w3.org/2000/svg">
