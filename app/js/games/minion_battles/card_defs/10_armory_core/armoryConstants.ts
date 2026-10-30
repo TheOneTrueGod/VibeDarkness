@@ -25,6 +25,18 @@ export const CHARGE_PER_ROUND = 3;
 export const ARMORY_ABILITY_CHARGE_COST = 2;
 
 export const CREATE_SWORD_CAST_DURATION = 1;
+/** Speed multiplier while the swords are forming. 1 is full speed. */
+export const CREATE_SWORD_MOVE_MULT = 0.5;
+/** Blades in the conjure orbit. */
+export const CONJURE_SWORD_COUNT = 4;
+/** How far the blades travel from the caster at the widest point of the orbit, in pixels. */
+export const CONJURE_SWORD_ORBIT_RADIUS = 1.5 * CELL_SIZE;
+/** Full turns the ring makes while the blades go out and come back. */
+export const CONJURE_SWORD_ORBIT_TURNS = 1;
+/** Share of the cast spent fading in, and again fading out, at the ends of the orbit. */
+export const CONJURE_SWORD_FADE_PORTION = 0.12;
+/** Drawn size of each orbiting blade, relative to the card art. */
+export const CONJURE_SWORD_SCALE = 0.55;
 export const IMPROVISED_SWORD_DAMAGE = 12;
 export const IMPROVISED_SWORD_MAX_USES = 2;
 /** Slash window, matching Swing Sword. The hit is the melee impact through this window. */

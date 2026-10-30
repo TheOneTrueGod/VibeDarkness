@@ -3,6 +3,7 @@ import { FIXED_DT, ROUND_DURATION } from '../../game/gameConstants';
 import { GameEngine } from '../../game/GameEngine';
 import type { ResolvedTarget } from '../../game/types';
 import { executeUnitAbility } from '../../game/units/unitAbilityLifecycle';
+import { getUnitEffectiveSpeed } from '../../game/units/unitAbilityQueries';
 import '../../abilities/AbilityRegistry';
 import { CORE_ITEM_IDS } from '../../character_defs/items';
 import { swordItem } from '../../character_defs/items/weapons/013_sword';
@@ -18,6 +19,7 @@ import {
     CHARGE_MISSION_START,
     CREATE_SWORD_ABILITY_ID,
     CREATE_SWORD_CAST_DURATION,
+    CREATE_SWORD_MOVE_MULT,
     DEPLOY_TURRET_ABILITY_ID,
     DROPPED_WEAPON_ARC_DISTANCE,
     IMPROVISED_SWORD_ABILITY_ID,
@@ -106,6 +108,21 @@ describe('Armory Core', () => {
         expect(player.abilities).toContain(DEPLOY_TURRET_ABILITY_ID);
         expect(player.weaponAbilityIds).toContain(swordItem.cardsToAdd[0]);
         expect(IMPROVISED_SWORD_DAMAGE).toBeGreaterThan(SWING_SWORD_DAMAGE);
+    });
+
+    it('walks at a penalty while the swords are forming', () => {
+        const { engine } = armoryBattle();
+        const player = engine.units[0]!;
+        executeUnitAbility(player, CreateSwordAbility, [], engine);
+        expect(getUnitEffectiveSpeed(player, engine.gameTime)).toBeCloseTo(player.speed * CREATE_SWORD_MOVE_MULT);
+        player.setMovement([{ col: 9, row: 5 }], undefined, engine.gameTick);
+        const originX = player.x;
+        const ticks = 12;
+        stepTicks(engine, ticks);
+        const traveled = player.x - originX;
+        const fullSpeedDistance = player.speed * ticks * FIXED_DT;
+        expect(traveled).toBeGreaterThan(0);
+        expect(traveled).toBeLessThan(fullSpeedDistance);
     });
 
     it('replaces weapon abilities while the sword is held, then drops a token that does not expire', () => {

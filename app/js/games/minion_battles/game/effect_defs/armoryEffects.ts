@@ -1,5 +1,5 @@
 /**
- * Armory visuals: the sword condensing into the caster, and the short discard arc.
+ * Armory visuals: four blades orbiting the caster, and the short discard arc.
  * Both use the sword ability-card image. They are unserialized effects.
  * The dropped token is the gameplay object.
  */
@@ -7,37 +7,43 @@ import { Container } from 'pixi.js';
 import type { Sprite } from 'pixi.js';
 import type { Effect } from '../effects/Effect';
 import type { IEffectDef, IEffectRenderContext } from './types';
-import { DROPPED_WEAPON_ARC_LIFT } from '../../card_defs/10_armory_core/armoryConstants';
 import {
-    CONJURE_SWORD_SCALE_END,
-    CONJURE_SWORD_SCALE_START,
+    CONJURE_SWORD_COUNT,
+    CONJURE_SWORD_SCALE,
+    DROPPED_WEAPON_ARC_LIFT,
+} from '../../card_defs/10_armory_core/armoryConstants';
+import { conjureSwordPose } from './conjureSwordOrbit';
+import {
     DISCARD_SWORD_SCALE,
     createSwordCardSprite,
     sizeSwordCardSprite,
     syncSwordCardTexture,
 } from '../fieldObjects/swordCardSprite';
 
-const CONJURE_FADE_IN_END = 0.85;
-const CONJURE_ALPHA_START = 0.28;
 const DISCARD_FADE_START = 0.9;
 /** One full turn over the discard flight. */
 const DISCARD_ARC_TURNS = 1;
 
 export const conjureSwordEffectDef: IEffectDef = {
     createVisual(): Container {
-        return createSwordCardSprite();
+        const root = new Container();
+        for (let i = 0; i < CONJURE_SWORD_COUNT; i++) {
+            root.addChild(createSwordCardSprite());
+        }
+        return root;
     },
     updateVisual(visual, effect: Effect, _context: IEffectRenderContext): void {
-        const sprite = visual as Sprite;
-        syncSwordCardTexture(sprite);
-        const t = effect.progress;
-        const scale = CONJURE_SWORD_SCALE_START + (CONJURE_SWORD_SCALE_END - CONJURE_SWORD_SCALE_START) * t;
-        const alpha = t < CONJURE_FADE_IN_END
-            ? CONJURE_ALPHA_START + (1 - CONJURE_ALPHA_START) * (t / CONJURE_FADE_IN_END)
-            : 1 - (t - CONJURE_FADE_IN_END) / (1 - CONJURE_FADE_IN_END);
-        sizeSwordCardSprite(sprite, Math.max(CONJURE_SWORD_SCALE_END, scale));
-        sprite.alpha = Math.max(0, alpha);
-        sprite.rotation = 0;
+        const progress = effect.progress;
+        for (let i = 0; i < visual.children.length; i++) {
+            const sprite = visual.children[i] as Sprite | undefined;
+            if (!sprite) continue;
+            syncSwordCardTexture(sprite);
+            const pose = conjureSwordPose(i, progress);
+            sprite.position.set(pose.x, pose.y);
+            sprite.rotation = pose.rotation;
+            sprite.alpha = pose.alpha;
+            sizeSwordCardSprite(sprite, CONJURE_SWORD_SCALE);
+        }
     },
 };
 

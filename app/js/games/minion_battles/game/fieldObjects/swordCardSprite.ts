@@ -1,6 +1,6 @@
 /**
  * Card art for Create Sword, Improvised Sword, and Throw Sword.
- * The conjure shrink, the discard arc, and the dropped token all use this image.
+ * The conjure orbit, the discard arc, and the dropped token all use this image.
  */
 import { Assets, Sprite, Texture } from 'pixi.js';
 import swordCardUrl from '../../character_defs/items/assets/013_sword.svg';
@@ -8,8 +8,6 @@ import swordCardUrl from '../../character_defs/items/assets/013_sword.svg';
 /** Square world size at scale 1. Replaces the old drawn blade, which was about this tall. */
 export const SWORD_CARD_ART_PX = 38;
 
-export const CONJURE_SWORD_SCALE_START = 1.8;
-export const CONJURE_SWORD_SCALE_END = 0.15;
 export const DROPPED_SWORD_SCALE = 0.4;
 export const DISCARD_SWORD_SCALE = 0.45;
 

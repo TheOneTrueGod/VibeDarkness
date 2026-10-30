@@ -79,6 +79,7 @@ export class EffectManager {
     renderUpdate(realDt: number, halted = false): void {
         for (const effect of this.effects) {
             if (!effect.active) continue;
+            followOwner(this.ctx, effect);
             if (halted) {
                 const behaviour = resolveEffectPauseBehaviour(effect);
                 if (behaviour === 'hold') continue;
@@ -92,4 +93,15 @@ export class EffectManager {
     cleanupInactive(): void {
         this.effects = this.effects.filter((e) => e.active);
     }
+}
+
+/** Visuals marked followOwner stay on their owner while that unit walks. */
+function followOwner(ctx: EngineContext, effect: Effect): void {
+    if (effect.effectData.followOwner !== true) return;
+    const ownerId = effect.ownerActorId;
+    if (!ownerId) return;
+    const unit = ctx.getUnit(ownerId);
+    if (!unit) return;
+    effect.x = unit.x;
+    effect.y = unit.y;
 }

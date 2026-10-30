@@ -77,6 +77,31 @@ describe('effect timeDomain', () => {
         expect(framesToExpire(mgr, fx)).toBe(59);
     });
 
+    it('a followOwner effect stays on its owner', () => {
+        const owner = { id: 'caster', x: 10, y: 20 };
+        const { ctx } = makeCtx(1);
+        const following = {
+            ...ctx,
+            getUnit: (id: string) => (id === owner.id ? owner : undefined),
+        } as EngineContext;
+        const mgr = new EffectManager(following);
+        const fx = new Effect({
+            x: 0,
+            y: 0,
+            duration: 1,
+            effectType: 'ConjureSword',
+            ownerActorId: owner.id,
+            effectData: { followOwner: true },
+        });
+        mgr.addEffect(fx);
+        mgr.renderUpdate(FIXED_DT);
+        expect(fx.x).toBe(owner.x);
+        expect(fx.y).toBe(owner.y);
+        owner.x = 40;
+        mgr.renderUpdate(FIXED_DT);
+        expect(fx.x).toBe(40);
+    });
+
     it('TorchProjectile completion uses ticks by default and scales for world domain', () => {
         for (const [domain, expected] of [[undefined, 30], ['world', 60]] as const) {
             const { ctx, lights } = makeCtx(0.5);

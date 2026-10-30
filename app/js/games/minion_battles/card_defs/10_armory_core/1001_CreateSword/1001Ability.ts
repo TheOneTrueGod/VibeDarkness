@@ -1,13 +1,15 @@
 /**
  * Create Sword — conjure a blade over one second, then hold it.
  *
- * A sword icon shrinks onto the caster and fades in as the cast finishes.
- * Weapon abilities are replaced by Improvised Sword. Create Sword itself swaps
- * for Throw Sword. If a conjured weapon is already held, it is discarded as this cast starts.
+ * Four sword icons spin out around the caster, circle, and come back in.
+ * The caster can keep walking, at reduced speed. Weapon abilities are replaced
+ * by Improvised Sword when the cast ends. Create Sword itself swaps for Throw Sword.
+ * If a conjured weapon is already held, it is discarded as this cast starts.
  * Costs Charge. One use, recovered at each round start.
  */
 
-import type { AbilityRecoveryRule } from '../../../abilities/Ability';
+import type { AbilityRecoveryRule, AbilityStateEntry } from '../../../abilities/Ability';
+import { AbilityState } from '../../../abilities/Ability';
 import { defineAbility } from '../../../abilities/defineAbility';
 import swordItemIconSvg from '../../../character_defs/items/assets/013_sword.svg?raw';
 import { AbilityPhase, type AbilityTimingInterval } from '../../../abilities/abilityTimings';
@@ -28,6 +30,7 @@ import {
     CONJURE_SWORD_EFFECT_TYPE,
     CREATE_SWORD_ABILITY_ID,
     CREATE_SWORD_CAST_DURATION,
+    CREATE_SWORD_MOVE_MULT,
 } from '../armoryConstants';
 import '../armoryWeapons';
 
@@ -37,6 +40,7 @@ const RECOVERIES: AbilityRecoveryRule[] = [
 
 const TOOLTIP_LINES = [
     'Conjure a sword. Your weapon abilities become Improvised Sword until it is thrown or its uses are spent.',
+    'You can keep walking, more slowly, while the blades form.',
 ] as const;
 
 const ABILITY_TIMINGS: AbilityTimingInterval[] = [
@@ -69,7 +73,12 @@ export const CreateSwordAbility = defineAbility({
     targets: [],
     getRange: () => ({ minRange: 0, maxRange: 0 }),
     abilityTimings: ABILITY_TIMINGS,
-    movementLock: { until: CREATE_SWORD_CAST_DURATION },
+    getAbilityStates(currentTime: number): AbilityStateEntry[] {
+        if (currentTime < CREATE_SWORD_CAST_DURATION) {
+            return [{ state: AbilityState.MOVEMENT_PENALTY, data: { amount: CREATE_SWORD_MOVE_MULT } }];
+        }
+        return [];
+    },
     getTooltipText(gameState?: unknown): string[] {
         return formatTooltipLegacyLines(
             TOOLTIP_LINES,
@@ -90,6 +99,7 @@ export const CreateSwordAbility = defineAbility({
             timeDomain: 'owner',
             ownerActorId: caster.id,
             pauseBehaviour: 'hold',
+            effectData: { followOwner: true },
         }));
     },
 });
